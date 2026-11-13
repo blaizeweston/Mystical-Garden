@@ -104,14 +104,31 @@ def input_manifest(project, names):
 def seed_cache(project, shared):
     cache = shared / "validation"
     validate_archive(cache)
-    if not cache.is_dir():
-        return
-    for folder, directories, files in os.walk(cache, followlinks=False):
-        for name in directories + files:
-            item = Path(folder) / name
-            if item.lstat().st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT:
-                raise ValueError("The reusable validation archive contains a redirected path.")
-    shutil.copytree(cache, project / ".godot/validation")
+    for name, packaged in (("cache.json", False), ("package-cache.json", True)):
+        index = cache / name
+        if not index.is_file():
+            continue
+        if index.lstat().st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+            raise ValueError("The reusable validation index is redirected.")
+        content = evidence.read_json(index)
+        rows = content["results"].values() if packaged else (item["logs"] for item in content.values())
+        destination = project / ".godot/validation"
+        for row in rows:
+            for relative in row:
+                path = Path(relative)
+                if path.is_absolute() or ".." in path.parts:
+                    raise ValueError("The reusable validation log escaped its root.")
+                original = cache / path
+                validate_archive(original.parent)
+                if not original.is_file():
+                    continue  # The strict planner will run the fixture again.
+                if original.lstat().st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+                    raise ValueError("The reusable validation log is redirected.")
+                copy = destination / path
+                copy.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(original, copy)
+        destination.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(index, destination / name)
 
 
 def keep_cache(project, shared, output):
