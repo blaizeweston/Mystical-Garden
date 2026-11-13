@@ -67,12 +67,22 @@ func host() -> void:
  mark("full")
  check(await until(func():return read("overflow-done")=="yes"),"fifth player attempt completed")
  check(game.players.size()==4,"capacity refused without replacing the existing party")
+ var class_id: int = player_id(game,"1")
+ game.players[class_id].pos = game.Stage.HEART
+ mark("class-abort-ready")
+ if not await until(func(): return game.players.get(class_id,{}).get("projection_delivery",{}).get("state")=="aborted" and read("class-abort-done")=="yes"):
+  check(false,"guest class save abort acknowledged")
+  return
+ var class_record: Dictionary = game.progress.character_records[game.players[class_id].seed_owner]
+ check(class_record.profile.active_class==1,"host commits class before guest abort")
+ print("CASE ",JSON.stringify({"case":"class_host_commit_guest_abort","revision":class_record.projection.revision,"garden":FileAccess.get_sha256(G)}))
  mark("reconnect-ready")
  var revisions: Array = []
  for player in game.players.values():
   if not player.has("projection_delivery"): continue
   revisions.append(player.projection_delivery.revision)
- check(revisions==[1,1,1] and game.progress.character_records.size()>=3,"host tracks all three committed admissions")
+ revisions.sort()
+ check(revisions==[1,1,2] and game.progress.character_records.size()>=3,"host retains the class revision through failed guest save")
  var receipts: int = game.progress.character_records.size()
  if not await until(func(): return read("reconnected")=="yes" and game.players.size()==4 and committed_guests(game)==3):
   check(false,"guest reconnect through title and acknowledges its committed profile")
@@ -92,7 +102,63 @@ func host() -> void:
   return
  check(game.progress.plots[0].species<0 and FileAccess.get_sha256(G)!=garden_before,"host harvest commits Garden in full party")
  print("CASE ",JSON.stringify({"case":"full_party_harvest","before":garden_before,"after":FileAccess.get_sha256(G),"delivery":harvester.projection_delivery}))
- var peer_id: int = game.players.keys().filter(func(id): return id!=1 and game.players[id].character.name=="Release Guest 3")[0]
+ var loadout_id: int = player_id(game,"2")
+ game.players[loadout_id].pos = game.Stage.GATE
+ mark("loadout-ready")
+ if not await until(func(): return read("loadout-done")=="yes" and game.players[loadout_id].character.loadouts[0].weapon==1 and game.players[loadout_id].projection_delivery.get("state")=="committed"):
+  check(false,"loadout projection acknowledgment")
+  return
+ game.send_committed_profile(loadout_id)
+ mark("duplicate-loadout")
+ if not await until(func(): return read("duplicate-done")=="yes"):
+  check(false,"guest deduplicates loadout projection")
+  return
+
+ # Hold only host simulation so the fixture can inspect departure and a frozen
+ # reward deterministically. ENet polling and the guest worlds remain live.
+ game.set_physics_process(false)
+ for actor in game.players.values(): actor.pos = game.Stage.GATE
+ game.garden_action(1,"depart")
+ mark("party-depart")
+ if not await until(func(): return game.players.values().all(func(actor): return actor.wild)):
+  check(false,"all four ready and departed")
+  return
+ var battle_before := FileAccess.get_sha256(G)
+ var kind: int = game.enemy_kind
+ var host_count: int = game.players[1].character.monsters[kind]
+ game.record_enemy_death(-1,game.enemy_pos,Vector3.ZERO)
+ var frozen: int = game.rng.state
+ game.record_enemy_death(-1,game.enemy_pos,Vector3.ZERO)
+ check(game.pending_kill_rewards.size()==1 and game.rng.state==frozen,"duplicate kill cannot reroll")
+ game.enemy_hp=0
+ game.scouts.clear()
+ game.finish_combat(1,game.enemy_pos)
+ if not await until(func(): return read("combat-1")=="yes" and read("combat-2")=="yes" and read("combat-3")=="yes" and committed_guests(game)==3):
+  check(false,"all three guest reward profiles commit and acknowledge")
+  return
+ check(game.encounter_rewarded and game.pending_kill_rewards.is_empty() and game.players[1].character.monsters[kind]==host_count+1
+  and FileAccess.get_sha256(G)!=battle_before,"host reward and adaptation commit")
+ print("CASE ",JSON.stringify({"case":"four_player_combat","before":battle_before,"after":FileAccess.get_sha256(G),"kind":kind}))
+ var leaving: int = player_id(game,"1")
+ var identity: String = game.players[leaving].seed_owner
+ var kills: int = game.players[leaving].character.monsters[kind]
+ game.MonsterRewards.queue(game,"pending-on-disconnect",kind,0,game.enemy_pos,false)
+ game.set_meta(&"guarded_gameplay_test_fault",func(phase,_path): return ERR_FILE_CANT_WRITE if phase=="stage" else OK)
+ var disconnect_before := FileAccess.get_sha256(G)
+ mark("disconnect-pending")
+ if not await until(func(): return not game.players.has(leaving) and read("offline-1")=="yes"):
+  check(false,"actual peer disconnect with pending host rewards")
+  return
+ check(game.pending_departures.has(leaving) and game.pending_kill_rewards.size()==1
+  and FileAccess.get_sha256(G)==disconnect_before and game.status.begins_with("Save cancelled"),"failed disconnect settlement retains pending reward and Garden bytes")
+ game.remove_meta(&"guarded_gameplay_test_fault")
+ check(game.MonsterRewards.flush(game) and game.pending_departures.is_empty() and game.pending_kill_rewards.is_empty()
+  and int(game.progress.character_records[identity].profile.monsters[kind])==kills+1,"committed flush credits disconnected identity once")
+ var flushed := FileAccess.get_sha256(G)
+ check(game.MonsterRewards.flush(game) and FileAccess.get_sha256(G)==flushed,"empty retry does not duplicate detached reward")
+ print("CASE ",JSON.stringify({"case":"pending_disconnect_reward","before":disconnect_before,"after":flushed,"identity":identity}))
+ mark("expire-lease")
+ var peer_id: int = player_id(game,"3")
  check(await until(func(): return read("lease-ready")=="yes" and game.players.has(peer_id)),"guest expired its local lease")
  var actor: Dictionary = game.players[peer_id]
  var projection = load("res://guest_profile_projection.gd")
@@ -151,7 +217,18 @@ func guest(role: String) -> void:
  check(FileAccess.get_sha256(P)!=before and game.guest_character.projection_receipts.size()==1 and not FileAccess.file_exists(G),"guest committed only its own receipt")
  print("CASE ",JSON.stringify({"case":"guest_receipt","role":role,"before":before,"after":FileAccess.get_sha256(P),"receipts":game.guest_character.projection_receipts}))
  if role=="1":
-  check(await until(func():return read("reconnect-ready")=="yes"),"overflow completed before reconnect")
+  if not await until(func():return read("class-abort-ready")=="yes"):
+   check(false,"host prepared class change")
+   return
+  var class_before := FileAccess.get_sha256(P)
+  game.set_meta(&"guarded_gameplay_test_fault",func(phase,_path): return ERR_FILE_CANT_WRITE if phase=="stage" else OK)
+  game.send_garden_action("class_1")
+  check(await until(func(): return game.has_meta(&"guest_projection_notice")),"guest observes class profile abort")
+  check(FileAccess.get_sha256(P)==class_before and game.guest_character.data.active_class==0
+   and not game.status.contains("selected."),"class abort preserves canonical profile and withholds success")
+  game.remove_meta(&"guarded_gameplay_test_fault")
+  mark("class-abort-done")
+  check(await until(func():return read("reconnect-ready")=="yes"),"host observes aborted class projection")
   game.leave_game("Reconnect acceptance")
   check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer and not FileAccess.file_exists(P.get_base_dir().path_join("session.cfg")),"guest releases lease before reconnect")
   await process_frame
@@ -162,6 +239,7 @@ func guest(role: String) -> void:
   if not await until(func(): return admitted(game_id)):
    check(false,"real title reconnect")
    return
+  check(game.guest_character.data.active_class==1 and FileAccess.get_sha256(P)!=class_before,"reconnect applies host class once")
   mark("reconnected")
  if role=="2":
   if not await until(func(): return not read("harvest-request").is_empty()):
@@ -174,9 +252,40 @@ func guest(role: String) -> void:
    return
   check(FileAccess.get_sha256(P)!=before_harvest,"guest harvest writes owned local profile")
   mark("harvest-done")
+  check(await until(func(): return read("loadout-ready")=="yes"),"loadout is eligible at the gate")
+  var loadout_before := FileAccess.get_sha256(P)
+  game.send_garden_action("loadweapon_1")
+  check(await until(func(): return game.guest_character.data.loadouts[0].weapon==1),"guest loadout committed")
+  var loadout_after := FileAccess.get_sha256(P)
+  check(loadout_after!=loadout_before,"loadout changes own profile bytes")
+  mark("loadout-done")
+  check(await until(func(): return read("duplicate-loadout")=="yes"),"duplicate loadout sent")
+  await create_timer(.3).timeout
+  check(FileAccess.get_sha256(P)==loadout_after,"duplicate loadout preserves bytes")
+  print("CASE ",JSON.stringify({"case":"loadout_commit_duplicate","before":loadout_before,"after":loadout_after}))
+  mark("duplicate-done")
+ if not await until(func(): return read("party-depart")=="yes"):
+  check(false,"host prepares party departure")
+  return
+ var reward_before := FileAccess.get_sha256(P)
+ var old_monsters: Array = game.guest_character.data.monsters.duplicate()
+ game.send_garden_action("depart")
+ if not await until(func(): return game.guest_character.data.monsters!=old_monsters):
+  check(false,"guest combat projection committed")
+  return
+ check(FileAccess.get_sha256(P)!=reward_before and not FileAccess.file_exists(G),"combat updates only guest-owned profile")
+ print("CASE ",JSON.stringify({"case":"combat_guest_profile","role":role,"before":reward_before,"after":FileAccess.get_sha256(P)}))
+ mark("combat-"+role)
+ if role=="1":
+  check(await until(func(): return read("disconnect-pending")=="yes"),"host queued another reward")
+  game.leave_game("Disconnect reward acceptance")
+  check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"guest offline before detaching with pending host rewards")
+  mark("offline-1")
+  await process_frame
+  return
  if role=="3":
-  if not await until(func(): return read("harvest-done")=="yes"):
-   check(false,"reconnect reached before expiry")
+  if not await until(func(): return read("expire-lease")=="yes"):
+   check(false,"host finished settlement before lease expiry")
    return
   var marker := ConfigFile.new()
   marker.set_value("session","process_id",OS.get_process_id())
@@ -201,6 +310,13 @@ func guest(role: String) -> void:
  if role!="3":
   check(not FileAccess.file_exists(P.get_base_dir().path_join("session.cfg")),"guest releases owned lease")
  mark("offline-"+role)
+
+
+func player_id(game: Node, role: String) -> int:
+ for id in game.players:
+  if id!=1 and game.players[id].character.name=="Release Guest "+role: return id
+ check(false,"missing admitted guest "+role)
+ return 0
 
 
 func committed_guests(game: Node) -> int:

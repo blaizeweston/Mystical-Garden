@@ -2,6 +2,7 @@ extends SceneTree
 
 const Batch = preload("res://save_batch.gd")
 const Ops = preload("res://persistence_operations.gd")
+const Gate = preload("res://persistence_writer_integration.gd")
 const Tx = preload("res://game_transaction.gd")
 const Slots = preload("res://save_slots.gd")
 const Garden = preload("res://progress.gd")
@@ -65,16 +66,17 @@ func fixture_legacy() -> void:
  check(profile.save(P) == OK, "legacy character fixture")
 
 func launch() -> Node:
- var menu = load("res://main_menu.tscn").instantiate()
- menu.guarded_persistence = true
+ set_meta(Gate.VALIDATION_ROUTE, true)
+ var menu = load(ProjectSettings.get_setting("application/run/main_scene")).instantiate()
  menu.import_legacy = false
  menu.restore_last_character = false
  menu.restore_last_selection = false
  root.add_child(menu)
  current_scene = menu
+ check(menu.production_route and menu.guarded_persistence, "candidate title owns migration admission")
  menu.select_character(0)
  menu.select_slot(0)
- menu.continue_game()
+ menu.continue_button.pressed.emit()
  check(current_scene != menu and current_scene.has_meta(Tx.SESSION), "guarded legacy save opened through title")
  return current_scene if current_scene != menu else null
 
@@ -204,12 +206,48 @@ func timed_research() -> void:
  record("timed_research_backup", {}, {"canonical":Slots._save_digest(garden.path), "backup":Slots._save_digest(target),
   "original":Ops.Batch.Evidence.digest(original), "needs_research_backup":garden.needs_research_backup})
 
+func first_open_migration() -> void:
+ fixture_legacy()
+ backup_fault(PB)
+ var before := state()
+ var world := launch()
+ if world == null: return
+ check(world.get_meta(Tx.SESSION).owns_leases() and world.progress.knowledge==9
+  and world.local_character.identity==Identity,"Continue reads supported old saves under owned leases")
+ var after := state()
+ check(after[G]==before[G] and after[P]==before[P] and after[PB+".tmp"]==before[PB+".tmp"]
+  and after[GB]==before[G] and after[G+".transaction"]=="absent" and after[P+".txn_stage"]=="absent",
+  "startup backup fault preserves originals, exact Garden backup and conflicting profile evidence")
+ check(world.progress.needs_content_backup and world.local_character.needs_content_backup
+  and world.status.begins_with("Save cancelled") and not world.progress.garden_interactions.growth.seen.has(Identity),
+  "failed first-open registration restores memory and does not report success")
+ record("initial_continue_migration_abort",before,{"flags":flags(world),"feedback":world.status})
+ check(DirAccess.remove_absolute(PB+".tmp")==OK,"remove only the fixture's conflicting scratch")
+ world.return_to_main_menu()
+ await process_frame
+ check(current_scene!=world and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,
+  "return settles available migration and releases the session")
+ world = launch()
+ if world == null: return
+ check(not flags(world).values().has(true) and world.local_character.identity==Identity
+  and state()[GB]==before[G] and state()[PB]==before[P] and state()[G]!=before[G] and state()[P]!=before[P],
+  "next title admission reads migrated bytes and preserves both originals")
+ record("initial_continue_migration_retry",before,{"flags":flags(world)})
+ world.return_to_main_menu()
+ await process_frame
+ for path in [G,P]:
+  for suffix in Ops.MIGRATION_BACKUPS:
+   if FileAccess.file_exists(path+suffix):
+    check(DirAccess.remove_absolute(path+suffix)==OK,"remove only the initial-case backup")
+
 func run() -> void:
  var mode := OS.get_environment("MYSTICAL_A1_MODE")
  if mode == "recover":
   recover_and_retry()
   finish()
   return
+ if mode.is_empty():
+  await first_open_migration()
  fixture_legacy()
  # Startup registers the host's growth receipt and can commit the migration.
  # Start on current saves, then install and load controlled older bytes under

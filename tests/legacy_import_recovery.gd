@@ -61,7 +61,7 @@ func journal(anchor: String, paths: Array) -> void:
  raw(anchor + ".transaction", file.encode_to_text())
 
 func title() -> Node:
- var menu: Node = load("res://main_menu.tscn").instantiate()
+ var menu: Node = load(ProjectSettings.get_setting("application/run/main_scene")).instantiate()
  root.add_child(menu)
  current_scene = menu
  check(menu.production_route, "actual candidate title")
@@ -77,6 +77,34 @@ func run() -> void:
   _: await exercise(menu)
  if not failed: print("PASS: explicit import transaction and actual recovery owner selection")
  quit(1 if failed else 0)
+
+func capacity_expansion(menu: Node) -> void:
+ for slot in 3:
+  raw(menu.characters._slot_profile(slot),profile(("base-roster-slot-"+str(slot)).md5_text()))
+ var new_slot: String = menu.characters._slot_profile(3)
+ var before := snap()
+ menu.set_meta(&"legacy_import_test_fault",func(phase,_path): return ERR_CANT_CREATE if phase=="publish_commit_marker" else OK)
+ menu.import_legacy_saves()
+ menu.remove_meta(&"legacy_import_test_fault")
+ check(menu.characters.count()==3 and not FileAccess.file_exists(new_slot)
+  and not FileAccess.file_exists(G) and not FileAccess.file_exists(P) and not FileAccess.file_exists(C)
+  and Slots._save_digest(LG)==before[LG] and Slots._save_digest(LP)==before[LP]
+  and not menu.notice.text.contains("imported."),"catalog expansion abort restores capacity and original save set")
+ record("capacity_expansion_abort",before,menu.notice.text)
+ menu.import_legacy_saves()
+ check(menu.characters.count()==4 and menu.character_summary(3).identity==ID
+  and Slots._save_digest(new_slot)==before[LP] and Slots._save_digest(LP)==before[LP],"actual import expands the full base roster once")
+ record("capacity_expansion_commit",before,menu.notice.text)
+ var committed := snap()
+ menu.import_legacy_saves()
+ check(snap()==committed and menu.characters.count()==4,"repeat import does not expand again")
+ # Keep this extra acceptance case isolated from the existing recovery-owner cases.
+ for path in [G,P,C,new_slot]:
+  check(DirAccess.remove_absolute(path)==OK,"remove only capacity case output")
+ for slot in 3:
+  check(DirAccess.remove_absolute(menu.characters._slot_profile(slot))==OK,"remove only capacity case profile")
+ menu.select_character(0)
+ menu.select_slot(0)
 
 func exercise(menu: Node) -> void:
  raw(LG, "[garden]\nknowledge=27\n")
@@ -102,6 +130,7 @@ func exercise(menu: Node) -> void:
  for slot in 128:
   check(DirAccess.remove_absolute(menu.characters._slot_profile(slot)) == OK,"remove fixture roster profile")
  check(DirAccess.remove_absolute(C)==OK,"remove fixture catalog")
+ capacity_expansion(menu)
  var conflict := P + ".pre-content-v2.bak"
  raw(conflict,"Unverified historical backup")
  before=snap()

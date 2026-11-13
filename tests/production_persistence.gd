@@ -13,6 +13,21 @@ const P = "user://saves/characters/slot_1/character.cfg"
 const Other = "user://saves/slot_3/garden.cfg"
 var failed := false
 
+# Forward the real title calls to the existing guarded writer with a
+# deterministic fault. The title still captures and passes its own digest.
+class FaultedSlots extends "res://save_slots.gd":
+ var phase := ""
+ var fail_restore := false
+ var last := {}
+ func inject(step: String, _path: String) -> Error:
+  return ERR_CANT_CREATE if step==phase or (step=="restore" and fail_restore) else OK
+ func new_world_guarded(slot: int, confirmed := false, digest := "") -> Dictionary:
+  last = _initialize_guarded(slot,false,confirmed,false,inject,"",{} if digest.is_empty() else {paths(slot).garden:digest})
+  return last
+ func delete_world_guarded(slot: int, confirmed := false, digest := "") -> Dictionary:
+  last = _delete_guarded(slot,false,confirmed,{} if digest.is_empty() else {paths(slot).garden:digest},inject)
+  return last
+
 func _initialize() -> void:
  call_deferred("run")
 
@@ -42,6 +57,65 @@ func journal(anchor: String, participants: Array, committed := false) -> String:
  file.set_value("transaction","committed",committed)
  check(file.save(anchor+".transaction")==OK,"fixture journal created")
  return anchor+".transaction"
+
+func outcome(store: FaultedSlots, expected: Batch.Outcome) -> void:
+ var result := preload("res://guarded_title_session.gd").outcome(store.last)
+ var final: Batch.Finalization = result.get("outcome")
+ check(final != null and final.outcome == expected, "title finalization: "+str(result.get("state")))
+ if final != null:
+  print("CASE ",JSON.stringify({"case":"title_writer_outcome","outcome":Batch.Outcome.keys()[final.outcome],
+   "phase":final.phase,"paths":final.paths,"garden":Slots._save_digest(G),"profile":Slots._save_digest(P),
+   "tombstone":Slots._save_digest(G.get_base_dir().path_join("deleted.cfg")),
+   "journal":Slots._save_digest(G+".transaction"),"archives":result.get("archives",{})}))
+
+func title_faults(menu: Node) -> void:
+ var store := FaultedSlots.new()
+ store.root_path = menu.storage.root_path
+ menu.storage = store
+ var saved := Slots._save_digest(G)
+ var profile := Slots._save_digest(P)
+ var marker := G.get_base_dir().path_join("deleted.cfg")
+ check(Slots._save_digest(marker)=="absent","disposable title starts without tombstone")
+ store.phase = "publish_commit_marker"
+ menu.new_button.pressed.emit()
+ menu.confirmation.confirmed.emit()
+ outcome(store,Batch.Outcome.ABORTED_RESTORED)
+ check(current_scene==menu and Slots._save_digest(G)==saved and Slots._save_digest(P)==profile
+  and Slots._save_digest(G+".transaction")=="absent" and menu.confirmation.get_ok_button().disabled,
+  "replacement rollback restores bytes and refuses launch")
+ menu.confirmation.hide()
+ menu.delete_button.pressed.emit()
+ menu.deletion_confirmation.confirmed.emit()
+ outcome(store,Batch.Outcome.ABORTED_RESTORED)
+ check(current_scene==menu and Slots._save_digest(G)==saved and Slots._save_digest(P)==profile
+  and Slots._save_digest(marker)=="absent" and not menu.notice.text.contains("deleted."),
+  "delete rollback restores Garden and recorded tombstone absence")
+ menu.deletion_confirmation.hide()
+ store.fail_restore = true
+ menu.delete_button.pressed.emit()
+ menu.deletion_confirmation.confirmed.emit()
+ outcome(store,Batch.Outcome.UNCERTAIN)
+ var evidence := Slots._save_digest(G+".transaction")
+ check(evidence!="absent" and Slots._save_digest(P)==profile and menu.continue_button.disabled
+  and menu.delete_button.disabled and not menu.notice.text.contains("deleted."),"uncertain deletion blocks replay and success")
+ menu.deletion_confirmation.hide()
+ menu.garden_recovery_button.pressed.emit()
+ menu.recovery_confirmation.confirmed.emit()
+ check(Slots._save_digest(G)==saved and Slots._save_digest(P)==profile and Slots._save_digest(marker)=="absent",
+  "title recovery restores Garden and tombstone absence")
+ store.phase = "publish_receipt"
+ store.fail_restore = false
+ menu.new_button.pressed.emit()
+ menu.confirmation.confirmed.emit()
+ outcome(store,Batch.Outcome.COMMITTED_CLEANUP_PENDING)
+ check(current_scene==menu and Slots._save_digest(G)!=saved and Slots._save_digest(P)==profile
+  and menu.continue_button.disabled and menu.notice.text.contains("cleanup"),"committed replacement warns and blocks launch pending cleanup")
+ var replacement := Slots._save_digest(G)
+ menu.confirmation.hide()
+ menu.garden_recovery_button.pressed.emit()
+ menu.recovery_confirmation.confirmed.emit()
+ check(Slots._save_digest(G)==replacement and Slots._save_digest(G+".transaction")=="absent","title cleanup retains new Garden")
+ store.phase = ""
 
 func run() -> void:
  check(not Gate.PRODUCTION_CUTOVER_APPROVED and not Gate.default_route(self),"normal startup remains inactive")
@@ -126,6 +200,7 @@ func run() -> void:
  record("restored_abort",{"notice":menu.notice.text,"evidence":proof_hash})
 
  menu.select_slot(0)
+ title_faults(menu)
  menu.new_game()
  menu.confirmation.confirmed.emit()
  world=current_scene

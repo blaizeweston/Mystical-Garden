@@ -4,14 +4,11 @@ const Tx=preload("res://game_transaction.gd")
 const Plan=preload("res://persistence_recovery_plan.gd")
 const Ops=preload("res://persistence_operations.gd")
 const Slots=preload("res://save_slots.gd")
-const Roster=preload("res://character_slots.gd")
-const Owner=preload("res://guarded_title_session.gd")
+const Gate=preload("res://persistence_writer_integration.gd")
 const G="user://saves/slot_1/garden.cfg"
 const C="user://saves/characters/slot_1/character.cfg"
 var failed:=false
 var world: Node
-var slots:=Slots.new()
-var roster:=Roster.new()
 
 func _initialize() -> void:
  call_deferred("run")
@@ -32,21 +29,35 @@ func record(label: String,before: Dictionary) -> void:
   "floor":world.encounter_number,"wild":world.expedition_active(),"pending":Tx.pending_notice(world),"status":world.status,
   "queued_kills":world.pending_kill_rewards.size(),"queued_departures":world.pending_departures.size(),"event_serial":world.combat_event_serial}))
 
-func open_world() -> bool:
- world=load("res://world.tscn").instantiate()
- world.progress.path=G
- world.local_character.path=C
- world.guest_character.path=C
- world.slot_claimed=true
- var result:=Owner.new().start(world,slots,0,Slots._save_digest(G),roster,0,Slots._save_digest(C))
- check(Owner.completed(result),"guarded world startup "+str(result))
- if not Owner.completed(result):
-  world.free()
+func open_world(fresh := false) -> bool:
+ var title: Node = current_scene
+ if title == null:
+  var scene: String = ProjectSettings.get_setting("application/run/main_scene")
+  title = load(scene).instantiate()
+  root.add_child(title)
+  current_scene = title
+ check(title.production_route and title.guarded_persistence, "configured title selects guarded route")
+ if fresh:
+  title.new_button.pressed.emit()
+  check(title.creator.visible, "New opens title character creator")
+  title.creator.name_field.text = "Candidate Keeper"
+  title.creator.confirmed.emit()
+  if current_scene == title: title.new_button.pressed.emit()
+ else:
+  title.continue_button.pressed.emit()
+ if current_scene == title or not current_scene.has_meta(Tx.SESSION):
+  check(false, "guarded title handoff failed: " + title.notice.text)
   return false
- root.add_child(world)
+ world = current_scene
+ check(world.get_meta(Tx.SESSION).owns_leases(), "title handoff owns Garden and profile leases")
  world.set_process(false)
  world.set_physics_process(false)
  return true
+
+func close_world() -> void:
+ world.return_to_main_menu()
+ check(current_scene != world and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,
+  "guarded title return installs offline peer")
 
 func fail_stage(phase: String,path: String) -> Error:
  return ERR_FILE_CANT_WRITE if phase=="stage" and path==C+".txn_stage" else OK
@@ -67,10 +78,8 @@ func clear_floor(actor: Dictionary,floor: int) -> void:
  actor.pos=world.battlefield.advance
 
 func start_save_set() -> bool:
- check(Owner.completed(Owner.prepare(slots,roster,false)),"prepare disposable root")
- check(Owner.completed(Owner.outcome(slots.new_world_guarded(0))),"create disposable Garden")
- check(Owner.completed(Owner.outcome(roster.create_guarded(0,"Expedition Keeper",0,[]))),"create disposable profile")
- return open_world()
+ set_meta(Gate.VALIDATION_ROUTE, true)
+ return open_world(true)
 
 func run() -> void:
  var interruption:=OS.get_environment("MYSTICAL_GROUP3B2B_MODE")
@@ -84,7 +93,7 @@ func run() -> void:
   if interruption=="owner":
    interrupted()
   else:
-   exercise()
+   await exercise()
  if not failed: print("PASS: guarded expedition settlement and lifecycle")
  quit(1 if failed else 0)
 
@@ -208,7 +217,8 @@ func exercise() -> void:
  check(disk()==committed and world.progress.unknown.size()==3,"pending extraction cannot replay")
  record("extraction_cleanup_pending",before)
  check(Ops.recover(PackedStringArray([G])).value.verified and disk()[G]==committed[G],"cleanup preserves committed extraction")
- world.free()
+ close_world()
+ await process_frame
  if not open_world(): return
  actor=world.players[1]
 
@@ -243,8 +253,13 @@ func exercise() -> void:
  world.use_checkpoint(1,false)
  check(disk()==split,"uncertain operation does not replay")
  record("extraction_uncertain",before)
- check(Ops.recover(PackedStringArray([C])).value.verified and disk()==before,"B2 verified restoration of interrupted replacement evidence")
- world.free()
+ close_world()
+ await process_frame
+ check(current_scene.recovery_notice.visible and current_scene.continue_button.disabled
+  and disk()==split,"uncertain return preserves blocked title warning and evidence")
+ current_scene.garden_recovery_button.pressed.emit()
+ current_scene.recovery_confirmation.confirmed.emit()
+ check(disk()==before and not current_scene.recovery_notice.visible,"title B2 restoration clears uncertain warning")
  if not open_world(): return
  actor=world.players[1]
 
@@ -283,8 +298,10 @@ func exercise() -> void:
  world.return_to_main_menu()
  check(world.get_meta(Tx.STOPPING,false) and disk()==before,"lost lease shuts down without saving")
  record("lost_lease_shutdown",before)
- world.free()
+ await process_frame
+ check(current_scene != world and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"lost lease shutdown detaches after offline")
  check(DirAccess.remove_absolute(lease)==OK,"remove disposable foreign marker")
+ current_scene.select_slot(0)
  if not open_world(): return
  actor=world.players[1]
  actor.pos=world.Stage.GATE
@@ -293,6 +310,10 @@ func exercise() -> void:
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  before=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
+ world.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
+ check(not world.get_meta(Tx.STOPPING,false) and actor.wild and disk()==before and current_scene==world,
+  "window-close settlement abort keeps the world and original saves")
+ record("window_close_abort",before)
  world.return_to_main_menu()
  check(not world.returning_to_title and actor.wild and disk()==before,"title settlement abort stays in expedition")
  world.remove_meta(&"guarded_gameplay_test_fault")
