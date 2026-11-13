@@ -205,7 +205,7 @@ def retail_probes(stage, pack, metadata, env):
     sandbox = stage / "retail"
     sandbox.mkdir()
     version = metadata["playtest_version"]
-    ready = f"PLAYTEST READY: {version} Ãƒâ€šÃ‚Â· protocol {metadata['protocol']} Ãƒâ€šÃ‚Â· legacy-contained"
+    ready = re.compile(rf"(?m)^PLAYTEST READY: {re.escape(version)} . protocol {metadata['protocol']} . legacy-contained$")
     backend = "PLAYTEST BLOCKED: The playtest persistence library is missing or incompatible."
     expected_errors = [
         'Condition "!FileAccess::exists(path)" is true. Returning: ERR_FILE_NOT_FOUND',
