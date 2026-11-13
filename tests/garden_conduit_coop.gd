@@ -22,7 +22,13 @@ func run() -> void:
  game.get_node("GardenInteractions/GrowthScenes").set_process(false)
  if role=="host":await host_run()
  else:await guest_run()
- game.queue_free();await process_frame
+ game.leave_game("Garden conduit fixture complete")
+ var offline := game.online_peer == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer
+ check(offline,"offline peer is installed before world removal")
+ if offline:
+  if role=="guest":mark("guest-offline")
+  game.queue_free()
+  check(await until(func():return not is_instance_valid(game)),"world is removed after network shutdown")
  if not failed:print("PASS: Garden conduit co-op ",role," host permissions, authoritative policy, guest tending and reconnect")
  quit(1 if failed else 0)
 func host_run() -> void:
@@ -42,7 +48,8 @@ func host_run() -> void:
  mark("rejoin")
  if not await until(func():return marked("rejoined")):check(false,"rejoin projection");return
  check(Conduit.state(g).revision==1,"rejoin cannot change mode")
- mark("done");await create_timer(.3).timeout
+ mark("done")
+ check(await until(func():return marked("guest-offline") and game.multiplayer.get_peers().is_empty()),"host observes guest disconnect before teardown")
 func guest_run() -> void:
  check(game.join_game()==OK,"guest joins")
  if not await until(func():return game.session=="Guest" and marked("ready") and Conduit.projection(game,game.local_player_id()).get("unlocked",false)):check(false,"host tool snapshot");return

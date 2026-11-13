@@ -21,7 +21,13 @@ func run() -> void:
  game.get_node("GardenInteractions/GrowthScenes").set_process(false)
  if role=="host":await host_run()
  else:await guest_run()
- game.queue_free();await process_frame
+ game.leave_game("Garden returns fixture complete")
+ var offline := game.online_peer == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer
+ check(offline,"offline peer is installed before world removal")
+ if offline:
+  if role=="guest":mark("guest-offline")
+  game.queue_free()
+  check(await until(func():return not is_instance_valid(game)),"world is removed after network shutdown")
  if not failed:print("PASS: Garden returns co-op ",role," real banking/identification, private provenance, shared trace, independent acknowledgement and reconnect")
  quit(1 if failed else 0)
 func host_run() -> void:
@@ -50,7 +56,8 @@ func host_run() -> void:
  mark("rejoin")
  if not await until(func():return marked("rejoined")):check(false,"guest reconnect");return
  check(game.progress.garden_interactions.returns.history.size()==1,"reconnect cannot duplicate banking")
- mark("done");await create_timer(.3).timeout
+ mark("done")
+ check(await until(func():return marked("guest-offline") and game.multiplayer.get_peers().is_empty()),"host observes guest disconnect before teardown")
 func guest_run() -> void:
  check(game.join_game()==OK,"guest joins")
  if not await until(func():return marked("banked") and game.session=="Guest" and game.players.has(game.local_player_id()) and not game.players[game.local_player_id()].wild):check(false,"banked snapshot");return
