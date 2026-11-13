@@ -87,13 +87,18 @@ static func committed(boundary: Dictionary) -> bool:
 static func pending_notice(game: Node) -> String:
  return str(game.get_meta(&"guarded_save_notice", "")) if game.get_meta(PENDING, false) else ""
 
+static func feedback_text(game: Node, message: String) -> String:
+ var pending := pending_notice(game)
+ if pending.is_empty() or message == pending or message.ends_with("\n" + pending): return message
+ return pending if message.is_empty() else message + "\n" + pending
+
 static func feedback(result: Dictionary, fallback: String) -> String:
  if result.completed and result.value is String:
   return result.value
  return fallback if result.notice.is_empty() else result.notice
 
 # Keep the existing boundary and typed finalization available to callers.
-# Canonical commitment can permit bookkeeping even when feedback must wait.
+# Gameplay completion and the recovery notice can coexist.
 static func run_gameplay(game: Node, scope: Scope, action: Callable, legacy_transaction := true) -> Dictionary:
  if not game.has_meta(SESSION):
   # Legacy callers keep their existing business conventions. There is no
@@ -107,9 +112,8 @@ static func run_gameplay(game: Node, scope: Scope, action: Callable, legacy_tran
  var fault: Callable = game.get_meta(&"guarded_gameplay_test_fault", Callable()) if DisplayServer.get_name() == "headless" else Callable()
  var boundary: Dictionary = _run_guarded(game, action, Callable(), fault, scope)
  var execution: Variant = boundary.get("value")
- var final: Batch.Finalization = execution.get("outcome") if execution is Dictionary else null
- var completed: bool = final != null and final.outcome == Batch.Outcome.COMMITTED and boundary.error == OK
- return {"completed": completed, "value": execution.value if committed(boundary) else null,
+ var confirmed := committed(boundary)
+ return {"completed": confirmed and boundary.error == OK, "value": execution.value if confirmed else null,
   "notice": _report(game, boundary), "persistence": boundary}
 
 static func _report(game: Node, boundary: Dictionary) -> String:
@@ -121,7 +125,7 @@ static func _report(game: Node, boundary: Dictionary) -> String:
    Batch.Outcome.COMMITTED:
     notice = "" if boundary.error == OK else "Saved. Further saves are blocked until the session is reopened."
    Batch.Outcome.COMMITTED_CLEANUP_PENDING:
-    notice = "Saved. Recovery cleanup is pending."
+    notice = "Saved. Recovery cleanup is pending. Further saves are blocked."
    Batch.Outcome.ABORTED_RESTORED:
     notice = "Save cancelled. The original state was verified."
     if final.write_blocked: notice += " Recovery cleanup is pending."
@@ -135,12 +139,15 @@ static func _report(game: Node, boundary: Dictionary) -> String:
  var prior := pending_notice(game)
  if not prior.is_empty():
   notice = prior
- if game.get_meta(PENDING, false):
+ elif game.get_meta(PENDING, false):
   game.set_meta(&"guarded_save_notice", notice)
- if not notice.is_empty():
+  game.status = ""
+ elif not notice.is_empty():
   game.status = notice
+ if not notice.is_empty():
   preload("res://diagnostic_journal.gd").event("save", "guarded_gameplay_result", {
    "reason": boundary.reason, "state": boundary.state, "error": boundary.error,
+   "outcome": Batch.Outcome.keys()[final.outcome] if final != null else "",
    "phase": final.phase if final != null else "", "attempt": final.attempt_id if final != null else "",
    "original_error": final.original_error if final != null else OK,
    "recovery_error": final.recovery_error if final != null else OK,

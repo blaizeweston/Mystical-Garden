@@ -676,6 +676,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::choose_checkpoint_card` | ui_copy | ui_copy |
 | `game.gd::choose_checkpoint_card` | gate_range | gate_access |
 | `game.gd::resume_checkpoint_if_ready` | gate_range | gate_access |
+| `game.gd::build_hud` | retained_cleanup_feedback | persistence_operations |
 | `game.gd::build_hud` | mount_run_summary | expedition_summary |
 | `game.gd::build_hud` | menu_buttons_use_shared_roots | menu_layout |
 | `game.gd::build_hud` | guest_connection_cancel | connection_flow |
@@ -907,16 +908,19 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::apply_skill_targets` | warden_damage_from_committed_origin | warden_progression |
 | `game.gd::attack_animation_snapshot` | ranged_aim_snapshot | ranged_release |
 | `game.gd::attack_animation_snapshot` | subclass_release_pose | warden_progression |
+| `game.gd::join_game` | retained_cleanup_feedback | persistence_operations |
 | `game.gd::join_game` | cleanup_feedback | persistence_operations |
 | `game.gd::join_game` | guarded_gameplay_writer | persistence_operations |
 | `game.gd::join_game` | block_developer_join | developer_garden |
 | `game.gd::join_game` | reset_join_phase | connection_flow |
 | `game.gd::on_joined_world` | character_join_phase | connection_flow |
+| `game.gd::connection_accepted` | retained_cleanup_feedback | persistence_operations |
 | `game.gd::connection_accepted` | cleanup_feedback | persistence_operations |
 | `game.gd::connection_accepted` | guarded_gameplay_writer | persistence_operations |
 | `game.gd::connection_accepted` | garden_join_phase | connection_flow |
 | `game.gd::on_server_disconnected` | join_disconnected_reason | connection_flow |
 | `game.gd::on_connection_failed` | join_failed_reason | connection_flow |
+| `game.gd::return_to_main_menu` | retained_cleanup_feedback | persistence_operations |
 | `game.gd::return_to_main_menu` | cleanup_feedback | persistence_operations |
 | `game.gd::return_to_main_menu` | guarded_gameplay_writer | persistence_operations |
 | `game.gd::return_to_main_menu` | guarded_return_save_gate | persistence_operations, menus, connection_flow |

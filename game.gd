@@ -192,9 +192,6 @@ var client_details_key: String=""
 var session := "Solo"
 var toast_until := 0
 var status := "The Heart shelters this Garden. Follow the path to the Wilds gate.":
-	get:
-		var pending := Transactions.pending_notice(self)
-		return status if pending.is_empty() else pending
 	set(value):
 		status = value
 		toast_until = Time.get_ticks_msec() + 4800
@@ -433,7 +430,7 @@ func build_hud() -> void:
 	network_dialog.applied.connect(func(address: String,port: int,_join: bool):
 		Network.save_settings(slot_storage_root,address,port)
 		if join_game(address,port)!=OK:
-			network_dialog.begin(address,port,true,str(local_character.data.get("name","Wanderer")),status))
+			network_dialog.begin(address,port,true,str(local_character.data.get("name","Wanderer")),Transactions.feedback_text(self, status)))
 	travel_panel=hud_panel(surface,Color("#14262b"),Vector2(16,10))
 	travel_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	travel_panel.offset_left=-240;travel_panel.offset_right=240;travel_panel.offset_top=48;travel_panel.offset_bottom=194
@@ -666,6 +663,7 @@ func join_game(address: String="",port: int=0) -> Error:
 	if slot_claimed:
 		if guarded != null:
 			if not save_session_garden(): return ERR_CANT_CREATE
+			if not Transactions.pending_notice(self).is_empty(): return ERR_BUSY
 		else:
 			var saved := progress.save_garden()
 			if saved != OK: status="Save the Garden before joining another host.";return saved
@@ -3008,24 +3006,24 @@ func save_progress(id: int, message: String) -> void:
 
 func refresh_feedback() -> void:
 	var pending := not Transactions.pending_notice(self).is_empty()
-	if pending and is_instance_valid(planting_menu) and planting_menu.visible:
-		planting_view.confirm.disabled = true
-	feedback.text = status
-	var message_width := feedback.get_theme_font("font").get_string_size(status,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, feedback.get_theme_font_size("font_size")).x
+	var message := status if Time.get_ticks_msec() < toast_until else ""
+	feedback.text = Transactions.feedback_text(self, message)
+	var message_width := 0.0
+	for line in feedback.text.split("\n"):
+		message_width = maxf(message_width, feedback.get_theme_font("font").get_string_size(line,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, feedback.get_theme_font_size("font_size")).x)
 	feedback.custom_minimum_size.x = minf(message_width + 2.0, 500.0)
-	var fresh_notice := pending or (Time.get_ticks_msec() < toast_until and not status.is_empty())
+	var fresh_notice := not feedback.text.is_empty()
 	toast_panel.z_index = 1 if pending else 0
 	toast_panel.visible = fresh_notice and (not overlay.visible or (pending and not session_menu.visible))
-	menu_notice.text = status
+	menu_notice.text = feedback.text
 	menu_notice.visible = fresh_notice
 
 func tell(id: int, message: String) -> void:
 	if id == HOST:
 		status = message
 	elif online_peer != null:
-		var pending := Transactions.pending_notice(self)
-		receive_message.rpc_id(id, message if pending.is_empty() else pending)
+		receive_message.rpc_id(id, Transactions.feedback_text(self, message))
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -3416,6 +3414,9 @@ func return_to_main_menu(message: String = "") -> void:
 		if not save_session_garden():
 			returning_to_title = false
 			if not has_meta(Transactions.SESSION): status = "Could not save this Garden. Use Save Garden before leaving."
+			return
+		if not Transactions.pending_notice(self).is_empty():
+			_finish_title_return(message)
 			return
 	if character_dirty and not save_local_character():
 		returning_to_title = false
@@ -4492,7 +4493,7 @@ func connection_accepted(profile: Dictionary) -> void:
 	session="Guest";joined_from_title=false;status="Joined the host's Garden."
 	set_meta("join_phase","garden")
 	receive_character(profile);connection_deadline=Time.get_ticks_msec()+Network.REGISTER_TIMEOUT_MS
-	if Transactions.pending_notice(self).is_empty(): toggle_overlay(null)
+	toggle_overlay(null)
 
 @rpc("authority","call_remote","reliable")
 func connection_rejected(reason: String) -> void:

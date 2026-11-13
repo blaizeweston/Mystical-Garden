@@ -9,7 +9,7 @@ const Ops = preload("res://persistence_operations.gd")
 const Plan = preload("res://persistence_recovery_plan.gd")
 const Growth = preload("res://garden_growth_service.gd")
 const Conduit = preload("res://garden_conduit.gd")
-const CleanupNotice := "Saved. Recovery cleanup is pending."
+const CleanupNotice := "Saved. Recovery cleanup is pending. Further saves are blocked."
 const G := "user://saves/slot_1/garden.cfg"
 const C := "user://saves/characters/slot_1/character.cfg"
 const PEER := 9021
@@ -175,8 +175,8 @@ func run() -> void:
   return "ordinary success")
  world.remove_meta(&"guarded_gameplay_test_fault")
  verify("cleanup_pending", cleaned.persistence, Batch.Outcome.COMMITTED_CLEANUP_PENDING, before)
- check(Tx.committed(cleaned.persistence) and not cleaned.completed and cleaned.notice == CleanupNotice,
-  "gameplay result distinguishes canonical commitment from ordinary success")
+ check(Tx.committed(cleaned.persistence) and cleaned.completed and cleaned.value == "ordinary success"
+  and cleaned.notice == CleanupNotice, "gameplay result preserves success alongside cleanup pending")
  var cleanup := disk()
  check(world.progress.knowledge == 44 and not Tx.run_guarded(world, refuse_action, Callable(), Tx.Scope.GARDEN).ran
   and disk() == cleanup, "cleanup pending retains committed state and blocks new writes")
@@ -199,7 +199,8 @@ func run() -> void:
   "uncertain outcome withholds the callback value and ordinary success")
  world.tell(world.HOST,"later message")
  world.receive_message("later notification")
- check(world.status == unsure.notice,"uncertain feedback remains visible")
+ world.refresh_feedback()
+ check(world.feedback.text.contains(unsure.notice),"uncertain feedback remains visible")
  var split := disk()
  check(world.progress.knowledge == 51 and split[G] == before[G] and split[C] != before[C]
   and not Tx.run_guarded(world, refuse_action, Callable(), Tx.Scope.PAIR).ran and disk() == split, "uncertain keeps memory and evidence without automatic replay")
@@ -292,7 +293,12 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
   var host: Dictionary = world.players[world.HOST]
   var before := disk()
   var previous_event: int = world.combat_event_serial
-  world.set_meta(&"guarded_gameplay_test_fault", fail_receipt)
+  var attempts := {"receipts":0, "replacements":0}
+  world.set_meta(&"guarded_gameplay_test_fault",func(phase, path):
+   if phase == "publish_receipt": attempts.receipts += 1
+   if phase == "replace": attempts.replacements += 1
+   return fail_receipt(phase,path))
+  var ordinary := ""
   match feature:
    "planting":
     host.pos = world.Stage.PLOTS[1]
@@ -303,57 +309,131 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
     world.planting_view.confirm.pressed.emit()
     world.refresh_feedback()
     check(world.progress.plots[1].species == 0 and world.seed_reserve(host).stock[0] == 0, "cleanup-pending plant and spent seed are retained")
-    check(world.overlay.visible and world.planting_menu.visible and world.planting_view.confirm.disabled,
-     "cleanup pending keeps picker open and prevents re-submission")
-    check(world.feedback.text == CleanupNotice and world.toast_panel.visible, "cleanup pending is visible over the open picker")
+    ordinary = "%s planted." % world.Progress.PLANT_NAMES[0]
+    check(not world.overlay.visible and not world.planting_menu.visible,
+     "confirmed cleanup-pending planting closes the picker normally")
+    check(world.feedback.text.contains(CleanupNotice) and world.toast_panel.visible,
+     "cleanup pending is visible after the picker closes")
    "altar":
     host.pos = world.Stage.ALTAR
     world.seed_reserve(host).unknown.append(1)
     world.garden_action(world.HOST, "altar_identify")
-    check(world.seed_reserve(host).unknown.is_empty() and host.altar_message == CleanupNotice,
-     "Altar commits identification and keeps cleanup feedback")
+    ordinary = "Identified %s." % world.Seeds.NAMES[1]
+    check(world.seed_reserve(host).unknown.is_empty() and host.altar_message == ordinary,
+     "Altar retains the identification result")
    "conduit":
     for tech in ["clearing_1","clearing_2","irrigation","plot_4","living_conduit"]:
      world.progress.heart.complete(world.progress,tech)
     host.pos = Conduit.Layout.Catalog.point(Conduit.POINT).position
     var result := Conduit.command(world,world.HOST,{"point":Conduit.POINT,"revision":0,"mode":"deep"})
-    check(Conduit.state(world.progress).mode == "deep" and result.get("error") == CleanupNotice and not result.changed,
-     "conduit commits the setting and withholds ordinary success")
+    ordinary = "Deep pulse will shape newly planted terrace crops. Existing crops keep their care choice."
+    check(Conduit.state(world.progress).mode == "deep" and result.changed and result.revision == 1,
+     "conduit retains the committed business result")
    "watering":
     host.pos = world.Stage.PLOTS[1]
     host.spring_water = true
     var bed: Dictionary = world.progress.plots[1]
     var result := preload("res://garden_crop_service.gd").command(world,world.HOST,{"point":"bed_2","cycle":bed.care.cycle,
      "revision":bed.care.revision,"stage":bed.stage,"action":"water_crop"})
-    check(bed.care.get("watered",false) and not host.spring_water and result.get("error") == CleanupNotice and not result.changed
-     and world.combat_event_serial == previous_event,"watering consumes the committed charge without its ordinary feedback or audio")
+    ordinary = "Spring water nourishes this crop. Growth is 25% faster until harvest."
+    check(bed.care.get("watered",false) and not host.spring_water and result.changed
+     and world.combat_event_serial == previous_event + 1,"watering consumes the charge and emits its cue once")
    "explicit_garden":
     world.progress.knowledge += 9
-    world.save_progress(world.HOST,"Ordinary save success")
+    ordinary = "Ordinary save success"
+    world.save_progress(world.HOST,ordinary)
   var committed_disk := disk()
+  var saved := ConfigFile.new()
+  check(saved.load(G) == OK, feature + " has readable canonical Garden bytes")
+  match feature:
+   "planting":
+    check(saved.get_value("garden","plots_v2")[1].species == 0 and saved.get_value("garden","stock_0") == 0,
+     "canonical planting stores the crop and spent seed")
+   "altar":
+    check(saved.get_value("garden","unknown").is_empty() and saved.get_value("garden","seed_discoveries")[1],
+     "canonical Altar stores the identification")
+   "conduit":
+    check(saved.get_value("garden_interactions","state").conduit.mode == "deep"
+     and saved.get_value("garden_interactions","state").conduit.revision == 1,
+     "canonical conduit stores the selected mode and revision")
   var proof := Plan.discover(PackedStringArray([G]))
   var journal := ConfigFile.new()
   check(journal.load(G + ".transaction") == OK and journal.get_value("transaction","committed",false),
    feature + " retains the committed journal")
+  world.refresh_feedback()
   check(proof.state == "pending_recovery" and committed_disk[G] != before[G] and Tx.pending_notice(world) == CleanupNotice
-   and world.status == CleanupNotice, feature + " committed bytes and distinct pending feedback")
-  world.remove_meta(&"guarded_gameplay_test_fault")
+   and world.status == ordinary and world.feedback.text.contains(ordinary) and world.feedback.text.contains(CleanupNotice)
+   and world.toast_panel.visible, feature + " committed bytes, ordinary feedback and persistent warning")
+  var journal_log = preload("res://diagnostic_journal.gd").current
+  var event_path: String = journal_log.directory.path_join("events-%06d.jsonl" % journal_log.chunk)
+  var event_rows := FileAccess.get_file_as_string(event_path).split("\n", false)
+  var typed_outcome := ""
+  for index in range(event_rows.size() - 1, -1, -1):
+   var row: Variant = JSON.parse_string(event_rows[index])
+   if row is Dictionary and row.get("event") == "guarded_gameplay_result":
+    typed_outcome = row.data.get("outcome", "")
+    break
+  check(typed_outcome == "COMMITTED_CLEANUP_PENDING", feature + " reports the exact typed outcome")
+  var committed_memory := Tx.snapshot(world.progress)
+  var committed_rng: int = world.rng.state
+  var committed_events: int = world.combat_event_serial
+  var replacement_count: int = attempts.replacements
   var retry := Tx.run_gameplay(world, Tx.Scope.GARDEN, refuse_action)
+  world.garden_action(world.HOST, "plant_at_1_0")
+  world.garden_action(world.HOST, "altar_identify")
   check(not retry.completed and retry.persistence.state == "pending_recovery" and not retry.persistence.ran
-   and retry.notice == CleanupNotice and disk() == committed_disk, feature + " blocks a later write and preserves its original notice")
+   and retry.notice == CleanupNotice and disk() == committed_disk and Tx.snapshot(world.progress) == committed_memory
+   and world.rng.state == committed_rng and world.combat_event_serial == committed_events
+   and attempts.receipts == 1 and attempts.replacements == replacement_count,
+   feature + " refuses later actions without another write, resource change, random draw or effect")
+  world.remove_meta(&"guarded_gameplay_test_fault")
   world.tell(world.HOST,"later ordinary success")
   world.receive_message("later network notification")
+  world.refresh_feedback()
+  check(world.feedback.text.contains("later network notification") and world.feedback.text.contains(CleanupNotice),
+   feature + " received notification retains warning")
   world.status = "later direct notification"
+  world.refresh_feedback()
+  check(world.feedback.text.contains("later direct notification") and world.feedback.text.contains(CleanupNotice),
+   feature + " later messages share the channel with the warning")
+  world.toggle_overlay(world.session_menu)
   world.toast_until = 0
   world.refresh_feedback()
-  check(world.status == CleanupNotice and world.feedback.text == CleanupNotice and world.toast_panel.visible,
-   feature + " feedback survives messages and toast expiry")
-  record("cleanup_feedback_"+feature,before,{"notice":world.status,"journal_committed":journal.get_value("transaction","committed",false),
-   "retry_state":retry.persistence.state,"retry_ran":retry.persistence.ran})
+  check(world.menu_notice.visible and world.menu_notice.text == CleanupNotice,
+   feature + " warning survives toast expiry in the session menu")
+  world.toggle_overlay(null)
+  world.refresh_feedback()
+  check(world.toast_panel.visible and world.feedback.text == CleanupNotice,
+   feature + " warning remains after panel closure")
+  record("cleanup_feedback_"+feature,before,{"success":ordinary,"notice":world.feedback.text,"outcome":typed_outcome,
+   "journal_committed":journal.get_value("transaction","committed",false),"retry_state":retry.persistence.state,
+   "retry_ran":retry.persistence.ran,"replacements":attempts.replacements,"receipt_attempts":attempts.receipts,
+   "rng_unchanged_on_refusal":world.rng.state == committed_rng})
   var recovered := Ops.recover(PackedStringArray([G]))
   check(recovered.ran and recovered.value.verified and disk()[G] == committed_disk[G] and not FileAccess.file_exists(G+".transaction"),
    feature + " cleanup preserves committed bytes")
+  check(not Tx.pending_notice(world).is_empty(),"old session remains blocked until reconciliation by reopening")
   world.free()
+  var reconciled := start(stores.slots, stores.roster, true)
+  if reconciled == null: return
+  check(Tx.pending_notice(reconciled).is_empty() and Tx.session_writable(reconciled)
+   and reconciled.status != ordinary and reconciled.combat_event_serial == 0 and disk()[G] == committed_disk[G],
+   feature + " reopening permits writes without replaying success, audio or the action")
+  reconciled.free()
+
+ for value in [false, null]:
+  var business_world := start(stores.slots, stores.roster, true)
+  if business_world == null: return
+  var business_before := disk()
+  business_world.set_meta(&"guarded_gameplay_test_fault", fail_receipt)
+  var business := Tx.run_gameplay(business_world, Tx.Scope.GARDEN, func():
+   business_world.progress.knowledge += 1
+   return value)
+  verify("cleanup_pending_business_" + str(value),business.persistence,Batch.Outcome.COMMITTED_CLEANUP_PENDING,business_before)
+  check(business.completed and business.value == value and business.notice == CleanupNotice and disk()[G] != business_before[G],
+   "cleanup pending preserves legitimate business " + str(value))
+  check(Ops.recover(PackedStringArray([G])).value.verified,"cleanup after business value check")
+  business_world.free()
 
  var profile_world := start(stores.slots, stores.roster, true)
  if profile_world == null: return
@@ -361,8 +441,8 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
  profile_world.players[profile_world.HOST].character.name = "Cleanup profile"
  profile_world.character_dirty = true
  profile_world.set_meta(&"guarded_gameplay_test_fault",fail_receipt)
- check(not profile_world.save_local_character() and not profile_world.character_dirty and profile_world.status == CleanupNotice,
-  "profile cleanup clears the committed dirty flag without ordinary completion")
+ check(profile_world.save_local_character() and not profile_world.character_dirty and Tx.pending_notice(profile_world) == CleanupNotice,
+  "profile cleanup retains committed completion and clears the dirty flag")
  profile_world.remove_meta(&"guarded_gameplay_test_fault")
  var profile_after := disk()
  var profile_read := preload("res://character_profile.gd").new()
@@ -370,7 +450,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
  check(profile_read.load_profile(false) == OK and profile_read.data.name == "Cleanup profile"
   and profile_after[C] != profile_before[C] and profile_after[G] == profile_before[G]
   and Plan.discover(PackedStringArray([C])).state == "pending_recovery","profile bytes committed with evidence")
- record("cleanup_feedback_explicit_profile",profile_before,{"notice":profile_world.status})
+ record("cleanup_feedback_explicit_profile",profile_before,{"notice":Tx.pending_notice(profile_world)})
  check(Ops.recover(PackedStringArray([C])).value.verified and disk()[C] == profile_after[C],"profile cleanup preserves new bytes")
  profile_world.free()
 
@@ -380,7 +460,8 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
  var result := Tx.run_gameplay(resumed,Tx.Scope.GARDEN,func():
   resumed.progress.knowledge += 1
   return "Ordinary save success")
- check(result.completed and result.value == "Ordinary save success" and result.notice.is_empty() and disk()[G] != before[G],
+ check(result.completed and result.value == "Ordinary save success" and result.notice.is_empty()
+  and Tx.pending_notice(resumed).is_empty() and disk()[G] != before[G],
   "fresh authorized session resumes after cleanup")
  verify("feedback_resumed_after_cleanup",result.persistence,Batch.Outcome.COMMITTED,before)
  resumed.free()

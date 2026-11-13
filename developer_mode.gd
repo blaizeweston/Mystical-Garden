@@ -199,10 +199,10 @@ static func finish_research(game: Node) -> String:
 	var project: String = progress.heart.active
 	if project.is_empty():
 		return "Start research at the Heart first."
-	var result: String = game.run_heart_save(progress.heart.tick.bind(progress,progress.heart.duration(project),false))
-	if Transactions.pending_notice(game).is_empty():
-		Journal.event("developer","finish_research",{"tech":project,"unlocked":progress.heart.has(project)})
-	return result
+	var result := Transactions.run_gameplay(game, Transactions.Scope.GARDEN,
+		progress.heart.tick.bind(progress,progress.heart.duration(project),false), false)
+	if result.completed: Journal.event("developer","finish_research",{"tech":project,"unlocked":progress.heart.has(project)})
+	return Transactions.feedback(result, "Research could not be saved.")
 
 
 static func available_tech(game: Node) -> Array[Dictionary]:

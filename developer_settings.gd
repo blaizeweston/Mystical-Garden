@@ -136,9 +136,9 @@ func run_tool(action: String) -> void:
 				return
 			tech = tech_picker.get_selected_metadata()
 			result = Developer.test_unlock(context,tech)
-	settings.notice.text = result
+	settings.notice.text = Transactions.feedback_text(context, result)
 	refresh_tools()
-	if not tech.is_empty() and context.progress.heart.has(tech) and Transactions.pending_notice(context).is_empty():
+	if not tech.is_empty() and context.progress.heart.has(tech):
 		context.tell(context.HOST,result)
 		settings.cancel()
 		context.toggle_overlay(null)
