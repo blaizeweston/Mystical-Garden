@@ -1,5 +1,39 @@
-.godot/
+# Godot editor cache and Blender backups
+/.godot/
 *.blend1
 
-# Network test runs are stored under .godot; ignore old launcher output too.
-test/logs/
+# Local playtest diagnostics and generated analysis views
+/Gameplay logs/*
+!/Gameplay logs/.gdignore
+/docs/gameplay-analysis/*.csv
+/docs/gameplay-analysis/report.html
+
+# Python bytecode and local Windows launch shortcuts
+__pycache__/
+*.pyc
+*.pyo
+/*.lnk
+
+# Local export templates, packaged builds and build output
+/export_templates/
+/exports/
+/build/
+/*.exe
+/*.pck
+/export_credentials.cfg
+
+# Disposable test output outside the Godot cache
+/test/logs/
+/test-results/
+/test-output/
+/release-fixtures/
+
+# Player data if copied or generated inside the project root
+/saves/
+/combat-balance-preview/saves/
+/garden.cfg
+/character.cfg
+/character-local-guest.cfg
+/garden.cfg.*
+/character.cfg.*
+/character-local-guest.cfg.*
