@@ -796,6 +796,16 @@
     ]
   },
   "game_functions": {
+    "_refuse_unowned_world": [
+      "persistence_operations",
+      "persistence_authorization",
+      "persistence_recovery_plan",
+      "persistence_save_access",
+      "menus",
+      "characters",
+      "developer_garden",
+      "connection_flow"
+    ],
     "_report_guest_projection": [
       "persistence_operations",
       "connection_flow",
@@ -1746,6 +1756,20 @@
     ]
   },
   "suites": {
+    "production_persistence": {
+      "kind": "unit",
+      "systems": [
+        "persistence_operations",
+        "persistence_authorization",
+        "persistence_recovery_plan",
+        "persistence_save_access",
+        "menus",
+        "characters",
+        "developer_garden",
+        "connection_flow"
+      ],
+      "package": true
+    },
     "guest_projection_coop": {
       "kind": "pair",
       "systems": [
@@ -4102,6 +4126,7 @@
     }
   },
   "ignored_tests": {
+    "production_backend_refusal": "Negative companion probe uses an intentionally missing or older DLL. Run with the production route validation fixture and strict loader diagnostics.",
     "foundation_performance": "Optional performance benchmark, run explicitly; not a correctness release suite."
   },
   "relationships": [
@@ -8244,6 +8269,23 @@
       }
     },
     "_finish_title_return": {
+      "production_route": {
+        "match": "\tif has_meta(Transactions.SESSION): set_meta(Transactions.STOPPING, true)\n\tgo_offline()\n\trelease_slot()\n\tif network_dialog.visible:\n\t\tnetwork_dialog.dismiss()\n\tvar menu = load(\"res://main_menu.tscn\").instantiate()\n\tmenu.guarded_persistence = has_meta(\"guarded_title_session\")\n\tif menu.guarded_persistence: menu.set_meta(&\"guarded_return_from_world\", true)\n\tmenu.settings_path=settings_path\n\tvar dev_return: Dictionary=get_meta(\"developer_garden\",{})\n\tmenu.storage.root_path = dev_return.get(\"root\",slot_storage_root)\n\tmenu.import_legacy = menu.storage.root_path == \"user://saves\"\n\tmenu.restore_last_selection = false\n\tmenu.selected = dev_return.get(\"slot\",maxi(0,active_slot))\n\tmenu.selected_character=dev_return.get(\"character\",maxi(0,active_character_slot))\n\tmenu.restore_last_character=false\n\tvar pending := Transactions.pending_notice(self)\n\tif pending.is_empty(): pending = str(get_meta(&\"guest_projection_notice\",\"\"))\n\tmenu.return_message = message if pending.is_empty() else pending\n\tif not pending.is_empty(): menu.set_meta(&\"guarded_return_notice\", pending)\n\tif not Transactions.pending_notice(self).is_empty():\n\t\tvar recovery_paths := PackedStringArray()\n\t\tif session in [\"Solo\",\"Host\"]: recovery_paths.append(progress.path)\n\t\tif session in [\"Guest\",\"Connecting\"]: recovery_paths.append(guest_character.path)\n\t\telif session in [\"Solo\",\"Host\"]: recovery_paths.append(local_character.path)\n\t\tmenu.set_meta(&\"guarded_return_recovery_paths\",recovery_paths)\n\tif joined_from_title or session==\"Connecting\" or get_meta(\"join_phase\",\"\")==\"garden\":\n\t\tmenu.set_meta(\"join_return\",{\"address\":network_address,\"port\":network_port,\"open\":not get_meta(\"join_cancelled\",false)})\n\tset_process(false)\n\tset_physics_process(false)\n\tget_tree().root.add_child(menu)\n\tget_tree().current_scene = menu\n\tqueue_free()\n\n\n",
+        "baseline": "\tif has_meta(Transactions.SESSION): set_meta(Transactions.STOPPING, true)\n\tgo_offline()\n\trelease_slot()\n\tif network_dialog.visible:\n\t\tnetwork_dialog.dismiss()\n\tvar menu = load(\"res://main_menu.tscn\").instantiate()\n\tmenu.guarded_persistence = has_meta(\"guarded_title_session\")\n\tif menu.guarded_persistence: menu.set_meta(&\"guarded_return_from_world\", true)\n\tmenu.settings_path=settings_path\n\tvar dev_return: Dictionary=get_meta(\"developer_garden\",{})\n\tmenu.storage.root_path = dev_return.get(\"root\",slot_storage_root)\n\tmenu.import_legacy = menu.storage.root_path == \"user://saves\"\n\tmenu.restore_last_selection = false\n\tmenu.selected = dev_return.get(\"slot\",maxi(0,active_slot))\n\tmenu.selected_character=dev_return.get(\"character\",maxi(0,active_character_slot))\n\tmenu.restore_last_character=false\n\tvar pending := Transactions.pending_notice(self)\n\tif pending.is_empty(): pending = str(get_meta(&\"guest_projection_notice\",\"\"))\n\tmenu.return_message = message if pending.is_empty() else pending\n\tif not pending.is_empty(): menu.set_meta(&\"guarded_return_notice\", pending)\n\tif joined_from_title or session==\"Connecting\" or get_meta(\"join_phase\",\"\")==\"garden\":\n\t\tmenu.set_meta(\"join_return\",{\"address\":network_address,\"port\":network_port,\"open\":not get_meta(\"join_cancelled\",false)})\n\tset_process(false)\n\tset_physics_process(false)\n\tget_tree().root.add_child(menu)\n\tget_tree().current_scene = menu\n\tqueue_free()\n\n\n",
+        "additive": true,
+        "systems": [
+          "persistence_operations",
+          "persistence_authorization",
+          "persistence_recovery_plan",
+          "persistence_save_access",
+          "menus",
+          "characters",
+          "developer_garden",
+          "connection_flow",
+          "expeditions",
+          "garden"
+        ]
+      },
       "guest_projection": {
         "match": "\tif has_meta(Transactions.SESSION): set_meta(Transactions.STOPPING, true)\n\tgo_offline()\n\trelease_slot()\n\tif network_dialog.visible:\n\t\tnetwork_dialog.dismiss()\n\tvar menu = load(\"res://main_menu.tscn\").instantiate()\n\tmenu.guarded_persistence = has_meta(\"guarded_title_session\")\n\tif menu.guarded_persistence: menu.set_meta(&\"guarded_return_from_world\", true)\n\tmenu.settings_path=settings_path\n\tvar dev_return: Dictionary=get_meta(\"developer_garden\",{})\n\tmenu.storage.root_path = dev_return.get(\"root\",slot_storage_root)\n\tmenu.import_legacy = menu.storage.root_path == \"user://saves\"\n\tmenu.restore_last_selection = false\n\tmenu.selected = dev_return.get(\"slot\",maxi(0,active_slot))\n\tmenu.selected_character=dev_return.get(\"character\",maxi(0,active_character_slot))\n\tmenu.restore_last_character=false\n\tvar pending := Transactions.pending_notice(self)\n\tif pending.is_empty(): pending = str(get_meta(&\"guest_projection_notice\",\"\"))\n\tmenu.return_message = message if pending.is_empty() else pending\n\tif not pending.is_empty(): menu.set_meta(&\"guarded_return_notice\", pending)\n\tif joined_from_title or session==\"Connecting\" or get_meta(\"join_phase\",\"\")==\"garden\":\n\t\tmenu.set_meta(\"join_return\",{\"address\":network_address,\"port\":network_port,\"open\":not get_meta(\"join_cancelled\",false)})\n\tset_process(false)\n\tset_physics_process(false)\n\tget_tree().root.add_child(menu)\n\tget_tree().current_scene = menu\n\tqueue_free()\n\n\n",
         "baseline": "\tif has_meta(Transactions.SESSION): set_meta(Transactions.STOPPING, true)\n\tgo_offline()\n\trelease_slot()\n\tif network_dialog.visible:\n\t\tnetwork_dialog.dismiss()\n\tvar menu = load(\"res://main_menu.tscn\").instantiate()\n\tmenu.guarded_persistence = has_meta(\"guarded_title_session\")\n\tif menu.guarded_persistence: menu.set_meta(&\"guarded_return_from_world\", true)\n\tmenu.settings_path=settings_path\n\tvar dev_return: Dictionary=get_meta(\"developer_garden\",{})\n\tmenu.storage.root_path = dev_return.get(\"root\",slot_storage_root)\n\tmenu.import_legacy = menu.storage.root_path == \"user://saves\"\n\tmenu.restore_last_selection = false\n\tmenu.selected = dev_return.get(\"slot\",maxi(0,active_slot))\n\tmenu.selected_character=dev_return.get(\"character\",maxi(0,active_character_slot))\n\tmenu.restore_last_character=false\n\tvar pending := Transactions.pending_notice(self)\n\tmenu.return_message = message if pending.is_empty() else pending\n\tif not pending.is_empty(): menu.set_meta(&\"guarded_return_notice\", pending)\n\tif joined_from_title or session==\"Connecting\" or get_meta(\"join_phase\",\"\")==\"garden\":\n\t\tmenu.set_meta(\"join_return\",{\"address\":network_address,\"port\":network_port,\"open\":not get_meta(\"join_cancelled\",false)})\n\tset_process(false)\n\tset_physics_process(false)\n\tget_tree().root.add_child(menu)\n\tget_tree().current_scene = menu\n\tqueue_free()\n\n\n",
@@ -8342,6 +8384,25 @@
       }
     },
     "_ready": {
+      "production_route": {
+        "match": "\tif preload(\"res://persistence_writer_integration.gd\").default_route(get_tree()) and not has_meta(Transactions.SESSION):\n\t\tset_process(false)\n\t\tset_physics_process(false)\n\t\t_refuse_unowned_world.call_deferred()\n\t\treturn\n\tget_tree().auto_accept_quit = false\n\ttoast_until = Time.get_ticks_msec() + 4800\n\tif not has_meta(\"guarded_title_session\"):\n\t\tvar character_error := local_character.load_profile()\n\t\tif character_error != OK and character_error != ERR_FILE_NOT_FOUND:\n\t\t\tstatus = \"Character progress could not be loaded.\"\n\tconfigure_keys()\n\tvar soundscape := preload(\"res://soundscape.gd\").new()\n\tsoundscape.name=\"Soundscape\"\n\tadd_child(soundscape)\n\tvar event_audio := preload(\"res://event_audio.gd\").new()\n\tevent_audio.name = \"EventAudio\"\n\tadd_child(event_audio)\n\tbuild_hud()\n\tsettings_dialog=preload(\"res://settings_panel.gd\").new()\n\tsettings_dialog.developer_context=self\n\tadd_child(settings_dialog)\n\tsettings_dialog.applied.connect(func():player_hud.queue_redraw())\n\tdeath_visuals=preload(\"res://enemy_death_effects.gd\").new()\n\tdeath_visuals.stage=stage\n\tstage.add_child(death_visuals)\n\tcombat_visuals=preload(\"res://combat_effects.gd\").new()\n\tcombat_visuals.stage=stage\n\tstage.add_child(combat_visuals)\n\texploration = preload(\"res://exploration.gd\").new()\n\tadd_child(exploration)\n\tspectator_view=preload(\"res://spectator_view.gd\").new()\n\tadd_child(spectator_view)\n\tif not has_meta(\"guarded_title_session\"):\n\t\tvar result := progress.load_garden()\n\t\tif result != OK and result != ERR_FILE_NOT_FOUND:\n\t\t\tstatus = \"Could not read Garden save (error %d).\" % result\n\tnetwork_compatibility=preload(\"res://network_compatibility.gd\").new()\n\tadd_child(network_compatibility)\n\tmultiplayer.peer_connected.connect(add_player)\n\tmultiplayer.peer_disconnected.connect(remove_player)\n\tmultiplayer.connected_to_server.connect(on_joined_world)\n\tmultiplayer.connection_failed.connect(on_connection_failed)\n\tmultiplayer.server_disconnected.connect(on_server_disconnected)\n\tadd_player(HOST)\n\tdiagnostic_watch=preload(\"res://diagnostic_watch.gd\").new();diagnostic_watch.game=self;add_child(diagnostic_watch)\n\tpreload(\"res://menu_button_roots.gd\").watch(self,func():return app_settings.values.get(\"ambient_motion\",true))\n\n",
+        "baseline": "\tget_tree().auto_accept_quit = false\n\ttoast_until = Time.get_ticks_msec() + 4800\n\tif not has_meta(\"guarded_title_session\"):\n\t\tvar character_error := local_character.load_profile()\n\t\tif character_error != OK and character_error != ERR_FILE_NOT_FOUND:\n\t\t\tstatus = \"Character progress could not be loaded.\"\n\tconfigure_keys()\n\tvar soundscape := preload(\"res://soundscape.gd\").new()\n\tsoundscape.name=\"Soundscape\"\n\tadd_child(soundscape)\n\tvar event_audio := preload(\"res://event_audio.gd\").new()\n\tevent_audio.name = \"EventAudio\"\n\tadd_child(event_audio)\n\tbuild_hud()\n\tsettings_dialog=preload(\"res://settings_panel.gd\").new()\n\tsettings_dialog.developer_context=self\n\tadd_child(settings_dialog)\n\tsettings_dialog.applied.connect(func():player_hud.queue_redraw())\n\tdeath_visuals=preload(\"res://enemy_death_effects.gd\").new()\n\tdeath_visuals.stage=stage\n\tstage.add_child(death_visuals)\n\tcombat_visuals=preload(\"res://combat_effects.gd\").new()\n\tcombat_visuals.stage=stage\n\tstage.add_child(combat_visuals)\n\texploration = preload(\"res://exploration.gd\").new()\n\tadd_child(exploration)\n\tspectator_view=preload(\"res://spectator_view.gd\").new()\n\tadd_child(spectator_view)\n\tif not has_meta(\"guarded_title_session\"):\n\t\tvar result := progress.load_garden()\n\t\tif result != OK and result != ERR_FILE_NOT_FOUND:\n\t\t\tstatus = \"Could not read Garden save (error %d).\" % result\n\tnetwork_compatibility=preload(\"res://network_compatibility.gd\").new()\n\tadd_child(network_compatibility)\n\tmultiplayer.peer_connected.connect(add_player)\n\tmultiplayer.peer_disconnected.connect(remove_player)\n\tmultiplayer.connected_to_server.connect(on_joined_world)\n\tmultiplayer.connection_failed.connect(on_connection_failed)\n\tmultiplayer.server_disconnected.connect(on_server_disconnected)\n\tadd_player(HOST)\n\tdiagnostic_watch=preload(\"res://diagnostic_watch.gd\").new();diagnostic_watch.game=self;add_child(diagnostic_watch)\n\tpreload(\"res://menu_button_roots.gd\").watch(self,func():return app_settings.values.get(\"ambient_motion\",true))\n\n\n",
+        "additive": true,
+        "systems": [
+          "persistence_operations",
+          "persistence_authorization",
+          "persistence_recovery_plan",
+          "persistence_save_access",
+          "menus",
+          "characters",
+          "developer_garden",
+          "connection_flow",
+          "foundation",
+          "menu_layout",
+          "event_audio",
+          "soundscape"
+        ]
+      },
       "shared_menu_button_roots": {
         "additive": true,
         "match": "\tdiagnostic_watch=preload(\"res://diagnostic_watch.gd\").new();diagnostic_watch.game=self;add_child(diagnostic_watch)\n\tpreload(\"res://menu_button_roots.gd\").watch(self,func():return app_settings.values.get(\"ambient_motion\",true))\n",
@@ -16079,6 +16140,230 @@
     "main_menu.gd": {
       "newline": "crlf",
       "regions": {
+        "production_route_1": {
+          "match": "const Persistence = preload(\"res://persistence_writer_integration.gd\")\n# Earlier fixtures can still exercise the guarded handlers directly.\n# Default-route selection is owned by Persistence.\n",
+          "baseline": "# Internal opt-in for isolated integration callers. No normal title entry\n# enables this while the rest of the production writers are being migrated.\n",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
+        "production_route_2": {
+          "match": "var production_route := false\nvar production_backend_ready := true\nvar garden_recovery_button: Button\nvar character_recovery_button: Button\nvar recovery_confirmation: ConfirmationDialog\nvar reviewed_recovery: Dictionary = {}\nvar recovery_notice: Label\n",
+          "baseline": "",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
+        "production_route_3": {
+          "match": "\tproduction_route = Persistence.default_route(get_tree())\n\tif production_route: guarded_persistence = true\n",
+          "baseline": "",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
+        "production_route_4": {
+          "match": "\t\tif production_route:\n\t\t\tvar auth = GuardedSession.Ops.Authorization\n\t\t\tvar boot: Dictionary = auth.bootstrap(PackedStringArray([storage.root_path,characters.root_path])) if auth.replacement_available() else {\"error\":ERR_UNAVAILABLE}\n\t\t\tif boot.error != OK:\n\t\t\t\tpreparation = GuardedSession.Ops.management_result(boot.error,\"directory_bootstrap_failed\")\n\t\t\t\tif boot.error == ERR_UNAVAILABLE: production_backend_ready = false\n\t\telif not has_meta(&\"guarded_return_from_world\"):\n",
+          "baseline": "\t\tif not has_meta(&\"guarded_return_from_world\"):\n",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
+        "production_route_5": {
+          "match": "\tif production_route:\n\t\tvar recovery_row := HBoxContainer.new()\n\t\tplay.add_child(recovery_row)\n\t\tgarden_recovery_button = button(recovery_row,\"Review Garden Recovery…\",func(): review_recovery(storage.paths(selected).garden))\n\t\tif import_legacy:\n\t\t\tbutton(recovery_row,\"Import Older Saves…\",review_legacy_import)\n\t\t\tbutton(recovery_row,\"Review Older Save Recovery…\",review_legacy_recovery)\n",
+          "baseline": "",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
+        "production_route_6": {
+          "match": "\tif production_route:\n\t\tcharacter_recovery_button = button(roster,\"Review Character Recovery…\",func(): review_recovery(characters.paths(selected_character).get(\"character\",\"\")))\n",
+          "baseline": "",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
+        "production_route_7": {
+          "match": "\t\trecovery_notice = label(content,save_notice,14,Color(\"#e6c689\"))\n",
+          "baseline": "\t\tlabel(content,save_notice,14,Color(\"#e6c689\"))\n",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
+        "production_route_8": {
+          "match": "\t\t\tif production_route and not production_backend_ready:\n\t\t\t\tnotice.text = \"The Windows persistence library is unavailable or incompatible. Save actions are disabled.\"\n\t\tif production_route:\n\t\t\trecovery_confirmation = ConfirmationDialog.new()\n\t\t\tadd_child(recovery_confirmation)\n\t\t\trecovery_confirmation.dialog_hide_on_ok = false\n\t\t\trecovery_confirmation.confirmed.connect(apply_recovery)\n\t\t\trecovery_confirmation.canceled.connect(func(): reviewed_recovery.clear())\n",
+          "baseline": "",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
+        "production_route_9": {
+          "match": "\t\tvar active: bool = garden_summary(selected).active if production_route else storage.is_active(selected)\n\t\tif active:\n",
+          "baseline": "\t\tif storage.is_active(selected):\n",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
+        "production_route_10": {
+          "match": "\t\t\t\tvar candidate_active: bool = garden_summary(candidate).active if production_route else storage.is_active(candidate)\n\t\t\t\tif not candidate_active:\n",
+          "baseline": "\t\t\t\tif not storage.is_active(candidate):\n",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
+        "production_route_11": {
+          "match": "\tvar selected_active: bool = character_summary(selected_character).active if production_route else characters.is_active(selected_character)\n\tif selected_active:\n",
+          "baseline": "\tif characters.is_active(selected_character):\n",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
+        "production_route_12": {
+          "match": "\t\t\tif character_summary(candidate).exists and (production_route or not characters.is_active(candidate)): selected_character=candidate;break\n",
+          "baseline": "\t\t\tif character_summary(candidate).exists and not characters.is_active(candidate): selected_character=candidate;break\n",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
+        "production_route_13": {
+          "match": "\tif production_route:\n\t\tgarden_recovery_button.disabled = current.state not in [\"pending_recovery\",\"ambiguous\",\"invalid\"]\n\t\tcharacter_recovery_button.disabled = character.state not in [\"pending_recovery\",\"ambiguous\",\"invalid\"]\n\t\tif not production_backend_ready:\n\t\t\tcontinue_button.disabled = true\n\t\t\tnew_button.disabled = true\n\t\t\tjoin_button.disabled = true\n\t\t\tdelete_button.disabled = true\n\nfunc review_recovery(path: String) -> void:\n\tif not production_route or transitioning: return\n\tvar ops = GuardedSession.Ops\n\tif not ops.Layout.is_canonical(path, ops.Layout.directories()): return\n\tvar plan: Dictionary = ops.Planner.discover(PackedStringArray([path]))\n\treviewed_recovery = plan\n\trecovery_confirmation.title = \"Review save recovery\"\n\trecovery_confirmation.ok_button_text = \"Recover\"\n\tvar authorizable: bool = production_backend_ready and plan.state == \"pending_recovery\" and not plan.authorization_paths.is_empty() and not plan.journals.is_empty() and not plan.active_leases.values().has(true)\n\trecovery_confirmation.get_ok_button().disabled = not authorizable\n\tvar detail := \"Review needed. Save and archive files are preserved.\"\n\tif authorizable:\n\t\tdetail = \"Verify the saved transaction and complete cleanup or restore the originals.\"\n\trecovery_confirmation.dialog_text = detail + \"\\n\\n\" + \"\\n\".join(plan.participants)\n\trecovery_confirmation.popup_centered(Vector2i(560, 230))\n\nfunc review_legacy_recovery() -> void:\n\tif not production_route or not import_legacy: return\n\tfor path: String in [storage.legacy_garden,storage.legacy_character,storage.legacy_guest]:\n\t\tvar plan := GuardedSession.Ops.Planner.discover(PackedStringArray([path]))\n\t\tif plan.state not in [\"healthy\",\"empty\"]:\n\t\t\treview_recovery(path)\n\t\t\treturn\n\tnotice.text = \"No older save recovery is pending.\"\n\nfunc apply_recovery() -> void:\n\tif not production_route or transitioning or not recovery_confirmation.visible or recovery_confirmation.get_ok_button().disabled: return\n\tvar result := GuardedSession.Ops.recover_selected(reviewed_recovery)\n\tvar recovery: Dictionary = result.get(\"value\", {}) if result.get(\"ran\",false) else {}\n\tvar message := \"Recovery could not be verified. Save and archive evidence is preserved.\"\n\tif result.error == OK and recovery.get(\"verified\",false) and not recovery.get(\"write_blocked\",true):\n\t\tvar restored: bool = recovery.records.any(func(record): return record.disposition == \"restore_originals\")\n\t\tvar committed: bool = recovery.records.any(func(record): return record.disposition == \"committed_cleanup\")\n\t\tmessage = \"Original saves restored and committed saves cleaned up.\" if restored and committed else \"Original saves restored.\" if restored else \"Committed saves verified and recovery cleanup completed.\"\n\t\trecovery_confirmation.hide()\n\t\tvar return_paths: PackedStringArray = get_meta(&\"guarded_return_recovery_paths\",PackedStringArray())\n\t\tif is_instance_valid(recovery_notice) and not return_paths.is_empty() and return_paths.has(reviewed_recovery.requested[0]):\n\t\t\tvar fresh := GuardedSession.Ops.Planner.discover(return_paths)\n\t\t\tif fresh.state in [\"healthy\",\"empty\"]:\n\t\t\t\trecovery_notice.hide()\n\t\t\t\tremove_meta(&\"guarded_return_recovery_paths\")\n\telse:\n\t\trecovery_confirmation.dialog_text = message\n\t\trecovery_confirmation.get_ok_button().disabled = true\n\treviewed_recovery.clear()\n\tnotice.text = message\n\trefresh_characters()\n\tselect_slot(selected)\n\nfunc review_legacy_import() -> void:\n\tif not production_route or not production_backend_ready or transitioning or not import_legacy: return\n\tvar prompt := ConfirmationDialog.new()\n\tadd_child(prompt)\n\tprompt.title = \"Import older saves\"\n\tprompt.ok_button_text = \"Import\"\n\tprompt.dialog_text = \"Copy eligible older saves into available slots? The originals will be kept.\"\n\tprompt.confirmed.connect(func():\n\t\tprompt.hide()\n\t\timport_legacy_saves()\n\t\tprompt.queue_free())\n\tprompt.canceled.connect(prompt.queue_free)\n\tprompt.popup_centered(Vector2i(520,180))\n\nfunc import_legacy_saves() -> void:\n\tif not production_route or not production_backend_ready or transitioning or not import_legacy: return\n\tvar result := GuardedSession.prepare(storage, characters, true)\n\tnotice.text = \"Older saves checked and eligible saves imported.\" if GuardedSession.completed(result) else GuardedSession.notice(result)\n\trefresh_characters()\n\tselect_slot(selected)\n",
+          "baseline": "",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
+        "production_route_14": {
+          "match": "\tif production_route and not production_backend_ready:\n\t\tcreate_character_button.disabled=true\n\t\tdelete_character_button.disabled=true\n\t\treturn\n",
+          "baseline": "",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
+        "production_route_15": {
+          "match": "\t\tif production_backend_ready and character_summary(slot).state in [\"healthy\", \"empty\"]:\n",
+          "baseline": "\t\tif character_summary(slot).state in [\"healthy\", \"empty\"]:\n",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
+        "production_route_16": {
+          "match": "\tif production_route and not production_backend_ready: return\n",
+          "baseline": "",
+          "systems": [
+            "persistence_operations",
+            "persistence_authorization",
+            "persistence_recovery_plan",
+            "persistence_save_access",
+            "menus",
+            "characters",
+            "developer_garden",
+            "connection_flow"
+          ]
+        },
         "guarded_lifecycle_1": {
           "match": "\t\tif not has_meta(&\"guarded_return_from_world\"):\n\t\t\tpreparation = GuardedSession.prepare(storage, characters, import_legacy)\n",
           "baseline": "\t\tpreparation = GuardedSession.prepare(storage, characters, import_legacy)\n",

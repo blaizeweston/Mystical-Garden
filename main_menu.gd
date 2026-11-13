@@ -1,9 +1,17 @@
 extends Control
 const Slots = preload("res://save_slots.gd")
 const GuardedSession = preload("res://guarded_title_session.gd")
-# Internal opt-in for isolated integration callers. No normal title entry
-# enables this while the rest of the production writers are being migrated.
+const Persistence = preload("res://persistence_writer_integration.gd")
+# Earlier fixtures can still exercise the guarded handlers directly.
+# Default-route selection is owned by Persistence.
 var guarded_persistence := false
+var production_route := false
+var production_backend_ready := true
+var garden_recovery_button: Button
+var character_recovery_button: Button
+var recovery_confirmation: ConfirmationDialog
+var reviewed_recovery: Dictionary = {}
+var recovery_notice: Label
 const Network=preload("res://network_settings.gd")
 var network_address:="127.0.0.1"
 var network_port:=Network.DEFAULT_PORT
@@ -57,6 +65,8 @@ var coop_character: Label
 var character_return_page:=0
 
 func _ready() -> void:
+	production_route = Persistence.default_route(get_tree())
+	if production_route: guarded_persistence = true
 	get_tree().auto_accept_quit = true
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	theme = RootUI.make_theme()
@@ -76,7 +86,13 @@ func _ready() -> void:
 	var error := OK
 	var preparation := {}
 	if guarded_persistence:
-		if not has_meta(&"guarded_return_from_world"):
+		if production_route:
+			var auth = GuardedSession.Ops.Authorization
+			var boot: Dictionary = auth.bootstrap(PackedStringArray([storage.root_path,characters.root_path])) if auth.replacement_available() else {"error":ERR_UNAVAILABLE}
+			if boot.error != OK:
+				preparation = GuardedSession.Ops.management_result(boot.error,"directory_bootstrap_failed")
+				if boot.error == ERR_UNAVAILABLE: production_backend_ready = false
+		elif not has_meta(&"guarded_return_from_world"):
 			preparation = GuardedSession.prepare(storage, characters, import_legacy)
 	else:
 		error = storage.prepare(import_legacy)
@@ -195,6 +211,13 @@ void fragment() {
 	host_choice.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	management.add_child(host_choice)
 	delete_button=button(management,"Delete Garden…",request_delete_save)
+	if production_route:
+		var recovery_row := HBoxContainer.new()
+		play.add_child(recovery_row)
+		garden_recovery_button = button(recovery_row,"Review Garden Recovery…",func(): review_recovery(storage.paths(selected).garden))
+		if import_legacy:
+			button(recovery_row,"Import Older Saves…",review_legacy_import)
+			button(recovery_row,"Review Older Save Recovery…",review_legacy_recovery)
 
 	var roster:=pages[1]
 	var character_scroll:=ScrollContainer.new()
@@ -219,6 +242,8 @@ void fragment() {
 	create_character_button=button(character_actions,"Create Character",request_create_character)
 	create_character_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	delete_character_button=button(character_actions,"Delete Character…",request_delete_character)
+	if production_route:
+		character_recovery_button = button(roster,"Review Character Recovery…",func(): review_recovery(characters.paths(selected_character).get("character","")))
 	button(roster,"Back",back_from_characters).size_flags_horizontal=Control.SIZE_SHRINK_BEGIN
 	creator=preload("res://character_creator.gd").new()
 	creator.close_on_submit = not guarded_persistence
@@ -241,7 +266,7 @@ void fragment() {
 
 	var save_notice := str(get_meta(&"guarded_return_notice",""))
 	if guarded_persistence and not save_notice.is_empty():
-		label(content,save_notice,14,Color("#e6c689"))
+		recovery_notice = label(content,save_notice,14,Color("#e6c689"))
 	notice=label(content,"" if not save_notice.is_empty() else return_message,14,Color("#c4c697"))
 	notice.custom_minimum_size.y=42
 	notice.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
@@ -267,18 +292,29 @@ void fragment() {
 			dialog.dialog_hide_on_ok = false
 		if not preparation.is_empty() and not GuardedSession.completed(preparation) and not has_meta(&"guarded_return_notice"):
 			notice.text = GuardedSession.notice(preparation)
+			if production_route and not production_backend_ready:
+				notice.text = "The Windows persistence library is unavailable or incompatible. Save actions are disabled."
+		if production_route:
+			recovery_confirmation = ConfirmationDialog.new()
+			add_child(recovery_confirmation)
+			recovery_confirmation.dialog_hide_on_ok = false
+			recovery_confirmation.confirmed.connect(apply_recovery)
+			recovery_confirmation.canceled.connect(func(): reviewed_recovery.clear())
 	elif error!=OK:
 		notice.text="Could not prepare save slots. Your existing files were left in place."
 	if restore_last_selection:
 		selected = storage.last_slot()
-		if storage.is_active(selected):
+		var active: bool = garden_summary(selected).active if production_route else storage.is_active(selected)
+		if active:
 			for candidate in Slots.COUNT:
-				if not storage.is_active(candidate):
+				var candidate_active: bool = garden_summary(candidate).active if production_route else storage.is_active(candidate)
+				if not candidate_active:
 					selected = candidate
 					break
-	if characters.is_active(selected_character):
+	var selected_active: bool = character_summary(selected_character).active if production_route else characters.is_active(selected_character)
+	if selected_active:
 		for candidate in characters.count():
-			if character_summary(candidate).exists and not characters.is_active(candidate): selected_character=candidate;break
+			if character_summary(candidate).exists and (production_route or not characters.is_active(candidate)): selected_character=candidate;break
 	refresh_characters()
 	select_slot(selected)
 
@@ -369,6 +405,84 @@ func select_slot(slot: int) -> void:
 		delete_button.disabled = transitioning or current.state != "healthy"
 		new_button.disabled = new_button.disabled or current.state not in ["healthy", "empty"]
 		host_choice.disabled = current.state not in ["healthy", "empty"]
+	if production_route:
+		garden_recovery_button.disabled = current.state not in ["pending_recovery","ambiguous","invalid"]
+		character_recovery_button.disabled = character.state not in ["pending_recovery","ambiguous","invalid"]
+		if not production_backend_ready:
+			continue_button.disabled = true
+			new_button.disabled = true
+			join_button.disabled = true
+			delete_button.disabled = true
+
+func review_recovery(path: String) -> void:
+	if not production_route or transitioning: return
+	var ops = GuardedSession.Ops
+	if not ops.Layout.is_canonical(path, ops.Layout.directories()): return
+	var plan: Dictionary = ops.Planner.discover(PackedStringArray([path]))
+	reviewed_recovery = plan
+	recovery_confirmation.title = "Review save recovery"
+	recovery_confirmation.ok_button_text = "Recover"
+	var authorizable: bool = production_backend_ready and plan.state == "pending_recovery" and not plan.authorization_paths.is_empty() and not plan.journals.is_empty() and not plan.active_leases.values().has(true)
+	recovery_confirmation.get_ok_button().disabled = not authorizable
+	var detail := "Review needed. Save and archive files are preserved."
+	if authorizable:
+		detail = "Verify the saved transaction and complete cleanup or restore the originals."
+	recovery_confirmation.dialog_text = detail + "\n\n" + "\n".join(plan.participants)
+	recovery_confirmation.popup_centered(Vector2i(560, 230))
+
+func review_legacy_recovery() -> void:
+	if not production_route or not import_legacy: return
+	for path: String in [storage.legacy_garden,storage.legacy_character,storage.legacy_guest]:
+		var plan := GuardedSession.Ops.Planner.discover(PackedStringArray([path]))
+		if plan.state not in ["healthy","empty"]:
+			review_recovery(path)
+			return
+	notice.text = "No older save recovery is pending."
+
+func apply_recovery() -> void:
+	if not production_route or transitioning or not recovery_confirmation.visible or recovery_confirmation.get_ok_button().disabled: return
+	var result := GuardedSession.Ops.recover_selected(reviewed_recovery)
+	var recovery: Dictionary = result.get("value", {}) if result.get("ran",false) else {}
+	var message := "Recovery could not be verified. Save and archive evidence is preserved."
+	if result.error == OK and recovery.get("verified",false) and not recovery.get("write_blocked",true):
+		var restored: bool = recovery.records.any(func(record): return record.disposition == "restore_originals")
+		var committed: bool = recovery.records.any(func(record): return record.disposition == "committed_cleanup")
+		message = "Original saves restored and committed saves cleaned up." if restored and committed else "Original saves restored." if restored else "Committed saves verified and recovery cleanup completed."
+		recovery_confirmation.hide()
+		var return_paths: PackedStringArray = get_meta(&"guarded_return_recovery_paths",PackedStringArray())
+		if is_instance_valid(recovery_notice) and not return_paths.is_empty() and return_paths.has(reviewed_recovery.requested[0]):
+			var fresh := GuardedSession.Ops.Planner.discover(return_paths)
+			if fresh.state in ["healthy","empty"]:
+				recovery_notice.hide()
+				remove_meta(&"guarded_return_recovery_paths")
+	else:
+		recovery_confirmation.dialog_text = message
+		recovery_confirmation.get_ok_button().disabled = true
+	reviewed_recovery.clear()
+	notice.text = message
+	refresh_characters()
+	select_slot(selected)
+
+func review_legacy_import() -> void:
+	if not production_route or not production_backend_ready or transitioning or not import_legacy: return
+	var prompt := ConfirmationDialog.new()
+	add_child(prompt)
+	prompt.title = "Import older saves"
+	prompt.ok_button_text = "Import"
+	prompt.dialog_text = "Copy eligible older saves into available slots? The originals will be kept."
+	prompt.confirmed.connect(func():
+		prompt.hide()
+		import_legacy_saves()
+		prompt.queue_free())
+	prompt.canceled.connect(prompt.queue_free)
+	prompt.popup_centered(Vector2i(520,180))
+
+func import_legacy_saves() -> void:
+	if not production_route or not production_backend_ready or transitioning or not import_legacy: return
+	var result := GuardedSession.prepare(storage, characters, true)
+	notice.text = "Older saves checked and eligible saves imported." if GuardedSession.completed(result) else GuardedSession.notice(result)
+	refresh_characters()
+	select_slot(selected)
 
 func character_ready() -> bool:
 	var data:=character_summary(selected_character)
@@ -391,6 +505,10 @@ func refresh_characters() -> void:
 	var summary: String="Playing as %s · %s · Level %d"%[chosen.name,chosen.class_name,chosen.level] if character_ready() else "Choose an available character to play."
 	play_character.text=summary
 	coop_character.text=summary
+	if production_route and not production_backend_ready:
+		create_character_button.disabled=true
+		delete_character_button.disabled=true
+		return
 	delete_character_button.disabled=chosen.active or not chosen.exists or transitioning
 	create_character_button.disabled=chosen.active or chosen.error!=OK or transitioning
 	create_character_button.text=GuardedSession.label(chosen.state) if guarded_persistence and chosen.state not in ["healthy", "empty"] else "Create Character" if not chosen.exists else "Customize: %s · %s"%[chosen.name,chosen.class_name]
@@ -399,7 +517,7 @@ func select_character(slot: int) -> void:
 	if slot<0 or slot>=characters.count(): return
 	selected_character=slot
 	if guarded_persistence:
-		if character_summary(slot).state in ["healthy", "empty"]:
+		if production_backend_ready and character_summary(slot).state in ["healthy", "empty"]:
 			var result := GuardedSession.outcome(characters.remember_guarded(slot))
 			if not GuardedSession.completed(result): notice.text = GuardedSession.notice(result)
 	else:
@@ -637,6 +755,7 @@ func _create_character_guarded(character_name: String, class_id: int, appearance
 	if start_garden: new_game.call_deferred()
 
 func _launch_guarded(join: bool) -> void:
+	if production_route and not production_backend_ready: return
 	var profile := character_summary(selected_character)
 	var garden := {} if join else garden_summary(selected)
 	if profile.state != "healthy" or (not join and garden.state != "healthy"):

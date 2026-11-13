@@ -419,16 +419,26 @@ static func _publish_backup(token: RefCounted, scratch: String, target: String, 
 static func recover(paths: PackedStringArray) -> Dictionary:
  return _recover(paths)
 
-static func _recover(paths: PackedStringArray, fault := Callable()) -> Dictionary:
+## Title recovery requires the plan the player reviewed and no live leases.
+static func recover_selected(reviewed: Dictionary) -> Dictionary:
+ if reviewed.get("state") != "pending_recovery" or reviewed.get("authorization_paths", []).is_empty():
+  return _refuse(reviewed.get("state","invalid"), "recovery_review_not_authorizable")
+ return _recover(reviewed.requested, Callable(), reviewed)
+
+static func _recover(paths: PackedStringArray, fault := Callable(), reviewed := {}) -> Dictionary:
  if not Thread.is_main_thread() or _context != null or Batch.active:
   return _result(ERR_BUSY, "busy", "operation_in_progress")
  var plan := Planner.discover(paths)
+ if not reviewed.is_empty() and (plan.participants != reviewed.participants or plan.observed != reviewed.observed \
+  or plan.journal_anchors != reviewed.journal_anchors or plan.authorization_paths != reviewed.authorization_paths \
+  or plan.state != reviewed.state):
+  return _result(ERR_BUSY, "pending_recovery", "recovery_review_changed")
  if plan.authorization_paths.is_empty():
   var refused := _refuse(plan.state, plan.reason)
   refused.path = plan.path
   return refused
  var boundary := Authorization.run(plan.authorization_paths, func(token):
-  return Batch._recover_guarded(token, plan, paths, fault))
+  return Batch._recover_guarded(token, plan, paths, fault, not reviewed.is_empty()))
  if not boundary.ran:
   var state := "busy" if boundary.error == ERR_BUSY else "invalid"
   return _result(boundary.error, state, "authorization_acquire_failed", boundary.native_error)

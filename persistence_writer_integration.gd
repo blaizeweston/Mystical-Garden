@@ -3,6 +3,7 @@ extends RefCounted
 ## There is no settings, feature-flag or environment override for this checkpoint.
 
 const PRODUCTION_CUTOVER_APPROVED := false
+const VALIDATION_ROUTE := &"persistence_production_route_validation"
 const REQUIRED_WRITERS = {
  "save_batch.gd::write_bytes/write": "raw writes, staging and standalone replacement",
  "save_batch.gd::begin/commit/cancel": "journal creation, replacement and staging cleanup",
@@ -20,11 +21,11 @@ const REQUIRED_WRITERS = {
  "character_slots.gd::create/update": "roster serialization and leases",
  "character_slots.gd::set_capacity/remember": "roster catalog updates",
  "character_slots.gd::delete_character/remove_character": "profile recovery, archive, catalog and compensation",
- "main_menu.gd::_ready/launch": "default title preparation and Continue/Join still select legacy writers",
- "developer_mode.gd::open_garden": "default Developer Garden uses legacy creation, replacement and lease paths",
- "game.gd::_ready/_notification/return_to_main_menu/_exit_tree": "legacy startup, close, title return and lease release remain reachable",
- "game.gd::register_character/receive_character/remove_player": "legacy admission, profile projection and disconnect writers remain reachable",
- "persistence_operations.gd::recover": "production recovery entry point and evidence reconciliation still require integration",
+ "main_menu.gd::_ready/launch": "candidate default title, passive selection and guarded Continue/Join",
+ "developer_mode.gd::open_garden": "candidate Developer Garden creation, replacement and lease",
+ "game.gd::_ready/_notification/return_to_main_menu/_exit_tree": "candidate guarded startup, close, title return and lease release",
+ "game.gd::register_character/receive_character/remove_player": "candidate guarded admission, projection and disconnect",
+ "persistence_operations.gd::recover_selected": "explicit recovery with confirmed evidence and idle participants",
 }
 const AUXILIARY_WRITERS = {
  "app_settings.gd::save_settings": "settings.cfg, standalone preferences",
@@ -40,6 +41,16 @@ const CUTOVER_REQUIREMENTS = [
 # Record production entry points here only once the actual call sites enforce the
 # scope and both source and packaged writer fixtures cover refusal and success.
 const VERIFIED_WRITERS = []
+
+static func default_route(tree: SceneTree) -> bool:
+ if tree == null:
+  return false
+ if activation_status().allowed:
+  return true
+ # Internal fixture seam. No command line or player preference enables this.
+ return DisplayServer.get_name() == "headless" and tree.has_meta(VALIDATION_ROUTE) \
+  and not OS.get_environment("MYSTICAL_VALIDATION_RUN").is_empty() \
+  and OS.get_user_data_dir().replace("\\", "/").contains("/.godot/vd/")
 # Group 1 adds guarded routes. Existing production callers still bypass them.
 const GROUP_1_GUARDED_ROUTES = {
  "save_batch.gd::_run_guarded/_recover_guarded": "scoped stage, finalize and recovery",

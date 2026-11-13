@@ -30,6 +30,8 @@ static func can_edit(game: Node) -> bool:
 static func open_garden(menu: Node, reset: bool, digests := {}) -> Error:
 	if menu.transitioning or not menu.content_valid or not menu.app_settings.values.get("developer_mode",false):
 		return ERR_UNAUTHORIZED
+	if menu.production_route and not menu.production_backend_ready:
+		return ERR_UNAVAILABLE
 	if menu.guarded_persistence:
 		var result := _open_guarded(menu, reset, digests)
 		if not GuardedSession.completed(result):

@@ -5,6 +5,7 @@ const Owner = preload("res://guarded_title_session.gd")
 const Profile = preload("res://character_profile.gd")
 const Tx = preload("res://game_transaction.gd")
 const Ops = preload("res://persistence_operations.gd")
+const Integration = preload("res://persistence_writer_integration.gd")
 const G = "user://saves/slot_1/garden.cfg"
 const P = "user://saves/characters/slot_2/character.cfg"
 const Cases = ["apply","abort","recover","cleanup","uncertain","repair","lease","disconnect","pending"]
@@ -38,12 +39,11 @@ func until(predicate: Callable) -> bool:
 
 func title() -> Node:
  var menu = load("res://main_menu.tscn").instantiate()
- menu.guarded_persistence = true
- menu.import_legacy = false
  menu.restore_last_character = false
  menu.restore_last_selection = false
  root.add_child(menu)
  current_scene = menu
+ check(menu.production_route and menu.guarded_persistence,"default title selected candidate production route")
  return menu
 
 func peer() -> int:
@@ -234,7 +234,7 @@ func guest() -> void:
    check(false,"host did not verify "+key)
    return
   if key in ["abort","cleanup","uncertain","lease"]:
-   world.return_to_main_menu()
+   if is_instance_valid(world) and current_scene == world: world.return_to_main_menu()
    check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"guest offline before world detach")
    await process_frame
    if key in ["cleanup","uncertain"]:
@@ -248,6 +248,7 @@ func guest() -> void:
     return
 
 func run() -> void:
+ set_meta(Integration.VALIDATION_ROUTE,true)
  var is_host := OS.get_cmdline_user_args()[0]=="host"
  signals = ProjectSettings.globalize_path("user://release-fixtures/guest-projection-")
  if not is_host:

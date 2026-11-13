@@ -259,6 +259,11 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	if preload("res://persistence_writer_integration.gd").default_route(get_tree()) and not has_meta(Transactions.SESSION):
+		set_process(false)
+		set_physics_process(false)
+		_refuse_unowned_world.call_deferred()
+		return
 	get_tree().auto_accept_quit = false
 	toast_until = Time.get_ticks_msec() + 4800
 	if not has_meta("guarded_title_session"):
@@ -302,6 +307,12 @@ func _ready() -> void:
 	diagnostic_watch=preload("res://diagnostic_watch.gd").new();diagnostic_watch.game=self;add_child(diagnostic_watch)
 	preload("res://menu_button_roots.gd").watch(self,func():return app_settings.values.get("ambient_motion",true))
 
+func _refuse_unowned_world() -> void:
+	var menu = load("res://main_menu.tscn").instantiate()
+	menu.return_message = "Open a Garden or join from the title to claim the save first."
+	get_tree().root.add_child(menu)
+	get_tree().current_scene = menu
+	queue_free()
 
 func _notification(what: int) -> void:
 	if what==NOTIFICATION_WM_WINDOW_FOCUS_OUT: mouse_controls.release(self)
@@ -3899,6 +3910,12 @@ func _finish_title_return(message: String) -> void:
 	if pending.is_empty(): pending = str(get_meta(&"guest_projection_notice",""))
 	menu.return_message = message if pending.is_empty() else pending
 	if not pending.is_empty(): menu.set_meta(&"guarded_return_notice", pending)
+	if not Transactions.pending_notice(self).is_empty():
+		var recovery_paths := PackedStringArray()
+		if session in ["Solo","Host"]: recovery_paths.append(progress.path)
+		if session in ["Guest","Connecting"]: recovery_paths.append(guest_character.path)
+		elif session in ["Solo","Host"]: recovery_paths.append(local_character.path)
+		menu.set_meta(&"guarded_return_recovery_paths",recovery_paths)
 	if joined_from_title or session=="Connecting" or get_meta("join_phase","")=="garden":
 		menu.set_meta("join_return",{"address":network_address,"port":network_port,"open":not get_meta("join_cancelled",false)})
 	set_process(false)
@@ -3916,6 +3933,7 @@ func release_slot() -> void:
 		character_slot_claimed = false
 		slot_claimed = false
 		return
+	if preload("res://persistence_writer_integration.gd").default_route(get_tree()): return
 	if character_slot_claimed and active_character_slot>=0:
 		var roster:=preload("res://character_slots.gd").new();roster.root_path=character_storage_root;roster.release(active_character_slot);character_slot_claimed=false
 	if slot_claimed and active_slot >= 0:

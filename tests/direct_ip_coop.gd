@@ -44,4 +44,4 @@ func run():
  quit(1 if failed else 0)
 
 func bad_handshake() -> void:
- game.register_character.rpc_id(1,game.guest_character.identity,game.guest_character.data,game.progress.ContentIDs.manifest(),Settings.PROTOCOL+1)
+ game.register_character.rpc_id(1,game.guest_character.identity,game.guest_character.data,game.progress.ContentIDs.manifest(),Settings.PROTOCOL-1)

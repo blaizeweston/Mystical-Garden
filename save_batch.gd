@@ -17,6 +17,7 @@ static func write_bytes(path: String,bytes: PackedByteArray) -> Error:
  return ERR_FILE_CANT_WRITE if error == OK and not stored else error
 static func write(path: String,bytes: PackedByteArray) -> Error:
  if _guarded_owner != null: return reject_guarded_serializer(ERR_UNAUTHORIZED, path)
+ if _guarded_evidence(path): return record_serializer_error(ERR_BUSY,path)
  var target := path+(".txn_stage" if active else ".tmp")
  if active:
   _legacy_serializers.erase(path)
@@ -49,7 +50,10 @@ static func recover(path: String) -> Error:
  if _guarded_owner != null: return ERR_BUSY
  var journal:=path+".transaction"
  if FileAccess.file_exists(path+".txn_link"): journal=FileAccess.get_file_as_string(path+".txn_link")
+ if _guarded_evidence(path) or _guarded_evidence(journal.trim_suffix(".transaction")): return ERR_BUSY
  if not FileAccess.file_exists(journal): return OK
+ var raw := Planner._read_bytes(journal)
+ if not raw.ok or not Evidence.journal_attempt(raw.bytes).is_empty(): return ERR_BUSY
  var config:=ConfigFile.new();var error:=config.load(journal)
  if error!=OK: return error
  var entries=config.get_value("transaction","entries",{})
@@ -67,6 +71,24 @@ static func recover(path: String) -> Error:
   for suffix in [".txn_link",".txn_stage"]:
    if FileAccess.file_exists(target+suffix): DirAccess.remove_absolute(target+suffix)
  return DirAccess.remove_absolute(journal)
+
+static func _guarded_evidence(path: String) -> bool:
+ if FileAccess.file_exists(path+".transaction"):
+  var primary := Planner._read_bytes(path+".transaction")
+  if not primary.ok or not Evidence.journal_attempt(primary.bytes).is_empty(): return true
+ for suffix in Evidence.SUFFIXES:
+  if FileAccess.file_exists(path+suffix) or DirAccess.dir_exists_absolute(path+suffix): return true
+ # A participant can carry a link while only its anchor has the B2 evidence.
+ if FileAccess.file_exists(path+".txn_link"):
+  var link := Planner._read_bytes(path+".txn_link",1040)
+  if not link.ok: return true
+  var anchor: String = link.bytes.get_string_from_utf8().trim_suffix(".transaction")
+  if FileAccess.file_exists(anchor+".transaction"):
+   var linked := Planner._read_bytes(anchor+".transaction")
+   if not linked.ok or not Evidence.journal_attempt(linked.bytes).is_empty(): return true
+  for suffix in Evidence.SUFFIXES:
+   if FileAccess.file_exists(anchor+suffix) or DirAccess.dir_exists_absolute(anchor+suffix): return true
+ return false
 static func commit() -> Error:
  if _guarded_owner != null: return ERR_BUSY
  if failure!=OK: var error:=failure;cancel();return error
@@ -619,7 +641,7 @@ class GuardedAttempt extends RefCounted:
  func _fault(phase: String, path: String) -> Error:
   return fault.call(phase, path) if fault.is_valid() else OK
 ## Executes only a plan freshly rediscovered with the original complete scope.
-static func _recover_guarded(token: RefCounted, preview: Dictionary, paths: PackedStringArray, fault: Callable) -> Dictionary:
+static func _recover_guarded(token: RefCounted, preview: Dictionary, paths: PackedStringArray, fault: Callable, idle_only := false) -> Dictionary:
  var answer := {
   "state": "pending_recovery", "reason": "", "path": "", "write_blocked": true,
   "filesystem_error": OK, "restoration_error": OK, "cleanup_error": OK,
@@ -636,6 +658,14 @@ static func _recover_guarded(token: RefCounted, preview: Dictionary, paths: Pack
    answer.path = locked.path
    answer.authorization_error = ERR_BUSY
    return answer
+  if idle_only:
+   for path: String in locked.participants:
+    var marker := path.get_base_dir().path_join("session.cfg")
+    if locked.active_leases.get(marker,false) or FileAccess.file_exists(marker+".tmp") or DirAccess.dir_exists_absolute(marker+".tmp"):
+     answer.reason = "active_or_unresolved_session_lease"
+     answer.authorization_error = ERR_BUSY
+     answer.path = marker
+     return answer
   if locked.journals.is_empty():
    for path in locked.participants:
     if _blocked_paths.has(path):
