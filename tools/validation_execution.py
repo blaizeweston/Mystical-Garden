@@ -150,7 +150,10 @@ def fixture_environment(project):
     env = os.environ.copy()
     env.update(APPDATA=str(data), LOCALAPPDATA=str(data / "local"), XDG_DATA_HOME=str(data))
     Path(env["LOCALAPPDATA"]).mkdir()
-    (data / "Mystical Garden Prototype/release-fixtures").mkdir(parents=True)
+    user_directory = env.get("MYSTICAL_VALIDATION_DATA_DIR", "Mystical Garden Prototype")
+    if not re.fullmatch(r"Mystical Garden (?:Prototype|Playtest [0-9.]+-playtest\.[0-9]+)", user_directory):
+        raise ValueError("unsupported validation user-data directory")
+    (data / user_directory / "release-fixtures").mkdir(parents=True)
     return env
 
 

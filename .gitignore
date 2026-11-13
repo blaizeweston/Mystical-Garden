@@ -17,6 +17,7 @@ __pycache__/
 # Local export templates, packaged builds and build output
 /export_templates/
 /exports/
+/playtest-releases/
 /build/
 /*.exe
 /*.pck

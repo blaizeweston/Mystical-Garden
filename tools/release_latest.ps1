@@ -1,6 +1,11 @@
-param([string]$Engine=(Join-Path $PSScriptRoot '../../Godot_v4.7.2-stable_win64_console.exe'),[Alias('Target')][string]$TargetPath='', [switch]$Full, [switch]$VerifyOnly)
+param([string]$Engine=(Join-Path $PSScriptRoot '../../Godot_v4.7.2-stable_win64_console.exe'),[Alias('Target')][string]$TargetPath='', [switch]$Full, [switch]$VerifyOnly, [string]$PlaytestVersion='', [string]$PlaytestCommit='', [string]$InputManifestSha256='')
 $ErrorActionPreference='Stop'
 $project=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+if($PlaytestVersion){
+ if(-not $VerifyOnly -or $TargetPath -or $PlaytestVersion -cnotmatch '\A(?:0|[1-9][0-9]{0,5})\.(?:0|[1-9][0-9]{0,5})\.(?:0|[1-9][0-9]{0,5})-playtest\.[1-9][0-9]{0,5}\z' -or $PlaytestCommit -cnotmatch '\A[0-9a-f]{40}\z' -or $InputManifestSha256 -cnotmatch '\A[0-9a-f]{64}\z'){
+  throw 'Playtest export requires VerifyOnly and an exact version, commit and input digest.'
+ }
+}
 $env:APPDATA=Join-Path $project '.godot/stabilization-appdata'
 $env:LOCALAPPDATA=Join-Path $project '.godot/stabilization-localappdata'
 New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA | Out-Null
@@ -32,6 +37,9 @@ function Invoke-ValidationFixture([string]$Fixture,[string]$Kind,[string]$Script
 }
 Invoke-ValidationFixture 'catalog_preflight' 'unit' (Join-Path $project 'tests/content_validation.gd')
 $targetDirectory=$project
+if($PlaytestVersion){
+ $target=[pscustomobject]@{BaseName="Mystical Garden $PlaytestVersion";Name='Mystical Garden.exe'}
+}else{
 if($TargetPath){
  $selected=Get-Item -LiteralPath $TargetPath
  if($selected.PSIsContainer -or $selected.BaseName -notmatch '^Mystical Garden v(\d+(?:\.\d+){1,3})$'){throw 'Target must be an existing numbered Mystical Garden EXE.'}
@@ -43,10 +51,20 @@ function Latest {
 $target=Latest
 if($TargetPath -and $target.FullName -ne $selected.FullName){throw 'A higher revision exists beside the selected target. Select the highest revision.'}
 if($null -eq $target){throw 'No numbered release EXE found. Refusing to invent a milestone.'}
+}
 $fingerprint=& (Join-Path $PSScriptRoot 'runtime_fingerprint.ps1') -Project $project
 $stamp=Join-Path $project '.godot/stabilization/validated-source.sha256'
 if(-not (Test-Path -LiteralPath $stamp) -or (Get-Content -LiteralPath $stamp -Raw).Trim() -ne $fingerprint){throw 'Runtime source changed since validation. Run validate_release.ps1 again.'}
-@{schema=2;milestone=$target.BaseName;built_utc=[DateTime]::UtcNow.ToString('o');source_fingerprint=$fingerprint;engine='4.7.2';checks=$results.Count} | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $project 'assets/content/build_manifest.json')
+$metadata=@{schema=2;milestone=$target.BaseName;built_utc=[DateTime]::UtcNow.ToString('o');source_fingerprint=$fingerprint;engine='4.7.2';checks=$results.Count}
+if($PlaytestVersion){
+ $metadata.playtest_version=$PlaytestVersion
+ $metadata.git_commit=$PlaytestCommit
+ $metadata.input_manifest_sha256=$InputManifestSha256
+ $metadata.save_root="Mystical Garden Playtest $PlaytestVersion"
+ $metadata.persistence='legacy with native containment'
+ $env:MYSTICAL_VALIDATION_DATA_DIR=$metadata.save_root
+}
+$metadata | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $project 'assets/content/build_manifest.json')
 $templates=Join-Path $env:USERPROFILE 'AppData/Roaming/Godot/export_templates/4.7.2.stable'
 $preset=Join-Path $project 'export_presets.cfg'
 $text=Get-Content -LiteralPath $preset -Raw
@@ -59,13 +77,30 @@ foreach($mode in @('debug','release')) {
 [IO.File]::WriteAllText($preset,$text,[Text.UTF8Encoding]::new($false))
 $stageDirectory=Join-Path $build ([Guid]::NewGuid().ToString('N').Substring(0,12))
 New-Item -ItemType Directory -Path $stageDirectory | Out-Null
-$staged=Join-Path $stageDirectory ('Mystical Garden-staged.exe')
+$staged=Join-Path $stageDirectory $(if($PlaytestVersion){'Mystical Garden.exe'}else{'Mystical Garden-staged.exe'})
 $sourceLock=Join-Path $project 'assets/native/persistence_lock/b0_native_lock.dll'
 $stagedLock=Join-Path $stageDirectory 'b0_native_lock.dll'
 $installedLock=Join-Path $targetDirectory 'b0_native_lock.dll'
 $log=Join-Path $build 'export.log'
-& $Engine --headless --path $project --export-release 'Windows Desktop' $staged *> $log
-if($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $staged)){throw 'Export failed; current EXE remains intact.'}
+$settings=Join-Path $project 'project.godot'
+$originalSettings=[IO.File]::ReadAllBytes($settings)
+try {
+ if($PlaytestVersion){
+  $configuration=[IO.File]::ReadAllText($settings)
+  $pattern='(?m)^config/custom_user_dir_name="Mystical Garden Prototype"\r?$'
+  if([regex]::Matches($configuration,$pattern).Count -ne 1){throw 'Unexpected committed user-data configuration.'}
+  $configuration=[regex]::Replace($configuration,$pattern,('config/custom_user_dir_name="'+$metadata.save_root+"`"`nconfig/mystical_playtest=true`nconfig/disable_project_settings_override.template_release=true"))
+  if($configuration -notmatch '(?m)^\[debug\]'){throw 'Missing Godot debug settings section.'}
+  $configuration=[regex]::Replace($configuration,'(?m)^\[debug\]\r?$',"[debug]`nfile_logging/enable_file_logging=false`nfile_logging/enable_file_logging.pc=false")
+  [IO.File]::WriteAllText($settings,$configuration,[Text.UTF8Encoding]::new($false))
+  Copy-Item -LiteralPath $settings -Destination (Join-Path $stageDirectory 'export-project.godot')
+ }
+ & $Engine --headless --path $project --export-release 'Windows Desktop' $staged *> $log
+ $exportExit=$LASTEXITCODE
+}finally {
+ if($PlaytestVersion){[IO.File]::WriteAllBytes($settings,$originalSettings)}
+}
+if($exportExit -ne 0 -or -not (Test-Path -LiteralPath $staged)){throw 'Export failed; current EXE remains intact.'}
 if(-not (Test-Path -LiteralPath $stagedLock -PathType Leaf) -or (Get-FileHash -LiteralPath $stagedLock).Hash -ne (Get-FileHash -LiteralPath $sourceLock).Hash){throw 'Missing or mismatched exported persistence lock.'}
 $verifiedLockHash=(Get-FileHash -LiteralPath $stagedLock).Hash
 if(Select-String -LiteralPath $log -Pattern 'res://(?:docs|tests|tools|assets/source)/' -Quiet){throw 'Export included excluded source or archives.'}

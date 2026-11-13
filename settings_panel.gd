@@ -47,6 +47,7 @@ func _ready() -> void:
  developer_controls.settings = self
  developer_controls.title_menu = developer_title
  gameplay.add_child(developer_controls)
+ if preload("res://playtest_storage.gd").retail(): developer_controls.hide()
 
  var display:=add_page(pages,"Display")
  fullscreen=check(display,"Fullscreen")
@@ -171,7 +172,7 @@ func _input(event: InputEvent) -> void:
   elif event is InputEventMouseButton and event.pressed and int(event.button_index) in [1,2,3,8,9]:assign_binding({"kind":"mouse","code":int(event.button_index)});get_viewport().set_input_as_handled()
  elif event is InputEventKey and event.pressed and event.keycode==KEY_ESCAPE:cancel();get_viewport().set_input_as_handled()
 func save() -> void:
- draft.developer_mode = developer_controls.toggle.button_pressed
+ draft.developer_mode = not preload("res://playtest_storage.gd").retail() and developer_controls.toggle.button_pressed
  draft.ambient_motion=get_meta("garden_motion_toggle").button_pressed
  draft.garden_cinematics=get_meta("garden_cinematic_toggle").button_pressed
  if not pending_action.is_empty():notice.text="Finish or cancel the current binding first.";return

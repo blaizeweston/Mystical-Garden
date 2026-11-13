@@ -4,6 +4,7 @@ const GuardedSession = preload("res://guarded_title_session.gd")
 const Persistence = preload("res://persistence_writer_integration.gd")
 # Earlier fixtures can still exercise the guarded handlers directly.
 # Default-route selection is owned by Persistence.
+const Playtest = preload("res://playtest_storage.gd")
 var guarded_persistence := false
 var production_route := false
 var production_backend_ready := true
@@ -69,6 +70,17 @@ var coop_character: Label
 var character_return_page:=0
 
 func _ready() -> void:
+	if Playtest.retail():
+		import_legacy = false
+		if not Playtest.refusal.is_empty():
+			var message := Label.new()
+			message.text = Playtest.refusal
+			message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			message.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			message.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			add_child(message)
+			set_process(false)
+			return
 	production_route = Persistence.default_route(get_tree())
 	if production_route: guarded_persistence = true
 	get_tree().auto_accept_quit = true
@@ -159,6 +171,11 @@ void fragment() {
 	layout.add_child(sidebar)
 	var title:=label(sidebar,"MYSTICAL\nGARDEN",38,Color("#ece0ad"))
 	RootUI.style_title(title)
+	if Playtest.retail():
+		var version: String = Playtest.build().playtest_version
+		var build_label := label(sidebar,version,14,Color("#bfc594"))
+		build_label.name = "PlaytestVersion"
+		print("PLAYTEST READY: %s · protocol %d · legacy-contained" % [build_label.text,Network.PROTOCOL])
 	var title_space:=Control.new()
 	title_space.custom_minimum_size.y=16
 	sidebar.add_child(title_space)
