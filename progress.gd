@@ -414,6 +414,7 @@ func pay_shortcut(cost: int, reserved: Array = []) -> Error:
 		var spent := mini(maxi(0,int(parts[i])-(int(reserved[i]) if i<reserved.size() else 0)), remaining)
 		parts[i] -= spent
 		remaining -= spent
+	if SaveBatch.guarded_active(): return OK
 	var result := save_garden()
 	if result != OK:
 		parts.assign(before)

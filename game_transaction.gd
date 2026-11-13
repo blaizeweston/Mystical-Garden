@@ -196,6 +196,8 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
   captured.local = snapshot(game.local_character)
   captured.guest = snapshot(game.guest_character)
   captured.rng = game.rng.state
+  if game.has_method("snapshot_expedition_runtime"):
+   captured.expedition = game.snapshot_expedition_runtime()
   game.transaction_publishes.clear()
   _owner = game
   _participants = serializers
@@ -282,3 +284,5 @@ static func _restore_guarded(game: Node, captured: Dictionary) -> void:
  if game.players.has(game.HOST):
   game.local_character.data = game.players[game.HOST].character
  game.rng.state = captured.rng
+ if captured.has("expedition"):
+  game.restore_expedition_runtime(captured.expedition)

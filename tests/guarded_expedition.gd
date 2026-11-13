@@ -1,0 +1,302 @@
+extends SceneTree
+
+const Tx=preload("res://game_transaction.gd")
+const Plan=preload("res://persistence_recovery_plan.gd")
+const Ops=preload("res://persistence_operations.gd")
+const Slots=preload("res://save_slots.gd")
+const Roster=preload("res://character_slots.gd")
+const Owner=preload("res://guarded_title_session.gd")
+const G="user://saves/slot_1/garden.cfg"
+const C="user://saves/characters/slot_1/character.cfg"
+var failed:=false
+var world: Node
+var slots:=Slots.new()
+var roster:=Roster.new()
+
+func _initialize() -> void:
+ call_deferred("run")
+
+func check(ok: bool, message: String) -> void:
+ if not ok:
+  failed=true
+  printerr("FAIL: ",message)
+
+func disk() -> Dictionary:
+ var result:={}
+ for p in [G,C]:
+  for suffix in [""]+Plan.ARTIFACTS: result[p+suffix]=Slots._save_digest(p+suffix)
+ return result
+
+func record(label: String,before: Dictionary) -> void:
+ print("CASE ",JSON.stringify({"case":label,"run_id":OS.get_environment("MYSTICAL_VALIDATION_RUN"),"before":before,"after":disk(),
+  "floor":world.encounter_number,"wild":world.expedition_active(),"pending":Tx.pending_notice(world),"status":world.status,
+  "queued_kills":world.pending_kill_rewards.size(),"queued_departures":world.pending_departures.size(),"event_serial":world.combat_event_serial}))
+
+func open_world() -> bool:
+ world=load("res://world.tscn").instantiate()
+ world.progress.path=G
+ world.local_character.path=C
+ world.guest_character.path=C
+ world.slot_claimed=true
+ var result:=Owner.new().start(world,slots,0,Slots._save_digest(G),roster,0,Slots._save_digest(C))
+ check(Owner.completed(result),"guarded world startup "+str(result))
+ if not Owner.completed(result):
+  world.free()
+  return false
+ root.add_child(world)
+ world.set_process(false)
+ world.set_physics_process(false)
+ return true
+
+func fail_stage(phase: String,path: String) -> Error:
+ return ERR_FILE_CANT_WRITE if phase=="stage" and path==C+".txn_stage" else OK
+
+func fail_restore(phase: String,path: String) -> Error:
+ if phase=="replace" and path==G: return ERR_CANT_CREATE
+ return ERR_FILE_CANT_WRITE if phase=="restore" else OK
+
+func fail_receipt(phase: String,_path: String) -> Error:
+ return ERR_CANT_CREATE if phase=="publish_receipt" else OK
+
+func clear_floor(actor: Dictionary,floor: int) -> void:
+ world.encounter_number=floor
+ world.deepest_milestone=floor
+ world.enemy_hp=0
+ world.scouts.clear()
+ world.encounter_rewarded=true
+ actor.pos=world.battlefield.advance
+
+func start_save_set() -> bool:
+ check(Owner.completed(Owner.prepare(slots,roster,false)),"prepare disposable root")
+ check(Owner.completed(Owner.outcome(slots.new_world_guarded(0))),"create disposable Garden")
+ check(Owner.completed(Owner.outcome(roster.create_guarded(0,"Expedition Keeper",0,[]))),"create disposable profile")
+ return open_world()
+
+func run() -> void:
+ var interruption:=OS.get_environment("MYSTICAL_GROUP3B2B_MODE")
+ if interruption=="recover":
+  var before:=disk()
+  var recovered:=Ops.recover(PackedStringArray([C]))
+  var verified: bool=recovered.ran and recovered.value is Dictionary and recovered.value.get("verified",false)
+  check(verified,"interrupted combat settlement restored through profile: "+str(recovered))
+  print("CASE ",JSON.stringify({"case":"restart","before":before,"after":disk(),"verified":verified}))
+ elif start_save_set():
+  if interruption=="owner":
+   interrupted()
+  else:
+   exercise()
+ if not failed: print("PASS: guarded expedition settlement and lifecycle")
+ quit(1 if failed else 0)
+
+func interrupted() -> void:
+ var actor: Dictionary=world.players[1]
+ actor.pos=world.Stage.GATE
+ world.enter_wilds(1,actor)
+ world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
+ world.enemy_hp=0
+ world.scouts.clear()
+ var before:=disk()
+ world.set_meta(&"guarded_gameplay_test_fault",func(phase,path):
+  if phase=="replace" and path==G:
+   record("interruption_barrier",before)
+   while true: OS.delay_msec(100)
+  return OK)
+ world.finish_combat(1,world.enemy_pos)
+ check(false,"must terminate the owner at replacement")
+
+func exercise() -> void:
+ var actor: Dictionary=world.players[1]
+ actor.pos=world.Stage.GATE
+ actor.prepared=1
+ world.progress.add_parts(1,3)
+ var before:=disk()
+ var field: RefCounted=world.battlefield
+ var seed: int=world.map_rng.state
+ world.open_gate_preparation()
+ world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
+ world.garden_action(1,"depart")
+ check(disk()==before and not actor.wild and actor.prepared==1 and world.battlefield==field and world.map_rng.state==seed and world.loadout_menu.visible,
+  "departure abort restores map RNG, battlefield, material, actor and open UI")
+ record("departure_abort",before)
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ world.garden_action(1,"depart")
+ check(actor.wild and actor.weapon==1 and world.progress.part_count(1)==2 and not world.loadout_menu.visible and disk()[G]!=before[G],"departure commits before panel closure")
+ record("departure_commit",before)
+
+ world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
+ var frozen: int=world.rng.state
+ world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
+ check(world.pending_kill_rewards.size()==1 and world.rng.state==frozen,"duplicate receipt does not reroll")
+ world.pending_kill_rewards[0].rewards[0].item=world.Items.part_id(world.Parts.HOOK)
+ world.enemy_hp=0
+ world.scouts.clear()
+ world.burst_hits_this_room=3
+ before=disk()
+ var serial: int=world.combat_event_serial
+ world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
+ world.finish_combat(1,world.enemy_pos)
+ check(not world.encounter_rewarded and not actor.loot_pending and actor.character.monsters[world.enemy_kind]==0 and world.pending_kill_rewards.size()==1
+  and world.wild_item_drops.is_empty() and world.combat_event_serial==serial and world.rng.state==frozen and disk()==before,"encounter abort keeps the frozen receipt and withholds rewards, drop and cue")
+ record("encounter_abort",before)
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ world.finish_combat(1,world.enemy_pos)
+ check(world.encounter_rewarded and actor.loot_pending and actor.essence_sparks>0 and actor.character.monsters[world.enemy_kind]==1
+  and world.wild_item_drops.size()==1 and world.progress.wilds_memory.encounters==1 and disk()[G]!=before[G] and disk()[C]!=before[C],
+  "encounter commits frozen XP, trophy, adaptation, and cue together")
+ var committed:=disk()
+ world.finish_combat(1,world.enemy_pos)
+ check(world.MonsterRewards.flush(world) and disk()==committed and world.wild_item_drops.size()==1,"repeat flush and completion cannot credit twice")
+ record("encounter_commit",before)
+
+ world.add_player(2)
+ var ally: Dictionary=world.players[2]
+ ally.profile_ready=true
+ ally.seed_owner="ally"
+ ally.wild=true
+ world.battlefield.procedural=false
+ world.battlefield.barriers.clear()
+ actor.pos=Vector3.ZERO
+ ally.pos=Vector3(.5,0,0)
+ var hp: int=int(actor.hp)
+ world.damage_player(1,actor,1)
+ check(int(actor.hp)==hp-1 and disk()==committed,"nonlethal damage is runtime-only")
+ world.damage_player(1,actor,999)
+ check(actor.fallen and actor.hp==0,"lethal damage commits downed state")
+ world.revive_player(2,1)
+ var paid: int=int(actor.lost_health)
+ check(not actor.fallen and actor.hp>0 and paid>0,"revival commits one maximum-health cost")
+ world.revive_player(2,1)
+ check(actor.lost_health==paid,"duplicate revival cannot charge twice")
+ ally.wild=false
+ world.players.erase(2)
+
+ clear_floor(actor,3)
+ actor.offer_floor=3
+ actor.checkpoint_offers=["power"]
+ world.use_checkpoint(1,true)
+ check(world.checkpoint_pending and world.checkpoint_menu.visible and world.encounter_number==3,"checkpoint opens cards without travelling")
+ world.choose_checkpoint_card(1,actor,0)
+ check(world.encounter_number==3 and world.checkpoint_ready.get(1)==3 and actor.power>0,"card commits before travel")
+ actor.hp=1
+ field=world.battlefield
+ seed=world.map_rng.state
+ var healing_rng: int=world.Life.Preview.heal_rng.state
+ before=disk()
+ world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
+ world.use_checkpoint(1,true)
+ check(world.encounter_number==3 and world.battlefield==field and world.map_rng.state==seed and world.Life.Preview.heal_rng.state==healing_rng
+  and actor.hp==1 and world.checkpoint_ready.get(1)==3 and disk()==before,"floor abort restores navigation, RNG, vitals and purchased card")
+ record("checkpoint_abort",before)
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ world.use_checkpoint(1,true)
+ check(world.encounter_number==4 and world.battlefield!=field and world.map_rng.state!=seed and actor.hp>1,"checkpoint advances after confirmed save")
+
+ clear_floor(actor,6)
+ actor.carried_seeds=[0,1]
+ actor.carried_parts[1]=2
+ actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
+ before=disk()
+ world.set_meta(&"guarded_gameplay_test_fault",fail_receipt)
+ world.use_checkpoint(1,false)
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ world.refresh_feedback()
+ check(not actor.wild and world.progress.unknown.size()==3 and world.progress.campaign.best_extraction==6 and disk()[G]!=before[G]
+  and world.feedback.text.contains("Extracted with") and world.feedback.text.contains(Tx.CLEANUP_NOTICE) and FileAccess.file_exists(G+".transaction"),
+  "cleanup-pending extraction commits inventory and progression and retains notice")
+ committed=disk()
+ world.use_checkpoint(1,false)
+ check(disk()==committed and world.progress.unknown.size()==3,"pending extraction cannot replay")
+ record("extraction_cleanup_pending",before)
+ check(Ops.recover(PackedStringArray([G])).value.verified and disk()[G]==committed[G],"cleanup preserves committed extraction")
+ world.free()
+ if not open_world(): return
+ actor=world.players[1]
+
+ actor.pos=world.Stage.GATE
+ world.enter_wilds(1,actor)
+ clear_floor(actor,2)
+ actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
+ actor.carried_seeds=[1]
+ var saved_seeds: int=world.progress.unknown.size()
+ world.damage_player(1,actor,999)
+ check(not actor.wild and world.progress.unknown.size()==saved_seeds+1 and world.status.contains("safe-pouch"),"wipe keeps only protected cargo")
+ actor.pos=world.Stage.GATE
+ world.enter_wilds(1,actor)
+ actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
+ saved_seeds=world.progress.unknown.size()
+ world.abandon_run(1,actor)
+ check(not actor.wild and world.progress.unknown.size()==saved_seeds and world.status.contains("abandoned"),"abandonment discards safe pouch")
+
+ actor.pos=world.Stage.GATE
+ world.enter_wilds(1,actor)
+ clear_floor(actor,6)
+ actor.carried_seeds=[1]
+ world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
+ before=disk()
+ world.open_gate_preparation()
+ world.set_meta(&"guarded_gameplay_test_fault",fail_restore)
+ world.use_checkpoint(1,false)
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ var split:=disk()
+ check(not actor.wild and world.progress.unknown.size()==saved_seeds+1 and world.loadout_menu.visible and Tx.pending_notice(world).contains("uncertain")
+  and split[C]!=before[C] and split[G]==before[G] and not world.status.contains("Extracted with"),"uncertain extraction keeps tentative memory and withholds notice/closure")
+ world.use_checkpoint(1,false)
+ check(disk()==split,"uncertain operation does not replay")
+ record("extraction_uncertain",before)
+ check(Ops.recover(PackedStringArray([C])).value.verified and disk()==before,"B2 verified restoration of interrupted replacement evidence")
+ world.free()
+ if not open_world(): return
+ actor=world.players[1]
+
+ world.add_player(2)
+ ally=world.players[2]
+ ally.profile_ready=true
+ ally.seed_owner="departed"
+ actor.pos=world.Stage.GATE
+ ally.pos=world.Stage.GATE
+ world.enter_wilds(1,actor)
+ world.enter_wilds(2,ally)
+ ally.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
+ world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
+ before=disk()
+ world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
+ world.remove_player(2)
+ check(not world.players.has(2) and world.pending_departures.has(2) and world.pending_kill_rewards.size()==1 and disk()==before,
+  "failed disconnect settlement retains cargo and frozen reward after removing peer")
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ check(world.MonsterRewards.flush(world) and world.pending_departures.is_empty() and world.pending_kill_rewards.is_empty()
+  and world.progress.character_records.departed.profile.monsters[world.enemy_kind]==1 and world.progress.reserve("departed").unknown.size()==1,
+  "flush credits detached identity and pouch once")
+ record("disconnect_abort_then_commit",before)
+
+ var lease:=G.get_base_dir().path_join("session.cfg")
+ var foreign:=ConfigFile.new()
+ foreign.set_value("session","process_id",OS.get_process_id()+1)
+ foreign.set_value("session","updated",Time.get_unix_time_from_system())
+ check(foreign.save(lease)==OK,"inject foreign lease")
+ before=disk()
+ hp=int(actor.hp)
+ world.damage_player(1,actor,999)
+ world.finish_combat(1,world.enemy_pos)
+ world.abandon_run(1,actor)
+ check(int(actor.hp)==hp and actor.wild and disk()==before,"lost lease prevents combat and settlement writes")
+ world.return_to_main_menu()
+ check(world.get_meta(Tx.STOPPING,false) and disk()==before,"lost lease shuts down without saving")
+ record("lost_lease_shutdown",before)
+ world.free()
+ check(DirAccess.remove_absolute(lease)==OK,"remove disposable foreign marker")
+ if not open_world(): return
+ actor=world.players[1]
+ actor.pos=world.Stage.GATE
+ world.enter_wilds(1,actor)
+
+ actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
+ before=disk()
+ world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
+ world.return_to_main_menu()
+ check(not world.returning_to_title and actor.wild and disk()==before,"title settlement abort stays in expedition")
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ world.return_to_main_menu()
+ check(world.returning_to_title and not actor.wild and world.multiplayer.multiplayer_peer is OfflineMultiplayerPeer and disk()[G]!=before[G],
+  "title return settles exactly once and installs offline peer")
+ record("title_commit",before)

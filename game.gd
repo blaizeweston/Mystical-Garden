@@ -27,6 +27,7 @@ var combat_last_positions: Dictionary={}
 var encounter_kill_records: Array=[]
 const MonsterRewards=preload("res://monster_rewards.gd")
 var pending_kill_rewards: Array=[]
+var pending_departures: Dictionary={}
 var kill_receipts: Dictionary={}
 var kill_reward_notices: Dictionary={}
 var next_kill_reward_flush:=0
@@ -306,12 +307,14 @@ func _notification(what: int) -> void:
 	if what==NOTIFICATION_WM_WINDOW_FOCUS_OUT: mouse_controls.release(self)
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		if has_meta(Transactions.SESSION):
-			if not Transactions.session_writable(self):
-				set_meta(Transactions.STOPPING, true)
-				get_tree().quit()
-				return
-			if not expedition_active() and character_dirty: save_local_character()
+			if Transactions.session_writable(self):
+				if session in ["Host","Solo"] and expedition_active():
+					if not finish_failed_expedition() and Transactions.pending_notice(self).is_empty(): return
+				elif session in ["Host","Solo"] and (not pending_departures.is_empty() or not pending_kill_rewards.is_empty()):
+					if not MonsterRewards.flush(self) and Transactions.pending_notice(self).is_empty(): return
+				elif character_dirty and not save_local_character() and Transactions.pending_notice(self).is_empty(): return
 			set_meta(Transactions.STOPPING, true)
+			go_offline()
 			get_tree().quit()
 			return
 		if session in ["Host","Solo"] and expedition_active():
@@ -705,13 +708,15 @@ func leave_game(message: String) -> void:
 		if not Transactions.pending_notice(self).is_empty(): return
 	if session == "Host" and expedition_active():
 		if has_meta(Transactions.SESSION):
-			_stop_guarded_session("Returned to the title. Expedition settlement is unavailable in the guarded session.")
-			return
-		finish_failed_expedition()
-	if online_peer != null:
-		online_peer.close()
-	online_peer = null
-	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
+			if not finish_failed_expedition(): return
+			if not Transactions.pending_notice(self).is_empty():
+				_finish_title_return(message)
+				return
+		else: finish_failed_expedition()
+	elif session == "Host" and has_meta(Transactions.SESSION) and not MonsterRewards.flush(self):
+		return
+	if has_meta(Transactions.SESSION): set_meta(Transactions.STOPPING, true)
+	go_offline()
 	net_view.clear();net_motion.clear()
 	players.clear()
 	motions.clear()
@@ -719,6 +724,7 @@ func leave_game(message: String) -> void:
 	reset_expedition()
 	add_player(HOST)
 	session = "Solo"
+	if has_meta(Transactions.STOPPING): remove_meta(Transactions.STOPPING)
 	if was_guest and active_slot >= 0:
 		if has_meta("guarded_title_session"):
 			if get_meta("guarded_title_session").reload_guest(local_character) != OK:
@@ -756,21 +762,18 @@ func add_player(id: int) -> void:
 func remove_player(id: int) -> void:
 	Journal.event("network","peer_disconnected",{"actor":id})
 	if has_meta(Transactions.SESSION):
-		# Disconnect can arrive during or after teardown. Keep transport cleanup
-		# separate from rewards, profile records and expedition settlement.
-		if multiplayer.is_server() and not returning_to_title and Transactions.session_writable(self):
-			var leaving: Dictionary = players.get(id, {})
-			if pending_kill_rewards.is_empty() and leaving.get("profile_ready", false):
-				Transactions.run_gameplay(self, Transactions.Scope.PAIR, func():
-					if not leaving.get("seed_owner", "").is_empty(): record_character(id)
-					_recover_pouch(leaving)
-					if leaving.wild:
-						preload("res://garden_return_service.gd").outcome(self, leaving, "disconnected")
-					return true)
-			PartyTravel.cancel(self,"A player disconnected. Confirm readiness again to continue.")
+		var leaving: Dictionary = players.get(id, {})
+		var may_settle := multiplayer.is_server() and not returning_to_title and Transactions.session_writable(self)
+		if may_settle and leaving.get("profile_ready", false):
+			pending_departures[id] = leaving
 		players.erase(id)
 		motions.erase(id)
 		refresh_drop()
+		if may_settle:
+			PartyTravel.cancel(self,"A player disconnected. Confirm readiness again to continue.")
+			var needs_wipe: bool = (expedition_active() or leaving.get("wild",false)) and Life.living_ids(self).is_empty()
+			if needs_wipe: finish_failed_expedition()
+			else: MonsterRewards.flush(self)
 		return
 	if multiplayer.is_server():
 		MonsterRewards.flush(self)
@@ -940,7 +943,7 @@ func _garden_action(id: int, action: String) -> void:
 		return
 	if action.begins_with("revive:"):
 		var target:=action.get_slice(":",1)
-		if target.is_valid_int(): Transactions.run(self,func(): return Life.revive(self,id,int(target)))
+		if target.is_valid_int(): revive_player(id,int(target))
 		return
 	if action.begins_with("altar:"):
 		handle_altar_action(id,player,action.trim_prefix("altar:"))
@@ -996,9 +999,7 @@ func _garden_action(id: int, action: String) -> void:
 	if action=="depart":
 		if at_weapon_gate(player):
 			enter_wilds(id,player)
-			if player.wild:
-				if id==HOST: close_run_flow_panel()
-				elif online_peer!=null: close_run_flow_panel.rpc_id(id)
+			if player.wild and not has_meta(Transactions.SESSION): close_flow_for(id)
 		return
 	if action.begins_with("checkpoint_choice_"):
 		var value:=action.trim_prefix("checkpoint_choice_")
@@ -1215,15 +1216,45 @@ func selected_donation(player: Dictionary) -> int:
 
 # Only the guarded route queues feedback. Legacy callers retain their existing
 # write and publication order. The typed boundary decides whether to publish.
+func snapshot_expedition_runtime() -> Dictionary:
+	return {"map_rng":map_rng.state, "heal_rng":Life.Preview.heal_rng.state, "battlefield":battlefield,
+		"mouse":Transactions.snapshot(mouse_controls),
+		"aim_visible":is_instance_valid(mouse_controls.marker) and mouse_controls.marker.visible,
+		"core":get_meta(&"core_combat", {}).duplicate(true) if has_meta(&"core_combat") else null}
+
+func restore_expedition_runtime(state: Dictionary) -> void:
+	map_rng.state=state.map_rng
+	Life.Preview.heal_rng.state=state.heal_rng
+	battlefield=state.battlefield
+	Transactions.restore(mouse_controls,state.mouse)
+	if is_instance_valid(mouse_controls.marker): mouse_controls.marker.visible=state.aim_visible
+	if state.core != null: set_meta(&"core_combat",state.core)
+	elif has_meta(&"core_combat"): remove_meta(&"core_combat")
+
 func run_guarded_action(id: int, scope: Transactions.Scope, action: Callable) -> Dictionary:
 	var effects: Array[Callable] = []
+	var first_event := combat_event_serial
 	var result := Transactions.run_gameplay(self, scope, action.bind(effects))
-	if not result.notice.is_empty() and id != HOST:
-		tell(id, result.notice)
-	if Transactions.committed(result.persistence):
+	var committed := Transactions.committed(result.persistence)
+	if not result.notice.is_empty():
+		if online_peer != null and multiplayer.is_server() and get_meta(Transactions.PENDING, false):
+			for peer_id in multiplayer.get_peers():
+				if players.get(peer_id, {}).get("profile_ready", false): tell(peer_id,result.notice)
+		elif id != HOST:
+			tell(id, result.notice)
+	if committed:
+		for event in combat_events:
+			if int(event.id)>first_event: publish_combat_event(event)
 		for effect in effects:
 			effect.call()
+		if Transactions.pending_notice(self)==Transactions.CLEANUP_NOTICE and multiplayer.is_server():
+			send_expedition_state(0.0,true)
 	return result
+
+func record_settlement_metric(effects,event: String,fields: Dictionary) -> void:
+	var record := func(): preload("res://game_metrics.gd").record(event,fields)
+	if effects == null: record.call()
+	else: effects.append(record)
 
 func action_feedback(effects, id: int, message: String) -> void:
 	if effects == null:
@@ -1269,13 +1300,34 @@ func _donate_part(id: int, player: Dictionary, effects) -> void:
 func award_combat_progress() -> void:
 	MonsterRewards.flush(self)
 
+func settle_expedition_rewards(effects: Array[Callable]) -> void:
+	MonsterRewards.settle(self, effects)
+	for id in pending_departures:
+		var leaving: Dictionary = pending_departures[id]
+		if not leaving.get("seed_owner", "").is_empty(): record_character(id, leaving)
+		_recover_pouch(leaving)
+		if leaving.wild:
+			preload("res://garden_return_service.gd").outcome(self, leaving, "disconnected")
+	pending_departures.clear()
+
+func close_flow_for(id: int) -> void:
+	if id==HOST: close_run_flow_panel()
+	elif online_peer!=null and multiplayer.get_peers().has(id): close_run_flow_panel.rpc_id(id)
+
+func revive_player(id: int, target: int) -> void:
+	if has_meta(Transactions.SESSION):
+		run_guarded_action(id, Transactions.Scope.PAIR, func(effects): return Life.revive(self, id, target, effects))
+	else:
+		Transactions.run(self, func(): return Life.revive(self, id, target))
+
 func run_wallet(player: Dictionary) -> int:
 	return maxi(0,deepest_milestone*ROOM_CURRENCY+int(player.get("essence_sparks",0))/int(Director.config().essence_sparks_per_point)-int(player.get("spent",0)))
 
 
-func record_character(id: int) -> void:
-	var owner: String=local_character.identity if id==HOST else players[id].get("seed_owner","")
-	progress.character_records[owner]={"profile":players[id].character.duplicate(true),"manifest":progress.ContentIDs.manifest()}
+func record_character(id: int, actor: Dictionary = {}) -> void:
+	var player: Dictionary = players[id] if actor.is_empty() else actor
+	var owner: String=local_character.identity if id==HOST else player.get("seed_owner","")
+	progress.character_records[owner]={"profile":player.character.duplicate(true),"manifest":progress.ContentIDs.manifest()}
 
 # The host stores the Garden's character record. A guest alone owns its
 # canonical profile and receives the existing reliable ordered projection.
@@ -1770,8 +1822,13 @@ func submit_movement(commands: Array,epoch: String) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if has_meta(Transactions.SESSION) and (returning_to_title or get_meta(Transactions.PENDING, false)):
-		return
+	if has_meta(Transactions.SESSION):
+		if returning_to_title or get_meta(Transactions.STOPPING, false): return
+		if get_meta(Transactions.PENDING, false):
+			if multiplayer.is_server() and Transactions.pending_notice(self)==Transactions.CLEANUP_NOTICE:
+				send_expedition_state(delta)
+			return
+		if not Transactions.session_writable(self): return
 	if multiplayer.is_server():net_motion.frame(delta,players)
 	mouse_controls.frame(self)
 	var direction := Vector2.ZERO if overlay.visible or get_meta("garden_cinematic_active",false) else Input.get_vector("left", "right", "up", "down")
@@ -1791,6 +1848,7 @@ func _physics_process(delta: float) -> void:
 					status = "Plant growth could not be saved. Use Save Garden to retry."
 				var research_message:=progress.heart.tick(progress,elapsed,expedition_active())
 				if not research_message.is_empty(): status=research_message
+		if get_meta(Transactions.PENDING, false): return
 		motions[HOST] = [direction, now]
 		for id in players:
 			players[id].velocity=Vector3.ZERO
@@ -1800,49 +1858,63 @@ func _physics_process(delta: float) -> void:
 				move_player(id, motions[id][0], delta)
 		mouse_controls.tick(self,now)
 		if expedition_active() and encounter_cleared() and not encounter_rewarded and now>=reward_retry_at: finish_combat(HOST,enemy_pos)
+		if get_meta(Transactions.PENDING, false): return
 		update_projectiles(now)
+		if get_meta(Transactions.PENDING, false): return
 		Traits.tick(self,now)
+		if get_meta(Transactions.PENDING, false): return
 		preload("res://combat_status.gd").sync(self,now)
 		attract_loot(delta)
 		Bosses.tick_hazards(self,now)
+		if get_meta(Transactions.PENDING, false): return
 		if expedition_active() and encounter_cleared() and pending_finale_at==0 and not encounter_rewarded and now>=reward_retry_at: finish_combat(HOST,enemy_pos)
 		if now>=next_kill_reward_flush:
 			next_kill_reward_flush=now+150
 			MonsterRewards.flush(self)
+		if get_meta(Transactions.PENDING, false): return
 		update_support_effects(now)
 		update_combat_tracking(delta)
 		update_enemy(delta, now)
+		if get_meta(Transactions.PENDING, false): return
 		update_scouts(delta, now)
+		if get_meta(Transactions.PENDING, false): return
 		preload("res://core_combat.gd").tick(self,now)
+		if get_meta(Transactions.PENDING, false): return
 		update_pressure(now)
 		if pending_finale_at>0 and now>=pending_finale_at:
 			pending_finale_at=0
 			complete_finale(pending_finale_peer)
-		net_view.observe(self)
-		if online_peer != null:
-			next_details-=delta
-			next_snapshot -= delta
-			if next_snapshot <= 0.0:
-				next_snapshot = maxf(0,next_snapshot+0.05)
-				net_view.snapshot_sent+=1
-				for peer_id in multiplayer.get_peers():
-					if not players.has(peer_id) or not players[peer_id].profile_ready:
-						continue
-					var guest: Dictionary = players[peer_id]
-					receive_state.rpc_id(peer_id, var_to_bytes(player_snapshot(peer_id,false)).compress(FileAccess.COMPRESSION_DEFLATE), enemy_pos, enemy_hp, enemy_winding_up,
-						drop_pos, guest.loot_pending, [], depth, guest.carried_seeds.size(),
-						guest.pouch, PackedByteArray(), now < rooted_until, longlimb, campaign_snapshot(), scout_snapshot(now).to_byte_array().compress(FileAccess.COMPRESSION_DEFLATE),net_view.snapshot_sent)
-			if next_details<=0:
-				next_details=maxf(0,next_details+.25)
-				var garden_bytes:=var_to_bytes(garden_snapshot()).compress(FileAccess.COMPRESSION_DEFLATE)
-				for peer_id in multiplayer.get_peers():
-					if not players.has(peer_id) or not players[peer_id].profile_ready: continue
-					var details: Dictionary=player_snapshot(peer_id)[peer_id]
-					for key in player_snapshot(peer_id,false)[peer_id]: details.erase(key)
-					receive_details.rpc_id(peer_id,var_to_bytes(details).compress(FileAccess.COMPRESSION_DEFLATE),garden_bytes,inventory_snapshot(players[peer_id]),str([destination,encounter_number,map_seed]))
+		if not get_meta(Transactions.PENDING, false) or Transactions.pending_notice(self)==Transactions.CLEANUP_NOTICE:
+			send_expedition_state(delta)
 	elif session == "Guest":
 		var commands: Array=net_motion.client_tick(self,multiplayer.get_unique_id(),direction,delta)
 		if not commands.is_empty():submit_movement.rpc_id(HOST,commands,net_motion.epoch)
+
+
+func send_expedition_state(delta: float,force := false) -> void:
+	var now := Time.get_ticks_msec()
+	net_view.observe(self)
+	if online_peer != null:
+		next_details-=delta
+		next_snapshot -= delta
+		if force or next_snapshot <= 0.0:
+			next_snapshot = maxf(0,next_snapshot+0.05)
+			net_view.snapshot_sent+=1
+			for peer_id in multiplayer.get_peers():
+				if not players.has(peer_id) or not players[peer_id].profile_ready:
+					continue
+				var guest: Dictionary = players[peer_id]
+				receive_state.rpc_id(peer_id, var_to_bytes(player_snapshot(peer_id,false)).compress(FileAccess.COMPRESSION_DEFLATE), enemy_pos, enemy_hp, enemy_winding_up,
+					drop_pos, guest.loot_pending, [], depth, guest.carried_seeds.size(),
+					guest.pouch, PackedByteArray(), now < rooted_until, longlimb, campaign_snapshot(), scout_snapshot(now).to_byte_array().compress(FileAccess.COMPRESSION_DEFLATE),net_view.snapshot_sent)
+		if force or next_details<=0:
+			next_details=maxf(0,next_details+.25)
+			var garden_bytes:=var_to_bytes(garden_snapshot()).compress(FileAccess.COMPRESSION_DEFLATE)
+			for peer_id in multiplayer.get_peers():
+				if not players.has(peer_id) or not players[peer_id].profile_ready: continue
+				var details: Dictionary=player_snapshot(peer_id)[peer_id]
+				for key in player_snapshot(peer_id,false)[peer_id]: details.erase(key)
+				receive_details.rpc_id(peer_id,var_to_bytes(details).compress(FileAccess.COMPRESSION_DEFLATE),garden_bytes,inventory_snapshot(players[peer_id]),str([destination,encounter_number,map_seed]))
 
 
 func move_player(id: int, direction: Vector2, delta: float) -> void:
@@ -2230,7 +2302,7 @@ func hit_players(center: Vector3, radius: float, now: int, damage: float = -1.0,
 		apply_enemy_hit(id,p,now,damage,slow_ms,center)
 
 func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: int=0,origin: Vector3=Vector3.INF) -> void:
-	if not Life.alive(player): return
+	if not Life.alive(player) or not Transactions.session_writable(self): return
 	if now<int(player.get("hurt_until",0)): return
 	if Traits.guard_allows(player,origin,now):
 		player.guard_charges=maxi(0,int(player.get("guard_charges",1))-1)
@@ -2239,31 +2311,53 @@ func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: 
 		Traits.blocked(self,player,now)
 		player.contributed=true;emit_combat_event("impact","block",player.pos,player.pos,.85,Color("#f1d989"),0,id);tell(id,"Guard blocked the attack.");return
 	if Traits.try_brace(self,player,now): return
-	if slow_ms>0:
-		player.slow_until=now+slow_ms;tell(id,"Slowed.")
-	player.hurt_until=now+int(Director.config().hit_grace_ms)
 	var hit_points := float(1+difficulty_cycle/2) if damage<0.0 else Life.Preview.authored_amount(damage)
-	damage_player(id,player,Life.Preview.effect_hp(hit_points))
+	var hp := Life.Preview.effect_hp(hit_points)
+	if has_meta(Transactions.SESSION):
+		if not Transactions.session_writable(self): return
+		if hp>=int(player.hp):
+			run_guarded_action(id, Transactions.Scope.PAIR, func(effects):
+				apply_hit_grace(id,player,now,slow_ms,effects)
+				_damage_player(id,player,hp,effects))
+			return
+	apply_hit_grace(id,player,now,slow_ms)
+	damage_player(id,player,hp)
+
+func apply_hit_grace(id: int,player: Dictionary,now: int,slow_ms: int,effects = null) -> void:
+	if slow_ms>0:
+		player.slow_until=now+slow_ms
+		action_feedback(effects,id,"Slowed.")
+	player.hurt_until=now+int(Director.config().hit_grace_ms)
 
 
 
 func damage_player(id: int, player: Dictionary, amount: int) -> void:
-	Transactions.run(self,func(): _damage_player(id,player,amount))
+	if has_meta(Transactions.SESSION):
+		if not Transactions.session_writable(self): return
+		if amount<int(player.hp):
+			_damage_player(id,player,amount)
+		else:
+			run_guarded_action(id, Transactions.Scope.PAIR, func(effects): _damage_player(id,player,amount,effects))
+	else:
+		Transactions.run(self,func(): _damage_player(id,player,amount))
 
-func _damage_player(id: int, player: Dictionary, amount: int) -> void:
+func _damage_player(id: int, player: Dictionary, amount: int,effects = null) -> void:
 	if player.get("wild",false) and not Life.alive(player): return
 	var actual_damage:=Life.Vitals.damage_taken(int(player.hp),amount)
 	if Life.Preview.enabled and actual_damage==0: return
 	player.damage_seq=int(player.get("damage_seq",0))+1
 	player.damage_amount=actual_damage if Life.Preview.enabled else maxi(0,amount)
 	player.hp = maxi(0, int(player.hp) - actual_damage)
-	Journal.event("combat","damage_applied",{"actor":id,"amount":amount,"applied_hp":actual_damage,"hp":player.hp,"damage_seq":player.damage_seq,"vitals_revision":player.get("vitals_revision",0),"hp_per_point":Life.Preview.scale()})
+	var damage_record := {"actor":id,"amount":amount,"applied_hp":actual_damage,"hp":player.hp,"damage_seq":player.damage_seq,"vitals_revision":player.get("vitals_revision",0),"hp_per_point":Life.Preview.scale()}
+	if effects == null: Journal.event("combat","damage_applied",damage_record)
+	else: effects.append(func(): Journal.event("combat","damage_applied",damage_record))
 	if player.get("wild",false) and actual_damage>0: emit_combat_event("impact","hurt",player.pos,player.pos,.85,Color("#ff957d"),float(actual_damage),id)
 	if player.hp > 0:
 		return
 	if player.wild:
-		Life.down(self,id,player)
+		Life.down(self,id,player,effects)
 	else:
+		if effects != null: settle_expedition_rewards(effects)
 		return_to_garden(player)
 
 
@@ -2283,7 +2377,7 @@ func _act(id: int, strike: bool) -> void:
 	var pos: Vector3 = p.pos
 	var rescue:=Life.nearest(self,p)
 	if not strike and rescue!=0:
-		Transactions.run(self,func(): return Life.revive(self,id,rescue))
+		revive_player(id,rescue)
 	elif strike:
 		strike_enemy(id, p, pos)
 	elif nearest_inventory_drop(p)!="":
@@ -2523,17 +2617,24 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 		if player_id!=0 and combat_velocity.get(player_id,Vector3.ZERO).length()>.8: moving_ranged_hits+=1
 
 func finish_combat(id: int,loot_position: Vector3) -> void:
+	if has_meta(Transactions.SESSION):
+		if not Transactions.session_writable(self) or not expedition_active() or encounter_rewarded or not encounter_cleared() or destination==Campaign.HEART: return
+		run_guarded_action(id, Transactions.Scope.PAIR, func(effects):
+			settle_expedition_rewards(effects)
+			_finish_combat(id,loot_position,effects))
+		if not encounter_rewarded: reward_retry_at=Time.get_ticks_msec()+1000
+		return
 	if not MonsterRewards.flush(self): return
 	Transactions.run(self,func(): _finish_combat(id,loot_position))
 	if not encounter_rewarded: reward_retry_at=Time.get_ticks_msec()+1000
 
-func _finish_combat(id: int,loot_position: Vector3) -> void:
+func _finish_combat(id: int,loot_position: Vector3,effects = null) -> void:
 	if pending_finale_at>0 or encounter_rewarded: return
 	encounter_rewarded=true
-	preload("res://game_metrics.gd").record("encounter_clear",{"floor":encounter_number,"biome":destination,"kills":encounter_kills.size(),"cycle":difficulty_cycle})
+	record_settlement_metric(effects,"encounter_clear",{"floor":encounter_number,"biome":destination,"kills":encounter_kills.size(),"cycle":difficulty_cycle})
 	burst_clears+=int(burst_hits_this_room>=2)
 	choke_clears+=int(choke_kills_this_room>=3)
-	award_combat_progress()
+	if effects == null: award_combat_progress()
 	if destination==Campaign.HEART:
 		pending_finale_peer=id
 		pending_finale_at=Time.get_ticks_msec()+1500
@@ -2548,7 +2649,7 @@ func _finish_combat(id: int,loot_position: Vector3) -> void:
 	var learned: Dictionary={"ranged":ranged_evidence,"burst":burst_hits_this_room>=2,"choke":choke_kills_this_room>=3 and choke_kills_this_room*2>=encounter_kills.size(),"kite":moving_ranged_hits>=3 and Time.get_ticks_msec()-encounter_started_at>=8000,"thorn_line":thorn_evidence.crossings>0}
 	for tactic in skill_evidence: learned[tactic]=int(skill_evidence[tactic])>0
 	Learning.observe(progress.wilds_memory,learned,encounter_number)
-	preload("res://game_metrics.gd").record("wilds_learning",{"floor":encounter_number,"encounters":progress.wilds_memory.encounters,"scores":progress.wilds_memory.score.duplicate(),"thorn_armed":thorn_evidence.armed,"thorn_crossings":thorn_evidence.crossings,"skill_evidence":skill_evidence,"party":encounter_party_size,"elapsed_ms":Time.get_ticks_msec()-encounter_started_at})
+	record_settlement_metric(effects,"wilds_learning",{"floor":encounter_number,"encounters":progress.wilds_memory.encounters,"scores":progress.wilds_memory.score.duplicate(),"thorn_armed":thorn_evidence.armed,"thorn_crossings":thorn_evidence.crossings,"skill_evidence":skill_evidence,"party":encounter_party_size,"elapsed_ms":Time.get_ticks_msec()-encounter_started_at})
 	deepest_milestone=maxi(deepest_milestone,encounter_number)
 	if depth==ROUTE_ROOMS and destination<Campaign.HEART: run_guardians|=1 << destination;guardian_counts[destination]+=1
 	enemy_winding_up=false
@@ -2558,7 +2659,7 @@ func _finish_combat(id: int,loot_position: Vector3) -> void:
 	if encounter_cleared():
 		var cue := "extract_ready" if extraction_checkpoint_open() else "gate_ready"
 		preload("res://event_audio.gd").emit(self,cue,battlefield.advance)
-	tell(id,"Encounter cleared. Press E near the glowing loot."+Learning.notice(previous_memory,progress.wilds_memory.score))
+	action_feedback(effects,id,"Encounter cleared. Press E near the glowing loot."+Learning.notice(previous_memory,progress.wilds_memory.score))
 
 
 func wild_entry(id: int) -> Vector3:
@@ -2569,48 +2670,55 @@ func wild_entry(id: int) -> Vector3:
 
 func enter_wilds(id: int, p: Dictionary) -> void:
 	if players.size()>1: PartyTravel.request(self,id,"depart")
+	elif has_meta(Transactions.SESSION):
+		if not at_weapon_gate(p) or p.wild or expedition_active(): return
+		run_guarded_action(id, Transactions.Scope.PAIR, func(effects):
+			settle_expedition_rewards(effects)
+			if not _enter_wilds(id,p,[],effects): return false
+			effects.append(close_flow_for.bind(id))
+			return true)
 	else: Transactions.run(self,func(): _enter_wilds(id,p))
 
-func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[]) -> void:
+func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = null) -> bool:
 	var starting := not expedition_active()
 	var available := progress.finale_available() if destination == Campaign.HEART else progress.campaign.available(destination)
 	if starting and not available:
-		tell(id, "This path is still sealed.")
-		return
+		action_feedback(effects,id, "This path is still sealed.")
+		return false
 	if expedition_active() and p.fallen:
-		tell(id, "Wait for your party to finish the expedition.")
-		return
+		action_feedback(effects,id, "Wait for your party to finish the expedition.")
+		return false
 	var selected: Array = [p.prepared, p.prepared_secondary, p.get("prepared_catalyst",0)]
 	var needed := Parts.empty_counts()
 	for part in selected:
 		if part!=0 and not Parts.is_plant(part):
-			tell(id,"Only plant materials fit the first three slots.")
-			return
+			action_feedback(effects,id,"Only plant materials fit the first three slots.")
+			return false
 		needed[part]+=1
 	for part in range(1,needed.size()):
 		needed[part]+=int(p.cargo_plan[part])
 		if available_parts(p,part)<needed[part]:
-			tell(id,"Not enough %s for the loadout and cargo."%Parts.part_name(part))
-			return
+			action_feedback(effects,id,"Not enough %s for the loadout and cargo."%Parts.part_name(part))
+			return false
 	var reserved := Seeds.counts()
 	for part in range(1,needed.size()):
 		if Parts.is_plant(part) and part!=Parts.HEARTWOOD:
 			reserved[Parts.plant_source(part)]+=maxi(0,int(needed[part])-int(seed_reserve(p).parts[part]))
 	for part in selected:
 		if part != Parts.EMPTY and available_parts(p, part) == 0:
-			tell(id, "%s is unavailable. Change the slot at the Wilds gate." % Parts.part_name(part))
-			return
+			action_feedback(effects,id, "%s is unavailable. Change the slot at the Wilds gate." % Parts.part_name(part))
+			return false
 	if starting:
 		var cost: int = 0 if destination == Campaign.HEART else Campaign.SHORTCUT_COST[destination]
 		if cost > 0:
 			if id != HOST:
-				tell(id, "The host must open this paid route first.")
-				return
+				action_feedback(effects,id, "The host must open this paid route first.")
+				return false
 			var paid := progress.pay_shortcut(cost,reserved_override if not reserved_override.is_empty() else reserved)
 			if paid != OK:
-				tell(id, "Need %d shared plant parts to open this route." % cost if paid == ERR_UNAVAILABLE
+				action_feedback(effects,id, "Need %d shared plant parts to open this route." % cost if paid == ERR_UNAVAILABLE
 					else "Could not save the route payment. Your parts were returned.")
-				return
+				return false
 		reset_expedition()
 		start_encounter()
 	if starting:preload("res://garden_return_service.gd").begin(self)
@@ -2660,11 +2768,13 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[]) -> void:
 	p.max_hp=Life.maximum(self,p)
 	Life.Vitals.heal(p,maxi(0,int(p.max_hp)-Life.Preview.hp(MAX_HEALTH)))
 	if gained > 0:
-		save_progress(id, "Weapon assembled. The Heart gained %d knowledge." % gained)
+		var message := "Weapon assembled. The Heart gained %d knowledge." % gained
+		if effects == null: save_progress(id,message)
+		else: action_feedback(effects,id,message)
 	else:
-		progress.save_garden()
-	if gained <= 0:
-		tell(id, "Entered %s." % Campaign.NAMES[destination])
+		if effects == null: progress.save_garden()
+		action_feedback(effects,id,"Entered %s." % Campaign.NAMES[destination])
+	return true
 
 
 func complete_finale(id: int) -> void:
@@ -2692,7 +2802,7 @@ func ending_message(ending: int) -> String:
 
 
 func return_to_garden(p: Dictionary) -> void:
-	MonsterRewards.flush(self)
+	if not SaveBatch.guarded_active(): MonsterRewards.flush(self)
 	p.attack_until=0;p.swing_until=0;p.cast_until=0
 	p.run_upgrades={}
 	p.essence_sparks=0
@@ -2745,13 +2855,19 @@ func abandon_if_empty() -> void:
 		finish_failed_expedition()
 
 
-func finish_failed_expedition() -> void:
+func finish_failed_expedition() -> bool:
+	if has_meta(Transactions.SESSION):
+		var result := run_guarded_action(HOST, Transactions.Scope.PAIR, func(effects): _finish_failed_expedition(effects))
+		return Transactions.committed(result.persistence)
 	var returned=Transactions.run(self,func(): _finish_failed_expedition())
 	if returned==false:battlefield.configure(destination,depth,map_seed)
+	return returned!=false
 
-func _finish_failed_expedition() -> void:
+func _finish_failed_expedition(effects = null) -> void:
+	if effects != null: settle_expedition_rewards(effects)
 	for player in players.values():
-		recover_pouch(player)
+		if effects == null: recover_pouch(player)
+		else: _recover_pouch(player)
 		if player.wild:
 			preload("res://garden_return_service.gd").outcome(self,player,"wipe")
 			return_to_garden(player)
@@ -2759,13 +2875,13 @@ func _finish_failed_expedition() -> void:
 	var message := milestone_message("Expedition ended. Only safe-pouch contents are kept.", false)
 	destination = Campaign.GROVE
 	reset_expedition()
-	if milestone > 0:
+	if milestone > 0 and effects == null:
 		save_progress(HOST, message)
 	else:
-		tell(HOST, message)
+		action_feedback(effects,HOST,message)
 	for id in players:
 		if id != HOST:
-			tell(id, message)
+			action_feedback(effects,id,message)
 
 
 func seed_reserve(player: Dictionary) -> Dictionary:
@@ -2807,44 +2923,69 @@ func collect_drop(player: Dictionary) -> void:
 
 
 func use_checkpoint(id: int, descend: bool) -> void:
+	if has_meta(Transactions.SESSION):
+		if not Transactions.session_writable(self) or not encounter_rewarded or not Life.alive(players.get(id,{})): return
 	if PartyTravel.members(self,"advance").size()>1:
 		PartyTravel.request(self,id,"advance" if descend else "extract");return
+	if has_meta(Transactions.SESSION):
+		if descend and players[id].pos.distance_to(battlefield.advance)<=preload("res://gate_interaction.gd").RANGE and activate_checkpoint(): return
+		run_guarded_action(id, Transactions.Scope.PAIR, func(effects):
+			if not _use_checkpoint(id,descend,effects): return false
+			if not descend: effects.append(close_flow_for.bind(id))
+			return true)
+		return
 	var returned=Transactions.run(self,func(): _use_checkpoint(id,descend))
 	if returned==false:battlefield.configure(destination,depth,map_seed)
 
-func _use_checkpoint(id: int, descend: bool) -> void:
+# Opening cards is presentation. Buying a card and consenting to a floor
+# change remain separate actions in the guarded route.
+func activate_checkpoint() -> bool:
+	if not upgrade_checkpoint_open() or checkpoint_all_ready(): return false
+	if not checkpoint_pending:
+		checkpoint_pending=true
+		checkpoint_ready.clear()
+	for id in players:
+		if Life.alive(players[id]): present_checkpoint_cards(id)
+	return true
+
+func _use_checkpoint(id: int, descend: bool,effects = null) -> bool:
 	if not players.has(id) or not Life.alive(players[id]):
-		return
+		return false
 	if not descend and not extraction_checkpoint_open():
-		tell(id, "Extraction opens after clearing every sixth gate.")
-		return
+		action_feedback(effects,id, "Extraction opens after clearing every sixth gate.")
+		return false
 	if players[id].pos.distance_to(battlefield.advance) > preload("res://gate_interaction.gd").RANGE:
-		tell(id, "Use the onward gate to continue or extract at a checkpoint.")
-		return
+		action_feedback(effects,id, "Use the onward gate to continue or extract at a checkpoint.")
+		return false
 	if not encounter_cleared():
-		tell(id, "Defeat the enemies to open the checkpoint.")
-		return
+		action_feedback(effects,id, "Defeat the enemies to open the checkpoint.")
+		return false
 	var checkpoint := battlefield.advance
 	for player in players.values():
 		if Life.alive(player) and checkpoint.distance_to(player.pos) > preload("res://gate_interaction.gd").RANGE+preload("res://gate_interaction.gd").READY_MARGIN:
-			tell(id, "Gather your expedition party at this checkpoint.")
-			return
+			action_feedback(effects,id, "Gather your expedition party at this checkpoint.")
+			return false
 	if descend and upgrade_checkpoint_open():
+		if effects != null and not checkpoint_all_ready(): return false
 		if not checkpoint_pending:
 			checkpoint_pending=true
 			checkpoint_ready.clear()
 		if not checkpoint_all_ready():
 			for peer_id in players:
 				if Life.alive(players[peer_id]): present_checkpoint_cards(peer_id)
-			return
+			return false
 		checkpoint_pending=false
 		checkpoint_ready.clear()
-		close_run_flow_panel()
-		for peer_id in players:
-			if peer_id!=HOST and online_peer!=null: close_run_flow_panel.rpc_id(peer_id)
+		if effects == null:
+			close_run_flow_panel()
+			for peer_id in players:
+				if peer_id!=HOST and online_peer!=null: close_run_flow_panel.rpc_id(peer_id)
+		else:
+			for peer_id in players: effects.append(close_flow_for.bind(peer_id))
 	if descend:
 		if destination == Campaign.HEART:
-			return
+			return false
+		if effects != null: settle_expedition_rewards(effects)
 		var crossed_biome := depth == ROUTE_ROOMS
 		encounter_number += 1
 		if crossed_biome:
@@ -2861,15 +3002,17 @@ func _use_checkpoint(id: int, descend: bool) -> void:
 			if player.wild:
 				player.pos = wild_entry(peer_id)
 				if Life.alive(player): Life.Sustain.restore(self,player,recovery_hp,"floor_recovery")
-				tell(peer_id, "%s · Encounter %d. %s awaits.%s" % [
+				action_feedback(effects,peer_id, "%s · Encounter %d. %s awaits.%s" % [
 					Campaign.NAMES[destination], encounter_number, enemy_name(),
 					" A grafting shrine waits off the main path." if graft_altar_open() else ""])
-		return
+		return true
+	if effects != null: settle_expedition_rewards(effects)
 	var banked := 0
 	var banked_parts := 0
 	for player in players.values():
 		if player.wild and player.fallen:
-			recover_pouch(player)
+			if effects == null: recover_pouch(player)
+			else: _recover_pouch(player)
 		elif player.wild:
 			InventoryModel.bank_safe(self,player)
 			InventoryModel.bank_extra(self,player)
@@ -2893,13 +3036,14 @@ func _use_checkpoint(id: int, descend: bool) -> void:
 			preload("res://garden_return_service.gd").outcome(self,player,"fallen" if player.fallen else "extracted")
 			return_to_garden(player)
 			if peer_id != id:
-				tell(peer_id, message)
+				action_feedback(effects,peer_id, message)
 	destination = Campaign.GROVE
 	reset_expedition()
-	if banked > 0 or banked_parts > 0 or milestone > 0:
+	if effects == null and (banked > 0 or banked_parts > 0 or milestone > 0):
 		save_progress(id, message)
 	else:
-		tell(id, message)
+		action_feedback(effects,id,message)
+	return true
 
 
 func milestone_message(message: String, extracted: bool) -> String:
@@ -2928,7 +3072,7 @@ func start_encounter() -> void:
 
 
 func reset_encounter() -> void:
-	MonsterRewards.flush(self)
+	if not SaveBatch.guarded_active(): MonsterRewards.flush(self)
 	if pending_kill_rewards.is_empty(): kill_receipts.clear()
 	encounter_kill_records.clear();combat_threat.clear();combat_velocity.clear();combat_last_positions.clear();leader_brain.clear();moving_ranged_hits=0;encounter_started_at=Time.get_ticks_msec();encounter_party_size=Director.party_size(self)
 	encounter_kills.clear();encounter_rewarded=false;reward_retry_at=0
@@ -2938,6 +3082,8 @@ func reset_encounter() -> void:
 	projectile_queue.clear()
 	combat_events.clear()
 	Bosses.prepare(self)
+	# A new floor has independent pathing. Keep the old object intact for abort.
+	if SaveBatch.guarded_active(): battlefield = Battlefield.new()
 	battlefield.configure(destination, depth, map_seed,boss_kind,boss_phase)
 	pressure_at = 0
 	enemy_haste_until=0
@@ -3239,13 +3385,16 @@ func receive_state(people: PackedByteArray, enemy: Vector3, hp: int, winding_up:
 func _process(_delta: float) -> void:
 	if not Transactions.pending_notice(self).is_empty() or (session == "Guest" and has_meta(&"guarded_host_cleanup_notice")):
 		refresh_feedback()
+	if get_meta(Transactions.PENDING, false) and Transactions.pending_notice(self)!=Transactions.CLEANUP_NOTICE:
+		# Keep the last presented floor while the retained state awaits recovery.
+		return
 	if has_meta("guarded_title_session") and not returning_to_title:
 		var owner = get_meta("guarded_title_session")
 		var renewal: Dictionary = owner.tick()
 		if renewal.error != OK:
 			_stop_guarded_session("This session lost access to its save. Returning to the title.")
 			return
-	if multiplayer.is_server(): PartyTravel.validate(self)
+	if multiplayer.is_server() and not get_meta(Transactions.PENDING,false): PartyTravel.validate(self)
 	update_network_session()
 	if returning_to_title: return
 	if not multiplayer.is_server() and client_details.is_empty(): return
@@ -3509,9 +3658,10 @@ func return_to_main_menu(message: String = "") -> void:
 		_stop_guarded_session("This session lost access to its save. Returning to the title.")
 		return
 	if session in ["Solo","Host"] and not joined_from_title and (not has_meta("guarded_title_session") or slot_claimed):
-		if expedition_active() and has_meta(Transactions.SESSION):
-			# Exit without replaying the deferred expedition settlement.
-			_stop_guarded_session("Returned to the title. Expedition settlement is unavailable in the guarded session.")
+		if has_meta(Transactions.SESSION) and (expedition_active() or not pending_departures.is_empty() or not pending_kill_rewards.is_empty()):
+			var settled := finish_failed_expedition() if expedition_active() else MonsterRewards.flush(self)
+			if settled: _finish_title_return(message)
+			else: returning_to_title = false
 			return
 		if expedition_active():
 			finish_failed_expedition()
@@ -3539,12 +3689,15 @@ func _stop_guarded_session(message: String) -> void:
 	set_physics_process(false)
 	_finish_title_return.call_deferred(message)
 
-func _finish_title_return(message: String) -> void:
-	if has_meta(Transactions.SESSION): set_meta(Transactions.STOPPING, true)
+func go_offline() -> void:
 	if online_peer != null:
 		online_peer.close()
 		online_peer = null
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
+
+func _finish_title_return(message: String) -> void:
+	if has_meta(Transactions.SESSION): set_meta(Transactions.STOPPING, true)
+	go_offline()
 	release_slot()
 	if network_dialog.visible:
 		network_dialog.dismiss()
@@ -3999,6 +4152,22 @@ func request_abandon_run() -> void:
 
 func abandon_run(id: int,player: Dictionary) -> void:
 	if not player.get("wild",false): return
+	if has_meta(Transactions.SESSION):
+		run_guarded_action(id, Transactions.Scope.PAIR, func(effects):
+			settle_expedition_rewards(effects)
+			preload("res://garden_return_service.gd").outcome(self,player,"abandoned")
+			return_to_garden(player)
+			player.fallen=expedition_active()
+			checkpoint_ready.erase(id)
+			action_feedback(effects,id,"Expedition abandoned. All carried items lost, including the safe pouch. Class progress kept.")
+			PartyTravel.cancel(self,"A teammate left the expedition. Confirm readiness again at the gate.",effects)
+			if expedition_active() and Life.living_ids(self).is_empty():
+				_finish_failed_expedition(effects)
+			elif not expedition_active():
+				destination=Campaign.GROVE
+				reset_expedition()
+			effects.append(close_flow_for.bind(id)))
+		return
 	Transactions.run(self,func():
 		preload("res://garden_return_service.gd").outcome(self,player,"abandoned")
 		return_to_garden(player)
@@ -4101,6 +4270,7 @@ func open_checkpoint_cards(cards: Array,wallet: int,floor_number: int,waiting: b
 	if not checkpoint_menu.visible: toggle_overlay(checkpoint_menu)
 
 func choose_checkpoint_card(id: int,player: Dictionary,choice: int) -> void:
+	if not Transactions.session_writable(self): return
 	if not checkpoint_pending or not Life.alive(player) or not upgrade_checkpoint_open() or player.pos.distance_to(battlefield.advance)>preload("res://gate_interaction.gd").RANGE or int(checkpoint_ready.get(id,0))==encounter_number: return
 	if choice>=0:
 		if not has_meta(Transactions.SESSION) and choice>=checkpoint_offer_ids(player).size(): return
@@ -4123,6 +4293,7 @@ func choose_checkpoint_card(id: int,player: Dictionary,choice: int) -> void:
 	if checkpoint_pending: present_checkpoint_cards(id)
 
 func resume_checkpoint_if_ready() -> void:
+	if has_meta(Transactions.SESSION): return
 	if PartyTravel.members(self,"advance").size()>1: return
 	if not checkpoint_pending or not checkpoint_all_ready(): return
 	for id in players:
@@ -4447,6 +4618,7 @@ func update_support_position(scout: Dictionary,allies: Array,definition: Diction
 		if scout.get("covered_once",false):scout.covered_cast=true
 
 func record_enemy_death(target: int,position: Vector3,origin: Vector3) -> void:
+	if not Transactions.session_writable(self): return
 	var key:=str(combat_epoch)+":"+("leader" if target==-1 else str(scouts[target].get("spawn_token",target)))
 	if kill_receipts.has(key): return
 	var kind: int=enemy_kind if target==-1 else int(scouts[target].get("kind",0))
@@ -4510,9 +4682,14 @@ func emit_combat_event(kind: String,shape: String,from: Vector3,to: Vector3,dura
 	if is_instance_valid(Journal.current) and Journal.current.detail:
 		Journal.event("combat","presentation_event",{"event_id":latest.id,"kind":kind,"shape":shape,"amount":latest.get("amount",0),"from":latest.from,"to":latest.to,"target_id":latest.get("target_id",-2),"target_token":latest.get("target_token",-1),"weapon_form":latest.get("form",""),"pattern":latest.get("pattern",""),"width":latest.get("width",0),"span":latest.get("span",0),"contact":latest.get("contact",0),"status_actor":latest.combo if kind=="status" else -2,"status_stacks":latest.reach if kind=="status" else 0})
 	while combat_events.size()>80: combat_events.pop_front()
-	if online_peer!=null and multiplayer.is_server() and not SaveBatch.active:
-		var event: Dictionary=combat_events.back().duplicate();event.erase("born");event.age=0.0
-		receive_combat_event.rpc(event,str([destination,encounter_number,map_seed]))
+	if not SaveBatch.active and not SaveBatch.guarded_active(): publish_combat_event(latest)
+
+func publish_combat_event(source: Dictionary) -> void:
+	if online_peer==null or not multiplayer.is_server(): return
+	var event := source.duplicate()
+	event.erase("born")
+	event.age=maxf(0,(Time.get_ticks_msec()-int(source.born))/1000.0)
+	receive_combat_event.rpc(event,str([destination,encounter_number,map_seed]))
 
 func emit_weapon_attack(player: Dictionary,from: Vector3,to: Vector3,stats: Dictionary,_now: int) -> void:
 	var form:=WeaponMotion.form(player);var profile:=WeaponMotion.profile(form)
@@ -4647,6 +4824,8 @@ func admission_error(identity: String,catalog: Dictionary,protocol: int) -> Stri
 	if catalog!=progress.ContentIDs.manifest(): return "Different game content. Update all game copies before joining."
 	if not Character.valid_identity(identity): return "Invalid character identity. Choose another character."
 	if identity==local_character.identity: return "This character is already the host. Choose a different character."
+	for player in pending_departures.values():
+		if player.get("seed_owner","")==identity: return "This character's last expedition rewards are still being saved."
 	for player in players.values():
 		if player.profile_ready and player.get("seed_owner","")==identity: return "This character is already connected."
 	if expedition_active(): return "The host is in the Wilds. Join after the party returns to the Garden."
@@ -4694,7 +4873,7 @@ func update_network_session() -> void:
 			if id!=HOST and not players[id].profile_ready and now-int(players[id].get("joined_at",now))>Network.REGISTER_TIMEOUT_MS: reject_peer(id,"Character registration timed out. Check both game versions.")
 
 func allow_remote(id: int,channel: String,limit: int) -> bool:
-	if not players.has(id) or not players[id].profile_ready or players[id].get("rejecting",false): return false
+	if not Transactions.session_writable(self) or not players.has(id) or not players[id].profile_ready or players[id].get("rejecting",false): return false
 	var now:=Time.get_ticks_msec();var player: Dictionary=players[id]
 	var key:="budget_"+channel;var budget: Array=player.get(key,[now,0])
 	if now-int(budget[0])>=1000: budget=[now,0]

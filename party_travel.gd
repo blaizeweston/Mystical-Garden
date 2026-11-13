@@ -11,11 +11,11 @@ static func members(game: Node,kind: String) -> Array:
 static func clear(game: Node) -> void:
  game.travel_kind="";game.travel_votes.clear();game.travel_members.clear();game.travel_epoch+=1
 
-static func cancel(game: Node,message: String="") -> void:
+static func cancel(game: Node,message: String="",effects = null) -> void:
  var pending: bool=not game.travel_kind.is_empty()
  clear(game)
  if pending and not message.is_empty():
-  for id in members(game,"depart"): game.tell(id,message)
+  for id in members(game,"depart"): game.action_feedback(effects,id,message)
 
 static func signature(game: Node,p: Dictionary,kind: String) -> String:
  return str([game.destination,game.encounter_number,game.map_seed,p.frame,p.get("weapon_kind",0),p.prepared,p.prepared_secondary,p.prepared_catalyst,p.cargo_plan,p.character.get("upgrades",[])]) if kind=="depart" else str([game.destination,game.encounter_number,game.map_seed,p.wild,p.fallen])
@@ -38,7 +38,8 @@ static func begin(game: Node,kind: String) -> void:
  validate(game)
 
 static func request(game: Node,id: int,kind: String) -> void:
- if not game.players.has(id) or not game.players[id].profile_ready: return
+ if not game.Transactions.session_writable(game) or not game.players.has(id) or not game.players[id].profile_ready: return
+ if kind!="depart" and game.has_meta(game.Transactions.SESSION) and not game.encounter_rewarded: return
  var p: Dictionary=game.players[id]
  if kind=="depart":
   if game.expedition_active() or p.wild: return
@@ -51,7 +52,8 @@ static func request(game: Node,id: int,kind: String) -> void:
  begin(game,kind)
  if kind=="advance" and game.upgrade_checkpoint_open() and int(game.checkpoint_ready.get(id,0))!=game.encounter_number:
   # Open the existing cards, without treating a card choice as travel consent.
-  game.Transactions.run(game,func(): game._use_checkpoint(id,true))
+  if game.has_meta(game.Transactions.SESSION): game.activate_checkpoint()
+  else: game.Transactions.run(game,func(): game._use_checkpoint(id,true))
   return
  game.travel_votes[id]=signature(game,p,kind)
  validate(game)
@@ -59,6 +61,31 @@ static func request(game: Node,id: int,kind: String) -> void:
   game.tell(id,"Ready. Waiting for each party member to confirm at the gate.");return
  if kind=="advance" and game.upgrade_checkpoint_open() and not game.checkpoint_all_ready(): return
  var ids: Array=game.travel_members.duplicate()
+ if game.has_meta(game.Transactions.SESSION):
+  var close_after: bool = kind!="advance" or not game.upgrade_checkpoint_open()
+  var result: Dictionary=game.run_guarded_action(id,game.Transactions.Scope.PAIR,func(effects):
+   if kind=="depart":
+    var cost:=departure_cost(game,ids)
+    if not cost.error.is_empty():
+     for peer_id in ids: game.action_feedback(effects,peer_id,cost.error)
+     clear(game)
+     return false
+    game.settle_expedition_rewards(effects)
+    for peer_id in ids:
+     if not game._enter_wilds(peer_id,game.players[peer_id],cost.reserved,effects):
+      game.SaveBatch.reject_guarded_serializer(ERR_UNAVAILABLE,game.progress.path)
+      return false
+   elif not game._use_checkpoint(id,kind=="advance",effects):
+    return false
+   clear(game)
+   if close_after:
+    for peer_id in ids: effects.append(game.close_flow_for.bind(peer_id))
+   return true)
+  # After a refusal or verified abort, fresh votes are required. An uncertain
+  # transaction keeps its snapshot and session write block for recovery.
+  if not game.Transactions.committed(result.persistence) and game.Transactions.session_writable(game):
+   cancel(game)
+  return
  var reservation: Array=[]
  if kind=="depart":
   var cost:=departure_cost(game,ids)
