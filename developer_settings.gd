@@ -60,6 +60,10 @@ func _ready() -> void:
 
 
 func setup(enabled: bool) -> void:
+	if preload("res://playtest_storage.gd").retail():
+		toggle.set_pressed_no_signal(false)
+		hide()
+		return
 	toggle.set_pressed_no_signal(enabled)
 	toggle.disabled = context != null and not title_menu and not Developer.is_solo(context)
 	if reset != null:
