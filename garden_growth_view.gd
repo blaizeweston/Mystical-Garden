@@ -143,6 +143,9 @@ func _input(input: InputEvent) -> void:
   finish(true);get_viewport().set_input_as_handled()
 func _process(delta: float) -> void:
  if DisplayServer.get_name()=="headless" and not force_playback:return
+ if game.get_meta(preload("res://game_transaction.gd").PENDING,false):
+  if not event.is_empty():finish(false)
+  return
  var id: int=game.local_player_id();var player: Dictionary=game.players.get(id,{})
  if player.is_empty():
   if not event.is_empty():finish(false)

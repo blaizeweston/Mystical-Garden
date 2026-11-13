@@ -121,10 +121,12 @@ static func _open_guarded(menu: Node, reset: bool, digests: Dictionary) -> Dicti
 static func grant_resources(game: Node) -> String:
 	if not can_edit(game):
 		return "Developer tools are available in the single-player Developer Garden."
-	var result: Variant = Transactions.run_gameplay(game, Transactions.Scope.GARDEN, _grant_resources.bind(game), false)
-	return result if result is String else Transactions.failure_message(game, "Could not save the developer action.")
+	var details := {}
+	var result := Transactions.run_gameplay(game, Transactions.Scope.GARDEN, _grant_resources.bind(game,details), false)
+	if result.completed and not details.is_empty(): Journal.event("developer","resources_granted",details)
+	return Transactions.feedback(result, "Could not save the developer action.")
 
-static func _grant_resources(game: Node) -> String:
+static func _grant_resources(game: Node, details: Dictionary) -> String:
 	var progress: RefCounted = game.progress
 	var old_knowledge: int = progress.knowledge
 	var old_parts: Array = progress.parts.duplicate()
@@ -138,17 +140,19 @@ static func _grant_resources(game: Node) -> String:
 		progress.parts.assign(old_parts)
 		progress.stock.assign(old_stock)
 		return "Could not save the developer resources."
-	Journal.event("developer","resources_granted",{"knowledge":100,"parts_per_starter":25,"seeds_per_starter":5})
+	details.merge({"knowledge":100,"parts_per_starter":25,"seeds_per_starter":5})
 	return "Added 100 Knowledge. Each starter species gains 25 parts and 5 seeds."
 
 
 static func stock_materials(game: Node) -> String:
 	if not can_edit(game):
 		return "Developer tools are available in the single-player Developer Garden."
-	var result: Variant = Transactions.run_gameplay(game, Transactions.Scope.GARDEN, _stock_materials.bind(game), false)
-	return result if result is String else Transactions.failure_message(game, "Could not save the developer action.")
+	var details := {}
+	var result := Transactions.run_gameplay(game, Transactions.Scope.GARDEN, _stock_materials.bind(game,details), false)
+	if result.completed and not details.is_empty(): Journal.event("developer","materials_stocked",details)
+	return Transactions.feedback(result, "Could not save the developer action.")
 
-static func _stock_materials(game: Node) -> String:
+static func _stock_materials(game: Node, details: Dictionary) -> String:
 	if not game.players.has(game.HOST):
 		return "Developer tools are available in the single-player Developer Garden."
 	var player: Dictionary = game.players[game.HOST]
@@ -184,7 +188,7 @@ static func _stock_materials(game: Node) -> String:
 	if not preload("res://save_batch.gd").guarded_active() and progress.save_garden() != OK:
 		Transactions.restore(progress, before)
 		return "Could not save the material stock."
-	Journal.event("developer", "materials_stocked", {"quantity_added": added, "part_minimum": MATERIAL_STOCK, "seed_minimum": SEED_STOCK})
+	details.merge({"quantity_added":added,"part_minimum":MATERIAL_STOCK,"seed_minimum":SEED_STOCK})
 	return "Materials stocked. Crafting parts are in shared storage and seeds are in your stash."
 
 
@@ -196,7 +200,8 @@ static func finish_research(game: Node) -> String:
 	if project.is_empty():
 		return "Start research at the Heart first."
 	var result: String = game.run_heart_save(progress.heart.tick.bind(progress,progress.heart.duration(project),false))
-	Journal.event("developer","finish_research",{"tech":project,"unlocked":progress.heart.has(project)})
+	if Transactions.pending_notice(game).is_empty():
+		Journal.event("developer","finish_research",{"tech":project,"unlocked":progress.heart.has(project)})
 	return result
 
 
@@ -224,10 +229,12 @@ static func collect_path(heart: RefCounted, id: String, pending: Array[String]) 
 static func test_unlock(game: Node, id: String) -> String:
 	if not can_edit(game):
 		return "Developer tools are available in the single-player Developer Garden."
-	var result: Variant = Transactions.run_gameplay(game, Transactions.Scope.GARDEN, _test_unlock.bind(game,id), false)
-	return result if result is String else Transactions.failure_message(game, "Could not save the developer action.")
+	var details := {}
+	var result := Transactions.run_gameplay(game, Transactions.Scope.GARDEN, _test_unlock.bind(game,id,details), false)
+	if result.completed and not details.is_empty(): Journal.event("developer","test_unlock",details)
+	return Transactions.feedback(result, "Could not save the developer action.")
 
-static func _test_unlock(game: Node, id: String) -> String:
+static func _test_unlock(game: Node, id: String, details: Dictionary) -> String:
 	var progress: RefCounted = game.progress
 	var path: Array[String] = []
 	if progress.heart.has(id) or not collect_path(progress.heart,id,path) or path.is_empty():
@@ -253,5 +260,5 @@ static func _test_unlock(game: Node, id: String) -> String:
 		progress.veilcap_discovered = old_veilcap
 		progress.garden_interactions = old_growth
 		return "Could not save the developer unlock."
-	Journal.event("developer","test_unlock",{"tech":id,"prerequisites":path.slice(0,-1)})
+	details.merge({"tech":id,"prerequisites":path.slice(0,-1)})
 	return "%s restored." % Catalog.get_node(id).name

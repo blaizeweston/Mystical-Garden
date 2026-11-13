@@ -261,7 +261,7 @@ void fragment() {
 	if guarded_persistence:
 		for dialog in [confirmation, deletion_confirmation, character_deletion]:
 			dialog.dialog_hide_on_ok = false
-		if not GuardedSession.completed(preparation):
+		if not GuardedSession.completed(preparation) and not has_meta(&"guarded_return_notice"):
 			notice.text = GuardedSession.notice(preparation)
 	elif error!=OK:
 		notice.text="Could not prepare save slots. Your existing files were left in place."

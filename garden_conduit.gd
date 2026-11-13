@@ -49,7 +49,12 @@ static func command(game: Node,id: int,request: Dictionary) -> Dictionary:
  var result=Tx.run_gameplay(game,Tx.Scope.PAIR,func():
   var next:=before.duplicate(true);next.mode=request.mode;next.revision+=1
   game.progress.garden_interactions.conduit=next;return next)
- if not result is Dictionary:return reject.call(game,id,Tx.failure_message(game,"Could not save the conduit. Its previous setting remains active."))
- game.tell(id,mode(result.mode).name+" will shape newly planted terrace crops. Existing crops keep their care choice.")
- preload("res://diagnostic_journal.gd").event("garden","conduit_changed",{"actor":id,"zone":ZONE,"mode":result.mode,"revision":result.revision})
- return {"changed":true,"revision":result.revision}
+ if not result.completed or not result.value is Dictionary:
+  var notice:=Tx.feedback(result,"Could not save the conduit. Its previous setting remains active.")
+  if result.persistence.is_empty():return reject.call(game,id,notice)
+  game.tell(id,notice)
+  return {"changed":false,"error":notice}
+ var saved: Dictionary=result.value
+ game.tell(id,mode(saved.mode).name+" will shape newly planted terrace crops. Existing crops keep their care choice.")
+ preload("res://diagnostic_journal.gd").event("garden","conduit_changed",{"actor":id,"zone":ZONE,"mode":saved.mode,"revision":saved.revision})
+ return {"changed":true,"revision":saved.revision}

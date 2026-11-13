@@ -1,6 +1,7 @@
 extends VBoxContainer
 
 const Developer = preload("res://developer_mode.gd")
+const Transactions = preload("res://game_transaction.gd")
 var context: Node
 var settings: Window
 var title_menu := false
@@ -88,6 +89,8 @@ func refresh_tools() -> void:
 	materials_button.disabled = not available
 	if not available and toggle.button_pressed and not context.app_settings.values.get("developer_mode",false):
 		hint.text = "Apply Settings to enable the tools."
+	var pending := Transactions.pending_notice(context)
+	if not pending.is_empty(): hint.text = pending
 
 
 func open_garden() -> void:
@@ -115,7 +118,8 @@ func run_tool(action: String) -> void:
 	if not toggle.button_pressed:
 		return
 	if not Developer.can_edit(context):
-		settings.notice.text = "Developer tools are available in the single-player Developer Garden."
+		var pending := Transactions.pending_notice(context)
+		settings.notice.text = "Developer tools are available in the single-player Developer Garden." if pending.is_empty() else pending
 		return
 	var result := ""
 	var tech := ""
@@ -134,7 +138,7 @@ func run_tool(action: String) -> void:
 			result = Developer.test_unlock(context,tech)
 	settings.notice.text = result
 	refresh_tools()
-	if not tech.is_empty() and context.progress.heart.has(tech):
+	if not tech.is_empty() and context.progress.heart.has(tech) and Transactions.pending_notice(context).is_empty():
 		context.tell(context.HOST,result)
 		settings.cancel()
 		context.toggle_overlay(null)

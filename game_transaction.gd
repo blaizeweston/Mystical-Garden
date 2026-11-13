@@ -84,21 +84,35 @@ static func committed(boundary: Dictionary) -> bool:
  var final: Batch.Finalization = execution.get("outcome") if execution is Dictionary else null
  return final != null and final.outcome in [Batch.Outcome.COMMITTED, Batch.Outcome.COMMITTED_CLEANUP_PENDING]
 
-static func failure_message(game: Node, legacy: String) -> String:
- return str(game.get_meta(&"guarded_save_notice", legacy)) if game.has_meta(SESSION) else legacy
+static func pending_notice(game: Node) -> String:
+ return str(game.get_meta(&"guarded_save_notice", "")) if game.get_meta(PENDING, false) else ""
 
-# For callers that already publish their result after the transaction returns.
-static func run_gameplay(game: Node, scope: Scope, action: Callable, legacy_transaction := true) -> Variant:
+static func feedback(result: Dictionary, fallback: String) -> String:
+ if result.completed and result.value is String:
+  return result.value
+ return fallback if result.notice.is_empty() else result.notice
+
+# Keep the existing boundary and typed finalization available to callers.
+# Canonical commitment can permit bookkeeping even when feedback must wait.
+static func run_gameplay(game: Node, scope: Scope, action: Callable, legacy_transaction := true) -> Dictionary:
  if not game.has_meta(SESSION):
-  return run(game, action) if legacy_transaction else action.call()
- # Only the outer action may decide whether to publish a business result.
+  # Legacy callers keep their existing business conventions. There is no
+  # typed persistence verdict on that route.
+  var value: Variant = run(game, action) if legacy_transaction else action.call()
+  return {"completed": true, "value": value, "notice": "", "persistence": {}}
  if _owner != null:
-  return false
- var boundary := run_guarded(game, action, Callable(), scope)
- _report(game, boundary)
- return boundary.value.value if committed(boundary) else false
+  return {"completed": false, "value": null, "notice": "Save operation is already in progress.",
+   "persistence": _refusal(ERR_BUSY, "nested_gameplay_operation", "busy")}
+ # The existing fault callback is available to disposable headless fixtures.
+ var fault: Callable = game.get_meta(&"guarded_gameplay_test_fault", Callable()) if DisplayServer.get_name() == "headless" else Callable()
+ var boundary: Dictionary = _run_guarded(game, action, Callable(), fault, scope)
+ var execution: Variant = boundary.get("value")
+ var final: Batch.Finalization = execution.get("outcome") if execution is Dictionary else null
+ var completed: bool = final != null and final.outcome == Batch.Outcome.COMMITTED and boundary.error == OK
+ return {"completed": completed, "value": execution.value if committed(boundary) else null,
+  "notice": _report(game, boundary), "persistence": boundary}
 
-static func _report(game: Node, boundary: Dictionary) -> void:
+static func _report(game: Node, boundary: Dictionary) -> String:
  var execution: Variant = boundary.get("value")
  var final: Batch.Finalization = execution.get("outcome") if execution is Dictionary else null
  var notice := "Save could not start. No changes were saved."
@@ -110,13 +124,19 @@ static func _report(game: Node, boundary: Dictionary) -> void:
     notice = "Saved. Recovery cleanup is pending."
    Batch.Outcome.ABORTED_RESTORED:
     notice = "Save cancelled. The original state was verified."
+    if final.write_blocked: notice += " Recovery cleanup is pending."
    Batch.Outcome.UNCERTAIN:
     notice = "Save state is uncertain. Recovery is required before saving again."
- elif boundary.state in ["pending_recovery", "ambiguous"] or boundary.reason == "guarded_persistence_pending":
+ elif boundary.state in ["pending_recovery", "ambiguous", "unresolved"] or boundary.reason == "guarded_persistence_pending":
   notice = "Save recovery is pending. Your files are preserved."
  elif boundary.reason in ["stale_session_lease", "unowned_participant", "foreign_session_lease", "guarded_session_stopping"]:
   notice = "This session no longer has access to the selected save."
- game.set_meta(&"guarded_save_notice", notice)
+ # A later refusal must not replace the reason this world is blocked.
+ var prior := pending_notice(game)
+ if not prior.is_empty():
+  notice = prior
+ if game.get_meta(PENDING, false):
+  game.set_meta(&"guarded_save_notice", notice)
  if not notice.is_empty():
   game.status = notice
   preload("res://diagnostic_journal.gd").event("save", "guarded_gameplay_result", {
@@ -126,6 +146,7 @@ static func _report(game: Node, boundary: Dictionary) -> void:
    "recovery_error": final.recovery_error if final != null else OK,
    "cleanup_error": final.cleanup_error if final != null else OK,
   })
+ return notice
 
 static func run_guarded(game: Node, action: Callable, publish := Callable(), scope := Scope.LEGACY) -> Dictionary:
  return _run_guarded(game, action, publish, Callable(), scope)

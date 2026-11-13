@@ -520,6 +520,7 @@ flowchart LR
 | `record_enemy_death` | enemies |
 | `recover_pouch` | life |
 | `refresh_drop` | loot |
+| `refresh_feedback` | persistence_operations, presentation |
 | `register_character` | foundation |
 | `reject_peer` | foundation |
 | `release_slot` | foundation |
@@ -606,6 +607,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 
 | Location | Region | Systems |
 |---|---|---|
+| `game.gd::_garden_action` | cleanup_feedback | persistence_operations |
 | `game.gd::_garden_action` | guarded_gameplay_writer | persistence_operations |
 | `game.gd::_garden_action` | growth_balance | cultivation_growth |
 | `game.gd::_garden_action` | crop_care_adapter | garden_care |
@@ -632,6 +634,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_use_checkpoint` | garden_returns | garden_returns |
 | `game.gd::_use_checkpoint` | gate_hold | gate_access |
 | `game.gd::_use_checkpoint` | gate_range | gate_access |
+| `game.gd::_process` | cleanup_feedback | persistence_operations |
 | `game.gd::_process` | guarded_session_heartbeat | persistence_operations, menus, connection_flow |
 | `game.gd::_process` | guarded_legacy_heartbeat | persistence_operations, menus, connection_flow |
 | `game.gd::_process` | health_pool_map_layout | health_pool_hud |
@@ -707,6 +710,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_physics_process` | core_simulation | core_combat |
 | `game.gd::_physics_process` | growth_balance | cultivation_growth |
 | `game.gd::_physics_process` | growth_adapter | garden_cinematics |
+| `game.gd::plant_seed` | cleanup_feedback | persistence_operations |
 | `game.gd::plant_seed` | guarded_gameplay_writer | persistence_operations |
 | `game.gd::plant_seed` | ui_copy | ui_copy |
 | `game.gd::plant_seed` | plant_seed_g07 | garden_conduit |
@@ -864,6 +868,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::use_class_skill` | judgement_separate_from_snare | classes, ability_aim |
 | `game.gd::receive_details` | core_owner_clock | core_combat |
 | `game.gd::guest_combat_events` | core_floor_event_scope | core_combat |
+| `game.gd::send_garden_action` | cleanup_feedback | persistence_operations |
 | `game.gd::send_garden_action` | class_aim_log | ability_aim |
 | `game.gd::send_garden_action` | core_cast_log | core_combat |
 | `game.gd::weapon_stats` | cb07_1 | expedition_sustain |
@@ -902,17 +907,21 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::apply_skill_targets` | warden_damage_from_committed_origin | warden_progression |
 | `game.gd::attack_animation_snapshot` | ranged_aim_snapshot | ranged_release |
 | `game.gd::attack_animation_snapshot` | subclass_release_pose | warden_progression |
+| `game.gd::join_game` | cleanup_feedback | persistence_operations |
 | `game.gd::join_game` | guarded_gameplay_writer | persistence_operations |
 | `game.gd::join_game` | block_developer_join | developer_garden |
 | `game.gd::join_game` | reset_join_phase | connection_flow |
 | `game.gd::on_joined_world` | character_join_phase | connection_flow |
+| `game.gd::connection_accepted` | cleanup_feedback | persistence_operations |
 | `game.gd::connection_accepted` | guarded_gameplay_writer | persistence_operations |
 | `game.gd::connection_accepted` | garden_join_phase | connection_flow |
 | `game.gd::on_server_disconnected` | join_disconnected_reason | connection_flow |
 | `game.gd::on_connection_failed` | join_failed_reason | connection_flow |
+| `game.gd::return_to_main_menu` | cleanup_feedback | persistence_operations |
 | `game.gd::return_to_main_menu` | guarded_gameplay_writer | persistence_operations |
 | `game.gd::return_to_main_menu` | guarded_return_save_gate | persistence_operations, menus, connection_flow |
 | `game.gd::return_to_main_menu` | join_does_not_save_garden | connection_flow |
+| `game.gd::_finish_title_return` | cleanup_feedback | persistence_operations |
 | `game.gd::_finish_title_return` | guarded_gameplay_writer | persistence_operations |
 | `game.gd::_finish_title_return` | return_from_developer_garden | developer_garden |
 | `game.gd::_finish_title_return` | close_share_on_return | connection_flow |
@@ -923,6 +932,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_ready` | event_audio_node | event_audio |
 | `game.gd::_ready` | soundscape_lifetime | soundscape |
 | `game.gd::_ready` | developer_game_settings | developer_garden |
+| `game.gd::host_game` | cleanup_feedback | persistence_operations |
 | `game.gd::host_game` | block_developer_host | developer_garden |
 | `game.gd::update_projectiles` | projectile_commit_audio | event_audio |
 | `game.gd::update_projectiles` | melee_commit_audio | event_audio |
@@ -1108,6 +1118,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `settings_panel.gd` | garden_motion_save | garden_life |
 | `settings_panel.gd` | garden_motion_refresh | garden_life |
 | `settings_panel.gd` | garden_motion_create | garden_life |
+| `garden_interaction_service.gd` | cleanup_feedback_1 | persistence_operations |
+| `garden_interaction_service.gd` | cleanup_feedback_2 | persistence_operations |
 | `garden_interaction_service.gd` | guarded_gameplay_writer_1 | persistence_operations |
 | `garden_interaction_service.gd` | guarded_gameplay_writer_2 | persistence_operations |
 | `garden_interaction_service.gd` | command_g07 | garden_conduit |
@@ -1144,6 +1156,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `network_compatibility.gd` | begin_check_returns | garden_returns |
 | `network_compatibility.gd` | cultivation_auth_in | cultivation_growth |
 | `network_compatibility.gd` | cultivation_auth_out | cultivation_growth |
+| `planting_panel.gd` | cleanup_feedback_1 | persistence_operations |
 | `planting_panel.gd` | ui_copy_3 | ui_copy |
 | `planting_panel.gd` | ui_copy_2 | ui_copy |
 | `planting_panel.gd` | ui_copy_1 | ui_copy |
@@ -1153,6 +1166,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `inventory_model.gd` | bank_extra_returns | garden_returns |
 | `inventory_model.gd` | bank_safe_returns | garden_returns |
 | `garden_growth_state.gd` | prepare_returns | garden_returns |
+| `garden_growth_view.gd` | cleanup_feedback_1 | persistence_operations |
 | `garden_growth_view.gd` | meadow_cinematic_bark | garden_life |
 | `garden_growth_view.gd` | research_cue_without_scene | event_audio |
 | `garden_growth_view.gd` | research_reveal_cue | event_audio |
@@ -1165,6 +1179,9 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `garden_layout.gd` | reserved_g07 | garden_zones, garden_conduit |
 | `garden_growth_catalog.gd` | heart_counts | heart_growth_visual |
 | `garden_growth_catalog.gd` | describe_g07 | garden_conduit, garden_cinematics |
+| `garden_growth_service.gd` | cleanup_feedback_registration | persistence_operations |
+| `garden_growth_service.gd` | cleanup_feedback_2 | persistence_operations |
+| `garden_growth_service.gd` | cleanup_feedback_3 | persistence_operations |
 | `garden_growth_service.gd` | guarded_gameplay_writer_1 | persistence_operations |
 | `garden_growth_service.gd` | guarded_gameplay_writer_2 | persistence_operations |
 | `garden_growth_service.gd` | guarded_gameplay_writer_3 | persistence_operations |
@@ -1264,6 +1281,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `exploration.gd` | fog_extent_input | terrain |
 | `exploration.gd` | chart_extent | terrain |
 | `heart_visuals.gd` | tree_attach | heart_growth_visual |
+| `garden_crop_service.gd` | cleanup_feedback_1 | persistence_operations |
+| `garden_crop_service.gd` | cleanup_feedback_2 | persistence_operations |
 | `garden_crop_service.gd` | guarded_gameplay_writer_1 | persistence_operations |
 | `garden_crop_service.gd` | guarded_gameplay_writer_2 | persistence_operations |
 | `garden_crop_service.gd` | guarded_gameplay_writer_3 | persistence_operations |
@@ -1917,6 +1936,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `ability_aim.gd` | subclass_aim_preview | warden_progression |
 | `ability_aim.gd` | subclass_aim_wire | warden_progression |
 | `ability_aim.gd` | subclass_commit_aim | warden_progression |
+| `main_menu.gd` | cleanup_feedback_1 | persistence_operations |
 | `main_menu.gd` | cb02_main_menu_1_16 | combat_balance_preview |
 | `main_menu.gd` | title_music_depart | soundscape |
 | `main_menu.gd` | title_music_enter | soundscape |

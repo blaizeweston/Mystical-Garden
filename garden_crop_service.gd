@@ -71,9 +71,14 @@ static func command(game: Node,id: int,request: Dictionary) -> Dictionary:
  if action=="water_crop":
   if int(bed.stage)>=3 or not Growth.supported(bed) or not Growth.spring_ready(game.progress):return reject(game,id,"Unlock the sheltered spring to water a growing crop.")
   if not game.players[id].get("spring_water",false):return reject(game,id,"Fill your watering vessel at the sheltered spring first.")
-  var watered_result=Tx.run_gameplay(game,Tx.Scope.PAIR,func():Growth.water(bed);return true)
-  if watered_result!=true:return reject(game,id,Tx.failure_message(game,"Could not save watering. Nothing changed; please retry."))
-  game.players[id].spring_water=false
+  var watered_result:=Tx.run_gameplay(game,Tx.Scope.PAIR,func():Growth.water(bed);return true)
+  if (watered_result.completed or Tx.committed(watered_result.persistence)) and watered_result.value==true:
+   game.players[id].spring_water=false
+  if not watered_result.completed or watered_result.value!=true:
+   var notice:=Tx.feedback(watered_result,"Could not save watering. Nothing changed; please retry.")
+   if watered_result.persistence.is_empty():return reject(game,id,notice)
+   game.tell(id,notice)
+   return {"changed":false,"error":notice}
   preload("res://event_audio.gd").emit(game,"crop_watered",game.Stage.PLOTS[slot])
   game.tell(id,"Spring water nourishes this crop. Growth is 25% faster until harvest.")
   preload("res://diagnostic_journal.gd").event("garden","crop_watered",{"actor":id,"bed":slot,"cycle":bed.care.cycle,"revision":bed.care.revision,"multiplier":Growth.WATER_RATE})
@@ -87,7 +92,11 @@ static func command(game: Node,id: int,request: Dictionary) -> Dictionary:
  # advances combat/loot RNG; harvest still consumes its one ordinary draw.
  var preview_rng:=RandomNumberGenerator.new();preview_rng.seed=game.rng.seed;preview_rng.state=game.rng.state;var roll:=preview_rng.randf()
  var result=Tx.run_gameplay(game,Tx.Scope.PAIR,func():State.choose(bed,chosen,roll);return true)
- if result!=true:return reject(game,id,Tx.failure_message(game,"Could not save the care choice. Nothing changed; please retry."))
+ if not result.completed or result.value!=true:
+  var notice:=Tx.feedback(result,"Could not save the care choice. Nothing changed; please retry.")
+  if result.persistence.is_empty():return reject(game,id,notice)
+  game.tell(id,notice)
+  return {"changed":false,"error":notice}
  game.tell(id,"The bud is preserved. It needs more time and may yield a richer part." if chosen=="preserve" else "The plant will mature at its normal pace.")
  preload("res://diagnostic_journal.gd").event("garden","crop_care_chosen",{"actor":id,"bed":slot,"cycle":bed.care.cycle,"species":game.Seeds.DEFINITIONS[int(bed.species)].id,"choice":chosen,"revision":bed.care.revision})
  return {"changed":true,"revision":bed.care.revision}

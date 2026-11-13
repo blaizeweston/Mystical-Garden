@@ -192,6 +192,9 @@ var client_details_key: String=""
 var session := "Solo"
 var toast_until := 0
 var status := "The Heart shelters this Garden. Follow the path to the Wilds gate.":
+	get:
+		var pending := Transactions.pending_notice(self)
+		return status if pending.is_empty() else pending
 	set(value):
 		status = value
 		toast_until = Time.get_ticks_msec() + 4800
@@ -586,6 +589,7 @@ func add_button(parent: Control, caption: String, action: Callable) -> Button:
 
 
 func host_game(port: int=0) -> Error:
+	if not Transactions.pending_notice(self).is_empty(): return ERR_BUSY
 	if has_meta("developer_garden"):
 		status="The Developer Garden is single-player."
 		return ERR_UNAVAILABLE
@@ -647,7 +651,7 @@ func join_game(address: String="",port: int=0) -> Error:
 		status="The Developer Garden is single-player."
 		return ERR_UNAVAILABLE
 	Journal.event("network","join_requested",{"port":network_port if port==0 else port})
-	if session!="Solo" or expedition_active():
+	if session!="Solo" or expedition_active() or not Transactions.pending_notice(self).is_empty():
 		return ERR_BUSY
 	var host:=Network.address(network_address if address.is_empty() else address)
 	var selected_port:=network_port if port==0 else port
@@ -699,6 +703,7 @@ func leave_game(message: String) -> void:
 	var was_guest := session == "Guest"
 	if character_dirty:
 		save_local_character()
+		if not Transactions.pending_notice(self).is_empty(): return
 	if session == "Host" and expedition_active():
 		if has_meta(Transactions.SESSION):
 			_stop_guarded_session("Returned to the title. Expedition settlement is unavailable in the guarded session.")
@@ -892,6 +897,7 @@ func send_action(strike: bool) -> void:
 
 
 func send_garden_action(action: String) -> void:
+	if not Transactions.pending_notice(self).is_empty(): return
 	if not (action.begins_with("core_cast:") or action.begins_with("class_cast:")): Journal.interaction(self,multiplayer.get_unique_id(),action,"requested")
 	if action in ["class_skill","class_skill_two"] and encounter_cleared(): return
 	if multiplayer.is_server():
@@ -1050,12 +1056,12 @@ func _garden_action(id: int, action: String) -> void:
 		if not player.wild and action in ["look_0", "look_1", "look_2", "look_3", "look_4"]:
 			if has_meta(Transactions.SESSION) and id != HOST and not deferred_save_available(id): return
 			var index := int(action.trim_prefix("look_"))
-			var applied: Variant = Transactions.run_gameplay(self, Transactions.Scope.PROFILE, func():
+			var applied := Transactions.run_gameplay(self, Transactions.Scope.PROFILE, func():
 				var look: Array = player.character.appearance
 				look[index] = (int(look[index]) + 1) % LOOK_NAMES[index].size()
 				if not has_meta(Transactions.SESSION): publish_character(id)
 				return true, false)
-			if applied == true and has_meta(Transactions.SESSION): record_character(id)
+			if Transactions.committed(applied.persistence): record_character(id)
 		return
 	match action:
 		"expand_plot":
@@ -1258,27 +1264,28 @@ func receive_character(profile: Dictionary) -> void:
 	if session != "Guest" or not Transactions.session_writable(self): return
 	if has_meta(Transactions.SESSION):
 		# Only the guest's local write participates in this transaction.
-		var saved: Variant = Transactions.run_gameplay(self, Transactions.Scope.GUEST_PROFILE, func():
+		var saved := Transactions.run_gameplay(self, Transactions.Scope.GUEST_PROFILE, func():
 			guest_character.data = Character.normalize(profile)
 			return true)
-		if saved == true: character_dirty = false
+		if Transactions.committed(saved.persistence): character_dirty = false
 		return
 	guest_character.data = Character.normalize(profile)
 	character_dirty = true
 	save_local_character()
 
 
-func save_local_character() -> void:
+func save_local_character() -> bool:
 	var active := guest_character if session == "Guest" else local_character
 	if has_meta(Transactions.SESSION):
 		var scope := Transactions.Scope.GUEST_PROFILE if session == "Guest" else Transactions.Scope.PROFILE
-		if Transactions.run_gameplay(self, scope, func(): return true) == true:
-			character_dirty = false
-		return
+		var saved := Transactions.run_gameplay(self, scope, func(): return true)
+		if Transactions.committed(saved.persistence): character_dirty = false
+		return saved.completed
 	if active.save_profile() == OK:
 		character_dirty = false
-	else:
-		status = "Character progress could not be saved."
+		return true
+	status = "Character progress could not be saved."
+	return false
 
 
 func graft_chance(player: Dictionary, part: int) -> float:
@@ -1649,8 +1656,8 @@ func guarded_growth_tick(elapsed: float) -> void:
 		progress.sync_plot_flags())
 
 func run_heart_save(action: Callable) -> String:
-	var result: Variant = Transactions.run_gameplay(self, Transactions.Scope.GARDEN, action, false)
-	return result if result is String else Transactions.failure_message(self, "Research could not be saved.")
+	var result := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, action, false)
+	return Transactions.feedback(result, "Research could not be saved.")
 
 func use_heart_research(id: int) -> void:
 	if id!=HOST:
@@ -2668,7 +2675,8 @@ func seed_reserve(player: Dictionary) -> Dictionary:
 
 func recover_pouch(player: Dictionary) -> bool:
 	if SaveBatch.active: return bool(Transactions.run(self,func(): return _recover_pouch(player)))
-	return Transactions.run_gameplay(self, Transactions.Scope.PAIR, func(): return _recover_pouch(player)) == true
+	var result := Transactions.run_gameplay(self, Transactions.Scope.PAIR, func(): return _recover_pouch(player))
+	return (result.completed or Transactions.committed(result.persistence)) and result.value == true
 
 func _recover_pouch(player: Dictionary) -> bool:
 	InventoryModel.normalize_pouch(player)
@@ -2961,15 +2969,15 @@ func plant_seed(id: int, slot: int) -> bool:
 		tell(id, "Identify seeds at the Altar first.")
 		return false
 	var before: Dictionary=progress.plots[slot].duplicate(true)
-	var planted: Variant = Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func():
+	var planted := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func():
 		stock[kind] -= 1
 		progress.plots[slot] = {"species": kind, "age": 0.0, "stage": 0, "flowering": false,"growth_rules":2,"growth_base":float(Seeds.DEFINITIONS[kind].grow_seconds),"care":preload("res://garden_conduit.gd").cycle(progress,slot,kind)}
 		progress.sync_plot_flags()
 		if has_meta(Transactions.SESSION) or progress.save_garden()==OK: return true
 		stock[kind]+=1;progress.plots[slot]=before;progress.sync_plot_flags()
 		return false, false)
-	if planted != true:
-		tell(id,Transactions.failure_message(self,"Planting could not be saved. Your seed was returned."))
+	if not planted.completed or planted.value != true:
+		tell(id,Transactions.feedback(planted,"Planting could not be saved. Your seed was returned."))
 		return false
 	tell(id,"%s planted."%Progress.PLANT_NAMES[kind])
 	return true
@@ -2981,15 +2989,13 @@ func deferred_save_available(id: int) -> bool:
 
 func save_session_garden() -> bool:
 	if has_meta(Transactions.SESSION):
-		return Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func(): return true) == true
+		return Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func(): return true).completed
 	return progress.save_garden() == OK
 
 func save_progress(id: int, message: String) -> void:
 	if has_meta(Transactions.SESSION):
 		if save_session_garden():
 			tell(id, message)
-			var notice := Transactions.failure_message(self, "")
-			if not notice.is_empty(): status = notice
 		return
 	var result := progress.save_garden()
 	if result != OK:
@@ -3000,11 +3006,26 @@ func save_progress(id: int, message: String) -> void:
 		status = "Garden save failed (error %d). Use Save Garden to retry." % result
 
 
+func refresh_feedback() -> void:
+	var pending := not Transactions.pending_notice(self).is_empty()
+	if pending and is_instance_valid(planting_menu) and planting_menu.visible:
+		planting_view.confirm.disabled = true
+	feedback.text = status
+	var message_width := feedback.get_theme_font("font").get_string_size(status,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, feedback.get_theme_font_size("font_size")).x
+	feedback.custom_minimum_size.x = minf(message_width + 2.0, 500.0)
+	var fresh_notice := pending or (Time.get_ticks_msec() < toast_until and not status.is_empty())
+	toast_panel.z_index = 1 if pending else 0
+	toast_panel.visible = fresh_notice and (not overlay.visible or (pending and not session_menu.visible))
+	menu_notice.text = status
+	menu_notice.visible = fresh_notice
+
 func tell(id: int, message: String) -> void:
 	if id == HOST:
 		status = message
 	elif online_peer != null:
-		receive_message.rpc_id(id, message)
+		var pending := Transactions.pending_notice(self)
+		receive_message.rpc_id(id, message if pending.is_empty() else pending)
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -3111,6 +3132,8 @@ func receive_state(people: PackedByteArray, enemy: Vector3, hp: int, winding_up:
 
 
 func _process(_delta: float) -> void:
+	if not Transactions.pending_notice(self).is_empty():
+		refresh_feedback()
 	if has_meta("guarded_title_session") and not returning_to_title:
 		var owner = get_meta("guarded_title_session")
 		var renewal: Dictionary = owner.tick()
@@ -3277,14 +3300,7 @@ func _process(_delta: float) -> void:
 	if deposit_button!=null: deposit_button.disabled=not can_checkpoint_bank(p)
 	if abandon_button!=null: abandon_button.disabled=not wild
 	if multiplayer.is_server() and not expedition_active(): consider_recollection()
-	feedback.text = status
-	var message_width := feedback.get_theme_font("font").get_string_size(status,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, feedback.get_theme_font_size("font_size")).x
-	feedback.custom_minimum_size.x = minf(message_width + 2.0, 500.0)
-	var fresh_notice := Time.get_ticks_msec() < toast_until and not status.is_empty()
-	toast_panel.visible = not overlay.visible and fresh_notice
-	menu_notice.text = status
-	menu_notice.visible = fresh_notice
+	refresh_feedback()
 
 	if not wild:
 		var ending := ending_message(campaign_state[5])
@@ -3401,11 +3417,9 @@ func return_to_main_menu(message: String = "") -> void:
 			returning_to_title = false
 			if not has_meta(Transactions.SESSION): status = "Could not save this Garden. Use Save Garden before leaving."
 			return
-	if character_dirty:
-		save_local_character()
-		if character_dirty:
-			returning_to_title = false
-			return
+	if character_dirty and not save_local_character():
+		returning_to_title = false
+		return
 	_finish_title_return(message)
 
 func _stop_guarded_session(message: String) -> void:
@@ -3436,7 +3450,9 @@ func _finish_title_return(message: String) -> void:
 	menu.selected = dev_return.get("slot",maxi(0,active_slot))
 	menu.selected_character=dev_return.get("character",maxi(0,active_character_slot))
 	menu.restore_last_character=false
-	menu.return_message = message
+	var pending := Transactions.pending_notice(self)
+	menu.return_message = message if pending.is_empty() else pending
+	if not pending.is_empty(): menu.set_meta(&"guarded_return_notice", pending)
 	if joined_from_title or session=="Connecting" or get_meta("join_phase","")=="garden":
 		menu.set_meta("join_return",{"address":network_address,"port":network_port,"open":not get_meta("join_cancelled",false)})
 	set_process(false)
@@ -4033,8 +4049,11 @@ func handle_inventory_action(id: int,player: Dictionary,payload: String) -> void
 	if float(data.quantity)!=amount or amount<=0: return
 	if data.operation=="transfer":
 		var transfer := InventoryModel.transfer.bind(self,player,data.source,data.target,data.item,amount)
-		var result: Variant = transfer.call() if player.get("wild", false) else Transactions.run_gameplay(self, Transactions.Scope.GARDEN, transfer, false)
-		tell(id, result if result is String else Transactions.failure_message(self, "Could not save the transfer."))
+		if player.get("wild", false):
+			tell(id,transfer.call())
+		else:
+			var result := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, transfer, false)
+			tell(id,Transactions.feedback(result, "Could not save the transfer."))
 	elif data.operation=="drop": drop_inventory_stack(id,player,data.source,data.item,amount)
 
 func inventory_drop_list(player: Dictionary) -> Array:
@@ -4147,8 +4166,8 @@ func send_altar_action(operation: String,draft: Array,revision: int) -> void:
 	send_garden_action("altar:"+JSON.stringify({"operation":operation,"draft":draft,"revision":revision}))
 
 func run_altar_save(id: int, player: Dictionary, action: Callable) -> void:
-	var result: Variant = Transactions.run_gameplay(self, Transactions.Scope.GARDEN, action, false)
-	player.altar_message = result if result is String else Transactions.failure_message(self, "Could not save the Altar offering.")
+	var result := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, action, false)
+	player.altar_message = Transactions.feedback(result, "Could not save the Altar offering.")
 	tell(id, player.altar_message)
 
 func handle_altar_action(id: int,player: Dictionary,payload: String) -> void:
@@ -4473,7 +4492,7 @@ func connection_accepted(profile: Dictionary) -> void:
 	session="Guest";joined_from_title=false;status="Joined the host's Garden."
 	set_meta("join_phase","garden")
 	receive_character(profile);connection_deadline=Time.get_ticks_msec()+Network.REGISTER_TIMEOUT_MS
-	toggle_overlay(null)
+	if Transactions.pending_notice(self).is_empty(): toggle_overlay(null)
 
 @rpc("authority","call_remote","reliable")
 func connection_rejected(reason: String) -> void:

@@ -8,6 +8,8 @@ const Owner = preload("res://guarded_title_session.gd")
 const Ops = preload("res://persistence_operations.gd")
 const Plan = preload("res://persistence_recovery_plan.gd")
 const Growth = preload("res://garden_growth_service.gd")
+const Conduit = preload("res://garden_conduit.gd")
+const CleanupNotice := "Saved. Recovery cleanup is pending."
 const G := "user://saves/slot_1/garden.cfg"
 const C := "user://saves/characters/slot_1/character.cfg"
 const PEER := 9021
@@ -66,6 +68,7 @@ func start(slots: RefCounted, roster: RefCounted, garden: bool) -> Node:
  root.add_child(world)
  world.set_process(false)
  world.set_physics_process(false)
+ world.get_node("GardenInteractions/GrowthScenes").set_process(false)
  return world
 
 func marker(path: String, pid: int, age: float) -> void:
@@ -97,9 +100,9 @@ func run() -> void:
  if world == null: return
  check(world.has_meta(Tx.SESSION) and world.progress.require_guarded_access, "real session and raw save refusal enabled")
  var before := disk()
- var garden := Tx.run_guarded(world, func(): world.progress.knowledge = 21; return false, Callable(), Tx.Scope.GARDEN)
- verify("garden_false_business_commit", garden, Batch.Outcome.COMMITTED, before)
- check(garden.value.value == false and disk()[G] != before[G] and disk()[C] == before[C], "false callback value independent of Garden-only commit")
+ var garden := Tx.run_gameplay(world, Tx.Scope.GARDEN, func(): world.progress.knowledge = 21; return false)
+ verify("garden_false_business_commit", garden.persistence, Batch.Outcome.COMMITTED, before)
+ check(garden.completed and garden.value == false and disk()[G] != before[G] and disk()[C] == before[C], "false callback value independent of Garden-only commit")
  before = disk()
  world.garden_action(world.HOST, "look_0")
  check(disk()[G] == before[G] and disk()[C] != before[C], "actual appearance action writes only local profile")
@@ -112,9 +115,12 @@ func run() -> void:
  var host: Dictionary = world.players[world.HOST]
  host.pos = world.Stage.PLOTS[0]
  world.seed_reserve(host).stock[0] = 1
+ world.show_planting_picker(world.HOST,0)
+ check(world.planting_menu.visible,"ordinary planting starts with an open picker")
  world.garden_action(world.HOST, "plant_at_0_0")
  check(world.progress.plots[0].species == 0 and world.seed_reserve(host).stock[0] == 0
-  and disk()[G] != before[G] and disk()[C] == before[C], "planting consumes the seed in a Garden-only commit")
+  and disk()[G] != before[G] and disk()[C] == before[C] and world.status.ends_with("planted.")
+  and not world.planting_menu.visible, "ordinary planting commits, reports success and closes the picker")
  record("planting", before)
  before = disk()
  host.pos = world.Stage.ALTAR
@@ -125,20 +131,20 @@ func run() -> void:
  record("altar_identification", before)
 
  before = disk()
- var pair := Tx.run_guarded(world, func():
+ var pair := Tx.run_gameplay(world, Tx.Scope.PAIR, func():
   world.progress.knowledge = 22
   var nested := Tx.run_guarded(world, func():
    world.players[world.HOST].character.name = "Nested success"
    return world.local_character.save_profile(), Callable(), Tx.Scope.PROFILE)
   check(nested.get("nested", false) and nested.value == OK, "nested profile reused owning context")
-  return null, Callable(), Tx.Scope.PAIR)
- verify("pair_null_business_commit", pair, Batch.Outcome.COMMITTED, before)
- check(pair.value.value == null and disk()[G] != before[G] and disk()[C] != before[C], "pair saves both canonical files")
+  return null)
+ verify("pair_null_business_commit", pair.persistence, Batch.Outcome.COMMITTED, before)
+ check(pair.completed and pair.value == null and disk()[G] != before[G] and disk()[C] != before[C], "null callback value independent of paired commit")
  before = disk()
  var old_rng: int = world.rng.state
  var unrelated = preload("res://character_profile.gd").new()
  unrelated.path = "user://saves/characters/slot_2/character.cfg"
- var aborted := Tx.run_guarded(world, func():
+ var aborted := Tx.run_gameplay(world, Tx.Scope.PAIR, func():
   world.progress.knowledge = 31
   world.players[world.HOST].character.name = "Rejected"
   world.rng.randi()
@@ -146,9 +152,11 @@ func run() -> void:
    check(unrelated.save_profile() == ERR_UNAUTHORIZED, "foreign nested serializer rejected")
    check(world.progress.save_garden() == ERR_UNAUTHORIZED, "later serializer retains first error"), Callable(), Tx.Scope.PROFILE)
   check(nested.get("nested", false), "nested business callback executed")
-  return true, Callable(), Tx.Scope.PAIR)
- verify("nested_first_error", aborted, Batch.Outcome.ABORTED_RESTORED, before)
- check(final(aborted).original_error == ERR_UNAUTHORIZED and disk() == before and world.progress.knowledge == 22
+  return true)
+ verify("nested_first_error", aborted.persistence, Batch.Outcome.ABORTED_RESTORED, before)
+ check(not aborted.completed and aborted.value == null and aborted.notice.contains("original state was verified"),
+  "verified abort reports rollback without exposing the successful callback value")
+ check(final(aborted.persistence).original_error == ERR_UNAUTHORIZED and disk() == before and world.progress.knowledge == 22
   and world.players[world.HOST].character.name == "Nested success" and world.rng.state == old_rng, "verified abort restores Garden, profile and RNG")
  var refused := Tx.run_guarded(world, func():
   check(not Tx.run_guarded(world, refuse_action, Callable(), Tx.Scope.PROFILE).ran, "nested cannot expand participant set")
@@ -161,9 +169,14 @@ func run() -> void:
  check(Tx.committed(retry), "retry after verified abort")
 
  before = disk()
- var cleaned := Tx._run_guarded(world, func(): world.progress.knowledge = 44, Callable(),
-  func(phase, _path): return ERR_CANT_CREATE if phase == "publish_receipt" else OK, Tx.Scope.GARDEN)
- verify("cleanup_pending", cleaned, Batch.Outcome.COMMITTED_CLEANUP_PENDING, before)
+ world.set_meta(&"guarded_gameplay_test_fault",fail_receipt)
+ var cleaned := Tx.run_gameplay(world, Tx.Scope.GARDEN, func():
+  world.progress.knowledge = 44
+  return "ordinary success")
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ verify("cleanup_pending", cleaned.persistence, Batch.Outcome.COMMITTED_CLEANUP_PENDING, before)
+ check(Tx.committed(cleaned.persistence) and not cleaned.completed and cleaned.notice == CleanupNotice,
+  "gameplay result distinguishes canonical commitment from ordinary success")
  var cleanup := disk()
  check(world.progress.knowledge == 44 and not Tx.run_guarded(world, refuse_action, Callable(), Tx.Scope.GARDEN).ran
   and disk() == cleanup, "cleanup pending retains committed state and blocks new writes")
@@ -173,12 +186,20 @@ func run() -> void:
  if world == null: return
 
  before = disk()
- var unsure := Tx._run_guarded(world, func():
+ world.set_meta(&"guarded_gameplay_test_fault", func(phase, path):
+  if phase == "replace" and path == G: return ERR_CANT_CREATE
+  return ERR_FILE_CANT_WRITE if phase == "restore" else OK)
+ var unsure := Tx.run_gameplay(world, Tx.Scope.PAIR, func():
   world.progress.knowledge = 51
-  world.players[world.HOST].character.name = "Tentative", Callable(), func(phase, path):
-   if phase == "replace" and path == G: return ERR_CANT_CREATE
-   return ERR_FILE_CANT_WRITE if phase == "restore" else OK, Tx.Scope.PAIR)
- verify("uncertain_pair", unsure, Batch.Outcome.UNCERTAIN, before)
+  world.players[world.HOST].character.name = "Tentative"
+  return "ordinary success")
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ verify("uncertain_pair", unsure.persistence, Batch.Outcome.UNCERTAIN, before)
+ check(not unsure.completed and unsure.value == null and unsure.notice.begins_with("Save state is uncertain"),
+  "uncertain outcome withholds the callback value and ordinary success")
+ world.tell(world.HOST,"later message")
+ world.receive_message("later notification")
+ check(world.status == unsure.notice,"uncertain feedback remains visible")
  var split := disk()
  check(world.progress.knowledge == 51 and split[G] == before[G] and split[C] != before[C]
   and not Tx.run_guarded(world, refuse_action, Callable(), Tx.Scope.PAIR).ran and disk() == split, "uncertain keeps memory and evidence without automatic replay")
@@ -222,7 +243,9 @@ func run() -> void:
  var lease := G.get_base_dir().path_join("session.cfg")
  marker(lease, OS.get_process_id() + 1, 0)
  before = disk()
- var foreign := Tx.run_guarded(world, refuse_action, Callable(), Tx.Scope.PAIR)
+ var refused_feedback := Tx.run_gameplay(world, Tx.Scope.PAIR, refuse_action)
+ var foreign: Dictionary = refused_feedback.persistence
+ check(not refused_feedback.completed and refused_feedback.value == null, "authorization refusal has no gameplay completion")
  world.multiplayer.peer_disconnected.emit(PEER)
  check(not foreign.ran and not world.players.has(PEER) and world.pending_kill_rewards.size() == 1
   and world.progress.character_records == memory and world.progress.garden_interactions == receipts and disk() == before, "late host disconnect only cleans network state after lease loss")
@@ -254,9 +277,113 @@ func run() -> void:
  record("delayed_guest_rpc", before)
  world.free()
  check(DirAccess.remove_absolute(profile_lease) == OK, "dispose injected expired profile lease")
+ verify_cleanup_feedback(stores)
  check(not preload("res://persistence_writer_integration.gd").activation_status().allowed, "production gate disabled")
  if not failed: print("PASS: guarded gameplay transactions")
  quit(1 if failed else 0)
+
+func fail_receipt(phase: String, _path: String) -> Error:
+ return ERR_CANT_CREATE if phase == "publish_receipt" else OK
+
+func verify_cleanup_feedback(stores: Dictionary) -> void:
+ for feature in ["planting", "altar", "conduit", "watering", "explicit_garden"]:
+  var world := start(stores.slots, stores.roster, true)
+  if world == null: return
+  var host: Dictionary = world.players[world.HOST]
+  var before := disk()
+  var previous_event: int = world.combat_event_serial
+  world.set_meta(&"guarded_gameplay_test_fault", fail_receipt)
+  match feature:
+   "planting":
+    host.pos = world.Stage.PLOTS[1]
+    world.seed_reserve(host).stock[0] = 1
+    world.show_planting_picker(world.HOST,1)
+    var seed_button: Button = world.planting_view.grid.get_child(0)
+    seed_button.pressed.emit()
+    world.planting_view.confirm.pressed.emit()
+    world.refresh_feedback()
+    check(world.progress.plots[1].species == 0 and world.seed_reserve(host).stock[0] == 0, "cleanup-pending plant and spent seed are retained")
+    check(world.overlay.visible and world.planting_menu.visible and world.planting_view.confirm.disabled,
+     "cleanup pending keeps picker open and prevents re-submission")
+    check(world.feedback.text == CleanupNotice and world.toast_panel.visible, "cleanup pending is visible over the open picker")
+   "altar":
+    host.pos = world.Stage.ALTAR
+    world.seed_reserve(host).unknown.append(1)
+    world.garden_action(world.HOST, "altar_identify")
+    check(world.seed_reserve(host).unknown.is_empty() and host.altar_message == CleanupNotice,
+     "Altar commits identification and keeps cleanup feedback")
+   "conduit":
+    for tech in ["clearing_1","clearing_2","irrigation","plot_4","living_conduit"]:
+     world.progress.heart.complete(world.progress,tech)
+    host.pos = Conduit.Layout.Catalog.point(Conduit.POINT).position
+    var result := Conduit.command(world,world.HOST,{"point":Conduit.POINT,"revision":0,"mode":"deep"})
+    check(Conduit.state(world.progress).mode == "deep" and result.get("error") == CleanupNotice and not result.changed,
+     "conduit commits the setting and withholds ordinary success")
+   "watering":
+    host.pos = world.Stage.PLOTS[1]
+    host.spring_water = true
+    var bed: Dictionary = world.progress.plots[1]
+    var result := preload("res://garden_crop_service.gd").command(world,world.HOST,{"point":"bed_2","cycle":bed.care.cycle,
+     "revision":bed.care.revision,"stage":bed.stage,"action":"water_crop"})
+    check(bed.care.get("watered",false) and not host.spring_water and result.get("error") == CleanupNotice and not result.changed
+     and world.combat_event_serial == previous_event,"watering consumes the committed charge without its ordinary feedback or audio")
+   "explicit_garden":
+    world.progress.knowledge += 9
+    world.save_progress(world.HOST,"Ordinary save success")
+  var committed_disk := disk()
+  var proof := Plan.discover(PackedStringArray([G]))
+  var journal := ConfigFile.new()
+  check(journal.load(G + ".transaction") == OK and journal.get_value("transaction","committed",false),
+   feature + " retains the committed journal")
+  check(proof.state == "pending_recovery" and committed_disk[G] != before[G] and Tx.pending_notice(world) == CleanupNotice
+   and world.status == CleanupNotice, feature + " committed bytes and distinct pending feedback")
+  world.remove_meta(&"guarded_gameplay_test_fault")
+  var retry := Tx.run_gameplay(world, Tx.Scope.GARDEN, refuse_action)
+  check(not retry.completed and retry.persistence.state == "pending_recovery" and not retry.persistence.ran
+   and retry.notice == CleanupNotice and disk() == committed_disk, feature + " blocks a later write and preserves its original notice")
+  world.tell(world.HOST,"later ordinary success")
+  world.receive_message("later network notification")
+  world.status = "later direct notification"
+  world.toast_until = 0
+  world.refresh_feedback()
+  check(world.status == CleanupNotice and world.feedback.text == CleanupNotice and world.toast_panel.visible,
+   feature + " feedback survives messages and toast expiry")
+  record("cleanup_feedback_"+feature,before,{"notice":world.status,"journal_committed":journal.get_value("transaction","committed",false),
+   "retry_state":retry.persistence.state,"retry_ran":retry.persistence.ran})
+  var recovered := Ops.recover(PackedStringArray([G]))
+  check(recovered.ran and recovered.value.verified and disk()[G] == committed_disk[G] and not FileAccess.file_exists(G+".transaction"),
+   feature + " cleanup preserves committed bytes")
+  world.free()
+
+ var profile_world := start(stores.slots, stores.roster, true)
+ if profile_world == null: return
+ var profile_before := disk()
+ profile_world.players[profile_world.HOST].character.name = "Cleanup profile"
+ profile_world.character_dirty = true
+ profile_world.set_meta(&"guarded_gameplay_test_fault",fail_receipt)
+ check(not profile_world.save_local_character() and not profile_world.character_dirty and profile_world.status == CleanupNotice,
+  "profile cleanup clears the committed dirty flag without ordinary completion")
+ profile_world.remove_meta(&"guarded_gameplay_test_fault")
+ var profile_after := disk()
+ var profile_read := preload("res://character_profile.gd").new()
+ profile_read.path = C
+ check(profile_read.load_profile(false) == OK and profile_read.data.name == "Cleanup profile"
+  and profile_after[C] != profile_before[C] and profile_after[G] == profile_before[G]
+  and Plan.discover(PackedStringArray([C])).state == "pending_recovery","profile bytes committed with evidence")
+ record("cleanup_feedback_explicit_profile",profile_before,{"notice":profile_world.status})
+ check(Ops.recover(PackedStringArray([C])).value.verified and disk()[C] == profile_after[C],"profile cleanup preserves new bytes")
+ profile_world.free()
+
+ var resumed := start(stores.slots, stores.roster, true)
+ if resumed == null: return
+ var before := disk()
+ var result := Tx.run_gameplay(resumed,Tx.Scope.GARDEN,func():
+  resumed.progress.knowledge += 1
+  return "Ordinary save success")
+ check(result.completed and result.value == "Ordinary save success" and result.notice.is_empty() and disk()[G] != before[G],
+  "fresh authorized session resumes after cleanup")
+ verify("feedback_resumed_after_cleanup",result.persistence,Batch.Outcome.COMMITTED,before)
+ resumed.free()
 
 func interrupted(mode: String) -> void:
  if mode == "owner":

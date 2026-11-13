@@ -14,7 +14,7 @@ static func register(game: Node,id: int) -> bool:
   game.progress.garden_interactions=data
   game.progress.garden_interactions.growth.seen[who]=int(data.growth.sequence)
   return true)
- return result==true
+ return (result.completed or Tx.committed(result.persistence)) and result.value==true
 static func projection(game: Node,id: int) -> Dictionary:
  if not game.multiplayer.is_server():return game.players.get(id,{}).get("garden_interactions",{}).get("growth",{})
  if game.progress.garden_interactions.get("version",1)!=1:return {}
@@ -30,8 +30,11 @@ static func acknowledge(game: Node,id: int,payload: String) -> bool:
  var projection_data:=projection(game,id);var sequence:=int(payload)
  if sequence<=int(projection_data.get("seen",0)):return true
  if projection_data.get("pending",[]).is_empty() or int(projection_data.pending[0].sequence)!=sequence:return false
- var committed: bool=Tx.run_gameplay(game,Tx.Scope.PAIR,func():
+ var result:=Tx.run_gameplay(game,Tx.Scope.PAIR,func():
   game.progress.garden_interactions.growth.seen[identity(game,id)]=sequence
-  return true)==true
- if committed:preload("res://diagnostic_journal.gd").event("garden","growth_acknowledged",{"actor":id,"sequence":sequence})
- return committed
+  return true)
+ if result.completed and result.value==true:
+  preload("res://diagnostic_journal.gd").event("garden","growth_acknowledged",{"actor":id,"sequence":sequence})
+ elif not result.notice.is_empty():
+  game.tell(id,result.notice)
+ return (result.completed or Tx.committed(result.persistence)) and result.value==true
