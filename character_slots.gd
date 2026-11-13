@@ -191,7 +191,7 @@ func _edit_guarded(slot: int, name: String, class_id: int, appearance: Array, ed
  var scope := Ops._serializer_scope([profile])
  return Ops.run_management(scope.paths, scope.auxiliary + PackedStringArray([catalog, catalog + ".tmp"]), func(context):
   var read := _read_catalog()
-  if read.error != OK or slot >= read.get("capacity", 0) or profile.path != _slot_profile(slot):
+  if read.error != OK or slot >= read.get("capacity", 0) or profile.path != _slot_profile(slot) or catalog != _catalog_path():
    return Ops.management_result(ERR_INVALID_DATA, "roster_capacity_changed")
   if FileAccess.file_exists(catalog + ".tmp"):
    return Ops.management_result(ERR_BUSY, "metadata_scratch_pending", "unresolved")
@@ -200,9 +200,14 @@ func _edit_guarded(slot: int, name: String, class_id: int, appearance: Array, ed
   if FileAccess.file_exists(profile.path) != editing:
    return Ops.management_result(ERR_FILE_NOT_FOUND if editing else ERR_ALREADY_EXISTS, "character_vacancy_changed")
   if editing:
+   # A load of an old profile can leave the default identity in place.
+   # Require a saved identity before an edit can replace canonical bytes.
+   profile.identity = ""
    var loaded := profile.load_profile(false)
    if loaded != OK:
     return Ops.management_result(loaded, "profile_unreadable")
+   if not Profile.valid_identity(profile.identity):
+    return Ops.management_result(ERR_INVALID_DATA, "roster_identity_unverified")
    profile.data.name = cleaned
    profile.data.active_class = class_id
    profile.data.appearance = preload("res://character_appearance.gd").normalize(appearance)
@@ -272,7 +277,7 @@ func prepare_guarded(worlds: RefCounted) -> Dictionary:
  completed.imported = imported
  return completed
 
-func _import_guarded(source: String, legacy_slot: int, selected := {}) -> Dictionary:
+func _import_guarded(source: String, legacy_slot: int, selected := {}, fault := Callable()) -> Dictionary:
  var first := _slot_profile(0)
  var ready := Auth.bootstrap(PackedStringArray([first.get_base_dir(), source.get_base_dir()]))
  if ready.error != OK:
@@ -291,7 +296,7 @@ func _import_guarded(source: String, legacy_slot: int, selected := {}) -> Dictio
  var participants := PackedStringArray([source, destination])
  return Ops.run_management(participants, scope.auxiliary + PackedStringArray([catalog, catalog + ".tmp"]), func(context):
   var current := _import_candidate(source)
-  if current != input:
+  if current != input or catalog != _catalog_path():
    return Ops.management_result(ERR_BUSY, "roster_import_selection_changed")
   if not current.has("destination"):
    if FileAccess.file_exists(catalog + ".tmp"):
@@ -317,10 +322,13 @@ func _import_guarded(source: String, legacy_slot: int, selected := {}) -> Dictio
    var expanded := Ops.write_metadata(context, catalog, info.file)
    if expanded.error != OK:
     return expanded
-  var outcome := Ops.transaction_result(Ops.commit_serializers(context, [profile], destination, profile.save_profile))
+  var outcome := Ops.transaction_result(Ops.commit_serializers(context, [profile], destination, profile.save_profile, fault))
   if outcome.error != OK:
    if target_slot == info.capacity:
     outcome.capacity_expanded = true
+    outcome.partial = true
+    if outcome.state not in ["pending_recovery", "unresolved", "committed_cleanup_pending"]:
+     outcome.state = "partial_completion"
    return outcome
   info.file.set_value("imports", source, current.identity)
   var mapped := Ops.write_metadata(context, catalog, info.file)

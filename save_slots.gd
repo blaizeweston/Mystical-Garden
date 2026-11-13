@@ -237,18 +237,22 @@ func prepare_guarded(import_legacy := true) -> Dictionary:
 	var sources := [legacy_garden, legacy_character, legacy_guest]
 	var participants := PackedStringArray([legacy_garden, legacy_character, legacy_guest,
 		first.garden, first.character, second.garden, second.character])
-	var auxiliary := PackedStringArray([first.directory.path_join("deleted.cfg"), second.directory.path_join("deleted.cfg")])
+	var first_tombstone: String = first.directory.path_join("deleted.cfg")
+	var second_tombstone: String = second.directory.path_join("deleted.cfg")
+	var auxiliary := PackedStringArray([first_tombstone, second_tombstone, first_tombstone + ".tmp", second_tombstone + ".tmp"])
 	return Ops.run_management(participants, auxiliary, func(context):
 		if paths(0) != first or paths(1) != second or sources != [legacy_garden, legacy_character, legacy_guest]:
 			return Ops.management_result(ERR_BUSY, "destination_changed")
 		if is_active(0) or is_active(1):
 			return Ops.management_result(ERR_BUSY, "slot_in_use")
+		if FileAccess.file_exists(first_tombstone + ".tmp") or FileAccess.file_exists(second_tombstone + ".tmp"):
+			return Ops.management_result(ERR_BUSY, "deletion_publication_pending", "unresolved")
 		var imported := {}
-		if not FileAccess.file_exists(auxiliary[0]) and not FileAccess.file_exists(first.garden) and FileAccess.file_exists(legacy_garden):
+		if not FileAccess.file_exists(first_tombstone) and not FileAccess.file_exists(first.garden) and FileAccess.file_exists(legacy_garden):
 			imported[first.garden] = legacy_garden
 			if not FileAccess.file_exists(first.character) and FileAccess.file_exists(legacy_character):
 				imported[first.character] = legacy_character
-		if not FileAccess.file_exists(auxiliary[1]) and not FileAccess.file_exists(second.garden) and not FileAccess.file_exists(second.character) and FileAccess.file_exists(legacy_guest):
+		if not FileAccess.file_exists(second_tombstone) and not FileAccess.file_exists(second.garden) and not FileAccess.file_exists(second.character) and FileAccess.file_exists(legacy_guest):
 			imported[second.character] = legacy_guest
 		if imported.is_empty():
 			return Ops.management_result(OK, "")
@@ -283,11 +287,14 @@ func _initialize_guarded(slot: int, pair: bool, confirmed: bool, character_only 
 	var serializers := [profile] if character_only else [garden, profile] if pair else [garden]
 	var scope := Ops._serializer_scope(serializers)
 	var participants := PackedStringArray([location.garden, location.character])
-	return Ops.run_management(participants, scope.auxiliary, func(context):
+	var tombstone_scratch: String = location.directory.path_join("deleted.cfg.tmp")
+	return Ops.run_management(participants, scope.auxiliary + PackedStringArray([tombstone_scratch]), func(context):
 		if paths(slot) != location or slot >= capacity:
 			return Ops.management_result(ERR_BUSY, "destination_changed")
 		if is_active(slot):
 			return Ops.management_result(ERR_BUSY, "slot_in_use")
+		if FileAccess.file_exists(tombstone_scratch):
+			return Ops.management_result(ERR_BUSY, "deletion_publication_pending", "unresolved")
 		if character_only and FileAccess.file_exists(profile.path):
 			return Ops.management_result(profile.load_profile(false), "profile_read")
 		var occupied := not character_only and (FileAccess.file_exists(garden.path) or (pair and FileAccess.file_exists(profile.path)))
@@ -320,7 +327,7 @@ func _lease_guarded(slot: int, operation: String, roster := false, catalog := ""
 		return ready
 	var file: String = location.directory.path_join("session.cfg")
 	var participants := PackedStringArray([location.character]) if roster else PackedStringArray([location.garden, location.character])
-	var auxiliary := PackedStringArray([file, file + ".tmp"])
+	var auxiliary := PackedStringArray()
 	if not catalog.is_empty():
 		auxiliary.append(catalog)
 		auxiliary.append(catalog + ".tmp")
@@ -344,8 +351,6 @@ func _lease_guarded(slot: int, operation: String, roster := false, catalog := ""
 			return Ops.management_result(ERR_BUSY, "slot_in_use")
 		if operation != "claim" and (owner != OS.get_process_id() or not active_now or _owned_markers.get(file, "") != FileAccess.get_sha256(file)):
 			return Ops.management_result(ERR_UNAUTHORIZED, "stale_lease")
-		if FileAccess.file_exists(file + ".tmp"):
-			return Ops.management_result(ERR_BUSY, "metadata_scratch_pending", "unresolved")
 		if operation == "release":
 			var removed := Ops.remove_lease(context, file, _owned_markers[file])
 			if removed == OK and not FileAccess.file_exists(file):

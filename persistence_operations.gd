@@ -91,10 +91,24 @@ static func _run_batch(paths: PackedStringArray, anchor: String, action: Callabl
 ## Authorize the read set and auxiliary files once. The mutation subset may
 ## be smaller than that scope, for example a legacy import destination.
 static func run_management(paths: PackedStringArray, auxiliary: PackedStringArray, operation: Callable, expected := {}) -> Dictionary:
+ if not operation.is_valid():
+  return _result(ERR_INVALID_PARAMETER, "invalid", "invalid_callback")
+ var scope := auxiliary.duplicate()
+ var lease_scratch := PackedStringArray()
  for path in paths:
   if Batch.guarded_write_pending(path):
    return _result(ERR_BUSY, "pending_recovery", "unresolved_transaction")
- return run(paths, auxiliary, operation, expected)
+  var parent := path.get_base_dir()
+  if parent.get_file().begins_with("slot_"):
+   var marker := parent.path_join("session.cfg")
+   scope.append(marker)
+   scope.append(marker + ".tmp")
+   lease_scratch.append(marker + ".tmp")
+ return run(paths, scope, func(context):
+  for scratch in lease_scratch:
+   if FileAccess.file_exists(scratch):
+    return management_result(ERR_BUSY, "lease_publication_pending", "unresolved")
+  return operation.call(context), expected)
 
 static func commit_bytes(context: RefCounted, files: Dictionary, anchor: String, fault := Callable()) -> Dictionary:
  var paths := PackedStringArray(files.keys())

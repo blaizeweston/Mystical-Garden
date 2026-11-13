@@ -62,6 +62,22 @@ func test_slots(worlds: RefCounted) -> void:
  check(file_hash(first.garden + ".transaction") == before and file_hash(first.garden) == "absent", "pending import preserved evidence")
  test_result("pending_replacement", worlds.new_game_guarded(0, true), "pending_recovery")
  check(Ops.recover(PackedStringArray([first.character])).value.verified, "recover fixture")
+ var lease_scratch: String = first.directory.path_join("session.cfg.tmp")
+ check(Batch.write_bytes(lease_scratch, "unresolved lease".to_utf8_buffer()) == OK, "lease scratch fixture")
+ var lease_before := file_hash(lease_scratch)
+ var refused := test_result("lease_scratch_blocks_legacy_import", worlds.prepare_guarded(), "unresolved")
+ check(refused.reason == "lease_publication_pending" and file_hash(first.garden) == "absent" and file_hash(lease_scratch) == lease_before,
+  "legacy import preserves unresolved lease and canonical absence")
+ check(DirAccess.remove_absolute(lease_scratch) == OK, "dispose lease scratch fixture")
+ var deletion_scratch: String = first.directory.path_join("deleted.cfg.tmp")
+ check(Batch.write_bytes(deletion_scratch, "unresolved tombstone".to_utf8_buffer()) == OK, "tombstone scratch fixture")
+ var deletion_before := file_hash(deletion_scratch)
+ var blocked_import := test_result("tombstone_scratch_blocks_legacy_import", worlds.prepare_guarded(), "unresolved")
+ var blocked_create := test_result("tombstone_scratch_blocks_fresh_pair", worlds.new_game_guarded(0), "unresolved")
+ check(blocked_import.reason == "deletion_publication_pending" and blocked_create.reason == blocked_import.reason
+  and file_hash(first.garden) == "absent" and file_hash(first.character) == "absent" and file_hash(deletion_scratch) == deletion_before,
+  "pending tombstone blocks import and creation without touching recovery evidence")
+ check(DirAccess.remove_absolute(deletion_scratch) == OK, "dispose tombstone scratch fixture")
  test_result("legacy_import", worlds.prepare_guarded(), "completed")
  for pair in [[worlds.legacy_garden, first.garden], [worlds.legacy_character, first.character], [worlds.legacy_guest, second.character]]:
   check(file_hash(pair[0]) == file_hash(pair[1]), "import preserved exact source bytes")
@@ -96,6 +112,25 @@ func test_roster(worlds: RefCounted) -> void:
  test_result("claim_roster", roster.claim_guarded(1), "completed")
  test_result("heartbeat_roster", roster.heartbeat_guarded(1), "completed")
  test_result("release_roster", roster.release_guarded(1), "completed")
+ var profile_path: String = roster.paths(1).character
+ var profile_data := ConfigFile.new()
+ check(profile_data.load(profile_path) == OK, "load disposable roster profile")
+ profile_data.erase_section_key("character", "identity")
+ check(profile_data.save(profile_path) == OK, "remove disposable roster identity")
+ var missing_identity := file_hash(profile_path)
+ var unverified := test_result("update_requires_saved_identity", roster.update_guarded(1, "Blocked", 2, []), "verified_failure")
+ check(unverified.reason == "roster_identity_unverified" and file_hash(profile_path) == missing_identity,
+  "edit leaves unidentified profile bytes intact")
+ profile_data.set_value("character", "identity", identity)
+ check(profile_data.save(profile_path) == OK, "restore disposable roster identity")
+ var roster_scratch := profile_path.get_base_dir().path_join("session.cfg.tmp")
+ check(Batch.write_bytes(roster_scratch, "unresolved roster lease".to_utf8_buffer()) == OK, "roster lease scratch fixture")
+ var roster_scratch_hash := file_hash(roster_scratch)
+ var before_edit := file_hash(profile_path)
+ var blocked_edit := test_result("lease_scratch_blocks_roster_edit", roster.update_guarded(1, "Blocked", 2, []), "unresolved")
+ check(blocked_edit.reason == "lease_publication_pending" and file_hash(profile_path) == before_edit and file_hash(roster_scratch) == roster_scratch_hash,
+  "roster edit preserves profile and unresolved lease bytes")
+ check(DirAccess.remove_absolute(roster_scratch) == OK, "dispose roster lease scratch fixture")
 
  test_result("third_legacy_source", worlds.ensure_character_guarded(2), "completed")
  var source: String = worlds.paths(2).character
@@ -114,8 +149,17 @@ func test_roster(worlds: RefCounted) -> void:
  check(file_hash(pending_path) == "absent" and file_hash(source + ".transaction") == evidence, "pending roster cannot become a vacant destination")
  check(Ops.recover(PackedStringArray([pending_path])).value.verified, "recover pending roster fixture")
  test_result("fill_roster", roster.create_guarded(3, "Full roster", 0, []), "completed")
- var expanded := test_result("roster_import_expands_capacity", roster.prepare_guarded(worlds), "completed")
- check(expanded.imported == 1 and roster.count() == 5 and roster.summary(4).exists, "expand and import exact next slot")
+ var expanded_path := roster._slot_profile(4)
+ var catalog_before_expansion := file_hash(catalog)
+ var partial := test_result("capacity_published_before_import_abort", roster._import_guarded(source, 2, {}, func(phase, _path):
+  return ERR_CANT_CREATE if phase == "replace" else OK), "partial_completion")
+ check(partial.capacity_expanded and partial.partial and partial.outcome.outcome == "ABORTED_RESTORED",
+  "profile abort retains the separately committed capacity result")
+ check(roster.count() == 5 and file_hash(catalog) != catalog_before_expansion and file_hash(expanded_path) == "absent",
+  "catalog growth survives without a partially installed profile")
+ check(info.load(catalog) == OK and not info.has_section_key("imports", source), "no import mapping on abort")
+ var retried := test_result("roster_import_retries_after_capacity_growth", roster.prepare_guarded(worlds), "completed")
+ check(retried.imported == 1 and roster.count() == 5 and roster.summary(4).exists, "retry uses exact next slot")
  var current_catalog := file_hash(catalog)
  var scratch := FileAccess.open(catalog + ".tmp", FileAccess.WRITE)
  check(scratch != null, "interrupted catalog fixture")
