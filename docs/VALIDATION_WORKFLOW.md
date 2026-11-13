@@ -32,6 +32,10 @@ The EXE path is an example: always discover the highest numbered revision before
 
 Connected is the default. Focused runs eligible unit suites; it cannot certify missing co-op coverage. The export gate checks current evidence for **every registered suite**, including successful results reused from unchanged inputs. It no longer requires rerunning a fixed number of suites. A partial pass cannot authorize a release.
 
+Candidate persistence acceptance is registered in the source planner. Each Windows package must also run the candidate release suites with fresh per-peer verdicts, including the real title-based solo and party fixtures. Cached candidate verdicts cannot satisfy package commit. Catalog/exclusion and supplied network smoke remain independent checks. The release executable keeps normal cutover disabled. Candidate fixtures run externally through the Godot editor and the packaged resources in a disposable headless data root.
+
+A focused candidate checkpoint provides current evidence for the affected acceptance routes only. A full release also requires complete current source evidence for every registered suite and a successful package commit. Manual desktop visual checks and separate-PC co-op are tracked separately.
+
 Do not edit runtime files, tests, the map or validation tools while a run is in progress. Complete focused fixes first, then start connected/release verification. New results are discarded if inputs change mid-run. Tests use isolated data under `.godot`, not the player's saves.
 
 ## Major milestones and conservative fallback

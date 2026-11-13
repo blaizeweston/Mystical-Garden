@@ -18,6 +18,15 @@ func run() -> void:
  var title = load(ProjectSettings.get_setting("application/run/main_scene")).instantiate()
  root.add_child(title)
  current_scene = title
+ var expected: Array = []
+ if OS.get_environment("MYSTICAL_VALIDATION_BACKEND") == "missing":
+  expected = [
+   'Condition "!FileAccess::exists(path)" is true. Returning: ERR_FILE_NOT_FOUND',
+   "GDExtension dynamic library not found: 'res://assets/native/persistence_lock/persistence_lock.gdextension'.",
+   "Error loading extension: 'res://assets/native/persistence_lock/persistence_lock.gdextension'.",
+  ]
+ set_meta(&"validation_expected_engine_errors", expected)
+ check(ClassDB.class_exists(Authorization.BACKEND) == (OS.get_environment("MYSTICAL_VALIDATION_BACKEND") == "incompatible"), "specific unavailable backend loaded as intended")
  check(title.production_route and title.guarded_persistence and not title.production_backend_ready,"default route refuses unavailable/incompatible backend")
  check(title.notice.text.contains("persistence library") and title.new_button.disabled and title.join_button.disabled
   and title.continue_button.disabled and title.create_character_button.disabled,"explicit title failure")

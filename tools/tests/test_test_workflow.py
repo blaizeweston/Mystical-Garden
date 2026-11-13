@@ -333,6 +333,21 @@ class WorkflowTests(unittest.TestCase):
   self.assertIn('settings',f.package_plan()['selected']['unit'])
   self.put('settings.gd','extends Node');f=self.new()
   with self.assertRaises(ValueError):f.package_plan()
+ def test_candidate_release_requires_fresh_package_evidence(self):
+  self.m['suites']['settings']['candidate_release']=True;self.save_map()
+  self.flow=self.new();self.seed_passes()
+  f=self.new();results={}
+  for name in f.suites:
+   log=f.root/('candidate-'+name+'.log');log.write_text('PASS: fixture')
+   results[name]=f.evidence_hashes([log])
+  w.write_json(f.root/'package-cache.json',{'template':f.template_signature(),'keys':f.keys,'results':results})
+  plan=f.package_plan()
+  self.assertEqual(plan['selected']['unit'],['settings'])
+  self.assertNotIn('settings',plan['reused'])
+  plan['selected']['unit'].clear()
+  w.write_json(f.root/'package-plan.json',plan)
+  with self.assertRaisesRegex(ValueError,'Missing fresh candidate release evidence'):f.commit_package(self.engine)
+
  def test_export_template_change_forces_full_packaged_checks(self):
   f=self.new();w.write_json(f.root/'package-cache.json',{'template':'old-template','keys':{n:f.keys[n] for n in f.suites}})
   self.assertTrue(f.package_plan()['full'])

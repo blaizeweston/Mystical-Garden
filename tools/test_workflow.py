@@ -112,6 +112,8 @@ class Workflow:
    if not path.startswith('assets/') or Path(path).suffix!='.glb' or not (self.project/path).is_file():raise ValueError('Invalid/missing scoped visual asset: '+path)
    if not re.fullmatch('[0-9a-f]{64}',rule.get('baseline_sha256','')) or not rule.get('contract') or not rule.get('systems') or not set(rule['systems'])<=systems:raise ValueError('Invalid visual asset boundary: '+path)
   for name,suite in self.suites.items():
+   if suite.get('candidate_release') and (not suite.get('package') or suite['kind'] not in ('unit','pair','party')):
+    raise ValueError('Candidate release suite must support source and package execution: '+name)
    if not set(suite['systems'])<=systems:raise ValueError('Unknown system in '+name)
    if suite['kind'] not in ['unit','solo','pair','party','smoke']:raise ValueError('Unknown runner for '+name)
    source=self.source(name)
@@ -528,7 +530,7 @@ class Workflow:
   selected={kind:[] for kind in ['unit','pair','party','smoke']};reused=[]
   for name,suite in self.suites.items():
    if not suite['package']:continue
-   if full or cached_keys.get(name)!=self.keys[name] or not self.intact_evidence(cached_results.get(name)):selected[suite['kind']].append(name)
+   if full or suite.get('candidate_release') or cached_keys.get(name)!=self.keys[name] or not self.intact_evidence(cached_results.get(name)):selected[suite['kind']].append(name)
    else:reused.append(name)
   # Every new package exercises startup/catalogs separately, plus real peer connection.
   if 'supplied_network_smoke' not in selected['smoke']:selected['smoke'].append('supplied_network_smoke');reused=[n for n in reused if n!='supplied_network_smoke']
@@ -540,6 +542,13 @@ class Workflow:
   if plan.get('template')!=self.template_signature() or plan.get('source')!=hashed(self.tokens) or plan.get('infrastructure')!=self.infrastructure or plan.get('engine')!=self.engine_hash:raise ValueError('Inputs changed during export; package evidence cannot be committed')
   pack=Path(pack).resolve()
   if not pack.is_file():raise ValueError('Packaged executable missing')
+  companion=pack.with_name(execution.LOCK_LIBRARY)
+  source_companion=self.project/execution.LOCK_RESOURCE
+  if source_companion.is_file() and (not companion.is_file() or digest(companion.read_bytes())!=digest(source_companion.read_bytes())):
+   raise ValueError('Packaged native DLL does not match the tested source input')
+  for name,suite in self.suites.items():
+   if suite.get('candidate_release') and (name not in plan.get('selected',{}).get(suite['kind'],[]) or name in plan.get('reused',[])):
+    raise ValueError('Missing fresh candidate release evidence: '+name)
   run_id=plan.get('run_id','')
   if not execution.IDENTIFIER.fullmatch(run_id):raise ValueError('Invalid package run ID')
   folder=self.root/'package-runs'/run_id
@@ -559,6 +568,7 @@ class Workflow:
   if set(results)!=set(plan['keys']):raise ValueError('Incomplete packaged suite evidence')
   write_json(self.root/'package-cache.json',{'schema':SCHEMA,'template':plan['template'],'keys':plan['keys'],'results':results})
   write_json(self.root/'last-package.json',{'at':utc(),'path':str(pack),'sha256':digest(pack.read_bytes()),
+             'native_dll_sha256':digest(pack.with_name(execution.LOCK_LIBRARY).read_bytes()) if pack.with_name(execution.LOCK_LIBRARY).is_file() else None,
              'plan':plan,'evidence':str(folder),'startup_logs':self.evidence_hashes(preflight+startup)})
 
  def document(self):

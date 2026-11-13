@@ -48,7 +48,7 @@ static func default_route(tree: SceneTree) -> bool:
  if activation_status().allowed:
   return true
  # Internal fixture seam. No command line or player preference enables this.
- return DisplayServer.get_name() == "headless" and tree.has_meta(VALIDATION_ROUTE) \
+ return (OS.has_feature("editor") or OS.has_feature("debug")) and DisplayServer.get_name() == "headless" and tree.has_meta(VALIDATION_ROUTE) \
   and not OS.get_environment("MYSTICAL_VALIDATION_RUN").is_empty() \
   and OS.get_user_data_dir().replace("\\", "/").contains("/.godot/vd/")
 # Group 1 adds guarded routes. Existing production callers still bypass them.

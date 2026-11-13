@@ -1761,16 +1761,31 @@
   },
   "suites": {
     "legacy_import_recovery": {
+      "candidate_release": true,
       "kind": "unit",
       "systems": ["persistence_operations", "persistence_authorization", "persistence_recovery_plan", "persistence_save_access", "menus", "characters", "developer_garden"],
       "package": true
     },
     "legacy_mutation_containment": {
+      "candidate_release": true,
       "kind": "unit",
       "systems": ["persistence_operations", "persistence_authorization", "persistence_recovery_plan", "menus", "characters"],
       "package": true
     },
+    "candidate_release_solo": {
+      "kind": "unit",
+      "systems": ["persistence_operations", "persistence_authorization", "menus", "characters", "garden", "items", "combat", "expeditions"],
+      "package": true,
+      "candidate_release": true
+    },
+    "candidate_release_party": {
+      "kind": "party",
+      "systems": ["persistence_operations", "persistence_authorization", "menus", "characters", "connection_flow", "garden", "expeditions"],
+      "package": true,
+      "candidate_release": true
+    },
     "production_persistence": {
+      "candidate_release": true,
       "kind": "unit",
       "systems": [
         "persistence_operations",
@@ -1785,6 +1800,7 @@
       "package": true
     },
     "guest_projection_coop": {
+      "candidate_release": true,
       "kind": "pair",
       "systems": [
         "persistence_operations",
@@ -1825,6 +1841,7 @@
       "package": true
     },
     "guarded_lifecycle_coop": {
+      "candidate_release": true,
       "kind": "pair",
       "systems": [
         "persistence_operations",
@@ -1841,6 +1858,7 @@
       "package": true
     },
     "guarded_expedition": {
+      "candidate_release": true,
       "kind": "unit",
       "systems": [
         "persistence_operations",
@@ -1877,6 +1895,7 @@
       "package": true
     },
     "guarded_garden_actions": {
+      "candidate_release": true,
       "kind": "unit",
       "systems": [
         "persistence_operations",
@@ -1913,6 +1932,7 @@
       "package": true
     },
     "guarded_gameplay_transactions": {
+      "candidate_release": true,
       "kind": "unit",
       "systems": ["persistence_operations", "persistence_recovery_plan", "persistence_authorization", "garden_cinematics", "garden_care", "knowledge", "characters", "connection_flow"],
       "package": true
@@ -1923,6 +1943,7 @@
       "package": true
     },
     "persistence_destructive_slots": {
+      "candidate_release": true,
       "kind": "unit",
       "systems": ["persistence_operations", "persistence_recovery_plan", "persistence_authorization", "persistence_save_access", "characters", "menus"],
       "package": true
@@ -2520,6 +2541,7 @@
       "package": true
     },
     "direct_ip_coop": {
+      "candidate_release": true,
       "kind": "pair",
       "systems": [
         "menus",
@@ -8399,7 +8421,7 @@
     },
     "_ready": {
       "production_route": {
-        "match": "\tif preload(\"res://persistence_writer_integration.gd\").default_route(get_tree()) and not has_meta(Transactions.SESSION):\n\t\tset_process(false)\n\t\tset_physics_process(false)\n\t\t_refuse_unowned_world.call_deferred()\n\t\treturn\n\tget_tree().auto_accept_quit = false\n\ttoast_until = Time.get_ticks_msec() + 4800\n\tif not has_meta(\"guarded_title_session\"):\n\t\tvar character_error := local_character.load_profile()\n\t\tif character_error != OK and character_error != ERR_FILE_NOT_FOUND:\n\t\t\tstatus = \"Character progress could not be loaded.\"\n\tconfigure_keys()\n\tvar soundscape := preload(\"res://soundscape.gd\").new()\n\tsoundscape.name=\"Soundscape\"\n\tadd_child(soundscape)\n\tvar event_audio := preload(\"res://event_audio.gd\").new()\n\tevent_audio.name = \"EventAudio\"\n\tadd_child(event_audio)\n\tbuild_hud()\n\tsettings_dialog=preload(\"res://settings_panel.gd\").new()\n\tsettings_dialog.developer_context=self\n\tadd_child(settings_dialog)\n\tsettings_dialog.applied.connect(func():player_hud.queue_redraw())\n\tdeath_visuals=preload(\"res://enemy_death_effects.gd\").new()\n\tdeath_visuals.stage=stage\n\tstage.add_child(death_visuals)\n\tcombat_visuals=preload(\"res://combat_effects.gd\").new()\n\tcombat_visuals.stage=stage\n\tstage.add_child(combat_visuals)\n\texploration = preload(\"res://exploration.gd\").new()\n\tadd_child(exploration)\n\tspectator_view=preload(\"res://spectator_view.gd\").new()\n\tadd_child(spectator_view)\n\tif not has_meta(\"guarded_title_session\"):\n\t\tvar result := progress.load_garden()\n\t\tif result != OK and result != ERR_FILE_NOT_FOUND:\n\t\t\tstatus = \"Could not read Garden save (error %d).\" % result\n\tnetwork_compatibility=preload(\"res://network_compatibility.gd\").new()\n\tadd_child(network_compatibility)\n\tmultiplayer.peer_connected.connect(add_player)\n\tmultiplayer.peer_disconnected.connect(remove_player)\n\tmultiplayer.connected_to_server.connect(on_joined_world)\n\tmultiplayer.connection_failed.connect(on_connection_failed)\n\tmultiplayer.server_disconnected.connect(on_server_disconnected)\n\tadd_player(HOST)\n\tdiagnostic_watch=preload(\"res://diagnostic_watch.gd\").new();diagnostic_watch.game=self;add_child(diagnostic_watch)\n\tpreload(\"res://menu_button_roots.gd\").watch(self,func():return app_settings.values.get(\"ambient_motion\",true))\n\n",
+        "match": "\tif preload(\"res://persistence_writer_integration.gd\").default_route(get_tree()):\n\t\tvar owner: Variant = get_meta(Transactions.SESSION, null) if has_meta(Transactions.SESSION) else null\n\t\tif not (owner is GuardedTitleSession) or not owner.authorizes(local_character.path) or (not joined_from_title and not owner.authorizes(progress.path)):\n\t\t\tset_process(false)\n\t\t\tset_physics_process(false)\n\t\t\t_refuse_unowned_world.call_deferred()\n\t\t\treturn\n\tget_tree().auto_accept_quit = false\n\ttoast_until = Time.get_ticks_msec() + 4800\n\tif not has_meta(\"guarded_title_session\"):\n\t\tvar character_error := local_character.load_profile()\n\t\tif character_error != OK and character_error != ERR_FILE_NOT_FOUND:\n\t\t\tstatus = \"Character progress could not be loaded.\"\n\tconfigure_keys()\n\tvar soundscape := preload(\"res://soundscape.gd\").new()\n\tsoundscape.name=\"Soundscape\"\n\tadd_child(soundscape)\n\tvar event_audio := preload(\"res://event_audio.gd\").new()\n\tevent_audio.name = \"EventAudio\"\n\tadd_child(event_audio)\n\tbuild_hud()\n\tsettings_dialog=preload(\"res://settings_panel.gd\").new()\n\tsettings_dialog.developer_context=self\n\tadd_child(settings_dialog)\n\tsettings_dialog.applied.connect(func():player_hud.queue_redraw())\n\tdeath_visuals=preload(\"res://enemy_death_effects.gd\").new()\n\tdeath_visuals.stage=stage\n\tstage.add_child(death_visuals)\n\tcombat_visuals=preload(\"res://combat_effects.gd\").new()\n\tcombat_visuals.stage=stage\n\tstage.add_child(combat_visuals)\n\texploration = preload(\"res://exploration.gd\").new()\n\tadd_child(exploration)\n\tspectator_view=preload(\"res://spectator_view.gd\").new()\n\tadd_child(spectator_view)\n\tif not has_meta(\"guarded_title_session\"):\n\t\tvar result := progress.load_garden()\n\t\tif result != OK and result != ERR_FILE_NOT_FOUND:\n\t\t\tstatus = \"Could not read Garden save (error %d).\" % result\n\tnetwork_compatibility=preload(\"res://network_compatibility.gd\").new()\n\tadd_child(network_compatibility)\n\tmultiplayer.peer_connected.connect(add_player)\n\tmultiplayer.peer_disconnected.connect(remove_player)\n\tmultiplayer.connected_to_server.connect(on_joined_world)\n\tmultiplayer.connection_failed.connect(on_connection_failed)\n\tmultiplayer.server_disconnected.connect(on_server_disconnected)\n\tadd_player(HOST)\n\tdiagnostic_watch=preload(\"res://diagnostic_watch.gd\").new();diagnostic_watch.game=self;add_child(diagnostic_watch)\n\tpreload(\"res://menu_button_roots.gd\").watch(self,func():return app_settings.values.get(\"ambient_motion\",true))\n\n",
         "baseline": "\tget_tree().auto_accept_quit = false\n\ttoast_until = Time.get_ticks_msec() + 4800\n\tif not has_meta(\"guarded_title_session\"):\n\t\tvar character_error := local_character.load_profile()\n\t\tif character_error != OK and character_error != ERR_FILE_NOT_FOUND:\n\t\t\tstatus = \"Character progress could not be loaded.\"\n\tconfigure_keys()\n\tvar soundscape := preload(\"res://soundscape.gd\").new()\n\tsoundscape.name=\"Soundscape\"\n\tadd_child(soundscape)\n\tvar event_audio := preload(\"res://event_audio.gd\").new()\n\tevent_audio.name = \"EventAudio\"\n\tadd_child(event_audio)\n\tbuild_hud()\n\tsettings_dialog=preload(\"res://settings_panel.gd\").new()\n\tsettings_dialog.developer_context=self\n\tadd_child(settings_dialog)\n\tsettings_dialog.applied.connect(func():player_hud.queue_redraw())\n\tdeath_visuals=preload(\"res://enemy_death_effects.gd\").new()\n\tdeath_visuals.stage=stage\n\tstage.add_child(death_visuals)\n\tcombat_visuals=preload(\"res://combat_effects.gd\").new()\n\tcombat_visuals.stage=stage\n\tstage.add_child(combat_visuals)\n\texploration = preload(\"res://exploration.gd\").new()\n\tadd_child(exploration)\n\tspectator_view=preload(\"res://spectator_view.gd\").new()\n\tadd_child(spectator_view)\n\tif not has_meta(\"guarded_title_session\"):\n\t\tvar result := progress.load_garden()\n\t\tif result != OK and result != ERR_FILE_NOT_FOUND:\n\t\t\tstatus = \"Could not read Garden save (error %d).\" % result\n\tnetwork_compatibility=preload(\"res://network_compatibility.gd\").new()\n\tadd_child(network_compatibility)\n\tmultiplayer.peer_connected.connect(add_player)\n\tmultiplayer.peer_disconnected.connect(remove_player)\n\tmultiplayer.connected_to_server.connect(on_joined_world)\n\tmultiplayer.connection_failed.connect(on_connection_failed)\n\tmultiplayer.server_disconnected.connect(on_server_disconnected)\n\tadd_player(HOST)\n\tdiagnostic_watch=preload(\"res://diagnostic_watch.gd\").new();diagnostic_watch.game=self;add_child(diagnostic_watch)\n\tpreload(\"res://menu_button_roots.gd\").watch(self,func():return app_settings.values.get(\"ambient_motion\",true))\n\n\n",
         "additive": true,
         "systems": [

@@ -76,13 +76,9 @@ func _initialize(): call_deferred("run")
 func run():
  var errors: Array=load("res://content_validator.gd").validate()
  for error in errors: printerr(error)
- for forbidden in ["res://test/net_test.gd","res://test/net_test.tscn","res://tests/playable.gd","res://tools/make_natural_world.py","res://docs/SYSTEMS_REVIEW_2026-11-08.md","res://assets/source/natural_world.blend"]:
+ for forbidden in ["res://test/net_test.gd","res://test/net_test.tscn","res://tests/playable.gd","res://tests/candidate_release_solo.gd","res://tests/candidate_release_party.gd","res://tools/make_natural_world.py","res://docs/SYSTEMS_REVIEW_2026-11-08.md","res://assets/source/natural_world.blend"]:
   if FileAccess.file_exists(forbidden): errors.append("Excluded resource present: "+forbidden);printerr("Excluded resource present: "+forbidden)
- var world=load("res://world.tscn").instantiate()
- world.progress.path="user://garden.cfg";world.local_character.path="user://character.cfg";root.add_child(world)
- world.map_seed=91247;world.reset_encounter();world._process(.016)
- world.queue_free();await process_frame
- if errors.is_empty(): print("PASS: packaged runtime catalogs, world and exclusions")
+ if errors.is_empty(): print("PASS: packaged runtime catalogs and exclusions")
  quit(0 if errors.is_empty() else 1)
 '@ | Set-Content -Encoding utf8 $smoke
 Invoke-ValidationFixture 'package_startup' 'unit' $smoke $staged
@@ -92,8 +88,8 @@ foreach($testName in @($packagePlan.selected.unit)) {
 foreach($testName in @($packagePlan.selected.pair)) {
  Invoke-ValidationFixture $testName 'pair' -PackPath $staged -Port 32291
 }
-if(@($packagePlan.selected.party).Count){
- & (Join-Path $PSScriptRoot 'test_four_players.ps1') -Engine $Engine -Pack $staged -Port 32296 -RunId $packagePlan.run_id -LogRoot $packageRun
+foreach($testName in @($packagePlan.selected.party)) {
+ Invoke-ValidationFixture $testName 'party' -PackPath $staged -Port 32296
 }
 $networkSmoke=& (Join-Path $project 'test/run_net_test.ps1') -Godot $Engine -Pack $staged -Clients 3 -Port 32312 -RunId $packagePlan.run_id -LogRoot (Join-Path $packageRun 'supplied_network_smoke') -ReturnResult
 if(-not $networkSmoke.passed -or $networkSmoke.run_id -ne $packagePlan.run_id -or $networkSmoke.fixture -ne 'supplied_network_smoke'){throw 'Packaged connect-and-play smoke failed; current EXE remains intact.'}

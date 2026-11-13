@@ -12,6 +12,7 @@ const Stage = preload("res://stage.gd")
 const Progress = preload("res://progress.gd")
 const AttackGeometry=preload("res://attack_geometry.gd")
 const Transactions=preload("res://game_transaction.gd")
+const GuardedTitleSession=preload("res://guarded_title_session.gd")
 const SaveBatch=preload("res://save_batch.gd")
 var transaction_publishes: Array=[]
 var encounter_kills: Array=[]
@@ -259,11 +260,13 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	if preload("res://persistence_writer_integration.gd").default_route(get_tree()) and not has_meta(Transactions.SESSION):
-		set_process(false)
-		set_physics_process(false)
-		_refuse_unowned_world.call_deferred()
-		return
+	if preload("res://persistence_writer_integration.gd").default_route(get_tree()):
+		var owner: Variant = get_meta(Transactions.SESSION, null) if has_meta(Transactions.SESSION) else null
+		if not (owner is GuardedTitleSession) or not owner.authorizes(local_character.path) or (not joined_from_title and not owner.authorizes(progress.path)):
+			set_process(false)
+			set_physics_process(false)
+			_refuse_unowned_world.call_deferred()
+			return
 	get_tree().auto_accept_quit = false
 	toast_until = Time.get_ticks_msec() + 4800
 	if not has_meta("guarded_title_session"):
