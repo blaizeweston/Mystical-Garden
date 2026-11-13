@@ -80,6 +80,7 @@ func _ready() -> void:
 			message.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			add_child(message)
 			set_process(false)
+			set_process_unhandled_key_input(false)
 			return
 	production_route = Persistence.default_route(get_tree())
 	if production_route: guarded_persistence = true

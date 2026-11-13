@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import json
 import os
@@ -20,6 +21,7 @@ VERSION = re.compile(r"(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0
 REPO = Path(__file__).resolve().parent.parent
 LOCK_DESCRIPTOR = evidence.LOCK_RESOURCE.with_name("persistence_lock.gdextension")
 GAME = "Mystical Garden.exe"
+DEFAULT_ARCHIVE = Path.home() / "Documents" / "MG-Playtests"
 
 
 def sha(path):
@@ -28,7 +30,11 @@ def sha(path):
 
 
 def git(*args, repo=REPO):
-    return subprocess.check_output(["git", "--no-optional-locks", *args], cwd=repo)
+    # Use the selected checkout, even when called from another Git command.
+    redirect = {"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY",
+                "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_CONFIG", "GIT_CONFIG_COUNT"}
+    env = {key: value for key, value in os.environ.items() if key.upper() not in redirect}
+    return subprocess.check_output(["git", "--no-optional-locks", *args], cwd=repo, env=env)
 
 
 def version_name(value):
@@ -39,11 +45,14 @@ def version_name(value):
 
 
 def source_revision():
-    if git("status", "--porcelain=v1", "-z", "--untracked-files=all"):
+    if git("-c", "core.fsmonitor=false", "status", "--porcelain=v1", "-z", "--untracked-files=all"):
         raise ValueError("Commit the source changes and use a clean checkout before building.")
     for entry in git("ls-files", "-v", "-z").split(b"\0"):
         if entry and not entry.startswith(b"H "):
             raise ValueError("The Git index has hidden, sparse, or unresolved entries.")
+    if any(entry and not entry.startswith((b"100644 ", b"100755 "))
+           for entry in git("ls-files", "--stage", "-z").split(b"\0")):
+        raise ValueError("Playtest builds require ordinary tracked files, without symlinks or submodules.")
     return git("rev-parse", "HEAD").decode().strip()
 
 
@@ -57,6 +66,21 @@ def validate_archive(path):
     import ctypes
     if ctypes.windll.kernel32.GetDriveTypeW(str(path.anchor)) != 3:
         raise ValueError("Use a fixed local drive for the playtest archive.")
+
+
+def archive_path(override):
+    archive = Path(os.path.abspath(override or DEFAULT_ARCHIVE))
+    validate_archive(archive)
+    if (archive == REPO or REPO in archive.parents and archive != REPO / "playtest-releases"
+            or archive.name in (".git", ".godot")):
+        raise ValueError("Use a directory outside the source tree, or its ignored playtest-releases folder.")
+    protected = [Path.home() / "AppData" / name for name in ("Roaming", "Local", "LocalLow")]
+    protected.extend(Path(os.environ[name]) for name in ("APPDATA", "LOCALAPPDATA") if os.environ.get(name))
+    if any(archive == path or path in archive.parents for path in protected):
+        raise ValueError("The release archive must be outside Windows application data directories.")
+    if len(str(archive)) > 60:
+        raise ValueError("Use a shorter archive path so the Windows fixtures fit within MAX_PATH.")
+    return archive
 
 
 def run(command, cwd, env, log, timeout=None, check=True):
@@ -78,9 +102,16 @@ def input_manifest(project, names):
 
 
 def seed_cache(project, shared):
-    if not (shared / "validation").is_dir():
+    cache = shared / "validation"
+    validate_archive(cache)
+    if not cache.is_dir():
         return
-    shutil.copytree(shared / "validation", project / ".godot/validation")
+    for folder, directories, files in os.walk(cache, followlinks=False):
+        for name in directories + files:
+            item = Path(folder) / name
+            if item.lstat().st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+                raise ValueError("The reusable validation archive contains a redirected path.")
+    shutil.copytree(cache, project / ".godot/validation")
 
 
 def keep_cache(project, shared, output):
@@ -96,12 +127,18 @@ def keep_cache(project, shared, output):
                 if path.is_absolute() or ".." in path.parts or sha(validation / path) != digest:
                     raise ValueError("Validation evidence was changed or escaped its root.")
                 dest = shared / "validation" / path
+                validate_archive(dest.parent)
                 dest.parent.mkdir(parents=True, exist_ok=True)
+                if os.path.lexists(dest) and dest.lstat().st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+                    raise ValueError("The reusable validation archive contains a redirected file.")
                 if not dest.exists():
                     shutil.copyfile(validation / path, dest)
                 elif sha(dest) != digest:
                     raise ValueError("A prior validation log already uses this identity.")
-        shutil.copyfile(validation / name, shared / "validation" / name)
+        latest = shared / "validation" / name
+        scratch = latest.with_suffix("." + uuid.uuid4().hex + ".tmp")
+        shutil.copyfile(validation / name, scratch)
+        scratch.replace(latest)
         shutil.copyfile(validation / name, output / name)
 
 
@@ -112,6 +149,8 @@ def summarize(project, package, output):
         raise ValueError("Missing current connected validation evidence.")
     source_rows = evidence.read_json(root / "cache.json")
     package_rows = evidence.read_json(root / "package-cache.json")
+    if not source_rows or not package_rows:
+        raise ValueError("Missing connected or packaged fixture records.")
     if set(source_rows) != set(source["plan"]["selected"]) or set(package_rows["results"]) != set(package["plan"]["keys"]):
         raise ValueError("Incomplete source or packaged suite evidence.")
     registry = evidence.read_json(project / "tools/test_map.json")["suites"]
@@ -189,7 +228,7 @@ def retail_probes(stage, pack, metadata, env):
         if probe == "newer-root":
             newer.mkdir()
             (newer / "garden.cfg").write_bytes(b"disposable newer-version marker\n")
-        os.link(pack, exe)  # Disposable files on the same archive volume.
+        shutil.copyfile(pack, exe)
         companion = home / evidence.LOCK_LIBRARY
         if probe != "missing":
             if probe == "incompatible":
@@ -233,7 +272,19 @@ def retail_probes(stage, pack, metadata, env):
         elif probe in blocked:
             if blocked[probe] not in stdout or "PLAYTEST READY:" in stdout or (release_root / "diagnostics").exists():
                 raise ValueError(f"Retail did not refuse the {probe} probe before gameplay.")
-        if probe == "newer-root" and sorted(x.name for x in newer.iterdir()) != ["garden.cfg"]:
+        if probe == "normal":
+            identity = release_root / "playtest.identity"
+            fingerprint = sha(identity)
+            reopen = home / "reopen.log"
+            reopen_exit = run([exe, *args], home, child_env, reopen, timeout=30, check=False)
+            reopened = reopen.read_text(encoding="utf-8-sig", errors="replace")
+            reopen_errors = (home / "reopen.stderr.log").read_text(encoding="utf-8-sig", errors="replace")
+            if reopen_exit or ready not in reopened or evidence.ENGINE_ERROR.search(reopened + reopen_errors) or fingerprint != sha(identity):
+                raise ValueError("Retail could not reopen its exact version and commit.")
+            results["reopen"] = {"exit": reopen_exit, "run_id": f"{version}-reopen",
+                                 "exe_sha256": sha(exe), "logs": home.name, "expected_errors": 0, "ready": True}
+        if probe == "newer-root" and (sorted(x.name for x in newer.iterdir()) != ["garden.cfg"]
+                                      or (newer / "garden.cfg").read_bytes() != b"disposable newer-version marker\n"):
             raise ValueError("An earlier playtest touched another version's save root.")
         if list(roaming.rglob("character.cfg")) or list(roaming.rglob("catalog.cfg")):
             raise ValueError(f"Unexpected canonical profile or catalog during retail probe {probe}.")
@@ -249,11 +300,17 @@ def bundle(stage, pack, project, metadata, checks, retail):
     pck = pack.with_suffix(".pck")
     if pck.is_file():
         names.append(pck.name)
+    actual = {path.name for path in pack.parent.iterdir() if path.is_file()}
+    if actual - {"export-project.godot"} != set(names):
+        raise ValueError("The export has additional sidecars. Review their runtime role before bundling.")
     for name in names:
         shutil.copyfile(pack.parent / name, payload / name)
     extension = payload / "licenses"
     extension.mkdir()
     shutil.copyfile(project / LOCK_DESCRIPTOR, extension / LOCK_DESCRIPTOR.name)
+    credits = project / "assets/source/ART_CREDITS.md"
+    if credits.is_file():
+        shutil.copyfile(credits, extension / credits.name)
     version = metadata["playtest_version"]
     readme = (project / "tools/README_PLAYTEST.txt").read_text(encoding="utf-8")
     (payload / "README_PLAYTEST.txt").write_text(readme.replace("@VERSION@", version).replace("@ROOT@", metadata["save_root"]), encoding="utf-8")
@@ -299,13 +356,12 @@ def build(args):
     version = version_name(args.version)
     revision = source_revision()
     engine = Path(args.engine).resolve(strict=True)
-    archive = Path(os.path.abspath(args.archive or REPO / "playtest-releases"))
-    validate_archive(archive)
-    if (archive == REPO or REPO in archive.parents and archive != REPO / "playtest-releases"
-            or archive.name in (".git", ".godot")):
-        raise ValueError("Use the ignored default archive or a directory outside the source tree.")
+    version_info = subprocess.check_output([str(engine), "--version"], text=True).strip()
+    if version_info != "4.7.2.stable.official.ed1daf0bf":
+        raise ValueError("Godot and the native DLL require the verified 4.7.2 editor revision.")
+    archive = archive_path(args.archive)
     tag = f"playtest/{version}"
-    if git("tag", "--list", tag) or (archive / version).exists():
+    if git("tag", "--list", tag) or os.path.lexists(archive / version):
         raise ValueError(f"Release {version} or its annotated tag already exists.")
     shell = shutil.which("pwsh")
     if not shell:
@@ -318,26 +374,29 @@ def build(args):
     with lock.open("x", encoding="ascii") as handle:
         handle.write(str(os.getpid()))
     try:
-        if (archive / version).exists() or git("tag", "--list", tag):
+        if os.path.lexists(archive / version) or git("tag", "--list", tag):
             raise ValueError(f"Release {version} already exists.")
         stage = archive / ".staging" / uuid.uuid4().hex[:10]
         validate_archive(stage)
         stage.mkdir(parents=True)
         print(f"Building {version} at {revision}. Staging: {stage}", flush=True)
         work = stage / "work"
+        work.mkdir()
         output = stage / "evidence"
         output.mkdir()
         project = work / "p"
-        subprocess.run(["git", "clone", "--quiet", "--no-hardlinks", "--no-checkout", "--", str(REPO), str(project)],
-                       check=True, stdout=subprocess.DEVNULL)
-        git("checkout", "--quiet", "--detach", revision, repo=project)
+        project.mkdir()
+        # Fetch only the selected commit, without creating a configured remote.
+        git("init", "--quiet", repo=project)
+        git("fetch", "--quiet", "--no-tags", "--", str(REPO), revision, repo=project)
+        git("-c", "core.autocrlf=true", "checkout", "--quiet", "--detach", revision, repo=project)
         names = tracked(project)
         if not (project / evidence.LOCK_RESOURCE).is_file() or not (project / LOCK_DESCRIPTOR).is_file():
             raise ValueError("Required native DLL or GDExtension descriptor is missing.")
         manifest = input_manifest(project, names)
         (output / "TESTED_INPUTS.sha256").write_text(manifest, encoding="utf-8", newline="\n")
         inputs = sha(output / "TESTED_INPUTS.sha256")
-        env = {key: value for key, value in os.environ.items() if not key.startswith("MYSTICAL_")}
+        env = {key: value for key, value in os.environ.items() if not key.upper().startswith(("MYSTICAL_", "GIT_"))}
         for key, leaf in (("APPDATA", "app"), ("LOCALAPPDATA", "local"), ("TEMP", "tmp"), ("TMP", "tmp"), ("XDG_DATA_HOME", "app")):
             path = work / leaf
             path.mkdir(exist_ok=True)
@@ -350,15 +409,12 @@ def build(args):
         changed_imports = git("-c", "core.safecrlf=false", "diff", "--name-only", "--", "*.import", repo=project)
         if changed_imports:
             raise ValueError("Godot changed committed import configuration: " + changed_imports.decode().strip())
-        git("restore", "--worktree", "--", "*.import", repo=project)
+        git("-c", "core.autocrlf=true", "restore", "--worktree", "--", "*.import", repo=project)
         if input_manifest(project, names) != manifest or git("status", "--porcelain=v1", repo=project):
             raise ValueError("Godot import changed the committed build inputs.")
         print("Running Connected validation. See evidence/connected.log.", flush=True)
         run([shell, "-NoProfile", "-File", project / "tools/validate_release.ps1", "-Mode", "Connected", "-Engine", engine],
             project, env, output / "connected.log")
-        version_info = subprocess.check_output([str(engine), "--version"], env=env, text=True).strip()
-        if version_info != "4.7.2.stable.official.ed1daf0bf":
-            raise ValueError("Godot and the native DLL require the verified 4.7.2 editor revision.")
         print("Running Windows VerifyOnly. See evidence/verifyonly.log.", flush=True)
         run([shell, "-NoProfile", "-File", project / "tools/release_latest.ps1", "-VerifyOnly",
              "-PlaytestVersion", version, "-PlaytestCommit", revision, "-InputManifestSha256", inputs, "-Engine", engine],
@@ -379,17 +435,19 @@ def build(args):
             raise ValueError("Playtest export requires disabled production persistence.")
         checks = summarize(project, package, output)
         shutil.copyfile(pack.with_name("export-project.godot"), output / "export-project.godot")
+        shutil.copyfile(project / ".godot/release/export.log", output / "export.log")
         evidence.write_json(output / "export-build.json", metadata)
-        git("restore", "--worktree", "--", "export_presets.cfg", "assets/content/build_manifest.json", repo=project)
+        git("-c", "core.autocrlf=true", "restore", "--worktree", "--", "export_presets.cfg", "assets/content/build_manifest.json", repo=project)
         if input_manifest(project, names) != manifest or git("status", "--porcelain=v1", repo=project):
             raise ValueError("Build inputs differ from the committed source.")
         print("Checking the actual retail executable in disposable Windows profiles.", flush=True)
-        retail = retail_probes(stage, pack, metadata, env)
+        retail = retail_probes(work, pack, metadata, env)
         evidence.write_json(output / "package-verification.json", {key: package[key] for key in
                             ("at", "sha256", "native_dll_sha256", "plan", "startup_logs")})
         bundle(stage, pack, project, metadata, checks, retail)
         keep_cache(project, shared, output)
-        for log in (stage / "retail").glob("*/*.log"):
+        shutil.copyfile(project / ".godot/validation/latest-report.json", output / "connected-report.json")
+        for log in (work / "retail").glob("*/*.log"):
             dest = output / "retail-logs" / log.parent.name
             dest.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(log, dest / log.name)
@@ -403,20 +461,69 @@ def build(args):
         completed.rename(archive / version)  # Windows refuses an existing destination.
         # Retain the raw run evidence in the validation cache and release logs.
         # The source clone and disposable userdata are not part of the release.
-        shutil.rmtree(work, ignore_errors=True)
-        shutil.rmtree(stage / "retail", ignore_errors=True)
+        if work.resolve().parent == stage.resolve() and work.resolve() == work:
+            shutil.rmtree(work, ignore_errors=True)
+        if not any(stage.iterdir()):
+            stage.rmdir()
         print(f"Verified playtest archived at {archive / version}. No release tag was created.", flush=True)
     finally:
         lock.unlink()
+
+
+def approve(version, archive):
+    version = version_name(version)
+    location = archive_path(archive) / version
+    validate_archive(location)
+    for name in ("manifest.json", "SHA256SUMS.txt", f"Mystical-Garden-{version}-win64.zip"):
+        artifact = location / name
+        if not artifact.is_file() or artifact.lstat().st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+            raise ValueError("The archived release is incomplete or redirected.")
+    manifest = evidence.read_json(location / "manifest.json")
+    if not manifest or manifest.get("version") != version:
+        raise ValueError("The completed release manifest is missing or mismatched.")
+    revision = manifest["git_commit"]
+    if not re.fullmatch(r"[0-9a-f]{40}", revision) or git("rev-parse", revision + "^{commit}").decode().strip() != revision:
+        raise ValueError("The release commit is unavailable.")
+    zip_path = location / f"Mystical-Garden-{version}-win64.zip"
+    zip_hash, manifest_hash = sha(zip_path), sha(location / "manifest.json")
+    expected = f"{zip_hash}  {zip_path.name}\n{manifest_hash}  manifest.json\n"
+    if (location / "SHA256SUMS.txt").read_text(encoding="ascii") != expected:
+        raise ValueError("The immutable ZIP or manifest no longer matches its archived checksum.")
+    with zipfile.ZipFile(zip_path) as packed:
+        if packed.read("manifest.json") != (location / "manifest.json").read_bytes():
+            raise ValueError("Archive and bundled manifests differ.")
+        files = manifest["files"]
+        if set(packed.namelist()) != {"manifest.json", *(entry["path"] for entry in files)} or len(packed.namelist()) != len(files) + 1:
+            raise ValueError("Unexpected release ZIP members.")
+        for entry in files:
+            with packed.open(entry["path"]) as stream:
+                if (packed.getinfo(entry["path"]).file_size != entry["size"]
+                        or hashlib.file_digest(stream, "sha256").hexdigest() != entry["sha256"]):
+                    raise ValueError("A release ZIP member failed verification.")
+    tag = f"playtest/{version}"
+    if git("tag", "--list", tag) or (location / "approval.json").exists():
+        raise ValueError(f"Release {version} already has approval evidence.")
+    approved = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    git("tag", "-a", tag, revision, "-m", f"Approved Mystical Garden playtest {version}\n\nZIP SHA-256: {zip_hash}\nManifest SHA-256: {manifest_hash}")
+    evidence.write_json(location / "approval.json", {"git_tag": tag, "git_commit": revision,
+                        "approved_utc": approved, "zip_sha256": zip_hash, "manifest_sha256": manifest_hash})
+    print(f"Approved local tag {tag} at {revision}. Nothing was uploaded.", flush=True)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", required=True)
     parser.add_argument("--archive", default="")
-    parser.add_argument("--engine", required=True)
+    parser.add_argument("--engine")
+    parser.add_argument("--approve", action="store_true")
     try:
-        build(parser.parse_args())
+        args = parser.parse_args()
+        if args.approve:
+            approve(args.version, args.archive)
+        elif args.engine:
+            build(args)
+        else:
+            raise ValueError("Supply the Godot editor executable.")
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
         print(f"Playtest build refused: {error}", file=sys.stderr)
         return 1
