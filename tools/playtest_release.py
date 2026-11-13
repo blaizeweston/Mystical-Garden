@@ -104,6 +104,13 @@ def input_manifest(project, names):
 def seed_cache(project, shared):
     cache = shared / "validation"
     validate_archive(cache)
+    lineage = cache / "key-lineage.json"
+    if lineage.is_file():
+        if lineage.lstat().st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+            raise ValueError("The archived planner lineage is redirected.")
+        output = project / ".godot/validation"
+        output.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(lineage, output / lineage.name)
     for name, packaged in (("cache.json", False), ("package-cache.json", True)):
         index = cache / name
         if not index.is_file():
@@ -205,7 +212,7 @@ def retail_probes(stage, pack, metadata, env):
     sandbox = stage / "retail"
     sandbox.mkdir()
     version = metadata["playtest_version"]
-    ready = f"PLAYTEST READY: {version} · protocol {metadata['protocol']} · legacy-contained"
+    ready = f"PLAYTEST READY: {version} Â· protocol {metadata['protocol']} Â· legacy-contained"
     backend = "PLAYTEST BLOCKED: The playtest persistence library is missing or incompatible."
     expected_errors = [
         'Condition "!FileAccess::exists(path)" is true. Returning: ERR_FILE_NOT_FOUND',

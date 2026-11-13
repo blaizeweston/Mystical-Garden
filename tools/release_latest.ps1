@@ -84,6 +84,12 @@ $installedLock=Join-Path $targetDirectory 'b0_native_lock.dll'
 $log=Join-Path $build 'export.log'
 $settings=Join-Path $project 'project.godot'
 $originalSettings=[IO.File]::ReadAllBytes($settings)
+$importSettings=@{}
+if($PlaytestVersion){
+ Get-ChildItem -LiteralPath (Join-Path $project 'assets') -Recurse -File -Filter '*.import' | ForEach-Object {
+  $importSettings[$_.FullName]=[IO.File]::ReadAllBytes($_.FullName)
+ }
+}
 try {
  if($PlaytestVersion){
   $configuration=[IO.File]::ReadAllText($settings)
@@ -92,6 +98,10 @@ try {
   $configuration=[regex]::Replace($configuration,$pattern,('config/custom_user_dir_name="'+$metadata.save_root+"`"`nconfig/mystical_playtest=true`nconfig/disable_project_settings_override.template_release=true"))
   if($configuration -notmatch '(?m)^\[debug\]'){throw 'Missing Godot debug settings section.'}
   $configuration=[regex]::Replace($configuration,'(?m)^\[debug\]\r?$',"[debug]`nfile_logging/enable_file_logging=false`nfile_logging/enable_file_logging.pc=false")
+  if($configuration -match '(?m)^\[editor\]'){throw 'Unexpected existing editor settings section.'}
+  # Serialize Godot's export-time import pass. Embedded GLTF textures can
+  # otherwise race the texture importer and rewrite committed metadata.
+  $configuration+="`n[editor]`nimport/use_multiple_threads=false`n"
   [IO.File]::WriteAllText($settings,$configuration,[Text.UTF8Encoding]::new($false))
   Copy-Item -LiteralPath $settings -Destination (Join-Path $stageDirectory 'export-project.godot')
  }
@@ -101,6 +111,20 @@ try {
  if($PlaytestVersion){[IO.File]::WriteAllBytes($settings,$originalSettings)}
 }
 if($exportExit -ne 0 -or -not (Test-Path -LiteralPath $staged)){throw 'Export failed; current EXE remains intact.'}
+if($PlaytestVersion){
+ if(Select-String -LiteralPath $log -Pattern '^\s*(?:(?:USER )?ERROR:|SCRIPT ERROR:|Parse Error:)' -Quiet){
+  throw 'Godot reported an error while exporting the playtest. See the staged export log.'
+ }
+ $currentImports=@(Get-ChildItem -LiteralPath (Join-Path $project 'assets') -Recurse -File -Filter '*.import')
+ if($currentImports.Count -ne $importSettings.Count){throw 'Export changed the set of committed import sidecars.'}
+ foreach($file in $currentImports){
+  if(-not $importSettings.ContainsKey($file.FullName)){throw ('Unexpected import sidecar: '+$file.FullName)}
+  $before=[Text.Encoding]::UTF8.GetString($importSettings[$file.FullName])
+  $after=[IO.File]::ReadAllText($file.FullName)
+  if($before.Replace("`r`n","`n") -cne $after.Replace("`r`n","`n")){throw ('Export changed committed import settings: '+$file.FullName)}
+  if($before -cne $after){[IO.File]::WriteAllBytes($file.FullName,$importSettings[$file.FullName])}
+ }
+}
 if(-not (Test-Path -LiteralPath $stagedLock -PathType Leaf) -or (Get-FileHash -LiteralPath $stagedLock).Hash -ne (Get-FileHash -LiteralPath $sourceLock).Hash){throw 'Missing or mismatched exported persistence lock.'}
 $verifiedLockHash=(Get-FileHash -LiteralPath $stagedLock).Hash
 if(Select-String -LiteralPath $log -Pattern 'res://(?:docs|tests|tools|assets/source)/' -Quiet){throw 'Export included excluded source or archives.'}
