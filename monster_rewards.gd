@@ -28,11 +28,13 @@ static func flush(game: Node) -> bool:
   game.kill_reward_notices.clear()
  return true
 
-static func publish_notices(game: Node,notices: Dictionary) -> void:
+static func publish_notices(game: Node,notices: Dictionary, require_profile := false) -> void:
  for id in notices:
   if not game.players.has(id):continue
   var notice=notices[id]
-  game.tell(id,"+%.2f essence · +%.1f class XP%s"%[notice.essence/float(game.Director.config().essence_sparks_per_point),notice.xp/10.0," · Monster part nearby" if notice.parts>0 else ""])
+  var message := "+%.2f essence · +%.1f class XP%s"%[notice.essence/float(game.Director.config().essence_sparks_per_point),notice.xp/10.0," · Monster part nearby" if notice.parts>0 else ""]
+  if require_profile: game.tell_profile_action(id,message)
+  else: game.tell(id,message)
 
 static func settle(game: Node,effects = null) -> bool:
  var notices=game.kill_reward_notices
@@ -64,5 +66,5 @@ static func settle(game: Node,effects = null) -> bool:
    else: game.record_character(id,actors[id])
   var committed: Dictionary=notices.duplicate(true)
   notices.clear()
-  if not committed.is_empty(): effects.append(publish_notices.bind(game,committed))
+  if not committed.is_empty(): effects.append(publish_notices.bind(game,committed,true))
  return true

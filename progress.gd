@@ -14,6 +14,7 @@ const InventoryModel=preload("res://inventory_model.gd")
 var component_crafts: Dictionary={}
 var shared_components: Dictionary={}
 var character_records: Dictionary={}
+var projection_origin := ""
 var item_stashes: Dictionary={}
 var ground_items: Array=[]
 var needs_inventory_backup:=false
@@ -193,6 +194,10 @@ func _read_garden() -> Error:
 	if not shared_components is Dictionary: shared_components={}
 	character_records=file.get_value("characters","records",{})
 	if not character_records is Dictionary: character_records={}
+	var origin: Variant = file.get_value("characters", "projection_origin", "")
+	if not origin is String or (not origin.is_empty() and not load("res://guest_profile_projection.gd").valid_origin(origin)):
+		return ERR_INVALID_DATA
+	projection_origin = origin
 	item_stashes={}
 	var stashes=file.get_value("inventory","stashes",{})
 	if stashes is Dictionary:
@@ -305,6 +310,8 @@ func _serialize_save(stage := Callable()) -> Error:
 	file.set_value("content","component_crafts",component_crafts)
 	file.set_value("content","shared_components",shared_components)
 	file.set_value("characters","records",character_records)
+	if not projection_origin.is_empty():
+		file.set_value("characters", "projection_origin", projection_origin)
 	file.set_value("content","manifest",ContentIDs.manifest())
 	file.set_value("content","quarantine",content_quarantine)
 	sync_plot_flags()

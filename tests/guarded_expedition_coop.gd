@@ -229,7 +229,7 @@ func guest_run() -> void:
   check(false,"guest extraction ready")
   return
  world.send_garden_action("travel_ready:"+read("extract"))
- if not await until(func():return not world.players.get(world.local_player_id(),{}).get("wild",true) and world.status.contains(Tx.CLEANUP_NOTICE)):
+ if not await until(func():return not world.players.get(world.local_player_id(),{}).get("wild",true) and world.get_meta(&"guarded_host_cleanup_notice","")==Tx.CLEANUP_NOTICE):
   check(false,"guest sees committed Garden transition with warning")
   return
  world.send_garden_action("travel_ready:"+read("extract"))

@@ -254,6 +254,7 @@ func run() -> void:
  check(not Tx.run_gameplay(world, Tx.Scope.PAIR, func(): check(false, "uncertain replay")).completed and state() == split, "uncertainty refuses further writes")
  record("uncertain_migration", before, {"outcome":final.outcome, "flags":flags(world), "notice":uncertain.notice})
  world.return_to_main_menu()
+ await process_frame
  check(Ops.recover(PackedStringArray([P])).value.verified, "explicit reconciliation")
  world = launch()
  if world == null:
@@ -279,6 +280,7 @@ func run() -> void:
  check(state()[GB] == before[GB] and state()[PB] == before[PB] and state()[G] != before[G] and state()[P] != before[P], "confirmed canonical bytes and original backups")
  record("committed_migration_cleanup_pending", before, {"outcome":final.outcome, "flags":flags(world), "notice":committed.notice})
  world.return_to_main_menu()
+ await process_frame
  check(Ops.recover(PackedStringArray([G])).value.verified, "committed cleanup")
  world = launch()
  if world == null:

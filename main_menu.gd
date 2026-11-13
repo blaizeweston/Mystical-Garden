@@ -644,6 +644,11 @@ func _launch_guarded(join: bool) -> void:
 		return
 	var location := storage.paths(selected)
 	var game = load("res://world.tscn").instantiate()
+	game.name = "MysticalGarden"
+	if get_tree().root.has_node(NodePath(game.name)):
+		game.free()
+		notice.text = "The previous session is still closing. Try again in a moment."
+		return
 	game.settings_path = settings_path
 	game.network_address = network_address
 	game.network_port = network_port if join else host_port

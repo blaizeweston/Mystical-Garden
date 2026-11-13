@@ -266,14 +266,19 @@ func run() -> void:
  check(not unclaimed.ran and disk() == before, "guest cannot write unclaimed Garden")
  var incoming: Dictionary = world.guest_character.data.duplicate(true)
  incoming.name = "Guest update"
- world.receive_character(incoming)
+ var projection = load("res://guest_profile_projection.gd")
+ var origin := "1556b13a059b48c0ac2483f2591daa60"
+ world.set_meta(&"guest_projection_origin",origin)
+ var descriptor: Dictionary = projection.build(incoming,1,{"revision":0,"digest":projection.digest(world.guest_character.data)})
+ world.receive_character({"profile":incoming,"origin":origin,"projection":descriptor})
  check(world.guest_character.data.name == incoming.name and disk()[G] == before[G] and disk()[C] != before[C], "guest RPC persists only its claimed profile")
  record("guest_profile_rpc", before)
  var profile_lease := C.get_base_dir().path_join("session.cfg")
  marker(profile_lease, OS.get_process_id(), 60)
  before = disk()
  incoming.name = "Delayed stale RPC"
- world.receive_character(incoming)
+ descriptor = projection.build(incoming,2,{"revision":1,"digest":descriptor.digest})
+ world.receive_character({"profile":incoming,"origin":origin,"projection":descriptor})
  check(world.guest_character.data.name == "Guest update" and not world.character_dirty and disk() == before, "delayed guest RPC does not mutate memory or disk")
  record("delayed_guest_rpc", before)
  world.free()

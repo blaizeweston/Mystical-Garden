@@ -618,7 +618,10 @@ func on_joined_world() -> void:
 	status = Network.join_progress("character",network_address,network_port)
 	connection_deadline=Time.get_ticks_msec()+Network.REGISTER_TIMEOUT_MS
 	toggle_overlay(null)
-	register_character.rpc_id(HOST, guest_character.identity, guest_character.data,progress.ContentIDs.manifest(),Network.PROTOCOL)
+	var guarded := has_meta(Transactions.SESSION)
+	var catalog: Dictionary = progress.ContentIDs.manifest()
+	if guarded: catalog["guest_projection_receipts"] = guest_character.projection_receipts
+	register_character.rpc_id(HOST, guest_character.identity, guest_character.data,catalog,Network.PROTOCOL)
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -632,24 +635,48 @@ func register_character(identity: String, profile: Dictionary,catalog: Dictionar
 	if has_meta(Transactions.SESSION) and not get_meta(Transactions.SESSION).authorizes(progress.path):
 		reject_peer(id,"The host does not own the selected Garden.")
 		return
+	var guarded := catalog.has("guest_projection_receipts")
+	var receipts: Variant = catalog.get("guest_projection_receipts",{})
+	if guarded:
+		catalog = catalog.duplicate()
+		catalog.erase("guest_projection_receipts")
 	var reason:=admission_error(identity,catalog,protocol)
 	if var_to_bytes(profile).size()>32768: reason="This character profile is too large."
+	if reason.is_empty() and guarded != has_meta(Transactions.SESSION):
+		reason="The host and guest must use the same save mode."
+	if reason.is_empty() and guarded and not load("res://guest_profile_projection.gd").valid_receipts(receipts):
+		reason="Invalid guest profile receipts."
+	if reason.is_empty() and not guarded and not progress.projection_origin.is_empty():
+		reason="This Garden requires guarded profile saves."
 	if not reason.is_empty(): reject_peer(id,reason);return
 	var incoming: Dictionary=Character.normalize(profile)
 	var recorded=progress.character_records.get(identity,{})
-	if recorded is Dictionary and recorded.get("profile") is Dictionary:
+	var admission := {}
+	if guarded:
+		var projection = load("res://guest_profile_projection.gd")
+		var origin: String = progress.projection_origin
+		if origin.is_empty(): origin = Crypto.new().generate_random_bytes(16).hex_encode()
+		admission = projection.admit(origin, incoming, receipts, recorded)
+		if admission.is_empty():
+			reject_peer(id,"The saved guest projection conflicts with this character. Review the saves before joining.")
+			return
+		incoming = admission.profile
+		var result := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func():
+			if not preload("res://garden_growth_service.gd").register_receipt(self,identity):
+				return false
+			progress.projection_origin = origin
+			progress.character_records[identity] = {"profile":incoming.duplicate(true),"manifest":progress.ContentIDs.manifest(),"projection":admission.projection}
+			return true)
+		if not result.completed or result.value != true or not Transactions.session_writable(self):
+			reject_peer(id,result.notice if not result.notice.is_empty() else "The host could not save your admission to this Garden.")
+			return
+	elif recorded is Dictionary and recorded.get("profile") is Dictionary:
 		var recovered: Dictionary=Character.normalize(progress.ContentIDs.profile(recorded.profile,recorded.get("manifest",progress.ContentIDs.legacy())))
 		for field in ["plants","monsters"]:
 			for i in incoming[field].size(): incoming[field][i]=maxi(int(incoming[field][i]),int(recovered[field][i]))
 		for c in incoming.xp.size():
 			var best:=maxi(int(incoming.xp[c])*10+int(incoming.xp_tenths[c]),int(recovered.xp[c])*10+int(recovered.xp_tenths[c]))
 			incoming.xp[c]=best/10;incoming.xp_tenths[c]=best%10
-	if has_meta(Transactions.SESSION):
-		var result := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func():
-			return preload("res://garden_growth_service.gd").register_receipt(self,identity))
-		if not result.completed or result.value != true or not Transactions.session_writable(self):
-			reject_peer(id,result.notice if not result.notice.is_empty() else "The host could not save your admission to this Garden.")
-			return
 	players[id].character = incoming
 	players[id].seed_owner = identity
 	players[id].profile_ready = true
@@ -657,7 +684,10 @@ func register_character(identity: String, profile: Dictionary,catalog: Dictionar
 	restore_class_loadout(players[id])
 	if not has_meta(Transactions.SESSION): preload("res://garden_growth_service.gd").register(self,id)
 	Journal.event("network","character_registered",{"actor":id,"class_id":incoming.get("active_class",0)})
-	connection_accepted.rpc_id(id,incoming)
+	if guarded:
+		players[id].projection_base = admission.base
+		players[id].projection_delivery = {"revision":admission.projection.revision,"state":"pending","feedback":[]}
+	connection_accepted.rpc_id(id,{"profile":incoming,"origin":progress.projection_origin,"projection":admission.projection} if guarded else incoming)
 
 
 func join_game(address: String="",port: int=0) -> Error:
@@ -705,6 +735,7 @@ func join_game(address: String="",port: int=0) -> Error:
 	multiplayer.multiplayer_peer = peer
 	session = "Connecting"
 	if has_meta(&"guarded_host_cleanup_notice"): remove_meta(&"guarded_host_cleanup_notice")
+	if has_meta(&"guest_projection_origin"): remove_meta(&"guest_projection_origin")
 	set_meta("join_phase","connect")
 	set_meta("join_cancelled",false)
 	status = Network.join_progress("connect",network_address,network_port)
@@ -929,8 +960,15 @@ func send_garden_action(action: String) -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_garden_action(action: String) -> void:
-	if multiplayer.is_server() and action.length()<=512 and allow_remote(multiplayer.get_remote_sender_id(),"action",30):
-		garden_action(multiplayer.get_remote_sender_id(), action)
+	var id := multiplayer.get_remote_sender_id()
+	if not multiplayer.is_server() or action.length()>512: return
+	if action.begins_with("guest_projection:"):
+		if not allow_remote(id,"profile_receipt",120,true): return
+		var fields := action.split(":")
+		if fields.size()==5 and fields[2].is_valid_int():
+			guest_projection_status(id,fields[1],int(fields[2]),fields[3],fields[4])
+		return
+	if allow_remote(id,"action",30): garden_action(id, action)
 
 
 func garden_action(id: int, action: String) -> void:
@@ -1068,8 +1106,13 @@ func _garden_action(id: int, action: String) -> void:
 		return
 	if action.begins_with("look_"):
 		if not player.wild and action in ["look_0", "look_1", "look_2", "look_3", "look_4"]:
-			if has_meta(Transactions.SESSION) and id != HOST and not deferred_save_available(id): return
 			var index := int(action.trim_prefix("look_"))
+			if has_meta(Transactions.SESSION) and id != HOST:
+				run_guarded_action(id,Transactions.Scope.GARDEN,func(effects):
+					var look: Array = player.character.appearance
+					look[index] = (int(look[index]) + 1) % LOOK_NAMES[index].size()
+					save_action_profile(id,effects))
+				return
 			var applied := Transactions.run_gameplay(self, Transactions.Scope.PROFILE, func():
 				var look: Array = player.character.appearance
 				look[index] = (int(look[index]) + 1) % LOOK_NAMES[index].size()
@@ -1346,7 +1389,19 @@ func run_wallet(player: Dictionary) -> int:
 func record_character(id: int, actor: Dictionary = {}) -> void:
 	var player: Dictionary = players[id] if actor.is_empty() else actor
 	var owner: String=local_character.identity if id==HOST else player.get("seed_owner","")
-	progress.character_records[owner]={"profile":player.character.duplicate(true),"manifest":progress.ContentIDs.manifest()}
+	var record := {"profile":player.character.duplicate(true),"manifest":progress.ContentIDs.manifest()}
+	var base: Dictionary = player.get("projection_base", {})
+	if has_meta(Transactions.SESSION) and id!=HOST and not base.is_empty():
+		var projection = load("res://guest_profile_projection.gd")
+		var prior: Dictionary = progress.character_records.get(owner, {}).get("projection", {})
+		record.profile = Character.normalize(player.character)
+		if prior.get("digest") == projection.digest(record.profile): return
+		var descriptor: Dictionary = projection.build(record.profile, int(prior.get("revision",0))+1, base)
+		if descriptor.is_empty():
+			SaveBatch.record_serializer_error(ERR_OUT_OF_MEMORY, progress.path)
+			return
+		record.projection = descriptor
+	progress.character_records[owner] = record
 
 # The host stores the Garden's character record. A guest alone owns its
 # canonical profile and receives the existing reliable ordered projection.
@@ -1363,7 +1418,41 @@ func save_action_profile(id: int, effects) -> void:
 
 func send_committed_profile(id: int) -> void:
 	if multiplayer.is_server() and online_peer != null and multiplayer.get_peers().has(id) and players.has(id):
-		receive_character.rpc_id(id, players[id].character)
+		var player: Dictionary = players[id]
+		var record: Dictionary = progress.character_records.get(player.seed_owner,{})
+		if not record.has("projection"): return
+		var revision: int = record.projection.revision
+		var delivery: Dictionary = player.get("projection_delivery",{})
+		if delivery.get("revision") != revision:
+			player.projection_delivery = {"revision":revision,"state":"pending","feedback":delivery.get("feedback",[])}
+		receive_character.rpc_id(id,{"profile":record.profile,"origin":progress.projection_origin,"projection":record.projection})
+
+func tell_profile_action(id: int, message: String) -> void:
+	if id == HOST or not has_meta(Transactions.SESSION):
+		tell(id,message)
+		return
+	var delivery: Dictionary = players.get(id,{}).get("projection_delivery",{})
+	if delivery.get("state") in ["committed","cleanup_pending"]:
+		tell(id,message)
+	elif delivery.get("state") in ["pending","received"] and delivery.feedback.size() < 8:
+		delivery.feedback.append(message)
+
+func guest_projection_status(id: int, origin: String, revision: int, digest: String, disposition: String) -> void:
+	if not has_meta(Transactions.SESSION) or session!="Host" or not multiplayer.is_server() or origin!=progress.projection_origin: return
+	var player: Dictionary = players.get(id,{})
+	var delivery: Dictionary = player.get("projection_delivery",{})
+	var current: Dictionary = progress.character_records.get(player.get("seed_owner",""),{}).get("projection",{})
+	if delivery.get("revision")!=revision or current.get("revision")!=revision or current.get("digest")!=digest: return
+	if not disposition in ["received","committed","cleanup_pending","aborted","uncertain","refused"]: return
+	if delivery.state in ["committed","cleanup_pending"] or (disposition=="received" and delivery.state!="pending"): return
+	delivery.state = disposition
+	if disposition in ["committed","cleanup_pending"]:
+		player.projection_base = {"revision":revision,"digest":digest}
+		for message in delivery.feedback: tell(id,message)
+		delivery.feedback.clear()
+	elif disposition in ["aborted","uncertain","refused"]:
+		delivery.feedback.clear()
+		Journal.event("save","guest_projection_unconfirmed",{"actor":id,"revision":revision,"state":disposition},"warning")
 
 func publish_character(id: int) -> void:
 	if has_meta(Transactions.SESSION): return
@@ -1381,24 +1470,72 @@ func publish_character(id: int) -> void:
 
 @rpc("authority", "call_remote", "reliable")
 func receive_character(profile: Dictionary) -> void:
-	if session != "Guest" or not Transactions.session_writable(self): return
+	if session != "Guest": return
 	if has_meta(Transactions.SESSION):
-		# Only the guest's local write participates in this transaction.
-		var normalized := Character.normalize(profile)
-		if normalized == guest_character.data: return
-		save_guest_projection(normalized)
+		if not profile.get("origin") is String or not profile.get("projection") is Dictionary or not profile.get("profile") is Dictionary: return
+		var origin: String = profile.origin
+		var descriptor: Dictionary = profile.projection
+		profile = profile.profile
+		if not Transactions.session_writable(self):
+			var projection = load("res://guest_profile_projection.gd")
+			if origin == get_meta(&"guest_projection_origin","") and projection.valid_origin(origin) and projection.valid_descriptor(descriptor,profile):
+				_report_guest_projection(origin,descriptor,"refused")
+			return
+		save_guest_projection(profile,origin,descriptor)
 		return
+	if profile.has("projection"): return
 	guest_character.data = Character.normalize(profile)
 	character_dirty = true
 	save_local_character()
 
-func save_guest_projection(profile: Dictionary) -> bool:
+func save_guest_projection(profile: Dictionary, origin: String, descriptor: Dictionary) -> bool:
+	var projection = load("res://guest_profile_projection.gd")
+	profile = Character.normalize(profile)
+	if origin!=get_meta(&"guest_projection_origin","") or not projection.valid_origin(origin) or not projection.valid_descriptor(descriptor,profile):
+		return false
+	var receipt: Dictionary = guest_character.projection_receipts.get(origin,{"revision":0,"digest":""})
+	if descriptor.revision < receipt.revision: return false
+	if descriptor.revision == receipt.revision:
+		if descriptor.digest != receipt.digest: return false
+		if get_meta(&"guest_projection_uncertain_revision",0)==descriptor.revision:
+			_report_guest_projection(origin,descriptor,"uncertain")
+			return false
+		if session=="Guest" and not Transactions.session_writable(self) and Transactions.pending_notice(self)!=Transactions.CLEANUP_NOTICE: return false
+		_report_guest_projection(origin,descriptor,"committed")
+		return true
+	var local_digest: String = projection.digest(guest_character.data)
+	if not ((receipt.revision==descriptor.base_revision and local_digest==descriptor.base_digest)
+		or (receipt.revision>descriptor.base_revision and local_digest==receipt.digest)):
+		_report_guest_projection(origin,descriptor,"refused")
+		set_meta(&"guest_projection_notice","Profile update conflicts with newer local data. Reconnect after reviewing the saves.")
+		return false
+	if not guest_character.projection_receipts.has(origin) and guest_character.projection_receipts.size()>=projection.MAX_RECEIPTS:
+		_report_guest_projection(origin,descriptor,"refused")
+		return false
+	_report_guest_projection(origin,descriptor,"received")
 	var saved := Transactions.run_gameplay(self, Transactions.Scope.GUEST_PROFILE, func():
-		guest_character.data = profile
+		guest_character.data = profile.duplicate(true)
+		guest_character.projection_receipts[origin] = {"revision":descriptor.revision,"digest":descriptor.digest}
 		return true)
 	var committed := Transactions.committed(saved.persistence)
 	if committed: character_dirty = false
+	var execution: Variant = saved.persistence.get("value")
+	var final: SaveBatch.Finalization = execution.get("outcome") if execution is Dictionary else null
+	var disposition := "refused"
+	if final != null:
+		disposition = ["committed","aborted","cleanup_pending","uncertain"][final.outcome]
+		if final.outcome == SaveBatch.Outcome.UNCERTAIN:
+			set_meta(&"guest_projection_uncertain_revision",descriptor.revision)
+	_report_guest_projection(origin,descriptor,disposition)
+	if not committed and Transactions.pending_notice(self).is_empty():
+		set_meta(&"guest_projection_notice","Profile update not saved. Reconnect to reconcile it.")
+	elif committed and has_meta(&"guest_projection_notice"):
+		remove_meta(&"guest_projection_notice")
 	return committed
+
+func _report_guest_projection(origin: String, descriptor: Dictionary, disposition: String) -> void:
+	if online_peer != null and multiplayer.get_peers().has(HOST):
+		request_garden_action.rpc_id(HOST,"guest_projection:%s:%d:%s:%s"%[origin,descriptor.revision,descriptor.digest,disposition])
 
 
 func save_local_character() -> bool:
@@ -2518,7 +2655,7 @@ func _harvest(id: int, slot: int, effects = null) -> bool:
 		save_progress(id, message)
 		play_audio.call()
 	else:
-		action_feedback(effects, id, message)
+		effects.append(tell_profile_action.bind(id,message))
 		effects.append(play_audio)
 	return true
 
@@ -3277,10 +3414,12 @@ func save_progress(id: int, message: String) -> void:
 
 func refresh_feedback() -> void:
 	var remote_notice := str(get_meta(&"guarded_host_cleanup_notice", "")) if session == "Guest" else ""
-	var pending := not Transactions.pending_notice(self).is_empty() or not remote_notice.is_empty()
+	var profile_notice := str(get_meta(&"guest_projection_notice", "")) if session == "Guest" else ""
+	var pending := not Transactions.pending_notice(self).is_empty() or not remote_notice.is_empty() or not profile_notice.is_empty()
 	var message := status if Time.get_ticks_msec() < toast_until else ""
 	if not remote_notice.is_empty() and message != remote_notice and not message.ends_with("\n" + remote_notice):
 		message = remote_notice if message.is_empty() else message + "\n" + remote_notice
+	if not profile_notice.is_empty(): message = profile_notice if message.is_empty() else message + "\n" + profile_notice
 	feedback.text = Transactions.feedback_text(self, message)
 	var message_width := 0.0
 	for line in feedback.text.split("\n"):
@@ -3757,6 +3896,7 @@ func _finish_title_return(message: String) -> void:
 	menu.selected_character=dev_return.get("character",maxi(0,active_character_slot))
 	menu.restore_last_character=false
 	var pending := Transactions.pending_notice(self)
+	if pending.is_empty(): pending = str(get_meta(&"guest_projection_notice",""))
 	menu.return_message = message if pending.is_empty() else pending
 	if not pending.is_empty(): menu.set_meta(&"guarded_return_notice", pending)
 	if joined_from_title or session=="Connecting" or get_meta("join_phase","")=="garden":
@@ -3876,7 +4016,9 @@ func _select_class(id: int,player: Dictionary,class_id: int,effects) -> void:
 		LoadoutMaterials.reconcile(player,stored_counts(player));player.loadout_reserving=true
 	player.hp=float(player.max_hp)
 	persist_loadout(id,player,effects)
-	action_feedback(effects,id,"%s selected."%Classes.DEFINITIONS[class_id].name)
+	var message := "%s selected."%Classes.DEFINITIONS[class_id].name
+	if effects == null: tell(id,message)
+	else: effects.append(tell_profile_action.bind(id,message))
 
 func handle_loadout_action(id: int,player: Dictionary,action: String) -> void:
 	var allowed: bool
@@ -3938,13 +4080,17 @@ func _apply_loadout_action(id: int, player: Dictionary, fields: PackedStringArra
 				player.character.upgrades[c] |= 1 << node
 				restore_class_loadout(player)
 				save_action_profile(id, effects)
-				action_feedback(effects,id,"Learned %s."%Classes.all_nodes(c)[node].name)
+				var message := "Learned %s."%Classes.all_nodes(c)[node].name
+				if effects == null: tell(id,message)
+				else: effects.append(tell_profile_action.bind(id,message))
 		"respec":
 			if fields.size()==2 and int(fields[1])>=0 and int(fields[1])<Classes.DEFINITIONS.size():
 				player.character.upgrades[int(fields[1])]=0
 				restore_class_loadout(player)
 				save_action_profile(id, effects)
-				action_feedback(effects,id,"Class points refunded. Choose a new path before the next expedition.")
+				var message := "Class points refunded. Choose a new path before the next expedition."
+				if effects == null: tell(id,message)
+				else: effects.append(tell_profile_action.bind(id,message))
 
 func has_rift_loadout(player: Dictionary) -> bool:
 	return [player.get("weapon",0),player.get("secondary",0),player.get("catalyst",0)].has(Parts.VEIL) and int(player.get("graft_part",0))==Parts.HOOK
@@ -4892,16 +5038,18 @@ func reject_peer(id: int,reason: String) -> void:
 func connection_accepted(profile: Dictionary) -> void:
 	if session!="Connecting" or not Transactions.session_writable(self): return
 	if has_meta(Transactions.SESSION):
-		var normalized := Character.normalize(profile)
+		if not profile.get("origin") is String or not profile.get("projection") is Dictionary or not profile.get("profile") is Dictionary:
+			connection_rejected("The host did not provide guarded profile evidence.")
+			return
+		set_meta(&"guest_projection_origin",profile.origin)
 		session="Guest"
-		var saved: bool
-		if normalized == guest_character.data:
-			saved = get_meta(Transactions.SESSION).reload_guest(guest_character)==OK
-		else:
-			saved = save_guest_projection(normalized)
+		var saved := save_guest_projection(profile.profile,profile.origin,profile.projection)
 		if not saved or not Transactions.session_writable(self):
 			connection_rejected(Transactions.feedback_text(self,"Could not finish loading the selected character."))
 			return
+	elif profile.has("projection"):
+		connection_rejected("The host and guest must use the same save mode.")
+		return
 	Journal.event("network","join_accepted")
 	session="Guest";joined_from_title=false;status="Joined the host's Garden."
 	set_meta("join_phase","garden")
@@ -4933,8 +5081,8 @@ func update_network_session() -> void:
 		for id in players:
 			if id!=HOST and not players[id].profile_ready and now-int(players[id].get("joined_at",now))>Network.REGISTER_TIMEOUT_MS: reject_peer(id,"Character registration timed out. Check both game versions.")
 
-func allow_remote(id: int,channel: String,limit: int) -> bool:
-	if not Transactions.session_writable(self) or not players.has(id) or not players[id].profile_ready or players[id].get("rejecting",false): return false
+func allow_remote(id: int,channel: String,limit: int, read_only := false) -> bool:
+	if (not read_only and not Transactions.session_writable(self)) or not players.has(id) or not players[id].profile_ready or players[id].get("rejecting",false): return false
 	var now:=Time.get_ticks_msec();var player: Dictionary=players[id]
 	var key:="budget_"+channel;var budget: Array=player.get(key,[now,0])
 	if now-int(budget[0])>=1000: budget=[now,0]

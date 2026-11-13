@@ -13,6 +13,7 @@ static var LEVEL_THRESHOLDS: Array=preload("res://game_balance.gd").levels()
 var path := "user://character.cfg"
 var data := blank()
 var identity := Crypto.new().generate_random_bytes(16).hex_encode()
+var projection_receipts: Dictionary = {}
 
 
 static func blank() -> Dictionary:
@@ -106,12 +107,16 @@ func _read_profile() -> Error:
 	var file := ConfigFile.new()
 	var result := file.load(path)
 	if result == OK:
+		var receipts: Variant = file.get_value("character", "projection_receipts", {})
+		if not load("res://guest_profile_projection.gd").valid_receipts(receipts):
+			return ERR_INVALID_DATA
 		var saved_id = file.get_value("character", "identity", "")
 		if saved_id is String and valid_identity(saved_id):
 			identity = saved_id
 		var saved = file.get_value("character", "progress", {})
 		needs_content_backup=not file.has_section("content")
 		data = normalize(ContentIDs.profile(saved,file.get_value("content","manifest",ContentIDs.legacy()))) if saved is Dictionary else blank()
+		projection_receipts = receipts
 	return result
 
 
@@ -161,5 +166,7 @@ func _serialize_save(stage := Callable()) -> Error:
 	file.set_value("content","manifest",ContentIDs.manifest())
 	file.set_value("character", "progress", data)
 	file.set_value("character", "identity", identity)
+	if not projection_receipts.is_empty():
+		file.set_value("character", "projection_receipts", projection_receipts)
 	var bytes := file.encode_to_text().to_utf8_buffer()
 	return (stage.call(path, bytes) if stage.is_valid() else SaveBatch.write(path, bytes))

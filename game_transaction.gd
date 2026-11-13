@@ -290,7 +290,7 @@ static func _restore_guarded(game: Node, captured: Dictionary) -> void:
  restore_dict(game.players, captured.players)
  restore(game.local_character, captured.local)
  restore(game.guest_character, captured.guest)
- if game.players.has(game.HOST):
+ if game.players.get(game.HOST, {}).has("character"):
   game.local_character.data = game.players[game.HOST].character
  game.rng.state = captured.rng
  if captured.has("expedition"):

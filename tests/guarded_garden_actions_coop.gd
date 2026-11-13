@@ -104,7 +104,7 @@ func prepare_crop(player: Dictionary, key: String) -> void:
 func host_run() -> void:
  check(game.host_game()==OK,"guarded host opens")
  mark("host")
- if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):
+ if not await until(func():return game.players.size()==2 and game.players.values().any(func(p):return p.get("projection_delivery",{}).get("state")=="committed")):
   check(false,"guarded guest joins: "+game.status)
   return
  var id := int(game.players.keys().filter(func(peer): return peer!=1)[0])
@@ -222,10 +222,10 @@ func guest_run() -> void:
   return
  game.set_meta(&"guarded_gameplay_test_fault",func(phase,_path): return ERR_FILE_CANT_WRITE if phase=="stage" else OK)
  game.send_garden_action("garden:"+FileAccess.get_file_as_string(Signals+"reconnect"))
- if not await until(func():return game.status.begins_with("Harvested")):
-  check(false,"host confirms its commit despite independent guest save failure")
+ if not await until(func():return game.get_meta(&"guest_projection_notice","").contains("not saved")):
+  check(false,"guest save failure is visible")
   return
- check(crop_count()==1,"failed guest projection leaves its prior bytes")
+ check(crop_count()==1 and not game.status.begins_with("Harvested"),"failed guest projection leaves its prior bytes and withholds success")
  game.remove_meta(&"guarded_gameplay_test_fault")
  game.leave_game("Reconnect to guarded Garden")
  check(game.online_peer==null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"offline before reconnect")
