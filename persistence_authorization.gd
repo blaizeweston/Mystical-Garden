@@ -12,6 +12,14 @@ static var _participants := PackedStringArray()
 static var _bootstrapping := false
 
 static func run(paths: PackedStringArray, operation: Callable) -> Dictionary:
+ return _run(paths, operation, false)
+
+## Legacy operations may create a missing supported parent under this same gate.
+## Existing leaves still pass the ordinary native participant checks.
+static func run_legacy(paths: PackedStringArray, operation: Callable) -> Dictionary:
+ return _run(paths, operation, true)
+
+static func _run(paths: PackedStringArray, operation: Callable, allow_empty: bool) -> Dictionary:
  if not Thread.is_main_thread() or _active != null or _bootstrapping:
   return _result(ERR_BUSY)
  if not operation.is_valid():
@@ -20,7 +28,7 @@ static func run(paths: PackedStringArray, operation: Callable) -> Dictionary:
  if location.error != OK:
   return _result(location.error)
  var participants := _resolve_paths(paths, location.path, location.directory)
- if participants.is_empty():
+ if participants.size() != paths.size() or (participants.is_empty() and not allow_empty):
   return _result(ERR_INVALID_PARAMETER)
  var held := _acquire(location.path, location.directory, participants)
  if held.error != OK:

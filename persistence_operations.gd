@@ -231,7 +231,7 @@ static func archive_copies(context: RefCounted, destinations: Dictionary, fault 
    var target: String = destinations[source]
    var error: Error = fault.call("archive", target) if fault.is_valid() else OK
    if error == OK:
-    error = Batch.write_bytes(target + ".tmp", originals[source])
+    error = Batch._write_bytes(target + ".tmp", originals[source])
    if error == OK and fault.is_valid():
     error = fault.call("archive_staged", target)
    if error == OK:
@@ -287,7 +287,7 @@ static func _write_metadata_locked(target: String, scratch: String, bytes: Packe
  var original := Planner._read_bytes(target, MAX_AUXILIARY_BYTES) if existed else {}
  if (existed and not original.ok) or bytes.size() > MAX_AUXILIARY_BYTES:
   return management_result(ERR_INVALID_DATA, "metadata_unreadable_or_oversize")
- var written := Batch.write_bytes(scratch, bytes)
+ var written := Batch._write_bytes(scratch, bytes)
  var staged := Planner._read_bytes(scratch, MAX_AUXILIARY_BYTES)
  if written != OK or not staged.ok or staged.bytes != bytes:
   return _metadata_abort(scratch, written if written != OK else ERR_FILE_CANT_WRITE)

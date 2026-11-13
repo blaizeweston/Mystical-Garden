@@ -79,7 +79,7 @@ func run():
  for forbidden in ["res://test/net_test.gd","res://test/net_test.tscn","res://tests/playable.gd","res://tools/make_natural_world.py","res://docs/SYSTEMS_REVIEW_2026-11-08.md","res://assets/source/natural_world.blend"]:
   if FileAccess.file_exists(forbidden): errors.append("Excluded resource present: "+forbidden);printerr("Excluded resource present: "+forbidden)
  var world=load("res://world.tscn").instantiate()
- world.progress.path="user://packaged-smoke.cfg";world.local_character.path="user://packaged-smoke.character";root.add_child(world)
+ world.progress.path="user://garden.cfg";world.local_character.path="user://character.cfg";root.add_child(world)
  world.map_seed=91247;world.reset_encounter();world._process(.016)
  world.queue_free();await process_frame
  if errors.is_empty(): print("PASS: packaged runtime catalogs, world and exclusions")

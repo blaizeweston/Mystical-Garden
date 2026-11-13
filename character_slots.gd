@@ -19,6 +19,9 @@ func paths(slot: int) -> Dictionary:
  return leases().paths(slot)
 
 func set_capacity(amount: int) -> Error:
+ return Batch.Legacy.run(PackedStringArray([_catalog_path()]), func(_plan): return _legacy_set_capacity(amount))
+
+func _legacy_set_capacity(amount: int) -> Error:
  if amount<count() or amount>MAX_COUNT: return ERR_INVALID_PARAMETER
  var error:=DirAccess.make_dir_recursive_absolute(root_path)
  if error!=OK: return error
@@ -41,7 +44,7 @@ func summary(slot: int) -> Dictionary:
  if location.is_empty(): result.error=ERR_INVALID_PARAMETER;return result
  if not FileAccess.file_exists(location.character): return result
  result.exists=true
- var profile:=Profile.new();profile.path=location.character;result.error=profile.load_profile(not result.active)
+ var profile:=Profile.new();profile.path=location.character;result.error=profile.load_profile(false)
  if result.error!=OK: return result
  result.name=profile.data.name;result.identity=profile.identity
  var class_id: int=profile.data.active_class
@@ -50,6 +53,13 @@ func summary(slot: int) -> Dictionary:
  return result
 
 func create(slot: int,name: String,class_id: int,appearance: Array) -> Error:
+ var location := paths(slot)
+ if location.is_empty(): return ERR_INVALID_PARAMETER
+ return Batch.Legacy.run(PackedStringArray([location.character, _catalog_path()]), func(_plan):
+  if paths(slot) != location: return ERR_BUSY
+  return _legacy_create(slot, name, class_id, appearance))
+
+func _legacy_create(slot: int,name: String,class_id: int,appearance: Array) -> Error:
  var location:=paths(slot)
  if location.is_empty() or class_id<0 or class_id>=Profile.Classes.DEFINITIONS.size() or Profile.clean_name(name).is_empty(): return ERR_INVALID_PARAMETER
  var error:=claim(slot)
@@ -64,47 +74,85 @@ func last_slot() -> int:
  var file:=ConfigFile.new();file.load(root_path.path_join("catalog.cfg"))
  return clampi(int(file.get_value("roster","selected",0)),0,count()-1)
 func remember(slot: int) -> void:
+ var location := paths(slot)
+ if location.is_empty(): return
+ Batch.Legacy.run(PackedStringArray([location.character, _catalog_path()]), func(_plan): return _legacy_remember(slot))
+
+func _legacy_remember(slot: int) -> Error:
  var file:=ConfigFile.new();file.load(root_path.path_join("catalog.cfg"))
  file.set_value("roster","selected",clampi(slot,0,count()-1))
- Batch.write(root_path.path_join("catalog.cfg"),file.encode_to_text().to_utf8_buffer())
+ return Batch.write(root_path.path_join("catalog.cfg"),file.encode_to_text().to_utf8_buffer())
 
 # Copy existing per-world profiles once, deduplicating by permanent identity.
 # Original files remain available for recovery and old-build compatibility.
 func prepare(worlds: RefCounted) -> Error:
- var error:=DirAccess.make_dir_recursive_absolute(root_path)
- if error!=OK: return error
  for legacy_slot in Slots.COUNT:
-  var source: String=worlds.paths(legacy_slot).character
+  var source: String = worlds.paths(legacy_slot).character
   if not FileAccess.file_exists(source): continue
-  var imported:=ConfigFile.new();imported.load(root_path.path_join("catalog.cfg"))
-  if imported.has_section_key("imports",source): continue
-  var old:=Profile.new();old.path=source;error=old.load_profile()
-  if error!=OK: return error
-  if imported.has_section_key("deleted_identities",old.identity):continue
-  var found:=false;var empty:=-1
-  for slot in count():
-   var data:=summary(slot)
-   if data.exists and data.identity==old.identity: found=true;break
-   if not data.exists and empty<0: empty=slot
-  if found: continue
-  # An invalid legacy identity must never generate endless duplicate imports.
-  var mapping:=ConfigFile.new();mapping.load(root_path.path_join("catalog.cfg"))
-  if mapping.has_section_key("imports",source): continue
-  if empty<0:
-   empty=count();error=set_capacity(empty+1)
-   if error!=OK: return error
-  error=claim(empty)
-  if error!=OK: return error
-  old.path=paths(empty).character
-  if old.data.name=="Wanderer": old.data.name="Wanderer %d"%(legacy_slot+1)
-  error=old.save_profile();release(empty)
-  if error!=OK: return error
-  mapping.load(root_path.path_join("catalog.cfg"));mapping.set_value("imports",source,old.identity)
-  error=Batch.write(root_path.path_join("catalog.cfg"),mapping.encode_to_text().to_utf8_buffer())
-  if error!=OK: return error
- return OK
+  var candidate := _legacy_import_candidate(source)
+  if candidate.error != OK: return candidate.error
+  if candidate.skip: continue
+  var destination := _legacy_profile_path(candidate.slot)
+  var error := Batch.Legacy.run(PackedStringArray([source, destination, _catalog_path()]), func(_plan):
+   var locked := _legacy_import_candidate(source)
+   if locked.error != OK: return locked.error
+   if locked.skip or locked.slot != candidate.slot or locked.capacity != candidate.capacity: return ERR_BUSY
+   return _legacy_import(source, legacy_slot, locked))
+  if error != OK: return error
+ if Batch.Legacy.fixture_path(root_path): return DirAccess.make_dir_recursive_absolute(root_path)
+ return Batch.Legacy.Auth.bootstrap(PackedStringArray([root_path])).error
+
+func _legacy_profile_path(slot: int) -> String:
+ return root_path.path_join("slot_%d/character.cfg" % (slot + 1))
+
+func _legacy_import_candidate(source: String) -> Dictionary:
+ var mapping := ConfigFile.new()
+ mapping.load(_catalog_path())
+ var capacity := count()
+ var result := {"error": OK, "skip": true, "slot": -1, "capacity": capacity}
+ if not FileAccess.file_exists(source) or mapping.has_section_key("imports", source): return result
+ var old := Profile.new()
+ old.path = source
+ result.error = old.load_profile(false)
+ if result.error != OK or mapping.has_section_key("deleted_identities", old.identity): return result
+ var empty := -1
+ for slot in capacity:
+  var data := summary(slot)
+  if data.exists and data.identity == old.identity: return result
+  if not data.exists and empty < 0: empty = slot
+ result.skip = false
+ result.slot = capacity if empty < 0 else empty
+ result.profile = old
+ result.mapping = mapping
+ if result.slot >= MAX_COUNT: result.error = ERR_INVALID_PARAMETER
+ return result
+
+func _legacy_import(source: String, legacy_slot: int, candidate: Dictionary) -> Error:
+ var slot: int = candidate.slot
+ if slot == candidate.capacity:
+  var expanded := set_capacity(slot + 1)
+  if expanded != OK: return expanded
+ var error := claim(slot)
+ if error != OK: return error
+ var old: RefCounted = candidate.profile
+ old.path = _legacy_profile_path(slot)
+ if old.data.name == "Wanderer": old.data.name = "Wanderer %d" % (legacy_slot + 1)
+ error = old.save_profile()
+ release(slot)
+ if error != OK: return error
+ var mapping := ConfigFile.new()
+ mapping.load(_catalog_path())
+ mapping.set_value("imports", source, old.identity)
+ return Batch.write(_catalog_path(), mapping.encode_to_text().to_utf8_buffer())
 
 func update(slot: int,name: String,class_id: int,appearance: Array) -> Error:
+ var location := paths(slot)
+ if location.is_empty(): return ERR_INVALID_PARAMETER
+ return Batch.Legacy.run(PackedStringArray([location.character, _catalog_path()]), func(_plan):
+  if paths(slot) != location: return ERR_BUSY
+  return _legacy_update(slot, name, class_id, appearance), PackedStringArray([location.character + ".pre-content-v2.bak"]))
+
+func _legacy_update(slot: int,name: String,class_id: int,appearance: Array) -> Error:
  if Profile.clean_name(name).is_empty() or class_id<0 or class_id>=Profile.Classes.DEFINITIONS.size(): return ERR_INVALID_PARAMETER
  var location=paths(slot)
  if location.is_empty(): return ERR_INVALID_PARAMETER
@@ -120,6 +168,13 @@ func update(slot: int,name: String,class_id: int,appearance: Array) -> Error:
  return error
 
 func delete_character(slot: int,confirmed: bool=false,expected_digest: String="") -> Error:
+ var location := paths(slot)
+ if location.is_empty(): return ERR_INVALID_PARAMETER
+ return Batch.Legacy.run(PackedStringArray([location.character, _catalog_path()]), func(_plan):
+  if paths(slot) != location: return ERR_BUSY
+  return _legacy_delete_character(slot, confirmed, expected_digest))
+
+func _legacy_delete_character(slot: int,confirmed: bool=false,expected_digest: String="") -> Error:
  if not confirmed:return ERR_UNAUTHORIZED
  var location=paths(slot)
  if location.is_empty():return ERR_INVALID_PARAMETER
@@ -129,6 +184,12 @@ func delete_character(slot: int,confirmed: bool=false,expected_digest: String=""
  error=remove_character(location,expected_digest)
  release(slot);return error
 func remove_character(location: Dictionary,expected_digest: String) -> Error:
+ if location.get("character") != location.get("directory", "").path_join("character.cfg"):
+  return ERR_INVALID_PARAMETER
+ return Batch.Legacy.run(PackedStringArray([location.character, _catalog_path()]), func(_plan):
+  return _legacy_remove_character(location, expected_digest))
+
+func _legacy_remove_character(location: Dictionary,expected_digest: String) -> Error:
  var error=Batch.recover(location.character)
  if error!=OK:return error
  if not FileAccess.file_exists(location.character):return ERR_DOES_NOT_EXIST

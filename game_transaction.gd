@@ -32,12 +32,31 @@ static func run(game: Node,action: Callable, verdict := {}):
   var nested: Variant = action.call()
   verdict.error = Batch.failure
   return nested
+ var paths := PackedStringArray([game.progress.path])
+ var auxiliary: PackedStringArray = game.progress.migration_backup_paths()
+ if game.session != "Guest":
+  paths.append(game.local_character.path)
+  auxiliary.append_array(game.local_character.migration_backup_paths())
+ var result := {}
+ var error := Batch.Legacy.run(paths, func(_plan):
+  result.value = _run_legacy(game, action, verdict)
+  return verdict.error, auxiliary)
+ verdict.error = error
+ if not result.has("value"):
+  game.status = "Save unavailable. Your save files were preserved."
+ return result.get("value", false)
+
+static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Variant:
  var diagnostic_transaction=preload("res://diagnostic_journal.gd").event("save","transaction_begin",{"operation":action.get_method()})
  var world:=snapshot(game.progress);var heart: Dictionary=game.progress.heart.serialize();var campaign:=snapshot(game.progress.campaign)
  var state:=snapshot(game);state.erase("players");var local:=snapshot(game.local_character);var guest:=snapshot(game.guest_character)
  var players: Dictionary=game.players.duplicate(true)
  var rng_state: int = game.rng.state
- game.transaction_publishes.clear();Batch.begin(game.progress.path)
+ var begin_error := Batch.begin(game.progress.path)
+ if begin_error != OK:
+  verdict.error = begin_error
+  return false
+ game.transaction_publishes.clear()
  var result=action.call()
  # All persistent world mutations and the local character form one commit.
  Batch.record_serializer_error(game.progress.save_garden(), game.progress.path)

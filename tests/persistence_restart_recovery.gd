@@ -20,7 +20,7 @@ func check(ok: bool, text: String) -> void:
   printerr("FAIL: ", text)
 
 func put(path: String, value: String) -> void:
- check(Batch.write_bytes(path, value.to_utf8_buffer()) == OK, "write fixture " + path)
+ check(Batch._write_bytes(path, value.to_utf8_buffer()) == OK, "write fixture " + path)
 
 func file(path: String) -> Variant:
  return FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else null

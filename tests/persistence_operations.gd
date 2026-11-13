@@ -38,7 +38,7 @@ func record(id: String, result: Dictionary) -> void:
  print("CASE ", JSON.stringify(row))
 
 func put(path: String, bytes: PackedByteArray) -> void:
- check(Batch.write_bytes(path, bytes) == OK, "fixture write " + path)
+ check(Batch._write_bytes(path, bytes) == OK, "fixture write " + path)
 
 func manifest(path: String) -> Dictionary:
  var result := {}
@@ -88,35 +88,27 @@ func test_writers(paths: PackedStringArray, files: PackedStringArray) -> void:
   var world := Slots.new()
   var created := Operations.run_nested(context, PackedStringArray([Garden, Garden + ".tmp"]), func(_context):
    return world.new_world(0))
-  check(created.ran and created.value == OK, "nested world creation")
+  check(created.ran and created.value == ERR_BUSY, "guarded context refuses a legacy world writer")
   var roster := Roster.new()
   var profile := Operations.run_nested(context, PackedStringArray([ProfilePath, ProfilePath + ".tmp", RosterMarker]), func(_context):
    return roster.create(0, "Guarded Wanderer", 0, []))
-  check(profile.ran and profile.value == OK, "nested roster creation")
+  check(profile.ran and profile.value == ERR_BUSY, "guarded context refuses a legacy roster writer")
   var catalog := Operations.run_nested(context, PackedStringArray([ProfilePath, Catalog, Catalog + ".tmp"]), func(_context):
    return roster.set_capacity(4))
-  check(catalog.ran and catalog.value == OK and roster.count() == 4, "nested roster catalog update")
+  check(catalog.ran and catalog.value == ERR_BUSY and roster.count() == 3, "guarded context refuses a legacy catalog writer")
   var lease := Operations.run_nested(context, PackedStringArray([Garden, WorldMarker, WorldMarker + ".tmp"]), func(_context):
-   var claim := world.claim(0)
-   if claim != OK:
-    return claim
-   world.heartbeat(0)
-   check(world.is_active(0), "session remains active under operation lock")
-   world.release(0)
-   return OK)
-  check(lease.ran and lease.value == OK and not world.is_active(0), "nested claim, heartbeat and release")
+   return world.claim(0))
+  check(lease.ran and lease.value == ERR_BUSY and not world.is_active(0), "guarded context refuses a legacy lease writer")
 
   var saved := Operations.run_nested(context, paths, func(_context):
    var garden := Progress.new()
    garden.path = Garden
-   var character := Profile.new()
-   character.path = ProfilePath
-   var loaded := character.load_profile(false)
-   if loaded != OK:
-    return loaded
-   var garden_saved := garden.save_garden()
-   return character.save_profile() if garden_saved == OK else garden_saved)
-  check(saved.ran and saved.value == OK, "standalone serializers reuse the outer context")
+   return garden.save_garden())
+  check(saved.ran and saved.value == ERR_BUSY, "guarded context refuses a standalone legacy serializer")
+  var nested := Operations.run_nested(context, paths, func(owner):
+   return Operations.commit_bytes(owner, {Garden:"[garden]\nknowledge=3\n".to_utf8_buffer(),
+    ProfilePath:"[character]\nidentity=\"22222222222222222222222222222222\"\n".to_utf8_buffer()}, Garden))
+  check(nested.ran and Operations.transaction_result(nested.value).state == "completed", "nested guarded writer reuses exact operation context")
   return OK, empty)
 
  check(guarded.ran and guarded.error == OK and guarded.value == OK, "guarded writers finished")

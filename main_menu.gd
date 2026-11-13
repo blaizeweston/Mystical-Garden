@@ -616,17 +616,30 @@ func launch(join: bool) -> void:
 	if guarded_persistence:
 		_launch_guarded(join)
 		return
-	var profile_error:=characters.claim(selected_character)
-	if profile_error!=OK: notice.text="This character is already in use. Choose another character.";refresh_characters();select_slot(selected);return
+	var location := storage.paths(selected)
+	var traveller := characters.paths(selected_character)
+	var legacy = storage.Legacy
+	var participants := PackedStringArray([traveller.character])
 	if not join:
-		var slot_error:=storage.claim(selected)
-		if slot_error!=OK:
-			characters.release(selected_character);notice.text="This Garden is already in use. Choose another Garden.";select_slot(selected);return
+		participants.append_array(storage._legacy_scope(location))
+	var claimed: Error = legacy.run(participants, func(_plan):
+		var profile_error := characters.claim(selected_character)
+		if profile_error != OK: return profile_error
+		if not join:
+			var slot_error := storage.claim(selected)
+			if slot_error != OK:
+				characters.release(selected_character)
+				return slot_error
+		return OK)
+	if claimed != OK:
+		notice.text="Could not open the selected save (error %d)."%claimed
+		refresh_characters()
+		select_slot(selected)
+		return
 	transitioning=true
 	if network_dialog.visible:
 		network_dialog.dismiss()
 	storage.remember_slot(selected);characters.remember(selected_character)
-	var location:=storage.paths(selected)
 	var game=load("res://world.tscn").instantiate()
 	game.settings_path=settings_path
 	game.network_address=network_address;game.network_port=network_port if join else host_port
@@ -674,7 +687,7 @@ func confirm_delete_save() -> void:
 	if transitioning or target<0: return
 	var error:=storage.delete_world(target,true)
 	if error==OK: notice.text="Garden Slot %d deleted. Your characters are preserved."%(target+1)
-	elif error==ERR_BUSY: notice.text="Slot %d is in use in another window. Close that game before deleting it."%(target+1)
+	elif error==ERR_BUSY: notice.text="Slot %d is in use or has pending save recovery. Your files were preserved."%(target+1)
 	else: notice.text="Could not delete Slot %d (error %d). Recovery files remain in the slot's backups folder."%[target+1,error]
 	select_slot(selected)
 

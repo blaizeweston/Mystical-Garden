@@ -4,29 +4,36 @@ static var active:=false
 static var staged: Dictionary={}
 static var failure:=OK
 static var journal_path:=""
-static var _legacy_stages := {}
 static var _legacy_serializers := {}
-static func write_bytes(path: String,bytes: PackedByteArray) -> Error:
+const Legacy = preload("res://legacy_persistence.gd")
+
+static func write_bytes(path: String, bytes: PackedByteArray) -> Error:
  if _guarded_owner != null: return ERR_BUSY
- var file:=FileAccess.open(path,FileAccess.WRITE)
- if file==null: return FileAccess.get_open_error()
+ if not Legacy.fixture_path(path) and not Legacy.Layout.is_participant(path, Legacy.Layout.directories()):
+  return ERR_UNAUTHORIZED
+ return Legacy.run(PackedStringArray([path]), func(_plan): return _write_bytes(path, bytes))
+
+static func _write_bytes(path: String, bytes: PackedByteArray) -> Error:
+ var file := FileAccess.open(path, FileAccess.WRITE)
+ if file == null: return FileAccess.get_open_error()
  var stored := file.store_buffer(bytes)
  file.flush()
  var error := file.get_error()
  file.close()
  return ERR_FILE_CANT_WRITE if error == OK and not stored else error
-static func write(path: String,bytes: PackedByteArray) -> Error:
+
+static func write(path: String, bytes: PackedByteArray) -> Error:
  if _guarded_owner != null: return reject_guarded_serializer(ERR_UNAUTHORIZED, path)
- if _guarded_evidence(path): return record_serializer_error(ERR_BUSY,path)
- var target := path+(".txn_stage" if active else ".tmp")
+ if not Legacy.fixture_path(path) and not Legacy.Layout.is_participant(path, Legacy.Layout.directories()):
+  return record_serializer_error(ERR_UNAUTHORIZED, path)
  if active:
+  if failure != OK: return failure
   _legacy_serializers.erase(path)
-  if not FileAccess.file_exists(target): _legacy_stages[target] = true
- var error:=write_bytes(target,bytes)
- if error!=OK:
-  return record_serializer_error(error, path)
- if active: staged[path]=bytes;return OK
- return DirAccess.rename_absolute(path+".tmp",path)
+  staged[path] = bytes
+  return OK
+ return Legacy.run(PackedStringArray([path]), func(_plan):
+  var error := _write_bytes(path + ".tmp", bytes)
+  return DirAccess.rename_absolute(path + ".tmp", path) if error == OK else error)
 
 static func record_serializer_error(error: Error, path: String) -> Error:
  if _guarded_owner != null:
@@ -41,90 +48,119 @@ static func legacy_serializer_saved(serializer: RefCounted) -> void:
  else:
   serializer.confirm_migration(serializer.path)
 
-static func begin(root: String) -> void:
- if _guarded_owner != null or active: return
- active=true;staged={};failure=OK;journal_path=root+".transaction"
- _legacy_stages.clear()
+static func begin(root: String) -> Error:
+ if _guarded_owner != null or active: return ERR_BUSY
+ if not Legacy.fixture_path(root) and not Legacy.Layout.is_canonical(root, Legacy.Layout.directories()):
+  return ERR_INVALID_PARAMETER
+ active = true
+ staged = {}
+ failure = OK
+ journal_path = root + ".transaction"
  _legacy_serializers.clear()
+ return OK
+
 static func recover(path: String) -> Error:
- if _guarded_owner != null: return ERR_BUSY
- var journal:=path+".transaction"
- if FileAccess.file_exists(path+".txn_link"): journal=FileAccess.get_file_as_string(path+".txn_link")
- if _guarded_evidence(path) or _guarded_evidence(journal.trim_suffix(".transaction")): return ERR_BUSY
+ if _guarded_owner != null or active: return ERR_BUSY
+ if Legacy.fixture_path(path):
+  return _recover_fixture(path)
+ if Legacy.held():
+  # The owning operation already required a clean footprint. Its own staged
+  # files and journal are handled only by _commit_locked.
+  return Legacy.run(PackedStringArray([path]), func(_plan): return OK)
+ return Legacy.run(PackedStringArray([path]), func(plan):
+  if plan.journals.is_empty(): return OK
+  var record: Dictionary = plan.journals[0]
+  return _recover_locked(record.path, record.entries, record.committed), PackedStringArray(), true)
+
+static func _recover_fixture(path: String) -> Error:
+ var journal := path + ".transaction"
+ if FileAccess.file_exists(path + ".txn_link"):
+  journal = FileAccess.get_file_as_string(path + ".txn_link")
  if not FileAccess.file_exists(journal): return OK
- var raw := Planner._read_bytes(journal)
- if not raw.ok or not Evidence.journal_attempt(raw.bytes).is_empty(): return ERR_BUSY
- var config:=ConfigFile.new();var error:=config.load(journal)
- if error!=OK: return error
- var entries=config.get_value("transaction","entries",{})
- if not entries is Dictionary or not entries.has(path): return ERR_INVALID_DATA
- if not config.get_value("transaction","committed",false):
-  for target in entries:
-   var entry=entries[target]
-   if not target is String or not entry is Dictionary or not entry.get("bytes") is PackedByteArray: return ERR_INVALID_DATA
-   if bool(entry.exists):
-    error=write_bytes(target+".recovery",entry.bytes)
-    if error==OK: error=DirAccess.rename_absolute(target+".recovery",target)
-   elif FileAccess.file_exists(target): error=DirAccess.remove_absolute(target)
-   if error!=OK: return error
- for target in entries:
-  for suffix in [".txn_link",".txn_stage"]:
-   if FileAccess.file_exists(target+suffix): DirAccess.remove_absolute(target+suffix)
+ if not Legacy.fixture_path(journal): return ERR_UNAUTHORIZED
+ var config := ConfigFile.new()
+ var error := config.load(journal)
+ if error != OK: return error
+ var entries: Variant = config.get_value("transaction", "entries", {})
+ if not entries is Dictionary or not entries.keys().all(Legacy.fixture_path):
+  return ERR_INVALID_DATA
+ return _recover_locked(journal, entries, config.get_value("transaction", "committed", false))
+
+static func _recover_locked(journal: String, entries: Dictionary, committed: bool) -> Error:
+ if not committed:
+  for target: String in entries:
+   var entry: Dictionary = entries[target]
+   var error := OK
+   if entry.exists:
+    error = _write_bytes(target + ".recovery", entry.bytes)
+    if error == OK: error = DirAccess.rename_absolute(target + ".recovery", target)
+   elif FileAccess.file_exists(target):
+    error = DirAccess.remove_absolute(target)
+   if error != OK: return error
+ for target: String in entries:
+  for suffix in [".txn_link", ".txn_stage", ".recovery"]:
+   if not FileAccess.file_exists(target + suffix): continue
+   var error := DirAccess.remove_absolute(target + suffix)
+   if error != OK: return error
  return DirAccess.remove_absolute(journal)
 
-static func _guarded_evidence(path: String) -> bool:
- if FileAccess.file_exists(path+".transaction"):
-  var primary := Planner._read_bytes(path+".transaction")
-  if not primary.ok or not Evidence.journal_attempt(primary.bytes).is_empty(): return true
- for suffix in Evidence.SUFFIXES:
-  if FileAccess.file_exists(path+suffix) or DirAccess.dir_exists_absolute(path+suffix): return true
- # A participant can carry a link while only its anchor has the B2 evidence.
- if FileAccess.file_exists(path+".txn_link"):
-  var link := Planner._read_bytes(path+".txn_link",1040)
-  if not link.ok: return true
-  var anchor: String = link.bytes.get_string_from_utf8().trim_suffix(".transaction")
-  if FileAccess.file_exists(anchor+".transaction"):
-   var linked := Planner._read_bytes(anchor+".transaction")
-   if not linked.ok or not Evidence.journal_attempt(linked.bytes).is_empty(): return true
-  for suffix in Evidence.SUFFIXES:
-   if FileAccess.file_exists(anchor+suffix) or DirAccess.dir_exists_absolute(anchor+suffix): return true
- return false
 static func commit() -> Error:
  if _guarded_owner != null: return ERR_BUSY
- if failure!=OK: var error:=failure;cancel();return error
- if staged.is_empty(): cancel();return OK
- var entries: Dictionary={}
- for path in staged: entries[path]={"exists":FileAccess.file_exists(path),"bytes":FileAccess.get_file_as_bytes(path) if FileAccess.file_exists(path) else PackedByteArray()}
- var journal:=ConfigFile.new();journal.set_value("transaction","entries",entries);journal.set_value("transaction","committed",false)
- var error:=journal.save(journal_path)
- if error!=OK: cancel();return error
- for path in staged:
-  error=write_bytes(path+".txn_link",journal_path.to_utf8_buffer())
-  if error!=OK: break
- if error==OK:
-  for path in staged:
-   error=DirAccess.rename_absolute(path+".txn_stage",path)
-   if error!=OK: break
- if error==OK:
-  journal.set_value("transaction","committed",true);error=journal.save(journal_path)
-  if error==OK:
+ if not active: return ERR_UNAUTHORIZED
+ var error := failure
+ if error == OK and not staged.is_empty():
+  var paths := PackedStringArray(staged.keys())
+  paths.append(journal_path.trim_suffix(".transaction"))
+  error = Legacy.run(paths, func(_plan): return _commit_locked())
+ cancel()
+ return error
+
+static func _commit_locked() -> Error:
+ var entries := {}
+ var stages := PackedStringArray()
+ for path: String in staged:
+  var exists := FileAccess.file_exists(path)
+  var original := PackedByteArray()
+  if exists:
+   var read := Planner._read_bytes(path)
+   if not read.ok: return ERR_FILE_CANT_READ
+   original = read.bytes
+  entries[path] = {"exists":exists, "bytes":original}
+ for path: String in staged:
+  stages.append(path + ".txn_stage")
+  var error := _write_bytes(path + ".txn_stage", staged[path])
+  if error != OK:
+   for scratch in stages:
+    if FileAccess.file_exists(scratch): DirAccess.remove_absolute(scratch)
+   return error
+ var journal := ConfigFile.new()
+ journal.set_value("transaction", "entries", entries)
+ journal.set_value("transaction", "committed", false)
+ var error := journal.save(journal_path)
+ if error != OK: return error
+ for path: String in staged:
+  error = _write_bytes(path + ".txn_link", journal_path.to_utf8_buffer())
+  if error != OK: break
+ if error == OK:
+  for path: String in staged:
+   error = DirAccess.rename_absolute(path + ".txn_stage", path)
+   if error != OK: break
+ var committed := false
+ if error == OK:
+  journal.set_value("transaction", "committed", true)
+  error = journal.save(journal_path)
+  committed = error == OK
+  if committed:
    for path in _legacy_serializers:
     _legacy_serializers[path].confirm_migration(path)
- var first: String=str(staged.keys()[0]);active=false;staged={}
- _legacy_serializers.clear()
- _legacy_stages.clear()
- var recovered:=recover(first)
- if error!=OK: return error
- return recovered
+ var recovered := _recover_locked(journal_path, entries, committed)
+ return recovered if error == OK else error
+
 static func cancel() -> void:
  if _guarded_owner != null: return
- for target in _legacy_stages:
-  if FileAccess.file_exists(target): DirAccess.remove_absolute(target)
- for path in staged:
-  if FileAccess.file_exists(path+".txn_stage"): DirAccess.remove_absolute(path+".txn_stage")
- _legacy_stages.clear()
  _legacy_serializers.clear()
- active=false;staged={}
+ active = false
+ staged = {}
 
 # B1 opt-in API. Legacy callers above retain their existing Error/void contract.
 const Authorization = preload("res://persistence_authorization.gd")

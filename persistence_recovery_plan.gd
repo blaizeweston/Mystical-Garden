@@ -21,7 +21,7 @@ const JOURNAL = '\\A\\s*\\[transaction\\]\\s+(?:' + ENTRIES + '\\s+' + COMMITTED
 
 ## Returns a candidate plan plus the exact paths to supply to Authorization.run().
 ## Pending recovery is authorizable only when the complete journal set was validated.
-static func discover(paths: PackedStringArray) -> Dictionary:
+static func discover(paths: PackedStringArray, require_resolved_links := false) -> Dictionary:
  var requested := _sorted(paths)
  var plan := {
   "state": "invalid", "reason": "", "path": "", "requested": requested,
@@ -67,6 +67,8 @@ static func discover(paths: PackedStringArray) -> Dictionary:
   var target: String = link.bytes.get_string_from_utf8()
   if target.ends_with(".transaction") and Layout.is_canonical(target.trim_suffix(".transaction"), directories):
    links[path.trim_suffix(".txn_link")] = target.trim_suffix(".transaction")
+  elif require_resolved_links:
+   return _refuse(plan, "ambiguous", "unresolved_link_identity", path)
  var records := {}
  var total_bytes := 0
  var unreadable := {}
@@ -153,6 +155,13 @@ static func discover(paths: PackedStringArray) -> Dictionary:
   primary.evidence = proof
   primary.receipt = group.has(Evidence.RECEIPT)
  candidates.sort()
+ if require_resolved_links:
+  for owner: String in links:
+   var journal: String = links[owner] + ".transaction"
+   if unreadable.has(journal):
+    continue # The existing unreadable-record check preserves its specific error.
+   if not records.has(journal) or not records[journal].entries.has(owner):
+    return _refuse(plan, "ambiguous", "unresolved_link_identity", owner + ".txn_link")
 
  var participants := {}
  for path in requested:

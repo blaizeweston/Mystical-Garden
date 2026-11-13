@@ -2,20 +2,45 @@ extends RefCounted
 const Progress = preload("res://progress.gd")
 const Character = preload("res://character_profile.gd")
 const COUNT := 3
+const Legacy = preload("res://legacy_persistence.gd")
 var capacity:=COUNT
 var root_path := "user://saves"
 var legacy_garden := "user://garden.cfg"
 var legacy_character := "user://character.cfg"
 var legacy_guest := "user://character-local-guest.cfg"
 
+func _legacy_scope(location: Dictionary, pair := true) -> PackedStringArray:
+	var profile: String = location.character
+	if root_path.get_file() == "characters": return PackedStringArray([profile])
+	return PackedStringArray([location.garden, profile]) if pair else PackedStringArray([location.garden])
+
 func paths(slot: int) -> Dictionary:
 	var base := root_path.path_join("slot_%d" % (clampi(slot,0,capacity-1)+1))
 	return {"directory":base,"garden":base.path_join("garden.cfg"),"character":base.path_join("character.cfg")}
 
 func prepare(import_legacy: bool = true) -> Error:
+	var garden := import_legacy and _imports_garden()
+	var guest := import_legacy and _imports_guest()
+	if not garden and not guest:
+		if Legacy.fixture_path(root_path): return DirAccess.make_dir_recursive_absolute(root_path)
+		return Legacy.Auth.bootstrap(PackedStringArray([root_path])).error
+	var scope := PackedStringArray()
+	if garden: scope.append_array(PackedStringArray([legacy_garden, legacy_character, paths(0).garden, paths(0).character]))
+	if guest: scope.append_array(PackedStringArray([legacy_guest, paths(1).garden, paths(1).character]))
+	return Legacy.run(scope, func(_plan):
+		if _imports_garden() != garden or _imports_guest() != guest: return ERR_BUSY
+		return _legacy_prepare(garden, guest))
+
+func _imports_garden() -> bool:
+	return not FileAccess.file_exists(paths(0).directory.path_join("deleted.cfg")) and not FileAccess.file_exists(paths(0).garden) and FileAccess.file_exists(legacy_garden)
+
+func _imports_guest() -> bool:
+	return not FileAccess.file_exists(paths(1).directory.path_join("deleted.cfg")) and FileAccess.file_exists(legacy_guest) and not FileAccess.file_exists(paths(1).character) and not FileAccess.file_exists(paths(1).garden)
+
+func _legacy_prepare(garden: bool, guest: bool) -> Error:
 	var error := DirAccess.make_dir_recursive_absolute(root_path)
 	if error != OK: return error
-	if import_legacy and not FileAccess.file_exists(paths(0).directory.path_join("deleted.cfg")) and not FileAccess.file_exists(paths(0).garden) and FileAccess.file_exists(legacy_garden):
+	if garden:
 		error = DirAccess.make_dir_recursive_absolute(paths(0).directory)
 		if error != OK: return error
 		error = DirAccess.copy_absolute(legacy_garden,paths(0).garden)
@@ -23,7 +48,7 @@ func prepare(import_legacy: bool = true) -> Error:
 		if FileAccess.file_exists(legacy_character) and not FileAccess.file_exists(paths(0).character):
 			error = DirAccess.copy_absolute(legacy_character,paths(0).character)
 			if error != OK: return error
-	if import_legacy and not FileAccess.file_exists(paths(1).directory.path_join("deleted.cfg")) and FileAccess.file_exists(legacy_guest) and not FileAccess.file_exists(paths(1).character) and not FileAccess.file_exists(paths(1).garden):
+	if guest:
 		error = DirAccess.make_dir_recursive_absolute(paths(1).directory)
 		if error != OK: return error
 		error = DirAccess.copy_absolute(legacy_guest,paths(1).character)
@@ -46,6 +71,11 @@ func summary(slot: int) -> Dictionary:
 	return result
 
 func ensure_character(slot: int) -> Error:
+	if slot < 0 or slot >= capacity: return ERR_INVALID_PARAMETER
+	var location := paths(slot)
+	return Legacy.run(PackedStringArray([location.character]), func(_plan): return _legacy_ensure_character(slot))
+
+func _legacy_ensure_character(slot: int) -> Error:
 	if slot < 0 or slot >= capacity:
 		return ERR_INVALID_PARAMETER
 	if is_active(slot): return ERR_BUSY
@@ -55,12 +85,17 @@ func ensure_character(slot: int) -> Error:
 	if FileAccess.file_exists(location.character):
 		var profile := Character.new()
 		profile.path = location.character
-		return profile.load_profile()
+		return profile.load_profile(false)
 	var character := Character.new()
 	character.path = location.character
 	return character.save_profile()
 
 func new_game(slot: int, replace_confirmed: bool = false) -> Error:
+	if slot < 0 or slot >= capacity: return ERR_INVALID_PARAMETER
+	var location := paths(slot)
+	return Legacy.run(_legacy_scope(location, true), func(_plan): return _legacy_new_game(slot, replace_confirmed), PackedStringArray([location.garden + ".new", location.character + ".new"]))
+
+func _legacy_new_game(slot: int, replace_confirmed: bool = false) -> Error:
 	if slot < 0 or slot >= capacity:
 		return ERR_INVALID_PARAMETER
 	if is_active(slot): return ERR_BUSY
@@ -68,12 +103,14 @@ func new_game(slot: int, replace_confirmed: bool = false) -> Error:
 	var occupied := FileAccess.file_exists(location.garden) or FileAccess.file_exists(location.character)
 	if occupied and not replace_confirmed:
 		return ERR_ALREADY_EXISTS
+	if [location.garden, location.character].any(func(path): return FileAccess.file_exists(path + ".new") or DirAccess.dir_exists_absolute(path + ".new")):
+		return ERR_BUSY
 	var error := DirAccess.make_dir_recursive_absolute(location.directory)
 	if error != OK: return error
 	if occupied:
 		var stamp := Time.get_datetime_string_from_system().replace(":","-") + "-" + str(Time.get_ticks_msec())
 		var archive: String = location.directory.path_join("backups").path_join(stamp)
-		error = DirAccess.make_dir_recursive_absolute(archive)
+		error = Legacy.create_archive(archive, location.garden)
 		if error != OK: return error
 		for field in ["garden","character"]:
 			if FileAccess.file_exists(location[field]):
@@ -86,15 +123,14 @@ func new_game(slot: int, replace_confirmed: bool = false) -> Error:
 	# Save both fresh files before replacing either current file.
 	var garden_target: String = fresh.path
 	var character_target: String = profile.path
-	fresh.path += ".new"
-	profile.path += ".new"
-	error = fresh.save_garden()
+	var batch = load("res://save_batch.gd")
+	error = fresh._serialize_save(func(_path, bytes): return batch._write_bytes(garden_target + ".new", bytes))
 	if error != OK: return error
-	error = profile.save_profile()
+	error = profile._serialize_save(func(_path, bytes): return batch._write_bytes(character_target + ".new", bytes))
 	if error != OK: return error
-	error = DirAccess.rename_absolute(fresh.path,garden_target)
+	error = DirAccess.rename_absolute(garden_target + ".new", garden_target)
 	if error != OK: return error
-	return DirAccess.rename_absolute(profile.path,character_target)
+	return DirAccess.rename_absolute(character_target + ".new", character_target)
 
 
 func is_active(slot: int) -> bool:
@@ -106,6 +142,11 @@ func is_active(slot: int) -> bool:
 
 func claim(slot: int) -> Error:
 	if slot < 0 or slot >= capacity: return ERR_INVALID_PARAMETER
+	var location := paths(slot)
+	return Legacy.run(_legacy_scope(location), func(_plan): return _legacy_claim(slot))
+
+func _legacy_claim(slot: int) -> Error:
+	if slot < 0 or slot >= capacity: return ERR_INVALID_PARAMETER
 	if is_active(slot): return ERR_BUSY
 	var error := DirAccess.make_dir_recursive_absolute(paths(slot).directory)
 	if error != OK: return error
@@ -115,6 +156,13 @@ func claim(slot: int) -> Error:
 	return marker.save(paths(slot).directory.path_join("session.cfg"))
 
 func heartbeat(slot: int) -> void:
+	if slot < 0 or slot >= capacity: return
+	var location := paths(slot)
+	Legacy.run(_legacy_scope(location), func(_plan):
+		_legacy_heartbeat(slot)
+		return OK)
+
+func _legacy_heartbeat(slot: int) -> void:
 	var file: String = paths(slot).directory.path_join("session.cfg")
 	var marker := ConfigFile.new()
 	if marker.load(file) != OK or int(marker.get_value("session","process_id",0)) != OS.get_process_id():
@@ -124,6 +172,13 @@ func heartbeat(slot: int) -> void:
 		DirAccess.rename_absolute(file+".tmp",file)
 
 func release(slot: int) -> void:
+	if slot < 0 or slot >= capacity: return
+	var location := paths(slot)
+	Legacy.run(_legacy_scope(location), func(_plan):
+		_legacy_release(slot)
+		return OK)
+
+func _legacy_release(slot: int) -> void:
 	var file: String = paths(slot).directory.path_join("session.cfg")
 	if not FileAccess.file_exists(file): return
 	var marker := ConfigFile.new()
@@ -138,12 +193,21 @@ func last_slot() -> int:
 	return clampi(int(settings.get_value("menu","last_slot",0)),0,capacity-1)
 
 func remember_slot(slot: int) -> void:
+	var preference := root_path.path_join("settings.cfg")
+	Legacy.run(_legacy_scope(paths(slot)), func(_plan): return _legacy_remember_slot(slot), PackedStringArray([preference, preference + ".tmp"]))
+
+func _legacy_remember_slot(slot: int) -> Error:
 	var settings := ConfigFile.new()
 	settings.set_value("menu","last_slot",clampi(slot,0,capacity-1))
-	settings.save(root_path.path_join("settings.cfg"))
+	return settings.save(root_path.path_join("settings.cfg"))
 
 
 func delete_save(slot: int,confirmed: bool=false) -> Error:
+	if slot < 0 or slot >= capacity: return ERR_INVALID_PARAMETER
+	var location := paths(slot)
+	return Legacy.run(_legacy_scope(location, true), func(_plan): return _legacy_delete_save(slot, confirmed))
+
+func _legacy_delete_save(slot: int,confirmed: bool=false) -> Error:
 	if slot<0 or slot>=capacity: return ERR_INVALID_PARAMETER
 	if not confirmed: return ERR_UNAUTHORIZED
 	if is_active(slot): return ERR_BUSY
@@ -156,10 +220,15 @@ func delete_save(slot: int,confirmed: bool=false) -> Error:
 	return error
 
 func archive_deleted_save(location: Dictionary) -> Error:
+	if location.get("garden") != location.get("directory", "").path_join("garden.cfg") or location.get("character") != location.get("directory", "").path_join("character.cfg"):
+		return ERR_INVALID_PARAMETER
+	return Legacy.run(_legacy_scope(location, true), func(_plan): return _legacy_archive_deleted_save(location))
+
+func _legacy_archive_deleted_save(location: Dictionary) -> Error:
 	# Move only the two live save files. Existing recovery archives remain intact.
 	var stamp:=Time.get_datetime_string_from_system().replace(":","-")+"-"+Crypto.new().generate_random_bytes(6).hex_encode()
 	var archive: String=location.directory.path_join("backups").path_join("deleted-"+stamp)
-	var error:=DirAccess.make_dir_recursive_absolute(archive)
+	var error:=Legacy.create_archive(archive, location.garden)
 	if error!=OK: return error
 	var moved: Array=[]
 	for field in ["garden","character"]:
@@ -178,6 +247,16 @@ func archive_deleted_save(location: Dictionary) -> Error:
 	return OK
 
 func restore_deleted_save(location: Dictionary,archive: String,moved: Array,error: Error) -> Error:
+	if not Legacy.fixture_path(location.garden):
+		if location.get("garden") != location.get("directory", "").path_join("garden.cfg") or location.get("character") != location.get("directory", "").path_join("character.cfg"):
+			return ERR_INVALID_PARAMETER
+		if not Legacy.held() or not Legacy.Layout.archive_folder(archive, location.garden, Legacy.Layout.directories()):
+			return ERR_UNAUTHORIZED
+		if not moved.all(func(field): return field in ["garden", "character"]): return ERR_INVALID_PARAMETER
+	return Legacy.run(_legacy_scope(location, true), func(_plan):
+		return _restore_deleted_save_locked(location, archive, moved, error))
+
+func _restore_deleted_save_locked(location: Dictionary,archive: String,moved: Array,error: Error) -> Error:
 	for field in moved:
 		var restored:=DirAccess.rename_absolute(archive.path_join(field+".cfg"),location[field])
 		if restored!=OK: return restored
@@ -185,6 +264,11 @@ func restore_deleted_save(location: Dictionary,archive: String,moved: Array,erro
 
 # World-only operations used by the independent-character main menu.
 func new_world(slot: int,confirmed: bool=false) -> Error:
+	if slot < 0 or slot >= capacity: return ERR_INVALID_PARAMETER
+	var location := paths(slot)
+	return Legacy.run(_legacy_scope(location), func(_plan): return _legacy_new_world(slot, confirmed))
+
+func _legacy_new_world(slot: int,confirmed: bool=false) -> Error:
 	if slot<0 or slot>=capacity: return ERR_INVALID_PARAMETER
 	if is_active(slot): return ERR_BUSY
 	var location:=paths(slot)
@@ -193,13 +277,18 @@ func new_world(slot: int,confirmed: bool=false) -> Error:
 	if error!=OK: return error
 	if FileAccess.file_exists(location.garden):
 		var backup: String=location.directory.path_join("backups/world-"+Crypto.new().generate_random_bytes(8).hex_encode())
-		error=DirAccess.make_dir_recursive_absolute(backup)
+		error=Legacy.create_archive(backup, location.garden)
 		if error==OK: error=DirAccess.copy_absolute(location.garden,backup.path_join("garden.cfg"))
 		if error!=OK: return error
 	var world:=Progress.new();world.path=location.garden
 	return world.save_garden()
 
 func delete_world(slot: int,confirmed: bool=false) -> Error:
+	if slot < 0 or slot >= capacity: return ERR_INVALID_PARAMETER
+	var location := paths(slot)
+	return Legacy.run(_legacy_scope(location), func(_plan): return _legacy_delete_world(slot, confirmed))
+
+func _legacy_delete_world(slot: int,confirmed: bool=false) -> Error:
 	if slot<0 or slot>=capacity: return ERR_INVALID_PARAMETER
 	if not confirmed: return ERR_UNAUTHORIZED
 	if is_active(slot): return ERR_BUSY
@@ -208,7 +297,7 @@ func delete_world(slot: int,confirmed: bool=false) -> Error:
 	var error:=claim(slot)
 	if error!=OK: return error
 	var archive: String=location.directory.path_join("backups/deleted-world-"+Crypto.new().generate_random_bytes(8).hex_encode())
-	error=DirAccess.make_dir_recursive_absolute(archive)
+	error=Legacy.create_archive(archive, location.garden)
 	if error==OK: error=DirAccess.copy_absolute(location.garden,archive.path_join("garden.cfg"))
 	# Write the tombstone before removal so legacy imports cannot resurrect the world.
 	if error==OK:

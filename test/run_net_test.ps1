@@ -41,7 +41,7 @@ New-Item -ItemType Directory -Force -Path $runPath | Out-Null
 $runPath=(Resolve-Path -LiteralPath $runPath).Path
 foreach($folder in @('saves','userdata','localdata','temp')){New-Item -ItemType Directory -Force -Path (Join-Path $runPath $folder) | Out-Null}
 $environmentBefore=@{}
-foreach($key in @('APPDATA','LOCALAPPDATA','TEMP','TMP','XDG_DATA_HOME','MYSTICAL_GARDEN_TEST_PORT')){$environmentBefore[$key]=[Environment]::GetEnvironmentVariable($key,'Process')}
+foreach($key in @('APPDATA','LOCALAPPDATA','TEMP','TMP','XDG_DATA_HOME','MYSTICAL_GARDEN_TEST_PORT','MYSTICAL_VALIDATION_RUN')){$environmentBefore[$key]=[Environment]::GetEnvironmentVariable($key,'Process')}
 $peers=@();$rows=@();$setupError='';$summary=$null
 function Quote-Argument([string]$value){
  if($value.Contains('"')){throw 'Quote characters are not allowed in process arguments.'}
@@ -52,14 +52,14 @@ function Start-Peer([string]$PeerRole,[int]$PeerIndex){
  $runtimePath=if($Pack){$runPath}else{$project}
  $arguments=@('--headless','--path',(Quote-Argument $runtimePath),'--script',(Quote-Argument $driver),'--log-file',(Quote-Argument (Join-Path $runPath "$name.engine.log")),'--max-fps',([string]$(if($PeerRole -eq 'host'){$HostFps}else{$GuestFps})))
  if($Pack){$arguments+=@('--main-pack',(Quote-Argument $Pack))}
- $arguments+=@('--','--role',$PeerRole,'--index',"$PeerIndex",'--guests',"$Clients",'--port',"$Port",'--address',(Quote-Argument $Address),'--run-id',$RunId,'--play-ms',"$PlayMs",'--timeout-ms',"$TimeoutMs",'--save-root',(Quote-Argument (Join-Path $runPath 'saves')),'--report-dir',(Quote-Argument $runPath),'--packaged',$(if($Pack){'true'}else{'false'}))
+ $arguments+=@('--','--role',$PeerRole,'--index',"$PeerIndex",'--guests',"$Clients",'--port',"$Port",'--address',(Quote-Argument $Address),'--run-id',$RunId,'--play-ms',"$PlayMs",'--timeout-ms',"$TimeoutMs",'--save-root',(Quote-Argument 'user://release-fixtures/supplied-network'),'--report-dir',(Quote-Argument $runPath),'--packaged',$(if($Pack){'true'}else{'false'}))
  $options=@{FilePath=$engine;ArgumentList=$arguments;PassThru=$true;RedirectStandardOutput=$stdout;RedirectStandardError=$stderr}
  if($env:OS -eq 'Windows_NT'){$options.WindowStyle='Hidden'}
  $process=Start-Process @options
  return @{name=$name;role=$PeerRole;index=$PeerIndex;process=$process;stdout=$stdout;stderr=$stderr;result=(Join-Path $runPath "result_$($PeerRole)_$PeerIndex.json");timed_out=$false}
 }
 try {
- $env:APPDATA=Join-Path $runPath 'userdata';$env:LOCALAPPDATA=Join-Path $runPath 'localdata';$env:TEMP=Join-Path $runPath 'temp';$env:TMP=$env:TEMP;$env:XDG_DATA_HOME=$env:APPDATA;$env:MYSTICAL_GARDEN_TEST_PORT=[string]$Port
+ $env:APPDATA=Join-Path $runPath 'userdata';$env:LOCALAPPDATA=Join-Path $runPath 'localdata';$env:TEMP=Join-Path $runPath 'temp';$env:TMP=$env:TEMP;$env:XDG_DATA_HOME=$env:APPDATA;$env:MYSTICAL_GARDEN_TEST_PORT=[string]$Port;$env:MYSTICAL_VALIDATION_RUN=$RunId
  if($Pack){
   $lockResource='assets/native/persistence_lock/b0_native_lock.dll'
   $sourceLock=Join-Path $project $lockResource

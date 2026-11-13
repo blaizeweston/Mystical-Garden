@@ -88,7 +88,7 @@ func flags(world: Node) -> Dictionary:
  return result
 
 func backup_fault(path: String) -> void:
- check(Batch.write_bytes(path + ".tmp", "unverified previous scratch".to_utf8_buffer()) == OK, "backup scratch fault")
+ check(Batch._write_bytes(path + ".tmp", "unverified previous scratch".to_utf8_buffer()) == OK, "backup scratch fault")
 
 func assert_refused(world: Node) -> void:
  var before := state()
@@ -191,12 +191,12 @@ func timed_research() -> void:
  var target: String = garden.path + ".pre-timed-research-v2.bak"
  var original := FileAccess.get_file_as_bytes(garden.path)
  check(garden.needs_research_backup and not garden.needs_heart_backup, "heart version 1 requires only timed research conversion")
- check(Batch.write_bytes(target, "unverifiable backup".to_utf8_buffer()) == OK, "block publication with contradictory backup")
+ check(Batch._write_bytes(target, "unverifiable backup".to_utf8_buffer()) == OK, "block publication with contradictory backup")
  var failed_save := garden.save_garden_guarded()
  check(failed_save.value.outcome.outcome == Batch.Outcome.ABORTED_RESTORED and failed_save.value.outcome.original_error == ERR_FILE_CORRUPT
   and garden.needs_research_backup and FileAccess.get_file_as_bytes(garden.path) == original
   and FileAccess.get_file_as_string(target) == "unverifiable backup", "backup contradiction preserves all evidence")
- check(DirAccess.remove_absolute(target) == OK and Batch.write_bytes(target + ".tmp", original) == OK, "replace fixture fault with verified interrupted backup")
+ check(DirAccess.remove_absolute(target) == OK and Batch._write_bytes(target + ".tmp", original) == OK, "replace fixture fault with verified interrupted backup")
  check(garden.save_garden_guarded().value.outcome.outcome == Batch.Outcome.COMMITTED and not garden.needs_research_backup
   and FileAccess.get_file_as_bytes(target) == original and not FileAccess.file_exists(target + ".tmp"), "matching scratch can safely publish and migration commits")
  var current := ConfigFile.new()

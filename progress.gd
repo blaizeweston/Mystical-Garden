@@ -237,7 +237,10 @@ func save_garden() -> Error:
 		return load("res://persistence_operations.gd").stage_serializer(self, _serialize_save)
 	if require_guarded_access:
 		return ERR_UNAUTHORIZED
-	var error := SaveBatch.record_serializer_error(_serialize_save(), path)
+	if SaveBatch.active and not SaveBatch.Legacy.held() and not SaveBatch.Legacy.fixture_path(path):
+		return SaveBatch.record_serializer_error(ERR_UNAUTHORIZED, path)
+	var error := SaveBatch.Legacy.run(PackedStringArray([path]), func(_plan): return _serialize_save(), migration_backup_paths())
+	error = SaveBatch.record_serializer_error(error, path)
 	if error == OK:
 		SaveBatch.legacy_serializer_saved(self)
 	return error

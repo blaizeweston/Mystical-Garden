@@ -101,7 +101,7 @@ func run() -> void:
  check(menu.garden_summary(2).state == "empty" and menu.character_summary(2).state == "empty", "fresh slots selectable")
  var invalid_profile: String = menu.characters.paths(2).character
  check(DirAccess.make_dir_recursive_absolute(invalid_profile.get_base_dir()) == OK, "invalid profile parent")
- check(Batch.write_bytes(invalid_profile, "[other]\nignored=1\n".to_utf8_buffer()) == OK, "invalid profile seed")
+ check(Batch._write_bytes(invalid_profile, "[other]\nignored=1\n".to_utf8_buffer()) == OK, "invalid profile seed")
  menu.select_character(2)
  check(menu.character_summary(2).state == "invalid" and menu.create_character_button.disabled, "invalid profile cannot be replaced")
  check(DirAccess.remove_absolute(invalid_profile) == OK, "dispose invalid profile fixture")
@@ -170,7 +170,7 @@ func run() -> void:
  await process_frame
  check(DirAccess.remove_absolute(proof) == OK, "dispose Garden journal fixture")
  var scratch := empty_garden.get_base_dir().path_join("deleted.cfg.tmp")
- check(Batch.write_bytes(scratch, "unresolved publication".to_utf8_buffer()) == OK, "tombstone scratch")
+ check(Batch._write_bytes(scratch, "unresolved publication".to_utf8_buffer()) == OK, "tombstone scratch")
  var scratch_hash := Slots._save_digest(scratch)
  menu.select_slot(2)
  check(menu.garden_summary(2).state == "pending_recovery" and menu.new_button.disabled and Slots._save_digest(scratch) == scratch_hash,
