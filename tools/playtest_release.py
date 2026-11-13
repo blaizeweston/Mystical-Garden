@@ -157,9 +157,9 @@ def retail_probes(stage, pack, metadata, env):
         "Error loading extension: 'res://assets/native/persistence_lock/persistence_lock.gdextension'.",
     ]
 
-    for probe in ("normal", "missing", "incompatible", "external-driver", "override", "redirect", "junction",
-                  "linked-save", "incompatible-save", "newer-root"):
-        home = sandbox / probe
+    for number, probe in enumerate(("normal", "missing", "incompatible", "external-driver", "override",
+                                    "redirect", "junction", "linked-save", "incompatible-save", "newer-root")):
+        home = sandbox / f"{number:02d}"
         home.mkdir()
         profile = home / "u"
         roaming = profile / "AppData/Roaming"
@@ -213,8 +213,9 @@ def retail_probes(stage, pack, metadata, env):
             and "Error 193" in line
         ] if probe == "incompatible" else []
         if probe == "incompatible":
-            allowed += ["Error loading extension: 'res://assets/native/persistence_lock/persistence_lock.gdextension'."]
-        if sorted(errors) != sorted(allowed) or (probe == "incompatible" and len(allowed) != 2) or evidence.FAIL.search(stdout + "\n" + stderr):
+            allowed += ["Can't open GDExtension dynamic library: 'res://assets/native/persistence_lock/persistence_lock.gdextension'.",
+                        "Error loading extension: 'res://assets/native/persistence_lock/persistence_lock.gdextension'."]
+        if sorted(errors) != sorted(allowed) or (probe == "incompatible" and len(allowed) != 3) or evidence.FAIL.search(stdout + "\n" + stderr):
             raise ValueError(f"Unexpected retail engine output in {probe}: {errors}")
         success = probe in ("normal", "override", "external-driver", "newer-root")
         blocked = {
@@ -236,7 +237,7 @@ def retail_probes(stage, pack, metadata, env):
             raise ValueError("An earlier playtest touched another version's save root.")
         if list(roaming.rglob("character.cfg")) or list(roaming.rglob("catalog.cfg")):
             raise ValueError(f"Unexpected canonical profile or catalog during retail probe {probe}.")
-        results[probe] = {"exit": code, "run_id": f"{version}-{probe}", "exe_sha256": sha(exe),
+        results[probe] = {"exit": code, "run_id": f"{version}-{probe}", "exe_sha256": sha(exe), "logs": home.name,
                           "expected_errors": len(allowed), "ready": success}
     return results
 
@@ -346,8 +347,9 @@ def build(args):
         run([engine, "--headless", "--path", project, "--editor", "--import"], project, env, output / "import.log")
         # Godot rewrites text import sidecars with LF. Use committed bytes for
         # validation and retain the generated import cache.
-        for relative in (Path(os.fsdecode(line)) for line in git("diff", "--name-only", "-z", "--", "*.import", repo=project).split(b"\0") if line):
-            raise ValueError(f"Godot changed the committed import configuration: {relative}.")
+        changed_imports = git("-c", "core.safecrlf=false", "diff", "--name-only", "--", "*.import", repo=project)
+        if changed_imports:
+            raise ValueError("Godot changed committed import configuration: " + changed_imports.decode().strip())
         git("restore", "--worktree", "--", "*.import", repo=project)
         if input_manifest(project, names) != manifest or git("status", "--porcelain=v1", repo=project):
             raise ValueError("Godot import changed the committed build inputs.")
