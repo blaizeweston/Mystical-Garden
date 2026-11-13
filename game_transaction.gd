@@ -21,25 +21,30 @@ static func restore(object: Object,state: Dictionary) -> void:
   if current is Array and value is Array: current.assign(value)
   elif current is Dictionary and value is Dictionary: restore_dict(current,value)
   else: object.set(key,value)
-static func run(game: Node,action: Callable):
+static func run(game: Node,action: Callable, verdict := {}):
  if game.has_meta(SESSION):
   if session_writable(game):
    game.status = "This action is unavailable in the guarded session."
   return false
  if Batch.guarded_active():
   return action.call() if _owner == game else false
- if Batch.active: return action.call()
+ if Batch.active:
+  var nested: Variant = action.call()
+  verdict.error = Batch.failure
+  return nested
  var diagnostic_transaction=preload("res://diagnostic_journal.gd").event("save","transaction_begin",{"operation":action.get_method()})
  var world:=snapshot(game.progress);var heart: Dictionary=game.progress.heart.serialize();var campaign:=snapshot(game.progress.campaign)
- var state:=snapshot(game);state.erase("players");var local: Dictionary=game.local_character.data.duplicate(true);var guest: Dictionary=game.guest_character.data.duplicate(true)
+ var state:=snapshot(game);state.erase("players");var local:=snapshot(game.local_character);var guest:=snapshot(game.guest_character)
  var players: Dictionary=game.players.duplicate(true)
+ var rng_state: int = game.rng.state
  game.transaction_publishes.clear();Batch.begin(game.progress.path)
  var result=action.call()
  # All persistent world mutations and the local character form one commit.
- game.progress.save_garden()
+ Batch.record_serializer_error(game.progress.save_garden(), game.progress.path)
  if game.players.has(game.HOST): game.local_character.data=game.players[game.HOST].character
- if game.session!="Guest": game.local_character.save_profile()
+ if game.session!="Guest": Batch.record_serializer_error(game.local_character.save_profile(), game.local_character.path)
  var error:=Batch.commit()
+ verdict.error = error
  if error!=OK:
   preload("res://diagnostic_journal.gd").event("save","transaction_rollback",{"error":error,"transaction_seq":diagnostic_transaction},"error")
   preload("res://game_metrics.gd").flush(false)
@@ -49,8 +54,10 @@ static func run(game: Node,action: Callable):
   for id in players:
    if not game.players.has(id): game.players[id]=players[id].duplicate(true)
    else: restore_dict(game.players[id],players[id])
-  game.local_character.data=game.players[game.HOST].character if game.players.has(game.HOST) else local
-  game.guest_character.data=guest
+  restore(game.local_character,local)
+  restore(game.guest_character,guest)
+  if game.players.has(game.HOST): game.local_character.data=game.players[game.HOST].character
+  game.rng.state=rng_state
   game.transaction_publishes.clear();game.status="Could not save this action. Nothing was consumed; please retry."
   return false
  preload("res://diagnostic_journal.gd").event("save","transaction_committed",{"transaction_seq":diagnostic_transaction})
@@ -104,8 +111,10 @@ static func run_gameplay(game: Node, scope: Scope, action: Callable, legacy_tran
  if not game.has_meta(SESSION):
   # Legacy callers keep their existing business conventions. There is no
   # typed persistence verdict on that route.
-  var value: Variant = run(game, action) if legacy_transaction else action.call()
-  return {"completed": true, "value": value, "notice": "", "persistence": {}}
+  var verdict := {}
+  var value: Variant = run(game, action, verdict) if legacy_transaction else action.call()
+  var saved: bool = verdict.get("error", OK) == OK
+  return {"completed": saved, "value": value, "notice": "" if saved else game.status, "persistence": {}}
  if _owner != null:
   return {"completed": false, "value": null, "notice": "Save operation is already in progress.",
    "persistence": _refusal(ERR_BUSY, "nested_gameplay_operation", "busy")}
@@ -207,11 +216,11 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
   else:
    for serializer in serializers:
     if serializer == game.progress:
-     serializer.save_garden()
+     Batch.record_serializer_error(serializer.save_garden(), serializer.path)
     else:
      if serializer == game.local_character and game.players.has(game.HOST):
       game.local_character.data = game.players[game.HOST].character
-     serializer.save_profile()
+     Batch.record_serializer_error(serializer.save_profile(), serializer.path)
   _participants = []
   _owner = null
   return value

@@ -232,7 +232,10 @@ func save_garden() -> Error:
 		return load("res://persistence_operations.gd").stage_serializer(self, _serialize_save)
 	if require_guarded_access:
 		return ERR_UNAUTHORIZED
-	return _serialize_save()
+	var error := SaveBatch.record_serializer_error(_serialize_save(), path)
+	if error == OK:
+		SaveBatch.legacy_serializer_saved(self)
+	return error
 
 func save_garden_guarded() -> Dictionary:
 	if require_guarded_access:
@@ -246,55 +249,58 @@ func save_garden_guarded() -> Dictionary:
 func migration_backup_paths() -> PackedStringArray:
 	return PackedStringArray([path + ".pre-tier-growth-v2.bak", path + ".pre-timed-research-v2.bak", path + ".pre-content-v2.bak", path + ".pre-altar-v1.bak", path + ".pre-inventory-v1.bak", path + ".pre-heart-v1.bak", path + ".pre-plots-v2.bak"])
 
+func confirm_migration(saved_path: String) -> void:
+	if path != saved_path:
+		return
+	needs_growth_backup = false
+	needs_research_backup = false
+	needs_content_backup = false
+	needs_altar_backup = false
+	needs_inventory_backup = false
+	needs_heart_backup = false
+	needs_plot_backup = false
+
 func _migration_backup(target: String, guarded: bool) -> Error:
 	if guarded:
 		return load("res://persistence_operations.gd").backup_serializer(path, target)
+	if DirAccess.dir_exists_absolute(target):
+		return ERR_FILE_CANT_WRITE
 	return OK if FileAccess.file_exists(target) else DirAccess.copy_absolute(path, target)
 
 func _serialize_save(stage := Callable()) -> Error:
+	if require_guarded_access or SaveBatch.guarded_active():
+		var operations = load("res://persistence_operations.gd")
+		if not operations.authorizes_serializer(self, stage):
+			return SaveBatch.record_serializer_error(ERR_UNAUTHORIZED, path)
 	ensure_storage()
 	if needs_growth_backup and FileAccess.file_exists(path):
 		var copied := _migration_backup(path + ".pre-tier-growth-v2.bak", stage.is_valid())
 		if copied != OK:
 			return copied
-		if not stage.is_valid():
-			needs_growth_backup = false
 	if needs_research_backup and FileAccess.file_exists(path):
 		var copied := _migration_backup(path + ".pre-timed-research-v2.bak", stage.is_valid())
 		if copied != OK:
 			return copied
-		if not stage.is_valid():
-			needs_research_backup = false
 	if needs_content_backup and FileAccess.file_exists(path):
 		var copied := _migration_backup(path + ".pre-content-v2.bak", stage.is_valid())
 		if copied != OK:
 			return copied
-		if not stage.is_valid():
-			needs_content_backup = false
 	if needs_altar_backup and FileAccess.file_exists(path):
 		var copied := _migration_backup(path + ".pre-altar-v1.bak", stage.is_valid())
 		if copied != OK:
 			return copied
-		if not stage.is_valid():
-			needs_altar_backup = false
 	if needs_inventory_backup and FileAccess.file_exists(path):
 		var copied := _migration_backup(path + ".pre-inventory-v1.bak", stage.is_valid())
 		if copied != OK:
 			return copied
-		if not stage.is_valid():
-			needs_inventory_backup = false
 	if needs_heart_backup and FileAccess.file_exists(path):
 		var copied := _migration_backup(path + ".pre-heart-v1.bak", stage.is_valid())
 		if copied != OK:
 			return copied
-		if not stage.is_valid():
-			needs_heart_backup = false
 	if needs_plot_backup and FileAccess.file_exists(path):
 		var copied := _migration_backup(path + ".pre-plots-v2.bak", stage.is_valid())
 		if copied != OK:
 			return copied
-		if not stage.is_valid():
-			needs_plot_backup = false
 	var file := ConfigFile.new()
 	file.set_value("content","component_crafts",component_crafts)
 	file.set_value("content","shared_components",shared_components)

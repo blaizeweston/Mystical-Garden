@@ -4,22 +4,47 @@ static var active:=false
 static var staged: Dictionary={}
 static var failure:=OK
 static var journal_path:=""
+static var _legacy_stages := {}
+static var _legacy_serializers := {}
 static func write_bytes(path: String,bytes: PackedByteArray) -> Error:
  if _guarded_owner != null: return ERR_BUSY
  var file:=FileAccess.open(path,FileAccess.WRITE)
  if file==null: return FileAccess.get_open_error()
- file.store_buffer(bytes);file.flush();var error:=file.get_error();file.close();return error
+ var stored := file.store_buffer(bytes)
+ file.flush()
+ var error := file.get_error()
+ file.close()
+ return ERR_FILE_CANT_WRITE if error == OK and not stored else error
 static func write(path: String,bytes: PackedByteArray) -> Error:
  if _guarded_owner != null: return reject_guarded_serializer(ERR_UNAUTHORIZED, path)
- var error:=write_bytes(path+".txn_stage" if active else path+".tmp",bytes)
+ var target := path+(".txn_stage" if active else ".tmp")
+ if active:
+  _legacy_serializers.erase(path)
+  if not FileAccess.file_exists(target): _legacy_stages[target] = true
+ var error:=write_bytes(target,bytes)
  if error!=OK:
-  if active: failure=error
-  return error
+  return record_serializer_error(error, path)
  if active: staged[path]=bytes;return OK
  return DirAccess.rename_absolute(path+".tmp",path)
+
+static func record_serializer_error(error: Error, path: String) -> Error:
+ if _guarded_owner != null:
+  return reject_guarded_serializer(error, path)
+ if active and failure == OK and error != OK:
+  failure = error
+ return error
+
+static func legacy_serializer_saved(serializer: RefCounted) -> void:
+ if active:
+  _legacy_serializers[serializer.path] = serializer
+ else:
+  serializer.confirm_migration(serializer.path)
+
 static func begin(root: String) -> void:
- if _guarded_owner != null: return
+ if _guarded_owner != null or active: return
  active=true;staged={};failure=OK;journal_path=root+".transaction"
+ _legacy_stages.clear()
+ _legacy_serializers.clear()
 static func recover(path: String) -> Error:
  if _guarded_owner != null: return ERR_BUSY
  var journal:=path+".transaction"
@@ -60,14 +85,23 @@ static func commit() -> Error:
    if error!=OK: break
  if error==OK:
   journal.set_value("transaction","committed",true);error=journal.save(journal_path)
+  if error==OK:
+   for path in _legacy_serializers:
+    _legacy_serializers[path].confirm_migration(path)
  var first: String=str(staged.keys()[0]);active=false;staged={}
+ _legacy_serializers.clear()
+ _legacy_stages.clear()
  var recovered:=recover(first)
  if error!=OK: return error
  return recovered
 static func cancel() -> void:
  if _guarded_owner != null: return
+ for target in _legacy_stages:
+  if FileAccess.file_exists(target): DirAccess.remove_absolute(target)
  for path in staged:
   if FileAccess.file_exists(path+".txn_stage"): DirAccess.remove_absolute(path+".txn_stage")
+ _legacy_stages.clear()
+ _legacy_serializers.clear()
  active=false;staged={}
 
 # B1 opt-in API. Legacy callers above retain their existing Error/void contract.
@@ -196,11 +230,9 @@ class GuardedAttempt extends RefCounted:
  func stage(path: String, bytes: PackedByteArray) -> Error:
   if not accepting_stages or not Thread.is_main_thread():
    return ERR_UNAUTHORIZED
-  if result.original_error != OK:
-   return result.original_error
   if no_op or not originals.has(path) or bytes.size() > Planner.MAX_RECORD_BYTES:
    _fail(ERR_INVALID_PARAMETER, "stage_request", path)
-   return result.original_error
+   return ERR_INVALID_PARAMETER
   requested[path] = {"exists": true, "bytes": bytes.duplicate()}
   return OK
 

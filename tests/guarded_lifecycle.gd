@@ -99,7 +99,7 @@ func run() -> void:
  world.remove_meta(&"guarded_gameplay_test_fault")
  check(not failed_save.completed and world.progress.needs_content_backup and world.local_character.needs_content_backup and disk()[G]==before[G] and disk()[C]==before[C],"verified abort restores bytes and migration flags")
  check(Tx.run_gameplay(world,Tx.Scope.PAIR,func():world.progress.knowledge+=1).completed,"migration retry")
- check(world.progress.needs_content_backup and world.local_character.needs_content_backup and disk()[G+".pre-content-v2.bak"]==before[G]
+ check(not world.progress.needs_content_backup and not world.local_character.needs_content_backup and disk()[G+".pre-content-v2.bak"]==before[G]
   and disk()[C+".pre-content-v2.bak"]==before[C],"migration copies retain originals")
  record("migration_abort_retry",before,{"first_outcome":failed_save.persistence.value.outcome.outcome})
  before=disk()

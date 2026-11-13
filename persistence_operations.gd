@@ -167,7 +167,7 @@ static func commit_serializers(context: RefCounted, serializers: Array, anchor: 
  if scope.is_empty() or not action.is_valid():
   return _result(ERR_INVALID_PARAMETER, "invalid", "invalid_serializer_operation")
  var checked := run_nested(context, scope.paths + scope.auxiliary, func(_context):
-  return Batch._run_guarded(_native_context, scope.paths, anchor, func(stage):
+  var execution := Batch._run_guarded(_native_context, scope.paths, anchor, func(stage):
    _serializer_context = context
    _serializers = scope.bindings
    _backup_owners = scope.backups
@@ -177,7 +177,12 @@ static func commit_serializers(context: RefCounted, serializers: Array, anchor: 
    _serializers = {}
    _backup_owners = {}
    _serializer_context = null
-   return value, false, fault))
+   return value, false, fault)
+  var final: Batch.Finalization = execution.get("outcome")
+  if final != null and final.outcome in [Batch.Outcome.COMMITTED, Batch.Outcome.COMMITTED_CLEANUP_PENDING]:
+   for serializer in serializers:
+    serializer.confirm_migration(scope.bindings[serializer.get_instance_id()])
+  return execution)
  return checked.value if checked.ran else checked
 
 ## Atomic publication of one catalog, preference or lease file. A retained
@@ -326,11 +331,15 @@ static func transaction_result(execution: Dictionary) -> Dictionary:
  result.outcome = outcome
  return result
 
+static func authorizes_serializer(serializer: RefCounted, stage: Callable) -> bool:
+ return Thread.is_main_thread() and _stage.is_valid() and _stage == stage \
+  and _serializers.get(serializer.get_instance_id()) == serializer.path
+
 static func stage_serializer(serializer: RefCounted, operation: Callable) -> Error:
  if not Thread.is_main_thread():
   return ERR_UNAUTHORIZED
  var path: String = serializer.path
- if not _stage.is_valid() or _serializers.get(serializer.get_instance_id()) != path:
+ if not authorizes_serializer(serializer, _stage):
   return Batch.reject_guarded_serializer(ERR_UNAUTHORIZED, path)
  var scope := PackedStringArray([path])
  for backup: String in serializer.migration_backup_paths():
@@ -362,13 +371,18 @@ static func backup_serializer(source: String, target: String) -> Error:
   return ERR_UNAUTHORIZED
  var scratch := target + ".tmp"
  var outcome := Authorization.run_nested(_native_context, PackedStringArray([source, target, scratch]), func(token):
-  if FileAccess.file_exists(target):
-   return OK
   if DirAccess.dir_exists_absolute(scratch) or DirAccess.dir_exists_absolute(target):
    return ERR_BUSY
   var prior := Planner._read_bytes(source)
   if not prior.ok:
    return ERR_FILE_CANT_READ
+  if FileAccess.file_exists(target):
+   var published := Planner._read_bytes(target)
+   if not published.ok or published.bytes != prior.bytes:
+    return ERR_FILE_CORRUPT
+   # A publication that succeeded before a previous process stopped can be
+   # reused. Conflicting scratch remains evidence and blocks this migration.
+   return ERR_BUSY if FileAccess.file_exists(scratch) else OK
   if FileAccess.file_exists(scratch):
    var previous := Planner._read_bytes(scratch)
    if not previous.ok or previous.bytes != prior.bytes:

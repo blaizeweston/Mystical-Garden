@@ -150,7 +150,7 @@ func run() -> void:
   world.rng.randi()
   var nested := Tx.run_guarded(world, func():
    check(unrelated.save_profile() == ERR_UNAUTHORIZED, "foreign nested serializer rejected")
-   check(world.progress.save_garden() == ERR_UNAUTHORIZED, "later serializer retains first error"), Callable(), Tx.Scope.PROFILE)
+   check(world.progress.save_garden() == OK, "later serializer can stage without clearing the first error"), Callable(), Tx.Scope.PROFILE)
   check(nested.get("nested", false), "nested business callback executed")
   return true)
  verify("nested_first_error", aborted.persistence, Batch.Outcome.ABORTED_RESTORED, before)

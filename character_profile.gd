@@ -124,7 +124,10 @@ func save_profile() -> Error:
 		return load("res://persistence_operations.gd").stage_serializer(self, _serialize_save)
 	if require_guarded_access:
 		return ERR_UNAUTHORIZED
-	return _serialize_save()
+	var error := SaveBatch.record_serializer_error(_serialize_save(), path)
+	if error == OK:
+		SaveBatch.legacy_serializer_saved(self)
+	return error
 
 func save_profile_guarded() -> Dictionary:
 	if require_guarded_access:
@@ -134,18 +137,26 @@ func save_profile_guarded() -> Dictionary:
 func migration_backup_paths() -> PackedStringArray:
 	return PackedStringArray([path + ".pre-content-v2.bak"])
 
+func confirm_migration(saved_path: String) -> void:
+	if path == saved_path:
+		needs_content_backup = false
+
 func _migration_backup(target: String, guarded: bool) -> Error:
 	if guarded:
 		return load("res://persistence_operations.gd").backup_serializer(path, target)
+	if DirAccess.dir_exists_absolute(target):
+		return ERR_FILE_CANT_WRITE
 	return OK if FileAccess.file_exists(target) else DirAccess.copy_absolute(path, target)
 
 func _serialize_save(stage := Callable()) -> Error:
+	if require_guarded_access or SaveBatch.guarded_active():
+		var operations = load("res://persistence_operations.gd")
+		if not operations.authorizes_serializer(self, stage):
+			return SaveBatch.record_serializer_error(ERR_UNAUTHORIZED, path)
 	if needs_content_backup and FileAccess.file_exists(path):
 		var copied := _migration_backup(path + ".pre-content-v2.bak", stage.is_valid())
 		if copied != OK:
 			return copied
-		if not stage.is_valid():
-			needs_content_backup = false
 	var file := ConfigFile.new()
 	file.set_value("content","manifest",ContentIDs.manifest())
 	file.set_value("character", "progress", data)
