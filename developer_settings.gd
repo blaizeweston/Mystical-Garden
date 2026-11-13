@@ -32,9 +32,8 @@ func _ready() -> void:
 		settings.button(tools,"Open Developer Garden",open_garden)
 		if context != null and context.production_route:
 			settings.button(tools,"Review Developer Garden Recovery…",func():
-				var path: String = context.storage.root_path.path_join("developer-garden/slot_1/garden.cfg")
 				settings.cancel()
-				context.review_recovery(path))
+				context.review_developer_recovery())
 	elif context != null and Developer.is_test_garden(context):
 		grant_button = Button.new()
 		grant_button.text = "Grant Knowledge and starter supplies"

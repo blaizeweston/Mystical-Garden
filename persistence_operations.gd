@@ -419,13 +419,42 @@ static func _publish_backup(token: RefCounted, scratch: String, target: String, 
 static func recover(paths: PackedStringArray) -> Dictionary:
  return _recover(paths)
 
+## Read-only observations. The selection can be blocked by a shared
+## participant without owning the selected journal.
+static func review_recovery(paths: PackedStringArray) -> Dictionary:
+ var scope := Inspection.recovery_seeds(paths)
+ var selected := Planner.discover(scope)
+ var options := []
+ for anchor: String in selected.journal_anchors:
+  var owner := Planner.discover(PackedStringArray([anchor]))
+  var isolated: bool = owner.journal_anchors == PackedStringArray([anchor])
+  var blocked := recovery_scratch(scope + owner.participants)
+  var can_recover: bool = (isolated and blocked.is_empty() and selected.state == "pending_recovery"
+   and owner.state == "pending_recovery" and not owner.authorization_paths.is_empty()
+   and not owner.active_leases.values().has(true))
+  options.append({"anchor":anchor, "plan":owner, "can_recover":can_recover})
+ return {"selection":selected, "options":options}
+
+static func recovery_scratch(paths: PackedStringArray) -> String:
+ var layout := Layout.directories()
+ for path: String in paths:
+  var scratch := PackedStringArray([path + ".tmp"])
+  if Layout.is_canonical(path, layout):
+   scratch.append(path.get_base_dir().path_join("session.cfg.tmp"))
+   var metadata := Layout.deletion_metadata(path, layout)
+   if not metadata.is_empty(): scratch.append(metadata + ".tmp")
+  for file in scratch:
+   if FileAccess.file_exists(file) or DirAccess.dir_exists_absolute(file):
+    return file
+ return ""
+
 ## Title recovery requires the plan the player reviewed and no live leases.
-static func recover_selected(reviewed: Dictionary) -> Dictionary:
+static func recover_selected(reviewed: Dictionary, selection := PackedStringArray(), observed := {}) -> Dictionary:
  if reviewed.get("state") != "pending_recovery" or reviewed.get("authorization_paths", []).is_empty():
   return _refuse(reviewed.get("state","invalid"), "recovery_review_not_authorizable")
- return _recover(reviewed.requested, Callable(), reviewed)
+ return _recover(reviewed.requested, Callable(), reviewed, selection, observed)
 
-static func _recover(paths: PackedStringArray, fault := Callable(), reviewed := {}) -> Dictionary:
+static func _recover(paths: PackedStringArray, fault := Callable(), reviewed := {}, selection := PackedStringArray(), observed := {}) -> Dictionary:
  if not Thread.is_main_thread() or _context != null or Batch.active:
   return _result(ERR_BUSY, "busy", "operation_in_progress")
  var plan := Planner.discover(paths)
@@ -438,6 +467,11 @@ static func _recover(paths: PackedStringArray, fault := Callable(), reviewed := 
   refused.path = plan.path
   return refused
  var boundary := Authorization.run(plan.authorization_paths, func(token):
+  if not selection.is_empty():
+   var current := review_recovery(selection)
+   if not _same_recovery_selection(observed, current.selection) or not current.options.any(func(option):
+    return option.can_recover and option.plan.requested == paths):
+    return {"state":"pending_recovery", "reason":"recovery_review_changed", "verified":false, "write_blocked":true}
   return Batch._recover_guarded(token, plan, paths, fault, not reviewed.is_empty()))
  if not boundary.ran:
   var state := "busy" if boundary.error == ERR_BUSY else "invalid"
@@ -451,6 +485,11 @@ static func _recover(paths: PackedStringArray, fault := Callable(), reviewed := 
   result.error = boundary.error
   execution.write_blocked = true
  return result
+
+static func _same_recovery_selection(previous: Dictionary, current: Dictionary) -> bool:
+ for key in ["state", "requested", "participants", "journal_anchors", "observed"]:
+  if previous.get(key) != current.get(key): return false
+ return true
 
 static func run_production(paths: PackedStringArray, auxiliaries: PackedStringArray, operation: Callable, expected := {}) -> Dictionary:
  var activation := Integration.activation_status()

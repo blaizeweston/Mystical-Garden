@@ -10,6 +10,10 @@ var production_backend_ready := true
 var garden_recovery_button: Button
 var character_recovery_button: Button
 var recovery_confirmation: ConfirmationDialog
+var recovery_owner_picker: OptionButton
+var recovery_options := []
+var recovery_selection := PackedStringArray()
+var recovery_observation := {}
 var reviewed_recovery: Dictionary = {}
 var recovery_notice: Label
 const Network=preload("res://network_settings.gd")
@@ -300,6 +304,9 @@ void fragment() {
 			recovery_confirmation.dialog_hide_on_ok = false
 			recovery_confirmation.confirmed.connect(apply_recovery)
 			recovery_confirmation.canceled.connect(func(): reviewed_recovery.clear())
+			recovery_owner_picker = OptionButton.new()
+			recovery_owner_picker.item_selected.connect(select_recovery_owner)
+			recovery_confirmation.add_child(recovery_owner_picker)
 	elif error!=OK:
 		notice.text="Could not prepare save slots. Your existing files were left in place."
 	if restore_last_selection:
@@ -415,33 +422,66 @@ func select_slot(slot: int) -> void:
 			delete_button.disabled = true
 
 func review_recovery(path: String) -> void:
-	if not production_route or transitioning: return
+	review_recovery_paths(PackedStringArray([path]))
+
+func review_developer_recovery() -> void:
+	var slot := storage.root_path.path_join("developer-garden/slot_1")
+	review_recovery_paths(PackedStringArray([slot.path_join("garden.cfg"), slot.path_join("character.cfg")]))
+
+func review_recovery_paths(paths: PackedStringArray) -> void:
+	if not production_route or transitioning or paths.is_empty(): return
 	var ops = GuardedSession.Ops
-	if not ops.Layout.is_canonical(path, ops.Layout.directories()): return
-	var plan: Dictionary = ops.Planner.discover(PackedStringArray([path]))
-	reviewed_recovery = plan
+	for path in paths:
+		if not ops.Layout.is_canonical(path, ops.Layout.directories()): return
+	var review: Dictionary = ops.review_recovery(paths)
+	recovery_selection = paths
+	recovery_observation = review.selection
+	recovery_options = review.options
+	recovery_owner_picker.clear()
+	for option in recovery_options:
+		recovery_owner_picker.add_item(option.anchor.trim_prefix("user://"))
+	recovery_owner_picker.visible = recovery_options.size() > 1
 	recovery_confirmation.title = "Review save recovery"
 	recovery_confirmation.ok_button_text = "Recover"
-	var authorizable: bool = production_backend_ready and plan.state == "pending_recovery" and not plan.authorization_paths.is_empty() and not plan.journals.is_empty() and not plan.active_leases.values().has(true)
+	if recovery_options.is_empty():
+		reviewed_recovery = review.selection
+		recovery_confirmation.get_ok_button().disabled = true
+		recovery_confirmation.dialog_text = "Review needed. Save and archive files are preserved.\n\n" + review.selection.reason
+	else:
+		recovery_owner_picker.select(0)
+		select_recovery_owner(0)
+	recovery_confirmation.popup_centered(Vector2i(650, 280))
+
+func select_recovery_owner(index: int) -> void:
+	if index < 0 or index >= recovery_options.size(): return
+	var choice: Dictionary = recovery_options[index]
+	reviewed_recovery = choice.plan
+	var authorizable: bool = production_backend_ready and choice.can_recover
 	recovery_confirmation.get_ok_button().disabled = not authorizable
 	var detail := "Review needed. Save and archive files are preserved."
 	if authorizable:
-		detail = "Verify the saved transaction and complete cleanup or restore the originals."
-	recovery_confirmation.dialog_text = detail + "\n\n" + "\n".join(plan.participants)
-	recovery_confirmation.popup_centered(Vector2i(560, 230))
+		detail = "Verify this transaction and complete cleanup or restore its original saves."
+	var record: Dictionary = {}
+	for item in choice.plan.journals:
+		if item.anchor == choice.anchor: record = item; break
+	var members := PackedStringArray(record.get("entries", {}).keys())
+	members.sort()
+	recovery_confirmation.dialog_text = detail + "\n\nJournal owner: " + choice.anchor + "\nParticipants\n" + "\n".join(members)
 
 func review_legacy_recovery() -> void:
 	if not production_route or not import_legacy: return
-	for path: String in [storage.legacy_garden,storage.legacy_character,storage.legacy_guest]:
-		var plan := GuardedSession.Ops.Planner.discover(PackedStringArray([path]))
-		if plan.state not in ["healthy","empty"]:
-			review_recovery(path)
-			return
-	notice.text = "No older save recovery is pending."
+	var paths := PackedStringArray([storage.legacy_garden, storage.legacy_character, storage.legacy_guest,
+		storage.paths(0).garden, storage.paths(0).character, storage.paths(1).character,
+		characters._slot_profile(0)])
+	var review: Dictionary = GuardedSession.Ops.review_recovery(paths)
+	if review.selection.state in ["healthy", "empty"] and GuardedSession.Ops.recovery_scratch(review.selection.participants).is_empty():
+		notice.text = "No older save recovery is pending."
+		return
+	review_recovery_paths(paths)
 
 func apply_recovery() -> void:
 	if not production_route or transitioning or not recovery_confirmation.visible or recovery_confirmation.get_ok_button().disabled: return
-	var result := GuardedSession.Ops.recover_selected(reviewed_recovery)
+	var result := GuardedSession.Ops.recover_selected(reviewed_recovery, recovery_selection, recovery_observation)
 	var recovery: Dictionary = result.get("value", {}) if result.get("ran",false) else {}
 	var message := "Recovery could not be verified. Save and archive evidence is preserved."
 	if result.error == OK and recovery.get("verified",false) and not recovery.get("write_blocked",true):
@@ -450,9 +490,9 @@ func apply_recovery() -> void:
 		message = "Original saves restored and committed saves cleaned up." if restored and committed else "Original saves restored." if restored else "Committed saves verified and recovery cleanup completed."
 		recovery_confirmation.hide()
 		var return_paths: PackedStringArray = get_meta(&"guarded_return_recovery_paths",PackedStringArray())
-		if is_instance_valid(recovery_notice) and not return_paths.is_empty() and return_paths.has(reviewed_recovery.requested[0]):
-			var fresh := GuardedSession.Ops.Planner.discover(return_paths)
-			if fresh.state in ["healthy","empty"]:
+		if is_instance_valid(recovery_notice) and not return_paths.is_empty() and Array(return_paths).any(func(path): return reviewed_recovery.participants.has(path)):
+			var fresh := GuardedSession.Ops.review_recovery(return_paths)
+			if fresh.selection.state in ["healthy","empty"] and GuardedSession.Ops.recovery_scratch(fresh.selection.participants).is_empty():
 				recovery_notice.hide()
 				remove_meta(&"guarded_return_recovery_paths")
 	else:
@@ -479,8 +519,24 @@ func review_legacy_import() -> void:
 
 func import_legacy_saves() -> void:
 	if not production_route or not production_backend_ready or transitioning or not import_legacy: return
-	var result := GuardedSession.prepare(storage, characters, true)
-	notice.text = "Older saves checked and eligible saves imported." if GuardedSession.completed(result) else GuardedSession.notice(result)
+	var fault: Callable = get_meta(&"legacy_import_test_fault", Callable()) if DisplayServer.get_name() == "headless" else Callable()
+	var result := preload("res://legacy_save_import.gd").run(storage, characters, fault)
+	match result.get("reason", ""):
+		"legacy_identity_unverified": notice.text = "An older character has no verifiable identity. Nothing was imported. The original saves are preserved."
+		"legacy_roster_identity_collision": notice.text = "A roster character already uses this identity. Review the older saves before importing."
+		"roster_full": notice.text = "The character roster is full. No older saves were copied."
+		"legacy_import_no_changes": notice.text = "No eligible older saves needed importing."
+		_: notice.text = "Older saves imported." if GuardedSession.completed(result) else GuardedSession.notice(result)
+	if result.get("outcome") != null and result.outcome.write_blocked:
+		var pending_paths: PackedStringArray = get_meta(&"guarded_return_recovery_paths", PackedStringArray())
+		for path in result.outcome.paths:
+			if not pending_paths.has(path): pending_paths.append(path)
+		set_meta(&"guarded_return_recovery_paths", pending_paths)
+		if not is_instance_valid(recovery_notice):
+			recovery_notice = label(notice.get_parent(), "", 14, Color("#e6c689"))
+			recovery_notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		recovery_notice.text = notice.text
+		recovery_notice.show()
 	refresh_characters()
 	select_slot(selected)
 

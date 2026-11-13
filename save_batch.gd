@@ -695,6 +695,13 @@ static func _recover_guarded(token: RefCounted, preview: Dictionary, paths: Pack
    answer.authorization_error = ERR_BUSY
    return answer
   if idle_only:
+   var operations = load("res://persistence_operations.gd")
+   var scratch: String = operations.recovery_scratch(locked.participants)
+   if not scratch.is_empty():
+    answer.reason = "metadata_publication_pending"
+    answer.path = scratch
+    answer.authorization_error = ERR_BUSY
+    return answer
    for path: String in locked.participants:
     var marker := path.get_base_dir().path_join("session.cfg")
     if locked.active_leases.get(marker,false) or FileAccess.file_exists(marker+".tmp") or DirAccess.dir_exists_absolute(marker+".tmp"):

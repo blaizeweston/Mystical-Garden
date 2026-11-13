@@ -66,9 +66,37 @@ static func archive_source(path: String, supported: Dictionary) -> String:
 
 static func valid_journal_scope(anchor: String, members: PackedStringArray, supported: Dictionary) -> bool:
  var metadata := deletion_metadata(anchor, supported)
+ var world_root := anchor.get_base_dir().get_base_dir()
+ if ROOTS.has(world_root) and anchor == world_root.path_join("slot_1/garden.cfg"):
+  var roster_catalog := world_root.path_join("characters/catalog.cfg")
+  if members.has(roster_catalog):
+   return members.size() == 2 and members.has(anchor)
+ if anchor.get_base_dir().get_base_dir().get_file() == "characters" and members.has(metadata):
+  return _valid_roster_catalog_scope(anchor, metadata, members, supported)
  for path in members:
   if not is_canonical(path, supported) and (path != metadata or not members.has(anchor)):
    return false
   if members.has(metadata) and is_canonical(path, supported) and path.get_base_dir() != anchor.get_base_dir():
    return false
  return true
+
+## A roster-anchored batch may register a profile and its exact legacy
+## destinations with the shared catalog. Tombstones and cross-root paths
+## remain outside this journal shape.
+static func _valid_roster_catalog_scope(anchor: String, catalog: String, members: PackedStringArray, supported: Dictionary) -> bool:
+ var roster := catalog.get_base_dir()
+ var root := roster.get_base_dir()
+ if not ROOTS.has(root) or not is_canonical(anchor, supported) or not members.has(anchor):
+  return false
+ var profiles := 0
+ for path in members:
+  if path == catalog:
+   continue
+  if not is_canonical(path, supported):
+   return false
+  if path.get_base_dir().get_base_dir() == roster:
+   profiles += 1
+   continue
+  if path not in [root.path_join("slot_1/garden.cfg"), root.path_join("slot_1/character.cfg"), root.path_join("slot_2/character.cfg")]:
+   return false
+ return profiles <= 3

@@ -54,11 +54,7 @@ static func _inspect(path: String, section: String, owned_session := false) -> D
  var matches_kind := leaf == "garden.cfg" if section == "garden" else leaf in ["character.cfg", "character-local-guest.cfg"]
  if not matches_kind:
   return {"result": result, "file": null}
- var participants := PackedStringArray([path])
- var metadata := Layout.deletion_metadata(path, Layout.directories())
- if not metadata.is_empty() and DirAccess.dir_exists_absolute(metadata.get_base_dir()):
-  participants.append(metadata)
- var plan := Planner.discover(participants)
+ var plan := Planner.discover(recovery_seeds(PackedStringArray([path])))
  result.state = plan.state
  result.reason = plan.reason
  result.participants = plan.participants
@@ -82,11 +78,33 @@ static func _inspect(path: String, section: String, owned_session := false) -> D
  var content: String = bytes.bytes.get_string_from_utf8()
  if content.to_utf8_buffer() != bytes.bytes or not _safe_value_syntax(content):
   return _refuse(result, "invalid", "unsafe_save_content")
- var file := ConfigFile.new()
- if file.parse(content) != OK or not file.has_section(section):
+ var file := _parse_save(content, section)
+ if file == null:
   return _refuse(result, "invalid", "invalid_save_content")
  result.digest = plan.observed[path]
  return {"result": result, "file": file}
+
+static func recovery_seeds(paths: PackedStringArray) -> PackedStringArray:
+ var participants := paths.duplicate()
+ var layout := Layout.directories()
+ for path in paths:
+  var metadata := Layout.deletion_metadata(path, layout)
+  if not metadata.is_empty() and DirAccess.dir_exists_absolute(metadata.get_base_dir()) and not participants.has(metadata):
+   participants.append(metadata)
+ participants.sort()
+ return participants
+
+static func decode_save(bytes: PackedByteArray, section: String) -> ConfigFile:
+ var content := bytes.get_string_from_utf8()
+ if content.to_utf8_buffer() != bytes or not _safe_value_syntax(content):
+  return null
+ return _parse_save(content, section)
+
+static func _parse_save(content: String, section: String) -> ConfigFile:
+ var file := ConfigFile.new()
+ if file.parse(content) != OK or (not section.is_empty() and not file.has_section(section)):
+  return null
+ return file
 
 static func _safe_value_syntax(content: String) -> bool:
  # ConfigFile can instantiate Object and load resources through Variant syntax.
