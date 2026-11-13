@@ -295,7 +295,7 @@ func create_guarded(slot: int, name: String, class_id: int, appearance: Array) -
 func update_guarded(slot: int, name: String, class_id: int, appearance: Array, digest := "") -> Dictionary:
  return _edit_guarded(slot, name, class_id, appearance, true, digest)
 
-func _edit_guarded(slot: int, name: String, class_id: int, appearance: Array, editing: bool, digest := "") -> Dictionary:
+func _edit_guarded(slot: int, name: String, class_id: int, appearance: Array, editing: bool, digest := "", fault := Callable()) -> Dictionary:
  var cleaned := Profile.clean_name(name)
  if slot < 0 or slot >= MAX_COUNT or cleaned.is_empty() or class_id < 0 or class_id >= Profile.Classes.DEFINITIONS.size():
   return Ops.management_result(ERR_INVALID_PARAMETER, "invalid_character")
@@ -332,7 +332,7 @@ func _edit_guarded(slot: int, name: String, class_id: int, appearance: Array, ed
    profile.data.appearance = preload("res://character_appearance.gd").normalize(appearance)
   else:
    profile.data = Profile.normalize({"name": cleaned, "active_class": class_id, "appearance": appearance})
-  return Ops.transaction_result(Ops.commit_serializers(context, [profile], profile.path, profile.save_profile)))
+  return Ops.transaction_result(Ops.commit_serializers(context, [profile], profile.path, profile.save_profile, fault)))
 
 func set_capacity_guarded(amount: int) -> Dictionary:
  if amount < INITIAL_COUNT or amount > MAX_COUNT:

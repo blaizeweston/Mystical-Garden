@@ -1324,7 +1324,7 @@ func run_guarded_action(id: int, scope: Transactions.Scope, action: Callable) ->
 		for effect in effects:
 			effect.call()
 		if Transactions.pending_notice(self)==Transactions.CLEANUP_NOTICE and multiplayer.is_server():
-			send_expedition_state(0.0,true)
+			send_expedition_state.call_deferred(0.0,true)
 	return result
 
 func record_settlement_metric(effects,event: String,fields: Dictionary) -> void:

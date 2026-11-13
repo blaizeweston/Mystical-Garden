@@ -811,6 +811,8 @@ func _create_character_guarded(character_name: String, class_id: int, appearance
 		creator.title = GuardedSession.notice(result)
 		creator.get_ok_button().disabled = true
 		creating_slot = -1
+		refresh_characters()
+		select_slot(selected)
 		return
 	creator.dismiss()
 	selected_character = target

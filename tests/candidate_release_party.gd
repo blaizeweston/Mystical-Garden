@@ -7,6 +7,7 @@ const G = "user://saves/slot_1/garden.cfg"
 const P = "user://saves/characters/slot_1/character.cfg"
 var sync_path: String
 var failed := false
+var settlement_fault := OS.get_environment("MYSTICAL_F5_DISCONNECT")
 
 func _initialize() -> void:
  call_deferred("run")
@@ -139,15 +140,50 @@ func host() -> void:
  check(game.encounter_rewarded and game.pending_kill_rewards.is_empty() and game.players[1].character.monsters[kind]==host_count+1
   and FileAccess.get_sha256(G)!=battle_before,"host reward and adaptation commit")
  print("CASE ",JSON.stringify({"case":"four_player_combat","before":battle_before,"after":FileAccess.get_sha256(G),"kind":kind}))
+ var remote: int = player_id(game,"2")
+ var target: Dictionary = game.players[remote]
+ var helper: Dictionary = game.players[1]
+ game.battlefield.procedural=false
+ game.battlefield.barriers.clear()
+ helper.pos=Vector3.ZERO
+ target.pos=Vector3(.5,0,0)
+ game.damage_player(remote,target,999)
+ check(target.fallen,"real remote ally downed")
+ var revive_before := FileAccess.get_sha256(G)
+ game.set_meta(&"guarded_gameplay_test_fault",func(phase,_path): return ERR_FILE_CANT_WRITE if phase=="stage" else OK)
+ game.garden_action(1,"revive:"+str(remote))
+ game.remove_meta(&"guarded_gameplay_test_fault")
+ check(target.fallen and target.lost_health==0 and FileAccess.get_sha256(G)==revive_before,
+  "revive abort preserves real remote ally's downed state")
+ game.garden_action(1,"revive:"+str(remote))
+ var cost: int = target.lost_health
+ check(not target.fallen and cost>0,"real remote ally revives at one cost")
+ game.garden_action(1,"revive:"+str(remote))
+ check(target.lost_health==cost,"repeat remote revive cannot charge twice")
+ print("CASE ",JSON.stringify({"case":"remote_revive","garden":FileAccess.get_sha256(G),"cost":cost}))
  var leaving: int = player_id(game,"1")
  var identity: String = game.players[leaving].seed_owner
  var kills: int = game.players[leaving].character.monsters[kind]
  game.MonsterRewards.queue(game,"pending-on-disconnect",kind,0,game.enemy_pos,false)
- game.set_meta(&"guarded_gameplay_test_fault",func(phase,_path): return ERR_FILE_CANT_WRITE if phase=="stage" else OK)
+ game.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):
+  if settlement_fault=="uncertain" and phase in ["publish_commit_marker","restore"]: return ERR_CANT_CREATE
+  if settlement_fault=="cleanup" and phase=="publish_receipt": return ERR_CANT_CREATE
+  if settlement_fault.is_empty() and phase=="stage": return ERR_FILE_CANT_WRITE
+  return OK)
  var disconnect_before := FileAccess.get_sha256(G)
  mark("disconnect-pending")
+ if not await until(func():return read("disconnect-ready")=="yes"):
+  check(false,"guest ready for transport disconnect")
+  return
+ # Keep the cleanup-pending world alive long enough to deliver the
+ # explicit window-close notification. The ENet tree still polls.
+ if settlement_fault=="cleanup": game.set_process(false)
+ game.online_peer.disconnect_peer(leaving)
  if not await until(func(): return not game.players.has(leaving) and read("offline-1")=="yes"):
   check(false,"actual peer disconnect with pending host rewards")
+  return
+ if not settlement_fault.is_empty():
+  await finish_blocked_disconnect(game,identity,kills,kind,disconnect_before)
   return
  check(game.pending_departures.has(leaving) and game.pending_kill_rewards.size()==1
   and FileAccess.get_sha256(G)==disconnect_before and game.status.begins_with("Save cancelled"),"failed disconnect settlement retains pending reward and Garden bytes")
@@ -173,6 +209,52 @@ func host() -> void:
  game.return_to_main_menu()
  check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"host offline before detach")
  check(await until(func():return read("offline-1")=="yes" and read("offline-2")=="yes" and read("offline-3")=="yes"),"all guests return through title")
+
+func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: int, before: String) -> void:
+ var after := FileAccess.get_sha256(G)
+ var evidence := FileAccess.get_sha256(G+".transaction")
+ var warning := Tx.pending_notice(game)
+ var cleanup := settlement_fault=="cleanup"
+ check(not evidence.is_empty() and after!=before and not Tx.session_writable(game),"disconnect preserves write-blocking evidence")
+ check((warning==Tx.CLEANUP_NOTICE) if cleanup else warning.contains("uncertain"),"disconnect outcome warning")
+ check(int(game.progress.character_records[identity].profile.monsters[kind])==kills+1,"settlement memory retains computed reward")
+ game.remove_meta(&"guarded_gameplay_test_fault")
+ var old_id := game.get_instance_id()
+ mark("blocked-reconnect")
+ if not await until(func(): return read("blocked-refused")=="yes"):
+  check(false,"reconnect must be refused while host is blocked")
+  return
+ check(FileAccess.get_sha256(G)==after and FileAccess.get_sha256(G+".transaction")==evidence,"blocked reconnect changes no evidence")
+ if cleanup:
+  game.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
+  check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer and not FileAccess.file_exists(G.get_base_dir().path_join("session.cfg")),"window close of blocked host releases owned lease after offline")
+  check(FileAccess.get_sha256(G)==after and FileAccess.get_sha256(G+".transaction")==evidence,"window close preserves committed evidence")
+  print("CASE ",JSON.stringify({"case":"host_disconnect_cleanup_window_close","before":before,"after":after,"journal":evidence,"warning":warning}))
+  return
+ game.return_to_main_menu()
+ check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"blocked return goes offline before detachment")
+ if not await until(func():return not is_instance_id_valid(old_id)):
+  check(false,"blocked host detaches")
+  return
+ var menu: Node = current_scene
+ check(menu.recovery_notice.visible and menu.continue_button.disabled,"title keeps uncertain host warning and blocks Continue")
+ menu.garden_recovery_button.pressed.emit()
+ menu.recovery_confirmation.confirmed.emit()
+ check(FileAccess.get_sha256(G)==before and not FileAccess.file_exists(G+".transaction") and not menu.recovery_notice.visible,
+  "B2 restores uncertain disconnect before reopening")
+ print("CASE ",JSON.stringify({"case":"host_disconnect_uncertain","before":before,"split":after,"restored":FileAccess.get_sha256(G),"journal":evidence}))
+ menu.host_choice.button_pressed=true
+ menu.continue_button.pressed.emit()
+ var reopened: Node = current_scene
+ if reopened==menu or reopened.session!="Host":
+  check(false,"verified recovery permits host restart")
+  return
+ mark("host-reopened",str(reopened.network_port))
+ check(await until(func():return read("rejoin-after-recovery")=="yes"),"guest rejoins after recovery")
+ var record: Dictionary = reopened.progress.character_records[identity].profile
+ check(int(record.monsters[kind])==kills,"uncertain disconnected reward never replays after recovery")
+ reopened.return_to_main_menu()
+ check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"reopened host offline before detach")
 
 func guest(role: String) -> void:
  check(await until(func():return read("port").is_valid_int()),"host listening")
@@ -278,10 +360,18 @@ func guest(role: String) -> void:
  mark("combat-"+role)
  if role=="1":
   check(await until(func(): return read("disconnect-pending")=="yes"),"host queued another reward")
-  game.leave_game("Disconnect reward acceptance")
+  var ending_world := game.get_instance_id()
+  mark("disconnect-ready")
+  check(await until(func():return current_scene.get_instance_id()!=ending_world),"guest observes transport disconnect")
   check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"guest offline before detaching with pending host rewards")
   mark("offline-1")
   await process_frame
+  if not settlement_fault.is_empty(): await blocked_reconnect(current_scene)
+  return
+ if not settlement_fault.is_empty():
+  var original_world := game.get_instance_id()
+  check(await until(func():return current_scene.get_instance_id()!=original_world),"guest leaves on blocked host shutdown")
+  check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"guest offline on blocked shutdown")
   return
  if role=="3":
   if not await until(func(): return read("expire-lease")=="yes"):
@@ -311,6 +401,31 @@ func guest(role: String) -> void:
   check(not FileAccess.file_exists(P.get_base_dir().path_join("session.cfg")),"guest releases owned lease")
  mark("offline-"+role)
 
+
+func blocked_reconnect(menu: Node) -> void:
+ if not await until(func():return read("blocked-reconnect")=="yes"):
+  check(false,"host entered unresolved state")
+  return
+ var before := FileAccess.get_sha256(P)
+ var game := connect_to_host(menu)
+ if game==null: return
+ var instance := game.get_instance_id()
+ check(await until(func():return current_scene.get_instance_id()!=instance),"pending host refuses actual Join")
+ check(FileAccess.get_sha256(P)==before and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,
+  "pending-host refusal leaves local profile and transport intact")
+ mark("blocked-refused")
+ if settlement_fault=="cleanup": return
+ if not await until(func():return read("host-reopened").is_valid_int()):
+  check(false,"host completed B2 recovery")
+  return
+ mark("port",read("host-reopened"))
+ game=connect_to_host(current_scene)
+ if game==null: return
+ instance=game.get_instance_id()
+ check(await until(func():return admitted(instance)),"actual guest Join after B2")
+ mark("rejoin-after-recovery")
+ check(await until(func():return current_scene.get_instance_id()!=instance),"reopened host disconnects normally")
+ check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"reconnected guest installs offline peer")
 
 func player_id(game: Node, role: String) -> int:
  for id in game.players:

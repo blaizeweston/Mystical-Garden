@@ -12,6 +12,7 @@ const Cases = ["apply","abort","recover","cleanup","uncertain","repair","lease",
 var signals: String
 var world: Node
 var failed := false
+var actual_actions := OS.get_environment("MYSTICAL_F5_PROJECTION")=="actions"
 
 func _initialize() -> void:
  call_deferred("run")
@@ -38,7 +39,7 @@ func until(predicate: Callable) -> bool:
  return predicate.call()
 
 func title() -> Node:
- var menu = load("res://main_menu.tscn").instantiate()
+ var menu = load(ProjectSettings.get_setting("application/run/main_scene")).instantiate()
  menu.restore_last_character = false
  menu.restore_last_selection = false
  root.add_child(menu)
@@ -255,7 +256,135 @@ func run() -> void:
   var data := OS.get_environment("APPDATA").path_join("guest")
   check(DirAccess.make_dir_recursive_absolute(data.path_join(OS.get_user_data_dir().get_file()))==OK,"create guest root")
   OS.set_environment("APPDATA",data)
- if is_host: await host()
+ if actual_actions:
+  if is_host: await action_host()
+  else: await action_guest()
+ elif is_host: await host()
  else: await guest()
  if not failed: print("PASS: guarded projection ", "host" if is_host else "guest")
  quit(1 if failed else 0)
+
+
+# The normal case matrix above isolates the acknowledgment protocol. This case
+# drives Learn and Respec through their own multiplayer command handlers.
+func action_host() -> void:
+ var menu := title()
+ menu.host_choice.button_pressed=true
+ menu.new_button.pressed.emit()
+ menu.creator.name_field.text="Action Host"
+ menu.creator.confirmed.emit()
+ await process_frame
+ if current_scene==menu: menu.new_button.pressed.emit()
+ world=current_scene
+ if world==menu or world.session!="Host":
+  check(false,"actual host title launch")
+  return
+ mark("listen",str(world.network_port))
+ for step in ["learn","respec","loadout"]:
+  if not await until(func(): return peer()!=0 and delivery(peer()).get("state")=="committed" and read(step+"-ready")=="ready"):
+   check(false,step+" guest admitted")
+   return
+  var id := peer()
+  var player: Dictionary = world.players[id]
+  player.pos = world.Stage.GATE if step=="loadout" else world.Stage.HEART
+  var before := Slots._save_digest(G)
+  var old := current(id)
+  mark(step+"-send")
+  var expected: String = {"learn":"aborted","respec":"cleanup_pending","loadout":"uncertain"}[step]
+  if not await until(func(): return delivery(id).get("state")==expected and read(step+"-observed")=="ready"):
+   check(false,step+" acknowledgment disposition "+str(delivery(id)))
+   return
+  var committed := current(id)
+  check(committed.projection.revision==old.projection.revision+1 and Slots._save_digest(G)!=before,"host commits one "+step+" revision")
+  match step:
+   "learn": check(committed.profile.upgrades[0]!=0,"actual learn updates host projection")
+   "respec": check(committed.profile.upgrades[0]==0,"actual respec updates host projection")
+   "loadout": check(committed.profile.loadouts[0].weapon==1,"actual loadout updates host projection")
+  record_host("actual_"+step,id,before)
+  mark(step+"-leave")
+  if not await until(func(): return peer()!=0 and peer()!=id and delivery(peer()).get("state")=="committed" and read(step+"-rejoined")=="ready"):
+   check(false,step+" reconnects and acknowledges authoritative revision")
+   return
+  var new_id := peer()
+  check(current(new_id).projection.revision==committed.projection.revision,"reconnect never replays "+step)
+  world.receive_character.rpc_id(new_id,old)
+  world.send_committed_profile(new_id)
+  mark(step+"-duplicate")
+  if not await until(func(): return read(step+"-checked")=="ready"):
+   check(false,step+" duplicate checks")
+   return
+ world.return_to_main_menu()
+ check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"action host offline before teardown")
+
+func action_guest() -> void:
+ if not await until(func():return read("listen").is_valid_int()):
+  check(false,"action host listens")
+  return
+ var menu := title()
+ menu.select_character(1)
+ menu.request_create_character()
+ menu.creator.name_field.text="Action Guest"
+ menu.creator.confirmed.emit()
+ var initial := Profile.new()
+ initial.path=P
+ check(initial.load_profile(false)==OK,"load fixture XP")
+ initial.data.xp[0]=9999
+ check(initial.save_profile_guarded().value.outcome.outcome==Ops.Batch.Outcome.COMMITTED,"seed legal Learn eligibility")
+ if not await open_guest(menu):
+  check(false,"actual action guest admitted")
+  return
+ for step in ["learn","respec","loadout"]:
+  var before := Slots._save_digest(P)
+  var prior: Dictionary = world.guest_character.data.duplicate(true)
+  var stages := {"count":0}
+  world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):
+   if phase=="stage": stages.count+=1
+   if step=="learn" and phase=="stage": return ERR_FILE_CANT_WRITE
+   if step=="respec" and phase=="publish_receipt": return ERR_CANT_CREATE
+   if step=="loadout" and phase in ["publish_commit_marker","restore"]: return ERR_CANT_CREATE
+   return OK)
+  mark(step+"-ready")
+  if not await until(func(): return read(step+"-send")=="ready"):
+   check(false,step+" host positions traveller")
+   return
+  world.send_garden_action({"learn":"learn_0_12","respec":"respec_0","loadout":"loadweapon_1"}[step])
+  if not await until(func(): return stages.count==1 and (world.has_meta(&"guest_projection_notice") or not Tx.pending_notice(world).is_empty())):
+   check(false,step+" local projection result")
+   return
+  var blocked := Slots._save_digest(P)
+  match step:
+   "learn":
+    check(blocked==before and world.guest_character.data.upgrades==prior.upgrades and not world.status.begins_with("Learned"),"Learn abort preserves points and withholds feedback")
+   "respec":
+    check(blocked!=before and world.guest_character.data.upgrades[0]==0 and Tx.pending_notice(world)==Tx.CLEANUP_NOTICE,"respec cleanup pending keeps confirmed change and warning")
+   "loadout":
+    check(Tx.pending_notice(world).contains("uncertain") and FileAccess.file_exists(P+".transaction"),"uncertain loadout keeps recovery evidence")
+  record_guest("actual_"+step,before)
+  mark(step+"-observed")
+  if not await until(func(): return read(step+"-leave")=="ready"):
+   check(false,step+" host observed disposition")
+   return
+  world.return_to_main_menu()
+  check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"action guest offline before detach")
+  await process_frame
+  menu=current_scene
+  if step!="learn":
+   check(menu.recovery_notice.visible and menu.join_button.disabled,step+" title keeps recovery warning and blocks Join")
+   menu.character_recovery_button.pressed.emit()
+   menu.recovery_confirmation.confirmed.emit()
+   check(Slots._save_digest(P)==(blocked if step=="respec" else before),"actual guest recovery keeps authoritative bytes")
+  if not await open_guest(menu):
+   check(false,step+" guest reconnects")
+   return
+  match step:
+   "learn": check(world.guest_character.data.upgrades[0]!=0,"Learn is applied once on reconnect")
+   "respec": check(world.guest_character.data.upgrades[0]==0,"reconnect preserves refunded class points")
+   "loadout": check(world.guest_character.data.loadouts[0].weapon==1,"reconnect applies current loadout")
+  var joined := Slots._save_digest(P)
+  mark(step+"-rejoined")
+  check(await until(func():return read(step+"-duplicate")=="ready"),"host sends duplicate and delayed revision")
+  await create_timer(.3).timeout
+  check(Slots._save_digest(P)==joined and not FileAccess.file_exists(G),"duplicate and stale projection preserve guest profile and host ownership")
+  mark(step+"-checked")
+ check(await until(func():return current_scene!=world),"host disconnect returns guest to title")
+ check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"guest is offline after actual host shutdown")

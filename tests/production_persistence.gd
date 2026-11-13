@@ -28,6 +28,19 @@ class FaultedSlots extends "res://save_slots.gd":
   last = _delete_guarded(slot,false,confirmed,{} if digest.is_empty() else {paths(slot).garden:digest},inject)
   return last
 
+class FaultedRoster extends "res://character_slots.gd":
+ var phase := ""
+ var fail_restore := false
+ var last := {}
+ func inject(step: String, _path: String) -> Error:
+  return ERR_CANT_CREATE if step==phase or (step=="restore" and fail_restore) else OK
+ func update_guarded(slot: int, name: String, class_id: int, appearance: Array, digest := "") -> Dictionary:
+  last = _edit_guarded(slot,name,class_id,appearance,true,digest,inject)
+  return last
+ func delete_character_guarded(slot: int, confirmed := false, digest := "") -> Dictionary:
+  last = _delete_guarded(slot,confirmed,digest,inject)
+  return last
+
 func _initialize() -> void:
  call_deferred("run")
 
@@ -117,6 +130,113 @@ func title_faults(menu: Node) -> void:
  check(Slots._save_digest(G)==replacement and Slots._save_digest(G+".transaction")=="absent","title cleanup retains new Garden")
  store.phase = ""
 
+func outcome_code(boundary: Dictionary, expected: Batch.Outcome, name: String) -> void:
+ var result := preload("res://guarded_title_session.gd").outcome(boundary)
+ var final: Batch.Finalization = result.get("outcome")
+ check(final != null and final.outcome == expected, name+" finalization: "+str(result.get("state")))
+ if final == null: return
+ var files := {}
+ for path: String in final.paths:
+  files[path] = Slots._save_digest(path)
+ for path: String in result.get("archives",{}).values():
+  files[path] = Slots._save_digest(path)
+ var lease := final.journal_anchor.get_base_dir().path_join("session.cfg")
+ print("CASE ",JSON.stringify({"case":name,"outcome":Batch.Outcome.keys()[final.outcome],
+  "files":files,"journal":Slots._save_digest(final.journal_anchor+".transaction"),"lease":Slots._save_digest(lease),
+  "phase":final.phase,"errors":[final.original_error,final.recovery_error,final.cleanup_error]}))
+
+func roster_faults(menu: Node) -> void:
+ var store := FaultedRoster.new()
+ store.root_path = menu.characters.root_path
+ menu.characters = store
+ var profile: String = store.paths(1).character
+ var catalog: String = store.root_path.path_join("catalog.cfg")
+ var g := Slots._save_digest(G)
+ var original := Slots._save_digest(profile)
+ var catalog_original := Slots._save_digest(catalog)
+ for mode in ["edit_uncertain","edit_cleanup","delete_archive","delete_catalog_abort","delete_uncertain","delete_cleanup"]:
+  var editing: bool = mode.begins_with("edit")
+  var uncertain: bool = mode.ends_with("uncertain")
+  var cleanup: bool = mode.ends_with("cleanup")
+  store.fail_restore = uncertain
+  store.phase = "publish_receipt" if cleanup else "archive" if mode=="delete_archive" else "replace" if mode=="delete_catalog_abort" else "publish_commit_marker"
+  menu.select_character(1)
+  if editing:
+   menu.request_create_character()
+   menu.creator.name_field.text = "Committed "+mode
+   menu.creator.confirmed.emit()
+   check(menu.creator.get_ok_button().disabled and not menu.notice.text.contains("Committed "+mode),"no ordinary edit success: "+mode)
+   menu.creator.dismiss()
+  else:
+   menu.delete_character_button.pressed.emit()
+   menu.character_deletion.confirmed.emit()
+   check(menu.character_deletion.get_ok_button().disabled and not menu.notice.text.contains("deleted."),"no ordinary delete success: "+mode)
+   menu.character_deletion.hide()
+  check(Slots._save_digest(G)==g,"roster action leaves Garden unchanged: "+mode)
+  if mode=="delete_archive":
+   var failed_archive := preload("res://guarded_title_session.gd").outcome(store.last)
+   check(failed_archive.get("state")=="verified_failure" and Slots._save_digest(profile)==original
+    and Slots._save_digest(catalog)==catalog_original and Slots._save_digest(profile+".transaction")=="absent","archive failure preserves roster and catalog")
+   record(mode,{"profile":original,"catalog":catalog_original,"reason":failed_archive.get("reason"),"notice":menu.notice.text})
+   continue
+  var expected := Batch.Outcome.UNCERTAIN if uncertain else Batch.Outcome.COMMITTED_CLEANUP_PENDING if cleanup else Batch.Outcome.ABORTED_RESTORED
+  outcome_code(store.last,expected,mode)
+  if mode=="delete_catalog_abort":
+   check(Slots._save_digest(profile)==original and Slots._save_digest(catalog)==catalog_original,"catalog failure restores both participants")
+   continue
+  var during := Slots._save_digest(profile)
+  var during_catalog := Slots._save_digest(catalog)
+  check(menu.character_summary(1).state=="pending_recovery" and menu.join_button.disabled
+   and Slots._save_digest(profile+".transaction")!="absent","title blocks admission pending reconciliation: "+mode)
+  menu.character_recovery_button.pressed.emit()
+  menu.recovery_confirmation.confirmed.emit()
+  check(Slots._save_digest(profile)==(original if uncertain else during)
+   and Slots._save_digest(catalog)==(catalog_original if uncertain else during_catalog),"B2 verifies the authoritative roster state: "+mode)
+  if cleanup:
+   original = during
+   catalog_original = during_catalog
+ store.phase=""
+ store.fail_restore=false
+ check(menu.character_summary(1).state=="empty" and Slots._save_digest(profile)=="absent","verified delete cleanup exposes vacant slot")
+ menu.select_character(0)
+
+func garden_f5_faults(menu: Node) -> void:
+ var store := FaultedSlots.new()
+ store.root_path = menu.storage.root_path
+ menu.storage = store
+ var original := Slots._save_digest(G)
+ var profile := Slots._save_digest(P)
+ var marker := G.get_base_dir().path_join("deleted.cfg")
+ for mode in ["replace_uncertain","delete_archive","delete_cleanup"]:
+  store.phase = "publish_commit_marker" if mode=="replace_uncertain" else "archive" if mode=="delete_archive" else "publish_receipt"
+  store.fail_restore = mode=="replace_uncertain"
+  if store.fail_restore:
+   menu.new_button.pressed.emit()
+   menu.confirmation.confirmed.emit()
+   check(current_scene==menu and not menu.transitioning,"uncertain replacement stays at title")
+   menu.confirmation.hide()
+  else:
+   menu.delete_button.pressed.emit()
+   menu.deletion_confirmation.confirmed.emit()
+   check(not menu.notice.text.contains("deleted."),"deletion with adverse result has no ordinary success")
+   menu.deletion_confirmation.hide()
+  check(Slots._save_digest(P)==profile,"Garden management leaves roster untouched")
+  if mode=="delete_archive":
+   var result := preload("res://guarded_title_session.gd").outcome(store.last)
+   check(result.get("state")=="verified_failure" and Slots._save_digest(G)==original
+    and Slots._save_digest(marker)=="absent" and Slots._save_digest(G+".transaction")=="absent","archive failure creates no tombstone")
+   record("garden_archive_failure",{"before":original,"tombstone":Slots._save_digest(marker),"reason":result.get("reason")})
+   continue
+  outcome_code(store.last,Batch.Outcome.UNCERTAIN if store.fail_restore else Batch.Outcome.COMMITTED_CLEANUP_PENDING,"garden_"+mode)
+  check(menu.continue_button.disabled and Slots._save_digest(G+".transaction")!="absent","unresolved Garden cannot be opened")
+  if mode=="delete_cleanup":
+   check(Slots._save_digest(G)=="absent" and Slots._save_digest(marker)!="absent","confirmed delete has tombstone and durable evidence")
+  menu.garden_recovery_button.pressed.emit()
+  menu.recovery_confirmation.confirmed.emit()
+  check(Slots._save_digest(G)==(original if store.fail_restore else "absent"),"recovery preserves authoritative Garden")
+ store.phase=""
+ store.fail_restore=false
+
 func run() -> void:
  check(not Gate.PRODUCTION_CUTOVER_APPROVED and not Gate.default_route(self),"normal startup remains inactive")
  set_meta(Gate.VALIDATION_ROUTE,true)
@@ -140,6 +260,10 @@ func run() -> void:
  menu.request_create_character()
  menu.create_character("Scout edited",2,[])
  check(menu.character_summary(1).name=="Scout edited","roster create and edit")
+ roster_faults(menu)
+ menu.select_character(1)
+ menu.request_create_character()
+ menu.create_character("Second Scout",1,[])
  menu.request_delete_character()
  menu.character_deletion.confirmed.emit()
  check(menu.character_summary(1).state=="empty" and not menu.character_deletion.visible,"roster deletion verified")
@@ -209,8 +333,7 @@ func run() -> void:
  world.return_to_main_menu()
  await process_frame
  menu=current_scene
- menu.request_delete_save()
- menu.deletion_confirmation.confirmed.emit()
+ garden_f5_faults(menu)
  check(menu.garden_summary(0).state=="empty" and menu.character_summary(0).exists,"Garden delete leaves roster")
  menu.new_game()
  world=current_scene
@@ -231,6 +354,34 @@ func run() -> void:
  world=current_scene
  check(world!=menu and world.progress.knowledge==0 and world.has_meta(Tx.SESSION),"Developer reset preserves guarded session")
  if world==menu: quit(1); return
+ world.app_settings.values.developer_mode=true
+ var dev_before := Slots._save_digest(world.progress.path)
+ var dev_profile := Slots._save_digest(world.local_character.path)
+ var dev_stock: Array = world.progress.stock.duplicate()
+ world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path): return ERR_CANT_CREATE if phase=="stage" else OK)
+ var refusal := Developer.grant_resources(world)
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ check(refusal.begins_with("Save cancelled") and world.progress.knowledge==0 and world.progress.stock==dev_stock
+  and Slots._save_digest(world.progress.path)==dev_before,"Developer grant abort restores resources")
+ var grant := Developer.grant_resources(world)
+ check(grant.begins_with("Added") and world.progress.knowledge==100
+  and Slots._save_digest(world.progress.path)!=dev_before and Slots._save_digest(world.local_character.path)==dev_profile,
+  "Developer grant commits Garden only")
+ world.players[1].pos=world.Stage.HEART
+ world.garden_action(1,"research")
+ check(world.progress.heart.active=="flowering","Developer Garden has actual active research")
+ var research_before := Slots._save_digest(world.progress.path)
+ var research: Dictionary = world.progress.heart.serialize()
+ world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path): return ERR_CANT_CREATE if phase=="stage" else OK)
+ var finish_abort := Developer.finish_research(world)
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ check(finish_abort.begins_with("Save cancelled") and world.progress.heart.serialize()==research
+  and Slots._save_digest(world.progress.path)==research_before,"Developer finish research abort restores its state")
+ Developer.finish_research(world)
+ check(world.progress.flowering_unlocked and Slots._save_digest(world.progress.path)!=research_before,
+  "Developer finish research commits the unlock")
+ record("developer_grant_and_research",{"grant":grant,"grant_abort":refusal,"research_abort":finish_abort,
+  "garden_before":dev_before,"profile":dev_profile})
  var developer_path: String=world.progress.path
  var prior := Slots._save_digest(developer_path)
  world.progress.knowledge=8
