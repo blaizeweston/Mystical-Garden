@@ -1,4 +1,5 @@
 extends RefCounted
+const Tx=preload("res://game_transaction.gd")
 const Catalog=preload("res://garden_interaction_catalog.gd")
 const State=preload("res://garden_interaction_state.gd")
 static func allowed(game: Node,definition: Dictionary) -> bool:
@@ -79,8 +80,8 @@ static func command(game: Node,id: int,payload: String) -> Dictionary:
   game.tell(id,"This observation is already recorded in the Garden.");return {"changed":false,"revision":state.revision}
  if int(request.revision)!=int(state.revision):return reject(game,id,"The Garden changed. Inspect it again before recording.")
  if request.action=="inspect":focus(game,id,definition.id);return {"changed":false,"revision":state.revision}
- var result=preload("res://game_transaction.gd").run(game,func():return State.record(game.progress.garden_interactions,definition,key))
- if not result is Dictionary:return {"changed":false,"error":"Could not save this observation. Please retry."}
+ var result=Tx.run_gameplay(game,Tx.Scope.PAIR,func():return State.record(game.progress.garden_interactions,definition,key))
+ if not result is Dictionary:return {"changed":false,"error":Tx.failure_message(game,"Could not save this observation. Please retry.")}
  if result.get("changed",false):
   game.tell(id,"Garden observation recorded: "+definition.name)
   preload("res://diagnostic_journal.gd").event("garden","observation_recorded",{"actor":id,"point_id":definition.id,"observation_id":definition.observation,"revision":result.revision})

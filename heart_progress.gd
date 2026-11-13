@@ -1,4 +1,5 @@
 extends RefCounted
+const Batch = preload("res://save_batch.gd")
 const Catalog=preload("res://heart_catalog.gd")
 var unlocked: Array=["heart"]
 var paid: Array=[]
@@ -174,7 +175,7 @@ func start(owner: RefCounted,id: String) -> String:
 		paid.append(id)
 	active=id
 	mirror(owner)
-	if owner.save_garden()!=OK:
+	if not Batch.guarded_active() and owner.save_garden()!=OK:
 		rollback(owner,before)
 		return "Could not save the upgrade. Knowledge was returned."
 	return "%s restored."%node.name if has(id) else "Researching %s. It advances naturally, three times faster in the Wilds. Plant offerings speed it up; switching focus preserves progress."%node.name
@@ -215,7 +216,7 @@ func tick(owner: RefCounted,seconds: float,in_wilds: bool) -> String:
 	if active.is_empty() or seconds<=0:return ""
 	var before=capture(owner)
 	var message=add_work(owner,seconds*(WILDS_RATE if in_wilds else 1.0))
-	if owner.save_garden()!=OK:
+	if not Batch.guarded_active() and owner.save_garden()!=OK:
 		rollback(owner,before);return "Research could not be saved; progress will retry."
 	return message
 
@@ -226,7 +227,7 @@ func infuse(owner: RefCounted) -> String:
 	if not spend_materials(owner,OFFER_PARTS):return "Need two shared plant parts in the selected offering."
 	infused[id]=int(infused.get(id,0))+1
 	var message=add_work(owner,OFFER_SECONDS*(2.0 if has("infusion") else 1.0))
-	if owner.save_garden()!=OK:
+	if not Batch.guarded_active() and owner.save_garden()!=OK:
 		rollback(owner,before);return "Could not save the offering. Materials were returned."
 	return message if not message.is_empty() else "%s: %ds remaining."%[node.name,ceili(duration(id)-float(work.get(id,0)))]
 

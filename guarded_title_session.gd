@@ -159,6 +159,9 @@ func start(world: Node, garden: RefCounted, garden_slot: int, garden_digest: Str
  if not completed(result):
   return _startup_failed(result)
  _heartbeat_at = Time.get_unix_time_from_system()
+ world.progress.require_guarded_access = true
+ world.local_character.require_guarded_access = true
+ world.guest_character.require_guarded_access = true
  world.set_meta(META, self)
  return result
 
@@ -168,6 +171,9 @@ static func _claim_written(boundary: Dictionary) -> bool:
 func owns_leases() -> bool:
  return (_garden != null or _roster != null) and (_garden == null or _garden.owns_guarded_lease(_garden_slot)) \
   and (_roster == null or _roster.owns_guarded_lease(_profile_slot))
+
+func authorizes(path: String) -> bool:
+ return (path == _profile_path or (_garden != null and path == _garden_path)) and owns_leases()
 
 func reload_guest(profile: RefCounted) -> Error:
  if profile.path != _profile_path:

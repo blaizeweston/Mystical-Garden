@@ -1,4 +1,5 @@
 extends RefCounted
+const Tx=preload("res://game_transaction.gd")
 const State=preload("res://garden_return_state.gd")
 const Catalog=preload("res://garden_return_catalog.gd")
 static func state(game: Node) -> Dictionary:
@@ -38,7 +39,7 @@ static func outcome(game: Node,player: Dictionary,status: String) -> void:
  if not value.is_empty():State.outcome(value,str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),status)
 static func member_left(game: Node,player: Dictionary) -> void:
  if not player.get("wild",false):return
- preload("res://game_transaction.gd").run(game,func():outcome(game,player,"disconnected");return true)
+ Tx.run_gameplay(game,Tx.Scope.PAIR,func():outcome(game,player,"disconnected");return true)
 static func identified(game: Node,species: int,ancient: bool=false) -> void:
  var value:=state(game)
  if value.is_empty() or species<0 or species>=game.Seeds.DEFINITIONS.size():return

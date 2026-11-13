@@ -1,4 +1,5 @@
 extends RefCounted
+const Tx=preload("res://game_transaction.gd")
 # Only configuration changes here. Existing crop/harvest policies own outcomes.
 const Layout=preload("res://garden_layout.gd")
 const POINT:="terrace_memory"
@@ -45,10 +46,10 @@ static func command(game: Node,id: int,request: Dictionary) -> Dictionary:
  if before.is_empty() or mode(str(request.get("mode",""))).is_empty():return reject.call(game,id,"This conduit configuration needs a compatible game version.")
  if int(request.revision)!=before.revision:return reject.call(game,id,"The conduit changed. Review its setting before choosing.")
  if request.mode==before.mode:return {"changed":false,"revision":before.revision}
- var result=preload("res://game_transaction.gd").run(game,func():
+ var result=Tx.run_gameplay(game,Tx.Scope.PAIR,func():
   var next:=before.duplicate(true);next.mode=request.mode;next.revision+=1
   game.progress.garden_interactions.conduit=next;return next)
- if not result is Dictionary:return reject.call(game,id,"Could not save the conduit. Its previous setting remains active.")
+ if not result is Dictionary:return reject.call(game,id,Tx.failure_message(game,"Could not save the conduit. Its previous setting remains active."))
  game.tell(id,mode(result.mode).name+" will shape newly planted terrace crops. Existing crops keep their care choice.")
  preload("res://diagnostic_journal.gd").event("garden","conduit_changed",{"actor":id,"zone":ZONE,"mode":result.mode,"revision":result.revision})
  return {"changed":true,"revision":result.revision}

@@ -1,4 +1,5 @@
 extends RefCounted
+var require_guarded_access := false
 const SaveBatch=preload("res://save_batch.gd")
 
 const ContentIDs=preload("res://content_ids.gd")
@@ -91,6 +92,8 @@ func load_profile(recover_interrupted: bool=true) -> Error:
 	if recover_interrupted:
 		if SaveBatch.guarded_active():
 			return load("res://persistence_operations.gd").read_serializer(self, _read_profile)
+		if require_guarded_access:
+			return ERR_UNAUTHORIZED
 		var recovery := SaveBatch.recover(path)
 		if recovery != OK:
 			return recovery
@@ -119,9 +122,13 @@ static func valid_identity(value: String) -> bool:
 func save_profile() -> Error:
 	if SaveBatch.guarded_active():
 		return load("res://persistence_operations.gd").stage_serializer(self, _serialize_save)
+	if require_guarded_access:
+		return ERR_UNAUTHORIZED
 	return _serialize_save()
 
 func save_profile_guarded() -> Dictionary:
+	if require_guarded_access:
+		return {"error": ERR_UNAUTHORIZED, "ran": false, "reason": "session_context_required"}
 	return load("res://persistence_operations.gd").run_serializers([self], path, save_profile)
 
 func migration_backup_paths() -> PackedStringArray:

@@ -90,10 +90,11 @@ static func combine(game,player: Dictionary,draft: Array) -> String:
   if a>=0 and b>=0:
    var pair: Array=[mini(a,b),maxi(a,b)]
    if not game.progress.attempted_pairs.has(pair): game.progress.attempted_pairs.append(pair)
- if game.progress.save_garden()!=OK:
+ if not preload("res://save_batch.gd").guarded_active() and game.progress.save_garden()!=OK:
   restore(game,player,before)
   return "Could not save the offering. All ingredients and Knowledge were returned."
- preload("res://diagnostic_journal.gd").event("altar","offering_saved",{"inputs":draft,"output":output,"success":not recipe.is_empty(),"fresh":fresh})
+ if not preload("res://save_batch.gd").guarded_active():
+  preload("res://diagnostic_journal.gd").event("altar","offering_saved",{"inputs":draft,"output":output,"success":not recipe.is_empty(),"fresh":fresh})
  return message
 static func ancient_count(game,player: Dictionary) -> int:
  return int(Model.extra_stash(game,player).get("boss_mystery_seed",0))
@@ -114,7 +115,7 @@ static func identify(game,player: Dictionary) -> String:
  else:
   species=reserve.unknown.pop_front();reserve.stock[species]+=1;game.progress.discover(species)
   preload("res://garden_return_service.gd").identified(game,species)
- if game.progress.save_garden()!=OK:
+ if not preload("res://save_batch.gd").guarded_active() and game.progress.save_garden()!=OK:
   restore(game,player,before);return "Could not save identification. The seed was returned."
  return "Identified %s."%Items.Seeds.NAMES[species]
 static func identify_all(game,player: Dictionary) -> String:
@@ -131,7 +132,7 @@ static func identify_all(game,player: Dictionary) -> String:
   preload("res://garden_return_service.gd").identified(game,int(species))
  reserve.unknown.clear()
  discovered=game.progress.discoveries.count(true)-prior
- if game.progress.save_garden()!=OK:
+ if not preload("res://save_batch.gd").guarded_active() and game.progress.save_garden()!=OK:
   restore(game,player,before);return "Could not save identification. All mysterious seeds were returned."
  return "Identified all %d seeds · %d newly discovered species."%[total,discovered]
 static func snapshot(game,player: Dictionary,draft: Array,revision: int) -> Dictionary:

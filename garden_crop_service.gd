@@ -1,4 +1,5 @@
 extends RefCounted
+const Tx=preload("res://game_transaction.gd")
 const State=preload("res://garden_crop_state.gd")
 const Catalog=preload("res://garden_crop_catalog.gd")
 const Growth=preload("res://cultivation_growth.gd")
@@ -41,7 +42,7 @@ static func harvest_seeds(game: Node,id: int,slot: int) -> Dictionary:
  if not eligible(game,id,slot) or not game.progress.flowering_unlocked:return reject(game,id,"Research Flowering before harvesting seeds at a Garden bed.")
  var before: Dictionary=game.progress.plots[slot].duplicate(true)
  if int(before.species)<0 or int(before.stage)<3:return reject(game,id,"Let this plant mature, then choose seeds or parts at harvest.")
- var result=preload("res://game_transaction.gd").run(game,func():
+ var result=Tx.run(game,func():
   game.progress.plots[slot].flowering=true
   game._harvest(id,slot)
   return int(game.progress.plots[slot].species)<0)
@@ -70,8 +71,8 @@ static func command(game: Node,id: int,request: Dictionary) -> Dictionary:
  if action=="water_crop":
   if int(bed.stage)>=3 or not Growth.supported(bed) or not Growth.spring_ready(game.progress):return reject(game,id,"Unlock the sheltered spring to water a growing crop.")
   if not game.players[id].get("spring_water",false):return reject(game,id,"Fill your watering vessel at the sheltered spring first.")
-  var watered_result=preload("res://game_transaction.gd").run(game,func():Growth.water(bed);return true)
-  if watered_result!=true:return reject(game,id,"Could not save watering. Nothing changed; please retry.")
+  var watered_result=Tx.run_gameplay(game,Tx.Scope.PAIR,func():Growth.water(bed);return true)
+  if watered_result!=true:return reject(game,id,Tx.failure_message(game,"Could not save watering. Nothing changed; please retry."))
   game.players[id].spring_water=false
   preload("res://event_audio.gd").emit(game,"crop_watered",game.Stage.PLOTS[slot])
   game.tell(id,"Spring water nourishes this crop. Growth is 25% faster until harvest.")
@@ -85,8 +86,8 @@ static func command(game: Node,id: int,request: Dictionary) -> Dictionary:
  # Freeze the care outcome using a copy of the existing RNG state. No extra draw
  # advances combat/loot RNG; harvest still consumes its one ordinary draw.
  var preview_rng:=RandomNumberGenerator.new();preview_rng.seed=game.rng.seed;preview_rng.state=game.rng.state;var roll:=preview_rng.randf()
- var result=preload("res://game_transaction.gd").run(game,func():State.choose(bed,chosen,roll);return true)
- if result!=true:return reject(game,id,"Could not save the care choice. Nothing changed; please retry.")
+ var result=Tx.run_gameplay(game,Tx.Scope.PAIR,func():State.choose(bed,chosen,roll);return true)
+ if result!=true:return reject(game,id,Tx.failure_message(game,"Could not save the care choice. Nothing changed; please retry."))
  game.tell(id,"The bud is preserved. It needs more time and may yield a richer part." if chosen=="preserve" else "The plant will mature at its normal pace.")
  preload("res://diagnostic_journal.gd").event("garden","crop_care_chosen",{"actor":id,"bed":slot,"cycle":bed.care.cycle,"species":game.Seeds.DEFINITIONS[int(bed.species)].id,"choice":chosen,"revision":bed.care.revision})
  return {"changed":true,"revision":bed.care.revision}

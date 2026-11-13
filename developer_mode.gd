@@ -24,7 +24,7 @@ static func is_solo(game: Node) -> bool:
 static func can_edit(game: Node) -> bool:
 	return is_test_garden(game) and is_solo(game) and game.app_settings.values.get("developer_mode",false) \
 		and not game.expedition_active() and not game.returning_to_title \
-		and not game.get_meta("garden_cinematic_active",false)
+		and not game.get_meta("garden_cinematic_active",false) and Transactions.session_writable(game)
 
 
 static func open_garden(menu: Node, reset: bool, digests := {}) -> Error:
@@ -121,6 +121,10 @@ static func _open_guarded(menu: Node, reset: bool, digests: Dictionary) -> Dicti
 static func grant_resources(game: Node) -> String:
 	if not can_edit(game):
 		return "Developer tools are available in the single-player Developer Garden."
+	var result: Variant = Transactions.run_gameplay(game, Transactions.Scope.GARDEN, _grant_resources.bind(game), false)
+	return result if result is String else Transactions.failure_message(game, "Could not save the developer action.")
+
+static func _grant_resources(game: Node) -> String:
 	var progress: RefCounted = game.progress
 	var old_knowledge: int = progress.knowledge
 	var old_parts: Array = progress.parts.duplicate()
@@ -129,7 +133,7 @@ static func grant_resources(game: Node) -> String:
 	for species in range(3):
 		progress.parts[species] += 25
 		progress.stock[species] += 5
-	if progress.save_garden() != OK:
+	if not preload("res://save_batch.gd").guarded_active() and progress.save_garden() != OK:
 		progress.knowledge = old_knowledge
 		progress.parts.assign(old_parts)
 		progress.stock.assign(old_stock)
@@ -139,7 +143,13 @@ static func grant_resources(game: Node) -> String:
 
 
 static func stock_materials(game: Node) -> String:
-	if not can_edit(game) or not game.players.has(game.HOST):
+	if not can_edit(game):
+		return "Developer tools are available in the single-player Developer Garden."
+	var result: Variant = Transactions.run_gameplay(game, Transactions.Scope.GARDEN, _stock_materials.bind(game), false)
+	return result if result is String else Transactions.failure_message(game, "Could not save the developer action.")
+
+static func _stock_materials(game: Node) -> String:
+	if not game.players.has(game.HOST):
 		return "Developer tools are available in the single-player Developer Garden."
 	var player: Dictionary = game.players[game.HOST]
 	var progress: RefCounted = game.progress
@@ -171,7 +181,7 @@ static func stock_materials(game: Node) -> String:
 
 	if added == 0:
 		return "Material stocks are already full."
-	if progress.save_garden() != OK:
+	if not preload("res://save_batch.gd").guarded_active() and progress.save_garden() != OK:
 		Transactions.restore(progress, before)
 		return "Could not save the material stock."
 	Journal.event("developer", "materials_stocked", {"quantity_added": added, "part_minimum": MATERIAL_STOCK, "seed_minimum": SEED_STOCK})
@@ -185,7 +195,7 @@ static func finish_research(game: Node) -> String:
 	var project: String = progress.heart.active
 	if project.is_empty():
 		return "Start research at the Heart first."
-	var result: String = progress.heart.tick(progress,progress.heart.duration(project),false)
+	var result: String = game.run_heart_save(progress.heart.tick.bind(progress,progress.heart.duration(project),false))
 	Journal.event("developer","finish_research",{"tech":project,"unlocked":progress.heart.has(project)})
 	return result
 
@@ -214,6 +224,10 @@ static func collect_path(heart: RefCounted, id: String, pending: Array[String]) 
 static func test_unlock(game: Node, id: String) -> String:
 	if not can_edit(game):
 		return "Developer tools are available in the single-player Developer Garden."
+	var result: Variant = Transactions.run_gameplay(game, Transactions.Scope.GARDEN, _test_unlock.bind(game,id), false)
+	return result if result is String else Transactions.failure_message(game, "Could not save the developer action.")
+
+static func _test_unlock(game: Node, id: String) -> String:
 	var progress: RefCounted = game.progress
 	var path: Array[String] = []
 	if progress.heart.has(id) or not collect_path(progress.heart,id,path) or path.is_empty():
@@ -233,7 +247,7 @@ static func test_unlock(game: Node, id: String) -> String:
 			progress.garden_interactions = Growth.initialize(progress.garden_interactions,baseline)
 			progress.garden_interactions.growth.baseline = baseline
 		progress.heart.complete(progress,tech)
-	if progress.save_garden() != OK:
+	if not preload("res://save_batch.gd").guarded_active() and progress.save_garden() != OK:
 		progress.heart.rollback(progress,before)
 		progress.discoveries.assign(old_discoveries)
 		progress.veilcap_discovered = old_veilcap

@@ -22,6 +22,10 @@ static func restore(object: Object,state: Dictionary) -> void:
   elif current is Dictionary and value is Dictionary: restore_dict(current,value)
   else: object.set(key,value)
 static func run(game: Node,action: Callable):
+ if game.has_meta(SESSION):
+  if session_writable(game):
+   game.status = "This action is unavailable in the guarded session."
+  return false
  if Batch.guarded_active():
   return action.call() if _owner == game else false
  if Batch.active: return action.call()
@@ -62,29 +66,98 @@ static func run(game: Node,action: Callable):
   if id!=game.HOST and game.players.has(id) and game.online_peer!=null: game.receive_character.rpc_id(id,game.players[id].character)
  return result
 
-# Opt-in entry used by integration fixtures. The legacy dispatcher stays on
-# run() until the production cutover and caller publication audit are complete.
+const SESSION := &"guarded_title_session"
+const PENDING := &"guarded_persistence_pending"
+const STOPPING := &"guarded_session_stopping"
+enum Scope { LEGACY, GARDEN, PROFILE, PAIR, GUEST_PROFILE }
+
 static var _owner: Node
+static var _participants: Array = []
 
-static func run_guarded(game: Node, action: Callable, publish := Callable()) -> Dictionary:
- return _run_guarded(game, action, publish)
+static func session_writable(game: Node) -> bool:
+ if not game.has_meta(SESSION):
+  return true
+ return not game.get_meta(STOPPING, false) and not game.get_meta(PENDING, false) and game.get_meta(SESSION).owns_leases()
 
-static func _run_guarded(game: Node, action: Callable, publish: Callable, fault := Callable()) -> Dictionary:
- if not Thread.is_main_thread() or not is_instance_valid(game) or not action.is_valid():
-  return {"error": ERR_INVALID_PARAMETER, "ran": false, "reason": "invalid_transaction"}
+static func committed(boundary: Dictionary) -> bool:
+ var execution: Variant = boundary.get("value")
+ var final: Batch.Finalization = execution.get("outcome") if execution is Dictionary else null
+ return final != null and final.outcome in [Batch.Outcome.COMMITTED, Batch.Outcome.COMMITTED_CLEANUP_PENDING]
+
+static func failure_message(game: Node, legacy: String) -> String:
+ return str(game.get_meta(&"guarded_save_notice", legacy)) if game.has_meta(SESSION) else legacy
+
+# For callers that already publish their result after the transaction returns.
+static func run_gameplay(game: Node, scope: Scope, action: Callable, legacy_transaction := true) -> Variant:
+ if not game.has_meta(SESSION):
+  return run(game, action) if legacy_transaction else action.call()
+ # Only the outer action may decide whether to publish a business result.
  if _owner != null:
-  if _owner != game or publish.is_valid() or not Batch.guarded_active():
-   return {"error": ERR_BUSY, "ran": false, "reason": "foreign_nested_transaction"}
-  return {"error": OK, "ran": true, "nested": true, "value": action.call()}
- if game.has_meta("guarded_persistence_pending"):
-  return {"error": ERR_BUSY, "ran": false, "reason": "guarded_persistence_pending"}
+  return false
+ var boundary := run_guarded(game, action, Callable(), scope)
+ _report(game, boundary)
+ return boundary.value.value if committed(boundary) else false
 
- var serializers := [game.progress]
- if game.session != "Guest":
-  serializers.append(game.local_character)
+static func _report(game: Node, boundary: Dictionary) -> void:
+ var execution: Variant = boundary.get("value")
+ var final: Batch.Finalization = execution.get("outcome") if execution is Dictionary else null
+ var notice := "Save could not start. No changes were saved."
+ if final != null:
+  match final.outcome:
+   Batch.Outcome.COMMITTED:
+    notice = "" if boundary.error == OK else "Saved. Further saves are blocked until the session is reopened."
+   Batch.Outcome.COMMITTED_CLEANUP_PENDING:
+    notice = "Saved. Recovery cleanup is pending."
+   Batch.Outcome.ABORTED_RESTORED:
+    notice = "Save cancelled. The original state was verified."
+   Batch.Outcome.UNCERTAIN:
+    notice = "Save state is uncertain. Recovery is required before saving again."
+ elif boundary.state in ["pending_recovery", "ambiguous"] or boundary.reason == "guarded_persistence_pending":
+  notice = "Save recovery is pending. Your files are preserved."
+ elif boundary.reason in ["stale_session_lease", "unowned_participant", "foreign_session_lease", "guarded_session_stopping"]:
+  notice = "This session no longer has access to the selected save."
+ game.set_meta(&"guarded_save_notice", notice)
+ if not notice.is_empty():
+  game.status = notice
+  preload("res://diagnostic_journal.gd").event("save", "guarded_gameplay_result", {
+   "reason": boundary.reason, "state": boundary.state, "error": boundary.error,
+   "phase": final.phase if final != null else "", "attempt": final.attempt_id if final != null else "",
+   "original_error": final.original_error if final != null else OK,
+   "recovery_error": final.recovery_error if final != null else OK,
+   "cleanup_error": final.cleanup_error if final != null else OK,
+  })
+
+static func run_guarded(game: Node, action: Callable, publish := Callable(), scope := Scope.LEGACY) -> Dictionary:
+ return _run_guarded(game, action, publish, Callable(), scope)
+
+static func _run_guarded(game: Node, action: Callable, publish: Callable, fault := Callable(), scope := Scope.LEGACY) -> Dictionary:
+ if not Thread.is_main_thread() or not is_instance_valid(game) or not action.is_valid():
+  return _refusal(ERR_INVALID_PARAMETER, "invalid_transaction")
+ var owner: RefCounted = game.get_meta(SESSION) if game.has_meta(SESSION) else null
+ if owner != null and scope == Scope.LEGACY:
+  return _refusal(ERR_UNAUTHORIZED, "explicit_gameplay_scope_required")
+ if owner == null and scope != Scope.LEGACY:
+  return _refusal(ERR_UNAUTHORIZED, "gameplay_session_required")
+ if game.get_meta(PENDING, false):
+  return _refusal(ERR_BUSY, "guarded_persistence_pending", "pending_recovery")
+ if game.get_meta(STOPPING, false):
+  return _refusal(ERR_UNAUTHORIZED, "guarded_session_stopping")
+ var serializers := _serializers(game, scope)
+ if serializers.is_empty():
+  return _refusal(ERR_UNAUTHORIZED, "unowned_participant")
+ if _owner != null:
+  if _owner != game or publish.is_valid() or fault.is_valid() or not Batch.guarded_active():
+   return _refusal(ERR_BUSY, "foreign_nested_transaction")
+  for serializer in serializers:
+   if not _participants.has(serializer) or (owner != null and not owner.authorizes(serializer.path)):
+    Batch.reject_guarded_serializer(ERR_UNAUTHORIZED, serializer.path)
+    return _refusal(ERR_UNAUTHORIZED, "nested_participant_refused")
+  return {"error": OK, "ran": true, "nested": true, "value": action.call()}
+
  var captured := {}
  var operations = load("res://persistence_operations.gd")
- var boundary: Dictionary = operations.run_serializers(serializers, game.progress.path, func():
+ var anchor: String = serializers[0].path
+ var action_and_save := func():
   captured.world = snapshot(game.progress)
   captured.heart = game.progress.heart.serialize()
   captured.campaign = snapshot(game.progress.campaign)
@@ -96,19 +169,54 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
   captured.rng = game.rng.state
   game.transaction_publishes.clear()
   _owner = game
+  _participants = serializers
   var value: Variant = action.call()
-  game.progress.save_garden()
-  if game.players.has(game.HOST):
-   game.local_character.data = game.players[game.HOST].character
-  if game.session != "Guest":
-   game.local_character.save_profile()
+  if owner != null and not owner.owns_leases():
+   Batch.reject_guarded_serializer(ERR_UNAUTHORIZED, anchor)
+  else:
+   for serializer in serializers:
+    if serializer == game.progress:
+     serializer.save_garden()
+    else:
+     if serializer == game.local_character and game.players.has(game.HOST):
+      game.local_character.data = game.players[game.HOST].character
+     serializer.save_profile()
+  _participants = []
   _owner = null
-  return value, fault)
+  return value
+ var boundary: Dictionary
+ if owner == null:
+  boundary = operations.run_serializers(serializers, anchor, action_and_save, fault)
+ else:
+  var scope_data: Dictionary = operations._serializer_scope(serializers)
+  if scope_data.is_empty():
+   return _refusal(ERR_INVALID_PARAMETER, "duplicate_serializer_path")
+  for path: String in scope_data.paths:
+   if not owner.authorizes(path):
+    return _refusal(ERR_UNAUTHORIZED, "stale_session_lease" if not owner.owns_leases() else "unowned_participant")
+  var metadata_scratch := PackedStringArray()
+  for path: String in scope_data.paths:
+   var metadata: String = operations.Layout.deletion_metadata(path, operations.Layout.directories())
+   if not metadata.is_empty() and not metadata_scratch.has(metadata + ".tmp"):
+    metadata_scratch.append(metadata + ".tmp")
+  boundary = operations.run_management(scope_data.paths, scope_data.auxiliary + metadata_scratch, func(context):
+   for path: String in scope_data.paths:
+    if not owner.authorizes(path):
+     return _refusal(ERR_UNAUTHORIZED, "stale_session_lease")
+   for scratch in metadata_scratch:
+    if FileAccess.file_exists(scratch):
+     return _refusal(ERR_BUSY, "metadata_publication_pending", "pending_recovery")
+   return operations.commit_serializers(context, serializers, anchor, action_and_save, fault))
  var execution: Variant = boundary.get("value")
  var finalized: Batch.Finalization = execution.get("outcome") if execution is Dictionary else null
  if finalized == null:
-  if boundary.state == "pending_recovery" or (execution is Dictionary and execution.get("reason") == "unresolved_transaction"):
-   game.set_meta("guarded_persistence_pending", true)
+  if execution is Dictionary and not execution.get("ran", false):
+   var release_error: Error = boundary.release_error
+   boundary = _refusal(execution.get("error", ERR_BUG), execution.get("reason", "transaction_refused"),
+    "pending_recovery" if execution.get("reason") == "unresolved_transaction" else execution.get("state", "invalid"))
+   boundary.release_error = release_error
+  if boundary.state in ["pending_recovery", "ambiguous", "unresolved"] or boundary.release_error != OK:
+   game.set_meta(PENDING, true)
   return boundary
 
  match finalized.outcome:
@@ -118,10 +226,21 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
   Batch.Outcome.UNCERTAIN:
    game.transaction_publishes.clear()
  if finalized.write_blocked or boundary.release_error != OK:
-  game.set_meta("guarded_persistence_pending", true)
- if finalized.outcome in [Batch.Outcome.COMMITTED, Batch.Outcome.COMMITTED_CLEANUP_PENDING] and publish.is_valid():
+  game.set_meta(PENDING, true)
+ if committed(boundary) and publish.is_valid():
   publish.call(execution.value)
  return boundary
+
+static func _serializers(game: Node, scope: Scope) -> Array:
+ match scope:
+  Scope.GARDEN: return [game.progress] if game.session in ["Solo", "Host"] else []
+  Scope.PROFILE: return [game.local_character] if game.session in ["Solo", "Host"] else []
+  Scope.PAIR: return [game.progress, game.local_character] if game.session in ["Solo", "Host"] else []
+  Scope.GUEST_PROFILE: return [game.guest_character] if game.session == "Guest" else []
+ return [game.progress] if game.session == "Guest" else [game.progress, game.local_character]
+
+static func _refusal(error: Error, reason: String, state := "invalid") -> Dictionary:
+ return {"error": error, "state": state, "ran": false, "reason": reason, "release_error": OK, "value": null}
 
 static func _restore_guarded(game: Node, captured: Dictionary) -> void:
  restore(game.progress, captured.world)

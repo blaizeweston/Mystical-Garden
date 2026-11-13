@@ -133,7 +133,7 @@ static func transfer(game,player: Dictionary,source: String,target: String,id: S
  var stack:=take(game,player,source,id,amount)
  if stack.is_empty(): return "That stack changed or is reserved for a weapon. Clear the relevant gate slots and retry."
  put(game,player,target,stack)
- if not player.get("wild",false) and game.progress.save_garden()!=OK:
+ if not player.get("wild",false) and not preload("res://save_batch.gd").guarded_active() and game.progress.save_garden()!=OK:
   var restored:=take(game,player,target,id,amount,false);put(game,player,source,restored)
   return "Could not save the transfer. Items were returned."
  return "Moved %d %s."%[amount,definition.name]

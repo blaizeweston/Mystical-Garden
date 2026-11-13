@@ -1,4 +1,5 @@
 extends RefCounted
+const Tx=preload("res://game_transaction.gd")
 const State=preload("res://garden_growth_state.gd")
 static func identity(game: Node,id: int) -> String:
  return game.local_character.identity if id==game.HOST else str(game.players.get(id,{}).get("seed_owner",""))
@@ -9,7 +10,7 @@ static func register(game: Node,id: int) -> bool:
  var data:=State.initialize(game.progress.garden_interactions,State.snapshot(game.progress));var who:=identity(game,id)
  if who.is_empty() or data.get("version",1)!=1 or not data.get("growth") is Dictionary or data.growth.get("version",0)!=1 or not data.growth.get("seen") is Dictionary:return false
  if data.growth.seen.has(who):return true
- var result=preload("res://game_transaction.gd").run(game,func():
+ var result=Tx.run_gameplay(game,Tx.Scope.PAIR,func():
   game.progress.garden_interactions=data
   game.progress.garden_interactions.growth.seen[who]=int(data.growth.sequence)
   return true)
@@ -29,7 +30,7 @@ static func acknowledge(game: Node,id: int,payload: String) -> bool:
  var projection_data:=projection(game,id);var sequence:=int(payload)
  if sequence<=int(projection_data.get("seen",0)):return true
  if projection_data.get("pending",[]).is_empty() or int(projection_data.pending[0].sequence)!=sequence:return false
- var committed: bool=preload("res://game_transaction.gd").run(game,func():
+ var committed: bool=Tx.run_gameplay(game,Tx.Scope.PAIR,func():
   game.progress.garden_interactions.growth.seen[identity(game,id)]=sequence
   return true)==true
  if committed:preload("res://diagnostic_journal.gd").event("garden","growth_acknowledged",{"actor":id,"sequence":sequence})

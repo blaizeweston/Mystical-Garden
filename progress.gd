@@ -1,4 +1,5 @@
 extends RefCounted
+var require_guarded_access := false
 const SaveBatch=preload("res://save_batch.gd")
 
 const Heart = preload("res://heart_progress.gd")
@@ -77,6 +78,8 @@ func load_garden(recover_interrupted: bool=true) -> Error:
 	if recover_interrupted:
 		if SaveBatch.guarded_active():
 			return load("res://persistence_operations.gd").read_serializer(self, _read_garden)
+		if require_guarded_access:
+			return ERR_UNAUTHORIZED
 		var recovery := SaveBatch.recover(path)
 		if recovery != OK:
 			return recovery
@@ -227,9 +230,13 @@ func _read_garden() -> Error:
 func save_garden() -> Error:
 	if SaveBatch.guarded_active():
 		return load("res://persistence_operations.gd").stage_serializer(self, _serialize_save)
+	if require_guarded_access:
+		return ERR_UNAUTHORIZED
 	return _serialize_save()
 
 func save_garden_guarded() -> Dictionary:
+	if require_guarded_access:
+		return {"error": ERR_UNAUTHORIZED, "ran": false, "reason": "session_context_required"}
 	var before := garden_interactions.duplicate(true)
 	var outcome: Dictionary = load("res://persistence_operations.gd").run_serializers([self], path, save_garden)
 	if outcome.ran and outcome.value.get("outcome") != null and outcome.value.outcome.outcome == SaveBatch.Outcome.ABORTED_RESTORED:
