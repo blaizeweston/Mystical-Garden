@@ -69,6 +69,7 @@ static func run(game: Node,action: Callable):
 const SESSION := &"guarded_title_session"
 const PENDING := &"guarded_persistence_pending"
 const STOPPING := &"guarded_session_stopping"
+const CLEANUP_NOTICE := "Saved. Recovery cleanup is pending. Further saves are blocked."
 enum Scope { LEGACY, GARDEN, PROFILE, PAIR, GUEST_PROFILE }
 
 static var _owner: Node
@@ -125,7 +126,7 @@ static func _report(game: Node, boundary: Dictionary) -> String:
    Batch.Outcome.COMMITTED:
     notice = "" if boundary.error == OK else "Saved. Further saves are blocked until the session is reopened."
    Batch.Outcome.COMMITTED_CLEANUP_PENDING:
-    notice = "Saved. Recovery cleanup is pending. Further saves are blocked."
+    notice = CLEANUP_NOTICE
    Batch.Outcome.ABORTED_RESTORED:
     notice = "Save cancelled. The original state was verified."
     if final.write_blocked: notice += " Recovery cleanup is pending."

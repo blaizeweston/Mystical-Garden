@@ -59,7 +59,7 @@ static func restore(game,player: Dictionary,before: Dictionary) -> void:
  g.parts.assign(before.shared);g.heartwood_barbs=before.barbs;g.item_stashes=before.extras.duplicate(true)
  g.discoveries.assign(before.discoveries);g.knowledge=before.knowledge;g.veilcap_discovered=before.veilcap
  g.attempted_pairs=before.attempts.duplicate(true);g.altar_recipes=before.recipes.duplicate(true)
-static func combine(game,player: Dictionary,draft: Array) -> String:
+static func combine(game,player: Dictionary,draft: Array,effects = null) -> String:
  var reason:=validate(game,player,draft)
  if not reason.is_empty(): return reason
  var before:=capture(game,player)
@@ -93,8 +93,9 @@ static func combine(game,player: Dictionary,draft: Array) -> String:
  if not preload("res://save_batch.gd").guarded_active() and game.progress.save_garden()!=OK:
   restore(game,player,before)
   return "Could not save the offering. All ingredients and Knowledge were returned."
- if not preload("res://save_batch.gd").guarded_active():
-  preload("res://diagnostic_journal.gd").event("altar","offering_saved",{"inputs":draft,"output":output,"success":not recipe.is_empty(),"fresh":fresh})
+ var report := func(): preload("res://diagnostic_journal.gd").event("altar","offering_saved",{"inputs":draft,"output":output,"success":not recipe.is_empty(),"fresh":fresh})
+ if effects != null: effects.append(report)
+ elif not preload("res://save_batch.gd").guarded_active(): report.call()
  return message
 static func ancient_count(game,player: Dictionary) -> int:
  return int(Model.extra_stash(game,player).get("boss_mystery_seed",0))

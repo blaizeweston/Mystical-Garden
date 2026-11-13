@@ -42,6 +42,8 @@ static func harvest_seeds(game: Node,id: int,slot: int) -> Dictionary:
  if not eligible(game,id,slot) or not game.progress.flowering_unlocked:return reject(game,id,"Research Flowering before harvesting seeds at a Garden bed.")
  var before: Dictionary=game.progress.plots[slot].duplicate(true)
  if int(before.species)<0 or int(before.stage)<3:return reject(game,id,"Let this plant mature, then choose seeds or parts at harvest.")
+ if game.has_meta(Tx.SESSION):
+  return {"changed":game.harvest_guarded(id,slot,true)}
  var result=Tx.run(game,func():
   game.progress.plots[slot].flowering=true
   game._harvest(id,slot)
@@ -85,8 +87,7 @@ static func command(game: Node,id: int,request: Dictionary) -> Dictionary:
   return {"changed":true,"revision":bed.care.revision}
  if action=="harvest_crop":
   if int(bed.stage)!=3:return reject(game,id,"This crop is still growing.")
-  game.harvest(id,slot)
-  return {"changed":int(game.progress.plots[slot].species)<0}
+  return {"changed":game.harvest(id,slot)}
  if chosen.is_empty() or not State.available(bed):return reject(game,id,"That bud is no longer available. The crop will keep growing.")
  # Freeze the care outcome using a copy of the existing RNG state. No extra draw
  # advances combat/loot RNG; harvest still consumes its one ordinary draw.

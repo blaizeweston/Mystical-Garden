@@ -684,6 +684,7 @@ func join_game(address: String="",port: int=0) -> Error:
 	online_peer = peer
 	multiplayer.multiplayer_peer = peer
 	session = "Connecting"
+	if has_meta(&"guarded_host_cleanup_notice"): remove_meta(&"guarded_host_cleanup_notice")
 	set_meta("join_phase","connect")
 	set_meta("join_cancelled",false)
 	status = Network.join_progress("connect",network_address,network_port)
@@ -920,7 +921,7 @@ func garden_action(id: int, action: String) -> void:
 		return
 	var diagnostic_request:=Journal.interaction(self,id,action,"begin")
 	var persistent: bool=action in ["experiment","donate"] or action.begins_with("breed_") or action.begins_with("care_")
-	if persistent: Transactions.run(self,func(): _garden_action(id,action))
+	if persistent and not has_meta(Transactions.SESSION): Transactions.run(self,func(): _garden_action(id,action))
 	else: _garden_action(id,action)
 	Journal.interaction(self,id,action,"end",diagnostic_request)
 
@@ -953,7 +954,8 @@ func _garden_action(id: int, action: String) -> void:
 		return
 	if action.begins_with("graft_install_"):
 		var value:=action.trim_prefix("graft_install_")
-		if value.is_valid_int() and int(value)>0: attempt_graft(id,player,int(value))
+		if value.is_valid_int() and int(value)>0:
+			if not attempt_graft(id,player,int(value)) and has_meta(Transactions.SESSION): return
 		if at_graft_altar(player): show_graft_menu(id)
 		return
 	if action=="abandon_run":
@@ -964,14 +966,12 @@ func _garden_action(id: int, action: String) -> void:
 		if pieces.size()!=3 or not pieces[2].is_valid_int(): return
 		var value:=int(pieces[2])
 		if pieces[1]=="reclaim" and value>=0 and value<Seeds.NAMES.size() and progress.discoveries[value] and at_garden_station(player,"seed_archive"):
-			player.reclaim_choice=value
-			reclaim_seed(id,player)
+			reclaim_seed(id,player,value)
 		elif pieces[1]=="offer" and Parts.is_monster(value) and at_garden_station(player,"monster_studies"):
 			if stored_counts(player)[value]<=0:
 				tell(id,"That trophy is no longer available.")
 				return
-			player.offering_choice=value
-			offer_monster(id,player)
+			offer_monster(id,player,value)
 		else:
 			tell(id,"Move to the appropriate Garden station with an available ingredient.")
 		return
@@ -1042,11 +1042,7 @@ func _garden_action(id: int, action: String) -> void:
 	if action.begins_with("breed_"):
 		var fields := action.split("_")
 		if fields.size() == 3 and fields[1].is_valid_int() and fields[2].is_valid_int() and not player.wild and Stage.ALTAR.distance_to(player.pos) <= 1.65:
-			var outcome := progress.breed(int(fields[1]), int(fields[2]), seed_reserve(player).stock)
-			if not outcome.is_empty():
-				save_progress(id, outcome)
-			else:
-				tell(id,"Need one identified seed of each parent (two for a matching pair).")
+			run_seed_experiment(id, player, int(fields[1]), int(fields[2]))
 		else:
 			tell(id, "Crossbreed at the Garden altar.")
 		return
@@ -1133,11 +1129,7 @@ func _garden_action(id: int, action: String) -> void:
 						break
 		"experiment":
 			if not player.wild and Stage.ALTAR.distance_to(player.pos) <= 1.65:
-				var outcome := progress.experiment(player.experiment, seed_reserve(player).stock)
-				if outcome.is_empty():
-					tell(id, "Not enough identified seeds for this experiment.")
-				else:
-					save_progress(id, outcome)
+				run_seed_experiment(id, player, -1, -1, true)
 		"flower":
 			var slot := nearby_plot(player.pos)
 			if slot>=0:preload("res://garden_crop_service.gd").harvest_seeds(self,id,slot)
@@ -1221,15 +1213,57 @@ func selected_donation(player: Dictionary) -> int:
 	return choice if choice != Parts.EMPTY and parts[choice] > 0 else next_part(Parts.EMPTY, parts, Parts.EMPTY)
 
 
+# Only the guarded route queues feedback. Legacy callers retain their existing
+# write and publication order. The typed boundary decides whether to publish.
+func run_guarded_action(id: int, scope: Transactions.Scope, action: Callable) -> Dictionary:
+	var effects: Array[Callable] = []
+	var result := Transactions.run_gameplay(self, scope, action.bind(effects))
+	if not result.notice.is_empty() and id != HOST:
+		tell(id, result.notice)
+	if Transactions.committed(result.persistence):
+		for effect in effects:
+			effect.call()
+	return result
+
+func action_feedback(effects, id: int, message: String) -> void:
+	if effects == null:
+		tell(id, message)
+	else:
+		effects.append(tell.bind(id, message))
+
+func run_seed_experiment(id: int, player: Dictionary, first: int, second: int, legacy_recipe := false) -> void:
+	var action := func(effects):
+		var stock: Array = seed_reserve(player).stock
+		var outcome := progress.experiment(player.experiment, stock) if legacy_recipe else progress.breed(first, second, stock)
+		if outcome.is_empty():
+			action_feedback(effects, id, "Not enough identified seeds for this experiment." if legacy_recipe else "Need one identified seed of each parent (two for a matching pair).")
+		elif effects == null:
+			save_progress(id, outcome)
+		else:
+			action_feedback(effects, id, outcome)
+	if has_meta(Transactions.SESSION):
+		run_guarded_action(id, Transactions.Scope.GARDEN, action)
+	else:
+		action.call(null)
+
 func donate_part(id: int, player: Dictionary) -> void:
-	if not deferred_save_available(id): return
+	if has_meta(Transactions.SESSION):
+		run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _donate_part(id, player, effects))
+	else:
+		_donate_part(id, player, null)
+
+func _donate_part(id: int, player: Dictionary, effects) -> void:
 	var part := selected_donation(player)
 	if part == Parts.EMPTY:
-		tell(id, "Extract with a weapon part to donate it.")
+		action_feedback(effects, id, "Extract with a weapon part to donate it.")
 		return
 	seed_reserve(player).parts[part] -= 1
 	progress.add_parts(part, 1)
-	save_progress(id, "Donated %s to the shared Garden." % Parts.part_name(part))
+	var message := "Donated %s to the shared Garden." % Parts.part_name(part)
+	if effects == null:
+		save_progress(id, message)
+	else:
+		action_feedback(effects, id, message)
 
 
 func award_combat_progress() -> void:
@@ -1242,6 +1276,23 @@ func run_wallet(player: Dictionary) -> int:
 func record_character(id: int) -> void:
 	var owner: String=local_character.identity if id==HOST else players[id].get("seed_owner","")
 	progress.character_records[owner]={"profile":players[id].character.duplicate(true),"manifest":progress.ContentIDs.manifest()}
+
+# The host stores the Garden's character record. A guest alone owns its
+# canonical profile and receives the existing reliable ordered projection.
+func actor_profile_scope(id: int) -> Transactions.Scope:
+	return Transactions.Scope.PAIR if id == HOST else Transactions.Scope.GARDEN
+
+func save_action_profile(id: int, effects) -> void:
+	if effects == null:
+		publish_character(id)
+		return
+	record_character(id)
+	if id != HOST:
+		effects.append(send_committed_profile.bind(id))
+
+func send_committed_profile(id: int) -> void:
+	if multiplayer.is_server() and online_peer != null and multiplayer.get_peers().has(id) and players.has(id):
+		receive_character.rpc_id(id, players[id].character)
 
 func publish_character(id: int) -> void:
 	if has_meta(Transactions.SESSION): return
@@ -1262,8 +1313,10 @@ func receive_character(profile: Dictionary) -> void:
 	if session != "Guest" or not Transactions.session_writable(self): return
 	if has_meta(Transactions.SESSION):
 		# Only the guest's local write participates in this transaction.
+		var normalized := Character.normalize(profile)
+		if normalized == guest_character.data: return
 		var saved := Transactions.run_gameplay(self, Transactions.Scope.GUEST_PROFILE, func():
-			guest_character.data = Character.normalize(profile)
+			guest_character.data = normalized
 			return true)
 		if Transactions.committed(saved.persistence): character_dirty = false
 		return
@@ -1523,21 +1576,26 @@ func graft_block_reason(player: Dictionary,part: int) -> String:
 	if installed!=0 and encounter_number<=int(player.get("graft_floor",0)): return "Replacement requires an altar on a later encounter."
 	return ""
 
-func attempt_graft(id: int, player: Dictionary,requested: int=-1) -> void:
-	Transactions.run(self,func(): _attempt_graft(id,player,requested))
+func attempt_graft(id: int, player: Dictionary, requested: int = -1) -> bool:
+	if has_meta(Transactions.SESSION):
+		var result := run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _attempt_graft(id, player, requested, effects))
+		return Transactions.committed(result.persistence)
+	return Transactions.run(self, func(): _attempt_graft(id, player, requested)) != false
 
-func _attempt_graft(id: int, player: Dictionary,requested: int=-1) -> void:
+func _attempt_graft(id: int, player: Dictionary, requested: int = -1, effects = null) -> void:
 	var part: int=selected_graft(player) if requested==-1 else requested
 	var reason:=graft_block_reason(player,part)
 	if not reason.is_empty():
-		graft_feedback(id,player,reason)
+		graft_feedback(id,player,reason,effects)
 		return
 	var previous:=int(player.get("graft_part",0))
 	player.graft_choice=part
 	player.carried_parts[part]-=1
 	var graft_roll:=rng.randf()
 	var probability:=graft_chance(player,part)
-	Journal.event("grafting","roll",{"actor":id,"part":part,"previous_part":previous,"probability":probability,"roll":graft_roll,"success":graft_roll<probability})
+	var report_roll := func(): Journal.event("grafting","roll",{"actor":id,"part":part,"previous_part":previous,"probability":probability,"roll":graft_roll,"success":graft_roll<probability})
+	if effects == null: report_roll.call()
+	else: effects.append(report_roll)
 	if graft_roll<probability:
 		player.graft_part=part
 		player.graft_floor=encounter_number
@@ -1547,13 +1605,12 @@ func _attempt_graft(id: int, player: Dictionary,requested: int=-1) -> void:
 		progress.record_monster_graft(part)
 		var message: String="%s grafted into the fourth slot."%Parts.part_name(part)
 		if previous!=0: message="%s replaced %s. The old component was sacrificed."%[Parts.part_name(part),Parts.part_name(previous)]
-		var saved:=progress.save_garden()
-		if saved!=OK:
+		if effects == null and progress.save_garden()!=OK:
 			message+=" Save failed. Use Save Garden to retry."
 			if id!=HOST: status="Garden save failed. Use Save Garden to retry."
-		graft_feedback(id,player,message)
+		graft_feedback(id,player,message,effects)
 	else:
-		graft_feedback(id,player,"The graft failed and consumed %s.%s"%[Parts.part_name(part)," The installed component remains intact." if previous!=0 else ""])
+		graft_feedback(id,player,"The graft failed and consumed %s.%s"%[Parts.part_name(part)," The installed component remains intact." if previous!=0 else ""],effects)
 
 
 func selected_graft(player: Dictionary) -> int:
@@ -1582,14 +1639,19 @@ func next_part(current: int, counts: Array, excluded: int, allow_empty: bool = t
 
 
 func cycle_slot(id: int, player: Dictionary, slot: String, _excluded: int) -> void:
-	if not deferred_save_available(id): return
 	if not at_weapon_gate(player): return
+	if has_meta(Transactions.SESSION):
+		run_guarded_action(id, actor_profile_scope(id), func(effects): _cycle_slot(id, player, slot, effects))
+	else:
+		_cycle_slot(id, player, slot, null)
+
+func _cycle_slot(id: int, player: Dictionary, slot: String, effects) -> void:
 	for offset in range(1,Parts.DEFINITIONS.size()+1):
 		var candidate: int=(int(player[slot])+offset)%Parts.DEFINITIONS.size()
 		if candidate==0 or (Parts.is_plant(candidate) and LoadoutMaterials.remaining(stored_counts(player),LoadoutMaterials.choices(player),LoadoutMaterials.FIELDS.find(slot),candidate)>0):
 			player[slot]=candidate
-			persist_loadout(id,player)
-			tell(id,"%s: %s" % [slot.trim_prefix("prepared").replace("_"," ").strip_edges(),Parts.part_name(candidate)])
+			persist_loadout(id,player,effects)
+			action_feedback(effects,id,"%s: %s" % [slot.trim_prefix("prepared").replace("_"," ").strip_edges(),Parts.part_name(candidate)])
 			return
 
 
@@ -1614,21 +1676,27 @@ func checkpoint_offer_ids(player: Dictionary) -> Array:
 	return player.get("checkpoint_offers",[])
 
 func buy_upgrade(id: int,player: Dictionary,choice: int) -> bool:
+	if has_meta(Transactions.SESSION):
+		var result := run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): return _buy_upgrade(id, player, choice, effects))
+		return Transactions.committed(result.persistence) and result.value == true
 	return bool(Transactions.run(self,func(): return _buy_upgrade(id,player,choice)))
 
-func _buy_upgrade(id: int,player: Dictionary,choice: int) -> bool:
+func _buy_upgrade(id: int,player: Dictionary,choice: int,effects = null) -> bool:
 	if not player.wild or not upgrade_checkpoint_open() or battlefield.advance.distance_to(player.pos)>preload("res://gate_interaction.gd").RANGE or int(player.last_offer)==encounter_number: return false
 	var offers:=checkpoint_offer_ids(player)
 	if choice<0 or choice>=offers.size(): return false
 	var entry:=RunUpgrades.get_upgrade(str(offers[choice]))
 	var reason:=RunUpgrades.requirement(entry,player)
-	if not reason.is_empty(): tell(id,reason);return false
-	if run_wallet(player)<int(entry.cost): tell(id,"Not enough essence for that upgrade.");return false
+	if not reason.is_empty(): action_feedback(effects,id,reason);return false
+	if run_wallet(player)<int(entry.cost): action_feedback(effects,id,"Not enough essence for that upgrade.");return false
 	var before_health:=int(player.get("max_hp",MAX_HEALTH))
 	if not player.has("run_upgrades"): player.run_upgrades={}
 	player.run_upgrades[entry.id]=int(player.run_upgrades.get(entry.id,0))+1
 	player.spent+=int(entry.cost)
-	preload("res://game_metrics.gd").record("upgrade",{"id":entry.id,"floor":encounter_number,"cost":int(entry.cost)})
+	var metric := {"id":entry.id,"floor":encounter_number,"cost":int(entry.cost)}
+	var record_upgrade := func(): preload("res://game_metrics.gd").record("upgrade",metric)
+	if effects == null: record_upgrade.call()
+	else: effects.append(record_upgrade)
 	player.last_offer=encounter_number
 	player.power+=int(entry.effects.get("power",0))
 	player.technique+=int(entry.effects.get("technique",0))
@@ -1637,8 +1705,12 @@ func _buy_upgrade(id: int,player: Dictionary,choice: int) -> bool:
 	Life.Vitals.heal(player,maxi(0,int(player.max_hp)-before_health))
 	var message: String="%s · Rank %d gained for this expedition."%[entry.name,int(player.run_upgrades[entry.id])]
 	if entry.id=="rift_hook" and not progress.rift_hook_discovered:
-		progress.discover_rift_hook();save_progress(id,message+" The Heart remembers this link.")
-	else: tell(id,message)
+		progress.discover_rift_hook()
+		message+=" The Heart remembers this link."
+		if effects == null:
+			save_progress(id,message)
+			return true
+	action_feedback(effects,id,message)
 	return true
 
 
@@ -2265,43 +2337,72 @@ func nearby_plot(pos: Vector3) -> int:
 	return -1
 
 
-func harvest(id: int, slot: int) -> void:
-	if not players.has(id) or slot<0 or slot>=progress.plots.size():return
+func harvest(id: int, slot: int) -> bool:
+	if not players.has(id) or slot<0 or slot>=progress.plots.size():return false
+	if has_meta(Transactions.SESSION):
+		return harvest_guarded(id, slot, false)
 	var bed: Dictionary=progress.plots[slot].duplicate(true)
 	var before_rng: int=rng.state
 	var rare: int=Parts.rare_part(int(bed.species)) if int(bed.species)>=0 else 0
 	var rare_before: int=progress.part_count(rare) if rare>0 else 0
 	var result=Transactions.run(self,func(): _harvest(id,slot))
-	if result==false:rng.state=before_rng;return
+	if result==false:rng.state=before_rng;return false
 	if int(bed.species)>=0 and int(bed.stage)==3 and int(progress.plots[slot].species)<0:
-		Journal.event("garden","crop_harvested",{"actor":id,"bed":slot,"cycle":bed.get("care",{}).get("cycle",""),"species":Seeds.DEFINITIONS[int(bed.species)].id,"flowering":bool(bed.flowering),"preserved":preload("res://garden_crop_state.gd").preserved(bed),"rare":rare>0 and progress.part_count(rare)>rare_before})
+		report_harvest(id, slot, bed, bool(bed.flowering), rare>0 and progress.part_count(rare)>rare_before)
+		return true
+	return false
 
-func _harvest(id: int, slot: int) -> void:
+func harvest_guarded(id: int, slot: int, flower: bool) -> bool:
+	if not preload("res://garden_crop_service.gd").eligible(self, id, slot): return false
+	var bed: Dictionary = progress.plots[slot].duplicate(true)
+	if int(bed.species)<0 or int(bed.stage)<3 or (flower and not progress.flowering_unlocked): return false
+	var result := run_guarded_action(id, actor_profile_scope(id), func(effects):
+		if flower: progress.plots[slot].flowering = true
+		var rare := Parts.rare_part(int(bed.species))
+		var rare_before := progress.part_count(rare) if rare>0 else 0
+		var changed := _harvest(id, slot, effects)
+		if changed:
+			effects.append(report_harvest.bind(id, slot, bed, flower or bool(bed.flowering), rare>0 and progress.part_count(rare)>rare_before))
+		return changed)
+	return Transactions.committed(result.persistence) and result.value == true
+
+func report_harvest(id: int, slot: int, bed: Dictionary, flowering: bool, rare: bool) -> void:
+	var preserved := preload("res://garden_crop_state.gd").preserved(bed)
+	Journal.event("garden", "crop_harvested", {"actor":id,"bed":slot,"cycle":bed.get("care",{}).get("cycle",""),"species":Seeds.DEFINITIONS[int(bed.species)].id,"flowering":flowering,"preserved":preserved and not flowering,"forfeited_bud":preserved and flowering,"rare":rare})
+
+func _harvest(id: int, slot: int, effects = null) -> bool:
 	var bed: Dictionary = progress.plots[slot]
 	var kind := int(bed.species)
 	if kind < 0 or bed.stage < 3:
-		tell(id, "Still growing: %s." % ["Seed", "Sprout", "Young plant", "Mature"][int(bed.stage)])
-		return
+		action_feedback(effects, id, "Still growing: %s." % ["Seed", "Sprout", "Young plant", "Mature"][int(bed.stage)])
+		return false
 	var seeds := bool(bed.flowering)
 	progress.plots[slot] = Progress.empty_plot()
 	progress.sync_plot_flags()
 	var profile: Dictionary = players[id].character
 	var familiarity: int = profile.plants[kind]
 	profile.plants[kind] = mini(9999, familiarity + 1 + int(progress.heart.has("nursery")) + int(Classes.bonuses(profile,int(players[id].frame)).get("familiarity",0)))
-	publish_character(id)
+	save_action_profile(id, effects)
+	var message: String
 	if seeds:
 		seed_reserve(players[id]).stock[kind] += 2
-		save_progress(id, "Harvested two %s seeds. The bed is ready to replant." % Progress.PLANT_NAMES[kind])
+		message = "Harvested two %s seeds. The bed is ready to replant." % Progress.PLANT_NAMES[kind]
 	else:
 		progress.parts[kind] += 1
-		var message := "Harvested a %s part. Replant this bed with any identified seed." % Progress.PLANT_NAMES[kind]
+		message = "Harvested a %s part. Replant this bed with any identified seed." % Progress.PLANT_NAMES[kind]
 		var harvest_roll:=rng.randf()
 		if preload("res://garden_crop_state.gd").preserved(bed):harvest_roll=preload("res://garden_crop_state.gd").roll(bed)
 		if harvest_roll < preload("res://garden_crop_state.gd").chance(bed,rare_harvest_chance(familiarity)):
 			var rare:=Parts.rare_part(kind)
 			if rare>0: progress.add_parts(rare,1);message+=" Rare harvest: "+Parts.part_name(rare)+"."
+	var play_audio := func(): preload("res://event_audio.gd").emit(self, "crop_harvested", Stage.PLOTS[slot])
+	if effects == null:
 		save_progress(id, message)
-	preload("res://event_audio.gd").emit(self,"crop_harvested",Stage.PLOTS[slot])
+		play_audio.call()
+	else:
+		action_feedback(effects, id, message)
+		effects.append(play_audio)
+	return true
 
 func rare_harvest_chance(familiarity: int) -> float:
 	return minf(.45,0.05+0.04*mini(familiarity,5)+.005*maxi(0,familiarity-5))
@@ -3005,8 +3106,11 @@ func save_progress(id: int, message: String) -> void:
 
 
 func refresh_feedback() -> void:
-	var pending := not Transactions.pending_notice(self).is_empty()
+	var remote_notice := str(get_meta(&"guarded_host_cleanup_notice", "")) if session == "Guest" else ""
+	var pending := not Transactions.pending_notice(self).is_empty() or not remote_notice.is_empty()
 	var message := status if Time.get_ticks_msec() < toast_until else ""
+	if not remote_notice.is_empty() and message != remote_notice and not message.ends_with("\n" + remote_notice):
+		message = remote_notice if message.is_empty() else message + "\n" + remote_notice
 	feedback.text = Transactions.feedback_text(self, message)
 	var message_width := 0.0
 	for line in feedback.text.split("\n"):
@@ -3028,6 +3132,9 @@ func tell(id: int, message: String) -> void:
 
 @rpc("authority", "call_remote", "reliable")
 func receive_message(message: String) -> void:
+	if has_meta(Transactions.SESSION) and session == "Guest" and (message == Transactions.CLEANUP_NOTICE or message.ends_with("\n" + Transactions.CLEANUP_NOTICE)):
+		# The host's blocked Garden is distinct from this guest's local profile.
+		set_meta(&"guarded_host_cleanup_notice", Transactions.CLEANUP_NOTICE)
 	status = message
 
 
@@ -3130,7 +3237,7 @@ func receive_state(people: PackedByteArray, enemy: Vector3, hp: int, winding_up:
 
 
 func _process(_delta: float) -> void:
-	if not Transactions.pending_notice(self).is_empty():
+	if not Transactions.pending_notice(self).is_empty() or (session == "Guest" and has_meta(&"guarded_host_cleanup_notice")):
 		refresh_feedback()
 	if has_meta("guarded_title_session") and not returning_to_title:
 		var owner = get_meta("guarded_title_session")
@@ -3548,26 +3655,30 @@ func restore_class_loadout(player: Dictionary) -> void:
 	player.max_hp=Life.Preview.hp(MAX_HEALTH+int(Classes.bonuses(profile,int(player.frame)).get("max_health",0)))
 	player.hp=minf(float(player.get("hp",player.max_hp)),float(player.max_hp))
 
-func persist_loadout(id: int,player: Dictionary) -> void:
-	if has_meta(Transactions.SESSION): return
+func persist_loadout(id: int,player: Dictionary,effects = null) -> void:
+	if effects == null and has_meta(Transactions.SESSION): return
 	player.character.active_class=int(player.frame)
 	player.character.loadouts[player.frame]={"weapon":int(player.weapon_kind),"parts":[int(player.prepared),int(player.prepared_secondary),int(player.prepared_catalyst)]}
-	publish_character(id)
+	save_action_profile(id, effects)
 
 func select_class(id: int,player: Dictionary,class_id: int) -> void:
-	if not deferred_save_available(id): return
 	if class_id<0 or class_id>=Classes.DEFINITIONS.size() or not ((at_heart(player) and not expedition_active()) or at_weapon_gate(player)): return
+	if has_meta(Transactions.SESSION):
+		run_guarded_action(id, actor_profile_scope(id), func(effects): _select_class(id, player, class_id, effects))
+	else:
+		_select_class(id, player, class_id, null)
+
+func _select_class(id: int,player: Dictionary,class_id: int,effects) -> void:
 	player.loadout_reserving=false
 	player.character.active_class=class_id
 	restore_class_loadout(player)
 	if at_weapon_gate(player):
 		LoadoutMaterials.reconcile(player,stored_counts(player));player.loadout_reserving=true
 	player.hp=float(player.max_hp)
-	persist_loadout(id,player)
-	tell(id,"%s selected."%Classes.DEFINITIONS[class_id].name)
+	persist_loadout(id,player,effects)
+	action_feedback(effects,id,"%s selected."%Classes.DEFINITIONS[class_id].name)
 
 func handle_loadout_action(id: int,player: Dictionary,action: String) -> void:
-	if not action.begins_with("pack_") and action != "clearpack" and not deferred_save_available(id): return
 	var allowed: bool
 	if action.begins_with("learn_"):
 		allowed=preload("res://class_tree_access.gd").can_learn_here(self,player)
@@ -3581,25 +3692,34 @@ func handle_loadout_action(id: int,player: Dictionary,action: String) -> void:
 	var fields:=action.split("_")
 	for field in fields.slice(1):
 		if not field.is_valid_int(): return
+	var command := fields[0]
+	if command == "class":
+		if fields.size()==2: select_class(id,player,int(fields[1]))
+	elif has_meta(Transactions.SESSION) and command in ["loadweapon", "loadpart", "learn", "respec"]:
+		run_guarded_action(id, actor_profile_scope(id), func(effects): _apply_loadout_action(id, player, fields, effects))
+	else:
+		_apply_loadout_action(id, player, fields, null)
+
+func _apply_loadout_action(id: int, player: Dictionary, fields: PackedStringArray, effects) -> void:
 	match fields[0]:
-		"class":
-			if fields.size()==2: select_class(id,player,int(fields[1]))
 		"loadweapon":
 			if fields.size()==2 and int(fields[1])>=0 and int(fields[1])<Classes.DEFINITIONS[int(player.frame)].weapons.size():
 				player.weapon_kind=int(fields[1])
-				persist_loadout(id,player)
+				persist_loadout(id,player,effects)
 		"loadpart":
 			if fields.size()!=3: return
-			LoadoutMaterials.reconcile(player,stored_counts(player))
+			if effects == null: LoadoutMaterials.reconcile(player,stored_counts(player))
 			var slot:=int(fields[1])
 			var part:=int(fields[2])
 			if slot<0 or slot>2 or (part!=0 and not Parts.is_plant(part)): return
+			var reconciled := effects != null and LoadoutMaterials.reconcile(player,stored_counts(player))
 			if part!=0 and LoadoutMaterials.remaining(stored_counts(player),LoadoutMaterials.choices(player),slot,part)<=0:
-				tell(id,"That material is unavailable or already assigned to another weapon slot.")
+				if reconciled and effects != null: persist_loadout(id,player,effects)
+				action_feedback(effects,id,"That material is unavailable or already assigned to another weapon slot.")
 				return
-			player[["prepared","prepared_secondary","prepared_catalyst"][slot]]=part
+			player[LoadoutMaterials.FIELDS[slot]]=part
 			player.loadout_reserving=true
-			persist_loadout(id,player)
+			persist_loadout(id,player,effects)
 		"pack":
 			if fields.size()!=2: return
 			var part:=int(fields[1])
@@ -3617,14 +3737,14 @@ func handle_loadout_action(id: int,player: Dictionary,action: String) -> void:
 			if Classes.can_learn(player.character,c,node,Character.level(int(player.character.xp[c])) if c>=0 and c<Classes.DEFINITIONS.size() else 0):
 				player.character.upgrades[c] |= 1 << node
 				restore_class_loadout(player)
-				publish_character(id)
-				tell(id,"Learned %s."%Classes.all_nodes(c)[node].name)
+				save_action_profile(id, effects)
+				action_feedback(effects,id,"Learned %s."%Classes.all_nodes(c)[node].name)
 		"respec":
 			if fields.size()==2 and int(fields[1])>=0 and int(fields[1])<Classes.DEFINITIONS.size():
 				player.character.upgrades[int(fields[1])]=0
 				restore_class_loadout(player)
-				publish_character(id)
-				tell(id,"Class points refunded. Choose a new path before the next expedition.")
+				save_action_profile(id, effects)
+				action_feedback(effects,id,"Class points refunded. Choose a new path before the next expedition.")
 
 func has_rift_loadout(player: Dictionary) -> bool:
 	return [player.get("weapon",0),player.get("secondary",0),player.get("catalyst",0)].has(Parts.VEIL) and int(player.get("graft_part",0))==Parts.HOOK
@@ -3692,30 +3812,36 @@ func cycle_reclamation(player: Dictionary) -> void:
 			player.reclaim_choice=kind
 			return
 
-func reclaim_seed(id: int,player: Dictionary) -> void:
-	if not deferred_save_available(id): return
+func reclaim_seed(id: int,player: Dictionary,requested := -1) -> void:
 	if not at_garden_station(player,"seed_archive"): return
+	if has_meta(Transactions.SESSION):
+		run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _reclaim_seed(id, player, requested, effects))
+	else:
+		_reclaim_seed(id, player, requested, null)
+
+func _reclaim_seed(id: int,player: Dictionary,requested: int,effects) -> void:
+	if requested >= 0: player.reclaim_choice=requested
 	var kind:=reclamation_species(player)
 	if not progress.discoveries[kind]:
-		tell(id,"Discover a species before reclaiming its seed.")
+		action_feedback(effects,id,"Discover a species before reclaiming its seed.")
 		return
 	var part:=int(Seeds.DEFINITIONS[kind].part)
 	var cost:=reclamation_cost(kind)
 	if stored_counts(player)[part]<cost:
-		tell(id,"Need %d matching %s parts."%[cost,Seeds.NAMES[kind]])
+		action_feedback(effects,id,"Need %d matching %s parts."%[cost,Seeds.NAMES[kind]])
 		return
 	var reserve:=seed_reserve(player)
 	var personal:=mini(int(reserve.parts[part]),cost)
 	reserve.parts[part]-=personal
 	progress.add_parts(part,-(cost-personal))
 	reserve.stock[kind]+=1
-	if progress.save_garden()!=OK:
+	if effects == null and progress.save_garden()!=OK:
 		reserve.parts[part]+=personal
 		progress.add_parts(part,cost-personal)
 		reserve.stock[kind]-=1
 		tell(id,"Could not save reclamation. Materials were returned.")
 		return
-	tell(id,"Reclaimed one %s seed."%Seeds.NAMES[kind])
+	action_feedback(effects,id,"Reclaimed one %s seed."%Seeds.NAMES[kind])
 
 func selected_offering(player: Dictionary) -> int:
 	var part:=int(player.get("offering_choice",0))
@@ -3723,11 +3849,17 @@ func selected_offering(player: Dictionary) -> int:
 	if Parts.is_monster(part) and counts[part]>0: return part
 	return next_monster_part(0,counts)
 
-func offer_monster(id: int,player: Dictionary) -> void:
-	if not deferred_save_available(id): return
+func offer_monster(id: int,player: Dictionary,requested := -1) -> void:
 	if not at_garden_station(player,"monster_studies"): return
+	if has_meta(Transactions.SESSION):
+		run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _offer_monster(id, player, requested, effects))
+	else:
+		_offer_monster(id, player, requested, null)
+
+func _offer_monster(id: int,player: Dictionary,requested: int,effects) -> void:
+	if requested >= 0: player.offering_choice=requested
 	var part:=selected_offering(player)
-	if part==0: tell(id,"Bring a stored monster trophy.");return
+	if part==0: action_feedback(effects,id,"Bring a stored monster trophy.");return
 	var reserve:=seed_reserve(player)
 	var personal: bool=int(reserve.parts[part])>0
 	if personal: reserve.parts[part]-=1
@@ -3736,14 +3868,14 @@ func offer_monster(id: int,player: Dictionary) -> void:
 	var reward:=4 if fresh else 1
 	if fresh: progress.heart.offered.append(part)
 	progress.knowledge+=reward
-	if progress.save_garden()!=OK:
+	if effects == null and progress.save_garden()!=OK:
 		if personal: reserve.parts[part]+=1
 		else: progress.add_parts(part,1)
 		progress.knowledge-=reward
 		if fresh: progress.heart.offered.erase(part)
 		tell(id,"Could not save offering. The trophy was returned.")
 		return
-	tell(id,"Offered %s. The Heart gained %d Knowledge."%[Parts.part_name(part),reward])
+	action_feedback(effects,id,"Offered %s. The Heart gained %d Knowledge."%[Parts.part_name(part),reward])
 
 func can_checkpoint_bank(player: Dictionary) -> bool:
 	return not player.is_empty() and player.get("wild",false) and upgrade_checkpoint_open() and heart_state().get("unlocked",[]).has("checkpoint_deposit") and player.get("pos",Vector3.INF).distance_to(battlefield.advance if multiplayer.is_server() else stage.visual_field.advance)<=preload("res://gate_interaction.gd").RANGE and int(player.get("last_deposit",0))!=encounter_number
@@ -3767,10 +3899,15 @@ func show_checkpoint_deposit() -> void:
 	open_deposit_menu()
 
 func bank_checkpoint_item(id: int,player: Dictionary,action: String) -> void:
-	if not deferred_save_available(id): return
 	if not can_checkpoint_bank(player): return
 	var fields:=action.split("_")
 	if fields.size()!=3 or not fields[2].is_valid_int(): return
+	if has_meta(Transactions.SESSION):
+		run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _bank_checkpoint_item(id, player, fields, effects))
+	else:
+		_bank_checkpoint_item(id, player, fields, null)
+
+func _bank_checkpoint_item(id: int,player: Dictionary,fields: PackedStringArray,effects) -> void:
 	var index:=int(fields[2])
 	var return_before: Dictionary=progress.garden_interactions.duplicate(true)
 	var reserve:=seed_reserve(player)
@@ -3788,7 +3925,7 @@ func bank_checkpoint_item(id: int,player: Dictionary,action: String) -> void:
 		player.carried_parts[index]-=1
 		reserve.parts[index]+=1
 	else: return
-	if progress.save_garden()!=OK:
+	if effects == null and progress.save_garden()!=OK:
 		progress.garden_interactions=return_before
 		if seed>=0:
 			reserve.unknown.pop_back()
@@ -3800,7 +3937,7 @@ func bank_checkpoint_item(id: int,player: Dictionary,action: String) -> void:
 		tell(id,"Could not save courier delivery. Your item was returned.")
 		return
 	player.last_deposit=encounter_number
-	tell(id,"Item sent to Garden storage.")
+	action_feedback(effects,id,"Item sent to Garden storage.")
 
 func build_heart_panels() -> void:
 	deposit_menu=hud_panel(overlay,Color("#14262b"),Vector2(20,14))
@@ -3834,15 +3971,18 @@ func build_heart_panels() -> void:
 			awaken_heart(HOST,player))
 
 func consider_recollection() -> void:
-	if has_meta(Transactions.SESSION): return
 	if not Campaign.LEGACY_ENDING_ENABLED: return
 	if not progress.heart.has("perfect_recollection") or progress.heart.recollection_seen or progress.campaign.ending!=Campaign.UNFINISHED or players.is_empty(): return
 	if overlay.visible: return
-	var before: bool=progress.heart.recollection_seen
-	progress.heart.recollection_seen=true
-	if progress.save_garden()!=OK:
-		progress.heart.recollection_seen=before
-		return
+	if has_meta(Transactions.SESSION):
+		var result := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func(): progress.heart.recollection_seen=true)
+		if not Transactions.committed(result.persistence): return
+	else:
+		var before: bool=progress.heart.recollection_seen
+		progress.heart.recollection_seen=true
+		if progress.save_garden()!=OK:
+			progress.heart.recollection_seen=before
+			return
 	toggle_overlay(recollection_menu)
 	for id in players:
 		if id!=HOST: tell(id,"The Heart perfectly remembers. Its final awakening awaits your party.")
@@ -3878,8 +4018,18 @@ func abandon_run(id: int,player: Dictionary) -> void:
 
 func show_gate_preparation(id: int) -> void:
 	if not players.has(id) or not at_weapon_gate(players[id]): return
-	if LoadoutMaterials.reconcile(players[id],stored_counts(players[id])) and not has_meta(Transactions.SESSION): persist_loadout(id,players[id])
-	players[id].loadout_reserving=true
+	var player: Dictionary = players[id]
+	if has_meta(Transactions.SESSION):
+		if not Transactions.session_writable(self): return
+		var projected := player.duplicate()
+		if LoadoutMaterials.reconcile(projected,stored_counts(player)):
+			var result := run_guarded_action(id, actor_profile_scope(id), func(effects):
+				if LoadoutMaterials.reconcile(player,stored_counts(player)): persist_loadout(id,player,effects)
+				player.loadout_reserving=true)
+			if not Transactions.committed(result.persistence): return
+	elif LoadoutMaterials.reconcile(player,stored_counts(player)):
+		persist_loadout(id,player)
+	player.loadout_reserving=true
 	if id==HOST: open_gate_preparation()
 	else: open_gate_preparation.rpc_id(id)
 
@@ -3953,12 +4103,17 @@ func open_checkpoint_cards(cards: Array,wallet: int,floor_number: int,waiting: b
 func choose_checkpoint_card(id: int,player: Dictionary,choice: int) -> void:
 	if not checkpoint_pending or not Life.alive(player) or not upgrade_checkpoint_open() or player.pos.distance_to(battlefield.advance)>preload("res://gate_interaction.gd").RANGE or int(checkpoint_ready.get(id,0))==encounter_number: return
 	if choice>=0:
-		if choice>=checkpoint_offer_ids(player).size(): return
+		if not has_meta(Transactions.SESSION) and choice>=checkpoint_offer_ids(player).size(): return
 		if not buy_upgrade(id,player,choice):
-			present_checkpoint_cards(id)
+			if Transactions.session_writable(self): present_checkpoint_cards(id)
 			return
 	elif choice!=-1: return
 	checkpoint_ready[id]=encounter_number
+	if has_meta(Transactions.SESSION):
+		# Selection is independent of expedition settlement in guarded sessions.
+		if id==HOST: close_run_flow_panel()
+		elif online_peer!=null: close_run_flow_panel.rpc_id(id)
+		return
 	if PartyTravel.members(self,"advance").size()>1:
 		if id==HOST: close_run_flow_panel()
 		elif online_peer!=null: close_run_flow_panel.rpc_id(id)
@@ -4023,7 +4178,10 @@ func open_graft_menu(data: Dictionary) -> void:
 	if not graft_menu.visible: toggle_overlay(graft_menu)
 
 
-func graft_feedback(id: int,player: Dictionary,message: String) -> void:
+func graft_feedback(id: int,player: Dictionary,message: String,effects = null) -> void:
+	if effects != null:
+		effects.append(graft_feedback.bind(id, player, message))
+		return
 	player.graft_message=message
 	tell(id,message)
 
@@ -4089,23 +4247,33 @@ func nearest_inventory_drop(player: Dictionary) -> String:
 	return found
 
 func drop_inventory_stack(id: int,player: Dictionary,source: String,item: String,quantity: int) -> void:
-	if not player.get("wild",false) and not deferred_save_available(id): return
+	if not player.get("wild",false) and has_meta(Transactions.SESSION):
+		run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _drop_inventory_stack(id, player, source, item, quantity, effects))
+	else:
+		_drop_inventory_stack(id, player, source, item, quantity, null)
+
+func _drop_inventory_stack(id: int,player: Dictionary,source: String,item: String,quantity: int,effects) -> void:
 	var allowed: Array=["carry","pouch"] if player.get("wild",false) else ["stash","shared"]
 	if not allowed.has(source): return
 	var stack:=InventoryModel.take(self,player,source,item,quantity)
-	if stack.is_empty(): tell(id,"That stack changed. Refresh the inventory.");return
+	if stack.is_empty(): action_feedback(effects,id,"That stack changed. Refresh the inventory.");return
 	var point: Vector3=player.pos+Vector3(.65,0,.35)
 	if player.get("wild",false): point=battlefield.dash(player.pos,point)
 	var drop: Dictionary={"id":Crypto.new().generate_random_bytes(12).hex_encode(),"stack":stack,"position":[point.x,point.y,point.z]}
 	var drops:=inventory_drop_list(player)
 	drops.append(drop)
-	if not player.get("wild",false) and progress.save_garden()!=OK:
+	if effects == null and not player.get("wild",false) and progress.save_garden()!=OK:
 		drops.erase(drop);InventoryModel.put(self,player,source,stack)
 		tell(id,"Could not save the dropped item. The stack was returned.");return
-	tell(id,"Dropped %d %s. Close the inventory and press E nearby to recover it."%[quantity,Items.get_item(item).name])
+	action_feedback(effects,id,"Dropped %d %s. Close the inventory and press E nearby to recover it."%[quantity,Items.get_item(item).name])
 
 func pickup_inventory_drop(id: int,player: Dictionary,key: String) -> void:
-	if not player.get("wild",false) and not deferred_save_available(id): return
+	if not player.get("wild",false) and has_meta(Transactions.SESSION):
+		run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _pickup_inventory_drop(id, player, key, effects))
+	else:
+		_pickup_inventory_drop(id, player, key, null)
+
+func _pickup_inventory_drop(id: int,player: Dictionary,key: String,effects) -> void:
 	var drops:=inventory_drop_list(player)
 	for index in drops.size():
 		var entry: Dictionary=drops[index]
@@ -4117,10 +4285,10 @@ func pickup_inventory_drop(id: int,player: Dictionary,key: String) -> void:
 		InventoryModel.put(self,player,target,entry.stack)
 		var component:=int(Items.get_item(entry.stack.item).get("legacy_part",0))
 		if Parts.is_monster(component): player.graft_choice=component
-		if not player.get("wild",false) and progress.save_garden()!=OK:
+		if effects == null and not player.get("wild",false) and progress.save_garden()!=OK:
 			InventoryModel.take(self,player,target,entry.stack.item,int(entry.stack.quantity));drops.insert(index,entry)
 			tell(id,"Could not save pickup. The stack remains on the ground.");return
-		tell(id,"Picked up %d %s."%[entry.stack.quantity,Items.get_item(entry.stack.item).name])
+		action_feedback(effects,id,"Picked up %d %s."%[entry.stack.quantity,Items.get_item(entry.stack.item).name])
 		return
 
 func monster_loot_tags(kind: int,mask: int=0) -> Array:
@@ -4178,7 +4346,13 @@ func handle_altar_action(id: int,player: Dictionary,payload: String) -> void:
 	if not (request.get("revision",0) is int or request.get("revision",0) is float): return
 	var draft:=Altar.clean_draft(request.get("draft",[]))
 	var revision:=clampi(int(request.get("revision",0)),0,2147483647)
-	if request.operation=="combine": run_altar_save(id, player, Altar.combine.bind(self, player, draft))
+	if request.operation=="combine":
+		if has_meta(Transactions.SESSION):
+			var result := run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): return Altar.combine(self, player, draft, effects))
+			player.altar_message = Transactions.feedback(result, "Could not save the Altar offering.")
+			tell(id, player.altar_message)
+		else:
+			run_altar_save(id, player, Altar.combine.bind(self, player, draft))
 	elif request.operation=="identify": run_altar_save(id, player, Altar.identify.bind(self, player))
 	elif request.operation=="identify_all": run_altar_save(id, player, Altar.identify_all.bind(self, player))
 	var data:=Altar.snapshot(self,player,draft,revision)
