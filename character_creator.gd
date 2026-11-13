@@ -1,6 +1,7 @@
 extends Window
 signal confirmed
 var create_button: Button
+var close_on_submit := true
 const Appearance=preload("res://character_appearance.gd")
 const Classes=preload("res://class_catalog.gd")
 signal submitted(character_name: String,class_id: int,appearance: Array)
@@ -57,7 +58,9 @@ func _ready() -> void:
  var buttons:=HBoxContainer.new();outer.add_child(buttons);buttons.alignment=BoxContainer.ALIGNMENT_END
  var cancel:=Button.new();buttons.add_child(cancel);cancel.text="Cancel";cancel.custom_minimum_size=Vector2(130,42);cancel.pressed.connect(dismiss)
  create_button=Button.new();buttons.add_child(create_button);create_button.text="Create Character";create_button.custom_minimum_size=Vector2(190,42);create_button.pressed.connect(func():confirmed.emit())
- confirmed.connect(func():dismiss();submitted.emit(name_field.text,class_choice.selected,appearance()))
+ confirmed.connect(func():
+  if close_on_submit: dismiss()
+  submitted.emit(name_field.text,class_choice.selected,appearance()))
  close_requested.connect(dismiss)
  update_preview();hide()
 

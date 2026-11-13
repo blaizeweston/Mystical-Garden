@@ -6,6 +6,7 @@ const Growth = preload("res://garden_growth_state.gd")
 const Journal = preload("res://diagnostic_journal.gd")
 const Inventory = preload("res://inventory_model.gd")
 const Transactions = preload("res://game_transaction.gd")
+const GuardedSession = preload("res://guarded_title_session.gd")
 const MATERIAL_STOCK := 25
 const SEED_STOCK := 5
 const WORLD_META := &"developer_garden"
@@ -26,9 +27,14 @@ static func can_edit(game: Node) -> bool:
 		and not game.get_meta("garden_cinematic_active",false)
 
 
-static func open_garden(menu: Node, reset: bool) -> Error:
+static func open_garden(menu: Node, reset: bool, digests := {}) -> Error:
 	if menu.transitioning or not menu.content_valid or not menu.app_settings.values.get("developer_mode",false):
 		return ERR_UNAUTHORIZED
+	if menu.guarded_persistence:
+		var result := _open_guarded(menu, reset, digests)
+		if not GuardedSession.completed(result):
+			menu.notice.text = GuardedSession.notice(result)
+		return result.error
 	var slots := Slots.new()
 	slots.root_path = menu.storage.root_path.path_join("developer-garden")
 	var error := slots.prepare(false)
@@ -56,6 +62,60 @@ static func open_garden(menu: Node, reset: bool) -> Error:
 	menu.get_tree().current_scene = world
 	menu.queue_free()
 	return OK
+
+static func reset_snapshot(menu: Node) -> Dictionary:
+	var slots := _guarded_slots(menu)
+	var location: Dictionary = slots.paths(0)
+	var digests := {}
+	for path in [location.garden, location.character]:
+		var info := GuardedSession.garden_summary(path) if path == location.garden else GuardedSession.character_summary(path)
+		if info.state not in ["healthy", "empty"]:
+			return {}
+		digests[path] = info.digest if info.state == "healthy" else "absent"
+	return digests
+
+static func _guarded_slots(menu: Node) -> RefCounted:
+	var slots := Slots.new()
+	slots.root_path = menu.storage.root_path.path_join("developer-garden")
+	return slots
+
+static func _open_guarded(menu: Node, reset: bool, digests: Dictionary) -> Dictionary:
+	var slots := _guarded_slots(menu)
+	var location: Dictionary = slots.paths(0)
+	var garden := GuardedSession.garden_summary(location.garden)
+	if garden.state not in ["healthy", "empty"]:
+		return GuardedSession.Ops.management_result(ERR_BUSY, garden.state, garden.state)
+	var character := GuardedSession.character_summary(location.character)
+	if character.state not in ["healthy", "empty"]:
+		return GuardedSession.Ops.management_result(ERR_BUSY, character.state, character.state)
+	if reset or garden.state == "empty":
+		if reset and digests.is_empty():
+			return GuardedSession.Ops.management_result(ERR_UNAUTHORIZED, "stale_replacement_confirmation")
+		var created := GuardedSession.outcome(slots.new_game_guarded(0, reset, digests))
+		if not GuardedSession.completed(created):
+			return created
+		garden = GuardedSession.garden_summary(location.garden)
+		character = GuardedSession.character_summary(location.character)
+	var world: Node = load("res://world.tscn").instantiate()
+	world.set_meta(WORLD_META, {"root": menu.storage.root_path, "slot": menu.selected, "character": menu.selected_character})
+	world.settings_path = menu.settings_path
+	world.slot_storage_root = slots.root_path
+	world.active_slot = 0
+	world.progress.path = location.garden
+	world.local_character.path = location.character
+	world.guest_character.path = location.character
+	var owner := GuardedSession.new()
+	var result := owner.start(world, slots, 0, garden.digest, null, -1, character.digest)
+	if not GuardedSession.completed(result):
+		world.free()
+		return result
+	world.slot_claimed = true
+	menu.transitioning = true
+	if menu.settings_dialog.visible: menu.settings_dialog.exclusive = false
+	menu.get_tree().root.add_child(world)
+	menu.get_tree().current_scene = world
+	menu.queue_free()
+	return result
 
 
 static func grant_resources(game: Node) -> String:

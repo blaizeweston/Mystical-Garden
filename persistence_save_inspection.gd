@@ -25,7 +25,7 @@ static func garden(path: String) -> Dictionary:
   }
  return result
 
-static func character(path: String) -> Dictionary:
+static func character(path: String, include_profile := false) -> Dictionary:
  var inspected := _inspect(path, "character")
  var result: Dictionary = inspected.result
  if inspected.file != null:
@@ -42,11 +42,13 @@ static func character(path: String) -> Dictionary:
    "level": Profile.level(data.xp[class_id]),
    "identity": identity if identified else "", "identity_pending": not identified
   }
+  if include_profile:
+   result.summary.profile = data
  return result
 
-static func _inspect(path: String, section: String) -> Dictionary:
+static func _inspect(path: String, section: String, owned_session := false) -> Dictionary:
  var result := {"path": path, "state": "invalid", "reason": "wrong_save_kind",
-  "exists": null, "active": false, "summary": {}, "participants": PackedStringArray(),
+  "exists": null, "active": false, "digest": "", "summary": {}, "participants": PackedStringArray(),
   "journal_anchors": PackedStringArray()}
  var leaf := path.get_file()
  var matches_kind := leaf == "garden.cfg" if section == "garden" else leaf in ["character.cfg", "character-local-guest.cfg"]
@@ -64,7 +66,7 @@ static func _inspect(path: String, section: String) -> Dictionary:
  result.active = plan.active_leases.get(path.get_base_dir().path_join("session.cfg"), false)
  if plan.observed.has(path):
   result.exists = plan.observed[path] != "absent"
- if result.active and plan.state in ["healthy", "empty"]:
+ if result.active and not owned_session and plan.state in ["healthy", "empty"]:
   return _refuse(result, "busy", "active_session_lease")
  if plan.state != "healthy":
   return {"result": result, "file": null}
@@ -83,6 +85,7 @@ static func _inspect(path: String, section: String) -> Dictionary:
  var file := ConfigFile.new()
  if file.parse(content) != OK or not file.has_section(section):
   return _refuse(result, "invalid", "invalid_save_content")
+ result.digest = plan.observed[path]
  return {"result": result, "file": file}
 
 static func _safe_value_syntax(content: String) -> bool:

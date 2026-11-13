@@ -8,6 +8,7 @@ var port_field: SpinBox
 var feedback: Label
 var submit: Button
 var joining := false
+var close_on_apply := true
 var share_port := 0
 var form: GridContainer
 var address_label: Label
@@ -168,7 +169,7 @@ func confirm() -> void:
 	if not endpoint.error.is_empty():
 		feedback.text = endpoint.error
 		return
-	dismiss()
+	if close_on_apply: dismiss()
 	applied.emit(endpoint.address,endpoint.port,joining)
 
 

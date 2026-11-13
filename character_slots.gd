@@ -231,10 +231,10 @@ func _read_catalog() -> Dictionary:
 func create_guarded(slot: int, name: String, class_id: int, appearance: Array) -> Dictionary:
  return _edit_guarded(slot, name, class_id, appearance, false)
 
-func update_guarded(slot: int, name: String, class_id: int, appearance: Array) -> Dictionary:
- return _edit_guarded(slot, name, class_id, appearance, true)
+func update_guarded(slot: int, name: String, class_id: int, appearance: Array, digest := "") -> Dictionary:
+ return _edit_guarded(slot, name, class_id, appearance, true, digest)
 
-func _edit_guarded(slot: int, name: String, class_id: int, appearance: Array, editing: bool) -> Dictionary:
+func _edit_guarded(slot: int, name: String, class_id: int, appearance: Array, editing: bool, digest := "") -> Dictionary:
  var cleaned := Profile.clean_name(name)
  if slot < 0 or slot >= MAX_COUNT or cleaned.is_empty() or class_id < 0 or class_id >= Profile.Classes.DEFINITIONS.size():
   return Ops.management_result(ERR_INVALID_PARAMETER, "invalid_character")
@@ -256,6 +256,8 @@ func _edit_guarded(slot: int, name: String, class_id: int, appearance: Array, ed
   if FileAccess.file_exists(profile.path) != editing:
    return Ops.management_result(ERR_FILE_NOT_FOUND if editing else ERR_ALREADY_EXISTS, "character_vacancy_changed")
   if editing:
+   if not digest.is_empty() and Slots._save_digest(profile.path) != digest:
+    return Ops.management_result(ERR_UNAUTHORIZED, "stale_profile_confirmation")
    # A load of an old profile can leave the default identity in place.
    # Require a saved identity before an edit can replace canonical bytes.
    profile.identity = ""
@@ -310,6 +312,9 @@ func heartbeat_guarded(slot: int) -> Dictionary:
 
 func release_guarded(slot: int) -> Dictionary:
  return _change_lease(slot, "release")
+
+func owns_guarded_lease(slot: int) -> bool:
+ return _guarded_leases.root_path == root_path and _guarded_leases.owns_guarded_lease(slot)
 
 func _change_lease(slot: int, operation: String) -> Dictionary:
  _guarded_leases.root_path = root_path

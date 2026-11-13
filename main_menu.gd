@@ -1,5 +1,9 @@
 extends Control
 const Slots = preload("res://save_slots.gd")
+const GuardedSession = preload("res://guarded_title_session.gd")
+# Internal opt-in for isolated integration callers. No normal title entry
+# enables this while the rest of the production writers are being migrated.
+var guarded_persistence := false
 const Network=preload("res://network_settings.gd")
 var network_address:="127.0.0.1"
 var network_port:=Network.DEFAULT_PORT
@@ -23,6 +27,10 @@ var creator: Window
 var creating_slot:=-1
 var start_garden_after_creation := false
 var pending_new_world:=-1
+var pending_world_digest := ""
+var pending_delete_digest := ""
+var editing_profile_digest := ""
+var editing_profile := false
 const RootUI = preload("res://root_ui.gd")
 var storage := Slots.new()
 var selected := 0
@@ -64,9 +72,14 @@ func _ready() -> void:
 	settings_dialog.developer_context=self
 	settings_dialog.developer_title=true
 	add_child(settings_dialog)
-	var error := storage.prepare(import_legacy)
 	characters.root_path=storage.root_path.path_join("characters")
-	if error==OK: error=characters.prepare(storage)
+	var error := OK
+	var preparation := {}
+	if guarded_persistence:
+		preparation = GuardedSession.prepare(storage, characters, import_legacy)
+	else:
+		error = storage.prepare(import_legacy)
+		if error==OK: error=characters.prepare(storage)
 	if restore_last_character: selected_character=characters.last_slot()
 	var endpoint:=Network.load_settings(storage.root_path)
 	network_address=endpoint.address
@@ -207,6 +220,7 @@ void fragment() {
 	delete_character_button=button(character_actions,"Delete Character…",request_delete_character)
 	button(roster,"Back",back_from_characters).size_flags_horizontal=Control.SIZE_SHRINK_BEGIN
 	creator=preload("res://character_creator.gd").new()
+	creator.close_on_submit = not guarded_persistence
 	add_child(creator)
 	creator.submitted.connect(create_character)
 
@@ -220,6 +234,7 @@ void fragment() {
 	button(host_row,"Hosting Port",func():network_dialog.begin("",host_port,false))
 	label(coop,"To host, choose a Garden and enable co-op before starting or continuing.",15,RootUI.MUTED)
 	network_dialog=preload("res://network_panel.gd").new()
+	network_dialog.close_on_apply = not guarded_persistence
 	add_child(network_dialog)
 	network_dialog.applied.connect(apply_network_settings)
 
@@ -235,6 +250,7 @@ void fragment() {
 	confirmation.title="Start a new Garden?"
 	confirmation.ok_button_text="Start New Game"
 	confirmation.confirmed.connect(func(): create_and_launch(true))
+	confirmation.canceled.connect(func(): pending_new_world = -1; pending_world_digest = "")
 	deletion_confirmation=ConfirmationDialog.new()
 	add_child(deletion_confirmation)
 	deletion_confirmation.title="Delete this Garden?"
@@ -242,7 +258,12 @@ void fragment() {
 	deletion_confirmation.cancel_button_text="Keep Save"
 	deletion_confirmation.confirmed.connect(confirm_delete_save)
 	deletion_confirmation.canceled.connect(func(): pending_delete=-1)
-	if error!=OK:
+	if guarded_persistence:
+		for dialog in [confirmation, deletion_confirmation, character_deletion]:
+			dialog.dialog_hide_on_ok = false
+		if not GuardedSession.completed(preparation):
+			notice.text = GuardedSession.notice(preparation)
+	elif error!=OK:
 		notice.text="Could not prepare save slots. Your existing files were left in place."
 	if restore_last_selection:
 		selected = storage.last_slot()
@@ -253,7 +274,7 @@ void fragment() {
 					break
 	if characters.is_active(selected_character):
 		for candidate in characters.count():
-			if characters.summary(candidate).exists and not characters.is_active(candidate): selected_character=candidate;break
+			if character_summary(candidate).exists and not characters.is_active(candidate): selected_character=candidate;break
 	refresh_characters()
 	select_slot(selected)
 
@@ -263,7 +284,7 @@ void fragment() {
 	if not retry.is_empty():
 		show_page(2)
 		if retry.open:
-			network_dialog.begin(network_address,network_port,true,characters.summary(selected_character).name,return_message)
+			network_dialog.begin(network_address,network_port,true,character_summary(selected_character).name,return_message)
 
 func show_page(index: int) -> void:
 	if index!=1:character_return_page=index
@@ -314,26 +335,39 @@ func button(parent: Node,text: String,callback: Callable) -> Button:
 	node.pressed.connect(callback)
 	return node
 
+func garden_summary(slot: int) -> Dictionary:
+	return GuardedSession.garden_summary(storage.paths(slot).garden) if guarded_persistence else storage.summary(slot)
+
+func character_summary(slot: int) -> Dictionary:
+	if not guarded_persistence:
+		return characters.summary(slot)
+	return GuardedSession.character_summary(characters.paths(slot).get("character", ""))
+
 func select_slot(slot: int) -> void:
 	selected=slot
 	for i in Slots.COUNT:
-		var data:=storage.summary(i)
+		var data:=garden_summary(i)
 		slot_buttons[i].button_pressed=i==selected
 		slot_buttons[i].text="SLOT %d\n\n" % (i+1) + (
+			GuardedSession.label(data.state) if guarded_persistence and data.state not in ["healthy", "empty"] else
 			"In use in another window" if data.active else "Save needs attention" if data.error!=OK else
 			"Knowledge %d · %d plots\nDeepest encounter %d" % [data.knowledge,data.plots,data.best] if data.exists else
 			"Empty Garden\nA fresh beginning")
-	var current:=storage.summary(selected)
-	var character:=characters.summary(selected_character)
+	var current:=garden_summary(selected)
+	var character:=character_summary(selected_character)
 	var ready: bool=character.exists and character.error==OK and not character.active
 	continue_button.disabled=not content_valid or not ready or not current.exists or current.error!=OK or current.active
 	delete_button.disabled=transitioning or current.active or not current.exists
 	new_button.disabled=not content_valid or character.error!=OK or character.active or current.active
 	join_button.disabled=not content_valid or not ready
 	host_choice.disabled=current.active
+	if guarded_persistence:
+		delete_button.disabled = transitioning or current.state != "healthy"
+		new_button.disabled = new_button.disabled or current.state not in ["healthy", "empty"]
+		host_choice.disabled = current.state not in ["healthy", "empty"]
 
 func character_ready() -> bool:
-	var data:=characters.summary(selected_character)
+	var data:=character_summary(selected_character)
 	return data.exists and data.error==OK and not data.active
 
 func refresh_characters() -> void:
@@ -345,31 +379,56 @@ func refresh_characters() -> void:
 			option.toggle_mode=true;option.clip_text=true;option.custom_minimum_size=Vector2(210,84);option.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 			option.pressed.connect(func():select_character(i));character_buttons.append(option)
 	for i in character_buttons.size():
-		var data:=characters.summary(i)
+		var data:=character_summary(i)
 		character_buttons[i].button_pressed=i==selected_character
 		character_buttons[i].tooltip_text=data.name
-		character_buttons[i].text="CHARACTER %d\n%s\n%s"%[i+1,data.name,"In use in another window" if data.active else "Profile needs attention" if data.error!=OK else "%s · Level %d"%[data.class_name,data.level] if data.exists else "Create your traveller"]
-	var chosen:=characters.summary(selected_character)
+		character_buttons[i].text="CHARACTER %d\n%s\n%s"%[i+1,data.name,GuardedSession.label(data.state) if guarded_persistence and data.state not in ["healthy", "empty"] else "In use in another window" if data.active else "Profile needs attention" if data.error!=OK else "%s · Level %d"%[data.class_name,data.level] if data.exists else "Create your traveller"]
+	var chosen:=character_summary(selected_character)
 	var summary: String="Playing as %s · %s · Level %d"%[chosen.name,chosen.class_name,chosen.level] if character_ready() else "Choose an available character to play."
 	play_character.text=summary
 	coop_character.text=summary
 	delete_character_button.disabled=chosen.active or not chosen.exists or transitioning
 	create_character_button.disabled=chosen.active or chosen.error!=OK or transitioning
-	create_character_button.text="Create Character" if not chosen.exists else "Customize: %s · %s"%[chosen.name,chosen.class_name]
+	create_character_button.text=GuardedSession.label(chosen.state) if guarded_persistence and chosen.state not in ["healthy", "empty"] else "Create Character" if not chosen.exists else "Customize: %s · %s"%[chosen.name,chosen.class_name]
 
 func select_character(slot: int) -> void:
 	if slot<0 or slot>=characters.count(): return
-	selected_character=slot;characters.remember(slot);refresh_characters();select_slot(selected)
+	selected_character=slot
+	if guarded_persistence:
+		if character_summary(slot).state in ["healthy", "empty"]:
+			var result := GuardedSession.outcome(characters.remember_guarded(slot))
+			if not GuardedSession.completed(result): notice.text = GuardedSession.notice(result)
+	else:
+		characters.remember(slot)
+	refresh_characters();select_slot(selected)
 
 func request_create_character(start_garden := false) -> void:
 	if transitioning or create_character_button.disabled: return
 	creating_slot=selected_character
 	start_garden_after_creation=start_garden
 	var profile=preload("res://character_profile.gd").new();profile.path=characters.paths(creating_slot).character
+	if guarded_persistence:
+		var data := character_summary(creating_slot)
+		editing_profile = data.state == "healthy"
+		editing_profile_digest = data.digest
+		if editing_profile:
+			var inspected := GuardedSession.Inspection.character(profile.path, true)
+			if inspected.state != "healthy" or inspected.digest != editing_profile_digest:
+				notice.text = "The profile changed. Select it again."
+				return
+			creator.begin(inspected.summary.profile)
+		elif data.state == "empty":
+			creator.begin()
+		else:
+			notice.text = GuardedSession.label(data.state)
+		return
 	if characters.summary(creating_slot).exists and profile.load_profile()==OK: creator.begin(profile.data)
 	else: creator.begin()
 
 func create_character(character_name: String,class_id: int,appearance: Array) -> void:
+	if guarded_persistence:
+		_create_character_guarded(character_name, class_id, appearance)
+		return
 	var target:=creating_slot;creating_slot=-1
 	var start_garden:=start_garden_after_creation;start_garden_after_creation=false
 	var error: Error=characters.update(target,character_name,class_id,appearance) if characters.summary(target).exists else characters.create(target,character_name,class_id,appearance)
@@ -383,15 +442,39 @@ func new_game() -> void:
 	if not character_ready():
 		request_create_character(true)
 		return
-	var data:=storage.summary(selected)
+	var data:=garden_summary(selected)
+	if guarded_persistence and data.state not in ["healthy", "empty"]:
+		notice.text = GuardedSession.label(data.state)
+		return
 	if data.exists:
 		pending_new_world=selected
+		if guarded_persistence:
+			pending_world_digest = data.digest
+			confirmation.get_ok_button().disabled = false
 		confirmation.dialog_text="Replace Garden Slot %d with a new world? Characters keep their progression. The old Garden will be backed up."%(selected+1)
 		confirmation.popup_centered(Vector2i(520,180))
 	else: create_and_launch(false)
 
 func create_and_launch(confirmed: bool) -> void:
 	if transitioning or not character_ready(): return
+	if guarded_persistence:
+		var target := pending_new_world if confirmed else selected
+		if target < 0 or (confirmed and pending_world_digest.is_empty()): return
+		var result := GuardedSession.outcome(storage.new_world_guarded(target, confirmed, pending_world_digest if confirmed else ""))
+		if not GuardedSession.completed(result):
+			confirmation.dialog_text = GuardedSession.notice(result)
+			notice.text = confirmation.dialog_text
+			confirmation.get_ok_button().disabled = true
+			pending_new_world = -1
+			pending_world_digest = ""
+			select_slot(selected)
+			return
+		pending_new_world = -1
+		pending_world_digest = ""
+		confirmation.hide()
+		selected = target
+		launch(false)
+		return
 	if confirmed and pending_new_world>=0: selected=pending_new_world;pending_new_world=-1
 	var error:=storage.new_world(selected,confirmed)
 	if error!=OK: notice.text="Could not create this Garden (error %d)."%error;select_slot(selected);return
@@ -408,6 +491,9 @@ func launch(join: bool) -> void:
 	if transitioning:
 		return
 	if not character_ready(): notice.text="Choose an available character first.";return
+	if guarded_persistence:
+		_launch_guarded(join)
+		return
 	var profile_error:=characters.claim(selected_character)
 	if profile_error!=OK: notice.text="This character is already in use. Choose another character.";refresh_characters();select_slot(selected);return
 	if not join:
@@ -444,14 +530,24 @@ func launch(join: bool) -> void:
 
 func request_delete_save() -> void:
 	if transitioning or delete_button.disabled: return
-	var data:=storage.summary(selected)
+	var data:=garden_summary(selected)
 	if data.active or not data.exists: return
 	pending_delete=selected
+	if guarded_persistence:
+		pending_delete_digest = data.digest
+		deletion_confirmation.get_ok_button().disabled = false
 	deletion_confirmation.dialog_text="Delete Garden Slot %d? Its world progress will be removed, with a recovery copy kept. Your characters and their progression will remain available."%(pending_delete+1)
 	deletion_confirmation.popup_centered(Vector2i(560,200))
 
 func confirm_delete_save() -> void:
 	var target:=pending_delete
+	if guarded_persistence:
+		if transitioning or target < 0 or pending_delete_digest.is_empty(): return
+		var result := GuardedSession.outcome(storage.delete_world_guarded(target, true, pending_delete_digest))
+		_finish_guarded_deletion(result, deletion_confirmation, "Garden Slot %d deleted. Your characters are preserved." % (target + 1))
+		pending_delete = -1
+		pending_delete_digest = ""
+		return
 	pending_delete=-1
 	if transitioning or target<0: return
 	var error:=storage.delete_world(target,true)
@@ -469,7 +565,7 @@ func validate_build() -> void:
 	new_button.disabled=true;continue_button.disabled=true;join_button.disabled=true
 
 func request_ip_join() -> void:
-	if not transitioning and not join_button.disabled: network_dialog.begin(network_address,network_port,true,characters.summary(selected_character).name)
+	if not transitioning and not join_button.disabled: network_dialog.begin(network_address,network_port,true,character_summary(selected_character).name)
 
 func apply_network_settings(address: String,port: int,join: bool) -> void:
 	var error:=Network.save_settings(storage.root_path,address,port,join)
@@ -483,15 +579,112 @@ func apply_network_settings(address: String,port: int,join: bool) -> void:
 
 func request_delete_character() -> void:
 	if transitioning or delete_character_button.disabled:return
-	var data=characters.summary(selected_character)
+	var data=character_summary(selected_character)
 	if data.active or not data.exists:return
 	pending_character_delete=selected_character
-	pending_character_digest=FileAccess.get_sha256(characters.paths(selected_character).character)
+	pending_character_digest=data.digest if guarded_persistence else FileAccess.get_sha256(characters.paths(selected_character).character)
+	if guarded_persistence: character_deletion.get_ok_button().disabled = false
 	character_deletion.dialog_text="Delete %s in Character Slot %d? Their class progression and familiarity will be removed. Gardens remain unchanged. A recovery copy will be kept."%[data.name,selected_character+1]
 	character_deletion.popup_centered(Vector2i(570,210))
 func confirm_delete_character() -> void:
+	if guarded_persistence:
+		if transitioning or pending_character_delete < 0 or pending_character_digest.is_empty(): return
+		var result := GuardedSession.outcome(characters.delete_character_guarded(pending_character_delete, true, pending_character_digest))
+		_finish_guarded_deletion(result, character_deletion, "Character Slot %d deleted. Your Gardens are preserved." % (pending_character_delete + 1))
+		pending_character_delete = -1
+		pending_character_digest = ""
+		return
 	var target=pending_character_delete;var digest=pending_character_digest;pending_character_delete=-1;pending_character_digest=""
 	if transitioning or target<0:return
 	var error=characters.delete_character(target,true,digest)
 	notice.text="Character Slot %d deleted. Your Gardens are preserved."%(target+1) if error==OK else "That character changed or is in use. Reopen the confirmation." if error==ERR_BUSY else "Could not delete this character. Existing files are preserved (error %d)."%error
 	refresh_characters();select_slot(selected)
+
+func _finish_guarded_deletion(result: Dictionary, dialog: ConfirmationDialog, success: String) -> void:
+	if GuardedSession.completed(result):
+		dialog.hide()
+		notice.text = success
+	else:
+		notice.text = GuardedSession.notice(result)
+		dialog.dialog_text = notice.text
+		dialog.get_ok_button().disabled = true
+	refresh_characters()
+	select_slot(selected)
+
+func _create_character_guarded(character_name: String, class_id: int, appearance: Array) -> void:
+	var target := creating_slot
+	if target < 0: return
+	var boundary := characters.update_guarded(target, character_name, class_id, appearance, editing_profile_digest) if editing_profile else characters.create_guarded(target, character_name, class_id, appearance)
+	var result := GuardedSession.outcome(boundary)
+	if not GuardedSession.completed(result):
+		creator.title = GuardedSession.notice(result)
+		creator.get_ok_button().disabled = true
+		creating_slot = -1
+		return
+	creator.dismiss()
+	selected_character = target
+	creating_slot = -1
+	var start_garden := start_garden_after_creation
+	start_garden_after_creation = false
+	var remembered := GuardedSession.outcome(characters.remember_guarded(target))
+	notice.text = "%s is ready. Choose a Garden to start, continue, or join." % character_summary(target).name if GuardedSession.completed(remembered) else GuardedSession.notice(remembered)
+	refresh_characters()
+	select_slot(selected)
+	if start_garden: new_game.call_deferred()
+
+func _launch_guarded(join: bool) -> void:
+	var profile := character_summary(selected_character)
+	var garden := {} if join else garden_summary(selected)
+	if profile.state != "healthy" or (not join and garden.state != "healthy"):
+		notice.text = GuardedSession.label(profile.state if profile.state != "healthy" else garden.state)
+		return
+	var location := storage.paths(selected)
+	var game = load("res://world.tscn").instantiate()
+	game.settings_path = settings_path
+	game.network_address = network_address
+	game.network_port = network_port if join else host_port
+	game.active_slot = selected
+	game.active_character_slot = selected_character
+	game.character_storage_root = characters.root_path
+	game.slot_storage_root = storage.root_path
+	game.progress.path = location.garden
+	game.local_character.path = characters.paths(selected_character).character
+	game.guest_character.path = game.local_character.path
+	game.joined_from_title = join
+	var session_owner := GuardedSession.new()
+	var result := session_owner.start(game, null if join else storage, selected, garden.get("digest", ""), characters, selected_character, profile.digest)
+	if not GuardedSession.completed(result):
+		game.free()
+		notice.text = GuardedSession.notice(result)
+		if join and network_dialog.visible: network_dialog.feedback.text = notice.text
+		refresh_characters()
+		select_slot(selected)
+		return
+	if not join:
+		var preference := GuardedSession.outcome(storage.remember_slot_guarded(selected))
+		if not GuardedSession.completed(preference):
+			session_owner.release()
+			game.free()
+			notice.text = GuardedSession.notice(preference)
+			return
+	transitioning = true
+	game.character_slot_claimed = true
+	game.slot_claimed = not join
+	var join_dialog_open: bool = join and network_dialog.visible
+	if join_dialog_open: network_dialog.exclusive = false
+	get_tree().root.add_child(game)
+	if join and game.join_game() != OK:
+		notice.text = game.status
+		if join_dialog_open:
+			network_dialog.feedback.text = notice.text
+			network_dialog.exclusive = true
+		game.release_slot()
+		game.queue_free()
+		get_tree().auto_accept_quit = true
+		transitioning = false
+		return
+	if network_dialog.visible: network_dialog.dismiss()
+	get_tree().current_scene = game
+	preload("res://title_music.gd").set_playing(get_tree(),false)
+	if not join and host_choice.button_pressed: game.host_button.pressed.emit()
+	queue_free()

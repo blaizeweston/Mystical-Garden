@@ -260,9 +260,10 @@ func _init() -> void:
 func _ready() -> void:
 	get_tree().auto_accept_quit = false
 	toast_until = Time.get_ticks_msec() + 4800
-	var character_error := local_character.load_profile()
-	if character_error != OK and character_error != ERR_FILE_NOT_FOUND:
-		status = "Character progress could not be loaded."
+	if not has_meta("guarded_title_session"):
+		var character_error := local_character.load_profile()
+		if character_error != OK and character_error != ERR_FILE_NOT_FOUND:
+			status = "Character progress could not be loaded."
 	configure_keys()
 	var soundscape := preload("res://soundscape.gd").new()
 	soundscape.name="Soundscape"
@@ -285,9 +286,10 @@ func _ready() -> void:
 	add_child(exploration)
 	spectator_view=preload("res://spectator_view.gd").new()
 	add_child(spectator_view)
-	var result := progress.load_garden()
-	if result != OK and result != ERR_FILE_NOT_FOUND:
-		status = "Could not read Garden save (error %d)." % result
+	if not has_meta("guarded_title_session"):
+		var result := progress.load_garden()
+		if result != OK and result != ERR_FILE_NOT_FOUND:
+			status = "Could not read Garden save (error %d)." % result
 	network_compatibility=preload("res://network_compatibility.gd").new()
 	add_child(network_compatibility)
 	multiplayer.peer_connected.connect(add_player)
@@ -303,6 +305,9 @@ func _ready() -> void:
 func _notification(what: int) -> void:
 	if what==NOTIFICATION_WM_WINDOW_FOCUS_OUT: mouse_controls.release(self)
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		if has_meta("guarded_title_session") and not get_meta("guarded_title_session").owns_leases():
+			get_tree().quit()
+			return
 		if session in ["Host","Solo"] and expedition_active():
 			finish_failed_expedition()
 		if character_dirty:
@@ -641,12 +646,16 @@ func join_game(address: String="",port: int=0) -> Error:
 	var selected_port:=network_port if port==0 else port
 	var problem:=Network.error(host,selected_port)
 	if not problem.is_empty(): status=problem;return ERR_INVALID_PARAMETER
-	var loaded:=guest_character.load_profile()
+	var guarded = get_meta("guarded_title_session") if has_meta("guarded_title_session") else null
+	var loaded: Error = guarded.reload_guest(guest_character) if guarded != null else guest_character.load_profile()
+	if guarded != null and loaded != OK:
+		status = "Could not read the selected character."
+		return loaded
 	if loaded!=OK and loaded!=ERR_FILE_NOT_FOUND: status="Could not read the selected character.";return loaded
 	if slot_claimed:
 		var saved:=progress.save_garden()
 		if saved!=OK: status="Save the Garden before joining another host.";return saved
-	if guest_character.save_profile() != OK:
+	if guarded == null and guest_character.save_profile() != OK:
 		status = "Could not save the guest character identity."
 		return ERR_CANT_CREATE
 	var peer := ENetMultiplayerPeer.new()
@@ -672,6 +681,9 @@ func join_game(address: String="",port: int=0) -> Error:
 
 func leave_game(message: String) -> void:
 	Journal.event("network","leave_requested",{"role":session})
+	if has_meta("guarded_title_session") and not get_meta("guarded_title_session").owns_leases():
+		_stop_guarded_session("This session lost access to its save. Returning to the title.")
+		return
 	if active_character_slot>=0 and session in ["Guest","Connecting"]:
 		return_to_main_menu(message);return
 	var was_guest := session == "Guest"
@@ -691,7 +703,12 @@ func leave_game(message: String) -> void:
 	add_player(HOST)
 	session = "Solo"
 	if was_guest and active_slot >= 0:
-		local_character.load_profile()
+		if has_meta("guarded_title_session"):
+			if get_meta("guarded_title_session").reload_guest(local_character) != OK:
+				_stop_guarded_session("Could not read the selected character.")
+				return
+		else:
+			local_character.load_profile()
 		players[HOST].character = local_character.data
 	status = message
 
@@ -1610,6 +1627,8 @@ func submit_movement(commands: Array,epoch: String) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if returning_to_title and has_meta("guarded_title_session"):
+		return
 	if multiplayer.is_server():net_motion.frame(delta,players)
 	mouse_controls.frame(self)
 	var direction := Vector2.ZERO if overlay.visible or get_meta("garden_cinematic_active",false) else Input.get_vector("left", "right", "up", "down")
@@ -2995,11 +3014,17 @@ func receive_state(people: PackedByteArray, enemy: Vector3, hp: int, winding_up:
 
 
 func _process(_delta: float) -> void:
+	if has_meta("guarded_title_session") and not returning_to_title:
+		var owner = get_meta("guarded_title_session")
+		var renewal: Dictionary = owner.tick()
+		if renewal.error != OK:
+			_stop_guarded_session("This session lost access to its save. Returning to the title.")
+			return
 	if multiplayer.is_server(): PartyTravel.validate(self)
 	update_network_session()
 	if returning_to_title: return
 	if not multiplayer.is_server() and client_details.is_empty(): return
-	if (slot_claimed or character_slot_claimed) and Time.get_unix_time_from_system() - slot_heartbeat_at >= 1.0:
+	if not has_meta("guarded_title_session") and (slot_claimed or character_slot_claimed) and Time.get_unix_time_from_system() - slot_heartbeat_at >= 1.0:
 		var slots := preload("res://save_slots.gd").new()
 		slots.root_path = slot_storage_root
 		if slot_claimed: slots.heartbeat(active_slot)
@@ -3262,7 +3287,10 @@ func return_to_main_menu(message: String = "") -> void:
 	if returning_to_title:
 		return
 	returning_to_title = true
-	if session in ["Solo","Host"] and not joined_from_title:
+	if has_meta("guarded_title_session") and not get_meta("guarded_title_session").owns_leases():
+		_stop_guarded_session("This session lost access to its save. Returning to the title.")
+		return
+	if session in ["Solo","Host"] and not joined_from_title and (not has_meta("guarded_title_session") or slot_claimed):
 		if expedition_active():
 			finish_failed_expedition()
 			for player in players.values():
@@ -3278,6 +3306,16 @@ func return_to_main_menu(message: String = "") -> void:
 		if character_dirty:
 			returning_to_title = false
 			return
+	_finish_title_return(message)
+
+func _stop_guarded_session(message: String) -> void:
+	returning_to_title = true
+	process_mode = Node.PROCESS_MODE_DISABLED
+	set_process(false)
+	set_physics_process(false)
+	_finish_title_return.call_deferred(message)
+
+func _finish_title_return(message: String) -> void:
 	if online_peer != null:
 		online_peer.close()
 		online_peer = null
@@ -3286,6 +3324,7 @@ func return_to_main_menu(message: String = "") -> void:
 	if network_dialog.visible:
 		network_dialog.dismiss()
 	var menu = load("res://main_menu.tscn").instantiate()
+	menu.guarded_persistence = has_meta("guarded_title_session")
 	menu.settings_path=settings_path
 	var dev_return: Dictionary=get_meta("developer_garden",{})
 	menu.storage.root_path = dev_return.get("root",slot_storage_root)
@@ -3305,6 +3344,11 @@ func return_to_main_menu(message: String = "") -> void:
 
 
 func release_slot() -> void:
+	if has_meta("guarded_title_session"):
+		get_meta("guarded_title_session").release()
+		character_slot_claimed = false
+		slot_claimed = false
+		return
 	if character_slot_claimed and active_character_slot>=0:
 		var roster:=preload("res://character_slots.gd").new();roster.root_path=character_storage_root;roster.release(active_character_slot);character_slot_claimed=false
 	if slot_claimed and active_slot >= 0:

@@ -8,6 +8,7 @@ var toggle: CheckBox
 var hint: Label
 var tools: VBoxContainer
 var reset: CheckBox
+var reset_digests := {}
 var tech_picker: OptionButton
 var unlock_button: Button
 var finish_button: Button
@@ -24,6 +25,9 @@ func _ready() -> void:
 	add_child(tools)
 	if title_menu:
 		reset = settings.check(tools,"Start fresh and back up the previous test save")
+		reset.toggled.connect(func(value):
+			if context != null and context.guarded_persistence:
+				reset_digests = Developer.reset_snapshot(context) if value else {})
 		settings.button(tools,"Open Developer Garden",open_garden)
 	elif context != null and Developer.is_test_garden(context):
 		grant_button = Button.new()
@@ -88,6 +92,16 @@ func refresh_tools() -> void:
 
 func open_garden() -> void:
 	if not title_menu or not settings.visible or not toggle.button_pressed:
+		return
+	if context.guarded_persistence:
+		settings.save()
+		if settings.visible:
+			return
+		var error := Developer.open_garden(context, reset.button_pressed, reset_digests)
+		if error != OK:
+			settings.begin(context.app_settings)
+			settings.notice.text = context.notice.text
+			reset_digests = {}
 		return
 	settings.save()
 	if settings.visible:

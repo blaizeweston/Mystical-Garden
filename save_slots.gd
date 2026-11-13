@@ -429,6 +429,18 @@ func heartbeat_guarded(slot: int) -> Dictionary:
 func release_guarded(slot: int) -> Dictionary:
 	return _lease_guarded(slot, "release")
 
+func owns_guarded_lease(slot: int) -> bool:
+	if slot < 0 or slot >= capacity:
+		return false
+	var file: String = paths(slot).directory.path_join("session.cfg")
+	var marker := ConfigFile.new()
+	return _owned_markers.has(file) and marker.load(file) == OK and _owns_marker(file, marker)
+
+func _owns_marker(file: String, marker: ConfigFile) -> bool:
+	return int(marker.get_value("session", "process_id", 0)) == OS.get_process_id() \
+		and Time.get_unix_time_from_system() - float(marker.get_value("session", "updated", 0.0)) < 30.0 \
+		and _owned_markers.get(file, "") == FileAccess.get_sha256(file)
+
 func _lease_guarded(slot: int, operation: String, roster := false, catalog := "") -> Dictionary:
 	if slot < 0 or slot >= capacity:
 		return Ops.management_result(ERR_INVALID_PARAMETER, "invalid_slot")
@@ -456,11 +468,10 @@ func _lease_guarded(slot: int, operation: String, roster := false, catalog := ""
 		var error := marker.load(file) if FileAccess.file_exists(file) else ERR_FILE_NOT_FOUND
 		if error != OK and error != ERR_FILE_NOT_FOUND:
 			return Ops.management_result(error, "session_marker_unreadable")
-		var owner := int(marker.get_value("session", "process_id", 0))
 		var active_now := error == OK and Time.get_unix_time_from_system() - float(marker.get_value("session", "updated", 0.0)) < 30.0
 		if operation == "claim" and active_now:
 			return Ops.management_result(ERR_BUSY, "slot_in_use")
-		if operation != "claim" and (owner != OS.get_process_id() or not active_now or _owned_markers.get(file, "") != FileAccess.get_sha256(file)):
+		if operation != "claim" and (not _owned_markers.has(file) or not _owns_marker(file, marker)):
 			return Ops.management_result(ERR_UNAUTHORIZED, "stale_lease")
 		if operation == "release":
 			var removed := Ops.remove_lease(context, file, _owned_markers[file])
