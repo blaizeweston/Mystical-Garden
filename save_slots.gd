@@ -267,13 +267,13 @@ func prepare_guarded(import_legacy := true) -> Dictionary:
 func ensure_character_guarded(slot: int) -> Dictionary:
 	return _initialize_guarded(slot, false, false, true)
 
-func new_game_guarded(slot: int, replace_confirmed := false) -> Dictionary:
-	return _initialize_guarded(slot, true, replace_confirmed)
+func new_game_guarded(slot: int, replace_confirmed := false, digests := {}) -> Dictionary:
+	return _initialize_guarded(slot, true, replace_confirmed, false, Callable(), "", digests)
 
-func new_world_guarded(slot: int, confirmed := false) -> Dictionary:
-	return _initialize_guarded(slot, false, confirmed)
+func new_world_guarded(slot: int, confirmed := false, digest := "") -> Dictionary:
+	return _initialize_guarded(slot, false, confirmed, false, Callable(), "", {} if digest.is_empty() else {paths(slot).garden: digest})
 
-func _initialize_guarded(slot: int, pair: bool, confirmed: bool, character_only := false, fault := Callable()) -> Dictionary:
+func _initialize_guarded(slot: int, pair: bool, confirmed: bool, character_only := false, fault := Callable(), archive_override := "", digests := {}) -> Dictionary:
 	if slot < 0 or slot >= capacity:
 		return Ops.management_result(ERR_INVALID_PARAMETER, "invalid_slot")
 	var location := paths(slot)
@@ -288,7 +288,23 @@ func _initialize_guarded(slot: int, pair: bool, confirmed: bool, character_only 
 	var scope := Ops._serializer_scope(serializers)
 	var participants := PackedStringArray([location.garden, location.character])
 	var tombstone_scratch: String = location.directory.path_join("deleted.cfg.tmp")
-	return Ops.run_management(participants, scope.auxiliary + PackedStringArray([tombstone_scratch]), func(context):
+	var occupied := not character_only and (FileAccess.file_exists(garden.path) or (pair and FileAccess.file_exists(profile.path)))
+	var sources := participants if pair else PackedStringArray([garden.path])
+	var confirmation := digests.duplicate()
+	if confirmed and confirmation.is_empty():
+		for source in sources:
+			confirmation[source] = _save_digest(source)
+	var targets := {}
+	if occupied and confirmed:
+		var blocked := Ops.archive_preflight(participants + PackedStringArray([location.directory.path_join("deleted.cfg")]))
+		if not blocked.is_empty():
+			return blocked
+		var archive := archive_override if not archive_override.is_empty() else _archive_folder(location.directory, "" if pair else "world-")
+		ready = Auth.bootstrap_archive(archive, garden.path)
+		if ready.error != OK:
+			return ready
+		targets = _archive_targets(archive, sources)
+	return Ops.run_management(participants, scope.auxiliary + _archive_scope(targets) + PackedStringArray([tombstone_scratch]), func(context):
 		if paths(slot) != location or slot >= capacity:
 			return Ops.management_result(ERR_BUSY, "destination_changed")
 		if is_active(slot):
@@ -297,17 +313,112 @@ func _initialize_guarded(slot: int, pair: bool, confirmed: bool, character_only 
 			return Ops.management_result(ERR_BUSY, "deletion_publication_pending", "unresolved")
 		if character_only and FileAccess.file_exists(profile.path):
 			return Ops.management_result(profile.load_profile(false), "profile_read")
-		var occupied := not character_only and (FileAccess.file_exists(garden.path) or (pair and FileAccess.file_exists(profile.path)))
-		if occupied:
-			# Confirmed replacement still requires the original timestamped backup.
-			return Ops.management_result(ERR_UNAVAILABLE, "replacement_archive_not_guarded") if confirmed else Ops.management_result(ERR_ALREADY_EXISTS, "occupied")
+		var current_occupied := not character_only and (FileAccess.file_exists(garden.path) or (pair and FileAccess.file_exists(profile.path)))
+		if current_occupied != occupied:
+			return Ops.management_result(ERR_BUSY, "occupancy_changed")
+		if confirmed:
+			for source in sources:
+				var actual := _save_digest(source)
+				if actual.is_empty() or actual != confirmation.get(source):
+					return Ops.management_result(ERR_UNAUTHORIZED, "stale_replacement_confirmation")
+		if current_occupied and not confirmed:
+			return Ops.management_result(ERR_ALREADY_EXISTS, "occupied")
+		var archives := {}
+		if current_occupied:
+			var prepared := Ops.archive_copies(context, targets, fault)
+			if prepared.error != OK:
+				return prepared
+			archives = prepared.archives
 		var execution := Ops.commit_serializers(context, serializers, serializers[0].path, func():
 			for serializer in serializers:
 				if serializer == garden:
 					garden.save_garden()
 				else:
 					profile.save_profile(), fault)
-		return Ops.transaction_result(execution))
+		var result := Ops.transaction_result(execution)
+		result.archives = archives
+		return result)
+
+func delete_save_guarded(slot: int, confirmed := false, digests := {}) -> Dictionary:
+	return _delete_guarded(slot, true, confirmed, digests)
+
+func delete_world_guarded(slot: int, confirmed := false, digest := "") -> Dictionary:
+	return _delete_guarded(slot, false, confirmed, {} if digest.is_empty() else {paths(slot).garden: digest})
+
+func _delete_guarded(slot: int, pair: bool, confirmed: bool, digests: Dictionary, fault := Callable(), archive_override := "") -> Dictionary:
+	if slot < 0 or slot >= capacity or not confirmed:
+		return Ops.management_result(ERR_INVALID_PARAMETER if confirmed else ERR_UNAUTHORIZED, "deletion_not_confirmed")
+	var location := paths(slot)
+	var ready := Auth.bootstrap(PackedStringArray([location.directory]))
+	if ready.error != OK:
+		return ready
+	var participants := PackedStringArray([location.garden, location.character])
+	var sources := participants if pair else PackedStringArray([location.garden])
+	var tombstone: String = location.directory.path_join("deleted.cfg")
+	var blocked := Ops.archive_preflight(participants + PackedStringArray([tombstone]))
+	if not blocked.is_empty():
+		return blocked
+	var confirmation := digests.duplicate()
+	if confirmation.is_empty():
+		for source in sources:
+			confirmation[source] = _save_digest(source)
+	var archive := archive_override if not archive_override.is_empty() else _archive_folder(location.directory, "deleted-" if pair else "deleted-world-")
+	ready = Auth.bootstrap_archive(archive, location.garden)
+	if ready.error != OK:
+		return ready
+	var targets := _archive_targets(archive, sources)
+	return Ops.run_management(participants + PackedStringArray([tombstone]), _archive_scope(targets) + PackedStringArray([tombstone + ".tmp"]), func(context):
+		if paths(slot) != location or slot >= capacity:
+			return Ops.management_result(ERR_BUSY, "destination_changed")
+		if is_active(slot):
+			return Ops.management_result(ERR_BUSY, "slot_in_use")
+		if FileAccess.file_exists(tombstone + ".tmp"):
+			return Ops.management_result(ERR_BUSY, "deletion_publication_pending", "unresolved")
+		var removals := PackedStringArray()
+		for source in sources:
+			var actual := _save_digest(source)
+			if actual.is_empty() or confirmation.get(source) != actual:
+				return Ops.management_result(ERR_UNAUTHORIZED, "stale_deletion_confirmation")
+			if actual != "absent":
+				removals.append(source)
+		if removals.is_empty():
+			return Ops.management_result(ERR_DOES_NOT_EXIST, "save_missing")
+		var prepared := _archive_deleted_save_guarded(context, targets, fault)
+		if prepared.error != OK:
+			return prepared
+		var marker := ConfigFile.new()
+		marker.set_value("deletion", "archive", archive)
+		var execution := Ops.commit_bytes(context, {tombstone: marker.encode_to_text().to_utf8_buffer()}, removals[0], fault, removals)
+		var result := Ops.transaction_result(execution)
+		result.archives = prepared.archives
+		return result)
+
+static func _archive_deleted_save_guarded(context: RefCounted, targets: Dictionary, fault: Callable) -> Dictionary:
+	# B1/B2 owns restoration from its verified original state. Archives remain
+	# separate copies, so compensation never consumes the deletion backup.
+	return Ops.archive_copies(context, targets, fault)
+
+static func _save_digest(path: String) -> String:
+	return FileAccess.get_sha256(path) if FileAccess.file_exists(path) else "absent"
+
+static func _archive_folder(directory: String, prefix: String) -> String:
+	var id := Crypto.new().generate_random_bytes(8).hex_encode()
+	if prefix in ["", "deleted-"]:
+		var stamp := Time.get_datetime_string_from_system().replace(":", "-")
+		id = stamp + "-" + (str(Time.get_ticks_msec()) if prefix.is_empty() else id.left(12))
+	return directory.path_join("backups").path_join(prefix + id)
+
+static func _archive_targets(directory: String, sources: PackedStringArray) -> Dictionary:
+	var targets := {}
+	for source in sources:
+		targets[source] = directory.path_join(source.get_file())
+	return targets
+
+static func _archive_scope(targets: Dictionary) -> PackedStringArray:
+	var scope := PackedStringArray()
+	for target: String in targets.values():
+		scope.append_array(PackedStringArray([target, target + ".tmp"]))
+	return scope
 
 func claim_guarded(slot: int) -> Dictionary:
 	return _lease_guarded(slot, "claim")

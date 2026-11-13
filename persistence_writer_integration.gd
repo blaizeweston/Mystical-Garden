@@ -33,7 +33,7 @@ const GROUP_1_GUARDED_ROUTES = {
  "character_profile.gd::save_profile_guarded/load_profile_guarded": "guarded profile serialization and pending-aware load",
 }
 
-# Verified dormant routes. Production callers and occupied-slot archives remain open.
+# Verified dormant routes. Production callers remain open.
 const GROUP_2A_GUARDED_ROUTES = {
  "save_slots.gd::prepare_guarded/ensure_character_guarded": "legacy import and profile creation",
  "save_slots.gd::new_game_guarded/new_world_guarded": "vacant-slot creation only",
@@ -41,6 +41,13 @@ const GROUP_2A_GUARDED_ROUTES = {
  "character_slots.gd::prepare_guarded/create_guarded/update_guarded": "roster import and profile management",
  "character_slots.gd::set_capacity_guarded/remember_guarded": "locked catalog read-modify-write",
  "character_slots.gd::claim_guarded/heartbeat_guarded/release_guarded": "scoped roster lease writes",
+}
+
+const GROUP_2B_GUARDED_ROUTES = {
+ "save_slots.gd::new_game_guarded/new_world_guarded": "verified occupied-slot backups and replacement, including Developer Garden",
+ "save_slots.gd::delete_save_guarded/delete_world_guarded": "verified archives and journal-backed deletion with tombstone",
+ "character_slots.gd::delete_character_guarded": "verified roster archive and journal-backed deletion with catalog",
+ "save_batch.gd::_run_guarded/_recover_guarded": "canonical absence and deletion metadata compensation",
 }
 
 static func activation_status() -> Dictionary:

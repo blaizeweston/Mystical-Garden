@@ -164,6 +164,62 @@ func _catalog_path() -> String:
 func _slot_profile(slot: int) -> String:
  return root_path.path_join("slot_%d/character.cfg" % (slot + 1))
 
+func delete_character_guarded(slot: int, confirmed := false, digest := "") -> Dictionary:
+ return _delete_guarded(slot, confirmed, digest)
+
+func _delete_guarded(slot: int, confirmed: bool, digest: String, fault := Callable(), archive_override := "") -> Dictionary:
+ if not confirmed or slot < 0 or slot >= MAX_COUNT:
+  return Ops.management_result(ERR_INVALID_PARAMETER if confirmed else ERR_UNAUTHORIZED, "deletion_not_confirmed")
+ var source := _slot_profile(slot)
+ var directory := source.get_base_dir()
+ var ready := Auth.bootstrap(PackedStringArray([directory]))
+ if ready.error != OK:
+  return ready
+ var catalog := _catalog_path()
+ var blocked := Ops.archive_preflight(PackedStringArray([source, catalog]))
+ if not blocked.is_empty():
+  return blocked
+ var confirmation := digest if not digest.is_empty() else Slots._save_digest(source)
+ var archive := archive_override if not archive_override.is_empty() else Slots._archive_folder(directory, "deleted-character-")
+ ready = Auth.bootstrap_archive(archive, source)
+ if ready.error != OK:
+  return ready
+ var targets := Slots._archive_targets(archive, PackedStringArray([source]))
+ return Ops.run_management(PackedStringArray([source, catalog]), Slots._archive_scope(targets) + PackedStringArray([catalog + ".tmp"]), func(context):
+  if source != _slot_profile(slot) or catalog != _catalog_path():
+   return Ops.management_result(ERR_BUSY, "destination_changed")
+  var current := _read_catalog()
+  if current.error != OK or slot >= current.get("capacity", 0):
+   return Ops.management_result(ERR_INVALID_DATA, "roster_capacity_changed")
+  if is_active(slot):
+   return Ops.management_result(ERR_BUSY, "slot_in_use")
+  if FileAccess.file_exists(catalog + ".tmp"):
+   return Ops.management_result(ERR_BUSY, "metadata_scratch_pending", "unresolved")
+  var actual := Slots._save_digest(source)
+  if actual.is_empty() or actual != confirmation:
+   return Ops.management_result(ERR_UNAUTHORIZED, "stale_deletion_confirmation")
+  if actual == "absent":
+   return Ops.management_result(ERR_DOES_NOT_EXIST, "save_missing")
+  return _remove_character_guarded(context, source, archive, targets, current.file, catalog, fault))
+
+func _remove_character_guarded(context: RefCounted, source: String, archive: String, targets: Dictionary, catalog: ConfigFile, catalog_path: String, fault: Callable) -> Dictionary:
+ var authorized := Ops.run_nested(context, PackedStringArray([source, catalog_path]), func(_context):
+  var profile := Profile.new()
+  profile.path = source
+  profile.identity = ""
+  var error := profile.load_profile(false)
+  if error != OK or not Profile.valid_identity(profile.identity):
+   return Ops.management_result(error if error != OK else ERR_INVALID_DATA, "roster_identity_unverified")
+  var prepared := Ops.archive_copies(context, targets, fault)
+  if prepared.error != OK:
+   return prepared
+  catalog.set_value("deleted_identities", profile.identity, archive)
+  catalog.set_value("deleted_slots", source.get_base_dir(), archive)
+  var result := Ops.transaction_result(Ops.commit_bytes(context, {catalog_path: catalog.encode_to_text().to_utf8_buffer()}, source, fault, PackedStringArray([source])))
+  result.archives = prepared.archives
+  return result)
+ return authorized.value if authorized.ran else authorized
+
 func _read_catalog() -> Dictionary:
  var file := ConfigFile.new()
  var path := _catalog_path()

@@ -50,7 +50,7 @@ static func parse(bytes: PackedByteArray, anchor: String, attempt := "", paths :
    return {}
   var path: Variant = entry.get("path")
   var size: Variant = entry.get("length")
-  if not path is String or not Layout.is_canonical(path, layout) or (not actual.is_empty() and actual[-1] >= path):
+  if not path is String or not Layout.is_participant(path, layout) or (not actual.is_empty() and actual[-1] >= path):
    return {}
   if not (size is int or size is float) or size < 0 or size > MAX_FILE_BYTES or size != int(size):
    return {}
@@ -61,7 +61,7 @@ static func parse(bytes: PackedByteArray, anchor: String, attempt := "", paths :
   entry.length = int(size)
   actual.append(path)
  value.version = 1
- if not actual.has(anchor) or (not paths.is_empty() and paths != actual) or encode(value) != bytes:
+ if not actual.has(anchor) or not Layout.valid_journal_scope(anchor, actual, layout) or (not paths.is_empty() and paths != actual) or encode(value) != bytes:
   return {}
  return value
 

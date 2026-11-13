@@ -3,6 +3,7 @@ extends RefCounted
 
 const Planner = preload("res://persistence_recovery_plan.gd")
 const Profile = preload("res://character_profile.gd")
+const Layout = preload("res://persistence_save_layout.gd")
 const VALUE_CONSTRUCTORS = [
  "Array", "Dictionary", "PackedByteArray", "PackedInt32Array", "PackedInt64Array",
  "PackedFloat32Array", "PackedFloat64Array", "PackedStringArray", "PackedVector2Array",
@@ -51,7 +52,11 @@ static func _inspect(path: String, section: String) -> Dictionary:
  var matches_kind := leaf == "garden.cfg" if section == "garden" else leaf in ["character.cfg", "character-local-guest.cfg"]
  if not matches_kind:
   return {"result": result, "file": null}
- var plan := Planner.discover(PackedStringArray([path]))
+ var participants := PackedStringArray([path])
+ var metadata := Layout.deletion_metadata(path, Layout.directories())
+ if not metadata.is_empty() and DirAccess.dir_exists_absolute(metadata.get_base_dir()):
+  participants.append(metadata)
+ var plan := Planner.discover(participants)
  result.state = plan.state
  result.reason = plan.reason
  result.participants = plan.participants
@@ -62,6 +67,9 @@ static func _inspect(path: String, section: String) -> Dictionary:
  if result.active and plan.state in ["healthy", "empty"]:
   return _refuse(result, "busy", "active_session_lease")
  if plan.state != "healthy":
+  return {"result": result, "file": null}
+ if result.exists == false:
+  result.state = "empty"
   return {"result": result, "file": null}
 
  # Use only bytes matching the planner's observation. A concurrent writer can

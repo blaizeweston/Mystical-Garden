@@ -95,27 +95,43 @@ static func run_management(paths: PackedStringArray, auxiliary: PackedStringArra
   return _result(ERR_INVALID_PARAMETER, "invalid", "invalid_callback")
  var scope := auxiliary.duplicate()
  var lease_scratch := PackedStringArray()
+ var participants := paths.duplicate()
+ var layout := Layout.directories()
  for path in paths:
   if Batch.guarded_write_pending(path):
    return _result(ERR_BUSY, "pending_recovery", "unresolved_transaction")
   var parent := path.get_base_dir()
+  var metadata := Layout.deletion_metadata(path, layout)
+  if not metadata.is_empty() and not participants.has(metadata) and DirAccess.dir_exists_absolute(parent):
+   if Batch.guarded_write_pending(metadata):
+    return _result(ERR_BUSY, "pending_recovery", "unresolved_transaction")
+   participants.append(metadata)
   if parent.get_file().begins_with("slot_"):
    var marker := parent.path_join("session.cfg")
    scope.append(marker)
    scope.append(marker + ".tmp")
    lease_scratch.append(marker + ".tmp")
- return run(paths, scope, func(context):
+ return run(participants, scope, func(context):
   for scratch in lease_scratch:
    if FileAccess.file_exists(scratch):
     return management_result(ERR_BUSY, "lease_publication_pending", "unresolved")
   return operation.call(context), expected)
 
-static func commit_bytes(context: RefCounted, files: Dictionary, anchor: String, fault := Callable()) -> Dictionary:
- var paths := PackedStringArray(files.keys())
+static func archive_preflight(paths: PackedStringArray) -> Dictionary:
+ var plan := Planner.discover(paths)
+ if not plan.state in ["empty", "healthy"]:
+  return _refuse(plan.state, plan.reason)
+ if not Authorization.replacement_available():
+  return _result(ERR_UNAVAILABLE, "invalid", "replacement_backend_unavailable")
+ return {}
+
+static func commit_bytes(context: RefCounted, files: Dictionary, anchor: String, fault := Callable(), removals := PackedStringArray()) -> Dictionary:
+ var paths := PackedStringArray(files.keys()) + removals
  var checked := run_nested(context, paths, func(_context):
   return Batch._run_guarded(_native_context, paths, anchor, func(stage):
    for path in paths:
-    stage.call(path, files[path]), false, fault))
+    if files.has(path):
+     stage.call(path, files[path]), false, fault, removals))
  return checked.value if checked.ran else checked
 
 ## The caller owns the gameplay snapshot. Serializers are bound by object and
@@ -172,6 +188,65 @@ static func write_metadata(context: RefCounted, target: String, file: ConfigFile
  var scratch := target + ".tmp"
  var checked := run_nested(context, PackedStringArray([target, scratch]), func(_context):
   return _write_metadata_locked(target, scratch, file.encode_to_text().to_utf8_buffer()))
+ return checked.value if checked.ran else checked
+
+## Archive copies precede the canonical transaction. Never overwrite or
+## delete a previous archive, including when a later save operation aborts.
+static func archive_copies(context: RefCounted, destinations: Dictionary, fault := Callable()) -> Dictionary:
+ if not Authorization.replacement_available():
+  return management_result(ERR_UNAVAILABLE, "replacement_backend_unavailable")
+ var layout := Layout.directories()
+ var scope := PackedStringArray()
+ var ordered := PackedStringArray(destinations.keys())
+ ordered.sort()
+ for source in ordered:
+  var target: String = destinations[source]
+  if Layout.archive_source(target, layout) != source:
+   return management_result(ERR_UNAUTHORIZED, "archive_scope_rejected")
+  scope.append_array(PackedStringArray([source, target, target + ".tmp"]))
+ var checked := run_nested(context, scope, func(_context):
+  var originals := {}
+  var archived := {}
+  for source in ordered:
+   var target: String = destinations[source]
+   var archive := DirAccess.open(target.get_base_dir())
+   if archive == null:
+    return management_result(DirAccess.get_open_error(), "archive_directory_unreadable")
+   archive.include_hidden = true
+   if not archive.get_files().is_empty() or not archive.get_directories().is_empty():
+    return management_result(ERR_ALREADY_EXISTS, "archive_destination_occupied")
+   if FileAccess.file_exists(source):
+    var prior := Planner._read_bytes(source)
+    if not prior.ok:
+     return management_result(ERR_FILE_CANT_READ, prior.reason)
+    originals[source] = prior.bytes
+  for source in ordered:
+   if not originals.has(source):
+    continue
+   var target: String = destinations[source]
+   var error: Error = fault.call("archive", target) if fault.is_valid() else OK
+   if error == OK:
+    error = Batch.write_bytes(target + ".tmp", originals[source])
+   if error == OK and fault.is_valid():
+    error = fault.call("archive_staged", target)
+   if error == OK:
+    error = _publish_backup(_native_context, target + ".tmp", target, originals[source])
+   if error != OK:
+    var failed := management_result(error, "archive_copy_failed",
+     "partial_completion" if not archived.is_empty() or FileAccess.file_exists(target + ".tmp") or FileAccess.file_exists(target) else "verified_failure")
+    failed.archives = archived
+    failed.failed_path = target
+    return failed
+   archived[source] = target
+   if fault.is_valid():
+    error = fault.call("after_archive", target)
+    if error != OK:
+     var partial := management_result(error, "archive_copy_interrupted", "partial_completion")
+     partial.archives = archived
+     return partial
+  var complete := management_result(OK, "")
+  complete.archives = archived
+  return complete)
  return checked.value if checked.ran else checked
 
 static func remove_lease(context: RefCounted, marker: String, digest: String) -> Error:
@@ -427,7 +502,8 @@ static func _observe_auxiliaries(paths: PackedStringArray, auxiliaries: PackedSt
    allowed[path + ".new"] = true
    allowed[path + ".new.tmp"] = true
  for path in auxiliaries:
-  if not allowed.has(path):
+  var archive_owner := Layout.archive_source(path, supported)
+  if not allowed.has(path) and not paths.has(archive_owner):
    result.reason = "auxiliary_outside_scope"
    return result
   var directory := DirAccess.open(path.get_base_dir())
@@ -440,7 +516,7 @@ static func _observe_auxiliaries(paths: PackedStringArray, auxiliaries: PackedSt
   if not directory.get_files().has(path.get_file()):
    result.reason = "unsafe_auxiliary"
    return result
-  var limit := Planner.MAX_RECORD_BYTES if path.ends_with(".bak") or path.ends_with(".bak.tmp") else MAX_AUXILIARY_BYTES
+  var limit := Planner.MAX_RECORD_BYTES if not archive_owner.is_empty() or path.ends_with(".bak") or path.ends_with(".bak.tmp") else MAX_AUXILIARY_BYTES
   var file := Planner._read_bytes(path, limit)
   if not file.ok:
    result.reason = file.reason

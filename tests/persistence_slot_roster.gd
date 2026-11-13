@@ -84,8 +84,8 @@ func test_slots(worlds: RefCounted) -> void:
  test_result("ensure_character", worlds.ensure_character_guarded(2), "completed")
  test_result("fresh_garden", worlds.new_world_guarded(2), "completed")
  var original := file_hash(first.garden)
- test_result("replacement_needs_archive", worlds.new_game_guarded(0, true), "verified_failure")
- test_result("world_replacement_needs_archive", worlds.new_world_guarded(0, true), "verified_failure")
+ test_result("replacement_requires_confirmation", worlds.new_game_guarded(0), "verified_failure")
+ test_result("world_replacement_requires_confirmation", worlds.new_world_guarded(0), "verified_failure")
  check(file_hash(first.garden) == original, "occupied Garden unchanged")
  test_result("remember_garden", worlds.remember_slot_guarded(2), "completed")
  check(worlds.last_slot() == 2, "Garden selection persisted")
@@ -179,7 +179,7 @@ func test_developer() -> void:
  dev.root_path = "user://saves/developer-garden"
  test_result("prepare_developer", dev.prepare_guarded(false), "completed")
  test_result("create_developer", dev.new_game_guarded(0), "completed")
- test_result("developer_reset_needs_archive", dev.new_game_guarded(0, true), "verified_failure")
+ test_result("developer_reset_requires_confirmation", dev.new_game_guarded(0), "verified_failure")
  var location := dev.paths(1)
  var failed_pair := dev._initialize_guarded(1, true, false, false, func(phase, path):
   if phase == "replace" and path == location.garden:

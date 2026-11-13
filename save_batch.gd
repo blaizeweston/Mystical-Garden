@@ -111,12 +111,14 @@ static func reject_guarded_serializer(error: Error, path: String) -> Error:
 
 # Internal entry for PersistenceOperations. The native token is never handed to
 # the action. The optional fault hook is used only by disposable fixtures.
-static func _run_guarded(token: RefCounted, paths: PackedStringArray, anchor: String, action: Callable, no_op: bool, fault := Callable()) -> Dictionary:
+static func _run_guarded(token: RefCounted, paths: PackedStringArray, anchor: String, action: Callable, no_op: bool, fault := Callable(), removals := PackedStringArray()) -> Dictionary:
  if not Thread.is_main_thread() or active or _guarded_owner != null:
   return {"error": ERR_BUSY, "ran": false}
  var ordered := paths.duplicate()
  ordered.sort()
  if ordered.is_empty() or ordered.size() > Planner.MAX_JOURNAL_ENTRIES or not ordered.has(anchor) or not action.is_valid():
+  return {"error": ERR_INVALID_PARAMETER, "ran": false}
+ if not Evidence.Layout.valid_journal_scope(anchor, ordered, Evidence.Layout.directories()):
   return {"error": ERR_INVALID_PARAMETER, "ran": false}
  var scope := PackedStringArray()
  for index in ordered.size():
@@ -145,6 +147,8 @@ static func _run_guarded(token: RefCounted, paths: PackedStringArray, anchor: St
   if attempt.capture_originals():
    _guarded_owner = attempt
    attempt.accepting_stages = true
+   for path in removals:
+    attempt.stage_absence(path)
    var stage := func(path: String, bytes: PackedByteArray) -> Error: return attempt.stage(path, bytes)
    var action_value: Variant = action.call(stage)
    attempt.accepting_stages = false
@@ -198,6 +202,17 @@ class GuardedAttempt extends RefCounted:
    _fail(ERR_INVALID_PARAMETER, "stage_request", path)
    return result.original_error
   requested[path] = {"exists": true, "bytes": bytes.duplicate()}
+  return OK
+
+ func stage_absence(path: String) -> Error:
+  if not accepting_stages or not Thread.is_main_thread():
+   return ERR_UNAUTHORIZED
+  if result.original_error != OK:
+   return result.original_error
+  if no_op or not originals.has(path) or not Evidence.Layout.is_canonical(path, Evidence.Layout.directories()):
+   _fail(ERR_INVALID_PARAMETER, "stage_absence", path)
+   return result.original_error
+  requested[path] = {"exists": false, "bytes": PackedByteArray()}
   return OK
 
  func finalize() -> void:
@@ -298,7 +313,7 @@ class GuardedAttempt extends RefCounted:
    return
   result.verification.fallback_sha256 = proof.uncommitted_sha256
   for path in result.paths:
-   if not _stage_artifact(path + ".txn_stage", requested[path].bytes, "stage"):
+   if requested[path].exists and not _stage_artifact(path + ".txn_stage", requested[path].bytes, "stage"):
     _abort()
     return
   for path in result.paths:
@@ -318,7 +333,7 @@ class GuardedAttempt extends RefCounted:
 
   result.verification.replacements = 0
   for path in result.paths:
-   if not _move(path + ".txn_stage", path, "replace"):
+   if not _install(path):
     _resolve_replacement_failure()
     return
    result.verification.replacements += 1
@@ -344,6 +359,20 @@ class GuardedAttempt extends RefCounted:
    _fail(replacement.error, "verify_committed_participants", replacement.path)
    return
   _complete_commit(prepared, proof_bytes)
+
+ func _install(path: String) -> bool:
+  if requested[path].exists:
+   return _move(path + ".txn_stage", path, "replace")
+  var error := _fault("remove", path)
+  if error == OK:
+   error = _verify_state(path, originals[path])
+  if error == OK and originals[path].exists:
+   error = DirAccess.remove_absolute(path)
+  if error == OK:
+   error = _verify_state(path, requested[path])
+  if error != OK:
+   _fail(error, "remove", path)
+  return error == OK
 
  func _resolve_replacement_failure() -> void:
   # Resolve only this live attempt. Restart recovery stays on the legacy path.

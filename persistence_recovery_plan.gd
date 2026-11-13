@@ -33,7 +33,7 @@ static func discover(paths: PackedStringArray) -> Dictionary:
  if requested.is_empty():
   return _refuse(plan, "invalid", "no_participants")
  for path in requested:
-  if not Layout.is_canonical(path, directories):
+  if not Layout.is_participant(path, directories):
    return _refuse(plan, "invalid", "unsafe_participant", path)
 
  var root := OS.get_user_data_dir().replace("\\", "/").trim_suffix("/")
@@ -82,6 +82,8 @@ static func discover(paths: PackedStringArray) -> Dictionary:
   if total_bytes > MAX_JOURNAL_BYTES:
    return _refuse(plan, "pending_recovery", "journal_scan_limit", journal)
   var record := _journal(file.bytes, directories, journal_pattern)
+  if record.ok and not Layout.valid_journal_scope(anchor, PackedStringArray(record.entries.keys()), directories):
+   record = _bad_record("invalid", "unowned_deletion_metadata")
   if not record.ok:
    unreadable[journal] = record
    continue
@@ -266,7 +268,7 @@ static func _index_directory(path: String, root: String, supported: Dictionary, 
     owner = owner.trim_suffix(suffix)
     break
   var lease: bool = child.to_lower() == "session.cfg" and not supported[path].is_empty()
-  if not Layout.is_canonical(owner, supported) and not lease:
+  if not Layout.is_participant(owner, supported) and not lease:
    if child.to_lower().ends_with(".transaction") or child.to_lower().ends_with(".txn_link") or not _evidence_suffix(child.to_lower()).is_empty():
     return {"reason": "unknown_artifact_owner", "path": target}
    continue
@@ -296,7 +298,7 @@ static func _journal(bytes: PackedByteArray, directories: Dictionary, pattern: R
   return _bad_record("ambiguous", "duplicate_or_unresolved_entry")
  var paths := PackedStringArray()
  for key in entries:
-  if not key is String or not Layout.is_canonical(key, directories):
+  if not key is String or not Layout.is_participant(key, directories):
    return _bad_record("invalid", "unsafe_journal_participant")
   paths.append(key)
  paths.sort()

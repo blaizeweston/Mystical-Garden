@@ -1581,6 +1581,11 @@
     ]
   },
   "suites": {
+    "persistence_destructive_slots": {
+      "kind": "unit",
+      "systems": ["persistence_operations", "persistence_recovery_plan", "persistence_authorization", "persistence_save_access", "characters", "menus"],
+      "package": true
+    },
     "persistence_slot_roster": {
       "kind": "unit",
       "systems": ["persistence_operations", "persistence_recovery_plan", "persistence_authorization", "characters", "menus"],

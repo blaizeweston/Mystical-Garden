@@ -68,6 +68,27 @@ static func bootstrap(paths: PackedStringArray) -> Dictionary:
   result.error = outcome.error
  return result
 
+## Only the exact archive folder selected by the requesting slot operation.
+## Creating directories conveys no authority to touch any file.
+static func bootstrap_archive(path: String, source: String) -> Dictionary:
+ if not Thread.is_main_thread() or _active != null or _bootstrapping:
+  return _result(ERR_BUSY)
+ if not Layout.archive_folder(path, source, Layout.directories()):
+  return _result(ERR_INVALID_PARAMETER)
+ var location := _root()
+ if location.error != OK:
+  return _result(location.error)
+ var held := _acquire(location.path, location.directory, PackedStringArray())
+ if held.error != OK:
+  return held
+ _bootstrapping = true
+ var outcome := _create_directories(location.path, location.directory, PackedStringArray([path.get_base_dir(), path]))
+ _bootstrapping = false
+ var result := _release(held.value, outcome)
+ if result.error == OK:
+  result.error = outcome.error
+ return result
+
 static func _create_directories(root: String, disk: DirAccess, paths: PackedStringArray) -> Dictionary:
  var missing := PackedStringArray()
  for path in paths:
