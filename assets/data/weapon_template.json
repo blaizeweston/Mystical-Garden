@@ -1,0 +1,11 @@
+{
+  "id": "append_stable_weapon_id",
+  "name": "Example root weapon",
+  "reach": 2.5,
+  "strike_ms": 650,
+  "damage": 1,
+  "roll_spread_hp": 2,
+  "targets": 2,
+  "pattern": "sweep",
+  "visual": "spear"
+}

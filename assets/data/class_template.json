@@ -1,0 +1,330 @@
+{
+  "id": "new_stable_class_id",
+  "name": "Example guardian class",
+  "skill": "Guard",
+  "mode": "guard",
+  "skill_cooldown": 4800,
+  "description": "Hold ground with living wood.",
+  "weapons": [
+    {
+      "id": "example_weapon_0",
+      "name": "Rootblade",
+      "reach": 2.25,
+      "strike_ms": 450,
+      "damage": 1,
+      "targets": 1,
+      "pattern": "single",
+      "visual": "blade"
+    },
+    {
+      "id": "example_weapon_1",
+      "name": "Briar Spear",
+      "reach": 3.1,
+      "strike_ms": 650,
+      "damage": 1,
+      "targets": 2,
+      "pattern": "line",
+      "visual": "spear"
+    },
+    {
+      "id": "example_weapon_2",
+      "name": "Heartwood Maul",
+      "reach": 2.1,
+      "strike_ms": 950,
+      "damage": 2,
+      "targets": 3,
+      "pattern": "sweep",
+      "visual": "hammer"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "0",
+      "name": "Deepened Guard",
+      "level": 2,
+      "tier": 0,
+      "effects": {
+        "max_health": 2
+      },
+      "parents": [],
+      "skill_change": {
+        "slot": 0,
+        "kind": "augment"
+      }
+    },
+    {
+      "id": "1",
+      "name": "Living Bastion",
+      "level": 2,
+      "tier": 0,
+      "effects": {
+        "reach": 0.35
+      },
+      "parents": [],
+      "skill_change": {
+        "slot": 0,
+        "kind": "replace"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Deepened Root Quake",
+      "level": 3,
+      "tier": 1,
+      "effects": {
+        "skill_duration": 550
+      },
+      "parents": [
+        "0",
+        "1"
+      ],
+      "skill_change": {
+        "slot": 1,
+        "kind": "augment"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Briar Charge",
+      "level": 3,
+      "tier": 1,
+      "effects": {
+        "stagger": 70
+      },
+      "parents": [
+        "0",
+        "1"
+      ],
+      "skill_change": {
+        "slot": 1,
+        "kind": "replace"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Guard Tempering",
+      "level": 4,
+      "tier": 2,
+      "effects": {
+        "targets": 1
+      },
+      "parents": [
+        "2",
+        "3"
+      ],
+      "skill_change": {
+        "slot": 0,
+        "kind": "master"
+      }
+    },
+    {
+      "id": "5",
+      "name": "Quake Resonance",
+      "level": 4,
+      "tier": 2,
+      "effects": {
+        "cooldown": 70
+      },
+      "parents": [
+        "2",
+        "3"
+      ],
+      "skill_change": {
+        "slot": 1,
+        "kind": "master"
+      }
+    },
+    {
+      "id": "6",
+      "name": "Living Rhythm",
+      "level": 5,
+      "tier": 3,
+      "effects": {
+        "damage": 1
+      },
+      "parents": [
+        "4",
+        "5"
+      ],
+      "skill_change": {
+        "slot": 0,
+        "kind": "efficient"
+      }
+    },
+    {
+      "id": "7",
+      "name": "Primal Flourish",
+      "level": 5,
+      "tier": 3,
+      "effects": {
+        "graft_chance": 0.1
+      },
+      "parents": [
+        "4",
+        "5"
+      ],
+      "skill_change": {
+        "slot": 0,
+        "kind": "power"
+      }
+    },
+    {
+      "id": "8",
+      "name": "Bastion: Rootshield",
+      "level": 6,
+      "tier": 4,
+      "parents": [
+        "6",
+        "7"
+      ],
+      "effects": {
+        "directional_guard": 1
+      },
+      "skill_change": {
+        "kind": "modify",
+        "slot": 0,
+        "values": {
+          "name": "Rootshield",
+          "mode": "front_guard",
+          "cooldown": 8500,
+          "duration": 2200,
+          "charges": 3,
+          "radius": 3.0,
+          "description": "Hold a directional root shield. Allies in front receive guard. Move at 40% speed while holding it."
+        }
+      }
+    },
+    {
+      "id": "9",
+      "name": "Vanguard: Thorn Counter",
+      "level": 6,
+      "tier": 4,
+      "parents": [
+        "6",
+        "7"
+      ],
+      "effects": {
+        "counter_damage": 1
+      },
+      "skill_change": {
+        "kind": "modify",
+        "slot": 0,
+        "values": {
+          "name": "Thorn Counter",
+          "mode": "counter_guard",
+          "cooldown": 6800,
+          "duration": 1600,
+          "charges": 2,
+          "description": "Catch an attack to prepare a powerful counter on your next actual weapon contact."
+        }
+      }
+    },
+    {
+      "id": "10",
+      "name": "Sanctuary of Bark",
+      "level": 7,
+      "tier": 5,
+      "parents": [
+        "8"
+      ],
+      "effects": {
+        "ward_on_block": 1,
+        "shatter_damage": 1
+      },
+      "skill_change": {
+        "kind": "modify",
+        "slot": 1,
+        "values": {
+          "name": "Sanctuary Quake",
+          "mode": "quake",
+          "cooldown": 8500,
+          "damage": 2,
+          "radius": 3.5,
+          "field": "tide",
+          "field_duration": 2400,
+          "field_power": 0,
+          "field_ward": true,
+          "description": "Quake the earth and create a stationary warding circle. Living allies inside are briefly guarded; fallen allies remain fallen."
+        }
+      }
+    },
+    {
+      "id": "11",
+      "name": "Shattering Advance",
+      "level": 7,
+      "tier": 5,
+      "parents": [
+        "9"
+      ],
+      "effects": {
+        "counter_stagger": 200,
+        "shatter_damage": 2
+      },
+      "skill_change": {
+        "kind": "modify",
+        "slot": 1,
+        "values": {
+          "name": "Shattering Advance",
+          "mode": "charge",
+          "cooldown": 7500,
+          "damage": 3,
+          "radius": 2.5,
+          "travel": 3.5,
+          "description": "Commit to a terrain-safe charge. Counter and brittle bonuses combine on real contact."
+        }
+      }
+    }
+  ],
+  "skills": {
+    "base": [
+      {
+        "name": "Guard",
+        "mode": "guard",
+        "cooldown": 4800,
+        "description": "Raise a timed guard against incoming attacks.",
+        "duration": 1150,
+        "charges": 1,
+        "color": "#c5ba79"
+      },
+      {
+        "name": "Root Quake",
+        "mode": "quake",
+        "cooldown": 6500,
+        "description": "Shake nearby roots, damaging and staggering foes.",
+        "damage": 2,
+        "radius": 3.0,
+        "stagger": 300,
+        "push": 0.8,
+        "color": "#c8a96d"
+      }
+    ],
+    "replace": [
+      {
+        "name": "Living Bastion",
+        "mode": "bastion",
+        "cooldown": 7200,
+        "description": "Protect nearby allies with a layered guard.",
+        "duration": 1800,
+        "charges": 2,
+        "radius": 3.5,
+        "color": "#d9cc8c"
+      },
+      {
+        "name": "Briar Charge",
+        "mode": "charge",
+        "cooldown": 7200,
+        "description": "Rush safely forward and batter nearby enemies.",
+        "damage": 2,
+        "radius": 2.0,
+        "travel": 3.5,
+        "stagger": 250,
+        "push": 1.0,
+        "color": "#b8be79"
+      }
+    ]
+  },
+  "specializations": [
+    "Living Bastion",
+    "Thorn Vanguard"
+  ]
+}

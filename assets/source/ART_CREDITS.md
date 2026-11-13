@@ -1,0 +1,14 @@
+# Open 3D assets
+
+The following sources are published under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+- Quaternius [Universal Base Characters](https://quaternius.com/packs/universalbasecharacters) and [Modular Character Outfits — Fantasy](https://quaternius.com/packs/modularcharacteroutfitsfantasy.html). The field travellers combine the Ranger outfits, heads and three hair meshes with original appearance morphs and palettes. The Blender build script is in tools/build_field_travellers.py.
+- Quaternius [Universal Animation Library, Standard](https://quaternius.itch.io/universal-animation-library). Idle, walk, jog and sprint were imported from the publisher's newer humanoid rig. The visible rig layers existing game-authored upper-body actions over those clips.
+- Poly Haven [Leafy Grass](https://polyhaven.com/a/leafy_grass), [Forest Ground 01](https://polyhaven.com/a/forrest_ground_01), [Bark Brown 01](https://polyhaven.com/a/bark_brown_01), [Grass Medium 01](https://polyhaven.com/a/grass_medium_01), [Fern 02](https://polyhaven.com/a/fern_02) and [Rock Moss Set 01](https://polyhaven.com/a/rock_moss_set_01). The Garden uses 1K maps and selected low-geometry foliage variants with cutout masks.
+- System G6 [Medieval Weapon Pack](https://opengameart.org/content/medieval-weapon-pack). The Rootblade and Vine Bow use modified meshes with the project's grip and Core sockets. The bow string and nocked arrow are animated separately in Godot.
+
+- System G6's [Medieval Weapon Pack](https://opengameart.org/content/medieval-weapon-pack) also supplies the base meshes for Bark Arbalest, Graft Knives and Thorn Wand.
+- Grab3D [Wizard Staff](https://grab3d.com/models/weapons/wizard-staff/), [Hand Bell](https://grab3d.com/models/props/bell/), [Folding Fan](https://grab3d.com/models/props/folding-fan/) and [Poppy Cluster](https://grab3d.com/models/nature/poppy/) provide geometry for Spore Staff, Bloom Bell, Petal Fan and Seed Focus.
+- KillGorack's [Fantasy Weapons](https://opengameart.org/content/fantasy-weapons-2) supplies the outer blade mesh for Thorn Ring. [Medieval Censer by 3DAssets.dev](https://3dassets.dev/assets/medieval-monastery-and-scriptorium-censer-01ebee75) supplies the hanging body for Spore Censer.
+
+The new weapon assets combine these donor meshes with original leaves, bark wraps, fungi and thorn geometry. Root Lash uses original braided segments that follow the lash pose in Godot. To rebuild the weapon meshes, run tools/adapt_weapon_models.py in Blender with the donor directory after the `--` separator. The script lists the expected filenames.

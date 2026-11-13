@@ -1,0 +1,22 @@
+{
+  "id": "append_upgrade_id",
+  "name": "Example Frost Link",
+  "rarity": "Epic",
+  "cost": 13,
+  "weight": 0.6,
+  "max_rank": 1,
+  "classes": [
+    0
+  ],
+  "plant_tags": [
+    "frost"
+  ],
+  "graft_tags": [
+    "thorn"
+  ],
+  "description": "Installed components enable this authored linking behavior.",
+  "effects": {
+    "link": 1,
+    "shatter_damage": 1
+  }
+}

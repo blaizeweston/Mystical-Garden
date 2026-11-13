@@ -1,0 +1,5 @@
+.godot/
+*.blend1
+
+# Network test runs are stored under .godot; ignore old launcher output too.
+test/logs/

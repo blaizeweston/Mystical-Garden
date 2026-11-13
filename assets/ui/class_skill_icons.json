@@ -1,0 +1,284 @@
+{
+  "Guard": [
+    0,
+    0,
+    64,
+    64
+  ],
+  "Root Quake": [
+    64,
+    0,
+    64,
+    64
+  ],
+  "Living Bastion": [
+    128,
+    0,
+    64,
+    64
+  ],
+  "Briar Charge": [
+    192,
+    0,
+    64,
+    64
+  ],
+  "Rootshield": [
+    256,
+    0,
+    64,
+    64
+  ],
+  "Thorn Counter": [
+    320,
+    0,
+    64,
+    64
+  ],
+  "Sanctuary Quake": [
+    384,
+    0,
+    64,
+    64
+  ],
+  "Shattering Advance": [
+    448,
+    0,
+    64,
+    64
+  ],
+  "Root Anchor": [
+    0,
+    64,
+    64,
+    64
+  ],
+  "Rootbind": [
+    64,
+    64,
+    64,
+    64
+  ],
+  "Spore Nova": [
+    128,
+    64,
+    64,
+    64
+  ],
+  "Strangling Bloom": [
+    192,
+    64,
+    64,
+    64
+  ],
+  "Mycelial Snare": [
+    256,
+    64,
+    64,
+    64
+  ],
+  "Interwoven Bind": [
+    320,
+    64,
+    64,
+    64
+  ],
+  "Cultivate Bloom": [
+    384,
+    64,
+    64,
+    64
+  ],
+  "Entangling Chorus": [
+    448,
+    64,
+    64,
+    64
+  ],
+  "Bloom Detonation": [
+    0,
+    128,
+    64,
+    64
+  ],
+  "Silk Shelter": [
+    64,
+    128,
+    64,
+    64
+  ],
+  "Gale Volley": [
+    128,
+    128,
+    64,
+    64
+  ],
+  "Bramble Snare": [
+    192,
+    128,
+    64,
+    64
+  ],
+  "Piercing Salvo": [
+    256,
+    128,
+    64,
+    64
+  ],
+  "Windstep": [
+    320,
+    128,
+    64,
+    64
+  ],
+  "Hunter’s Salvo": [
+    384,
+    128,
+    64,
+    64
+  ],
+  "Luring Shot": [
+    448,
+    128,
+    64,
+    64
+  ],
+  "Stalker’s Retreat": [
+    0,
+    192,
+    64,
+    64
+  ],
+  "Thorn Lattice": [
+    64,
+    192,
+    64,
+    64
+  ],
+  "Luring Snare": [
+    128,
+    192,
+    64,
+    64
+  ],
+  "Briar Retreat": [
+    192,
+    192,
+    64,
+    64
+  ],
+  "Reaping Step": [
+    256,
+    192,
+    64,
+    64
+  ],
+  "Siphon Cut": [
+    320,
+    192,
+    64,
+    64
+  ],
+  "Shadow Harvest": [
+    384,
+    192,
+    64,
+    64
+  ],
+  "Blood Moon": [
+    448,
+    192,
+    64,
+    64
+  ],
+  "Harvest Frenzy": [
+    0,
+    256,
+    64,
+    64
+  ],
+  "Veil Passage": [
+    64,
+    256,
+    64,
+    64
+  ],
+  "Feast of Thorns": [
+    128,
+    256,
+    64,
+    64
+  ],
+  "Delayed Requiem": [
+    192,
+    256,
+    64,
+    64
+  ],
+  "Blood Harvest": [
+    256,
+    256,
+    64,
+    64
+  ],
+  "Grave Sweep": [
+    320,
+    256,
+    64,
+    64
+  ],
+  "Renewal": [
+    384,
+    256,
+    64,
+    64
+  ],
+  "Warding Chime": [
+    448,
+    256,
+    64,
+    64
+  ],
+  "Sanctuary": [
+    0,
+    320,
+    64,
+    64
+  ],
+  "Judgement Bell": [
+    64,
+    320,
+    64,
+    64
+  ],
+  "Living Sanctuary": [
+    128,
+    320,
+    64,
+    64
+  ],
+  "Foretell": [
+    192,
+    320,
+    64,
+    64
+  ],
+  "Cleansing Bower": [
+    256,
+    320,
+    64,
+    64
+  ],
+  "Sentence of Dawn": [
+    320,
+    320,
+    64,
+    64
+  ],
+  "Guiding Bell": [
+    384,
+    320,
+    64,
+    64
+  ]
+}

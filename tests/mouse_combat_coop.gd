@@ -1,0 +1,47 @@
+extends SceneTree
+var game: Node
+var role: String
+var base: String
+var failed=false
+func check(ok: bool,message: String):
+ if not ok:failed=true;printerr("FAIL mouse co-op ",role,": ",message)
+func mark(key: String):
+ var f=FileAccess.open(base+key,FileAccess.WRITE);f.store_string("ok")
+func marked(key: String) -> bool:return FileAccess.file_exists(base+key)
+func until(predicate: Callable) -> bool:
+ var end=Time.get_ticks_msec()+15000
+ while not predicate.call() and Time.get_ticks_msec()<end:await process_frame
+ return predicate.call()
+func _initialize():call_deferred("run")
+func run():
+ role=OS.get_cmdline_user_args()[0];base="res://.godot/mouse-net-"+OS.get_cmdline_user_args()[1]
+ game=load("res://world.tscn").instantiate();game.progress.path=base+role;game.local_character.path=base+role+".character";game.guest_character.path=base+role+".guest";root.add_child(game)
+ if role=="host":await host_run()
+ else:await guest_run()
+ game.free()
+ if not failed:print("PASS: mouse co-op ",role," held input, authority, direction, cooldown, damage and release")
+ quit(1 if failed else 0)
+func host_run():
+ check(game.host_game()==OK,"host opens")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"registration");return
+ game.set_physics_process(false);game.set_process(false)
+ var id=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
+ p.wild=true;p.hp=10;p.pos=Vector3.ZERO;p.strike_at=0
+ game.scouts.clear();game.battlefield.procedural=false;game.battlefield.barriers=[];game.enemy_pos=Vector3(0,0,-1);game.enemy_hp=10000
+ mark("ready")
+ var end=Time.get_ticks_msec()+1400
+ while Time.get_ticks_msec()<end:
+  var now=Time.get_ticks_msec();game.mouse_controls.tick(game,now);game.update_projectiles(now);await process_frame
+ check(p.attack_combo>=2 and p.attack_combo<=7,"hold respects authoritative attack speed")
+ check(game.enemy_hp<10000 and p.facing.z<-.9,"remote cursor sets direction and hits")
+ mark("stop");check(await until(func():return marked("released")),"guest released")
+ await create_timer(.1).timeout
+ var combo=p.attack_combo;p.strike_at=0;game.mouse_controls.tick(game,Time.get_ticks_msec());check(p.attack_combo==combo,"remote release stops new attacks")
+ mark("done");await create_timer(.3).timeout
+func guest_run():
+ game.guest_character.save_profile();check(game.join_game()==OK,"guest joins")
+ if not await until(func():return game.session=="Guest" and marked("ready")):check(false,"ready");return
+ while not marked("stop"):
+  game.submit_combat.rpc_id(1,Vector2(0,-1),true);await create_timer(.05).timeout
+ game.submit_combat.rpc_id(1,Vector2(0,-1),false);await create_timer(.1).timeout;mark("released")
+ check(await until(func():return marked("done")),"host verifies");game.leave_game("mouse fixture")

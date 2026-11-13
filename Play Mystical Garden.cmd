@@ -1,0 +1,2 @@
+@echo off
+powershell.exe -NoProfile -Command "$p='%~dp0'; $build=Get-ChildItem -LiteralPath $p -File -Filter '*.exe' | Where-Object {$_.BaseName -match '^Mystical Garden v(\d+(?:\.\d+){1,3})$'} | Sort-Object @{Expression={[version]($_.BaseName -replace '^Mystical Garden v','')};Descending=$true} | Select-Object -First 1; if($build){Start-Process -FilePath $build.FullName -WorkingDirectory $p}else{Write-Host 'No numbered Mystical Garden build found.'; Read-Host 'Press Enter'}"

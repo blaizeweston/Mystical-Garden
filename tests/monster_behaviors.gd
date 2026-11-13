@@ -1,0 +1,100 @@
+extends SceneTree
+const Attacks=preload("res://enemy_attack.gd")
+const Status=preload("res://combat_status.gd")
+var failed=false
+func check(ok: bool,message: String):
+ if not ok:failed=true;printerr("FAIL monster behaviors: ",message)
+func _initialize():
+ preload("res://combat_balance_preview.gd").enabled = false
+ call_deferred("run")
+func run():
+ var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/monster-behaviors-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
+ var p=game.players[1];p.wild=true;p.pos=Vector3(0,0,4);p.hp=10
+ game.battlefield.configure(0,1);game.battlefield.barriers=[];game.enemy_hp=100;game.enemy_pos=Vector3(0,0,5);game.enemy_mutations=0
+ var shepherd=game.make_scout(10,Vector3(1,0,6),1);shepherd.mode="shepherd"
+ var escort=game.make_scout(0,Vector3(0,0,6),2);game.scouts.assign([shepherd,escort]);game.resolve_scout(shepherd,game.Enemies.get_kind(10),2000)
+ check(int(escort.get("command_target",0))==1 and int(escort.get("command_until",0))>2000,"Shepherd coordinates its escorts against a live target")
+ check(game.Director.target(game,escort.pos,escort,2100)==1,"command is respected by common targeting")
+ game.enemy_hp=0;game.scouts.assign([shepherd]);game.arrange_support_groups()
+ check(not game.Enemies.is_support(int(game.scouts[0].kind)),"Shepherd cannot spawn without escorts")
+ var grazer=game.make_scout(11,Vector3(1,0,5),3);game.scouts.assign([grazer]);game.enemy_hp=100;game.enemy_pos=Vector3(0,0,5)
+ game.apply_weapon_hit(p,-1,p.pos,{"damage":4},3000)
+ check(game.enemy_hp==97,"living grazer reduces nearby ally damage")
+ grazer.hp=0;game.apply_weapon_hit(p,-1,p.pos,{"damage":4},3200)
+ check(game.enemy_hp==93,"protection ends immediately when grazer dies")
+ var lure=game.make_scout(12,Vector3(0,0,7),4);lure.mode="lure";lure.blast=Vector3(0,0,4);lure.windup=4000
+ p.pos=lure.blast;p.hp=10;p.hurt_until=0;p.guard_until=0
+ game.resolve_scout(lure,game.Enemies.get_kind(12),4000)
+ check(p.hp==9 and p.pos.z>4.5 and p.slow_until>4000,"Lure damages, slows and pulls only at its telegraphed point")
+ p.pos=Vector3(3,0,4);p.hp=10;lure.mode="lure";lure.blast=Vector3(0,0,4)
+ game.resolve_scout(lure,game.Enemies.get_kind(12),5000)
+ check(p.hp==10 and p.pos==Vector3(3,0,4),"dodging the lure circle avoids damage and forced movement")
+ game.encounter_number=5
+ var now:=Time.get_ticks_msec()+2000
+ var origin:=Vector3(-6.5,0,-4.5)
+ var target:=Vector3(-6.5,0,-1)
+ game.battlefield.configure(0,1)
+ var hart: Dictionary=game.make_scout(17,origin,1,game.Enemies.MOBILITY)
+ var landing:=Attacks.vault_target(game,hart,target)
+ check(landing.is_finite(),"mobile charger can select a legal cover vault")
+ var widow: Dictionary=game.make_scout(14,origin,1,game.Enemies.MOBILITY)
+ check(not Attacks.vault_target(game,widow,target).is_finite(),"web caster keeps its attack instead of borrowing a vault")
+ game.scouts.assign([hart])
+ Attacks.lock(game,hart,"vault",landing,now)
+ var vault: Dictionary=game.attack_hints_snapshot().filter(func(h):return h.id==0)[0]
+ check(vault.role=="vault" and hart.attack.variant==Attacks.VAULT_ID and vault.to[2]==landing.z,"vault announces the committed move and landing")
+ p.pos=landing;p.hp=10;p.hurt_until=0;p.guard_until=0
+ game.resolve_scout(hart,game.Enemies.get_kind(17),now)
+ check(hart.pos==landing and p.hp==9 and game.enemy_hazards.is_empty(),"Hart vault lands without using its charge trail")
+
+ hart.pos=origin
+ Attacks.lock(game,hart,"vault",landing,now+1000)
+ game.battlefield.barriers.append(Rect2(landing.x-.2,landing.z-.2,.4,.4))
+ game.resolve_scout(hart,game.Enemies.get_kind(17),now+1000)
+ check(hart.pos==origin and p.hp==9,"invalidated landing cancels without an unmarked hit")
+ game.battlefield.barriers.clear()
+
+ var stag: Dictionary=game.make_scout(2,Vector3.ZERO,1)
+ game.scouts.assign([stag])
+ Attacks.lock(game,stag,"charge",Vector3(0,0,4),now+2000)
+ var corridor: Dictionary=game.attack_hints_snapshot().filter(func(h):return h.id==0)[0]
+ check(is_equal_approx(corridor.width,stag.attack.width+Attacks.CONTACT_PADDING),"charge warning includes collision padding")
+ p.pos=Vector3(corridor.width-.02,0,2);p.hp=10;p.hurt_until=0
+ game.resolve_scout(stag,game.Enemies.get_kind(2),now+2000)
+ check(p.hp==9,"charge hits just inside its marked lane")
+ stag.pos=Vector3.ZERO
+ Attacks.lock(game,stag,"charge",Vector3(0,0,4),now+3000)
+ p.pos=Vector3(corridor.width+.02,0,2);p.hp=10;p.hurt_until=0
+ game.resolve_scout(stag,game.Enemies.get_kind(2),now+3000)
+ check(p.hp==10,"charge misses just outside its marked lane")
+
+ widow.pos=Vector3.ZERO
+ game.scouts.assign([widow])
+ Attacks.lock(game,widow,"snare",Vector3(0,0,4),now+4000)
+ var web_hints: Array=game.attack_hints_snapshot().filter(func(h):return h.get("actor",-1)==0)
+ check(web_hints.size()==4 and web_hints.all(func(h):return h.pose=="snare"),"Widow projects all four web locations from one cast")
+ game.resolve_scout(widow,game.Enemies.get_kind(14),now+4000)
+ check(game.enemy_hazards.size()==4,"the committed web cast creates exactly four hazards")
+ for i in mini(web_hints.size(),game.enemy_hazards.size()):
+  var point: Vector3=game.enemy_hazards[i].point
+  check(is_equal_approx(point.z,web_hints[i].to[2]) and is_equal_approx(game.enemy_hazards[i].radius,web_hints[i].radius),"web warning matches hazard footprint")
+
+ game.scouts.assign([lure]);p.pos=Vector3(0,0,4);p.hp=10;p.hurt_until=0;p.slow_until=0
+ lure.pos=Vector3(0,0,7);lure.ready=0;lure.windup=0;lure.engaged=true
+ game.update_scouts(.016,now+5000)
+ check(lure.windup>0 and lure.blast==p.pos,"live Lure aims its circle at a target instead of itself")
+ game.resolve_scout(lure,game.Enemies.get_kind(12),now+6000)
+ Status.sync(game,now+6000)
+ check(Status.snapshot(game,now+6000).any(func(event):return event.shape=="slow" and event.combo==1),"landed snare displays Slowed")
+
+ var memory: Dictionary=game.Learning.blank()
+ memory.score={"ranged":8,"choke":8}
+ for stamp in 20:
+  check(game.Learning.traits(memory,8,stamp)==game.Learning.traits(memory,8,stamp,{"ranged":4,"choke":4}),"older and newer measurements of the same pressure use one roll")
+  check(game.Learning.traits(memory,1,stamp,{"ranged":8})==0,"opening encounters ignore adaptation")
+ for kind in [10,11,12]:
+  var part=game.Parts.monster_part(kind)
+  check(part>0 and game.Items.get_item(game.Items.part_id(part)).monster_tags.has(game.Enemies.get_kind(kind).id),"each new monster has a species-specific graft part")
+ game.queue_free();await process_frame
+ if not failed:print("PASS: Shepherd commands and escorts, Grazer protection, Lure telegraph and unique graft components")
+ quit(1 if failed else 0)

@@ -1,0 +1,25 @@
+# Mystical Garden — current playable build
+
+Use **Play Mystical Garden.cmd** to launch the highest numbered EXE in this folder. The launcher and release tool compare numeric revisions; they do not rename milestones or update older builds. To edit, open project.godot in Godot 4.7.2.
+
+Choose a character and a Garden independently. Three character slots let you create named travellers with a starting class and appearance preview. New Garden creates a world, Continue opens the selected saved Garden with the chosen character, and Join by IP takes that character to a host on the same PC, LAN or a reachable internet address. Existing characters import automatically; replacing or deleting a Garden preserves the roster. The hosting checkbox enables up to three guests (four players total). Network Settings selects the UDP port (default 24576). For LAN play, share the host’s LAN IP shown in the session menu; for internet play, use the host’s public IP and forward that UDP port to the host PC. Allow the EXE through the host firewall. No automatic router changes, matchmaking or relay are included. Cross-world seed transfer remains future work. See [direct-IP setup](docs/ONLINE_COOP.md).
+
+Move with WASD, attack with the mouse, use Q and R for class skills, and open inventory with I. F1 shows current controls. Use E near the Heart, Altar, a plant bed, or the Wilds Gate to open the relevant menu. Character abilities are hidden in the Garden.
+
+At the Heart, select class choices and research Garden technologies and planting-bed expansions in the Knowledge tree. Research previews its Knowledge cost and optional plant offerings; choose a species if you want to protect other materials. At the Altar, identify seeds or combine two ingredients. Known combinations show their result; unknown combinations show a question mark and offer discovery clues. Plant beds open an available-seed picker. Harvesting empties the bed; flowering trades useful parts for seeds.
+
+At the Wilds Gate, prepare a class weapon with three plant-component slots and optionally pack monster components. Each class offers three basic weapons and two skills. Different component tags interact with the slot and weapon. The fourth slot is reserved for monster grafts, installed or replaced only at rare Wilds shrines. Failed grafts consume the offered component; replacement sacrifices the previous component and preserves purchased run upgrades.
+
+Wilds expeditions continue through procedurally generated encounters. Clear a floor to activate its onward gate. Every third cleared gate offers three weighted upgrade cards with a small chance of a fourth. Every sixth cleared gate offers extraction to bank the run. Biome guardians occur independently every sixth encounter; grafting shrines use an eight-encounter schedule. Shortcuts from the Garden cost materials. A wipe preserves the safe pouch; voluntary abandonment loses all carried loot, including the pouch. Already-earned character XP and familiarity remain.
+
+The backpack scrolls and has no ordinary stack-count limit. One safe-pouch slot protects one stack of up to 99 items. Hidden seeds retain their individual species even when stacked. These are current explicit rules, not promises of a 40-slot capacity.
+
+The old offshoot feature and Heart finale are deferred. Existing offshoot and ending records remain in saves but do not reserve beds, trigger an ending or affect the Garden. Ordinary Heart growth, research and Wilds expeditions continue.
+
+See [current systems specification](DESIGN_BRIEF.md), [content authoring](docs/CONTENT_AUTHORING.md), and [review corrections and validation](docs/FOUNDATION_MILESTONE_2026-11-08.md). The original systems review is retained as historical evidence, not current instructions.
+
+In co-op, each player confirms readiness at the Wilds gate before the party departs. Cleared onward gates and checkpoint extraction also require everyone's confirmation. The ready HUD shows who is waiting and lets you unready. Moving away or changing your prepared loadout clears your confirmation. Third-gate card choices are separate from the final travel confirmation. Solo travel keeps its existing flow.
+
+Wilds balance now scales with total expedition depth and party size, including larger mixed packs. Enemies share local alerts, spread attention between players, approach from different angles and lead moving targets when committing ranged attacks. Telegraphs lock before impact; clustered hits have brief protection. Monster trophies use one probabilistic roll per player's cleared encounter rather than an every-third-stage guarantee. The host's mycelium remembers repeated ranged, burst, choke and moving-shot victories across saved sessions, with visible mutation budgets and gradual independent variation. This is an adaptive rules system; see [combat tuning](docs/COMBAT_BALANCE_2026-11-08.md).
+
+Network connect-and-play smoke tests: see [test/README.md](test/README.md). The supplied bundle now supports isolated one-to-three-guest runs, mixed frame rates, exported-pack checks, separate Host/Guest launchers, and machine-readable reports.

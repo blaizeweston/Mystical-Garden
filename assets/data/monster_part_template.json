@@ -1,0 +1,12 @@
+{
+  "name": "Unique trophy",
+  "monster": "stable enemy kind index",
+  "tags": [
+    "grasp",
+    "spore"
+  ],
+  "effects": {
+    "pull": 0.8,
+    "recovery": 200
+  }
+}

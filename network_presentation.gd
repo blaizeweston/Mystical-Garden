@@ -1,0 +1,52 @@
+extends RefCounted
+# Public health versions reconcile independent reliable/unreliable channels.
+var server_vitals: Dictionary={}
+var client_vitals: Dictionary={}
+var flash_until: Dictionary={}
+var snapshot_sent:=0
+var snapshot_received:=-1
+var rejected_snapshots:=0
+var snapshot_gaps:=0
+func clear() -> void:
+ server_vitals.clear();client_vitals.clear();flash_until.clear();snapshot_sent=0;snapshot_received=-1;rejected_snapshots=0;snapshot_gaps=0
+func observe(game: Node) -> void:
+ var changes={}
+ for id in game.players:
+  var p=game.players[id]
+  var signature=str([p.hp,p.get("max_hp",10),p.wild,p.fallen,p.get("lost_health",0),p.get("damage_seq",0)])
+  if server_vitals.get(id,{}).get("signature","")==signature:continue
+  var revision=int(server_vitals.get(id,{}).get("revision",0))+1
+  var state={"revision":revision,"hp":p.hp,"max_hp":p.get("max_hp",10),"fallen":p.fallen,"lost_health":p.get("lost_health",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0)}
+  server_vitals[id]={"signature":signature,"revision":revision};p.vitals_revision=revision;changes[id]=state
+ if not changes.is_empty() and game.online_peer!=null:
+  for id in game.multiplayer.get_peers():
+   if game.players.has(id) and game.players[id].profile_ready:game.receive_vitals.rpc_id(id,changes)
+func accept_sequence(sequence: int) -> bool:
+ if sequence<0:return true # Explicit local fixtures, never transmitted by the host.
+ if sequence<=snapshot_received:rejected_snapshots+=1;return false
+ if snapshot_received>=0:snapshot_gaps+=maxi(0,sequence-snapshot_received-1)
+ snapshot_received=sequence;return true
+func merge_health(id: int,player: Dictionary) -> void:
+ var revision=int(player.get("vitals_revision",0))
+ if revision>int(client_vitals.get(id,{}).get("revision",-1)):
+  accept_vital(id,{"revision":revision,"hp":player.hp,"max_hp":player.get("max_hp",10),"fallen":player.get("fallen",false),"lost_health":player.get("lost_health",0),"damage_seq":player.get("damage_seq",0),"damage_amount":player.get("damage_amount",0)})
+ if client_vitals.has(id):
+  var state=client_vitals[id]
+  if int(state.revision)>=revision:
+   player.hp=state.hp;player.max_hp=state.max_hp;player.damage_seq=state.damage_seq
+   player.vitals_revision=state.revision;player.damage_amount=state.get("damage_amount",0)
+   if state.has("fallen"): player.fallen=state.fallen
+   if state.has("lost_health"): player.lost_health=state.lost_health
+ player.client_hurt_until=int(flash_until.get(id,0))
+func accept_vital(id: int,state: Dictionary) -> void:
+ var previous=client_vitals.get(id,{})
+ if int(state.get("revision",0))<=int(previous.get("revision",-1)):return
+ if not previous.is_empty() and int(state.get("damage_seq",0))>int(previous.get("damage_seq",0)):
+  flash_until[id]=Time.get_ticks_msec()+250
+ client_vitals[id]=state.duplicate(true)
+func receive(game: Node,states: Dictionary) -> void:
+ preload("res://diagnostic_journal.gd").event("network","vitals_received",{"states":states,"snapshot_sequence":snapshot_received})
+ for id in states:
+  if not states[id] is Dictionary:continue
+  accept_vital(int(id),states[id])
+  if game.players.has(id):merge_health(int(id),game.players[id])

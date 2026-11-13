@@ -1,0 +1,22 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+CONTENT seeds=15 classes=5 enemies=10 upgrades=69 heart_nodes=24 parts=27
+LOOT leader=Rootbound Pilgrim candidates=["monster_0"] scout_kinds=[4, 1, 4, 0]
+ENCODE kind=0 decoded={ "kind": 0, "mask": 0, "tier": 0 }
+ENCODE kind=2 decoded={ "kind": 2, "mask": 0, "tier": 0 }
+ENCODE kind=8 decoded={ "kind": 8, "mask": 0, "tier": 0 }
+ENCODE kind=16 decoded={ "kind": 0, "mask": 1, "tier": 0 }
+ENCODE kind=20 decoded={ "kind": 4, "mask": 1, "tier": 0 }
+MONSTER_PART index=4 kind=0
+MONSTER_PART index=18 kind=1
+MONSTER_PART index=19 kind=2
+MONSTER_PART index=20 kind=3
+MONSTER_PART index=21 kind=4
+MONSTER_PART index=22 kind=5
+MONSTER_PART index=23 kind=6
+MONSTER_PART index=24 kind=7
+MONSTER_PART index=25 kind=8
+MONSTER_PART index=26 kind=9
+HARVEST_SAVE_FAILURE bed_species=-1 parts=1 character_familiarity_gain=1 status=Harvested a Thorn Bloom part. Replant this bed with any identified seed. Save failed (error 7). Use Save Garden to retry.
+FAMILIARITY rare_0=0.05 rare_5=0.25 rare_50=0.25 level_at_20_clears=5
+BASE_WEAPON { "id": "0_0", "name": "Rootblade", "reach": 2.25, "strike_ms": 450, "damage": 1, "targets": 1, "pattern": "single", "visual": "blade", "cooldown": 0, "tags": [], "interactions": [], "heal_on_kill": 0, "skill_heal": 0, "max_health": 0, "interval": 450 }

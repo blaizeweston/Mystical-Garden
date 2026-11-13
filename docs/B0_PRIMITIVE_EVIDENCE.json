@@ -1,0 +1,91 @@
+{
+  "run_id": "ac06-b0-win-ntfs-primitives",
+  "cases": {
+    "mkdir": {
+      "owner": {
+        "acquired": true,
+        "godot_error": 0,
+        "peer_pid": 0,
+        "peer_reported_running": false,
+        "pid": 25312
+      },
+      "concurrent": {
+        "acquired": false,
+        "godot_error": 32,
+        "peer_pid": 25312,
+        "peer_reported_running": false,
+        "pid": 16968
+      },
+      "gate_object_remains": true,
+      "owner_terminated_exit": 1,
+      "after_owner_death": {
+        "acquired": false,
+        "godot_error": 32,
+        "peer_pid": 0,
+        "peer_reported_running": false,
+        "pid": 7724
+      }
+    },
+    "file": {
+      "owner": {
+        "acquired": true,
+        "godot_error": 0,
+        "peer_pid": 0,
+        "peer_reported_running": false,
+        "pid": 21024
+      },
+      "concurrent": {
+        "acquired": true,
+        "godot_error": 0,
+        "peer_pid": 21024,
+        "peer_reported_running": false,
+        "pid": 26616
+      },
+      "gate_object_remains": true,
+      "owner_terminated_exit": 1,
+      "after_owner_death": {
+        "acquired": true,
+        "godot_error": 0,
+        "peer_pid": 0,
+        "peer_reported_running": false,
+        "pid": 9792
+      }
+    },
+    "native": {
+      "owner": {
+        "pid": 19188,
+        "acquired": true,
+        "win32_error": 0
+      },
+      "concurrent": {
+        "pid": 26992,
+        "acquired": false,
+        "win32_error": 32
+      },
+      "gate_object_remains": true,
+      "owner_terminated_exit": 1,
+      "after_owner_death": {
+        "pid": 15896,
+        "acquired": true,
+        "win32_error": 0
+      }
+    }
+  },
+  "simultaneous_open_of_absent_sentinel": [
+    {
+      "pid": 22052,
+      "acquired": true,
+      "win32_error": 0
+    },
+    {
+      "pid": 15304,
+      "acquired": false,
+      "win32_error": 32
+    }
+  ],
+  "independent_sentinel": {
+    "pid": 24104,
+    "acquired": true,
+    "win32_error": 0
+  }
+}

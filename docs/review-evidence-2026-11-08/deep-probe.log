@@ -1,0 +1,9 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+MIXED_ENCOUNTER_FAMILIARITY rootbound=1 stag=0 nightbloom=0
+UNKNOWN_PART_COUNT part999=7
+UNKNOWN_PART_WRITE thorn_parts=8
+CUSTOM_PART_REGISTRATION accepted=true has_equipment_part_id=false
+RESEARCH_GENERIC_PAYMENT thorn_remaining=5 moss_remaining=7
+SWEEP_VISUAL combat_half_angle_degrees=95.7391704772668 scythe_visual_half_angle_degrees=77.3493023426611
+NETWORK_ENDPOINT host_bind=127.0.0.1 client=127.0.0.1 max_guests=1 (source verified)

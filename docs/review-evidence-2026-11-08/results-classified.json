@@ -1,0 +1,142 @@
+[
+  {
+    "test": "campaign_combat",
+    "exit": 1,
+    "errors": 1
+  },
+  {
+    "test": "checkpoint_extraction",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "classes_weapons",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "combat_animation",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "delete_saves",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "dual_skills",
+    "exit": 1,
+    "errors": 1
+  },
+  {
+    "test": "enemy_roster",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "exploration_maps",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "exploration_ui",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "garden_altar",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "garden_presentation",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "gardening",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "gate_garden_services",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "grafting_menu",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "health_points",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "heart_progression",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "inventory_grid",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "natural_world",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "path_junctions",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "player_hud",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "run_flow",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "seed_inventory",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "seed_progression",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "shrines_hits",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "start_menu",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "support_deaths",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "tree_portraits",
+    "exit": 0,
+    "errors": 0
+  },
+  {
+    "test": "weighted_upgrades",
+    "exit": 0,
+    "errors": 0
+  }
+]

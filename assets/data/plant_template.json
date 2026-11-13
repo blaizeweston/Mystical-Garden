@@ -1,0 +1,29 @@
+{
+  "id": "new_stable_species_id",
+  "name": "Display name",
+  "tier": 3,
+  "rarity": "Rare",
+  "parents": [
+    1,
+    5
+  ],
+  "wild_min": 6,
+  "biome": 0,
+  "color": "#a58abb",
+  "form": "bell",
+  "grow_seconds": 105,
+  "part": 62,
+  "effects": {
+    "brittle": 1,
+    "shatter_damage": 2,
+    "cooldown": -100
+  },
+  "hint": "Clue, without naming the undiscovered child.",
+  "tags": [
+    "frost",
+    "water"
+  ],
+  "part_name": "Ordinary material name",
+  "refined_name": "Refined material name",
+  "behavior": "Three brittle stacks within four seconds shatter."
+}

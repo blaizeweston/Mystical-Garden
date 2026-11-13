@@ -1,0 +1,21 @@
+# Wilds combat readability and hit geometry
+
+Attack phases now advance locally between 20 Hz movement snapshots instead of holding a pose until the next packet. Anticipation, contact and recovery have a smoother envelope; upper-body attacks blend over locomotion. Ability casts receive their own short pose, and ordinary strikes can take priority without changing attack speed or skill cooldowns.
+
+Six reusable visual families distinguish guarding, restoration, control roots, movement, directed casts and area bursts. Events carry the resolved ability name. Legacy generic rings are suppressed for these event-driven casts. Hostile lanes use stronger contrast and a closing progress arc where the existing wind-up deadline is available. Projectiles stay bright during flight; non-piercing cursor shots explicitly end their visual on contact. Piercing/chain target counts retain their existing rules.
+
+Confirmed contacts emit actual applied HP loss, with capped overkill and mitigation already accounted for. Outgoing damage uses warm ivory, incoming damage uses coral and a minus sign, and blocked hits have a separate gold BLOCK label. Short whole-model flashes accompany contact. Text has an outline and an elevated camera-facing position; fog-distance checks prevent revealing unseen contacts. There is no global hit-stop, camera shake or simulation slowdown.
+
+All 24 enemy entries now have a reusable `hitbox` object with `shape: body_circle`, `radius` and `projectile_padding`. These are 2.5D body footprints, not triangle-accurate collisions on decorative tendrils or antlers. The shared enemy_hurtbox service applies the same leader/boss, juvenile and growth scale as the renderer. Melee contact selection and both projectile paths use it. Melee sectors, thrust lanes and area patterns intersect the whole footprint, including a visible flank beyond the center-angle cutoff. Each profile is checked against the actual EnemyCore mesh bounds; the Matriarch required a substantially larger footprint than its old 1.1 radius. Swept segment tests return the first body-edge contact and check terrain both before contact and between the edge and body center; a fast projectile cannot tunnel through a body or hit through cover. New species can copy this object, with a conservative fallback for older definitions.
+
+Damage feedback is part of the existing reliable combat-event stream and the snapshot fallback. IDs deduplicate both delivery paths. Transactional events publish only after commit; failed saves restore damage and its pending events together. Detailed diagnostic tracing records presentation-event IDs, endpoints, target identity and applied amounts; normal logs avoid this per-hit traffic.
+
+Cosmetic work is bounded: 80 effects, 40 text labels, short-lived flashes with original material overlays restored, a capped seen-event history, and cleanup on floor changes. Sound is stopped and released on scene transitions. Attack, damage, movement, save formats and the existing network RPC signatures remain authoritative and compatible; use the updated EXE on all co-op machines.
+
+New tests cover every scaled species footprint, swept edge hits/misses, cover, frontmost contact, visual projectile termination, exact damage amounts, blocked hits, duplicate network delivery, fog, ability families, render-clock phase continuity, cleanup and save rollback. A real host/guest suite checks committed feedback and ability labels. `combat-readability-preview.png` is a posed rendering check rather than a gameplay capture.
+
+## Installed verification
+
+Updated the highest desktop revision, `Mystical Garden v0.5.2.0.exe`. All 73 source suites have current passing evidence (28 executed and 45 reused in the final connected run, following the focused run). All 40 selected packaged suites passed, plus startup/catalog and real host/three-guest connection smoke. The installed file matches the verified package SHA-256: `590ba2d95469db81347c121a6846ca81ac2cafc925a49ad0a3e24efcc1326dd7`.
+
+The previous EXE is preserved at `.godot/release/backup-20261110-002313-Mystical Garden v0.5.2.0.exe`. Source notes and original changed files are in `docs/change-backups/20261110-combat-readability`. Use the updated EXE on every co-op machine so all players receive the new visual feedback.

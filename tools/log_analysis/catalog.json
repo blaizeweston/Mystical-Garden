@@ -1,0 +1,10 @@
+{
+  "source_fingerprint": "D9555D13218676AED342CEC4DE4A0F9DA34D762600D0F84BF32F76D87036FB3D",
+  "classes": {
+    "0": "Warden",
+    "1": "Weaver",
+    "2": "Ranger",
+    "3": "Reaper",
+    "4": "Oracle"
+  }
+}

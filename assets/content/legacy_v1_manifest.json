@@ -1,0 +1,147 @@
+{
+	"classes": [
+		"warden",
+		"weaver",
+		"ranger",
+		"reaper",
+		"oracle"
+	],
+	"enemies": [
+		"rootbound",
+		"nightbloom",
+		"gallhorn",
+		"bellcap",
+		"thornmaw",
+		"willow",
+		"orchid",
+		"colossus",
+		"wasp",
+		"broodmother"
+	],
+	"nodes": {
+		"oracle": [
+			"0",
+			"1",
+			"2",
+			"3",
+			"4",
+			"5",
+			"6",
+			"7"
+		],
+		"ranger": [
+			"0",
+			"1",
+			"2",
+			"3",
+			"4",
+			"5",
+			"6",
+			"7"
+		],
+		"reaper": [
+			"0",
+			"1",
+			"2",
+			"3",
+			"4",
+			"5",
+			"6",
+			"7"
+		],
+		"warden": [
+			"0",
+			"1",
+			"2",
+			"3",
+			"4",
+			"5",
+			"6",
+			"7"
+		],
+		"weaver": [
+			"0",
+			"1",
+			"2",
+			"3",
+			"4",
+			"5",
+			"6",
+			"7"
+		]
+	},
+	"parts": [
+		"empty",
+		"plant:thorn_bloom",
+		"plant:lantern_moss",
+		"plant:veilcap",
+		"monster:rootbound",
+		"rare:heartwood_barb",
+		"plant:ember_fern",
+		"plant:cinder_vine",
+		"plant:dewcap",
+		"plant:bloodbriar",
+		"plant:ghost_fern",
+		"plant:storm_reed",
+		"plant:moon_lotus",
+		"plant:star_orchid",
+		"plant:void_willow",
+		"plant:sun_spire",
+		"plant:eclipse_root",
+		"plant:worldseed",
+		"monster:nightbloom",
+		"monster:gallhorn",
+		"monster:bellcap",
+		"monster:thornmaw",
+		"monster:willow",
+		"monster:orchid",
+		"monster:colossus",
+		"monster:wasp",
+		"monster:broodmother"
+	],
+	"seeds": [
+		"thorn_bloom",
+		"lantern_moss",
+		"veilcap",
+		"ember_fern",
+		"cinder_vine",
+		"dewcap",
+		"bloodbriar",
+		"ghost_fern",
+		"storm_reed",
+		"moon_lotus",
+		"star_orchid",
+		"void_willow",
+		"sun_spire",
+		"eclipse_root",
+		"worldseed"
+	],
+	"version": 1,
+	"weapons": {
+		"oracle": [
+			"4_0",
+			"4_1",
+			"4_2"
+		],
+		"ranger": [
+			"2_0",
+			"2_1",
+			"2_2"
+		],
+		"reaper": [
+			"3_0",
+			"3_1",
+			"3_2"
+		],
+		"warden": [
+			"0_0",
+			"0_1",
+			"0_2"
+		],
+		"weaver": [
+			"1_0",
+			"1_1",
+			"1_2"
+		]
+	}
+}

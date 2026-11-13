@@ -1,0 +1,913 @@
+[
+  {
+    "definition": {
+      "id": "plant:thorn_bloom",
+      "item_id": "part_1",
+      "name": "Thorn Bloom",
+      "plant": 0,
+      "reach": 0.9,
+      "reach_step": 0.6,
+      "tags": [
+        "piercing",
+        "thorn"
+      ],
+      "technique": "Longer reach"
+    },
+    "part": 1,
+    "source": 0
+  },
+  {
+    "definition": {
+      "id": "plant:lantern_moss",
+      "item_id": "part_2",
+      "name": "Lantern Moss",
+      "plant": 1,
+      "recovery": 550,
+      "recovery_step": 450,
+      "tags": [
+        "vital",
+        "luminous"
+      ],
+      "technique": "Longer briar recovery"
+    },
+    "part": 2,
+    "source": 1
+  },
+  {
+    "definition": {
+      "id": "plant:veilcap",
+      "item_id": "part_3",
+      "name": "Veilcap",
+      "plant": 2,
+      "tags": [
+        "arcane",
+        "spore"
+      ],
+      "technique": "Stronger wind-up strike",
+      "windup_damage": 1,
+      "windup_damage_step": 1
+    },
+    "part": 3,
+    "source": 2
+  },
+  {
+    "definition": {
+      "cooldown_step": 140,
+      "damage": 1,
+      "id": "rare:heartwood_barb",
+      "item_id": "part_5",
+      "name": "Heartwood Barb",
+      "plant": 0,
+      "rarity": "Rare",
+      "tags": [
+        "wood",
+        "piercing"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 5,
+    "source": 0
+  },
+  {
+    "definition": {
+      "cooldown": -120,
+      "cooldown_step": 90,
+      "damage": 1,
+      "id": "plant:ember_fern",
+      "item_id": "part_6",
+      "name": "Ember Fern part",
+      "plant": 3,
+      "tags": [
+        "fire",
+        "volatile"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 6,
+    "source": 3
+  },
+  {
+    "definition": {
+      "cooldown": -100,
+      "damage": 1,
+      "id": "plant:cinder_vine",
+      "item_id": "part_7",
+      "name": "Cinder Vine part",
+      "plant": 4,
+      "reach": 0.5,
+      "reach_step": 0.3,
+      "tags": [
+        "fire",
+        "piercing"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 7,
+    "source": 4
+  },
+  {
+    "definition": {
+      "cooldown": 70,
+      "cooldown_step": 60,
+      "id": "plant:dewcap",
+      "item_id": "part_8",
+      "name": "Dewcap part",
+      "plant": 5,
+      "recovery": 300,
+      "tags": [
+        "water",
+        "vital"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 8,
+    "source": 5
+  },
+  {
+    "definition": {
+      "cooldown": -140,
+      "cooldown_step": 90,
+      "damage": 1,
+      "heal_on_kill": 1,
+      "id": "plant:bloodbriar",
+      "item_id": "part_9",
+      "name": "Bloodbriar part",
+      "plant": 6,
+      "tags": [
+        "blood",
+        "vital"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 9,
+    "source": 6
+  },
+  {
+    "definition": {
+      "id": "plant:ghost_fern",
+      "item_id": "part_10",
+      "name": "Ghost Fern part",
+      "plant": 7,
+      "reach": 0.4,
+      "recovery": 850,
+      "recovery_step": 200,
+      "tags": [
+        "spirit",
+        "control"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 10,
+    "source": 7
+  },
+  {
+    "definition": {
+      "cooldown": 100,
+      "cooldown_step": 45,
+      "id": "plant:storm_reed",
+      "item_id": "part_11",
+      "knockback": 0.65,
+      "name": "Storm Reed part",
+      "plant": 8,
+      "tags": [
+        "storm",
+        "force"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 11,
+    "source": 8
+  },
+  {
+    "definition": {
+      "id": "plant:moon_lotus",
+      "item_id": "part_12",
+      "name": "Moon Lotus part",
+      "plant": 9,
+      "recovery": 400,
+      "tags": [
+        "lunar",
+        "arcane"
+      ],
+      "technique": "Faster strikes",
+      "windup_damage": 2,
+      "windup_damage_step": 1
+    },
+    "part": 12,
+    "source": 9
+  },
+  {
+    "definition": {
+      "cooldown": -170,
+      "damage": 1,
+      "id": "plant:star_orchid",
+      "item_id": "part_13",
+      "name": "Star Orchid part",
+      "plant": 10,
+      "reach": 1.1,
+      "reach_step": 0.35,
+      "tags": [
+        "radiant",
+        "piercing"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 13,
+    "source": 10
+  },
+  {
+    "definition": {
+      "cooldown": -140,
+      "id": "plant:void_willow",
+      "item_id": "part_14",
+      "name": "Void Willow part",
+      "plant": 11,
+      "pull": 1.2,
+      "pull_step": 0.25,
+      "tags": [
+        "void",
+        "control"
+      ],
+      "technique": "Faster strikes",
+      "windup_damage": 2
+    },
+    "part": 14,
+    "source": 11
+  },
+  {
+    "definition": {
+      "cooldown": -200,
+      "cooldown_step": 70,
+      "damage": 2,
+      "id": "plant:sun_spire",
+      "item_id": "part_15",
+      "knockback": 0.4,
+      "name": "Sun Spire part",
+      "plant": 12,
+      "tags": [
+        "fire",
+        "radiant"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 15,
+    "source": 12
+  },
+  {
+    "definition": {
+      "cooldown": -240,
+      "heal_on_kill": 1,
+      "id": "plant:eclipse_root",
+      "item_id": "part_16",
+      "name": "Eclipse Root part",
+      "plant": 13,
+      "reach": 0.6,
+      "recovery": 700,
+      "recovery_step": 200,
+      "tags": [
+        "void",
+        "blood"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 16,
+    "source": 13
+  },
+  {
+    "definition": {
+      "cooldown": -180,
+      "cooldown_step": 60,
+      "id": "plant:worldseed",
+      "item_id": "part_17",
+      "knockback": 0.8,
+      "name": "Worldseed part",
+      "plant": 14,
+      "stagger": 180,
+      "tags": [
+        "ancient",
+        "force"
+      ],
+      "technique": "Faster strikes",
+      "windup_damage": 3
+    },
+    "part": 17,
+    "source": 14
+  },
+  {
+    "definition": {
+      "id": "rare:lantern_moss",
+      "item_id": "plant_part_rare_lantern_moss",
+      "name": "Pristine Lantern Moss material",
+      "plant": 1,
+      "rare": true,
+      "rarity": "Uncommon",
+      "recovery": 742.5,
+      "recovery_step": 607.5,
+      "tags": [
+        "vital",
+        "luminous"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 27,
+    "source": 1
+  },
+  {
+    "definition": {
+      "id": "rare:veilcap",
+      "item_id": "plant_part_rare_veilcap",
+      "name": "Pristine Veilcap material",
+      "plant": 2,
+      "rare": true,
+      "rarity": "Rare",
+      "tags": [
+        "arcane",
+        "spore"
+      ],
+      "technique": "Refined plant material",
+      "windup_damage": 1.35,
+      "windup_damage_step": 1.35
+    },
+    "part": 28,
+    "source": 2
+  },
+  {
+    "definition": {
+      "cooldown": -102.0,
+      "cooldown_step": 121.5,
+      "damage": 1.35,
+      "id": "rare:ember_fern",
+      "item_id": "plant_part_rare_ember_fern",
+      "name": "Pristine Ember Fern material",
+      "plant": 3,
+      "rare": true,
+      "rarity": "Uncommon",
+      "tags": [
+        "fire",
+        "volatile"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 29,
+    "source": 3
+  },
+  {
+    "definition": {
+      "cooldown": -85.0,
+      "damage": 1.35,
+      "id": "rare:cinder_vine",
+      "item_id": "plant_part_rare_cinder_vine",
+      "name": "Pristine Cinder Vine material",
+      "plant": 4,
+      "rare": true,
+      "rarity": "Rare",
+      "reach": 0.675,
+      "reach_step": 0.405,
+      "tags": [
+        "fire",
+        "piercing"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 30,
+    "source": 4
+  },
+  {
+    "definition": {
+      "cooldown": 94.5,
+      "cooldown_step": 81.0,
+      "id": "rare:dewcap",
+      "item_id": "plant_part_rare_dewcap",
+      "name": "Pristine Dewcap material",
+      "plant": 5,
+      "rare": true,
+      "rarity": "Rare",
+      "recovery": 405.0,
+      "tags": [
+        "water",
+        "vital"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 31,
+    "source": 5
+  },
+  {
+    "definition": {
+      "cooldown": -119.0,
+      "cooldown_step": 121.5,
+      "damage": 1.35,
+      "heal_on_kill": 1.35,
+      "id": "rare:bloodbriar",
+      "item_id": "plant_part_rare_bloodbriar",
+      "name": "Pristine Bloodbriar material",
+      "plant": 6,
+      "rare": true,
+      "rarity": "Epic",
+      "tags": [
+        "blood",
+        "vital"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 32,
+    "source": 6
+  },
+  {
+    "definition": {
+      "id": "rare:ghost_fern",
+      "item_id": "plant_part_rare_ghost_fern",
+      "name": "Pristine Ghost Fern material",
+      "plant": 7,
+      "rare": true,
+      "rarity": "Epic",
+      "reach": 0.54,
+      "recovery": 1147.5,
+      "recovery_step": 270.0,
+      "tags": [
+        "spirit",
+        "control"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 33,
+    "source": 7
+  },
+  {
+    "definition": {
+      "cooldown": 135.0,
+      "cooldown_step": 60.75,
+      "id": "rare:storm_reed",
+      "item_id": "plant_part_rare_storm_reed",
+      "knockback": 0.8775,
+      "name": "Pristine Storm Reed material",
+      "plant": 8,
+      "rare": true,
+      "rarity": "Epic",
+      "tags": [
+        "storm",
+        "force"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 34,
+    "source": 8
+  },
+  {
+    "definition": {
+      "id": "rare:moon_lotus",
+      "item_id": "plant_part_rare_moon_lotus",
+      "name": "Pristine Moon Lotus material",
+      "plant": 9,
+      "rare": true,
+      "rarity": "Epic",
+      "recovery": 540.0,
+      "tags": [
+        "lunar",
+        "arcane"
+      ],
+      "technique": "Refined plant material",
+      "windup_damage": 2.7,
+      "windup_damage_step": 1.35
+    },
+    "part": 35,
+    "source": 9
+  },
+  {
+    "definition": {
+      "cooldown": -144.5,
+      "damage": 1.35,
+      "id": "rare:star_orchid",
+      "item_id": "plant_part_rare_star_orchid",
+      "name": "Pristine Star Orchid material",
+      "plant": 10,
+      "rare": true,
+      "rarity": "Mythic",
+      "reach": 1.485,
+      "reach_step": 0.4725,
+      "tags": [
+        "radiant",
+        "piercing"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 36,
+    "source": 10
+  },
+  {
+    "definition": {
+      "cooldown": -119.0,
+      "id": "rare:void_willow",
+      "item_id": "plant_part_rare_void_willow",
+      "name": "Pristine Void Willow material",
+      "plant": 11,
+      "pull": 1.62,
+      "pull_step": 0.3375,
+      "rare": true,
+      "rarity": "Mythic",
+      "tags": [
+        "void",
+        "control"
+      ],
+      "technique": "Refined plant material",
+      "windup_damage": 2.7
+    },
+    "part": 37,
+    "source": 11
+  },
+  {
+    "definition": {
+      "cooldown": -170.0,
+      "cooldown_step": 94.5,
+      "damage": 2.7,
+      "id": "rare:sun_spire",
+      "item_id": "plant_part_rare_sun_spire",
+      "knockback": 0.54,
+      "name": "Pristine Sun Spire material",
+      "plant": 12,
+      "rare": true,
+      "rarity": "Mythic",
+      "tags": [
+        "fire",
+        "radiant"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 38,
+    "source": 12
+  },
+  {
+    "definition": {
+      "cooldown": -204.0,
+      "heal_on_kill": 1.35,
+      "id": "rare:eclipse_root",
+      "item_id": "plant_part_rare_eclipse_root",
+      "name": "Pristine Eclipse Root material",
+      "plant": 13,
+      "rare": true,
+      "rarity": "Mythic",
+      "reach": 0.81,
+      "recovery": 945.0,
+      "recovery_step": 270.0,
+      "tags": [
+        "void",
+        "blood"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 39,
+    "source": 13
+  },
+  {
+    "definition": {
+      "cooldown": -153.0,
+      "cooldown_step": 81.0,
+      "id": "rare:worldseed",
+      "item_id": "plant_part_rare_worldseed",
+      "knockback": 1.08,
+      "name": "Pristine Worldseed material",
+      "plant": 14,
+      "rare": true,
+      "rarity": "Mythic",
+      "stagger": 243.0,
+      "tags": [
+        "ancient",
+        "force"
+      ],
+      "technique": "Refined plant material",
+      "windup_damage": 4.05
+    },
+    "part": 40,
+    "source": 14
+  },
+  {
+    "definition": {
+      "brittle": 1,
+      "cooldown": -100,
+      "id": "plant:frostbell",
+      "item_id": "plant_part_plant_frostbell",
+      "name": "Chiming Sepal",
+      "plant": 15,
+      "shatter_damage": 2,
+      "tags": [
+        "frost",
+        "water"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 44,
+    "source": 15
+  },
+  {
+    "definition": {
+      "brittle": 1.35,
+      "cooldown": -85.0,
+      "id": "rare:frostbell",
+      "item_id": "plant_part_rare_frostbell",
+      "name": "Crystalline Bellheart",
+      "plant": 15,
+      "rare": true,
+      "rarity": "Epic",
+      "shatter_damage": 2.7,
+      "tags": [
+        "frost",
+        "water"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 45,
+    "source": 15
+  },
+  {
+    "definition": {
+      "brace": 1,
+      "cooldown": -140,
+      "id": "plant:ironroot",
+      "item_id": "plant_part_plant_ironroot",
+      "name": "Banded Root",
+      "plant": 16,
+      "stagger": 90,
+      "tags": [
+        "brace",
+        "wood"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 46,
+    "source": 16
+  },
+  {
+    "definition": {
+      "brace": 1.35,
+      "cooldown": -119.0,
+      "id": "rare:ironroot",
+      "item_id": "plant_part_rare_ironroot",
+      "name": "Ironwood Core",
+      "plant": 16,
+      "rare": true,
+      "rarity": "Rare",
+      "stagger": 121.5,
+      "tags": [
+        "brace",
+        "wood"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 47,
+    "source": 16
+  },
+  {
+    "definition": {
+      "id": "plant:whispervine",
+      "item_id": "plant_part_plant_whispervine",
+      "mark_damage": 1,
+      "name": "Listening Tendril",
+      "plant": 17,
+      "reach": 0.25,
+      "tags": [
+        "mark",
+        "spirit"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 48,
+    "source": 17
+  },
+  {
+    "definition": {
+      "id": "rare:whispervine",
+      "item_id": "plant_part_rare_whispervine",
+      "mark_damage": 1.35,
+      "name": "Whisper Nerve",
+      "plant": 17,
+      "rare": true,
+      "rarity": "Epic",
+      "reach": 0.3375,
+      "tags": [
+        "mark",
+        "spirit"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 49,
+    "source": 17
+  },
+  {
+    "definition": {
+      "cooldown": -100,
+      "echo": 1,
+      "id": "plant:mirror_mint",
+      "item_id": "plant_part_plant_mirror_mint",
+      "name": "Silvered Leaf",
+      "plant": 18,
+      "tags": [
+        "echo",
+        "arcane"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 50,
+    "source": 18
+  },
+  {
+    "definition": {
+      "cooldown": -85.0,
+      "echo": 1.35,
+      "id": "rare:mirror_mint",
+      "item_id": "plant_part_rare_mirror_mint",
+      "name": "Prismatic Frond",
+      "plant": 18,
+      "rare": true,
+      "rarity": "Epic",
+      "tags": [
+        "echo",
+        "arcane"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 51,
+    "source": 18
+  },
+  {
+    "definition": {
+      "cooldown": -90,
+      "death_charge": 1,
+      "id": "plant:gravemoss",
+      "item_id": "plant_part_plant_gravemoss",
+      "name": "Grave Filament",
+      "plant": 19,
+      "tags": [
+        "grave",
+        "blood"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 52,
+    "source": 19
+  },
+  {
+    "definition": {
+      "cooldown": -76.5,
+      "death_charge": 1.35,
+      "id": "rare:gravemoss",
+      "item_id": "plant_part_rare_gravemoss",
+      "name": "Funeral Spore",
+      "plant": 19,
+      "rare": true,
+      "rarity": "Epic",
+      "tags": [
+        "grave",
+        "blood"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 53,
+    "source": 19
+  },
+  {
+    "definition": {
+      "damage": -0.3,
+      "id": "plant:tide_lily",
+      "item_id": "plant_part_plant_tide_lily",
+      "name": "Dew Chalice",
+      "plant": 20,
+      "tags": [
+        "tide",
+        "water"
+      ],
+      "technique": "Faster strikes",
+      "tide_pool": 1
+    },
+    "part": 54,
+    "source": 20
+  },
+  {
+    "definition": {
+      "damage": -0.255,
+      "id": "rare:tide_lily",
+      "item_id": "plant_part_rare_tide_lily",
+      "name": "Pearl Stamen",
+      "plant": 20,
+      "rare": true,
+      "rarity": "Epic",
+      "tags": [
+        "tide",
+        "water"
+      ],
+      "technique": "Refined plant material",
+      "tide_pool": 1.35
+    },
+    "part": 55,
+    "source": 20
+  },
+  {
+    "definition": {
+      "cooldown": -150,
+      "id": "plant:hush_orchid",
+      "item_id": "plant_part_plant_hush_orchid",
+      "name": "Silent Petal",
+      "plant": 21,
+      "suppress": 1,
+      "tags": [
+        "hush",
+        "arcane"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 56,
+    "source": 21
+  },
+  {
+    "definition": {
+      "cooldown": -127.5,
+      "id": "rare:hush_orchid",
+      "item_id": "plant_part_rare_hush_orchid",
+      "name": "Hollow Throat",
+      "plant": 21,
+      "rare": true,
+      "rarity": "Mythic",
+      "suppress": 1.35,
+      "tags": [
+        "hush",
+        "arcane"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 57,
+    "source": 21
+  },
+  {
+    "definition": {
+      "cooldown": -80,
+      "damage": -0.3,
+      "decoy": 1,
+      "id": "plant:dream_poppy",
+      "item_id": "plant_part_plant_dream_poppy",
+      "name": "Dream Pollen",
+      "plant": 22,
+      "tags": [
+        "dream",
+        "spirit"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 58,
+    "source": 22
+  },
+  {
+    "definition": {
+      "cooldown": -68.0,
+      "damage": -0.255,
+      "decoy": 1.35,
+      "id": "rare:dream_poppy",
+      "item_id": "plant_part_rare_dream_poppy",
+      "name": "Lucid Capsule",
+      "plant": 22,
+      "rare": true,
+      "rarity": "Mythic",
+      "tags": [
+        "dream",
+        "spirit"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 59,
+    "source": 22
+  },
+  {
+    "definition": {
+      "cooldown": -200,
+      "id": "plant:crownroot",
+      "item_id": "plant_part_plant_crownroot",
+      "link": 1,
+      "name": "Woven Root",
+      "plant": 23,
+      "tags": [
+        "link",
+        "ancient"
+      ],
+      "technique": "Faster strikes"
+    },
+    "part": 60,
+    "source": 23
+  },
+  {
+    "definition": {
+      "cooldown": -170.0,
+      "id": "rare:crownroot",
+      "item_id": "plant_part_rare_crownroot",
+      "link": 1.35,
+      "name": "Sovereign Knot",
+      "plant": 23,
+      "rare": true,
+      "rarity": "Mythic",
+      "tags": [
+        "link",
+        "ancient"
+      ],
+      "technique": "Refined plant material"
+    },
+    "part": 61,
+    "source": 23
+  }
+]

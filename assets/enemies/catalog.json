@@ -1,0 +1,940 @@
+[
+  {
+    "id": "rootbound",
+    "preview_hp": 32,
+    "preview_hit_hp": 10,
+    "name": "Rootbound Pilgrim",
+    "form": "walker",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 1,
+    "role": "swipe",
+    "motion": "walk",
+    "speed": 2.0,
+    "hp": 0,
+    "radius": 1.45,
+    "range": 1.1,
+    "windup": 750,
+    "recovery": 1100,
+    "damage": 1,
+    "core": "#92764d",
+    "glow": "#667c39",
+    "affinity": 1,
+    "description": "A hollow bark pilgrim drags a hooked root arm into a close sweep.",
+    "loot_tags": [
+      "rootbound",
+      "eldritch",
+      "plant",
+      "swipe"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.48,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "nightbloom",
+    "preview_hp": 28,
+    "preview_hit_hp": 8,
+    "name": "Nightbloom",
+    "form": "flower",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 1,
+    "role": "volley",
+    "motion": "sway",
+    "speed": 1.7,
+    "hp": 0,
+    "radius": 1.45,
+    "range": 6.2,
+    "windup": 1100,
+    "recovery": 2000,
+    "damage": 1,
+    "core": "#a24bd6",
+    "glow": "#722ac5",
+    "affinity": 4,
+    "description": "A violet flower horror releases two separately telegraphed spore pulses.",
+    "loot_tags": [
+      "nightbloom",
+      "eldritch",
+      "plant",
+      "volley"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.56,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "gallhorn",
+    "preview_hp": 40,
+    "preview_hit_hp": 14,
+    "name": "Gallhorn Stag",
+    "form": "stag",
+    "biomes": [
+      0,
+      2
+    ],
+    "unlock": 2,
+    "role": "charge",
+    "motion": "bound",
+    "speed": 2.1,
+    "hp": 1,
+    "radius": 1.25,
+    "range": 4.0,
+    "windup": 1100,
+    "recovery": 1800,
+    "damage": 1,
+    "core": "#9c8858",
+    "glow": "#738e48",
+    "affinity": 8,
+    "description": "An infested stag locks a landing point before charging along the ground.",
+    "loot_tags": [
+      "gallhorn",
+      "eldritch",
+      "plant",
+      "charge"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.72,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "bellcap",
+    "preview_hp": 27,
+    "preview_hit_hp": 8,
+    "name": "Bellcap Cantor",
+    "form": "cantor",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 3,
+    "role": "chant",
+    "motion": "sway",
+    "speed": 1.5,
+    "hp": 0,
+    "radius": 3.8,
+    "range": 5.0,
+    "windup": 1400,
+    "recovery": 3500,
+    "damage": 1,
+    "core": "#bdb37c",
+    "glow": "#7e994b",
+    "affinity": 4,
+    "description": "A walking fungal bell chants to temporarily hasten nearby allies.",
+    "loot_tags": [
+      "bellcap",
+      "eldritch",
+      "plant",
+      "chant"
+    ],
+    "support": true,
+    "escort_min": 2,
+    "escort_radius": 3.8,
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.58,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "thornmaw",
+    "preview_hp": 30,
+    "preview_hit_hp": 12,
+    "name": "Thornmaw Hound",
+    "form": "hound",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 1,
+    "role": "pounce",
+    "motion": "bound",
+    "speed": 2.8,
+    "hp": 0,
+    "radius": 1.1,
+    "range": 2.6,
+    "windup": 800,
+    "recovery": 1400,
+    "damage": 1,
+    "core": "#a27b69",
+    "glow": "#8c5547",
+    "affinity": 8,
+    "description": "A vine-infested hound crouches, then pounces at its marked prey.",
+    "loot_tags": [
+      "thornmaw",
+      "eldritch",
+      "plant",
+      "pounce"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.66,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "willow",
+    "preview_hp": 41,
+    "preview_hit_hp": 9,
+    "name": "Mourning Willow",
+    "form": "willow",
+    "biomes": [
+      0,
+      1
+    ],
+    "unlock": 4,
+    "role": "snare",
+    "motion": "sway",
+    "speed": 1.35,
+    "hp": 1,
+    "radius": 1.8,
+    "range": 5.4,
+    "windup": 1350,
+    "recovery": 2000,
+    "damage": 1,
+    "core": "#6f9472",
+    "glow": "#5b927d",
+    "affinity": 1,
+    "description": "A draped root spirit calls up grasping roots that briefly slow a struck player.",
+    "loot_tags": [
+      "willow",
+      "eldritch",
+      "plant",
+      "snare"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.58,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "orchid",
+    "preview_hp": 30,
+    "preview_hit_hp": 9,
+    "name": "Carrion Orchid",
+    "form": "moth",
+    "biomes": [
+      1,
+      2
+    ],
+    "unlock": 5,
+    "role": "artillery",
+    "motion": "hover",
+    "speed": 1.7,
+    "hp": 0,
+    "radius": 2.1,
+    "range": 7.0,
+    "windup": 1600,
+    "recovery": 2400,
+    "damage": 1,
+    "core": "#b37f9c",
+    "glow": "#a65988",
+    "affinity": 4,
+    "description": "A parasitized moth carries an orchid carcass and drops a delayed patch of lingering spores.",
+    "loot_tags": [
+      "orchid",
+      "eldritch",
+      "plant",
+      "artillery"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.46,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "colossus",
+    "preview_hp": 68,
+    "preview_hit_hp": 19,
+    "name": "Gravebud Colossus",
+    "form": "brute",
+    "biomes": [
+      1,
+      2
+    ],
+    "unlock": 7,
+    "role": "stomp",
+    "motion": "walk",
+    "speed": 1.15,
+    "hp": 3,
+    "radius": 2.3,
+    "range": 1.7,
+    "windup": 1450,
+    "recovery": 2100,
+    "damage": 2,
+    "core": "#9a965d",
+    "glow": "#7b853c",
+    "affinity": 2,
+    "description": "A heavy root-and-stone body winds up a broad stomp.",
+    "loot_tags": [
+      "colossus",
+      "eldritch",
+      "plant",
+      "stomp"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.72,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "wasp",
+    "preview_hp": 21,
+    "preview_hit_hp": 7,
+    "name": "Wicker Wasp",
+    "form": "wasp",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 3,
+    "role": "skirmish",
+    "motion": "hover",
+    "speed": 3.1,
+    "hp": -1,
+    "radius": 0.95,
+    "range": 1.1,
+    "windup": 600,
+    "recovery": 950,
+    "damage": 1,
+    "core": "#d1a660",
+    "glow": "#a37b35",
+    "affinity": 8,
+    "description": "A flying wicker parasite circles its target and darts into a short sting.",
+    "loot_tags": [
+      "wasp",
+      "eldritch",
+      "plant",
+      "skirmish"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.43,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "broodmother",
+    "preview_hp": 50,
+    "preview_hit_hp": 8,
+    "name": "Mycelial Broodmother",
+    "form": "brood",
+    "biomes": [
+      1,
+      2
+    ],
+    "unlock": 9,
+    "role": "brood",
+    "motion": "crawl",
+    "speed": 1.25,
+    "hp": 2,
+    "radius": 1.6,
+    "range": 3.5,
+    "windup": 1500,
+    "recovery": 3000,
+    "damage": 1,
+    "core": "#ab9d85",
+    "glow": "#748951",
+    "affinity": 2,
+    "description": "A fungus-engulfed slug shelters a finite brood of two rootbound seedlings.",
+    "loot_tags": [
+      "broodmother",
+      "eldritch",
+      "plant",
+      "brood"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.87,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "root_shepherd",
+    "preview_hp": 40,
+    "preview_hit_hp": 8,
+    "name": "Root Shepherd",
+    "form": "shepherd",
+    "biomes": [
+      0,
+      2
+    ],
+    "unlock": 3,
+    "role": "shepherd",
+    "motion": "sway",
+    "speed": 1.5,
+    "hp": 1,
+    "radius": 4.5,
+    "range": 5.0,
+    "windup": 1400,
+    "recovery": 3200,
+    "damage": 1,
+    "core": "#a69b61",
+    "glow": "#c1d98b",
+    "affinity": 2,
+    "support": true,
+    "escort_min": 2,
+    "escort_radius": 4.5,
+    "description": "A bowed antlered root herds nearby allies into a coordinated advance. Break the formation or interrupt its raised crook.",
+    "loot_tags": [
+      "root_shepherd",
+      "eldritch",
+      "plant",
+      "command"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.55,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "hollowback",
+    "preview_hp": 60,
+    "preview_hit_hp": 12,
+    "name": "Hollowback Grazer",
+    "form": "grazer",
+    "biomes": [
+      0,
+      1
+    ],
+    "unlock": 4,
+    "role": "stomp",
+    "motion": "walk",
+    "speed": 1.35,
+    "hp": 3,
+    "radius": 1.85,
+    "range": 1.7,
+    "windup": 1250,
+    "recovery": 1900,
+    "damage": 1,
+    "core": "#7e8e57",
+    "glow": "#a8bc75",
+    "affinity": 2,
+    "mechanic": "shelter",
+    "shelter_radius": 2.8,
+    "description": "An infested grazer shelters nearby creatures beneath its fungal canopy. Lure its allies away or bring down the grazer.",
+    "loot_tags": [
+      "hollowback",
+      "eldritch",
+      "creature",
+      "armored"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.8,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "lantern_lure",
+    "preview_hp": 29,
+    "preview_hit_hp": 9,
+    "name": "Lantern Lure",
+    "form": "lure",
+    "biomes": [
+      1,
+      2
+    ],
+    "unlock": 5,
+    "role": "lure",
+    "motion": "sway",
+    "speed": 0.65,
+    "hp": 0,
+    "radius": 1.35,
+    "range": 6.0,
+    "windup": 1500,
+    "recovery": 2400,
+    "damage": 1,
+    "core": "#b8a260",
+    "glow": "#e5c779",
+    "affinity": 4,
+    "description": "A hanging lantern flower marks the ground before its root line drags nearby prey toward the bloom. Dodge the marked circle.",
+    "loot_tags": [
+      "lantern_lure",
+      "eldritch",
+      "plant",
+      "lure"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.53,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "seamroot",
+    "preview_hp": 41,
+    "preview_hit_hp": 13,
+    "name": "Seamroot Burrower",
+    "form": "burrower",
+    "role": "charge",
+    "motion": "crawl",
+    "speed": 2.0,
+    "hp": 1,
+    "radius": 1.0,
+    "range": 6.5,
+    "windup": 1450,
+    "recovery": 2200,
+    "damage": 1,
+    "core": "#745447",
+    "glow": "#c3aa70",
+    "description": "Follows a marked seam and erupts at the exit. Step outside the emergence circle.",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 4,
+    "affinity": 8,
+    "loot_tags": [
+      "seamroot",
+      "eldritch",
+      "plant",
+      "charge"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 1.0,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "spore_widow",
+    "preview_hp": 37,
+    "preview_hit_hp": 9,
+    "name": "Spore Widow",
+    "form": "widow",
+    "role": "snare",
+    "motion": "crawl",
+    "speed": 1.4,
+    "hp": 1,
+    "radius": 1.7,
+    "range": 5.8,
+    "windup": 1350,
+    "recovery": 2400,
+    "damage": 1,
+    "core": "#81796b",
+    "glow": "#bccaa5",
+    "description": "Weaves spore threads across the battlefield. Avoid marked webs before they tighten.",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 4,
+    "affinity": 4,
+    "loot_tags": [
+      "spore_widow",
+      "eldritch",
+      "plant",
+      "snare"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.95,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "pallbearer",
+    "preview_hp": 44,
+    "preview_hit_hp": 8,
+    "name": "Pallbearer Bloom",
+    "form": "pallbearer",
+    "role": "chant",
+    "motion": "sway",
+    "speed": 1.15,
+    "hp": 2,
+    "radius": 4.0,
+    "range": 4.5,
+    "windup": 1700,
+    "recovery": 3500,
+    "damage": 1,
+    "core": "#71666a",
+    "glow": "#c5b5a8",
+    "description": "Consumes nearby fallen corruption once to empower its allies. Interrupt its funeral rite.",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 5,
+    "affinity": 2,
+    "loot_tags": [
+      "pallbearer",
+      "eldritch",
+      "plant",
+      "chant"
+    ],
+    "support": true,
+    "escort_min": 2,
+    "escort_radius": 4.5,
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.6,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "graft_thief",
+    "preview_hp": 31,
+    "preview_hit_hp": 8,
+    "name": "Graft Thief",
+    "form": "thief",
+    "role": "skirmish",
+    "motion": "walk",
+    "speed": 2.4,
+    "hp": 0,
+    "radius": 0.95,
+    "range": 1.2,
+    "windup": 800,
+    "recovery": 1600,
+    "damage": 1,
+    "core": "#77724e",
+    "glow": "#c8bc7c",
+    "description": "A scavenging host carries away loose monster parts. Kill it to reclaim its stolen cargo.",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 5,
+    "affinity": 8,
+    "loot_tags": [
+      "graft_thief",
+      "eldritch",
+      "creature",
+      "skirmish"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.6,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "ashen_hart",
+    "preview_hp": 46,
+    "preview_hit_hp": 14,
+    "name": "Ashen Hart",
+    "form": "ashen_hart",
+    "role": "charge",
+    "motion": "walk",
+    "speed": 2.0,
+    "hp": 2,
+    "radius": 1.25,
+    "range": 6.2,
+    "windup": 1500,
+    "recovery": 2300,
+    "damage": 1,
+    "core": "#51463d",
+    "glow": "#e7a15f",
+    "description": "A charred hart leaves smoldering ground behind its telegraphed charges.",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 6,
+    "affinity": 1,
+    "loot_tags": [
+      "ashen_hart",
+      "eldritch",
+      "creature",
+      "charge"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.82,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "glasscap",
+    "preview_hp": 34,
+    "preview_hit_hp": 9,
+    "name": "Glasscap Watcher",
+    "form": "glasscap",
+    "role": "volley",
+    "motion": "sway",
+    "speed": 0.85,
+    "hp": 1,
+    "radius": 1.25,
+    "range": 6.0,
+    "windup": 1450,
+    "recovery": 2500,
+    "damage": 1,
+    "core": "#839a9c",
+    "glow": "#bfdfe1",
+    "description": "A glassy cap projects two false silhouettes before firing at its chosen target.",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 6,
+    "affinity": 4,
+    "loot_tags": [
+      "glasscap",
+      "eldritch",
+      "plant",
+      "volley"
+    ],
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.72,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "root_choir",
+    "preview_hp": 48,
+    "preview_hit_hp": 9,
+    "name": "Root Choir",
+    "form": "choir",
+    "role": "shepherd",
+    "motion": "sway",
+    "speed": 1.1,
+    "hp": 2,
+    "radius": 4.6,
+    "range": 4.5,
+    "windup": 1500,
+    "recovery": 2800,
+    "damage": 1,
+    "core": "#857361",
+    "glow": "#d5c9a6",
+    "description": "Three throats share an exposed root. Read each wind-up and step out of the pulse.",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 7,
+    "affinity": 2,
+    "loot_tags": [
+      "root_choir",
+      "eldritch",
+      "plant",
+      "shepherd"
+    ],
+    "support": true,
+    "escort_min": 2,
+    "escort_radius": 4.5,
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.72,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "orchard",
+    "preview_hp": 600,
+    "preview_hit_hp": 22,
+    "name": "The Orchard That Walks",
+    "form": "orchard",
+    "role": "stomp",
+    "motion": "walk",
+    "speed": 0.95,
+    "hp": 26,
+    "radius": 3.5,
+    "range": 5.0,
+    "windup": 1800,
+    "recovery": 1900,
+    "damage": 2,
+    "core": "#675c3f",
+    "glow": "#c8b37e",
+    "description": "A migrating grove tears root anchors free, sweeps changing lanes and scatters falling fruit.",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 10,
+    "affinity": 2,
+    "loot_tags": [
+      "orchard",
+      "eldritch",
+      "plant",
+      "stomp"
+    ],
+    "boss": true,
+    "lair": "orchard",
+    "moves": [
+      "root_sweep",
+      "orchard_march",
+      "falling_fruit"
+    ],
+    "model_scale": 1.0,
+    "seed_drop_chance": 1.0,
+    "trophy_chance": 0.6,
+    "hurt_radius": 1.4,
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 1.4,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "drowned",
+    "preview_hp": 550,
+    "preview_hit_hp": 20,
+    "name": "The Drowned Congregation",
+    "form": "drowned",
+    "role": "artillery",
+    "motion": "sway",
+    "speed": 1.15,
+    "hp": 22,
+    "radius": 3.0,
+    "range": 7.0,
+    "windup": 1700,
+    "recovery": 1800,
+    "damage": 2,
+    "core": "#456e6b",
+    "glow": "#8fd4d4",
+    "description": "Drowned hosts share one fungal core. Tidal rings, grasping pools and surging bodies disturb the flooded lair.",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 10,
+    "affinity": 4,
+    "loot_tags": [
+      "drowned",
+      "eldritch",
+      "plant",
+      "artillery"
+    ],
+    "boss": true,
+    "lair": "drowned",
+    "moves": [
+      "tidal_ring",
+      "drowned_surge",
+      "grasping_pool"
+    ],
+    "model_scale": 1.0,
+    "seed_drop_chance": 1.0,
+    "trophy_chance": 0.6,
+    "hurt_radius": 1.15,
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 1.15,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "matriarch",
+    "preview_hp": 570,
+    "preview_hit_hp": 18,
+    "name": "The Hollow Matriarch",
+    "form": "matriarch",
+    "role": "brood",
+    "motion": "crawl",
+    "speed": 1.3,
+    "hp": 24,
+    "radius": 2.7,
+    "range": 6.0,
+    "windup": 1800,
+    "recovery": 2000,
+    "damage": 2,
+    "core": "#766256",
+    "glow": "#d2ac86",
+    "description": "An armored mother reshapes her nest into alternating ribs and breeds altered offspring.",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 10,
+    "affinity": 2,
+    "loot_tags": [
+      "matriarch",
+      "eldritch",
+      "creature",
+      "brood"
+    ],
+    "boss": true,
+    "lair": "nest",
+    "moves": [
+      "nest_reshape",
+      "brood_call",
+      "matriarch_lunge"
+    ],
+    "model_scale": 1.0,
+    "seed_drop_chance": 1.0,
+    "trophy_chance": 0.6,
+    "hurt_radius": 1.1,
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 2.45,
+      "projectile_padding": 0.12
+    }
+  },
+  {
+    "id": "nameless",
+    "preview_hp": 590,
+    "preview_hit_hp": 22,
+    "name": "The Nameless Bloom",
+    "form": "nameless",
+    "role": "volley",
+    "motion": "sway",
+    "speed": 1.0,
+    "hp": 25,
+    "radius": 3.0,
+    "range": 7.0,
+    "windup": 1800,
+    "recovery": 1900,
+    "damage": 2,
+    "core": "#645278",
+    "glow": "#c6abd9",
+    "description": "A wandering blossom remembers the host world: bark, spores and grasping reach alter its attacks.",
+    "biomes": [
+      0,
+      1,
+      2
+    ],
+    "unlock": 10,
+    "affinity": 1,
+    "loot_tags": [
+      "nameless",
+      "eldritch",
+      "plant",
+      "volley"
+    ],
+    "boss": true,
+    "lair": "memory",
+    "moves": [
+      "memory_lance",
+      "spore_constellation",
+      "remembered_rend"
+    ],
+    "model_scale": 1.0,
+    "seed_drop_chance": 1.0,
+    "trophy_chance": 0.6,
+    "hurt_radius": 0.9,
+    "hitbox": {
+      "shape": "body_circle",
+      "radius": 0.9,
+      "projectile_padding": 0.12
+    }
+  }
+]

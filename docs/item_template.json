@@ -1,0 +1,19 @@
+{
+  "id": "example_relic",
+  "name": "Example Relic",
+  "category": "material",
+  "rarity": "Rare",
+  "stack_limit": 99,
+  "tags": [
+    "eldritch",
+    "research"
+  ],
+  "monster_tags": [
+    "nightbloom",
+    "adapted"
+  ],
+  "loot_weight": 1.0,
+  "pouch_allowed": true,
+  "icon": "",
+  "description": "Copy this entry into assets/items/custom_items.json and give it a unique stable ID."
+}

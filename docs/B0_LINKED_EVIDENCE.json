@@ -1,0 +1,33 @@
+{
+  "run_id": "ac06-b0-linked-recovery-harness",
+  "seeded": {
+    "garden": "new-garden",
+    "journal": true,
+    "profile": "old-profile"
+  },
+  "contenders": {
+    "garden": {
+      "pid": 15904,
+      "acquired": false,
+      "win32_error": 32
+    },
+    "profile": {
+      "pid": 4412,
+      "acquired": false,
+      "win32_error": 32
+    }
+  },
+  "bytes_unchanged_while_held_and_after_kill": true,
+  "recovered_via_profile": {
+    "error": 0,
+    "garden": "old-garden",
+    "journal": false,
+    "link": false,
+    "profile": "old-profile"
+  },
+  "rename_failure": {
+    "destination_survived": false,
+    "error": 1
+  },
+  "scope": "Harness owns native handle. SaveBatch production code is unmodified."
+}

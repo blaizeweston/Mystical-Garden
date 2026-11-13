@@ -1,0 +1,25 @@
+{
+  "id": "append_node_id",
+  "name": "Branch choice",
+  "level": 6,
+  "tier": 4,
+  "parents": [
+    "6",
+    "7"
+  ],
+  "effects": {
+    "counter_damage": 1
+  },
+  "skill_change": {
+    "kind": "modify",
+    "slot": 0,
+    "values": {
+      "name": "Thorn Counter",
+      "mode": "counter_guard",
+      "cooldown": 6800,
+      "duration": 1600,
+      "charges": 2,
+      "description": "Guard a hit to prepare the next committed contact."
+    }
+  }
+}

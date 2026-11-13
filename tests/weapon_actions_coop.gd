@@ -1,0 +1,95 @@
+extends SceneTree
+const Field=preload("res://field_traveller.gd")
+const Motion=preload("res://weapon_motion.gd")
+var game: Node
+var role: String
+var base: String
+var failed:=false
+func check(ok: bool,message: String):
+ if not ok:failed=true;printerr("FAIL weapon actions co-op ",role,": ",message)
+func mark(key: String):
+ var f=FileAccess.open(base+key,FileAccess.WRITE);f.store_string("ok")
+func marked(key: String) -> bool:return FileAccess.file_exists(base+key)
+func until(predicate: Callable) -> bool:
+ var deadline:=Time.get_ticks_msec()+16000
+ while not predicate.call() and Time.get_ticks_msec()<deadline:await process_frame
+ return predicate.call()
+func _initialize():call_deferred("run")
+func run():
+ role=OS.get_cmdline_user_args()[0];base="res://.godot/weapon-net-"+OS.get_cmdline_user_args()[1]
+ game=load("res://world.tscn").instantiate();game.progress.path=base+role;game.local_character.path=base+role+".character";game.guest_character.path=base+role+".guest";root.add_child(game)
+ if role=="host":await host_run()
+ else:await guest_run()
+ game.queue_free();await process_frame
+ if not failed:print("PASS: weapon actions co-op ",role," bow draw, projectile footprint, and two-handed scythe contact")
+ quit(1 if failed else 0)
+func host_run():
+ check(game.host_game()==OK,"host opens")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"registration");return
+ var id: int=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
+ check(p.character.appearance[5]==1 and p.character.appearance[6]==0 and p.character.appearance[7]==100,"host receives customized female model and independent sliders")
+ game.enemy_hp=80;game.enemy_pos=Vector3(0,0,3);game.enemy_ready_at=Time.get_ticks_msec()+60000;game.enemy_winding_up=false;game.scouts.clear()
+ p.wild=true;p.pos=Vector3.ZERO;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.skill_at=0
+ mark("ready");check(await until(func():return marked("verified")),"guest confirms attack")
+ check(game.enemy_hp<80,"projectile hits on the host")
+ check(not game.combat_events.any(func(e):return e.kind=="windup"),"host has no generic bow circle")
+ p.frame=3;p.weapon_kind=1;p.attack_until=0;p.strike_at=0
+ game.enemy_pos=Vector3(0,0,1.45)
+ var before: int=game.enemy_hp
+ mark("scythe-ready")
+ check(await until(func():return marked("scythe-checked")),"guest confirms the scythe swing")
+ check(await until(func():return game.enemy_hp<before),"scythe contact damages the enemy on the host after its wind-up")
+ mark("done");check(await until(func():return game.players.size()==1),"guest disconnects")
+func guest_run():
+ game.guest_character.data.active_class=2
+ game.guest_character.data.appearance=preload("res://character_appearance.gd").DEFAULT.duplicate();game.guest_character.data.appearance[5]=1;game.guest_character.data.appearance[6]=0;game.guest_character.data.appearance[7]=100;game.guest_character.data.appearance[8]=100
+ game.guest_character.save_profile();check(game.join_game()==OK,"guest joins")
+ var id:=game.multiplayer.get_unique_id()
+ if not await until(func():return marked("ready") and game.session=="Guest" and not game.client_details.is_empty() and game.players.get(id,{}).get("wild",false)):check(false,"Wilds state");return
+ game.submit_combat.rpc_id(1,Vector2(1,0),true)
+ var deadline:=Time.get_ticks_msec()+6000;var saw_clip:=false;var saw_draw:=false;var turned:=false
+ while Time.get_ticks_msec()<deadline:
+  var actor: Dictionary=game.stage.avatar_models.get(id,{})
+  if not actor.is_empty() and str(actor.animator.current_animation)=="Attack_bow":
+   saw_clip=true
+   if not turned:
+    turned=true
+    game.submit_combat.rpc_id(1,Vector2(0,1),false)
+   var weapon: Node3D=actor.visual_weapon
+   var arrow: Node3D=weapon.get_node("NockedArrow")
+   var phase:=float(actor.get("motion_phase",1.0))
+   if arrow.visible and phase>.10 and phase<.55:
+    var draw:=smoothstep(0,.55,phase)
+    var nock:=weapon.to_global(Vector3(0,.2,-.2-.25*draw))
+    saw_draw=saw_draw or nock.distance_to(Field.hand(actor,false))<.035
+  if game.received_combat_events.any(func(e):return e.event.kind=="impact" and e.event.shape=="hit"):break
+  await process_frame
+ game.submit_combat.rpc_id(1,Vector2(0,1),false)
+ check(saw_clip and saw_draw,"guest plays the authored bow animation with the visible draw hand following the nock")
+ var actor: Dictionary=game.stage.avatar_models[id]
+ check(actor.rig_kind==1 and is_equal_approx(actor.model.scale.y,.92),"guest renders the customized rig at the saved height")
+ var bow: Node3D=actor.visual_weapon
+ check(bow.is_visible_in_tree() and bow.has_node("VineBowModel") and bow.to_global(Vector3(0,.2,0)).distance_to(Field.hand(actor,true))<.001,"guest bow stays in the visible left hand")
+ var arrows: Array=game.received_combat_events.filter(func(e):return e.event.kind=="projectile")
+ check(not arrows.is_empty(),"arrow arrives")
+ if not arrows.is_empty():
+  var event: Dictionary=arrows[0].event;var profile: Dictionary=game.WeaponMotion.profile("bow")
+  check(float(event.to[2])-float(event.from[2])>1.0 and absf(float(event.to[0])-float(event.from[0]))<.6,"guest can redirect the shot after draw begins")
+  check(str(event.form)=="bow" and float(event.projectile_radius)==float(profile.projectile_radius) and float(event.height)==float(profile.height),"same profile controls guest projectile and host collision")
+ check(not game.received_combat_events.any(func(e):return e.event.kind=="windup"),"guest receives no firing ring")
+ mark("verified")
+ if not await until(func():return marked("scythe-ready") and Motion.form(game.players.get(id,{}))=="scythe"):
+  check(false,"host scythe loadout arrives");return
+ game.submit_combat.rpc_id(1,Vector2(0,1),true)
+ var scythe_gripped:=await until(func():
+  var player: Dictionary=game.stage.avatar_models.get(id,{})
+  if player.is_empty() or str(player.animator.current_animation)!="Attack_scythe":
+   return false
+  var scythe: Node3D=player.visual_weapon
+  return scythe.has_node("HarvestScytheModel") and scythe.is_visible_in_tree() and scythe.to_global(Vector3.ZERO).distance_to(Field.hand(player,false))<.001 and scythe.to_global(scythe.get_meta("support_grip")).distance_to(Field.hand(player,true))<.035)
+ check(scythe_gripped,"both visible guest hands stay on the scythe through its attack")
+ check(await until(func():return game.received_combat_events.any(func(e):return e.event.kind=="swing" and str(e.event.get("form",""))=="scythe")),"guest receives the scythe swing visual")
+ game.submit_combat.rpc_id(1,Vector2(0,1),false)
+ mark("scythe-checked")
+ check(await until(func():return marked("done")),"host finishes")
+ game.leave_game("Weapon animation fixture")

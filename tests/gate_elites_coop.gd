@@ -1,0 +1,76 @@
+extends SceneTree
+const Status=preload("res://combat_status.gd")
+var game: Node
+var base: String
+var role: String
+var failed:=false
+func check(ok: bool,message: String):
+ if not ok:failed=true;printerr("FAIL elite co-op ",role,": ",message)
+func mark(key: String):
+ var file=FileAccess.open(base+key,FileAccess.WRITE);file.store_string("ok")
+func marked(key: String) -> bool:return FileAccess.file_exists(base+key)
+func until(predicate: Callable) -> bool:
+ var deadline:=Time.get_ticks_msec()+16000
+ while not predicate.call() and Time.get_ticks_msec()<deadline:await process_frame
+ return predicate.call()
+func _initialize():call_deferred("run")
+func run():
+ role=OS.get_cmdline_user_args()[0];base="res://.godot/elite-net-"+OS.get_cmdline_user_args()[1]
+ game=load("res://world.tscn").instantiate();game.progress.path=base+role;game.local_character.path=base+role+".character";game.guest_character.path=base+role+".guest";root.add_child(game)
+ if role=="host":await host_run()
+ else:await guest_run()
+ game.queue_free();await process_frame
+ if not failed:print("PASS: elite co-op ",role," species identity, matching telegraphs and synchronized elite brood")
+ quit(1 if failed else 0)
+func host_run():
+ check(game.host_game()==OK,"host opens")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"registration");return
+ game.battlefield.configure(0,1);game.battlefield.barriers.clear()
+ for player in game.players.values():player.wild=true;player.hp=10;player.pos=Vector3(0,0,.8)
+ game.scouts.clear();game.enemy_hp=80;game.enemy_pos=Vector3.ZERO;game.enemy_ready_at=Time.get_ticks_msec()+60000;game.enemy_winding_up=false;game.enemy_mutations=0
+ check(await until(func():return marked("ready")),"guest sees Wilds")
+ for kind in [1,2,9,7,11]:
+  game.leader_brain.clear();game.enemy_kind=kind;game.enemy_pos=Vector3.ZERO;game.enemy_hp=80;game.enemy_engaged=true;game.enemy_ready_at=0;game.enemy_winding_up=false;game.enemy_stagger_until=0;game.rooted_until=0
+  if kind==7:game.encounter_number=12
+  if kind==11:
+   game.scouts.clear()
+   var escorted: Dictionary=game.make_scout(0,Vector3(0,0,1.8),2)
+   escorted.ready=Time.get_ticks_msec()+60000
+   game.scouts.append(escorted)
+  game.update_enemy(.016,Time.get_ticks_msec())
+  game.enemy_strike_at=Time.get_ticks_msec()+12000
+  check(await until(func():return marked("seen-"+str(kind))),"guest sees species "+str(kind))
+  if kind==9:
+   game.resolve_briar_strike(Time.get_ticks_msec());game.enemy_ready_at=Time.get_ticks_msec()+60000
+   check(await until(func():return marked("brood")),"guest sees brood wave")
+  if kind==11:
+   game.enemy_hp=0
+   game.enemy_winding_up=false
+   check(await until(func():return marked("shelter-cleared")),"guest sees shelter end")
+ mark("done");check(await until(func():return game.players.size()==1),"disconnect")
+func guest_run():
+ game.guest_character.save_profile();check(game.join_game()==OK,"connects")
+ var id:=game.multiplayer.get_unique_id()
+ if not await until(func():return game.session=="Guest" and not game.client_details.is_empty() and game.players.get(id,{}).get("wild",false)):check(false,"Wilds arrives");return
+ mark("ready")
+ for kind in [1,2,9,7,11]:
+  check(await until(func():return game.enemy_kind==kind and game.stage.foe_model.kind==kind and game.players[id].get("attack_hints",[]).any(func(h):return h.id==-1 and h.role==game.Enemies.get_kind(kind).role)),"species and real attack hint "+str(kind))
+  if kind==2:
+   var warning: Dictionary=game.players[id].get("attack_hints",[]).filter(func(h):return h.id==-1)[0]
+   check(await until(func():return game.stage.get_meta("enemy_attack_poses",{}).get(-1,{}).get("mode","")=="charge"),"guest applies the charge pose")
+   var pose: Dictionary=game.stage.get_meta("enemy_attack_poses",{}).get(-1,{})
+   check(warning.actor==-1 and warning.pose=="charge" and is_equal_approx(warning.radius,game.Enemies.radius(kind)+.35),"guest receives the full swept charge warning")
+   check(pose.get("mode","")=="charge" and is_equal_approx(pose.get("target",Vector3.INF).z,warning.to[2]),"guest animation faces the same locked attack point")
+  if kind==7:
+   check(game.players[id].attack_hints.any(func(h):return h.role=="aftershock"),"guest sees the elite's separate aftershock location")
+  if kind==11:
+   check(await until(func():return game.combat_visuals.statuses.active.values().any(func(s):return s.event.shape=="sheltered")),"guest displays Sheltered")
+  var growth: Node3D=game.stage.foe_model.model.get_node_or_null("EliteGrowth");check(is_instance_valid(growth),"guest has anatomical elite features")
+  mark("seen-"+str(kind))
+  if kind==9:
+   check(await until(func():return game.client_pack.size()>=game.PACK_STRIDE*2 and game.stage.support_models.filter(func(model):return model.visible).size()>=2),"guest receives two summoned scouts")
+   mark("brood")
+  if kind==11:
+   check(await until(func():return not game.combat_visuals.statuses.active.values().any(func(s):return s.event.shape=="sheltered")),"guest clears the Sheltered label")
+   mark("shelter-cleared")
+ check(await until(func():return marked("done")),"host finishes");game.leave_game("Elite fixture")

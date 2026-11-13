@@ -1,0 +1,17 @@
+# Heart and Knowledge progression
+
+Interact with the Heart and open Heart / Knowledge. The host selects a node and starts it using available Knowledge. Lifetime Knowledge records discoveries, crafts and offerings and continues to gate later technologies and Heart growth; the spendable balance is lifetime Knowledge minus points already invested. Both balances are named explicitly in the tree. Starting research consumes no plant parts.
+
+One project runs at a time. Switching focus preserves its payment and progress; resuming costs nothing. All purchasable upgrades, including planting beds and clearing expansions, complete through research rather than instant purchases. A minimum project takes 60 seconds; larger projects take 120 seconds per catalog research unit. The timer runs while the host world is open, at normal speed in the Garden and three times normal speed when an expedition is active. It does not multiply with party size. Existing expedition milestone bonuses still contribute; the system is no longer dependent on those bonuses. Abandonment grants no milestone bonus, but does not undo elapsed research time.
+
+Any player at the Heart can offer two shared plant parts to remove one minute from the active project. Research Infusion doubles this to two minutes. Offerings are optional and can finish research; there is no former half-project cap. The menu previews the exact species and quantities. The host validates that plan and project again before consumption, so another player's inventory change cannot silently substitute different ingredients. Personal stash materials are not automatically spent.
+
+Timer progress, paid nodes and invested Knowledge are saved per Garden. A pre-timer recovery copy is saved before updating a version-one Garden. Legacy milestone-based projects migrate to equivalent completed work without repaying costs. Existing unlocked technologies, plots and earned finales remain unlocked. Failed saves restore research, materials and Knowledge. No offline clock catch-up is applied.
+
+The six extra beds expand from three to nine universal plots. Clearing expansions enlarge the Garden. Flowering trades crafting harvests for seeds; irrigation and the nursery improve cultivation. The Heart's other services cover seed reclamation, monster offerings, trophy preservation, checkpoint deposits and repeated biome memories. These are accessed through the Heart's detailed menus; retired world-object hotkeys are not required.
+
+The Heart's six model stages track restoration. Perfect Recollection still requires the core technologies, lifetime Knowledge, repeated biome memories and offshoot decisions. Completing its research unlocks the final awakening outside normal repeated Wilds expeditions.
+
+Authoring: heart_catalog.gd owns stable technology IDs, prerequisites, lifetime Knowledge gates and start costs (the historical field name is insight). heart_progress.gd owns duration constants, timers, offerings, migration and save rollback. UI timers and offering strength come from the replicated research snapshot. Add actual gameplay effects separately; catalog descriptions must not promise unsupported behavior.
+
+Validation covers Knowledge-only starts through the UI, timer completion, Wilds acceleration, repeat-payment prevention, shared plant offerings, save failure/retry, v1 migration and real host/guest replication. Both the source project and exported game pack run these checks.

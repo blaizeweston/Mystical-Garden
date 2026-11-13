@@ -1,0 +1,9 @@
+{
+  "mode": "parts",
+  "inputs": [
+    "part_1",
+    "part_2"
+  ],
+  "output": "part_3",
+  "note": "Example already exists in the generated lineage recipes. Use a new pair to add another; part outputs must have higher rarity than both inputs."
+}

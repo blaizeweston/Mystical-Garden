@@ -1,0 +1,79 @@
+{
+  "regular": {
+    "hp_per_floor": 1.6,
+    "hp_per_tier": 6,
+    "hp_per_loop": 5,
+    "coop_per_peer": 0.14,
+    "coop_depth_per_floor": 0.003,
+    "coop_depth_cap": 0.14,
+    "hit_per_floor": 0.3,
+    "hit_per_loop": 2
+  },
+  "elite": {
+    "hp_multiplier": 2.2,
+    "hp_per_floor": 3,
+    "hp_per_biome_step": 2,
+    "biome_end_hp": 24,
+    "hp_per_loop": 9,
+    "hp_per_loop_squared": 2,
+    "coop_per_peer": 0.38,
+    "coop_depth_per_floor": 0.004,
+    "coop_depth_cap": 0.18,
+    "hit_multiplier": 1.2,
+    "biome_end_hit_hp": 2
+  },
+  "boss": {
+    "hp_per_floor": 7.5,
+    "hp_per_loop": 24,
+    "coop_per_peer": 0.6,
+    "coop_depth_per_floor": 0.0015,
+    "coop_depth_cap": 0.09,
+    "hit_per_floor": 0.36,
+    "hit_per_loop": 2,
+    "hit_per_phase": 2,
+    "main_hazard_ratio": 0.7,
+    "followup_hazard_ratio": 0.5,
+    "exposed_bonus_ratio": 0.3,
+    "exposed_minimum_bonus_hp": 3
+  },
+  "juvenile": {
+    "hp": 12,
+    "hp_per_floor": 0.3,
+    "hp_per_loop": 2,
+    "coop_per_peer": 0.08,
+    "hit_hp": 6,
+    "hit_per_floor": 0.13,
+    "hit_per_loop": 1
+  },
+  "hazards": {
+    "hit_per_floor": 0.17,
+    "hit_per_loop": 1,
+    "base_hp": {
+      "ember": 9,
+      "web": 7,
+      "spores": 8,
+      "aftershock": 12
+    }
+  },
+  "reinforcements": {
+    "hp_multiplier": 0.75,
+    "start_ms": 32000,
+    "minimum_interval_ms": 22000,
+    "per_loop_ms": 1600,
+    "per_wave_ms": 1200,
+    "starting_wave_limit": 2,
+    "maximum_wave_limit": 5
+  },
+  "coop_extra_scouts": 3,
+  "armor_damage_ratio": 0.75,
+  "corpse_hp_fraction": 0.25,
+  "corpse_depth_hp_per_floor": 0.2,
+  "corpse_depth_bonus_cap": 12,
+  "boss_move_bonus_hp": {
+    "orchard_march": 4,
+    "root_cage": 2,
+    "drowned_surge": 4,
+    "matriarch_lunge": 4,
+    "remembered_rend": 3
+  }
+}

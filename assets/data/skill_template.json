@@ -1,0 +1,11 @@
+{
+  "name": "Skill name",
+  "mode": "quake",
+  "cooldown": 6500,
+  "description": "A clear description of the implemented behavior.",
+  "damage": 2,
+  "radius": 3.0,
+  "stagger": 300,
+  "push": 0.8,
+  "color": "#c8a96d"
+}

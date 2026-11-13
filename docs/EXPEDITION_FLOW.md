@@ -1,0 +1,9 @@
+# Expedition flow update
+
+- **Abandon:** Esc → Abandon expedition → confirm. This returns only that player to the Garden, discards carried loot and safe-pouch contents, and grants no expedition milestone, research or guardian-memory payout. Previously banked items and permanent progress are retained. In an existing party, the remaining players can continue; the abandoning player waits for that expedition to end before rejoining it.
+- **Prepare at the Wilds gate:** Press E at the Garden gate to open the weapon workbench. Choose the basic weapon, three plant parts and optional monster cargo, then click **Craft weapon & enter the Wilds**. Materials are consumed on confirmed departure. Closing the workbench cancels departure. F2 can inspect the workbench anywhere, but weapon preparation requires the gate. Class upgrades remain at the Heart.
+- **Checkpoint cards:** After clearing encounters 5, 10, 15 and so on, pressing E at the onward gate opens upgrade cards before changing floors. Choose one affordable upgrade or explicitly continue without buying. Three weighted choices are offered, with an 8% chance of a fourth. Class, weapon, installed plants and monster graft determine eligibility and weighting. Costs range from 6 to 12 essence; see WEIGHTED_UPGRADES.md. Each player keeps their own currency and upgrade decision; the party advances after all active expedition members finish choosing. T still extracts from the cleared checkpoint instead of continuing.
+
+Verified with focused run-flow tests, checkpoint extraction, Heart progression, class weapons, dual skills, main menu/save slots, HUD and the full solo gameplay integration test. The three new screens were rendered and inspected. Balance and upgrade effects retain their existing rules.
+
+The exported Windows build also passed the complete focused run-flow test, and the refreshed executable launched successfully.
