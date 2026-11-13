@@ -205,7 +205,7 @@ def retail_probes(stage, pack, metadata, env):
     sandbox = stage / "retail"
     sandbox.mkdir()
     version = metadata["playtest_version"]
-    ready = f"PLAYTEST READY: {version} Ã‚Â· protocol {metadata['protocol']} Ã‚Â· legacy-contained"
+    ready = f"PLAYTEST READY: {version} Ãƒâ€šÃ‚Â· protocol {metadata['protocol']} Ãƒâ€šÃ‚Â· legacy-contained"
     backend = "PLAYTEST BLOCKED: The playtest persistence library is missing or incompatible."
     expected_errors = [
         'Condition "!FileAccess::exists(path)" is true. Returning: ERR_FILE_NOT_FOUND',
@@ -284,7 +284,7 @@ def retail_probes(stage, pack, metadata, env):
         if code != 0 or "EXTERNAL DRIVER RAN" in stdout or sha(anchor) != baseline:
             raise ValueError(f"Retail execution or protected root check failed in {probe}.")
         if success:
-            if ready not in stdout or not (release_root / "playtest.identity").is_file() or not (release_root / "diagnostics").is_dir():
+            if not ready.search(stdout) or not (release_root / "playtest.identity").is_file() or not (release_root / "diagnostics").is_dir():
                 raise ValueError(f"Retail title, version or isolated save root missing in {probe}.")
         elif probe in blocked:
             if blocked[probe] not in stdout or "PLAYTEST READY:" in stdout or (release_root / "diagnostics").exists():
@@ -296,7 +296,7 @@ def retail_probes(stage, pack, metadata, env):
             reopen_exit = run([exe, *args], home, child_env, reopen, timeout=30, check=False)
             reopened = reopen.read_text(encoding="utf-8-sig", errors="replace")
             reopen_errors = (home / "reopen.stderr.log").read_text(encoding="utf-8-sig", errors="replace")
-            if reopen_exit or ready not in reopened or evidence.ENGINE_ERROR.search(reopened + reopen_errors) or fingerprint != sha(identity):
+            if reopen_exit or not ready.search(reopened) or evidence.ENGINE_ERROR.search(reopened + reopen_errors) or fingerprint != sha(identity):
                 raise ValueError("Retail could not reopen its exact version and commit.")
             results["reopen"] = {"exit": reopen_exit, "run_id": f"{version}-reopen",
                                  "exe_sha256": sha(exe), "logs": home.name, "expected_errors": 0, "ready": True}
