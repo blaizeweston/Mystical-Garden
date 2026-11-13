@@ -178,10 +178,34 @@ func host() -> void:
  # Keep the cleanup-pending world alive long enough to deliver the
  # explicit window-close notification. The ENet tree still polls.
  if settlement_fault=="cleanup": game.set_process(false)
- game.online_peer.disconnect_peer(leaving)
+ var transport: ENetMultiplayerPeer=game.online_peer
+ var packet := transport.get_peer(leaving)
+ var callback := {}
+ var snapshot_before: int=game.net_view.snapshot_sent
+ var ordinary_before: String=game.status
+ transport.peer_disconnected.connect(func(id: int):
+  if id!=leaving: return
+  callback.merge({"sequence":game.net_view.snapshot_sent,"channels":packet.get_channels() if packet.is_active() else 0,
+   "state":packet.get_state(),"targets":Array(game.net_view.snapshot_targets(game))}))
+ transport.disconnect_peer(leaving)
+ var advertised: bool=game.multiplayer.get_peers().has(leaving)
+ var eligible: PackedInt32Array=game.net_view.snapshot_targets(game)
+ check(advertised and game.players[leaving].profile_ready and not eligible.has(leaving) and eligible.size()==2,
+  "send boundary rejects disconnecting ENet peer while admitted roster still contains it")
  if not await until(func(): return not game.players.has(leaving) and read("offline-1")=="yes"):
   check(false,"actual peer disconnect with pending host rewards")
   return
+ check(callback.get("sequence",-1)==snapshot_before and not callback.get("targets",[]).has(leaving)
+  and (int(callback.get("channels",-1))==0 or callback.get("state")==ENetPacketPeer.STATE_DISCONNECTED),
+  "actual callback observes inactive or zero-channel peer before any snapshot send")
+ var expected_sends := 1 if settlement_fault=="cleanup" else 0
+ check(await until(func():return game.net_view.snapshot_sent>=snapshot_before+expected_sends),
+  "deferred committed snapshot is sent after the callback")
+ check(game.net_view.snapshot_sent==snapshot_before+expected_sends
+  and game.status.contains("class XP")==(settlement_fault=="cleanup"),"only verified cleanup-pending settlement sends the final snapshot and reward feedback")
+ print("CASE ",JSON.stringify({"case":"disconnect_snapshot_boundary","mode":settlement_fault,"advertised":advertised,
+  "callback":callback,"before":snapshot_before,"after":game.net_view.snapshot_sent,"status_before":ordinary_before,
+  "status_after":game.status,"garden_before":disconnect_before,"garden_after":FileAccess.get_sha256(G)}))
  if not settlement_fault.is_empty():
   await finish_blocked_disconnect(game,identity,kills,kind,disconnect_before)
   return
@@ -220,12 +244,29 @@ func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: i
  check(int(game.progress.character_records[identity].profile.monsters[kind])==kills+1,"settlement memory retains computed reward")
  game.remove_meta(&"guarded_gameplay_test_fault")
  var old_id := game.get_instance_id()
+ var snapshot_sequence: int=game.net_view.snapshot_sent
+ var old_transport: ENetMultiplayerPeer=game.online_peer
+ if cleanup:
+  mark("final-snapshot",str(snapshot_sequence))
+  check(await until(func():return read("snapshot-2")=="yes" and read("snapshot-3")=="yes"),
+   "both surviving peers observe the final snapshot and the cleanup warning")
  mark("blocked-reconnect")
  if not await until(func(): return read("blocked-refused")=="yes"):
   check(false,"reconnect must be refused while host is blocked")
   return
  check(FileAccess.get_sha256(G)==after and FileAccess.get_sha256(G+".transaction")==evidence,"blocked reconnect changes no evidence")
  if cleanup:
+  check(game.net_view.snapshot_sent==snapshot_sequence,"blocked reconnect does not repeat the final snapshot")
+  game.release_slot()
+  check(not game.get_meta(Tx.SESSION).owns_leases(),"host relinquishes leases while still connected")
+  game.net_view.publish_committed_cleanup(game,old_transport)
+  check(game.net_view.snapshot_sent==snapshot_sequence and FileAccess.get_sha256(G)==after
+   and FileAccess.get_sha256(G+".transaction")==evidence,"deferred cleanup cannot send or write after ownership is lost")
+  game.go_offline()
+  game.net_view.publish_committed_cleanup(game,old_transport)
+  game.send_expedition_state(0.0,true)
+  check(game.net_view.snapshot_sent==snapshot_sequence and game.net_view.snapshot_targets(game).is_empty(),
+   "old deferred request and actual send boundary both refuse offline transport")
   game.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
   check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer and not FileAccess.file_exists(G.get_base_dir().path_join("session.cfg")),"window close of blocked host releases owned lease after offline")
   check(FileAccess.get_sha256(G)==after and FileAccess.get_sha256(G+".transaction")==evidence,"window close preserves committed evidence")
@@ -249,6 +290,9 @@ func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: i
  if reopened==menu or reopened.session!="Host":
   check(false,"verified recovery permits host restart")
   return
+ var reopened_sequence: int=reopened.net_view.snapshot_sent
+ reopened.net_view.publish_committed_cleanup(reopened,old_transport)
+ check(reopened.net_view.snapshot_sent==reopened_sequence,"a prior session snapshot cannot be replayed on reopened transport")
  mark("host-reopened",str(reopened.network_port))
  check(await until(func():return read("rejoin-after-recovery")=="yes"),"guest rejoins after recovery")
  var record: Dictionary = reopened.progress.character_records[identity].profile
@@ -369,6 +413,15 @@ func guest(role: String) -> void:
   if not settlement_fault.is_empty(): await blocked_reconnect(current_scene)
   return
  if not settlement_fault.is_empty():
+  if settlement_fault=="cleanup":
+   check(await until(func():
+    return (read("final-snapshot").is_valid_int()
+     and game.net_view.snapshot_received==int(read("final-snapshot"))
+     and game.get_meta(&"guarded_host_cleanup_notice","")==Tx.CLEANUP_NOTICE)),
+    "guest receives one final deferred snapshot with persistent cleanup warning")
+   print("CASE ",JSON.stringify({"case":"guest_final_disconnect_snapshot","sequence":game.net_view.snapshot_received,
+    "warning":game.get_meta(&"guarded_host_cleanup_notice",""),"role":role}))
+   mark("snapshot-"+role)
   var original_world := game.get_instance_id()
   check(await until(func():return current_scene.get_instance_id()!=original_world),"guest leaves on blocked host shutdown")
   check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"guest offline on blocked shutdown")

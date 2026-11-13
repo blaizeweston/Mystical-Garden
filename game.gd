@@ -1324,7 +1324,7 @@ func run_guarded_action(id: int, scope: Transactions.Scope, action: Callable) ->
 		for effect in effects:
 			effect.call()
 		if Transactions.pending_notice(self)==Transactions.CLEANUP_NOTICE and multiplayer.is_server():
-			send_expedition_state.call_deferred(0.0,true)
+			net_view.publish_committed_cleanup.call_deferred(self,online_peer)
 	return result
 
 func record_settlement_metric(effects,event: String,fields: Dictionary) -> void:
@@ -2069,15 +2069,14 @@ func _physics_process(delta: float) -> void:
 func send_expedition_state(delta: float,force := false) -> void:
 	var now := Time.get_ticks_msec()
 	net_view.observe(self)
-	if online_peer != null:
+	var peers := net_view.snapshot_targets(self)
+	if not peers.is_empty():
 		next_details-=delta
 		next_snapshot -= delta
 		if force or next_snapshot <= 0.0:
 			next_snapshot = maxf(0,next_snapshot+0.05)
 			net_view.snapshot_sent+=1
-			for peer_id in multiplayer.get_peers():
-				if not players.has(peer_id) or not players[peer_id].profile_ready:
-					continue
+			for peer_id in peers:
 				var guest: Dictionary = players[peer_id]
 				receive_state.rpc_id(peer_id, var_to_bytes(player_snapshot(peer_id,false)).compress(FileAccess.COMPRESSION_DEFLATE), enemy_pos, enemy_hp, enemy_winding_up,
 					drop_pos, guest.loot_pending, [], depth, guest.carried_seeds.size(),
@@ -2085,8 +2084,7 @@ func send_expedition_state(delta: float,force := false) -> void:
 		if force or next_details<=0:
 			next_details=maxf(0,next_details+.25)
 			var garden_bytes:=var_to_bytes(garden_snapshot()).compress(FileAccess.COMPRESSION_DEFLATE)
-			for peer_id in multiplayer.get_peers():
-				if not players.has(peer_id) or not players[peer_id].profile_ready: continue
+			for peer_id in peers:
 				var details: Dictionary=player_snapshot(peer_id)[peer_id]
 				for key in player_snapshot(peer_id,false)[peer_id]: details.erase(key)
 				receive_details.rpc_id(peer_id,var_to_bytes(details).compress(FileAccess.COMPRESSION_DEFLATE),garden_bytes,inventory_snapshot(players[peer_id]),str([destination,encounter_number,map_seed]))

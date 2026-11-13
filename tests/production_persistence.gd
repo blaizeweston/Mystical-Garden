@@ -382,6 +382,14 @@ func run() -> void:
   "Developer finish research commits the unlock")
  record("developer_grant_and_research",{"grant":grant,"grant_abort":refusal,"research_abort":finish_abort,
   "garden_before":dev_before,"profile":dev_profile})
+ world.return_to_main_menu()
+ await process_frame
+ await selected_technology_effects()
+ menu=current_scene
+ menu.app_settings.values.developer_mode=true
+ if Developer.open_garden(menu,false)!=OK:
+  quit(1);return
+ world=current_scene
  var developer_path: String=world.progress.path
  var prior := Slots._save_digest(developer_path)
  world.progress.knowledge=8
@@ -390,3 +398,112 @@ func run() -> void:
  record("title_lifecycle",{"developer":Slots._save_digest(developer_path),"legacy_preserved":Slots._save_digest(legacy.path)==legacy_hash})
  if not failed: print("PASS: production route title, roster, Garden, recovery and lifecycle")
  quit(1 if failed else 0)
+
+func selected_technology_effects() -> void:
+ var journal = preload("res://diagnostic_journal.gd")
+ var growth_service = preload("res://garden_growth_service.gd")
+ for expected in ["ABORTED_RESTORED","UNCERTAIN","COMMITTED_CLEANUP_PENDING"]:
+  var menu: Node=current_scene
+  menu.app_settings.values.developer_mode=true
+  menu.settings_dialog.begin(menu.app_settings)
+  menu.settings_dialog.developer_controls.open_garden()
+  var game: Node=current_scene
+  if game==menu or not game.has_meta(Tx.SESSION):
+   check(false,"Developer Settings opens a guarded world")
+   return
+  check(game.get_meta(Tx.SESSION).owns_leases(),"Developer Garden and profile leases owned")
+  game.set_process(false)
+  game.set_physics_process(false)
+  game.app_settings.values.garden_cinematics=true
+  game.app_settings.values.ambient_motion=true
+  var scene: Node=game.get_node("GardenInteractions/GrowthScenes")
+  scene.set_process(false)
+  scene.force_playback=true
+  for old_reveal in growth_service.projection(game,1).get("pending",[]):
+   game.send_garden_action("growth_ack:"+str(old_reveal.sequence))
+  check(growth_service.projection(game,1).get("pending",[]).is_empty(),"only the selected reveal is under test")
+  var settings: Window=game.settings_dialog
+  settings.begin(game.app_settings)
+  var controls: Node=settings.developer_controls
+  for i in controls.tech_picker.item_count:
+   if controls.tech_picker.get_item_metadata(i)=="irrigation":
+    controls.tech_picker.select(i)
+    break
+  check(controls.tech_picker.get_selected_metadata()=="irrigation" and not controls.unlock_button.disabled,"actual selected-technology action enabled")
+  var garden_path: String=game.progress.path
+  var profile_path: String=game.local_character.path
+  var garden_before := Slots._save_digest(garden_path)
+  var profile_before := Slots._save_digest(profile_path)
+  var heart: Dictionary=game.progress.heart.serialize().duplicate(true)
+  var rng: int=game.rng.state
+  var staged := {"count":0}
+  var sequence_before: int=journal.current.sequence
+  game.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):
+   if phase=="stage":
+    staged.count+=1
+    if expected=="ABORTED_RESTORED": return ERR_FILE_CANT_WRITE
+   if expected=="UNCERTAIN" and phase in ["publish_commit_marker","restore"]: return ERR_CANT_CREATE
+   if expected=="COMMITTED_CLEANUP_PENDING" and phase=="publish_receipt": return ERR_CANT_CREATE
+   return OK)
+  controls.unlock_button.pressed.emit()
+  scene._process(0)
+  var pending: Array=growth_service.projection(game,1).get("pending",[])
+  var notice := Tx.pending_notice(game)
+  var cleanup: bool = expected=="COMMITTED_CLEANUP_PENDING"
+  var abort: bool = expected=="ABORTED_RESTORED"
+  var garden_after := Slots._save_digest(garden_path)
+  var primary := Slots._save_digest(garden_path+".transaction")
+  var result := {}
+  var log: String=FileAccess.get_file_as_string(journal.current.file.get_path())
+  for line in log.split("\n",false):
+   var entry: Variant=JSON.parse_string(line)
+   if entry is Dictionary and entry.seq>sequence_before and entry.event=="guarded_gameplay_result":
+    result=entry.data
+  check(result.get("outcome")==expected and staged.count==1 and game.rng.state==rng
+   and Slots._save_digest(profile_path)==profile_before,"Developer exact finalization and Garden-only scope")
+  check(settings.visible==not cleanup and scene.event.is_empty() and not game.get_meta("garden_cinematic_active",false),
+   "Developer settings and cinematic respect "+expected)
+  if abort:
+   check(game.progress.heart.serialize()==heart and garden_after==garden_before and primary=="absent"
+    and pending.is_empty() and settings.notice.text.begins_with("Save cancelled"),"aborted unlock leaves no growth receipt")
+  else:
+   check(game.progress.heart.has("irrigation") and pending.size()==1 and garden_after!=garden_before and primary!="absent"
+    and not Tx.session_writable(game) and (notice==Tx.CLEANUP_NOTICE if cleanup else notice.contains("uncertain")),
+    "blocked Developer action retains committed or tentative Garden with one selected reveal")
+   controls.unlock_button.pressed.emit()
+   scene._process(0)
+   check(staged.count==1 and game.rng.state==rng and Slots._save_digest(garden_path)==garden_after and scene.event.is_empty(),
+    "blocked Developer unlock cannot replay or present its growth scene")
+  game.remove_meta(&"guarded_gameplay_test_fault")
+  record("developer_selected_tech_"+expected.to_lower(),{"garden_before":garden_before,"garden_after":garden_after,
+   "profile":profile_before,"journal":primary,"outcome":result,"rng":str(rng),"warning":notice,
+   "settings_visible":settings.visible,"pending_growth":pending})
+  if not abort and not cleanup:
+   check(settings.notice.text.contains(notice),"Developer dialog retains the uncertainty warning")
+  if settings.visible: settings.cancel()
+  game.return_to_main_menu()
+  await process_frame
+  if abort: continue
+  menu=current_scene
+  menu.review_developer_recovery()
+  menu.recovery_confirmation.confirmed.emit()
+  check(Slots._save_digest(garden_path)==(garden_after if cleanup else garden_before)
+   and Slots._save_digest(garden_path+".transaction")=="absent","Developer review selects authoritative version")
+  if not cleanup: continue
+  menu.app_settings.values.developer_mode=true
+  check(Developer.open_garden(menu,false)==OK,"reopen Developer Garden after verified cleanup")
+  game=current_scene
+  scene=game.get_node("GardenInteractions/GrowthScenes")
+  scene.set_process(false)
+  scene.force_playback=true
+  scene._process(0)
+  check(not scene.event.is_empty() and pending.size()==1 and scene.event.sequence==pending[0].sequence,
+   "verified cleanup allows the single original growth reveal")
+  scene.finish(true)
+  scene._process(0)
+  var seen: Dictionary=growth_service.projection(game,1)
+  check(scene.event.is_empty() and seen.pending.is_empty() and pending.size()==1 and seen.seen==pending[0].sequence
+   and game.progress.heart.has("irrigation"),"growth receipt commits once without replaying the unlock")
+  record("developer_selected_tech_recovered",{"seen":seen.seen,"pending":seen.pending,"garden":Slots._save_digest(garden_path)})
+  game.return_to_main_menu()
+  await process_frame

@@ -12,7 +12,8 @@ const Cases = ["apply","abort","recover","cleanup","uncertain","repair","lease",
 var signals: String
 var world: Node
 var failed := false
-var actual_actions := OS.get_environment("MYSTICAL_F5_PROJECTION")=="actions"
+var projection_mode := OS.get_environment("MYSTICAL_F5_PROJECTION")
+var actual_actions := projection_mode in ["actions","appearance"]
 
 func _initialize() -> void:
  call_deferred("run")
@@ -63,7 +64,7 @@ func record_host(key: String, id: int, before: String) -> void:
  var payload := current(id)
  print("CASE ",JSON.stringify({"case":key,"role":"host","before":before,"after":Slots._save_digest(G),
   "receipt":payload.projection,"familiarity":payload.profile.plants[0],"upgrades":payload.profile.upgrades,
-  "loadout":payload.profile.loadouts[0],"delivery":delivery(id).get("state","")}))
+  "loadout":payload.profile.loadouts[0],"appearance":payload.profile.appearance,"delivery":delivery(id).get("state","")}))
 
 func record_guest(key: String, before: String) -> void:
  var profile := Profile.new()
@@ -72,6 +73,7 @@ func record_guest(key: String, before: String) -> void:
  print("CASE ",JSON.stringify({"case":key,"role":"guest","before":before,"after":Slots._save_digest(P),
   "receipts":profile.projection_receipts,"canonical_familiarity":profile.data.plants[0],
   "memory_familiarity":world.guest_character.data.plants[0],"loadout":profile.data.loadouts[0],
+  "canonical_appearance":profile.data.appearance,"memory_appearance":world.guest_character.data.appearance,
   "notice":Tx.pending_notice(world),"feedback":world.status,"journal":Slots._save_digest(P+".transaction")}))
 
 func send_action(id: int, key: String) -> bool:
@@ -280,7 +282,7 @@ func action_host() -> void:
   check(false,"actual host title launch")
   return
  mark("listen",str(world.network_port))
- for step in ["learn","respec","loadout"]:
+ for step in (["appearance"] if projection_mode=="appearance" else ["learn","respec","loadout"]):
   if not await until(func(): return peer()!=0 and delivery(peer()).get("state")=="committed" and read(step+"-ready")=="ready"):
    check(false,step+" guest admitted")
    return
@@ -288,9 +290,15 @@ func action_host() -> void:
   var player: Dictionary = world.players[id]
   player.pos = world.Stage.GATE if step=="loadout" else world.Stage.HEART
   var before := Slots._save_digest(G)
-  var old := current(id)
+  var old := current(id).duplicate(true)
   mark(step+"-send")
-  var expected: String = {"learn":"aborted","respec":"cleanup_pending","loadout":"uncertain"}[step]
+  if step=="appearance":
+   check(await until(func(): return current(id).projection.revision>old.projection.revision),
+    "actual guest action commits an appearance revision on the host")
+   check(delivery(id).get("state")=="pending" and Slots._save_digest(G)!=before,
+    "host Garden commits before any guest success acknowledgment")
+   record_host("appearance_pending_ack",id,before)
+  var expected: String = {"learn":"aborted","respec":"cleanup_pending","loadout":"uncertain","appearance":"aborted"}[step]
   if not await until(func(): return delivery(id).get("state")==expected and read(step+"-observed")=="ready"):
    check(false,step+" acknowledgment disposition "+str(delivery(id)))
    return
@@ -300,6 +308,7 @@ func action_host() -> void:
    "learn": check(committed.profile.upgrades[0]!=0,"actual learn updates host projection")
    "respec": check(committed.profile.upgrades[0]==0,"actual respec updates host projection")
    "loadout": check(committed.profile.loadouts[0].weapon==1,"actual loadout updates host projection")
+   "appearance": check(committed.profile.appearance[0]==(int(old.profile.appearance[0])+1)%world.LOOK_NAMES[0].size(),"host records appearance once without waiting for the guest save")
   record_host("actual_"+step,id,before)
   mark(step+"-leave")
   if not await until(func(): return peer()!=0 and peer()!=id and delivery(peer()).get("state")=="committed" and read(step+"-rejoined")=="ready"):
@@ -333,13 +342,13 @@ func action_guest() -> void:
  if not await open_guest(menu):
   check(false,"actual action guest admitted")
   return
- for step in ["learn","respec","loadout"]:
+ for step in (["appearance"] if projection_mode=="appearance" else ["learn","respec","loadout"]):
   var before := Slots._save_digest(P)
   var prior: Dictionary = world.guest_character.data.duplicate(true)
   var stages := {"count":0}
   world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):
    if phase=="stage": stages.count+=1
-   if step=="learn" and phase=="stage": return ERR_FILE_CANT_WRITE
+   if step in ["learn","appearance"] and phase=="stage": return ERR_FILE_CANT_WRITE
    if step=="respec" and phase=="publish_receipt": return ERR_CANT_CREATE
    if step=="loadout" and phase in ["publish_commit_marker","restore"]: return ERR_CANT_CREATE
    return OK)
@@ -347,7 +356,7 @@ func action_guest() -> void:
   if not await until(func(): return read(step+"-send")=="ready"):
    check(false,step+" host positions traveller")
    return
-  world.send_garden_action({"learn":"learn_0_12","respec":"respec_0","loadout":"loadweapon_1"}[step])
+  world.send_garden_action({"learn":"learn_0_12","respec":"respec_0","loadout":"loadweapon_1","appearance":"look_0"}[step])
   if not await until(func(): return stages.count==1 and (world.has_meta(&"guest_projection_notice") or not Tx.pending_notice(world).is_empty())):
    check(false,step+" local projection result")
    return
@@ -359,6 +368,10 @@ func action_guest() -> void:
     check(blocked!=before and world.guest_character.data.upgrades[0]==0 and Tx.pending_notice(world)==Tx.CLEANUP_NOTICE,"respec cleanup pending keeps confirmed change and warning")
    "loadout":
     check(Tx.pending_notice(world).contains("uncertain") and FileAccess.file_exists(P+".transaction"),"uncertain loadout keeps recovery evidence")
+   "appearance":
+    check(blocked==before and world.guest_character.data.appearance==prior.appearance
+     and world.get_meta(&"guest_projection_notice","").contains("not saved"),
+     "failed appearance save preserves local canonical and runtime profile and displays refusal")
   record_guest("actual_"+step,before)
   mark(step+"-observed")
   if not await until(func(): return read(step+"-leave")=="ready"):
@@ -368,7 +381,7 @@ func action_guest() -> void:
   check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"action guest offline before detach")
   await process_frame
   menu=current_scene
-  if step!="learn":
+  if step in ["respec","loadout"]:
    check(menu.recovery_notice.visible and menu.join_button.disabled,step+" title keeps recovery warning and blocks Join")
    menu.character_recovery_button.pressed.emit()
    menu.recovery_confirmation.confirmed.emit()
@@ -380,7 +393,11 @@ func action_guest() -> void:
    "learn": check(world.guest_character.data.upgrades[0]!=0,"Learn is applied once on reconnect")
    "respec": check(world.guest_character.data.upgrades[0]==0,"reconnect preserves refunded class points")
    "loadout": check(world.guest_character.data.loadouts[0].weapon==1,"reconnect applies current loadout")
+   "appearance":
+    check(world.guest_character.data.appearance[0]==(int(prior.appearance[0])+1)%world.LOOK_NAMES[0].size()
+     and Slots._save_digest(P)!=before,"reconnect commits host appearance revision to the guest profile exactly once")
   var joined := Slots._save_digest(P)
+  if step=="appearance": record_guest("appearance_reconnect",before)
   mark(step+"-rejoined")
   check(await until(func():return read(step+"-duplicate")=="ready"),"host sends duplicate and delayed revision")
   await create_timer(.3).timeout

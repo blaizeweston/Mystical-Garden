@@ -142,7 +142,9 @@ func run_tool(action: String) -> void:
 			result = Developer.test_unlock(context,tech)
 	settings.notice.text = Transactions.feedback_text(context, result)
 	refresh_tools()
-	if not tech.is_empty() and context.progress.heart.has(tech):
+	# An uncertain save retains tentative research in memory for recovery.
+	var pending := Transactions.pending_notice(context)
+	if not tech.is_empty() and context.progress.heart.has(tech) and (pending.is_empty() or pending == Transactions.CLEANUP_NOTICE):
 		context.tell(context.HOST,result)
 		settings.cancel()
 		context.toggle_overlay(null)

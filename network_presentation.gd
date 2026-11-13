@@ -9,6 +9,28 @@ var rejected_snapshots:=0
 var snapshot_gaps:=0
 func clear() -> void:
  server_vitals.clear();client_vitals.clear();flash_until.clear();snapshot_sent=0;snapshot_received=-1;rejected_snapshots=0;snapshot_gaps=0
+func snapshot_targets(game: Node) -> PackedInt32Array:
+ var targets := PackedInt32Array()
+ var transport: ENetMultiplayerPeer = game.online_peer
+ if transport==null or game.multiplayer.multiplayer_peer!=transport or not game.multiplayer.is_server() \
+  or transport.get_connection_status()!=MultiplayerPeer.CONNECTION_CONNECTED:
+  return targets
+ for id in game.multiplayer.get_peers():
+  if not game.players.get(id,{}).get("profile_ready",false): continue
+  var peer := transport.get_peer(id)
+  # Godot reserves channels 0 and 1. Snapshot RPC channel 4 uses ENet channel 5.
+  if peer!=null and peer.is_active() and peer.get_state()==ENetPacketPeer.STATE_CONNECTED and peer.get_channels()>5:
+   targets.append(id)
+ return targets
+
+func publish_committed_cleanup(game: Node, transport: ENetMultiplayerPeer) -> void:
+ var tx=preload("res://game_transaction.gd")
+ if not is_instance_valid(game) or not game.is_inside_tree() or transport==null or game.online_peer!=transport:
+  return
+ if game.get_meta(tx.STOPPING,false) or not game.has_meta(tx.SESSION) or not game.get_meta(tx.SESSION).owns_leases():
+  return
+ game.send_expedition_state(0.0,true)
+
 func observe(game: Node) -> void:
  var changes={}
  for id in game.players:
@@ -18,9 +40,9 @@ func observe(game: Node) -> void:
   var revision=int(server_vitals.get(id,{}).get("revision",0))+1
   var state={"revision":revision,"hp":p.hp,"max_hp":p.get("max_hp",10),"fallen":p.fallen,"lost_health":p.get("lost_health",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0)}
   server_vitals[id]={"signature":signature,"revision":revision};p.vitals_revision=revision;changes[id]=state
- if not changes.is_empty() and game.online_peer!=null:
-  for id in game.multiplayer.get_peers():
-   if game.players.has(id) and game.players[id].profile_ready:game.receive_vitals.rpc_id(id,changes)
+ if not changes.is_empty():
+  for id in snapshot_targets(game):
+   game.receive_vitals.rpc_id(id,changes)
 func accept_sequence(sequence: int) -> bool:
  if sequence<0:return true # Explicit local fixtures, never transmitted by the host.
  if sequence<=snapshot_received:rejected_snapshots+=1;return false

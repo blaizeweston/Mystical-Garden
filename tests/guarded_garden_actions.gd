@@ -6,7 +6,7 @@ const Slots = preload("res://save_slots.gd")
 const Gate = preload("res://persistence_writer_integration.gd")
 const Ops = preload("res://persistence_operations.gd")
 const Plan = preload("res://persistence_recovery_plan.gd")
-const G := "user://saves/slot_1/garden.cfg"
+var garden_path := "user://saves/slot_1/garden.cfg"
 const C := "user://saves/characters/slot_1/character.cfg"
 var failed := false
 var world: Node
@@ -22,7 +22,7 @@ func check(ok: bool, message: String) -> void:
 
 func disk() -> Dictionary:
  var result := {}
- for path in [G, C]:
+ for path in [garden_path, C]:
   for suffix in [""] + Plan.ARTIFACTS:
    result[path + suffix] = Slots._save_digest(path + suffix)
  return result
@@ -41,9 +41,9 @@ func open_world(fresh := false) -> bool:
  check(title.production_route and title.guarded_persistence, "configured title selects guarded route")
  if fresh:
   title.new_button.pressed.emit()
-  check(title.creator.visible, "New opens title character creator")
-  title.creator.name_field.text = "Candidate Keeper"
-  title.creator.confirmed.emit()
+  if title.creator.visible:
+   title.creator.name_field.text = "Candidate Keeper"
+   title.creator.confirmed.emit()
   if current_scene == title: title.new_button.pressed.emit()
  else:
   title.continue_button.pressed.emit()
@@ -74,6 +74,10 @@ func run() -> void:
   quit(1)
   return
  await gameplay()
+ if not failed:
+  current_scene.select_slot(1)
+  garden_path = "user://saves/slot_2/garden.cfg"
+  await caller_effects()
  if not failed: print("PASS: guarded Garden actions, harvest, grafting, cards, loadouts, abort, uncertainty and cleanup")
  quit(1 if failed else 0)
 
@@ -89,7 +93,7 @@ func gameplay() -> void:
  world.progress.stock[0] = 4
  world.progress.stock[1] = 4
  world.garden_action(1,"experiment")
- check(world.progress.stock[0]==3 and world.progress.stock[1]==3 and disk()[G]!=before[G] and disk()[C]==before[C], "experiment consumes seeds and commits only Garden")
+ check(world.progress.stock[0]==3 and world.progress.stock[1]==3 and disk()[garden_path]!=before[garden_path] and disk()[C]==before[C], "experiment consumes seeds and commits only Garden")
  var breeding_before := disk()
  var breeding_rng: int = world.rng.state
  var breeding_stock: Array = world.progress.stock.duplicate()
@@ -112,7 +116,7 @@ func gameplay() -> void:
   and world.status.begins_with("Save cancelled"),"Altar combine abort restores ingredients, recipes and RNG")
  record("altar_combine_abort",altar_before,{"feedback":world.status})
  world.send_altar_action("combine",ingredients,2)
- check(disk()[G]!=altar_before[G] and disk()[C]==altar_before[C]
+ check(disk()[garden_path]!=altar_before[garden_path] and disk()[C]==altar_before[C]
   and world.progress.altar_recipes.size()==recipes_before.size()+1,"Altar combine commits Garden-only recipe")
  record("altar_combine_commit",altar_before,{"feedback":world.status})
  world.seed_reserve(p).unknown.assign([0,1])
@@ -124,7 +128,7 @@ func gameplay() -> void:
   and world.status.begins_with("Save cancelled"),"identify-all abort preserves mystery seeds")
  record("identify_all_abort",identify_before,{"feedback":world.status})
  world.send_altar_action("identify_all",[],4)
- check(world.seed_reserve(p).unknown.is_empty() and disk()[G]!=identify_before[G]
+ check(world.seed_reserve(p).unknown.is_empty() and disk()[garden_path]!=identify_before[garden_path]
   and disk()[C]==identify_before[C],"identify-all commits only Garden")
  record("identify_all_commit",identify_before,{"feedback":world.status})
  # Restore the ingredient count needed by the independent donation scenarios.
@@ -151,11 +155,11 @@ func gameplay() -> void:
  world.remove_meta(&"guarded_gameplay_test_fault")
  check(disk() == research_before and world.progress.heart.serialize() == heart_before
   and world.progress.parts == parts_before and world.status.begins_with("Save cancelled")
-  and research_stages == [G + ".txn_stage"], "research abort restores Knowledge, research and bytes without success")
+  and research_stages == [garden_path + ".txn_stage"], "research abort restores Knowledge, research and bytes without success")
  record("research_abort",research_before,{"stages":research_stages,"feedback":world.status})
  world.garden_action(1, "research")
  check(world.progress.heart.active == "flowering" and world.status.begins_with("Researching")
-  and disk()[G] != research_before[G] and disk()[C] == research_before[C], "research starts with Garden-only commit")
+  and disk()[garden_path] != research_before[garden_path] and disk()[C] == research_before[C], "research starts with Garden-only commit")
  var infused_before: int = world.progress.heart.infused.get("flowering", 0)
  world.garden_action(1, "research")
  check(int(world.progress.heart.infused.get("flowering", 0)) == infused_before + 1,
@@ -174,7 +178,7 @@ func gameplay() -> void:
  record("research_completion_abort",timer_before,{"feedback":world.status})
  world.growth_clock=1.0
  world._physics_process(0.2)
- check(world.progress.flowering_unlocked and disk()[G]!=timer_before[G] and disk()[C]==timer_before[C],
+ check(world.progress.flowering_unlocked and disk()[garden_path]!=timer_before[garden_path] and disk()[C]==timer_before[C],
   "periodic completion commits Garden unlock")
  record("research_completion_commit",timer_before,{"feedback":world.status})
  var growth = world.progress.garden_interactions.growth
@@ -190,7 +194,7 @@ func gameplay() -> void:
   "growth receipt abort preserves unseen reveal")
  record("growth_receipt_abort",receipt_before,{"seen":seen_before,"sequence":sequence})
  world.garden_action(1,"growth_ack:"+str(sequence))
- check(int(world.progress.garden_interactions.growth.seen.get(who,0))==sequence and disk()[G]!=receipt_before[G],
+ check(int(world.progress.garden_interactions.growth.seen.get(who,0))==sequence and disk()[garden_path]!=receipt_before[garden_path],
   "growth receipt commits matching reveal")
  var acknowledged := disk()
  world.garden_action(1,"growth_ack:"+str(sequence))
@@ -259,7 +263,7 @@ func gameplay() -> void:
   and world.status.begins_with("Save cancelled"), "abort restores bytes, bed, profile, RNG and withholds audio")
  record("harvest_serializer_abort",before,{"staged":stage_attempts,"status":world.status,"audio":audio_count()})
  check(world.harvest(1,0) and world.progress.plots[0].species<0 and p.character.plants[0]==1
-  and world.rng.state!=rng_before and disk()[G]!=before[G] and disk()[C]!=before[C] and audio_count()==start_audio+1,
+  and world.rng.state!=rng_before and disk()[garden_path]!=before[garden_path] and disk()[C]!=before[C] and audio_count()==start_audio+1,
   "retry commits crop, Garden and profile, with one post-commit cue")
  check(not world.harvest(1,0) and audio_count()==start_audio+1, "duplicate harvest cannot reward or emit")
  record("harvest_retry_committed",before,{"profile":p.character.plants[0],"status":world.status,"audio":audio_count()})
@@ -273,14 +277,14 @@ func gameplay() -> void:
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.refresh_feedback()
  check(world.progress.stock[0]==seed_count+2 and p.character.plants[0]==2 and world.rng.state==rng_before and audio_count()==start_audio+2
-  and disk()[G]!=before[G] and disk()[C]!=before[C] and Plan.discover(PackedStringArray([G])).state=="pending_recovery"
+  and disk()[garden_path]!=before[garden_path] and disk()[C]!=before[C] and Plan.discover(PackedStringArray([garden_path])).state=="pending_recovery"
   and world.feedback.text.contains("Harvested two") and world.feedback.text.contains("Recovery cleanup is pending"),
   "flowering confirmed with one success/audio and retained cleanup warning")
  var committed:=disk()
  world.garden_action(1,"flower")
  check(disk()==committed and audio_count()==start_audio+2,"pending blocks replay")
  record("flower_committed_cleanup_pending",before,{"notice":Tx.pending_notice(world),"feedback":world.feedback.text,"audio":audio_count()})
- check(Ops.recover(PackedStringArray([G])).value.verified and disk()[G]==committed[G] and disk()[C]==committed[C], "verified B2 cleanup preserves committed bytes")
+ check(Ops.recover(PackedStringArray([garden_path])).value.verified and disk()[garden_path]==committed[garden_path] and disk()[C]==committed[C], "verified B2 cleanup preserves committed bytes")
  close_world()
  await process_frame
  if not open_world(): return
@@ -348,13 +352,13 @@ func gameplay() -> void:
  before=disk()
  rng_before=world.rng.state
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,path):
-  if phase=="replace" and path==G:return ERR_CANT_CREATE
+  if phase=="replace" and path==garden_path:return ERR_CANT_CREATE
   return ERR_FILE_CANT_WRITE if phase=="restore" else OK)
  check(not world.harvest(1,0), "uncertain actual harvest withholds success")
  world.remove_meta(&"guarded_gameplay_test_fault")
  var split:=disk()
  check(world.progress.plots[0].species<0 and p.character.plants[0]==3 and world.rng.state!=rng_before and audio_count()==0
-  and split[C]!=before[C] and split[G]==before[G] and Tx.pending_notice(world).contains("uncertain"),"uncertainty preserves tentative memory and split proof without cue")
+  and split[C]!=before[C] and split[garden_path]==before[garden_path] and Tx.pending_notice(world).contains("uncertain"),"uncertainty preserves tentative memory and split proof without cue")
  check(not world.harvest(1,0) and split==disk(),"uncertain replay refused")
  record("harvest_uncertain",before,{"tentative_familiarity":p.character.plants[0],"notice":Tx.pending_notice(world)})
  check(Ops.recover(PackedStringArray([C])).value.verified and disk()==before, "reverse recovery restores original pair")
@@ -378,13 +382,13 @@ func gameplay() -> void:
  lease.store_buffer(original_lease)
  lease.close()
  cfg=ConfigFile.new()
- cfg.set_value("transaction","entries",{G:{"exists":true,"bytes":FileAccess.get_file_as_bytes(G)}})
+ cfg.set_value("transaction","entries",{garden_path:{"exists":true,"bytes":FileAccess.get_file_as_bytes(garden_path)}})
  cfg.set_value("transaction","committed",false)
- check(cfg.save(G+".transaction")==OK,"create pending journal")
+ check(cfg.save(garden_path+".transaction")==OK,"create pending journal")
  before=disk()
  check(not world.harvest(1,0) and disk()==before and world.progress.plots[0].species==0 and Tx.pending_notice(world).contains("recovery is pending"),"pending journal refuses without mutation")
  record("lease_and_recovery_refusals",before,{"notice":Tx.pending_notice(world)})
- check(Ops.recover(PackedStringArray([G])).value.verified,"recover disposable pending fixture")
+ check(Ops.recover(PackedStringArray([garden_path])).value.verified,"recover disposable pending fixture")
  close_world()
  await process_frame
  await terminal_wilds_faults()
@@ -403,7 +407,7 @@ func terminal_wilds_faults() -> void:
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.refresh_feedback()
  check(actor.carried_parts[world.Parts.HOOK]==1 and not actor.graft_message.is_empty()
-  and world.feedback.text.contains(Tx.CLEANUP_NOTICE) and disk()[G+".transaction"]!="absent",
+  and world.feedback.text.contains(Tx.CLEANUP_NOTICE) and disk()[garden_path+".transaction"]!="absent",
   "committed graft consumes a part once and retains cleanup warning")
  var committed := disk()
  world.garden_action(1,"graft_install_"+str(world.Parts.HOOK))
@@ -413,7 +417,7 @@ func terminal_wilds_faults() -> void:
  await process_frame
  current_scene.garden_recovery_button.pressed.emit()
  current_scene.recovery_confirmation.confirmed.emit()
- check(disk()[G]==committed[G] and disk()[G+".transaction"]=="absent","title cleanup preserves graft save")
+ check(disk()[garden_path]==committed[garden_path] and disk()[garden_path+".transaction"]=="absent","title cleanup preserves graft save")
  if not open_world(): return
  actor=world.players[1]
  actor.wild=true
@@ -430,7 +434,7 @@ func terminal_wilds_faults() -> void:
  world.garden_action(1,"bank_part_1")
  world.remove_meta(&"guarded_gameplay_test_fault")
  check(actor.carried_parts[1]==0 and actor.last_deposit==6 and Tx.pending_notice(world).contains("uncertain")
-  and not world.status.begins_with("Banked") and disk()[G+".transaction"]!="absent",
+  and not world.status.begins_with("Banked") and disk()[garden_path+".transaction"]!="absent",
   "courier uncertainty retains tentative cargo and withholds success")
  var unresolved := disk()
  world.garden_action(1,"bank_part_1")
@@ -441,3 +445,120 @@ func terminal_wilds_faults() -> void:
  current_scene.garden_recovery_button.pressed.emit()
  current_scene.recovery_confirmation.confirmed.emit()
  check(disk()==initial,"title B2 restores courier original bytes")
+
+func caller_effect_fault(phase: String, _path: String, outcome: String, attempts: Dictionary) -> Error:
+ if phase=="stage":
+  attempts.count+=1
+  if outcome=="ABORTED_RESTORED": return ERR_FILE_CANT_WRITE
+ if outcome=="UNCERTAIN" and phase in ["publish_commit_marker","restore"]: return ERR_CANT_CREATE
+ if outcome=="COMMITTED_CLEANUP_PENDING" and phase=="publish_receipt": return ERR_CANT_CREATE
+ return OK
+
+func caller_effects() -> void:
+ var fresh := true
+ for action in ["upgrade","water","observation"]:
+  for outcome in ["ABORTED_RESTORED","UNCERTAIN","COMMITTED_CLEANUP_PENDING"]:
+   if not open_world(fresh): return
+   fresh=false
+   var player: Dictionary=world.players[1]
+   var committed: bool = outcome=="COMMITTED_CLEANUP_PENDING"
+   var aborted: bool = outcome=="ABORTED_RESTORED"
+   var command := ""
+   var metric_before := FileAccess.get_file_as_string("user://metrics.jsonl").count('"event":"upgrade"')
+   match action:
+    "upgrade":
+     player.wild=true
+     world.encounter_number=18
+     world.deepest_milestone=18
+     world.enemy_hp=0
+     world.scouts.clear()
+     world.checkpoint_pending=true
+     player.pos=world.battlefield.advance
+     player.weapon=world.Parts.VEIL
+     player.graft_part=world.Parts.HOOK
+     player.offer_floor=18
+     player.checkpoint_offers=["rift_hook","power","reach"]
+     world.present_checkpoint_cards(1)
+     command="checkpoint_choice_0"
+    "water":
+     for tech in ["clearing_1","irrigation"]:
+      if not world.progress.heart.has(tech): world.progress.heart.unlocked.append(tech)
+     var bed: Dictionary=world.progress.empty_plot().merged({"species":0,"stage":1},true)
+     preload("res://garden_crop_state.gd").ensure(bed)
+     preload("res://cultivation_growth.gd").initialize(bed)
+     world.progress.plots[0]=bed
+     world.progress.sync_plot_flags()
+     player.spring_water=true
+     player.pos=world.Stage.PLOTS[0]
+     command="garden:"+JSON.stringify({"point":"bed_1","action":"water_crop","request":"f6-water",
+      "revision":bed.care.revision,"stage":1,"cycle":bed.care.cycle})
+    "observation":
+     var point := preload("res://garden_interaction_catalog.gd").point("heart_root_scar")
+     player.pos=point.position
+     command="garden:"+JSON.stringify({"point":point.id,"action":"observe","request":"f6-observation",
+      "revision":world.progress.garden_interactions.get("revision",0)})
+   var before := disk()
+   var journal = preload("res://diagnostic_journal.gd").current
+   var sequence_before: int=journal.sequence
+   var rng_before: int=world.rng.state
+   var attempts := {"count":0}
+   world.set_meta(&"guarded_gameplay_test_fault",caller_effect_fault.bind(outcome,attempts))
+   world.send_garden_action(command)
+   var after := disk()
+   var status: String=world.status
+   var notice := Tx.pending_notice(world)
+   var staged: int=attempts.count
+   var finalization := {}
+   for line in FileAccess.get_file_as_string(journal.file.get_path()).split("
+",false):
+    var row: Variant=JSON.parse_string(line)
+    if row is Dictionary and row.seq>sequence_before and row.event=="guarded_gameplay_result":
+     finalization=row.data
+   check(finalization.get("outcome")==outcome,action+" produced exact typed finalization")
+   var facts := {"outcome":finalization,"status":status,"notice":notice,"stages":staged,
+    "rng_before":str(rng_before),"rng_after":str(world.rng.state)}
+   check(staged>0 and world.rng.state==rng_before,action+" stages without consuming RNG")
+   check((after==before and notice.is_empty() and status.begins_with("Save cancelled")) if aborted else
+    (after[garden_path]!=before[garden_path] and after[garden_path+".transaction"]!="absent" and not Tx.session_writable(world)
+     and ((notice==Tx.CLEANUP_NOTICE) if committed else notice.contains("uncertain"))),action+" "+outcome+" evidence")
+   player=world.players[1]
+   match action:
+    "upgrade":
+     var upgrades: int=FileAccess.get_file_as_string("user://metrics.jsonl").count('"event":"upgrade"')-metric_before
+     check(world.progress.rift_hook_discovered==not aborted and int(player.get("run_upgrades",{}).get("rift_hook",0))==int(not aborted)
+      and (int(player.spent)>0)==not aborted and (world.checkpoint_ready.get(1,0)==18)==committed
+      and world.encounter_number==18 and world.overlay.visible==not committed
+      and status.contains("Rank 1 gained")==committed and upgrades==int(committed),"upgrade entitlement, picker and publication match "+outcome)
+     facts.merge({"rank":player.get("run_upgrades",{}).get("rift_hook",0),"spent":player.spent,"ready":world.checkpoint_ready.get(1,0),
+      "panel_open":world.overlay.visible,"metrics":upgrades})
+    "water":
+     var watered := preload("res://cultivation_growth.gd").watered(world.progress.plots[0])
+     var cues: int=world.combat_events.filter(func(event):return event.shape=="crop_watered").size()
+     check(watered==not aborted and bool(player.spring_water)==not committed and cues==int(committed)
+      and status.begins_with("Spring water nourishes")==committed,"water cost, crop, and cue match "+outcome)
+     facts.merge({"watered":watered,"vessel_filled":player.spring_water,"cues":cues,
+      "revision":world.progress.plots[0].care.revision})
+    "observation":
+     var state: Dictionary=world.progress.garden_interactions
+     var recorded := preload("res://garden_interaction_state.gd").observed(state,"old_root_scar")
+     var receipt := preload("res://garden_interaction_state.gd").receipt(state,world.local_character.identity+":f6-observation")
+     check(recorded==not aborted and receipt.is_empty()==aborted
+      and status.begins_with("Garden observation recorded")==committed,"observation discovery and notification match "+outcome)
+     facts.merge({"recorded":recorded,"receipt":receipt,"revision":state.get("revision",0)})
+   if not aborted:
+    world.send_garden_action(command)
+    world.refresh_feedback()
+    check(attempts.count==staged and disk()==after and world.rng.state==rng_before
+     and world.feedback.text.contains(notice),action+" replay leaves bytes, RNG, and visible warning intact")
+    facts["feedback_after_replay"]=world.feedback.text
+   world.remove_meta(&"guarded_gameplay_test_fault")
+   record(action+"_"+outcome.to_lower(),before,facts)
+   close_world()
+   await process_frame
+   if not aborted:
+    current_scene.garden_recovery_button.pressed.emit()
+    check(not current_scene.recovery_confirmation.get_ok_button().disabled,action+" recovery plan selectable")
+    current_scene.recovery_confirmation.confirmed.emit()
+    current_scene.recovery_confirmation.hide()
+    check(disk()[garden_path]==(after[garden_path] if committed else before[garden_path]) and disk()[C]==(after[C] if committed else before[C])
+     and disk()[garden_path+".transaction"]=="absent",action+" recovery preserves the authoritative version")
