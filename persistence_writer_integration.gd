@@ -7,7 +7,6 @@ const REQUIRED_WRITERS = {
  "save_batch.gd::write_bytes/write": "raw writes, staging and standalone replacement",
  "save_batch.gd::begin/commit/cancel": "journal creation, replacement and staging cleanup",
  "save_batch.gd::recover": "linked recovery and artifact cleanup",
- "app_settings.gd::save_settings": "shared SaveBatch caller that can join an active batch",
  "game_transaction.gd::run": "transaction ownership and commit-outcome handling",
  "progress.gd::save_garden/load_garden": "Garden serialization, migration backups and recovery",
  "character_profile.gd::save_profile/load_profile": "profile serialization, migration backups and recovery",
@@ -21,7 +20,23 @@ const REQUIRED_WRITERS = {
  "character_slots.gd::create/update": "roster serialization and leases",
  "character_slots.gd::set_capacity/remember": "roster catalog updates",
  "character_slots.gd::delete_character/remove_character": "profile recovery, archive, catalog and compensation",
+ "main_menu.gd::_ready/launch": "default title preparation and Continue/Join still select legacy writers",
+ "developer_mode.gd::open_garden": "default Developer Garden uses legacy creation, replacement and lease paths",
+ "game.gd::_ready/_notification/return_to_main_menu/_exit_tree": "legacy startup, close, title return and lease release remain reachable",
+ "game.gd::register_character/receive_character/remove_player": "legacy admission, profile projection and disconnect writers remain reachable",
+ "persistence_operations.gd::recover": "production recovery entry point and evidence reconciliation still require integration",
 }
+const AUXILIARY_WRITERS = {
+ "app_settings.gd::save_settings": "settings.cfg, standalone preferences",
+ "network_settings.gd::save_settings": "network.cfg, standalone preferences",
+ "diagnostic_journal.gd::record/status_file/export_report": "local diagnostics and report output",
+ "game_metrics.gd::record/flush": "local metrics, published separately from canonical writes",
+}
+const CUTOVER_REQUIREMENTS = [
+ "legacy_build_exclusion",
+ "production_recovery_and_migration_validation",
+ "stage_a_serializer_and_guest_acknowledgment",
+]
 # Record production entry points here only once the actual call sites enforce the
 # scope and both source and packaged writer fixtures cover refusal and success.
 const VERIFIED_WRITERS = []
@@ -55,6 +70,7 @@ static func activation_status() -> Dictionary:
  for writer: String in REQUIRED_WRITERS:
   if not VERIFIED_WRITERS.has(writer):
    blockers.append(writer)
+ blockers.append_array(CUTOVER_REQUIREMENTS)
  if not PRODUCTION_CUTOVER_APPROVED:
   blockers.append("production_cutover_not_approved")
  blockers.sort()

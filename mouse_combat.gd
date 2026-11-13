@@ -30,7 +30,7 @@ func release(game: Node) -> void:
  armed=false
  var id: int=game.multiplayer.get_unique_id()
  if states.has(id):states[id].held=false
- if game.session=="Guest" and game.players.has(id):
+ if game.session=="Guest" and game.online_peer!=null and id!=game.HOST and game.multiplayer.get_peers().has(game.HOST) and game.players.has(id):
   var aim: Vector3=game.players[id].get("facing",Vector3.FORWARD) if local_aim.is_zero_approx() else local_aim
   game.submit_combat.rpc_id(game.HOST,Vector2(aim.x,aim.z),false)
 func frame(game: Node) -> void:

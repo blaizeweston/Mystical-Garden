@@ -307,14 +307,10 @@ func _notification(what: int) -> void:
 	if what==NOTIFICATION_WM_WINDOW_FOCUS_OUT: mouse_controls.release(self)
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		if has_meta(Transactions.SESSION):
-			if Transactions.session_writable(self):
-				if session in ["Host","Solo"] and expedition_active():
-					if not finish_failed_expedition() and Transactions.pending_notice(self).is_empty(): return
-				elif session in ["Host","Solo"] and (not pending_departures.is_empty() or not pending_kill_rewards.is_empty()):
-					if not MonsterRewards.flush(self) and Transactions.pending_notice(self).is_empty(): return
-				elif character_dirty and not save_local_character() and Transactions.pending_notice(self).is_empty(): return
+			if not prepare_guarded_exit(): return
 			set_meta(Transactions.STOPPING, true)
 			go_offline()
+			release_slot()
 			get_tree().quit()
 			return
 		if session in ["Host","Solo"] and expedition_active():
@@ -431,7 +427,8 @@ func build_hud() -> void:
 	add_button(exit_row,"Return to Main Menu",request_main_menu)
 	network_dialog=preload("res://network_panel.gd").new();add_child(network_dialog)
 	network_dialog.applied.connect(func(address: String,port: int,_join: bool):
-		Network.save_settings(slot_storage_root,address,port)
+		var saved := Network.save_settings(slot_storage_root,address,port)
+		if saved!=OK: Journal.event("network","preference_save_failed",{"error":saved},"warning")
 		if join_game(address,port)!=OK:
 			network_dialog.begin(address,port,true,str(local_character.data.get("name","Wanderer")),Transactions.feedback_text(self, status)))
 	travel_panel=hud_panel(surface,Color("#14262b"),Vector2(16,10))
@@ -589,6 +586,9 @@ func add_button(parent: Control, caption: String, action: Callable) -> Button:
 
 
 func host_game(port: int=0) -> Error:
+	if has_meta(Transactions.SESSION) and (not Transactions.session_writable(self) or not get_meta(Transactions.SESSION).authorizes(progress.path)):
+		status="Hosting requires access to your selected Garden."
+		return ERR_UNAUTHORIZED
 	if not Transactions.pending_notice(self).is_empty(): return ERR_BUSY
 	if has_meta("developer_garden"):
 		status="The Developer Garden is single-player."
@@ -610,6 +610,9 @@ func host_game(port: int=0) -> Error:
 
 
 func on_joined_world() -> void:
+	if has_meta(Transactions.SESSION) and (session!="Connecting" or not Transactions.session_writable(self)):
+		_stop_guarded_session("This session lost access to its save. Returning to the title.")
+		return
 	Journal.event("network","transport_connected")
 	set_meta("join_phase","character")
 	status = Network.join_progress("character",network_address,network_port)
@@ -620,9 +623,14 @@ func on_joined_world() -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func register_character(identity: String, profile: Dictionary,catalog: Dictionary={},protocol: int=0) -> void:
-	if not Transactions.session_writable(self): return
 	var id := multiplayer.get_remote_sender_id()
 	if not multiplayer.is_server() or not players.has(id) or players[id].profile_ready:
+		return
+	if not Transactions.session_writable(self):
+		reject_peer(id, Transactions.feedback_text(self,"The host's Garden is unavailable."))
+		return
+	if has_meta(Transactions.SESSION) and not get_meta(Transactions.SESSION).authorizes(progress.path):
+		reject_peer(id,"The host does not own the selected Garden.")
 		return
 	var reason:=admission_error(identity,catalog,protocol)
 	if var_to_bytes(profile).size()>32768: reason="This character profile is too large."
@@ -636,12 +644,18 @@ func register_character(identity: String, profile: Dictionary,catalog: Dictionar
 		for c in incoming.xp.size():
 			var best:=maxi(int(incoming.xp[c])*10+int(incoming.xp_tenths[c]),int(recovered.xp[c])*10+int(recovered.xp_tenths[c]))
 			incoming.xp[c]=best/10;incoming.xp_tenths[c]=best%10
+	if has_meta(Transactions.SESSION):
+		var result := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func():
+			return preload("res://garden_growth_service.gd").register_receipt(self,identity))
+		if not result.completed or result.value != true or not Transactions.session_writable(self):
+			reject_peer(id,result.notice if not result.notice.is_empty() else "The host could not save your admission to this Garden.")
+			return
 	players[id].character = incoming
 	players[id].seed_owner = identity
 	players[id].profile_ready = true
 	PartyTravel.cancel(self,"Party changed. Confirm readiness again.")
 	restore_class_loadout(players[id])
-	preload("res://garden_growth_service.gd").register(self,id)
+	if not has_meta(Transactions.SESSION): preload("res://garden_growth_service.gd").register(self,id)
 	Journal.event("network","character_registered",{"actor":id,"class_id":incoming.get("active_class",0)})
 	connection_accepted.rpc_id(id,incoming)
 
@@ -658,6 +672,9 @@ func join_game(address: String="",port: int=0) -> Error:
 	var problem:=Network.error(host,selected_port)
 	if not problem.is_empty(): status=problem;return ERR_INVALID_PARAMETER
 	var guarded = get_meta("guarded_title_session") if has_meta("guarded_title_session") else null
+	if guarded != null and not Transactions.session_writable(self):
+		status="This session no longer owns the selected character."
+		return ERR_UNAUTHORIZED
 	var loaded: Error = guarded.reload_guest(guest_character) if guarded != null else guest_character.load_profile()
 	if guarded != null and loaded != OK:
 		status = "Could not read the selected character."
@@ -703,18 +720,16 @@ func leave_game(message: String) -> void:
 	if active_character_slot>=0 and session in ["Guest","Connecting"]:
 		return_to_main_menu(message);return
 	var was_guest := session == "Guest"
-	if character_dirty:
-		save_local_character()
-		if not Transactions.pending_notice(self).is_empty(): return
-	if session == "Host" and expedition_active():
-		if has_meta(Transactions.SESSION):
-			if not finish_failed_expedition(): return
-			if not Transactions.pending_notice(self).is_empty():
-				_finish_title_return(message)
-				return
-		else: finish_failed_expedition()
-	elif session == "Host" and has_meta(Transactions.SESSION) and not MonsterRewards.flush(self):
-		return
+	if has_meta(Transactions.SESSION):
+		if not prepare_guarded_exit(false): return
+		if not Transactions.session_writable(self):
+			_finish_title_return(message)
+			return
+	else:
+		if character_dirty:
+			save_local_character()
+			if not Transactions.pending_notice(self).is_empty(): return
+		if session == "Host" and expedition_active(): finish_failed_expedition()
 	if has_meta(Transactions.SESSION): set_meta(Transactions.STOPPING, true)
 	go_offline()
 	net_view.clear();net_motion.clear()
@@ -763,6 +778,10 @@ func remove_player(id: int) -> void:
 	Journal.event("network","peer_disconnected",{"actor":id})
 	if has_meta(Transactions.SESSION):
 		var leaving: Dictionary = players.get(id, {})
+		if not multiplayer.is_server() or session=="Guest" or session=="Connecting" or returning_to_title or get_meta(Transactions.STOPPING,false):
+			players.erase(id)
+			motions.erase(id)
+			return
 		var may_settle := multiplayer.is_server() and not returning_to_title and Transactions.session_writable(self)
 		if may_settle and leaving.get("profile_ready", false):
 			pending_departures[id] = leaving
@@ -1367,14 +1386,19 @@ func receive_character(profile: Dictionary) -> void:
 		# Only the guest's local write participates in this transaction.
 		var normalized := Character.normalize(profile)
 		if normalized == guest_character.data: return
-		var saved := Transactions.run_gameplay(self, Transactions.Scope.GUEST_PROFILE, func():
-			guest_character.data = normalized
-			return true)
-		if Transactions.committed(saved.persistence): character_dirty = false
+		save_guest_projection(normalized)
 		return
 	guest_character.data = Character.normalize(profile)
 	character_dirty = true
 	save_local_character()
+
+func save_guest_projection(profile: Dictionary) -> bool:
+	var saved := Transactions.run_gameplay(self, Transactions.Scope.GUEST_PROFILE, func():
+		guest_character.data = profile
+		return true)
+	var committed := Transactions.committed(saved.persistence)
+	if committed: character_dirty = false
+	return committed
 
 
 func save_local_character() -> bool:
@@ -2905,7 +2929,7 @@ func _recover_pouch(player: Dictionary) -> bool:
 func refresh_drop() -> void:
 	has_drop = false
 	for player in players.values():
-		if player.loot_pending:
+		if player.get("loot_pending",false):
 			has_drop = true
 			return
 
@@ -3650,19 +3674,39 @@ func on_connection_failed() -> void:
 	connection_rejected(Network.join_failure(get_meta("join_phase","connect"),network_address,network_port,false))
 
 
+# Settle through one guarded decision. A first abort or uncertain result leaves
+# the world and its notice available. Leaving an already blocked world is read-only.
+func prepare_guarded_exit(save_garden := true) -> bool:
+	if not Transactions.session_writable(self): return true
+	if session in ["Solo","Host"] and slot_claimed:
+		if expedition_active():
+			if not finish_failed_expedition(): return false
+			character_dirty=false
+			return true
+		if not pending_departures.is_empty() or not pending_kill_rewards.is_empty():
+			if not MonsterRewards.flush(self): return false
+			character_dirty=false
+			return true
+		if save_garden:
+			var scope := Transactions.Scope.PAIR if character_dirty else Transactions.Scope.GARDEN
+			var result := Transactions.run_gameplay(self,scope,func(): return true)
+			if not Transactions.committed(result.persistence): return false
+			character_dirty=false
+			return true
+	return not character_dirty or save_local_character()
+
 func return_to_main_menu(message: String = "") -> void:
 	if returning_to_title:
 		return
 	returning_to_title = true
-	if has_meta(Transactions.SESSION) and not Transactions.session_writable(self):
-		_stop_guarded_session("This session lost access to its save. Returning to the title.")
-		return
-	if session in ["Solo","Host"] and not joined_from_title and (not has_meta("guarded_title_session") or slot_claimed):
-		if has_meta(Transactions.SESSION) and (expedition_active() or not pending_departures.is_empty() or not pending_kill_rewards.is_empty()):
-			var settled := finish_failed_expedition() if expedition_active() else MonsterRewards.flush(self)
-			if settled: _finish_title_return(message)
-			else: returning_to_title = false
+	if has_meta(Transactions.SESSION):
+		var owned: bool=get_meta(Transactions.SESSION).owns_leases()
+		if not prepare_guarded_exit():
+			returning_to_title=false
 			return
+		_finish_title_return(message if owned else "This session lost access to its save. Returning to the title.")
+		return
+	if session in ["Solo","Host"] and not joined_from_title:
 		if expedition_active():
 			finish_failed_expedition()
 			for player in players.values():
@@ -3703,6 +3747,7 @@ func _finish_title_return(message: String) -> void:
 		network_dialog.dismiss()
 	var menu = load("res://main_menu.tscn").instantiate()
 	menu.guarded_persistence = has_meta("guarded_title_session")
+	if menu.guarded_persistence: menu.set_meta(&"guarded_return_from_world", true)
 	menu.settings_path=settings_path
 	var dev_return: Dictionary=get_meta("developer_garden",{})
 	menu.storage.root_path = dev_return.get("root",slot_storage_root)
@@ -3725,7 +3770,9 @@ func _finish_title_return(message: String) -> void:
 
 func release_slot() -> void:
 	if has_meta("guarded_title_session"):
-		get_meta("guarded_title_session").release()
+		var released: Dictionary=get_meta("guarded_title_session").release()
+		if released.get("error",OK)!=OK:
+			Journal.event("save","session_lease_release_failed",{"error":released.error,"reason":released.get("reason","")},"warning")
 		character_slot_claimed = false
 		slot_claimed = false
 		return
@@ -4836,16 +4883,30 @@ func reject_peer(id: int,reason: String) -> void:
 	Journal.event("network","peer_rejected",{"actor":id,"reason":reason},"warning")
 	players[id].rejecting=true
 	connection_rejected.rpc_id(id,reason)
+	var rejected_transport := online_peer
 	get_tree().create_timer(.25).timeout.connect(func():
-		if online_peer!=null and multiplayer.is_server() and players.has(id): online_peer.disconnect_peer(id))
+		if online_peer!=null and online_peer==rejected_transport and multiplayer.is_server() and players.get(id,{}).get("rejecting",false):
+			online_peer.disconnect_peer(id))
 
 @rpc("authority","call_remote","reliable")
 func connection_accepted(profile: Dictionary) -> void:
 	if session!="Connecting" or not Transactions.session_writable(self): return
+	if has_meta(Transactions.SESSION):
+		var normalized := Character.normalize(profile)
+		session="Guest"
+		var saved: bool
+		if normalized == guest_character.data:
+			saved = get_meta(Transactions.SESSION).reload_guest(guest_character)==OK
+		else:
+			saved = save_guest_projection(normalized)
+		if not saved or not Transactions.session_writable(self):
+			connection_rejected(Transactions.feedback_text(self,"Could not finish loading the selected character."))
+			return
 	Journal.event("network","join_accepted")
 	session="Guest";joined_from_title=false;status="Joined the host's Garden."
 	set_meta("join_phase","garden")
-	receive_character(profile);connection_deadline=Time.get_ticks_msec()+Network.REGISTER_TIMEOUT_MS
+	if not has_meta(Transactions.SESSION): receive_character(profile)
+	connection_deadline=Time.get_ticks_msec()+Network.REGISTER_TIMEOUT_MS
 	toggle_overlay(null)
 
 @rpc("authority","call_remote","reliable")

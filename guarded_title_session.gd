@@ -209,13 +209,16 @@ func tick() -> Dictionary:
    return result
  return Ops.management_result(OK, "")
 
-func release() -> void:
+func release() -> Dictionary:
+ var result := Ops.management_result(OK,"")
  if _roster != null:
-  _roster.release_guarded(_profile_slot)
+  result=outcome(_roster.release_guarded(_profile_slot))
   _roster = null
  if _garden != null:
-  _garden.release_guarded(_garden_slot)
+  var garden_result := outcome(_garden.release_guarded(_garden_slot))
+  if completed(result): result=garden_result
   _garden = null
+ return result
 
 func _startup_failed(result: Dictionary) -> Dictionary:
  release()

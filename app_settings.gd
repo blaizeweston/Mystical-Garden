@@ -1,5 +1,5 @@
 extends RefCounted
-const Batch=preload("res://save_batch.gd")
+const Preferences=preload("res://preference_file.gd")
 const ACTIONS: Dictionary={"up":"Move up","down":"Move down","left":"Move left","right":"Move right","attack":"Strike (hold to repeat)","interact":"Interact / collect","dodge":"Dodge","class_skill":"Class skill 1","class_skill_two":"Class skill 2","core_skill":"Core skill","extract":"Extract","pouch":"Safe pouch","flower":"Flowering","graft":"Grafting altar","pack_menu":"Inventory","progression":"Progression trees","workbench":"Weapon workbench","field_guide":"Field guide","floor_map":"Expand floor map","run_summary":"Expedition summary","session_menu":"Pause / menu","upgrade_power":"Upgrade card 1","upgrade_technique":"Upgrade card 2","upgrade_synergy":"Upgrade card 3","upgrade_fourth":"Upgrade card 4"}
 const KEYS: Dictionary={"up":[KEY_W,KEY_UP],"down":[KEY_S,KEY_DOWN],"left":[KEY_A,KEY_LEFT],"right":[KEY_D,KEY_RIGHT],"attack":[KEY_SPACE],"interact":[KEY_E],"dodge":[KEY_SHIFT],"class_skill":[KEY_Q],"class_skill_two":[KEY_R],"core_skill":[KEY_B],"extract":[KEY_T],"pouch":[KEY_P],"flower":[KEY_F],"graft":[KEY_G],"pack_menu":[KEY_I],"progression":[KEY_O],"workbench":[KEY_F2],"field_guide":[KEY_F1],"floor_map":[KEY_M],"run_summary":[KEY_TAB],"session_menu":[KEY_ESCAPE],"upgrade_power":[KEY_1],"upgrade_technique":[KEY_2],"upgrade_synergy":[KEY_3],"upgrade_fourth":[KEY_4]}
 const LEGACY: Dictionary={"expand_plot":[],"research":[],"craft":[KEY_C],"experiment":[],"select_graft":[KEY_V],"frame":[],"trait":[],"donate":[],"select_donation":[],"destination":[],"nurture":[],"harvest_offshoot":[],"awaken":[],"catalyst":[]}
@@ -63,7 +63,7 @@ func load_settings() -> Error:
  return error
 func save_settings(value: Dictionary) -> Error:
  var clean=normalize(value);var file=ConfigFile.new();file.set_value("settings","values",clean)
- var error=Batch.write(path,file.encode_to_text().to_utf8_buffer())
+ var error=Preferences.write(path,file)
  if error==OK:values=clean;apply()
  return error
 static func event_for(item: Dictionary) -> InputEvent:

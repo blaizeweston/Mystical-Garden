@@ -7,14 +7,20 @@ static func register(game: Node,id: int) -> bool:
  if not game.multiplayer.is_server() or not game.players.has(id) or not game.players[id].get("profile_ready",false):return false
  # A title-screen guest has no local world to initialize or save.
  if game.joined_from_title and not game.slot_claimed:return false
- var data:=State.initialize(game.progress.garden_interactions,State.snapshot(game.progress));var who:=identity(game,id)
- if who.is_empty() or data.get("version",1)!=1 or not data.get("growth") is Dictionary or data.growth.get("version",0)!=1 or not data.growth.get("seen") is Dictionary:return false
- if data.growth.seen.has(who):return true
- var result=Tx.run_gameplay(game,Tx.Scope.PAIR,func():
-  game.progress.garden_interactions=data
-  game.progress.garden_interactions.growth.seen[who]=int(data.growth.sequence)
-  return true)
+ var who:=identity(game,id)
+ if who.is_empty(): return false
+ var growth: Variant=game.progress.garden_interactions.get("growth")
+ if growth is Dictionary and growth.get("seen") is Dictionary and growth.seen.has(who): return true
+ var result=Tx.run_gameplay(game,Tx.Scope.PAIR,register_receipt.bind(game,who))
  return (result.completed or Tx.committed(result.persistence)) and result.value==true
+
+# Registration also runs inside the host's guarded admission transaction.
+static func register_receipt(game: Node,who: String) -> bool:
+ var data:=State.initialize(game.progress.garden_interactions,State.snapshot(game.progress))
+ if who.is_empty() or data.get("version",1)!=1 or not data.get("growth") is Dictionary or data.growth.get("version",0)!=1 or not data.growth.get("seen") is Dictionary:return false
+ if not data.growth.seen.has(who): data.growth.seen[who]=int(data.growth.sequence)
+ game.progress.garden_interactions=data
+ return true
 static func projection(game: Node,id: int) -> Dictionary:
  if not game.multiplayer.is_server():return game.players.get(id,{}).get("garden_interactions",{}).get("growth",{})
  if game.progress.garden_interactions.get("version",1)!=1:return {}

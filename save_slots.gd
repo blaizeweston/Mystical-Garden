@@ -445,10 +445,15 @@ func _lease_guarded(slot: int, operation: String, roster := false, catalog := ""
 	if slot < 0 or slot >= capacity:
 		return Ops.management_result(ERR_INVALID_PARAMETER, "invalid_slot")
 	var location := paths(slot)
+	var file: String = location.directory.path_join("session.cfg")
+	if operation=="release":
+		var result := Ops.relinquish_lease(file,str(_owned_markers.get(file,"")))
+		if result.get("ran",false) and result.value.get("error")==OK:
+			_owned_markers.erase(file)
+		return result
 	var ready := Auth.bootstrap(PackedStringArray([location.directory]))
 	if ready.error != OK:
 		return ready
-	var file: String = location.directory.path_join("session.cfg")
 	var participants := PackedStringArray([location.character]) if roster else PackedStringArray([location.garden, location.character])
 	var auxiliary := PackedStringArray()
 	if not catalog.is_empty():
@@ -473,12 +478,6 @@ func _lease_guarded(slot: int, operation: String, roster := false, catalog := ""
 			return Ops.management_result(ERR_BUSY, "slot_in_use")
 		if operation != "claim" and (not _owned_markers.has(file) or not _owns_marker(file, marker)):
 			return Ops.management_result(ERR_UNAUTHORIZED, "stale_lease")
-		if operation == "release":
-			var removed := Ops.remove_lease(context, file, _owned_markers[file])
-			if removed == OK and not FileAccess.file_exists(file):
-				_owned_markers.erase(file)
-				return Ops.management_result(OK, "")
-			return Ops.management_result(removed if removed != OK else ERR_INVALID_DATA, "lease_removal_unverified", "unresolved")
 		marker.set_value("session", "process_id", OS.get_process_id())
 		marker.set_value("session", "updated", Time.get_unix_time_from_system())
 		var result := Ops.write_metadata(context, file, marker)

@@ -64,7 +64,13 @@ func check_block(id: String, outcome: Dictionary, error: Error, reason: String) 
 
 func test_activation(paths: PackedStringArray) -> void:
  var result := Integration.activation_status()
- check(not result.allowed and result.blockers.size() == Integration.REQUIRED_WRITERS.size() + 1, "every inventoried row blocks production")
+ check(not result.allowed and result.blockers.has("production_cutover_not_approved"), "production remains disabled")
+ for writer in Integration.REQUIRED_WRITERS:
+  check(result.blockers.has(writer), "unverified writer blocks production: "+writer)
+ for requirement in Integration.CUTOVER_REQUIREMENTS:
+  check(result.blockers.has(requirement), "unmet requirement blocks production: "+requirement)
+ for writer in Integration.AUXILIARY_WRITERS:
+  check(not result.blockers.has(writer), "auxiliary output is outside canonical scope: "+writer)
  var before := manifest("user://")
  var blocked := Operations.run_production(paths, PackedStringArray(), must_not_run)
  check_block("production_disabled", blocked, ERR_UNAVAILABLE, "production_integration_incomplete")

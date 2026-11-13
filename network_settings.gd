@@ -61,7 +61,7 @@ static func save_settings(root: String, host: String, port: int, joining: bool =
  file.set_value("network","address",address(host) if joining else current.address)
  file.set_value("network","port",port if joining else current.port)
  file.set_value("network","host_port",current.host_port if joining else port)
- return preload("res://save_batch.gd").write(root.path_join("network.cfg"),file.encode_to_text().to_utf8_buffer())
+ return preload("res://preference_file.gd").write(root.path_join("network.cfg"),file,true)
 
 static func join_progress(phase: String, host: String, port: int) -> String:
  var endpoint := format_endpoint(host,port)

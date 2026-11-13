@@ -249,14 +249,29 @@ static func archive_copies(context: RefCounted, destinations: Dictionary, fault 
   return complete)
  return checked.value if checked.ran else checked
 
-static func remove_lease(context: RefCounted, marker: String, digest: String) -> Error:
- if marker.get_file() != "session.cfg":
-  return ERR_UNAUTHORIZED
- var checked := run_nested(context, PackedStringArray([marker, marker + ".tmp"]), func(_context):
-  if not FileAccess.file_exists(marker) or FileAccess.get_sha256(marker) != digest:
-   return ERR_UNAUTHORIZED
-  return DirAccess.remove_absolute(marker))
- return checked.value if checked.ran else checked.error
+## A terminal owner may relinquish its lease while recovery remains pending.
+## This touches only the exact marker. It grants no save or recovery access.
+static func relinquish_lease(marker: String, digest: String) -> Dictionary:
+ var directory := marker.get_base_dir()
+ if marker != directory.path_join("session.cfg") or Layout.directories().get(directory,[]).is_empty() or digest.length()!=64:
+  return management_result(ERR_UNAUTHORIZED,"lease_scope_rejected")
+ var boundary := Authorization.run(PackedStringArray([marker,marker+".tmp"]),func(_token):
+  var bytes := Planner._read_bytes(marker,MAX_AUXILIARY_BYTES)
+  if not bytes.ok or FileAccess.get_sha256(marker)!=digest:
+   return management_result(ERR_UNAUTHORIZED,"stale_lease")
+  var marker_data := ConfigFile.new()
+  if marker_data.parse(bytes.bytes.get_string_from_utf8())!=OK or int(marker_data.get_value("session","process_id",0))!=OS.get_process_id():
+   return management_result(ERR_UNAUTHORIZED,"stale_lease")
+  var scratch := marker+".tmp"
+  if FileAccess.file_exists(scratch) or DirAccess.dir_exists_absolute(scratch):
+   return management_result(ERR_BUSY,"lease_publication_pending","unresolved")
+  var removed := DirAccess.remove_absolute(marker)
+  if removed != OK or FileAccess.file_exists(marker):
+   return management_result(removed if removed!=OK else ERR_INVALID_DATA,"lease_removal_unverified","unresolved")
+  return management_result(OK,""))
+ if not boundary.ran:
+  return _result(boundary.error,"busy" if boundary.error==ERR_BUSY else "invalid","lease_release_refused",boundary.native_error)
+ return boundary
 
 static func _write_metadata_locked(target: String, scratch: String, bytes: PackedByteArray) -> Dictionary:
  if not Authorization.replacement_available():

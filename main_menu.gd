@@ -76,7 +76,8 @@ func _ready() -> void:
 	var error := OK
 	var preparation := {}
 	if guarded_persistence:
-		preparation = GuardedSession.prepare(storage, characters, import_legacy)
+		if not has_meta(&"guarded_return_from_world"):
+			preparation = GuardedSession.prepare(storage, characters, import_legacy)
 	else:
 		error = storage.prepare(import_legacy)
 		if error==OK: error=characters.prepare(storage)
@@ -238,7 +239,10 @@ void fragment() {
 	add_child(network_dialog)
 	network_dialog.applied.connect(apply_network_settings)
 
-	notice=label(content,return_message,14,Color("#c4c697"))
+	var save_notice := str(get_meta(&"guarded_return_notice",""))
+	if guarded_persistence and not save_notice.is_empty():
+		label(content,save_notice,14,Color("#e6c689"))
+	notice=label(content,"" if not save_notice.is_empty() else return_message,14,Color("#c4c697"))
 	notice.custom_minimum_size.y=42
 	notice.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	show_page(0)
@@ -261,7 +265,7 @@ void fragment() {
 	if guarded_persistence:
 		for dialog in [confirmation, deletion_confirmation, character_deletion]:
 			dialog.dialog_hide_on_ok = false
-		if not GuardedSession.completed(preparation) and not has_meta(&"guarded_return_notice"):
+		if not preparation.is_empty() and not GuardedSession.completed(preparation) and not has_meta(&"guarded_return_notice"):
 			notice.text = GuardedSession.notice(preparation)
 	elif error!=OK:
 		notice.text="Could not prepare save slots. Your existing files were left in place."
