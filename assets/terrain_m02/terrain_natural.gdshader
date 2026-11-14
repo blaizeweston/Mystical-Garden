@@ -16,8 +16,11 @@ uniform bool wilds_mode = false;
 uniform bool scenic_exterior = false;
 uniform vec3 scenic_cover = vec3(0.0, 1.0, 0.0);
 uniform bool garden_frontier = false;
-uniform sampler2D garden_perimeter : filter_linear, repeat_enable;
+uniform sampler2D garden_perimeter : filter_nearest, repeat_enable;
 uniform float garden_reveal = 0.0;
+uniform vec2 garden_field_origin;
+uniform vec2 garden_field_extent;
+uniform sampler2D garden_claims : filter_linear, repeat_disable;
 uniform float wilds_moisture = 0.0;
 uniform vec3 wilds_floor : source_color;
 uniform vec3 wilds_water : source_color;
@@ -106,6 +109,21 @@ void vertex() {
 	world_xz = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;
 }
 
+vec2 garden_edge(vec2 p) {
+	float count = float(textureSize(garden_perimeter, 0).x);
+	float sector = fract(atan(p.y, p.x + 0.00001) / TAU) * count;
+	float index = floor(sector);
+	float step_angle = TAU / count;
+	float local_angle = fract(sector) * step_angle;
+	vec3 first = texture(garden_perimeter, vec2((index + 0.5) / count, 0.5)).rgb;
+	vec3 second = texture(garden_perimeter, vec2((index + 1.5) / count, 0.5)).rgb;
+	float a = mix(first.r, first.g, garden_reveal);
+	float b = mix(second.r, second.g, garden_reveal);
+	// Intersect the ray with the chord between the same two vertices used by the thicket.
+	float boundary = a * b * sin(step_angle) / max(b * sin(step_angle - local_angle) + a * sin(local_angle), 0.001);
+	return vec2(length(p) - boundary, mix(first.b, second.b, fract(sector)));
+}
+
 void fragment() {
 	vec2 p = world_xz;
 	vec2 grain = p + seed_offset;
@@ -127,6 +145,18 @@ void fragment() {
 	float macro = noise2(grain * 0.21);
 	float patches = noise2(grain * 0.91 + vec2(3.8, 0.7));
 	float damp = smoothstep(0.35, 0.82, 0.72 * macro + 0.28 * patches);
+	vec2 ownership = vec2(-2.0, 0.0);
+	float sanctuary = 1.0;
+	if (garden_frontier) {
+		ownership = garden_edge(p);
+		// Break up the transition underneath the thicket. Past the frontier every
+		// pixel uses the woodland palette, regardless of the underlying hex labels.
+		float edge_noise = 0.21 * patches + 0.23 * macro;
+		vec2 location = (p - garden_field_origin) / garden_field_extent;
+		vec2 claim = texture(garden_claims, location).rg;
+		float owned = max(claim.r, claim.g * smoothstep(0.0, 0.82, garden_reveal));
+		sanctuary = owned * (1.0 - smoothstep(-0.86 + edge_noise, 0.0, ownership.x));
+	}
 	float bank = smoothstep(0.08, 0.50, water);
 	float edge_width = clamp(fwidth(water) * 0.75, 0.035, 0.16);
 	float cover = smoothstep(0.50 - edge_width, 0.50 + edge_width, water);
@@ -163,6 +193,9 @@ void fragment() {
 		}
 		path_weight = show_paths ? trail : 0.0;
 	}
+	cover *= sanctuary;
+	bank *= sanctuary;
+	path_weight *= sanctuary;
 
 	vec2 uv_a = p * 0.37;
 	vec2 uv_b = vec2(0.78 * p.x - 0.62 * p.y, 0.62 * p.x + 0.78 * p.y) * 0.55 + vec2(0.32, 0.57);
@@ -196,6 +229,11 @@ void fragment() {
 	// Fade in a continuous sand/gravel bed as the dry confidence vanishes.
 	vec3 bed = soil * (0.76 + 0.22 * flecks) + vec3(0.018, 0.023, 0.019) * patches;
 	vec3 dry = mix(bed, material_color / max(dry_total, 0.001), smoothstep(0.02, 0.20, dry_total));
+	if (garden_frontier) {
+		vec3 woodland = forest * mix(vec3(0.57, 0.64, 0.51), vec3(0.81, 0.84, 0.68), 0.5 * macro + 0.4 * patches);
+		woodland += leaf_detail * vec3(0.069, 0.075, 0.045) * small_tufts;
+		dry = mix(woodland, dry, sanctuary);
+	}
 	dry = show_ground ? dry : vec3(0.105, 0.115, 0.106);
 	vec3 worn_trail = mix(soil * 1.25, vec3(0.41, 0.33, 0.21), 0.29 + 0.20 * flecks);
 	dry = mix(dry, worn_trail, path_weight * (0.69 + 0.21 * patches));
@@ -225,16 +263,10 @@ void fragment() {
 			center = max(center, 0.36 * path_weight);
 		}
 		if (garden_frontier) {
-			float angle = atan(p.y, p.x + 0.00001) / 6.2831853;
-			float count = float(textureSize(garden_perimeter, 0).x);
-			vec3 perimeter = texture(garden_perimeter, vec2(angle + 0.5 / count, 0.5)).rgb;
-			float radius = length(p);
-			float frontier = mix(perimeter.r, perimeter.g, garden_reveal);
-			float fringe = radius + (macro - 0.5) * 1.3 + (patches - 0.5) * 0.46;
-			float interior = 1.0 - smoothstep(frontier - 0.8, frontier + 1.1, fringe);
-			float reclaimed = interior * smoothstep(perimeter.b - 0.9, perimeter.b + 1.2, fringe);
+			float fringe = length(p) + (macro - 0.5) * 1.3 + (patches - 0.5) * 0.46;
+			float reclaimed = sanctuary * smoothstep(ownership.y - 0.9, ownership.y + 1.2, fringe);
 			dry = mix(dry, mix(meadow, soil, 0.40 * patches), 0.73 * reclaimed * (1.0 - path_weight));
-			center = max(center, 0.72 * interior);
+			center = max(center, 0.72 * sanctuary) * sanctuary;
 		}
 		vec3 sheltered = dry * vec3(0.57, 0.64, 0.52);
 		vec3 warmed = dry * vec3(1.00, 0.92, 0.68);

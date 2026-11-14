@@ -288,25 +288,36 @@ func scenic_woodland() -> Array[Dictionary]:
 		for i in count:
 			var random := Features.random_stream(seed_value, "garden_exterior_%d_%d" % [row, i])
 			var direction := Vector2.from_angle(TAU * (i + random.randf_range(-0.34, 0.34)) / count)
-			var distance := extent * 0.83 + 4.7 + row * 5.6 + random.randf_range(-2.0, 2.4)
+			var distance := extent * 0.83 + 5.7 + row * 5.2 + random.randf_range(-2.0, 2.4)
 			trees.append({"at": direction * distance, "height": random.randf_range(4.2, 8.0),
 				"crown": random.randf_range(1.26, 1.95), "variant": i % 4, "yaw": random.randf_range(0.0, TAU)})
 	return trees
 
 func forest_layout() -> Dictionary:
-	var result := {"enclosure": [], "accents": [], "movable_rim": true}
+	var result := {"enclosure": [], "accents": [], "woodland_ferns": [], "movable_rim": true}
 	for sector in FOREST_SECTORS:
 		var random := Features.random_stream(seed_value, "garden_edge_%d" % sector)
 		var angle := TAU * sector / FOREST_SECTORS
 		var direction := Vector2.from_angle(angle)
 		var foreground := smoothstep(0.18, 0.9, direction.dot(Vector2(0.23, 0.973)))
-		for row in 2:
-			var at := direction * (1.28 + row * 2.8 + random.randf_range(0.0, 0.55))
+		for row in 4:
+			var depth: float = [1.28, 3.85, 6.75, 10.7][row]
+			var stagger := (0.48 if row % 2 != 0 else -0.34) * sin(sector * 1.71 + row)
+			var at := direction * (depth + random.randf_range(0.0, 0.95)) + direction.orthogonal() * stagger
 			var height := random.randf_range(5.0, 7.3) * lerpf(1.0, 0.58, foreground)
+			if row >= 2:
+				height *= random.randf_range(0.85, 1.28)
 			result.enclosure.append({"id": "growth_rim_%d_%d" % [sector, row], "at": at, "sector": sector,
 				"height": height, "crown": random.randf_range(1.62, 2.15),
 				"variant": (sector + row) % 4, "yaw": random.randf_range(0.0, TAU)})
 		if sector % 3 == 0:
 			result.accents.append({"id": "root_verge_%d" % sector, "at": direction * 1.18, "sector": sector,
 				"size": random.randf_range(1.4, 2.3), "yaw": angle + 0.45})
+			result.accents.append({"id": "woodland_deadwood_%d" % sector, "at": direction * 4.2, "sector": sector,
+				"size": random.randf_range(1.8, 2.9), "yaw": angle - random.randf_range(0.1, 1.7), "unlit": true})
+		for patch in 3:
+			var at := direction * (2.5 + patch * 2.4 + random.randf_range(-0.35, 0.8))
+			at += direction.orthogonal() * random.randf_range(-1.05, 1.05)
+			result.woodland_ferns.append({"at": at, "sector": sector,
+				"size": random.randf_range(0.9, 2.1), "yaw": random.randf_range(0.0, TAU)})
 	return result

@@ -25,6 +25,8 @@ func run() -> void:
 	var view = scene.expansion
 	check(view.visible and view.enter.visible, "the Garden preview exposes the expansion controls")
 	var original := _snapshot(scene)
+	_claim_mask(view, {}, original.owned)
+	var first_mask: PackedByteArray = view.ownership_mask.get_data()
 	_boundary(view)
 	_art(view)
 	var directions: Array = view.state.frontier_options()
@@ -71,8 +73,12 @@ func run() -> void:
 		grown += options[0].cells.size()
 	check(view.state.revision == 5, "five consecutive expansions stay connected")
 	var heart = scene.growing_heart
-	scene.heart_stage.select(4)
-	scene.heart_stage.item_selected.emit(4)
+	var grown_mask: PackedByteArray = view.ownership_mask.get_data()
+	for stage in 5:
+		scene.heart_stage.select(stage)
+		scene.heart_stage.item_selected.emit(stage)
+		check(view.ownership_mask.get_data() == grown_mask
+			and view.material.get_shader_parameter("garden_frontier"), "all Heart stages retain concealment")
 	check(heart.stage == 4 and view.state.revision == 5, "Heart stage selector works after expansion")
 	_roots(view)
 	scene.render_mode.select(4)
@@ -82,7 +88,10 @@ func run() -> void:
 	scene.render_mode.item_selected.emit(6)
 	check(view.visible and view.roots.get_child_count() == 5 and view.state.revision == 5,
 		"returning to M06C keeps reclaimed ownership and roots")
+	check(view.ownership_mask.get_data() == grown_mask, "comparison mode restores exactly the same concealment")
 	_covered(scene)
+	view.reset_garden()
+	check(view.ownership_mask.get_data() == first_mask, "reset also conceals every reclaimed region")
 	scene.map_size.select(1)
 	scene.map_size.item_selected.emit(1)
 	check(scene.cells.size() == 2437 and view.state.revision == 0, "large comparison initializes a separate Garden")
@@ -141,6 +150,7 @@ func _grow(scene, offer: Dictionary) -> void:
 	view.enter.button_pressed = true
 	check(view.select_frontier(offer.sector), "frontier can be selected")
 	view.confirm.pressed.emit()
+	_claim_mask(view, offer.cells, prior)
 	check(view.growing and state.roots.size() == root_count + 1
 		and view.material.get_shader_parameter("garden_reveal") == 0.0, "growth starts at the Heart before the ground reveal")
 	var before: PackedVector2Array = view.barrier.visible_outline
@@ -152,6 +162,7 @@ func _grow(scene, offer: Dictionary) -> void:
 	check(partial > 0.0 and partial < 1.0, "shore and perimeter reveal progressively")
 	_boundary(view)
 	view.finish_animation()
+	_claim_mask(view, {}, state.owned)
 	check(not view.growing and view.root_mesh.material_override.get_shader_parameter("root_progress") == 1.0
 		and view.material.get_shader_parameter("garden_reveal") == 1.0, "root reveal ends at the chosen frontier")
 	check(state.owned.size() - prior.size() == offer.cells.size(), "only declared cells were added")
@@ -182,6 +193,29 @@ func _grow(scene, offer: Dictionary) -> void:
 	result["map_cells"] = scene.cells.size()
 	result["sector"] = Garden.DIRECTIONS[offer.sector]
 	samples.append(result)
+
+func _claim_mask(view, pending: Dictionary, established: Dictionary) -> void:
+	# The dummy renderer can retain the creation image on GPU readback.
+	var image: Image = view.ownership_mask
+	var size := image.get_size()
+	var frame: Rect2 = view.ownership_frame
+	var step := frame.size / Vector2(size)
+	var masks_match := true
+	var retained := 0
+	var staged := 0
+	for y in size.y:
+		for x in size.x:
+			var at := frame.position + (Vector2(x, y) + Vector2(0.5, 0.5)) * step
+			var cell := Grid.world_to_cell(at, view.state.spacing)
+			var label := image.get_pixel(x, y)
+			masks_match = masks_match and (label.r > 0.5) == established.has(cell)
+			masks_match = masks_match and (label.g > 0.5) == pending.has(cell)
+			retained += int(label.r > 0.5)
+			staged += int(label.g > 0.5)
+	check(masks_match and retained > 0 and (staged > 0) == not pending.is_empty(),
+		"uploaded ownership mask contains only established cells and the exact pending expansion")
+	var size_check: Vector2i = (view.material.get_shader_parameter("garden_perimeter") as Texture2D).get_size()
+	check(size_check.x == view.barrier.visible_outline.size(), "rendering and collision use the same radial outline")
 
 func _linked(added: Dictionary, old: Dictionary, state: Garden) -> void:
 	var first: Vector2i = added.keys()[0]

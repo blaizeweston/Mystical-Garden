@@ -3,6 +3,7 @@ extends Node3D
 const Meshes = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
 var trees: Array[ArrayMesh] = []
 var snag: ArrayMesh
+var forest_fern: ArrayMesh
 var forest_material: StandardMaterial3D
 var amber_material: StandardMaterial3D
 var botanical_canopies := {}
@@ -57,11 +58,13 @@ func rebuild(layout: Dictionary, garden: bool, profile: Dictionary = {}, biome: 
 	var deadwood: Array[Transform3D] = []
 	var sparks: Array[Transform3D] = []
 	var accent_sectors: Array[int] = []
+	var spark_sectors: Array[int] = []
 	for accent in layout.accents:
 		deadwood.append(_pose(accent.at, accent.yaw, Vector3.ONE * accent.size))
 		accent_sectors.append(accent.get("sector", -1) if layout.get("movable_rim", false) else -1)
-		if garden:
+		if garden and not accent.get("unlit", false):
 			sparks.append(_pose(accent.at, accent.yaw, Vector3(0.18, 0.26, 0.18), 0.33 * accent.size))
+			spark_sectors.append(accent.get("sector", -1) if layout.get("movable_rim", false) else -1)
 	if garden and not living_heart:
 		for i in (4 if not profile.is_empty() else 7):
 			var angle := TAU * i / 7.0
@@ -69,6 +72,16 @@ func rebuild(layout: Dictionary, garden: bool, profile: Dictionary = {}, biome: 
 			deadwood.append(_pose(offset, -angle, Vector3(1.0, 0.45, 1.0)))
 		sparks.append(_pose(Vector2(0.27, 0.74), 0.0, Vector3(0.34, 0.43, 0.30), 0.34))
 	_batch(snag, deadwood, accent_sectors)
+	if layout.has("woodland_ferns"):
+		if forest_fern == null:
+			forest_fern = Meshes.understory("fern", 1, profile)
+			forest_fern.surface_set_material(0, forest_material)
+		var plants: Array[Transform3D] = []
+		var sectors: Array[int] = []
+		for fern in layout.woodland_ferns:
+			plants.append(_pose(fern.at, fern.yaw, Vector3.ONE * fern.size))
+			sectors.append(fern.sector)
+		_batch(forest_fern, plants, sectors)
 	if not garden and not profile.is_empty():
 		var accent_material := StandardMaterial3D.new()
 		accent_material.albedo_color = profile.accent
@@ -92,7 +105,7 @@ func rebuild(layout: Dictionary, garden: bool, profile: Dictionary = {}, biome: 
 		ember.radial_segments = 7
 		ember.rings = 4
 		ember.material = amber_material
-		_batch(ember, sparks, accent_sectors)
+		_batch(ember, sparks, spark_sectors)
 
 func _pose(at: Vector2, yaw: float, scale: Vector3, y: float = 0.0) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, yaw).scaled_local(scale), Vector3(at.x, y, at.y))
