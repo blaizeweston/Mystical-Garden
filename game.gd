@@ -2041,6 +2041,8 @@ func _physics_process(delta: float) -> void:
 				if Transactions.session_writable(self) and not progress.heart.active.is_empty():
 					var message := run_heart_save(progress.heart.tick.bind(progress,elapsed,expedition_active()))
 					if not message.is_empty(): status = message
+				if stage.experimental_garden != null:
+					stage.experimental_garden.advance_assimilation(elapsed, expedition_active())
 			else:
 				if progress.advance_growth(elapsed,expedition_active()) and progress.save_garden() != OK:
 					status = "Plant growth could not be saved. Use Save Garden to retry."

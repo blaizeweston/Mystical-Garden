@@ -14,6 +14,8 @@ const Surface = preload("res://assets/terrain_m02/experimental/experiment_terrai
 const Stations = preload("res://assets/terrain_m02/garden_station_art.gd")
 const Offerings = preload("res://assets/terrain_m02/garden_offerings.gd")
 const OfferView = preload("res://assets/terrain_m02/garden_offerings_view.gd")
+const Study = preload("res://assets/terrain_m02/experimental/heart_assimilation.gd")
+const Journal = preload("res://diagnostic_journal.gd")
 const Tx = preload("res://game_transaction.gd")
 const Catalog = preload("res://heart_catalog.gd")
 const Shapes = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
@@ -40,6 +42,10 @@ var bed_material: StandardMaterial3D
 var station_ids := {}
 var structure_nodes := {}
 var funds := Offerings.new()
+var assimilation := Study.new()
+var study_glow := 0.0
+var reclaim_glow := 0.0
+var study_light: Tween
 var offering_dialog: OfferView
 var development_dialog: AcceptDialog
 var frontier: OptionButton
@@ -63,6 +69,10 @@ func configure(world: Node, presentation: Node3D) -> void:
 	for node in [stage.garden_disc, stage.garden_edge, stage.legacy_garden_base, stage.legacy_gate, stage.legacy_altar, stage.heart_tree, stage.heart_seed]:
 		node.hide()
 	game.progress.player_placed_beds = true
+	# The shared stash stores canonical components. Do not offer an alias of the same stack.
+	for id: String in funds.items.keys():
+		if funds.Items.part_id(funds.items[id].legacy_part) != id:
+			funds.items.erase(id)
 	var cells := Generator.generate(Seed, Radius, preload("res://assets/terrain_m02/garden_clearing.tres"), Surface.Catalog)
 	var layout := Layout.build(cells, Spacing, Radius, Seed, true, true)
 	var protections: Array = []
@@ -239,8 +249,55 @@ func contribute(quote: Dictionary) -> bool:
 	var accepted: bool = Tx.committed(outcome.persistence) and outcome.value == true
 	if accepted:
 		funds.energy += int(quote.energy)
+		var starting := assimilation.queue.is_empty()
+		assimilation.add(quote.items)
+		if starting:
+			_study_light(0.6, 0.22)
+		Journal.event("interaction", "heart_assimilation_queued", {"parts": quote.items,
+			"growth": quote.energy, "knowledge": assimilation.queue.back().knowledge})
 	_refresh_parts()
 	return accepted
+
+func advance_assimilation(elapsed: float, in_wilds: bool) -> void:
+	if elapsed <= 0.0 or assimilation.queue.is_empty() or get_tree().paused or not Tx.session_writable(game):
+		return
+	var next := assimilation.plan(game.progress.heart.progression_work(elapsed, in_wilds))
+	var knowledge: int = next.earned
+	if knowledge > 0:
+		var result := Tx.run_gameplay(game, Tx.Scope.GARDEN, func(): game.progress.knowledge += knowledge)
+		if not Tx.committed(result.persistence):
+			if offering_dialog.visible:
+				offering_dialog.refresh_studies()
+			return
+	assimilation.queue = next.queue
+	if knowledge > 0:
+		game.tell(game.HOST, "The Heart assimilated its offering. +%d Knowledge." % knowledge)
+		Journal.event("interaction", "heart_assimilation_completed", {"knowledge": knowledge})
+		_study_light(0.65, 0.14, true)
+	else:
+		_study_light(0.18 + 0.09 * sin(float(assimilation.queue[0].done) * 0.65), 0.66)
+	if offering_dialog.visible:
+		offering_dialog.refresh_studies()
+
+func _offering_studies(items: Dictionary) -> Dictionary:
+	var state := assimilation.summary()
+	state.available = game.progress.heart.available_insight(game.progress)
+	state.selected = Study.quote(items).knowledge if not items.is_empty() else 0
+	state.blocked = Tx.pending_notice(game)
+	return state
+
+func _study_light(value: float, seconds: float, settle := false) -> void:
+	if study_light != null:
+		study_light.kill()
+	study_light = create_tween()
+	study_light.tween_method(_set_study_glow, study_glow, value, seconds)
+	if settle:
+		var rest := 0.18 if not assimilation.queue.is_empty() else 0.0
+		study_light.tween_method(_set_study_glow, value, rest, 0.75)
+
+func _set_study_glow(amount: float) -> void:
+	study_glow = amount
+	heart.reclaim_light(study_glow + reclaim_glow)
 
 func clearing_tier() -> int:
 	return game.progress.heart.clearing_bonus()
@@ -278,7 +335,8 @@ func expand(sector: int) -> bool:
 	reveal = create_tween()
 	reveal.tween_method(func(t: float):
 		shader.set_shader_parameter("root_progress", t)
-		heart.reclaim_light(sin(t * PI))
+		reclaim_glow = sin(t * PI)
+		heart.reclaim_light(study_glow + reclaim_glow)
 		material.set_shader_parameter("garden_reveal", t)
 		forest.position_frontier(previous, current, t)
 		barrier.update_shape(t), 0.0, 1.0, 2.45)
@@ -340,6 +398,7 @@ func place(kind: String, target: Vector2, yaw: float, moving: int = 0) -> bool:
 func _initialize_controls() -> void:
 	offering_dialog = OfferView.new()
 	offering_dialog.experimental_commit = contribute
+	offering_dialog.study_summary = _offering_studies
 	add_child(offering_dialog)
 	development_dialog = AcceptDialog.new()
 	development_dialog.title = "Experimental Garden Development"
@@ -351,7 +410,7 @@ func _initialize_controls() -> void:
 	var controls := VBoxContainer.new()
 	development_dialog.add_child(controls)
 	var offering_button := Button.new()
-	offering_button.text = "Offer shared parts"
+	offering_button.text = "Heart offerings and studies"
 	offering_button.pressed.connect(func():
 		development_dialog.hide()
 		open_offerings())

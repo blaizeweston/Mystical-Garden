@@ -773,6 +773,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_unhandled_key_input` | core_press | core_combat |
 | `game.gd::_unhandled_key_input` | crop_care_adapter | garden_care |
 | `game.gd::_unhandled_key_input` | growth_adapter | garden_cinematics |
+| `game.gd::_physics_process` | experimental_heart_assimilation | hex_terrain |
 | `game.gd::_physics_process` | guarded_expedition | persistence_operations, foundation, core_combat, cultivation_growth, garden_cinematics |
 | `game.gd::_physics_process` | guarded_gameplay_writer | persistence_operations |
 | `game.gd::_physics_process` | core_simulation | core_combat |

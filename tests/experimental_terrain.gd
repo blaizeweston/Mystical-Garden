@@ -52,6 +52,7 @@ func run() -> void:
 		call("quit", 1)
 		return
 	var game: Node = current_scene
+	game.set_physics_process(false) # Step the existing gameplay clock deterministically in this fixture.
 	var garden = game.stage.experimental_garden
 	var player: Dictionary = game.players[game.HOST]
 	check(garden != null and game.slot_claimed and game.character_slot_claimed and game.get_meta(game.Transactions.SESSION).owns_leases(),
@@ -73,16 +74,77 @@ func run() -> void:
 	# Seed only this disposable profile. Research uses the real catalog, timer and serializers.
 	var garden_scope: int = game.Transactions.Scope.GARDEN
 	game.Transactions.run_gameplay(game, garden_scope, func():
-		game.progress.knowledge = 30
-		game.progress.add_parts(Parts.THORN, 44)
+		game.progress.add_parts(Parts.THORN, 60)
 		game.progress.add_parts(Parts.HOOK, 15)
 		game.seed_reserve(player).stock[0] = 2)
+	var plant := Items.part_id(Parts.THORN)
+	var monster := Items.part_id(Parts.HOOK)
+	garden.open_offerings()
+	var panel = garden.offering_dialog
+	var initial_parts: int = game.progress.part_count(Parts.THORN)
+	var initial_knowledge: int = game.progress.knowledge
+	check(garden.funds.quote({plant: initial_parts + 1}).is_empty(), "insufficient inventory cannot be confirmed")
+	var initial_quote: Dictionary = garden.funds.quote({plant: 8})
+	select_offering(panel, plant, 8)
+	check(panel.study_status.text.contains("+8 from selection"), "Heart panel previews provisional Knowledge")
+	panel.confirm_offer.pressed.emit()
+	check(game.progress.part_count(Parts.THORN) == initial_parts - 8 and garden.funds.energy == initial_quote.energy
+		and game.progress.knowledge == initial_knowledge and garden.assimilation.queue.size() == 1,
+		"Heart dialog confirms a partial offering, consumes it once and queues rather than grants Knowledge")
+	check(not garden.contribute(initial_quote), "confirmed offering cannot be replayed")
+	var first: Dictionary = garden.assimilation.queue[0]
+	var rare: Dictionary = {}
+	for item: Dictionary in garden.funds.items.values():
+		if item.rarity == "Rare":
+			rare = garden.Study.quote({item.id: 1})
+			break
+	check(not rare.is_empty() and rare.knowledge > first.knowledge / 8.0 and rare.required > first.required / 8.0,
+		"existing rare parts have more Knowledge and longer work per unit")
+	step_progress(game, 1.0)
+	check(is_equal_approx(garden.assimilation.queue[0].done, 1.0)
+		and is_equal_approx(panel.study_progress.value, 1.0), "Garden rate and visible study progress agree")
+	await _capture("assimilation")
+	paused = true
+	game.growth_clock = 1.0
+	game.set_physics_process(true)
+	for frame in 3:
+		await physics_frame
+	game.set_physics_process(false)
+	paused = false
+	check(is_equal_approx(garden.assimilation.queue[0].done, 1.0) and game.growth_clock == 1.0,
+		"paused world consumes no gameplay clock or assimilation work")
+	game.growth_clock = 0.99
+	game.set_physics_process(true)
+	for frame in 4:
+		await physics_frame
+	game.set_physics_process(false)
+	var resumed_work: float = garden.assimilation.queue[0].done
+	check(resumed_work > 1.99 and resumed_work < 2.1, "normal physics frames resume assimilation")
+	if DisplayServer.get_name() == "headless":
+		var bytes := FileAccess.get_file_as_bytes(game.progress.path)
+		game.set_meta(&"guarded_gameplay_test_fault", func(phase, _path): return ERR_CANT_CREATE if phase == "stage" else OK)
+		step_progress(game, first.required)
+		game.remove_meta(&"guarded_gameplay_test_fault")
+		check(game.progress.knowledge == initial_knowledge and garden.assimilation.queue.size() == 1
+			and is_equal_approx(garden.assimilation.queue[0].done, resumed_work)
+			and FileAccess.get_file_as_bytes(game.progress.path) == bytes,
+			"verified abort preserves canonical bytes and leaves study unpaid")
+	step_progress(game, first.required)
+	check(garden.assimilation.queue.is_empty() and game.progress.knowledge == initial_knowledge + 8,
+		"confirmed completion credits real Knowledge")
+	step_progress(game, first.required)
+	check(game.progress.knowledge == initial_knowledge + 8 and game.progress.part_count(Parts.THORN) == initial_parts - 8,
+		"repeated completion tick cannot award or debit again")
+	panel.hide()
+	var available_before: int = game.progress.heart.available_insight(game.progress)
 	game.run_heart_save(func():
 		return game.progress.heart.start(game.progress, "plot_4"))
 	game.run_heart_save(func():
 		return game.progress.heart.add_work(game.progress, 60.0))
 	check(game.progress.heart.has("plot_4") and game.progress.plots.size() == 3,
 		"real research unlocks a bed without placing it")
+	check(game.progress.heart.available_insight(game.progress) == available_before - 2,
+		"existing research spends the Knowledge earned through study")
 	game.run_heart_save(func():
 		return game.progress.heart.start(game.progress, "clearing_1"))
 	game.run_heart_save(func():
@@ -111,14 +173,15 @@ func run() -> void:
 	player.pos = Vector3(0, 0, 1.5)
 	player.prepared = Parts.THORN
 	garden.open_offerings()
-	var plant := Items.part_id(Parts.THORN)
-	var monster := Items.part_id(Parts.HOOK)
 	var before: int = game.progress.part_count(Parts.THORN)
 	var reserved: Dictionary = garden.funds.quote({plant: before})
 	check(reserved.is_empty(), "loadout reservation is excluded from offering")
 	var quote: Dictionary = garden.funds.quote({plant: 32, monster: 12})
-	check(garden.contribute(quote) and not garden.contribute(quote)
-		and game.progress.part_count(Parts.THORN) == before - 32, "mixed parts debit via the guarded Garden with replay refusal")
+	var monster_before: int = game.progress.part_count(Parts.HOOK)
+	check(garden.contribute(quote) and not garden.contribute(quote) and game.progress.part_count(Parts.THORN) == before - 32
+		and game.progress.part_count(Parts.HOOK) == monster_before - 12, "mixed guarded offering debits both parts once")
+	check(garden.contribute(garden.funds.quote({plant: 2})) and garden.assimilation.queue.size() == 2,
+		"another offering queues behind the active mixed study")
 	garden.offering_dialog.hide()
 	for iteration in 2:
 		garden.open_development()
@@ -150,6 +213,15 @@ func run() -> void:
 		and plot.get_child_count() == 2, "bed and crop render together after relocation")
 	await _capture("garden-after-growth")
 
+	game.run_heart_save(func(): return game.progress.heart.start(game.progress, "flowering"))
+	var research: float = game.progress.heart.work.get("flowering", 0)
+	var study_work: float = garden.assimilation.queue[0].done
+	step_progress(game, 1.0)
+	check(is_equal_approx(garden.assimilation.queue[0].done, study_work + 1.0)
+		and is_equal_approx(game.progress.heart.work.flowering, research + 1.0),
+		"research and assimilation advance concurrently in the Garden")
+	study_work = garden.assimilation.queue[0].done
+	research = game.progress.heart.work.flowering
 	player.pos = game.stage.gate_position()
 	game.map_rng.seed = 241
 	game.PartyTravel.request(game, game.HOST, "depart")
@@ -161,6 +233,11 @@ func run() -> void:
 		call("quit", 1)
 		return
 	var field: Field = game.battlefield
+	check(is_equal_approx(garden.assimilation.queue[0].done, study_work), "departure adds no extra work")
+	step_progress(game, 1.0)
+	check(is_equal_approx(garden.assimilation.queue[0].done, study_work + 3.0)
+		and is_equal_approx(game.progress.heart.work.flowering, research + 3.0),
+		"live Wilds tick accelerates assimilation and research together")
 	var shortcut := InputEventKey.new()
 	shortcut.physical_keycode = KEY_B
 	shortcut.pressed = true
@@ -193,21 +270,73 @@ func run() -> void:
 				break
 		game.apply_weapon_hit(player, target, player.pos, stats, Time.get_ticks_msec())
 	var rewarded: bool = game.MonsterRewards.flush(game)
+	game.finish_combat(game.HOST, game.enemy_pos)
+	check(game.encounter_rewarded, "the guarded combat settlement authorizes Gate progression")
 	for ignored in 3:
 		await process_frame
 	check(rewarded and game.encounter_cleared() and game.stage.wild_portal.visible, "real kills settle and activate the Gate")
 	check(not game.wild_item_drops.is_empty() and Items.get_item(game.wild_item_drops[0].stack.item).category == "monster_part",
 		"real enemy-specific part drops use the production item catalog")
 	await _capture("cleared-gate")
+	var drop: Dictionary = game.wild_item_drops[0]
+	var trophy: String = drop.stack.item
+	player.pos = Vector3(drop.position[0], drop.position[1], drop.position[2])
+	game.pickup_inventory_drop(game.HOST, player, drop.id)
+	transfer_part(game, player, trophy, "carry", "pouch")
+	check(not player.safe_items.is_empty() and player.safe_items[0].item == trophy, "real monster drop fits in safe pouch")
+	study_work = garden.assimilation.queue[0].done
 	player.pos = field.advance
 	game.use_checkpoint(game.HOST, true)
 	await process_frame
 	check(game.depth == 2 and game.battlefield is Field and not game.battlefield.generated.is_empty(), "the real Gate advances to another generated floor")
-	game.abandon_run(game.HOST, player)
+	check(is_equal_approx(garden.assimilation.queue[0].done, study_work), "floor change does not reset or double-count work")
+	step_progress(game, 1.0)
+	check(is_equal_approx(garden.assimilation.queue[0].done, study_work + 3.0), "second Wilds floor uses the same clock")
+	study_work = garden.assimilation.queue[0].done
+	check(game.finish_failed_expedition(), "normal failed-expedition settlement banks the safe-pouch drop")
 	await process_frame
 	check(not player.wild and garden.state.revision == 2 and garden.bed_ids[3] == stable_id
 		and game.progress.plots[3].species == planted and garden.barrier.walkable(garden.planar(player.pos)),
 		"production return retains the session Garden and crop")
+	check(is_equal_approx(garden.assimilation.queue[0].done, study_work), "return preserves study progress without extra work")
+	step_progress(game, 1.0)
+	check(is_equal_approx(garden.assimilation.queue[0].done, study_work + 1.0), "return restores the Garden work rate")
+	var trophy_part: int = Items.get_item(trophy).legacy_part
+	var shared_before: int = game.progress.part_count(trophy_part)
+	transfer_part(game, player, trophy, "stash", "shared")
+	check(game.progress.part_count(trophy_part) == shared_before + 1, "recovered monster part moves to shared storage")
+	player.pos = Vector3(0, 0, 1.5)
+	garden.open_offerings()
+	var waiting_before: int = garden.assimilation.queue.size()
+	select_offering(panel, trophy, 1)
+	panel.confirm_offer.pressed.emit()
+	check(game.progress.part_count(trophy_part) == shared_before and garden.assimilation.queue.size() == waiting_before + 1,
+		"monster drop from the real encounter is consumed and queued")
+	await _capture("queued-studies")
+	var expected: int = garden.assimilation.summary().pending
+	var knowledge_before: int = game.progress.knowledge
+	# Cross all remaining batch boundaries using one real shared progression tick.
+	step_progress(game, 600.0)
+	var cfg := ConfigFile.new()
+	check(garden.assimilation.queue.is_empty() and game.progress.knowledge == knowledge_before + expected
+		and cfg.load(game.progress.path) == OK and cfg.get_value("garden", "knowledge") == knowledge_before + expected,
+		"queued completions credit canonical Knowledge exactly once")
+	check(panel.study_status.text.contains("0 pending"), "Heart view refreshes after completion")
+	panel.hide()
+	var after_study: int = game.progress.heart.available_insight(game.progress)
+	game.run_heart_save(func(): return game.progress.heart.start(game.progress, "plot_5"))
+	step_progress(game, 60.0)
+	check(game.progress.heart.has("plot_5") and game.progress.plots.size() == 4
+		and game.progress.heart.available_insight(game.progress) == after_study - 3,
+		"Knowledge from the queue funds the next existing bed research without automatic placement")
+	garden.open_development()
+	if not garden.plans.is_empty():
+		check(garden.expand(garden.plans.keys()[0]), "energy still funds player-chosen expansion after return")
+		if garden.reveal != null:
+			garden.reveal.custom_step(3.0)
+	garden.development_dialog.hide()
+	check(garden.state.revision == 3 and garden.state.entrance_clear() and garden.bed_ids[3] == stable_id
+		and game.progress.plots[3].species == planted, "further growth preserves ownership, Gate and cultivation")
 	var samples := 0
 	var query_peak := field.query_peak_usec
 	var route_failures := field.query_failures
@@ -237,6 +366,23 @@ func run() -> void:
 	if errors == 0:
 		print("PASS: title, real cultivation, offerings, repeatable growth, generated combat, Gate and Garden return")
 	call("quit", int(errors > 0))
+
+func step_progress(game: Node, seconds: float) -> void:
+	game.growth_clock = seconds
+	game._physics_process(0.0)
+
+func select_offering(panel: Window, id: String, amount: int) -> void:
+	for index in panel.list.item_count:
+		if panel.list.get_item_metadata(index) == id:
+			panel.list.select(index)
+			panel.list.item_selected.emit(index)
+			panel.quantity.value = amount
+			return
+	check(false, "eligible part is present in Heart dialog")
+
+func transfer_part(game: Node, player: Dictionary, item: String, source: String, target: String) -> void:
+	game.handle_inventory_action(game.HOST, player, JSON.stringify({
+		"operation": "transfer", "source": source, "target": target, "item": item, "quantity": 1}))
 
 func _capture(label: String) -> void:
 	if screenshots.is_empty():

@@ -212,10 +212,13 @@ func advance(owner: RefCounted,points: int) -> String:
 	natural[active]=int(natural.get(active,0))+points
 	return add_work(owner,points*SECONDS_PER_POINT)
 
+static func progression_work(seconds: float, in_wilds: bool) -> float:
+	return seconds * (WILDS_RATE if in_wilds else 1.0)
+
 func tick(owner: RefCounted,seconds: float,in_wilds: bool) -> String:
 	if active.is_empty() or seconds<=0:return ""
 	var before=capture(owner)
-	var message=add_work(owner,seconds*(WILDS_RATE if in_wilds else 1.0))
+	var message=add_work(owner,progression_work(seconds,in_wilds))
 	if not Batch.guarded_active() and owner.save_garden()!=OK:
 		rollback(owner,before);return "Research could not be saved; progress will retry."
 	return message

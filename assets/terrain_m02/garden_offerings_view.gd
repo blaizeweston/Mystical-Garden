@@ -5,6 +5,9 @@ signal contributed
 
 var model: Offerings
 var experimental_commit := Callable()
+var study_summary := Callable()
+var study_status: Label
+var study_progress: ProgressBar
 var selection := {}
 var review := {}
 var selected := ""
@@ -51,8 +54,16 @@ func _ready() -> void:
 	instructions.text = "Choose a part and set its quantity. You can select several parts before confirming."
 	instructions.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(instructions)
+	if study_summary.is_valid():
+		instructions.text = "Offer unreserved parts from shared storage. The Heart studies them while you play."
+		study_status = Label.new()
+		study_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		body.add_child(study_status)
+		study_progress = ProgressBar.new()
+		study_progress.custom_minimum_size.y = 20
+		body.add_child(study_progress)
 	list = ItemList.new()
-	list.custom_minimum_size.y = 205
+	list.custom_minimum_size.y = 164 if study_summary.is_valid() else 205
 	list.item_selected.connect(func(index: int):
 		selected = list.get_item_metadata(index)
 		_update_quantity())
@@ -123,6 +134,26 @@ func _update_totals() -> void:
 	review = model.quote(selection)
 	confirm_offer.disabled = review.is_empty()
 	status.text = "%d stored growth energy   ·   %d energy selected" % [model.energy, review.get("energy", 0)]
+	refresh_studies()
+
+func refresh_studies() -> void:
+	if not study_summary.is_valid():
+		return
+	var summary: Dictionary = study_summary.call(review.get("items", {}))
+	var active: Dictionary = summary.active
+	study_status.text = "%d Knowledge available  ·  %d pending  ·  +%d from selection" % [
+		summary.available, summary.pending, summary.selected]
+	if active.is_empty():
+		study_status.text += "\nNo active study."
+	else:
+		study_status.text += "\nStudying %s  ·  %ds of work left  ·  %d waiting" % [
+			active.name, ceili(active.required - active.done), summary.waiting]
+	if not summary.blocked.is_empty():
+		study_status.text += "\n" + summary.blocked
+	study_progress.visible = not active.is_empty()
+	if study_progress.visible:
+		study_progress.max_value = active.required
+		study_progress.value = active.done
 
 func _confirm() -> void:
 	var gain: int = review.get("energy", 0)
