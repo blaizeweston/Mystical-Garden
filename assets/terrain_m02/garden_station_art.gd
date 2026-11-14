@@ -3,6 +3,7 @@ extends RefCounted
 ## point and all projected geometry stays inside the supplied footprint.
 
 const Wood = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
+const BED_SOIL_HEIGHT := 0.12
 const BARK := Color("#3c2922")
 const COPPER := Color("#956440")
 const OLIVE := Color("#54613c")
@@ -13,12 +14,12 @@ const NAMES := {"starter_bed": "Cultivation bed", "altar": "Identification altar
 	"seed_archive": "Seed archive", "monster_studies": "Monster studies",
 	"living_archive": "Living archive", "spring": "Watering spring"}
 
-static func build(id: String) -> ArrayMesh:
+static func build(id: String, decorative_bed_shoots := true) -> ArrayMesh:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	match id:
 		"starter_bed":
-			_bed(tool)
+			_bed(tool, decorative_bed_shoots)
 		"altar":
 			_basin(tool, 0.86, 0.77, STONE, GARNET)
 			Wood._tube(tool, [Vector3(-0.41, 0.08, 0.42), Vector3(-0.42, 0.46, 0.19),
@@ -33,7 +34,7 @@ static func build(id: String) -> ArrayMesh:
 			_archive(tool, id)
 	return tool.commit()
 
-static func _bed(tool: SurfaceTool) -> void:
+static func _bed(tool: SurfaceTool, decorative_shoots: bool) -> void:
 	var rim := PackedVector3Array()
 	for i in 30:
 		var theta := TAU * i / 30.0
@@ -42,7 +43,7 @@ static func _bed(tool: SurfaceTool) -> void:
 	for i in rim.size():
 		var a := rim[i]
 		var b := rim[(i + 1) % rim.size()]
-		Wood._face(tool, Vector3(0, 0.12, 0), a * Vector3(0.99, 1.0, 0.99),
+		Wood._face(tool, Vector3(0, BED_SOIL_HEIGHT, 0), a * Vector3(0.99, 1.0, 0.99),
 			b * Vector3(0.99, 1.0, 0.99), SOIL.lerp(Color("#674629"), 0.13 + 0.10 * sin(i * 1.7)))
 	for strip in 3:
 		var path: Array = []
@@ -58,6 +59,10 @@ static func _bed(tool: SurfaceTool) -> void:
 		Wood._tube(tool, [Vector3(-0.56, 0.094, row * 0.25), Vector3(-0.20, 0.145, row * 0.25 + 0.03),
 			Vector3(0.22, 0.142, row * 0.25 - 0.02), Vector3(0.55, 0.094, row * 0.25)],
 			[0.028, 0.046, 0.042, 0.025], Color("#65432b"))
+	Wood._tube(tool, [Vector3(0, 0.035, 0.64), Vector3(0.01, 0.17, 0.62), Vector3(0.08, 0.19, 0.55)],
+		[0.08, 0.075, 0.037], COPPER)
+	if not decorative_shoots:
+		return
 	for i in 3:
 		var at := Vector3(-0.34 + i * 0.29, 0.145, -0.21 + 0.08 * (i % 2))
 		var tip := at + Vector3(0.018, 0.27 + 0.038 * i, -0.025)
@@ -68,8 +73,6 @@ static func _bed(tool: SurfaceTool) -> void:
 			var rib := stem.lerp(leaf, 0.62) + Vector3.UP * 0.046
 			Wood._face(tool, stem, rib + Vector3(0.0, 0.0, 0.045), leaf, OLIVE)
 			Wood._face(tool, stem, leaf, rib - Vector3(0.0, 0.0, 0.045), OLIVE.lightened(0.22))
-	Wood._tube(tool, [Vector3(0, 0.035, 0.64), Vector3(0.01, 0.17, 0.62), Vector3(0.08, 0.19, 0.55)],
-		[0.08, 0.075, 0.037], COPPER)
 
 static func _basin(tool: SurfaceTool, radius: float, y: float, wall: Color, inside: Color) -> void:
 	var bottom := PackedVector3Array()

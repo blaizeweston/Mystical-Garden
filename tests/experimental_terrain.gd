@@ -64,6 +64,11 @@ func run() -> void:
 	game.move_player(game.HOST, Vector2.RIGHT, 8.0)
 	check(garden.barrier.walkable(garden.planar(player.pos)), "movement stays inside the visible forest barrier")
 	player.pos = Vector3(0, 0, 1.5)
+	game.stage.update_plots(game.progress.plots)
+	check(game.stage.garden_beds.get_child_count() == 3, "starter beds rendered")
+	for bed in game.stage.garden_beds.get_children():
+		check(bed is MeshInstance3D and bed.mesh == garden.bed_mesh and bed.get_child_count() == 1
+			and bed.get_child(0) is Label3D, "empty starter bed uses the rooted mesh with no crop decoration")
 	await _capture("garden")
 	# Seed only this disposable profile. Research uses the real catalog, timer and serializers.
 	var garden_scope: int = game.Transactions.Scope.GARDEN
@@ -95,6 +100,13 @@ func run() -> void:
 	game.Transactions.run_gameplay(game, garden_scope, func(): game.progress.advance_growth(MATURE, false))
 	check(game.progress.plots[3].stage == 3 and game.harvest(game.HOST, 3), "real crop matures and returns plant parts")
 	check(game.plant_seed(game.HOST, 3), "replant for preservation checks")
+	game.stage.update_plots(game.progress.plots)
+	var plot: MeshInstance3D = game.stage.garden_beds.get_child(3)
+	check(plot.mesh == garden.bed_mesh and plot.position.is_equal_approx(game.stage.bed_position(3))
+		and is_equal_approx(plot.rotation.y, -0.37) and plot.get_child_count() == 2,
+		"planted bed uses the starter mesh at the selected orientation")
+	check(plot.get_child(0).position.is_equal_approx(Vector3.UP * garden.Stations.BED_SOIL_HEIGHT),
+		"real crop is attached at the model's soil height")
 	await _capture("cultivation")
 	player.pos = Vector3(0, 0, 1.5)
 	player.prepared = Parts.THORN
@@ -132,6 +144,10 @@ func run() -> void:
 			break
 	check(relocation.is_finite() and garden.place("bed", relocation, 0.37, stable_id) and game.progress.plots[3].species == planted,
 		"relocation preserves the real bed identity and crop")
+	game.stage.update_plots(game.progress.plots)
+	plot = game.stage.garden_beds.get_child(3)
+	check(plot.mesh == garden.bed_mesh and plot.position.is_equal_approx(game.stage.bed_position(3))
+		and plot.get_child_count() == 2, "bed and crop render together after relocation")
 	await _capture("garden-after-growth")
 
 	player.pos = game.stage.gate_position()

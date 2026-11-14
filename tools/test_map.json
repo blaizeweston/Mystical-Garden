@@ -9983,13 +9983,22 @@
           ]
         },
         "experimental_terrain_35": {
-          "match": "\t\tif experimental_garden != null: bed_group.rotation.y = experimental_garden.bed_yaw(i)\n",
-          "baseline": "",
+          "match": "\t\tvar bed_group: Node3D\n\t\tif experimental_garden == null:\n\t\t\tbuild_garden_plot(p, garden_beds)\n\t\t\tbed_group = garden_beds.get_child(garden_beds.get_child_count() - 1)\n\t\telse:\n\t\t\tbed_group = experimental_garden.make_bed(i)\n\t\t\tgarden_beds.add_child(bed_group)\n",
+          "baseline": "\t\tbuild_garden_plot(p, garden_beds)\n\t\tvar bed_group:=garden_beds.get_child(garden_beds.get_child_count()-1)\n",
           "systems": [
             "hex_terrain",
             "terrain",
             "garden",
             "persistence_operations"
+          ]
+        },
+        "experimental_crop_soil_height": {
+          "match": "\t\t\tplant.position = Vector3.ZERO if experimental_garden == null else Vector3.UP * experimental_garden.Stations.BED_SOIL_HEIGHT\n",
+          "baseline": "\t\t\tplant.position = Vector3.ZERO\n",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "garden"
           ]
         },
         "preview_fallen_caption": {

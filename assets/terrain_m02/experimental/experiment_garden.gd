@@ -35,6 +35,8 @@ var material: ShaderMaterial
 var base_rim: PackedFloat32Array
 var construction: Build
 var bed_ids := {}
+var bed_mesh: ArrayMesh
+var bed_material: StandardMaterial3D
 var station_ids := {}
 var structure_nodes := {}
 var funds := Offerings.new()
@@ -152,6 +154,19 @@ func bed_position(index: int) -> Vector3:
 
 func bed_yaw(index: int) -> float:
 	return -float(construction.records[bed_ids[index]].yaw) if bed_ids.has(index) else 0.0
+
+func make_bed(index: int) -> MeshInstance3D:
+	if bed_mesh == null:
+		bed_mesh = Stations.build(Build.CATALOG.bed.art, false)
+		bed_material = StandardMaterial3D.new()
+		bed_material.vertex_color_use_as_albedo = true
+	var bed := MeshInstance3D.new()
+	bed.name = "CultivationBed"
+	bed.mesh = bed_mesh
+	bed.material_override = bed_material
+	bed.position = bed_position(index)
+	bed.rotation.y = bed_yaw(index)
+	return bed
 
 func slide(from: Vector3, to: Vector3) -> Vector3:
 	var target := planar(to)

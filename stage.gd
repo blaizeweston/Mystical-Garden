@@ -1344,16 +1344,20 @@ func update_plots(beds: Array) -> void:
 	for i in beds.size():
 		var p := bed_position(i)
 		if not p.is_finite(): continue
-		build_garden_plot(p, garden_beds)
-		var bed_group:=garden_beds.get_child(garden_beds.get_child_count()-1)
-		if experimental_garden != null: bed_group.rotation.y = experimental_garden.bed_yaw(i)
+		var bed_group: Node3D
+		if experimental_garden == null:
+			build_garden_plot(p, garden_beds)
+			bed_group = garden_beds.get_child(garden_beds.get_child_count() - 1)
+		else:
+			bed_group = experimental_garden.make_bed(i)
+			garden_beds.add_child(bed_group)
 		var bed: Dictionary = beds[i]
 		if Campaign.LEGACY_ENDING_ENABLED and int(bed.get("offshoot",-1))>=0:
 			occupied_offshoots.append(int(bed.offshoot));var sapling=PINE.instantiate();natural_materials(sapling);garden_beds.add_child(sapling);sapling.position=p;sapling.scale=Vector3.ONE*(.45 if int(bed.stage)==3 else .27)
 		if bed.species >= 0:
 			var plant := build_crop(int(bed.species), int(bed.stage), bool(bed.flowering))
 			plant.reparent(bed_group, false)
-			plant.position = Vector3.ZERO
+			plant.position = Vector3.ZERO if experimental_garden == null else Vector3.UP * experimental_garden.Stations.BED_SOIL_HEIGHT
 		var label := Label3D.new()
 		bed_group.add_child(label)
 		label.position = Vector3(0, 0.18, 0.95)

@@ -1181,6 +1181,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `stage.gd` | experimental_terrain_31 | hex_terrain, terrain, garden, persistence_operations |
 | `stage.gd` | experimental_terrain_33 | hex_terrain, terrain, garden, persistence_operations |
 | `stage.gd` | experimental_terrain_35 | hex_terrain, terrain, garden, persistence_operations |
+| `stage.gd` | experimental_crop_soil_height | hex_terrain, terrain, garden |
 | `stage.gd` | preview_fallen_caption | combat_balance_preview |
 | `stage.gd` | snap_glasscap_swap | glasscap_feints |
 | `stage.gd` | local_ranged_direction | ranged_release |
