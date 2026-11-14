@@ -47,6 +47,19 @@ func run() -> void:
 		"mouse projection preserves the clicked ground point without snapping")
 	build.preview(bed)
 	check(build.ghost.visible and not build.apply.disabled, "valid placement displays a live ghost")
+	var touched := Grid.world_to_cell(span[0], garden.spacing)
+	var original_terrain: StringName = garden.terrain[touched]
+	garden.terrain[touched] = &"stone"
+	check(model.validate("bed", bed, heading, view.pawn).is_empty(),
+		"an owned stone-labeled hex does not reject a clear footprint")
+	garden.terrain[touched] = original_terrain
+	var starter: Dictionary = garden.landmarks.monster_studies
+	build.preview(starter.center)
+	check(build.apply.disabled and build.blocker.visible and "monster studies" in build.reason
+		and build.blocker_outline == Shape.boundary(starter),
+		"the demo station's reserved area is outlined when it blocks placement (%s)" % build.reason)
+	build.preview(bed)
+	check(not build.blocker.visible and not build.apply.disabled, "the blocker clears when placement is valid again")
 	var key := InputEventKey.new()
 	key.pressed = true
 	key.physical_keycode = KEY_E

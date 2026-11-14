@@ -37,50 +37,57 @@ func footprint(kind: String, at: Vector2, yaw: float) -> Dictionary:
 	return Shape.shape("construction", kind, corners)
 
 func validate(kind: String, at: Vector2, yaw: float, pawn: Vector2, moving: int = 0) -> String:
+	return placement_issue(kind, at, yaw, pawn, moving).get("message", "")
+
+func placement_issue(kind: String, at: Vector2, yaw: float, pawn: Vector2, moving: int = 0) -> Dictionary:
 	if not CATALOG.has(kind) or not at.is_finite() or not is_finite(yaw):
-		return "Choose a Garden structure."
+		return _issue("Choose a Garden structure.")
 	if moving != 0 and (not records.has(moving) or records[moving].kind != kind):
-		return "Select a placed structure to move."
+		return _issue("Select a placed structure to move.")
 	if kind == "study" and moving == 0:
 		for entry: Dictionary in records.values():
 			if entry.kind == kind:
-				return "There is already a field study. Relocate it in Move mode."
+				return _issue("There is already a field study. Relocate it in Move mode.", entry.footprint)
 	var area := footprint(kind, at, yaw)
 	var garden = forest.garden
 	if not _inside(area.outline, forest.visible_outline):
-		return "Keep the full footprint inside the reclaimed forest edge."
+		return _issue("Keep the full footprint inside the reclaimed forest edge.")
 	if Shape.signed_distance(area, pawn, WALK_RADIUS + 0.01) <= WALK_RADIUS:
-		return "Move the player clear of the footprint."
+		return _issue("Move the player clear of the footprint.", Shape.disk("player", "player", pawn, WALK_RADIUS))
 	for feature: Dictionary in garden.layout.water:
 		if _overlaps(area, feature):
-			return "The footprint crosses water."
+			return _issue("The footprint crosses water.", feature)
 	var bank_range: float = CATALOG[kind].get("bank_range", 0.0)
 	if bank_range > 0.0 and not Shape.in_any(garden.layout.water, at, bank_range):
-		return "Place the watering basin within four units of the pond bank."
+		return _issue("Place the watering basin within four units of the pond bank.")
 	for landmark: Dictionary in garden.landmarks.values():
 		if _overlaps(area, landmark):
-			return "Keep clear of the " + landmark.id.replace("_", " ") + "."
+			var name: String = landmark.id.replace("_", " ")
+			return _issue("Keep clear of the %s. Its reserved area is outlined." % name, landmark)
 	for feature: Dictionary in garden.layout.paths + garden.layout.get("path_joins", []):
 		if _overlaps(area, feature, WALK_RADIUS):
-			return "Keep the permanent Wilds approach clear."
+			return _issue("Keep the permanent Wilds approach clear.", feature, WALK_RADIUS)
 	for obstacle: Dictionary in garden.occupied + root_blocks:
 		if _overlaps(area, obstacle):
-			return "A trunk, rock, or major Heart root crosses the footprint."
+			return _issue("A trunk, rock, or major Heart root crosses the footprint.", obstacle)
 	for id: int in records:
 		if id != moving and _overlaps(area, records[id].footprint):
-			return "The footprint overlaps another structure."
-	var land := _check_hexes(area, kind)
+			return _issue("The footprint overlaps another structure.", records[id].footprint)
+	var land := _check_ownership(area)
 	if not land.is_empty():
 		return land
 	if _revision != garden.revision:
 		_build_grid()
 	for thicket: Dictionary in _thickets:
 		if _overlaps(area, thicket):
-			return "Give the blocking forest thicket more room."
+			return _issue("Give the blocking forest thicket more room.", thicket)
 	var candidate := {"kind": kind, "at": at, "yaw": yaw, "footprint": area}
 	if not _access(candidate, pawn, moving):
-		return "Leave a walkable approach to doors, essential stations, and the player."
-	return ""
+		return _issue("Leave a walkable approach to doors, essential stations, and the player.")
+	return {}
+
+func _issue(message: String, blocker: Dictionary = {}, padding: float = MARGIN) -> Dictionary:
+	return {"message": message, "blocker": blocker, "padding": padding}
 
 func commit(kind: String, at: Vector2, yaw: float, pawn: Vector2, moving: int = 0) -> int:
 	if not validate(kind, at, yaw, pawn, moving).is_empty():
@@ -139,7 +146,7 @@ func _overlaps(area: Dictionary, feature: Dictionary, padding: float = MARGIN) -
 			return true
 	return false
 
-func _check_hexes(area: Dictionary, kind: String) -> String:
+func _check_ownership(area: Dictionary) -> Dictionary:
 	var garden = forest.garden
 	var spacing: float = garden.spacing
 	var bounds: Rect2 = area.bounds
@@ -150,9 +157,7 @@ func _check_hexes(area: Dictionary, kind: String) -> String:
 	for q in range(q_min, q_max + 1):
 		for r in range(r_min, r_max + 1):
 			var cell := Vector2i(q, r)
-			var terrain: StringName = garden.terrain.get(cell, &"")
-			var owned: bool = garden.owned.has(cell)
-			if owned and (kind != "bed" or terrain in [&"meadow", &"soil", &"forest_floor"]):
+			if garden.owned.has(cell):
 				continue
 			if not bounds.grow(spacing).has_point(Grid.cell_to_world(cell, spacing)):
 				continue
@@ -160,8 +165,8 @@ func _check_hexes(area: Dictionary, kind: String) -> String:
 			for i in 6:
 				hex.append(Grid.key_to_world(Grid.corner_key(cell, i), spacing))
 			if not Geometry2D.intersect_polygons(area.outline, hex).is_empty():
-				return "The footprint touches an unclaimed hex." if not owned else "Cultivation beds require soil, meadow, or forest floor."
-	return ""
+				return _issue("The footprint touches an unclaimed hex.", Shape.shape("unclaimed", "hex", hex), 0.0)
+	return {}
 
 func _grid_key(at: Vector2) -> Vector2i:
 	return Vector2i((at / STEP).round())

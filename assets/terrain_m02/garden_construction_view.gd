@@ -24,6 +24,10 @@ var apply: Button
 var info: Label
 var ghost: MeshInstance3D
 var marker: MeshInstance3D
+var blocker: MeshInstance3D
+var blocker_mesh := ImmediateMesh.new()
+var blocker_outline := PackedVector2Array()
+var blocker_padding := 0.0
 var meshes := {}
 var objects := {}
 var material: StandardMaterial3D
@@ -76,6 +80,11 @@ func bind(owner_view, row: HBoxContainer, status: Label) -> void:
 	marker = _model(ghost)
 	marker.material_override = outline
 	marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	blocker = _model(self)
+	blocker.mesh = blocker_mesh
+	blocker.material_override = _material(Color("#ffc454"), true)
+	blocker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	blocker.hide()
 
 func _button(title: String, action: Callable) -> Button:
 	var button := Button.new()
@@ -123,6 +132,7 @@ func _cancel() -> void:
 	moving = 0
 	target = Vector2.INF
 	ghost.hide()
+	blocker.hide()
 	apply.disabled = true
 	if enabled:
 		info.text = "Select a placed structure to move." if move_mode.button_pressed else "Move the pointer over reclaimed land to place a structure."
@@ -186,6 +196,7 @@ func confirm() -> int:
 	target = Vector2.INF
 	moving = 0
 	ghost.hide()
+	blocker.hide()
 	apply.disabled = true
 	parent_view._update_reset_availability()
 	info.text = "%s #%d ready. %d structures in the Garden." % [Build.CATALOG[kind].name, id, model.records.size()]
@@ -195,8 +206,10 @@ func _update_ghost() -> void:
 	if not enabled or not target.is_finite():
 		return
 	var started := Time.get_ticks_usec()
-	reason = model.validate(kind, target, yaw, parent_view.pawn, moving)
+	var issue := model.placement_issue(kind, target, yaw, parent_view.pawn, moving)
 	query_usec = Time.get_ticks_usec() - started
+	reason = issue.get("message", "")
+	_show_blocker(issue.get("blocker", {}), issue.get("padding", 0.0))
 	var color := VALID if reason.is_empty() else INVALID
 	tint.albedo_color = Color(color, 0.56)
 	outline.albedo_color = color
@@ -209,6 +222,26 @@ func _update_ghost() -> void:
 	apply.disabled = not reason.is_empty()
 	info.text = reason if not reason.is_empty() else "%s  ·  %d°  ·  Ready to %s" % [
 		Build.CATALOG[kind].name, roundi(rad_to_deg(yaw)), "relocate" if moving != 0 else "place"]
+
+func _show_blocker(feature: Dictionary, padding: float) -> void:
+	blocker.visible = not feature.is_empty()
+	if not blocker.visible:
+		return
+	var points := Shape.boundary(feature)
+	if points == blocker_outline and is_equal_approx(padding, blocker_padding):
+		return
+	blocker_outline = points
+	blocker_padding = padding
+	var boundaries := Geometry2D.offset_polygon(points, padding) if padding > 0.0 else [points]
+	if boundaries.is_empty():
+		boundaries.append(points)
+	blocker_mesh.clear_surfaces()
+	for boundary: PackedVector2Array in boundaries:
+		blocker_mesh.surface_begin(Mesh.PRIMITIVE_LINE_STRIP)
+		for point in boundary:
+			blocker_mesh.surface_add_vertex(Vector3(point.x, 0.085, point.y))
+		blocker_mesh.surface_add_vertex(Vector3(boundary[0].x, 0.085, boundary[0].y))
+		blocker_mesh.surface_end()
 
 func _mesh(id: String) -> Mesh:
 	if not meshes.has(id):
