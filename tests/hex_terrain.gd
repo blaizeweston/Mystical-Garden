@@ -232,6 +232,10 @@ func _render_field() -> void:
 func _scene() -> void:
 	var scene: Node3D = PREVIEW.instantiate()
 	root.add_child(scene)
+	var renderer: OptionButton = scene.get_node("%Rendering")
+	# Exercise the unchanged riverwood baseline in a historical mode.
+	renderer.select(5)
+	renderer.item_selected.emit(5)
 	var example: OptionButton = scene.get_node("%Example")
 	example.select(1)
 	example.item_selected.emit(1)
@@ -253,7 +257,6 @@ func _scene() -> void:
 	check(scene.metrics.seed == 52, "next-seed control regenerates")
 	scene.show_example(0, 117, 2, false)
 	check(not scene.get_node("HexDebug").visible and scene.get_node("TreePosition").visible, "Garden marker and hidden grid")
-	var renderer: OptionButton = scene.get_node("%Rendering")
 	var mesh := (scene.get_node("Ground") as MeshInstance3D).mesh
 	var mesh_instance := scene.get_node("Ground") as MeshInstance3D
 	var metrics_before: Dictionary = scene.metrics.duplicate()

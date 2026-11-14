@@ -9,6 +9,7 @@ const RootMeshes = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
 const Enclosure = preload("res://assets/terrain_m02/terrain_enclosure.gd")
 const FeatureMask = preload("res://assets/terrain_m02/terrain_feature_mask.gd")
 const MaterialField = preload("res://assets/terrain_m02/terrain_material_field.gd")
+const Wilds = preload("res://assets/terrain_m02/wilds_preview_generation.gd")
 const CATALOG = preload("res://assets/terrain_m02/terrain_catalog.tres")
 const PALETTES := [
 	preload("res://assets/terrain_m02/garden_clearing.tres"),
@@ -23,6 +24,8 @@ const CAMERA_SIZE := 16.5
 const CLOSE_CAMERA_SIZE := 5.0
 const M06B := 5
 const M06C := 6
+const M07 := 7
+const START_FLOORS := [1, 1, 9, 18]
 
 var cells := {}
 var compiled := {}
@@ -34,6 +37,8 @@ var natural_material: ShaderMaterial
 var feature_layout := {}
 var enclosed_layout := {}
 var scene_garden := true
+var generated_mode := M06C
+var wilds := {}
 var botanical_layout := {}
 var continuity_layout := {}
 var legacy_atlas := {}
@@ -62,6 +67,7 @@ var botanical_heart: MeshInstance3D
 @onready var status: Label = %Status
 @onready var detail: Label = %Detail
 @onready var art_note: Label = %ArtNote
+@onready var floor_choice: OptionButton = %Floor
 @onready var heart_stage: OptionButton = %HeartStage
 
 func _ready() -> void:
@@ -98,14 +104,18 @@ func _ready() -> void:
 	render_mode.add_item("M02")
 	render_mode.add_item("M06B")
 	render_mode.add_item("M06C")
+	render_mode.add_item("M07")
 	render_mode.select(M06C)
+	for number in range(1, 19):
+		floor_choice.add_item("Floor %d" % number)
+	floor_choice.item_selected.connect(func(_index: int): _regenerate())
 	map_size.add_item("631 cells")
 	map_size.add_item("2,437 cells")
 	seed_field.value = DEFAULT_SEEDS[0]
 	example.item_selected.connect(_select_example)
 	size_choice.item_selected.connect(func(_index: int): _regenerate())
 	map_size.item_selected.connect(func(_index: int): _regenerate())
-	render_mode.item_selected.connect(_set_render_mode)
+	render_mode.item_selected.connect(_select_render_mode)
 	%Generate.pressed.connect(_regenerate)
 	%NextSeed.pressed.connect(_next_seed)
 	overlay.toggled.connect(_set_overlay)
@@ -115,6 +125,7 @@ func _ready() -> void:
 
 func show_example(index: int, seed_value: int, spacing_index: int, show_overlay: bool) -> void:
 	example.select(index)
+	floor_choice.select(START_FLOORS[index] - 1)
 	size_choice.select(spacing_index)
 	seed_field.set_value_no_signal(seed_value)
 	overlay.set_pressed_no_signal(show_overlay)
@@ -122,7 +133,16 @@ func show_example(index: int, seed_value: int, spacing_index: int, show_overlay:
 
 func _select_example(index: int) -> void:
 	seed_field.set_value_no_signal(DEFAULT_SEEDS[index])
+	floor_choice.select(START_FLOORS[index] - 1)
+	if render_mode.selected >= M06C:
+		render_mode.select(M06C if index == 0 else M07)
 	_regenerate()
+
+func _select_render_mode(index: int) -> void:
+	if not scene_garden and (index == M07 or generated_mode == M07):
+		_regenerate()
+	else:
+		_set_render_mode(index)
 
 func _next_seed() -> void:
 	var next := int(seed_field.value) + 1
@@ -133,7 +153,13 @@ func _regenerate() -> void:
 	var palette = PALETTES[0 if example.selected == 0 else 1]
 	terrain_seed = int(seed_field.value)
 	spacing = SPACINGS[size_choice.selected]
+	scene_garden = palette.tree_at_origin
+	generated_mode = render_mode.selected
 	var started := Time.get_ticks_usec()
+	if generated_mode == M07 and not scene_garden:
+		_rebuild_wilds(started)
+		return
+	wilds = {}
 	cells = Generator.generate(terrain_seed, RADII[map_size.selected], palette, CATALOG)
 	var generated := Time.get_ticks_usec()
 	compiled = Compiler.compile(cells, spacing, CATALOG)
@@ -142,7 +168,6 @@ func _regenerate() -> void:
 	natural_material = MaterialField.material(field, spacing, terrain_seed, CATALOG)
 	var material_baked := Time.get_ticks_usec()
 	feature_layout = Features.build(cells, spacing, RADII[map_size.selected], terrain_seed, palette.tree_at_origin)
-	scene_garden = palette.tree_at_origin
 	enclosed_layout = Enclosure.build(feature_layout, cells, spacing, terrain_seed, scene_garden)
 	botanical_layout = ArtDirection.placements(enclosed_layout, example.selected)
 	var features_built := Time.get_ticks_usec()
@@ -173,6 +198,70 @@ func _regenerate() -> void:
 		metrics.cells, metrics.plants + metrics.enclosure, metrics.rocks, (view_built - started) / 1000.0]
 	print("M06_TERRAIN ", JSON.stringify(metrics))
 
+func _rebuild_wilds(started: int) -> void:
+	tree.visible = false
+	growing_heart.pulse.visible = false
+	heart_stage.visible = false
+	floor_choice.visible = true
+	wilds = Wilds.build(terrain_seed, floor_choice.selected + 1, RADII[map_size.selected], spacing, CATALOG)
+	if wilds.is_empty():
+		cells = {}
+		ground.hide()
+		feature_view.hide()
+		enclosure_view.hide()
+		metrics = {}
+		debug.hide()
+		status.text = "Terrain constraints could not be satisfied for this seed."
+		art_note.text = ""
+		detail.text = ""
+		return
+	cells = wilds.cells
+	var generated := Time.get_ticks_usec()
+	compiled = Compiler.compile(cells, spacing, CATALOG)
+	var meshed := Time.get_ticks_usec()
+	var climate: Dictionary = wilds.climate
+	example.select(climate.biome + 1)
+	natural_material = MaterialField.material(MaterialField.bake(wilds.substrate), spacing, terrain_seed, CATALOG)
+	FeatureMask.bind(natural_material, FeatureMask.bake(wilds.layout, spacing, RADII[map_size.selected]))
+	natural_material.set_shader_parameter("feature_mode", true)
+	natural_material.set_shader_parameter("continuity_mode", true)
+	natural_material.set_shader_parameter("wilds_mode", true)
+	natural_material.set_shader_parameter("wilds_moisture", climate.moisture)
+	natural_material.set_shader_parameter("wilds_floor", climate.floor)
+	natural_material.set_shader_parameter("wilds_water", climate.wet)
+	natural_material.set_shader_parameter("botanical_mode", true)
+	natural_material.set_shader_parameter("botanical_ground", climate.ground)
+	natural_material.set_shader_parameter("botanical_water", climate.water)
+	var baked := Time.get_ticks_usec()
+	ground.mesh = compiled.mesh
+	ground.material_override = natural_material
+	var batches: Dictionary = feature_view.rebuild(wilds.layout, {}, 0, true)
+	_light(true)
+	sun.light_color = climate.sun
+	sun.light_energy = climate.sun_energy
+	environment.ambient_light_color = climate.ambient
+	environment.ambient_light_energy = climate.ambient_energy
+	environment.background_color = climate.air.darkened(0.65)
+	environment.fog_enabled = true
+	environment.fog_light_color = climate.air
+	environment.fog_density = climate.haze
+	_sync_layers()
+	debug_dirty = true
+	_set_overlay(overlay.button_pressed)
+	var names := ["Outer Grove", "Sable Mire", "Hollow Below"]
+	var weights: Vector3 = climate.weights
+	art_note.text = "%s  ·  Grove %d%%   Mire %d%%   Hollow %d%%" % [
+		names[climate.biome], roundi(weights.x * 100.0), roundi(weights.y * 100.0), roundi(weights.z * 100.0)]
+	var total := (Time.get_ticks_usec() - started) / 1000.0
+	metrics = {"floor": floor_choice.selected + 1, "seed": terrain_seed, "cells": cells.size(),
+		"triangles": compiled.triangles, "plants": batches.plant_instances, "obstacles": batches.rock_instances,
+		"batch_count": batches.instance_batches, "repairs": wilds.layout.repair,
+		"generation_ms": (generated - started) / 1000.0, "mesh_ms": (meshed - generated) / 1000.0,
+		"material_ms": (baked - meshed) / 1000.0, "rebuild_ms": total}
+	status.text = "%d cells  ·  %d plants  ·  %d obstacles  ·  %.1f ms rebuild" % [
+		cells.size(), batches.plant_instances, batches.rock_instances, total]
+	print("M07_TERRAIN ", JSON.stringify(metrics))
+
 func _set_render_mode(index: int) -> void:
 	var continuity := index >= M06B
 	var enclosure := index <= 1 or continuity
@@ -200,7 +289,8 @@ func _set_render_mode(index: int) -> void:
 		enclosure_view.rebuild(continuity_layout if continuity else enclosed_layout, scene_garden, profile, biome, continuity)
 	legacy_heart.visible = not modern
 	botanical_heart.visible = modern and not continuity
-	growing_heart.set_sculpt(index == M06C and scene_garden)
+	growing_heart.set_sculpt(index >= M06C and scene_garden)
+	floor_choice.hide()
 	growing_heart.visible = continuity
 	growing_heart.pulse.visible = continuity and scene_garden
 	heart_stage.visible = continuity and scene_garden
@@ -214,6 +304,7 @@ func _set_render_mode(index: int) -> void:
 	_sync_layers()
 
 func _light(enclosure: bool) -> void:
+	environment.fog_enabled = false
 	sun.light_color = Color("#ffe2aa") if enclosure and scene_garden else Color("#d5dfbd") if enclosure else Color(1, 0.96, 0.86)
 	sun.light_energy = (0.74 if scene_garden else 0.72) if enclosure else 1.12
 	environment.ambient_light_color = (Color("#aab297") if scene_garden else Color("#829992")) if enclosure else Color(0.83, 0.91, 0.88)
@@ -225,7 +316,9 @@ func _sync_layers() -> void:
 	var continuity := render_mode.selected >= M06B
 	var enclosure := render_mode.selected <= 1 or continuity
 	var feature_mode := render_mode.selected <= 2 or continuity
-	enclosure_view.visible = enclosure and %VegetationLayer.button_pressed
+	if generated_mode == M07 and not scene_garden and wilds.is_empty():
+		return
+	enclosure_view.visible = enclosure and wilds.is_empty() and %VegetationLayer.button_pressed
 	hearth.visible = enclosure and scene_garden and %GroundLayer.button_pressed
 	ground.visible = feature_mode or %GroundLayer.button_pressed
 	natural_material.set_shader_parameter("show_ground", not feature_mode or %GroundLayer.button_pressed)
@@ -237,7 +330,9 @@ func _sync_layers() -> void:
 	feature_view.crossings.visible = %PathLayer.button_pressed
 
 func _set_overlay(enabled: bool) -> void:
-	debug.visible = enabled
+	debug.visible = enabled and not cells.is_empty()
+	if cells.is_empty():
+		return
 	if enabled and debug_dirty:
 		debug.rebuild(cells, spacing, compiled)
 		debug_dirty = false

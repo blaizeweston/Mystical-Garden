@@ -179,6 +179,12 @@ layout_mode = 2
 button_pressed = true
 text = "Paths"
 
+[node name="Floor" type="OptionButton" parent="Interface/Toolbar/Rows/Layers"]
+unique_name_in_owner = true
+layout_mode = 2
+visible = false
+tooltip_text = "Compare Wilds floors without changing the seed"
+
 [node name="HeartStage" type="OptionButton" parent="Interface/Toolbar/Rows/Layers"]
 unique_name_in_owner = true
 layout_mode = 2

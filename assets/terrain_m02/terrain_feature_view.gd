@@ -2,6 +2,8 @@ extends Node3D
 ## One MultiMesh per repeated asset variant. Collision stays outside the preview.
 
 const RootMeshes = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
+const Art = preload("res://assets/terrain_m02/terrain_art_direction.gd")
+const Habitat = preload("res://assets/terrain_m02/wilds_habitat_mesh.gd")
 const TREE := preload("res://assets/root_tree.glb")
 const FERNS := preload("res://assets/garden/field/fern_02.glb")
 const GRASS := preload("res://assets/garden/field/grass_medium_01.glb")
@@ -29,21 +31,23 @@ func _group(label: String) -> Node3D:
 	add_child(group)
 	return group
 
-func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0) -> Dictionary:
+func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds: bool = false) -> Dictionary:
 	var assets := variants
-	if profile.is_empty():
-		if variants.is_empty():
-			_load_variants()
-	else:
-		if not botanical_variants.has(biome):
-			botanical_variants[biome] = _make_botanicals(profile, biome)
-		assets = botanical_variants[biome]
+	if not wilds:
+		if profile.is_empty():
+			if variants.is_empty():
+				_load_variants()
+		else:
+			if not botanical_variants.has(biome):
+				botanical_variants[biome] = _make_botanicals(profile, biome)
+			assets = botanical_variants[biome]
 	for group in [vegetation, rocks, crossings]:
 		for child in group.get_children():
 			child.free()
 	var batches := {}
 	for plant in layout.plants:
-		var options: Array = assets[plant.kind]
+		var set := _wilds_assets(plant.family) if wilds else assets
+		var options: Array = set[plant.kind]
 		var asset: Dictionary = options[plant.variant % options.size()]
 		var height: float = plant.height
 		var basis := Basis(Vector3.UP, plant.yaw).scaled(Vector3.ONE * height / asset.bounds.size.y)
@@ -51,7 +55,8 @@ func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0) -> Di
 			basis = basis.scaled(Vector3(1.32, 0.9, 1.32))
 		_append(batches, asset, basis, plant.center, plant.tint)
 	for prop in layout.rocks:
-		var available: Array = assets.rock
+		var set := _wilds_assets(prop.family) if wilds else assets
+		var available: Array = set[prop.kind] if wilds else set.rock
 		var asset: Dictionary = available[prop.variant % available.size()]
 		var size: Vector3 = asset.bounds.size
 		# Half the bounding box diagonal makes the logical disk conservative at any yaw.
@@ -63,11 +68,17 @@ func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0) -> Di
 		_batch(parent, batches[key])
 	for crossing in layout.crossings:
 		if crossing.has("bridge"):
-			_bridge(crossing.bridge)
+			_bridge(crossing.bridge, wilds)
 	return {"plant_instances": layout.plants.size(), "rock_instances": layout.rocks.size(),
 		"instance_batches": batches.size()}
 
-func _make_botanicals(profile: Dictionary, biome: int) -> Dictionary:
+func _wilds_assets(family: int) -> Dictionary:
+	var key := family + 4
+	if not botanical_variants.has(key):
+		botanical_variants[key] = _make_botanicals(Art.profile(family + 1), family + 1, family)
+	return botanical_variants[key]
+
+func _make_botanicals(profile: Dictionary, biome: int, family: int = -1) -> Dictionary:
 	if botanical_material == null:
 		botanical_material = StandardMaterial3D.new()
 		botanical_material.vertex_color_use_as_albedo = true
@@ -77,18 +88,35 @@ func _make_botanicals(profile: Dictionary, biome: int) -> Dictionary:
 	var kinds := ["tree", "sapling", "shrub", "fern", "grass", "rock"]
 	if biome == 3:
 		kinds.append("wine_fern")
+	if family == 1:
+		kinds.append_array(["reed", "fallen_timber"])
+	elif family == 2:
+		kinds.append_array(["fungus", "root_arch"])
 	for kind in kinds:
 		var options: Array[Dictionary] = []
 		for i in (4 if kind == "rock" else 3):
 			var mesh: ArrayMesh
 			match kind:
-				"tree", "sapling": mesh = RootMeshes.botanical(i, kind, profile, biome)
+				"tree", "sapling":
+					mesh = RootMeshes.botanical(i, kind, profile, biome) if family <= 0 else Habitat.tree(i, family, profile)
 				"rock": mesh = RootMeshes.basalt(i, profile)
+				"reed", "fungus", "fallen_timber", "root_arch": mesh = Habitat.prop(kind, i, profile)
 				_: mesh = RootMeshes.understory(kind, i, profile)
 			mesh.surface_set_material(0, botanical_material)
+			if kind == "fungus":
+				var luminous := botanical_material.duplicate() as StandardMaterial3D
+				luminous.emission_enabled = true
+				luminous.emission = Color("#54426d")
+				luminous.emission_energy_multiplier = 0.22
+				mesh.surface_set_material(0, luminous)
+			var stone: bool = kind in ["rock", "fallen_timber", "root_arch"]
 			var key: String = ("rock_botanical_" if kind == "rock" else "botanical_" + kind + "_") + str(i)
+			if stone and kind != "rock":
+				key = "rock_" + key
+			if family >= 0:
+				key += "_family_" + str(family)
 			var entry := _entry(key, mesh, null)
-			entry["ground_cover"] = kind in ["shrub", "fern", "wine_fern", "grass"]
+			entry["ground_cover"] = kind in ["shrub", "fern", "wine_fern", "grass", "fungus", "reed"]
 			options.append(entry)
 		result[kind] = options
 	return result
@@ -156,12 +184,14 @@ func _batch(parent: Node3D, data: Dictionary) -> void:
 	model.custom_aabb = AABB(Vector3(-65, -1, -65), Vector3(130, 10, 130))
 	parent.add_child(model)
 
-func _bridge(span: PackedVector2Array) -> void:
+func _bridge(span: PackedVector2Array, full_deck: bool) -> void:
 	var delta := span[1] - span[0]
 	var center := (span[0] + span[1]) * 0.5
 	var basis := Basis(Vector3.UP, atan2(delta.x, delta.y))
 	var planks := BoxMesh.new()
-	planks.size = Vector3(1.52, 0.10, 0.24)
+	var count := ceili(delta.length() / 0.29)
+	var pitch := delta.length() / count
+	planks.size = Vector3(1.52, 0.10, pitch if full_deck else 0.24)
 	if bridge_material == null:
 		bridge_material = StandardMaterial3D.new()
 		bridge_material.albedo_color = Color("#634d37")
@@ -170,7 +200,7 @@ func _bridge(span: PackedVector2Array) -> void:
 	var data := MultiMesh.new()
 	data.transform_format = MultiMesh.TRANSFORM_3D
 	data.mesh = planks
-	data.instance_count = ceili(delta.length() / 0.29)
+	data.instance_count = count
 	for i in data.instance_count:
 		var at := center + delta * ((i + 0.5) / data.instance_count - 0.5)
 		data.set_instance_transform(i, Transform3D(basis, Vector3(at.x, 0.105 + 0.012 * sin(i * 1.89), at.y)))

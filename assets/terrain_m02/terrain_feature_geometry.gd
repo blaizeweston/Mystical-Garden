@@ -43,7 +43,10 @@ static func signed_distance(feature: Dictionary, point: Vector2, limit: float = 
 	var bounds: Rect2 = feature.bounds
 	if limit != INF and not bounds.grow(limit).has_point(point):
 		return limit
-	return polygon_distance(feature.outline, point, limit)
+	var distance := polygon_distance(feature.outline, point, limit)
+	for hole in feature.get("holes", []):
+		distance = maxf(distance, -polygon_distance(hole, point, limit))
+	return distance
 
 static func polygon_distance(points: PackedVector2Array, point: Vector2, limit: float = INF) -> float:
 	var inside := false

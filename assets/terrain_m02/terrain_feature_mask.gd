@@ -41,24 +41,25 @@ static func _stamp(features: Array, channel: int, frame: Rect2, size: Vector2i, 
 		nearest.fill(MAX_DISTANCE * MAX_DISTANCE)
 		var crossings: Array[PackedFloat32Array] = []
 		crossings.resize(size.y)
-		var outline: PackedVector2Array = feature.outline
-		var previous := outline[outline.size() - 1]
-		for point in outline:
-			var edge := point - previous
-			var length_inv := 1.0 / maxf(edge.length_squared(), 0.000001)
-			var edge_band := Rect2(previous, Vector2.ZERO).expand(point).grow(MAX_DISTANCE)
-			var start := Vector2i(((edge_band.position - frame.position) / step).floor()).max(lo)
-			var end := Vector2i(((edge_band.end - frame.position) / step).ceil()).min(hi)
-			for y in range(start.y, end.y + 1):
-				var world_y := frame.position.y + y * step.y
-				if (previous.y > world_y) != (point.y > world_y):
-					crossings[y].append(previous.x + edge.x * (world_y - previous.y) / edge.y)
-				for x in range(start.x, end.x + 1):
-					var at := frame.position + Vector2(x, y) * step - previous
-					var t := clampf(at.dot(edge) * length_inv, 0.0, 1.0)
-					var index := y * size.x + x
-					nearest[index] = minf(nearest[index], (at - edge * t).length_squared())
-			previous = point
+		var contours: Array = [feature.outline] + feature.get("holes", [])
+		for outline: PackedVector2Array in contours:
+			var previous := outline[-1]
+			for point in outline:
+				var edge := point - previous
+				var length_inv := 1.0 / maxf(edge.length_squared(), 0.000001)
+				var edge_band := Rect2(previous, Vector2.ZERO).expand(point).grow(MAX_DISTANCE)
+				var start := Vector2i(((edge_band.position - frame.position) / step).floor()).max(lo)
+				var end := Vector2i(((edge_band.end - frame.position) / step).ceil()).min(hi)
+				for y in range(start.y, end.y + 1):
+					var world_y := frame.position.y + y * step.y
+					if (previous.y > world_y) != (point.y > world_y):
+						crossings[y].append(previous.x + edge.x * (world_y - previous.y) / edge.y)
+					for x in range(start.x, end.x + 1):
+						var at := frame.position + Vector2(x, y) * step - previous
+						var t := clampf(at.dot(edge) * length_inv, 0.0, 1.0)
+						var index := y * size.x + x
+						nearest[index] = minf(nearest[index], (at - edge * t).length_squared())
+				previous = point
 		for y in range(lo.y, hi.y + 1):
 			var intersections := crossings[y]
 			intersections.sort()

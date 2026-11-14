@@ -12,6 +12,10 @@ uniform float feature_range;
 uniform bool feature_mode = false;
 uniform int art_mode = 0;
 uniform bool botanical_mode = false;
+uniform bool wilds_mode = false;
+uniform float wilds_moisture = 0.0;
+uniform vec3 wilds_floor : source_color;
+uniform vec3 wilds_water : source_color;
 uniform bool continuity_mode = false;
 uniform vec3 botanical_ground : source_color;
 uniform vec3 botanical_water : source_color;
@@ -220,8 +224,13 @@ void fragment() {
 		dry *= mix(vec3(1.0), botanical_ground, 0.40 - 0.16 * path_weight);
 		water_surface *= mix(vec3(1.0), botanical_water, 0.40);
 	}
+	if (wilds_mode) {
+		dry *= mix(vec3(1.0), wilds_floor, 0.42 + 0.24 * damp);
+		dry *= 1.0 - wilds_moisture * (0.10 + 0.21 * max(bank, damp));
+		water_surface = mix(water_surface, wilds_water * (0.53 + 0.19 * eddy), 0.58);
+	}
 	ALBEDO = mix(dry, water_surface, cover);
 
-	ROUGHNESS = mix(0.90 - 0.15 * damp - 0.14 * bank - 0.13 * land.w + 0.05 * flecks, 0.39 + 0.09 * eddy, cover);
+	ROUGHNESS = mix(0.90 - (wilds_mode ? wilds_moisture * 0.12 : 0.0) - 0.15 * damp - 0.14 * bank - 0.13 * land.w + 0.05 * flecks, 0.39 + 0.09 * eddy, cover);
 	SPECULAR = mix(0.19 + 0.11 * bank, 0.34, cover);
 }
