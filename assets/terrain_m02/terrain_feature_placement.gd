@@ -128,7 +128,7 @@ static func _plant(layout: Dictionary, id: String, kind: String, at: Vector2, he
 		"tint": random.randf_range(0.0, 1.0)})
 
 static func _excluded(layout: Dictionary, at: Vector2, padding: float) -> bool:
-	return Shape.in_any(layout.clearings, at, padding) or Shape.in_any(layout.water, at, padding) 		or Shape.in_any(layout.paths, at, padding)
+	return Shape.in_any(layout.clearings, at, padding) or Shape.in_any(layout.water, at, padding) 		or Shape.in_trails(layout, at, padding)
 
 static func _near_rock(layout: Dictionary, at: Vector2, padding: float) -> bool:
 	var bucket := Vector2i((at / 2.0).floor())

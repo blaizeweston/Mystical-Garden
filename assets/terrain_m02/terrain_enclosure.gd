@@ -47,6 +47,12 @@ static func build(base: Dictionary, cells: Dictionary, spacing: float, seed_valu
 			# Low crowns in the foreground frame the approach and the bridge.
 			height *= lerpf(1.0, 0.57 if garden else 0.54, foreground)
 			crown *= lerpf(1.0, 0.74, foreground)
+			if base.has("trail_network"):
+				# Shorter verge crowns frame the approach without hiding it at the preview camera angle.
+				var canopy_projection := at + Vector2(-0.14, -0.60) * height
+				if Shape.in_trails(layout, canopy_projection, crown * 0.70):
+					height *= 0.74
+					crown *= 0.65
 			layout.enclosure.append({"id": "rim_%d_%d" % [ring, i], "ring": ring, "sector": i,
 				"at": at, "height": height, "crown": crown, "variant": random.randi_range(0, 3),
 				"yaw": random.randf_range(0.0, TAU)})
@@ -87,7 +93,7 @@ static func _fill_garden_gaps(layout: Dictionary, cells: Dictionary, spacing: fl
 static func _allows(layout: Dictionary, cells: Dictionary, spacing: float, at: Vector2, pad: float = 0.58) -> bool:
 	return cells.has(Grid.world_to_cell(at, spacing)) \
 		and not Shape.in_any(layout.clearings, at, pad) \
-		and not Shape.in_any(layout.paths, at, pad) \
+		and not Shape.in_trails(layout, at, pad) \
 		and not Shape.in_any(layout.water, at, pad) \
 		and not Shape.in_any(layout.rocks, at, pad)
 

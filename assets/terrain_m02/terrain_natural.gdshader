@@ -12,6 +12,7 @@ uniform float feature_range;
 uniform bool feature_mode = false;
 uniform int art_mode = 0;
 uniform bool botanical_mode = false;
+uniform bool continuity_mode = false;
 uniform vec3 botanical_ground : source_color;
 uniform vec3 botanical_water : source_color;
 uniform bool show_water = true;
@@ -125,13 +126,23 @@ void fragment() {
 		// Old water cells are substrate in the feature view. Actual water comes from the polygon only.
 		land.y += water;
 		float clearing = 1.0 - smoothstep(-0.22, 0.30, field.b);
+		if (continuity_mode) {
+			// Keep mottled substrate through clearings rather than painting a solid meadow stamp.
+			float fringe = field.b + (patches - 0.5) * 0.76 + (macro - 0.5) * 0.72;
+			clearing = (1.0 - smoothstep(-0.70, 0.96, fringe)) * (0.35 + 0.24 * patches);
+		}
 		land = mix(land, vec4(1.0, 0.0, 0.0, 0.0), clearing * 0.97);
 		float edge = clamp(fwidth(field.r) * 0.70, 0.04, 0.18);
 		cover = show_water ? 1.0 - smoothstep(-edge, edge, field.r) : 0.0;
 		bank = show_water ? 1.0 - smoothstep(-0.21, 0.54, field.r) : 0.0;
 		depth = 1.0 - smoothstep(-1.40, -0.05, field.r);
 		water = mix(0.51, 1.0, depth);
-		path_weight = show_paths ? 1.0 - smoothstep(-0.32 + (patches - 0.5) * 0.3, 0.10, field.g) : 0.0;
+		float trail = 1.0 - smoothstep(-0.32 + (patches - 0.5) * 0.3, 0.10, field.g);
+		if (continuity_mode) {
+			float lip = (patches - 0.5) * 0.21;
+			trail = 1.0 - smoothstep(-0.23 + lip, 0.12 + lip, field.g);
+		}
+		path_weight = show_paths ? trail : 0.0;
 	}
 
 	vec2 uv_a = p * 0.37;
@@ -187,6 +198,13 @@ void fragment() {
 	water_surface += vec3(bed_detail * 0.58, bed_detail * 0.92, bed_detail);
 	if (art_mode == 1) {
 		float center = 1.0 - smoothstep(4.6, 10.1, length(p * vec2(1.0, 1.04)) + (patches - 0.5) * 1.25);
+		if (continuity_mode) {
+			vec2 cast = p - vec2(-0.8, -0.45);
+			float dapple = length(vec2(cast.x + 0.23 * cast.y, 0.87 * cast.y))
+				+ (macro - 0.5) * 3.1 + (patches - 0.5) * 1.4;
+			center = 1.0 - smoothstep(2.0, 11.1, dapple);
+			center = max(center, 0.36 * path_weight);
+		}
 		vec3 sheltered = dry * vec3(0.57, 0.64, 0.52);
 		vec3 warmed = dry * vec3(1.00, 0.92, 0.68);
 		dry = mix(sheltered, warmed, center);

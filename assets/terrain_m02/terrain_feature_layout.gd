@@ -3,9 +3,10 @@ extends RefCounted
 
 const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
+const Trails = preload("res://assets/terrain_m02/terrain_trail_network.gd")
 const Planting = preload("res://assets/terrain_m02/terrain_feature_placement.gd")
 
-static func build(cells: Dictionary, spacing: float, radius: int, seed_value: int, garden: bool) -> Dictionary:
+static func build(cells: Dictionary, spacing: float, radius: int, seed_value: int, garden: bool, continuous: bool = false) -> Dictionary:
 	var layout := {"water": [], "clearings": [], "paths": [], "crossings": [], "rocks": [],
 		"rock_formations": [], "rock_buckets": {}, "stands": [], "plants": []}
 	var water := _water(seed_value, spacing, radius, garden)
@@ -18,9 +19,14 @@ static func build(cells: Dictionary, spacing: float, radius: int, seed_value: in
 		var bend := trail_random.randf_range(-1.35, 0.4)
 		var points := PackedVector2Array([arrival, arrival * 0.69 + Vector2(bend, 0),
 			Vector2(-3.2, 4.0), Vector2(-1.2, 2.95)])
-		layout.paths.append(_path("garden_approach", points, 0.61))
+		if continuous:
+			Trails.garden(layout, arrival, bend)
+		else:
+			layout.paths.append(_path("garden_approach", points, 0.61))
 	else:
-		_wilds_routes(layout, cells, spacing, radius, seed_value)
+		_wilds_routes(layout, cells, spacing, radius, seed_value, continuous)
+	if continuous:
+		layout["ground_clearings"] = Trails.natural_clearings(layout.clearings, seed_value)
 	Planting.populate(layout, cells, spacing, seed_value, garden)
 	layout.erase("rock_buckets")
 	return layout
@@ -61,7 +67,7 @@ static func _water(seed_value: int, spacing: float, radius: int, garden: bool) -
 static func _river_x(y: float, profile: Dictionary) -> float:
 	return profile.base + profile.bend * sin(y * 0.20 + profile.phase) 		+ 1.05 * sin(y * 0.39 - profile.phase) + profile.bias * y
 
-static func _wilds_routes(layout: Dictionary, cells: Dictionary, spacing: float, radius: int, seed_value: int) -> void:
+static func _wilds_routes(layout: Dictionary, cells: Dictionary, spacing: float, radius: int, seed_value: int, continuous: bool) -> void:
 	var random := random_stream(seed_value, "clearings")
 	var river: Dictionary = layout.water[0]
 	var profile: Dictionary = river.profile
@@ -78,6 +84,11 @@ static func _wilds_routes(layout: Dictionary, cells: Dictionary, spacing: float,
 	layout.clearings.append_array([west, east, south])
 	var west_bank := middle - across * 3.35
 	var east_bank := middle + across * 3.35
+	var fork_y: float = (south.center.y + west.center.y) * 0.5
+	var fork_bend := Vector2(_river_x(fork_y, profile) - 7.6, fork_y)
+	if continuous:
+		Trails.wilds(layout, west.center, east.center, south.center, west_bank, east_bank, fork_bend)
+		return
 	var west_start: Vector2 = west.center
 	var east_end: Vector2 = east.center
 	var cross := PackedVector2Array([west_start,
@@ -85,8 +96,7 @@ static func _wilds_routes(layout: Dictionary, cells: Dictionary, spacing: float,
 		west_bank, middle, east_bank,
 		(east_end + east_bank) * 0.5 - across.orthogonal() * 0.65, east_end])
 	layout.paths.append(_path("river_trail", cross, 0.68))
-	var fork_y: float = (south.center.y + west.center.y) * 0.5
-	var fork := PackedVector2Array([south.center, Vector2(_river_x(fork_y, profile) - 7.6, fork_y), west.center])
+	var fork := PackedVector2Array([south.center, fork_bend, west.center])
 	layout.paths.append(_path("hollow_trail", fork, 0.63))
 	for path in layout.paths:
 		var intersections := Geometry2D.intersect_polygons(path.outline, river.outline)

@@ -61,6 +61,9 @@ static func polygon_distance(points: PackedVector2Array, point: Vector2, limit: 
 		previous = current
 	return sqrt(nearest) * (-1.0 if inside else 1.0)
 
+static func in_trails(layout: Dictionary, point: Vector2, margin: float = 0.0) -> bool:
+	return in_any(layout.paths, point, margin) or in_any(layout.get("path_joins", []), point, margin)
+
 static func in_any(features: Array, point: Vector2, margin: float = 0.0) -> bool:
 	for feature in features:
 		var bounds: Rect2 = feature.bounds

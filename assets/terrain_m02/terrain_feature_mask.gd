@@ -14,9 +14,9 @@ static func bake(layout: Dictionary, spacing: float, radius: int) -> Dictionary:
 	pixels.resize(size.x * size.y * 3)
 	pixels.fill(255)
 	_stamp(layout.water, 0, frame, size, pixels)
-	_stamp(layout.paths, 1, frame, size, pixels)
+	_stamp(layout.paths + layout.get("path_joins", []), 1, frame, size, pixels)
 	var clearings: Array[Dictionary] = []
-	for clearing in layout.clearings:
+	for clearing in layout.get("ground_clearings", layout.clearings):
 		clearings.append(Geometry.shape(clearing.id, "clearing", Geometry.boundary(clearing)))
 	_stamp(clearings, 2, frame, size, pixels)
 	return {"image": Image.create_from_data(size.x, size.y, false, Image.FORMAT_RGB8, pixels),

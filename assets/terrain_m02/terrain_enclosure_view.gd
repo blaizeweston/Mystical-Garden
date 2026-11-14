@@ -7,7 +7,7 @@ var forest_material: StandardMaterial3D
 var amber_material: StandardMaterial3D
 var botanical_canopies := {}
 
-func rebuild(layout: Dictionary, garden: bool, profile: Dictionary = {}, biome: int = 0) -> void:
+func rebuild(layout: Dictionary, garden: bool, profile: Dictionary = {}, biome: int = 0, living_heart: bool = false) -> void:
 	for child in get_children():
 		child.free()
 	if trees.is_empty():
@@ -50,7 +50,7 @@ func rebuild(layout: Dictionary, garden: bool, profile: Dictionary = {}, biome: 
 		deadwood.append(_pose(accent.at, accent.yaw, Vector3.ONE * accent.size))
 		if garden:
 			sparks.append(_pose(accent.at, accent.yaw, Vector3(0.18, 0.26, 0.18), 0.33 * accent.size))
-	if garden:
+	if garden and not living_heart:
 		for i in (4 if not profile.is_empty() else 7):
 			var angle := TAU * i / 7.0
 			var offset := Vector2.from_angle(angle) * (1.24 + 0.32 * sin(i * 4.0))

@@ -179,6 +179,11 @@ layout_mode = 2
 button_pressed = true
 text = "Paths"
 
+[node name="HeartStage" type="OptionButton" parent="Interface/Toolbar/Rows/Layers"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Preview the Heart restoration stages"
+
 [node name="Footer" type="PanelContainer" parent="Interface"]
 anchors_preset = 12
 anchor_top = 1.0
