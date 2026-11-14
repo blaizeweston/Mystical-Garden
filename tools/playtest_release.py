@@ -12,6 +12,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 import uuid
 import zipfile
 
@@ -201,6 +202,22 @@ def summarize(project, package, output):
 
 
 def retail_probes(stage, pack, metadata, env):
+    # The desktop renderer adds long shader names and hashes under user://.
+    # Use a short, unique local profile and never point the probe at live AppData.
+    temp = Path(tempfile.gettempdir()).resolve(strict=True)
+    # Normal builds stage under <archive>/.staging/<attempt>/work.
+    candidates = (stage.parents[2], temp) if stage.parents[1].name == ".staging" else (temp,)
+    for parent in sorted(candidates, key=lambda path: len(str(path))):
+        with tempfile.TemporaryDirectory(prefix="mg-", dir=parent) as desktop_profile:
+            # shader_cache/<renderer shader>/<SHA-256>/<SHA-1>.cache
+            suffix = Path("AppData/Roaming") / metadata["save_root"] / "shader_cache" / ("s" * 32) / ("a" * 64) / ("b" * 40 + ".cache")
+            if len(str(Path(desktop_profile) / suffix)) < 260:
+                validate_archive(Path(desktop_profile))
+                return _retail_probes(stage, pack, metadata, env, Path(desktop_profile))
+    raise ValueError("Use a shorter local archive or Windows TEMP path for desktop verification.")
+
+
+def _retail_probes(stage, pack, metadata, env, desktop_profile):
     results = {}
     sandbox = stage / "retail"
     sandbox.mkdir()
@@ -218,7 +235,7 @@ def retail_probes(stage, pack, metadata, env):
                                     "desktop", "unmarked-save", "invalid-shader-cache")):
         home = sandbox / f"{number:02d}"
         home.mkdir()
-        profile = home / "u"
+        profile = desktop_profile if probe == "desktop" else home / "u"
         roaming = profile / "AppData/Roaming"
         local = profile / "AppData/Local"
         roaming.mkdir(parents=True)
@@ -263,7 +280,7 @@ def retail_probes(stage, pack, metadata, env):
                 shutil.copyfile(pack.with_name(evidence.LOCK_LIBRARY), companion)
         args = ["--headless", "--quit-after", "30", "--max-fps", "120"]
         if probe == "desktop":
-            args = ["--position", "-32000,-32000", "--audio-driver", "Dummy", "--quit-after", "30", "--max-fps", "120"]
+            args = ["--position", "-32000,-32000", "--quit-after", "90", "--max-fps", "120"]
         if probe == "external-driver":
             (home / "external.gd").write_text('extends SceneTree\nfunc _initialize():\n print("EXTERNAL DRIVER RAN")\n quit(19)\n')
             args += ["--script", "external.gd"]
