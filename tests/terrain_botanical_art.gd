@@ -19,7 +19,7 @@ func run() -> void:
 	root.add_child(scene)
 	var modes := scene.get_node("%Rendering") as OptionButton
 	var baseline := scene.get_node("%Example") as OptionButton
-	_check(baseline.item_count == 4 and modes.item_count == 9, "four presets and nine comparison modes are available")
+	_check(baseline.item_count == 4 and modes.item_count == 10, "four presets and ten comparison modes are available")
 	var distinct := {}
 	for biome in 4:
 		scene.show_example(biome, [117, 241, 517, 823][biome], 1, false)

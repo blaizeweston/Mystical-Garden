@@ -91,6 +91,8 @@ static func _valid_outline(formation: Dictionary, layout: Dictionary, existing: 
 
 static func _free(layout: Dictionary, existing: Array[Dictionary], at: Vector2, pad: float,
 		radius: int, spacing: float) -> bool:
+	if layout.has("boundary") and Shape.signed_distance(layout.boundary.playable, at, pad + 0.01) > -pad:
+		return false
 	if Shape.in_any(layout.water, at, pad) or Shape.in_trails(layout, at, pad + 0.34) \
 			or Shape.in_any(layout.clearings, at, pad + 0.38) or Shape.in_any(existing, at, pad + 0.32):
 		return false

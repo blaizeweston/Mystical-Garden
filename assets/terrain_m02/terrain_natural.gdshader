@@ -13,6 +13,8 @@ uniform bool feature_mode = false;
 uniform int art_mode = 0;
 uniform bool botanical_mode = false;
 uniform bool wilds_mode = false;
+uniform bool scenic_exterior = false;
+uniform vec3 scenic_cover = vec3(0.0, 1.0, 0.0);
 uniform float wilds_moisture = 0.0;
 uniform vec3 wilds_floor : source_color;
 uniform vec3 wilds_water : source_color;
@@ -110,6 +112,11 @@ void fragment() {
 	// At the outer rim a warped sample can leave the finite map. Ease back
 	// to the welded M02 weights only when the continuous field loses support.
 	vec4 rim = vec4(UV, UV2);
+	if (scenic_exterior) {
+		float variation = noise2(grain * 0.19);
+		rim = vec4(0.0, scenic_cover * vec3(0.78 + 0.42 * variation, 0.75 + 0.33 * (1.0 - variation), 0.82 + 0.31 * variation));
+		rim /= max(dot(rim, vec4(1.0)), 0.001);
+	}
 	float rim_weight = 1.0 - smoothstep(0.004, 0.024, support);
 	land = mix(land, rim, rim_weight);
 	water = mix(water, clamp(1.0 - dot(rim, vec4(1.0)), 0.0, 1.0), rim_weight);
@@ -127,6 +134,11 @@ void fragment() {
 		vec2 unit = clamp((p - feature_origin) / feature_extent, vec2(0.0), vec2(1.0));
 		vec2 texel = (unit * (feature_size - vec2(1.0)) + 0.5) / feature_size;
 		vec3 field = (texture(feature_distances, texel).rgb * 2.0 - 1.0) * feature_range;
+		if (scenic_exterior) {
+			// The atlas ends outside the barrier. Dry distance fades before its last texel.
+			float headroom = min(min(unit.x, 1.0 - unit.x), min(unit.y, 1.0 - unit.y));
+			field = mix(vec3(feature_range), field, smoothstep(0.0, 0.057, headroom));
+		}
 		// Old water cells are substrate in the feature view. Actual water comes from the polygon only.
 		land.y += water;
 		float clearing = 1.0 - smoothstep(-0.22, 0.30, field.b);

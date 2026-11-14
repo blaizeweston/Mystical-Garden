@@ -3,6 +3,7 @@ extends Node3D
 
 signal exit_requested
 
+const Boundary = preload("res://assets/terrain_m02/wilds_boundary.gd")
 const Surface = preload("res://assets/terrain_m02/wilds_play_surface.gd")
 const Simulation = preload("res://assets/terrain_m02/wilds_play_simulation.gd")
 const Fog = preload("res://assets/terrain_m02/wilds_play_fog.gdshader")
@@ -11,6 +12,8 @@ const PIXEL := 0.28
 const MOVE_SPEED := 4.6
 
 var run: Simulation
+var allow_camera_control := false
+var pan := Vector2.ZERO
 var camera: Camera3D
 var fog: ColorRect
 var deck_gate: Node3D
@@ -68,6 +71,7 @@ func start(cells: Dictionary, layout: Dictionary, spacing: float) -> bool:
 
 func stop() -> void:
 	run = null
+	pan = Vector2.ZERO
 	set_physics_process(false)
 	explored = null
 	texture = null
@@ -135,8 +139,7 @@ func set_fog(enabled: bool) -> void:
 func _update_view() -> void:
 	var target := _world(run.position)
 	marker.position = target + Vector3.UP * 0.86
-	camera.position = target + CAMERA_OFFSET
-	camera.look_at(target)
+	_follow_camera()
 	_reveal()
 	_align_fog()
 	fog.visible = fog_enabled
@@ -155,6 +158,16 @@ func _update_view() -> void:
 	readout.text = "%d required enemies left  |  %s" % [run.remaining(), gate_status]
 	if run.finished:
 		readout.text = "Floor cleared. Gate entered. Restart to explore again."
+
+func set_pan(offset: Vector2) -> void:
+	pan = offset.limit_length(Boundary.MAX_PAN)
+	_follow_camera()
+	_align_fog()
+
+func _follow_camera() -> void:
+	var focus := _world(run.position + pan)
+	camera.position = focus + CAMERA_OFFSET
+	camera.look_at(focus)
 
 func _reveal() -> void:
 	if last_reveal.distance_to(run.position) < PIXEL:

@@ -223,6 +223,7 @@ unique_name_in_owner = true
 visible = false
 layout_mode = 2
 text = "WASD / arrows  |  Space strike  |  E interact  |  Esc exit"
+tooltip_text = "In M09, use the wheel to zoom and middle drag to pan."
 
 [node name="RestartFloor" type="Button" parent="Interface/Toolbar/Rows/PlayControls"]
 unique_name_in_owner = true

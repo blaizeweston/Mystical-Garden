@@ -10,6 +10,7 @@ const Enclosure = preload("res://assets/terrain_m02/terrain_enclosure.gd")
 const FeatureMask = preload("res://assets/terrain_m02/terrain_feature_mask.gd")
 const MaterialField = preload("res://assets/terrain_m02/terrain_material_field.gd")
 const Wilds = preload("res://assets/terrain_m02/wilds_preview_generation.gd")
+const Boundary = preload("res://assets/terrain_m02/wilds_boundary.gd")
 const WalkPreview = preload("res://assets/terrain_m02/wilds_play_preview.gd")
 const CATALOG = preload("res://assets/terrain_m02/terrain_catalog.tres")
 const PALETTES := [
@@ -27,6 +28,7 @@ const M06B := 5
 const M06C := 6
 const M07 := 7
 const M07B := 8
+const M09 := 9
 const START_FLOORS := [1, 1, 9, 18]
 
 var cells := {}
@@ -42,6 +44,9 @@ var scene_garden := true
 var generated_mode := M06C
 var wilds := {}
 var walk_preview: WalkPreview
+var scenic_ground: PlaneMesh
+var pan_origin := Vector2.ZERO
+var pan_active := false
 var botanical_layout := {}
 var continuity_layout := {}
 var legacy_atlas := {}
@@ -89,6 +94,7 @@ func _ready() -> void:
 		%FogLayer.release_focus())
 	%RestartFloor.pressed.connect(_start_floor)
 	camera.get_viewport().size_changed.connect(func():
+		_resize_exterior()
 		if walk_preview.run != null:
 			walk_preview._align_fog())
 	legacy_heart = TREE.instantiate() as Node3D
@@ -123,6 +129,7 @@ func _ready() -> void:
 	render_mode.add_item("M06C")
 	render_mode.add_item("M07")
 	render_mode.add_item("M07B")
+	render_mode.add_item("M09")
 	render_mode.select(M06C)
 	for number in range(1, 19):
 		floor_choice.add_item("Floor %d" % number)
@@ -156,7 +163,7 @@ func _select_example(index: int) -> void:
 		if index == 0:
 			render_mode.select(M06C)
 		elif render_mode.selected == M06C:
-			render_mode.select(M07B)
+			render_mode.select(M09)
 	_regenerate()
 
 func _select_render_mode(index: int) -> void:
@@ -171,6 +178,8 @@ func _next_seed() -> void:
 	_regenerate()
 
 func _regenerate() -> void:
+	scenic_ground = null
+	pan_active = false
 	if walk_preview.run != null:
 		_reset_preview_camera()
 	walk_preview.stop()
@@ -219,7 +228,7 @@ func _regenerate() -> void:
 		"plants": enclosed_layout.plants.size(), "rocks": enclosed_layout.rocks.size(),
 		"enclosure": enclosed_layout.enclosure.size(), "accents": enclosed_layout.accents.size(),
 		"digest": Generator.digest(cells, palette.id, terrain_seed)}
-	status.text = "%d cells  ·  %d plants  ·  %d rocks  ·  %.1f ms rebuild" % [
+	status.text = "%d cells  Â·  %d plants  Â·  %d rocks  Â·  %.1f ms rebuild" % [
 		metrics.cells, metrics.plants + metrics.enclosure, metrics.rocks, (view_built - started) / 1000.0]
 	print("M06_TERRAIN ", JSON.stringify(metrics))
 
@@ -229,7 +238,7 @@ func _rebuild_wilds(started: int) -> void:
 	heart_stage.visible = false
 	floor_choice.visible = true
 	wilds = Wilds.build(terrain_seed, floor_choice.selected + 1, RADII[map_size.selected], spacing, CATALOG,
-		Wilds.Biomes.WINDOWS, generated_mode == M07B)
+		Wilds.Biomes.WINDOWS, generated_mode >= M07B, generated_mode == M09)
 	if wilds.is_empty():
 		cells = {}
 		ground.hide()
@@ -244,7 +253,7 @@ func _rebuild_wilds(started: int) -> void:
 		return
 	cells = wilds.cells
 	var generated := Time.get_ticks_usec()
-	compiled = Compiler.compile(cells, spacing, CATALOG)
+	compiled = {"triangles": 2} if wilds.layout.has("boundary") else Compiler.compile(cells, spacing, CATALOG)
 	var meshed := Time.get_ticks_usec()
 	var climate: Dictionary = wilds.climate
 	example.select(climate.biome + 1)
@@ -260,8 +269,18 @@ func _rebuild_wilds(started: int) -> void:
 	natural_material.set_shader_parameter("botanical_ground", climate.ground)
 	natural_material.set_shader_parameter("botanical_water", climate.water)
 	var baked := Time.get_ticks_usec()
-	ground.mesh = compiled.mesh
 	ground.material_override = natural_material
+	if wilds.layout.has("boundary"):
+		var weights: Vector3 = climate.weights
+		natural_material.set_shader_parameter("scenic_exterior", true)
+		natural_material.set_shader_parameter("scenic_cover",
+			Vector3(0.2, 0.7, 0.1) * weights.x + Vector3(0.74, 0.22, 0.04) * weights.y
+				+ Vector3(0.20, 0.14, 0.66) * weights.z)
+		scenic_ground = PlaneMesh.new()
+		ground.mesh = scenic_ground
+		_resize_exterior()
+	else:
+		ground.mesh = compiled.mesh
 	var batches: Dictionary = feature_view.rebuild(wilds.layout, {}, 0, true)
 	_light(true)
 	sun.light_color = climate.sun
@@ -271,26 +290,34 @@ func _rebuild_wilds(started: int) -> void:
 	environment.background_color = climate.air.darkened(0.65)
 	environment.fog_enabled = true
 	environment.fog_light_color = climate.air.lerp(Color("#373126"), climate.weights.z * 0.66) \
-		if generated_mode == M07B else climate.air
+		if generated_mode >= M07B else climate.air
 	environment.fog_density = climate.haze
 	_sync_layers()
 	debug_dirty = true
 	_set_overlay(overlay.button_pressed)
 	var names := ["Outer Grove", "Sable Mire", "Hollow Below"]
 	var weights: Vector3 = climate.weights
-	art_note.text = "%s  ·  Grove %d%%   Mire %d%%   Hollow %d%%" % [
+	art_note.text = "%s  Â·  Grove %d%%   Mire %d%%   Hollow %d%%" % [
 		names[climate.biome], roundi(weights.x * 100.0), roundi(weights.y * 100.0), roundi(weights.z * 100.0)]
 	var total := (Time.get_ticks_usec() - started) / 1000.0
 	metrics = {"floor": floor_choice.selected + 1, "seed": terrain_seed, "cells": cells.size(),
 		"triangles": compiled.triangles, "plants": batches.plant_instances, "obstacles": batches.rock_instances,
 		"batch_count": batches.instance_batches, "repairs": wilds.layout.repair,
 		"masses": wilds.layout.get("masses", []).size(), "crossings": wilds.layout.crossings.size(),
+		"scenic_instances": wilds.layout.boundary.exterior_props.size() if scenic_ground != null else 0,
+		"boundary_strips": wilds.layout.boundary.rim.size() if scenic_ground != null else 0,
 		"generation_ms": (generated - started) / 1000.0, "mesh_ms": (meshed - generated) / 1000.0,
 		"material_ms": (baked - meshed) / 1000.0, "rebuild_ms": total}
-	status.text = "%d cells  ·  %d plants  ·  %d obstacles  ·  %.1f ms rebuild" % [
+	status.text = "%d cells  Â·  %d plants  Â·  %d obstacles  Â·  %.1f ms rebuild" % [
 		cells.size(), batches.plant_instances, batches.rock_instances, total]
 	print("M07_TERRAIN ", JSON.stringify(metrics))
-	_update_play_controls(generated_mode == M07B)
+	_update_play_controls(generated_mode >= M07B)
+
+func _resize_exterior() -> void:
+	if scenic_ground == null:
+		return
+	var extent := Boundary.exterior_extent(RADII[map_size.selected], spacing, get_viewport().get_visible_rect().size)
+	scenic_ground.size = Vector2.ONE * extent * 2.0
 
 func _update_play_controls(available: bool) -> void:
 	%PlayFloor.visible = available
@@ -313,6 +340,7 @@ func _play_floor(active: bool) -> void:
 func _start_floor() -> void:
 	walk_preview.deck_gate = feature_view.massing.get_node_or_null("ExitGate")
 	walk_preview.start(cells, wilds.layout, spacing)
+	walk_preview.allow_camera_control = generated_mode == M09
 	_set_overlay(overlay.button_pressed)
 	var focused := get_viewport().gui_get_focus_owner()
 	if focused != null:
@@ -397,6 +425,9 @@ func _set_overlay(enabled: bool) -> void:
 		detail.text = ""
 		return
 	if debug_dirty:
+		if scenic_ground != null and not compiled.has("edge_rules"):
+			var inspector := Compiler.compile(cells, spacing, CATALOG)
+			compiled.merge({"edge_rules": inspector.edge_rules, "corner_rules": inspector.corner_rules})
 		debug.rebuild(cells, spacing, compiled)
 		debug_dirty = false
 	_update_inspector(get_viewport().get_mouse_position())
@@ -406,6 +437,15 @@ func _input(event: InputEvent) -> void:
 		_update_inspector(event.position)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if is_instance_valid(walk_preview) and walk_preview.run != null and walk_preview.allow_camera_control:
+		_play_camera_input(event)
+		return
+	if event is InputEventMouseButton and event.pressed and scenic_ground != null:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			var factor := 0.8 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.25
+			camera.size = clampf(camera.size * factor, CLOSE_CAMERA_SIZE, Boundary.MAX_ZOOM)
+			get_viewport().set_input_as_handled()
+			return
 	if not is_instance_valid(walk_preview) or walk_preview.run != null or not event is InputEventMouseButton or not event.pressed:
 		return
 	if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
@@ -420,6 +460,27 @@ func _unhandled_input(event: InputEvent) -> void:
 		if overlay.button_pressed:
 			_update_inspector(event.position)
 		get_viewport().set_input_as_handled()
+
+func _play_camera_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_MIDDLE:
+			pan_active = event.pressed
+			var at := _ground_point(event.position)
+			pan_origin = Vector2(at.x, at.z)
+		elif event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+			var factor := 0.8 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.25
+			camera.size = clampf(camera.size * factor, CLOSE_CAMERA_SIZE, Boundary.MAX_ZOOM)
+			walk_preview._align_fog()
+		else:
+			return
+	elif event is InputEventMouseMotion and pan_active and Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
+		var at := _ground_point(event.position)
+		walk_preview.set_pan(walk_preview.pan + pan_origin - Vector2(at.x, at.z))
+		at = _ground_point(event.position)
+		pan_origin = Vector2(at.x, at.z)
+	else:
+		return
+	get_viewport().set_input_as_handled()
 
 func _ground_point(screen: Vector2) -> Vector3:
 	var origin := camera.project_ray_origin(screen)

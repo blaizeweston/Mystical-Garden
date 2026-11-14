@@ -109,6 +109,8 @@ func _scene() -> void:
 	var garden: String = scene.metrics.digest
 	scene.example.select(3)
 	scene.example.item_selected.emit(3)
+	scene.render_mode.select(8)
+	scene.render_mode.item_selected.emit(8)
 	check(scene.render_mode.selected == 8 and scene.floor_choice.visible, "M07B is the default Wilds mode")
 	check(scene.feature_view.massing.has_node("ExitGate"), "the new Gate is rendered")
 	scene.render_mode.select(7)

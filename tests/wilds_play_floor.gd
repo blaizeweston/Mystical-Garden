@@ -102,6 +102,8 @@ func _preview() -> void:
 	check(not button.visible, "Garden hides the play controls")
 	scene.example.select(1)
 	scene.example.item_selected.emit(1)
+	scene.render_mode.select(8)
+	scene.render_mode.item_selected.emit(8)
 	check(button.visible and scene.walk_preview.run == null, "play mode is opt-in")
 	button.button_pressed = true
 	var view = scene.walk_preview

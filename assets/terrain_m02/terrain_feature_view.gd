@@ -4,6 +4,7 @@ extends Node3D
 const RootMeshes = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
 const Art = preload("res://assets/terrain_m02/terrain_art_direction.gd")
 const Habitat = preload("res://assets/terrain_m02/wilds_habitat_mesh.gd")
+const BoundaryMesh = preload("res://assets/terrain_m02/wilds_boundary_mesh.gd")
 const MassMesh = preload("res://assets/terrain_m02/wilds_massing_mesh.gd")
 const TREE := preload("res://assets/root_tree.glb")
 const FERNS := preload("res://assets/garden/field/fern_02.glb")
@@ -21,6 +22,7 @@ var vegetation: Node3D
 var rocks: Node3D
 var crossings: Node3D
 var massing: Node3D
+var boundary_view: Node3D
 var landmark_material: StandardMaterial3D
 
 func _ready() -> void:
@@ -28,6 +30,7 @@ func _ready() -> void:
 	rocks = _group("Rocks")
 	crossings = _group("Crossings")
 	massing = _group("Massing")
+	boundary_view = _group("Boundary")
 
 func _group(label: String) -> Node3D:
 	var group := Node3D.new()
@@ -45,7 +48,7 @@ func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds
 			if not botanical_variants.has(biome):
 				botanical_variants[biome] = _make_botanicals(profile, biome)
 			assets = botanical_variants[biome]
-	for group in [vegetation, rocks, crossings, massing]:
+	for group in [vegetation, rocks, crossings, massing, boundary_view]:
 		for child in group.get_children():
 			child.free()
 	var batches := {}
@@ -80,8 +83,31 @@ func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds
 			view.material_override = botanical_material
 			massing.add_child(view)
 		_gate(layout.trail_network.nodes.exit_gate)
+	if layout.has("boundary"):
+		_build_boundary(layout.boundary, layout.seed)
 	return {"plant_instances": layout.plants.size(), "rock_instances": layout.rocks.size(),
 		"instance_batches": batches.size()}
+
+func _build_boundary(border: Dictionary, seed_value: int) -> void:
+	var verge := MeshInstance3D.new()
+	verge.mesh = BoundaryMesh.build(border, seed_value)
+	verge.material_override = botanical_material
+	boundary_view.add_child(verge)
+	var batches := {}
+	for prop in border.exterior_props:
+		var set := _wilds_assets(prop.family)
+		var assets: Array = set[prop.kind]
+		var asset: Dictionary = assets[prop.variant % assets.size()]
+		var bounds: AABB = asset.bounds
+		var scale: float = prop.height / bounds.size.y
+		if prop.kind == "root_arch":
+			scale *= 0.66
+		var basis := Basis(Vector3.UP, prop.yaw).scaled(Vector3.ONE * scale)
+		_append(batches, asset, basis, prop.center, prop.tint)
+	for key in batches:
+		_batch(boundary_view, batches[key])
+		var view := boundary_view.get_child(-1) as MultiMeshInstance3D
+		view.custom_aabb = AABB()
 
 func _gate(at: Vector2) -> void:
 	if landmark_material == null:

@@ -8,12 +8,14 @@ const SAMPLES_PER_UNIT := 5.0
 static func bake(layout: Dictionary, spacing: float, radius: int) -> Dictionary:
 	var extent := Vector2((radius + 0.65) * spacing,
 		(radius * sqrt(3.0) * 0.5 + 0.65) * spacing)
+	if layout.has("boundary"):
+		extent += Vector2.ONE * 6.0
 	var frame := Rect2(-extent, extent * 2.0)
 	var size := Vector2i((frame.size * SAMPLES_PER_UNIT).ceil()) + Vector2i.ONE
 	var pixels := PackedByteArray()
 	pixels.resize(size.x * size.y * 3)
 	pixels.fill(255)
-	_stamp(layout.water, 0, frame, size, pixels)
+	_stamp(layout.boundary.water if layout.has("boundary") else layout.water, 0, frame, size, pixels)
 	_stamp(layout.paths + layout.get("path_joins", []), 1, frame, size, pixels)
 	var clearings: Array[Dictionary] = []
 	for clearing in layout.get("ground_clearings", layout.clearings):

@@ -1,5 +1,6 @@
 extends RefCounted
 ## Labels, habitat patches and props are derived from the same valley geometry.
+const Boundary = preload("res://assets/terrain_m02/wilds_boundary.gd")
 const Rooms = preload("res://assets/terrain_m02/wilds_rooms.gd")
 const Massing = preload("res://assets/terrain_m02/wilds_massing.gd")
 const Biomes = preload("res://assets/terrain_m02/wilds_biome.gd")
@@ -9,7 +10,7 @@ const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
 const Field = preload("res://assets/terrain_m02/terrain_generator.gd")
 
 static func build(seed_value: int, floor_number: int, radius: int, spacing: float, catalog,
-		windows: Array = Biomes.WINDOWS, massed: bool = false) -> Dictionary:
+		windows: Array = Biomes.WINDOWS, massed: bool = false, bounded: bool = false) -> Dictionary:
 	var climate := Biomes.climate(floor_number, windows)
 	var layout := Geography.compose(seed_value, radius, spacing, climate)
 	if layout.is_empty():
@@ -19,6 +20,11 @@ static func build(seed_value: int, floor_number: int, radius: int, spacing: floa
 		if layout.is_empty():
 			return {}
 		layout["seed"] = seed_value
+		if bounded:
+			var border := Boundary.build(layout, seed_value, radius, spacing, climate)
+			if border.is_empty():
+				return {}
+			layout["boundary"] = border
 		layout["masses"] = Massing.build(layout, seed_value, radius, spacing, climate)
 	var cells := {}
 	var dry := {}
@@ -172,6 +178,8 @@ static func _wood(layout: Dictionary, id: String, at: Vector2, kind: String, fam
 		"bounds": Shape.disk(id, kind, at, width).bounds})
 
 static func _open(layout: Dictionary, at: Vector2, radius: float) -> bool:
+	if layout.has("boundary") and Shape.signed_distance(layout.boundary.playable, at, radius + 0.01) > -radius:
+		return false
 	if Shape.in_any(layout.water, at, radius) or Shape.in_trails(layout, at, radius) \
 			or Shape.in_any(layout.clearings, at, radius) or Shape.in_any(layout.rocks, at, radius) \
 			or Shape.in_any(layout.get("masses", []), at, radius):

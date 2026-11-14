@@ -10,26 +10,39 @@ var cells: Dictionary
 var spacing: float
 var layout: Dictionary
 var blockers: Array = []
+var arena := {}
+var water: Array
 
 func _init(labels: Dictionary, features: Dictionary, cell_spacing: float) -> void:
 	cells = labels
 	layout = features
 	spacing = cell_spacing
 	blockers = layout.masses + layout.rocks
+	water = layout.water
+	if layout.has("boundary"):
+		arena = layout.boundary.playable
+		water = layout.boundary.water
+		for strip in layout.boundary.rim:
+			if not strip.wet:
+				blockers.append(strip)
 	for plant in layout.plants:
 		if plant.kind == "tree" and not plant.has("on_mass"):
 			blockers.append(Shape.disk(plant.id, "trunk", plant.center, plant.height * 0.105))
 
 func walkable(point: Vector2, radius: float = CLEARANCE) -> bool:
-	if not cells.has(Grid.world_to_cell(point, spacing)):
-		return false
-	for direction in Grid.NEIGHBORS:
-		var offset := Grid.cell_to_world(direction, 1.0) * radius
-		if not cells.has(Grid.world_to_cell(point + offset, spacing)):
+	if not arena.is_empty():
+		if Shape.signed_distance(arena, point, radius + 0.01) >= -radius:
 			return false
+	else:
+		if not cells.has(Grid.world_to_cell(point, spacing)):
+			return false
+		for direction in Grid.NEIGHBORS:
+			var offset := Grid.cell_to_world(direction, 1.0) * radius
+			if not cells.has(Grid.world_to_cell(point + offset, spacing)):
+				return false
 	if Shape.in_any(blockers, point, radius):
 		return false
-	for wet in layout.water:
+	for wet in water:
 		# When a disk overlaps water, its entire footprint must fit on a deck.
 		if Shape.signed_distance(wet, point, radius + 0.01) > radius:
 			continue
@@ -45,7 +58,10 @@ func walkable(point: Vector2, radius: float = CLEARANCE) -> bool:
 func clear_line(from: Vector2, to: Vector2, radius: float = 0.0) -> bool:
 	var min_point := from.min(to)
 	var max_point := from.max(to)
-	if not cells.has(Grid.world_to_cell(from, spacing)) or not cells.has(Grid.world_to_cell(to, spacing)):
+	if arena.is_empty():
+		if not cells.has(Grid.world_to_cell(from, spacing)) or not cells.has(Grid.world_to_cell(to, spacing)):
+			return false
+	elif not Shape.contains(arena, from) or not Shape.contains(arena, to):
 		return false
 	var bounds := Rect2(min_point, max_point - min_point).grow(radius + 0.001)
 	for block in blockers:
