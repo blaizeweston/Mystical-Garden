@@ -1,5 +1,7 @@
 extends Node3D
-## Five authored silhouettes built from roots, living bark and a shared fissure.
+## Presents the editable Heart sculpt and retains the M06B meshes for comparison.
+const BARK_SHADER = preload("res://assets/terrain_m02/heart_bark.gdshader")
+const SCULPT = preload("res://assets/terrain_m02/garden_heart.glb")
 const Meshes = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
 const STAGES := ["Dormant Heart", "Early restoration", "Mid restoration", "Mature canopy", "Fully restored"]
 const HEIGHTS := [1.67, 2.24, 3.07, 4.12, 4.75]
@@ -13,6 +15,10 @@ const CORE := Color("#d23735")
 
 var stage := 0
 var models: Array[MeshInstance3D] = []
+var sculpted: Node3D
+var sculpt_models: Array[MeshInstance3D] = []
+var sculpt_bark: ShaderMaterial
+var use_sculpt := false
 var pulse: OmniLight3D
 var transition: Tween
 
@@ -43,22 +49,55 @@ func _ready() -> void:
 	add_child(pulse)
 	show_stage(0, false)
 
+func set_sculpt(enabled: bool) -> void:
+	if use_sculpt == enabled:
+		return
+	if enabled and sculpted == null:
+		sculpt_bark = ShaderMaterial.new()
+		sculpt_bark.shader = BARK_SHADER
+		sculpted = SCULPT.instantiate() as Node3D
+		add_child(sculpted)
+		for index in STAGES.size():
+			var model := sculpted.get_node("HeartStage%d" % (index + 1)) as MeshInstance3D
+			_apply_sculpt_pigment(model)
+			sculpt_models.append(model)
+	use_sculpt = enabled
+	show_stage(stage, false)
+
+func _apply_sculpt_pigment(model: MeshInstance3D) -> void:
+	# Preserve the imported pigment and shade bark grain along the sculpt's flow UVs.
+	for surface in model.mesh.get_surface_count():
+		var material := model.mesh.surface_get_material(surface) as StandardMaterial3D
+		if material.resource_name.begins_with("Bark"):
+			model.set_surface_override_material(surface, sculpt_bark)
+
 func show_stage(index: int, animated: bool = true) -> void:
 	stage = clampi(index, 0, STAGES.size() - 1)
 	if transition != null:
 		transition.kill()
 	for i in models.size():
-		models[i].visible = i == stage
+		models[i].visible = not use_sculpt and i == stage
 		models[i].position = Vector3.ZERO
 		models[i].scale = Vector3.ONE
-	pulse.position = Vector3(0.29, 0.96 + stage * 0.10, 0.84)
-	pulse.light_energy = 0.68 + stage * 0.18
+	if sculpted != null:
+		sculpted.visible = use_sculpt
+		for i in sculpt_models.size():
+			sculpt_models[i].visible = i == stage
+			sculpt_models[i].position = Vector3.ZERO
+			sculpt_models[i].scale = Vector3.ONE
+	var model := sculpt_models[stage] if use_sculpt else models[stage]
+	if use_sculpt:
+		pulse.position = Vector3(-0.43, 1.05 + stage * 0.14, 1.14)
+		pulse.light_energy = 0.36 + stage * 0.06
+	else:
+		pulse.position = Vector3(0.29, 0.96 + stage * 0.10, 0.84)
+		pulse.light_energy = 0.68 + stage * 0.18
 	if animated:
-		models[stage].position.y = -0.16
-		models[stage].scale = Vector3(1.015, 0.94, 1.015)
+		model.position.y = -0.16
+		model.scale = Vector3(1.015, 0.94, 1.015)
 		transition = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC)
-		transition.tween_property(models[stage], "position:y", 0.0, 0.36)
-		transition.tween_property(models[stage], "scale", Vector3.ONE, 0.36)
+		transition.tween_property(model, "position:y", 0.0, 0.36)
+		transition.tween_property(model, "scale", Vector3.ONE, 0.36)
 
 func _form(index: int) -> ArrayMesh:
 	var random := RandomNumberGenerator.new()

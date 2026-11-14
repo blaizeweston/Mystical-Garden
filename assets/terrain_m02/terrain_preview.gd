@@ -21,6 +21,8 @@ const RADII := [14, 28]
 const CAMERA_OFFSET := Vector3(3.3, 14.0, 14.0)
 const CAMERA_SIZE := 16.5
 const CLOSE_CAMERA_SIZE := 5.0
+const M06B := 5
+const M06C := 6
 
 var cells := {}
 var compiled := {}
@@ -95,7 +97,8 @@ func _ready() -> void:
 	render_mode.add_item("M03")
 	render_mode.add_item("M02")
 	render_mode.add_item("M06B")
-	render_mode.select(5)
+	render_mode.add_item("M06C")
+	render_mode.select(M06C)
 	map_size.add_item("631 cells")
 	map_size.add_item("2,437 cells")
 	seed_field.value = DEFAULT_SEEDS[0]
@@ -171,7 +174,7 @@ func _regenerate() -> void:
 	print("M06_TERRAIN ", JSON.stringify(metrics))
 
 func _set_render_mode(index: int) -> void:
-	var continuity := index == 5
+	var continuity := index >= M06B
 	var enclosure := index <= 1 or continuity
 	var modern := index == 0 or continuity
 	if continuity and continuity_layout.is_empty():
@@ -197,6 +200,7 @@ func _set_render_mode(index: int) -> void:
 		enclosure_view.rebuild(continuity_layout if continuity else enclosed_layout, scene_garden, profile, biome, continuity)
 	legacy_heart.visible = not modern
 	botanical_heart.visible = modern and not continuity
+	growing_heart.set_sculpt(index == M06C and scene_garden)
 	growing_heart.visible = continuity
 	growing_heart.pulse.visible = continuity and scene_garden
 	heart_stage.visible = continuity and scene_garden
@@ -218,7 +222,7 @@ func _light(enclosure: bool) -> void:
 	hearth.visible = enclosure and scene_garden and %GroundLayer.button_pressed
 
 func _sync_layers() -> void:
-	var continuity := render_mode.selected == 5
+	var continuity := render_mode.selected >= M06B
 	var enclosure := render_mode.selected <= 1 or continuity
 	var feature_mode := render_mode.selected <= 2 or continuity
 	enclosure_view.visible = enclosure and %VegetationLayer.button_pressed

@@ -8,6 +8,7 @@ const Mask = preload("res://assets/terrain_m02/terrain_feature_mask.gd")
 const Catalog = preload("res://assets/terrain_m02/terrain_catalog.tres")
 const Garden = preload("res://assets/terrain_m02/garden_clearing.tres")
 const Wilds = preload("res://assets/terrain_m02/wilds_riverwood.tres")
+const Bark = preload("res://assets/terrain_m02/heart_bark.gdshader")
 const Preview = preload("res://assets/terrain_m02/terrain_preview.tscn")
 
 var failed := false
@@ -124,6 +125,8 @@ func _scene() -> void:
 	var selector: OptionButton = scene.heart_stage
 	var modes: OptionButton = scene.render_mode
 	var terrain: Mesh = scene.ground.mesh
+	_check(modes.selected == 6 and selector.is_visible_in_tree(), "the Garden starts in the new M06C art mode")
+	await _sculpt(scene)
 	# Switch into M06B for the first time with an edited seed that has not been generated.
 	modes.select(0)
 	modes.item_selected.emit(0)
@@ -172,7 +175,84 @@ func _scene() -> void:
 			and scene.natural_material.get_shader_parameter("continuity_mode") == (mode == 5)
 			and scene.ground.mesh == terrain, "historical comparison swaps rendering without modifying terrain")
 	scene.show_example(1, 241, 1, false)
-	_check(not selector.is_visible_in_tree() and not heart.is_visible_in_tree()
-		and scene.feature_view.crossings.get_child_count() == 3, "Wilds hides the Heart and draws the connected bridge")
+	for mode in [5, 6]:
+		modes.select(mode)
+		modes.item_selected.emit(mode)
+		_check(not selector.is_visible_in_tree() and not heart.is_visible_in_tree()
+			and scene.feature_view.crossings.get_child_count() == 3, "Wilds keeps the bridge and hides both Hearts")
 	_check(scene.metrics.digest == "97712e282096db9b6c8dab52972f57d648dc74ccd48a0b7a5905c9dbe131a1df", "Wilds cell identity preserved")
 	scene.free()
+
+func _sculpt(scene: Node3D) -> void:
+	var heart = scene.growing_heart
+	var stages: OptionButton = scene.heart_stage
+	var layout := Layout.digest(scene.continuity_layout)
+	var height := 0.0
+	var span := 0.0
+	var triangles := 0
+	for i in stages.item_count:
+		stages.select(i)
+		stages.item_selected.emit(i)
+		var model: MeshInstance3D = heart.sculpt_models[i]
+		for j in stages.item_count:
+			_check(heart.sculpt_models[j].is_visible_in_tree() == (i == j)
+				and not heart.models[j].is_visible_in_tree(), "only the selected sculpt is visible")
+		var box := model.mesh.get_aabb()
+		_check(box.size.y > height and box.size.x > span, "the Heart grows taller and wider across the five art stages")
+		height = box.size.y
+		span = box.size.x
+		var bark_surface := -1
+		var emitters := 0
+		var leaves_surface := -1
+		for surface in model.mesh.get_surface_count():
+			var mat := model.mesh.surface_get_material(surface) as StandardMaterial3D
+			if mat.resource_name.begins_with("Bark"):
+				bark_surface = surface
+			if mat.resource_name.begins_with("Leaves"):
+				leaves_surface = surface
+			if mat.emission_enabled:
+				emitters += 1
+		_check(emitters == 2 and bark_surface >= 0, "two emissive tissue materials sit within the bark")
+		var bark := model.get_active_material(bark_surface) as ShaderMaterial
+		var arrays: Array = model.mesh.surface_get_arrays(bark_surface)
+		var wood: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		_check(bark != null and bark.shader == Bark and arrays[Mesh.ARRAY_COLOR].size() == wood.size()
+			and arrays[Mesh.ARRAY_TEX_UV].size() == wood.size(), "bark uses the authored pigment and curve-following UVs")
+		var front := false
+		var buried := false
+		for point in wood:
+			if point.y < -0.08 and Vector2(point.x, point.z).length() > 1.5:
+				buried = true
+			if point.y >= -0.05 and point.y <= 1.0 and point.z > 1.15:
+				front = true
+		_check(buried and front, "the root buttresses are visible above grade and sink into the soil")
+		_check((leaves_surface >= 0) == (i >= 2), "leaf sprays first appear during mid restoration")
+		if i >= 3:
+			var leaves: PackedVector3Array = model.mesh.surface_get_arrays(leaves_surface)[Mesh.ARRAY_VERTEX]
+			var min_y := INF
+			var min_x := INF
+			var max_x := -INF
+			var max_z := -INF
+			for point in leaves:
+				min_y = minf(min_y, point.y)
+				min_x = minf(min_x, point.x)
+				max_x = maxf(max_x, point.x)
+				max_z = maxf(max_z, point.z)
+			_check(max_x - min_x > 9.0 and min_y > 3.0 and max_z < 3.8,
+				"the wide canopy is raised and pulled back from the foreground")
+		triangles = 0
+		for surface in model.mesh.get_surface_count():
+			triangles += model.mesh.surface_get_array_index_len(surface) / 3
+		print("M06C_HEART ", i + 1, " ", box, " triangles=", triangles)
+	await create_timer(0.40).timeout
+	_check(heart.sculpt_models[4].scale.is_equal_approx(Vector3.ONE)
+		and heart.sculpt_models[4].position.is_zero_approx(), "stage animation finishes at the authored transform")
+	var modes: OptionButton = scene.render_mode
+	var ground: Mesh = scene.ground.mesh
+	for mode in [5, 6]:
+		modes.select(mode)
+		modes.item_selected.emit(mode)
+		_check(heart.stage == 4 and stages.selected == 4 and heart.sculpt_models[4].is_visible_in_tree() == (mode == 6)
+			and heart.models[4].is_visible_in_tree() == (mode == 5), "M06B and M06C compare the same selected stage")
+		_check(scene.ground.mesh == ground and Layout.digest(scene.continuity_layout) == layout,
+			"switching the hero artwork retains the identical terrain and feature layout")
