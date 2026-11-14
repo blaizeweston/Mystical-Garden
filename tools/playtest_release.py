@@ -184,6 +184,26 @@ def validate_build_paths(roots, work, stage, output, version):
         raise ValueError("At least 2 GiB of free workspace is required for validation and packaging.")
 
 
+def remove_owned_tree(path, parent):
+    validate_archive(path)
+    if path.parent != parent:
+        raise ValueError("Disposable directory ownership changed.")
+
+    def readonly_file(operation, name, error):
+        item = Path(name)
+        info = item.lstat()
+        if (operation != os.unlink or not isinstance(error, PermissionError)
+                or not item.is_relative_to(path) or not stat.S_ISREG(info.st_mode)
+                or info.st_nlink != 1
+                or info.st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT
+                or not info.st_file_attributes & stat.FILE_ATTRIBUTE_READONLY):
+            raise error
+        item.chmod(stat.S_IREAD | stat.S_IWRITE)
+        operation(name)
+
+    shutil.rmtree(path, onexc=readonly_file)
+
+
 @contextmanager
 def owned_profile(parent):
     # mkdir is exclusive. Keep the complete profile if the probe raises.
@@ -195,10 +215,7 @@ def owned_profile(parent):
         print(f"Retained failed desktop profile: {profile}", file=sys.stderr, flush=True)
         raise
     else:
-        if profile.is_symlink() or profile.parent != parent:
-            raise ValueError("Desktop profile ownership changed.")
-        validate_archive(profile)
-        shutil.rmtree(profile)
+        remove_owned_tree(profile, parent)
 
 
 def run(command, cwd, env, log, timeout=None, check=True):
@@ -334,6 +351,7 @@ def retail_probes(stage, pack, metadata, env, profile_parent=None, status=None):
 
 def _retail_probes(stage, pack, metadata, env, desktop_profile):
     results = {}
+    executable_hash = sha(pack)
     sandbox = stage / "retail"
     sandbox.mkdir()
     version = metadata["playtest_version"]
@@ -462,8 +480,7 @@ def _retail_probes(stage, pack, metadata, env, desktop_profile):
             raise ValueError(f"Unexpected canonical profile or catalog during retail probe {probe}.")
         results[probe] = {"exit": code, "run_id": f"{version}-{probe}", "exe_sha256": sha(exe), "logs": home.name,
                           "expected_errors": len(allowed), "ready": success}
-    if sha(pack) != results["desktop"]["exe_sha256"] or any(
-            row["exe_sha256"] != results["desktop"]["exe_sha256"] for row in results.values()):
+    if sha(pack) != executable_hash or any(row["exe_sha256"] != executable_hash for row in results.values()):
         raise ValueError("The shared retail executable changed during probes.")
     return results
 
@@ -691,10 +708,9 @@ def build(args):
             status["state"] = "published"
             try:
                 for path, root in ((stage, roots.stage), (work, roots.workspace)):
-                    validate_archive(path)
-                    if path.parent != root or path.name != attempt:
+                    if path.name != attempt:
                         raise ValueError("Disposable run ownership changed.")
-                    shutil.rmtree(path)
+                    remove_owned_tree(path, root)
                 status["cleanup"] = "complete"
             except (OSError, ValueError) as error:
                 status["cleanup"] = f"pending: {error}"

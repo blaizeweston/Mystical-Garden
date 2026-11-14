@@ -79,6 +79,20 @@ class PlaytestReleaseTests(unittest.TestCase):
                     raise ValueError("injected")
             self.assertEqual((failed / "marker").read_text(), "failure")
 
+    def test_owned_tree_can_remove_readonly_git_pack(self):
+        with tempfile.TemporaryDirectory() as folder:
+            parent = Path(folder)
+            project = parent / "attempt"
+            pack = project / "p/.git/objects/pack/sample.idx"
+            pack.parent.mkdir(parents=True)
+            pack.write_bytes(b"sample")
+            pack.chmod(0o444)
+            with self.assertRaisesRegex(ValueError, "ownership"):
+                release.remove_owned_tree(project, parent / "other")
+            self.assertEqual(pack.read_bytes(), b"sample")
+            release.remove_owned_tree(project, parent)
+            self.assertFalse(project.exists())
+
     def test_payload_manifest_and_archive_checksums(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
