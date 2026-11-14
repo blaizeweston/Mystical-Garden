@@ -25,6 +25,7 @@ const CLOSE_CAMERA_SIZE := 5.0
 const M06B := 5
 const M06C := 6
 const M07 := 7
+const M07B := 8
 const START_FLOORS := [1, 1, 9, 18]
 
 var cells := {}
@@ -105,6 +106,7 @@ func _ready() -> void:
 	render_mode.add_item("M06B")
 	render_mode.add_item("M06C")
 	render_mode.add_item("M07")
+	render_mode.add_item("M07B")
 	render_mode.select(M06C)
 	for number in range(1, 19):
 		floor_choice.add_item("Floor %d" % number)
@@ -135,11 +137,14 @@ func _select_example(index: int) -> void:
 	seed_field.set_value_no_signal(DEFAULT_SEEDS[index])
 	floor_choice.select(START_FLOORS[index] - 1)
 	if render_mode.selected >= M06C:
-		render_mode.select(M06C if index == 0 else M07)
+		if index == 0:
+			render_mode.select(M06C)
+		elif render_mode.selected == M06C:
+			render_mode.select(M07B)
 	_regenerate()
 
 func _select_render_mode(index: int) -> void:
-	if not scene_garden and (index == M07 or generated_mode == M07):
+	if not scene_garden and (index >= M07 or generated_mode >= M07):
 		_regenerate()
 	else:
 		_set_render_mode(index)
@@ -156,7 +161,7 @@ func _regenerate() -> void:
 	scene_garden = palette.tree_at_origin
 	generated_mode = render_mode.selected
 	var started := Time.get_ticks_usec()
-	if generated_mode == M07 and not scene_garden:
+	if generated_mode >= M07 and not scene_garden:
 		_rebuild_wilds(started)
 		return
 	wilds = {}
@@ -203,7 +208,8 @@ func _rebuild_wilds(started: int) -> void:
 	growing_heart.pulse.visible = false
 	heart_stage.visible = false
 	floor_choice.visible = true
-	wilds = Wilds.build(terrain_seed, floor_choice.selected + 1, RADII[map_size.selected], spacing, CATALOG)
+	wilds = Wilds.build(terrain_seed, floor_choice.selected + 1, RADII[map_size.selected], spacing, CATALOG,
+		Wilds.Biomes.WINDOWS, generated_mode == M07B)
 	if wilds.is_empty():
 		cells = {}
 		ground.hide()
@@ -243,7 +249,8 @@ func _rebuild_wilds(started: int) -> void:
 	environment.ambient_light_energy = climate.ambient_energy
 	environment.background_color = climate.air.darkened(0.65)
 	environment.fog_enabled = true
-	environment.fog_light_color = climate.air
+	environment.fog_light_color = climate.air.lerp(Color("#373126"), climate.weights.z * 0.66) \
+		if generated_mode == M07B else climate.air
 	environment.fog_density = climate.haze
 	_sync_layers()
 	debug_dirty = true
@@ -256,6 +263,7 @@ func _rebuild_wilds(started: int) -> void:
 	metrics = {"floor": floor_choice.selected + 1, "seed": terrain_seed, "cells": cells.size(),
 		"triangles": compiled.triangles, "plants": batches.plant_instances, "obstacles": batches.rock_instances,
 		"batch_count": batches.instance_batches, "repairs": wilds.layout.repair,
+		"masses": wilds.layout.get("masses", []).size(), "crossings": wilds.layout.crossings.size(),
 		"generation_ms": (generated - started) / 1000.0, "mesh_ms": (meshed - generated) / 1000.0,
 		"material_ms": (baked - meshed) / 1000.0, "rebuild_ms": total}
 	status.text = "%d cells  ·  %d plants  ·  %d obstacles  ·  %.1f ms rebuild" % [
@@ -316,7 +324,7 @@ func _sync_layers() -> void:
 	var continuity := render_mode.selected >= M06B
 	var enclosure := render_mode.selected <= 1 or continuity
 	var feature_mode := render_mode.selected <= 2 or continuity
-	if generated_mode == M07 and not scene_garden and wilds.is_empty():
+	if generated_mode >= M07 and not scene_garden and wilds.is_empty():
 		return
 	enclosure_view.visible = enclosure and wilds.is_empty() and %VegetationLayer.button_pressed
 	hearth.visible = enclosure and scene_garden and %GroundLayer.button_pressed
@@ -327,6 +335,7 @@ func _sync_layers() -> void:
 	feature_view.visible = feature_mode
 	feature_view.vegetation.visible = %VegetationLayer.button_pressed
 	feature_view.rocks.visible = %RockLayer.button_pressed
+	feature_view.massing.visible = %RockLayer.button_pressed
 	feature_view.crossings.visible = %PathLayer.button_pressed
 
 func _set_overlay(enabled: bool) -> void:

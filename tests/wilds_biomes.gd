@@ -190,6 +190,8 @@ func _scene() -> void:
 		and not scene.floor_choice.is_visible_in_tree(), "M06C Garden and Heart stay in the lab")
 	scene.example.select(1)
 	scene.example.item_selected.emit(1)
+	scene.render_mode.select(7)
+	scene.render_mode.item_selected.emit(7)
 	for sample in [[6, 0], [7, 1], [12, 1], [13, 2]]:
 		scene.floor_choice.select(sample[0] - 1)
 		scene.floor_choice.item_selected.emit(sample[0] - 1)

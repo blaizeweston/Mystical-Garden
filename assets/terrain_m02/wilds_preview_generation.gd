@@ -1,5 +1,7 @@
 extends RefCounted
 ## Labels, habitat patches and props are derived from the same valley geometry.
+const Rooms = preload("res://assets/terrain_m02/wilds_rooms.gd")
+const Massing = preload("res://assets/terrain_m02/wilds_massing.gd")
 const Biomes = preload("res://assets/terrain_m02/wilds_biome.gd")
 const Geography = preload("res://assets/terrain_m02/wilds_geography.gd")
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
@@ -7,11 +9,17 @@ const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
 const Field = preload("res://assets/terrain_m02/terrain_generator.gd")
 
 static func build(seed_value: int, floor_number: int, radius: int, spacing: float, catalog,
-		windows: Array = Biomes.WINDOWS) -> Dictionary:
+		windows: Array = Biomes.WINDOWS, massed: bool = false) -> Dictionary:
 	var climate := Biomes.climate(floor_number, windows)
 	var layout := Geography.compose(seed_value, radius, spacing, climate)
 	if layout.is_empty():
 		return {}
+	if massed:
+		layout = Rooms.expand(layout, seed_value, radius, spacing)
+		if layout.is_empty():
+			return {}
+		layout["seed"] = seed_value
+		layout["masses"] = Massing.build(layout, seed_value, radius, spacing, climate)
 	var cells := {}
 	var dry := {}
 	for cell in Grid.disk(radius):
@@ -32,6 +40,11 @@ static func build(seed_value: int, floor_number: int, radius: int, spacing: floa
 				terrain = &"stone"
 			elif forest > 0.61 - climate.forest * 1.17 and wet < 0.90:
 				terrain = &"forest_floor"
+		if massed and not reserve:
+			for wall in layout.masses:
+				if wall.bounds.has_point(at) and Shape.contains(wall, at):
+					terrain = [&"forest_floor", &"soil", &"stone"][wall.family]
+					break
 		dry[cell] = terrain
 		cells[cell] = &"water" if bank < 0.0 else terrain
 	for cell: Vector2i in cells:
@@ -45,6 +58,8 @@ static func build(seed_value: int, floor_number: int, radius: int, spacing: floa
 	layout["grid_radius"] = radius
 	layout["spacing"] = spacing
 	_populate(layout, cells, seed_value, spacing, climate)
+	if massed:
+		_mass_communities(layout, seed_value)
 	return {"cells": cells, "substrate": dry, "layout": layout, "climate": climate}
 
 static func _populate(layout: Dictionary, cells: Dictionary, seed_value: int, spacing: float, climate: Dictionary) -> void:
@@ -65,6 +80,8 @@ static func _populate(layout: Dictionary, cells: Dictionary, seed_value: int, sp
 				and _roll(seed_value,id,"tree") < climate.forest * 0.67:
 			height *= [1.37, 1.02, 0.68][family]
 			var spread: float = height * (0.41 if family == 0 else 0.27)
+			if not layout.get("masses", []).is_empty() and family == 2:
+				height *= 0.73
 			if _open(layout, point, spread):
 				layout.plants.append(_plant(id, "tree", point, height, spread, family, seed_value))
 		var habitat := Field._noise(at / spacing * 0.32, seed_value + 1907)
@@ -84,6 +101,8 @@ static func _populate(layout: Dictionary, cells: Dictionary, seed_value: int, sp
 			if _open(layout, local, 0.20):
 				layout.plants.append(_plant(part, kind, local,
 					lerpf(0.24, 0.74 if kind == "reed" else 0.49, _roll(seed_value,part,"size")), 0.20, family, seed_value))
+	if layout.has("masses"):
+		return
 	# Taller ring trees frame the Grove while lower densities let the Mire and Hollow open up.
 	for i in 44:
 		var phase := TAU * i / 44.0
@@ -97,8 +116,8 @@ static func _populate(layout: Dictionary, cells: Dictionary, seed_value: int, sp
 
 static func _place_obstacles(layout: Dictionary, formations: Array[Dictionary], cells: Dictionary,
 		seed_value: int, spacing: float, climate: Dictionary) -> void:
-	# Compose long Hollow buttresses across successive stone cells beside the walkable valley.
-	for path in layout.paths:
+	# The historical mode uses standalone root arches. M07B puts large roots along its barriers.
+	for path in ([] if layout.has("masses") else layout.paths):
 		if path.id == "bank_crossing":
 			continue
 		var spine: PackedVector2Array = path.spine
@@ -154,13 +173,49 @@ static func _wood(layout: Dictionary, id: String, at: Vector2, kind: String, fam
 
 static func _open(layout: Dictionary, at: Vector2, radius: float) -> bool:
 	if Shape.in_any(layout.water, at, radius) or Shape.in_trails(layout, at, radius) \
-			or Shape.in_any(layout.clearings, at, radius) or Shape.in_any(layout.rocks, at, radius):
+			or Shape.in_any(layout.clearings, at, radius) or Shape.in_any(layout.rocks, at, radius) \
+			or Shape.in_any(layout.get("masses", []), at, radius):
 		return false
 	for i in 6:
 		var limit := at + Vector2.from_angle(i * TAU / 6.0) * radius
 		if not Geography._inside_disk(limit, layout.grid_radius, layout.spacing):
 			return false
 	return true
+
+static func _mass_communities(layout: Dictionary, seed_value: int) -> void:
+	for mass in layout.masses:
+		var spine: PackedVector2Array = mass.spine
+		var family: int = mass.family
+		for i in range(1, spine.size() - 1):
+			var center := spine[i]
+			var axis := (spine[i + 1] - spine[i - 1]).normalized()
+			var id := "%s_%d" % [mass.id, i]
+			var roll := _roll(seed_value, id, "height")
+			var width: float = mass.half_widths[i]
+			if family == 0 or (family == 1 and i % 3 != 0):
+				var height := lerpf(4.25, 6.1, roll) if family == 0 else lerpf(3.0, 4.55, roll)
+				var crown := height * (0.48 if family == 0 else 0.36)
+				var projected := center - Vector2(0.13, 0.55) * height
+				if not Shape.in_trails(layout, center, crown) and not Shape.in_any(layout.clearings, center, crown) \
+						and not Shape.in_any(layout.crossings, projected, 0.95):
+					var trunk := _plant(id, "tree", center, height, width * 0.76, family, seed_value)
+					trunk["on_mass"] = mass.id
+					trunk["elevation"] = width * 0.26
+					layout.plants.append(trunk)
+			var kind: String = ["fern", "reed", "fungus"][family]
+			for side in [-1.0, 1.0]:
+				var patch_id := id + str(side)
+				var density := Field._noise(center * 0.25, seed_value + 71)
+				if family == 2 and (density < -0.18 or _roll(seed_value, patch_id, "patch") < 0.39):
+					continue
+				var stagger := _roll(seed_value, patch_id, "jitter")
+				var at: Vector2 = center + axis.orthogonal() * side * (width + 0.39 + 0.52 * stagger) \
+					+ axis * (stagger - 0.5) * 0.86
+				if not _open(layout, at, 0.32):
+					continue
+				var cover := _plant(patch_id, kind, at, lerpf(0.34, 0.64, roll), 0.32, family, seed_value)
+				cover["community"] = mass.id
+				layout.plants.append(cover)
 
 static func _roll(seed_value: int, id: String, stream: String) -> float:
 	return float(("%d/%s/%s" % [seed_value, id, stream]).hash()) / 4294967296.0

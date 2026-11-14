@@ -4,6 +4,7 @@ extends Node3D
 const RootMeshes = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
 const Art = preload("res://assets/terrain_m02/terrain_art_direction.gd")
 const Habitat = preload("res://assets/terrain_m02/wilds_habitat_mesh.gd")
+const MassMesh = preload("res://assets/terrain_m02/wilds_massing_mesh.gd")
 const TREE := preload("res://assets/root_tree.glb")
 const FERNS := preload("res://assets/garden/field/fern_02.glb")
 const GRASS := preload("res://assets/garden/field/grass_medium_01.glb")
@@ -19,11 +20,14 @@ var bridge_material: StandardMaterial3D
 var vegetation: Node3D
 var rocks: Node3D
 var crossings: Node3D
+var massing: Node3D
+var landmark_material: StandardMaterial3D
 
 func _ready() -> void:
 	vegetation = _group("Vegetation")
 	rocks = _group("Rocks")
 	crossings = _group("Crossings")
+	massing = _group("Massing")
 
 func _group(label: String) -> Node3D:
 	var group := Node3D.new()
@@ -41,7 +45,7 @@ func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds
 			if not botanical_variants.has(biome):
 				botanical_variants[biome] = _make_botanicals(profile, biome)
 			assets = botanical_variants[biome]
-	for group in [vegetation, rocks, crossings]:
+	for group in [vegetation, rocks, crossings, massing]:
 		for child in group.get_children():
 			child.free()
 	var batches := {}
@@ -53,7 +57,7 @@ func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds
 		var basis := Basis(Vector3.UP, plant.yaw).scaled(Vector3.ONE * height / asset.bounds.size.y)
 		if plant.kind == "shrub":
 			basis = basis.scaled(Vector3(1.32, 0.9, 1.32))
-		_append(batches, asset, basis, plant.center, plant.tint)
+		_append(batches, asset, basis, plant.center, plant.tint, plant.get("elevation", 0.0))
 	for prop in layout.rocks:
 		var set := _wilds_assets(prop.family) if wilds else assets
 		var available: Array = set[prop.kind] if wilds else set.rock
@@ -69,8 +73,28 @@ func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds
 	for crossing in layout.crossings:
 		if crossing.has("bridge"):
 			_bridge(crossing.bridge, wilds)
+	if layout.has("masses"):
+		for wall in layout.masses:
+			var view := MeshInstance3D.new()
+			view.mesh = MassMesh.mesh(wall, layout.seed)
+			view.material_override = botanical_material
+			massing.add_child(view)
+		_gate(layout.trail_network.nodes.exit_gate)
 	return {"plant_instances": layout.plants.size(), "rock_instances": layout.rocks.size(),
 		"instance_batches": batches.size()}
+
+func _gate(at: Vector2) -> void:
+	if landmark_material == null:
+		landmark_material = StandardMaterial3D.new()
+		landmark_material.vertex_color_use_as_albedo = true
+		landmark_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		landmark_material.roughness = 0.82
+	var view := MeshInstance3D.new()
+	view.mesh = MassMesh.gate()
+	view.material_override = landmark_material
+	view.position = Vector3(at.x, 0.0, at.y)
+	view.name = "ExitGate"
+	massing.add_child(view)
 
 func _wilds_assets(family: int) -> Dictionary:
 	var key := family + 4
