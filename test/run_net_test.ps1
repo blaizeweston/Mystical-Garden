@@ -59,6 +59,7 @@ foreach($folder in @('saves','userdata','localdata','temp')){New-Item -ItemType 
 $environmentBefore=@{}
 foreach($key in @('APPDATA','LOCALAPPDATA','TEMP','TMP','XDG_DATA_HOME','MYSTICAL_GARDEN_TEST_PORT','MYSTICAL_VALIDATION_RUN')){$environmentBefore[$key]=[Environment]::GetEnvironmentVariable($key,'Process')}
 $peers=@();$rows=@();$setupError='';$summary=$null
+$networkMutex=$null;$networkOwned=$false
 function Quote-Argument([string]$value){
  if($value.Contains('"')){throw 'Quote characters are not allowed in process arguments.'}
  return '"'+$value+'"'
@@ -75,6 +76,12 @@ function Start-Peer([string]$PeerRole,[int]$PeerIndex){
  return @{name=$name;role=$PeerRole;index=$PeerIndex;process=$process;stdout=$stdout;stderr=$stderr;result=(Join-Path $runPath "result_$($PeerRole)_$PeerIndex.json");timed_out=$false}
 }
 try {
+ if($env:OS -eq 'Windows_NT' -and $Role -ne 'Guest'){
+  $networkMutex=[System.Threading.Mutex]::new($false,'Global\MysticalGarden.Validation.UDP.v1')
+  try{$networkOwned=$networkMutex.WaitOne([TimeSpan]::FromMinutes(3))}
+  catch [System.Threading.AbandonedMutexException]{$networkOwned=$true}
+  if(-not $networkOwned){throw 'Timed out waiting for the local validation network lock.'}
+ }
  $env:APPDATA=Join-Path $profilePath 'userdata';$env:LOCALAPPDATA=Join-Path $profilePath 'localdata';$env:TEMP=Join-Path $profilePath 'temp';$env:TMP=$env:TEMP;$env:XDG_DATA_HOME=$env:APPDATA;$env:MYSTICAL_GARDEN_TEST_PORT=[string]$Port;$env:MYSTICAL_VALIDATION_RUN=$RunId
  if($Pack){
   $lockResource='assets/native/persistence_lock/b0_native_lock.dll'
@@ -120,8 +127,13 @@ func _initialize():
  $setupError=$_.Exception.Message
  Write-Host "SETUP FAIL: $setupError"
 } finally {
- foreach($peer in $peers){if(-not $peer.process.HasExited){$peer.timed_out=$true;$peer.process.Kill();$peer.process.WaitForExit()}}
- foreach($key in $environmentBefore.Keys){[Environment]::SetEnvironmentVariable($key,$environmentBefore[$key],'Process')}
+ try{
+  foreach($peer in $peers){if(-not $peer.process.HasExited){$peer.timed_out=$true;$peer.process.Kill();$peer.process.WaitForExit()}}
+  foreach($key in $environmentBefore.Keys){[Environment]::SetEnvironmentVariable($key,$environmentBefore[$key],'Process')}
+ } finally {
+  if($networkOwned){$networkMutex.ReleaseMutex()}
+  if($null -ne $networkMutex){$networkMutex.Dispose()}
+ }
 }
 foreach($peer in $peers){
  $peer.process.WaitForExit();$peer.process.Refresh();$code=$peer.process.ExitCode

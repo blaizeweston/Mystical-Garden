@@ -20,6 +20,8 @@ func run():
  game=load("res://world.tscn").instantiate();game.progress.path=base+role;game.local_character.path=base+role+".character";game.guest_character.path=base+role+".guest";root.add_child(game)
  if role=="host":await host_run()
  else:await guest_run()
+ if game.online_peer!=null:game.leave_game("Weapon animation fixture")
+ check(game.online_peer==null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"offline before world removal")
  game.queue_free();await process_frame
  if not failed:print("PASS: weapon actions co-op ",role," bow draw, projectile footprint, and two-handed scythe contact")
  quit(1 if failed else 0)
@@ -46,15 +48,20 @@ func guest_run():
  game.guest_character.save_profile();check(game.join_game()==OK,"guest joins")
  var id:=game.multiplayer.get_unique_id()
  if not await until(func():return marked("ready") and game.session=="Guest" and not game.client_details.is_empty() and game.players.get(id,{}).get("wild",false)):check(false,"Wilds state");return
- game.submit_combat.rpc_id(1,Vector2(1,0),true)
- var deadline:=Time.get_ticks_msec()+6000;var saw_clip:=false;var saw_draw:=false;var turned:=false
+ var aim:=Vector2(1,0)
+ var next_input:=0
+ var deadline:=Time.get_ticks_msec()+6000;var saw_clip:=false;var saw_draw:=false
+ var projectile: Dictionary={}
+ var saw_hit:=false
+ var saw_windup:=false
+ var encounter:=str([game.destination,game.encounter_number,game.map_seed])
  while Time.get_ticks_msec()<deadline:
   var actor: Dictionary=game.stage.avatar_models.get(id,{})
   if not actor.is_empty() and str(actor.animator.current_animation)=="Attack_bow":
    saw_clip=true
-   if not turned:
-    turned=true
-    game.submit_combat.rpc_id(1,Vector2(0,1),false)
+   if aim.x>0:
+    aim=Vector2(0,1)
+    next_input=0
    var weapon: Node3D=actor.visual_weapon
    var arrow: Node3D=weapon.get_node("NockedArrow")
    var phase:=float(actor.get("motion_phase",1.0))
@@ -62,21 +69,38 @@ func guest_run():
     var draw:=smoothstep(0,.55,phase)
     var nock:=weapon.to_global(Vector3(0,.2,-.2-.25*draw))
     saw_draw=saw_draw or nock.distance_to(Field.hand(actor,false))<.035
-  if game.received_combat_events.any(func(e):return e.event.kind=="impact" and e.event.shape=="hit"):break
+  if game.online_peer==null:
+   check(false,"guest stays connected through bow action")
+   return
+  # Match MouseCombat.frame's input cadence. Keep advertising the new aim
+  # while released, so a single lost unreliable packet cannot define the shot.
+  var now:=Time.get_ticks_msec()
+  if now>=next_input:
+   next_input=now+50
+   game.submit_combat.rpc_id(1,aim,aim.x>0)
+  # Capture the RPC-backed events while they are live, independently of
+  # visual expiry and the relative arrival of the arrow and hit.
+  for entry in game.received_combat_events:
+   if entry.key!=encounter:continue
+   var event: Dictionary=entry.event
+   if event.kind=="windup":saw_windup=true
+   if event.kind=="projectile" and projectile.is_empty():projectile=event.duplicate(true)
+   if event.kind=="impact" and event.shape=="hit" and event.get("form")=="bow" and event.target_id==-1:saw_hit=true
+  if not projectile.is_empty() and saw_hit:break
   await process_frame
- game.submit_combat.rpc_id(1,Vector2(0,1),false)
+ game.submit_combat.rpc_id(1,aim,false)
  check(saw_clip and saw_draw,"guest plays the authored bow animation with the visible draw hand following the nock")
  var actor: Dictionary=game.stage.avatar_models[id]
  check(actor.rig_kind==1 and is_equal_approx(actor.model.scale.y,.92),"guest renders the customized rig at the saved height")
  var bow: Node3D=actor.visual_weapon
  check(bow.is_visible_in_tree() and bow.has_node("VineBowModel") and bow.to_global(Vector3(0,.2,0)).distance_to(Field.hand(actor,true))<.001,"guest bow stays in the visible left hand")
- var arrows: Array=game.received_combat_events.filter(func(e):return e.event.kind=="projectile")
- check(not arrows.is_empty(),"arrow arrives")
- if not arrows.is_empty():
-  var event: Dictionary=arrows[0].event;var profile: Dictionary=game.WeaponMotion.profile("bow")
+ check(not projectile.is_empty(),"arrow arrives")
+ check(saw_hit,"guest receives authoritative bow hit")
+ if not projectile.is_empty():
+  var event: Dictionary=projectile;var profile: Dictionary=game.WeaponMotion.profile("bow")
   check(float(event.to[2])-float(event.from[2])>1.0 and absf(float(event.to[0])-float(event.from[0]))<.6,"guest can redirect the shot after draw begins")
   check(str(event.form)=="bow" and float(event.projectile_radius)==float(profile.projectile_radius) and float(event.height)==float(profile.height),"same profile controls guest projectile and host collision")
- check(not game.received_combat_events.any(func(e):return e.event.kind=="windup"),"guest receives no firing ring")
+ check(not saw_windup,"guest receives no firing ring")
  mark("verified")
  if not await until(func():return marked("scythe-ready") and Motion.form(game.players.get(id,{}))=="scythe"):
   check(false,"host scythe loadout arrives");return

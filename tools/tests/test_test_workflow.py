@@ -402,6 +402,26 @@ class WorkflowTests(unittest.TestCase):
   with self.flow.locked():
    with self.assertRaises(ValueError):
     with self.flow.locked():pass
+ @unittest.skipUnless(os.name=="nt","Windows validation mutex")
+ def test_network_fixture_lock_excludes_an_independent_process(self):
+  code = (
+   "import sys\n"
+   "sys.path.insert(0, sys.argv[1])\n"
+   "from validation_execution import network_fixture_lock\n"
+   "try:\n"
+   " with network_fixture_lock(timeout_ms=120): print('acquired')\n"
+   "except ValueError as error:\n"
+   " print(error)\n"
+   " sys.exit(7)\n"
+  )
+  command=[sys.executable,"-B","-c",code,str(MODULE.parent)]
+  with w.execution.network_fixture_lock():
+   blocked=w.subprocess.run(command,capture_output=True,text=True,timeout=10)
+   self.assertEqual(blocked.returncode,7,blocked)
+   self.assertIn("Timed out waiting",blocked.stdout)
+  acquired=w.subprocess.run(command,capture_output=True,text=True,timeout=10)
+  self.assertEqual(acquired.returncode,0,acquired)
+  self.assertEqual(acquired.stdout.strip(),"acquired")
  def test_peer_runner_uses_powershell_seven(self):
   f=self.flow;f.suites['settings']['kind']='smoke';logdir=f.root/'peer-shell';logdir.mkdir()
   class Process:

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -24,6 +25,7 @@ ENGINE_ERROR = re.compile(r"^\s*(?:USER )?ERROR:\s*(.*)$", re.MULTILINE)
 GDSCRIPT = re.compile(r'''(?P<literal>"""(?:\\.|(?!""").)*"""|\'\'\'(?:\\.|(?!\'\'\').)*\'\'\'|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|#[^\n]*)|(?P<quit>(?<![\w.])quit)(?=\s*\()''', re.DOTALL)
 PEERS = {"unit": ("unit",), "solo": ("solo",), "pair": ("host", "guest"),
          "party": ("host", "1", "2", "3", "overflow")}
+WINDOWS_NETWORK_MUTEX = r"Global\MysticalGarden.Validation.UDP.v1"
 LOCK_LIBRARY = "b0_native_lock.dll"
 LOCK_RESOURCE = Path("assets/native/persistence_lock") / LOCK_LIBRARY
 
@@ -143,6 +145,45 @@ def terminate(process):
     process.wait()
 
 
+@contextmanager
+def network_fixture_lock(timeout_ms=180_000):
+    """Serialize cooperating Windows validation listeners across checkouts."""
+    if os.name != "nt":
+        yield
+        return
+    import ctypes
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
+    kernel.CreateMutexW.restype = wintypes.HANDLE
+    kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    kernel.WaitForSingleObject.restype = wintypes.DWORD
+    for name in ("ReleaseMutex", "CloseHandle"):
+        function = getattr(kernel, name)
+        function.argtypes = [wintypes.HANDLE]
+        function.restype = wintypes.BOOL
+
+    mutex = kernel.CreateMutexW(None, False, WINDOWS_NETWORK_MUTEX)
+    if not mutex:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        result = kernel.WaitForSingleObject(mutex, timeout_ms)
+        if result == 258:
+            raise ValueError("Timed out waiting for the local validation network lock.")
+        # An abandoned mutex transfers ownership to this thread. Any surviving
+        # orphan that still owns the actual UDP port must fail the normal bind.
+        if result not in (0, 128):
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            yield
+        finally:
+            if not kernel.ReleaseMutex(mutex):
+                raise ctypes.WinError(ctypes.get_last_error())
+    finally:
+        kernel.CloseHandle(mutex)
+
+
 def fixture_environment(project):
     # Keep fixture save paths within Godot's Windows path limit.
     data = project / ".godot/vd" / uuid.uuid4().hex[:12]
@@ -191,31 +232,33 @@ def run_fixture(project, engine, fixture, kind, script, folder, run_id, pack=Non
     processes = {}
     outcomes = {}
     timed_out = set()
-    started = time.monotonic()
-    try:
-        for peer in PEERS[kind]:
-            user_args = [peer, run_id] if kind in ("pair", "party") else ["solo"] if kind == "solo" else []
-            child_env = dict(env, MYSTICAL_VALIDATION_PEER=peer,
-                             MYSTICAL_VALIDATION_RESULT=str(folder / f"{peer}.json"))
-            with (folder / f"{peer}.log").open("wb") as log, (folder / f"{peer}.stderr.log").open("wb") as stderr:
-                processes[peer] = subprocess.Popen(
-                    arguments + (["--"] + user_args if user_args else []),
-                    cwd=runtime, env=child_env, stdout=log, stderr=stderr,
-                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-            if kind == "party":
-                time.sleep(.4)
-            elif kind == "pair" and peer == "host":
-                time.sleep(.7)
-        deadline = started + 150
-        for peer, process in processes.items():
-            try:
-                process.wait(timeout=max(0, deadline - time.monotonic()))
-            except subprocess.TimeoutExpired:
-                timed_out.add(peer)
+    # Some unit/solo fixtures also bind the default port or a derived offset.
+    with network_fixture_lock():
+        started = time.monotonic()
+        try:
+            for peer in PEERS[kind]:
+                user_args = [peer, run_id] if kind in ("pair", "party") else ["solo"] if kind == "solo" else []
+                child_env = dict(env, MYSTICAL_VALIDATION_PEER=peer,
+                                 MYSTICAL_VALIDATION_RESULT=str(folder / f"{peer}.json"))
+                with (folder / f"{peer}.log").open("wb") as log, (folder / f"{peer}.stderr.log").open("wb") as stderr:
+                    processes[peer] = subprocess.Popen(
+                        arguments + (["--"] + user_args if user_args else []),
+                        cwd=runtime, env=child_env, stdout=log, stderr=stderr,
+                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                if kind == "party":
+                    time.sleep(.4)
+                elif kind == "pair" and peer == "host":
+                    time.sleep(.7)
+            deadline = started + 150
+            for peer, process in processes.items():
+                try:
+                    process.wait(timeout=max(0, deadline - time.monotonic()))
+                except subprocess.TimeoutExpired:
+                    timed_out.add(peer)
+                    terminate(process)
+        finally:
+            for process in processes.values():
                 terminate(process)
-    finally:
-        for process in processes.values():
-            terminate(process)
     for peer, process in processes.items():
         code = process.returncode
         log = (folder / f"{peer}.log").read_text(encoding="utf-8-sig", errors="replace")
@@ -228,7 +271,7 @@ def run_fixture(project, engine, fixture, kind, script, folder, run_id, pack=Non
     verdict = {"schema": SCHEMA, "run_id": run_id, "fixture": fixture, "kind": kind,
                "pack": str(pack) if pack else None, "passed": passed, "peers": outcomes,
                "script": str(script.resolve()), "script_sha256": hashlib.sha256(script_bytes).hexdigest(),
-               "appdata": env["APPDATA"], "seconds": round(time.monotonic() - started, 3)}
+               "appdata": env["APPDATA"], "port": int(env["MYSTICAL_GARDEN_TEST_PORT"]), "seconds": round(time.monotonic() - started, 3)}
     write_json(folder / "verdict.json", verdict)
     return verdict
 

@@ -169,6 +169,10 @@ func host_run() -> void:
  if not await until(func():return not world.expedition_active() and Tx.pending_notice(world)==Tx.CLEANUP_NOTICE):
   check(false,"party extraction commits with cleanup pending")
   return
+ # Production keeps streaming public state after a cleanup-pending commit.
+ # The one deferred snapshot is unreliable, so restore that normal send loop
+ # now that no further simulation or canonical writes are allowed.
+ world.set_physics_process(true)
  var committed:=Slots._save_digest(G)
  check(world.progress.reserve(guest.seed_owner).unknown==[0] and FileAccess.file_exists(G+".transaction"),"extraction banks guest seed with journal proof")
  if not await until(func():return marked("saw-extraction")):

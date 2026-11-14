@@ -180,11 +180,17 @@ func guest() -> void:
    lease.set_value("session","updated",Time.get_unix_time_from_system()-60)
    check(lease.save(marker)==OK,"expire guest lease")
    world.get_meta(Tx.SESSION)._heartbeat_at=Time.get_unix_time_from_system()+20
+  if key=="cleanup":
+   # Observe the positive acknowledgment while the peer is still attached.
+   # The next heartbeat can legitimately return a cleanup-pending guest to title.
+   world.get_meta(Tx.SESSION)._heartbeat_at=Time.get_unix_time_from_system()
   world.set_meta(&"guarded_gameplay_test_fault",func(phase,path):
    if phase=="stage":
     staged.count += 1
     if key=="abort": return ERR_FILE_CANT_WRITE
-   if key=="cleanup" and phase=="publish_receipt": return ERR_CANT_CREATE
+   if key=="cleanup" and phase=="publish_receipt":
+    world.get_meta(Tx.SESSION)._heartbeat_at=Time.get_unix_time_from_system()+8.0
+    return ERR_CANT_CREATE
    if key=="uncertain":
     if phase=="publish_commit_marker": return ERR_CANT_CREATE
     if phase=="restore": return ERR_FILE_CANT_WRITE
@@ -237,7 +243,14 @@ func guest() -> void:
    check(false,"host did not verify "+key)
    return
   if key in ["abort","cleanup","uncertain","lease"]:
-   if is_instance_valid(world) and current_scene == world: world.return_to_main_menu()
+   if key=="cleanup":
+    # Now exercise the real pending heartbeat exit rather than requiring it
+    # to race the acknowledgment. Recovery remains explicit after detach.
+    if is_instance_valid(world) and current_scene == world:
+     world.get_meta(Tx.SESSION)._heartbeat_at=0.0
+    check(await until(func():return current_scene!=world),"cleanup-pending heartbeat returns guest to title")
+    check(current_scene.get_meta(&"guarded_return_notice","")==Tx.CLEANUP_NOTICE,"cleanup notice survives title handoff")
+   elif is_instance_valid(world) and current_scene == world: world.return_to_main_menu()
    check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"guest offline before world detach")
    await process_frame
    if key in ["cleanup","uncertain"]:
