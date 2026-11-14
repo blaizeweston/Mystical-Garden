@@ -4,6 +4,7 @@ extends RefCounted
 const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const Forest = preload("res://assets/terrain_m02/garden_forest_barrier.gd")
+const Knowledge = preload("res://assets/terrain_m02/garden_knowledge.gd")
 const WALK_RADIUS := 0.34
 const STEP := 0.47
 const MARGIN := 0.045
@@ -17,6 +18,7 @@ const CATALOG := {
 const CARDINAL := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 var forest: Forest
+var knowledge: Knowledge
 var records := {}
 var next_id := 1
 var root_blocks: Array = []
@@ -48,6 +50,10 @@ func placement_issue(kind: String, at: Vector2, yaw: float, pawn: Vector2, movin
 		for entry: Dictionary in records.values():
 			if entry.kind == kind:
 				return _issue("There is already a field study. Relocate it in Move mode.", entry.footprint)
+	if moving == 0 and knowledge != null:
+		var refusal := knowledge.construction_refusal(kind, records)
+		if not refusal.is_empty():
+			return _issue(refusal)
 	var area := footprint(kind, at, yaw)
 	var garden = forest.garden
 	if not _inside(area.outline, forest.visible_outline):

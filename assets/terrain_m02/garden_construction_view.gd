@@ -47,8 +47,6 @@ func bind(owner_view, row: HBoxContainer, status: Label) -> void:
 	row.get_parent().add_child(panel)
 	panel.hide()
 	types = OptionButton.new()
-	for id: String in Build.CATALOG:
-		types.add_item(Build.CATALOG[id].name)
 	types.item_selected.connect(func(index: int): _choose(Build.CATALOG.keys()[index]))
 	panel.add_child(types)
 	move_mode = CheckButton.new()
@@ -99,7 +97,21 @@ func reset(barrier: Build.Forest) -> void:
 		node.free()
 	objects.clear()
 	model = Build.new(barrier)
+	model.knowledge = parent_view.knowledge
+	refresh_research()
 	set_available(true)
+
+func refresh_research() -> void:
+	var index := 0
+	types.clear()
+	for id: String in Build.CATALOG:
+		var reason := model.knowledge.construction_refusal(id, model.records)
+		var badge := " · Locked" if not model.knowledge.locked_reason(id).is_empty() else (" · Limit reached" if not reason.is_empty() else "")
+		types.add_item(Build.CATALOG[id].name + badge)
+		types.set_item_tooltip(index, reason)
+		index += 1
+	types.select(Build.CATALOG.keys().find(kind))
+	_update_ghost()
 
 func set_available(available: bool) -> void:
 	toggle.visible = available
@@ -199,6 +211,7 @@ func confirm() -> int:
 	blocker.hide()
 	apply.disabled = true
 	parent_view._update_reset_availability()
+	refresh_research()
 	info.text = "%s #%d ready. %d structures in the Garden." % [Build.CATALOG[kind].name, id, model.records.size()]
 	return id
 

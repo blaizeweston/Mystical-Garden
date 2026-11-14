@@ -21,6 +21,7 @@ func run() -> void:
 	root.add_child(scene)
 	await process_frame
 	var view = scene.expansion
+	view.knowledge.set_sandbox(true)
 	var build = view.construction
 	var model: C = build.model
 	build.toggle.button_pressed = true

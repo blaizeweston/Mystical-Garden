@@ -9,6 +9,8 @@ const RootArt = preload("res://assets/terrain_m02/garden_heart_roots.gd")
 const Forest = preload("res://assets/terrain_m02/garden_forest_barrier.gd")
 const Stations = preload("res://assets/terrain_m02/garden_station_art.gd")
 const Construction = preload("res://assets/terrain_m02/garden_construction_view.gd")
+const Knowledge = preload("res://assets/terrain_m02/garden_knowledge.gd")
+const KnowledgeView = preload("res://assets/terrain_m02/garden_knowledge_view.gd")
 const BARK_SHADER = preload("res://assets/terrain_m02/heart_bark.gdshader")
 const GateMesh = preload("res://assets/terrain_m02/wilds_massing_mesh.gd")
 const ALTAR = preload("res://assets/altar.glb")
@@ -41,6 +43,8 @@ var footprint_border: MeshInstance3D
 var heart: Node3D
 var barrier: Forest
 var construction: Construction
+var knowledge := Knowledge.new()
+var knowledge_dialog: KnowledgeView
 var walker: MeshInstance3D
 var walk: CheckButton
 var comparison: CheckButton
@@ -87,6 +91,10 @@ func bind_controls(container: HBoxContainer, info: Label, forest: Node3D) -> voi
 	comparison.tooltip_text = "Compare the original altar and plot at the same locations"
 	bar.add_child(comparison)
 	comparison.toggled.connect(func(_on): _landmarks())
+	_button("Knowledge", _open_knowledge)
+	knowledge_dialog = KnowledgeView.new()
+	add_child(knowledge_dialog)
+	knowledge.changed.connect(_refresh_knowledge)
 	barrier = Forest.new()
 	add_child(barrier)
 	construction = Construction.new()
@@ -123,6 +131,11 @@ func _button(title: String, action: Callable) -> Button:
 
 func start(cells: Dictionary, features: Dictionary, spacing: float, seed_number: int, radius: int) -> void:
 	clear()
+	# Selecting a new seed, spacing or map size starts a new lab Garden.
+	var test_mode := knowledge.sandbox
+	knowledge = Knowledge.new()
+	knowledge.sandbox = test_mode
+	knowledge.changed.connect(_refresh_knowledge)
 	state = Garden.new(cells, features, spacing, seed_number, radius)
 	barrier.bind(state)
 	construction.reset(barrier)
@@ -134,6 +147,7 @@ func start(cells: Dictionary, features: Dictionary, spacing: float, seed_number:
 
 func show_garden(enabled: bool) -> void:
 	if not enabled:
+		knowledge_dialog.hide()
 		finish_animation()
 		set_active(false)
 		walk.button_pressed = false
@@ -189,7 +203,7 @@ func reset_garden() -> void:
 	_update_controls()
 
 func set_active(enabled: bool) -> void:
-	active = enabled and state != null and not growing
+	active = enabled and state != null and not growing and _can_expand()
 	if active:
 		construction.set_enabled(false)
 		walk.button_pressed = false
@@ -200,7 +214,8 @@ func set_active(enabled: bool) -> void:
 
 func _update_controls() -> void:
 	enter.set_pressed_no_signal(active)
-	enter.disabled = growing
+	enter.disabled = growing or not _can_expand()
+	enter.tooltip_text = "Choose a frontier to reclaim." if _can_expand() else "Research a clearing upgrade in Knowledge."
 	choices.visible = active
 	confirm.visible = active
 	cancel.visible = active
@@ -222,8 +237,30 @@ func _update_controls() -> void:
 	elif growing:
 		status.text = "The Heart is reclaiming the clearing…"
 	else:
-		status.text = "%d reclaimed clearings  ·  %d usable hexes" % [state.revision, state.available.size()]
+		var remaining := knowledge.remaining_expansions(state.revision)
+		var opportunities := "%d expansion %s" % [remaining, "opportunity" if remaining == 1 else "opportunities"]
+		if knowledge.sandbox:
+			opportunities = "Free-build test mode"
+		status.text = "%d reclaimed clearings  ·  %d usable hexes  ·  %s" % [state.revision, state.available.size(), opportunities]
 	confirm.disabled = true
+
+func _can_expand() -> bool:
+	return state != null and (knowledge.sandbox or knowledge.remaining_expansions(state.revision) > 0)
+
+func _open_knowledge() -> void:
+	if state == null or growing:
+		return
+	knowledge_dialog.present(knowledge, state.revision, construction.model.records)
+
+func _refresh_knowledge() -> void:
+	if state == null:
+		return
+	if not _can_expand():
+		active = false
+	_update_controls()
+	construction.refresh_research()
+	if knowledge_dialog.visible:
+		knowledge_dialog.refresh()
 
 func _update_reset_availability() -> void:
 	reset.disabled = growing or state == null or (state.revision == 0 and construction.model.records.is_empty())
@@ -254,7 +291,7 @@ func click_frontier(at: Vector2) -> void:
 	select_frontier(sector)
 
 func confirm_growth() -> void:
-	if not active or preview.is_empty():
+	if not active or preview.is_empty() or not _can_expand():
 		return
 	var started := Time.get_ticks_usec()
 	var proposal := preview

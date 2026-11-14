@@ -23,6 +23,7 @@ func run() -> void:
 	var scene := Preview.instantiate()
 	root.add_child(scene)
 	var view = scene.expansion
+	view.knowledge.set_sandbox(true)
 	check(view.visible and view.enter.visible, "the Garden preview exposes the expansion controls")
 	var original := _snapshot(scene)
 	_ground_boundary(view)
