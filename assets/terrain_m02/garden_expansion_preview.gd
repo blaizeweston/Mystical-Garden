@@ -5,10 +5,13 @@ signal camera_changed(target: Vector2, size: float)
 
 const Garden = preload("res://assets/terrain_m02/garden_expansion.gd")
 const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
-const RootMeshes = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
+const RootArt = preload("res://assets/terrain_m02/garden_heart_roots.gd")
+const Forest = preload("res://assets/terrain_m02/garden_forest_barrier.gd")
+const Stations = preload("res://assets/terrain_m02/garden_station_art.gd")
+const BARK_SHADER = preload("res://assets/terrain_m02/heart_bark.gdshader")
 const GateMesh = preload("res://assets/terrain_m02/wilds_massing_mesh.gd")
 const ALTAR = preload("res://assets/altar.glb")
-const REVEAL_TIME := 1.65
+const REVEAL_TIME := 2.45
 const MAX_ZOOM := 27.0
 const OVERVIEW_ZOOM := 27.0
 
@@ -34,7 +37,13 @@ var markers: Node3D
 var debug_view: MeshInstance3D
 var footprint: MeshInstance3D
 var footprint_border: MeshInstance3D
-var root_material: StandardMaterial3D
+var heart: Node3D
+var barrier: Forest
+var walker: MeshInstance3D
+var walk: CheckButton
+var comparison: CheckButton
+var pawn := Vector2.ZERO
+var station_meshes := {}
 var root_mesh: MeshInstance3D
 var tween: Tween
 var rim_from: PackedFloat32Array
@@ -42,7 +51,8 @@ var rim_to: PackedFloat32Array
 var base_rim: PackedFloat32Array
 var last_metrics := {}
 var max_animation_usec := 0
-var last_root_tip := -1
+var root_stage := 0
+var breach := 0.64
 
 func bind_controls(container: HBoxContainer, info: Label, forest: Node3D) -> void:
 	bar = container
@@ -64,6 +74,26 @@ func bind_controls(container: HBoxContainer, info: Label, forest: Node3D) -> voi
 	debug.tooltip_text = "Show starting, newly reclaimed and protected hexes"
 	debug.toggled.connect(func(_on): _build_debug())
 	bar.add_child(debug)
+	walk = CheckButton.new()
+	walk.text = "Walk Garden"
+	walk.tooltip_text = "WASD or arrows to walk the Garden and test the forest boundary"
+	bar.add_child(walk)
+	walk.toggled.connect(_walk_enabled)
+	comparison = CheckButton.new()
+	comparison.text = "M11 props"
+	comparison.tooltip_text = "Compare the original altar and plot at the same locations"
+	bar.add_child(comparison)
+	comparison.toggled.connect(func(_on): _landmarks())
+	barrier = Forest.new()
+	add_child(barrier)
+	walker = _mesh_node(self)
+	var capsule := CapsuleMesh.new()
+	capsule.height = 1.62
+	capsule.radius = 0.23
+	walker.mesh = capsule
+	walker.material_override = _material(Color("#d4c192"))
+	walker.hide()
+	set_physics_process(false)
 	roots = Node3D.new()
 	add_child(roots)
 	landmark_view = Node3D.new()
@@ -75,7 +105,6 @@ func bind_controls(container: HBoxContainer, info: Label, forest: Node3D) -> voi
 	footprint.material_override = _material(Color(0.87, 0.66, 0.31, 0.24), true)
 	footprint_border = _mesh_node(self)
 	footprint_border.material_override = _material(Color(1.0, 0.76, 0.40, 0.92), true)
-	root_material = _material(Color.WHITE, false, true)
 	bar.hide()
 	status.hide()
 
@@ -89,6 +118,7 @@ func _button(title: String, action: Callable) -> Button:
 func start(cells: Dictionary, features: Dictionary, spacing: float, seed_number: int, radius: int) -> void:
 	clear()
 	state = Garden.new(cells, features, spacing, seed_number, radius)
+	barrier.bind(state)
 	base_rim = state.enclosure_support()
 	focus = Vector2.ZERO
 	zoom = 16.5
@@ -98,6 +128,7 @@ func show_garden(enabled: bool) -> void:
 	if not enabled:
 		finish_animation()
 		set_active(false)
+		walk.button_pressed = false
 	visible = enabled
 	bar.visible = enabled
 	status.visible = enabled
@@ -115,7 +146,12 @@ func clear() -> void:
 		tween.kill()
 		tween = null
 	growing = false
+	if heart != null and heart.use_sculpt:
+		heart.reclaim_light(0.0)
 	active = false
+	walk.set_pressed_no_signal(false)
+	comparison.set_pressed_no_signal(false)
+	_walk_enabled(false)
 	state = null
 	preview = {}
 	last_metrics = {}
@@ -131,6 +167,7 @@ func reset_garden() -> void:
 		return
 	state = Garden.new(state.terrain, state.layout, state.spacing, state.seed_value,
 		roundi(state.extent / state.spacing))
+	barrier.bind(state)
 	base_rim = state.enclosure_support()
 	_clear_children(roots)
 	_set_rim(base_rim, base_rim, 1.0)
@@ -140,6 +177,7 @@ func reset_garden() -> void:
 func set_active(enabled: bool) -> void:
 	active = enabled and state != null and not growing
 	if active:
+		walk.button_pressed = false
 		focus = Vector2.ZERO
 		zoom = OVERVIEW_ZOOM
 		camera_changed.emit(focus, zoom)
@@ -202,6 +240,7 @@ func confirm_growth() -> void:
 		return
 	var started := Time.get_ticks_usec()
 	var proposal := preview
+	var original_outline := state.outline
 	rim_from = state.enclosure_support()
 	if not state.apply(proposal):
 		_update_controls()
@@ -209,9 +248,17 @@ func confirm_growth() -> void:
 		return
 	var logical := Time.get_ticks_usec()
 	rim_to = state.enclosure_support()
+	barrier.begin_shape(original_outline, state.outline)
 	root_mesh = _mesh_node(roots)
-	root_mesh.material_override = root_material
-	last_root_tip = -1
+	root_stage = heart.stage
+	_set_root(root_mesh, state.roots[-1])
+	var plan: Dictionary = root_mesh.get_meta("root_plan")
+	breach = 0.64
+	for i in plan.main.size():
+		var at: Vector3 = plan.main[i]
+		if not Geometry2D.is_point_in_polygon(Vector2(at.x, at.z), original_outline):
+			breach = lerpf(0.14, 0.91, float(i) / (plan.main.size() - 1))
+			break
 	max_animation_usec = 0
 	growing = true
 	active = false
@@ -226,14 +273,17 @@ func confirm_growth() -> void:
 
 func _animate(progress: float) -> void:
 	var started := Time.get_ticks_usec()
-	var root: PackedVector2Array = state.roots[-1]
-	var tip := clampi(ceili(progress * root.size()), 2, root.size())
-	if tip != last_root_tip:
-		last_root_tip = tip
-		root_mesh.mesh = RootMeshes.reclaiming_root(root, tip)
-	var reveal := smoothstep(0.32, 1.0, progress)
+	var light := smoothstep(0.0, 0.16, progress) * (1.0 - smoothstep(0.57, 1.0, progress))
+	heart.reclaim_light(light)
+	var bark := root_mesh.material_override as ShaderMaterial
+	var advance := 0.89 * clampf(inverse_lerp(0.14, 0.91, progress), 0.0, 1.0)
+	advance += 0.11 * smoothstep(0.91, 1.0, progress)
+	bark.set_shader_parameter("root_progress", advance)
+	bark.set_shader_parameter("reclaim_pulse", light)
+	var reveal := smoothstep(maxf(0.32, breach - 0.06), 1.0, progress)
 	material.set_shader_parameter("garden_reveal", reveal)
 	enclosure.position_frontier(rim_from, rim_to, reveal)
+	barrier.update_shape(reveal)
 	max_animation_usec = maxi(max_animation_usec, Time.get_ticks_usec() - started)
 
 func finish_animation() -> void:
@@ -247,6 +297,52 @@ func finish_animation() -> void:
 	last_metrics["peak_animation_update_usec"] = max_animation_usec
 	_build_debug()
 	_update_controls()
+
+func change_heart_stage(index: int) -> void:
+	if growing:
+		finish_animation()
+	root_stage = index
+	if state == null:
+		return
+	for i in roots.get_child_count():
+		_set_root(roots.get_child(i), state.roots[i])
+
+func _set_root(node: MeshInstance3D, path: PackedVector2Array) -> void:
+	var plan := RootArt.plan(path, root_stage, state)
+	node.mesh = RootArt.mesh(plan)
+	node.set_meta("root_plan", plan)
+	var bark := ShaderMaterial.new()
+	bark.shader = BARK_SHADER
+	bark.set_shader_parameter("growing_root", true)
+	node.material_override = bark
+
+func _walk_enabled(enabled: bool) -> void:
+	if enabled and state != null:
+		set_active(false)
+		pawn = state.layout.paths[0].spine[-1]
+		walker.position = Vector3(pawn.x, 0.81, pawn.y)
+		set_camera(pawn, 16.5)
+	walker.visible = enabled
+	set_physics_process(enabled)
+
+func _physics_process(delta: float) -> void:
+	if not visible or get_viewport().gui_get_focus_owner() is LineEdit:
+		return
+	var axis := Vector2(int(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))
+		- int(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)),
+		int(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN))
+		- int(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)))
+	if axis.is_zero_approx():
+		return
+	var step := axis.normalized() * delta * 4.6
+	var target := barrier.move(pawn, step)
+	if target.distance_squared_to(pawn + step) > 0.000001:
+		var along_x := barrier.move(target, Vector2(pawn.x + step.x - target.x, 0))
+		var along_z := barrier.move(target, Vector2(0, pawn.y + step.y - target.y))
+		target = along_x if along_x.distance_squared_to(pawn + step) < along_z.distance_squared_to(pawn + step) else along_z
+	pawn = target
+	walker.position = Vector3(pawn.x, 0.81, pawn.y)
+	set_camera(pawn, zoom)
 
 func _set_rim(from: PackedFloat32Array, to: PackedFloat32Array, progress: float) -> void:
 	var packed := PackedFloat32Array()
@@ -263,7 +359,12 @@ func set_camera(target: Vector2, size: float) -> void:
 	camera_changed.emit(focus, zoom)
 
 func _landmarks() -> void:
-	for id in ["wilds_entrance", "altar", "starter_bed"]:
+	if state == null:
+		return
+	_clear_children(landmark_view)
+	for id: String in state.landmarks:
+		if id == "heart" or (comparison.button_pressed and id not in ["wilds_entrance", "altar", "starter_bed"]):
+			continue
 		var node := _mesh_node(landmark_view)
 		var at: Vector2 = state.landmarks[id].center
 		node.position = Vector3(at.x, 0.035, at.y)
@@ -271,6 +372,14 @@ func _landmarks() -> void:
 		if id == "wilds_entrance":
 			node.mesh = GateMesh.gate()
 			node.material_override = _material(Color.WHITE, false, true)
+			continue
+		if not comparison.button_pressed:
+			if not station_meshes.has(id):
+				station_meshes[id] = Stations.build(id)
+			node.mesh = station_meshes[id]
+			node.scale = Vector3.ONE * state.landmarks[id].radius
+			node.material_override = _material(Color.WHITE, false, true)
+			node.set_meta("label", Stations.NAMES[id])
 			continue
 		if id == "altar":
 			var altar := ALTAR.instantiate() as Node3D

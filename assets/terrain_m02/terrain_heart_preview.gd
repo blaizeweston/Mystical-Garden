@@ -21,6 +21,7 @@ var sculpt_bark: ShaderMaterial
 var use_sculpt := false
 var pulse: OmniLight3D
 var transition: Tween
+var fissures: Array[StandardMaterial3D] = []
 
 func _ready() -> void:
 	var material := StandardMaterial3D.new()
@@ -70,6 +71,16 @@ func _apply_sculpt_pigment(model: MeshInstance3D) -> void:
 		var material := model.mesh.surface_get_material(surface) as StandardMaterial3D
 		if material.resource_name.begins_with("Bark"):
 			model.set_surface_override_material(surface, sculpt_bark)
+		elif material.emission_enabled:
+			var vein := material.duplicate() as StandardMaterial3D
+			vein.set_meta("rest_energy", vein.emission_energy_multiplier)
+			model.set_surface_override_material(surface, vein)
+			fissures.append(vein)
+
+func reclaim_light(amount: float) -> void:
+	pulse.light_energy = 0.36 + stage * 0.06 + amount * 1.15
+	for material in fissures:
+		material.emission_energy_multiplier = float(material.get_meta("rest_energy")) * (1.0 + amount * 1.20)
 
 func show_stage(index: int, animated: bool = true) -> void:
 	stage = clampi(index, 0, STAGES.size() - 1)

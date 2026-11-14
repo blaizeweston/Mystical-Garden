@@ -36,6 +36,10 @@ func _init(cells: Dictionary, features: Dictionary, center_spacing: float, seed_
 		landmarks[id] = Shape.disk(id, "landmark", item.center, item.radius)
 	landmarks["altar"] = Shape.disk("altar", "station", Vector2(4.20, 1.5), 1.06)
 	landmarks["starter_bed"] = Shape.disk("starter_bed", "plot", Vector2(-4.30, -1.8), 1.15)
+	landmarks["seed_archive"] = Shape.disk("seed_archive", "station", Vector2(5.45, -1.95), 0.86)
+	landmarks["monster_studies"] = Shape.disk("monster_studies", "station", Vector2(-5.55, 0.95), 0.88)
+	landmarks["living_archive"] = Shape.disk("living_archive", "station", Vector2(-0.90, -5.3), 0.97)
+	landmarks["spring"] = Shape.disk("spring", "station", Vector2(2.25, 5.01), 0.87)
 	reserved = landmarks.values() + layout.paths + layout.get("path_joins", [])
 	root_exclusions = reserved.duplicate()
 	root_exclusions.erase(landmarks.heart)
@@ -57,7 +61,9 @@ func _init(cells: Dictionary, features: Dictionary, center_spacing: float, seed_
 func _initial_outline() -> PackedVector2Array:
 	var result := PackedVector2Array()
 	var targets := PackedVector2Array()
-	for feature: Dictionary in reserved + layout.water:
+	# Additional station art sits inside the original M11 sanctuary.
+	var initial_landmarks: Array = [landmarks.heart, landmarks.wilds_entrance, landmarks.altar, landmarks.starter_bed]
+	for feature: Dictionary in initial_landmarks + layout.paths + layout.get("path_joins", []) + layout.water:
 		targets.append_array(Shape.boundary(feature))
 	var entrance: Vector2 = landmarks.wilds_entrance.center
 	var cove := Vector2.ZERO

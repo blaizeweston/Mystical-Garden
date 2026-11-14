@@ -5,6 +5,7 @@ const Garden = preload("res://assets/terrain_m02/garden_expansion.gd")
 const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const Digest = preload("res://assets/terrain_m02/terrain_feature_layout.gd")
+const RootArt = preload("res://assets/terrain_m02/garden_heart_roots.gd")
 
 var errors := 0
 var samples := []
@@ -24,6 +25,8 @@ func run() -> void:
 	var view = scene.expansion
 	check(view.visible and view.enter.visible, "the Garden preview exposes the expansion controls")
 	var original := _snapshot(scene)
+	_boundary(view)
+	_art(view)
 	var directions: Array = view.state.frontier_options()
 	check(directions.size() >= 4, "reference Garden has multiple eligible sectors")
 	var outlines := {}
@@ -49,6 +52,7 @@ func run() -> void:
 		total_gained += offer.cells.size()
 		outlines[JSON.stringify(view.state.outline, "", true, true).sha256_text()] = true
 		_preserved(scene, original)
+		_boundary(view)
 	check(outlines.size() == directions.size(), "different directions give distinct outlines")
 	view.reset_garden()
 	check(view.state.owned == original.owned and view.roots.get_child_count() == 0, "reset restores exact initial ownership")
@@ -70,6 +74,7 @@ func run() -> void:
 	scene.heart_stage.select(4)
 	scene.heart_stage.item_selected.emit(4)
 	check(heart.stage == 4 and view.state.revision == 5, "Heart stage selector works after expansion")
+	_roots(view)
 	scene.render_mode.select(4)
 	scene.render_mode.item_selected.emit(4)
 	check(not view.visible and not scene.get_node("GardenExterior").visible, "historical render disables expansion presentation")
@@ -138,11 +143,16 @@ func _grow(scene, offer: Dictionary) -> void:
 	view.confirm.pressed.emit()
 	check(view.growing and state.roots.size() == root_count + 1
 		and view.material.get_shader_parameter("garden_reveal") == 0.0, "growth starts at the Heart before the ground reveal")
-	view._animate(0.64)
+	var before: PackedVector2Array = view.barrier.visible_outline
+	view._animate(0.25)
+	check(view.barrier.visible_outline == before and view.heart.pulse.light_energy > 0.36,
+		"Heart brightens before the forest moves")
+	view._animate(minf(0.95, view.breach + 0.11))
 	var partial: float = view.material.get_shader_parameter("garden_reveal")
 	check(partial > 0.0 and partial < 1.0, "shore and perimeter reveal progressively")
+	_boundary(view)
 	view.finish_animation()
-	check(not view.growing and view.last_root_tip == state.roots[-1].size()
+	check(not view.growing and view.root_mesh.material_override.get_shader_parameter("root_progress") == 1.0
 		and view.material.get_shader_parameter("garden_reveal") == 1.0, "root reveal ends at the chosen frontier")
 	check(state.owned.size() - prior.size() == offer.cells.size(), "only declared cells were added")
 	var destination: Vector2 = state.roots[-1][-1]
@@ -199,3 +209,78 @@ func _covered(scene) -> void:
 			var point: Vector3 = scene._ground_point(corner)
 			check(absf(point.x) < plane.size.x / 2.0 and absf(point.z) < plane.size.y / 2.0,
 				"scenic ground covers maximal pan and zoom")
+
+func _boundary(view) -> void:
+	var barrier = view.barrier
+	var polygon: PackedVector2Array = barrier.visible_outline
+	check(polygon.size() == Garden.FOREST_SECTORS and barrier.sections.size() == polygon.size(),
+		"one closed forest band wraps the entire collision outline")
+	for i in polygon.size():
+		var section: Dictionary = barrier.sections[i]
+		var a := polygon[i]
+		var b := polygon[(i + 1) % polygon.size()]
+		var edge := a.lerp(b, 0.5)
+		var away := Vector2(b.y - a.y, a.x - b.x).normalized()
+		var mesh: MeshInstance3D = section.mesh
+		check(section.a.is_equal_approx(a) and section.b.is_equal_approx(b)
+			and mesh.transform.basis.x.length() > a.distance_to(b), "visual thicket overlaps each adjoining section")
+		check(not barrier.walkable(edge + away * 0.52), "no walkable opening through the thicket")
+		var start := edge - away * 0.62
+		if barrier.walkable(start):
+			var stop: Vector2 = barrier.move(start, away * 5.0)
+			check(barrier.walkable(stop) and not stop.is_equal_approx(start + away * 5.0), "swept motion cannot leave the forest")
+	var route: PackedVector2Array = view.state.layout.paths[0].spine.duplicate()
+	route.reverse()
+	var player := route[0]
+	for target in route:
+		player = barrier.move(player, target - player)
+		check(player.is_equal_approx(target), "walking controller reaches every permanent entrance approach sample")
+	check(player.is_equal_approx(view.state.landmarks.wilds_entrance.center), "can stand under the permanent Gate")
+
+func _art(view) -> void:
+	var state: Garden = view.state
+	check(state.landmarks.altar.center == Vector2(4.20, 1.5) and is_equal_approx(state.landmarks.altar.radius, 1.06)
+		and state.landmarks.starter_bed.center == Vector2(-4.30, -1.8)
+		and is_equal_approx(state.landmarks.starter_bed.radius, 1.15), "M11 altar and bed footprints retained")
+	var snapshot := state.landmarks.duplicate(true)
+	var render_count: int = view.landmark_view.get_child_count()
+	check(render_count == 7, "bed, altar, archives, spring and entrance are represented")
+	for child in view.landmark_view.get_children():
+		if child.name == "wilds_entrance":
+			continue
+		var radius: float = state.landmarks[str(child.name)].radius
+		for vertex: Vector3 in child.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+			check(Vector2(vertex.x, vertex.z).length() * child.scale.x <= radius + 0.005,
+				"decorative station geometry fits the reserved footprint")
+	view.comparison.button_pressed = true
+	check(view.landmark_view.get_child_count() == 3 and snapshot == state.landmarks, "prop comparison preserves reservations")
+	view.comparison.button_pressed = false
+
+func _roots(view) -> void:
+	var state: Garden = view.state
+	var root: PackedVector2Array = state.roots[0]
+	var sizes := {}
+	for stage in 5:
+		var plan := RootArt.plan(root, stage, state)
+		var target: Vector3 = plan.main[-1]
+		var point: Vector3 = plan.main[0]
+		var authored: Array = RootArt.SOCKETS[plan.socket]
+		var socket := (authored[0] as Vector3).lerp(authored[1], 0.30)
+		check(point.is_equal_approx(socket * Vector3(0.77 + stage * 0.112, 1.0, 0.77 + stage * 0.112)),
+			"root starts in a known sculpted buttress at each stage")
+		check(Vector2(target.x, target.z) == root[-1] and plan == RootArt.plan(root, stage, state),
+			"root reaches its committed destination deterministically")
+		check(plan.branches.size() >= 2, "main root divides into secondary and tertiary geometry")
+		sizes[plan.radius] = true
+		for limb in [{"points": plan.main, "radius": plan.radius}] + plan.branches:
+			var points: Array = limb.points
+			for i in range(1, points.size()):
+				var a: Vector3 = points[i - 1]
+				var b: Vector3 = points[i]
+				check(a.distance_to(b) < 0.85, "no disconnected root segment")
+				for fraction in [0.0, 0.5, 1.0]:
+					var at := a.lerp(b, fraction)
+					var ground := Vector2(at.x, at.z)
+					if Shape.in_any(view.barrier.buildings.slice(1), ground, 0.06):
+						check(at.y < -0.08, "visible root geometry avoids protected structures")
+	check(sizes.size() == 5, "the same root can scale with all five Heart stages")

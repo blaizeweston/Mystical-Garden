@@ -121,9 +121,12 @@ func _ready() -> void:
 	tree.add_child(botanical_heart)
 	growing_heart = HeartPreview.new()
 	tree.add_child(growing_heart)
+	expansion.heart = growing_heart
 	for label in HeartPreview.STAGES:
 		heart_stage.add_item(label)
-	heart_stage.item_selected.connect(func(index: int): growing_heart.show_stage(index))
+	heart_stage.item_selected.connect(func(index: int):
+		growing_heart.show_stage(index)
+		expansion.change_heart_stage(index))
 	for profile in ArtDirection.PROFILES:
 		example.add_item(profile.label)
 	for size in SPACINGS:
