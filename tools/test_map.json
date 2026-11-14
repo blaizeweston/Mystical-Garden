@@ -2,6 +2,10 @@
   "schema": 1,
   "full_after_days": 7,
   "systems": {
+    "hex_terrain": {
+      "label": "Standalone M02 hex grid, terrain data, generator and welded surface",
+      "files": []
+    },
     "persistence_operations": {
       "label": "Opt-in guarded persistence operation scope and activation gate",
       "files": [
@@ -680,6 +684,7 @@
     }
   },
   "asset_rules": {
+    "assets/terrain_m02/**": ["hex_terrain"],
     "assets/characters/field_*": [
       "avatar_motion_view"
     ],
@@ -1761,6 +1766,11 @@
     ]
   },
   "suites": {
+    "hex_terrain": {
+      "kind": "unit",
+      "systems": ["hex_terrain"],
+      "package": false
+    },
     "legacy_import_recovery": {
       "candidate_release": true,
       "kind": "unit",

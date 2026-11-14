@@ -1,0 +1,14 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://assets/terrain_m02/terrain_palette.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"garden_clearing"
+display_name = "Garden clearing"
+forest_bias = -0.03
+stone_bias = 0.11
+soil_bias = 0.11
+clearing_radius = 3.9
+water_width = 2.05
+tree_at_origin = true

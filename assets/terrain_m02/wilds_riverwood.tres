@@ -1,0 +1,13 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://assets/terrain_m02/terrain_palette.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"wilds_riverwood"
+display_name = "Wilds riverwood"
+forest_bias = 0.43
+stone_bias = 0.23
+soil_bias = 0.15
+water_width = 1.24
+water_is_stream = true
