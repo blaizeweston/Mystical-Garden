@@ -10,6 +10,7 @@ const Enclosure = preload("res://assets/terrain_m02/terrain_enclosure.gd")
 const FeatureMask = preload("res://assets/terrain_m02/terrain_feature_mask.gd")
 const MaterialField = preload("res://assets/terrain_m02/terrain_material_field.gd")
 const Wilds = preload("res://assets/terrain_m02/wilds_preview_generation.gd")
+const WalkPreview = preload("res://assets/terrain_m02/wilds_play_preview.gd")
 const CATALOG = preload("res://assets/terrain_m02/terrain_catalog.tres")
 const PALETTES := [
 	preload("res://assets/terrain_m02/garden_clearing.tres"),
@@ -40,6 +41,7 @@ var enclosed_layout := {}
 var scene_garden := true
 var generated_mode := M06C
 var wilds := {}
+var walk_preview: WalkPreview
 var botanical_layout := {}
 var continuity_layout := {}
 var legacy_atlas := {}
@@ -75,6 +77,20 @@ func _ready() -> void:
 	camera.position = CAMERA_OFFSET
 	camera.look_at(Vector3.ZERO)
 	camera.size = CAMERA_SIZE
+	walk_preview = WalkPreview.new()
+	add_child(walk_preview)
+	walk_preview.camera = camera
+	walk_preview.fog = %PlayFog
+	walk_preview.readout = %EncounterStatus
+	%PlayFloor.toggled.connect(_play_floor)
+	walk_preview.exit_requested.connect(func(): %PlayFloor.button_pressed = false)
+	%FogLayer.toggled.connect(func(enabled: bool):
+		walk_preview.set_fog(enabled)
+		%FogLayer.release_focus())
+	%RestartFloor.pressed.connect(_start_floor)
+	camera.get_viewport().size_changed.connect(func():
+		if walk_preview.run != null:
+			walk_preview._align_fog())
 	legacy_heart = TREE.instantiate() as Node3D
 	tree.add_child(legacy_heart)
 	legacy_heart.scale = Vector3.ONE * 0.86
@@ -155,6 +171,9 @@ func _next_seed() -> void:
 	_regenerate()
 
 func _regenerate() -> void:
+	if walk_preview.run != null:
+		_reset_preview_camera()
+	walk_preview.stop()
 	var palette = PALETTES[0 if example.selected == 0 else 1]
 	terrain_seed = int(seed_field.value)
 	spacing = SPACINGS[size_choice.selected]
@@ -165,6 +184,7 @@ func _regenerate() -> void:
 		_rebuild_wilds(started)
 		return
 	wilds = {}
+	_update_play_controls(false)
 	cells = Generator.generate(terrain_seed, RADII[map_size.selected], palette, CATALOG)
 	var generated := Time.get_ticks_usec()
 	compiled = Compiler.compile(cells, spacing, CATALOG)
@@ -217,6 +237,7 @@ func _rebuild_wilds(started: int) -> void:
 		enclosure_view.hide()
 		metrics = {}
 		debug.hide()
+		_update_play_controls(false)
 		status.text = "Terrain constraints could not be satisfied for this seed."
 		art_note.text = ""
 		detail.text = ""
@@ -269,6 +290,38 @@ func _rebuild_wilds(started: int) -> void:
 	status.text = "%d cells  ·  %d plants  ·  %d obstacles  ·  %.1f ms rebuild" % [
 		cells.size(), batches.plant_instances, batches.rock_instances, total]
 	print("M07_TERRAIN ", JSON.stringify(metrics))
+	_update_play_controls(generated_mode == M07B)
+
+func _update_play_controls(available: bool) -> void:
+	%PlayFloor.visible = available
+	if not available:
+		%PlayFloor.set_pressed_no_signal(false)
+	_play_floor(%PlayFloor.button_pressed)
+
+func _play_floor(active: bool) -> void:
+	%FogLayer.visible = active
+	%PlayHelp.visible = active
+	%RestartFloor.visible = active
+	%EncounterStatus.visible = active
+	if active:
+		_start_floor()
+	elif walk_preview.run != null:
+		walk_preview.stop()
+		_reset_preview_camera()
+		_set_overlay(overlay.button_pressed)
+
+func _start_floor() -> void:
+	walk_preview.deck_gate = feature_view.massing.get_node_or_null("ExitGate")
+	walk_preview.start(cells, wilds.layout, spacing)
+	_set_overlay(overlay.button_pressed)
+	var focused := get_viewport().gui_get_focus_owner()
+	if focused != null:
+		focused.release_focus()
+
+func _reset_preview_camera() -> void:
+	camera.position = CAMERA_OFFSET
+	camera.look_at(Vector3.ZERO)
+	camera.size = CAMERA_SIZE
 
 func _set_render_mode(index: int) -> void:
 	var continuity := index >= M06B
@@ -339,23 +392,21 @@ func _sync_layers() -> void:
 	feature_view.crossings.visible = %PathLayer.button_pressed
 
 func _set_overlay(enabled: bool) -> void:
-	debug.visible = enabled and not cells.is_empty()
-	if cells.is_empty():
+	debug.visible = enabled and not cells.is_empty() and walk_preview.run == null
+	if not debug.visible:
+		detail.text = ""
 		return
-	if enabled and debug_dirty:
+	if debug_dirty:
 		debug.rebuild(cells, spacing, compiled)
 		debug_dirty = false
-	if enabled:
-		_update_inspector(get_viewport().get_mouse_position())
-	else:
-		detail.text = ""
+	_update_inspector(get_viewport().get_mouse_position())
 
 func _input(event: InputEvent) -> void:
-	if is_instance_valid(overlay) and overlay.button_pressed and event is InputEventMouseMotion:
+	if is_instance_valid(walk_preview) and walk_preview.run == null and is_instance_valid(overlay) and overlay.button_pressed and event is InputEventMouseMotion:
 		_update_inspector(event.position)
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not event is InputEventMouseButton or not event.pressed:
+	if not is_instance_valid(walk_preview) or walk_preview.run != null or not event is InputEventMouseButton or not event.pressed:
 		return
 	if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 		# Zoom towards the ground under the cursor without changing the gameplay angle.

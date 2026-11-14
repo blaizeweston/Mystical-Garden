@@ -74,6 +74,16 @@ script = ExtResource("2")
 
 [node name="Interface" type="CanvasLayer" parent="."]
 
+[node name="PlayFog" type="ColorRect" parent="Interface"]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
 [node name="Toolbar" type="PanelContainer" parent="Interface"]
 anchors_preset = 10
 anchor_right = 1.0
@@ -190,6 +200,37 @@ unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Preview the Heart restoration stages"
 
+[node name="PlayControls" type="HBoxContainer" parent="Interface/Toolbar/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PlayFloor" type="CheckButton" parent="Interface/Toolbar/Rows/PlayControls"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Play floor"
+tooltip_text = "WASD or arrows to move, Space to clear a nearby practice enemy, E at the Gate"
+
+[node name="FogLayer" type="CheckButton" parent="Interface/Toolbar/Rows/PlayControls"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+button_pressed = true
+text = "Fog of war"
+
+[node name="PlayHelp" type="Label" parent="Interface/Toolbar/Rows/PlayControls"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "WASD / arrows  |  Space strike  |  E interact  |  Esc exit"
+
+[node name="RestartFloor" type="Button" parent="Interface/Toolbar/Rows/PlayControls"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Restart"
+tooltip_text = "Restart this simulated floor"
+
 [node name="Footer" type="PanelContainer" parent="Interface"]
 anchors_preset = 12
 anchor_top = 1.0
@@ -201,6 +242,12 @@ theme_override_styles/panel = SubResource("Footer")
 
 [node name="Rows" type="VBoxContainer" parent="Interface/Footer"]
 layout_mode = 2
+
+[node name="EncounterStatus" type="Label" parent="Interface/Footer/Rows"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.85, 0.65, 1)
 
 [node name="ArtNote" type="Label" parent="Interface/Footer/Rows"]
 unique_name_in_owner = true
