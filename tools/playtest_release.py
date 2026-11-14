@@ -574,7 +574,7 @@ def build(args):
                           "archive": str(archive), "desktop_profile_parent": str(profile_parent)}, indent=2))
         return
     archive.mkdir(parents=True, exist_ok=True)
-    shared.mkdir(exist_ok=True)
+    shared.mkdir(parents=True, exist_ok=True)
     validate_archive(shared)
     lock = archive / ".build.lock" if roots.configured else shared / "build.lock"
     with lock.open("x", encoding="ascii") as handle:
