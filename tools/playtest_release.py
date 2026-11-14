@@ -214,7 +214,8 @@ def retail_probes(stage, pack, metadata, env):
     ]
 
     for number, probe in enumerate(("normal", "missing", "incompatible", "external-driver", "override",
-                                    "redirect", "junction", "linked-save", "incompatible-save", "newer-root")):
+                                    "redirect", "junction", "linked-save", "incompatible-save", "newer-root",
+                                    "desktop", "unmarked-save", "invalid-shader-cache")):
         home = sandbox / f"{number:02d}"
         home.mkdir()
         profile = home / "u"
@@ -231,6 +232,14 @@ def retail_probes(stage, pack, metadata, env):
         if probe == "incompatible-save":
             release_root.mkdir()
             (release_root / "playtest.identity").write_bytes(b"newer playtest identity\n")
+        if probe == "unmarked-save":
+            unmarked = release_root / "saves/slot_1/garden.cfg"
+            unmarked.parent.mkdir(parents=True)
+            unmarked.write_bytes(b"unmarked garden evidence\n")
+        if probe == "invalid-shader-cache":
+            unexpected = release_root / "shader_cache/garden.cfg"
+            unexpected.parent.mkdir(parents=True)
+            unexpected.write_bytes(b"unrecognized cache content\n")
         if probe == "linked-save":
             release_root.mkdir()
             (release_root / "settings.cfg").hardlink_to(anchor)
@@ -253,6 +262,8 @@ def retail_probes(stage, pack, metadata, env):
             else:
                 shutil.copyfile(pack.with_name(evidence.LOCK_LIBRARY), companion)
         args = ["--headless", "--quit-after", "30", "--max-fps", "120"]
+        if probe == "desktop":
+            args = ["--position", "-32000,-32000", "--audio-driver", "Dummy", "--quit-after", "30", "--max-fps", "120"]
         if probe == "external-driver":
             (home / "external.gd").write_text('extends SceneTree\nfunc _initialize():\n print("EXTERNAL DRIVER RAN")\n quit(19)\n')
             args += ["--script", "external.gd"]
@@ -273,13 +284,15 @@ def retail_probes(stage, pack, metadata, env):
                         "Error loading extension: 'res://assets/native/persistence_lock/persistence_lock.gdextension'."]
         if sorted(errors) != sorted(allowed) or (probe == "incompatible" and len(allowed) != 3) or evidence.FAIL.search(stdout + "\n" + stderr):
             raise ValueError(f"Unexpected retail engine output in {probe}: {errors}")
-        success = probe in ("normal", "override", "external-driver", "newer-root")
+        success = probe in ("normal", "override", "external-driver", "newer-root", "desktop")
         blocked = {
             "missing": backend, "incompatible": backend,
             "redirect": "PLAYTEST BLOCKED: Use the default local Windows AppData folder for this playtest.",
             "junction": "PLAYTEST BLOCKED: The playtest save root is unsupported or redirected.",
             "linked-save": "PLAYTEST BLOCKED: The playtest save root is unsupported or currently busy.",
             "incompatible-save": "PLAYTEST BLOCKED: The playtest save set does not match this version.",
+            "unmarked-save": "PLAYTEST BLOCKED: The playtest save set does not match this version.",
+            "invalid-shader-cache": "PLAYTEST BLOCKED: The playtest save set does not match this version.",
         }
         if code != 0 or "EXTERNAL DRIVER RAN" in stdout or sha(anchor) != baseline:
             raise ValueError(f"Retail execution or protected root check failed in {probe}.")
@@ -289,7 +302,15 @@ def retail_probes(stage, pack, metadata, env):
         elif probe in blocked:
             if blocked[probe] not in stdout or "PLAYTEST READY:" in stdout or (release_root / "diagnostics").exists():
                 raise ValueError(f"Retail did not refuse the {probe} probe before gameplay.")
-        if probe == "normal":
+        if probe == "unmarked-save":
+            if (release_root / "playtest.identity").exists() or unmarked.read_bytes() != b"unmarked garden evidence\n":
+                raise ValueError("Retail altered the unmarked save set.")
+        if probe == "invalid-shader-cache":
+            if (release_root / "playtest.identity").exists() or unexpected.read_bytes() != b"unrecognized cache content\n":
+                raise ValueError("Retail altered unrecognized cache content.")
+        if probe == "desktop" and not (release_root / "shader_cache").is_dir():
+            raise ValueError("Desktop acceptance did not exercise renderer-created storage.")
+        if probe in ("normal", "desktop"):
             identity = release_root / "playtest.identity"
             fingerprint = sha(identity)
             reopen = home / "reopen.log"
@@ -298,7 +319,8 @@ def retail_probes(stage, pack, metadata, env):
             reopen_errors = (home / "reopen.stderr.log").read_text(encoding="utf-8-sig", errors="replace")
             if reopen_exit or not ready.search(reopened) or evidence.ENGINE_ERROR.search(reopened + reopen_errors) or fingerprint != sha(identity):
                 raise ValueError("Retail could not reopen its exact version and commit.")
-            results["reopen"] = {"exit": reopen_exit, "run_id": f"{version}-reopen",
+            reopen_id = "desktop-reopen" if probe == "desktop" else "reopen"
+            results[reopen_id] = {"exit": reopen_exit, "run_id": f"{version}-{reopen_id}",
                                  "exe_sha256": sha(exe), "logs": home.name, "expected_errors": 0, "ready": True}
         if probe == "newer-root" and (sorted(x.name for x in newer.iterdir()) != ["garden.cfg"]
                                       or (newer / "garden.cfg").read_bytes() != b"disposable newer-version marker\n"):

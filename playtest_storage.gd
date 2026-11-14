@@ -54,10 +54,14 @@ static func inspect(info: Dictionary) -> String:
   if FileAccess.file_exists(IDENTITY):
    return OK if FileAccess.get_file_as_string(IDENTITY) == marker else ERR_INVALID_DATA
   var directory := DirAccess.open("user://")
+  if directory == null:
+   return ERR_CANT_OPEN
   directory.include_hidden = true
-  if not directory.get_directories().is_empty() or Array(directory.get_files()).any(func(name):
-   return name != Auth.SENTINEL):
+  if Array(directory.get_files()).any(func(name): return name != Auth.SENTINEL):
    return ERR_INVALID_DATA
+  for name in directory.get_directories():
+   if name != "shader_cache" or not is_compatibility_shader_cache(directory):
+    return ERR_INVALID_DATA
   var file := FileAccess.open(IDENTITY, FileAccess.WRITE)
   if file == null:
    return FileAccess.get_open_error()
@@ -67,6 +71,43 @@ static func inspect(info: Dictionary) -> String:
  if marked.error != OK or not marked.ran or marked.value != OK:
   return "The playtest save set does not match this version. Restore a matching backup."
  return ""
+
+# The desktop Compatibility renderer creates this cache before the title runs.
+# Only its known directory/hash layout may precede first-run save identity.
+static func is_compatibility_shader_cache(root: DirAccess) -> bool:
+ if root.is_link("shader_cache"):
+  return false
+ var cache := DirAccess.open("user://shader_cache")
+ if cache == null:
+  return false
+ cache.include_hidden = true
+ if not cache.get_files().is_empty():
+  return false
+ var shader_name := RegEx.create_from_string("\\A[A-Za-z][A-Za-z0-9]*ShaderGLES3\\z")
+ var shader_hash := RegEx.create_from_string("\\A[0-9a-f]{64}\\z")
+ var cache_file := RegEx.create_from_string("\\A[0-9a-f]{40}\\.cache\\z")
+ for shader in cache.get_directories():
+  if not shader_name.search(shader) or cache.is_link(shader):
+   return false
+  var variants := DirAccess.open(cache.get_current_dir().path_join(shader))
+  if variants == null:
+   return false
+  variants.include_hidden = true
+  if not variants.get_files().is_empty():
+   return false
+  for variant in variants.get_directories():
+   if not shader_hash.search(variant) or variants.is_link(variant):
+    return false
+   var compiled := DirAccess.open(variants.get_current_dir().path_join(variant))
+   if compiled == null:
+    return false
+   compiled.include_hidden = true
+   if not compiled.get_directories().is_empty():
+    return false
+   for file in compiled.get_files():
+    if not cache_file.search(file) or compiled.is_link(file):
+     return false
+ return true
 
 static func plain_files(root: String) -> PackedStringArray:
  var files := PackedStringArray([IDENTITY])
