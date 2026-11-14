@@ -205,17 +205,24 @@ def remove_owned_tree(path, parent):
 
 
 @contextmanager
-def owned_profile(parent):
+def owned_profile(parent, record=None):
     # mkdir is exclusive. Keep the complete profile if the probe raises.
     profile = parent / ("mg" + uuid.uuid4().hex[:6])
+    validate_archive(profile)
+    if record:
+        record(profile, "planned")
     profile.mkdir()
     try:
+        if record:
+            record(profile, "allocated")
         yield profile
     except BaseException:
         print(f"Retained failed desktop profile: {profile}", file=sys.stderr, flush=True)
         raise
     else:
         remove_owned_tree(profile, parent)
+        if record:
+            record(profile, "removed")
 
 
 def run(command, cwd, env, log, timeout=None, check=True):
@@ -335,18 +342,12 @@ def summarize(project, package, output):
     return result
 
 
-def retail_probes(stage, pack, metadata, env, profile_parent=None, status=None):
+def retail_probes(stage, pack, metadata, env, profile_parent=None, record_profile=None):
     temp = Path(tempfile.gettempdir()).resolve(strict=True)
     candidates = (stage.parents[2], temp) if stage.parents[1].name == ".staging" else (temp,)
     parent = profile_parent or desktop_parent(candidates, metadata["playtest_version"])
-    with owned_profile(parent) as desktop_profile:
-        if status is not None:
-            status["desktop_profile"] = str(desktop_profile)
-            status["desktop_profile_state"] = "allocated"
-        results = _retail_probes(stage, pack, metadata, env, desktop_profile)
-    if status is not None:
-        status["desktop_profile_state"] = "removed"
-    return results
+    with owned_profile(parent, record_profile) as desktop_profile:
+        return _retail_probes(stage, pack, metadata, env, desktop_profile)
 
 
 def _retail_probes(stage, pack, metadata, env, desktop_profile):
@@ -542,6 +543,22 @@ def bundle(stage, pack, project, metadata, checks, retail):
     evidence.write_json(stage / "evidence/retail-probes.json", retail)
 
 
+def archive_candidates(version, preferred, historical):
+    for root in dict.fromkeys(archive_path(root) for root in (preferred, *historical)):
+        location = root / version
+        if os.path.lexists(location):
+            validate_archive(location)
+            yield location
+
+
+def refuse_duplicate(version, archive, historical):
+    if git("tag", "--list", f"playtest/{version}"):
+        raise ValueError(f"Release {version} already has a local tag.")
+    existing = next(archive_candidates(version, archive, historical), None)
+    if existing:
+        raise ValueError(f"Release {version} already exists at {existing}.")
+
+
 def build(args):
     if os.name != "nt" or sys.maxsize <= 2**32:
         raise ValueError("The playtest builder requires Windows x64.")
@@ -562,9 +579,7 @@ def build(args):
     if version_info != "4.7.2.stable.official.ed1daf0bf":
         raise ValueError("Godot and the native DLL require the verified 4.7.2 editor revision.")
     archive = roots.archive
-    tag = f"playtest/{version}"
-    if git("tag", "--list", tag) or os.path.lexists(archive / version):
-        raise ValueError(f"Release {version} or its annotated tag already exists.")
+    refuse_duplicate(version, archive, args.history)
     shell = shutil.which("pwsh")
     if not shell:
         raise ValueError("PowerShell 7 is required by release validation.")
@@ -603,8 +618,7 @@ def build(args):
     status["export_root"] = str(export_root)
     manifest_path = None
     try:
-        if os.path.lexists(archive / version) or git("tag", "--list", tag):
-            raise ValueError(f"Release {version} already exists.")
+        refuse_duplicate(version, archive, args.history)
         stage.mkdir(parents=True)
         print(f"Building {version} at {revision}. Staging: {stage}", flush=True)
         work.mkdir(parents=True)
@@ -676,7 +690,11 @@ def build(args):
             raise ValueError("Build inputs differ from the committed source.")
         print("Checking the actual retail executable in disposable Windows profiles.", flush=True)
         retail_stage = stage if roots.configured else work
-        retail = retail_probes(retail_stage, pack, metadata, env, profile_parent, status)
+        def record_profile(path, state):
+            status.update(desktop_profile=str(path), desktop_profile_state=state)
+            evidence.write_json(manifest_path, status)
+
+        retail = retail_probes(retail_stage, pack, metadata, env, profile_parent, record_profile)
         evidence.write_json(output / "package-verification.json", {key: package[key] for key in
                             ("at", "sha256", "native_dll_sha256", "plan", "startup_logs")})
         if roots.configured:
@@ -690,8 +708,9 @@ def build(args):
             dest = output / "retail-logs" / log.parent.name
             dest.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(log, dest / log.name)
-        if source_revision(roots.configured) != revision or git("tag", "--list", tag):
-            raise ValueError("Source revision or release tag changed during validation.")
+        if source_revision(roots.configured) != revision:
+            raise ValueError("Source revision changed during validation.")
+        refuse_duplicate(version, archive, args.history)
         # Keep test profiles, tooling and generated imports out of completed releases.
         status["state"] = "validated"
         evidence.write_json(manifest_path, status)
@@ -732,9 +751,7 @@ def build(args):
         lock.unlink()
 
 
-def approve(version, archive):
-    version = version_name(version)
-    location = archive_path(archive) / version
+def inspect_release(version, location):
     validate_archive(location)
     for name in ("manifest.json", "SHA256SUMS.txt", f"Mystical-Garden-{version}-win64.zip"):
         artifact = location / name
@@ -763,8 +780,39 @@ def approve(version, archive):
                         or hashlib.file_digest(stream, "sha256").hexdigest() != entry["sha256"]):
                     raise ValueError("A release ZIP member failed verification.")
     tag = f"playtest/{version}"
-    if git("tag", "--list", tag) or (location / "approval.json").exists():
-        raise ValueError(f"Release {version} already has approval evidence.")
+    return {"version": version, "archive": str(location.parent), "location": str(location),
+            "git_commit": revision, "git_tag": tag, "zip_sha256": zip_hash, "manifest_sha256": manifest_hash,
+            "already_approved": bool(git("tag", "--list", tag)) or os.path.lexists(location / "approval.json")}
+
+
+def approval_selection(version, preferred, historical):
+    version = version_name(version)
+    selected = None
+    copies = []
+    for location in archive_candidates(version, preferred, historical):
+        candidate = inspect_release(version, location)
+        if selected and any(candidate[key] != selected[key] for key in
+                            ("git_commit", "zip_sha256", "manifest_sha256", "already_approved")):
+            raise ValueError(f"Conflicting copies of {version}. Select an explicit -ArchiveRoot.")
+        if selected is None:
+            selected = candidate
+        else:
+            copies.append(str(location))
+    if selected is None:
+        raise ValueError(f"No completed archive found for {version}.")
+    return {**selected, "identical_copies": copies}
+
+
+def approve(version, archive, expected_zip=None, expected_manifest=None):
+    location = archive_path(archive) / version_name(version)
+    identity = inspect_release(version_name(version), location)
+    zip_hash, manifest_hash = identity["zip_sha256"], identity["manifest_sha256"]
+    if ((expected_zip is not None and expected_zip != zip_hash)
+            or (expected_manifest is not None and expected_manifest != manifest_hash)):
+        raise ValueError("The release changed after review. Preview it again before approving.")
+    if identity["already_approved"]:
+        raise ValueError(f"Release {identity['version']} already has approval evidence.")
+    tag, revision, version = (identity[key] for key in ("git_tag", "git_commit", "version"))
     approved = datetime.datetime.now(datetime.timezone.utc).isoformat()
     git("tag", "-a", tag, revision, "-m", f"Approved Mystical Garden playtest {version}\n\nZIP SHA-256: {zip_hash}\nManifest SHA-256: {manifest_hash}")
     evidence.write_json(location / "approval.json", {"git_tag": tag, "git_commit": revision,
@@ -781,15 +829,23 @@ def main():
     parser.add_argument("--expected-revision")
     parser.add_argument("--approve", action="store_true")
     parser.add_argument("--plan", action="store_true")
+    parser.add_argument("--history", action="append", default=[])
+    parser.add_argument("--expected-zip")
+    parser.add_argument("--expected-manifest")
     try:
         args = parser.parse_args()
-        if args.approve and args.plan:
-            raise ValueError("A build plan does not approve releases.")
         if args.approve:
-            approve(args.version, str(output_options(args).archive))
+            archive = output_options(args).archive
+            if args.plan:
+                print(json.dumps(approval_selection(args.version, archive, args.history if not args.archive else []),
+                                 indent=2))
+            else:
+                if args.history:
+                    raise ValueError("Approve an explicitly reviewed archive, without historical fallback.")
+                approve(args.version, archive, args.expected_zip, args.expected_manifest)
         else:
             build(args)
-    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile, subprocess.SubprocessError) as error:
         print(f"Playtest build refused: {error}", file=sys.stderr)
         return 1
     return 0

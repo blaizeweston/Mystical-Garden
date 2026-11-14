@@ -70,9 +70,13 @@ class PlaytestReleaseTests(unittest.TestCase):
     def test_owned_profile_cleans_success_and_retains_failure(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            with release.owned_profile(root) as success:
+            records = []
+            def record(path, state):
+                records.append((state, path.exists()))
+            with release.owned_profile(root, record) as success:
                 (success / "marker").write_text("success")
             self.assertFalse(success.exists())
+            self.assertEqual(records, [("planned", False), ("allocated", True), ("removed", False)])
             with self.assertRaisesRegex(ValueError, "injected"):
                 with release.owned_profile(root) as failed:
                     (failed / "marker").write_text("failure")
@@ -114,6 +118,42 @@ class PlaytestReleaseTests(unittest.TestCase):
             self.assertEqual(len(manifest["files"]), 5)
             self.assertIsNone(manifest["git_tag"])
             self.assertIn(release.sha(next(root.glob("*.zip"))), (root / "SHA256SUMS.txt").read_text())
+
+    def test_historical_release_resolution_and_duplicate_refusal(self):
+        version = "0.1.0-playtest.1"
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            preferred = root / "Releases"
+            history = root / "Original"
+            (history / version).mkdir(parents=True)
+            identity = {"git_commit": "a" * 40, "zip_sha256": "b" * 64,
+                        "manifest_sha256": "c" * 64, "already_approved": False}
+            with (patch.object(release, "git", return_value=b""),
+                  patch.object(release, "archive_path", side_effect=Path),
+                  patch.object(release, "inspect_release", side_effect=lambda v, p: {**identity, "location": str(p)})):
+                self.assertEqual(release.approval_selection(version, preferred, [history])["location"],
+                                 str(history / version))
+                with self.assertRaisesRegex(ValueError, "already exists"):
+                    release.refuse_duplicate(version, preferred, [history])
+                (preferred / version).mkdir(parents=True)
+                selection = release.approval_selection(version, preferred, [preferred, history])
+                self.assertEqual(selection["location"], str(preferred / version))
+                self.assertEqual(selection["identical_copies"], [str(history / version)])
+                with patch.object(release, "inspect_release", side_effect=[
+                        identity, {**identity, "zip_sha256": "d" * 64}]):
+                    with self.assertRaisesRegex(ValueError, "Conflicting copies"):
+                        release.approval_selection(version, preferred, [history])
+                self.assertEqual(release.approval_selection(version, history, [])["location"],
+                                 str(history / version))
+
+    @patch.object(release, "git")
+    def test_approval_rejects_changed_review_identity_before_tag(self, git):
+        identity = {"zip_sha256": "a" * 64, "manifest_sha256": "b" * 64}
+        with (patch.object(release, "archive_path", side_effect=Path),
+              patch.object(release, "inspect_release", return_value=identity)):
+            with self.assertRaisesRegex(ValueError, "changed after review"):
+                release.approve("0.1.0", ".", "c" * 64, identity["manifest_sha256"])
+        git.assert_not_called()
 
 
 if __name__ == "__main__":

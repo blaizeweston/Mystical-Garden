@@ -239,7 +239,9 @@ class Workflow:
   return tokens,domains,raw
 
  def infrastructure_files(self):
-  return list(self.tools.glob('*.ps1'))+[self.tools/'test_map.json',self.tools/'test_workflow.py',self.tools/'validation_execution.py']+list((self.tools/'tests').glob('*.py'))+list((self.project/'test').glob('*'))
+  return (list(self.tools.glob('*.ps1'))+list((self.tools/'playtest').glob('*.ps1'))
+          +[self.tools/name for name in ('test_map.json','test_workflow.py','validation_execution.py','playtest_release.py')]
+          +list((self.tools/'tests').glob('*.py'))+list((self.project/'test').glob('*')))
 
  def infrastructure_hash(self):
   return hashed({str(p.relative_to(self.project)):digest(p.read_bytes()) for p in self.infrastructure_files() if p.is_file()})

@@ -34,6 +34,26 @@ MG-Playtests/
 
 The package manifest records every payload member except itself. `SHA256SUMS.txt` records the ZIP and manifest hashes separately. Only share the ZIP and its checksum. The local evidence folder contains disposable path and validation context that testers do not need. The DLL and embedded extension descriptor come from the verified export. The text descriptor in `licenses` is a reference copy.
 
+The **Build Playtest** and **Approve Playtest** Windows shortcuts load the local
+`Tools/workspace.json` beside the project. Build uses its workspace, export stage,
+evidence and release directories. Enter an archive override at the prompt when
+needed. From the project directory, the same launcher can preview without writing:
+
+~~~powershell
+.\tools\playtest\launch_playtest.ps1 -Mode Build -Version 0.1.0-playtest.5 -PlanOnly
+.\tools\playtest\launch_playtest.ps1 -Mode Approve -Version 0.1.0-playtest.2 -PlanOnly
+~~~
+
+The launcher also accepts an explicit `-Config` or `-ArchiveRoot`. Use
+`-LegacyDefaults` to skip the workspace config. The direct build and approval
+scripts keep their no-config defaults and also accept explicit overrides.
+
+The shortcut checks the local release archive and known historical roots for
+duplicate versions. Approval preview verifies the ZIP and shows the exact archive,
+commit and hashes. Identical copies prefer the configured archive. Conflicting
+copies require an explicit archive. The approval prompt applies only to the
+previewed identity, and the preview creates no tag or approval record.
+
 ## Approve and tag
 
 After visually checking the Windows title, displayed version, character and Garden creation, and separate-PC co-op with the exact ZIP, explicitly approve that archive from the project checkout:
