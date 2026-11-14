@@ -118,6 +118,16 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Hex debug"
 
+[node name="Rendering" type="OptionButton" parent="Interface/Toolbar/Rows/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Compare the two renderers without changing the seed or terrain cells"
+
+[node name="MapSize" type="OptionButton" parent="Interface/Toolbar/Rows/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Switch between the reference map and a larger terrain disk"
+
 [node name="Footer" type="PanelContainer" parent="Interface"]
 anchors_preset = 12
 anchor_top = 1.0

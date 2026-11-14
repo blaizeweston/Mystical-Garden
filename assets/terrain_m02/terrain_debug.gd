@@ -63,6 +63,7 @@ func rebuild(cells: Dictionary, spacing: float, compiled: Dictionary) -> void:
 		var label := Label3D.new()
 		label.position = Vector3(center.x, 0.06, center.y)
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.no_depth_test = true
 		label.font_size = 25
 		label.pixel_size = 0.012
 		label.outline_size = 7

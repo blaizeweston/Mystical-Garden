@@ -4,6 +4,7 @@ const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
 const Transitions = preload("res://assets/terrain_m02/terrain_transitions.gd")
 const Generator = preload("res://assets/terrain_m02/terrain_generator.gd")
 const Compiler = preload("res://assets/terrain_m02/terrain_mesh.gd")
+const MaterialField = preload("res://assets/terrain_m02/terrain_material_field.gd")
 const Catalog = preload("res://assets/terrain_m02/terrain_catalog.gd")
 const CATALOG = preload("res://assets/terrain_m02/terrain_catalog.tres")
 const GARDEN = preload("res://assets/terrain_m02/garden_clearing.tres")
@@ -25,9 +26,10 @@ func run() -> void:
 	_transitions()
 	_generation()
 	_topology()
+	_render_field()
 	_scene()
 	if not failed:
-		print("PASS: hex terrain coordinates, compatibility, transitions, generation, welded topology and preview")
+		print("PASS: hex terrain coordinates, compatibility, transitions, generation, welded topology, material lookup and preview")
 	quit(1 if failed else 0)
 
 func _coordinates() -> void:
@@ -194,6 +196,39 @@ func _topology() -> void:
 		perimeter_edges += int(count == 1)
 	check(perimeter_edges == 24, "only true perimeter edges are open")
 
+func _render_field() -> void:
+	var empty_corner := Vector2i(-1, -1)
+	var labels := {Vector2i.ZERO: &"soil", Vector2i(-1, 0): &"water", Vector2i(0, -1): &"forest_floor"}
+	var field := MaterialField.bake(labels)
+	var reversed := {Vector2i(0, -1): &"forest_floor", Vector2i(-1, 0): &"water", Vector2i.ZERO: &"soil"}
+	check(field == MaterialField.bake(reversed), "same field bytes regardless of cell insertion order")
+	check(field.origin == empty_corner and field.size == Vector2i(2, 2), "signed field bounds")
+	check(field.labels == PackedByteArray([255, 2, 4, 1]), "empty texel and logical labels map to exact channel IDs")
+	for radius in [14, 28]:
+		var cells := Generator.generate(241, radius, WILDS, CATALOG)
+		field = MaterialField.bake(cells)
+		var holes := 0
+		for y in field.size.y:
+			for x in field.size.x:
+				var cell: Vector2i = field.origin + Vector2i(x, y)
+				var expected := Catalog.IDS.find(cells[cell]) if cells.has(cell) else 255
+				var actual: int = field.labels[y * field.size.x + x]
+				check(expected == actual, "render labels exactly match the logical grid")
+				holes += int(actual == 255)
+		check(holes + cells.size() == field.labels.size(), "one sample per cell and empty extent area")
+		var elapsed := Time.get_ticks_usec()
+		var material := MaterialField.material(field, 1.75, 241, CATALOG)
+		var same := MaterialField.material(field, 1.75, 241, CATALOG)
+		var different := MaterialField.material(field, 1.75, 242, CATALOG)
+		check(material.get_shader_parameter("seed_offset") == same.get_shader_parameter("seed_offset"),
+			"same seed yields the same shader variation")
+		check(material.get_shader_parameter("seed_offset") != different.get_shader_parameter("seed_offset"),
+			"seed changes decorative variation independently of the label map")
+		var texture: Texture2D = material.get_shader_parameter("cell_labels")
+		check(texture.get_size() == Vector2(field.size), "uploaded mask dimensions")
+		print("M03_FIELD radius=", radius, " payload=", field.labels.size(), " bytes, setup check=",
+			(Time.get_ticks_usec() - elapsed) / 1000.0, " ms")
+
 func _scene() -> void:
 	var scene: Node3D = PREVIEW.instantiate()
 	root.add_child(scene)
@@ -218,4 +253,22 @@ func _scene() -> void:
 	check(scene.metrics.seed == 52, "next-seed control regenerates")
 	scene.show_example(0, 117, 2, false)
 	check(not scene.get_node("HexDebug").visible and scene.get_node("TreePosition").visible, "Garden marker and hidden grid")
+	var renderer: OptionButton = scene.get_node("%Rendering")
+	var mesh := (scene.get_node("Ground") as MeshInstance3D).mesh
+	var mesh_instance := scene.get_node("Ground") as MeshInstance3D
+	var metrics_before: Dictionary = scene.metrics.duplicate()
+	check(mesh_instance.material_override == scene.natural_material, "M03 renderer is default")
+	renderer.select(1)
+	renderer.item_selected.emit(1)
+	check(mesh_instance.material_override == null, "M02 uses the original mesh surface material")
+	renderer.select(0)
+	renderer.item_selected.emit(0)
+	check(mesh_instance.material_override == scene.natural_material, "M03 material restored")
+	check(mesh_instance.mesh == mesh and scene.metrics == metrics_before, "render comparison does not rebuild or alter the map")
+	check(scene.metrics.digest == "728d2f22b8a1b049de2ca68da9c6ffc5c48025155cda6a6f2e92d1acf3adb17e",
+		"Garden logical digest matches the accepted M02 checkpoint")
+	var map_size: OptionButton = scene.get_node("%MapSize")
+	map_size.select(1)
+	map_size.item_selected.emit(1)
+	check(scene.metrics.cells == 2437 and scene.metrics.terrain_meshes == 1, "large map uses one continuous mesh")
 	scene.free()
