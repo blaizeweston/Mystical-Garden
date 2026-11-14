@@ -4,6 +4,15 @@ uniform sampler2D cell_labels : filter_nearest, repeat_disable;
 uniform ivec2 label_origin;
 uniform float center_spacing = 1.75;
 uniform vec2 seed_offset;
+uniform sampler2D feature_distances : filter_linear, repeat_disable;
+uniform vec2 feature_origin;
+uniform vec2 feature_extent;
+uniform vec2 feature_size;
+uniform float feature_range;
+uniform bool feature_mode = false;
+uniform bool show_water = true;
+uniform bool show_paths = true;
+uniform bool show_ground = true;
 uniform sampler2D leafy_ground : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D forest_ground : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform vec3 meadow_color : source_color;
@@ -104,6 +113,22 @@ void fragment() {
 	float cover = smoothstep(0.50 - edge_width, 0.50 + edge_width, water);
 	// The bed stays visible through the colored shallows. Depth comes from the same mask.
 	float depth = smoothstep(0.53, 0.96, water);
+	float path_weight = 0.0;
+	if (feature_mode) {
+		vec2 unit = clamp((p - feature_origin) / feature_extent, vec2(0.0), vec2(1.0));
+		vec2 texel = (unit * (feature_size - vec2(1.0)) + 0.5) / feature_size;
+		vec3 field = (texture(feature_distances, texel).rgb * 2.0 - 1.0) * feature_range;
+		// Old water cells are substrate in the feature view. Actual water comes from the polygon only.
+		land.y += water;
+		float clearing = 1.0 - smoothstep(-0.22, 0.30, field.b);
+		land = mix(land, vec4(1.0, 0.0, 0.0, 0.0), clearing * 0.97);
+		float edge = clamp(fwidth(field.r) * 0.70, 0.04, 0.18);
+		cover = show_water ? 1.0 - smoothstep(-edge, edge, field.r) : 0.0;
+		bank = show_water ? 1.0 - smoothstep(-0.21, 0.54, field.r) : 0.0;
+		depth = 1.0 - smoothstep(-1.40, -0.05, field.r);
+		water = mix(0.51, 1.0, depth);
+		path_weight = show_paths ? 1.0 - smoothstep(-0.32 + (patches - 0.5) * 0.3, 0.10, field.g) : 0.0;
+	}
 
 	vec2 uv_a = p * 0.37;
 	vec2 uv_b = vec2(0.78 * p.x - 0.62 * p.y, 0.62 * p.x + 0.78 * p.y) * 0.55 + vec2(0.32, 0.57);
@@ -137,6 +162,9 @@ void fragment() {
 	// Fade in a continuous sand/gravel bed as the dry confidence vanishes.
 	vec3 bed = soil * (0.76 + 0.22 * flecks) + vec3(0.018, 0.023, 0.019) * patches;
 	vec3 dry = mix(bed, material_color / max(dry_total, 0.001), smoothstep(0.02, 0.20, dry_total));
+	dry = show_ground ? dry : vec3(0.105, 0.115, 0.106);
+	vec3 worn_trail = mix(soil * 1.25, vec3(0.41, 0.33, 0.21), 0.29 + 0.20 * flecks);
+	dry = mix(dry, worn_trail, path_weight * (0.69 + 0.21 * patches));
 	dry *= mix(vec3(1.0), vec3(0.69, 0.77, 0.73), max(bank, damp * 0.46));
 
 	vec2 flow = vec2(p.x + p.y * 0.29, p.y - p.x * 0.36);

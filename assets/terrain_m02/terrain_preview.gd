@@ -2,6 +2,8 @@ extends Node3D
 
 const Generator = preload("res://assets/terrain_m02/terrain_generator.gd")
 const Compiler = preload("res://assets/terrain_m02/terrain_mesh.gd")
+const Features = preload("res://assets/terrain_m02/terrain_feature_layout.gd")
+const FeatureMask = preload("res://assets/terrain_m02/terrain_feature_mask.gd")
 const MaterialField = preload("res://assets/terrain_m02/terrain_material_field.gd")
 const CATALOG = preload("res://assets/terrain_m02/terrain_catalog.tres")
 const PALETTES := [
@@ -22,6 +24,9 @@ var metrics := {}
 var spacing := 1.75
 var debug_dirty := true
 var natural_material: ShaderMaterial
+var feature_layout := {}
+
+@onready var feature_view := $Features
 
 @onready var camera: Camera3D = $Camera
 @onready var ground: MeshInstance3D = $Ground
@@ -49,6 +54,7 @@ func _ready() -> void:
 		size_choice.add_item("%.2f u" % size)
 	example.select(0)
 	size_choice.select(1)
+	render_mode.add_item("M04")
 	render_mode.add_item("M03")
 	render_mode.add_item("M02")
 	map_size.add_item("631 cells")
@@ -61,6 +67,8 @@ func _ready() -> void:
 	%Generate.pressed.connect(_regenerate)
 	%NextSeed.pressed.connect(_next_seed)
 	overlay.toggled.connect(_set_overlay)
+	for key in [&"GroundLayer", &"VegetationLayer", &"RockLayer", &"WaterLayer", &"PathLayer"]:
+		(get_node("%" + str(key)) as CheckButton).toggled.connect(func(_enabled: bool): _sync_layers())
 	_regenerate()
 
 func show_example(index: int, seed_value: int, spacing_index: int, show_overlay: bool) -> void:
@@ -91,6 +99,13 @@ func _regenerate() -> void:
 	var field := MaterialField.bake(cells)
 	natural_material = MaterialField.material(field, spacing, seed_value, CATALOG)
 	var material_baked := Time.get_ticks_usec()
+	feature_layout = Features.build(cells, spacing, RADII[map_size.selected], seed_value, palette.tree_at_origin)
+	var features_built := Time.get_ticks_usec()
+	var atlas := FeatureMask.bake(feature_layout, spacing, RADII[map_size.selected])
+	FeatureMask.bind(natural_material, atlas)
+	var mask_baked := Time.get_ticks_usec()
+	var scatter: Dictionary = feature_view.rebuild(feature_layout)
+	var view_built := Time.get_ticks_usec()
 	ground.mesh = compiled.mesh
 	_set_render_mode(render_mode.selected)
 	tree.visible = palette.tree_at_origin
@@ -100,14 +115,33 @@ func _regenerate() -> void:
 		"cells": cells.size(), "terrain_meshes": 1, "vertices": compiled.vertices,
 		"triangles": int(compiled.triangles), "generation_ms": (generated - started) / 1000.0,
 		"mesh_ms": (meshed - generated) / 1000.0,
-		"material_ms": (material_baked - meshed) / 1000.0, "mask_bytes": field.labels.size(),
+		"material_ms": (material_baked - meshed) / 1000.0,
+		"features_ms": (features_built - material_baked) / 1000.0,
+		"feature_mask_ms": (mask_baked - features_built) / 1000.0,
+		"instance_ms": (view_built - mask_baked) / 1000.0,
+		"mask_bytes": atlas.image.get_data_size(),
+		"stands": feature_layout.stands.size(), "formations": feature_layout.rock_formations.size(),
+		"plants": scatter.plant_instances, "rocks": scatter.rock_instances, "batches": scatter.instance_batches,
 		"digest": Generator.digest(cells, palette.id, seed_value)}
-	status.text = "%d cells  ·  1 ground mesh  ·  %.1f ms build" % [
-		metrics.cells, (material_baked - started) / 1000.0]
-	print("M03_TERRAIN ", JSON.stringify(metrics))
+	status.text = "%d cells  ·  %d plants  ·  %d rocks  ·  %.1f ms rebuild" % [
+		metrics.cells, metrics.plants, metrics.rocks, (view_built - started) / 1000.0]
+	print("M04_TERRAIN ", JSON.stringify(metrics))
 
 func _set_render_mode(index: int) -> void:
-	ground.material_override = natural_material if index == 0 else null
+	ground.material_override = natural_material if index != 2 else null
+	natural_material.set_shader_parameter("feature_mode", index == 0)
+	_sync_layers()
+
+func _sync_layers() -> void:
+	var feature_mode := render_mode.selected == 0
+	ground.visible = feature_mode or %GroundLayer.button_pressed
+	natural_material.set_shader_parameter("show_ground", not feature_mode or %GroundLayer.button_pressed)
+	natural_material.set_shader_parameter("show_water", %WaterLayer.button_pressed)
+	natural_material.set_shader_parameter("show_paths", %PathLayer.button_pressed)
+	feature_view.visible = feature_mode
+	feature_view.vegetation.visible = %VegetationLayer.button_pressed
+	feature_view.rocks.visible = %RockLayer.button_pressed
+	feature_view.crossings.visible = %PathLayer.button_pressed
 
 func _set_overlay(enabled: bool) -> void:
 	debug.visible = enabled

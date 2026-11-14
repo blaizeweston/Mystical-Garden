@@ -1,7 +1,9 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://assets/terrain_m02/terrain_preview.gd" id="1"]
 [ext_resource type="Script" path="res://assets/terrain_m02/terrain_debug.gd" id="2"]
+
+[ext_resource type="Script" path="res://assets/terrain_m02/terrain_feature_view.gd" id="3"]
 
 [sub_resource type="Environment" id="Environment"]
 background_mode = 1
@@ -50,6 +52,9 @@ environment = SubResource("Environment")
 cast_shadow = 0
 
 [node name="TreePosition" type="Node3D" parent="."]
+
+[node name="Features" type="Node3D" parent="."]
+script = ExtResource("3")
 
 [node name="HexDebug" type="Node3D" parent="."]
 visible = false
@@ -127,6 +132,40 @@ tooltip_text = "Compare the two renderers without changing the seed or terrain c
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Switch between the reference map and a larger terrain disk"
+
+[node name="Layers" type="HBoxContainer" parent="Interface/Toolbar/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 13
+
+[node name="GroundLayer" type="CheckButton" parent="Interface/Toolbar/Rows/Layers"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Ground terrain"
+
+[node name="VegetationLayer" type="CheckButton" parent="Interface/Toolbar/Rows/Layers"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Vegetation"
+
+[node name="RockLayer" type="CheckButton" parent="Interface/Toolbar/Rows/Layers"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Rocks"
+
+[node name="WaterLayer" type="CheckButton" parent="Interface/Toolbar/Rows/Layers"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Water features"
+
+[node name="PathLayer" type="CheckButton" parent="Interface/Toolbar/Rows/Layers"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Paths"
 
 [node name="Footer" type="PanelContainer" parent="Interface"]
 anchors_preset = 12
