@@ -72,6 +72,8 @@ func _scene() -> void:
 	for preset in [1, 2, 3]:
 		scene.example.select(preset)
 		scene.example.item_selected.emit(preset)
+		scene.render_mode.select(9)
+		scene.render_mode.item_selected.emit(9)
 		check(scene.render_mode.selected == 9 and scene.scenic_ground != null and scene.metrics.triangles == 2,
 			"M09 uses a continuous scenic plane")
 		scene.get_node("%PlayFloor").button_pressed = true

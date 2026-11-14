@@ -82,7 +82,19 @@ func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds
 			view.mesh = MassMesh.mesh(wall, layout.seed)
 			view.material_override = botanical_material
 			massing.add_child(view)
-		_gate(layout.trail_network.nodes.exit_gate)
+		var gate_position: Vector2 = layout.trail_network.nodes.exit_gate
+		var gate_yaw := 0.0
+		if layout.has("hydrology"):
+			for i in layout.paths.size():
+				var edge: Dictionary = layout.trail_network.edges[i]
+				if edge.to != "exit_gate" and edge.from != "exit_gate":
+					continue
+				var spine: PackedVector2Array = layout.paths[i].spine
+				var approach := spine[-3] if edge.to == "exit_gate" else spine[2]
+				var heading := (approach - gate_position).normalized()
+				gate_yaw = atan2(heading.x, heading.y)
+				break
+		_gate(gate_position, gate_yaw)
 	if layout.has("boundary"):
 		_build_boundary(layout.boundary, layout.seed)
 	return {"plant_instances": layout.plants.size(), "rock_instances": layout.rocks.size(),
@@ -109,7 +121,7 @@ func _build_boundary(border: Dictionary, seed_value: int) -> void:
 		var view := boundary_view.get_child(-1) as MultiMeshInstance3D
 		view.custom_aabb = AABB()
 
-func _gate(at: Vector2) -> void:
+func _gate(at: Vector2, yaw: float) -> void:
 	if landmark_material == null:
 		landmark_material = StandardMaterial3D.new()
 		landmark_material.vertex_color_use_as_albedo = true
@@ -119,6 +131,7 @@ func _gate(at: Vector2) -> void:
 	view.mesh = MassMesh.gate()
 	view.material_override = landmark_material
 	view.position = Vector3(at.x, 0.0, at.y)
+	view.rotation.y = yaw
 	view.name = "ExitGate"
 	massing.add_child(view)
 

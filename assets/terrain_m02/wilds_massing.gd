@@ -10,6 +10,9 @@ static func build(layout: Dictionary, seed_value: int, radius: int, spacing: flo
 	var result: Array[Dictionary] = []
 	var random := Stream.random_stream(seed_value, "wilds_mass")
 	var bounds := float(radius) * spacing
+	var nodes: Dictionary = layout.trail_network.nodes
+	var new_layout := layout.has("hydrology")
+	var progression: float = (nodes.exit_gate - nodes.arrival).angle() if new_layout else 0.0
 	# Broad sweeping walls along two banks and transverse chamber rims. Intersections
 	# with reservations are deliberate openings, not random gaps between props.
 	for row in 19:
@@ -26,21 +29,31 @@ static func build(layout: Dictionary, seed_value: int, radius: int, spacing: flo
 			if group >= 5:
 				x = (t - 0.52) * bounds * 1.4 + shift
 				z = side * (8.7 + (group - 5) * 4.8) * bounds / 24.5 + 1.3 * cos(t * TAU * 1.33 + shift)
-			if row >= 14 and row < 17:
+			if not new_layout and row >= 14 and row < 17:
 				var strut := row - 14
 				var clearing: Dictionary = layout.clearings[strut]
 				var room: Vector2 = clearing.center
 				x = room.x + (t - 0.40) * bounds * 0.63 + 0.8 * sin(t * TAU)
 				z = room.y + (4.1 if strut != 0 else -4.5) + 1.0 * sin(t * 5.0 + shift)
-			if row >= 17:
+			if not new_layout and row >= 17:
 				# Grow chamber islands inside the dry bypass loop, enclosing both routes
 				# without forcing the arrival or terrace through a single corridor.
 				var chamber: Vector2 = layout.trail_network.nodes.get("side_chamber", Vector2(-12, 0))
-				var landing: Vector2 = layout.trail_network.nodes.west_bank
+				var landing: Vector2 = nodes.west_bank
 				var center := chamber.lerp(landing, 0.44 if row == 17 else 0.30)
 				x = center.x + (0.95 if row == 18 else 0.0) + 0.9 * sin(t * 4.8 + shift)
 				z = center.y + (t - 0.5) * bounds * 0.40
-			spine.append(Vector2(x, z))
+			var point := Vector2(x, z)
+			if new_layout:
+				if row < 14:
+					point = point.rotated(progression + 0.34 * sin(row))
+				else:
+					var room: Vector2 = layout.clearings[mini(row - 14, layout.clearings.size() - 1)].center
+					var bearing := progression + (row - 14) * 1.42
+					var course := Vector2.from_angle(bearing)
+					point = room + course * ((t - 0.5) * bounds * 0.79)
+					point += course.orthogonal() * (4.9 + 1.40 * sin(t * TAU + shift))
+			spine.append(point)
 		var family := Biomes.family(climate.weights, random.randf())
 		var width := lerpf(0.91, 1.43, climate.weights.z) + random.randf_range(-0.10, 0.18)
 		_place_segments(result, layout, spine, row, family, width, radius, spacing)

@@ -14,22 +14,26 @@ var encounters: Array[Dictionary] = []
 var gate_discovered := false
 var finished := false
 var ready := false
+var reachable := {}
 
 func _init(play_surface: Surface) -> void:
 	surface = play_surface
 	var graph: Dictionary = surface.layout.trail_network
 	position = graph.nodes.arrival
 	gate = graph.nodes.exit_gate
-	var reachable := surface.reachable_nodes()
-	if not reachable.has("terrace") or not reachable.has("exit_gate"):
+	reachable = surface.reachable_nodes()
+	if not reachable.has("exit_gate"):
 		return
-	for room in ["terrace", "exit_gate"]:
+	var combat: Array = surface.layout.get("combat_rooms", ["terrace", "exit_gate"])
+	for room in combat:
+		if not reachable.has(room):
+			return
 		var center: Vector2 = graph.nodes[room]
-		var toward_entry := (graph.nodes.west_bank as Vector2) - center
+		var toward_entry := (graph.nodes.get("west_bank", graph.nodes.arrival) as Vector2) - center
 		var bearing := toward_entry.normalized() if room == "exit_gate" else toward_entry.normalized().orthogonal()
 		if not _reserve(room + "_1", center, bearing * 1.13):
 			return
-		if room == "terrace" and not _reserve(room + "_2", center, -bearing * 1.10):
+		if room != "exit_gate" and not _reserve(room + "_2", center, -bearing * 1.10):
 			return
 	ready = true
 

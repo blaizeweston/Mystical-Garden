@@ -1,5 +1,8 @@
 extends RefCounted
 ## Labels, habitat patches and props are derived from the same valley geometry.
+const RouteLayout = preload("res://assets/terrain_m02/wilds_route_layout.gd")
+const Surface = preload("res://assets/terrain_m02/wilds_play_surface.gd")
+const Simulation = preload("res://assets/terrain_m02/wilds_play_simulation.gd")
 const Boundary = preload("res://assets/terrain_m02/wilds_boundary.gd")
 const Rooms = preload("res://assets/terrain_m02/wilds_rooms.gd")
 const Massing = preload("res://assets/terrain_m02/wilds_massing.gd")
@@ -10,8 +13,19 @@ const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
 const Field = preload("res://assets/terrain_m02/terrain_generator.gd")
 
 static func build(seed_value: int, floor_number: int, radius: int, spacing: float, catalog,
-		windows: Array = Biomes.WINDOWS, massed: bool = false, bounded: bool = false) -> Dictionary:
+		windows: Array = Biomes.WINDOWS, massed: bool = false, bounded: bool = false,
+		varied: bool = false) -> Dictionary:
 	var climate := Biomes.climate(floor_number, windows)
+	if varied:
+		for attempt in RouteLayout.ATTEMPTS:
+			var trial := RouteLayout.build(seed_value, radius, spacing, climate, attempt)
+			if trial.is_empty() or not _finish_layout(trial, seed_value, radius, spacing, climate, true):
+				continue
+			var result := _populate_floor(trial, seed_value, radius, spacing, climate, catalog, true)
+			var simulation := Simulation.new(Surface.new(result.cells, trial, spacing))
+			if simulation.ready and simulation.reachable.size() == trial.trail_network.nodes.size():
+				return result
+		return {}
 	var layout := Geography.compose(seed_value, radius, spacing, climate)
 	if layout.is_empty():
 		return {}
@@ -19,18 +33,28 @@ static func build(seed_value: int, floor_number: int, radius: int, spacing: floa
 		layout = Rooms.expand(layout, seed_value, radius, spacing)
 		if layout.is_empty():
 			return {}
-		layout["seed"] = seed_value
-		if bounded:
-			var border := Boundary.build(layout, seed_value, radius, spacing, climate)
-			if border.is_empty():
-				return {}
-			layout["boundary"] = border
-		layout["masses"] = Massing.build(layout, seed_value, radius, spacing, climate)
+		if not _finish_layout(layout, seed_value, radius, spacing, climate, bounded):
+			return {}
+	return _populate_floor(layout, seed_value, radius, spacing, climate, catalog, massed)
+
+static func _finish_layout(layout: Dictionary, seed_value: int, radius: int, spacing: float,
+		climate: Dictionary, bounded: bool) -> bool:
+	layout["seed"] = seed_value
+	if bounded:
+		var border := Boundary.build(layout, seed_value, radius, spacing, climate)
+		if border.is_empty():
+			return false
+		layout["boundary"] = border
+	layout["masses"] = Massing.build(layout, seed_value, radius, spacing, climate)
+	return true
+
+static func _populate_floor(layout: Dictionary, seed_value: int, radius: int, spacing: float,
+		climate: Dictionary, catalog, massed: bool) -> Dictionary:
 	var cells := {}
 	var dry := {}
 	for cell in Grid.disk(radius):
 		var at := Grid.cell_to_world(cell, spacing)
-		var bank := Shape.signed_distance(layout.water[0], at, 3.0)
+		var bank := _bank_distance(layout.water, at)
 		var sample: Vector2 = at / spacing + Vector2(0.019, -0.014) * (climate.floor_number - 1)
 		var forest := Field._noise(sample * 0.18, seed_value + 2421) * 0.75 \
 			+ Field._noise(sample * 0.35, seed_value + 844) * 0.25
@@ -68,12 +92,18 @@ static func build(seed_value: int, floor_number: int, radius: int, spacing: floa
 		_mass_communities(layout, seed_value)
 	return {"cells": cells, "substrate": dry, "layout": layout, "climate": climate}
 
+static func _bank_distance(water: Array, point: Vector2) -> float:
+	var nearest := 3.0
+	for feature in water:
+		nearest = minf(nearest, Shape.signed_distance(feature, point, 3.0))
+	return nearest
+
 static func _populate(layout: Dictionary, cells: Dictionary, seed_value: int, spacing: float, climate: Dictionary) -> void:
 	var formations: Array[Dictionary] = []
 	_place_obstacles(layout, formations, cells, seed_value, spacing, climate)
 	for cell: Vector2i in cells:
 		var at := Grid.cell_to_world(cell, spacing)
-		var bank := Shape.signed_distance(layout.water[0], at, 3.0)
+		var bank := _bank_distance(layout.water, at)
 		if bank < 0.0:
 			continue
 		var id := "%d_%d" % [cell.x, cell.y]

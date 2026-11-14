@@ -29,6 +29,7 @@ const M06C := 6
 const M07 := 7
 const M07B := 8
 const M09 := 9
+const M09B := 10
 const START_FLOORS := [1, 1, 9, 18]
 
 var cells := {}
@@ -130,6 +131,7 @@ func _ready() -> void:
 	render_mode.add_item("M07")
 	render_mode.add_item("M07B")
 	render_mode.add_item("M09")
+	render_mode.add_item("M09B")
 	render_mode.select(M06C)
 	for number in range(1, 19):
 		floor_choice.add_item("Floor %d" % number)
@@ -163,7 +165,7 @@ func _select_example(index: int) -> void:
 		if index == 0:
 			render_mode.select(M06C)
 		elif render_mode.selected == M06C:
-			render_mode.select(M09)
+			render_mode.select(M09B)
 	_regenerate()
 
 func _select_render_mode(index: int) -> void:
@@ -228,7 +230,7 @@ func _regenerate() -> void:
 		"plants": enclosed_layout.plants.size(), "rocks": enclosed_layout.rocks.size(),
 		"enclosure": enclosed_layout.enclosure.size(), "accents": enclosed_layout.accents.size(),
 		"digest": Generator.digest(cells, palette.id, terrain_seed)}
-	status.text = "%d cells  Â·  %d plants  Â·  %d rocks  Â·  %.1f ms rebuild" % [
+	status.text = "%d cells  ·  %d plants  ·  %d rocks  ·  %.1f ms rebuild" % [
 		metrics.cells, metrics.plants + metrics.enclosure, metrics.rocks, (view_built - started) / 1000.0]
 	print("M06_TERRAIN ", JSON.stringify(metrics))
 
@@ -238,7 +240,7 @@ func _rebuild_wilds(started: int) -> void:
 	heart_stage.visible = false
 	floor_choice.visible = true
 	wilds = Wilds.build(terrain_seed, floor_choice.selected + 1, RADII[map_size.selected], spacing, CATALOG,
-		Wilds.Biomes.WINDOWS, generated_mode >= M07B, generated_mode == M09)
+		Wilds.Biomes.WINDOWS, generated_mode >= M07B, generated_mode >= M09, generated_mode == M09B)
 	if wilds.is_empty():
 		cells = {}
 		ground.hide()
@@ -297,7 +299,7 @@ func _rebuild_wilds(started: int) -> void:
 	_set_overlay(overlay.button_pressed)
 	var names := ["Outer Grove", "Sable Mire", "Hollow Below"]
 	var weights: Vector3 = climate.weights
-	art_note.text = "%s  Â·  Grove %d%%   Mire %d%%   Hollow %d%%" % [
+	art_note.text = "%s  ·  Grove %d%%   Mire %d%%   Hollow %d%%" % [
 		names[climate.biome], roundi(weights.x * 100.0), roundi(weights.y * 100.0), roundi(weights.z * 100.0)]
 	var total := (Time.get_ticks_usec() - started) / 1000.0
 	metrics = {"floor": floor_choice.selected + 1, "seed": terrain_seed, "cells": cells.size(),
@@ -306,10 +308,14 @@ func _rebuild_wilds(started: int) -> void:
 		"masses": wilds.layout.get("masses", []).size(), "crossings": wilds.layout.crossings.size(),
 		"scenic_instances": wilds.layout.boundary.exterior_props.size() if scenic_ground != null else 0,
 		"boundary_strips": wilds.layout.boundary.rim.size() if scenic_ground != null else 0,
+		"hydrology": wilds.layout.get("hydrology", "legacy"), "clearings": wilds.layout.clearings.size(),
 		"generation_ms": (generated - started) / 1000.0, "mesh_ms": (meshed - generated) / 1000.0,
 		"material_ms": (baked - meshed) / 1000.0, "rebuild_ms": total}
-	status.text = "%d cells  Â·  %d plants  Â·  %d obstacles  Â·  %.1f ms rebuild" % [
+	status.text = "%d cells  ·  %d plants  ·  %d obstacles  ·  %.1f ms rebuild" % [
 		cells.size(), batches.plant_instances, batches.rock_instances, total]
+	if generated_mode == M09B:
+		art_note.text += "  |  %s, %d clearings, %d bridges" % [
+			wilds.layout.hydrology.capitalize(), metrics.clearings, metrics.crossings]
 	print("M07_TERRAIN ", JSON.stringify(metrics))
 	_update_play_controls(generated_mode >= M07B)
 
@@ -340,7 +346,7 @@ func _play_floor(active: bool) -> void:
 func _start_floor() -> void:
 	walk_preview.deck_gate = feature_view.massing.get_node_or_null("ExitGate")
 	walk_preview.start(cells, wilds.layout, spacing)
-	walk_preview.allow_camera_control = generated_mode == M09
+	walk_preview.allow_camera_control = generated_mode >= M09
 	_set_overlay(overlay.button_pressed)
 	var focused := get_viewport().gui_get_focus_owner()
 	if focused != null:

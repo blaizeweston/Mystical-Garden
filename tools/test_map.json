@@ -1766,6 +1766,11 @@
     ]
   },
   "suites": {
+    "wilds_route_variation": {
+      "kind": "unit",
+      "systems": ["hex_terrain"],
+      "package": false
+    },
     "wilds_boundary": {
       "kind": "unit",
       "systems": ["hex_terrain"],
