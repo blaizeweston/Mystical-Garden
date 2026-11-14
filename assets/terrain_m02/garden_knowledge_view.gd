@@ -5,7 +5,6 @@ const Knowledge = preload("res://assets/terrain_m02/garden_knowledge.gd")
 const Build = preload("res://assets/terrain_m02/garden_construction.gd")
 
 var model: Knowledge
-var revision := 0
 var records: Dictionary
 var research_list: ItemList
 var balance: Label
@@ -69,9 +68,8 @@ func _ready() -> void:
 	capabilities.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(capabilities)
 
-func present(state: Knowledge, garden_revision: int, buildings: Dictionary) -> void:
+func present(state: Knowledge, buildings: Dictionary) -> void:
 	model = state
-	revision = garden_revision
 	records = buildings
 	refresh()
 	popup_centered(Vector2i(660, 470))
@@ -95,10 +93,14 @@ func refresh() -> void:
 	for kind: String in Build.CATALOG:
 		if model.construction_refusal(kind, records).is_empty():
 			available.append(Build.CATALOG[kind].name)
-	var expansion := "unlimited in test mode" if model.sandbox else str(model.remaining_expansions(revision))
+	var expansion := "Locked · Research Reaching Roots"
+	if model.sandbox:
+		expansion = "Free in test mode"
+	elif model.clearing_tier() > 0:
+		expansion = "Repeatable · Heart growth tier %d" % model.clearing_tier()
 	var beds := "unlimited in test mode" if model.sandbox else "%d of %d available" % [
 		maxi(0, model.extra_bed_limit() - model.bed_count(records)), model.extra_bed_limit()]
-	capabilities.text = "Expansion opportunities: %s\nExtra cultivation beds: %s\nAvailable in Build: %s" % [
+	capabilities.text = "Garden growth: %s\nExtra cultivation beds: %s\nAvailable in Build: %s" % [
 		expansion, beds, ", ".join(available) if not available.is_empty() else "None"]
 
 func _update_detail() -> void:
@@ -111,8 +113,10 @@ func _update_detail() -> void:
 	var effect := "Supports related Garden research in this lab."
 	if row.has("plots"):
 		effect = "Unlocks one extra cultivation bed. Place it using Build."
+	elif selected == "clearing_1":
+		effect = "Unlocks repeatable expansion funded by Heart offerings."
 	elif row.has("clearing"):
-		effect = "Unlocks one expansion. Choose the frontier using Expand Garden."
+		effect = "Reduces the growth energy required for each expansion."
 	elif selected == "seed_archive":
 		effect = "Unlocks the Seed cache in Build."
 	elif selected == "monster_studies":

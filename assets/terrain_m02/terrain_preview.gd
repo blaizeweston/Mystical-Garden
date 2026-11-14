@@ -548,7 +548,10 @@ func _expansion_input(event: InputEvent) -> bool:
 	var build := expansion.construction
 	if expansion.walk.button_pressed and event is InputEventKey and event.pressed and not event.echo \
 			and event.physical_keycode == KEY_E and not get_viewport().gui_get_focus_owner() is LineEdit:
-		build.inspect_at(expansion.pawn)
+		if expansion.pawn.length() <= 2.6:
+			expansion.open_offerings()
+		else:
+			build.inspect_at(expansion.pawn)
 		return true
 	if build.enabled and (event is InputEventKey or event is InputEventMouseButton or event is InputEventMouseMotion):
 		if event is InputEventMouseMotion and not pan_active:

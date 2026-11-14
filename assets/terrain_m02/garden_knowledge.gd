@@ -71,8 +71,8 @@ func research(id: String) -> bool:
 	changed.emit()
 	return true
 
-func remaining_expansions(revision: int) -> int:
-	return maxi(0, _highest_unlocked("clearing", 0) - revision)
+func clearing_tier() -> int:
+	return _highest_unlocked("clearing", 0)
 
 func construction_requirements(kind: String) -> Array:
 	match kind:

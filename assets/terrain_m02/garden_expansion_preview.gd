@@ -11,6 +11,8 @@ const Stations = preload("res://assets/terrain_m02/garden_station_art.gd")
 const Construction = preload("res://assets/terrain_m02/garden_construction_view.gd")
 const Knowledge = preload("res://assets/terrain_m02/garden_knowledge.gd")
 const KnowledgeView = preload("res://assets/terrain_m02/garden_knowledge_view.gd")
+const Offerings = preload("res://assets/terrain_m02/garden_offerings.gd")
+const OfferingsView = preload("res://assets/terrain_m02/garden_offerings_view.gd")
 const BARK_SHADER = preload("res://assets/terrain_m02/heart_bark.gdshader")
 const GateMesh = preload("res://assets/terrain_m02/wilds_massing_mesh.gd")
 const ALTAR = preload("res://assets/altar.glb")
@@ -23,6 +25,7 @@ var material: ShaderMaterial
 var enclosure: Node3D
 var bar: HBoxContainer
 var enter: CheckButton
+var frontier_controls: HBoxContainer
 var choices: OptionButton
 var confirm: Button
 var cancel: Button
@@ -45,6 +48,8 @@ var barrier: Forest
 var construction: Construction
 var knowledge := Knowledge.new()
 var knowledge_dialog: KnowledgeView
+var offerings := Offerings.new()
+var offering_dialog: OfferingsView
 var walker: MeshInstance3D
 var walk: CheckButton
 var comparison: CheckButton
@@ -69,12 +74,16 @@ func bind_controls(container: HBoxContainer, info: Label, forest: Node3D) -> voi
 	enter.text = "Expand Garden"
 	bar.add_child(enter)
 	enter.toggled.connect(set_active)
+	frontier_controls = HBoxContainer.new()
+	frontier_controls.add_theme_constant_override("separation", 8)
+	bar.get_parent().add_child(frontier_controls)
+	frontier_controls.hide()
 	choices = OptionButton.new()
 	choices.tooltip_text = "Choose a frontier or click a gold marker on the map"
-	bar.add_child(choices)
+	frontier_controls.add_child(choices)
 	choices.item_selected.connect(func(index): select_frontier(choices.get_item_id(index)))
-	confirm = _button("Confirm growth", confirm_growth)
-	cancel = _button("Cancel", func(): set_active(false))
+	confirm = _button("Confirm growth", confirm_growth, frontier_controls)
+	cancel = _button("Cancel", func(): set_active(false), frontier_controls)
 	reset = _button("Reset Garden", reset_garden)
 	debug = CheckButton.new()
 	debug.text = "Land ownership"
@@ -100,6 +109,10 @@ func bind_controls(container: HBoxContainer, info: Label, forest: Node3D) -> voi
 	construction = Construction.new()
 	add_child(construction)
 	construction.bind(self, bar, status)
+	_button("Offerings", open_offerings).tooltip_text = "Offer parts to the Heart"
+	offering_dialog = OfferingsView.new()
+	add_child(offering_dialog)
+	offering_dialog.contributed.connect(_refresh_offerings)
 	walker = _mesh_node(self)
 	var capsule := CapsuleMesh.new()
 	capsule.height = 1.62
@@ -122,11 +135,11 @@ func bind_controls(container: HBoxContainer, info: Label, forest: Node3D) -> voi
 	bar.hide()
 	status.hide()
 
-func _button(title: String, action: Callable) -> Button:
+func _button(title: String, action: Callable, container: HBoxContainer = null) -> Button:
 	var item := Button.new()
 	item.text = title
 	item.pressed.connect(action)
-	bar.add_child(item)
+	(container if container != null else bar).add_child(item)
 	return item
 
 func start(cells: Dictionary, features: Dictionary, spacing: float, seed_number: int, radius: int) -> void:
@@ -136,6 +149,7 @@ func start(cells: Dictionary, features: Dictionary, spacing: float, seed_number:
 	knowledge = Knowledge.new()
 	knowledge.sandbox = test_mode
 	knowledge.changed.connect(_refresh_knowledge)
+	offerings = Offerings.new()
 	state = Garden.new(cells, features, spacing, seed_number, radius)
 	barrier.bind(state)
 	construction.reset(barrier)
@@ -148,6 +162,7 @@ func start(cells: Dictionary, features: Dictionary, spacing: float, seed_number:
 func show_garden(enabled: bool) -> void:
 	if not enabled:
 		knowledge_dialog.hide()
+		offering_dialog.hide()
 		finish_animation()
 		set_active(false)
 		walk.button_pressed = false
@@ -193,6 +208,7 @@ func reset_garden() -> void:
 	state = Garden.new(state.terrain, state.layout, state.spacing, state.seed_value,
 		roundi(state.extent / state.spacing))
 	barrier.bind(state)
+	offerings = Offerings.new()
 	construction.reset(barrier)
 	pawn = state.layout.paths[0].spine[-1]
 	base_rim = state.enclosure_support()
@@ -216,9 +232,7 @@ func _update_controls() -> void:
 	enter.set_pressed_no_signal(active)
 	enter.disabled = growing or not _can_expand()
 	enter.tooltip_text = "Choose a frontier to reclaim." if _can_expand() else "Research a clearing upgrade in Knowledge."
-	choices.visible = active
-	confirm.visible = active
-	cancel.visible = active
+	frontier_controls.visible = active
 	_update_reset_availability()
 	choices.clear()
 	preview = {}
@@ -229,28 +243,46 @@ func _update_controls() -> void:
 		return
 	if active:
 		choices.add_item("Choose a frontier", 100)
-		for proposal: Dictionary in state.frontier_options():
-			var sector: int = proposal.sector
-			choices.add_item(Garden.DIRECTIONS[sector], sector)
+		var limited := 0
+		for sector in Garden.DIRECTIONS.size():
+			var proposal := state.proposal(sector, true)
+			if proposal.get("coverage_limited", false):
+				limited += 1
+				continue
+			if proposal.is_empty():
+				continue
+			var label := "%s · %d energy" % [Garden.DIRECTIONS[sector], _growth_cost(proposal)]
+			choices.add_item(label, sector)
 			_marker(proposal.frontier, sector, Garden.DIRECTIONS[sector])
-		status.text = "Click a marked frontier to preview the Heart’s growth." if choices.item_count > 1 else "No connected frontier fits here."
+		status.text = "%d growth energy stored. Choose a frontier." % offerings.energy if choices.item_count > 1 else "No connected frontier fits here."
+		if limited > 0:
+			status.text += " The generated terrain limit blocks %d of %d directions." % [limited, Garden.DIRECTIONS.size()]
 	elif growing:
 		status.text = "The Heart is reclaiming the clearing…"
 	else:
-		var remaining := knowledge.remaining_expansions(state.revision)
-		var opportunities := "%d expansion %s" % [remaining, "opportunity" if remaining == 1 else "opportunities"]
-		if knowledge.sandbox:
-			opportunities = "Free-build test mode"
-		status.text = "%d reclaimed clearings  ·  %d usable hexes  ·  %s" % [state.revision, state.available.size(), opportunities]
+		status.text = "%d reclaimed clearings  ·  %d usable hexes  ·  %d growth energy" % [state.revision, state.available.size(), offerings.energy]
 	confirm.disabled = true
 
 func _can_expand() -> bool:
-	return state != null and (knowledge.sandbox or knowledge.remaining_expansions(state.revision) > 0)
+	return state != null and (knowledge.sandbox or knowledge.clearing_tier() > 0)
+
+func _growth_cost(proposal: Dictionary) -> int:
+	return 0 if knowledge.sandbox else offerings.expansion_cost(proposal, state.reclaimed_cells, knowledge.clearing_tier())
+
+func open_offerings() -> void:
+	if state != null and not growing and visible:
+		offering_dialog.present(offerings)
+
+func _refresh_offerings() -> void:
+	if active and not preview.is_empty():
+		select_frontier(int(preview.sector))
+	else:
+		_update_controls()
 
 func _open_knowledge() -> void:
 	if state == null or growing:
 		return
-	knowledge_dialog.present(knowledge, state.revision, construction.model.records)
+	knowledge_dialog.present(knowledge, construction.model.records)
 
 func _refresh_knowledge() -> void:
 	if state == null:
@@ -269,7 +301,7 @@ func select_frontier(sector: int) -> bool:
 	if not active:
 		return false
 	preview = state.proposal(sector)
-	confirm.disabled = preview.is_empty()
+	confirm.disabled = preview.is_empty() or _growth_cost(preview) > offerings.energy
 	footprint.mesh = null if preview.is_empty() else _surface(preview.new_area)
 	footprint_border.mesh = null if preview.is_empty() else _border(preview.new_area)
 	if preview.is_empty():
@@ -278,6 +310,7 @@ func select_frontier(sector: int) -> bool:
 	choices.select(choices.get_item_index(sector))
 	status.text = "%s frontier  ·  %d usable hexes  ·  approximately %.1f square units" % [
 		Garden.DIRECTIONS[sector], preview.cells.size(), preview.area]
+	status.text += "  ·  %d energy needed / %d stored" % [_growth_cost(preview), offerings.energy]
 	return true
 
 func click_frontier(at: Vector2) -> void:
@@ -295,12 +328,18 @@ func confirm_growth() -> void:
 		return
 	var started := Time.get_ticks_usec()
 	var proposal := preview
+	var cost := _growth_cost(proposal)
+	if cost > offerings.energy:
+		confirm.disabled = true
+		status.text = "This expansion needs %d growth energy. The Heart holds %d." % [cost, offerings.energy]
+		return
 	var original_outline := state.outline
 	rim_from = state.enclosure_support()
 	if not state.apply(proposal):
 		_update_controls()
 		status.text = "The frontier changed. Choose it again."
 		return
+	offerings.energy -= cost
 	var logical := Time.get_ticks_usec()
 	rim_to = state.enclosure_support()
 	barrier.begin_shape(original_outline, state.outline)
@@ -322,7 +361,7 @@ func confirm_growth() -> void:
 	_update_controls()
 	_set_rim(rim_from, rim_to, 0.0)
 	_animate(0.0)
-	last_metrics = {"cells_gained": proposal.cells.size(), "area": proposal.area,
+	last_metrics = {"cells_gained": proposal.cells.size(), "area": proposal.area, "energy_spent": cost,
 		"mutation_usec": logical - started, "setup_usec": Time.get_ticks_usec() - logical}
 	tween = create_tween()
 	tween.tween_method(_animate, 0.0, 1.0, REVEAL_TIME)
@@ -383,7 +422,7 @@ func _walk_enabled(enabled: bool) -> void:
 		set_active(false)
 		walker.position = Vector3(pawn.x, 0.81, pawn.y)
 		set_camera(pawn, 16.5)
-		status.text = "Walk with WASD or arrow keys. Press E at the front of a player-built structure."
+		status.text = "Walk with WASD or arrows. Press E at the Heart or at a player-built structure."
 	walker.visible = enabled
 	set_physics_process(enabled)
 

@@ -29,8 +29,8 @@ func run() -> void:
 	check(model.commit("bed", site, 0.37, view.pawn) == 0, "unresearched beds cannot be committed")
 	view._open_knowledge()
 	var panel = view.knowledge_dialog
-	check(panel.visible and panel.capabilities.text.contains("Expansion opportunities: 0"),
-		"the real modal displays remaining opportunities")
+	check(panel.visible and panel.capabilities.text.contains("Research Reaching Roots"),
+		"the real modal displays the growth prerequisite")
 	_choose(panel, "plot_5")
 	check(panel.study.disabled and panel.detail.text.contains("Garden Bed 4"), "the modal displays prerequisite refusal")
 	check(not progress.research("plot_5") and not progress.research("clearing_1"), "cannot bypass parents or knowledge")
@@ -43,11 +43,11 @@ func run() -> void:
 		"unlock and duplicate refusal do not place objects or grow the Garden")
 	_choose(panel, "clearing_1")
 	panel.study.pressed.emit()
-	check(view.state.revision == 0 and panel.capabilities.text.contains("Expansion opportunities: 1"),
-		"research enables one use without changing terrain")
+	check(view.state.revision == 0 and panel.capabilities.text.contains("Heart growth tier 1"),
+		"research enables growth without changing terrain")
 	panel.hide()
 	view.set_active(true)
-	check(not view.select_frontier(-1) and progress.remaining_expansions(0) == 1, "invalid frontier spends nothing")
+	check(not view.select_frontier(-1) and view.offerings.energy == 0, "invalid frontier spends nothing")
 	view.set_active(false)
 	build.toggle.button_pressed = true
 	build.preview(site)
@@ -59,9 +59,9 @@ func run() -> void:
 	model.records[id].state = {"crop": "moonleaf", "growth": 0.64}
 	check("bed spaces" in model.validate("bed", Vector2(6.44, 0.45), 0.37, view.pawn)
 		and model.commit("bed", Vector2(6.44, 0.45), 0.37, view.pawn) == 0, "bed allotment enforced")
+	var part: String = view.offerings.items.keys()[0]
+	check(view.offerings.offer(view.offerings.quote({part: 90})), "research fixture funds player-selected growth")
 	check(_grow(view, [4, 6, 1, 0, 2, 5]), "the player chooses the first eligible frontier")
-	view.set_active(true)
-	check(not view.active and view.state.revision == 1, "single clearing permit cannot be reused")
 	for i in 5:
 		progress.grant_test_knowledge()
 	check(progress.research("plot_5") and progress.research("clearing_2") and progress.research("clearing_3"),
@@ -73,10 +73,10 @@ func run() -> void:
 	check(model.records.size() == 1 and model.records[id].state.crop == "moonleaf",
 		"research cannot overwrite the first crop or automatically add unlocked structures")
 	check(_grow(view, [6, 1, 0, 2, 5, 4]) and _grow(view, [2, 3, 5, 6, 0, 1, 4]),
-		"the two remaining opportunities can be used after construction")
-	check(progress.remaining_expansions(view.state.revision) == 0 and view.enter.disabled
+		"later growth can be used after construction")
+	check(progress.clearing_tier() == 3 and not view.enter.disabled
 		and view.state.revision == 3 and view.state.landmarks == landmarks,
-		"no fourth researched expansion and fixed landmarks remain intact")
+		"research does not cap growth and fixed landmarks remain intact")
 	build.toggle.button_pressed = true
 	build.move_mode.button_pressed = true
 	build.press(site)
@@ -88,10 +88,10 @@ func run() -> void:
 	progress.set_sandbox(true)
 	check(not view.enter.disabled and progress.unlocked.has("plot_4"), "free-build preview mode is explicit")
 	progress.set_sandbox(false)
-	check(view.enter.disabled and model.records.has(id), "leaving test mode restores limits and preserves buildings")
+	check(not view.enter.disabled and model.records.has(id), "leaving test mode preserves earned growth and buildings")
 	view.reset_garden()
 	check(view.state.revision == 0 and view.construction.model.records.is_empty()
-		and progress.remaining_expansions(0) == 3, "Reset Garden resets layout and permits while retaining research")
+		and progress.clearing_tier() == 3 and view.offerings.energy == 0, "Reset Garden resets layout and energy while retaining research")
 	if errors == 0:
 		print("PASS: Knowledge prerequisites, limits, construction, relocation and chosen growth")
 	quit(int(errors != 0))

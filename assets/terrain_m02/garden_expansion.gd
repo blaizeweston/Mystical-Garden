@@ -25,6 +25,8 @@ var occupied: Array = []
 var construction_clearance: Array = []
 var roots: Array[PackedVector2Array] = []
 var revision := 0
+var reclaimed_cells := 0
+var expansion_history: Array[int] = []
 
 func _init(cells: Dictionary, features: Dictionary, center_spacing: float, seed_number: int, radius: int) -> void:
 	terrain = cells
@@ -92,18 +94,22 @@ func frontier_options() -> Array[Dictionary]:
 			choices.append(candidate)
 	return choices
 
-func proposal(sector: int) -> Dictionary:
+func proposal(sector: int, coverage_check: bool = false) -> Dictionary:
 	if sector < 0 or sector >= DIRECTIONS.size():
 		return {}
 	var random := Features.random_stream(seed_value, "garden_growth_%d_%d" % [revision, sector])
 	var base_angle := TAU * sector / DIRECTIONS.size() + random.randf_range(-0.16, 0.16)
+	var touches_limit := false
 	for adjustment in [0.0, -0.15, 0.15]:
 		var aim := Vector2.from_angle(base_angle + adjustment)
 		var frontier := edge_distance(outline, aim)
 		var center := aim * (frontier + spacing * 1.13)
 		var lobe := _lobe(center, aim, random)
 		var merged := Geometry2D.merge_polygons(outline, lobe)
-		if merged.size() != 1 or not _in_terrain(lobe):
+		if merged.size() != 1:
+			continue
+		if not _in_terrain(lobe):
+			touches_limit = true
 			continue
 		var next_outline: PackedVector2Array = merged[0]
 		if _widens_gap(next_outline, aim):
@@ -128,7 +134,7 @@ func proposal(sector: int) -> Dictionary:
 			return {"sector": sector, "revision": revision, "frontier": aim * frontier,
 				"new_area": additions[0], "outline": next_outline, "cells": candidates, "root": path,
 				"aim": aim, "area": candidates.size() * cell_area()}
-	return {}
+	return {"coverage_limited": true} if coverage_check and touches_limit else {}
 
 func _widens_gap(perimeter: PackedVector2Array, aim: Vector2) -> bool:
 	# Keep one continuous forest ring. Reject skin-thin overlaps and sharp radial jumps
@@ -150,6 +156,8 @@ func apply(proposed: Dictionary) -> bool:
 	if current.is_empty() or current != proposed:
 		return false
 	revision += 1
+	reclaimed_cells += current.cells.size()
+	expansion_history.append(int(current.sector))
 	outline = current.outline
 	for cell: Vector2i in current.cells:
 		owned[cell] = revision
