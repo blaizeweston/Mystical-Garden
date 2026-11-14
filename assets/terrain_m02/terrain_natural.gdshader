@@ -10,6 +10,7 @@ uniform vec2 feature_extent;
 uniform vec2 feature_size;
 uniform float feature_range;
 uniform bool feature_mode = false;
+uniform int art_mode = 0;
 uniform bool show_water = true;
 uniform bool show_paths = true;
 uniform bool show_ground = true;
@@ -181,6 +182,19 @@ void fragment() {
 	water_surface += vec3(0.025, 0.042, 0.030) * (1.0 - smoothstep(0.0, 0.11, abs(water - 0.55))) * (0.55 + 0.45 * patches);
 	float bed_detail = (soil_grain - 0.46) * 0.082 * (1.0 - depth);
 	water_surface += vec3(bed_detail * 0.58, bed_detail * 0.92, bed_detail);
+	if (art_mode == 1) {
+		float center = 1.0 - smoothstep(4.6, 10.1, length(p * vec2(1.0, 1.04)) + (patches - 0.5) * 1.25);
+		vec3 sheltered = dry * vec3(0.57, 0.64, 0.52);
+		vec3 warmed = dry * vec3(1.00, 0.92, 0.68);
+		dry = mix(sheltered, warmed, center);
+		water_surface *= vec3(0.66, 0.76, 0.64);
+	} else if (art_mode == 2) {
+		float waylight = max(0.70 * path_weight, 0.47 * bank);
+		float canopies = smoothstep(0.33, 0.72, 0.72 * macro + 0.28 * patches);
+		dry *= mix(vec3(0.45, 0.54, 0.47), vec3(0.84, 0.83, 0.66),
+			clamp(waylight + 0.54 * canopies + 0.20 * land.w, 0.0, 1.0));
+		water_surface *= vec3(0.56, 0.68, 0.59);
+	}
 	ALBEDO = mix(dry, water_surface, cover);
 
 	ROUGHNESS = mix(0.90 - 0.15 * damp - 0.14 * bank - 0.13 * land.w + 0.05 * flecks, 0.39 + 0.09 * eddy, cover);

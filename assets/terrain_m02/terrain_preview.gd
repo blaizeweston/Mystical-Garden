@@ -3,6 +3,7 @@ extends Node3D
 const Generator = preload("res://assets/terrain_m02/terrain_generator.gd")
 const Compiler = preload("res://assets/terrain_m02/terrain_mesh.gd")
 const Features = preload("res://assets/terrain_m02/terrain_feature_layout.gd")
+const Enclosure = preload("res://assets/terrain_m02/terrain_enclosure.gd")
 const FeatureMask = preload("res://assets/terrain_m02/terrain_feature_mask.gd")
 const MaterialField = preload("res://assets/terrain_m02/terrain_material_field.gd")
 const CATALOG = preload("res://assets/terrain_m02/terrain_catalog.tres")
@@ -25,6 +26,13 @@ var spacing := 1.75
 var debug_dirty := true
 var natural_material: ShaderMaterial
 var feature_layout := {}
+var enclosed_layout := {}
+var scene_garden := true
+
+@onready var enclosure_view := $Enclosure
+@onready var sun: DirectionalLight3D = $Sun
+@onready var environment: Environment = $WorldEnvironment.environment
+@onready var hearth: OmniLight3D = $Hearth
 
 @onready var feature_view := $Features
 
@@ -54,6 +62,7 @@ func _ready() -> void:
 		size_choice.add_item("%.2f u" % size)
 	example.select(0)
 	size_choice.select(1)
+	render_mode.add_item("M05")
 	render_mode.add_item("M04")
 	render_mode.add_item("M03")
 	render_mode.add_item("M02")
@@ -100,14 +109,15 @@ func _regenerate() -> void:
 	natural_material = MaterialField.material(field, spacing, seed_value, CATALOG)
 	var material_baked := Time.get_ticks_usec()
 	feature_layout = Features.build(cells, spacing, RADII[map_size.selected], seed_value, palette.tree_at_origin)
+	scene_garden = palette.tree_at_origin
+	enclosed_layout = Enclosure.build(feature_layout, cells, spacing, seed_value, scene_garden)
 	var features_built := Time.get_ticks_usec()
-	var atlas := FeatureMask.bake(feature_layout, spacing, RADII[map_size.selected])
-	FeatureMask.bind(natural_material, atlas)
+	var feature_atlas := FeatureMask.bake(feature_layout, spacing, RADII[map_size.selected])
+	FeatureMask.bind(natural_material, feature_atlas)
 	var mask_baked := Time.get_ticks_usec()
-	var scatter: Dictionary = feature_view.rebuild(feature_layout)
-	var view_built := Time.get_ticks_usec()
 	ground.mesh = compiled.mesh
 	_set_render_mode(render_mode.selected)
+	var view_built := Time.get_ticks_usec()
 	tree.visible = palette.tree_at_origin
 	debug_dirty = true
 	_set_overlay(overlay.button_pressed)
@@ -119,21 +129,39 @@ func _regenerate() -> void:
 		"features_ms": (features_built - material_baked) / 1000.0,
 		"feature_mask_ms": (mask_baked - features_built) / 1000.0,
 		"instance_ms": (view_built - mask_baked) / 1000.0,
-		"mask_bytes": atlas.image.get_data_size(),
+		"mask_bytes": feature_atlas.image.get_data_size(),
 		"stands": feature_layout.stands.size(), "formations": feature_layout.rock_formations.size(),
-		"plants": scatter.plant_instances, "rocks": scatter.rock_instances, "batches": scatter.instance_batches,
+		"plants": enclosed_layout.plants.size(), "rocks": enclosed_layout.rocks.size(),
+		"enclosure": enclosed_layout.enclosure.size(), "accents": enclosed_layout.accents.size(),
 		"digest": Generator.digest(cells, palette.id, seed_value)}
 	status.text = "%d cells  ·  %d plants  ·  %d rocks  ·  %.1f ms rebuild" % [
-		metrics.cells, metrics.plants, metrics.rocks, (view_built - started) / 1000.0]
-	print("M04_TERRAIN ", JSON.stringify(metrics))
+		metrics.cells, metrics.plants + metrics.enclosure, metrics.rocks, (view_built - started) / 1000.0]
+	print("M05_TERRAIN ", JSON.stringify(metrics))
 
 func _set_render_mode(index: int) -> void:
-	ground.material_override = natural_material if index != 2 else null
-	natural_material.set_shader_parameter("feature_mode", index == 0)
+	var enclosure := index == 0
+	ground.material_override = natural_material if index != 3 else null
+	natural_material.set_shader_parameter("feature_mode", index <= 1)
+	natural_material.set_shader_parameter("art_mode", (1 if scene_garden else 2) if enclosure else 0)
+	if index <= 1:
+		feature_view.rebuild(enclosed_layout if enclosure else feature_layout)
+	if enclosure:
+		enclosure_view.rebuild(enclosed_layout, scene_garden)
+	_light(enclosure)
 	_sync_layers()
 
+func _light(enclosure: bool) -> void:
+	sun.light_color = Color("#ffe2aa") if enclosure and scene_garden else Color("#d5dfbd") if enclosure else Color(1, 0.96, 0.86)
+	sun.light_energy = (0.74 if scene_garden else 0.72) if enclosure else 1.12
+	environment.ambient_light_color = (Color("#aab297") if scene_garden else Color("#829992")) if enclosure else Color(0.83, 0.91, 0.88)
+	environment.ambient_light_energy = (0.68 if scene_garden else 0.64) if enclosure else 0.95
+	environment.background_color = Color("#101711") if enclosure else Color(0.055, 0.077, 0.073)
+	hearth.visible = enclosure and scene_garden and %GroundLayer.button_pressed
+
 func _sync_layers() -> void:
-	var feature_mode := render_mode.selected == 0
+	var feature_mode := render_mode.selected <= 1
+	enclosure_view.visible = render_mode.selected == 0 and %VegetationLayer.button_pressed
+	hearth.visible = render_mode.selected == 0 and scene_garden and %GroundLayer.button_pressed
 	ground.visible = feature_mode or %GroundLayer.button_pressed
 	natural_material.set_shader_parameter("show_ground", not feature_mode or %GroundLayer.button_pressed)
 	natural_material.set_shader_parameter("show_water", %WaterLayer.button_pressed)

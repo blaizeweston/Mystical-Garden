@@ -1,9 +1,11 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://assets/terrain_m02/terrain_preview.gd" id="1"]
 [ext_resource type="Script" path="res://assets/terrain_m02/terrain_debug.gd" id="2"]
 
 [ext_resource type="Script" path="res://assets/terrain_m02/terrain_feature_view.gd" id="3"]
+
+[ext_resource type="Script" path="res://assets/terrain_m02/terrain_enclosure_view.gd" id="4"]
 
 [sub_resource type="Environment" id="Environment"]
 background_mode = 1
@@ -55,6 +57,16 @@ cast_shadow = 0
 
 [node name="Features" type="Node3D" parent="."]
 script = ExtResource("3")
+
+[node name="Enclosure" type="Node3D" parent="."]
+script = ExtResource("4")
+
+[node name="Hearth" type="OmniLight3D" parent="."]
+position = Vector3(-1, 5.1, 1)
+light_color = Color(1, 0.71, 0.39, 1)
+light_energy = 2.5
+omni_range = 11.0
+omni_attenuation = 1.25
 
 [node name="HexDebug" type="Node3D" parent="."]
 visible = false

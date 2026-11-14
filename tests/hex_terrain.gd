@@ -258,8 +258,8 @@ func _scene() -> void:
 	var mesh_instance := scene.get_node("Ground") as MeshInstance3D
 	var metrics_before: Dictionary = scene.metrics.duplicate()
 	check(mesh_instance.material_override == scene.natural_material, "M03 renderer is default")
-	renderer.select(2)
-	renderer.item_selected.emit(2)
+	renderer.select(3)
+	renderer.item_selected.emit(3)
 	check(mesh_instance.material_override == null, "M02 uses the original mesh surface material")
 	renderer.select(0)
 	renderer.item_selected.emit(0)
