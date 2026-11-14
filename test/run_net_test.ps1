@@ -36,10 +36,26 @@ $engine=Find-Engine
 if([IO.Path]::GetFileName($engine) -match "^Mystical Garden v"){throw "Use the Godot engine for -Godot and the game EXE for -Pack. Shipping builds disable command-line path overrides."}
 if($Pack){$Pack=(Resolve-Path -LiteralPath $Pack).Path}
 if(-not $LogRoot){$LogRoot=Join-Path $project '.godot/network-tests'}
+$profileRoot=$null
+if($env:MYSTICAL_VALIDATION_SMOKE_PROFILES){
+ $profileRoot=[IO.Path]::GetFullPath($env:MYSTICAL_VALIDATION_SMOKE_PROFILES)
+ $projectParent=[IO.Path]::GetDirectoryName($project)
+ if($profileRoot -cne (Join-Path $projectParent 'n') -or -not (Test-Path -LiteralPath $profileRoot -PathType Container)){
+  throw 'Smoke profile root must be the owned disposable workspace n directory.'
+ }
+ for($part=$profileRoot;$part;$part=Split-Path -Parent $part){
+  if((Get-Item -LiteralPath $part -Force).Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Smoke profile cannot cross a reparse point.'}
+ }
+}
 $runPath=Join-Path $LogRoot ((Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+[Guid]::NewGuid().ToString('N').Substring(0,8))
 New-Item -ItemType Directory -Force -Path $runPath | Out-Null
 $runPath=(Resolve-Path -LiteralPath $runPath).Path
-foreach($folder in @('saves','userdata','localdata','temp')){New-Item -ItemType Directory -Force -Path (Join-Path $runPath $folder) | Out-Null}
+$profilePath=$runPath
+if($profileRoot){
+ $profilePath=Join-Path $profileRoot (Split-Path -Leaf $runPath)
+ New-Item -ItemType Directory -Path $profilePath | Out-Null
+}
+foreach($folder in @('saves','userdata','localdata','temp')){New-Item -ItemType Directory -Force -Path (Join-Path $profilePath $folder) | Out-Null}
 $environmentBefore=@{}
 foreach($key in @('APPDATA','LOCALAPPDATA','TEMP','TMP','XDG_DATA_HOME','MYSTICAL_GARDEN_TEST_PORT','MYSTICAL_VALIDATION_RUN')){$environmentBefore[$key]=[Environment]::GetEnvironmentVariable($key,'Process')}
 $peers=@();$rows=@();$setupError='';$summary=$null
@@ -59,7 +75,7 @@ function Start-Peer([string]$PeerRole,[int]$PeerIndex){
  return @{name=$name;role=$PeerRole;index=$PeerIndex;process=$process;stdout=$stdout;stderr=$stderr;result=(Join-Path $runPath "result_$($PeerRole)_$PeerIndex.json");timed_out=$false}
 }
 try {
- $env:APPDATA=Join-Path $runPath 'userdata';$env:LOCALAPPDATA=Join-Path $runPath 'localdata';$env:TEMP=Join-Path $runPath 'temp';$env:TMP=$env:TEMP;$env:XDG_DATA_HOME=$env:APPDATA;$env:MYSTICAL_GARDEN_TEST_PORT=[string]$Port;$env:MYSTICAL_VALIDATION_RUN=$RunId
+ $env:APPDATA=Join-Path $profilePath 'userdata';$env:LOCALAPPDATA=Join-Path $profilePath 'localdata';$env:TEMP=Join-Path $profilePath 'temp';$env:TMP=$env:TEMP;$env:XDG_DATA_HOME=$env:APPDATA;$env:MYSTICAL_GARDEN_TEST_PORT=[string]$Port;$env:MYSTICAL_VALIDATION_RUN=$RunId
  if($Pack){
   $lockResource='assets/native/persistence_lock/b0_native_lock.dll'
   $sourceLock=Join-Path $project $lockResource

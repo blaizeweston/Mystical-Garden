@@ -8,9 +8,20 @@ if($PlaytestVersion){
 }
 $env:APPDATA=Join-Path $project '.godot/stabilization-appdata'
 $env:LOCALAPPDATA=Join-Path $project '.godot/stabilization-localappdata'
-New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA | Out-Null
 $build=Join-Path $project '.godot/release'
-New-Item -ItemType Directory -Force -Path $build | Out-Null
+if($env:MYSTICAL_PLAYTEST_EXPORT_ROOT){
+ if(-not $PlaytestVersion -or -not $VerifyOnly){throw 'An external stage is available only for playtest verification.'}
+ $build=[IO.Path]::GetFullPath($env:MYSTICAL_PLAYTEST_EXPORT_ROOT)
+ $parent=Split-Path -Parent $build
+ if((Split-Path -Leaf $build) -cne 'export' -or (Split-Path -Leaf $parent) -cne (Split-Path -Leaf (Split-Path -Parent $project)) -or
+    -not (Test-Path -LiteralPath $parent -PathType Container) -or (Test-Path -LiteralPath $build)){
+  throw 'External stage must be the new export directory under the owned playtest attempt.'
+ }
+ for($part=$parent;$part;$part=Split-Path -Parent $part){
+  if((Get-Item -LiteralPath $part -Force).Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'External stage cannot cross a reparse point.'}
+ }
+}
+New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA,$build | Out-Null
 $env:TEMP=Join-Path $build 'temp'
 $env:TMP=$env:TEMP
 New-Item -ItemType Directory -Force -Path $env:TEMP | Out-Null

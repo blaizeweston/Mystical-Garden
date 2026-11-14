@@ -1,8 +1,10 @@
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -25,6 +27,57 @@ class PlaytestReleaseTests(unittest.TestCase):
         git.side_effect = [b"", b"h project.godot\0"]
         with self.assertRaisesRegex(ValueError, "Git index"):
             release.source_revision()
+
+    def test_config_is_opt_in_and_explicit_paths_win(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            args = SimpleNamespace(config=None, workspace=None, stage=None, evidence=None, archive=None, engine=None)
+            with (patch.object(release, "REPO", root / "Mystical Garden"),
+                  patch.object(release, "archive_path", side_effect=lambda value: Path(value or release.DEFAULT_ARCHIVE)),
+                  patch.object(release.Path, "home", return_value=root / "user"),
+                  patch.dict(os.environ, APPDATA=str(root / "app"), LOCALAPPDATA=str(root / "local"))):
+                defaults = release.output_options(args)
+                self.assertFalse(defaults.configured)
+                self.assertEqual(defaults.archive, release.DEFAULT_ARCHIVE)
+                args.config = root / "workspace.json"
+                args.config.write_text(json.dumps({"ArchiveRoot": str(root / "Releases"), "Engine": "recorded"}))
+                args.engine = "explicit"
+                result = release.output_options(args)
+                self.assertTrue(result.configured)
+                self.assertEqual(result.engine, "explicit")
+                self.assertEqual(result.archive, root / "Releases")
+                self.assertEqual(result.workspace, root / "w")
+                self.assertFalse(result.workspace.exists())
+                args.stage = result.workspace / "nested"
+                with self.assertRaisesRegex(ValueError, "distinct"):
+                    release.output_options(args)
+                self.assertFalse(args.stage.exists())
+                args.stage = None
+                args.config.write_text('{"Typo":"value"}')
+                with self.assertRaisesRegex(ValueError, "configuration keys"):
+                    release.output_options(args)
+
+    def test_path_preflight_creates_nothing(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            candidate = root / ("a" * 100)
+            with self.assertRaisesRegex(ValueError, "shorter"):
+                release.desktop_parent((candidate,), "0.1.0-playtest.3")
+            with self.assertRaisesRegex(ValueError, "ordinary absolute"):
+                release.output_path(root / "a" / ".." / "b")
+            self.assertFalse(candidate.exists())
+
+    def test_owned_profile_cleans_success_and_retains_failure(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            with release.owned_profile(root) as success:
+                (success / "marker").write_text("success")
+            self.assertFalse(success.exists())
+            with self.assertRaisesRegex(ValueError, "injected"):
+                with release.owned_profile(root) as failed:
+                    (failed / "marker").write_text("failure")
+                    raise ValueError("injected")
+            self.assertEqual((failed / "marker").read_text(), "failure")
 
     def test_payload_manifest_and_archive_checksums(self):
         with tempfile.TemporaryDirectory() as folder:
