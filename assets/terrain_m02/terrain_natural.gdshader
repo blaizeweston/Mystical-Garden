@@ -18,9 +18,6 @@ uniform vec3 scenic_cover = vec3(0.0, 1.0, 0.0);
 uniform bool garden_frontier = false;
 uniform sampler2D garden_perimeter : filter_nearest, repeat_enable;
 uniform float garden_reveal = 0.0;
-uniform vec2 garden_field_origin;
-uniform vec2 garden_field_extent;
-uniform sampler2D garden_claims : filter_linear, repeat_disable;
 uniform float wilds_moisture = 0.0;
 uniform vec3 wilds_floor : source_color;
 uniform vec3 wilds_water : source_color;
@@ -149,13 +146,11 @@ void fragment() {
 	float sanctuary = 1.0;
 	if (garden_frontier) {
 		ownership = garden_edge(p);
-		// Break up the transition underneath the thicket. Past the frontier every
-		// pixel uses the woodland palette, regardless of the underlying hex labels.
-		float edge_noise = 0.21 * patches + 0.23 * macro;
-		vec2 location = (p - garden_field_origin) / garden_field_extent;
-		vec2 claim = texture(garden_claims, location).rg;
-		float owned = max(claim.r, claim.g * smoothstep(0.0, 0.82, garden_reveal));
-		sanctuary = owned * (1.0 - smoothstep(-0.86 + edge_noise, 0.0, ownership.x));
+		// Buildable hexes can have holes around existing props or unequal margins.
+		// The enclosed ground is continuous, including those non-buildable pockets.
+		// Only the narrow fringe under the thicket mixes with the exterior.
+		float fringe = 0.28 + 0.12 * patches + 0.09 * macro;
+		sanctuary = 1.0 - smoothstep(-fringe, 0.0, ownership.x);
 	}
 	float bank = smoothstep(0.08, 0.50, water);
 	float edge_width = clamp(fwidth(water) * 0.75, 0.035, 0.16);
@@ -265,7 +260,7 @@ void fragment() {
 		if (garden_frontier) {
 			float fringe = length(p) + (macro - 0.5) * 1.3 + (patches - 0.5) * 0.46;
 			float reclaimed = sanctuary * smoothstep(ownership.y - 0.9, ownership.y + 1.2, fringe);
-			dry = mix(dry, mix(meadow, soil, 0.40 * patches), 0.73 * reclaimed * (1.0 - path_weight));
+			dry = mix(dry, mix(meadow, soil, 0.18 + 0.36 * patches), reclaimed * (1.0 - path_weight));
 			center = max(center, 0.72 * sanctuary) * sanctuary;
 		}
 		vec3 sheltered = dry * vec3(0.57, 0.64, 0.52);

@@ -25,8 +25,8 @@ func run() -> void:
 	var view = scene.expansion
 	check(view.visible and view.enter.visible, "the Garden preview exposes the expansion controls")
 	var original := _snapshot(scene)
-	_claim_mask(view, {}, original.owned)
-	var first_mask: PackedByteArray = view.ownership_mask.get_data()
+	_ground_boundary(view)
+	var first_outline: PackedVector2Array = view.barrier.visible_outline
 	_boundary(view)
 	_art(view)
 	var directions: Array = view.state.frontier_options()
@@ -73,12 +73,14 @@ func run() -> void:
 		grown += options[0].cells.size()
 	check(view.state.revision == 5, "five consecutive expansions stay connected")
 	var heart = scene.growing_heart
-	var grown_mask: PackedByteArray = view.ownership_mask.get_data()
+	var grown_outline: PackedVector2Array = view.barrier.visible_outline
+	_network(view)
 	for stage in 5:
 		scene.heart_stage.select(stage)
 		scene.heart_stage.item_selected.emit(stage)
-		check(view.ownership_mask.get_data() == grown_mask
+		check(view.barrier.visible_outline == grown_outline
 			and view.material.get_shader_parameter("garden_frontier"), "all Heart stages retain concealment")
+		_network(view)
 	check(heart.stage == 4 and view.state.revision == 5, "Heart stage selector works after expansion")
 	_roots(view)
 	scene.render_mode.select(4)
@@ -88,10 +90,11 @@ func run() -> void:
 	scene.render_mode.item_selected.emit(6)
 	check(view.visible and view.roots.get_child_count() == 5 and view.state.revision == 5,
 		"returning to M06C keeps reclaimed ownership and roots")
-	check(view.ownership_mask.get_data() == grown_mask, "comparison mode restores exactly the same concealment")
+	check(view.barrier.visible_outline == grown_outline, "comparison mode restores exactly the same concealment")
 	_covered(scene)
 	view.reset_garden()
-	check(view.ownership_mask.get_data() == first_mask, "reset also conceals every reclaimed region")
+	check(view.barrier.visible_outline == first_outline and view.network.is_empty(),
+		"reset restores the exterior and removes every reclaimed root")
 	scene.map_size.select(1)
 	scene.map_size.item_selected.emit(1)
 	check(scene.cells.size() == 2437 and view.state.revision == 0, "large comparison initializes a separate Garden")
@@ -150,19 +153,31 @@ func _grow(scene, offer: Dictionary) -> void:
 	view.enter.button_pressed = true
 	check(view.select_frontier(offer.sector), "frontier can be selected")
 	view.confirm.pressed.emit()
-	_claim_mask(view, offer.cells, prior)
+	_ground_boundary(view)
 	check(view.growing and state.roots.size() == root_count + 1
 		and view.material.get_shader_parameter("garden_reveal") == 0.0, "growth starts at the Heart before the ground reveal")
 	var before: PackedVector2Array = view.barrier.visible_outline
+	var transforms := []
+	for section: Dictionary in view.barrier.sections:
+		transforms.append(section.clumps[0].transform)
 	view._animate(0.25)
 	check(view.barrier.visible_outline == before and view.heart.pulse.light_energy > 0.36,
 		"Heart brightens before the forest moves")
 	view._animate(minf(0.95, view.breach + 0.11))
 	var partial: float = view.material.get_shader_parameter("garden_reveal")
 	check(partial > 0.0 and partial < 1.0, "shore and perimeter reveal progressively")
+	_ground_boundary(view)
+	var fixed_sections := 0
+	for i in before.size():
+		var next := (i + 1) % before.size()
+		if before[i] == view.barrier.visible_outline[i] and before[next] == view.barrier.visible_outline[next]:
+			fixed_sections += 1
+			check(transforms[i] == view.barrier.sections[i].clumps[0].transform,
+				"growth leaves unaffected forest placements alone")
+	check(fixed_sections > before.size() / 2, "the forest update is local to the expanding sector")
 	_boundary(view)
 	view.finish_animation()
-	_claim_mask(view, {}, state.owned)
+	_ground_boundary(view)
 	check(not view.growing and view.root_mesh.material_override.get_shader_parameter("root_progress") == 1.0
 		and view.material.get_shader_parameter("garden_reveal") == 1.0, "root reveal ends at the chosen frontier")
 	check(state.owned.size() - prior.size() == offer.cells.size(), "only declared cells were added")
@@ -194,28 +209,41 @@ func _grow(scene, offer: Dictionary) -> void:
 	result["sector"] = Garden.DIRECTIONS[offer.sector]
 	samples.append(result)
 
-func _claim_mask(view, pending: Dictionary, established: Dictionary) -> void:
-	# The dummy renderer can retain the creation image on GPU readback.
-	var image: Image = view.ownership_mask
-	var size := image.get_size()
-	var frame: Rect2 = view.ownership_frame
-	var step := frame.size / Vector2(size)
-	var masks_match := true
-	var retained := 0
-	var staged := 0
-	for y in size.y:
-		for x in size.x:
-			var at := frame.position + (Vector2(x, y) + Vector2(0.5, 0.5)) * step
-			var cell := Grid.world_to_cell(at, view.state.spacing)
-			var label := image.get_pixel(x, y)
-			masks_match = masks_match and (label.r > 0.5) == established.has(cell)
-			masks_match = masks_match and (label.g > 0.5) == pending.has(cell)
-			retained += int(label.r > 0.5)
-			staged += int(label.g > 0.5)
-	check(masks_match and retained > 0 and (staged > 0) == not pending.is_empty(),
-		"uploaded ownership mask contains only established cells and the exact pending expansion")
-	var size_check: Vector2i = (view.material.get_shader_parameter("garden_perimeter") as Texture2D).get_size()
-	check(size_check.x == view.barrier.visible_outline.size(), "rendering and collision use the same radial outline")
+func _ground_boundary(view) -> void:
+	var image: Image = view.material.get_shader_parameter("garden_perimeter").get_image()
+	var polygon: PackedVector2Array = view.barrier.visible_outline
+	var reveal: float = view.material.get_shader_parameter("garden_reveal")
+	check(image.get_width() == polygon.size(), "terrain and collision use the same radial outline")
+	for i in polygon.size():
+		var edge := image.get_pixel(i, 0)
+		check(is_equal_approx(lerpf(edge.r, edge.g, reveal), polygon[i].length()),
+			"concealment follows the current forest outline")
+	if reveal >= 1.0:
+		for cell in view.state.available:
+			var at := Grid.cell_to_world(cell, view.state.spacing)
+			check(Shape.polygon_distance(polygon, at, 0.52) < 0.0,
+				"usable cell centers stay inside the visible Garden")
+
+func _network(view) -> void:
+	var rebuilt: Array[Dictionary] = []
+	var sockets := {}
+	var branch_count := 0
+	for path: PackedVector2Array in view.state.roots:
+		var plan := RootArt.plan(path, view.heart.stage, view.state, rebuilt)
+		check(plan == view.network[rebuilt.size()], "rebuilding a stage produces the same root network")
+		var at: Vector3 = plan.main[-1]
+		check(Vector2(at.x, at.z) == path[-1], "network preserves each expansion destination")
+		if plan.connection.is_empty():
+			check(not sockets.has(plan.socket), "each buttress has only one primary root")
+			sockets[plan.socket] = true
+		else:
+			branch_count += 1
+			var parent: Dictionary = rebuilt[plan.connection.parent]
+			check(plan.main[0] == parent.main[plan.connection.index] and plan.radius < parent.radius,
+				"new limb starts inside an older tapered root")
+			check(plan.main[0].length() > 1.8, "reused roots do not coat the Heart with another primary mesh")
+		rebuilt.append(plan)
+	check(branch_count >= 1, "successive expansions reuse an existing root where their routes converge")
 
 func _linked(added: Dictionary, old: Dictionary, state: Garden) -> void:
 	var first: Vector2i = added.keys()[0]
@@ -255,9 +283,12 @@ func _boundary(view) -> void:
 		var b := polygon[(i + 1) % polygon.size()]
 		var edge := a.lerp(b, 0.5)
 		var away := Vector2(b.y - a.y, a.x - b.x).normalized()
-		var mesh: MeshInstance3D = section.mesh
 		check(section.a.is_equal_approx(a) and section.b.is_equal_approx(b)
-			and mesh.transform.basis.x.length() > a.distance_to(b), "visual thicket overlaps each adjoining section")
+			and section.count * barrier.CLUMP_SPACING >= a.distance_to(b), "fixed-size thickets cover each section")
+		for j in section.count:
+			var mesh: MeshInstance3D = section.clumps[j]
+			check(mesh.visible and mesh.transform.basis.get_scale().is_equal_approx(Vector3.ONE),
+				"forest pieces move without geometry stretch")
 		check(not barrier.walkable(edge + away * 0.52), "no walkable opening through the thicket")
 		var start := edge - away * 0.62
 		if barrier.walkable(start):

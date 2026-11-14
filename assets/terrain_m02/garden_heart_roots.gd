@@ -12,7 +12,7 @@ const SOCKETS := [
 	[Vector3(0.36, 0.12, -1.89), Vector3(0.61, -0.10, -2.57), 0.21],
 ]
 
-static func plan(path: PackedVector2Array, stage: int, garden) -> Dictionary:
+static func plan(path: PackedVector2Array, stage: int, garden, network: Array[Dictionary] = []) -> Dictionary:
 	var aim := path[mini(11, path.size() - 1)].normalized()
 	var socket := 0
 	var alignment := -INF
@@ -40,6 +40,28 @@ static func plan(path: PackedVector2Array, stage: int, garden) -> Dictionary:
 		var t := float(i) / (path.size() - 1)
 		var depth := -0.045 + 0.15 * sin(i * 0.71) - 0.24 * pow(maxf(0, sin(i * 0.32)), 5)
 		points.append(Vector3(path[i].x, depth if t < 0.97 else -0.03, path[i].y))
+	var connection := _connection(points, socket, network)
+	if not connection.is_empty():
+		var parent: Dictionary = network[connection.parent]
+		socket = parent.socket
+		var inherited: Array[Vector3] = parent.main
+		var index: int = connection.index
+		var resume: int = connection.resume
+		var from := inherited[index]
+		var to := points[resume]
+		var heading := (inherited[index] - inherited[index - 1]).normalized()
+		var arrival_tangent := (points[resume + 1] - to).normalized()
+		var lead := clampf(from.distance_to(to) * 0.34, 0.20, 0.95)
+		var taper := pow(1.0 - float(index) / (inherited.size() - 1), 0.86)
+		root_radius = clampf(parent.radius * taper * 0.78, 0.055, root_radius * 0.74)
+		var splice: Array[Vector3] = [from]
+		var steps := maxi(9, ceili(from.distance_to(to) / 0.25))
+		for sample in range(1, steps):
+			var at := from.bezier_interpolate(from + heading * lead, to - arrival_tangent * lead, to, float(sample) / steps)
+			splice.append(_bury(at, garden, root_radius))
+		splice.append_array(points.slice(resume))
+		points = splice
+		junction = 3
 	var branches: Array = []
 	for i in range(junction + 6, points.size() - 5, 8):
 		var origin := points[i]
@@ -58,7 +80,46 @@ static func plan(path: PackedVector2Array, stage: int, garden) -> Dictionary:
 			fork.append(_bury(at, garden, 0.12))
 		branches.append({"points": branch, "join": i, "radius": root_radius * 0.33})
 		branches.append({"points": fork, "join": i + 4, "radius": root_radius * 0.15})
-	return {"socket": socket, "main": points, "branches": branches, "radius": root_radius}
+	return {"socket": socket, "main": points, "branches": branches, "radius": root_radius,
+		"connection": connection}
+
+static func _connection(incoming: Array[Vector3], socket: int, network: Array[Dictionary]) -> Dictionary:
+	var result := {}
+	var best := -INF
+	var aim := Vector2(incoming[-1].x, incoming[-1].z).normalized()
+	for parent_index in network.size():
+		var root := network[parent_index]
+		var path: Array[Vector3] = root.main
+		for i in range(2, path.size() - 1):
+			var at := path[i]
+			var along := Vector2(at.x, at.z)
+			if along.dot(aim) < 1.35:
+				continue
+			for resume in range(5, incoming.size() - 2):
+				var to := incoming[resume]
+				var distance := along.distance_to(Vector2(to.x, to.z))
+				# Join near the point where routes diverge, keeping only the new branch.
+				if distance < 0.48 or distance > 2.65:
+					continue
+				var forward := Vector2(to.x, to.z) - along
+				if forward.dot(aim) < 0.15:
+					continue
+				var segment := Vector2(path[i].x - path[i - 1].x, path[i].z - path[i - 1].z).normalized()
+				if forward.normalized().dot(segment) > 0.94 and i < path.size() - 4:
+					continue
+				var score := resume * 0.24 + along.length() * 0.19 - absf(distance - 1.25)
+				if score > best:
+					best = score
+					result = {"parent": parent_index, "index": i, "resume": resume}
+	if not result.is_empty():
+		return result
+	# The same buttress is already represented. Branch near its base even
+	# when the two routes peel away too quickly to share a longer run.
+	for parent_index in network.size():
+		var root := network[parent_index]
+		if root.socket == socket:
+			return {"parent": parent_index, "index": 2, "resume": 6}
+	return {}
 
 static func _bury(at: Vector3, garden, width: float) -> Vector3:
 	var ground := Vector2(at.x, at.z)

@@ -45,6 +45,7 @@ var comparison: CheckButton
 var pawn := Vector2.ZERO
 var station_meshes := {}
 var root_mesh: MeshInstance3D
+var network: Array[Dictionary] = []
 var tween: Tween
 var rim_from: PackedFloat32Array
 var rim_to: PackedFloat32Array
@@ -53,11 +54,6 @@ var last_metrics := {}
 var max_animation_usec := 0
 var root_stage := 0
 var breach := 0.64
-const OWNERSHIP_RESOLUTION := 3.2
-var ownership_mask: Image
-var ownership_texture: ImageTexture
-var ownership_frame: Rect2
-var pending_claims: Dictionary = {}
 
 func bind_controls(container: HBoxContainer, info: Label, forest: Node3D) -> void:
 	bar = container
@@ -143,7 +139,6 @@ func show_garden(enabled: bool) -> void:
 
 func attach_material(ground: ShaderMaterial) -> void:
 	material = ground
-	_build_ownership()
 	var perimeter := state.enclosure_support()
 	_set_rim(perimeter, perimeter, 1.0)
 
@@ -163,6 +158,7 @@ func clear() -> void:
 	last_metrics = {}
 	for group in [roots, landmark_view, markers]:
 		_clear_children(group)
+	network.clear()
 	debug_view.mesh = null
 	footprint.mesh = null
 	footprint_border.mesh = null
@@ -175,8 +171,8 @@ func reset_garden() -> void:
 		roundi(state.extent / state.spacing))
 	barrier.bind(state)
 	base_rim = state.enclosure_support()
-	_build_ownership()
 	_clear_children(roots)
+	network.clear()
 	_set_rim(base_rim, base_rim, 1.0)
 	_build_debug()
 	_update_controls()
@@ -271,7 +267,6 @@ func confirm_growth() -> void:
 	active = false
 	_update_controls()
 	_set_rim(rim_from, rim_to, 0.0)
-	_stage_ownership(proposal.cells)
 	_animate(0.0)
 	last_metrics = {"cells_gained": proposal.cells.size(), "area": proposal.area,
 		"mutation_usec": logical - started, "setup_usec": Time.get_ticks_usec() - logical}
@@ -302,7 +297,6 @@ func finish_animation() -> void:
 		tween = null
 	_animate(1.0)
 	growing = false
-	_commit_ownership()
 	last_metrics["peak_animation_update_usec"] = max_animation_usec
 	_build_debug()
 	_update_controls()
@@ -313,11 +307,13 @@ func change_heart_stage(index: int) -> void:
 	root_stage = index
 	if state == null:
 		return
+	network.clear()
 	for i in roots.get_child_count():
 		_set_root(roots.get_child(i), state.roots[i])
 
 func _set_root(node: MeshInstance3D, path: PackedVector2Array) -> void:
-	var plan := RootArt.plan(path, root_stage, state)
+	var plan := RootArt.plan(path, root_stage, state, network)
+	network.append(plan)
 	node.mesh = RootArt.mesh(plan)
 	node.set_meta("root_plan", plan)
 	var bark := ShaderMaterial.new()
@@ -363,44 +359,6 @@ func _set_rim(from: PackedFloat32Array, to: PackedFloat32Array, progress: float)
 	material.set_shader_parameter("garden_perimeter", ImageTexture.create_from_image(image))
 	material.set_shader_parameter("garden_reveal", progress)
 	enclosure.position_frontier(from, to, progress)
-
-func _build_ownership() -> void:
-	pending_claims = {}
-	var extent := state.extent + 2.0 * state.spacing
-	ownership_frame = Rect2(Vector2.ONE * -extent, Vector2.ONE * extent * 2.0)
-	var side := ceili(ownership_frame.size.x * OWNERSHIP_RESOLUTION)
-	ownership_mask = Image.create_empty(side, side, false, Image.FORMAT_RG8)
-	ownership_mask.fill(Color.BLACK)
-	_stamp_claims(ownership_mask, state.owned, false)
-	ownership_texture = ImageTexture.create_from_image(ownership_mask)
-	material.set_shader_parameter("garden_claims", ownership_texture)
-	material.set_shader_parameter("garden_field_origin", ownership_frame.position)
-	material.set_shader_parameter("garden_field_extent", ownership_frame.size)
-
-func _stage_ownership(cells: Dictionary) -> void:
-	pending_claims = cells
-	_stamp_claims(ownership_mask, cells, true)
-	ownership_texture.update(ownership_mask)
-
-func _commit_ownership() -> void:
-	# Only the latest revision is stamped. Existing pixels keep their established value.
-	_stamp_claims(ownership_mask, pending_claims, false)
-	pending_claims = {}
-	ownership_texture.update(ownership_mask)
-
-func _stamp_claims(image: Image, cells: Dictionary, pending: bool) -> void:
-	var pixels := image.get_size()
-	var step := ownership_frame.size / Vector2(pixels)
-	for cell: Vector2i in cells:
-		var center := Grid.cell_to_world(cell, state.spacing)
-		var radius := state.spacing * 0.66
-		var low := Vector2i(((center - Vector2.ONE * radius - ownership_frame.position) / step).floor()).max(Vector2i.ZERO)
-		var high := Vector2i(((center + Vector2.ONE * radius - ownership_frame.position) / step).ceil()).min(pixels - Vector2i.ONE)
-		for y in range(low.y, high.y + 1):
-			for x in range(low.x, high.x + 1):
-				var at := ownership_frame.position + (Vector2(x, y) + Vector2(0.5, 0.5)) * step
-				if Grid.world_to_cell(at, state.spacing) == cell:
-					image.set_pixel(x, y, Color(0, 1, 0) if pending else Color(1, 0, 0))
 
 func set_camera(target: Vector2, size: float) -> void:
 	focus = target.limit_length(state.extent * 0.80)
