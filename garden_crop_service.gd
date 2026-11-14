@@ -6,7 +6,7 @@ const Growth=preload("res://cultivation_growth.gd")
 static func eligible(game: Node,id: int,slot: int) -> bool:
  if not game.multiplayer.is_server() or not game.players.has(id) or slot<0 or slot>=game.progress.plots.size():return false
  var p: Dictionary=game.players[id]
- return p.get("profile_ready",false) and not p.get("wild",false) and not p.get("fallen",false) and game.travel_kind.is_empty() and p.pos.distance_to(game.Stage.PLOTS[slot])<=1.65 and game.progress.offshoot_in_bed(slot)<0
+ return p.get("profile_ready",false) and not p.get("wild",false) and not p.get("fallen",false) and game.travel_kind.is_empty() and p.pos.distance_to(game.stage.bed_position(slot))<=1.65 and game.progress.offshoot_in_bed(slot)<0
 static func focus(game: Node,id: int,slot: int) -> bool:
  if not eligible(game,id,slot) or int(game.progress.plots[slot].species)<0:return false
  var previous: Dictionary=game.players[id].get("garden_crop_focus",{})
@@ -81,7 +81,7 @@ static func command(game: Node,id: int,request: Dictionary) -> Dictionary:
    if watered_result.persistence.is_empty():return reject(game,id,notice)
    game.tell(id,notice)
    return {"changed":false,"error":notice}
-  preload("res://event_audio.gd").emit(game,"crop_watered",game.Stage.PLOTS[slot])
+  preload("res://event_audio.gd").emit(game,"crop_watered",game.stage.bed_position(slot))
   game.tell(id,"Spring water nourishes this crop. Growth is 25% faster until harvest.")
   preload("res://diagnostic_journal.gd").event("garden","crop_watered",{"actor":id,"bed":slot,"cycle":bed.care.cycle,"revision":bed.care.revision,"multiplier":Growth.WATER_RATE})
   return {"changed":true,"revision":bed.care.revision}

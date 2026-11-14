@@ -4,6 +4,7 @@ const Offerings = preload("res://assets/terrain_m02/garden_offerings.gd")
 signal contributed
 
 var model: Offerings
+var experimental_commit := Callable()
 var selection := {}
 var review := {}
 var selected := ""
@@ -34,6 +35,7 @@ func _ready() -> void:
 	body.add_child(controls)
 	var replenish := Button.new()
 	replenish.text = "Replenish test parts"
+	replenish.visible = not experimental_commit.is_valid()
 	replenish.pressed.connect(func():
 		model.replenish()
 		selection.clear()
@@ -124,7 +126,7 @@ func _update_totals() -> void:
 
 func _confirm() -> void:
 	var gain: int = review.get("energy", 0)
-	var accepted := model.offer(review)
+	var accepted := bool(experimental_commit.call(review)) if experimental_commit.is_valid() else model.offer(review)
 	selection.clear()
 	_refresh()
 	if accepted:

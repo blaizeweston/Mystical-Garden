@@ -213,7 +213,7 @@ func refresh() -> void:
 			var index: int = option.get_item_index(previous)
 			if index>=0: option.select(index)
 	var p := profile()
-	var at_altar: bool = not p.is_empty() and not p.get("wild",false) and p.get("pos",Vector3.ZERO).distance_to(game.Stage.ALTAR)<=1.65
+	var at_altar: bool = not p.is_empty() and not p.get("wild",false) and p.get("pos",Vector3.ZERO).distance_to(game.stage.altar_position())<=1.65
 	var a := selected_species(first)
 	var b := selected_species(second)
 	var enough: bool = a>=0 and b>=0 and counts[a]>=(2 if a==b else 1) and counts[b]>=1

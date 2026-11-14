@@ -14,13 +14,18 @@ static func nearest(game: Node,player: Dictionary,projection: Dictionary) -> Str
  var pos: Vector3=player.get("pos",Vector3.INF);var best:=INF;var found: String=""
  for point in Catalog.POINTS:
   if not projection.get("available",[]).has(point.id):continue
-  var distance:=pos.distance_to(point.position)
+  var distance:=pos.distance_to(point_position(game,point))
   if distance<=float(point.range) and distance<best:found=point.id;best=distance
  if found.is_empty():return ""
  # Existing stations/beds win when they are closer; no interaction is stolen.
- for at in [game.Stage.HEART,game.Stage.ALTAR,game.Stage.GATE]+game.Stage.PLOTS:
+ for at in [game.Stage.HEART,game.stage.altar_position(),game.stage.gate_position()] + game.stage.bed_positions():
   if pos.distance_to(at)<best:return ""
  return found
+static func point_position(game: Node,point: Dictionary) -> Vector3:
+ if game.has_meta(&"experimental_terrain") and point.id=="spring_water":
+  var built: Vector3=game.stage.station_position("spring")
+  if built.is_finite():return built
+ return point.position
 static func projection(game: Node,id: int) -> Dictionary:
  if not game.multiplayer.is_server():
   var received: Dictionary=game.players.get(id,{}).get("garden_interactions",{})
@@ -42,7 +47,7 @@ static func station_near(game: Node,player: Dictionary) -> String:
  var found: String="";var best:=INF
  for id in game.Stage.HEART_STATIONS:
   if not game.at_garden_station(player,id):continue
-  var distance: float=player.pos.distance_to(game.Stage.HEART_STATIONS[id])
+  var distance: float=player.pos.distance_to(game.stage.station_position(id))
   if distance<best:found=id;best=distance
  return found
 static func interact(game: Node,id: int) -> bool:
@@ -71,7 +76,7 @@ static func command(game: Node,id: int,payload: String) -> Dictionary:
  if definition.is_empty() or request.action not in ["inspect","observe"]:return reject(game,id,"Unknown Garden interaction.")
  var player: Dictionary=game.players[id]
  if not allowed(game,definition):return reject(game,id,"This Garden detail has changed. Inspect its surroundings again.")
- if player.pos.distance_to(definition.position)>float(definition.range):return reject(game,id,"Move closer to this Garden detail.")
+ if player.pos.distance_to(point_position(game,definition))>float(definition.range):return reject(game,id,"Move closer to this Garden detail.")
  var state:=State.normalize(game.progress.garden_interactions)
  if state.version!=State.VERSION:return reject(game,id,"This Garden interaction save needs a newer game version.")
  var identity: String=game.local_character.identity if id==game.HOST else str(player.get("seed_owner",""))

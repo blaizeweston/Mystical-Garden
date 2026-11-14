@@ -51,6 +51,7 @@ var flowering: Array = Seeds.counts(false)
 var harvest_ready: Array = Seeds.counts(false)
 var parts: Array = Seeds.counts(0)
 var knowledge := 0
+var player_placed_beds := false
 var campaign := Campaign.new()
 const Learning=preload("res://wilds_learning.gd")
 var wilds_memory: Dictionary=Learning.blank()

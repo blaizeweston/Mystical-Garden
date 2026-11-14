@@ -164,7 +164,7 @@ func _process(delta: float) -> void:
   if retry<=0:retry=1;game.send_garden_action("growth_ack:"+str(waiting_sequence))
   return
  waiting_sequence=-1
- if not game.app_settings.values.get("garden_cinematics",true) or not game.app_settings.values.get("ambient_motion",true):
+ if game.has_meta(&"experimental_terrain") or not game.app_settings.values.get("garden_cinematics",true) or not game.app_settings.values.get("ambient_motion",true):
   preload("res://event_audio.gd").play_research(game,pending[0])
   waiting_sequence=int(pending[0].sequence);retry=1;game.send_garden_action("growth_ack:"+str(waiting_sequence));return
  preload("res://heart_growth_visuals.gd").hold(game.stage,preload("res://heart_growth_visuals.gd").counts(pending[0],pending,game.stage.heart_unlocked).x)

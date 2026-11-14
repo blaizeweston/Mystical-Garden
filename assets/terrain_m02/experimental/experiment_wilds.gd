@@ -1,0 +1,161 @@
+extends "res://battlefield.gd"
+
+const Terrain = preload("res://assets/terrain_m02/wilds_preview_generation.gd")
+const Surface = preload("res://assets/terrain_m02/wilds_play_surface.gd")
+const Navigation = preload("res://assets/terrain_m02/wilds_combat_navigation.gd")
+const Catalog = preload("res://assets/terrain_m02/terrain_catalog.tres")
+const Campaign = preload("res://campaign.gd")
+const SPACING := 1.75
+const RADIUS := 14
+const REPATH_MS := 70
+
+var generated := {}
+var ground: Surface
+var navigation_graph: Navigation
+var retry_at := 0
+var query_peak_usec := 0
+var query_failures := 0
+
+func configure(site: int, encounter: int, map_seed: int = 0, boss: int = -1, phase: int = 0) -> void:
+	ground = null
+	navigation_graph = null
+	generated = {}
+	if map_seed != 0 and boss < 0 and site in [Campaign.GROVE, Campaign.MIRE, Campaign.HOLLOW]:
+		var floor_number := site * 6 + clampi(encounter, 1, 6)
+		generated = Terrain.build(map_seed, floor_number, RADIUS, SPACING, Catalog, Terrain.Biomes.WINDOWS, true, true, true, true)
+		if not generated.is_empty() and _configure_floor(site, encounter, map_seed):
+			return
+		generated = {}
+		ground = null
+		navigation_graph = null
+	super(site, encounter, map_seed, boss, phase)
+
+func _configure_floor(site: int, encounter: int, map_seed: int) -> bool:
+	var layout: Dictionary = generated.layout
+	ground = Surface.new(generated.cells, layout, SPACING)
+	navigation_graph = Navigation.new(ground)
+	var nodes: Dictionary = layout.trail_network.nodes
+	if not navigation_graph.room_reachable("arrival", "exit_gate"):
+		return false
+	var rooms: Array = layout.combat_rooms
+	if rooms.is_empty():
+		return false
+	spawn_points.clear()
+	for room: String in rooms:
+		if not navigation_graph.room_reachable("arrival", room):
+			return false
+		spawn_points.append(world(nodes[room]))
+	entry = world(nodes.arrival)
+	extraction = entry
+	advance = world(nodes.exit_gate)
+	leader = spawn_points[0]
+	graft = advance
+	cache = entry
+	# Place utility interactions in clear reachable space beside existing rooms.
+	var rooms_by_distance := spawn_points.duplicate()
+	rooms_by_distance.sort_custom(func(a: Vector3, b: Vector3): return a.distance_squared_to(advance) < b.distance_squared_to(advance))
+	for place: Vector3 in rooms_by_distance:
+		if place.distance_to(advance) > 2.1:
+			graft = place
+			break
+	for place: Vector3 in spawn_points:
+		if place.distance_to(entry) > 4.5 and place != graft:
+			cache = place
+			break
+	if graft == advance or cache == entry:
+		return false
+	configured_key = Vector3i(site, encounter, map_seed)
+	boss_kind = -1
+	boss_phase = 0
+	surface = null
+	procedural = true
+	barriers.clear()
+	clearings.assign(spawn_points)
+	links.clear()
+	routes.clear()
+	retry_at = 0
+	query_peak_usec = 0
+	query_failures = 0
+	return true
+
+func floor_distance(position: Vector3) -> float:
+	if ground == null:
+		return super(position)
+	return -ground.Shape.signed_distance(ground.arena, planar(position))
+
+func inside_floor(position: Vector3, clearance: float = 0.0) -> bool:
+	return super(position, clearance) if ground == null else floor_distance(position) > clearance
+
+func occupied(position: Vector3, clearance: float = 0.0) -> bool:
+	return super(position, clearance) if ground == null else not ground.walkable(planar(position), clearance)
+
+func can_spawn(position: Vector3) -> bool:
+	if ground == null:
+		return true
+	var point := planar(position)
+	if not ground.walkable(point, Navigation.RADIUS):
+		return false
+	for room: Vector3 in spawn_points:
+		if room.distance_squared_to(position) <= 16.0 and navigation_graph.traversable(planar(room), point):
+			return true
+	return false
+
+func clear_line(from: Vector3, to: Vector3, clearance: float = 0.0) -> bool:
+	return super(from, to, clearance) if ground == null else ground.clear_line(planar(from), planar(to), clearance)
+
+func slide(from: Vector3, to: Vector3) -> Vector3:
+	return super(from, to) if ground == null else world(ground.slide(planar(from), planar(to - from)))
+
+func dash(from: Vector3, to: Vector3) -> Vector3:
+	return super(from, to) if ground == null else world(ground.travel(planar(from), planar(to)))
+
+func connected() -> bool:
+	return super() if ground == null else navigation_graph.room_reachable("arrival", "exit_gate")
+
+func navigate(from: Vector3, to: Vector3, distance: float, route_id: int = 0) -> Vector3:
+	if ground == null:
+		return super(from, to, distance, route_id)
+	var origin := planar(from)
+	var target := planar(to)
+	var step := origin.move_toward(target, distance)
+	if origin.distance_squared_to(target) <= 9.0 and navigation_graph.traversable(origin, target):
+		routes.erase(route_id)
+		return world(step)
+	var now := Time.get_ticks_msec()
+	var route: Dictionary = routes.get(route_id, {})
+	if (route.is_empty() or (route.target as Vector2).distance_squared_to(target) > 2.25 or route.get("stalled", false)) and now >= retry_at and now >= int(route.get("after", 0)):
+		retry_at = now + REPATH_MS
+		var goal := _pursuit_goal(origin, target)
+		var before := Time.get_ticks_usec()
+		var points := navigation_graph.route(origin, goal) if goal.is_finite() else PackedVector2Array()
+		query_peak_usec = maxi(query_peak_usec, Time.get_ticks_usec() - before)
+		query_failures += int(points.is_empty())
+		route = {"target": target, "points": points, "index": 0, "after": now + (500 if points.is_empty() else 200)}
+		routes[route_id] = route
+	if route.is_empty() or route.points.is_empty():
+		return world(ground.travel(origin, step, Navigation.RADIUS))
+	while route.index < route.points.size() and origin.distance_squared_to(route.points[route.index]) < 0.008:
+		route.index += 1
+	if route.index >= route.points.size():
+		route.stalled = true
+		return from
+	var moved := ground.travel(origin, origin.move_toward(route.points[route.index], distance), Navigation.RADIUS)
+	route.stalled = moved.is_equal_approx(origin)
+	return world(moved)
+
+func _pursuit_goal(origin: Vector2, target: Vector2) -> Vector2:
+	if ground.walkable(target, Navigation.RADIUS):
+		return target
+	var direction := (origin - target).normalized()
+	for radius in [0.8, 1.45]:
+		for angle in [0.0, 0.8, -0.8, 1.6, -1.6, PI]:
+			var near: Vector2 = target + direction.rotated(angle) * radius
+			if ground.walkable(near, Navigation.RADIUS) and ground.clear_line(near, target):
+				return near
+	return Vector2.INF
+
+static func planar(at: Vector3) -> Vector2:
+	return Vector2(at.x, at.z)
+
+static func world(at: Vector2) -> Vector3:
+	return Vector3(at.x, 0, at.y)

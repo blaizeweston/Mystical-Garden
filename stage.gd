@@ -5,6 +5,7 @@ const GardenScenery=preload("res://garden_scenery.gd")
 const Frames = preload("res://weapon_frames.gd")
 const Campaign = preload("res://campaign.gd")
 const Battlefield = preload("res://battlefield.gd")
+const ExperimentalWilds = preload("res://assets/terrain_m02/experimental/experiment_wilds.gd")
 const EncounterConfig=preload("res://encounter_config.gd")
 const PACK_STRIDE := EncounterConfig.PACK_STRIDE
 
@@ -47,6 +48,10 @@ var support_rings: Array[MeshInstance3D] = []
 var support_binds: Array[MeshInstance3D] = []
 var support_hp: Array[int] = []
 var terrain: Node3D
+var experimental_garden: Node3D
+var legacy_garden_base: MeshInstance3D
+var legacy_gate: Node3D
+var legacy_altar: Node3D
 var scenery_materials: Dictionary={}
 var wilderness_base: MeshInstance3D
 var trail: MeshInstance3D
@@ -162,7 +167,7 @@ func _ready() -> void:
 	returning_corruption.hide()
 	build_campaign_scenery()
 	build_tactical_cover()
-	var altar_model := preload("res://garden_visuals.gd").altar(self)
+	legacy_altar = preload("res://garden_visuals.gd").altar(self)
 	graft_altar = preload("res://assets/altar.glb").instantiate() as Node3D
 	add_child(graft_altar)
 	graft_altar.position = WILD_OFFSET + GRAFT_ALTAR
@@ -180,7 +185,7 @@ func _ready() -> void:
 	graft_altar.hide()
 	seed_cache = build_cache_model()
 	seed_cache.hide()
-	marker(ALTAR + Vector3.UP * 1.8, "ALTAR")
+	marker(Vector3.UP * 1.8, "ALTAR", legacy_altar)
 	garden_beds = Node3D.new()
 	add_child(garden_beds)
 	foe = Node3D.new()
@@ -240,7 +245,7 @@ func focus(origin: Vector3, wild: bool, delta: float = 1.0) -> void:
 		$WorldEnvironment.environment.ambient_light_energy=.9 if wild else 1.05
 	var target := origin
 	if not wild:
-		target = garden_camera_target(origin, garden_extent)
+		target = origin if experimental_garden != null else garden_camera_target(origin, garden_extent)
 	var shot: Dictionary=get_meta("garden_growth_camera",{}) if not wild else {}
 	if not shot.is_empty():target=shot.target
 	var desired := target + Vector3(3.3, 14, 14)
@@ -283,6 +288,9 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 	var camera_id:=view_id if view_id>=0 else local_id
 	if players.has(camera_id):
 		var wild: bool = players[camera_id].wild
+		if experimental_garden != null:
+			experimental_garden.visible = not wild
+			terrain.visible = wild
 		var player_position: Vector3 = avatars[camera_id].position - WILD_OFFSET
 		var center: Vector3 = WILD_OFFSET + Vector3(player_position.x,
 			0, player_position.z) if wild else avatars[camera_id].position
@@ -312,7 +320,17 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 	seed_cache.position = WILD_OFFSET + visual_field.cache
 
 	for i in scenery.size():
-		scenery[i].visible = i == site
+		scenery[i].visible = i == site and not _has_experimental_floor()
+	if experimental_garden != null:
+		wilderness_base.visible = bool(players.get(camera_id, {}).get("wild", false)) and not _has_experimental_floor()
+		if _has_experimental_floor():
+			var climate: Dictionary = visual_field.generated.climate
+			$Sun.light_color = climate.sun
+			$Sun.light_energy = climate.sun_energy
+			$WorldEnvironment.environment.ambient_light_color = climate.ambient
+			$WorldEnvironment.environment.ambient_light_energy = climate.ambient_energy
+		else:
+			$WorldEnvironment.environment.ambient_light_color = Color("#9fb4c4")
 	ensure_enemy(foe, foe_model, campaign[18] if campaign.size() > 18 else 0)
 	ensure_finale_form(foe_model,site==Campaign.HEART)
 	preload("res://elite_enemy.gd").decorate(self,foe_model,boss<0 and site!=Campaign.HEART)
@@ -649,6 +667,10 @@ func redraw_terrain(site: int, depth: int, map_seed: int,boss: int=-1,phase: int
 	if visual_field.configured_key!=Vector3i(site,depth,map_seed) or visual_field.boss_kind!=boss or visual_field.boss_phase!=phase: visual_field.configure(site, depth, map_seed,boss,phase)
 	deeper_gate.position = visual_field.advance - DEEPER_GATE
 	graft_altar.position = WILD_OFFSET + visual_field.graft
+	wilderness_base.visible = not _has_experimental_floor()
+	if _has_experimental_floor():
+		preload("res://assets/terrain_m02/experimental/experiment_terrain_view.gd").draw_wilds(terrain, WILD_OFFSET, visual_field.generated, map_seed)
+		return
 	var cover := visual_field.barriers
 	var random := RandomNumberGenerator.new()
 	random.seed = 46213 + map_seed + site * 997 + depth * 127
@@ -684,6 +706,24 @@ func redraw_terrain(site: int, depth: int, map_seed: int,boss: int=-1,phase: int
 	if boss>=0: preload("res://boss_lair_visuals.gd").build(self,terrain,visual_field)
 	preload("res://game_metrics.gd").record("floor_generation",{"seed":map_seed,"biome":site,"depth":depth,"terrain":preload("res://wilds_layout.gd").SIGNATURE,"entry":[visual_field.entry.x,visual_field.entry.z],"exit":[visual_field.advance.x,visual_field.advance.z],"clearings":visual_field.clearings.size(),"walkable_cells":visual_field.surface.cells.size() if visual_field.surface!=null else 0,"milliseconds":(Time.get_ticks_usec()-generation_started)/1000.})
 
+
+func _has_experimental_floor() -> bool:
+	return visual_field is ExperimentalWilds and not visual_field.generated.is_empty()
+
+func gate_position() -> Vector3:
+	return GATE if experimental_garden == null else experimental_garden.landmark("wilds_entrance")
+
+func altar_position() -> Vector3:
+	return ALTAR if experimental_garden == null else experimental_garden.landmark("altar")
+
+func bed_position(index: int) -> Vector3:
+	return PLOTS[index] if experimental_garden == null else experimental_garden.bed_position(index)
+
+func bed_positions() -> Array:
+	return PLOTS if experimental_garden == null else range(active_plots).map(bed_position)
+
+func station_position(id: String) -> Vector3:
+	return HEART_STATIONS.get(id, Vector3.INF) if experimental_garden == null else experimental_garden.station_position(id)
 
 func build_exploration_floor(field: RefCounted, site: int,depth: int=1) -> void:
 	if not field.procedural:
@@ -1079,7 +1119,7 @@ func build_circular_garden() -> ShaderMaterial:
 	soil.bottom_radius = 24.5
 	soil.height = 0.12
 	soil.radial_segments = 96
-	mesh(soil, Vector3(0, -0.30, 0), Color("#322a20"))
+	legacy_garden_base = mesh(soil, Vector3(0, -0.30, 0), Color("#322a20"))
 	var clearing := CylinderMesh.new()
 	clearing.top_radius = 1.0
 	clearing.bottom_radius = 1.0
@@ -1095,6 +1135,7 @@ func build_circular_garden() -> ShaderMaterial:
 
 
 func update_garden(knowledge: int, technologies: int) -> void:
+	if experimental_garden != null: return
 	var radius := garden_radius(knowledge, technologies)
 	garden_extent = preload("res://garden_layout.gd").extent(self,radius)
 	garden_disc.scale = Vector3(radius, 1, radius)
@@ -1158,18 +1199,21 @@ func apply_appearance(actor: Dictionary,look: Array) -> void:
 	preload("res://character_appearance.gd").apply(actor,look)
 
 func build_garden_gateway() -> void:
+	legacy_gate = Node3D.new()
+	add_child(legacy_gate)
 	for side in [-1.0, 1.0]:
 		var trunk := PINE.instantiate() as Node3D
 		natural_materials(trunk)
-		add_child(trunk)
+		legacy_gate.add_child(trunk)
 		trunk.position = GATE + Vector3(side * 1.05, 0, 0)
 		trunk.scale = Vector3(0.65, 0.80, 0.65)
 		trunk.rotation.z = side * 0.20
 		var lamp := sphere(GATE + Vector3(side * 0.85, 1.6, 0), 0.12, Color("#b1c393"))
+		lamp.reparent(legacy_gate, false)
 		(lamp.material_override as StandardMaterial3D).emission_enabled = true
 		(lamp.material_override as StandardMaterial3D).emission = Color("#657c45")
-	garden_portal=build_gate_swirl(self,GATE)
-	marker(GATE + Vector3.UP * 2.7, "WILDS")
+	garden_portal=build_gate_swirl(legacy_gate,GATE)
+	marker(GATE + Vector3.UP * 2.7, "WILDS", legacy_gate)
 
 
 func build_gate_swirl(parent: Node3D,at: Vector3) -> Node3D:
@@ -1211,6 +1255,11 @@ func build_heart_growth() -> Node3D:
 	return preload("res://heart_visuals.gd").build(self,heart_phase)
 
 func update_heart_progress(state: Dictionary) -> void:
+	if experimental_garden != null:
+		heart_unlocked = state.get("unlocked", [])
+		heart_phase = clampi(int(state.get("phase", 0)), 0, 5)
+		experimental_garden.show_heart_stage(heart_phase)
+		return
 	var phase:=clampi(int(get_meta("garden_growth_phase",state.get("phase",0))),0,5)
 	var unlocked: Array=state.get("unlocked",[])
 	if phase!=heart_phase and is_instance_valid(heart_tree):
@@ -1293,9 +1342,11 @@ func update_plots(beds: Array) -> void:
 	for child in garden_beds.get_children():
 		child.free()
 	for i in beds.size():
-		var p: Vector3 = PLOTS[i]
+		var p := bed_position(i)
+		if not p.is_finite(): continue
 		build_garden_plot(p, garden_beds)
 		var bed_group:=garden_beds.get_child(garden_beds.get_child_count()-1)
+		if experimental_garden != null: bed_group.rotation.y = experimental_garden.bed_yaw(i)
 		var bed: Dictionary = beds[i]
 		if Campaign.LEGACY_ENDING_ENABLED and int(bed.get("offshoot",-1))>=0:
 			occupied_offshoots.append(int(bed.offshoot));var sapling=PINE.instantiate();natural_materials(sapling);garden_beds.add_child(sapling);sapling.position=p;sapling.scale=Vector3.ONE*(.45 if int(bed.stage)==3 else .27)

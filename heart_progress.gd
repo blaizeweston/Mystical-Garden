@@ -187,7 +187,7 @@ func complete(owner: RefCounted,id: String) -> void:
 	progress[id]=int(node.research)
 	work[id]=duration(id)
 	if active==id: active=""
-	if node.has("plots"):
+	if node.has("plots") and not owner.get("player_placed_beds"):
 		while owner.plots.size()<int(node.plots): owner.plots.append(owner.empty_plot())
 	mirror(owner)
 	sync_memories(owner)

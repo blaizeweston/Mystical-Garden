@@ -70,6 +70,23 @@ var coop_character: Label
 var character_return_page:=0
 
 func _ready() -> void:
+	var experiment = preload("res://assets/terrain_m02/experimental/experiment_mode.gd")
+	if experiment.requested():
+		if not experiment.verified():
+			var refusal := Label.new()
+			refusal.text = "Experimental terrain requires the isolated development launcher."
+			refusal.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			refusal.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			refusal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			add_child(refusal)
+			set_process(false)
+			set_process_unhandled_key_input(false)
+			return
+		set_meta(&"experimental_terrain", true)
+		guarded_persistence = true
+		import_legacy = false
+		if return_message.is_empty():
+			return_message = "EXPERIMENTAL TERRAIN  ·  Solo  ·  This launch only"
 	if Playtest.retail():
 		import_legacy = false
 		if not Playtest.refusal.is_empty():
@@ -97,7 +114,7 @@ func _ready() -> void:
 		preload("res://title_music.gd").enter.call_deferred(self)
 	settings_dialog=preload("res://settings_panel.gd").new()
 	settings_dialog.developer_context=self
-	settings_dialog.developer_title=true
+	settings_dialog.developer_title = not has_meta(&"experimental_terrain")
 	add_child(settings_dialog)
 	characters.root_path=storage.root_path.path_join("characters")
 	var error := OK
@@ -182,6 +199,7 @@ void fragment() {
 	sidebar.add_child(title_space)
 	for index in 3:
 		var entry:=button(sidebar,["Play","Characters","Co-op"][index],func():show_page(index))
+		entry.visible = index != 2 or not has_meta(&"experimental_terrain")
 		entry.alignment=HORIZONTAL_ALIGNMENT_LEFT
 		entry.toggle_mode=true
 		navigation.append(entry)
@@ -230,6 +248,7 @@ void fragment() {
 	play.add_child(management)
 	host_choice=CheckBox.new()
 	host_choice.text="Host this Garden in co-op"
+	host_choice.visible = not has_meta(&"experimental_terrain")
 	host_choice.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	management.add_child(host_choice)
 	delete_button=button(management,"Delete Garden…",request_delete_save)
@@ -352,6 +371,7 @@ void fragment() {
 			network_dialog.begin(network_address,network_port,true,character_summary(selected_character).name,return_message)
 
 func show_page(index: int) -> void:
+	if index == 2 and has_meta(&"experimental_terrain"): return
 	if index!=1:character_return_page=index
 	for i in pages.size():
 		pages[i].visible=i==index
@@ -426,6 +446,9 @@ func select_slot(slot: int) -> void:
 	new_button.disabled=not content_valid or character.error!=OK or character.active or current.active
 	join_button.disabled=not content_valid or not ready
 	host_choice.disabled=current.active
+	if has_meta(&"experimental_terrain"):
+		continue_button.disabled = true
+		join_button.disabled = true
 	if guarded_persistence:
 		delete_button.disabled = transitioning or current.state != "healthy"
 		new_button.disabled = new_button.disabled or current.state not in ["healthy", "empty"]
@@ -677,12 +700,15 @@ func create_and_launch(confirmed: bool) -> void:
 	launch(false)
 
 func continue_game() -> void:
+	if has_meta(&"experimental_terrain"): return
 	if not continue_button.disabled: launch(false)
 
 func join_game() -> void:
 	if not transitioning and not join_button.disabled: launch(true)
 
 func launch(join: bool) -> void:
+	if join and has_meta(&"experimental_terrain"):
+		return
 	preload("res://diagnostic_journal.gd").event("menu","world_launch",{"join":join,"world_slot":selected,"character_slot":selected_character})
 	if transitioning:
 		return
@@ -868,6 +894,8 @@ func _launch_guarded(join: bool) -> void:
 	game.local_character.path = characters.paths(selected_character).character
 	game.guest_character.path = game.local_character.path
 	game.joined_from_title = join
+	if has_meta(&"experimental_terrain"):
+		game.set_meta(&"experimental_terrain", true)
 	var session_owner := GuardedSession.new()
 	var result := session_owner.start(game, null if join else storage, selected, garden.get("digest", ""), characters, selected_character, profile.digest)
 	if not GuardedSession.completed(result):
@@ -903,5 +931,5 @@ func _launch_guarded(join: bool) -> void:
 	if network_dialog.visible: network_dialog.dismiss()
 	get_tree().current_scene = game
 	preload("res://title_music.gd").set_playing(get_tree(),false)
-	if not join and host_choice.button_pressed: game.host_button.pressed.emit()
+	if not join and host_choice.button_pressed and not has_meta(&"experimental_terrain"): game.host_button.pressed.emit()
 	queue_free()

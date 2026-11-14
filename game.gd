@@ -260,7 +260,12 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	if preload("res://persistence_writer_integration.gd").default_route(get_tree()):
+	if has_meta(&"experimental_terrain") and not preload("res://assets/terrain_m02/experimental/experiment_mode.gd").verified():
+		set_process(false)
+		set_physics_process(false)
+		_refuse_unowned_world.call_deferred()
+		return
+	if has_meta(&"experimental_terrain") or preload("res://persistence_writer_integration.gd").default_route(get_tree()):
 		var owner: Variant = get_meta(Transactions.SESSION, null) if has_meta(Transactions.SESSION) else null
 		if not (owner is GuardedTitleSession) or not owner.authorizes(local_character.path) or (not joined_from_title and not owner.authorizes(progress.path)):
 			set_process(false)
@@ -268,6 +273,10 @@ func _ready() -> void:
 			_refuse_unowned_world.call_deferred()
 			return
 	get_tree().auto_accept_quit = false
+	if has_meta(&"experimental_terrain"):
+		var terrain_experiment = preload("res://assets/terrain_m02/experimental/experiment_garden.gd").new()
+		stage.add_child(terrain_experiment)
+		terrain_experiment.configure(self, stage)
 	toast_until = Time.get_ticks_msec() + 4800
 	if not has_meta("guarded_title_session"):
 		var character_error := local_character.load_profile()
@@ -433,6 +442,8 @@ func build_hud() -> void:
 		if session=="Host":
 			network_dialog.begin_host(network_port,Network.lan_addresses(),"Your Garden",not expedition_active()))
 	join_button=add_button(session_actions,"Join by IP",request_ip_join)
+	host_button.visible = stage.experimental_garden == null
+	join_button.visible = stage.experimental_garden == null
 	leave_button=add_button(session_actions,"Leave Session",func():leave_game("Back in your own Garden."))
 	var exit_row:=HBoxContainer.new()
 	exit_row.add_theme_constant_override("separation",8)
@@ -600,6 +611,7 @@ func add_button(parent: Control, caption: String, action: Callable) -> Button:
 
 
 func host_game(port: int=0) -> Error:
+	if has_meta(&"experimental_terrain"): return ERR_UNAVAILABLE
 	if has_meta(Transactions.SESSION) and (not Transactions.session_writable(self) or not get_meta(Transactions.SESSION).authorizes(progress.path)):
 		status="Hosting requires access to your selected Garden."
 		return ERR_UNAUTHORIZED
@@ -705,6 +717,7 @@ func register_character(identity: String, profile: Dictionary,catalog: Dictionar
 
 
 func join_game(address: String="",port: int=0) -> Error:
+	if has_meta(&"experimental_terrain"): return ERR_UNAVAILABLE
 	if has_meta("developer_garden"):
 		status="The Developer Garden is single-player."
 		return ERR_UNAVAILABLE
@@ -878,11 +891,21 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if stage.experimental_garden != null and event is InputEventMouseMotion:
+		if stage.experimental_garden.placement_input(event): get_viewport().set_input_as_handled()
 	if event is InputEventMouseButton: _unhandled_key_input(event)
 
 func _unhandled_key_input(event: InputEvent) -> void:
+	if stage.experimental_garden != null and stage.experimental_garden.placement_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if get_meta("garden_cinematic_active",false):return
 	if settings_dialog!=null and settings_dialog.visible: return
+	if stage.experimental_garden != null and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_B:
+		if stage.experimental_garden.available_here():
+			stage.experimental_garden.open_development()
+			get_viewport().set_input_as_handled()
+			return
 	mouse_controls.frame(self)
 	if session=="Connecting" or (session=="Guest" and client_details.is_empty()):
 		if event.is_action_pressed("session_menu"): connection_rejected("Connection cancelled. Your character is preserved.")
@@ -1053,7 +1076,7 @@ func _garden_action(id: int, action: String) -> void:
 		var fields:=action.split("_")
 		if fields.size()!=4 or not fields[2].is_valid_int() or not fields[3].is_valid_int(): return
 		var slot:=int(fields[2]);var species:=int(fields[3])
-		if player.wild or slot<0 or slot>=progress.plots.size() or species<0 or species>=Seeds.NAMES.size() or player.pos.distance_to(Stage.PLOTS[slot])>1.65: return
+		if player.wild or slot<0 or slot>=progress.plots.size() or species<0 or species>=Seeds.NAMES.size() or player.pos.distance_to(stage.bed_position(slot))>1.65: return
 		if progress.plots[slot].species>=0 or progress.offshoot_in_bed(slot)>=0 or seed_reserve(player).stock[species]<=0:
 			tell(id,"That bed or seed is no longer available.");show_planting_picker(id,slot);return
 		player.seed_choice=species
@@ -1113,7 +1136,7 @@ func _garden_action(id: int, action: String) -> void:
 		return
 	if action.begins_with("breed_"):
 		var fields := action.split("_")
-		if fields.size() == 3 and fields[1].is_valid_int() and fields[2].is_valid_int() and not player.wild and Stage.ALTAR.distance_to(player.pos) <= 1.65:
+		if fields.size() == 3 and fields[1].is_valid_int() and fields[2].is_valid_int() and not player.wild and stage.altar_position().distance_to(player.pos) <= 1.65:
 			run_seed_experiment(id, player, int(fields[1]), int(fields[2]))
 		else:
 			tell(id, "Crossbreed at the Garden altar.")
@@ -1143,7 +1166,7 @@ func _garden_action(id: int, action: String) -> void:
 			if at_heart(player):
 				awaken_heart(id, player)
 		"destination":
-			if id == HOST and not player.wild and not expedition_active() and Stage.GATE.distance_to(player.pos) <= preload("res://gate_interaction.gd").RANGE:
+			if id == HOST and not player.wild and not expedition_active() and stage.gate_position().distance_to(player.pos) <= preload("res://gate_interaction.gd").RANGE:
 				cycle_destination()
 		"nurture", "harvest_offshoot":
 			return # Retired commands cannot consume materials or reserve a bed.
@@ -1197,7 +1220,7 @@ func _garden_action(id: int, action: String) -> void:
 				if progress.plots[slot].species<0: show_planting_picker(id,slot)
 			elif at_weapon_gate(player):
 				cycle_slot(id, player, "prepared", player.prepared_secondary)
-			elif not player.wild and Stage.ALTAR.distance_to(player.pos) <= 1.65:
+			elif not player.wild and stage.altar_position().distance_to(player.pos) <= 1.65:
 				for step in range(1, Progress.ALTAR_PAIRS.size() + 1):
 					var next := (int(player.experiment) + step) % Progress.ALTAR_PAIRS.size()
 					var pair: Array = Progress.ALTAR_PAIRS[next]
@@ -1205,7 +1228,7 @@ func _garden_action(id: int, action: String) -> void:
 						player.experiment = next
 						break
 		"experiment":
-			if not player.wild and Stage.ALTAR.distance_to(player.pos) <= 1.65:
+			if not player.wild and stage.altar_position().distance_to(player.pos) <= 1.65:
 				run_seed_experiment(id, player, -1, -1, true)
 		"flower":
 			var slot := nearby_plot(player.pos)
@@ -2099,7 +2122,12 @@ func move_player(id: int, direction: Vector2, delta: float) -> void:
 	var guard_speed: float=.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0
 	var desired := bound_position(p.pos + move * WALK_SPEED * guard_speed * (0.6 if Time.get_ticks_msec() < int(p.get("slow_until", 0)) else 1.0) * delta, p.wild)
 	var previous: Vector3=p.pos
-	p.pos = battlefield.slide(p.pos, desired) if p.wild else desired
+	if p.wild:
+		p.pos = battlefield.slide(p.pos, desired)
+	elif stage.experimental_garden != null:
+		p.pos = stage.experimental_garden.slide(previous, desired)
+	else:
+		p.pos = desired
 	p.velocity=(p.pos-previous)/maxf(delta,.001)
 
 
@@ -2109,6 +2137,7 @@ func world_direction(direction: Vector2) -> Vector3:
 
 func bound_position(position_next: Vector3, wild: bool = false) -> Vector3:
 	if not wild:
+		if stage.experimental_garden != null: return position_next
 		var technologies := int(progress.flowering_unlocked) + int(progress.veilcap_discovered) + int(progress.rift_hook_discovered) + progress.heart.clearing_bonus()
 		var radius := Stage.garden_radius(progress.knowledge, technologies) - 0.4
 		var flat := Vector2(position_next.x, position_next.z).limit_length(radius)
@@ -2565,7 +2594,7 @@ func _act(id: int, strike: bool) -> void:
 		p.carried_seeds.append(kind)
 		p.cache_claimed = true
 		tell(id, "Seed found. Extract to keep it.")
-	elif not p.wild and pos.distance_to(Stage.GATE) <= preload("res://gate_interaction.gd").RANGE:
+	elif not p.wild and pos.distance_to(stage.gate_position()) <= preload("res://gate_interaction.gd").RANGE:
 		if destination == Campaign.HEART:
 			tell(id, "Join the finale from the Heart in the Garden.")
 		else:
@@ -2581,7 +2610,7 @@ func _act(id: int, strike: bool) -> void:
 		pass
 	elif at_heart(p):
 		show_heart_tree(id)
-	elif pos.distance_to(Stage.ALTAR) <= 1.65:
+	elif pos.distance_to(stage.altar_position()) <= 1.65:
 		show_garden_altar(id)
 	else:
 		var kind := nearby_plot(pos)
@@ -2599,7 +2628,7 @@ func _act(id: int, strike: bool) -> void:
 func nearby_plot(pos: Vector3) -> int:
 	var count: int = progress.plots.size() if multiplayer.is_server() else client_garden[12].size() / 3
 	for i in count:
-		if pos.distance_to(Stage.PLOTS[i]) <= 1.55:
+		if pos.distance_to(stage.bed_position(i)) <= 1.55:
 			return i
 	return -1
 
@@ -2662,7 +2691,7 @@ func _harvest(id: int, slot: int, effects = null) -> bool:
 		if harvest_roll < preload("res://garden_crop_state.gd").chance(bed,rare_harvest_chance(familiarity)):
 			var rare:=Parts.rare_part(kind)
 			if rare>0: progress.add_parts(rare,1);message+=" Rare harvest: "+Parts.part_name(rare)+"."
-	var play_audio := func(): preload("res://event_audio.gd").emit(self, "crop_harvested", Stage.PLOTS[slot])
+	var play_audio := func(): preload("res://event_audio.gd").emit(self, "crop_harvested", stage.bed_position(slot))
 	if effects == null:
 		save_progress(id, message)
 		play_audio.call()
@@ -3006,7 +3035,7 @@ func return_to_garden(p: Dictionary) -> void:
 	p.graft_floor=0
 	p.erase("graft_message")
 	p.rift_hook = false
-	p.pos = Stage.GATE + Vector3(0, 0, 2.0)
+	p.pos = stage.experimental_garden.return_position() if stage.experimental_garden != null else stage.gate_position() + Vector3(0, 0, 2.0)
 	p.hp = float(p.get("max_hp", MAX_HEALTH))
 	p.slow_until = 0
 	p.hurt_until=0
@@ -3256,7 +3285,8 @@ func reset_encounter() -> void:
 	combat_events.clear()
 	Bosses.prepare(self)
 	# A new floor has independent pathing. Keep the old object intact for abort.
-	if SaveBatch.guarded_active(): battlefield = Battlefield.new()
+	if stage.experimental_garden != null: battlefield = preload("res://assets/terrain_m02/experimental/experiment_wilds.gd").new()
+	elif SaveBatch.guarded_active(): battlefield = Battlefield.new()
 	battlefield.configure(destination, depth, map_seed,boss_kind,boss_phase)
 	pressure_at = 0
 	enemy_haste_until=0
@@ -3280,6 +3310,7 @@ func reset_encounter() -> void:
 	for i in count:
 		var origin: Vector3 = battlefield.spawn_points[i%battlefield.spawn_points.size()] if battlefield.procedural else Stage.SUPPORT_SPAWNS[i%Stage.SUPPORT_SPAWNS.size()]+Vector3.RIGHT*(i/Stage.SUPPORT_SPAWNS.size())*1.8
 		var spawn: Vector3=composition.companion_spawn(self,i) if i==1 and boss_kind<0 and destination!=Campaign.HEART and battlefield.procedural else Vector3.INF
+		if spawn.is_finite() and not _experimental_spawn_reachable(spawn): spawn = Vector3.INF
 		if not spawn.is_finite():spawn=Director.spawn(self,origin,i)
 		if not spawn.is_finite():continue
 		var kind: int=roster[i]
@@ -3309,16 +3340,19 @@ func clear_spawn(position: Vector3) -> Vector3:
 	for shift in [Vector3.ZERO, Vector3.RIGHT * 1.5, Vector3.LEFT * 1.5,
 			Vector3.FORWARD * 1.5, Vector3.BACK * 1.5, Vector3.BACK * 2.7]:
 		var candidate: Vector3 = position + shift
-		if not battlefield.occupied(candidate, Battlefield.CLEARANCE):
+		if not battlefield.occupied(candidate, Battlefield.CLEARANCE) and _experimental_spawn_reachable(candidate):
 			return candidate
 	for radius in range(2, 5):
 		for x in range(-radius, radius + 1):
 			for z in range(-radius, radius + 1):
 				var candidate := position + Vector3(x, 0, z)
 				if absf(candidate.x) <= Stage.WILD_BOUNDS.x and absf(candidate.z) <= Stage.WILD_BOUNDS.y and (
-						not battlefield.occupied(candidate, Battlefield.CLEARANCE)):
+						not battlefield.occupied(candidate, Battlefield.CLEARANCE)) and _experimental_spawn_reachable(candidate):
 					return candidate
 	return position
+
+func _experimental_spawn_reachable(candidate: Vector3) -> bool:
+	return stage.experimental_garden == null or not battlefield.has_method("can_spawn") or battlefield.can_spawn(candidate)
 
 
 func reset_expedition() -> void:
@@ -3680,11 +3714,13 @@ func _process(_delta: float) -> void:
 				skill_label.text += "  ·  Reinforcements in %ds" % campaign_state[11]
 		skill_label.show()
 		session_label.text = "%s  ·  %d player(s)" % [session, players.size()]
+		if stage.experimental_garden != null:
+			session_label.text = "Experimental terrain · Solo" if stage._has_experimental_floor() else "Experimental solo · Legacy floor fallback"
 	else:
 		guide.text = ""
 	if not wild:
 		var garden := garden_snapshot() if multiplayer.is_server() else client_garden
-		var near_gate := Stage.GATE.distance_to(p.get("pos", Vector3.ZERO)) <= preload("res://gate_interaction.gd").RANGE
+		var near_gate := stage.gate_position().distance_to(p.get("pos", Vector3.ZERO)) <= preload("res://gate_interaction.gd").RANGE
 		inventory.text += "\n\nShared parts\nThorn %d  ·  Moss %d  ·  Veilcap %d  ·  Hooks %d" % [
 			garden[5][0], garden[5][1], garden[5][2], garden[8]]
 		inventory.text += "\n\nHeart restoration  ·  Knowledge %d/%d" % [garden[6], Campaign.FULL_KNOWLEDGE]
@@ -3706,13 +3742,14 @@ func _process(_delta: float) -> void:
 			else:
 				var choice := selected_seed(p) if multiplayer.is_server() else int(p.get("seed_choice", 0))
 				guide.text = "Living offshoot · care at the Heart" if int(bed.get("offshoot",-1))>=0 else "E  Choose a seed to plant"
-		elif Stage.ALTAR.distance_to(p.get("pos", Vector3.ZERO)) <= 1.65:
+		elif stage.altar_position().distance_to(p.get("pos", Vector3.ZERO)) <= 1.65:
 			guide.text="E  Altar"
 			detail_label.text="Identify seeds · Combine seeds or plant parts"
 		elif near_gate:
 			guide.text="E  Wilds Gate"
 		elif at_heart(p):
 			guide.text="E  Heart"
+			if stage.experimental_garden != null: guide.text += "   ·   B  Garden development"
 
 	if wild and can_checkpoint_bank(p):
 		detail_label.text+="\nJ · Send one carried find home"
@@ -4142,7 +4179,7 @@ func monster_cargo_limit() -> int:
 func at_garden_station(player: Dictionary,id: String) -> bool:
 	if player.is_empty() or player.get("wild",false) or player.get("fallen",false) or expedition_active() or not travel_kind.is_empty():
 		return false
-	return Stage.HEART_STATIONS.has(id) and heart_state().get("unlocked",[]).has(id) and Stage.HEART_STATIONS[id].distance_to(player.get("pos",Vector3.INF))<=1.8
+	return Stage.HEART_STATIONS.has(id) and heart_state().get("unlocked",[]).has(id) and stage.station_position(id).distance_to(player.get("pos",Vector3.INF))<=1.8
 
 func show_heart_tree(id: int) -> void:
 	if id==HOST:
@@ -4354,7 +4391,7 @@ func consider_recollection() -> void:
 
 
 func at_weapon_gate(player: Dictionary) -> bool:
-	return not player.is_empty() and not player.get("wild",false) and not player.get("fallen",false) and Stage.GATE.distance_to(player.get("pos",Vector3.INF))<=preload("res://gate_interaction.gd").RANGE
+	return not player.is_empty() and not player.get("wild",false) and not player.get("fallen",false) and stage.gate_position().distance_to(player.get("pos",Vector3.INF))<=preload("res://gate_interaction.gd").RANGE
 
 func local_player_id() -> int:
 	return HOST if multiplayer.is_server() else multiplayer.get_unique_id()
@@ -4695,7 +4732,7 @@ func roll_monster_item(kind: int,mask: int=0) -> String:
 
 
 func at_garden_altar(player: Dictionary) -> bool:
-	return not player.is_empty() and not player.get("wild",false) and player.get("pos",Vector3.INF).distance_to(Stage.ALTAR)<=1.65
+	return not player.is_empty() and not player.get("wild",false) and player.get("pos",Vector3.INF).distance_to(stage.altar_position())<=1.65
 
 func build_garden_altar_panel() -> void:
 	altar_menu=hud_panel(overlay,Color("#14262b"),Vector2(20,14))
@@ -4988,7 +5025,7 @@ func build_planting_panel() -> void:
 	planting_menu=hud_panel(overlay,Color("#14262b"),Vector2(20,14));planting_view=preload("res://planting_panel.gd").new();planting_view.game=self;planting_menu.add_child(planting_view)
 func show_planting_picker(id: int,slot: int) -> void:
 	var p: Dictionary=players[id]
-	if p.wild or slot<0 or slot>=progress.plots.size() or p.pos.distance_to(Stage.PLOTS[slot])>1.65 or progress.plots[slot].species>=0 or progress.offshoot_in_bed(slot)>=0: return
+	if p.wild or slot<0 or slot>=progress.plots.size() or p.pos.distance_to(stage.bed_position(slot))>1.65 or progress.plots[slot].species>=0 or progress.offshoot_in_bed(slot)>=0: return
 	var stock: Array=seed_reserve(p).stock.duplicate()
 	if id==HOST: open_planting_picker(slot,stock)
 	else: open_planting_picker.rpc_id(id,slot,stock)
@@ -5028,6 +5065,7 @@ func guest_combat_events(player: Dictionary) -> Array:
 	return result
 
 func request_ip_join() -> void:
+	if stage.experimental_garden != null: return
 	var recent := Network.load_settings(slot_storage_root)
 	network_dialog.begin(recent.address,recent.port,true,str(local_character.data.get("name","Wanderer")))
 

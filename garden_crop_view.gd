@@ -58,7 +58,7 @@ func submit(action: String) -> void:
  last_request=action;waiting_until=Time.get_ticks_msec()+1200
  game.send_garden_action("garden:"+JSON.stringify(request(last_bed,action)))
 func marker(index: int) -> Node3D:
- var root:=Node3D.new();root.name="CropBud%d"%index;game.stage.add_child(root);root.position=game.Stage.PLOTS[index]+Vector3(.28,.72,.08)
+ var root:=Node3D.new();root.name="CropBud%d"%index;game.stage.add_child(root);root.position=game.stage.bed_position(index)+Vector3(.28,.72,.08)
  var surface:=SurfaceTool.new();surface.begin(Mesh.PRIMITIVE_TRIANGLES);var path: Array[Vector3]=[]
  for step in 17:
   var t:=step/16.0;path.append(Vector3(-.12*sin(t*PI),-.45+t*.40,0))
@@ -82,10 +82,11 @@ func _process(_delta: float) -> void:
  for bed in beds:
   var index:=int(bed.slot);present.append(index)
   update_water(bed,p)
-  var visible: bool=not p.get("wild",false) and (bed.get("available",false) or bed.get("preserved",false)) and p.get("pos",Vector3.INF).distance_to(game.Stage.PLOTS[index])<14 and not game.get_meta("garden_cinematic_active",false)
+  var visible: bool=not p.get("wild",false) and (bed.get("available",false) or bed.get("preserved",false)) and p.get("pos",Vector3.INF).distance_to(game.stage.bed_position(index))<14 and not game.get_meta("garden_cinematic_active",false)
   if visible and not markers.has(index):markers[index]=marker(index)
   if markers.has(index):
    var model: Node3D=markers[index];model.visible=visible
+   if game.has_meta(&"experimental_terrain"):model.position=game.stage.bed_position(index)+Vector3(.28,.72,.08)
    var pulse:=1.0+.045*sin(Time.get_ticks_msec()/650.0) if game.app_settings.values.get("ambient_motion",true) else 1.0
    model.scale=Vector3.ONE*pulse*(1.0 if bed.get("preserved",false) else .78)
  for index in markers:
@@ -101,7 +102,7 @@ func _process(_delta: float) -> void:
   if slot>=0 and not game.overlay.visible:game.toggle_overlay(panel)
  if not panel.visible:return
  var matching: Array=beds.filter(func(b):return int(b.slot)==slot)
- if matching.is_empty() or p.pos.distance_to(game.Stage.PLOTS[slot])>1.85:
+ if matching.is_empty() or p.pos.distance_to(game.stage.bed_position(slot))>1.85:
   game.toggle_overlay(null);return
  var bed: Dictionary=matching[0]
  if bed.get("revision",0)!=last_bed.get("revision",-1) or bed.get("stage",0)!=last_bed.get("stage",0):waiting_until=0
@@ -150,7 +151,7 @@ func update_water(bed: Dictionary,player: Dictionary) -> void:
  var index:=int(bed.slot);var wet: bool=bed.get("watered",false)
  var before: Dictionary=water_seen.get(index,{})
  if wet and not wet_marks.has(index):
-  var root:=Node3D.new();root.name="WateredBed%d"%index;game.stage.add_child(root);root.position=game.Stage.PLOTS[index]
+  var root:=Node3D.new();root.name="WateredBed%d"%index;game.stage.add_child(root);root.position=game.stage.bed_position(index)
   var surface:=SurfaceTool.new();surface.begin(Mesh.PRIMITIVE_TRIANGLES);var points: Array[Vector3]=[]
   for step in 49:
    var angle:=step*TAU/48;points.append(Vector3(cos(angle)*.83,.071,sin(angle)*.83))
@@ -162,6 +163,7 @@ func update_water(bed: Dictionary,player: Dictionary) -> void:
   wet_marks[index]=root
  if wet_marks.has(index):
   var root: Node3D=wet_marks[index]
+  if game.has_meta(&"experimental_terrain"):root.position=game.stage.bed_position(index)
   if wet and not before.is_empty() and before.get("cycle")==bed.cycle and not before.get("watered",false):root.set_meta("splash_at",Time.get_ticks_msec())
   root.visible=wet and not player.get("wild",false) and not game.get_meta("garden_cinematic_active",false) and player.get("pos",Vector3.INF).distance_to(root.position)<14
   var time:=float(Time.get_ticks_msec()-int(root.get_meta("splash_at",-10000)))/900.0

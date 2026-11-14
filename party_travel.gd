@@ -21,7 +21,7 @@ static func signature(game: Node,p: Dictionary,kind: String) -> String:
  return str([game.destination,game.encounter_number,game.map_seed,p.frame,p.get("weapon_kind",0),p.prepared,p.prepared_secondary,p.prepared_catalyst,p.cargo_plan,p.character.get("upgrades",[])]) if kind=="depart" else str([game.destination,game.encounter_number,game.map_seed,p.wild,p.fallen])
 
 static func point(game: Node,kind: String) -> Vector3:
- return game.Stage.HEART if kind=="depart" and game.destination==game.Campaign.HEART else game.Stage.GATE if kind=="depart" else game.battlefield.advance
+ return game.Stage.HEART if kind=="depart" and game.destination==game.Campaign.HEART else game.stage.gate_position() if kind=="depart" else game.battlefield.advance
 
 static func validate(game: Node) -> void:
  if game.travel_kind.is_empty(): return

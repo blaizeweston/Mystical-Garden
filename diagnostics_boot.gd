@@ -4,6 +4,8 @@ const Playtest=preload("res://playtest_storage.gd")
 var journal: Logger
 var clock:=0.0
 func _init() -> void:
+ if preload("res://assets/terrain_m02/experimental/experiment_mode.gd").requested():
+  return
  if Playtest.retail():
   Playtest.refusal=Playtest.inspect(Playtest.build())
   if not Playtest.refusal.is_empty():
