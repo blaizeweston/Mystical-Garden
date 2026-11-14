@@ -50,6 +50,26 @@ static func snag() -> ArrayMesh:
 		[0.056, 0.031, 0.002], Color("#664634"))
 	return tool.commit()
 
+static func reclaiming_root(spine: PackedVector2Array, count: int) -> ArrayMesh:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var width := 0.29
+	for strand in 2:
+		var points: Array = []
+		var widths: Array = []
+		for i in count:
+			var at := spine[i]
+			var t := float(i) / (spine.size() - 1)
+			var axis := (spine[mini(i + 1, spine.size() - 1)] - spine[maxi(i - 1, 0)]).normalized()
+			var drift := (1.0 - t) * sin(float(i) * 0.44 + strand * PI)
+			at += axis.orthogonal() * drift * 0.15
+			points.append(Vector3(at.x, -0.065 + (1.0 - t) * 0.17 * sin(0.77 * i + strand), at.y))
+			var radius := width * (1.02 + 0.19 * sin(i * 0.59)) * (1.0 - 0.92 * t)
+			widths.append(radius if i < count - 1 else 0.006)
+		_tube(tool, points, widths, Color("#422c23") if strand == 0 else Color("#513326"))
+		width *= 0.68
+	return tool.commit()
+
 static func _tube(tool: SurfaceTool, points: Array, radii: Array, color: Color) -> void:
 	var rings: Array[PackedVector3Array] = []
 	for i in points.size():

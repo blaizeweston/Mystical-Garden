@@ -15,6 +15,9 @@ uniform bool botanical_mode = false;
 uniform bool wilds_mode = false;
 uniform bool scenic_exterior = false;
 uniform vec3 scenic_cover = vec3(0.0, 1.0, 0.0);
+uniform bool garden_frontier = false;
+uniform sampler2D garden_perimeter : filter_linear, repeat_enable;
+uniform float garden_reveal = 0.0;
 uniform float wilds_moisture = 0.0;
 uniform vec3 wilds_floor : source_color;
 uniform vec3 wilds_water : source_color;
@@ -220,6 +223,18 @@ void fragment() {
 				+ (macro - 0.5) * 3.1 + (patches - 0.5) * 1.4;
 			center = 1.0 - smoothstep(2.0, 11.1, dapple);
 			center = max(center, 0.36 * path_weight);
+		}
+		if (garden_frontier) {
+			float angle = atan(p.y, p.x + 0.00001) / 6.2831853;
+			float count = float(textureSize(garden_perimeter, 0).x);
+			vec3 perimeter = texture(garden_perimeter, vec2(angle + 0.5 / count, 0.5)).rgb;
+			float radius = length(p);
+			float frontier = mix(perimeter.r, perimeter.g, garden_reveal);
+			float fringe = radius + (macro - 0.5) * 1.3 + (patches - 0.5) * 0.46;
+			float interior = 1.0 - smoothstep(frontier - 0.8, frontier + 1.1, fringe);
+			float reclaimed = interior * smoothstep(perimeter.b - 0.9, perimeter.b + 1.2, fringe);
+			dry = mix(dry, mix(meadow, soil, 0.40 * patches), 0.73 * reclaimed * (1.0 - path_weight));
+			center = max(center, 0.72 * interior);
 		}
 		vec3 sheltered = dry * vec3(0.57, 0.64, 0.52);
 		vec3 warmed = dry * vec3(1.00, 0.92, 0.68);

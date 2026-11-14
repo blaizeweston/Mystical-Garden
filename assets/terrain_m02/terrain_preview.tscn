@@ -53,6 +53,10 @@ environment = SubResource("Environment")
 [node name="Ground" type="MeshInstance3D" parent="."]
 cast_shadow = 0
 
+[node name="GardenExterior" type="MeshInstance3D" parent="."]
+visible = false
+cast_shadow = 0
+
 [node name="TreePosition" type="Node3D" parent="."]
 
 [node name="Features" type="Node3D" parent="."]
@@ -232,6 +236,12 @@ layout_mode = 2
 text = "Restart"
 tooltip_text = "Restart this simulated floor"
 
+[node name="GardenGrowthControls" type="HBoxContainer" parent="Interface/Toolbar/Rows"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 10
+
 [node name="Footer" type="PanelContainer" parent="Interface"]
 anchors_preset = 12
 anchor_top = 1.0
@@ -245,6 +255,12 @@ theme_override_styles/panel = SubResource("Footer")
 layout_mode = 2
 
 [node name="EncounterStatus" type="Label" parent="Interface/Footer/Rows"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.85, 0.65, 1)
+
+[node name="GardenGrowthStatus" type="Label" parent="Interface/Footer/Rows"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2

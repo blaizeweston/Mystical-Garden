@@ -12,6 +12,7 @@ const MaterialField = preload("res://assets/terrain_m02/terrain_material_field.g
 const Wilds = preload("res://assets/terrain_m02/wilds_preview_generation.gd")
 const Boundary = preload("res://assets/terrain_m02/wilds_boundary.gd")
 const WalkPreview = preload("res://assets/terrain_m02/wilds_play_preview.gd")
+const ExpansionPreview = preload("res://assets/terrain_m02/garden_expansion_preview.gd")
 const CATALOG = preload("res://assets/terrain_m02/terrain_catalog.tres")
 const PALETTES := [
 	preload("res://assets/terrain_m02/garden_clearing.tres"),
@@ -46,6 +47,8 @@ var scene_garden := true
 var generated_mode := M06C
 var wilds := {}
 var walk_preview: WalkPreview
+var expansion: ExpansionPreview
+var expansion_ground := PlaneMesh.new()
 var scenic_ground: PlaneMesh
 var pan_origin := Vector2.ZERO
 var pan_active := false
@@ -89,6 +92,10 @@ func _ready() -> void:
 	walk_preview.camera = camera
 	walk_preview.fog = %PlayFog
 	walk_preview.readout = %EncounterStatus
+	expansion = ExpansionPreview.new()
+	add_child(expansion)
+	expansion.bind_controls(%GardenGrowthControls, %GardenGrowthStatus, enclosure_view)
+	expansion.camera_changed.connect(_expansion_camera)
 	%PlayFloor.toggled.connect(_play_floor)
 	walk_preview.exit_requested.connect(func(): %PlayFloor.button_pressed = false)
 	%FogLayer.toggled.connect(func(enabled: bool):
@@ -97,6 +104,7 @@ func _ready() -> void:
 	%RestartFloor.pressed.connect(_start_floor)
 	camera.get_viewport().size_changed.connect(func():
 		_resize_exterior()
+		_resize_expansion_ground()
 		if walk_preview.run != null:
 			walk_preview._align_fog())
 	legacy_heart = TREE.instantiate() as Node3D
@@ -187,6 +195,9 @@ func _regenerate() -> void:
 	if walk_preview.run != null:
 		_reset_preview_camera()
 	walk_preview.stop()
+	expansion.clear()
+	$GardenExterior.hide()
+	_reset_preview_camera()
 	var palette = PALETTES[0 if example.selected == 0 else 1]
 	terrain_seed = int(seed_field.value)
 	spacing = SPACINGS[size_choice.selected]
@@ -365,6 +376,7 @@ func _set_render_mode(index: int) -> void:
 	var continuity := index >= M06B
 	var enclosure := index <= 1 or continuity
 	var modern := index == 0 or continuity
+	var garden_growth := index >= M06C and scene_garden
 	if continuity and continuity_layout.is_empty():
 		var radius: int = RADII[map_size.selected]
 		var layout := Features.build(cells, spacing, radius, terrain_seed, scene_garden, true)
@@ -384,8 +396,25 @@ func _set_render_mode(index: int) -> void:
 		feature_view.rebuild(continuity_layout if continuity else botanical_layout, profile, biome)
 	elif index <= 2:
 		feature_view.rebuild(enclosed_layout if enclosure else feature_layout)
-	if enclosure:
+	expansion.show_garden(false)
+	if scene_garden:
+		ground.mesh = compiled.mesh
+	natural_material.set_shader_parameter("scenic_exterior", garden_growth)
+	natural_material.set_shader_parameter("scenic_cover", Vector3(0.10, 0.89, 0.01))
+	natural_material.set_shader_parameter("garden_frontier", garden_growth)
+	if garden_growth:
+		if expansion.state == null:
+			expansion.start(cells, continuity_layout, spacing, terrain_seed, RADII[map_size.selected])
+		var forest := expansion.state.forest_layout()
+		forest["scenic_woodland"] = expansion.state.scenic_woodland()
+		enclosure_view.rebuild(forest, true, profile, biome, true)
+		expansion.attach_material(natural_material)
+		expansion.show_garden(true)
+		_resize_expansion_ground()
+		$GardenExterior.material_override = natural_material
+	elif enclosure:
 		enclosure_view.rebuild(continuity_layout if continuity else enclosed_layout, scene_garden, profile, biome, continuity)
+	$GardenExterior.visible = garden_growth
 	legacy_heart.visible = not modern
 	botanical_heart.visible = modern and not continuity
 	growing_heart.set_sculpt(index >= M06C and scene_garden)
@@ -428,6 +457,23 @@ func _sync_layers() -> void:
 	feature_view.rocks.visible = %RockLayer.button_pressed
 	feature_view.massing.visible = %RockLayer.button_pressed
 	feature_view.crossings.visible = %PathLayer.button_pressed
+	$GardenExterior.visible = expansion.visible and scene_garden
+	if $GardenExterior.visible:
+		# Keep the original mesh available for historical render comparisons.
+		ground.hide()
+
+func _resize_expansion_ground() -> void:
+	if expansion.state == null:
+		return
+	var extent := Boundary.exterior_extent(RADII[map_size.selected], spacing, get_viewport().get_visible_rect().size)
+	expansion_ground.size = Vector2.ONE * 2.0 * (extent + ExpansionPreview.MAX_ZOOM)
+	$GardenExterior.mesh = expansion_ground
+
+func _expansion_camera(focus: Vector2, size: float) -> void:
+	var target := Vector3(focus.x, 0, focus.y)
+	camera.position = target + CAMERA_OFFSET
+	camera.look_at(target)
+	camera.size = size
 
 func _set_overlay(enabled: bool) -> void:
 	debug.visible = enabled and not cells.is_empty() and walk_preview.run == null
@@ -449,6 +495,9 @@ func _input(event: InputEvent) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if is_instance_valid(walk_preview) and walk_preview.run != null and walk_preview.allow_camera_control:
 		_play_camera_input(event)
+		return
+	if expansion.visible and _expansion_input(event):
+		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouseButton and event.pressed and scenic_ground != null:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
@@ -491,6 +540,32 @@ func _play_camera_input(event: InputEvent) -> void:
 	else:
 		return
 	get_viewport().set_input_as_handled()
+
+func _expansion_input(event: InputEvent) -> bool:
+	if event is InputEventKey and event.pressed and event.physical_keycode == KEY_ESCAPE and expansion.active:
+		expansion.set_active(false)
+		return true
+	if event is InputEventMouseButton:
+		if event.pressed and event.button_index == MOUSE_BUTTON_LEFT and expansion.active:
+			var at := _ground_point(event.position)
+			expansion.click_frontier(Vector2(at.x, at.z))
+			return true
+		if event.button_index == MOUSE_BUTTON_MIDDLE:
+			pan_active = event.pressed
+			var at := _ground_point(event.position)
+			pan_origin = Vector2(at.x, at.z)
+			return true
+		if event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+			var factor := 0.8 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.25
+			expansion.set_camera(expansion.focus, camera.size * factor)
+			return true
+	if event is InputEventMouseMotion and pan_active and Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
+		var at := _ground_point(event.position)
+		expansion.set_camera(expansion.focus + pan_origin - Vector2(at.x, at.z), camera.size)
+		at = _ground_point(event.position)
+		pan_origin = Vector2(at.x, at.z)
+		return true
+	return false
 
 func _ground_point(screen: Vector2) -> Vector3:
 	var origin := camera.project_ray_origin(screen)

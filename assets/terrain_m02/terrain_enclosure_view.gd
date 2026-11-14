@@ -6,8 +6,10 @@ var snag: ArrayMesh
 var forest_material: StandardMaterial3D
 var amber_material: StandardMaterial3D
 var botanical_canopies := {}
+var frontier_instances: Array[Dictionary] = []
 
 func rebuild(layout: Dictionary, garden: bool, profile: Dictionary = {}, biome: int = 0, living_heart: bool = false) -> void:
+	frontier_instances.clear()
 	for child in get_children():
 		child.free()
 	if trees.is_empty():
@@ -38,16 +40,26 @@ func rebuild(layout: Dictionary, garden: bool, profile: Dictionary = {}, biome: 
 		enclosing = botanical_canopies[biome]
 	for variant in enclosing.size():
 		var transforms: Array[Transform3D] = []
+		var sectors: Array[int] = []
 		for trunk in layout.enclosure:
 			if trunk.variant != variant:
 				continue
 			var scale := Vector3(trunk.crown * 2.4, trunk.height, trunk.crown * 2.4)
 			transforms.append(_pose(trunk.at, trunk.yaw, scale))
-		_batch(enclosing[variant], transforms)
+			sectors.append(trunk.get("sector", -1) if layout.get("movable_rim", false) else -1)
+		_batch(enclosing[variant], transforms, sectors)
+		var distant: Array[Transform3D] = []
+		for trunk in layout.get("scenic_woodland", []):
+			if trunk.variant == variant:
+				distant.append(_pose(trunk.at, trunk.yaw,
+					Vector3(trunk.crown * 2.4, trunk.height, trunk.crown * 2.4)))
+		_batch(enclosing[variant], distant)
 	var deadwood: Array[Transform3D] = []
 	var sparks: Array[Transform3D] = []
+	var accent_sectors: Array[int] = []
 	for accent in layout.accents:
 		deadwood.append(_pose(accent.at, accent.yaw, Vector3.ONE * accent.size))
+		accent_sectors.append(accent.get("sector", -1) if layout.get("movable_rim", false) else -1)
 		if garden:
 			sparks.append(_pose(accent.at, accent.yaw, Vector3(0.18, 0.26, 0.18), 0.33 * accent.size))
 	if garden and not living_heart:
@@ -56,7 +68,7 @@ func rebuild(layout: Dictionary, garden: bool, profile: Dictionary = {}, biome: 
 			var offset := Vector2.from_angle(angle) * (1.24 + 0.32 * sin(i * 4.0))
 			deadwood.append(_pose(offset, -angle, Vector3(1.0, 0.45, 1.0)))
 		sparks.append(_pose(Vector2(0.27, 0.74), 0.0, Vector3(0.34, 0.43, 0.30), 0.34))
-	_batch(snag, deadwood)
+	_batch(snag, deadwood, accent_sectors)
 	if not garden and not profile.is_empty():
 		var accent_material := StandardMaterial3D.new()
 		accent_material.albedo_color = profile.accent
@@ -80,12 +92,12 @@ func rebuild(layout: Dictionary, garden: bool, profile: Dictionary = {}, biome: 
 		ember.radial_segments = 7
 		ember.rings = 4
 		ember.material = amber_material
-		_batch(ember, sparks)
+		_batch(ember, sparks, accent_sectors)
 
 func _pose(at: Vector2, yaw: float, scale: Vector3, y: float = 0.0) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, yaw).scaled_local(scale), Vector3(at.x, y, at.y))
 
-func _batch(mesh: Mesh, transforms: Array[Transform3D]) -> void:
+func _batch(mesh: Mesh, transforms: Array[Transform3D], sectors: Array[int] = []) -> void:
 	if transforms.is_empty():
 		return
 	var batch := MultiMesh.new()
@@ -97,3 +109,20 @@ func _batch(mesh: Mesh, transforms: Array[Transform3D]) -> void:
 	var node := MultiMeshInstance3D.new()
 	node.multimesh = batch
 	add_child(node)
+	for i in sectors.size():
+		if sectors[i] < 0:
+			continue
+		var direction := transforms[i].origin
+		direction.y = 0.0
+		frontier_instances.append({"batch": batch, "instance": i, "sector": sectors[i],
+			"local": transforms[i], "direction": direction.normalized(), "last_distance": -1.0})
+
+func position_frontier(from: PackedFloat32Array, to: PackedFloat32Array, progress: float) -> void:
+	for item in frontier_instances:
+		var distance := lerpf(from[item.sector], to[item.sector], progress)
+		if is_equal_approx(distance, item.last_distance):
+			continue
+		item.last_distance = distance
+		var transform: Transform3D = item.local
+		transform.origin += item.direction * distance
+		item.batch.set_instance_transform(item.instance, transform)
