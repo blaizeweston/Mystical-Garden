@@ -1766,6 +1766,11 @@
     ]
   },
   "suites": {
+    "terrain_botanical_art": {
+      "kind": "unit",
+      "systems": ["hex_terrain"],
+      "package": false
+    },
     "terrain_enclosure": {
       "kind": "unit",
       "systems": ["hex_terrain"],

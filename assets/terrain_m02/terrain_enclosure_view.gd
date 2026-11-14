@@ -5,8 +5,9 @@ var trees: Array[ArrayMesh] = []
 var snag: ArrayMesh
 var forest_material: StandardMaterial3D
 var amber_material: StandardMaterial3D
+var botanical_canopies := {}
 
-func rebuild(layout: Dictionary, garden: bool) -> void:
+func rebuild(layout: Dictionary, garden: bool, profile: Dictionary = {}, biome: int = 0) -> void:
 	for child in get_children():
 		child.free()
 	if trees.is_empty():
@@ -25,14 +26,24 @@ func rebuild(layout: Dictionary, garden: bool) -> void:
 		amber_material.emission_enabled = true
 		amber_material.emission = Color("#d45231")
 		amber_material.emission_energy_multiplier = 0.55
-	for variant in trees.size():
+	var enclosing := trees
+	if not profile.is_empty():
+		if not botanical_canopies.has(biome):
+			var choices: Array[ArrayMesh] = []
+			for variant in 4:
+				var mesh := Meshes.botanical(variant, "canopy", profile, biome)
+				mesh.surface_set_material(0, forest_material)
+				choices.append(mesh)
+			botanical_canopies[biome] = choices
+		enclosing = botanical_canopies[biome]
+	for variant in enclosing.size():
 		var transforms: Array[Transform3D] = []
 		for trunk in layout.enclosure:
 			if trunk.variant != variant:
 				continue
 			var scale := Vector3(trunk.crown * 2.4, trunk.height, trunk.crown * 2.4)
 			transforms.append(_pose(trunk.at, trunk.yaw, scale))
-		_batch(trees[variant], transforms)
+		_batch(enclosing[variant], transforms)
 	var deadwood: Array[Transform3D] = []
 	var sparks: Array[Transform3D] = []
 	for accent in layout.accents:
@@ -40,12 +51,28 @@ func rebuild(layout: Dictionary, garden: bool) -> void:
 		if garden:
 			sparks.append(_pose(accent.at, accent.yaw, Vector3(0.18, 0.26, 0.18), 0.33 * accent.size))
 	if garden:
-		for i in 7:
+		for i in (4 if not profile.is_empty() else 7):
 			var angle := TAU * i / 7.0
 			var offset := Vector2.from_angle(angle) * (1.24 + 0.32 * sin(i * 4.0))
 			deadwood.append(_pose(offset, -angle, Vector3(1.0, 0.45, 1.0)))
 		sparks.append(_pose(Vector2(0.27, 0.74), 0.0, Vector3(0.34, 0.43, 0.30), 0.34))
 	_batch(snag, deadwood)
+	if not garden and not profile.is_empty():
+		var accent_material := StandardMaterial3D.new()
+		accent_material.albedo_color = profile.accent
+		accent_material.roughness = 0.76
+		var seedpod := SphereMesh.new()
+		seedpod.radius = 0.5
+		seedpod.height = 1.0
+		seedpod.radial_segments = 5
+		seedpod.rings = 3
+		seedpod.material = accent_material
+		var pods: Array[Transform3D] = []
+		for accent in layout.accents:
+			if biome != 2 and pods.size() > 0:
+				break
+			pods.append(_pose(accent.at, accent.yaw, Vector3(0.18, 0.28, 0.18), 0.29 * accent.size))
+		_batch(seedpod, pods)
 	if not sparks.is_empty():
 		var ember := SphereMesh.new()
 		ember.radius = 0.5

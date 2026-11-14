@@ -130,11 +130,6 @@ text = "Spacing"
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Overlay" type="CheckButton" parent="Interface/Toolbar/Rows/Controls"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Hex debug"
-
 [node name="Rendering" type="OptionButton" parent="Interface/Toolbar/Rows/Controls"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -148,6 +143,11 @@ tooltip_text = "Switch between the reference map and a larger terrain disk"
 [node name="Layers" type="HBoxContainer" parent="Interface/Toolbar/Rows"]
 layout_mode = 2
 theme_override_constants/separation = 13
+
+[node name="Overlay" type="CheckButton" parent="Interface/Toolbar/Rows/Layers"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Hex debug"
 
 [node name="GroundLayer" type="CheckButton" parent="Interface/Toolbar/Rows/Layers"]
 unique_name_in_owner = true
@@ -190,6 +190,12 @@ theme_override_styles/panel = SubResource("Footer")
 
 [node name="Rows" type="VBoxContainer" parent="Interface/Footer"]
 layout_mode = 2
+
+[node name="ArtNote" type="Label" parent="Interface/Footer/Rows"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.87, 0.79, 0.63, 1)
+theme_override_font_sizes/font_size = 13
 
 [node name="Detail" type="Label" parent="Interface/Footer/Rows"]
 unique_name_in_owner = true

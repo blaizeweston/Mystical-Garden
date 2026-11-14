@@ -80,11 +80,11 @@ func _preview() -> void:
 	var vegetation := scene.get_node("%VegetationLayer") as CheckButton
 	var mesh := (scene.get_node("Ground") as MeshInstance3D).mesh
 	var digest := Enclosure.digest(scene.enclosed_layout)
-	for mode in [1, 2, 3, 0]:
+	for mode in [1, 2, 3, 4, 0]:
 		selector.select(mode)
 		selector.item_selected.emit(mode)
-		check(scene.enclosure_view.visible == (mode == 0), "only M05 reveals the enclosure")
-		check(scene.feature_view.visible == (mode <= 1), "M04 and M05 share feature visibility controls")
+		check(scene.enclosure_view.visible == (mode <= 1), "M05 and M06 reveal the enclosure")
+		check(scene.feature_view.visible == (mode <= 2), "M04 onwards share feature visibility controls")
 		check(Enclosure.digest(scene.enclosed_layout) == digest and scene.get_node("Ground").mesh == mesh,
 			"switching comparison modes preserves shared data")
 	vegetation.button_pressed = false

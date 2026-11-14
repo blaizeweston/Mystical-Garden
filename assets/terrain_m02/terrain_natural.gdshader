@@ -11,6 +11,9 @@ uniform vec2 feature_size;
 uniform float feature_range;
 uniform bool feature_mode = false;
 uniform int art_mode = 0;
+uniform bool botanical_mode = false;
+uniform vec3 botanical_ground : source_color;
+uniform vec3 botanical_water : source_color;
 uniform bool show_water = true;
 uniform bool show_paths = true;
 uniform bool show_ground = true;
@@ -194,6 +197,10 @@ void fragment() {
 		dry *= mix(vec3(0.45, 0.54, 0.47), vec3(0.84, 0.83, 0.66),
 			clamp(waylight + 0.54 * canopies + 0.20 * land.w, 0.0, 1.0));
 		water_surface *= vec3(0.56, 0.68, 0.59);
+	}
+	if (botanical_mode) {
+		dry *= mix(vec3(1.0), botanical_ground, 0.40 - 0.16 * path_weight);
+		water_surface *= mix(vec3(1.0), botanical_water, 0.40);
 	}
 	ALBEDO = mix(dry, water_surface, cover);
 

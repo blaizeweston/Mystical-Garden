@@ -1,6 +1,7 @@
 extends Node3D
 ## One MultiMesh per repeated asset variant. Collision stays outside the preview.
 
+const RootMeshes = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
 const TREE := preload("res://assets/root_tree.glb")
 const FERNS := preload("res://assets/garden/field/fern_02.glb")
 const GRASS := preload("res://assets/garden/field/grass_medium_01.glb")
@@ -10,6 +11,8 @@ const GRASS_MASK := preload("res://assets/garden/field/grass_opacity.png")
 const FERN_MASK := preload("res://assets/garden/field/fern_opacity.png")
 
 var variants := {}
+var botanical_variants := {}
+var botanical_material: StandardMaterial3D
 var bridge_material: StandardMaterial3D
 var vegetation: Node3D
 var rocks: Node3D
@@ -26,15 +29,21 @@ func _group(label: String) -> Node3D:
 	add_child(group)
 	return group
 
-func rebuild(layout: Dictionary) -> Dictionary:
-	if variants.is_empty():
-		_load_variants()
+func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0) -> Dictionary:
+	var assets := variants
+	if profile.is_empty():
+		if variants.is_empty():
+			_load_variants()
+	else:
+		if not botanical_variants.has(biome):
+			botanical_variants[biome] = _make_botanicals(profile, biome)
+		assets = botanical_variants[biome]
 	for group in [vegetation, rocks, crossings]:
 		for child in group.get_children():
 			child.free()
 	var batches := {}
 	for plant in layout.plants:
-		var options: Array = variants[plant.kind]
+		var options: Array = assets[plant.kind]
 		var asset: Dictionary = options[plant.variant % options.size()]
 		var height: float = plant.height
 		var basis := Basis(Vector3.UP, plant.yaw).scaled(Vector3.ONE * height / asset.bounds.size.y)
@@ -42,7 +51,7 @@ func rebuild(layout: Dictionary) -> Dictionary:
 			basis = basis.scaled(Vector3(1.32, 0.9, 1.32))
 		_append(batches, asset, basis, plant.center, plant.tint)
 	for prop in layout.rocks:
-		var available: Array = variants.rock
+		var available: Array = assets.rock
 		var asset: Dictionary = available[prop.variant % available.size()]
 		var size: Vector3 = asset.bounds.size
 		# Half the bounding box diagonal makes the logical disk conservative at any yaw.
@@ -57,6 +66,32 @@ func rebuild(layout: Dictionary) -> Dictionary:
 			_bridge(crossing.bridge)
 	return {"plant_instances": layout.plants.size(), "rock_instances": layout.rocks.size(),
 		"instance_batches": batches.size()}
+
+func _make_botanicals(profile: Dictionary, biome: int) -> Dictionary:
+	if botanical_material == null:
+		botanical_material = StandardMaterial3D.new()
+		botanical_material.vertex_color_use_as_albedo = true
+		botanical_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		botanical_material.roughness = 0.96
+	var result := {}
+	var kinds := ["tree", "sapling", "shrub", "fern", "grass", "rock"]
+	if biome == 3:
+		kinds.append("wine_fern")
+	for kind in kinds:
+		var options: Array[Dictionary] = []
+		for i in (4 if kind == "rock" else 3):
+			var mesh: ArrayMesh
+			match kind:
+				"tree", "sapling": mesh = RootMeshes.botanical(i, kind, profile, biome)
+				"rock": mesh = RootMeshes.basalt(i, profile)
+				_: mesh = RootMeshes.understory(kind, i, profile)
+			mesh.surface_set_material(0, botanical_material)
+			var key: String = ("rock_botanical_" if kind == "rock" else "botanical_" + kind + "_") + str(i)
+			var entry := _entry(key, mesh, null)
+			entry["ground_cover"] = kind in ["shrub", "fern", "wine_fern", "grass"]
+			options.append(entry)
+		result[kind] = options
+	return result
 
 func _load_variants() -> void:
 	var trees := _meshes(TREE)
@@ -112,9 +147,10 @@ func _batch(parent: Node3D, data: Dictionary) -> void:
 		if instances.use_colors:
 			instances.set_instance_color(i, data.colors[i])
 	var model := MultiMeshInstance3D.new()
+	model.set_meta("asset_key", data.asset.key)
 	model.multimesh = instances
 	model.material_override = data.asset.material
-	if data.asset.material != null:
+	if data.asset.material != null or data.asset.get("ground_cover", false):
 		model.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# A fixed preview-wide AABB avoids per-instance culling updates on regeneration.
 	model.custom_aabb = AABB(Vector3(-65, -1, -65), Vector3(130, 10, 130))

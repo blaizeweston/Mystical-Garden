@@ -155,10 +155,10 @@ func _scene() -> void:
 		and not scene.natural_material.get_shader_parameter("show_water")
 		and not scene.natural_material.get_shader_parameter("show_paths"), "material layer toggles apply")
 	var selector: OptionButton = scene.get_node("%Rendering")
-	for mode in [2, 3, 1, 0]:
+	for mode in [3, 4, 2, 1, 0]:
 		selector.select(mode)
 		selector.item_selected.emit(mode)
 		check(Layout.digest(scene.feature_layout) == digest and scene.get_node("Ground").mesh == mesh,
 			"comparison and toggles preserve shared geometry and logical features")
-		check(scene.feature_view.visible == (mode <= 1), "older presentation hides feature instances")
+		check(scene.feature_view.visible == (mode <= 2), "older presentation hides feature instances")
 	scene.free()

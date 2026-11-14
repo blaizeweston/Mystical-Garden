@@ -3,6 +3,8 @@ extends Node3D
 const Generator = preload("res://assets/terrain_m02/terrain_generator.gd")
 const Compiler = preload("res://assets/terrain_m02/terrain_mesh.gd")
 const Features = preload("res://assets/terrain_m02/terrain_feature_layout.gd")
+const ArtDirection = preload("res://assets/terrain_m02/terrain_art_direction.gd")
+const RootMeshes = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
 const Enclosure = preload("res://assets/terrain_m02/terrain_enclosure.gd")
 const FeatureMask = preload("res://assets/terrain_m02/terrain_feature_mask.gd")
 const MaterialField = preload("res://assets/terrain_m02/terrain_material_field.gd")
@@ -12,7 +14,7 @@ const PALETTES := [
 	preload("res://assets/terrain_m02/wilds_riverwood.tres"),
 ]
 const TREE = preload("res://assets/root_tree.glb")
-const DEFAULT_SEEDS := [117, 241]
+const DEFAULT_SEEDS := [117, 241, 517, 823]
 const SPACINGS := [1.50, 1.75, 2.00]
 const RADII := [14, 28]
 const CAMERA_OFFSET := Vector3(3.3, 14.0, 14.0)
@@ -28,6 +30,9 @@ var natural_material: ShaderMaterial
 var feature_layout := {}
 var enclosed_layout := {}
 var scene_garden := true
+var botanical_layout := {}
+var legacy_heart: Node3D
+var botanical_heart: MeshInstance3D
 
 @onready var enclosure_view := $Enclosure
 @onready var sun: DirectionalLight3D = $Sun
@@ -48,20 +53,31 @@ var scene_garden := true
 @onready var overlay: CheckButton = %Overlay
 @onready var status: Label = %Status
 @onready var detail: Label = %Detail
+@onready var art_note: Label = %ArtNote
 
 func _ready() -> void:
 	camera.position = CAMERA_OFFSET
 	camera.look_at(Vector3.ZERO)
 	camera.size = CAMERA_SIZE
-	var model := TREE.instantiate() as Node3D
-	tree.add_child(model)
-	model.scale = Vector3.ONE * 0.86
-	for palette in PALETTES:
-		example.add_item(palette.display_name)
+	legacy_heart = TREE.instantiate() as Node3D
+	tree.add_child(legacy_heart)
+	legacy_heart.scale = Vector3.ONE * 0.86
+	botanical_heart = MeshInstance3D.new()
+	botanical_heart.mesh = RootMeshes.botanical(6, "heart", ArtDirection.profile(0), 0)
+	var heart_bark := StandardMaterial3D.new()
+	heart_bark.vertex_color_use_as_albedo = true
+	heart_bark.cull_mode = BaseMaterial3D.CULL_DISABLED
+	heart_bark.roughness = 0.94
+	botanical_heart.material_override = heart_bark
+	botanical_heart.scale = Vector3(4.32, 4.65, 4.32)
+	tree.add_child(botanical_heart)
+	for profile in ArtDirection.PROFILES:
+		example.add_item(profile.label)
 	for size in SPACINGS:
 		size_choice.add_item("%.2f u" % size)
 	example.select(0)
 	size_choice.select(1)
+	render_mode.add_item("M06")
 	render_mode.add_item("M05")
 	render_mode.add_item("M04")
 	render_mode.add_item("M03")
@@ -97,7 +113,7 @@ func _next_seed() -> void:
 	_regenerate()
 
 func _regenerate() -> void:
-	var palette = PALETTES[example.selected]
+	var palette = PALETTES[0 if example.selected == 0 else 1]
 	var seed_value := int(seed_field.value)
 	spacing = SPACINGS[size_choice.selected]
 	var started := Time.get_ticks_usec()
@@ -111,6 +127,7 @@ func _regenerate() -> void:
 	feature_layout = Features.build(cells, spacing, RADII[map_size.selected], seed_value, palette.tree_at_origin)
 	scene_garden = palette.tree_at_origin
 	enclosed_layout = Enclosure.build(feature_layout, cells, spacing, seed_value, scene_garden)
+	botanical_layout = ArtDirection.placements(enclosed_layout, example.selected)
 	var features_built := Time.get_ticks_usec()
 	var feature_atlas := FeatureMask.bake(feature_layout, spacing, RADII[map_size.selected])
 	FeatureMask.bind(natural_material, feature_atlas)
@@ -136,18 +153,34 @@ func _regenerate() -> void:
 		"digest": Generator.digest(cells, palette.id, seed_value)}
 	status.text = "%d cells  ·  %d plants  ·  %d rocks  ·  %.1f ms rebuild" % [
 		metrics.cells, metrics.plants + metrics.enclosure, metrics.rocks, (view_built - started) / 1000.0]
-	print("M05_TERRAIN ", JSON.stringify(metrics))
+	print("M06_TERRAIN ", JSON.stringify(metrics))
 
 func _set_render_mode(index: int) -> void:
-	var enclosure := index == 0
-	ground.material_override = natural_material if index != 3 else null
-	natural_material.set_shader_parameter("feature_mode", index <= 1)
+	var enclosure := index <= 1
+	var modern := index == 0
+	var biome := example.selected
+	var profile := ArtDirection.profile(biome) if modern else {}
+	ground.material_override = natural_material if index != 4 else null
+	natural_material.set_shader_parameter("feature_mode", index <= 2)
 	natural_material.set_shader_parameter("art_mode", (1 if scene_garden else 2) if enclosure else 0)
-	if index <= 1:
+	natural_material.set_shader_parameter("botanical_mode", modern)
+	if modern:
+		natural_material.set_shader_parameter("botanical_ground", profile.ground)
+		natural_material.set_shader_parameter("botanical_water", profile.water)
+		feature_view.rebuild(botanical_layout, profile, biome)
+	elif index <= 2:
 		feature_view.rebuild(enclosed_layout if enclosure else feature_layout)
 	if enclosure:
-		enclosure_view.rebuild(enclosed_layout, scene_garden)
+		enclosure_view.rebuild(enclosed_layout, scene_garden, profile, biome)
+	legacy_heart.visible = not modern
+	botanical_heart.visible = modern
 	_light(enclosure)
+	if modern:
+		sun.light_color = profile.sun
+		environment.ambient_light_color = profile.ambient
+		art_note.text = profile.note
+	else:
+		art_note.text = ""
 	_sync_layers()
 
 func _light(enclosure: bool) -> void:
@@ -159,9 +192,9 @@ func _light(enclosure: bool) -> void:
 	hearth.visible = enclosure and scene_garden and %GroundLayer.button_pressed
 
 func _sync_layers() -> void:
-	var feature_mode := render_mode.selected <= 1
-	enclosure_view.visible = render_mode.selected == 0 and %VegetationLayer.button_pressed
-	hearth.visible = render_mode.selected == 0 and scene_garden and %GroundLayer.button_pressed
+	var feature_mode := render_mode.selected <= 2
+	enclosure_view.visible = render_mode.selected <= 1 and %VegetationLayer.button_pressed
+	hearth.visible = render_mode.selected <= 1 and scene_garden and %GroundLayer.button_pressed
 	ground.visible = feature_mode or %GroundLayer.button_pressed
 	natural_material.set_shader_parameter("show_ground", not feature_mode or %GroundLayer.button_pressed)
 	natural_material.set_shader_parameter("show_water", %WaterLayer.button_pressed)
