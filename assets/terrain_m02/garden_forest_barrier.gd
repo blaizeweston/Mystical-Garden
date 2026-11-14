@@ -18,9 +18,11 @@ var sections: Array[Dictionary] = []
 var parts: Array[ArrayMesh] = []
 var bark: StandardMaterial3D
 var buildings: Array = []
+var construction: Array = []
 
 func bind(state: Garden) -> void:
 	garden = state
+	construction = []
 	buildings = [Shape.disk("heart_trunk", "trunk", Vector2.ZERO, 1.0)]
 	for id: String in state.landmarks:
 		if id not in ["heart", "wilds_entrance"]:
@@ -113,6 +115,9 @@ func _radial_vertices(outline: PackedVector2Array) -> PackedVector2Array:
 	return points
 
 func walkable(at: Vector2, radius: float = 0.34) -> bool:
+	return fixed_walkable(at, radius) and not Shape.in_any(construction, at, radius)
+
+func fixed_walkable(at: Vector2, radius: float = 0.34) -> bool:
 	return (Shape.polygon_distance(visible_outline, at, radius + 0.03) < -radius
 		and not Shape.in_any(garden.layout.water, at, radius)
 		and not Shape.in_any(garden.occupied, at, radius)

@@ -1766,6 +1766,11 @@
     ]
   },
   "suites": {
+    "garden_construction": {
+      "kind": "unit",
+      "systems": ["hex_terrain"],
+      "package": false
+    },
     "garden_expansion": {
       "kind": "unit",
       "systems": ["hex_terrain"],

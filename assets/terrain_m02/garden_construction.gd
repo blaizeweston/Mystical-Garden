@@ -1,0 +1,302 @@
+extends RefCounted
+## The preview owns these records for the lifetime of an individual Garden.
+
+const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
+const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
+const Forest = preload("res://assets/terrain_m02/garden_forest_barrier.gd")
+const WALK_RADIUS := 0.34
+const STEP := 0.47
+const MARGIN := 0.045
+const THICKET_RADIUS := 0.60
+const CATALOG := {
+	"bed": {"name": "Cultivation bed", "art": "starter_bed", "half": Vector2(1.00, 0.73)},
+	"study": {"name": "Field study", "art": "monster_studies", "half": Vector2(0.97, 0.98)},
+	"archive": {"name": "Seed cache", "art": "seed_archive", "half": Vector2(0.97, 0.98)},
+	"spring": {"name": "Watering basin", "art": "spring", "half": Vector2(0.98, 0.98), "bank_range": 4.0},
+}
+const CARDINAL := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+
+var forest: Forest
+var records := {}
+var next_id := 1
+var root_blocks: Array = []
+var _grid := {}
+var _revision := -1
+var _marks := {}
+var _fixed_goals: Array = []
+var _thickets: Array = []
+
+func _init(barrier: Forest) -> void:
+	forest = barrier
+
+func footprint(kind: String, at: Vector2, yaw: float) -> Dictionary:
+	var half: Vector2 = CATALOG[kind].half
+	var corners := PackedVector2Array()
+	for sign_pair in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		corners.append(at + (half * sign_pair).rotated(yaw))
+	return Shape.shape("construction", kind, corners)
+
+func validate(kind: String, at: Vector2, yaw: float, pawn: Vector2, moving: int = 0) -> String:
+	if not CATALOG.has(kind) or not at.is_finite() or not is_finite(yaw):
+		return "Choose a Garden structure."
+	if moving != 0 and (not records.has(moving) or records[moving].kind != kind):
+		return "Select a placed structure to move."
+	if kind == "study" and moving == 0:
+		for entry: Dictionary in records.values():
+			if entry.kind == kind:
+				return "There is already a field study. Relocate it in Move mode."
+	var area := footprint(kind, at, yaw)
+	var garden = forest.garden
+	if not _inside(area.outline, forest.visible_outline):
+		return "Keep the full footprint inside the reclaimed forest edge."
+	if Shape.signed_distance(area, pawn, WALK_RADIUS + 0.01) <= WALK_RADIUS:
+		return "Move the player clear of the footprint."
+	for feature: Dictionary in garden.layout.water:
+		if _overlaps(area, feature):
+			return "The footprint crosses water."
+	var bank_range: float = CATALOG[kind].get("bank_range", 0.0)
+	if bank_range > 0.0 and not Shape.in_any(garden.layout.water, at, bank_range):
+		return "Place the watering basin within four units of the pond bank."
+	for landmark: Dictionary in garden.landmarks.values():
+		if _overlaps(area, landmark):
+			return "Keep clear of the " + landmark.id.replace("_", " ") + "."
+	for feature: Dictionary in garden.layout.paths + garden.layout.get("path_joins", []):
+		if _overlaps(area, feature, WALK_RADIUS):
+			return "Keep the permanent Wilds approach clear."
+	for obstacle: Dictionary in garden.occupied + root_blocks:
+		if _overlaps(area, obstacle):
+			return "A trunk, rock, or major Heart root crosses the footprint."
+	for id: int in records:
+		if id != moving and _overlaps(area, records[id].footprint):
+			return "The footprint overlaps another structure."
+	var land := _check_hexes(area, kind)
+	if not land.is_empty():
+		return land
+	if _revision != garden.revision:
+		_build_grid()
+	for thicket: Dictionary in _thickets:
+		if _overlaps(area, thicket):
+			return "Give the blocking forest thicket more room."
+	var candidate := {"kind": kind, "at": at, "yaw": yaw, "footprint": area}
+	if not _access(candidate, pawn, moving):
+		return "Leave a walkable approach to doors, essential stations, and the player."
+	return ""
+
+func commit(kind: String, at: Vector2, yaw: float, pawn: Vector2, moving: int = 0) -> int:
+	if not validate(kind, at, yaw, pawn, moving).is_empty():
+		return 0
+	var id := moving if moving != 0 else next_id
+	if moving == 0:
+		records[id] = {"id": id, "kind": kind, "state": {"crop": "", "growth": 0.0}}
+		next_id += 1
+	records[id].merge({"at": at, "yaw": yaw, "footprint": footprint(kind, at, yaw)}, true)
+	_sync_obstacles()
+	return id
+
+func interaction_at(at: Vector2) -> Dictionary:
+	var nearest := {}
+	var reach := 0.72
+	for entry: Dictionary in records.values():
+		var door := _door_position(entry)
+		var distance := at.distance_to(door)
+		if distance < reach and forest.walkable(at.lerp(door, 0.5), WALK_RADIUS + distance * 0.5):
+			nearest = entry
+			reach = distance
+	return nearest
+
+func _sync_obstacles() -> void:
+	var shapes: Array = []
+	for entry: Dictionary in records.values():
+		shapes.append(entry.footprint)
+	forest.construction = shapes
+	forest.garden.construction_clearance = shapes.duplicate()
+	for id: int in records:
+		var entry: Dictionary = records[id]
+		forest.garden.construction_clearance.append(Shape.disk("access_%d" % id, "approach", _door_position(entry), WALK_RADIUS))
+	_marks.clear()
+	for id: int in records:
+		_marks[id] = _nearby(records[id].footprint)
+
+func _inside(inner: PackedVector2Array, outer: PackedVector2Array) -> bool:
+	for point in inner:
+		if Shape.polygon_distance(outer, point, MARGIN + 0.01) >= -MARGIN:
+			return false
+	# Clip catches a concave forest edge entering between two inside corners.
+	return Geometry2D.clip_polygons(inner, outer).is_empty()
+
+func _overlaps(area: Dictionary, feature: Dictionary, padding: float = MARGIN) -> bool:
+	if not area.bounds.grow(padding).intersects(feature.bounds):
+		return false
+	if feature.has("radius"):
+		return Shape.polygon_distance(area.outline, feature.center, feature.radius + padding + 0.01) <= feature.radius + padding
+	if not Geometry2D.intersect_polygons(area.outline, feature.outline).is_empty():
+		return true
+	for point in area.outline:
+		if Shape.signed_distance(feature, point, padding + 0.01) <= padding:
+			return true
+	for point in feature.outline:
+		if Shape.polygon_distance(area.outline, point, padding + 0.01) <= padding:
+			return true
+	return false
+
+func _check_hexes(area: Dictionary, kind: String) -> String:
+	var garden = forest.garden
+	var spacing: float = garden.spacing
+	var bounds: Rect2 = area.bounds
+	var q_min := Grid.world_to_cell(Vector2(bounds.position.x, bounds.end.y), spacing).x - 2
+	var q_max := Grid.world_to_cell(Vector2(bounds.end.x, bounds.position.y), spacing).x + 2
+	var r_min := Grid.world_to_cell(bounds.position, spacing).y - 2
+	var r_max := Grid.world_to_cell(bounds.end, spacing).y + 2
+	for q in range(q_min, q_max + 1):
+		for r in range(r_min, r_max + 1):
+			var cell := Vector2i(q, r)
+			var terrain: StringName = garden.terrain.get(cell, &"")
+			var owned: bool = garden.owned.has(cell)
+			if owned and (kind != "bed" or terrain in [&"meadow", &"soil", &"forest_floor"]):
+				continue
+			if not bounds.grow(spacing).has_point(Grid.cell_to_world(cell, spacing)):
+				continue
+			var hex := PackedVector2Array()
+			for i in 6:
+				hex.append(Grid.key_to_world(Grid.corner_key(cell, i), spacing))
+			if not Geometry2D.intersect_polygons(area.outline, hex).is_empty():
+				return "The footprint touches an unclaimed hex." if not owned else "Cultivation beds require soil, meadow, or forest floor."
+	return ""
+
+func _grid_key(at: Vector2) -> Vector2i:
+	return Vector2i((at / STEP).round())
+
+func _build_grid() -> void:
+	_grid.clear()
+	_thickets.clear()
+	for section: Dictionary in forest.sections:
+		for i in section.count:
+			var placement: Transform3D = section.clumps[i].transform
+			var at := Vector2(placement.origin.x, placement.origin.z)
+			_thickets.append(Shape.disk("forest", "thicket", at, THICKET_RADIUS))
+	var bounds := Rect2(Vector2.ZERO, Vector2.ZERO)
+	for point in forest.visible_outline:
+		bounds = bounds.expand(point)
+	var first := _grid_key(bounds.position) - Vector2i.ONE
+	var last := _grid_key(bounds.end) + Vector2i.ONE
+	for x in range(first.x, last.x + 1):
+		for y in range(first.y, last.y + 1):
+			var cell := Vector2i(x, y)
+			if forest.fixed_walkable(Vector2(cell) * STEP, WALK_RADIUS + STEP * 0.5):
+				_grid[cell] = true
+	_revision = forest.garden.revision
+	_fixed_goals.clear()
+	for feature: Dictionary in forest.garden.landmarks.values():
+		if feature.id == "wilds_entrance":
+			continue
+		var targets: Array[Vector2] = []
+		for angle in 16:
+			var center: Vector2 = feature.center
+			var distance: float = (1.0 if feature.id == "heart" else feature.radius) + 0.64
+			var at := center + Vector2.from_angle(TAU * angle / 16.0) * distance
+			if forest.fixed_walkable(at, WALK_RADIUS):
+				targets.append(at)
+		_fixed_goals.append(targets)
+
+func _nearby(area: Dictionary) -> Dictionary:
+	var result := {}
+	var reach := WALK_RADIUS + STEP * 0.5
+	var bounds: Rect2 = area.bounds.grow(reach)
+	var first := _grid_key(bounds.position) - Vector2i.ONE
+	var last := _grid_key(bounds.end) + Vector2i.ONE
+	for x in range(first.x, last.x + 1):
+		for y in range(first.y, last.y + 1):
+			var id := Vector2i(x, y)
+			if Shape.signed_distance(area, Vector2(id) * STEP, reach + 0.01) <= reach:
+				result[id] = true
+	return result
+
+func _access(candidate: Dictionary, pawn: Vector2, moving: int) -> bool:
+	var shapes: Array = [candidate.footprint]
+	var blocked := _nearby(candidate.footprint)
+	for id: int in records:
+		if id != moving:
+			shapes.append(records[id].footprint)
+			blocked.merge(_marks[id])
+	var origin: Vector2 = forest.garden.landmarks.wilds_entrance.center
+	var source := _connections(origin, shapes, blocked)
+	if source.is_empty():
+		return false
+	var goals: Array = [_connections(pawn, shapes, blocked), _door(candidate, shapes, blocked)]
+	for id: int in records:
+		if id != moving:
+			goals.append(_door(records[id], shapes, blocked))
+	for fixed: Array[Vector2] in _fixed_goals:
+		var targets := {}
+		for point in fixed:
+			targets.merge(_connections(point, shapes, blocked))
+		goals.append(targets)
+	for goal: Dictionary in goals:
+		if goal.is_empty():
+			return false
+	var seen: Dictionary = source.duplicate()
+	var queue: Array = source.keys()
+	var lookup := {}
+	for i in goals.size():
+		for id in goals[i]:
+			if not lookup.has(id):
+				lookup[id] = []
+			lookup[id].append(i)
+	var reached := {}
+	var index := 0
+	while index < queue.size():
+		var current: Vector2i = queue[index]
+		index += 1
+		if lookup.has(current):
+			for i in lookup[current]:
+				reached[i] = true
+			if reached.size() == goals.size():
+				return true
+		for direction: Vector2i in CARDINAL:
+			var next := current + direction
+			if _grid.has(next) and not blocked.has(next) and not seen.has(next):
+				seen[next] = true
+				queue.append(next)
+	return false
+
+func set_roots(network: Array[Dictionary]) -> void:
+	root_blocks.clear()
+	# Only exposed structural runs count. Fine branches and buried wood
+	# stay available as scenery. The Heart itself has its own reservation.
+	for root in network:
+		var points: Array[Vector3] = root.main
+		for i in points.size() - 1:
+			var a := points[i]
+			var b := points[i + 1]
+			var width: float = root.radius * pow(1.0 - (i + 0.5) / (points.size() - 1), 0.86)
+			if width < 0.15 or maxf(a.y, b.y) + width * 0.76 < 0.07:
+				continue
+			var start := Vector2(a.x, a.z)
+			var finish := Vector2(b.x, b.z)
+			if start.is_equal_approx(finish):
+				continue
+			root_blocks.append(Shape.ribbon("root", "root", PackedVector2Array([start, finish]),
+				PackedFloat32Array([width, width])))
+
+func _door(entry: Dictionary, shapes: Array, blocked: Dictionary) -> Dictionary:
+	return _connections(_door_position(entry), shapes, blocked)
+
+func _door_position(entry: Dictionary) -> Vector2:
+	var front := Vector2(0, CATALOG[entry.kind].half.y + 0.70)
+	return entry.at + front.rotated(entry.yaw)
+
+func _connections(at: Vector2, shapes: Array, blocked: Dictionary) -> Dictionary:
+	var result := {}
+	if not forest.fixed_walkable(at, WALK_RADIUS) or Shape.in_any(shapes, at, WALK_RADIUS):
+		return result
+	var center := _grid_key(at)
+	for x in range(-1, 2):
+		for y in range(-1, 2):
+			var id := center + Vector2i(x, y)
+			if not _grid.has(id) or blocked.has(id):
+				continue
+			var mid := at.lerp(Vector2(id) * STEP, 0.5)
+			var clearance := WALK_RADIUS + at.distance_to(Vector2(id) * STEP) * 0.5
+			if forest.fixed_walkable(mid, clearance) and not Shape.in_any(shapes, mid, clearance):
+				result[id] = true
+	return result

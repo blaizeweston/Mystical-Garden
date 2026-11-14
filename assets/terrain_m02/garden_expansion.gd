@@ -22,6 +22,7 @@ var landmarks := {}
 var reserved: Array = []
 var root_exclusions: Array = []
 var occupied: Array = []
+var construction_clearance: Array = []
 var roots: Array[PackedVector2Array] = []
 var revision := 0
 
@@ -236,6 +237,8 @@ func _root_to(destination: Vector2, aim: Vector2, grown: PackedVector2Array) -> 
 				break
 			if Shape.in_any(occupied, point, 0.36):
 				break
+			if Shape.in_any(construction_clearance, point, 0.36):
+				break
 			path.append(point)
 		if path.size() == steps + 1:
 			return path
@@ -245,6 +248,7 @@ func _clear(at: Vector2, radius: float, boundary: PackedVector2Array) -> bool:
 	return (Shape.polygon_distance(boundary, at, radius + 0.02) < -radius
 		and not Shape.in_any(layout.water, at, radius)
 		and not Shape.in_any(occupied, at, radius)
+		and not Shape.in_any(construction_clearance, at, radius)
 		and not Shape.in_any(reserved, at, radius))
 
 func suitability(at: Vector2, radius: float) -> Dictionary:

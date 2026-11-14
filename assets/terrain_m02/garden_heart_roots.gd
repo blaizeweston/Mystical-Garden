@@ -124,7 +124,7 @@ static func _connection(incoming: Array[Vector3], socket: int, network: Array[Di
 static func _bury(at: Vector3, garden, width: float) -> Vector3:
 	var ground := Vector2(at.x, at.z)
 	var separation := width + 0.68
-	for feature: Dictionary in garden.root_exclusions + garden.occupied + garden.layout.water:
+	for feature: Dictionary in garden.root_exclusions + garden.occupied + garden.layout.water + garden.construction_clearance:
 		if (feature.bounds as Rect2).grow(width + 0.68).has_point(ground):
 			separation = minf(separation, Shape.signed_distance(feature, ground))
 	var blend := smoothstep(width * 0.75, width + 0.61, separation)

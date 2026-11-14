@@ -545,6 +545,31 @@ func _play_camera_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 func _expansion_input(event: InputEvent) -> bool:
+	var build := expansion.construction
+	if expansion.walk.button_pressed and event is InputEventKey and event.pressed and not event.echo \
+			and event.physical_keycode == KEY_E and not get_viewport().gui_get_focus_owner() is LineEdit:
+		build.inspect_at(expansion.pawn)
+		return true
+	if build.enabled and (event is InputEventKey or event is InputEventMouseButton or event is InputEventMouseMotion):
+		if event is InputEventMouseMotion and not pan_active:
+			var point := _ground_point(event.position)
+			build.preview(Vector2(point.x, point.z))
+			return true
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			var point := _ground_point(event.position)
+			build.press(Vector2(point.x, point.z))
+			return true
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+			build._cancel()
+			return true
+		if event is InputEventKey and event.pressed and not get_viewport().gui_get_focus_owner() is LineEdit:
+			match event.physical_keycode:
+				KEY_Q: build.turn_ghost(-1.0)
+				KEY_E: build.turn_ghost(1.0)
+				KEY_ENTER: build.confirm()
+				KEY_ESCAPE: build._cancel()
+				_: return false
+			return true
 	if event is InputEventKey and event.pressed and event.physical_keycode == KEY_ESCAPE and expansion.active:
 		expansion.set_active(false)
 		return true
@@ -561,12 +586,17 @@ func _expansion_input(event: InputEvent) -> bool:
 		if event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
 			var factor := 0.8 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.25
 			expansion.set_camera(expansion.focus, camera.size * factor)
+			if build.enabled:
+				var point := _ground_point(event.position)
+				build.preview(Vector2(point.x, point.z))
 			return true
 	if event is InputEventMouseMotion and pan_active and Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
 		var at := _ground_point(event.position)
 		expansion.set_camera(expansion.focus + pan_origin - Vector2(at.x, at.z), camera.size)
 		at = _ground_point(event.position)
 		pan_origin = Vector2(at.x, at.z)
+		if build.enabled:
+			build.preview(pan_origin)
 		return true
 	return false
 

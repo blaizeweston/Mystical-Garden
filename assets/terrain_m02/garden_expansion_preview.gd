@@ -8,6 +8,7 @@ const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
 const RootArt = preload("res://assets/terrain_m02/garden_heart_roots.gd")
 const Forest = preload("res://assets/terrain_m02/garden_forest_barrier.gd")
 const Stations = preload("res://assets/terrain_m02/garden_station_art.gd")
+const Construction = preload("res://assets/terrain_m02/garden_construction_view.gd")
 const BARK_SHADER = preload("res://assets/terrain_m02/heart_bark.gdshader")
 const GateMesh = preload("res://assets/terrain_m02/wilds_massing_mesh.gd")
 const ALTAR = preload("res://assets/altar.glb")
@@ -39,6 +40,7 @@ var footprint: MeshInstance3D
 var footprint_border: MeshInstance3D
 var heart: Node3D
 var barrier: Forest
+var construction: Construction
 var walker: MeshInstance3D
 var walk: CheckButton
 var comparison: CheckButton
@@ -87,6 +89,9 @@ func bind_controls(container: HBoxContainer, info: Label, forest: Node3D) -> voi
 	comparison.toggled.connect(func(_on): _landmarks())
 	barrier = Forest.new()
 	add_child(barrier)
+	construction = Construction.new()
+	add_child(construction)
+	construction.bind(self, bar, status)
 	walker = _mesh_node(self)
 	var capsule := CapsuleMesh.new()
 	capsule.height = 1.62
@@ -120,6 +125,8 @@ func start(cells: Dictionary, features: Dictionary, spacing: float, seed_number:
 	clear()
 	state = Garden.new(cells, features, spacing, seed_number, radius)
 	barrier.bind(state)
+	construction.reset(barrier)
+	pawn = state.layout.paths[0].spine[-1]
 	base_rim = state.enclosure_support()
 	focus = Vector2.ZERO
 	zoom = 16.5
@@ -130,10 +137,12 @@ func show_garden(enabled: bool) -> void:
 		finish_animation()
 		set_active(false)
 		walk.button_pressed = false
+		construction.set_available(false)
 	visible = enabled
 	bar.visible = enabled
 	status.visible = enabled
 	if enabled:
+		construction.set_available(not growing)
 		_build_debug()
 		_update_controls()
 
@@ -170,6 +179,8 @@ func reset_garden() -> void:
 	state = Garden.new(state.terrain, state.layout, state.spacing, state.seed_value,
 		roundi(state.extent / state.spacing))
 	barrier.bind(state)
+	construction.reset(barrier)
+	pawn = state.layout.paths[0].spine[-1]
 	base_rim = state.enclosure_support()
 	_clear_children(roots)
 	network.clear()
@@ -180,6 +191,7 @@ func reset_garden() -> void:
 func set_active(enabled: bool) -> void:
 	active = enabled and state != null and not growing
 	if active:
+		construction.set_enabled(false)
 		walk.button_pressed = false
 		focus = Vector2.ZERO
 		zoom = OVERVIEW_ZOOM
@@ -192,7 +204,7 @@ func _update_controls() -> void:
 	choices.visible = active
 	confirm.visible = active
 	cancel.visible = active
-	reset.disabled = growing or state == null or state.revision == 0
+	_update_reset_availability()
 	choices.clear()
 	preview = {}
 	footprint.mesh = null
@@ -212,6 +224,9 @@ func _update_controls() -> void:
 	else:
 		status.text = "%d reclaimed clearings  ·  %d usable hexes" % [state.revision, state.available.size()]
 	confirm.disabled = true
+
+func _update_reset_availability() -> void:
+	reset.disabled = growing or state == null or (state.revision == 0 and construction.model.records.is_empty())
 
 func select_frontier(sector: int) -> bool:
 	if not active:
@@ -255,6 +270,7 @@ func confirm_growth() -> void:
 	root_mesh = _mesh_node(roots)
 	root_stage = heart.stage
 	_set_root(root_mesh, state.roots[-1])
+	construction.model.set_roots(network)
 	var plan: Dictionary = root_mesh.get_meta("root_plan")
 	breach = 0.64
 	for i in plan.main.size():
@@ -264,6 +280,7 @@ func confirm_growth() -> void:
 			break
 	max_animation_usec = 0
 	growing = true
+	construction.set_available(false)
 	active = false
 	_update_controls()
 	_set_rim(rim_from, rim_to, 0.0)
@@ -297,6 +314,7 @@ func finish_animation() -> void:
 		tween = null
 	_animate(1.0)
 	growing = false
+	construction.set_available(true)
 	last_metrics["peak_animation_update_usec"] = max_animation_usec
 	_build_debug()
 	_update_controls()
@@ -310,6 +328,7 @@ func change_heart_stage(index: int) -> void:
 	network.clear()
 	for i in roots.get_child_count():
 		_set_root(roots.get_child(i), state.roots[i])
+	construction.model.set_roots(network)
 
 func _set_root(node: MeshInstance3D, path: PackedVector2Array) -> void:
 	var plan := RootArt.plan(path, root_stage, state, network)
@@ -323,10 +342,11 @@ func _set_root(node: MeshInstance3D, path: PackedVector2Array) -> void:
 
 func _walk_enabled(enabled: bool) -> void:
 	if enabled and state != null:
+		construction.set_enabled(false)
 		set_active(false)
-		pawn = state.layout.paths[0].spine[-1]
 		walker.position = Vector3(pawn.x, 0.81, pawn.y)
 		set_camera(pawn, 16.5)
+		status.text = "Walk with WASD or arrow keys. Press E at the front of a player-built structure."
 	walker.visible = enabled
 	set_physics_process(enabled)
 
