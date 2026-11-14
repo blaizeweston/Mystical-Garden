@@ -209,7 +209,7 @@ unique_name_in_owner = true
 visible = false
 layout_mode = 2
 text = "Play floor"
-tooltip_text = "WASD or arrows to move, Space to clear a nearby practice enemy, E at the Gate"
+tooltip_text = "WASD or arrows to move, Space to strike, Shift to dodge in M10, E at the Gate"
 
 [node name="FogLayer" type="CheckButton" parent="Interface/Toolbar/Rows/PlayControls"]
 unique_name_in_owner = true
@@ -223,7 +223,7 @@ unique_name_in_owner = true
 visible = false
 layout_mode = 2
 text = "WASD / arrows  |  Space strike  |  E interact  |  Esc exit"
-tooltip_text = "In M09, use the wheel to zoom and middle drag to pan."
+tooltip_text = "From M09 onward, use the wheel to zoom and middle drag to pan."
 
 [node name="RestartFloor" type="Button" parent="Interface/Toolbar/Rows/PlayControls"]
 unique_name_in_owner = true

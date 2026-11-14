@@ -186,7 +186,9 @@ func _preview() -> void:
 	root.add_child(scene)
 	scene.example.select(3)
 	scene.example.item_selected.emit(3)
-	check(scene.render_mode.selected == 10 and scene.scenic_ground != null, "M09B is default for Wilds")
+	scene.render_mode.select(10)
+	scene.render_mode.item_selected.emit(10)
+	check(scene.scenic_ground != null and scene.wilds.layout.has("hydrology"), "M09B remains available")
 	scene.get_node("%PlayFloor").button_pressed = true
 	check(scene.walk_preview.run != null and scene.walk_preview.fog.visible and not scene.walk_preview.deck_gate.visible,
 		"real preview begins with fog and unknown Gate")

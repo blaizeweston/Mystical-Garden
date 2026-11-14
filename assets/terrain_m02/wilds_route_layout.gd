@@ -8,9 +8,12 @@ const Streams = preload("res://assets/terrain_m02/terrain_feature_layout.gd")
 const Hydro = preload("res://assets/terrain_m02/wilds_route_hydrology.gd")
 const ATTEMPTS := 6
 const LANDING_PAD := 1.0
+# The full 0.64-radius disk must fit before it can overlap the wet shoreline.
+const COMBAT_LANDING_PAD := 1.39
 const WIDTH := 0.91
 
-static func build(seed_value: int, radius: int, spacing: float, climate: Dictionary, attempt: int) -> Dictionary:
+static func build(seed_value: int, radius: int, spacing: float, climate: Dictionary, attempt: int,
+		combat_navigation: bool = false) -> Dictionary:
 	var density := radius * spacing
 	var random := Streams.random_stream(seed_value, "m09b_rooms_%d" % attempt)
 	# Repair keeps the selected hydrology and instead resamples rooms and route choices.
@@ -43,7 +46,8 @@ static func build(seed_value: int, radius: int, spacing: float, climate: Diction
 	var layout := {"water": water, "clearings": [], "paths": [], "crossings": [],
 		"plants": [], "rocks": [], "enclosure": [], "accents": [], "formations": [],
 		"repair": attempt, "hydrology": hydro.kind, "combat_rooms": ["combat", "exit_gate"]}
-	var graph := {"nodes": {}, "edges": []}
+	var graph := {"nodes": {}, "edges": [],
+		"landing_pad": COMBAT_LANDING_PAD if combat_navigation else LANDING_PAD}
 	_add_room(graph, layout, arrival, "arrival", "arrival")
 	_add_room(graph, layout, combat, "combat", "required")
 	_add_room(graph, layout, gate, "exit_gate", "required")
@@ -214,7 +218,7 @@ static func _cross(graph: Dictionary, water: Array, a: Vector2, b: Vector2, from
 	var last := -1
 	for i in range(steps + 1):
 		var p := a.lerp(b, float(i) / steps)
-		if Shape.in_any(water, p, LANDING_PAD):
+		if Shape.in_any(water, p, graph.landing_pad):
 			if first < 0:
 				first = i
 			last = i

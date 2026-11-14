@@ -3,6 +3,7 @@ extends RefCounted
 const RouteLayout = preload("res://assets/terrain_m02/wilds_route_layout.gd")
 const Surface = preload("res://assets/terrain_m02/wilds_play_surface.gd")
 const Simulation = preload("res://assets/terrain_m02/wilds_play_simulation.gd")
+const Combat = preload("res://assets/terrain_m02/wilds_combat_simulation.gd")
 const Boundary = preload("res://assets/terrain_m02/wilds_boundary.gd")
 const Rooms = preload("res://assets/terrain_m02/wilds_rooms.gd")
 const Massing = preload("res://assets/terrain_m02/wilds_massing.gd")
@@ -14,18 +15,24 @@ const Field = preload("res://assets/terrain_m02/terrain_generator.gd")
 
 static func build(seed_value: int, floor_number: int, radius: int, spacing: float, catalog,
 		windows: Array = Biomes.WINDOWS, massed: bool = false, bounded: bool = false,
-		varied: bool = false) -> Dictionary:
+		varied: bool = false, combat_navigation: bool = false) -> Dictionary:
 	var climate := Biomes.climate(floor_number, windows)
 	if varied:
+		var last_navigation_failure := {}
 		for attempt in RouteLayout.ATTEMPTS:
-			var trial := RouteLayout.build(seed_value, radius, spacing, climate, attempt)
+			var trial := RouteLayout.build(seed_value, radius, spacing, climate, attempt, combat_navigation)
 			if trial.is_empty() or not _finish_layout(trial, seed_value, radius, spacing, climate, true):
 				continue
 			var result := _populate_floor(trial, seed_value, radius, spacing, climate, catalog, true)
-			var simulation := Simulation.new(Surface.new(result.cells, trial, spacing))
+			var surface := Surface.new(result.cells, trial, spacing)
+			var simulation := Combat.new(surface) if combat_navigation else Simulation.new(surface)
 			if simulation.ready and simulation.reachable.size() == trial.trail_network.nodes.size():
 				return result
-		return {}
+			if combat_navigation and simulation.reachable.size() == trial.trail_network.nodes.size():
+				last_navigation_failure = result
+		# Keep a generated floor inspectable after bounded enemy-route attempts.
+		# Play mode repeats the clearance check and refuses it.
+		return last_navigation_failure
 	var layout := Geography.compose(seed_value, radius, spacing, climate)
 	if layout.is_empty():
 		return {}

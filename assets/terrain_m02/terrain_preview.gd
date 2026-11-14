@@ -30,6 +30,7 @@ const M07 := 7
 const M07B := 8
 const M09 := 9
 const M09B := 10
+const M10 := 11
 const START_FLOORS := [1, 1, 9, 18]
 
 var cells := {}
@@ -132,6 +133,7 @@ func _ready() -> void:
 	render_mode.add_item("M07B")
 	render_mode.add_item("M09")
 	render_mode.add_item("M09B")
+	render_mode.add_item("M10")
 	render_mode.select(M06C)
 	for number in range(1, 19):
 		floor_choice.add_item("Floor %d" % number)
@@ -165,7 +167,7 @@ func _select_example(index: int) -> void:
 		if index == 0:
 			render_mode.select(M06C)
 		elif render_mode.selected == M06C:
-			render_mode.select(M09B)
+			render_mode.select(M10)
 	_regenerate()
 
 func _select_render_mode(index: int) -> void:
@@ -240,7 +242,7 @@ func _rebuild_wilds(started: int) -> void:
 	heart_stage.visible = false
 	floor_choice.visible = true
 	wilds = Wilds.build(terrain_seed, floor_choice.selected + 1, RADII[map_size.selected], spacing, CATALOG,
-		Wilds.Biomes.WINDOWS, generated_mode >= M07B, generated_mode >= M09, generated_mode == M09B)
+		Wilds.Biomes.WINDOWS, generated_mode >= M07B, generated_mode >= M09, generated_mode >= M09B, generated_mode == M10)
 	if wilds.is_empty():
 		cells = {}
 		ground.hide()
@@ -313,7 +315,7 @@ func _rebuild_wilds(started: int) -> void:
 		"material_ms": (baked - meshed) / 1000.0, "rebuild_ms": total}
 	status.text = "%d cells  ·  %d plants  ·  %d obstacles  ·  %.1f ms rebuild" % [
 		cells.size(), batches.plant_instances, batches.rock_instances, total]
-	if generated_mode == M09B:
+	if generated_mode >= M09B:
 		art_note.text += "  |  %s, %d clearings, %d bridges" % [
 			wilds.layout.hydrology.capitalize(), metrics.clearings, metrics.crossings]
 	print("M07_TERRAIN ", JSON.stringify(metrics))
@@ -345,7 +347,9 @@ func _play_floor(active: bool) -> void:
 
 func _start_floor() -> void:
 	walk_preview.deck_gate = feature_view.massing.get_node_or_null("ExitGate")
-	walk_preview.start(cells, wilds.layout, spacing)
+	%PlayHelp.text = ("WASD / arrows  |  Space strike  |  Shift dodge  |  E Gate  |  Esc exit" if generated_mode == M10
+		else "WASD / arrows  |  Space strike  |  E Gate  |  Esc exit")
+	walk_preview.start(cells, wilds.layout, spacing, generated_mode == M10)
 	walk_preview.allow_camera_control = generated_mode >= M09
 	_set_overlay(overlay.button_pressed)
 	var focused := get_viewport().gui_get_focus_owner()
