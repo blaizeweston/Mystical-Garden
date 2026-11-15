@@ -77,6 +77,7 @@ func publish(game: Node, channel: String, contact_id: String, target: String, no
 			"water": Ruleset.Water.on_event(game, self, channel, details, now)
 			"vital": Ruleset.Vital.on_event(game, self, channel, details, now)
 			"thorn": Ruleset.Thorn.on_event(game, self, channel, details, now)
+			"wood": Ruleset.Wood.on_event(game, self, channel, details, now)
 	return true
 
 
@@ -84,7 +85,7 @@ static func class_start(game: Node, actor_id: int, adapter: Dictionary, now: int
 	var channels := {"activation": ["class_action", "incoming_hit"], "contact": ["class_contact"], "block": ["actual_block"]}
 	var ready: bool = catalyst.get("state") == "ready"
 	var allowed: Array = channels.get(adapter.get("trigger"), [])
-	if ready and catalyst.get("primary_affinity") == "vital" and adapter.get("recipients") == "designated_area":
+	if ready and catalyst.get("primary_affinity") in ["vital","wood"] and adapter.get("recipients") == "designated_area":
 		allowed.append("class_field_contact")
 	return begin(game, actor_id, "catalyst" if ready else "native_class", catalyst if ready else {},
 		catalyst.potency_profile.values if ready else {}, allowed, now + 30000)

@@ -1623,7 +1623,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 			tell(id, "This class ability has no affinity contract.")
 			return
 		event = combat_events_api.class_start(self, id, adapter, now, affinity_build.catalyst)
-		if adapter.trigger == "contact" or (event != null and event.affinity == "vital" and adapter.recipients == "designated_area"):
+		if adapter.trigger == "contact" or (event != null and event.affinity in ["vital","wood"] and adapter.recipients == "designated_area"):
 			stats[combat_events_api.CONTEXT] = event
 		if skill.mode == "subclass":
 			stats.cr02_adapter = adapter
@@ -2110,6 +2110,7 @@ func _physics_process(delta: float) -> void:
 			if get_meta(Transactions.PENDING, false): return
 			preload("res://vital_combat.gd").tick(self,elapsed)
 			preload("res://thorn_affinity.gd").tick(self,elapsed,now)
+			preload("res://wood_affinity.gd").tick(self,elapsed)
 			if get_meta(Transactions.PENDING,false): return
 		preload("res://combat_status.gd").sync(self,now)
 		attract_loot(delta)
@@ -2581,21 +2582,30 @@ func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: 
 	if Traits.try_brace(self,player,now): return
 	var hit_points := float(1+difficulty_cycle/2) if damage<0.0 else Life.Preview.authored_amount(damage)
 	var hp := Life.Preview.effect_hp(hit_points)
+	var wood = preload("res://wood_affinity.gd")
+	var bark := {}
+	var hit_epoch := combat_epoch
 	if has_meta(&"combat_affinity_ruleset"):
 		hp = preload("res://water_combat.gd").direct_damage(self,hp)
+		bark = wood.absorption_plan(player,hp,preload("res://affinity_time.gd").now(self))
+		hp -= int(bark.get("absorbed",0))
 	if has_meta(Transactions.SESSION):
 		if not Transactions.session_writable(self): return
 		if hp>=int(player.hp):
 			run_guarded_action(id, Transactions.Scope.PAIR, func(effects):
+				wood.consume(player,bark)
 				apply_hit_grace(id,player,now,slow_ms,effects)
-				_damage_player(id,player,hp,effects))
+				_damage_player(id,player,hp,effects)
+				if not bark.is_empty(): effects.append(wood.after_hit.bind(self,id,hit_epoch,bark,now)))
 			return
+	wood.consume(player,bark)
 	apply_hit_grace(id,player,now,slow_ms)
 	var before_hp := float(player.hp)
 	damage_player(id,player,hp)
 	if has_meta(&"combat_affinity_ruleset") and Life.alive(player) and float(player.hp) < before_hp:
 		preload("res://frost_combat.gd").incoming(self,player,id,now)
 		preload("res://fire_combat.gd").incoming(self,player,id,now)
+	wood.after_hit(self,id,hit_epoch,bark,now)
 
 func apply_hit_grace(id: int,player: Dictionary,now: int,slow_ms: int,effects = null) -> void:
 	if slow_ms>0:
@@ -3041,6 +3051,7 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = n
 	p.erase("frost_response")
 	p.erase("affinity_ember_response")
 	p.erase("affinity_thorn_form_ready")
+	preload("res://wood_affinity.gd").clear(p)
 	if p.has("affinity_vital_sources"): preload("res://vital_combat.gd").clear(self,p)
 	p.guard_charges=0
 	p.guard_until = 0
@@ -3124,6 +3135,7 @@ func return_to_garden(p: Dictionary) -> void:
 	p.erase("frost_response")
 	p.erase("affinity_ember_response")
 	p.erase("affinity_thorn_form_ready")
+	preload("res://wood_affinity.gd").clear(p)
 	if p.has("affinity_vital_sources"): preload("res://vital_combat.gd").clear(self,p)
 	p.guard_until = 0
 	p.front_guard_until=0;p.counter_guard_until=0;p.counter_until=0;p.grave_charges=0;p.echo_charge=0
@@ -3393,6 +3405,8 @@ func reset_encounter() -> void:
 	if has_meta(&"combat_affinity_ruleset"):
 		for player in players.values():
 			preload("res://vital_combat.gd").clear(self,player)
+			preload("res://wood_affinity.gd").clear(player)
+			player.erase("affinity_thorn_form_ready")
 	preload("res://core_combat.gd").reset(self)
 	enemy_traits.clear();trait_events.clear()
 	projectile_queue.clear()

@@ -7,7 +7,7 @@ The first playable target is a 100 HP player with a liquid health orb, a Warden 
 ## Plant-affinity rework contract
 
 The opt-in affinity ruleset keeps Core, Form and Catalyst independent. Supporting
-affinities are reserved for cards. CR03 Frost and CR04A families use the same
+affinities are reserved for cards. CR03 Frost and the CR04 families use the same
 authoritative event and class-skill mappings. Default combat stays on the legacy
 ruleset.
 
@@ -49,6 +49,47 @@ the strongest movement slow. Brittle remains a separate contribution. Only
 Bleed deals recurring damage. Each player and slot owns one wound per enemy.
 Leaving ends the Thorn slow and leaves the wound on its existing cadence until
 its finite expiry. Growth follows terrain sight and does not affect collision.
+
+### Bark Armor resolution
+
+After the native Ward, brace and incoming-damage checks, including Drenched,
+Bark attempts 40% partial absorption, rounded down. Each live grant retains its
+source and expiry. A grant admits only what fits within 48 total capacity.
+Consumption uses earliest expiry first and then host grant order. Reaching
+zero through a hostile hit triggers at most one radial burst. The hit's
+consumed grants supply a damage-weighted average of their burst potencies,
+rounded to HP. The largest absorbed share gets damage credit, with ties going
+to the earliest host grant order. Expiry, clearing and an exhausted single
+grant with capacity remaining do not burst. Bark can absorb hostile hazards
+through the enemy-hit path. Self-paid costs use their native path.
+
+Wood Ward damage and armor-break damage share a 1.35 s interval per protected
+recipient. Suppressed responses are discarded. Ward protection and the
+admissible grant still resolve. Bursts do not grant armor. A breaking hit
+that also ends the expedition keeps its settlement authoritative. A guarded
+lethal hit publishes its burst only after verified commitment while that
+floor is still active and writable. Falling, floor travel and Garden return
+clear temporary armor. Splintering Strikes grants no armor.
+
+### Four-player snapshot warning
+
+The existing unreliable ordered channel 4 world snapshot in
+`game.gd::send_expedition_state` produced the ENet MTU warning on CR04A and
+CR04B. The payload contains compressed public player and scout state plus
+floor and campaign data. Thorn footprints and Bark presentation use the
+existing details stream, so the fast packet schema stays the same.
+
+| Disposable loopback observation | ENet packet / MTU | Peak compressed player / scout sections | Client marker observation / sequence gaps |
+|---|---:|---:|---|
+| CR04A baseline `cr04b-baseline02` | 1417 / 1392 B | 819 / 265 B | 25–34 ms, 0–3 gaps |
+| Same four-family control after integration `cr04b-wood01` | 1397 / 1392 B | 809 / 265 B | 19–201 ms, 5–19 gaps |
+| Four-player Thorn and Wood `cr04b-wood02` | 1465 / 1392 B | 843 / 259 B | 31–43 ms, 0 gaps |
+
+The section peaks are separate measurements and exclude RPC framing and
+other fields. All guests received the authoritative floor, roster and enemy
+HP marker and continued receiving snapshots. The timing measures observation
+from when each fixture sees the probe marker. Packet gaps and fragmentation
+remain possible on other networks.
 
 ## Size of the change
 

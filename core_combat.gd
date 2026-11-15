@@ -70,7 +70,7 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 		game.tell(id, "%s needs clear ground in that direction." % skill.name)
 		return
 	var weapon: Dictionary = game.WeaponMotion.profile(skill.weapon_form)
-	var ground: bool = skill.delivery == "ground" or skill.get("footprint") == "wave" or skill.get("affinity_family") in ["water","vital"]
+	var ground: bool = skill.delivery == "ground" or skill.get("footprint") == "wave" or skill.get("affinity_family") in ["water","vital","wood"]
 	var blade_cast: bool = skill.weapon_form == "blade"
 	var duration := 550 if blade_cast else roundi(float(weapon.duration) * 1000.0)
 	var release_ms := 245 if blade_cast else roundi(float(weapon.release) * duration)
@@ -308,6 +308,10 @@ static func tick(game: Node, now: int) -> void:
 				continue
 			"thorn":
 				preload("res://thorn_affinity.gd").release(game,line,now)
+				lines.erase(id)
+				continue
+			"wood":
+				preload("res://wood_affinity.gd").bloom(game,line,player,now)
 				lines.erase(id)
 				continue
 			"vital":

@@ -14,6 +14,7 @@ var party := false
 var failed := false
 var extra_cores: Array = []
 var measure_packets := false
+var mixed_wood_ward := false
 
 
 func check(ok: bool, label: String) -> bool:
@@ -96,13 +97,19 @@ func host(menu: Node) -> void:
 	ids.sort()
 	for id in ids: game.players[id].pos=local.pos
 	var supplied := {}
+	var ward_guest: int=ids[1] if mixed_wood_ward else 0
+	var ordinary_wood: int=game.Items.get_item("plant_part_plant_ironroot").legacy_part
+	if mixed_wood_ward: supplied[ordinary_wood]=game.progress.part_count(ordinary_wood)
 	for index in ids.size():
 		var part := 0
 		if not extra_cores.is_empty():
 			part = int(game.Items.get_item(extra_cores[index]).legacy_part)
 			supplied[part] = game.progress.part_count(part)
-		mark("select-"+str(ids[index]),"%d:%d" % [refined,part])
-	if not check(await until(func():return ids.all(func(id):return game.players[id].prepared_secondary==refined) and supplied.keys().all(func(part):return ids.any(func(id):return game.players[id].prepared==part))),"real guest loadout requests reach host"):return
+		mark("select-"+str(ids[index]),"%d:%d:%d" % [refined,part,ordinary_wood if ids[index]==ward_guest else 0])
+	var prepared := func():
+		return ids.all(func(id):return game.players[id].prepared_secondary==refined) and supplied.keys().all(func(part):
+			return ids.any(func(id):return game.players[id].prepared==part or game.players[id].prepared_catalyst==part))
+	if not check(await until(prepared),"real guest loadout requests reach host"):return
 	var before_regular: int=game.progress.part_count(ordinary)
 	var before_rare: int=game.progress.part_count(refined)
 	if party:
@@ -159,12 +166,27 @@ func host(menu: Node) -> void:
 	var before: float=ally.hp
 	game.apply_enemy_hit(protected,ally,Time.get_ticks_msec(),1)
 	check(ally.hp==before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==1 and e.details.recipient==protected and e.quality=="refined"),"actual guest block uses host refined Catalyst")
+	if mixed_wood_ward:
+		var warded: Dictionary=game.players[ward_guest]
+		warded.guard_until=0
+		warded.guard_charges=0
+		warded.hurt_until=0
+		mark("wood-guard-"+str(ward_guest))
+		if not check(await until(func():return warded.guard_charges>0),"native remote Q arms Wood Ward"):return
+		var hp_before: float=warded.hp
+		game.apply_enemy_hit(ward_guest,warded,Time.get_ticks_msec(),2,0,game.enemy_pos)
+		check(warded.hp==hp_before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==ward_guest and e.primary_affinity=="wood" and e.quality=="ordinary"),
+			"real Wood Ward bursts with its own provenance after the Frost Ward")
+		check(warded.get("affinity_bark_grants",[]).any(func(grant):return grant.actor==ward_guest and grant.quality=="ordinary"),"Wood Ward retains ordinary source capacity")
 	for index in extra_cores.size():
 		var visitor: Dictionary=game.players[ids[index]]
 		var source: int=ids[index]
 		var primary: String=preload("res://plant_affinities.gd").for_part(visitor.weapon).primary_affinity
 		if primary=="water": local.slow_until=Time.get_ticks_msec()+4000
 		var native_max: int=game.Life.native_maximum(game,local)
+		if not check(await until(func():
+			return Time.get_ticks_msec()>=maxi(int(visitor.get("cast_until",0)),int(visitor.get("core_cast_until",0)))),
+			"next remote B waits for the native cast window"):return
 		mark("cast-"+str(source),str(Vector2(visitor.facing.x,visitor.facing.z)))
 		if not check(await until(func():return rows.any(func(e):return e.kind=="core_action" and e.primary_affinity==primary and e.source_actor==source)),
 			"native "+primary+" Core RPC resolves by the host"):return
@@ -179,6 +201,16 @@ func host(menu: Node) -> void:
 					"stationary guest Thorn Line slows and wounds a real enemy on the host")
 				mark("thorn-"+str(source))
 				check(await until(func():return read("thorn-seen-"+str(source))=="ok"),"guest receives the authoritative field geometry")
+			"wood":
+				check(local.get("affinity_bark_grants",[]).any(func(grant):return grant.actor==source and grant.quality=="refined"),"Ironbark applies the refined guest grant on the host")
+				if mixed_wood_ward:
+					var grants: Array=local.get("affinity_bark_grants",[])
+					check(grants.any(func(grant):return grant.actor==ward_guest and grant.quality=="ordinary") and grants.any(func(grant):return grant.actor==source and grant.admitted==36),
+						"separate Wood sources coexist with a capped refined grant")
+					var wounds: Dictionary=game.leader_brain.get("affinity_bleed",{})
+					check(wounds.has("%d/core"%ids[0]) and wounds.has("%d/core"%ids[1]),"two real Thorn sources remain independent")
+				mark("bark-"+str(source))
+				check(await until(func():return read("bark-seen-"+str(source))=="ok"),"guest receives Bark presentation through authoritative details")
 			"vital":
 				var bonus: int=preload("res://affinity_build.gd").slot("core",visitor.weapon).potency_profile.values.bonus_hp
 				check(local.max_hp==native_max+bonus and local.get("affinity_vital_sources",{}).has("%d/core"%source),
@@ -243,7 +275,7 @@ func host(menu: Node) -> void:
 	check([game.progress.part_count(ordinary),game.progress.part_count(refined)]==paid,"reconnect does not repeat departure")
 	for part in supplied:
 		check(game.progress.part_count(part)==supplied[part]-1,"rejoin preserves each additional Core debit")
-	check(not local.has("affinity_vital_sources"),"Garden return discards temporary Vitality")
+	check(not local.has("affinity_vital_sources") and not local.has("affinity_bark_grants"),"Garden return discards temporary health and armor")
 	mark("saved")
 	game.return_to_main_menu()
 	check(await until(func():return tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"host goes offline after rejoin")
@@ -267,10 +299,15 @@ func guest(menu: Node, role: String) -> void:
 	game.send_garden_action("loadpart_1_"+picks[0])
 	if int(picks[1])>0:
 		game.send_garden_action("loadpart_0_"+picks[1])
+	if int(picks[2])>0:
+		game.send_garden_action("loadpart_2_"+picks[2])
 	if not check(await until(func():return not read("depart").is_empty()),"host authorizes departure"):return
 	game.send_garden_action("travel_ready:"+read("depart"))
 	if not check(await until(func():return read("strike-"+str(id))=="ok" and game.stage._has_experimental_floor()),"guest sees generated Frost floor"):return
 	game.send_action(true)
+	if int(picks[2])>0:
+		if not check(await until(func():return read("wood-guard-"+str(id))=="ok"),"host requests actual Wood Ward"):return
+		game.send_garden_action("class_skill")
 	if int(picks[1])>0:
 		if not check(await until(func():return not read("cast-"+str(id)).is_empty()),"host asks guest to cast at actual enemy"):return
 		var raw := read("cast-"+str(id)).trim_prefix("(").trim_suffix(")").split(",")
@@ -282,6 +319,11 @@ func guest(menu: Node, role: String) -> void:
 					return hint.get("skill")=="thorn_line" and not hint.get("core_shapes",[]).is_empty())),
 				"the guest sees the same stationary Thorn Line footprint"):
 				mark("thorn-seen-"+str(id))
+		if material.get("primary_affinity")=="wood":
+			if check(await until(func():
+				return read("bark-"+str(id))=="ok" and game.guest_combat_events(game.players[id]).any(func(e):return e.shape=="bark_armor")),
+				"guest sees authoritative temporary Bark status"):
+				mark("bark-seen-"+str(id))
 		if material.get("primary_affinity")=="vital":
 			var marker := "vital-"+str(id)
 			check(await until(func():return not read(marker).is_empty() and int(game.players[id].max_hp)==int(read(marker))),"guest receives authoritative Vital capacity")
@@ -343,7 +385,7 @@ func sample_guest_snapshots(game: Node, id: int) -> void:
 	var gaps: int = game.net_view.snapshot_gaps
 	var first_seen := Time.get_ticks_msec()
 	var arrived := await until(func():
-		return game.net_view.snapshot_received>baseline and game.enemy_hp==487 and game.players.size()==4 and game.stage._has_experimental_floor(),3500)
+		return game.net_view.snapshot_received>baseline and game.enemy_hp>400 and game.enemy_hp<=487 and game.players.size()==4 and game.stage._has_experimental_floor(),3500)
 	check(arrived,"channel 4 delivers authoritative enemy HP, roster and floor")
 	var delay := Time.get_ticks_msec()-first_seen
 	var first: int=game.net_view.snapshot_received
