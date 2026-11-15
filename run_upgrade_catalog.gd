@@ -45,6 +45,9 @@ static func context(player: Dictionary) -> Dictionary:
  var weapon: String=Classes.DEFINITIONS[class_id].weapons[weapon_id].id
  return {"class":class_id,"weapon":weapon,"plant_tags":plant_tags,"plant_weights":plant_weights,"plants":plants,"graft":monster,"graft_tags":graft_tags,"tags":tags,"core":CoreRules.resolve(weapon,slots,graft)}
 static func requirement(entry: Dictionary,player: Dictionary,ctx: Dictionary={}) -> String:
+ if preload("res://combat_ruleset.gd").uses_affinities(player):
+  if not preload("res://combat_ruleset.gd").COMPATIBLE_CARDS.has(entry.get("id", "")):
+   return preload("res://combat_ruleset.gd").EMPTY_CARDS
  if entry.is_empty(): return "Unknown upgrade."
  if ctx.is_empty(): ctx=context(player)
  if entry.has("focus") and Classes.focus_id(player.get("character",{}),int(player.get("frame",0)))!=entry.focus:
@@ -89,6 +92,7 @@ static func weight(entry: Dictionary,player: Dictionary,floor_number: int,ctx: D
  if entry.rarity=="Epic": value*=1.0+clampf((floor_number-5)/50.0,0,2)
  return value/(1.0+.35*int(player.get("run_upgrades",{}).get(entry.id,0)))
 static func pool(player: Dictionary,floor_number: int) -> Array:
+ if preload("res://combat_ruleset.gd").uses_affinities(player): return []
  var result: Array=[]
  var ctx:=context(player)
  for entry in all():
@@ -128,7 +132,7 @@ static func roll(player: Dictionary,floor_number: int,seed_value: int,wallet: in
  return result
 static func effects(player: Dictionary) -> Dictionary:
  var result: Dictionary={}
- for id in player.get("run_upgrades",{}):
+ for id in preload("res://combat_ruleset.gd").legacy_ranks(player):
   var entry:=get_upgrade(id)
   if entry.is_empty(): continue
   var ranks:=int(player.run_upgrades[id])
@@ -181,7 +185,7 @@ static func core_name(skill_id: String) -> String:
 
 static func core_cards(player: Dictionary,skill_id: String) -> Array[Dictionary]:
  var result: Array[Dictionary]=[]
- for id in player.get("run_upgrades",{}):
+ for id in preload("res://combat_ruleset.gd").legacy_ranks(player):
   if int(player.run_upgrades[id])<=0: continue
   var entry:=get_upgrade(id)
   if entry.get("core",{}).get("skill","")==skill_id: result.append(entry)

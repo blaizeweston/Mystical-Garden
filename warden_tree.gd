@@ -154,7 +154,7 @@ static func cards() -> Array[Dictionary]:
 
 
 static func card_lines(player: Dictionary, slot: int) -> String:
-	if int(player.get("frame", -1)) != 0:
+	if int(player.get("frame", -1)) != 0 or player.has("combat_ruleset"):
 		return ""
 	var lines: Array[String] = []
 	for card in CARDS:

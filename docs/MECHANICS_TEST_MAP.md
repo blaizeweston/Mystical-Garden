@@ -6,6 +6,7 @@ Edges describe gameplay/data relationships. Selection uses explicit suite covera
 
 ```mermaid
 flowchart LR
+  combat_affinity_contracts["CR02 development build resolution<br/> Catalyst contracts and event provenance"]
   plant_affinities["Explicit plant affinities and material quality for the inactive combat rework"]
   hex_terrain["Standalone M02 hex grid<br/> terrain data<br/> generator and welded surface"]
   persistence_operations["Opt-in guarded persistence operation scope and activation gate"]
@@ -80,6 +81,9 @@ flowchart LR
   enemy_balance["Preview enemy durability<br/> damage and reinforcement budgets"]
   expedition_sustain["Expedition sustain<br/> heal feedback and health transitions"]
   spectator_layout["Spectator panel placement below the floor tracker"]
+  plant_affinities -->|"Explicit material identities"| combat_affinity_contracts
+  classes -->|"Native skill and focus adapters"| combat_affinity_contracts
+  combat_affinity_contracts -->|"Development ruleset compatibility"| connection_flow
   seeds -->|"Stable species and ordinary material"| plant_affinities
   weapons -->|"Refined material and stable inventory identity"| plant_affinities
   seeds -->|"Parts and tags alter crafted weapons"| weapons
@@ -270,8 +274,9 @@ flowchart LR
 
 | System | Source files | Covering suites |
 |---|---|---|
-| plant_affinities | `plant_affinities.gd`, `plant_affinities.gd.uid` | `plant_affinities` |
-| hex_terrain |  | `experimental_terrain_coop`, `experimental_terrain`, `garden_offerings_preview`, `garden_knowledge_preview`, `garden_construction`, `garden_expansion`, `wilds_combat_preview`, `wilds_route_variation`, `wilds_boundary`, `wilds_play_floor`, `wilds_massing`, `wilds_biomes`, `terrain_continuity`, `terrain_botanical_art`, `terrain_enclosure`, `terrain_features`, `hex_terrain` |
+| combat_affinity_contracts | `affinity_build.gd`, `affinity_build.gd.uid`, `catalyst_adapters.gd`, `catalyst_adapters.gd.uid`, `combat_action_events.gd`, `combat_action_events.gd.uid`, `combat_ruleset.gd`, `combat_ruleset.gd.uid` | `cr02_combat_contracts`, `cr02_mode_coop`, `cr02_mode_mismatch`, `cr02_definitions_mismatch` |
+| plant_affinities | `plant_affinities.gd`, `plant_affinities.gd.uid` | `cr02_combat_contracts`, `plant_affinities` |
+| hex_terrain |  | `cr02_mode_coop`, `experimental_terrain_coop`, `experimental_terrain`, `garden_offerings_preview`, `garden_knowledge_preview`, `garden_construction`, `garden_expansion`, `wilds_combat_preview`, `wilds_route_variation`, `wilds_boundary`, `wilds_play_floor`, `wilds_massing`, `wilds_biomes`, `terrain_continuity`, `terrain_botanical_art`, `terrain_enclosure`, `terrain_features`, `hex_terrain` |
 | persistence_operations | `guest_profile_projection.gd`, `guest_profile_projection.gd.uid`, `guarded_title_session.gd`, `guarded_title_session.gd.uid`, `legacy_save_import.gd`, `legacy_save_import.gd.uid`, `persistence_operations.gd`, `persistence_operations.gd.uid`, `persistence_writer_integration.gd`, `persistence_writer_integration.gd.uid` | `experimental_terrain`, `legacy_import_recovery`, `legacy_mutation_containment`, `candidate_release_solo`, `candidate_release_party`, `production_persistence`, `guest_projection_coop`, `serializer_integrity`, `guarded_lifecycle`, `guarded_lifecycle_coop`, `guarded_expedition`, `guarded_expedition_coop`, `guarded_garden_actions`, `guarded_garden_actions_coop`, `guarded_gameplay_transactions`, `guarded_title_session`, `persistence_destructive_slots`, `persistence_slot_roster`, `persistence_group_one`, `persistence_restart_recovery`, `persistence_durable_evidence`, `persistence_outcomes`, `persistence_operations` |
 | health_pool_hud | `health_pool.gdshader`, `health_pool.gdshader.uid` | `exploration_ui`, `four_players_coop`, `party_hud_gates`, `player_hud`, `combat_balance_saves`, `combat_balance_preview`, `combat_balance_preview_coop` |
 | persistence_save_access | `persistence_save_inspection.gd`, `persistence_save_inspection.gd.uid` | `legacy_import_recovery`, `production_persistence`, `serializer_integrity`, `guarded_lifecycle`, `guarded_lifecycle_coop`, `guarded_title_session`, `persistence_destructive_slots`, `persistence_operations`, `persistence_save_access` |
@@ -280,12 +285,12 @@ flowchart LR
 | foundation | `save_batch.gd`, `game_transaction.gd`, `progress.gd`, `character_profile.gd`, `content_ids.gd`, `network_compatibility.gd`, `network_settings.gd`, `content_validator.gd`, `project.godot`, `world.tscn`, `main_menu.tscn`, `export_presets.cfg`, `save_slots.gd` | `All registered suites (implicit shared contract)` |
 | seeds | `seed_catalog.gd`, `altar_recipes.gd`, `altar_service.gd`, `planting_panel.gd`, `garden_altar_panel.gd`, `altar_input_slot.gd` | `plant_affinities`, `guarded_garden_actions`, `boss_coop`, `boss_roster`, `classes_coop`, `classes_weapons`, `crafting_availability_coop`, `cultivation_growth`, `foundations`, `garden_altar`, `garden_cleanup`, `garden_cleanup_coop`, `garden_crop_care`, `garden_crop_care_coop`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `heart_progression`, `inventory_grid`, `inventory_party`, `network_research_coop`, `seed_coop`, `seed_inventory`, `seed_progression`, `seed_template`, `species_depth`, `timed_research`, `tree_portraits`, `developer_garden` |
 | items | `item_catalog.gd`, `inventory_model.gd`, `inventory_panel.gd`, `inventory_slot.gd`, `inventory_drop_surface.gd`, `inventory_drop_visuals.gd` | `plant_affinities`, `candidate_release_solo`, `guarded_garden_actions`, `checkpoint_extraction`, `classes_coop`, `classes_weapons`, `core_starters`, `crafting_availability_coop`, `cultivation_growth`, `diagnostics`, `foundations`, `four_players_coop`, `garden_altar`, `garden_cleanup`, `garden_cleanup_coop`, `garden_conduit`, `garden_crop_care`, `garden_crop_care_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `gate_crafting_rules`, `grafting_menu`, `inventory_grid`, `inventory_party`, `loot_revival`, `loot_revival_coop`, `monster_rewards`, `player_hud`, `seed_coop`, `seed_inventory`, `seed_template`, `species_depth`, `developer_garden` |
-| weapons | `weapon_parts.gd`, `weapon_system.gd`, `weapon_frames.gd`, `loadout_materials.gd`, `loadout_panel.gd`, `grafting_panel.gd` | `plant_affinities`, `guarded_garden_actions`, `guarded_garden_actions_coop`, `boss_roster`, `character_locomotion`, `character_overhaul`, `character_rig`, `class_depth`, `class_depth_coop`, `classes_coop`, `classes_weapons`, `combat_animation`, `core_combat`, `core_combat_coop`, `core_modifiers`, `core_roster`, `core_roster_coop`, `core_signatures`, `core_signatures_coop`, `core_starters`, `crafting_availability_coop`, `dual_skills`, `dual_skills_coop`, `enemy_depth`, `foundations`, `four_players_coop`, `garden_altar`, `garden_interactions`, `garden_interactions_coop`, `garden_spring`, `garden_spring_coop`, `gate_crafting_rules`, `gate_garden_services`, `grafting_menu`, `inventory_grid`, `inventory_party`, `menu_coop`, `mouse_combat`, `mouse_combat_coop`, `network_presentation`, `network_warden_coop`, `party_ready`, `party_ready_coop`, `run_flow`, `seed_coop`, `seed_template`, `shrines_hits`, `species_depth`, `status_feedback`, `warden_depth`, `warden_depth_coop`, `weapon_actions`, `weapon_actions_coop`, `weighted_upgrades`, `developer_garden`, `core_balance_preview` |
-| classes | `class_catalog.gd`, `skill_catalog.gd`, `combat_traits.gd` | `guarded_garden_actions`, `guarded_garden_actions_coop`, `class_depth`, `class_depth_coop`, `classes_coop`, `classes_weapons`, `core_modifiers`, `core_starters`, `dual_skills`, `dual_skills_coop`, `enemy_depth`, `foundations`, `four_players_coop`, `inventory_party`, `monster_rewards`, `mouse_combat`, `mouse_combat_coop`, `network_warden_coop`, `player_hud`, `run_flow`, `seed_template`, `species_depth`, `status_feedback`, `status_feedback_coop`, `warden_depth`, `warden_depth_coop`, `weapon_actions`, `weighted_upgrades`, `warden_prototype`, `warden_prototype_coop`, `subclass_skills`, `class_balance_preview` |
+| weapons | `weapon_parts.gd`, `weapon_system.gd`, `weapon_frames.gd`, `loadout_materials.gd`, `loadout_panel.gd`, `grafting_panel.gd` | `cr02_combat_contracts`, `cr02_mode_coop`, `plant_affinities`, `guarded_garden_actions`, `guarded_garden_actions_coop`, `boss_roster`, `character_locomotion`, `character_overhaul`, `character_rig`, `class_depth`, `class_depth_coop`, `classes_coop`, `classes_weapons`, `combat_animation`, `core_combat`, `core_combat_coop`, `core_modifiers`, `core_roster`, `core_roster_coop`, `core_signatures`, `core_signatures_coop`, `core_starters`, `crafting_availability_coop`, `dual_skills`, `dual_skills_coop`, `enemy_depth`, `foundations`, `four_players_coop`, `garden_altar`, `garden_interactions`, `garden_interactions_coop`, `garden_spring`, `garden_spring_coop`, `gate_crafting_rules`, `gate_garden_services`, `grafting_menu`, `inventory_grid`, `inventory_party`, `menu_coop`, `mouse_combat`, `mouse_combat_coop`, `network_presentation`, `network_warden_coop`, `party_ready`, `party_ready_coop`, `run_flow`, `seed_coop`, `seed_template`, `shrines_hits`, `species_depth`, `status_feedback`, `warden_depth`, `warden_depth_coop`, `weapon_actions`, `weapon_actions_coop`, `weighted_upgrades`, `developer_garden`, `core_balance_preview` |
+| classes | `class_catalog.gd`, `skill_catalog.gd`, `combat_traits.gd` | `cr02_combat_contracts`, `guarded_garden_actions`, `guarded_garden_actions_coop`, `class_depth`, `class_depth_coop`, `classes_coop`, `classes_weapons`, `core_modifiers`, `core_starters`, `dual_skills`, `dual_skills_coop`, `enemy_depth`, `foundations`, `four_players_coop`, `inventory_party`, `monster_rewards`, `mouse_combat`, `mouse_combat_coop`, `network_warden_coop`, `player_hud`, `run_flow`, `seed_template`, `species_depth`, `status_feedback`, `status_feedback_coop`, `warden_depth`, `warden_depth_coop`, `weapon_actions`, `weighted_upgrades`, `warden_prototype`, `warden_prototype_coop`, `subclass_skills`, `class_balance_preview` |
 | combat | `mouse_combat.gd`, `attack_geometry.gd`, `weapon_motion.gd`, `enemy_hurtbox.gd`, `enemy_hurtbox.gd.uid`, `weapon_contact.gd`, `weapon_contact.gd.uid`, `combat_status.gd`, `combat_status.gd.uid` | `candidate_release_solo`, `guarded_expedition`, `guarded_expedition_coop`, `boss_coop`, `boss_lairs`, `boss_phase_fights`, `boss_roster`, `class_depth`, `class_depth_coop`, `classes_coop`, `classes_weapons`, `combat_animation`, `combat_balance`, `combat_readability`, `combat_readability_coop`, `core_combat`, `core_combat_coop`, `core_modifiers`, `core_roster`, `core_roster_coop`, `core_signatures`, `core_signatures_coop`, `core_starters`, `core_weapon_variants`, `diagnostics`, `diagnostics_coop`, `dual_skills`, `dual_skills_coop`, `enemy_depth`, `enemy_support`, `four_players_coop`, `gate_elites`, `gate_elites_coop`, `grafting_menu`, `health_points`, `menu_coop`, `monster_behaviors`, `mouse_combat`, `mouse_combat_coop`, `network_presentation`, `network_warden_coop`, `player_hud`, `shrines_hits`, `status_feedback`, `status_feedback_coop`, `supplied_network_smoke`, `support_deaths`, `support_rite_responses`, `support_rite_responses_coop`, `terrain_generation_coop`, `warden_depth`, `warden_depth_coop`, `weapon_actions`, `weapon_actions_coop`, `weighted_upgrades`, `regular_enemy_responses`, `regular_enemy_responses_coop`, `thief_escape`, `thief_escape_coop` |
 | enemies | `enemy_catalog.gd`, `enemy_behaviors.gd`, `boss_encounters.gd`, `combat_director.gd`, `wilds_learning.gd`, `game_balance.gd`, `elite_enemy.gd`, `elite_enemy.gd.uid` | `boss_coop`, `boss_lairs`, `boss_phase_fights`, `boss_roster`, `combat_animation`, `combat_balance`, `combat_readability`, `combat_readability_coop`, `enemy_depth`, `enemy_roster`, `enemy_support`, `expedition_pressure`, `expedition_pressure_coop`, `gate_elites`, `gate_elites_coop`, `monster_behaviors`, `monster_rewards`, `shrines_hits`, `status_feedback`, `support_deaths`, `terrain_generation`, `enemy_balance_preview` |
 | terrain | `battlefield.gd`, `encounter_config.gd`, `exploration.gd`, `walkable_surface.gd`, `walkable_surface.gd.uid`, `wilds_layout.gd`, `wilds_layout.gd.uid` | `experimental_terrain_coop`, `experimental_terrain`, `boss_coop`, `boss_lairs`, `boss_phase_fights`, `boss_roster`, `core_combat`, `core_combat_coop`, `core_modifiers`, `core_weapon_variants`, `expedition_pressure`, `exploration_maps`, `exploration_ui`, `garden_presentation`, `gate_elites`, `loot_revival`, `loot_revival_coop`, `menu_controls`, `mouse_combat`, `mouse_combat_coop`, `natural_world`, `network_movement_coop`, `network_presentation`, `path_junctions`, `shrines_hits`, `support_rite_responses`, `terrain_generation`, `terrain_generation_coop`, `weapon_actions`, `wilds_skill_tactics`, `regular_enemy_responses`, `thief_escape`, `thief_escape_coop` |
-| garden | `garden_visuals.gd`, `heart_visuals.gd` | `experimental_terrain_coop`, `candidate_release_solo`, `candidate_release_party`, `guest_projection_coop`, `garden_cleanup`, `garden_cleanup_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `gardening`, `gate_garden_services`, `heart_progression`, `network_research_coop`, `seed_inventory`, `timed_research` |
+| garden | `garden_visuals.gd`, `heart_visuals.gd` | `cr02_mode_coop`, `experimental_terrain_coop`, `candidate_release_solo`, `candidate_release_party`, `guest_projection_coop`, `garden_cleanup`, `garden_cleanup_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `gardening`, `gate_garden_services`, `heart_progression`, `network_research_coop`, `seed_inventory`, `timed_research` |
 | knowledge | `heart_catalog.gd`, `heart_progress.gd` | `guarded_garden_actions`, `guarded_gameplay_transactions`, `cultivation_growth`, `foundations`, `garden_altar`, `garden_cleanup`, `garden_cleanup_coop`, `garden_conduit`, `garden_conduit_coop`, `garden_growth`, `garden_growth_coop`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `heart_growth_visual`, `heart_progression`, `network_research_coop`, `seed_coop`, `seed_progression`, `seed_template`, `species_depth`, `timed_research`, `developer_garden` |
 | progression | `progression_panel.gd`, `progression_tree.gd` | `garden_cleanup`, `garden_cleanup_coop`, `heart_progression`, `seed_progression`, `tree_portraits` |
 | expeditions | `party_travel.gd`, `run_upgrade_catalog.gd`, `campaign.gd` | `candidate_release_solo`, `candidate_release_party`, `guest_projection_coop`, `guarded_expedition`, `guarded_expedition_coop`, `guarded_garden_actions`, `boss_coop`, `boss_roster`, `checkpoint_extraction`, `class_depth`, `class_depth_coop`, `combat_balance`, `core_starters`, `crafting_availability_coop`, `diagnostics_coop`, `enemy_depth`, `expedition_pressure`, `expedition_pressure_coop`, `expedition_track`, `expedition_track_coop`, `foundations`, `four_players_coop`, `garden_cleanup`, `garden_cleanup_coop`, `garden_growth`, `garden_growth_coop`, `garden_returns`, `garden_returns_coop`, `gate_crafting_rules`, `grafting_menu`, `heart_progression`, `loot_revival`, `loot_revival_coop`, `party_hud_gates`, `party_hud_gates_coop`, `party_ready`, `party_ready_coop`, `run_flow`, `shrines_hits`, `species_depth`, `supplied_network_smoke`, `terrain_generation`, `terrain_generation_coop`, `warden_depth`, `warden_depth_coop`, `weighted_upgrades`, `regular_enemy_responses`, `warden_prototype`, `warden_prototype_coop`, `subclass_skills`, `thief_escape`, `thief_escape_coop`, `soundscape`, `event_audio` |
@@ -325,7 +330,7 @@ flowchart LR
 | wilds_skill_tactics | `wilds_skill_tactics.gd`, `wilds_skill_tactics.gd.uid`, `enemy_skill_responses.gd`, `enemy_skill_responses.gd.uid` | `ability_aim`, `boss_coop`, `boss_phase_fights`, `combat_balance`, `combat_readability`, `combat_readability_coop`, `core_combat`, `core_roster`, `core_roster_coop`, `core_weapon_variants`, `diagnostics_coop`, `enemy_depth`, `enemy_support`, `enemy_variants`, `gate_elites`, `gate_elites_coop`, `status_feedback`, `status_feedback_coop`, `support_rite_responses`, `support_rite_responses_coop`, `terrain_generation`, `terrain_generation_coop`, `weighted_upgrades`, `wilds_skill_tactics`, `wilds_skill_tactics_coop`, `regular_enemy_responses`, `regular_enemy_responses_coop` |
 | enemy_move_feedback | `enemy_move_feedback.gd`, `enemy_move_feedback.gd.uid` | `boss_phase_fights`, `combat_readability`, `combat_readability_coop`, `enemy_support`, `status_feedback`, `status_feedback_coop`, `support_rite_responses`, `support_rite_responses_coop`, `thorn_adaptation`, `thorn_adaptation_coop`, `wilds_skill_tactics`, `regular_enemy_responses`, `regular_enemy_responses_coop` |
 | warden_progression | `warden_tree.gd`, `warden_tree.gd.uid`, `warden_combat.gd`, `warden_combat.gd.uid`, `subclass_catalog.gd`, `subclass_catalog.gd.uid`, `subclass_combat.gd`, `subclass_combat.gd.uid`, `subclass_visuals.gd`, `subclass_visuals.gd.uid` | `ability_aim`, `character_roster`, `class_depth`, `class_depth_coop`, `classes_coop`, `classes_weapons`, `core_modifiers`, `foundations`, `four_players_coop`, `menu_coop`, `network_warden_coop`, `player_hud`, `seed_template`, `status_feedback`, `status_feedback_coop`, `warden_depth`, `warden_depth_coop`, `weighted_upgrades`, `warden_prototype`, `warden_prototype_coop`, `subclass_skills`, `class_balance_preview` |
-| connection_flow |  | `experimental_terrain_coop`, `candidate_release_party`, `production_persistence`, `guest_projection_coop`, `guarded_lifecycle`, `guarded_lifecycle_coop`, `guarded_expedition`, `guarded_expedition_coop`, `guarded_garden_actions_coop`, `guarded_gameplay_transactions`, `guarded_title_session`, `direct_ip_coop`, `four_players_coop`, `menu_coop`, `network_movement_coop`, `network_settings`, `start_menu`, `supplied_network_smoke` |
+| connection_flow |  | `cr02_mode_coop`, `cr02_mode_mismatch`, `cr02_definitions_mismatch`, `experimental_terrain_coop`, `candidate_release_party`, `production_persistence`, `guest_projection_coop`, `guarded_lifecycle`, `guarded_lifecycle_coop`, `guarded_expedition`, `guarded_expedition_coop`, `guarded_garden_actions_coop`, `guarded_gameplay_transactions`, `guarded_title_session`, `direct_ip_coop`, `four_players_coop`, `menu_coop`, `network_movement_coop`, `network_settings`, `start_menu`, `supplied_network_smoke` |
 | developer_garden | `developer_mode.gd`, `developer_mode.gd.uid`, `developer_settings.gd`, `developer_settings.gd.uid` | `legacy_import_recovery`, `production_persistence`, `guarded_title_session`, `direct_ip_coop`, `garden_growth`, `heart_growth_visual`, `heart_progression`, `menu_controls`, `menu_coop`, `start_menu`, `timed_research`, `developer_garden` |
 | thief_escape | `thief_escape.gd`, `thief_escape.gd.uid`, `thief_escape_view.gd`, `thief_escape_view.gd.uid` | `enemy_depth`, `enemy_support`, `exploration_ui`, `gate_elites`, `gate_elites_coop`, `monster_rewards`, `party_hud_gates`, `regular_enemy_responses`, `regular_enemy_responses_coop`, `thief_escape`, `thief_escape_coop`, `event_audio` |
 | soundscape | `soundscape.gd`, `soundscape.gd.uid`, `title_music.gd`, `title_music.gd.uid` | `four_players_coop`, `garden_growth`, `menu_controls`, `start_menu`, `soundscape`, `event_audio` |
@@ -666,6 +671,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_garden_action` | growth_adapter | garden_cinematics |
 | `game.gd::_garden_action` | gate_range | gate_access |
 | `game.gd::_garden_action` | garden_command | garden_observations |
+| `game.gd::_buy_upgrade` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::_buy_upgrade` | guarded_garden_actions | persistence_operations, expeditions, combat_vitals, gate_access |
 | `game.gd::_buy_upgrade` | vitals_upgrade_capacity | combat_vitals |
 | `game.gd::_buy_upgrade` | gate_range | gate_access |
@@ -691,6 +697,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_use_checkpoint` | garden_returns | garden_returns |
 | `game.gd::_use_checkpoint` | gate_hold | gate_access |
 | `game.gd::_use_checkpoint` | gate_range | gate_access |
+| `game.gd::_process` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::_process` | experimental_coop_1 | hex_terrain, terrain, connection_flow, garden |
 | `game.gd::_process` | experimental_seed_rewards_1 | hex_terrain, loot, terrain |
 | `game.gd::_process` | experimental_gate_visibility | hex_terrain, terrain |
@@ -762,12 +769,14 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::toggle_overlay` | show_run_summary | expedition_summary |
 | `game.gd::toggle_overlay` | cancel_held_aim | ability_aim |
 | `game.gd::toggle_overlay` | garden_panel | garden_observations |
+| `game.gd::player_snapshot` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::player_snapshot` | experimental_coop_1 | hex_terrain, terrain, connection_flow, garden |
 | `game.gd::player_snapshot` | replicate_thief_routes | thief_escape |
 | `game.gd::player_snapshot` | warden_private_combat_state | warden_progression |
 | `game.gd::player_snapshot` | class_aim_owner | ability_aim |
 | `game.gd::player_snapshot` | core_owner_projection | core_combat |
 | `game.gd::player_snapshot` | garden_projection | garden_observations |
+| `game.gd::add_player` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::add_player` | preview_spawn_capacity | combat_balance_preview |
 | `game.gd::add_player` | preview_starting_capacity | combat_balance_preview |
 | `game.gd::add_player` | growth_adapter | garden_cinematics |
@@ -811,6 +820,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::garden_action` | class_aim_command | ability_aim |
 | `game.gd::garden_action` | core_cast | core_combat |
 | `game.gd::garden_action` | growth_balance | cultivation_growth |
+| `game.gd::_enter_wilds` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::_enter_wilds` | guarded_expedition | persistence_operations, expeditions, combat_balance_preview, combat_vitals, core_combat, ui_copy, garden_returns |
 | `game.gd::_enter_wilds` | preview_departure_capacity | combat_balance_preview |
 | `game.gd::_enter_wilds` | vitals_capacity_bonus | combat_vitals |
@@ -863,6 +873,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::checkpoint_card_data` | warden_card_text | warden_progression |
 | `game.gd::checkpoint_card_data` | core_card_copy | core_combat |
 | `game.gd::checkpoint_card_data` | ui_copy | ui_copy |
+| `game.gd::open_checkpoint_cards` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::open_checkpoint_cards` | ui_copy | ui_copy |
 | `game.gd::update_scouts` | regular_learned_approach | wilds_skill_tactics |
 | `game.gd::update_scouts` | thorn_vault_choice | thorn_adaptation |
@@ -897,6 +908,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::make_scout` | preview_juvenile_hp | combat_balance_preview |
 | `game.gd::make_scout` | heavy_and_support | enemy_attack_plan |
 | `game.gd::make_scout` | species_variants | enemy_attack_plan |
+| `game.gd::apply_weapon_hit` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::apply_weapon_hit` | cb07_8 | expedition_sustain |
 | `game.gd::apply_weapon_hit` | cb06_5 | enemy_balance |
 | `game.gd::apply_weapon_hit` | healing_roll_1 | healing_rolls |
@@ -936,6 +948,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::reset_encounter` | cb06_3 | enemy_balance |
 | `game.gd::reset_encounter` | core_floor_reset | core_combat |
 | `game.gd::reset_encounter` | pack_composition | encounter_composition |
+| `game.gd::use_class_skill` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::use_class_skill` | cb07_12 | expedition_sustain |
 | `game.gd::use_class_skill` | cb07_13 | expedition_sustain |
 | `game.gd::use_class_skill` | cb07_14 | expedition_sustain |
@@ -980,6 +993,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::send_garden_action` | cleanup_feedback | persistence_operations |
 | `game.gd::send_garden_action` | class_aim_log | ability_aim |
 | `game.gd::send_garden_action` | core_cast_log | core_combat |
+| `game.gd::weapon_stats` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::weapon_stats` | cb07_1 | expedition_sustain |
 | `game.gd::weapon_stats` | cb04_0 | class_balance |
 | `game.gd::weapon_stats` | cb03_run_hp_cap | weapon_balance |
@@ -1006,6 +1020,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::emit_combat_event` | core_shape_payload | core_combat |
 | `game.gd::emit_combat_event` | subclass_release_label | warden_progression |
 | `game.gd::emit_combat_event` | authored_core_label | core_combat |
+| `game.gd::apply_enemy_hit` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::apply_enemy_hit` | guarded_expedition | persistence_operations, life, enemy_balance, combat_balance_preview, core_combat, enemy_move_feedback |
 | `game.gd::apply_enemy_hit` | cb06_7 | enemy_balance |
 | `game.gd::apply_enemy_hit` | cb06_8 | enemy_balance |
@@ -1083,6 +1098,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::update_projectiles` | advance_projectile_rays | ranged_release, combat_readability |
 | `game.gd::close_run_flow_panel` | close_crafting_class_tree | class_tree_access |
 | `game.gd::add_button` | overlay_button_focus | menu_layout |
+| `game.gd::grant_guard` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::grant_guard` | cb04_7 | class_balance |
 | `game.gd::grant_guard` | ironbark_replaced_ward | core_combat |
 | `game.gd::update_enemy` | heart_swipe_windup | event_audio |
@@ -1099,6 +1115,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::update_support_effects` | cb04_3 | class_balance |
 | `game.gd::update_support_effects` | preview_renewal_tick | combat_balance_preview |
 | `game.gd::update_support_effects` | vitals_renewal | combat_vitals |
+| `game.gd::strike_enemy` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::strike_enemy` | preview_lock_strike | combat_balance_preview |
 | `game.gd::encounter_health` | cb06_4 | enemy_balance |
 | `game.gd::encounter_health` | preview_guest_enemy_hp | combat_balance_preview |
@@ -1108,6 +1125,13 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_attempt_graft` | cb03_graft_health_capacity | weapon_balance |
 | `game.gd::hit_players_charge` | cb06_6 | enemy_balance |
 | `game.gd::hit_players` | cb06_9 | enemy_balance |
+| `game.gd::enter_wilds` | cr02_affinity_contract | combat_affinity_contracts |
+| `game.gd::checkpoint_offer_ids` | cr02_affinity_contract | combat_affinity_contracts |
+| `game.gd::buy_upgrade` | cr02_affinity_contract | combat_affinity_contracts |
+| `warden_tree.gd` | cr02_card_lines | combat_affinity_contracts |
+| `warden_combat.gd` | cr02_has_card | combat_affinity_contracts |
+| `weapon_contact.gd` | cr02_secondary | combat_affinity_contracts |
+| `weapon_contact.gd` | cr02_melee | combat_affinity_contracts |
 | `network_movement.gd` | experimental_coop_1 | hex_terrain, terrain, connection_flow, garden |
 | `network_movement.gd` | experimental_coop_2 | hex_terrain, terrain, connection_flow, garden |
 | `diagnostics_boot.gd` | experimental_coop_1 | hex_terrain, terrain, connection_flow, garden |
@@ -1140,6 +1164,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `root_ui.gd` | party_field | party_ui |
 | `root_ui.gd` | party_child | party_ui |
 | `root_ui.gd` | party_update | party_ui |
+| `party_travel.gd` | cr02_departure_cost | combat_affinity_contracts |
 | `party_travel.gd` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
 | `party_travel.gd` | guarded_expedition_1 | persistence_operations, expeditions, connection_flow |
 | `party_travel.gd` | guarded_expedition_2 | persistence_operations, expeditions, connection_flow |
@@ -1342,6 +1367,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `seed_catalog.gd` | cb03_seed_damage_hp | weapon_balance |
 | `seed_catalog.gd` | ui_copy_0 | ui_copy |
 | `seed_catalog.gd` | tier_growth_values | cultivation_growth |
+| `network_compatibility.gd` | cr02_begin_check | combat_affinity_contracts |
+| `network_compatibility.gd` | cr02_receive_compatibility | combat_affinity_contracts |
 | `network_compatibility.gd` | experimental_coop_1 | hex_terrain, terrain, connection_flow, garden |
 | `network_compatibility.gd` | experimental_coop_2 | hex_terrain, terrain, connection_flow, garden |
 | `network_compatibility.gd` | experimental_coop_3 | hex_terrain, terrain, connection_flow, garden |
@@ -1537,6 +1564,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `grafting_panel.gd` | ui_copy_2 | ui_copy |
 | `grafting_panel.gd` | ui_copy_1 | ui_copy |
 | `grafting_panel.gd` | ui_copy_0 | ui_copy |
+| `loadout_panel.gd` | cr02_refresh | combat_affinity_contracts |
 | `loadout_panel.gd` | class_location_copy | class_tree_access |
 | `loadout_panel.gd` | open_class_tree_from_crafting | class_tree_access |
 | `loadout_panel.gd` | warden_points_in_loadout | warden_progression |
@@ -1655,6 +1683,10 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `skill_catalog.gd` | resolve_warden_subclass_skill | warden_progression |
 | `skill_catalog.gd` | ui_copy_1 | ui_copy |
 | `skill_catalog.gd` | ui_copy_0 | ui_copy |
+| `run_upgrade_catalog.gd` | cr02_requirement | combat_affinity_contracts |
+| `run_upgrade_catalog.gd` | cr02_effects | combat_affinity_contracts |
+| `run_upgrade_catalog.gd` | cr02_core_cards | combat_affinity_contracts |
+| `run_upgrade_catalog.gd` | cr02_pool | combat_affinity_contracts |
 | `run_upgrade_catalog.gd` | cb05_0 | core_balance |
 | `run_upgrade_catalog.gd` | cb05_1 | core_balance |
 | `run_upgrade_catalog.gd` | cb05_2 | core_balance |
@@ -1973,6 +2005,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `status_feedback.gd` | status_application_visible_age | enemy_move_feedback |
 | `status_feedback.gd` | await_status_actor_snapshot | enemy_move_feedback |
 | `status_feedback.gd` | strike_mark_shape | core_combat |
+| `mouse_combat.gd` | cr02_ray_tick | combat_affinity_contracts |
 | `mouse_combat.gd` | guarded_lifecycle_1 | persistence_operations, connection_flow, menus, settings |
 | `mouse_combat.gd` | resolve_petal_hit | ranged_release, combat_readability |
 | `mouse_combat.gd` | send_cursor_magnitude | ranged_release, core_combat |
@@ -1987,6 +2020,9 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `mouse_combat.gd` | attack_uses_projectile_path | ability_aim |
 | `mouse_combat.gd` | shared_aim_projectile_path | ability_aim |
 | `mouse_combat.gd` | core_cursor_distance | core_combat |
+| `core_combat.gd` | cr02_command | combat_affinity_contracts |
+| `core_combat.gd` | cr02_equipped | combat_affinity_contracts |
+| `core_combat.gd` | cr02_hud_state | combat_affinity_contracts |
 | `core_combat.gd` | cb05_0 | core_balance |
 | `core_combat.gd` | cb05_1 | core_balance |
 | `core_combat.gd` | core_commit_audio | event_audio |
@@ -1995,6 +2031,9 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `core_combat.gd` | record_thorn_success | thorn_adaptation |
 | `core_combat.gd` | record_thorn_opportunity | thorn_adaptation |
 | `core_combat.gd` | thorn_learning_dependency | thorn_adaptation |
+| `combat_traits.gd` | cr02_trip_snare | combat_affinity_contracts |
+| `combat_traits.gd` | cr02_tick | combat_affinity_contracts |
+| `combat_traits.gd` | cr02_defer_skill | combat_affinity_contracts |
 | `combat_traits.gd` | cb07_0 | expedition_sustain |
 | `combat_traits.gd` | cb07_1 | expedition_sustain |
 | `combat_traits.gd` | cb07_2 | expedition_sustain |
@@ -2159,6 +2198,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `ability_aim.gd` | subclass_aim_preview | warden_progression |
 | `ability_aim.gd` | subclass_aim_wire | warden_progression |
 | `ability_aim.gd` | subclass_commit_aim | warden_progression |
+| `main_menu.gd` | cr02__ready | combat_affinity_contracts |
+| `main_menu.gd` | cr02__launch_guarded | combat_affinity_contracts |
 | `main_menu.gd` | experimental_coop_1 | hex_terrain, terrain, connection_flow, garden |
 | `main_menu.gd` | experimental_coop_2 | hex_terrain, terrain, connection_flow, garden |
 | `main_menu.gd` | experimental_coop_3 | hex_terrain, terrain, connection_flow, garden |
@@ -2258,6 +2299,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `boss_phase_fights.gd` | boss_windup | event_audio |
 | `enemy_move_feedback.gd` | orchard_locked_release | boss_lair_fights |
 | `combat_audio.gd` | orchard_cage_cast_audio | boss_lair_fights |
+| `subclass_combat.gd` | cr02_cast_skill | combat_affinity_contracts |
 | `subclass_combat.gd` | cb07_0 | expedition_sustain |
 | `subclass_combat.gd` | cb07_1 | expedition_sustain |
 | `subclass_combat.gd` | cb07_2 | expedition_sustain |
@@ -2305,6 +2347,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `expedition_life.gd` | vitals_revive_threshold | combat_vitals |
 | `expedition_life.gd` | vitals_player_maximum | combat_vitals |
 | `expedition_life.gd` | vitals_revive_constants | combat_vitals |
+| `run_summary_panel.gd` | cr02_affinity_contract | combat_affinity_contracts |
 | `run_summary_panel.gd` | cb07_0 | expedition_sustain |
 | `run_summary_panel.gd` | cb07_1 | expedition_sustain |
 | `run_summary_panel.gd` | healing_roll_0 | healing_rolls |
@@ -2345,6 +2388,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `combat_balance_preview.gd` | cb03_component_hp_fields | weapon_balance |
 | `item_catalog.gd` | cb03_inventory_component_hp | weapon_balance |
 | `inventory_slot.gd` | cb03_slot_component_tooltip | weapon_balance |
+| `subclass_catalog.gd` | cr02_card_lines | combat_affinity_contracts |
 | `subclass_catalog.gd` | cb04_0 | class_balance |
 | `subclass_catalog.gd` | cb04_1 | class_balance |
 | `subclass_catalog.gd` | cb04_2 | class_balance |

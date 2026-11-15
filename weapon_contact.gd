@@ -59,6 +59,8 @@ static func secondary(game: Node,player: Dictionary,stats: Dictionary,point: Vec
   if found==-2:break
   var next: Vector3=game.enemy_position(found);hits.append(token(game,found));remaining-=1
   if stats.pattern=="chain":game.emit_combat_event("link","chain",cursor,next,.20,game.weapon_effect_color(player),0,0)
+  if stats.has("cr02_action"):
+   preload("res://combat_action_events.gd").contact(game,stats,found,Time.get_ticks_msec(),true)
   game.apply_weapon_hit(player,found,cursor,stats,Time.get_ticks_msec())
   if stats.pattern=="chain":cursor=next
  return remaining
@@ -70,6 +72,8 @@ static func melee(game: Node,shot: Dictionary,now: int) -> void:
   if remaining<=0:break
   if not accepts(game,target,shot.origin,shot.aim,str(shot.form),shot.stats):continue
   var point: Vector3=game.enemy_position(target);hits.append(token(game,target));remaining-=1
+  if shot.stats.has("cr02_action"):
+   preload("res://combat_action_events.gd").contact(game,shot.stats,target,now)
   game.apply_weapon_hit(player,target,shot.origin,shot.stats,now)
   if shot.stats.pattern=="chain" or (shot.stats.pattern=="splash" and Motion.profile(str(shot.form)).delivery!="radial"):
    remaining=secondary(game,player,shot.stats,point,hits,remaining);break

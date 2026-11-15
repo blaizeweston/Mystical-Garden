@@ -37,6 +37,8 @@ func begin_check(id: int) -> void:
  var payload: Dictionary={"game":"mystical-garden","protocol":Settings.PROTOCOL,"methods":signature,"terrain":preload("res://wilds_layout.gd").SIGNATURE,"garden":preload("res://garden_return_catalog.gd").signature,"cultivation":preload("res://cultivation_growth.gd").signature}
  payload.hp_per_point=get_parent().Life.Preview.scale()
  payload.experimental_terrain=Experiment.network_identity(get_parent())
+ var ruleset := preload("res://combat_ruleset.gd").network_identity(get_parent())
+ if not ruleset.is_empty(): payload.combat_ruleset = ruleset
  multiplayer.send_auth(id,JSON.stringify(payload).to_utf8_buffer())
 
 func receive_compatibility(id: int,data: PackedByteArray) -> void:
@@ -45,6 +47,12 @@ func receive_compatibility(id: int,data: PackedByteArray) -> void:
   preload("res://diagnostic_journal.gd").event("network","compatibility_rejected",{"actor":id},"warning")
   failure_reason=UPDATE_MESSAGE
   multiplayer.disconnect_peer(id)
+  return
+ var combat_mode = preload("res://combat_ruleset.gd")
+ if payload.get("combat_ruleset", "") != combat_mode.network_identity(get_parent()):
+  preload("res://diagnostic_journal.gd").event("network","compatibility_rejected",{"actor":id,"reason":"combat_ruleset"},"warning")
+  failure_reason = combat_mode.MISMATCH
+  if not multiplayer.is_server(): finish_failed_check.call_deferred()
   return
  if payload.get("experimental_terrain","")!=Experiment.network_identity(get_parent()):
   failure_reason="Everyone must use the same experimental terrain build."

@@ -207,7 +207,8 @@ def run_fixture(project, engine, fixture, kind, script, folder, run_id, pack=Non
         raise ValueError("invalid fixture name or run ID")
     folder = folder.resolve()
     folder.mkdir(parents=True, exist_ok=False)
-    terrain_coop = fixture == "experimental_terrain_coop"
+    affinity_fixtures = ("cr02_mode_coop", "cr02_mode_mismatch", "cr02_definitions_mismatch")
+    terrain_coop = fixture == "experimental_terrain_coop" or fixture in affinity_fixtures
     env = None if terrain_coop else fixture_environment(project)
     default_port = 32295 if kind == "party" else 32291 if pack else 32283
     terrain_signals = folder / "signals"
@@ -253,6 +254,8 @@ def run_fixture(project, engine, fixture, kind, script, folder, run_id, pack=Non
                 if terrain_coop:
                     child_env["MYSTICAL_TERRAIN_TEST_SIGNALS"] = str(terrain_signals)
                     user_args.append("--experimental-terrain")
+                    if fixture in affinity_fixtures and not (fixture == "cr02_mode_mismatch" and peer == "guest"):
+                        user_args.append("--combat-affinities")
                 profile_roots[peer] = child_env["APPDATA"]
                 with (folder / f"{peer}.log").open("wb") as log, (folder / f"{peer}.stderr.log").open("wb") as stderr:
                     processes[peer] = subprocess.Popen(

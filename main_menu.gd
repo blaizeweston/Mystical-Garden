@@ -71,7 +71,8 @@ var character_return_page:=0
 
 func _ready() -> void:
 	var experiment = preload("res://assets/terrain_m02/experimental/experiment_mode.gd")
-	if experiment.requested():
+	var combat_mode = preload("res://combat_ruleset.gd")
+	if experiment.requested() or combat_mode.requested():
 		if not experiment.verified():
 			var refusal := Label.new()
 			refusal.text = "Experimental terrain could not verify its isolated save folder."
@@ -85,7 +86,11 @@ func _ready() -> void:
 		set_meta(&"experimental_terrain", true)
 		guarded_persistence = true
 		import_legacy = false
-		if return_message.is_empty():
+		if combat_mode.verified():
+			set_meta(combat_mode.META, combat_mode.ID)
+			if return_message.is_empty():
+				return_message = "Combat affinity development mode · Co-op · Native combat with empty plant slots. Affinity effects are pending."
+		elif return_message.is_empty():
 			return_message = "EXPERIMENTAL TERRAIN  ·  Co-op  ·  Garden layout lasts for the host session"
 	if Playtest.retail():
 		import_legacy = false
@@ -890,6 +895,9 @@ func _launch_guarded(join: bool) -> void:
 	game.joined_from_title = join
 	if has_meta(&"experimental_terrain"):
 		game.set_meta(&"experimental_terrain", true)
+	var combat_mode = preload("res://combat_ruleset.gd")
+	if combat_mode.active(self):
+		game.set_meta(combat_mode.META, combat_mode.ID)
 	var session_owner := GuardedSession.new()
 	var result := session_owner.start(game, null if join else storage, selected, garden.get("digest", ""), characters, selected_character, profile.digest)
 	if not GuardedSession.completed(result):

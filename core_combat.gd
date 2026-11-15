@@ -40,6 +40,10 @@ static func cast_key(game: Node, player: Dictionary) -> String:
 static func command(game: Node, id: int, player: Dictionary, action: String) -> void:
 	if not game.multiplayer.is_server() or not game.Life.alive(player) or not player.get("profile_ready", false) or game.encounter_cleared():
 		return
+	if preload("res://combat_ruleset.gd").active(game):
+		var builds = preload("res://affinity_build.gd")
+		game.tell(id,builds.refusal(builds.for_player(player),"core"))
+		return
 	var args := action.split(":", true, 5)
 	if args.size() != 5 or args[1] != cast_key(game, player) or not args[2].is_valid_float() or not args[3].is_valid_float() or not args[4].is_valid_float():
 		return
@@ -108,6 +112,7 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 
 
 static func equipped(player: Dictionary) -> Dictionary:
+	if preload("res://combat_ruleset.gd").uses_affinities(player): return {}
 	var skill: Dictionary = Rules.player_build(player).skill
 	Upgrades.tune_core(player, skill)
 	return skill
@@ -126,6 +131,7 @@ static func owner_state(player: Dictionary, now: int, _cast: Dictionary = {}) ->
 
 
 static func hud_state(game: Node, player: Dictionary) -> Dictionary:
+	if preload("res://combat_ruleset.gd").active(game): return {}
 	if not player.get("wild", false):
 		return {}
 	var now := Time.get_ticks_msec()

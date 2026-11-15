@@ -11,7 +11,7 @@ const PREPARED_MS := 5500
 
 
 static func has_card(player: Dictionary, id: String) -> bool:
-	return int(player.get("run_upgrades",{}).get(id,0)) > 0
+	return int(preload("res://combat_ruleset.gd").legacy_ranks(player).get(id,0)) > 0
 
 
 static func live_state(game: Node, player: Dictionary, state: Dictionary) -> bool:

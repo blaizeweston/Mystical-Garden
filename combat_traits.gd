@@ -162,6 +162,8 @@ static func trip_snare(game: Node,p: Dictionary,event: Dictionary,now: int) -> v
   if event.seen.has(token):continue
   event.seen[token]=true
   var victims: Array[int]=[target]
+  if event.stats.has("cr02_action"):
+   preload("res://combat_action_events.gd").contact(game,event.stats,target,now)
   game.apply_skill_targets(p,victims,skill,event.stats,now)
   var at: Vector3=game.enemy_position(target)
   game.emit_combat_event("proc",skill.name,event.position,at,.45,Color(skill.color),0.0,target)
@@ -191,6 +193,8 @@ static func tick(game: Node,now: int) -> void:
     var point: Vector3=game.enemy_position(int(event.target))
     if game.battlefield.clear_line(p.pos,point):
      if event.has("visual"):preload("res://combat_status.gd").proc(game,str(event.visual),event.get("origin",p.pos),point,int(event.target))
+     if event.stats.has("cr02_action"):
+      preload("res://combat_action_events.gd").contact(game,event.stats,int(event.target),now)
      game.apply_weapon_hit(p,int(event.target),p.pos,event.stats,now)
      if game.encounter_cleared(): game.finish_combat(int(event.owner),point)
    continue
@@ -297,7 +301,7 @@ static func has_growth(game: Node,p: Dictionary) -> bool:
 static func defer_skill(game: Node,p: Dictionary,targets: Array[int],skill: Dictionary,stats: Dictionary,now: int) -> void:
  for target in targets:
   if game.trait_events.size()>=24: break
-  var hit:=stats.duplicate(true);hit.damage=Preview.authored_amount(float(skill.damage))+int(p.power);hit.trait_secondary=true
+  var hit:=stats.duplicate(true);hit.damage=Preview.authored_amount(float(skill.damage))+preload("res://combat_ruleset.gd").legacy_power(p);hit.trait_secondary=true
   game.trait_events.append({"kind":"hit","owner":player_id(game,p),"epoch":game.combat_epoch,"target":target,"token":-1 if target==-1 else int(game.scouts[target].get("spawn_token",0)),"due":now+int(skill.get("delay",700)),"stats":hit})
 
 static func end_zone(game: Node,event: Dictionary) -> void:

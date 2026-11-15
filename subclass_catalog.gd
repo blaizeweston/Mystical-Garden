@@ -561,7 +561,7 @@ static func focus_name(id: String) -> String:
 
 
 static func card_lines(player: Dictionary, slot: int) -> String:
-	if slot != 0 or int(player.get("frame",0)) == 0:
+	if slot != 0 or int(player.get("frame",0)) == 0 or player.has("combat_ruleset"):
 		return ""
 	var entry := focus(player.get("character",{}),int(player.frame))
 	if entry.is_empty() or int(player.get("run_upgrades",{}).get(entry.card.id,0)) == 0:

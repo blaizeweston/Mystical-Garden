@@ -136,6 +136,8 @@ func select_part(slot: int,part: int) -> void:
 	state_key="";refresh()
 func refresh():
 	var p:=player()
+	var affinity_mode := preload("res://combat_ruleset.gd").active(game)
+	var affinity_api = preload("res://affinity_build.gd")
 	if p.is_empty(): return
 	var c:=int(p.get("frame",0))
 	var prepared: bool=not p.get("wild",false)
@@ -162,9 +164,13 @@ func refresh():
 				var available: int=game.LoadoutMaterials.remaining(counts,parts,slot,part)
 				if available<=0: continue
 				var icon: String=game.Items.get_item(game.Items.part_id(part)).icon
-				option.add_icon_item(load(icon),"%s · %d available [%s]"%[game.Parts.part_name(part),available,", ".join(game.Parts.DEFINITIONS[part].tags)],part)
+				var tags: Array = game.Parts.DEFINITIONS[part].tags
+				if affinity_mode:
+					var affinity := affinity_api.slot(["core","form","catalyst"][slot],part)
+					tags = [affinity.get("primary_affinity","invalid")]
+				option.add_icon_item(load(icon),"%s · %d available [%s]"%[game.Parts.part_name(part),available,", ".join(tags)],part)
 				option.get_popup().set_item_icon_max_width(option.item_count-1,28)
-				if slot==0:
+				if slot==0 and not affinity_mode:
 					var candidate:=parts.duplicate()
 					candidate[0]=part
 					var weapon: Dictionary=game.Classes.DEFINITIONS[c].weapons[int(p.get("weapon_kind",0))]
@@ -206,7 +212,7 @@ func refresh():
 		body+="\n\n[b]%s · %s[/b]\n%s"%["Q" if skill_slot==0 else "R",skill.name,info]
 	var build: Dictionary=stats.get("core_build",{})
 	var core: Dictionary=build.get("skill",{})
-	if prepared and not pending_slots.is_empty():
+	if not affinity_mode and prepared and not pending_slots.is_empty():
 		var weapon: Dictionary=game.Classes.DEFINITIONS[c].weapons[int(p.get("weapon_kind",0))]
 		build=preload("res://core_skill_rules.gd").resolve(weapon.id,parts,0)
 		core=build.skill
@@ -230,8 +236,17 @@ func refresh():
 		body+="\n\nMonster graft: "+game.Parts.part_name(int(p.get("graft_part",0)))
 		var tags: Array=build.get("graft",[])
 		if not tags.is_empty(): body+="\nTags · "+", ".join(tags)
+	if affinity_mode:
+		var resolved := affinity_api.resolve(c,int(p.get("weapon_kind",0)),parts,
+			0 if prepared else int(p.get("graft_part",0)),profile)
+		body += "\n\n" + affinity_api.describe(resolved)
+		for adapter in resolved.class_skills:
+			if not adapter.get("response","").is_empty():
+				body += "\n%s Catalyst · %s (pending)" % ["Q" if adapter.slot==0 else "R",str(adapter.response).replace("_"," ")]
 	description.text=body
 	notice.text=("Uses one part per filled slot on departure. Selected parts are reserved for you.\nPacked monster parts need a Wilds altar. Unbanked cargo is lost on defeat." if allowed else "Craft and pack at the Wilds Gate.")
+	if affinity_mode and allowed:
+		notice.text = "Inspect any affinity. Empty plant slots allow native combat in this build."
 	var travel: Dictionary=game.party_travel_state()
 	if not travel.is_empty():
 		var rows: Array=[]

@@ -107,7 +107,11 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 	if not cast.valid:
 		game.tell(id,"No clear target for %s." % skill.name)
 		return
-	var card: Dictionary = skill.card.effect if int(player.get("run_upgrades",{}).get(skill.card.id,0)) > 0 else {}
+	var card: Dictionary = skill.card.effect if int(preload("res://combat_ruleset.gd").legacy_ranks(player).get(skill.card.id,0)) > 0 else {}
+	var adapter: Dictionary = stats.get("cr02_adapter", {})
+	var events = preload("res://combat_action_events.gd")
+	var event: RefCounted = stats.get(events.CONTEXT)
+	if not adapter.is_empty() and event == null: event = events.class_start(game,id,adapter,now)
 	var leaves_snare: bool = skill.visual in ["snare", "retreat"]
 	var affected: Array[int] = []
 	if not leaves_snare:
@@ -183,7 +187,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		if skill.get("cleanse",false) or card.get("cleanse",false) or skill.second == 2:
 			ally.slow_until = 0
 		if skill.get("ward",false) or card.get("ward",false) or (card.get("party_hit_ward",false) and not affected.is_empty()):
-			game.grant_guard(ally,now+Balance.WARD_MS,1)
+			events.grant_ward(game,ally,now+Balance.WARD_MS,1,event,adapter,now)
 	if not nearby.is_empty() and (skill.first == 2 or (skill.get("hit_ward",false) and not affected.is_empty())):
 		game.grant_guard(nearby[0],now+Balance.WARD_MS,1)
 	if card.get("landing_ward",false):
@@ -198,6 +202,12 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 	player.cast_until = now+550
 	player.skill_fx_seq = int(player.get("skill_fx_seq",0))+1
 	player.subclass_pose = {"until":player.cast_until,"clip":CLIPS[skill.visual],"direction":aim}
+	if event != null:
+		var recipients: Array[int] = []
+		if adapter.recipients == "living_heal_recipients":
+			for ally_id in game.players:
+				if nearby.any(func(ally): return is_same(ally,game.players[ally_id])): recipients.append(ally_id)
+		events.class_complete(game,event,adapter,cast.origin,Vector3(player.pos) if adapter.origin.begins_with("departure") or adapter.origin == "landing" else contact,affected,recipients,now)
 	if game.encounter_cleared():
 		game.finish_combat(id,contact)
 

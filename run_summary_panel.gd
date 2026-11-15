@@ -159,7 +159,7 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 	var power := 0
 	var rift_hook := false
 	for entry in Upgrades.all():
-		var rank := int(player.get("run_upgrades", {}).get(entry.id, 0))
+		var rank := int(preload("res://combat_ruleset.gd").legacy_ranks(player).get(entry.id, 0))
 		if rank <= 0:
 			continue
 		power += int(entry.effects.get("power", 0)) * rank
@@ -173,7 +173,7 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 		upgrades.append({"title": entry.name + ("  ×%d" % rank if rank > 1 else ""), "tooltip": tooltip, "rarity": entry.rarity})
 	upgrades.sort_custom(func(a,b): return a.title.naturalnocasecmp_to(b.title) < 0)
 	if world.multiplayer.is_server():
-		power = int(player.get("power", power))
+		power = 0 if player.has("combat_ruleset") else int(player.get("power", power))
 	if stats.has("damage_min"):
 		var band:=Vector2i(stats.damage_min,stats.damage_max)
 		rows.append(["Strike damage", world.Life.Preview.range_label(band)+" HP"])
