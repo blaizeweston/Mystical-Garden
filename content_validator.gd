@@ -24,6 +24,7 @@ static func unique(entries: Array,label: String) -> Array[String]:
 static func validate() -> Array[String]:
  var errors: Array[String]=[];errors.append_array(preload("res://garden_interaction_catalog.gd").errors());errors.append_array(unique(Seeds.DEFINITIONS,"seed"));errors.append_array(unique(Parts.DEFINITIONS,"part"));errors.append_array(unique(Classes.DEFINITIONS,"class"));errors.append_array(unique(Enemies.all(),"enemy"));errors.append_array(unique(Upgrades.all(),"upgrade"))
  errors.append_array(preload("res://core_skill_rules.gd").errors(Classes.DEFINITIONS))
+ errors.append_array(preload("res://plant_affinities.gd").errors())
  var pairs: Array=[]
  for i in Seeds.DEFINITIONS.size():
   var seed: Dictionary=Seeds.DEFINITIONS[i];errors.append_array(effect_errors(seed.effects,"seed "+str(seed.id)))

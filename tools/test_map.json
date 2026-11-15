@@ -2,6 +2,10 @@
   "schema": 1,
   "full_after_days": 7,
   "systems": {
+    "plant_affinities": {
+      "label": "Explicit plant affinities and material quality for the inactive combat rework",
+      "files": ["plant_affinities.gd", "plant_affinities.gd.uid"]
+    },
     "hex_terrain": {
       "label": "Standalone M02 hex grid, terrain data, generator and welded surface",
       "files": []
@@ -1767,6 +1771,11 @@
     ]
   },
   "suites": {
+    "plant_affinities": {
+      "kind": "unit",
+      "systems": ["plant_affinities", "seeds", "items", "weapons"],
+      "package": true
+    },
     "experimental_terrain_coop": {
       "kind": "pair",
       "systems": [
@@ -2404,6 +2413,7 @@
       "kind": "unit",
       "systems": [
         "foundation",
+        "plant_affinities",
         "seeds",
         "items",
         "weapons",
@@ -4263,6 +4273,8 @@
     "foundation_performance": "Optional performance benchmark, run explicitly; not a correctness release suite."
   },
   "relationships": [
+    ["seeds", "plant_affinities", "Stable species and ordinary material"],
+    ["weapons", "plant_affinities", "Refined material and stable inventory identity"],
     [
       "seeds",
       "weapons",
@@ -9977,6 +9989,12 @@
     "content_validator.gd": {
       "newline": "crlf",
       "regions": {
+        "plant_affinity_validation": {
+          "match": " errors.append_array(preload(\"res://plant_affinities.gd\").errors())\n",
+          "baseline": "",
+          "additive": true,
+          "systems": ["plant_affinities"]
+        },
         "cb06_0": {
           "match": "if boss_count!=4: errors.append(\"Expected four expedition bosses\")\n errors.append_array(preload(\"res://enemy_balance.gd\").errors(Enemies.all()))",
           "baseline": "if boss_count!=4: errors.append(\"Expected four expedition bosses\")",
