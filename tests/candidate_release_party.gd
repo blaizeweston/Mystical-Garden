@@ -39,7 +39,7 @@ func title() -> Node:
 
 func run() -> void:
  var role := OS.get_cmdline_user_args()[0]
- check(not Gate.default_route(self) and not Gate.PRODUCTION_CUTOVER_APPROVED and Network.PROTOCOL==40,"normal startup stays inactive and protocol 40 is current")
+ check(not Gate.default_route(self) and not Gate.PRODUCTION_CUTOVER_APPROVED and Network.PROTOCOL==41,"normal startup stays inactive and protocol 41 is current")
  sync_path = ProjectSettings.globalize_path("user://release-fixtures/four-title-")
  set_meta(Gate.VALIDATION_ROUTE,true)
  if role!="host":
@@ -313,15 +313,15 @@ func guest(role: String) -> void:
   legacy.multiplayer.connected_to_server.connect(func():
    var catalog: Dictionary = legacy.progress.ContentIDs.manifest()
    catalog["guest_projection_receipts"] = legacy.guest_character.projection_receipts
-   legacy.register_character.rpc_id(1,legacy.guest_character.identity,legacy.guest_character.data,catalog,39),
+   legacy.register_character.rpc_id(1,legacy.guest_character.identity,legacy.guest_character.data,catalog,40),
    CONNECT_ONE_SHOT)
   var refused_id := legacy.get_instance_id()
   if not await until(func():return current_scene.get_instance_id()!=refused_id):
-   check(false,"protocol 39 returned to title")
+   check(false,"protocol 40 returned to title")
    return
   menu=current_scene
-  check(menu.return_message.contains("versions") and FileAccess.get_sha256(P)==before,"protocol 39 refused without changing profile")
-  print("CASE ",JSON.stringify({"case":"protocol_39_refused","profile":before,"notice":menu.return_message}))
+  check(menu.return_message.contains("versions") and FileAccess.get_sha256(P)==before,"protocol 40 refused without changing profile")
+  print("CASE ",JSON.stringify({"case":"protocol_40_refused","profile":before,"notice":menu.return_message}))
   await process_frame
  var game: Node = connect_to_host(menu)
  if game==null: return

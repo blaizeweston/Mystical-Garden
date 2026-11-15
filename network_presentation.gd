@@ -7,8 +7,32 @@ var snapshot_sent:=0
 var snapshot_received:=-1
 var rejected_snapshots:=0
 var snapshot_gaps:=0
+# Reuse the current replacement frame on the existing reliable details channel
+# when ENet is shedding most unreliable sends.
+const RECOVERY_THROTTLE := ENetPacketPeer.PACKET_THROTTLE_SCALE / 2.0
+var latest_frame := PackedByteArray()
+var latest_frame_key := ""
+var names: Dictionary = {}
+var diagnostic_host := ""
+var diagnostic_world := ""
+
+func set_roster(roster: Dictionary, host_id: String, world_id: String) -> void:
+ names = roster
+ diagnostic_host = host_id
+ diagnostic_world = world_id
+
+func apply_roster(people: Dictionary) -> void:
+ for id in people:
+  var p: Dictionary = people[id]
+  p.display_name = names.get(id, "Wanderer")
+  p.diagnostic_host = diagnostic_host
+  p.diagnostic_world = diagnostic_world
+
 func clear() -> void:
  server_vitals.clear();client_vitals.clear();flash_until.clear();snapshot_sent=0;snapshot_received=-1;rejected_snapshots=0;snapshot_gaps=0
+ latest_frame.clear()
+ latest_frame_key = ""
+ set_roster({}, "", "")
 func snapshot_targets(game: Node) -> PackedInt32Array:
  var targets := PackedInt32Array()
  var transport: ENetMultiplayerPeer = game.online_peer

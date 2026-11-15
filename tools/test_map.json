@@ -2,6 +2,10 @@
   "schema": 1,
   "full_after_days": 7,
   "systems": {
+    "world_snapshot": {
+      "label": "Protocol 41 bounded unreliable world snapshots, roster metadata and receive convergence",
+      "files": ["world_snapshot.gd", "world_snapshot.gd.uid"]
+    },
     "wood_affinity": {
       "label": "CR04B Wood, finite Bark absorption and secondary splinters",
       "files": ["wood_affinity.gd", "wood_affinity.gd.uid"]
@@ -1430,6 +1434,9 @@
     "garden_snapshot": [
       "foundation"
     ],
+    "apply_world_snapshot": [
+      "world_snapshot", "presentation", "life"
+    ],
     "receive_state": [
       "foundation"
     ],
@@ -1804,6 +1811,11 @@
     ]
   },
   "suites": {
+    "world_snapshot_codec": {
+      "kind": "unit",
+      "systems": ["world_snapshot", "connection_flow", "presentation"],
+      "package": false
+    },
     "cr04b_wood": {
       "kind": "unit",
       "systems": ["wood_affinity", "thorn_affinity", "combat_affinity_contracts", "core_combat", "combat", "classes", "life", "weapons"],
@@ -1811,12 +1823,12 @@
     },
     "cr04b_wood_coop": {
       "kind": "pair",
-      "systems": ["wood_affinity", "combat_affinity_contracts", "core_combat", "connection_flow", "hex_terrain", "life"],
+      "systems": ["world_snapshot", "wood_affinity", "combat_affinity_contracts", "core_combat", "connection_flow", "hex_terrain", "life"],
       "package": false
     },
     "cr04b_mixed_party": {
       "kind": "party",
-      "systems": ["thorn_affinity", "wood_affinity", "combat_affinity_contracts", "core_combat", "connection_flow", "hex_terrain", "life"],
+      "systems": ["world_snapshot", "thorn_affinity", "wood_affinity", "combat_affinity_contracts", "core_combat", "connection_flow", "hex_terrain", "life"],
       "package": false
     },
     "cr04b_thorn": {
@@ -1826,7 +1838,7 @@
     },
     "cr04b_thorn_coop": {
       "kind": "pair",
-      "systems": ["thorn_affinity", "combat_affinity_contracts", "core_combat", "connection_flow", "hex_terrain"],
+      "systems": ["world_snapshot", "thorn_affinity", "combat_affinity_contracts", "core_combat", "connection_flow", "hex_terrain"],
       "package": false
     },
     "cr04a_vital": {
@@ -1841,7 +1853,7 @@
     },
     "cr04a_mixed_party": {
       "kind": "party",
-      "systems": ["vital_affinity", "water_affinity", "fire_affinity", "frost_affinity", "combat_affinity_contracts", "connection_flow", "hex_terrain", "weapons"],
+      "systems": ["world_snapshot", "vital_affinity", "water_affinity", "fire_affinity", "frost_affinity", "combat_affinity_contracts", "connection_flow", "hex_terrain", "weapons"],
       "package": false
     },
     "cr04a_water": {
@@ -1891,12 +1903,12 @@
     },
     "cr02_mode_mismatch": {
       "kind": "pair",
-      "systems": ["combat_affinity_contracts", "connection_flow"],
+      "systems": ["world_snapshot", "combat_affinity_contracts", "connection_flow"],
       "package": false
     },
     "cr02_definitions_mismatch": {
       "kind": "pair",
-      "systems": ["combat_affinity_contracts", "connection_flow"],
+      "systems": ["world_snapshot", "combat_affinity_contracts", "connection_flow"],
       "package": false
     },
     "plant_affinities": {
@@ -1907,7 +1919,7 @@
     "experimental_terrain_coop": {
       "kind": "pair",
       "systems": [
-        "hex_terrain",
+        "world_snapshot", "hex_terrain",
         "terrain",
         "connection_flow",
         "garden"
@@ -2014,7 +2026,7 @@
     },
     "candidate_release_party": {
       "kind": "party",
-      "systems": ["persistence_operations", "persistence_authorization", "menus", "characters", "connection_flow", "garden", "expeditions"],
+      "systems": ["world_snapshot", "persistence_operations", "persistence_authorization", "menus", "characters", "connection_flow", "garden", "expeditions"],
       "package": true,
       "candidate_release": true
     },
@@ -2113,7 +2125,7 @@
     "guarded_expedition_coop": {
       "kind": "pair",
       "systems": [
-        "persistence_operations",
+        "world_snapshot", "persistence_operations",
         "persistence_authorization",
         "persistence_recovery_plan",
         "combat",
@@ -2761,7 +2773,7 @@
     "diagnostics_coop": {
       "kind": "pair",
       "systems": [
-        "diagnostics",
+        "world_snapshot", "diagnostics",
         "combat",
         "life",
         "expeditions",
@@ -2966,7 +2978,7 @@
     "four_players_coop": {
       "kind": "party",
       "systems": [
-        "health_pool_hud",
+        "world_snapshot", "health_pool_hud",
         "expeditions",
         "life",
         "characters",
@@ -3569,7 +3581,7 @@
     "network_movement_coop": {
       "kind": "pair",
       "systems": [
-        "foundation",
+        "world_snapshot", "foundation",
         "terrain",
         "presentation",
         "diagnostics",
@@ -3583,7 +3595,7 @@
     "network_presentation": {
       "kind": "unit",
       "systems": [
-        "presentation",
+        "world_snapshot", "presentation",
         "characters",
         "combat",
         "life",
@@ -3901,7 +3913,7 @@
     "status_feedback_coop": {
       "kind": "pair",
       "systems": [
-        "combat",
+        "world_snapshot", "combat",
         "classes",
         "presentation",
         "foundation",
@@ -4102,7 +4114,7 @@
     "weapon_actions_coop": {
       "kind": "pair",
       "systems": [
-        "weapons",
+        "world_snapshot", "weapons",
         "combat",
         "characters",
         "presentation",
@@ -16272,6 +16284,11 @@
     "network_settings.gd": {
       "newline": "crlf",
       "regions": {
+        "compact_snapshot_protocol": {
+          "match": "const PROTOCOL:=41",
+          "baseline": "const PROTOCOL:=40",
+          "systems": ["world_snapshot", "connection_flow"]
+        },
         "guest_projection": {
           "match": "extends RefCounted\nconst PROTOCOL:=40\nconst MAX_PLAYERS:=4\nconst GUEST_LIMIT:=MAX_PLAYERS-1\nconst CONNECT_TIMEOUT_MS:=15000\nconst REGISTER_TIMEOUT_MS:=10000\nstatic var DEFAULT_PORT: int=clampi(int(OS.get_environment(\"MYSTICAL_GARDEN_TEST_PORT\")),1024,65535) if not OS.get_environment(\"MYSTICAL_GARDEN_TEST_PORT\").is_empty() else 24576\n\nstatic func address(value: String) -> String:\n var result:=value.strip_edges()\n if result.to_lower()==\"localhost\": return \"127.0.0.1\"\n if result.begins_with(\"[\") and result.ends_with(\"]\"): result=result.substr(1,result.length()-2)\n return result\nstatic func error(value: String,port: int) -> String:\n if port<1024 or port>65535: return \"Choose a port between 1024 and 65535.\"\n if not address(value).is_valid_ip_address(): return \"Enter an IPv4 or IPv6 address, or localhost. Put the port in its own field.\"\n return \"\"\nstatic func format_endpoint(host: String, port: int) -> String:\n return \"[%s]:%d\" % [host,port] if host.contains(\":\") else \"%s:%d\" % [host,port]\n\nstatic func parse_endpoint(value: String, fallback_port: int) -> Dictionary:\n var host := value.strip_edges()\n var port := fallback_port\n var suffix := \"\"\n var explicit_port := false\n if host.begins_with(\"[\"):\n  var end := host.find(\"]\")\n  if end >= 0 and end+1 < host.length() and host[end+1] == \":\":\n   suffix = host.substr(end+2)\n   host = host.substr(0,end+1)\n   explicit_port = true\n elif host.count(\":\") == 1:\n  var parts := host.split(\":\",true,1)\n  host = parts[0]\n  suffix = parts[1]\n  explicit_port = true\n if explicit_port:\n  if not suffix.is_valid_int():\n   return {\"error\":\"Enter a numeric UDP port.\"}\n  port = int(suffix)\n return {\"address\":address(host),\"port\":port,\"error\":error(host,port)}\n\nstatic func load_settings(root: String) -> Dictionary:\n var file := ConfigFile.new()\n file.load(root.path_join(\"network.cfg\"))\n var host := str(file.get_value(\"network\",\"address\",\"127.0.0.1\"))\n var port := int(file.get_value(\"network\",\"port\",DEFAULT_PORT))\n if not error(host,port).is_empty():\n  host = \"127.0.0.1\"\n  port = DEFAULT_PORT\n var host_port := int(file.get_value(\"network\",\"host_port\",port))\n if not error(\"127.0.0.1\",host_port).is_empty():\n  host_port = DEFAULT_PORT\n return {\"address\":address(host),\"port\":port,\"host_port\":host_port}\n\nstatic func save_settings(root: String, host: String, port: int, joining: bool = true) -> Error:\n if not error(host if joining else \"127.0.0.1\",port).is_empty():\n  return ERR_INVALID_PARAMETER\n var current := load_settings(root)\n var file := ConfigFile.new()\n file.set_value(\"network\",\"address\",address(host) if joining else current.address)\n file.set_value(\"network\",\"port\",port if joining else current.port)\n file.set_value(\"network\",\"host_port\",current.host_port if joining else port)\n return preload(\"res://preference_file.gd\").write(root.path_join(\"network.cfg\"),file,true)\n\nstatic func join_progress(phase: String, host: String, port: int) -> String:\n var endpoint := format_endpoint(host,port)\n match phase:\n  \"compatibility\": return \"2 of 4 \u00b7 Checking game versions\"\n  \"character\": return \"3 of 4 \u00b7 Registering your character\"\n  \"garden\": return \"4 of 4 \u00b7 Loading the host\u2019s Garden\"\n return \"1 of 4 \u00b7 Connecting to \" + endpoint\n\nstatic func join_failure(phase: String, host: String, port: int, timed_out: bool) -> String:\n match phase:\n  \"compatibility\": return \"The compatibility check did not finish. Confirm everyone is using the same build, then try again.\"\n  \"character\": return \"The host did not finish registering your character. Check that the party is in the Garden and try again.\"\n  \"garden\": return \"The host\u2019s Garden did not finish loading. Try joining again when the party is in the Garden.\"\n var reason := \"Connection timed out.\" if timed_out else \"Could not connect to the host.\"\n return \"%s Check %s, the host\u2019s firewall and UDP forwarding, and whether the Garden has room.\" % [reason,format_endpoint(host,port)]\n\nstatic func lan_addresses() -> Array[String]:\n var result: Array[String]=[]\n for value in IP.get_local_addresses():\n  if value.contains(\":\") or value.begins_with(\"127.\") or value.begins_with(\"169.254.\") or value==\"0.0.0.0\": continue\n  result.append(value)\n return result\n",
           "baseline": "extends RefCounted\nconst PROTOCOL:=39\nconst MAX_PLAYERS:=4\nconst GUEST_LIMIT:=MAX_PLAYERS-1\nconst CONNECT_TIMEOUT_MS:=15000\nconst REGISTER_TIMEOUT_MS:=10000\nstatic var DEFAULT_PORT: int=clampi(int(OS.get_environment(\"MYSTICAL_GARDEN_TEST_PORT\")),1024,65535) if not OS.get_environment(\"MYSTICAL_GARDEN_TEST_PORT\").is_empty() else 24576\n\nstatic func address(value: String) -> String:\n var result:=value.strip_edges()\n if result.to_lower()==\"localhost\": return \"127.0.0.1\"\n if result.begins_with(\"[\") and result.ends_with(\"]\"): result=result.substr(1,result.length()-2)\n return result\nstatic func error(value: String,port: int) -> String:\n if port<1024 or port>65535: return \"Choose a port between 1024 and 65535.\"\n if not address(value).is_valid_ip_address(): return \"Enter an IPv4 or IPv6 address, or localhost. Put the port in its own field.\"\n return \"\"\nstatic func format_endpoint(host: String, port: int) -> String:\n return \"[%s]:%d\" % [host,port] if host.contains(\":\") else \"%s:%d\" % [host,port]\n\nstatic func parse_endpoint(value: String, fallback_port: int) -> Dictionary:\n var host := value.strip_edges()\n var port := fallback_port\n var suffix := \"\"\n var explicit_port := false\n if host.begins_with(\"[\"):\n  var end := host.find(\"]\")\n  if end >= 0 and end+1 < host.length() and host[end+1] == \":\":\n   suffix = host.substr(end+2)\n   host = host.substr(0,end+1)\n   explicit_port = true\n elif host.count(\":\") == 1:\n  var parts := host.split(\":\",true,1)\n  host = parts[0]\n  suffix = parts[1]\n  explicit_port = true\n if explicit_port:\n  if not suffix.is_valid_int():\n   return {\"error\":\"Enter a numeric UDP port.\"}\n  port = int(suffix)\n return {\"address\":address(host),\"port\":port,\"error\":error(host,port)}\n\nstatic func load_settings(root: String) -> Dictionary:\n var file := ConfigFile.new()\n file.load(root.path_join(\"network.cfg\"))\n var host := str(file.get_value(\"network\",\"address\",\"127.0.0.1\"))\n var port := int(file.get_value(\"network\",\"port\",DEFAULT_PORT))\n if not error(host,port).is_empty():\n  host = \"127.0.0.1\"\n  port = DEFAULT_PORT\n var host_port := int(file.get_value(\"network\",\"host_port\",port))\n if not error(\"127.0.0.1\",host_port).is_empty():\n  host_port = DEFAULT_PORT\n return {\"address\":address(host),\"port\":port,\"host_port\":host_port}\n\nstatic func save_settings(root: String, host: String, port: int, joining: bool = true) -> Error:\n if not error(host if joining else \"127.0.0.1\",port).is_empty():\n  return ERR_INVALID_PARAMETER\n var current := load_settings(root)\n var file := ConfigFile.new()\n file.set_value(\"network\",\"address\",address(host) if joining else current.address)\n file.set_value(\"network\",\"port\",port if joining else current.port)\n file.set_value(\"network\",\"host_port\",current.host_port if joining else port)\n return preload(\"res://preference_file.gd\").write(root.path_join(\"network.cfg\"),file,true)\n\nstatic func join_progress(phase: String, host: String, port: int) -> String:\n var endpoint := format_endpoint(host,port)\n match phase:\n  \"compatibility\": return \"2 of 4 \u00b7 Checking game versions\"\n  \"character\": return \"3 of 4 \u00b7 Registering your character\"\n  \"garden\": return \"4 of 4 \u00b7 Loading the host\u2019s Garden\"\n return \"1 of 4 \u00b7 Connecting to \" + endpoint\n\nstatic func join_failure(phase: String, host: String, port: int, timed_out: bool) -> String:\n match phase:\n  \"compatibility\": return \"The compatibility check did not finish. Confirm everyone is using the same build, then try again.\"\n  \"character\": return \"The host did not finish registering your character. Check that the party is in the Garden and try again.\"\n  \"garden\": return \"The host\u2019s Garden did not finish loading. Try joining again when the party is in the Garden.\"\n var reason := \"Connection timed out.\" if timed_out else \"Could not connect to the host.\"\n return \"%s Check %s, the host\u2019s firewall and UDP forwarding, and whether the Garden has room.\" % [reason,format_endpoint(host,port)]\n\nstatic func lan_addresses() -> Array[String]:\n var result: Array[String]=[]\n for value in IP.get_local_addresses():\n  if value.contains(\":\") or value.begins_with(\"127.\") or value.begins_with(\"169.254.\") or value==\"0.0.0.0\": continue\n  result.append(value)\n return result\n",

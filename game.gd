@@ -45,6 +45,7 @@ var travel_label: Label
 var ready_button: Button
 var unready_button: Button
 const Network=preload("res://network_settings.gd")
+const WorldSnapshot = preload("res://world_snapshot.gd")
 var network_address:="127.0.0.1"
 var network_port:=Network.DEFAULT_PORT
 var connection_deadline:=0
@@ -2147,24 +2148,63 @@ func send_expedition_state(delta: float,force := false) -> void:
 	if not peers.is_empty():
 		next_details-=delta
 		next_snapshot -= delta
+		var witness: Callable = get_meta(&"snapshot_witness", Callable())
+		var state_key := str([destination, encounter_number, map_seed])
 		if force or next_snapshot <= 0.0:
 			next_snapshot = maxf(0,next_snapshot+0.05)
-			net_view.snapshot_sent+=1
-			for peer_id in peers:
-				var guest: Dictionary = players[peer_id]
-				receive_state.rpc_id(peer_id, var_to_bytes(player_snapshot(peer_id,false)).compress(FileAccess.COMPRESSION_DEFLATE), enemy_pos, enemy_hp, enemy_winding_up,
-					drop_pos, guest.loot_pending, [], depth, guest.carried_seeds.size(),
-					guest.pouch, PackedByteArray(), now < rooted_until, longlimb, campaign_snapshot(), scout_snapshot(now).to_byte_array().compress(FileAccess.COMPRESSION_DEFLATE),net_view.snapshot_sent)
+			var began := Time.get_ticks_usec() if witness.is_valid() else 0
+			var flags := int(enemy_winding_up) | (8 if now < rooted_until else 0) | (16 if longlimb else 0)
+			var pack := scout_snapshot(now)
+			var shared := WorldSnapshot.encode(net_view.snapshot_sent + 1, player_snapshot(HOST,false),
+				campaign_snapshot(), pack, enemy_pos, enemy_hp, encounter_health(), drop_pos, depth, flags)
+			if shared.is_empty() or shared.size() > WorldSnapshot.PAYLOAD_BUDGET:
+				push_error("World snapshot exceeds the supported player, scout, or payload limits.")
+			else:
+				net_view.snapshot_sent += 1
+				net_view.latest_frame = shared
+				net_view.latest_frame_key = state_key
+				for peer_id in peers:
+					var guest: Dictionary = players[peer_id]
+					var frame := WorldSnapshot.for_viewer(shared, guest.carried_seeds.size(), guest.loot_pending, guest.pouch)
+					var transport: ENetPacketPeer = online_peer.get_peer(peer_id) if began > 0 else null
+					var throttle := int(transport.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE)) if transport != null else -1
+					var counter := int(transport.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_COUNTER)) if transport != null else -1
+					var packed_at := Time.get_ticks_usec() if transport != null else 0
+					var error := rpc_id(peer_id, "receive_state", frame)
+					if transport != null:
+						var enqueued_at := Time.get_ticks_usec()
+						witness.call({"phase":"send","peer":peer_id,"sequence":net_view.snapshot_sent,"at":packed_at,
+							"bytes":frame.size(),"marker":int(drop_pos.x),"scout_count":pack.size() / float(PACK_STRIDE),
+							"encode_us":packed_at-began,"enqueue_us":enqueued_at-packed_at,"error":error,
+							"throttle":throttle,"counter_before":counter,
+							"counter_after":int(transport.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_COUNTER))})
 		if force or next_details<=0:
 			next_details=maxf(0,next_details+.25)
 			var shared_garden := garden_snapshot()
 			if stage.experimental_garden != null:
 				shared_garden.append(stage.experimental_garden.snapshot())
 			var garden_bytes:=var_to_bytes(shared_garden).compress(FileAccess.COMPRESSION_DEFLATE)
+			var roster := {}
+			for id in players:
+				roster[id] = players[id].character.get("name", "Wanderer")
 			for peer_id in peers:
 				var details: Dictionary=player_snapshot(peer_id)[peer_id]
 				for key in player_snapshot(peer_id,false)[peer_id]: details.erase(key)
-				receive_details.rpc_id(peer_id,var_to_bytes(details).compress(FileAccess.COMPRESSION_DEFLATE),garden_bytes,inventory_snapshot(players[peer_id]),str([destination,encounter_number,map_seed]))
+				details.snapshot_roster = roster
+				details.diagnostic_host = Journal.current.session_id if is_instance_valid(Journal.current) else ""
+				details.diagnostic_world = diagnostic_watch.world_session if is_instance_valid(diagnostic_watch) else ""
+				var guest: Dictionary = players[peer_id]
+				var transport := online_peer.get_peer(peer_id)
+				var repairing: bool = not net_view.latest_frame.is_empty() and net_view.latest_frame_key == state_key \
+					and transport.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE) <= net_view.RECOVERY_THROTTLE
+				if repairing:
+					details.snapshot_recovery = WorldSnapshot.for_viewer(net_view.latest_frame,
+						guest.carried_seeds.size(), guest.loot_pending, guest.pouch)
+				var payload := var_to_bytes(details).compress(FileAccess.COMPRESSION_DEFLATE)
+				var result := rpc_id(peer_id, "receive_details", payload, garden_bytes, inventory_snapshot(guest), state_key)
+				if repairing and witness.is_valid():
+					witness.call({"phase":"repair_send", "peer":peer_id, "sequence":net_view.snapshot_sent,
+						"at":Time.get_ticks_usec(), "bytes":details.snapshot_recovery.size(), "error":result})
 
 
 func move_player(id: int, direction: Vector2, delta: float) -> void:
@@ -3682,55 +3722,70 @@ func garden_snapshot() -> Array:
 
 
 @rpc("authority", "call_remote", "unreliable_ordered",4)
-func receive_state(people: PackedByteArray, enemy: Vector3, hp: int, winding_up: bool, drop: Vector3, dropped: bool, stock: Array, room_depth: int, carried_count: int, protected: bool, garden: PackedByteArray, briar_bound: bool, evolved: bool, campaign_state: PackedInt32Array, pack: PackedByteArray,sequence: int=-1) -> void:
+func receive_state(frame: PackedByteArray) -> void:
+	apply_world_snapshot(frame, false)
+
+
+func apply_world_snapshot(frame: PackedByteArray, recovery: bool) -> void:
+	var witness: Callable = get_meta(&"snapshot_witness",Callable())
+	var received_at := Time.get_ticks_usec() if witness.is_valid() else 0
+	var state := WorldSnapshot.decode(frame)
+	if state.is_empty():
+		if received_at > 0: witness.call({"phase":"invalid","at":received_at,"bytes":frame.size()})
+		return
+	var sequence: int = state.sequence
+	var drop: Vector3 = state.drop
+	if received_at > 0:
+		witness.call({"phase":"repair_receive" if recovery else "receive","sequence":sequence,
+			"marker":int(drop.x),"at":received_at,"bytes":frame.size()})
+	if recovery and sequence <= net_view.snapshot_received:
+		return # This frame was delivered on the fast channel, or superseded there.
 	if not net_view.accept_sequence(sequence):
+		if received_at > 0:
+			witness.call({"phase":"stale","sequence":sequence,"marker":int(drop.x),"at":Time.get_ticks_usec()})
 		if is_instance_valid(Journal.current) and Journal.current.detail:Journal.event("network","stale_snapshot",{"sequence":sequence,"last_sequence":net_view.snapshot_received})
 		return
-	var decoded_people = bytes_to_var(people.decompress_dynamic(262144, FileAccess.COMPRESSION_DEFLATE))
-	if not decoded_people is Dictionary:
-		return
-	var before_movement: Dictionary=players
-	players = decoded_people
+	var before_movement: Dictionary = players
+	players = state.people
 	for peer in players: net_view.merge_health(int(peer),players[peer])
-	var state_key:=str([campaign_state[0],campaign_state[9],campaign_state[8]])
-	var local_id:=multiplayer.get_unique_id()
+	net_view.apply_roster(players)
+	var local_id := multiplayer.get_unique_id()
 	if players.has(local_id):
-		var public_state: Dictionary=players[local_id]
-		players[local_id]=client_details.duplicate(true)
+		var public_state: Dictionary = players[local_id]
+		players[local_id] = client_details.duplicate(true)
 		players[local_id].merge(public_state,true)
-	enemy_pos = enemy
-	enemy_hp = hp
-	enemy_winding_up = winding_up
+	enemy_pos = state.enemy
+	enemy_hp = state.hp
+	var flags: int = state.flags
+	enemy_winding_up = (flags & 1) != 0
 	drop_pos = drop
-	has_drop = dropped
-	if not stock.is_empty(): client_inventory = stock
-	depth = room_depth
-	client_carried_count = carried_count
-	client_pouch_filled = protected
-	var decoded = bytes_to_var(garden.decompress_dynamic(32768, FileAccess.COMPRESSION_DEFLATE)) if not garden.is_empty() else null
-	if decoded is Array and decoded.size() >= 13:
-		client_garden = decoded
-	client_briar_bound = briar_bound
-	longlimb = evolved
-	client_campaign = campaign_state
-	client_pack = PackedFloat32Array() if pack.is_empty() else (
-		pack.decompress_dynamic(4096, FileAccess.COMPRESSION_DEFLATE).to_float32_array())
+	has_drop = (flags & 2) != 0
+	depth = state.depth
+	client_carried_count = state.carried
+	client_pouch_filled = (flags & 4) != 0
+	client_briar_bound = (flags & 8) != 0
+	longlimb = (flags & 16) != 0
+	client_campaign = state.campaign
+	client_pack = state.scouts
+	var campaign_state: PackedInt32Array = state.campaign
 	destination = campaign_state[0]
-	if campaign_state.size() > 18:
-		var form := Enemies.decode(campaign_state[18])
-		enemy_kind = form.kind
-		enemy_mutations = form.mask
-		enemy_growth = form.tier
-	if campaign_state.size() > EncounterConfig.ATTACK_MODE:
-		enemy_landing = Vector3(campaign_state[EncounterConfig.LANDING_X] / 100.0, 0, campaign_state[EncounterConfig.LANDING_Z] / 100.0)
-		enemy_attack_mode = "vault" if campaign_state[EncounterConfig.ATTACK_MODE] != 0 else ""
-	if campaign_state.size()>EncounterConfig.BOSS_PHASE:
-		boss_kind=campaign_state[EncounterConfig.BOSS_KIND];boss_phase=campaign_state[EncounterConfig.BOSS_PHASE]
+	var form := Enemies.decode(campaign_state[18])
+	enemy_kind = form.kind
+	enemy_mutations = form.mask
+	enemy_growth = form.tier
+	enemy_landing = Vector3(campaign_state[EncounterConfig.LANDING_X] / 100.0, 0, campaign_state[EncounterConfig.LANDING_Z] / 100.0)
+	enemy_attack_mode = "vault" if campaign_state[EncounterConfig.ATTACK_MODE] != 0 else ""
+	boss_kind = campaign_state[EncounterConfig.BOSS_KIND]
+	boss_phase = campaign_state[EncounterConfig.BOSS_PHASE]
 	map_seed = campaign_state[8]
 	encounter_number = campaign_state[9]
 	difficulty_cycle = campaign_state[10]
 	active_radius = campaign_state[6] / 100.0
 	net_motion.receive(self,local_id,before_movement,Time.get_ticks_msec())
+	if received_at > 0:
+		witness.call({"phase":"repair_apply" if recovery else "apply","sequence":sequence,
+			"marker":int(drop.x),"at":Time.get_ticks_usec(),
+			"apply_us":Time.get_ticks_usec()-received_at,"people":players.size(),"floor":encounter_number,"enemy_hp":enemy_hp})
 
 
 func _process(_delta: float) -> void:
@@ -5203,10 +5258,16 @@ func receive_details(payload: PackedByteArray,garden: PackedByteArray,inventory_
 	if stage.experimental_garden != null:
 		if world.size() != 18 or not world[17] is Dictionary: return
 		stage.experimental_garden.receive_snapshot(world[17])
+	net_view.set_roster(decoded.get("snapshot_roster", {}), decoded.get("diagnostic_host", ""), decoded.get("diagnostic_world", ""))
+	net_view.apply_roster(players)
+	decoded.erase("snapshot_roster")
+	var recovery: PackedByteArray = decoded.get("snapshot_recovery", PackedByteArray())
+	decoded.erase("snapshot_recovery")
 	client_details=decoded;client_details_key=state_key;client_inventory=inventory_data;client_garden=world
 	set_meta("core_details_at",Time.get_ticks_msec())
 	var id:=multiplayer.get_unique_id()
 	if players.has(id): players[id].merge(client_details,true)
+	if not recovery.is_empty(): apply_world_snapshot(recovery, true)
 
 @rpc("authority","call_remote","reliable",2)
 func receive_combat_event(event: Dictionary,key: String) -> void:

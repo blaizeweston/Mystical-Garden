@@ -91,6 +91,96 @@ HP marker and continued receiving snapshots. The timing measures observation
 from when each fixture sees the probe marker. Packet gaps and fragmentation
 remain possible on other networks.
 
+### CR04B-N1 snapshot delivery
+
+Protocol 41 keeps the same 50 ms scheduled cadence on the unreliable ordered
+`receive_state` RPC (Godot channel 4, ENet channel 5). A sequence identifies
+one authoritative batch shared by eligible recipients. Each frame replaces
+the previous state. Reliable details carry display names and diagnostic
+labels. When ENet's throttle falls to half or less of its normal scale, the
+same reliable stream also carries the latest replacement frame for just
+that peer. The 250 ms details cadence and shared sequence let a guest
+recover without replaying a frame it received on the fast channel.
+Vitals, phase-specific details, and combat cues still use their existing
+channels. Receiving a frame updates presentation and prediction and
+does not execute damage, rewards, or combat events.
+
+Godot's 1,392-byte warning compares the complete RPC packet supplied to
+ENet. ENet's fragmentation check also reserves its own headers. At the
+default 1,392-byte ENet MTU, allowing for a 4-byte protocol header, 24-byte
+fragment command and optional 4-byte checksum leaves 1,360 bytes for the RPC.
+The single packed byte argument adds 3–7 bytes of RPC framing and an
+uncached node path if needed. The 1,200-byte application budget covers
+all four players and 20 scouts with a 1,196-byte maximum. The measured
+application body excludes RPC, ENet, UDP and IP overhead. [Godot 4.7.2 ENet peer](https://github.com/godotengine/godot/blob/4.7.2-stable/modules/enet/enet_multiplayer_peer.cpp#L337-L347), [RPC framing](https://github.com/godotengine/godot/blob/4.7.2-stable/modules/multiplayer/scene_rpc_interface.cpp#L326-L433), [packed argument encoding](https://github.com/godotengine/godot/blob/4.7.2-stable/scene/main/multiplayer_api.cpp#L199-L225), [ENet fragmentation check](https://github.com/godotengine/godot/blob/4.7.2-stable/thirdparty/enet/peer.c#L97-L115), [ENet headers](https://github.com/godotengine/godot/blob/4.7.2-stable/thirdparty/enet/enet/protocol.h#L59-L70).
+
+The original 580 ms observation began when one guest read a fixture signal
+and ended when the local probe saw a newer sequence, the expected roster and
+leader health, and the rendered floor. Its 20 numeric gaps were counted
+through the extra post-observation sampling interval. These clocks measured
+local observation and could include snapshot scheduling, main-thread work,
+transport, guest application and probe polling. The original trace lacks
+matched send and receipt records for the missing sequence numbers, so it
+cannot identify which cause contributed to the delay. The new probe matches
+send, receipt and application by sequence and measures local observation
+from reading each marker. It reports separately any sequence that the
+host did not target, any attempted send without a receive callback, and
+any received frame that was stale.
+
+Two repeats per family configuration used the same four-player floor and
+15-scout workload. The first ENet warning in each old run was 1,409–1,449
+bytes at the full RPC layer. The old code's application estimate was
+1,228–1,307 bytes, including the compressed sections and an allowance
+for the typed fields. Protocol 41 sent an exact 1,091-byte application
+body in every matched sample and 1,196 bytes with 20 scouts. None of
+the final runs reported the unreliable MTU warning. Two early sequence
+gaps in the old runs preceded the first observed callback for one guest.
+The original transport counters were unavailable for those sends.
+
+| Matched loopback observation | Old protocol | Protocol 41 with recovery |
+|---|---:|---:|
+| Marker read to observation, median / p95 / worst | 33.6 / 53.5 / 141.5 ms | 29.4 / 48.2 / 340.7 ms |
+| Marker observations | 96 / 96 | 96 / 96 |
+| Fast application send rate per peer | 19.9–20.2 Hz | 19.8–20.1 Hz |
+| Fast application bandwidth per peer, excluding recovery and transport | 25.0–26.1 KB/s estimate | 21.6–21.9 KB/s |
+| Host encoding, median / p95 | 229 / 323 µs per peer | 206 / 229 µs per shared batch and first recipient |
+| Guest receipt to state application, median / p95 | 374 / 633 µs | 392 / 605 µs |
+| Longest guest process-frame interval | 34.3 ms | 35.0 ms |
+
+A compact-only diagnostic run without recovery isolated the independent ENet
+throttle effect. All 68 witnessed sends with no receive callback had an
+ENet throttle-counter step above the peer's send threshold. Another 41 gaps
+preceded the available host trace. One four-family guest missed five of eight
+markers and went 1,150 ms between applied frames. This reproduced a delivery
+delay with under-budget frames, and the evidence attributes that reproduction
+to ENet discarding unreliable sends. The original 580 ms observation lacks
+the counters needed for the same attribution. [Godot ENet throttle counters](https://github.com/godotengine/godot/blob/4.7.2-stable/modules/enet/enet_packet_peer.cpp#L139-L144), [ENet send decision](https://github.com/godotengine/godot/blob/4.7.2-stable/thirdparty/enet/protocol.c#L1382-L1410).
+
+The final trace matched 478 fast sends, 466 fast receive callbacks and
+469 applications including three reliable recoveries. All 12 matched
+misses coincided with ENet's throttle decision for one six-family guest,
+which observed all eight markers and went at most 277 ms between fresh
+applications. There were no stale rejections in the matched window.
+The final marker p95 met 250 ms and the worst marker delay and worst fresh
+update interval both met 500 ms. No separate-PC or internet timings were
+measured.
+
+The preserved baseline runs are `cr04bn1-beforeA` and `cr04bn1-beforeB`.
+The compact-only diagnostic failure is `d4c4055b1e3f481eb5994e13f977ddcf`.
+Final structured verdicts are `be4a764d5ee349759ce59b57ddd5c5b1` and
+`d0d61822b544414b9e6fcbf138a681fe` for four affinities, and
+`dda390c966824824a984a2840fdefe08` and
+`55f3738b22fc49cf910372668297224a` for six. All five processes exited
+successfully in each run, including the refused overflow client. The
+six-family fixture checks full occupancy, one Bark break after skipping an
+intermediate state, and removal of Thorn hints on the same active floor.
+`cr04bn1-accepted-source` keeps the impact preview, exact-input hashes and
+all 22 execution results, including the four matched runs. The focused
+controls cover codec rejection and recovery, legacy co-op, movement and
+weapons, status presentation, integrated terrain, advance, extraction and
+rejoin, overflow, and protocol/ruleset/definition refusal. The planner
+self-tests passed 55 of 55.
+
 ## Size of the change
 
 This is a major combat balance release. It has two separate jobs. First, give HP, damage and healing enough precision while keeping comparable fights recognizable. Then tune damage ranges, enemy durability, and sustain against how the fights actually play. The existing content templates give us a route to review this by family and tune exceptions individually.

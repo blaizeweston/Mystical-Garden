@@ -219,6 +219,7 @@ func host(menu: Node) -> void:
 				check(await until(func():return read("vital-seen-"+str(source))=="ok"),"Vital capacity reaches guest through authoritative vitals")
 	if party:
 		if measure_packets: await sample_host_snapshots(game,ids)
+		if mixed_wood_ward and measure_packets: await verify_current_snapshot_host(game,ids,local)
 		check(await until(func():return read("overflow")=="ok",22000),"overflow returns after native connection deadline")
 		check(guests(game).size()==3,"four-player limit holds")
 		mark("party-done")
@@ -330,6 +331,7 @@ func guest(menu: Node, role: String) -> void:
 			mark("vital-seen-"+str(id))
 	if party:
 		if measure_packets: await sample_guest_snapshots(game,id)
+		if mixed_wood_ward and measure_packets: await verify_current_snapshot_guest(game,id)
 		if check(await until(func():return read("party-done")=="ok",22000),"host observes mixed-source party"):
 			mark("done-"+str(id))
 			check(await until(func():return read("offline")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"guest observes party shutdown")
@@ -353,44 +355,158 @@ func guest(menu: Node, role: String) -> void:
 	check(await until(func():return read("offline")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"guest observes host shutdown")
 
 
+func verify_current_snapshot_host(game: Node, ids: Array, local: Dictionary) -> void:
+	var wood = preload("res://wood_affinity.gd")
+	var thorn = preload("res://thorn_affinity.gd")
+	var clock = preload("res://affinity_time.gd")
+	var fields: Array = thorn.active_fields(game,clock.now(game))
+	check(not fields.is_empty(),"at least one Thorn field is live before the expiry check")
+	var statuses: Array = game.combat_events_snapshot()
+	var bark: Array = statuses.filter(func(e):return e.kind=="status" and e.shape=="bark_armor" and e.combo==1)
+	if not check(not bark.is_empty() and local.has(wood.GRANTS),"active Bark is advertised before depletion"): return
+	mark("snapshot-full-ready",str(bark[0].id))
+	if not check(await until(func():return ids.all(func(id):return read("snapshot-full-ready-"+str(id))=="ok"),2500),
+		"every guest saw the existing Bark status"): return
+
+	var limit: int = game.EncounterConfig.MAX_SCOUTS
+	var before_scouts: int = game.scouts.size()
+	var at: Vector3 = game.scouts.back().pos
+	for index in range(before_scouts,limit):
+		var scout: Dictionary = game.make_scout(0,at,index+1)
+		scout.stagger_until=Time.get_ticks_msec()+8000
+		game.scouts.append(scout)
+	var witnesses: Array = []
+	game.set_meta(&"snapshot_witness",func(row):record_snapshot(witnesses,row))
+	# Two nonlethal authority hits within one frame. There is no intervening
+	# fast snapshot of the partially depleted armor or first HP value.
+	local.hp=250
+	local.max_hp=250
+	local.guard_until=0
+	local.guard_charges=0
+	var now := Time.get_ticks_msec()
+	for hp in [10,120]:
+		local.hurt_until=0
+		game.apply_enemy_hit(1,local,now,float(hp)/game.Life.Preview.scale(),0,game.enemy_pos)
+	var burst: Array = game.combat_events.filter(func(e):return e.shape=="wood_burst" and e.get("label")=="Bark break")
+	check(not local.has(wood.GRANTS) and burst.size()==1 and local.hp<250 and local.hp>0,"host consumes Bark once and emits one break response")
+	if burst.is_empty():return
+	mark("snapshot-full-state", "%d:%d" % [int(local.hp),int(burst[0].id)])
+	var epoch: int=game.combat_epoch
+	if not check(await until(func():return ids.all(func(id):return read("snapshot-full-seen-"+str(id))=="ok"),3500),
+		"full-occupancy snapshots converge and the old Bark status is removed on each guest"): return
+	game.remove_meta(&"snapshot_witness")
+	var max_frame: int = preload("res://world_snapshot.gd").MAX_FRAME
+	check(ids.all(func(id):return witnesses.any(func(row):return row.peer==id and row.bytes==max_frame and row.error==OK)),
+		"real sends reach the full payload bound for each guest")
+	print("SNAPSHOT_FULL ",JSON.stringify({"peers":ids,"application_bytes":max_frame,"scouts":limit}))
+	check(await until(func():return thorn.active_fields(game,clock.now(game)).is_empty(),8500) and game.combat_epoch==epoch,
+		"Thorn expires and stops applying field contact on the same floor")
+	mark("snapshot-thorn-expired")
+	check(await until(func():return ids.all(func(id):return read("snapshot-thorn-expired-"+str(id))=="ok"),3000),
+		"guests remove expired Thorn footprints from current presentation")
+
+
+func verify_current_snapshot_guest(game: Node, id: int) -> void:
+	if not check(await until(func():return not read("snapshot-full-ready").is_empty(),5000),"host starts full snapshot check"):return
+	var bark := int(read("snapshot-full-ready"))
+	if not check(await until(func():
+		return game.combat_visuals.statuses.active.has(bark) and game.combat_visuals.hints.values().any(func(h):
+			return h.event.get("skill")=="thorn_line"),2000), "Bark and Thorn presentation are present before expiry"):return
+	var received: Array = []
+	game.set_meta(&"snapshot_witness",func(row):record_snapshot(received,row))
+	mark("snapshot-full-ready-"+str(id))
+	if not check(await until(func():return not read("snapshot-full-state").is_empty(),3500),"host releases latest state marker"):return
+	var expected := read("snapshot-full-state").split(":")
+	var max_frame: int = preload("res://world_snapshot.gd").MAX_FRAME
+	if not check(await until(func():
+		return game.client_pack.size()==game.EncounterConfig.MAX_SCOUTS*game.PACK_STRIDE and int(game.players[1].hp)==int(expected[0]) \
+			and game.combat_visuals.seen.has(int(expected[1])) and game.combat_visuals.statuses.ended.has(bark) \
+			and not game.combat_visuals.statuses.active.has(bark) \
+			and received.any(func(row):return row.phase=="receive" and row.bytes==max_frame),3500),
+		"guest converges after skipped intermediate Bark and HP state, with one break event identity"):return
+	game.remove_meta(&"snapshot_witness")
+	mark("snapshot-full-seen-"+str(id))
+	if not check(await until(func():return read("snapshot-thorn-expired")=="ok",10500),"host expires its Thorn field"):return
+	if check(await until(func():
+		return not game.players[id].get("attack_hints",[]).any(func(e):return e.get("skill")=="thorn_line") \
+			and not game.combat_visuals.hints.values().any(func(h):return h.event.get("skill")=="thorn_line"),3500),
+		"guests remove old Thorn state and rendered hints"):
+		mark("snapshot-thorn-expired-"+str(id))
+
+
+const PROBE_FIRST := 101
+const PROBE_COUNT := 8
+const PROBE_DURATION := .22
+
+
+func record_snapshot(rows: Array, row: Dictionary) -> void:
+	if rows.size()<420:
+		rows.append(row)
+
+
 func sample_host_snapshots(game: Node, ids: Array) -> void:
-	# Offer an unmistakable authoritative state marker on the normal
-	# unreliable channel. Pin it briefly so every real receiver can witness it.
+	var rows: Array = []
+	game.set_meta(&"snapshot_witness",func(row):record_snapshot(rows,row))
+	var previous: Vector3=game.drop_pos
 	game.enemy_hp=487
 	game.enemy_stagger_until=Time.get_ticks_msec()+9000
-	mark("snapshot-probe",str(game.net_view.snapshot_sent))
-	var max_people := 0
-	var max_scouts := 0
-	var micros := 0
-	var samples := 0
-	for step in 12:
-		var now := Time.get_ticks_msec()
-		for id in ids:
-			var began := Time.get_ticks_usec()
-			var people := var_to_bytes(game.player_snapshot(id,false)).compress(FileAccess.COMPRESSION_DEFLATE)
-			var scouts: PackedByteArray = game.scout_snapshot(now).to_byte_array().compress(FileAccess.COMPRESSION_DEFLATE)
-			micros += Time.get_ticks_usec()-began
-			max_people=maxi(max_people,people.size())
-			max_scouts=maxi(max_scouts,scouts.size())
-			samples+=1
-		await tree.create_timer(.075).timeout
-	check(await until(func():return ids.all(func(id):return read("snapshot-seen-"+str(id))=="ok"),4000),"all three receivers see the authoritative snapshot marker and floor")
-	print("SNAPSHOT_HOST samples=",samples," people_peak=",max_people," scout_peak=",max_scouts," encode_us=",float(micros)/samples)
+	mark("snapshot-arm")
+	if not check(await until(func():return ids.all(func(id):return read("snapshot-ready-"+str(id))=="ok"),4000),"every guest is watching the probe"):
+		return
+	for index in PROBE_COUNT:
+		var marker := PROBE_FIRST+index
+		game.drop_pos=Vector3(marker,0,0)
+		mark("snapshot-probe-"+str(marker))
+		await tree.create_timer(PROBE_DURATION).timeout
+	await tree.create_timer(.4).timeout
+	game.drop_pos=previous
+	game.remove_meta(&"snapshot_witness")
+	check(await until(func():return ids.all(func(id):return read("snapshot-seen-"+str(id))=="ok"),4000),"all guests processed current authoritative state")
+	print("SNAPSHOT_HOST ",JSON.stringify(rows))
 
 
 func sample_guest_snapshots(game: Node, id: int) -> void:
-	if not check(await until(func():return not read("snapshot-probe").is_empty()),"host sends snapshot probe"):
+	if not check(await until(func():return read("snapshot-arm")=="ok"),"snapshot probe is armed"):
 		return
-	var baseline := int(read("snapshot-probe"))
-	var gaps: int = game.net_view.snapshot_gaps
-	var first_seen := Time.get_ticks_msec()
-	var arrived := await until(func():
-		return game.net_view.snapshot_received>baseline and game.enemy_hp>400 and game.enemy_hp<=487 and game.players.size()==4 and game.stage._has_experimental_floor(),3500)
-	check(arrived,"channel 4 delivers authoritative enemy HP, roster and floor")
-	var delay := Time.get_ticks_msec()-first_seen
-	var first: int=game.net_view.snapshot_received
-	await tree.create_timer(.35).timeout
-	check(game.net_view.snapshot_received>first,"snapshot sequence keeps advancing")
-	print("SNAPSHOT_GUEST first_after=",first-baseline," observed_ms=",delay," more=",game.net_view.snapshot_received-first,
-		" gaps=",game.net_view.snapshot_gaps-gaps)
-	if arrived: mark("snapshot-seen-"+str(id))
+	var rows: Array=[]
+	game.set_meta(&"snapshot_witness",func(row):record_snapshot(rows,row))
+	var start_sequence: int=game.net_view.snapshot_received
+	var gap_start: int=game.net_view.snapshot_gaps
+	var stale_start: int=game.net_view.rejected_snapshots
+	var starts: Dictionary={}
+	var observed: Dictionary={}
+	var max_frame_us:=0
+	var previous := Time.get_ticks_usec()
+	var began := previous
+	var deadline:=previous+4000000
+	mark("snapshot-ready-"+str(id))
+	while Time.get_ticks_usec()<deadline:
+		await tree.process_frame
+		var now:=Time.get_ticks_usec()
+		max_frame_us=maxi(max_frame_us,now-previous)
+		previous=now
+		for marker in range(PROBE_FIRST,PROBE_FIRST+PROBE_COUNT):
+			if not starts.has(marker) and read("snapshot-probe-"+str(marker))=="ok":
+				starts[marker]=now
+		var marker:=int(game.drop_pos.x)
+		if starts.has(marker) and not observed.has(marker) and game.players.size()==4 and game.enemy_hp>400:
+			observed[marker]={"local_us":now,"first_marker_read_us":starts[marker],
+				"wait_us":now-int(starts[marker]),"sequence":game.net_view.snapshot_received,
+				"scouts":game.client_pack.size()/game.PACK_STRIDE}
+		if observed.size()==PROBE_COUNT:
+			await tree.create_timer(.4).timeout
+			break
+	game.remove_meta(&"snapshot_witness")
+	var last_apply := began
+	var max_apply_gap := 0
+	for row in rows:
+		if row.phase in ["apply","repair_apply"]:
+			max_apply_gap = maxi(max_apply_gap, int(row.at) - last_apply)
+			last_apply = int(row.at)
+	max_apply_gap = maxi(max_apply_gap, Time.get_ticks_usec() - last_apply)
+	var valid: bool=observed.size()>=PROBE_COUNT/2 and game.stage._has_experimental_floor() and max_apply_gap <= 500000
+	check(valid,"guest sees multiple probe states and receives a fresh current snapshot within 500 ms")
+	print("SNAPSHOT_GUEST ",JSON.stringify({"peer":id,"rows":rows,"observed":observed,
+		"start_sequence":start_sequence,"gaps":game.net_view.snapshot_gaps-gap_start,
+		"stale":game.net_view.rejected_snapshots-stale_start,"max_frame_us":max_frame_us,"max_apply_gap_us":max_apply_gap}))
+	if valid:mark("snapshot-seen-"+str(id))

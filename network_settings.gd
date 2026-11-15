@@ -1,5 +1,5 @@
 extends RefCounted
-const PROTOCOL:=40
+const PROTOCOL:=41
 const MAX_PLAYERS:=4
 const GUEST_LIMIT:=MAX_PLAYERS-1
 const CONNECT_TIMEOUT_MS:=15000
