@@ -3,6 +3,17 @@ extends RefCounted
 const Warden = preload("res://warden_combat.gd")
 const LABELS={"spirit_stride":"Spiritstride","spirit_prepared":"Spirit follow-up prepared","spirit_ready":"Spirit follow-up ready","storm_charge":"Storm Charge","subclass_follow_ready":"Follow-up ready","warden_quake_ready":"Quake prepared","slow":"Slowed","guard":"Warded","counter":"Counter ready","prepared_mark":"Mark ready","grave":"Death charge","echo":"Echo charge","marked":"Marked","core_strike_mark":"Core Mark","crown_link":"Crownlink","brittle":"Brittle","burning":"Burning","bleeding":"Bleeding","thorn_slow":"Thorn growth","drenched":"Drenched","vitality":"Vitality","bark_armor":"Bark Armor","rooted":"Rooted","staggered":"Staggered","haste":"Hastened","bark_guard":"Bark Guard","sheltered":"Sheltered","trophy_carrier":"Carrying trophy","rallied":"Rallied","uprooting":"Uprooting","core_exposed":"Core exposed","nursery_lull":"Nursery lull","memory_exposed":"Memory exposed"}
 const REFRESH_IN_PLACE := ["spirit_stride","spirit_prepared","spirit_ready","storm_charge","grave","echo","sheltered","trophy_carrier","subclass_follow_ready","burning","drenched","vitality","bark_armor","bleeding","thorn_slow"]
+static func affinity_feedback(game: Node, player: Dictionary) -> String:
+ var elapsed:=preload("res://affinity_time.gd").now(game)
+ var lines: PackedStringArray=[]
+ var charge: Dictionary=player.get("affinity_storm_charge",{})
+ if int(charge.get("until",0))>elapsed:
+  lines.append("Storm Charge %.1fs"%((int(charge.until)-elapsed)/1000.0))
+ var follow: Dictionary=player.get("affinity_spirit_follow",{})
+ if int(follow.get("until",0))>elapsed:
+  var phase: String=follow.phase
+  lines.append("Spirit follow-up %s · %.1fs"%[phase,(int(follow.until)-elapsed)/1000.0])
+ return "  ·  ".join(lines)
 static func tint(kind: String) -> Color:
  if kind=="burning":return Color("#f29b57")
  if kind=="drenched":return Color("#82d7ec")

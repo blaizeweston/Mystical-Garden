@@ -51,10 +51,10 @@ func run() -> void:
 	tr.publish(game,"actual_block","block","1",Time.get_ticks_msec(),{"recipient":1,"center":Vector3.ZERO})
 	check(not game.leader_brain.has(Spirit.TRACE) and game.leader_brain[Spirit.RESIST]==resist,"enemy resists repeated diversion")
 	check(is_equal_approx(Spirit.scale(p,Clock.now(game)),1.29),"strongest source controls stride")
-	p.frame=2;p.weapon_kind=0;p.core_ready_at=0;p.cast_until=0;p.core_cast_until=0
+	p.frame=2;p.weapon_kind=0;p.weapon=refined;p.core_ready_at=0;p.cast_until=0;p.core_cast_until=0
 	p.pos=Vector3.ZERO
 	Core.command(game,1,p,Core.request(game,p,Vector2.RIGHT))
-	check(Vector3(p.pos).x>1.9,"Bow Core uses the same chosen direction and range")
+	check(is_equal_approx(Vector3(p.pos).x,Spirit.STEP_DISTANCE) and is_equal_approx(Spirit.scale(p,Clock.now(game)),1.29),"refined Bow Core keeps travel distance and uses higher speed")
 	p.core_ready_at=0;p.cast_until=0;p.core_cast_until=0
 	p.pos=Vector3.ZERO;game.enemy_pos=Vector3(.42,0,0)
 	Core.command(game,1,p,Core.request(game,p,Vector2.RIGHT))
@@ -92,8 +92,35 @@ func run() -> void:
 	Events.contact(game,next_stats,-1,now,false,game.enemy_pos)
 	Events.contact(game,next_stats,-1,now,false,game.enemy_pos)
 	check(game.enemy_hp==87 and not p.has(Spirit.FOLLOW),"next contact spends one follow-up")
+	Clock.advance(game,2.0)
+	var sharp:=action(game,"form",refined,["weapon_contact"])
+	Events.contact(game,{Events.CONTEXT:sharp},-1,now,false,game.enemy_pos)
+	Spirit.movement(game,p,p.pos,Vector3(p.pos)+Vector3.RIGHT)
+	var attack:=action(game,"native_weapon",refined,["weapon_contact"])
+	var bonus: Dictionary={Events.CONTEXT:attack}
+	Spirit.launch(game,p,bonus,1)
+	Events.contact(game,bonus,-1,now,false,game.enemy_pos)
+	check(game.enemy_hp==69,"refined Form grants a stronger follow-up")
+	Spirit.clear(p)
+	var common:=action(game,"catalyst",ordinary,["class_action"])
+	common.publish(game,"class_action","heal","",now,{"response":"recipient_stride","recipients":[1]})
+	check(is_equal_approx(Spirit.scale(p,Clock.now(game)),1.2),"ordinary healing grants its own speed")
+	p.pos=Vector3.ZERO
+	p.slow_until=Time.get_ticks_msec()+2000
+	game.move_player(1,Vector2.RIGHT,.1)
+	check(is_equal_approx(Vector3(p.velocity).length(),game.WALK_SPEED*.60*1.20),"Spiritstride stacks multiplicatively with native Slow without cleansing it")
 	Clock.advance(game,5.0);Spirit.tick(game,Clock.now(game))
 	check(is_equal_approx(Spirit.scale(p,Clock.now(game)),1.0),"independent expiration returns native movement")
+	game.add_player(2)
+	var ally: Dictionary=game.players[2]
+	ally.wild=true;ally.hp=100;ally.pos=Vector3.ZERO
+	game.enemy_pos=Vector3(-1,0,0)
+	game.leader_brain.target=2
+	var ward:=action(game,"catalyst",refined,["actual_block"])
+	ward.publish(game,"actual_block","ally","2",Time.get_ticks_msec(),{"recipient":2,"center":ally.pos})
+	check(game.leader_brain.get(Spirit.TRACE,{}).get("represented")==2
+		and game.leader_brain.get(Spirit.TRACE,{}).get("actor")==1
+		and is_equal_approx(Spirit.scale(ally,Clock.now(game)),1.29),"Spirit Ward owns source potency and represents the protected ally")
 	game.queue_free()
 	await process_frame
 	if not failed: print("PASS: directional step, blocked refusal, live pursuit trace, stride sources and projectile ownership")

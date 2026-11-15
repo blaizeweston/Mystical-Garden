@@ -2109,6 +2109,7 @@ func _physics_process(delta: float) -> void:
 		if get_meta(Transactions.PENDING, false): return
 		if has_meta(&"combat_affinity_ruleset") and expedition_active():
 			var elapsed := preload("res://affinity_time.gd").advance(self,delta)
+			preload("res://void_affinity.gd").resolve_motion(self,elapsed,now)
 			preload("res://fire_combat.gd").tick(self,elapsed,now)
 			if get_meta(Transactions.PENDING, false): return
 			preload("res://vital_combat.gd").tick(self,elapsed)
@@ -3113,6 +3114,7 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = n
 	preload("res://wood_affinity.gd").clear(p)
 	preload("res://storm_affinity.gd").clear(p)
 	preload("res://spirit_affinity.gd").clear(p)
+	p.erase("affinity_void_form_ready")
 	if p.has("affinity_vital_sources"): preload("res://vital_combat.gd").clear(self,p)
 	p.guard_charges=0
 	p.guard_until = 0
@@ -3199,6 +3201,7 @@ func return_to_garden(p: Dictionary) -> void:
 	preload("res://wood_affinity.gd").clear(p)
 	preload("res://storm_affinity.gd").clear(p)
 	preload("res://spirit_affinity.gd").clear(p)
+	p.erase("affinity_void_form_ready")
 	if p.has("affinity_vital_sources"): preload("res://vital_combat.gd").clear(self,p)
 	p.guard_until = 0
 	p.front_guard_until=0;p.counter_guard_until=0;p.counter_until=0;p.grave_charges=0;p.echo_charge=0
@@ -3471,6 +3474,7 @@ func reset_encounter() -> void:
 			preload("res://wood_affinity.gd").clear(player)
 			preload("res://storm_affinity.gd").clear(player)
 			preload("res://spirit_affinity.gd").clear(player)
+			player.erase("affinity_void_form_ready")
 			player.erase("affinity_thorn_form_ready")
 	preload("res://core_combat.gd").reset(self)
 	enemy_traits.clear();trait_events.clear()
@@ -3715,6 +3719,8 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 			var garden = stage.experimental_garden
 			state["garden_layout_revision"] = garden.layout_revision if garden.reveal == null else -1
 		if id == viewer and include_details:
+			if p.has("combat_ruleset") and p.wild:
+				state["affinity_feedback"]=preload("res://combat_status.gd").affinity_feedback(self,p)
 			state["core_state"]=preload("res://core_combat.gd").owner_state(p,Time.get_ticks_msec(),get_meta("core_combat",{}).get(id,{}))
 			if p.wild:
 				state["thief_routes"]=preload("res://thief_escape.gd").snapshot(self)
@@ -4045,6 +4051,7 @@ func _process(_delta: float) -> void:
 		"skill_ready": ready_skill,"skill_two_ready":second_ready,"skill_names":[skills[0].name,skills[1].name+(" •" if quake_prepared else "")],"skill_cooldowns":cooldowns, "dodge_ready": ready_dodge,
 		"core":preload("res://core_combat.gd").hud_state(self,p),
 		"skill_tooltips":skill_tips,
+		"affinity_feedback":preload("res://combat_status.gd").affinity_feedback(self,p) if host_side and wild else str(p.get("affinity_feedback","")) if wild else "",
 		"carried": carried if wild else data[0],
 		"pouch": p.get("pouch", false) if host_side else client_pouch_filled,
 		"wallet": run_wallet(p) if host_side and wild else int(p.get("wallet", 0)) if wild else 0,

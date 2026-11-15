@@ -260,6 +260,9 @@ func _draw() -> void:
 		var summary_key := preload("res://app_settings.gd").hint("run_summary")
 		if summary_key != "Unbound":
 			text(self, Vector2(24, 67), summary_key + " · Expedition", 12, MUTED)
+		var affinity_feed: String = state.get("affinity_feedback", "")
+		if not affinity_feed.is_empty() and not state.get("fallen",false):
+			text(self, Vector2(24, 86), affinity_feed, 13, Color("#ded0f4"))
 	var bottom := size.y - (150 if active else 100)
 	var core: Dictionary=state.get("core",{})
 	var has_core: bool=active and not state.get("fallen",false) and not core.is_empty()

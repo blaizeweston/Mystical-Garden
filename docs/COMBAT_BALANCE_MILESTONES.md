@@ -71,6 +71,59 @@ lethal hit publishes its burst only after verified commitment while that
 floor is still active and writable. Falling, floor travel and Garden return
 clear temporary armor. Splintering Strikes grants no armor.
 
+### CR04C Storm, Spirit and Void
+
+Storm Reed resolves Chain Spark. Its first hit deals 22/30 HP for
+ordinary/refined material, up to two further contacts at 70% falloff per
+jump and with a 3 m jump range. Arcing Strikes adds 9/13 HP every 1.7 s
+with one additional arc. Only a qualifying hit spends the interval.
+Catalyst offense starts a discharge. Actual blocks and pure movement
+burst for 12/17 HP. Healing grants one 4.8 s charge worth 10/14 HP.
+A weaker charge cannot overwrite or prolong a stronger grant.
+
+All four Spirit species resolve Phantom Step. Travel is up to 2.2 m in
+the chosen direction, with a 0.28 m minimum. Spiritstride adds 20/29%
+movement for 2.5 s, with the strongest active source winning. A trace
+lasts 0.75/1.10 s against current uncommitted pursuers, which then resist
+new traces for 4.9 s. Flowing Strikes prepares a 4.4 s opportunity.
+After 0.9 m of voluntary movement, one attack can claim 13/18 bonus HP.
+The claim lasts through its last projectile and a miss leaves the original
+deadline intact. Catalyst uses the current skill's mapped speed or trace
+response. Traces change pursuit on the host and never create a targetable
+decoy.
+
+All three Void species resolve Gravity Well. It gathers for 1.08 s
+before collapsing for 21/29 HP. Drawing Strikes adds 10/15 HP every 1.85 s
+and attempts a 0.56/0.78 m draw. Native authored displacement takes
+priority. Catalyst pulses deal 12/17 HP, toward mapped offensive centers
+and away from protected allies, healing centers and movement landings.
+The host ranks requests for an enemy in each tick by strength, then Core,
+Catalyst, Form and ascending source peer ID. One request wins. Each enemy
+can move at most 1.10 m in any rolling 850 ms, and opposing directions
+are refused within that window. Resistance and clearance can stop motion
+while legitimate damage still resolves.
+
+Protocol 41 retains the same fast snapshot schema and recovery stream.
+The development ruleset signature includes the nine-family definitions
+and rejects mismatched clients. Charge timers and well hints use the
+existing owner details, while actors and motion scale use the existing
+fast fields. Launch with `tools/launch_experimental_terrain.ps1
+-CombatAffinities` and use **Stock affinity materials in isolated
+Garden** in the host's settings. Supporting affinities remain future
+card opportunities. The default combat mode remains legacy.
+
+The exact-input `cr04c-accepted` source run passed 22 focused fixtures,
+including the three guarded expedition loops, the mixed party and overflow,
+previous four- and six-family workloads, compatibility refusal and the
+controlled missed-update case. The new mixed run used 1,196 bytes at 20 Hz
+with 24 of 24 markers, 53 ms p95 observation and an 80 ms maximum interval
+between applications. The six-family control applied four reliable
+recoveries with a 306 ms maximum interval. None warned about the MTU.
+With 20 scouts and 120 trials in a headless arena, mean Storm target
+selection, Spirit step and Void clearance took 57, 59 and 49 µs,
+respectively. Mixed-party snapshot encoding was 269 µs at p95.
+This is local Windows loopback evidence.
+
 ### Four-player snapshot warning
 
 The existing unreliable ordered channel 4 world snapshot in

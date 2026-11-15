@@ -2,6 +2,7 @@
   "schema": 1,
   "full_after_days": 7,
   "systems": {
+    "void_affinity": {"label":"Void wells, compression and bounded displacement", "files":["void_affinity.gd","void_affinity.gd.uid"]},
     "spirit_affinity": {"label":"Spirit stride, traces and attack claims", "files":["spirit_affinity.gd","spirit_affinity.gd.uid"]},
     "storm_affinity": {"label": "Storm discharge and source-owned charges", "files": ["storm_affinity.gd", "storm_affinity.gd.uid"]},
     "world_snapshot": {
@@ -1813,6 +1814,9 @@
     ]
   },
   "suites": {
+    "cr04c_void": {"kind":"unit","systems":["void_affinity","core_combat","combat_affinity_contracts","combat"],"package":false},
+    "cr04c_void_coop": {"kind":"pair","systems":["void_affinity","core_combat","combat_affinity_contracts","connection_flow","world_snapshot"],"package":false},
+    "cr04c_mixed_party": {"kind":"party","systems":["storm_affinity","spirit_affinity","void_affinity","core_combat","combat_affinity_contracts","connection_flow","world_snapshot"],"package":false},
     "cr04c_spirit": {"kind":"unit","systems":["spirit_affinity","core_combat","combat_affinity_contracts","combat"],"package":false},
     "cr04c_spirit_coop": {"kind":"pair","systems":["spirit_affinity","core_combat","combat_affinity_contracts","connection_flow","world_snapshot"],"package":false},
     "cr04c_storm": {"kind": "unit", "systems": ["storm_affinity","combat_affinity_contracts","core_combat","combat"], "package": false},
@@ -5780,6 +5784,12 @@
       }
     },
     "_process": {
+      "cr04c_void_hud_0": {
+        "match": "\t\t\"skill_tooltips\":skill_tips,\n\t\t\"affinity_feedback\":preload(\"res://combat_status.gd\").affinity_feedback(self,p) if host_side and wild else str(p.get(\"affinity_feedback\",\"\")) if wild else \"\",\n\t\t\"carried\": carried if wild else data[0],\n",
+        "baseline": "\t\t\"skill_tooltips\":skill_tips,\n\t\t\"carried\": carried if wild else data[0],\n",
+        "systems": ["void_affinity", "combat_affinity_contracts", "world_snapshot", "presentation"],
+        "additive": true
+      },
       "cr02_affinity_contract": {"match": "\t\t\t\tdetail_label.text += \"\\nE  Review next-floor readiness\" if has_meta(&\"combat_affinity_ruleset\") else \"\\nE  Choose upgrade cards   \u00b7   %d essence available\" % (run_wallet(p) if multiplayer.is_server() else int(p.get(\"wallet\", 0)))\n", "baseline": "\t\t\t\tdetail_label.text += \"\\nE  Choose upgrade cards   \u00b7   %d essence available\" % (run_wallet(p) if multiplayer.is_server() else int(p.get(\"wallet\", 0)))\n", "additive": true, "systems": ["combat_affinity_contracts"]},
       "experimental_coop_1": {
         "match": "\t\t\tsession_label.text = \"Experimental terrain \u00b7 %s\" % session if stage._has_experimental_floor() else \"Experimental terrain \u00b7 Special floor fallback\"\n",
@@ -6455,6 +6465,12 @@
       }
     },
     "player_snapshot": {
+      "cr04c_void_0": {
+        "match": "\t\tif id == viewer and include_details:\n\t\t\tif p.has(\"combat_ruleset\") and p.wild:\n\t\t\t\tstate[\"affinity_feedback\"]=preload(\"res://combat_status.gd\").affinity_feedback(self,p)\n\t\t\tstate[\"core_state\"]=preload(\"res://core_combat.gd\").owner_state(p,Time.get_ticks_msec(),get_meta(\"core_combat\",{}).get(id,{}))\n",
+        "baseline": "\t\tif id == viewer and include_details:\n\t\t\tstate[\"core_state\"]=preload(\"res://core_combat.gd\").owner_state(p,Time.get_ticks_msec(),get_meta(\"core_combat\",{}).get(id,{}))\n",
+        "systems": ["void_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
       "cr04c_spirit_0": {
         "match": "\t\tvar p: Dictionary = players[id]\n\t\tvar stride := preload(\"res://spirit_affinity.gd\").scale(p,preload(\"res://affinity_time.gd\").now(self)) if p.has(\"affinity_spirit_strides\") else 1.0\n\t\tvar state := {\"motion_radius\":bound_position(Vector3(1000,0,0)).x,\"motion_epoch\":net_motion.world_key(self,p),\"motion_ack\":net_motion.acknowledgement(id,net_motion.world_key(self,p)),\"motion_scale\":(.4 if Time.get_ticks_msec()<int(p.get(\"front_guard_until\",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get(\"slow_until\",0)) else 1.0)*stride,\"velocity\":p.get(\"velocity\",Vector3.ZERO),\"vitals_revision\":p.get(\"vitals_revision\",0),\"damage_seq\":p.get(\"damage_seq\",0),\"damage_amount\":p.get(\"damage_amount\",0),\"party_slot\":p.get(\"party_slot\",0),\"display_name\":p.character.get(\"name\",\"Wanderer\"),\"enemy_max_hp\":encounter_health(),\"pos\": p.pos, \"wild\": p.wild, \"fallen\":p.fallen,\"lost_health\":p.get(\"lost_health\",0), \"hp\": p.hp, \"max_hp\": p.get(\"max_hp\", MAX_HEALTH), \"appearance\": PackedByteArray(p.character.get(\"appearance\", [0,0,0,0,0])), \"frame\": p.frame,\n\t\t\t\"attack_anim\":attack_animation_snapshot(p),\"skill_fx\":p.get(\"skill_fx\",{}) if Time.get_ticks_msec()<int(p.get(\"skill_fx_until\",0)) else {}, \"weapon_kind\":p.get(\"weapon_kind\",0), \"core_part\":p.weapon if p.wild else p.prepared, \"pose\": combat_pose(p), \"wallet\": run_wallet(p),\"skill_ready\":Time.get_ticks_msec()>=int(p.skill_at),\"skill_two_ready\":Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)),\"skill_cooldowns\":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)]}\n",
         "baseline": "\t\tvar p: Dictionary = players[id]\n\t\tvar state := {\"motion_radius\":bound_position(Vector3(1000,0,0)).x,\"motion_epoch\":net_motion.world_key(self,p),\"motion_ack\":net_motion.acknowledgement(id,net_motion.world_key(self,p)),\"motion_scale\":(.4 if Time.get_ticks_msec()<int(p.get(\"front_guard_until\",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get(\"slow_until\",0)) else 1.0),\"velocity\":p.get(\"velocity\",Vector3.ZERO),\"vitals_revision\":p.get(\"vitals_revision\",0),\"damage_seq\":p.get(\"damage_seq\",0),\"damage_amount\":p.get(\"damage_amount\",0),\"party_slot\":p.get(\"party_slot\",0),\"display_name\":p.character.get(\"name\",\"Wanderer\"),\"enemy_max_hp\":encounter_health(),\"pos\": p.pos, \"wild\": p.wild, \"fallen\":p.fallen,\"lost_health\":p.get(\"lost_health\",0), \"hp\": p.hp, \"max_hp\": p.get(\"max_hp\", MAX_HEALTH), \"appearance\": PackedByteArray(p.character.get(\"appearance\", [0,0,0,0,0])), \"frame\": p.frame,\n\t\t\t\"attack_anim\":attack_animation_snapshot(p),\"skill_fx\":p.get(\"skill_fx\",{}) if Time.get_ticks_msec()<int(p.get(\"skill_fx_until\",0)) else {}, \"weapon_kind\":p.get(\"weapon_kind\",0), \"core_part\":p.weapon if p.wild else p.prepared, \"pose\": combat_pose(p), \"wallet\": run_wallet(p),\"skill_ready\":Time.get_ticks_msec()>=int(p.skill_at),\"skill_two_ready\":Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)),\"skill_cooldowns\":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)]}\n",
@@ -6695,6 +6711,12 @@
       }
     },
     "_physics_process": {
+      "cr04c_void_0": {
+        "match": "\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n\t\t\tpreload(\"res://void_affinity.gd\").resolve_motion(self,elapsed,now)\n\t\t\tpreload(\"res://fire_combat.gd\").tick(self,elapsed,now)\n",
+        "baseline": "\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n\t\t\tpreload(\"res://fire_combat.gd\").tick(self,elapsed,now)\n",
+        "systems": ["void_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
       "cr04c_spirit_0": {
         "match": "\t\t\tpreload(\"res://wood_affinity.gd\").tick(self,elapsed)\n\t\t\tpreload(\"res://spirit_affinity.gd\").tick(self,elapsed)\n\t\t\tif get_meta(Transactions.PENDING,false): return\n",
         "baseline": "\t\t\tpreload(\"res://wood_affinity.gd\").tick(self,elapsed)\n\t\t\tif get_meta(Transactions.PENDING,false): return\n",
@@ -6952,6 +6974,12 @@
       }
     },
     "_enter_wilds": {
+      "cr04c_void_0": {
+        "match": "\tpreload(\"res://spirit_affinity.gd\").clear(p)\n\tp.erase(\"affinity_void_form_ready\")\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
+        "baseline": "\tpreload(\"res://spirit_affinity.gd\").clear(p)\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
+        "systems": ["void_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
       "cr04c_spirit_0": {
         "match": "\tpreload(\"res://storm_affinity.gd\").clear(p)\n\tpreload(\"res://spirit_affinity.gd\").clear(p)\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
         "baseline": "\tpreload(\"res://storm_affinity.gd\").clear(p)\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
@@ -7995,6 +8023,12 @@
       }
     },
     "reset_encounter": {
+      "cr04c_void_0": {
+        "match": "\t\t\tpreload(\"res://spirit_affinity.gd\").clear(player)\n\t\t\tplayer.erase(\"affinity_void_form_ready\")\n\t\t\tplayer.erase(\"affinity_thorn_form_ready\")\n",
+        "baseline": "\t\t\tpreload(\"res://spirit_affinity.gd\").clear(player)\n\t\t\tplayer.erase(\"affinity_thorn_form_ready\")\n",
+        "systems": ["void_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
       "cr04c_spirit_0": {
         "match": "\t\t\tpreload(\"res://storm_affinity.gd\").clear(player)\n\t\t\tpreload(\"res://spirit_affinity.gd\").clear(player)\n\t\t\tplayer.erase(\"affinity_thorn_form_ready\")\n",
         "baseline": "\t\t\tpreload(\"res://storm_affinity.gd\").clear(player)\n\t\t\tplayer.erase(\"affinity_thorn_form_ready\")\n",
@@ -9790,6 +9824,12 @@
       "cr02_affinity_contract": {"match": "\tvar combat_mode = preload(\"res://combat_ruleset.gd\")\n\tif combat_mode.active(self):\n\t\ttell(id,combat_mode.EMPTY_CARDS)\n\t\treturn false\n", "baseline": "", "additive": true, "systems": ["combat_affinity_contracts"]}
     },
     "return_to_garden": {
+      "cr04c_void_0": {
+        "match": "\tpreload(\"res://spirit_affinity.gd\").clear(p)\n\tp.erase(\"affinity_void_form_ready\")\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
+        "baseline": "\tpreload(\"res://spirit_affinity.gd\").clear(p)\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
+        "systems": ["void_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
       "cr04c_spirit_0": {
         "match": "\tpreload(\"res://storm_affinity.gd\").clear(p)\n\tpreload(\"res://spirit_affinity.gd\").clear(p)\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
         "baseline": "\tpreload(\"res://storm_affinity.gd\").clear(p)\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
@@ -9930,6 +9970,11 @@
     "root_ui.gd": {
       "newline": "crlf",
       "regions": {
+        "cr04c_void_hud_1": {
+          "match": "\t\t\ttext(self, Vector2(24, 67), summary_key + \" \u00b7 Expedition\", 12, MUTED)\n\t\tvar affinity_feed: String = state.get(\"affinity_feedback\", \"\")\n\t\tif not affinity_feed.is_empty() and not state.get(\"fallen\",false):\n\t\t\ttext(self, Vector2(24, 86), affinity_feed, 13, Color(\"#ded0f4\"))\n\tvar bottom := size.y - (150 if active else 100)\n",
+          "baseline": "\t\t\ttext(self, Vector2(24, 67), summary_key + \" \u00b7 Expedition\", 12, MUTED)\n\tvar bottom := size.y - (150 if active else 100)\n",
+          "systems": ["presentation", "world_snapshot", "void_affinity", "spirit_affinity", "storm_affinity"]
+        },
         "health_pool_7": {
           "match": "\t\ttext(self, Vector2(30+heart_count*31+10, bottom + 35), \"%s / %d\" % [str(health).trim_suffix(\".0\"), capacity], 13)\n\tif not active:\n\t\ttext(self, Vector2(30, bottom + (50 if Orb.Preview.enabled else 65)), \"Seeds %d \u00b7 Knowledge %d available \u00b7 I Storage\" % [int(state.carried),int(state.get(\"insight\",0))], 12, GREEN)\n\t\treturn\n\tif state.get(\"fallen\",false):\n",
           "baseline": "\t\ttext(self, Vector2(30+heart_count*31+10, bottom + 35), \"%s / %d\" % [str(health).trim_suffix(\".0\"), capacity], 13)\n\tif not active:\n\t\ttext(self, Vector2(30, bottom + 65), \"Seeds %d \u00b7 Knowledge %d available \u00b7 I Storage\" % [int(state.carried),int(state.get(\"insight\",0))], 12, GREEN)\n\t\treturn\n\tif state.get(\"fallen\",false):\n",
@@ -15770,6 +15815,11 @@
     "combat_status.gd": {
       "newline": "crlf",
       "regions": {
+        "cr04c_void_1": {
+          "match": "const REFRESH_IN_PLACE := [\"spirit_stride\",\"spirit_prepared\",\"spirit_ready\",\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\nstatic func affinity_feedback(game: Node, player: Dictionary) -> String:\n var elapsed:=preload(\"res://affinity_time.gd\").now(game)\n var lines: PackedStringArray=[]\n var charge: Dictionary=player.get(\"affinity_storm_charge\",{})\n if int(charge.get(\"until\",0))>elapsed:\n  lines.append(\"Storm Charge %.1fs\"%((int(charge.until)-elapsed)/1000.0))\n var follow: Dictionary=player.get(\"affinity_spirit_follow\",{})\n if int(follow.get(\"until\",0))>elapsed:\n  var phase: String=follow.phase\n  lines.append(\"Spirit follow-up %s \u00b7 %.1fs\"%[phase,(int(follow.until)-elapsed)/1000.0])\n return \"  \u00b7  \".join(lines)\nstatic func tint(kind: String) -> Color:\n",
+          "baseline": "const REFRESH_IN_PLACE := [\"spirit_stride\",\"spirit_prepared\",\"spirit_ready\",\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\nstatic func tint(kind: String) -> Color:\n",
+          "systems": ["void_affinity", "core_combat", "combat_affinity_contracts"]
+        },
         "cr04c_spirit_1": {
           "match": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"spirit_stride\":\"Spiritstride\",\"spirit_prepared\":\"Spirit follow-up prepared\",\"spirit_ready\":\"Spirit follow-up ready\",\"storm_charge\":\"Storm Charge\",\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"spirit_stride\",\"spirit_prepared\",\"spirit_ready\",\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\nstatic func tint(kind: String) -> Color:\n",
           "baseline": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"storm_charge\":\"Storm Charge\",\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\nstatic func tint(kind: String) -> Color:\n",
@@ -16708,6 +16758,21 @@
     "core_combat.gd": {
       "newline": "lf",
       "regions": {
+        "cr04c_void_1": {
+          "match": "\t\tvar player: Dictionary = game.players.get(id, {})\n\t\tif int(line.epoch) != game.combat_epoch or not game.Life.alive(player) or int(player.get(\"lost_health\", 0)) != int(line.life) or (now >= int(line.expires) and not (line.grown and line.skill.get(\"affinity_family\") in [\"fire\",\"water\",\"void\"])):\n\t\t\tif line.has(\"flight_event\") and now < int(line.armed):\n",
+          "baseline": "\t\tvar player: Dictionary = game.players.get(id, {})\n\t\tif int(line.epoch) != game.combat_epoch or not game.Life.alive(player) or int(player.get(\"lost_health\", 0)) != int(line.life) or (now >= int(line.expires) and not (line.grown and line.skill.get(\"affinity_family\") in [\"fire\",\"water\"])):\n\t\t\tif line.has(\"flight_event\") and now < int(line.armed):\n",
+          "systems": ["void_affinity", "core_combat", "combat_affinity_contracts"]
+        },
+        "cr04c_void_2": {
+          "match": "\t\t\t\tlines.erase(id)\n\t\t\t\tcontinue\n\t\t\t\"void\":\n\t\t\t\tif preload(\"res://void_affinity.gd\").gather(game,line,now): lines.erase(id)\n\t\t\t\tcontinue\n",
+          "baseline": "\t\t\t\tlines.erase(id)\n\t\t\t\tcontinue\n",
+          "systems": ["void_affinity", "core_combat", "combat_affinity_contracts"]
+        },
+        "cr04c_void_3": {
+          "match": "\t\t\tresult.append(hint)\n\t\telif line.skill.get(\"affinity_family\")==\"void\":\n\t\t\tvar elapsed:=preload(\"res://affinity_time.gd\").now(game)\n\t\t\tresult.append(Effects.field_hint(line.id,line.center,maxf(0.0,(int(line.well_until)-elapsed)/1000.0),line.skill))\n\t\telif not line.skill.has(\"affinity_family\") and line.skill.mechanic == \"ground_sequence\":\n",
+          "baseline": "\t\t\tresult.append(hint)\n\t\telif not line.skill.has(\"affinity_family\") and line.skill.mechanic == \"ground_sequence\":\n",
+          "systems": ["void_affinity", "core_combat", "combat_affinity_contracts"]
+        },
         "cr04c_spirit_1": {
           "match": "\t\treturn\n\tvar step: bool = skill.get(\"affinity_family\")==\"spirit\"\n\tvar line := aim_cast(game.battlefield, player.pos, forward, skill, distance)\n\tif step:\n\t\tvar landing := preload(\"res://spirit_affinity.gd\").step(game,id,forward)\n\t\tline = {\"center\":landing,\"forward\":forward} if landing.distance_to(player.pos)>=preload(\"res://spirit_affinity.gd\").MIN_STEP else {}\n\tif line.is_empty():\n",
           "baseline": "\t\treturn\n\tvar line := aim_cast(game.battlefield, player.pos, forward, skill, distance)\n\tif line.is_empty():\n",
@@ -19329,6 +19394,11 @@
     "expedition_life.gd": {
       "newline": "crlf",
       "regions": {
+        "cr04c_void_1": {
+          "match": " preload(\"res://spirit_affinity.gd\").clear(p)\n p.erase(\"affinity_void_form_ready\")\n p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0\n",
+          "baseline": " preload(\"res://spirit_affinity.gd\").clear(p)\n p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0\n",
+          "systems": ["void_affinity", "core_combat", "combat_affinity_contracts"]
+        },
         "cr04c_spirit_1": {
           "match": " preload(\"res://storm_affinity.gd\").clear(p)\n preload(\"res://spirit_affinity.gd\").clear(p)\n p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0\n",
           "baseline": " preload(\"res://storm_affinity.gd\").clear(p)\n p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0\n",

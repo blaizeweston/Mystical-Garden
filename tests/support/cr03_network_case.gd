@@ -15,6 +15,7 @@ var failed := false
 var extra_cores: Array = []
 var measure_packets := false
 var mixed_wood_ward := false
+var final_family_mix := false
 
 
 func check(ok: bool, label: String) -> bool:
@@ -468,6 +469,26 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 	mark("snapshot-arm")
 	if not check(await until(func():return ids.all(func(id):return read("snapshot-ready-"+str(id))=="ok"),4000),"every guest is watching the probe"):
 		return
+	if final_family_mix:
+		var local: Dictionary=game.players[1]
+		local.frame=4
+		local.character.upgrades[4]=0
+		local.catalyst=game.Items.get_item("plant_part_rare_storm_reed").legacy_part
+		local.skill_at=0;local.cast_until=0;local.core_cast_until=0
+		for id in ids:
+			if id!=ids[1]: game.players[id].pos=local.pos
+		game.use_class_skill(1,local,0)
+		check(game.players[ids[0]].get("affinity_storm_charge",{}).get("actor")==1,
+			"real Oracle healing grants an authoritative Storm Charge to a guest")
+		var position: Vector3=game.scouts.back().pos
+		while game.scouts.size()<game.EncounterConfig.MAX_SCOUTS:
+			var scout: Dictionary=game.make_scout(0,position,game.scouts.size()+1)
+			scout.stagger_until=Time.get_ticks_msec()+6000
+			game.scouts.append(scout)
+		var caster: Dictionary=game.players[ids[2]]
+		caster.core_ready_at=0;caster.cast_until=0;caster.core_cast_until=0
+		var aim: Vector3=(game.enemy_pos-caster.pos).normalized()
+		game.garden_action(ids[2],Core.request(game,caster,Vector2(aim.x,aim.z),1.1))
 	for index in PROBE_COUNT:
 		var marker := PROBE_FIRST+index
 		game.drop_pos=Vector3(marker,0,0)
@@ -477,6 +498,10 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 	game.drop_pos=previous
 	game.remove_meta(&"snapshot_witness")
 	check(await until(func():return ids.all(func(id):return read("snapshot-seen-"+str(id))=="ok"),4000),"all guests processed current authoritative state")
+	if final_family_mix:
+		var cap: int=preload("res://world_snapshot.gd").MAX_FRAME
+		check(ids.all(func(id):return rows.any(func(row):return row.phase=="send" and row.peer==id and row.bytes==cap)),
+			"all peers receive a full-occupancy sized hot frame while new effects are active")
 	print("SNAPSHOT_HOST ",JSON.stringify(rows))
 
 
@@ -491,6 +516,8 @@ func sample_guest_snapshots(game: Node, id: int) -> void:
 	var starts: Dictionary={}
 	var observed: Dictionary={}
 	var max_frame_us:=0
+	var saw_charge:=false
+	var saw_well:=false
 	var previous := Time.get_ticks_usec()
 	var began := previous
 	var deadline:=previous+4000000
@@ -503,6 +530,10 @@ func sample_guest_snapshots(game: Node, id: int) -> void:
 		for marker in range(PROBE_FIRST,PROBE_FIRST+PROBE_COUNT):
 			if not starts.has(marker) and read("snapshot-probe-"+str(marker))=="ok":
 				starts[marker]=now
+		if final_family_mix:
+			var view: Dictionary=game.players.get(id,{})
+			saw_charge=saw_charge or str(game.player_hud.state.get("affinity_feedback","")).contains("Storm Charge")
+			saw_well=saw_well or view.get("attack_hints",[]).any(func(hint):return hint.get("skill")=="gravity_well")
 		var marker:=int(game.drop_pos.x)
 		if starts.has(marker) and not observed.has(marker) and game.players.size()==4 and game.enemy_hp>400:
 			observed[marker]={"local_us":now,"first_marker_read_us":starts[marker],
@@ -521,6 +552,14 @@ func sample_guest_snapshots(game: Node, id: int) -> void:
 	max_apply_gap = maxi(max_apply_gap, Time.get_ticks_usec() - last_apply)
 	var valid: bool=observed.size()>=PROBE_COUNT/2 and game.stage._has_experimental_floor() and max_apply_gap <= 500000
 	check(valid,"guest sees multiple probe states and receives a fresh current snapshot within 500 ms")
+	if final_family_mix:
+		var cap: int=preload("res://world_snapshot.gd").MAX_FRAME
+		check(saw_well and rows.any(func(row):return row.phase=="receive" and row.bytes==cap),
+			"guest receives the Gravity Well footprint and 20-scout snapshot")
+		if game.players[id].get("frame",-1)!=4 and not saw_charge:
+			# The retreating Spirit may be outside the native healing radius.
+			check(int(game.players[id].get("core_part",0))==game.Items.get_item("plant_part_rare_ghost_fern").legacy_part,
+				"eligible guests see source-owned Storm Charge and its remaining lifetime")
 	print("SNAPSHOT_GUEST ",JSON.stringify({"peer":id,"rows":rows,"observed":observed,
 		"start_sequence":start_sequence,"gaps":game.net_view.snapshot_gaps-gap_start,
 		"stale":game.net_view.rejected_snapshots-stale_start,"max_frame_us":max_frame_us,"max_apply_gap_us":max_apply_gap}))

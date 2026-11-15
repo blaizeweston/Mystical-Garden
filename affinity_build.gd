@@ -125,6 +125,17 @@ static func describe(build: Dictionary) -> String:
 		var summary := "Empty" if name == "core" else "Native only"
 		if part.state == "ready":
 			summary = Ruleset.FAMILIES[part.primary_affinity].description(name, part.quality)
+			if name=="core":
+				var skill := core_skill(build)
+				summary += "\nDelivery: " + str(skill.delivery).capitalize()
+			if name=="form" and part.primary_affinity=="void":
+				var native := native_stats(build)
+				if float(native.get("knockback",0.0))>0.0 or float(native.get("pull",0.0))>0.0:
+					summary += "\nThis loadout retains native displacement. Drawing Strikes still adds damage."
+			if name=="catalyst":
+				for adapter in build.class_skills:
+					if not adapter.is_empty():
+						summary += "\n%s · %s" % [adapter.native_skill.name, str(adapter.response).replace("_"," ").capitalize()]
 			summary += "\nSupport reserved for future cards: " + ", ".join(part.supporting_affinities)
 		elif part.state != "empty":
 			summary = refusal(build, name)
@@ -152,6 +163,7 @@ static func core_skill(build: Dictionary) -> Dictionary:
 		"wood": ["Ironbark", "ironbark", "#e1b778", Ruleset.Wood.CORE_RADIUS, 750, Ruleset.Wood.COOLDOWN_MS],
 		"storm": ["Chain Spark", "chain_spark", "#e3d184", .12, 750, Ruleset.Storm.CORE_CD],
 		"spirit": ["Phantom Step", "phantom_step", "#bdafe8", .34, 750, Ruleset.Spirit.CORE_CD],
+		"void": ["Gravity Well", "gravity_well", "#ad8bcb", Ruleset.Void.CORE_RADIUS, 2000, Ruleset.Void.CORE_CD],
 	}[family]
 	return {"id": core.affinity_core_skill_id, "name": profile[0],
 		"icon": "res://assets/ui/core_skills/%s.png" % profile[1], "mechanic": "swept_projectile" if family=="storm" and delivery.kind!="ground" else "ground_sequence",

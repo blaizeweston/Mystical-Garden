@@ -80,6 +80,7 @@ func publish(game: Node, channel: String, contact_id: String, target: String, no
 			"wood": Ruleset.Wood.on_event(game, self, channel, details, now)
 			"storm": Ruleset.Storm.on_event(game, self, channel, details, now)
 			"spirit": Ruleset.Spirit.on_event(game, self, channel, details, now)
+			"void": Ruleset.Void.on_event(game, self, channel, details, now)
 	return true
 
 
@@ -99,7 +100,8 @@ static func class_complete(game: Node, event: RefCounted, adapter: Dictionary, s
 		return
 	event.publish(game, "class_action", "cast", "", now,
 		{"adapter": adapter.id, "start": start, "center": center, "enemies": targets, "recipients": recipients,
-			"response": adapter.get("response",""), "target_scope": adapter.recipients, "radius": radius})
+			"response": adapter.get("response",""), "target_scope": adapter.recipients, "radius": radius,
+			"native_displacement": float(adapter.get("native_displacement",{}).get("push",0))!=0.0 or float(adapter.get("native_displacement",{}).get("pull",0))!=0.0})
 
 
 static func contact(game: Node, stats: Dictionary, target: int, now: int, secondary := false, point := Vector3.INF, forward := Vector3.ZERO) -> void:
@@ -108,7 +110,7 @@ static func contact(game: Node, stats: Dictionary, target: int, now: int, second
 		return
 	var channel := "secondary" if secondary else "class_contact" if event.source in ["native_class", "catalyst"] else "weapon_contact"
 	var token := "leader" if target == -1 else str(game.scouts[target].get("spawn_token", target))
-	var details := {"enemy": target}
+	var details := {"enemy":target,"native_displacement":float(stats.get("pull",0.0))>0.0 or float(stats.get("knockback",0.0))>0.0}
 	if point.is_finite():
 		details.point = point
 		details.forward = forward

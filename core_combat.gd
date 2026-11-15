@@ -282,7 +282,7 @@ static func tick(game: Node, now: int) -> void:
 	for id in lines.keys():
 		var line: Dictionary = lines[id]
 		var player: Dictionary = game.players.get(id, {})
-		if int(line.epoch) != game.combat_epoch or not game.Life.alive(player) or int(player.get("lost_health", 0)) != int(line.life) or (now >= int(line.expires) and not (line.grown and line.skill.get("affinity_family") in ["fire","water"])):
+		if int(line.epoch) != game.combat_epoch or not game.Life.alive(player) or int(player.get("lost_health", 0)) != int(line.life) or (now >= int(line.expires) and not (line.grown and line.skill.get("affinity_family") in ["fire","water","void"])):
 			if line.has("flight_event") and now < int(line.armed):
 				game.emit_combat_event("projectile_end", str(line.flight_event), line.origin, line.origin, .15, Color.WHITE, 0.0, 0)
 			lines.erase(id)
@@ -327,6 +327,9 @@ static func tick(game: Node, now: int) -> void:
 			"thorn":
 				preload("res://thorn_affinity.gd").release(game,line,now)
 				lines.erase(id)
+				continue
+			"void":
+				if preload("res://void_affinity.gd").gather(game,line,now): lines.erase(id)
 				continue
 			"storm":
 				preload("res://storm_affinity.gd").ground_contact(game,line,player,now)
@@ -533,6 +536,9 @@ static func hints(game: Node) -> Array:
 			hint.core_shapes = Footprint.encode(line.shapes)
 			hint.core_phase = preload("res://fire_combat.gd").FIELD_MS - maxi(0,int(line.field_until)-elapsed)
 			result.append(hint)
+		elif line.skill.get("affinity_family")=="void":
+			var elapsed:=preload("res://affinity_time.gd").now(game)
+			result.append(Effects.field_hint(line.id,line.center,maxf(0.0,(int(line.well_until)-elapsed)/1000.0),line.skill))
 		elif not line.skill.has("affinity_family") and line.skill.mechanic == "ground_sequence":
 			result.append_array(Effects.hints(game, line, Time.get_ticks_msec()))
 		elif line.skill.has("affinity_family"):

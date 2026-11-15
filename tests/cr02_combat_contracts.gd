@@ -56,15 +56,18 @@ func run() -> void:
 	check(not game.buy_upgrade(1,player,0) and game.checkpoint_offer_ids(player).is_empty()
 		and game.run_wallet(player)==wallet and player.run_upgrades==ranks
 		and player.checkpoint_offers==["rift_hook"], "stale offers cannot purchase and are not erased")
-	player.secondary = game.Items.get_item("part_10").legacy_part
-	player.catalyst = game.Items.get_item("part_10").legacy_part
+	var ready_core: int=player.weapon
+	player.weapon = -1
+	player.secondary = -1
+	player.catalyst = -1
 	var timers: Array = [player.strike_at,player.skill_at]
 	game.strike_enemy(1,player,player.pos)
 	game.use_class_skill(1,player,0)
 	game.garden_action(1,"core_cast:unavailable")
 	check([player.strike_at,player.skill_at] == timers and game.projectile_queue.is_empty()
-		and "pending" in game.status, "pending Form, Catalyst and Core do not execute")
+		and "invalid" in game.status, "invalid Form, Catalyst and Core do not execute")
 
+	player.weapon = ready_core
 	player.secondary = 0
 	player.catalyst = 0
 	player.character.upgrades[0] = 1 << 1
