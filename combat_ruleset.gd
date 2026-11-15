@@ -1,6 +1,6 @@
 extends RefCounted
 
-const ID := "plant-affinity-cr04a-fire"
+const ID := "plant-affinity-cr04a-water"
 const FLAG := "--combat-affinities"
 const META := &"combat_affinity_ruleset"
 const PLAYER_KEY := "combat_ruleset"
@@ -9,7 +9,8 @@ const MISMATCH := "Combat ruleset mismatch. Host and guest must launch with the 
 const COMPATIBLE_CARDS := {}
 const Frost = preload("res://frost_balance.gd")
 const Fire = preload("res://fire_combat.gd")
-const FAMILIES := {"frost": Frost, "fire": Fire}
+const Water = preload("res://water_combat.gd")
+const FAMILIES := {"frost": Frost, "fire": Fire, "water": Water}
 const Experiment = preload("res://assets/terrain_m02/experimental/experiment_mode.gd")
 const Playtest = preload("res://playtest_storage.gd")
 const Plants = preload("res://plant_affinities.gd")
@@ -35,7 +36,7 @@ static var definition_signature := JSON.stringify([
 	Plants.BY_SPECIES, Plants.CORE_SKILL_BY_PRIMARY, Plants.SUPPORTING_ONLY,
 	Catalyst.KITS, Catalyst.FOCUS_Q, Catalyst.ADAPTERS, Catalyst.RESPONSES, Catalyst.CONFLICTS,
 	Classes.DEFINITIONS, Classes.Warden.FOCUSES, Classes.Subclasses.FOCUSES,
-	Parts.MONSTER_DEFINITIONS, Delivery.WEAPON_DELIVERY, NATIVE_GRAFT_STATS, FORMS, COMPATIBLE_CARDS, Frost.VERSION_DATA, Fire.VERSION_DATA,
+	Parts.MONSTER_DEFINITIONS, Delivery.WEAPON_DELIVERY, NATIVE_GRAFT_STATS, FORMS, COMPATIBLE_CARDS, Frost.VERSION_DATA, Fire.VERSION_DATA, Water.VERSION_DATA,
 ]).sha256_text()
 
 

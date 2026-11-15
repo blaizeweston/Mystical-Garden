@@ -2225,7 +2225,7 @@ func update_enemy(delta: float, now: int) -> void:
 		return
 	if enemy_winding_up:
 		if now >= enemy_strike_at:
-			resolve_briar_strike(now)
+			preload("res://frost_combat.gd").with_attacker(self,-1,resolve_briar_strike.bind(now))
 		return
 	if now < enemy_stagger_until:
 		return
@@ -2576,6 +2576,8 @@ func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: 
 	if Traits.try_brace(self,player,now): return
 	var hit_points := float(1+difficulty_cycle/2) if damage<0.0 else Life.Preview.authored_amount(damage)
 	var hp := Life.Preview.effect_hp(hit_points)
+	if has_meta(&"combat_affinity_ruleset"):
+		hp = preload("res://water_combat.gd").direct_damage(self,hp)
 	if has_meta(Transactions.SESSION):
 		if not Transactions.session_writable(self): return
 		if hp>=int(player.hp):

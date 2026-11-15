@@ -1,8 +1,11 @@
 extends RefCounted
 # Host-derived presentation state. Never stored in character/Garden saves.
 const Warden = preload("res://warden_combat.gd")
-const LABELS={"subclass_follow_ready":"Follow-up ready","warden_quake_ready":"Quake prepared","slow":"Slowed","guard":"Warded","counter":"Counter ready","prepared_mark":"Mark ready","grave":"Death charge","echo":"Echo charge","marked":"Marked","core_strike_mark":"Core Mark","crown_link":"Crownlink","brittle":"Brittle","rooted":"Rooted","staggered":"Staggered","haste":"Hastened","bark_guard":"Bark Guard","sheltered":"Sheltered","trophy_carrier":"Carrying trophy","rallied":"Rallied","uprooting":"Uprooting","core_exposed":"Core exposed","nursery_lull":"Nursery lull","memory_exposed":"Memory exposed"}
+const LABELS={"subclass_follow_ready":"Follow-up ready","warden_quake_ready":"Quake prepared","slow":"Slowed","guard":"Warded","counter":"Counter ready","prepared_mark":"Mark ready","grave":"Death charge","echo":"Echo charge","marked":"Marked","core_strike_mark":"Core Mark","crown_link":"Crownlink","brittle":"Brittle","burning":"Burning","drenched":"Drenched","rooted":"Rooted","staggered":"Staggered","haste":"Hastened","bark_guard":"Bark Guard","sheltered":"Sheltered","trophy_carrier":"Carrying trophy","rallied":"Rallied","uprooting":"Uprooting","core_exposed":"Core exposed","nursery_lull":"Nursery lull","memory_exposed":"Memory exposed"}
+const REFRESH_IN_PLACE := ["grave","echo","sheltered","trophy_carrier","subclass_follow_ready","burning","drenched"]
 static func tint(kind: String) -> Color:
+ if kind=="burning":return Color("#f29b57")
+ if kind=="drenched":return Color("#82d7ec")
  return Color("#e6c079") if kind in ["guard","counter","grave","bark_guard","sheltered","trophy_carrier","cast_break"] else Color("#d8a2ed") if kind in ["marked","prepared_mark","echo","mark_break","core_strike_mark"] else Color("#95d7ed") if kind in ["brittle","slow","shatter"] else Color("#a6d695")
 static func add(result: Dictionary,game: Node,kind: String,owner: int,enemy: bool,until: int,stacks: int,now: int) -> void:
  if until<=now or stacks<=0:return
@@ -37,6 +40,9 @@ static func sync(game: Node,now: int) -> void:
    var body := frost.body(game,target)
    var brittle := frost.state(body,now)
    add(desired,game,"brittle",target,true,int(brittle.get("expires",0)),brittle.get("stacks",[]).size(),now)
+   if not body.get("affinity_burning",{}).is_empty():add(desired,game,"burning",target,true,now+60000,1,now)
+   var elapsed: int=preload("res://affinity_time.gd").now(game)
+   if preload("res://water_combat.gd").reduction(body,elapsed)>0.0:add(desired,game,"drenched",target,true,now+60000,1,now)
    root_until=maxi(root_until,int(body.get("frost_root_until",0)))
   else:
    add(desired,game,"brittle",target,true,int(state.get("brittle_until",0)),int(state.get("brittle",0)),now)
@@ -60,11 +66,11 @@ static func sync(game: Node,now: int) -> void:
  var epoch:=str(game.combat_epoch)
  var previous: Dictionary=game.get_meta("status_feedback",{}) if str(game.get_meta("status_epoch",""))==epoch else {}
  for key in previous:
-  if not desired.has(key) or desired[key].stacks!=previous[key].stacks or (desired[key].kind not in ["grave","echo","sheltered","trophy_carrier","subclass_follow_ready"] and desired[key].until!=previous[key].until) or now-int(previous[key].event.born)>=55000:
+  if not desired.has(key) or desired[key].stacks!=previous[key].stacks or (desired[key].kind not in REFRESH_IN_PLACE and desired[key].until!=previous[key].until) or now-int(previous[key].event.born)>=55000:
    game.emit_combat_event("status_end",str(previous[key].event.id),Vector3.ZERO,Vector3.ZERO,.3,Color.WHITE,0,0)
  for key in desired:
   var item: Dictionary=desired[key]
-  if previous.has(key) and item.stacks==previous[key].stacks and ((item.kind in ["grave","echo","sheltered","trophy_carrier","subclass_follow_ready"] and now-int(previous[key].event.born)<55000) or item.until==previous[key].until):
+  if previous.has(key) and item.stacks==previous[key].stacks and ((item.kind in REFRESH_IN_PLACE and now-int(previous[key].event.born)<55000) or item.until==previous[key].until):
    item.event=previous[key].event
    continue
   var at: Vector3=game.enemy_position(item.owner) if item.enemy else game.players[item.owner].pos

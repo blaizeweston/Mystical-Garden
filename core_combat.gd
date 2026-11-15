@@ -70,7 +70,7 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 		game.tell(id, "%s needs clear ground in that direction." % skill.name)
 		return
 	var weapon: Dictionary = game.WeaponMotion.profile(skill.weapon_form)
-	var ground: bool = skill.delivery == "ground" or skill.get("footprint") == "wave"
+	var ground: bool = skill.delivery == "ground" or skill.get("footprint") == "wave" or skill.get("affinity_family") == "water"
 	var blade_cast: bool = skill.weapon_form == "blade"
 	var duration := 550 if blade_cast else roundi(float(weapon.duration) * 1000.0)
 	var release_ms := 245 if blade_cast else roundi(float(weapon.release) * duration)
@@ -260,7 +260,7 @@ static func tick(game: Node, now: int) -> void:
 	for id in lines.keys():
 		var line: Dictionary = lines[id]
 		var player: Dictionary = game.players.get(id, {})
-		if int(line.epoch) != game.combat_epoch or not game.Life.alive(player) or int(player.get("lost_health", 0)) != int(line.life) or (now >= int(line.expires) and not (line.grown and line.skill.get("affinity_family") == "fire")):
+		if int(line.epoch) != game.combat_epoch or not game.Life.alive(player) or int(player.get("lost_health", 0)) != int(line.life) or (now >= int(line.expires) and not (line.grown and line.skill.get("affinity_family") in ["fire","water"])):
 			if line.has("flight_event") and now < int(line.armed):
 				game.emit_combat_event("projectile_end", str(line.flight_event), line.origin, line.origin, .15, Color.WHITE, 0.0, 0)
 			lines.erase(id)
@@ -298,6 +298,9 @@ static func tick(game: Node, now: int) -> void:
 				continue
 			"fire":
 				if preload("res://fire_combat.gd").field(game,line,now): lines.erase(id)
+				continue
+			"water":
+				if preload("res://water_combat.gd").wave(game,line,player,now): lines.erase(id)
 				continue
 		if line.skill.mechanic == "ground_sequence":
 			if Effects.sequence(game, id, player, line, now):

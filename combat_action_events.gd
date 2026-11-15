@@ -73,6 +73,7 @@ func publish(game: Node, channel: String, contact_id: String, target: String, no
 		match affinity:
 			"frost": Frost.on_event(game, self, channel, details, now)
 			"fire": Ruleset.Fire.on_event(game, self, channel, details, now)
+			"water": Ruleset.Water.on_event(game, self, channel, details, now)
 	return true
 
 
