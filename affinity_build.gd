@@ -14,12 +14,11 @@ static func slot(name: String, part: int) -> Dictionary:
 	var identity := Affinities.for_part(part)
 	if identity.is_empty():
 		return {"state": "empty" if part == 0 else "invalid", "executable": part == 0 and name != "core"}
-	identity.state = "pending"
-	identity.executable = false
-	# Separate profile IDs reserve a future slot-specific tuning point. CR02
-	# applies no potency numbers, including for refined material.
+	identity.executable = identity.primary_affinity == "frost"
+	identity.state = "ready" if identity.executable else "pending"
 	identity.potency_profile = {
-		"id": "%s/%s/%s" % [name, identity.primary_affinity, identity.quality], "values": {},
+		"id": "%s/%s/%s" % [name, identity.primary_affinity, identity.quality],
+		"values": Ruleset.Frost.QUALITY[identity.quality].duplicate() if identity.executable else {},
 	}
 	identity.card_requirements = {
 		"slot": name, "primary_affinity": identity.primary_affinity,
@@ -50,6 +49,7 @@ static func resolve(class_id: int, weapon_index: int, slots: Array, graft: int, 
 		if not adapter.is_empty():
 			adapter.response = adapter.responses.get(result.catalyst.get("primary_affinity"), "")
 		result.class_skills.append(adapter)
+	result.capabilities.affinity_effects = [result.core, result.form, result.catalyst].any(func(part): return part.state == "ready")
 	result.capabilities.strike = result.form.executable
 	result.capabilities.core_action = result.core.executable
 	result.capabilities.class_actions = result.catalyst.executable and result.class_skills.all(func(adapter): return not adapter.is_empty())
@@ -79,6 +79,10 @@ static func native_stats(build: Dictionary) -> Dictionary:
 	stats.merge({"cooldown": 0.0, "tags": [], "interactions": [], "core_build": {}})
 	WeaponRules.add_effects(stats, build.native_class_effects)
 	WeaponRules.add_effects(stats, build.graft.get("native_effects", {}))
+	# Legacy passive Frost is retained in the resolved native metadata for CR05.
+	stats.erase("brittle")
+	stats.erase("shatter_damage")
+	stats.erase("link_brittle")
 	for key in ["cooldown", "recovery", "stagger", "skill_cooldown", "skill_duration", "dodge_cooldown", "windup_damage"]:
 		if stats.has(key) and (key != "windup_damage" or not Preview.enabled):
 			stats[key] = roundi(float(stats[key]))
@@ -98,7 +102,7 @@ static func refusal(build: Dictionary, name: String) -> String:
 	if part.executable:
 		return ""
 	if part.state == "empty":
-		return "Equip an implemented Core to use B. Native-only loadouts have no Core action."
+		return "Equip Chiming Sepal or Crystalline Bellheart in Core to use Rime Bloom."
 	if part.state == "invalid":
 		return "%s material is invalid." % name.capitalize()
 	return "%s %s is pending implementation." % [str(part.primary_affinity).capitalize(), name.capitalize()]
@@ -110,7 +114,7 @@ static func departure_refusal(player: Dictionary) -> String:
 		if build[name].state != "empty":
 			var reason := refusal(build, name)
 			if not reason.is_empty():
-				return reason + " Empty plant slots allow native combat."
+				return reason + " Equip Frostbell or leave the slot empty."
 	return ""
 
 
@@ -119,7 +123,9 @@ static func describe(build: Dictionary) -> String:
 	for name in ["core", "form", "catalyst"]:
 		var part: Dictionary = build[name]
 		var summary := "Empty" if name == "core" else "Native only"
-		if part.state != "empty":
+		if part.state == "ready":
+			summary = Ruleset.Frost.description(name, part.quality) + "\nWater support is reserved for future cards."
+		elif part.state != "empty":
 			summary = refusal(build, name)
 			if part.state == "pending":
 				summary += " Support: " + ", ".join(part.supporting_affinities) + " · " + part.quality.capitalize()
@@ -127,3 +133,18 @@ static func describe(build: Dictionary) -> String:
 	if not build.graft.get("pending_effects", {}).is_empty():
 		lines.append("Graft · Native weapon modifiers available. Special graft effects are pending.")
 	return "\n".join(lines)
+
+
+static func frost_core(build: Dictionary) -> Dictionary:
+	var core: Dictionary = build.get("core", {})
+	if core.get("state") != "ready":
+		return {}
+	var balance = Ruleset.Frost
+	var delivery: Dictionary = core.delivery
+	return {"id": core.affinity_core_skill_id, "name": "Rime Bloom",
+		"icon": "res://assets/ui/core_skills/rime_bloom.png", "mechanic": "ground_sequence",
+		"frost_family": true, "material": core, "color": "#97dfff",
+		"weapon_form": build.native_weapon.visual, "delivery": delivery.kind,
+		"projectile": Delivery.DELIVERY_SHAPES[delivery.kind], "range": delivery.range,
+		"radius": balance.BLOOM_RADIUS, "lifetime_ms": 2500, "cooldown_ms": balance.BLOOM_COOLDOWN_MS,
+		"tooltip": balance.description("core", core.quality), "modifiers": []}

@@ -89,7 +89,7 @@ func _ready() -> void:
 		if combat_mode.verified():
 			set_meta(combat_mode.META, combat_mode.ID)
 			if return_message.is_empty():
-				return_message = "Combat affinity development mode · Co-op · Native combat with empty plant slots. Affinity effects are pending."
+				return_message = "Frost development mode · Co-op · Equip Frostbell in Core, Form, or Catalyst."
 		elif return_message.is_empty():
 			return_message = "EXPERIMENTAL TERRAIN  ·  Co-op  ·  Garden layout lasts for the host session"
 	if Playtest.retail():

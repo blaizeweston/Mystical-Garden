@@ -108,7 +108,7 @@ static func block_effects(game: Node, player: Dictionary, now: int) -> void:
 			if int(ally.get("slow_until",0)) > now and in_circle(game,ally,player.pos,BLOCK_RADIUS):
 				ally.slow_until = 0
 				cue(game,"Cleansed",ally.pos)
-	if Progression.learned(profile,"cracking_roots"):
+	if Progression.learned(profile,"cracking_roots") and not player.has("combat_ruleset"):
 		var nearby := contacts(game,player.pos,BLOCK_RADIUS)
 		if not nearby.is_empty():
 			var traits: Dictionary = game.Traits.target_state(game,nearby[0])

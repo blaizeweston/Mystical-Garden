@@ -42,8 +42,10 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 		return
 	if preload("res://combat_ruleset.gd").active(game):
 		var builds = preload("res://affinity_build.gd")
-		game.tell(id,builds.refusal(builds.for_player(player),"core"))
-		return
+		var refusal := builds.refusal(builds.for_player(player),"core")
+		if not refusal.is_empty():
+			game.tell(id,refusal)
+			return
 	var args := action.split(":", true, 5)
 	if args.size() != 5 or args[1] != cast_key(game, player) or not args[2].is_valid_float() or not args[3].is_valid_float() or not args[4].is_valid_float():
 		return
@@ -90,6 +92,9 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 		"flight_ms": flight_ms, "released": false, "grown": false, "next_hit": {},
 		"origin": origin, "cast_origin": player.pos, "previous": {}, "behaviors": Upgrades.core_behaviors(player, skill.id),
 	})
+	if skill.get("frost_family", false):
+		line.frost_action = preload("res://combat_action_events.gd").begin(game,id,"core",skill.material,
+			skill.material.potency_profile.values,["core_action"],int(line.expires))
 	lines[id] = line
 	game.set_meta(STATE, lines)
 	player.core_ready_at = now + int(skill.cooldown_ms)
@@ -112,7 +117,9 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 
 
 static func equipped(player: Dictionary) -> Dictionary:
-	if preload("res://combat_ruleset.gd").uses_affinities(player): return {}
+	if preload("res://combat_ruleset.gd").uses_affinities(player):
+		var builds = preload("res://affinity_build.gd")
+		return builds.frost_core(builds.for_player(player))
 	var skill: Dictionary = Rules.player_build(player).skill
 	Upgrades.tune_core(player, skill)
 	return skill
@@ -125,13 +132,12 @@ static func owner_state(player: Dictionary, now: int, _cast: Dictionary = {}) ->
 	if skill.is_empty():
 		return {}
 	return {
-		"name": skill.name, "icon": skill.icon, "tooltip": Rules.describe(skill, Upgrades.core_card_lines(player, skill.id)),
+		"name": skill.name, "icon": skill.icon, "tooltip": skill.tooltip if skill.get("frost_family",false) else Rules.describe(skill, Upgrades.core_card_lines(player, skill.id)),
 		"remaining": maxf(0, (int(player.get("core_ready_at", 0)) - now) / 1000.0),
 	}
 
 
 static func hud_state(game: Node, player: Dictionary) -> Dictionary:
-	if preload("res://combat_ruleset.gd").active(game): return {}
 	if not player.get("wild", false):
 		return {}
 	var now := Time.get_ticks_msec()
@@ -148,6 +154,8 @@ static func hud_state(game: Node, player: Dictionary) -> Dictionary:
 
 static func preview(game: Node, player: Dictionary, field: RefCounted, forward: Vector3, distance: float) -> Dictionary:
 	var skill := equipped(player) if game.multiplayer.is_server() else Dictionary(player.get("weapon_stats", {})).get("core_build", {}).get("skill", {}) as Dictionary
+	if not game.multiplayer.is_server() and preload("res://combat_ruleset.gd").active(game):
+		skill = preload("res://affinity_build.gd").frost_core(player.get("weapon_stats",{}).get("affinity_build",{}))
 	if skill.is_empty():
 		return {}
 	var origin: Vector3 = player.pos
@@ -283,6 +291,9 @@ static func tick(game: Node, now: int) -> void:
 			continue
 		if not line.grown and not game.battlefield.clear_line(line.cast_origin, line.center):
 			lines.erase(id)
+			continue
+		if line.skill.get("frost_family", false):
+			if preload("res://frost_combat.gd").bloom(game,line,now): lines.erase(id)
 			continue
 		if line.skill.mechanic == "ground_sequence":
 			if Effects.sequence(game, id, player, line, now):

@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$GodotExe
+    [string]$GodotExe,
+    [switch]$CombatAffinities
 )
 $ErrorActionPreference = 'Stop'
 $project = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
@@ -18,6 +19,7 @@ $start = [Diagnostics.ProcessStartInfo]::new()
 $start.FileName = $engine
 $start.WorkingDirectory = $project
 $start.Arguments = '--path "' + $project + '" --log-file "' + (Join-Path $profile 'engine.log') + '" -- --experimental-terrain'
+if ($CombatAffinities) { $start.Arguments += ' --combat-affinities' }
 $start.UseShellExecute = $false
 $start.EnvironmentVariables['APPDATA'] = $profile
 $start.EnvironmentVariables['LOCALAPPDATA'] = $profile

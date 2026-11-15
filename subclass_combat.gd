@@ -207,7 +207,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		if adapter.recipients == "living_heal_recipients":
 			for ally_id in game.players:
 				if nearby.any(func(ally): return is_same(ally,game.players[ally_id])): recipients.append(ally_id)
-		events.class_complete(game,event,adapter,cast.origin,Vector3(player.pos) if adapter.origin.begins_with("departure") or adapter.origin == "landing" else contact,affected,recipients,now)
+		events.class_complete(game,event,adapter,cast.origin,Vector3(player.pos) if adapter.origin.begins_with("departure") or adapter.origin == "landing" else contact,affected,recipients,now,radius)
 	if game.encounter_cleared():
 		game.finish_combat(id,contact)
 

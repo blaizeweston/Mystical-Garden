@@ -19,6 +19,8 @@ static func build(field: RefCounted, cast: Dictionary, origin: Vector3, stage: i
 	var forward: Vector3 = cast.forward
 	var side := forward.cross(Vector3.UP)
 	var radius: float = skill.radius
+	if skill.get("frost_family", false):
+		return [area(at,radius)]
 	match skill.id:
 		"ember_wake":
 			return [lane(field, at, forward, radius, radius * .34, true)]

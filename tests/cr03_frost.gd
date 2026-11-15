@@ -1,0 +1,271 @@
+extends SceneTree
+
+const Rules = preload("res://combat_ruleset.gd")
+const Frost = preload("res://frost_combat.gd")
+const Wards = preload("res://ward_responses.gd")
+const Events = preload("res://combat_action_events.gd")
+const Builds = preload("res://affinity_build.gd")
+const Core = preload("res://core_combat.gd")
+const Status = preload("res://combat_status.gd")
+var failed := false
+var seen: Array[Dictionary] = []
+var bursts: Array = []
+var game: Node
+var ordinary: int
+var refined: int
+
+
+func _initialize() -> void:
+	call_deferred("run")
+
+
+func check(ok: bool, label: String) -> void:
+	if not ok:
+		failed = true
+		printerr("FAIL Frost: ",label)
+
+
+func run() -> void:
+	game = preload("res://world.tscn").instantiate()
+	game.set_meta(Rules.META,Rules.ID)
+	game.settings_path = "user://frost-settings.cfg"
+	root.add_child(game)
+	game.set_process(false)
+	game.set_physics_process(false)
+	game.set_meta(Events.RECORD,func(event): seen.append(event))
+	game.set_meta(&"frost_rupture_witness",func(stacks,hp): bursts.append([stacks,hp]))
+	ordinary = game.Items.get_item("plant_part_plant_frostbell").legacy_part
+	refined = game.Items.get_item("plant_part_rare_frostbell").legacy_part
+	game.battlefield.configure(0,1,0)
+	game.battlefield.barriers.clear()
+	var p: Dictionary = game.players[1]
+	p.wild = true
+	p.pos = Vector3.ZERO
+	p.hp = 90
+	game.add_player(2)
+	game.players[2].wild = true
+	game.players[2].hp = 90
+	game.players[2].pos = Vector3.ZERO
+	run_core(p,ordinary)
+	run_core(p,refined)
+	run_form(p,ordinary)
+	run_form(p,refined)
+	run_form(p,ordinary,2,0)
+	run_form(p,refined,2,1)
+	run_catalyst(p,ordinary)
+	run_catalyst(p,refined)
+	run_focus(p)
+	run_wards()
+	run_mixed()
+	game.queue_free()
+	await process_frame
+	if not failed: print("PASS: Frost gameplay contacts, Core delivery, Ward claim order and shared movement")
+	quit(int(failed))
+
+
+func reset_enemy(at := Vector3(0,0,-1.5)) -> void:
+	game.enemy_hp=150
+	game.enemy_mutations=0
+	game.boss_kind=-1
+	game.enemy_pos=at
+	game.enemy_winding_up=false
+	game.leader_brain.clear()
+	game.scouts.clear()
+	Core.reset(game)
+	bursts.clear()
+	seen.clear()
+
+
+func run_core(p: Dictionary, part: int) -> void:
+	reset_enemy()
+	p.weapon=part
+	p.secondary=0
+	p.catalyst=0
+	p.strike_at=0
+	p.core_ready_at=0
+	p.core_cast_until=0
+	p.cast_until=0
+	game.garden_action(1,"core_cast:stale:0:-1:1.5")
+	check(p.core_ready_at==0,"stale Core request spends no cooldown")
+	var cast_key := Core.request(game,p,Vector2.UP,1.5)
+	game.garden_action(1,cast_key)
+	var lines: Dictionary = game.get_meta(Core.STATE,{})
+	if not lines.has(1):
+		check(false,"Rime Bloom gets valid placement through B")
+		return
+	var cast: Dictionary = lines[1]
+	var at: int = cast.armed
+	Core.tick(game,at)
+	Core.tick(game,at+1)
+	var quality: String = "refined" if part==refined else "ordinary"
+	var potency: Dictionary = Frost.Balance.QUALITY[quality]
+	var open := Frost.state(game.leader_brain,at)
+	check(game.enemy_hp==150-Frost.Balance.BLOOM_OPEN_HP and open.get("stacks",[]).size()==2,"opening damage and two stacks once")
+	check(is_equal_approx(Frost.motion_scale(game.leader_brain,at),1-2*potency.move_slow),"two stacks alter movement immediately")
+	var ready: int = p.core_ready_at
+	game.garden_action(1,cast_key)
+	check(p.core_ready_at==ready,"repeated cast during its cooldown is refused")
+	Core.tick(game,at+Frost.Balance.BLOOM_DELAY_MS)
+	check(bursts.size()==1 and bursts[0][1]==3*potency.rupture_hp
+		and Frost.motion_scale(game.leader_brain,at+Frost.Balance.BLOOM_DELAY_MS)==0.0 and Frost.state(game.leader_brain,at+Frost.Balance.BLOOM_DELAY_MS).is_empty(),
+		"Core alone ruptures, clears spent stacks and roots for both qualities")
+	check(Frost.motion_scale(game.leader_brain,at+Frost.Balance.BLOOM_DELAY_MS+Frost.Balance.ROOT_MS)==1.0,"root expires independently")
+
+
+func run_form(p: Dictionary, part: int, frame := 0, weapon_kind := 0) -> void:
+	reset_enemy(Vector3(0,0,-1.0))
+	p.frame=frame
+	p.weapon_kind=weapon_kind
+	p.weapon=0
+	p.secondary=part
+	p.catalyst=0
+	p.strike_at=0
+	p.facing=Vector3.FORWARD
+	game.strike_enemy(1,p,p.pos)
+	if game.projectile_queue.is_empty():
+		check(false,"Form uses real native strike queue")
+		return
+	var shot: Dictionary=game.projectile_queue.front()
+	check(Frost.state(game.leader_brain,Time.get_ticks_msec()).is_empty(),"queued attack has not applied Frost")
+	var at: int=shot.due+1
+	game.update_projectiles(at)
+	var current := Frost.state(game.leader_brain,at)
+	if current.is_empty():
+		check(false,"eligible real melee contact applies Frost Form")
+		return
+	var quality: String = "refined" if part==refined else "ordinary"
+	check(current.stacks.size()==1 and current.stacks[0].quality==quality,"Form applies the correct quality on contact")
+	Events.contact(game,shot.stats,-1,at+1)
+	Events.contact(game,shot.stats,-1,at+1,true)
+	check(Frost.state(game.leader_brain,at+1).stacks.size()==1,"duplicate and secondary contacts cannot apply stacks")
+	check(Frost.motion_scale(game.leader_brain,at+Frost.Balance.BRITTLE_MS)==1.0,"unrefreshed Brittle expires")
+
+
+func run_catalyst(p: Dictionary, part: int) -> void:
+	reset_enemy(Vector3(0,0,-1))
+	p.weapon=0
+	p.secondary=0
+	p.catalyst=part
+	p.frame=0
+	p.weapon_kind=0
+	p.skill_two_at=0
+	p.core_cast_until=0
+	p.cast_until=0
+	game.use_class_skill(1,p,1)
+	var current := Frost.state(game.leader_brain,Time.get_ticks_msec())
+	check(current.get("stacks",[]).size()==1 and current.stacks[0].quality==("refined" if part==refined else "ordinary"),"Catalyst-only Q/R emits a native offensive contact with its quality")
+	p.frame=4
+	p.skill_at=0
+	p.hp=60
+	var ally: Dictionary=game.players[2]
+	ally.catalyst=ordinary if part==refined else refined
+	ally.hurt_until=0
+	ally.guard_until=0
+	game.use_class_skill(1,p,0)
+	check(ally.has(Frost.RESPONSE),"real Renewal prepares a response for the ally")
+	var now:=Time.get_ticks_msec()
+	var hp: float=ally.hp
+	Frost.with_attacker(game,-1,game.apply_enemy_hit.bind(2,ally,now,1))
+	check(ally.hp<hp and not ally.has(Frost.RESPONSE),"fallback consumes after an actual survivable hit without blocking it")
+	var after := Frost.state(game.leader_brain,now)
+	check(after.get("stacks",[]).size()==2 and after.stacks[1].actor==1 and after.stacks[1].quality==("refined" if part==refined else "ordinary"),"ally uses granting Catalyst quality")
+	p.frame=0
+
+
+func run_focus(p: Dictionary) -> void:
+	reset_enemy(Vector3(0,0,-1))
+	p.frame=0
+	p.weapon_kind=0
+	p.catalyst=refined
+	p.character.upgrades[0]=1 << game.Classes.Warden.OFFSET
+	p.skill_at=0
+	p.guard_until=0
+	p.guard_charges=0
+	p.hurt_until=0
+	game.use_class_skill(1,p,0)
+	var now:=Time.get_ticks_msec()
+	game.apply_enemy_hit(1,p,now,1)
+	var current:=Frost.state(game.leader_brain,now)
+	check(seen.size()==1 and seen[0].details.adapter=="warden/focus/vanguard/Q"
+		and current.get("stacks",[]).size()==1 and current.stacks[0].quality=="refined","real Vanguard Thorn Counter uses the Frost block adapter")
+	p.character.upgrades[0]=0
+
+
+func cast_ward(id: int, part: int, now: int) -> RefCounted:
+	return Events.class_start(game,id,{"trigger":"block"},now,Builds.slot("catalyst",part))
+
+
+func run_wards() -> void:
+	reset_enemy()
+	var p: Dictionary=game.players[2]
+	p.guard_until=0
+	p.guard_charges=0
+	var now:=Time.get_ticks_msec()
+	var adapter:={"id":"test_ward","trigger":"block","limit":"recipient"}
+	var first := cast_ward(1,ordinary,now)
+	var second := cast_ward(2,refined,now)
+	Events.grant_ward(game,p,now+500,1,first,adapter,now)
+	Events.grant_ward(game,p,now+900,2,second,adapter,now)
+	Events.grant_ward(game,p,now+900,2,second,adapter,now)
+	check(p[Wards.CLAIMS].size()==2 and p.guard_charges==2 and p.guard_until==now+900,"two accepted overlapping grants and native max-merge")
+	var hp: float=p.hp
+	p.hurt_until=0
+	game.apply_enemy_hit(2,p,now,1)
+	game.apply_enemy_hit(2,p,now+1,1)
+	check(p.hp==hp and p.guard_charges==0 and not p.has(Wards.CLAIMS),"real block charges exhaust and clear ownership")
+	check(seen.size()==2 and seen[0].source_actor==1 and seen[0].quality=="ordinary"
+		and seen[1].source_actor==2 and seen[1].quality=="refined","soonest Ward response first with originating potency")
+	check(not first.publish(game,"actual_block","ward","2",now+2,{"recipient":2,"center":p.pos}),"replayed Ward cannot publish twice")
+	seen.clear()
+	game.grant_guard(p,now+200,1)
+	Events.grant_ward(game,p,now+800,2,cast_ward(1,refined,now),adapter,now)
+	game.apply_enemy_hit(2,p,now+250,1)
+	check(seen.size()==1 and seen[0].quality=="refined","expired unenhanced claim cannot suppress later grant")
+	p.guard_until=0
+	p.guard_charges=0
+	seen.clear()
+	game.grant_guard(p,now+500,1)
+	Events.grant_ward(game,p,now+500,2,cast_ward(1,ordinary,now),adapter,now)
+	game.apply_enemy_hit(2,p,now+10,1)
+	check(seen.is_empty(),"unmodified earlier claim wins equal-expiry tie by host grant order")
+	game.apply_enemy_hit(2,p,now+11,1)
+	check(seen.size()==1 and seen[0].quality=="ordinary","remaining Ward owns the next block")
+	seen.clear()
+	p.guard_until=0
+	p.guard_charges=0
+	var short := cast_ward(1,ordinary,now)
+	var long := cast_ward(1,refined,now)
+	Events.grant_ward(game,p,now+300,1,short,adapter,now)
+	Events.grant_ward(game,p,now+900,2,long,adapter,now)
+	Events.grant_ward(game,p,now+1200,2,long,adapter,now)
+	check(p[Wards.CLAIMS].size()==2 and p.guard_until==now+1200,"duplicate activation can never renew its response claim")
+	game.apply_enemy_hit(2,p,now+400,1)
+	game.apply_enemy_hit(2,p,now+950,1)
+	check(seen.size()==1 and seen[0].quality=="refined" and p.guard_charges==0,"native refresh cannot extend either same-actor enhancement")
+
+
+func run_mixed() -> void:
+	reset_enemy()
+	var now:=Time.get_ticks_msec()
+	var first := Events.begin(game,1,"form",Builds.slot("form",ordinary),Frost.Balance.QUALITY.ordinary,["weapon_contact"],now+18000)
+	var second := Events.begin(game,2,"core",Builds.slot("core",refined),Frost.Balance.QUALITY.refined,["core_action"],now+18000)
+	first.publish(game,"weapon_contact","contact","leader",now,{"enemy":-1})
+	check(is_equal_approx(Frost.motion_scale(game.leader_brain,now),.92),"one ordinary stack gives its movement slow")
+	var later:=now+Frost.Balance.BRITTLE_MS-1
+	var saved_windup: int=game.enemy_strike_at
+	game.enemy_winding_up=true
+	second.publish(game,"core_action","open","leader",later,{"enemy":-1,"stacks":3,"opening_hp":0})
+	check(game.enemy_winding_up and game.enemy_strike_at==saved_windup,"rupture does not cancel or retime existing wind-up")
+	check(bursts.size()==1 and bursts[0][1]==18 and bursts[0][0][0].actor==1
+		and Frost.state(game.leader_brain,later).stacks.size()==1 and Frost.state(game.leader_brain,later).stacks[0].quality=="refined",
+		"authoritative FIFO rupture uses mixed-potency contributions and retains excess")
+	check(Frost.state(game.leader_brain,later+Frost.Balance.ROOT_MS+1).stacks.size()==1,"genuine application refreshes retained Brittle")
+	var begin:=Time.get_ticks_usec()
+	var checksum:=0.0
+	for index in 20000:
+		checksum+=Frost.motion_scale(game.leader_brain,later+Frost.Balance.ROOT_MS)
+	print("Frost movement query: ",float(Time.get_ticks_usec()-begin)/20000.0," us/query, checksum ",checksum)
+	var sync_cost:=Time.get_ticks_usec()
+	for index in 250:
+		Status.sync(game,later+Frost.Balance.ROOT_MS)
+	print("Host status sync (two players, one affected enemy): ", float(Time.get_ticks_usec()-sync_cost)/250.0, " us/update")

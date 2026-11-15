@@ -242,11 +242,11 @@ func refresh():
 		body += "\n\n" + affinity_api.describe(resolved)
 		for adapter in resolved.class_skills:
 			if not adapter.get("response","").is_empty():
-				body += "\n%s Catalyst · %s (pending)" % ["Q" if adapter.slot==0 else "R",str(adapter.response).replace("_"," ")]
+				body += "\n%s Catalyst · %s%s" % ["Q" if adapter.slot==0 else "R",str(adapter.response).replace("_"," "),"" if resolved.catalyst.executable else " (pending)"]
 	description.text=body
 	notice.text=("Uses one part per filled slot on departure. Selected parts are reserved for you.\nPacked monster parts need a Wilds altar. Unbanked cargo is lost on defeat." if allowed else "Craft and pack at the Wilds Gate.")
 	if affinity_mode and allowed:
-		notice.text = "Inspect any affinity. Empty plant slots allow native combat in this build."
+		notice.text = "Equip Chiming Sepal or Crystalline Bellheart for Frost. Empty slots keep native combat."
 	var travel: Dictionary=game.party_travel_state()
 	if not travel.is_empty():
 		var rows: Array=[]

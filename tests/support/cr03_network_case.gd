@@ -1,0 +1,247 @@
+extends RefCounted
+
+const Mode = preload("res://combat_ruleset.gd")
+const Frost = preload("res://frost_combat.gd")
+const Events = preload("res://combat_action_events.gd")
+const Core = preload("res://core_combat.gd")
+const Menu = preload("res://main_menu.tscn")
+const Appearance = preload("res://character_appearance.gd")
+
+var tree: SceneTree
+var signals: String
+var port: int
+var party := false
+var failed := false
+
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		failed = true
+		printerr("FAIL Frost co-op: ",label)
+	return ok
+
+
+func until(condition: Callable, timeout := 17000) -> bool:
+	var deadline := Time.get_ticks_msec()+timeout
+	while not condition.call() and Time.get_ticks_msec()<deadline:
+		await tree.process_frame
+	return condition.call()
+
+
+func mark(key: String, text := "ok") -> void:
+	var file := FileAccess.open(signals.path_join(key),FileAccess.WRITE)
+	if check(file!=null,"write "+key):
+		file.store_string(text)
+
+
+func read(key: String) -> String:
+	return FileAccess.get_file_as_string(signals.path_join(key))
+
+
+func guests(game: Node) -> Array:
+	return game.players.keys().filter(func(id):return id!=1 and game.players[id].get("profile_ready",false))
+
+
+func run(scene_tree: SceneTree, four := false) -> bool:
+	tree=scene_tree
+	party=four
+	var role := OS.get_cmdline_user_args()[0]
+	signals=OS.get_environment("MYSTICAL_TERRAIN_TEST_SIGNALS")
+	port=int(OS.get_environment("MYSTICAL_GARDEN_TEST_PORT"))
+	var menu := Menu.instantiate()
+	tree.root.add_child(menu)
+	tree.current_scene=menu
+	if not check(Mode.verified() and Mode.active(menu),"real isolated affinity title"):
+		return false
+	if role=="host": await host(menu)
+	elif role=="overflow":
+		if check(await until(func():return read("full")=="ok"),"four players arrive"):
+			menu.request_create_character()
+			menu.create_character("Frost overflow",0,Appearance.DEFAULT)
+			var title_id := menu.get_instance_id()
+			begin_join(menu)
+			check(await until(func():return tree.current_scene.get_instance_id()!=title_id and tree.current_scene.get("return_message") is String),"fifth player returns to title")
+			mark("overflow")
+	else: await guest(menu,role)
+	return not failed
+
+
+func begin_join(menu: Node) -> void:
+	menu.show_page(2)
+	menu.join_button.pressed.emit()
+	menu.network_dialog.address_field.text="127.0.0.1:"+str(port)
+	menu.network_dialog.submit.pressed.emit()
+
+
+func host(menu: Node) -> void:
+	menu.host_port=port
+	menu.host_choice.button_pressed=true
+	menu.new_game()
+	menu.create_character("Frost Host",0,Appearance.DEFAULT)
+	if not check(await until(func():return tree.current_scene.get("session")=="Host"),"host through guarded title"): return
+	var game:=tree.current_scene
+	check(Mode.active(game) and "stocked" in Frost.stock_test_garden(game),"guarded test supplies")
+	var ordinary: int=game.Items.get_item("plant_part_plant_frostbell").legacy_part
+	var refined: int=game.Items.get_item("plant_part_rare_frostbell").legacy_part
+	var local: Dictionary=game.players[1]
+	local.pos=game.stage.gate_position()
+	game.garden_action(1,"loadpart_0_%d"%ordinary)
+	game.garden_action(1,"loadpart_2_%d"%refined)
+	mark("host")
+	var count:=3 if party else 1
+	if not check(await until(func():return guests(game).size()==count),"all expected guests admitted"):return
+	var ids:=guests(game)
+	ids.sort()
+	for id in ids: game.players[id].pos=local.pos
+	mark("select",str(refined))
+	if not check(await until(func():return ids.all(func(id):return game.players[id].prepared_secondary==refined)),"real guest loadout requests reach host"):return
+	var before_regular: int=game.progress.part_count(ordinary)
+	var before_rare: int=game.progress.part_count(refined)
+	if party:
+		mark("full")
+	game.map_rng.seed=16
+	game.PartyTravel.request(game,1,"depart")
+	mark("depart",str(game.travel_epoch))
+	if not check(await until(func():return game.expedition_active() and ids.all(func(id):return game.players[id].wild) and not game.battlefield.generated.is_empty()),"native guarded departure opens generated floor"): return
+	check(game.progress.part_count(ordinary)==before_regular-1 and game.progress.part_count(refined)==before_rare-count-1,"exact guarded departure debits")
+	var paid := [game.progress.part_count(ordinary),game.progress.part_count(refined)]
+	var floor_entry: Vector3=game.battlefield.entry
+	var target := floor_entry
+	for direction in [Vector3.RIGHT,Vector3.LEFT,Vector3.FORWARD,Vector3.BACK]:
+		target=game.battlefield.dash(floor_entry,floor_entry+direction*1.10)
+		if floor_entry.distance_to(target)>.9:break
+	check(floor_entry.distance_to(target)>.8,"usable Frost fixture area on generated floor")
+	game.enemy_pos=target
+	game.enemy_hp=150
+	game.enemy_stagger_until=Time.get_ticks_msec()+18000
+	var rows: Array=[]
+	var ruptures: Array=[]
+	game.set_meta(Events.RECORD,func(event):rows.append(event))
+	game.set_meta(&"frost_rupture_witness",func(spent,hp):ruptures.append([spent,hp]))
+	local.pos=floor_entry
+	local.facing=(target-floor_entry).normalized()
+	for id in ids:
+		var remote: Dictionary=game.players[id]
+		remote.pos=floor_entry
+		remote.facing=local.facing
+		mark("strike-"+str(id))
+		if not check(await until(func():return rows.any(func(e):return e.kind=="weapon_contact" and e.target=="leader" and e.source_actor==id)),
+			"guest direct hit applies refined Frost from "+str(id)):return
+	if party:
+		if not check(ruptures.size()==1 and ruptures[0][1]==21 and ruptures[0][0].map(func(s):return s.actor)==ids,"three distinct guests rupture once on four-player floor"):return
+	local.core_ready_at=0
+	local.core_cast_until=0
+	local.cast_until=0
+	var direction:=Vector2(local.facing.x,local.facing.z)
+	game.garden_action(1,Core.request(game,local,direction,1.1))
+	var wanted:=2 if party else 1
+	if not check(await until(func():return ruptures.size()>=wanted),"actual Rime Bloom ruptures on generated floor"):return
+	var burst: Array=ruptures[wanted-1]
+	check(burst[1]==(12 if party else 15) and burst[0].any(func(stack):return stack.actor==1),
+		"ordinary Core accounts for each source with refined Form when mixed")
+	if not check(await until(func():return not game.get_meta(Core.STATE,{}).has(1)),"closing petals finish before another action"):return
+	var protected: int=ids[0]
+	var ally: Dictionary=game.players[protected]
+	local.character.upgrades[0]=1<<1
+	local.skill_at=0
+	game.use_class_skill(1,local,0)
+	ally.hurt_until=0
+	var before: float=ally.hp
+	game.apply_enemy_hit(protected,ally,Time.get_ticks_msec(),1)
+	check(ally.hp==before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==1 and e.details.recipient==protected and e.quality=="refined"),"actual guest block uses host refined Catalyst")
+	if party:
+		check(await until(func():return read("overflow")=="ok",22000),"overflow returns after native connection deadline")
+		check(guests(game).size()==3,"four-player limit holds")
+		mark("party-done")
+		await until(func():return ids.all(func(id):return read("done-"+str(id))=="ok"))
+		game.return_to_main_menu()
+		check(await until(func():return tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"host goes offline after party")
+		mark("offline")
+		return
+
+	# Controlled enemy HP leaves the actual Frost opening responsible for
+	# the final kill, while the existing native death and reward code runs.
+	var stats: Dictionary=game.weapon_stats(local)
+	stats.damage=10000
+	for index in game.scouts.size():
+		if game.scouts[index].hp>0:
+			game.apply_weapon_hit(local,index,game.scouts[index].pos,stats,Time.get_ticks_msec())
+	game.enemy_hp=3
+	game.enemy_pos=target
+	for seed_value in range(1,40):
+		game.rng.seed=seed_value
+		var rng_before: int=game.rng.state
+		if not game.roll_kill_trophy(game.enemy_kind,game.enemy_mutations,true).is_empty():
+			game.rng.state=rng_before
+			break
+	local.core_ready_at=0
+	local.core_cast_until=0
+	local.cast_until=0
+	game.garden_action(1,Core.request(game,local,direction,1.1))
+	if not check(await until(func():return game.encounter_cleared() and game.encounter_rewarded),"Frost kill activates Gate through guarded settlement"):return
+	check(not game.wild_item_drops.is_empty(),"actual enemy drops through native settlement")
+	local.pos=game.battlefield.advance
+	ally.pos=local.pos
+	game.use_checkpoint(1,true)
+	mark("advance",str(game.travel_epoch))
+	if not check(await until(func():return game.depth==2 and read("guest-floor")=="ok"),"party advances to next generated floor"):return
+	game.encounter_number=6
+	game.deepest_milestone=6
+	game.enemy_hp=0
+	game.scouts.clear()
+	game.encounter_rewarded=true
+	local.pos=game.battlefield.advance
+	ally.pos=local.pos
+	game.use_checkpoint(1,false)
+	mark("extract",str(game.travel_epoch))
+	if not check(await until(func():return not game.expedition_active() and read("guest-garden")=="ok"),"party extraction restores Garden"):return
+	check([game.progress.part_count(ordinary),game.progress.part_count(refined)]==paid,"no repeated affinity material consumption")
+	if not check(await until(func():return guests(game).is_empty() and game.pending_departures.is_empty()),"guest detached through normal teardown"):return
+	mark("detached")
+	check(await until(func():return read("rejoined")=="ok" and guests(game).size()==1),"guest reconnects to the existing Garden")
+	check([game.progress.part_count(ordinary),game.progress.part_count(refined)]==paid,"reconnect does not repeat departure")
+	mark("saved")
+	game.return_to_main_menu()
+	check(await until(func():return tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"host goes offline after rejoin")
+	mark("offline")
+
+
+func guest(menu: Node, role: String) -> void:
+	menu.request_create_character()
+	menu.create_character("Frost guest "+role,0,Appearance.DEFAULT)
+	if not check(await until(func():return read("host")=="ok"),"host ready"):return
+	begin_join(menu)
+	if not check(await until(func():return tree.current_scene.get("session")=="Guest" and tree.current_scene.stage.experimental_garden.remote_revision>=0),"actual title joins isolated frost Garden"):return
+	var game:=tree.current_scene
+	var id: int=game.local_player_id()
+	var identity: String=game.guest_character.identity
+	var terrain = game.stage.experimental_garden
+	var garden_outline := str(terrain.state.outline).sha256_text()
+	if not check(await until(func():return not read("select").is_empty()),"host stocked and positioned party"):return
+	game.send_garden_action("loadpart_1_"+read("select"))
+	if not check(await until(func():return not read("depart").is_empty()),"host authorizes departure"):return
+	game.send_garden_action("travel_ready:"+read("depart"))
+	if not check(await until(func():return read("strike-"+str(id))=="ok" and game.stage._has_experimental_floor()),"guest sees generated Frost floor"):return
+	game.send_action(true)
+	if party:
+		if check(await until(func():return read("party-done")=="ok",22000),"host observes mixed-source party"):
+			mark("done-"+str(id))
+			check(await until(func():return read("offline")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"guest observes party shutdown")
+		return
+	if not check(await until(func():return not read("advance").is_empty() and game.enemy_hp==0 and int(game.party_travel_state().get("epoch",-1))==int(read("advance"))),"guest sees cleared Gate"):return
+	game.send_travel_ready(false)
+	if not check(await until(func():return game.depth==2 and game.stage.visual_field.configured_key.z==game.map_seed),"guest tracks next floor"):return
+	mark("guest-floor")
+	if not check(await until(func():return not read("extract").is_empty() and int(game.party_travel_state().get("epoch",-1))==int(read("extract"))),"guest receives extraction"):return
+	game.send_travel_ready(false)
+	if not check(await until(func():return not game.players[id].wild),"guest returns to Garden"):return
+	check(str(terrain.state.outline).sha256_text()==garden_outline,"same Garden outline after Frost play")
+	mark("guest-garden")
+	game.return_to_main_menu()
+	if not check(await until(func():return read("detached")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"normal offline-before-rejoin transition"):return
+	begin_join(tree.current_scene)
+	if not check(await until(func():return tree.current_scene.get("session")=="Guest" and tree.current_scene.stage.experimental_garden.remote_revision>=0),"same isolated profile rejoins"):return
+	check(tree.current_scene.guest_character.identity==identity,"stable character identity across rejoin")
+	mark("rejoined")
+	check(await until(func():return read("saved")=="ok"),"host verifies no replay or debit")
+	check(await until(func():return read("offline")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"guest observes host shutdown")

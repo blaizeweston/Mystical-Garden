@@ -1622,7 +1622,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 		if adapter.is_empty():
 			tell(id, "This class ability has no affinity contract.")
 			return
-		event = combat_events_api.class_start(self, id, adapter, now)
+		event = combat_events_api.class_start(self, id, adapter, now, affinity_build.catalyst)
 		if adapter.trigger == "contact": stats[combat_events_api.CONTEXT] = event
 		if skill.mode == "subclass":
 			stats.cr02_adapter = adapter
@@ -1767,7 +1767,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	player.contributed=true
 	if bonus_heal>0: Life.Sustain.heal(self,player,bonus_heal,"class_healing_bonus")
 	player[timer]=now+Skills.Balance.cooldown(skill,stats)
-	combat_events_api.class_complete(self,event,adapter,cast_origin,effect_point,targets,recipients,now)
+	combat_events_api.class_complete(self,event,adapter,cast_origin,effect_point,targets,recipients,now,radius)
 	if slot==1 and skill.has("subclass_focus"):
 		preload("res://subclass_combat.gd").follow_through(self,player,skill,effect_point,targets,now)
 	player.skill_fx_seq=int(player.get("skill_fx_seq",0))+1
@@ -1781,10 +1781,13 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 
 func grant_guard(player: Dictionary,until: int,charges: int) -> void:
 	if charges > 1 or until > int(player.get("guard_until",0)): player.erase("ironbark_ward")
-	var old_charges:=int(player.get("guard_charges",0)) if int(player.get("guard_until",0))>Time.get_ticks_msec() else 0
-	if player.has("cr02_ward") and (until > int(player.get("guard_until",0)) or charges > old_charges): player.erase("cr02_ward")
-	player.guard_until=maxi(int(player.get("guard_until",0)),until)
+	var previous_until := int(player.get("guard_until",0))
+	var now := Time.get_ticks_msec()
+	var old_charges := int(player.get("guard_charges",0)) if previous_until > now else 0
+	player.guard_until=maxi(previous_until,until)
 	player.guard_charges=maxi(old_charges,Skills.Balance.guard_charges(charges))
+	if has_meta(&"combat_affinity_ruleset"):
+		preload("res://ward_responses.gd").accepted(self,player,previous_until,old_charges,until,now)
 
 func skill_area_targets(center: Vector3,radius: float,origin: Vector3) -> Array[int]:
 	var result: Array[int]=[]
@@ -2307,13 +2310,17 @@ func update_scouts(delta: float, now: int) -> void:
 	for scout in scouts.duplicate():
 		if scout.hp <= 0:
 			continue
-		if EnemyBehaviors.tick(self,scout,delta,now): continue
+		var frost_motion := preload("res://frost_combat.gd").motion_scale(scout,now) if has_meta(&"combat_affinity_ruleset") else 1.0
+		if EnemyBehaviors.tick(self,scout,delta*frost_motion,now): continue
 		var definition := Enemies.get_kind(int(scout.get("kind", 0)))
 		var role: String = definition.role
 		var mask := int(scout.get("mutations", 0))
 		if scout.windup > 0:
 			if now >= int(scout.windup):
-				resolve_scout(scout, definition, now)
+				if has_meta(&"combat_affinity_ruleset"):
+					preload("res://frost_combat.gd").with_attacker(self,scouts.find(scout),resolve_scout.bind(scout,definition,now))
+				else:
+					resolve_scout(scout, definition, now)
 				if not expedition_active():
 					abandon_if_empty()
 					return
@@ -2333,7 +2340,7 @@ func update_scouts(delta: float, now: int) -> void:
 			continue
 		if not scout.get("alerted",false) and distance<=float(Director.config().aggro_radius): Director.alert(self,position);scout.alerted=true
 		scout.engaged = true
-		var speed := Director.speed(self,float(definition.speed)) * (1.18 if mask & Enemies.MOBILITY else 1.0)
+		var speed := Director.speed(self,float(definition.speed))*frost_motion * (1.18 if mask & Enemies.MOBILITY else 1.0)
 		if now < int(scout.get("haste_until", 0)):
 			speed *= 1.22
 		if mask & Enemies.JUVENILE:
@@ -2349,11 +2356,11 @@ func update_scouts(delta: float, now: int) -> void:
 				continue
 			scout.erase("command_via")
 		var attack_range := (1.15 if role=="desperate" else float(definition.range)) + (0.65 if mask & Enemies.REACH else 0.0)
-		if now >= int(scout.ready) and now >= int(scout.rooted_until):
+		if now >= int(scout.ready) and now >= int(scout.rooted_until) and frost_motion > 0.0:
 			var attacks = preload("res://enemy_attack.gd")
 			if attacks.try_skill_approach(self,scout,victim,now) or attacks.try_thorn_vault(self,scout,victim,now):
 				continue
-		if mask & Enemies.MOBILITY and now >= int(scout.ready) and now >= int(scout.rooted_until):
+		if mask & Enemies.MOBILITY and now >= int(scout.ready) and now >= int(scout.rooted_until) and frost_motion > 0.0:
 			var attack = preload("res://enemy_attack.gd")
 			var landing: Vector3 = attack.vault_target(self, scout, victim)
 			if landing.is_finite():
@@ -2366,7 +2373,7 @@ func update_scouts(delta: float, now: int) -> void:
 			if now >= int(scout.rooted_until):
 				scout.pos = Director.navigate(self,position,Director.pursuit(self,target,int(scout.route)) if not scout.ranged else victim,speed*delta,int(scout.route))
 		elif now >= int(scout.ready):
-			if preload("res://enemy_variants.gd").prepare(self,scout,victim,delta,now):continue
+			if preload("res://enemy_variants.gd").prepare(self,scout,victim,delta*frost_motion,now):continue
 			var aim := preload("res://enemy_attack.gd").aim(self,scout,role,target)
 			var windup_ms: int=int(definition.windup)+(300 if scout.get("variant","")=="early_decoys" else 0)
 			preload("res://enemy_attack.gd").lock(self, scout, role, aim, now + Director.windup(self,windup_ms))
@@ -2414,6 +2421,12 @@ func resolve_scout(scout: Dictionary, definition: Dictionary, now: int) -> void:
 			if other.hp>0 and not Enemies.is_support(int(other.get("kind",0))) and other.pos.distance_to(origin)<=radius and battlefield.clear_line(origin,other.pos): other.haste_until=now+3500
 		return
 	if mode in ["charge","pounce","vault"]:
+		var frost = preload("res://frost_combat.gd")
+		var frost_body: Dictionary = leader_brain if get_meta(frost.ATTACKER,-2)==-1 else scout
+		if frost.rooted(frost_body,now):
+			target_point = scout.pos
+			attack.to = target_point
+			attack.via = target_point if Vector3(attack.get("via",Vector3.INF)).is_finite() else Vector3.INF
 		var learned: bool=attack.get("learned_move",false) or attack.variant==attacks.Thorn.MOVE
 		var feedback = preload("res://enemy_move_feedback.gd")
 		if not attacks.landing_is_clear(self,scout,attack,now):
@@ -2549,10 +2562,10 @@ func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: 
 	if not Life.alive(player) or not Transactions.session_writable(self): return
 	if now<int(player.get("hurt_until",0)): return
 	if Traits.guard_allows(player,origin,now):
-		var recorded_ward := player.has("cr02_ward") and int(player.get("guard_charges",0)) > 0
+		var recorded_ward := has_meta(&"combat_affinity_ruleset") and int(player.get("guard_charges",0)) > 0
 		player.guard_charges=maxi(0,int(player.get("guard_charges",1))-1)
-		if recorded_ward: preload("res://combat_action_events.gd").blocked(self,id,player,now)
 		if player.guard_charges==0: player.guard_until=0
+		if recorded_ward: preload("res://combat_action_events.gd").blocked(self,id,player,now)
 		preload("res://core_skill_effects.gd").ironbark_block(self,id,player,now)
 		Traits.blocked(self,player,now)
 		player.contributed=true;emit_combat_event("impact","block",player.pos,player.pos,.85,Color("#f1d989"),0,id);tell(id,"Guard blocked the attack.");return
@@ -2567,7 +2580,10 @@ func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: 
 				_damage_player(id,player,hp,effects))
 			return
 	apply_hit_grace(id,player,now,slow_ms)
+	var before_hp := float(player.hp)
 	damage_player(id,player,hp)
+	if player.has("frost_response") and Life.alive(player) and float(player.hp) < before_hp:
+		preload("res://frost_combat.gd").incoming(self,player,id,now)
 
 func apply_hit_grace(id: int,player: Dictionary,now: int,slow_ms: int,effects = null) -> void:
 	if slow_ms>0:
@@ -2762,7 +2778,10 @@ func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 		var events = preload("res://combat_action_events.gd")
 		var event: RefCounted = p.get("cr02_class_strike")
 		if event == null:
-			event = events.begin(self,id,"native_weapon",{}, {},["weapon_contact","secondary"],now+15000)
+			var form_affinity: Dictionary = affinity_build.form
+			var frost: bool = form_affinity.state == "ready"
+			event = events.begin(self,id,"form" if frost else "native_weapon",form_affinity if frost else {},
+				form_affinity.potency_profile.values if frost else {},["weapon_contact","secondary"],now+15000)
 		stats[events.CONTEXT] = event
 		stats.erase("affinity_build")
 	if p.get("skill_burst",false):
@@ -2808,7 +2827,7 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 	if winding and float(stats.get("windup_damage",0))>0:preload("res://combat_status.gd").proc(self,"punish",origin,point,target)
 	if Life.Preview.authored_amount(float(stats.damage))>0.0 and not stats.get("trait_secondary",false) and not stats.get("core_hit",false):
 		authored_damage+=preload("res://core_strike_mark.gd").consume(self,p,target,now)
-	var damage:=Life.Preview.resolved_hit(authored_damage,stats)
+	var damage := int(stats.frost_hp) if stats.has("frost_hp") else Life.Preview.resolved_hit(authored_damage,stats)
 	var push:=0.35+float(stats.get("knockback",0))
 	var mutations: int=enemy_mutations if target==-1 else int(scouts[target].get("mutations",0))
 	if not preload("res://enemy_support.gd").shelter_source(self,target,point,origin,now).is_empty():
@@ -2848,7 +2867,7 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 			enemy_ready_at=leader_brain.elite.ready
 			enemy_winding_up=false
 			winding=false
-		if not winding: enemy_stagger_until=stagger
+		if not winding and not stats.has("frost_hp"): enemy_stagger_until=stagger
 		if enemy_hp==0: enemy_winding_up=false
 	else:
 		var scout: Dictionary=scouts[target]
@@ -2857,13 +2876,13 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 		scout.hp-=applied
 		scout.recovery=maxi(int(scout.recovery),recovery)
 		if winding and float(stats.get("stagger",0))>=150 and EnemyBehaviors.interrupt(self,scout,point,now):winding=false
-		if not winding: scout.stagger_until=stagger
+		if not winding and not stats.has("frost_hp"): scout.stagger_until=stagger
 	if stats.get("rite_suppressed",false) and applied<before:
 		var actor: Dictionary=scouts[target] if target>=0 else leader_brain.get("elite",{})
 		preload("res://wilds_skill_tactics.gd").interrupted(self,actor,"suppression")
 	if applied>0:
 		var form := "magic" if stats.get("trait_secondary",false) else str(stats.get("audio_form",WeaponMotion.form(p)))
-		emit_combat_event("impact","hit",origin,point,.85,weapon_effect_color(p),float(applied),target,{"form":form})
+		emit_combat_event("impact","hit",origin,point,.85,Color("#97dfff") if stats.has("frost_hp") else weapon_effect_color(p),float(applied),target,{"form":form})
 	if before>0 and applied>=before:
 		record_enemy_death(target,point,origin)
 		var restored:=Life.Sustain.heal_on_kill(self,p,target,Life.Preview.authored_amount(float(stats.get("heal_on_kill",0))))
@@ -3006,6 +3025,8 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = n
 	p.core_ready_at=0
 	p.core_cast_until=0
 	p.hurt_until=0
+	p.erase("affinity_ward_claims")
+	p.erase("frost_response")
 	p.guard_charges=0
 	p.guard_until = 0
 	p.weapon = p.prepared
@@ -3084,6 +3105,8 @@ func return_to_garden(p: Dictionary) -> void:
 	p.fallen=false
 	p.lost_health=0
 	p.weapon = 0
+	p.erase("affinity_ward_claims")
+	p.erase("frost_response")
 	p.guard_until = 0
 	p.front_guard_until=0;p.counter_guard_until=0;p.counter_until=0;p.grave_charges=0;p.echo_charge=0
 	p.focus_until=0

@@ -4,9 +4,10 @@ const Ruleset = preload("res://combat_ruleset.gd")
 
 const RECORD = &"cr02_record_combat_event"
 const CONTEXT = "cr02_action"
-const WARD = "cr02_ward"
+const Frost = preload("res://frost_combat.gd")
+const Wards = preload("res://ward_responses.gd")
 const CHANNELS := ["weapon_contact", "core_action", "class_action", "class_contact",
-	"actual_block", "armor_break", "periodic", "secondary"]
+	"actual_block", "armor_break", "periodic", "secondary", "incoming_hit"]
 
 var identity: int
 var epoch: int
@@ -20,6 +21,7 @@ var charges: int
 var _potency: Dictionary
 var _permitted: Array
 var _seen := {}
+var _granted := {}
 
 
 static func begin(game: Node, actor_id: int, origin: String, material: Dictionary,
@@ -67,53 +69,65 @@ func publish(game: Node, channel: String, contact_id: String, target: String, no
 			"target": target, "expires_at": expires_at, "charges_remaining": charges,
 			"details": details.duplicate(true),
 		})
+	if affinity == "frost" and source in ["core", "form", "catalyst"]:
+		Frost.on_event(game, self, channel, details, now)
 	return true
 
 
-static func class_start(game: Node, actor_id: int, adapter: Dictionary, now: int) -> RefCounted:
-	var channels := {"activation": ["class_action"], "contact": ["class_contact"], "block": ["actual_block"]}
-	return begin(game, actor_id, "native_class", {}, {},
-		channels.get(adapter.get("trigger"), []), now + 30000)
+static func class_start(game: Node, actor_id: int, adapter: Dictionary, now: int, catalyst: Dictionary = {}) -> RefCounted:
+	var channels := {"activation": ["class_action", "incoming_hit"], "contact": ["class_contact"], "block": ["actual_block"]}
+	var frost: bool = catalyst.get("state") == "ready" and catalyst.get("primary_affinity") == "frost"
+	return begin(game, actor_id, "catalyst" if frost else "native_class", catalyst if frost else {},
+		catalyst.potency_profile.values if frost else {}, channels.get(adapter.get("trigger"), []), now + 30000)
 
 
 static func class_complete(game: Node, event: RefCounted, adapter: Dictionary, start: Vector3, center: Vector3,
-		targets: Array, recipients: Array, now: int) -> void:
+		targets: Array, recipients: Array, now: int, radius := 0.0) -> void:
 	if event == null or adapter.trigger != "activation":
 		return
 	event.publish(game, "class_action", "cast", "", now,
-		{"adapter": adapter.id, "start": start, "center": center, "enemies": targets, "recipients": recipients})
+		{"adapter": adapter.id, "start": start, "center": center, "enemies": targets, "recipients": recipients,
+			"response": adapter.get("response",""), "target_scope": adapter.recipients, "radius": radius})
 
 
 static func contact(game: Node, stats: Dictionary, target: int, now: int, secondary := false) -> void:
 	var event: RefCounted = stats.get(CONTEXT)
 	if event == null:
 		return
-	var channel := "secondary" if secondary else "class_contact" if event.source == "native_class" else "weapon_contact"
+	var channel := "secondary" if secondary else "class_contact" if event.source in ["native_class", "catalyst"] else "weapon_contact"
 	var token := "leader" if target == -1 else str(game.scouts[target].get("spawn_token", target))
-	event.publish(game, channel, "contact", token, now)
+	event.publish(game, channel, "contact", token, now, {"enemy": target})
 
 
 static func grant_ward(game: Node, recipient: Dictionary, until: int, charges: int,
 		event: RefCounted, adapter: Dictionary, now: int) -> void:
-	var before_until := int(recipient.get("guard_until", 0))
-	var before_charges := int(recipient.get("guard_charges", 0))
+	if event != null and adapter.trigger == "block":
+		recipient[Wards.PENDING] = {"event": event, "adapter": adapter}
 	game.grant_guard(recipient, until, charges)
-	if event == null or adapter.trigger != "block":
-		return
-	# Native Guard uses a max-duration/max-charge merge. Attach ownership only
-	# when this grant is independently attributable. Mixed overlapping grants
-	# need an explicit depletion policy before Catalyst Ward effects ship.
-	if before_until > now and (until <= before_until or charges < before_charges):
-		return
-	recipient[WARD] = {"event": event, "expires": until, "adapter": adapter.id, "limit": adapter.limit}
+	recipient.erase(Wards.PENDING)
 
 
 static func blocked(game: Node, recipient_id: int, recipient: Dictionary, now: int) -> void:
-	var ward: Dictionary = recipient.get(WARD, {})
-	recipient.erase(WARD)
-	if ward.is_empty() or now >= int(ward.expires):
-		return
-	var target := str(recipient_id)
-	var dedup := target if ward.limit == "recipient" else ""
-	ward.event.publish(game, "actual_block", "ward", dedup, now,
-		{"adapter": ward.adapter, "recipient": recipient_id, "center": recipient.pos})
+	Wards.block(game, recipient, recipient_id, now)
+
+
+func potency() -> Dictionary:
+	return _potency.duplicate(true)
+
+
+func block_scope(recipient_id: int, adapter: Dictionary) -> String:
+	return str(recipient_id) if adapter.limit == "recipient" else ""
+
+
+func block_available(recipient_id: int, adapter: Dictionary, now: int) -> bool:
+	return now < expires_at and charges != 0 and not _seen.has(JSON.stringify(["actual_block", "ward", block_scope(recipient_id, adapter)]))
+
+
+func accept_grant(game: Node, recipient: Dictionary) -> bool:
+	for id in game.players:
+		if is_same(game.players[id], recipient):
+			if _granted.has(id):
+				return false
+			_granted[id] = true
+			return true
+	return false

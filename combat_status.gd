@@ -14,6 +14,8 @@ static func sync(game: Node,now: int) -> void:
  var desired: Dictionary={}
  for id in game.players:
   var player: Dictionary=game.players[id]
+  if player.has("affinity_ward_claims") and (int(player.get("guard_until",0))<=now or int(player.get("guard_charges",0))<=0):
+   player.erase("affinity_ward_claims")
   if not game.Life.alive(player) or not player.get("wild",false):continue
   for pair in [["slow","slow_until"],["guard","guard_until"],["counter","counter_until"],["prepared_mark","prepared_mark_until"]]:
    add(desired,game,pair[0],id,false,int(player.get(pair[1],0)),1,now)
@@ -29,8 +31,16 @@ static func sync(game: Node,now: int) -> void:
   add(desired,game,"marked",target,true,int(state.get("marked_until",0)),1,now)
   var core_mark:=preload("res://core_strike_mark.gd").active(game,state,now)
   add(desired,game,"crown_link" if core_mark.has("partner") else "marked" if core_mark.get("subclass",false) else "core_strike_mark",target,true,int(core_mark.get("until",0)),1,now)
-  add(desired,game,"brittle",target,true,int(state.get("brittle_until",0)),int(state.get("brittle",0)),now)
-  add(desired,game,"rooted",target,true,game.rooted_until if target==-1 else int(game.scouts[target].get("rooted_until",0)),1,now)
+  var root_until: int = game.rooted_until if target==-1 else int(game.scouts[target].get("rooted_until",0))
+  if game.has_meta(&"combat_affinity_ruleset"):
+   var frost = preload("res://frost_combat.gd")
+   var body := frost.body(game,target)
+   var brittle := frost.state(body,now)
+   add(desired,game,"brittle",target,true,int(brittle.get("expires",0)),brittle.get("stacks",[]).size(),now)
+   root_until=maxi(root_until,int(body.get("frost_root_until",0)))
+  else:
+   add(desired,game,"brittle",target,true,int(state.get("brittle_until",0)),int(state.get("brittle",0)),now)
+  add(desired,game,"rooted",target,true,root_until,1,now)
   add(desired,game,"staggered",target,true,game.enemy_stagger_until if target==-1 else int(game.scouts[target].get("stagger_until",0)),1,now)
   add(desired,game,"haste",target,true,game.enemy_haste_until if target==-1 else int(game.scouts[target].get("haste_until",0)),1,now)
   var actor: Dictionary=game.scouts[target] if target>=0 else game.leader_brain.get("elite",{})

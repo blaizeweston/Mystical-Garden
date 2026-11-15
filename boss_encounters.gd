@@ -33,7 +33,10 @@ static func tick(game: Node,delta: float,now: int) -> void:
  if lair and game.enemy_engaged:Lair.observe(game,now)
  if game.boss_kind==Phases.NEST:Phases.observe_brood(game,now)
  if game.enemy_winding_up:
-  if now>=game.enemy_strike_at: resolve(game,now)
+  if now>=game.enemy_strike_at:
+   if game.has_meta(&"combat_affinity_ruleset"):
+    preload("res://frost_combat.gd").with_attacker(game,-1,resolve.bind(game,now))
+   else: resolve(game,now)
   return
  if now<game.enemy_stagger_until: return
  var target=game.Director.target(game,game.enemy_pos,game.leader_brain,now)
@@ -61,7 +64,7 @@ static func tick(game: Node,delta: float,now: int) -> void:
   reach=Orchard.reach(next_move,game.boss_phase)
  if not remote_lair_cast and distance>reach and (now>=game.rooted_until or game.boss_kind==Lair.Routes.ORCHARD):
   if now>=game.rooted_until:
-   game.enemy_pos=game.Director.navigate(game,game.enemy_pos,victim,float(definition.speed)*delta)
+   game.enemy_pos=game.Director.navigate(game,game.enemy_pos,victim,float(definition.speed)*delta*preload("res://frost_combat.gd").motion_scale(game.leader_brain,now,true))
   return
  if lair:
   if not Lair.commit(game,next_move,target,now) and game.boss_kind==Lair.Routes.ORCHARD and next_move!="falling_fruit" and distance<=Orchard.reach("falling_fruit",game.boss_phase):

@@ -26,7 +26,7 @@ static func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,n
  var damage:=Preview.authored_amount(float(hit.damage))
  if now<int(p.get("prepared_mark_until",0)):
   hit.mark_damage=maxf(1.0,float(hit.get("mark_damage",0)));p.prepared_mark_until=0
- if float(hit.get("brittle",0))>0:
+ if float(hit.get("brittle",0))>0 and not p.has("combat_ruleset"):
   var stacks:=int(state.get("brittle",0)) if now<int(state.get("brittle_until",0)) else 0
   stacks+=maxi(1,roundi(float(hit.brittle)))
   if stacks>=3:

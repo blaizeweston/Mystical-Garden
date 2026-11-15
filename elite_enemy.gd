@@ -40,6 +40,8 @@ static func state(game: Node) -> Dictionary:
  return game.leader_brain.elite
 static func tick(game: Node,delta: float,now: int) -> void:
  if game.enemy_hp<=0:return
+ var frost_motion := preload("res://frost_combat.gd").motion_scale(game.leader_brain,now)
+ delta *= frost_motion
  if game.enemy_winding_up:
   if now>=game.enemy_strike_at:resolve(game,now)
   return
@@ -69,7 +71,7 @@ static func tick(game: Node,delta: float,now: int) -> void:
     game.enemy_winding_up=true;game.enemy_attack_mode=body.mode;game.enemy_strike_at=body.windup;game.enemy_landing=body.attack.to
    return
  var reach:=float(definition.range)+(.65 if game.longlimb else 0.0)
- var can_leap: bool=now>=game.rooted_until and now>=game.enemy_ready_at
+ var can_leap: bool=frost_motion>0.0 and now>=game.rooted_until and now>=game.enemy_ready_at
  if can_leap and Attacks.try_skill_approach(game,body,victim,now):
   game.enemy_winding_up=true
   game.enemy_attack_mode=body.mode
@@ -103,7 +105,10 @@ static func resolve(game: Node,now: int) -> void:
  var body:=state(game);var definition:=Catalog.get_kind(game.enemy_kind)
  body.pos=game.enemy_pos;body.blast=game.enemy_landing;body.mode=game.enemy_attack_mode;body.hp=game.enemy_hp;body.recovery=game.moss_recovery_bonus
  body.rooted_until=game.rooted_until
- game.resolve_scout(body,definition,now)
+ if game.has_meta(&"combat_affinity_ruleset"):
+  preload("res://frost_combat.gd").with_attacker(game,-1,game.resolve_scout.bind(body,definition,now))
+ else:
+  game.resolve_scout(body,definition,now)
  game.enemy_pos=body.pos
  game.enemy_winding_up=body.windup>0
  if game.enemy_winding_up:
