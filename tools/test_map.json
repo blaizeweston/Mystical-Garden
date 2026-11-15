@@ -2,6 +2,7 @@
   "schema": 1,
   "full_after_days": 7,
   "systems": {
+    "storm_affinity": {"label": "Storm discharge and source-owned charges", "files": ["storm_affinity.gd", "storm_affinity.gd.uid"]},
     "world_snapshot": {
       "label": "Protocol 41 bounded unreliable world snapshots, roster metadata and receive convergence",
       "files": ["world_snapshot.gd", "world_snapshot.gd.uid"]
@@ -1811,6 +1812,8 @@
     ]
   },
   "suites": {
+    "cr04c_storm": {"kind": "unit", "systems": ["storm_affinity","combat_affinity_contracts","core_combat","combat"], "package": false},
+    "cr04c_storm_coop": {"kind": "pair", "systems": ["storm_affinity","combat_affinity_contracts","core_combat","connection_flow","world_snapshot"], "package": false},
     "world_snapshot_codec": {
       "kind": "unit",
       "systems": ["world_snapshot", "connection_flow", "presentation"],
@@ -6912,6 +6915,7 @@
       }
     },
     "_enter_wilds": {
+      "cr04c_storm_lifecycle": {"match": "\tpreload(\"res://wood_affinity.gd\").clear(p)\n\tpreload(\"res://storm_affinity.gd\").clear(p)\n", "baseline": "\tpreload(\"res://wood_affinity.gd\").clear(p)\n", "systems": ["storm_affinity"], "additive": true},
       "wood_affinity_1": {
         "match": "\tp.erase(\"affinity_thorn_form_ready\")\n\tpreload(\"res://wood_affinity.gd\").clear(p)\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
         "baseline": "\tp.erase(\"affinity_thorn_form_ready\")\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
@@ -7942,6 +7946,7 @@
       }
     },
     "reset_encounter": {
+      "cr04c_storm_lifecycle": {"match": "\t\t\tpreload(\"res://wood_affinity.gd\").clear(player)\n\t\t\tpreload(\"res://storm_affinity.gd\").clear(player)\n", "baseline": "\t\t\tpreload(\"res://wood_affinity.gd\").clear(player)\n", "systems": ["storm_affinity"], "additive": true},
       "wood_affinity_1": {
         "match": "\t\t\tpreload(\"res://vital_combat.gd\").clear(self,player)\n\t\t\tpreload(\"res://wood_affinity.gd\").clear(player)\n\t\t\tplayer.erase(\"affinity_thorn_form_ready\")\n\tpreload(\"res://core_combat.gd\").reset(self)\n",
         "baseline": "\t\t\tpreload(\"res://vital_combat.gd\").clear(self,player)\n\tpreload(\"res://core_combat.gd\").reset(self)\n",
@@ -9700,6 +9705,7 @@
       "cr02_affinity_contract": {"match": "\tvar combat_mode = preload(\"res://combat_ruleset.gd\")\n\tif combat_mode.active(self):\n\t\ttell(id,combat_mode.EMPTY_CARDS)\n\t\treturn false\n", "baseline": "", "additive": true, "systems": ["combat_affinity_contracts"]}
     },
     "return_to_garden": {
+      "cr04c_storm_lifecycle": {"match": "\tpreload(\"res://wood_affinity.gd\").clear(p)\n\tpreload(\"res://storm_affinity.gd\").clear(p)\n", "baseline": "\tpreload(\"res://wood_affinity.gd\").clear(p)\n", "systems": ["storm_affinity"], "additive": true},
       "wood_affinity_1": {
         "match": "\tp.erase(\"affinity_thorn_form_ready\")\n\tpreload(\"res://wood_affinity.gd\").clear(p)\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
         "baseline": "\tp.erase(\"affinity_thorn_form_ready\")\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
@@ -15668,6 +15674,16 @@
     "combat_status.gd": {
       "newline": "crlf",
       "regions": {
+        "cr04c_storm_1": {
+          "match": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"storm_charge\":\"Storm Charge\",\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\nstatic func tint(kind: String) -> Color:\n",
+          "baseline": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\nstatic func tint(kind: String) -> Color:\n",
+          "systems": ["storm_affinity", "core_combat", "combat_affinity_contracts"]
+        },
+        "cr04c_storm_2": {
+          "match": "  if player.has(\"affinity_vital_sources\"):add(desired,game,\"vitality\",id,false,now+60000,1,now)\n  var charge: Dictionary=player.get(\"affinity_storm_charge\",{})\n  if not charge.is_empty():\n   var remaining: int=int(charge.until)-preload(\"res://affinity_time.gd\").now(game)\n   add(desired,game,\"storm_charge\",id,false,now+remaining,1,now)\n  if player.has(\"affinity_bark_grants\"):add(desired,game,\"bark_armor\",id,false,now+60000,1,now)\n",
+          "baseline": "  if player.has(\"affinity_vital_sources\"):add(desired,game,\"vitality\",id,false,now+60000,1,now)\n  if player.has(\"affinity_bark_grants\"):add(desired,game,\"bark_armor\",id,false,now+60000,1,now)\n",
+          "systems": ["storm_affinity", "core_combat", "combat_affinity_contracts"]
+        },
         "cr04b_wood_1": {
           "match": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\nstatic func tint(kind: String) -> Color:\n",
           "baseline": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bleeding\",\"thorn_slow\"]\nstatic func tint(kind: String) -> Color:\n",
@@ -16586,6 +16602,16 @@
     "core_combat.gd": {
       "newline": "lf",
       "regions": {
+        "cr04c_storm_1": {
+          "match": "\t\torigin.y += float(weapon.height)\n\tif skill.get(\"affinity_family\")==\"storm\" and not ground:\n\t\tvar path := Mouse.projectile_path(game.battlefield,player.pos,forward,weapon,float(skill.range))\n\t\tline.from = path.from\n\t\tline.previous_point = path.from\n\t\tline.to = path.to\n\t\tline.center = path.to\n\tvar flight_ms := 0\n",
+          "baseline": "\t\torigin.y += float(weapon.height)\n\tvar flight_ms := 0\n",
+          "systems": ["storm_affinity", "core_combat", "combat_affinity_contracts"]
+        },
+        "cr04c_storm_2": {
+          "match": "\t\t\t\tpreload(\"res://thorn_affinity.gd\").release(game,line,now)\n\t\t\t\tlines.erase(id)\n\t\t\t\tcontinue\n\t\t\t\"storm\":\n\t\t\t\tpreload(\"res://storm_affinity.gd\").ground_contact(game,line,player,now)\n\t\t\t\tlines.erase(id)\n",
+          "baseline": "\t\t\t\tpreload(\"res://thorn_affinity.gd\").release(game,line,now)\n\t\t\t\tlines.erase(id)\n",
+          "systems": ["storm_affinity", "core_combat", "combat_affinity_contracts"]
+        },
         "cr04b_wood_1": {
           "match": "\tvar weapon: Dictionary = game.WeaponMotion.profile(skill.weapon_form)\n\tvar ground: bool = skill.delivery == \"ground\" or skill.get(\"footprint\") == \"wave\" or skill.get(\"affinity_family\") in [\"water\",\"vital\",\"wood\"]\n\tvar blade_cast: bool = skill.weapon_form == \"blade\"\n",
           "baseline": "\tvar weapon: Dictionary = game.WeaponMotion.profile(skill.weapon_form)\n\tvar ground: bool = skill.delivery == \"ground\" or skill.get(\"footprint\") == \"wave\" or skill.get(\"affinity_family\") in [\"water\",\"vital\"]\n\tvar blade_cast: bool = skill.weapon_form == \"blade\"\n",
@@ -19167,6 +19193,11 @@
     "expedition_life.gd": {
       "newline": "crlf",
       "regions": {
+        "cr04c_storm_1": {
+          "match": " preload(\"res://wood_affinity.gd\").clear(p)\n preload(\"res://storm_affinity.gd\").clear(p)\n p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0\n",
+          "baseline": " preload(\"res://wood_affinity.gd\").clear(p)\n p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0\n",
+          "systems": ["storm_affinity", "life"]
+        },
         "cr04b_wood_1": {
           "match": " preload(\"res://vital_combat.gd\").clear(game,p)\n preload(\"res://wood_affinity.gd\").clear(p)\n p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0\n",
           "baseline": " preload(\"res://vital_combat.gd\").clear(game,p)\n p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0\n",

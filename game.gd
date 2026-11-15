@@ -3092,6 +3092,7 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = n
 	p.erase("affinity_ember_response")
 	p.erase("affinity_thorn_form_ready")
 	preload("res://wood_affinity.gd").clear(p)
+	preload("res://storm_affinity.gd").clear(p)
 	if p.has("affinity_vital_sources"): preload("res://vital_combat.gd").clear(self,p)
 	p.guard_charges=0
 	p.guard_until = 0
@@ -3176,6 +3177,7 @@ func return_to_garden(p: Dictionary) -> void:
 	p.erase("affinity_ember_response")
 	p.erase("affinity_thorn_form_ready")
 	preload("res://wood_affinity.gd").clear(p)
+	preload("res://storm_affinity.gd").clear(p)
 	if p.has("affinity_vital_sources"): preload("res://vital_combat.gd").clear(self,p)
 	p.guard_until = 0
 	p.front_guard_until=0;p.counter_guard_until=0;p.counter_until=0;p.grave_charges=0;p.echo_charge=0
@@ -3446,6 +3448,7 @@ func reset_encounter() -> void:
 		for player in players.values():
 			preload("res://vital_combat.gd").clear(self,player)
 			preload("res://wood_affinity.gd").clear(player)
+			preload("res://storm_affinity.gd").clear(player)
 			player.erase("affinity_thorn_form_ready")
 	preload("res://core_combat.gd").reset(self)
 	enemy_traits.clear();trait_events.clear()

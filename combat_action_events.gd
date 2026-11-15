@@ -78,6 +78,7 @@ func publish(game: Node, channel: String, contact_id: String, target: String, no
 			"vital": Ruleset.Vital.on_event(game, self, channel, details, now)
 			"thorn": Ruleset.Thorn.on_event(game, self, channel, details, now)
 			"wood": Ruleset.Wood.on_event(game, self, channel, details, now)
+			"storm": Ruleset.Storm.on_event(game, self, channel, details, now)
 	return true
 
 
@@ -110,7 +111,9 @@ static func contact(game: Node, stats: Dictionary, target: int, now: int, second
 	if point.is_finite():
 		details.point = point
 		details.forward = forward
-	event.publish(game, channel, "contact", token, now, details)
+	var charge: bool = channel=="weapon_contact" and Ruleset.active(game) and game.players.get(event.actor,{}).has(Ruleset.Storm.CHARGE)
+	if event.publish(game, channel, "contact", token, now, details) and charge:
+		Ruleset.Storm.use_charge(game,event,target,point if point.is_finite() else game.enemy_position(target),now)
 
 
 static func grant_ward(game: Node, recipient: Dictionary, until: int, charges: int,

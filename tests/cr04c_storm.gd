@@ -1,0 +1,66 @@
+extends SceneTree
+
+const Storm = preload("res://storm_affinity.gd")
+const Events = preload("res://combat_action_events.gd")
+const Builds = preload("res://affinity_build.gd")
+const Mode = preload("res://combat_ruleset.gd")
+var failed := false
+
+func _initialize() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> void:
+	if not ok: failed=true; printerr("FAIL Storm: ",label)
+
+func action(game: Node, slot: String, part: int, channels: Array) -> RefCounted:
+	var material := Builds.slot(slot,part)
+	return Events.begin(game,1,slot,material,material.potency_profile.values,channels,Time.get_ticks_msec()+10000)
+
+func run() -> void:
+	var game := preload("res://world.tscn").instantiate()
+	game.set_meta(Mode.META,Mode.ID)
+	game.progress.path="user://cr04c-storm/garden.cfg"
+	game.local_character.path="user://cr04c-storm/player.cfg"
+	root.add_child(game)
+	game.set_process(false)
+	game.set_physics_process(false)
+	var p: Dictionary=game.players[1]
+	p.wild=true
+	p.pos=Vector3.ZERO
+	game.enemy_hp=100
+	game.enemy_pos=Vector3(1,0,0)
+	game.scouts.clear()
+	for at in [Vector3(2.2,0,0),Vector3(2.2,0,0),Vector3(6.7,0,0)]:
+		var scout: Dictionary=game.make_scout(0,at,game.scouts.size()+1)
+		scout.hp=100
+		game.scouts.append(scout)
+	var ordinary:=11
+	var refined: int=game.Items.get_item("plant_part_rare_storm_reed").legacy_part
+	var now:=Time.get_ticks_msec()
+	check(Storm.nearest(game,Vector3(1,0,0),3.0,{"leader":true})==0,"equal range takes stable host index")
+	var core:=action(game,"core",ordinary,["core_action"])
+	game.enemy_hp=1
+	core.publish(game,"core_action","contact","leader",now,{"enemy":-1,"origin":p.pos,"point":game.enemy_pos})
+	check(game.enemy_hp==0 and game.scouts[0].hp==85 and game.scouts[1].hp==89 and game.scouts[2].hp==100,"kill continues from impact with falloff, unique contacts and no long-range jump")
+	game.enemy_hp=100
+	game.scouts[0].hp=0
+	game.scouts[1].hp=0
+	game.scouts[2].hp=100
+	var charged:=action(game,"catalyst",refined,["class_action"])
+	charged.publish(game,"class_action","heal","",now,{"response":"recipient_charge","recipients":[1]})
+	var expires: int=p[Storm.CHARGE].until
+	preload("res://affinity_time.gd").advance(game,.4)
+	var weaker:=action(game,"catalyst",ordinary,["class_action"])
+	weaker.publish(game,"class_action","heal","",now,{"response":"recipient_charge","recipients":[1]})
+	check(p[Storm.CHARGE].quality=="refined" and p[Storm.CHARGE].until==expires,"weaker healing cannot replace or extend a refined charge")
+	var form:=action(game,"form",ordinary,["weapon_contact","secondary"])
+	var stats: Dictionary={Events.CONTEXT:form}
+	Events.contact(game,stats,-1,now,false,game.enemy_pos)
+	check(game.enemy_hp==77 and not p.has(Storm.CHARGE),"Form and separate charge both resolve on one direct contact")
+	Events.contact(game,stats,-1,now,false,game.enemy_pos)
+	Events.contact(game,stats,2,now,true)
+	check(game.enemy_hp==77 and game.scouts[2].hp==100,"repeat and secondary contact cannot discharge")
+	game.queue_free()
+	await process_frame
+	if not failed: print("PASS: Storm chain, falloff, stable ties, lethal continuation, source-owned charge and independent Form")
+	quit(int(failed))

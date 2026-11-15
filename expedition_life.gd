@@ -20,6 +20,7 @@ static func down(game: Node,id: int,p: Dictionary,effects = null) -> void:
  p.erase("affinity_ward_claims");p.erase("frost_response");p.erase("affinity_ember_response")
  preload("res://vital_combat.gd").clear(game,p)
  preload("res://wood_affinity.gd").clear(p)
+ preload("res://storm_affinity.gd").clear(p)
  p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0
  game.motions.erase(id);game.checkpoint_ready.erase(id)
  game.PartyTravel.cancel(game,"A teammate has fallen. Readiness was cleared.",effects)

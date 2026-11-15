@@ -16,6 +16,10 @@ static func placement(field: RefCounted, origin: Vector3, forward: Vector3, skil
 
 
 static func release(game: Node, cast: Dictionary) -> void:
+	if cast.skill.get("affinity_family")=="storm":
+		game.emit_combat_event("projectile",cast.skill.projectile,cast.from,cast.to,cast.flight_ms/1000.0,
+			Color(cast.skill.color),cast.from.distance_to(cast.to),0,{"projectile_radius":cast.skill.radius,"height":0.0})
+		return
 	var height: float = float(cast.origin.y) if cast.skill.delivery != "ground" else .85
 	var lift := Vector3.UP * height
 	game.emit_combat_event("projectile", "needle", cast.from + lift, cast.to + lift, cast.flight_ms / 1000.0,
@@ -39,6 +43,10 @@ static func advance(game: Node, id: int, player: Dictionary, cast: Dictionary, n
 	var hits := ordered_hits(game, previous, tip, float(cast.skill.radius), cast.hit_tokens)
 	for hit in hits:
 		if game.Traits.valid_target(game, hit.target) and Contact.token(game, hit.target) == hit.token:
+			if cast.skill.get("affinity_family")=="storm":
+				preload("res://storm_affinity.gd").core_contact(game,cast,hit.target,cast.from,hit.point,now)
+				stop(game,cast,hit.point)
+				return true
 			if cast.skill.get("contact", "damage") == "strike_mark":
 				StrikeMark.place(game, id, hit.target, cast, now)
 				stop(game, cast, hit.point)
