@@ -540,9 +540,12 @@ func _lease_guarded(slot: int, operation: String, roster := false, catalog := ""
 		if result.get("ran",false) and result.value.get("error")==OK:
 			_owned_markers.erase(file)
 		return result
-	var ready := Auth.bootstrap(PackedStringArray([location.directory]))
-	if ready.error != OK:
-		return ready
+	if operation == "claim":
+		var ready := Auth.bootstrap(PackedStringArray([location.directory]))
+		if ready.error != OK:
+			return ready
+	elif not DirAccess.dir_exists_absolute(location.directory):
+		return Ops.management_result(ERR_UNAUTHORIZED, "stale_lease")
 	var participants := PackedStringArray([location.character]) if roster else PackedStringArray([location.garden, location.character])
 	var auxiliary := PackedStringArray()
 	if not catalog.is_empty():

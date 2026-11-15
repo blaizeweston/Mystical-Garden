@@ -184,9 +184,10 @@ def network_fixture_lock(timeout_ms=180_000):
         kernel.CloseHandle(mutex)
 
 
-def fixture_environment(project):
+def fixture_environment(project, experimental_terrain=False):
     # Keep fixture save paths within Godot's Windows path limit.
-    data = project / ".godot/vd" / uuid.uuid4().hex[:12]
+    profile = "mg-terrain-" + uuid.uuid4().hex if experimental_terrain else uuid.uuid4().hex[:12]
+    data = project / ".godot/vd" / profile
     data.mkdir(parents=True, exist_ok=False)
     env = os.environ.copy()
     env.update(APPDATA=str(data), LOCALAPPDATA=str(data / "local"), XDG_DATA_HOME=str(data))
@@ -195,6 +196,9 @@ def fixture_environment(project):
     if not re.fullmatch(r"Mystical Garden (?:Prototype|Playtest [0-9.]+-playtest\.[0-9]+)", user_directory):
         raise ValueError("unsupported validation user-data directory")
     (data / user_directory / "release-fixtures").mkdir(parents=True)
+    if experimental_terrain:
+        env["MYSTICAL_TERRAIN_PROFILE"] = str(data)
+        (data / "terrain-session.marker").write_text(profile, encoding="utf-8")
     return env
 
 
@@ -203,11 +207,12 @@ def run_fixture(project, engine, fixture, kind, script, folder, run_id, pack=Non
         raise ValueError("invalid fixture name or run ID")
     folder = folder.resolve()
     folder.mkdir(parents=True, exist_ok=False)
-    env = fixture_environment(project)
-    env.update(MYSTICAL_VALIDATION_RUN=run_id, MYSTICAL_VALIDATION_FIXTURE=fixture,
-               MYSTICAL_VALIDATION_PACK=str(pack) if pack else "")
+    terrain_coop = fixture == "experimental_terrain_coop"
+    env = None if terrain_coop else fixture_environment(project)
     default_port = 32295 if kind == "party" else 32291 if pack else 32283
-    env["MYSTICAL_GARDEN_TEST_PORT"] = str(port or default_port)
+    terrain_signals = folder / "signals"
+    if terrain_coop:
+        terrain_signals.mkdir()
     driver = folder / "fixture.gd"
     script_bytes = script.read_bytes()
     source = script_bytes.decode("utf-8-sig")
@@ -231,6 +236,7 @@ def run_fixture(project, engine, fixture, kind, script, folder, run_id, pack=Non
         arguments.extend(["--main-pack", str(pack)])
     processes = {}
     outcomes = {}
+    profile_roots = {}
     timed_out = set()
     # Some unit/solo fixtures also bind the default port or a derived offset.
     with network_fixture_lock():
@@ -238,8 +244,16 @@ def run_fixture(project, engine, fixture, kind, script, folder, run_id, pack=Non
         try:
             for peer in PEERS[kind]:
                 user_args = [peer, run_id] if kind in ("pair", "party") else ["solo"] if kind == "solo" else []
-                child_env = dict(env, MYSTICAL_VALIDATION_PEER=peer,
-                                 MYSTICAL_VALIDATION_RESULT=str(folder / f"{peer}.json"))
+                base_env = fixture_environment(project, experimental_terrain=True) if terrain_coop else env
+                child_env = dict(base_env, MYSTICAL_VALIDATION_PEER=peer,
+                                 MYSTICAL_VALIDATION_RESULT=str(folder / f"{peer}.json"),
+                                 MYSTICAL_VALIDATION_RUN=run_id, MYSTICAL_VALIDATION_FIXTURE=fixture,
+                                 MYSTICAL_VALIDATION_PACK=str(pack) if pack else "",
+                                 MYSTICAL_GARDEN_TEST_PORT=str(port or default_port))
+                if terrain_coop:
+                    child_env["MYSTICAL_TERRAIN_TEST_SIGNALS"] = str(terrain_signals)
+                    user_args.append("--experimental-terrain")
+                profile_roots[peer] = child_env["APPDATA"]
                 with (folder / f"{peer}.log").open("wb") as log, (folder / f"{peer}.stderr.log").open("wb") as stderr:
                     processes[peer] = subprocess.Popen(
                         arguments + (["--"] + user_args if user_args else []),
@@ -271,7 +285,10 @@ def run_fixture(project, engine, fixture, kind, script, folder, run_id, pack=Non
     verdict = {"schema": SCHEMA, "run_id": run_id, "fixture": fixture, "kind": kind,
                "pack": str(pack) if pack else None, "passed": passed, "peers": outcomes,
                "script": str(script.resolve()), "script_sha256": hashlib.sha256(script_bytes).hexdigest(),
-               "appdata": env["APPDATA"], "port": int(env["MYSTICAL_GARDEN_TEST_PORT"]), "seconds": round(time.monotonic() - started, 3)}
+               "appdata": env["APPDATA"] if env else None, "port": port or default_port,
+               "seconds": round(time.monotonic() - started, 3)}
+    if terrain_coop:
+        verdict["peer_appdata"] = profile_roots
     write_json(folder / "verdict.json", verdict)
     return verdict
 

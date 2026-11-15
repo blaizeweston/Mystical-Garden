@@ -28,6 +28,12 @@ var routes := {}
 var boss_kind: int=-1
 var boss_phase: int=0
 
+func has_seed_cache() -> bool:
+	return procedural
+
+func clear_seed_count(depth: int) -> int:
+	return 1 if depth == 1 else 2
+
 
 static func layout(site: int, encounter: int, map_seed: int = 0) -> Array:
 	var field := new()

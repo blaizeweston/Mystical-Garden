@@ -1,0 +1,269 @@
+extends SceneTree
+
+const Mode = preload("res://assets/terrain_m02/experimental/experiment_mode.gd")
+const Menu = preload("res://main_menu.tscn")
+const Appearance = preload("res://character_appearance.gd")
+const Items = preload("res://item_catalog.gd")
+
+var role := ""
+var signals := ""
+var port := 0
+var failed := false
+
+func _initialize() -> void:
+	call_deferred("run")
+
+func run() -> void:
+	role = OS.get_cmdline_user_args()[0]
+	port = int(OS.get_environment("MYSTICAL_GARDEN_TEST_PORT"))
+	signals = OS.get_environment("MYSTICAL_TERRAIN_TEST_SIGNALS")
+	if not check(Mode.verified() and not signals.is_empty() and port > 0, "disposable experimental runtime"):
+		quit(1)
+		return
+	var menu := Menu.instantiate()
+	root.add_child(menu)
+	current_scene = menu
+	await process_frame
+	if role == "host":
+		await host_run(menu)
+	else:
+		await guest_run(menu)
+	if not failed:
+		print("PASS: experimental terrain co-op ", role)
+	quit(int(failed))
+
+func check(condition: bool, message: String) -> bool:
+	if not condition:
+		failed = true
+		printerr("FAIL: ", role, " ", message)
+	return condition
+
+func until(condition: Callable) -> bool:
+	var deadline := Time.get_ticks_msec() + 18000
+	while not condition.call() and Time.get_ticks_msec() < deadline:
+		await process_frame
+	return condition.call()
+
+func mark(key: String, value := "ok") -> void:
+	var file := FileAccess.open(signals.path_join(key), FileAccess.WRITE)
+	if check(file != null, "write synchronization marker " + key):
+		file.store_string(value)
+
+func read(key: String) -> String:
+	return FileAccess.get_file_as_string(signals.path_join(key))
+
+func floor_identity(field) -> String:
+	var layout: Dictionary = field.generated.layout
+	return str([field.configured_key, field.entry, field.advance, field.spawn_points,
+		layout.water, layout.trail_network, field.has_seed_cache(), field.cache]).sha256_text()
+
+func ready_guest(game: Node) -> int:
+	for id in game.players:
+		if id != game.HOST and game.players[id].profile_ready:
+			return id
+	return 0
+
+func host_run(menu: Node) -> void:
+	menu.host_port = port
+	menu.host_choice.button_pressed = true
+	var title_id := menu.get_instance_id()
+	menu.new_game()
+	menu.create_character("Terrain Keeper", 0, Appearance.DEFAULT)
+	if not check(await until(func(): return current_scene.get_instance_id() != title_id and current_scene.get("session") == "Host"), "host created through title"):
+		return
+	var game := current_scene
+	game.network_dialog.dismiss()
+	var garden = game.stage.experimental_garden
+	var keeper: Dictionary = game.players[game.HOST]
+	keeper.pos = Vector3(0, 0, 1.5)
+	var part: int = game.Parts.THORN
+	var offering: String = Items.part_id(part)
+	game.run_heart_save(func():
+		game.progress.knowledge = 30
+		game.progress.add_parts(part, 60)
+		for id in ["plot_4", "clearing_1"]:
+			game.progress.heart.start(game.progress, id)
+			game.progress.heart.add_work(game.progress, 60.0))
+	garden.open_offerings()
+	var quote: Dictionary = garden.funds.quote({offering: 16})
+	if not check(garden.contribute(quote) and not garden.contribute(quote), "one guarded offering consumes parts once"):
+		return
+	check(game.progress.part_count(part) == 44, "exact shared part debit")
+	garden.offering_dialog.hide()
+	if not check(garden.place("bed", Vector2(2.34, -4.58), 0.37), "build a real cultivation bed while hosting"):
+		return
+	var bed_id: int = garden.bed_ids[3]
+	mark("host-ready", str(bed_id))
+	if not check(await until(func(): return ready_guest(game) != 0 and read("guest-layout") == "ok"), "guest admitted with the developed layout"):
+		return
+	var peer := ready_guest(game)
+	var traveller: Dictionary = game.players[peer]
+	game.Transactions.run_gameplay(game, game.Transactions.Scope.GARDEN, func(): game.seed_reserve(traveller).stock[0] = 1)
+	traveller.pos = game.stage.bed_position(3) + Vector3(0, 0, 1.43)
+	mark("plant")
+	if not check(await until(func(): return game.progress.plots[3].species == 0), "guest plants through production RPC"):
+		return
+	check(game.seed_reserve(traveller).stock[0] == 0, "guest consumes one seed")
+	keeper.pos = game.stage.gate_position()
+	traveller.pos = keeper.pos
+	game.map_rng.seed = 16
+	game.PartyTravel.request(game, game.HOST, "depart")
+	mark("depart", str(game.travel_epoch))
+	if not check(await until(func(): return traveller.wild and not game.battlefield.generated.is_empty()), "party enters generated Wilds"):
+		return
+	mark("floor", floor_identity(game.battlefield))
+	var host_entry: Vector3 = keeper.pos
+	for direction: Vector2 in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
+		game.move_player(game.HOST, direction, 0.14)
+		if keeper.pos.distance_to(host_entry) > 0.2:
+			break
+	check(keeper.pos.distance_to(host_entry) > 0.2, "host moves on generated terrain")
+	var origin: Vector3 = traveller.pos
+	if not check(await until(func(): return traveller.pos.distance_to(origin) > 0.2 and read("guest-floor") == "ok"), "guest sends movement on matching terrain"):
+		return
+	var leader: Vector3 = game.enemy_pos
+	for direction: Vector3 in [Vector3.RIGHT, Vector3.LEFT, Vector3.FORWARD, Vector3.BACK]:
+		var approach := leader + direction * 0.55
+		if not game.battlefield.occupied(approach, 0.34) and game.battlefield.clear_line(approach, leader):
+			traveller.pos = approach
+			break
+	var before_hp: int = game.enemy_hp
+	mark("strike")
+	if not check(await until(func(): return game.enemy_hp < before_hp or traveller.get("contributed", false)), "guest attack reaches real combat"):
+		return
+	var stats: Dictionary = game.weapon_stats(keeper)
+	stats.damage = 10000
+	for target in range(-1, game.scouts.size()):
+		var hit_at: Vector3 = game.enemy_pos if target == -1 else game.scouts[target].pos
+		var kind: int = game.enemy_kind if target == -1 else game.scouts[target].kind
+		var mask: int = game.enemy_mutations if target == -1 else game.scouts[target].mutations
+		for seed_value in range(1, 40):
+			game.rng.seed = seed_value
+			var before_roll: int = game.rng.state
+			if not game.roll_kill_trophy(kind, mask, target == -1).is_empty():
+				game.rng.state = before_roll
+				break
+		game.apply_weapon_hit(keeper, target, hit_at, stats, Time.get_ticks_msec())
+	if not check(await until(func(): return game.encounter_rewarded and game.encounter_cleared()), "real enemy clear commits and activates the Gate"):
+		return
+	check(not game.wild_item_drops.is_empty(), "real encounter creates monster drops")
+	keeper.pos = game.battlefield.advance
+	traveller.pos = keeper.pos
+	game.use_checkpoint(game.HOST, true)
+	mark("advance", str(game.travel_epoch))
+	if not check(await until(func(): return game.depth == 2), "party commits advancement"):
+		print("STATE ", [game.status, game.travel_kind, game.travel_epoch, game.travel_votes, game.checkpoint_ready, traveller.pos, game.battlefield.advance, game.Transactions.pending_notice(game)])
+		return
+	mark("second-floor", floor_identity(game.battlefield))
+	if not check(await until(func(): return read("guest-second") == "ok"), "guest sees next generated floor"):
+		return
+	# Exercise the real extraction boundary without playing six complete floors.
+	game.encounter_number = 6
+	game.deepest_milestone = 6
+	game.enemy_hp = 0
+	game.scouts.clear()
+	game.encounter_rewarded = true
+	keeper.pos = game.battlefield.advance
+	traveller.pos = keeper.pos
+	game.use_checkpoint(game.HOST, false)
+	mark("extract", str(game.travel_epoch))
+	if not check(await until(func(): return not game.expedition_active() and read("guest-return") == "ok"), "party extracts to the same developed Garden"):
+		return
+	keeper.pos = Vector3(0, 0, 1.5)
+	garden.open_development()
+	if not check(not garden.plans.is_empty() and garden.expand(garden.plans.keys()[0]), "host expands with the guest connected"):
+		return
+	garden.development_dialog.hide()
+	mark("expansion", str(garden.state.outline).sha256_text())
+	if not check(await until(func(): return ready_guest(game) == 0 and game.pending_departures.is_empty()), "host settles the original disconnect"):
+		return
+	mark("detached")
+	if not check(await until(func(): return read("rejoined") == "ok" and ready_guest(game) != 0), "same character reconnects with developed Garden"):
+		return
+	check(garden.bed_ids[3] == bed_id and game.progress.plots[3].species == 0, "cultivation survives return and reconnect")
+	game.return_to_main_menu()
+	await process_frame
+	check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer, "host goes offline before teardown")
+	mark("host-offline")
+
+func join(menu: Node) -> Node:
+	var title_id := menu.get_instance_id()
+	menu.show_page(2)
+	menu.join_button.pressed.emit()
+	if not check(menu.network_dialog.visible, "real title opens Join by IP"):
+		return null
+	menu.network_dialog.address_field.text = "127.0.0.1:" + str(port)
+	menu.network_dialog.submit.pressed.emit()
+	if not check(await until(func(): return current_scene.get_instance_id() != title_id and current_scene.get("session") == "Guest" and current_scene.stage.experimental_garden.remote_revision >= 0), "title admits guest and supplies Garden"):
+		print("JOIN STATE ", [current_scene.get("session"), current_scene.get("status"), current_scene.get("return_message")])
+		return null
+	return current_scene
+
+func guest_run(menu: Node) -> void:
+	menu.request_create_character()
+	menu.create_character("Terrain Explorer", 0, Appearance.DEFAULT)
+	if not check(await until(func(): return not read("host-ready").is_empty()), "host ready"):
+		return
+	var game := await join(menu)
+	if game == null:
+		return
+	var garden = game.stage.experimental_garden
+	var id: int = game.local_player_id()
+	var bed: int = int(read("host-ready"))
+	check(not game.get_meta(game.Transactions.SESSION).authorizes(game.progress.path)
+		and garden.bed_ids.get(3) == bed and game.stage.bed_position(3).is_equal_approx(Vector3(2.34, 0, -4.58))
+		and is_equal_approx(garden.bed_yaw(3), -0.37), "guest has matching stable bed transform and no host save access")
+	check(not garden.remote_development.queue.is_empty() and garden.remote_development.energy > 0
+		and not garden.place("bed", Vector2.ZERO, 0.0), "study and energy mirrored; guest cannot build independently")
+	mark("guest-layout")
+	if not check(await until(func(): return read("plant") == "ok" and Vector3(game.players[id].pos).distance_to(game.stage.bed_position(3)) < 1.65), "guest arrives at the real bed"):
+		return
+	game.send_garden_action("plant_at_3_0")
+	if not check(await until(func(): return not read("depart").is_empty() and game.Progress.decode_plots(game.client_garden[12])[3].species == 0), "planted crop appears on guest"):
+		return
+	game.send_garden_action("travel_ready:" + read("depart"))
+	if not check(await until(func(): return not read("floor").is_empty() and game.stage._has_experimental_floor()), "guest builds the actual first floor"):
+		return
+	check(floor_identity(game.stage.visual_field) == read("floor") and game.exploration.fog.visible
+		and not game.exploration.seen(game.stage.visual_field.advance), "matching waterways/routes and unexplored Gate")
+	mark("guest-floor")
+	Input.action_press("right")
+	await create_timer(0.45).timeout
+	Input.action_release("right")
+	if not check(await until(func(): return read("strike") == "ok" and Vector3(game.players[id].pos).distance_to(game.enemy_pos) < 1.4), "guest sees a reachable enemy"):
+		return
+	game.send_action(true)
+	if not check(await until(func(): return not read("advance").is_empty() and game.enemy_hp == 0), "guest sees authoritative enemy clear"):
+		return
+	if not check(await until(func(): return int(game.party_travel_state().get("epoch", -1)) == int(read("advance"))), "guest receives the next Gate readiness prompt"):
+		return
+	game.send_travel_ready(false)
+	if not check(await until(func(): return not read("second-floor").is_empty() and game.depth == 2 and game.stage.visual_field.configured_key.z == game.map_seed), "guest follows party advancement"):
+		return
+	check(floor_identity(game.stage.visual_field) == read("second-floor"), "second floor reconstruction matches")
+	mark("guest-second")
+	if not check(await until(func(): return not read("extract").is_empty() and int(game.party_travel_state().get("epoch", -1)) == int(read("extract"))), "host proposes extraction"):
+		return
+	game.send_travel_ready(false)
+	if not check(await until(func(): return not game.players[id].wild), "guest returns through party extraction"):
+		return
+	check(garden.bed_ids.get(3) == bed and game.Progress.decode_plots(game.client_garden[12])[3].species == 0, "return preserves bed and crop")
+	mark("guest-return")
+	if not check(await until(func(): return not read("expansion").is_empty() and garden.state.revision == 1), "guest receives growth and forest geometry"):
+		return
+	check(str(garden.state.outline).sha256_text() == read("expansion"), "outer forest matches the host")
+	var identity: String = game.guest_character.identity
+	var world_id := game.get_instance_id()
+	game.return_to_main_menu()
+	if not check(await until(func(): return current_scene.get_instance_id() != world_id and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer), "offline before exiting for reconnect"):
+		return
+	if not check(await until(func(): return read("detached") == "ok"), "host has released the previous connection"):
+		return
+	game = await join(current_scene)
+	if game == null:
+		return
+	garden = game.stage.experimental_garden
+	check(game.guest_character.identity == identity and garden.state.revision == 1 and garden.bed_ids.get(3) == bed
+		and str(garden.state.outline).sha256_text() == read("expansion"), "reconnect restores host layout and guest identity")
+	mark("rejoined")
+	check(await until(func(): return read("host-offline") == "ok" and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer), "guest observes host shutdown")

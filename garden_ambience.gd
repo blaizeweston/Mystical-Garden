@@ -44,9 +44,14 @@ func _process(delta: float) -> void:
  for colony in colonies.values():colony.hide()
  for zone in zones:
   if not zone.has("water") or not zone.has("ambience"):continue
-  var visible: bool=not game.stage.get_meta("garden_growth_hidden_zones",[]).has(zone.id) and motion and not player.get("wild",false) and available.has(zone.ambience.requires_point) and game.stage.get_meta("garden_growth_camera",{}).get("target",player.get("pos",Vector3.INF)).distance_to(zone.water.position)<float(zone.ambience.range)
+  var at: Vector3=zone.water.position
+  if zone.id=="sheltered_spring" and game.has_meta(&"experimental_terrain"):
+   at=game.stage.station_position("spring")
+  var visible: bool=not game.stage.get_meta("garden_growth_hidden_zones",[]).has(zone.id) and motion and not player.get("wild",false) and available.has(zone.ambience.requires_point) and at.is_finite() and game.stage.get_meta("garden_growth_camera",{}).get("target",player.get("pos",Vector3.INF)).distance_to(at)<float(zone.ambience.range)
   if visible and not colonies.has(zone.id):colonies[zone.id]=build_colony(zone)
-  if colonies.has(zone.id):colonies[zone.id].visible=visible
+  if colonies.has(zone.id):
+   colonies[zone.id].visible=visible
+   if visible:colonies[zone.id].position=at+Vector3.UP*.85
  if not is_instance_valid(game.stage.garden_edge):return
  var models: Array=game.stage.garden_edge.find_children("*","GeometryInstance3D",true,false)
  for model in models:

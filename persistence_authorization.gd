@@ -209,6 +209,9 @@ static func replace_authorized(token: RefCounted, source: String, destination: S
 
 static func _resolve_paths(paths: PackedStringArray, root: String, directory: DirAccess) -> PackedStringArray:
  var resolved := PackedStringArray()
+ # Many journal and lease sidecars share ancestors. Validate each component
+ # once in this call. Native acquisition still checks every participant.
+ var checked_ancestors := {}
  for path in paths:
   if not path.begins_with("user://"):
    return PackedStringArray()
@@ -220,19 +223,23 @@ static func _resolve_paths(paths: PackedStringArray, root: String, directory: Di
    return PackedStringArray()
   # Existing ancestry must be ordinary directories. A new leaf is allowed.
   var parent := target.get_base_dir()
-  if not _plain_ancestry(directory, parent) or directory.dir_exists(target) or directory.is_link(target):
+  if not _plain_ancestry(directory, parent, checked_ancestors) or directory.dir_exists(target) or directory.is_link(target):
    return PackedStringArray()
   resolved.append(path)
  return resolved
 
-static func _plain_ancestry(directory: DirAccess, path: String) -> bool:
+static func _plain_ancestry(directory: DirAccess, path: String, checked: Variant = null) -> bool:
  if not _is_drive_absolute(path):
   return false
  var current := path.left(3)
  for component in path.substr(3).split("/", false):
   current = current.path_join(component)
+  if checked != null and checked.has(current):
+   continue
   if not directory.dir_exists(current) or directory.is_link(current) or directory.is_case_sensitive(current):
    return false
+  if checked != null:
+   checked[current] = true
  return true
 
 static func _is_drive_absolute(path: String) -> bool:

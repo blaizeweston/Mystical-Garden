@@ -6,6 +6,8 @@ const Parts = preload("res://weapon_parts.gd")
 const Items = preload("res://item_catalog.gd")
 const Menu = preload("res://main_menu.tscn")
 const Appearance = preload("res://character_appearance.gd")
+const GardenInteractions = preload("res://garden_interaction_service.gd")
+const CropCare = preload("res://garden_crop_service.gd")
 const MATURE := 10000.0
 
 var errors := 0
@@ -57,8 +59,17 @@ func run() -> void:
 	var player: Dictionary = game.players[game.HOST]
 	check(garden != null and game.slot_claimed and game.character_slot_claimed and game.get_meta(game.Transactions.SESSION).owns_leases(),
 		"real world shows terrain with the native owner")
-	check(game.host_game() == ERR_UNAVAILABLE and game.join_game() == ERR_UNAVAILABLE, "experiment refuses online transport")
+	check(game.host_button.visible and game.join_game() == ERR_UNAUTHORIZED, "co-op uses title-owned guest admission")
 	check(garden.barrier.walkable(garden.planar(player.pos)), "production avatar starts on clear ground")
+	var view := game.get_node("GardenInteractions")
+	var scar := GardenInteractions.Catalog.point("heart_root_scar")
+	var spring := GardenInteractions.Catalog.point("spring_water")
+	view._process(0.0)
+	check(not view.points[scar.id].visible and not GardenInteractions.allowed(game, scar),
+		"the experimental Root Scar is hidden and unavailable before Reaching Roots")
+	check(not view.points[spring.id].visible and not garden.structure_nodes.has("spring")
+		and not garden.state.landmarks.has("spring") and not game.stage.station_position("spring").is_finite(),
+		"there is no starter watering basin or reserved invisible footprint")
 	var start: Vector3 = player.pos
 	game.move_player(game.HOST, Vector2.RIGHT, 0.12)
 	check(player.pos != start, "production movement advances on the experimental Garden")
@@ -136,6 +147,17 @@ func run() -> void:
 	check(game.progress.knowledge == initial_knowledge + 8 and game.progress.part_count(Parts.THORN) == initial_parts - 8,
 		"repeated completion tick cannot award or debit again")
 	panel.hide()
+	garden.open_development()
+	var build_choices: OptionButton = garden.construction_kind
+	check(build_choices.item_count == 5 and garden.build_button.disabled,
+		"no new structure can be selected at the start")
+	for index in range(1, build_choices.item_count):
+		check(build_choices.is_item_disabled(index) and build_choices.get_item_tooltip(index).begins_with("Research "),
+			"every locked building is disabled and identifies its research")
+	garden.begin_placement("bed")
+	check(garden.development_dialog.visible and garden.build_kind.is_empty() and garden.ghost == null,
+		"a stale request for a locked bed keeps the dialog open without starting placement")
+	garden.development_dialog.hide()
 	var available_before: int = game.progress.heart.available_insight(game.progress)
 	game.run_heart_save(func():
 		return game.progress.heart.start(game.progress, "plot_4"))
@@ -150,13 +172,57 @@ func run() -> void:
 	game.run_heart_save(func():
 		return game.progress.heart.add_work(game.progress, 60.0))
 	check(game.progress.heart.has("clearing_1") and garden.state.revision == 0, "research grants growth without spending energy or placing land")
+	view._process(0.0)
+	check(view.points[scar.id].visible and GardenInteractions.allowed(game, scar),
+		"Reaching Roots reveals the original journal observation")
 	var place := Vector2(2.34, -4.58)
+	for cancel_with_mouse: bool in [false, true]:
+		garden.open_development()
+		check(build_choices.get_selected_metadata() == "bed" and not garden.build_button.disabled,
+			"research enables the bed in the picker")
+		garden.build_button.pressed.emit()
+		await process_frame
+		var motion := InputEventMouseMotion.new()
+		motion.position = game.stage.camera.unproject_position(garden.world(place))
+		root.push_input(motion, true)
+		check(garden.build_kind == "bed" and garden.ghost != null,
+			"starting placement creates a preview on pointer motion")
+		var cancel: InputEvent
+		if cancel_with_mouse:
+			var click := InputEventMouseButton.new()
+			click.button_index = MOUSE_BUTTON_RIGHT
+			click.position = motion.position
+			click.pressed = true
+			cancel = click
+		else:
+			var escape := InputEventKey.new()
+			escape.keycode = KEY_ESCAPE
+			escape.physical_keycode = KEY_ESCAPE
+			escape.pressed = true
+			cancel = escape
+		root.push_input(cancel, true)
+		check(garden.build_kind.is_empty() and garden.ghost == null and not game.overlay.visible
+			and game.progress.plots.size() == 3 and game.status == "Placement cancelled.",
+			"cancel clears the ghost without opening the session menu or placing a bed")
+	var menu_key := InputEventKey.new()
+	menu_key.keycode = KEY_ESCAPE
+	menu_key.physical_keycode = KEY_ESCAPE
+	menu_key.pressed = true
+	root.push_input(menu_key, true)
+	check(game.overlay.visible, "Escape still opens the session menu outside placement")
+	root.push_input(menu_key, true)
+	check(not game.overlay.visible, "Escape closes the session menu outside placement")
 	var built: bool = garden.place("bed", place, 0.37)
 	check(built and game.progress.plots.size() == 4, "placed bed receives a real production plot")
 	if not built:
 		printerr("FAIL: placement reason ", game.status)
 		call("quit", 1)
 		return
+	garden.open_development()
+	check(garden.build_button.disabled and build_choices.is_item_disabled(1)
+		and build_choices.get_item_tooltip(1) == "All researched bed spaces are used.",
+		"the picker disables another bed once the researched capacity is used")
+	garden.development_dialog.hide()
 	player.pos = game.stage.bed_position(3) + Vector3(0, 0, 1.43)
 	check(game.nearby_plot(player.pos) == 3 and game.plant_seed(game.HOST, 3), "real seed plants in the movable bed")
 	game.Transactions.run_gameplay(game, garden_scope, func(): game.progress.advance_growth(MATURE, false))
@@ -223,7 +289,7 @@ func run() -> void:
 	study_work = garden.assimilation.queue[0].done
 	research = game.progress.heart.work.flowering
 	player.pos = game.stage.gate_position()
-	game.map_rng.seed = 241
+	game.map_rng.seed = 16 # First floor rolls a clear seed; the second has an off-route cache.
 	game.PartyTravel.request(game, game.HOST, "depart")
 	for ignored in 3:
 		await process_frame
@@ -233,6 +299,14 @@ func run() -> void:
 		call("quit", 1)
 		return
 	var field: Field = game.battlefield
+	check(not field.has_seed_cache() and not game.stage.seed_cache.visible and not game.exploration.has_cache,
+		"a floor without a cache has neither a prop nor a map marker")
+	check(field.entry.distance_to(field.advance) > game.exploration.SIGHT
+		and not game.stage.experimental_exit.is_visible_in_tree()
+		and not game.stage.deeper_gate.is_visible_in_tree(),
+		"arrival is separated from the Gate and its marker stays hidden under unexplored fog")
+	check(field.can_spawn(game.enemy_pos) and game.scouts.all(func(scout): return field.can_spawn(scout.pos)),
+		"every live enemy is admitted to certified continuous terrain")
 	check(is_equal_approx(garden.assimilation.queue[0].done, study_work), "departure adds no extra work")
 	step_progress(game, 1.0)
 	check(is_equal_approx(garden.assimilation.queue[0].done, study_work + 3.0)
@@ -253,6 +327,12 @@ func run() -> void:
 	var old_enemy: Vector3 = game.enemy_pos
 	var goal := field.navigate(old_enemy, field.entry, 0.18, 1000)
 	check(goal != old_enemy and not field.occupied(goal, Field.Navigation.RADIUS), "bounded pursuit follows continuous clearance")
+	var garden_path: String = game.progress.path
+	var profile_path: String = game.local_character.path
+	var floor_before := save_digests(garden_path, profile_path)
+	var xp_before := class_xp(player)
+	var kills_before := kill_count(player)
+	var essence_before: int = player.essence_sparks
 	# Exercise actual hit and reward services with a decisive test hit for each spawned enemy.
 	for target in range(-1, game.scouts.size()):
 		if (game.enemy_hp if target == -1 else int(game.scouts[target].hp)) <= 0:
@@ -269,12 +349,53 @@ func run() -> void:
 				game.rng.state = before_roll
 				break
 		game.apply_weapon_hit(player, target, player.pos, stats, Time.get_ticks_msec())
+		if target == -1:
+			var frozen: Array = game.pending_kill_rewards.duplicate(true)
+			var drops: Array = game.wild_item_drops.duplicate(true)
+			var rng_state: int = game.rng.state
+			game.record_enemy_death(target, game.enemy_pos, player.pos)
+			check(game.pending_kill_rewards == frozen and game.wild_item_drops == drops and game.rng.state == rng_state,
+				"a duplicate death cannot reroll or grant rewards twice")
+			check(not game.encounter_cleared() and player.essence_sparks > essence_before and not drops.is_empty(),
+				"essence and collectible drops appear before the floor clears")
+			check(game.MonsterRewards.flush(game) and game.pending_kill_rewards == frozen
+				and save_digests(garden_path, profile_path) == floor_before
+				and class_xp(player) == xp_before and kill_count(player) == kills_before,
+				"the mid-floor flush leaves XP and kill counts pending without changing save bytes")
+	var expected_xp := xp_before + queued_xp(game)
+	var expected_kills: int = kills_before + game.pending_kill_rewards.size()
+	var expected_drops: Array = game.wild_item_drops.duplicate(true)
+	var expected_essence: int = player.essence_sparks
+	if DisplayServer.get_name() == "headless":
+		var saved_tally: Array = game.pending_kill_rewards.duplicate(true)
+		game.set_meta(&"guarded_gameplay_test_fault", func(phase: String, _path: String):
+			return ERR_CANT_CREATE if phase == "stage" else OK)
+		game.finish_combat(game.HOST, game.enemy_pos)
+		game.remove_meta(&"guarded_gameplay_test_fault")
+		check(not game.encounter_rewarded and game.pending_kill_rewards == saved_tally
+			and save_digests(garden_path, profile_path) == floor_before and class_xp(player) == xp_before
+			and player.essence_sparks == expected_essence and game.wild_item_drops == expected_drops,
+			"verified settlement abort restores the tally without rerolling or revoking live loot")
 	var rewarded: bool = game.MonsterRewards.flush(game)
 	game.finish_combat(game.HOST, game.enemy_pos)
 	check(game.encounter_rewarded, "the guarded combat settlement authorizes Gate progression")
+	check(game.pending_kill_rewards.is_empty() and class_xp(player) == expected_xp
+		and kill_count(player) == expected_kills and player.essence_sparks == expected_essence
+		and game.wild_item_drops == expected_drops and save_digests(garden_path, profile_path) != floor_before,
+		"floor clear commits XP and kill counts without repeating drops or essence")
+	var clear_digests := save_digests(garden_path, profile_path)
+	game.finish_combat(game.HOST, game.enemy_pos)
+	check(save_digests(garden_path, profile_path) == clear_digests and class_xp(player) == expected_xp,
+		"duplicate floor completion cannot commit the tally twice")
 	for ignored in 3:
 		await process_frame
 	check(rewarded and game.encounter_cleared() and game.stage.wild_portal.visible, "real kills settle and activate the Gate")
+	var carried_before: int = player.carried_seeds.size()
+	check(player.loot_pending, "the first floor rolled one clear seed")
+	game.collect_drop(player)
+	game.collect_drop(player)
+	check(not player.loot_pending and player.carried_seeds.size() == carried_before + 1,
+		"a floor clear reward grants only one seed and cannot be collected twice")
 	check(not game.wild_item_drops.is_empty() and Items.get_item(game.wild_item_drops[0].stack.item).category == "monster_part",
 		"real enemy-specific part drops use the production item catalog")
 	await _capture("cleared-gate")
@@ -288,13 +409,52 @@ func run() -> void:
 	player.pos = field.advance
 	game.use_checkpoint(game.HOST, true)
 	await process_frame
+	await process_frame
 	check(game.depth == 2 and game.battlefield is Field and not game.battlefield.generated.is_empty(), "the real Gate advances to another generated floor")
+	var next_field: Field = game.battlefield
+	check(next_field.entry.distance_to(Vector3(player.pos)) < 1.2
+		and next_field.entry.distance_to(next_field.advance) > game.exploration.SIGHT
+		and game.enemy_hp > 0 and not game.scouts.is_empty() and not game.encounter_cleared()
+		and (game.stage.experimental_exit.global_position - game.Stage.WILD_OFFSET).is_equal_approx(next_field.advance)
+		and not game.stage.deeper_gate.is_visible_in_tree() and not game.stage.wild_portal.visible,
+		"new floor spawns a live encounter and its own distant, sealed Gate")
+	check(next_field.has_seed_cache() and not game.stage.seed_cache.visible and not game.exploration.seen(next_field.cache)
+		and next_field._cache_site_clear(next_field.cache)
+		and not next_field.navigation_graph.route(next_field.planar(next_field.entry), next_field.planar(next_field.cache)).is_empty(),
+		"an undiscovered cache stays hidden in reachable space away from the Gate and arrival")
+	player.pos = next_field.cache
+	await process_frame
+	await process_frame
+	check(game.stage.seed_cache.visible and game.exploration.has_cache and game.exploration.seen(next_field.cache),
+		"the actual cache prop and map marker appear when discovered")
+	carried_before = player.carried_seeds.size()
+	game.act(game.HOST, false)
+	game.act(game.HOST, false)
+	await process_frame
+	await process_frame
+	check(player.cache_claimed and player.carried_seeds.size() == carried_before + 1 and not game.exploration.has_cache,
+		"the cache interaction grants one carried seed once and removes its map marker")
 	check(is_equal_approx(garden.assimilation.queue[0].done, study_work), "floor change does not reset or double-count work")
 	step_progress(game, 1.0)
 	check(is_equal_approx(garden.assimilation.queue[0].done, study_work + 3.0), "second Wilds floor uses the same clock")
 	study_work = garden.assimilation.queue[0].done
-	check(game.finish_failed_expedition(), "normal failed-expedition settlement banks the safe-pouch drop")
+	player.pos = Vector3(game.enemy_pos) + Vector3(0.1, 0, 0)
+	var last_hit: Dictionary = game.weapon_stats(player)
+	last_hit.damage = 10000
+	game.apply_weapon_hit(player, -1, player.pos, last_hit, Time.get_ticks_msec())
+	var loss_xp := class_xp(player) + queued_xp(game)
+	var loss_kills: int = kill_count(player) + game.pending_kill_rewards.size()
+	check(not game.encounter_cleared() and not game.pending_kill_rewards.is_empty(),
+		"the next floor has pending XP before the run ends")
+	game.damage_player(game.HOST, player, int(player.hp))
 	await process_frame
+	check(game.pending_kill_rewards.is_empty() and class_xp(player) == loss_xp and kill_count(player) == loss_kills,
+		"losing the run commits the partial floor's tally")
+	var stored_profile = game.Character.new()
+	stored_profile.path = profile_path
+	check(stored_profile.load_profile(false) == OK and stored_profile.data.xp == player.character.xp
+		and stored_profile.data.xp_tenths == player.character.xp_tenths and stored_profile.data.monsters == player.character.monsters,
+		"the loss settlement persisted exact XP and kill counts")
 	check(not player.wild and garden.state.revision == 2 and garden.bed_ids[3] == stable_id
 		and game.progress.plots[3].species == planted and garden.barrier.walkable(garden.planar(player.pos)),
 		"production return retains the session Garden and crop")
@@ -337,6 +497,38 @@ func run() -> void:
 	garden.development_dialog.hide()
 	check(garden.state.revision == 3 and garden.state.entrance_clear() and garden.bed_ids[3] == stable_id
 		and game.progress.plots[3].species == planted, "further growth preserves ownership, Gate and cultivation")
+	game.run_heart_save(func(): return game.progress.heart.start(game.progress, "irrigation"))
+	step_progress(game, game.progress.heart.duration("irrigation"))
+	player.pos = spring.position
+	view._process(0.0)
+	check(game.progress.heart.has("irrigation") and not view.points[spring.id].visible
+		and not GardenInteractions.allowed(game, spring) and not CropCare.spring_ready(game)
+		and not CropCare.fill_water(game, game.HOST) and not player.get("spring_water", false),
+		"Root Irrigation enables construction while the old site cannot supply water")
+	player.pos = Vector3(0, 0, 1.5)
+	var basin_site := Vector2.INF
+	var basin_approach := Vector2.INF
+	var pond_center: Vector2 = garden.state.layout.water[0].bounds.get_center()
+	for radius in [3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5]:
+		for index in 32:
+			var site := pond_center + Vector2.from_angle(index * TAU / 32) * float(radius)
+			if not garden._build_refusal("spring", site, 0.0, 0).is_empty():
+				continue
+			for direction: Vector2 in [Vector2.DOWN, Vector2.UP, Vector2.LEFT, Vector2.RIGHT]:
+				var approach := site + direction * 1.42
+				if garden.barrier.walkable(approach):
+					basin_site = site
+					basin_approach = approach
+					break
+			if basin_site.is_finite():
+				break
+		if basin_site.is_finite():
+			break
+	if check_spring_placement(game, garden, view, spring, basin_site):
+		player.pos = garden.world(basin_approach)
+		check(garden.barrier.walkable(basin_approach) and CropCare.fill_water(game, game.HOST)
+			and player.get("spring_water", false), "the built basin supplies water from a walkable approach")
+		check(not garden._placement_refusal("spring", 0).is_empty(), "an existing watering basin is relocated instead of duplicated")
 	var samples := 0
 	var query_peak := field.query_peak_usec
 	var route_failures := field.query_failures
@@ -359,6 +551,14 @@ func run() -> void:
 	var lair := Field.new()
 	lair.configure(0, 6, 241, 20, 0)
 	check(lair.generated.is_empty() and lair.boss_kind == 20 and lair.connected(), "boss uses its existing handcrafted lair")
+	check(not lair.has_seed_cache() and lair.clear_seed_count(6) == 0, "boss ambient seed rewards stay separate from authored rewards")
+	var repeat := Field.new()
+	repeat.configure(game.Campaign.GROVE, 2, 91301383)
+	check(repeat.has_seed_cache() and repeat.cache.is_equal_approx(next_field.cache)
+		and repeat.clear_seed_count(2) == next_field.clear_seed_count(2), "the same floor seed reproduces placement and drops")
+	var miss := Field.new()
+	miss.configure(game.Campaign.GROVE, 1, 1095491782)
+	check(not miss.has_seed_cache() and miss.clear_seed_count(1) == 0, "a floor can roll neither seed source")
 	print("M17_ROUTE peak_usec=", query_peak, " failures=", route_failures, " cases=", samples)
 	game.return_to_main_menu()
 	await process_frame
@@ -366,6 +566,17 @@ func run() -> void:
 	if errors == 0:
 		print("PASS: title, real cultivation, offerings, repeatable growth, generated combat, Gate and Garden return")
 	call("quit", int(errors > 0))
+
+func check_spring_placement(game: Node, garden: Node, view: Node, spring: Dictionary, site: Vector2) -> bool:
+	if not site.is_finite() or not garden.place("spring", site, 0.0):
+		check(false, "the unlocked basin can be placed near the pond")
+		return false
+	view._process(0.0)
+	check(view.points[spring.id].visible and view.points[spring.id].position == garden.world(site)
+		and game.stage.station_position("spring") == garden.world(site)
+		and GardenInteractions.allowed(game, spring) and CropCare.spring_ready(game),
+		"the built basin supplies the single Spring model, interaction marker and watering position")
+	return true
 
 func step_progress(game: Node, seconds: float) -> void:
 	game.growth_clock = seconds
@@ -390,6 +601,26 @@ func _capture(label: String) -> void:
 	for frame in 6:
 		await RenderingServer.frame_post_draw
 	check(root.get_texture().get_image().save_png(screenshots.path_join(label + ".png")) == OK, "saved " + label)
+
+func save_digests(garden_path: String, profile_path: String) -> Array[String]:
+	return [FileAccess.get_sha256(garden_path), FileAccess.get_sha256(profile_path)]
+
+func class_xp(player: Dictionary) -> int:
+	var frame: int = player.frame
+	return int(player.character.xp[frame]) * 10 + int(player.character.xp_tenths[frame])
+
+func kill_count(player: Dictionary) -> int:
+	var count := 0
+	for kills: int in player.character.monsters:
+		count += kills
+	return count
+
+func queued_xp(game: Node) -> int:
+	var total := 0
+	for kill: Dictionary in game.pending_kill_rewards:
+		for reward: Dictionary in kill.rewards:
+			total += int(reward.xp)
+	return total
 
 func _run_child() -> void:
 	var folder := "mg-terrain-" + Crypto.new().generate_random_bytes(16).hex_encode()

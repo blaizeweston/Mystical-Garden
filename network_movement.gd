@@ -69,9 +69,19 @@ func predict_step(game: Node,p: Dictionary,direction: Vector2,delta: float) -> v
  if p.get("fallen",false):p.velocity=Vector3.ZERO;return
  var field=game.stage.visual_field
  if p.wild and field!=null and field.configured_key!=Vector3i(game.destination,game.depth,game.map_seed):p.velocity=Vector3.ZERO;return
+ var experimental:=game.has_meta(&"experimental_terrain")
+ if p.wild and experimental and (field==null or field.boss_kind!=game.boss_kind or field.boss_phase!=game.boss_phase):
+  p.velocity=Vector3.ZERO
+  return
+ var garden=game.stage.experimental_garden if experimental else null
+ if not p.wild and garden!=null and (garden.remote_revision<0 or garden.remote_revision!=int(p.get("garden_layout_revision",-1))):
+  p.velocity=Vector3.ZERO
+  return
  var start: Vector3=p.pos
  var desired: Vector3=start+game.world_direction(direction)*game.WALK_SPEED*float(p.get("motion_scale",1.0))*delta
- if not p.wild and p.has("motion_radius"):
+ if not p.wild and garden!=null:
+  desired=garden.slide(start,desired)
+ elif not p.wild and p.has("motion_radius"):
   var flat:=Vector2(desired.x,desired.z).limit_length(float(p.motion_radius));desired=Vector3(flat.x,0,flat.y)
  elif p.wild and field!=null and field.procedural:
   desired.x=clampf(desired.x,field.REGION.position.x+.5,field.REGION.end.x-.5)

@@ -79,6 +79,51 @@ func startup(menu: Node) -> void:
  world.free()
  record("startup_claim_and_handoff", {"garden": garden_digest, "profile": profile_digest})
 
+func staggered_heartbeat(menu: Node) -> void:
+ var world = load("res://world.tscn").instantiate()
+ var garden: String = menu.storage.paths(0).garden
+ var profile: String = menu.characters.paths(0).character
+ var garden_marker := garden.get_base_dir().path_join("session.cfg")
+ var profile_marker := profile.get_base_dir().path_join("session.cfg")
+ var garden_digest := Slots._save_digest(garden)
+ var profile_digest := Slots._save_digest(profile)
+ world.set_meta(&"experimental_terrain", true)
+ world.progress.path = garden
+ world.local_character.path = profile
+ world.guest_character.path = profile
+ var owner := Session.new()
+ check(Session.completed(owner.start(world, menu.storage, 0, garden_digest, menu.characters, 0, profile_digest)),
+  "experimental session owns both leases before renewal")
+ var first_garden := Slots._save_digest(garden_marker)
+ var first_profile := Slots._save_digest(profile_marker)
+ owner._heartbeat_at -= 2.0
+ owner._profile_heartbeat_at -= 2.0
+ check(Session.completed(owner.tick()) and Slots._save_digest(garden_marker) != first_garden
+  and Slots._save_digest(profile_marker) == first_profile, "simultaneously due experimental leases publish only the Garden marker first")
+ var garden_after := Slots._save_digest(garden_marker)
+ var evidence := journal(profile, profile)
+ var journal_digest := Slots._save_digest(evidence)
+ check(owner.tick().state == "pending_recovery" and Slots._save_digest(evidence) == journal_digest
+  and Slots._save_digest(profile_marker) == first_profile and Slots._save_digest(garden_marker) == garden_after,
+  "pending profile recovery refuses the second renewal and preserves the evidence and both markers")
+ check(DirAccess.remove_absolute(evidence) == OK, "remove fixture-created journal")
+ owner._profile_heartbeat_at -= 2.0
+ check(Session.completed(owner.tick()) and Slots._save_digest(profile_marker) != first_profile
+  and Slots._save_digest(garden_marker) == garden_after, "eligible profile renews separately")
+ lease_marker(profile_marker, OS.get_process_id() + 1, 0)
+ var foreign := Slots._save_digest(profile_marker)
+ owner._heartbeat_at -= 2.0
+ check(owner.tick().error == ERR_UNAUTHORIZED and Slots._save_digest(profile_marker) == foreign
+  and Slots._save_digest(garden_marker) == garden_after, "foreign profile lease prevents either renewal")
+ check(Slots._save_digest(garden) == garden_digest and Slots._save_digest(profile) == profile_digest,
+  "experimental renewal only affects lease metadata")
+ owner.release()
+ check(Slots._save_digest(profile_marker) == foreign and not FileAccess.file_exists(garden_marker),
+  "experimental shutdown releases only its own marker")
+ check(DirAccess.remove_absolute(profile_marker) == OK, "remove fixture-created foreign marker")
+ world.free()
+ record("experimental_staggered_heartbeat", {"garden": garden_digest, "profile": profile_digest})
+
 func run() -> void:
  var legacy := Slots.new()
  var old = preload("res://progress.gd").new()
@@ -136,6 +181,7 @@ func run() -> void:
  menu.character_deletion.hide()
  menu.select_character(0)
  startup(menu)
+ staggered_heartbeat(menu)
 
  var empty_garden: String = menu.storage.paths(2).garden
  check(DirAccess.make_dir_recursive_absolute(empty_garden.get_base_dir()) == OK, "journal parent")

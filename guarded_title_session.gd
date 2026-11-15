@@ -15,6 +15,8 @@ var _profile_slot := -1
 var _garden_path := ""
 var _profile_path := ""
 var _heartbeat_at := 0.0
+var _profile_heartbeat_at := 0.0
+var _stagger_heartbeats := false
 
 static func outcome(boundary: Dictionary) -> Dictionary:
  if boundary.get("ran", false) and boundary.get("value") is Dictionary:
@@ -159,6 +161,8 @@ func start(world: Node, garden: RefCounted, garden_slot: int, garden_digest: Str
  if not completed(result):
   return _startup_failed(result)
  _heartbeat_at = Time.get_unix_time_from_system()
+ _stagger_heartbeats = world.has_meta(&"experimental_terrain") and _garden != null and _roster != null
+ _profile_heartbeat_at = _heartbeat_at - 0.5
  world.progress.require_guarded_access = true
  world.local_character.require_guarded_access = true
  world.guest_character.require_guarded_access = true
@@ -194,16 +198,23 @@ func reload_guest(profile: RefCounted) -> Error:
 
 func tick() -> Dictionary:
  var now := Time.get_unix_time_from_system()
- if now - _heartbeat_at < 1.0:
+ var garden_due := now - _heartbeat_at >= 1.0
+ # Keep one write per frame in the experimental session, with the same
+ # renewal interval for each marker. After a long frame, the Garden goes first.
+ var profile_due := now - _profile_heartbeat_at >= 1.0 and not garden_due if _stagger_heartbeats else garden_due
+ if not garden_due and not profile_due:
   return Ops.management_result(OK, "")
- _heartbeat_at = now
+ if garden_due:
+  _heartbeat_at = now
+ if profile_due:
+  _profile_heartbeat_at = now
  if not owns_leases():
   return Ops.management_result(ERR_UNAUTHORIZED, "stale_session_lease")
- if _garden != null:
+ if garden_due and _garden != null:
   var result := outcome(_garden.heartbeat_guarded(_garden_slot))
   if not completed(result) and (result.get("state") != "busy" or not owns_leases()):
    return result
- if _roster != null:
+ if profile_due and _roster != null:
   var result := outcome(_roster.heartbeat_guarded(_profile_slot))
   if not completed(result) and (result.get("state") != "busy" or not owns_leases()):
    return result

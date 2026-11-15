@@ -442,8 +442,6 @@ func build_hud() -> void:
 		if session=="Host":
 			network_dialog.begin_host(network_port,Network.lan_addresses(),"Your Garden",not expedition_active()))
 	join_button=add_button(session_actions,"Join by IP",request_ip_join)
-	host_button.visible = stage.experimental_garden == null
-	join_button.visible = stage.experimental_garden == null
 	leave_button=add_button(session_actions,"Leave Session",func():leave_game("Back in your own Garden."))
 	var exit_row:=HBoxContainer.new()
 	exit_row.add_theme_constant_override("separation",8)
@@ -611,7 +609,6 @@ func add_button(parent: Control, caption: String, action: Callable) -> Button:
 
 
 func host_game(port: int=0) -> Error:
-	if has_meta(&"experimental_terrain"): return ERR_UNAVAILABLE
 	if has_meta(Transactions.SESSION) and (not Transactions.session_writable(self) or not get_meta(Transactions.SESSION).authorizes(progress.path)):
 		status="Hosting requires access to your selected Garden."
 		return ERR_UNAUTHORIZED
@@ -717,7 +714,9 @@ func register_character(identity: String, profile: Dictionary,catalog: Dictionar
 
 
 func join_game(address: String="",port: int=0) -> Error:
-	if has_meta(&"experimental_terrain"): return ERR_UNAVAILABLE
+	if has_meta(&"experimental_terrain") and not joined_from_title:
+		status = "Return to the title to join an experimental Garden."
+		return ERR_UNAUTHORIZED
 	if has_meta("developer_garden"):
 		status="The Developer Garden is single-player."
 		return ERR_UNAVAILABLE
@@ -872,6 +871,9 @@ func _input(event: InputEvent) -> void:
 		return
 	if get_meta("garden_cinematic_active",false):return
 	if settings_dialog!=null and settings_dialog.visible: return
+	if stage != null and stage.experimental_garden != null and stage.experimental_garden.cancel_placement_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if preload("res://run_summary_panel.gd").handle_input(self,event):
 		get_viewport().set_input_as_handled()
 		return
@@ -902,7 +904,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if get_meta("garden_cinematic_active",false):return
 	if settings_dialog!=null and settings_dialog.visible: return
 	if stage.experimental_garden != null and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_B:
-		if stage.experimental_garden.available_here():
+		if stage.experimental_garden.can_view_development():
 			stage.experimental_garden.open_development()
 			get_viewport().set_input_as_handled()
 			return
@@ -1399,8 +1401,9 @@ func _donate_part(id: int, player: Dictionary, effects) -> void:
 func award_combat_progress() -> void:
 	MonsterRewards.flush(self)
 
-func settle_expedition_rewards(effects: Array[Callable]) -> void:
-	MonsterRewards.settle(self, effects)
+func settle_expedition_rewards(effects: Array[Callable], bank_kills := false) -> void:
+	if bank_kills or not MonsterRewards.checkpoint_only(self):
+		MonsterRewards.settle(self, effects)
 	for id in pending_departures:
 		var leaving: Dictionary = pending_departures[id]
 		if not leaving.get("seed_owner", "").is_empty(): record_character(id, leaving)
@@ -2108,7 +2111,10 @@ func send_expedition_state(delta: float,force := false) -> void:
 					guest.pouch, PackedByteArray(), now < rooted_until, longlimb, campaign_snapshot(), scout_snapshot(now).to_byte_array().compress(FileAccess.COMPRESSION_DEFLATE),net_view.snapshot_sent)
 		if force or next_details<=0:
 			next_details=maxf(0,next_details+.25)
-			var garden_bytes:=var_to_bytes(garden_snapshot()).compress(FileAccess.COMPRESSION_DEFLATE)
+			var shared_garden := garden_snapshot()
+			if stage.experimental_garden != null:
+				shared_garden.append(stage.experimental_garden.snapshot())
+			var garden_bytes:=var_to_bytes(shared_garden).compress(FileAccess.COMPRESSION_DEFLATE)
 			for peer_id in peers:
 				var details: Dictionary=player_snapshot(peer_id)[peer_id]
 				for key in player_snapshot(peer_id,false)[peer_id]: details.erase(key)
@@ -2589,7 +2595,7 @@ func _act(id: int, strike: bool) -> void:
 	elif p.wild and p.loot_pending and pos.distance_to(drop_pos) <= 1.45:
 		collect_drop(p)
 		tell(id,"Seeds collected.")
-	elif p.wild and battlefield.procedural and destination != Campaign.HEART and (
+	elif p.wild and battlefield.has_seed_cache() and destination != Campaign.HEART and (
 			not p.cache_claimed and pos.distance_to(battlefield.cache) <= 1.55):
 		var reserve := seed_reserve(p)
 		var kind := progress.roll_seed(reserve, p.carried_seeds, [], destination, rng.randf(), encounter_number)
@@ -2824,7 +2830,7 @@ func finish_combat(id: int,loot_position: Vector3) -> void:
 	if has_meta(Transactions.SESSION):
 		if not Transactions.session_writable(self) or not expedition_active() or encounter_rewarded or not encounter_cleared() or destination==Campaign.HEART: return
 		run_guarded_action(id, Transactions.Scope.PAIR, func(effects):
-			settle_expedition_rewards(effects)
+			settle_expedition_rewards(effects, true)
 			_finish_combat(id,loot_position,effects))
 		if not encounter_rewarded: reward_retry_at=Time.get_ticks_msec()+1000
 		return
@@ -2858,12 +2864,14 @@ func _finish_combat(id: int,loot_position: Vector3,effects = null) -> void:
 	if depth==ROUTE_ROOMS and destination<Campaign.HEART: run_guardians|=1 << destination;guardian_counts[destination]+=1
 	enemy_winding_up=false
 	drop_pos=loot_position
-	for player in players.values(): player.loot_pending=Life.alive(player)
+	var seeds_available := battlefield.clear_seed_count(depth) > 0
+	for player in players.values(): player.loot_pending=seeds_available and Life.alive(player)
 	refresh_drop()
 	if encounter_cleared():
 		var cue := "extract_ready" if extraction_checkpoint_open() else "gate_ready"
 		preload("res://event_audio.gd").emit(self,cue,battlefield.advance)
-	action_feedback(effects,id,"Encounter cleared. Press E near the glowing loot."+Learning.notice(previous_memory,progress.wilds_memory.score))
+	var clear_message := "Encounter cleared. Press E near the glowing loot." if has_drop else "Encounter cleared."
+	action_feedback(effects,id,clear_message+Learning.notice(previous_memory,progress.wilds_memory.score))
 
 
 func wild_entry(id: int) -> Vector3:
@@ -3068,7 +3076,7 @@ func finish_failed_expedition() -> bool:
 	return returned!=false
 
 func _finish_failed_expedition(effects = null) -> void:
-	if effects != null: settle_expedition_rewards(effects)
+	if effects != null: settle_expedition_rewards(effects, true)
 	for player in players.values():
 		if effects == null: recover_pouch(player)
 		else: _recover_pouch(player)
@@ -3115,7 +3123,9 @@ func refresh_drop() -> void:
 
 
 func collect_drop(player: Dictionary) -> void:
-	var count := 1 if depth == 1 else 2
+	if not player.get("loot_pending", false):
+		return
+	var count := battlefield.clear_seed_count(depth)
 	var reserve := seed_reserve(player)
 	var bundle: Array = []
 	for i in count:
@@ -3296,7 +3306,11 @@ func reset_encounter() -> void:
 	enemy_death_events.clear()
 	scouts.clear()
 	enemy_pos = Director.spawn(self,battlefield.leader,-1)
-	if enemy_pos==Vector3.INF: enemy_pos=clear_spawn(battlefield.leader)
+	if enemy_pos==Vector3.INF:
+		enemy_pos = clear_spawn(battlefield.leader)
+		if enemy_pos == Vector3.INF:
+			# A generated leader room is already certified for enemy clearance.
+			enemy_pos = battlefield.leader
 	enemy_kind = boss_kind if boss_kind>=0 else 9 if destination == Campaign.HEART else preload("res://elite_enemy.gd").select(self)
 	enemy_hp = encounter_health()
 	enemy_engaged = false
@@ -3320,6 +3334,13 @@ func reset_encounter() -> void:
 		scouts.append(make_scout(kind, spawn, i + 1, mutations, enemy_growth))
 	arrange_support_groups()
 	Director.Balance.trace_encounter(self,count)
+	if stage.experimental_garden != null and map_seed != 0:
+		preload("res://game_metrics.gd").record("experimental_floor", {
+			"seed": map_seed, "biome": destination, "floor": encounter_number,
+			"generated": not battlefield.generated.is_empty(),
+			"entry": [battlefield.entry.x, battlefield.entry.z],
+			"gate": [battlefield.advance.x, battlefield.advance.z],
+			"foes": 1 + scouts.size()})
 	longlimb = (enemy_mutations & Enemies.REACH)!=0
 	burst_hits_this_room = 0
 	choke_kills_this_room = 0
@@ -3351,7 +3372,7 @@ func clear_spawn(position: Vector3) -> Vector3:
 				if absf(candidate.x) <= Stage.WILD_BOUNDS.x and absf(candidate.z) <= Stage.WILD_BOUNDS.y and (
 						not battlefield.occupied(candidate, Battlefield.CLEARANCE)) and _experimental_spawn_reachable(candidate):
 					return candidate
-	return position
+	return position if _experimental_spawn_reachable(position) else Vector3.INF
 
 func _experimental_spawn_reachable(candidate: Vector3) -> bool:
 	return stage.experimental_garden == null or not battlefield.has_method("can_spawn") or battlefield.can_spawn(candidate)
@@ -3508,6 +3529,9 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 		var p: Dictionary = players[id]
 		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":(.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get("slow_until",0)) else 1.0),"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":p.get("party_slot",0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": p.wild, "fallen":p.fallen,"lost_health":p.get("lost_health",0), "hp": p.hp, "max_hp": p.get("max_hp", MAX_HEALTH), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
 			"attack_anim":attack_animation_snapshot(p),"skill_fx":p.get("skill_fx",{}) if Time.get_ticks_msec()<int(p.get("skill_fx_until",0)) else {}, "weapon_kind":p.get("weapon_kind",0), "core_part":p.weapon if p.wild else p.prepared, "pose": combat_pose(p), "wallet": run_wallet(p),"skill_ready":Time.get_ticks_msec()>=int(p.skill_at),"skill_two_ready":Time.get_ticks_msec()>=int(p.get("skill_two_at",0)),"skill_cooldowns":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get("skill_two_at",0))-Time.get_ticks_msec())/1000.0)]}
+		if stage.experimental_garden != null and not p.wild:
+			var garden = stage.experimental_garden
+			state["garden_layout_revision"] = garden.layout_revision if garden.reveal == null else -1
 		if id == viewer and include_details:
 			state["core_state"]=preload("res://core_combat.gd").owner_state(p,Time.get_ticks_msec(),get_meta("core_combat",{}).get(id,{}))
 			if p.wild:
@@ -3649,7 +3673,8 @@ func _process(_delta: float) -> void:
 	exploration.update_floor(stage.visual_field, "%d:%d:%d" % [destination, encounter_number, map_seed],
 		observer, stage.camera, wild, drop_pos, visible_drop,
 		not p.get("cache_claimed", false) and destination != Campaign.HEART, overlay.visible, graft_altar_open(),inventory_floor_snapshot(p) if multiplayer.is_server() else p.get("ground_items",[]))
-	stage.apply_exploration_sight(observer, wild, exploration.SIGHT)
+	stage.apply_exploration_sight(observer, wild, exploration.SIGHT,
+		exploration.seen(visual_field.advance) if is_instance_valid(stage.experimental_exit) else true)
 	preload("res://glasscap_visuals.gd").sync(stage,observer,exploration.SIGHT)
 	var carried: int = p.carried_seeds.size() if multiplayer.is_server() and wild else client_carried_count
 	title.text = "%s  ·  Encounter %d" % [Campaign.NAMES[destination], encounter_number] if wild else "Mystical Garden"
@@ -3695,7 +3720,7 @@ func _process(_delta: float) -> void:
 			detail_label.text = "Extract or continue."
 			if p.get("last_offer", 0) != encounter_number:
 				detail_label.text += "\nE  Choose upgrade cards   ·   %d essence available" % (run_wallet(p) if multiplayer.is_server() else int(p.get("wallet", 0)))
-		if visual_field.procedural and not p.get("cache_claimed", false) and (
+		if visual_field.has_seed_cache() and not p.get("cache_claimed", false) and (
 				visual_field.cache.distance_to(p.pos) <= 1.55 and destination != Campaign.HEART):
 			guide.text = "E  Search the abandoned clearing"
 		if graft_altar_open() and visual_field.graft.distance_to(p.pos) <= 1.65 and preload("res://gate_interaction.gd").shrine_preferred(visual_field,p.pos):
@@ -3717,7 +3742,7 @@ func _process(_delta: float) -> void:
 		skill_label.show()
 		session_label.text = "%s  ·  %d player(s)" % [session, players.size()]
 		if stage.experimental_garden != null:
-			session_label.text = "Experimental terrain · Solo" if stage._has_experimental_floor() else "Experimental solo · Legacy floor fallback"
+			session_label.text = "Experimental terrain · %s" % session if stage._has_experimental_floor() else "Experimental terrain · Special floor fallback"
 	else:
 		guide.text = ""
 	if not wild:
@@ -4405,7 +4430,7 @@ func abandon_run(id: int,player: Dictionary) -> void:
 	if not player.get("wild",false): return
 	if has_meta(Transactions.SESSION):
 		run_guarded_action(id, Transactions.Scope.PAIR, func(effects):
-			settle_expedition_rewards(effects)
+			settle_expedition_rewards(effects, true)
 			preload("res://garden_return_service.gd").outcome(self,player,"abandoned")
 			return_to_garden(player)
 			player.fallen=expedition_active()
@@ -5044,8 +5069,11 @@ func close_planting_picker() -> void:
 @rpc("authority","call_remote","reliable",1)
 func receive_details(payload: PackedByteArray,garden: PackedByteArray,inventory_data: Array,state_key: String) -> void:
 	var decoded=bytes_to_var(payload.decompress_dynamic(262144,FileAccess.COMPRESSION_DEFLATE))
-	var world=bytes_to_var(garden.decompress_dynamic(65536,FileAccess.COMPRESSION_DEFLATE))
+	var world=bytes_to_var(garden.decompress_dynamic(262144 if stage.experimental_garden != null else 65536,FileAccess.COMPRESSION_DEFLATE))
 	if not decoded is Dictionary or not world is Array or world.size()<13: return
+	if stage.experimental_garden != null:
+		if world.size() != 18 or not world[17] is Dictionary: return
+		stage.experimental_garden.receive_snapshot(world[17])
 	client_details=decoded;client_details_key=state_key;client_inventory=inventory_data;client_garden=world
 	set_meta("core_details_at",Time.get_ticks_msec())
 	var id:=multiplayer.get_unique_id()
@@ -5067,7 +5095,9 @@ func guest_combat_events(player: Dictionary) -> Array:
 	return result
 
 func request_ip_join() -> void:
-	if stage.experimental_garden != null: return
+	if stage.experimental_garden != null:
+		return_to_main_menu("Choose a character and join from the Co-op tab.")
+		return
 	var recent := Network.load_settings(slot_storage_root)
 	network_dialog.begin(recent.address,recent.port,true,str(local_character.data.get("name","Wanderer")))
 

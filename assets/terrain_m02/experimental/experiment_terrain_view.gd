@@ -23,11 +23,12 @@ static func plane(parent: Node3D, surface: ShaderMaterial, extent: float) -> Mes
 	parent.add_child(model)
 	return model
 
-static func draw_wilds(parent: Node3D, offset: Vector3, data: Dictionary, seed_value: int) -> void:
+static func draw_wilds(parent: Node3D, offset: Vector3, data: Dictionary, seed_value: int) -> Node3D:
 	var wild := Node3D.new()
 	wild.position = offset
 	parent.add_child(wild)
 	var shade := material(data.substrate, data.layout, seed_value, 14, 1.75)
+	shade.set_shader_parameter("terrain_origin", Vector2(wild.global_position.x, wild.global_position.z))
 	var climate: Dictionary = data.climate
 	var weights: Vector3 = climate.weights
 	shade.set_shader_parameter("wilds_mode", true)
@@ -41,4 +42,5 @@ static func draw_wilds(parent: Node3D, offset: Vector3, data: Dictionary, seed_v
 	plane(wild, shade, Boundary.exterior_extent(14, 1.75, parent.get_viewport().get_visible_rect().size))
 	var features := Features.new()
 	wild.add_child(features)
-	features.rebuild(data.layout, {}, 0, true)
+	features.rebuild(data.layout, {}, 0, true, true)
+	return features.massing.get_node("ExitGate")

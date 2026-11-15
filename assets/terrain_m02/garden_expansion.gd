@@ -44,7 +44,7 @@ func _init(cells: Dictionary, features: Dictionary, center_spacing: float, seed_
 	landmarks["living_archive"] = Shape.disk("living_archive", "station", Vector2(-0.90, -5.3), 0.97)
 	landmarks["spring"] = Shape.disk("spring", "station", Vector2(2.25, 5.01), 0.87)
 	if not protected_landmarks.is_empty():
-		for id in ["starter_bed", "seed_archive", "monster_studies", "living_archive"]:
+		for id in ["starter_bed", "seed_archive", "monster_studies", "living_archive", "spring"]:
 			landmarks.erase(id)
 		for landmark: Dictionary in protected_landmarks:
 			landmarks[landmark.id] = landmark

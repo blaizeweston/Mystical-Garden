@@ -8,6 +8,8 @@ const Campaign = preload("res://campaign.gd")
 const SPACING := 1.75
 const RADIUS := 14
 const REPATH_MS := 70
+const CACHE_CHANCE := 0.20
+const CLEAR_SEED_CHANCE := 0.40
 
 var generated := {}
 var ground: Surface
@@ -15,25 +17,51 @@ var navigation_graph: Navigation
 var retry_at := 0
 var query_peak_usec := 0
 var query_failures := 0
+var _seed_cache_present := false
+var _clear_seeds := 0
 
 func configure(site: int, encounter: int, map_seed: int = 0, boss: int = -1, phase: int = 0) -> void:
 	ground = null
 	navigation_graph = null
 	generated = {}
-	if map_seed != 0 and boss < 0 and site in [Campaign.GROVE, Campaign.MIRE, Campaign.HOLLOW]:
+	_seed_cache_present = false
+	_clear_seeds = 0
+	var normal_floor := map_seed != 0 and boss < 0 and site in [Campaign.GROVE, Campaign.MIRE, Campaign.HOLLOW]
+	var cache_rolled := false
+	if normal_floor:
+		# Separate deterministic rolls without advancing combat or layout RNG.
+		var rolls := ("wilds_seed_rewards/%d" % map_seed).sha256_buffer()
+		cache_rolled = float(rolls.decode_u32(0)) / 4294967296.0 < CACHE_CHANCE
+		_clear_seeds = int(float(rolls.decode_u32(4)) / 4294967296.0 < CLEAR_SEED_CHANCE)
 		var floor_number := site * 6 + clampi(encounter, 1, 6)
-		generated = Terrain.build(map_seed, floor_number, RADIUS, SPACING, Catalog, Terrain.Biomes.WINDOWS, true, true, true, true)
+		generated = Terrain.build(map_seed, floor_number, RADIUS, SPACING, Catalog, Terrain.Biomes.WINDOWS, true, true, true, true, true)
 		if not generated.is_empty() and _configure_floor(site, encounter, map_seed):
+			if cache_rolled:
+				var cache_random := RandomNumberGenerator.new()
+				cache_random.seed = rolls.decode_u32(8)
+				_seed_cache_present = _place_seed_cache(generated.layout, cache_random)
 			return
 		generated = {}
 		ground = null
 		navigation_graph = null
 	super(site, encounter, map_seed, boss, phase)
+	_seed_cache_present = cache_rolled and _cache_site_clear(cache) and connected()
+
+func has_seed_cache() -> bool:
+	return _seed_cache_present
+
+func clear_seed_count(_depth: int) -> int:
+	return _clear_seeds
 
 func _configure_floor(site: int, encounter: int, map_seed: int) -> bool:
 	var layout: Dictionary = generated.layout
-	ground = Surface.new(generated.cells, layout, SPACING)
-	navigation_graph = Navigation.new(ground)
+	if generated.has("navigation"):
+		navigation_graph = generated["navigation"]
+		generated.erase("navigation")
+		ground = navigation_graph.surface
+	else:
+		ground = Surface.new(generated.cells, layout, SPACING)
+		navigation_graph = Navigation.new(ground)
 	var nodes: Dictionary = layout.trail_network.nodes
 	if not navigation_graph.room_reachable("arrival", "exit_gate"):
 		return false
@@ -50,7 +78,6 @@ func _configure_floor(site: int, encounter: int, map_seed: int) -> bool:
 	advance = world(nodes.exit_gate)
 	leader = spawn_points[0]
 	graft = advance
-	cache = entry
 	# Place utility interactions in clear reachable space beside existing rooms.
 	var rooms_by_distance := spawn_points.duplicate()
 	rooms_by_distance.sort_custom(func(a: Vector3, b: Vector3): return a.distance_squared_to(advance) < b.distance_squared_to(advance))
@@ -58,11 +85,7 @@ func _configure_floor(site: int, encounter: int, map_seed: int) -> bool:
 		if place.distance_to(advance) > 2.1:
 			graft = place
 			break
-	for place: Vector3 in spawn_points:
-		if place.distance_to(entry) > 4.5 and place != graft:
-			cache = place
-			break
-	if graft == advance or cache == entry:
+	if graft == advance:
 		return false
 	configured_key = Vector3i(site, encounter, map_seed)
 	boss_kind = -1
@@ -77,6 +100,35 @@ func _configure_floor(site: int, encounter: int, map_seed: int) -> bool:
 	query_peak_usec = 0
 	query_failures = 0
 	return true
+
+func _place_seed_cache(layout: Dictionary, random: RandomNumberGenerator) -> bool:
+	var candidates := PackedVector2Array()
+	for room: Dictionary in layout.clearings:
+		if room.kind == "optional" and navigation_graph.room_reachable("arrival", room.id) and _cache_site_clear(world(room.center)):
+			candidates.append(room.center)
+	if candidates.is_empty():
+		for index in layout.paths.size():
+			var edge: Dictionary = layout.trail_network.edges[index]
+			if edge.get("bridge", false) or not navigation_graph.certified.has(edge.id) \
+					or not navigation_graph.room_reachable("arrival", edge.from):
+				continue
+			var spine: PackedVector2Array = layout.paths[index].spine
+			for point_index in range(2, spine.size() - 2, 6):
+				var center := spine[point_index]
+				var shoulder := (spine[point_index + 1] - spine[point_index - 1]).normalized().orthogonal() * 1.15
+				for point: Vector2 in [center + shoulder, center - shoulder]:
+					if _cache_site_clear(world(point)) and ground.travel(center, point).is_equal_approx(point):
+						candidates.append(point)
+	if candidates.is_empty():
+		return false
+	cache = world(candidates[random.randi_range(0, candidates.size() - 1)])
+	return true
+
+func _cache_site_clear(point: Vector3) -> bool:
+	if point.distance_squared_to(entry) < 25.0 or point.distance_squared_to(advance) < 25.0 \
+			or point.distance_squared_to(graft) < 9.0 or occupied(point, Navigation.RADIUS):
+		return false
+	return ground == null or not ground.Shape.in_any(ground.water, planar(point), Navigation.RADIUS)
 
 func floor_distance(position: Vector3) -> float:
 	if ground == null:

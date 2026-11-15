@@ -11,6 +11,7 @@ var fullscreen: CheckBox
 var vsync: CheckBox
 var indicator: CheckBox
 var fps: OptionButton
+var display_hint: Label
 var master: HSlider
 var effects: HSlider
 var music: HSlider
@@ -55,7 +56,7 @@ func _ready() -> void:
  fps=OptionButton.new()
  display.add_child(fps)
  for value in Settings.FPS:fps.add_item("Unlimited" if value==0 else str(value)+" FPS",int(value))
- label(display,"VSync may limit the frame rate to your monitor’s refresh rate.")
+ display_hint=label(display,"")
 
  var audio:=add_page(pages,"Audio")
  audio.add_theme_constant_override("separation",12)
@@ -142,6 +143,13 @@ func refresh() -> void:
  get_meta("garden_motion_toggle").button_pressed=draft.get("ambient_motion",true)
  get_meta("garden_cinematic_toggle").button_pressed=draft.get("garden_cinematics",true)
  fullscreen.button_pressed=draft.fullscreen;vsync.button_pressed=draft.vsync;indicator.button_pressed=draft.aim_indicator;fps.select(fps.get_item_index(int(draft.fps)));master.value=float(draft.master)*100;effects.value=float(draft.effects)*100
+ var refresh_hz := -1.0
+ if DisplayServer.get_name() != "headless":
+  refresh_hz = DisplayServer.screen_get_refresh_rate(DisplayServer.window_get_current_screen())
+ display_hint.text = "VSync can limit FPS to your display’s refresh rate."
+ if refresh_hz > 0.0:
+  display_hint.text = "Your display is running at %.0f Hz. With VSync on, higher FPS limits may have no effect." % refresh_hz
+ display_hint.text += "\nSelect Apply to use your changes."
  music.value=float(draft.music)*100
  ambience.value=float(draft.ambience)*100
  refresh_bindings()

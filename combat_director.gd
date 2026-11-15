@@ -30,7 +30,7 @@ static func spawn(game: Node,origin: Vector3,index: int) -> Vector3:
   var angle: float=(index+attempt)*2.39996
   var radius: float=0.0 if attempt==0 else 1.0+attempt*.35
   var candidate: Vector3=game.clear_spawn(origin+Vector3(cos(angle),0,sin(angle))*radius)
-  if candidate.distance_to(game.battlefield.entry)<float(config().spawn_entry_clearance) or game.battlefield.occupied(candidate,.4): continue
+  if not candidate.is_finite() or candidate.distance_to(game.battlefield.entry)<float(config().spawn_entry_clearance) or game.battlefield.occupied(candidate,.4): continue
   if index>=0 and candidate.distance_to(game.enemy_pos)<1.25: continue
   var clear:=true
   for other in game.scouts:

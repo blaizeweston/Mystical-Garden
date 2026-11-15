@@ -68,6 +68,7 @@ var attack_ring: MeshInstance3D
 var garden_portal: Node3D
 var wild_portal: Node3D
 var deeper_gate: Node3D
+var experimental_exit: Node3D
 var graft_altar: Node3D
 var wild_floor: StandardMaterial3D
 var briar_vines: MeshInstance3D
@@ -312,7 +313,7 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 		terrain_key = map_key
 		redraw_terrain(site, depth, campaign[8],boss,phase)
 		set_meta("rendered_lair",rendered_lair)
-	seed_cache.visible = visual_field.procedural and site != Campaign.HEART
+	seed_cache.visible = visual_field.has_seed_cache() and site != Campaign.HEART
 	var claimed: bool = players.get(local_id, {}).get("cache_claimed", false)
 	for kernel in cache_kernels:
 		kernel.visible = not claimed
@@ -664,12 +665,18 @@ func redraw_terrain(site: int, depth: int, map_seed: int,boss: int=-1,phase: int
 	for child in terrain.get_children():
 		terrain.remove_child(child)
 		child.queue_free()
+	experimental_exit = null
 	if visual_field.configured_key!=Vector3i(site,depth,map_seed) or visual_field.boss_kind!=boss or visual_field.boss_phase!=phase: visual_field.configure(site, depth, map_seed,boss,phase)
 	deeper_gate.position = visual_field.advance - DEEPER_GATE
 	graft_altar.position = WILD_OFFSET + visual_field.graft
 	wilderness_base.visible = not _has_experimental_floor()
+	if experimental_garden != null:
+		for detail: Node3D in deeper_gate.get_children():
+			if detail != wild_portal and not detail is Label3D:
+				detail.visible = not _has_experimental_floor()
 	if _has_experimental_floor():
-		preload("res://assets/terrain_m02/experimental/experiment_terrain_view.gd").draw_wilds(terrain, WILD_OFFSET, visual_field.generated, map_seed)
+		experimental_exit = preload("res://assets/terrain_m02/experimental/experiment_terrain_view.gd").draw_wilds(
+			terrain, WILD_OFFSET, visual_field.generated, map_seed)
 		return
 	var cover := visual_field.barriers
 	var random := RandomNumberGenerator.new()
@@ -1090,10 +1097,13 @@ func root_tube(surface: SurfaceTool, points: Array[Vector3], radius_start: float
 				surface.set_color(Color(grain, grain, grain))
 				surface.add_vertex(vertices[index])
 
-func apply_exploration_sight(position: Vector3, wild: bool, radius: float) -> void:
+func apply_exploration_sight(position: Vector3, wild: bool, radius: float, gate_seen: bool = true) -> void:
 	if not wild:
 		return
 	var observer := WILD_OFFSET + position
+	if is_instance_valid(experimental_exit):
+		experimental_exit.visible = gate_seen
+		deeper_gate.visible = gate_seen
 	foe.visible = foe.visible and foe.position.distance_to(observer) <= radius
 	attack_ring.visible = attack_ring.visible and attack_ring.position.distance_to(observer) <= radius
 	briar_vines.visible = briar_vines.visible and briar_vines.position.distance_to(observer) <= radius

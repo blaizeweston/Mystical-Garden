@@ -4,7 +4,7 @@ extends RefCounted
 const Boundary = preload("res://assets/terrain_m02/wilds_boundary.gd")
 const Roots = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
 
-static func build(border: Dictionary, seed_value: int) -> ArrayMesh:
+static func build(border: Dictionary, seed_value: int, steep_front: bool = false) -> ArrayMesh:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var strips: Array = border.rim
@@ -12,14 +12,20 @@ static func build(border: Dictionary, seed_value: int) -> ArrayMesh:
 		var strip: Dictionary = strips[i]
 		if strip.wet:
 			continue
-		_strip(tool, strip, strips[posmod(i - 1, strips.size())], strips[(i + 1) % strips.size()], seed_value)
+		_strip(tool, strip, strips[posmod(i - 1, strips.size())], strips[(i + 1) % strips.size()], seed_value, steep_front)
 	return tool.commit()
 
-static func _strip(tool: SurfaceTool, strip: Dictionary, previous: Dictionary, next: Dictionary, seed_value: int) -> void:
+static func _strip(tool: SurfaceTool, strip: Dictionary, previous: Dictionary, next: Dictionary,
+		seed_value: int, steep_front: bool) -> void:
 	var family: int = strip.family
 	var base: Color = [Color("#3d3827"), Color("#363e2c"), Color("#3d3734")][family]
 	var crest: Color = [Color("#526442"), Color("#575c40"), Color("#796351")][family]
 	var sections: Array[PackedVector3Array] = []
+	var profile := [Vector2(0.0, 0.0), Vector2(0.17, 0.58), Vector2(0.43, 1.0), Vector2(0.75, 0.73), Vector2(1.0, 0.0)]
+	if steep_front:
+		# Anchor the toe at the same line that blocks movement.
+		profile[1] = Vector2(0.08, 0.71)
+		profile[2] = Vector2(0.31, 1.0)
 	for i in strip.inner.size():
 		var a: Vector2 = strip.inner[i]
 		var b: Vector2 = strip.outer[i]
@@ -31,7 +37,9 @@ static func _strip(tool: SurfaceTool, strip: Dictionary, previous: Dictionary, n
 			elevation = 0.0 if previous.wet else 1.48
 		elif i == strip.inner.size() - 1:
 			elevation = 0.0 if next.wet else 1.48
-		for point in [Vector2(0.0, 0.0), Vector2(0.17, 0.58), Vector2(0.43, 1.0), Vector2(0.75, 0.73), Vector2(1.0, 0.0)]:
+		if steep_front:
+			elevation *= 1.42
+		for point: Vector2 in profile:
 			var at := a.lerp(b, point.x)
 			section.append(Vector3(at.x, maxf(0.013, point.y * elevation), at.y))
 		sections.append(section)

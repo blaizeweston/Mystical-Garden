@@ -8,6 +8,7 @@ const MAX_ENTRIES := 16384
 const IDENTITY := "user://playtest.identity"
 
 static var refusal := ""
+static var inspected := false
 
 static func build() -> Dictionary:
  var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(BUILD))

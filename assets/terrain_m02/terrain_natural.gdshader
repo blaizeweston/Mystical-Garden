@@ -4,6 +4,7 @@ uniform sampler2D cell_labels : filter_nearest, repeat_disable;
 uniform ivec2 label_origin;
 uniform float center_spacing = 1.75;
 uniform vec2 seed_offset;
+uniform vec2 terrain_origin;
 uniform sampler2D feature_distances : filter_linear, repeat_disable;
 uniform vec2 feature_origin;
 uniform vec2 feature_extent;
@@ -122,7 +123,7 @@ vec2 garden_edge(vec2 p) {
 }
 
 void fragment() {
-	vec2 p = world_xz;
+	vec2 p = world_xz - terrain_origin;
 	vec2 grain = p + seed_offset;
 	vec4 land;
 	float water;

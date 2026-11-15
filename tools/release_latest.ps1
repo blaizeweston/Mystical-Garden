@@ -1,5 +1,6 @@
-param([string]$Engine=(Join-Path $PSScriptRoot '../../Godot_v4.7.2-stable_win64_console.exe'),[Alias('Target')][string]$TargetPath='', [switch]$Full, [switch]$VerifyOnly, [string]$PlaytestVersion='', [string]$PlaytestCommit='', [string]$InputManifestSha256='')
+param([string]$Engine=(Join-Path $PSScriptRoot '../../Godot_v4.7.2-stable_win64_console.exe'),[Alias('Target')][string]$TargetPath='', [switch]$Full, [switch]$VerifyOnly, [string]$PlaytestVersion='', [string]$PlaytestCommit='', [string]$InputManifestSha256='', [switch]$ExperimentalTerrain)
 $ErrorActionPreference='Stop'
+if($ExperimentalTerrain -and -not $PlaytestVersion){throw 'Experimental terrain requires a versioned VerifyOnly build.'}
 $project=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 if($PlaytestVersion){
  if(-not $VerifyOnly -or $TargetPath -or $PlaytestVersion -cnotmatch '\A(?:0|[1-9][0-9]{0,5})\.(?:0|[1-9][0-9]{0,5})\.(?:0|[1-9][0-9]{0,5})-playtest\.[1-9][0-9]{0,5}\z' -or $PlaytestCommit -cnotmatch '\A[0-9a-f]{40}\z' -or $InputManifestSha256 -cnotmatch '\A[0-9a-f]{64}\z'){
@@ -73,6 +74,14 @@ if($PlaytestVersion){
  $metadata.input_manifest_sha256=$InputManifestSha256
  $metadata.save_root="Mystical Garden Playtest $PlaytestVersion"
  $metadata.persistence='legacy with native containment'
+ if($ExperimentalTerrain){
+  $mode=Get-Content -LiteralPath (Join-Path $project 'assets/terrain_m02/experimental/experiment_mode.gd') -Raw
+  $modeVersion=[regex]::Match($mode,'const NETWORK_VERSION := "([a-z0-9-]+)"')
+  if(-not $modeVersion.Success){throw 'Experimental terrain version is missing.'}
+  $metadata.terrain_mode=$modeVersion.Groups[1].Value
+  $metadata.persistence='guarded experimental sessions with a version-specific save root'
+  $metadata.persistence_label='experimental-terrain'
+ }
  $env:MYSTICAL_VALIDATION_DATA_DIR=$metadata.save_root
 }
 $metadata | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $project 'assets/content/build_manifest.json')

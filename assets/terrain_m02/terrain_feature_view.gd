@@ -38,7 +38,8 @@ func _group(label: String) -> Node3D:
 	add_child(group)
 	return group
 
-func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds: bool = false) -> Dictionary:
+func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds: bool = false,
+		integrated_wilds: bool = false) -> Dictionary:
 	var assets := variants
 	if not wilds:
 		if profile.is_empty():
@@ -96,13 +97,13 @@ func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds
 				break
 		_gate(gate_position, gate_yaw)
 	if layout.has("boundary"):
-		_build_boundary(layout.boundary, layout.seed)
+		_build_boundary(layout.boundary, layout.seed, integrated_wilds)
 	return {"plant_instances": layout.plants.size(), "rock_instances": layout.rocks.size(),
 		"instance_batches": batches.size()}
 
-func _build_boundary(border: Dictionary, seed_value: int) -> void:
+func _build_boundary(border: Dictionary, seed_value: int, integrated_wilds: bool) -> void:
 	var verge := MeshInstance3D.new()
-	verge.mesh = BoundaryMesh.build(border, seed_value)
+	verge.mesh = BoundaryMesh.build(border, seed_value, integrated_wilds)
 	verge.material_override = botanical_material
 	boundary_view.add_child(verge)
 	var batches := {}
@@ -110,6 +111,8 @@ func _build_boundary(border: Dictionary, seed_value: int) -> void:
 		var set := _wilds_assets(prop.family)
 		var assets: Array = set[prop.kind]
 		var asset: Dictionary = assets[prop.variant % assets.size()]
+		if integrated_wilds and prop.family == 0 and prop.kind == "tree":
+			asset = _scenic_grove_tree(prop.variant)
 		var bounds: AABB = asset.bounds
 		var scale: float = prop.height / bounds.size.y
 		if prop.kind == "root_arch":
@@ -120,6 +123,16 @@ func _build_boundary(border: Dictionary, seed_value: int) -> void:
 		_batch(boundary_view, batches[key])
 		var view := boundary_view.get_child(-1) as MultiMeshInstance3D
 		view.custom_aabb = AABB()
+		if integrated_wilds:
+			view.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+func _scenic_grove_tree(variant: int) -> Dictionary:
+	var key := "scenic_grove_%d" % variant
+	if not botanical_variants.has(key):
+		var mesh := RootMeshes.botanical(variant, "tree", Art.profile(1), 1, true)
+		mesh.surface_set_material(0, botanical_material)
+		botanical_variants[key] = _entry(key, mesh, null)
+	return botanical_variants[key]
 
 func _gate(at: Vector2, yaw: float) -> void:
 	if landmark_material == null:

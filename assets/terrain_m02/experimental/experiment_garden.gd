@@ -24,6 +24,8 @@ const Bark = preload("res://assets/terrain_m02/heart_bark.gdshader")
 const Spacing := 1.75
 const Radius := 14
 const Seed := 117
+const MAX_STUDIES := 32
+const STATIONS := {"study": "monster_studies", "archive": "seed_archive", "spring": "spring"}
 
 var game: Node
 var stage: Node3D
@@ -53,6 +55,7 @@ var grow: Button
 var review: Label
 var plans := {}
 var construction_kind: OptionButton
+var build_button: Button
 var building_picker: OptionButton
 var ghost: MeshInstance3D
 var build_kind := ""
@@ -61,11 +64,18 @@ var build_target := Vector2.INF
 var build_yaw := 0.0
 var reveal: Tween
 var growth_preview: MeshInstance3D
+var layout_revision := 0
+var remote_revision := -1
+var geometry := {}
+var remote_development := {}
+var development_controls: VBoxContainer
+var guest_review: Label
 
 func configure(world: Node, presentation: Node3D) -> void:
 	game = world
 	stage = presentation
 	stage.experimental_garden = self
+	stage.visual_field = preload("res://assets/terrain_m02/experimental/experiment_wilds.gd").new()
 	for node in [stage.garden_disc, stage.garden_edge, stage.legacy_garden_base, stage.legacy_gate, stage.legacy_altar, stage.heart_tree, stage.heart_seed]:
 		node.hide()
 	game.progress.player_placed_beds = true
@@ -79,9 +89,7 @@ func configure(world: Node, presentation: Node3D) -> void:
 	for index in 3:
 		var point: Vector3 = stage.PLOTS[index]
 		protections.append(Shapes.disk("bed_%d" % index, "plot", planar(point), 1.06))
-	for id: String in ["altar", "spring"]:
-		var at := Vector2(-3.5, -2) if id == "altar" else Vector2(6.0, 1.5)
-		protections.append(Shapes.disk(id, "station", at, 0.88))
+	protections.append(Shapes.disk("altar", "station", Vector2(-3.5, -2), 0.88))
 	for row: Dictionary in protections:
 		layout.rocks = layout.rocks.filter(func(rock): return not Shapes.in_any([rock], row.center, row.radius + 0.55))
 		layout.plants = layout.plants.filter(func(plant): return plant.center.distance_to(row.center) > row.radius + 0.65)
@@ -131,7 +139,6 @@ func configure(world: Node, presentation: Node3D) -> void:
 	gate.material_override = colors
 	stage.build_gate_swirl(self, landmark("wilds_entrance"))
 	_make_station("altar", "altar", landmark("altar"), 0.0)
-	_make_station("spring", "spring", landmark("spring"), 0.0)
 	_initialize_controls()
 
 func show_heart_stage(index: int) -> void:
@@ -212,6 +219,11 @@ func _update_rim(previous: PackedFloat32Array, progress: float = 1.0) -> void:
 func available_here() -> bool:
 	return _may_place() and game.at_heart(game.players[game.HOST])
 
+func can_view_development() -> bool:
+	if game.multiplayer.is_server():
+		return available_here()
+	return game.session == "Guest" and remote_revision >= 0 and game.at_heart(game.players.get(game.local_player_id(), {}))
+
 func open_offerings() -> void:
 	if not available_here():
 		game.tell(game.HOST, "Visit the Heart to offer shared parts.")
@@ -235,6 +247,9 @@ func _shared_free(player: Dictionary, part: int) -> int:
 
 func contribute(quote: Dictionary) -> bool:
 	if not available_here() or quote.is_empty() or not quote.get("items") is Dictionary:
+		return false
+	if assimilation.queue.size() >= MAX_STUDIES:
+		game.tell(game.HOST, "The Heart's study queue is full.")
 		return false
 	var outcome := Tx.run_gameplay(game, Tx.Scope.GARDEN, func() -> bool:
 		if funds.quote(quote.items) != quote:
@@ -315,6 +330,7 @@ func expand(sector: int) -> bool:
 	var outline := state.outline
 	if not state.apply(plan):
 		return false
+	layout_revision += 1
 	funds.energy -= cost
 	barrier.begin_shape(outline, state.outline)
 	barrier.update_shape(0.0)
@@ -343,26 +359,124 @@ func expand(sector: int) -> bool:
 	reveal.finished.connect(func(): reveal = null)
 	return true
 
+func snapshot() -> Dictionary:
+	if geometry.get("revision", -1) != layout_revision:
+		var buildings: Array = []
+		for id: int in construction.records:
+			var record: Dictionary = construction.records[id]
+			buildings.append([id, record.kind, record.at, record.yaw, bed_ids.find_key(id)])
+		geometry = {"revision": layout_revision, "outline": state.outline, "owned": state.owned.duplicate(),
+			"growth": state.expansion_history.duplicate(), "roots": network.duplicate(true), "buildings": buildings}
+	var tier := clearing_tier()
+	if geometry.get("tier", -1) != tier:
+		geometry.tier = tier
+		geometry.frontiers = []
+		if tier > 0:
+			for proposal in state.frontier_options():
+				geometry.frontiers.append([Garden.DIRECTIONS[proposal.sector], funds.expansion_cost(proposal, state.reclaimed_cells, tier)])
+	return {"layout": geometry, "energy": funds.energy, "study": assimilation.summary(), "queue": assimilation.queue.duplicate(true)}
+
+func receive_snapshot(snapshot_data: Dictionary) -> void:
+	if game.multiplayer.is_server():
+		return
+	var layout: Dictionary = snapshot_data.get("layout", {})
+	var incoming: int = layout.get("revision", -1)
+	if incoming < remote_revision or not layout.get("outline") is PackedVector2Array:
+		return
+	if incoming != remote_revision:
+		_apply_layout(layout)
+		remote_revision = incoming
+	remote_development = snapshot_data
+	_set_study_glow(0.22 if not snapshot_data.get("queue", []).is_empty() else 0.0)
+	if development_dialog.visible:
+		_refresh_guest_review()
+
+func _apply_layout(layout: Dictionary) -> void:
+	var previous := state.enclosure_support()
+	barrier.begin_shape(state.outline, layout.outline)
+	state.outline = layout.outline
+	state.owned = layout.owned
+	state.expansion_history.assign(layout.growth)
+	state.revision = state.expansion_history.size()
+	barrier.update_shape(1.0)
+	_update_rim(previous)
+	for index in range(network.size(), layout.roots.size()):
+		var plan: Dictionary = layout.roots[index]
+		var root := MeshInstance3D.new()
+		root.mesh = Roots.mesh(plan)
+		var shader := ShaderMaterial.new()
+		shader.shader = Bark
+		root.material_override = shader
+		roots.add_child(root)
+	network.assign(layout.roots)
+	construction.set_roots(network)
+	construction.records.clear()
+	station_ids.clear()
+	bed_ids.clear()
+	for building: Array in layout.buildings:
+		var id: int = building[0]
+		var kind: String = building[1]
+		var at: Vector2 = building[2]
+		var yaw: float = building[3]
+		construction.records[id] = {"id": id, "kind": kind, "at": at, "yaw": yaw,
+			"footprint": construction.footprint(kind, at, yaw)}
+		if kind == "bed":
+			bed_ids[building[4]] = id
+		else:
+			station_ids[STATIONS[kind]] = id
+			_make_station(str(id), Build.CATALOG[kind].art, world(at), yaw)
+	construction._sync_obstacles()
+	stage.plot_key = ""
+
+func _refresh_guest_review() -> void:
+	var study: Dictionary = remote_development.get("study", {})
+	var lines := PackedStringArray(["The host manages Garden development.",
+		"Growth energy %d · Pending Knowledge %d" % [int(remote_development.get("energy", 0)), int(study.get("pending", 0))]])
+	for frontier_data: Array in remote_development.get("layout", {}).get("frontiers", []):
+		lines.append("%s frontier · %d energy" % frontier_data)
+	for entry: Dictionary in remote_development.get("queue", []).slice(0, 4):
+		lines.append("%s · %d%%" % [entry.name, roundi(100.0 * entry.done / entry.required)])
+	var remaining: int = remote_development.get("queue", []).size() - 4
+	if remaining > 0:
+		lines.append("%d more queued studies" % remaining)
+	guest_review.text = "\n".join(lines)
+
 func _required(kind: String) -> String:
 	return {"bed": "plot_4", "study": "monster_studies", "archive": "seed_archive", "spring": "irrigation"}.get(kind, "")
 
-func _build_refusal(kind: String, target: Vector2, yaw: float, moving: int) -> String:
+func _placement_refusal(kind: String, moving: int) -> String:
 	if not _may_place():
-		return "Construction requires an active experimental solo Garden."
-	if moving == 0:
-		if not game.progress.heart.has(_required(kind)) or (kind == "spring" and not game.progress.heart.has("clearing_1")):
-			return "Research the required capability at the Heart first."
-		if kind == "bed":
-			var cap := 3
-			for entry: Dictionary in Catalog.DEFINITIONS:
-				if entry.has("plots") and game.progress.heart.has(entry.id):
-					cap = maxi(cap, int(entry.plots))
-			if game.progress.plots.size() >= cap:
-				return "All researched bed spaces are used."
+		return "The host manages construction in the Garden."
+	if not Build.CATALOG.has(kind):
+		return "Choose a Garden structure."
+	if moving != 0:
+		if not construction.records.has(moving) or construction.records[moving].kind != kind:
+			return "Select a placed structure to move."
+		return ""
+	var research := _required(kind)
+	if not game.progress.heart.has(research):
+		return "Research %s at the Heart first." % Catalog.get_node(research).name
+	if kind == "spring" and not game.progress.heart.has("clearing_1"):
+		return "Research Reaching Roots at the Heart first."
+	if kind == "spring" and station_ids.has("spring"):
+		return "The Garden already has a watering basin. Use Move selected structure."
+	if kind == "bed":
+		var cap := 3
+		for entry: Dictionary in Catalog.DEFINITIONS:
+			if entry.has("plots") and game.progress.heart.has(entry.id):
+				cap = maxi(cap, int(entry.plots))
+		if game.progress.plots.size() >= cap:
+			return "All researched bed spaces are used."
+	return ""
+
+func _build_refusal(kind: String, target: Vector2, yaw: float, moving: int) -> String:
+	var refusal := _placement_refusal(kind, moving)
+	if not refusal.is_empty():
+		return refusal
 	return construction.validate(kind, target, yaw, planar(game.players[game.HOST].pos), moving)
 
 func _may_place() -> bool:
-	if not game.players.has(game.HOST) or not game.multiplayer.is_server() or game.online_peer != null:
+	if not game.players.has(game.HOST) or not game.multiplayer.is_server() or not game.slot_claimed:
 		return false
 	var player: Dictionary = game.players[game.HOST]
 	return not player.wild and not player.fallen and game.travel_kind.is_empty() and reveal == null and Tx.session_writable(game)
@@ -384,12 +498,13 @@ func place(kind: String, target: Vector2, yaw: float, moving: int = 0) -> bool:
 	var id := construction.commit(kind, target, yaw, planar(game.players[game.HOST].pos), moving)
 	if id == 0:
 		return false
+	layout_revision += 1
 	if kind == "bed":
 		if moving == 0:
 			bed_ids[slot] = id
 		stage.plot_key = ""
 	else:
-		var station: String = {"study": "monster_studies", "archive": "seed_archive", "spring": "spring"}[kind]
+		var station: String = STATIONS[kind]
 		station_ids[station] = id
 		_make_station(str(id), Build.CATALOG[kind].art, world(target), yaw)
 	game.tell(game.HOST, Build.CATALOG[kind].name + (" relocated." if moving else " built."))
@@ -408,7 +523,12 @@ func _initialize_controls() -> void:
 	development_dialog.visibility_changed.connect(func():
 		if not development_dialog.visible: growth_preview.mesh = null)
 	var controls := VBoxContainer.new()
+	development_controls = controls
 	development_dialog.add_child(controls)
+	guest_review = Label.new()
+	guest_review.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	development_dialog.add_child(guest_review)
+	guest_review.hide()
 	var offering_button := Button.new()
 	offering_button.text = "Heart offerings and studies"
 	offering_button.pressed.connect(func():
@@ -428,11 +548,9 @@ func _initialize_controls() -> void:
 	review = Label.new()
 	controls.add_child(review)
 	construction_kind = OptionButton.new()
-	for kind: String in Build.CATALOG:
-		construction_kind.add_item(Build.CATALOG[kind].name)
-		construction_kind.set_item_metadata(construction_kind.item_count - 1, kind)
 	controls.add_child(construction_kind)
-	var build_button := Button.new()
+	construction_kind.item_selected.connect(func(index: int): build_button.disabled = index <= 0)
+	build_button = Button.new()
 	build_button.text = "Start placement"
 	build_button.pressed.connect(func():
 		begin_placement(construction_kind.get_selected_metadata()))
@@ -447,10 +565,36 @@ func _initialize_controls() -> void:
 			begin_placement(construction.records[id].kind, id))
 	controls.add_child(relocate)
 
+func _refresh_build_choices() -> void:
+	var previous: Variant = construction_kind.get_selected_metadata() if construction_kind.selected >= 0 else null
+	construction_kind.clear()
+	construction_kind.add_item("Choose an unlocked structure")
+	construction_kind.set_item_metadata(0, "")
+	var selected := 0
+	for kind: String in Build.CATALOG:
+		var refusal := _placement_refusal(kind, 0)
+		construction_kind.add_item(Build.CATALOG[kind].name)
+		var index := construction_kind.item_count - 1
+		construction_kind.set_item_metadata(index, kind)
+		construction_kind.set_item_disabled(index, not refusal.is_empty())
+		construction_kind.set_item_tooltip(index, refusal)
+		if refusal.is_empty() and (selected == 0 or previous == kind):
+			selected = index
+	construction_kind.select(selected)
+	build_button.disabled = selected == 0
+
 func open_development() -> void:
+	if not game.multiplayer.is_server():
+		if can_view_development():
+			development_controls.hide()
+			guest_review.show()
+			_refresh_guest_review()
+			development_dialog.popup_centered(Vector2i(470, 360))
+		return
 	if not available_here():
 		game.tell(game.HOST, "Visit the Heart to manage Garden growth and construction.")
 		return
+	_cancel_placement()
 	plans.clear()
 	frontier.clear()
 	frontier.add_item("Choose a frontier", -1)
@@ -465,6 +609,7 @@ func open_development() -> void:
 	review.text = "Research Reaching Roots to expand." if clearing_tier() <= 0 else "%d growth energy held." % funds.energy
 	if plans.is_empty() and clearing_tier() > 0:
 		review.text = "No frontier fits inside this generated Garden."
+	_refresh_build_choices()
 	building_picker.clear()
 	for id: int in construction.records:
 		building_picker.add_item("%s #%d" % [Build.CATALOG[construction.records[id].kind].name, id], id)
@@ -491,18 +636,30 @@ func _preview_growth() -> void:
 			growth_preview.mesh = mesh_builder.commit()
 
 func begin_placement(kind: String, moving: int = 0) -> void:
+	var refusal := _placement_refusal(kind, moving)
+	if not refusal.is_empty():
+		game.tell(game.HOST, refusal)
+		return
 	development_dialog.hide()
+	_cancel_placement()
 	build_kind = kind
 	build_moving = moving
 	build_yaw = float(construction.records[moving].yaw) if moving else 0.0
-	game.tell(game.HOST, "Aim to build · Q/E rotate · Click to confirm · Esc cancels.")
+	game.tell(game.HOST, "Aim to build · Q/E rotate · Click to place · Esc or right-click cancels.")
+
+func cancel_placement_input(event: InputEvent) -> bool:
+	if build_kind.is_empty():
+		return false
+	var right_click: bool = event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT
+	if not event.is_action_pressed("session_menu") and not right_click:
+		return false
+	_cancel_placement()
+	game.tell(game.HOST, "Placement cancelled.")
+	return true
 
 func placement_input(event: InputEvent) -> bool:
 	if build_kind.is_empty():
 		return false
-	if event is InputEventKey and event.pressed and event.physical_keycode == KEY_ESCAPE:
-		_cancel_placement()
-		return true
 	if event is InputEventKey and event.pressed and event.physical_keycode in [KEY_Q, KEY_E]:
 		build_yaw += deg_to_rad(15.0) * (1 if event.physical_keycode == KEY_E else -1)
 		_show_ghost()
@@ -531,11 +688,14 @@ func _show_ghost() -> void:
 	ghost.rotation.y = -build_yaw
 	var refusal := _build_refusal(build_kind, build_target, build_yaw, build_moving)
 	ghost.material_override.albedo_color = Color("#74e2b299") if refusal.is_empty() else Color("#ec8a78bb")
-	game.tell(game.HOST, "Click to place · Q/E rotate · Esc cancels." if refusal.is_empty() else refusal)
+	var instruction := "Click to place · Q/E rotate" if refusal.is_empty() else refusal
+	game.tell(game.HOST, instruction + " · Esc or right-click cancels.")
 
 func _cancel_placement() -> void:
 	build_kind = ""
+	build_moving = 0
 	build_target = Vector2.INF
+	build_yaw = 0.0
 	if ghost != null:
 		ghost.queue_free()
 		ghost = null

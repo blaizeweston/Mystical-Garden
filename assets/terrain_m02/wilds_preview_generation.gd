@@ -15,7 +15,7 @@ const Field = preload("res://assets/terrain_m02/terrain_generator.gd")
 
 static func build(seed_value: int, floor_number: int, radius: int, spacing: float, catalog,
 		windows: Array = Biomes.WINDOWS, massed: bool = false, bounded: bool = false,
-		varied: bool = false, combat_navigation: bool = false) -> Dictionary:
+		varied: bool = false, combat_navigation: bool = false, retain_navigation: bool = false) -> Dictionary:
 	var climate := Biomes.climate(floor_number, windows)
 	if varied:
 		var last_navigation_failure := {}
@@ -27,6 +27,8 @@ static func build(seed_value: int, floor_number: int, radius: int, spacing: floa
 			var surface := Surface.new(result.cells, trial, spacing)
 			var simulation := Combat.new(surface) if combat_navigation else Simulation.new(surface)
 			if simulation.ready and simulation.reachable.size() == trial.trail_network.nodes.size():
+				if retain_navigation and combat_navigation:
+					result["navigation"] = simulation.navigation
 				return result
 			if combat_navigation and simulation.reachable.size() == trial.trail_network.nodes.size():
 				last_navigation_failure = result

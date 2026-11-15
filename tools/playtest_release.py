@@ -356,7 +356,8 @@ def _retail_probes(stage, pack, metadata, env, desktop_profile):
     sandbox = stage / "retail"
     sandbox.mkdir()
     version = metadata["playtest_version"]
-    ready = re.compile(rf"(?m)^PLAYTEST READY: {re.escape(version)} . protocol {metadata['protocol']} . legacy-contained$")
+    persistence_label = metadata.get("persistence_label", "legacy-contained")
+    ready = re.compile(rf"(?m)^PLAYTEST READY: {re.escape(version)} . protocol {metadata['protocol']} . {re.escape(persistence_label)}$")
     backend = "PLAYTEST BLOCKED: The playtest persistence library is missing or incompatible."
     expected_errors = [
         'Condition "!FileAccess::exists(path)" is true. Returning: ERR_FILE_NOT_FOUND',
@@ -506,11 +507,17 @@ def bundle(stage, pack, project, metadata, checks, retail):
         shutil.copyfile(credits, extension / credits.name)
     version = metadata["playtest_version"]
     readme = (project / "tools/README_PLAYTEST.txt").read_text(encoding="utf-8")
+    if metadata.get("terrain_mode"):
+        readme += ("\nExperimental co-op\nEnable co-op when creating a Garden to host. "
+                   "On each guest, choose a character and use Co-op > Join by IP from the title. "
+                   "Everyone needs the same build.\nGarden expansion, structures, growth energy and pending studies "
+                   "last for the host session. Rejoin while that session is running to see its current Garden.\n")
     (payload / "README_PLAYTEST.txt").write_text(readme.replace("@VERSION@", version).replace("@ROOT@", metadata["save_root"]), encoding="utf-8")
     info = {
         "version": version, "git_commit": metadata["git_commit"], "git_tag": None,
         "created_utc": metadata["built_utc"], "godot": metadata["godot_version"], "target": "Windows x86_64",
-        "multiplayer_protocol": metadata["protocol"], "persistence": "legacy route with native containment",
+        "multiplayer_protocol": metadata["protocol"], "persistence": metadata.get("persistence", "legacy route with native containment"),
+        "terrain_mode": metadata.get("terrain_mode", "legacy"),
         "save_root": "%APPDATA%/" + metadata["save_root"], "compatibility": "Exact version and commit only. No automatic import.",
         "source_run_id": checks["source_run_id"], "package_run_id": checks["package_run_id"],
         "exe_sha256": sha(payload / GAME), "native_dll_sha256": sha(payload / evidence.LOCK_LIBRARY),
@@ -664,6 +671,8 @@ def build(args):
         release_args = [shell, "-NoProfile", "-File", project / "tools/release_latest.ps1", "-VerifyOnly",
                         "-PlaytestVersion", version, "-PlaytestCommit", revision, "-InputManifestSha256", inputs,
                         "-Engine", engine]
+        if args.experimental_terrain:
+            release_args.append("-ExperimentalTerrain")
         if roots.configured:
             env["MYSTICAL_PLAYTEST_EXPORT_ROOT"] = str(export_root)
         run(release_args, project, env, output / "verifyonly.log")
@@ -671,6 +680,8 @@ def build(args):
         pack = Path(package["path"])
         metadata = evidence.read_json(project / "assets/content/build_manifest.json")
         source_dll = project / evidence.LOCK_RESOURCE
+        if bool(metadata.get("terrain_mode")) != args.experimental_terrain:
+            raise ValueError("Staged build terrain mode does not match the request.")
         if (metadata["playtest_version"] != version or metadata["git_commit"] != revision
                 or metadata["input_manifest_sha256"] != inputs or pack.name != GAME
                 or pack.parent.parent != export_root or sha(pack) != package["sha256"]
@@ -828,6 +839,7 @@ def main():
     parser.add_argument("--config")
     parser.add_argument("--expected-revision")
     parser.add_argument("--approve", action="store_true")
+    parser.add_argument("--experimental-terrain", action="store_true")
     parser.add_argument("--plan", action="store_true")
     parser.add_argument("--history", action="append", default=[])
     parser.add_argument("--expected-zip")

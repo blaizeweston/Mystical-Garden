@@ -5,6 +5,7 @@ const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const CLEARANCE := 0.34
 const SAMPLE_STEP := 0.13
+const EDGE_BUCKET_SIZE := 2.0
 
 var cells: Dictionary
 var spacing: float
@@ -12,6 +13,8 @@ var layout: Dictionary
 var blockers: Array = []
 var arena := {}
 var water: Array
+var arena_outline := PackedVector2Array()
+var arena_edges := {}
 
 func _init(labels: Dictionary, features: Dictionary, cell_spacing: float) -> void:
 	cells = labels
@@ -21,6 +24,8 @@ func _init(labels: Dictionary, features: Dictionary, cell_spacing: float) -> voi
 	water = layout.water
 	if layout.has("boundary"):
 		arena = layout.boundary.playable
+		arena_outline = arena.outline
+		_index_arena_edges()
 		water = layout.boundary.water
 		for strip in layout.boundary.rim:
 			if not strip.wet:
@@ -31,7 +36,7 @@ func _init(labels: Dictionary, features: Dictionary, cell_spacing: float) -> voi
 
 func walkable(point: Vector2, radius: float = CLEARANCE) -> bool:
 	if not arena.is_empty():
-		if Shape.signed_distance(arena, point, radius + 0.01) >= -radius:
+		if not _contains_clearance(point, radius):
 			return false
 	else:
 		if not cells.has(Grid.world_to_cell(point, spacing)):
@@ -61,7 +66,7 @@ func clear_line(from: Vector2, to: Vector2, radius: float = 0.0) -> bool:
 	if arena.is_empty():
 		if not cells.has(Grid.world_to_cell(from, spacing)) or not cells.has(Grid.world_to_cell(to, spacing)):
 			return false
-	elif not Shape.contains(arena, from) or not Shape.contains(arena, to):
+	elif not Geometry2D.is_point_in_polygon(from, arena_outline) or not Geometry2D.is_point_in_polygon(to, arena_outline):
 		return false
 	var bounds := Rect2(min_point, max_point - min_point).grow(radius + 0.001)
 	for block in blockers:
@@ -69,6 +74,39 @@ func clear_line(from: Vector2, to: Vector2, radius: float = 0.0) -> bool:
 			continue
 		if _hits_block(from, to, radius, block):
 			return false
+	return true
+
+func _edge_bucket(point: Vector2) -> Vector2i:
+	return Vector2i((point / EDGE_BUCKET_SIZE).floor())
+
+func _index_arena_edges() -> void:
+	var previous := arena_outline[-1]
+	for point in arena_outline:
+		var first := _edge_bucket(previous.min(point))
+		var last := _edge_bucket(previous.max(point))
+		var edge := PackedVector2Array([previous, point])
+		for y in range(first.y, last.y + 1):
+			for x in range(first.x, last.x + 1):
+				var bucket := Vector2i(x, y)
+				if not arena_edges.has(bucket):
+					arena_edges[bucket] = []
+				arena_edges[bucket].append(edge)
+		previous = point
+
+func _contains_clearance(point: Vector2, radius: float) -> bool:
+	if not Geometry2D.is_point_in_polygon(point, arena_outline):
+		return false
+	# Distance still uses the exact shared polygon. Only nearby edges can overlap the disk.
+	var extent := Vector2.ONE * radius
+	var first := _edge_bucket(point - extent)
+	var last := _edge_bucket(point + extent)
+	var limit := radius * radius
+	for y in range(first.y, last.y + 1):
+		for x in range(first.x, last.x + 1):
+			for edge: PackedVector2Array in arena_edges.get(Vector2i(x, y), []):
+				var nearest := Geometry2D.get_closest_point_to_segment(point, edge[0], edge[1])
+				if point.distance_squared_to(nearest) <= limit:
+					return false
 	return true
 
 func _hits_block(from: Vector2, to: Vector2, radius: float, block: Dictionary) -> bool:

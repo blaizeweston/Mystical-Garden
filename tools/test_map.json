@@ -1767,6 +1767,16 @@
     ]
   },
   "suites": {
+    "experimental_terrain_coop": {
+      "kind": "pair",
+      "systems": [
+        "hex_terrain",
+        "terrain",
+        "connection_flow",
+        "garden"
+      ],
+      "package": true
+    },
     "experimental_terrain": {
       "kind": "unit",
       "systems": ["hex_terrain", "terrain", "garden_care", "persistence_operations"],
@@ -5165,6 +5175,31 @@
     ]
   ],
   "game_regions": {
+    "send_expedition_state": {
+      "experimental_coop_1": {
+        "match": "\t\t\tvar shared_garden := garden_snapshot()\n\t\t\tif stage.experimental_garden != null:\n\t\t\t\tshared_garden.append(stage.experimental_garden.snapshot())\n\t\t\tvar garden_bytes:=var_to_bytes(shared_garden).compress(FileAccess.COMPRESSION_DEFLATE)\n",
+        "baseline": "\t\t\tvar garden_bytes:=var_to_bytes(garden_snapshot()).compress(FileAccess.COMPRESSION_DEFLATE)\n",
+        "systems": [
+          "hex_terrain",
+          "terrain",
+          "connection_flow",
+          "garden"
+        ],
+        "additive": true
+      }
+    },
+    "collect_drop": {
+      "experimental_seed_rewards_1": {
+        "match": "\tif not player.get(\"loot_pending\", false):\n\t\treturn\n\tvar count := battlefield.clear_seed_count(depth)\n",
+        "baseline": "\tvar count := 1 if depth == 1 else 2\n",
+        "systems": [
+          "hex_terrain",
+          "loot",
+          "terrain"
+        ],
+        "additive": true
+      }
+    },
     "_garden_action": {
       "experimental_terrain_1": {
         "match": "\t\tif player.wild or slot<0 or slot>=progress.plots.size() or species<0 or species>=Seeds.NAMES.size() or player.pos.distance_to(stage.bed_position(slot))>1.65: return\n",
@@ -5363,6 +5398,16 @@
       }
     },
     "_act": {
+      "experimental_seed_rewards_1": {
+        "match": "\telif p.wild and battlefield.has_seed_cache() and destination != Campaign.HEART and (\n",
+        "baseline": "\telif p.wild and battlefield.procedural and destination != Campaign.HEART and (\n",
+        "systems": [
+          "hex_terrain",
+          "loot",
+          "terrain"
+        ],
+        "additive": true
+      },
       "experimental_terrain_1": {
         "match": "\telif not p.wild and pos.distance_to(stage.gate_position()) <= preload(\"res://gate_interaction.gd\").RANGE:\n",
         "baseline": "\telif not p.wild and pos.distance_to(Stage.GATE) <= preload(\"res://gate_interaction.gd\").RANGE:\n",
@@ -5550,6 +5595,36 @@
       }
     },
     "_process": {
+      "experimental_coop_1": {
+        "match": "\t\t\tsession_label.text = \"Experimental terrain \u00b7 %s\" % session if stage._has_experimental_floor() else \"Experimental terrain \u00b7 Special floor fallback\"\n",
+        "baseline": "\t\t\tsession_label.text = \"Experimental terrain \u00b7 Solo\" if stage._has_experimental_floor() else \"Experimental solo \u00b7 Legacy floor fallback\"\n",
+        "systems": [
+          "hex_terrain",
+          "terrain",
+          "connection_flow",
+          "garden"
+        ],
+        "additive": true
+      },
+      "experimental_seed_rewards_1": {
+        "match": "\t\tif visual_field.has_seed_cache() and not p.get(\"cache_claimed\", false) and (\n",
+        "baseline": "\t\tif visual_field.procedural and not p.get(\"cache_claimed\", false) and (\n",
+        "systems": [
+          "hex_terrain",
+          "loot",
+          "terrain"
+        ],
+        "additive": true
+      },
+      "experimental_gate_visibility": {
+        "match": "\tstage.apply_exploration_sight(observer, wild, exploration.SIGHT,\n\t\texploration.seen(visual_field.advance) if is_instance_valid(stage.experimental_exit) else true)\n",
+        "baseline": "\tstage.apply_exploration_sight(observer, wild, exploration.SIGHT)\n",
+        "systems": [
+          "hex_terrain",
+          "terrain"
+        ],
+        "additive": true
+      },
       "experimental_terrain_1": {
         "match": "\t\tif stage.experimental_garden != null:\n\t\t\tsession_label.text = \"Experimental terrain \u00b7 Solo\" if stage._has_experimental_floor() else \"Experimental solo \u00b7 Legacy floor fallback\"\n",
         "baseline": "",
@@ -6046,6 +6121,17 @@
       }
     },
     "build_hud": {
+      "experimental_coop_1": {
+        "match": "\tleave_button=add_button(session_actions,\"Leave Session\",func():leave_game(\"Back in your own Garden.\"))\n",
+        "baseline": "\thost_button.visible = stage.experimental_garden == null\n\tjoin_button.visible = stage.experimental_garden == null\n\tleave_button=add_button(session_actions,\"Leave Session\",func():leave_game(\"Back in your own Garden.\"))\n",
+        "systems": [
+          "hex_terrain",
+          "terrain",
+          "connection_flow",
+          "garden"
+        ],
+        "additive": true
+      },
       "experimental_terrain_1": {
         "match": "\thost_button.visible = stage.experimental_garden == null\n\tjoin_button.visible = stage.experimental_garden == null\n",
         "baseline": "",
@@ -6183,6 +6269,17 @@
       }
     },
     "player_snapshot": {
+      "experimental_coop_1": {
+        "match": "\t\tif stage.experimental_garden != null and not p.wild:\n\t\t\tvar garden = stage.experimental_garden\n\t\t\tstate[\"garden_layout_revision\"] = garden.layout_revision if garden.reveal == null else -1\n",
+        "baseline": "",
+        "systems": [
+          "hex_terrain",
+          "terrain",
+          "connection_flow",
+          "garden"
+        ],
+        "additive": true
+      },
       "replicate_thief_routes": {
         "additive": true,
         "match": "\t\t\tif p.wild:\n\t\t\t\tstate[\"thief_routes\"]=preload(\"res://thief_escape.gd\").snapshot(self)\n\t\t\t\tstate[\"ability_growth_centers\"]",
@@ -6294,6 +6391,15 @@
       }
     },
     "_input": {
+      "experimental_placement_cancel": {
+        "match": "\tif stage != null and stage.experimental_garden != null and stage.experimental_garden.cancel_placement_input(event):\n\t\tget_viewport().set_input_as_handled()\n\t\treturn\n",
+        "baseline": "",
+        "systems": [
+          "hex_terrain",
+          "garden"
+        ],
+        "additive": true
+      },
       "run_summary_shortcut": {
         "additive": true,
         "match": "\tif preload(\"res://run_summary_panel.gd\").handle_input(self,event):\n\t\tget_viewport().set_input_as_handled()\n\t\treturn\n",
@@ -6320,6 +6426,17 @@
       }
     },
     "_unhandled_key_input": {
+      "experimental_coop_1": {
+        "match": "\t\tif stage.experimental_garden.can_view_development():\n",
+        "baseline": "\t\tif stage.experimental_garden.available_here():\n",
+        "systems": [
+          "hex_terrain",
+          "terrain",
+          "connection_flow",
+          "garden"
+        ],
+        "additive": true
+      },
       "experimental_terrain_1": {
         "match": "\tif stage.experimental_garden != null and stage.experimental_garden.placement_input(event):\n\t\tget_viewport().set_input_as_handled()\n\t\treturn\n",
         "baseline": "",
@@ -6673,6 +6790,16 @@
       }
     },
     "_finish_failed_expedition": {
+      "experimental_reward_checkpoint": {
+        "match": "\tif effects != null: settle_expedition_rewards(effects, true)\n",
+        "baseline": "\tif effects != null: settle_expedition_rewards(effects)\n",
+        "systems": [
+          "hex_terrain",
+          "terrain",
+          "persistence_operations"
+        ],
+        "additive": true
+      },
       "guarded_expedition": {
         "match": "\tif effects != null: settle_expedition_rewards(effects)\n\tfor player in players.values():\n\t\tif effects == null: recover_pouch(player)\n\t\telse: _recover_pouch(player)\n\t\tif player.wild:\n\t\t\tpreload(\"res://garden_return_service.gd\").outcome(self,player,\"wipe\")\n\t\t\treturn_to_garden(player)\n\tvar milestone := deepest_milestone\n\tvar message := milestone_message(\"Expedition ended. Only safe-pouch contents are kept.\", false)\n\tdestination = Campaign.GROVE\n\treset_expedition()\n\tif milestone > 0 and effects == null:\n\t\tsave_progress(HOST, message)\n\telse:\n\t\taction_feedback(effects,HOST,message)\n\tfor id in players:\n\t\tif id != HOST:\n\t\t\taction_feedback(effects,id,message)\n\n\n",
         "baseline": "\tfor player in players.values():\n\t\trecover_pouch(player)\n\t\tif player.wild:\n\t\t\tpreload(\"res://garden_return_service.gd\").outcome(self,player,\"wipe\")\n\t\t\treturn_to_garden(player)\n\tvar milestone := deepest_milestone\n\tvar message := milestone_message(\"Expedition ended. Only safe-pouch contents are kept.\", false)\n\tdestination = Campaign.GROVE\n\treset_expedition()\n\tif milestone > 0:\n\t\tsave_progress(HOST, message)\n\telse:\n\t\ttell(HOST, message)\n\tfor id in players:\n\t\tif id != HOST:\n\t\t\ttell(id, message)\n\n\n",
@@ -6732,6 +6859,16 @@
       }
     },
     "abandon_run": {
+      "experimental_reward_checkpoint": {
+        "match": "\t\t\tsettle_expedition_rewards(effects, true)\n",
+        "baseline": "\t\t\tsettle_expedition_rewards(effects)\n",
+        "systems": [
+          "hex_terrain",
+          "terrain",
+          "persistence_operations"
+        ],
+        "additive": true
+      },
       "guarded_expedition": {
         "match": "\tif not player.get(\"wild\",false): return\n\tif has_meta(Transactions.SESSION):\n\t\trun_guarded_action(id, Transactions.Scope.PAIR, func(effects):\n\t\t\tsettle_expedition_rewards(effects)\n\t\t\tpreload(\"res://garden_return_service.gd\").outcome(self,player,\"abandoned\")\n\t\t\treturn_to_garden(player)\n\t\t\tplayer.fallen=expedition_active()\n\t\t\tcheckpoint_ready.erase(id)\n\t\t\taction_feedback(effects,id,\"Expedition abandoned. All carried items lost, including the safe pouch. Class progress kept.\")\n\t\t\tPartyTravel.cancel(self,\"A teammate left the expedition. Confirm readiness again at the gate.\",effects)\n\t\t\tif expedition_active() and Life.living_ids(self).is_empty():\n\t\t\t\t_finish_failed_expedition(effects)\n\t\t\telif not expedition_active():\n\t\t\t\tdestination=Campaign.GROVE\n\t\t\t\treset_expedition()\n\t\t\teffects.append(close_flow_for.bind(id)))\n\t\treturn\n\tTransactions.run(self,func():\n\t\tpreload(\"res://garden_return_service.gd\").outcome(self,player,\"abandoned\")\n\t\treturn_to_garden(player)\n\t\tplayer.fallen=expedition_active()\n\t\tcheckpoint_ready.erase(id)\n\t\ttell(id,\"Expedition abandoned. All carried items lost, including the safe pouch. Class progress kept.\")\n\t\tif expedition_active() and Life.living_ids(self).is_empty():\n\t\t\tfinish_failed_expedition()\n\t\telif not expedition_active():\n\t\t\tdestination=Campaign.GROVE\n\t\t\treset_expedition()\n\t\telse:\n\t\t\tresume_checkpoint_if_ready()\n\t\tif id==HOST: close_run_flow_panel()\n\t\telif online_peer!=null: close_run_flow_panel.rpc_id(id)\n\t\treturn true)\n\n",
         "baseline": "\tif not player.get(\"wild\",false): return\n\tTransactions.run(self,func():\n\t\tpreload(\"res://garden_return_service.gd\").outcome(self,player,\"abandoned\")\n\t\treturn_to_garden(player)\n\t\tplayer.fallen=expedition_active()\n\t\tcheckpoint_ready.erase(id)\n\t\ttell(id,\"Expedition abandoned. All carried items lost, including the safe pouch. Class progress kept.\")\n\t\tif expedition_active() and Life.living_ids(self).is_empty():\n\t\t\tfinish_failed_expedition()\n\t\telif not expedition_active():\n\t\t\tdestination=Campaign.GROVE\n\t\t\treset_expedition()\n\t\telse:\n\t\t\tresume_checkpoint_if_ready()\n\t\tif id==HOST: close_run_flow_panel()\n\t\telif online_peer!=null: close_run_flow_panel.rpc_id(id)\n\t\treturn true)\n\n",
@@ -7596,6 +7733,24 @@
       }
     },
     "reset_encounter": {
+      "experimental_certified_leader": {
+        "match": "\tif enemy_pos==Vector3.INF:\n\t\tenemy_pos = clear_spawn(battlefield.leader)\n\t\tif enemy_pos == Vector3.INF:\n\t\t\t# A generated leader room is already certified for enemy clearance.\n\t\t\tenemy_pos = battlefield.leader\n",
+        "baseline": "\tif enemy_pos==Vector3.INF: enemy_pos=clear_spawn(battlefield.leader)\n",
+        "systems": [
+          "hex_terrain",
+          "terrain"
+        ],
+        "additive": true
+      },
+      "experimental_floor_diagnostic": {
+        "match": "\tif stage.experimental_garden != null and map_seed != 0:\n\t\tpreload(\"res://game_metrics.gd\").record(\"experimental_floor\", {\n\t\t\t\"seed\": map_seed, \"biome\": destination, \"floor\": encounter_number,\n\t\t\t\"generated\": not battlefield.generated.is_empty(),\n\t\t\t\"entry\": [battlefield.entry.x, battlefield.entry.z],\n\t\t\t\"gate\": [battlefield.advance.x, battlefield.advance.z],\n\t\t\t\"foes\": 1 + scouts.size()})\n",
+        "baseline": "",
+        "systems": [
+          "hex_terrain",
+          "terrain"
+        ],
+        "additive": true
+      },
       "experimental_terrain_1": {
         "match": "\tif stage.experimental_garden != null: battlefield = preload(\"res://assets/terrain_m02/experimental/experiment_wilds.gd\").new()\n\telif SaveBatch.guarded_active(): battlefield = Battlefield.new()\n",
         "baseline": "\tif SaveBatch.guarded_active(): battlefield = Battlefield.new()\n",
@@ -7980,6 +8135,28 @@
       }
     },
     "receive_details": {
+      "experimental_coop_1": {
+        "match": "\tif stage.experimental_garden != null:\n\t\tif world.size() != 18 or not world[17] is Dictionary: return\n\t\tstage.experimental_garden.receive_snapshot(world[17])\n",
+        "baseline": "",
+        "systems": [
+          "hex_terrain",
+          "terrain",
+          "connection_flow",
+          "garden"
+        ],
+        "additive": true
+      },
+      "experimental_coop_2": {
+        "match": "\tvar world=bytes_to_var(garden.decompress_dynamic(262144 if stage.experimental_garden != null else 65536,FileAccess.COMPRESSION_DEFLATE))\n",
+        "baseline": "\tvar world=bytes_to_var(garden.decompress_dynamic(65536,FileAccess.COMPRESSION_DEFLATE))\n",
+        "systems": [
+          "hex_terrain",
+          "terrain",
+          "connection_flow",
+          "garden"
+        ],
+        "additive": true
+      },
       "core_owner_clock": {
         "additive": true,
         "match": "\tclient_details=decoded;client_details_key=state_key;client_inventory=inventory_data;client_garden=world\n\tset_meta(\"core_details_at\",Time.get_ticks_msec())\n",
@@ -8126,6 +8303,26 @@
       }
     },
     "_finish_combat": {
+      "experimental_seed_rewards_1": {
+        "match": "\tvar seeds_available := battlefield.clear_seed_count(depth) > 0\n\tfor player in players.values(): player.loot_pending=seeds_available and Life.alive(player)\n",
+        "baseline": "\tfor player in players.values(): player.loot_pending=Life.alive(player)\n",
+        "systems": [
+          "hex_terrain",
+          "loot",
+          "terrain"
+        ],
+        "additive": true
+      },
+      "experimental_seed_rewards_2": {
+        "match": "\tvar clear_message := \"Encounter cleared. Press E near the glowing loot.\" if has_drop else \"Encounter cleared.\"\n\taction_feedback(effects,id,clear_message+Learning.notice(previous_memory,progress.wilds_memory.score))\n",
+        "baseline": "\taction_feedback(effects,id,\"Encounter cleared. Press E near the glowing loot.\"+Learning.notice(previous_memory,progress.wilds_memory.score))\n",
+        "systems": [
+          "hex_terrain",
+          "loot",
+          "terrain"
+        ],
+        "additive": true
+      },
       "guarded_expedition": {
         "match": "\tif pending_finale_at>0 or encounter_rewarded: return\n\tencounter_rewarded=true\n\trecord_settlement_metric(effects,\"encounter_clear\",{\"floor\":encounter_number,\"biome\":destination,\"kills\":encounter_kills.size(),\"cycle\":difficulty_cycle})\n\tburst_clears+=int(burst_hits_this_room>=2)\n\tchoke_clears+=int(choke_kills_this_room>=3)\n\tif effects == null: award_combat_progress()\n\tif destination==Campaign.HEART:\n\t\tpending_finale_peer=id\n\t\tpending_finale_at=Time.get_ticks_msec()+1500\n\t\tenemy_winding_up=false\n\t\ttell(id,\"The Heart collapses as its last roots fall silent\u2026\")\n\t\treturn\n\tvar ranged_evidence:=Life.Vitals.counts_as_ranged(ranged_damage_this_room,damage_this_room,Life.Preview.scale())\n\tif ranged_evidence: ranged_clears+=1\n\tvar previous_memory: Dictionary=progress.wilds_memory.score.duplicate()\n\tvar thorn_evidence:=preload(\"res://thorn_adaptation.gd\").evidence(self)\n\tvar skill_evidence:=preload(\"res://wilds_skill_tactics.gd\").evidence(self)\n\tvar learned: Dictionary={\"ranged\":ranged_evidence,\"burst\":burst_hits_this_room>=2,\"choke\":choke_kills_this_room>=3 and choke_kills_this_room*2>=encounter_kills.size(),\"kite\":moving_ranged_hits>=3 and Time.get_ticks_msec()-encounter_started_at>=8000,\"thorn_line\":thorn_evidence.crossings>0}\n\tfor tactic in skill_evidence: learned[tactic]=int(skill_evidence[tactic])>0\n\tLearning.observe(progress.wilds_memory,learned,encounter_number)\n\trecord_settlement_metric(effects,\"wilds_learning\",{\"floor\":encounter_number,\"encounters\":progress.wilds_memory.encounters,\"scores\":progress.wilds_memory.score.duplicate(),\"thorn_armed\":thorn_evidence.armed,\"thorn_crossings\":thorn_evidence.crossings,\"skill_evidence\":skill_evidence,\"party\":encounter_party_size,\"elapsed_ms\":Time.get_ticks_msec()-encounter_started_at})\n\tdeepest_milestone=maxi(deepest_milestone,encounter_number)\n\tif depth==ROUTE_ROOMS and destination<Campaign.HEART: run_guardians|=1 << destination;guardian_counts[destination]+=1\n\tenemy_winding_up=false\n\tdrop_pos=loot_position\n\tfor player in players.values(): player.loot_pending=Life.alive(player)\n\trefresh_drop()\n\tif encounter_cleared():\n\t\tvar cue := \"extract_ready\" if extraction_checkpoint_open() else \"gate_ready\"\n\t\tpreload(\"res://event_audio.gd\").emit(self,cue,battlefield.advance)\n\taction_feedback(effects,id,\"Encounter cleared. Press E near the glowing loot.\"+Learning.notice(previous_memory,progress.wilds_memory.score))\n\n\n",
         "baseline": "\tif pending_finale_at>0 or encounter_rewarded: return\n\tencounter_rewarded=true\n\tpreload(\"res://game_metrics.gd\").record(\"encounter_clear\",{\"floor\":encounter_number,\"biome\":destination,\"kills\":encounter_kills.size(),\"cycle\":difficulty_cycle})\n\tburst_clears+=int(burst_hits_this_room>=2)\n\tchoke_clears+=int(choke_kills_this_room>=3)\n\taward_combat_progress()\n\tif destination==Campaign.HEART:\n\t\tpending_finale_peer=id\n\t\tpending_finale_at=Time.get_ticks_msec()+1500\n\t\tenemy_winding_up=false\n\t\ttell(id,\"The Heart collapses as its last roots fall silent\u2026\")\n\t\treturn\n\tvar ranged_evidence:=Life.Vitals.counts_as_ranged(ranged_damage_this_room,damage_this_room,Life.Preview.scale())\n\tif ranged_evidence: ranged_clears+=1\n\tvar previous_memory: Dictionary=progress.wilds_memory.score.duplicate()\n\tvar thorn_evidence:=preload(\"res://thorn_adaptation.gd\").evidence(self)\n\tvar skill_evidence:=preload(\"res://wilds_skill_tactics.gd\").evidence(self)\n\tvar learned: Dictionary={\"ranged\":ranged_evidence,\"burst\":burst_hits_this_room>=2,\"choke\":choke_kills_this_room>=3 and choke_kills_this_room*2>=encounter_kills.size(),\"kite\":moving_ranged_hits>=3 and Time.get_ticks_msec()-encounter_started_at>=8000,\"thorn_line\":thorn_evidence.crossings>0}\n\tfor tactic in skill_evidence: learned[tactic]=int(skill_evidence[tactic])>0\n\tLearning.observe(progress.wilds_memory,learned,encounter_number)\n\tpreload(\"res://game_metrics.gd\").record(\"wilds_learning\",{\"floor\":encounter_number,\"encounters\":progress.wilds_memory.encounters,\"scores\":progress.wilds_memory.score.duplicate(),\"thorn_armed\":thorn_evidence.armed,\"thorn_crossings\":thorn_evidence.crossings,\"skill_evidence\":skill_evidence,\"party\":encounter_party_size,\"elapsed_ms\":Time.get_ticks_msec()-encounter_started_at})\n\tdeepest_milestone=maxi(deepest_milestone,encounter_number)\n\tif depth==ROUTE_ROOMS and destination<Campaign.HEART: run_guardians|=1 << destination;guardian_counts[destination]+=1\n\tenemy_winding_up=false\n\tdrop_pos=loot_position\n\tfor player in players.values(): player.loot_pending=Life.alive(player)\n\trefresh_drop()\n\tif encounter_cleared():\n\t\tvar cue := \"extract_ready\" if extraction_checkpoint_open() else \"gate_ready\"\n\t\tpreload(\"res://event_audio.gd\").emit(self,cue,battlefield.advance)\n\ttell(id,\"Encounter cleared. Press E near the glowing loot.\"+Learning.notice(previous_memory,progress.wilds_memory.score))\n\n\n",
@@ -8370,6 +8567,17 @@
       }
     },
     "join_game": {
+      "experimental_coop_1": {
+        "match": "\tif has_meta(&\"experimental_terrain\") and not joined_from_title:\n\t\tstatus = \"Return to the title to join an experimental Garden.\"\n\t\treturn ERR_UNAUTHORIZED\n",
+        "baseline": "\tif has_meta(&\"experimental_terrain\"): return ERR_UNAVAILABLE\n",
+        "systems": [
+          "hex_terrain",
+          "terrain",
+          "connection_flow",
+          "garden"
+        ],
+        "additive": true
+      },
       "experimental_terrain_1": {
         "match": "\tif has_meta(&\"experimental_terrain\"): return ERR_UNAVAILABLE\n",
         "baseline": "",
@@ -8740,6 +8948,17 @@
       }
     },
     "request_ip_join": {
+      "experimental_coop_1": {
+        "match": "\tif stage.experimental_garden != null:\n\t\treturn_to_main_menu(\"Choose a character and join from the Co-op tab.\")\n\t\treturn\n",
+        "baseline": "\tif stage.experimental_garden != null: return\n",
+        "systems": [
+          "hex_terrain",
+          "terrain",
+          "connection_flow",
+          "garden"
+        ],
+        "additive": true
+      },
       "experimental_terrain_1": {
         "match": "\tif stage.experimental_garden != null: return\n",
         "baseline": "",
@@ -8846,6 +9065,17 @@
       }
     },
     "host_game": {
+      "experimental_coop_1": {
+        "match": "\tif has_meta(Transactions.SESSION) and (not Transactions.session_writable(self) or not get_meta(Transactions.SESSION).authorizes(progress.path)):\n",
+        "baseline": "\tif has_meta(&\"experimental_terrain\"): return ERR_UNAVAILABLE\n\tif has_meta(Transactions.SESSION) and (not Transactions.session_writable(self) or not get_meta(Transactions.SESSION).authorizes(progress.path)):\n",
+        "systems": [
+          "hex_terrain",
+          "terrain",
+          "connection_flow",
+          "garden"
+        ],
+        "additive": true
+      },
       "experimental_terrain_1": {
         "match": "\tif has_meta(&\"experimental_terrain\"): return ERR_UNAVAILABLE\n",
         "baseline": "",
@@ -9190,6 +9420,56 @@
     }
   },
   "file_regions": {
+    "network_movement.gd": {
+      "newline": "crlf",
+      "regions": {
+        "experimental_coop_1": {
+          "match": " if not p.wild and garden!=null:\n  desired=garden.slide(start,desired)\n elif not p.wild and p.has(\"motion_radius\"):\n",
+          "baseline": " if not p.wild and p.has(\"motion_radius\"):\n",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        },
+        "experimental_coop_2": {
+          "match": " var experimental:=game.has_meta(&\"experimental_terrain\")\n if p.wild and experimental and (field==null or field.boss_kind!=game.boss_kind or field.boss_phase!=game.boss_phase):\n  p.velocity=Vector3.ZERO\n  return\n var garden=game.stage.experimental_garden if experimental else null\n if not p.wild and garden!=null and (garden.remote_revision<0 or garden.remote_revision!=int(p.get(\"garden_layout_revision\",-1))):\n  p.velocity=Vector3.ZERO\n  return\n",
+          "baseline": "",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        }
+      }
+    },
+    "diagnostics_boot.gd": {
+      "newline": "crlf",
+      "regions": {
+        "experimental_coop_1": {
+          "match": "  Playtest.inspected=true\n elif Experiment.requested():\n  return\n",
+          "baseline": "",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        },
+        "experimental_coop_2": {
+          "match": " if Playtest.retail():\n",
+          "baseline": " if Experiment.requested():\n  return\n if Playtest.retail():\n",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        }
+      }
+    },
     "root_ui.gd": {
       "newline": "crlf",
       "regions": {
@@ -9820,6 +10100,15 @@
     "stage.gd": {
       "newline": "lf",
       "regions": {
+        "experimental_seed_rewards_1": {
+          "match": "\tseed_cache.visible = visual_field.has_seed_cache() and site != Campaign.HEART\n",
+          "baseline": "\tseed_cache.visible = visual_field.procedural and site != Campaign.HEART\n",
+          "systems": [
+            "hex_terrain",
+            "loot",
+            "terrain"
+          ]
+        },
         "experimental_terrain_1": {
           "match": "const ExperimentalWilds = preload(\"res://assets/terrain_m02/experimental/experiment_wilds.gd\")\n",
           "baseline": "",
@@ -9891,7 +10180,7 @@
           ]
         },
         "experimental_terrain_15": {
-          "match": "\twilderness_base.visible = not _has_experimental_floor()\n\tif _has_experimental_floor():\n\t\tpreload(\"res://assets/terrain_m02/experimental/experiment_terrain_view.gd\").draw_wilds(terrain, WILD_OFFSET, visual_field.generated, map_seed)\n\t\treturn\n",
+          "match": "\twilderness_base.visible = not _has_experimental_floor()\n\tif experimental_garden != null:\n\t\tfor detail: Node3D in deeper_gate.get_children():\n\t\t\tif detail != wild_portal and not detail is Label3D:\n\t\t\t\tdetail.visible = not _has_experimental_floor()\n\tif _has_experimental_floor():\n\t\texperimental_exit = preload(\"res://assets/terrain_m02/experimental/experiment_terrain_view.gd\").draw_wilds(\n\t\t\tterrain, WILD_OFFSET, visual_field.generated, map_seed)\n\t\treturn\n",
           "baseline": "",
           "systems": [
             "hex_terrain",
@@ -10489,6 +10778,30 @@
     "settings_panel.gd": {
       "newline": "crlf",
       "regions": {
+        "display_hint_field": {
+          "match": "var display_hint: Label\n",
+          "baseline": "",
+          "systems": [
+            "menu_layout",
+            "menus"
+          ]
+        },
+        "display_hint_label": {
+          "match": " display_hint=label(display,\"\")\n",
+          "baseline": " label(display,\"VSync may limit the frame rate to your monitor\u2019s refresh rate.\")\n",
+          "systems": [
+            "menu_layout",
+            "menus"
+          ]
+        },
+        "display_hint_refresh": {
+          "match": " var refresh_hz := -1.0\n if DisplayServer.get_name() != \"headless\":\n  refresh_hz = DisplayServer.screen_get_refresh_rate(DisplayServer.window_get_current_screen())\n display_hint.text = \"VSync can limit FPS to your display\u2019s refresh rate.\"\n if refresh_hz > 0.0:\n  display_hint.text = \"Your display is running at %.0f Hz. With VSync on, higher FPS limits may have no effect.\" % refresh_hz\n display_hint.text += \"\\nSelect Apply to use your changes.\"\n",
+          "baseline": "",
+          "systems": [
+            "menu_layout",
+            "menus"
+          ]
+        },
         "scrollable_settings_pages": {
           "match": "func _ready() -> void:\n title=\"Settings\";size=Vector2i(810,610);min_size=Vector2i(400,250);transient=true;exclusive=true;unresizable=false\n close_requested.connect(cancel)\n get_tree().root.size_changed.connect(fit_to_viewport)\n var frame:=PanelContainer.new()\n add_child(frame)\n frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)\n var style=preload(\"res://root_ui.gd\")\n frame.theme=style.make_theme()\n frame.add_theme_stylebox_override(\"panel\",style.root_style())\n var box:=VBoxContainer.new()\n box.add_theme_constant_override(\"separation\",10)\n frame.add_child(box)\n label(box,\"Settings\").add_theme_font_size_override(\"font_size\",24)\n var pages:=TabContainer.new()\n pages.name=\"SettingsCategories\"\n box.add_child(pages)\n pages.size_flags_vertical=Control.SIZE_EXPAND_FILL\n pages.add_theme_stylebox_override(\"panel\",style.flat_style(Color(\"#141d14\"),Color(\"#454e35\"),1,4,12))\n\n var gameplay:=add_page(pages,\"Gameplay\")\n indicator=check(gameplay,\"Show aim direction indicator\")\n set_meta(\"garden_motion_toggle\",check(gameplay,\"Animate Garden wind, water and fauna\"))\n set_meta(\"garden_cinematic_toggle\",check(gameplay,\"Play Garden growth scenes\"))\n developer_controls = preload(\"res://developer_settings.gd\").new()\n developer_controls.context = developer_context\n developer_controls.settings = self\n developer_controls.title_menu = developer_title\n gameplay.add_child(developer_controls)\n\n var display:=add_page(pages,\"Display\")\n fullscreen=check(display,\"Fullscreen\")\n vsync=check(display,\"VSync\")\n label(display,\"Frame-rate limit\")\n fps=OptionButton.new()\n display.add_child(fps)\n for value in Settings.FPS:fps.add_item(\"Unlimited\" if value==0 else str(value)+\" FPS\",int(value))\n label(display,\"VSync may limit the frame rate to your monitor\u2019s refresh rate.\")\n\n var audio:=add_page(pages,\"Audio\")\n audio.add_theme_constant_override(\"separation\",12)\n master=slider(audio,\"Master volume\")\n effects=slider(audio,\"Sound effects volume\")\n music=slider(audio,\"Music volume\")\n ambience=slider(audio,\"Ambience volume\")\n\n var controls:=add_page(pages,\"Controls\")\n var grid:=GridContainer.new()\n grid.columns=3\n grid.size_flags_horizontal=Control.SIZE_EXPAND_FILL\n grid.add_theme_constant_override(\"h_separation\",10)\n grid.add_theme_constant_override(\"v_separation\",13)\n var binding_margin:=MarginContainer.new()\n binding_margin.size_flags_horizontal=Control.SIZE_EXPAND_FILL\n for side in [\"left\",\"top\",\"right\",\"bottom\"]:\n  binding_margin.add_theme_constant_override(\"margin_\"+side,8)\n controls.add_child(binding_margin)\n binding_margin.add_child(grid)\n for text in [\"Action\",\"Primary\",\"Alternate\"]:label(grid,text)\n for action in Settings.ACTIONS:\n  label(grid,Settings.ACTIONS[action]);binding_buttons[action]=[]\n  for slot in 2:\n   var bind:=Button.new()\n   grid.add_child(bind)\n   bind.custom_minimum_size=Vector2(130,34)\n   bind.size_flags_horizontal=Control.SIZE_EXPAND_FILL\n   bind.pressed.connect(func():capture_binding(action,slot))\n   preload(\"res://menu_button_roots.gd\").attach(bind,func():return draft.get(\"ambient_motion\",true))\n   binding_buttons[action].append(bind)\n label(controls,\"Select a binding, then press a key or mouse button. Esc cancels. Backspace clears.\")\n button(controls,\"Reset Controls\",func():draft.bindings=Settings.defaults().bindings;refresh_bindings())\n add_page(pages,\"Diagnostics\").add_child(preload(\"res://diagnostics_panel.gd\").new())\n\n notice=label(box,\"\")\n notice.custom_minimum_size.y=30\n var actions:=HBoxContainer.new()\n actions.name=\"SettingsActions\"\n actions.add_theme_constant_override(\"separation\",8)\n box.add_child(actions)\n button(actions,\"Restore Defaults\",func():draft=Settings.defaults();refresh())\n button(actions,\"Back\",cancel)\n button(actions,\"Apply\",save)\n hide()\nfunc add_page(pages: TabContainer, page_name: String) -> VBoxContainer:\n var scroll:=ScrollContainer.new()\n scroll.name=page_name\n scroll.follow_focus=true\n pages.add_child(scroll)\n var content:=VBoxContainer.new()\n content.size_flags_horizontal=Control.SIZE_EXPAND_FILL\n scroll.add_child(content)\n return content\n\n",
           "baseline": "func _ready() -> void:\n title=\"Settings\";size=Vector2i(810,610);min_size=Vector2i(650,480);transient=true;exclusive=true;unresizable=false\n close_requested.connect(cancel)\n var frame:=PanelContainer.new()\n add_child(frame)\n frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)\n var style=preload(\"res://root_ui.gd\")\n frame.theme=style.make_theme()\n frame.add_theme_stylebox_override(\"panel\",style.root_style())\n var box:=VBoxContainer.new()\n box.add_theme_constant_override(\"separation\",10)\n frame.add_child(box)\n label(box,\"Settings\").add_theme_font_size_override(\"font_size\",24)\n var pages:=TabContainer.new()\n pages.name=\"SettingsCategories\"\n box.add_child(pages)\n pages.size_flags_vertical=Control.SIZE_EXPAND_FILL\n pages.add_theme_stylebox_override(\"panel\",style.flat_style(Color(\"#141d14\"),Color(\"#454e35\"),1,4,12))\n\n var gameplay:=VBoxContainer.new()\n gameplay.name=\"Gameplay\"\n pages.add_child(gameplay)\n indicator=check(gameplay,\"Show aim direction indicator\")\n set_meta(\"garden_motion_toggle\",check(gameplay,\"Animate Garden wind, water and fauna\"))\n set_meta(\"garden_cinematic_toggle\",check(gameplay,\"Play Garden growth scenes\"))\n developer_controls = preload(\"res://developer_settings.gd\").new()\n developer_controls.context = developer_context\n developer_controls.settings = self\n developer_controls.title_menu = developer_title\n gameplay.add_child(developer_controls)\n\n var display:=VBoxContainer.new()\n display.name=\"Display\"\n pages.add_child(display)\n fullscreen=check(display,\"Fullscreen\")\n vsync=check(display,\"VSync\")\n label(display,\"Frame-rate limit\")\n fps=OptionButton.new()\n display.add_child(fps)\n for value in Settings.FPS:fps.add_item(\"Unlimited\" if value==0 else str(value)+\" FPS\",int(value))\n label(display,\"VSync may limit the frame rate to your monitor\u2019s refresh rate.\")\n\n var audio:=VBoxContainer.new()\n audio.name=\"Audio\"\n audio.add_theme_constant_override(\"separation\",12)\n pages.add_child(audio)\n master=slider(audio,\"Master volume\")\n effects=slider(audio,\"Sound effects volume\")\n music=slider(audio,\"Music volume\")\n ambience=slider(audio,\"Ambience volume\")\n\n var controls:=VBoxContainer.new()\n controls.name=\"Controls\"\n pages.add_child(controls)\n var scroll:=ScrollContainer.new()\n scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL\n scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED\n scroll.follow_focus=true\n controls.add_child(scroll)\n var grid:=GridContainer.new()\n grid.columns=3\n grid.size_flags_horizontal=Control.SIZE_EXPAND_FILL\n grid.add_theme_constant_override(\"h_separation\",10)\n grid.add_theme_constant_override(\"v_separation\",13)\n var binding_margin:=MarginContainer.new()\n binding_margin.size_flags_horizontal=Control.SIZE_EXPAND_FILL\n for side in [\"left\",\"top\",\"right\",\"bottom\"]:\n  binding_margin.add_theme_constant_override(\"margin_\"+side,8)\n scroll.add_child(binding_margin)\n binding_margin.add_child(grid)\n for text in [\"Action\",\"Primary\",\"Alternate\"]:label(grid,text)\n for action in Settings.ACTIONS:\n  label(grid,Settings.ACTIONS[action]);binding_buttons[action]=[]\n  for slot in 2:\n   var bind:=Button.new()\n   grid.add_child(bind)\n   bind.custom_minimum_size=Vector2(130,34)\n   bind.size_flags_horizontal=Control.SIZE_EXPAND_FILL\n   bind.pressed.connect(func():capture_binding(action,slot))\n   preload(\"res://menu_button_roots.gd\").attach(bind,func():return draft.get(\"ambient_motion\",true))\n   binding_buttons[action].append(bind)\n label(controls,\"Select a binding, then press a key or mouse button. Esc cancels. Backspace clears.\")\n button(controls,\"Reset Controls\",func():draft.bindings=Settings.defaults().bindings;refresh_bindings())\n var diagnostics=preload(\"res://diagnostics_panel.gd\").new()\n pages.add_child(diagnostics)\n\n notice=label(box,\"\")\n notice.custom_minimum_size.y=30\n var actions:=HBoxContainer.new()\n actions.add_theme_constant_override(\"separation\",8)\n box.add_child(actions)\n button(actions,\"Restore Defaults\",func():draft=Settings.defaults();refresh())\n button(actions,\"Back\",cancel)\n button(actions,\"Apply\",save)\n hide()\n",
@@ -10634,6 +10947,24 @@
     "garden_interaction_service.gd": {
       "newline": "lf",
       "regions": {
+        "experimental_research_landmarks_1": {
+          "match": " if game.has_meta(&\"experimental_terrain\"):\n  if definition.id==\"heart_root_scar\" and not game.progress.heart.has(\"clearing_1\"):return false\n  if definition.parent==\"sheltered_spring\" and not game.stage.station_position(\"spring\").is_finite():return false\n",
+          "baseline": "",
+          "systems": [
+            "hex_terrain",
+            "garden",
+            "garden_observations"
+          ]
+        },
+        "experimental_research_landmarks_2": {
+          "match": "  return game.stage.station_position(\"spring\")\n",
+          "baseline": "  var built: Vector3=game.stage.station_position(\"spring\")\n  if built.is_finite():return built\n",
+          "systems": [
+            "hex_terrain",
+            "garden",
+            "garden_observations"
+          ]
+        },
         "experimental_terrain_1": {
           "match": "  var distance:=pos.distance_to(point_position(game,point))\n",
           "baseline": "  var distance:=pos.distance_to(point.position)\n",
@@ -10766,6 +11097,15 @@
     "garden_interaction_view.gd": {
       "newline": "lf",
       "regions": {
+        "experimental_research_landmarks_1": {
+          "match": "  if available and point_id==\"spring_water\" and game.has_meta(&\"experimental_terrain\"):\n   model.position=Service.point_position(game,Catalog.point(point_id))\n",
+          "baseline": "",
+          "systems": [
+            "hex_terrain",
+            "garden",
+            "garden_observations"
+          ]
+        },
         "station_controls_fields": {
           "match": "var station_panel: PanelContainer\nvar station_controls: Control\n",
           "baseline": "",
@@ -10841,6 +11181,24 @@
     "garden_ambience.gd": {
       "newline": "lf",
       "regions": {
+        "experimental_research_landmarks_1": {
+          "match": "  var at: Vector3=zone.water.position\n  if zone.id==\"sheltered_spring\" and game.has_meta(&\"experimental_terrain\"):\n   at=game.stage.station_position(\"spring\")\n  var visible: bool=not game.stage.get_meta(\"garden_growth_hidden_zones\",[]).has(zone.id) and motion and not player.get(\"wild\",false) and available.has(zone.ambience.requires_point) and at.is_finite() and game.stage.get_meta(\"garden_growth_camera\",{}).get(\"target\",player.get(\"pos\",Vector3.INF)).distance_to(at)<float(zone.ambience.range)\n",
+          "baseline": "  var visible: bool=not game.stage.get_meta(\"garden_growth_hidden_zones\",[]).has(zone.id) and motion and not player.get(\"wild\",false) and available.has(zone.ambience.requires_point) and game.stage.get_meta(\"garden_growth_camera\",{}).get(\"target\",player.get(\"pos\",Vector3.INF)).distance_to(zone.water.position)<float(zone.ambience.range)\n",
+          "systems": [
+            "hex_terrain",
+            "garden",
+            "garden_life"
+          ]
+        },
+        "experimental_research_landmarks_2": {
+          "match": "  if colonies.has(zone.id):\n   colonies[zone.id].visible=visible\n   if visible:colonies[zone.id].position=at+Vector3.UP*.85\n",
+          "baseline": "  if colonies.has(zone.id):colonies[zone.id].visible=visible\n",
+          "systems": [
+            "hex_terrain",
+            "garden",
+            "garden_life"
+          ]
+        },
         "heart_motion": {
           "match": " var motion: bool=game.app_settings.values.get(\"ambient_motion\",true)\n preload(\"res://heart_growth_visuals.gd\").motion(game.stage,motion,game.players.get(game.local_player_id(),{}).get(\"pos\",Vector3(10000,0,0)))\n",
           "baseline": " var motion: bool=game.app_settings.values.get(\"ambient_motion\",true)\n",
@@ -10908,6 +11266,36 @@
     "network_compatibility.gd": {
       "newline": "crlf",
       "regions": {
+        "experimental_coop_1": {
+          "match": "  return\n if payload.get(\"experimental_terrain\",\"\")!=Experiment.network_identity(get_parent()):\n  failure_reason=\"Everyone must use the same experimental terrain build.\"\n  if not multiplayer.is_server(): finish_failed_check.call_deferred()\n",
+          "baseline": "",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        },
+        "experimental_coop_2": {
+          "match": " payload.experimental_terrain=Experiment.network_identity(get_parent())\n",
+          "baseline": "",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        },
+        "experimental_coop_3": {
+          "match": "const Experiment=preload(\"res://assets/terrain_m02/experimental/experiment_mode.gd\")\n",
+          "baseline": "",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        },
         "cb02_network_compatibility_2_8": {
           "match": " if int(payload.get(\"hp_per_point\",0))!=get_parent().Life.Preview.scale():\n  preload(\"res://diagnostic_journal.gd\").event(\"network\",\"compatibility_rejected\",{\"actor\":id,\"reason\":\"health_scale\"},\"warning\")\n  # Keep the peer unauthenticated while it reads our handshake and shows the reason.\n  if not multiplayer.is_server():\n   failure_reason=\"Everyone must launch with the same combat balance mode.\"\n   finish_failed_check.call_deferred()\n  return\n preload(\"res://diagnostic_journal.gd\").event(\"network\",\"compatibility_accepted\",{\"actor\":id})",
           "baseline": " preload(\"res://diagnostic_journal.gd\").event(\"network\",\"compatibility_accepted\",{\"actor\":id})",
@@ -11861,6 +12249,15 @@
     "battlefield.gd": {
       "newline": "crlf",
       "regions": {
+        "experimental_seed_rewards_1": {
+          "match": "\nfunc has_seed_cache() -> bool:\n\treturn procedural\n\nfunc clear_seed_count(depth: int) -> int:\n\treturn 1 if depth == 1 else 2\n",
+          "baseline": "",
+          "systems": [
+            "hex_terrain",
+            "loot",
+            "terrain"
+          ]
+        },
         "matriarch_layout": {
           "match": "\tif kind==22:\n\t\tvar nest=preload(\"res://boss_nest_layout.gd\")\n\t\tbarriers=nest.ribs(phase)\n\t\tfor index in range(spawn_points.size()-1,-1,-1):\n\t\t\tif nest.blocked(barriers,spawn_points[index],CLEARANCE+.45):spawn_points.remove_at(index)",
           "baseline": "\tif kind==22:\n\t\t# Nest ribs rotate as the mother alters her nursery. Leave the central route open.\n\t\tfor side in [-1,1]:\n\t\t\tfor z in [-6.0,1.0,8.0]:\n\t\t\t\tvar x: float=side*(7.0+phase*.7)\n\t\t\t\tbarriers.append(Rect2(x-1.5,z-1.0,3.0,1.4))",
@@ -11885,6 +12282,15 @@
     "exploration.gd": {
       "newline": "crlf",
       "regions": {
+        "experimental_seed_rewards_1": {
+          "match": "\thas_cache = cache_pending and field.has_seed_cache()\n",
+          "baseline": "\thas_cache = cache_pending and field.procedural\n",
+          "systems": [
+            "hex_terrain",
+            "loot",
+            "terrain"
+          ]
+        },
         "health_pool_3": {
           "match": "\tpoint -= Vector3(80, 0, 0)\n\treturn Vector2(point.x, point.z)\n\nstatic func chart_bounds(viewport_size: Vector2, large: bool) -> Rect2:\n\tvar dimensions := EXPANDED_CHART if large else COMPACT_CHART\n\treturn Rect2(viewport_size - dimensions - CHART_MARGIN, dimensions)\n\nfunc chart_point(position: Vector3, canvas: Control) -> Vector2:\n",
           "baseline": "\tpoint -= Vector3(80, 0, 0)\n\treturn Vector2(point.x, point.z)\n\nfunc chart_point(position: Vector3, canvas: Control) -> Vector2:\n",
@@ -11986,6 +12392,42 @@
     "garden_crop_service.gd": {
       "newline": "lf",
       "regions": {
+        "experimental_research_landmarks_1": {
+          "match": "static func spring_ready(game: Node) -> bool:\n return Growth.spring_ready(game.progress) and (not game.has_meta(&\"experimental_terrain\") or game.stage.station_position(\"spring\").is_finite())\n",
+          "baseline": "",
+          "systems": [
+            "hex_terrain",
+            "garden",
+            "garden_care"
+          ]
+        },
+        "experimental_research_landmarks_2": {
+          "match": " var watering_available:=spring_ready(game)\n",
+          "baseline": "",
+          "systems": [
+            "hex_terrain",
+            "garden",
+            "garden_care"
+          ]
+        },
+        "experimental_research_landmarks_3": {
+          "match": "  beds[-1].merge({\"remaining\":seconds,\"garden_remaining\":work/Growth.rate(game.progress,bed),\"wild_remaining\":work/Growth.rate(game.progress,bed,true),\"growth_rate\":Growth.rate(game.progress,bed,game.expedition_active()),\"extra_seconds\":base*float(policy.get(\"delay_fraction\",0))/Growth.rate(game.progress,bed,game.expedition_active()),\"watered\":Growth.watered(bed),\"water_available\":Growth.supported(bed) and State.compatible(bed) and int(bed.stage)<3 and watering_available and not Growth.watered(bed),\"spring_ready\":watering_available,\"flower_enabled\":game.progress.flowering_unlocked},true)\n",
+          "baseline": "  beds[-1].merge({\"remaining\":seconds,\"garden_remaining\":work/Growth.rate(game.progress,bed),\"wild_remaining\":work/Growth.rate(game.progress,bed,true),\"growth_rate\":Growth.rate(game.progress,bed,game.expedition_active()),\"extra_seconds\":base*float(policy.get(\"delay_fraction\",0))/Growth.rate(game.progress,bed,game.expedition_active()),\"watered\":Growth.watered(bed),\"water_available\":Growth.supported(bed) and State.compatible(bed) and int(bed.stage)<3 and Growth.spring_ready(game.progress) and not Growth.watered(bed),\"spring_ready\":Growth.spring_ready(game.progress),\"flower_enabled\":game.progress.flowering_unlocked},true)\n",
+          "systems": [
+            "hex_terrain",
+            "garden",
+            "garden_care"
+          ]
+        },
+        "experimental_research_landmarks_4": {
+          "match": "  if int(bed.stage)>=3 or not Growth.supported(bed) or not spring_ready(game):return reject(game,id,\"The sheltered spring is unavailable for this crop.\")\n",
+          "baseline": "  if int(bed.stage)>=3 or not Growth.supported(bed) or not Growth.spring_ready(game.progress):return reject(game,id,\"Unlock the sheltered spring to water a growing crop.\")\n",
+          "systems": [
+            "hex_terrain",
+            "garden",
+            "garden_care"
+          ]
+        },
         "experimental_terrain_1": {
           "match": " return p.get(\"profile_ready\",false) and not p.get(\"wild\",false) and not p.get(\"fallen\",false) and game.travel_kind.is_empty() and p.pos.distance_to(game.stage.bed_position(slot))<=1.65 and game.progress.offshoot_in_bed(slot)<0\n",
           "baseline": " return p.get(\"profile_ready\",false) and not p.get(\"wild\",false) and not p.get(\"fallen\",false) and game.travel_kind.is_empty() and p.pos.distance_to(game.Stage.PLOTS[slot])<=1.65 and game.progress.offshoot_in_bed(slot)<0\n",
@@ -16979,6 +17421,96 @@
     "main_menu.gd": {
       "newline": "crlf",
       "regions": {
+        "experimental_coop_1": {
+          "match": "\tif not join and host_choice.button_pressed: game.host_button.pressed.emit()\n",
+          "baseline": "\tif not join and host_choice.button_pressed and not has_meta(&\"experimental_terrain\"): game.host_button.pressed.emit()\n",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        },
+        "experimental_coop_2": {
+          "match": "\tpreload(\"res://diagnostic_journal.gd\").event(\"menu\",\"world_launch\",{\"join\":join,\"world_slot\":selected,\"character_slot\":selected_character})\n",
+          "baseline": "\tif join and has_meta(&\"experimental_terrain\"):\n\t\treturn\n\tpreload(\"res://diagnostic_journal.gd\").event(\"menu\",\"world_launch\",{\"join\":join,\"world_slot\":selected,\"character_slot\":selected_character})\n",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        },
+        "experimental_coop_3": {
+          "match": "\t\tcontinue_button.disabled = true\n\tif guarded_persistence:\n",
+          "baseline": "\t\tcontinue_button.disabled = true\n\t\tjoin_button.disabled = true\n\tif guarded_persistence:\n",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        },
+        "experimental_coop_4": {
+          "match": "\tif index!=1:character_return_page=index\n",
+          "baseline": "\tif index == 2 and has_meta(&\"experimental_terrain\"): return\n\tif index!=1:character_return_page=index\n",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        },
+        "experimental_coop_5": {
+          "match": "\thost_choice.size_flags_horizontal=Control.SIZE_EXPAND_FILL\n",
+          "baseline": "\thost_choice.visible = not has_meta(&\"experimental_terrain\")\n\thost_choice.size_flags_horizontal=Control.SIZE_EXPAND_FILL\n",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        },
+        "experimental_coop_6": {
+          "match": "\t\tentry.alignment=HORIZONTAL_ALIGNMENT_LEFT\n",
+          "baseline": "\t\tentry.visible = index != 2 or not has_meta(&\"experimental_terrain\")\n\t\tentry.alignment=HORIZONTAL_ALIGNMENT_LEFT\n",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        },
+        "experimental_coop_7": {
+          "match": "\t\tprint(\"PLAYTEST READY: %s \u00b7 protocol %d \u00b7 %s\" % [build_label.text,Network.PROTOCOL,Playtest.build().get(\"persistence_label\",\"legacy-contained\")])\n",
+          "baseline": "\t\tprint(\"PLAYTEST READY: %s \u00b7 protocol %d \u00b7 legacy-contained\" % [build_label.text,Network.PROTOCOL])\n",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        },
+        "experimental_coop_8": {
+          "match": "\t\t\treturn_message = \"EXPERIMENTAL TERRAIN  \u00b7  Co-op  \u00b7  Garden layout lasts for the host session\"\n",
+          "baseline": "\t\t\treturn_message = \"EXPERIMENTAL TERRAIN  \u00b7  Solo  \u00b7  This launch only\"\n",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        },
+        "experimental_coop_9": {
+          "match": "\t\t\trefusal.text = \"Experimental terrain could not verify its isolated save folder.\"\n",
+          "baseline": "\t\t\trefusal.text = \"Experimental terrain requires the isolated development launcher.\"\n",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        },
         "experimental_terrain_1": {
           "match": "\tvar experiment = preload(\"res://assets/terrain_m02/experimental/experiment_mode.gd\")\n\tif experiment.requested():\n\t\tif not experiment.verified():\n\t\t\tvar refusal := Label.new()\n\t\t\trefusal.text = \"Experimental terrain requires the isolated development launcher.\"\n\t\t\trefusal.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER\n\t\t\trefusal.vertical_alignment = VERTICAL_ALIGNMENT_CENTER\n\t\t\trefusal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)\n\t\t\tadd_child(refusal)\n\t\t\tset_process(false)\n\t\t\tset_process_unhandled_key_input(false)\n\t\t\treturn\n\t\tset_meta(&\"experimental_terrain\", true)\n\t\tguarded_persistence = true\n\t\timport_legacy = false\n\t\tif return_message.is_empty():\n\t\t\treturn_message = \"EXPERIMENTAL TERRAIN  \u00b7  Solo  \u00b7  This launch only\"\n",
           "baseline": "",

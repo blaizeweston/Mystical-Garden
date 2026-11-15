@@ -9,6 +9,7 @@ param(
  [string]$EvidenceRoot='',
  [string]$ExpectedRevision='',
  [string[]]$HistoricalArchiveRoots=@(),
+ [switch]$ExperimentalTerrain,
  [switch]$PlanOnly
 )
 $ErrorActionPreference='Stop'
@@ -19,6 +20,7 @@ if(-not $Config -and -not $Engine){$Engine=Join-Path $PSScriptRoot '../../Godot_
 $overrides=[ordered]@{'archive'=$ArchiveRoot;'engine'=$Engine;'config'=$Config;'workspace'=$WorkspaceRoot;'stage'=$StageRoot;'evidence'=$EvidenceRoot;'expected-revision'=$ExpectedRevision}
 foreach($entry in $overrides.GetEnumerator()){if($entry.Value){$arguments+=@(('--'+$entry.Key),$entry.Value)}}
 foreach($root in $HistoricalArchiveRoots){$arguments+=@('--history',$root)}
+if($ExperimentalTerrain){$arguments+='--experimental-terrain'}
 if($PlanOnly){$arguments+='--plan'}
 & $python @arguments
 if($LASTEXITCODE -ne 0){throw 'Playtest build failed. See the retained staging evidence.'}

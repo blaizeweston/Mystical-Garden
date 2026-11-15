@@ -93,20 +93,21 @@ static func _tube(tool: SurfaceTool, points: Array, radii: Array, color: Color) 
 			_face(tool, a, b, c, shade)
 			_face(tool, a, c, d, shade)
 
-static func _crown(tool: SurfaceTool, random: RandomNumberGenerator, at: Vector3, size: Vector3, color: Color) -> void:
+static func _crown(tool: SurfaceTool, random: RandomNumberGenerator, at: Vector3, size: Vector3, color: Color,
+		samples: int = CROWN_SAMPLES) -> void:
 	var shoulder := PackedVector3Array()
 	var skirt := PackedVector3Array()
 	var top := at + Vector3(0.12, 0.95, -0.13) * size
 	var bottom := at - Vector3.UP * size.y * 0.65
-	for i in CROWN_SAMPLES:
-		var angle := TAU * i / CROWN_SAMPLES
+	for i in samples:
+		var angle := TAU * i / samples
 		var radial := Vector3(cos(angle), 0.0, sin(angle)) * size
 		shoulder.append(at + radial * random.randf_range(0.51, 0.84)
 			+ Vector3.UP * size.y * random.randf_range(0.27, 0.61))
 		skirt.append(at + radial * random.randf_range(0.74, 1.14)
 			- Vector3.UP * size.y * random.randf_range(0.05, 0.38))
-	for i in CROWN_SAMPLES:
-		var next := (i + 1) % CROWN_SAMPLES
+	for i in samples:
+		var next := (i + 1) % samples
 		var varied := color.lerp(Color("#657050"), random.randf_range(0.02, 0.16))
 		_face(tool, top, shoulder[i], shoulder[next], varied)
 		_face(tool, shoulder[i], skirt[i], shoulder[next], varied.darkened(0.08))
@@ -122,7 +123,7 @@ static func _face(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, color: 
 
 
 ## M06 botanical forms share the bent stems and tapered roots of the enclosure.
-static func botanical(variant: int, form: String, profile: Dictionary, biome: int) -> ArrayMesh:
+static func botanical(variant: int, form: String, profile: Dictionary, biome: int, scenic: bool = false) -> ArrayMesh:
 	var random := RandomNumberGenerator.new()
 	random.seed = 9043 + variant * 761
 	var tool := SurfaceTool.new()
@@ -141,12 +142,14 @@ static func botanical(variant: int, form: String, profile: Dictionary, biome: in
 	var fork := -lean * 0.027 + Vector3.UP * 0.52
 	var tip := lean * random.randf_range(0.06, 0.17) + Vector3.UP * 0.91
 	_tube(tool, [Vector3.ZERO, lower, fork, tip], [trunk, trunk * 0.74, trunk * 0.42, 0.004], bark)
-	for i in (4 if juvenile else 6):
-		var heading := _heading(i * TAU / (4.0 if juvenile else 6.0) + random.randf_range(-0.25, 0.25))
+	var root_count := 4 if juvenile or scenic else 6
+	var crown_samples := 5 if scenic else CROWN_SAMPLES
+	for i in root_count:
+		var heading := _heading(i * TAU / root_count + random.randf_range(-0.25, 0.25))
 		var reach := random.randf_range(0.19, 0.33) * spread
 		var knee := heading * reach * 0.45 + Vector3.UP * 0.04
 		_tube(tool, [lower * 0.48, knee, heading * reach], [trunk * 0.56, trunk * 0.31, 0.002], bark.lerp(edge, 0.13))
-	for i in (4 if juvenile else 8 if heart else 7):
+	for i in (4 if juvenile else 5 if scenic else 8 if heart else 7):
 		var bearing := i * 2.39996 + variant * 0.55
 		var heading := _heading(bearing)
 		var elevation := 0.46 + (i % 4) * 0.105
@@ -157,13 +160,14 @@ static func botanical(variant: int, form: String, profile: Dictionary, biome: in
 		_tube(tool, [start, elbow, end], [trunk * 0.39, trunk * 0.17, 0.002], bark.lerp(edge, 0.11))
 		var color := foliage.lerp(light, random.randf_range(0.09, 0.56))
 		var radius := (0.18 if boundary or heart else 0.145 if not juvenile else 0.10) * spread
-		_crown(tool, random, end, Vector3(radius * 1.28, radius * 0.51, radius), color)
-		_leaf_spray(tool, end + Vector3.UP * 0.017, bearing, radius * 1.10, color, light)
-		for j in (2 if boundary or heart else 1):
+		_crown(tool, random, end, Vector3(radius * 1.28, radius * 0.51, radius), color, crown_samples)
+		if not scenic:
+			_leaf_spray(tool, end + Vector3.UP * 0.017, bearing, radius * 1.10, color, light)
+		for j in (0 if scenic else 2 if boundary or heart else 1):
 			var drift := _heading(bearing + 0.9 + j * 2.4) * radius * 0.80
 			_crown(tool, random, end + drift * 0.8 + Vector3.UP * 0.047,
 				Vector3(radius * 0.65, radius * 0.35, radius * 0.61), color.lightened(0.07))
-	_crown(tool, random, tip, Vector3(0.12, 0.064, 0.14) * spread, foliage.lerp(light, 0.43))
+	_crown(tool, random, tip, Vector3(0.12, 0.064, 0.14) * spread, foliage.lerp(light, 0.43), crown_samples)
 	return tool.commit()
 
 static func understory(kind: String, variant: int, profile: Dictionary) -> ArrayMesh:

@@ -107,7 +107,7 @@ func update_floor(new_field: RefCounted, key: String, position: Vector3, camera:
 	loot = drop
 	cache = field.cache
 	has_loot = pending
-	has_cache = cache_pending and field.procedural
+	has_cache = cache_pending and field.has_seed_cache()
 	has_shrine = shrine_available
 	if key != floor_key:
 		floor_key = key

@@ -1,6 +1,7 @@
 extends Node
 # Runs before SceneMultiplayer exposes peers or accepts any scene RPCs.
 const Settings=preload("res://network_settings.gd")
+const Experiment=preload("res://assets/terrain_m02/experimental/experiment_mode.gd")
 const UPDATE_MESSAGE="Multiplayer compatibility check failed. Both players must use the same updated game build."
 var signature: String
 var failure_reason: String=""
@@ -32,6 +33,7 @@ func begin_check(id: int) -> void:
  failure_reason=""
  var payload: Dictionary={"game":"mystical-garden","protocol":Settings.PROTOCOL,"methods":signature,"terrain":preload("res://wilds_layout.gd").SIGNATURE,"garden":preload("res://garden_return_catalog.gd").signature,"cultivation":preload("res://cultivation_growth.gd").signature}
  payload.hp_per_point=get_parent().Life.Preview.scale()
+ payload.experimental_terrain=Experiment.network_identity(get_parent())
  multiplayer.send_auth(id,JSON.stringify(payload).to_utf8_buffer())
 
 func receive_compatibility(id: int,data: PackedByteArray) -> void:
@@ -40,6 +42,10 @@ func receive_compatibility(id: int,data: PackedByteArray) -> void:
   preload("res://diagnostic_journal.gd").event("network","compatibility_rejected",{"actor":id},"warning")
   failure_reason=UPDATE_MESSAGE
   multiplayer.disconnect_peer(id)
+  return
+ if payload.get("experimental_terrain","")!=Experiment.network_identity(get_parent()):
+  failure_reason="Everyone must use the same experimental terrain build."
+  if not multiplayer.is_server(): finish_failed_check.call_deferred()
   return
  if int(payload.get("hp_per_point",0))!=get_parent().Life.Preview.scale():
   preload("res://diagnostic_journal.gd").event("network","compatibility_rejected",{"actor":id,"reason":"health_scale"},"warning")

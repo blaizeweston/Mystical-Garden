@@ -74,7 +74,7 @@ func _ready() -> void:
 	if experiment.requested():
 		if not experiment.verified():
 			var refusal := Label.new()
-			refusal.text = "Experimental terrain requires the isolated development launcher."
+			refusal.text = "Experimental terrain could not verify its isolated save folder."
 			refusal.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			refusal.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 			refusal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -86,7 +86,7 @@ func _ready() -> void:
 		guarded_persistence = true
 		import_legacy = false
 		if return_message.is_empty():
-			return_message = "EXPERIMENTAL TERRAIN  ·  Solo  ·  This launch only"
+			return_message = "EXPERIMENTAL TERRAIN  ·  Co-op  ·  Garden layout lasts for the host session"
 	if Playtest.retail():
 		import_legacy = false
 		if not Playtest.refusal.is_empty():
@@ -193,13 +193,12 @@ void fragment() {
 		var version: String = Playtest.build().playtest_version
 		var build_label := label(sidebar,version,14,Color("#bfc594"))
 		build_label.name = "PlaytestVersion"
-		print("PLAYTEST READY: %s · protocol %d · legacy-contained" % [build_label.text,Network.PROTOCOL])
+		print("PLAYTEST READY: %s · protocol %d · %s" % [build_label.text,Network.PROTOCOL,Playtest.build().get("persistence_label","legacy-contained")])
 	var title_space:=Control.new()
 	title_space.custom_minimum_size.y=16
 	sidebar.add_child(title_space)
 	for index in 3:
 		var entry:=button(sidebar,["Play","Characters","Co-op"][index],func():show_page(index))
-		entry.visible = index != 2 or not has_meta(&"experimental_terrain")
 		entry.alignment=HORIZONTAL_ALIGNMENT_LEFT
 		entry.toggle_mode=true
 		navigation.append(entry)
@@ -248,7 +247,6 @@ void fragment() {
 	play.add_child(management)
 	host_choice=CheckBox.new()
 	host_choice.text="Host this Garden in co-op"
-	host_choice.visible = not has_meta(&"experimental_terrain")
 	host_choice.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	management.add_child(host_choice)
 	delete_button=button(management,"Delete Garden…",request_delete_save)
@@ -371,7 +369,6 @@ void fragment() {
 			network_dialog.begin(network_address,network_port,true,character_summary(selected_character).name,return_message)
 
 func show_page(index: int) -> void:
-	if index == 2 and has_meta(&"experimental_terrain"): return
 	if index!=1:character_return_page=index
 	for i in pages.size():
 		pages[i].visible=i==index
@@ -448,7 +445,6 @@ func select_slot(slot: int) -> void:
 	host_choice.disabled=current.active
 	if has_meta(&"experimental_terrain"):
 		continue_button.disabled = true
-		join_button.disabled = true
 	if guarded_persistence:
 		delete_button.disabled = transitioning or current.state != "healthy"
 		new_button.disabled = new_button.disabled or current.state not in ["healthy", "empty"]
@@ -707,8 +703,6 @@ func join_game() -> void:
 	if not transitioning and not join_button.disabled: launch(true)
 
 func launch(join: bool) -> void:
-	if join and has_meta(&"experimental_terrain"):
-		return
 	preload("res://diagnostic_journal.gd").event("menu","world_launch",{"join":join,"world_slot":selected,"character_slot":selected_character})
 	if transitioning:
 		return
@@ -931,5 +925,5 @@ func _launch_guarded(join: bool) -> void:
 	if network_dialog.visible: network_dialog.dismiss()
 	get_tree().current_scene = game
 	preload("res://title_music.gd").set_playing(get_tree(),false)
-	if not join and host_choice.button_pressed and not has_meta(&"experimental_terrain"): game.host_button.pressed.emit()
+	if not join and host_choice.button_pressed: game.host_button.pressed.emit()
 	queue_free()

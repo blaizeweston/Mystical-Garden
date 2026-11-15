@@ -25,10 +25,13 @@ static func fill_water(game: Node,id: int) -> bool:
  game.tell(id,"Watering vessel filled. Use it on a growing crop.")
  preload("res://diagnostic_journal.gd").event("garden","spring_water_collected",{"actor":id,"point":"spring_water"})
  return true
+static func spring_ready(game: Node) -> bool:
+ return Growth.spring_ready(game.progress) and (not game.has_meta(&"experimental_terrain") or game.stage.station_position("spring").is_finite())
 static func projection(game: Node,id: int) -> Dictionary:
  if not game.multiplayer.is_server():return game.players.get(id,{}).get("garden_interactions",{}).get("cultivation",{})
  var beds: Array=[];var player: Dictionary=game.players.get(id,{})
  if player.is_empty() or player.get("wild",false):return {"version":2,"catalog":Catalog.signature,"beds":[],"focus":{}}
+ var watering_available:=spring_ready(game)
  for index in game.progress.plots.size():
   var bed: Dictionary=game.progress.plots[index];var species: int=int(bed.species)
   if species<0:continue
@@ -36,7 +39,7 @@ static func projection(game: Node,id: int) -> Dictionary:
   var familiarity: int=int(player.get("character",{}).get("plants",[])[species]) if not player.is_empty() else 0
   var chance: float=game.rare_harvest_chance(familiarity);var work:=maxf(0,State.duration(bed,base)-float(bed.age));var seconds: float=work/Growth.rate(game.progress,bed,game.expedition_active())
   beds.append({"slot":index,"species":species,"stage":int(bed.stage),"flowering":bool(bed.flowering),"cycle":care.get("cycle",""),"revision":care.get("revision",0),"choice":care.get("choice",""),"compatible":State.compatible(bed),"available":State.available(bed),"preserved":State.preserved(bed),"remaining":seconds,"base_chance":chance,"chance":State.chance(bed,chance),"preserve_chance":minf(float(policy.get("rare_cap",1)),chance+float(policy.get("rare_bonus",0))),"extra_seconds":base*float(policy.get("delay_fraction",0))/game.progress.heart.growth_multiplier(),"flower_enabled":game.progress.flowering_unlocked and not game.expedition_active(),"opportunity":care.get("opportunity","patient_bud")})
-  beds[-1].merge({"remaining":seconds,"garden_remaining":work/Growth.rate(game.progress,bed),"wild_remaining":work/Growth.rate(game.progress,bed,true),"growth_rate":Growth.rate(game.progress,bed,game.expedition_active()),"extra_seconds":base*float(policy.get("delay_fraction",0))/Growth.rate(game.progress,bed,game.expedition_active()),"watered":Growth.watered(bed),"water_available":Growth.supported(bed) and State.compatible(bed) and int(bed.stage)<3 and Growth.spring_ready(game.progress) and not Growth.watered(bed),"spring_ready":Growth.spring_ready(game.progress),"flower_enabled":game.progress.flowering_unlocked},true)
+  beds[-1].merge({"remaining":seconds,"garden_remaining":work/Growth.rate(game.progress,bed),"wild_remaining":work/Growth.rate(game.progress,bed,true),"growth_rate":Growth.rate(game.progress,bed,game.expedition_active()),"extra_seconds":base*float(policy.get("delay_fraction",0))/Growth.rate(game.progress,bed,game.expedition_active()),"watered":Growth.watered(bed),"water_available":Growth.supported(bed) and State.compatible(bed) and int(bed.stage)<3 and watering_available and not Growth.watered(bed),"spring_ready":watering_available,"flower_enabled":game.progress.flowering_unlocked},true)
  return {"version":2,"catalog":Catalog.signature,"beds":beds,"spring_water":player.get("spring_water",false),"focus":player.get("garden_crop_focus",{}).duplicate(true)}
 static func harvest_seeds(game: Node,id: int,slot: int) -> Dictionary:
  if not eligible(game,id,slot) or not game.progress.flowering_unlocked:return reject(game,id,"Research Flowering before harvesting seeds at a Garden bed.")
@@ -71,7 +74,7 @@ static func command(game: Node,id: int,request: Dictionary) -> Dictionary:
  if action=="flower_crop":
   return harvest_seeds(game,id,slot)
  if action=="water_crop":
-  if int(bed.stage)>=3 or not Growth.supported(bed) or not Growth.spring_ready(game.progress):return reject(game,id,"Unlock the sheltered spring to water a growing crop.")
+  if int(bed.stage)>=3 or not Growth.supported(bed) or not spring_ready(game):return reject(game,id,"The sheltered spring is unavailable for this crop.")
   if not game.players[id].get("spring_water",false):return reject(game,id,"Fill your watering vessel at the sheltered spring first.")
   var watered_result:=Tx.run_gameplay(game,Tx.Scope.PAIR,func():Growth.water(bed);return true)
   if (watered_result.completed or Tx.committed(watered_result.persistence)) and watered_result.value==true:

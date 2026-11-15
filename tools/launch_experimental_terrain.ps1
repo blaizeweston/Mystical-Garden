@@ -1,9 +1,13 @@
 [CmdletBinding()]
 param(
-    [string]$GodotExe = (Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'Godot_v4.7.2-stable_win64.exe')
+    [string]$GodotExe
 )
 $ErrorActionPreference = 'Stop'
 $project = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
+if (-not $GodotExe) {
+    # Resolve the default after Windows PowerShell initializes the script root.
+    $GodotExe = Join-Path (Split-Path $project -Parent) 'Godot_v4.7.2-stable_win64.exe'
+}
 $engine = (Resolve-Path -LiteralPath $GodotExe).Path
 $name = 'mg-terrain-' + [Guid]::NewGuid().ToString('N')
 $profile = Join-Path ([IO.Path]::GetTempPath()) $name
