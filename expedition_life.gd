@@ -15,7 +15,7 @@ static func maximum(game: Node,p: Dictionary) -> int:
  return Vitals.maximum(Preview.hp(game.MAX_HEALTH),Preview.effect_hp(Preview.authored_amount(float(game.weapon_stats(p).get("max_health",0)))),int(p.get("lost_health",0)),Preview.scale())
 static func down(game: Node,id: int,p: Dictionary,effects = null) -> void:
  p.hp=0;p.fallen=true;p.velocity=Vector3.ZERO;p.attack_until=0;p.swing_until=0
- p.erase("affinity_ward_claims");p.erase("frost_response")
+ p.erase("affinity_ward_claims");p.erase("frost_response");p.erase("affinity_ember_response")
  p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0
  game.motions.erase(id);game.checkpoint_ready.erase(id)
  game.PartyTravel.cancel(game,"A teammate has fallen. Readiness was cleared.",effects)
@@ -42,7 +42,7 @@ static func revive(game: Node,helper_id: int,target_id: int,effects = null) -> b
   game.action_feedback(effects,helper_id,"This ally has too little maximum health to revive." if Preview.enabled else "No full heart remains to sacrifice. This ally cannot be revived again during this expedition.");return false
  target.lost_health=int(target.get("lost_health",0))+Preview.revive_cost()
  target.max_hp=maximum(game,target);target.hp=float(target.max_hp);target.fallen=false
- target.erase("affinity_ward_claims");target.erase("frost_response")
+ target.erase("affinity_ward_claims");target.erase("frost_response");target.erase("affinity_ember_response")
  target.hurt_until=Time.get_ticks_msec()+1500;target.guard_until=0;target.renewal_until=0
  target.velocity=Vector3.ZERO;game.motions.erase(target_id)
  game.PartyTravel.cancel(game,"A teammate was revived. Confirm readiness again at the gate.",effects)

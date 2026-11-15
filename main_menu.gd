@@ -89,7 +89,7 @@ func _ready() -> void:
 		if combat_mode.verified():
 			set_meta(combat_mode.META, combat_mode.ID)
 			if return_message.is_empty():
-				return_message = "Frost development mode · Co-op · Equip Frostbell in Core, Form, or Catalyst."
+				return_message = "Plant affinity development mode · Co-op · Equip supported affinity materials in Core, Form, or Catalyst."
 		elif return_message.is_empty():
 			return_message = "EXPERIMENTAL TERRAIN  ·  Co-op  ·  Garden layout lasts for the host session"
 	if Playtest.retail():

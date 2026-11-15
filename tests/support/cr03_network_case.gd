@@ -12,6 +12,7 @@ var signals: String
 var port: int
 var party := false
 var failed := false
+var extra_cores: Array = []
 
 
 func check(ok: bool, label: String) -> bool:
@@ -93,8 +94,14 @@ func host(menu: Node) -> void:
 	var ids:=guests(game)
 	ids.sort()
 	for id in ids: game.players[id].pos=local.pos
-	mark("select",str(refined))
-	if not check(await until(func():return ids.all(func(id):return game.players[id].prepared_secondary==refined)),"real guest loadout requests reach host"):return
+	var supplied := {}
+	for index in ids.size():
+		var part := 0
+		if not extra_cores.is_empty():
+			part = int(game.Items.get_item(extra_cores[index]).legacy_part)
+			supplied[part] = game.progress.part_count(part)
+		mark("select-"+str(ids[index]),"%d:%d" % [refined,part])
+	if not check(await until(func():return ids.all(func(id):return game.players[id].prepared_secondary==refined) and supplied.keys().all(func(part):return ids.any(func(id):return game.players[id].prepared==part))),"real guest loadout requests reach host"):return
 	var before_regular: int=game.progress.part_count(ordinary)
 	var before_rare: int=game.progress.part_count(refined)
 	if party:
@@ -105,6 +112,8 @@ func host(menu: Node) -> void:
 	if not check(await until(func():return game.expedition_active() and ids.all(func(id):return game.players[id].wild) and not game.battlefield.generated.is_empty()),"native guarded departure opens generated floor"): return
 	check(game.progress.part_count(ordinary)==before_regular-1 and game.progress.part_count(refined)==before_rare-count-1,"exact guarded departure debits")
 	var paid := [game.progress.part_count(ordinary),game.progress.part_count(refined)]
+	for part in supplied:
+		check(game.progress.part_count(part)==supplied[part]-1,"each additional Core is debited once")
 	var floor_entry: Vector3=game.battlefield.entry
 	var target := floor_entry
 	for direction in [Vector3.RIGHT,Vector3.LEFT,Vector3.FORWARD,Vector3.BACK]:
@@ -149,6 +158,12 @@ func host(menu: Node) -> void:
 	var before: float=ally.hp
 	game.apply_enemy_hit(protected,ally,Time.get_ticks_msec(),1)
 	check(ally.hp==before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==1 and e.details.recipient==protected and e.quality=="refined"),"actual guest block uses host refined Catalyst")
+	for index in extra_cores.size():
+		var visitor: Dictionary=game.players[ids[index]]
+		var primary: String=preload("res://plant_affinities.gd").for_part(visitor.weapon).primary_affinity
+		mark("cast-"+str(ids[index]),str(Vector2(visitor.facing.x,visitor.facing.z)))
+		if not check(await until(func():return rows.any(func(e):return e.kind=="core_action" and e.primary_affinity==primary and e.source_actor==ids[index])),
+			"native "+primary+" Core RPC resolves by the host"):return
 	if party:
 		check(await until(func():return read("overflow")=="ok",22000),"overflow returns after native connection deadline")
 		check(guests(game).size()==3,"four-player limit holds")
@@ -217,12 +232,20 @@ func guest(menu: Node, role: String) -> void:
 	var identity: String=game.guest_character.identity
 	var terrain = game.stage.experimental_garden
 	var garden_outline := str(terrain.state.outline).sha256_text()
-	if not check(await until(func():return not read("select").is_empty()),"host stocked and positioned party"):return
-	game.send_garden_action("loadpart_1_"+read("select"))
+	var selection := "select-"+str(id)
+	if not check(await until(func():return not read(selection).is_empty()),"host stocked and positioned party"):return
+	var picks := read(selection).split(":")
+	game.send_garden_action("loadpart_1_"+picks[0])
+	if int(picks[1])>0:
+		game.send_garden_action("loadpart_0_"+picks[1])
 	if not check(await until(func():return not read("depart").is_empty()),"host authorizes departure"):return
 	game.send_garden_action("travel_ready:"+read("depart"))
 	if not check(await until(func():return read("strike-"+str(id))=="ok" and game.stage._has_experimental_floor()),"guest sees generated Frost floor"):return
 	game.send_action(true)
+	if int(picks[1])>0:
+		if not check(await until(func():return not read("cast-"+str(id)).is_empty()),"host asks guest to cast at actual enemy"):return
+		var raw := read("cast-"+str(id)).trim_prefix("(").trim_suffix(")").split(",")
+		game.send_garden_action(Core.request(game,game.players[id],Vector2(float(raw[0]),float(raw[1])),1.1))
 	if party:
 		if check(await until(func():return read("party-done")=="ok",22000),"host observes mixed-source party"):
 			mark("done-"+str(id))

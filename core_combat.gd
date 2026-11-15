@@ -92,9 +92,9 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 		"flight_ms": flight_ms, "released": false, "grown": false, "next_hit": {},
 		"origin": origin, "cast_origin": player.pos, "previous": {}, "behaviors": Upgrades.core_behaviors(player, skill.id),
 	})
-	if skill.get("frost_family", false):
-		line.frost_action = preload("res://combat_action_events.gd").begin(game,id,"core",skill.material,
-			skill.material.potency_profile.values,["core_action"],int(line.expires))
+	if skill.has("affinity_family"):
+		line.affinity_action = preload("res://combat_action_events.gd").begin(game,id,"core",skill.material,
+			skill.material.potency_profile.values,["core_action"],0x7fffffffffffffff)
 	lines[id] = line
 	game.set_meta(STATE, lines)
 	player.core_ready_at = now + int(skill.cooldown_ms)
@@ -119,7 +119,7 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 static func equipped(player: Dictionary) -> Dictionary:
 	if preload("res://combat_ruleset.gd").uses_affinities(player):
 		var builds = preload("res://affinity_build.gd")
-		return builds.frost_core(builds.for_player(player))
+		return builds.core_skill(builds.for_player(player))
 	var skill: Dictionary = Rules.player_build(player).skill
 	Upgrades.tune_core(player, skill)
 	return skill
@@ -132,7 +132,7 @@ static func owner_state(player: Dictionary, now: int, _cast: Dictionary = {}) ->
 	if skill.is_empty():
 		return {}
 	return {
-		"name": skill.name, "icon": skill.icon, "tooltip": skill.tooltip if skill.get("frost_family",false) else Rules.describe(skill, Upgrades.core_card_lines(player, skill.id)),
+		"name": skill.name, "icon": skill.icon, "tooltip": skill.tooltip if skill.has("affinity_family") else Rules.describe(skill, Upgrades.core_card_lines(player, skill.id)),
 		"remaining": maxf(0, (int(player.get("core_ready_at", 0)) - now) / 1000.0),
 	}
 
@@ -155,7 +155,7 @@ static func hud_state(game: Node, player: Dictionary) -> Dictionary:
 static func preview(game: Node, player: Dictionary, field: RefCounted, forward: Vector3, distance: float) -> Dictionary:
 	var skill := equipped(player) if game.multiplayer.is_server() else Dictionary(player.get("weapon_stats", {})).get("core_build", {}).get("skill", {}) as Dictionary
 	if not game.multiplayer.is_server() and preload("res://combat_ruleset.gd").active(game):
-		skill = preload("res://affinity_build.gd").frost_core(player.get("weapon_stats",{}).get("affinity_build",{}))
+		skill = preload("res://affinity_build.gd").core_skill(player.get("weapon_stats",{}).get("affinity_build",{}))
 	if skill.is_empty():
 		return {}
 	var origin: Vector3 = player.pos
@@ -260,7 +260,7 @@ static func tick(game: Node, now: int) -> void:
 	for id in lines.keys():
 		var line: Dictionary = lines[id]
 		var player: Dictionary = game.players.get(id, {})
-		if int(line.epoch) != game.combat_epoch or not game.Life.alive(player) or int(player.get("lost_health", 0)) != int(line.life) or now >= int(line.expires):
+		if int(line.epoch) != game.combat_epoch or not game.Life.alive(player) or int(player.get("lost_health", 0)) != int(line.life) or (now >= int(line.expires) and not (line.grown and line.skill.get("affinity_family") == "fire")):
 			if line.has("flight_event") and now < int(line.armed):
 				game.emit_combat_event("projectile_end", str(line.flight_event), line.origin, line.origin, .15, Color.WHITE, 0.0, 0)
 			lines.erase(id)
@@ -292,9 +292,13 @@ static func tick(game: Node, now: int) -> void:
 		if not line.grown and not game.battlefield.clear_line(line.cast_origin, line.center):
 			lines.erase(id)
 			continue
-		if line.skill.get("frost_family", false):
-			if preload("res://frost_combat.gd").bloom(game,line,now): lines.erase(id)
-			continue
+		match line.skill.get("affinity_family", ""):
+			"frost":
+				if preload("res://frost_combat.gd").bloom(game,line,now): lines.erase(id)
+				continue
+			"fire":
+				if preload("res://fire_combat.gd").field(game,line,now): lines.erase(id)
+				continue
 		if line.skill.mechanic == "ground_sequence":
 			if Effects.sequence(game, id, player, line, now):
 				lines.erase(id)
@@ -482,8 +486,16 @@ static func hints(game: Node) -> Array:
 	for line in game.get_meta(STATE, {}).values():
 		if not line.grown:
 			continue
-		if line.skill.mechanic == "ground_sequence":
+		if line.skill.get("affinity_family") == "fire":
+			var elapsed: int = preload("res://affinity_time.gd").now(game)
+			var hint := Effects.field_hint(line.id,line.center,maxf(0.0,(int(line.field_until)-elapsed)/1000.0),line.skill)
+			hint.core_shapes = Footprint.encode(line.shapes)
+			hint.core_phase = preload("res://fire_combat.gd").FIELD_MS - maxi(0,int(line.field_until)-elapsed)
+			result.append(hint)
+		elif not line.skill.has("affinity_family") and line.skill.mechanic == "ground_sequence":
 			result.append_array(Effects.hints(game, line, Time.get_ticks_msec()))
+		elif line.skill.has("affinity_family"):
+			continue
 		elif line.skill.mechanic == "anchor_beam":
 			var center: Vector3 = line.center
 			var at := [center.x, 0, center.z]

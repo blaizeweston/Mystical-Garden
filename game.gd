@@ -2103,6 +2103,10 @@ func _physics_process(delta: float) -> void:
 		if get_meta(Transactions.PENDING, false): return
 		Traits.tick(self,now)
 		if get_meta(Transactions.PENDING, false): return
+		if has_meta(&"combat_affinity_ruleset") and expedition_active():
+			var elapsed := preload("res://affinity_time.gd").advance(self,delta)
+			preload("res://fire_combat.gd").tick(self,elapsed,now)
+			if get_meta(Transactions.PENDING, false): return
 		preload("res://combat_status.gd").sync(self,now)
 		attract_loot(delta)
 		Bosses.tick_hazards(self,now)
@@ -2582,8 +2586,9 @@ func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: 
 	apply_hit_grace(id,player,now,slow_ms)
 	var before_hp := float(player.hp)
 	damage_player(id,player,hp)
-	if player.has("frost_response") and Life.alive(player) and float(player.hp) < before_hp:
+	if has_meta(&"combat_affinity_ruleset") and Life.alive(player) and float(player.hp) < before_hp:
 		preload("res://frost_combat.gd").incoming(self,player,id,now)
+		preload("res://fire_combat.gd").incoming(self,player,id,now)
 
 func apply_hit_grace(id: int,player: Dictionary,now: int,slow_ms: int,effects = null) -> void:
 	if slow_ms>0:
@@ -2779,9 +2784,9 @@ func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 		var event: RefCounted = p.get("cr02_class_strike")
 		if event == null:
 			var form_affinity: Dictionary = affinity_build.form
-			var frost: bool = form_affinity.state == "ready"
-			event = events.begin(self,id,"form" if frost else "native_weapon",form_affinity if frost else {},
-				form_affinity.potency_profile.values if frost else {},["weapon_contact","secondary"],now+15000)
+			var ready: bool = form_affinity.state == "ready"
+			event = events.begin(self,id,"form" if ready else "native_weapon",form_affinity if ready else {},
+				form_affinity.potency_profile.values if ready else {},["weapon_contact","secondary"],now+15000)
 		stats[events.CONTEXT] = event
 		stats.erase("affinity_build")
 	if p.get("skill_burst",false):
@@ -2827,7 +2832,7 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 	if winding and float(stats.get("windup_damage",0))>0:preload("res://combat_status.gd").proc(self,"punish",origin,point,target)
 	if Life.Preview.authored_amount(float(stats.damage))>0.0 and not stats.get("trait_secondary",false) and not stats.get("core_hit",false):
 		authored_damage+=preload("res://core_strike_mark.gd").consume(self,p,target,now)
-	var damage := int(stats.frost_hp) if stats.has("frost_hp") else Life.Preview.resolved_hit(authored_damage,stats)
+	var damage := int(stats.affinity_hp) if stats.has("affinity_hp") else Life.Preview.resolved_hit(authored_damage,stats)
 	var push:=0.35+float(stats.get("knockback",0))
 	var mutations: int=enemy_mutations if target==-1 else int(scouts[target].get("mutations",0))
 	if not preload("res://enemy_support.gd").shelter_source(self,target,point,origin,now).is_empty():
@@ -2867,7 +2872,7 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 			enemy_ready_at=leader_brain.elite.ready
 			enemy_winding_up=false
 			winding=false
-		if not winding and not stats.has("frost_hp"): enemy_stagger_until=stagger
+		if not winding and not stats.has("affinity_hp"): enemy_stagger_until=stagger
 		if enemy_hp==0: enemy_winding_up=false
 	else:
 		var scout: Dictionary=scouts[target]
@@ -2876,13 +2881,13 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 		scout.hp-=applied
 		scout.recovery=maxi(int(scout.recovery),recovery)
 		if winding and float(stats.get("stagger",0))>=150 and EnemyBehaviors.interrupt(self,scout,point,now):winding=false
-		if not winding and not stats.has("frost_hp"): scout.stagger_until=stagger
+		if not winding and not stats.has("affinity_hp"): scout.stagger_until=stagger
 	if stats.get("rite_suppressed",false) and applied<before:
 		var actor: Dictionary=scouts[target] if target>=0 else leader_brain.get("elite",{})
 		preload("res://wilds_skill_tactics.gd").interrupted(self,actor,"suppression")
 	if applied>0:
 		var form := "magic" if stats.get("trait_secondary",false) else str(stats.get("audio_form",WeaponMotion.form(p)))
-		emit_combat_event("impact","hit",origin,point,.85,Color("#97dfff") if stats.has("frost_hp") else weapon_effect_color(p),float(applied),target,{"form":form})
+		emit_combat_event("impact","hit",origin,point,.85,stats.get("affinity_color",weapon_effect_color(p)),float(applied),target,{"form":form})
 	if before>0 and applied>=before:
 		record_enemy_death(target,point,origin)
 		var restored:=Life.Sustain.heal_on_kill(self,p,target,Life.Preview.authored_amount(float(stats.get("heal_on_kill",0))))
@@ -3027,6 +3032,7 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = n
 	p.hurt_until=0
 	p.erase("affinity_ward_claims")
 	p.erase("frost_response")
+	p.erase("affinity_ember_response")
 	p.guard_charges=0
 	p.guard_until = 0
 	p.weapon = p.prepared
@@ -3107,6 +3113,7 @@ func return_to_garden(p: Dictionary) -> void:
 	p.weapon = 0
 	p.erase("affinity_ward_claims")
 	p.erase("frost_response")
+	p.erase("affinity_ember_response")
 	p.guard_until = 0
 	p.front_guard_until=0;p.counter_guard_until=0;p.counter_until=0;p.grave_charges=0;p.echo_charge=0
 	p.focus_until=0

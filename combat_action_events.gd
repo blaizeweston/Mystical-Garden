@@ -69,16 +69,18 @@ func publish(game: Node, channel: String, contact_id: String, target: String, no
 			"target": target, "expires_at": expires_at, "charges_remaining": charges,
 			"details": details.duplicate(true),
 		})
-	if affinity == "frost" and source in ["core", "form", "catalyst"]:
-		Frost.on_event(game, self, channel, details, now)
+	if source in ["core", "form", "catalyst"]:
+		match affinity:
+			"frost": Frost.on_event(game, self, channel, details, now)
+			"fire": Ruleset.Fire.on_event(game, self, channel, details, now)
 	return true
 
 
 static func class_start(game: Node, actor_id: int, adapter: Dictionary, now: int, catalyst: Dictionary = {}) -> RefCounted:
 	var channels := {"activation": ["class_action", "incoming_hit"], "contact": ["class_contact"], "block": ["actual_block"]}
-	var frost: bool = catalyst.get("state") == "ready" and catalyst.get("primary_affinity") == "frost"
-	return begin(game, actor_id, "catalyst" if frost else "native_class", catalyst if frost else {},
-		catalyst.potency_profile.values if frost else {}, channels.get(adapter.get("trigger"), []), now + 30000)
+	var ready: bool = catalyst.get("state") == "ready"
+	return begin(game, actor_id, "catalyst" if ready else "native_class", catalyst if ready else {},
+		catalyst.potency_profile.values if ready else {}, channels.get(adapter.get("trigger"), []), now + 30000)
 
 
 static func class_complete(game: Node, event: RefCounted, adapter: Dictionary, start: Vector3, center: Vector3,

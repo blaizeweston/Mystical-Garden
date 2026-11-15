@@ -56,7 +56,7 @@ func run() -> void:
 	check(not game.buy_upgrade(1,player,0) and game.checkpoint_offer_ids(player).is_empty()
 		and game.run_wallet(player)==wallet and player.run_upgrades==ranks
 		and player.checkpoint_offers==["rift_hook"], "stale offers cannot purchase and are not erased")
-	player.secondary = Parts.MOSS
+	player.secondary = Parts.THORN
 	player.catalyst = Parts.VEIL
 	var timers: Array = [player.strike_at,player.skill_at]
 	game.strike_enemy(1,player,player.pos)

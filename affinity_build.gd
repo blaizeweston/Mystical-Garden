@@ -14,11 +14,11 @@ static func slot(name: String, part: int) -> Dictionary:
 	var identity := Affinities.for_part(part)
 	if identity.is_empty():
 		return {"state": "empty" if part == 0 else "invalid", "executable": part == 0 and name != "core"}
-	identity.executable = identity.primary_affinity == "frost"
+	identity.executable = Ruleset.FAMILIES.has(identity.primary_affinity)
 	identity.state = "ready" if identity.executable else "pending"
 	identity.potency_profile = {
 		"id": "%s/%s/%s" % [name, identity.primary_affinity, identity.quality],
-		"values": Ruleset.Frost.QUALITY[identity.quality].duplicate() if identity.executable else {},
+		"values": Ruleset.FAMILIES[identity.primary_affinity].QUALITY[identity.quality].duplicate() if identity.executable else {},
 	}
 	identity.card_requirements = {
 		"slot": name, "primary_affinity": identity.primary_affinity,
@@ -102,7 +102,7 @@ static func refusal(build: Dictionary, name: String) -> String:
 	if part.executable:
 		return ""
 	if part.state == "empty":
-		return "Equip Chiming Sepal or Crystalline Bellheart in Core to use Rime Bloom."
+		return "Equip a supported Core material to cast its family skill."
 	if part.state == "invalid":
 		return "%s material is invalid." % name.capitalize()
 	return "%s %s is pending implementation." % [str(part.primary_affinity).capitalize(), name.capitalize()]
@@ -114,7 +114,7 @@ static func departure_refusal(player: Dictionary) -> String:
 		if build[name].state != "empty":
 			var reason := refusal(build, name)
 			if not reason.is_empty():
-				return reason + " Equip Frostbell or leave the slot empty."
+				return reason + " Equip a supported material or leave the slot empty."
 	return ""
 
 
@@ -124,7 +124,8 @@ static func describe(build: Dictionary) -> String:
 		var part: Dictionary = build[name]
 		var summary := "Empty" if name == "core" else "Native only"
 		if part.state == "ready":
-			summary = Ruleset.Frost.description(name, part.quality) + "\nWater support is reserved for future cards."
+			summary = Ruleset.FAMILIES[part.primary_affinity].description(name, part.quality)
+			summary += "\nSupport reserved for future cards: " + ", ".join(part.supporting_affinities)
 		elif part.state != "empty":
 			summary = refusal(build, name)
 			if part.state == "pending":
@@ -135,16 +136,21 @@ static func describe(build: Dictionary) -> String:
 	return "\n".join(lines)
 
 
-static func frost_core(build: Dictionary) -> Dictionary:
+static func core_skill(build: Dictionary) -> Dictionary:
 	var core: Dictionary = build.get("core", {})
 	if core.get("state") != "ready":
 		return {}
-	var balance = Ruleset.Frost
+	var family: String = core.primary_affinity
+	var balance = Ruleset.FAMILIES[family]
 	var delivery: Dictionary = core.delivery
-	return {"id": core.affinity_core_skill_id, "name": "Rime Bloom",
-		"icon": "res://assets/ui/core_skills/rime_bloom.png", "mechanic": "ground_sequence",
-		"frost_family": true, "material": core, "color": "#97dfff",
+	var profile: Array = {
+		"frost": ["Rime Bloom", "rime_bloom", "#97dfff", Ruleset.Frost.BLOOM_RADIUS, 2500, Ruleset.Frost.BLOOM_COOLDOWN_MS],
+		"fire": ["Ember Wake", "ember_wake", "#f29b57", Ruleset.Fire.HALF_LENGTH, Ruleset.Fire.FIELD_MS + 750, Ruleset.Fire.COOLDOWN_MS],
+	}[family]
+	return {"id": core.affinity_core_skill_id, "name": profile[0],
+		"icon": "res://assets/ui/core_skills/%s.png" % profile[1], "mechanic": "ground_sequence",
+		"affinity_family": family, "material": core, "color": profile[2],
 		"weapon_form": build.native_weapon.visual, "delivery": delivery.kind,
 		"projectile": Delivery.DELIVERY_SHAPES[delivery.kind], "range": delivery.range,
-		"radius": balance.BLOOM_RADIUS, "lifetime_ms": 2500, "cooldown_ms": balance.BLOOM_COOLDOWN_MS,
+		"radius": profile[3], "width": Ruleset.Fire.WIDTH, "lifetime_ms": profile[4], "cooldown_ms": profile[5],
 		"tooltip": balance.description("core", core.quality), "modifiers": []}

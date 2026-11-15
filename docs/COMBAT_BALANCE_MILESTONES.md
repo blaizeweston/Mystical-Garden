@@ -4,6 +4,24 @@ Source audit dated 2026-11-12 against Mystical Garden v0.5.3.1. CB-00 through CB
 
 The first playable target is a 100 HP player with a liquid health orb, a Warden using the Rootblade and Heartwood Maul, one early Wilds pack, and the Orchard. The target includes solo and host/guest play so the next batch can reuse a proven combat and presentation path. See the [project milestones](GARDEN_MILESTONES.md) and the [mechanics and test map](MECHANICS_TEST_MAP.md).
 
+## Plant-affinity rework contract
+
+The opt-in affinity ruleset keeps Core, Form and Catalyst independent. Supporting
+affinities are reserved for cards. CR03 Frost and CR04A families use the same
+authoritative event and class-skill mappings. Default combat stays on the legacy
+ruleset.
+
+### Overlapping Ward claims
+
+Native protection decides whether the hit was blocked and owns duration, charges,
+caps and clears. Each accepted grant keeps its recipient, expiry, host grant
+order, response budget and granting Catalyst snapshot. Unenhanced grants also
+have claims. An actual block chooses the earliest-expiring eligible claim, with
+host grant order breaking ties. The chosen claim supplies its own family and
+potency. No-op or duplicate grants cannot replenish responses. Expiry,
+exhaustion or clearing invalidates the corresponding claims. Multi-block
+Guard responds on the first qualifying block per activation.
+
 ## Size of the change
 
 This is a major combat balance release. It has two separate jobs. First, give HP, damage and healing enough precision while keeping comparable fights recognizable. Then tune damage ranges, enemy durability, and sustain against how the fights actually play. The existing content templates give us a route to review this by family and tune exceptions individually.

@@ -246,7 +246,7 @@ func refresh():
 	description.text=body
 	notice.text=("Uses one part per filled slot on departure. Selected parts are reserved for you.\nPacked monster parts need a Wilds altar. Unbanked cargo is lost on defeat." if allowed else "Craft and pack at the Wilds Gate.")
 	if affinity_mode and allowed:
-		notice.text = "Equip Chiming Sepal or Crystalline Bellheart for Frost. Empty slots keep native combat."
+		notice.text = "Equip supported affinity materials. Empty slots keep native combat."
 	var travel: Dictionary=game.party_travel_state()
 	if not travel.is_empty():
 		var rows: Array=[]

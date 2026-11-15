@@ -34,13 +34,13 @@ static func motion_scale(actor: Dictionary, now: int, boss := false) -> float:
 	return 1.0 - float(state(actor, now).get("slow", 0.0)) * (Balance.BOSS_SLOW_SCALE if boss else 1.0)
 
 
-static func damage(game: Node, actor: int, target: int, hp: int, now: int) -> void:
+static func damage(game: Node, actor: int, target: int, hp: int, now: int, color := COLOR) -> void:
 	# Use the same native damage, death, drops and encounter settlement path.
 	# An affinity hit contributes no legacy on-hit traits or attack delay.
 	# A previously granted effect keeps its author even after disconnect.
 	var owner: Dictionary = game.players.get(actor, {"facing":Vector3.FORWARD,"rift_hook":false})
 	game.apply_weapon_hit(owner, target, game.enemy_position(target),
-		{"damage": 0.0, "frost_hp": hp, "knockback": -.35, "trait_secondary": true, "core_hit": true}, now)
+		{"damage": 0.0, "affinity_hp": hp, "affinity_color": color, "knockback": -.35, "trait_secondary": true, "core_hit": true}, now)
 	if game.encounter_cleared():
 		game.finish_combat(actor if game.players.has(actor) else game.HOST, game.enemy_position(target))
 
@@ -106,7 +106,7 @@ static func bloom_phase(game: Node, cast: Dictionary, phase: String, count: int,
 		float(Balance.BLOOM_DELAY_MS) / 1000.0 if phase == "open" else .42, color, Balance.BLOOM_RADIUS, cast.owner,
 		{"label":"Opening petals" if phase=="open" else "Closing petals"})
 	for target in game.skill_area_targets(center, Balance.BLOOM_RADIUS, center):
-		cast.frost_action.publish(game, "core_action", phase, target_token(game, target), now,
+		cast.affinity_action.publish(game, "core_action", phase, target_token(game, target), now,
 			{"enemy": target, "stacks": count, "opening_hp": Balance.BLOOM_OPEN_HP if phase == "open" else 0})
 
 
@@ -166,9 +166,11 @@ static func incoming(game: Node, recipient: Dictionary, id: int, now: int) -> vo
 static func stock_test_garden(game: Node) -> String:
 	var ruleset = load("res://combat_ruleset.gd")
 	if not ruleset.active(game) or not ruleset.verified() or not game.multiplayer.is_server() or game.expedition_active() or not game.has_meta(game.Transactions.SESSION):
-		return "Frostbell supplies are available to the host in the isolated affinity Garden."
+		return "Affinity supplies are available to the host in the isolated affinity Garden."
 	return game.run_heart_save(func():
-		for item_id in ["plant_part_plant_frostbell", "plant_part_rare_frostbell"]:
-			var part: int = game.Items.get_item(item_id).legacy_part
+		for part in game.Parts.DEFINITIONS.size():
+			var material := preload("res://plant_affinities.gd").for_part(part)
+			if not ruleset.FAMILIES.has(material.get("primary_affinity", "")):
+				continue
 			game.progress.add_parts(part, maxi(0, 12 - game.progress.part_count(part)))
-		return "Test Garden stocked with Chiming Sepals and Crystalline Bellhearts.")
+		return "Test Garden stocked with supported ordinary and refined affinity materials.")
