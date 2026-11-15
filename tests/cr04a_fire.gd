@@ -116,6 +116,24 @@ func run() -> void:
 		var hp_before: float=p.hp
 		game.apply_enemy_hit(1,p,Time.get_ticks_msec(),1.0,0,game.enemy_pos)
 		check(game.enemy_hp==500-q.burst_hp-q.tick_hp and p.hp==hp_before,"Ward uses selected Catalyst without changing native prevention")
+		reset()
+		p.frame=4
+		p.hp=50
+		p.skill_at=0
+		var ally: Dictionary=game.players[2]
+		ally.guard_until=0
+		ally.hurt_until=0
+		game.use_class_skill(1,p,0)
+		check(ally.has(Fire.RESPONSE),"native Oracle renewal grants Fire response with caster provenance")
+		var frost=preload("res://frost_combat.gd")
+		var hit_now:=Time.get_ticks_msec()
+		frost.with_attacker(game,-1,game.apply_enemy_hit.bind(2,ally,hit_now,1.0,0,game.enemy_pos))
+		check(not ally.has(Fire.RESPONSE) and game.leader_brain.get(Fire.BURNING,{}).get("1/catalyst",{}).get("hp",0)==q.tick_hp,"survived incoming enemy hit uses source once")
+		var after_response: int=game.enemy_hp
+		ally.hurt_until=0
+		frost.with_attacker(game,-1,game.apply_enemy_hit.bind(2,ally,hit_now,1.0,0,game.enemy_pos))
+		check(game.enemy_hp==after_response,"spent Ember Response does not stockpile")
+		p.frame=0
 	game.queue_free()
 	await process_frame
 	if not failed: print("PASS: Fire mappings, Core field, Form refresh, independent sources, Catalyst and wards")

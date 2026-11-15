@@ -173,7 +173,8 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		player.grave_charges = mini(3,int(player.get("grave_charges",0))+1)
 	var field_duration := Balance.duration(skill,stats) if Balance.Preview.enabled else int(skill.get("duration",0))
 	if skill.has("field"):
-		game.Traits.zone(game,player,skill.field,cast.center,cast.radius,field_duration,Balance.field_power(skill),now)
+		game.Traits.zone(game,player,skill.field,cast.center,cast.radius,field_duration,Balance.field_power(skill),now,false,
+			events.field_action(stats))
 	if card.get("thorn_patch",false):
 		game.Traits.zone(game,player,"cinder",cast.center,cast.radius,field_duration,Balance.FOLLOWUP_POINTS,now)
 	var nearby := allies(game,contact,radius)

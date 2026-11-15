@@ -160,10 +160,25 @@ func host(menu: Node) -> void:
 	check(ally.hp==before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==1 and e.details.recipient==protected and e.quality=="refined"),"actual guest block uses host refined Catalyst")
 	for index in extra_cores.size():
 		var visitor: Dictionary=game.players[ids[index]]
+		var source: int=ids[index]
 		var primary: String=preload("res://plant_affinities.gd").for_part(visitor.weapon).primary_affinity
-		mark("cast-"+str(ids[index]),str(Vector2(visitor.facing.x,visitor.facing.z)))
-		if not check(await until(func():return rows.any(func(e):return e.kind=="core_action" and e.primary_affinity==primary and e.source_actor==ids[index])),
+		if primary=="water": local.slow_until=Time.get_ticks_msec()+4000
+		var native_max: int=game.Life.native_maximum(game,local)
+		mark("cast-"+str(source),str(Vector2(visitor.facing.x,visitor.facing.z)))
+		if not check(await until(func():return rows.any(func(e):return e.kind=="core_action" and e.primary_affinity==primary and e.source_actor==source)),
 			"native "+primary+" Core RPC resolves by the host"):return
+		match primary:
+			"fire":
+				check(game.leader_brain.get("affinity_burning",{}).has("%d/core"%source),"guest trail actually ignites leader")
+			"water":
+				check(await until(func():return local.slow_until==0 and game.leader_brain.get("affinity_drenched",{}).has("%d/core"%source)),
+					"guest Dewfall cleanses host and actually Drenches leader")
+			"vital":
+				var bonus: int=preload("res://affinity_build.gd").slot("core",visitor.weapon).potency_profile.values.bonus_hp
+				check(local.max_hp==native_max+bonus and local.get("affinity_vital_sources",{}).has("%d/core"%source),
+					"guest Vital Bloom applies its quality to host")
+				mark("vital-"+str(source),str(visitor.max_hp))
+				check(await until(func():return read("vital-seen-"+str(source))=="ok"),"Vital capacity reaches guest through authoritative vitals")
 	if party:
 		check(await until(func():return read("overflow")=="ok",22000),"overflow returns after native connection deadline")
 		check(guests(game).size()==3,"four-player limit holds")
@@ -215,6 +230,9 @@ func host(menu: Node) -> void:
 	mark("detached")
 	check(await until(func():return read("rejoined")=="ok" and guests(game).size()==1),"guest reconnects to the existing Garden")
 	check([game.progress.part_count(ordinary),game.progress.part_count(refined)]==paid,"reconnect does not repeat departure")
+	for part in supplied:
+		check(game.progress.part_count(part)==supplied[part]-1,"rejoin preserves each additional Core debit")
+	check(not local.has("affinity_vital_sources"),"Garden return discards temporary Vitality")
 	mark("saved")
 	game.return_to_main_menu()
 	check(await until(func():return tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"host goes offline after rejoin")
@@ -246,6 +264,11 @@ func guest(menu: Node, role: String) -> void:
 		if not check(await until(func():return not read("cast-"+str(id)).is_empty()),"host asks guest to cast at actual enemy"):return
 		var raw := read("cast-"+str(id)).trim_prefix("(").trim_suffix(")").split(",")
 		game.send_garden_action(Core.request(game,game.players[id],Vector2(float(raw[0]),float(raw[1])),1.1))
+		var material := preload("res://plant_affinities.gd").for_part(int(picks[1]))
+		if material.get("primary_affinity")=="vital":
+			var marker := "vital-"+str(id)
+			check(await until(func():return not read(marker).is_empty() and int(game.players[id].max_hp)==int(read(marker))),"guest receives authoritative Vital capacity")
+			mark("vital-seen-"+str(id))
 	if party:
 		if check(await until(func():return read("party-done")=="ok",22000),"host observes mixed-source party"):
 			mark("done-"+str(id))

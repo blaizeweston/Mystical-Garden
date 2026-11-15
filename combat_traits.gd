@@ -83,12 +83,13 @@ static func queue_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now
  if not carry and float(stats.get("mark_damage",0))>0: hit.mark_damage=float(stats.mark_damage)
  hit.trait_secondary=true
  game.trait_events.append({"kind":"hit","epoch":game.combat_epoch,"owner":player_id(game,p),"target":target,"token":-1 if target==-1 else int(game.scouts[target].get("spawn_token",0)),"due":now+delay,"stats":hit,"visual":visual if not visual.is_empty() else "link" if carry else "echo","origin":p.pos if origin==Vector3.INF else origin})
-static func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: float,duration: int,power: float,now: int,ward: bool=false) -> void:
+static func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: float,duration: int,power: float,now: int,ward: bool=false,class_field: RefCounted=null) -> void:
  if game.trait_events.size()>=24: return
  var id:=player_id(game,p)
  for event in game.trait_events.duplicate():
   if event.kind==kind and int(event.owner)==id: end_zone(game,event);game.trait_events.erase(event)
  game.trait_events.append({"kind":kind,"epoch":game.combat_epoch,"owner":id,"position":point,"radius":radius,"until":now+duration,"next":now,"power":power,"ward":ward})
+ if class_field!=null: game.trait_events.back().class_field=class_field
  var color:=Color("#e7a15f") if kind=="cinder" else Color("#88d7de") if kind=="tide" else Color("#d9a4c3") if kind=="decoy" else Color("#97c978")
  game.emit_combat_event("field",kind+"_zone",point,point,duration/1000.0,color,radius,0)
  game.trait_events.back().visual_id=game.combat_event_serial
@@ -216,6 +217,9 @@ static func tick(game: Node,now: int) -> void:
    for target in targets:
     var hit: Dictionary={"damage":Preview.authored_amount(float(event.power)),"trait_secondary":true,"mark_damage":1}
     game.apply_weapon_hit(p,target,event.position,hit,now)
+    var source: RefCounted=event.get("class_field")
+    if source!=null:
+     source.publish(game,"class_field_contact","pulse",preload("res://weapon_contact.gd").token(game,target),now,{"enemy":target})
    if not targets.is_empty() and game.encounter_cleared(): game.finish_combat(int(event.owner),event.position)
 static func describe(values: Dictionary,resolved: bool=false) -> String:
  var lines: Array[String]=[]
@@ -257,7 +261,8 @@ static func skill_cast(game: Node,p: Dictionary,skill: Dictionary,stats: Diction
  if skill.has("field"):
   var balance=preload("res://class_skill_balance.gd")
   var duration: int=balance.duration(skill,stats,"field_duration",2400) if Preview.enabled else int(skill.get("field_duration",2400))
-  zone(game,p,str(skill.field),point,float(skill.get("radius",2.0)),duration,balance.field_power(skill),now,bool(skill.get("field_ward",false)))
+  zone(game,p,str(skill.field),point,float(skill.get("radius",2.0)),duration,balance.field_power(skill),now,bool(skill.get("field_ward",false)),
+   preload("res://combat_action_events.gd").field_action(stats))
  if not skill.has("field") and float(stats.get("growth_field",0))>0 and str(skill.mode)!="bloom_detonate":
   zone(game,p,"growth",point,2.0,2600+mini(1000,roundi(float(stats.growth_field)*250)),mini(2,maxi(1,roundi(float(stats.growth_field)))),now)
  if not skill.has("field") and float(stats.get("protect_growth",0))>0 and str(skill.mode) in ["heal","sanctuary"]:

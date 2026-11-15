@@ -23,11 +23,23 @@ static func player(game_node: Node) -> Dictionary:
 	return game_node.players.get(game_node.multiplayer.get_unique_id(), {})
 
 
-static func available(game_node: Node, local: Dictionary) -> bool:
+static func available(game_node: Node, local: Dictionary, requested_slot: int) -> bool:
 	return game_node.session != "Connecting" and not game_node.returning_to_title and not game_node.overlay.visible and not game_node.checkpoint_menu.visible \
 		and not game_node.get_meta("garden_cinematic_active", false) and not (game_node.settings_dialog != null and game_node.settings_dialog.visible) \
-		and game_node.Life.alive(local) and not game_node.encounter_cleared() \
+		and game_node.Life.alive(local) \
+		and (not game_node.encounter_cleared() or (requested_slot == 2 and can_recover(game_node, local))) \
 		and (game_node.multiplayer.is_server() or (game_node.session == "Guest" and game_node.client_details_key == str([game_node.destination, game_node.encounter_number, game_node.map_seed])))
+
+
+static func can_recover(game: Node, player: Dictionary) -> bool:
+	if not preload("res://combat_ruleset.gd").active(game):
+		return false
+	if game.multiplayer.is_server():
+		return Core.equipped(player).get("affinity_family") == "vital"
+	var build: Dictionary = player.get("weapon_stats", {}).get("affinity_build", {})
+	var core: Dictionary = build.get("core", {})
+	return core.get("state") == "ready" and core.get("primary_affinity") == "vital"
+
 
 
 static func input_event(game_node: Node, event: InputEvent) -> bool:
@@ -39,7 +51,7 @@ static func input_event(game_node: Node, event: InputEvent) -> bool:
 		if not event.is_action_pressed(ACTIONS[index]):
 			continue
 		var local := player(game_node)
-		if available(game_node, local):
+		if available(game_node, local, index):
 			var preview = active(game_node)
 			if preview == null:
 				preview = new()
@@ -62,7 +74,7 @@ static func release_event(game_node: Node, event: InputEvent) -> bool:
 		return false
 	var local := player(game_node)
 	var committed_slot: int = preview.slot
-	var valid: bool = available(game_node, local) and preview.world == Core.cast_key(game_node, local)
+	var valid: bool = available(game_node, local, committed_slot) and preview.world == Core.cast_key(game_node, local)
 	preview.cancel()
 	if valid:
 		var aim := Core.local_aim(game_node, local)
@@ -138,7 +150,7 @@ func cancel() -> void:
 
 func _process(_delta: float) -> void:
 	var local := player(game)
-	if not available(game, local) or world != Core.cast_key(game, local):
+	if not available(game, local, slot) or world != Core.cast_key(game, local):
 		cancel()
 		return
 	update_preview(local)

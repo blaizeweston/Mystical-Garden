@@ -1623,7 +1623,8 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 			tell(id, "This class ability has no affinity contract.")
 			return
 		event = combat_events_api.class_start(self, id, adapter, now, affinity_build.catalyst)
-		if adapter.trigger == "contact": stats[combat_events_api.CONTEXT] = event
+		if adapter.trigger == "contact" or (event != null and event.affinity == "vital" and adapter.recipients == "designated_area"):
+			stats[combat_events_api.CONTEXT] = event
 		if skill.mode == "subclass":
 			stats.cr02_adapter = adapter
 			stats[combat_events_api.CONTEXT] = event
@@ -2107,6 +2108,7 @@ func _physics_process(delta: float) -> void:
 			var elapsed := preload("res://affinity_time.gd").advance(self,delta)
 			preload("res://fire_combat.gd").tick(self,elapsed,now)
 			if get_meta(Transactions.PENDING, false): return
+			preload("res://vital_combat.gd").tick(self,elapsed)
 		preload("res://combat_status.gd").sync(self,now)
 		attract_loot(delta)
 		Bosses.tick_hazards(self,now)
@@ -3035,6 +3037,7 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = n
 	p.erase("affinity_ward_claims")
 	p.erase("frost_response")
 	p.erase("affinity_ember_response")
+	if p.has("affinity_vital_sources"): preload("res://vital_combat.gd").clear(self,p)
 	p.guard_charges=0
 	p.guard_until = 0
 	p.weapon = p.prepared
@@ -3116,6 +3119,7 @@ func return_to_garden(p: Dictionary) -> void:
 	p.erase("affinity_ward_claims")
 	p.erase("frost_response")
 	p.erase("affinity_ember_response")
+	if p.has("affinity_vital_sources"): preload("res://vital_combat.gd").clear(self,p)
 	p.guard_until = 0
 	p.front_guard_until=0;p.counter_guard_until=0;p.counter_until=0;p.grave_charges=0;p.echo_charge=0
 	p.focus_until=0
@@ -3381,6 +3385,9 @@ func reset_encounter() -> void:
 	encounter_kill_records.clear();combat_threat.clear();combat_velocity.clear();combat_last_positions.clear();leader_brain.clear();moving_ranged_hits=0;encounter_started_at=Time.get_ticks_msec();encounter_party_size=Director.party_size(self)
 	encounter_kills.clear();encounter_rewarded=false;reward_retry_at=0
 	combat_epoch+=1
+	if has_meta(&"combat_affinity_ruleset"):
+		for player in players.values():
+			preload("res://vital_combat.gd").clear(self,player)
 	preload("res://core_combat.gd").reset(self)
 	enemy_traits.clear();trait_events.clear()
 	projectile_queue.clear()

@@ -1,0 +1,252 @@
+extends SceneTree
+
+const Rules = preload("res://combat_ruleset.gd")
+const Vital = preload("res://vital_combat.gd")
+const Water = preload("res://water_combat.gd")
+const Fire = preload("res://fire_combat.gd")
+const Clock = preload("res://affinity_time.gd")
+const Events = preload("res://combat_action_events.gd")
+const Builds = preload("res://affinity_build.gd")
+const Core = preload("res://core_combat.gd")
+const Aim = preload("res://ability_aim.gd")
+var failed := false
+var game: Node
+
+
+func _initialize() -> void:
+	call_deferred("run")
+
+
+func check(ok: bool, label: String) -> void:
+	if not ok:
+		failed = true
+		printerr("FAIL Vital: ",label)
+
+
+func event(id: int, slot: String, item: String, channel: String, now: int) -> RefCounted:
+	var affinity := Builds.slot(slot,game.Items.get_item(item).legacy_part)
+	return Events.begin(game,id,slot,affinity,affinity.potency_profile.values,[channel],now+15000)
+
+
+func reset(p: Dictionary, ally: Dictionary) -> void:
+	game.enemy_hp=500
+	game.enemy_mutations=0
+	game.boss_kind=-1
+	game.enemy_pos=Vector3(0,0,-1.25)
+	game.enemy_winding_up=false
+	game.leader_brain.clear()
+	game.scouts.clear()
+	game.projectile_queue.clear()
+	Core.reset(game)
+	game.set_meta(Clock.CLOCK,0.0)
+	for player in [p,ally]:
+		Vital.clear(game,player)
+		player.wild=true
+		player.fallen=false
+		player.hp=60
+		player.lost_health=0
+		player.pos=Vector3.ZERO
+		player.frame=0
+		player.weapon=0
+		player.secondary=0
+		player.catalyst=0
+		player.guard_until=0
+		player.guard_charges=0
+		player.strike_at=0
+		player.cast_until=0
+		player.core_cast_until=0
+		player.core_ready_at=0
+		player.skill_at=0
+		player.skill_two_at=0
+		player.renewal_until=0
+		player.hurt_until=0
+		player.max_hp=game.Life.native_maximum(game,player)
+
+
+func run() -> void:
+	game=preload("res://world.tscn").instantiate()
+	game.set_meta(Rules.META,Rules.ID)
+	root.add_child(game)
+	game.set_process(false)
+	game.set_physics_process(false)
+	game.battlefield.configure(0,1,0)
+	game.battlefield.barriers.clear()
+	game.add_player(2)
+	game.add_player(3)
+	var player: Dictionary=game.players[1]
+	var ally: Dictionary=game.players[2]
+	var fallen: Dictionary=game.players[3]
+	fallen.wild=true
+	fallen.fallen=true
+	fallen.hp=0
+	for pair in [["part_2","plant_part_rare_lantern_moss"],["part_9","plant_part_rare_bloodbriar"],["plant_part_plant_gravemoss","plant_part_rare_gravemoss"]]:
+		for item in pair:
+			for slot in ["core","form","catalyst"]:
+				var material:=Builds.slot(slot,game.Items.get_item(item).legacy_part)
+				check(material.executable and material.affinity_core_skill_id=="vital_bloom",item+" maps to Vital Bloom for "+slot)
+	for item in ["part_2","plant_part_rare_lantern_moss"]:
+		var part: int=game.Items.get_item(item).legacy_part
+		var q: Dictionary=Builds.slot("core",part).potency_profile.values
+		var now:=Time.get_ticks_msec()
+		reset(player,ally)
+		var native: int=player.max_hp
+		player.weapon=part
+		game.enemy_hp=0
+		ally.pos=Vector3(1,0,0)
+		var pressed := InputEventKey.new()
+		pressed.physical_keycode=KEY_B
+		pressed.pressed=true
+		game._unhandled_key_input(pressed)
+		var controller = Aim.active(game)
+		check(controller != null and controller.slot == 2 and controller.drawing.get_surface_count() == 1,"pressing B after clear shows Vital Bloom preview")
+		pressed.pressed=false
+		game._input(pressed)
+		check(not Aim.available(game,player,0),"class actions still stop after clear")
+		var cast: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
+		check(not cast.is_empty(),"real Core can grant recovery between encounters")
+		if not cast.is_empty():
+			Core.tick(game,cast.armed)
+			check(player.max_hp==native+q.bonus_hp and player.hp==60 and ally.max_hp==int(game.Life.native_maximum(game,ally))+q.bonus_hp,
+				"capacity goes to living allies without instant heal")
+			check(fallen.hp==0 and not fallen.has(Vital.SOURCES),"Bloom never revives a fallen ally")
+			ally.pos=Vector3(8,0,0)
+			Vital.tick(game,Clock.advance(game,1.0))
+			check(player.hp==60+q.regen_per_second and ally.hp==60+q.regen_per_second,"recipient carries regeneration beyond the original area")
+			check(not game.get_meta(Core.STATE,{}).has(1),"native cast released once")
+		reset(player,ally)
+		player.secondary=part
+		player.facing=Vector3.FORWARD
+		game.strike_enemy(1,player,player.pos)
+		var shot: Dictionary=game.projectile_queue.front()
+		game.update_projectiles(int(shot.due)+1)
+		check(player.get(Vital.BONUS,0)==q.bonus_hp and player.hp==60 and not ally.has(Vital.SOURCES),
+			"real weapon contact grants self capacity without a lifesteal heal")
+		game.scouts.append(game.make_scout(0,Vector3(1,0,-1.25),0))
+		var applied_until: int=player.get(Vital.SOURCES,{}).get("1/form",{}).get("until",0)
+		Clock.advance(game,.4)
+		Events.contact(game,shot.stats,0,now)
+		Events.contact(game,shot.stats,-1,now)
+		Events.contact(game,shot.stats,0,now,true)
+		check(player.get(Vital.SOURCES,{}).get("1/form",{}).get("until",-1)==applied_until,"multi-target, duplicate and secondary contacts don't refresh the same attack")
+		reset(player,ally)
+		player.catalyst=part
+		game.use_class_skill(1,player,1)
+		check(player.get(Vital.BONUS,0)==q.bonus_hp,"native offensive class hit grants self Vitality")
+		reset(player,ally)
+		player.catalyst=part
+		player.frame=4
+		game.use_class_skill(1,player,0)
+		check(ally.get(Vital.BONUS,0)==q.bonus_hp and ally.hp>60,"native Oracle heal remains intact and grants recipient Vitality")
+		var duration: int=ally.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",0)
+		game.update_support_effects(now+1500)
+		check(ally.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",-1)==duration,"native renewal ticks do not grant fresh Vitality")
+
+	reset(player,ally)
+	player.frame=1
+	var nodes: Array=game.Classes.DEFINITIONS[1].nodes
+	var bloom_index:=nodes.find_custom(func(node):return node.id=="9")
+	var previous_mask: int=player.character.upgrades[1]
+	player.character.upgrades[1]=1<<bloom_index
+	player.catalyst=int(game.Items.get_item("part_2").legacy_part)
+	game.enemy_pos=Vector3(9,0,0)
+	game.use_class_skill(1,player,0)
+	check(not player.has(Vital.SOURCES),"empty Cultivate Bloom creates no Vitality on placement")
+	var pulse_at:=Time.get_ticks_msec()+1
+	game.enemy_pos=Vector3(0,0,-1)
+	game.Traits.tick(game,pulse_at)
+	check(player.get(Vital.BONUS,0)==12,"first actual Cultivate Bloom pulse grants Vitality")
+	Clock.advance(game,.4)
+	game.Traits.tick(game,pulse_at+1000)
+	check(player.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",0)==Vital.DURATIONS.catalyst,"periodic hits cannot re-grant the class response")
+	player.character.upgrades[1]=previous_mask
+	game.trait_events.clear()
+
+	reset(player,ally)
+	var now:=Time.get_ticks_msec()
+	var strong := event(1,"form","plant_part_rare_lantern_moss","weapon_contact",now)
+	strong.publish(game,"weapon_contact","hit","leader",now,{"enemy":-1})
+	var weak := event(2,"core","part_2","core_action",now)
+	Clock.advance(game,.4)
+	weak.publish(game,"core_action","bloom","",now,{"center":ally.pos,"recipients":[1]})
+	Clock.advance(game,.4)
+	var refresh := event(1,"form","plant_part_rare_lantern_moss","weapon_contact",now)
+	refresh.publish(game,"weapon_contact","hit","leader",now,{"enemy":-1})
+	check(player.hp==60 and player.get(Vital.NEXT)==1000,"overlap and repeated hits do not add or postpone healing")
+	Vital.tick(game,Clock.advance(game,.2))
+	check(player.hp==65 and player.get(Vital.BONUS,0)==18,"strongest active rate heals on original tick")
+	game.damage_player(1,player,4)
+	Vital.tick(game,Clock.advance(game,1.0))
+	check(player.hp==66,"damage does not cancel regen")
+	player.lost_health=10
+	var base: int=game.Life.native_maximum(game,player)
+	player.max_hp=game.Life.maximum(game,player)
+	check(player.max_hp==base+18,"native capacity change preserves temporary contribution")
+	player.hp=player.max_hp
+	Vital.tick(game,Clock.advance(game,2.0))
+	check(player.max_hp==base+12 and player.hp==base+12,"short refined capacity expires and clamps to surviving ordinary cap")
+	player.hp=55
+	Vital.tick(game,Clock.advance(game,2.0))
+	check(player.max_hp==base and player.hp>=55 and not player.has(Vital.SOURCES),"capacity expiry retains health below native cap")
+	var protected_hp: float=player.hp
+	var ward := Events.class_start(game,2,{"trigger":"block"},now,Builds.slot("catalyst",game.Items.get_item("plant_part_rare_gravemoss").legacy_part))
+	var adapter := {"trigger":"block", "limit":"recipient", "id":"vital_fixture"}
+	Events.grant_ward(game,player,now+29000,1,ward,adapter,now)
+	game.apply_enemy_hit(1,player,now+1,1.0,0,game.enemy_pos)
+	check(player.hp==protected_hp and player.get(Vital.BONUS,0)==18 and ally.get(Vital.BONUS,0)==18,
+		"refined ally Ward grants radial Vitality using the granting Catalyst")
+	game.Life.down(game,2,ally)
+	check(not ally.has(Vital.SOURCES) and ally.hp==0,"fall clears Vitality without revival")
+	game.reset_encounter()
+	check(not player.has(Vital.SOURCES) and player.get(Vital.BONUS,0)==0,"floor turnover clears temporary state and capacity")
+	await verify_pause(player,ally)
+	benchmark(player,ally)
+	game.queue_free()
+	await process_frame
+	if not failed: print("PASS: Vital capacity, regen, native damage, class/weapon/Core delivery, pause and floor lifecycle")
+	quit(int(failed))
+
+
+func verify_pause(player: Dictionary, ally: Dictionary) -> void:
+	reset(player,ally)
+	var now:=Time.get_ticks_msec()
+	var grant := event(1,"core","part_2","core_action",now)
+	grant.publish(game,"core_action","bloom","",now,{"center":player.pos,"recipients":[1]})
+	paused=true
+	game.set_physics_process(true)
+	await create_timer(.15,true).timeout
+	game.set_physics_process(false)
+	paused=false
+	check(Clock.now(game)==0 and player.hp==60 and player.get(Vital.BONUS,0)==12,"paused engine frames don't spend combat-time or grant ticks")
+
+
+func benchmark(player: Dictionary, ally: Dictionary) -> void:
+	reset(player,ally)
+	game.add_player(4)
+	for id in [3,4]:
+		game.players[id].wild=true
+		game.players[id].fallen=false
+		game.players[id].hp=70
+	var now:=Time.get_ticks_msec()
+	var burns: Array = []
+	var waters: Array = []
+	for id in range(1,5):
+		burns.append(event(id,"form","part_6","weapon_contact",now))
+		waters.append(event(id,"form","part_8","weapon_contact",now))
+		var grant := event(id,"core","part_2","core_action",now)
+		grant.publish(game,"core_action","bloom","",now,{"center":Vector3.ZERO,"recipients":[1,2,3,4]})
+	for index in 12:
+		var scout: Dictionary=game.make_scout(0,Vector3(0,0,-2),index)
+		scout.hp=10000
+		game.scouts.append(scout)
+		for source in burns:
+			Fire.ignite(game,source,index,now)
+		for source in waters:
+			Water.drench(game,source,index)
+	var count:=150
+	var started:=Time.get_ticks_usec()
+	for frame in count:
+		var elapsed:=Clock.advance(game,1.0/60.0)
+		Fire.tick(game,elapsed,now)
+		Vital.tick(game,elapsed)
+		for scout in game.scouts: Water.reduction(scout,elapsed)
+	print("CR04A effect update (four players, 12 enemies, four sources per effect, 150 steps): ",float(Time.get_ticks_usec()-started)/count," us/step")

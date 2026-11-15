@@ -32,7 +32,7 @@ static func description(slot: String, quality: String) -> String:
 
 
 static func ignite(game: Node, event: RefCounted, target: int, now: int) -> void:
-	if not Actors.valid_target(game, target):
+	if event.epoch != game.combat_epoch or game.get_meta(game.Transactions.PENDING,false) or not Actors.valid_target(game, target):
 		return
 	var actor: Dictionary = Actors.body(game, target)
 	var sources: Dictionary = actor.get(BURNING, {})
@@ -68,9 +68,9 @@ static func tick(game: Node, elapsed: int, now: int) -> void:
 			while int(burn.next) <= elapsed and int(burn.next) < int(burn.until):
 				burn.next += TICK_MS
 				Actors.damage(game, burn.actor, target, burn.hp, now, COLOR)
-				if game.combat_epoch != epoch or not Actors.valid_target(game, target) or not game.Transactions.session_writable(game):
+				if game.combat_epoch != epoch or not Actors.valid_target(game, target) or game.get_meta(game.Transactions.PENDING,false):
 					break
-			if game.combat_epoch != epoch or not Actors.valid_target(game, target) or not game.Transactions.session_writable(game):
+			if game.combat_epoch != epoch or not Actors.valid_target(game, target) or game.get_meta(game.Transactions.PENDING,false):
 				break
 			if int(burn.until) <= elapsed:
 				sources.erase(key)

@@ -20,7 +20,7 @@ static func build(field: RefCounted, cast: Dictionary, origin: Vector3, stage: i
 	var side := forward.cross(Vector3.UP)
 	var radius: float = skill.radius
 	match skill.get("affinity_family", ""):
-		"frost":
+		"frost", "vital":
 			return [area(at,radius)]
 		"fire":
 			return [lane(field, at, forward, radius, skill.width, true)]

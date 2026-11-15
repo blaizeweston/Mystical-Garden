@@ -38,7 +38,7 @@ static func cast_key(game: Node, player: Dictionary) -> String:
 
 
 static func command(game: Node, id: int, player: Dictionary, action: String) -> void:
-	if not game.multiplayer.is_server() or not game.Life.alive(player) or not player.get("profile_ready", false) or game.encounter_cleared():
+	if not game.multiplayer.is_server() or not game.Life.alive(player) or not player.get("profile_ready", false):
 		return
 	if preload("res://combat_ruleset.gd").active(game):
 		var builds = preload("res://affinity_build.gd")
@@ -63,14 +63,14 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 	if now < int(player.get("core_ready_at", 0)) or now < int(player.get("cast_until", 0)) or now < int(player.get("core_cast_until", 0)):
 		return
 	var skill := equipped(player)
-	if skill.is_empty():
+	if skill.is_empty() or (game.encounter_cleared() and skill.get("affinity_family") != "vital"):
 		return
 	var line := aim_cast(game.battlefield, player.pos, forward, skill, distance)
 	if line.is_empty():
 		game.tell(id, "%s needs clear ground in that direction." % skill.name)
 		return
 	var weapon: Dictionary = game.WeaponMotion.profile(skill.weapon_form)
-	var ground: bool = skill.delivery == "ground" or skill.get("footprint") == "wave" or skill.get("affinity_family") == "water"
+	var ground: bool = skill.delivery == "ground" or skill.get("footprint") == "wave" or skill.get("affinity_family") in ["water","vital"]
 	var blade_cast: bool = skill.weapon_form == "blade"
 	var duration := 550 if blade_cast else roundi(float(weapon.duration) * 1000.0)
 	var release_ms := 245 if blade_cast else roundi(float(weapon.release) * duration)
@@ -250,13 +250,17 @@ static func tick(game: Node, now: int) -> void:
 		return
 	var lines: Dictionary = game.get_meta(STATE)
 	if game.encounter_cleared():
-		for id in lines:
+		for id in lines.keys():
 			var line: Dictionary = lines[id]
+			if line.skill.get("affinity_family") == "vital":
+				continue
 			var owner: Dictionary = game.players.get(id, {})
 			if line.grown and line.skill.has("death_window_ms") and int(line.epoch) == game.combat_epoch and game.Life.alive(owner) and int(owner.get("lost_health", 0)) == int(line.life) and now < int(line.expires):
 				Effects.detonate_at_death(game, id, owner, line, now)
-		reset(game)
-		return
+			lines.erase(id)
+		if lines.is_empty():
+			reset(game)
+			return
 	for id in lines.keys():
 		var line: Dictionary = lines[id]
 		var player: Dictionary = game.players.get(id, {})
@@ -301,6 +305,10 @@ static func tick(game: Node, now: int) -> void:
 				continue
 			"water":
 				if preload("res://water_combat.gd").wave(game,line,player,now): lines.erase(id)
+				continue
+			"vital":
+				preload("res://vital_combat.gd").bloom(game,line,player,now)
+				lines.erase(id)
 				continue
 		if line.skill.mechanic == "ground_sequence":
 			if Effects.sequence(game, id, player, line, now):

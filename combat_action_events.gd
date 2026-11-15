@@ -7,7 +7,7 @@ const CONTEXT = "cr02_action"
 const Frost = preload("res://frost_combat.gd")
 const Wards = preload("res://ward_responses.gd")
 const CHANNELS := ["weapon_contact", "core_action", "class_action", "class_contact",
-	"actual_block", "armor_break", "periodic", "secondary", "incoming_hit"]
+	"actual_block", "armor_break", "periodic", "secondary", "incoming_hit", "class_field_contact"]
 
 var identity: int
 var epoch: int
@@ -22,6 +22,7 @@ var _potency: Dictionary
 var _permitted: Array
 var _seen := {}
 var _granted := {}
+var _responses := {}
 
 
 static func begin(game: Node, actor_id: int, origin: String, material: Dictionary,
@@ -74,14 +75,18 @@ func publish(game: Node, channel: String, contact_id: String, target: String, no
 			"frost": Frost.on_event(game, self, channel, details, now)
 			"fire": Ruleset.Fire.on_event(game, self, channel, details, now)
 			"water": Ruleset.Water.on_event(game, self, channel, details, now)
+			"vital": Ruleset.Vital.on_event(game, self, channel, details, now)
 	return true
 
 
 static func class_start(game: Node, actor_id: int, adapter: Dictionary, now: int, catalyst: Dictionary = {}) -> RefCounted:
 	var channels := {"activation": ["class_action", "incoming_hit"], "contact": ["class_contact"], "block": ["actual_block"]}
 	var ready: bool = catalyst.get("state") == "ready"
+	var allowed: Array = channels.get(adapter.get("trigger"), [])
+	if ready and catalyst.get("primary_affinity") == "vital" and adapter.get("recipients") == "designated_area":
+		allowed.append("class_field_contact")
 	return begin(game, actor_id, "catalyst" if ready else "native_class", catalyst if ready else {},
-		catalyst.potency_profile.values if ready else {}, channels.get(adapter.get("trigger"), []), now + 30000)
+		catalyst.potency_profile.values if ready else {}, allowed, now + 30000)
 
 
 static func class_complete(game: Node, event: RefCounted, adapter: Dictionary, start: Vector3, center: Vector3,
@@ -112,6 +117,18 @@ static func grant_ward(game: Node, recipient: Dictionary, until: int, charges: i
 
 static func blocked(game: Node, recipient_id: int, recipient: Dictionary, now: int) -> void:
 	Wards.block(game, recipient, recipient_id, now)
+
+
+static func field_action(stats: Dictionary) -> RefCounted:
+	var event: RefCounted = stats.get(CONTEXT)
+	return event if event != null and "class_field_contact" in event._permitted else null
+
+
+func take_response(key: String) -> bool:
+	if _responses.has(key):
+		return false
+	_responses[key] = true
+	return true
 
 
 func potency() -> Dictionary:

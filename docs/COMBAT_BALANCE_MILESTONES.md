@@ -30,6 +30,15 @@ still Drenched at impact. Expiry before impact restores normal damage. Lingering
 ground hazards and attacks by separate summoned creatures use their own
 resolution. Water cleanses ordinary Slow independently of other movement effects.
 
+### Vital capacity and regeneration
+
+Vitality changes expedition vitals on the host. Its strongest active capacity
+bonus and regeneration rate are resolved independently on the existing physics
+timeline. Capacity does not heal on grant. Expiry clamps current HP only when
+necessary. Native maximum HP and revival costs remain independent of the bonus.
+Vitality lasts during the current floor and can help the party recover between
+fights. Falling, floor changes and Garden return clear the temporary grant.
+
 ## Size of the change
 
 This is a major combat balance release. It has two separate jobs. First, give HP, damage and healing enough precision while keeping comparable fights recognizable. Then tune damage ranges, enemy durability, and sustain against how the fights actually play. The existing content templates give us a route to review this by family and tune exceptions individually.

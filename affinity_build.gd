@@ -147,11 +147,13 @@ static func core_skill(build: Dictionary) -> Dictionary:
 		"frost": ["Rime Bloom", "rime_bloom", "#97dfff", Ruleset.Frost.BLOOM_RADIUS, 2500, Ruleset.Frost.BLOOM_COOLDOWN_MS],
 		"fire": ["Ember Wake", "ember_wake", "#f29b57", Ruleset.Fire.HALF_LENGTH, Ruleset.Fire.FIELD_MS + 750, Ruleset.Fire.COOLDOWN_MS],
 		"water": ["Dewfall", "dewfall", "#82d7ec", Ruleset.Water.WAVE_RADIUS, Ruleset.Water.WAVE_MS + 750, Ruleset.Water.COOLDOWN_MS],
+		"vital": ["Vital Bloom", "worldbloom", "#abd785", Ruleset.Vital.CORE_RADIUS, 750, Ruleset.Vital.COOLDOWN_MS],
 	}[family]
 	return {"id": core.affinity_core_skill_id, "name": profile[0],
 		"icon": "res://assets/ui/core_skills/%s.png" % profile[1], "mechanic": "ground_sequence",
 		"affinity_family": family, "material": core, "color": profile[2],
+		"targeting": "self" if family == "vital" else "ground",
 		"weapon_form": build.native_weapon.visual, "delivery": delivery.kind,
-		"projectile": Delivery.DELIVERY_SHAPES[delivery.kind], "range": delivery.range,
+		"projectile": Delivery.DELIVERY_SHAPES[delivery.kind], "range": 0.0 if family == "vital" else delivery.range,
 		"radius": profile[3], "width": Ruleset.Fire.WIDTH, "lifetime_ms": profile[4], "cooldown_ms": profile[5],
 		"tooltip": balance.description("core", core.quality), "modifiers": []}
