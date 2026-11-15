@@ -8,6 +8,9 @@ var failure_reason: String=""
 
 func _ready() -> void:
  signature=method_signature(get_parent().get_script().get_script_method_list())
+ # The host publishes the party roster. Engine peer-to-peer roster relays
+ # can target a transport already disconnected during a simultaneous leave.
+ if Experiment.active(get_parent()): multiplayer.server_relay=false
  multiplayer.auth_callback=receive_compatibility
  multiplayer.auth_timeout=Settings.REGISTER_TIMEOUT_MS/1000.0
  multiplayer.peer_authenticating.connect(begin_check)

@@ -72,6 +72,7 @@ func host_run(menu: Node) -> void:
 	if not check(await until(func(): return current_scene.get_instance_id() != title_id and current_scene.get("session") == "Host"), "host created through title"):
 		return
 	var game := current_scene
+	check(not game.multiplayer.server_relay, "the authoritative host roster does not use the engine peer relay")
 	game.network_dialog.dismiss()
 	var garden = game.stage.experimental_garden
 	var keeper: Dictionary = game.players[game.HOST]
@@ -207,6 +208,7 @@ func guest_run(menu: Node) -> void:
 	var game := await join(menu)
 	if game == null:
 		return
+	check(not game.multiplayer.server_relay, "the guest consumes the host roster")
 	var garden = game.stage.experimental_garden
 	var id: int = game.local_player_id()
 	var bed: int = int(read("host-ready"))

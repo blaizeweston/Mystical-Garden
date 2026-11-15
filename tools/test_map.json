@@ -11287,6 +11287,16 @@
           ]
         },
         "experimental_coop_3": {
+          "match": " # The host publishes the party roster. Engine peer-to-peer roster relays\n # can target a transport already disconnected during a simultaneous leave.\n if Experiment.active(get_parent()): multiplayer.server_relay=false\n",
+          "baseline": "",
+          "systems": [
+            "hex_terrain",
+            "terrain",
+            "connection_flow",
+            "garden"
+          ]
+        },
+        "experimental_coop_4": {
           "match": "const Experiment=preload(\"res://assets/terrain_m02/experimental/experiment_mode.gd\")\n",
           "baseline": "",
           "systems": [

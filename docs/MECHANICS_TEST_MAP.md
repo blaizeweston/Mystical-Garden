@@ -1340,6 +1340,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `network_compatibility.gd` | experimental_coop_1 | hex_terrain, terrain, connection_flow, garden |
 | `network_compatibility.gd` | experimental_coop_2 | hex_terrain, terrain, connection_flow, garden |
 | `network_compatibility.gd` | experimental_coop_3 | hex_terrain, terrain, connection_flow, garden |
+| `network_compatibility.gd` | experimental_coop_4 | hex_terrain, terrain, connection_flow, garden |
 | `network_compatibility.gd` | cb02_network_compatibility_2_8 | combat_balance_preview |
 | `network_compatibility.gd` | cb02_network_compatibility_1_7 | combat_balance_preview |
 | `network_compatibility.gd` | connection_flow_stage | connection_flow |
