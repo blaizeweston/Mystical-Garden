@@ -65,12 +65,16 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 	var skill := equipped(player)
 	if skill.is_empty() or (game.encounter_cleared() and skill.get("affinity_family") != "vital"):
 		return
+	var step: bool = skill.get("affinity_family")=="spirit"
 	var line := aim_cast(game.battlefield, player.pos, forward, skill, distance)
+	if step:
+		var landing := preload("res://spirit_affinity.gd").step(game,id,forward)
+		line = {"center":landing,"forward":forward} if landing.distance_to(player.pos)>=preload("res://spirit_affinity.gd").MIN_STEP else {}
 	if line.is_empty():
 		game.tell(id, "%s needs clear ground in that direction." % skill.name)
 		return
 	var weapon: Dictionary = game.WeaponMotion.profile(skill.weapon_form)
-	var ground: bool = skill.delivery == "ground" or skill.get("footprint") == "wave" or skill.get("affinity_family") in ["water","vital","wood"]
+	var ground: bool = step or skill.delivery == "ground" or skill.get("footprint") == "wave" or skill.get("affinity_family") in ["water","vital","wood"]
 	var blade_cast: bool = skill.weapon_form == "blade"
 	var duration := 550 if blade_cast else roundi(float(weapon.duration) * 1000.0)
 	var release_ms := 245 if blade_cast else roundi(float(weapon.release) * duration)
@@ -101,8 +105,9 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 	if skill.has("affinity_family"):
 		line.affinity_action = preload("res://combat_action_events.gd").begin(game,id,"core",skill.material,
 			skill.material.potency_profile.values,["core_action"],0x7fffffffffffffff)
-	lines[id] = line
-	game.set_meta(STATE, lines)
+	if not step:
+		lines[id] = line
+		game.set_meta(STATE, lines)
 	player.core_ready_at = now + int(skill.cooldown_ms)
 	player.core_cast_until = now + duration
 	player.facing = forward
@@ -117,6 +122,8 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 	player.attack_until = 0 if blade_cast else now + duration
 	player.cast_until = now + duration if blade_cast else 0
 	player.strike_at = maxi(int(player.get("strike_at", 0)), int(player.core_cast_until))
+	if step:
+		preload("res://spirit_affinity.gd").core_step(game,line,player,now)
 	var modifiers: Array = skill.modifiers.map(func(modifier): return modifier.id)
 	Journal.event("combat", "core_cast", {"actor": id, "skill": skill.id, "cast_id": line.id, "delivery": skill.delivery,
 		"weapon": skill.weapon_form, "variant": skill.get("variant_name", ""), "floor": game.encounter_number, "modifiers": modifiers, "behaviors": line.behaviors})
@@ -172,6 +179,11 @@ static func preview(game: Node, player: Dictionary, field: RefCounted, forward: 
 		shapes.append({"kind": "range", "at": origin, "radius": reach})
 	var cast := aim_cast(field, origin, forward, skill, distance)
 	var valid := not cast.is_empty() and float(state.get("remaining", INF)) <= 0.0
+	if skill.get("affinity_family")=="spirit":
+		var end: Vector3 = field.dash(origin,origin+forward*float(skill.range))
+		var can_step := origin.distance_to(end)>=preload("res://spirit_affinity.gd").MIN_STEP
+		return {"shapes":[{"kind":"travel","from":origin,"to":end}],"color":skill.color,
+			"valid":can_step and float(state.get("remaining",INF))<=0.0}
 	if not cast.is_empty():
 		match skill.mechanic:
 			"ground_sequence":

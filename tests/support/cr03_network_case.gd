@@ -187,10 +187,25 @@ func host(menu: Node) -> void:
 		if not check(await until(func():
 			return Time.get_ticks_msec()>=maxi(int(visitor.get("cast_until",0)),int(visitor.get("core_cast_until",0)))),
 			"next remote B waits for the native cast window"):return
-		mark("cast-"+str(source),str(Vector2(visitor.facing.x,visitor.facing.z)))
+		var aim: Vector3=visitor.facing
+		var departure: Vector3=visitor.pos
+		if primary=="spirit":
+			var spirit=preload("res://spirit_affinity.gd")
+			var best:=0.0
+			for lane in 8:
+				var candidate:=Vector3.RIGHT.rotated(Vector3.UP,lane*TAU/8.0)
+				var extent:=departure.distance_to(spirit.step(game,source,candidate))
+				if extent>best:
+					best=extent
+					aim=candidate
+			if not check(best>=spirit.MIN_STEP,"generated floor offers a clear direction for Phantom Step"): return
+		mark("cast-"+str(source),str(Vector2(aim.x,aim.z)))
 		if not check(await until(func():return rows.any(func(e):return e.kind=="core_action" and e.primary_affinity==primary and e.source_actor==source)),
 			"native "+primary+" Core RPC resolves by the host"):return
 		match primary:
+			"spirit":
+				check((Vector3(visitor.pos)-departure).dot(aim)>=.28 and visitor.has("affinity_spirit_strides"),
+					"authorized guest step grants stride and moves along its chosen clear direction")
 			"fire":
 				check(game.leader_brain.get("affinity_burning",{}).has("%d/core"%source),"guest trail actually ignites leader")
 			"water":

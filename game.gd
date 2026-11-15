@@ -1752,6 +1752,8 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 					Life.Sustain.begin_renewal(ally,now,int(skill.duration)+duration,Skills.Balance.RENEWAL_INTERVAL_MS)
 					if mode=="sanctuary": combat_events_api.grant_ward(self,ally,now+int(skill.ward_duration)+duration,int(skill.charges),event,adapter,now)
 			bonus_heal=0
+	if player.has("affinity_spirit_follow") and player.pos!=cast_origin:
+		preload("res://spirit_affinity.gd").movement(self,player,cast_origin,player.pos)
 	targets=Traits.spread_targets(self,player,targets,skill,stats)
 	if not targets.is_empty(): player.swing_until=now+240
 	var hits:=apply_skill_targets(player,targets,skill,stats,now)
@@ -2112,6 +2114,7 @@ func _physics_process(delta: float) -> void:
 			preload("res://vital_combat.gd").tick(self,elapsed)
 			preload("res://thorn_affinity.gd").tick(self,elapsed,now)
 			preload("res://wood_affinity.gd").tick(self,elapsed)
+			preload("res://spirit_affinity.gd").tick(self,elapsed)
 			if get_meta(Transactions.PENDING,false): return
 		preload("res://combat_status.gd").sync(self,now)
 		attract_loot(delta)
@@ -2214,10 +2217,13 @@ func move_player(id: int, direction: Vector2, delta: float) -> void:
 	if not move.is_zero_approx() and (not p.wild or not p.get("mouse_aim",false)):
 		p.facing = move.normalized()
 	var guard_speed: float=.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0
-	var desired := bound_position(p.pos + move * WALK_SPEED * guard_speed * (0.6 if Time.get_ticks_msec() < int(p.get("slow_until", 0)) else 1.0) * delta, p.wild)
+	var stride := preload("res://spirit_affinity.gd").scale(p,preload("res://affinity_time.gd").now(self)) if p.has("affinity_spirit_strides") else 1.0
+	var desired := bound_position(p.pos + move * WALK_SPEED * guard_speed * stride * (0.6 if Time.get_ticks_msec() < int(p.get("slow_until", 0)) else 1.0) * delta, p.wild)
 	var previous: Vector3=p.pos
 	if p.wild:
 		p.pos = battlefield.slide(p.pos, desired)
+		if p.has("affinity_spirit_follow"):
+			preload("res://spirit_affinity.gd").movement(self,p,previous,p.pos)
 	elif stage.experimental_garden != null:
 		p.pos = stage.experimental_garden.slide(previous, desired)
 	else:
@@ -2255,7 +2261,10 @@ func dodge_player(id: int, direction: Vector2) -> void:
 	var facing := world_direction(direction).normalized()
 	if not facing.is_zero_approx():
 		p.facing = facing
+	var previous: Vector3 = p.pos
 	p.pos = battlefield.dash(p.pos, bound_position(p.pos + p.facing * DODGE_DISTANCE, true))
+	if p.has("affinity_spirit_follow"):
+		preload("res://spirit_affinity.gd").movement(self,p,previous,p.pos)
 	p.dodge_at = now + maxi(350,DODGE_COOLDOWN_MS-int(weapon_stats(p).get("dodge_cooldown",0)))
 
 
@@ -2276,6 +2285,11 @@ func update_enemy(delta: float, now: int) -> void:
 		return
 	var target := Director.target(self,enemy_pos,leader_brain,now)
 	if target == 0:
+		return
+	var trace := preload("res://spirit_affinity.gd").diversion(self,leader_brain,target)
+	if trace.is_finite():
+		if now>=rooted_until:
+			enemy_pos=Director.navigate(self,enemy_pos,trace,Director.speed(self,2.0)*delta*preload("res://frost_combat.gd").motion_scale(leader_brain,now))
 		return
 	var victim: Dictionary = players[target]
 	var distance := enemy_pos.distance_to(victim.pos)
@@ -2381,6 +2395,11 @@ func update_scouts(delta: float, now: int) -> void:
 		if target == 0:
 			continue
 		var position: Vector3 = scout.pos
+		var trace := preload("res://spirit_affinity.gd").diversion(self,scout,target)
+		if trace.is_finite():
+			if now>=int(scout.rooted_until):
+				scout.pos=Director.navigate(self,position,trace,Director.speed(self,float(definition.speed))*delta*frost_motion,int(scout.route))
+			continue
 		var victim: Vector3 = players[target].pos
 		var distance := position.distance_to(victim)
 		var allies: Array=support_allies(scout) if Enemies.is_support(int(scout.kind)) else []
@@ -3093,6 +3112,7 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = n
 	p.erase("affinity_thorn_form_ready")
 	preload("res://wood_affinity.gd").clear(p)
 	preload("res://storm_affinity.gd").clear(p)
+	preload("res://spirit_affinity.gd").clear(p)
 	if p.has("affinity_vital_sources"): preload("res://vital_combat.gd").clear(self,p)
 	p.guard_charges=0
 	p.guard_until = 0
@@ -3178,6 +3198,7 @@ func return_to_garden(p: Dictionary) -> void:
 	p.erase("affinity_thorn_form_ready")
 	preload("res://wood_affinity.gd").clear(p)
 	preload("res://storm_affinity.gd").clear(p)
+	preload("res://spirit_affinity.gd").clear(p)
 	if p.has("affinity_vital_sources"): preload("res://vital_combat.gd").clear(self,p)
 	p.guard_until = 0
 	p.front_guard_until=0;p.counter_guard_until=0;p.counter_until=0;p.grave_charges=0;p.echo_charge=0
@@ -3449,6 +3470,7 @@ func reset_encounter() -> void:
 			preload("res://vital_combat.gd").clear(self,player)
 			preload("res://wood_affinity.gd").clear(player)
 			preload("res://storm_affinity.gd").clear(player)
+			preload("res://spirit_affinity.gd").clear(player)
 			player.erase("affinity_thorn_form_ready")
 	preload("res://core_combat.gd").reset(self)
 	enemy_traits.clear();trait_events.clear()
@@ -3686,7 +3708,8 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 	var snapshot := {}
 	for id in players:
 		var p: Dictionary = players[id]
-		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":(.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get("slow_until",0)) else 1.0),"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":p.get("party_slot",0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": p.wild, "fallen":p.fallen,"lost_health":p.get("lost_health",0), "hp": p.hp, "max_hp": p.get("max_hp", MAX_HEALTH), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
+		var stride := preload("res://spirit_affinity.gd").scale(p,preload("res://affinity_time.gd").now(self)) if p.has("affinity_spirit_strides") else 1.0
+		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":(.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get("slow_until",0)) else 1.0)*stride,"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":p.get("party_slot",0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": p.wild, "fallen":p.fallen,"lost_health":p.get("lost_health",0), "hp": p.hp, "max_hp": p.get("max_hp", MAX_HEALTH), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
 			"attack_anim":attack_animation_snapshot(p),"skill_fx":p.get("skill_fx",{}) if Time.get_ticks_msec()<int(p.get("skill_fx_until",0)) else {}, "weapon_kind":p.get("weapon_kind",0), "core_part":p.weapon if p.wild else p.prepared, "pose": combat_pose(p), "wallet": run_wallet(p),"skill_ready":Time.get_ticks_msec()>=int(p.skill_at),"skill_two_ready":Time.get_ticks_msec()>=int(p.get("skill_two_at",0)),"skill_cooldowns":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get("skill_two_at",0))-Time.get_ticks_msec())/1000.0)]}
 		if stage.experimental_garden != null and not p.wild:
 			var garden = stage.experimental_garden
@@ -5180,7 +5203,12 @@ func update_projectiles(now: int) -> void:
 		if shot.get("melee_shape",false):
 			if now>=int(shot.due):
 				preload("res://event_audio.gd").weapon(self,shot.form,players[shot.player].pos)
-				preload("res://weapon_contact.gd").melee(self,shot,now);projectile_queue.erase(shot)
+				var spirit = preload("res://spirit_affinity.gd")
+				var owner: Dictionary=players[shot.player]
+				if owner.has(spirit.FOLLOW): spirit.launch(self,owner,shot.stats,1)
+				preload("res://weapon_contact.gd").melee(self,shot,now)
+				if owner.has(spirit.FOLLOW): spirit.finish(self,owner,shot.stats)
+				projectile_queue.erase(shot)
 			continue
 		if now<int(shot.release):continue
 		var rays: Array=[shot]
@@ -5188,6 +5216,9 @@ func update_projectiles(now: int) -> void:
 			MouseCombat.launch(self,shot)
 			preload("res://event_audio.gd").weapon(self,shot.form,shot.origin)
 			rays=MouseCombat.volley(self,shot)
+			var owner: Dictionary=players[shot.player]
+			if owner.has("affinity_spirit_follow"):
+				preload("res://spirit_affinity.gd").launch(self,owner,shot.stats,rays.size())
 			for ray in rays:
 				if not is_same(ray,shot):projectile_queue.append(ray)
 				var form: String=ray.form
@@ -5197,6 +5228,9 @@ func update_projectiles(now: int) -> void:
 		for ray in rays:
 			if MouseCombat.ray_tick(self,ray,now):
 				if ray.has("visual_event_id"):emit_combat_event("projectile_end",str(ray.visual_event_id),ray.origin,ray.get("visual_stop",ray.aim),.15,Color.WHITE,0,0)
+				var owner: Dictionary=players[ray.player]
+				if owner.has("affinity_spirit_follow"):
+					preload("res://spirit_affinity.gd").finish(self,owner,ray.stats)
 				projectile_queue.erase(ray)
 
 

@@ -122,6 +122,8 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 	if cast.shape in ["dash","retreat"]:
 		player.pos = cast.endpoint
 		player.velocity = Vector3.ZERO
+		if player.has("affinity_spirit_follow"):
+			preload("res://spirit_affinity.gd").movement(game,player,cast.origin,player.pos)
 	game.emit_combat_event("subclass_release",skill.visual,cast.origin,release_end,.67,Color(skill.color),cast.radius,id,
 		{"pattern":cast.shape,"width":cast.width,"span":cast.span,"owner":id,"clip":CLIPS[skill.visual],"label":skill.name})
 	var cast_id: int = game.combat_event_serial

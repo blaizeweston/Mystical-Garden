@@ -1,8 +1,8 @@
 extends RefCounted
 # Host-derived presentation state. Never stored in character/Garden saves.
 const Warden = preload("res://warden_combat.gd")
-const LABELS={"storm_charge":"Storm Charge","subclass_follow_ready":"Follow-up ready","warden_quake_ready":"Quake prepared","slow":"Slowed","guard":"Warded","counter":"Counter ready","prepared_mark":"Mark ready","grave":"Death charge","echo":"Echo charge","marked":"Marked","core_strike_mark":"Core Mark","crown_link":"Crownlink","brittle":"Brittle","burning":"Burning","bleeding":"Bleeding","thorn_slow":"Thorn growth","drenched":"Drenched","vitality":"Vitality","bark_armor":"Bark Armor","rooted":"Rooted","staggered":"Staggered","haste":"Hastened","bark_guard":"Bark Guard","sheltered":"Sheltered","trophy_carrier":"Carrying trophy","rallied":"Rallied","uprooting":"Uprooting","core_exposed":"Core exposed","nursery_lull":"Nursery lull","memory_exposed":"Memory exposed"}
-const REFRESH_IN_PLACE := ["storm_charge","grave","echo","sheltered","trophy_carrier","subclass_follow_ready","burning","drenched","vitality","bark_armor","bleeding","thorn_slow"]
+const LABELS={"spirit_stride":"Spiritstride","spirit_prepared":"Spirit follow-up prepared","spirit_ready":"Spirit follow-up ready","storm_charge":"Storm Charge","subclass_follow_ready":"Follow-up ready","warden_quake_ready":"Quake prepared","slow":"Slowed","guard":"Warded","counter":"Counter ready","prepared_mark":"Mark ready","grave":"Death charge","echo":"Echo charge","marked":"Marked","core_strike_mark":"Core Mark","crown_link":"Crownlink","brittle":"Brittle","burning":"Burning","bleeding":"Bleeding","thorn_slow":"Thorn growth","drenched":"Drenched","vitality":"Vitality","bark_armor":"Bark Armor","rooted":"Rooted","staggered":"Staggered","haste":"Hastened","bark_guard":"Bark Guard","sheltered":"Sheltered","trophy_carrier":"Carrying trophy","rallied":"Rallied","uprooting":"Uprooting","core_exposed":"Core exposed","nursery_lull":"Nursery lull","memory_exposed":"Memory exposed"}
+const REFRESH_IN_PLACE := ["spirit_stride","spirit_prepared","spirit_ready","storm_charge","grave","echo","sheltered","trophy_carrier","subclass_follow_ready","burning","drenched","vitality","bark_armor","bleeding","thorn_slow"]
 static func tint(kind: String) -> Color:
  if kind=="burning":return Color("#f29b57")
  if kind=="drenched":return Color("#82d7ec")
@@ -25,6 +25,14 @@ static func sync(game: Node,now: int) -> void:
   if not charge.is_empty():
    var remaining: int=int(charge.until)-preload("res://affinity_time.gd").now(game)
    add(desired,game,"storm_charge",id,false,now+remaining,1,now)
+  var spirit = preload("res://spirit_affinity.gd")
+  var follow: Dictionary=player.get(spirit.FOLLOW,{})
+  if not follow.is_empty() or player.has(spirit.STRIDES):
+   var elapsed: int=preload("res://affinity_time.gd").now(game)
+   if not follow.is_empty() and follow.phase!="claimed":
+    add(desired,game,"spirit_"+str(follow.phase),id,false,now+int(follow.until)-elapsed,1,now)
+   if spirit.scale(player,elapsed)>1.0:
+    add(desired,game,"spirit_stride",id,false,now+60000,1,now)
   if player.has("affinity_bark_grants"):add(desired,game,"bark_armor",id,false,now+60000,1,now)
   for pair in [["slow","slow_until"],["guard","guard_until"],["counter","counter_until"],["prepared_mark","prepared_mark_until"]]:
    add(desired,game,pair[0],id,false,int(player.get(pair[1],0)),1,now)

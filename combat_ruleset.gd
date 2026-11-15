@@ -1,6 +1,6 @@
 extends RefCounted
 
-const ID := "plant-affinity-cr04c-storm"
+const ID := "plant-affinity-cr04c-storm-spirit"
 const FLAG := "--combat-affinities"
 const META := &"combat_affinity_ruleset"
 const PLAYER_KEY := "combat_ruleset"
@@ -14,7 +14,8 @@ const Vital = preload("res://vital_combat.gd")
 const Thorn = preload("res://thorn_affinity.gd")
 const Wood = preload("res://wood_affinity.gd")
 const Storm = preload("res://storm_affinity.gd")
-const FAMILIES := {"frost": Frost, "fire": Fire, "water": Water, "vital": Vital, "thorn": Thorn, "wood": Wood, "storm": Storm}
+const Spirit = preload("res://spirit_affinity.gd")
+const FAMILIES := {"frost": Frost, "fire": Fire, "water": Water, "vital": Vital, "thorn": Thorn, "wood": Wood, "storm": Storm, "spirit": Spirit}
 const Experiment = preload("res://assets/terrain_m02/experimental/experiment_mode.gd")
 const Playtest = preload("res://playtest_storage.gd")
 const Plants = preload("res://plant_affinities.gd")
@@ -40,7 +41,7 @@ static var definition_signature := JSON.stringify([
 	Plants.BY_SPECIES, Plants.CORE_SKILL_BY_PRIMARY, Plants.SUPPORTING_ONLY,
 	Catalyst.KITS, Catalyst.FOCUS_Q, Catalyst.ADAPTERS, Catalyst.RESPONSES, Catalyst.CONFLICTS,
 	Classes.DEFINITIONS, Classes.Warden.FOCUSES, Classes.Subclasses.FOCUSES,
-	Parts.MONSTER_DEFINITIONS, Delivery.WEAPON_DELIVERY, NATIVE_GRAFT_STATS, FORMS, COMPATIBLE_CARDS, Frost.VERSION_DATA, Fire.VERSION_DATA, Water.VERSION_DATA, Vital.VERSION_DATA, Thorn.VERSION_DATA, Wood.VERSION_DATA, Storm.VERSION_DATA,
+	Parts.MONSTER_DEFINITIONS, Delivery.WEAPON_DELIVERY, NATIVE_GRAFT_STATS, FORMS, COMPATIBLE_CARDS, Frost.VERSION_DATA, Fire.VERSION_DATA, Water.VERSION_DATA, Vital.VERSION_DATA, Thorn.VERSION_DATA, Wood.VERSION_DATA, Storm.VERSION_DATA, Spirit.VERSION_DATA,
 ]).sha256_text()
 
 

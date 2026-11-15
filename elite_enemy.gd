@@ -57,6 +57,12 @@ static func tick(game: Node,delta: float,now: int) -> void:
  if now<game.enemy_stagger_until:return
  var id: int=game.Director.target(game,game.enemy_pos,game.leader_brain,now)
  if id==0:return
+ var trace := preload("res://spirit_affinity.gd").diversion(game,game.leader_brain,id)
+ if trace.is_finite():
+  if now>=game.rooted_until:
+   var speed: float=game.Director.speed(game,float(Catalog.get_kind(game.enemy_kind).speed))
+   game.enemy_pos=game.Director.navigate(game,game.enemy_pos,trace,speed*delta)
+  return
  var victim: Vector3=game.players[id].pos;var distance: float=game.enemy_pos.distance_to(victim)
  if not game.enemy_engaged and (distance>float(game.Director.config().aggro_radius) or not game.battlefield.clear_line(game.enemy_pos,victim)):return
  if not game.enemy_engaged:game.Director.alert(game,game.enemy_pos)

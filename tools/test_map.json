@@ -2,6 +2,7 @@
   "schema": 1,
   "full_after_days": 7,
   "systems": {
+    "spirit_affinity": {"label":"Spirit stride, traces and attack claims", "files":["spirit_affinity.gd","spirit_affinity.gd.uid"]},
     "storm_affinity": {"label": "Storm discharge and source-owned charges", "files": ["storm_affinity.gd", "storm_affinity.gd.uid"]},
     "world_snapshot": {
       "label": "Protocol 41 bounded unreliable world snapshots, roster metadata and receive convergence",
@@ -1812,6 +1813,8 @@
     ]
   },
   "suites": {
+    "cr04c_spirit": {"kind":"unit","systems":["spirit_affinity","core_combat","combat_affinity_contracts","combat"],"package":false},
+    "cr04c_spirit_coop": {"kind":"pair","systems":["spirit_affinity","core_combat","combat_affinity_contracts","connection_flow","world_snapshot"],"package":false},
     "cr04c_storm": {"kind": "unit", "systems": ["storm_affinity","combat_affinity_contracts","core_combat","combat"], "package": false},
     "cr04c_storm_coop": {"kind": "pair", "systems": ["storm_affinity","combat_affinity_contracts","core_combat","connection_flow","world_snapshot"], "package": false},
     "world_snapshot_codec": {
@@ -5334,6 +5337,28 @@
     ]
   ],
   "game_regions": {
+    "dodge_player": {
+      "cr04c_spirit_0": {
+        "match": "\t\tp.facing = facing\n\tvar previous: Vector3 = p.pos\n\tp.pos = battlefield.dash(p.pos, bound_position(p.pos + p.facing * DODGE_DISTANCE, true))\n\tif p.has(\"affinity_spirit_follow\"):\n\t\tpreload(\"res://spirit_affinity.gd\").movement(self,p,previous,p.pos)\n\tp.dodge_at = now + maxi(350,DODGE_COOLDOWN_MS-int(weapon_stats(p).get(\"dodge_cooldown\",0)))\n",
+        "baseline": "\t\tp.facing = facing\n\tp.pos = battlefield.dash(p.pos, bound_position(p.pos + p.facing * DODGE_DISTANCE, true))\n\tp.dodge_at = now + maxi(350,DODGE_COOLDOWN_MS-int(weapon_stats(p).get(\"dodge_cooldown\",0)))\n",
+        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      }
+    },
+    "move_player": {
+      "cr04c_spirit_0": {
+        "match": "\tvar guard_speed: float=.4 if Time.get_ticks_msec()<int(p.get(\"front_guard_until\",0)) else 1.0\n\tvar stride := preload(\"res://spirit_affinity.gd\").scale(p,preload(\"res://affinity_time.gd\").now(self)) if p.has(\"affinity_spirit_strides\") else 1.0\n\tvar desired := bound_position(p.pos + move * WALK_SPEED * guard_speed * stride * (0.6 if Time.get_ticks_msec() < int(p.get(\"slow_until\", 0)) else 1.0) * delta, p.wild)\n\tvar previous: Vector3=p.pos\n",
+        "baseline": "\tvar guard_speed: float=.4 if Time.get_ticks_msec()<int(p.get(\"front_guard_until\",0)) else 1.0\n\tvar desired := bound_position(p.pos + move * WALK_SPEED * guard_speed * (0.6 if Time.get_ticks_msec() < int(p.get(\"slow_until\", 0)) else 1.0) * delta, p.wild)\n\tvar previous: Vector3=p.pos\n",
+        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
+      "cr04c_spirit_1": {
+        "match": "\t\tp.pos = battlefield.slide(p.pos, desired)\n\t\tif p.has(\"affinity_spirit_follow\"):\n\t\t\tpreload(\"res://spirit_affinity.gd\").movement(self,p,previous,p.pos)\n\telif stage.experimental_garden != null:\n",
+        "baseline": "\t\tp.pos = battlefield.slide(p.pos, desired)\n\telif stage.experimental_garden != null:\n",
+        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      }
+    },
     "send_expedition_state": {
       "experimental_coop_1": {
         "match": "\t\t\tvar shared_garden := garden_snapshot()\n\t\t\tif stage.experimental_garden != null:\n\t\t\t\tshared_garden.append(stage.experimental_garden.snapshot())\n\t\t\tvar garden_bytes:=var_to_bytes(shared_garden).compress(FileAccess.COMPRESSION_DEFLATE)\n",
@@ -6430,6 +6455,12 @@
       }
     },
     "player_snapshot": {
+      "cr04c_spirit_0": {
+        "match": "\t\tvar p: Dictionary = players[id]\n\t\tvar stride := preload(\"res://spirit_affinity.gd\").scale(p,preload(\"res://affinity_time.gd\").now(self)) if p.has(\"affinity_spirit_strides\") else 1.0\n\t\tvar state := {\"motion_radius\":bound_position(Vector3(1000,0,0)).x,\"motion_epoch\":net_motion.world_key(self,p),\"motion_ack\":net_motion.acknowledgement(id,net_motion.world_key(self,p)),\"motion_scale\":(.4 if Time.get_ticks_msec()<int(p.get(\"front_guard_until\",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get(\"slow_until\",0)) else 1.0)*stride,\"velocity\":p.get(\"velocity\",Vector3.ZERO),\"vitals_revision\":p.get(\"vitals_revision\",0),\"damage_seq\":p.get(\"damage_seq\",0),\"damage_amount\":p.get(\"damage_amount\",0),\"party_slot\":p.get(\"party_slot\",0),\"display_name\":p.character.get(\"name\",\"Wanderer\"),\"enemy_max_hp\":encounter_health(),\"pos\": p.pos, \"wild\": p.wild, \"fallen\":p.fallen,\"lost_health\":p.get(\"lost_health\",0), \"hp\": p.hp, \"max_hp\": p.get(\"max_hp\", MAX_HEALTH), \"appearance\": PackedByteArray(p.character.get(\"appearance\", [0,0,0,0,0])), \"frame\": p.frame,\n\t\t\t\"attack_anim\":attack_animation_snapshot(p),\"skill_fx\":p.get(\"skill_fx\",{}) if Time.get_ticks_msec()<int(p.get(\"skill_fx_until\",0)) else {}, \"weapon_kind\":p.get(\"weapon_kind\",0), \"core_part\":p.weapon if p.wild else p.prepared, \"pose\": combat_pose(p), \"wallet\": run_wallet(p),\"skill_ready\":Time.get_ticks_msec()>=int(p.skill_at),\"skill_two_ready\":Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)),\"skill_cooldowns\":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)]}\n",
+        "baseline": "\t\tvar p: Dictionary = players[id]\n\t\tvar state := {\"motion_radius\":bound_position(Vector3(1000,0,0)).x,\"motion_epoch\":net_motion.world_key(self,p),\"motion_ack\":net_motion.acknowledgement(id,net_motion.world_key(self,p)),\"motion_scale\":(.4 if Time.get_ticks_msec()<int(p.get(\"front_guard_until\",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get(\"slow_until\",0)) else 1.0),\"velocity\":p.get(\"velocity\",Vector3.ZERO),\"vitals_revision\":p.get(\"vitals_revision\",0),\"damage_seq\":p.get(\"damage_seq\",0),\"damage_amount\":p.get(\"damage_amount\",0),\"party_slot\":p.get(\"party_slot\",0),\"display_name\":p.character.get(\"name\",\"Wanderer\"),\"enemy_max_hp\":encounter_health(),\"pos\": p.pos, \"wild\": p.wild, \"fallen\":p.fallen,\"lost_health\":p.get(\"lost_health\",0), \"hp\": p.hp, \"max_hp\": p.get(\"max_hp\", MAX_HEALTH), \"appearance\": PackedByteArray(p.character.get(\"appearance\", [0,0,0,0,0])), \"frame\": p.frame,\n\t\t\t\"attack_anim\":attack_animation_snapshot(p),\"skill_fx\":p.get(\"skill_fx\",{}) if Time.get_ticks_msec()<int(p.get(\"skill_fx_until\",0)) else {}, \"weapon_kind\":p.get(\"weapon_kind\",0), \"core_part\":p.weapon if p.wild else p.prepared, \"pose\": combat_pose(p), \"wallet\": run_wallet(p),\"skill_ready\":Time.get_ticks_msec()>=int(p.skill_at),\"skill_two_ready\":Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)),\"skill_cooldowns\":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)]}\n",
+        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
       "cr02_affinity_contract": {"match": "\t\t\t\t\"reclaim_choice\":p.get(\"reclaim_choice\",0),\"offering_choice\":p.get(\"offering_choice\",0),\"last_deposit\":p.get(\"last_deposit\",0),\"weapon_kind\":p.weapon_kind,\"catalyst\":p.catalyst,\"graft_part\":p.graft_part,\"graft_floor\":p.get(\"graft_floor\",0),\"prepared_catalyst\":p.prepared_catalyst,\"cargo_plan\":p.cargo_plan,\"stored_parts\":stored_counts(p),\"weapon_stats\":weapon_stats(p,not p.wild), \"carried_parts\": p.carried_parts, \"reserve_parts\": seed_reserve(p).parts,\"combat_events\":combat_events_snapshot(),\"attack_hints\":attack_hints_snapshot(),\"death_events\":death_events_snapshot(),\"run_upgrades\":preload(\"res://combat_ruleset.gd\").legacy_ranks(p),\"bag\":InventoryModel.snapshot(self,p),\"ground_items\":inventory_floor_snapshot(p), \"secondary\": p.secondary, \"prepared_secondary\": p.prepared_secondary,\n", "baseline": "\t\t\t\t\"reclaim_choice\":p.get(\"reclaim_choice\",0),\"offering_choice\":p.get(\"offering_choice\",0),\"last_deposit\":p.get(\"last_deposit\",0),\"weapon_kind\":p.weapon_kind,\"catalyst\":p.catalyst,\"graft_part\":p.graft_part,\"graft_floor\":p.get(\"graft_floor\",0),\"prepared_catalyst\":p.prepared_catalyst,\"cargo_plan\":p.cargo_plan,\"stored_parts\":stored_counts(p),\"weapon_stats\":weapon_stats(p,not p.wild), \"carried_parts\": p.carried_parts, \"reserve_parts\": seed_reserve(p).parts,\"combat_events\":combat_events_snapshot(),\"attack_hints\":attack_hints_snapshot(),\"death_events\":death_events_snapshot(),\"run_upgrades\":p.get(\"run_upgrades\",{}),\"bag\":InventoryModel.snapshot(self,p),\"ground_items\":inventory_floor_snapshot(p), \"secondary\": p.secondary, \"prepared_secondary\": p.prepared_secondary,\n", "additive": true, "systems": ["combat_affinity_contracts"]},
       "experimental_coop_1": {
         "match": "\t\tif stage.experimental_garden != null and not p.wild:\n\t\t\tvar garden = stage.experimental_garden\n\t\t\tstate[\"garden_layout_revision\"] = garden.layout_revision if garden.reveal == null else -1\n",
@@ -6664,6 +6695,12 @@
       }
     },
     "_physics_process": {
+      "cr04c_spirit_0": {
+        "match": "\t\t\tpreload(\"res://wood_affinity.gd\").tick(self,elapsed)\n\t\t\tpreload(\"res://spirit_affinity.gd\").tick(self,elapsed)\n\t\t\tif get_meta(Transactions.PENDING,false): return\n",
+        "baseline": "\t\t\tpreload(\"res://wood_affinity.gd\").tick(self,elapsed)\n\t\t\tif get_meta(Transactions.PENDING,false): return\n",
+        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
       "wood_affinity_1": {
         "match": "\t\t\tpreload(\"res://thorn_affinity.gd\").tick(self,elapsed,now)\n\t\t\tpreload(\"res://wood_affinity.gd\").tick(self,elapsed)\n\t\t\tif get_meta(Transactions.PENDING,false): return\n",
         "baseline": "\t\t\tpreload(\"res://thorn_affinity.gd\").tick(self,elapsed,now)\n\t\t\tif get_meta(Transactions.PENDING,false): return\n",
@@ -6915,6 +6952,12 @@
       }
     },
     "_enter_wilds": {
+      "cr04c_spirit_0": {
+        "match": "\tpreload(\"res://storm_affinity.gd\").clear(p)\n\tpreload(\"res://spirit_affinity.gd\").clear(p)\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
+        "baseline": "\tpreload(\"res://storm_affinity.gd\").clear(p)\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
+        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
       "cr04c_storm_lifecycle": {"match": "\tpreload(\"res://wood_affinity.gd\").clear(p)\n\tpreload(\"res://storm_affinity.gd\").clear(p)\n", "baseline": "\tpreload(\"res://wood_affinity.gd\").clear(p)\n", "systems": ["storm_affinity"], "additive": true},
       "wood_affinity_1": {
         "match": "\tp.erase(\"affinity_thorn_form_ready\")\n\tpreload(\"res://wood_affinity.gd\").clear(p)\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
@@ -7441,6 +7484,12 @@
       }
     },
     "update_scouts": {
+      "cr04c_spirit_0": {
+        "match": "\t\tvar position: Vector3 = scout.pos\n\t\tvar trace := preload(\"res://spirit_affinity.gd\").diversion(self,scout,target)\n\t\tif trace.is_finite():\n\t\t\tif now>=int(scout.rooted_until):\n\t\t\t\tscout.pos=Director.navigate(self,position,trace,Director.speed(self,float(definition.speed))*delta*frost_motion,int(scout.route))\n\t\t\tcontinue\n\t\tvar victim: Vector3 = players[target].pos\n",
+        "baseline": "\t\tvar position: Vector3 = scout.pos\n\t\tvar victim: Vector3 = players[target].pos\n",
+        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
       "cr03_frost_integration": {"match": "\t\tvar frost_motion := preload(\"res://frost_combat.gd\").motion_scale(scout,now) if has_meta(&\"combat_affinity_ruleset\") else 1.0\n\t\tif EnemyBehaviors.tick(self,scout,delta*frost_motion,now): continue\n\t\tvar definition := Enemies.get_kind(int(scout.get(\"kind\", 0)))\n\t\tvar role: String = definition.role\n\t\tvar mask := int(scout.get(\"mutations\", 0))\n\t\tif scout.windup > 0:\n\t\t\tif now >= int(scout.windup):\n\t\t\t\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\t\t\t\tpreload(\"res://frost_combat.gd\").with_attacker(self,scouts.find(scout),resolve_scout.bind(scout,definition,now))\n\t\t\t\telse:\n\t\t\t\t\tresolve_scout(scout, definition, now)\n\t\t\t\tif not expedition_active():\n\t\t\t\t\tabandon_if_empty()\n\t\t\t\t\treturn\n\t\t\tcontinue\n\t\tif now < int(scout.get(\"stagger_until\",0)):\n\t\t\tcontinue\n\t\tvar target := Director.target(self,scout.pos,scout,now)\n\t\tif target == 0:\n\t\t\tcontinue\n\t\tvar position: Vector3 = scout.pos\n\t\tvar victim: Vector3 = players[target].pos\n\t\tvar distance := position.distance_to(victim)\n\t\tvar allies: Array=support_allies(scout) if Enemies.is_support(int(scout.kind)) else []\n\t\tfor ally in allies:\n\t\t\tif ally.engaged: scout.engaged=true\n\t\tif not scout.engaged and (distance>float(Director.config().aggro_radius) or not battlefield.clear_line(position,victim)):\n\t\t\tcontinue\n\t\tif not scout.get(\"alerted\",false) and distance<=float(Director.config().aggro_radius): Director.alert(self,position);scout.alerted=true\n\t\tscout.engaged = true\n\t\tvar speed := Director.speed(self,float(definition.speed))*frost_motion * (1.18 if mask & Enemies.MOBILITY else 1.0)\n\t\tif now < int(scout.get(\"haste_until\", 0)):\n\t\t\tspeed *= 1.22\n\t\tif mask & Enemies.JUVENILE:\n\t\t\tspeed *= 1.15\n\t\tif Enemies.is_support(int(scout.kind)):\n\t\t\tif not allies.is_empty():\n\t\t\t\tupdate_support_position(scout,allies,definition,speed,delta,now)\n\t\t\t\tcontinue\n\t\t\trole=\"desperate\"\n\t\tif scout.has(\"command_via\"):\n\t\t\tif now<int(scout.command_until) and now>=int(scout.rooted_until) and position.distance_to(scout.command_via)>.25 and battlefield.clear_line(position,scout.command_via,Battlefield.CLEARANCE):\n\t\t\t\tscout.pos=Director.navigate(self,position,scout.command_via,speed*delta,int(scout.route))\n\t\t\t\tcontinue\n\t\t\tscout.erase(\"command_via\")\n\t\tvar attack_range := (1.15 if role==\"desperate\" else float(definition.range)) + (0.65 if mask & Enemies.REACH else 0.0)\n\t\tif now >= int(scout.ready) and now >= int(scout.rooted_until) and frost_motion > 0.0:\n\t\t\tvar attacks = preload(\"res://enemy_attack.gd\")\n\t\t\tif attacks.try_skill_approach(self,scout,victim,now) or attacks.try_thorn_vault(self,scout,victim,now):\n\t\t\t\tcontinue\n\t\tif mask & Enemies.MOBILITY and now >= int(scout.ready) and now >= int(scout.rooted_until) and frost_motion > 0.0:\n\t\t\tvar attack = preload(\"res://enemy_attack.gd\")\n\t\t\tvar landing: Vector3 = attack.vault_target(self, scout, victim)\n\t\t\tif landing.is_finite():\n\t\t\t\tattack.lock(self, scout, \"vault\", landing, now + attack.VAULT_WINDUP)\n\t\t\t\tcontinue\n\t\tif role == \"skirmish\" and distance < 3.8 and distance > attack_range and now >= int(scout.rooted_until):\n\t\t\tvar tangent := (victim - position).normalized().rotated(Vector3.UP, 0.75 if int(scout.route) % 2 == 0 else -0.75)\n\t\t\tscout.pos = battlefield.slide(position, position + tangent * speed * delta)\n\t\telif distance > attack_range or not battlefield.clear_line(position, victim):\n\t\t\tif now >= int(scout.rooted_until):\n\t\t\t\tscout.pos = Director.navigate(self,position,Director.pursuit(self,target,int(scout.route)) if not scout.ranged else victim,speed*delta,int(scout.route))\n\t\telif now >= int(scout.ready):\n\t\t\tif preload(\"res://enemy_variants.gd\").prepare(self,scout,victim,delta*frost_motion,now):continue\n", "baseline": "\t\tif EnemyBehaviors.tick(self,scout,delta,now): continue\n\t\tvar definition := Enemies.get_kind(int(scout.get(\"kind\", 0)))\n\t\tvar role: String = definition.role\n\t\tvar mask := int(scout.get(\"mutations\", 0))\n\t\tif scout.windup > 0:\n\t\t\tif now >= int(scout.windup):\n\t\t\t\tresolve_scout(scout, definition, now)\n\t\t\t\tif not expedition_active():\n\t\t\t\t\tabandon_if_empty()\n\t\t\t\t\treturn\n\t\t\tcontinue\n\t\tif now < int(scout.get(\"stagger_until\",0)):\n\t\t\tcontinue\n\t\tvar target := Director.target(self,scout.pos,scout,now)\n\t\tif target == 0:\n\t\t\tcontinue\n\t\tvar position: Vector3 = scout.pos\n\t\tvar victim: Vector3 = players[target].pos\n\t\tvar distance := position.distance_to(victim)\n\t\tvar allies: Array=support_allies(scout) if Enemies.is_support(int(scout.kind)) else []\n\t\tfor ally in allies:\n\t\t\tif ally.engaged: scout.engaged=true\n\t\tif not scout.engaged and (distance>float(Director.config().aggro_radius) or not battlefield.clear_line(position,victim)):\n\t\t\tcontinue\n\t\tif not scout.get(\"alerted\",false) and distance<=float(Director.config().aggro_radius): Director.alert(self,position);scout.alerted=true\n\t\tscout.engaged = true\n\t\tvar speed := Director.speed(self,float(definition.speed)) * (1.18 if mask & Enemies.MOBILITY else 1.0)\n\t\tif now < int(scout.get(\"haste_until\", 0)):\n\t\t\tspeed *= 1.22\n\t\tif mask & Enemies.JUVENILE:\n\t\t\tspeed *= 1.15\n\t\tif Enemies.is_support(int(scout.kind)):\n\t\t\tif not allies.is_empty():\n\t\t\t\tupdate_support_position(scout,allies,definition,speed,delta,now)\n\t\t\t\tcontinue\n\t\t\trole=\"desperate\"\n\t\tif scout.has(\"command_via\"):\n\t\t\tif now<int(scout.command_until) and now>=int(scout.rooted_until) and position.distance_to(scout.command_via)>.25 and battlefield.clear_line(position,scout.command_via,Battlefield.CLEARANCE):\n\t\t\t\tscout.pos=Director.navigate(self,position,scout.command_via,speed*delta,int(scout.route))\n\t\t\t\tcontinue\n\t\t\tscout.erase(\"command_via\")\n\t\tvar attack_range := (1.15 if role==\"desperate\" else float(definition.range)) + (0.65 if mask & Enemies.REACH else 0.0)\n\t\tif now >= int(scout.ready) and now >= int(scout.rooted_until):\n\t\t\tvar attacks = preload(\"res://enemy_attack.gd\")\n\t\t\tif attacks.try_skill_approach(self,scout,victim,now) or attacks.try_thorn_vault(self,scout,victim,now):\n\t\t\t\tcontinue\n\t\tif mask & Enemies.MOBILITY and now >= int(scout.ready) and now >= int(scout.rooted_until):\n\t\t\tvar attack = preload(\"res://enemy_attack.gd\")\n\t\t\tvar landing: Vector3 = attack.vault_target(self, scout, victim)\n\t\t\tif landing.is_finite():\n\t\t\t\tattack.lock(self, scout, \"vault\", landing, now + attack.VAULT_WINDUP)\n\t\t\t\tcontinue\n\t\tif role == \"skirmish\" and distance < 3.8 and distance > attack_range and now >= int(scout.rooted_until):\n\t\t\tvar tangent := (victim - position).normalized().rotated(Vector3.UP, 0.75 if int(scout.route) % 2 == 0 else -0.75)\n\t\t\tscout.pos = battlefield.slide(position, position + tangent * speed * delta)\n\t\telif distance > attack_range or not battlefield.clear_line(position, victim):\n\t\t\tif now >= int(scout.rooted_until):\n\t\t\t\tscout.pos = Director.navigate(self,position,Director.pursuit(self,target,int(scout.route)) if not scout.ranged else victim,speed*delta,int(scout.route))\n\t\telif now >= int(scout.ready):\n\t\t\tif preload(\"res://enemy_variants.gd\").prepare(self,scout,victim,delta,now):continue\n", "additive": true, "systems": ["frost_affinity"]},
       "regular_learned_approach": {
         "additive": true,
@@ -7946,6 +7995,12 @@
       }
     },
     "reset_encounter": {
+      "cr04c_spirit_0": {
+        "match": "\t\t\tpreload(\"res://storm_affinity.gd\").clear(player)\n\t\t\tpreload(\"res://spirit_affinity.gd\").clear(player)\n\t\t\tplayer.erase(\"affinity_thorn_form_ready\")\n",
+        "baseline": "\t\t\tpreload(\"res://storm_affinity.gd\").clear(player)\n\t\t\tplayer.erase(\"affinity_thorn_form_ready\")\n",
+        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
       "cr04c_storm_lifecycle": {"match": "\t\t\tpreload(\"res://wood_affinity.gd\").clear(player)\n\t\t\tpreload(\"res://storm_affinity.gd\").clear(player)\n", "baseline": "\t\t\tpreload(\"res://wood_affinity.gd\").clear(player)\n", "systems": ["storm_affinity"], "additive": true},
       "wood_affinity_1": {
         "match": "\t\t\tpreload(\"res://vital_combat.gd\").clear(self,player)\n\t\t\tpreload(\"res://wood_affinity.gd\").clear(player)\n\t\t\tplayer.erase(\"affinity_thorn_form_ready\")\n\tpreload(\"res://core_combat.gd\").reset(self)\n",
@@ -8061,6 +8116,12 @@
       }
     },
     "use_class_skill": {
+      "cr04c_spirit_0": {
+        "match": "\t\t\tbonus_heal=0\n\tif player.has(\"affinity_spirit_follow\") and player.pos!=cast_origin:\n\t\tpreload(\"res://spirit_affinity.gd\").movement(self,player,cast_origin,player.pos)\n\ttargets=Traits.spread_targets(self,player,targets,skill,stats)\n",
+        "baseline": "\t\t\tbonus_heal=0\n\ttargets=Traits.spread_targets(self,player,targets,skill,stats)\n",
+        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
       "wood_affinity_1": {
         "match": "\t\tevent = combat_events_api.class_start(self, id, adapter, now, affinity_build.catalyst)\n\t\tif adapter.trigger == \"contact\" or (event != null and event.affinity in [\"vital\",\"wood\"] and adapter.recipients == \"designated_area\"):\n\t\t\tstats[combat_events_api.CONTEXT] = event\n",
         "baseline": "\t\tevent = combat_events_api.class_start(self, id, adapter, now, affinity_build.catalyst)\n\t\tif adapter.trigger == \"contact\" or (event != null and event.affinity == \"vital\" and adapter.recipients == \"designated_area\"):\n\t\t\tstats[combat_events_api.CONTEXT] = event\n",
@@ -9371,6 +9432,24 @@
       }
     },
     "update_projectiles": {
+      "cr04c_spirit_0": {
+        "match": "\t\t\t\tpreload(\"res://event_audio.gd\").weapon(self,shot.form,players[shot.player].pos)\n\t\t\t\tvar spirit = preload(\"res://spirit_affinity.gd\")\n\t\t\t\tvar owner: Dictionary=players[shot.player]\n\t\t\t\tif owner.has(spirit.FOLLOW): spirit.launch(self,owner,shot.stats,1)\n\t\t\t\tpreload(\"res://weapon_contact.gd\").melee(self,shot,now)\n\t\t\t\tif owner.has(spirit.FOLLOW): spirit.finish(self,owner,shot.stats)\n\t\t\t\tprojectile_queue.erase(shot)\n\t\t\tcontinue\n",
+        "baseline": "\t\t\t\tpreload(\"res://event_audio.gd\").weapon(self,shot.form,players[shot.player].pos)\n\t\t\t\tpreload(\"res://weapon_contact.gd\").melee(self,shot,now);projectile_queue.erase(shot)\n\t\t\tcontinue\n",
+        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
+      "cr04c_spirit_1": {
+        "match": "\t\t\trays=MouseCombat.volley(self,shot)\n\t\t\tvar owner: Dictionary=players[shot.player]\n\t\t\tif owner.has(\"affinity_spirit_follow\"):\n\t\t\t\tpreload(\"res://spirit_affinity.gd\").launch(self,owner,shot.stats,rays.size())\n\t\t\tfor ray in rays:\n",
+        "baseline": "\t\t\trays=MouseCombat.volley(self,shot)\n\t\t\tfor ray in rays:\n",
+        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
+      "cr04c_spirit_2": {
+        "match": "\t\t\t\tif ray.has(\"visual_event_id\"):emit_combat_event(\"projectile_end\",str(ray.visual_event_id),ray.origin,ray.get(\"visual_stop\",ray.aim),.15,Color.WHITE,0,0)\n\t\t\t\tvar owner: Dictionary=players[ray.player]\n\t\t\t\tif owner.has(\"affinity_spirit_follow\"):\n\t\t\t\t\tpreload(\"res://spirit_affinity.gd\").finish(self,owner,ray.stats)\n\t\t\t\tprojectile_queue.erase(ray)\n",
+        "baseline": "\t\t\t\tif ray.has(\"visual_event_id\"):emit_combat_event(\"projectile_end\",str(ray.visual_event_id),ray.origin,ray.get(\"visual_stop\",ray.aim),.15,Color.WHITE,0,0)\n\t\t\t\tprojectile_queue.erase(ray)\n",
+        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
       "projectile_commit_audio": {
         "match": "\t\t\tMouseCombat.launch(self,shot)\n\t\t\tpreload(\"res://event_audio.gd\").weapon(self,shot.form,shot.origin)\n\t\t\trays=MouseCombat.volley",
         "baseline": "\t\t\tMouseCombat.launch(self,shot)\n\t\t\trays=MouseCombat.volley",
@@ -9464,6 +9543,12 @@
       }
     },
     "update_enemy": {
+      "cr04c_spirit_0": {
+        "match": "\tif target == 0:\n\t\treturn\n\tvar trace := preload(\"res://spirit_affinity.gd\").diversion(self,leader_brain,target)\n\tif trace.is_finite():\n\t\tif now>=rooted_until:\n\t\t\tenemy_pos=Director.navigate(self,enemy_pos,trace,Director.speed(self,2.0)*delta*preload(\"res://frost_combat.gd\").motion_scale(leader_brain,now))\n\t\treturn\n",
+        "baseline": "\tif target == 0:\n\t\treturn\n",
+        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
       "thorn_heart_movement_scale": {
         "match": " * delta * affinity_motion)\n",
         "baseline": " * delta)\n",
@@ -9705,6 +9790,12 @@
       "cr02_affinity_contract": {"match": "\tvar combat_mode = preload(\"res://combat_ruleset.gd\")\n\tif combat_mode.active(self):\n\t\ttell(id,combat_mode.EMPTY_CARDS)\n\t\treturn false\n", "baseline": "", "additive": true, "systems": ["combat_affinity_contracts"]}
     },
     "return_to_garden": {
+      "cr04c_spirit_0": {
+        "match": "\tpreload(\"res://storm_affinity.gd\").clear(p)\n\tpreload(\"res://spirit_affinity.gd\").clear(p)\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
+        "baseline": "\tpreload(\"res://storm_affinity.gd\").clear(p)\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
+        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
+        "additive": true
+      },
       "cr04c_storm_lifecycle": {"match": "\tpreload(\"res://wood_affinity.gd\").clear(p)\n\tpreload(\"res://storm_affinity.gd\").clear(p)\n", "baseline": "\tpreload(\"res://wood_affinity.gd\").clear(p)\n", "systems": ["storm_affinity"], "additive": true},
       "wood_affinity_1": {
         "match": "\tp.erase(\"affinity_thorn_form_ready\")\n\tpreload(\"res://wood_affinity.gd\").clear(p)\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
@@ -15247,6 +15338,11 @@
     "elite_enemy.gd": {
       "newline": "crlf",
       "regions": {
+        "cr04c_spirit_1": {
+          "match": " if id==0:return\n var trace := preload(\"res://spirit_affinity.gd\").diversion(game,game.leader_brain,id)\n if trace.is_finite():\n  if now>=game.rooted_until:\n   var speed: float=game.Director.speed(game,float(Catalog.get_kind(game.enemy_kind).speed))\n   game.enemy_pos=game.Director.navigate(game,game.enemy_pos,trace,speed*delta)\n  return\n var victim: Vector3=game.players[id].pos;var distance: float=game.enemy_pos.distance_to(victim)\n",
+          "baseline": " if id==0:return\n var victim: Vector3=game.players[id].pos;var distance: float=game.enemy_pos.distance_to(victim)\n",
+          "systems": ["spirit_affinity", "core_combat", "combat_affinity_contracts"]
+        },
         "cr03_tick": {"match": " var frost_motion := preload(\"res://frost_combat.gd\").motion_scale(game.leader_brain,now)\n delta *= frost_motion\n if game.enemy_winding_up:\n  if now>=game.enemy_strike_at:resolve(game,now)\n  return\n if game.enemy_kind==16 and not game.leader_brain.get(\"elite\",{}).get(\"stolen\",[]).is_empty():\n  var fleeing: Dictionary=game.leader_brain.elite\n  fleeing.pos=game.enemy_pos\n  fleeing.rooted_until=game.rooted_until\n  fleeing.stagger_until=game.enemy_stagger_until\n  game.EnemyBehaviors.tick(game,fleeing,delta,now)\n  game.enemy_pos=fleeing.pos\n  return\n if preload(\"res://glasscap_feint.gd\").holding(game,game.leader_brain.get(\"elite\",{}),now):return\n if now<game.enemy_stagger_until:return\n var id: int=game.Director.target(game,game.enemy_pos,game.leader_brain,now)\n if id==0:return\n var victim: Vector3=game.players[id].pos;var distance: float=game.enemy_pos.distance_to(victim)\n if not game.enemy_engaged and (distance>float(game.Director.config().aggro_radius) or not game.battlefield.clear_line(game.enemy_pos,victim)):return\n if not game.enemy_engaged:game.Director.alert(game,game.enemy_pos)\n game.enemy_engaged=true\n var definition:=Catalog.get_kind(game.enemy_kind);var role: String=definition.role;var body:=state(game)\n body.pos=game.enemy_pos;body.rooted_until=game.rooted_until;body.mutations=game.enemy_mutations;body.haste_until=game.enemy_haste_until\n if game.enemy_kind==16:\n  body.ready=game.enemy_ready_at;body.stagger_until=game.enemy_stagger_until\n  if game.EnemyBehaviors.tick(game,body,delta,now):\n   game.enemy_pos=body.pos\n   if body.windup>0:\n    game.enemy_winding_up=true;game.enemy_attack_mode=body.mode;game.enemy_strike_at=body.windup;game.enemy_landing=body.attack.to\n   return\n var reach:=float(definition.range)+(.65 if game.longlimb else 0.0)\n var can_leap: bool=frost_motion>0.0 and now>=game.rooted_until and now>=game.enemy_ready_at\n", "baseline": " if game.enemy_winding_up:\n  if now>=game.enemy_strike_at:resolve(game,now)\n  return\n if game.enemy_kind==16 and not game.leader_brain.get(\"elite\",{}).get(\"stolen\",[]).is_empty():\n  var fleeing: Dictionary=game.leader_brain.elite\n  fleeing.pos=game.enemy_pos\n  fleeing.rooted_until=game.rooted_until\n  fleeing.stagger_until=game.enemy_stagger_until\n  game.EnemyBehaviors.tick(game,fleeing,delta,now)\n  game.enemy_pos=fleeing.pos\n  return\n if preload(\"res://glasscap_feint.gd\").holding(game,game.leader_brain.get(\"elite\",{}),now):return\n if now<game.enemy_stagger_until:return\n var id: int=game.Director.target(game,game.enemy_pos,game.leader_brain,now)\n if id==0:return\n var victim: Vector3=game.players[id].pos;var distance: float=game.enemy_pos.distance_to(victim)\n if not game.enemy_engaged and (distance>float(game.Director.config().aggro_radius) or not game.battlefield.clear_line(game.enemy_pos,victim)):return\n if not game.enemy_engaged:game.Director.alert(game,game.enemy_pos)\n game.enemy_engaged=true\n var definition:=Catalog.get_kind(game.enemy_kind);var role: String=definition.role;var body:=state(game)\n body.pos=game.enemy_pos;body.rooted_until=game.rooted_until;body.mutations=game.enemy_mutations;body.haste_until=game.enemy_haste_until\n if game.enemy_kind==16:\n  body.ready=game.enemy_ready_at;body.stagger_until=game.enemy_stagger_until\n  if game.EnemyBehaviors.tick(game,body,delta,now):\n   game.enemy_pos=body.pos\n   if body.windup>0:\n    game.enemy_winding_up=true;game.enemy_attack_mode=body.mode;game.enemy_strike_at=body.windup;game.enemy_landing=body.attack.to\n   return\n var reach:=float(definition.range)+(.65 if game.longlimb else 0.0)\n var can_leap: bool=now>=game.rooted_until and now>=game.enemy_ready_at\n", "systems": ["frost_affinity"]},
         "cr03_resolve": {"match": " if game.has_meta(&\"combat_affinity_ruleset\"):\n  preload(\"res://frost_combat.gd\").with_attacker(game,-1,game.resolve_scout.bind(body,definition,now))\n else:\n  game.resolve_scout(body,definition,now)\n", "baseline": " game.resolve_scout(body,definition,now)\n", "systems": ["frost_affinity"]},
         "cb06_0": {
@@ -15674,6 +15770,16 @@
     "combat_status.gd": {
       "newline": "crlf",
       "regions": {
+        "cr04c_spirit_1": {
+          "match": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"spirit_stride\":\"Spiritstride\",\"spirit_prepared\":\"Spirit follow-up prepared\",\"spirit_ready\":\"Spirit follow-up ready\",\"storm_charge\":\"Storm Charge\",\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"spirit_stride\",\"spirit_prepared\",\"spirit_ready\",\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\nstatic func tint(kind: String) -> Color:\n",
+          "baseline": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"storm_charge\":\"Storm Charge\",\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\nstatic func tint(kind: String) -> Color:\n",
+          "systems": ["spirit_affinity", "core_combat", "combat_affinity_contracts"]
+        },
+        "cr04c_spirit_2": {
+          "match": "   add(desired,game,\"storm_charge\",id,false,now+remaining,1,now)\n  var spirit = preload(\"res://spirit_affinity.gd\")\n  var follow: Dictionary=player.get(spirit.FOLLOW,{})\n  if not follow.is_empty() or player.has(spirit.STRIDES):\n   var elapsed: int=preload(\"res://affinity_time.gd\").now(game)\n   if not follow.is_empty() and follow.phase!=\"claimed\":\n    add(desired,game,\"spirit_\"+str(follow.phase),id,false,now+int(follow.until)-elapsed,1,now)\n   if spirit.scale(player,elapsed)>1.0:\n    add(desired,game,\"spirit_stride\",id,false,now+60000,1,now)\n  if player.has(\"affinity_bark_grants\"):add(desired,game,\"bark_armor\",id,false,now+60000,1,now)\n",
+          "baseline": "   add(desired,game,\"storm_charge\",id,false,now+remaining,1,now)\n  if player.has(\"affinity_bark_grants\"):add(desired,game,\"bark_armor\",id,false,now+60000,1,now)\n",
+          "systems": ["spirit_affinity", "core_combat", "combat_affinity_contracts"]
+        },
         "cr04c_storm_1": {
           "match": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"storm_charge\":\"Storm Charge\",\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\nstatic func tint(kind: String) -> Color:\n",
           "baseline": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\nstatic func tint(kind: String) -> Color:\n",
@@ -16602,6 +16708,31 @@
     "core_combat.gd": {
       "newline": "lf",
       "regions": {
+        "cr04c_spirit_1": {
+          "match": "\t\treturn\n\tvar step: bool = skill.get(\"affinity_family\")==\"spirit\"\n\tvar line := aim_cast(game.battlefield, player.pos, forward, skill, distance)\n\tif step:\n\t\tvar landing := preload(\"res://spirit_affinity.gd\").step(game,id,forward)\n\t\tline = {\"center\":landing,\"forward\":forward} if landing.distance_to(player.pos)>=preload(\"res://spirit_affinity.gd\").MIN_STEP else {}\n\tif line.is_empty():\n",
+          "baseline": "\t\treturn\n\tvar line := aim_cast(game.battlefield, player.pos, forward, skill, distance)\n\tif line.is_empty():\n",
+          "systems": ["spirit_affinity", "core_combat", "combat_affinity_contracts"]
+        },
+        "cr04c_spirit_2": {
+          "match": "\tvar weapon: Dictionary = game.WeaponMotion.profile(skill.weapon_form)\n\tvar ground: bool = step or skill.delivery == \"ground\" or skill.get(\"footprint\") == \"wave\" or skill.get(\"affinity_family\") in [\"water\",\"vital\",\"wood\"]\n\tvar blade_cast: bool = skill.weapon_form == \"blade\"\n",
+          "baseline": "\tvar weapon: Dictionary = game.WeaponMotion.profile(skill.weapon_form)\n\tvar ground: bool = skill.delivery == \"ground\" or skill.get(\"footprint\") == \"wave\" or skill.get(\"affinity_family\") in [\"water\",\"vital\",\"wood\"]\n\tvar blade_cast: bool = skill.weapon_form == \"blade\"\n",
+          "systems": ["spirit_affinity", "core_combat", "combat_affinity_contracts"]
+        },
+        "cr04c_spirit_3": {
+          "match": "\t\t\tskill.material.potency_profile.values,[\"core_action\"],0x7fffffffffffffff)\n\tif not step:\n\t\tlines[id] = line\n\t\tgame.set_meta(STATE, lines)\n\tplayer.core_ready_at = now + int(skill.cooldown_ms)\n",
+          "baseline": "\t\t\tskill.material.potency_profile.values,[\"core_action\"],0x7fffffffffffffff)\n\tlines[id] = line\n\tgame.set_meta(STATE, lines)\n\tplayer.core_ready_at = now + int(skill.cooldown_ms)\n",
+          "systems": ["spirit_affinity", "core_combat", "combat_affinity_contracts"]
+        },
+        "cr04c_spirit_4": {
+          "match": "\tplayer.strike_at = maxi(int(player.get(\"strike_at\", 0)), int(player.core_cast_until))\n\tif step:\n\t\tpreload(\"res://spirit_affinity.gd\").core_step(game,line,player,now)\n\tvar modifiers: Array = skill.modifiers.map(func(modifier): return modifier.id)\n",
+          "baseline": "\tplayer.strike_at = maxi(int(player.get(\"strike_at\", 0)), int(player.core_cast_until))\n\tvar modifiers: Array = skill.modifiers.map(func(modifier): return modifier.id)\n",
+          "systems": ["spirit_affinity", "core_combat", "combat_affinity_contracts"]
+        },
+        "cr04c_spirit_5": {
+          "match": "\tvar valid := not cast.is_empty() and float(state.get(\"remaining\", INF)) <= 0.0\n\tif skill.get(\"affinity_family\")==\"spirit\":\n\t\tvar end: Vector3 = field.dash(origin,origin+forward*float(skill.range))\n\t\tvar can_step := origin.distance_to(end)>=preload(\"res://spirit_affinity.gd\").MIN_STEP\n\t\treturn {\"shapes\":[{\"kind\":\"travel\",\"from\":origin,\"to\":end}],\"color\":skill.color,\n\t\t\t\"valid\":can_step and float(state.get(\"remaining\",INF))<=0.0}\n\tif not cast.is_empty():\n",
+          "baseline": "\tvar valid := not cast.is_empty() and float(state.get(\"remaining\", INF)) <= 0.0\n\tif not cast.is_empty():\n",
+          "systems": ["spirit_affinity", "core_combat", "combat_affinity_contracts"]
+        },
         "cr04c_storm_1": {
           "match": "\t\torigin.y += float(weapon.height)\n\tif skill.get(\"affinity_family\")==\"storm\" and not ground:\n\t\tvar path := Mouse.projectile_path(game.battlefield,player.pos,forward,weapon,float(skill.range))\n\t\tline.from = path.from\n\t\tline.previous_point = path.from\n\t\tline.to = path.to\n\t\tline.center = path.to\n\tvar flight_ms := 0\n",
           "baseline": "\t\torigin.y += float(weapon.height)\n\tvar flight_ms := 0\n",
@@ -18978,6 +19109,11 @@
     "subclass_combat.gd": {
       "newline": "lf",
       "regions": {
+        "cr04c_spirit_1": {
+          "match": "\t\tplayer.velocity = Vector3.ZERO\n\t\tif player.has(\"affinity_spirit_follow\"):\n\t\t\tpreload(\"res://spirit_affinity.gd\").movement(game,player,cast.origin,player.pos)\n\tgame.emit_combat_event(\"subclass_release\",skill.visual,cast.origin,release_end,.67,Color(skill.color),cast.radius,id,\n",
+          "baseline": "\t\tplayer.velocity = Vector3.ZERO\n\tgame.emit_combat_event(\"subclass_release\",skill.visual,cast.origin,release_end,.67,Color(skill.color),cast.radius,id,\n",
+          "systems": ["spirit_affinity", "core_combat", "combat_affinity_contracts"]
+        },
         "cr04a_affinity_1": {
           "match": "\tif skill.has(\"field\"):\n\t\tgame.Traits.zone(game,player,skill.field,cast.center,cast.radius,field_duration,Balance.field_power(skill),now,false,\n\t\t\tevents.field_action(stats))\n\tif card.get(\"thorn_patch\",false):\n",
           "baseline": "\tif skill.has(\"field\"):\n\t\tgame.Traits.zone(game,player,skill.field,cast.center,cast.radius,field_duration,Balance.field_power(skill),now)\n\tif card.get(\"thorn_patch\",false):\n",
@@ -19193,6 +19329,11 @@
     "expedition_life.gd": {
       "newline": "crlf",
       "regions": {
+        "cr04c_spirit_1": {
+          "match": " preload(\"res://storm_affinity.gd\").clear(p)\n preload(\"res://spirit_affinity.gd\").clear(p)\n p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0\n",
+          "baseline": " preload(\"res://storm_affinity.gd\").clear(p)\n p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0\n",
+          "systems": ["spirit_affinity", "core_combat", "combat_affinity_contracts"]
+        },
         "cr04c_storm_1": {
           "match": " preload(\"res://wood_affinity.gd\").clear(p)\n preload(\"res://storm_affinity.gd\").clear(p)\n p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0\n",
           "baseline": " preload(\"res://wood_affinity.gd\").clear(p)\n p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0\n",

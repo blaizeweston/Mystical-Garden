@@ -151,12 +151,13 @@ static func core_skill(build: Dictionary) -> Dictionary:
 		"thorn": ["Thorn Line", "thorn_line", "#a7bf67", Ruleset.Thorn.CORE_HALF_LENGTH, 750, Ruleset.Thorn.CORE_COOLDOWN_MS],
 		"wood": ["Ironbark", "ironbark", "#e1b778", Ruleset.Wood.CORE_RADIUS, 750, Ruleset.Wood.COOLDOWN_MS],
 		"storm": ["Chain Spark", "chain_spark", "#e3d184", .12, 750, Ruleset.Storm.CORE_CD],
+		"spirit": ["Phantom Step", "phantom_step", "#bdafe8", .34, 750, Ruleset.Spirit.CORE_CD],
 	}[family]
 	return {"id": core.affinity_core_skill_id, "name": profile[0],
 		"icon": "res://assets/ui/core_skills/%s.png" % profile[1], "mechanic": "swept_projectile" if family=="storm" and delivery.kind!="ground" else "ground_sequence",
 		"affinity_family": family, "material": core, "color": profile[2],
 		"targeting": "self" if family in ["vital","wood"] else "ground",
-		"weapon_form": build.native_weapon.visual, "delivery": delivery.kind,
-		"projectile": Delivery.DELIVERY_SHAPES[delivery.kind], "speed": 17.0, "range": 0.0 if family in ["vital","wood"] else delivery.range,
+		"weapon_form": build.native_weapon.visual, "delivery": "ground" if family=="spirit" else delivery.kind,
+		"projectile": Delivery.DELIVERY_SHAPES[delivery.kind], "speed": 17.0, "range": Ruleset.Spirit.STEP_DISTANCE if family=="spirit" else 0.0 if family in ["vital","wood"] else delivery.range,
 		"radius": profile[3], "width": Ruleset.Thorn.CORE_WIDTH if family == "thorn" else Ruleset.Fire.WIDTH, "lifetime_ms": profile[4], "cooldown_ms": profile[5],
 		"tooltip": balance.description("core", core.quality), "modifiers": []}
