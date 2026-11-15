@@ -2109,6 +2109,8 @@ func _physics_process(delta: float) -> void:
 			preload("res://fire_combat.gd").tick(self,elapsed,now)
 			if get_meta(Transactions.PENDING, false): return
 			preload("res://vital_combat.gd").tick(self,elapsed)
+			preload("res://thorn_affinity.gd").tick(self,elapsed,now)
+			if get_meta(Transactions.PENDING,false): return
 		preload("res://combat_status.gd").sync(self,now)
 		attract_loot(delta)
 		Bosses.tick_hazards(self,now)
@@ -2252,9 +2254,10 @@ func update_enemy(delta: float, now: int) -> void:
 			return
 	if distance > base_strike_radius() - 0.45 or not battlefield.clear_line(enemy_pos, victim.pos):
 		if now >= rooted_until:
+			var affinity_motion := preload("res://frost_combat.gd").motion_scale(leader_brain,now) if has_meta(&"combat_affinity_ruleset") else 1.0
 			var speed: float = minf(float(Enemies.get_kind(enemy_kind).speed) + (depth - 1) * 0.30, 2.9) + [0.0, -0.15, 0.25, 0.35][destination] + minf(difficulty_cycle * 0.12, 0.72)
 			if now<enemy_haste_until: speed*=1.22
-			enemy_pos = Director.navigate(self,enemy_pos, Director.pursuit(self,target,0), Director.speed(self,speed + 0.55 if longlimb else speed) * (1.18 if enemy_mutations & Enemies.MOBILITY else 1.0) * delta)
+			enemy_pos = Director.navigate(self,enemy_pos, Director.pursuit(self,target,0), Director.speed(self,speed + 0.55 if longlimb else speed) * (1.18 if enemy_mutations & Enemies.MOBILITY else 1.0) * delta * affinity_motion)
 	elif now >= enemy_ready_at:
 		enemy_attack_mode = ""
 		enemy_winding_up = true
@@ -3037,6 +3040,7 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = n
 	p.erase("affinity_ward_claims")
 	p.erase("frost_response")
 	p.erase("affinity_ember_response")
+	p.erase("affinity_thorn_form_ready")
 	if p.has("affinity_vital_sources"): preload("res://vital_combat.gd").clear(self,p)
 	p.guard_charges=0
 	p.guard_until = 0
@@ -3119,6 +3123,7 @@ func return_to_garden(p: Dictionary) -> void:
 	p.erase("affinity_ward_claims")
 	p.erase("frost_response")
 	p.erase("affinity_ember_response")
+	p.erase("affinity_thorn_form_ready")
 	if p.has("affinity_vital_sources"): preload("res://vital_combat.gd").clear(self,p)
 	p.guard_until = 0
 	p.front_guard_until=0;p.counter_guard_until=0;p.counter_until=0;p.grave_charges=0;p.echo_charge=0
@@ -5144,6 +5149,7 @@ func attack_hints_snapshot() -> Array:
 			result.append(attacks.warning(-2001-index,"canopy",actor.pos,actor.pos,float(Enemies.get_kind(11).shelter_radius),0,0))
 	result.append_array(preload("res://expedition_pressure.gd").hints(self))
 	result.append_array(preload("res://core_combat.gd").hints(self))
+	result.append_array(preload("res://thorn_affinity.gd").hints(self))
 	result.append_array(preload("res://warden_combat.gd").hints(self,Time.get_ticks_msec()))
 	return result
 

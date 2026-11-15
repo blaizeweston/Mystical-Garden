@@ -1,8 +1,8 @@
 extends RefCounted
 # Host-derived presentation state. Never stored in character/Garden saves.
 const Warden = preload("res://warden_combat.gd")
-const LABELS={"subclass_follow_ready":"Follow-up ready","warden_quake_ready":"Quake prepared","slow":"Slowed","guard":"Warded","counter":"Counter ready","prepared_mark":"Mark ready","grave":"Death charge","echo":"Echo charge","marked":"Marked","core_strike_mark":"Core Mark","crown_link":"Crownlink","brittle":"Brittle","burning":"Burning","drenched":"Drenched","vitality":"Vitality","rooted":"Rooted","staggered":"Staggered","haste":"Hastened","bark_guard":"Bark Guard","sheltered":"Sheltered","trophy_carrier":"Carrying trophy","rallied":"Rallied","uprooting":"Uprooting","core_exposed":"Core exposed","nursery_lull":"Nursery lull","memory_exposed":"Memory exposed"}
-const REFRESH_IN_PLACE := ["grave","echo","sheltered","trophy_carrier","subclass_follow_ready","burning","drenched","vitality"]
+const LABELS={"subclass_follow_ready":"Follow-up ready","warden_quake_ready":"Quake prepared","slow":"Slowed","guard":"Warded","counter":"Counter ready","prepared_mark":"Mark ready","grave":"Death charge","echo":"Echo charge","marked":"Marked","core_strike_mark":"Core Mark","crown_link":"Crownlink","brittle":"Brittle","burning":"Burning","bleeding":"Bleeding","thorn_slow":"Thorn growth","drenched":"Drenched","vitality":"Vitality","rooted":"Rooted","staggered":"Staggered","haste":"Hastened","bark_guard":"Bark Guard","sheltered":"Sheltered","trophy_carrier":"Carrying trophy","rallied":"Rallied","uprooting":"Uprooting","core_exposed":"Core exposed","nursery_lull":"Nursery lull","memory_exposed":"Memory exposed"}
+const REFRESH_IN_PLACE := ["grave","echo","sheltered","trophy_carrier","subclass_follow_ready","burning","drenched","vitality","bleeding","thorn_slow"]
 static func tint(kind: String) -> Color:
  if kind=="burning":return Color("#f29b57")
  if kind=="drenched":return Color("#82d7ec")
@@ -42,6 +42,8 @@ static func sync(game: Node,now: int) -> void:
    var brittle := frost.state(body,now)
    add(desired,game,"brittle",target,true,int(brittle.get("expires",0)),brittle.get("stacks",[]).size(),now)
    if not body.get("affinity_burning",{}).is_empty():add(desired,game,"burning",target,true,now+60000,1,now)
+   if not body.get("affinity_bleed",{}).is_empty():add(desired,game,"bleeding",target,true,now+60000,1,now)
+   if body.has("affinity_thorn_slow"):add(desired,game,"thorn_slow",target,true,now+60000,1,now)
    var elapsed: int=preload("res://affinity_time.gd").now(game)
    if preload("res://water_combat.gd").reduction(body,elapsed)>0.0:add(desired,game,"drenched",target,true,now+60000,1,now)
    root_until=maxi(root_until,int(body.get("frost_root_until",0)))

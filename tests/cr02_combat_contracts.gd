@@ -40,7 +40,7 @@ func run() -> void:
 	game.battlefield.configure(0,1,0)
 	game.battlefield.barriers.clear()
 	game.scouts.clear()
-	player.weapon = Parts.THORN
+	player.weapon = game.Items.get_item("part_10").legacy_part
 	player.technique = 80
 	player.power = 80
 	player.run_upgrades = {"vanguard_briar_wake": 1, "rift_hook": 1}
@@ -56,8 +56,8 @@ func run() -> void:
 	check(not game.buy_upgrade(1,player,0) and game.checkpoint_offer_ids(player).is_empty()
 		and game.run_wallet(player)==wallet and player.run_upgrades==ranks
 		and player.checkpoint_offers==["rift_hook"], "stale offers cannot purchase and are not erased")
-	player.secondary = Parts.THORN
-	player.catalyst = Parts.VEIL
+	player.secondary = game.Items.get_item("part_10").legacy_part
+	player.catalyst = game.Items.get_item("part_10").legacy_part
 	var timers: Array = [player.strike_at,player.skill_at]
 	game.strike_enemy(1,player,player.pos)
 	game.use_class_skill(1,player,0)

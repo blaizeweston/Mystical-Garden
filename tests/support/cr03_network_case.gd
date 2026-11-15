@@ -13,6 +13,7 @@ var port: int
 var party := false
 var failed := false
 var extra_cores: Array = []
+var measure_packets := false
 
 
 func check(ok: bool, label: String) -> bool:
@@ -173,6 +174,11 @@ func host(menu: Node) -> void:
 			"water":
 				check(await until(func():return local.slow_until==0 and game.leader_brain.get("affinity_drenched",{}).has("%d/core"%source)),
 					"guest Dewfall cleanses host and actually Drenches leader")
+			"thorn":
+				check(await until(func():return game.leader_brain.get("affinity_bleed",{}).has("%d/core"%source)),
+					"stationary guest Thorn Line slows and wounds a real enemy on the host")
+				mark("thorn-"+str(source))
+				check(await until(func():return read("thorn-seen-"+str(source))=="ok"),"guest receives the authoritative field geometry")
 			"vital":
 				var bonus: int=preload("res://affinity_build.gd").slot("core",visitor.weapon).potency_profile.values.bonus_hp
 				check(local.max_hp==native_max+bonus and local.get("affinity_vital_sources",{}).has("%d/core"%source),
@@ -180,6 +186,7 @@ func host(menu: Node) -> void:
 				mark("vital-"+str(source),str(visitor.max_hp))
 				check(await until(func():return read("vital-seen-"+str(source))=="ok"),"Vital capacity reaches guest through authoritative vitals")
 	if party:
+		if measure_packets: await sample_host_snapshots(game,ids)
 		check(await until(func():return read("overflow")=="ok",22000),"overflow returns after native connection deadline")
 		check(guests(game).size()==3,"four-player limit holds")
 		mark("party-done")
@@ -207,8 +214,12 @@ func host(menu: Node) -> void:
 	local.core_ready_at=0
 	local.core_cast_until=0
 	local.cast_until=0
-	game.garden_action(1,Core.request(game,local,direction,1.1))
-	if not check(await until(func():return game.encounter_cleared() and game.encounter_rewarded),"Frost kill activates Gate through guarded settlement"):return
+	var thorn_kill := "part_5" in extra_cores
+	if not thorn_kill:
+		game.garden_action(1,Core.request(game,local,direction,1.1))
+	if not check(await until(func():return game.encounter_cleared() and game.encounter_rewarded),"a family kill activates Gate through guarded settlement"):return
+	if thorn_kill:
+		check(game.enemy_hp==0,"the maintained Thorn wound kills without an extra attack")
 	check(not game.wild_item_drops.is_empty(),"actual enemy drops through native settlement")
 	local.pos=game.battlefield.advance
 	ally.pos=local.pos
@@ -265,11 +276,18 @@ func guest(menu: Node, role: String) -> void:
 		var raw := read("cast-"+str(id)).trim_prefix("(").trim_suffix(")").split(",")
 		game.send_garden_action(Core.request(game,game.players[id],Vector2(float(raw[0]),float(raw[1])),1.1))
 		var material := preload("res://plant_affinities.gd").for_part(int(picks[1]))
+		if material.get("primary_affinity")=="thorn":
+			if check(await until(func():
+				return read("thorn-"+str(id))=="ok" and game.players[id].get("attack_hints",[]).any(func(hint):
+					return hint.get("skill")=="thorn_line" and not hint.get("core_shapes",[]).is_empty())),
+				"the guest sees the same stationary Thorn Line footprint"):
+				mark("thorn-seen-"+str(id))
 		if material.get("primary_affinity")=="vital":
 			var marker := "vital-"+str(id)
 			check(await until(func():return not read(marker).is_empty() and int(game.players[id].max_hp)==int(read(marker))),"guest receives authoritative Vital capacity")
 			mark("vital-seen-"+str(id))
 	if party:
+		if measure_packets: await sample_guest_snapshots(game,id)
 		if check(await until(func():return read("party-done")=="ok",22000),"host observes mixed-source party"):
 			mark("done-"+str(id))
 			check(await until(func():return read("offline")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"guest observes party shutdown")
@@ -291,3 +309,46 @@ func guest(menu: Node, role: String) -> void:
 	mark("rejoined")
 	check(await until(func():return read("saved")=="ok"),"host verifies no replay or debit")
 	check(await until(func():return read("offline")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"guest observes host shutdown")
+
+
+func sample_host_snapshots(game: Node, ids: Array) -> void:
+	# Offer an unmistakable authoritative state marker on the normal
+	# unreliable channel. Pin it briefly so every real receiver can witness it.
+	game.enemy_hp=487
+	game.enemy_stagger_until=Time.get_ticks_msec()+9000
+	mark("snapshot-probe",str(game.net_view.snapshot_sent))
+	var max_people := 0
+	var max_scouts := 0
+	var micros := 0
+	var samples := 0
+	for step in 12:
+		var now := Time.get_ticks_msec()
+		for id in ids:
+			var began := Time.get_ticks_usec()
+			var people := var_to_bytes(game.player_snapshot(id,false)).compress(FileAccess.COMPRESSION_DEFLATE)
+			var scouts: PackedByteArray = game.scout_snapshot(now).to_byte_array().compress(FileAccess.COMPRESSION_DEFLATE)
+			micros += Time.get_ticks_usec()-began
+			max_people=maxi(max_people,people.size())
+			max_scouts=maxi(max_scouts,scouts.size())
+			samples+=1
+		await tree.create_timer(.075).timeout
+	check(await until(func():return ids.all(func(id):return read("snapshot-seen-"+str(id))=="ok"),4000),"all three receivers see the authoritative snapshot marker and floor")
+	print("SNAPSHOT_HOST samples=",samples," people_peak=",max_people," scout_peak=",max_scouts," encode_us=",float(micros)/samples)
+
+
+func sample_guest_snapshots(game: Node, id: int) -> void:
+	if not check(await until(func():return not read("snapshot-probe").is_empty()),"host sends snapshot probe"):
+		return
+	var baseline := int(read("snapshot-probe"))
+	var gaps: int = game.net_view.snapshot_gaps
+	var first_seen := Time.get_ticks_msec()
+	var arrived := await until(func():
+		return game.net_view.snapshot_received>baseline and game.enemy_hp==487 and game.players.size()==4 and game.stage._has_experimental_floor(),3500)
+	check(arrived,"channel 4 delivers authoritative enemy HP, roster and floor")
+	var delay := Time.get_ticks_msec()-first_seen
+	var first: int=game.net_view.snapshot_received
+	await tree.create_timer(.35).timeout
+	check(game.net_view.snapshot_received>first,"snapshot sequence keeps advancing")
+	print("SNAPSHOT_GUEST first_after=",first-baseline," observed_ms=",delay," more=",game.net_view.snapshot_received-first,
+		" gaps=",game.net_view.snapshot_gaps-gaps)
+	if arrived: mark("snapshot-seen-"+str(id))

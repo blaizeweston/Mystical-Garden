@@ -82,10 +82,10 @@ func host(menu: Node, mismatch: bool) -> void:
 	local.pos = world.stage.gate_position()
 	remote.pos = local.pos
 	# A locked pending loadout may be inspected without charging its materials.
-	local.prepared=world.Parts.THORN
-	var before: int = world.progress.part_count(world.Parts.THORN)
+	local.prepared=int(world.Items.get_item("part_10").legacy_part)
+	var before: int = world.progress.part_count(int(world.Items.get_item("part_10").legacy_part))
 	world.enter_wilds(1,local)
-	check(not local.wild and world.progress.part_count(world.Parts.THORN)==before and "pending" in world.status,
+	check(not local.wild and world.progress.part_count(int(world.Items.get_item("part_10").legacy_part))==before and "pending" in world.status,
 		"pending departure refused before material debit")
 	local.prepared=0
 	world.map_rng.seed=16

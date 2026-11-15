@@ -39,6 +39,17 @@ necessary. Native maximum HP and revival costs remain independent of the bonus.
 Vitality lasts during the current floor and can help the party recover between
 fights. Falling, floor changes and Garden return clear the temporary grant.
 
+### Thorn growth and Bleed
+
+Thorn Line lasts 7 s with an 8 s cooldown. Each player can keep one Core field,
+two Form patches, and two Catalyst patches. At the slot limit the newest field
+replaces the oldest in that slot. Barbed Strikes creates a stationary patch on
+the first valid direct contact, with a 2.1 s interval. Thorn occupancy applies
+the strongest movement slow. Brittle remains a separate contribution. Only
+Bleed deals recurring damage. Each player and slot owns one wound per enemy.
+Leaving ends the Thorn slow and leaves the wound on its existing cadence until
+its finite expiry. Growth follows terrain sight and does not affect collision.
+
 ## Size of the change
 
 This is a major combat balance release. It has two separate jobs. First, give HP, damage and healing enough precision while keeping comparable fights recognizable. Then tune damage ranges, enemy durability, and sustain against how the fights actually play. The existing content templates give us a route to review this by family and tune exceptions individually.

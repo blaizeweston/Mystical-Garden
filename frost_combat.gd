@@ -31,7 +31,8 @@ static func rooted(actor: Dictionary, now: int) -> bool:
 static func motion_scale(actor: Dictionary, now: int, boss := false) -> float:
 	if rooted(actor, now):
 		return 0.0
-	return 1.0 - float(state(actor, now).get("slow", 0.0)) * (Balance.BOSS_SLOW_SCALE if boss else 1.0)
+	var frost := float(state(actor, now).get("slow", 0.0)) * (Balance.BOSS_SLOW_SCALE if boss else 1.0)
+	return 1.0 - maxf(frost,float(actor.get("affinity_thorn_slow",0.0)))
 
 
 static func damage(game: Node, actor: int, target: int, hp: int, now: int, color := COLOR) -> void:

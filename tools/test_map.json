@@ -2,6 +2,10 @@
   "schema": 1,
   "full_after_days": 7,
   "systems": {
+    "thorn_affinity": {
+      "label": "CR04B Thorn fields, Bleed cadence and stationary patches",
+      "files": ["thorn_affinity.gd", "thorn_affinity.gd.uid"]
+    },
     "vital_affinity": {
       "label": "CR04A Vital, native capacity and expedition regeneration",
       "files": ["vital_combat.gd", "vital_combat.gd.uid"]
@@ -1796,6 +1800,16 @@
     ]
   },
   "suites": {
+    "cr04b_thorn": {
+      "kind": "unit",
+      "systems": ["thorn_affinity", "combat_affinity_contracts", "core_combat", "combat", "weapons", "classes"],
+      "package": false
+    },
+    "cr04b_thorn_coop": {
+      "kind": "pair",
+      "systems": ["thorn_affinity", "combat_affinity_contracts", "core_combat", "connection_flow", "hex_terrain"],
+      "package": false
+    },
     "cr04a_vital": {
       "kind": "unit",
       "systems": ["vital_affinity", "water_affinity", "fire_affinity", "frost_affinity", "combat_affinity_contracts", "core_combat", "weapons", "classes", "combat"],
@@ -6616,6 +6630,12 @@
       }
     },
     "_physics_process": {
+      "thorn_tick": {
+        "match": "\t\t\tpreload(\"res://thorn_affinity.gd\").tick(self,elapsed,now)\n\t\t\tif get_meta(Transactions.PENDING,false): return\n",
+        "baseline": "",
+        "systems": ["thorn_affinity", "combat_affinity_contracts"],
+        "additive": true
+      },
       "affinity_effect_updates": {
         "match": "\t\tif has_meta(&\"combat_affinity_ruleset\") and expedition_active():\n\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n\t\t\tpreload(\"res://fire_combat.gd\").tick(self,elapsed,now)\n\t\t\tif get_meta(Transactions.PENDING, false): return\n\t\t\tpreload(\"res://vital_combat.gd\").tick(self,elapsed)\n",
         "baseline": "",
@@ -6855,6 +6875,12 @@
       }
     },
     "_enter_wilds": {
+      "thorn_form_reset": {
+        "match": "\tp.erase(\"affinity_thorn_form_ready\")\n",
+        "baseline": "",
+        "systems": ["thorn_affinity", "combat_affinity_contracts"],
+        "additive": true
+      },
       "affinity_floor_state": {
         "match": "\tp.erase(\"affinity_ember_response\")\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
         "baseline": "",
@@ -7124,6 +7150,12 @@
       }
     },
     "attack_hints_snapshot": {
+      "thorn_fields": {
+        "match": "\tresult.append_array(preload(\"res://thorn_affinity.gd\").hints(self))\n",
+        "baseline": "",
+        "systems": ["thorn_affinity", "combat_affinity_contracts"],
+        "additive": true
+      },
       "publish_glasscap_formation": {
         "match": "\tvar result: Array=Bosses.hints(self)\n\tresult.append_array(preload(\"res://glasscap_feint.gd\").hints(self,Time.get_ticks_msec()))\n\tif boss_kind<0",
         "baseline": "\tvar result: Array=Bosses.hints(self)\n\tif boss_kind<0",
@@ -9354,6 +9386,18 @@
       }
     },
     "update_enemy": {
+      "thorn_heart_movement_scale": {
+        "match": " * delta * affinity_motion)\n",
+        "baseline": " * delta)\n",
+        "systems": ["thorn_affinity", "combat_affinity_contracts"],
+        "additive": true
+      },
+      "thorn_heart_movement": {
+        "match": "\t\t\tvar affinity_motion := preload(\"res://frost_combat.gd\").motion_scale(leader_brain,now) if has_meta(&\"combat_affinity_ruleset\") else 1.0\n",
+        "baseline": "",
+        "systems": ["thorn_affinity", "combat_affinity_contracts"],
+        "additive": true
+      },
       "drenched_direct_leader": {
         "match": "\t\t\tpreload(\"res://frost_combat.gd\").with_attacker(self,-1,resolve_briar_strike.bind(now))\n",
         "baseline": "\t\t\tresolve_briar_strike(now)\n",
@@ -9583,6 +9627,12 @@
       "cr02_affinity_contract": {"match": "\tvar combat_mode = preload(\"res://combat_ruleset.gd\")\n\tif combat_mode.active(self):\n\t\ttell(id,combat_mode.EMPTY_CARDS)\n\t\treturn false\n", "baseline": "", "additive": true, "systems": ["combat_affinity_contracts"]}
     },
     "return_to_garden": {
+      "thorn_form_reset": {
+        "match": "\tp.erase(\"affinity_thorn_form_ready\")\n",
+        "baseline": "",
+        "systems": ["thorn_affinity", "combat_affinity_contracts"],
+        "additive": true
+      },
       "affinity_floor_state": {
         "match": "\tp.erase(\"affinity_ember_response\")\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
         "baseline": "",
@@ -9607,6 +9657,11 @@
     "core_footprint.gd": {
       "newline": "lf",
       "regions": {
+        "cr04b_thorn_1": {
+          "match": "\t\t\treturn [lane(field, at, forward, radius, skill.width, true)]\n\t\t\"thorn\":\n\t\t\treturn [lane(field, at, side, radius, skill.width, true)]\n\t\t\"water\":\n",
+          "baseline": "\t\t\treturn [lane(field, at, forward, radius, skill.width, true)]\n\t\t\"water\":\n",
+          "systems": ["thorn_affinity", "combat_affinity_contracts"]
+        },
         "cr04a_affinity_1": {
           "match": "\tvar radius: float = skill.radius\n\tmatch skill.get(\"affinity_family\", \"\"):\n\t\t\"frost\", \"vital\":\n\t\t\treturn [area(at,radius)]\n\t\t\"fire\":\n\t\t\treturn [lane(field, at, forward, radius, skill.width, true)]\n\t\t\"water\":\n\t\t\treturn [{\"kind\":\"capsule\", \"from\":origin, \"to\":at, \"width\":radius}]\n\tmatch skill.id:\n",
           "baseline": "\tvar radius: float = skill.radius\n\tif skill.get(\"frost_family\", false):\n\t\treturn [area(at,radius)]\n\tmatch skill.id:\n",
@@ -9631,6 +9686,11 @@
     "weapon_contact.gd": {
       "newline": "lf",
       "regions": {
+        "cr04b_thorn_1": {
+          "match": "  if shot.stats.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,shot.stats,target,now,false,point,direction)\n  if shot.stats.pattern==\"chain\" or (shot.stats.pattern==\"splash\" and Motion.profile(str(shot.form)).delivery!=\"radial\"):\n",
+          "baseline": "  if shot.stats.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,shot.stats,target,now)\n  if shot.stats.pattern==\"chain\" or (shot.stats.pattern==\"splash\" and Motion.profile(str(shot.form)).delivery!=\"radial\"):\n",
+          "systems": ["thorn_affinity", "combat_affinity_contracts"]
+        },
         "cr03_melee": {"match": "  game.apply_weapon_hit(player,target,shot.origin,shot.stats,now)\n  if shot.stats.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,shot.stats,target,now)\n", "baseline": "  if shot.stats.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,shot.stats,target,now)\n  game.apply_weapon_hit(player,target,shot.origin,shot.stats,now)\n", "systems": ["frost_affinity"]},
         "cr02_secondary": {"match": "  if stats.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,stats,found,Time.get_ticks_msec(),true)\n", "baseline": "", "systems": ["combat_affinity_contracts"]},
         "cr02_melee": {"match": "  if shot.stats.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,shot.stats,target,now)\n", "baseline": "", "systems": ["combat_affinity_contracts"]}
@@ -15524,6 +15584,16 @@
     "combat_status.gd": {
       "newline": "crlf",
       "regions": {
+        "cr04b_thorn_1": {
+          "match": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bleeding\",\"thorn_slow\"]\nstatic func tint(kind: String) -> Color:\n",
+          "baseline": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\"]\nstatic func tint(kind: String) -> Color:\n",
+          "systems": ["thorn_affinity", "combat_affinity_contracts"]
+        },
+        "cr04b_thorn_2": {
+          "match": "   if not body.get(\"affinity_burning\",{}).is_empty():add(desired,game,\"burning\",target,true,now+60000,1,now)\n   if not body.get(\"affinity_bleed\",{}).is_empty():add(desired,game,\"bleeding\",target,true,now+60000,1,now)\n   if body.has(\"affinity_thorn_slow\"):add(desired,game,\"thorn_slow\",target,true,now+60000,1,now)\n   var elapsed: int=preload(\"res://affinity_time.gd\").now(game)\n",
+          "baseline": "   if not body.get(\"affinity_burning\",{}).is_empty():add(desired,game,\"burning\",target,true,now+60000,1,now)\n   var elapsed: int=preload(\"res://affinity_time.gd\").now(game)\n",
+          "systems": ["thorn_affinity", "combat_affinity_contracts"]
+        },
         "cr04a_affinity_1": {
           "match": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\"]\nstatic func tint(kind: String) -> Color:\n if kind==\"burning\":return Color(\"#f29b57\")\n if kind==\"drenched\":return Color(\"#82d7ec\")\n return Color(\"#e6c079\") if kind in [\"guard\",\"counter\",\"grave\",\"bark_guard\",\"sheltered\",\"trophy_carrier\",\"cast_break\"] else Color(\"#d8a2ed\") if kind in [\"marked\",\"prepared_mark\",\"echo\",\"mark_break\",\"core_strike_mark\"] else Color(\"#95d7ed\") if kind in [\"brittle\",\"slow\",\"shatter\"] else Color(\"#a6d695\")\n",
           "baseline": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nstatic func tint(kind: String) -> Color:\n return Color(\"#e6c079\") if kind in [\"guard\",\"counter\",\"grave\",\"bark_guard\",\"sheltered\",\"trophy_carrier\",\"cast_break\"] else Color(\"#d8a2ed\") if kind in [\"marked\",\"prepared_mark\",\"echo\",\"mark_break\",\"core_strike_mark\"] else Color(\"#95d7ed\") if kind in [\"brittle\",\"slow\",\"shatter\"] else Color(\"#a6d695\")\n",
@@ -16298,6 +16368,11 @@
     "mouse_combat.gd": {
       "newline": "crlf",
       "regions": {
+        "cr04b_thorn_1": {
+          "match": "  if hit.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,hit,target,now,false,point,(Vector3(shot.aim)-Vector3(shot.origin)).normalized())\n  if shot.stats.pattern in [\"chain\",\"splash\"]:\n",
+          "baseline": "  if hit.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,hit,target,now)\n  if shot.stats.pattern in [\"chain\",\"splash\"]:\n",
+          "systems": ["thorn_affinity", "combat_affinity_contracts"]
+        },
         "cr03_ray_tick": {"match": "  game.apply_weapon_hit(game.players[int(shot.player)],target,shot.origin,hit,now)\n  if hit.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,hit,target,now)\n", "baseline": "  if hit.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,hit,target,now)\n  game.apply_weapon_hit(game.players[int(shot.player)],target,shot.origin,hit,now)\n", "systems": ["frost_affinity"]},
         "cr02_ray_tick": {"match": "  if hit.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,hit,target,now)\n", "baseline": "", "systems": ["combat_affinity_contracts"]},
         "guarded_lifecycle_1": {
@@ -16412,6 +16487,11 @@
     "core_combat.gd": {
       "newline": "lf",
       "regions": {
+        "cr04b_thorn_1": {
+          "match": "\t\t\t\tcontinue\n\t\t\t\"thorn\":\n\t\t\t\tpreload(\"res://thorn_affinity.gd\").release(game,line,now)\n\t\t\t\tlines.erase(id)\n\t\t\t\tcontinue\n\t\t\t\"vital\":\n",
+          "baseline": "\t\t\t\tcontinue\n\t\t\t\"vital\":\n",
+          "systems": ["thorn_affinity", "combat_affinity_contracts"]
+        },
         "cr04a_affinity_1": {
           "match": "static func command(game: Node, id: int, player: Dictionary, action: String) -> void:\n\tif not game.multiplayer.is_server() or not game.Life.alive(player) or not player.get(\"profile_ready\", false):\n\t\treturn\n",
           "baseline": "static func command(game: Node, id: int, player: Dictionary, action: String) -> void:\n\tif not game.multiplayer.is_server() or not game.Life.alive(player) or not player.get(\"profile_ready\", false) or game.encounter_cleared():\n\t\treturn\n",
@@ -16542,6 +16622,11 @@
     "combat_traits.gd": {
       "newline": "crlf",
       "regions": {
+        "cr04b_thorn_1": {
+          "match": "  if event.stats.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,event.stats,target,now,false,event.position)\n  game.apply_skill_targets(p,victims,skill,event.stats,now)\n",
+          "baseline": "  if event.stats.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,event.stats,target,now)\n  game.apply_skill_targets(p,victims,skill,event.stats,now)\n",
+          "systems": ["thorn_affinity", "combat_affinity_contracts"]
+        },
         "cr04a_affinity_1": {
           "match": " game.trait_events.append({\"kind\":\"hit\",\"epoch\":game.combat_epoch,\"owner\":player_id(game,p),\"target\":target,\"token\":-1 if target==-1 else int(game.scouts[target].get(\"spawn_token\",0)),\"due\":now+delay,\"stats\":hit,\"visual\":visual if not visual.is_empty() else \"link\" if carry else \"echo\",\"origin\":p.pos if origin==Vector3.INF else origin})\nstatic func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: float,duration: int,power: float,now: int,ward: bool=false,class_field: RefCounted=null) -> void:\n if game.trait_events.size()>=24: return\n",
           "baseline": " game.trait_events.append({\"kind\":\"hit\",\"epoch\":game.combat_epoch,\"owner\":player_id(game,p),\"target\":target,\"token\":-1 if target==-1 else int(game.scouts[target].get(\"spawn_token\",0)),\"due\":now+delay,\"stats\":hit,\"visual\":visual if not visual.is_empty() else \"link\" if carry else \"echo\",\"origin\":p.pos if origin==Vector3.INF else origin})\nstatic func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: float,duration: int,power: float,now: int,ward: bool=false) -> void:\n if game.trait_events.size()>=24: return\n",

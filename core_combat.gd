@@ -306,6 +306,10 @@ static func tick(game: Node, now: int) -> void:
 			"water":
 				if preload("res://water_combat.gd").wave(game,line,player,now): lines.erase(id)
 				continue
+			"thorn":
+				preload("res://thorn_affinity.gd").release(game,line,now)
+				lines.erase(id)
+				continue
 			"vital":
 				preload("res://vital_combat.gd").bloom(game,line,player,now)
 				lines.erase(id)

@@ -24,6 +24,8 @@ static func build(field: RefCounted, cast: Dictionary, origin: Vector3, stage: i
 			return [area(at,radius)]
 		"fire":
 			return [lane(field, at, forward, radius, skill.width, true)]
+		"thorn":
+			return [lane(field, at, side, radius, skill.width, true)]
 		"water":
 			return [{"kind":"capsule", "from":origin, "to":at, "width":radius}]
 	match skill.id:

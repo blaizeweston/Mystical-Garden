@@ -164,7 +164,7 @@ static func trip_snare(game: Node,p: Dictionary,event: Dictionary,now: int) -> v
   event.seen[token]=true
   var victims: Array[int]=[target]
   if event.stats.has("cr02_action"):
-   preload("res://combat_action_events.gd").contact(game,event.stats,target,now)
+   preload("res://combat_action_events.gd").contact(game,event.stats,target,now,false,event.position)
   game.apply_skill_targets(p,victims,skill,event.stats,now)
   var at: Vector3=game.enemy_position(target)
   game.emit_combat_event("proc",skill.name,event.position,at,.45,Color(skill.color),0.0,target)

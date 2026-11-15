@@ -76,6 +76,7 @@ func publish(game: Node, channel: String, contact_id: String, target: String, no
 			"fire": Ruleset.Fire.on_event(game, self, channel, details, now)
 			"water": Ruleset.Water.on_event(game, self, channel, details, now)
 			"vital": Ruleset.Vital.on_event(game, self, channel, details, now)
+			"thorn": Ruleset.Thorn.on_event(game, self, channel, details, now)
 	return true
 
 
@@ -98,13 +99,17 @@ static func class_complete(game: Node, event: RefCounted, adapter: Dictionary, s
 			"response": adapter.get("response",""), "target_scope": adapter.recipients, "radius": radius})
 
 
-static func contact(game: Node, stats: Dictionary, target: int, now: int, secondary := false) -> void:
+static func contact(game: Node, stats: Dictionary, target: int, now: int, secondary := false, point := Vector3.INF, forward := Vector3.ZERO) -> void:
 	var event: RefCounted = stats.get(CONTEXT)
 	if event == null:
 		return
 	var channel := "secondary" if secondary else "class_contact" if event.source in ["native_class", "catalyst"] else "weapon_contact"
 	var token := "leader" if target == -1 else str(game.scouts[target].get("spawn_token", target))
-	event.publish(game, channel, "contact", token, now, {"enemy": target})
+	var details := {"enemy": target}
+	if point.is_finite():
+		details.point = point
+		details.forward = forward
+	event.publish(game, channel, "contact", token, now, details)
 
 
 static func grant_ward(game: Node, recipient: Dictionary, until: int, charges: int,

@@ -181,7 +181,7 @@ static func ray_tick(game: Node,shot: Dictionary,now: int) -> bool:
   var hit: Dictionary=shot.stats.duplicate(true);hit.shot_distance=Vector3(shot.get("launch_position",shot.origin)).distance_to(game.enemy_position(target))
   game.apply_weapon_hit(game.players[int(shot.player)],target,shot.origin,hit,now)
   if hit.has("cr02_action"):
-   preload("res://combat_action_events.gd").contact(game,hit,target,now)
+   preload("res://combat_action_events.gd").contact(game,hit,target,now,false,point,(Vector3(shot.aim)-Vector3(shot.origin)).normalized())
   if shot.stats.pattern in ["chain","splash"]:
    var budget:=maxi(0,int(shot.stats.targets)-shot.hits.size()) if str(shot.form)=="fan" else int(shot.remaining)
    shot.remaining=preload("res://weapon_contact.gd").secondary(game,game.players[int(shot.player)],shot.stats,point,shot.hits,budget)

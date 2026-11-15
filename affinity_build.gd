@@ -148,6 +148,7 @@ static func core_skill(build: Dictionary) -> Dictionary:
 		"fire": ["Ember Wake", "ember_wake", "#f29b57", Ruleset.Fire.HALF_LENGTH, Ruleset.Fire.FIELD_MS + 750, Ruleset.Fire.COOLDOWN_MS],
 		"water": ["Dewfall", "dewfall", "#82d7ec", Ruleset.Water.WAVE_RADIUS, Ruleset.Water.WAVE_MS + 750, Ruleset.Water.COOLDOWN_MS],
 		"vital": ["Vital Bloom", "worldbloom", "#abd785", Ruleset.Vital.CORE_RADIUS, 750, Ruleset.Vital.COOLDOWN_MS],
+		"thorn": ["Thorn Line", "thorn_line", "#a7bf67", Ruleset.Thorn.CORE_HALF_LENGTH, 750, Ruleset.Thorn.CORE_COOLDOWN_MS],
 	}[family]
 	return {"id": core.affinity_core_skill_id, "name": profile[0],
 		"icon": "res://assets/ui/core_skills/%s.png" % profile[1], "mechanic": "ground_sequence",
@@ -155,5 +156,5 @@ static func core_skill(build: Dictionary) -> Dictionary:
 		"targeting": "self" if family == "vital" else "ground",
 		"weapon_form": build.native_weapon.visual, "delivery": delivery.kind,
 		"projectile": Delivery.DELIVERY_SHAPES[delivery.kind], "range": 0.0 if family == "vital" else delivery.range,
-		"radius": profile[3], "width": Ruleset.Fire.WIDTH, "lifetime_ms": profile[4], "cooldown_ms": profile[5],
+		"radius": profile[3], "width": Ruleset.Thorn.CORE_WIDTH if family == "thorn" else Ruleset.Fire.WIDTH, "lifetime_ms": profile[4], "cooldown_ms": profile[5],
 		"tooltip": balance.description("core", core.quality), "modifiers": []}
