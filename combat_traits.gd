@@ -73,7 +73,7 @@ static func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,n
    hit.stagger=float(hit.get("stagger",0))+250+mini(300,roundi(float(hit.suppress)*100))
  hit.damage=damage if Preview.enabled else int(damage)
  return hit
-static func queue_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,delay: int,carry: bool,origin: Vector3=Vector3.INF,visual: String="") -> void:
+static func queue_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,delay: int,carry: bool,origin: Vector3=Vector3.INF,visual: String="",graft_source: Dictionary={}) -> void:
  if target==-2 or game.trait_events.size()>=24: return
  var hit: Dictionary=stats.duplicate(true) if carry else {"reach":stats.get("reach",2.0)}
  var amount:=Preview.followup_amount(stats,carry,visual=="chorus")
@@ -82,14 +82,18 @@ static func queue_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now
   hit.brittle=float(hit.get("brittle",0))+float(stats.link_brittle)
  if not carry and float(stats.get("mark_damage",0))>0: hit.mark_damage=float(stats.mark_damage)
  hit.trait_secondary=true
+ if not graft_source.is_empty(): hit.core_hit=true
  game.trait_events.append({"kind":"hit","epoch":game.combat_epoch,"owner":player_id(game,p),"target":target,"token":-1 if target==-1 else int(game.scouts[target].get("spawn_token",0)),"due":now+delay,"stats":hit,"visual":visual if not visual.is_empty() else "link" if carry else "echo","origin":p.pos if origin==Vector3.INF else origin})
-static func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: float,duration: int,power: float,now: int,ward: bool=false,class_field: RefCounted=null) -> void:
+ if not graft_source.is_empty(): game.trait_events.back().graft_source=graft_source
+static func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: float,duration: int,power: float,now: int,ward: bool=false,class_field: RefCounted=null,graft_source: Dictionary={}) -> void:
  if game.trait_events.size()>=24: return
  var id:=player_id(game,p)
  for event in game.trait_events.duplicate():
-  if event.kind==kind and int(event.owner)==id: end_zone(game,event);game.trait_events.erase(event)
+  if event.kind==kind and int(event.owner)==id and event.has("graft_source")==not graft_source.is_empty():
+   end_zone(game,event);game.trait_events.erase(event)
  game.trait_events.append({"kind":kind,"epoch":game.combat_epoch,"owner":id,"position":point,"radius":radius,"until":now+duration,"next":now,"power":power,"ward":ward})
  if class_field!=null: game.trait_events.back().class_field=class_field
+ if not graft_source.is_empty(): game.trait_events.back().graft_source=graft_source
  var color:=Color("#e7a15f") if kind=="cinder" else Color("#88d7de") if kind=="tide" else Color("#d9a4c3") if kind=="decoy" else Color("#97c978")
  game.emit_combat_event("field",kind+"_zone",point,point,duration/1000.0,color,radius,0)
  game.trait_events.back().visual_id=game.combat_event_serial
@@ -187,16 +191,19 @@ static func tick(game: Node,now: int) -> void:
  for event in game.trait_events.duplicate():
   if int(event.epoch)!=game.combat_epoch or not game.players.has(event.owner) or not game.Life.alive(game.players[event.owner]): end_zone(game,event);game.trait_events.erase(event);continue
   var p: Dictionary=game.players[event.owner]
+  if event.has("graft_source") and int(event.graft_source.life)!=int(p.get("lost_health",0)):
+   end_zone(game,event);game.trait_events.erase(event);continue
   if event.kind=="hit":
    if now<int(event.due): continue
    game.trait_events.erase(event)
    if valid_target(game,int(event.target),int(event.token)):
     var point: Vector3=game.enemy_position(int(event.target))
-    if game.battlefield.clear_line(p.pos,point):
+    var origin: Vector3 = event.get("origin",p.pos) if event.has("graft_source") else p.pos
+    if game.battlefield.clear_line(origin,point):
      if event.has("visual"):preload("res://combat_status.gd").proc(game,str(event.visual),event.get("origin",p.pos),point,int(event.target))
      if event.stats.has("cr02_action"):
       preload("res://combat_action_events.gd").contact(game,event.stats,int(event.target),now)
-     game.apply_weapon_hit(p,int(event.target),p.pos,event.stats,now)
+     game.apply_weapon_hit(p,int(event.target),origin,event.stats,now)
      if game.encounter_cleared(): game.finish_combat(int(event.owner),point)
    continue
   if now>=int(event.until): end_zone(game,event);game.trait_events.erase(event);continue
@@ -215,7 +222,11 @@ static func tick(game: Node,now: int) -> void:
   elif event.kind in ["growth","cinder"]:
    var targets: Array[int]=game.skill_area_targets(event.position,float(event.radius),event.position)
    for target in targets:
-    var hit: Dictionary={"damage":Preview.authored_amount(float(event.power)),"trait_secondary":true,"mark_damage":1}
+    var hit: Dictionary={"damage":Preview.authored_amount(float(event.power)),"trait_secondary":true}
+    if event.has("graft_source"):
+     hit.core_hit=true
+    else:
+     hit.mark_damage=1
     game.apply_weapon_hit(p,target,event.position,hit,now)
     var source: RefCounted=event.get("class_field")
     if source!=null:
@@ -236,6 +247,11 @@ static func describe(values: Dictionary,resolved: bool=false) -> String:
  return "\n".join(lines)
 
 static func try_brace(game: Node,p: Dictionary,now: int) -> bool:
+ if p.has("combat_ruleset"):
+  if not preload("res://native_grafts.gd").brace_block(p,now): return false
+  preload("res://combat_status.gd").proc(game,"brace",p.pos,p.pos)
+  game.tell(player_id(game,p),"Orchard Heartwood absorbed the impact.")
+  return true
  if now<int(p.get("brace_block_ready",0)) or now-int(p.get("still_since",now))<500: return false
  if float(game.weapon_stats(p).get("brace",0))<=0: return false
  preload("res://combat_status.gd").proc(game,"brace",p.pos,p.pos)

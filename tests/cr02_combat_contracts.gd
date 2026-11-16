@@ -229,6 +229,6 @@ func check_mappings() -> int:
 		if not Parts.is_monster(part): continue
 		var definition: Dictionary = Parts.MONSTER_DEFINITIONS[int(Parts.DEFINITIONS[part].monster)]
 		var build := Build.resolve(0,0,[0,0,0],part,{})
-		var effects: Dictionary = build.graft.native_effects.merged(build.graft.pending_effects)
+		var effects: Dictionary = build.graft.native_effects.merged(build.graft.pending_effects).merged(build.graft.procs)
 		check(effects==definition.effects, "each native graft effect is applied or explicitly pending")
 	return total

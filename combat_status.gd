@@ -52,7 +52,9 @@ static func sync(game: Node,now: int) -> void:
   elif preload("res://subclass_combat.gd").follow_lane(game,player)>=0:
    add(desired,game,"subclass_follow_ready",id,false,now+60000,1,now)
   for pair in [["grave","grave_charges"],["echo","echo_charge"]]:
-   add(desired,game,pair[0],id,false,now+60000,int(player.get(pair[1],0)),now)
+   var graft_state: Dictionary = player.get("native_graft_state", {})
+   var charges := int(player.get(pair[1],0)) + int(graft_state.get(pair[1],0))
+   add(desired,game,pair[0],id,false,now+60000,charges,now)
  for target in range(-1,game.scouts.size()):
   if not game.expedition_active() or not game.Traits.valid_target(game,target):continue
   var state: Dictionary=game.enemy_traits if target==-1 else game.scouts[target].get("traits",{})

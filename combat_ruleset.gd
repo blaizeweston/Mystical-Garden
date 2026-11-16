@@ -25,12 +25,7 @@ const Classes = preload("res://class_catalog.gd")
 const Parts = preload("res://weapon_parts.gd")
 const Delivery = preload("res://core_skill_rules.gd")
 
-# Native numerical graft modifiers that already have native weapon or class consumers.
-# Graft procs and legacy card behavior need their own CR05 compatibility review.
-const NATIVE_GRAFT_STATS := [
-	"reach", "damage", "cooldown", "recovery", "pull", "knockback", "stagger",
-	"windup_damage", "targets", "heal_on_kill", "max_health", "skill_cooldown",
-]
+const Grafts = preload("res://native_grafts.gd")
 const FORMS := {"frost":"brittle_strikes", "fire":"burning_strikes", "water":"drenching_strikes",
 	"vital":"vital_strikes", "thorn":"barbed_strikes", "wood":"splintering_strikes",
 	"storm":"arcing_strikes", "spirit":"flowing_strikes", "void":"drawing_strikes"}
@@ -42,7 +37,7 @@ static var definition_signature := JSON.stringify([
 	Plants.BY_SPECIES, Plants.CORE_SKILL_BY_PRIMARY, Plants.SUPPORTING_ONLY,
 	Catalyst.KITS, Catalyst.FOCUS_Q, Catalyst.ADAPTERS, Catalyst.RESPONSES, Catalyst.CONFLICTS,
 	Classes.DEFINITIONS, Classes.Warden.FOCUSES, Classes.Subclasses.FOCUSES,
-	Parts.MONSTER_DEFINITIONS, Delivery.WEAPON_DELIVERY, NATIVE_GRAFT_STATS, FORMS, COMPATIBLE_CARDS, Frost.VERSION_DATA, Fire.VERSION_DATA, Water.VERSION_DATA, Vital.VERSION_DATA, Thorn.VERSION_DATA, Wood.VERSION_DATA, Storm.VERSION_DATA, Spirit.VERSION_DATA, Void.VERSION_DATA,
+	Parts.MONSTER_DEFINITIONS, Delivery.WEAPON_DELIVERY, Grafts.STAT_KEYS, Grafts.SPECIAL, Grafts.UNSUPPORTED, Grafts.TIMING, FORMS, COMPATIBLE_CARDS, Frost.VERSION_DATA, Fire.VERSION_DATA, Water.VERSION_DATA, Vital.VERSION_DATA, Thorn.VERSION_DATA, Wood.VERSION_DATA, Storm.VERSION_DATA, Spirit.VERSION_DATA, Void.VERSION_DATA,
 ]).sha256_text()
 
 

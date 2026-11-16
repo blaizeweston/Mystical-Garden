@@ -39,7 +39,8 @@
         "affinity_build.gd", "affinity_build.gd.uid",
         "catalyst_adapters.gd", "catalyst_adapters.gd.uid",
         "combat_action_events.gd", "combat_action_events.gd.uid",
-        "combat_ruleset.gd", "combat_ruleset.gd.uid"
+        "combat_ruleset.gd", "combat_ruleset.gd.uid",
+        "native_grafts.gd", "native_grafts.gd.uid"
       ]
     },
     "plant_affinities": {
@@ -1814,6 +1815,9 @@
     ]
   },
   "suites": {
+    "cr05_native_grafts": {"kind":"unit","systems":["combat_affinity_contracts","weapons","classes","combat","life"],"package":false},
+    "cr05_native_grafts_coop": {"kind":"pair","systems":["combat_affinity_contracts","weapons","classes","connection_flow","world_snapshot"],"package":false},
+    "cr05_native_grafts_party": {"kind":"party","systems":["combat_affinity_contracts","weapons","classes","connection_flow","world_snapshot"],"package":false},
     "cr04c_void": {"kind":"unit","systems":["void_affinity","core_combat","combat_affinity_contracts","combat"],"package":false},
     "cr04c_void_coop": {"kind":"pair","systems":["void_affinity","core_combat","combat_affinity_contracts","connection_flow","world_snapshot"],"package":false},
     "cr04c_mixed_party": {"kind":"party","systems":["storm_affinity","spirit_affinity","void_affinity","core_combat","combat_affinity_contracts","connection_flow","world_snapshot"],"package":false},
@@ -5341,6 +5345,14 @@
     ]
   ],
   "game_regions": {
+    "graft_block_reason": {
+      "cr05_grafts_0": {
+        "match": "\tif not Parts.is_monster(part): return \"Select a carried monster part.\"\n\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\tvar graft := preload(\"res://native_grafts.gd\").resolve(part)\n\t\tif not graft.refusal.is_empty(): return graft.refusal\n\tif int(player.get(\"carried_parts\",Parts.empty_counts())[part])<=0: return \"No carried component of this type remains.\"\n",
+        "baseline": "\tif not Parts.is_monster(part): return \"Select a carried monster part.\"\n\tif int(player.get(\"carried_parts\",Parts.empty_counts())[part])<=0: return \"No carried component of this type remains.\"\n",
+        "systems": ["combat_affinity_contracts", "weapons", "classes", "life"],
+        "additive": true
+      }
+    },
     "_apply_loadout_action": {
       "cr05_progression_0": {
         "match": "\t\t\tif Classes.can_learn(player.character,c,node,Character.level(int(player.character.xp[c])) if c>=0 and c<Classes.DEFINITIONS.size() else 0):\n\t\t\t\tvar definition: Dictionary = Classes.all_nodes(c)[node]\n\t\t\t\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\t\t\t\tvar refusal: String = preload(\"res://affinity_build.gd\").RESTRICTED_NODES.get(definition.id, \"\")\n\t\t\t\t\tif not refusal.is_empty():\n\t\t\t\t\t\taction_feedback(effects, id, refusal)\n\t\t\t\t\t\treturn\n\t\t\t\tplayer.character.upgrades[c] |= 1 << node\n",
@@ -7802,6 +7814,18 @@
       }
     },
     "apply_weapon_hit": {
+      "cr05_grafts_0": {
+        "match": "\t\tpoint=battlefield.dash(point,point.move_toward(origin,clampf(distance-0.9,0,pull)))\n\tvar grafts = preload(\"res://native_grafts.gd\")\n\tvar graft_contact := grafts.start_contact(self,p,stats,target,now)\n\tvar authored_damage:=Life.Preview.authored_amount(float(stats.damage))\n\tif not graft_contact.is_empty():\n\t\tauthored_damage += grafts.bonus(self,p,graft_contact,now)\n\tif not stats.get(\"trait_secondary\",false):\n",
+        "baseline": "\t\tpoint=battlefield.dash(point,point.move_toward(origin,clampf(distance-0.9,0,pull)))\n\tvar authored_damage:=Life.Preview.authored_amount(float(stats.damage))\n\tif not stats.get(\"trait_secondary\",false):\n",
+        "systems": ["combat_affinity_contracts", "weapons", "classes", "life"],
+        "additive": true
+      },
+      "cr05_grafts_1": {
+        "match": "\tTraits.after_hit(self,p,target,stats,now,before>0 and applied>=before)\n\tif not graft_contact.is_empty() and applied > 0:\n\t\tgrafts.finish_contact(self,p,target,stats,graft_contact,now,before>0 and applied>=before)\n\tdamage_this_room+=applied\n",
+        "baseline": "\tTraits.after_hit(self,p,target,stats,now,before>0 and applied>=before)\n\tdamage_this_room+=applied\n",
+        "systems": ["combat_affinity_contracts", "weapons", "classes", "life"],
+        "additive": true
+      },
       "cr03_frost_integration": {"match": "\tvar damage := int(stats.affinity_hp) if stats.has(\"affinity_hp\") else Life.Preview.resolved_hit(authored_damage,stats)\n\tvar push:=0.35+float(stats.get(\"knockback\",0))\n\tvar mutations: int=enemy_mutations if target==-1 else int(scouts[target].get(\"mutations\",0))\n\tif not preload(\"res://enemy_support.gd\").shelter_source(self,target,point,origin,now).is_empty():\n\t\tdamage=Life.Preview.armor(damage)\n\tif target==-1 and boss_kind>=0: push*=.2\n\telif target==-1 and (depth==ROUTE_ROOMS or destination==Campaign.HEART): push*=0.5\n\tvar guard_actor: Dictionary=scouts[target] if target>=0 else leader_brain.get(\"elite\",{})\n\tif guard_actor.get(\"variant\",\"\")==\"bark_guard\":\n\t\tif preload(\"res://enemy_variants.gd\").guards(guard_actor,origin,now):\n\t\t\tpush*=.6;damage=Life.Preview.armor(damage)\n\telif mutations & Enemies.BARK: push*=0.6;damage=Life.Preview.armor(damage)\n\tif target==-1 and Bosses.exposed(self,now):damage+=Director.Balance.exposed_bonus(damage)\n\tif winding: push*=0.4\n\tif pull<=0 or winding:\n\t\tvar direction: Vector3=(point-origin).normalized() if distance>0.001 else p.facing\n\t\tpoint=battlefield.dash(point,point+direction*push)\n\tvar stagger:=now+90+int(stats.get(\"stagger\",0))\n\tvar recovery:=int(stats.get(\"recovery\",0))\n\tvar player_id:=0\n\tfor peer_id in players:\n\t\tif is_same(players[peer_id],p): player_id=peer_id;break\n\tif player_id!=0: combat_threat[player_id]=float(combat_threat.get(player_id,0))+Life.Vitals.threat_from_hit(damage,Life.Preview.scale())\n\tDirector.alert(self,point)\n\tvar before: int=enemy_hp if target==-1 else int(scouts[target].hp)\n\tvar applied:=Life.Vitals.damage_taken(before,damage)\n\tif Life.Vitals.counts_as_burst(damage,Life.Preview.scale()): burst_hits_this_room+=1\n\tif before<=applied and battlefield.procedural and battlefield.floor_distance(point)<1.6: choke_kills_this_room+=1\n\tif target==-1:\n\t\tif enemy_winding_up and Bosses.owns_warnings(boss_kind):point=enemy_pos\n\t\tenemy_pos=point\n\t\tenemy_engaged=true\n\t\tenemy_hp-=applied\n\t\tmoss_recovery_bonus=maxi(moss_recovery_bonus,recovery)\n\t\tif winding and enemy_hp>0 and boss_kind==22 and float(stats.get(\"stagger\",0))>=150:\n\t\t\tpreload(\"res://boss_phase_fights.gd\").interrupt(self,point,now)\n\t\tif winding and boss_kind<0 and leader_brain.has(\"elite\") and float(stats.get(\"stagger\",0))>=150 and EnemyBehaviors.interrupt(self,leader_brain.elite,point,now):\n\t\t\tenemy_ready_at=leader_brain.elite.ready\n\t\t\tenemy_winding_up=false\n\t\t\twinding=false\n\t\tif not winding and not stats.has(\"affinity_hp\"): enemy_stagger_until=stagger\n\t\tif enemy_hp==0: enemy_winding_up=false\n\telse:\n\t\tvar scout: Dictionary=scouts[target]\n\t\tscout.pos=point\n\t\tscout.engaged=true\n\t\tscout.hp-=applied\n\t\tscout.recovery=maxi(int(scout.recovery),recovery)\n\t\tif winding and float(stats.get(\"stagger\",0))>=150 and EnemyBehaviors.interrupt(self,scout,point,now):winding=false\n\t\tif not winding and not stats.has(\"affinity_hp\"): scout.stagger_until=stagger\n\tif stats.get(\"rite_suppressed\",false) and applied<before:\n\t\tvar actor: Dictionary=scouts[target] if target>=0 else leader_brain.get(\"elite\",{})\n\t\tpreload(\"res://wilds_skill_tactics.gd\").interrupted(self,actor,\"suppression\")\n\tif applied>0:\n\t\tvar form := \"magic\" if stats.get(\"trait_secondary\",false) else str(stats.get(\"audio_form\",WeaponMotion.form(p)))\n\t\temit_combat_event(\"impact\",\"hit\",origin,point,.85,stats.get(\"affinity_color\",weapon_effect_color(p)),float(applied),target,{\"form\":form})\n", "baseline": "\tvar damage:=Life.Preview.resolved_hit(authored_damage,stats)\n\tvar push:=0.35+float(stats.get(\"knockback\",0))\n\tvar mutations: int=enemy_mutations if target==-1 else int(scouts[target].get(\"mutations\",0))\n\tif not preload(\"res://enemy_support.gd\").shelter_source(self,target,point,origin,now).is_empty():\n\t\tdamage=Life.Preview.armor(damage)\n\tif target==-1 and boss_kind>=0: push*=.2\n\telif target==-1 and (depth==ROUTE_ROOMS or destination==Campaign.HEART): push*=0.5\n\tvar guard_actor: Dictionary=scouts[target] if target>=0 else leader_brain.get(\"elite\",{})\n\tif guard_actor.get(\"variant\",\"\")==\"bark_guard\":\n\t\tif preload(\"res://enemy_variants.gd\").guards(guard_actor,origin,now):\n\t\t\tpush*=.6;damage=Life.Preview.armor(damage)\n\telif mutations & Enemies.BARK: push*=0.6;damage=Life.Preview.armor(damage)\n\tif target==-1 and Bosses.exposed(self,now):damage+=Director.Balance.exposed_bonus(damage)\n\tif winding: push*=0.4\n\tif pull<=0 or winding:\n\t\tvar direction: Vector3=(point-origin).normalized() if distance>0.001 else p.facing\n\t\tpoint=battlefield.dash(point,point+direction*push)\n\tvar stagger:=now+90+int(stats.get(\"stagger\",0))\n\tvar recovery:=int(stats.get(\"recovery\",0))\n\tvar player_id:=0\n\tfor peer_id in players:\n\t\tif is_same(players[peer_id],p): player_id=peer_id;break\n\tif player_id!=0: combat_threat[player_id]=float(combat_threat.get(player_id,0))+Life.Vitals.threat_from_hit(damage,Life.Preview.scale())\n\tDirector.alert(self,point)\n\tvar before: int=enemy_hp if target==-1 else int(scouts[target].hp)\n\tvar applied:=Life.Vitals.damage_taken(before,damage)\n\tif Life.Vitals.counts_as_burst(damage,Life.Preview.scale()): burst_hits_this_room+=1\n\tif before<=applied and battlefield.procedural and battlefield.floor_distance(point)<1.6: choke_kills_this_room+=1\n\tif target==-1:\n\t\tif enemy_winding_up and Bosses.owns_warnings(boss_kind):point=enemy_pos\n\t\tenemy_pos=point\n\t\tenemy_engaged=true\n\t\tenemy_hp-=applied\n\t\tmoss_recovery_bonus=maxi(moss_recovery_bonus,recovery)\n\t\tif winding and enemy_hp>0 and boss_kind==22 and float(stats.get(\"stagger\",0))>=150:\n\t\t\tpreload(\"res://boss_phase_fights.gd\").interrupt(self,point,now)\n\t\tif winding and boss_kind<0 and leader_brain.has(\"elite\") and float(stats.get(\"stagger\",0))>=150 and EnemyBehaviors.interrupt(self,leader_brain.elite,point,now):\n\t\t\tenemy_ready_at=leader_brain.elite.ready\n\t\t\tenemy_winding_up=false\n\t\t\twinding=false\n\t\tif not winding: enemy_stagger_until=stagger\n\t\tif enemy_hp==0: enemy_winding_up=false\n\telse:\n\t\tvar scout: Dictionary=scouts[target]\n\t\tscout.pos=point\n\t\tscout.engaged=true\n\t\tscout.hp-=applied\n\t\tscout.recovery=maxi(int(scout.recovery),recovery)\n\t\tif winding and float(stats.get(\"stagger\",0))>=150 and EnemyBehaviors.interrupt(self,scout,point,now):winding=false\n\t\tif not winding: scout.stagger_until=stagger\n\tif stats.get(\"rite_suppressed\",false) and applied<before:\n\t\tvar actor: Dictionary=scouts[target] if target>=0 else leader_brain.get(\"elite\",{})\n\t\tpreload(\"res://wilds_skill_tactics.gd\").interrupted(self,actor,\"suppression\")\n\tif applied>0:\n\t\tvar form := \"magic\" if stats.get(\"trait_secondary\",false) else str(stats.get(\"audio_form\",WeaponMotion.form(p)))\n\t\temit_combat_event(\"impact\",\"hit\",origin,point,.85,weapon_effect_color(p),float(applied),target,{\"form\":form})\n", "additive": true, "systems": ["fire_affinity", "frost_affinity"]},
       "cr02_affinity_contract": {"match": "\t\tauthored_damage+=int(stats.get(\"preview_power\",preload(\"res://combat_ruleset.gd\").legacy_power(p)))\n\tif winding:\n\t\tauthored_damage+=Life.Preview.authored_amount(float(stats.get(\"windup_damage\",0)))\n\tif winding and p.rift_hook and not stats.get(\"core_hit\",false) and not p.has(\"combat_ruleset\"): p.dodge_at=0\n", "baseline": "\t\tauthored_damage+=int(stats.get(\"preview_power\",p.power))\n\tif winding:\n\t\tauthored_damage+=Life.Preview.authored_amount(float(stats.get(\"windup_damage\",0)))\n\tif winding and p.rift_hook and not stats.get(\"core_hit\",false): p.dodge_at=0\n", "additive": true, "systems": ["combat_affinity_contracts"]},
       "cb07_8": {
@@ -8031,6 +8055,12 @@
       }
     },
     "reset_encounter": {
+      "cr05_grafts_0": {
+        "match": "\tcombat_epoch+=1\n\tfor player in players.values():\n\t\tpreload(\"res://native_grafts.gd\").clear(player)\n\tif has_meta(&\"combat_affinity_ruleset\"):\n",
+        "baseline": "\tcombat_epoch+=1\n\tif has_meta(&\"combat_affinity_ruleset\"):\n",
+        "systems": ["combat_affinity_contracts", "weapons", "classes", "life"],
+        "additive": true
+      },
       "cr04c_void_0": {
         "match": "\t\t\tpreload(\"res://spirit_affinity.gd\").clear(player)\n\t\t\tplayer.erase(\"affinity_void_form_ready\")\n\t\t\tplayer.erase(\"affinity_thorn_form_ready\")\n",
         "baseline": "\t\t\tpreload(\"res://spirit_affinity.gd\").clear(player)\n\t\t\tplayer.erase(\"affinity_thorn_form_ready\")\n",
@@ -9751,6 +9781,12 @@
       }
     },
     "strike_enemy": {
+      "cr05_grafts_0": {
+        "match": "\t\t\t\tform_affinity.potency_profile.values if ready else {},[\"weapon_contact\",\"secondary\"],now+15000)\n\t\t\tvar grafts = preload(\"res://native_grafts.gd\")\n\t\t\tif not affinity_build.graft.get(\"procs\", {}).is_empty():\n\t\t\t\tstats[grafts.CONTEXT] = grafts.capture(p, affinity_build.graft)\n\t\tstats[events.CONTEXT] = event\n",
+        "baseline": "\t\t\t\tform_affinity.potency_profile.values if ready else {},[\"weapon_contact\",\"secondary\"],now+15000)\n\t\tstats[events.CONTEXT] = event\n",
+        "systems": ["combat_affinity_contracts", "weapons", "classes", "life"],
+        "additive": true
+      },
       "cr03_frost_integration": {"match": "\t\t\tvar form_affinity: Dictionary = affinity_build.form\n\t\t\tvar ready: bool = form_affinity.state == \"ready\"\n\t\t\tevent = events.begin(self,id,\"form\" if ready else \"native_weapon\",form_affinity if ready else {},\n\t\t\t\tform_affinity.potency_profile.values if ready else {},[\"weapon_contact\",\"secondary\"],now+15000)\n", "baseline": "\t\t\tevent = events.begin(self,id,\"native_weapon\",{}, {},[\"weapon_contact\",\"secondary\"],now+15000)\n", "additive": true, "systems": ["frost_affinity"]},
       "cr02_affinity_contract": {"match": "\tvar affinity_build: Dictionary = stats.get(\"affinity_build\", {})\n\tif not affinity_build.is_empty():\n\t\tvar refusal := preload(\"res://affinity_build.gd\").refusal(affinity_build, \"form\")\n\t\tif not refusal.is_empty():\n\t\t\ttell(id, refusal)\n\t\t\treturn\n\t\tvar events = preload(\"res://combat_action_events.gd\")\n\t\tvar event: RefCounted = p.get(\"cr02_class_strike\")\n\t\tif event == null:\n\t\t\tevent = events.begin(self,id,\"native_weapon\",{}, {},[\"weapon_contact\",\"secondary\"],now+15000)\n\t\tstats[events.CONTEXT] = event\n\t\tstats.erase(\"affinity_build\")\n\tif p.get(\"skill_burst\",false):\n\t\tstats.targets=mini(5,int(stats.targets)+int(p.get(\"skill_burst_targets\",2)))\n\t\tstats.damage+=int(p.get(\"skill_burst_damage\",1))\n\t\tstats.pattern=\"chain\" if int(p.frame)==Frames.RANGER else \"sweep\"\n\tLife.Preview.lock_strike(stats,preload(\"res://combat_ruleset.gd\").legacy_power(p))\n", "baseline": "\tif p.get(\"skill_burst\",false):\n\t\tstats.targets=mini(5,int(stats.targets)+int(p.get(\"skill_burst_targets\",2)))\n\t\tstats.damage+=int(p.get(\"skill_burst_damage\",1))\n\t\tstats.pattern=\"chain\" if int(p.frame)==Frames.RANGER else \"sweep\"\n\tLife.Preview.lock_strike(stats,int(p.power))\n", "additive": true, "systems": ["combat_affinity_contracts"]},
       "preview_lock_strike": {
@@ -9807,6 +9843,12 @@
       }
     },
     "_attempt_graft": {
+      "cr05_grafts_0": {
+        "match": "\t\tplayer.graft_floor=encounter_number\n\t\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\t\tpreload(\"res://native_grafts.gd\").replace(player)\n\t\tif Life.Preview.enabled or has_meta(&\"combat_affinity_ruleset\"):\n\t\t\tplayer.max_hp=Life.maximum(self,player)\n",
+        "baseline": "\t\tplayer.graft_floor=encounter_number\n\t\tif Life.Preview.enabled:\n\t\t\tplayer.max_hp=Life.maximum(self,player)\n",
+        "systems": ["combat_affinity_contracts", "weapons", "classes", "life"],
+        "additive": true
+      },
       "guarded_garden_actions": {
         "match": "\tvar part: int=selected_graft(player) if requested==-1 else requested\n\tvar reason:=graft_block_reason(player,part)\n\tif not reason.is_empty():\n\t\tgraft_feedback(id,player,reason,effects)\n\t\treturn\n\tvar previous:=int(player.get(\"graft_part\",0))\n\tplayer.graft_choice=part\n\tplayer.carried_parts[part]-=1\n\tvar graft_roll:=rng.randf()\n\tvar probability:=graft_chance(player,part)\n\tvar report_roll := func(): Journal.event(\"grafting\",\"roll\",{\"actor\":id,\"part\":part,\"previous_part\":previous,\"probability\":probability,\"roll\":graft_roll,\"success\":graft_roll<probability})\n\tif effects == null: report_roll.call()\n\telse: effects.append(report_roll)\n\tif graft_roll<probability:\n\t\tplayer.graft_part=part\n\t\tplayer.graft_floor=encounter_number\n\t\tif Life.Preview.enabled:\n\t\t\tplayer.max_hp=Life.maximum(self,player)\n\t\t\tplayer.hp=minf(float(player.hp),float(player.max_hp))\n\t\tprogress.record_monster_graft(part)\n\t\tvar message: String=\"%s grafted into the fourth slot.\"%Parts.part_name(part)\n\t\tif previous!=0: message=\"%s replaced %s. The old component was sacrificed.\"%[Parts.part_name(part),Parts.part_name(previous)]\n\t\tif effects == null and progress.save_garden()!=OK:\n\t\t\tmessage+=\" Save failed. Use Save Garden to retry.\"\n\t\t\tif id!=HOST: status=\"Garden save failed. Use Save Garden to retry.\"\n\t\tgraft_feedback(id,player,message,effects)\n\telse:\n\t\tgraft_feedback(id,player,\"The graft failed and consumed %s.%s\"%[Parts.part_name(part),\" The installed component remains intact.\" if previous!=0 else \"\"],effects)",
         "baseline": "\tvar part: int=selected_graft(player) if requested==-1 else requested\n\tvar reason:=graft_block_reason(player,part)\n\tif not reason.is_empty():\n\t\tgraft_feedback(id,player,reason)\n\t\treturn\n\tvar previous:=int(player.get(\"graft_part\",0))\n\tplayer.graft_choice=part\n\tplayer.carried_parts[part]-=1\n\tvar graft_roll:=rng.randf()\n\tvar probability:=graft_chance(player,part)\n\tJournal.event(\"grafting\",\"roll\",{\"actor\":id,\"part\":part,\"previous_part\":previous,\"probability\":probability,\"roll\":graft_roll,\"success\":graft_roll<probability})\n\tif graft_roll<probability:\n\t\tplayer.graft_part=part\n\t\tplayer.graft_floor=encounter_number\n\t\tif Life.Preview.enabled:\n\t\t\tplayer.max_hp=Life.maximum(self,player)\n\t\t\tplayer.hp=minf(float(player.hp),float(player.max_hp))\n\t\tprogress.record_monster_graft(part)\n\t\tvar message: String=\"%s grafted into the fourth slot.\"%Parts.part_name(part)\n\t\tif previous!=0: message=\"%s replaced %s. The old component was sacrificed.\"%[Parts.part_name(part),Parts.part_name(previous)]\n\t\tvar saved:=progress.save_garden()\n\t\tif saved!=OK:\n\t\t\tmessage+=\" Save failed. Use Save Garden to retry.\"\n\t\t\tif id!=HOST: status=\"Garden save failed. Use Save Garden to retry.\"\n\t\tgraft_feedback(id,player,message)\n\telse:\n\t\tgraft_feedback(id,player,\"The graft failed and consumed %s.%s\"%[Parts.part_name(part),\" The installed component remains intact.\" if previous!=0 else \"\"])",
@@ -9856,6 +9898,12 @@
       "cr02_affinity_contract": {"match": "\tvar combat_mode = preload(\"res://combat_ruleset.gd\")\n\tif combat_mode.active(self):\n\t\ttell(id,combat_mode.EMPTY_CARDS)\n\t\treturn false\n", "baseline": "", "additive": true, "systems": ["combat_affinity_contracts"]}
     },
     "return_to_garden": {
+      "cr05_grafts_0": {
+        "match": "\tp.graft_floor=0\n\tpreload(\"res://native_grafts.gd\").clear(p)\n\tp.erase(\"graft_message\")\n",
+        "baseline": "\tp.graft_floor=0\n\tp.erase(\"graft_message\")\n",
+        "systems": ["combat_affinity_contracts", "weapons", "classes", "life"],
+        "additive": true
+      },
       "cr04c_void_0": {
         "match": "\tpreload(\"res://spirit_affinity.gd\").clear(p)\n\tp.erase(\"affinity_void_form_ready\")\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
         "baseline": "\tpreload(\"res://spirit_affinity.gd\").clear(p)\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
@@ -9939,6 +9987,16 @@
     "weapon_contact.gd": {
       "newline": "lf",
       "regions": {
+        "cr05_grafts_1": {
+          "match": " var cursor:=point\n # Chain and splash contacts keep native weapon damage but cannot proc the graft again.\n var hit := stats.duplicate()\n hit.erase(\"native_graft_contact\")\n while remaining>0:\n",
+          "baseline": " var cursor:=point\n while remaining>0:\n",
+          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
+        },
+        "cr05_grafts_2": {
+          "match": "   preload(\"res://combat_action_events.gd\").contact(game,stats,found,Time.get_ticks_msec(),true)\n  game.apply_weapon_hit(player,found,cursor,hit,Time.get_ticks_msec())\n  if stats.pattern==\"chain\":cursor=next\n",
+          "baseline": "   preload(\"res://combat_action_events.gd\").contact(game,stats,found,Time.get_ticks_msec(),true)\n  game.apply_weapon_hit(player,found,cursor,stats,Time.get_ticks_msec())\n  if stats.pattern==\"chain\":cursor=next\n",
+          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
+        },
         "cr04b_thorn_1": {
           "match": "  if shot.stats.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,shot.stats,target,now,false,point,direction)\n  if shot.stats.pattern==\"chain\" or (shot.stats.pattern==\"splash\" and Motion.profile(str(shot.form)).delivery!=\"radial\"):\n",
           "baseline": "  if shot.stats.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,shot.stats,target,now)\n  if shot.stats.pattern==\"chain\" or (shot.stats.pattern==\"splash\" and Motion.profile(str(shot.form)).delivery!=\"radial\"):\n",
@@ -13529,6 +13587,11 @@
     "progression_panel.gd": {
       "newline": "crlf",
       "regions": {
+        "cr05_effective_preview_1": {
+          "match": "\t\t\tvar affected: Array=[0,1] if change.kind in [\"power\",\"efficient\"] else [int(change.get(\"slot\",0))]\n\t\t\tvar preview_stats: Dictionary = game.Classes.bonuses(candidate,c)\n\t\t\tif game.has_meta(&\"combat_affinity_ruleset\"):\n\t\t\t\tvar resolver = preload(\"res://affinity_build.gd\")\n\t\t\t\tvar loadout: Dictionary = candidate.loadouts[c]\n\t\t\t\tpreview_stats = resolver.native_stats(resolver.resolve(c,int(loadout.weapon),loadout.parts,0,candidate))\n\t\t\tchange_text+=\"\\n\\n\"+ \"\\n\\n\".join(affected.map(func(slot):return game.Skills.describe(game.Skills.resolve(c,slot,candidate),preview_stats)))\n\t\tvar detail: String=\"%s\\nRequires class level %d \u00b7 1 point\\n\\n%s\\n\\n%s\\nChoose one upgrade in this row. Previous row must be learned. Choices stay with this character.\"%[node.name,node.level,effects+\"\\n\\n\"+change_text,\"Learned\" if learned else \"Available\" if game.Classes.can_learn(data,c,i,level) else \"Locked / alternative path\"]\n",
+          "baseline": "\t\t\tvar affected: Array=[0,1] if change.kind in [\"power\",\"efficient\"] else [int(change.get(\"slot\",0))]\n\t\t\tchange_text+=\"\\n\\n\"+ \"\\n\\n\".join(affected.map(func(slot):return game.Skills.describe(game.Skills.resolve(c,slot,candidate),game.Classes.bonuses(candidate,c))))\n\t\tvar detail: String=\"%s\\nRequires class level %d \u00b7 1 point\\n\\n%s\\n\\n%s\\nChoose one upgrade in this row. Previous row must be learned. Choices stay with this character.\"%[node.name,node.level,effects+\"\\n\\n\"+change_text,\"Learned\" if learned else \"Available\" if game.Classes.can_learn(data,c,i,level) else \"Locked / alternative path\"]\n",
+          "systems": ["classes", "combat_affinity_contracts"]
+        },
         "cr05_progression_1": {
           "match": "\t\tvar effects: String=game.Classes.effect_text(node.effects,game.Life.Preview.enabled)\n\t\tif game.has_meta(&\"combat_affinity_ruleset\"):\n\t\t\teffects = preload(\"res://affinity_build.gd\").class_effects_text(node.effects)\n\t\tvar change_text: String=game.Skills.change_text(c,change)\n",
           "baseline": "\t\tvar effects: String=game.Classes.effect_text(node.effects,game.Life.Preview.enabled)\n\t\tvar change_text: String=game.Skills.change_text(c,change)\n",
@@ -15867,6 +15930,11 @@
     "combat_status.gd": {
       "newline": "crlf",
       "regions": {
+        "cr05_grafts_1": {
+          "match": "  for pair in [[\"grave\",\"grave_charges\"],[\"echo\",\"echo_charge\"]]:\n   var graft_state: Dictionary = player.get(\"native_graft_state\", {})\n   var charges := int(player.get(pair[1],0)) + int(graft_state.get(pair[1],0))\n   add(desired,game,pair[0],id,false,now+60000,charges,now)\n for target in range(-1,game.scouts.size()):\n",
+          "baseline": "  for pair in [[\"grave\",\"grave_charges\"],[\"echo\",\"echo_charge\"]]:\n   add(desired,game,pair[0],id,false,now+60000,int(player.get(pair[1],0)),now)\n for target in range(-1,game.scouts.size()):\n",
+          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
+        },
         "cr04c_void_1": {
           "match": "const REFRESH_IN_PLACE := [\"spirit_stride\",\"spirit_prepared\",\"spirit_ready\",\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\nstatic func affinity_feedback(game: Node, player: Dictionary) -> String:\n var elapsed:=preload(\"res://affinity_time.gd\").now(game)\n var lines: PackedStringArray=[]\n var charge: Dictionary=player.get(\"affinity_storm_charge\",{})\n if int(charge.get(\"until\",0))>elapsed:\n  lines.append(\"Storm Charge %.1fs\"%((int(charge.until)-elapsed)/1000.0))\n var follow: Dictionary=player.get(\"affinity_spirit_follow\",{})\n if int(follow.get(\"until\",0))>elapsed:\n  var phase: String=follow.phase\n  lines.append(\"Spirit follow-up %s \u00b7 %.1fs\"%[phase,(int(follow.until)-elapsed)/1000.0])\n return \"  \u00b7  \".join(lines)\nstatic func tint(kind: String) -> Color:\n",
           "baseline": "const REFRESH_IN_PLACE := [\"spirit_stride\",\"spirit_prepared\",\"spirit_ready\",\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\nstatic func tint(kind: String) -> Color:\n",
@@ -17005,6 +17073,46 @@
     "combat_traits.gd": {
       "newline": "crlf",
       "regions": {
+        "cr05_grafts_1": {
+          "match": " return hit\nstatic func queue_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,delay: int,carry: bool,origin: Vector3=Vector3.INF,visual: String=\"\",graft_source: Dictionary={}) -> void:\n if target==-2 or game.trait_events.size()>=24: return\n",
+          "baseline": " return hit\nstatic func queue_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,delay: int,carry: bool,origin: Vector3=Vector3.INF,visual: String=\"\") -> void:\n if target==-2 or game.trait_events.size()>=24: return\n",
+          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
+        },
+        "cr05_grafts_2": {
+          "match": " hit.trait_secondary=true\n if not graft_source.is_empty(): hit.core_hit=true\n game.trait_events.append({\"kind\":\"hit\",\"epoch\":game.combat_epoch,\"owner\":player_id(game,p),\"target\":target,\"token\":-1 if target==-1 else int(game.scouts[target].get(\"spawn_token\",0)),\"due\":now+delay,\"stats\":hit,\"visual\":visual if not visual.is_empty() else \"link\" if carry else \"echo\",\"origin\":p.pos if origin==Vector3.INF else origin})\n if not graft_source.is_empty(): game.trait_events.back().graft_source=graft_source\nstatic func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: float,duration: int,power: float,now: int,ward: bool=false,class_field: RefCounted=null,graft_source: Dictionary={}) -> void:\n if game.trait_events.size()>=24: return\n",
+          "baseline": " hit.trait_secondary=true\n game.trait_events.append({\"kind\":\"hit\",\"epoch\":game.combat_epoch,\"owner\":player_id(game,p),\"target\":target,\"token\":-1 if target==-1 else int(game.scouts[target].get(\"spawn_token\",0)),\"due\":now+delay,\"stats\":hit,\"visual\":visual if not visual.is_empty() else \"link\" if carry else \"echo\",\"origin\":p.pos if origin==Vector3.INF else origin})\nstatic func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: float,duration: int,power: float,now: int,ward: bool=false,class_field: RefCounted=null) -> void:\n if game.trait_events.size()>=24: return\n",
+          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
+        },
+        "cr05_grafts_3": {
+          "match": " for event in game.trait_events.duplicate():\n  if event.kind==kind and int(event.owner)==id and event.has(\"graft_source\")==not graft_source.is_empty():\n   end_zone(game,event);game.trait_events.erase(event)\n game.trait_events.append({\"kind\":kind,\"epoch\":game.combat_epoch,\"owner\":id,\"position\":point,\"radius\":radius,\"until\":now+duration,\"next\":now,\"power\":power,\"ward\":ward})\n if class_field!=null: game.trait_events.back().class_field=class_field\n if not graft_source.is_empty(): game.trait_events.back().graft_source=graft_source\n var color:=Color(\"#e7a15f\") if kind==\"cinder\" else Color(\"#88d7de\") if kind==\"tide\" else Color(\"#d9a4c3\") if kind==\"decoy\" else Color(\"#97c978\")\n",
+          "baseline": " for event in game.trait_events.duplicate():\n  if event.kind==kind and int(event.owner)==id: end_zone(game,event);game.trait_events.erase(event)\n game.trait_events.append({\"kind\":kind,\"epoch\":game.combat_epoch,\"owner\":id,\"position\":point,\"radius\":radius,\"until\":now+duration,\"next\":now,\"power\":power,\"ward\":ward})\n if class_field!=null: game.trait_events.back().class_field=class_field\n var color:=Color(\"#e7a15f\") if kind==\"cinder\" else Color(\"#88d7de\") if kind==\"tide\" else Color(\"#d9a4c3\") if kind==\"decoy\" else Color(\"#97c978\")\n",
+          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
+        },
+        "cr05_grafts_4": {
+          "match": "  var p: Dictionary=game.players[event.owner]\n  if event.has(\"graft_source\") and int(event.graft_source.life)!=int(p.get(\"lost_health\",0)):\n   end_zone(game,event);game.trait_events.erase(event);continue\n  if event.kind==\"hit\":\n",
+          "baseline": "  var p: Dictionary=game.players[event.owner]\n  if event.kind==\"hit\":\n",
+          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
+        },
+        "cr05_grafts_5": {
+          "match": "    var point: Vector3=game.enemy_position(int(event.target))\n    var origin: Vector3 = event.get(\"origin\",p.pos) if event.has(\"graft_source\") else p.pos\n    if game.battlefield.clear_line(origin,point):\n     if event.has(\"visual\"):preload(\"res://combat_status.gd\").proc(game,str(event.visual),event.get(\"origin\",p.pos),point,int(event.target))\n",
+          "baseline": "    var point: Vector3=game.enemy_position(int(event.target))\n    if game.battlefield.clear_line(p.pos,point):\n     if event.has(\"visual\"):preload(\"res://combat_status.gd\").proc(game,str(event.visual),event.get(\"origin\",p.pos),point,int(event.target))\n",
+          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
+        },
+        "cr05_grafts_6": {
+          "match": "      preload(\"res://combat_action_events.gd\").contact(game,event.stats,int(event.target),now)\n     game.apply_weapon_hit(p,int(event.target),origin,event.stats,now)\n     if game.encounter_cleared(): game.finish_combat(int(event.owner),point)\n",
+          "baseline": "      preload(\"res://combat_action_events.gd\").contact(game,event.stats,int(event.target),now)\n     game.apply_weapon_hit(p,int(event.target),p.pos,event.stats,now)\n     if game.encounter_cleared(): game.finish_combat(int(event.owner),point)\n",
+          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
+        },
+        "cr05_grafts_7": {
+          "match": "   for target in targets:\n    var hit: Dictionary={\"damage\":Preview.authored_amount(float(event.power)),\"trait_secondary\":true}\n    if event.has(\"graft_source\"):\n     hit.core_hit=true\n    else:\n     hit.mark_damage=1\n    game.apply_weapon_hit(p,target,event.position,hit,now)\n",
+          "baseline": "   for target in targets:\n    var hit: Dictionary={\"damage\":Preview.authored_amount(float(event.power)),\"trait_secondary\":true,\"mark_damage\":1}\n    game.apply_weapon_hit(p,target,event.position,hit,now)\n",
+          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
+        },
+        "cr05_grafts_8": {
+          "match": "static func try_brace(game: Node,p: Dictionary,now: int) -> bool:\n if p.has(\"combat_ruleset\"):\n  if not preload(\"res://native_grafts.gd\").brace_block(p,now): return false\n  preload(\"res://combat_status.gd\").proc(game,\"brace\",p.pos,p.pos)\n  game.tell(player_id(game,p),\"Orchard Heartwood absorbed the impact.\")\n  return true\n if now<int(p.get(\"brace_block_ready\",0)) or now-int(p.get(\"still_since\",now))<500: return false\n",
+          "baseline": "static func try_brace(game: Node,p: Dictionary,now: int) -> bool:\n if now<int(p.get(\"brace_block_ready\",0)) or now-int(p.get(\"still_since\",now))<500: return false\n",
+          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
+        },
         "cr04b_thorn_1": {
           "match": "  if event.stats.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,event.stats,target,now,false,event.position)\n  game.apply_skill_targets(p,victims,skill,event.stats,now)\n",
           "baseline": "  if event.stats.has(\"cr02_action\"):\n   preload(\"res://combat_action_events.gd\").contact(game,event.stats,target,now)\n  game.apply_skill_targets(p,victims,skill,event.stats,now)\n",
@@ -19451,6 +19559,11 @@
     "expedition_life.gd": {
       "newline": "crlf",
       "regions": {
+        "cr05_grafts_1": {
+          "match": " preload(\"res://spirit_affinity.gd\").clear(p)\n preload(\"res://native_grafts.gd\").clear(p)\n p.erase(\"affinity_void_form_ready\")\n",
+          "baseline": " preload(\"res://spirit_affinity.gd\").clear(p)\n p.erase(\"affinity_void_form_ready\")\n",
+          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
+        },
         "cr05_progression_1": {
           "match": " ids.sort();return ids\nstatic func maximum(game: Node,p: Dictionary,prepared := false) -> int:\n return native_maximum(game,p,prepared)+int(p.get(\"affinity_vital_bonus\",0))\nstatic func native_maximum(game: Node,p: Dictionary,prepared := false) -> int:\n return Vitals.maximum(Preview.hp(game.MAX_HEALTH),Preview.effect_hp(Preview.authored_amount(float(game.weapon_stats(p,prepared).get(\"max_health\",0)))),int(p.get(\"lost_health\",0)),Preview.scale())\nstatic func down(game: Node,id: int,p: Dictionary,effects = null) -> void:\n",
           "baseline": " ids.sort();return ids\nstatic func maximum(game: Node,p: Dictionary) -> int:\n return native_maximum(game,p)+int(p.get(\"affinity_vital_bonus\",0))\nstatic func native_maximum(game: Node,p: Dictionary) -> int:\n return Vitals.maximum(Preview.hp(game.MAX_HEALTH),Preview.effect_hp(Preview.authored_amount(float(game.weapon_stats(p).get(\"max_health\",0)))),int(p.get(\"lost_health\",0)),Preview.scale())\nstatic func down(game: Node,id: int,p: Dictionary,effects = null) -> void:\n",

@@ -1861,6 +1861,9 @@ func at_graft_altar(player: Dictionary) -> bool:
 func graft_block_reason(player: Dictionary,part: int) -> String:
 	if not at_graft_altar(player): return "Move next to a grafting altar in the Wilds."
 	if not Parts.is_monster(part): return "Select a carried monster part."
+	if has_meta(&"combat_affinity_ruleset"):
+		var graft := preload("res://native_grafts.gd").resolve(part)
+		if not graft.refusal.is_empty(): return graft.refusal
 	if int(player.get("carried_parts",Parts.empty_counts())[part])<=0: return "No carried component of this type remains."
 	var installed:=int(player.get("graft_part",0))
 	if installed==part: return "This component is already installed."
@@ -1890,7 +1893,9 @@ func _attempt_graft(id: int, player: Dictionary, requested: int = -1, effects = 
 	if graft_roll<probability:
 		player.graft_part=part
 		player.graft_floor=encounter_number
-		if Life.Preview.enabled:
+		if has_meta(&"combat_affinity_ruleset"):
+			preload("res://native_grafts.gd").replace(player)
+		if Life.Preview.enabled or has_meta(&"combat_affinity_ruleset"):
 			player.max_hp=Life.maximum(self,player)
 			player.hp=minf(float(player.hp),float(player.max_hp))
 		progress.record_monster_graft(part)
@@ -2867,6 +2872,9 @@ func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 			var ready: bool = form_affinity.state == "ready"
 			event = events.begin(self,id,"form" if ready else "native_weapon",form_affinity if ready else {},
 				form_affinity.potency_profile.values if ready else {},["weapon_contact","secondary"],now+15000)
+			var grafts = preload("res://native_grafts.gd")
+			if not affinity_build.graft.get("procs", {}).is_empty():
+				stats[grafts.CONTEXT] = grafts.capture(p, affinity_build.graft)
 		stats[events.CONTEXT] = event
 		stats.erase("affinity_build")
 	if p.get("skill_burst",false):
@@ -2903,7 +2911,11 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 	var pull:=float(stats.get("pull",0))
 	if pull>0 and not winding:
 		point=battlefield.dash(point,point.move_toward(origin,clampf(distance-0.9,0,pull)))
+	var grafts = preload("res://native_grafts.gd")
+	var graft_contact := grafts.start_contact(self,p,stats,target,now)
 	var authored_damage:=Life.Preview.authored_amount(float(stats.damage))
+	if not graft_contact.is_empty():
+		authored_damage += grafts.bonus(self,p,graft_contact,now)
 	if not stats.get("trait_secondary",false):
 		authored_damage+=int(stats.get("preview_power",preload("res://combat_ruleset.gd").legacy_power(p)))
 	if winding:
@@ -2973,6 +2985,8 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 		var restored:=Life.Sustain.heal_on_kill(self,p,target,Life.Preview.authored_amount(float(stats.get("heal_on_kill",0))))
 		if restored>0.0 and not Life.Preview.enabled:preload("res://combat_status.gd").proc(self,"siphon",point,p.pos)
 	Traits.after_hit(self,p,target,stats,now,before>0 and applied>=before)
+	if not graft_contact.is_empty() and applied > 0:
+		grafts.finish_contact(self,p,target,stats,graft_contact,now,before>0 and applied>=before)
 	damage_this_room+=applied
 	if float(stats.get("shot_distance",distance))>=RANGED_DISTANCE:
 		ranged_damage_this_room+=applied
@@ -3223,6 +3237,7 @@ func return_to_garden(p: Dictionary) -> void:
 	p.catalyst=0
 	p.graft_part=0
 	p.graft_floor=0
+	preload("res://native_grafts.gd").clear(p)
 	p.erase("graft_message")
 	p.rift_hook = false
 	p.pos = stage.experimental_garden.return_position() if stage.experimental_garden != null else stage.gate_position() + Vector3(0, 0, 2.0)
@@ -3471,6 +3486,8 @@ func reset_encounter() -> void:
 	encounter_kill_records.clear();combat_threat.clear();combat_velocity.clear();combat_last_positions.clear();leader_brain.clear();moving_ranged_hits=0;encounter_started_at=Time.get_ticks_msec();encounter_party_size=Director.party_size(self)
 	encounter_kills.clear();encounter_rewarded=false;reward_retry_at=0
 	combat_epoch+=1
+	for player in players.values():
+		preload("res://native_grafts.gd").clear(player)
 	if has_meta(&"combat_affinity_ruleset"):
 		for player in players.values():
 			preload("res://vital_combat.gd").clear(self,player)

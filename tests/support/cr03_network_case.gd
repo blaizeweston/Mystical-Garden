@@ -16,6 +16,7 @@ var extra_cores: Array = []
 var measure_packets := false
 var mixed_wood_ward := false
 var final_family_mix := false
+var native_graft_case := false
 
 
 func check(ok: bool, label: String) -> bool:
@@ -91,6 +92,9 @@ func host(menu: Node) -> void:
 	local.pos=game.stage.gate_position()
 	game.garden_action(1,"loadpart_0_%d"%ordinary)
 	game.garden_action(1,"loadpart_2_%d"%refined)
+	if native_graft_case:
+		game.garden_action(1,"learn_0_14")
+		check(game.Classes.focus_id(local.character,0)=="bastion","host learns its actual Rootshield focus through guarded progression")
 	mark("host")
 	var count:=3 if party else 1
 	if not check(await until(func():return guests(game).size()==count),"all expected guests admitted"):return
@@ -108,6 +112,10 @@ func host(menu: Node) -> void:
 			supplied[part] = game.progress.part_count(part)
 		mark("select-"+str(ids[index]),"%d:%d:%d" % [refined,part,ordinary_wood if ids[index]==ward_guest else 0])
 	var prepared := func():
+		if native_graft_case and not ids.all(func(id):
+			var visitor: Dictionary = game.players[id]
+			return visitor.frame!=0 and visitor.weapon_kind==1 and not game.Classes.focus_id(visitor.character,visitor.frame).is_empty()):
+			return false
 		return ids.all(func(id):return game.players[id].prepared_secondary==refined) and supplied.keys().all(func(part):
 			return ids.any(func(id):return game.players[id].prepared==part or game.players[id].prepared_catalyst==part))
 	if not check(await until(prepared),"real guest loadout requests reach host"):return
@@ -123,6 +131,8 @@ func host(menu: Node) -> void:
 	var paid := [game.progress.part_count(ordinary),game.progress.part_count(refined)]
 	for part in supplied:
 		check(game.progress.part_count(part)==supplied[part]-1,"each additional Core is debited once")
+	if native_graft_case and not await install_party_grafts(game,ids):
+		return
 	var floor_entry: Vector3=game.battlefield.entry
 	var target := floor_entry
 	for direction in [Vector3.RIGHT,Vector3.LEFT,Vector3.FORWARD,Vector3.BACK]:
@@ -160,7 +170,8 @@ func host(menu: Node) -> void:
 	if not check(await until(func():return not game.get_meta(Core.STATE,{}).has(1)),"closing petals finish before another action"):return
 	var protected: int=ids[0]
 	var ally: Dictionary=game.players[protected]
-	local.character.upgrades[0]=1<<1
+	if not native_graft_case:
+		local.character.upgrades[0]=1<<1
 	local.skill_at=0
 	game.use_class_skill(1,local,0)
 	ally.hurt_until=0
@@ -233,6 +244,9 @@ func host(menu: Node) -> void:
 					"guest Vital Bloom applies its quality to host")
 				mark("vital-"+str(source),str(visitor.max_hp))
 				check(await until(func():return read("vital-seen-"+str(source))=="ok"),"Vital capacity reaches guest through authoritative vitals")
+	if native_graft_case:
+		check(game.trait_events.any(func(e):return e.get("graft_source",{}).get("component_id")=="monster:ashen_hart")
+			or game.combat_events.any(func(e):return e.shape=="cinder_zone"),"real guest strike emitted installed Cinder")
 	if party:
 		if measure_packets: await sample_host_snapshots(game,ids)
 		if mixed_wood_ward and measure_packets: await verify_current_snapshot_host(game,ids,local)
@@ -286,6 +300,9 @@ func host(menu: Node) -> void:
 	mark("extract",str(game.travel_epoch))
 	if not check(await until(func():return not game.expedition_active() and read("guest-garden")=="ok"),"party extraction restores Garden"):return
 	check([game.progress.part_count(ordinary),game.progress.part_count(refined)]==paid,"no repeated affinity material consumption")
+	if native_graft_case:
+		check(game.players[ids[0]].graft_part==0 and not game.players[ids[0]].has("native_graft_state"),
+			"Garden return clears the guest's run-only graft and its counters")
 	if not check(await until(func():return guests(game).is_empty() and game.pending_departures.is_empty()),"guest detached through normal teardown"):return
 	mark("detached")
 	check(await until(func():return read("rejoined")=="ok" and guests(game).size()==1),"guest reconnects to the existing Garden")
@@ -299,9 +316,38 @@ func host(menu: Node) -> void:
 	mark("offline")
 
 
+func install_party_grafts(game: Node, ids: Array) -> bool:
+	var parts = preload("res://weapon_parts.gd")
+	var old_floor: int = game.encounter_number
+	game.encounter_number = 8
+	for index in ids.size():
+		var id: int = ids[index]
+		var visitor: Dictionary = game.players[id]
+		var material: int = parts.monster_part([17,18,15][index])
+		visitor.pos = game.battlefield.graft
+		visitor.carried_parts[material] = 2
+		var probability: float = game.graft_chance(visitor,material)
+		for seed_value in 1000:
+			game.rng.seed = seed_value
+			var state: int = game.rng.state
+			if game.rng.randf() < probability:
+				game.rng.state = state
+				break
+		mark("install-"+str(id),str(material))
+		if not check(await until(func():return read("graft-seen-"+str(id))=="ok"),"guarded guest graft completes and publishes"): return false
+		check(visitor.graft_part==material and visitor.carried_parts[material]==1,
+			"guest graft request consumes one part")
+		if not check(await until(func():return "already installed" in visitor.get("graft_message",""),3000),
+			"host evaluates the repeated request at the altar"): return false
+		check(visitor.carried_parts[material]==1,"repeated request consumes no second part")
+	game.encounter_number = old_floor
+	return true
+
+
 func guest(menu: Node, role: String) -> void:
 	menu.request_create_character()
-	menu.create_character("Frost guest "+role,0,Appearance.DEFAULT)
+	var starting_class: int = [1,2,4][clampi(int(role)-1,0,2)] if native_graft_case else 0
+	menu.create_character("Frost guest "+role,starting_class,Appearance.DEFAULT)
 	if not check(await until(func():return read("host")=="ok"),"host ready"):return
 	begin_join(menu)
 	if not check(await until(func():return tree.current_scene.get("session")=="Guest" and tree.current_scene.stage.experimental_garden.remote_revision>=0),"actual title joins isolated frost Garden"):return
@@ -318,8 +364,19 @@ func guest(menu: Node, role: String) -> void:
 		game.send_garden_action("loadpart_0_"+picks[1])
 	if int(picks[2])>0:
 		game.send_garden_action("loadpart_2_"+picks[2])
+	if native_graft_case:
+		game.send_garden_action("loadweapon_1")
+		game.send_garden_action("learn_%d_12" % starting_class)
 	if not check(await until(func():return not read("depart").is_empty()),"host authorizes departure"):return
 	game.send_garden_action("travel_ready:"+read("depart"))
+	if native_graft_case:
+		if not check(await until(func():return not read("install-"+str(id)).is_empty() and game.stage._has_experimental_floor()),
+			"real guest can request its graft on the shared floor"): return
+		var item := int(read("install-"+str(id)))
+		game.send_garden_action("graft_install_%d" % item)
+		if not check(await until(func():return int(game.players[id].get("graft_part",0))==item),"guest sees the committed graft identity"): return
+		game.send_garden_action("graft_install_%d" % item)
+		mark("graft-seen-"+str(id))
 	if not check(await until(func():return read("strike-"+str(id))=="ok" and game.stage._has_experimental_floor()),"guest sees generated Frost floor"):return
 	game.send_action(true)
 	if int(picks[2])>0:
@@ -466,6 +523,10 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 	var previous: Vector3=game.drop_pos
 	game.enemy_hp=487
 	game.enemy_stagger_until=Time.get_ticks_msec()+9000
+	if native_graft_case:
+		var caster: Dictionary = game.players[ids[0]]
+		if not check(await until(func():return Time.get_ticks_msec()>=int(caster.get("native_graft_state",{}).get("cinder",0)),4500),
+			"wait for the real Cinder response interval before sampling"): return
 	mark("snapshot-arm")
 	if not check(await until(func():return ids.all(func(id):return read("snapshot-ready-"+str(id))=="ok"),4000),"every guest is watching the probe"):
 		return
@@ -489,6 +550,18 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 		caster.core_ready_at=0;caster.cast_until=0;caster.core_cast_until=0
 		var aim: Vector3=(game.enemy_pos-caster.pos).normalized()
 		game.garden_action(ids[2],Core.request(game,caster,Vector2(aim.x,aim.z),1.1))
+	if native_graft_case:
+		var position: Vector3 = game.scouts.back().pos
+		while game.scouts.size()<game.EncounterConfig.MAX_SCOUTS:
+			var scout: Dictionary = game.make_scout(0,position,game.scouts.size()+1)
+			scout.stagger_until=Time.get_ticks_msec()+6000
+			game.scouts.append(scout)
+		var caster: Dictionary = game.players[ids[0]]
+		caster.strike_at = 0
+		game.strike_enemy(ids[0],caster,caster.pos)
+		if not check(await until(func():return game.trait_events.any(func(e):
+			return e.get("graft_source",{}).get("component_id")=="monster:ashen_hart"),1300),
+			"a real Cinder field is active at full scout occupancy"): return
 	for index in PROBE_COUNT:
 		var marker := PROBE_FIRST+index
 		game.drop_pos=Vector3(marker,0,0)
@@ -498,7 +571,7 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 	game.drop_pos=previous
 	game.remove_meta(&"snapshot_witness")
 	check(await until(func():return ids.all(func(id):return read("snapshot-seen-"+str(id))=="ok"),4000),"all guests processed current authoritative state")
-	if final_family_mix:
+	if final_family_mix or native_graft_case:
 		var cap: int=preload("res://world_snapshot.gd").MAX_FRAME
 		check(ids.all(func(id):return rows.any(func(row):return row.phase=="send" and row.peer==id and row.bytes==cap)),
 			"all peers receive a full-occupancy sized hot frame while new effects are active")

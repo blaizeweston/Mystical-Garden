@@ -50,6 +50,9 @@ static func secondary(game: Node,player: Dictionary,stats: Dictionary,point: Vec
  var radius:=3.2 if stats.pattern=="chain" else 2.1
  if stats.pattern=="splash":game.emit_combat_event("swing","splash",point,point,.24,game.weapon_effect_color(player),radius,0,{"form":"proc","pattern":"radial","contact":0.0,"width":.05,"span":TAU})
  var cursor:=point
+ # Chain and splash contacts keep native weapon damage but cannot proc the graft again.
+ var hit := stats.duplicate()
+ hit.erase("native_graft_contact")
  while remaining>0:
   var found:=-2
   for other in candidates(game,cursor):
@@ -61,7 +64,7 @@ static func secondary(game: Node,player: Dictionary,stats: Dictionary,point: Vec
   if stats.pattern=="chain":game.emit_combat_event("link","chain",cursor,next,.20,game.weapon_effect_color(player),0,0)
   if stats.has("cr02_action"):
    preload("res://combat_action_events.gd").contact(game,stats,found,Time.get_ticks_msec(),true)
-  game.apply_weapon_hit(player,found,cursor,stats,Time.get_ticks_msec())
+  game.apply_weapon_hit(player,found,cursor,hit,Time.get_ticks_msec())
   if stats.pattern=="chain":cursor=next
  return remaining
 static func melee(game: Node,shot: Dictionary,now: int) -> void:

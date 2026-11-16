@@ -395,7 +395,12 @@ func class_nodes() -> Array:
 			var candidate: Dictionary=data.duplicate(true)
 			candidate.upgrades[c]=mask | (1 << i) if learned else (mask & ~(3 << (i-i%2))) | (1 << i)
 			var affected: Array=[0,1] if change.kind in ["power","efficient"] else [int(change.get("slot",0))]
-			change_text+="\n\n"+ "\n\n".join(affected.map(func(slot):return game.Skills.describe(game.Skills.resolve(c,slot,candidate),game.Classes.bonuses(candidate,c))))
+			var preview_stats: Dictionary = game.Classes.bonuses(candidate,c)
+			if game.has_meta(&"combat_affinity_ruleset"):
+				var resolver = preload("res://affinity_build.gd")
+				var loadout: Dictionary = candidate.loadouts[c]
+				preview_stats = resolver.native_stats(resolver.resolve(c,int(loadout.weapon),loadout.parts,0,candidate))
+			change_text+="\n\n"+ "\n\n".join(affected.map(func(slot):return game.Skills.describe(game.Skills.resolve(c,slot,candidate),preview_stats)))
 		var detail: String="%s\nRequires class level %d · 1 point\n\n%s\n\n%s\nChoose one upgrade in this row. Previous row must be learned. Choices stay with this character."%[node.name,node.level,effects+"\n\n"+change_text,"Learned" if learned else "Available" if game.Classes.can_learn(data,c,i,level) else "Locked / alternative path"]
 		result.append({"id":id,"label":node.name,"parents":parents,"position":Vector2(245+(i%2)*210,base_y-70-int(node.tier)*65),"unlocked":learned,"detail":detail,"summary":node.name+"\n"+change_text+"\n"+effects,"color":"#a8bc86"})
 	return result

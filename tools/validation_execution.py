@@ -207,7 +207,7 @@ def run_fixture(project, engine, fixture, kind, script, folder, run_id, pack=Non
         raise ValueError("invalid fixture name or run ID")
     folder = folder.resolve()
     folder.mkdir(parents=True, exist_ok=False)
-    affinity_fixtures = ("cr02_mode_coop", "cr02_mode_mismatch", "cr02_definitions_mismatch", "cr03_frost_coop", "cr03_frost_party", "cr04a_fire_coop", "cr04a_water_coop", "cr04a_vital_coop", "cr04a_mixed_party", "cr04b_thorn_coop", "cr04b_wood_coop", "cr04b_mixed_party", "cr04c_storm_coop", "cr04c_spirit_coop", "cr04c_void_coop", "cr04c_mixed_party")
+    affinity_fixtures = ("cr02_mode_coop", "cr02_mode_mismatch", "cr02_definitions_mismatch", "cr03_frost_coop", "cr03_frost_party", "cr04a_fire_coop", "cr04a_water_coop", "cr04a_vital_coop", "cr04a_mixed_party", "cr04b_thorn_coop", "cr04b_wood_coop", "cr04b_mixed_party", "cr04c_storm_coop", "cr04c_spirit_coop", "cr04c_void_coop", "cr04c_mixed_party", "cr05_native_grafts", "cr05_native_grafts_coop", "cr05_native_grafts_party")
     terrain_coop = fixture == "experimental_terrain_coop" or fixture in affinity_fixtures
     env = None if terrain_coop else fixture_environment(project)
     default_port = 32295 if kind == "party" else 32291 if pack else 32283

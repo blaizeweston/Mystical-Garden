@@ -5,7 +5,6 @@ const Affinities = preload("res://plant_affinities.gd")
 const Catalyst = preload("res://catalyst_adapters.gd")
 const Classes = preload("res://class_catalog.gd")
 const Skills = preload("res://skill_catalog.gd")
-const Parts = preload("res://weapon_parts.gd")
 const WeaponRules = preload("res://weapon_system.gd")
 const Delivery = preload("res://core_skill_rules.gd")
 const Preview = preload("res://combat_balance_preview.gd")
@@ -74,17 +73,7 @@ static func resolve(class_id: int, weapon_index: int, slots: Array, graft: int, 
 	result.capabilities.strike = result.form.executable
 	result.capabilities.core_action = result.core.executable
 	result.capabilities.class_actions = result.catalyst.executable and result.class_skills.all(func(adapter): return not adapter.is_empty())
-	if Parts.is_monster(graft):
-		var entry: Dictionary = Parts.DEFINITIONS[graft]
-		var native := {}
-		var pending := {}
-		var effects: Dictionary = Parts.MONSTER_DEFINITIONS[int(entry.monster)].effects
-		for key in effects:
-			if key in Ruleset.NATIVE_GRAFT_STATS:
-				native[key] = effects[key]
-			else:
-				pending[key] = effects[key]
-		result.graft = {"item_id": entry.item_id, "component_id": entry.id, "native_effects": native, "pending_effects": pending}
+	result.graft = Ruleset.Grafts.resolve(graft)
 	return result
 
 
@@ -100,7 +89,15 @@ static func native_stats(build: Dictionary) -> Dictionary:
 	stats.merge({"cooldown": 0.0, "tags": [], "interactions": [], "core_build": {}})
 	WeaponRules.add_effects(stats, build.native_class_effects)
 	WeaponRules.add_effects(stats, build.graft.get("native_effects", {}))
-	# Legacy passive Frost is retained in the resolved native metadata for CR05.
+	if stats.has("pierce"):
+		stats.pattern = "line"
+	var procs: Dictionary = build.graft.get("procs", {})
+	if procs.has("spread_bind"):
+		stats.spread_bind = float(stats.get("spread_bind", 0)) + float(procs.spread_bind)
+	var graft_text := Ruleset.Grafts.describe(build.graft)
+	if not graft_text.is_empty():
+		stats.interactions.append(graft_text)
+	# Legacy Shatter has no approved native source in affinity Frost.
 	for effect in RESTRICTED_CLASS_EFFECTS:
 		stats.erase(effect)
 	for key in ["cooldown", "recovery", "stagger", "skill_cooldown", "skill_duration", "dodge_cooldown", "windup_damage"]:
@@ -162,8 +159,9 @@ static func describe(build: Dictionary) -> String:
 			if part.state == "pending":
 				summary += " Support: " + ", ".join(part.supporting_affinities) + " · " + part.quality.capitalize()
 		lines.append("%s · %s" % [name.capitalize(), summary])
-	if not build.graft.get("pending_effects", {}).is_empty():
-		lines.append("Graft · Native weapon modifiers available. Special graft effects are pending.")
+	var graft_text := Ruleset.Grafts.describe(build.graft)
+	if not graft_text.is_empty():
+		lines.append("Graft · " + graft_text)
 	return "\n".join(lines)
 
 
