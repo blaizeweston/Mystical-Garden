@@ -110,6 +110,8 @@ static func queue_attack(game: Node,id: int,p: Dictionary,pos: Vector3,stats: Di
   var flight:=maxi(30,roundi(muzzle.distance_to(end)/float(profile.speed)*1000))
   game.projectile_queue.append({"direction":direction,"mouse_ray":true,"player":id,"epoch":game.combat_epoch,"release":release,"due":release+flight,"emitted":false,"projectile":true,"form":form,"origin":muzzle,"aim":end,"previous":muzzle,"stats":stats.duplicate(true),"hits":[],"remaining":int(stats.targets)})
   game.projectile_queue.back().muzzle_blocked = path.muzzle_blocked
+  if stats.get("ranger_ordinary",false):
+   game.projectile_queue.back().life = int(p.get("lost_health",0))
   if p.get("mouse_aim",false):
    var combo:=int(p.get("attack_combo",0))
    p.ranged_windup={"combo":combo,"release":release}
@@ -190,6 +192,11 @@ static func ray_tick(game: Node,shot: Dictionary,now: int) -> bool:
   if not shot.hits.is_empty() and str(shot.form)!="fan":preload("res://combat_status.gd").proc(game,"pierce",previous,point,target)
   shot.hits.append(token(game,target));shot.remaining-=1
   var hit: Dictionary=shot.stats.duplicate(true);hit.shot_distance=Vector3(shot.get("launch_position",shot.origin)).distance_to(game.enemy_position(target))
+  if not shot.get("ranger_secondary",false):
+   hit.ranger_direct_hit = true
+   if shot.has("ranger_follow_hp"):
+    hit.native_bonus_hp = int(shot.ranger_follow_hp)
+    shot.erase("ranger_follow_hp")
   game.apply_weapon_hit(game.players[int(shot.player)],target,shot.origin,hit,now)
   if hit.has("cr02_action"):
    preload("res://combat_action_events.gd").contact(game,hit,target,now,false,point,(Vector3(shot.aim)-Vector3(shot.origin)).normalized())

@@ -180,6 +180,11 @@ static func footprint(game: Node, player: Dictionary, field: RefCounted, skill: 
 			result.append({"kind": "area", "at": patch, "radius": radius})
 	elif mode in ["guard", "counter_guard", "bloom_detonate"]:
 		result.append({"kind": "point", "at": origin, "radius": .55})
+	if mode == "snare" and cast.valid and (skill.get("ranger_nodes",[]).has("bramble_corridor") or skill.get("ranger_nodes",[]).has("escape_route")):
+		var lane := preload("res://ranger_combat.gd").corridor(field,origin,center)
+		if not lane.is_empty():
+			lane.kind = "strip"
+			result.append(lane)
 	if mode in TRAVEL:
 		if mode in ["charge", "windstep"]:
 			result.append({"kind": "range", "at": origin, "radius": float(skill.travel)})

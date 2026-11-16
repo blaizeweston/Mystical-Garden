@@ -81,7 +81,7 @@ static func normalize(source: Dictionary) -> Dictionary:
 				for slot in mini(3,parts.size()):
 					var part:=int(parts[slot]) if parts[slot] is int else 0
 					result.loadouts[c].parts[slot]=part if Parts.is_plant(part) else 0
-	for key in [ConnectedWarden.PROFILE_KEY,ConnectedWeaver.PROFILE_KEY]:
+	for key in [ConnectedWarden.PROFILE_KEY,ConnectedWeaver.PROFILE_KEY,Classes.Ranger.PROFILE_KEY]:
 		if source.has(key):
 			var progression: Variant = source[key]
 			result[key] = progression.duplicate(true) if progression is Dictionary or progression is Array else progression

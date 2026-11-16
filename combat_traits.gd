@@ -1,4 +1,5 @@
 extends RefCounted
+const Ranger=preload("res://ranger_combat.gd")
 const Preview=preload("res://combat_balance_preview.gd")
 # Bounded, authored effect vocabulary shared by plant slots, skills and cards.
 const KEYS: Array=["brittle","shatter_damage","brace","mark_damage","echo","echo_redirect","death_charge","tide_pool","pool_ward","pool_radius","suppress","decoy","decoy_duration","link","link_damage","link_brittle","counter_damage","counter_stagger","ward_on_block","directional_guard","spread_bind","growth_field","precision","trap_power","reaper_momentum","veil_mark","protect_growth","omen","loot_attract","cinder_trail","chorus_pulse","pierce"]
@@ -142,21 +143,32 @@ static func decoy_point(game: Node,id: int) -> Vector3:
   var player: Dictionary=game.players.get(id,{})
   if game.Life.alive(player) and int(player.get("lost_health",0))==int(cast.life): return cast.center
  for event in game.trait_events:
-  if event.kind=="decoy" and int(event.owner)==id and int(event.epoch)==game.combat_epoch and Time.get_ticks_msec()<int(event.until): return event.position
+  if int(event.owner)!=id or int(event.epoch)!=game.combat_epoch: continue
+  if event.kind=="snare" and Time.get_ticks_msec()<int(event.get("ranger_decoy_until",0)) and Ranger.source_live(game,event):
+   return event.position
+  if event.kind=="decoy" and Time.get_ticks_msec()<int(event.until): return event.position
  return Vector3.INF
-static func place_snare(game: Node,p: Dictionary,point: Vector3,skill: Dictionary,stats: Dictionary,now: int) -> void:
+static func place_snare(game: Node,p: Dictionary,point: Vector3,skill: Dictionary,stats: Dictionary,now: int) -> Dictionary:
  var owner:=player_id(game,p)
- for event in game.trait_events.duplicate():
+ var replaced: Array = []
+ for event in game.trait_events:
   if event.kind=="snare" and event.owner==owner and event.skill.get("slot",0)==skill.get("slot",0):
-   end_zone(game,event)
-   game.trait_events.erase(event)
- if game.trait_events.size()>=24:return
+   replaced.append(event)
+ if game.trait_events.size()-replaced.size()>=24: return {}
+ for event in replaced:
+  end_zone(game,event)
+  game.trait_events.erase(event)
  var duration:=preload("res://class_skill_balance.gd").trap_duration(skill,stats)
  var radius:=float(skill.get("radius",1.05))
- game.emit_combat_event("field","snare_zone",point,point,duration/1000.,Color(skill.color),radius,0)
- game.trait_events.append({"kind":"snare","epoch":game.combat_epoch,"owner":owner,"life":p.get("lost_health",0),
+ var decoy: bool = skill.has("ranger_nodes") and skill.slot==0 and skill.subclass_focus=="snarekeeper"
+ game.emit_combat_event("field","luring_snare_zone" if decoy else "snare_zone",point,point,duration/1000.,Color(skill.color),radius,0)
+ var placed := {"kind":"snare","epoch":game.combat_epoch,"owner":owner,"life":p.get("lost_health",0),
   "position":point,"radius":radius,"until":now+duration,"next":now+250,"skill":skill.duplicate(true),
-  "stats":stats.duplicate(true),"seen":{},"visual_id":game.combat_event_serial})
+  "stats":stats.duplicate(true),"seen":{},"visual_id":game.combat_event_serial}
+ if decoy:
+  placed.ranger_decoy_until = now+duration
+ game.trait_events.append(placed)
+ return placed
 
 static func trip_snare(game: Node,p: Dictionary,event: Dictionary,now: int) -> void:
  var skill: Dictionary=event.skill
@@ -164,26 +176,36 @@ static func trip_snare(game: Node,p: Dictionary,event: Dictionary,now: int) -> v
  var contact=preload("res://weapon_contact.gd")
  for target in entrants.duplicate():
   if event.seen.has(contact.token(game,target)):entrants.erase(target)
- if entrants.is_empty():return
- var targets:=entrants if skill.mode=="subclass" else spread_targets(game,p,entrants,skill,event.stats)
+ var targets:=entrants.duplicate() if skill.mode=="subclass" else spread_targets(game,p,entrants,skill,event.stats).duplicate()
+ var ranger := skill.has("ranger_nodes")
+ var corridor := Ranger.corridor_targets(game,event) if ranger else {}
+ var endpoint_targets := targets.duplicate()
+ for target in corridor:
+  if not targets.has(target):
+   targets.append(target)
+ if targets.is_empty():return
  skill.effect_origin=event.position
+ var trap_stats: Dictionary = event.stats.merged({"ranger_trap_contact":true},true)
  for target in targets:
   if not valid_target(game,target):continue
   var token: String=contact.token(game,target)
   if event.seen.has(token):continue
   event.seen[token]=true
   var victims: Array[int]=[target]
-  if event.stats.has("cr02_action"):
+  var only_corridor := corridor.has(target) and not endpoint_targets.has(target)
+  var origin: Vector3 = corridor[target] if only_corridor else event.position
+  var chosen := Ranger.trap_hit(game,p,event,target,origin,entrants.has(target) or corridor.has(target),only_corridor,now) if ranger else skill
+  if not only_corridor and event.stats.has("cr02_action"):
    preload("res://combat_action_events.gd").contact(game,event.stats,target,now,false,event.position)
-  game.apply_skill_targets(p,victims,skill,event.stats,now)
+  game.apply_skill_targets(p,victims,chosen,trap_stats,now)
   var at: Vector3=game.enemy_position(target)
-  game.emit_combat_event("proc",skill.name,event.position,at,.45,Color(skill.color),0.0,target)
+  game.emit_combat_event("proc",skill.name,origin,at,.45,Color(skill.color),0.0,target)
   preload("res://diagnostic_journal.gd").event("combat","class_trap_contact",{"actor":event.owner,
    "skill":skill.name,"target":target,"target_token":token})
   if game.encounter_cleared():
    game.finish_combat(int(event.owner),at)
    return
- if skill.mode=="subclass" and int(skill.get("second",-1))==0 and not event.get("echoed",false):
+ if not ranger and skill.mode=="subclass" and int(skill.get("second",-1))==0 and not event.get("echoed",false):
   event.echoed=true
   load("res://subclass_combat.gd").echo(game,p,event.position,targets,Color(skill.color),now)
   if game.encounter_cleared():game.finish_combat(int(event.owner),event.position)
@@ -215,6 +237,7 @@ static func tick(game: Node,now: int) -> void:
   if now>=int(event.until): end_zone(game,event);game.trait_events.erase(event);continue
   if event.kind=="snare" and int(event.life)!=int(p.get("lost_health",0)):
    end_zone(game,event);game.trait_events.erase(event);continue
+  if event.has("ranger_route"): Ranger.tick_route(game,event,now)
   if now<int(event.next): continue
   if event.kind=="snare":
    trip_snare(game,p,event,now);continue
@@ -336,6 +359,7 @@ static func defer_skill(game: Node,p: Dictionary,targets: Array[int],skill: Dict
   game.trait_events.append({"kind":"hit","owner":player_id(game,p),"epoch":game.combat_epoch,"target":target,"token":-1 if target==-1 else int(game.scouts[target].get("spawn_token",0)),"due":now+int(skill.get("delay",700)),"stats":hit})
 
 static func end_zone(game: Node,event: Dictionary) -> void:
+ if event.has("ranger_route"): Ranger.end_route(game,event)
  if event.has("visual_id"):
   var point: Vector3=event.get("position",Vector3.ZERO)
   game.emit_combat_event("field_end",str(event.visual_id),point,point,.15,Color.WHITE,0,0)

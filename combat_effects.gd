@@ -1,5 +1,6 @@
 extends Node3D
 const CoreVisuals = preload("res://core_skill_visuals.gd")
+const Ranger = preload("res://ranger_combat.gd")
 const EnemyFeedback = preload("res://enemy_move_feedback.gd")
 var stage: Node3D
 var active: Dictionary={}
@@ -59,8 +60,8 @@ func sync(events: Array,telegraphs: Array,key: String,position: Vector3,radius: 
   if event.kind=="ability" and visible_hit and not str(event.get("label",event.shape)).is_empty():feedback.text_at(str(event.get("label",event.shape)),point(event.to),Color("#bcebdd"),int(event.id),true)
   if event.kind=="subclass_release" and visible_hit and not str(event.get("label","")).is_empty():
    feedback.text_at(event.label,point(event.to),Color(event.color),int(event.id),true)
-  if event.kind=="field":
-   var species: String={"growth_zone":"whispervine","tide_zone":"tide_lily","decoy_zone":"dream_poppy"}.get(str(event.shape),"whispervine")
+  if event.kind=="field" and event.shape not in [Ranger.CORRIDOR,Ranger.ESCAPE]:
+   var species: String={"growth_zone":"whispervine","tide_zone":"tide_lily","decoy_zone":"dream_poppy","luring_snare_zone":"dream_poppy"}.get(str(event.shape),"whispervine")
    var plant_index: int=preload("res://seed_catalog.gd").index_of(species)
    if plant_index>=0:
     var growth: Node3D=stage.build_crop(plant_index,2,false)
@@ -154,11 +155,27 @@ func pose(effect: Dictionary) -> void:
     for vertex in [at-direction*.32,at-direction*.47+side*.08,at-direction*.47-side*.08]: mesh.surface_add_vertex(vertex)
   if effect.has("glyph"):
    effect.glyph.position=at;effect.glyph.rotation.y=t*TAU*3
+ elif event.kind=="field" and event.shape in [Ranger.CORRIDOR,Ranger.ESCAPE]:
+  var width := float(event.reach)
+  var lane_from := from+Vector3.UP*.055
+  var lane_to := to+Vector3.UP*.055
+  for sign_value in [-1.0,1.0]:
+   var edge := side*width*float(sign_value)
+   ribbon(mesh,lane_from+edge,lane_to+edge,.045)
+  var count := maxi(1,ceili(from.distance_to(to)/.65))
+  for index in count:
+   var at := lane_from.lerp(lane_to,(index+.5)/count)
+   if event.shape==Ranger.CORRIDOR:
+    snare_roots(mesh,at,width*.73,4)
+   else:
+    var tip := at+direction*.22
+    ribbon(mesh,at-side*.23,tip,.045)
+    ribbon(mesh,at+side*.23,tip,.045)
  elif event.kind=="field":
   if effect.has("growth"): effect.growth.scale=Vector3.ONE*(minf(1.0,t*5.0)*minf(1.0,(1.0-t)*5.0)*.9+.1)
   circle(mesh,to+Vector3.UP*.05,float(event.get("reach",1.6)),.06)
   circle(mesh,to+Vector3.UP*.06,float(event.get("reach",1.6))*.65,.025)
-  if event.shape=="snare_zone":
+  if event.shape in ["snare_zone","luring_snare_zone"]:
    snare_roots(mesh,to+Vector3.UP*.065,float(event.reach),8)
   if event.shape=="cinder_zone":
    for i in 16:

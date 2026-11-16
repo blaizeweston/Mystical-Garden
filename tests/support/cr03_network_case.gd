@@ -11,6 +11,9 @@ const CT_PATH := ["vanguard","deep_roots","ready_footing","sheltering_quake","ho
 const CT_REQUESTS := [64,68,71,75,78,81]
 const Weaver = preload("res://weaver_connected_tree.gd")
 const Aim = preload("res://ability_aim.gd")
+const Ranger = preload("res://ranger_connected_tree.gd")
+const RangerCombat = preload("res://ranger_combat.gd")
+const RANGER_PATH := ["wildstalker","long_draw","splinter_ambush","quick_reset","follow_through","double_draw"]
 const WEAVER_PATH := ["bloomcaller","silken_gift","holding_threads","threaded_nova","spore_cycle","symbiotic_nova"]
 
 var tree: SceneTree
@@ -25,6 +28,7 @@ var final_family_mix := false
 var native_graft_case := false
 var connected_warden_case := false
 var connected_weaver_case := false
+var connected_ranger_case := false
 
 
 func check(ok: bool, label: String) -> bool:
@@ -100,7 +104,7 @@ func host(menu: Node) -> void:
 	local.pos=game.stage.gate_position()
 	game.garden_action(1,"loadpart_0_%d"%ordinary)
 	game.garden_action(1,"loadpart_2_%d"%refined)
-	if native_graft_case or connected_warden_case or connected_weaver_case:
+	if native_graft_case or connected_warden_case or connected_weaver_case or connected_ranger_case:
 		game.garden_action(1,"learn_0_%d" % (ConnectedWarden.REQUEST_OFFSET+2))
 		check(ConnectedWarden.focus(local.character)=="bastion","host learns its actual Rootshield focus through guarded progression")
 	mark("host")
@@ -109,9 +113,11 @@ func host(menu: Node) -> void:
 	var ids:=guests(game)
 	ids.sort()
 	var weaver_id := 0
+	var ranger_id := 0
 	for id in ids:
 		game.players[id].pos=local.pos
 		if connected_weaver_case and game.players[id].frame==1: weaver_id=id
+		if connected_ranger_case and game.players[id].frame==2: ranger_id=id
 	var supplied := {}
 	var ward_guest: int=ids[1] if mixed_wood_ward else 0
 	var ordinary_wood: int=game.Items.get_item("plant_part_plant_ironroot").legacy_part
@@ -134,6 +140,8 @@ func host(menu: Node) -> void:
 	if connected_warden_case and not await learn_connected_host(game,ids[0],refined):
 		return
 	if connected_weaver_case and not await learn_weaver_host(game,weaver_id,refined):
+		return
+	if connected_ranger_case and not await learn_ranger_host(game,ranger_id):
 		return
 	var before_regular: int=game.progress.part_count(ordinary)
 	var before_rare: int=game.progress.part_count(refined)
@@ -186,7 +194,7 @@ func host(menu: Node) -> void:
 	if not check(await until(func():return not game.get_meta(Core.STATE,{}).has(1)),"closing petals finish before another action"):return
 	var protected: int=ids[0]
 	var ally: Dictionary=game.players[protected]
-	if not native_graft_case and not connected_warden_case and not connected_weaver_case:
+	if not native_graft_case and not connected_warden_case and not connected_weaver_case and not connected_ranger_case:
 		local.character.upgrades[0]=1<<1
 	local.skill_at=0
 	game.use_class_skill(1,local,0)
@@ -197,6 +205,8 @@ func host(menu: Node) -> void:
 	if connected_warden_case and not await exercise_connected_host(game,local,ally,protected,rows):
 		return
 	if connected_weaver_case and not await exercise_weaver_host(game,weaver_id,floor_entry,target,rows):
+		return
+	if connected_ranger_case and not await exercise_ranger_host(game,ranger_id,floor_entry,target,rows):
 		return
 	if mixed_wood_ward:
 		var warded: Dictionary=game.players[ward_guest]
@@ -267,7 +277,7 @@ func host(menu: Node) -> void:
 	if native_graft_case:
 		check(game.trait_events.any(func(e):return e.get("graft_source",{}).get("component_id")=="monster:ashen_hart")
 			or game.combat_events.any(func(e):return e.shape=="cinder_zone"),"real guest strike emitted installed Cinder")
-	if party and not connected_weaver_case:
+	if party and not connected_weaver_case and not connected_ranger_case:
 		if measure_packets: await sample_host_snapshots(game,ids)
 		if mixed_wood_ward and measure_packets: await verify_current_snapshot_host(game,ids,local)
 		check(await until(func():return read("overflow")=="ok",22000),"overflow returns after native connection deadline")
@@ -289,6 +299,8 @@ func host(menu: Node) -> void:
 			game.apply_weapon_hit(local,index,game.scouts[index].pos,stats,Time.get_ticks_msec())
 	var expected_xp := []
 	var selected_weaver: Dictionary=game.players.get(weaver_id,{})
+	var selected_ranger: Dictionary=game.players.get(ranger_id,{})
+	var ranger_xp_before: int=selected_ranger.character.xp[2] if connected_ranger_case else 0
 	var weaver_xp_before: int=selected_weaver.character.xp[1] if connected_weaver_case else 0
 	if connected_warden_case:
 		var pending: Array = game.pending_kill_rewards.duplicate()
@@ -333,6 +345,11 @@ func host(menu: Node) -> void:
 			return selected_weaver.character.xp[1]>weaver_xp_before and selected_weaver.get("projection_delivery",{}).get("state")=="committed"),
 			"Weaver receives and acknowledges actual floor XP"):return
 		mark("weaver-xp",str(selected_weaver.character.xp[1]))
+	if connected_ranger_case:
+		var ranger_saved := func() -> bool:
+			return selected_ranger.character.xp[2]>ranger_xp_before and selected_ranger.get("projection_delivery",{}).get("state")=="committed"
+		if not check(await until(ranger_saved),"Ranger floor XP reaches the owning guest and is acknowledged"):return
+		mark("ranger-xp",str(selected_ranger.character.xp[2]))
 	local.pos=game.battlefield.advance
 	for id in ids: game.players[id].pos=local.pos
 	game.use_checkpoint(1,true)
@@ -372,6 +389,18 @@ func host(menu: Node) -> void:
 		var rejoined: Dictionary=game.players[guests(game)[0]].character
 		check(Weaver.TREE.path(rejoined)==WEAVER_PATH and rejoined.xp[1]==int(read("weaver-xp")),
 			"host restores the committed Weaver tree and XP without replay")
+	if connected_ranger_case and guests(game).size()==1:
+		var ranger_profile: Dictionary=game.players[guests(game)[0]].character
+		check(Ranger.TREE.path(ranger_profile)==RANGER_PATH and ranger_profile.upgrades[2]==0
+			and ranger_profile.xp[2]==int(read("ranger-xp")),"host re-admits the committed Ranger path without replay")
+		game.players[guests(game)[0]].pos = game.Stage.HEART + Vector3.BACK
+		mark("ranger-respec-now")
+		var refunded := func() -> bool:
+			var visitor: Dictionary = game.players[guests(game)[0]]
+			return (read("ranger-refunded")=="ok" and Ranger.TREE.path(visitor.character).is_empty()
+				and visitor.character.xp[2]==int(read("ranger-xp"))
+				and visitor.get("projection_delivery",{}).get("state")=="committed")
+		if not check(await until(refunded),"guarded Ranger respec refunds choices and preserves XP"):return
 	check([game.progress.part_count(ordinary),game.progress.part_count(refined)]==paid,"reconnect does not repeat departure")
 	for part in supplied:
 		check(game.progress.part_count(part)==supplied[part]-1,"rejoin preserves each additional Core debit")
@@ -451,6 +480,97 @@ func exercise_connected_host(game: Node, local: Dictionary, player: Dictionary, 
 		"actual remote Root Quake consumes preparation and shelters nearby host"):return false
 	check(blocks.call().size()==1 and events.filter(func(e):return e.kind=="class_action" and e.source_actor==id).size()==1,
 		"one remote R response with no duplicate Ward or class activation")
+	return true
+
+
+func ranger_request(node: String) -> String:
+	return "learn_2_%d" % (Ranger.TREE.REQUEST_OFFSET+Ranger.TREE.nodes.find(Ranger.TREE.node(node)))
+
+
+func learn_ranger_host(game: Node, id: int) -> bool:
+	if not check(id!=0,"real Ranger guest is admitted"):return false
+	var player: Dictionary=game.players[id]
+	mark("ranger-learn")
+	var first := func() -> bool:
+		return (read("ranger-first")=="ok" and Ranger.TREE.path(player.character)==["wildstalker"]
+			and player.get("projection_delivery",{}).get("state")=="committed")
+	if not check(await until(first),"host commits only the earned focus at level one"):return false
+	game.run_guarded_action(id,game.Transactions.Scope.GARDEN,func(effects):
+		player.character.xp[2]=2600
+		game.save_action_profile(id,effects))
+	var complete := func() -> bool:
+		return (read("ranger-learned")=="ok" and Ranger.TREE.path(player.character)==RANGER_PATH
+			and player.character.upgrades[2]==0 and player.get("projection_delivery",{}).get("state")=="committed")
+	return check(await until(complete),"host commits six connected Ranger choices without touching legacy masks")
+
+
+func learn_ranger_guest(game: Node) -> bool:
+	if not check(await until(func():return read("ranger-learn")=="ok"),"Ranger is at the real Garden Gate"):return false
+	game.send_garden_action(ranger_request("wildstalker"))
+	if not check(await until(func():return Ranger.TREE.path(game.guest_character.data)==["wildstalker"]),"guest saves the Ranger focus"):return false
+	game.send_garden_action(ranger_request("long_draw"))
+	if not check(await until(func():return "Reach Ranger level 2" in game.status),"host refuses premature Ranger node"):return false
+	mark("ranger-first")
+	if not check(await until(func():return game.guest_character.data.xp[2]==2600),"guest receives the test’s earned XP"):return false
+	game.send_garden_action(ranger_request("trail_ward"))
+	if not check(await until(func():return "connected to your last selection" in game.status),"host refuses direct Offensive to Defensive jump"):return false
+	for index in range(1,RANGER_PATH.size()):
+		game.send_garden_action(ranger_request(RANGER_PATH[index]))
+		if not check(await until(func():return Ranger.TREE.path(game.guest_character.data)==RANGER_PATH.slice(0,index+1)),
+				"guest saves the next connected Ranger choice"):return false
+	game.send_garden_action(ranger_request("escape_route"))
+	if not check(await until(func():return "next tier" in game.status),"host refuses a second capstone"):return false
+	mark("ranger-learned")
+	return true
+
+
+func exercise_ranger_host(game: Node,id: int,entry: Vector3,target: Vector3,events: Array) -> bool:
+	var ranger: Dictionary=game.players[id]
+	var ally: Dictionary=game.players[1]
+	game.enemy_hp=150
+	game.enemy_pos=target
+	game.enemy_stagger_until=Time.get_ticks_msec()+12000
+	ranger.pos=entry
+	ally.pos=entry
+	var direction := entry.direction_to(target)
+	mark("ranger-q",JSON.stringify([direction.x,direction.z]))
+	var prey_ready := func() -> bool:
+		return (int(game.enemy_traits.get(RangerCombat.PREY,{}).get("owner",0))==id
+			and ranger.has(RangerCombat.DOUBLE) and read("ranger-prey-seen")=="ok")
+	if not check(await until(prey_ready),"actual guest Salvo tracks its survivor and prepares Double Draw"):return false
+	ally.strike_at=0
+	ally.mouse_aim=false
+	ally.facing=direction
+	game.strike_enemy(1,ally,entry)
+	var prey_spent := func() -> bool:
+		return (not game.enemy_traits.has(RangerCombat.PREY) and game.combat_events.any(func(e):
+			return e.shape=="Tracked Prey triggered"))
+	if not check(await until(prey_spent),"host’s actual direct strike consumes the guest Ranger’s prep"):return false
+	var serial: int=game.combat_event_serial
+	var before := events.filter(func(e):return e.source_actor==id and e.kind=="weapon_contact").size()
+	ranger.strike_at=0
+	mark("ranger-shoot")
+	var arrows := func() -> bool:
+		return game.combat_events.filter(func(e):return e.id>serial and e.kind=="projectile" and e.shape=="arrow").size()==2
+	if not check(await until(arrows),"remote ordinary attack releases two authoritative arrows"):return false
+	var contact := func() -> bool:
+		return events.filter(func(e):return e.source_actor==id and e.kind=="weapon_contact").size() > before
+	if not check(await until(contact),"remote main arrow hits the real enemy"):return false
+	check(events.filter(func(e):return e.source_actor==id and e.kind=="weapon_contact").size()==before+1
+		and not ranger.has(RangerCombat.DOUBLE) and not ranger.has(RangerCombat.FOLLOW),
+		"the second arrow inherits no Form contact, follows the original aim and spends its preparation")
+	return true
+
+
+func exercise_ranger_guest(game: Node,id: int) -> bool:
+	if not check(await until(func():return not read("ranger-q").is_empty()),"guest receives the real Salvo test position"):return false
+	var aim: Array=JSON.parse_string(read("ranger-q"))
+	game.send_garden_action(Aim.request(game,game.players[id],0,Vector2(float(aim[0]),float(aim[1]))))
+	if not check(await until(func():return game.guest_combat_events(game.players[id]).any(func(e):return e.shape==RangerCombat.PREY)),
+			"guest sees a separate Tracked Prey status"):return false
+	mark("ranger-prey-seen")
+	if not check(await until(func():return read("ranger-shoot")=="ok"),"host consumes the guest’s Tracked Prey"):return false
+	game.send_action(true)
 	return true
 
 
@@ -546,6 +666,8 @@ func install_party_grafts(game: Node, ids: Array) -> bool:
 func guest(menu: Node, role: String) -> void:
 	menu.request_create_character()
 	var starting_class: int = [1,2,4][clampi(int(role)-1,0,2)] if native_graft_case or connected_weaver_case else 0
+	if connected_ranger_case:
+		starting_class=[2,1,4][clampi(int(role)-1,0,2)]
 	menu.create_character("Frost guest "+role,starting_class,Appearance.DEFAULT)
 	if not check(await until(func():return read("host")=="ok"),"host ready"):return
 	begin_join(menu)
@@ -565,7 +687,9 @@ func guest(menu: Node, role: String) -> void:
 		game.send_garden_action("loadpart_2_"+picks[2])
 	if native_graft_case:
 		game.send_garden_action("loadweapon_1")
-		game.send_garden_action("learn_%d_%d" % [starting_class,64 if starting_class==1 else 12])
+		game.send_garden_action("learn_%d_%d" % [starting_class,64 if starting_class in [1,2] else 12])
+	if connected_ranger_case and starting_class==2 and not await learn_ranger_guest(game):
+		return
 	if connected_weaver_case and starting_class==1 and not await learn_weaver_guest(game):
 		return
 	if connected_warden_case and not await learn_connected_guest(game):
@@ -604,6 +728,8 @@ func guest(menu: Node, role: String) -> void:
 			return e.shape=="nova" and is_equal_approx(float(e.reach),2.0) and Vector3(e.to[0],e.to[1],e.to[2]).distance_to(center)<.2)),
 			"authoritative secondary Nova position reaches the real guest"):return
 		mark("weaver-nova-seen")
+	elif connected_ranger_case and starting_class==2:
+		if not await exercise_ranger_guest(game,id): return
 	elif int(picks[2])>0:
 		if not check(await until(func():return read("wood-guard-"+str(id))=="ok"),"host requests actual Wood Ward"):return
 		game.send_garden_action("class_skill")
@@ -627,7 +753,7 @@ func guest(menu: Node, role: String) -> void:
 			var marker := "vital-"+str(id)
 			check(await until(func():return not read(marker).is_empty() and int(game.players[id].max_hp)==int(read(marker))),"guest receives authoritative Vital capacity")
 			mark("vital-seen-"+str(id))
-	if party and not connected_weaver_case:
+	if party and not connected_weaver_case and not connected_ranger_case:
 		if measure_packets: await sample_guest_snapshots(game,id)
 		if mixed_wood_ward and measure_packets: await verify_current_snapshot_guest(game,id)
 		if check(await until(func():return read("party-done")=="ok",22000),"host observes mixed-source party"):
@@ -640,6 +766,12 @@ func guest(menu: Node, role: String) -> void:
 		var expected := int(read("ct-xp"))
 		check(expected>2600 and game.guest_character.data.xp[0]==expected and canonical.load(game.guest_character.path)==OK
 			and canonical.get_value("character","progress",{}).get("xp",[])[0]==expected,"guest's displayed profile and local save agree with host whole XP")
+	if connected_ranger_case and starting_class==2:
+		var canonical := ConfigFile.new()
+		var expected := int(read("ranger-xp"))
+		check(expected>2600 and canonical.load(game.guest_character.path)==OK
+			and Ranger.TREE.path(canonical.get_value("character","progress",{}))==RANGER_PATH
+			and game.guest_character.data.xp[2]==expected,"guest canonical file and host agree on Ranger path and floor XP")
 	if connected_weaver_case and starting_class==1:
 		var canonical := ConfigFile.new()
 		var expected := int(read("weaver-xp"))
@@ -676,6 +808,22 @@ func guest(menu: Node, role: String) -> void:
 		var profile: Dictionary = rejoined.guest_character.data
 		check(Weaver.TREE.path(profile)==WEAVER_PATH and rejoined.Skills.resolve_in_world(rejoined,1,0,profile).name=="Cultivate Bloom"
 			and profile.xp[1]==int(read("weaver-xp")),"committed Weaver path, focus and earned XP survive rejoin")
+	if connected_ranger_case:
+		var rejoined = tree.current_scene
+		var profile: Dictionary=rejoined.guest_character.data
+		check(Ranger.TREE.path(profile)==RANGER_PATH and profile.xp[2]==int(read("ranger-xp"))
+			and rejoined.Skills.resolve_in_world(rejoined,2,0,profile).name=="Hunter’s Salvo"
+			and rejoined.Skills.resolve_in_world(rejoined,2,1,profile).name=="Bramble Snare",
+			"rejoin retains all six choices, XP, focus Q and R")
+		mark("rejoined")
+		var at_heart := func() -> bool:
+			return read("ranger-respec-now")=="ok" and rejoined.at_heart(rejoined.players[rejoined.local_player_id()])
+		if not check(await until(at_heart),"rejoined Ranger is in reach of the Heart for respec"):return
+		rejoined.send_garden_action("respec_2")
+		var cleared := func() -> bool:
+			return Ranger.TREE.path(rejoined.guest_character.data).is_empty() and rejoined.guest_character.data.xp[2]==int(read("ranger-xp"))
+		if not check(await until(cleared),"guest acknowledges refunded choices and preserved XP"):return
+		mark("ranger-refunded")
 	mark("rejoined")
 	check(await until(func():return read("saved")=="ok"),"host verifies no replay or debit")
 	check(await until(func():return read("offline")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"guest observes host shutdown")

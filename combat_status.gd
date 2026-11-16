@@ -1,7 +1,8 @@
 extends RefCounted
 # Host-derived presentation state. Never stored in character/Garden saves.
 const Warden = preload("res://warden_combat.gd")
-const LABELS={"spirit_stride":"Spiritstride","spirit_prepared":"Spirit follow-up prepared","spirit_ready":"Spirit follow-up ready","storm_charge":"Storm Charge","subclass_follow_ready":"Follow-up ready","warden_quake_ready":"Quake prepared","holdfast":"Holdfast","protective_filaments":"Protective Filaments","slow":"Slowed","guard":"Warded","counter":"Counter ready","prepared_mark":"Mark ready","grave":"Death charge","echo":"Echo charge","marked":"Marked","core_strike_mark":"Core Mark","crown_link":"Crownlink","brittle":"Brittle","burning":"Burning","bleeding":"Bleeding","thorn_slow":"Thorn growth","drenched":"Drenched","vitality":"Vitality","bark_armor":"Bark Armor","rooted":"Rooted","staggered":"Staggered","haste":"Hastened","bark_guard":"Bark Guard","sheltered":"Sheltered","trophy_carrier":"Carrying trophy","rallied":"Rallied","uprooting":"Uprooting","core_exposed":"Core exposed","nursery_lull":"Nursery lull","memory_exposed":"Memory exposed"}
+const Ranger = preload("res://ranger_combat.gd")
+const LABELS={"ranger_tracked_prey":"Tracked Prey","ranger_follow_through":"Follow-Through ready","ranger_double_draw":"Double Draw ready","spirit_stride":"Spiritstride","spirit_prepared":"Spirit follow-up prepared","spirit_ready":"Spirit follow-up ready","storm_charge":"Storm Charge","subclass_follow_ready":"Follow-up ready","warden_quake_ready":"Quake prepared","holdfast":"Holdfast","protective_filaments":"Protective Filaments","slow":"Slowed","guard":"Warded","counter":"Counter ready","prepared_mark":"Mark ready","grave":"Death charge","echo":"Echo charge","marked":"Marked","core_strike_mark":"Core Mark","crown_link":"Crownlink","brittle":"Brittle","burning":"Burning","bleeding":"Bleeding","thorn_slow":"Thorn growth","drenched":"Drenched","vitality":"Vitality","bark_armor":"Bark Armor","rooted":"Rooted","staggered":"Staggered","haste":"Hastened","bark_guard":"Bark Guard","sheltered":"Sheltered","trophy_carrier":"Carrying trophy","rallied":"Rallied","uprooting":"Uprooting","core_exposed":"Core exposed","nursery_lull":"Nursery lull","memory_exposed":"Memory exposed"}
 const REFRESH_IN_PLACE := ["spirit_stride","spirit_prepared","spirit_ready","storm_charge","grave","echo","sheltered","trophy_carrier","subclass_follow_ready","burning","drenched","vitality","bark_armor","bleeding","thorn_slow"]
 static func affinity_feedback(game: Node, player: Dictionary) -> String:
  var elapsed:=preload("res://affinity_time.gd").now(game)
@@ -15,6 +16,7 @@ static func affinity_feedback(game: Node, player: Dictionary) -> String:
   lines.append("Spirit follow-up %s · %.1fs"%[phase,(int(follow.until)-elapsed)/1000.0])
  return "  ·  ".join(lines)
 static func tint(kind: String) -> Color:
+ if kind==Ranger.PREY:return Ranger.PREY_COLOR
  if kind=="burning":return Color("#f29b57")
  if kind=="drenched":return Color("#82d7ec")
  return Color("#e6c079") if kind in ["guard","counter","grave","bark_guard","sheltered","trophy_carrier","cast_break"] else Color("#d8a2ed") if kind in ["marked","prepared_mark","echo","mark_break","core_strike_mark"] else Color("#95d7ed") if kind in ["brittle","slow","shatter"] else Color("#a6d695")
@@ -53,6 +55,9 @@ static func sync(game: Node,now: int) -> void:
    add(desired,game,"warden_quake_ready",id,false,Warden.prepared_until(game,player,now),1,now)
   elif preload("res://subclass_combat.gd").follow_lane(game,player)>=0:
    add(desired,game,"subclass_follow_ready",id,false,now+60000,1,now)
+  for preparation in [Ranger.FOLLOW,Ranger.DOUBLE]:
+   if player.has(preparation):
+    add(desired,game,preparation,id,false,Ranger.prepared_until(game,player,preparation,now),1,now)
   for pair in [["grave","grave_charges"],["echo","echo_charge"]]:
    var graft_state: Dictionary = player.get("native_graft_state", {})
    var charges := int(player.get(pair[1],0)) + int(graft_state.get(pair[1],0))
@@ -63,6 +68,9 @@ static func sync(game: Node,now: int) -> void:
   add(desired,game,"marked",target,true,int(state.get("marked_until",0)),1,now)
   var core_mark:=preload("res://core_strike_mark.gd").active(game,state,now)
   add(desired,game,"crown_link" if core_mark.has("partner") else "marked" if core_mark.get("subclass",false) else "core_strike_mark",target,true,int(core_mark.get("until",0)),1,now)
+  if state.has(Ranger.PREY):
+   var prey := Ranger.active_prey(game,state,now)
+   add(desired,game,Ranger.PREY,target,true,int(prey.get("until",0)),1,now)
   var root_until: int = game.rooted_until if target==-1 else int(game.scouts[target].get("rooted_until",0))
   if game.has_meta(&"combat_affinity_ruleset"):
    var frost = preload("res://frost_combat.gd")

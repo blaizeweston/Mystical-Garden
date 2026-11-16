@@ -1648,6 +1648,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	var cast_origin: Vector3=player.pos
 	var effect_point: Vector3=player.pos
 	var recipients: Array[int] = []
+	var ranger_snare := {}
 	var mode:=str(skill.mode)
 	var aimed: bool=player.has("class_aim")
 	var plan: Dictionary={}
@@ -1704,7 +1705,15 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 			effect_point=point
 		"snare","snare_field":
 			effect_point=plan.center if aimed else battlefield.dash(player.pos,point if target!=-2 else player.pos+Vector3(player.facing)*range_limit)
-			Traits.place_snare(self,player,effect_point,skill,stats,now)
+			if skill.has("ranger_nodes") and battlefield.occupied(effect_point):
+				tell(id,"Bramble Snare needs supported ground.")
+				return
+			var placed := Traits.place_snare(self,player,effect_point,skill,stats,now)
+			if skill.has("ranger_nodes"):
+				if placed.is_empty():
+					tell(id,"Bramble Snare could not be set. Wait for an active effect to expire.")
+					return
+				ranger_snare = placed
 		"volley","reap":
 			if target==-2 or player.pos.distance_to(point)>float(stats.reach)+(float(skill.get("travel",3)) if mode=="reap" else 0.0):
 				tell(id,"No enemy within skill range.")
@@ -1792,8 +1801,11 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	player.contributed=true
 	if bonus_heal>0: Life.Sustain.heal(self,player,bonus_heal,"class_healing_bonus")
 	player[timer]=now+Skills.Balance.cooldown(skill,stats)
+	var ranger_feedback := ""
+	if not ranger_snare.is_empty():
+		ranger_feedback = preload("res://ranger_combat.gd").finish_snare(self,player,ranger_snare,cast_origin,now)
 	combat_events_api.class_complete(self,event,adapter,cast_origin,effect_point,catalyst_targets,recipients,now,secondary_radius)
-	if slot==1 and skill.has("subclass_focus") and (not native_weaver_nova or skill.subclass_follow_lane != 0):
+	if slot==1 and skill.has("subclass_focus") and not skill.has("ranger_nodes") and (not native_weaver_nova or skill.subclass_follow_lane != 0):
 		preload("res://subclass_combat.gd").follow_through(self,player,skill,effect_point,targets,now)
 	if native_weaver_nova:
 		weaver.complete_nova(self,id,player,skill.weaver_nodes,effect_point,weaver_impact,now)
@@ -1803,7 +1815,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	player.cast_until=now+550
 	emit_combat_event("ability",mode,cast_origin,effect_point,.8,Color(skill.color),maxf(.8,radius),id)
 	preload("res://event_audio.gd").emit(self,"combat_cast",cast_origin)
-	tell(id,"%s used."%skill.name)
+	tell(id,"%s used."%skill.name if ranger_feedback.is_empty() else ranger_feedback)
 	if encounter_cleared(): finish_combat(id,enemy_position(targets.back()) if not targets.is_empty() else effect_point)
 
 func grant_guard(player: Dictionary,until: int,charges: int) -> void:
@@ -1866,6 +1878,11 @@ func apply_skill_targets(player: Dictionary,targets: Array[int],skill: Dictionar
 			hit.stagger=int(stats.get("stagger",0))+int(skill.get("stagger",0))
 			hit.recovery=int(stats.get("recovery",0))+recovery
 			hit.knockback=float(skill.get("push",0))-.35
+			if adjustment.get("isolated",false):
+				hit = {"damage":0.0,"affinity_hp":Life.Preview.effect_hp(damage),"trait_secondary":true,
+					"core_hit":true,"knockback":-.35}
+			else:
+				hit.ranger_direct_hit = not stats.get("ranger_trap_contact",false) and skill.mode != "salvo"
 			var before:=enemy_hp if target==-1 else int(scouts[target].hp)
 			apply_weapon_hit(player,target,adjustment.get("origin",skill.get("effect_origin",player.pos)),hit,now)
 			if Life.Preview.enabled and Life.Sustain.eligible(self,target):
@@ -2257,6 +2274,8 @@ func move_player(id: int, direction: Vector2, delta: float) -> void:
 		p.facing = move.normalized()
 	var guard_speed: float=.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0
 	var stride := preload("res://spirit_affinity.gd").scale(p,preload("res://affinity_time.gd").now(self)) if p.has("affinity_spirit_strides") else 1.0
+	if p.has("ranger_speed_grants"):
+		stride = maxf(stride,preload("res://ranger_combat.gd").speed_scale(self,p,Time.get_ticks_msec()))
 	var desired := bound_position(p.pos + move * WALK_SPEED * guard_speed * stride * (0.6 if Time.get_ticks_msec() < int(p.get("slow_until", 0)) else 1.0) * delta, p.wild)
 	var previous: Vector3=p.pos
 	if p.wild:
@@ -2909,6 +2928,9 @@ func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 				stats[grafts.CONTEXT] = grafts.capture(p, affinity_build.graft)
 		stats[events.CONTEXT] = event
 		stats.erase("affinity_build")
+		if int(p.frame)==Frames.RANGER and has_meta(&"combat_affinity_ruleset") and p.character.has(Classes.Ranger.PROFILE_KEY) \
+				and not p.get("skill_burst",false) and not p.has("cr02_class_strike"):
+			stats.ranger_ordinary = true
 	if p.get("skill_burst",false):
 		stats.targets=mini(5,int(stats.targets)+int(p.get("skill_burst_targets",2)))
 		stats.damage+=int(p.get("skill_burst_damage",1))
@@ -2959,6 +2981,9 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 	if Life.Preview.authored_amount(float(stats.damage))>0.0 and not stats.get("trait_secondary",false) and not stats.get("core_hit",false):
 		authored_damage+=preload("res://core_strike_mark.gd").consume(self,p,target,now)
 	var damage := int(stats.affinity_hp) if stats.has("affinity_hp") else Life.Preview.resolved_hit(authored_damage,stats)
+	damage += int(stats.get("native_bonus_hp",0))
+	if damage > 0 and stats.get("ranger_direct_hit",false) and has_meta(&"combat_affinity_ruleset") and not stats.get("trait_secondary",false) and not stats.get("core_hit",false):
+		damage += preload("res://ranger_combat.gd").consume_prey(self,p,target,now)
 	var push:=0.35+float(stats.get("knockback",0))
 	var mutations: int=enemy_mutations if target==-1 else int(scouts[target].get("mutations",0))
 	if not preload("res://enemy_support.gd").shelter_source(self,target,point,origin,now).is_empty():
@@ -3767,6 +3792,8 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 	for id in players:
 		var p: Dictionary = players[id]
 		var stride := preload("res://spirit_affinity.gd").scale(p,preload("res://affinity_time.gd").now(self)) if p.has("affinity_spirit_strides") else 1.0
+		if p.has("ranger_speed_grants"):
+			stride = maxf(stride,preload("res://ranger_combat.gd").speed_scale(self,p,Time.get_ticks_msec()))
 		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":(.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get("slow_until",0)) else 1.0)*stride,"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":p.get("party_slot",0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": p.wild, "fallen":p.fallen,"lost_health":p.get("lost_health",0), "hp": p.hp, "max_hp": p.get("max_hp", MAX_HEALTH), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
 			"attack_anim":attack_animation_snapshot(p),"skill_fx":p.get("skill_fx",{}) if Time.get_ticks_msec()<int(p.get("skill_fx_until",0)) else {}, "weapon_kind":p.get("weapon_kind",0), "core_part":p.weapon if p.wild else p.prepared, "pose": combat_pose(p), "wallet": run_wallet(p),"skill_ready":Time.get_ticks_msec()>=int(p.skill_at),"skill_two_ready":Time.get_ticks_msec()>=int(p.get("skill_two_at",0)),"skill_cooldowns":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get("skill_two_at",0))-Time.get_ticks_msec())/1000.0)]}
 		if stage.experimental_garden != null and not p.wild:
@@ -5295,6 +5322,7 @@ func combat_events_snapshot() -> Array:
 func update_projectiles(now: int) -> void:
 	for shot in projectile_queue.duplicate():
 		if int(shot.epoch)!=combat_epoch or not players.has(shot.player) or not Life.alive(players[shot.player]):projectile_queue.erase(shot);continue
+		if shot.has("life") and int(shot.life)!=int(players[shot.player].get("lost_health",0)):projectile_queue.erase(shot);continue
 		if shot.get("melee_shape",false):
 			if now>=int(shot.due):
 				preload("res://event_audio.gd").weapon(self,shot.form,players[shot.player].pos)
@@ -5314,17 +5342,24 @@ func update_projectiles(now: int) -> void:
 			var owner: Dictionary=players[shot.player]
 			if owner.has("affinity_spirit_follow"):
 				preload("res://spirit_affinity.gd").launch(self,owner,shot.stats,rays.size())
+			if shot.stats.get("ranger_ordinary",false):
+				var second_shot := preload("res://ranger_combat.gd").launch(self,owner,shot,now)
+				if not second_shot.is_empty():
+					rays.append(second_shot)
 			for ray in rays:
 				if not is_same(ray,shot):projectile_queue.append(ray)
 				var form: String=ray.form
 				var flight:=maxf(.03,(int(ray.due)-int(ray.release))/1000.)
-				emit_combat_event("projectile",str(WeaponMotion.profile(form).shape),ray.origin,ray.aim,flight,weapon_effect_color(players[ray.player]),float(ray.stats.reach),0,preload("res://weapon_contact.gd").describe(form,ray.stats))
+				var color := weapon_effect_color(players[ray.player])
+				if ray.get("ranger_secondary",false):
+					color = color.lerp(Color("#e6bd69"),.65)
+				emit_combat_event("projectile",str(WeaponMotion.profile(form).shape),ray.origin,ray.aim,flight,color,float(ray.stats.reach),0,preload("res://weapon_contact.gd").describe(form,ray.stats))
 				ray.visual_event_id=combat_event_serial
 		for ray in rays:
 			if MouseCombat.ray_tick(self,ray,now):
 				if ray.has("visual_event_id"):emit_combat_event("projectile_end",str(ray.visual_event_id),ray.origin,ray.get("visual_stop",ray.aim),.15,Color.WHITE,0,0)
 				var owner: Dictionary=players[ray.player]
-				if owner.has("affinity_spirit_follow"):
+				if owner.has("affinity_spirit_follow") and not ray.get("ranger_secondary",false):
 					preload("res://spirit_affinity.gd").finish(self,owner,ray.stats)
 				projectile_queue.erase(ray)
 

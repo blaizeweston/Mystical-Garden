@@ -1,6 +1,7 @@
 extends RefCounted
 ## Each row defines a class. Each focus owns its skill, release style and checkpoint card.
 const Graph = preload("res://warden_tree.gd")
+const Ranger = preload("res://ranger_connected_tree.gd")
 const Weaver = preload("res://weaver_connected_tree.gd")
 const FOCUSES := [
  [
@@ -518,16 +519,16 @@ static func lane_at(profile: Dictionary, class_id: int, tier: int) -> int:
 
 
 static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionary, connected := false) -> Dictionary:
-	var use_connected := class_id == 1 and connected
-	var selected := Weaver.TREE.path(profile) if use_connected else []
+	var tree = (Weaver.TREE if class_id == 1 else Ranger.TREE if class_id == 2 else null) if connected else null
+	var selected: Array = tree.path(profile) if tree != null else []
 	var entry := focus(profile,class_id)
-	if use_connected and not selected.is_empty():
-		entry = FOCUSES[0][Weaver.TREE.lane_at(selected,0)]
+	if not selected.is_empty():
+		entry = FOCUSES[class_id-1][tree.lane_at(selected,0)]
 	if entry.is_empty():
 		return base
 	var result := entry.duplicate(true) if slot == 0 else base
 	result.subclass_focus = entry.id
-	if use_connected:
+	if tree != null and class_id == 1:
 		result.weaver_nodes = selected
 		if slot == 0 and entry.id == "thornbinder":
 			result.description = "Damage and root a visible foe and up to one nearby enemy."
@@ -535,15 +536,30 @@ static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionar
 			var node := Weaver.TREE.node(selected[tier])
 			if (tier in [1,2,4] and slot == 0) or (tier >= 3 and slot == 1):
 				result.description += "\n" + node.name + " · " + Weaver.description(node,entry.id)
+	elif tree != null:
+		result.ranger_nodes = selected
+		if slot == 0 and entry.id == "wildstalker":
+			result.description = Ranger.PREY_DESCRIPTION
+			result.erase("marks")
+		if slot == 1 and selected.has("snarecraft"):
+			result.radius = float(result.radius) + Ranger.CRAFT_RADIUS
+			result.trap_ms = int(result.get("trap_ms",3800)) + Ranger.CRAFT_MS
+		for tier in range(1,selected.size()):
+			if ((tier <= 2 or tier == 4 or selected[tier] == "double_draw") if slot == 0 else
+					(tier == 3 or selected[tier] in ["snarecraft","bramble_corridor","escape_route"])):
+				var node := Ranger.TREE.node(selected[tier])
+				result.description += "\n" + node.name + " · " + node.description
 	else:
 		for tier in range(1,4):
 			var lane := lane_at(profile,class_id,tier)
 			if lane >= 0 and (tier == 3) == (slot == 1):
 				result.description += "\n" + TITLES[class_id-1][tier-1][lane] + " · " + EFFECTS[tier-1][lane]
 	if slot != 0:
-		result.subclass_follow_lane = Weaver.TREE.lane_at(selected,3) if use_connected else lane_at(profile,class_id,3)
+		result.subclass_follow_lane = lane_at(profile,class_id,3) if tree == null else -1
+		if tree != null and class_id == 1:
+			result.subclass_follow_lane = Weaver.TREE.lane_at(selected,3)
 		return result
-	var first := Weaver.TREE.lane_at(selected,1) if use_connected else lane_at(profile,class_id,1)
+	var first: int = tree.lane_at(selected,1) if tree != null else lane_at(profile,class_id,1)
 	if first == 0:
 		if result.shape == "line":
 			result.width += .24
@@ -552,7 +568,11 @@ static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionar
 	if first == 1 and result.has("range"):
 		result.range += 1.25
 	result.first = first
-	result.second = Weaver.TREE.lane_at(selected,2) if use_connected else lane_at(profile,class_id,2)
+	result.second = tree.lane_at(selected,2) if tree != null else lane_at(profile,class_id,2)
+	if result.has("ranger_nodes"):
+		result.ranger_support_radius = float(result.get("radius",2.0))
+		if selected.has("trail_ward") or selected.has("clear_trail"):
+			result.description += "\nPost-Q support radius: %.2f m." % result.ranger_support_radius
 	return result
 
 

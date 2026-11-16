@@ -167,7 +167,7 @@ static func describe_preview(source: Dictionary, stats: Dictionary, ranks: Dicti
 		lines.append("Gale Focus: %s" % Balance.seconds(Balance.duration(skill,stats)))
 	if skill.has("marks"):
 		lines.append("Mark: +%s damage when consumed" % Balance.hp_text(Balance.MARK_POINTS))
-	if subclass and int(skill.get("second",-1))==0:
+	if subclass and int(skill.get("second",-1))==0 and not skill.has("ranger_nodes"):
 		var damage_text := "%d HP" % Classes.Weaver.BRANCHING_HP if connected_weaver else Balance.hp_text(Balance.FOLLOWUP_POINTS)
 		lines.append("Chained hit: %s damage" % damage_text)
 	if not connected_weaver and int(skill.get("subclass_follow_lane",-1))==0:
@@ -189,7 +189,7 @@ static func wild_tooltips(game: Node, player: Dictionary, skills: Array) -> Arra
 		# Only resolve the equipped build again when inputs to the class effects change.
 		var key := [rules.active(game),player.frame,player.character.get("upgrades",[]),
 			player.character.get(Classes.Warden.Connected.PROFILE_KEY),
-			player.character.get(Classes.Weaver.PROFILE_KEY), player.weapon_kind,player.weapon,
+			player.character.get(Classes.Weaver.PROFILE_KEY), player.character.get(Classes.Ranger.PROFILE_KEY), player.weapon_kind,player.weapon,
 			player.secondary,player.catalyst,player.graft_part,player.technique,player.power,ranks]
 		var cached: Dictionary = game.get_meta("class_skill_tooltip_stats",{})
 		if cached.get("key",[]) != key:
