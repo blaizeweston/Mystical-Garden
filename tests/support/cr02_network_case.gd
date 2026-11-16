@@ -121,7 +121,8 @@ func host(menu: Node, mismatch: bool) -> void:
 	world.apply_enemy_hit(guest_id(world),remote,Time.get_ticks_msec(),1)
 	check(events.size()==2 and events[1].source_actor==1 and events[1].details.recipient==guest_id(world),
 		"host-granted Ward responds around its protected remote ally")
-	# Exercise the actual card presentation/ready route at a cleared checkpoint.
+	# Both actors have native-only kits. A cleared checkpoint exercises the
+	# real reliable offer UI and owner-validated command path.
 	world.encounter_number=6
 	world.deepest_milestone=6
 	world.enemy_hp=0
@@ -129,16 +130,31 @@ func host(menu: Node, mismatch: bool) -> void:
 	world.encounter_rewarded=true
 	local.pos=world.battlefield.advance
 	remote.pos=local.pos
+	remote.essence_sparks=0
+	local.spent=world.run_wallet(local)
 	local.checkpoint_offers=["rift_hook"]
 	world.use_checkpoint(1,true)
-	var money: int = world.run_wallet(local)
-	check(world.checkpoint_notice.text==Rules.EMPTY_CARDS and not world.buy_upgrade(1,local,0)
-		and world.run_wallet(local)==money,"empty compatible cards are clear and cost no Essence")
-	world.choose_checkpoint_card(1,local,-1)
+	var cards_api = world.AffinityCards
+	var host_cards: Dictionary = cards_api.state(local)
+	var remote_cards: Dictionary = cards_api.state(remote)
+	var initial: Dictionary = remote_cards.offer.duplicate(true)
+	check(world.checkpoint_cards.get_child_count()==3 and "free" in world.checkpoint_notice.text
+		and world.run_wallet(local)==0 and not world.buy_upgrade(1,local,0),
+		"new cards are offered at zero Essence and the legacy purchase remains refused")
+	world.present_checkpoint_cards(guest_id(world))
+	check(remote_cards.offer==initial,"reopening the guest's offer preserves its full revision")
+	world.send_garden_action(world.affinity_checkpoint_action(host_cards.offer.revision,"0"))
+	mark("cards")
+	if not check(await until(func(): return read("guest-cards")=="ok" and remote_cards.copies.size()==1),
+		"guest pays for rerolls and acquires one copy through the host"):return
+	check(remote_cards.offer.rerolls==3 and remote.spent==12 and world.run_wallet(remote)==0
+		and host_cards.copies.size()==1 and world.run_wallet(local)==0 and local.run_upgrades.is_empty()
+		and remote.run_upgrades.is_empty(), "host debits 2/4/6 once for the guest and neither free selection changes a wallet")
 	world.PartyTravel.request(world,1,"advance")
 	mark("checkpoint",str(world.travel_epoch))
-	if not check(await until(func(): return read("guest-ready")=="ok" and world.encounter_number==7),"no compatible card does not block actual onward Gate"):
-		return
+	if not check(await until(func(): return read("guest-ready")=="ok" and world.encounter_number==7),
+		"both selections preserve the actual onward Gate"):return
+	check(remote_cards.copies.size()==1 and host_cards.copies.size()==1,"independent copies survive floor travel")
 	mark("done")
 	await until(func(): return read("guest-done")=="ok")
 	world.return_to_main_menu()
@@ -172,9 +188,30 @@ func guest(menu: Node, mismatch: bool) -> void:
 	if not check(await until(func(): return read("guard")=="ok" and world.stage._has_experimental_floor()),"guest receives generated floor"):
 		return
 	world.send_garden_action("class_skill")
-	if not check(await until(func(): return not read("checkpoint").is_empty() and "No compatible affinity cards" in world.checkpoint_notice.text),"guest sees empty-card checkpoint"):
-		return
-	world.send_garden_action("checkpoint_choice_-1")
+	var offer_received := func() -> bool:
+		return read("cards")=="ok" and world.checkpoint_offer_revision>0 and world.checkpoint_cards.get_child_count()==3 and "12 Essence" in world.checkpoint_notice.text
+	if not check(await until(offer_received),
+		"guest receives three actual options and an authoritative starting wallet"):return
+	for balance in [10,6,0]:
+		var revision: int = world.checkpoint_offer_revision
+		world.send_garden_action(world.affinity_checkpoint_action(revision,"reroll"))
+		world.send_garden_action(world.affinity_checkpoint_action(revision,"0"))
+		world.send_garden_action(world.affinity_checkpoint_action(revision,"reroll"))
+		var reroll_received := func() -> bool:
+			return world.checkpoint_offer_revision>revision and "%d Essence" % balance in world.checkpoint_notice.text
+		if not check(await until(reroll_received),
+			"new offer revision and exact balance after reroll; stale requests do nothing"):return
+	var chosen: String = world.affinity_checkpoint_action(world.checkpoint_offer_revision,"0")
+	world.send_garden_action(chosen)
+	world.send_garden_action(chosen)
+	var local := func() -> Dictionary: return world.players.get(world.local_player_id(),{})
+	if not check(await until(func(): return local.call().get("affinity_run_cards",[]).size()==1 and local.call().get("wallet",-1)==0),
+		"guest sees one free acquired copy and the repaired wallet through normal details"):return
+	mark("guest-cards")
+	var gate_requested := func() -> bool:
+		return not read("checkpoint").is_empty() and int(world.party_travel_state().get("epoch",-1))==int(read("checkpoint"))
+	if not check(await until(gate_requested),
+		"host asks for onward readiness after card acquisition"):return
 	world.send_garden_action("travel_ready:"+read("checkpoint"))
 	mark("guest-ready")
 	if not check(await until(func(): return read("done")=="ok" and world.encounter_number==7),"guest sees authoritative next floor"):

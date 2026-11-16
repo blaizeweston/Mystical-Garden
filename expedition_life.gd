@@ -14,7 +14,8 @@ static func living_ids(game: Node) -> Array[int]:
 static func maximum(game: Node,p: Dictionary,prepared := false) -> int:
  return native_maximum(game,p,prepared)+int(p.get("affinity_vital_bonus",0))
 static func native_maximum(game: Node,p: Dictionary,prepared := false) -> int:
- return Vitals.maximum(Preview.hp(game.MAX_HEALTH),Preview.effect_hp(Preview.authored_amount(float(game.weapon_stats(p,prepared).get("max_health",0)))),int(p.get("lost_health",0)),Preview.scale())
+ var extra := preload("res://affinity_cards.gd").amount(p,"run_health") if not prepared else 0
+ return Vitals.maximum(Preview.hp(game.MAX_HEALTH),Preview.effect_hp(Preview.authored_amount(float(game.weapon_stats(p,prepared).get("max_health",0))))+extra,int(p.get("lost_health",0)),Preview.scale())
 static func down(game: Node,id: int,p: Dictionary,effects = null) -> void:
  p.hp=0;p.fallen=true;p.velocity=Vector3.ZERO;p.attack_until=0;p.swing_until=0
  p.erase("affinity_ward_claims");p.erase("frost_response");p.erase("affinity_ember_response")

@@ -37,6 +37,7 @@ var connected_weaver_case := false
 var connected_ranger_case := false
 var connected_reaper_case := false
 var connected_oracle_case := false
+var affinity_cards_case := false
 
 
 func check(ok: bool, label: String) -> bool:
@@ -368,6 +369,18 @@ func host(menu: Node) -> void:
 		mark("path-xp",str(selected_player.character.xp[graph.class_id]))
 	local.pos=game.battlefield.advance
 	for id in ids: game.players[id].pos=local.pos
+	if affinity_cards_case:
+		# Run the checkpoint UI on the cleared arena from the real combat
+		# above. Select encounter 3 to exercise the production card cadence.
+		game.encounter_number = 3
+		game.use_checkpoint(1,true)
+		check(game.checkpoint_cards.get_child_count()==3,"host receives a full offer after mixed-class combat")
+		game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,"0"))
+		mark("affinity-cards")
+		if not check(await until(func():return ids.all(func(id):return read("owned-"+str(id))=="ok")),
+			"all four players can claim independent upgrades"):return
+		for visitor in game.players.values():
+			check(visitor.affinity_cards.copies.size()==1 and visitor.spent==0,"free host/guest choice is owned once")
 	game.use_checkpoint(1,true)
 	mark("advance",str(game.travel_epoch))
 	if not check(await until(func():return game.depth==2 and ids.all(func(id):return read("guest-floor-"+str(id))=="ok")),
@@ -386,6 +399,9 @@ func host(menu: Node) -> void:
 	mark("extract",str(game.travel_epoch))
 	if not check(await until(func():return not game.expedition_active() and ids.all(func(id):return read("guest-garden-"+str(id))=="ok")),
 		"party extraction restores Garden"):return
+	if affinity_cards_case:
+		check(game.players.values().all(func(visitor):return not visitor.has("affinity_cards") and game.run_wallet(visitor)==0),
+			"real extraction clears all four purses and decks")
 	if connected_reaper_case:
 		check(selected_player.grave_charges==0,"normal extraction clears the authoritative native charge pool")
 	if party:
@@ -916,6 +932,14 @@ func guest(menu: Node, role: String) -> void:
 			mark("done-"+str(id))
 			check(await until(func():return read("offline")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"guest observes party shutdown")
 		return
+	if affinity_cards_case:
+		var offer_received := func() -> bool:
+			return read("affinity-cards")=="ok" and game.checkpoint_offer_revision>0 and game.checkpoint_cards.get_child_count()==3
+		if not check(await until(offer_received),"mixed-class guest receives three eligible cards"):return
+		game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,"0"))
+		if not check(await until(func():return game.players.get(id,{}).get("affinity_run_cards",[]).size()==1),
+			"mixed-class guest receives own copy details"):return
+		mark("owned-"+str(id))
 	if not check(await until(func():return not read("advance").is_empty() and game.enemy_hp==0 and int(game.party_travel_state().get("epoch",-1))==int(read("advance"))),"guest sees cleared Gate"):return
 	if connected_warden_case:
 		var canonical := ConfigFile.new()
@@ -937,6 +961,9 @@ func guest(menu: Node, role: String) -> void:
 			"committed guest bytes agree with host on Weaver path and XP after reward")
 	game.send_travel_ready(false)
 	if not check(await until(func():return game.depth==2 and game.stage.visual_field.configured_key.z==game.map_seed),"guest tracks next floor"):return
+	if affinity_cards_case:
+		check(await until(func():return game.players.get(id,{}).get("affinity_run_cards",[]).size()==1),
+			"mixed-class guest still owns its copy on the next floor")
 	mark("guest-floor-"+str(id))
 	if not check(await until(func():return not read("extract").is_empty() and int(game.party_travel_state().get("epoch",-1))==int(read("extract"))),"guest receives extraction"):return
 	game.send_travel_ready(false)

@@ -51,10 +51,11 @@ static func grant(game: Node, event: RefCounted, id: int) -> void:
 	var elapsed:=Clock.now(game)
 	var sources: Dictionary=p.get(STRIDES,{})
 	var key: String="%d/%s"%[event.actor,event.source]
-	var speed: float=event.potency().speed
+	var potency: Dictionary=event.potency()
+	var speed: float=potency.speed
 	var old: Dictionary=sources.get(key,{})
 	if int(old.get("until",0))>elapsed and float(old.speed)>speed: return
-	sources[key]={"actor":event.actor,"quality":event.quality,"speed":speed,"until":elapsed+STRIDE_MS}
+	sources[key]={"actor":event.actor,"quality":event.quality,"speed":speed,"until":elapsed+STRIDE_MS+int(potency.get("duration_bonus_ms",0))}
 	p[STRIDES]=sources
 
 

@@ -2,6 +2,7 @@
   "schema": 1,
   "full_after_days": 7,
   "systems": {
+    "affinity_cards": {"label": "Affinity expedition cards, rarity, Essence rerolls and owned effects", "files": ["affinity_cards.gd", "affinity_cards.gd.uid", "affinity_card_catalog.gd", "affinity_card_catalog.gd.uid"]},
     "oracle_progression": {"label": "Connected Oracle, native Omens and first-run focus admission", "files": ["oracle_connected_tree.gd", "oracle_connected_tree.gd.uid", "oracle_combat.gd", "oracle_combat.gd.uid", "oracle_omens.gd", "oracle_omens.gd.uid"]},
     "void_affinity": {"label":"Void wells, compression and bounded displacement", "files":["void_affinity.gd","void_affinity.gd.uid"]},
     "spirit_affinity": {"label":"Spirit stride, traces and attack claims", "files":["spirit_affinity.gd","spirit_affinity.gd.uid"]},
@@ -885,6 +886,8 @@
     ]
   },
   "game_functions": {
+    "mark_checkpoint_ready": ["expeditions", "affinity_cards"],
+    "affinity_checkpoint_action": ["expeditions", "affinity_cards"],
     "_experimental_spawn_reachable": ["hex_terrain", "terrain"],
     "_refuse_unowned_world": [
       "persistence_operations",
@@ -1111,9 +1114,7 @@
     "_unhandled_input": [
       "foundation"
     ],
-    "_unhandled_key_input": [
-      "foundation"
-    ],
+    "_unhandled_key_input": ["foundation", "affinity_cards"],
     "send_action": [
       "foundation"
     ],
@@ -1126,9 +1127,7 @@
     "garden_action": [
       "foundation"
     ],
-    "_garden_action": [
-      "foundation"
-    ],
+    "_garden_action": ["foundation", "affinity_cards"],
     "awaken_heart": [
       "knowledge"
     ],
@@ -1156,9 +1155,7 @@
     "award_combat_progress": [
       "loot"
     ],
-    "run_wallet": [
-      "expeditions"
-    ],
+    "run_wallet": ["expeditions", "affinity_cards"],
     "publish_character": [
       "foundation"
     ],
@@ -1171,12 +1168,7 @@
     "graft_chance": [
       "weapons"
     ],
-    "use_class_skill": [
-      "classes",
-      "combat",
-      "weapons",
-      "life"
-    ],
+    "use_class_skill": ["classes", "combat", "weapons", "life", "affinity_cards"],
     "grant_guard": [
       "classes"
     ],
@@ -1186,9 +1178,7 @@
     "skill_line_targets": [
       "classes"
     ],
-    "apply_skill_targets": [
-      "classes"
-    ],
+    "apply_skill_targets": ["classes", "affinity_cards"],
     "graft_altar_open": [
       "seeds"
     ],
@@ -1228,9 +1218,7 @@
     "checkpoint_offer_ids": [
       "expeditions"
     ],
-    "buy_upgrade": [
-      "expeditions"
-    ],
+    "buy_upgrade": ["expeditions", "affinity_cards"],
     "_buy_upgrade": [
       "expeditions"
     ],
@@ -1261,9 +1249,7 @@
     "bound_position": [
       "terrain"
     ],
-    "dodge_player": [
-      "combat"
-    ],
+    "dodge_player": ["combat", "affinity_cards"],
     "update_enemy": [
       "enemies"
     ],
@@ -1349,9 +1335,7 @@
     "rare_harvest_chance": [
       "seeds"
     ],
-    "strike_enemy": [
-      "combat"
-    ],
+    "strike_enemy": ["combat", "affinity_cards"],
     "apply_weapon_hit": [
       "combat",
       "weapons",
@@ -1387,9 +1371,7 @@
     "ending_message": [
       "expeditions"
     ],
-    "return_to_garden": [
-      "life"
-    ],
+    "return_to_garden": ["life", "affinity_cards"],
     "expedition_active": [
       "expeditions"
     ],
@@ -1439,9 +1421,7 @@
     "clear_spawn": [
       "terrain"
     ],
-    "reset_expedition": [
-      "expeditions"
-    ],
+    "reset_expedition": ["expeditions", "affinity_cards"],
     "identify_seed": [
       "seeds"
     ],
@@ -1463,9 +1443,7 @@
     "combat_pose": [
       "presentation"
     ],
-    "player_snapshot": [
-      "foundation"
-    ],
+    "player_snapshot": ["foundation", "affinity_cards"],
     "inventory_snapshot": [
       "items"
     ],
@@ -1478,9 +1456,7 @@
     "receive_state": [
       "foundation"
     ],
-    "_process": [
-      "foundation"
-    ],
+    "_process": ["foundation", "affinity_cards"],
     "living_scout_count": [
       "enemies"
     ],
@@ -1628,24 +1604,16 @@
     "checkpoint_all_ready": [
       "expeditions"
     ],
-    "checkpoint_card_data": [
-      "expeditions"
-    ],
+    "checkpoint_card_data": ["expeditions", "affinity_cards"],
     "present_checkpoint_cards": [
       "expeditions"
     ],
-    "open_checkpoint_cards": [
-      "expeditions"
-    ],
-    "choose_checkpoint_card": [
-      "expeditions"
-    ],
+    "open_checkpoint_cards": ["expeditions", "combat_affinity_contracts", "ui_copy", "affinity_cards"],
+    "choose_checkpoint_card": ["expeditions", "persistence_operations", "ui_copy", "gate_access", "affinity_cards"],
     "resume_checkpoint_if_ready": [
       "expeditions"
     ],
-    "build_run_flow_panels": [
-      "expeditions"
-    ],
+    "build_run_flow_panels": ["expeditions", "affinity_cards"],
     "build_grafting_panel": [
       "weapons"
     ],
@@ -1849,6 +1817,8 @@
     ]
   },
   "suites": {
+    "ec01_affinity_cards_party": {"kind": "party", "systems": ["affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "connection_flow", "world_snapshot", "hex_terrain"], "package": false},
+    "ec01_affinity_cards": {"kind": "unit", "systems": ["affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "life", "weapons"], "package": false},
     "ct05_oracle": {"kind": "unit", "systems": ["oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim"], "package": false},
     "ct05_oracle_coop": {"kind": "pair", "systems": ["oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim", "connection_flow", "world_snapshot", "hex_terrain"], "package": false},
     "ct05_oracle_party": {"kind": "party", "systems": ["oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim", "connection_flow", "world_snapshot", "hex_terrain"], "package": false},
@@ -1958,11 +1928,7 @@
       "systems": ["combat_affinity_contracts", "plant_affinities", "classes", "weapons"],
       "package": false
     },
-    "cr02_mode_coop": {
-      "kind": "pair",
-      "systems": ["combat_affinity_contracts", "hex_terrain", "connection_flow", "weapons", "garden"],
-      "package": false
-    },
+    "cr02_mode_coop": {"kind": "pair", "systems": ["combat_affinity_contracts", "hex_terrain", "connection_flow", "weapons", "garden", "affinity_cards"], "package": false},
     "cr02_mode_mismatch": {
       "kind": "pair",
       "systems": ["world_snapshot", "combat_affinity_contracts", "connection_flow"],
@@ -4476,6 +4442,9 @@
     "foundation_performance": "Optional performance benchmark, run explicitly; not a correctness release suite."
   },
   "relationships": [
+    ["expeditions", "affinity_cards", "Earned choices, owner revisions and expedition-only currency"],
+    ["affinity_cards", "combat_affinity_contracts", "Source-scoped contributions captured by existing combat actions"],
+    ["affinity_cards", "expedition_summary", "Acquired copy totals and inactive requirements in owner details"],
     ["class_tree_access", "oracle_progression", "level one focus admission and earned Oracle choices"],
     ["oracle_progression", "combat", "owned attack recovery and conditional support"],
     ["oracle_progression", "world_snapshot", "host-owned Omen details and status feedback"],
@@ -5472,6 +5441,7 @@
       }
     },
     "dodge_player": {
+      "ec01_1": {"match": "\t\tpreload(\"res://spirit_affinity.gd\").movement(self,p,previous,p.pos)\n\tvar recovery := DODGE_COOLDOWN_MS - int(weapon_stats(p).get(\"dodge_cooldown\",0))\n\tp.dodge_at = now + maxi(350,recovery - AffinityCards.amount(p,\"run_dodge_recovery\"))\n\n", "baseline": "\t\tpreload(\"res://spirit_affinity.gd\").movement(self,p,previous,p.pos)\n\tp.dodge_at = now + maxi(350,DODGE_COOLDOWN_MS-int(weapon_stats(p).get(\"dodge_cooldown\",0)))\n\n", "systems": ["affinity_cards"], "additive": true},
       "cr04c_spirit_0": {
         "match": "\t\tp.facing = facing\n\tvar previous: Vector3 = p.pos\n\tp.pos = battlefield.dash(p.pos, bound_position(p.pos + p.facing * DODGE_DISTANCE, true))\n\tif p.has(\"affinity_spirit_follow\"):\n\t\tpreload(\"res://spirit_affinity.gd\").movement(self,p,previous,p.pos)\n\tp.dodge_at = now + maxi(350,DODGE_COOLDOWN_MS-int(weapon_stats(p).get(\"dodge_cooldown\",0)))\n",
         "baseline": "\t\tp.facing = facing\n\tp.pos = battlefield.dash(p.pos, bound_position(p.pos + p.facing * DODGE_DISTANCE, true))\n\tp.dodge_at = now + maxi(350,DODGE_COOLDOWN_MS-int(weapon_stats(p).get(\"dodge_cooldown\",0)))\n",
@@ -5520,6 +5490,7 @@
       }
     },
     "_garden_action": {
+      "ec01_1": {"match": "\t\t\tif player.wild and not has_meta(Transactions.SESSION): close_flow_for(id)\n\t\treturn\n\tif action.begins_with(AffinityCards.COMMAND):\n\t\tif preload(\"res://combat_ruleset.gd\").active(self):\n\t\t\tAffinityCards.command(self,id,player,action)\n\t\treturn\n", "baseline": "\t\t\tif player.wild and not has_meta(Transactions.SESSION): close_flow_for(id)\n\t\treturn\n", "systems": ["affinity_cards"], "additive": true},
       "experimental_terrain_1": {
         "match": "\t\tif player.wild or slot<0 or slot>=progress.plots.size() or species<0 or species>=Seeds.NAMES.size() or player.pos.distance_to(stage.bed_position(slot))>1.65: return\n",
         "baseline": "\t\tif player.wild or slot<0 or slot>=progress.plots.size() or species<0 or species>=Seeds.NAMES.size() or player.pos.distance_to(Stage.PLOTS[slot])>1.65: return\n",
@@ -5915,6 +5886,7 @@
       }
     },
     "_process": {
+      "ec01_1": {"match": "\t\t\tif p.get(\"last_offer\", 0) != encounter_number:\n\t\t\t\tdetail_label.text += \"\\nE  Choose an upgrade   ·   %d Essence\" % (run_wallet(p) if multiplayer.is_server() else int(p.get(\"wallet\", 0)))\n\t\tif visual_field.has_seed_cache() and not p.get(\"cache_claimed\", false) and (\n", "baseline": "\t\t\tif p.get(\"last_offer\", 0) != encounter_number:\n\t\t\t\tdetail_label.text += \"\\nE  Review next-floor readiness\" if has_meta(&\"combat_affinity_ruleset\") else \"\\nE  Choose upgrade cards   ·   %d essence available\" % (run_wallet(p) if multiplayer.is_server() else int(p.get(\"wallet\", 0)))\n\t\tif visual_field.has_seed_cache() and not p.get(\"cache_claimed\", false) and (\n", "systems": ["affinity_cards"], "additive": true},
       "ct01_0": {
         "match": "\t\tskill_label.text += (\"\\n\" if not skill_label.text.is_empty() else \"\") + \"Q  %s%s\" % [\n\t\t\tSkills.resolve_in_world(self,int(p.frame),0,p.get(\"character\",guest_character.data)).name, \"\" if skill_ready else \" \u00b7 recovering\"]\n\t\tif difficulty_cycle > 0:\n",
         "baseline": "\t\tskill_label.text += (\"\\n\" if not skill_label.text.is_empty() else \"\") + \"Q  %s%s\" % [\n\t\t\tSkills.resolve(int(p.frame),0,p.get(\"character\",guest_character.data)).name, \"\" if skill_ready else \" \u00b7 recovering\"]\n\t\tif difficulty_cycle > 0:\n",
@@ -6401,45 +6373,6 @@
         ]
       }
     },
-    "choose_checkpoint_card": {
-      "guarded_expedition": {
-        "match": "\tif not Transactions.session_writable(self): return\n\tif not checkpoint_pending or not Life.alive(player) or not upgrade_checkpoint_open() or player.pos.distance_to(battlefield.advance)>preload(\"res://gate_interaction.gd\").RANGE or int(checkpoint_ready.get(id,0))==encounter_number: return\n\tif choice>=0:\n\t\tif not has_meta(Transactions.SESSION) and choice>=checkpoint_offer_ids(player).size(): return\n\t\tif not buy_upgrade(id,player,choice):\n\t\t\tif Transactions.session_writable(self): present_checkpoint_cards(id)\n\t\t\treturn\n\telif choice!=-1: return\n\tcheckpoint_ready[id]=encounter_number\n\tif has_meta(Transactions.SESSION):\n\t\t# Selection is independent of expedition settlement in guarded sessions.\n\t\tif id==HOST: close_run_flow_panel()\n\t\telif online_peer!=null: close_run_flow_panel.rpc_id(id)\n\t\treturn\n\tif PartyTravel.members(self,\"advance\").size()>1:\n\t\tif id==HOST: close_run_flow_panel()\n\t\telif online_peer!=null: close_run_flow_panel.rpc_id(id)\n\t\ttell(id,\"Upgrade chosen. Ready up at the gate.\")\n\t\treturn\n\tresume_checkpoint_if_ready()\n\tif checkpoint_pending: present_checkpoint_cards(id)\n\n",
-        "baseline": "\tif not checkpoint_pending or not Life.alive(player) or not upgrade_checkpoint_open() or player.pos.distance_to(battlefield.advance)>preload(\"res://gate_interaction.gd\").RANGE or int(checkpoint_ready.get(id,0))==encounter_number: return\n\tif choice>=0:\n\t\tif not has_meta(Transactions.SESSION) and choice>=checkpoint_offer_ids(player).size(): return\n\t\tif not buy_upgrade(id,player,choice):\n\t\t\tif Transactions.session_writable(self): present_checkpoint_cards(id)\n\t\t\treturn\n\telif choice!=-1: return\n\tcheckpoint_ready[id]=encounter_number\n\tif has_meta(Transactions.SESSION):\n\t\t# Selection is independent of expedition settlement in guarded sessions.\n\t\tif id==HOST: close_run_flow_panel()\n\t\telif online_peer!=null: close_run_flow_panel.rpc_id(id)\n\t\treturn\n\tif PartyTravel.members(self,\"advance\").size()>1:\n\t\tif id==HOST: close_run_flow_panel()\n\t\telif online_peer!=null: close_run_flow_panel.rpc_id(id)\n\t\ttell(id,\"Upgrade chosen. Ready up at the gate.\")\n\t\treturn\n\tresume_checkpoint_if_ready()\n\tif checkpoint_pending: present_checkpoint_cards(id)\n\n",
-        "systems": [
-          "persistence_operations",
-          "expeditions",
-          "ui_copy",
-          "gate_access"
-        ],
-        "additive": true
-      },
-      "guarded_garden_actions": {
-        "match": "\tif not checkpoint_pending or not Life.alive(player) or not upgrade_checkpoint_open() or player.pos.distance_to(battlefield.advance)>preload(\"res://gate_interaction.gd\").RANGE or int(checkpoint_ready.get(id,0))==encounter_number: return\n\tif choice>=0:\n\t\tif not has_meta(Transactions.SESSION) and choice>=checkpoint_offer_ids(player).size(): return\n\t\tif not buy_upgrade(id,player,choice):\n\t\t\tif Transactions.session_writable(self): present_checkpoint_cards(id)\n\t\t\treturn\n\telif choice!=-1: return\n\tcheckpoint_ready[id]=encounter_number\n\tif has_meta(Transactions.SESSION):\n\t\t# Selection is independent of expedition settlement in guarded sessions.\n\t\tif id==HOST: close_run_flow_panel()\n\t\telif online_peer!=null: close_run_flow_panel.rpc_id(id)\n\t\treturn\n\tif PartyTravel.members(self,\"advance\").size()>1:\n\t\tif id==HOST: close_run_flow_panel()\n\t\telif online_peer!=null: close_run_flow_panel.rpc_id(id)\n\t\ttell(id,\"Upgrade chosen. Ready up at the gate.\")\n\t\treturn\n\tresume_checkpoint_if_ready()\n\tif checkpoint_pending: present_checkpoint_cards(id)",
-        "baseline": "\tif not checkpoint_pending or not Life.alive(player) or not upgrade_checkpoint_open() or player.pos.distance_to(battlefield.advance)>preload(\"res://gate_interaction.gd\").RANGE or int(checkpoint_ready.get(id,0))==encounter_number: return\n\tif choice>=0:\n\t\tif choice>=checkpoint_offer_ids(player).size(): return\n\t\tif not buy_upgrade(id,player,choice):\n\t\t\tpresent_checkpoint_cards(id)\n\t\t\treturn\n\telif choice!=-1: return\n\tcheckpoint_ready[id]=encounter_number\n\tif PartyTravel.members(self,\"advance\").size()>1:\n\t\tif id==HOST: close_run_flow_panel()\n\t\telif online_peer!=null: close_run_flow_panel.rpc_id(id)\n\t\ttell(id,\"Upgrade chosen. Ready up at the gate.\")\n\t\treturn\n\tresume_checkpoint_if_ready()\n\tif checkpoint_pending: present_checkpoint_cards(id)",
-        "systems": [
-          "persistence_operations",
-          "expeditions",
-          "ui_copy",
-          "gate_access"
-        ],
-        "additive": true
-      },
-      "ui_copy": {
-        "match": "\tif not checkpoint_pending or not Life.alive(player) or not upgrade_checkpoint_open() or player.pos.distance_to(battlefield.advance)>preload(\"res://gate_interaction.gd\").RANGE or int(checkpoint_ready.get(id,0))==encounter_number: return\n\tif choice>=0:\n\t\tif choice>=checkpoint_offer_ids(player).size(): return\n\t\tif not buy_upgrade(id,player,choice):\n\t\t\tpresent_checkpoint_cards(id)\n\t\t\treturn\n\telif choice!=-1: return\n\tcheckpoint_ready[id]=encounter_number\n\tif PartyTravel.members(self,\"advance\").size()>1:\n\t\tif id==HOST: close_run_flow_panel()\n\t\telif online_peer!=null: close_run_flow_panel.rpc_id(id)\n\t\ttell(id,\"Upgrade chosen. Ready up at the gate.\")\n\t\treturn\n\tresume_checkpoint_if_ready()\n\tif checkpoint_pending: present_checkpoint_cards(id)\n\n",
-        "baseline": "\tif not checkpoint_pending or not Life.alive(player) or not upgrade_checkpoint_open() or player.pos.distance_to(battlefield.advance)>preload(\"res://gate_interaction.gd\").RANGE or int(checkpoint_ready.get(id,0))==encounter_number: return\n\tif choice>=0:\n\t\tif choice>=checkpoint_offer_ids(player).size(): return\n\t\tif not buy_upgrade(id,player,choice):\n\t\t\tpresent_checkpoint_cards(id)\n\t\t\treturn\n\telif choice!=-1: return\n\tcheckpoint_ready[id]=encounter_number\n\tif PartyTravel.members(self,\"advance\").size()>1:\n\t\tif id==HOST: close_run_flow_panel()\n\t\telif online_peer!=null: close_run_flow_panel.rpc_id(id)\n\t\ttell(id,\"Upgrade choice confirmed. Confirm readiness at the gate when you are ready to travel.\")\n\t\treturn\n\tresume_checkpoint_if_ready()\n\tif checkpoint_pending: present_checkpoint_cards(id)\n\n",
-        "systems": [
-          "ui_copy"
-        ],
-        "additive": true
-      },
-      "gate_range": {
-        "match": "preload(\"res://gate_interaction.gd\").RANGE",
-        "baseline": "2.25",
-        "systems": [
-          "gate_access"
-        ]
-      }
-    },
     "resume_checkpoint_if_ready": {
       "guarded_expedition": {
         "match": "\tif has_meta(Transactions.SESSION): return\n\tif PartyTravel.members(self,\"advance\").size()>1: return\n\tif not checkpoint_pending or not checkpoint_all_ready(): return\n\tfor id in players:\n\t\tif Life.alive(players[id]) and players[id].pos.distance_to(battlefield.advance)<=preload(\"res://gate_interaction.gd\").RANGE:\n\t\t\tuse_checkpoint(id,true)\n\t\t\treturn\n\n",
@@ -6608,6 +6541,7 @@
       }
     },
     "player_snapshot": {
+      "ec01_1": {"match": "\t\t\t\t\"party_travel\":PartyTravel.snapshot(self,id),\"seed_choice\": selected_seed(p), \"graft_choice\": p.graft_choice, \"cache_claimed\": p.cache_claimed})\n\t\t\tif p.wild and p.has(AffinityCards.STATE):\n\t\t\t\tstate[\"affinity_run_cards\"] = AffinityCards.project_owned(p,state.weapon_stats,DODGE_COOLDOWN_MS)\n\t\tstate.diagnostic_host=Journal.current.session_id if is_instance_valid(Journal.current) else \"\"\n", "baseline": "\t\t\t\t\"party_travel\":PartyTravel.snapshot(self,id),\"seed_choice\": selected_seed(p), \"graft_choice\": p.graft_choice, \"cache_claimed\": p.cache_claimed})\n\t\tstate.diagnostic_host=Journal.current.session_id if is_instance_valid(Journal.current) else \"\"\n", "systems": ["affinity_cards"], "additive": true},
       "ct03_ranger_1": {"match": "\t\tvar p: Dictionary = players[id]\n\t\tvar stride := preload(\"res://spirit_affinity.gd\").scale(p,preload(\"res://affinity_time.gd\").now(self)) if p.has(\"affinity_spirit_strides\") else 1.0\n\t\tif p.has(\"ranger_speed_grants\"):\n\t\t\tstride = maxf(stride,preload(\"res://ranger_combat.gd\").speed_scale(self,p,Time.get_ticks_msec()))\n\t\tvar state := {\"motion_radius\":bound_position(Vector3(1000,0,0)).x,\"motion_epoch\":net_motion.world_key(self,p),\"motion_ack\":net_motion.acknowledgement(id,net_motion.world_key(self,p)),\"motion_scale\":(.4 if Time.get_ticks_msec()<int(p.get(\"front_guard_until\",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get(\"slow_until\",0)) else 1.0)*stride,\"velocity\":p.get(\"velocity\",Vector3.ZERO),\"vitals_revision\":p.get(\"vitals_revision\",0),\"damage_seq\":p.get(\"damage_seq\",0),\"damage_amount\":p.get(\"damage_amount\",0),\"party_slot\":p.get(\"party_slot\",0),\"display_name\":p.character.get(\"name\",\"Wanderer\"),\"enemy_max_hp\":encounter_health(),\"pos\": p.pos, \"wild\": p.wild, \"fallen\":p.fallen,\"lost_health\":p.get(\"lost_health\",0), \"hp\": p.hp, \"max_hp\": p.get(\"max_hp\", MAX_HEALTH), \"appearance\": PackedByteArray(p.character.get(\"appearance\", [0,0,0,0,0])), \"frame\": p.frame,\n\t\t\t\"attack_anim\":attack_animation_snapshot(p),\"skill_fx\":p.get(\"skill_fx\",{}) if Time.get_ticks_msec()<int(p.get(\"skill_fx_until\",0)) else {}, \"weapon_kind\":p.get(\"weapon_kind\",0), \"core_part\":p.weapon if p.wild else p.prepared, \"pose\": combat_pose(p), \"wallet\": run_wallet(p),\"skill_ready\":Time.get_ticks_msec()>=int(p.skill_at),\"skill_two_ready\":Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)),\"skill_cooldowns\":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)]}\n", "baseline": "\t\tvar p: Dictionary = players[id]\n\t\tvar stride := preload(\"res://spirit_affinity.gd\").scale(p,preload(\"res://affinity_time.gd\").now(self)) if p.has(\"affinity_spirit_strides\") else 1.0\n\t\tvar state := {\"motion_radius\":bound_position(Vector3(1000,0,0)).x,\"motion_epoch\":net_motion.world_key(self,p),\"motion_ack\":net_motion.acknowledgement(id,net_motion.world_key(self,p)),\"motion_scale\":(.4 if Time.get_ticks_msec()<int(p.get(\"front_guard_until\",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get(\"slow_until\",0)) else 1.0)*stride,\"velocity\":p.get(\"velocity\",Vector3.ZERO),\"vitals_revision\":p.get(\"vitals_revision\",0),\"damage_seq\":p.get(\"damage_seq\",0),\"damage_amount\":p.get(\"damage_amount\",0),\"party_slot\":p.get(\"party_slot\",0),\"display_name\":p.character.get(\"name\",\"Wanderer\"),\"enemy_max_hp\":encounter_health(),\"pos\": p.pos, \"wild\": p.wild, \"fallen\":p.fallen,\"lost_health\":p.get(\"lost_health\",0), \"hp\": p.hp, \"max_hp\": p.get(\"max_hp\", MAX_HEALTH), \"appearance\": PackedByteArray(p.character.get(\"appearance\", [0,0,0,0,0])), \"frame\": p.frame,\n\t\t\t\"attack_anim\":attack_animation_snapshot(p),\"skill_fx\":p.get(\"skill_fx\",{}) if Time.get_ticks_msec()<int(p.get(\"skill_fx_until\",0)) else {}, \"weapon_kind\":p.get(\"weapon_kind\",0), \"core_part\":p.weapon if p.wild else p.prepared, \"pose\": combat_pose(p), \"wallet\": run_wallet(p),\"skill_ready\":Time.get_ticks_msec()>=int(p.skill_at),\"skill_two_ready\":Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)),\"skill_cooldowns\":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)]}\n", "systems": ["foundation", "ranger_progression"], "additive": true},
       "ct01_0": {
         "match": "\t\t\t\t\tstate[\"warden_anchor_point\"]=warden.anchor_point(self,p,now)\n\t\t\t\t\tstate[\"warden_relay_point\"]=warden.relay_point(self,p,now)\n\t\t\t\t\tstate[\"warden_quake_prepared\"]=warden.prepared_until(self,p,now)>0\n",
@@ -6798,6 +6732,7 @@
       }
     },
     "_unhandled_key_input": {
+      "ec01_1": {"match": "\t\t\tif event.is_action_pressed([\"upgrade_power\",\"upgrade_technique\",\"upgrade_synergy\",\"upgrade_fourth\"][index]):\n\t\t\t\tif checkpoint_offer_revision > 0:\n\t\t\t\t\tsend_garden_action(affinity_checkpoint_action(checkpoint_offer_revision, str(index)))\n\t\t\t\telse:\n\t\t\t\t\tsend_garden_action(\"checkpoint_choice_%d\"%index)\n\t\t\t\tget_viewport().set_input_as_handled()\n", "baseline": "\t\t\tif event.is_action_pressed([\"upgrade_power\",\"upgrade_technique\",\"upgrade_synergy\",\"upgrade_fourth\"][index]):\n\t\t\t\tsend_garden_action(\"checkpoint_choice_%d\"%index)\n\t\t\t\tget_viewport().set_input_as_handled()\n", "systems": ["affinity_cards"], "additive": true},
       "experimental_coop_1": {
         "match": "\t\tif stage.experimental_garden.can_view_development():\n",
         "baseline": "\t\tif stage.experimental_garden.available_here():\n",
@@ -7633,6 +7568,7 @@
       }
     },
     "checkpoint_card_data": {
+      "ec01_1": {"match": "func checkpoint_card_data(player: Dictionary) -> Array:\n\tif preload(\"res://combat_ruleset.gd\").active(self):\n\t\treturn [AffinityCards.view(self,player,int(checkpoint_ready.get(Traits.player_id(self,player),0))==encounter_number)]\n\tvar result: Array=[]\n", "baseline": "func checkpoint_card_data(player: Dictionary) -> Array:\n\tvar result: Array=[]\n", "systems": ["affinity_cards"], "additive": true},
       "cb05_0": {
         "match": "if Life.Preview.enabled and entry.has(\"class_behavior\"):\n\t\t\tvar details:=RunUpgrades.effect_text(entry)\n\t\t\tif not details.is_empty(): text+=\"\\n\\n\"+details\n\t\tif not str(entry.description).is_empty():text+=\"\\n\\n\"+str(entry.description)\n\t\tif not reason.is_empty(): text+=\"\\n\"+reason",
         "baseline": "if not str(entry.description).is_empty():text+=\"\\n\\n\"+str(entry.description)\n\t\tif not reason.is_empty(): text+=\"\\n\"+reason",
@@ -7668,17 +7604,6 @@
       "ui_copy": {
         "match": "\tvar result: Array=[]\n\tvar wallet: int=run_wallet(player)\n\tvar offers:=checkpoint_offer_ids(player)\n\tfor index in offers.size():\n\t\tvar entry:=RunUpgrades.get_upgrade(str(offers[index]))\n\t\tvar rank:=int(player.get(\"run_upgrades\",{}).get(entry.id,0))\n\t\tvar reason:=RunUpgrades.requirement(entry,player)\n\t\tvar text: String=\"%s \u00b7 %s\\n\\n%s\"%[entry.rarity,RunUpgrades.source_text(entry,player),RunUpgrades.effect_text(entry)]\n\t\ttext+=\"\\n\\nRank %d \u2192 %d%s\"%[rank,rank+1,\" / %d\"%int(entry.max_rank) if int(entry.max_rank)>0 else \"\"]\n\t\tif not str(entry.description).is_empty():text+=\"\\n\\n\"+str(entry.description)\n\t\tif not reason.is_empty(): text+=\"\\n\"+reason\n\t\tresult.append({\"choice\":index,\"id\":entry.id,\"title\":entry.name,\"rarity\":entry.rarity,\"description\":text,\"cost\":int(entry.cost),\"enabled\":int(player.last_offer)!=encounter_number and wallet>=int(entry.cost) and reason.is_empty()})\n\treturn result\n\n",
         "baseline": "\tvar result: Array=[]\n\tvar wallet: int=run_wallet(player)\n\tvar offers:=checkpoint_offer_ids(player)\n\tfor index in offers.size():\n\t\tvar entry:=RunUpgrades.get_upgrade(str(offers[index]))\n\t\tvar rank:=int(player.get(\"run_upgrades\",{}).get(entry.id,0))\n\t\tvar reason:=RunUpgrades.requirement(entry,player)\n\t\tvar text: String=\"%s \u00b7 %s\\n\\n%s\"%[entry.rarity,RunUpgrades.source_text(entry,player),RunUpgrades.effect_text(entry)]\n\t\ttext+=\"\\n\\nRank %d \u2192 %d%s\\n\\n%s\"%[rank,rank+1,\" / %d\"%int(entry.max_rank) if int(entry.max_rank)>0 else \"\",entry.description]\n\t\tif not reason.is_empty(): text+=\"\\n\"+reason\n\t\tresult.append({\"choice\":index,\"id\":entry.id,\"title\":entry.name,\"rarity\":entry.rarity,\"description\":text,\"cost\":int(entry.cost),\"enabled\":int(player.last_offer)!=encounter_number and wallet>=int(entry.cost) and reason.is_empty()})\n\treturn result\n\n",
-        "systems": [
-          "ui_copy"
-        ],
-        "additive": true
-      }
-    },
-    "open_checkpoint_cards": {
-      "cr02_affinity_contract": {"match": "\tvar combat_mode = preload(\"res://combat_ruleset.gd\")\n\tif combat_mode.active(self):\n\t\tcards = []\n\t\tcheckpoint_notice.text = combat_mode.EMPTY_CARDS\n\tif cards.size()==4: checkpoint_notice.text+=\"\\nA hidden root reveals a fourth choice.\"\n\tif waiting: checkpoint_notice.text=\"Ready. Waiting for party.\" if combat_mode.active(self) else \"Upgrade chosen. Waiting for party.\"\n\tvar width: float=190 if cards.size()==4 else 225\n\tfor data in cards:\n\t\tvar frame:=hud_panel(checkpoint_cards,Color(\"#14262b\"),Vector2(12,12))\n\t\tframe.custom_minimum_size=Vector2(width,340)\n\t\tvar card:=VBoxContainer.new();card.add_theme_constant_override(\"separation\",10);frame.add_child(card)\n\t\tvar title:=add_label(card,18,Color(\"#e4d7a5\"));title.text=str(data.title);title.add_theme_color_override(\"font_color\",Color({\"Common\":\"#d0d1b3\",\"Uncommon\":\"#a3c57b\",\"Rare\":\"#83b7d7\",\"Epic\":\"#b99adb\"}.get(str(data.get(\"rarity\",\"Common\")),\"#e4d7a5\")));title.custom_minimum_size=Vector2(width-28,52);title.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART\n\t\tvar scroll:=ScrollContainer.new();scroll.custom_minimum_size=Vector2(width-28,220);scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL;scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;card.add_child(scroll)\n\t\tvar description:=add_label(scroll,14,Color(\"#c8d1bd\"));description.text=str(data.description);description.custom_minimum_size.x=width-40;description.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART\n\t\tvar choice:=int(data.choice)\n\t\tvar button:=add_button(card,\"%d \u00b7 Choose \u00b7 %d essence\"%[choice+1,int(data.cost)],func(): send_garden_action(\"checkpoint_choice_%d\"%choice))\n\t\tbutton.add_theme_font_size_override(\"font_size\",13)\n\t\tbutton.disabled=waiting or not bool(data.enabled)\n\tcheckpoint_skip.text=\"Waiting for party\u2026\" if waiting else \"Continue without an upgrade\" if combat_mode.active(self) else \"Skip upgrade\"\n", "baseline": "\tif cards.size()==4: checkpoint_notice.text+=\"\\nA hidden root reveals a fourth choice.\"\n\tif waiting: checkpoint_notice.text=\"Upgrade chosen. Waiting for party.\"\n\tvar width: float=190 if cards.size()==4 else 225\n\tfor data in cards:\n\t\tvar frame:=hud_panel(checkpoint_cards,Color(\"#14262b\"),Vector2(12,12))\n\t\tframe.custom_minimum_size=Vector2(width,340)\n\t\tvar card:=VBoxContainer.new();card.add_theme_constant_override(\"separation\",10);frame.add_child(card)\n\t\tvar title:=add_label(card,18,Color(\"#e4d7a5\"));title.text=str(data.title);title.add_theme_color_override(\"font_color\",Color({\"Common\":\"#d0d1b3\",\"Uncommon\":\"#a3c57b\",\"Rare\":\"#83b7d7\",\"Epic\":\"#b99adb\"}.get(str(data.get(\"rarity\",\"Common\")),\"#e4d7a5\")));title.custom_minimum_size=Vector2(width-28,52);title.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART\n\t\tvar scroll:=ScrollContainer.new();scroll.custom_minimum_size=Vector2(width-28,220);scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL;scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;card.add_child(scroll)\n\t\tvar description:=add_label(scroll,14,Color(\"#c8d1bd\"));description.text=str(data.description);description.custom_minimum_size.x=width-40;description.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART\n\t\tvar choice:=int(data.choice)\n\t\tvar button:=add_button(card,\"%d \u00b7 Choose \u00b7 %d essence\"%[choice+1,int(data.cost)],func(): send_garden_action(\"checkpoint_choice_%d\"%choice))\n\t\tbutton.add_theme_font_size_override(\"font_size\",13)\n\t\tbutton.disabled=waiting or not bool(data.enabled)\n\tcheckpoint_skip.text=\"Waiting for party\u2026\" if waiting else \"Skip upgrade\"\n", "additive": true, "systems": ["combat_affinity_contracts"]},
-      "ui_copy": {
-        "match": "\tfor child in checkpoint_cards.get_children():\n\t\tcheckpoint_cards.remove_child(child);child.queue_free()\n\tcheckpoint_notice.text=\"Checkpoint %d \u00b7 %d essence\\nChoose one upgrade.\"%[floor_number,wallet]\n\tcheckpoint_notice.text+=\" Then confirm readiness at the gate with your party.\" if players.size()>1 else \" It lasts until this expedition ends.\"\n\tif cards.size()==4: checkpoint_notice.text+=\"\\nA hidden root reveals a fourth choice.\"\n\tif waiting: checkpoint_notice.text=\"Upgrade chosen. Waiting for party.\"\n\tvar width: float=190 if cards.size()==4 else 225\n\tfor data in cards:\n\t\tvar frame:=hud_panel(checkpoint_cards,Color(\"#14262b\"),Vector2(12,12))\n\t\tframe.custom_minimum_size=Vector2(width,340)\n\t\tvar card:=VBoxContainer.new();card.add_theme_constant_override(\"separation\",10);frame.add_child(card)\n\t\tvar title:=add_label(card,18,Color(\"#e4d7a5\"));title.text=str(data.title);title.add_theme_color_override(\"font_color\",Color({\"Common\":\"#d0d1b3\",\"Uncommon\":\"#a3c57b\",\"Rare\":\"#83b7d7\",\"Epic\":\"#b99adb\"}.get(str(data.get(\"rarity\",\"Common\")),\"#e4d7a5\")));title.custom_minimum_size=Vector2(width-28,52);title.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART\n\t\tvar scroll:=ScrollContainer.new();scroll.custom_minimum_size=Vector2(width-28,220);scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL;scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;card.add_child(scroll)\n\t\tvar description:=add_label(scroll,14,Color(\"#c8d1bd\"));description.text=str(data.description);description.custom_minimum_size.x=width-40;description.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART\n\t\tvar choice:=int(data.choice)\n\t\tvar button:=add_button(card,\"%d \u00b7 Choose \u00b7 %d essence\"%[choice+1,int(data.cost)],func(): send_garden_action(\"checkpoint_choice_%d\"%choice))\n\t\tbutton.add_theme_font_size_override(\"font_size\",13)\n\t\tbutton.disabled=waiting or not bool(data.enabled)\n\tcheckpoint_skip.text=\"Waiting for party\u2026\" if waiting else \"Skip upgrade\"\n\tcheckpoint_skip.disabled=waiting\n\tif not checkpoint_menu.visible: toggle_overlay(checkpoint_menu)\n\n",
-        "baseline": "\tfor child in checkpoint_cards.get_children():\n\t\tcheckpoint_cards.remove_child(child);child.queue_free()\n\tcheckpoint_notice.text=\"Checkpoint %d \u00b7 %d essence\\nChoose one upgrade.\"%[floor_number,wallet]\n\tcheckpoint_notice.text+=\" Then confirm readiness at the gate with your party.\" if players.size()>1 else \" It lasts until this expedition ends.\"\n\tif cards.size()==4: checkpoint_notice.text+=\"\\nA hidden root reveals a fourth choice.\"\n\tif waiting: checkpoint_notice.text=\"Choice confirmed. Waiting for the rest of the expedition party.\"\n\tvar width: float=190 if cards.size()==4 else 225\n\tfor data in cards:\n\t\tvar frame:=hud_panel(checkpoint_cards,Color(\"#14262b\"),Vector2(12,12))\n\t\tframe.custom_minimum_size=Vector2(width,340)\n\t\tvar card:=VBoxContainer.new();card.add_theme_constant_override(\"separation\",10);frame.add_child(card)\n\t\tvar title:=add_label(card,18,Color(\"#e4d7a5\"));title.text=str(data.title);title.add_theme_color_override(\"font_color\",Color({\"Common\":\"#d0d1b3\",\"Uncommon\":\"#a3c57b\",\"Rare\":\"#83b7d7\",\"Epic\":\"#b99adb\"}.get(str(data.get(\"rarity\",\"Common\")),\"#e4d7a5\")));title.custom_minimum_size=Vector2(width-28,52);title.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART\n\t\tvar scroll:=ScrollContainer.new();scroll.custom_minimum_size=Vector2(width-28,220);scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL;scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;card.add_child(scroll)\n\t\tvar description:=add_label(scroll,14,Color(\"#c8d1bd\"));description.text=str(data.description);description.custom_minimum_size.x=width-40;description.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART\n\t\tvar choice:=int(data.choice)\n\t\tvar button:=add_button(card,\"%d \u00b7 Choose \u00b7 %d essence\"%[choice+1,int(data.cost)],func(): send_garden_action(\"checkpoint_choice_%d\"%choice))\n\t\tbutton.add_theme_font_size_override(\"font_size\",13)\n\t\tbutton.disabled=waiting or not bool(data.enabled)\n\tcheckpoint_skip.text=\"Waiting for party\u2026\" if waiting else \"Continue without buying an upgrade\"\n\tcheckpoint_skip.disabled=waiting\n\tif not checkpoint_menu.visible: toggle_overlay(checkpoint_menu)\n\n",
         "systems": [
           "ui_copy"
         ],
@@ -8364,6 +8289,8 @@
       }
     },
     "use_class_skill": {
+      "ec01_1": {"match": "\t\t\treturn\n\t\tskill = adapter.native_skill.duplicate()\n\t\tAffinityCards.tune_class(player,skill,affinity_build,Life.Preview.scale())\n\t\tevent = combat_events_api.class_start(self, id, adapter, now, affinity_build.catalyst)\n", "baseline": "\t\t\treturn\n\t\tskill = adapter.native_skill\n\t\tevent = combat_events_api.class_start(self, id, adapter, now, affinity_build.catalyst)\n", "systems": ["affinity_cards"], "additive": true},
+      "ec01_2": {"match": "\t\t\"bastion\",\"ward\":\n\t\t\tvar ward_ms := int(chime.get(\"duration\",skill.duration)) + duration + int(skill.get(\"ward_ms\",0))\n\t\t\tfor ally in players.values():\n", "baseline": "\t\t\"bastion\",\"ward\":\n\t\t\tvar ward_ms := int(chime.get(\"duration\",skill.duration)) + duration\n\t\t\tfor ally in players.values():\n", "systems": ["affinity_cards"], "additive": true},
       "ct05_oracle_1": {"match": "\tvar ranger_snare := {}\n\tvar reaper_siphon := {}\n\tvar oracle = preload(\"res://oracle_combat.gd\")\n\tvar chime := {}\n\tvar mode:=str(skill.mode)\n\tvar aimed: bool=player.has(\"class_aim\")\n", "baseline": "\tvar ranger_snare := {}\n\tvar reaper_siphon := {}\n\tvar mode:=str(skill.mode)\n\tvar aimed: bool=player.has(\"class_aim\")\n", "systems": ["oracle_progression"], "additive": true},
       "ct05_oracle_2": {"match": "\t\t\ttell(id,\"%s: no enemy within clear range.\"%skill.name)\n\t\t\treturn\n\tif slot==1 and skill.has(\"oracle_nodes\"):\n\t\tchime = oracle.begin_chime(self,player,skill,event,now)\n\tmatch mode:\n\t\t\"growth\":\n", "baseline": "\t\t\ttell(id,\"%s: no enemy within clear range.\"%skill.name)\n\t\t\treturn\n\tmatch mode:\n\t\t\"growth\":\n", "systems": ["oracle_progression"], "additive": true},
       "ct05_oracle_3": {"match": "\t\t\tcombat_events_api.grant_ward(self,player,now+int(skill.duration)+duration,int(skill.charges),event,adapter,now)\n\t\t\"bastion\",\"ward\":\n\t\t\tvar ward_ms := int(chime.get(\"duration\",skill.duration)) + duration\n\t\t\tfor ally in players.values():\n\t\t\t\tif Life.alive(ally) and ally.pos.distance_to(player.pos)<=radius and battlefield.clear_line(player.pos,ally.pos):\n\t\t\t\t\tcombat_events_api.grant_ward(self,ally,now+ward_ms,int(skill.charges),event,adapter,now)\n\t\t\"bind\",\"strangle\":\n\t\t\ttargets.assign([target])\n", "baseline": "\t\t\tcombat_events_api.grant_ward(self,player,now+int(skill.duration)+duration,int(skill.charges),event,adapter,now)\n\t\t\"bastion\",\"ward\":\n\t\t\tfor ally in players.values():\n\t\t\t\tif Life.alive(ally) and ally.pos.distance_to(player.pos)<=radius and battlefield.clear_line(player.pos,ally.pos):\n\t\t\t\t\tcombat_events_api.grant_ward(self,ally,now+int(skill.duration)+duration,int(skill.charges),event,adapter,now)\n\t\t\"bind\",\"strangle\":\n\t\t\ttargets.assign([target])\n", "systems": ["oracle_progression"], "additive": true},
@@ -9148,6 +9075,8 @@
       }
     },
     "apply_skill_targets": {
+      "ec01_1": {"match": "\tvar native_hits: Dictionary = skill.get(\"native_hit_adjustments\",{})\n\tvar echo_bloom := AffinityCards.bloom_echo_source(self,player,skill,now)\n\tvar echo_hit := false\n\tfor target in targets:\n", "baseline": "\tvar native_hits: Dictionary = skill.get(\"native_hit_adjustments\",{})\n\tfor target in targets:\n", "systems": ["affinity_cards"], "additive": true},
+      "ec01_2": {"match": "\t\t\tvar before:=enemy_hp if target==-1 else int(scouts[target].hp)\n\t\t\tvar inside_bloom := before > 0 and not echo_bloom.is_empty() and AffinityCards.bloom_contains(self,echo_bloom,target)\n\t\t\tapply_weapon_hit(player,target,adjustment.get(\"origin\",skill.get(\"effect_origin\",player.pos)),hit,now)\n\t\t\tvar after:=enemy_hp if target==-1 else int(scouts[target].hp)\n\t\t\techo_hit = echo_hit or (inside_bloom and after < before)\n\t\t\tif Life.Preview.enabled and Life.Sustain.eligible(self,target):\n\t\t\t\tdrain_contacts+=int(after<before)\n\tif echo_hit:\n\t\tAffinityCards.bloom_echo(self,player,echo_bloom,skill,now)\n\tif destination==Campaign.HEART and before_primary>Campaign.FINAL_HP/2.0 and enemy_hp>0 and enemy_hp<=Campaign.FINAL_HP/2.0:\n", "baseline": "\t\t\tvar before:=enemy_hp if target==-1 else int(scouts[target].hp)\n\t\t\tapply_weapon_hit(player,target,adjustment.get(\"origin\",skill.get(\"effect_origin\",player.pos)),hit,now)\n\t\t\tif Life.Preview.enabled and Life.Sustain.eligible(self,target):\n\t\t\t\tvar after:=enemy_hp if target==-1 else int(scouts[target].hp)\n\t\t\t\tdrain_contacts+=int(after<before)\n\tif destination==Campaign.HEART and before_primary>Campaign.FINAL_HP/2.0 and enemy_hp>0 and enemy_hp<=Campaign.FINAL_HP/2.0:\n", "systems": ["affinity_cards"], "additive": true},
       "ct04_reaper_1": {"match": "\t\t\telse:\n\t\t\t\thit.ranger_direct_hit = not stats.get(\"ranger_trap_contact\",false) and skill.mode != \"salvo\"\n\t\t\t\tif skill.has(\"reaper_nodes\"):\n\t\t\t\t\tpreload(\"res://reaper_combat.gd\").tag_hit(hit,skill.reaper_nodes)\n\t\t\tvar before:=enemy_hp if target==-1 else int(scouts[target].hp)\n\t\t\tapply_weapon_hit(player,target,adjustment.get(\"origin\",skill.get(\"effect_origin\",player.pos)),hit,now)\n", "baseline": "\t\t\telse:\n\t\t\t\thit.ranger_direct_hit = not stats.get(\"ranger_trap_contact\",false) and skill.mode != \"salvo\"\n\t\t\tvar before:=enemy_hp if target==-1 else int(scouts[target].hp)\n\t\t\tapply_weapon_hit(player,target,adjustment.get(\"origin\",skill.get(\"effect_origin\",player.pos)),hit,now)\n", "systems": ["classes", "reaper_progression"], "additive": true},
       "ct03_ranger_1": {"match": "\t\t\thit.recovery=int(stats.get(\"recovery\",0))+recovery\n\t\t\thit.knockback=float(skill.get(\"push\",0))-.35\n\t\t\tif adjustment.get(\"isolated\",false):\n\t\t\t\thit = {\"damage\":0.0,\"affinity_hp\":Life.Preview.effect_hp(damage),\"trait_secondary\":true,\n\t\t\t\t\t\"core_hit\":true,\"knockback\":-.35}\n\t\t\telse:\n\t\t\t\thit.ranger_direct_hit = not stats.get(\"ranger_trap_contact\",false) and skill.mode != \"salvo\"\n\t\t\tvar before:=enemy_hp if target==-1 else int(scouts[target].hp)\n\t\t\tapply_weapon_hit(player,target,adjustment.get(\"origin\",skill.get(\"effect_origin\",player.pos)),hit,now)\n", "baseline": "\t\t\thit.recovery=int(stats.get(\"recovery\",0))+recovery\n\t\t\thit.knockback=float(skill.get(\"push\",0))-.35\n\t\t\tvar before:=enemy_hp if target==-1 else int(scouts[target].hp)\n\t\t\tapply_weapon_hit(player,target,adjustment.get(\"origin\",skill.get(\"effect_origin\",player.pos)),hit,now)\n", "systems": ["classes", "ranger_progression"], "additive": true},
       "ct02_0": {
@@ -10058,6 +9987,7 @@
       }
     },
     "strike_enemy": {
+      "ec01_1": {"match": "\t\tif event == null:\n\t\t\tif not p.get(\"skill_burst\",false) and p.has(AffinityCards.STATE):\n\t\t\t\tAffinityCards.ordinary_weapon(p,stats,Life.Preview.scale())\n\t\t\tvar form_affinity: Dictionary = affinity_build.form\n", "baseline": "\t\tif event == null:\n\t\t\tvar form_affinity: Dictionary = affinity_build.form\n", "systems": ["affinity_cards"], "additive": true},
       "ct04_reaper_1": {"match": "\t\t\tif not affinity_build.graft.get(\"procs\", {}).is_empty():\n\t\t\t\tstats[grafts.CONTEXT] = grafts.capture(p, affinity_build.graft)\n\t\t\tif int(p.frame)==Frames.REAPER and int(affinity_build.class_skills.size())>0:\n\t\t\t\tpreload(\"res://reaper_combat.gd\").commit_melee(self,p,affinity_build.class_skills[0].get(\"native_skill\",{}),stats,now)\n\t\tstats[events.CONTEXT] = event\n\t\tstats.erase(\"affinity_build\")\n", "baseline": "\t\t\tif not affinity_build.graft.get(\"procs\", {}).is_empty():\n\t\t\t\tstats[grafts.CONTEXT] = grafts.capture(p, affinity_build.graft)\n\t\tstats[events.CONTEXT] = event\n\t\tstats.erase(\"affinity_build\")\n", "systems": ["combat", "reaper_progression"], "additive": true},
       "ct03_ranger_1": {"match": "\t\tstats[events.CONTEXT] = event\n\t\tstats.erase(\"affinity_build\")\n\t\tif int(p.frame)==Frames.RANGER and has_meta(&\"combat_affinity_ruleset\") and p.character.has(Classes.Ranger.PROFILE_KEY) \\\n\t\t\t\tand not p.get(\"skill_burst\",false) and not p.has(\"cr02_class_strike\"):\n\t\t\tstats.ranger_ordinary = true\n\tif p.get(\"skill_burst\",false):\n\t\tstats.targets=mini(5,int(stats.targets)+int(p.get(\"skill_burst_targets\",2)))\n", "baseline": "\t\tstats[events.CONTEXT] = event\n\t\tstats.erase(\"affinity_build\")\n\tif p.get(\"skill_burst\",false):\n\t\tstats.targets=mini(5,int(stats.targets)+int(p.get(\"skill_burst_targets\",2)))\n", "systems": ["combat", "ranger_progression"], "additive": true},
       "cr05_grafts_0": {
@@ -10187,9 +10117,11 @@
       "cr02_affinity_contract": {"match": "\tif preload(\"res://combat_ruleset.gd\").active(self): return []\n", "baseline": "", "additive": true, "systems": ["combat_affinity_contracts"]}
     },
     "buy_upgrade": {
+      "ec01_1": {"match": "\tif combat_mode.active(self):\n\t\ttell(id,combat_mode.LEGACY_CARD_REFUSAL)\n\t\treturn false\n", "baseline": "\tif combat_mode.active(self):\n\t\ttell(id,combat_mode.EMPTY_CARDS)\n\t\treturn false\n", "systems": ["affinity_cards"], "additive": true},
       "cr02_affinity_contract": {"match": "\tvar combat_mode = preload(\"res://combat_ruleset.gd\")\n\tif combat_mode.active(self):\n\t\ttell(id,combat_mode.EMPTY_CARDS)\n\t\treturn false\n", "baseline": "", "additive": true, "systems": ["combat_affinity_contracts"]}
     },
     "return_to_garden": {
+      "ec01_1": {"match": "\tp.run_upgrades={}\n\tAffinityCards.clear(p)\n\tp.essence_sparks=0\n\tp.spent=0\n\tp.last_offer=0\n\tp.checkpoint_offers=[]\n", "baseline": "\tp.run_upgrades={}\n\tp.essence_sparks=0\n\tp.checkpoint_offers=[]\n", "systems": ["affinity_cards"], "additive": true},
       "ct05_oracle_1": {"match": "\tif not SaveBatch.guarded_active(): MonsterRewards.flush(self)\n\tp.attack_until=0;p.swing_until=0;p.cast_until=0\n\tpreload(\"res://oracle_combat.gd\").clear(p)\n\tp.run_upgrades={}\n\tp.essence_sparks=0\n", "baseline": "\tif not SaveBatch.guarded_active(): MonsterRewards.flush(self)\n\tp.attack_until=0;p.swing_until=0;p.cast_until=0\n\tp.run_upgrades={}\n\tp.essence_sparks=0\n", "systems": ["oracle_progression"], "additive": true},
       "cr05_grafts_0": {
         "match": "\tp.graft_floor=0\n\tpreload(\"res://native_grafts.gd\").clear(p)\n\tp.erase(\"graft_message\")\n",
@@ -10232,9 +10164,19 @@
     }
   },
   "file_regions": {
+    "spirit_affinity.gd": {"regions": {"ec01_1": {"match": "\tvar key: String=\"%d/%s\"%[event.actor,event.source]\n\tvar potency: Dictionary=event.potency()\n\tvar speed: float=potency.speed\n\tvar old: Dictionary=sources.get(key,{})\n\tif int(old.get(\"until\",0))>elapsed and float(old.speed)>speed: return\n\tsources[key]={\"actor\":event.actor,\"quality\":event.quality,\"speed\":speed,\"until\":elapsed+STRIDE_MS+int(potency.get(\"duration_bonus_ms\",0))}\n\tp[STRIDES]=sources\n", "baseline": "\tvar key: String=\"%d/%s\"%[event.actor,event.source]\n\tvar speed: float=event.potency().speed\n\tvar old: Dictionary=sources.get(key,{})\n\tif int(old.get(\"until\",0))>elapsed and float(old.speed)>speed: return\n\tsources[key]={\"actor\":event.actor,\"quality\":event.quality,\"speed\":speed,\"until\":elapsed+STRIDE_MS}\n\tp[STRIDES]=sources\n", "systems": ["affinity_cards"]}}},
+    "storm_affinity.gd": {"regions": {"ec01_1": {"match": "\t\t\tif not game.Life.alive(p) or elapsed<int(p.get(FORM_READY,0)) or not event.take_response(\"storm_form\"): return\n\t\t\tp[FORM_READY]=elapsed+FORM_INTERVAL-int(q.get(\"interval_reduction_ms\",0))\n\t\t\tvar point: Vector3=details.get(\"point\",game.enemy_position(details.enemy))\n", "baseline": "\t\t\tif not game.Life.alive(p) or elapsed<int(p.get(FORM_READY,0)) or not event.take_response(\"storm_form\"): return\n\t\t\tp[FORM_READY]=elapsed+FORM_INTERVAL\n\t\t\tvar point: Vector3=details.get(\"point\",game.enemy_position(details.enemy))\n", "systems": ["affinity_cards"]}}},
+    "wood_affinity.gd": {"regions": {"ec01_1": {"match": "\t\t\"activation\":event.identity,\"order\":order,\"remaining\":admitted,\"admitted\":admitted,\"break_hp\":q.break_hp,\n\t\t\"until\":elapsed+(CORE_MS if is_core else CATALYST_MS)+int(q.get(\"duration_bonus_ms\",0))})\n\tplayer[GRANTS]=grants\n", "baseline": "\t\t\"activation\":event.identity,\"order\":order,\"remaining\":admitted,\"admitted\":admitted,\"break_hp\":q.break_hp,\n\t\t\"until\":elapsed+(CORE_MS if is_core else CATALYST_MS)})\n\tplayer[GRANTS]=grants\n", "systems": ["affinity_cards"]}}},
+    "vital_combat.gd": {"regions": {"ec01_1": {"match": "\t\t\"bonus_hp\":p.bonus_hp, \"regen_per_second\":p.regen_per_second,\n\t\t\"start\":elapsed, \"until\":elapsed + int(DURATIONS[event.source]) + int(p.get(\"duration_bonus_ms\",0)), \"quality\":event.quality, \"activation\":event.identity, \"item\":event.material_id,\n\t}\n", "baseline": "\t\t\"bonus_hp\":p.bonus_hp, \"regen_per_second\":p.regen_per_second,\n\t\t\"start\":elapsed, \"until\":elapsed + int(DURATIONS[event.source]), \"quality\":event.quality, \"activation\":event.identity, \"item\":event.material_id,\n\t}\n", "systems": ["affinity_cards"]}}},
+    "water_combat.gd": {"regions": {"ec01_1": {"match": "\tsources[\"%d/%s\" % [event.actor,event.source]] = {\n\t\t\"reduction\": event.potency().reduction, \"until\": elapsed + DURATION_MS + int(event.potency().get(\"duration_bonus_ms\",0)),\n\t\t\"quality\": event.quality, \"activation\": event.identity, \"item\": event.material_id,\n", "baseline": "\tsources[\"%d/%s\" % [event.actor,event.source]] = {\n\t\t\"reduction\": event.potency().reduction, \"until\": elapsed + DURATION_MS,\n\t\t\"quality\": event.quality, \"activation\": event.identity, \"item\": event.material_id,\n", "systems": ["affinity_cards"]}, "ec01_2": {"match": "\t\t\t\t\tcleanse(game.players[id])\n\t\t\t\t\tvar ward_ms := int(event.potency().get(\"shelter_ward_ms\",0))\n\t\t\t\t\tif ward_ms > 0:\n\t\t\t\t\t\tgame.grant_guard(game.players[id],now+ward_ms,1)\n\t\t\telse:\n", "baseline": "\t\t\t\t\tcleanse(game.players[id])\n\t\t\telse:\n", "systems": ["affinity_cards"]}}},
+    "frost_combat.gd": {"regions": {"ec01_1": {"match": "\t\tcast.affinity_action.publish(game, \"core_action\", phase, target_token(game, target), now,\n\t\t\t{\"enemy\": target, \"stacks\": count, \"opening_hp\": Balance.BLOOM_OPEN_HP + int(cast.affinity_action.potency().get(\"opening_bonus_hp\",0)) if phase == \"open\" else 0})\n\n", "baseline": "\t\tcast.affinity_action.publish(game, \"core_action\", phase, target_token(game, target), now,\n\t\t\t{\"enemy\": target, \"stacks\": count, \"opening_hp\": Balance.BLOOM_OPEN_HP if phase == \"open\" else 0})\n\n", "systems": ["affinity_cards"]}}},
+    "combat_action_events.gd": {"regions": {"ec01_1": {"match": "\tevent._potency = potency.duplicate(true)\n\tpreload(\"res://affinity_cards.gd\").affinity_potency(game.players.get(actor_id,{}),origin,material,event._potency)\n\tevent._permitted = permitted.duplicate()\n", "baseline": "\tevent._potency = potency.duplicate(true)\n\tevent._permitted = permitted.duplicate()\n", "systems": ["affinity_cards"]}}},
     "combat_ruleset.gd": {
       "newline": "lf",
       "regions": {
+      "ec01_1": {"match": "\nconst ID := \"plant-affinity-ec01\"\nconst FLAG := \"--combat-affinities\"\n", "baseline": "\nconst ID := \"plant-affinity-ct05-connected-oracle\"\nconst FLAG := \"--combat-affinities\"\n", "systems": ["affinity_cards"]},
+      "ec01_2": {"match": "const PLAYER_KEY := \"combat_ruleset\"\nconst LEGACY_CARD_REFUSAL := \"Legacy cards are unavailable in affinity combat.\"\nconst MISMATCH := \"Combat ruleset mismatch. Host and guest must launch with the same combat mode and definitions.\"\nconst Cards = preload(\"res://affinity_card_catalog.gd\")\nconst Frost = preload(\"res://frost_balance.gd\")\n", "baseline": "const PLAYER_KEY := \"combat_ruleset\"\nconst EMPTY_CARDS := \"No compatible affinity cards in this development build. You can continue at the Gate.\"\nconst MISMATCH := \"Combat ruleset mismatch. Host and guest must launch with the same combat mode and definitions.\"\nconst COMPATIBLE_CARDS := {}\nconst Frost = preload(\"res://frost_balance.gd\")\n", "systems": ["affinity_cards"]},
+      "ec01_3": {"match": "\tClasses.DEFINITIONS, Classes.Warden.FOCUSES, Classes.Subclasses.FOCUSES, ConnectedWarden.VERSION_DATA, Classes.Weaver.VERSION_DATA, Classes.Ranger.VERSION_DATA, Classes.Reaper.VERSION_DATA, Classes.Oracle.VERSION_DATA,\n\tParts.MONSTER_DEFINITIONS, Delivery.WEAPON_DELIVERY, Grafts.STAT_KEYS, Grafts.SPECIAL, Grafts.UNSUPPORTED, Grafts.TIMING, Grafts.DEATH_CHARGE_CAP, FORMS, Cards.DEFINITIONS, Cards.PLAYTEST, Frost.VERSION_DATA, Fire.VERSION_DATA, Water.VERSION_DATA, Vital.VERSION_DATA, Thorn.VERSION_DATA, Wood.VERSION_DATA, Storm.VERSION_DATA, Spirit.VERSION_DATA, Void.VERSION_DATA,\n]).sha256_text()\n", "baseline": "\tClasses.DEFINITIONS, Classes.Warden.FOCUSES, Classes.Subclasses.FOCUSES, ConnectedWarden.VERSION_DATA, Classes.Weaver.VERSION_DATA, Classes.Ranger.VERSION_DATA, Classes.Reaper.VERSION_DATA, Classes.Oracle.VERSION_DATA,\n\tParts.MONSTER_DEFINITIONS, Delivery.WEAPON_DELIVERY, Grafts.STAT_KEYS, Grafts.SPECIAL, Grafts.UNSUPPORTED, Grafts.TIMING, Grafts.DEATH_CHARGE_CAP, FORMS, COMPATIBLE_CARDS, Frost.VERSION_DATA, Fire.VERSION_DATA, Water.VERSION_DATA, Vital.VERSION_DATA, Thorn.VERSION_DATA, Wood.VERSION_DATA, Storm.VERSION_DATA, Spirit.VERSION_DATA, Void.VERSION_DATA,\n]).sha256_text()\n", "systems": ["affinity_cards"]},
         "ct05_oracle_1": {"match": "extends RefCounted\n\nconst ID := \"plant-affinity-ct05-connected-oracle\"\nconst FLAG := \"--combat-affinities\"\nconst META := &\"combat_affinity_ruleset\"\n", "baseline": "extends RefCounted\n\nconst ID := \"plant-affinity-ct04-connected-reaper\"\nconst FLAG := \"--combat-affinities\"\nconst META := &\"combat_affinity_ruleset\"\n", "systems": ["oracle_progression"]},
         "ct05_oracle_2": {"match": "\tPlants.BY_SPECIES, Plants.CORE_SKILL_BY_PRIMARY, Plants.SUPPORTING_ONLY,\n\tCatalyst.KITS, Catalyst.FOCUS_Q, Catalyst.ADAPTERS, Catalyst.RESPONSES, Catalyst.CONFLICTS,\n\tClasses.DEFINITIONS, Classes.Warden.FOCUSES, Classes.Subclasses.FOCUSES, ConnectedWarden.VERSION_DATA, Classes.Weaver.VERSION_DATA, Classes.Ranger.VERSION_DATA, Classes.Reaper.VERSION_DATA, Classes.Oracle.VERSION_DATA,\n\tParts.MONSTER_DEFINITIONS, Delivery.WEAPON_DELIVERY, Grafts.STAT_KEYS, Grafts.SPECIAL, Grafts.UNSUPPORTED, Grafts.TIMING, Grafts.DEATH_CHARGE_CAP, FORMS, COMPATIBLE_CARDS, Frost.VERSION_DATA, Fire.VERSION_DATA, Water.VERSION_DATA, Vital.VERSION_DATA, Thorn.VERSION_DATA, Wood.VERSION_DATA, Storm.VERSION_DATA, Spirit.VERSION_DATA, Void.VERSION_DATA,\n]).sha256_text()\n", "baseline": "\tPlants.BY_SPECIES, Plants.CORE_SKILL_BY_PRIMARY, Plants.SUPPORTING_ONLY,\n\tCatalyst.KITS, Catalyst.FOCUS_Q, Catalyst.ADAPTERS, Catalyst.RESPONSES, Catalyst.CONFLICTS,\n\tClasses.DEFINITIONS, Classes.Warden.FOCUSES, Classes.Subclasses.FOCUSES, ConnectedWarden.VERSION_DATA, Classes.Weaver.VERSION_DATA, Classes.Ranger.VERSION_DATA, Classes.Reaper.VERSION_DATA,\n\tParts.MONSTER_DEFINITIONS, Delivery.WEAPON_DELIVERY, Grafts.STAT_KEYS, Grafts.SPECIAL, Grafts.UNSUPPORTED, Grafts.TIMING, Grafts.DEATH_CHARGE_CAP, FORMS, COMPATIBLE_CARDS, Frost.VERSION_DATA, Fire.VERSION_DATA, Water.VERSION_DATA, Vital.VERSION_DATA, Thorn.VERSION_DATA, Wood.VERSION_DATA, Storm.VERSION_DATA, Spirit.VERSION_DATA, Void.VERSION_DATA,\n]).sha256_text()\n", "systems": ["oracle_progression"]}
       }
@@ -14956,6 +14898,7 @@
     "run_upgrade_catalog.gd": {
       "newline": "crlf",
       "regions": {
+      "ec01_1": {"match": " if preload(\"res://combat_ruleset.gd\").uses_affinities(player):\n  return preload(\"res://combat_ruleset.gd\").LEGACY_CARD_REFUSAL\n if entry.is_empty(): return \"Unknown upgrade.\"\n", "baseline": " if preload(\"res://combat_ruleset.gd\").uses_affinities(player):\n  if not preload(\"res://combat_ruleset.gd\").COMPATIBLE_CARDS.has(entry.get(\"id\", \"\")):\n   return preload(\"res://combat_ruleset.gd\").EMPTY_CARDS\n if entry.is_empty(): return \"Unknown upgrade.\"\n", "systems": ["affinity_cards"]},
         "cr02_requirement": {"match": " if preload(\"res://combat_ruleset.gd\").uses_affinities(player):\n  if not preload(\"res://combat_ruleset.gd\").COMPATIBLE_CARDS.has(entry.get(\"id\", \"\")):\n   return preload(\"res://combat_ruleset.gd\").EMPTY_CARDS\n", "baseline": "", "systems": ["combat_affinity_contracts"]},
         "cr02_effects": {"match": "static func effects(player: Dictionary) -> Dictionary:\n var result: Dictionary={}\n for id in preload(\"res://combat_ruleset.gd\").legacy_ranks(player):\n  var entry:=get_upgrade(id)\n  if entry.is_empty(): continue\n  var ranks:=int(player.run_upgrades[id])\n  for key in entry.effects:\n   if key in [\"power\",\"technique\",\"rift_hook\"]: continue\n   result[key]=float(result.get(key,0))+float(entry.effects[key])*ranks\n return result\n", "baseline": "static func effects(player: Dictionary) -> Dictionary:\n var result: Dictionary={}\n for id in player.get(\"run_upgrades\",{}):\n  var entry:=get_upgrade(id)\n  if entry.is_empty(): continue\n  var ranks:=int(player.run_upgrades[id])\n  for key in entry.effects:\n   if key in [\"power\",\"technique\",\"rift_hook\"]: continue\n   result[key]=float(result.get(key,0))+float(entry.effects[key])*ranks\n return result\n", "systems": ["combat_affinity_contracts"]},
         "cr02_core_cards": {"match": "static func core_cards(player: Dictionary,skill_id: String) -> Array[Dictionary]:\n var result: Array[Dictionary]=[]\n for id in preload(\"res://combat_ruleset.gd\").legacy_ranks(player):\n  if int(player.run_upgrades[id])<=0: continue\n  var entry:=get_upgrade(id)\n  if entry.get(\"core\",{}).get(\"skill\",\"\")==skill_id: result.append(entry)\n result.sort_custom(func(a,b): return a.id<b.id)\n return result\n\n\n", "baseline": "static func core_cards(player: Dictionary,skill_id: String) -> Array[Dictionary]:\n var result: Array[Dictionary]=[]\n for id in player.get(\"run_upgrades\",{}):\n  if int(player.run_upgrades[id])<=0: continue\n  var entry:=get_upgrade(id)\n  if entry.get(\"core\",{}).get(\"skill\",\"\")==skill_id: result.append(entry)\n result.sort_custom(func(a,b): return a.id<b.id)\n return result\n\n\n", "systems": ["combat_affinity_contracts"]},
@@ -20150,6 +20093,7 @@
     "subclass_combat.gd": {
       "newline": "lf",
       "regions": {
+      "ec01_1": {"match": "\t\t\tfield.native_weaver_bloom = true\n\t\t\tfield.bloom_life = int(player.get(\"lost_health\",0))\n\tif card.get(\"thorn_patch\",false):\n", "baseline": "\t\t\tfield.native_weaver_bloom = true\n\tif card.get(\"thorn_patch\",false):\n", "systems": ["affinity_cards"]},
         "ct05_oracle_1": {"match": "\tvar ranger := skill.has(\"ranger_nodes\")\n\tvar reaper := skill.has(\"reaper_nodes\")\n\tvar oracle := skill.has(\"oracle_nodes\")\n\tvar oracle_api = preload(\"res://oracle_combat.gd\")\n\tvar bind := Balance.subclass_bind(skill,card)\n\tif ranger and leaves_snare:\n", "baseline": "\tvar ranger := skill.has(\"ranger_nodes\")\n\tvar reaper := skill.has(\"reaper_nodes\")\n\tvar bind := Balance.subclass_bind(skill,card)\n\tif ranger and leaves_snare:\n", "systems": ["oracle_progression"]},
         "ct05_oracle_2": {"match": "\tvar cast_id: int = game.combat_event_serial\n\tvar weaver := skill.has(\"weaver_nodes\")\n\tvar oracle_hit := oracle_api.begin_q(game,player,skill,affected,cast.center,now) if oracle else {}\n\tvar q_contact := false\n\tvar ranger_damage := false\n", "baseline": "\tvar cast_id: int = game.combat_event_serial\n\tvar weaver := skill.has(\"weaver_nodes\")\n\tvar q_contact := false\n\tvar ranger_damage := false\n", "systems": ["oracle_progression"]},
         "ct05_oracle_3": {"match": "\t\tvar damage := Balance.Preview.authored_amount(float(skill.get(\"damage\",0)) + (float(skill.get(\"punish\",0))+float(card.get(\"punish\",0)) if windup else 0.0))\n\t\tvar rewardable: bool = target == -1 or not game.scouts[target].get(\"summoned\",false)\n\t\tvar oracle_hp: int = int(oracle_hit.hp) if target == int(oracle_hit.get(\"target\",-2)) else 0\n\t\tif damage > 0 or oracle_hp > 0:\n\t\t\tvar hit := stats.duplicate() if damage > 0 else oracle_api.spell_hit(oracle_hp)\n\t\t\thit.damage = damage\n\t\t\thit.knockback = -.35\n\t\t\tvar before: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)\n\t\t\thit.ranger_direct_hit = not ranger and damage > 0\n\t\t\tif oracle_hp > 0:\n\t\t\t\thit.native_bonus_hp = oracle_hp\n\t\t\tif ranger and not ranger_damage and skill.ranger_nodes.has(\"splinter_ambush\"):\n\t\t\t\thit.native_bonus_hp = Catalog.Ranger.AMBUSH_HP\n", "baseline": "\t\tvar damage := Balance.Preview.authored_amount(float(skill.get(\"damage\",0)) + (float(skill.get(\"punish\",0))+float(card.get(\"punish\",0)) if windup else 0.0))\n\t\tvar rewardable: bool = target == -1 or not game.scouts[target].get(\"summoned\",false)\n\t\tif damage > 0:\n\t\t\tvar hit := stats.duplicate()\n\t\t\thit.damage = damage\n\t\t\thit.knockback = -.35\n\t\t\tvar before: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)\n\t\t\thit.ranger_direct_hit = not ranger\n\t\t\tif ranger and not ranger_damage and skill.ranger_nodes.has(\"splinter_ambush\"):\n\t\t\t\thit.native_bonus_hp = Catalog.Ranger.AMBUSH_HP\n", "systems": ["oracle_progression"]},
@@ -20446,6 +20390,7 @@
     "expedition_life.gd": {
       "newline": "crlf",
       "regions": {
+      "ec01_1": {"match": "static func native_maximum(game: Node,p: Dictionary,prepared := false) -> int:\n var extra := preload(\"res://affinity_cards.gd\").amount(p,\"run_health\") if not prepared else 0\n return Vitals.maximum(Preview.hp(game.MAX_HEALTH),Preview.effect_hp(Preview.authored_amount(float(game.weapon_stats(p,prepared).get(\"max_health\",0))))+extra,int(p.get(\"lost_health\",0)),Preview.scale())\nstatic func down(game: Node,id: int,p: Dictionary,effects = null) -> void:\n", "baseline": "static func native_maximum(game: Node,p: Dictionary,prepared := false) -> int:\n return Vitals.maximum(Preview.hp(game.MAX_HEALTH),Preview.effect_hp(Preview.authored_amount(float(game.weapon_stats(p,prepared).get(\"max_health\",0)))),int(p.get(\"lost_health\",0)),Preview.scale())\nstatic func down(game: Node,id: int,p: Dictionary,effects = null) -> void:\n", "systems": ["affinity_cards"]},
         "ct05_oracle_1": {"match": " preload(\"res://native_grafts.gd\").clear(p)\n p.erase(\"affinity_void_form_ready\")\n preload(\"res://oracle_combat.gd\").clear(p)\n p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0\n game.motions.erase(id);game.checkpoint_ready.erase(id)\n", "baseline": " preload(\"res://native_grafts.gd\").clear(p)\n p.erase(\"affinity_void_form_ready\")\n p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0\n game.motions.erase(id);game.checkpoint_ready.erase(id)\n", "systems": ["oracle_progression"]},
         "cr05_grafts_1": {
           "match": " preload(\"res://spirit_affinity.gd\").clear(p)\n preload(\"res://native_grafts.gd\").clear(p)\n p.erase(\"affinity_void_form_ready\")\n",
@@ -20646,6 +20591,8 @@
     "run_summary_panel.gd": {
       "newline": "lf",
       "regions": {
+      "ec01_1": {"match": "\tcards.visible = cards.item_count > 0\n\tempty_cards.text = \"Waiting for expedition details…\" if view.is_empty() else \"No upgrades acquired yet.\"\n\tshown = view\n", "baseline": "\tcards.visible = cards.item_count > 0\n\tempty_cards.text = \"Waiting for expedition details…\" if view.is_empty() else \"No upgrades purchased yet.\"\n\tshown = view\n", "systems": ["affinity_cards"]},
+      "ec01_2": {"match": "\t\tupgrades.append({\"title\": entry.name + (\"  ×%d\" % rank if rank > 1 else \"\"), \"tooltip\": tooltip, \"rarity\": entry.rarity})\n\tif stats.has(\"affinity_build\"):\n\t\tvar cards_api = preload(\"res://affinity_cards.gd\")\n\t\tvar copies: Array = cards_api.project_owned(player,stats,world.DODGE_COOLDOWN_MS) if world.multiplayer.is_server() else player.get(\"affinity_run_cards\",[])\n\t\tupgrades = cards_api.owned_rows(copies)\n\t\tvar applied := {}\n\t\tfor copy: Dictionary in copies:\n\t\t\tapplied[copy.id] = copy.applied\n\t\tstats = stats.duplicate()\n\t\tstats.damage = float(stats.damage) + float(applied.get(\"ordinary_weapon_damage\",0)) / world.Life.Preview.scale()\n\t\tvar weapon_band: Vector2i = world.Life.Preview.weapon_range(stats,0)\n\t\tstats.damage_min = weapon_band.x\n\t\tstats.damage_max = weapon_band.y\n\t\tstats.interval = int(stats.interval) - int(applied.get(\"ordinary_weapon_interval\",0))\n\t\tstats.dodge_cooldown = int(stats.get(\"dodge_cooldown\",0)) + int(applied.get(\"run_dodge_recovery\",0))\n\tupgrades.sort_custom(func(a,b): return a.title.naturalnocasecmp_to(b.title) < 0)\n", "baseline": "\t\tupgrades.append({\"title\": entry.name + (\"  ×%d\" % rank if rank > 1 else \"\"), \"tooltip\": tooltip, \"rarity\": entry.rarity})\n\tupgrades.sort_custom(func(a,b): return a.title.naturalnocasecmp_to(b.title) < 0)\n", "systems": ["affinity_cards"]},
         "ct01_1": {
           "match": "\tfor slot in 2:\n\t\tvar skill := Skills.resolve_in_world(world, class_id, slot, profile)\n\t\tvar duration := Skills.Balance.cooldown(skill,stats)\n",
           "baseline": "\tfor slot in 2:\n\t\tvar skill := Skills.resolve(class_id, slot, profile)\n\t\tvar duration := Skills.Balance.cooldown(skill,stats)\n",

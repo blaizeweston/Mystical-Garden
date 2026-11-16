@@ -145,7 +145,7 @@ func refresh(player: Dictionary) -> void:
 			cards.set_item_custom_fg_color(index, {"Rare": Color("#c5b8ee"), "Epic": Color("#e1b9e5"), "Mythic": Color("#efd189")}.get(card.rarity, UI.INK))
 	empty_cards.visible = cards.item_count == 0
 	cards.visible = cards.item_count > 0
-	empty_cards.text = "Waiting for expedition details…" if view.is_empty() else "No upgrades purchased yet."
+	empty_cards.text = "Waiting for expedition details…" if view.is_empty() else "No upgrades acquired yet."
 	shown = view
 
 
@@ -171,6 +171,20 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 		if not detail.is_empty():
 			tooltip += "\n\n" + ("Per rank\n" if int(entry.max_rank) != 1 else "") + detail
 		upgrades.append({"title": entry.name + ("  ×%d" % rank if rank > 1 else ""), "tooltip": tooltip, "rarity": entry.rarity})
+	if stats.has("affinity_build"):
+		var cards_api = preload("res://affinity_cards.gd")
+		var copies: Array = cards_api.project_owned(player,stats,world.DODGE_COOLDOWN_MS) if world.multiplayer.is_server() else player.get("affinity_run_cards",[])
+		upgrades = cards_api.owned_rows(copies)
+		var applied := {}
+		for copy: Dictionary in copies:
+			applied[copy.id] = copy.applied
+		stats = stats.duplicate()
+		stats.damage = float(stats.damage) + float(applied.get("ordinary_weapon_damage",0)) / world.Life.Preview.scale()
+		var weapon_band: Vector2i = world.Life.Preview.weapon_range(stats,0)
+		stats.damage_min = weapon_band.x
+		stats.damage_max = weapon_band.y
+		stats.interval = int(stats.interval) - int(applied.get("ordinary_weapon_interval",0))
+		stats.dodge_cooldown = int(stats.get("dodge_cooldown",0)) + int(applied.get("run_dodge_recovery",0))
 	upgrades.sort_custom(func(a,b): return a.title.naturalnocasecmp_to(b.title) < 0)
 	if world.multiplayer.is_server():
 		power = 0 if player.has("combat_ruleset") else int(player.get("power", power))

@@ -107,7 +107,7 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 			var p: Dictionary = game.players.get(event.actor,{})
 			var elapsed := Clock.now(game)
 			if not game.Life.alive(p) or elapsed<int(p.get(FORM_READY,0)) or not event.take_response("storm_form"): return
-			p[FORM_READY]=elapsed+FORM_INTERVAL
+			p[FORM_READY]=elapsed+FORM_INTERVAL-int(q.get("interval_reduction_ms",0))
 			var point: Vector3=details.get("point",game.enemy_position(details.enemy))
 			discharge(game,event.actor,details.enemy,p.pos,point,q.arc,1,now)
 		"actual_block":

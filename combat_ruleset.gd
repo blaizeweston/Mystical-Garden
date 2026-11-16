@@ -1,12 +1,12 @@
 extends RefCounted
 
-const ID := "plant-affinity-ct05-connected-oracle"
+const ID := "plant-affinity-ec01"
 const FLAG := "--combat-affinities"
 const META := &"combat_affinity_ruleset"
 const PLAYER_KEY := "combat_ruleset"
-const EMPTY_CARDS := "No compatible affinity cards in this development build. You can continue at the Gate."
+const LEGACY_CARD_REFUSAL := "Legacy cards are unavailable in affinity combat."
 const MISMATCH := "Combat ruleset mismatch. Host and guest must launch with the same combat mode and definitions."
-const COMPATIBLE_CARDS := {}
+const Cards = preload("res://affinity_card_catalog.gd")
 const Frost = preload("res://frost_balance.gd")
 const Fire = preload("res://fire_combat.gd")
 const Water = preload("res://water_combat.gd")
@@ -38,7 +38,7 @@ static var definition_signature := JSON.stringify([
 	Plants.BY_SPECIES, Plants.CORE_SKILL_BY_PRIMARY, Plants.SUPPORTING_ONLY,
 	Catalyst.KITS, Catalyst.FOCUS_Q, Catalyst.ADAPTERS, Catalyst.RESPONSES, Catalyst.CONFLICTS,
 	Classes.DEFINITIONS, Classes.Warden.FOCUSES, Classes.Subclasses.FOCUSES, ConnectedWarden.VERSION_DATA, Classes.Weaver.VERSION_DATA, Classes.Ranger.VERSION_DATA, Classes.Reaper.VERSION_DATA, Classes.Oracle.VERSION_DATA,
-	Parts.MONSTER_DEFINITIONS, Delivery.WEAPON_DELIVERY, Grafts.STAT_KEYS, Grafts.SPECIAL, Grafts.UNSUPPORTED, Grafts.TIMING, Grafts.DEATH_CHARGE_CAP, FORMS, COMPATIBLE_CARDS, Frost.VERSION_DATA, Fire.VERSION_DATA, Water.VERSION_DATA, Vital.VERSION_DATA, Thorn.VERSION_DATA, Wood.VERSION_DATA, Storm.VERSION_DATA, Spirit.VERSION_DATA, Void.VERSION_DATA,
+	Parts.MONSTER_DEFINITIONS, Delivery.WEAPON_DELIVERY, Grafts.STAT_KEYS, Grafts.SPECIAL, Grafts.UNSUPPORTED, Grafts.TIMING, Grafts.DEATH_CHARGE_CAP, FORMS, Cards.DEFINITIONS, Cards.PLAYTEST, Frost.VERSION_DATA, Fire.VERSION_DATA, Water.VERSION_DATA, Vital.VERSION_DATA, Thorn.VERSION_DATA, Wood.VERSION_DATA, Storm.VERSION_DATA, Spirit.VERSION_DATA, Void.VERSION_DATA,
 ]).sha256_text()
 
 

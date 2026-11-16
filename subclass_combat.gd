@@ -223,6 +223,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 			events.field_action(stats))
 		if not field.is_empty() and player.has("combat_ruleset") and skill.subclass_focus == "bloomcaller":
 			field.native_weaver_bloom = true
+			field.bloom_life = int(player.get("lost_health",0))
 	if card.get("thorn_patch",false):
 		game.Traits.zone(game,player,"cinder",cast.center,cast.radius,field_duration,Balance.FOLLOWUP_POINTS,now)
 	var nearby := allies(game,contact,radius)

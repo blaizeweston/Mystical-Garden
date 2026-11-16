@@ -44,6 +44,7 @@ static func begin(game: Node, actor_id: int, origin: String, material: Dictionar
 	event.expires_at = until
 	event.charges = charge_limit
 	event._potency = potency.duplicate(true)
+	preload("res://affinity_cards.gd").affinity_potency(game.players.get(actor_id,{}),origin,material,event._potency)
 	event._permitted = permitted.duplicate()
 	return event
 

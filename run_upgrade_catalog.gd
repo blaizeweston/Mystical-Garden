@@ -46,8 +46,7 @@ static func context(player: Dictionary) -> Dictionary:
  return {"class":class_id,"weapon":weapon,"plant_tags":plant_tags,"plant_weights":plant_weights,"plants":plants,"graft":monster,"graft_tags":graft_tags,"tags":tags,"core":CoreRules.resolve(weapon,slots,graft)}
 static func requirement(entry: Dictionary,player: Dictionary,ctx: Dictionary={}) -> String:
  if preload("res://combat_ruleset.gd").uses_affinities(player):
-  if not preload("res://combat_ruleset.gd").COMPATIBLE_CARDS.has(entry.get("id", "")):
-   return preload("res://combat_ruleset.gd").EMPTY_CARDS
+  return preload("res://combat_ruleset.gd").LEGACY_CARD_REFUSAL
  if entry.is_empty(): return "Unknown upgrade."
  if ctx.is_empty(): ctx=context(player)
  if entry.has("focus") and Classes.focus_id(player.get("character",{}),int(player.get("frame",0)))!=entry.focus:

@@ -51,7 +51,7 @@ static func grant(game: Node, event: RefCounted, id: int, elapsed: int) -> void:
 	var p: Dictionary = event.potency()
 	sources["%d/%s" % [event.actor,event.source]] = {
 		"bonus_hp":p.bonus_hp, "regen_per_second":p.regen_per_second,
-		"start":elapsed, "until":elapsed + int(DURATIONS[event.source]), "quality":event.quality, "activation":event.identity, "item":event.material_id,
+		"start":elapsed, "until":elapsed + int(DURATIONS[event.source]) + int(p.get("duration_bonus_ms",0)), "quality":event.quality, "activation":event.identity, "item":event.material_id,
 	}
 	player[SOURCES] = sources
 	set_capacity(game,player,strongest(sources,elapsed).x)

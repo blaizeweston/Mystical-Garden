@@ -39,7 +39,7 @@ static func drench(game: Node, event: RefCounted, target: int) -> void:
 		if int(sources[key].until) <= elapsed:
 			sources.erase(key)
 	sources["%d/%s" % [event.actor,event.source]] = {
-		"reduction": event.potency().reduction, "until": elapsed + DURATION_MS,
+		"reduction": event.potency().reduction, "until": elapsed + DURATION_MS + int(event.potency().get("duration_bonus_ms",0)),
 		"quality": event.quality, "activation": event.identity, "item": event.material_id,
 	}
 	actor[DRENCHED] = sources
@@ -110,6 +110,9 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 				var id: int = details.player
 				if game.players.has(id) and game.Life.alive(game.players[id]):
 					cleanse(game.players[id])
+					var ward_ms := int(event.potency().get("shelter_ward_ms",0))
+					if ward_ms > 0:
+						game.grant_guard(game.players[id],now+ward_ms,1)
 			else:
 				Actors.damage(game,event.actor,int(details.enemy),int(event.potency().impact_hp),now,COLOR)
 				drench(game,event,int(details.enemy))

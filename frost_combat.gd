@@ -108,7 +108,7 @@ static func bloom_phase(game: Node, cast: Dictionary, phase: String, count: int,
 		{"label":"Opening petals" if phase=="open" else "Closing petals"})
 	for target in game.skill_area_targets(center, Balance.BLOOM_RADIUS, center):
 		cast.affinity_action.publish(game, "core_action", phase, target_token(game, target), now,
-			{"enemy": target, "stacks": count, "opening_hp": Balance.BLOOM_OPEN_HP if phase == "open" else 0})
+			{"enemy": target, "stacks": count, "opening_hp": Balance.BLOOM_OPEN_HP + int(cast.affinity_action.potency().get("opening_bonus_hp",0)) if phase == "open" else 0})
 
 
 static func on_event(game: Node, event: RefCounted, kind: String, details: Dictionary, now: int) -> void:

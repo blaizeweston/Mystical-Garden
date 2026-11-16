@@ -78,6 +78,7 @@ const LoadoutMaterials=preload("res://loadout_materials.gd")
 const ROUTE_ROOMS := EncounterConfig.BIOME_LENGTH
 const ROOM_CURRENCY := 2
 const RunUpgrades=preload("res://run_upgrade_catalog.gd")
+const AffinityCards = preload("res://affinity_cards.gd")
 const HOOK_ROOM := 3
 const GRAFT_ROOM := EncounterConfig.GRAFT_INTERVAL
 const GRAFT_CHANCE := 0.65
@@ -175,6 +176,8 @@ var checkpoint_menu: PanelContainer
 var checkpoint_cards: HBoxContainer
 var checkpoint_notice: Label
 var checkpoint_skip: Button
+var checkpoint_reroll: Button
+var checkpoint_offer_revision := 0
 var checkpoint_pending:=false
 var checkpoint_ready: Dictionary={}
 const Altar=preload("res://altar_service.gd")
@@ -919,7 +922,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if checkpoint_menu.visible:
 		for index in 4:
 			if event.is_action_pressed(["upgrade_power","upgrade_technique","upgrade_synergy","upgrade_fourth"][index]):
-				send_garden_action("checkpoint_choice_%d"%index)
+				if checkpoint_offer_revision > 0:
+					send_garden_action(affinity_checkpoint_action(checkpoint_offer_revision, str(index)))
+				else:
+					send_garden_action("checkpoint_choice_%d"%index)
 				get_viewport().set_input_as_handled()
 				return
 	if overlay.visible:
@@ -1100,6 +1106,10 @@ func _garden_action(id: int, action: String) -> void:
 		if at_weapon_gate(player):
 			enter_wilds(id,player)
 			if player.wild and not has_meta(Transactions.SESSION): close_flow_for(id)
+		return
+	if action.begins_with(AffinityCards.COMMAND):
+		if preload("res://combat_ruleset.gd").active(self):
+			AffinityCards.command(self,id,player,action)
 		return
 	if action.begins_with("checkpoint_choice_"):
 		var value:=action.trim_prefix("checkpoint_choice_")
@@ -1427,6 +1437,8 @@ func revive_player(id: int, target: int) -> void:
 		Transactions.run(self, func(): return Life.revive(self, id, target))
 
 func run_wallet(player: Dictionary) -> int:
+	if not player.get("wild",false):
+		return 0
 	return maxi(0,deepest_milestone*ROOM_CURRENCY+int(player.get("essence_sparks",0))/int(Director.config().essence_sparks_per_point)-int(player.get("spent",0)))
 
 
@@ -1625,7 +1637,8 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 		if adapter.is_empty():
 			tell(id, "This class ability has no affinity contract.")
 			return
-		skill = adapter.native_skill
+		skill = adapter.native_skill.duplicate()
+		AffinityCards.tune_class(player,skill,affinity_build,Life.Preview.scale())
 		event = combat_events_api.class_start(self, id, adapter, now, affinity_build.catalyst)
 		if adapter.trigger == "contact" or (event != null and event.affinity in ["vital","wood"] and adapter.recipients == "designated_area"):
 			stats[combat_events_api.CONTEXT] = event
@@ -1702,7 +1715,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 		"guard":
 			combat_events_api.grant_ward(self,player,now+int(skill.duration)+duration,int(skill.charges),event,adapter,now)
 		"bastion","ward":
-			var ward_ms := int(chime.get("duration",skill.duration)) + duration
+			var ward_ms := int(chime.get("duration",skill.duration)) + duration + int(skill.get("ward_ms",0))
 			for ally in players.values():
 				if Life.alive(ally) and ally.pos.distance_to(player.pos)<=radius and battlefield.clear_line(player.pos,ally.pos):
 					combat_events_api.grant_ward(self,ally,now+ward_ms,int(skill.charges),event,adapter,now)
@@ -1872,6 +1885,8 @@ func apply_skill_targets(player: Dictionary,targets: Array[int],skill: Dictionar
 	var before_primary:=enemy_hp
 	var drain_contacts:=0
 	var native_hits: Dictionary = skill.get("native_hit_adjustments",{})
+	var echo_bloom := AffinityCards.bloom_echo_source(self,player,skill,now)
+	var echo_hit := false
 	for target in targets:
 		var adjustment: Dictionary = native_hits.get(target,{})
 		var root_time:=Skills.Balance.bind_ms(skill,stats)
@@ -1899,10 +1914,14 @@ func apply_skill_targets(player: Dictionary,targets: Array[int],skill: Dictionar
 				if skill.has("reaper_nodes"):
 					preload("res://reaper_combat.gd").tag_hit(hit,skill.reaper_nodes)
 			var before:=enemy_hp if target==-1 else int(scouts[target].hp)
+			var inside_bloom := before > 0 and not echo_bloom.is_empty() and AffinityCards.bloom_contains(self,echo_bloom,target)
 			apply_weapon_hit(player,target,adjustment.get("origin",skill.get("effect_origin",player.pos)),hit,now)
+			var after:=enemy_hp if target==-1 else int(scouts[target].hp)
+			echo_hit = echo_hit or (inside_bloom and after < before)
 			if Life.Preview.enabled and Life.Sustain.eligible(self,target):
-				var after:=enemy_hp if target==-1 else int(scouts[target].hp)
 				drain_contacts+=int(after<before)
+	if echo_hit:
+		AffinityCards.bloom_echo(self,player,echo_bloom,skill,now)
 	if destination==Campaign.HEART and before_primary>Campaign.FINAL_HP/2.0 and enemy_hp>0 and enemy_hp<=Campaign.FINAL_HP/2.0:
 		for peer_id in players: tell(peer_id,"The Heart remembers: I sheltered them, too. I will not let it happen again.")
 	return drain_contacts if Life.Preview.enabled else targets.size()
@@ -2033,7 +2052,7 @@ func checkpoint_offer_ids(player: Dictionary) -> Array:
 func buy_upgrade(id: int,player: Dictionary,choice: int) -> bool:
 	var combat_mode = preload("res://combat_ruleset.gd")
 	if combat_mode.active(self):
-		tell(id,combat_mode.EMPTY_CARDS)
+		tell(id,combat_mode.LEGACY_CARD_REFUSAL)
 		return false
 	if has_meta(Transactions.SESSION):
 		var result := run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): return _buy_upgrade(id, player, choice, effects))
@@ -2338,7 +2357,8 @@ func dodge_player(id: int, direction: Vector2) -> void:
 	p.pos = battlefield.dash(p.pos, bound_position(p.pos + p.facing * DODGE_DISTANCE, true))
 	if p.has("affinity_spirit_follow"):
 		preload("res://spirit_affinity.gd").movement(self,p,previous,p.pos)
-	p.dodge_at = now + maxi(350,DODGE_COOLDOWN_MS-int(weapon_stats(p).get("dodge_cooldown",0)))
+	var recovery := DODGE_COOLDOWN_MS - int(weapon_stats(p).get("dodge_cooldown",0))
+	p.dodge_at = now + maxi(350,recovery - AffinityCards.amount(p,"run_dodge_recovery"))
 
 
 func update_enemy(delta: float, now: int) -> void:
@@ -2946,6 +2966,8 @@ func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 		var events = preload("res://combat_action_events.gd")
 		var event: RefCounted = p.get("cr02_class_strike")
 		if event == null:
+			if not p.get("skill_burst",false) and p.has(AffinityCards.STATE):
+				AffinityCards.ordinary_weapon(p,stats,Life.Preview.scale())
 			var form_affinity: Dictionary = affinity_build.form
 			var ready: bool = form_affinity.state == "ready"
 			event = events.begin(self,id,"form" if ready else "native_weapon",form_affinity if ready else {},
@@ -3294,7 +3316,10 @@ func return_to_garden(p: Dictionary) -> void:
 	p.attack_until=0;p.swing_until=0;p.cast_until=0
 	preload("res://oracle_combat.gd").clear(p)
 	p.run_upgrades={}
+	AffinityCards.clear(p)
 	p.essence_sparks=0
+	p.spent=0
+	p.last_offer=0
 	p.checkpoint_offers=[]
 	p.offer_floor=0
 	p.power=0
@@ -3700,6 +3725,7 @@ func reset_expedition() -> void:
 		player.essence_sparks=0
 		player.last_offer = 0
 		player.run_upgrades={}
+		AffinityCards.clear(player)
 		player.checkpoint_offers=[]
 		player.offer_floor=0
 		player.upgrade_seed=Crypto.new().generate_random_bytes(8).hex_encode().hash()
@@ -3851,6 +3877,8 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 				"reclaim_choice":p.get("reclaim_choice",0),"offering_choice":p.get("offering_choice",0),"last_deposit":p.get("last_deposit",0),"weapon_kind":p.weapon_kind,"catalyst":p.catalyst,"graft_part":p.graft_part,"graft_floor":p.get("graft_floor",0),"prepared_catalyst":p.prepared_catalyst,"cargo_plan":p.cargo_plan,"stored_parts":stored_counts(p),"weapon_stats":weapon_stats(p,not p.wild), "carried_parts": p.carried_parts, "reserve_parts": seed_reserve(p).parts,"combat_events":combat_events_snapshot(),"attack_hints":attack_hints_snapshot(),"death_events":death_events_snapshot(),"run_upgrades":preload("res://combat_ruleset.gd").legacy_ranks(p),"bag":InventoryModel.snapshot(self,p),"ground_items":inventory_floor_snapshot(p), "secondary": p.secondary, "prepared_secondary": p.prepared_secondary,
 				"garden_interactions":preload("res://garden_interaction_service.gd").projection(self,id),
 				"party_travel":PartyTravel.snapshot(self,id),"seed_choice": selected_seed(p), "graft_choice": p.graft_choice, "cache_claimed": p.cache_claimed})
+			if p.wild and p.has(AffinityCards.STATE):
+				state["affinity_run_cards"] = AffinityCards.project_owned(p,state.weapon_stats,DODGE_COOLDOWN_MS)
 		state.diagnostic_host=Journal.current.session_id if is_instance_valid(Journal.current) else ""
 		state.diagnostic_world=diagnostic_watch.world_session if is_instance_valid(diagnostic_watch) else ""
 		snapshot[id] = state
@@ -4038,7 +4066,7 @@ func _process(_delta: float) -> void:
 			guide.text = "E  Continue    ·    T  Extract to the Garden"
 			detail_label.text = "Extract or continue."
 			if p.get("last_offer", 0) != encounter_number:
-				detail_label.text += "\nE  Review next-floor readiness" if has_meta(&"combat_affinity_ruleset") else "\nE  Choose upgrade cards   ·   %d essence available" % (run_wallet(p) if multiplayer.is_server() else int(p.get("wallet", 0)))
+				detail_label.text += "\nE  Choose an upgrade   ·   %d Essence" % (run_wallet(p) if multiplayer.is_server() else int(p.get("wallet", 0)))
 		if visual_field.has_seed_cache() and not p.get("cache_claimed", false) and (
 				visual_field.cache.distance_to(p.pos) <= 1.55 and destination != Campaign.HEART):
 			guide.text = "E  Search the abandoned clearing"
@@ -4857,6 +4885,8 @@ func checkpoint_all_ready() -> bool:
 	return true
 
 func checkpoint_card_data(player: Dictionary) -> Array:
+	if preload("res://combat_ruleset.gd").active(self):
+		return [AffinityCards.view(self,player,int(checkpoint_ready.get(Traits.player_id(self,player),0))==encounter_number)]
 	var result: Array=[]
 	var wallet: int=run_wallet(player)
 	var offers:=checkpoint_offer_ids(player)
@@ -4886,33 +4916,77 @@ func present_checkpoint_cards(id: int) -> void:
 
 @rpc("authority","call_remote","reliable")
 func open_checkpoint_cards(cards: Array,wallet: int,floor_number: int,waiting: bool) -> void:
+	var offer: Dictionary = {}
+	if cards.size() == 1 and cards[0].get("affinity_offer", false):
+		if floor_number < encounter_number:
+			return
+		offer = cards[0]
+		cards = offer.choices
+	checkpoint_offer_revision = int(offer.get("revision", 0))
+	checkpoint_reroll.visible = not offer.is_empty() and not waiting and not offer.closed and not offer.exhausted
 	for child in checkpoint_cards.get_children():
-		checkpoint_cards.remove_child(child);child.queue_free()
-	checkpoint_notice.text="Checkpoint %d · %d essence\nChoose one upgrade."%[floor_number,wallet]
-	checkpoint_notice.text+=" Then confirm readiness at the gate with your party." if players.size()>1 else " It lasts until this expedition ends."
-	var combat_mode = preload("res://combat_ruleset.gd")
-	if combat_mode.active(self):
-		cards = []
-		checkpoint_notice.text = combat_mode.EMPTY_CARDS
-	if cards.size()==4: checkpoint_notice.text+="\nA hidden root reveals a fourth choice."
-	if waiting: checkpoint_notice.text="Ready. Waiting for party." if combat_mode.active(self) else "Upgrade chosen. Waiting for party."
-	var width: float=190 if cards.size()==4 else 225
+		checkpoint_cards.remove_child(child)
+		child.queue_free()
+	checkpoint_notice.text = "Checkpoint %d · %d Essence\nChoose one upgrade." % [floor_number,wallet]
+	checkpoint_notice.text += " Then confirm readiness at the gate with your party." if players.size()>1 else " It lasts until this expedition ends."
+	if not offer.is_empty():
+		checkpoint_notice.text = "Checkpoint %d · %d Essence · %d/%d upgrades claimed" % [floor_number,wallet,offer.acquired,offer.limit]
+		if offer.exhausted:
+			checkpoint_notice.text += "\nUpgrade limit reached. Continue at the Gate."
+		elif offer.closed:
+			checkpoint_notice.text += "\nThis checkpoint choice is complete."
+		elif cards.is_empty():
+			checkpoint_notice.text += "\nNo eligible upgrades for your build. You can continue at the Gate."
+		else:
+			checkpoint_notice.text += "\nChoose one free upgrade."
+		var cost: int = offer.reroll_cost
+		checkpoint_reroll.text = "Reroll · %d Essence" % cost if cost > 0 else "Rerolls used"
+		checkpoint_reroll.disabled = not offer.reroll_enabled
+		checkpoint_reroll.tooltip_text = offer.reroll_reason
+	elif cards.size()==4:
+		checkpoint_notice.text += "\nA hidden root reveals a fourth choice."
+	if waiting:
+		checkpoint_notice.text = "Ready. Waiting for party." if not offer.is_empty() else "Upgrade chosen. Waiting for party."
+	var width: float = 190 if cards.size()==4 else 225
 	for data in cards:
-		var frame:=hud_panel(checkpoint_cards,Color("#14262b"),Vector2(12,12))
-		frame.custom_minimum_size=Vector2(width,340)
-		var card:=VBoxContainer.new();card.add_theme_constant_override("separation",10);frame.add_child(card)
-		var title:=add_label(card,18,Color("#e4d7a5"));title.text=str(data.title);title.add_theme_color_override("font_color",Color({"Common":"#d0d1b3","Uncommon":"#a3c57b","Rare":"#83b7d7","Epic":"#b99adb"}.get(str(data.get("rarity","Common")),"#e4d7a5")));title.custom_minimum_size=Vector2(width-28,52);title.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-		var scroll:=ScrollContainer.new();scroll.custom_minimum_size=Vector2(width-28,220);scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL;scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;card.add_child(scroll)
-		var description:=add_label(scroll,14,Color("#c8d1bd"));description.text=str(data.description);description.custom_minimum_size.x=width-40;description.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-		var choice:=int(data.choice)
-		var button:=add_button(card,"%d · Choose · %d essence"%[choice+1,int(data.cost)],func(): send_garden_action("checkpoint_choice_%d"%choice))
+		var frame := hud_panel(checkpoint_cards,Color("#14262b"),Vector2(12,12))
+		frame.custom_minimum_size = Vector2(width,340)
+		var card := VBoxContainer.new()
+		card.add_theme_constant_override("separation",10)
+		frame.add_child(card)
+		var title := add_label(card,18,Color("#e4d7a5"))
+		title.text = str(data.title)
+		title.add_theme_color_override("font_color",Color({"Common":"#d0d1b3","Uncommon":"#a3c57b","Rare":"#83b7d7","Epic":"#b99adb"}.get(str(data.get("rarity","Common")),"#e4d7a5")))
+		title.custom_minimum_size = Vector2(width-28,52)
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if not offer.is_empty():
+			add_label(card,14,Color("#a3c57b")).text = "%s · %s" % [data.scope,"Unique" if data.unique else data.rarity]
+		var scroll := ScrollContainer.new()
+		scroll.custom_minimum_size = Vector2(width-28,200 if not offer.is_empty() else 220)
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		card.add_child(scroll)
+		var description := add_label(scroll,14,Color("#c8d1bd"))
+		description.text = str(data.description)
+		description.custom_minimum_size.x = width-40
+		description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var choice := int(data.choice)
+		var action := affinity_checkpoint_action(int(offer.revision),str(choice)) if not offer.is_empty() else "checkpoint_choice_%d"%choice
+		var caption := "%d · Take upgrade" % (choice+1) if not offer.is_empty() else "%d · Choose · %d essence"%[choice+1,int(data.cost)]
+		var button := add_button(card,caption,func(): send_garden_action(action))
 		button.add_theme_font_size_override("font_size",13)
-		button.disabled=waiting or not bool(data.enabled)
-	checkpoint_skip.text="Waiting for party…" if waiting else "Continue without an upgrade" if combat_mode.active(self) else "Skip upgrade"
-	checkpoint_skip.disabled=waiting
-	if not checkpoint_menu.visible: toggle_overlay(checkpoint_menu)
+		button.disabled = waiting or not bool(data.enabled)
+	checkpoint_skip.text = "Waiting for party…" if waiting else "Continue at the Gate" if not offer.is_empty() and (offer.exhausted or offer.closed or cards.is_empty()) else "Skip upgrade"
+	checkpoint_skip.disabled = waiting
+	if not checkpoint_menu.visible:
+		toggle_overlay(checkpoint_menu)
+
+
+func affinity_checkpoint_action(revision: int, choice: String) -> String:
+	return "%s%d_%s" % [AffinityCards.COMMAND,revision,choice]
 
 func choose_checkpoint_card(id: int,player: Dictionary,choice: int) -> void:
+	if preload("res://combat_ruleset.gd").active(self): return
 	if not Transactions.session_writable(self): return
 	if not checkpoint_pending or not Life.alive(player) or not upgrade_checkpoint_open() or player.pos.distance_to(battlefield.advance)>preload("res://gate_interaction.gd").RANGE or int(checkpoint_ready.get(id,0))==encounter_number: return
 	if choice>=0:
@@ -4921,6 +4995,10 @@ func choose_checkpoint_card(id: int,player: Dictionary,choice: int) -> void:
 			if Transactions.session_writable(self): present_checkpoint_cards(id)
 			return
 	elif choice!=-1: return
+	mark_checkpoint_ready(id)
+
+
+func mark_checkpoint_ready(id: int) -> void:
 	checkpoint_ready[id]=encounter_number
 	if has_meta(Transactions.SESSION):
 		# Selection is independent of expedition settlement in guarded sessions.
@@ -4959,7 +5037,17 @@ Already banked items and permanent progress remain."
 	add_label(box,25,Color("#e4d7a5")).text="Roots of Strength"
 	checkpoint_notice=add_label(box,15,Color("#c8d1bd"))
 	checkpoint_cards=HBoxContainer.new();checkpoint_cards.add_theme_constant_override("separation",14);box.add_child(checkpoint_cards)
-	checkpoint_skip=add_button(box,"Continue without another upgrade",func(): send_garden_action("checkpoint_choice_-1"))
+	var controls := HBoxContainer.new()
+	controls.add_theme_constant_override("separation",14)
+	box.add_child(controls)
+	checkpoint_skip = add_button(controls,"Continue without another upgrade",func():
+		if checkpoint_offer_revision > 0:
+			send_garden_action(affinity_checkpoint_action(checkpoint_offer_revision,"skip"))
+		else:
+			send_garden_action("checkpoint_choice_-1"))
+	checkpoint_reroll = add_button(controls,"Reroll",func():
+		send_garden_action(affinity_checkpoint_action(checkpoint_offer_revision,"reroll")))
+	checkpoint_reroll.hide()
 
 
 func build_grafting_panel() -> void:

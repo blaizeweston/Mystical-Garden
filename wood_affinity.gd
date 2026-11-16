@@ -68,7 +68,7 @@ static func grant(game: Node, event: RefCounted, id: int, response: String) -> i
 	game.set_meta(GRANT_ORDER,order)
 	grants.append({"actor":event.actor,"slot":event.source,"item":event.material_id,"quality":event.quality,
 		"activation":event.identity,"order":order,"remaining":admitted,"admitted":admitted,"break_hp":q.break_hp,
-		"until":elapsed+(CORE_MS if is_core else CATALYST_MS)})
+		"until":elapsed+(CORE_MS if is_core else CATALYST_MS)+int(q.get("duration_bonus_ms",0))})
 	player[GRANTS]=grants
 	Journal.event("combat","affinity_bark_granted",{"actor":event.actor,"recipient":id,
 		"activation":event.identity,"offered":offered,"admitted":admitted,"quality":event.quality,"grant":order})
