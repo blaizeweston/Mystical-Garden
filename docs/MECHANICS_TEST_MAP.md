@@ -954,6 +954,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::make_scout` | preview_juvenile_hp | combat_balance_preview |
 | `game.gd::make_scout` | heavy_and_support | enemy_attack_plan |
 | `game.gd::make_scout` | species_variants | enemy_attack_plan |
+| `game.gd::apply_weapon_hit` | cr05_shared_grave_0 | combat_affinity_contracts, weapons, classes, life |
+| `game.gd::apply_weapon_hit` | cr05_shared_grave_1 | combat_affinity_contracts, weapons, classes, life |
 | `game.gd::apply_weapon_hit` | cr05_grafts_0 | combat_affinity_contracts, weapons, classes, life |
 | `game.gd::apply_weapon_hit` | cr05_grafts_1 | combat_affinity_contracts, weapons, classes, life |
 | `game.gd::apply_weapon_hit` | cr03_frost_integration | fire_affinity, frost_affinity |
@@ -2189,6 +2191,9 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `core_combat.gd` | record_thorn_success | thorn_adaptation |
 | `core_combat.gd` | record_thorn_opportunity | thorn_adaptation |
 | `core_combat.gd` | thorn_learning_dependency | thorn_adaptation |
+| `combat_traits.gd` | cr05_shared_grave_1 | combat_affinity_contracts, weapons, classes, life |
+| `combat_traits.gd` | cr05_shared_grave_2 | combat_affinity_contracts, weapons, classes, life |
+| `combat_traits.gd` | cr05_shared_grave_3 | combat_affinity_contracts, weapons, classes, life |
 | `combat_traits.gd` | cr05_grafts_1 | combat_affinity_contracts, weapons, classes, life |
 | `combat_traits.gd` | cr05_grafts_2 | combat_affinity_contracts, weapons, classes, life |
 | `combat_traits.gd` | cr05_grafts_3 | combat_affinity_contracts, weapons, classes, life |

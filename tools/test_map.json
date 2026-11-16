@@ -7814,6 +7814,18 @@
       }
     },
     "apply_weapon_hit": {
+      "cr05_shared_grave_0": {
+        "match": "\tp.contributed=true\n\tvar grafts = preload(\"res://native_grafts.gd\")\n\tvar graft_contact := grafts.start_contact(self,p,stats,target,now)\n\tif not stats.get(\"core_hit\",false): stats=Traits.augment_hit(self,p,target,stats,now,graft_contact)\n\tvar point:=enemy_position(target)\n",
+        "baseline": "\tp.contributed=true\n\tif not stats.get(\"core_hit\",false): stats=Traits.augment_hit(self,p,target,stats,now)\n\tvar point:=enemy_position(target)\n",
+        "systems": ["combat_affinity_contracts", "weapons", "classes", "life"],
+        "additive": true
+      },
+      "cr05_shared_grave_1": {
+        "match": "\t\tpoint=battlefield.dash(point,point.move_toward(origin,clampf(distance-0.9,0,pull)))\n\tvar authored_damage:=Life.Preview.authored_amount(float(stats.damage))\n",
+        "baseline": "\t\tpoint=battlefield.dash(point,point.move_toward(origin,clampf(distance-0.9,0,pull)))\n\tvar grafts = preload(\"res://native_grafts.gd\")\n\tvar graft_contact := grafts.start_contact(self,p,stats,target,now)\n\tvar authored_damage:=Life.Preview.authored_amount(float(stats.damage))\n",
+        "systems": ["combat_affinity_contracts", "weapons", "classes", "life"],
+        "additive": true
+      },
       "cr05_grafts_0": {
         "match": "\t\tpoint=battlefield.dash(point,point.move_toward(origin,clampf(distance-0.9,0,pull)))\n\tvar grafts = preload(\"res://native_grafts.gd\")\n\tvar graft_contact := grafts.start_contact(self,p,stats,target,now)\n\tvar authored_damage:=Life.Preview.authored_amount(float(stats.damage))\n\tif not graft_contact.is_empty():\n\t\tauthored_damage += grafts.bonus(self,p,graft_contact,now)\n\tif not stats.get(\"trait_secondary\",false):\n",
         "baseline": "\t\tpoint=battlefield.dash(point,point.move_toward(origin,clampf(distance-0.9,0,pull)))\n\tvar authored_damage:=Life.Preview.authored_amount(float(stats.damage))\n\tif not stats.get(\"trait_secondary\",false):\n",
@@ -17073,6 +17085,21 @@
     "combat_traits.gd": {
       "newline": "crlf",
       "regions": {
+        "cr05_shared_grave_1": {
+          "match": " return result\nstatic func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,graft_contact: Dictionary={}) -> Dictionary:\n var hit:=stats.duplicate(true);var state:=target_state(game,target)\n",
+          "baseline": " return result\nstatic func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int) -> Dictionary:\n var hit:=stats.duplicate(true);var state:=target_state(game,target)\n",
+          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
+        },
+        "cr05_shared_grave_2": {
+          "match": "  if float(hit.get(\"reaper_momentum\",0))>0:\n   var charges := int(p.get(\"grave_charges\",0))\n   if not graft_contact.is_empty():\n    charges += int(graft_contact.state.get(\"grave_charges\",0))\n   damage+=mini(2,charges)\n  if int(p.get(\"grave_charges\",0))>0:\n",
+          "baseline": "  if float(hit.get(\"reaper_momentum\",0))>0:\n   damage+=mini(2,int(p.get(\"grave_charges\",0)))\n  if int(p.get(\"grave_charges\",0))>0:\n",
+          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
+        },
+        "cr05_shared_grave_3": {
+          "match": " var point: Vector3=game.enemy_position(target)\n if killed and (target==-1 or not game.scouts[target].get(\"summoned\",false)) and float(stats.get(\"death_charge\",0))>0:\n  var graft_charges := int(p.get(\"native_graft_state\",{}).get(\"grave_charges\",0))\n  p.grave_charges=mini(3-graft_charges,int(p.get(\"grave_charges\",0))+maxi(1,roundi(float(stats.death_charge))))\n if float(stats.get(\"chorus_pulse\",0))>0:\n",
+          "baseline": " var point: Vector3=game.enemy_position(target)\n if killed and (target==-1 or not game.scouts[target].get(\"summoned\",false)) and float(stats.get(\"death_charge\",0))>0: p.grave_charges=mini(3,int(p.get(\"grave_charges\",0))+maxi(1,roundi(float(stats.death_charge))))\n if float(stats.get(\"chorus_pulse\",0))>0:\n",
+          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
+        },
         "cr05_grafts_1": {
           "match": " return hit\nstatic func queue_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,delay: int,carry: bool,origin: Vector3=Vector3.INF,visual: String=\"\",graft_source: Dictionary={}) -> void:\n if target==-2 or game.trait_events.size()>=24: return\n",
           "baseline": " return hit\nstatic func queue_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,delay: int,carry: bool,origin: Vector3=Vector3.INF,visual: String=\"\") -> void:\n if target==-2 or game.trait_events.size()>=24: return\n",

@@ -146,6 +146,21 @@ func run() -> void:
 	strike()
 	check(player.get(Grafts.STATE,{}).get("grave_charges")==0,"the next direct hit spends the old charge")
 
+	arena()
+	player.frame = 3
+	player.character.upgrades[3] = 1 << 8
+	player.grave_charges = 2
+	player[Grafts.STATE].grave_charges = 1
+	strike()
+	check(Grafts.grave_count(player)==2 and player[Grafts.STATE].grave_charges==1,
+		"mixed class and graft spend one native Death Charge, with the class source first")
+	arena()
+	game.enemy_hp = 1
+	strike()
+	check(game.enemy_hp==0 and Grafts.grave_count(player)==3,
+		"normal kill restores charges from eligible sources without exceeding the shared cap")
+	player.grave_charges = 0
+	player.frame = 0
 	install("ashen_hart",24)
 	arena()
 	now = strike()

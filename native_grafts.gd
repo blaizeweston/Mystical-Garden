@@ -23,6 +23,11 @@ const UNSUPPORTED := {
 	"monster:nameless": "Nameless Stigma requires a decision on whether its Mark shares consumption with native class Marks. It cannot be installed in affinity mode.",
 }
 const TIMING := {"link": 120, "cinder": 4000, "tide": 4500, "brace": 4000}
+const DEATH_CHARGE_CAP := 3
+
+
+static func grave_count(player: Dictionary) -> int:
+	return int(player.get("grave_charges",0)) + int(player.get(STATE,{}).get("grave_charges",0))
 
 
 static func describe(graft: Dictionary) -> String:
@@ -111,7 +116,8 @@ static func start_contact(game: Node, player: Dictionary, stats: Dictionary, tar
 	if not event.take_response("native_graft/" + token): return {}
 	var state: Dictionary = player.get(STATE, {})
 	player[STATE] = state
-	return {"source": source, "state": state, "point": game.enemy_position(target), "attack": event.identity}
+	return {"source": source, "state": state, "point": game.enemy_position(target),
+		"attack": event.identity, "class_charge": int(player.get("grave_charges",0)) > 0}
 
 
 static func bonus(game: Node, player: Dictionary, contact: Dictionary, now: int) -> float:
@@ -122,7 +128,7 @@ static func bonus(game: Node, player: Dictionary, contact: Dictionary, now: int)
 	if effects.has("brace") and now - int(player.get("still_since", now)) >= 500:
 		damage += minf(2, float(effects.brace))
 		load("res://combat_status.gd").proc(game, "brace", player.pos, point)
-	if effects.has("death_charge") and int(state.get("grave_charges", 0)) > 0:
+	if effects.has("death_charge") and not contact.class_charge and int(state.get("grave_charges", 0)) > 0:
 		state.grave_charges -= 1
 		damage += 1
 		load("res://combat_status.gd").proc(game, "momentum", player.pos, point)
@@ -139,7 +145,8 @@ static func finish_contact(game: Node, player: Dictionary, target: int, stats: D
 	var followup := {"damage": stats.damage}
 	if stats.has("preview_strike_hp"): followup.preview_strike_hp = stats.preview_strike_hp
 	if killed and effects.has("death_charge") and (target == -1 or not game.scouts[target].get("summoned", false)):
-		state.grave_charges = mini(3, int(state.get("grave_charges", 0)) + int(effects.death_charge))
+		var available := maxi(0, DEATH_CHARGE_CAP - grave_count(player))
+		state.grave_charges = int(state.get("grave_charges",0)) + mini(available, int(effects.death_charge))
 	if effects.has("link") and ready(state,"link",now):
 		var recipient: int = game.Traits.other_target(game,target,point)
 		followup.link = effects.link

@@ -20,7 +20,7 @@ static func other_target(game: Node,target: int,point: Vector3) -> int:
   var at: Vector3=game.enemy_position(candidate);var length:=point.distance_to(at)
   if length<distance and game.battlefield.clear_line(point,at): result=candidate;distance=length
  return result
-static func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int) -> Dictionary:
+static func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,graft_contact: Dictionary={}) -> Dictionary:
  var hit:=stats.duplicate(true);var state:=target_state(game,target)
  var secondary: bool=hit.get("trait_secondary",false)
  var damage:=Preview.authored_amount(float(hit.damage))
@@ -58,7 +58,10 @@ static func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,n
   if float(hit.get("precision",0))>0 and was_marked:
    damage+=1
   if float(hit.get("reaper_momentum",0))>0:
-   damage+=mini(2,int(p.get("grave_charges",0)))
+   var charges := int(p.get("grave_charges",0))
+   if not graft_contact.is_empty():
+    charges += int(graft_contact.state.get("grave_charges",0))
+   damage+=mini(2,charges)
   if int(p.get("grave_charges",0))>0:
    damage+=1;p.grave_charges-=1
    preload("res://combat_status.gd").proc(game,"momentum",p.pos,game.enemy_position(target),target)
@@ -100,7 +103,9 @@ static func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: fl
 static func after_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,killed: bool) -> void:
  if stats.get("trait_secondary",false): return
  var point: Vector3=game.enemy_position(target)
- if killed and (target==-1 or not game.scouts[target].get("summoned",false)) and float(stats.get("death_charge",0))>0: p.grave_charges=mini(3,int(p.get("grave_charges",0))+maxi(1,roundi(float(stats.death_charge))))
+ if killed and (target==-1 or not game.scouts[target].get("summoned",false)) and float(stats.get("death_charge",0))>0:
+  var graft_charges := int(p.get("native_graft_state",{}).get("grave_charges",0))
+  p.grave_charges=mini(3-graft_charges,int(p.get("grave_charges",0))+maxi(1,roundi(float(stats.death_charge))))
  if float(stats.get("chorus_pulse",0))>0:
   p.chorus_contacts=int(p.get("chorus_contacts",0))+1
   if p.chorus_contacts>=4:

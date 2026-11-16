@@ -2904,15 +2904,15 @@ func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionary,now: int) -> void:
 	if target < -1 or target>=scouts.size() or (enemy_hp if target==-1 else int(scouts[target].hp))<=0: return
 	p.contributed=true
-	if not stats.get("core_hit",false): stats=Traits.augment_hit(self,p,target,stats,now)
+	var grafts = preload("res://native_grafts.gd")
+	var graft_contact := grafts.start_contact(self,p,stats,target,now)
+	if not stats.get("core_hit",false): stats=Traits.augment_hit(self,p,target,stats,now,graft_contact)
 	var point:=enemy_position(target)
 	var distance:=origin.distance_to(point)
 	var winding: bool=stats.get("was_winding",enemy_winding_up if target==-1 else float(scouts[target].windup)>0)
 	var pull:=float(stats.get("pull",0))
 	if pull>0 and not winding:
 		point=battlefield.dash(point,point.move_toward(origin,clampf(distance-0.9,0,pull)))
-	var grafts = preload("res://native_grafts.gd")
-	var graft_contact := grafts.start_contact(self,p,stats,target,now)
 	var authored_damage:=Life.Preview.authored_amount(float(stats.damage))
 	if not graft_contact.is_empty():
 		authored_damage += grafts.bonus(self,p,graft_contact,now)

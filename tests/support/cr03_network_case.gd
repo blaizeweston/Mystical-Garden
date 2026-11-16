@@ -301,7 +301,7 @@ func host(menu: Node) -> void:
 	if not check(await until(func():return not game.expedition_active() and read("guest-garden")=="ok"),"party extraction restores Garden"):return
 	check([game.progress.part_count(ordinary),game.progress.part_count(refined)]==paid,"no repeated affinity material consumption")
 	if native_graft_case:
-		check(game.players[ids[0]].graft_part==0 and not game.players[ids[0]].has("native_graft_state"),
+		check(ally.graft_part==0 and not ally.has("native_graft_state"),
 			"Garden return clears the guest's run-only graft and its counters")
 	if not check(await until(func():return guests(game).is_empty() and game.pending_departures.is_empty()),"guest detached through normal teardown"):return
 	mark("detached")
