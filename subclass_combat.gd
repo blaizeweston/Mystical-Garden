@@ -3,6 +3,7 @@ extends RefCounted
 const Catalog = preload("res://subclass_catalog.gd")
 const Mark = preload("res://core_strike_mark.gd")
 const Balance = preload("res://class_skill_balance.gd")
+const WeaverCombat = preload("res://weaver_combat.gd")
 const CLIPS := {
 	"weave":"Attack_wand", "bloom":"Attack_staff", "silk":"Attack_orb",
 	"salvo":"Attack_bow", "snare":"Attack_ring", "retreat":"Attack_crossbow",
@@ -128,6 +129,8 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		{"pattern":cast.shape,"width":cast.width,"span":cast.span,"owner":id,"clip":CLIPS[skill.visual],"label":skill.name})
 	var cast_id: int = game.combat_event_serial
 	var bind := Balance.subclass_bind(skill,card)
+	var weaver := skill.has("weaver_nodes")
+	var q_contact := false
 	if leaves_snare:
 		var trap := skill.duplicate()
 		trap.bind = bind
@@ -152,14 +155,18 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 			hit.knockback = -.35
 			var before: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)
 			game.apply_weapon_hit(player,target,cast.center,hit,now)
+			var after: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)
+			q_contact = q_contact or after < before
 			if Balance.Preview.enabled and rewardable:
-				var after: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)
 				drain_contacts += int(after<before)
 		if not game.Traits.valid_target(game,target):
 			kills += int(rewardable)
 			continue
 		if bind > 0:
-			preload("res://combat_status.gd").root(game,target,now+bind+int(stats.get("skill_duration",0)))
+			var until := now+bind+int(stats.get("skill_duration",0))
+			var previous: int = game.rooted_until if target == -1 else int(game.scouts[target].get("rooted_until",0))
+			preload("res://combat_status.gd").root(game,target,until)
+			q_contact = q_contact or until > previous
 		if skill.has("pull"):
 			pull(game,target,cast.center,float(skill.pull),now)
 		if marks > 0 and Mark.active(game,game.Traits.target_state(game,target),now).is_empty():
@@ -167,19 +174,23 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 				"skill":{"id":skill.id,"mark_ms":2700,"mark_damage":Balance.MARK_POINTS,"color":skill.color,"subclass_mark":true}},now)
 			marks -= 1
 	if not affected.is_empty() and skill.second == 0:
-		echo(game,player,contact,affected,Color(skill.color),now)
+		echo(game,player,contact,affected,Color(skill.color),now,weaver)
 	var drain_count := drain_contacts if Balance.Preview.enabled else affected.size()
 	if skill.get("leech",false) and drain_count>0:
 		game.Life.Sustain.heal(game,player,Balance.drain_amount(skill,drain_count),skill.id,Balance.Preview.HEAL_DRAIN_SPREAD_HP)
 	if card.get("grave",false) and kills > 0:
 		player.grave_charges = mini(3,int(player.get("grave_charges",0))+1)
 	var field_duration := Balance.duration(skill,stats) if Balance.Preview.enabled else int(skill.get("duration",0))
+	var field := {}
 	if skill.has("field"):
-		game.Traits.zone(game,player,skill.field,cast.center,cast.radius,field_duration,Balance.field_power(skill),now,false,
+		field = game.Traits.zone(game,player,skill.field,cast.center,cast.radius,field_duration,Balance.field_power(skill),now,false,
 			events.field_action(stats))
+		if not field.is_empty() and player.has("combat_ruleset") and skill.subclass_focus == "bloomcaller":
+			field.native_weaver_bloom = true
 	if card.get("thorn_patch",false):
 		game.Traits.zone(game,player,"cinder",cast.center,cast.radius,field_duration,Balance.FOLLOWUP_POINTS,now)
 	var nearby := allies(game,contact,radius)
+	var extend_ward: bool = weaver and skill.subclass_focus == "silkwarden" and skill.first == 2
 	var heal_hp := 0
 	if skill.has("heal") and not nearby.is_empty():
 		var healing := Balance.direct_heal(skill,stats) if Balance.Preview.enabled else float(skill.heal)
@@ -190,14 +201,18 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		if skill.get("cleanse",false) or card.get("cleanse",false) or skill.second == 2:
 			ally.slow_until = 0
 		if skill.get("ward",false) or card.get("ward",false) or (card.get("party_hit_ward",false) and not affected.is_empty()):
-			events.grant_ward(game,ally,now+Balance.WARD_MS,1,event,adapter,now)
-	if not nearby.is_empty() and (skill.first == 2 or (skill.get("hit_ward",false) and not affected.is_empty())):
+			var extra := Catalog.Weaver.GIFT_EXTENSION_MS if extend_ward and is_same(ally,nearby[0]) else 0
+			events.grant_ward(game,ally,now+Balance.WARD_MS+extra,1,event,adapter,now)
+	if not nearby.is_empty() and ((skill.first == 2 and not extend_ward) or (skill.get("hit_ward",false) and not affected.is_empty())):
 		game.grant_guard(nearby[0],now+Balance.WARD_MS,1)
 	if card.get("landing_ward",false):
 		game.grant_guard(player,now+Balance.WARD_MS,1)
 	if Balance.Preview.enabled and not skill.has("heal") and Balance.healing_bonus(stats) > 0.0:
 		game.Life.Sustain.heal(game,player,Balance.healing_bonus(stats),"class_healing_bonus")
 	var follow := Catalog.lane_at(player.character,int(player.frame),3)
+	if weaver:
+		follow = Catalog.Weaver.TREE.lane_at(skill.weaver_nodes,3)
+		WeaverCombat.on_q(game,id,player,skill.weaver_nodes,contact,nearby,q_contact,field,cast_id,now)
 	if follow >= 0:
 		player.subclass_follow = {"lane":follow,"epoch":game.combat_epoch,"life":player.get("lost_health",0)}
 	player.contributed = true
@@ -230,7 +245,7 @@ static func pull(game: Node, target: int, center: Vector3, amount: float, now: i
 		game.emit_combat_event("enemy_release","pulled",point,moved,.4,Color("#e7dbad"),0.0,target)
 
 
-static func echo(game: Node, player: Dictionary, center: Vector3, exclude: Array[int], color: Color, now: int) -> void:
+static func echo(game: Node, player: Dictionary, center: Vector3, exclude: Array[int], color: Color, now: int, isolated := false) -> void:
 	var nearest := -2
 	var best := 2.6
 	for target in game.skill_area_targets(center,best,center):
@@ -241,7 +256,10 @@ static func echo(game: Node, player: Dictionary, center: Vector3, exclude: Array
 	if nearest == -2:
 		return
 	var point: Vector3 = game.enemy_position(nearest)
-	game.apply_weapon_hit(player,nearest,center,{"damage":Balance.FOLLOWUP_POINTS,"knockback":-.35,"trait_secondary":true},now)
+	if isolated:
+		WeaverCombat.secondary_hit(game,player,nearest,center,Catalog.Weaver.BRANCHING_HP,now)
+	else:
+		game.apply_weapon_hit(player,nearest,center,{"damage":Balance.FOLLOWUP_POINTS,"knockback":-.35,"trait_secondary":true},now)
 	game.emit_combat_event("link","subclass_echo",center,point,.5,color,0.0,0)
 
 

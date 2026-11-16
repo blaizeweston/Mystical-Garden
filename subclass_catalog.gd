@@ -1,6 +1,7 @@
 extends RefCounted
 ## Each row defines a class. Each focus owns its skill, release style and checkpoint card.
 const Graph = preload("res://warden_tree.gd")
+const Weaver = preload("res://weaver_connected_tree.gd")
 const FOCUSES := [
  [
   {
@@ -516,22 +517,33 @@ static func lane_at(profile: Dictionary, class_id: int, tier: int) -> int:
 	return -1
 
 
-static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionary) -> Dictionary:
+static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionary, connected := false) -> Dictionary:
+	var use_connected := class_id == 1 and connected
+	var selected := Weaver.TREE.path(profile) if use_connected else []
 	var entry := focus(profile,class_id)
+	if use_connected and not selected.is_empty():
+		entry = FOCUSES[0][Weaver.TREE.lane_at(selected,0)]
 	if entry.is_empty():
 		return base
 	var result := entry.duplicate(true) if slot == 0 else base
 	result.subclass_focus = entry.id
-	for tier in range(1,4):
-		var lane := lane_at(profile,class_id,tier)
-		if lane < 0:
-			continue
-		if (tier == 3) == (slot == 1):
-			result.description += "\n" + TITLES[class_id-1][tier-1][lane] + " · " + EFFECTS[tier-1][lane]
+	if use_connected:
+		result.weaver_nodes = selected
+		if slot == 0 and entry.id == "thornbinder":
+			result.description = "Damage and root a visible foe and up to one nearby enemy."
+		for tier in range(1,selected.size()):
+			var node := Weaver.TREE.node(selected[tier])
+			if (tier in [1,2,4] and slot == 0) or (tier >= 3 and slot == 1):
+				result.description += "\n" + node.name + " · " + Weaver.description(node,entry.id)
+	else:
+		for tier in range(1,4):
+			var lane := lane_at(profile,class_id,tier)
+			if lane >= 0 and (tier == 3) == (slot == 1):
+				result.description += "\n" + TITLES[class_id-1][tier-1][lane] + " · " + EFFECTS[tier-1][lane]
 	if slot != 0:
-		result.subclass_follow_lane = lane_at(profile,class_id,3)
+		result.subclass_follow_lane = Weaver.TREE.lane_at(selected,3) if use_connected else lane_at(profile,class_id,3)
 		return result
-	var first := lane_at(profile,class_id,1)
+	var first := Weaver.TREE.lane_at(selected,1) if use_connected else lane_at(profile,class_id,1)
 	if first == 0:
 		if result.shape == "line":
 			result.width += .24
@@ -540,7 +552,7 @@ static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionar
 	if first == 1 and result.has("range"):
 		result.range += 1.25
 	result.first = first
-	result.second = lane_at(profile,class_id,2)
+	result.second = Weaver.TREE.lane_at(selected,2) if use_connected else lane_at(profile,class_id,2)
 	return result
 
 

@@ -81,12 +81,16 @@ func host(menu: Node, mismatch: bool) -> void:
 	var local: Dictionary = world.players[1]
 	local.pos = world.stage.gate_position()
 	remote.pos = local.pos
-	# A locked pending loadout may be inspected without charging its materials.
-	local.prepared=int(world.Items.get_item("part_10").legacy_part)
-	var before: int = world.progress.part_count(int(world.Items.get_item("part_10").legacy_part))
+	# Ghost Fern now supplies Spirit. Inject a stocked fourth-slot part into
+	# the Core field to exercise the invalid-build departure boundary.
+	var invalid_core: int = world.Parts.HOOK
+	world.progress.add_parts(invalid_core,1)
+	var before: int = world.progress.part_count(invalid_core)
+	local.prepared = invalid_core
 	world.enter_wilds(1,local)
-	check(not local.wild and world.progress.part_count(int(world.Items.get_item("part_10").legacy_part))==before and "pending" in world.status,
-		"pending departure refused before material debit")
+	check(not local.wild and world.travel_kind.is_empty() and before>0
+		and world.progress.part_count(invalid_core)==before and "Core material is invalid" in world.status,
+		"invalid Core departure is refused before proposing travel or debiting stock")
 	local.prepared=0
 	world.map_rng.seed=16
 	world.PartyTravel.request(world,1,"depart")

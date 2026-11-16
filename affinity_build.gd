@@ -51,15 +51,16 @@ static func resolve(class_id: int, weapon_index: int, slots: Array, graft: int, 
 	class_id = clampi(class_id, 0, Classes.DEFINITIONS.size() - 1)
 	var frame: Dictionary = Classes.DEFINITIONS[class_id]
 	var weapon: Dictionary = frame.weapons[clampi(weapon_index, 0, frame.weapons.size() - 1)]
-	var connected := class_id == 0 and Ruleset.ConnectedWarden.eligible(profile)
-	var focus := Ruleset.ConnectedWarden.focus(profile) if connected else Classes.focus_id(profile, class_id)
+	var tree := Classes.connected_tree(class_id)
+	var connected := tree != null and tree.eligible(profile)
+	var focus := tree.focus(profile) if connected else Classes.focus_id(profile, class_id)
 	var result := {
 		"ruleset": Ruleset.ID, "class_id": frame.id, "focus_id": focus,
 		"weapon_id": weapon.id, "native_weapon": weapon.duplicate(true),
 		"native_class_effects": Classes.bonuses(profile, class_id),
 		"core": slot("core", int(slots[0])), "form": slot("form", int(slots[1])),
 		"catalyst": slot("catalyst", int(slots[2])), "graft": {}, "class_skills": [],
-		"capabilities": {"native_weapon": true, "native_class_skills": not connected or Ruleset.ConnectedWarden.valid(profile), "affinity_effects": false},
+		"capabilities": {"native_weapon": true, "native_class_skills": not connected or tree.valid(profile), "affinity_effects": false},
 	}
 	# The weapon supplies presentation/placement. Old species-specific melee
 	# movement overrides are deliberately excluded.
@@ -118,7 +119,7 @@ static func native_stats(build: Dictionary) -> Dictionary:
 
 static func refusal(build: Dictionary, name: String) -> String:
 	if name == "catalyst" and not build.capabilities.native_class_skills:
-		return "This character's connected Warden data needs review."
+		return "This character's connected %s data needs review." % str(build.class_id).capitalize()
 	var part: Dictionary = build[name]
 	if part.executable:
 		return ""

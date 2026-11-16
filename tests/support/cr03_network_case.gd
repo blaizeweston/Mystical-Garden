@@ -9,6 +9,9 @@ const Appearance = preload("res://character_appearance.gd")
 const ConnectedWarden = preload("res://warden_connected_tree.gd")
 const CT_PATH := ["vanguard","deep_roots","ready_footing","sheltering_quake","holdfast","sanctuary_ground"]
 const CT_REQUESTS := [64,68,71,75,78,81]
+const Weaver = preload("res://weaver_connected_tree.gd")
+const Aim = preload("res://ability_aim.gd")
+const WEAVER_PATH := ["bloomcaller","silken_gift","holding_threads","threaded_nova","spore_cycle","symbiotic_nova"]
 
 var tree: SceneTree
 var signals: String
@@ -21,6 +24,7 @@ var mixed_wood_ward := false
 var final_family_mix := false
 var native_graft_case := false
 var connected_warden_case := false
+var connected_weaver_case := false
 
 
 func check(ok: bool, label: String) -> bool:
@@ -96,7 +100,7 @@ func host(menu: Node) -> void:
 	local.pos=game.stage.gate_position()
 	game.garden_action(1,"loadpart_0_%d"%ordinary)
 	game.garden_action(1,"loadpart_2_%d"%refined)
-	if native_graft_case or connected_warden_case:
+	if native_graft_case or connected_warden_case or connected_weaver_case:
 		game.garden_action(1,"learn_0_%d" % (ConnectedWarden.REQUEST_OFFSET+2))
 		check(ConnectedWarden.focus(local.character)=="bastion","host learns its actual Rootshield focus through guarded progression")
 	mark("host")
@@ -104,7 +108,10 @@ func host(menu: Node) -> void:
 	if not check(await until(func():return guests(game).size()==count),"all expected guests admitted"):return
 	var ids:=guests(game)
 	ids.sort()
-	for id in ids: game.players[id].pos=local.pos
+	var weaver_id := 0
+	for id in ids:
+		game.players[id].pos=local.pos
+		if connected_weaver_case and game.players[id].frame==1: weaver_id=id
 	var supplied := {}
 	var ward_guest: int=ids[1] if mixed_wood_ward else 0
 	var ordinary_wood: int=game.Items.get_item("plant_part_plant_ironroot").legacy_part
@@ -114,17 +121,19 @@ func host(menu: Node) -> void:
 		if not extra_cores.is_empty():
 			part = int(game.Items.get_item(extra_cores[index]).legacy_part)
 			supplied[part] = game.progress.part_count(part)
-		var catalyst := refined if connected_warden_case else ordinary_wood if ids[index]==ward_guest else 0
+		var catalyst := refined if connected_warden_case or ids[index]==weaver_id else ordinary_wood if ids[index]==ward_guest else 0
 		mark("select-"+str(ids[index]),"%d:%d:%d" % [refined,part,catalyst])
 	var prepared := func():
 		if native_graft_case and not ids.all(func(id):
 			var visitor: Dictionary = game.players[id]
-			return visitor.frame!=0 and visitor.weapon_kind==1 and not game.Classes.focus_id(visitor.character,visitor.frame).is_empty()):
+			return visitor.frame!=0 and visitor.weapon_kind==1 and game.Skills.resolve_in_world(game,visitor.frame,0,visitor.character).has("subclass_focus")):
 			return false
 		return ids.all(func(id):return game.players[id].prepared_secondary==refined) and supplied.keys().all(func(part):
 			return ids.any(func(id):return game.players[id].prepared==part or game.players[id].prepared_catalyst==part))
 	if not check(await until(prepared),"real guest loadout requests reach host"):return
 	if connected_warden_case and not await learn_connected_host(game,ids[0],refined):
+		return
+	if connected_weaver_case and not await learn_weaver_host(game,weaver_id,refined):
 		return
 	var before_regular: int=game.progress.part_count(ordinary)
 	var before_rare: int=game.progress.part_count(refined)
@@ -134,7 +143,7 @@ func host(menu: Node) -> void:
 	game.PartyTravel.request(game,1,"depart")
 	mark("depart",str(game.travel_epoch))
 	if not check(await until(func():return game.expedition_active() and ids.all(func(id):return game.players[id].wild) and not game.battlefield.generated.is_empty()),"native guarded departure opens generated floor"): return
-	check(game.progress.part_count(ordinary)==before_regular-1 and game.progress.part_count(refined)==before_rare-count-1-int(connected_warden_case),"exact guarded departure debits")
+	check(game.progress.part_count(ordinary)==before_regular-1 and game.progress.part_count(refined)==before_rare-count-1-int(connected_warden_case or connected_weaver_case),"exact guarded departure debits")
 	var paid := [game.progress.part_count(ordinary),game.progress.part_count(refined)]
 	for part in supplied:
 		check(game.progress.part_count(part)==supplied[part]-1,"each additional Core is debited once")
@@ -177,7 +186,7 @@ func host(menu: Node) -> void:
 	if not check(await until(func():return not game.get_meta(Core.STATE,{}).has(1)),"closing petals finish before another action"):return
 	var protected: int=ids[0]
 	var ally: Dictionary=game.players[protected]
-	if not native_graft_case and not connected_warden_case:
+	if not native_graft_case and not connected_warden_case and not connected_weaver_case:
 		local.character.upgrades[0]=1<<1
 	local.skill_at=0
 	game.use_class_skill(1,local,0)
@@ -186,6 +195,8 @@ func host(menu: Node) -> void:
 	game.apply_enemy_hit(protected,ally,Time.get_ticks_msec(),1)
 	check(ally.hp==before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==1 and e.details.recipient==protected and e.quality=="refined"),"actual guest block uses host refined Catalyst")
 	if connected_warden_case and not await exercise_connected_host(game,local,ally,protected,rows):
+		return
+	if connected_weaver_case and not await exercise_weaver_host(game,weaver_id,floor_entry,target,rows):
 		return
 	if mixed_wood_ward:
 		var warded: Dictionary=game.players[ward_guest]
@@ -256,7 +267,7 @@ func host(menu: Node) -> void:
 	if native_graft_case:
 		check(game.trait_events.any(func(e):return e.get("graft_source",{}).get("component_id")=="monster:ashen_hart")
 			or game.combat_events.any(func(e):return e.shape=="cinder_zone"),"real guest strike emitted installed Cinder")
-	if party:
+	if party and not connected_weaver_case:
 		if measure_packets: await sample_host_snapshots(game,ids)
 		if mixed_wood_ward and measure_packets: await verify_current_snapshot_host(game,ids,local)
 		check(await until(func():return read("overflow")=="ok",22000),"overflow returns after native connection deadline")
@@ -277,6 +288,8 @@ func host(menu: Node) -> void:
 		if game.scouts[index].hp>0:
 			game.apply_weapon_hit(local,index,game.scouts[index].pos,stats,Time.get_ticks_msec())
 	var expected_xp := []
+	var selected_weaver: Dictionary=game.players.get(weaver_id,{})
+	var weaver_xp_before: int=selected_weaver.character.xp[1] if connected_weaver_case else 0
 	if connected_warden_case:
 		var pending: Array = game.pending_kill_rewards.duplicate()
 		for index in [0,1]:
@@ -315,21 +328,36 @@ func host(menu: Node) -> void:
 		check([local.character.xp[0],ally.character.xp[0]]==expected_xp,
 			"host and guest get each queued scout award plus one three-XP leader award")
 		mark("ct-xp",str(expected_xp[1]))
+	if connected_weaver_case:
+		if not check(await until(func():
+			return selected_weaver.character.xp[1]>weaver_xp_before and selected_weaver.get("projection_delivery",{}).get("state")=="committed"),
+			"Weaver receives and acknowledges actual floor XP"):return
+		mark("weaver-xp",str(selected_weaver.character.xp[1]))
 	local.pos=game.battlefield.advance
-	ally.pos=local.pos
+	for id in ids: game.players[id].pos=local.pos
 	game.use_checkpoint(1,true)
 	mark("advance",str(game.travel_epoch))
-	if not check(await until(func():return game.depth==2 and read("guest-floor")=="ok"),"party advances to next generated floor"):return
+	if not check(await until(func():return game.depth==2 and ids.all(func(id):return read("guest-floor-"+str(id))=="ok")),
+		"party advances to next generated floor"):return
 	game.encounter_number=6
 	game.deepest_milestone=6
 	game.enemy_hp=0
 	game.scouts.clear()
 	game.encounter_rewarded=true
 	local.pos=game.battlefield.advance
-	ally.pos=local.pos
+	for id in ids: game.players[id].pos=local.pos
 	game.use_checkpoint(1,false)
 	mark("extract",str(game.travel_epoch))
-	if not check(await until(func():return not game.expedition_active() and read("guest-garden")=="ok"),"party extraction restores Garden"):return
+	if not check(await until(func():return not game.expedition_active() and ids.all(func(id):return read("guest-garden-"+str(id))=="ok")),
+		"party extraction restores Garden"):return
+	if party:
+		check(await until(func():return read("overflow")=="ok",22000) and guests(game).size()==3,"mixed four-player travel and fifth-peer refusal")
+		mark("party-done")
+		await until(func():return ids.all(func(id):return read("done-"+str(id))=="ok"))
+		game.return_to_main_menu()
+		check(await until(func():return tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"host goes offline after party")
+		mark("offline")
+		return
 	check([game.progress.part_count(ordinary),game.progress.part_count(refined)]==paid,"no repeated affinity material consumption")
 	if native_graft_case:
 		check(ally.graft_part==0 and not ally.has("native_graft_state"),
@@ -340,6 +368,10 @@ func host(menu: Node) -> void:
 	if connected_warden_case:
 		check(guests(game).size()==1 and ConnectedWarden.path(game.players[guests(game)[0]].character)==CT_PATH,
 			"host restores the six valid choices to the same guest on rejoin")
+	if connected_weaver_case and guests(game).size()==1:
+		var rejoined: Dictionary=game.players[guests(game)[0]].character
+		check(Weaver.TREE.path(rejoined)==WEAVER_PATH and rejoined.xp[1]==int(read("weaver-xp")),
+			"host restores the committed Weaver tree and XP without replay")
 	check([game.progress.part_count(ordinary),game.progress.part_count(refined)]==paid,"reconnect does not repeat departure")
 	for part in supplied:
 		check(game.progress.part_count(part)==supplied[part]-1,"rejoin preserves each additional Core debit")
@@ -422,6 +454,67 @@ func exercise_connected_host(game: Node, local: Dictionary, player: Dictionary, 
 	return true
 
 
+func learn_weaver_host(game: Node, id: int, catalyst: int) -> bool:
+	if not check(id!=0,"a real Weaver peer joined"):return false
+	var player: Dictionary=game.players[id]
+	if not check(await until(func():return player.prepared_catalyst==catalyst),"Weaver Catalyst committed"):return false
+	mark("weaver-learn")
+	if not check(await until(func():
+		return (read("weaver-level-one")=="ok" and Weaver.TREE.path(player.character)==["bloomcaller"]
+			and player.get("projection_delivery",{}).get("state")=="committed")),
+		"host validates and guest commits Weaver focus"):return false
+	game.run_guarded_action(id,game.Transactions.Scope.GARDEN,func(effects):
+		player.character.xp[1]=2600
+		game.save_action_profile(id,effects))
+	return check(await until(func():
+		return (read("weaver-learned")=="ok" and Weaver.TREE.path(player.character)==WEAVER_PATH
+			and player.character.upgrades[1]==0 and player.get("projection_delivery",{}).get("state")=="committed")),
+		"guarded host and guest agree on all six Weaver choices and untouched old mask")
+
+
+func learn_weaver_guest(game: Node) -> bool:
+	if not check(await until(func():return read("weaver-learn")=="ok"),"Weaver is at title-admitted host's Gate"):return false
+	game.send_garden_action("learn_1_65")
+	if not check(await until(func():return Weaver.TREE.path(game.guest_character.data)==["bloomcaller"]),"committed Weaver focus reaches owner"):return false
+	game.send_garden_action("learn_1_69")
+	if not check(await until(func():return "Reach Weaver level 2" in game.status),"host refuses premature Weaver node"):return false
+	mark("weaver-level-one")
+	if not check(await until(func():return game.guest_character.data.xp[1]==2600),"guest receives earned class XP"):return false
+	for index in range(1,WEAVER_PATH.size()):
+		if index==2:
+			game.send_garden_action("learn_1_70")
+			if not check(await until(func():return "connected to your last selection" in game.status),"host refuses disconnected choice"):return false
+		var node := Weaver.TREE.node(WEAVER_PATH[index])
+		game.send_garden_action("learn_1_%d"%(Weaver.TREE.REQUEST_OFFSET+Weaver.TREE.nodes.find(node)))
+		if not check(await until(func():return Weaver.TREE.path(game.guest_character.data)==WEAVER_PATH.slice(0,index+1)),
+			"guest saves successive Weaver node"):return false
+	mark("weaver-learned")
+	return true
+
+
+func exercise_weaver_host(game: Node, id: int, entry: Vector3, target: Vector3, events: Array) -> bool:
+	var player: Dictionary=game.players[id]
+	game.enemy_hp=150
+	game.enemy_pos=target
+	game.enemy_stagger_until=Time.get_ticks_msec()+12500
+	player.pos=entry
+	var aim := (target-entry).normalized()
+	mark("weaver-q", str(Vector2(aim.x,aim.z)) + ":" + str(entry.distance_to(target)))
+	if not check(await until(func():return player.has("weaver_nova_origin") and game.trait_events.any(func(e):
+		return e.get("native_weaver_bloom",false) and e.owner==id)),"remote Cultivate Bloom records its actual placement"):return false
+	var anchor: Vector3=player.weaver_nova_origin.point
+	var q_timer: int=player.skill_at
+	check(anchor.distance_to(target)<.2 and game.Skills.resolve_in_world(game,1,0,player.character).name=="Cultivate Bloom",
+		"crossed lane preserves remote Bloomcaller Q")
+	mark("weaver-r",str(Vector2(anchor.x,anchor.z)))
+	if not check(await until(func():return not player.has("weaver_nova_origin") and read("weaver-nova-seen")=="ok"),
+		"remote R consumes Q location and guest sees the additional Nova"):return false
+	var responses := events.filter(func(e):return e.source_actor==id and e.kind=="class_action" and e.details.adapter.begins_with("weaver/"))
+	check(player.skill_at==q_timer-1250 and responses.size()==2 and responses.all(func(e):return e.quality=="refined"),
+		"actual Nova damage refunds Q and each remote cast produces one source-owned Catalyst response")
+	return true
+
+
 func install_party_grafts(game: Node, ids: Array) -> bool:
 	var parts = preload("res://weapon_parts.gd")
 	var old_floor: int = game.encounter_number
@@ -452,7 +545,7 @@ func install_party_grafts(game: Node, ids: Array) -> bool:
 
 func guest(menu: Node, role: String) -> void:
 	menu.request_create_character()
-	var starting_class: int = [1,2,4][clampi(int(role)-1,0,2)] if native_graft_case else 0
+	var starting_class: int = [1,2,4][clampi(int(role)-1,0,2)] if native_graft_case or connected_weaver_case else 0
 	menu.create_character("Frost guest "+role,starting_class,Appearance.DEFAULT)
 	if not check(await until(func():return read("host")=="ok"),"host ready"):return
 	begin_join(menu)
@@ -472,7 +565,9 @@ func guest(menu: Node, role: String) -> void:
 		game.send_garden_action("loadpart_2_"+picks[2])
 	if native_graft_case:
 		game.send_garden_action("loadweapon_1")
-		game.send_garden_action("learn_%d_12" % starting_class)
+		game.send_garden_action("learn_%d_%d" % [starting_class,64 if starting_class==1 else 12])
+	if connected_weaver_case and starting_class==1 and not await learn_weaver_guest(game):
+		return
 	if connected_warden_case and not await learn_connected_guest(game):
 		return
 	if not check(await until(func():return not read("depart").is_empty()),"host authorizes departure"):return
@@ -496,6 +591,19 @@ func guest(menu: Node, role: String) -> void:
 			return effects.any(func(event):return event.shape=="sanctuary_ground") and effects.any(func(event):return event.shape=="holdfast" and event.combo==id),2000),
 			"guest sees authoritative Holdfast and Sanctuary through the existing event stream"):return
 		game.send_garden_action("class_skill_two")
+	elif connected_weaver_case and starting_class==1:
+		if not check(await until(func():return not read("weaver-q").is_empty()),"await Weaver Q on generated floor"):return
+		var release := read("weaver-q").split(":")
+		var vector := release[0].trim_prefix("(").trim_suffix(")").split(",")
+		game.send_garden_action(Aim.request(game,game.players[id],0,Vector2(float(vector[0]),float(vector[1])),float(release[1])))
+		if not check(await until(func():return not read("weaver-r").is_empty()),"await real recorded Bloom center"):return
+		var location := read("weaver-r").trim_prefix("(").trim_suffix(")").split(",")
+		var center := Vector3(float(location[0]),0,float(location[1]))
+		game.send_garden_action(Aim.request(game,game.players[id],1,Vector2.DOWN))
+		if not check(await until(func():return game.guest_combat_events(game.players[id]).any(func(e):
+			return e.shape=="nova" and is_equal_approx(float(e.reach),2.0) and Vector3(e.to[0],e.to[1],e.to[2]).distance_to(center)<.2)),
+			"authoritative secondary Nova position reaches the real guest"):return
+		mark("weaver-nova-seen")
 	elif int(picks[2])>0:
 		if not check(await until(func():return read("wood-guard-"+str(id))=="ok"),"host requests actual Wood Ward"):return
 		game.send_garden_action("class_skill")
@@ -519,7 +627,7 @@ func guest(menu: Node, role: String) -> void:
 			var marker := "vital-"+str(id)
 			check(await until(func():return not read(marker).is_empty() and int(game.players[id].max_hp)==int(read(marker))),"guest receives authoritative Vital capacity")
 			mark("vital-seen-"+str(id))
-	if party:
+	if party and not connected_weaver_case:
 		if measure_packets: await sample_guest_snapshots(game,id)
 		if mixed_wood_ward and measure_packets: await verify_current_snapshot_guest(game,id)
 		if check(await until(func():return read("party-done")=="ok",22000),"host observes mixed-source party"):
@@ -532,14 +640,27 @@ func guest(menu: Node, role: String) -> void:
 		var expected := int(read("ct-xp"))
 		check(expected>2600 and game.guest_character.data.xp[0]==expected and canonical.load(game.guest_character.path)==OK
 			and canonical.get_value("character","progress",{}).get("xp",[])[0]==expected,"guest's displayed profile and local save agree with host whole XP")
+	if connected_weaver_case and starting_class==1:
+		var canonical := ConfigFile.new()
+		var expected := int(read("weaver-xp"))
+		check(expected>2600 and game.guest_character.data.xp[1]==expected and canonical.load(game.guest_character.path)==OK
+			and canonical.get_value("character","progress",{}).get("xp",[])[1]==expected
+			and Weaver.TREE.path(canonical.get_value("character","progress",{}))==WEAVER_PATH,
+			"committed guest bytes agree with host on Weaver path and XP after reward")
 	game.send_travel_ready(false)
 	if not check(await until(func():return game.depth==2 and game.stage.visual_field.configured_key.z==game.map_seed),"guest tracks next floor"):return
-	mark("guest-floor")
+	mark("guest-floor-"+str(id))
 	if not check(await until(func():return not read("extract").is_empty() and int(game.party_travel_state().get("epoch",-1))==int(read("extract"))),"guest receives extraction"):return
 	game.send_travel_ready(false)
 	if not check(await until(func():return not game.players[id].wild),"guest returns to Garden"):return
 	check(str(terrain.state.outline).sha256_text()==garden_outline,"same Garden outline after Frost play")
-	mark("guest-garden")
+	mark("guest-garden-"+str(id))
+	if party:
+		if check(await until(func():return read("party-done")=="ok",22000),"four-player expedition returned"):
+			mark("done-"+str(id))
+			check(await until(func():return read("offline")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),
+				"mixed party observes normal shutdown")
+		return
 	game.return_to_main_menu()
 	if not check(await until(func():return read("detached")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"normal offline-before-rejoin transition"):return
 	begin_join(tree.current_scene)
@@ -550,6 +671,11 @@ func guest(menu: Node, role: String) -> void:
 		var profile: Dictionary = rejoined.guest_character.data
 		check(ConnectedWarden.path(profile)==CT_PATH and rejoined.Skills.resolve_in_world(rejoined,0,0,profile).name=="Thorn Counter"
 			and profile.xp[0]==int(read("ct-xp")),"same committed path, Q and XP survive rejoin without a repeated award")
+	if connected_weaver_case:
+		var rejoined = tree.current_scene
+		var profile: Dictionary = rejoined.guest_character.data
+		check(Weaver.TREE.path(profile)==WEAVER_PATH and rejoined.Skills.resolve_in_world(rejoined,1,0,profile).name=="Cultivate Bloom"
+			and profile.xp[1]==int(read("weaver-xp")),"committed Weaver path, focus and earned XP survive rejoin")
 	mark("rejoined")
 	check(await until(func():return read("saved")=="ok"),"host verifies no replay or debit")
 	check(await until(func():return read("offline")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"guest observes host shutdown")

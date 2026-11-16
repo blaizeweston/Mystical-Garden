@@ -227,8 +227,8 @@ func refresh() -> void:
 		if pieces.size()==3 and pieces[2].is_valid_int():
 			var c:=int(pieces[1])
 			var n:=int(pieces[2])
-			var connected = game.Classes.Warden.Connected
-			if connected.in_world(game,c,data):
+			var connected = game.Classes.connected_in_world(game,c,data)
+			if connected != null:
 				can_learn = connected.refusal(data,n).is_empty()
 			else:
 				can_learn=game.Classes.can_learn(data,c,n,Character.level(int(data.xp[c])))
@@ -269,17 +269,18 @@ func refresh() -> void:
 		refund_button.text="Refund and switch to new tree" if game.Classes.Warden.legacy(class_profile,inspected_class) else "Refund class choices"
 	if class_tab:
 		var data: Dictionary=p.get("character",game.guest_character.data)
-		var connected = game.Classes.Warden.Connected
+		var connected = game.Classes.connected_in_world(game,inspected_class,data)
 		var level:=Character.level(int(data.xp[inspected_class]))
 		var available: int=game.Classes.points(data,inspected_class,level)
 		var class_name_text: String=game.Classes.DEFINITIONS[inspected_class].name
-		if connected.in_world(game,inspected_class,data):
+		if connected != null:
 			if connected.valid(data):
 				level = connected.level(data)
 				available = level-connected.path(data).size()
-				notice.text="Warden level %d / 6 · %d XP · %d available"%[level,data.xp[0],available]
+				notice.text="%s level %d / %d · %d XP · %d available"%[class_name_text,level,
+					connected.XP_THRESHOLDS.size(),data.xp[inspected_class],available]
 			else:
-				notice.text="Connected Warden data needs review before it can change."
+				notice.text="Connected %s data needs review before it can change."%class_name_text
 		elif game.Classes.Warden.legacy(data,inspected_class):
 			notice.text="%s level %d · %d available · Refund at the Heart to switch to the new tree."%[class_name_text,level,available]
 		else:
@@ -421,9 +422,9 @@ func subclass_nodes(data: Dictionary, c: int, level: int, mask: int) -> Array:
 	var tree_data = game.Classes.Warden
 	var base := "class_%d_base"%c
 	var title: String=game.Classes.DEFINITIONS[c].name
-	var connected = tree_data.Connected
-	var use_connected: bool = connected.in_world(game,c,data)
-	var nodes: Array = connected.NODES if use_connected else game.Classes.branch_nodes(c)
+	var connected = game.Classes.connected_in_world(game,c,data)
+	var use_connected := connected != null
+	var nodes: Array = connected.nodes if use_connected else game.Classes.branch_nodes(c)
 	var offset: int = connected.REQUEST_OFFSET if use_connected else tree_data.OFFSET
 	var lanes: Array = connected.LANES if use_connected else tree_data.LANES
 	var focus_id: String = connected.focus(data) if use_connected else game.Classes.focus_id(data,c)
@@ -443,7 +444,8 @@ func subclass_nodes(data: Dictionary, c: int, level: int, mask: int) -> Array:
 		var reason: String = connected.refusal(data,index) if use_connected else ""
 		var ready: bool = reason.is_empty() if use_connected else game.Classes.can_learn(data,c,index,level)
 		var parents: Array=[base] if node.parents.is_empty() else node.parents.map(func(id):return nodes_by_id[id])
-		var summary: String=node.name+" · "+lanes[node.lane]+"\n"+node.description
+		var description: String=game.Classes.Weaver.description(node,focus_id) if c==1 and use_connected else node.description
+		var summary: String=node.name+" · "+lanes[node.lane]+"\n"+description
 		if game.has_meta(&"combat_affinity_ruleset"):
 			var restriction: String = preload("res://affinity_build.gd").RESTRICTED_NODES.get(node.id, "")
 			if not restriction.is_empty():
@@ -453,7 +455,7 @@ func subclass_nodes(data: Dictionary, c: int, level: int, mask: int) -> Array:
 			if game.Life.Preview.enabled:
 				var candidate: Dictionary=data.duplicate(true)
 				if not learned:
-					if use_connected: candidate[connected.PROFILE_KEY] = connected.state([node.id])
+					if use_connected: candidate[connected.profile_key] = connected.state([node.id])
 					else: candidate.upgrades[c]=1<<index
 				summary+="\n"+game.Skills.describe(game.Skills.resolve(c,0,candidate,use_connected))
 			else:

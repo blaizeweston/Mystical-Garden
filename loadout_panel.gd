@@ -202,8 +202,8 @@ func refresh():
 	clear_button.disabled=not allowed
 	var stats: Dictionary=game.weapon_stats(p,prepared) if game.multiplayer.is_server() else p.get("weapon_stats",{})
 	var profile: Dictionary=p.get("character",game.guest_character.data)
-	var connected = game.Classes.Warden.Connected
-	var use_connected: bool = connected.in_world(game,c,profile)
+	var connected = game.Classes.connected_in_world(game,c,profile)
+	var use_connected := connected != null
 	var level: int = connected.level(profile) if use_connected else game.Character.level(int(profile.xp[c]))
 	var points: int = (level-connected.path(profile).size() if connected.valid(profile) else 0) if use_connected else game.Classes.points(profile,c,level)
 	var body: String="[b]%s · Lv %d[/b]\n%s\n%d class point(s) available\n\n%s"%[game.Classes.DEFINITIONS[c].name,level,game.Classes.DEFINITIONS[c].description,points,game.Weapons.describe(stats) if not stats.is_empty() else ""]

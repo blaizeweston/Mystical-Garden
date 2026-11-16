@@ -10,7 +10,7 @@ static func make_definitions() -> Array:
 	return result
 
 static func resolve_in_world(game: Node, class_id: int, slot: int, profile: Dictionary) -> Dictionary:
-	return resolve(class_id, slot, profile, Classes.Warden.Connected.in_world(game, class_id, profile))
+	return resolve(class_id, slot, profile, Classes.connected_in_world(game,class_id,profile) != null)
 
 
 static func resolve(class_id: int,slot: int,profile: Dictionary,connected := false) -> Dictionary:
@@ -45,7 +45,7 @@ static func resolve(class_id: int,slot: int,profile: Dictionary,connected := fal
 	if class_id==0:
 		result=Classes.Warden.skill(profile,slot,result,connected)
 	elif class_id>0:
-		result=Classes.Subclasses.skill(profile,class_id,slot,result)
+		result=Classes.Subclasses.skill(profile,class_id,slot,result,connected)
 	result["specialized"]=not modifications.is_empty() or result.has("warden_focus") or result.has("subclass_focus")
 	result["variant"]="replacement" if replaced else "base"
 	result["augmented"]=augmented
@@ -100,6 +100,7 @@ static func describe_preview(source: Dictionary, stats: Dictionary, ranks: Dicti
 	var lines: Array[String]=[str(skill.name),str(skill.description),"Cooldown: %s" % Balance.seconds(Balance.cooldown(skill,stats))]
 	var mode := str(skill.mode)
 	var subclass := mode=="subclass"
+	var connected_weaver := skill.has("weaver_nodes")
 	var card_data: Dictionary=skill.get("card",{})
 	var card: Dictionary=card_data.get("effect",{}) if int(ranks.get(card_data.get("id",""),0))>0 else {}
 	var damage := float(skill.get("damage",0))
@@ -139,7 +140,11 @@ static func describe_preview(source: Dictionary, stats: Dictionary, ranks: Dicti
 	elif mode in ["reap","harvest"]:
 		lines.append("Guard: 1 hit for %s" % Balance.seconds(Balance.duration(skill,stats)))
 	elif subclass and (skill.get("ward",false) or skill.get("hit_ward",false) or int(skill.get("first",-1))==2 or card.get("ward",false) or card.get("landing_ward",false) or card.get("party_hit_ward",false)):
-		lines.append("Ward: 1 hit for %s" % Balance.seconds(Balance.WARD_MS))
+		if connected_weaver and skill.subclass_focus=="silkwarden" and int(skill.first)==2:
+			lines.append("Ward: 1 hit for %s per ally, extended to %s for the lowest HP ratio" %
+				[Balance.seconds(Balance.WARD_MS),Balance.seconds(Balance.WARD_MS+Classes.Weaver.GIFT_EXTENSION_MS)])
+		else:
+			lines.append("Ward: 1 hit for %s" % Balance.seconds(Balance.WARD_MS))
 	if mode=="counter_guard":
 		lines.append("Counter: +%s damage within %s after blocking" % [Balance.hp_text(Balance.counter_points(stats)),Balance.seconds(Balance.COUNTER_WINDOW_MS+int(skill.get("counter_window_bonus",0)))])
 	var bind := Balance.bind_ms(skill,stats)
@@ -163,8 +168,9 @@ static func describe_preview(source: Dictionary, stats: Dictionary, ranks: Dicti
 	if skill.has("marks"):
 		lines.append("Mark: +%s damage when consumed" % Balance.hp_text(Balance.MARK_POINTS))
 	if subclass and int(skill.get("second",-1))==0:
-		lines.append("Chained hit: %s damage" % Balance.hp_text(Balance.FOLLOWUP_POINTS))
-	if int(skill.get("subclass_follow_lane",-1))==0:
+		var damage_text := "%d HP" % Classes.Weaver.BRANCHING_HP if connected_weaver else Balance.hp_text(Balance.FOLLOWUP_POINTS)
+		lines.append("Chained hit: %s damage" % damage_text)
+	if not connected_weaver and int(skill.get("subclass_follow_lane",-1))==0:
 		lines.append("Prepared follow-up: %s damage to a nearby foe" % Balance.hp_text(Balance.FOLLOWUP_POINTS))
 	if skill.has("range"):
 		lines.append("%s: %.2f m" % ["Range" if subclass else "Base range",float(skill.range)])
@@ -182,7 +188,8 @@ static func wild_tooltips(game: Node, player: Dictionary, skills: Array) -> Arra
 	if game.multiplayer.is_server():
 		# Only resolve the equipped build again when inputs to the class effects change.
 		var key := [rules.active(game),player.frame,player.character.get("upgrades",[]),
-			player.character.get(Classes.Warden.Connected.PROFILE_KEY), player.weapon_kind,player.weapon,
+			player.character.get(Classes.Warden.Connected.PROFILE_KEY),
+			player.character.get(Classes.Weaver.PROFILE_KEY), player.weapon_kind,player.weapon,
 			player.secondary,player.catalyst,player.graft_part,player.technique,player.power,ranks]
 		var cached: Dictionary = game.get_meta("class_skill_tooltip_stats",{})
 		if cached.get("key",[]) != key:

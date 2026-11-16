@@ -1,6 +1,8 @@
 extends RefCounted
 const Warden = preload("res://warden_tree.gd")
 const Subclasses = preload("res://subclass_catalog.gd")
+const Weaver = preload("res://weaver_connected_tree.gd")
+const ConnectedTree = preload("res://connected_class_tree.gd")
 const DEFINITIONS := [
  {
   "id": "warden",
@@ -1708,6 +1710,18 @@ static func bonuses(profile: Dictionary, class_id: int) -> Dictionary:
    for key in DEFINITIONS[class_id].nodes[i].effects:
     result[key] = float(result.get(key,0)) + float(DEFINITIONS[class_id].nodes[i].effects[key])
  return result
+
+static func connected_tree(class_id: int) -> ConnectedTree:
+ match class_id:
+  0: return Warden.Connected.TREE
+  1: return Weaver.TREE
+ return null
+
+
+static func connected_in_world(game: Node, class_id: int, profile: Dictionary) -> ConnectedTree:
+ var tree := connected_tree(class_id)
+ return tree if tree != null and game.has_meta(&"combat_affinity_ruleset") and tree.eligible(profile) else null
+
 
 static func branch_nodes(class_id: int) -> Array:
  return Warden.NODES if class_id==0 else Subclasses.NODES[class_id-1]

@@ -83,7 +83,7 @@ const PASSIVE_CONSUMERS := {
 
 static func resolve(class_id: int, slot: int, profile: Dictionary, skill: Dictionary) -> Dictionary:
 	var frame: Dictionary = Classes.DEFINITIONS[class_id]
-	var focus: String = skill.get("warden_focus", Classes.focus_id(profile, class_id))
+	var focus: String = skill.get("warden_focus", skill.get("subclass_focus", Classes.focus_id(profile, class_id)))
 	var kit: Dictionary = KITS[frame.id]
 	var variant: String = skill.get("variant", "base")
 	var stable_id := "%s/%s/%s" % [frame.id, variant, slot]

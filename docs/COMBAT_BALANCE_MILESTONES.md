@@ -40,7 +40,7 @@ Affinity Wardens without historical Warden investments can select a starting foc
 
 Most native follow-ups require the first actual self-block attributed to that Warden's Q. A teammate's use of the same Ward counts against Measured Guard, and the original Catalyst rules still determine the teammate's response. Prepared Root Quake consumes the native preparation on cast. Living Rhythm requires a hit, and Sheltering Quake can protect allies around a Quake with no enemy contact. Holdfast uses the first actual block attributed to the Warden's Q, including a teammate's Ward from that Q. It grants the caster and living allies within 3 m and clear line 15% direct-attack mitigation for 2.5 s. A newer grant refreshes the recipient's timer. It follows the recipient, and only the stronger protection applies inside Sanctuary Ground. [Warden combat](../warden_combat.gd) · [Ward responses](../ward_responses.gd)
 
-The isolated thresholds are **0, 50, 150, 350, 1400 and 2600 Class XP**. The capstone uses the previous tree's final-row threshold at the new scale as a provisional gate. The values apply to the connected Warden only.
+The isolated thresholds are **0, 50, 150, 350, 1400 and 2600 Class XP**. The capstone uses the previous tree's final-row threshold at the new scale as a provisional gate. The connected Weaver uses these same provisional thresholds.
 
 | Expedition reference | Ordinary leaders | Scheduled scouts | Solo XP with full credit |
 | --- | ---: | ---: | ---: |
@@ -51,6 +51,14 @@ The isolated thresholds are **0, 50, 150, 350, 1400 and 2600 Class XP**. The cap
 The comparison uses the solo cycle-zero spawn budget with every scheduled ordinary enemy spawned and defeated. A normal scout pays 1 XP and a leader pays 3 XP to each eligible participant. Boss leaders pay 24 XP and alter the escort count. Actual spawns, reinforcements and player eligibility can change the award. These are computed inputs for the pacing review. Final thresholds await ordinary-play evidence and approval. [Spawn budget](../combat_director.gd) · [Reward logic](../monster_rewards.gd) · [Reward data](../assets/content/balance.json)
 
 Whole Class XP is stored with a profile format marker. For each class, former whole XP multiplied by ten plus its saved fraction yields the new balance. Earlier content-curve remapping still precedes this conversion. Guest acknowledgment digests use an equivalent historical representation so existing committed and pending projections can reconcile. [Class XP conversion](../class_experience.gd) · [Guest projections](../guest_profile_projection.gd)
+
+### CT02 connected Weaver
+
+Affinity Weavers without historical Weaver investments use `weaver_connected` to store a versioned focus and five connected choices. The selected focus keeps its Q. Spore Nova remains R. Historical Weaver masks and earned XP keep their existing meanings. [Progression graph](../connected_class_tree.gd) · [Weaver node definitions](../weaver_connected_tree.gd)
+
+Barbed Nova augments the first valid native hit and carries through an empty Nova. Spore Pressure arms on the first actual damage or root from each Q, including the first damaging Bloom pulse, and is spent on the next Nova cast. For hit selection the host visits the leader, then scouts in slot order within the main area, followed by extra Symbiotic targets in the same order. Bursting Spores captures that first impact position. Each caster owns one scheduled capstone alongside the existing trait queue. Symbiotic Nova merges its native target list once and keeps the original Catalyst footprint. [Native spells](../weaver_combat.gd) · [Q release](../subclass_combat.gd)
+
+Protective Filaments follows its recipients. The latest valid grant refreshes its duration and the strongest direct protection wins across Filaments, Holdfast, and Sanctuary Ground. Silken Canopy grants each eligible ally one native Ward per canopy. Affinity Cultivate Bloom retains its native damage and timing and leaves independently granted Marks untouched. [Damage and Ward handling](../game.gd) · [Growth and delayed effects](../combat_traits.gd)
 
 ### Overlapping Ward claims
 

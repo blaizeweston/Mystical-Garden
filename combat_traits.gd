@@ -88,8 +88,8 @@ static func queue_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now
  if not graft_source.is_empty(): hit.core_hit=true
  game.trait_events.append({"kind":"hit","epoch":game.combat_epoch,"owner":player_id(game,p),"target":target,"token":-1 if target==-1 else int(game.scouts[target].get("spawn_token",0)),"due":now+delay,"stats":hit,"visual":visual if not visual.is_empty() else "link" if carry else "echo","origin":p.pos if origin==Vector3.INF else origin})
  if not graft_source.is_empty(): game.trait_events.back().graft_source=graft_source
-static func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: float,duration: int,power: float,now: int,ward: bool=false,class_field: RefCounted=null,graft_source: Dictionary={}) -> void:
- if game.trait_events.size()>=24: return
+static func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: float,duration: int,power: float,now: int,ward: bool=false,class_field: RefCounted=null,graft_source: Dictionary={}) -> Dictionary:
+ if game.trait_events.size()>=24: return {}
  var id:=player_id(game,p)
  for event in game.trait_events.duplicate():
   if event.kind==kind and int(event.owner)==id and event.has("graft_source")==not graft_source.is_empty():
@@ -100,6 +100,7 @@ static func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: fl
  var color:=Color("#e7a15f") if kind=="cinder" else Color("#88d7de") if kind=="tide" else Color("#d9a4c3") if kind=="decoy" else Color("#97c978")
  game.emit_combat_event("field",kind+"_zone",point,point,duration/1000.0,color,radius,0)
  game.trait_events.back().visual_id=game.combat_event_serial
+ return game.trait_events.back()
 static func after_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,killed: bool) -> void:
  if stats.get("trait_secondary",false): return
  var point: Vector3=game.enemy_position(target)
@@ -228,11 +229,15 @@ static func tick(game: Node,now: int) -> void:
    var targets: Array[int]=game.skill_area_targets(event.position,float(event.radius),event.position)
    for target in targets:
     var hit: Dictionary={"damage":Preview.authored_amount(float(event.power)),"trait_secondary":true}
-    if event.has("graft_source"):
+    if event.has("graft_source") or event.get("native_weaver_bloom",false):
      hit.core_hit=true
     else:
      hit.mark_damage=1
+    var before: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)
     game.apply_weapon_hit(p,target,event.position,hit,now)
+    if event.has("weaver_pressure"):
+     var after: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)
+     if after < before: preload("res://weaver_combat.gd").field_contact(game,p,event)
     var source: RefCounted=event.get("class_field")
     if source!=null:
      source.publish(game,"class_field_contact","pulse",preload("res://weapon_contact.gd").token(game,target),now,{"enemy":target})

@@ -1760,6 +1760,12 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	if player.has("affinity_spirit_follow") and player.pos!=cast_origin:
 		preload("res://spirit_affinity.gd").movement(self,player,cast_origin,player.pos)
 	targets=Traits.spread_targets(self,player,targets,skill,stats)
+	var native_weaver_nova := mode=="nova" and skill.has("weaver_nodes")
+	var catalyst_targets := targets.duplicate() if native_weaver_nova else targets
+	var weaver_impact := Vector3.INF
+	var weaver = preload("res://weaver_combat.gd")
+	if native_weaver_nova:
+		weaver_impact = weaver.prepare_nova(self,id,player,skill,targets,effect_point,now)
 	if not targets.is_empty():
 		player.swing_until=now+240
 		if mode=="quake" and skill.has("warden_focus"):
@@ -1780,9 +1786,11 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	player.contributed=true
 	if bonus_heal>0: Life.Sustain.heal(self,player,bonus_heal,"class_healing_bonus")
 	player[timer]=now+Skills.Balance.cooldown(skill,stats)
-	combat_events_api.class_complete(self,event,adapter,cast_origin,effect_point,targets,recipients,now,secondary_radius)
-	if slot==1 and skill.has("subclass_focus"):
+	combat_events_api.class_complete(self,event,adapter,cast_origin,effect_point,catalyst_targets,recipients,now,secondary_radius)
+	if slot==1 and skill.has("subclass_focus") and (not native_weaver_nova or skill.subclass_follow_lane != 0):
 		preload("res://subclass_combat.gd").follow_through(self,player,skill,effect_point,targets,now)
+	if native_weaver_nova:
+		weaver.complete_nova(self,id,player,skill.weaver_nodes,effect_point,weaver_impact,now)
 	player.skill_fx_seq=int(player.get("skill_fx_seq",0))+1
 	player.skill_fx_until=now+650
 	player.skill_fx={"seq":player.skill_fx_seq,"pos":effect_point,"radius":maxf(.8,radius),"color":skill.color,"event_driven":true}
@@ -1828,7 +1836,9 @@ func skill_line_targets(origin: Vector3,facing: Vector3,distance: float,width: f
 func apply_skill_targets(player: Dictionary,targets: Array[int],skill: Dictionary,stats: Dictionary,now: int) -> int:
 	var before_primary:=enemy_hp
 	var drain_contacts:=0
+	var native_hits: Dictionary = skill.get("native_hit_adjustments",{})
 	for target in targets:
+		var adjustment: Dictionary = native_hits.get(target,{})
 		var root_time:=Skills.Balance.bind_ms(skill,stats)
 		if root_time>0:
 			var until:=now+root_time
@@ -1838,7 +1848,7 @@ func apply_skill_targets(player: Dictionary,targets: Array[int],skill: Dictionar
 		if recovery>0:
 			if target==-1: moss_recovery_bonus=maxi(moss_recovery_bonus,recovery)
 			else: scouts[target].recovery=maxi(int(scouts[target].get("recovery",0)),recovery)
-		var damage:=Life.Preview.authored_amount(float(skill.get("damage",0)))
+		var damage:=Life.Preview.authored_amount(float(skill.get("damage",0))) + float(adjustment.get("bonus_hp",0))/Life.Preview.scale()
 		if damage>0.0:
 			var hit: Dictionary=stats.duplicate(true)
 			hit.damage=damage
@@ -1847,7 +1857,7 @@ func apply_skill_targets(player: Dictionary,targets: Array[int],skill: Dictionar
 			hit.recovery=int(stats.get("recovery",0))+recovery
 			hit.knockback=float(skill.get("push",0))-.35
 			var before:=enemy_hp if target==-1 else int(scouts[target].hp)
-			apply_weapon_hit(player,target,skill.get("effect_origin",player.pos),hit,now)
+			apply_weapon_hit(player,target,adjustment.get("origin",skill.get("effect_origin",player.pos)),hit,now)
 			if Life.Preview.enabled and Life.Sustain.eligible(self,target):
 				var after:=enemy_hp if target==-1 else int(scouts[target].hp)
 				drain_contacts+=int(after<before)
@@ -2123,6 +2133,8 @@ func _physics_process(delta: float) -> void:
 		if get_meta(Transactions.PENDING, false): return
 		if has_meta(&"combat_affinity_ruleset") and expedition_active():
 			preload("res://warden_combat.gd").tick(self,now)
+			if get_meta(Transactions.PENDING, false): return
+			preload("res://weaver_combat.gd").tick(self,now)
 			if get_meta(Transactions.PENDING, false): return
 			var elapsed := preload("res://affinity_time.gd").advance(self,delta)
 			preload("res://void_affinity.gd").resolve_motion(self,elapsed,now)
@@ -4409,16 +4421,17 @@ func _apply_loadout_action(id: int, player: Dictionary, fields: PackedStringArra
 			if fields.size()!=3: return
 			var c:=int(fields[1])
 			var node:=int(fields[2])
-			var connected = Classes.Warden.Connected
+			var tree := Classes.connected_tree(c)
+			var connected := Classes.connected_in_world(self,c,player.character)
 			var title: String
-			if connected.in_world(self,c,player.character):
+			if connected != null:
 				var refusal: String = connected.learn(player.character,node)
 				if not refusal.is_empty():
 					action_feedback(effects,id,refusal)
 					return
-				title = connected.NODES[node-connected.REQUEST_OFFSET].name
-			elif c == 0 and player.character.has(connected.PROFILE_KEY):
-				action_feedback(effects,id,"Use the affinity session to change this connected Warden path.")
+				title = connected.nodes[node-connected.REQUEST_OFFSET].name
+			elif tree != null and player.character.has(tree.profile_key):
+				action_feedback(effects,id,"Use the affinity session to change this connected %s path." % tree.label)
 				return
 			elif Classes.can_learn(player.character,c,node,Character.level(int(player.character.xp[c])) if c>=0 and c<Classes.DEFINITIONS.size() else 0):
 				var definition: Dictionary = Classes.all_nodes(c)[node]
@@ -4439,12 +4452,12 @@ func _apply_loadout_action(id: int, player: Dictionary, fields: PackedStringArra
 		"respec":
 			if fields.size()==2 and int(fields[1])>=0 and int(fields[1])<Classes.DEFINITIONS.size():
 				var c := int(fields[1])
-				var connected = Classes.Warden.Connected
-				if c == 0 and player.character.has(connected.PROFILE_KEY):
-					if not connected.in_world(self,c,player.character) or not connected.valid(player.character):
-						action_feedback(effects,id,"This connected Warden path cannot be refunded in the current session.")
+				var tree := Classes.connected_tree(c)
+				if tree != null and player.character.has(tree.profile_key):
+					if Classes.connected_in_world(self,c,player.character) == null or not tree.valid(player.character):
+						action_feedback(effects,id,"This connected %s path cannot be refunded in the current session." % tree.label)
 						return
-					player.character[connected.PROFILE_KEY] = connected.state([])
+					player.character[tree.profile_key] = tree.state([])
 				else:
 					player.character.upgrades[c]=0
 				restore_class_loadout(player)

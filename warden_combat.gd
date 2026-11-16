@@ -33,7 +33,7 @@ static func on_cast(game: Node, player: Dictionary, skill: Dictionary, expires: 
 	player.warden_block = {"epoch":game.combat_epoch, "life":int(player.get("lost_health",0)),
 		"until":expires, "prepared":0, "focus":skill.warden_focus, "blocked":false, "quake_used":false, "line_used":false,
 		"counter_bonus":skill.get("counter_window_bonus",0)}
-	if event != null and Connected.in_world(game,0,player.character):
+	if event != null and game.has_meta(&"combat_affinity_ruleset") and Connected.eligible(player.character):
 		player.warden_block.merge({"activation":event.identity, "granted":event.has_grants(), "protection_used":false})
 	if skill.warden_focus != "rootkeeper":
 		return
@@ -325,6 +325,9 @@ static func direct_damage(game: Node, player: Dictionary, hp: int, now: int) -> 
 	if hp <= 0:
 		return hp
 	var reduction := Connected.HOLDFAST_REDUCTION if holdfast_until(game,player,now)>0 else 0.0
+	var weaver = preload("res://weaver_combat.gd")
+	if weaver.filaments_until(game,player,now)>0:
+		reduction = maxf(reduction,weaver.Progression.FILAMENTS_REDUCTION)
 	for owner in game.players.values():
 		var state: Dictionary = owner.get("warden_sanctuary",{})
 		if int(state.get("until",0)) > now and live_state(game,owner,state) and in_circle(game,player,state.point,Connected.SANCTUARY_RADIUS):

@@ -583,6 +583,8 @@
     "warden_progression": {
       "label": "Class subclasses, neighboring skill branches, cast presentation and checkpoint interactions",
       "files": [
+        "connected_class_tree.gd",
+        "connected_class_tree.gd.uid",
         "warden_connected_tree.gd",
         "warden_connected_tree.gd.uid",
         "warden_tree.gd",
@@ -595,6 +597,15 @@
         "subclass_combat.gd.uid",
         "subclass_visuals.gd",
         "subclass_visuals.gd.uid"
+      ]
+    },
+    "weaver_progression": {
+      "label": "Connected Weaver progression, native spells and Ward ownership",
+      "files": [
+        "weaver_connected_tree.gd",
+        "weaver_connected_tree.gd.uid",
+        "weaver_combat.gd",
+        "weaver_combat.gd.uid"
       ]
     },
     "connection_flow": {
@@ -1821,6 +1832,9 @@
   "suites": {
     "ct01_warden": {"kind":"unit","systems":["warden_progression","classes","class_tree_access","combat_affinity_contracts","combat","life"],"package":false},
     "ct01_warden_coop": {"kind":"pair","systems":["warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life"],"package":false},
+    "ct02_weaver": {"kind":"unit","systems":["weaver_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","combat","life"],"package":false},
+    "ct02_weaver_coop": {"kind":"pair","systems":["weaver_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life"],"package":false},
+    "ct02_weaver_party": {"kind":"party","systems":["weaver_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life"],"package":false},
     "cr05_native_grafts": {"kind":"unit","systems":["combat_affinity_contracts","weapons","classes","combat","life"],"package":false},
     "cr05_native_grafts_coop": {"kind":"pair","systems":["combat_affinity_contracts","weapons","classes","connection_flow","world_snapshot"],"package":false},
     "cr05_native_grafts_party": {"kind":"party","systems":["combat_affinity_contracts","weapons","classes","connection_flow","world_snapshot"],"package":false},
@@ -5376,6 +5390,24 @@
       }
     },
     "_apply_loadout_action": {
+      "ct02_0": {
+        "match": "\t\t\tvar node:=int(fields[2])\n\t\t\tvar tree := Classes.connected_tree(c)\n\t\t\tvar connected := Classes.connected_in_world(self,c,player.character)\n\t\t\tvar title: String\n\t\t\tif connected != null:\n\t\t\t\tvar refusal: String = connected.learn(player.character,node)\n",
+        "baseline": "\t\t\tvar node:=int(fields[2])\n\t\t\tvar connected = Classes.Warden.Connected\n\t\t\tvar title: String\n\t\t\tif connected.in_world(self,c,player.character):\n\t\t\t\tvar refusal: String = connected.learn(player.character,node)\n",
+        "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"],
+        "additive": true
+      },
+      "ct02_1": {
+        "match": "\t\t\t\t\treturn\n\t\t\t\ttitle = connected.nodes[node-connected.REQUEST_OFFSET].name\n\t\t\telif tree != null and player.character.has(tree.profile_key):\n\t\t\t\taction_feedback(effects,id,\"Use the affinity session to change this connected %s path.\" % tree.label)\n\t\t\t\treturn\n",
+        "baseline": "\t\t\t\t\treturn\n\t\t\t\ttitle = connected.NODES[node-connected.REQUEST_OFFSET].name\n\t\t\telif c == 0 and player.character.has(connected.PROFILE_KEY):\n\t\t\t\taction_feedback(effects,id,\"Use the affinity session to change this connected Warden path.\")\n\t\t\t\treturn\n",
+        "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"],
+        "additive": true
+      },
+      "ct02_2": {
+        "match": "\t\t\t\tvar c := int(fields[1])\n\t\t\t\tvar tree := Classes.connected_tree(c)\n\t\t\t\tif tree != null and player.character.has(tree.profile_key):\n\t\t\t\t\tif Classes.connected_in_world(self,c,player.character) == null or not tree.valid(player.character):\n\t\t\t\t\t\taction_feedback(effects,id,\"This connected %s path cannot be refunded in the current session.\" % tree.label)\n\t\t\t\t\t\treturn\n\t\t\t\t\tplayer.character[tree.profile_key] = tree.state([])\n\t\t\t\telse:\n",
+        "baseline": "\t\t\t\tvar c := int(fields[1])\n\t\t\t\tvar connected = Classes.Warden.Connected\n\t\t\t\tif c == 0 and player.character.has(connected.PROFILE_KEY):\n\t\t\t\t\tif not connected.in_world(self,c,player.character) or not connected.valid(player.character):\n\t\t\t\t\t\taction_feedback(effects,id,\"This connected Warden path cannot be refunded in the current session.\")\n\t\t\t\t\t\treturn\n\t\t\t\t\tplayer.character[connected.PROFILE_KEY] = connected.state([])\n\t\t\t\telse:\n",
+        "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"],
+        "additive": true
+      },
       "ct01_0": {
         "match": "\t\t\tvar node:=int(fields[2])\n\t\t\tvar connected = Classes.Warden.Connected\n\t\t\tvar title: String\n\t\t\tif connected.in_world(self,c,player.character):\n\t\t\t\tvar refusal: String = connected.learn(player.character,node)\n\t\t\t\tif not refusal.is_empty():\n\t\t\t\t\taction_feedback(effects,id,refusal)\n\t\t\t\t\treturn\n\t\t\t\ttitle = connected.NODES[node-connected.REQUEST_OFFSET].name\n\t\t\telif c == 0 and player.character.has(connected.PROFILE_KEY):\n\t\t\t\taction_feedback(effects,id,\"Use the affinity session to change this connected Warden path.\")\n\t\t\t\treturn\n\t\t\telif Classes.can_learn(player.character,c,node,Character.level(int(player.character.xp[c])) if c>=0 and c<Classes.DEFINITIONS.size() else 0):\n\t\t\t\tvar definition: Dictionary = Classes.all_nodes(c)[node]\n",
         "baseline": "\t\t\tvar node:=int(fields[2])\n\t\t\tif Classes.can_learn(player.character,c,node,Character.level(int(player.character.xp[c])) if c>=0 and c<Classes.DEFINITIONS.size() else 0):\n\t\t\t\tvar definition: Dictionary = Classes.all_nodes(c)[node]\n",
@@ -6795,6 +6827,12 @@
       }
     },
     "_physics_process": {
+      "ct02_0": {
+        "match": "\t\t\tif get_meta(Transactions.PENDING, false): return\n\t\t\tpreload(\"res://weaver_combat.gd\").tick(self,now)\n\t\t\tif get_meta(Transactions.PENDING, false): return\n\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n",
+        "baseline": "\t\t\tif get_meta(Transactions.PENDING, false): return\n\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n",
+        "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"],
+        "additive": true
+      },
       "ct01_0": {
         "match": "\t\tif has_meta(&\"combat_affinity_ruleset\") and expedition_active():\n\t\t\tpreload(\"res://warden_combat.gd\").tick(self,now)\n\t\t\tif get_meta(Transactions.PENDING, false): return\n\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n",
         "baseline": "\t\tif has_meta(&\"combat_affinity_ruleset\") and expedition_active():\n\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n",
@@ -8270,6 +8308,18 @@
       }
     },
     "use_class_skill": {
+      "ct02_0": {
+        "match": "\ttargets=Traits.spread_targets(self,player,targets,skill,stats)\n\tvar native_weaver_nova := mode==\"nova\" and skill.has(\"weaver_nodes\")\n\tvar catalyst_targets := targets.duplicate() if native_weaver_nova else targets\n\tvar weaver_impact := Vector3.INF\n\tvar weaver = preload(\"res://weaver_combat.gd\")\n\tif native_weaver_nova:\n\t\tweaver_impact = weaver.prepare_nova(self,id,player,skill,targets,effect_point,now)\n\tif not targets.is_empty():\n",
+        "baseline": "\ttargets=Traits.spread_targets(self,player,targets,skill,stats)\n\tif not targets.is_empty():\n",
+        "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"],
+        "additive": true
+      },
+      "ct02_1": {
+        "match": "\tplayer[timer]=now+Skills.Balance.cooldown(skill,stats)\n\tcombat_events_api.class_complete(self,event,adapter,cast_origin,effect_point,catalyst_targets,recipients,now,secondary_radius)\n\tif slot==1 and skill.has(\"subclass_focus\") and (not native_weaver_nova or skill.subclass_follow_lane != 0):\n\t\tpreload(\"res://subclass_combat.gd\").follow_through(self,player,skill,effect_point,targets,now)\n\tif native_weaver_nova:\n\t\tweaver.complete_nova(self,id,player,skill.weaver_nodes,effect_point,weaver_impact,now)\n\tplayer.skill_fx_seq=int(player.get(\"skill_fx_seq\",0))+1\n",
+        "baseline": "\tplayer[timer]=now+Skills.Balance.cooldown(skill,stats)\n\tcombat_events_api.class_complete(self,event,adapter,cast_origin,effect_point,targets,recipients,now,secondary_radius)\n\tif slot==1 and skill.has(\"subclass_focus\"):\n\t\tpreload(\"res://subclass_combat.gd\").follow_through(self,player,skill,effect_point,targets,now)\n\tplayer.skill_fx_seq=int(player.get(\"skill_fx_seq\",0))+1\n",
+        "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"],
+        "additive": true
+      },
       "ct01_0": {
         "match": "\t\t\"quake\",\"nova\",\"bloodmoon\":\n\t\t\tif mode==\"quake\" and skill.has(\"warden_focus\"):\n\t\t\t\teffect_point=plan.center if aimed else preload(\"res://warden_combat.gd\").quake_center(self,player,battlefield,skill,now)\n",
         "baseline": "\t\t\"quake\",\"nova\",\"bloodmoon\":\n\t\t\tif mode==\"quake\" and skill.get(\"warden_focus\",\"\")==\"rootkeeper\":\n\t\t\t\teffect_point=plan.center if aimed else preload(\"res://warden_combat.gd\").quake_center(self,player,battlefield,skill,now)\n",
@@ -9027,6 +9077,24 @@
       }
     },
     "apply_skill_targets": {
+      "ct02_0": {
+        "match": "\tvar drain_contacts:=0\n\tvar native_hits: Dictionary = skill.get(\"native_hit_adjustments\",{})\n\tfor target in targets:\n\t\tvar adjustment: Dictionary = native_hits.get(target,{})\n\t\tvar root_time:=Skills.Balance.bind_ms(skill,stats)\n",
+        "baseline": "\tvar drain_contacts:=0\n\tfor target in targets:\n\t\tvar root_time:=Skills.Balance.bind_ms(skill,stats)\n",
+        "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"],
+        "additive": true
+      },
+      "ct02_1": {
+        "match": "\t\t\telse: scouts[target].recovery=maxi(int(scouts[target].get(\"recovery\",0)),recovery)\n\t\tvar damage:=Life.Preview.authored_amount(float(skill.get(\"damage\",0))) + float(adjustment.get(\"bonus_hp\",0))/Life.Preview.scale()\n\t\tif damage>0.0:\n",
+        "baseline": "\t\t\telse: scouts[target].recovery=maxi(int(scouts[target].get(\"recovery\",0)),recovery)\n\t\tvar damage:=Life.Preview.authored_amount(float(skill.get(\"damage\",0)))\n\t\tif damage>0.0:\n",
+        "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"],
+        "additive": true
+      },
+      "ct02_2": {
+        "match": "\t\t\tvar before:=enemy_hp if target==-1 else int(scouts[target].hp)\n\t\t\tapply_weapon_hit(player,target,adjustment.get(\"origin\",skill.get(\"effect_origin\",player.pos)),hit,now)\n\t\t\tif Life.Preview.enabled and Life.Sustain.eligible(self,target):\n",
+        "baseline": "\t\t\tvar before:=enemy_hp if target==-1 else int(scouts[target].hp)\n\t\t\tapply_weapon_hit(player,target,skill.get(\"effect_origin\",player.pos),hit,now)\n\t\t\tif Life.Preview.enabled and Life.Sustain.eligible(self,target):\n",
+        "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"],
+        "additive": true
+      },
       "cb07_9": {
         "match": "return drain_contacts if Life.Preview.enabled else targets.size()",
         "baseline": "return targets.size()",
@@ -10142,6 +10210,16 @@
     "warden_combat.gd": {
       "newline": "lf",
       "regions": {
+        "ct02_1": {
+          "match": "\t\t\"counter_bonus\":skill.get(\"counter_window_bonus\",0)}\n\tif event != null and game.has_meta(&\"combat_affinity_ruleset\") and Connected.eligible(player.character):\n\t\tplayer.warden_block.merge({\"activation\":event.identity, \"granted\":event.has_grants(), \"protection_used\":false})\n",
+          "baseline": "\t\t\"counter_bonus\":skill.get(\"counter_window_bonus\",0)}\n\tif event != null and Connected.in_world(game,0,player.character):\n\t\tplayer.warden_block.merge({\"activation\":event.identity, \"granted\":event.has_grants(), \"protection_used\":false})\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_2": {
+          "match": "\tvar reduction := Connected.HOLDFAST_REDUCTION if holdfast_until(game,player,now)>0 else 0.0\n\tvar weaver = preload(\"res://weaver_combat.gd\")\n\tif weaver.filaments_until(game,player,now)>0:\n\t\treduction = maxf(reduction,weaver.Progression.FILAMENTS_REDUCTION)\n\tfor owner in game.players.values():\n",
+          "baseline": "\tvar reduction := Connected.HOLDFAST_REDUCTION if holdfast_until(game,player,now)>0 else 0.0\n\tfor owner in game.players.values():\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
         "ct01_holdfast_1": {
           "match": "const Feedback = preload(\"res://enemy_move_feedback.gd\")\nconst Journal = preload(\"res://diagnostic_journal.gd\")\nconst BARK := Color(\"#abc989\")\n",
           "baseline": "const Feedback = preload(\"res://enemy_move_feedback.gd\")\nconst BARK := Color(\"#abc989\")\n",
@@ -13707,6 +13785,11 @@
     "loadout_panel.gd": {
       "newline": "crlf",
       "regions": {
+        "ct02_1": {
+          "match": "\tvar profile: Dictionary=p.get(\"character\",game.guest_character.data)\n\tvar connected = game.Classes.connected_in_world(game,c,profile)\n\tvar use_connected := connected != null\n\tvar level: int = connected.level(profile) if use_connected else game.Character.level(int(profile.xp[c]))\n",
+          "baseline": "\tvar profile: Dictionary=p.get(\"character\",game.guest_character.data)\n\tvar connected = game.Classes.Warden.Connected\n\tvar use_connected: bool = connected.in_world(game,c,profile)\n\tvar level: int = connected.level(profile) if use_connected else game.Character.level(int(profile.xp[c]))\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
         "ct01_1": {
           "match": "\tvar profile: Dictionary=p.get(\"character\",game.guest_character.data)\n\tvar connected = game.Classes.Warden.Connected\n\tvar use_connected: bool = connected.in_world(game,c,profile)\n\tvar level: int = connected.level(profile) if use_connected else game.Character.level(int(profile.xp[c]))\n\tvar points: int = (level-connected.path(profile).size() if connected.valid(profile) else 0) if use_connected else game.Classes.points(profile,c,level)\n\tvar body: String=\"[b]%s \u00b7 Lv %d[/b]\\n%s\\n%d class point(s) available\\n\\n%s\"%[game.Classes.DEFINITIONS[c].name,level,game.Classes.DEFINITIONS[c].description,points,game.Weapons.describe(stats) if not stats.is_empty() else \"\"]\n\tfor skill_slot in 2:\n\t\tvar skill: Dictionary=game.Skills.resolve_in_world(game,c,skill_slot,profile)\n\t\tvar info: String=game.Skills.describe(skill,stats)\n",
           "baseline": "\tvar profile: Dictionary=p.get(\"character\",game.guest_character.data)\n\tvar level: int=game.Character.level(int(profile.xp[c]))\n\tvar points: int=game.Classes.points(profile,c,level)\n\tvar body: String=\"[b]%s \u00b7 Lv %d[/b]\\n%s\\n%d class point(s) available\\n\\n%s\"%[game.Classes.DEFINITIONS[c].name,level,game.Classes.DEFINITIONS[c].description,points,game.Weapons.describe(stats) if not stats.is_empty() else \"\"]\n\tfor skill_slot in 2:\n\t\tvar skill: Dictionary=game.Skills.resolve(c,skill_slot,profile)\n\t\tvar info: String=game.Skills.describe(skill,stats)\n",
@@ -13864,6 +13947,41 @@
     "progression_panel.gd": {
       "newline": "crlf",
       "regions": {
+        "ct02_1": {
+          "match": "\t\t\tvar n:=int(pieces[2])\n\t\t\tvar connected = game.Classes.connected_in_world(game,c,data)\n\t\t\tif connected != null:\n\t\t\t\tcan_learn = connected.refusal(data,n).is_empty()\n",
+          "baseline": "\t\t\tvar n:=int(pieces[2])\n\t\t\tvar connected = game.Classes.Warden.Connected\n\t\t\tif connected.in_world(game,c,data):\n\t\t\t\tcan_learn = connected.refusal(data,n).is_empty()\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_2": {
+          "match": "\t\tvar data: Dictionary=p.get(\"character\",game.guest_character.data)\n\t\tvar connected = game.Classes.connected_in_world(game,inspected_class,data)\n\t\tvar level:=Character.level(int(data.xp[inspected_class]))\n",
+          "baseline": "\t\tvar data: Dictionary=p.get(\"character\",game.guest_character.data)\n\t\tvar connected = game.Classes.Warden.Connected\n\t\tvar level:=Character.level(int(data.xp[inspected_class]))\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_3": {
+          "match": "\t\tvar class_name_text: String=game.Classes.DEFINITIONS[inspected_class].name\n\t\tif connected != null:\n\t\t\tif connected.valid(data):\n",
+          "baseline": "\t\tvar class_name_text: String=game.Classes.DEFINITIONS[inspected_class].name\n\t\tif connected.in_world(game,inspected_class,data):\n\t\t\tif connected.valid(data):\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_4": {
+          "match": "\t\t\t\tavailable = level-connected.path(data).size()\n\t\t\t\tnotice.text=\"%s level %d / %d \u00b7 %d XP \u00b7 %d available\"%[class_name_text,level,\n\t\t\t\t\tconnected.XP_THRESHOLDS.size(),data.xp[inspected_class],available]\n\t\t\telse:\n\t\t\t\tnotice.text=\"Connected %s data needs review before it can change.\"%class_name_text\n\t\telif game.Classes.Warden.legacy(data,inspected_class):\n",
+          "baseline": "\t\t\t\tavailable = level-connected.path(data).size()\n\t\t\t\tnotice.text=\"Warden level %d / 6 \u00b7 %d XP \u00b7 %d available\"%[level,data.xp[0],available]\n\t\t\telse:\n\t\t\t\tnotice.text=\"Connected Warden data needs review before it can change.\"\n\t\telif game.Classes.Warden.legacy(data,inspected_class):\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_5": {
+          "match": "\tvar title: String=game.Classes.DEFINITIONS[c].name\n\tvar connected = game.Classes.connected_in_world(game,c,data)\n\tvar use_connected := connected != null\n\tvar nodes: Array = connected.nodes if use_connected else game.Classes.branch_nodes(c)\n\tvar offset: int = connected.REQUEST_OFFSET if use_connected else tree_data.OFFSET\n",
+          "baseline": "\tvar title: String=game.Classes.DEFINITIONS[c].name\n\tvar connected = tree_data.Connected\n\tvar use_connected: bool = connected.in_world(game,c,data)\n\tvar nodes: Array = connected.NODES if use_connected else game.Classes.branch_nodes(c)\n\tvar offset: int = connected.REQUEST_OFFSET if use_connected else tree_data.OFFSET\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_6": {
+          "match": "\t\tvar parents: Array=[base] if node.parents.is_empty() else node.parents.map(func(id):return nodes_by_id[id])\n\t\tvar description: String=game.Classes.Weaver.description(node,focus_id) if c==1 and use_connected else node.description\n\t\tvar summary: String=node.name+\" \u00b7 \"+lanes[node.lane]+\"\\n\"+description\n\t\tif game.has_meta(&\"combat_affinity_ruleset\"):\n",
+          "baseline": "\t\tvar parents: Array=[base] if node.parents.is_empty() else node.parents.map(func(id):return nodes_by_id[id])\n\t\tvar summary: String=node.name+\" \u00b7 \"+lanes[node.lane]+\"\\n\"+node.description\n\t\tif game.has_meta(&\"combat_affinity_ruleset\"):\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_7": {
+          "match": "\t\t\t\tif not learned:\n\t\t\t\t\tif use_connected: candidate[connected.profile_key] = connected.state([node.id])\n\t\t\t\t\telse: candidate.upgrades[c]=1<<index\n",
+          "baseline": "\t\t\t\tif not learned:\n\t\t\t\t\tif use_connected: candidate[connected.PROFILE_KEY] = connected.state([node.id])\n\t\t\t\t\telse: candidate.upgrades[c]=1<<index\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
         "ct01_whole_xp_1": {
           "match": "\t\t\t\tavailable = level-connected.path(data).size()\n\t\t\t\tnotice.text=\"Warden level %d / 6 \u00b7 %d XP \u00b7 %d available\"%[level,data.xp[0],available]\n\t\t\telse:\n",
           "baseline": "\t\t\t\tavailable = level-connected.path(data).size()\n\t\t\t\tnotice.text=\"Warden level %d / 6 \u00b7 %d available \u00b7 Provisional affinity progression\"%[level,available]\n\t\t\telse:\n",
@@ -14339,6 +14457,16 @@
     "class_catalog.gd": {
       "newline": "crlf",
       "regions": {
+        "ct02_1": {
+          "match": "const Subclasses = preload(\"res://subclass_catalog.gd\")\nconst Weaver = preload(\"res://weaver_connected_tree.gd\")\nconst ConnectedTree = preload(\"res://connected_class_tree.gd\")\nconst DEFINITIONS := [\n",
+          "baseline": "const Subclasses = preload(\"res://subclass_catalog.gd\")\nconst DEFINITIONS := [\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_2": {
+          "match": "\nstatic func connected_tree(class_id: int) -> ConnectedTree:\n match class_id:\n  0: return Warden.Connected.TREE\n  1: return Weaver.TREE\n return null\n\n\nstatic func connected_in_world(game: Node, class_id: int, profile: Dictionary) -> ConnectedTree:\n var tree := connected_tree(class_id)\n return tree if tree != null and game.has_meta(&\"combat_affinity_ruleset\") and tree.eligible(profile) else null\n\n\nstatic func branch_nodes(class_id: int) -> Array:\n",
+          "baseline": "\nstatic func branch_nodes(class_id: int) -> Array:\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
         "cb04_0": {
           "match": "for key in values:\n  if show_hp:\n   var hp: String=preload(\"res://combat_balance_preview.gd\").component_hp_text({key:values[key]})\n   if not hp.is_empty():\n    lines.append(hp);continue\n  if preload(\"res://combat_traits.gd\").KEYS.has(key):",
           "baseline": "for key in values:\n  if preload(\"res://combat_traits.gd\").KEYS.has(key):",
@@ -14547,6 +14675,36 @@
     "skill_catalog.gd": {
       "newline": "crlf",
       "regions": {
+        "ct02_1": {
+          "match": "static func resolve_in_world(game: Node, class_id: int, slot: int, profile: Dictionary) -> Dictionary:\n\treturn resolve(class_id, slot, profile, Classes.connected_in_world(game,class_id,profile) != null)\n\n",
+          "baseline": "static func resolve_in_world(game: Node, class_id: int, slot: int, profile: Dictionary) -> Dictionary:\n\treturn resolve(class_id, slot, profile, Classes.Warden.Connected.in_world(game, class_id, profile))\n\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_2": {
+          "match": "\telif class_id>0:\n\t\tresult=Classes.Subclasses.skill(profile,class_id,slot,result,connected)\n\tresult[\"specialized\"]=not modifications.is_empty() or result.has(\"warden_focus\") or result.has(\"subclass_focus\")\n",
+          "baseline": "\telif class_id>0:\n\t\tresult=Classes.Subclasses.skill(profile,class_id,slot,result)\n\tresult[\"specialized\"]=not modifications.is_empty() or result.has(\"warden_focus\") or result.has(\"subclass_focus\")\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_3": {
+          "match": "\tvar subclass := mode==\"subclass\"\n\tvar connected_weaver := skill.has(\"weaver_nodes\")\n\tvar card_data: Dictionary=skill.get(\"card\",{})\n",
+          "baseline": "\tvar subclass := mode==\"subclass\"\n\tvar card_data: Dictionary=skill.get(\"card\",{})\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_4": {
+          "match": "\telif subclass and (skill.get(\"ward\",false) or skill.get(\"hit_ward\",false) or int(skill.get(\"first\",-1))==2 or card.get(\"ward\",false) or card.get(\"landing_ward\",false) or card.get(\"party_hit_ward\",false)):\n\t\tif connected_weaver and skill.subclass_focus==\"silkwarden\" and int(skill.first)==2:\n\t\t\tlines.append(\"Ward: 1 hit for %s per ally, extended to %s for the lowest HP ratio\" %\n\t\t\t\t[Balance.seconds(Balance.WARD_MS),Balance.seconds(Balance.WARD_MS+Classes.Weaver.GIFT_EXTENSION_MS)])\n\t\telse:\n\t\t\tlines.append(\"Ward: 1 hit for %s\" % Balance.seconds(Balance.WARD_MS))\n\tif mode==\"counter_guard\":\n",
+          "baseline": "\telif subclass and (skill.get(\"ward\",false) or skill.get(\"hit_ward\",false) or int(skill.get(\"first\",-1))==2 or card.get(\"ward\",false) or card.get(\"landing_ward\",false) or card.get(\"party_hit_ward\",false)):\n\t\tlines.append(\"Ward: 1 hit for %s\" % Balance.seconds(Balance.WARD_MS))\n\tif mode==\"counter_guard\":\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_5": {
+          "match": "\tif subclass and int(skill.get(\"second\",-1))==0:\n\t\tvar damage_text := \"%d HP\" % Classes.Weaver.BRANCHING_HP if connected_weaver else Balance.hp_text(Balance.FOLLOWUP_POINTS)\n\t\tlines.append(\"Chained hit: %s damage\" % damage_text)\n\tif not connected_weaver and int(skill.get(\"subclass_follow_lane\",-1))==0:\n\t\tlines.append(\"Prepared follow-up: %s damage to a nearby foe\" % Balance.hp_text(Balance.FOLLOWUP_POINTS))\n",
+          "baseline": "\tif subclass and int(skill.get(\"second\",-1))==0:\n\t\tlines.append(\"Chained hit: %s damage\" % Balance.hp_text(Balance.FOLLOWUP_POINTS))\n\tif int(skill.get(\"subclass_follow_lane\",-1))==0:\n\t\tlines.append(\"Prepared follow-up: %s damage to a nearby foe\" % Balance.hp_text(Balance.FOLLOWUP_POINTS))\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_6": {
+          "match": "\t\tvar key := [rules.active(game),player.frame,player.character.get(\"upgrades\",[]),\n\t\t\tplayer.character.get(Classes.Warden.Connected.PROFILE_KEY),\n\t\t\tplayer.character.get(Classes.Weaver.PROFILE_KEY), player.weapon_kind,player.weapon,\n\t\t\tplayer.secondary,player.catalyst,player.graft_part,player.technique,player.power,ranks]\n",
+          "baseline": "\t\tvar key := [rules.active(game),player.frame,player.character.get(\"upgrades\",[]),\n\t\t\tplayer.character.get(Classes.Warden.Connected.PROFILE_KEY), player.weapon_kind,player.weapon,\n\t\t\tplayer.secondary,player.catalyst,player.graft_part,player.technique,player.power,ranks]\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
         "ct01_1": {
           "match": "\nstatic func resolve_in_world(game: Node, class_id: int, slot: int, profile: Dictionary) -> Dictionary:\n\treturn resolve(class_id, slot, profile, Classes.Warden.Connected.in_world(game, class_id, profile))\n\n\nstatic func resolve(class_id: int,slot: int,profile: Dictionary,connected := false) -> Dictionary:\n\tclass_id=clampi(class_id,0,DEFINITIONS.size()-1)\n",
           "baseline": "\nstatic func resolve(class_id: int,slot: int,profile: Dictionary) -> Dictionary:\n\tclass_id=clampi(class_id,0,DEFINITIONS.size()-1)\n",
@@ -16267,6 +16425,16 @@
     "combat_status.gd": {
       "newline": "crlf",
       "regions": {
+        "ct02_1": {
+          "match": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"spirit_stride\":\"Spiritstride\",\"spirit_prepared\":\"Spirit follow-up prepared\",\"spirit_ready\":\"Spirit follow-up ready\",\"storm_charge\":\"Storm Charge\",\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"holdfast\":\"Holdfast\",\"protective_filaments\":\"Protective Filaments\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"spirit_stride\",\"spirit_prepared\",\"spirit_ready\",\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\n",
+          "baseline": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"spirit_stride\":\"Spiritstride\",\"spirit_prepared\":\"Spirit follow-up prepared\",\"spirit_ready\":\"Spirit follow-up ready\",\"storm_charge\":\"Storm Charge\",\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"holdfast\":\"Holdfast\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"spirit_stride\",\"spirit_prepared\",\"spirit_ready\",\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_2": {
+          "match": "  add(desired,game,\"holdfast\",id,false,Warden.holdfast_until(game,player,now),1,now)\n  add(desired,game,\"protective_filaments\",id,false,preload(\"res://weaver_combat.gd\").filaments_until(game,player,now),1,now)\n  for pair in [[\"slow\",\"slow_until\"],[\"guard\",\"guard_until\"],[\"counter\",\"counter_until\"],[\"prepared_mark\",\"prepared_mark_until\"]]:\n",
+          "baseline": "  add(desired,game,\"holdfast\",id,false,Warden.holdfast_until(game,player,now),1,now)\n  for pair in [[\"slow\",\"slow_until\"],[\"guard\",\"guard_until\"],[\"counter\",\"counter_until\"],[\"prepared_mark\",\"prepared_mark_until\"]]:\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
         "ct01_holdfast_1": {
           "match": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"spirit_stride\":\"Spiritstride\",\"spirit_prepared\":\"Spirit follow-up prepared\",\"spirit_ready\":\"Spirit follow-up ready\",\"storm_charge\":\"Storm Charge\",\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"holdfast\":\"Holdfast\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"spirit_stride\",\"spirit_prepared\",\"spirit_ready\",\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\n",
           "baseline": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"spirit_stride\":\"Spiritstride\",\"spirit_prepared\":\"Spirit follow-up prepared\",\"spirit_ready\":\"Spirit follow-up ready\",\"storm_charge\":\"Storm Charge\",\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"spirit_stride\",\"spirit_prepared\",\"spirit_ready\",\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\n",
@@ -17425,6 +17593,26 @@
     "combat_traits.gd": {
       "newline": "crlf",
       "regions": {
+        "ct02_1": {
+          "match": " if not graft_source.is_empty(): game.trait_events.back().graft_source=graft_source\nstatic func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: float,duration: int,power: float,now: int,ward: bool=false,class_field: RefCounted=null,graft_source: Dictionary={}) -> Dictionary:\n if game.trait_events.size()>=24: return {}\n var id:=player_id(game,p)\n",
+          "baseline": " if not graft_source.is_empty(): game.trait_events.back().graft_source=graft_source\nstatic func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: float,duration: int,power: float,now: int,ward: bool=false,class_field: RefCounted=null,graft_source: Dictionary={}) -> void:\n if game.trait_events.size()>=24: return\n var id:=player_id(game,p)\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_2": {
+          "match": " game.trait_events.back().visual_id=game.combat_event_serial\n return game.trait_events.back()\nstatic func after_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,killed: bool) -> void:\n",
+          "baseline": " game.trait_events.back().visual_id=game.combat_event_serial\nstatic func after_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,killed: bool) -> void:\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_3": {
+          "match": "    var hit: Dictionary={\"damage\":Preview.authored_amount(float(event.power)),\"trait_secondary\":true}\n    if event.has(\"graft_source\") or event.get(\"native_weaver_bloom\",false):\n     hit.core_hit=true\n",
+          "baseline": "    var hit: Dictionary={\"damage\":Preview.authored_amount(float(event.power)),\"trait_secondary\":true}\n    if event.has(\"graft_source\"):\n     hit.core_hit=true\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_4": {
+          "match": "     hit.mark_damage=1\n    var before: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)\n    game.apply_weapon_hit(p,target,event.position,hit,now)\n    if event.has(\"weaver_pressure\"):\n     var after: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)\n     if after < before: preload(\"res://weaver_combat.gd\").field_contact(game,p,event)\n    var source: RefCounted=event.get(\"class_field\")\n",
+          "baseline": "     hit.mark_damage=1\n    game.apply_weapon_hit(p,target,event.position,hit,now)\n    var source: RefCounted=event.get(\"class_field\")\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
         "cr05_shared_grave_1": {
           "match": " return result\nstatic func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,graft_contact: Dictionary={}) -> Dictionary:\n var hit:=stats.duplicate(true);var state:=target_state(game,target)\n",
           "baseline": " return result\nstatic func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int) -> Dictionary:\n var hit:=stats.duplicate(true);var state:=target_state(game,target)\n",
@@ -18512,6 +18700,16 @@
     "character_profile.gd": {
       "newline": "crlf",
       "regions": {
+        "ct02_1": {
+          "match": "const ConnectedWarden = preload(\"res://warden_connected_tree.gd\")\nconst ConnectedWeaver = preload(\"res://weaver_connected_tree.gd\")\nconst Parts = preload(\"res://weapon_parts.gd\")\n",
+          "baseline": "const ConnectedWarden = preload(\"res://warden_connected_tree.gd\")\nconst Parts = preload(\"res://weapon_parts.gd\")\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_2": {
+          "match": "\t\t\t\t\tresult.loadouts[c].parts[slot]=part if Parts.is_plant(part) else 0\n\tfor key in [ConnectedWarden.PROFILE_KEY,ConnectedWeaver.PROFILE_KEY]:\n\t\tif source.has(key):\n\t\t\tvar progression: Variant = source[key]\n\t\t\tresult[key] = progression.duplicate(true) if progression is Dictionary or progression is Array else progression\n\treturn result\n",
+          "baseline": "\t\t\t\t\tresult.loadouts[c].parts[slot]=part if Parts.is_plant(part) else 0\n\tif source.has(ConnectedWarden.PROFILE_KEY):\n\t\tvar progression: Variant = source[ConnectedWarden.PROFILE_KEY]\n\t\tresult[ConnectedWarden.PROFILE_KEY] = progression.duplicate(true) if progression is Dictionary or progression is Array else progression\n\treturn result\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
         "ct01_whole_xp_1": {
           "match": "const Classes = preload(\"res://class_catalog.gd\")\nconst Experience = preload(\"res://class_experience.gd\")\nconst ConnectedWarden = preload(\"res://warden_connected_tree.gd\")\n",
           "baseline": "const Classes = preload(\"res://class_catalog.gd\")\nconst ConnectedWarden = preload(\"res://warden_connected_tree.gd\")\n",
@@ -19776,6 +19974,61 @@
     "subclass_combat.gd": {
       "newline": "lf",
       "regions": {
+        "ct02_1": {
+          "match": "const Balance = preload(\"res://class_skill_balance.gd\")\nconst WeaverCombat = preload(\"res://weaver_combat.gd\")\nconst CLIPS := {\n",
+          "baseline": "const Balance = preload(\"res://class_skill_balance.gd\")\nconst CLIPS := {\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_2": {
+          "match": "\tvar bind := Balance.subclass_bind(skill,card)\n\tvar weaver := skill.has(\"weaver_nodes\")\n\tvar q_contact := false\n\tif leaves_snare:\n",
+          "baseline": "\tvar bind := Balance.subclass_bind(skill,card)\n\tif leaves_snare:\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_3": {
+          "match": "\t\t\tgame.apply_weapon_hit(player,target,cast.center,hit,now)\n\t\t\tvar after: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)\n\t\t\tq_contact = q_contact or after < before\n\t\t\tif Balance.Preview.enabled and rewardable:\n\t\t\t\tdrain_contacts += int(after<before)\n",
+          "baseline": "\t\t\tgame.apply_weapon_hit(player,target,cast.center,hit,now)\n\t\t\tif Balance.Preview.enabled and rewardable:\n\t\t\t\tvar after: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)\n\t\t\t\tdrain_contacts += int(after<before)\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_4": {
+          "match": "\t\tif bind > 0:\n\t\t\tvar until := now+bind+int(stats.get(\"skill_duration\",0))\n\t\t\tvar previous: int = game.rooted_until if target == -1 else int(game.scouts[target].get(\"rooted_until\",0))\n\t\t\tpreload(\"res://combat_status.gd\").root(game,target,until)\n\t\t\tq_contact = q_contact or until > previous\n\t\tif skill.has(\"pull\"):\n",
+          "baseline": "\t\tif bind > 0:\n\t\t\tpreload(\"res://combat_status.gd\").root(game,target,now+bind+int(stats.get(\"skill_duration\",0)))\n\t\tif skill.has(\"pull\"):\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_5": {
+          "match": "\tif not affected.is_empty() and skill.second == 0:\n\t\techo(game,player,contact,affected,Color(skill.color),now,weaver)\n\tvar drain_count := drain_contacts if Balance.Preview.enabled else affected.size()\n",
+          "baseline": "\tif not affected.is_empty() and skill.second == 0:\n\t\techo(game,player,contact,affected,Color(skill.color),now)\n\tvar drain_count := drain_contacts if Balance.Preview.enabled else affected.size()\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_6": {
+          "match": "\tvar field_duration := Balance.duration(skill,stats) if Balance.Preview.enabled else int(skill.get(\"duration\",0))\n\tvar field := {}\n\tif skill.has(\"field\"):\n\t\tfield = game.Traits.zone(game,player,skill.field,cast.center,cast.radius,field_duration,Balance.field_power(skill),now,false,\n\t\t\tevents.field_action(stats))\n\t\tif not field.is_empty() and player.has(\"combat_ruleset\") and skill.subclass_focus == \"bloomcaller\":\n\t\t\tfield.native_weaver_bloom = true\n\tif card.get(\"thorn_patch\",false):\n",
+          "baseline": "\tvar field_duration := Balance.duration(skill,stats) if Balance.Preview.enabled else int(skill.get(\"duration\",0))\n\tif skill.has(\"field\"):\n\t\tgame.Traits.zone(game,player,skill.field,cast.center,cast.radius,field_duration,Balance.field_power(skill),now,false,\n\t\t\tevents.field_action(stats))\n\tif card.get(\"thorn_patch\",false):\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_7": {
+          "match": "\tvar nearby := allies(game,contact,radius)\n\tvar extend_ward: bool = weaver and skill.subclass_focus == \"silkwarden\" and skill.first == 2\n\tvar heal_hp := 0\n",
+          "baseline": "\tvar nearby := allies(game,contact,radius)\n\tvar heal_hp := 0\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_8": {
+          "match": "\t\tif skill.get(\"ward\",false) or card.get(\"ward\",false) or (card.get(\"party_hit_ward\",false) and not affected.is_empty()):\n\t\t\tvar extra := Catalog.Weaver.GIFT_EXTENSION_MS if extend_ward and is_same(ally,nearby[0]) else 0\n\t\t\tevents.grant_ward(game,ally,now+Balance.WARD_MS+extra,1,event,adapter,now)\n\tif not nearby.is_empty() and ((skill.first == 2 and not extend_ward) or (skill.get(\"hit_ward\",false) and not affected.is_empty())):\n\t\tgame.grant_guard(nearby[0],now+Balance.WARD_MS,1)\n",
+          "baseline": "\t\tif skill.get(\"ward\",false) or card.get(\"ward\",false) or (card.get(\"party_hit_ward\",false) and not affected.is_empty()):\n\t\t\tevents.grant_ward(game,ally,now+Balance.WARD_MS,1,event,adapter,now)\n\tif not nearby.is_empty() and (skill.first == 2 or (skill.get(\"hit_ward\",false) and not affected.is_empty())):\n\t\tgame.grant_guard(nearby[0],now+Balance.WARD_MS,1)\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_9": {
+          "match": "\tvar follow := Catalog.lane_at(player.character,int(player.frame),3)\n\tif weaver:\n\t\tfollow = Catalog.Weaver.TREE.lane_at(skill.weaver_nodes,3)\n\t\tWeaverCombat.on_q(game,id,player,skill.weaver_nodes,contact,nearby,q_contact,field,cast_id,now)\n\tif follow >= 0:\n",
+          "baseline": "\tvar follow := Catalog.lane_at(player.character,int(player.frame),3)\n\tif follow >= 0:\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_10": {
+          "match": "\nstatic func echo(game: Node, player: Dictionary, center: Vector3, exclude: Array[int], color: Color, now: int, isolated := false) -> void:\n\tvar nearest := -2\n",
+          "baseline": "\nstatic func echo(game: Node, player: Dictionary, center: Vector3, exclude: Array[int], color: Color, now: int) -> void:\n\tvar nearest := -2\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_11": {
+          "match": "\tvar point: Vector3 = game.enemy_position(nearest)\n\tif isolated:\n\t\tWeaverCombat.secondary_hit(game,player,nearest,center,Catalog.Weaver.BRANCHING_HP,now)\n\telse:\n\t\tgame.apply_weapon_hit(player,nearest,center,{\"damage\":Balance.FOLLOWUP_POINTS,\"knockback\":-.35,\"trait_secondary\":true},now)\n\tgame.emit_combat_event(\"link\",\"subclass_echo\",center,point,.5,color,0.0,0)\n",
+          "baseline": "\tvar point: Vector3 = game.enemy_position(nearest)\n\tgame.apply_weapon_hit(player,nearest,center,{\"damage\":Balance.FOLLOWUP_POINTS,\"knockback\":-.35,\"trait_secondary\":true},now)\n\tgame.emit_combat_event(\"link\",\"subclass_echo\",center,point,.5,color,0.0,0)\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
         "cr04c_spirit_1": {
           "match": "\t\tplayer.velocity = Vector3.ZERO\n\t\tif player.has(\"affinity_spirit_follow\"):\n\t\t\tpreload(\"res://spirit_affinity.gd\").movement(game,player,cast.origin,player.pos)\n\tgame.emit_combat_event(\"subclass_release\",skill.visual,cast.origin,release_end,.67,Color(skill.color),cast.radius,id,\n",
           "baseline": "\t\tplayer.velocity = Vector3.ZERO\n\tgame.emit_combat_event(\"subclass_release\",skill.visual,cast.origin,release_end,.67,Color(skill.color),cast.radius,id,\n",
@@ -20521,6 +20774,26 @@
     "subclass_catalog.gd": {
       "newline": "lf",
       "regions": {
+        "ct02_1": {
+          "match": "const Graph = preload(\"res://warden_tree.gd\")\nconst Weaver = preload(\"res://weaver_connected_tree.gd\")\nconst FOCUSES := [\n",
+          "baseline": "const Graph = preload(\"res://warden_tree.gd\")\nconst FOCUSES := [\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_2": {
+          "match": "\nstatic func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionary, connected := false) -> Dictionary:\n\tvar use_connected := class_id == 1 and connected\n\tvar selected := Weaver.TREE.path(profile) if use_connected else []\n\tvar entry := focus(profile,class_id)\n\tif use_connected and not selected.is_empty():\n\t\tentry = FOCUSES[0][Weaver.TREE.lane_at(selected,0)]\n\tif entry.is_empty():\n",
+          "baseline": "\nstatic func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionary) -> Dictionary:\n\tvar entry := focus(profile,class_id)\n\tif entry.is_empty():\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_3": {
+          "match": "\tresult.subclass_focus = entry.id\n\tif use_connected:\n\t\tresult.weaver_nodes = selected\n\t\tif slot == 0 and entry.id == \"thornbinder\":\n\t\t\tresult.description = \"Damage and root a visible foe and up to one nearby enemy.\"\n\t\tfor tier in range(1,selected.size()):\n\t\t\tvar node := Weaver.TREE.node(selected[tier])\n\t\t\tif (tier in [1,2,4] and slot == 0) or (tier >= 3 and slot == 1):\n\t\t\t\tresult.description += \"\\n\" + node.name + \" \u00b7 \" + Weaver.description(node,entry.id)\n\telse:\n\t\tfor tier in range(1,4):\n\t\t\tvar lane := lane_at(profile,class_id,tier)\n\t\t\tif lane >= 0 and (tier == 3) == (slot == 1):\n\t\t\t\tresult.description += \"\\n\" + TITLES[class_id-1][tier-1][lane] + \" \u00b7 \" + EFFECTS[tier-1][lane]\n\tif slot != 0:\n\t\tresult.subclass_follow_lane = Weaver.TREE.lane_at(selected,3) if use_connected else lane_at(profile,class_id,3)\n\t\treturn result\n\tvar first := Weaver.TREE.lane_at(selected,1) if use_connected else lane_at(profile,class_id,1)\n\tif first == 0:\n",
+          "baseline": "\tresult.subclass_focus = entry.id\n\tfor tier in range(1,4):\n\t\tvar lane := lane_at(profile,class_id,tier)\n\t\tif lane < 0:\n\t\t\tcontinue\n\t\tif (tier == 3) == (slot == 1):\n\t\t\tresult.description += \"\\n\" + TITLES[class_id-1][tier-1][lane] + \" \u00b7 \" + EFFECTS[tier-1][lane]\n\tif slot != 0:\n\t\tresult.subclass_follow_lane = lane_at(profile,class_id,3)\n\t\treturn result\n\tvar first := lane_at(profile,class_id,1)\n\tif first == 0:\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
+        "ct02_4": {
+          "match": "\tresult.first = first\n\tresult.second = Weaver.TREE.lane_at(selected,2) if use_connected else lane_at(profile,class_id,2)\n\treturn result\n",
+          "baseline": "\tresult.first = first\n\tresult.second = lane_at(profile,class_id,2)\n\treturn result\n",
+          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
+        },
         "cr02_card_lines": {"match": "\tif slot != 0 or int(player.get(\"frame\",0)) == 0 or player.has(\"combat_ruleset\"):\n", "baseline": "\tif slot != 0 or int(player.get(\"frame\",0)) == 0:\n", "systems": ["combat_affinity_contracts"]},
         "cb04_0": {
           "match": "if slot != 0:\n\t\tresult.subclass_follow_lane = lane_at(profile,class_id,3)\n\t\treturn result",
