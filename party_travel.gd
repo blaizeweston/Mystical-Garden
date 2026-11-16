@@ -18,7 +18,11 @@ static func cancel(game: Node,message: String="",effects = null) -> void:
   for id in members(game,"depart"): game.action_feedback(effects,id,message)
 
 static func signature(game: Node,p: Dictionary,kind: String) -> String:
- return str([game.destination,game.encounter_number,game.map_seed,p.frame,p.get("weapon_kind",0),p.prepared,p.prepared_secondary,p.prepared_catalyst,p.cargo_plan,p.character.get("upgrades",[])]) if kind=="depart" else str([game.destination,game.encounter_number,game.map_seed,p.wild,p.fallen])
+ if kind!="depart":
+  return str([game.destination,game.encounter_number,game.map_seed,p.wild,p.fallen])
+ var tree: RefCounted=game.Classes.connected_in_world(game,int(p.frame),p.character)
+ var path: Array=[] if tree==null else tree.path(p.character)
+ return str([game.destination,game.encounter_number,game.map_seed,p.frame,p.get("weapon_kind",0),p.prepared,p.prepared_secondary,p.prepared_catalyst,p.cargo_plan,p.character.get("upgrades",[]),path])
 
 static func point(game: Node,kind: String) -> Vector3:
  return game.Stage.HEART if kind=="depart" and game.destination==game.Campaign.HEART else game.stage.gate_position() if kind=="depart" else game.battlefield.advance
@@ -45,6 +49,11 @@ static func request(game: Node,id: int,kind: String) -> void:
   if game.expedition_active() or p.wild: return
   for peer in game.players.values():
    if not peer.profile_ready or peer.get("rejecting",false): game.tell(id,"Waiting for the connecting player before departure.");return
+  if preload("res://combat_ruleset.gd").active(game):
+   var refusal := preload("res://affinity_build.gd").departure_refusal(p)
+   if not refusal.is_empty():
+    game.tell(id,refusal)
+    return
  else:
   if not game.Life.alive(p) or not game.encounter_cleared() or game.destination==game.Campaign.HEART: return
   if kind=="extract" and not game.extraction_checkpoint_open(): game.tell(id,"Extraction opens at every sixth cleared gate.");return

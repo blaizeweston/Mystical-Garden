@@ -2,6 +2,9 @@ extends VBoxContainer
 var game: Node
 var depart_button: Button
 var class_pick: OptionButton
+var focus_options: VBoxContainer
+var focus_buttons: Array[Button]=[]
+var focus_class_id: int=0
 var weapon_pick: OptionButton
 var slots: Array[OptionButton]=[]
 var cargo_pick: OptionButton
@@ -37,6 +40,17 @@ func _ready():
 	for c in game.Classes.DEFINITIONS.size(): class_pick.add_item(game.Classes.DEFINITIONS[c].name,c)
 	left.add_child(class_pick)
 	class_pick.item_selected.connect(func(index): pending_slots.clear();game.send_garden_action("class_%d"%class_pick.get_item_id(index)))
+	focus_options=VBoxContainer.new()
+	left.add_child(focus_options)
+	label(focus_options,"Choose a starting focus")
+	for lane in 3:
+		var focus_button:=Button.new()
+		focus_options.add_child(focus_button)
+		focus_buttons.append(focus_button)
+		focus_button.pressed.connect(func():
+			var request:=preload("res://connected_class_tree.gd").REQUEST_OFFSET+lane
+			game.send_garden_action("learn_%d_%d"%[focus_class_id,request]))
+	focus_options.hide()
 	label(left,"Weapon")
 	weapon_pick=OptionButton.new()
 	weapon_pick.fit_to_longest_item=false
@@ -202,6 +216,17 @@ func refresh():
 	clear_button.disabled=not allowed
 	var stats: Dictionary=game.weapon_stats(p,prepared) if game.multiplayer.is_server() else p.get("weapon_stats",{})
 	var profile: Dictionary=p.get("character",game.guest_character.data)
+	var starting_tree := affinity_api.starting_tree(c,profile) if affinity_mode and prepared else null
+	focus_options.visible=starting_tree!=null
+	if starting_tree!=null:
+		focus_class_id=c
+		depart_button.disabled=true
+		depart_button.text="Choose a starting focus to enter"
+		for lane in focus_buttons.size():
+			var node: Dictionary=starting_tree.nodes[lane]
+			focus_buttons[lane].text="%s · %s"%[starting_tree.LANES[lane],node.name]
+			focus_buttons[lane].tooltip_text=node.description
+			focus_buttons[lane].disabled=not class_allowed
 	var connected = game.Classes.connected_in_world(game,c,profile)
 	var use_connected := connected != null
 	var level: int = connected.level(profile) if use_connected else game.Character.level(int(profile.xp[c]))
@@ -249,6 +274,8 @@ func refresh():
 	notice.text=("Uses one part per filled slot on departure. Selected parts are reserved for you.\nPacked monster parts need a Wilds altar. Unbanked cargo is lost on defeat." if allowed else "Craft and pack at the Wilds Gate.")
 	if affinity_mode and allowed:
 		notice.text = "Equip supported affinity materials. Empty slots keep native combat."
+	if starting_tree!=null:
+		notice.text = "Level 1 focus is available now. Choose it before departure. Plant slots are optional."
 	var travel: Dictionary=game.party_travel_state()
 	if not travel.is_empty():
 		var rows: Array=[]

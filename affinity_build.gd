@@ -76,6 +76,9 @@ static func resolve(class_id: int, weapon_index: int, slots: Array, graft: int, 
 			if class_id == Classes.Reaper.TREE.class_id and connected and native_pull > 0.0:
 				adapter.native_displacement.pull = native_pull
 				adapter.conflict = "Native weapon or graft pull takes priority over Catalyst displacement."
+			elif class_id == Classes.Oracle.CLASS_ID and connected and native_pull > 0.0 and int(skill.slot) == 0 and skill.get("subclass_focus","") == "omenreader":
+				adapter.native_displacement.pull = native_pull
+				adapter.conflict = "Native graft pull takes priority over Catalyst displacement."
 		result.class_skills.append(adapter)
 	result.capabilities.affinity_effects = [result.core, result.form, result.catalyst].any(func(part): return part.state == "ready")
 	result.capabilities.strike = result.form.executable
@@ -134,7 +137,15 @@ static func refusal(build: Dictionary, name: String) -> String:
 	return "%s %s is pending implementation." % [str(part.primary_affinity).capitalize(), name.capitalize()]
 
 
+static func starting_tree(class_id: int, profile: Dictionary) -> RefCounted:
+	var tree := Classes.connected_tree(class_id)
+	return tree if tree != null and tree.eligible(profile) and tree.valid(profile) and tree.focus(profile).is_empty() else null
+
+
 static func departure_refusal(player: Dictionary) -> String:
+	var tree := starting_tree(int(player.get("frame",0)), player.get("character",{}))
+	if tree != null:
+		return "Choose your level 1 %s starting focus at the Wilds Gate." % tree.label
 	var build := for_player(player, true)
 	if not build.capabilities.native_class_skills:
 		return refusal(build, "catalyst")

@@ -15,6 +15,9 @@ const Ranger = preload("res://ranger_connected_tree.gd")
 const RangerCombat = preload("res://ranger_combat.gd")
 const Reaper = preload("res://reaper_connected_tree.gd")
 const ReaperCombat = preload("res://reaper_combat.gd")
+const Oracle = preload("res://oracle_connected_tree.gd")
+const Omens = preload("res://oracle_omens.gd")
+const ORACLE_PATH := ["lifekeeper","kindled_ward","quiet_ground","shared_shelter","merciful_chime","mercys_chorus"]
 const REAPER_PATH := ["veilwalker","long_edge","rending_cut","barbed_siphon","deaths_due","feast_of_thorns"]
 const RANGER_PATH := ["wildstalker","long_draw","splinter_ambush","quick_reset","follow_through","double_draw"]
 const WEAVER_PATH := ["bloomcaller","silken_gift","holding_threads","threaded_nova","spore_cycle","symbiotic_nova"]
@@ -33,6 +36,7 @@ var connected_warden_case := false
 var connected_weaver_case := false
 var connected_ranger_case := false
 var connected_reaper_case := false
+var connected_oracle_case := false
 
 
 func check(ok: bool, label: String) -> bool:
@@ -108,9 +112,8 @@ func host(menu: Node) -> void:
 	local.pos=game.stage.gate_position()
 	game.garden_action(1,"loadpart_0_%d"%ordinary)
 	game.garden_action(1,"loadpart_2_%d"%refined)
-	if native_graft_case or connected_warden_case or connected_weaver_case or connected_ranger_case or connected_reaper_case:
-		game.garden_action(1,"learn_0_%d" % (ConnectedWarden.REQUEST_OFFSET+2))
-		check(ConnectedWarden.focus(local.character)=="bastion","host learns its actual Rootshield focus through guarded progression")
+	game.garden_action(1,"learn_0_%d" % (ConnectedWarden.REQUEST_OFFSET+2))
+	check(ConnectedWarden.focus(local.character)=="bastion","host learns its actual Rootshield focus through guarded progression")
 	mark("host")
 	var count:=3 if party else 1
 	if not check(await until(func():return guests(game).size()==count),"all expected guests admitted"):return
@@ -132,7 +135,7 @@ func host(menu: Node) -> void:
 		if not extra_cores.is_empty():
 			part = int(game.Items.get_item(extra_cores[index]).legacy_part)
 			supplied[part] = game.progress.part_count(part)
-		var wants_refined: bool = connected_warden_case or ids[index]==weaver_id or (connected_reaper_case and ids[index]==path_id)
+		var wants_refined: bool = connected_warden_case or ids[index]==weaver_id or ((connected_reaper_case or connected_oracle_case) and ids[index]==path_id)
 		var catalyst := refined if wants_refined else ordinary_wood if ids[index]==ward_guest else 0
 		mark("select-"+str(ids[index]),"%d:%d:%d" % [refined,part,catalyst])
 	var prepared := func():
@@ -140,7 +143,7 @@ func host(menu: Node) -> void:
 			var visitor: Dictionary = game.players[id]
 			return visitor.frame!=0 and visitor.weapon_kind==1 and game.Skills.resolve_in_world(game,visitor.frame,0,visitor.character).has("subclass_focus")):
 			return false
-		if connected_reaper_case and (path_id==0 or game.players[path_id].prepared_catalyst!=refined):
+		if (connected_reaper_case or connected_oracle_case) and (path_id==0 or game.players[path_id].prepared_catalyst!=refined):
 			return false
 		return ids.all(func(id):return game.players[id].prepared_secondary==refined) and supplied.keys().all(func(part):
 			return ids.any(func(id):return game.players[id].prepared==part or game.players[id].prepared_catalyst==part))
@@ -151,6 +154,9 @@ func host(menu: Node) -> void:
 		return
 	if graph != null and not await learn_path_host(game,path_id,graph):
 		return
+	if not check(await until(func():
+		return ids.all(func(id):return preload("res://affinity_build.gd").departure_refusal(game.players[id]).is_empty())),
+		"every guest has selected a starting focus"):return
 	var before_regular: int=game.progress.part_count(ordinary)
 	var before_rare: int=game.progress.part_count(refined)
 	if party:
@@ -159,7 +165,7 @@ func host(menu: Node) -> void:
 	game.PartyTravel.request(game,1,"depart")
 	mark("depart",str(game.travel_epoch))
 	if not check(await until(func():return game.expedition_active() and ids.all(func(id):return game.players[id].wild) and not game.battlefield.generated.is_empty()),"native guarded departure opens generated floor"): return
-	check(game.progress.part_count(ordinary)==before_regular-1 and game.progress.part_count(refined)==before_rare-count-1-int(connected_warden_case or connected_weaver_case or connected_reaper_case),"exact guarded departure debits")
+	check(game.progress.part_count(ordinary)==before_regular-1 and game.progress.part_count(refined)==before_rare-count-1-int(connected_warden_case or connected_weaver_case or connected_reaper_case or connected_oracle_case),"exact guarded departure debits")
 	var paid := [game.progress.part_count(ordinary),game.progress.part_count(refined)]
 	for part in supplied:
 		check(game.progress.part_count(part)==supplied[part]-1,"each additional Core is debited once")
@@ -202,8 +208,6 @@ func host(menu: Node) -> void:
 	if not check(await until(func():return not game.get_meta(Core.STATE,{}).has(1)),"closing petals finish before another action"):return
 	var protected: int=ids[0]
 	var ally: Dictionary=game.players[protected]
-	if not native_graft_case and not connected_warden_case and not connected_weaver_case and graph==null:
-		local.character.upgrades[0]=1<<1
 	local.skill_at=0
 	game.use_class_skill(1,local,0)
 	ally.hurt_until=0
@@ -217,6 +221,8 @@ func host(menu: Node) -> void:
 	if connected_ranger_case and not await exercise_ranger_host(game,path_id,floor_entry,target,rows):
 		return
 	if connected_reaper_case and not await exercise_reaper_host(game,path_id,floor_entry,target,rows):
+		return
+	if connected_oracle_case and not await exercise_oracle_host(game,path_id,floor_entry):
 		return
 	if mixed_wood_ward:
 		var warded: Dictionary=game.players[ward_guest]
@@ -499,12 +505,14 @@ func exercise_connected_host(game: Node, local: Dictionary, player: Dictionary, 
 
 
 func selected_graph() -> RefCounted:
+	if connected_oracle_case: return Oracle.TREE
 	if connected_reaper_case: return Reaper.TREE
 	if connected_ranger_case: return Ranger.TREE
 	return null
 
 
 func selected_path() -> Array:
+	if connected_oracle_case: return ORACLE_PATH
 	return REAPER_PATH if connected_reaper_case else RANGER_PATH
 
 
@@ -542,12 +550,14 @@ func learn_path_guest(game: Node, graph: RefCounted) -> bool:
 	if not check(await until(func():return game.guest_character.data.xp[graph.class_id]==2600),"guest receives the test’s earned XP"):return false
 	for index in range(1,selected.size()):
 		if index==(2 if connected_reaper_case else 1):
-			game.send_garden_action(path_request(graph,"clear_the_veil" if connected_reaper_case else "trail_ward"))
-			if not check(await until(func():return "connected to your last selection" in game.status),"host refuses direct Offensive to Defensive jump"):return false
+			var disconnected := "wide_omen" if connected_oracle_case else "clear_the_veil" if connected_reaper_case else "trail_ward"
+			game.send_garden_action(path_request(graph,disconnected))
+			if not check(await until(func():return "connected to your last selection" in game.status),"host refuses a disconnected lane jump"):return false
 		game.send_garden_action(path_request(graph,selected[index]))
 		if not check(await until(func():return graph.path(game.guest_character.data)==selected.slice(0,index+1)),
 				"guest saves the next connected choice"):return false
-	game.send_garden_action(path_request(graph,"last_rites" if connected_reaper_case else "escape_route"))
+	var another_capstone := "fates_refrain" if connected_oracle_case else "last_rites" if connected_reaper_case else "escape_route"
+	game.send_garden_action(path_request(graph,another_capstone))
 	if not check(await until(func():return "next tier" in game.status),"host refuses a second capstone"):return false
 	mark("path-learned")
 	return true
@@ -659,6 +669,60 @@ func exercise_reaper_guest(game: Node,id: int) -> bool:
 	return true
 
 
+func exercise_oracle_host(game: Node,id: int,entry: Vector3) -> bool:
+	var oracle: Dictionary = game.players[id]
+	var host_player: Dictionary = game.players[1]
+	oracle.pos=entry
+	oracle.hp=40
+	host_player.pos=entry
+	host_player.hp=60
+	host_player.guard_until=0
+	host_player.guard_charges=0
+	oracle.skill_at=0
+	oracle.core_cast_until=0
+	oracle.skill_two_at=0
+	game.enemy_stagger_until=Time.get_ticks_msec()+14000
+	mark("oracle-q")
+	var q_ready := func() -> bool:
+		var now := Time.get_ticks_msec()
+		var blessing := Omens.strongest(game,host_player,Oracle.SECOND_BREATH,now,id)
+		return not blessing.is_empty() and host_player.hp>60 and read("oracle-q-seen")=="ok"
+	if not check(await until(q_ready,3200),"guest Oracle Q heals host and both observe the source-owned Blessing"):return false
+	mark("oracle-r")
+	var r_ready := func() -> bool:
+		var now := Time.get_ticks_msec()
+		return not Omens.strongest(game,host_player,Oracle.MERCY,now,id).is_empty() \
+			and int(host_player.guard_until)>now and read("oracle-r-seen")=="ok"
+	if not check(await until(r_ready,2500),"remote Chime arms native Ward and projected Portent of Mercy"):return false
+	var before := int(host_player.hp)
+	var now := Time.get_ticks_msec()
+	host_player.hurt_until=0
+	Frost.with_attacker(game,-1,game.apply_enemy_hit.bind(1,host_player,now,1.0))
+	check(host_player.guard_charges==0 and host_player.hp==before+6
+		and not Omens.strongest(game,host_player,Oracle.MERCY,now,id).is_empty(),"remote Oracle Ward blocks and heals without spending a conditional recovery")
+	host_player.hurt_until=0
+	Frost.with_attacker(game,-1,game.apply_enemy_hit.bind(1,host_player,now+1,1.0))
+	check(host_player.hp==before+4 and Omens.strongest(game,host_player,Oracle.MERCY,now+1,id).is_empty()
+		and not Omens.strongest(game,host_player,Oracle.SECOND_BREATH,now+1,id).is_empty(),
+		"host takes one real hit and only the stronger remote recovery responds")
+	mark("oracle-damage-seen")
+	return true
+
+
+func exercise_oracle_guest(game: Node,id: int) -> bool:
+	if not check(await until(func():return read("oracle-q")=="ok"),"guest receives the Oracle Q cue"):return false
+	game.send_garden_action(Aim.request(game,game.players[id],0,Vector2.RIGHT,0.0))
+	if not check(await until(func():return game.guest_combat_events(game.players[id]).any(func(e):
+		return e.shape==Oracle.SECOND_BREATH and int(e.combo)==1),3200),"guest sees the host's Second Breath status"):return false
+	mark("oracle-q-seen")
+	if not check(await until(func():return read("oracle-r")=="ok"),"guest receives the Oracle R cue"):return false
+	game.send_garden_action(Aim.request(game,game.players[id],1,Vector2.RIGHT))
+	if not check(await until(func():return game.guest_combat_events(game.players[id]).any(func(e):
+		return e.shape==Oracle.MERCY and int(e.combo)==1),2300),"guest sees the host's Portent of Mercy status"):return false
+	mark("oracle-r-seen")
+	return check(await until(func():return read("oracle-damage-seen")=="ok"),"host resolves the remote grant on contact")
+
+
 func learn_weaver_host(game: Node, id: int, catalyst: int) -> bool:
 	if not check(id!=0,"a real Weaver peer joined"):return false
 	var player: Dictionary=game.players[id]
@@ -753,7 +817,7 @@ func guest(menu: Node, role: String) -> void:
 	var starting_class: int = [1,2,4][clampi(int(role)-1,0,2)] if native_graft_case or connected_weaver_case else 0
 	var graph := selected_graph()
 	if graph != null:
-		starting_class=[graph.class_id,1,4][clampi(int(role)-1,0,2)]
+		starting_class=([4,1,2] if connected_oracle_case else [graph.class_id,1,4])[clampi(int(role)-1,0,2)]
 	menu.create_character("Frost guest "+role,starting_class,Appearance.DEFAULT)
 	if not check(await until(func():return read("host")=="ok"),"host ready"):return
 	begin_join(menu)
@@ -773,7 +837,9 @@ func guest(menu: Node, role: String) -> void:
 		game.send_garden_action("loadpart_2_"+picks[2])
 	if native_graft_case:
 		game.send_garden_action("loadweapon_1")
-		game.send_garden_action("learn_%d_%d" % [starting_class,64 if starting_class in [1,2] else 12])
+	if not connected_warden_case and not (connected_weaver_case and starting_class==1) and (graph==null or starting_class!=graph.class_id):
+		var focus_request := 66 if starting_class==0 or (starting_class==4 and not native_graft_case) else 64
+		game.send_garden_action("learn_%d_%d" % [starting_class,focus_request])
 	if graph != null and starting_class==graph.class_id and not await learn_path_guest(game,graph):
 		return
 	if connected_weaver_case and starting_class==1 and not await learn_weaver_guest(game):
@@ -817,6 +883,8 @@ func guest(menu: Node, role: String) -> void:
 	elif graph != null and starting_class==graph.class_id:
 		if connected_reaper_case:
 			if not await exercise_reaper_guest(game,id): return
+		elif connected_oracle_case:
+			if not await exercise_oracle_guest(game,id): return
 		elif not await exercise_ranger_guest(game,id): return
 	elif int(picks[2])>0:
 		if not check(await until(func():return read("wood-guard-"+str(id))=="ok"),"host requests actual Wood Ward"):return
@@ -899,8 +967,8 @@ func guest(menu: Node, role: String) -> void:
 	if graph != null:
 		var rejoined = tree.current_scene
 		var profile: Dictionary = rejoined.guest_character.data
-		var q := "Veil Passage" if connected_reaper_case else "Hunter’s Salvo"
-		var r := "Siphon Cut" if connected_reaper_case else "Bramble Snare"
+		var q := "Living Sanctuary" if connected_oracle_case else "Veil Passage" if connected_reaper_case else "Hunter’s Salvo"
+		var r := "Warding Chime" if connected_oracle_case else "Siphon Cut" if connected_reaper_case else "Bramble Snare"
 		check(graph.path(profile)==selected_path() and profile.xp[graph.class_id]==int(read("path-xp"))
 			and rejoined.Skills.resolve_in_world(rejoined,graph.class_id,0,profile).name==q
 			and rejoined.Skills.resolve_in_world(rejoined,graph.class_id,1,profile).name==r,
@@ -1025,10 +1093,12 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 		var local: Dictionary=game.players[1]
 		local.frame=4
 		local.character.upgrades[4]=0
+		local.character[Oracle.PROFILE_KEY]=Oracle.TREE.state(["lifekeeper"])
 		local.catalyst=game.Items.get_item("plant_part_rare_storm_reed").legacy_part
 		local.skill_at=0;local.cast_until=0;local.core_cast_until=0
 		for id in ids:
 			if id!=ids[1]: game.players[id].pos=local.pos
+		local.class_aim_distance=0.0
 		game.use_class_skill(1,local,0)
 		check(game.players[ids[0]].get("affinity_storm_charge",{}).get("actor")==1,
 			"real Oracle healing grants an authoritative Storm Charge to a guest")

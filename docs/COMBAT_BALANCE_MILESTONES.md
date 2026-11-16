@@ -23,7 +23,7 @@ ruleset.
 
 **Class progression**
 
-- Players choose an **Offensive**, **Balanced**, or **Defensive** starting focus. Further choices follow deliberate connections within and across paths.
+- Players choose an **Offensive**, **Balanced**, or **Defensive** starting focus. In affinity combat all five classes offer this choice at level 1 with 0 Class XP. A fresh class needs a starting focus before departure, and its native kit works with empty plant slots. Further choices follow deliberate connections within and across paths.
 - Each earned class level grants one node selection. Later tiers require both the appropriate class level and connected prerequisites. The progression rules must preserve meaningful choices so a character can never acquire the entire reachable tree.
 - Final-tier progression must take meaningful accumulated play. It should remain beyond routine completion after a few ordinary expeditions. Assess that pacing against actual XP earned across ordinary runs before approving thresholds.
 - Carry forward earned Class XP and learned investments. Fractions from the earlier scale are represented exactly in whole XP. The final level cap, XP curve, tier thresholds, and respec policy await approval.
@@ -67,6 +67,14 @@ Affinity Reapers without historical Reaper investments store the starting focus 
 Connected Veil Passage grants Veil Momentum for 2.7 seconds. A valid ordinary melee attack captures the Q preparation at commitment and spends it only at an eligible contact before expiry. Existing Core Marks and Ranger Tracked Prey keep their own consumers. Siphon preparations expire on a change of life or floor or on return to the Garden. A fresh successful Q replaces that actor's unspent Q preparations. Compatible bonuses coexist, including both +10 HP primary-hit bonuses from Barbed Siphon and Feast of Thorns. Veil Dance uses the actor-clearance step and allows a valid R to proceed from its original position when the step is blocked. [Reaper combat](../reaper_combat.gd) · [Native melee contact](../weapon_contact.gd)
 
 Death’s Due uses the existing native class pool. Its charges survive floor changes and revival and reset on expedition entry or return. The installed Funeral Petal pool still resets on fall, a new floor or graft replacement. Both pools share three slots and spend class charges first. Immediate native class hits and ordinary melee can earn or spend a class charge. Feast secondary damage and affinity damage use the ordinary reward path with separate proc lineage. Void class responses retain their damage when resolved native or graft pull takes priority. [Native charge handling](../combat_traits.gd) · [Graft ownership](../native_grafts.gd) · [Catalyst resolution](../affinity_build.gd)
+
+### CT05 connected Oracle and native Omens
+
+Oracle uses the same provisional six-choice thresholds as the other affinity classes, with its own versioned profile path. Lifekeeper, Leykeeper, and Omenreader retain their starting Q and all share Warding Chime. The Wilds Gate offers an explicit starting focus before departure for each new affinity class. Existing historical paths continue to use their saved masks. [Oracle tree](../oracle_connected_tree.gd) · [Departure checks](../affinity_build.gd) · [Profile compatibility](../character_profile.gd)
+
+Foreboding reserves 350 ms of recovery on one newly committed enemy attack. Guided Strike extends one eligible enemy recovery by 300 ms on a real ordinary weapon contact. Second Breath restores up to 6 HP after surviving unblocked direct enemy damage. Grants carry their issuing Oracle and cast. Overlapping copies provide one response, with strongest potency first and lower host peer ID breaking ties. Distinct named effects keep separate lifetimes. Portent of Mercy takes priority over Second Breath on a qualifying hit and leaves any unspent Second Breath available. Recipient and floor validity bound all effects. Accepted grants can finish on surviving recipients after their Oracle falls. [Omen records and recovery](../oracle_omens.gd) · [Native class effects](../oracle_combat.gd)
+
+Warding Chime still uses the existing Ward claim priority. Shared Shelter extends the issued Ward to two seconds. Merciful Chime heals its claim’s protected recipient after an eligible block. These native benefits do not create additional Catalyst actions. Oracle sends effect indicators through existing detailed status feedback. [Ward claims](../ward_responses.gd) · [Status presentation](../combat_status.gd)
 
 ### Overlapping Ward claims
 

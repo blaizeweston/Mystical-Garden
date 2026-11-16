@@ -151,6 +151,7 @@ static func lock(game: Node, actor: Dictionary, mode: String, target: Vector3, u
  if prepared.is_empty():SkillResponses.decorate(game,actor,actor.attack,target)
  actor.blast = actor.attack.to
  actor.windup = maxi(until,Time.get_ticks_msec()+SkillResponses.MIN_WINDUP) if actor.attack.get("learned",false) else until
+ preload("res://oracle_omens.gd").begin_attack(game,actor,actor.attack,Time.get_ticks_msec())
  preload("res://wilds_skill_tactics.gd").lock_response(game,actor,actor.attack)
  preload("res://event_audio.gd").enemy(game,actor.attack,false)
 

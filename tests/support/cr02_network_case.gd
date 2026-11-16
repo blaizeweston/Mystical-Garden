@@ -81,6 +81,11 @@ func host(menu: Node, mismatch: bool) -> void:
 	var local: Dictionary = world.players[1]
 	local.pos = world.stage.gate_position()
 	remote.pos = local.pos
+	world.garden_action(1,"learn_0_66")
+	mark("focus-gate")
+	var remote_focused := func() -> bool:
+		return preload("res://warden_connected_tree.gd").focus(remote.character)=="vanguard"
+	if not check(await until(remote_focused),"guest chooses a native starting focus at zero XP"):return
 	# Ghost Fern now supplies Spirit. Inject a stocked fourth-slot part into
 	# the Core field to exercise the invalid-build departure boundary.
 	var invalid_core: int = world.Parts.HOOK
@@ -159,6 +164,8 @@ func guest(menu: Node, mismatch: bool) -> void:
 	check(Rules.active(world) and not world.get_meta(world.Transactions.SESSION).authorizes(world.progress.path),
 		"guest resolves same mode with no host save ownership")
 	mark("admitted")
+	if not check(await until(func():return read("focus-gate")=="ok"),"host opens the starting focus picker"):return
+	world.send_garden_action("learn_0_64")
 	if not check(await until(func(): return not read("depart").is_empty()),"host proposes travel"):
 		return
 	world.send_garden_action("travel_ready:"+read("depart"))

@@ -1650,6 +1650,8 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	var recipients: Array[int] = []
 	var ranger_snare := {}
 	var reaper_siphon := {}
+	var oracle = preload("res://oracle_combat.gd")
+	var chime := {}
 	var mode:=str(skill.mode)
 	var aimed: bool=player.has("class_aim")
 	var plan: Dictionary={}
@@ -1677,6 +1679,8 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 		if target==-2 or player.pos.distance_to(point)>range_limit+extra_travel:
 			tell(id,"%s: no enemy within clear range."%skill.name)
 			return
+	if slot==1 and skill.has("oracle_nodes"):
+		chime = oracle.begin_chime(self,player,skill,event,now)
 	match mode:
 		"growth":
 			effect_point=point if target!=-2 and player.pos.distance_to(point)<=range_limit else player.pos
@@ -1698,9 +1702,10 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 		"guard":
 			combat_events_api.grant_ward(self,player,now+int(skill.duration)+duration,int(skill.charges),event,adapter,now)
 		"bastion","ward":
+			var ward_ms := int(chime.get("duration",skill.duration)) + duration
 			for ally in players.values():
 				if Life.alive(ally) and ally.pos.distance_to(player.pos)<=radius and battlefield.clear_line(player.pos,ally.pos):
-					combat_events_api.grant_ward(self,ally,now+int(skill.duration)+duration,int(skill.charges),event,adapter,now)
+					combat_events_api.grant_ward(self,ally,now+ward_ms,int(skill.charges),event,adapter,now)
 		"bind","strangle":
 			targets.assign([target])
 			effect_point=point
@@ -1811,6 +1816,8 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	combat_events_api.class_complete(self,event,adapter,cast_origin,effect_point,catalyst_targets,recipients,now,secondary_radius)
 	if not reaper_siphon.is_empty():
 		preload("res://reaper_combat.gd").finish_siphon(self,player,skill,target,effect_point,reaper_siphon,siphon_damaged,now)
+	elif not chime.is_empty():
+		oracle.finish_chime(self,id,player,skill,chime,now)
 	elif slot==1 and skill.has("subclass_focus") and not skill.has("ranger_nodes") and (not native_weaver_nova or skill.subclass_follow_lane != 0):
 		preload("res://subclass_combat.gd").follow_through(self,player,skill,effect_point,targets,now)
 	if native_weaver_nova:
@@ -2371,6 +2378,7 @@ func update_enemy(delta: float, now: int) -> void:
 			enemy_winding_up = true
 			active_radius = base_strike_radius()
 			enemy_strike_at = now + 1000
+			preload("res://oracle_omens.gd").begin_briar(self,now)
 			preload("res://event_audio.gd").enemy(self,{"mode":"vault","from":enemy_pos},false)
 			return
 	if distance > base_strike_radius() - 0.45 or not battlefield.clear_line(enemy_pos, victim.pos):
@@ -2396,6 +2404,7 @@ func update_enemy(delta: float, now: int) -> void:
 		elif destination == Campaign.HOLLOW:
 			windup = 500
 		enemy_strike_at = now + Director.windup(self,windup)
+		preload("res://oracle_omens.gd").begin_briar(self,now)
 		preload("res://event_audio.gd").enemy(self,{"mode":"swipe","from":enemy_pos},false)
 
 
@@ -2529,7 +2538,8 @@ func resolve_scout(scout: Dictionary, definition: Dictionary, now: int) -> void:
 	scout.ready = now + roundi((Director.recovery(self,int(definition.recovery))+int(scout.recovery))*(.82 if now<int(scout.get("haste_until",0)) else 1.0))
 	scout.recovery = 0
 	scout.erase("attack")
-	scout.ready += int(attack.get("recovery_bonus",0))
+	var recovery_body: Dictionary=leader_brain if scout.get("gate_elite",false) else scout
+	scout.ready = preload("res://oracle_omens.gd").release_attack(recovery_body,attack,int(scout.ready)+int(attack.get("recovery_bonus",0)))
 	if mode=="shepherd" and EnemyBehaviors.resolve(self,scout,attack,now): return
 	if mode=="lure":
 		var anchor: Vector3=attack.anchor
@@ -2681,6 +2691,9 @@ func resolve_briar_strike(now: int) -> void:
 	enemy_attack_mode = ""
 	enemy_winding_up = false
 	enemy_ready_at = now + roundi((Director.recovery(self,750)+moss_recovery_bonus)*(.82 if now<enemy_haste_until else 1.0))
+	var omens = preload("res://oracle_omens.gd")
+	enemy_ready_at = omens.release_attack(leader_brain,leader_brain.get(omens.BRIAR_ATTACK,{}),enemy_ready_at)
+	leader_brain.erase(omens.BRIAR_ATTACK)
 	moss_recovery_bonus = 0
 	hit_players(enemy_pos, strike_radius(), now, Director.Balance.scout_hit(self,Enemies.get_kind(enemy_kind),{"gate_elite":true}))
 	active_radius = 0.0
@@ -2703,6 +2716,7 @@ func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: 
 		Traits.blocked(self,player,now)
 		if block_event != null:
 			preload("res://warden_combat.gd").connected_block(self,block_event,id,now)
+			preload("res://oracle_combat.gd").ward_blocked(self,player,id,block_event,direct_attack)
 		player.contributed=true;emit_combat_event("impact","block",player.pos,player.pos,.85,Color("#f1d989"),0,id);tell(id,"Guard blocked the attack.");return
 	if Traits.try_brace(self,player,now): return
 	var hit_points := float(1+difficulty_cycle/2) if damage<0.0 else Life.Preview.authored_amount(damage)
@@ -2730,14 +2744,19 @@ func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: 
 	var before_hp := float(player.hp)
 	damage_player(id,player,hp)
 	if has_meta(&"combat_affinity_ruleset") and Life.alive(player) and float(player.hp) < before_hp:
+		var omens = preload("res://oracle_omens.gd")
+		if player.has(omens.STATE) and omens.direct_context(self,direct_attack):
+			omens.recover_hit(self,player,now)
 		preload("res://frost_combat.gd").incoming(self,player,id,now)
 		preload("res://fire_combat.gd").incoming(self,player,id,now)
 	wood.after_hit(self,id,hit_epoch,bark,now)
 
 func apply_hit_grace(id: int,player: Dictionary,now: int,slow_ms: int,effects = null) -> void:
 	if slow_ms>0:
-		player.slow_until=now+slow_ms
-		action_feedback(effects,id,"Slowed.")
+		var omens = preload("res://oracle_omens.gd")
+		if not (player.has(omens.STATE) and now+slow_ms>int(player.get("slow_until",0)) and omens.prevent_slow(self,player,now)):
+			player.slow_until=now+slow_ms
+			action_feedback(effects,id,"Slowed.")
 	player.hurt_until=now+int(Director.config().hit_grace_ms)
 
 
@@ -2972,8 +2991,9 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 	p.contributed=true
 	var grafts = preload("res://native_grafts.gd")
 	var graft_contact := grafts.start_contact(self,p,stats,target,now)
-	if not stats.get("core_hit",false): stats=Traits.augment_hit(self,p,target,stats,now,graft_contact)
+	if not stats.get("core_hit",false) and not stats.get("oracle_spell",false): stats=Traits.augment_hit(self,p,target,stats,now,graft_contact)
 	var point:=enemy_position(target)
+	var contact_point := point
 	var distance:=origin.distance_to(point)
 	var winding: bool=stats.get("was_winding",enemy_winding_up if target==-1 else float(scouts[target].windup)>0)
 	var pull:=float(stats.get("pull",0))
@@ -3047,6 +3067,8 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 		var actor: Dictionary=scouts[target] if target>=0 else leader_brain.get("elite",{})
 		preload("res://wilds_skill_tactics.gd").interrupted(self,actor,"suppression")
 	if applied>0:
+		if has_meta(&"combat_affinity_ruleset") and (int(p.frame)==4 or p.has("oracle_omens")):
+			preload("res://oracle_combat.gd").ordinary_contact(self,p,target,contact_point,stats,now)
 		var form := "magic" if stats.get("trait_secondary",false) else str(stats.get("audio_form",WeaponMotion.form(p)))
 		emit_combat_event("impact","hit",origin,point,.85,stats.get("affinity_color",weapon_effect_color(p)),float(applied),target,{"form":form})
 	if before>0 and applied>=before:
@@ -3270,6 +3292,7 @@ func ending_message(ending: int) -> String:
 func return_to_garden(p: Dictionary) -> void:
 	if not SaveBatch.guarded_active(): MonsterRewards.flush(self)
 	p.attack_until=0;p.swing_until=0;p.cast_until=0
+	preload("res://oracle_combat.gd").clear(p)
 	p.run_upgrades={}
 	p.essence_sparks=0
 	p.checkpoint_offers=[]
@@ -3559,6 +3582,7 @@ func reset_encounter() -> void:
 		preload("res://native_grafts.gd").clear(player)
 	if has_meta(&"combat_affinity_ruleset"):
 		for player in players.values():
+			preload("res://oracle_combat.gd").clear(player)
 			preload("res://vital_combat.gd").clear(self,player)
 			preload("res://wood_affinity.gd").clear(player)
 			preload("res://storm_affinity.gd").clear(player)
@@ -4408,6 +4432,8 @@ func _select_class(id: int,player: Dictionary,class_id: int,effects) -> void:
 	player.hp=float(player.max_hp)
 	persist_loadout(id,player,effects)
 	var message := "%s selected."%Classes.DEFINITIONS[class_id].name
+	if has_meta(&"combat_affinity_ruleset") and preload("res://affinity_build.gd").starting_tree(class_id,player.character) != null:
+		message += " Choose your starting focus in the class tree or at the Wilds Gate."
 	if effects == null: tell(id,message)
 	else: effects.append(tell_profile_action.bind(id,message))
 

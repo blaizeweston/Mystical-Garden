@@ -24,6 +24,7 @@ static func down(game: Node,id: int,p: Dictionary,effects = null) -> void:
  preload("res://spirit_affinity.gd").clear(p)
  preload("res://native_grafts.gd").clear(p)
  p.erase("affinity_void_form_ready")
+ preload("res://oracle_combat.gd").clear(p)
  p.guard_until=0;p.renewal_until=0;p.focus_until=0;p.skill_fx_until=0
  game.motions.erase(id);game.checkpoint_ready.erase(id)
  game.PartyTravel.cancel(game,"A teammate has fallen. Readiness was cleared.",effects)

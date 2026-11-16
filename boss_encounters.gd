@@ -90,15 +90,16 @@ static func resolve(game: Node,now: int) -> void:
   recovery=int(orchard_plan.get("follow_ms",recovery))
  game.enemy_ready_at=now+recovery+game.moss_recovery_bonus
  game.moss_recovery_bonus=0
+ var plan: Dictionary=game.leader_brain.get("lair_plan",game.leader_brain.get("phase_plan",{}))
+ var epoch: int=game.combat_epoch
  if Lair.Routes.supports(game.boss_kind):
-  var plan: Dictionary=game.leader_brain.get("lair_plan",{})
   game.leader_brain.erase("lair_plan")
   Lair.resolve(game,plan,now,damage)
-  return
- if Phases.supports(game.boss_kind):
-  var plan: Dictionary=game.leader_brain.get("phase_plan",{})
+ elif Phases.supports(game.boss_kind):
   game.leader_brain.erase("phase_plan")
   Phases.resolve(game,plan,now,damage)
+ if epoch==game.combat_epoch:
+  game.enemy_ready_at=preload("res://oracle_omens.gd").release_attack(game.leader_brain,plan,game.enemy_ready_at)
 
 static func tick_hazards(game: Node,now: int) -> void:
  if game.enemy_hp<=0 and game.boss_kind>=0: game.enemy_hazards.clear();return

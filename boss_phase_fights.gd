@@ -192,6 +192,7 @@ static func commit(game: Node, normal: String, target: int, now: int) -> bool:
  game.active_radius=plan.lanes[0].radius if not plan.lanes.is_empty() else 1.35
  game.enemy_winding_up=true
  game.enemy_strike_at=now+int(plan.windup)
+ preload("res://oracle_omens.gd").begin_attack(game,game.leader_brain,plan,now)
  preload("res://event_audio.gd").enemy(game,plan,false)
  game.boss_moves+=1
  game.Journal.event("combat","boss_phase_move",{"species":game.Enemies.get_kind(game.boss_kind).id,"move":move,"variant":plan.variant,"phase":game.boss_phase,"floor":game.encounter_number})
@@ -204,9 +205,11 @@ static func open(game: Node, status: String, now: int, duration: int) -> void:
 
 static func interrupt(game: Node, at: Vector3, now: int) -> bool:
  if game.boss_kind!=NEST or not game.enemy_winding_up or game.enemy_attack_mode!="brood_call":return false
+ var plan: Dictionary=game.leader_brain.get("phase_plan",{})
  game.leader_brain.erase("phase_plan")
  game.enemy_winding_up=false
  open(game,"nursery_lull",now,1900)
+ game.enemy_ready_at=preload("res://oracle_omens.gd").release_attack(game.leader_brain,plan,game.enemy_ready_at)
  game.emit_combat_event("proc","suppress",at,at,.55,Color("#e1be92"),0,-2)
  game.Journal.event("combat","boss_brood_interrupted",{"species":"matriarch","phase":game.boss_phase,"floor":game.encounter_number})
  return true

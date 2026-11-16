@@ -223,6 +223,7 @@ static func commit(game: Node, mode: String, target: int, now: int) -> bool:
  game.active_radius=plan.radius
  game.enemy_strike_at=now+int(plan.windup)
  game.enemy_winding_up=true
+ preload("res://oracle_omens.gd").begin_attack(game,game.leader_brain,plan,now)
  preload("res://event_audio.gd").enemy(game,plan,false)
  game.boss_moves+=1
  game.Journal.event("combat","boss_lair_move",{"species":game.Enemies.get_kind(game.boss_kind).id,"move":mode,"variant":plan.variant,"phase":game.boss_phase,"floor":game.encounter_number,"areas":plan.areas.size()})

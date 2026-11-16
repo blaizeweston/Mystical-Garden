@@ -3,8 +3,9 @@ extends RefCounted
 const Warden = preload("res://warden_combat.gd")
 const Ranger = preload("res://ranger_combat.gd")
 const Reaper = preload("res://reaper_combat.gd")
-const LABELS={"reaper_veil_momentum":"Veil Momentum","reaper_siphon_prepared":"Siphon Cut prepared","ranger_tracked_prey":"Tracked Prey","ranger_follow_through":"Follow-Through ready","ranger_double_draw":"Double Draw ready","spirit_stride":"Spiritstride","spirit_prepared":"Spirit follow-up prepared","spirit_ready":"Spirit follow-up ready","storm_charge":"Storm Charge","subclass_follow_ready":"Follow-up ready","warden_quake_ready":"Quake prepared","holdfast":"Holdfast","protective_filaments":"Protective Filaments","slow":"Slowed","guard":"Warded","counter":"Counter ready","prepared_mark":"Mark ready","grave":"Death charge","echo":"Echo charge","marked":"Marked","core_strike_mark":"Core Mark","crown_link":"Crownlink","brittle":"Brittle","burning":"Burning","bleeding":"Bleeding","thorn_slow":"Thorn growth","drenched":"Drenched","vitality":"Vitality","bark_armor":"Bark Armor","rooted":"Rooted","staggered":"Staggered","haste":"Hastened","bark_guard":"Bark Guard","sheltered":"Sheltered","trophy_carrier":"Carrying trophy","rallied":"Rallied","uprooting":"Uprooting","core_exposed":"Core exposed","nursery_lull":"Nursery lull","memory_exposed":"Memory exposed"}
-const REFRESH_IN_PLACE := ["spirit_stride","spirit_prepared","spirit_ready","storm_charge","grave","echo","sheltered","trophy_carrier","subclass_follow_ready","reaper_siphon_prepared","burning","drenched","vitality","bark_armor","bleeding","thorn_slow"]
+const Oracle = preload("res://oracle_combat.gd")
+const LABELS={"oracle_foreboding":"Foreboding","oracle_guided_strike":"Guided Strike","oracle_second_breath":"Second Breath","oracle_quiet_ground":"Quiet Ground","oracle_mercy":"Portent of Mercy","oracle_ritual_verdict":"Ritual Verdict ready","oracle_chime_prepared":"Chime prepared","reaper_veil_momentum":"Veil Momentum","reaper_siphon_prepared":"Siphon Cut prepared","ranger_tracked_prey":"Tracked Prey","ranger_follow_through":"Follow-Through ready","ranger_double_draw":"Double Draw ready","spirit_stride":"Spiritstride","spirit_prepared":"Spirit follow-up prepared","spirit_ready":"Spirit follow-up ready","storm_charge":"Storm Charge","subclass_follow_ready":"Follow-up ready","warden_quake_ready":"Quake prepared","holdfast":"Holdfast","protective_filaments":"Protective Filaments","slow":"Slowed","guard":"Warded","counter":"Counter ready","prepared_mark":"Mark ready","grave":"Death charge","echo":"Echo charge","marked":"Marked","core_strike_mark":"Core Mark","crown_link":"Crownlink","brittle":"Brittle","burning":"Burning","bleeding":"Bleeding","thorn_slow":"Thorn growth","drenched":"Drenched","vitality":"Vitality","bark_armor":"Bark Armor","rooted":"Rooted","staggered":"Staggered","haste":"Hastened","bark_guard":"Bark Guard","sheltered":"Sheltered","trophy_carrier":"Carrying trophy","rallied":"Rallied","uprooting":"Uprooting","core_exposed":"Core exposed","nursery_lull":"Nursery lull","memory_exposed":"Memory exposed"}
+const REFRESH_IN_PLACE := ["spirit_stride","spirit_prepared","spirit_ready","storm_charge","grave","echo","sheltered","trophy_carrier","subclass_follow_ready","reaper_siphon_prepared","oracle_chime_prepared","burning","drenched","vitality","bark_armor","bleeding","thorn_slow"]
 static func affinity_feedback(game: Node, player: Dictionary) -> String:
  var elapsed:=preload("res://affinity_time.gd").now(game)
  var lines: PackedStringArray=[]
@@ -18,6 +19,8 @@ static func affinity_feedback(game: Node, player: Dictionary) -> String:
  return "  ·  ".join(lines)
 static func tint(kind: String) -> Color:
  if kind==Ranger.PREY:return Ranger.PREY_COLOR
+ if kind==Oracle.Progression.FOREBODING:return Color("#c899eb")
+ if kind.begins_with("oracle_"):return Color("#ead68d")
  if kind=="burning":return Color("#f29b57")
  if kind=="drenched":return Color("#82d7ec")
  return Color("#e6c079") if kind in ["guard","counter","grave","bark_guard","sheltered","trophy_carrier","cast_break"] else Color("#d8a2ed") if kind in ["marked","prepared_mark","echo","mark_break","core_strike_mark"] else Color("#95d7ed") if kind in ["brittle","slow","shatter"] else Color("#a6d695")
@@ -34,6 +37,13 @@ static func sync(game: Node,now: int) -> void:
   if player.has("affinity_ward_claims") and (int(player.get("guard_until",0))<=now or int(player.get("guard_charges",0))<=0):
    player.erase("affinity_ward_claims")
   if not game.Life.alive(player) or not player.get("wild",false):continue
+  if player.has(Oracle.Omens.STATE):
+   var omens:=Oracle.Omens.indicators(game,player,now)
+   for omen in omens: add(desired,game,omen,id,false,int(omens[omen]),1,now)
+  if player.has(Oracle.RITUAL):
+   add(desired,game,Oracle.RITUAL,id,false,Oracle.prepared_until(game,player,Oracle.RITUAL,now),1,now)
+  if player.has(Oracle.CHIME) and Oracle.prepared_until(game,player,Oracle.CHIME,now)>0:
+   add(desired,game,Oracle.CHIME,id,false,now+60000,1,now)
   if player.has("affinity_vital_sources"):add(desired,game,"vitality",id,false,now+60000,1,now)
   var charge: Dictionary=player.get("affinity_storm_charge",{})
   if not charge.is_empty():
@@ -70,6 +80,10 @@ static func sync(game: Node,now: int) -> void:
    add(desired,game,pair[0],id,false,now+60000,charges,now)
  for target in range(-1,game.scouts.size()):
   if not game.expedition_active() or not game.Traits.valid_target(game,target):continue
+  var omen_target:=Oracle.Omens.enemy_body(game,target)
+  if omen_target.has(Oracle.Omens.STATE):
+   var omens:=Oracle.Omens.indicators(game,omen_target,now)
+   for omen in omens: add(desired,game,omen,target,true,int(omens[omen]),1,now)
   var state: Dictionary=game.enemy_traits if target==-1 else game.scouts[target].get("traits",{})
   add(desired,game,"marked",target,true,int(state.get("marked_until",0)),1,now)
   var core_mark:=preload("res://core_strike_mark.gd").active(game,state,now)

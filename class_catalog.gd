@@ -4,6 +4,7 @@ const Subclasses = preload("res://subclass_catalog.gd")
 const Weaver = preload("res://weaver_connected_tree.gd")
 const Ranger = preload("res://ranger_connected_tree.gd")
 const Reaper = preload("res://reaper_connected_tree.gd")
+const Oracle = preload("res://oracle_connected_tree.gd")
 const ConnectedTree = preload("res://connected_class_tree.gd")
 const DEFINITIONS := [
  {
@@ -1719,6 +1720,7 @@ static func connected_tree(class_id: int) -> ConnectedTree:
   1: return Weaver.TREE
   2: return Ranger.TREE
   3: return Reaper.TREE
+  4: return Oracle.TREE
  return null
 
 

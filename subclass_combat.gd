@@ -120,6 +120,8 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 	var leaves_snare: bool = skill.visual in ["snare", "retreat"]
 	var ranger := skill.has("ranger_nodes")
 	var reaper := skill.has("reaper_nodes")
+	var oracle := skill.has("oracle_nodes")
+	var oracle_api = preload("res://oracle_combat.gd")
 	var bind := Balance.subclass_bind(skill,card)
 	if ranger and leaves_snare:
 		var trap := skill.duplicate()
@@ -142,6 +144,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		{"pattern":cast.shape,"width":cast.width,"span":cast.span,"owner":id,"clip":CLIPS[skill.visual],"label":skill.name})
 	var cast_id: int = game.combat_event_serial
 	var weaver := skill.has("weaver_nodes")
+	var oracle_hit := oracle_api.begin_q(game,player,skill,affected,cast.center,now) if oracle else {}
 	var q_contact := false
 	var ranger_damage := false
 	var reaper_damage := false
@@ -164,12 +167,15 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		var windup := in_windup(game,target,now)
 		var damage := Balance.Preview.authored_amount(float(skill.get("damage",0)) + (float(skill.get("punish",0))+float(card.get("punish",0)) if windup else 0.0))
 		var rewardable: bool = target == -1 or not game.scouts[target].get("summoned",false)
-		if damage > 0:
-			var hit := stats.duplicate()
+		var oracle_hp: int = int(oracle_hit.hp) if target == int(oracle_hit.get("target",-2)) else 0
+		if damage > 0 or oracle_hp > 0:
+			var hit := stats.duplicate() if damage > 0 else oracle_api.spell_hit(oracle_hp)
 			hit.damage = damage
 			hit.knockback = -.35
 			var before: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)
-			hit.ranger_direct_hit = not ranger
+			hit.ranger_direct_hit = not ranger and damage > 0
+			if oracle_hp > 0:
+				hit.native_bonus_hp = oracle_hp
 			if ranger and not ranger_damage and skill.ranger_nodes.has("splinter_ambush"):
 				hit.native_bonus_hp = Catalog.Ranger.AMBUSH_HP
 			if reaper:
@@ -203,7 +209,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 			Mark.place(game,id,target,{"id":cast_id,"life":player.get("lost_health",0),
 				"skill":{"id":skill.id,"mark_ms":2700,"mark_damage":Balance.MARK_POINTS,"color":skill.color,"subclass_mark":true}},now)
 			marks -= 1
-	if not ranger and not reaper and not affected.is_empty() and skill.second == 0:
+	if not ranger and not reaper and not oracle and not affected.is_empty() and skill.second == 0:
 		echo(game,player,contact,affected,Color(skill.color),now,weaver)
 	var drain_count := drain_contacts if Balance.Preview.enabled else affected.size()
 	if skill.get("leech",false) and drain_count>0:
@@ -228,12 +234,12 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 	for ally in nearby:
 		if heal_hp > 0:
 			game.Life.Sustain.restore(game,ally,heal_hp,skill.id)
-		if skill.get("cleanse",false) or card.get("cleanse",false) or (not ranger and skill.second == 2):
+		if skill.get("cleanse",false) or card.get("cleanse",false) or (not ranger and not oracle and skill.second == 2):
 			ally.slow_until = 0
 		if skill.get("ward",false) or card.get("ward",false) or (card.get("party_hit_ward",false) and not affected.is_empty()):
 			var extra := Catalog.Weaver.GIFT_EXTENSION_MS if extend_ward and is_same(ally,nearby[0]) else 0
 			events.grant_ward(game,ally,now+Balance.WARD_MS+extra,1,event,adapter,now)
-	if not reaper and not nearby.is_empty() and ((not ranger and skill.first == 2 and not extend_ward) or (skill.get("hit_ward",false) and not affected.is_empty())):
+	if not reaper and not oracle and not nearby.is_empty() and ((not ranger and skill.first == 2 and not extend_ward) or (skill.get("hit_ward",false) and not affected.is_empty())):
 		game.grant_guard(nearby[0],now+Balance.WARD_MS,1)
 	if card.get("landing_ward",false):
 		game.grant_guard(player,now+Balance.WARD_MS,1)
@@ -247,6 +253,8 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		Ranger.after_q(game,id,player,skill,cast_id,now)
 	elif reaper:
 		Reaper.after_q(game,id,player,skill,contact,nearby,reaper_damage,cast_id,now)
+	elif oracle:
+		oracle_api.after_q(game,id,player,skill,int(event.identity) if event != null else cast_id,affected,nearby,now)
 	elif follow >= 0:
 		player.subclass_follow = {"lane":follow,"epoch":game.combat_epoch,"life":player.get("lost_health",0)}
 	player.contributed = true

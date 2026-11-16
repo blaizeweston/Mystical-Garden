@@ -4,6 +4,7 @@ const Graph = preload("res://warden_tree.gd")
 const Ranger = preload("res://ranger_connected_tree.gd")
 const Reaper = preload("res://reaper_connected_tree.gd")
 const Weaver = preload("res://weaver_connected_tree.gd")
+const Oracle = preload("res://oracle_connected_tree.gd")
 const FOCUSES := [
  [
   {
@@ -526,6 +527,7 @@ static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionar
 			1: tree = Weaver.TREE
 			2: tree = Ranger.TREE
 			3: tree = Reaper.TREE
+			4: tree = Oracle.TREE
 	var selected: Array = tree.path(profile) if tree != null else []
 	var entry := focus(profile,class_id)
 	if not selected.is_empty():
@@ -555,6 +557,8 @@ static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionar
 					(tier == 3 or selected[tier] in ["snarecraft","bramble_corridor","escape_route"])):
 				var node := Ranger.TREE.node(selected[tier])
 				result.description += "\n" + node.name + " · " + node.description
+	elif tree != null and class_id == Oracle.CLASS_ID:
+		Oracle.configure_skill(result, selected, slot)
 	elif tree != null:
 		result.reaper_nodes = selected
 		if slot == 0 and entry.id == "veilwalker":
