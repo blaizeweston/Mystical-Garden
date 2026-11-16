@@ -2,6 +2,7 @@ extends RefCounted
 ## Each row defines a class. Each focus owns its skill, release style and checkpoint card.
 const Graph = preload("res://warden_tree.gd")
 const Ranger = preload("res://ranger_connected_tree.gd")
+const Reaper = preload("res://reaper_connected_tree.gd")
 const Weaver = preload("res://weaver_connected_tree.gd")
 const FOCUSES := [
  [
@@ -519,7 +520,12 @@ static func lane_at(profile: Dictionary, class_id: int, tier: int) -> int:
 
 
 static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionary, connected := false) -> Dictionary:
-	var tree = (Weaver.TREE if class_id == 1 else Ranger.TREE if class_id == 2 else null) if connected else null
+	var tree: RefCounted
+	if connected:
+		match class_id:
+			1: tree = Weaver.TREE
+			2: tree = Ranger.TREE
+			3: tree = Reaper.TREE
 	var selected: Array = tree.path(profile) if tree != null else []
 	var entry := focus(profile,class_id)
 	if not selected.is_empty():
@@ -536,7 +542,7 @@ static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionar
 			var node := Weaver.TREE.node(selected[tier])
 			if (tier in [1,2,4] and slot == 0) or (tier >= 3 and slot == 1):
 				result.description += "\n" + node.name + " · " + Weaver.description(node,entry.id)
-	elif tree != null:
+	elif tree != null and class_id == 2:
 		result.ranger_nodes = selected
 		if slot == 0 and entry.id == "wildstalker":
 			result.description = Ranger.PREY_DESCRIPTION
@@ -549,6 +555,16 @@ static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionar
 					(tier == 3 or selected[tier] in ["snarecraft","bramble_corridor","escape_route"])):
 				var node := Ranger.TREE.node(selected[tier])
 				result.description += "\n" + node.name + " · " + node.description
+	elif tree != null:
+		result.reaper_nodes = selected
+		if slot == 0 and entry.id == "veilwalker":
+			result.description = Reaper.VEIL_DESCRIPTION
+			result.erase("marks")
+		for tier in range(1,selected.size()):
+			var node := Reaper.TREE.node(selected[tier])
+			var affects_q: bool = tier <= 2 or node.id == "grave_offering"
+			if affects_q == (slot == 0):
+				result.description += "\n" + node.name + " · " + Reaper.description(node,entry.id)
 	else:
 		for tier in range(1,4):
 			var lane := lane_at(profile,class_id,tier)

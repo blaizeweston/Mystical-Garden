@@ -5,6 +5,7 @@ const Mark = preload("res://core_strike_mark.gd")
 const Balance = preload("res://class_skill_balance.gd")
 const WeaverCombat = preload("res://weaver_combat.gd")
 const Ranger = preload("res://ranger_combat.gd")
+const Reaper = preload("res://reaper_combat.gd")
 const CLIPS := {
 	"weave":"Attack_wand", "bloom":"Attack_staff", "silk":"Attack_orb",
 	"salvo":"Attack_bow", "snare":"Attack_ring", "retreat":"Attack_crossbow",
@@ -118,6 +119,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 	if not adapter.is_empty() and event == null: event = events.class_start(game,id,adapter,now)
 	var leaves_snare: bool = skill.visual in ["snare", "retreat"]
 	var ranger := skill.has("ranger_nodes")
+	var reaper := skill.has("reaper_nodes")
 	var bind := Balance.subclass_bind(skill,card)
 	if ranger and leaves_snare:
 		var trap := skill.duplicate()
@@ -142,6 +144,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 	var weaver := skill.has("weaver_nodes")
 	var q_contact := false
 	var ranger_damage := false
+	var reaper_damage := false
 	var prey_set := false
 	if leaves_snare and not ranger:
 		var trap := skill.duplicate()
@@ -169,9 +172,15 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 			hit.ranger_direct_hit = not ranger
 			if ranger and not ranger_damage and skill.ranger_nodes.has("splinter_ambush"):
 				hit.native_bonus_hp = Catalog.Ranger.AMBUSH_HP
+			if reaper:
+				Reaper.tag_hit(hit,skill.reaper_nodes)
+				if not reaper_damage and skill.reaper_nodes.has("rending_cut"):
+					hit.native_bonus_hp = Catalog.Reaper.RENDING_HP
 			game.apply_weapon_hit(player,target,cast.center,hit,now)
 			var after: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)
 			q_contact = q_contact or after < before
+			if reaper and after < before:
+				reaper_damage = true
 			if ranger and after < before:
 				if not ranger_damage:
 					Ranger.q_contact(game,id,player,skill,cast_id,now)
@@ -194,7 +203,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 			Mark.place(game,id,target,{"id":cast_id,"life":player.get("lost_health",0),
 				"skill":{"id":skill.id,"mark_ms":2700,"mark_damage":Balance.MARK_POINTS,"color":skill.color,"subclass_mark":true}},now)
 			marks -= 1
-	if not ranger and not affected.is_empty() and skill.second == 0:
+	if not ranger and not reaper and not affected.is_empty() and skill.second == 0:
 		echo(game,player,contact,affected,Color(skill.color),now,weaver)
 	var drain_count := drain_contacts if Balance.Preview.enabled else affected.size()
 	if skill.get("leech",false) and drain_count>0:
@@ -224,7 +233,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		if skill.get("ward",false) or card.get("ward",false) or (card.get("party_hit_ward",false) and not affected.is_empty()):
 			var extra := Catalog.Weaver.GIFT_EXTENSION_MS if extend_ward and is_same(ally,nearby[0]) else 0
 			events.grant_ward(game,ally,now+Balance.WARD_MS+extra,1,event,adapter,now)
-	if not nearby.is_empty() and ((not ranger and skill.first == 2 and not extend_ward) or (skill.get("hit_ward",false) and not affected.is_empty())):
+	if not reaper and not nearby.is_empty() and ((not ranger and skill.first == 2 and not extend_ward) or (skill.get("hit_ward",false) and not affected.is_empty())):
 		game.grant_guard(nearby[0],now+Balance.WARD_MS,1)
 	if card.get("landing_ward",false):
 		game.grant_guard(player,now+Balance.WARD_MS,1)
@@ -236,6 +245,8 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		WeaverCombat.on_q(game,id,player,skill.weaver_nodes,contact,nearby,q_contact,field,cast_id,now)
 	if ranger:
 		Ranger.after_q(game,id,player,skill,cast_id,now)
+	elif reaper:
+		Reaper.after_q(game,id,player,skill,contact,nearby,reaper_damage,cast_id,now)
 	elif follow >= 0:
 		player.subclass_follow = {"lane":follow,"epoch":game.combat_epoch,"life":player.get("lost_health",0)}
 	player.contributed = true

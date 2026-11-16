@@ -445,6 +445,8 @@ func subclass_nodes(data: Dictionary, c: int, level: int, mask: int) -> Array:
 		var ready: bool = reason.is_empty() if use_connected else game.Classes.can_learn(data,c,index,level)
 		var parents: Array=[base] if node.parents.is_empty() else node.parents.map(func(id):return nodes_by_id[id])
 		var description: String=game.Classes.Weaver.description(node,focus_id) if c==1 and use_connected else node.description
+		if c==3 and use_connected:
+			description = game.Classes.Reaper.description(node,focus_id)
 		var summary: String=node.name+" · "+lanes[node.lane]+"\n"+description
 		if game.has_meta(&"combat_affinity_ruleset"):
 			var restriction: String = preload("res://affinity_build.gd").RESTRICTED_NODES.get(node.id, "")

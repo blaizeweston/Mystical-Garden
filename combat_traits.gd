@@ -1,5 +1,7 @@
 extends RefCounted
 const Ranger=preload("res://ranger_combat.gd")
+const Reaper=preload("res://reaper_combat.gd")
+const Grafts=preload("res://native_grafts.gd")
 const Preview=preload("res://combat_balance_preview.gd")
 # Bounded, authored effect vocabulary shared by plant slots, skills and cards.
 const KEYS: Array=["brittle","shatter_damage","brace","mark_damage","echo","echo_redirect","death_charge","tide_pool","pool_ward","pool_radius","suppress","decoy","decoy_duration","link","link_damage","link_brittle","counter_damage","counter_stagger","ward_on_block","directional_guard","spread_bind","growth_field","precision","trap_power","reaper_momentum","veil_mark","protect_growth","omen","loot_attract","cinder_trail","chorus_pulse","pierce"]
@@ -63,7 +65,7 @@ static func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,n
    if not graft_contact.is_empty():
     charges += int(graft_contact.state.get("grave_charges",0))
    damage+=mini(2,charges)
-  if int(p.get("grave_charges",0))>0:
+  if int(p.get("grave_charges",0))>0 and Reaper.spends_class_charge(p,hit):
    damage+=1;p.grave_charges-=1
    preload("res://combat_status.gd").proc(game,"momentum",p.pos,game.enemy_position(target),target)
  if float(hit.get("suppress",0))>0 and now>=int(state.get("silence_ready",0)):
@@ -105,9 +107,9 @@ static func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: fl
 static func after_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,killed: bool) -> void:
  if stats.get("trait_secondary",false): return
  var point: Vector3=game.enemy_position(target)
- if killed and (target==-1 or not game.scouts[target].get("summoned",false)) and float(stats.get("death_charge",0))>0:
+ if killed and (target==-1 or not game.scouts[target].get("summoned",false)) and float(stats.get("death_charge",0))>0 and Reaper.spends_class_charge(p,stats):
   var graft_charges := int(p.get("native_graft_state",{}).get("grave_charges",0))
-  p.grave_charges=mini(3-graft_charges,int(p.get("grave_charges",0))+maxi(1,roundi(float(stats.death_charge))))
+  p.grave_charges=mini(Grafts.DEATH_CHARGE_CAP-graft_charges,int(p.get("grave_charges",0))+maxi(1,roundi(float(stats.death_charge))))
  if float(stats.get("chorus_pulse",0))>0:
   p.chorus_contacts=int(p.get("chorus_contacts",0))+1
   if p.chorus_contacts>=4:

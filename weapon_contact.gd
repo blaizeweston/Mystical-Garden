@@ -79,6 +79,9 @@ static func melee(game: Node,shot: Dictionary,now: int) -> void:
   if not accepts(game,target,shot.origin,shot.aim,str(shot.form),shot.stats):continue
   var point: Vector3=game.enemy_position(target);hits.append(token(game,target));remaining-=1
   var hit: Dictionary = shot.stats.merged({"ranger_direct_hit":true},true)
+  var reaper = preload("res://reaper_combat.gd")
+  if hit.has(reaper.STRIKE):
+   reaper.melee_contact(game,player,hit,target,now)
   game.apply_weapon_hit(player,target,shot.origin,hit,now)
   if shot.stats.has("cr02_action"):
    preload("res://combat_action_events.gd").contact(game,shot.stats,target,now,false,point,direction)

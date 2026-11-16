@@ -120,7 +120,10 @@ static func queue_attack(game: Node,id: int,p: Dictionary,pos: Vector3,stats: Di
    game.projectile_queue.back().locked_target=lock_target;game.projectile_queue.back().locked_token=token(game,lock_target)
   return
  game.emit_weapon_attack(p,pos,end,stats,now)
- game.projectile_queue.append({"melee_shape":true,"player":id,"epoch":game.combat_epoch,"release":release,"due":release,"emitted":true,"projectile":false,"form":form,"origin":pos,"aim":end,"stats":stats.duplicate(true)})
+ var melee := {"melee_shape":true,"player":id,"epoch":game.combat_epoch,"release":release,"due":release,"emitted":true,"projectile":false,"form":form,"origin":pos,"aim":end,"stats":stats.duplicate(true)}
+ if stats.has(preload("res://reaper_combat.gd").STRIKE):
+  melee.life = int(p.get("lost_health",0))
+ game.projectile_queue.append(melee)
 static func aim_is_live(player: Dictionary,now: int) -> bool:
  var windup: Dictionary=player.get("ranged_windup",{})
  return player.get("mouse_aim",false) and int(windup.get("combo",-1))==int(player.get("attack_combo",0)) and now<int(windup.get("release",0))

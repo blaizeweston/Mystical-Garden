@@ -66,17 +66,21 @@ static func resolve(class_id: int, weapon_index: int, slots: Array, graft: int, 
 	# movement overrides are deliberately excluded.
 	result.core.delivery = Delivery.WEAPON_DELIVERY.get(weapon.visual, {}).duplicate()
 	result.form.behavior = Ruleset.FORMS.get(result.form.get("primary_affinity"), "")
+	result.graft = Ruleset.Grafts.resolve(graft)
+	var native_pull := float(result.native_class_effects.get("pull",0)) + float(result.graft.get("native_effects",{}).get("pull",0))
 	for index in 2:
 		var skill := Skills.resolve(class_id, index, profile, connected)
 		var adapter := Catalyst.resolve(class_id, index, profile, skill)
 		if not adapter.is_empty():
 			adapter.response = adapter.responses.get(result.catalyst.get("primary_affinity"), "")
+			if class_id == Classes.Reaper.TREE.class_id and connected and native_pull > 0.0:
+				adapter.native_displacement.pull = native_pull
+				adapter.conflict = "Native weapon or graft pull takes priority over Catalyst displacement."
 		result.class_skills.append(adapter)
 	result.capabilities.affinity_effects = [result.core, result.form, result.catalyst].any(func(part): return part.state == "ready")
 	result.capabilities.strike = result.form.executable
 	result.capabilities.core_action = result.core.executable
 	result.capabilities.class_actions = result.capabilities.native_class_skills and result.catalyst.executable and result.class_skills.all(func(adapter): return not adapter.is_empty())
-	result.graft = Ruleset.Grafts.resolve(graft)
 	return result
 
 

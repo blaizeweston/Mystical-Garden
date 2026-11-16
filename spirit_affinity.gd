@@ -124,9 +124,9 @@ static func clear(p: Dictionary) -> void:
 	p.erase(FOLLOW)
 
 
-static func step(game: Node, actor: int, forward: Vector3) -> Vector3:
+static func step(game: Node, actor: int, forward: Vector3, distance := STEP_DISTANCE) -> Vector3:
 	var origin: Vector3=game.players[actor].pos
-	var end: Vector3=game.battlefield.dash(origin,game.bound_position(origin+forward*STEP_DISTANCE,true))
+	var end: Vector3=game.battlefield.dash(origin,game.bound_position(origin+forward*distance,true))
 	var stops: Array=[]
 	for id in game.players:
 		var p: Dictionary=game.players[id]

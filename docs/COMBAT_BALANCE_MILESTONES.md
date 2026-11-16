@@ -60,6 +60,14 @@ Barbed Nova augments the first valid native hit and carries through an empty Nov
 
 Protective Filaments follows its recipients. The latest valid grant refreshes its duration and the strongest direct protection wins across Filaments, Holdfast, and Sanctuary Ground. Silken Canopy grants each eligible ally one native Ward per canopy. Affinity Cultivate Bloom retains its native damage and timing and leaves independently granted Marks untouched. [Damage and Ward handling](../game.gd) · [Growth and delayed effects](../combat_traits.gd)
 
+### CT04 connected Reaper
+
+Affinity Reapers without historical Reaper investments store the starting focus and five choices in the versioned `reaper_connected` path. They use the existing six-level thresholds. The focus keeps its Q and Siphon Cut remains R. The historical masks keep their own effects. [Reaper tree](../reaper_connected_tree.gd) · [Profile normalization](../character_profile.gd)
+
+Connected Veil Passage grants Veil Momentum for 2.7 seconds. A valid ordinary melee attack captures the Q preparation at commitment and spends it only at an eligible contact before expiry. Existing Core Marks and Ranger Tracked Prey keep their own consumers. Siphon preparations expire on a change of life or floor or on return to the Garden. A fresh successful Q replaces that actor's unspent Q preparations. Compatible bonuses coexist, including both +10 HP primary-hit bonuses from Barbed Siphon and Feast of Thorns. Veil Dance uses the actor-clearance step and allows a valid R to proceed from its original position when the step is blocked. [Reaper combat](../reaper_combat.gd) · [Native melee contact](../weapon_contact.gd)
+
+Death’s Due uses the existing native class pool. Its charges survive floor changes and revival and reset on expedition entry or return. The installed Funeral Petal pool still resets on fall, a new floor or graft replacement. Both pools share three slots and spend class charges first. Immediate native class hits and ordinary melee can earn or spend a class charge. Feast secondary damage and affinity damage use the ordinary reward path with separate proc lineage. Void class responses retain their damage when resolved native or graft pull takes priority. [Native charge handling](../combat_traits.gd) · [Graft ownership](../native_grafts.gd) · [Catalyst resolution](../affinity_build.gd)
+
 ### Overlapping Ward claims
 
 Native protection decides whether the hit was blocked and owns duration, charges,

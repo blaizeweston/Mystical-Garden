@@ -1649,6 +1649,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	var effect_point: Vector3=player.pos
 	var recipients: Array[int] = []
 	var ranger_snare := {}
+	var reaper_siphon := {}
 	var mode:=str(skill.mode)
 	var aimed: bool=player.has("class_aim")
 	var plan: Dictionary={}
@@ -1762,6 +1763,8 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 		"siphon":
 			targets.assign([target])
 			effect_point=point
+			if skill.has("reaper_nodes"):
+				reaper_siphon = preload("res://reaper_combat.gd").begin_siphon(self,id,player,skill,target,point,now)
 		"heal","sanctuary":
 			var heal_hp:=Life.Preview.roll_heal(Skills.Balance.direct_heal(skill,stats))
 			for ally_id in players:
@@ -1786,6 +1789,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 		if mode=="quake" and skill.has("warden_focus"):
 			preload("res://warden_combat.gd").prepare_quake_damage(self,player,skill,now)
 	var hits:=apply_skill_targets(player,targets,skill,stats,now)
+	var siphon_damaged := not reaper_siphon.is_empty() and preload("res://reaper_combat.gd").enemy_hp(self,target)<int(reaper_siphon.before)
 	var secondary_radius := float(skill.get("warden_catalyst_radius",radius))
 	if skill.has("warden_focus") and slot==0:
 		preload("res://warden_combat.gd").on_cast(self,player,skill,now+int(skill.duration)+duration,now,event)
@@ -1805,7 +1809,9 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	if not ranger_snare.is_empty():
 		ranger_feedback = preload("res://ranger_combat.gd").finish_snare(self,player,ranger_snare,cast_origin,now)
 	combat_events_api.class_complete(self,event,adapter,cast_origin,effect_point,catalyst_targets,recipients,now,secondary_radius)
-	if slot==1 and skill.has("subclass_focus") and not skill.has("ranger_nodes") and (not native_weaver_nova or skill.subclass_follow_lane != 0):
+	if not reaper_siphon.is_empty():
+		preload("res://reaper_combat.gd").finish_siphon(self,player,skill,target,effect_point,reaper_siphon,siphon_damaged,now)
+	elif slot==1 and skill.has("subclass_focus") and not skill.has("ranger_nodes") and (not native_weaver_nova or skill.subclass_follow_lane != 0):
 		preload("res://subclass_combat.gd").follow_through(self,player,skill,effect_point,targets,now)
 	if native_weaver_nova:
 		weaver.complete_nova(self,id,player,skill.weaver_nodes,effect_point,weaver_impact,now)
@@ -1883,6 +1889,8 @@ func apply_skill_targets(player: Dictionary,targets: Array[int],skill: Dictionar
 					"core_hit":true,"knockback":-.35}
 			else:
 				hit.ranger_direct_hit = not stats.get("ranger_trap_contact",false) and skill.mode != "salvo"
+				if skill.has("reaper_nodes"):
+					preload("res://reaper_combat.gd").tag_hit(hit,skill.reaper_nodes)
 			var before:=enemy_hp if target==-1 else int(scouts[target].hp)
 			apply_weapon_hit(player,target,adjustment.get("origin",skill.get("effect_origin",player.pos)),hit,now)
 			if Life.Preview.enabled and Life.Sustain.eligible(self,target):
@@ -2926,6 +2934,8 @@ func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 			var grafts = preload("res://native_grafts.gd")
 			if not affinity_build.graft.get("procs", {}).is_empty():
 				stats[grafts.CONTEXT] = grafts.capture(p, affinity_build.graft)
+			if int(p.frame)==Frames.REAPER and int(affinity_build.class_skills.size())>0:
+				preload("res://reaper_combat.gd").commit_melee(self,p,affinity_build.class_skills[0].get("native_skill",{}),stats,now)
 		stats[events.CONTEXT] = event
 		stats.erase("affinity_build")
 		if int(p.frame)==Frames.RANGER and has_meta(&"combat_affinity_ruleset") and p.character.has(Classes.Ranger.PROFILE_KEY) \

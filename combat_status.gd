@@ -2,8 +2,9 @@ extends RefCounted
 # Host-derived presentation state. Never stored in character/Garden saves.
 const Warden = preload("res://warden_combat.gd")
 const Ranger = preload("res://ranger_combat.gd")
-const LABELS={"ranger_tracked_prey":"Tracked Prey","ranger_follow_through":"Follow-Through ready","ranger_double_draw":"Double Draw ready","spirit_stride":"Spiritstride","spirit_prepared":"Spirit follow-up prepared","spirit_ready":"Spirit follow-up ready","storm_charge":"Storm Charge","subclass_follow_ready":"Follow-up ready","warden_quake_ready":"Quake prepared","holdfast":"Holdfast","protective_filaments":"Protective Filaments","slow":"Slowed","guard":"Warded","counter":"Counter ready","prepared_mark":"Mark ready","grave":"Death charge","echo":"Echo charge","marked":"Marked","core_strike_mark":"Core Mark","crown_link":"Crownlink","brittle":"Brittle","burning":"Burning","bleeding":"Bleeding","thorn_slow":"Thorn growth","drenched":"Drenched","vitality":"Vitality","bark_armor":"Bark Armor","rooted":"Rooted","staggered":"Staggered","haste":"Hastened","bark_guard":"Bark Guard","sheltered":"Sheltered","trophy_carrier":"Carrying trophy","rallied":"Rallied","uprooting":"Uprooting","core_exposed":"Core exposed","nursery_lull":"Nursery lull","memory_exposed":"Memory exposed"}
-const REFRESH_IN_PLACE := ["spirit_stride","spirit_prepared","spirit_ready","storm_charge","grave","echo","sheltered","trophy_carrier","subclass_follow_ready","burning","drenched","vitality","bark_armor","bleeding","thorn_slow"]
+const Reaper = preload("res://reaper_combat.gd")
+const LABELS={"reaper_veil_momentum":"Veil Momentum","reaper_siphon_prepared":"Siphon Cut prepared","ranger_tracked_prey":"Tracked Prey","ranger_follow_through":"Follow-Through ready","ranger_double_draw":"Double Draw ready","spirit_stride":"Spiritstride","spirit_prepared":"Spirit follow-up prepared","spirit_ready":"Spirit follow-up ready","storm_charge":"Storm Charge","subclass_follow_ready":"Follow-up ready","warden_quake_ready":"Quake prepared","holdfast":"Holdfast","protective_filaments":"Protective Filaments","slow":"Slowed","guard":"Warded","counter":"Counter ready","prepared_mark":"Mark ready","grave":"Death charge","echo":"Echo charge","marked":"Marked","core_strike_mark":"Core Mark","crown_link":"Crownlink","brittle":"Brittle","burning":"Burning","bleeding":"Bleeding","thorn_slow":"Thorn growth","drenched":"Drenched","vitality":"Vitality","bark_armor":"Bark Armor","rooted":"Rooted","staggered":"Staggered","haste":"Hastened","bark_guard":"Bark Guard","sheltered":"Sheltered","trophy_carrier":"Carrying trophy","rallied":"Rallied","uprooting":"Uprooting","core_exposed":"Core exposed","nursery_lull":"Nursery lull","memory_exposed":"Memory exposed"}
+const REFRESH_IN_PLACE := ["spirit_stride","spirit_prepared","spirit_ready","storm_charge","grave","echo","sheltered","trophy_carrier","subclass_follow_ready","reaper_siphon_prepared","burning","drenched","vitality","bark_armor","bleeding","thorn_slow"]
 static func affinity_feedback(game: Node, player: Dictionary) -> String:
  var elapsed:=preload("res://affinity_time.gd").now(game)
  var lines: PackedStringArray=[]
@@ -55,6 +56,11 @@ static func sync(game: Node,now: int) -> void:
    add(desired,game,"warden_quake_ready",id,false,Warden.prepared_until(game,player,now),1,now)
   elif preload("res://subclass_combat.gd").follow_lane(game,player)>=0:
    add(desired,game,"subclass_follow_ready",id,false,now+60000,1,now)
+  if player.has(Reaper.MOMENTUM):
+   var momentum := Reaper.ready(game,player,Reaper.MOMENTUM,now)
+   add(desired,game,Reaper.MOMENTUM,id,false,int(momentum.get("until",0)),1,now)
+  if player.has(Reaper.SIPHON) and not Reaper.ready(game,player,Reaper.SIPHON,now).is_empty():
+   add(desired,game,Reaper.SIPHON,id,false,now+60000,1,now)
   for preparation in [Ranger.FOLLOW,Ranger.DOUBLE]:
    if player.has(preparation):
     add(desired,game,preparation,id,false,Ranger.prepared_until(game,player,preparation,now),1,now)
