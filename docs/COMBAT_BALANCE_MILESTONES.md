@@ -477,3 +477,36 @@ Class XP and tenths keep their existing thresholds and identify which permanent 
 | Restricted Warden and Oracle effects | Warden legacy nodes 10 and 11 and Oracle legacy node 11 retain other learned benefits. Their old Shatter scalar has no approved owner in source-attributed Frost rupture. Warden's Cracking Roots keeps existing investments and refuses new learning in affinity mode pending a decision on native Brittle sources. Oracle legacy node 10's pool Ward requires a compatible healing pool. |
 
 Current tiered focuses use their named Q replacement and preserve native R follow-through or Root Anchor behavior. None of these rank paths changes Core, Form or Catalyst potency.
+
+### Native monster graft compatibility
+
+`native_grafts.gd` classifies every authored native statistic or special effect for all 24 grafts. The inventory item and component IDs remain the authored IDs in `weapon_parts.gd`. The affinity build reports installed numeric effects, supported procs and explicit refusal separately. Core, Form and Catalyst retain their original affinity identities. Numeric outputs still use native strike, skill and health caps.
+
+| Graft | Native effect in affinity mode |
+|---|---|
+| Briar Hook, Nightbloom Pollen, Gallhorn Antler, Cantor Bellcap, Thornmaw Fang, Willow Sinew, Orchid Sac, Gravebud Husk, Wicker Sting, Brood Heart, Shepherd Knot, Hollow Carapace, Lure Bladder | Preserve authored native numeric effects. Their existing consumers resolve position and reach, recovery, strike and skill timers, wind-up damage, hit counts, kill sustain and maximum HP. |
+| Burrowing Tendon, Grasping Rootlet | The Tendon supplies native line contacts and one extra target within the resolved limit. Rootlet draws visible loose loot within 3.5 m after the encounter clears. |
+| Silken Mycelium, Matriarch Spindle | A direct hit links once to a visible nearby enemy with a 120 ms response interval and 140 ms delay. Matriarch additionally modifies native Bind target selection. |
+| Funeral Petal, Prismatic Gill, Chorus Node | Petal earns one charge from an eligible direct kill, caps at three and spends one on direct contact for one authored point. Gill redirects every third direct contact to another visible enemy after 240 ms. Chorus emits a pulse after four direct contacts to other visible enemies within 3.2 m. |
+| Cinder Antler, Congregation Pearl | The native Cinder field lasts 2.6 s with a 4 s response interval and carries no Mark. The native healing pool lasts 2.4 s with a 4.5 s response interval. The existing learned Oracle pool-Ward modifier can augment that pool. |
+| Orchard Heartwood | After 500 ms stationary, ordinary direct contact gains one authored damage point. Native Brace absorbs an incoming hit once per 4 s when available. This absorption has no Q/R Ward claim. |
+| Nameless Stigma | Installation refuses before material consumption or the success roll. Its Echo/Mark pair needs an explicit decision on sharing Mark ownership and consumption with native class Marks. |
+
+The host snapshots the graft identity, damage and attack at release. In-flight weapon hits retain their launch values after replacement. A replaced graft cannot accumulate new counters or create a new proc from an old shot. Already scheduled secondaries and fields keep the original owner and potency, with the existing target, visibility and floor checks. Counters reset on replacement, death and a new encounter. Return clears the expedition graft. Secondary damage uses native damage and reward handling with no new direct-hit trigger or card consumer.
+
+### CR05 verification
+
+Godot 4.7.2 ran 19 focused source suites against matching runtime, fixture and validation inputs, with all expected peer exits and no unexpected engine errors. Planner self-tests passed 55/55. Fixtures resolve 210 class-skill configurations and exercise actual focus casts, Ward consumption, delayed trap contact, permanent HP changes under Vitality and every enabled distinct graft mechanism. The guarded two-peer loop verifies guest learning and weapon selection, graft installation, repeated-request refusal, real combat and drops, Gate advance, extraction and rejoin. The guarded four-player loop verifies mixed classes and grafts with fifth-player refusal.
+
+| Evidence | Structured run ID |
+|---|---|
+| Guarded solo graft install, failure, replacement and attack provenance | `b51dcc13c1ad46808dbaea5cae17379d` |
+| Guarded two-peer graft, progression, expedition and rejoin | `d7bd38608a434cb291490004190cb557` |
+| Guarded four-player active Cinder, 20 scouts and overflow | `b683c8a723594675bf1ec657eda7074a` |
+| Missed intermediate Bark/HP state and current-state convergence | `268bc4ffa3cd4d85a40d133667abea17` |
+| Storm, Spirit and Void four-player transport regression | `06509b653d0b43828ce141307baddd0a` |
+| Stale sequence and reliable recovery codec | `e58dae69f9944aadac437a1a7bdfeeaf` |
+| Ruleset and definition mismatch refusal | `77cf58d1fa5145b3b4a9f9830a698e17`, `e91591cd1cdc4c01a1044d64689677d9` |
+| Existing integrated Garden/Wilds co-op | `196fa26a9ace423d9b706b0bacd49c56` |
+
+Local validation folders are `cr05-graft-coop-3` and `cr05-combined-final`. The sorted runtime evidence map hashes to `f0a50c19c59ac337ede4b30f8127d43fc2b42bd874f99bf7acb82a4b54112934`. The four-player graft run measured 1,196 application bytes at peak, 49.98 ms median sends, roughly 59 ms p95 intervals between guest-applied states and a 66.7 ms worst measured gap. These are local loopback measurements. Protocol 41 keeps its wire semantics and exchanges the updated affinity definition identity. Legacy mode remains the default and affinity-compatible cards remain empty.
