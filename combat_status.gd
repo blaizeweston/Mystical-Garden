@@ -1,7 +1,7 @@
 extends RefCounted
 # Host-derived presentation state. Never stored in character/Garden saves.
 const Warden = preload("res://warden_combat.gd")
-const LABELS={"spirit_stride":"Spiritstride","spirit_prepared":"Spirit follow-up prepared","spirit_ready":"Spirit follow-up ready","storm_charge":"Storm Charge","subclass_follow_ready":"Follow-up ready","warden_quake_ready":"Quake prepared","slow":"Slowed","guard":"Warded","counter":"Counter ready","prepared_mark":"Mark ready","grave":"Death charge","echo":"Echo charge","marked":"Marked","core_strike_mark":"Core Mark","crown_link":"Crownlink","brittle":"Brittle","burning":"Burning","bleeding":"Bleeding","thorn_slow":"Thorn growth","drenched":"Drenched","vitality":"Vitality","bark_armor":"Bark Armor","rooted":"Rooted","staggered":"Staggered","haste":"Hastened","bark_guard":"Bark Guard","sheltered":"Sheltered","trophy_carrier":"Carrying trophy","rallied":"Rallied","uprooting":"Uprooting","core_exposed":"Core exposed","nursery_lull":"Nursery lull","memory_exposed":"Memory exposed"}
+const LABELS={"spirit_stride":"Spiritstride","spirit_prepared":"Spirit follow-up prepared","spirit_ready":"Spirit follow-up ready","storm_charge":"Storm Charge","subclass_follow_ready":"Follow-up ready","warden_quake_ready":"Quake prepared","holdfast":"Holdfast","slow":"Slowed","guard":"Warded","counter":"Counter ready","prepared_mark":"Mark ready","grave":"Death charge","echo":"Echo charge","marked":"Marked","core_strike_mark":"Core Mark","crown_link":"Crownlink","brittle":"Brittle","burning":"Burning","bleeding":"Bleeding","thorn_slow":"Thorn growth","drenched":"Drenched","vitality":"Vitality","bark_armor":"Bark Armor","rooted":"Rooted","staggered":"Staggered","haste":"Hastened","bark_guard":"Bark Guard","sheltered":"Sheltered","trophy_carrier":"Carrying trophy","rallied":"Rallied","uprooting":"Uprooting","core_exposed":"Core exposed","nursery_lull":"Nursery lull","memory_exposed":"Memory exposed"}
 const REFRESH_IN_PLACE := ["spirit_stride","spirit_prepared","spirit_ready","storm_charge","grave","echo","sheltered","trophy_carrier","subclass_follow_ready","burning","drenched","vitality","bark_armor","bleeding","thorn_slow"]
 static func affinity_feedback(game: Node, player: Dictionary) -> String:
  var elapsed:=preload("res://affinity_time.gd").now(game)
@@ -45,6 +45,7 @@ static func sync(game: Node,now: int) -> void:
    if spirit.scale(player,elapsed)>1.0:
     add(desired,game,"spirit_stride",id,false,now+60000,1,now)
   if player.has("affinity_bark_grants"):add(desired,game,"bark_armor",id,false,now+60000,1,now)
+  add(desired,game,"holdfast",id,false,Warden.holdfast_until(game,player,now),1,now)
   for pair in [["slow","slow_until"],["guard","guard_until"],["counter","counter_until"],["prepared_mark","prepared_mark_until"]]:
    add(desired,game,pair[0],id,false,int(player.get(pair[1],0)),1,now)
   if int(player.get("frame",-1))==0:

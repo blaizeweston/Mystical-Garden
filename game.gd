@@ -666,6 +666,8 @@ func register_character(identity: String, profile: Dictionary,catalog: Dictionar
 		catalog.erase("guest_projection_receipts")
 	var reason:=admission_error(identity,catalog,protocol)
 	if var_to_bytes(profile).size()>32768: reason="This character profile is too large."
+	if reason.is_empty() and not Character.Experience.supported(profile):
+		reason="This character uses an unsupported Class XP format."
 	if reason.is_empty() and guarded != has_meta(Transactions.SESSION):
 		reason="The host and guest must use the same save mode."
 	if reason.is_empty() and guarded and not load("res://guest_profile_projection.gd").valid_receipts(receipts):
@@ -695,12 +697,11 @@ func register_character(identity: String, profile: Dictionary,catalog: Dictionar
 			reject_peer(id,result.notice if not result.notice.is_empty() else "The host could not save your admission to this Garden.")
 			return
 	elif recorded is Dictionary and recorded.get("profile") is Dictionary:
+		if not Character.Experience.supported(recorded.profile):
+			reject_peer(id,"The Garden's character record uses an unsupported Class XP format.")
+			return
 		var recovered: Dictionary=Character.normalize(progress.ContentIDs.profile(recorded.profile,recorded.get("manifest",progress.ContentIDs.legacy())))
-		for field in ["plants","monsters"]:
-			for i in incoming[field].size(): incoming[field][i]=maxi(int(incoming[field][i]),int(recovered[field][i]))
-		for c in incoming.xp.size():
-			var best:=maxi(int(incoming.xp[c])*10+int(incoming.xp_tenths[c]),int(recovered.xp[c])*10+int(recovered.xp_tenths[c]))
-			incoming.xp[c]=best/10;incoming.xp_tenths[c]=best%10
+		preload("res://guest_profile_projection.gd").merge_progress(incoming,recovered)
 	players[id].character = incoming
 	players[id].seed_owner = identity
 	players[id].profile_ready = true
@@ -1526,12 +1527,13 @@ func receive_character(profile: Dictionary) -> void:
 			return
 		save_guest_projection(profile,origin,descriptor)
 		return
-	if profile.has("projection"): return
+	if profile.has("projection") or not Character.Experience.supported(profile): return
 	guest_character.data = Character.normalize(profile)
 	character_dirty = true
 	save_local_character()
 
 func save_guest_projection(profile: Dictionary, origin: String, descriptor: Dictionary) -> bool:
+	if not Character.Experience.supported(profile): return false
 	var projection = load("res://guest_profile_projection.gd")
 	profile = Character.normalize(profile)
 	if origin!=get_meta(&"guest_projection_origin","") or not projection.valid_origin(origin) or not projection.valid_descriptor(descriptor,profile):
@@ -2665,7 +2667,7 @@ func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: 
 	if has_meta(&"combat_affinity_ruleset"):
 		hp = preload("res://water_combat.gd").direct_damage(self,hp)
 		if direct_attack:
-			hp = preload("res://warden_combat.gd").sanctuary_damage(self,player,hp,now)
+			hp = preload("res://warden_combat.gd").direct_damage(self,player,hp,now)
 		bark = wood.absorption_plan(player,hp,preload("res://affinity_time.gd").now(self))
 		hp -= int(bark.get("absorbed",0))
 	if has_meta(Transactions.SESSION):

@@ -5,6 +5,7 @@ const SaveBatch=preload("res://save_batch.gd")
 const ContentIDs=preload("res://content_ids.gd")
 var needs_content_backup:=false
 const Classes = preload("res://class_catalog.gd")
+const Experience = preload("res://class_experience.gd")
 const ConnectedWarden = preload("res://warden_connected_tree.gd")
 const Parts = preload("res://weapon_parts.gd")
 const Seeds = preload("res://seed_catalog.gd")
@@ -30,25 +31,22 @@ static func blank() -> Dictionary:
 	var monsters: Array=[]
 	monsters.resize(Parts.MONSTER_DEFINITIONS.size())
 	monsters.fill(0)
-	return {"name":"Wanderer","xp":xp,"xp_tenths":[0,0,0,0,0],"plants":Seeds.counts(),"monsters":monsters,"traits":traits,"appearance":preload("res://character_appearance.gd").DEFAULT.duplicate(),"upgrades":upgrades,"active_class":0,"loadouts":loadouts,"quarantine":{}}
+	return {"name":"Wanderer","xp":xp,Experience.VERSION_KEY:Experience.VERSION,"plants":Seeds.counts(),"monsters":monsters,"traits":traits,"appearance":preload("res://character_appearance.gd").DEFAULT.duplicate(),"upgrades":upgrades,"active_class":0,"loadouts":loadouts,"quarantine":{}}
 
 
 static func normalize(source: Dictionary) -> Dictionary:
 	var result := blank()
 	result.name=clean_name(str(source.get("name","Wanderer")))
 	result.quarantine=source.get("quarantine",{}).duplicate(true) if source.get("quarantine",{}) is Dictionary else {}
-	for field in ["xp","plants","monsters"]:
+	for c in result.xp.size():
+		result.xp[c] = Experience.value(source, c)
+	for field in ["plants","monsters"]:
 		var incoming = source.get(field)
 		if not incoming is Array:
 			continue
 		for i in mini(incoming.size(), result[field].size()):
 			if incoming[i] is int:
-				var maximum: int = [3, 2, 2, 2, 2][i] if field == "appearance" else 2 if field == "traits" else 9999
-				result[field][i] = clampi(incoming[i], 0, maximum)
-	var fractions=source.get("xp_tenths",[])
-	if fractions is Array:
-		for i in mini(fractions.size(),result.xp_tenths.size()):
-			if fractions[i] is int: result.xp_tenths[i]=clampi(fractions[i],0,9)
+				result[field][i] = clampi(incoming[i], 0, 9999)
 	result.appearance=preload("res://character_appearance.gd").normalize(source.get("appearance",[]))
 	# Retired affinity slots stay zero for compatibility with existing profiles.
 	result.traits.fill(0)
@@ -124,10 +122,12 @@ func _read_profile() -> Error:
 		var receipts: Variant = file.get_value("character", "projection_receipts", {})
 		if not load("res://guest_profile_projection.gd").valid_receipts(receipts):
 			return ERR_INVALID_DATA
+		var saved = file.get_value("character", "progress", {})
+		if saved is Dictionary and not Experience.supported(saved):
+			return ERR_INVALID_DATA
 		var saved_id = file.get_value("character", "identity", "")
 		if saved_id is String and valid_identity(saved_id):
 			identity = saved_id
-		var saved = file.get_value("character", "progress", {})
 		needs_content_backup=not file.has_section("content")
 		data = normalize(ContentIDs.profile(saved,file.get_value("content","manifest",ContentIDs.legacy()))) if saved is Dictionary else blank()
 		projection_receipts = receipts
@@ -175,6 +175,8 @@ func _serialize_save(stage := Callable()) -> Error:
 		var operations = load("res://persistence_operations.gd")
 		if not operations.authorizes_serializer(self, stage):
 			return SaveBatch.record_serializer_error(ERR_UNAUTHORIZED, path)
+	if not Experience.current(data):
+		return ERR_INVALID_DATA
 	if needs_content_backup and FileAccess.file_exists(path):
 		var copied := _migration_backup(path + ".pre-content-v2.bak", stage.is_valid())
 		if copied != OK:

@@ -3,6 +3,7 @@ const Seeds=preload("res://seed_catalog.gd")
 const Parts=preload("res://weapon_parts.gd")
 const Classes=preload("res://class_catalog.gd")
 const Enemies=preload("res://enemy_catalog.gd")
+const Experience=preload("res://class_experience.gd")
 const SCHEMA:=2
 static var manifest_cache: Dictionary={}
 static var legacy_cache: Dictionary={}
@@ -11,7 +12,7 @@ static func legacy() -> Dictionary:
  return legacy_cache.duplicate(true)
 static func manifest() -> Dictionary:
  if not manifest_cache.is_empty(): return manifest_cache.duplicate(true)
- var result: Dictionary={"version":SCHEMA,"levels":preload("res://game_balance.gd").levels(),"seeds":Seeds.DEFINITIONS.map(func(e):return str(e.id)),"parts":Parts.DEFINITIONS.map(func(e):return str(e.id)),"classes":Classes.DEFINITIONS.map(func(e):return str(e.id)),"enemies":Enemies.all().map(func(e):return str(e.id)),"weapons":{},"nodes":{}}
+ var result: Dictionary={"version":SCHEMA,Experience.VERSION_KEY:Experience.VERSION,"levels":preload("res://game_balance.gd").levels(),"seeds":Seeds.DEFINITIONS.map(func(e):return str(e.id)),"parts":Parts.DEFINITIONS.map(func(e):return str(e.id)),"classes":Classes.DEFINITIONS.map(func(e):return str(e.id)),"enemies":Enemies.all().map(func(e):return str(e.id)),"weapons":{},"nodes":{}}
  for index in Classes.DEFINITIONS.size():
   var c: Dictionary=Classes.DEFINITIONS[index]
   result.weapons[c.id]=c.weapons.map(func(e):return str(e.id))
@@ -104,8 +105,15 @@ static func profile(source: Dictionary,old) -> Dictionary:
  var current:=manifest();var result:=source.duplicate(true);var q: Dictionary=source.get("quarantine",{}).duplicate(true) if source.get("quarantine",{}) is Dictionary else {}
  if not valid_manifest(old): q["invalid_manifest"]=old;old=legacy()
  for pair in [["xp","classes"],["plants","seeds"],["monsters","enemies"]]: result[pair[0]]=shifted(source.get(pair[0],[]),old[pair[1]],current[pair[1]],0,q,pair[0])
- var old_levels: Array=old.get("levels",[0,3,7,12,20]);var new_levels: Array=current.levels
- if old_levels!=new_levels:
+ # Historical content curves are mapped in their original units before
+ # CharacterProfile converts the resulting whole and fractional balances.
+ var old_levels: Array=old.get("levels",[0,3,7,12,20])
+ if not source.has(Experience.VERSION_KEY) and source.has("xp_tenths"):
+  result.xp_tenths=shifted(source.xp_tenths,old.classes,current.classes,0,q,"xp_tenths")
+ var new_levels: Array=current.levels.map(func(points): return int(points) / Experience.LEGACY_SCALE)
+ if old.get(Experience.VERSION_KEY)==Experience.VERSION:
+  old_levels=old_levels.map(func(points): return int(points) / Experience.LEGACY_SCALE)
+ if not source.has(Experience.VERSION_KEY) and old_levels!=new_levels:
   for c in result.xp.size():
    var xp:=int(result.xp[c]);var rank:=0
    for i in range(1,old_levels.size()):

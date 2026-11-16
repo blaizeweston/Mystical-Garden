@@ -8,7 +8,7 @@ func run():
  game.progress.path="res://.godot/kill-rewards-"+token+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var p=game.players[1];game.add_player(2);var friend=game.players[2]
  friend.profile_ready=true;friend.seed_owner="e".repeat(32)
- for player in game.players.values():player.wild=true;player.pos=Vector3(0,0,4);player.character.xp.fill(0);player.character.xp_tenths.fill(0)
+ for player in game.players.values():player.wild=true;player.pos=Vector3(0,0,4);player.character.xp.fill(0)
  game.battlefield.configure(0,1);game.battlefield.barriers=[];game.enemy_hp=10;game.enemy_pos=Vector3(0,0,10)
  var config=game.Director.config();var saved=config.duplicate(true);config.trophy_chance=1.0;config.trophy_cap=1.0
  var scout=game.make_scout(10,Vector3(0,0,5),1);scout.hp=1;game.scouts.assign([scout])
@@ -17,7 +17,7 @@ func run():
  game.record_enemy_death(0,scout.pos,p.pos)
  check(game.pending_kill_rewards.size()==1,"duplicate death cannot reroll or duplicate rewards")
  check(game.MonsterRewards.flush(game),"individual rewards save before encounter clear")
- check(p.essence_sparks==1 and friend.essence_sparks==1 and p.character.xp_tenths[0]==1 and friend.character.xp_tenths[0]==1,"support and attacker get equal essence and class XP")
+ check(p.essence_sparks==1 and friend.essence_sparks==1 and p.character.xp[0]==1 and friend.character.xp[0]==1,"support and attacker get equal essence and class XP")
  var own=game.inventory_floor_snapshot(p);var other=game.inventory_floor_snapshot(friend)
  check(own.size()==1 and other.size()==1 and own[0].id!=other[0].id,"each player sees only their own kill drop")
  check(own[0].item==game.Items.part_id(game.Parts.monster_part(10)),"part belongs to actual killed species")
@@ -36,10 +36,23 @@ func run():
  game.progress.path=path;check(game.MonsterRewards.flush(game),"same reward can be retried without reroll")
  for i in 8:game.MonsterRewards.queue(game,"xp-fixture-"+str(i),0,0,p.pos,false)
  game.MonsterRewards.flush(game)
- check(p.character.xp[0]==1 and p.character.xp_tenths[0]==0,"ten tenths become one existing class XP unit")
+ check(p.character.xp[0]==10,"ten normal kills award ten whole Class XP")
  var profile=game.Character.new();profile.path=game.local_character.path;profile.load_profile()
- check(profile.data.xp[0]==1 and profile.data.xp_tenths[0]==0,"kill XP persists independently of extraction")
- game.award_combat_progress();check(p.character.xp[0]==1,"floor clear cannot duplicate kill XP")
+ check(profile.data.xp[0]==10 and game.Character.Experience.current(profile.data),"kill XP persists independently of extraction")
+ game.award_combat_progress();check(p.character.xp[0]==10,"floor clear cannot duplicate kill XP")
+ p.frame=2
+ game.MonsterRewards.queue(game,"leader-xp",0,0,p.pos,true)
+ var boss: int=game.Enemies.all().map(func(enemy):return enemy.id).find("orchard")
+ game.MonsterRewards.queue(game,"boss-xp",boss,0,p.pos,true)
+ check(game.pending_kill_rewards[0].rewards[0].xp==3 and game.pending_kill_rewards[1].rewards[0].xp==24,
+  "ordinary and boss leaders queue 3 and 24 whole XP")
+ check(game.MonsterRewards.flush(game) and p.character.xp[2]==27 and friend.character.xp[0]==37,
+  "authoritative settlement awards each participant's selected class once")
+ check("+27 class XP" in game.status,"reward feedback displays whole XP")
+ p.character.xp[2]=game.Character.Experience.MAX_XP-1
+ game.MonsterRewards.queue(game,"xp-ceiling",0,0,p.pos,true)
+ check(game.MonsterRewards.flush(game) and p.character.xp[2]==game.Character.Experience.MAX_XP,
+  "reward cap admits the full previous maximum and fractional remainder")
  config.clear();config.merge(saved,true)
  var rolls=0;game.rng.seed=1271
  for i in 4000:rolls+=int(not game.roll_kill_trophy(12).is_empty())

@@ -151,6 +151,8 @@
     "classes": {
       "label": "Class levels, choices and abilities",
       "files": [
+        "class_experience.gd",
+        "class_experience.gd.uid",
         "class_catalog.gd",
         "skill_catalog.gd",
         "combat_traits.gd"
@@ -5349,6 +5351,22 @@
     ]
   ],
   "game_regions": {
+    "save_guest_projection": {
+      "ct01_whole_xp_0": {
+        "match": "func save_guest_projection(profile: Dictionary, origin: String, descriptor: Dictionary) -> bool:\n\tif not Character.Experience.supported(profile): return false\n\tvar projection = load(\"res://guest_profile_projection.gd\")\n",
+        "baseline": "func save_guest_projection(profile: Dictionary, origin: String, descriptor: Dictionary) -> bool:\n\tvar projection = load(\"res://guest_profile_projection.gd\")\n",
+        "systems": ["classes", "connection_flow", "characters", "persistence_operations"],
+        "additive": true
+      }
+    },
+    "receive_character": {
+      "ct01_whole_xp_0": {
+        "match": "\t\treturn\n\tif profile.has(\"projection\") or not Character.Experience.supported(profile): return\n\tguest_character.data = Character.normalize(profile)\n",
+        "baseline": "\t\treturn\n\tif profile.has(\"projection\"): return\n\tguest_character.data = Character.normalize(profile)\n",
+        "systems": ["classes", "connection_flow", "characters", "persistence_operations"],
+        "additive": true
+      }
+    },
     "graft_block_reason": {
       "cr05_grafts_0": {
         "match": "\tif not Parts.is_monster(part): return \"Select a carried monster part.\"\n\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\tvar graft := preload(\"res://native_grafts.gd\").resolve(part)\n\t\tif not graft.refusal.is_empty(): return graft.refusal\n\tif int(player.get(\"carried_parts\",Parts.empty_counts())[part])<=0: return \"No carried component of this type remains.\"\n",
@@ -6612,6 +6630,18 @@
       }
     },
     "register_character": {
+      "ct01_whole_xp_0": {
+        "match": "\tif var_to_bytes(profile).size()>32768: reason=\"This character profile is too large.\"\n\tif reason.is_empty() and not Character.Experience.supported(profile):\n\t\treason=\"This character uses an unsupported Class XP format.\"\n\tif reason.is_empty() and guarded != has_meta(Transactions.SESSION):\n",
+        "baseline": "\tif var_to_bytes(profile).size()>32768: reason=\"This character profile is too large.\"\n\tif reason.is_empty() and guarded != has_meta(Transactions.SESSION):\n",
+        "systems": ["classes", "connection_flow", "characters", "persistence_operations"],
+        "additive": true
+      },
+      "ct01_whole_xp_1": {
+        "match": "\telif recorded is Dictionary and recorded.get(\"profile\") is Dictionary:\n\t\tif not Character.Experience.supported(recorded.profile):\n\t\t\treject_peer(id,\"The Garden's character record uses an unsupported Class XP format.\")\n\t\t\treturn\n\t\tvar recovered: Dictionary=Character.normalize(progress.ContentIDs.profile(recorded.profile,recorded.get(\"manifest\",progress.ContentIDs.legacy())))\n\t\tpreload(\"res://guest_profile_projection.gd\").merge_progress(incoming,recovered)\n\tplayers[id].character = incoming\n",
+        "baseline": "\telif recorded is Dictionary and recorded.get(\"profile\") is Dictionary:\n\t\tvar recovered: Dictionary=Character.normalize(progress.ContentIDs.profile(recorded.profile,recorded.get(\"manifest\",progress.ContentIDs.legacy())))\n\t\tfor field in [\"plants\",\"monsters\"]:\n\t\t\tfor i in incoming[field].size(): incoming[field][i]=maxi(int(incoming[field][i]),int(recovered[field][i]))\n\t\tfor c in incoming.xp.size():\n\t\t\tvar best:=maxi(int(incoming.xp[c])*10+int(incoming.xp_tenths[c]),int(recovered.xp[c])*10+int(recovered.xp_tenths[c]))\n\t\t\tincoming.xp[c]=best/10;incoming.xp_tenths[c]=best%10\n\tplayers[id].character = incoming\n",
+        "systems": ["classes", "connection_flow", "characters", "persistence_operations"],
+        "additive": true
+      },
       "guest_projection": {
         "match": "\tvar id := multiplayer.get_remote_sender_id()\n\tif not multiplayer.is_server() or not players.has(id) or players[id].profile_ready:\n\t\treturn\n\tif not Transactions.session_writable(self):\n\t\treject_peer(id, Transactions.feedback_text(self,\"The host's Garden is unavailable.\"))\n\t\treturn\n\tif has_meta(Transactions.SESSION) and not get_meta(Transactions.SESSION).authorizes(progress.path):\n\t\treject_peer(id,\"The host does not own the selected Garden.\")\n\t\treturn\n\tvar guarded := catalog.has(\"guest_projection_receipts\")\n\tvar receipts: Variant = catalog.get(\"guest_projection_receipts\",{})\n\tif guarded:\n\t\tcatalog = catalog.duplicate()\n\t\tcatalog.erase(\"guest_projection_receipts\")\n\tvar reason:=admission_error(identity,catalog,protocol)\n\tif var_to_bytes(profile).size()>32768: reason=\"This character profile is too large.\"\n\tif reason.is_empty() and guarded != has_meta(Transactions.SESSION):\n\t\treason=\"The host and guest must use the same save mode.\"\n\tif reason.is_empty() and guarded and not load(\"res://guest_profile_projection.gd\").valid_receipts(receipts):\n\t\treason=\"Invalid guest profile receipts.\"\n\tif reason.is_empty() and not guarded and not progress.projection_origin.is_empty():\n\t\treason=\"This Garden requires guarded profile saves.\"\n\tif not reason.is_empty(): reject_peer(id,reason);return\n\tvar incoming: Dictionary=Character.normalize(profile)\n\tvar recorded=progress.character_records.get(identity,{})\n\tvar admission := {}\n\tif guarded:\n\t\tvar projection = load(\"res://guest_profile_projection.gd\")\n\t\tvar origin: String = progress.projection_origin\n\t\tif origin.is_empty(): origin = Crypto.new().generate_random_bytes(16).hex_encode()\n\t\tadmission = projection.admit(origin, incoming, receipts, recorded)\n\t\tif admission.is_empty():\n\t\t\treject_peer(id,\"The saved guest projection conflicts with this character. Review the saves before joining.\")\n\t\t\treturn\n\t\tincoming = admission.profile\n\t\tvar result := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func():\n\t\t\tif not preload(\"res://garden_growth_service.gd\").register_receipt(self,identity):\n\t\t\t\treturn false\n\t\t\tprogress.projection_origin = origin\n\t\t\tprogress.character_records[identity] = {\"profile\":incoming.duplicate(true),\"manifest\":progress.ContentIDs.manifest(),\"projection\":admission.projection}\n\t\t\treturn true)\n\t\tif not result.completed or result.value != true or not Transactions.session_writable(self):\n\t\t\treject_peer(id,result.notice if not result.notice.is_empty() else \"The host could not save your admission to this Garden.\")\n\t\t\treturn\n\telif recorded is Dictionary and recorded.get(\"profile\") is Dictionary:\n\t\tvar recovered: Dictionary=Character.normalize(progress.ContentIDs.profile(recorded.profile,recorded.get(\"manifest\",progress.ContentIDs.legacy())))\n\t\tfor field in [\"plants\",\"monsters\"]:\n\t\t\tfor i in incoming[field].size(): incoming[field][i]=maxi(int(incoming[field][i]),int(recovered[field][i]))\n\t\tfor c in incoming.xp.size():\n\t\t\tvar best:=maxi(int(incoming.xp[c])*10+int(incoming.xp_tenths[c]),int(recovered.xp[c])*10+int(recovered.xp_tenths[c]))\n\t\t\tincoming.xp[c]=best/10;incoming.xp_tenths[c]=best%10\n\tplayers[id].character = incoming\n\tplayers[id].seed_owner = identity\n\tplayers[id].profile_ready = true\n\tPartyTravel.cancel(self,\"Party changed. Confirm readiness again.\")\n\trestore_class_loadout(players[id])\n\tif not has_meta(Transactions.SESSION): preload(\"res://garden_growth_service.gd\").register(self,id)\n\tJournal.event(\"network\",\"character_registered\",{\"actor\":id,\"class_id\":incoming.get(\"active_class\",0)})\n\tif guarded:\n\t\tplayers[id].projection_base = admission.base\n\t\tplayers[id].projection_delivery = {\"revision\":admission.projection.revision,\"state\":\"pending\",\"feedback\":[]}\n\tconnection_accepted.rpc_id(id,{\"profile\":incoming,\"origin\":progress.projection_origin,\"projection\":admission.projection} if guarded else incoming)\n\n\n",
         "baseline": "\tvar id := multiplayer.get_remote_sender_id()\n\tif not multiplayer.is_server() or not players.has(id) or players[id].profile_ready:\n\t\treturn\n\tif not Transactions.session_writable(self):\n\t\treject_peer(id, Transactions.feedback_text(self,\"The host's Garden is unavailable.\"))\n\t\treturn\n\tif has_meta(Transactions.SESSION) and not get_meta(Transactions.SESSION).authorizes(progress.path):\n\t\treject_peer(id,\"The host does not own the selected Garden.\")\n\t\treturn\n\tvar reason:=admission_error(identity,catalog,protocol)\n\tif var_to_bytes(profile).size()>32768: reason=\"This character profile is too large.\"\n\tif not reason.is_empty(): reject_peer(id,reason);return\n\tvar incoming: Dictionary=Character.normalize(profile)\n\tvar recorded=progress.character_records.get(identity,{})\n\tif recorded is Dictionary and recorded.get(\"profile\") is Dictionary:\n\t\tvar recovered: Dictionary=Character.normalize(progress.ContentIDs.profile(recorded.profile,recorded.get(\"manifest\",progress.ContentIDs.legacy())))\n\t\tfor field in [\"plants\",\"monsters\"]:\n\t\t\tfor i in incoming[field].size(): incoming[field][i]=maxi(int(incoming[field][i]),int(recovered[field][i]))\n\t\tfor c in incoming.xp.size():\n\t\t\tvar best:=maxi(int(incoming.xp[c])*10+int(incoming.xp_tenths[c]),int(recovered.xp[c])*10+int(recovered.xp_tenths[c]))\n\t\t\tincoming.xp[c]=best/10;incoming.xp_tenths[c]=best%10\n\tif has_meta(Transactions.SESSION):\n\t\tvar result := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func():\n\t\t\treturn preload(\"res://garden_growth_service.gd\").register_receipt(self,identity))\n\t\tif not result.completed or result.value != true or not Transactions.session_writable(self):\n\t\t\treject_peer(id,result.notice if not result.notice.is_empty() else \"The host could not save your admission to this Garden.\")\n\t\t\treturn\n\tplayers[id].character = incoming\n\tplayers[id].seed_owner = identity\n\tplayers[id].profile_ready = true\n\tPartyTravel.cancel(self,\"Party changed. Confirm readiness again.\")\n\trestore_class_loadout(players[id])\n\tif not has_meta(Transactions.SESSION): preload(\"res://garden_growth_service.gd\").register(self,id)\n\tJournal.event(\"network\",\"character_registered\",{\"actor\":id,\"class_id\":incoming.get(\"active_class\",0)})\n\tconnection_accepted.rpc_id(id,incoming)\n\n\n",
@@ -8898,6 +8928,12 @@
       }
     },
     "apply_enemy_hit": {
+      "ct01_holdfast_0": {
+        "match": "\t\tif direct_attack:\n\t\t\thp = preload(\"res://warden_combat.gd\").direct_damage(self,player,hp,now)\n\t\tbark = wood.absorption_plan(player,hp,preload(\"res://affinity_time.gd\").now(self))\n",
+        "baseline": "\t\tif direct_attack:\n\t\t\thp = preload(\"res://warden_combat.gd\").sanctuary_damage(self,player,hp,now)\n\t\tbark = wood.absorption_plan(player,hp,preload(\"res://affinity_time.gd\").now(self))\n",
+        "systems": ["warden_progression", "combat", "life"],
+        "additive": true
+      },
       "ct01_0": {
         "match": "func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: int=0,origin: Vector3=Vector3.INF,direct_attack := true) -> void:\n\tif not Life.alive(player) or not Transactions.session_writable(self): return\n",
         "baseline": "func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: int=0,origin: Vector3=Vector3.INF) -> void:\n\tif not Life.alive(player) or not Transactions.session_writable(self): return\n",
@@ -10106,6 +10142,26 @@
     "warden_combat.gd": {
       "newline": "lf",
       "regions": {
+        "ct01_holdfast_1": {
+          "match": "const Feedback = preload(\"res://enemy_move_feedback.gd\")\nconst Journal = preload(\"res://diagnostic_journal.gd\")\nconst BARK := Color(\"#abc989\")\n",
+          "baseline": "const Feedback = preload(\"res://enemy_move_feedback.gd\")\nconst BARK := Color(\"#abc989\")\n",
+          "systems": ["warden_progression", "combat", "life"]
+        },
+        "ct01_holdfast_2": {
+          "match": "\tstate.protection_used = true\n\tif not state.get(\"holdfast_granted\",false) and learned(player,\"holdfast\"):\n\t\tstate.holdfast_granted = true\n\t\tgrant_holdfast(game,player,event,now)\n\t# Ally blocks can grant Holdfast from this Q. The other native follow-ups still use the Warden's own block.\n\tif recipient != event.actor or state.blocked:\n",
+          "baseline": "\tstate.protection_used = true\n\t# A Bastion ally can spend this Q's protection without triggering the Warden's own follow-ups.\n\tif recipient != event.actor or state.blocked:\n",
+          "systems": ["warden_progression", "combat", "life"]
+        },
+        "ct01_holdfast_3": {
+          "match": "\nstatic func grant_holdfast(game: Node, warden: Dictionary, event: RefCounted, now: int) -> void:\n\tvar until := now + Connected.HOLDFAST_MS\n\tvar recipients: Array[int] = []\n\tfor id in game.players:\n\t\tvar ally: Dictionary = game.players[id]\n\t\tif not is_same(ally,warden) and not in_circle(game,ally,warden.pos,Connected.HOLDFAST_RADIUS):\n\t\t\tcontinue\n\t\tif holdfast_until(game,ally,now) >= until:\n\t\t\tcontinue\n\t\tally.warden_holdfast = {\"actor\":event.actor, \"activation\":event.identity, \"until\":until,\n\t\t\t\"epoch\":game.combat_epoch, \"life\":int(ally.get(\"lost_health\",0))}\n\t\trecipients.append(id)\n\tif not recipients.is_empty():\n\t\tJournal.event(\"combat\",\"holdfast_granted\",{\"actor\":event.actor,\"activation\":event.identity,\n\t\t\t\"epoch\":game.combat_epoch,\"recipients\":recipients,\"duration_ms\":Connected.HOLDFAST_MS})\n\n\nstatic func holdfast_until(game: Node, player: Dictionary, now: int) -> int:\n\tvar grant: Dictionary = player.get(\"warden_holdfast\",{})\n\tvar until := int(grant.get(\"until\",0))\n\treturn until if until > now and live_state(game,player,grant) else 0\n\n\nstatic func direct_damage(game: Node, player: Dictionary, hp: int, now: int) -> int:\n\tif hp <= 0:\n\t\treturn hp\n\tvar reduction := Connected.HOLDFAST_REDUCTION if holdfast_until(game,player,now)>0 else 0.0\n\tfor owner in game.players.values():\n",
+          "baseline": "\nstatic func sanctuary_damage(game: Node, player: Dictionary, hp: int, now: int) -> int:\n\tfor owner in game.players.values():\n",
+          "systems": ["warden_progression", "combat", "life"]
+        },
+        "ct01_holdfast_4": {
+          "match": "\t\tif int(state.get(\"until\",0)) > now and live_state(game,owner,state) and in_circle(game,player,state.point,Connected.SANCTUARY_RADIUS):\n\t\t\treduction = maxf(reduction,Connected.SANCTUARY_REDUCTION)\n\t\t\tbreak\n\treturn maxi(1,roundi(float(hp)*(1.0-reduction)))\n\n",
+          "baseline": "\t\tif int(state.get(\"until\",0)) > now and live_state(game,owner,state) and in_circle(game,player,state.point,Connected.SANCTUARY_RADIUS):\n\t\t\treturn maxi(1,roundi(float(hp)*(1.0-Connected.SANCTUARY_REDUCTION))) if hp > 0 else 0\n\treturn hp\n\n",
+          "systems": ["warden_progression", "combat", "life"]
+        },
         "ct01_1": {
           "match": "const Progression = preload(\"res://warden_tree.gd\")\nconst Connected = Progression.Connected\nconst Feedback = preload(\"res://enemy_move_feedback.gd\")\n",
           "baseline": "const Progression = preload(\"res://warden_tree.gd\")\nconst Feedback = preload(\"res://enemy_move_feedback.gd\")\n",
@@ -10781,6 +10837,11 @@
     "content_validator.gd": {
       "newline": "crlf",
       "regions": {
+        "ct01_whole_xp_1": {
+          "match": " var combat=preload(\"res://game_balance.gd\").values.get(\"combat\",{})\n for field in [\"base_scouts\",\"coop_extra_scouts\",\"floors_per_extra_scout\",\"leader_base_hp\",\"floors_per_leader_hp\",\"scout_base_hp\",\"floors_per_scout_hp\",\"coop_hp_multiplier\",\"coop_hp_per_floor\",\"coop_hp_depth_cap\",\"aggro_radius\",\"group_alert_radius\",\"spawn_entry_clearance\",\"speed_multiplier\",\"speed_per_floor\",\"speed_cap\",\"minimum_windup_ms\",\"trophy_chance\",\"trophy_depth_step\",\"trophy_depth_cap\",\"trophy_guardian_bonus\",\"trophy_adapted_bonus\",\"trophy_cap\",\"hit_grace_ms\",\"kill_essence_sparks\",\"leader_essence_sparks\",\"essence_sparks_per_point\",\"kill_class_xp\",\"leader_class_xp\"]:\n  if not (combat.get(field) is int or combat.get(field) is float): errors.append(\"Missing/nonnumeric combat balance field \"+field)\n",
+          "baseline": " var combat=preload(\"res://game_balance.gd\").values.get(\"combat\",{})\n for field in [\"base_scouts\",\"coop_extra_scouts\",\"floors_per_extra_scout\",\"leader_base_hp\",\"floors_per_leader_hp\",\"scout_base_hp\",\"floors_per_scout_hp\",\"coop_hp_multiplier\",\"coop_hp_per_floor\",\"coop_hp_depth_cap\",\"aggro_radius\",\"group_alert_radius\",\"spawn_entry_clearance\",\"speed_multiplier\",\"speed_per_floor\",\"speed_cap\",\"minimum_windup_ms\",\"trophy_chance\",\"trophy_depth_step\",\"trophy_depth_cap\",\"trophy_guardian_bonus\",\"trophy_adapted_bonus\",\"trophy_cap\",\"hit_grace_ms\",\"kill_essence_sparks\",\"leader_essence_sparks\",\"essence_sparks_per_point\",\"kill_xp_tenths\",\"leader_xp_tenths\"]:\n  if not (combat.get(field) is int or combat.get(field) is float): errors.append(\"Missing/nonnumeric combat balance field \"+field)\n",
+          "systems": ["classes", "characters", "loot", "persistence_operations"]
+        },
         "plant_affinity_validation": {
           "match": " errors.append_array(preload(\"res://plant_affinities.gd\").errors())\n",
           "baseline": "",
@@ -13803,6 +13864,21 @@
     "progression_panel.gd": {
       "newline": "crlf",
       "regions": {
+        "ct01_whole_xp_1": {
+          "match": "\t\t\t\tavailable = level-connected.path(data).size()\n\t\t\t\tnotice.text=\"Warden level %d / 6 \u00b7 %d XP \u00b7 %d available\"%[level,data.xp[0],available]\n\t\t\telse:\n",
+          "baseline": "\t\t\t\tavailable = level-connected.path(data).size()\n\t\t\t\tnotice.text=\"Warden level %d / 6 \u00b7 %d available \u00b7 Provisional affinity progression\"%[level,available]\n\t\t\telse:\n",
+          "systems": ["classes", "progression", "warden_progression"]
+        },
+        "ct01_whole_xp_2": {
+          "match": "\tvar base: String=\"class_%d_base\"%c\n\tvar result: Array=[{\"id\":base,\"label\":definition.name,\"parents\":[],\"position\":Vector2(350,base_y),\"unlocked\":true,\"color\":\"#c4be83\",\"detail\":\"%s \u00b7 Lv %d\\n%s\\n\\nXP: %d \u00b7 Available points: %d\\n\\nOne choice per row. Learn at the Heart or Wilds Gate between expeditions. Refunds are free at the Heart.\"%[definition.name,level,definition.description,int(data.xp[c]),points],\"summary\":definition.name+\"\\n\"+definition.description}]\n\tfor i in definition.nodes.size():\n",
+          "baseline": "\tvar base: String=\"class_%d_base\"%c\n\tvar result: Array=[{\"id\":base,\"label\":definition.name,\"parents\":[],\"position\":Vector2(350,base_y),\"unlocked\":true,\"color\":\"#c4be83\",\"detail\":\"%s \u00b7 Lv %d\\n%s\\n\\nXP: %.1f \u00b7 Available points: %d\\n\\nOne choice per row. Learn at the Heart or Wilds Gate between expeditions. Refunds are free at the Heart.\"%[definition.name,level,definition.description,float(data.xp[c])+int(data.get(\"xp_tenths\",[0,0,0,0,0])[c])/10.0,points],\"summary\":definition.name+\"\\n\"+definition.description}]\n\tfor i in definition.nodes.size():\n",
+          "systems": ["classes", "progression", "warden_progression"]
+        },
+        "ct01_whole_xp_3": {
+          "match": "\t\tvar detail: String=summary+\"\\n\\nLevel %d \u00b7 %s\"%[node.level,\"Learned\" if learned else \"Available\" if ready else \"Locked\"]\n\t\tif use_connected and not ready and not learned:\n\t\t\tdetail += \"\\n\" + reason\n",
+          "baseline": "\t\tvar detail: String=summary+\"\\n\\nLevel %d \u00b7 %s\"%[node.level,\"Learned\" if learned else \"Available\" if ready else \"Locked\"]\n\t\tif use_connected and not ready and not learned and reason != node.description:\n\t\t\tdetail += \"\\n\" + reason\n",
+          "systems": ["classes", "progression", "warden_progression"]
+        },
         "ct01_1": {
           "match": "\t\t\tvar n:=int(pieces[2])\n\t\t\tvar connected = game.Classes.Warden.Connected\n\t\t\tif connected.in_world(game,c,data):\n\t\t\t\tcan_learn = connected.refusal(data,n).is_empty()\n\t\t\telse:\n\t\t\t\tcan_learn=game.Classes.can_learn(data,c,n,Character.level(int(data.xp[c])))\n\tlearn_button.disabled=not can_learn\n",
           "baseline": "\t\t\tvar n:=int(pieces[2])\n\t\t\tcan_learn=game.Classes.can_learn(data,c,n,Character.level(int(data.xp[c])))\n\tlearn_button.disabled=not can_learn\n",
@@ -16191,6 +16267,16 @@
     "combat_status.gd": {
       "newline": "crlf",
       "regions": {
+        "ct01_holdfast_1": {
+          "match": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"spirit_stride\":\"Spiritstride\",\"spirit_prepared\":\"Spirit follow-up prepared\",\"spirit_ready\":\"Spirit follow-up ready\",\"storm_charge\":\"Storm Charge\",\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"holdfast\":\"Holdfast\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"spirit_stride\",\"spirit_prepared\",\"spirit_ready\",\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\n",
+          "baseline": "const Warden = preload(\"res://warden_combat.gd\")\nconst LABELS={\"spirit_stride\":\"Spiritstride\",\"spirit_prepared\":\"Spirit follow-up prepared\",\"spirit_ready\":\"Spirit follow-up ready\",\"storm_charge\":\"Storm Charge\",\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"spirit_stride\",\"spirit_prepared\",\"spirit_ready\",\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\n",
+          "systems": ["warden_progression", "combat", "life"]
+        },
+        "ct01_holdfast_2": {
+          "match": "  if player.has(\"affinity_bark_grants\"):add(desired,game,\"bark_armor\",id,false,now+60000,1,now)\n  add(desired,game,\"holdfast\",id,false,Warden.holdfast_until(game,player,now),1,now)\n  for pair in [[\"slow\",\"slow_until\"],[\"guard\",\"guard_until\"],[\"counter\",\"counter_until\"],[\"prepared_mark\",\"prepared_mark_until\"]]:\n",
+          "baseline": "  if player.has(\"affinity_bark_grants\"):add(desired,game,\"bark_armor\",id,false,now+60000,1,now)\n  for pair in [[\"slow\",\"slow_until\"],[\"guard\",\"guard_until\"],[\"counter\",\"counter_until\"],[\"prepared_mark\",\"prepared_mark_until\"]]:\n",
+          "systems": ["warden_progression", "combat", "life"]
+        },
         "cr05_grafts_1": {
           "match": "  for pair in [[\"grave\",\"grave_charges\"],[\"echo\",\"echo_charge\"]]:\n   var graft_state: Dictionary = player.get(\"native_graft_state\", {})\n   var charges := int(player.get(pair[1],0)) + int(graft_state.get(pair[1],0))\n   add(desired,game,pair[0],id,false,now+60000,charges,now)\n for target in range(-1,game.scouts.size()):\n",
           "baseline": "  for pair in [[\"grave\",\"grave_charges\"],[\"echo\",\"echo_charge\"]]:\n   add(desired,game,pair[0],id,false,now+60000,int(player.get(pair[1],0)),now)\n for target in range(-1,game.scouts.size()):\n",
@@ -18426,6 +18512,41 @@
     "character_profile.gd": {
       "newline": "crlf",
       "regions": {
+        "ct01_whole_xp_1": {
+          "match": "const Classes = preload(\"res://class_catalog.gd\")\nconst Experience = preload(\"res://class_experience.gd\")\nconst ConnectedWarden = preload(\"res://warden_connected_tree.gd\")\n",
+          "baseline": "const Classes = preload(\"res://class_catalog.gd\")\nconst ConnectedWarden = preload(\"res://warden_connected_tree.gd\")\n",
+          "systems": ["classes", "characters", "loot", "persistence_operations"]
+        },
+        "ct01_whole_xp_2": {
+          "match": "\tmonsters.fill(0)\n\treturn {\"name\":\"Wanderer\",\"xp\":xp,Experience.VERSION_KEY:Experience.VERSION,\"plants\":Seeds.counts(),\"monsters\":monsters,\"traits\":traits,\"appearance\":preload(\"res://character_appearance.gd\").DEFAULT.duplicate(),\"upgrades\":upgrades,\"active_class\":0,\"loadouts\":loadouts,\"quarantine\":{}}\n\n",
+          "baseline": "\tmonsters.fill(0)\n\treturn {\"name\":\"Wanderer\",\"xp\":xp,\"xp_tenths\":[0,0,0,0,0],\"plants\":Seeds.counts(),\"monsters\":monsters,\"traits\":traits,\"appearance\":preload(\"res://character_appearance.gd\").DEFAULT.duplicate(),\"upgrades\":upgrades,\"active_class\":0,\"loadouts\":loadouts,\"quarantine\":{}}\n\n",
+          "systems": ["classes", "characters", "loot", "persistence_operations"]
+        },
+        "ct01_whole_xp_3": {
+          "match": "\tresult.quarantine=source.get(\"quarantine\",{}).duplicate(true) if source.get(\"quarantine\",{}) is Dictionary else {}\n\tfor c in result.xp.size():\n\t\tresult.xp[c] = Experience.value(source, c)\n\tfor field in [\"plants\",\"monsters\"]:\n\t\tvar incoming = source.get(field)\n",
+          "baseline": "\tresult.quarantine=source.get(\"quarantine\",{}).duplicate(true) if source.get(\"quarantine\",{}) is Dictionary else {}\n\tfor field in [\"xp\",\"plants\",\"monsters\"]:\n\t\tvar incoming = source.get(field)\n",
+          "systems": ["classes", "characters", "loot", "persistence_operations"]
+        },
+        "ct01_whole_xp_4": {
+          "match": "\t\t\tif incoming[i] is int:\n\t\t\t\tresult[field][i] = clampi(incoming[i], 0, 9999)\n\tresult.appearance=preload(\"res://character_appearance.gd\").normalize(source.get(\"appearance\",[]))\n",
+          "baseline": "\t\t\tif incoming[i] is int:\n\t\t\t\tvar maximum: int = [3, 2, 2, 2, 2][i] if field == \"appearance\" else 2 if field == \"traits\" else 9999\n\t\t\t\tresult[field][i] = clampi(incoming[i], 0, maximum)\n\tvar fractions=source.get(\"xp_tenths\",[])\n\tif fractions is Array:\n\t\tfor i in mini(fractions.size(),result.xp_tenths.size()):\n\t\t\tif fractions[i] is int: result.xp_tenths[i]=clampi(fractions[i],0,9)\n\tresult.appearance=preload(\"res://character_appearance.gd\").normalize(source.get(\"appearance\",[]))\n",
+          "systems": ["classes", "characters", "loot", "persistence_operations"]
+        },
+        "ct01_whole_xp_5": {
+          "match": "\t\t\treturn ERR_INVALID_DATA\n\t\tvar saved = file.get_value(\"character\", \"progress\", {})\n\t\tif saved is Dictionary and not Experience.supported(saved):\n\t\t\treturn ERR_INVALID_DATA\n\t\tvar saved_id = file.get_value(\"character\", \"identity\", \"\")\n",
+          "baseline": "\t\t\treturn ERR_INVALID_DATA\n\t\tvar saved_id = file.get_value(\"character\", \"identity\", \"\")\n",
+          "systems": ["classes", "characters", "loot", "persistence_operations"]
+        },
+        "ct01_whole_xp_6": {
+          "match": "\t\t\tidentity = saved_id\n\t\tneeds_content_backup=not file.has_section(\"content\")\n",
+          "baseline": "\t\t\tidentity = saved_id\n\t\tvar saved = file.get_value(\"character\", \"progress\", {})\n\t\tneeds_content_backup=not file.has_section(\"content\")\n",
+          "systems": ["classes", "characters", "loot", "persistence_operations"]
+        },
+        "ct01_whole_xp_7": {
+          "match": "\t\t\treturn SaveBatch.record_serializer_error(ERR_UNAUTHORIZED, path)\n\tif not Experience.current(data):\n\t\treturn ERR_INVALID_DATA\n\tif needs_content_backup and FileAccess.file_exists(path):\n",
+          "baseline": "\t\t\treturn SaveBatch.record_serializer_error(ERR_UNAUTHORIZED, path)\n\tif needs_content_backup and FileAccess.file_exists(path):\n",
+          "systems": ["classes", "characters", "loot", "persistence_operations"]
+        },
         "ct01_1": {
           "match": "const Classes = preload(\"res://class_catalog.gd\")\nconst ConnectedWarden = preload(\"res://warden_connected_tree.gd\")\nconst Parts = preload(\"res://weapon_parts.gd\")\n",
           "baseline": "const Classes = preload(\"res://class_catalog.gd\")\nconst Parts = preload(\"res://weapon_parts.gd\")\n",
@@ -18464,6 +18585,21 @@
     "content_ids.gd": {
       "newline": "crlf",
       "regions": {
+        "ct01_whole_xp_1": {
+          "match": "const Enemies=preload(\"res://enemy_catalog.gd\")\nconst Experience=preload(\"res://class_experience.gd\")\nconst SCHEMA:=2\n",
+          "baseline": "const Enemies=preload(\"res://enemy_catalog.gd\")\nconst SCHEMA:=2\n",
+          "systems": ["classes", "characters", "loot", "persistence_operations"]
+        },
+        "ct01_whole_xp_2": {
+          "match": " if not manifest_cache.is_empty(): return manifest_cache.duplicate(true)\n var result: Dictionary={\"version\":SCHEMA,Experience.VERSION_KEY:Experience.VERSION,\"levels\":preload(\"res://game_balance.gd\").levels(),\"seeds\":Seeds.DEFINITIONS.map(func(e):return str(e.id)),\"parts\":Parts.DEFINITIONS.map(func(e):return str(e.id)),\"classes\":Classes.DEFINITIONS.map(func(e):return str(e.id)),\"enemies\":Enemies.all().map(func(e):return str(e.id)),\"weapons\":{},\"nodes\":{}}\n for index in Classes.DEFINITIONS.size():\n",
+          "baseline": " if not manifest_cache.is_empty(): return manifest_cache.duplicate(true)\n var result: Dictionary={\"version\":SCHEMA,\"levels\":preload(\"res://game_balance.gd\").levels(),\"seeds\":Seeds.DEFINITIONS.map(func(e):return str(e.id)),\"parts\":Parts.DEFINITIONS.map(func(e):return str(e.id)),\"classes\":Classes.DEFINITIONS.map(func(e):return str(e.id)),\"enemies\":Enemies.all().map(func(e):return str(e.id)),\"weapons\":{},\"nodes\":{}}\n for index in Classes.DEFINITIONS.size():\n",
+          "systems": ["classes", "characters", "loot", "persistence_operations"]
+        },
+        "ct01_whole_xp_3": {
+          "match": " for pair in [[\"xp\",\"classes\"],[\"plants\",\"seeds\"],[\"monsters\",\"enemies\"]]: result[pair[0]]=shifted(source.get(pair[0],[]),old[pair[1]],current[pair[1]],0,q,pair[0])\n # Historical content curves are mapped in their original units before\n # CharacterProfile converts the resulting whole and fractional balances.\n var old_levels: Array=old.get(\"levels\",[0,3,7,12,20])\n if not source.has(Experience.VERSION_KEY) and source.has(\"xp_tenths\"):\n  result.xp_tenths=shifted(source.xp_tenths,old.classes,current.classes,0,q,\"xp_tenths\")\n var new_levels: Array=current.levels.map(func(points): return int(points) / Experience.LEGACY_SCALE)\n if old.get(Experience.VERSION_KEY)==Experience.VERSION:\n  old_levels=old_levels.map(func(points): return int(points) / Experience.LEGACY_SCALE)\n if not source.has(Experience.VERSION_KEY) and old_levels!=new_levels:\n  for c in result.xp.size():\n",
+          "baseline": " for pair in [[\"xp\",\"classes\"],[\"plants\",\"seeds\"],[\"monsters\",\"enemies\"]]: result[pair[0]]=shifted(source.get(pair[0],[]),old[pair[1]],current[pair[1]],0,q,pair[0])\n var old_levels: Array=old.get(\"levels\",[0,3,7,12,20]);var new_levels: Array=current.levels\n if old_levels!=new_levels:\n  for c in result.xp.size():\n",
+          "systems": ["classes", "characters", "loot", "persistence_operations"]
+        },
         "subclass_manifest": {
           "match": " for index in Classes.DEFINITIONS.size():\n  var c: Dictionary=Classes.DEFINITIONS[index]\n  result.weapons[c.id]=c.weapons.map(func(e):return str(e.id))\n  result.nodes[c.id]=Classes.all_nodes(index).map(func(e):return str(e.id))",
           "baseline": " for c in Classes.DEFINITIONS:\n  result.weapons[c.id]=c.weapons.map(func(e):return str(e.id))\n  result.nodes[c.id]=(c.nodes+Classes.Warden.NODES if c.id==\"warden\" else c.nodes).map(func(e):return str(e.id))",

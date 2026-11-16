@@ -46,7 +46,7 @@ func tree() -> void:
 	check(Warden.focus(player.character)=="vanguard" and game.Classes.points(player.character,0,1)==0, "the Heart teaches Thorn Counter at level one")
 	game.garden_action(1,"learn_0_14")
 	check(Warden.focus(player.character)=="vanguard", "another focus in the same row cannot be bought")
-	player.character.xp[0]=35
+	player.character.xp[0]=350
 	check(not game.Classes.can_learn(player.character,0,17,4), "a direct jump across the middle lane is locked")
 	game.garden_action(1,"learn_0_16")
 	game.garden_action(1,"learn_0_20")
@@ -56,7 +56,7 @@ func tree() -> void:
 	profile.path=game.local_character.path
 	check(profile.load_profile()==OK and profile.data.upgrades[0]==player.character.upgrades[0], "the new tree round-trips via stable content IDs")
 	var old: Dictionary = game.Character.blank()
-	old.xp[0]=260
+	old.xp[0]=2600
 	for bit in [0,2,4,6,8,10]:old.upgrades[0]|=1<<bit
 	var old_manifest: Dictionary=game.Character.ContentIDs.manifest()
 	old_manifest.nodes.warden=old_manifest.nodes.warden.slice(0,Warden.OFFSET)
@@ -64,13 +64,13 @@ func tree() -> void:
 	check(loaded.upgrades[0]==old.upgrades[0] and game.Skills.resolve(0,1,loaded).name=="Sanctuary Quake","older Warden saves preserve skills and earned choices")
 	player.character=loaded
 	game.garden_action(1,"respec_0")
-	check(game.Classes.points(player.character,0,7)==4 and player.character.xp[0]==260,"refund opens all earned prototype tiers without spending XP")
+	check(game.Classes.points(player.character,0,7)==4 and player.character.xp[0]==2600,"refund opens all earned prototype tiers without spending XP")
 
 
 func arena(indices: Array[int], card: String) -> void:
 	Core.reset(game)
 	game.combat_epoch+=1
-	player.character=select_nodes(indices,260)
+	player.character=select_nodes(indices,2600)
 	player.frame=0
 	player.wild=true
 	player.fallen=false

@@ -5,7 +5,7 @@ const MAX_RECEIPTS := 64
 const MAX_REVISION := 2147483647
 
 static func digest(profile: Dictionary) -> String:
- return JSON.stringify(profile).sha256_text()
+ return JSON.stringify(Profile.Experience.projection_input(profile)).sha256_text()
 
 static func valid_origin(value: Variant) -> bool:
  return _hex(value, 32)
@@ -34,9 +34,7 @@ static func merge_progress(incoming: Dictionary, recovered: Dictionary) -> void:
  for field in ["plants", "monsters"]:
   for i in incoming[field].size(): incoming[field][i] = maxi(int(incoming[field][i]), int(recovered[field][i]))
  for c in incoming.xp.size():
-  var best := maxi(int(incoming.xp[c]) * 10 + int(incoming.xp_tenths[c]), int(recovered.xp[c]) * 10 + int(recovered.xp_tenths[c]))
-  incoming.xp[c] = best / 10
-  incoming.xp_tenths[c] = best % 10
+  incoming.xp[c] = maxi(int(incoming.xp[c]), int(recovered.xp[c]))
 
 static func build(profile: Dictionary, revision: int, base: Dictionary) -> Dictionary:
  if revision > MAX_REVISION: return {}
@@ -51,6 +49,7 @@ static func admit(origin: String, incoming: Dictionary, receipts: Dictionary, re
  var base := {"revision": receipt.revision, "digest": local_digest}
  var latest := 0
  if record is Dictionary and record.get("profile") is Dictionary:
+  if not Profile.Experience.supported(record.profile): return {}
   var recovered := Profile.normalize(Profile.ContentIDs.profile(record.profile, record.get("manifest", Profile.ContentIDs.legacy())))
   if record.has("projection"):
    var descriptor: Variant = record.projection

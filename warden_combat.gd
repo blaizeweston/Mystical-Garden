@@ -3,6 +3,7 @@ extends RefCounted
 const Progression = preload("res://warden_tree.gd")
 const Connected = Progression.Connected
 const Feedback = preload("res://enemy_move_feedback.gd")
+const Journal = preload("res://diagnostic_journal.gd")
 const BARK := Color("#abc989")
 const THORN := Color("#ddae7e")
 const ANCHOR := Color("#d4c789")
@@ -263,7 +264,10 @@ static func connected_block(game: Node, event: RefCounted, recipient: int, now: 
 	if state.get("activation", -1) != event.identity or int(state.until) <= now or not live_state(game,player,state):
 		return
 	state.protection_used = true
-	# A Bastion ally can spend this Q's protection without triggering the Warden's own follow-ups.
+	if not state.get("holdfast_granted",false) and learned(player,"holdfast"):
+		state.holdfast_granted = true
+		grant_holdfast(game,player,event,now)
+	# Ally blocks can grant Holdfast from this Q. The other native follow-ups still use the Warden's own block.
 	if recipient != event.actor or state.blocked:
 		return
 	first_block(game,player,state,now)
@@ -294,12 +298,39 @@ static func prepare_quake_damage(game: Node, player: Dictionary, skill: Dictiona
 		skill.damage = float(skill.damage) + Connected.FAULTLINE_POINTS
 
 
-static func sanctuary_damage(game: Node, player: Dictionary, hp: int, now: int) -> int:
+static func grant_holdfast(game: Node, warden: Dictionary, event: RefCounted, now: int) -> void:
+	var until := now + Connected.HOLDFAST_MS
+	var recipients: Array[int] = []
+	for id in game.players:
+		var ally: Dictionary = game.players[id]
+		if not is_same(ally,warden) and not in_circle(game,ally,warden.pos,Connected.HOLDFAST_RADIUS):
+			continue
+		if holdfast_until(game,ally,now) >= until:
+			continue
+		ally.warden_holdfast = {"actor":event.actor, "activation":event.identity, "until":until,
+			"epoch":game.combat_epoch, "life":int(ally.get("lost_health",0))}
+		recipients.append(id)
+	if not recipients.is_empty():
+		Journal.event("combat","holdfast_granted",{"actor":event.actor,"activation":event.identity,
+			"epoch":game.combat_epoch,"recipients":recipients,"duration_ms":Connected.HOLDFAST_MS})
+
+
+static func holdfast_until(game: Node, player: Dictionary, now: int) -> int:
+	var grant: Dictionary = player.get("warden_holdfast",{})
+	var until := int(grant.get("until",0))
+	return until if until > now and live_state(game,player,grant) else 0
+
+
+static func direct_damage(game: Node, player: Dictionary, hp: int, now: int) -> int:
+	if hp <= 0:
+		return hp
+	var reduction := Connected.HOLDFAST_REDUCTION if holdfast_until(game,player,now)>0 else 0.0
 	for owner in game.players.values():
 		var state: Dictionary = owner.get("warden_sanctuary",{})
 		if int(state.get("until",0)) > now and live_state(game,owner,state) and in_circle(game,player,state.point,Connected.SANCTUARY_RADIUS):
-			return maxi(1,roundi(float(hp)*(1.0-Connected.SANCTUARY_REDUCTION))) if hp > 0 else 0
-	return hp
+			reduction = maxf(reduction,Connected.SANCTUARY_REDUCTION)
+			break
+	return maxi(1,roundi(float(hp)*(1.0-reduction)))
 
 
 static func tick(game: Node, now: int) -> void:

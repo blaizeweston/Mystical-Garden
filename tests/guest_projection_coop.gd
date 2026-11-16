@@ -80,7 +80,7 @@ func send_action(id: int, key: String) -> bool:
  var player: Dictionary = world.players[id]
  var result: Dictionary = world.run_guarded_action(id,Tx.Scope.GARDEN,func(effects):
   player.character.plants[0] += 1
-  player.character.xp[0] += 100
+  player.character.xp[0] += 1000
   player.character.upgrades[0] = 0
   player.character.loadouts[0].weapon = 1
   world.save_action_profile(id,effects)
@@ -160,7 +160,7 @@ func guest() -> void:
  var initial := Profile.new()
  initial.path = P
  check(initial.load_profile(false)==OK,"load initial guest class data")
- initial.data.xp[0] = 9999
+ initial.data.xp[0] = Profile.Experience.MAX_XP
  initial.data.upgrades[0] = 1 << initial.Classes.Warden.OFFSET
  initial.data.loadouts[0].weapon = 2
  check(initial.save_profile_guarded().value.outcome.outcome==preload("res://save_batch.gd").Outcome.COMMITTED,"seed existing class and loadout before join")
@@ -350,7 +350,7 @@ func action_guest() -> void:
  var initial := Profile.new()
  initial.path=P
  check(initial.load_profile(false)==OK,"load fixture XP")
- initial.data.xp[0]=9999
+ initial.data.xp[0]=Profile.Experience.MAX_XP
  check(initial.save_profile_guarded().value.outcome.outcome==Ops.Batch.Outcome.COMMITTED,"seed legal Learn eligibility")
  if not await open_guest(menu):
   check(false,"actual action guest admitted")

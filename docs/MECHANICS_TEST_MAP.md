@@ -307,7 +307,7 @@ flowchart LR
 | seeds | `seed_catalog.gd`, `altar_recipes.gd`, `altar_service.gd`, `planting_panel.gd`, `garden_altar_panel.gd`, `altar_input_slot.gd` | `plant_affinities`, `guarded_garden_actions`, `boss_coop`, `boss_roster`, `classes_coop`, `classes_weapons`, `crafting_availability_coop`, `cultivation_growth`, `foundations`, `garden_altar`, `garden_cleanup`, `garden_cleanup_coop`, `garden_crop_care`, `garden_crop_care_coop`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `heart_progression`, `inventory_grid`, `inventory_party`, `network_research_coop`, `seed_coop`, `seed_inventory`, `seed_progression`, `seed_template`, `species_depth`, `timed_research`, `tree_portraits`, `developer_garden` |
 | items | `item_catalog.gd`, `inventory_model.gd`, `inventory_panel.gd`, `inventory_slot.gd`, `inventory_drop_surface.gd`, `inventory_drop_visuals.gd` | `plant_affinities`, `candidate_release_solo`, `guarded_garden_actions`, `checkpoint_extraction`, `classes_coop`, `classes_weapons`, `core_starters`, `crafting_availability_coop`, `cultivation_growth`, `diagnostics`, `foundations`, `four_players_coop`, `garden_altar`, `garden_cleanup`, `garden_cleanup_coop`, `garden_conduit`, `garden_crop_care`, `garden_crop_care_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `gate_crafting_rules`, `grafting_menu`, `inventory_grid`, `inventory_party`, `loot_revival`, `loot_revival_coop`, `monster_rewards`, `player_hud`, `seed_coop`, `seed_inventory`, `seed_template`, `species_depth`, `developer_garden` |
 | weapons | `weapon_parts.gd`, `weapon_system.gd`, `weapon_frames.gd`, `loadout_materials.gd`, `loadout_panel.gd`, `grafting_panel.gd` | `cr05_native_grafts`, `cr05_native_grafts_coop`, `cr05_native_grafts_party`, `cr04b_wood`, `cr04b_thorn`, `cr04a_vital`, `cr04a_vital_coop`, `cr04a_mixed_party`, `cr04a_water`, `cr04a_water_coop`, `cr04a_fire`, `cr04a_fire_coop`, `cr03_frost`, `cr03_frost_coop`, `cr03_frost_party`, `cr02_combat_contracts`, `cr02_mode_coop`, `plant_affinities`, `guarded_garden_actions`, `guarded_garden_actions_coop`, `boss_roster`, `character_locomotion`, `character_overhaul`, `character_rig`, `class_depth`, `class_depth_coop`, `classes_coop`, `classes_weapons`, `combat_animation`, `core_combat`, `core_combat_coop`, `core_modifiers`, `core_roster`, `core_roster_coop`, `core_signatures`, `core_signatures_coop`, `core_starters`, `crafting_availability_coop`, `dual_skills`, `dual_skills_coop`, `enemy_depth`, `foundations`, `four_players_coop`, `garden_altar`, `garden_interactions`, `garden_interactions_coop`, `garden_spring`, `garden_spring_coop`, `gate_crafting_rules`, `gate_garden_services`, `grafting_menu`, `inventory_grid`, `inventory_party`, `menu_coop`, `mouse_combat`, `mouse_combat_coop`, `network_presentation`, `network_warden_coop`, `party_ready`, `party_ready_coop`, `run_flow`, `seed_coop`, `seed_template`, `shrines_hits`, `species_depth`, `status_feedback`, `warden_depth`, `warden_depth_coop`, `weapon_actions`, `weapon_actions_coop`, `weighted_upgrades`, `developer_garden`, `core_balance_preview` |
-| classes | `class_catalog.gd`, `skill_catalog.gd`, `combat_traits.gd` | `ct01_warden`, `ct01_warden_coop`, `cr05_native_grafts`, `cr05_native_grafts_coop`, `cr05_native_grafts_party`, `cr04b_wood`, `cr04b_thorn`, `cr04a_vital`, `cr04a_water`, `cr04a_fire`, `cr03_frost`, `cr02_combat_contracts`, `guarded_garden_actions`, `guarded_garden_actions_coop`, `class_depth`, `class_depth_coop`, `classes_coop`, `classes_weapons`, `core_modifiers`, `core_starters`, `dual_skills`, `dual_skills_coop`, `enemy_depth`, `foundations`, `four_players_coop`, `inventory_party`, `monster_rewards`, `mouse_combat`, `mouse_combat_coop`, `network_warden_coop`, `player_hud`, `run_flow`, `seed_template`, `species_depth`, `status_feedback`, `status_feedback_coop`, `warden_depth`, `warden_depth_coop`, `weapon_actions`, `weighted_upgrades`, `warden_prototype`, `warden_prototype_coop`, `subclass_skills`, `class_balance_preview` |
+| classes | `class_experience.gd`, `class_experience.gd.uid`, `class_catalog.gd`, `skill_catalog.gd`, `combat_traits.gd` | `ct01_warden`, `ct01_warden_coop`, `cr05_native_grafts`, `cr05_native_grafts_coop`, `cr05_native_grafts_party`, `cr04b_wood`, `cr04b_thorn`, `cr04a_vital`, `cr04a_water`, `cr04a_fire`, `cr03_frost`, `cr02_combat_contracts`, `guarded_garden_actions`, `guarded_garden_actions_coop`, `class_depth`, `class_depth_coop`, `classes_coop`, `classes_weapons`, `core_modifiers`, `core_starters`, `dual_skills`, `dual_skills_coop`, `enemy_depth`, `foundations`, `four_players_coop`, `inventory_party`, `monster_rewards`, `mouse_combat`, `mouse_combat_coop`, `network_warden_coop`, `player_hud`, `run_flow`, `seed_template`, `species_depth`, `status_feedback`, `status_feedback_coop`, `warden_depth`, `warden_depth_coop`, `weapon_actions`, `weighted_upgrades`, `warden_prototype`, `warden_prototype_coop`, `subclass_skills`, `class_balance_preview` |
 | combat | `mouse_combat.gd`, `attack_geometry.gd`, `weapon_motion.gd`, `enemy_hurtbox.gd`, `enemy_hurtbox.gd.uid`, `weapon_contact.gd`, `weapon_contact.gd.uid`, `combat_status.gd`, `combat_status.gd.uid` | `ct01_warden`, `ct01_warden_coop`, `cr05_native_grafts`, `cr04c_void`, `cr04c_spirit`, `cr04c_storm`, `cr04b_wood`, `cr04b_thorn`, `cr04a_vital`, `cr04a_water`, `candidate_release_solo`, `guarded_expedition`, `guarded_expedition_coop`, `boss_coop`, `boss_lairs`, `boss_phase_fights`, `boss_roster`, `class_depth`, `class_depth_coop`, `classes_coop`, `classes_weapons`, `combat_animation`, `combat_balance`, `combat_readability`, `combat_readability_coop`, `core_combat`, `core_combat_coop`, `core_modifiers`, `core_roster`, `core_roster_coop`, `core_signatures`, `core_signatures_coop`, `core_starters`, `core_weapon_variants`, `diagnostics`, `diagnostics_coop`, `dual_skills`, `dual_skills_coop`, `enemy_depth`, `enemy_support`, `four_players_coop`, `gate_elites`, `gate_elites_coop`, `grafting_menu`, `health_points`, `menu_coop`, `monster_behaviors`, `mouse_combat`, `mouse_combat_coop`, `network_presentation`, `network_warden_coop`, `player_hud`, `shrines_hits`, `status_feedback`, `status_feedback_coop`, `supplied_network_smoke`, `support_deaths`, `support_rite_responses`, `support_rite_responses_coop`, `terrain_generation_coop`, `warden_depth`, `warden_depth_coop`, `weapon_actions`, `weapon_actions_coop`, `weighted_upgrades`, `regular_enemy_responses`, `regular_enemy_responses_coop`, `thief_escape`, `thief_escape_coop` |
 | enemies | `enemy_catalog.gd`, `enemy_behaviors.gd`, `boss_encounters.gd`, `combat_director.gd`, `wilds_learning.gd`, `game_balance.gd`, `elite_enemy.gd`, `elite_enemy.gd.uid` | `boss_coop`, `boss_lairs`, `boss_phase_fights`, `boss_roster`, `combat_animation`, `combat_balance`, `combat_readability`, `combat_readability_coop`, `enemy_depth`, `enemy_roster`, `enemy_support`, `expedition_pressure`, `expedition_pressure_coop`, `gate_elites`, `gate_elites_coop`, `monster_behaviors`, `monster_rewards`, `shrines_hits`, `status_feedback`, `support_deaths`, `terrain_generation`, `enemy_balance_preview` |
 | terrain | `battlefield.gd`, `encounter_config.gd`, `exploration.gd`, `walkable_surface.gd`, `walkable_surface.gd.uid`, `wilds_layout.gd`, `wilds_layout.gd.uid` | `experimental_terrain_coop`, `experimental_terrain`, `boss_coop`, `boss_lairs`, `boss_phase_fights`, `boss_roster`, `core_combat`, `core_combat_coop`, `core_modifiers`, `core_weapon_variants`, `expedition_pressure`, `exploration_maps`, `exploration_ui`, `garden_presentation`, `gate_elites`, `loot_revival`, `loot_revival_coop`, `menu_controls`, `mouse_combat`, `mouse_combat_coop`, `natural_world`, `network_movement_coop`, `network_presentation`, `path_junctions`, `shrines_hits`, `support_rite_responses`, `terrain_generation`, `terrain_generation_coop`, `weapon_actions`, `wilds_skill_tactics`, `regular_enemy_responses`, `thief_escape`, `thief_escape_coop` |
@@ -675,6 +675,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 
 | Location | Region | Systems |
 |---|---|---|
+| `game.gd::save_guest_projection` | ct01_whole_xp_0 | classes, connection_flow, characters, persistence_operations |
+| `game.gd::receive_character` | ct01_whole_xp_0 | classes, connection_flow, characters, persistence_operations |
 | `game.gd::graft_block_reason` | cr05_grafts_0 | combat_affinity_contracts, weapons, classes, life |
 | `game.gd::_apply_loadout_action` | ct01_0 | warden_progression, classes, combat_affinity_contracts |
 | `game.gd::_apply_loadout_action` | ct01_1 | warden_progression, classes, combat_affinity_contracts |
@@ -815,6 +817,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::add_player` | preview_spawn_capacity | combat_balance_preview |
 | `game.gd::add_player` | preview_starting_capacity | combat_balance_preview |
 | `game.gd::add_player` | growth_adapter | garden_cinematics |
+| `game.gd::register_character` | ct01_whole_xp_0 | classes, connection_flow, characters, persistence_operations |
+| `game.gd::register_character` | ct01_whole_xp_1 | classes, connection_flow, characters, persistence_operations |
 | `game.gd::register_character` | guest_projection | persistence_operations, connection_flow, characters, expeditions, garden, foundation, garden_cinematics |
 | `game.gd::register_character` | guarded_lifecycle | persistence_operations, connection_flow, foundation, garden_cinematics |
 | `game.gd::register_character` | guarded_gameplay_writer | persistence_operations |
@@ -1093,6 +1097,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::emit_combat_event` | core_shape_payload | core_combat |
 | `game.gd::emit_combat_event` | subclass_release_label | warden_progression |
 | `game.gd::emit_combat_event` | authored_core_label | core_combat |
+| `game.gd::apply_enemy_hit` | ct01_holdfast_0 | warden_progression, combat, life |
 | `game.gd::apply_enemy_hit` | ct01_0 | warden_progression, classes, combat_affinity_contracts |
 | `game.gd::apply_enemy_hit` | ct01_1 | warden_progression, classes, combat_affinity_contracts |
 | `game.gd::apply_enemy_hit` | ct01_2 | warden_progression, classes, combat_affinity_contracts |
@@ -1241,6 +1246,10 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `warden_tree.gd` | ct01_3 | warden_progression, classes, combat_affinity_contracts |
 | `warden_tree.gd` | ct01_4 | warden_progression, classes, combat_affinity_contracts |
 | `warden_tree.gd` | cr02_card_lines | combat_affinity_contracts |
+| `warden_combat.gd` | ct01_holdfast_1 | warden_progression, combat, life |
+| `warden_combat.gd` | ct01_holdfast_2 | warden_progression, combat, life |
+| `warden_combat.gd` | ct01_holdfast_3 | warden_progression, combat, life |
+| `warden_combat.gd` | ct01_holdfast_4 | warden_progression, combat, life |
 | `warden_combat.gd` | ct01_1 | warden_progression, classes, combat_affinity_contracts |
 | `warden_combat.gd` | ct01_2 | warden_progression, classes, combat_affinity_contracts |
 | `warden_combat.gd` | ct01_3 | warden_progression, classes, combat_affinity_contracts |
@@ -1337,6 +1346,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `altar_service.gd` | restore_returns | garden_returns |
 | `altar_service.gd` | capture_returns | garden_returns |
 | `altar_service.gd` | garden_offering_plan | garden_costs |
+| `content_validator.gd` | ct01_whole_xp_1 | classes, characters, loot, persistence_operations |
 | `content_validator.gd` | plant_affinity_validation | plant_affinities |
 | `content_validator.gd` | cb06_0 | enemy_balance |
 | `content_validator.gd` | new_subclass_validation | warden_progression |
@@ -1723,6 +1733,9 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `loadout_panel.gd` | ui_copy_2 | ui_copy |
 | `loadout_panel.gd` | ui_copy_1 | ui_copy |
 | `loadout_panel.gd` | ui_copy_0 | ui_copy |
+| `progression_panel.gd` | ct01_whole_xp_1 | classes, progression, warden_progression |
+| `progression_panel.gd` | ct01_whole_xp_2 | classes, progression, warden_progression |
+| `progression_panel.gd` | ct01_whole_xp_3 | classes, progression, warden_progression |
 | `progression_panel.gd` | ct01_1 | warden_progression, classes, combat_affinity_contracts |
 | `progression_panel.gd` | ct01_2 | warden_progression, classes, combat_affinity_contracts |
 | `progression_panel.gd` | ct01_3 | warden_progression, classes, combat_affinity_contracts |
@@ -2062,6 +2075,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `wilds_learning.gd` | thorn_learning_key | thorn_adaptation |
 | `wilds_learning.gd` | enemy_attack_plan_1 | enemy_attack_plan |
 | `wilds_learning.gd` | enemy_attack_plan_0 | enemy_attack_plan |
+| `combat_status.gd` | ct01_holdfast_1 | warden_progression, combat, life |
+| `combat_status.gd` | ct01_holdfast_2 | warden_progression, combat, life |
 | `combat_status.gd` | cr05_grafts_1 | combat_affinity_contracts, weapons, classes, life |
 | `combat_status.gd` | cr04c_void_1 | void_affinity, core_combat, combat_affinity_contracts |
 | `combat_status.gd` | cr04c_spirit_1 | spirit_affinity, core_combat, combat_affinity_contracts |
@@ -2396,11 +2411,21 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `combat_feedback.gd` | cb07_0 | expedition_sustain |
 | `combat_feedback.gd` | space_pull_from_slow | enemy_move_feedback |
 | `combat_feedback.gd` | callout_height_override | enemy_move_feedback |
+| `character_profile.gd` | ct01_whole_xp_1 | classes, characters, loot, persistence_operations |
+| `character_profile.gd` | ct01_whole_xp_2 | classes, characters, loot, persistence_operations |
+| `character_profile.gd` | ct01_whole_xp_3 | classes, characters, loot, persistence_operations |
+| `character_profile.gd` | ct01_whole_xp_4 | classes, characters, loot, persistence_operations |
+| `character_profile.gd` | ct01_whole_xp_5 | classes, characters, loot, persistence_operations |
+| `character_profile.gd` | ct01_whole_xp_6 | classes, characters, loot, persistence_operations |
+| `character_profile.gd` | ct01_whole_xp_7 | classes, characters, loot, persistence_operations |
 | `character_profile.gd` | ct01_1 | warden_progression, classes, combat_affinity_contracts |
 | `character_profile.gd` | ct01_2 | warden_progression, classes, combat_affinity_contracts |
 | `character_profile.gd` | cr05_progression_1 | classes, life, combat_affinity_contracts |
 | `character_profile.gd` | guest_projection | persistence_operations, connection_flow, characters, expeditions, garden |
 | `character_profile.gd` | normalize_warden_tree_choices | warden_progression |
+| `content_ids.gd` | ct01_whole_xp_1 | classes, characters, loot, persistence_operations |
+| `content_ids.gd` | ct01_whole_xp_2 | classes, characters, loot, persistence_operations |
+| `content_ids.gd` | ct01_whole_xp_3 | classes, characters, loot, persistence_operations |
 | `content_ids.gd` | subclass_manifest | warden_progression |
 | `content_ids.gd` | manifest_warden_nodes | warden_progression |
 | `progression_tree.gd` | show_warden_subclass_labels | warden_progression |

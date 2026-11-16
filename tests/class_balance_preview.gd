@@ -62,7 +62,7 @@ func arena(class_id: int, mask: int = 0) -> void:
 	game.rooted_until=0
 	player.character=game.Character.blank()
 	player.character.upgrades[class_id]=mask
-	player.character.xp[class_id]=260
+	player.character.xp[class_id]=2600
 	player.merge({"frame":class_id,"weapon_kind":0,"weapon":0,"secondary":0,"catalyst":0,"graft_part":0,
 		"power":0,"technique":0,"run_upgrades":{},"wild":true,"fallen":false,"max_hp":100,"hp":20,
 		"pos":Vector3.ZERO,"facing":Vector3.FORWARD,"lost_health":0},true)

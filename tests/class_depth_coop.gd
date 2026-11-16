@@ -34,7 +34,7 @@ func host_run() -> void:
   for right in [false,true]:
    var phase: String=str(c)+str(right)
    game.battlefield.configure(0,1);game.enemy_hp=100;game.enemy_pos=Vector3.ZERO;game.enemy_stagger_until=Time.get_ticks_msec()+60000;game.enemy_traits.clear();game.trait_events.clear();game.scouts.clear();game.combat_epoch+=1
-   p.character.active_class=c;p.character.xp[c]=260;p.character.upgrades.fill(0);p.character.upgrades[c]=mask(right);p.frame=c;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.run_upgrades={}
+   p.character.active_class=c;p.character.xp[c]=2600;p.character.upgrades.fill(0);p.character.upgrades[c]=mask(right);p.frame=c;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.run_upgrades={}
    for player in game.players.values():player.wild=true;player.pos=Vector3(0,0,-1.5);player.hp=5;player.fallen=false
    p.facing=Vector3.BACK
    for key in ["skill_at","skill_two_at","guard_until","front_guard_until","counter_guard_until","counter_until","hurt_until","decoy_ready","prepared_mark_until"]:p[key]=0

@@ -31,7 +31,7 @@ func prepare(class_id: int, lane: int) -> void:
 	game.rooted_until = 0
 	game.battlefield.barriers.clear()
 	player.character = game.Character.blank()
-	player.character.xp[class_id] = 260
+	player.character.xp[class_id] = 2600
 	player.frame = class_id
 	player.pos = Vector3.ZERO
 	player.hp = 5

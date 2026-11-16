@@ -113,7 +113,7 @@ func host() -> void:
 
 
 func guest() -> void:
-	game.guest_character.data.xp[0]=35
+	game.guest_character.data.xp[0]=350
 	game.guest_character.data.upgrades[0]=MASK
 	game.guest_character.save_profile()
 	check(game.join_game()==OK,"guest connects")

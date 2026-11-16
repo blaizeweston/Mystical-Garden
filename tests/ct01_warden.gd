@@ -10,6 +10,7 @@ const Skills = preload("res://skill_catalog.gd")
 const OFFENSE := ["vanguard","briar_rebound","pinning_quake","faultline_impact","quakefront","aftershock"]
 const BALANCE := ["rootkeeper","deep_roots","ready_footing","living_rhythm","measured_guard","seismic_relay"]
 const DEFENSE := ["bastion","shared_guard","clear_the_way","sheltering_quake","measured_guard","sanctuary_ground"]
+const HOLDFAST := ["bastion","shared_guard","clear_the_way","sheltering_quake","holdfast","sanctuary_ground"]
 var game: Node
 var player: Dictionary
 var events: Array = []
@@ -42,7 +43,7 @@ func graph(selected: Array, reachable: Dictionary) -> void:
 	for index in Connected.NODES.size():
 		var node: Dictionary = Connected.NODES[index]
 		var adjacent := selected.is_empty() or absi(int(Connected.node(selected.back()).lane)-index%3)<=1
-		var allowed: bool = node.enabled and floori(index/3.0)==selected.size() and adjacent
+		var allowed: bool = floori(index/3.0)==selected.size() and adjacent
 		var result := Connected.refusal(profile,index+Connected.REQUEST_OFFSET)
 		check(result.is_empty()==allowed,"earned tier and adjacent predecessor for %s → %s" % [selected,node.id])
 		if allowed:
@@ -52,9 +53,10 @@ func graph(selected: Array, reachable: Dictionary) -> void:
 func profiles() -> void:
 	var reachable := {}
 	graph([],reachable)
-	check(Connected.NODES.size()==18 and reachable.size()==3,"three focuses, five rows, all three capstones reachable")
+	check(Connected.NODES.size()==18 and reachable.size()==3,"three focuses, all fifteen tier nodes selectable, all three capstones reachable")
+	check(Connected.XP_THRESHOLDS==[0,50,150,350,1400,2600],"Warden earns the same six levels at the exact ×10 thresholds")
 	var legacy := Profile.blank()
-	legacy.xp[0]=57
+	legacy.xp[0]=570
 	legacy.upgrades[0]=1<<14
 	legacy.upgrades[4]=1<<12
 	var copied := Profile.normalize(legacy)
@@ -62,7 +64,7 @@ func profiles() -> void:
 	check(Builds.resolve(0,0,[0,0,0],0,copied).class_skills[0].native_skill.name=="Rootshield",
 		"affinity resolver keeps the historical focus")
 	var connected := Profile.blank()
-	connected.xp[0]=260
+	connected.xp[0]=2600
 	connected[Connected.PROFILE_KEY]=Connected.state(["vanguard","deep_roots"])
 	var normalized := Profile.normalize(connected)
 	check(Connected.valid(normalized) and Connected.focus(normalized)=="vanguard" and normalized.upgrades[0]==0,
@@ -95,6 +97,11 @@ func title_and_progression() -> bool:
 	game=current_scene
 	player=game.players[1]
 	check(Rules.active(game) and game.has_meta(game.Transactions.SESSION),"real guarded affinity session")
+	var old_catalog: Dictionary = game.progress.ContentIDs.manifest()
+	old_catalog.erase(Profile.Experience.VERSION_KEY)
+	old_catalog.levels = [0,5,15,35,70,140,260]
+	check("Different game content" in game.admission_error("a3".repeat(16),old_catalog,game.Network.PROTOCOL),
+		"existing content admission refuses older XP units")
 	player.pos=game.stage.gate_position()
 	choose("briar_rebound")
 	check(Connected.path(player.character).is_empty(),"a node cannot precede the focus")
@@ -103,7 +110,7 @@ func title_and_progression() -> bool:
 	panel.tabs.current_tab=2
 	panel.refresh()
 	check((panel.nodes.size()==19 and panel.nodes[1].label=="Vanguard" and panel.nodes[1].available
-		and panel.nodes[15].label=="Holdfast" and not panel.nodes[15].available),"class screen displays the actual connected tree and disabled Holdfast")
+		and panel.nodes[15].label=="Holdfast" and not panel.nodes[15].available),"class screen presents the 18 connected choices with tier gating")
 	panel.chosen="class_0_%d"%request("vanguard")
 	panel.refresh()
 	check(not panel.learn_button.disabled,"Warden focus is selectable on the class screen")
@@ -111,11 +118,15 @@ func title_and_progression() -> bool:
 	check(Connected.path(player.character)==["vanguard"] and player.character.upgrades[0]==0,"level-one focus selected through host handler")
 	choose("deep_roots")
 	check(Connected.path(player.character)==["vanguard"],"unearned tier rejected")
-	player.character.xp[0]=260
+	player.character.xp[0]=2600
 	choose("shared_guard")
 	check(Connected.path(player.character)==["vanguard"],"disconnected selection rejected by host")
-	for id in ["deep_roots","ready_footing","sheltering_quake","measured_guard","sanctuary_ground"]:
+	for id in ["deep_roots","ready_footing","sheltering_quake"]:
 		choose(id)
+	panel.refresh()
+	check(panel.nodes[15].available,"Holdfast becomes selectable after the connected tier and level requirements")
+	choose("holdfast")
+	choose("sanctuary_ground")
 	var saved := Connected.path(player.character).duplicate()
 	choose("seismic_relay")
 	choose("briar_rebound")
@@ -127,14 +138,11 @@ func title_and_progression() -> bool:
 	check(Skills.resolve_in_world(game,0,0,player.character).name=="Thorn Counter","crossing two lanes never replaces the starting Q")
 	player.pos=game.Stage.HEART
 	game.send_garden_action("respec_0")
-	check(Connected.path(player.character).is_empty() and player.character.xp[0]==260 and player.character.upgrades[0]==0,
+	check(Connected.path(player.character).is_empty() and player.character.xp[0]==2600 and player.character.upgrades[0]==0,
 		"existing Heart respec refunds selections while preserving earned XP")
 	for id in OFFENSE:
 		choose(id)
 	check(Connected.path(player.character)==OFFENSE,"spent the same six selections after respec")
-	var history := {"version":1,"path":["bastion","shared_guard","clear_the_way","sheltering_quake","measured_guard","sanctuary_ground"]}
-	check(not Connected.refusal({"xp":[260], Connected.PROFILE_KEY:Connected.state(history.path.slice(0,4))},request("holdfast")).is_empty(),
-		"unsupported Holdfast is visibly unavailable")
 	player.pos=game.stage.gate_position()
 	game.map_rng.seed=16
 	game.PartyTravel.request(game,1,"depart")
@@ -165,7 +173,7 @@ func arena(path: Array) -> void:
 	for key in ["cast_until","core_cast_until","counter_until","counter_guard_until","front_guard_until",
 			"skill_at","skill_two_at","guard_until","guard_charges","hurt_until","slow_until"]:
 		player[key]=0
-	for key in ["warden_block","warden_anchor","warden_relay","warden_aftershock","warden_sanctuary","affinity_ward_claims"]:
+	for key in ["warden_block","warden_anchor","warden_relay","warden_aftershock","warden_sanctuary","warden_holdfast","affinity_ward_claims"]:
 		player.erase(key)
 	events.clear()
 
@@ -317,6 +325,84 @@ func defense() -> void:
 		"Sheltering Quake protects allies on an empty impact and spends its preparation")
 
 
+func reset_holdfast_ally(ally: Dictionary, point: Vector3) -> void:
+	ally.pos=point
+	ally.hp=90
+	ally.wild=true
+	ally.guard_charges=0
+	ally.guard_until=0
+	ally.hurt_until=0
+	ally.slow_until=0
+	ally.erase("affinity_ward_claims")
+	ally.erase("warden_holdfast")
+
+
+func sample_damage(id: int, now: int, direct := true, amount := 4.0) -> int:
+	var recipient: Dictionary=game.players[id]
+	recipient.guard_charges=0
+	recipient.guard_until=0
+	recipient.hurt_until=0
+	recipient.hp=90
+	game.apply_enemy_hit(id,recipient,now,amount,0,Vector3.ZERO,direct)
+	return 90-int(recipient.hp)
+
+
+func holdfast() -> void:
+	arena(HOLDFAST.slice(0,5))
+	game.add_player(3)
+	game.add_player(4)
+	var ally: Dictionary = game.players[2]
+	var distant: Dictionary = game.players[3]
+	var fallen: Dictionary = game.players[4]
+	reset_holdfast_ally(ally,Vector3(1,0,-1))
+	reset_holdfast_ally(distant,Vector3(6,0,0))
+	reset_holdfast_ally(fallen,Vector3(1,0,1))
+	fallen.fallen=true
+	player.catalyst=game.Items.get_item("plant_part_rare_frostbell").legacy_part
+	game.use_class_skill(1,player,0)
+	check(not player.has("warden_holdfast") and not ally.has("warden_holdfast"),"cast alone grants no Holdfast")
+	var slowed_until := Time.get_ticks_msec()+4500
+	ally.slow_until=slowed_until
+	var now := block(2)
+	check(ally.slow_until==slowed_until,"Holdfast itself neither roots nor cleanses an ally")
+	var original: Dictionary = ally.get("warden_holdfast",{}).duplicate()
+	check(Warden.holdfast_until(game,player,now)==now+2500 and original.get("until")==now+2500 and original.get("actor")==1
+		and original.get("activation")==player.warden_block.activation,"ally's actual Q block grants one sourced Holdfast to caster and recipient")
+	check(Warden.holdfast_until(game,distant,now)==0 and Warden.holdfast_until(game,fallen,now)==0,
+		"Holdfast excludes distant and fallen allies")
+	block()
+	check(ally.get("warden_holdfast")==original,"the caster's second block of the same Q cannot refresh Holdfast")
+
+	ally.pos=Vector3(6,0,0)
+	var event_count := events.size()
+	check(sample_damage(2,now+40)==34 and ally.pos==Vector3(6,0,0)
+		and not ally.has("affinity_bark_grants") and ally.guard_charges==0 and ally.slow_until==0,
+		"moving recipient takes 34 of 40 direct HP with no extra Ward, Bark or movement restriction")
+	check(sample_damage(2,now+80,false)==40 and sample_damage(2,now+90,true,.1)==1 and events.size()==event_count,
+		"environmental hits are unreduced and Holdfast cannot block a hit or produce a Catalyst event")
+
+	distant.character.xp[0]=2600
+	distant.character[Connected.PROFILE_KEY]=Connected.state(HOLDFAST.slice(0,5))
+	game.use_class_skill(3,distant,0)
+	var refresh := now+700
+	game.apply_enemy_hit(3,distant,refresh,4,0,distant.pos+Vector3.FORWARD)
+	check(Warden.holdfast_until(game,ally,refresh)==refresh+2500 and ally.warden_holdfast.actor==3
+		and sample_damage(2,refresh+30)==34,
+		"a later Warden refreshes with its own source and the same 15 percent strength")
+	check(sample_damage(2,refresh+2500)==40,"damage returns to full at the refreshed expiry")
+
+	arena(HOLDFAST)
+	reset_holdfast_ally(ally,Vector3(1,0,1))
+	game.use_class_skill(1,player,0)
+	now=block()
+	check(sample_damage(2,now+30)==30,"Sanctuary and Holdfast overlap with only the stronger 25 percent reduction")
+	ally.pos=Vector3(5,0,0)
+	check(sample_damage(2,now+50)==34,"leaving Sanctuary keeps the recipient's Holdfast")
+	ally.pos=Vector3(1,0,1)
+	check(sample_damage(2,now+2600)==30 and sample_damage(2,now+3500)==40,
+		"stationary Sanctuary remains after Holdfast expires and has its own expiration")
+
+
 func run() -> void:
 	profiles()
 	if not await title_and_progression():
@@ -333,6 +419,7 @@ func run() -> void:
 	game.players[2].wild=false
 	balance()
 	defense()
+	holdfast()
 	print("CT01 checks: ",checks)
 	if not failed:
 		print("PASS: connected Warden progression and native combat effects")

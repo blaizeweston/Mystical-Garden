@@ -4,6 +4,8 @@ const Slots = preload("res://save_slots.gd")
 const Profile = preload("res://character_profile.gd")
 const Progress = preload("res://progress.gd")
 const Preview = preload("res://combat_balance_preview.gd")
+const GuestProjection = preload("res://guest_profile_projection.gd")
+const Experience = Profile.Experience
 
 var failed := false
 
@@ -31,6 +33,7 @@ func run() -> void:
 		check(false, "fixture directory is writable")
 		quit(1)
 		return
+	verify_whole_xp(fixture)
 	var old_garden := ConfigFile.new()
 	old_garden.set_value("garden", "knowledge", 19)
 	old_garden.set_value("garden", "unknown", [1])
@@ -63,8 +66,7 @@ func run() -> void:
 	current_profile.path = storage.paths(1).character
 	current_profile.data.name = "Current Ranger"
 	current_profile.data.active_class = 1
-	current_profile.data.xp[1] = 13
-	current_profile.data.xp_tenths[1] = 4
+	current_profile.data.xp[1] = 134
 	check(current_profile.save_profile() == OK, "current character holds known progression")
 	var game: Node = await open_save(storage, fixture, 0, "Earlier Warden")
 	if game == null:
@@ -88,7 +90,7 @@ func run() -> void:
 		quit(1)
 		return
 	check(game.progress.knowledge == 31 and game.progress.stock[0] == 8 and game.progress.parts[1] == 3, "current Garden opens without losing data")
-	check(game.local_character.identity == current_profile.identity and game.local_character.data.xp[1] == 13 and game.local_character.data.xp_tenths[1] == 4 and game.players[1].frame == 1, "current profile keeps identity, fractional XP and chosen class")
+	check(game.local_character.identity == current_profile.identity and game.local_character.data.xp[1] == 134 and game.players[1].frame == 1, "current profile keeps identity, whole Class XP and chosen class")
 	check(game.players[1].max_hp == 100, "current save also resolves 100 maximum HP")
 	await close_world(game)
 	game = await open_save(storage, fixture, 0, "Earlier Warden")
@@ -98,6 +100,71 @@ func run() -> void:
 	if not failed:
 		print("PASS: prior and current Garden/character fixtures, legacy backups, stable identities, 100 HP and reload")
 	quit(1 if failed else 0)
+
+func verify_whole_xp(fixture: String) -> void:
+	var earlier := Profile.blank()
+	earlier.erase(Experience.VERSION_KEY)
+	earlier.xp = [260,4,9999,35,15]
+	earlier.xp_tenths = [6,9,9,0,4]
+	earlier.upgrades = [1,0,1<<12,1,1<<12]
+	var older_manifest := Profile.ContentIDs.manifest()
+	older_manifest.erase(Experience.VERSION_KEY)
+	older_manifest.levels = [0,5,15,35,70,140,260]
+	var owner := Profile.new()
+	owner.path = fixture.path_join("class-xp-character.cfg")
+	var source := ConfigFile.new()
+	source.set_value("content","manifest",older_manifest)
+	source.set_value("character","identity",owner.identity)
+	source.set_value("character","progress",earlier)
+	check(source.save(owner.path)==OK,"write an actual pre-scale save with all five balances and learned masks")
+	var before := FileAccess.get_sha256(owner.path)
+	check(owner.load_profile(false)==OK and FileAccess.get_sha256(owner.path)==before,
+		"opening the earlier profile converts in memory and leaves its bytes alone")
+	var expected := [2606,49,99999,350,154]
+	check(owner.data.xp==expected and owner.data.upgrades==earlier.upgrades and Experience.current(owner.data),
+		"all five classes retain exact whole plus fractional XP and investments, including the old ceiling")
+	check(owner.data.xp.map(func(points):return Profile.level(points))==[7,1,7,4,3] and Profile.normalize(owner.data)==owner.data,
+		"all class levels survive and already-versioned XP is idempotent")
+	check(Profile.LEVEL_THRESHOLDS.map(func(points):return int(points))==[0,50,150,350,700,1400,2600],
+		"legacy tree thresholds retain the exact ×10 pacing")
+
+	var reordered := earlier.duplicate(true)
+	var reordered_manifest := older_manifest.duplicate(true)
+	reordered_manifest.classes.reverse()
+	reordered.xp.reverse()
+	reordered.xp_tenths.reverse()
+	reordered.upgrades.reverse()
+	var mapped := Profile.normalize(Profile.ContentIDs.profile(reordered,reordered_manifest))
+	check(mapped.xp==expected and mapped.upgrades==earlier.upgrades,
+		"old whole and fractional balances follow stable class IDs together")
+
+	var origin := "ab".repeat(16)
+	var baseline := {"revision":1,"digest":JSON.stringify(earlier).sha256_text()}
+	var pending := earlier.duplicate(true)
+	pending.xp_tenths[4]+=1
+	var old_receipt := {"revision":2,"base_revision":1,"base_digest":baseline.digest,
+		"digest":JSON.stringify(pending).sha256_text()}
+	var committed := {"profile":pending,"manifest":older_manifest,"projection":old_receipt}
+	var admission := GuestProjection.admit(origin,owner.data.duplicate(true),{origin:baseline},committed)
+	check(admission.get("profile",{}).get("xp",[])==[2606,49,99999,350,155] and admission.get("projection")==old_receipt,
+		"pending pre-scale projection validates with its original digest and credits the old one-tenth award exactly once")
+	if not admission.is_empty():
+		var acknowledged := {"revision":2,"digest":old_receipt.digest}
+		var rejoin := GuestProjection.admit(origin,admission.profile.duplicate(true),{origin:acknowledged},committed)
+		check(rejoin.get("profile",{}).get("xp",[])==admission.profile.xp and rejoin.get("projection")==old_receipt,
+			"acknowledged pre-scale projection reconciles without rolling back or duplicating XP")
+		owner.data = admission.profile
+		owner.projection_receipts[origin] = acknowledged
+		check(owner.save_profile()==OK and owner.load_profile(false)==OK and owner.data.xp[4]==155
+			and owner.projection_receipts[origin]==acknowledged,"versioned save preserves migrated XP and receipt through reload")
+
+	var future := earlier.duplicate(true)
+	future[Experience.VERSION_KEY]=Experience.VERSION+1
+	source.set_value("character","progress",future)
+	owner.path = fixture.path_join("future-class-xp.cfg")
+	check(source.save(owner.path)==OK and owner.load_profile(false)==ERR_INVALID_DATA,
+		"unsupported XP format is refused before interpreting its balances")
+
 
 func verify_new_garden() -> void:
 	var menu: Control = load("res://main_menu.tscn").instantiate()

@@ -15,7 +15,7 @@ func run():
 	check(RootUI.heart_state(8.0, 10, 4) == 2, "recoverable damage uses the dark damaged texture")
 	check(RootUI.heart_state(8.0, 8, 4) == 3, "lost capacity uses the permanently lost texture")
 	var old_profile := Character.normalize({"xp": [2, 0]})
-	check(old_profile.appearance.slice(0,5) == [0,0,0,0,0] and old_profile.xp[0] == 2, "old profiles gain default appearance without losing progress")
+	check(old_profile.appearance.slice(0,5) == [0,0,0,0,0] and old_profile.xp[0] == 20, "old profiles gain default appearance without losing progress")
 	var malformed := Character.normalize({"appearance": [999,-1,999,999,999]})
 	check(malformed.appearance.slice(0,5) == [3,0,2,2,2], "incoming appearance options are bounded")
 	var game = load("res://world.tscn").instantiate()

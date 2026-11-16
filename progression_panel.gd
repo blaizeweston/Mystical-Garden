@@ -277,7 +277,7 @@ func refresh() -> void:
 			if connected.valid(data):
 				level = connected.level(data)
 				available = level-connected.path(data).size()
-				notice.text="Warden level %d / 6 · %d available · Provisional affinity progression"%[level,available]
+				notice.text="Warden level %d / 6 · %d XP · %d available"%[level,data.xp[0],available]
 			else:
 				notice.text="Connected Warden data needs review before it can change."
 		elif game.Classes.Warden.legacy(data,inspected_class):
@@ -390,7 +390,7 @@ func class_nodes() -> Array:
 	var node_indices: Dictionary={}
 	for index in definition.nodes.size(): node_indices[str(definition.nodes[index].id)]=index
 	var base: String="class_%d_base"%c
-	var result: Array=[{"id":base,"label":definition.name,"parents":[],"position":Vector2(350,base_y),"unlocked":true,"color":"#c4be83","detail":"%s · Lv %d\n%s\n\nXP: %.1f · Available points: %d\n\nOne choice per row. Learn at the Heart or Wilds Gate between expeditions. Refunds are free at the Heart."%[definition.name,level,definition.description,float(data.xp[c])+int(data.get("xp_tenths",[0,0,0,0,0])[c])/10.0,points],"summary":definition.name+"\n"+definition.description}]
+	var result: Array=[{"id":base,"label":definition.name,"parents":[],"position":Vector2(350,base_y),"unlocked":true,"color":"#c4be83","detail":"%s · Lv %d\n%s\n\nXP: %d · Available points: %d\n\nOne choice per row. Learn at the Heart or Wilds Gate between expeditions. Refunds are free at the Heart."%[definition.name,level,definition.description,int(data.xp[c]),points],"summary":definition.name+"\n"+definition.description}]
 	for i in definition.nodes.size():
 		var node: Dictionary=definition.nodes[i]
 		var id: String="class_%d_%d"%[c,i]
@@ -459,7 +459,7 @@ func subclass_nodes(data: Dictionary, c: int, level: int, mask: int) -> Array:
 			else:
 				summary+="\n"+str(tree_data.FOCUSES[node.id].description if c==0 else game.Classes.Subclasses.FOCUSES[c-1][node.lane].description)
 		var detail: String=summary+"\n\nLevel %d · %s"%[node.level,"Learned" if learned else "Available" if ready else "Locked"]
-		if use_connected and not ready and not learned and reason != node.description:
+		if use_connected and not ready and not learned:
 			detail += "\n" + reason
 		result.append({"id":nodes_by_id[node.id],"label":node.name,"parents":parents,
 			"position":Vector2(145+205*int(node.lane),base_y-98-88*int(node.tier)),"unlocked":learned,

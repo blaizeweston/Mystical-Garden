@@ -231,7 +231,7 @@ func gameplay() -> void:
  world.progress.add_parts(1,-world.progress.part_count(1))
  world.show_gate_preparation(1)
  check(world.loadout_menu.visible and p.prepared==0 and p.character.loadouts[1].parts[0]==0, "crafting reconciliation persisted before opening panel")
- p.character.xp[1]=1000
+ p.character.xp[1]=10000
  p.pos=world.Stage.HEART
  var learn := "learn_1_"+str(world.Classes.DEFINITIONS[1].nodes.size())
  var learn_before := disk()

@@ -6,7 +6,7 @@ func _initialize() -> void:
  preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 func build(game: Node,p: Dictionary,choices: Array) -> void:
- p.character=game.Character.blank();p.character.xp[0]=260
+ p.character=game.Character.blank();p.character.xp[0]=2600
  for index in choices:
   check(game.Classes.can_learn_legacy(p.character,0,index,7),"learned choice "+str(index));p.character.upgrades[0]|=1<<index
  p.frame=0;p.weapon_kind=0;p.weapon=game.Seeds.DEFINITIONS[15].part;p.secondary=0;p.catalyst=0;p.graft_part=game.Parts.HOOK;p.run_upgrades={};p.wild=true;p.fallen=false;p.pos=Vector3(0,0,-1);p.hp=10;p.max_hp=10;p.power=0;p.technique=0;p.facing=Vector3.FORWARD
@@ -16,7 +16,7 @@ func run() -> void:
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/warden-depth-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var p: Dictionary=game.players[1];game.add_player(2);var ally: Dictionary=game.players[2];ally.profile_ready=true;ally.wild=true;ally.pos=Vector3(.3,0,-1.7)
  build(game,p,[0,2,4,6,8,10])
- check(game.Classes.DEFINITIONS[0].nodes.size()==12 and game.Character.level(260)==7,"twelve choices across seven levels")
+ check(game.Classes.DEFINITIONS[0].nodes.size()==12 and game.Character.level(2600)==7,"twelve choices across seven levels")
  check(not game.Classes.can_learn(p.character,0,9,7) and not game.Classes.can_learn(p.character,0,11,7),"exclusive specialization branches")
  check(game.Skills.resolve(0,0,p.character).mode=="front_guard","Bastion changes the actual Q mode")
  game.use_class_skill(1,p);var now:=Time.get_ticks_msec()

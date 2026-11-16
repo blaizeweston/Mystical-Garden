@@ -3,7 +3,7 @@ extends RefCounted
 const PROFILE_KEY := "warden_connected"
 const VERSION := 1
 const REQUEST_OFFSET := 64
-const XP_THRESHOLDS := [0, 5, 15, 35, 140, 260]
+const XP_THRESHOLDS := [0, 50, 150, 350, 1400, 2600]
 const LANES := ["Offensive", "Balanced", "Defensive"]
 const Q_REFUND_MS := 1250
 const FAULTLINE_POINTS := 1.0
@@ -13,6 +13,9 @@ const AFTERSHOCK_HP := 8
 const AFTERSHOCK_RADIUS := 2.25
 const RELAY_MS := 5500
 const RELAY_REACH := 5.0
+const HOLDFAST_MS := 2500
+const HOLDFAST_RADIUS := 3.0
+const HOLDFAST_REDUCTION := 0.15
 const SANCTUARY_MS := 3500
 const SANCTUARY_RADIUS := 3.0
 const SANCTUARY_REDUCTION := 0.25
@@ -31,14 +34,14 @@ const ROWS := [
 	 ["sheltering_quake", "Sheltering Quake", "Within 5.5 s of a qualifying Q block, your next Root Quake grants allies in its area one Guard for 1.25 s."]],
 	[["quakefront", "Quakefront", "Root Quake's native area gains 0.6 m of radius."],
 	 ["measured_guard", "Measured Guard", "If Q grants protection and expires without any actual block from that cast, recover 1.25 s of its cooldown."],
-	 ["holdfast", "Holdfast", "Unavailable. This node needs a player push and stagger resistance consumer."]],
+	 ["holdfast", "Holdfast", "The first actual block from your Q grants you and living allies within 3 m and clear line 15% less direct attack damage for 2.5 s. Holdfast follows recipients. Another grant refreshes its duration. Only the stronger protection applies inside Sanctuary Ground."]],
 	[["aftershock", "Aftershock", "Within 5.5 s of a qualifying Q block, your next Root Quake creates a secondary impact after 0.45 s. It deals 8 base HP within 2.25 m."],
 	 ["seismic_relay", "Seismic Relay", "A qualifying Q block leaves a relay for 5.5 s. Your next Root Quake uses it when it is in clear line within 5 m."],
 	 ["sanctuary_ground", "Sanctuary Ground", "A qualifying Q block creates a 3 m sanctuary for 3.5 s. Living allies inside take 25% less direct attack damage."]],
 ]
 const VERSION_DATA := [VERSION, XP_THRESHOLDS, LANES, ROWS, Q_REFUND_MS, FAULTLINE_POINTS,
 	QUAKEFRONT_RADIUS, AFTERSHOCK_MS, AFTERSHOCK_HP, AFTERSHOCK_RADIUS, RELAY_MS, RELAY_REACH,
-	SANCTUARY_MS, SANCTUARY_RADIUS, SANCTUARY_REDUCTION]
+	HOLDFAST_MS, HOLDFAST_RADIUS, HOLDFAST_REDUCTION, SANCTUARY_MS, SANCTUARY_RADIUS, SANCTUARY_REDUCTION]
 static var NODES: Array[Dictionary] = make_nodes()
 
 
@@ -52,8 +55,7 @@ static func make_nodes() -> Array[Dictionary]:
 				for adjacent in range(maxi(0, lane - 1), mini(LANES.size(), lane + 2)):
 					parents.append(ROWS[tier - 1][adjacent][0])
 			result.append({"id":definition[0], "name":definition[1], "description":definition[2],
-				"tier":tier, "level":tier + 1, "lane":lane, "parents":parents,
-				"enabled":definition[0] != "holdfast"})
+				"tier":tier, "level":tier + 1, "lane":lane, "parents":parents})
 	return result
 
 
@@ -98,7 +100,7 @@ static func valid(profile: Dictionary) -> bool:
 		return false
 	for index in selected.size():
 		var entry := node(selected[index])
-		if not selected[index] is String or entry.is_empty() or not entry.enabled or int(entry.tier) != index:
+		if not selected[index] is String or entry.is_empty() or int(entry.tier) != index:
 			return false
 		if index > 0 and not entry.parents.has(selected[index - 1]):
 			return false
@@ -127,8 +129,6 @@ static func refusal(profile: Dictionary, request: int) -> String:
 	if index < 0 or index >= NODES.size():
 		return "Select a node in the connected Warden tree."
 	var entry := NODES[index]
-	if not entry.enabled:
-		return str(entry.description)
 	var selected := path(profile)
 	if entry.tier != selected.size():
 		return "Select one node in the next tier."

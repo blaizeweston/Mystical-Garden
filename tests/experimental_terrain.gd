@@ -453,7 +453,7 @@ func run() -> void:
 	var stored_profile = game.Character.new()
 	stored_profile.path = profile_path
 	check(stored_profile.load_profile(false) == OK and stored_profile.data.xp == player.character.xp
-		and stored_profile.data.xp_tenths == player.character.xp_tenths and stored_profile.data.monsters == player.character.monsters,
+		and stored_profile.data.monsters == player.character.monsters,
 		"the loss settlement persisted exact XP and kill counts")
 	check(not player.wild and garden.state.revision == 2 and garden.bed_ids[3] == stable_id
 		and game.progress.plots[3].species == planted and garden.barrier.walkable(garden.planar(player.pos)),
@@ -607,7 +607,7 @@ func save_digests(garden_path: String, profile_path: String) -> Array[String]:
 
 func class_xp(player: Dictionary) -> int:
 	var frame: int = player.frame
-	return int(player.character.xp[frame]) * 10 + int(player.character.xp_tenths[frame])
+	return int(player.character.xp[frame])
 
 func kill_count(player: Dictionary) -> int:
 	var count := 0

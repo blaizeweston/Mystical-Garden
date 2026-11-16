@@ -18,7 +18,7 @@ func run():
  IDs.remap_garden(file)
  check(file.get_value("garden","personal_parts")[18]==11 and file.get_value("garden","stock_0")==9,"stable IDs survive reordered content indices")
  check(game.Enemies.decode(game.Enemies.encode(300,31,2)).kind==300,"enemy protocol no longer aliases enemy 16")
- var old: Dictionary=game.Character.blank();old.xp[0]=20
+ var old: Dictionary=game.Character.blank();old.xp[0]=20;old.erase(game.Character.Experience.VERSION_KEY)
  var migrated: Dictionary=game.Character.normalize(IDs.profile(old,IDs.legacy()))
  check(game.Character.level(migrated.xp[0])==5,"legacy class level remains earned under new pacing")
  for species in game.Seeds.DEFINITIONS.size(): check(game.Parts.rare_part(species)>0,"every species has a rare harvest component")

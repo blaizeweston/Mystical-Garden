@@ -66,8 +66,8 @@ func run():
 		check(p.character.upgrades[2]==(1<<13),"class upgrades cannot be changed during expedition")
 	else:
 		game.guest_character.data.active_class=4
-		game.guest_character.data.xp[4]=20
-		game.guest_character.data.xp[2]=20
+		game.guest_character.data.xp[4]=200
+		game.guest_character.data.xp[2]=200
 		game.guest_character.data.upgrades[4]=1
 		game.guest_character.data.loadouts[4].weapon=2
 		game.guest_character.save_profile()

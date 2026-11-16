@@ -7,8 +7,8 @@ const Core = preload("res://core_combat.gd")
 const Menu = preload("res://main_menu.tscn")
 const Appearance = preload("res://character_appearance.gd")
 const ConnectedWarden = preload("res://warden_connected_tree.gd")
-const CT_PATH := ["vanguard","deep_roots","ready_footing","sheltering_quake","measured_guard","sanctuary_ground"]
-const CT_REQUESTS := [64,68,71,75,77,81]
+const CT_PATH := ["vanguard","deep_roots","ready_footing","sheltering_quake","holdfast","sanctuary_ground"]
+const CT_REQUESTS := [64,68,71,75,78,81]
 
 var tree: SceneTree
 var signals: String
@@ -270,11 +270,27 @@ func host(menu: Node) -> void:
 
 	# Controlled enemy HP leaves the actual Frost opening responsible for
 	# the final kill, while the existing native death and reward code runs.
+	var xp_before := [int(local.character.xp[0]),int(ally.character.xp[0])]
 	var stats: Dictionary=game.weapon_stats(local)
 	stats.damage=10000
 	for index in game.scouts.size():
 		if game.scouts[index].hp>0:
 			game.apply_weapon_hit(local,index,game.scouts[index].pos,stats,Time.get_ticks_msec())
+	var expected_xp := []
+	if connected_warden_case:
+		var pending: Array = game.pending_kill_rewards.duplicate()
+		for index in [0,1]:
+			var actor: int = 1 if index==0 else protected
+			var prior := int(xp_before[index])
+			var subtotal := 0
+			for kill in pending:
+				for reward in kill.rewards:
+					if reward.id==actor:
+						subtotal += int(reward.xp)
+			check(subtotal>0,"scout rewards remain queued while the leader lives")
+			expected_xp.append(prior+subtotal+3)
+		check(local.character.xp[0]==xp_before[0] and ally.character.xp[0]==xp_before[1],
+			"queued scout XP stays out of both profiles before floor settlement")
 	game.enemy_hp=3
 	game.enemy_pos=target
 	for seed_value in range(1,40):
@@ -293,6 +309,12 @@ func host(menu: Node) -> void:
 	if thorn_kill:
 		check(game.enemy_hp==0,"the maintained Thorn wound kills without an extra attack")
 	check(not game.wild_item_drops.is_empty(),"actual enemy drops through native settlement")
+	if connected_warden_case:
+		check(await until(func():return ally.get("projection_delivery",{}).get("state")=="committed"),
+			"guest acknowledges canonical floor XP")
+		check([local.character.xp[0],ally.character.xp[0]]==expected_xp,
+			"host and guest get each queued scout award plus one three-XP leader award")
+		mark("ct-xp",str(expected_xp[1]))
 	local.pos=game.battlefield.advance
 	ally.pos=local.pos
 	game.use_checkpoint(1,true)
@@ -338,7 +360,7 @@ func learn_connected_host(game: Node, id: int, catalyst: int) -> bool:
 		return false
 	# Seed earned XP in the disposable fixture through the guarded profile path.
 	game.run_guarded_action(id,game.Transactions.Scope.GARDEN,func(effects):
-		player.character.xp[0]=260
+		player.character.xp[0]=2600
 		game.save_action_profile(id,effects))
 	if not check(await until(func():
 		return (read("ct-learned")=="ok" and ConnectedWarden.path(player.character)==CT_PATH
@@ -357,7 +379,7 @@ func learn_connected_guest(game: Node) -> bool:
 	game.send_garden_action("learn_0_68")
 	if not check(await until(func():return "Reach Warden level 2" in game.status),"unearned guest request is refused by host"):return false
 	mark("ct-level-one")
-	if not check(await until(func():return game.guest_character.data.xp[0]==260),"seeded XP reaches guest profile without extra choices"):return false
+	if not check(await until(func():return game.guest_character.data.xp[0]==2600),"seeded XP reaches guest profile without extra choices"):return false
 	game.send_garden_action("learn_0_69")
 	if not check(await until(func():return "connected to your last selection" in game.status),"disconnected guest request is refused by host"):return false
 	for index in range(1,CT_REQUESTS.size()):
@@ -388,7 +410,8 @@ func exercise_connected_host(game: Node, local: Dictionary, player: Dictionary, 
 	game.apply_enemy_hit(id,player,now,4,0,game.enemy_pos)
 	var blocks := func():return events.filter(func(e):return e.kind=="actual_block" and e.source_actor==id)
 	check(player.hp==hp and player.dodge_at==now and player.get("warden_sanctuary",{}).get("until",0)>now
-		and blocks.call().size()==1 and blocks.call()[0].quality=="refined","remote Q block readies dodge, creates sanctuary and runs one source-owned Catalyst")
+		and player.get("warden_holdfast",{}).get("actor")==id and local.get("warden_holdfast",{}).get("actor")==id
+		and blocks.call().size()==1 and blocks.call()[0].quality=="refined","remote Q block grants Holdfast, creates Sanctuary and runs one source-owned Catalyst")
 	local.guard_until=0
 	local.guard_charges=0
 	mark("ct-r")
@@ -469,8 +492,9 @@ func guest(menu: Node, role: String) -> void:
 		game.send_garden_action("class_skill")
 		if not check(await until(func():return read("ct-r")=="ok"),"connected Warden's actual block qualifies"):return
 		if not check(await until(func():
-			return game.guest_combat_events(game.players[id]).any(func(event):return event.shape=="sanctuary_ground"),3000),
-			"guest sees the authoritative Sanctuary field in the existing event stream"):return
+			var effects: Array=game.guest_combat_events(game.players[id])
+			return effects.any(func(event):return event.shape=="sanctuary_ground") and effects.any(func(event):return event.shape=="holdfast" and event.combo==id),2000),
+			"guest sees authoritative Holdfast and Sanctuary through the existing event stream"):return
 		game.send_garden_action("class_skill_two")
 	elif int(picks[2])>0:
 		if not check(await until(func():return read("wood-guard-"+str(id))=="ok"),"host requests actual Wood Ward"):return
@@ -503,6 +527,11 @@ func guest(menu: Node, role: String) -> void:
 			check(await until(func():return read("offline")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"guest observes party shutdown")
 		return
 	if not check(await until(func():return not read("advance").is_empty() and game.enemy_hp==0 and int(game.party_travel_state().get("epoch",-1))==int(read("advance"))),"guest sees cleared Gate"):return
+	if connected_warden_case:
+		var canonical := ConfigFile.new()
+		var expected := int(read("ct-xp"))
+		check(expected>2600 and game.guest_character.data.xp[0]==expected and canonical.load(game.guest_character.path)==OK
+			and canonical.get_value("character","progress",{}).get("xp",[])[0]==expected,"guest's displayed profile and local save agree with host whole XP")
 	game.send_travel_ready(false)
 	if not check(await until(func():return game.depth==2 and game.stage.visual_field.configured_key.z==game.map_seed),"guest tracks next floor"):return
 	mark("guest-floor")
@@ -519,8 +548,8 @@ func guest(menu: Node, role: String) -> void:
 	if connected_warden_case:
 		var rejoined = tree.current_scene
 		var profile: Dictionary = rejoined.guest_character.data
-		check(ConnectedWarden.path(profile)==CT_PATH and rejoined.Skills.resolve_in_world(rejoined,0,0,profile).name=="Thorn Counter",
-			"same locally committed Warden path and Q survive rejoin")
+		check(ConnectedWarden.path(profile)==CT_PATH and rejoined.Skills.resolve_in_world(rejoined,0,0,profile).name=="Thorn Counter"
+			and profile.xp[0]==int(read("ct-xp")),"same committed path, Q and XP survive rejoin without a repeated award")
 	mark("rejoined")
 	check(await until(func():return read("saved")=="ok"),"host verifies no replay or debit")
 	check(await until(func():return read("offline")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"guest observes host shutdown")

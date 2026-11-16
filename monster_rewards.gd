@@ -13,7 +13,7 @@ static func queue(game: Node,key: String,kind: int,mask: int,position: Vector3,l
   if not p.get("profile_ready",false) or not p.wild or p.fallen: continue
   var chance=game.Director.trophy_chance(game.encounter_number,leader and game.depth==game.ROUTE_ROOMS,mask!=0)
   var item=game.roll_kill_trophy(kind,mask,leader)
-  rewards.append({"id":id,"class":int(p.frame),"identity":p.get("seed_owner",""),"item":item,"essence":int(config.leader_essence_sparks if leader else config.kill_essence_sparks)*(6 if game.Enemies.get_kind(kind).get("boss",false) else 1),"boss_seed":bool(game.Enemies.get_kind(kind).get("boss",false)) and game.rng.randf()<float(game.Enemies.get_kind(kind).get("seed_drop_chance",1.0)),"xp":int(config.leader_xp_tenths if leader else config.kill_xp_tenths)*(8 if game.Enemies.get_kind(kind).get("boss",false) else 1)})
+  rewards.append({"id":id,"class":int(p.frame),"identity":p.get("seed_owner",""),"item":item,"essence":int(config.leader_essence_sparks if leader else config.kill_essence_sparks)*(6 if game.Enemies.get_kind(kind).get("boss",false) else 1),"boss_seed":bool(game.Enemies.get_kind(kind).get("boss",false)) and game.rng.randf()<float(game.Enemies.get_kind(kind).get("seed_drop_chance",1.0)),"xp":int(config.leader_class_xp if leader else config.kill_class_xp)*(8 if game.Enemies.get_kind(kind).get("boss",false) else 1)})
  var deferred := checkpoint_only(game)
  var kill := {"key":key,"kind":kind,"position":position,"rewards":rewards,"epoch":game.combat_epoch}
  if deferred:
@@ -51,7 +51,7 @@ static func publish_notices(game: Node,notices: Dictionary, require_profile := f
  for id in notices:
   if not game.players.has(id):continue
   var notice=notices[id]
-  var message := "+%.2f essence · +%.1f class XP%s%s"%[notice.essence/float(game.Director.config().essence_sparks_per_point),notice.xp/10.0," pending" if xp_pending else ""," · Monster part nearby" if notice.parts>0 else ""]
+  var message := "+%.2f essence · +%d class XP%s%s"%[notice.essence/float(game.Director.config().essence_sparks_per_point),notice.xp," pending" if xp_pending else ""," · Monster part nearby" if notice.parts>0 else ""]
   if require_profile: game.tell_profile_action(id,message)
   else: game.tell(id,message)
 
@@ -64,8 +64,7 @@ static func settle(game: Node,effects = null) -> bool:
    var p: Dictionary=game.players.get(id,game.pending_departures.get(id,{}) if effects != null else {})
    if p.is_empty() or p.get("seed_owner","")!=reward.identity:continue
    var c=int(reward["class"]);var profile=p.character
-   var total=int(profile.xp_tenths[c])+int(reward.xp)
-   profile.xp[c]=mini(9999,int(profile.xp[c])+total/10);profile.xp_tenths[c]=total%10
+   profile.xp[c]=mini(game.Character.Experience.MAX_XP,int(profile.xp[c])+int(reward.xp))
    profile.monsters[int(kill.kind)]=mini(9999,int(profile.monsters[int(kill.kind)])+1)
    if effects == null: game.publish_character(id)
    else: actors[id]=p

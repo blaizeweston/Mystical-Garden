@@ -34,6 +34,10 @@ static func character(path: String, include_profile := false) -> Dictionary:
   var saved: Variant = file.get_value("character", "progress", {})
   var data := Profile.blank()
   if saved is Dictionary:
+   if not Profile.Experience.supported(saved):
+    result.state = "invalid"
+    result.reason = "unsupported_class_xp_version"
+    return result
    data = Profile.normalize(Profile.ContentIDs.profile(saved, file.get_value("content", "manifest", Profile.ContentIDs.legacy())))
   var class_id: int = data.active_class
   var identified: bool = identity is String and Profile.valid_identity(identity)

@@ -121,7 +121,7 @@ func run() -> void:
 func check_native_progression(game: Node, player: Dictionary) -> void:
 	var character = preload("res://character_profile.gd")
 	var profile: Dictionary = character.blank()
-	profile.xp[0] = 500
+	profile.xp[0] = 5000
 	profile.upgrades[0] = 1 | (1 << 50)
 	profile = character.normalize(profile)
 	check(profile.upgrades[0] == 1 and profile.quarantine.learned_class_masks.warden == 1 << 50

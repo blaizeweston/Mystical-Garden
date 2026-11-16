@@ -4,7 +4,7 @@ func check(ok: bool,message: String) -> void:
  if not ok:failed=true;printerr("FAIL class depth: ",message)
 func _initialize() -> void: call_deferred("run")
 func arena(game: Node,p: Dictionary,c: int,right: bool=false) -> void:
- p.character=game.Character.blank();p.character.active_class=c;p.character.xp[c]=260
+ p.character=game.Character.blank();p.character.active_class=c;p.character.xp[c]=2600
  for index in ([1,3,5,7,9,11] if right else [0,2,4,6,8,10]):
   check(game.Classes.can_learn_legacy(p.character,c,index,7),"learn valid branch "+str(c)+":"+str(index));p.character.upgrades[c]|=1<<index
  p.frame=c;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.run_upgrades={};p.wild=true;p.fallen=false;p.pos=Vector3(0,0,-1.5);p.hp=5;p.max_hp=10;p.power=0;p.technique=0;p.facing=Vector3.FORWARD;p.lost_health=0

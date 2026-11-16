@@ -71,7 +71,7 @@ func run():
 	var graft:=Weapons.resolve(0,0,[0,0,0],Parts.HOOK,0,profile)
 	check(float(graft.pull)>0,"monster graft actually modifies weapon")
 	var legacy:=Character.normalize({"xp":[12,7],"plants":[4,5,6],"monsters":[2,3],"traits":[1,2]})
-	check(legacy.xp.size()==5 and legacy.xp.slice(0,2)==[12,7] and legacy.monsters.size()==preload("res://enemy_catalog.gd").all().size() and legacy.monsters.slice(0,2)==[2,3] and legacy.loadouts.size()==5,"legacy characters migrate without losing progress")
+	check(legacy.xp.size()==5 and legacy.xp.slice(0,2)==[120,70] and legacy.monsters.size()==preload("res://enemy_catalog.gd").all().size() and legacy.monsters.slice(0,2)==[2,3] and legacy.loadouts.size()==5,"legacy characters migrate without losing progress")
 	for c in 5:
 		p.wild=false
 		p.pos=game.Stage.HEART

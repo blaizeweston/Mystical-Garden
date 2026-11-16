@@ -1,13 +1,13 @@
 {
-  "version": 2,
+  "version": 3,
   "class_xp": [
     0,
-    5,
-    15,
-    35,
-    70,
-    140,
-    260
+    50,
+    150,
+    350,
+    700,
+    1400,
+    2600
   ],
   "rare_harvest_base": 0.05,
   "rare_harvest_cap": 0.45,
@@ -42,7 +42,7 @@
     "kill_essence_sparks": 1,
     "leader_essence_sparks": 2,
     "essence_sparks_per_point": 4,
-    "kill_xp_tenths": 1,
-    "leader_xp_tenths": 3
+    "kill_class_xp": 1,
+    "leader_class_xp": 3
   }
 }

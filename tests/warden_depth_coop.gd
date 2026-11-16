@@ -48,7 +48,7 @@ func host_run() -> void:
  check(await until(func():return marked("verified")),"guest observes purchase and cleared-floor stability")
  mark("done");check(await until(func():return game.players.size()==1),"guest leaves");game.leave_game("Warden depth fixture complete")
 func guest_run() -> void:
- game.guest_character.data.active_class=0;game.guest_character.data.xp[0]=260;game.guest_character.data.upgrades[0]=MASK;game.guest_character.save_profile()
+ game.guest_character.data.active_class=0;game.guest_character.data.xp[0]=2600;game.guest_character.data.upgrades[0]=MASK;game.guest_character.save_profile()
  check(game.join_game()==OK,"guest joins")
  check(await until(func():return game.session=="Guest" and not game.client_details.is_empty()),"guest admitted")
  var id:=game.multiplayer.get_unique_id()

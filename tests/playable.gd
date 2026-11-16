@@ -606,7 +606,7 @@ func verify_character_progress() -> void:
 	game.leave_game("Character test reset")
 	var p: Dictionary = game.players[1]
 	var profile: Dictionary = p.character
-	check(profile.xp[Frames.WARDEN]*10+profile.xp_tenths[Frames.WARDEN] > 0 and profile.xp[Frames.CASTER]*10+profile.xp_tenths[Frames.CASTER] > 0,
+	check(profile.xp[Frames.WARDEN] > 0 and profile.xp[Frames.CASTER] > 0,
 		"combat XP is tracked separately by class")
 	check(profile.plants[0] > 0 and profile.monsters.reduce(func(a,b): return a+int(b),0)>0,
 		"cultivation and combat award different familiarity")
@@ -925,7 +925,7 @@ func verify_shared_combat(guest: int) -> void:
 	for kill_index in 10: game.MonsterRewards.queue(game,"legacy-xp-"+str(kill_index),0,0,Vector3.ZERO,false)
 	game.award_combat_progress()
 	game.players[1].wild=true
-	check(game.players[1].character.xp[0] == 0 and game.players[guest].character.xp[0] == 1,
+	check(game.players[1].character.xp[0] == 0 and game.players[guest].character.xp[0] == 10,
 		"combat rewards go to the participating character")
 	for step in 100:
 		await create_timer(0.05).timeout
@@ -1062,7 +1062,7 @@ func verify_guest() -> void:
 		"guest sees independent spending")
 	var reload := Character.new()
 	reload.path = game.guest_character.path
-	check(reload.load_profile() == OK and reload.data.xp[0] == 1
+	check(reload.load_profile() == OK and reload.data.xp[0] == 10
 		and game.local_character.data.xp[0] == 0, "guest saves progress separately from the local profile")
 	for step in 100:
 		await create_timer(0.05).timeout

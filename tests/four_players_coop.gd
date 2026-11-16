@@ -132,7 +132,7 @@ func host_run():
  var found=false
  for p in game.players.values():
   if p.character.name=="Player 2":
-   found=true;check(p.character.xp[0]==12 and p.character.xp_tenths[0]==1,"reconnected character retains progression")
+   found=true;check(p.character.xp[0]==121,"reconnected character retains progression")
  check(found,"reconnected identity restored")
  check(await until(func():return marked("rejoined_snapshot")),"rejoining guest receives all four peers")
  mark("done");check(await until(func():return game.players.size()==1),"all guests leave cleanly");game.leave_game("Four player test complete")
@@ -234,7 +234,7 @@ func verify_vitals_marker(stage: String,index: int) -> void:
 
 
 func guest_run(index: int):
- game.guest_character.data.name="Player "+str(index);game.guest_character.data.xp[0]=10+index;game.guest_character.data.appearance[5]=index%2;game.guest_character.save_profile()
+ game.guest_character.data.name="Player "+str(index);game.guest_character.data.xp[0]=100+10*index;game.guest_character.data.appearance[5]=index%2;game.guest_character.save_profile()
  check(game.join_game()==OK,"guest connects")
  if not await until(func():return game.session=="Guest" and game.players.size()==4):check(false,"whole party snapshot arrives");return
  var saw_cards=false;var saw_four=false;var epochs={};var reconnected=false;var lantern_requested=false;var revive_requested=false
@@ -265,7 +265,9 @@ func guest_run(index: int):
     if not saw_cards:game.send_garden_action("checkpoint_choice_-1");saw_cards=true;epochs.clear()
    if not marked("kill_verified_"+str(index)) and game.players.has(id):
     var own=game.players[id]
-    if own.get("ground_items",[]).size()==1 and int(game.guest_character.data.get("xp_tenths",[0,0,0,0,0])[int(own.frame)])==1:
+    var expected_xp := [100+10*index,0,0,0,0]
+    expected_xp[int(own.frame)]+=1
+    if own.get("ground_items",[]).size()==1 and game.guest_character.data.xp==expected_xp:
      check(str(own.ground_items[0].id).ends_with(":"+str(id)),"drop belongs to this guest")
      check(own.ground_items[0].item==game.Items.part_id(game.Parts.monster_part(10)),"drop preserves killed species")
      mark("kill_verified_"+str(index))
