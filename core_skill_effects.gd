@@ -240,13 +240,14 @@ static func pulse(game: Node, id: int, player: Dictionary, cast: Dictionary, pha
 		"phase_ms": phase.delay, "targets": affected, "allies": allies})
 
 
-static func area_targets(game: Node, center: Vector3, radius: float) -> Array[int]:
+static func area_targets(game: Node, center: Vector3, radius: float, ranged: bool = false) -> Array[int]:
 	var result: Array[int] = []
 	for target in Contact.candidates(game, center):
 		var at: Vector3 = game.enemy_position(target)
 		if center.distance_to(at) > radius:
 			break
-		if game.battlefield.clear_line(center, at):
+		var clear: bool = game.battlefield.projectile_clear(center, at) if ranged else game.battlefield.clear_line(center, at)
+		if clear:
 			result.append(target)
 	return result
 
@@ -353,7 +354,7 @@ static func chain(game: Node, id: int, player: Dictionary, cast: Dictionary, fir
 	damage(game, player, first, cast.from, float(skill.damage), now)
 	for hop in int(skill.chain_targets):
 		var next := -2
-		for candidate in area_targets(game, at, float(skill.chain_range)):
+		for candidate in area_targets(game, at, float(skill.chain_range), true):
 			if not visited.has(candidate):
 				next = candidate
 				break

@@ -36,7 +36,7 @@ static func plan(game: Node, player: Dictionary, field: RefCounted, skill: Dicti
 			target = int(picked.get("target",-2))
 			center = picked.get("point",origin)
 		"line":
-			endpoint = field.dash(origin,origin+forward*reach)
+			endpoint = field.projectile_endpoint(origin,origin+forward*reach,float(skill.width))
 			center = endpoint
 			valid = origin.distance_to(endpoint) >= .22
 		"cone":
@@ -68,7 +68,7 @@ static func footprint(cast: Dictionary) -> Array:
 
 static func targets(game: Node, cast: Dictionary, skill: Dictionary, card: Dictionary) -> Array[int]:
 	if cast.shape == "line":
-		return game.skill_line_targets(cast.origin,cast.forward,cast.origin.distance_to(cast.endpoint),cast.width,int(skill.limit))
+		return game.skill_line_targets(cast.origin,cast.forward,cast.range,cast.width,int(skill.limit))
 	var result: Array[int] = game.skill_area_targets(cast.center,cast.radius,cast.origin)
 	if cast.shape == "target":
 		result.erase(cast.target)
@@ -99,7 +99,9 @@ static func allies(game: Node, center: Vector3, radius: float) -> Array[Dictiona
 static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionary, stats: Dictionary, now: int) -> void:
 	var aim: Vector3 = player.get("class_aim",player.get("facing",Vector3.FORWARD))
 	if not player.has("class_aim"):
-		var chosen: int = game.select_attack_target(player,float(skill.get("range",4.0)))
+		var targeting = load("res://class_ability_targeting.gd")
+		var width := float(skill.width) if skill.shape == "line" else -1.0
+		var chosen: int = targeting.automatic(game,player,float(skill.get("range",4.0)),{},width)
 		if chosen != -2:
 			var offset: Vector3 = game.enemy_position(chosen)-Vector3(player.pos)
 			if offset.length_squared() > .001:

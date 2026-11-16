@@ -1,6 +1,7 @@
 extends Node3D
 ## One MultiMesh per repeated asset variant. Collision stays outside the preview.
 
+const CoverShape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const RootMeshes = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
 const Art = preload("res://assets/terrain_m02/terrain_art_direction.gd")
 const Habitat = preload("res://assets/terrain_m02/wilds_habitat_mesh.gd")
@@ -70,6 +71,8 @@ func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds
 		# Half the bounding box diagonal makes the logical disk conservative at any yaw.
 		var diagonal := Vector2(size.x, size.z).length()
 		var basis := Basis(Vector3.UP, prop.yaw).scaled(Vector3.ONE * (2.0 * prop.radius / diagonal))
+		if prop.get("cover_role") == CoverShape.LOW_RUBBLE:
+			basis = basis.scaled(Vector3(1.0, 0.50, 1.0))
 		_append(batches, asset, basis, prop.center, 0.45, -0.025)
 	for key in batches:
 		var parent := rocks if key.begins_with("rock_") else vegetation

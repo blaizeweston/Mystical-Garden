@@ -36,9 +36,9 @@ static func nearest(game: Node, center: Vector3, radius: float, visited: Diction
 	for target in pool:
 		if not Actors.valid_target(game,target) or visited.has(Contact.token(game,target)):
 			continue
-		var edge := Hurt.contact(game,target,center)
+		var edge := Hurt.contact(game,target,center,true)
 		var reach := center.distance_to(edge)
-		if reach <= radius and (reach < distance or (is_equal_approx(reach,distance) and target < best)) and game.battlefield.clear_line(center,edge):
+		if reach <= radius and (reach < distance or (is_equal_approx(reach,distance) and target < best)) and game.battlefield.projectile_clear(center,edge):
 			best = target
 			distance = reach
 	return best
@@ -58,7 +58,7 @@ static func discharge(game: Node, actor: int, first: int, origin: Vector3, impac
 		origin = center
 		if step < jumps:
 			target = nearest(game,center,JUMP_RANGE,visited)
-			if target != -2: center = Hurt.contact(game,target,origin)
+			if target != -2: center = Hurt.contact(game,target,origin,true)
 
 
 static func burst(game: Node, event: RefCounted, center: Vector3, now: int) -> void:
@@ -125,7 +125,7 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 					var reach := INF if not authored.is_empty() else maxf(.85,float(details.radius))
 					var target:=nearest(game,center,reach,{},authored)
 					if target!=-2:
-						discharge(game,event.actor,target,center,Hurt.contact(game,target,center),q.offense,1,now)
+						discharge(game,event.actor,target,center,Hurt.contact(game,target,center,true),q.offense,1,now)
 				"recipient_charge":
 					for id in details.recipients: grant(game,event,id)
 				"landing_discharge":
@@ -142,5 +142,5 @@ static func ground_contact(game: Node, cast: Dictionary, player: Dictionary, now
 	stats.reach = cast.skill.range
 	for target in Contact.candidates(game,origin):
 		if Contact.accepts(game,target,origin,origin+Vector3(cast.forward)*float(stats.reach),cast.skill.weapon_form,stats):
-			core_contact(game,cast,target,origin,Hurt.contact(game,target,origin),now)
+			core_contact(game,cast,target,origin,Hurt.contact(game,target,origin,true),now)
 			return

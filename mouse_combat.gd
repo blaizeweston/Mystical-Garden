@@ -1,4 +1,5 @@
 extends RefCounted
+const Hurt = preload("res://enemy_hurtbox.gd")
 const MAX_AGE:=250
 var states: Dictionary={}
 var next_send: int=0
@@ -81,10 +82,19 @@ func draw_indicator(game: Node,p: Dictionary,aim: Vector2,shown: bool) -> void:
 static func contact(game: Node,origin: Vector3,aim: Vector3,point: Vector3,stats: Dictionary,form: String,target: int=-2) -> bool:
  if target>=-1:return preload("res://weapon_contact.gd").accepts(game,target,origin,aim,form,stats)
  return game.AttackGeometry.accepts("line" if game.WeaponMotion.profile(form).delivery=="line" else "sweep",origin,aim,point,float(stats.reach),form,true)
-static func projectile_path(field: RefCounted, origin: Vector3, direction: Vector3, profile: Dictionary, reach: float) -> Dictionary:
- var side:=direction.cross(Vector3.UP).normalized()
- var muzzle: Vector3=field.dash(origin,origin+direction*float(profile.muzzle_forward)+side*float(profile.muzzle_side))
- return {"from":muzzle,"to":field.dash(muzzle,origin+direction*reach)}
+static func projectile_path(field: RefCounted, origin: Vector3, direction: Vector3, profile: Dictionary, reach: float, radius: float = -1.0) -> Dictionary:
+ if radius < 0.0:
+  radius = float(profile.projectile_radius)
+ var side := direction.cross(Vector3.UP).normalized()
+ var muzzle := origin + direction * float(profile.muzzle_forward) + side * float(profile.muzzle_side)
+ var blocked: float = field.projectile_block_fraction(origin, muzzle, radius)
+ if blocked != INF:
+  return {"from":origin, "to":origin.lerp(muzzle, blocked), "muzzle_blocked":true}
+ return {"from":muzzle, "to":field.projectile_endpoint(muzzle, origin + direction * reach, radius), "muzzle_blocked":false}
+
+static func can_shoot(field: RefCounted, origin: Vector3, center: Vector3, body_radius: float, profile: Dictionary, reach: float) -> bool:
+ var path := projectile_path(field, origin, origin.direction_to(center), profile, reach)
+ return not Hurt.projectile_contact(field, path.from, path.to, center, body_radius, float(profile.projectile_radius)).is_empty()
 static func queue_attack(game: Node,id: int,p: Dictionary,pos: Vector3,stats: Dictionary,now: int,form: String,duration: int,lock_target: int=-2) -> void:
  var direction: Vector3=(p.get("aim_direction",p.facing) if p.get("mouse_aim",false) else p.facing).normalized();p.facing=direction
  p.attack_direction=direction
@@ -99,6 +109,7 @@ static func queue_attack(game: Node,id: int,p: Dictionary,pos: Vector3,stats: Di
   end=path.to
   var flight:=maxi(30,roundi(muzzle.distance_to(end)/float(profile.speed)*1000))
   game.projectile_queue.append({"direction":direction,"mouse_ray":true,"player":id,"epoch":game.combat_epoch,"release":release,"due":release+flight,"emitted":false,"projectile":true,"form":form,"origin":muzzle,"aim":end,"previous":muzzle,"stats":stats.duplicate(true),"hits":[],"remaining":int(stats.targets)})
+  game.projectile_queue.back().muzzle_blocked = path.muzzle_blocked
   if p.get("mouse_aim",false):
    var combo:=int(p.get("attack_combo",0))
    p.ranged_windup={"combo":combo,"release":release}
@@ -132,13 +143,14 @@ static func launch(game: Node,shot: Dictionary) -> void:
  shot.launch_position=start
  shot.origin=path.from
  shot.previous=path.from
+ shot.muzzle_blocked=path.muzzle_blocked
  shot.aim=path.to
  shot.due=int(shot.release)+maxi(30,roundi(Vector3(shot.origin).distance_to(shot.aim)/float(profile.speed)*1000))
 
 static func volley(game: Node, shot: Dictionary, field: RefCounted = null) -> Array:
  var profile: Dictionary=game.WeaponMotion.profile(str(shot.form))
  var count:=int(profile.get("projectiles",1))
- if count==1:return [shot]
+ if count==1 or shot.get("muzzle_blocked",false):return [shot]
  count=mini(5,count+maxi(0,int(shot.stats.targets)-2))
  # The petals share a set of hit tokens, so overlapping rays cannot hit a foe twice.
  var shots: Array=[shot]
@@ -149,7 +161,7 @@ static func volley(game: Node, shot: Dictionary, field: RefCounted = null) -> Ar
  for index in range(1,count):
   var fraction: float=ceilf(index*.5)/ceilf((count-1)*.5)
   var direction:=center.rotated(Vector3.UP,spread*fraction*(1.0 if index%2==1 else -1.0))
-  var end: Vector3=field.dash(muzzle,Vector3(shot.launch_position)+direction*float(shot.stats.reach))
+  var end: Vector3=field.projectile_endpoint(muzzle,Vector3(shot.launch_position)+direction*float(shot.stats.reach),float(profile.projectile_radius))
   var petal:=shot.duplicate()
   petal.aim=end
   petal.due=int(shot.release)+maxi(30,roundi(muzzle.distance_to(end)/float(profile.speed)*1000))
@@ -168,14 +180,13 @@ static func ray_tick(game: Node,shot: Dictionary,now: int) -> bool:
  for target in range(-1,game.scouts.size()):
   if not game.Traits.valid_target(game,target) or shot.hits.has(token(game,target)):continue
   if target==int(shot.get("locked_target",-3)) and token(game,target)!=str(shot.get("locked_token","")):continue
-  var collision: Dictionary=preload("res://enemy_hurtbox.gd").sweep(game,target,previous,at,float(game.WeaponMotion.profile(str(shot.form)).projectile_radius))
+  var collision: Dictionary=Hurt.sweep(game,target,previous,at,float(game.WeaponMotion.profile(str(shot.form)).projectile_radius))
   if not collision.is_empty():contacts.append({"id":target,"distance":float(collision.fraction),"point":collision.point})
- contacts.sort_custom(func(a,b):return a.distance<b.distance)
+ contacts.sort_custom(func(a,b):return a.distance<b.distance or (a.distance==b.distance and a.id<b.id))
  for entry in contacts:
   if int(shot.remaining)<=0:break
   var target: int=entry.id;var point: Vector3=entry.point
   if not game.Traits.valid_target(game,target) or shot.hits.has(token(game,target)):continue
-  shot.visual_stop=point
   if not shot.hits.is_empty() and str(shot.form)!="fan":preload("res://combat_status.gd").proc(game,"pierce",previous,point,target)
   shot.hits.append(token(game,target));shot.remaining-=1
   var hit: Dictionary=shot.stats.duplicate(true);hit.shot_distance=Vector3(shot.get("launch_position",shot.origin)).distance_to(game.enemy_position(target))
@@ -186,6 +197,7 @@ static func ray_tick(game: Node,shot: Dictionary,now: int) -> bool:
    var budget:=maxi(0,int(shot.stats.targets)-shot.hits.size()) if str(shot.form)=="fan" else int(shot.remaining)
    shot.remaining=preload("res://weapon_contact.gd").secondary(game,game.players[int(shot.player)],shot.stats,point,shot.hits,budget)
    shot.remaining=0
+  if int(shot.remaining)<=0:shot.visual_stop=point
   if game.encounter_cleared() and game.pending_finale_at==0:game.finish_combat(int(shot.player),point)
  shot.previous=at
  return now>=int(shot.due) or int(shot.remaining)<=0

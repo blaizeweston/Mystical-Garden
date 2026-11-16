@@ -5,7 +5,7 @@ const PROFILE_ENV := "MYSTICAL_TERRAIN_PROFILE"
 const ROOT_NAME := "Mystical Garden Prototype"
 const Auth = preload("res://persistence_authorization.gd")
 const Playtest = preload("res://playtest_storage.gd")
-const NETWORK_VERSION := "integrated-terrain-coop-1"
+const NETWORK_VERSION := "integrated-terrain-coop-2"
 
 static func requested() -> bool:
 	if Playtest.retail():

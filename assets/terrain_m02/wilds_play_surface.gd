@@ -11,6 +11,7 @@ var cells: Dictionary
 var spacing: float
 var layout: Dictionary
 var blockers: Array = []
+var projectile_cover: Array = []
 var arena := {}
 var water: Array
 var arena_outline := PackedVector2Array()
@@ -33,6 +34,35 @@ func _init(labels: Dictionary, features: Dictionary, cell_spacing: float) -> voi
 	for plant in layout.plants:
 		if plant.kind == "tree" and not plant.has("on_mass"):
 			blockers.append(Shape.disk(plant.id, "trunk", plant.center, plant.height * 0.105))
+	for block: Dictionary in blockers:
+		if block.get("cover_role", Shape.SOLID_COVER) != Shape.LOW_RUBBLE:
+			projectile_cover.append(block)
+
+# Ranged and sight clearance share solid footprints. Actor queries keep every blocker.
+func projectile_block_fraction(from: Vector2, to: Vector2, radius: float) -> float:
+	var fraction := _ranged_boundary(from, to, radius)
+	var bounds := Rect2(from.min(to), (to - from).abs()).grow(radius + Shape.TRACE_EPSILON)
+	for block in projectile_cover:
+		if bounds.intersects(block.bounds, true):
+			fraction = minf(fraction, Shape.cover_entry(block, from, to, radius))
+	return fraction
+
+func combat_sight(from: Vector2, to: Vector2) -> bool:
+	return projectile_block_fraction(from, to, 0.0) == INF
+
+func _ranged_boundary(from: Vector2, to: Vector2, radius: float) -> float:
+	if not arena_outline.is_empty():
+		if not Geometry2D.is_point_in_polygon(from, arena_outline):
+			return 0.0
+		# The first edge contact stops a shot, even when its endpoint is inside a concave arena.
+		return Shape.outline_entry(arena_outline, from, to, radius)
+	# Older laboratory layouts have cells but no compiled playable outline.
+	var count := maxi(1, ceili(from.distance_to(to) / SAMPLE_STEP))
+	for i in count + 1:
+		var fraction := float(i) / count
+		if not cells.has(Grid.world_to_cell(from.lerp(to, fraction), spacing)):
+			return fraction
+	return INF
 
 func walkable(point: Vector2, radius: float = CLEARANCE) -> bool:
 	if not arena.is_empty():

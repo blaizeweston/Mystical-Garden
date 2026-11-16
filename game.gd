@@ -1662,7 +1662,13 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 		player.facing=plan.forward
 		player.aim_direction=plan.forward
 	else:
-		target=select_attack_target(player,range_limit+float(skill.get("travel",0)))
+		var targeting = preload("res://class_ability_targeting.gd")
+		var form := WeaponMotion.form(player)
+		if mode == "volley" and WeaponMotion.is_projectile(form):
+			target=targeting.automatic(self,player,float(stats.reach),WeaponMotion.profile(form))
+		else:
+			var width := float(skill.width) if mode == "salvo" else -1.0
+			target=targeting.automatic(self,player,range_limit+float(skill.get("travel",0)),{},width)
 		if target!=-2: point=enemy_position(target)
 	if not aimed and mode in ["bind","strangle","siphon","salvo","judgement","reap","harvest","requiem"]:
 		var extra_travel:=float(skill.get("travel",0)) if not skill.has("range") else 0.0
@@ -1821,11 +1827,15 @@ func skill_area_targets(center: Vector3,radius: float,origin: Vector3) -> Array[
 func skill_line_targets(origin: Vector3,facing: Vector3,distance: float,width: float,limit: int) -> Array[int]:
 	var result: Array[int]=[]
 	var ordered: Array=[]
+	var fraction: float = battlefield.projectile_block_fraction(origin,origin+facing*distance,width)
+	var cover_distance := fraction * distance if fraction != INF else INF
 	for target in range(-1,scouts.size()):
 		if (enemy_hp if target==-1 else int(scouts[target].hp))<=0: continue
-		var offset:=enemy_position(target)-origin
-		var along:=offset.dot(facing)
-		if along>=0 and along<=distance and (offset-facing*along).length()<=width and battlefield.clear_line(origin,enemy_position(target)):
+		var point := enemy_position(target)
+		var offset := point - origin
+		var along := offset.dot(facing)
+		if along >= 0.0 and along <= distance and along + .00001 < cover_distance \
+				and (offset-facing*along).length()<=width and battlefield.projectile_clear(origin,point):
 			ordered.append({"id":target,"distance":along})
 	ordered.sort_custom(func(a,b): return a.distance<b.distance)
 	for item in ordered:
@@ -2434,7 +2444,8 @@ func update_scouts(delta: float, now: int) -> void:
 		var allies: Array=support_allies(scout) if Enemies.is_support(int(scout.kind)) else []
 		for ally in allies:
 			if ally.engaged: scout.engaged=true
-		if not scout.engaged and (distance>float(Director.config().aggro_radius) or not battlefield.clear_line(position,victim)):
+		var attacks = preload("res://enemy_attack.gd")
+		if not scout.engaged and (distance>float(Director.config().aggro_radius) or not attacks.attack_sight(battlefield,position,victim,role)):
 			continue
 		if not scout.get("alerted",false) and distance<=float(Director.config().aggro_radius): Director.alert(self,position);scout.alerted=true
 		scout.engaged = true
@@ -2455,7 +2466,6 @@ func update_scouts(delta: float, now: int) -> void:
 			scout.erase("command_via")
 		var attack_range := (1.15 if role=="desperate" else float(definition.range)) + (0.65 if mask & Enemies.REACH else 0.0)
 		if now >= int(scout.ready) and now >= int(scout.rooted_until) and frost_motion > 0.0:
-			var attacks = preload("res://enemy_attack.gd")
 			if attacks.try_skill_approach(self,scout,victim,now) or attacks.try_thorn_vault(self,scout,victim,now):
 				continue
 		if mask & Enemies.MOBILITY and now >= int(scout.ready) and now >= int(scout.rooted_until) and frost_motion > 0.0:
@@ -2467,7 +2477,7 @@ func update_scouts(delta: float, now: int) -> void:
 		if role == "skirmish" and distance < 3.8 and distance > attack_range and now >= int(scout.rooted_until):
 			var tangent := (victim - position).normalized().rotated(Vector3.UP, 0.75 if int(scout.route) % 2 == 0 else -0.75)
 			scout.pos = battlefield.slide(position, position + tangent * speed * delta)
-		elif distance > attack_range or not battlefield.clear_line(position, victim):
+		elif distance > attack_range or not attacks.attack_sight(battlefield,position,victim,role):
 			if now >= int(scout.rooted_until):
 				scout.pos = Director.navigate(self,position,Director.pursuit(self,target,int(scout.route)) if not scout.ranged else victim,speed*delta,int(scout.route))
 		elif now >= int(scout.ready):
@@ -2555,13 +2565,14 @@ func resolve_scout(scout: Dictionary, definition: Dictionary, now: int) -> void:
 			if Life.alive(p) and AttackGeometry.accepts_sector(origin,attack.face,p.pos,0.0,radius,attack.span) and battlefield.clear_line(origin,p.pos):
 				apply_enemy_hit(id,p,now,damage,0,origin)
 		return
-	if not scout.ranged or battlefield.clear_line(origin,target_point):
+	var directed := mode == "volley"
+	if (not directed and not scout.ranged) or attacks.attack_sight(battlefield,origin,target_point,mode):
 		preload("res://event_audio.gd").enemy(self,attack,true)
 		if attack.get("variant")=="echo_bud":
 			preload("res://enemy_move_feedback.gd").release(self,"burst",origin,target_point,radius,Color("#b895ed"))
 		elif int(attack.pulse)>0:
 			emit_combat_event("swing","pulse",origin,target_point,.35,Color("#b895ed"),radius,int(attack.pulse))
-		hit_players(target_point,radius,now,damage,1600 if mode=="snare" else 0)
+		attacks.hit_players(self,target_point,radius,now,damage,1600 if mode=="snare" else 0,true,directed)
 		preload("res://glasscap_feint.gd").release(self,scout,now)
 	if int(scout.get("repeat", 0)) > 0 and not attack.get("learned",false):
 		scout.repeat -= 1
@@ -2650,11 +2661,7 @@ func resolve_briar_strike(now: int) -> void:
 
 
 func hit_players(center: Vector3, radius: float, now: int, damage: float = -1.0, slow_ms: int = 0, direct_attack := true) -> void:
-	for id in players:
-		var p: Dictionary = players[id]
-		if not Life.alive(p) or center.distance_to(p.pos) > radius or not battlefield.clear_line(center, p.pos):
-			continue
-		apply_enemy_hit(id,p,now,damage,slow_ms,center,direct_attack)
+	preload("res://enemy_attack.gd").hit_players(self,center,radius,now,damage,slow_ms,direct_attack)
 
 func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: int=0,origin: Vector3=Vector3.INF,direct_attack := true) -> void:
 	if not Life.alive(player) or not Transactions.session_writable(self): return
@@ -2915,12 +2922,14 @@ func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 	if p.get("mouse_aim",false):
 		MouseCombat.queue_attack(self,id,p,pos,stats,now,form,duration)
 		return
-	var first:=select_attack_target(p,float(stats.reach))
-	if first==-2 or pos.distance_to(enemy_contact_point(first,pos))>float(stats.reach):
+	var ranged := WeaponMotion.is_projectile(form)
+	var targeting = preload("res://class_ability_targeting.gd")
+	var first: int = targeting.automatic(self,p,float(stats.reach),WeaponMotion.profile(form) if ranged else {})
+	var aim: Vector3 = pos if first == -2 else preload("res://enemy_hurtbox.gd").contact(self,first,pos,ranged)
+	if first==-2 or pos.distance_to(aim)>float(stats.reach):
 		MouseCombat.queue_attack(self,id,p,pos,stats,now,form,duration)
 		tell(id,"No enemy within clear weapon reach.")
 		return
-	var aim: Vector3=enemy_contact_point(first,pos)
 	if aim.distance_to(pos)>.001: p.facing=(aim-pos).normalized()
 	MouseCombat.queue_attack(self,id,p,pos,stats,now,form,duration,first)
 
@@ -5523,19 +5532,8 @@ func update_combat_tracking(delta: float) -> void:
 		combat_threat[id]=maxf(0,float(combat_threat.get(id,0))-delta*2.5)
 
 func select_attack_target(player: Dictionary,reach: float) -> int:
-	var best:=INF;var result:=-2
-	for target in range(-1,scouts.size()):
-		if (enemy_hp if target==-1 else int(scouts[target].hp))<=0: continue
-		var offset: Vector3=enemy_contact_point(target,player.pos)-player.pos;var distance:=offset.length()
-		if distance>reach or not battlefield.clear_line(player.pos,enemy_contact_point(target,player.pos)): continue
-		var facing: Vector3=player.get("facing",Vector3.FORWARD)
-		if player.get("mouse_aim",false) and not offset.is_zero_approx() and facing.dot(offset.normalized())<.75:continue
-		var score: float=distance+(1.0-facing.dot(offset.normalized()))*.55
-		var token: int=-1 if target==-1 else int(scouts[target].get("spawn_token",0))
-		if int(player.get("aim_target",-3))==target and int(player.get("aim_token",-99))==token: score-=.3
-		if score<best: best=score;result=target
-	if result!=-2: player.aim_target=result;player.aim_token=-1 if result==-1 else int(scouts[result].get("spawn_token",0))
-	return result
+	return preload("res://class_ability_targeting.gd").automatic(self,player,reach)
+
 
 func roll_kill_trophy(kind: int,mask: int=0,leader: bool=false) -> String:
 	var chance:=float(Enemies.get_kind(kind).get("trophy_chance",0.6)) if Enemies.get_kind(kind).get("boss",false) else Director.trophy_chance(encounter_number,leader and depth==ROUTE_ROOMS,mask!=0)

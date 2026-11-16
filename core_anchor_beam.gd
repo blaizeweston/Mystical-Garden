@@ -7,7 +7,7 @@ const Journal = preload("res://diagnostic_journal.gd")
 
 static func endpoint(field: RefCounted, cast: Dictionary, direction: Vector3) -> Vector3:
 	var star: Vector3 = cast.center
-	return field.dash(star, star + direction.normalized() * float(cast.skill.beam_range))
+	return field.projectile_endpoint(star, star + direction.normalized() * float(cast.skill.beam_range), float(cast.skill.radius))
 
 
 static func direction(game: Node, id: int, cast: Dictionary, now: int) -> Vector3:
@@ -34,7 +34,7 @@ static func fire(game: Node, id: int, cast: Dictionary, end: Vector3, now: int) 
 	for hit in Lance.ordered_hits(game, star, end, radius):
 		var point: Vector3 = game.enemy_position(hit.target)
 		var edge := Geometry3D.get_closest_point_to_segment(point, star, end)
-		if not game.battlefield.clear_line(edge, point):
+		if not game.battlefield.combat_sight(edge, point):
 			continue
 		Status.root(game, hit.target, until)
 		if cast.skill.has("beam_damage"):

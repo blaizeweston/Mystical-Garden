@@ -203,6 +203,8 @@ static func _formation(layout: Dictionary, clusters: Array[Dictionary], id: Stri
 		var stone := Shape.disk(part, "rock", point, radius)
 		stone.merge({"family": family, "variant": int(_roll(seed_value,part,"variant") * 4),
 			"yaw": _roll(seed_value,part,"yaw") * TAU})
+		# The center is a standing boulder. The surrounding pieces are low rubble.
+		stone["cover_role"] = Shape.SOLID_COVER if j == 0 else Shape.LOW_RUBBLE
 		layout.rocks.append(stone)
 		members.append(part)
 	layout.formations.append({"center": at, "members": members})

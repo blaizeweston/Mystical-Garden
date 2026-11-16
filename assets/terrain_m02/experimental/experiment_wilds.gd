@@ -155,6 +155,12 @@ func can_spawn(position: Vector3) -> bool:
 func clear_line(from: Vector3, to: Vector3, clearance: float = 0.0) -> bool:
 	return super(from, to, clearance) if ground == null else ground.clear_line(planar(from), planar(to), clearance)
 
+func projectile_block_fraction(from: Vector3, to: Vector3, radius: float) -> float:
+	return super(from, to, radius) if ground == null else ground.projectile_block_fraction(planar(from), planar(to), radius)
+
+func combat_sight(from: Vector3, to: Vector3) -> bool:
+	return super(from, to) if ground == null else ground.combat_sight(planar(from), planar(to))
+
 func slide(from: Vector3, to: Vector3) -> Vector3:
 	return super(from, to) if ground == null else world(ground.slide(planar(from), planar(to - from)))
 

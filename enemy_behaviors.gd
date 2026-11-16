@@ -62,12 +62,12 @@ static func resolve(game: Node,scout: Dictionary,attack: Dictionary,now: int) ->
   Attacks.SkillResponses.resolve_canopy(game,scout,attack,now)
   return true
  if attack.get("variant")=="glass_crossfire":
-  var spots: Array=attack.spots.filter(func(point):return game.battlefield.clear_line(attack.from,point))
+  var spots: Array=attack.spots.filter(func(point):return game.battlefield.projectile_clear(attack.from,point))
   if spots.is_empty():return true
   preload("res://event_audio.gd").enemy(game,attack,true)
   for point in spots:
    Feedback.release(game,"burst",attack.from,point,attack.spot_radius,Color("#b9e6f6"))
-   game.hit_players(point,attack.spot_radius,now,game.Director.Balance.scout_hit(game,game.Enemies.get_kind(kind),scout))
+   Attacks.hit_players(game,point,attack.spot_radius,now,game.Director.Balance.scout_hit(game,game.Enemies.get_kind(kind),scout),0,true,true)
   Glasscap.release(game,scout,now)
   return true
  if kind==17 and attack.mode=="charge":

@@ -82,12 +82,6 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 	if not ground:
 		origin += forward * float(weapon.muzzle_forward) + forward.cross(Vector3.UP) * float(weapon.muzzle_side)
 		origin.y += float(weapon.height)
-	if skill.get("affinity_family")=="storm" and not ground:
-		var path := Mouse.projectile_path(game.battlefield,player.pos,forward,weapon,float(skill.range))
-		line.from = path.from
-		line.previous_point = path.from
-		line.to = path.to
-		line.center = path.to
 	var flight_ms := 0
 	if skill.mechanic == "swept_projectile":
 		flight_ms = maxi(1, roundi(player.pos.distance_to(line.center) / float(skill.speed) * 1000.0))

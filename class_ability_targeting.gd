@@ -3,6 +3,7 @@ extends RefCounted
 const Motion = preload("res://weapon_motion.gd")
 const Contact = preload("res://weapon_contact.gd")
 const Mouse = preload("res://mouse_combat.gd")
+const Hurt = preload("res://enemy_hurtbox.gd")
 const GROUND_TRAPS := ["snare", "snare_field"]
 const NEEDS_TARGET := ["bind", "strangle", "siphon", "salvo", "judgement", "reap", "harvest", "requiem", "volley"]
 const TARGET_AREA := ["judgement", "requiem", "growth"]
@@ -38,7 +39,8 @@ static func positions(game: Node) -> Dictionary:
 	return result
 
 
-static func pick(game: Node, field: RefCounted, origin: Vector3, facing: Vector3, reach: float) -> Dictionary:
+static func pick(game: Node, field: RefCounted, origin: Vector3, facing: Vector3, reach: float,
+		shot: Dictionary = {}, line_width: float = -1.0) -> Dictionary:
 	var best := INF
 	var result := {}
 	var candidates := positions(game)
@@ -47,12 +49,55 @@ static func pick(game: Node, field: RefCounted, origin: Vector3, facing: Vector3
 		var offset := point - origin
 		var distance := offset.length()
 		var dot := facing.dot(offset.normalized()) if distance > .01 else 1.0
-		if distance > reach or dot < .75 or not field.clear_line(origin, point):
+		if distance > reach or dot < .75:
+			continue
+		if not target_clear(game, field, origin, point, target, reach, shot, line_width):
 			continue
 		var score := distance + (1.0 - dot) * .55
 		if score < best:
 			best = score
 			result = {"target": target, "point": point}
+	return result
+
+
+static func target_clear(game: Node, field: RefCounted, origin: Vector3, point: Vector3, target: int,
+		reach: float, shot: Dictionary, line_width: float) -> bool:
+	if not shot.is_empty():
+		return Mouse.can_shoot(field, origin, point, Hurt.radius(game, target), shot, reach)
+	if line_width >= 0.0:
+		return origin.distance_to(point) <= reach and field.projectile_clear(origin, point, line_width)
+	return field.clear_line(origin, point)
+
+
+static func automatic(game: Node, player: Dictionary, reach: float, shot: Dictionary = {}, line_width: float = -1.0) -> int:
+	var best := INF
+	var result := -2
+	var origin: Vector3 = player.pos
+	var field: RefCounted = game.battlefield
+	var facing: Vector3 = player.get("facing", Vector3.FORWARD)
+	var ranged := not shot.is_empty() or line_width >= 0.0
+	for target in range(-1, game.scouts.size()):
+		if (game.enemy_hp if target == -1 else int(game.scouts[target].hp)) <= 0:
+			continue
+		var edge := Hurt.contact(game, target, origin, ranged)
+		var offset := edge - origin
+		var distance := offset.length()
+		var dot := facing.dot(offset.normalized())
+		if distance > reach or (player.get("mouse_aim", false) and not offset.is_zero_approx() and dot < .75):
+			continue
+		var point: Vector3 = game.enemy_position(target) if ranged else edge
+		if not target_clear(game, field, origin, point, target, reach, shot, line_width):
+			continue
+		var score := distance + (1.0 - dot) * .55
+		var token: int = -1 if target == -1 else int(game.scouts[target].get("spawn_token", 0))
+		if int(player.get("aim_target", -3)) == target and int(player.get("aim_token", -99)) == token:
+			score -= .3
+		if score < best:
+			best = score
+			result = target
+	if result != -2:
+		player.aim_target = result
+		player.aim_token = -1 if result == -1 else int(game.scouts[result].get("spawn_token", 0))
 	return result
 
 
@@ -86,7 +131,10 @@ static func plan(game: Node, player: Dictionary, field: RefCounted, skill: Dicti
 	var selection_range := target_range(mode, skill, stats, reach)
 	var selected := {}
 	if mode in NEEDS_TARGET or mode in ["charge", "growth"]:
-		selected = pick(game, field, origin, forward, selection_range)
+		var form := Motion.form(player)
+		var shot := Motion.profile(form) if mode == "volley" and Motion.is_projectile(form) else {}
+		var line_width := float(skill.width) if mode == "salvo" else -1.0
+		selected = pick(game, field, origin, forward, selection_range, shot, line_width)
 	var found: bool = not selected.is_empty()
 	var target: int = selected.get("target", -2)
 	var point: Vector3 = selected.get("point", origin)
@@ -139,9 +187,9 @@ static func footprint(game: Node, player: Dictionary, field: RefCounted, skill: 
 	if mode in ["bind", "strangle", "siphon"] and cast.target != -2:
 		result.append({"kind": "point", "at": cast.point, "radius": .48})
 	if mode == "salvo":
-		var end: Vector3 = origin + cast.forward * float(cast.reach)
+		var end: Vector3 = field.projectile_endpoint(origin, origin + cast.forward * float(cast.reach), float(skill.width))
 		result.append({"kind": "strip", "from": origin, "to": end, "width": float(skill.width)})
-	elif mode in ["reap", "volley"] and cast.valid:
+	elif mode == "volley" or (mode == "reap" and cast.valid):
 		var burst := stats.duplicate()
 		burst.pattern = "chain" if int(player.frame) == game.Frames.RANGER else "sweep"
 		var form := Motion.form(player)
@@ -150,7 +198,7 @@ static func footprint(game: Node, player: Dictionary, field: RefCounted, skill: 
 			var profile := Motion.profile(form)
 			var path := Mouse.projectile_path(field, center, cast.forward, profile, shape.reach)
 			var rays := Mouse.volley(game, {"form": form, "direction": cast.forward, "origin": path.from, "aim": path.to,
-				"launch_position": center, "stats": burst, "release": 0}, field)
+				"launch_position": center, "stats": burst, "release": 0, "muzzle_blocked": path.muzzle_blocked}, field)
 			for ray in rays:
 				result.append({"kind": "capsule", "from": ray.origin, "to": ray.aim, "width": shape.projectile_radius})
 		else:

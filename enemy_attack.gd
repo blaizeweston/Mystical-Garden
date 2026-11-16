@@ -39,6 +39,20 @@ static func try_thorn_vault(game: Node, actor: Dictionary, victim: Vector3, now:
   "target_token": actor.get("spawn_token", 0), "cast_id": jump.line_id, "floor": game.encounter_number})
  return true
 
+# Directed volleys have an impact radius, but no authored flight thickness.
+static func attack_sight(field: RefCounted, from: Vector3, to: Vector3, mode: String) -> bool:
+ return field.combat_sight(from,to) if mode=="volley" else field.clear_line(from,to)
+
+static func hit_players(game: Node, center: Vector3, radius: float, now: int, damage: float,
+  slow_ms: int, direct_attack: bool, ranged_impact: bool = false) -> void:
+ for id in game.players:
+  var player: Dictionary = game.players[id]
+  if not game.Life.alive(player) or center.distance_to(player.pos) > radius:
+   continue
+  var clear: bool = game.battlefield.combat_sight(center,player.pos) if ranged_impact else game.battlefield.clear_line(center,player.pos)
+  if clear:
+   game.apply_enemy_hit(id,player,now,damage,slow_ms,center,direct_attack)
+
 static func aim(game: Node, actor: Dictionary, role: String, player: int) -> Vector3:
  var kind:=int(actor.kind)
  var variant: String=actor.get("variant","")

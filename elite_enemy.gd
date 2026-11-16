@@ -64,10 +64,11 @@ static func tick(game: Node,delta: float,now: int) -> void:
    game.enemy_pos=game.Director.navigate(game,game.enemy_pos,trace,speed*delta)
   return
  var victim: Vector3=game.players[id].pos;var distance: float=game.enemy_pos.distance_to(victim)
- if not game.enemy_engaged and (distance>float(game.Director.config().aggro_radius) or not game.battlefield.clear_line(game.enemy_pos,victim)):return
+ var definition:=Catalog.get_kind(game.enemy_kind);var role: String=definition.role
+ if not game.enemy_engaged and (distance>float(game.Director.config().aggro_radius) or not Attacks.attack_sight(game.battlefield,game.enemy_pos,victim,role)):return
  if not game.enemy_engaged:game.Director.alert(game,game.enemy_pos)
  game.enemy_engaged=true
- var definition:=Catalog.get_kind(game.enemy_kind);var role: String=definition.role;var body:=state(game)
+ var body:=state(game)
  body.pos=game.enemy_pos;body.rooted_until=game.rooted_until;body.mutations=game.enemy_mutations;body.haste_until=game.enemy_haste_until
  if game.enemy_kind==16:
   body.ready=game.enemy_ready_at;body.stagger_until=game.enemy_stagger_until
@@ -88,7 +89,7 @@ static func tick(game: Node,delta: float,now: int) -> void:
  var thorn_vault:=can_leap and Attacks.try_thorn_vault(game,body,victim,now)
  var landing:=Attacks.vault_target(game,body,victim) if can_leap and not thorn_vault else Vector3.INF
  var vault:=thorn_vault or landing.is_finite()
- if not vault and (distance>reach or not game.battlefield.clear_line(game.enemy_pos,victim)):
+ if not vault and (distance>reach or not Attacks.attack_sight(game.battlefield,game.enemy_pos,victim,role)):
   if now>=game.rooted_until:
    var goal: Vector3=game.Director.pursuit(game,id,0)
    if role=="skirmish" and distance<4:goal=game.enemy_pos+(victim-game.enemy_pos).normalized().rotated(Vector3.UP,.9)*2

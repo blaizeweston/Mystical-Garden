@@ -1,5 +1,6 @@
 extends RefCounted
 
+const CoverShape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const REGION := Rect2i(-29, -28, 59, 57)
 const CLEARANCE := 0.34
 const LAYOUTS := [
@@ -226,6 +227,51 @@ func clear_line(from: Vector3, to: Vector3, clearance: float = 0.0) -> bool:
 			if not inside_floor(from.lerp(to, i / float(count)), clearance):
 				return false
 	return true
+
+
+func projectile_block_fraction(from: Vector3, to: Vector3, radius: float) -> float:
+	var start := Vector2(from.x, from.z)
+	var end := Vector2(to.x, to.z)
+	var bounds := Rect2(start.min(end), (end - start).abs()).grow(radius + CoverShape.TRACE_EPSILON)
+	var fraction := INF
+	for rect: Rect2 in barriers:
+		if not bounds.intersects(rect, true):
+			continue
+		if rect.has_point(start):
+			return 0.0
+		fraction = minf(fraction, CoverShape.outline_entry(_rect_outline(rect), start, end, radius))
+	if not procedural:
+		var arena := Rect2(Vector2(REGION.position) - Vector2.ONE * .5, Vector2(REGION.size))
+		if not arena.has_point(start):
+			return 0.0
+		return minf(fraction, CoverShape.outline_entry(_rect_outline(arena), start, end, radius))
+	# Legacy procedural floors use the existing continuous floor-distance backing.
+	var count := maxi(1, ceili(from.distance_to(to) / .12))
+	for i in count + 1:
+		var at := float(i) / count
+		if at >= fraction:
+			break
+		if not inside_floor(from.lerp(to, at), radius):
+			return at
+	return fraction
+
+
+static func _rect_outline(rect: Rect2) -> PackedVector2Array:
+	return PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y),
+		rect.end, Vector2(rect.position.x, rect.end.y)])
+
+
+func projectile_clear(from: Vector3, to: Vector3, radius: float = 0.0) -> bool:
+	return projectile_block_fraction(from, to, radius) == INF
+
+
+func projectile_endpoint(from: Vector3, to: Vector3, radius: float) -> Vector3:
+	var fraction := projectile_block_fraction(from, to, radius)
+	return to if fraction == INF else from.lerp(to, fraction)
+
+
+func combat_sight(from: Vector3, to: Vector3) -> bool:
+	return projectile_clear(from, to)
 
 
 static func intersects(a: Vector2, b: Vector2, rect: Rect2) -> bool:

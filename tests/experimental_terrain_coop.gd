@@ -5,6 +5,12 @@ const Menu = preload("res://main_menu.tscn")
 const Appearance = preload("res://character_appearance.gd")
 const Items = preload("res://item_catalog.gd")
 
+const Aim = preload("res://ability_aim.gd")
+const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
+const RIVER_SEED := 9 # Grove floor 1, map seed 410173068.
+const RIVER_FROM := Vector3(3, 0, -17)
+const RIVER_TARGET := Vector3(7.8, 0, -17)
+
 var role := ""
 var signals := ""
 var port := 0
@@ -55,7 +61,74 @@ func read(key: String) -> String:
 func floor_identity(field) -> String:
 	var layout: Dictionary = field.generated.layout
 	return str([field.configured_key, field.entry, field.advance, field.spawn_points,
-		layout.water, layout.trail_network, field.has_seed_cache(), field.cache]).sha256_text()
+		layout.water, layout.trail_network, field.ground.projectile_cover, field.has_seed_cache(), field.cache]).sha256_text()
+
+func sees_arrow(events: Array, endpoint: Vector3) -> bool:
+	for event in events:
+		if event.kind != "projectile" or event.shape != "arrow":
+			continue
+		var end := Vector3(event.to[0], event.to[1], event.to[2])
+		if end.is_equal_approx(endpoint):
+			return true
+	return false
+
+func river_preview(game: Node, archer: Dictionary, field: RefCounted) -> Dictionary:
+	var preview := Aim.footprint(game, archer, field, 0, Vector3.RIGHT, 6.0)
+	var rays: Array = preview.get("shapes", []).filter(func(shape):return shape.kind == "capsule")
+	return rays[0] if preview.get("valid", false) and rays.size() == 1 else {}
+
+func river_host(game: Node, archer: Dictionary, key: String) -> bool:
+	var field = game.battlefield
+	var middle := RIVER_FROM.lerp(RIVER_TARGET, .5)
+	if not check(Shape.in_any(field.ground.water,Vector2(middle.x,middle.z))
+			and field.occupied(middle) and not field.dash(RIVER_FROM,RIVER_TARGET).is_equal_approx(RIVER_TARGET),
+			"river midpoint is actual impassable water"):
+		return false
+	archer.pos = RIVER_FROM
+	game.enemy_pos = RIVER_TARGET
+	game.enemy_winding_up = false
+	game.enemy_stagger_until = Time.get_ticks_msec() + 12000
+	for scout in game.scouts:
+		scout.windup = 0
+		scout.stagger_until = game.enemy_stagger_until
+	var ray := river_preview(game, archer, field)
+	if not check(not ray.is_empty(), "host preview recognizes the eligible far-bank target"):
+		return false
+	var before: int = game.enemy_hp
+	mark(key, str(before))
+	if not check(await until(func(): return game.enemy_hp < before and sees_arrow(game.combat_events, ray.to)),
+			"guest Gale Volley damages the far-bank target and uses the host preview endpoint"):
+		return false
+	mark(key + "-hp", str(game.enemy_hp))
+	return check(await until(func(): return read(key + "-observed") == "ok"),
+		"guest reports the authoritative arrow endpoint and enemy health")
+
+func river_guest(game: Node, id: int, key: String) -> bool:
+	var world_id := game.get_instance_id()
+	var positions_ready := func() -> bool:
+		var world = instance_from_id(world_id)
+		return (world != null and not read(key).is_empty() and world.players.has(id)
+			and Vector3(world.players[id].pos).is_equal_approx(RIVER_FROM)
+			and world.enemy_pos.is_equal_approx(RIVER_TARGET)
+			and world.players[id].get("skill_ready", false))
+	if not check(await until(positions_ready), "guest receives the archer and target positions"):
+		return false
+	var local: Dictionary = game.players[id]
+	var ray := river_preview(game, local, game.stage.visual_field)
+	if not check(not ray.is_empty(), "guest aims at the same valid far-bank enemy"):
+		return false
+	var seen := [false]
+	game.send_garden_action(Aim.request(game, local, 0, Vector2.RIGHT, 6.0))
+	var observed := func() -> bool:
+		var world = instance_from_id(world_id)
+		if world == null:
+			return false
+		seen[0] = seen[0] or sees_arrow(world.guest_combat_events(local), ray.to)
+		return seen[0] and not read(key + "-hp").is_empty() and world.enemy_hp == int(read(key + "-hp"))
+	if not check(await until(observed), "guest preview, received arrow and host health agree"):
+		return false
+	mark(key + "-observed")
+	return true
 
 func ready_guest(game: Node) -> int:
 	for id in game.players:
@@ -107,7 +180,7 @@ func host_run(menu: Node) -> void:
 	check(game.seed_reserve(traveller).stock[0] == 0, "guest consumes one seed")
 	keeper.pos = game.stage.gate_position()
 	traveller.pos = keeper.pos
-	game.map_rng.seed = 16
+	game.map_rng.seed = RIVER_SEED
 	game.PartyTravel.request(game, game.HOST, "depart")
 	mark("depart", str(game.travel_epoch))
 	if not check(await until(func(): return traveller.wild and not game.battlefield.generated.is_empty()), "party enters generated Wilds"):
@@ -120,17 +193,13 @@ func host_run(menu: Node) -> void:
 			break
 	check(keeper.pos.distance_to(host_entry) > 0.2, "host moves on generated terrain")
 	var origin: Vector3 = traveller.pos
-	if not check(await until(func(): return traveller.pos.distance_to(origin) > 0.2 and read("guest-floor") == "ok"), "guest sends movement on matching terrain"):
+	var moved_and_stopped := func() -> bool:
+		var last_move := int(read("guest-stopped"))
+		var ack: Dictionary = game.net_motion.acknowledgement(peer, game.net_motion.world_key(game, traveller))
+		return last_move > 0 and int(ack.ack) >= last_move and Vector3(traveller.pos).distance_to(origin) > 0.2
+	if not check(await until(moved_and_stopped), "host acknowledges guest movement and release before staging the shot"):
 		return
-	var leader: Vector3 = game.enemy_pos
-	for direction: Vector3 in [Vector3.RIGHT, Vector3.LEFT, Vector3.FORWARD, Vector3.BACK]:
-		var approach := leader + direction * 0.55
-		if not game.battlefield.occupied(approach, 0.34) and game.battlefield.clear_line(approach, leader):
-			traveller.pos = approach
-			break
-	var before_hp: int = game.enemy_hp
-	mark("strike")
-	if not check(await until(func(): return game.enemy_hp < before_hp or traveller.get("contributed", false)), "guest attack reaches real combat"):
+	if not await river_host(game, traveller, "river"):
 		return
 	var stats: Dictionary = game.weapon_stats(keeper)
 	stats.damage = 10000
@@ -182,6 +251,17 @@ func host_run(menu: Node) -> void:
 	if not check(await until(func(): return read("rejoined") == "ok" and ready_guest(game) != 0), "same character reconnects with developed Garden"):
 		return
 	check(garden.bed_ids[3] == bed_id and game.progress.plots[3].species == 0, "cultivation survives return and reconnect")
+	traveller = game.players[ready_guest(game)]
+	keeper.pos = game.stage.gate_position()
+	traveller.pos = keeper.pos
+	game.map_rng.seed = RIVER_SEED
+	game.PartyTravel.request(game, game.HOST, "depart")
+	mark("depart-again", str(game.travel_epoch))
+	if not check(await until(func(): return traveller.wild and read("guest-floor-again") == "ok"), "rejoined guest enters the repeated seed"):
+		return
+	check(floor_identity(game.battlefield) == read("floor"), "repeated seed retains the same cover after reconnect")
+	if not await river_host(game, traveller, "river-again"):
+		return
 	game.return_to_main_menu()
 	await process_frame
 	check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer, "host goes offline before teardown")
@@ -202,7 +282,7 @@ func join(menu: Node) -> Node:
 
 func guest_run(menu: Node) -> void:
 	menu.request_create_character()
-	menu.create_character("Terrain Explorer", 0, Appearance.DEFAULT)
+	menu.create_character("Terrain Explorer", 2, Appearance.DEFAULT)
 	if not check(await until(func(): return not read("host-ready").is_empty()), "host ready"):
 		return
 	var game := await join(menu)
@@ -232,9 +312,12 @@ func guest_run(menu: Node) -> void:
 	Input.action_press("right")
 	await create_timer(0.45).timeout
 	Input.action_release("right")
-	if not check(await until(func(): return read("strike") == "ok" and Vector3(game.players[id].pos).distance_to(game.enemy_pos) < 1.4), "guest sees a reachable enemy"):
+	var previous_sequence: int = game.net_motion.sequence
+	if not check(await until(func(): return game.net_motion.sequence > previous_sequence), "guest submitted post-release movement"):
 		return
-	game.send_action(true)
+	mark("guest-stopped", str(game.net_motion.sequence))
+	if not await river_guest(game, id, "river"):
+		return
 	if not check(await until(func(): return not read("advance").is_empty() and game.enemy_hp == 0), "guest sees authoritative enemy clear"):
 		return
 	if not check(await until(func(): return int(game.party_travel_state().get("epoch", -1)) == int(read("advance"))), "guest receives the next Gate readiness prompt"):
@@ -268,4 +351,16 @@ func guest_run(menu: Node) -> void:
 	check(game.guest_character.identity == identity and garden.state.revision == 1 and garden.bed_ids.get(3) == bed
 		and str(garden.state.outline).sha256_text() == read("expansion"), "reconnect restores host layout and guest identity")
 	mark("rejoined")
+	if not check(await until(func(): return not read("depart-again").is_empty()), "rejoined guest receives second travel"):
+		return
+	game.send_garden_action("travel_ready:" + read("depart-again"))
+	var rebuilt := func() -> bool:
+		return (game.stage._has_experimental_floor() and game.stage.visual_field.configured_key.z == game.map_seed
+			and game.players[game.local_player_id()].wild)
+	if not check(await until(rebuilt), "rejoined guest reconstructs the repeated seed"):
+		return
+	check(floor_identity(game.stage.visual_field) == read("floor"), "rejoined guest reconstructs identical projectile cover")
+	mark("guest-floor-again")
+	if not await river_guest(game, game.local_player_id(), "river-again"):
+		return
 	check(await until(func(): return read("host-offline") == "ok" and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer), "guest observes host shutdown")

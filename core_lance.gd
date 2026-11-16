@@ -5,14 +5,24 @@ const Effects = preload("res://core_skill_effects.gd")
 const StrikeMark = preload("res://core_strike_mark.gd")
 const Hurt = preload("res://enemy_hurtbox.gd")
 const Contact = preload("res://weapon_contact.gd")
+const Mouse = preload("res://mouse_combat.gd")
+const Motion = preload("res://weapon_motion.gd")
 const Journal = preload("res://diagnostic_journal.gd")
 
 
 static func placement(field: RefCounted, origin: Vector3, forward: Vector3, skill: Dictionary) -> Dictionary:
-	var end: Vector3 = field.dash(origin, origin + forward * float(skill.range))
+	var radius := float(skill.radius)
+	var start := origin
+	var end: Vector3
+	if skill.get("affinity_family") == "storm" and skill.delivery != "ground":
+		var path := Mouse.projectile_path(field, origin, forward, Motion.profile(skill.weapon_form), float(skill.range), radius)
+		start = path.from
+		end = path.to
+	else:
+		end = field.projectile_endpoint(origin, origin + forward * float(skill.range), radius)
 	if origin.distance_to(end) < .85:
 		return {}
-	return {"from": origin, "to": end, "center": end, "previous_point": origin, "hit_tokens": {}}
+	return {"from": start, "to": end, "center": end, "previous_point": start, "hit_tokens": {}}
 
 
 static func release(game: Node, cast: Dictionary) -> void:
@@ -32,9 +42,10 @@ static func advance(game: Node, id: int, player: Dictionary, cast: Dictionary, n
 	var fraction := clampf((now - int(cast.release)) / float(cast.flight_ms), 0.0, 1.0)
 	var tip: Vector3 = cast.from.lerp(cast.to, fraction)
 	var previous: Vector3 = cast.previous_point
-	var blocked: bool = not game.battlefield.clear_line(previous, tip, float(cast.skill.radius))
+	var cover: float = game.battlefield.projectile_block_fraction(previous, tip, float(cast.skill.radius))
+	var blocked := cover != INF
 	if blocked:
-		tip = game.battlefield.dash(previous, tip)
+		tip = previous.lerp(tip, cover)
 	if tip.is_equal_approx(previous):
 		if blocked:
 			stop(game, cast, tip)
