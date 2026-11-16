@@ -675,6 +675,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 
 | Location | Region | Systems |
 |---|---|---|
+| `game.gd::_apply_loadout_action` | cr05_progression_0 | classes, life, combat_affinity_contracts |
 | `game.gd::dodge_player` | cr04c_spirit_0 | spirit_affinity, combat_affinity_contracts, world_snapshot |
 | `game.gd::move_player` | cr04c_spirit_0 | spirit_affinity, combat_affinity_contracts, world_snapshot |
 | `game.gd::move_player` | cr04c_spirit_1 | spirit_affinity, combat_affinity_contracts, world_snapshot |
@@ -1185,6 +1186,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::strike_enemy` | preview_lock_strike | combat_balance_preview |
 | `game.gd::encounter_health` | cb06_4 | enemy_balance |
 | `game.gd::encounter_health` | preview_guest_enemy_hp | combat_balance_preview |
+| `game.gd::restore_class_loadout` | cr05_progression_0 | classes, life, combat_affinity_contracts |
 | `game.gd::restore_class_loadout` | preview_class_capacity | combat_balance_preview |
 | `game.gd::_init` | preview_guest_storage | combat_balance_preview |
 | `game.gd::_attempt_graft` | guarded_garden_actions | persistence_operations, weapons, weapon_balance |
@@ -1670,6 +1672,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `loadout_panel.gd` | ui_copy_2 | ui_copy |
 | `loadout_panel.gd` | ui_copy_1 | ui_copy |
 | `loadout_panel.gd` | ui_copy_0 | ui_copy |
+| `progression_panel.gd` | cr05_progression_1 | classes, life, combat_affinity_contracts |
+| `progression_panel.gd` | cr05_progression_2 | classes, life, combat_affinity_contracts |
 | `progression_panel.gd` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
 | `progression_panel.gd` | cb04_0 | class_balance |
 | `progression_panel.gd` | cb04_1 | class_balance |
@@ -2316,6 +2320,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `combat_feedback.gd` | cb07_0 | expedition_sustain |
 | `combat_feedback.gd` | space_pull_from_slow | enemy_move_feedback |
 | `combat_feedback.gd` | callout_height_override | enemy_move_feedback |
+| `character_profile.gd` | cr05_progression_1 | classes, life, combat_affinity_contracts |
 | `character_profile.gd` | guest_projection | persistence_operations, connection_flow, characters, expeditions, garden |
 | `character_profile.gd` | normalize_warden_tree_choices | warden_progression |
 | `content_ids.gd` | subclass_manifest | warden_progression |
@@ -2482,6 +2487,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `subclass_combat.gd` | cb02_subclass_combat_1_2 | combat_balance_preview |
 | `subclass_combat.gd` | vitals_subclass_ally | combat_vitals |
 | `subclass_combat.gd` | vitals_subclass_siphon | combat_vitals |
+| `expedition_life.gd` | cr05_progression_1 | classes, life, combat_affinity_contracts |
 | `expedition_life.gd` | cr04c_void_1 | void_affinity, core_combat, combat_affinity_contracts |
 | `expedition_life.gd` | cr04c_spirit_1 | spirit_affinity, core_combat, combat_affinity_contracts |
 | `expedition_life.gd` | cr04c_storm_1 | storm_affinity, life |

@@ -388,6 +388,8 @@ func class_nodes() -> Array:
 		var learned: bool=bool(mask & (1 << i))
 		var change: Dictionary=node.get("skill_change",{})
 		var effects: String=game.Classes.effect_text(node.effects,game.Life.Preview.enabled)
+		if game.has_meta(&"combat_affinity_ruleset"):
+			effects = preload("res://affinity_build.gd").class_effects_text(node.effects)
 		var change_text: String=game.Skills.change_text(c,change)
 		if game.Life.Preview.enabled and not change.is_empty():
 			var candidate: Dictionary=data.duplicate(true)
@@ -417,6 +419,11 @@ func subclass_nodes(data: Dictionary, c: int, level: int, mask: int) -> Array:
 		var ready: bool=game.Classes.can_learn(data,c,index,level)
 		var parents: Array=[base] if node.parents.is_empty() else node.parents.map(func(id):return nodes_by_id[id])
 		var summary: String=node.name+" · "+tree_data.LANES[node.lane]+"\n"+node.description
+		if game.has_meta(&"combat_affinity_ruleset"):
+			var restriction: String = preload("res://affinity_build.gd").RESTRICTED_NODES.get(node.id, "")
+			if not restriction.is_empty():
+				summary = node.name + "\n" + restriction
+				ready = false
 		if node.tier==0:
 			if game.Life.Preview.enabled:
 				var candidate: Dictionary=data.duplicate(true)

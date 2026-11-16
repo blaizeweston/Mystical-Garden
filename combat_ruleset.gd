@@ -1,6 +1,6 @@
 extends RefCounted
 
-const ID := "plant-affinity-cr04c-nine-families"
+const ID := "plant-affinity-cr05-native-builds"
 const FLAG := "--combat-affinities"
 const META := &"combat_affinity_ruleset"
 const PLAYER_KEY := "combat_ruleset"

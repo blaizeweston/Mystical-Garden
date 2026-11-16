@@ -58,7 +58,17 @@ static func normalize(source: Dictionary) -> Dictionary:
 		if saved_upgrades is Array and c<saved_upgrades.size() and saved_upgrades[c] is int:
 			var mask:=maxi(0,int(saved_upgrades[c]))
 			var rank:=level(result.xp[c])
-			var new_tree:=(mask>>Classes.Warden.OFFSET)!=0
+			var supported_bits := (1 << Classes.all_nodes(c).size()) - 1
+			var active_mask := mask & supported_bits
+			var new_tree := (active_mask >> Classes.Warden.OFFSET) != 0
+			var retained := mask & ~supported_bits
+			if new_tree:
+				retained |= active_mask & Classes.Warden.LEGACY_MASK
+			if retained != 0:
+				var retained_masks: Dictionary = result.quarantine.get("learned_class_masks", {}) if result.quarantine.get("learned_class_masks", {}) is Dictionary else {}
+				var class_key: String = Classes.DEFINITIONS[c].id
+				retained_masks[class_key] = int(retained_masks.get(class_key, 0)) | retained
+				result.quarantine.learned_class_masks = retained_masks
 			for i in range(Classes.Warden.OFFSET if new_tree else 0,Classes.all_nodes(c).size() if new_tree else Classes.DEFINITIONS[c].nodes.size()):
 				if not mask&(1<<i):continue
 				var allowed:=Classes.can_learn(result,c,i,rank) if new_tree else Classes.can_learn_legacy(result,c,i,rank)

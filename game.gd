@@ -4287,7 +4287,10 @@ func restore_class_loadout(player: Dictionary) -> void:
 	player.prepared=int(loadout.parts[0])
 	player.prepared_secondary=int(loadout.parts[1])
 	player.prepared_catalyst=int(loadout.parts[2])
-	player.max_hp=Life.Preview.hp(MAX_HEALTH+int(Classes.bonuses(profile,int(player.frame)).get("max_health",0)))
+	if has_meta(&"combat_affinity_ruleset"):
+		player.max_hp = Life.maximum(self, player, not player.get("wild", false))
+	else:
+		player.max_hp=Life.Preview.hp(MAX_HEALTH+int(Classes.bonuses(profile,int(player.frame)).get("max_health",0)))
 	player.hp=minf(float(player.get("hp",player.max_hp)),float(player.max_hp))
 
 func persist_loadout(id: int,player: Dictionary,effects = null) -> void:
@@ -4372,6 +4375,12 @@ func _apply_loadout_action(id: int, player: Dictionary, fields: PackedStringArra
 			var c:=int(fields[1])
 			var node:=int(fields[2])
 			if Classes.can_learn(player.character,c,node,Character.level(int(player.character.xp[c])) if c>=0 and c<Classes.DEFINITIONS.size() else 0):
+				var definition: Dictionary = Classes.all_nodes(c)[node]
+				if has_meta(&"combat_affinity_ruleset"):
+					var refusal: String = preload("res://affinity_build.gd").RESTRICTED_NODES.get(definition.id, "")
+					if not refusal.is_empty():
+						action_feedback(effects, id, refusal)
+						return
 				player.character.upgrades[c] |= 1 << node
 				restore_class_loadout(player)
 				save_action_profile(id, effects)

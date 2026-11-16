@@ -10,6 +10,27 @@ const WeaponRules = preload("res://weapon_system.gd")
 const Delivery = preload("res://core_skill_rules.gd")
 const Preview = preload("res://combat_balance_preview.gd")
 
+# The legacy Frost consumers are separate from the source-owned affinity
+# rupture system. Preserve learned nodes, with their other effects intact.
+const RESTRICTED_CLASS_EFFECTS := {
+	"shatter_damage": "Legacy Shatter bonuses are pending a source-ownership decision for Frost rupture.",
+}
+const RESTRICTED_NODES := {
+	"cracking_roots": "Cracking Roots is pending a decision on native Brittle grants in the affinity ruleset.",
+}
+
+static func class_effects_text(effects: Dictionary) -> String:
+	var active := effects.duplicate()
+	var lines: Array[String] = []
+	for key in RESTRICTED_CLASS_EFFECTS:
+		if active.erase(key):
+			lines.append(RESTRICTED_CLASS_EFFECTS[key])
+	var description := Classes.effect_text(active, Preview.enabled)
+	if not description.is_empty():
+		lines.push_front(description)
+	return "\n".join(lines)
+
+
 static func slot(name: String, part: int) -> Dictionary:
 	var identity := Affinities.for_part(part)
 	if identity.is_empty():
@@ -80,9 +101,8 @@ static func native_stats(build: Dictionary) -> Dictionary:
 	WeaponRules.add_effects(stats, build.native_class_effects)
 	WeaponRules.add_effects(stats, build.graft.get("native_effects", {}))
 	# Legacy passive Frost is retained in the resolved native metadata for CR05.
-	stats.erase("brittle")
-	stats.erase("shatter_damage")
-	stats.erase("link_brittle")
+	for effect in RESTRICTED_CLASS_EFFECTS:
+		stats.erase(effect)
 	for key in ["cooldown", "recovery", "stagger", "skill_cooldown", "skill_duration", "dodge_cooldown", "windup_damage"]:
 		if stats.has(key) and (key != "windup_damage" or not Preview.enabled):
 			stats[key] = roundi(float(stats[key]))

@@ -463,3 +463,17 @@ Use the [interaction tree](MECHANICS_TEST_MAP.md) and [validation workflow](VALI
 | Co-op, saves and evidence | `network_presentation`, `diagnostics_coop`, `four_players_coop`, `supplied_network_smoke`, `playable_solo` | Reordered vitals and duplicate events, old/new logs, existing saves, transaction rollback, mixed-build rejection and packaged play |
 
 **Audit evidence.** Traced the current source and loaded the catalogue definitions with a read-only headless fixture. CB-01 is complete. Its focused and connected plans ran 26 affected suites across both passes, with 109 unaffected results reused. Coverage included the 10- and 100-point baseline fixture, current combat and revive behaviour, boss lairs, Core skills, upgrade cards, exact vitals and the host plus three guests. The 100-point pool is exercised in fixtures at this stage. CB-02 brings it into the playable prototype. Prototype numbers are starting points. Combat feel, healing limits and the final difficulty curve require playtesting.
+
+## CR05 native class progression
+
+Class XP and tenths keep their existing thresholds and identify which permanent nodes a character can learn. They do not grant affinity ranks or extra attack power. Learning, respec and selection use the existing guarded profile action and loadout rebuild. Unknown learned bits are retained in the existing profile quarantine, with native class IDs as keys.
+
+| Source | Effects and runtime consumers |
+|---|---|
+| Legacy class mask, weapon handling | `damage` and `windup_damage` use native strike points. `reach`, `pull` and `knockback` use metres. `cooldown`, `stagger` and `recovery` use milliseconds. `targets` is an integer contact limit capped at five. Strike interval has a 230 ms floor. |
+| Legacy class mask, character | `max_health` adds native capacity up to four authored points in affinity mode. `heal_on_kill` adds up to two authored points before expedition sustain limits. `graft_chance` adds probability points before the 95% cap. `familiarity` adds harvest familiarity. `dodge_cooldown` reduces native dodge time. |
+| Legacy class mask, Q/R | `skill_cooldown` subtracts milliseconds above the 1,800 ms floor. `skill_duration` extends native roots, traps, fields, Guard and Renewal where that skill has the parameter. `skill_heal` adds up to three authored points to applicable native healing. Skill `power`, `efficient`, `augment` and `master` remain native `SkillCatalog` transforms. |
+| Native learned responses | Warden's directional guard, counter damage/stagger and Ward-on-block remain in Guard resolution. Weaver's spread Bind and growth field, Ranger's Mark/precision/decoy, trap potency and Veil Mark, Reaper's grave charges/momentum and Oracle's sanctuary/omen remain native class mechanics. They do not grant a plant affinity or plant-card capability. |
+| Restricted Warden and Oracle effects | Warden legacy nodes 10 and 11 and Oracle legacy node 11 retain other learned benefits. Their old Shatter scalar has no approved owner in source-attributed Frost rupture. Warden's Cracking Roots keeps existing investments and refuses new learning in affinity mode pending a decision on native Brittle sources. Oracle legacy node 10's pool Ward requires a compatible healing pool. |
+
+Current tiered focuses use their named Q replacement and preserve native R follow-through or Root Anchor behavior. None of these rank paths changes Core, Form or Catalyst potency.

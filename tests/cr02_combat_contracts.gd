@@ -109,11 +109,52 @@ func run() -> void:
 	var one := Events.begin(game,20,"native_class",{}, {},["actual_block"],now+100,1)
 	check(one.publish(game,"actual_block","ward","recipient1",now)
 		and not one.publish(game,"actual_block","ward","recipient2",now), "charge scope is enforced")
+	check_native_progression(game, player)
 	game.queue_free()
 	await process_frame
 	if failures == 0:
 		print("PASS: CR02 contracts across ",profiles," skill resolutions and event boundaries")
 	quit(int(failures!=0))
+
+
+func check_native_progression(game: Node, player: Dictionary) -> void:
+	var character = preload("res://character_profile.gd")
+	var profile: Dictionary = character.blank()
+	profile.xp[0] = 500
+	profile.upgrades[0] = 1 | (1 << 50)
+	profile = character.normalize(profile)
+	check(profile.upgrades[0] == 1 and profile.quarantine.learned_class_masks.warden == 1 << 50
+		and character.normalize(profile) == profile, "legacy investment and unknown learned bits survive normalization")
+	profile.upgrades[0] = 0
+	player.character = profile
+	player.graft_part = 0
+	var native: int = game.Life.native_maximum(game, player)
+	var vital = preload("res://vital_combat.gd")
+	var elapsed := 100
+	player.hp = native - 2
+	var before: float = player.hp
+	var source := Events.begin(game,1,"form",{},vital.QUALITY.ordinary,["weapon_contact"],Time.get_ticks_msec()+5000)
+	vital.grant(game,source,1,elapsed)
+	profile.upgrades[0] = 1
+	game.restore_class_loadout(player)
+	var learned_hp: int = game.Life.Preview.hp(2)
+	check(player.max_hp == native + learned_hp + vital.QUALITY.ordinary.bonus_hp and player.hp == before,
+		"native learning updates maximum capacity without healing or baking in Vitality")
+	player.hp = player.max_hp
+	player[vital.NEXT] = elapsed + 10000
+	vital.tick(game,elapsed + vital.DURATIONS.form)
+	check(player.max_hp == native + learned_hp and player.hp == float(player.max_hp),
+		"Vitality expires to learned native capacity and clamps current HP")
+	var weapons := []
+	for index in Classes.DEFINITIONS.size():
+		var local := []
+		for weapon_index in 3:
+			var build := Build.resolve(index,weapon_index,[0,0,0],0,{})
+			local.append(build.weapon_id)
+			weapons.append(build.weapon_id)
+		check(local.size() == 3 and local[0] != local[1] and local[0] != local[2] and local[1] != local[2],
+			"three distinct native weapons for %s" % Classes.DEFINITIONS[index].id)
+	check(weapons.size() == 15, "five native class rosters")
 
 
 func check_mappings() -> int:
