@@ -11,6 +11,29 @@ affinities are reserved for cards. CR03 Frost and the CR04 families use the same
 authoritative event and class-skill mappings. Default combat stays on the legacy
 ruleset.
 
+### Approved card and progression design
+
+**Cards and expedition economy**
+
+- Author one base definition per stackable card identity. Select the card identity first, then roll the rarity for that offer.
+- Each acquired copy retains its own rarity and effect contribution. A later copy contributes its own effect, even when its rarity is higher. Earlier copies keep their original contributions.
+- Label one-time unlock cards **Unique**. The same player can acquire a given Unique card only once per expedition.
+- The displayed description must match the applied effect, including any trigger, duration, stacking rule, or limit that changes what the player receives.
+- Earned card choices are free. Essence pays for rerolls. Each player can complete at most one successful monster-part-funded improvement at each Grafting Altar.
+
+**Class progression**
+
+- Players choose an **Offensive**, **Balanced**, or **Defensive** starting focus. Further choices follow deliberate connections within and across paths.
+- Each earned class level grants one node selection. Later tiers require both the appropriate class level and connected prerequisites. The progression rules must preserve meaningful choices so a character can never acquire the entire reachable tree.
+- Final-tier progression must take meaningful accumulated play. It should remain beyond routine completion after a few ordinary expeditions. Assess that pacing against actual XP earned across ordinary runs before approving thresholds.
+- Carry forward earned class XP, fractional XP, and learned investments. The final level cap, XP curve, tier thresholds, and respec policy await approval.
+
+### Current behavior and CR05 compatibility
+
+- **Cards.** The legacy catalogue stores fixed rarity and cost on each definition. Its offer list stores card IDs, its ownership state stores integer ranks, and numeric effects multiply the base contribution by rank. Rarity and affordability already influence which entry is drawn, and selection charges Essence. A rank limit of one is the closest current equivalent to a one-time unlock. These assumptions need separate offer rarity, per-copy contributions, explicit Unique acquisition, and free selection when the future design is implemented. Existing card descriptions, caps, and event consumers still need to be checked together. The CR05 affinity card registry stays empty. [Catalogue](../run_upgrade_catalog.gd) · [Checkpoint selection](../game.gd)
+- **Class tree.** The active branch tree grants one selection at each current row gate, at levels 1, 2, 4, and 7. It allows one node per row and accepts a learned adjacent predecessor. The legacy mask tree uses level minus one as its point budget, with additional tier and parent checks. Existing row exclusions already prevent buying every branch. The branch-tree budget, the current Offense/Control/Defense starting lanes, and the automatically generated adjacent links are compatibility behavior. The future graph needs the approved focus choices and deliberate connections. Level 7 currently resolves at 260 class XP. Its suitability as a final-tier gate is unverified against the approved pacing goal. The current free respec at the Heart remains a legacy action. [Branch rules](../warden_tree.gd) · [Legacy rules](../class_catalog.gd) · [Current XP data](../assets/content/balance.json)
+- **Grafting Altar.** The current path consumes a carried monster part for a chance to install one component. Its same-altar restriction follows the last successful install floor, and a later successful replacement swaps the installed component. Native effects are source-scoped, with validation, feedback, and lifetimes tied to the current model. CR05 compatibility covers these existing consumers and their regressions. The future altar success limit is approved. Cumulative reinforcement, adaptation selection, and what to carry forward from the existing attempt rules await a separate specification. [Altar action and validation](../game.gd) · [Native effect ownership](../native_grafts.gd)
+
 ### Overlapping Ward claims
 
 Native protection decides whether the hit was blocked and owns duration, charges,

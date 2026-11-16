@@ -2,6 +2,8 @@
 
 # Weighted checkpoint upgrades
 
+> Legacy ruleset reference. The [approved card and expedition economy](COMBAT_BALANCE_MILESTONES.md#approved-card-and-progression-design) defines the future affinity ruleset.
+
 At cleared encounters **5, 10, 15…**, press **E** at the onward gate. Three text cards appear before travel, with an **8% chance** of revealing a fourth. Click a card or press **1–4**. Purchase one upgrade or explicitly continue without buying. Cards show rarity, the source of eligibility, exact effects, rank and cost.
 
 The system currently contains **69 upgrades**: six weapon fundamentals, fifteen class techniques, fifteen weapon-specific awakenings, thirteen plant-affinity upgrades, ten monster-component echoes, five graft-tag upgrades and five rare affinity links.

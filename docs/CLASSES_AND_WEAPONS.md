@@ -2,6 +2,8 @@
 
 # Classes, tagged weapons and monster grafts
 
+> Legacy class and weapon reference. The [approved progression and altar constraints](COMBAT_BALANCE_MILESTONES.md#approved-card-and-progression-design) govern the future design.
+
 ## Playing this milestone
 Open **F2 — Class & Weapon Workbench** at the Garden Heart between expeditions. Choose a class and one of its three basic weapons. The **Plant slots** tab sets Core, Form and Catalyst. The **Monster cargo** tab packs trophies from personal or shared stash. Empty plant slots are allowed for an unmodified starter weapon.
 
