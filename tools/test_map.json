@@ -8158,6 +8158,24 @@
       }
     },
     "use_class_skill": {
+      "cr05_focus_0": {
+        "match": "\tif not Life.alive(player) or encounter_cleared() or now<int(player.get(timer,0)) or now<int(player.get(\"core_cast_until\",0)): return\n\tvar stats:=weapon_stats(player)\n\tvar skill: Dictionary\n\tvar event: RefCounted\n",
+        "baseline": "\tif not Life.alive(player) or encounter_cleared() or now<int(player.get(timer,0)) or now<int(player.get(\"core_cast_until\",0)): return\n\tvar skill:=Skills.resolve(int(player.frame),slot,player.character)\n\tvar stats:=weapon_stats(player)\n\tvar event: RefCounted\n",
+        "systems": ["classes", "combat_affinity_contracts"],
+        "additive": true
+      },
+      "cr05_focus_1": {
+        "match": "\t\t\treturn\n\t\tskill = adapter.native_skill\n\t\tevent = combat_events_api.class_start(self, id, adapter, now, affinity_build.catalyst)\n",
+        "baseline": "\t\t\treturn\n\t\tevent = combat_events_api.class_start(self, id, adapter, now, affinity_build.catalyst)\n",
+        "systems": ["classes", "combat_affinity_contracts"],
+        "additive": true
+      },
+      "cr05_focus_2": {
+        "match": "\t\t\tstats[combat_events_api.CONTEXT] = event\n\telse:\n\t\tskill = Skills.resolve(int(player.frame),slot,player.character)\n\tskill=Traits.tune_skill(skill,stats)\n",
+        "baseline": "\t\t\tstats[combat_events_api.CONTEXT] = event\n\tskill=Traits.tune_skill(skill,stats)\n",
+        "systems": ["classes", "combat_affinity_contracts"],
+        "additive": true
+      },
       "cr04c_spirit_0": {
         "match": "\t\t\tbonus_heal=0\n\tif player.has(\"affinity_spirit_follow\") and player.pos!=cast_origin:\n\t\tpreload(\"res://spirit_affinity.gd\").movement(self,player,cast_origin,player.pos)\n\ttargets=Traits.spread_targets(self,player,targets,skill,stats)\n",
         "baseline": "\t\t\tbonus_heal=0\n\ttargets=Traits.spread_targets(self,player,targets,skill,stats)\n",
@@ -14144,6 +14162,16 @@
     "skill_catalog.gd": {
       "newline": "crlf",
       "regions": {
+        "cr05_focus_1": {
+          "match": "\tvar stats: Dictionary = player.get(\"weapon_stats\",{})\n\tvar rules = preload(\"res://combat_ruleset.gd\")\n\tvar ranks: Dictionary = rules.legacy_ranks(player) if not rules.active(game) else {}\n\tif game.multiplayer.is_server():\n\t\t# Only resolve the equipped build again when inputs to the class effects change.\n\t\tvar key := [rules.active(game),player.frame,player.character.get(\"upgrades\",[]),player.weapon_kind,player.weapon,\n\t\t\tplayer.secondary,player.catalyst,player.graft_part,player.technique,player.power,ranks]\n",
+          "baseline": "\tvar stats: Dictionary = player.get(\"weapon_stats\",{})\n\tif game.multiplayer.is_server():\n\t\t# Only resolve the equipped build again when inputs to the class effects change.\n\t\tvar ranks: Dictionary = player.get(\"run_upgrades\",{})\n\t\tvar key := [player.frame,player.character.get(\"upgrades\",[]),player.weapon_kind,player.weapon,\n\t\t\tplayer.secondary,player.catalyst,player.graft_part,player.technique,player.power,ranks]\n",
+          "systems": ["classes", "combat_affinity_contracts"]
+        },
+        "cr05_focus_2": {
+          "match": "\t\t\tstats=game.weapon_stats(player)\n\t\t\tcached={\"key\":key.duplicate(true),\"tips\":resolved_tooltips(skills,stats,ranks)}\n\t\t\tgame.set_meta(\"class_skill_tooltip_stats\",cached)\n\t\treturn cached.tips.duplicate()\n\treturn resolved_tooltips(skills,stats,ranks)\n\n\nstatic func resolved_tooltips(skills: Array, stats: Dictionary, ranks: Dictionary) -> Array:\n\tvar adapters: Array = stats.get(\"affinity_build\", {}).get(\"class_skills\", [])\n\tvar tips := []\n\tfor slot in skills.size():\n\t\tvar adapter: Dictionary = adapters[slot] if slot < adapters.size() else {}\n\t\ttips.append(describe(adapter.get(\"native_skill\", skills[slot]), stats, ranks))\n\treturn tips\n",
+          "baseline": "\t\t\tstats=game.weapon_stats(player)\n\t\t\tcached={\"key\":key.duplicate(true),\"tips\":[describe(skills[0],stats,ranks),describe(skills[1],stats,ranks)]}\n\t\t\tgame.set_meta(\"class_skill_tooltip_stats\",cached)\n\t\treturn cached.tips.duplicate()\n\treturn [describe(skills[0],stats,player.get(\"run_upgrades\",{})),describe(skills[1],stats,player.get(\"run_upgrades\",{}))]\n",
+          "systems": ["classes", "combat_affinity_contracts"]
+        },
         "cb07_0": {
           "match": "\t\t\tlines.append(\"Drain: %s with one enemy hit \u00b7 %s at the target cap\" % [single,Balance.Preview.heal_label(Balance.drain_amount(skill,99),spread)])\n\t\tlines.append(\"Drains from regular enemies, elites and bosses.\")\n\tif mode in [\"heal\",\"sanctuary\"]:",
           "baseline": "\t\t\tlines.append(\"Drain: %s with one enemy hit \u00b7 %s at the target cap\" % [single,Balance.Preview.heal_label(Balance.drain_amount(skill,99),spread)])\n\tif mode in [\"heal\",\"sanctuary\"]:",

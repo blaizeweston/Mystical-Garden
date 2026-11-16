@@ -1607,8 +1607,8 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	var now:=Time.get_ticks_msec()
 	var timer: String="skill_at" if slot==0 else "skill_two_at"
 	if not Life.alive(player) or encounter_cleared() or now<int(player.get(timer,0)) or now<int(player.get("core_cast_until",0)): return
-	var skill:=Skills.resolve(int(player.frame),slot,player.character)
 	var stats:=weapon_stats(player)
+	var skill: Dictionary
 	var event: RefCounted
 	var adapter := {}
 	var combat_events_api = preload("res://combat_action_events.gd")
@@ -1623,12 +1623,15 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 		if adapter.is_empty():
 			tell(id, "This class ability has no affinity contract.")
 			return
+		skill = adapter.native_skill
 		event = combat_events_api.class_start(self, id, adapter, now, affinity_build.catalyst)
 		if adapter.trigger == "contact" or (event != null and event.affinity in ["vital","wood"] and adapter.recipients == "designated_area"):
 			stats[combat_events_api.CONTEXT] = event
 		if skill.mode == "subclass":
 			stats.cr02_adapter = adapter
 			stats[combat_events_api.CONTEXT] = event
+	else:
+		skill = Skills.resolve(int(player.frame),slot,player.character)
 	skill=Traits.tune_skill(skill,stats)
 	if skill.mode=="subclass":
 		preload("res://subclass_combat.gd").cast_skill(self,id,player,skill,stats,now)

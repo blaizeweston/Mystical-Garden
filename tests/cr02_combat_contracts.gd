@@ -110,6 +110,7 @@ func run() -> void:
 	check(one.publish(game,"actual_block","ward","recipient1",now)
 		and not one.publish(game,"actual_block","ward","recipient2",now), "charge scope is enforced")
 	check_native_progression(game, player)
+	check_runtime_focuses(game, player)
 	game.queue_free()
 	await process_frame
 	if failures == 0:
@@ -155,6 +156,46 @@ func check_native_progression(game: Node, player: Dictionary) -> void:
 		check(local.size() == 3 and local[0] != local[1] and local[0] != local[2] and local[1] != local[2],
 			"three distinct native weapons for %s" % Classes.DEFINITIONS[index].id)
 	check(weapons.size() == 15, "five native class rosters")
+
+
+func check_runtime_focuses(game: Node, player: Dictionary) -> void:
+	for class_id in range(1, 5):
+		for lane in 3:
+			game.combat_epoch += 1
+			recorded.clear()
+			game.trait_events.clear()
+			game.enemy_traits.clear()
+			game.enemy_hp = 10000
+			game.enemy_pos = Vector3(0,0,-2.4)
+			var profile: Dictionary = game.Character.blank()
+			profile.upgrades[class_id] = 1 << (12 + lane)
+			player.character = profile
+			player.frame = class_id
+			player.pos = Vector3.ZERO
+			player.hp = 30
+			player.catalyst = Parts.HEARTWOOD
+			player.skill_at = 0
+			player.skill_two_at = 0
+			player.core_cast_until = 0
+			var build := Build.for_player(player)
+			var adapter: Dictionary = build.class_skills[0]
+			player.class_aim = Vector3.FORWARD
+			player.class_aim_distance = 2.4
+			game.use_class_skill(1,player,0)
+			player.erase("class_aim")
+			player.erase("class_aim_distance")
+			check(player.skill_at>0, "%s native Q casts through its adapter" % adapter.id)
+			if adapter.trigger == "activation":
+				check(recorded.any(func(event): return event.kind=="class_action" and event.details.adapter==adapter.id),
+					"%s publishes its mapped event" % adapter.id)
+			elif adapter.trigger == "block":
+				check(recorded.is_empty() and player.guard_charges>0, "%s arms a genuine Ward" % adapter.id)
+				game.apply_enemy_hit(1,player,Time.get_ticks_msec(),1)
+				check(recorded.any(func(event): return event.kind=="actual_block"), "%s responds on consumption" % adapter.id)
+			elif adapter.trigger == "contact":
+				check(recorded.is_empty(), "%s has no grant-time response" % adapter.id)
+				game.Traits.tick(game,Time.get_ticks_msec()+320)
+				check(recorded.any(func(event): return event.kind=="class_contact"), "%s responds on trap contact" % adapter.id)
 
 
 func check_mappings() -> int:

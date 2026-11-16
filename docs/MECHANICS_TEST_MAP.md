@@ -999,6 +999,9 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::reset_encounter` | cb06_3 | enemy_balance |
 | `game.gd::reset_encounter` | core_floor_reset | core_combat |
 | `game.gd::reset_encounter` | pack_composition | encounter_composition |
+| `game.gd::use_class_skill` | cr05_focus_0 | classes, combat_affinity_contracts |
+| `game.gd::use_class_skill` | cr05_focus_1 | classes, combat_affinity_contracts |
+| `game.gd::use_class_skill` | cr05_focus_2 | classes, combat_affinity_contracts |
 | `game.gd::use_class_skill` | cr04c_spirit_0 | spirit_affinity, combat_affinity_contracts, world_snapshot |
 | `game.gd::use_class_skill` | wood_affinity_1 | wood_affinity, combat_affinity_contracts |
 | `game.gd::use_class_skill` | cr03_frost_integration | vital_affinity, frost_affinity |
@@ -1758,6 +1761,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `class_catalog.gd` | ui_copy_2 | ui_copy |
 | `class_catalog.gd` | ui_copy_1 | ui_copy |
 | `class_catalog.gd` | ui_copy_0 | ui_copy |
+| `skill_catalog.gd` | cr05_focus_1 | classes, combat_affinity_contracts |
+| `skill_catalog.gd` | cr05_focus_2 | classes, combat_affinity_contracts |
 | `skill_catalog.gd` | cb07_0 | expedition_sustain |
 | `skill_catalog.gd` | healing_roll_0 | healing_rolls |
 | `skill_catalog.gd` | healing_roll_1 | healing_rolls |

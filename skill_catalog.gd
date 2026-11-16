@@ -173,15 +173,25 @@ static func describe_preview(source: Dictionary, stats: Dictionary, ranks: Dicti
 
 static func wild_tooltips(game: Node, player: Dictionary, skills: Array) -> Array:
 	var stats: Dictionary = player.get("weapon_stats",{})
+	var rules = preload("res://combat_ruleset.gd")
+	var ranks: Dictionary = rules.legacy_ranks(player) if not rules.active(game) else {}
 	if game.multiplayer.is_server():
 		# Only resolve the equipped build again when inputs to the class effects change.
-		var ranks: Dictionary = player.get("run_upgrades",{})
-		var key := [player.frame,player.character.get("upgrades",[]),player.weapon_kind,player.weapon,
+		var key := [rules.active(game),player.frame,player.character.get("upgrades",[]),player.weapon_kind,player.weapon,
 			player.secondary,player.catalyst,player.graft_part,player.technique,player.power,ranks]
 		var cached: Dictionary = game.get_meta("class_skill_tooltip_stats",{})
 		if cached.get("key",[]) != key:
 			stats=game.weapon_stats(player)
-			cached={"key":key.duplicate(true),"tips":[describe(skills[0],stats,ranks),describe(skills[1],stats,ranks)]}
+			cached={"key":key.duplicate(true),"tips":resolved_tooltips(skills,stats,ranks)}
 			game.set_meta("class_skill_tooltip_stats",cached)
 		return cached.tips.duplicate()
-	return [describe(skills[0],stats,player.get("run_upgrades",{})),describe(skills[1],stats,player.get("run_upgrades",{}))]
+	return resolved_tooltips(skills,stats,ranks)
+
+
+static func resolved_tooltips(skills: Array, stats: Dictionary, ranks: Dictionary) -> Array:
+	var adapters: Array = stats.get("affinity_build", {}).get("class_skills", [])
+	var tips := []
+	for slot in skills.size():
+		var adapter: Dictionary = adapters[slot] if slot < adapters.size() else {}
+		tips.append(describe(adapter.get("native_skill", skills[slot]), stats, ranks))
+	return tips
