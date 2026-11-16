@@ -188,7 +188,7 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 		world.DODGE_COOLDOWN_MS/1000.0, " s")])
 	var profile: Dictionary = player.get("character", world.guest_character.data)
 	for slot in 2:
-		var skill := Skills.resolve(class_id, slot, profile)
+		var skill := Skills.resolve_in_world(world, class_id, slot, profile)
 		var duration := Skills.Balance.cooldown(skill,stats)
 		rows.append([skill.name + " cooldown", decimal(duration/1000.0) + " s"])
 	for key in EXTRA_STATS:

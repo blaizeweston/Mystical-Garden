@@ -129,8 +129,12 @@ static func grant_ward(game: Node, recipient: Dictionary, until: int, charges: i
 	recipient.erase(Wards.PENDING)
 
 
-static func blocked(game: Node, recipient_id: int, recipient: Dictionary, now: int) -> void:
-	Wards.block(game, recipient, recipient_id, now)
+static func blocked(game: Node, recipient_id: int, recipient: Dictionary, now: int) -> RefCounted:
+	return Wards.block(game, recipient, recipient_id, now)
+
+
+func has_grants() -> bool:
+	return not _granted.is_empty()
 
 
 static func field_action(stats: Dictionary) -> RefCounted:

@@ -34,6 +34,22 @@ ruleset.
 - **Class tree.** The active branch tree grants one selection at each current row gate, at levels 1, 2, 4, and 7. It allows one node per row and accepts a learned adjacent predecessor. The legacy mask tree uses level minus one as its point budget, with additional tier and parent checks. Existing row exclusions already prevent buying every branch. The branch-tree budget, the current Offense/Control/Defense starting lanes, and the automatically generated adjacent links are compatibility behavior. The future graph needs the approved focus choices and deliberate connections. Level 7 currently resolves at 260 class XP. Its suitability as a final-tier gate is unverified against the approved pacing goal. The current free respec at the Heart remains a legacy action. [Branch rules](../warden_tree.gd) · [Legacy rules](../class_catalog.gd) · [Current XP data](../assets/content/balance.json)
 - **Grafting Altar.** The current path consumes a carried monster part for a chance to install one component. Its same-altar restriction follows the last successful install floor, and a later successful replacement swaps the installed component. Native effects are source-scoped, with validation, feedback, and lifetimes tied to the current model. CR05 compatibility covers these existing consumers and their regressions. The future altar success limit is approved. Cumulative reinforcement, adaptation selection, and what to carry forward from the existing attempt rules await a separate specification. [Altar action and validation](../game.gd) · [Native effect ownership](../native_grafts.gd)
 
+### CT01 connected Warden
+
+Affinity Wardens without historical Warden investments can select a starting focus and five successive connected nodes. The character stores stable path IDs in the versioned `warden_connected` field. Other Warden profiles keep their historical masks. The starting focus supplies Q through every branch crossing. Heart respec refunds the connected choices while keeping whole and fractional Class XP. [Connected tree](../warden_connected_tree.gd) · [Character profile](../character_profile.gd)
+
+A native follow-up requires the first actual self-block attributed to that Warden's Q. A teammate's use of the same Ward counts against Measured Guard, and the original Catalyst rules still determine the teammate's response. Prepared Root Quake consumes the native preparation on cast. Living Rhythm requires a hit, and Sheltering Quake can protect allies around a Quake with no enemy contact. Holdfast is unavailable pending a player push and stagger resistance consumer. Each capstone is reachable via Measured Guard. [Warden combat](../warden_combat.gd) · [Ward responses](../ward_responses.gd)
+
+The isolated thresholds are **0, 5, 15, 35, 140 and 260 Class XP**. The capstone uses the previous tree's 260 XP final-row threshold as a provisional gate. The values apply to the connected Warden only.
+
+| Expedition reference | Ordinary leaders | Scheduled scouts | Solo XP with full credit |
+| --- | ---: | ---: | ---: |
+| Short, through floor 6 | 6 | 37 | 5.5 XP |
+| Medium, through floor 12 | 12 | 87 | 12.3 XP |
+| Deep, through floor 18 | 18 | 150 | 20.4 XP |
+
+The comparison uses the solo cycle-zero spawn budget with every scheduled ordinary enemy spawned and defeated. A normal scout pays 0.1 XP and a leader pays 0.3 XP to each eligible participant. Boss leaders pay 2.4 XP and alter the escort count. Actual spawns, reinforcements and player eligibility can change the award. These are computed inputs for the pacing review. Final thresholds await ordinary-play evidence and approval. [Spawn budget](../combat_director.gd) · [Reward logic](../monster_rewards.gd) · [Reward data](../assets/content/balance.json)
+
 ### Overlapping Ward claims
 
 Native protection decides whether the hit was blocked and owns duration, charges,

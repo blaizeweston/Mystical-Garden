@@ -106,7 +106,7 @@ static func tick_hazards(game: Node,now: int) -> void:
   if now>=int(entry.until): game.enemy_hazards.erase(entry);continue
   if now<int(entry.next): continue
   entry.next=now+1000
-  game.hit_players(entry.point,float(entry.radius),now,float(entry.damage),700 if str(entry.kind) in ["nest","lair_pool","web"] else 0)
+  game.hit_players(entry.point,float(entry.radius),now,float(entry.damage),700 if str(entry.kind) in ["nest","lair_pool","web"] else 0,false)
 static func hints(game: Node) -> Array:
  var now:=Time.get_ticks_msec()
  var result:=Lair.hints(game,now)

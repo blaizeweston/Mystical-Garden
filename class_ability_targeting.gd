@@ -92,7 +92,7 @@ static func plan(game: Node, player: Dictionary, field: RefCounted, skill: Dicti
 	var point: Vector3 = selected.get("point", origin)
 	var result := {"target": target, "point": point, "reach": reach, "range": selection_range, "center": origin, "forward": forward,
 		"valid": found or mode not in NEEDS_TARGET, "growth": []}
-	if mode=="quake" and skill.get("warden_focus","")=="rootkeeper":
+	if mode=="quake" and skill.has("warden_focus"):
 		result.center=preload("res://warden_combat.gd").quake_center(game,player,field,skill,Time.get_ticks_msec())
 	if mode in TRAVEL:
 		result.center = landing(field, origin, forward, skill, point if found and mode != "windstep" else Vector3.INF)

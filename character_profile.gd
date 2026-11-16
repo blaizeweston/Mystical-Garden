@@ -5,6 +5,7 @@ const SaveBatch=preload("res://save_batch.gd")
 const ContentIDs=preload("res://content_ids.gd")
 var needs_content_backup:=false
 const Classes = preload("res://class_catalog.gd")
+const ConnectedWarden = preload("res://warden_connected_tree.gd")
 const Parts = preload("res://weapon_parts.gd")
 const Seeds = preload("res://seed_catalog.gd")
 
@@ -81,6 +82,9 @@ static func normalize(source: Dictionary) -> Dictionary:
 				for slot in mini(3,parts.size()):
 					var part:=int(parts[slot]) if parts[slot] is int else 0
 					result.loadouts[c].parts[slot]=part if Parts.is_plant(part) else 0
+	if source.has(ConnectedWarden.PROFILE_KEY):
+		var progression: Variant = source[ConnectedWarden.PROFILE_KEY]
+		result[ConnectedWarden.PROFILE_KEY] = progression.duplicate(true) if progression is Dictionary or progression is Array else progression
 	return result
 
 

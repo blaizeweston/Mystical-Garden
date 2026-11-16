@@ -83,7 +83,7 @@ const PASSIVE_CONSUMERS := {
 
 static func resolve(class_id: int, slot: int, profile: Dictionary, skill: Dictionary) -> Dictionary:
 	var frame: Dictionary = Classes.DEFINITIONS[class_id]
-	var focus := Classes.focus_id(profile, class_id)
+	var focus: String = skill.get("warden_focus", Classes.focus_id(profile, class_id))
 	var kit: Dictionary = KITS[frame.id]
 	var variant: String = skill.get("variant", "base")
 	var stable_id := "%s/%s/%s" % [frame.id, variant, slot]
@@ -112,7 +112,7 @@ static func resolve(class_id: int, slot: int, profile: Dictionary, skill: Dictio
 	return {
 		"id": stable_id, "focus": focus, "slot": slot, "native_skill": skill.duplicate(true),
 		"focus_change": "" if focus.is_empty() else "replaces" if slot == 0 else "modifies",
-		"trigger": rule[0], "origin": "anchor_or_impact" if focus == "rootkeeper" and slot == 1 and skill.mode == "quake" else rule[1],
+		"trigger": rule[0], "origin": "anchor_or_impact" if slot == 1 and skill.mode == "quake" and (focus == "rootkeeper" or skill.get("warden_relay",false)) else rule[1],
 		"recipients": rule[2], "limit": rule[3], "responses": RESPONSES[group].duplicate(),
 		"native_displacement": displacement,
 		"conflict": CONFLICTS.get(focus if slot == 0 and CONFLICTS.has(focus) else skill.mode,

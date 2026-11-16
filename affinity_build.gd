@@ -51,20 +51,22 @@ static func resolve(class_id: int, weapon_index: int, slots: Array, graft: int, 
 	class_id = clampi(class_id, 0, Classes.DEFINITIONS.size() - 1)
 	var frame: Dictionary = Classes.DEFINITIONS[class_id]
 	var weapon: Dictionary = frame.weapons[clampi(weapon_index, 0, frame.weapons.size() - 1)]
+	var connected := class_id == 0 and Ruleset.ConnectedWarden.eligible(profile)
+	var focus := Ruleset.ConnectedWarden.focus(profile) if connected else Classes.focus_id(profile, class_id)
 	var result := {
-		"ruleset": Ruleset.ID, "class_id": frame.id, "focus_id": Classes.focus_id(profile, class_id),
+		"ruleset": Ruleset.ID, "class_id": frame.id, "focus_id": focus,
 		"weapon_id": weapon.id, "native_weapon": weapon.duplicate(true),
 		"native_class_effects": Classes.bonuses(profile, class_id),
 		"core": slot("core", int(slots[0])), "form": slot("form", int(slots[1])),
 		"catalyst": slot("catalyst", int(slots[2])), "graft": {}, "class_skills": [],
-		"capabilities": {"native_weapon": true, "native_class_skills": true, "affinity_effects": false},
+		"capabilities": {"native_weapon": true, "native_class_skills": not connected or Ruleset.ConnectedWarden.valid(profile), "affinity_effects": false},
 	}
 	# The weapon supplies presentation/placement. Old species-specific melee
 	# movement overrides are deliberately excluded.
 	result.core.delivery = Delivery.WEAPON_DELIVERY.get(weapon.visual, {}).duplicate()
 	result.form.behavior = Ruleset.FORMS.get(result.form.get("primary_affinity"), "")
 	for index in 2:
-		var skill := Skills.resolve(class_id, index, profile)
+		var skill := Skills.resolve(class_id, index, profile, connected)
 		var adapter := Catalyst.resolve(class_id, index, profile, skill)
 		if not adapter.is_empty():
 			adapter.response = adapter.responses.get(result.catalyst.get("primary_affinity"), "")
@@ -72,7 +74,7 @@ static func resolve(class_id: int, weapon_index: int, slots: Array, graft: int, 
 	result.capabilities.affinity_effects = [result.core, result.form, result.catalyst].any(func(part): return part.state == "ready")
 	result.capabilities.strike = result.form.executable
 	result.capabilities.core_action = result.core.executable
-	result.capabilities.class_actions = result.catalyst.executable and result.class_skills.all(func(adapter): return not adapter.is_empty())
+	result.capabilities.class_actions = result.capabilities.native_class_skills and result.catalyst.executable and result.class_skills.all(func(adapter): return not adapter.is_empty())
 	result.graft = Ruleset.Grafts.resolve(graft)
 	return result
 
@@ -115,6 +117,8 @@ static func native_stats(build: Dictionary) -> Dictionary:
 
 
 static func refusal(build: Dictionary, name: String) -> String:
+	if name == "catalyst" and not build.capabilities.native_class_skills:
+		return "This character's connected Warden data needs review."
 	var part: Dictionary = build[name]
 	if part.executable:
 		return ""
@@ -127,6 +131,8 @@ static func refusal(build: Dictionary, name: String) -> String:
 
 static func departure_refusal(player: Dictionary) -> String:
 	var build := for_player(player, true)
+	if not build.capabilities.native_class_skills:
+		return refusal(build, "catalyst")
 	for name in ["core", "form", "catalyst"]:
 		if build[name].state != "empty":
 			var reason := refusal(build, name)

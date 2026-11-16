@@ -23,7 +23,7 @@ static func accepted(game: Node, player: Dictionary, before_until: int, before_c
 	player[CLAIMS] = claims
 
 
-static func block(game: Node, player: Dictionary, id: int, now: int) -> void:
+static func block(game: Node, player: Dictionary, id: int, now: int) -> RefCounted:
 	var claims: Array = player.get(CLAIMS, [])
 	var chosen: Dictionary = {}
 	var kept: Array = []
@@ -47,3 +47,5 @@ static func block(game: Node, player: Dictionary, id: int, now: int) -> void:
 	if not chosen.is_empty() and chosen.event != null:
 		chosen.event.publish(game, "actual_block", "ward", chosen.event.block_scope(id, chosen.adapter), now,
 			{"adapter": chosen.adapter.id, "recipient": id, "center": player.pos})
+		return chosen.event
+	return null

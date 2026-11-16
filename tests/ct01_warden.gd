@@ -1,0 +1,339 @@
+extends SceneTree
+
+const Connected = preload("res://warden_connected_tree.gd")
+const Warden = preload("res://warden_combat.gd")
+const Profile = preload("res://character_profile.gd")
+const Rules = preload("res://combat_ruleset.gd")
+const Builds = preload("res://affinity_build.gd")
+const Events = preload("res://combat_action_events.gd")
+const Skills = preload("res://skill_catalog.gd")
+const OFFENSE := ["vanguard","briar_rebound","pinning_quake","faultline_impact","quakefront","aftershock"]
+const BALANCE := ["rootkeeper","deep_roots","ready_footing","living_rhythm","measured_guard","seismic_relay"]
+const DEFENSE := ["bastion","shared_guard","clear_the_way","sheltering_quake","measured_guard","sanctuary_ground"]
+var game: Node
+var player: Dictionary
+var events: Array = []
+var failed := false
+var checks := 0
+
+
+func _initialize() -> void:
+	call_deferred("run")
+
+
+func check(condition: bool, label: String) -> void:
+	checks += 1
+	if not condition:
+		failed = true
+		printerr("FAIL CT01: ",label)
+
+
+func request(id: String) -> int:
+	return Connected.REQUEST_OFFSET+Connected.NODES.find(Connected.node(id))
+
+
+func graph(selected: Array, reachable: Dictionary) -> void:
+	if selected.size() == 6:
+		reachable[selected.back()] = true
+		return
+	var profile := Profile.blank()
+	profile.xp[0] = Connected.XP_THRESHOLDS[selected.size()]
+	profile[Connected.PROFILE_KEY] = Connected.state(selected)
+	for index in Connected.NODES.size():
+		var node: Dictionary = Connected.NODES[index]
+		var adjacent := selected.is_empty() or absi(int(Connected.node(selected.back()).lane)-index%3)<=1
+		var allowed: bool = node.enabled and floori(index/3.0)==selected.size() and adjacent
+		var result := Connected.refusal(profile,index+Connected.REQUEST_OFFSET)
+		check(result.is_empty()==allowed,"earned tier and adjacent predecessor for %s → %s" % [selected,node.id])
+		if allowed:
+			graph(selected+[node.id],reachable)
+
+
+func profiles() -> void:
+	var reachable := {}
+	graph([],reachable)
+	check(Connected.NODES.size()==18 and reachable.size()==3,"three focuses, five rows, all three capstones reachable")
+	var legacy := Profile.blank()
+	legacy.xp[0]=57
+	legacy.upgrades[0]=1<<14
+	legacy.upgrades[4]=1<<12
+	var copied := Profile.normalize(legacy)
+	check(copied==legacy and not Connected.eligible(copied),"historical investments and XP survive normalization")
+	check(Builds.resolve(0,0,[0,0,0],0,copied).class_skills[0].native_skill.name=="Rootshield",
+		"affinity resolver keeps the historical focus")
+	var connected := Profile.blank()
+	connected.xp[0]=260
+	connected[Connected.PROFILE_KEY]=Connected.state(["vanguard","deep_roots"])
+	var normalized := Profile.normalize(connected)
+	check(Connected.valid(normalized) and Connected.focus(normalized)=="vanguard" and normalized.upgrades[0]==0,
+		"versioned stable IDs round trip separately from masks")
+	check(Skills.resolve(0,0,normalized).name=="Guard" and Skills.resolve(0,0,normalized,true).name=="Thorn Counter",
+		"legacy mode ignores the versioned tree")
+	for invalid in [null, {"version":2,"path":["vanguard"]},{"version":1,"path":["vanguard","shared_guard"]}]:
+		normalized[Connected.PROFILE_KEY]=invalid
+		check(not Connected.valid(normalized) and not Builds.resolve(0,0,[0,0,0],0,normalized).capabilities.class_actions,
+			"invalid connected data cannot execute class skills")
+		check(Profile.normalize(normalized)[Connected.PROFILE_KEY]==invalid,"invalid data stays readable for review")
+
+
+func choose(id: String) -> void:
+	game.send_garden_action("learn_0_%d"%request(id))
+
+
+func title_and_progression() -> bool:
+	var menu := preload("res://main_menu.tscn").instantiate()
+	root.add_child(menu)
+	current_scene = menu
+	menu.new_game()
+	menu.create_character("CT01 Warden",0,preload("res://character_appearance.gd").DEFAULT)
+	var deadline := Time.get_ticks_msec()+6500
+	while current_scene==menu and Time.get_ticks_msec()<deadline:
+		await process_frame
+	if current_scene==menu:
+		check(false,"real title opens isolated guarded Garden")
+		return false
+	game=current_scene
+	player=game.players[1]
+	check(Rules.active(game) and game.has_meta(game.Transactions.SESSION),"real guarded affinity session")
+	player.pos=game.stage.gate_position()
+	choose("briar_rebound")
+	check(Connected.path(player.character).is_empty(),"a node cannot precede the focus")
+	var panel = game.progression_view
+	panel.inspected_class=0
+	panel.tabs.current_tab=2
+	panel.refresh()
+	check((panel.nodes.size()==19 and panel.nodes[1].label=="Vanguard" and panel.nodes[1].available
+		and panel.nodes[15].label=="Holdfast" and not panel.nodes[15].available),"class screen displays the actual connected tree and disabled Holdfast")
+	panel.chosen="class_0_%d"%request("vanguard")
+	panel.refresh()
+	check(not panel.learn_button.disabled,"Warden focus is selectable on the class screen")
+	panel.learn_button.pressed.emit()
+	check(Connected.path(player.character)==["vanguard"] and player.character.upgrades[0]==0,"level-one focus selected through host handler")
+	choose("deep_roots")
+	check(Connected.path(player.character)==["vanguard"],"unearned tier rejected")
+	player.character.xp[0]=260
+	choose("shared_guard")
+	check(Connected.path(player.character)==["vanguard"],"disconnected selection rejected by host")
+	for id in ["deep_roots","ready_footing","sheltering_quake","measured_guard","sanctuary_ground"]:
+		choose(id)
+	var saved := Connected.path(player.character).duplicate()
+	choose("seismic_relay")
+	choose("briar_rebound")
+	check(saved.size()==6 and Connected.path(player.character)==saved and game.local_character.data[Connected.PROFILE_KEY].path==saved,
+		"one node per level, one capstone, no backfill, locally committed")
+	var config := ConfigFile.new()
+	check(config.load(game.local_character.path)==OK and config.get_value("character","progress",{}).get(Connected.PROFILE_KEY,{}).get("path",[])==saved,
+		"guarded profile serializer writes the versioned path")
+	check(Skills.resolve_in_world(game,0,0,player.character).name=="Thorn Counter","crossing two lanes never replaces the starting Q")
+	player.pos=game.Stage.HEART
+	game.send_garden_action("respec_0")
+	check(Connected.path(player.character).is_empty() and player.character.xp[0]==260 and player.character.upgrades[0]==0,
+		"existing Heart respec refunds selections while preserving earned XP")
+	for id in OFFENSE:
+		choose(id)
+	check(Connected.path(player.character)==OFFENSE,"spent the same six selections after respec")
+	var history := {"version":1,"path":["bastion","shared_guard","clear_the_way","sheltering_quake","measured_guard","sanctuary_ground"]}
+	check(not Connected.refusal({"xp":[260], Connected.PROFILE_KEY:Connected.state(history.path.slice(0,4))},request("holdfast")).is_empty(),
+		"unsupported Holdfast is visibly unavailable")
+	player.pos=game.stage.gate_position()
+	game.map_rng.seed=16
+	game.PartyTravel.request(game,1,"depart")
+	deadline = Time.get_ticks_msec()+6500
+	while (not player.wild or not game.stage._has_experimental_floor()) and Time.get_ticks_msec()<deadline:
+		await process_frame
+	var departed: bool = player.wild and game.stage._has_experimental_floor()
+	check(departed,"real guarded terrain expedition departure")
+	return departed
+
+
+func arena(path: Array) -> void:
+	player.character[Connected.PROFILE_KEY]=Connected.state(path)
+	player.pos=Vector3.ZERO
+	player.facing=Vector3.FORWARD
+	player.hp=90
+	player.catalyst=0
+	player.weapon=0
+	player.secondary=0
+	game.enemy_hp=900
+	game.enemy_pos=Vector3(0,0,-1.2)
+	game.enemy_winding_up=false
+	game.enemy_mutations=0
+	game.enemy_traits.clear()
+	game.leader_brain.clear()
+	game.scouts.clear()
+	game.rooted_until=0
+	for key in ["cast_until","core_cast_until","counter_until","counter_guard_until","front_guard_until",
+			"skill_at","skill_two_at","guard_until","guard_charges","hurt_until","slow_until"]:
+		player[key]=0
+	for key in ["warden_block","warden_anchor","warden_relay","warden_aftershock","warden_sanctuary","affinity_ward_claims"]:
+		player.erase(key)
+	events.clear()
+
+
+func block(recipient: int=1) -> int:
+	var target: Dictionary=game.players[recipient]
+	var now := Time.get_ticks_msec()
+	game.apply_enemy_hit(recipient,target,now,4.0,0,Vector3(0,0,-2))
+	return now
+
+
+func offense() -> void:
+	arena(OFFENSE)
+	game.use_class_skill(1,player,1)
+	var normal_damage: int=900-game.enemy_hp
+	arena(OFFENSE)
+	var scout: Dictionary=game.make_scout(0,Vector3(3.3,0,0),4)
+	scout.hp=200
+	game.scouts.append(scout)
+	var origin: Vector3=game.enemy_pos
+	game.use_class_skill(1,player,0)
+	var now := block()
+	check(player.hp==90 and player.warden_block.blocked and game.enemy_pos.distance_to(origin)>.7,
+		"real block triggers Briar Rebound and preserves Thorn Counter")
+	check(player.counter_until>now,"native Thorn Counter still primes its counter")
+	# Isolate the Quake node's additive damage from Thorn Counter.
+	player.counter_until=0
+	game.use_class_skill(1,player,1)
+	check(900-game.enemy_hp==normal_damage+10 and game.rooted_until>now and not game.enemy_traits.has("brittle_until"),
+		"Pinning Quake roots and Faultline adds native damage without Brittle")
+	check(scout.hp<200,"Quakefront hits the scout at 3.3 m")
+	var quakes := events.filter(func(event):return event.kind=="class_action" and str(event.details.adapter).begins_with("warden/"))
+	check(quakes.size()==1 and is_equal_approx(float(quakes[0].details.radius),3.0),
+		"the native area increase leaves the Catalyst area and activation count intact")
+	game.enemy_pos=Vector3(0,0,-1.1)
+	var damage_before: int=game.enemy_hp
+	var due: int=player.get("warden_aftershock",{}).get("due",0)
+	Warden.tick(game,due-1)
+	check(game.enemy_hp==damage_before and due>now,"Aftershock waits for its scheduled impact")
+	var count := events.size()
+	Warden.tick(game,due)
+	Warden.tick(game,due+5)
+	check(damage_before-game.enemy_hp==8 and events.size()==count and not player.has("warden_aftershock"),
+		"Aftershock hits once without a new affinity contact or class activation")
+
+
+func deep_roots() -> void:
+	for path in [["rootkeeper"],["rootkeeper","deep_roots"]]:
+		arena(path)
+		game.use_class_skill(1,player,0)
+		player.pos=Vector3(6,0,0)
+		game.use_class_skill(1,player,1)
+		var extended: bool = path.size()==2
+		check((game.enemy_hp<900)==extended and player.skill_fx.pos.is_equal_approx(Vector3.ZERO if extended else player.pos),
+			"Deep Roots permits the actual six-metre anchor Quake")
+	arena(["vanguard","deep_roots"])
+	game.use_class_skill(1,player,0)
+	var now := block()
+	check(player.counter_until==now+4750,"Deep Roots extends the earned Thorn Counter window")
+
+	var ally: Dictionary=game.players[2]
+	ally.pos=Vector3(0,0,-3.6)
+	ally.wild=true
+	for path in [["bastion"],["bastion","deep_roots"]]:
+		arena(path)
+		ally.guard_charges=0
+		ally.guard_until=0
+		game.use_class_skill(1,player,0)
+		check((ally.guard_charges==1)==(path.size()==2),"Deep Roots changes actual Rootshield coverage")
+
+
+func balance() -> void:
+	arena(BALANCE)
+	check(Skills.resolve_in_world(game,0,0,player.character).anchor_range==6.5,"Deep Roots extends native anchor reach")
+	game.use_class_skill(1,player,0)
+	var refund: int=player.skill_at
+	var expiry: int=player.warden_block.until
+	Warden.tick(game,expiry+1)
+	Warden.tick(game,expiry+2)
+	check(player.skill_at==refund-1250,"Measured Guard refunds unused Q once on actual expiry")
+	arena(BALANCE)
+	game.use_class_skill(1,player,0)
+	player.pos=Vector3(2,0,0)
+	player.dodge_at=Time.get_ticks_msec()+1800
+	var now := block()
+	var before: int=player.skill_at
+	Warden.tick(game,player.warden_block.until+1)
+	check(player.dodge_at==now and player.skill_at==before,"Ready Footing restores dodge and a used Q gets no expiry refund")
+	var scout: Dictionary=game.make_scout(0,Vector3(4.5,0,0),5)
+	scout.hp=200
+	game.scouts.append(scout)
+	player.pos=Vector3(-.5,0,0)
+	game.use_class_skill(1,player,1)
+	check(not player.has("warden_relay") and player.skill_fx.pos.is_equal_approx(Vector3(2,0,0)) and scout.hp<200,
+		"Seismic Relay directs native Quake and is spent once")
+	check(player.skill_at==before-1250,"Living Rhythm refunds Q after the prepared hit")
+
+
+func defense() -> void:
+	arena(DEFENSE)
+	var ally: Dictionary=game.players[2]
+	ally.pos=Vector3(1,0,1)
+	ally.wild=true
+	ally.hp=90
+	ally.guard_charges=0
+	ally.guard_until=0
+	ally.erase("affinity_ward_claims")
+	player.catalyst=game.Items.get_item("plant_part_rare_frostbell").legacy_part
+	player.slow_until=Time.get_ticks_msec()+8000
+	ally.slow_until=player.slow_until
+	game.use_class_skill(1,player,0)
+	check(ally.guard_charges==0,"ally behind Rootshield has no native Ward")
+	var now := block()
+	check(ally.guard_charges==1 and ally.guard_until==now+950 and player.slow_until==0 and ally.slow_until==0,
+		"Shared Guard and Clear the Way affect the intended nearby ally")
+	block(2)
+	var block_events := events.filter(func(event):return event.kind=="actual_block")
+	check(block_events.size()==1 and block_events[0].source_actor==1 and block_events[0].quality=="refined",
+		"the original Q Ward keeps the Catalyst source, and Shared Guard does not reproc it")
+	game.use_class_skill(1,player,1)
+	check(ally.guard_charges==1 and ally.guard_until>now+1100,"Sheltering Quake grants new Guard after a prepared hit")
+	ally.guard_charges=0
+	ally.guard_until=0
+	ally.hurt_until=0
+	game.apply_enemy_hit(2,ally,now+10,4.0,0,Vector3(0,0,-2))
+	check(ally.hp==60,"Sanctuary reduces a 40 HP direct attack by 25 percent")
+	ally.hurt_until=0
+	game.apply_enemy_hit(2,ally,now+20,4.0,0,Vector3(0,0,-2),false)
+	check(ally.hp==20,"Sanctuary leaves environmental damage intact")
+	arena(DEFENSE)
+	ally.pos=Vector3(1,0,-1)
+	ally.hurt_until=0
+	ally.hp=90
+	game.use_class_skill(1,player,0)
+	block(2)
+	var cooldown: int=player.skill_at
+	Warden.tick(game,player.warden_block.until+1)
+	check(player.skill_at==cooldown and not player.has("warden_sanctuary"),
+		"ally Ward consumption counts against Measured Guard without replaying a Warden self-block response")
+	arena(DEFENSE)
+	ally.pos=Vector3(1,0,1)
+	game.use_class_skill(1,player,0)
+	block()
+	ally.guard_charges=0
+	ally.guard_until=0
+	game.enemy_pos=Vector3(0,0,-9)
+	game.use_class_skill(1,player,1)
+	check(game.enemy_hp==900 and ally.guard_charges==1 and player.warden_block.quake_used,
+		"Sheltering Quake protects allies on an empty impact and spends its preparation")
+
+
+func run() -> void:
+	profiles()
+	if not await title_and_progression():
+		quit(1)
+		return
+	game.set_physics_process(false)
+	game.battlefield.configure(0,1,0)
+	game.battlefield.barriers.clear()
+	game.boss_kind=-1
+	game.set_meta(Events.RECORD,func(event):events.append(event))
+	offense()
+	game.add_player(2)
+	deep_roots()
+	game.players[2].wild=false
+	balance()
+	defense()
+	print("CT01 checks: ",checks)
+	if not failed:
+		print("PASS: connected Warden progression and native combat effects")
+	quit(int(failed))

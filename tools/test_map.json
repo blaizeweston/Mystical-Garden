@@ -581,6 +581,8 @@
     "warden_progression": {
       "label": "Class subclasses, neighboring skill branches, cast presentation and checkpoint interactions",
       "files": [
+        "warden_connected_tree.gd",
+        "warden_connected_tree.gd.uid",
         "warden_tree.gd",
         "warden_tree.gd.uid",
         "warden_combat.gd",
@@ -1815,6 +1817,8 @@
     ]
   },
   "suites": {
+    "ct01_warden": {"kind":"unit","systems":["warden_progression","classes","class_tree_access","combat_affinity_contracts","combat","life"],"package":false},
+    "ct01_warden_coop": {"kind":"pair","systems":["warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life"],"package":false},
     "cr05_native_grafts": {"kind":"unit","systems":["combat_affinity_contracts","weapons","classes","combat","life"],"package":false},
     "cr05_native_grafts_coop": {"kind":"pair","systems":["combat_affinity_contracts","weapons","classes","connection_flow","world_snapshot"],"package":false},
     "cr05_native_grafts_party": {"kind":"party","systems":["combat_affinity_contracts","weapons","classes","connection_flow","world_snapshot"],"package":false},
@@ -5354,6 +5358,18 @@
       }
     },
     "_apply_loadout_action": {
+      "ct01_0": {
+        "match": "\t\t\tvar node:=int(fields[2])\n\t\t\tvar connected = Classes.Warden.Connected\n\t\t\tvar title: String\n\t\t\tif connected.in_world(self,c,player.character):\n\t\t\t\tvar refusal: String = connected.learn(player.character,node)\n\t\t\t\tif not refusal.is_empty():\n\t\t\t\t\taction_feedback(effects,id,refusal)\n\t\t\t\t\treturn\n\t\t\t\ttitle = connected.NODES[node-connected.REQUEST_OFFSET].name\n\t\t\telif c == 0 and player.character.has(connected.PROFILE_KEY):\n\t\t\t\taction_feedback(effects,id,\"Use the affinity session to change this connected Warden path.\")\n\t\t\t\treturn\n\t\t\telif Classes.can_learn(player.character,c,node,Character.level(int(player.character.xp[c])) if c>=0 and c<Classes.DEFINITIONS.size() else 0):\n\t\t\t\tvar definition: Dictionary = Classes.all_nodes(c)[node]\n",
+        "baseline": "\t\t\tvar node:=int(fields[2])\n\t\t\tif Classes.can_learn(player.character,c,node,Character.level(int(player.character.xp[c])) if c>=0 and c<Classes.DEFINITIONS.size() else 0):\n\t\t\t\tvar definition: Dictionary = Classes.all_nodes(c)[node]\n",
+        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
+        "additive": true
+      },
+      "ct01_1": {
+        "match": "\t\t\t\tplayer.character.upgrades[c] |= 1 << node\n\t\t\t\ttitle = definition.name\n\t\t\telse:\n\t\t\t\treturn\n\t\t\trestore_class_loadout(player)\n\t\t\tsave_action_profile(id, effects)\n\t\t\tvar message := \"Learned %s.\" % title\n\t\t\tif effects == null: tell(id,message)\n\t\t\telse: effects.append(tell_profile_action.bind(id,message))\n\t\t\"respec\":\n\t\t\tif fields.size()==2 and int(fields[1])>=0 and int(fields[1])<Classes.DEFINITIONS.size():\n\t\t\t\tvar c := int(fields[1])\n\t\t\t\tvar connected = Classes.Warden.Connected\n\t\t\t\tif c == 0 and player.character.has(connected.PROFILE_KEY):\n\t\t\t\t\tif not connected.in_world(self,c,player.character) or not connected.valid(player.character):\n\t\t\t\t\t\taction_feedback(effects,id,\"This connected Warden path cannot be refunded in the current session.\")\n\t\t\t\t\t\treturn\n\t\t\t\t\tplayer.character[connected.PROFILE_KEY] = connected.state([])\n\t\t\t\telse:\n\t\t\t\t\tplayer.character.upgrades[c]=0\n\t\t\t\trestore_class_loadout(player)\n",
+        "baseline": "\t\t\t\tplayer.character.upgrades[c] |= 1 << node\n\t\t\t\trestore_class_loadout(player)\n\t\t\t\tsave_action_profile(id, effects)\n\t\t\t\tvar message := \"Learned %s.\"%Classes.all_nodes(c)[node].name\n\t\t\t\tif effects == null: tell(id,message)\n\t\t\t\telse: effects.append(tell_profile_action.bind(id,message))\n\t\t\"respec\":\n\t\t\tif fields.size()==2 and int(fields[1])>=0 and int(fields[1])<Classes.DEFINITIONS.size():\n\t\t\t\tplayer.character.upgrades[int(fields[1])]=0\n\t\t\t\trestore_class_loadout(player)\n",
+        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
+        "additive": true
+      },
       "cr05_progression_0": {
         "match": "\t\t\tif Classes.can_learn(player.character,c,node,Character.level(int(player.character.xp[c])) if c>=0 and c<Classes.DEFINITIONS.size() else 0):\n\t\t\t\tvar definition: Dictionary = Classes.all_nodes(c)[node]\n\t\t\t\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\t\t\t\tvar refusal: String = preload(\"res://affinity_build.gd\").RESTRICTED_NODES.get(definition.id, \"\")\n\t\t\t\t\tif not refusal.is_empty():\n\t\t\t\t\t\taction_feedback(effects, id, refusal)\n\t\t\t\t\t\treturn\n\t\t\t\tplayer.character.upgrades[c] |= 1 << node\n",
         "baseline": "\t\t\tif Classes.can_learn(player.character,c,node,Character.level(int(player.character.xp[c])) if c>=0 and c<Classes.DEFINITIONS.size() else 0):\n\t\t\t\tplayer.character.upgrades[c] |= 1 << node\n",
@@ -5804,6 +5820,18 @@
       }
     },
     "_process": {
+      "ct01_0": {
+        "match": "\t\tskill_label.text += (\"\\n\" if not skill_label.text.is_empty() else \"\") + \"Q  %s%s\" % [\n\t\t\tSkills.resolve_in_world(self,int(p.frame),0,p.get(\"character\",guest_character.data)).name, \"\" if skill_ready else \" \u00b7 recovering\"]\n\t\tif difficulty_cycle > 0:\n",
+        "baseline": "\t\tskill_label.text += (\"\\n\" if not skill_label.text.is_empty() else \"\") + \"Q  %s%s\" % [\n\t\t\tSkills.resolve(int(p.frame),0,p.get(\"character\",guest_character.data)).name, \"\" if skill_ready else \" \u00b7 recovering\"]\n\t\tif difficulty_cycle > 0:\n",
+        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
+        "additive": true
+      },
+      "ct01_1": {
+        "match": "\tvar second_ready: bool=Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)) if host_side else bool(p.get(\"skill_two_ready\",false))\n\tvar skills: Array=[Skills.resolve_in_world(self,int(p.get(\"frame\",0)),0,p.get(\"character\",guest_character.data)),\n\t\tSkills.resolve_in_world(self,int(p.get(\"frame\",0)),1,p.get(\"character\",guest_character.data))]\n\tvar cooldowns: Array=[maxf(0,(int(p.get(\"skill_at\",0))-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)] if host_side else p.get(\"skill_cooldowns\",[0.0,0.0])\n",
+        "baseline": "\tvar second_ready: bool=Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)) if host_side else bool(p.get(\"skill_two_ready\",false))\n\tvar skills: Array=[Skills.resolve(int(p.get(\"frame\",0)),0,p.get(\"character\",guest_character.data)),Skills.resolve(int(p.get(\"frame\",0)),1,p.get(\"character\",guest_character.data))]\n\tvar cooldowns: Array=[maxf(0,(int(p.get(\"skill_at\",0))-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)] if host_side else p.get(\"skill_cooldowns\",[0.0,0.0])\n",
+        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
+        "additive": true
+      },
       "cr04c_void_hud_0": {
         "match": "\t\t\"skill_tooltips\":skill_tips,\n\t\t\"affinity_feedback\":preload(\"res://combat_status.gd\").affinity_feedback(self,p) if host_side and wild else str(p.get(\"affinity_feedback\",\"\")) if wild else \"\",\n\t\t\"carried\": carried if wild else data[0],\n",
         "baseline": "\t\t\"skill_tooltips\":skill_tips,\n\t\t\"carried\": carried if wild else data[0],\n",
@@ -6485,6 +6513,12 @@
       }
     },
     "player_snapshot": {
+      "ct01_0": {
+        "match": "\t\t\t\t\tstate[\"warden_anchor_point\"]=warden.anchor_point(self,p,now)\n\t\t\t\t\tstate[\"warden_relay_point\"]=warden.relay_point(self,p,now)\n\t\t\t\t\tstate[\"warden_quake_prepared\"]=warden.prepared_until(self,p,now)>0\n",
+        "baseline": "\t\t\t\t\tstate[\"warden_anchor_point\"]=warden.anchor_point(self,p,now)\n\t\t\t\t\tstate[\"warden_quake_prepared\"]=warden.prepared_until(self,p,now)>0\n",
+        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
+        "additive": true
+      },
       "cr04c_void_0": {
         "match": "\t\tif id == viewer and include_details:\n\t\t\tif p.has(\"combat_ruleset\") and p.wild:\n\t\t\t\tstate[\"affinity_feedback\"]=preload(\"res://combat_status.gd\").affinity_feedback(self,p)\n\t\t\tstate[\"core_state\"]=preload(\"res://core_combat.gd\").owner_state(p,Time.get_ticks_msec(),get_meta(\"core_combat\",{}).get(id,{}))\n",
         "baseline": "\t\tif id == viewer and include_details:\n\t\t\tstate[\"core_state\"]=preload(\"res://core_combat.gd\").owner_state(p,Time.get_ticks_msec(),get_meta(\"core_combat\",{}).get(id,{}))\n",
@@ -6731,6 +6765,12 @@
       }
     },
     "_physics_process": {
+      "ct01_0": {
+        "match": "\t\tif has_meta(&\"combat_affinity_ruleset\") and expedition_active():\n\t\t\tpreload(\"res://warden_combat.gd\").tick(self,now)\n\t\t\tif get_meta(Transactions.PENDING, false): return\n\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n",
+        "baseline": "\t\tif has_meta(&\"combat_affinity_ruleset\") and expedition_active():\n\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n",
+        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
+        "additive": true
+      },
       "cr04c_void_0": {
         "match": "\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n\t\t\tpreload(\"res://void_affinity.gd\").resolve_motion(self,elapsed,now)\n\t\t\tpreload(\"res://fire_combat.gd\").tick(self,elapsed,now)\n",
         "baseline": "\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n\t\t\tpreload(\"res://fire_combat.gd\").tick(self,elapsed,now)\n",
@@ -8200,6 +8240,24 @@
       }
     },
     "use_class_skill": {
+      "ct01_0": {
+        "match": "\t\t\"quake\",\"nova\",\"bloodmoon\":\n\t\t\tif mode==\"quake\" and skill.has(\"warden_focus\"):\n\t\t\t\teffect_point=plan.center if aimed else preload(\"res://warden_combat.gd\").quake_center(self,player,battlefield,skill,now)\n",
+        "baseline": "\t\t\"quake\",\"nova\",\"bloodmoon\":\n\t\t\tif mode==\"quake\" and skill.get(\"warden_focus\",\"\")==\"rootkeeper\":\n\t\t\t\teffect_point=plan.center if aimed else preload(\"res://warden_combat.gd\").quake_center(self,player,battlefield,skill,now)\n",
+        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
+        "additive": true
+      },
+      "ct01_1": {
+        "match": "\ttargets=Traits.spread_targets(self,player,targets,skill,stats)\n\tif not targets.is_empty():\n\t\tplayer.swing_until=now+240\n\t\tif mode==\"quake\" and skill.has(\"warden_focus\"):\n\t\t\tpreload(\"res://warden_combat.gd\").prepare_quake_damage(self,player,skill,now)\n\tvar hits:=apply_skill_targets(player,targets,skill,stats,now)\n\tvar secondary_radius := float(skill.get(\"warden_catalyst_radius\",radius))\n\tif skill.has(\"warden_focus\") and slot==0:\n\t\tpreload(\"res://warden_combat.gd\").on_cast(self,player,skill,now+int(skill.duration)+duration,now,event)\n\tif mode==\"quake\":\n\t\tpreload(\"res://core_combat.gd\").quake(self,id,effect_point,secondary_radius,now)\n\t\tif skill.has(\"warden_focus\"):\n",
+        "baseline": "\ttargets=Traits.spread_targets(self,player,targets,skill,stats)\n\tif not targets.is_empty(): player.swing_until=now+240\n\tvar hits:=apply_skill_targets(player,targets,skill,stats,now)\n\tif skill.has(\"warden_focus\") and slot==0:\n\t\tpreload(\"res://warden_combat.gd\").on_cast(self,player,skill,now+int(skill.duration)+duration,now)\n\tif mode==\"quake\":\n\t\tpreload(\"res://core_combat.gd\").quake(self,id,effect_point,radius,now)\n\t\tif skill.has(\"warden_focus\"):\n",
+        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
+        "additive": true
+      },
+      "ct01_2": {
+        "match": "\tplayer[timer]=now+Skills.Balance.cooldown(skill,stats)\n\tcombat_events_api.class_complete(self,event,adapter,cast_origin,effect_point,targets,recipients,now,secondary_radius)\n\tif slot==1 and skill.has(\"subclass_focus\"):\n",
+        "baseline": "\tplayer[timer]=now+Skills.Balance.cooldown(skill,stats)\n\tcombat_events_api.class_complete(self,event,adapter,cast_origin,effect_point,targets,recipients,now,radius)\n\tif slot==1 and skill.has(\"subclass_focus\"):\n",
+        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
+        "additive": true
+      },
       "cr05_focus_0": {
         "match": "\tif not Life.alive(player) or encounter_cleared() or now<int(player.get(timer,0)) or now<int(player.get(\"core_cast_until\",0)): return\n\tvar stats:=weapon_stats(player)\n\tvar skill: Dictionary\n\tvar event: RefCounted\n",
         "baseline": "\tif not Life.alive(player) or encounter_cleared() or now<int(player.get(timer,0)) or now<int(player.get(\"core_cast_until\",0)): return\n\tvar skill:=Skills.resolve(int(player.frame),slot,player.character)\n\tvar stats:=weapon_stats(player)\n\tvar event: RefCounted\n",
@@ -8788,6 +8846,12 @@
       }
     },
     "emit_combat_event": {
+      "ct01_0": {
+        "match": "\t\t\tfor slot in 2:\n\t\t\t\tvar skill:=Skills.resolve_in_world(self,int(players[combo].frame),slot,players[combo].character)\n\t\t\t\tif str(skill.mode)==shape:latest.label=skill.name;break\n",
+        "baseline": "\t\t\tfor slot in 2:\n\t\t\t\tvar skill:=Skills.resolve(int(players[combo].frame),slot,players[combo].character)\n\t\t\t\tif str(skill.mode)==shape:latest.label=skill.name;break\n",
+        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
+        "additive": true
+      },
       "guarded_expedition": {
         "match": "\tcombat_event_serial+=1\n\tcombat_events.append({\"id\":combat_event_serial,\"kind\":kind,\"shape\":shape,\"from\":[from.x,from.y,from.z],\"to\":[to.x,to.y,to.z],\"duration\":duration,\"color\":color.to_html(),\"reach\":reach,\"combo\":combo,\"span\":2.7 if shape==\"wide_arc\" else 1.3 if shape==\"knife_arc\" else 1.9,\"born\":Time.get_ticks_msec()})\n\n\tvar latest: Dictionary=combat_events.back()\n\tfor key in options:\n\t\tif key in [\"form\",\"pattern\",\"contact\",\"width\",\"span\",\"projectile_radius\",\"height\",\"owner\",\"clip\",\"target_token\",\"core_shapes\",\"core_phase\"]:latest[key]=options[key]\n\tif kind==\"impact\" and shape in [\"hit\",\"hurt\",\"block\",\"heal\"]:\n\t\tlatest.amount=maxi(0,roundi(reach));latest.target_id=combo\n\t\tlatest.target_token=int(scouts[combo].get(\"spawn_token\",0)) if shape==\"hit\" and combo>=0 and combo<scouts.size() else -1\n\tif kind==\"subclass_release\":\n\t\tlatest.label=options.get(\"label\",\"\")\n\tif kind==\"ability\":\n\t\tlatest.label=shape.replace(\"_\",\" \").capitalize()\n\t\tif players.has(combo):\n\t\t\tfor slot in 2:\n\t\t\t\tvar skill:=Skills.resolve(int(players[combo].frame),slot,players[combo].character)\n\t\t\t\tif str(skill.mode)==shape:latest.label=skill.name;break\n\t\tlatest.label=options.get(\"label\",latest.label)\n\tif is_instance_valid(Journal.current) and Journal.current.detail:\n\t\tJournal.event(\"combat\",\"presentation_event\",{\"event_id\":latest.id,\"kind\":kind,\"shape\":shape,\"amount\":latest.get(\"amount\",0),\"from\":latest.from,\"to\":latest.to,\"target_id\":latest.get(\"target_id\",-2),\"target_token\":latest.get(\"target_token\",-1),\"weapon_form\":latest.get(\"form\",\"\"),\"pattern\":latest.get(\"pattern\",\"\"),\"width\":latest.get(\"width\",0),\"span\":latest.get(\"span\",0),\"contact\":latest.get(\"contact\",0),\"status_actor\":latest.combo if kind==\"status\" else -2,\"status_stacks\":latest.reach if kind==\"status\" else 0})\n\twhile combat_events.size()>80: combat_events.pop_front()\n\tif not SaveBatch.active and not SaveBatch.guarded_active(): publish_combat_event(latest)\n\n",
         "baseline": "\tcombat_event_serial+=1\n\tcombat_events.append({\"id\":combat_event_serial,\"kind\":kind,\"shape\":shape,\"from\":[from.x,from.y,from.z],\"to\":[to.x,to.y,to.z],\"duration\":duration,\"color\":color.to_html(),\"reach\":reach,\"combo\":combo,\"span\":2.7 if shape==\"wide_arc\" else 1.3 if shape==\"knife_arc\" else 1.9,\"born\":Time.get_ticks_msec()})\n\n\tvar latest: Dictionary=combat_events.back()\n\tfor key in options:\n\t\tif key in [\"form\",\"pattern\",\"contact\",\"width\",\"span\",\"projectile_radius\",\"height\",\"owner\",\"clip\",\"target_token\",\"core_shapes\",\"core_phase\"]:latest[key]=options[key]\n\tif kind==\"impact\" and shape in [\"hit\",\"hurt\",\"block\",\"heal\"]:\n\t\tlatest.amount=maxi(0,roundi(reach));latest.target_id=combo\n\t\tlatest.target_token=int(scouts[combo].get(\"spawn_token\",0)) if shape==\"hit\" and combo>=0 and combo<scouts.size() else -1\n\tif kind==\"subclass_release\":\n\t\tlatest.label=options.get(\"label\",\"\")\n\tif kind==\"ability\":\n\t\tlatest.label=shape.replace(\"_\",\" \").capitalize()\n\t\tif players.has(combo):\n\t\t\tfor slot in 2:\n\t\t\t\tvar skill:=Skills.resolve(int(players[combo].frame),slot,players[combo].character)\n\t\t\t\tif str(skill.mode)==shape:latest.label=skill.name;break\n\t\tlatest.label=options.get(\"label\",latest.label)\n\tif is_instance_valid(Journal.current) and Journal.current.detail:\n\t\tJournal.event(\"combat\",\"presentation_event\",{\"event_id\":latest.id,\"kind\":kind,\"shape\":shape,\"amount\":latest.get(\"amount\",0),\"from\":latest.from,\"to\":latest.to,\"target_id\":latest.get(\"target_id\",-2),\"target_token\":latest.get(\"target_token\",-1),\"weapon_form\":latest.get(\"form\",\"\"),\"pattern\":latest.get(\"pattern\",\"\"),\"width\":latest.get(\"width\",0),\"span\":latest.get(\"span\",0),\"contact\":latest.get(\"contact\",0),\"status_actor\":latest.combo if kind==\"status\" else -2,\"status_stacks\":latest.reach if kind==\"status\" else 0})\n\twhile combat_events.size()>80: combat_events.pop_front()\n\tif online_peer!=null and multiplayer.is_server() and not SaveBatch.active:\n\t\tvar event: Dictionary=combat_events.back().duplicate();event.erase(\"born\");event.age=0.0\n\t\treceive_combat_event.rpc(event,str([destination,encounter_number,map_seed]))\n\n",
@@ -8834,6 +8898,24 @@
       }
     },
     "apply_enemy_hit": {
+      "ct01_0": {
+        "match": "func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: int=0,origin: Vector3=Vector3.INF,direct_attack := true) -> void:\n\tif not Life.alive(player) or not Transactions.session_writable(self): return\n",
+        "baseline": "func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: int=0,origin: Vector3=Vector3.INF) -> void:\n\tif not Life.alive(player) or not Transactions.session_writable(self): return\n",
+        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
+        "additive": true
+      },
+      "ct01_1": {
+        "match": "\t\tif player.guard_charges==0: player.guard_until=0\n\t\tvar block_event: RefCounted\n\t\tif recorded_ward: block_event = preload(\"res://combat_action_events.gd\").blocked(self,id,player,now)\n\t\tpreload(\"res://core_skill_effects.gd\").ironbark_block(self,id,player,now)\n\t\tTraits.blocked(self,player,now)\n\t\tif block_event != null:\n\t\t\tpreload(\"res://warden_combat.gd\").connected_block(self,block_event,id,now)\n\t\tplayer.contributed=true;emit_combat_event(\"impact\",\"block\",player.pos,player.pos,.85,Color(\"#f1d989\"),0,id);tell(id,\"Guard blocked the attack.\");return\n",
+        "baseline": "\t\tif player.guard_charges==0: player.guard_until=0\n\t\tif recorded_ward: preload(\"res://combat_action_events.gd\").blocked(self,id,player,now)\n\t\tpreload(\"res://core_skill_effects.gd\").ironbark_block(self,id,player,now)\n\t\tTraits.blocked(self,player,now)\n\t\tplayer.contributed=true;emit_combat_event(\"impact\",\"block\",player.pos,player.pos,.85,Color(\"#f1d989\"),0,id);tell(id,\"Guard blocked the attack.\");return\n",
+        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
+        "additive": true
+      },
+      "ct01_2": {
+        "match": "\t\thp = preload(\"res://water_combat.gd\").direct_damage(self,hp)\n\t\tif direct_attack:\n\t\t\thp = preload(\"res://warden_combat.gd\").sanctuary_damage(self,player,hp,now)\n\t\tbark = wood.absorption_plan(player,hp,preload(\"res://affinity_time.gd\").now(self))\n",
+        "baseline": "\t\thp = preload(\"res://water_combat.gd\").direct_damage(self,hp)\n\t\tbark = wood.absorption_plan(player,hp,preload(\"res://affinity_time.gd\").now(self))\n",
+        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
+        "additive": true
+      },
       "wood_affinity_1": {
         "match": "\tvar hp := Life.Preview.effect_hp(hit_points)\n\tvar wood = preload(\"res://wood_affinity.gd\")\n\tvar bark := {}\n\tvar hit_epoch := combat_epoch\n\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\thp = preload(\"res://water_combat.gd\").direct_damage(self,hp)\n\t\tbark = wood.absorption_plan(player,hp,preload(\"res://affinity_time.gd\").now(self))\n\t\thp -= int(bark.get(\"absorbed\",0))\n\tif has_meta(Transactions.SESSION):\n",
         "baseline": "\tvar hp := Life.Preview.effect_hp(hit_points)\n\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\thp = preload(\"res://water_combat.gd\").direct_damage(self,hp)\n\tif has_meta(Transactions.SESSION):\n",
@@ -9891,6 +9973,18 @@
       }
     },
     "hit_players": {
+      "ct01_0": {
+        "match": "func hit_players(center: Vector3, radius: float, now: int, damage: float = -1.0, slow_ms: int = 0, direct_attack := true) -> void:\n\tfor id in players:\n",
+        "baseline": "func hit_players(center: Vector3, radius: float, now: int, damage: float = -1.0, slow_ms: int = 0) -> void:\n\tfor id in players:\n",
+        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
+        "additive": true
+      },
+      "ct01_1": {
+        "match": "\t\t\tcontinue\n\t\tapply_enemy_hit(id,p,now,damage,slow_ms,center,direct_attack)\n\n",
+        "baseline": "\t\t\tcontinue\n\t\tapply_enemy_hit(id,p,now,damage,slow_ms,center)\n\n",
+        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
+        "additive": true
+      },
       "cb06_9": {
         "match": "radius: float, now: int, damage: float = -1.0, slow_ms: int = 0) -> void:",
         "baseline": "radius: float, now: int, damage: int = -1, slow_ms: int = 0) -> void:",
@@ -9986,12 +10080,117 @@
     "warden_tree.gd": {
       "newline": "lf",
       "regions": {
+        "ct01_1": {
+          "match": "## The first twelve Warden bits belong to the original tree. New IDs append after them.\nconst Connected = preload(\"res://warden_connected_tree.gd\")\nconst OFFSET := 12\n",
+          "baseline": "## The first twelve Warden bits belong to the original tree. New IDs append after them.\nconst OFFSET := 12\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_2": {
+          "match": "\nstatic func skill(profile: Dictionary, slot: int, base: Dictionary, connected := false) -> Dictionary:\n\tvar id := Connected.focus(profile) if connected else focus(profile)\n\tif id.is_empty():\n",
+          "baseline": "\nstatic func skill(profile: Dictionary, slot: int, base: Dictionary) -> Dictionary:\n\tvar id := focus(profile)\n\tif id.is_empty():\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_3": {
+          "match": "\tresult.warden_focus = id\n\tvar chosen := Connected.path(profile) if connected else []\n\tvar deep := chosen.has(\"deep_roots\") if connected else learned(profile,\"deep_roots\")\n\tif connected and slot == 1:\n\t\tif chosen.has(\"quakefront\"):\n\t\t\tresult.warden_catalyst_radius = result.radius\n\t\t\tresult.radius += Connected.QUAKEFRONT_RADIUS\n\t\tif chosen.has(\"seismic_relay\"):\n\t\t\tresult.warden_relay = true\n\tif id == \"rootkeeper\":\n",
+          "baseline": "\tresult.warden_focus = id\n\tvar deep := learned(profile,\"deep_roots\")\n\tif id == \"rootkeeper\":\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_4": {
+          "match": "\t\tif id == \"bastion\": result.radius += .8\n\tvar selected_nodes := modifiers(profile)\n\tif connected:\n\t\tselected_nodes = []\n\t\tfor index in range(1, chosen.size()):\n\t\t\tselected_nodes.append(Connected.node(chosen[index]))\n\tfor node in selected_nodes:\n\t\tvar about_quake: bool = node.id in [\"pinning_quake\",\"living_rhythm\",\"sheltering_quake\",\n\t\t\t\"faultline_impact\",\"quakefront\",\"aftershock\",\"seismic_relay\"]\n\t\tif (slot == 1) == about_quake:\n",
+          "baseline": "\t\tif id == \"bastion\": result.radius += .8\n\tfor node in modifiers(profile):\n\t\tvar about_quake: bool = node.id in [\"pinning_quake\",\"living_rhythm\",\"sheltering_quake\"]\n\t\tif (slot == 1) == about_quake:\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
         "cr02_card_lines": {"match": "\tif int(player.get(\"frame\", -1)) != 0 or player.has(\"combat_ruleset\"):\n", "baseline": "\tif int(player.get(\"frame\", -1)) != 0:\n", "systems": ["combat_affinity_contracts"]}
       }
     },
     "warden_combat.gd": {
       "newline": "lf",
       "regions": {
+        "ct01_1": {
+          "match": "const Progression = preload(\"res://warden_tree.gd\")\nconst Connected = Progression.Connected\nconst Feedback = preload(\"res://enemy_move_feedback.gd\")\n",
+          "baseline": "const Progression = preload(\"res://warden_tree.gd\")\nconst Feedback = preload(\"res://enemy_move_feedback.gd\")\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_2": {
+          "match": "\nstatic func learned(player: Dictionary, id: String) -> bool:\n\tvar profile: Dictionary = player.character\n\tif player.has(\"combat_ruleset\") and Connected.eligible(profile):\n\t\treturn Connected.path(profile).has(id)\n\treturn Progression.learned(profile,id)\n\n\nstatic func on_cast(game: Node, player: Dictionary, skill: Dictionary, expires: int, now: int, event: RefCounted = null) -> void:\n\tif not skill.has(\"warden_focus\") or int(skill.slot) != 0:\n",
+          "baseline": "\nstatic func on_cast(game: Node, player: Dictionary, skill: Dictionary, expires: int, now: int) -> void:\n\tif not skill.has(\"warden_focus\") or int(skill.slot) != 0:\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_3": {
+          "match": "\t\t\"counter_bonus\":skill.get(\"counter_window_bonus\",0)}\n\tif event != null and Connected.in_world(game,0,player.character):\n\t\tplayer.warden_block.merge({\"activation\":event.identity, \"granted\":event.has_grants(), \"protection_used\":false})\n\tif skill.warden_focus != \"rootkeeper\":\n",
+          "baseline": "\t\t\"counter_bonus\":skill.get(\"counter_window_bonus\",0)}\n\tif skill.warden_focus != \"rootkeeper\":\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_4": {
+          "match": "\tvar origin: Vector3 = player.pos\n\tif skill.get(\"warden_relay\",false):\n\t\tvar relay := relay_point(game,player,now)\n\t\tif relay.is_finite() and origin.distance_to(relay) <= Connected.RELAY_REACH and field.clear_line(origin,relay):\n\t\t\treturn relay\n\tif skill.get(\"warden_focus\",\"\") != \"rootkeeper\":\n",
+          "baseline": "\tvar origin: Vector3 = player.pos\n\tif skill.get(\"warden_focus\",\"\") != \"rootkeeper\":\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_5": {
+          "match": "static func consume_anchor(game: Node, player: Dictionary, point: Vector3, now: int) -> void:\n\tvar relay := relay_state(game,player,now)\n\tif not relay.is_empty() and Vector3(relay.point).is_equal_approx(point):\n\t\tplayer.erase(\"warden_relay\")\n\t\treturn\n\tvar state := anchor(game,player,now)\n",
+          "baseline": "static func consume_anchor(game: Node, player: Dictionary, point: Vector3, now: int) -> void:\n\tvar state := anchor(game,player,now)\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_6": {
+          "match": "\tfor id in game.players:\n\t\tvar relay := relay_state(game,game.players[id],now)\n\t\tif not relay.is_empty():\n\t\t\tvar center: Vector3 = relay.point\n\t\t\tvar position := [center.x,0,center.z]\n\t\t\tresult.append({\"id\":-19000000000-int(id),\"role\":\"core_anchor\",\"from\":position,\"to\":position,\"radius\":.62,\n\t\t\t\t\"remaining\":(int(relay.until)-now)/1000.0,\"color\":THORN.to_html()})\n\t\tvar state := anchor(game,game.players[id],now)\n",
+          "baseline": "\tfor id in game.players:\n\t\tvar state := anchor(game,game.players[id],now)\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_7": {
+          "match": "\tvar state: Dictionary = player.get(\"warden_block\",{})\n\tif state.has(\"activation\") or not live_state(game,player,state) or int(state.get(\"until\",0)) <= now or state.blocked:\n\t\treturn\n\tfirst_block(game,player,state,now)\n\n\nstatic func first_block(game: Node, player: Dictionary, state: Dictionary, now: int) -> void:\n\tstate.blocked = true\n\tif int(player.get(\"counter_until\",0)) > now:\n\t\tplayer.counter_until += int(state.counter_bonus)\n\tif learned(player,\"briar_rebound\"):\n\t\trebound(game,player.pos)\n\tif learned(player,\"shared_guard\"):\n\t\tshared_guard(game,player,now,\"Shared Guard\")\n\telif learned(player,\"shared_bark\"):\n\t\tshared_guard(game,player,now,\"Shared Bark\")\n\tif learned(player,\"ready_footing\") and int(player.get(\"dodge_at\",0)) > now:\n\t\tplayer.dodge_at = now\n\t\tcue(game,\"Ready Footing\",player.pos)\n\tif learned(player,\"clear_the_way\"):\n\t\tfor ally in game.players.values():\n",
+          "baseline": "\tvar state: Dictionary = player.get(\"warden_block\",{})\n\tif not live_state(game,player,state) or int(state.get(\"until\",0)) <= now or state.blocked:\n\t\treturn\n\tstate.blocked = true\n\tvar profile: Dictionary = player.character\n\tif int(player.get(\"counter_until\",0)) > now:\n\t\tplayer.counter_until += int(state.counter_bonus)\n\tif Progression.learned(profile,\"briar_rebound\"):\n\t\trebound(game,player.pos)\n\tif Progression.learned(profile,\"shared_bark\"):\n\t\tshared_bark(game,player,now)\n\tif Progression.learned(profile,\"ready_footing\") and int(player.get(\"dodge_at\",0)) > now:\n\t\tplayer.dodge_at = now\n\t\tcue(game,\"Ready Footing\",player.pos)\n\tif Progression.learned(profile,\"clear_the_way\"):\n\t\tfor ally in game.players.values():\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_8": {
+          "match": "\t\t\t\tcue(game,\"Cleansed\",ally.pos)\n\tif learned(player,\"cracking_roots\") and not player.has(\"combat_ruleset\"):\n\t\tvar nearby := contacts(game,player.pos,BLOCK_RADIUS)\n",
+          "baseline": "\t\t\t\tcue(game,\"Cleansed\",ally.pos)\n\tif Progression.learned(profile,\"cracking_roots\") and not player.has(\"combat_ruleset\"):\n\t\tvar nearby := contacts(game,player.pos,BLOCK_RADIUS)\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_9": {
+          "match": "\t\t\ttraits.brittle_until = now+4000\n\tif needs_quake(player) or learned(player,\"aftershock\") or has_card(player,\"bastion_thorn_shelter\"):\n\t\tstate.prepared = now+PREPARED_MS\n",
+          "baseline": "\t\t\ttraits.brittle_until = now+4000\n\tif needs_quake(profile,player) or has_card(player,\"bastion_thorn_shelter\"):\n\t\tstate.prepared = now+PREPARED_MS\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_10": {
+          "match": "\nstatic func needs_quake(player: Dictionary) -> bool:\n\treturn learned(player,\"pinning_quake\") or learned(player,\"living_rhythm\") or learned(player,\"sheltering_quake\") \\\n\t\tor learned(player,\"faultline_impact\") or has_card(player,\"vanguard_briar_wake\")\n\n",
+          "baseline": "\nstatic func needs_quake(profile: Dictionary, player: Dictionary) -> bool:\n\treturn Progression.learned(profile,\"pinning_quake\") or Progression.learned(profile,\"living_rhythm\") or Progression.learned(profile,\"sheltering_quake\") or has_card(player,\"vanguard_briar_wake\")\n\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_11": {
+          "match": "\t\treturn 0\n\tif (not state.quake_used and needs_quake(player)) or (not state.line_used and has_card(player,\"bastion_thorn_shelter\")) \\\n\t\tor (not state.get(\"aftershock_used\",false) and learned(player,\"aftershock\")):\n\t\treturn expires\n",
+          "baseline": "\t\treturn 0\n\tif (not state.quake_used and needs_quake(player.character,player)) or (not state.line_used and has_card(player,\"bastion_thorn_shelter\")):\n\t\treturn expires\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_12": {
+          "match": "\nstatic func shared_guard(game: Node, player: Dictionary, now: int, label: String) -> void:\n\tvar best: Dictionary = player\n",
+          "baseline": "\nstatic func shared_bark(game: Node, player: Dictionary, now: int) -> void:\n\tvar best: Dictionary = player\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_13": {
+          "match": "\tgame.grant_guard(best,now+950,1)\n\tcue(game,label,best.pos)\n\n",
+          "baseline": "\tgame.grant_guard(best,now+950,1)\n\tcue(game,\"Shared Bark\",best.pos)\n\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_14": {
+          "match": "static func quake_hit(game: Node, player: Dictionary, center: Vector3, targets: Array[int], radius: float, now: int) -> void:\n\tif prepared_until(game,player,now) == 0:\n\t\treturn\n\tvar state: Dictionary = player.warden_block\n\tif learned(player,\"aftershock\") and not state.get(\"aftershock_used\",false):\n\t\tstate.aftershock_used = true\n\t\tplayer.warden_aftershock = {\"point\":center, \"due\":now+Connected.AFTERSHOCK_MS, \"epoch\":game.combat_epoch,\n\t\t\t\"life\":int(player.get(\"lost_health\",0))}\n\t# Connected nodes spend their preparation on the next Quake. Historical\n\t# paths keep the original next-hitting-Quake behavior.\n\tif (targets.is_empty() and not state.has(\"activation\")) or state.quake_used or not needs_quake(player):\n\t\treturn\n\tstate.quake_used = true\n\tif learned(player,\"pinning_quake\"):\n\t\tvar count := 0\n",
+          "baseline": "static func quake_hit(game: Node, player: Dictionary, center: Vector3, targets: Array[int], radius: float, now: int) -> void:\n\tif targets.is_empty() or prepared_until(game,player,now) == 0:\n\t\treturn\n\tvar state: Dictionary = player.warden_block\n\tvar profile: Dictionary = player.character\n\tif state.quake_used or not needs_quake(profile,player):\n\t\treturn\n\tstate.quake_used = true\n\tif Progression.learned(profile,\"pinning_quake\"):\n\t\tvar count := 0\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_15": {
+          "match": "\t\t\t\tbreak\n\tif not targets.is_empty() and learned(player,\"living_rhythm\"):\n\t\tvar previous := int(player.get(\"skill_at\",0))\n",
+          "baseline": "\t\t\t\tbreak\n\tif Progression.learned(profile,\"living_rhythm\"):\n\t\tvar previous := int(player.get(\"skill_at\",0))\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_16": {
+          "match": "\t\t\tcue(game,\"Living Rhythm\",player.pos)\n\tif learned(player,\"sheltering_quake\"):\n\t\tward_circle(game,center,radius,now)\n",
+          "baseline": "\t\t\tcue(game,\"Living Rhythm\",player.pos)\n\tif Progression.learned(profile,\"sheltering_quake\"):\n\t\tward_circle(game,center,radius,now)\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_17": {
+          "match": "\nstatic func connected_block(game: Node, event: RefCounted, recipient: int, now: int) -> void:\n\tvar player: Dictionary = game.players.get(event.actor, {})\n\tvar state: Dictionary = player.get(\"warden_block\", {})\n\tif state.get(\"activation\", -1) != event.identity or int(state.until) <= now or not live_state(game,player,state):\n\t\treturn\n\tstate.protection_used = true\n\t# A Bastion ally can spend this Q's protection without triggering the Warden's own follow-ups.\n\tif recipient != event.actor or state.blocked:\n\t\treturn\n\tfirst_block(game,player,state,now)\n\tif learned(player,\"seismic_relay\"):\n\t\tplayer.warden_relay = {\"point\":player.pos, \"until\":now+Connected.RELAY_MS, \"epoch\":game.combat_epoch,\n\t\t\t\"life\":int(player.get(\"lost_health\",0))}\n\t\tFeedback.release(game,\"burst\",player.pos,player.pos,.65,ANCHOR)\n\tif learned(player,\"sanctuary_ground\"):\n\t\tplayer.warden_sanctuary = {\"point\":player.pos, \"until\":now+Connected.SANCTUARY_MS, \"epoch\":game.combat_epoch,\n\t\t\t\"life\":int(player.get(\"lost_health\",0))}\n\t\tgame.emit_combat_event(\"field\",\"sanctuary_ground\",player.pos,player.pos,\n\t\t\tConnected.SANCTUARY_MS/1000.0,BARK,Connected.SANCTUARY_RADIUS,recipient,{\"label\":\"Sanctuary Ground\"})\n\n\nstatic func relay_state(game: Node, player: Dictionary, now: int) -> Dictionary:\n\tvar state: Dictionary = player.get(\"warden_relay\",{})\n\treturn state if int(state.get(\"until\",0)) > now and live_state(game,player,state) else {}\n\n\nstatic func relay_point(game: Node, player: Dictionary, now: int) -> Vector3:\n\tif not game.multiplayer.is_server():\n\t\treturn player.get(\"warden_relay_point\",Vector3.INF)\n\treturn relay_state(game,player,now).get(\"point\",Vector3.INF)\n\n\nstatic func prepare_quake_damage(game: Node, player: Dictionary, skill: Dictionary, now: int) -> void:\n\tif learned(player,\"faultline_impact\") and prepared_until(game,player,now)>0 and not player.warden_block.quake_used:\n\t\tskill.damage = float(skill.damage) + Connected.FAULTLINE_POINTS\n\n\nstatic func sanctuary_damage(game: Node, player: Dictionary, hp: int, now: int) -> int:\n\tfor owner in game.players.values():\n\t\tvar state: Dictionary = owner.get(\"warden_sanctuary\",{})\n\t\tif int(state.get(\"until\",0)) > now and live_state(game,owner,state) and in_circle(game,player,state.point,Connected.SANCTUARY_RADIUS):\n\t\t\treturn maxi(1,roundi(float(hp)*(1.0-Connected.SANCTUARY_REDUCTION))) if hp > 0 else 0\n\treturn hp\n\n\nstatic func tick(game: Node, now: int) -> void:\n\tfor id in game.players:\n\t\tvar player: Dictionary = game.players[id]\n\t\tvar guard: Dictionary = player.get(\"warden_block\",{})\n\t\tif guard.has(\"activation\") and not guard.get(\"checked_expiry\",false) and int(guard.until) <= now:\n\t\t\tguard.checked_expiry = true\n\t\t\tif guard.granted and not guard.protection_used and live_state(game,player,guard) and learned(player,\"measured_guard\"):\n\t\t\t\tvar before := int(player.get(\"skill_at\",0))\n\t\t\t\tif before > now:\n\t\t\t\t\tplayer.skill_at = maxi(now,before-Connected.Q_REFUND_MS)\n\t\t\t\t\tcue(game,\"Measured Guard\",player.pos)\n\t\tvar pending: Dictionary = player.get(\"warden_aftershock\",{})\n\t\tif pending.is_empty() or int(pending.due) > now:\n\t\t\tcontinue\n\t\tplayer.erase(\"warden_aftershock\")\n\t\tif not live_state(game,player,pending):\n\t\t\tcontinue\n\t\tvar center: Vector3 = pending.point\n\t\tgame.emit_combat_event(\"proc\",\"Aftershock\",center,center,.5,THORN,Connected.AFTERSHOCK_RADIUS,id)\n\t\tvar targets: Array[int] = game.skill_area_targets(center,Connected.AFTERSHOCK_RADIUS,center)\n\t\tfor target in targets:\n\t\t\t# The existing secondary damage path skips contact traits, Catalyst events and displacement.\n\t\t\tgame.apply_weapon_hit(player,target,center,{\"damage\":0.0,\"affinity_hp\":Connected.AFTERSHOCK_HP,\n\t\t\t\t\"trait_secondary\":true,\"core_hit\":true,\"knockback\":-.35},now)\n\t\tif not targets.is_empty() and game.encounter_cleared():\n\t\t\tgame.finish_combat(id,center)\n\t\t\tif not game.Transactions.session_writable(game):\n\t\t\t\treturn\n\n\nstatic func ward_circle(game: Node, point: Vector3, radius: float, now: int) -> bool:\n",
+          "baseline": "\nstatic func ward_circle(game: Node, point: Vector3, radius: float, now: int) -> bool:\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
         "cr03_block_effects": {"match": "\tif Progression.learned(profile,\"cracking_roots\") and not player.has(\"combat_ruleset\"):\n", "baseline": "\tif Progression.learned(profile,\"cracking_roots\"):\n", "systems": ["frost_affinity"]},
         "cr02_has_card": {"match": "\treturn int(preload(\"res://combat_ruleset.gd\").legacy_ranks(player).get(id,0)) > 0\n", "baseline": "\treturn int(player.get(\"run_upgrades\",{}).get(id,0)) > 0\n", "systems": ["combat_affinity_contracts"]}
       }
@@ -13447,6 +13646,11 @@
     "loadout_panel.gd": {
       "newline": "crlf",
       "regions": {
+        "ct01_1": {
+          "match": "\tvar profile: Dictionary=p.get(\"character\",game.guest_character.data)\n\tvar connected = game.Classes.Warden.Connected\n\tvar use_connected: bool = connected.in_world(game,c,profile)\n\tvar level: int = connected.level(profile) if use_connected else game.Character.level(int(profile.xp[c]))\n\tvar points: int = (level-connected.path(profile).size() if connected.valid(profile) else 0) if use_connected else game.Classes.points(profile,c,level)\n\tvar body: String=\"[b]%s \u00b7 Lv %d[/b]\\n%s\\n%d class point(s) available\\n\\n%s\"%[game.Classes.DEFINITIONS[c].name,level,game.Classes.DEFINITIONS[c].description,points,game.Weapons.describe(stats) if not stats.is_empty() else \"\"]\n\tfor skill_slot in 2:\n\t\tvar skill: Dictionary=game.Skills.resolve_in_world(game,c,skill_slot,profile)\n\t\tvar info: String=game.Skills.describe(skill,stats)\n",
+          "baseline": "\tvar profile: Dictionary=p.get(\"character\",game.guest_character.data)\n\tvar level: int=game.Character.level(int(profile.xp[c]))\n\tvar points: int=game.Classes.points(profile,c,level)\n\tvar body: String=\"[b]%s \u00b7 Lv %d[/b]\\n%s\\n%d class point(s) available\\n\\n%s\"%[game.Classes.DEFINITIONS[c].name,level,game.Classes.DEFINITIONS[c].description,points,game.Weapons.describe(stats) if not stats.is_empty() else \"\"]\n\tfor skill_slot in 2:\n\t\tvar skill: Dictionary=game.Skills.resolve(c,skill_slot,profile)\n\t\tvar info: String=game.Skills.describe(skill,stats)\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
         "cr04a_affinity_1": {
           "match": "\tif affinity_mode and allowed:\n\t\tnotice.text = \"Equip supported affinity materials. Empty slots keep native combat.\"\n\tvar travel: Dictionary=game.party_travel_state()\n",
           "baseline": "\tif affinity_mode and allowed:\n\t\tnotice.text = \"Equip Chiming Sepal or Crystalline Bellheart for Frost. Empty slots keep native combat.\"\n\tvar travel: Dictionary=game.party_travel_state()\n",
@@ -13599,6 +13803,36 @@
     "progression_panel.gd": {
       "newline": "crlf",
       "regions": {
+        "ct01_1": {
+          "match": "\t\t\tvar n:=int(pieces[2])\n\t\t\tvar connected = game.Classes.Warden.Connected\n\t\t\tif connected.in_world(game,c,data):\n\t\t\t\tcan_learn = connected.refusal(data,n).is_empty()\n\t\t\telse:\n\t\t\t\tcan_learn=game.Classes.can_learn(data,c,n,Character.level(int(data.xp[c])))\n\tlearn_button.disabled=not can_learn\n",
+          "baseline": "\t\t\tvar n:=int(pieces[2])\n\t\t\tcan_learn=game.Classes.can_learn(data,c,n,Character.level(int(data.xp[c])))\n\tlearn_button.disabled=not can_learn\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_2": {
+          "match": "\t\tvar data: Dictionary=p.get(\"character\",game.guest_character.data)\n\t\tvar connected = game.Classes.Warden.Connected\n\t\tvar level:=Character.level(int(data.xp[inspected_class]))\n",
+          "baseline": "\t\tvar data: Dictionary=p.get(\"character\",game.guest_character.data)\n\t\tvar level:=Character.level(int(data.xp[inspected_class]))\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_3": {
+          "match": "\t\tvar class_name_text: String=game.Classes.DEFINITIONS[inspected_class].name\n\t\tif connected.in_world(game,inspected_class,data):\n\t\t\tif connected.valid(data):\n\t\t\t\tlevel = connected.level(data)\n\t\t\t\tavailable = level-connected.path(data).size()\n\t\t\t\tnotice.text=\"Warden level %d / 6 \u00b7 %d available \u00b7 Provisional affinity progression\"%[level,available]\n\t\t\telse:\n\t\t\t\tnotice.text=\"Connected Warden data needs review before it can change.\"\n\t\telif game.Classes.Warden.legacy(data,inspected_class):\n\t\t\tnotice.text=\"%s level %d \u00b7 %d available \u00b7 Refund at the Heart to switch to the new tree.\"%[class_name_text,level,available]\n",
+          "baseline": "\t\tvar class_name_text: String=game.Classes.DEFINITIONS[inspected_class].name\n\t\tif game.Classes.Warden.legacy(data,inspected_class):\n\t\t\tnotice.text=\"%s level %d \u00b7 %d available \u00b7 Refund at the Heart to switch to the new tree.\"%[class_name_text,level,available]\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_4": {
+          "match": "\tvar title: String=game.Classes.DEFINITIONS[c].name\n\tvar connected = tree_data.Connected\n\tvar use_connected: bool = connected.in_world(game,c,data)\n\tvar nodes: Array = connected.NODES if use_connected else game.Classes.branch_nodes(c)\n\tvar offset: int = connected.REQUEST_OFFSET if use_connected else tree_data.OFFSET\n\tvar lanes: Array = connected.LANES if use_connected else tree_data.LANES\n\tvar focus_id: String = connected.focus(data) if use_connected else game.Classes.focus_id(data,c)\n\tvar focus: String=game.Classes.focus_name(focus_id)\n\tif use_connected: level = connected.level(data)\n\tvar base_y := 628.0 if use_connected else 452.0\n\tvar result: Array=[{\"id\":base,\"label\":title,\"parents\":[],\"position\":Vector2(350,base_y),\n\t\t\"unlocked\":true,\"color\":\"#c4be83\",\"detail\":\"%s \u00b7 Lv %d\\n%s\\n\\nChoose one node per tier at the Heart or Wilds Gate. The first choice teaches your subclass skill. Later tiers can follow a root to an adjacent branch.\"%[title,level,focus if not focus.is_empty() else \"Choose a subclass\"],\n\t\t\"summary\":title+\" \u00b7 \"+\", \".join(lanes),\"caption\":title}]\n\tvar nodes_by_id: Dictionary={}\n\tfor i in nodes.size():\n\t\tnodes_by_id[nodes[i].id]=\"class_%d_%d\"%[c,offset+i]\n\tfor i in nodes.size():\n\t\tvar node: Dictionary=nodes[i]\n\t\tvar index: int=offset+i\n\t\tvar learned: bool = connected.path(data).has(node.id) if use_connected else bool(mask & (1<<index))\n\t\tvar reason: String = connected.refusal(data,index) if use_connected else \"\"\n\t\tvar ready: bool = reason.is_empty() if use_connected else game.Classes.can_learn(data,c,index,level)\n\t\tvar parents: Array=[base] if node.parents.is_empty() else node.parents.map(func(id):return nodes_by_id[id])\n\t\tvar summary: String=node.name+\" \u00b7 \"+lanes[node.lane]+\"\\n\"+node.description\n\t\tif game.has_meta(&\"combat_affinity_ruleset\"):\n",
+          "baseline": "\tvar title: String=game.Classes.DEFINITIONS[c].name\n\tvar nodes: Array=game.Classes.branch_nodes(c)\n\tvar focus: String=game.Classes.focus_name(game.Classes.focus_id(data,c))\n\tvar result: Array=[{\"id\":base,\"label\":title,\"parents\":[],\"position\":Vector2(350,452),\n\t\t\"unlocked\":true,\"color\":\"#c4be83\",\"detail\":\"%s \u00b7 Lv %d\\n%s\\n\\nChoose one node per tier at the Heart or Wilds Gate. The first choice teaches your subclass skill. Later tiers can follow a root to an adjacent branch.\"%[title,level,focus if not focus.is_empty() else \"Choose a subclass\"],\n\t\t\"summary\":title+\" \u00b7 Offense, Control and Defense\",\"caption\":title}]\n\tvar nodes_by_id: Dictionary={}\n\tfor i in nodes.size():\n\t\tnodes_by_id[nodes[i].id]=\"class_%d_%d\"%[c,tree_data.OFFSET+i]\n\tfor i in nodes.size():\n\t\tvar node: Dictionary=nodes[i]\n\t\tvar index: int=tree_data.OFFSET+i\n\t\tvar learned:=bool(mask & (1<<index))\n\t\tvar ready: bool=game.Classes.can_learn(data,c,index,level)\n\t\tvar parents: Array=[base] if node.parents.is_empty() else node.parents.map(func(id):return nodes_by_id[id])\n\t\tvar summary: String=node.name+\" \u00b7 \"+tree_data.LANES[node.lane]+\"\\n\"+node.description\n\t\tif game.has_meta(&\"combat_affinity_ruleset\"):\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_5": {
+          "match": "\t\t\t\tvar candidate: Dictionary=data.duplicate(true)\n\t\t\t\tif not learned:\n\t\t\t\t\tif use_connected: candidate[connected.PROFILE_KEY] = connected.state([node.id])\n\t\t\t\t\telse: candidate.upgrades[c]=1<<index\n\t\t\t\tsummary+=\"\\n\"+game.Skills.describe(game.Skills.resolve(c,0,candidate,use_connected))\n\t\t\telse:\n",
+          "baseline": "\t\t\t\tvar candidate: Dictionary=data.duplicate(true)\n\t\t\t\tif not learned: candidate.upgrades[c]=1<<index\n\t\t\t\tsummary+=\"\\n\"+game.Skills.describe(game.Skills.resolve(c,0,candidate))\n\t\t\telse:\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_6": {
+          "match": "\t\tvar detail: String=summary+\"\\n\\nLevel %d \u00b7 %s\"%[node.level,\"Learned\" if learned else \"Available\" if ready else \"Locked\"]\n\t\tif use_connected and not ready and not learned and reason != node.description:\n\t\t\tdetail += \"\\n\" + reason\n\t\tresult.append({\"id\":nodes_by_id[node.id],\"label\":node.name,\"parents\":parents,\n\t\t\t\"position\":Vector2(145+205*int(node.lane),base_y-98-88*int(node.tier)),\"unlocked\":learned,\n\t\t\t\"available\":ready,\"show_route\":true,\"color\":tree_data.COLORS[node.lane],\"summary\":summary,\"detail\":detail,\n",
+          "baseline": "\t\tvar detail: String=summary+\"\\n\\nLevel %d \u00b7 %s\"%[node.level,\"Learned\" if learned else \"Available\" if ready else \"Locked\"]\n\t\tresult.append({\"id\":nodes_by_id[node.id],\"label\":node.name,\"parents\":parents,\n\t\t\t\"position\":Vector2(145+205*int(node.lane),354-88*int(node.tier)),\"unlocked\":learned,\n\t\t\t\"available\":ready,\"show_route\":true,\"color\":tree_data.COLORS[node.lane],\"summary\":summary,\"detail\":detail,\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
         "cr05_effective_preview_1": {
           "match": "\t\t\tvar affected: Array=[0,1] if change.kind in [\"power\",\"efficient\"] else [int(change.get(\"slot\",0))]\n\t\t\tvar preview_stats: Dictionary = game.Classes.bonuses(candidate,c)\n\t\t\tif game.has_meta(&\"combat_affinity_ruleset\"):\n\t\t\t\tvar resolver = preload(\"res://affinity_build.gd\")\n\t\t\t\tvar loadout: Dictionary = candidate.loadouts[c]\n\t\t\t\tpreview_stats = resolver.native_stats(resolver.resolve(c,int(loadout.weapon),loadout.parts,0,candidate))\n\t\t\tchange_text+=\"\\n\\n\"+ \"\\n\\n\".join(affected.map(func(slot):return game.Skills.describe(game.Skills.resolve(c,slot,candidate),preview_stats)))\n\t\tvar detail: String=\"%s\\nRequires class level %d \u00b7 1 point\\n\\n%s\\n\\n%s\\nChoose one upgrade in this row. Previous row must be learned. Choices stay with this character.\"%[node.name,node.level,effects+\"\\n\\n\"+change_text,\"Learned\" if learned else \"Available\" if game.Classes.can_learn(data,c,i,level) else \"Locked / alternative path\"]\n",
           "baseline": "\t\t\tvar affected: Array=[0,1] if change.kind in [\"power\",\"efficient\"] else [int(change.get(\"slot\",0))]\n\t\t\tchange_text+=\"\\n\\n\"+ \"\\n\\n\".join(affected.map(func(slot):return game.Skills.describe(game.Skills.resolve(c,slot,candidate),game.Classes.bonuses(candidate,c))))\n\t\tvar detail: String=\"%s\\nRequires class level %d \u00b7 1 point\\n\\n%s\\n\\n%s\\nChoose one upgrade in this row. Previous row must be learned. Choices stay with this character.\"%[node.name,node.level,effects+\"\\n\\n\"+change_text,\"Learned\" if learned else \"Available\" if game.Classes.can_learn(data,c,i,level) else \"Locked / alternative path\"]\n",
@@ -14237,6 +14471,21 @@
     "skill_catalog.gd": {
       "newline": "crlf",
       "regions": {
+        "ct01_1": {
+          "match": "\nstatic func resolve_in_world(game: Node, class_id: int, slot: int, profile: Dictionary) -> Dictionary:\n\treturn resolve(class_id, slot, profile, Classes.Warden.Connected.in_world(game, class_id, profile))\n\n\nstatic func resolve(class_id: int,slot: int,profile: Dictionary,connected := false) -> Dictionary:\n\tclass_id=clampi(class_id,0,DEFINITIONS.size()-1)\n",
+          "baseline": "\nstatic func resolve(class_id: int,slot: int,profile: Dictionary) -> Dictionary:\n\tclass_id=clampi(class_id,0,DEFINITIONS.size()-1)\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_2": {
+          "match": "\tresult.merge(modifications,true)\n\tif class_id==0:\n\t\tresult=Classes.Warden.skill(profile,slot,result,connected)\n\telif class_id>0:\n",
+          "baseline": "\tresult.merge(modifications,true)\n\tif class_id==0 and not Classes.Warden.focus(profile).is_empty():\n\t\tresult=Classes.Warden.skill(profile,slot,result)\n\telif class_id>0:\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_3": {
+          "match": "\t\t# Only resolve the equipped build again when inputs to the class effects change.\n\t\tvar key := [rules.active(game),player.frame,player.character.get(\"upgrades\",[]),\n\t\t\tplayer.character.get(Classes.Warden.Connected.PROFILE_KEY), player.weapon_kind,player.weapon,\n\t\t\tplayer.secondary,player.catalyst,player.graft_part,player.technique,player.power,ranks]\n",
+          "baseline": "\t\t# Only resolve the equipped build again when inputs to the class effects change.\n\t\tvar key := [rules.active(game),player.frame,player.character.get(\"upgrades\",[]),player.weapon_kind,player.weapon,\n\t\t\tplayer.secondary,player.catalyst,player.graft_part,player.technique,player.power,ranks]\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
         "cr05_focus_1": {
           "match": "\tvar stats: Dictionary = player.get(\"weapon_stats\",{})\n\tvar rules = preload(\"res://combat_ruleset.gd\")\n\tvar ranks: Dictionary = rules.legacy_ranks(player) if not rules.active(game) else {}\n\tif game.multiplayer.is_server():\n\t\t# Only resolve the equipped build again when inputs to the class effects change.\n\t\tvar key := [rules.active(game),player.frame,player.character.get(\"upgrades\",[]),player.weapon_kind,player.weapon,\n\t\t\tplayer.secondary,player.catalyst,player.graft_part,player.technique,player.power,ranks]\n",
           "baseline": "\tvar stats: Dictionary = player.get(\"weapon_stats\",{})\n\tif game.multiplayer.is_server():\n\t\t# Only resolve the equipped build again when inputs to the class effects change.\n\t\tvar ranks: Dictionary = player.get(\"run_upgrades\",{})\n\t\tvar key := [player.frame,player.character.get(\"upgrades\",[]),player.weapon_kind,player.weapon,\n\t\t\tplayer.secondary,player.catalyst,player.graft_part,player.technique,player.power,ranks]\n",
@@ -16149,6 +16398,11 @@
     "boss_encounters.gd": {
       "newline": "crlf",
       "regions": {
+        "ct01_1": {
+          "match": "  entry.next=now+1000\n  game.hit_players(entry.point,float(entry.radius),now,float(entry.damage),700 if str(entry.kind) in [\"nest\",\"lair_pool\",\"web\"] else 0,false)\nstatic func hints(game: Node) -> Array:\n",
+          "baseline": "  entry.next=now+1000\n  game.hit_players(entry.point,float(entry.radius),now,float(entry.damage),700 if str(entry.kind) in [\"nest\",\"lair_pool\",\"web\"] else 0)\nstatic func hints(game: Node) -> Array:\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
         "cr03_tick": {"match": "  if now>=game.enemy_strike_at:\n   if game.has_meta(&\"combat_affinity_ruleset\"):\n    preload(\"res://frost_combat.gd\").with_attacker(game,-1,resolve.bind(game,now))\n   else: resolve(game,now)\n  return\n if now<game.enemy_stagger_until: return\n var target=game.Director.target(game,game.enemy_pos,game.leader_brain,now)\n if target==0: return\n var victim: Vector3=game.players[target].pos\n if not game.enemy_engaged and game.enemy_pos.distance_to(victim)>12: return\n game.enemy_engaged=true\n var definition: Dictionary=game.Enemies.get_kind(game.boss_kind)\n var next_phase=phase(game)\n if Phases.supports(game.boss_kind):\n  if Phases.advance_phase(game,next_phase,now):return\n elif next_phase!=game.boss_phase:\n  game.boss_phase=next_phase\n  if lair:Lair.begin_phase(game,next_phase,now)\n if now<game.enemy_ready_at: return\n var next_move: String=definition.moves[game.boss_moves%definition.moves.size()]\n var reach:=float(definition.range)\n var distance: float=game.enemy_pos.distance_to(victim)\n var remote_lair_cast:=lair and next_move==\"grasping_pool\" and Lair.adaptive(game,target,\"bank\")\n if game.boss_kind==Lair.Routes.ORCHARD:\n  next_move=Orchard.next_move(definition.moves,game.boss_phase,game.boss_moves,int(game.leader_brain.get(\"orchard_phase_start\",0)))\n  remote_lair_cast=next_move==\"root_sweep\" and Lair.adaptive(game,target,\"outer\")\n  if not remote_lair_cast and distance>Orchard.reach(next_move,game.boss_phase):\n   next_move=\"falling_fruit\"\n  reach=Orchard.reach(next_move,game.boss_phase)\n if not remote_lair_cast and distance>reach and (now>=game.rooted_until or game.boss_kind==Lair.Routes.ORCHARD):\n  if now>=game.rooted_until:\n   game.enemy_pos=game.Director.navigate(game,game.enemy_pos,victim,float(definition.speed)*delta*preload(\"res://frost_combat.gd\").motion_scale(game.leader_brain,now,true))\n", "baseline": "  if now>=game.enemy_strike_at: resolve(game,now)\n  return\n if now<game.enemy_stagger_until: return\n var target=game.Director.target(game,game.enemy_pos,game.leader_brain,now)\n if target==0: return\n var victim: Vector3=game.players[target].pos\n if not game.enemy_engaged and game.enemy_pos.distance_to(victim)>12: return\n game.enemy_engaged=true\n var definition: Dictionary=game.Enemies.get_kind(game.boss_kind)\n var next_phase=phase(game)\n if Phases.supports(game.boss_kind):\n  if Phases.advance_phase(game,next_phase,now):return\n elif next_phase!=game.boss_phase:\n  game.boss_phase=next_phase\n  if lair:Lair.begin_phase(game,next_phase,now)\n if now<game.enemy_ready_at: return\n var next_move: String=definition.moves[game.boss_moves%definition.moves.size()]\n var reach:=float(definition.range)\n var distance: float=game.enemy_pos.distance_to(victim)\n var remote_lair_cast:=lair and next_move==\"grasping_pool\" and Lair.adaptive(game,target,\"bank\")\n if game.boss_kind==Lair.Routes.ORCHARD:\n  next_move=Orchard.next_move(definition.moves,game.boss_phase,game.boss_moves,int(game.leader_brain.get(\"orchard_phase_start\",0)))\n  remote_lair_cast=next_move==\"root_sweep\" and Lair.adaptive(game,target,\"outer\")\n  if not remote_lair_cast and distance>Orchard.reach(next_move,game.boss_phase):\n   next_move=\"falling_fruit\"\n  reach=Orchard.reach(next_move,game.boss_phase)\n if not remote_lair_cast and distance>reach and (now>=game.rooted_until or game.boss_kind==Lair.Routes.ORCHARD):\n  if now>=game.rooted_until:\n   game.enemy_pos=game.Director.navigate(game,game.enemy_pos,victim,float(definition.speed)*delta)\n", "systems": ["frost_affinity"]},
         "cb06_0": {
           "match": "now,float(entry.damage),700 if",
@@ -18172,6 +18426,16 @@
     "character_profile.gd": {
       "newline": "crlf",
       "regions": {
+        "ct01_1": {
+          "match": "const Classes = preload(\"res://class_catalog.gd\")\nconst ConnectedWarden = preload(\"res://warden_connected_tree.gd\")\nconst Parts = preload(\"res://weapon_parts.gd\")\n",
+          "baseline": "const Classes = preload(\"res://class_catalog.gd\")\nconst Parts = preload(\"res://weapon_parts.gd\")\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
+        "ct01_2": {
+          "match": "\t\t\t\t\tresult.loadouts[c].parts[slot]=part if Parts.is_plant(part) else 0\n\tif source.has(ConnectedWarden.PROFILE_KEY):\n\t\tvar progression: Variant = source[ConnectedWarden.PROFILE_KEY]\n\t\tresult[ConnectedWarden.PROFILE_KEY] = progression.duplicate(true) if progression is Dictionary or progression is Array else progression\n\treturn result\n",
+          "baseline": "\t\t\t\t\tresult.loadouts[c].parts[slot]=part if Parts.is_plant(part) else 0\n\treturn result\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
         "cr05_progression_1": {
           "match": "\t\t\tvar rank:=level(result.xp[c])\n\t\t\tvar supported_bits := (1 << Classes.all_nodes(c).size()) - 1\n\t\t\tvar active_mask := mask & supported_bits\n\t\t\tvar new_tree := (active_mask >> Classes.Warden.OFFSET) != 0\n\t\t\tvar retained := mask & ~supported_bits\n\t\t\tif new_tree:\n\t\t\t\tretained |= active_mask & Classes.Warden.LEGACY_MASK\n\t\t\tif retained != 0:\n\t\t\t\tvar retained_masks: Dictionary = result.quarantine.get(\"learned_class_masks\", {}) if result.quarantine.get(\"learned_class_masks\", {}) is Dictionary else {}\n\t\t\t\tvar class_key: String = Classes.DEFINITIONS[c].id\n\t\t\t\tretained_masks[class_key] = int(retained_masks.get(class_key, 0)) | retained\n\t\t\t\tresult.quarantine.learned_class_masks = retained_masks\n\t\t\tfor i in range(Classes.Warden.OFFSET if new_tree else 0,Classes.all_nodes(c).size() if new_tree else Classes.DEFINITIONS[c].nodes.size()):\n",
           "baseline": "\t\t\tvar rank:=level(result.xp[c])\n\t\t\tvar new_tree:=(mask>>Classes.Warden.OFFSET)!=0\n\t\t\tfor i in range(Classes.Warden.OFFSET if new_tree else 0,Classes.all_nodes(c).size() if new_tree else Classes.DEFINITIONS[c].nodes.size()):\n",
@@ -18238,6 +18502,11 @@
     "class_ability_targeting.gd": {
       "newline": "lf",
       "regions": {
+        "ct01_1": {
+          "match": "\t\t\"valid\": found or mode not in NEEDS_TARGET, \"growth\": []}\n\tif mode==\"quake\" and skill.has(\"warden_focus\"):\n\t\tresult.center=preload(\"res://warden_combat.gd\").quake_center(game,player,field,skill,Time.get_ticks_msec())\n",
+          "baseline": "\t\t\"valid\": found or mode not in NEEDS_TARGET, \"growth\": []}\n\tif mode==\"quake\" and skill.get(\"warden_focus\",\"\")==\"rootkeeper\":\n\t\tresult.center=preload(\"res://warden_combat.gd\").quake_center(game,player,field,skill,Time.get_ticks_msec())\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
         "ground_trap_modes": {
           "match": "const GROUND_TRAPS := [\"snare\", \"snare_field\"]\nconst NEEDS_TARGET := [\"bind\", \"strangle\", \"siphon\", \"salvo\", \"judgement\", \"reap\", \"harvest\", \"requiem\", \"volley\"]\nconst TARGET_AREA := [\"judgement\", \"requiem\", \"growth\"]\n",
           "baseline": "const NEEDS_TARGET := [\"bind\", \"strangle\", \"snare\", \"siphon\", \"salvo\", \"snare_field\", \"judgement\", \"reap\", \"harvest\", \"requiem\", \"volley\"]\nconst TARGET_AREA := [\"snare_field\", \"judgement\", \"requiem\", \"growth\"]\n",
@@ -18366,6 +18635,11 @@
     "ability_aim.gd": {
       "newline": "lf",
       "regions": {
+        "ct01_1": {
+          "match": "\tvar profile: Dictionary = local.get(\"character\", game_node.guest_character.data)\n\tvar skill: Dictionary = game_node.Traits.tune_skill(game_node.Skills.resolve_in_world(game_node, int(local.frame), skill_slot, profile), stats)\n\tvar cast := Targeting.plan(game_node, local, field, skill, stats, forward, distance)\n",
+          "baseline": "\tvar profile: Dictionary = local.get(\"character\", game_node.guest_character.data)\n\tvar skill: Dictionary = game_node.Traits.tune_skill(game_node.Skills.resolve(int(local.frame), skill_slot, profile), stats)\n\tvar cast := Targeting.plan(game_node, local, field, skill, stats, forward, distance)\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
         "vital_aim_1": {
           "match": "\nstatic func available(game_node: Node, local: Dictionary, requested_slot: int) -> bool:\n\treturn game_node.session != \"Connecting\" and not game_node.returning_to_title and not game_node.overlay.visible and not game_node.checkpoint_menu.visible \\\n\t\tand not game_node.get_meta(\"garden_cinematic_active\", false) and not (game_node.settings_dialog != null and game_node.settings_dialog.visible) \\\n\t\tand game_node.Life.alive(local) \\\n\t\tand (not game_node.encounter_cleared() or (requested_slot == 2 and can_recover(game_node, local))) \\\n\t\tand (game_node.multiplayer.is_server() or (game_node.session == \"Guest\" and game_node.client_details_key == str([game_node.destination, game_node.encounter_number, game_node.map_seed])))\n\n\nstatic func can_recover(game: Node, player: Dictionary) -> bool:\n\tif not preload(\"res://combat_ruleset.gd\").active(game):\n\t\treturn false\n\tif game.multiplayer.is_server():\n\t\treturn Core.equipped(player).get(\"affinity_family\") == \"vital\"\n\tvar build: Dictionary = player.get(\"weapon_stats\", {}).get(\"affinity_build\", {})\n\tvar core: Dictionary = build.get(\"core\", {})\n\treturn core.get(\"state\") == \"ready\" and core.get(\"primary_affinity\") == \"vital\"\n\n\n",
           "baseline": "\nstatic func available(game_node: Node, local: Dictionary) -> bool:\n\treturn game_node.session != \"Connecting\" and not game_node.returning_to_title and not game_node.overlay.visible and not game_node.checkpoint_menu.visible \\\n\t\tand not game_node.get_meta(\"garden_cinematic_active\", false) and not (game_node.settings_dialog != null and game_node.settings_dialog.visible) \\\n\t\tand game_node.Life.alive(local) and not game_node.encounter_cleared() \\\n\t\tand (game_node.multiplayer.is_server() or (game_node.session == \"Guest\" and game_node.client_details_key == str([game_node.destination, game_node.encounter_number, game_node.map_seed])))\n\n",
@@ -19785,6 +20059,11 @@
     "run_summary_panel.gd": {
       "newline": "lf",
       "regions": {
+        "ct01_1": {
+          "match": "\tfor slot in 2:\n\t\tvar skill := Skills.resolve_in_world(world, class_id, slot, profile)\n\t\tvar duration := Skills.Balance.cooldown(skill,stats)\n",
+          "baseline": "\tfor slot in 2:\n\t\tvar skill := Skills.resolve(class_id, slot, profile)\n\t\tvar duration := Skills.Balance.cooldown(skill,stats)\n",
+          "systems": ["warden_progression", "classes", "combat_affinity_contracts"]
+        },
         "cr02_affinity_contract": {"match": "\t\tvar rank := int(preload(\"res://combat_ruleset.gd\").legacy_ranks(player).get(entry.id, 0))\n\t\tif rank <= 0:\n\t\t\tcontinue\n\t\tpower += int(entry.effects.get(\"power\", 0)) * rank\n\t\trift_hook = rift_hook or entry.effects.has(\"rift_hook\")\n\t\tvar detail: String = Upgrades.effect_text(entry).strip_edges()\n\t\tvar tooltip: String = entry.name + \"\\n\" + entry.rarity + \" \u00b7 Rank \" + str(rank)\n\t\tif not str(entry.description).is_empty():\n\t\t\ttooltip += \"\\n\\n\" + entry.description\n\t\tif not detail.is_empty():\n\t\t\ttooltip += \"\\n\\n\" + (\"Per rank\\n\" if int(entry.max_rank) != 1 else \"\") + detail\n\t\tupgrades.append({\"title\": entry.name + (\"  \u00d7%d\" % rank if rank > 1 else \"\"), \"tooltip\": tooltip, \"rarity\": entry.rarity})\n\tupgrades.sort_custom(func(a,b): return a.title.naturalnocasecmp_to(b.title) < 0)\n\tif world.multiplayer.is_server():\n\t\tpower = 0 if player.has(\"combat_ruleset\") else int(player.get(\"power\", power))\n", "baseline": "\t\tvar rank := int(player.get(\"run_upgrades\", {}).get(entry.id, 0))\n\t\tif rank <= 0:\n\t\t\tcontinue\n\t\tpower += int(entry.effects.get(\"power\", 0)) * rank\n\t\trift_hook = rift_hook or entry.effects.has(\"rift_hook\")\n\t\tvar detail: String = Upgrades.effect_text(entry).strip_edges()\n\t\tvar tooltip: String = entry.name + \"\\n\" + entry.rarity + \" \u00b7 Rank \" + str(rank)\n\t\tif not str(entry.description).is_empty():\n\t\t\ttooltip += \"\\n\\n\" + entry.description\n\t\tif not detail.is_empty():\n\t\t\ttooltip += \"\\n\\n\" + (\"Per rank\\n\" if int(entry.max_rank) != 1 else \"\") + detail\n\t\tupgrades.append({\"title\": entry.name + (\"  \u00d7%d\" % rank if rank > 1 else \"\"), \"tooltip\": tooltip, \"rarity\": entry.rarity})\n\tupgrades.sort_custom(func(a,b): return a.title.naturalnocasecmp_to(b.title) < 0)\n\tif world.multiplayer.is_server():\n\t\tpower = int(player.get(\"power\", power))\n", "systems": ["combat_affinity_contracts"]},
         "cb07_0": {
           "match": "\tif world.Life.Preview.enabled:\n\t\tif world.destination!=world.Campaign.HEART:\n\t\t\tvar boundary: bool=world.depth==world.ROUTE_ROOMS\n\t\t\tvar cycle: int=world.difficulty_cycle+int(boundary and world.destination==world.Campaign.HOLLOW)\n\t\t\tvar center: int=world.Life.Sustain.recovery_center_hp(boundary,cycle)\n\t\t\trows.append([\"Next gate recovery\",world.Life.Preview.range_label(world.Life.Preview.heal_band(center))+\" HP\"])\n\t\tvar core: Dictionary = stats.get(\"core_build\", {}).get(\"skill\", {})",

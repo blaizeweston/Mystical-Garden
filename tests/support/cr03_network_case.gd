@@ -6,6 +6,9 @@ const Events = preload("res://combat_action_events.gd")
 const Core = preload("res://core_combat.gd")
 const Menu = preload("res://main_menu.tscn")
 const Appearance = preload("res://character_appearance.gd")
+const ConnectedWarden = preload("res://warden_connected_tree.gd")
+const CT_PATH := ["vanguard","deep_roots","ready_footing","sheltering_quake","measured_guard","sanctuary_ground"]
+const CT_REQUESTS := [64,68,71,75,77,81]
 
 var tree: SceneTree
 var signals: String
@@ -17,6 +20,7 @@ var measure_packets := false
 var mixed_wood_ward := false
 var final_family_mix := false
 var native_graft_case := false
+var connected_warden_case := false
 
 
 func check(ok: bool, label: String) -> bool:
@@ -92,9 +96,9 @@ func host(menu: Node) -> void:
 	local.pos=game.stage.gate_position()
 	game.garden_action(1,"loadpart_0_%d"%ordinary)
 	game.garden_action(1,"loadpart_2_%d"%refined)
-	if native_graft_case:
-		game.garden_action(1,"learn_0_14")
-		check(game.Classes.focus_id(local.character,0)=="bastion","host learns its actual Rootshield focus through guarded progression")
+	if native_graft_case or connected_warden_case:
+		game.garden_action(1,"learn_0_%d" % (ConnectedWarden.REQUEST_OFFSET+2))
+		check(ConnectedWarden.focus(local.character)=="bastion","host learns its actual Rootshield focus through guarded progression")
 	mark("host")
 	var count:=3 if party else 1
 	if not check(await until(func():return guests(game).size()==count),"all expected guests admitted"):return
@@ -110,7 +114,8 @@ func host(menu: Node) -> void:
 		if not extra_cores.is_empty():
 			part = int(game.Items.get_item(extra_cores[index]).legacy_part)
 			supplied[part] = game.progress.part_count(part)
-		mark("select-"+str(ids[index]),"%d:%d:%d" % [refined,part,ordinary_wood if ids[index]==ward_guest else 0])
+		var catalyst := refined if connected_warden_case else ordinary_wood if ids[index]==ward_guest else 0
+		mark("select-"+str(ids[index]),"%d:%d:%d" % [refined,part,catalyst])
 	var prepared := func():
 		if native_graft_case and not ids.all(func(id):
 			var visitor: Dictionary = game.players[id]
@@ -119,6 +124,8 @@ func host(menu: Node) -> void:
 		return ids.all(func(id):return game.players[id].prepared_secondary==refined) and supplied.keys().all(func(part):
 			return ids.any(func(id):return game.players[id].prepared==part or game.players[id].prepared_catalyst==part))
 	if not check(await until(prepared),"real guest loadout requests reach host"):return
+	if connected_warden_case and not await learn_connected_host(game,ids[0],refined):
+		return
 	var before_regular: int=game.progress.part_count(ordinary)
 	var before_rare: int=game.progress.part_count(refined)
 	if party:
@@ -127,7 +134,7 @@ func host(menu: Node) -> void:
 	game.PartyTravel.request(game,1,"depart")
 	mark("depart",str(game.travel_epoch))
 	if not check(await until(func():return game.expedition_active() and ids.all(func(id):return game.players[id].wild) and not game.battlefield.generated.is_empty()),"native guarded departure opens generated floor"): return
-	check(game.progress.part_count(ordinary)==before_regular-1 and game.progress.part_count(refined)==before_rare-count-1,"exact guarded departure debits")
+	check(game.progress.part_count(ordinary)==before_regular-1 and game.progress.part_count(refined)==before_rare-count-1-int(connected_warden_case),"exact guarded departure debits")
 	var paid := [game.progress.part_count(ordinary),game.progress.part_count(refined)]
 	for part in supplied:
 		check(game.progress.part_count(part)==supplied[part]-1,"each additional Core is debited once")
@@ -170,7 +177,7 @@ func host(menu: Node) -> void:
 	if not check(await until(func():return not game.get_meta(Core.STATE,{}).has(1)),"closing petals finish before another action"):return
 	var protected: int=ids[0]
 	var ally: Dictionary=game.players[protected]
-	if not native_graft_case:
+	if not native_graft_case and not connected_warden_case:
 		local.character.upgrades[0]=1<<1
 	local.skill_at=0
 	game.use_class_skill(1,local,0)
@@ -178,6 +185,8 @@ func host(menu: Node) -> void:
 	var before: float=ally.hp
 	game.apply_enemy_hit(protected,ally,Time.get_ticks_msec(),1)
 	check(ally.hp==before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==1 and e.details.recipient==protected and e.quality=="refined"),"actual guest block uses host refined Catalyst")
+	if connected_warden_case and not await exercise_connected_host(game,local,ally,protected,rows):
+		return
 	if mixed_wood_ward:
 		var warded: Dictionary=game.players[ward_guest]
 		warded.guard_until=0
@@ -306,6 +315,9 @@ func host(menu: Node) -> void:
 	if not check(await until(func():return guests(game).is_empty() and game.pending_departures.is_empty()),"guest detached through normal teardown"):return
 	mark("detached")
 	check(await until(func():return read("rejoined")=="ok" and guests(game).size()==1),"guest reconnects to the existing Garden")
+	if connected_warden_case:
+		check(guests(game).size()==1 and ConnectedWarden.path(game.players[guests(game)[0]].character)==CT_PATH,
+			"host restores the six valid choices to the same guest on rejoin")
 	check([game.progress.part_count(ordinary),game.progress.part_count(refined)]==paid,"reconnect does not repeat departure")
 	for part in supplied:
 		check(game.progress.part_count(part)==supplied[part]-1,"rejoin preserves each additional Core debit")
@@ -314,6 +326,77 @@ func host(menu: Node) -> void:
 	game.return_to_main_menu()
 	check(await until(func():return tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"host goes offline after rejoin")
 	mark("offline")
+
+
+func learn_connected_host(game: Node, id: int, catalyst: int) -> bool:
+	var player: Dictionary = game.players[id]
+	if not check(await until(func():return player.prepared_catalyst==catalyst),"guest Catalyst is committed before learning"):return false
+	mark("ct-learn")
+	if not check(await until(func():
+		return (read("ct-level-one")=="ok" and ConnectedWarden.path(player.character)==["vanguard"]
+			and player.get("projection_delivery",{}).get("state")=="committed")),"host validates the level-one focus and receives canonical guest acknowledgment"):
+		return false
+	# Seed earned XP in the disposable fixture through the guarded profile path.
+	game.run_guarded_action(id,game.Transactions.Scope.GARDEN,func(effects):
+		player.character.xp[0]=260
+		game.save_action_profile(id,effects))
+	if not check(await until(func():
+		return (read("ct-learned")=="ok" and ConnectedWarden.path(player.character)==CT_PATH
+			and player.get("projection_delivery",{}).get("state")=="committed")),"host and guest both commit the six connected selections"):
+		return false
+	return check(player.character.upgrades[0]==0 and game.Skills.resolve_in_world(game,0,0,player.character).name=="Thorn Counter",
+		"the connected guest keeps its original focus after crossing lanes")
+
+
+func learn_connected_guest(game: Node) -> bool:
+	if not check(await until(func():return read("ct-learn")=="ok"),"learn through the admitted host"):return false
+	game.send_garden_action("learn_0_67")
+	game.send_garden_action("learn_0_%d"%CT_REQUESTS[0])
+	if not check(await until(func():return ConnectedWarden.path(game.guest_character.data)==["vanguard"]),
+		"level-one focus received and saved by the guest"):return false
+	game.send_garden_action("learn_0_68")
+	if not check(await until(func():return "Reach Warden level 2" in game.status),"unearned guest request is refused by host"):return false
+	mark("ct-level-one")
+	if not check(await until(func():return game.guest_character.data.xp[0]==260),"seeded XP reaches guest profile without extra choices"):return false
+	game.send_garden_action("learn_0_69")
+	if not check(await until(func():return "connected to your last selection" in game.status),"disconnected guest request is refused by host"):return false
+	for index in range(1,CT_REQUESTS.size()):
+		game.send_garden_action("learn_0_%d"%CT_REQUESTS[index])
+		if not check(await until(func():return ConnectedWarden.path(game.guest_character.data)==CT_PATH.slice(0,index+1)),
+			"guest commits a successive Warden profile choice"):return false
+	game.send_garden_action("learn_0_79")
+	if not check(await until(func():return "next tier" in game.status),"second capstone is refused by host"):return false
+	var config := ConfigFile.new()
+	var path: String = game.guest_character.path
+	check(config.load(path)==OK and ConnectedWarden.path(config.get_value("character","progress",{}))==CT_PATH,
+		"canonical guest profile contains the exact six-choice path")
+	mark("ct-learned")
+	return true
+
+
+func exercise_connected_host(game: Node, local: Dictionary, player: Dictionary, id: int, events: Array) -> bool:
+	player.guard_until=0
+	player.guard_charges=0
+	player.hurt_until=0
+	game.enemy_hp=180
+	mark("ct-q")
+	if not check(await until(func():return player.get("warden_block",{}).get("focus")=="vanguard"),
+		"actual remote Q casts Thorn Counter after crossing lanes"):return false
+	var now := Time.get_ticks_msec()
+	var hp: int = player.hp
+	player.dodge_at=now+1000
+	game.apply_enemy_hit(id,player,now,4,0,game.enemy_pos)
+	var blocks := func():return events.filter(func(e):return e.kind=="actual_block" and e.source_actor==id)
+	check(player.hp==hp and player.dodge_at==now and player.get("warden_sanctuary",{}).get("until",0)>now
+		and blocks.call().size()==1 and blocks.call()[0].quality=="refined","remote Q block readies dodge, creates sanctuary and runs one source-owned Catalyst")
+	local.guard_until=0
+	local.guard_charges=0
+	mark("ct-r")
+	if not check(await until(func():return player.warden_block.quake_used and local.guard_charges>0),
+		"actual remote Root Quake consumes preparation and shelters nearby host"):return false
+	check(blocks.call().size()==1 and events.filter(func(e):return e.kind=="class_action" and e.source_actor==id).size()==1,
+		"one remote R response with no duplicate Ward or class activation")
+	return true
 
 
 func install_party_grafts(game: Node, ids: Array) -> bool:
@@ -367,6 +450,8 @@ func guest(menu: Node, role: String) -> void:
 	if native_graft_case:
 		game.send_garden_action("loadweapon_1")
 		game.send_garden_action("learn_%d_12" % starting_class)
+	if connected_warden_case and not await learn_connected_guest(game):
+		return
 	if not check(await until(func():return not read("depart").is_empty()),"host authorizes departure"):return
 	game.send_garden_action("travel_ready:"+read("depart"))
 	if native_graft_case:
@@ -379,7 +464,15 @@ func guest(menu: Node, role: String) -> void:
 		mark("graft-seen-"+str(id))
 	if not check(await until(func():return read("strike-"+str(id))=="ok" and game.stage._has_experimental_floor()),"guest sees generated Frost floor"):return
 	game.send_action(true)
-	if int(picks[2])>0:
+	if connected_warden_case:
+		if not check(await until(func():return read("ct-q")=="ok"),"connected Warden receives Q timing"):return
+		game.send_garden_action("class_skill")
+		if not check(await until(func():return read("ct-r")=="ok"),"connected Warden's actual block qualifies"):return
+		if not check(await until(func():
+			return game.guest_combat_events(game.players[id]).any(func(event):return event.shape=="sanctuary_ground"),3000),
+			"guest sees the authoritative Sanctuary field in the existing event stream"):return
+		game.send_garden_action("class_skill_two")
+	elif int(picks[2])>0:
 		if not check(await until(func():return read("wood-guard-"+str(id))=="ok"),"host requests actual Wood Ward"):return
 		game.send_garden_action("class_skill")
 	if int(picks[1])>0:
@@ -423,6 +516,11 @@ func guest(menu: Node, role: String) -> void:
 	begin_join(tree.current_scene)
 	if not check(await until(func():return tree.current_scene.get("session")=="Guest" and tree.current_scene.stage.experimental_garden.remote_revision>=0),"same isolated profile rejoins"):return
 	check(tree.current_scene.guest_character.identity==identity,"stable character identity across rejoin")
+	if connected_warden_case:
+		var rejoined = tree.current_scene
+		var profile: Dictionary = rejoined.guest_character.data
+		check(ConnectedWarden.path(profile)==CT_PATH and rejoined.Skills.resolve_in_world(rejoined,0,0,profile).name=="Thorn Counter",
+			"same locally committed Warden path and Q survive rejoin")
 	mark("rejoined")
 	check(await until(func():return read("saved")=="ok"),"host verifies no replay or debit")
 	check(await until(func():return read("offline")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"guest observes host shutdown")

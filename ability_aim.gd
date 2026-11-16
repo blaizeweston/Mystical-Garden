@@ -181,7 +181,7 @@ static func footprint(game_node: Node, local: Dictionary, field: RefCounted, ski
 	if stats.is_empty():
 		return {}
 	var profile: Dictionary = local.get("character", game_node.guest_character.data)
-	var skill: Dictionary = game_node.Traits.tune_skill(game_node.Skills.resolve(int(local.frame), skill_slot, profile), stats)
+	var skill: Dictionary = game_node.Traits.tune_skill(game_node.Skills.resolve_in_world(game_node, int(local.frame), skill_slot, profile), stats)
 	var cast := Targeting.plan(game_node, local, field, skill, stats, forward, distance)
 	var now := Time.get_ticks_msec()
 	var ready: bool = now >= int(local.get("skill_at" if skill_slot == 0 else "skill_two_at", 0))

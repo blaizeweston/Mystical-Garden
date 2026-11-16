@@ -9,7 +9,11 @@ static func make_definitions() -> Array:
 		result.append(entry.skills)
 	return result
 
-static func resolve(class_id: int,slot: int,profile: Dictionary) -> Dictionary:
+static func resolve_in_world(game: Node, class_id: int, slot: int, profile: Dictionary) -> Dictionary:
+	return resolve(class_id, slot, profile, Classes.Warden.Connected.in_world(game, class_id, profile))
+
+
+static func resolve(class_id: int,slot: int,profile: Dictionary,connected := false) -> Dictionary:
 	class_id=clampi(class_id,0,DEFINITIONS.size()-1)
 	slot=clampi(slot,0,1)
 	var upgrades: Array=profile.get("upgrades",[])
@@ -38,8 +42,8 @@ static func resolve(class_id: int,slot: int,profile: Dictionary) -> Dictionary:
 			"efficient": cooldown_bonus+=int(change.get("cooldown",800))
 	var result: Dictionary=DEFINITIONS[class_id]["replace" if replaced else "base"][slot].duplicate(true)
 	result.merge(modifications,true)
-	if class_id==0 and not Classes.Warden.focus(profile).is_empty():
-		result=Classes.Warden.skill(profile,slot,result)
+	if class_id==0:
+		result=Classes.Warden.skill(profile,slot,result,connected)
 	elif class_id>0:
 		result=Classes.Subclasses.skill(profile,class_id,slot,result)
 	result["specialized"]=not modifications.is_empty() or result.has("warden_focus") or result.has("subclass_focus")
@@ -177,7 +181,8 @@ static func wild_tooltips(game: Node, player: Dictionary, skills: Array) -> Arra
 	var ranks: Dictionary = rules.legacy_ranks(player) if not rules.active(game) else {}
 	if game.multiplayer.is_server():
 		# Only resolve the equipped build again when inputs to the class effects change.
-		var key := [rules.active(game),player.frame,player.character.get("upgrades",[]),player.weapon_kind,player.weapon,
+		var key := [rules.active(game),player.frame,player.character.get("upgrades",[]),
+			player.character.get(Classes.Warden.Connected.PROFILE_KEY), player.weapon_kind,player.weapon,
 			player.secondary,player.catalyst,player.graft_part,player.technique,player.power,ranks]
 		var cached: Dictionary = game.get_meta("class_skill_tooltip_stats",{})
 		if cached.get("key",[]) != key:

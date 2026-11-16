@@ -227,7 +227,11 @@ func refresh() -> void:
 		if pieces.size()==3 and pieces[2].is_valid_int():
 			var c:=int(pieces[1])
 			var n:=int(pieces[2])
-			can_learn=game.Classes.can_learn(data,c,n,Character.level(int(data.xp[c])))
+			var connected = game.Classes.Warden.Connected
+			if connected.in_world(game,c,data):
+				can_learn = connected.refusal(data,n).is_empty()
+			else:
+				can_learn=game.Classes.can_learn(data,c,n,Character.level(int(data.xp[c])))
 	learn_button.disabled=not can_learn
 	if heart_tab:
 		var state: Dictionary=game.heart_state()
@@ -265,10 +269,18 @@ func refresh() -> void:
 		refund_button.text="Refund and switch to new tree" if game.Classes.Warden.legacy(class_profile,inspected_class) else "Refund class choices"
 	if class_tab:
 		var data: Dictionary=p.get("character",game.guest_character.data)
+		var connected = game.Classes.Warden.Connected
 		var level:=Character.level(int(data.xp[inspected_class]))
 		var available: int=game.Classes.points(data,inspected_class,level)
 		var class_name_text: String=game.Classes.DEFINITIONS[inspected_class].name
-		if game.Classes.Warden.legacy(data,inspected_class):
+		if connected.in_world(game,inspected_class,data):
+			if connected.valid(data):
+				level = connected.level(data)
+				available = level-connected.path(data).size()
+				notice.text="Warden level %d / 6 · %d available · Provisional affinity progression"%[level,available]
+			else:
+				notice.text="Connected Warden data needs review before it can change."
+		elif game.Classes.Warden.legacy(data,inspected_class):
 			notice.text="%s level %d · %d available · Refund at the Heart to switch to the new tree."%[class_name_text,level,available]
 		else:
 			notice.text="%s level %d · %d available · Choose a subclass, then follow a root to the next tier."%[class_name_text,level,available]
@@ -409,21 +421,29 @@ func subclass_nodes(data: Dictionary, c: int, level: int, mask: int) -> Array:
 	var tree_data = game.Classes.Warden
 	var base := "class_%d_base"%c
 	var title: String=game.Classes.DEFINITIONS[c].name
-	var nodes: Array=game.Classes.branch_nodes(c)
-	var focus: String=game.Classes.focus_name(game.Classes.focus_id(data,c))
-	var result: Array=[{"id":base,"label":title,"parents":[],"position":Vector2(350,452),
+	var connected = tree_data.Connected
+	var use_connected: bool = connected.in_world(game,c,data)
+	var nodes: Array = connected.NODES if use_connected else game.Classes.branch_nodes(c)
+	var offset: int = connected.REQUEST_OFFSET if use_connected else tree_data.OFFSET
+	var lanes: Array = connected.LANES if use_connected else tree_data.LANES
+	var focus_id: String = connected.focus(data) if use_connected else game.Classes.focus_id(data,c)
+	var focus: String=game.Classes.focus_name(focus_id)
+	if use_connected: level = connected.level(data)
+	var base_y := 628.0 if use_connected else 452.0
+	var result: Array=[{"id":base,"label":title,"parents":[],"position":Vector2(350,base_y),
 		"unlocked":true,"color":"#c4be83","detail":"%s · Lv %d\n%s\n\nChoose one node per tier at the Heart or Wilds Gate. The first choice teaches your subclass skill. Later tiers can follow a root to an adjacent branch."%[title,level,focus if not focus.is_empty() else "Choose a subclass"],
-		"summary":title+" · Offense, Control and Defense","caption":title}]
+		"summary":title+" · "+", ".join(lanes),"caption":title}]
 	var nodes_by_id: Dictionary={}
 	for i in nodes.size():
-		nodes_by_id[nodes[i].id]="class_%d_%d"%[c,tree_data.OFFSET+i]
+		nodes_by_id[nodes[i].id]="class_%d_%d"%[c,offset+i]
 	for i in nodes.size():
 		var node: Dictionary=nodes[i]
-		var index: int=tree_data.OFFSET+i
-		var learned:=bool(mask & (1<<index))
-		var ready: bool=game.Classes.can_learn(data,c,index,level)
+		var index: int=offset+i
+		var learned: bool = connected.path(data).has(node.id) if use_connected else bool(mask & (1<<index))
+		var reason: String = connected.refusal(data,index) if use_connected else ""
+		var ready: bool = reason.is_empty() if use_connected else game.Classes.can_learn(data,c,index,level)
 		var parents: Array=[base] if node.parents.is_empty() else node.parents.map(func(id):return nodes_by_id[id])
-		var summary: String=node.name+" · "+tree_data.LANES[node.lane]+"\n"+node.description
+		var summary: String=node.name+" · "+lanes[node.lane]+"\n"+node.description
 		if game.has_meta(&"combat_affinity_ruleset"):
 			var restriction: String = preload("res://affinity_build.gd").RESTRICTED_NODES.get(node.id, "")
 			if not restriction.is_empty():
@@ -432,13 +452,17 @@ func subclass_nodes(data: Dictionary, c: int, level: int, mask: int) -> Array:
 		if node.tier==0:
 			if game.Life.Preview.enabled:
 				var candidate: Dictionary=data.duplicate(true)
-				if not learned: candidate.upgrades[c]=1<<index
-				summary+="\n"+game.Skills.describe(game.Skills.resolve(c,0,candidate))
+				if not learned:
+					if use_connected: candidate[connected.PROFILE_KEY] = connected.state([node.id])
+					else: candidate.upgrades[c]=1<<index
+				summary+="\n"+game.Skills.describe(game.Skills.resolve(c,0,candidate,use_connected))
 			else:
 				summary+="\n"+str(tree_data.FOCUSES[node.id].description if c==0 else game.Classes.Subclasses.FOCUSES[c-1][node.lane].description)
 		var detail: String=summary+"\n\nLevel %d · %s"%[node.level,"Learned" if learned else "Available" if ready else "Locked"]
+		if use_connected and not ready and not learned and reason != node.description:
+			detail += "\n" + reason
 		result.append({"id":nodes_by_id[node.id],"label":node.name,"parents":parents,
-			"position":Vector2(145+205*int(node.lane),354-88*int(node.tier)),"unlocked":learned,
+			"position":Vector2(145+205*int(node.lane),base_y-98-88*int(node.tier)),"unlocked":learned,
 			"available":ready,"show_route":true,"color":tree_data.COLORS[node.lane],"summary":summary,"detail":detail,
 			"caption":node.name if node.tier==0 else ""})
 	return result

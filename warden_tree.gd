@@ -1,5 +1,6 @@
 extends RefCounted
 ## The first twelve Warden bits belong to the original tree. New IDs append after them.
+const Connected = preload("res://warden_connected_tree.gd")
 const OFFSET := 12
 const LEGACY_MASK := (1 << OFFSET) - 1
 const LANES := ["Offense", "Control", "Defense"]
@@ -121,13 +122,20 @@ static func can_learn(profile: Dictionary, index: int, level: int, class_id: int
 	return node.parents.is_empty() or node.parents.any(func(id): return learned(profile,id,class_id,nodes))
 
 
-static func skill(profile: Dictionary, slot: int, base: Dictionary) -> Dictionary:
-	var id := focus(profile)
+static func skill(profile: Dictionary, slot: int, base: Dictionary, connected := false) -> Dictionary:
+	var id := Connected.focus(profile) if connected else focus(profile)
 	if id.is_empty():
 		return base
 	var result: Dictionary = FOCUSES[id].duplicate(true) if slot == 0 else base
 	result.warden_focus = id
-	var deep := learned(profile,"deep_roots")
+	var chosen := Connected.path(profile) if connected else []
+	var deep := chosen.has("deep_roots") if connected else learned(profile,"deep_roots")
+	if connected and slot == 1:
+		if chosen.has("quakefront"):
+			result.warden_catalyst_radius = result.radius
+			result.radius += Connected.QUAKEFRONT_RADIUS
+		if chosen.has("seismic_relay"):
+			result.warden_relay = true
 	if id == "rootkeeper":
 		result.anchor_range = float(FOCUSES[id].anchor_range) + (1.5 if deep else 0.0)
 		if slot == 0:
@@ -137,8 +145,14 @@ static func skill(profile: Dictionary, slot: int, base: Dictionary) -> Dictionar
 	if slot == 0 and deep:
 		if id == "vanguard": result.counter_window_bonus = 1250
 		if id == "bastion": result.radius += .8
-	for node in modifiers(profile):
-		var about_quake: bool = node.id in ["pinning_quake","living_rhythm","sheltering_quake"]
+	var selected_nodes := modifiers(profile)
+	if connected:
+		selected_nodes = []
+		for index in range(1, chosen.size()):
+			selected_nodes.append(Connected.node(chosen[index]))
+	for node in selected_nodes:
+		var about_quake: bool = node.id in ["pinning_quake","living_rhythm","sheltering_quake",
+			"faultline_impact","quakefront","aftershock","seismic_relay"]
 		if (slot == 1) == about_quake:
 			result.description += "\n" + node.name + " · " + node.description
 	return result

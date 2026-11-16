@@ -1729,7 +1729,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 			if mode=="harvest": grant_guard(player,now+int(skill.duration)+duration,1)
 			targets=skill_area_targets(player.pos,radius,player.pos)
 		"quake","nova","bloodmoon":
-			if mode=="quake" and skill.get("warden_focus","")=="rootkeeper":
+			if mode=="quake" and skill.has("warden_focus"):
 				effect_point=plan.center if aimed else preload("res://warden_combat.gd").quake_center(self,player,battlefield,skill,now)
 				skill.effect_origin=effect_point
 			targets=skill_area_targets(effect_point,radius,effect_point)
@@ -1758,12 +1758,16 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	if player.has("affinity_spirit_follow") and player.pos!=cast_origin:
 		preload("res://spirit_affinity.gd").movement(self,player,cast_origin,player.pos)
 	targets=Traits.spread_targets(self,player,targets,skill,stats)
-	if not targets.is_empty(): player.swing_until=now+240
+	if not targets.is_empty():
+		player.swing_until=now+240
+		if mode=="quake" and skill.has("warden_focus"):
+			preload("res://warden_combat.gd").prepare_quake_damage(self,player,skill,now)
 	var hits:=apply_skill_targets(player,targets,skill,stats,now)
+	var secondary_radius := float(skill.get("warden_catalyst_radius",radius))
 	if skill.has("warden_focus") and slot==0:
-		preload("res://warden_combat.gd").on_cast(self,player,skill,now+int(skill.duration)+duration,now)
+		preload("res://warden_combat.gd").on_cast(self,player,skill,now+int(skill.duration)+duration,now,event)
 	if mode=="quake":
-		preload("res://core_combat.gd").quake(self,id,effect_point,radius,now)
+		preload("res://core_combat.gd").quake(self,id,effect_point,secondary_radius,now)
 		if skill.has("warden_focus"):
 			var warden=preload("res://warden_combat.gd")
 			warden.consume_anchor(self,player,effect_point,now)
@@ -1774,7 +1778,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	player.contributed=true
 	if bonus_heal>0: Life.Sustain.heal(self,player,bonus_heal,"class_healing_bonus")
 	player[timer]=now+Skills.Balance.cooldown(skill,stats)
-	combat_events_api.class_complete(self,event,adapter,cast_origin,effect_point,targets,recipients,now,radius)
+	combat_events_api.class_complete(self,event,adapter,cast_origin,effect_point,targets,recipients,now,secondary_radius)
 	if slot==1 and skill.has("subclass_focus"):
 		preload("res://subclass_combat.gd").follow_through(self,player,skill,effect_point,targets,now)
 	player.skill_fx_seq=int(player.get("skill_fx_seq",0))+1
@@ -2116,6 +2120,8 @@ func _physics_process(delta: float) -> void:
 		Traits.tick(self,now)
 		if get_meta(Transactions.PENDING, false): return
 		if has_meta(&"combat_affinity_ruleset") and expedition_active():
+			preload("res://warden_combat.gd").tick(self,now)
+			if get_meta(Transactions.PENDING, false): return
 			var elapsed := preload("res://affinity_time.gd").advance(self,delta)
 			preload("res://void_affinity.gd").resolve_motion(self,elapsed,now)
 			preload("res://fire_combat.gd").tick(self,elapsed,now)
@@ -2629,23 +2635,26 @@ func resolve_briar_strike(now: int) -> void:
 	abandon_if_empty()
 
 
-func hit_players(center: Vector3, radius: float, now: int, damage: float = -1.0, slow_ms: int = 0) -> void:
+func hit_players(center: Vector3, radius: float, now: int, damage: float = -1.0, slow_ms: int = 0, direct_attack := true) -> void:
 	for id in players:
 		var p: Dictionary = players[id]
 		if not Life.alive(p) or center.distance_to(p.pos) > radius or not battlefield.clear_line(center, p.pos):
 			continue
-		apply_enemy_hit(id,p,now,damage,slow_ms,center)
+		apply_enemy_hit(id,p,now,damage,slow_ms,center,direct_attack)
 
-func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: int=0,origin: Vector3=Vector3.INF) -> void:
+func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: int=0,origin: Vector3=Vector3.INF,direct_attack := true) -> void:
 	if not Life.alive(player) or not Transactions.session_writable(self): return
 	if now<int(player.get("hurt_until",0)): return
 	if Traits.guard_allows(player,origin,now):
 		var recorded_ward := has_meta(&"combat_affinity_ruleset") and int(player.get("guard_charges",0)) > 0
 		player.guard_charges=maxi(0,int(player.get("guard_charges",1))-1)
 		if player.guard_charges==0: player.guard_until=0
-		if recorded_ward: preload("res://combat_action_events.gd").blocked(self,id,player,now)
+		var block_event: RefCounted
+		if recorded_ward: block_event = preload("res://combat_action_events.gd").blocked(self,id,player,now)
 		preload("res://core_skill_effects.gd").ironbark_block(self,id,player,now)
 		Traits.blocked(self,player,now)
+		if block_event != null:
+			preload("res://warden_combat.gd").connected_block(self,block_event,id,now)
 		player.contributed=true;emit_combat_event("impact","block",player.pos,player.pos,.85,Color("#f1d989"),0,id);tell(id,"Guard blocked the attack.");return
 	if Traits.try_brace(self,player,now): return
 	var hit_points := float(1+difficulty_cycle/2) if damage<0.0 else Life.Preview.authored_amount(damage)
@@ -2655,6 +2664,8 @@ func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: 
 	var hit_epoch := combat_epoch
 	if has_meta(&"combat_affinity_ruleset"):
 		hp = preload("res://water_combat.gd").direct_damage(self,hp)
+		if direct_attack:
+			hp = preload("res://warden_combat.gd").sanctuary_damage(self,player,hp,now)
 		bark = wood.absorption_plan(player,hp,preload("res://affinity_time.gd").now(self))
 		hp -= int(bark.get("absorbed",0))
 	if has_meta(Transactions.SESSION):
@@ -3749,6 +3760,7 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 					var warden=preload("res://warden_combat.gd")
 					var now:=Time.get_ticks_msec()
 					state["warden_anchor_point"]=warden.anchor_point(self,p,now)
+					state["warden_relay_point"]=warden.relay_point(self,p,now)
 					state["warden_quake_prepared"]=warden.prepared_until(self,p,now)>0
 			state.merge({"weapon": p.weapon, "prepared": p.prepared, "experiment": p.experiment,
 				"skill_ready": Time.get_ticks_msec() >= int(p.skill_at),"skill_two_ready":Time.get_ticks_msec()>=int(p.get("skill_two_at",0)),"skill_cooldowns":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get("skill_two_at",0))-Time.get_ticks_msec())/1000.0)], "dodge_ready": Time.get_ticks_msec() >= int(p.dodge_at), "last_offer": p.last_offer,
@@ -3957,7 +3969,7 @@ func _process(_delta: float) -> void:
 		var skill_ready: bool = Time.get_ticks_msec() >= int(p.skill_at) if multiplayer.is_server() else p.skill_ready
 		inventory.text += "\n\n%s: %s + %s" % [frame.weapon, Parts.part_name(p.weapon), Parts.part_name(p.secondary)]
 		skill_label.text += ("\n" if not skill_label.text.is_empty() else "") + "Q  %s%s" % [
-			Skills.resolve(int(p.frame),0,p.get("character",guest_character.data)).name, "" if skill_ready else " · recovering"]
+			Skills.resolve_in_world(self,int(p.frame),0,p.get("character",guest_character.data)).name, "" if skill_ready else " · recovering"]
 		if difficulty_cycle > 0:
 			skill_label.text += "\nCorruption %d" % (difficulty_cycle + 1)
 			if not encounter_cleared() and int(campaign_state[11])>0:
@@ -4041,7 +4053,8 @@ func _process(_delta: float) -> void:
 	var host_side := multiplayer.is_server()
 	var ready_skill := Time.get_ticks_msec() >= int(p.get("skill_at", 0)) if host_side else bool(p.get("skill_ready", false))
 	var second_ready: bool=Time.get_ticks_msec()>=int(p.get("skill_two_at",0)) if host_side else bool(p.get("skill_two_ready",false))
-	var skills: Array=[Skills.resolve(int(p.get("frame",0)),0,p.get("character",guest_character.data)),Skills.resolve(int(p.get("frame",0)),1,p.get("character",guest_character.data))]
+	var skills: Array=[Skills.resolve_in_world(self,int(p.get("frame",0)),0,p.get("character",guest_character.data)),
+		Skills.resolve_in_world(self,int(p.get("frame",0)),1,p.get("character",guest_character.data))]
 	var cooldowns: Array=[maxf(0,(int(p.get("skill_at",0))-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get("skill_two_at",0))-Time.get_ticks_msec())/1000.0)] if host_side else p.get("skill_cooldowns",[0.0,0.0])
 	var skill_tips: Array=Skills.wild_tooltips(self,p,skills) if wild and Life.Preview.enabled else [skills[0].name+"\n"+skills[0].description,skills[1].name+"\n"+skills[1].description]
 	var quake_prepared:=false
@@ -4394,7 +4407,18 @@ func _apply_loadout_action(id: int, player: Dictionary, fields: PackedStringArra
 			if fields.size()!=3: return
 			var c:=int(fields[1])
 			var node:=int(fields[2])
-			if Classes.can_learn(player.character,c,node,Character.level(int(player.character.xp[c])) if c>=0 and c<Classes.DEFINITIONS.size() else 0):
+			var connected = Classes.Warden.Connected
+			var title: String
+			if connected.in_world(self,c,player.character):
+				var refusal: String = connected.learn(player.character,node)
+				if not refusal.is_empty():
+					action_feedback(effects,id,refusal)
+					return
+				title = connected.NODES[node-connected.REQUEST_OFFSET].name
+			elif c == 0 and player.character.has(connected.PROFILE_KEY):
+				action_feedback(effects,id,"Use the affinity session to change this connected Warden path.")
+				return
+			elif Classes.can_learn(player.character,c,node,Character.level(int(player.character.xp[c])) if c>=0 and c<Classes.DEFINITIONS.size() else 0):
 				var definition: Dictionary = Classes.all_nodes(c)[node]
 				if has_meta(&"combat_affinity_ruleset"):
 					var refusal: String = preload("res://affinity_build.gd").RESTRICTED_NODES.get(definition.id, "")
@@ -4402,14 +4426,25 @@ func _apply_loadout_action(id: int, player: Dictionary, fields: PackedStringArra
 						action_feedback(effects, id, refusal)
 						return
 				player.character.upgrades[c] |= 1 << node
-				restore_class_loadout(player)
-				save_action_profile(id, effects)
-				var message := "Learned %s."%Classes.all_nodes(c)[node].name
-				if effects == null: tell(id,message)
-				else: effects.append(tell_profile_action.bind(id,message))
+				title = definition.name
+			else:
+				return
+			restore_class_loadout(player)
+			save_action_profile(id, effects)
+			var message := "Learned %s." % title
+			if effects == null: tell(id,message)
+			else: effects.append(tell_profile_action.bind(id,message))
 		"respec":
 			if fields.size()==2 and int(fields[1])>=0 and int(fields[1])<Classes.DEFINITIONS.size():
-				player.character.upgrades[int(fields[1])]=0
+				var c := int(fields[1])
+				var connected = Classes.Warden.Connected
+				if c == 0 and player.character.has(connected.PROFILE_KEY):
+					if not connected.in_world(self,c,player.character) or not connected.valid(player.character):
+						action_feedback(effects,id,"This connected Warden path cannot be refunded in the current session.")
+						return
+					player.character[connected.PROFILE_KEY] = connected.state([])
+				else:
+					player.character.upgrades[c]=0
 				restore_class_loadout(player)
 				save_action_profile(id, effects)
 				var message := "Class points refunded. Choose a new path before the next expedition."
@@ -5197,7 +5232,7 @@ func emit_combat_event(kind: String,shape: String,from: Vector3,to: Vector3,dura
 		latest.label=shape.replace("_"," ").capitalize()
 		if players.has(combo):
 			for slot in 2:
-				var skill:=Skills.resolve(int(players[combo].frame),slot,players[combo].character)
+				var skill:=Skills.resolve_in_world(self,int(players[combo].frame),slot,players[combo].character)
 				if str(skill.mode)==shape:latest.label=skill.name;break
 		latest.label=options.get("label",latest.label)
 	if is_instance_valid(Journal.current) and Journal.current.detail:
