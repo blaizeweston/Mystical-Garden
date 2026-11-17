@@ -1,5 +1,6 @@
 extends RefCounted
 ## Host-owned effects from a confirmed Warden block or a committed Root Quake.
+const Cooldowns = preload("res://player_cooldowns.gd")
 const Progression = preload("res://warden_tree.gd")
 const Connected = Progression.Connected
 const Feedback = preload("res://enemy_move_feedback.gd")
@@ -130,9 +131,11 @@ static func first_block(game: Node, player: Dictionary, state: Dictionary, now: 
 		shared_guard(game,player,now,"Shared Guard")
 	elif learned(player,"shared_bark"):
 		shared_guard(game,player,now,"Shared Bark")
-	if learned(player,"ready_footing") and int(player.get("dodge_at",0)) > now:
-		player.dodge_at = now
-		cue(game,"Ready Footing",player.pos)
+	if learned(player,"ready_footing"):
+		var timers: Cooldowns.Timers = player[Cooldowns.STATE]
+		if not timers.ready(Cooldowns.DODGE, now):
+			player[Cooldowns.STATE] = timers.ready_by(Cooldowns.DODGE, now)
+			cue(game,"Ready Footing",player.pos)
 	if learned(player,"clear_the_way"):
 		for ally in game.players.values():
 			if int(ally.get("slow_until",0)) > now and in_circle(game,ally,player.pos,BLOCK_RADIUS):
@@ -231,9 +234,9 @@ static func quake_hit(game: Node, player: Dictionary, center: Vector3, targets: 
 			if count >= 2:
 				break
 	if not targets.is_empty() and learned(player,"living_rhythm"):
-		var previous := int(player.get("skill_at",0))
-		if previous > now:
-			player.skill_at = maxi(now,previous-1250)
+		var timers: Cooldowns.Timers = player[Cooldowns.STATE]
+		if not timers.ready(Cooldowns.Q, now):
+			player[Cooldowns.STATE] = timers.refund(Cooldowns.Q, now, 1250)
 			cue(game,"Living Rhythm",player.pos)
 	if learned(player,"sheltering_quake"):
 		ward_circle(game,center,radius,now)
@@ -343,9 +346,9 @@ static func tick(game: Node, now: int) -> void:
 		if guard.has("activation") and not guard.get("checked_expiry",false) and int(guard.until) <= now:
 			guard.checked_expiry = true
 			if guard.granted and not guard.protection_used and live_state(game,player,guard) and learned(player,"measured_guard"):
-				var before := int(player.get("skill_at",0))
-				if before > now:
-					player.skill_at = maxi(now,before-Connected.Q_REFUND_MS)
+				var timers: Cooldowns.Timers = player[Cooldowns.STATE]
+				if not timers.ready(Cooldowns.Q, now):
+					player[Cooldowns.STATE] = timers.refund(Cooldowns.Q, now, Connected.Q_REFUND_MS)
 					cue(game,"Measured Guard",player.pos)
 		var pending: Dictionary = player.get("warden_aftershock",{})
 		if pending.is_empty() or int(pending.due) > now:

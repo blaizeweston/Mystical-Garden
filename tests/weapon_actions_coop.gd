@@ -1,4 +1,6 @@
 extends SceneTree
+
+const Cooldowns = preload("res://player_cooldowns.gd")
 const Field=preload("res://field_traveller.gd")
 const Motion=preload("res://weapon_motion.gd")
 var game: Node
@@ -31,7 +33,7 @@ func host_run():
  var id: int=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
  check(p.character.appearance[5]==1 and p.character.appearance[6]==0 and p.character.appearance[7]==100,"host receives customized female model and independent sliders")
  game.enemy_hp=80;game.enemy_pos=Vector3(0,0,3);game.enemy_ready_at=Time.get_ticks_msec()+60000;game.enemy_winding_up=false;game.scouts.clear()
- p.wild=true;p.pos=Vector3.ZERO;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.skill_at=0
+ p.wild=true;p.pos=Vector3.ZERO;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
  mark("ready");check(await until(func():return marked("verified")),"guest confirms attack")
  check(game.enemy_hp<80,"projectile hits on the host")
  check(not game.combat_events.any(func(e):return e.kind=="windup"),"host has no generic bow circle")

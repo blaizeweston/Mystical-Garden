@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Preview = preload("res://combat_balance_preview.gd")
 const Aim = preload("res://ability_aim.gd")
 
@@ -66,7 +68,8 @@ func arena(class_id: int, mask: int = 0) -> void:
 	player.merge({"frame":class_id,"weapon_kind":0,"weapon":0,"secondary":0,"catalyst":0,"graft_part":0,
 		"power":0,"technique":0,"run_upgrades":{},"wild":true,"fallen":false,"max_hp":100,"hp":20,
 		"pos":Vector3.ZERO,"facing":Vector3.FORWARD,"lost_health":0},true)
-	for key in ["skill_at","skill_two_at","core_cast_until","strike_at","hurt_until","guard_until","guard_charges",
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
+	for key in ["core_cast_until","strike_at","hurt_until","guard_until","guard_charges",
 		"counter_until","counter_guard_until","front_guard_until","renewal_until","grave_charges","focus_until"]:
 		player[key]=0
 	ally.pos=Vector3(0,0,-.4)

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Aim = preload("res://ability_aim.gd")
 const Combat = preload("res://subclass_combat.gd")
 const Status = preload("res://combat_status.gd")
@@ -38,8 +40,8 @@ func prepare(class_id: int, lane: int) -> void:
 	player.max_hp = 10
 	player.guard_until = 0
 	player.slow_until = Time.get_ticks_msec()+2000
-	player.skill_at = 0
-	player.skill_two_at = 0
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	player.cast_until = 0
 	player.core_cast_until = 0
 	player.run_upgrades = {}
@@ -73,10 +75,10 @@ func press_release(class_id: int, lane: int) -> void:
 	var aim := Vector3.FORWARD
 	var preview := Aim.footprint(game,player,game.battlefield,0,aim,2.4)
 	check(preview.valid and not preview.shapes.is_empty(),"holding previews the "+str(skill.shape))
-	check(game.enemy_hp==100 and player.skill_at==0 and game.combat_events.is_empty(),"preview commits no effects")
+	check(game.enemy_hp==100 and player[Cooldowns.STATE].deadline(Cooldowns.Q)==0 and game.combat_events.is_empty(),"preview commits no effects")
 	game.garden_action(1,Aim.request(game,player,0,Vector2.UP,2.4))
 	var releases: Array = game.combat_events.filter(func(event): return event.kind=="subclass_release")
-	check(releases.size()==1 and player.skill_at>Time.get_ticks_msec(),"release starts one cooldown and publishes one cast")
+	check(releases.size()==1 and player[Cooldowns.STATE].deadline(Cooldowns.Q)>Time.get_ticks_msec(),"release starts one cooldown and publishes one cast")
 	if releases.is_empty():
 		return
 	var cue: Dictionary = releases[0]
@@ -119,7 +121,7 @@ func press_release(class_id: int, lane: int) -> void:
 	effect.root.queue_free()
 	if skill.id=="thornbinder":
 		game.use_class_skill(1,player,1)
-		check(Combat.follow_lane(game,player)==-1 and int(player.skill_two_at)-Time.get_ticks_msec() < 6000,"paired R consumes the quick-recharge follow-up")
+		check(Combat.follow_lane(game,player)==-1 and int(player[Cooldowns.STATE].deadline(Cooldowns.R))-Time.get_ticks_msec() < 6000,"paired R consumes the quick-recharge follow-up")
 
 
 func input_lifecycle() -> void:
@@ -130,11 +132,11 @@ func input_lifecycle() -> void:
 	check(Aim.input_event(game,input),"the press enters the actual input handler")
 	var held = Aim.active(game)
 	check(is_instance_valid(held) and held.slot==0 and held.drawing.get_surface_count()>0,"holding draws the live aiming mesh")
-	check(game.enemy_hp==100 and player.skill_at==0,"the held input has no gameplay effect")
+	check(game.enemy_hp==100 and player[Cooldowns.STATE].deadline(Cooldowns.Q)==0,"the held input has no gameplay effect")
 	input.pressed = false
 	check(Aim.input_event(game,input),"the release enters the actual input handler")
 	check(is_instance_valid(held) and held.slot==-1 and held.drawing.get_surface_count()==0,"release removes the preview")
-	check(game.enemy_hp<100 and player.skill_at>Time.get_ticks_msec(),"the real input release casts and starts cooldown")
+	check(game.enemy_hp<100 and player[Cooldowns.STATE].deadline(Cooldowns.Q)>Time.get_ticks_msec(),"the real input release casts and starts cooldown")
 
 
 func run() -> void:

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Rules = preload("res://combat_ruleset.gd")
 const Build = preload("res://affinity_build.gd")
 const Events = preload("res://combat_action_events.gd")
@@ -60,11 +62,11 @@ func run() -> void:
 	player.weapon = -1
 	player.secondary = -1
 	player.catalyst = -1
-	var timers: Array = [player.strike_at,player.skill_at]
+	var timers: Array = [player.strike_at,player[Cooldowns.STATE].deadline(Cooldowns.Q)]
 	game.strike_enemy(1,player,player.pos)
 	game.use_class_skill(1,player,0)
 	game.garden_action(1,"core_cast:unavailable")
-	check([player.strike_at,player.skill_at] == timers and game.projectile_queue.is_empty()
+	check([player.strike_at,player[Cooldowns.STATE].deadline(Cooldowns.Q)] == timers and game.projectile_queue.is_empty()
 		and "invalid" in game.status, "invalid Form, Catalyst and Core do not execute")
 
 	player.weapon = ready_core
@@ -78,7 +80,7 @@ func run() -> void:
 	game.apply_enemy_hit(1,player,now+1,1)
 	check(recorded.size()==1 and recorded[0].kind=="actual_block" and player.guard_charges==0,
 		"actual multi-block Guard records its first consumption once")
-	player.skill_two_at=0
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	game.use_class_skill(1,player,1)
 	check(recorded.size()==2 and recorded[1].kind=="class_action", "actual Root Quake emits one activation")
 
@@ -174,8 +176,8 @@ func check_runtime_focuses(game: Node, player: Dictionary) -> void:
 			player.pos = Vector3.ZERO
 			player.hp = 30
 			player.catalyst = Parts.HEARTWOOD
-			player.skill_at = 0
-			player.skill_two_at = 0
+			player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
+			player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 			player.core_cast_until = 0
 			var build := Build.for_player(player)
 			var adapter: Dictionary = build.class_skills[0]
@@ -184,7 +186,7 @@ func check_runtime_focuses(game: Node, player: Dictionary) -> void:
 			game.use_class_skill(1,player,0)
 			player.erase("class_aim")
 			player.erase("class_aim_distance")
-			check(player.skill_at>0, "%s native Q casts through its adapter" % adapter.id)
+			check(player[Cooldowns.STATE].deadline(Cooldowns.Q)>0, "%s native Q casts through its adapter" % adapter.id)
 			if adapter.trigger == "activation":
 				check(recorded.any(func(event): return event.kind=="class_action" and event.details.adapter==adapter.id),
 					"%s publishes its mapped event" % adapter.id)

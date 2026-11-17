@@ -1,4 +1,6 @@
 extends SceneTree
+
+const Cooldowns = preload("res://player_cooldowns.gd")
 var game: Node
 var role: String
 var base: String
@@ -33,11 +35,11 @@ func host_run() -> void:
  game.battlefield.configure(0,1);game.enemy_hp=100;game.enemy_pos=Vector3(0,0,-2);game.enemy_stagger_until=Time.get_ticks_msec()+60000;game.scouts.clear()
  for player in game.players.values():player.wild=true;player.pos=Vector3(0,0,-1)
  p.weapon=44;p.secondary=game.Seeds.DEFINITIONS[18].part;p.graft_part=game.Parts.HOOK
- check(await until(func():return p.skill_at>0),"guest sends counter skill")
+ check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.Q)>0),"guest sends counter skill")
  game.apply_enemy_hit(id,p,Time.get_ticks_msec(),1,0,game.enemy_pos)
  check(p.hp==10 and p.counter_until>0,"host creates counter after blocked monster hit")
  mark("counter-ready")
- check(await until(func():return p.skill_two_at>0),"guest sends specialized charge")
+ check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.R)>0),"guest sends specialized charge")
  check(game.enemy_hp<95 and p.counter_until==0,"host resolves contact with counter and installed plant/graft")
  game.enemy_hp=0;game.encounter_rewarded=true;game.encounter_number=6;game.checkpoint_pending=true;game.checkpoint_ready.clear()
  for player in game.players.values():player.pos=game.battlefield.advance

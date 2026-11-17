@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Rules = preload("res://combat_ruleset.gd")
 const Frost = preload("res://frost_combat.gd")
 const Wards = preload("res://ward_responses.gd")
@@ -148,14 +150,14 @@ func run_catalyst(p: Dictionary, part: int) -> void:
 	p.catalyst=part
 	p.frame=0
 	p.weapon_kind=0
-	p.skill_two_at=0
+	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	p.core_cast_until=0
 	p.cast_until=0
 	game.use_class_skill(1,p,1)
 	var current := Frost.state(game.leader_brain,Time.get_ticks_msec())
 	check(current.get("stacks",[]).size()==1 and current.stacks[0].quality==("refined" if part==refined else "ordinary"),"Catalyst-only Q/R emits a native offensive contact with its quality")
 	p.frame=4
-	p.skill_at=0
+	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	p.hp=60
 	var ally: Dictionary=game.players[2]
 	ally.catalyst=ordinary if part==refined else refined
@@ -178,7 +180,7 @@ func run_focus(p: Dictionary) -> void:
 	p.weapon_kind=0
 	p.catalyst=refined
 	p.character.upgrades[0]=1 << game.Classes.Warden.OFFSET
-	p.skill_at=0
+	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	p.guard_until=0
 	p.guard_charges=0
 	p.hurt_until=0

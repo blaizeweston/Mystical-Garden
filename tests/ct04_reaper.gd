@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Progression = preload("res://reaper_connected_tree.gd")
 const Reaper = preload("res://reaper_combat.gd")
 const Ranger = preload("res://ranger_combat.gd")
@@ -108,7 +110,8 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 	Rules.Spirit.clear(player)
 	for peer in game.players:
 		var recipient: Dictionary = game.players[peer]
-		for key in ["guard_until","guard_charges","hurt_until","lost_health","dodge_at","skill_at","skill_two_at",
+		recipient[Cooldowns.STATE] = Cooldowns.Timers.new()
+		for key in ["guard_until","guard_charges","hurt_until","lost_health",
 				"cast_until","core_ready_at","core_cast_until","strike_at","slow_until"]:
 			recipient[key]=0
 		recipient.erase("affinity_ward_claims")
@@ -252,7 +255,7 @@ func momentum() -> void:
 	prepare(["veilwalker"],Vector3.ZERO,Vector3(2,0,0))
 	player.class_aim_distance=.1
 	cast(0)
-	check(player.pos==Vector3.ZERO and player.skill_at==0 and Reaper.ready(game,player,Reaper.MOMENTUM,Time.get_ticks_msec()).is_empty(),
+	check(player.pos==Vector3.ZERO and player[Cooldowns.STATE].deadline(Cooldowns.Q)==0 and Reaper.ready(game,player,Reaper.MOMENTUM,Time.get_ticks_msec()).is_empty(),
 		"refused movement produces no new Momentum or cooldown")
 	prepare([])
 	player.character.upgrades[3]=1<<13
@@ -266,7 +269,7 @@ func siphon_effects() -> void:
 	check(game.enemy_hp==270,"Rending Cut works against a single Q victim without an echo")
 	game.enemy_pos=Vector3(6,0,0)
 	cast(1)
-	check(player.skill_two_at==0 and player[Reaper.SIPHON].nodes==["barbed_siphon"],"refused R preserves the earned Barbed preparation")
+	check(player[Cooldowns.STATE].deadline(Cooldowns.R)==0 and player[Reaper.SIPHON].nodes==["barbed_siphon"],"refused R preserves the earned Barbed preparation")
 	game.enemy_pos=Vector3(2,0,0)
 	player.hp=20
 	cast(1)
@@ -280,13 +283,13 @@ func siphon_effects() -> void:
 	var third := scout(Vector3(3.5,0,.2))
 	Mark.place(game,8,0,{"id":77,"life":ally.lost_health,"skill":{"id":"botanical","mark_ms":4000,"mark_damage":1.0,"color":"#ffffff"}},Time.get_ticks_msec())
 	Ranger.track(game,8,ally,0,78,Time.get_ticks_msec())
-	var q_deadline: int = player.skill_at
+	var q_deadline: int = player[Cooldowns.STATE].deadline(Cooldowns.Q)
 	var before := events.size()
 	cast(1)
 	var r_events := events.slice(before).filter(func(event):return event.kind=="class_action")
 	check(game.enemy_hp==230 and first.hp==290 and second.hp==0 and third.hp==300 and player.grave_charges==0,
 		"Barbed and Feast stack on the primary, with only two nearest secondaries and no Death’s Due prerequisite")
-	check(player.skill_at==q_deadline-1250 and r_events.size()==1 and r_events[0].details.enemies==[-1]
+	check(player[Cooldowns.STATE].deadline(Cooldowns.Q)==q_deadline-1250 and r_events.size()==1 and r_events[0].details.enemies==[-1]
 		and first.traits.has(Mark.STATE) and first.traits.has(Ranger.PREY),"Tempo and one actual Catalyst honor the native impact, secondaries leave independent marks alone")
 	prepare(OFFENSE)
 	cast(0)
@@ -298,12 +301,12 @@ func siphon_effects() -> void:
 	prepare(DANCE,Vector3.ZERO,Vector3(2.9,0,0))
 	cast(0)
 	player.pos=Vector3.ZERO
-	q_deadline=player.skill_at
-	player.dodge_at=Time.get_ticks_msec()+2000
+	q_deadline=player[Cooldowns.STATE].deadline(Cooldowns.Q)
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, Time.get_ticks_msec()+2000)
 	var now := Time.get_ticks_msec()
 	cast(1)
-	check(is_equal_approx(player.pos.x,1.5) and game.enemy_hp==260 and player.dodge_at<=now+20
-		and player.skill_at==q_deadline-1250 and player.skill_two_at-now>=4800 and player.skill_two_at-now<4860,
+	check(is_equal_approx(player.pos.x,1.5) and game.enemy_hp==260 and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)<=now+20
+		and player[Cooldowns.STATE].deadline(Cooldowns.Q)==q_deadline-1250 and player[Cooldowns.STATE].deadline(Cooldowns.R)-now>=4800 and player[Cooldowns.STATE].deadline(Cooldowns.R)-now<4860,
 		"Swift, Tempo and Veil Dance coexist and use native terrain movement before the R hit")
 	prepare(DANCE,Vector3(-1.36,0,0),Vector3(1.15,0,0))
 	var water := Shape.shape("river","water",PackedVector2Array([Vector2(-1,-4),Vector2(1,-4),Vector2(1,4),Vector2(-1,4)]))
@@ -316,24 +319,24 @@ func siphon_effects() -> void:
 	cast(0)
 	player.pos=Vector3(-1.36,0,0)
 	player.class_aim=Vector3.RIGHT
-	player.dodge_at=Time.get_ticks_msec()+3000
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, Time.get_ticks_msec()+3000)
 	now=Time.get_ticks_msec()
 	cast(1)
-	check(is_equal_approx(player.pos.x,-1.36) and game.enemy_hp==280 and player.dodge_at<=now+20
+	check(is_equal_approx(player.pos.x,-1.36) and game.enemy_hp==280 and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)<=now+20
 		and field.projectile_clear(player.pos,game.enemy_pos,.03),"water stops Veil Dance but the legal Siphon Cut still recovers dodge")
 	prepare(DANCE)
 	cast(0)
 	player.pos=Vector3.ZERO
-	player.dodge_at=Time.get_ticks_msec()+2000
-	var paused_dodge: int=player.dodge_at
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, Time.get_ticks_msec()+2000)
+	var paused_dodge: int=player[Cooldowns.STATE].deadline(Cooldowns.DODGE)
 	game.battlefield.barriers.assign([Rect2(.85,-1,.3,2)])
 	cast(1)
-	check(player.pos==Vector3.ZERO and player.dodge_at==paused_dodge and player.skill_two_at==0 and player.has(Reaper.SIPHON),
+	check(player.pos==Vector3.ZERO and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)==paused_dodge and player[Cooldowns.STATE].deadline(Cooldowns.R)==0 and player.has(Reaper.SIPHON),
 		"a solid-cover refusal preserves every Q preparation and cannot recover dodge")
 	game.battlefield.barriers.clear()
 	game.combat_epoch+=1
 	cast(1)
-	check(player.pos==Vector3.ZERO and player.dodge_at==paused_dodge,"an old-floor Veil Dance preparation cannot move or reward the player")
+	check(player.pos==Vector3.ZERO and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)==paused_dodge,"an old-floor Veil Dance preparation cannot move or reward the player")
 
 func support() -> void:
 	prepare(DEFENSE)

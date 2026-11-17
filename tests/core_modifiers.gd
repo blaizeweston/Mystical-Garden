@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Core = preload("res://core_combat.gd")
 const Rules = preload("res://core_skill_rules.gd")
 const Hurt = preload("res://enemy_hurtbox.gd")
@@ -102,7 +104,7 @@ func run() -> void:
 	player.weapon = thorn
 	player.secondary = cinder
 	player.catalyst = storm
-	player.skill_two_at = 0
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	game.rooted_until = 0
 	game.enemy_pos = Vector3(0, 0, -3.25)
 	game.enemy_hp = 20

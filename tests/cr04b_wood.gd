@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Rules=preload("res://combat_ruleset.gd")
 const Core=preload("res://core_combat.gd")
 const Builds=preload("res://affinity_build.gd")
@@ -66,8 +68,8 @@ func reset() -> void:
 		p.core_cast_until=0
 		p.cast_until=0
 		p.strike_at=0
-		p.skill_at=0
-		p.skill_two_at=0
+		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
+		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 		p.hurt_until=0
 		p.guard_charges=0
 		p.guard_until=0

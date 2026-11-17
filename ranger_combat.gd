@@ -1,5 +1,6 @@
 extends RefCounted
 ## Host-owned Ranger effects. Corridor and route belong to an accepted trap.
+const Cooldowns = preload("res://player_cooldowns.gd")
 const Progression = preload("res://ranger_connected_tree.gd")
 const Balance = preload("res://class_skill_balance.gd")
 const Journal = preload("res://diagnostic_journal.gd")
@@ -184,7 +185,8 @@ static func finish_snare(game: Node, player: Dictionary, trap: Dictionary, from:
 			"barbed_snare":
 				trap.ranger_bonus_hp = Progression.BARBED_HP
 			"quick_reset":
-				player.skill_two_at = maxi(now+1800,int(player.skill_two_at)-Progression.RESET_MS)
+				var timers: Cooldowns.Timers = player[Cooldowns.STATE]
+				player[Cooldowns.STATE] = timers.refund(Cooldowns.R, now, Progression.RESET_MS, Balance.COOLDOWN_MIN_MS)
 			"safe_passage":
 				for ally in game.players.values():
 					if nearby(game,ally,trap.position,Progression.PASSAGE_RADIUS):

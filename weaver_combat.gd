@@ -1,5 +1,6 @@
 extends RefCounted
 ## Host-side connected Weaver effects. Extra areas and delayed effects are native spell damage.
+const Cooldowns = preload("res://player_cooldowns.gd")
 const Progression = preload("res://weaver_connected_tree.gd")
 const Journal = preload("res://diagnostic_journal.gd")
 const COLOR := Color("#c9a8db")
@@ -19,8 +20,9 @@ static func on_q(game: Node, actor: int, player: Dictionary, selected: Array, po
 		var prior: Dictionary = player.get("subclass_follow", {})
 		if int(prior.get("lane", -1)) == 1:
 			player.erase("subclass_follow")
-		if (selected[0] != "bloomcaller" or not field.is_empty()) and int(player.skill_two_at) > now:
-			player.skill_two_at = maxi(now, int(player.skill_two_at) - Progression.THREAD_REFUND_MS)
+		var timers: Cooldowns.Timers = player[Cooldowns.STATE]
+		if (selected[0] != "bloomcaller" or not field.is_empty()) and not timers.ready(Cooldowns.R, now):
+			player[Cooldowns.STATE] = timers.refund(Cooldowns.R, now, Progression.THREAD_REFUND_MS)
 	if selected.has("spore_pressure"):
 		if contact:
 			player.weaver_pressure = lifetime(game,player)
@@ -91,8 +93,10 @@ static func prepare_nova(game: Node, actor: int, player: Dictionary, skill: Dict
 static func complete_nova(game: Node, actor: int, player: Dictionary, selected: Array,
 		center: Vector3, first_impact: Vector3, now: int) -> void:
 	if first_impact.is_finite():
-		if selected.has("spore_cycle") and int(player.skill_at) > now:
-			player.skill_at = maxi(now,int(player.skill_at)-Progression.CYCLE_MS)
+		if selected.has("spore_cycle"):
+			var timers: Cooldowns.Timers = player[Cooldowns.STATE]
+			if not timers.ready(Cooldowns.Q, now):
+				player[Cooldowns.STATE] = timers.refund(Cooldowns.Q, now, Progression.CYCLE_MS)
 		if selected.has("bursting_spores"):
 			var burst := lifetime(game,player)
 			burst.merge({"kind":"weaver_burst","owner":actor,"due":now+Progression.BURST_DELAY_MS,"position":first_impact})

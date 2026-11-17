@@ -1,4 +1,6 @@
 extends SceneTree
+
+const Cooldowns = preload("res://player_cooldowns.gd")
 var failed:=false
 func check(ok: bool,message: String) -> void:
  if not ok: failed=true;printerr("FAIL loot/revival: ",message)
@@ -32,7 +34,7 @@ func run() -> void:
  check(game.spectator_view.focus_id(1)==2,"spectator automatically replaces fallen target")
  game.players.erase(3)
  var pos: Vector3=a.pos;game.move_player(1,Vector2.RIGHT,1);game.dodge_player(1,Vector2.RIGHT);game.use_class_skill(1,a)
- check(a.pos==pos and a.skill_at==0,"fallen players cannot move, dodge or cast")
+ check(a.pos==pos and a[Cooldowns.STATE].deadline(Cooldowns.Q)==0,"fallen players cannot move, dodge or cast")
  a.renewal_until=Time.get_ticks_msec()+2000;game.update_support_effects(Time.get_ticks_msec()+1000)
  check(a.hp==0,"regeneration cannot revive")
  check(game.nearest_wild_player(a.pos)==2 and game.Director.target(game,a.pos,{},0)==2,"enemies ignore fallen players")

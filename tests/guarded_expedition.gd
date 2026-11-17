@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Tx=preload("res://game_transaction.gd")
 const Plan=preload("res://persistence_recovery_plan.gd")
 const Ops=preload("res://persistence_operations.gd")
@@ -151,6 +153,8 @@ func exercise() -> void:
  var actor: Dictionary=world.players[1]
  actor.pos=world.Stage.GATE
  actor.prepared=1
+ var garden_timers: Cooldowns.Timers = actor[Cooldowns.STATE].with_deadline(Cooldowns.Q, 2100).with_deadline(Cooldowns.R, 2200).with_deadline(Cooldowns.DODGE, 2300)
+ actor[Cooldowns.STATE] = garden_timers
  world.progress.add_parts(1,3)
  var before:=disk()
  var field: RefCounted=world.battlefield
@@ -161,11 +165,18 @@ func exercise() -> void:
  check(disk()==before and not actor.wild and actor.prepared==1 and world.battlefield==field and world.map_rng.state==seed
   and world.loadout_menu.visible and world.run_wallet(actor)==0,
   "departure abort restores map RNG, battlefield, material, actor and open UI")
+ check(is_same(actor[Cooldowns.STATE],garden_timers) and garden_timers.deadline(Cooldowns.Q)==2100
+  and garden_timers.deadline(Cooldowns.R)==2200 and garden_timers.deadline(Cooldowns.DODGE)==2300,
+  "verified departure rollback restores all original cooldown deadlines and owner identity")
  record("departure_abort",before)
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.garden_action(1,"depart")
  check(actor.wild and actor.weapon==1 and world.progress.part_count(1)==2 and not world.loadout_menu.visible
   and disk()[G]!=before[G] and world.run_wallet(actor)==0,"departure commits a fresh wallet before panel closure")
+ var departed_timers: Cooldowns.Timers = actor[Cooldowns.STATE]
+ check(not is_same(departed_timers,garden_timers) and departed_timers.deadline(Cooldowns.Q)==0
+  and departed_timers.deadline(Cooldowns.R)==0 and departed_timers.deadline(Cooldowns.DODGE)==0,
+  "successful expedition entry starts three fresh cooldowns")
  var initial_wallet = world.wallet_for(actor)
  record("departure_commit",before)
 
@@ -214,16 +225,20 @@ func exercise() -> void:
  world.battlefield.barriers.clear()
  actor.pos=Vector3.ZERO
  ally.pos=Vector3(.5,0,0)
+ var combat_timers: Cooldowns.Timers = departed_timers.with_deadline(Cooldowns.Q, 3100).with_deadline(Cooldowns.R, 3200).with_deadline(Cooldowns.DODGE, 3300)
+ actor[Cooldowns.STATE] = combat_timers
  var hp: int=int(actor.hp)
  world.damage_player(1,actor,1)
  check(int(actor.hp)==hp-1 and disk()==committed,"nonlethal damage is runtime-only")
  world.damage_player(1,actor,999)
  check(actor.fallen and actor.hp==0 and world.wallet_for(actor)==earned_wallet
   and world.run_wallet(actor)==earned_balance,"the downed player keeps their run wallet")
+ check(is_same(actor[Cooldowns.STATE],combat_timers),"fall preserves existing cooldowns")
  world.revive_player(2,1)
  var paid: int=int(actor.lost_health)
  check(not actor.fallen and actor.hp>0 and paid>0 and world.wallet_for(actor)==earned_wallet
   and world.run_wallet(actor)==earned_balance,"revival commits one maximum-health cost without changing Essence")
+ check(is_same(actor[Cooldowns.STATE],combat_timers),"revival preserves existing cooldowns")
  world.revive_player(2,1)
  check(actor.lost_health==paid,"duplicate revival cannot charge twice")
  ally.wild=false

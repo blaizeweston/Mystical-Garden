@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Preview = preload("res://combat_balance_preview.gd")
 const Orb = preload("res://health_orb.gd")
 const Core = preload("res://core_combat.gd")
@@ -145,7 +147,7 @@ func verify_multi_target(game: Node, player: Dictionary) -> void:
 
 func verify_guard_and_core(game: Node, player: Dictionary) -> void:
 	player.weapon_kind=0
-	player.skill_at=0
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	player.hp=100
 	player.hurt_until=0
 	game.use_class_skill(1,player,0)

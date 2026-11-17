@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Rules = preload("res://combat_ruleset.gd")
 const Vital = preload("res://vital_combat.gd")
 const Water = preload("res://water_combat.gd")
@@ -56,8 +58,8 @@ func reset(p: Dictionary, ally: Dictionary) -> void:
 		player.cast_until=0
 		player.core_cast_until=0
 		player.core_ready_at=0
-		player.skill_at=0
-		player.skill_two_at=0
+		player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
+		player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 		player.renewal_until=0
 		player.hurt_until=0
 		player.max_hp=game.Life.native_maximum(game,player)

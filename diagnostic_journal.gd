@@ -2,6 +2,7 @@ extends Logger
 # Local, bounded and independent of gameplay save transactions.
 static var current: Logger
 const SCHEMA:=1
+const Cooldowns = preload("res://player_cooldowns.gd")
 const DEFAULT_BYTES:=1048576
 const DEFAULT_CHUNKS:=4
 const KEEP_SESSIONS:=8
@@ -199,8 +200,12 @@ func _log_error(function: String,source: String,line: int,code: String,rationale
 
 static func player_state(p: Dictionary) -> Dictionary:
  var result={}
- for key in ["pos","hp","max_hp","fallen","wild","lost_health","damage_seq","vitals_revision","frame","weapon_kind","weapon","secondary","catalyst","graft_part","prepared","prepared_secondary","prepared_catalyst","attack_combo","skill_at","skill_two_at","carried_parts","run_upgrades"]:
+ for key in ["pos","hp","max_hp","fallen","wild","lost_health","damage_seq","vitals_revision","frame","weapon_kind","weapon","secondary","catalyst","graft_part","prepared","prepared_secondary","prepared_catalyst","attack_combo","carried_parts","run_upgrades"]:
   if p.has(key):result[key]=p[key]
+ var cooldowns: Cooldowns.Timers = p.get(Cooldowns.STATE)
+ if cooldowns != null:
+  result.skill_at = cooldowns.deadline(Cooldowns.Q)
+  result.skill_two_at = cooldowns.deadline(Cooldowns.R)
  result.carried_seeds=p.get("carried_seeds",[]).size();return result
 
 static func interaction(game: Node,id: int,action: String,phase: String,request_seq: int=0) -> int:

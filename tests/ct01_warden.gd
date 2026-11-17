@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Connected = preload("res://warden_connected_tree.gd")
 const Warden = preload("res://warden_combat.gd")
 const Profile = preload("res://character_profile.gd")
@@ -170,8 +172,9 @@ func arena(path: Array) -> void:
 	game.leader_brain.clear()
 	game.scouts.clear()
 	game.rooted_until=0
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
 	for key in ["cast_until","core_cast_until","counter_until","counter_guard_until","front_guard_until",
-			"skill_at","skill_two_at","guard_until","guard_charges","hurt_until","slow_until"]:
+			"guard_until","guard_charges","hurt_until","slow_until"]:
 		player[key]=0
 	for key in ["warden_block","warden_anchor","warden_relay","warden_aftershock","warden_sanctuary","warden_holdfast","affinity_ward_claims"]:
 		player.erase(key)
@@ -249,19 +252,19 @@ func balance() -> void:
 	arena(BALANCE)
 	check(Skills.resolve_in_world(game,0,0,player.character).anchor_range==6.5,"Deep Roots extends native anchor reach")
 	game.use_class_skill(1,player,0)
-	var refund: int=player.skill_at
+	var refund: int=player[Cooldowns.STATE].deadline(Cooldowns.Q)
 	var expiry: int=player.warden_block.until
 	Warden.tick(game,expiry+1)
 	Warden.tick(game,expiry+2)
-	check(player.skill_at==refund-1250,"Measured Guard refunds unused Q once on actual expiry")
+	check(player[Cooldowns.STATE].deadline(Cooldowns.Q)==refund-1250,"Measured Guard refunds unused Q once on actual expiry")
 	arena(BALANCE)
 	game.use_class_skill(1,player,0)
 	player.pos=Vector3(2,0,0)
-	player.dodge_at=Time.get_ticks_msec()+1800
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, Time.get_ticks_msec()+1800)
 	var now := block()
-	var before: int=player.skill_at
+	var before: int=player[Cooldowns.STATE].deadline(Cooldowns.Q)
 	Warden.tick(game,player.warden_block.until+1)
-	check(player.dodge_at==now and player.skill_at==before,"Ready Footing restores dodge and a used Q gets no expiry refund")
+	check(player[Cooldowns.STATE].deadline(Cooldowns.DODGE)==now and player[Cooldowns.STATE].deadline(Cooldowns.Q)==before,"Ready Footing restores dodge and a used Q gets no expiry refund")
 	var scout: Dictionary=game.make_scout(0,Vector3(4.5,0,0),5)
 	scout.hp=200
 	game.scouts.append(scout)
@@ -269,7 +272,7 @@ func balance() -> void:
 	game.use_class_skill(1,player,1)
 	check(not player.has("warden_relay") and player.skill_fx.pos.is_equal_approx(Vector3(2,0,0)) and scout.hp<200,
 		"Seismic Relay directs native Quake and is spent once")
-	check(player.skill_at==before-1250,"Living Rhythm refunds Q after the prepared hit")
+	check(player[Cooldowns.STATE].deadline(Cooldowns.Q)==before-1250,"Living Rhythm refunds Q after the prepared hit")
 
 
 func defense() -> void:
@@ -309,9 +312,9 @@ func defense() -> void:
 	ally.hp=90
 	game.use_class_skill(1,player,0)
 	block(2)
-	var cooldown: int=player.skill_at
+	var cooldown: int=player[Cooldowns.STATE].deadline(Cooldowns.Q)
 	Warden.tick(game,player.warden_block.until+1)
-	check(player.skill_at==cooldown and not player.has("warden_sanctuary"),
+	check(player[Cooldowns.STATE].deadline(Cooldowns.Q)==cooldown and not player.has("warden_sanctuary"),
 		"ally Ward consumption counts against Measured Guard without replaying a Warden self-block response")
 	arena(DEFENSE)
 	ally.pos=Vector3(1,0,1)

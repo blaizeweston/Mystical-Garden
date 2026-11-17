@@ -1,4 +1,6 @@
 extends SceneTree
+
+const Cooldowns = preload("res://player_cooldowns.gd")
 const Icons = preload("res://class_skill_icons.gd")
 const Summary = preload("res://run_summary_panel.gd")
 var failed := false
@@ -21,8 +23,8 @@ func run():
 	p.frame = 1
 	p.carried_seeds.assign([0, 1, 1])
 	p.pouch = true
-	p.dodge_at = Time.get_ticks_msec() + 3000
-	p.skill_at = Time.get_ticks_msec() + 3000
+	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, Time.get_ticks_msec() + 3000)
+	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, Time.get_ticks_msec() + 3000)
 	p.carried_parts[1] = 2
 	game.seed_reserve(p).parts[1] = 4
 	game.progress.parts[0] = 7

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Warden = preload("res://warden_tree.gd")
 const Combat = preload("res://warden_combat.gd")
 const Aim = preload("res://ability_aim.gd")
@@ -82,7 +84,8 @@ func arena(indices: Array[int], card: String) -> void:
 	player.catalyst=0
 	player.graft_part=0
 	player.run_upgrades={card:1} if not card.is_empty() else {}
-	for key in ["guard_until","front_guard_until","counter_guard_until","counter_until","hurt_until","skill_at","skill_two_at","core_cast_until","core_ready_at","cast_until"]:
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
+	for key in ["guard_until","front_guard_until","counter_guard_until","counter_until","hurt_until","core_cast_until","core_ready_at","cast_until"]:
 		player[key]=0
 	game.battlefield.configure(0,1,0)
 	game.battlefield.barriers.clear()
@@ -124,9 +127,9 @@ func offense() -> void:
 func neutral() -> void:
 	arena([13,16,19,22],"rootkeeper_second_growth")
 	game.use_class_skill(1,player,0)
-	player.dodge_at=Time.get_ticks_msec()+2500
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, Time.get_ticks_msec()+2500)
 	game.apply_enemy_hit(1,player,Time.get_ticks_msec(),1,0,game.enemy_pos)
-	check(player.dodge_at<=Time.get_ticks_msec(), "Ready Footing restores a recovering dodge on block")
+	check(player[Cooldowns.STATE].deadline(Cooldowns.DODGE)<=Time.get_ticks_msec(), "Ready Footing restores a recovering dodge on block")
 	player.pos=Vector3(0,0,5.5)
 	var view:=Aim.footprint(game,player,game.battlefield,1,Vector3.FORWARD,5.5)
 	check(view.shapes.any(func(shape): return shape.kind=="area" and shape.at==Vector3.ZERO), "neutral node extends anchor range in the release preview")
@@ -134,11 +137,11 @@ func neutral() -> void:
 	view=Aim.footprint(game,player,game.battlefield,1,Vector3.FORWARD,5.5)
 	check(view.shapes.any(func(shape): return shape.kind=="area" and shape.at==player.pos), "blocked anchor makes the Quake preview fall back to the caster")
 	game.battlefield.barriers.clear()
-	var q_before: int=player.skill_at
+	var q_before: int=player[Cooldowns.STATE].deadline(Cooldowns.Q)
 	game.garden_action(1,Aim.request(game,player,1,Vector2.UP))
 	check(game.enemy_hp<100 and player.pos.z==5.5 and player.warden_anchor.uses==1, "remote release hits at the anchor and the card preserves one use")
-	check(player.skill_at<q_before,"Living Rhythm refunds only after contact")
-	player.skill_two_at=0
+	check(player[Cooldowns.STATE].deadline(Cooldowns.Q)<q_before,"Living Rhythm refunds only after contact")
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	game.use_class_skill(1,player,1)
 	check(Combat.anchor(game,player,Time.get_ticks_msec()).is_empty(),"the second use consumes the same anchor")
 	game.use_class_skill(1,player,0)

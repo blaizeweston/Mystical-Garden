@@ -1,4 +1,6 @@
 extends SceneTree
+
+const Cooldowns = preload("res://player_cooldowns.gd")
 var game: Node
 var role: String
 var base: String
@@ -41,7 +43,7 @@ func host_run() -> void:
  var corpse: Vector3=p.pos
  # Forged down-state action must be rejected by host too.
  check(await until(func(): return marked("blocked")),"guest sends down-state requests")
- check(p.pos==corpse and p.skill_at==0,"down-state movement and skills blocked on authority")
+ check(p.pos==corpse and p[Cooldowns.STATE].deadline(Cooldowns.Q)==0,"down-state movement and skills blocked on authority")
  game.act(1,false)
  check(p.hp==8 and p.max_hp==8 and p.lost_health==2,"host revives guest through interact")
  check(await until(func(): return marked("guest-revived")),"guest receives lost-heart texture state")

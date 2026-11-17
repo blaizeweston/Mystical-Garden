@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Rules = preload("res://combat_ruleset.gd")
 const Cards = preload("res://affinity_cards.gd")
 const Catalog = preload("res://affinity_card_catalog.gd")
@@ -68,8 +70,9 @@ func reset(class_id := 0) -> void:
 		for key in [Rules.Wood.GRANTS,Rules.Spirit.STRIDES,Rules.Vital.SOURCES,Rules.Vital.BONUS,"affinity_ward_claims",
 				Rules.Storm.FORM_READY,Rules.Void.FORM_READY,Rules.Wood.FORM_READY,"subclass_follow","warden_block"]:
 			p.erase(key)
+		p[Cooldowns.STATE] = Cooldowns.Timers.new()
 		for key in ["weapon","secondary","catalyst","graft_part","lost_health","guard_until","guard_charges",
-				"strike_at","skill_at","skill_two_at","dodge_at","cast_until","core_ready_at","core_cast_until","last_offer"]:
+				"strike_at","cast_until","core_ready_at","core_cast_until","last_offer"]:
 			p[key] = 0
 		p.pos = Vector3.ZERO
 		p.wild = true
@@ -479,8 +482,8 @@ func verify_native() -> void:
 	var recovery := grant_fixture_copy("run_dodge_recovery",3)
 	before = Time.get_ticks_msec()
 	game.dodge_player(1,Vector2.RIGHT)
-	check(player.dodge_at>=before+game.DODGE_COOLDOWN_MS-recovery
-		and player.dodge_at<=Time.get_ticks_msec()+game.DODGE_COOLDOWN_MS-recovery,"real dodge timer consumes General recovery")
+	check(player[Cooldowns.STATE].deadline(Cooldowns.DODGE)>=before+game.DODGE_COOLDOWN_MS-recovery
+		and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)<=Time.get_ticks_msec()+game.DODGE_COOLDOWN_MS-recovery,"real dodge timer consumes General recovery")
 	var old_hp: float = player.hp
 	at_checkpoint(3)
 	var extra_health := effect("run_health",3)

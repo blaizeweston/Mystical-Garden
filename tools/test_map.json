@@ -4,6 +4,7 @@
   "systems": {
     "expedition_grafts": {"label": "Expedition graft ledgers, altar quotes and source-owned adaptations", "files": ["expedition_grafts.gd", "expedition_grafts.gd.uid", "affinity_grafting_panel.gd", "affinity_grafting_panel.gd.uid"]},
     "departure_settlement": {"label": "Detached profiles, protected cargo and guarded disconnect settlement", "files": ["departure_settlement.gd", "departure_settlement.gd.uid"]},
+    "player_cooldowns": {"label": "Host-owned native Q, R and dodge cooldown deadlines", "files": ["player_cooldowns.gd", "player_cooldowns.gd.uid"]},
     "expedition_wallet": {"label": "Run-only Essence sparks, floor grants and spending", "files": ["expedition_wallet.gd", "expedition_wallet.gd.uid"]},
     "affinity_cards": {"label": "Affinity expedition card ledger, rarity, Essence rerolls and owned effects", "files": ["affinity_cards.gd", "affinity_cards.gd.uid", "affinity_card_ledger.gd", "affinity_card_ledger.gd.uid", "affinity_card_catalog.gd", "affinity_card_catalog.gd.uid"]},
     "oracle_progression": {"label": "Connected Oracle, native Omens and first-run focus admission", "files": ["oracle_connected_tree.gd", "oracle_connected_tree.gd.uid", "oracle_combat.gd", "oracle_combat.gd.uid", "oracle_omens.gd", "oracle_omens.gd.uid"]},
@@ -1835,20 +1836,20 @@
     ]
   },
   "suites": {
-    "ec01_affinity_cards_party": {"kind": "party", "systems": ["expedition_wallet", "ui_copy", "expedition_summary", "expedition_grafts", "affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "connection_flow", "world_snapshot", "hex_terrain"], "package": false},
-    "ec01_affinity_cards": {"kind": "unit", "systems": ["expedition_wallet", "ui_copy", "expedition_summary", "expedition_grafts", "affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "life", "weapons"], "package": false},
-    "ct05_oracle": {"kind": "unit", "systems": ["oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim"], "package": false},
+    "ec01_affinity_cards_party": {"kind": "party", "systems": ["player_cooldowns", "expedition_wallet", "ui_copy", "expedition_summary", "expedition_grafts", "affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "connection_flow", "world_snapshot", "hex_terrain"], "package": false},
+    "ec01_affinity_cards": {"kind": "unit", "systems": ["player_cooldowns", "expedition_wallet", "ui_copy", "expedition_summary", "expedition_grafts", "affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "life", "weapons"], "package": false},
+    "ct05_oracle": {"kind": "unit", "systems": ["player_cooldowns", "oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim"], "package": false},
     "ct05_oracle_coop": {"kind": "pair", "systems": ["oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim", "connection_flow", "world_snapshot", "hex_terrain"], "package": false},
     "ct05_oracle_party": {"kind": "party", "systems": ["oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim", "connection_flow", "world_snapshot", "hex_terrain"], "package": false},
-    "ct01_warden": {"kind":"unit","systems":["warden_progression","classes","class_tree_access","combat_affinity_contracts","combat","life"],"package":false},
+    "ct01_warden": {"kind":"unit","systems":["player_cooldowns","warden_progression","classes","class_tree_access","combat_affinity_contracts","combat","life"],"package":false},
     "ct01_warden_coop": {"kind":"pair","systems":["warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life"],"package":false},
-    "ct02_weaver": {"kind":"unit","systems":["expedition_grafts", "weaver_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","combat","life"],"package":false},
+    "ct02_weaver": {"kind":"unit","systems":["player_cooldowns","expedition_grafts", "weaver_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","combat","life"],"package":false},
     "ct02_weaver_coop": {"kind":"pair","systems":["weaver_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life"],"package":false},
     "ct02_weaver_party": {"kind":"party","systems":["weaver_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life"],"package":false},
-    "ct03_ranger": {"kind":"unit","systems":["ranger_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","combat","life","terrain","ability_aim"],"package":false},
+    "ct03_ranger": {"kind":"unit","systems":["player_cooldowns","ranger_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","combat","life","terrain","ability_aim"],"package":false},
     "ct03_ranger_coop": {"kind":"pair","systems":["ranger_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life","hex_terrain"],"package":false},
     "ct03_ranger_party": {"kind":"party","systems":["ranger_progression","weaver_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life","hex_terrain"],"package":false},
-    "ct04_reaper": {"kind":"unit","systems":["expedition_grafts", "reaper_progression","warden_progression","ranger_progression","classes","class_tree_access","combat_affinity_contracts","combat","life","terrain","ability_aim"],"package":false},
+    "ct04_reaper": {"kind":"unit","systems":["player_cooldowns","expedition_grafts", "reaper_progression","warden_progression","ranger_progression","classes","class_tree_access","combat_affinity_contracts","combat","life","terrain","ability_aim"],"package":false},
     "ct04_reaper_coop": {"kind":"pair","systems":["reaper_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life","hex_terrain"],"package":false},
     "ct04_reaper_party": {"kind":"party","systems":["reaper_progression","warden_progression","weaver_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life","hex_terrain"],"package":false},
     "cr05_native_grafts": {"kind":"unit","systems":["expedition_wallet", "expedition_grafts", "affinity_cards", "combat_affinity_contracts","weapons","classes","combat","life"],"package":false},
@@ -1863,7 +1864,7 @@
     "cr04c_storm_coop": {"kind": "pair", "systems": ["storm_affinity","combat_affinity_contracts","core_combat","connection_flow","world_snapshot"], "package": false},
     "world_snapshot_codec": {
       "kind": "unit",
-      "systems": ["expedition_wallet", "world_snapshot", "connection_flow", "presentation"],
+      "systems": ["player_cooldowns", "expedition_wallet", "world_snapshot", "connection_flow", "presentation"],
       "package": false
     },
     "cr04b_wood": {
@@ -1943,7 +1944,7 @@
     },
     "cr02_combat_contracts": {
       "kind": "unit",
-      "systems": ["combat_affinity_contracts", "plant_affinities", "classes", "weapons"],
+      "systems": ["player_cooldowns", "combat_affinity_contracts", "plant_affinities", "classes", "weapons"],
       "package": false
     },
     "cr02_mode_coop": {"kind": "pair", "systems": ["expedition_wallet", "combat_affinity_contracts", "hex_terrain", "connection_flow", "weapons", "garden", "affinity_cards"], "package": false},
@@ -1976,7 +1977,7 @@
     },
     "experimental_terrain": {
       "kind": "unit",
-      "systems": ["loot", "expedition_wallet", "hex_terrain", "terrain", "garden_care", "persistence_operations"],
+      "systems": ["player_cooldowns", "loot", "expedition_wallet", "hex_terrain", "terrain", "garden_care", "persistence_operations"],
       "package": false
     },
     "garden_offerings_preview": {
@@ -2155,6 +2156,7 @@
       "candidate_release": true,
       "kind": "unit",
       "systems": [
+        "player_cooldowns",
         "departure_settlement",
         "expedition_wallet",
         "persistence_operations",
@@ -2175,6 +2177,7 @@
     "guarded_expedition_coop": {
       "kind": "pair",
       "systems": [
+        "player_cooldowns",
         "departure_settlement",
         "expedition_wallet",
         "world_snapshot", "persistence_operations",
@@ -2325,6 +2328,7 @@
     "ability_aim": {
       "kind": "unit",
       "systems": [
+        "player_cooldowns",
         "ability_aim",
         "core_combat",
         "thorn_adaptation",
@@ -2510,6 +2514,7 @@
     "classes_weapons": {
       "kind": "unit",
       "systems": [
+        "player_cooldowns",
         "classes",
         "weapons",
         "combat",
@@ -2862,6 +2867,7 @@
     "dual_skills": {
       "kind": "unit",
       "systems": [
+        "player_cooldowns",
         "classes",
         "combat",
         "weapons",
@@ -2878,6 +2884,7 @@
     "dual_skills_coop": {
       "kind": "pair",
       "systems": [
+        "player_cooldowns",
         "classes",
         "combat",
         "weapons",
@@ -3699,6 +3706,7 @@
     "network_warden_coop": {
       "kind": "pair",
       "systems": [
+        "player_cooldowns",
         "classes",
         "combat",
         "weapons",
@@ -3818,6 +3826,7 @@
     "player_hud": {
       "kind": "unit",
       "systems": [
+        "player_cooldowns",
         "health_pool_hud",
         "presentation",
         "items",
@@ -4474,6 +4483,9 @@
     "foundation_performance": "Optional performance benchmark, run explicitly; not a correctness release suite."
   },
   "relationships": [
+    ["player_cooldowns", "classes", "Native class casts and refunds use each actor’s Q and R deadlines"],
+    ["life", "player_cooldowns", "New actors and expedition entry initialize native readiness"],
+    ["player_cooldowns", "world_snapshot", "Guests receive projected readiness and remaining Q and R seconds"],
     ["expedition_grafts", "combat_affinity_contracts", "Basic attacks capture purchased adaptations and resolve bounded secondary effects"],
     ["expedition_grafts", "life", "Reinforced Frame previews share the resolved maximum-health calculation"],
     ["expeditions", "affinity_cards", "Earned choices, owner revisions and expedition-only currency"],
@@ -5487,7 +5499,7 @@
         "additive": true
       }
     },
-    "dodge_player": {
+    "dodge_player": {"ar06_cooldown_1": {"match": "\tif not Life.alive(p) or not p[Cooldowns.STATE].ready(Cooldowns.DODGE, now):\n", "baseline": "\tif not Life.alive(p) or now < int(p.dodge_at):\n", "systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_2": {"match": "\tp[Cooldowns.STATE] = p[Cooldowns.STATE].start(Cooldowns.DODGE, now, maxi(350,recovery - AffinityCards.amount(p,\"run_dodge_recovery\")))\n", "baseline": "\tp.dodge_at = now + maxi(350,recovery - AffinityCards.amount(p,\"run_dodge_recovery\"))\n", "systems": ["player_cooldowns"], "additive": true},
       "ec01_1": {"match": "\t\tpreload(\"res://spirit_affinity.gd\").movement(self,p,previous,p.pos)\n\tvar recovery := DODGE_COOLDOWN_MS - int(weapon_stats(p).get(\"dodge_cooldown\",0))\n\tp.dodge_at = now + maxi(350,recovery - AffinityCards.amount(p,\"run_dodge_recovery\"))\n\n", "baseline": "\t\tpreload(\"res://spirit_affinity.gd\").movement(self,p,previous,p.pos)\n\tp.dodge_at = now + maxi(350,DODGE_COOLDOWN_MS-int(weapon_stats(p).get(\"dodge_cooldown\",0)))\n\n", "systems": ["affinity_cards"], "additive": true},
       "cr04c_spirit_0": {
         "match": "\t\tp.facing = facing\n\tvar previous: Vector3 = p.pos\n\tp.pos = battlefield.dash(p.pos, bound_position(p.pos + p.facing * DODGE_DISTANCE, true))\n\tif p.has(\"affinity_spirit_follow\"):\n\t\tpreload(\"res://spirit_affinity.gd\").movement(self,p,previous,p.pos)\n\tp.dodge_at = now + maxi(350,DODGE_COOLDOWN_MS-int(weapon_stats(p).get(\"dodge_cooldown\",0)))\n",
@@ -5936,7 +5948,7 @@
         ]
       }
     },
-    "_process": {
+    "_process": {"ar06_cooldown_1": {"match": "\tvar local_timers: Cooldowns.Timers = p.get(Cooldowns.STATE)\n\tvar cooldown_now := Time.get_ticks_msec()\n", "baseline": "", "systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_2": {"match": "\t\tvar skill_ready: bool = (local_timers == null or local_timers.ready(Cooldowns.Q, cooldown_now)) if multiplayer.is_server() else p.skill_ready\n", "baseline": "\t\tvar skill_ready: bool = Time.get_ticks_msec() >= int(p.skill_at) if multiplayer.is_server() else p.skill_ready\n", "systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_3": {"match": "\tvar ready_skill := (local_timers == null or local_timers.ready(Cooldowns.Q, cooldown_now)) if host_side else bool(p.get(\"skill_ready\", false))\n\tvar second_ready := (local_timers == null or local_timers.ready(Cooldowns.R, cooldown_now)) if host_side else bool(p.get(\"skill_two_ready\", false))\n", "baseline": "\tvar ready_skill := Time.get_ticks_msec() >= int(p.get(\"skill_at\", 0)) if host_side else bool(p.get(\"skill_ready\", false))\n\tvar second_ready: bool=Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)) if host_side else bool(p.get(\"skill_two_ready\",false))\n", "systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_4": {"match": "\tvar cooldowns: Array = local_timers.skill_seconds(cooldown_now) if host_side and local_timers != null else p.get(\"skill_cooldowns\", [0.0, 0.0])\n", "baseline": "\tvar cooldowns: Array=[maxf(0,(int(p.get(\"skill_at\",0))-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)] if host_side else p.get(\"skill_cooldowns\",[0.0,0.0])\n", "systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_5": {"match": "\tvar ready_dodge := (local_timers == null or local_timers.ready(Cooldowns.DODGE, cooldown_now)) if host_side else bool(p.get(\"dodge_ready\", false))\n", "baseline": "\tvar ready_dodge := Time.get_ticks_msec() >= int(p.get(\"dodge_at\", 0)) if host_side else bool(p.get(\"dodge_ready\", false))\n", "systems": ["player_cooldowns"], "additive": true},
       "ga01a_1": {"match": "\t\t\tguide.text=\"E  Graft\"\n\t\t\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\t\t\tguide.text=\"E  Grafting Altar\"\n\t\t\t\tvar improvements: Dictionary = preload(\"res://expedition_grafts.gd\").owner_details(p, encounter_number) if multiplayer.is_server() else p.get(\"graft_improvements\",{})\n\t\t\t\tdetail_label.text=\"Altar used\" if improvements.get(\"used\",false) else \"Spend a carried trophy on an expedition improvement.\"\n\t\t\t\tif improvements.has(\"remaining\"):\n\t\t\t\t\tdetail_label.text += \" · %d remaining\" % int(improvements.remaining)\n\t\t\telse:\n\t\t\t\tdetail_label.text=\"Installed: %s · Replace at a later altar\"%Parts.part_name(int(p.get(\"graft_part\",0))) if int(p.get(\"graft_part\",0))!=0 else \"Choose a monster part to graft.\"\n\t\tvar protected: bool = p.pouch if multiplayer.is_server() else client_pouch_filled\n", "baseline": "\t\t\tguide.text=\"E  Graft\"\n\t\t\tdetail_label.text=\"Installed: %s · Replace at a later altar\"%Parts.part_name(int(p.get(\"graft_part\",0))) if int(p.get(\"graft_part\",0))!=0 else \"Choose a monster part to graft.\"\n\t\tvar protected: bool = p.pouch if multiplayer.is_server() else client_pouch_filled\n", "systems": ["expedition_grafts"], "additive": true},
       "ar02_affinity_completion_hud": {"match": "\t\tvar last_offer := AffinityCards.completed_floor(p) if multiplayer.is_server() and p.has(\"combat_ruleset\") else int(p.get(\"last_offer\", 0))\n\t\tif upgrade_checkpoint_open() and last_offer != encounter_number:\n", "baseline": "\t\tif upgrade_checkpoint_open() and p.get(\"last_offer\",0)!=encounter_number:\n", "systems": ["affinity_cards"], "additive": true},
       "ec01_1": {"match": "\t\t\tif last_offer != encounter_number:\n\t\t\t\tdetail_label.text += \"\\nE  Choose an upgrade   ·   %d Essence\" % (run_wallet(p) if multiplayer.is_server() else int(p.get(\"wallet\", 0)))\n\t\tif visual_field.has_seed_cache() and not p.get(\"cache_claimed\", false) and (\n", "baseline": "\t\t\tif p.get(\"last_offer\", 0) != encounter_number:\n\t\t\t\tdetail_label.text += \"\\nE  Review next-floor readiness\" if has_meta(&\"combat_affinity_ruleset\") else \"\\nE  Choose upgrade cards   ·   %d essence available\" % (run_wallet(p) if multiplayer.is_server() else int(p.get(\"wallet\", 0)))\n\t\tif visual_field.has_seed_cache() and not p.get(\"cache_claimed\", false) and (\n", "systems": ["affinity_cards"], "additive": true},
@@ -6593,7 +6605,7 @@
         "additive": true
       }
     },
-    "player_snapshot": {
+    "player_snapshot": {"ar06_cooldown_1": {"match": "\t\t\t\"attack_anim\":attack_animation_snapshot(p),\"skill_fx\":p.get(\"skill_fx\",{}) if Time.get_ticks_msec()<int(p.get(\"skill_fx_until\",0)) else {}, \"weapon_kind\":p.get(\"weapon_kind\",0), \"core_part\":p.weapon if p.wild else p.prepared, \"pose\": combat_pose(p),\"wallet\": run_wallet(p)}\n\t\tvar cooldowns: Cooldowns.Timers = p[Cooldowns.STATE]\n\t\tvar cooldown_now := Time.get_ticks_msec()\n\t\tstate.merge(cooldowns.skill_projection(cooldown_now))\n", "baseline": "\t\t\t\"attack_anim\":attack_animation_snapshot(p),\"skill_fx\":p.get(\"skill_fx\",{}) if Time.get_ticks_msec()<int(p.get(\"skill_fx_until\",0)) else {}, \"weapon_kind\":p.get(\"weapon_kind\",0), \"core_part\":p.weapon if p.wild else p.prepared, \"pose\": combat_pose(p), \"wallet\": run_wallet(p),\"skill_ready\":Time.get_ticks_msec()>=int(p.skill_at),\"skill_two_ready\":Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)),\"skill_cooldowns\":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)]}\n", "systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_2": {"match": "\t\t\t\t\"dodge_ready\": cooldowns.ready(Cooldowns.DODGE, cooldown_now), \"last_offer\": AffinityCards.completed_floor(p) if p.has(\"combat_ruleset\") else p.last_offer,\n", "baseline": "\t\t\t\t\"skill_ready\": Time.get_ticks_msec() >= int(p.skill_at),\"skill_two_ready\":Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)),\"skill_cooldowns\":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)], \"dodge_ready\": Time.get_ticks_msec() >= int(p.dodge_at), \"last_offer\": AffinityCards.completed_floor(p) if p.has(\"combat_ruleset\") else p.last_offer,\n", "systems": ["player_cooldowns"], "additive": true},
       "ar02_affinity_completion_snapshot": {"match": "\"last_offer\": AffinityCards.completed_floor(p) if p.has(\"combat_ruleset\") else p.last_offer,", "baseline": "\"last_offer\": p.last_offer,", "systems": ["affinity_cards"]},
       "ga01a_1": {"match": "\t\t\t\t\"party_travel\":PartyTravel.snapshot(self,id),\"seed_choice\": selected_seed(p), \"graft_choice\": p.graft_choice, \"cache_claimed\": p.cache_claimed})\n\t\t\tif p.has(\"combat_ruleset\"):\n\t\t\t\tstate[\"graft_improvements\"] = preload(\"res://expedition_grafts.gd\").owner_details(p, encounter_number)\n\t\t\tif p.wild and p.has(AffinityCards.STATE):\n", "baseline": "\t\t\t\t\"party_travel\":PartyTravel.snapshot(self,id),\"seed_choice\": selected_seed(p), \"graft_choice\": p.graft_choice, \"cache_claimed\": p.cache_claimed})\n\t\t\tif p.wild and p.has(AffinityCards.STATE):\n", "systems": ["expedition_grafts"], "additive": true},
       "ec01_1": {"match": "\t\t\t\t\"party_travel\":PartyTravel.snapshot(self,id),\"seed_choice\": selected_seed(p), \"graft_choice\": p.graft_choice, \"cache_claimed\": p.cache_claimed})\n\t\t\tif p.wild and p.has(AffinityCards.STATE):\n\t\t\t\tstate[\"affinity_run_cards\"] = AffinityCards.project_owned(p,state.weapon_stats,DODGE_COOLDOWN_MS)\n\t\tstate.diagnostic_host=Journal.current.session_id if is_instance_valid(Journal.current) else \"\"\n", "baseline": "\t\t\t\t\"party_travel\":PartyTravel.snapshot(self,id),\"seed_choice\": selected_seed(p), \"graft_choice\": p.graft_choice, \"cache_claimed\": p.cache_claimed})\n\t\tstate.diagnostic_host=Journal.current.session_id if is_instance_valid(Journal.current) else \"\"\n", "systems": ["affinity_cards"], "additive": true},
@@ -6675,7 +6687,7 @@
     "settle_expedition_rewards": {"ar05_reward_lifecycle": {"match": "\tvar settle_kills := bank_kills or not _defers_kill_profiles()\n\tvar waiting_on_rewards: Array[String] = []\n\tif not settle_kills:\n\t\twaiting_on_rewards = monster_rewards.pending_profile_ids()\n\tvar work := departure_settlement.stage(waiting_on_rewards)\n\tif settle_kills:\n\t\t_apply_pending_kill_rewards(effects, work)\n", "baseline": "\tvar settle_kills := bank_kills or not MonsterRewards.checkpoint_only(self)\n\tvar waiting_on_rewards: Array[String] = []\n\tif not settle_kills:\n\t\twaiting_on_rewards = MonsterRewards.pending_profile_ids(pending_kill_rewards)\n\tvar work := departure_settlement.stage(waiting_on_rewards)\n\tif settle_kills:\n\t\tMonsterRewards.settle(self, effects, work)\n", "systems": ["loot"], "additive": true}, "ar04_departure_staging": {"match": "\tvar settle_kills := bank_kills or not MonsterRewards.checkpoint_only(self)\n\tvar waiting_on_rewards: Array[String] = []\n\tif not settle_kills:\n\t\twaiting_on_rewards = MonsterRewards.pending_profile_ids(pending_kill_rewards)\n\tvar work := departure_settlement.stage(waiting_on_rewards)\n\tif settle_kills:\n\t\tMonsterRewards.settle(self, effects, work)\n\tfor entry in work:\n\t\tvar leaving: Dictionary = entry.actor\n\t\tif not leaving.seed_owner.is_empty():\n\t\t\trecord_character(entry.peer_id, leaving)\n", "baseline": "\tif bank_kills or not MonsterRewards.checkpoint_only(self):\n\t\tMonsterRewards.settle(self, effects)\n\tfor id in pending_departures:\n\t\tvar leaving: Dictionary = pending_departures[id]\n\t\tif not leaving.get(\"seed_owner\", \"\").is_empty(): record_character(id, leaving)\n", "systems": ["departure_settlement"], "additive": true}, "ar04_departure_finalization": {"match": "\t\tif leaving.wild:\n\t\t\tpreload(\"res://garden_return_service.gd\").outcome(self, leaving, \"disconnected\")\n", "baseline": "\t\tif leaving.wild:\n\t\t\tpreload(\"res://garden_return_service.gd\").outcome(self, leaving, \"disconnected\")\n\tpending_departures.clear()\n", "systems": ["departure_settlement"], "additive": true}},
     "prepare_guarded_exit": {"ar05_reward_lifecycle": {"match": "\t\tif not departure_settlement.is_empty() or monster_rewards.has_pending():\n\t\t\tif not flush_kill_rewards(): return false\n", "baseline": "\t\tif not departure_settlement.is_empty() or not pending_kill_rewards.is_empty():\n\t\t\tif not MonsterRewards.flush(self): return false\n", "systems": ["loot"], "additive": true}, "ar04_departure_exit": {"match": "\t\tif not departure_settlement.is_empty() or not pending_kill_rewards.is_empty():\n", "baseline": "\t\tif not pending_departures.is_empty() or not pending_kill_rewards.is_empty():\n", "systems": ["departure_settlement"], "additive": true}},
     "admission_error": {"ar04_departure_readmission": {"match": "\tif departure_settlement.blocks_admission(identity):\n\t\treturn \"This character's last expedition rewards are still being saved.\"\n", "baseline": "\tfor player in pending_departures.values():\n\t\tif player.get(\"seed_owner\",\"\")==identity: return \"This character's last expedition rewards are still being saved.\"\n", "systems": ["departure_settlement"], "additive": true}},
-    "add_player": {
+    "add_player": {"ar06_cooldown_1": {"match": "\t\t\"weapon_kind\":0, \"catalyst\":0, \"graft_part\":0,\"graft_floor\":0, \"prepared_catalyst\":0, \"cargo_plan\":Parts.empty_counts(), \"frame\": Frames.WARDEN, Cooldowns.STATE: Cooldowns.Timers.new(), \"guard_charges\":0, \"guard_until\": 0, \"attack_until\":0,\"attack_duration\":240,\"attack_combo\":0,\"swing_until\": 0, \"contributed\": false,\n", "baseline": "\t\t\"weapon_kind\":0, \"catalyst\":0, \"graft_part\":0,\"graft_floor\":0, \"prepared_catalyst\":0, \"cargo_plan\":Parts.empty_counts(), \"frame\": Frames.WARDEN, \"skill_at\": 0, \"skill_two_at\":0, \"guard_charges\":0, \"guard_until\": 0, \"attack_until\":0,\"attack_duration\":240,\"attack_combo\":0,\"swing_until\": 0, \"contributed\": false,\n", "systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_2": {"match": "\t\t\"prepared_secondary\": Parts.EMPTY, \"graft_choice\": Parts.EMPTY, \"rift_hook\": false, \"slow_until\": 0, \"hp\": float(base_health), \"max_hp\": base_health, \"strike_at\": 0, \"facing\": Vector3.FORWARD}\n", "baseline": "\t\t\"prepared_secondary\": Parts.EMPTY, \"graft_choice\": Parts.EMPTY, \"rift_hook\": false, \"slow_until\": 0, \"hp\": float(base_health), \"max_hp\": base_health, \"strike_at\": 0, \"dodge_at\": 0, \"facing\": Vector3.FORWARD}\n", "systems": ["player_cooldowns"], "additive": true},
       "ar03_wallet_initialization": {"match": "ExpeditionWallet.STATE: ExpeditionWallet.Wallet.new(),", "baseline": "\"spent\": 0,\"essence_sparks\":0,", "systems": ["expedition_wallet"], "additive": true},
       "cr02_affinity_contract": {"match": "\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\tplayers[id].combat_ruleset = get_meta(&\"combat_affinity_ruleset\")\n", "baseline": "", "additive": true, "systems": ["combat_affinity_contracts"]},
       "preview_spawn_capacity": {
@@ -7144,7 +7156,7 @@
         "additive": true
       }
     },
-    "_enter_wilds": {
+    "_enter_wilds": {"ar06_cooldown_1": {"match": "\tp[Cooldowns.STATE] = Cooldowns.Timers.new()\n", "baseline": "\tp.dodge_at = 0\n\tp.skill_at = 0\n\tp.skill_two_at=0\n", "systems": ["player_cooldowns"], "additive": true},
       "ar03_wallet_departure": {"match": "\tp[ExpeditionWallet.STATE] = ExpeditionWallet.Wallet.new()\n", "baseline": "\tp.essence_sparks=0\n", "systems": ["expedition_wallet"], "additive": true},
       "ga01a_1": {"match": "\tp.graft_floor=0\n\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\tvar grafts = preload(\"res://expedition_grafts.gd\")\n\t\tvar identity := int(get_meta(grafts.SERIAL, 0)) + 1\n\t\tset_meta(grafts.SERIAL, identity)\n\t\tp[grafts.STATE] = grafts.Ledger.new(identity)\n\tp.erase(\"graft_message\")\n", "baseline": "\tp.graft_floor=0\n\tp.erase(\"graft_message\")\n", "systems": ["expedition_grafts"], "additive": true},
       "cr04c_void_0": {
@@ -7965,7 +7977,7 @@
         "additive": true
       }
     },
-    "apply_weapon_hit": {
+    "apply_weapon_hit": {"ar06_cooldown_1": {"match": "\tif winding and p.rift_hook and not stats.get(\"core_hit\",false) and not p.has(\"combat_ruleset\"):\n\t\tp[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, 0)\n", "baseline": "\tif winding and p.rift_hook and not stats.get(\"core_hit\",false) and not p.has(\"combat_ruleset\"): p.dodge_at=0\n", "systems": ["player_cooldowns"], "additive": true},
       "ct05_oracle_1": {"match": "\tvar grafts = preload(\"res://native_grafts.gd\")\n\tvar graft_contact := grafts.start_contact(self,p,stats,target,now)\n\tif not stats.get(\"core_hit\",false) and not stats.get(\"oracle_spell\",false): stats=Traits.augment_hit(self,p,target,stats,now,graft_contact)\n\tvar point:=enemy_position(target)\n\tvar contact_point := point\n\tvar distance:=origin.distance_to(point)\n\tvar winding: bool=stats.get(\"was_winding\",enemy_winding_up if target==-1 else float(scouts[target].windup)>0)\n", "baseline": "\tvar grafts = preload(\"res://native_grafts.gd\")\n\tvar graft_contact := grafts.start_contact(self,p,stats,target,now)\n\tif not stats.get(\"core_hit\",false): stats=Traits.augment_hit(self,p,target,stats,now,graft_contact)\n\tvar point:=enemy_position(target)\n\tvar distance:=origin.distance_to(point)\n\tvar winding: bool=stats.get(\"was_winding\",enemy_winding_up if target==-1 else float(scouts[target].windup)>0)\n", "systems": ["oracle_progression"], "additive": true},
       "ct05_oracle_2": {"match": "\t\tpreload(\"res://wilds_skill_tactics.gd\").interrupted(self,actor,\"suppression\")\n\tif applied>0:\n\t\tif has_meta(&\"combat_affinity_ruleset\") and (int(p.frame)==4 or p.has(\"oracle_omens\")):\n\t\t\tpreload(\"res://oracle_combat.gd\").ordinary_contact(self,p,target,contact_point,stats,now)\n\t\tvar form := \"magic\" if stats.get(\"trait_secondary\",false) else str(stats.get(\"audio_form\",WeaponMotion.form(p)))\n\t\temit_combat_event(\"impact\",\"hit\",origin,point,.85,stats.get(\"affinity_color\",weapon_effect_color(p)),float(applied),target,{\"form\":form})\n", "baseline": "\t\tpreload(\"res://wilds_skill_tactics.gd\").interrupted(self,actor,\"suppression\")\n\tif applied>0:\n\t\tvar form := \"magic\" if stats.get(\"trait_secondary\",false) else str(stats.get(\"audio_form\",WeaponMotion.form(p)))\n\t\temit_combat_event(\"impact\",\"hit\",origin,point,.85,stats.get(\"affinity_color\",weapon_effect_color(p)),float(applied),target,{\"form\":form})\n", "systems": ["oracle_progression"], "additive": true},
       "ct03_ranger_1": {"match": "\t\tauthored_damage+=preload(\"res://core_strike_mark.gd\").consume(self,p,target,now)\n\tvar damage := int(stats.affinity_hp) if stats.has(\"affinity_hp\") else Life.Preview.resolved_hit(authored_damage,stats)\n\tdamage += int(stats.get(\"native_bonus_hp\",0))\n\tif damage > 0 and stats.get(\"ranger_direct_hit\",false) and has_meta(&\"combat_affinity_ruleset\") and not stats.get(\"trait_secondary\",false) and not stats.get(\"core_hit\",false):\n\t\tdamage += preload(\"res://ranger_combat.gd\").consume_prey(self,p,target,now)\n\tvar push:=0.35+float(stats.get(\"knockback\",0))\n\tvar mutations: int=enemy_mutations if target==-1 else int(scouts[target].get(\"mutations\",0))\n", "baseline": "\t\tauthored_damage+=preload(\"res://core_strike_mark.gd\").consume(self,p,target,now)\n\tvar damage := int(stats.affinity_hp) if stats.has(\"affinity_hp\") else Life.Preview.resolved_hit(authored_damage,stats)\n\tvar push:=0.35+float(stats.get(\"knockback\",0))\n\tvar mutations: int=enemy_mutations if target==-1 else int(scouts[target].get(\"mutations\",0))\n", "systems": ["combat", "weapons", "classes", "loot", "enemies", "enemy_attack_plan", "ranger_progression"], "additive": true},
@@ -8355,7 +8367,7 @@
         "additive": true
       }
     },
-    "use_class_skill": {
+    "use_class_skill": {"ar06_cooldown_1": {"match": "\tvar cooldowns: Cooldowns.Timers = player[Cooldowns.STATE]\n\tif not Life.alive(player) or encounter_cleared() or not cooldowns.ready(slot, now) or now<int(player.get(\"core_cast_until\",0)): return\n", "baseline": "\tvar timer: String=\"skill_at\" if slot==0 else \"skill_two_at\"\n\tif not Life.alive(player) or encounter_cleared() or now<int(player.get(timer,0)) or now<int(player.get(\"core_cast_until\",0)): return\n", "systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_2": {"match": "\tplayer[Cooldowns.STATE] = player[Cooldowns.STATE].start(slot, now, Skills.Balance.cooldown(skill,stats))\n", "baseline": "\tplayer[timer]=now+Skills.Balance.cooldown(skill,stats)\n", "systems": ["player_cooldowns"], "additive": true},
       "ec01_1": {"match": "\t\t\treturn\n\t\tskill = adapter.native_skill.duplicate()\n\t\tAffinityCards.tune_class(player,skill,affinity_build,Life.Preview.scale())\n\t\tevent = combat_events_api.class_start(self, id, adapter, now, affinity_build.catalyst)\n", "baseline": "\t\t\treturn\n\t\tskill = adapter.native_skill\n\t\tevent = combat_events_api.class_start(self, id, adapter, now, affinity_build.catalyst)\n", "systems": ["affinity_cards"], "additive": true},
       "ec01_2": {"match": "\t\t\"bastion\",\"ward\":\n\t\t\tvar ward_ms := int(chime.get(\"duration\",skill.duration)) + duration + int(skill.get(\"ward_ms\",0))\n\t\t\tfor ally in players.values():\n", "baseline": "\t\t\"bastion\",\"ward\":\n\t\t\tvar ward_ms := int(chime.get(\"duration\",skill.duration)) + duration\n\t\t\tfor ally in players.values():\n", "systems": ["affinity_cards"], "additive": true},
       "ct05_oracle_1": {"match": "\tvar ranger_snare := {}\n\tvar reaper_siphon := {}\n\tvar oracle = preload(\"res://oracle_combat.gd\")\n\tvar chime := {}\n\tvar mode:=str(skill.mode)\n\tvar aimed: bool=player.has(\"class_aim\")\n", "baseline": "\tvar ranger_snare := {}\n\tvar reaper_siphon := {}\n\tvar mode:=str(skill.mode)\n\tvar aimed: bool=player.has(\"class_aim\")\n", "systems": ["oracle_progression"], "additive": true},
@@ -10237,6 +10249,11 @@
     }
   },
   "file_regions": {
+    "diagnostic_journal.gd": {"newline": "lf", "regions": {"ar06_cooldown_1": {"match": "const Cooldowns = preload(\"res://player_cooldowns.gd\")\n", "baseline": "", "systems": ["player_cooldowns", "diagnostics"]}, "ar06_cooldown_2": {"match": " for key in [\"pos\",\"hp\",\"max_hp\",\"fallen\",\"wild\",\"lost_health\",\"damage_seq\",\"vitals_revision\",\"frame\",\"weapon_kind\",\"weapon\",\"secondary\",\"catalyst\",\"graft_part\",\"prepared\",\"prepared_secondary\",\"prepared_catalyst\",\"attack_combo\",\"carried_parts\",\"run_upgrades\"]:\n", "baseline": " for key in [\"pos\",\"hp\",\"max_hp\",\"fallen\",\"wild\",\"lost_health\",\"damage_seq\",\"vitals_revision\",\"frame\",\"weapon_kind\",\"weapon\",\"secondary\",\"catalyst\",\"graft_part\",\"prepared\",\"prepared_secondary\",\"prepared_catalyst\",\"attack_combo\",\"skill_at\",\"skill_two_at\",\"carried_parts\",\"run_upgrades\"]:\n", "systems": ["player_cooldowns", "diagnostics"]}, "ar06_cooldown_3": {"match": " var cooldowns: Cooldowns.Timers = p.get(Cooldowns.STATE)\n if cooldowns != null:\n  result.skill_at = cooldowns.deadline(Cooldowns.Q)\n  result.skill_two_at = cooldowns.deadline(Cooldowns.R)\n", "baseline": "", "systems": ["player_cooldowns", "diagnostics"]}}},
+    "oracle_combat.gd": {"newline": "lf", "regions": {"ar06_cooldown_1": {"match": "const Cooldowns = preload(\"res://player_cooldowns.gd\")\n", "baseline": "", "systems": ["player_cooldowns"]}, "ar06_cooldown_2": {"match": "\t\tvar timers: Cooldowns.Timers = player[Cooldowns.STATE]\n\t\tplayer[Cooldowns.STATE] = timers.refund(Cooldowns.R, now, Progression.QUICK_MS, Balance.COOLDOWN_MIN_MS)\n", "baseline": "\t\tplayer.skill_two_at = maxi(now+1800,int(player.skill_two_at)-Progression.QUICK_MS)\n", "systems": ["player_cooldowns"]}}},
+    "ranger_combat.gd": {"newline": "lf", "regions": {"ar06_cooldown_1": {"match": "const Cooldowns = preload(\"res://player_cooldowns.gd\")\n", "baseline": "", "systems": ["player_cooldowns"]}, "ar06_cooldown_2": {"match": "\t\t\t\tvar timers: Cooldowns.Timers = player[Cooldowns.STATE]\n\t\t\t\tplayer[Cooldowns.STATE] = timers.refund(Cooldowns.R, now, Progression.RESET_MS, Balance.COOLDOWN_MIN_MS)\n", "baseline": "\t\t\t\tplayer.skill_two_at = maxi(now+1800,int(player.skill_two_at)-Progression.RESET_MS)\n", "systems": ["player_cooldowns"]}}},
+    "reaper_combat.gd": {"newline": "lf", "regions": {"ar06_cooldown_1": {"match": "const Cooldowns = preload(\"res://player_cooldowns.gd\")\n", "baseline": "", "systems": ["player_cooldowns"]}, "ar06_cooldown_2": {"match": "\t\t\tvar timers: Cooldowns.Timers = player[Cooldowns.STATE]\n\t\t\tplayer[Cooldowns.STATE] = timers.refund(Cooldowns.R, now, Progression.SWIFT_MS, Balance.COOLDOWN_MIN_MS)\n", "baseline": "\t\t\tplayer.skill_two_at = maxi(now+1800,int(player.skill_two_at)-Progression.SWIFT_MS)\n", "systems": ["player_cooldowns"]}, "ar06_cooldown_3": {"match": "\t\t\tvar timers: Cooldowns.Timers = player[Cooldowns.STATE]\n\t\t\tplayer[Cooldowns.STATE] = timers.ready_by(Cooldowns.DODGE, now)\n", "baseline": "\t\t\tplayer.dodge_at = mini(int(player.get(\"dodge_at\",0)),now)\n", "systems": ["player_cooldowns"]}, "ar06_cooldown_4": {"match": "\t\tvar timers: Cooldowns.Timers = player[Cooldowns.STATE]\n\t\tplayer[Cooldowns.STATE] = timers.refund(Cooldowns.Q, now, Progression.TEMPO_MS)\n", "baseline": "\t\tplayer.skill_at = maxi(now,int(player.skill_at)-Progression.TEMPO_MS)\n", "systems": ["player_cooldowns"]}}},
+    "weaver_combat.gd": {"newline": "lf", "regions": {"ar06_cooldown_1": {"match": "const Cooldowns = preload(\"res://player_cooldowns.gd\")\n", "baseline": "", "systems": ["player_cooldowns"]}, "ar06_cooldown_2": {"match": "\t\tvar timers: Cooldowns.Timers = player[Cooldowns.STATE]\n\t\tif (selected[0] != \"bloomcaller\" or not field.is_empty()) and not timers.ready(Cooldowns.R, now):\n\t\t\tplayer[Cooldowns.STATE] = timers.refund(Cooldowns.R, now, Progression.THREAD_REFUND_MS)\n", "baseline": "\t\tif (selected[0] != \"bloomcaller\" or not field.is_empty()) and int(player.skill_two_at) > now:\n\t\t\tplayer.skill_two_at = maxi(now, int(player.skill_two_at) - Progression.THREAD_REFUND_MS)\n", "systems": ["player_cooldowns"]}, "ar06_cooldown_3": {"match": "\t\tif selected.has(\"spore_cycle\"):\n\t\t\tvar timers: Cooldowns.Timers = player[Cooldowns.STATE]\n\t\t\tif not timers.ready(Cooldowns.Q, now):\n\t\t\t\tplayer[Cooldowns.STATE] = timers.refund(Cooldowns.Q, now, Progression.CYCLE_MS)\n", "baseline": "\t\tif selected.has(\"spore_cycle\") and int(player.skill_at) > now:\n\t\t\tplayer.skill_at = maxi(now,int(player.skill_at)-Progression.CYCLE_MS)\n", "systems": ["player_cooldowns"]}}},
     "game_transaction.gd": {"newline": "crlf", "regions": {"receipt_owner": {"match": "const MonsterRewards = preload(\"res://monster_rewards.gd\")\n\n", "baseline": "", "systems": ["loot"]}, "legacy_capture": {"match": " var rewards: MonsterRewards = game.get(\"monster_rewards\")\n var reward_savepoint: Dictionary = rewards.savepoint() if rewards != null else {}\n", "baseline": "", "systems": ["loot"]}, "legacy_rollback": {"match": "  if rewards != null:\n   rewards.restore_savepoint(reward_savepoint)\n", "baseline": "", "systems": ["loot"]}, "legacy_commit": {"match": " if rewards != null:\n  rewards.finish_settlement(MonsterRewards.Result.COMMITTED)\n", "baseline": "", "systems": ["loot"]}, "guarded_owner": {"match": " var rewards: MonsterRewards = game.get(\"monster_rewards\")\n", "baseline": "", "systems": ["loot"]}, "guarded_capture": {"match": "  if rewards != null:\n   captured.monster_rewards = rewards.savepoint()\n", "baseline": "", "systems": ["loot"]}, "guarded_missing_outcome": {"match": "  if captured.has(\"monster_rewards\"):\n   # Gameplay ran, but its save verdict is missing. Hold tentative rewards.\n   rewards.finish_settlement(MonsterRewards.Result.UNCERTAIN)\n   game.transaction_publishes.clear()\n   boundary.state = \"unresolved\"\n   boundary.reason = \"missing_gameplay_finalization\"\n   if boundary.error == OK: boundary.error = ERR_BUG\n", "baseline": "", "systems": ["loot"]}, "guarded_uncertainty": {"match": "   if rewards != null:\n    rewards.finish_settlement(MonsterRewards.Result.UNCERTAIN)\n", "baseline": "", "systems": ["loot"]}, "guarded_commit": {"match": "  Batch.Outcome.COMMITTED, Batch.Outcome.COMMITTED_CLEANUP_PENDING:\n   if rewards != null:\n    var cleanup: bool = finalized.outcome == Batch.Outcome.COMMITTED_CLEANUP_PENDING or finalized.write_blocked or boundary.release_error != OK\n    rewards.finish_settlement(MonsterRewards.Result.CLEANUP_PENDING if cleanup else MonsterRewards.Result.COMMITTED)\n", "baseline": "", "systems": ["loot"]}, "guarded_rollback": {"match": " if captured.has(\"monster_rewards\"):\n  game.monster_rewards.restore_savepoint(captured.monster_rewards)\n", "baseline": "", "systems": ["loot"]}}},
     "spirit_affinity.gd": {"regions": {"ec01_1": {"match": "\tvar key: String=\"%d/%s\"%[event.actor,event.source]\n\tvar potency: Dictionary=event.potency()\n\tvar speed: float=potency.speed\n\tvar old: Dictionary=sources.get(key,{})\n\tif int(old.get(\"until\",0))>elapsed and float(old.speed)>speed: return\n\tsources[key]={\"actor\":event.actor,\"quality\":event.quality,\"speed\":speed,\"until\":elapsed+STRIDE_MS+int(potency.get(\"duration_bonus_ms\",0))}\n\tp[STRIDES]=sources\n", "baseline": "\tvar key: String=\"%d/%s\"%[event.actor,event.source]\n\tvar speed: float=event.potency().speed\n\tvar old: Dictionary=sources.get(key,{})\n\tif int(old.get(\"until\",0))>elapsed and float(old.speed)>speed: return\n\tsources[key]={\"actor\":event.actor,\"quality\":event.quality,\"speed\":speed,\"until\":elapsed+STRIDE_MS}\n\tp[STRIDES]=sources\n", "systems": ["affinity_cards"]}}},
     "storm_affinity.gd": {"regions": {"ec01_1": {"match": "\t\t\tif not game.Life.alive(p) or elapsed<int(p.get(FORM_READY,0)) or not event.take_response(\"storm_form\"): return\n\t\t\tp[FORM_READY]=elapsed+FORM_INTERVAL-int(q.get(\"interval_reduction_ms\",0))\n\t\t\tvar point: Vector3=details.get(\"point\",game.enemy_position(details.enemy))\n", "baseline": "\t\t\tif not game.Life.alive(p) or elapsed<int(p.get(FORM_READY,0)) or not event.take_response(\"storm_form\"): return\n\t\t\tp[FORM_READY]=elapsed+FORM_INTERVAL\n\t\t\tvar point: Vector3=details.get(\"point\",game.enemy_position(details.enemy))\n", "systems": ["affinity_cards"]}}},
@@ -10334,7 +10351,7 @@
     },
     "warden_combat.gd": {
       "newline": "lf",
-      "regions": {
+      "regions": {"ar06_cooldown_1": {"match": "const Cooldowns = preload(\"res://player_cooldowns.gd\")\n", "baseline": "", "systems": ["player_cooldowns"]}, "ar06_cooldown_2": {"match": "\tif learned(player,\"ready_footing\"):\n\t\tvar timers: Cooldowns.Timers = player[Cooldowns.STATE]\n\t\tif not timers.ready(Cooldowns.DODGE, now):\n\t\t\tplayer[Cooldowns.STATE] = timers.ready_by(Cooldowns.DODGE, now)\n\t\t\tcue(game,\"Ready Footing\",player.pos)\n", "baseline": "\tif learned(player,\"ready_footing\") and int(player.get(\"dodge_at\",0)) > now:\n\t\tplayer.dodge_at = now\n\t\tcue(game,\"Ready Footing\",player.pos)\n", "systems": ["player_cooldowns"]}, "ar06_cooldown_3": {"match": "\t\tvar timers: Cooldowns.Timers = player[Cooldowns.STATE]\n\t\tif not timers.ready(Cooldowns.Q, now):\n\t\t\tplayer[Cooldowns.STATE] = timers.refund(Cooldowns.Q, now, 1250)\n", "baseline": "\t\tvar previous := int(player.get(\"skill_at\",0))\n\t\tif previous > now:\n\t\t\tplayer.skill_at = maxi(now,previous-1250)\n", "systems": ["player_cooldowns"]}, "ar06_cooldown_4": {"match": "\t\t\t\tvar timers: Cooldowns.Timers = player[Cooldowns.STATE]\n\t\t\t\tif not timers.ready(Cooldowns.Q, now):\n\t\t\t\t\tplayer[Cooldowns.STATE] = timers.refund(Cooldowns.Q, now, Connected.Q_REFUND_MS)\n", "baseline": "\t\t\t\tvar before := int(player.get(\"skill_at\",0))\n\t\t\t\tif before > now:\n\t\t\t\t\tplayer.skill_at = maxi(now,before-Connected.Q_REFUND_MS)\n", "systems": ["player_cooldowns"]},
         "ct02_1": {
           "match": "\t\t\"counter_bonus\":skill.get(\"counter_window_bonus\",0)}\n\tif event != null and game.has_meta(&\"combat_affinity_ruleset\") and Connected.eligible(player.character):\n\t\tplayer.warden_block.merge({\"activation\":event.identity, \"granted\":event.has_grants(), \"protection_used\":false})\n",
           "baseline": "\t\t\"counter_bonus\":skill.get(\"counter_window_bonus\",0)}\n\tif event != null and Connected.in_world(game,0,player.character):\n\t\tplayer.warden_block.merge({\"activation\":event.identity, \"granted\":event.has_grants(), \"protection_used\":false})\n",
@@ -19214,7 +19231,7 @@
     },
     "ability_aim.gd": {
       "newline": "lf",
-      "regions": {
+      "regions": {"ar06_cooldown_1": {"match": "const Cooldowns = preload(\"res://player_cooldowns.gd\")\n", "baseline": "", "systems": ["player_cooldowns"]}, "ar06_cooldown_2": {"match": "\tvar ready: bool\n\tif game_node.multiplayer.is_server():\n\t\tvar timers: Cooldowns.Timers = local.get(Cooldowns.STATE)\n\t\tready = timers == null or timers.ready(Cooldowns.Q if skill_slot == 0 else Cooldowns.R, Time.get_ticks_msec())\n\telse:\n", "baseline": "\tvar now := Time.get_ticks_msec()\n\tvar ready: bool = now >= int(local.get(\"skill_at\" if skill_slot == 0 else \"skill_two_at\", 0))\n\tif not game_node.multiplayer.is_server():\n", "systems": ["player_cooldowns"]},
         "ct01_1": {
           "match": "\tvar profile: Dictionary = local.get(\"character\", game_node.guest_character.data)\n\tvar skill: Dictionary = game_node.Traits.tune_skill(game_node.Skills.resolve_in_world(game_node, int(local.frame), skill_slot, profile), stats)\n\tvar cast := Targeting.plan(game_node, local, field, skill, stats, forward, distance)\n",
           "baseline": "\tvar profile: Dictionary = local.get(\"character\", game_node.guest_character.data)\n\tvar skill: Dictionary = game_node.Traits.tune_skill(game_node.Skills.resolve(int(local.frame), skill_slot, profile), stats)\n\tvar cast := Targeting.plan(game_node, local, field, skill, stats, forward, distance)\n",
@@ -20224,7 +20241,7 @@
     },
     "subclass_combat.gd": {
       "newline": "lf",
-      "regions": {
+      "regions": {"ar06_cooldown_1": {"match": "const Cooldowns = preload(\"res://player_cooldowns.gd\")\n", "baseline": "", "systems": ["player_cooldowns"]}, "ar06_cooldown_2": {"match": "\tvar timers: Cooldowns.Timers = player[Cooldowns.STATE]\n\tplayer[Cooldowns.STATE] = timers.start(Cooldowns.Q, now, Balance.cooldown(skill,stats))\n", "baseline": "\tplayer.skill_at = now + Balance.cooldown(skill,stats)\n", "systems": ["player_cooldowns"]}, "ar06_cooldown_3": {"match": "\t\t\t\tvar timers: Cooldowns.Timers = player[Cooldowns.STATE]\n\t\t\t\tplayer[Cooldowns.STATE] = timers.refund(Cooldowns.R, now, 1700, Balance.COOLDOWN_MIN_MS)\n", "baseline": "\t\t\t\tplayer.skill_two_at = maxi(now+1800,int(player.skill_two_at)-1700)\n", "systems": ["player_cooldowns"]},
         "ec01_playtest_1": {"match": "\t\toracle_api.after_q(game,id,player,skill,int(event.identity) if event != null else cast_id,affected,nearby,now)\n\telif follow >= 0 and not (weaver and follow == 1):\n\t\tplayer.subclass_follow = {\"lane\":follow,\"epoch\":game.combat_epoch,\"life\":player.get(\"lost_health\",0)}\n", "baseline": "\t\toracle_api.after_q(game,id,player,skill,int(event.identity) if event != null else cast_id,affected,nearby,now)\n\telif follow >= 0:\n\t\tplayer.subclass_follow = {\"lane\":follow,\"epoch\":game.combat_epoch,\"life\":player.get(\"lost_health\",0)}\n", "systems": ["weaver_progression"]},
         "ec01_playtest_2": {"match": "\t\t1:\n\t\t\tif not skill.has(\"weaver_nodes\"):\n\t\t\t\tplayer.skill_two_at = maxi(now+1800,int(player.skill_two_at)-1700)\n\t\t2:\n", "baseline": "\t\t1:\n\t\t\tplayer.skill_two_at = maxi(now+1800,int(player.skill_two_at)-1700)\n\t\t2:\n", "systems": ["weaver_progression"]},
       "ec01_1": {"match": "\t\t\tfield.native_weaver_bloom = true\n\t\t\tfield.bloom_life = int(player.get(\"lost_health\",0))\n\tif card.get(\"thorn_patch\",false):\n", "baseline": "\t\t\tfield.native_weaver_bloom = true\n\tif card.get(\"thorn_patch\",false):\n", "systems": ["affinity_cards"]},

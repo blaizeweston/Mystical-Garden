@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const Surface = preload("res://assets/terrain_m02/wilds_play_surface.gd")
 const Navigation = preload("res://assets/terrain_m02/wilds_combat_navigation.gd")
@@ -119,8 +121,8 @@ func prepare(origin: Vector3, foe: Vector3) -> void:
 	player.facing = Vector3.RIGHT
 	player.aim_direction = Vector3.RIGHT
 	player.strike_at = 0
-	player.skill_at = 0
-	player.skill_two_at = 0
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	player.cast_until = 0
 	player.core_cast_until = 0
 	player.core_ready_at = 0
@@ -233,7 +235,7 @@ func class_checks() -> void:
 			check(game.enemy_hp < 100 and not gale_shot.is_empty() and not capsule.is_empty()
 				and Vector3(gale_shot.aim).is_equal_approx(capsule[0].to), "Gale Volley hits through the previewed path")
 		else:
-			check(game.projectile_queue.is_empty() and game.enemy_hp == 100 and player.skill_at == 0,
+			check(game.projectile_queue.is_empty() and game.enemy_hp == 100 and player[Cooldowns.STATE].deadline(Cooldowns.Q) == 0,
 				"blocked Gale target is not offered and spends no cooldown")
 		prepare(origin, foe)
 		player.character.upgrades[game.Frames.RANGER] = 1 << 12

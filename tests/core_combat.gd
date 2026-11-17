@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Core = preload("res://core_combat.gd")
 const Rules = preload("res://core_skill_rules.gd")
 const Settings = preload("res://app_settings.gd")
@@ -103,7 +105,7 @@ func run() -> void:
 		return
 	var line: Dictionary = game.get_meta(Core.STATE)[1]
 	var cooldown: int = p.core_ready_at
-	check(cooldown > Time.get_ticks_msec() and p.skill_at == 0 and p.skill_two_at == 0 and game.attack_animation_snapshot(p).form == "cast", "cast plays Warden animation with independent cooldown")
+	check(cooldown > Time.get_ticks_msec() and p[Cooldowns.STATE].deadline(Cooldowns.Q) == 0 and p[Cooldowns.STATE].deadline(Cooldowns.R) == 0 and game.attack_animation_snapshot(p).form == "cast", "cast plays Warden animation with independent cooldown")
 	game.garden_action(1, request)
 	check(p.core_ready_at == cooldown and game.get_meta(Core.STATE).size() == 1, "one live line and repeat cannot refresh cooldown")
 	check(game.battlefield.clear_line(line.from, line.to, line.skill.radius), "whole footprint lies on legal floor")

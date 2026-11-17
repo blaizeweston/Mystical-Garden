@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Tx=preload("res://game_transaction.gd")
 const Slots=preload("res://save_slots.gd")
 const Roster=preload("res://character_slots.gd")
@@ -156,6 +158,9 @@ func host_run() -> void:
   return
  check(world.encounter_number==3,"choosing cards does not travel")
  var before_travel: int = world.run_wallet(guest)
+ var now := Time.get_ticks_msec()
+ var timers: Cooldowns.Timers = guest[Cooldowns.STATE].with_deadline(Cooldowns.Q, now+25000).with_deadline(Cooldowns.R, now+26000).with_deadline(Cooldowns.DODGE, now+27000)
+ guest[Cooldowns.STATE] = timers
  world.use_checkpoint(1,true)
  mark("advance-wallet",str(before_travel))
  mark("advance",str(world.travel_epoch))
@@ -163,6 +168,7 @@ func host_run() -> void:
   check(false,"advancement commits after both consent")
   return
  check(world.run_wallet(guest)==before_travel,"floor travel retains the guest wallet")
+ check(is_same(guest[Cooldowns.STATE],timers),"floor travel keeps authoritative cooldown deadlines")
  world.send_expedition_state(0,true)
  if not await until(func():return marked("saw-advance")):
   check(false,"guest sees committed advancement")
@@ -243,10 +249,14 @@ func guest_run() -> void:
   return
  world.send_garden_action("travel_ready:"+read("advance"))
  var advance_received:=func():
-  return (world.encounter_number==4
-   and world.players.get(world.local_player_id(),{}).get("wallet",-1)==int(read("advance-wallet")))
+  var local: Dictionary = world.players.get(world.local_player_id(),{})
+  var seconds: Array = local.get("skill_cooldowns", [0.0,0.0])
+  return (world.encounter_number==4 and local.get("wallet",-1)==int(read("advance-wallet"))
+   and not local.get("skill_ready",true) and not local.get("skill_two_ready",true)
+   and not local.get("dodge_ready",true) and seconds[0]>0.0 and seconds[1]>seconds[0]
+   and not local.has(Cooldowns.STATE))
  if not await until(advance_received):
-  check(false,"guest observes authoritative advancement")
+  check(false,"guest observes advancement and projected native cooldowns without host timers")
   return
  mark("saw-advance")
  if not await until(func():return marked("extract")):

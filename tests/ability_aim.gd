@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Aim = preload("res://ability_aim.gd")
 const Core = preload("res://core_combat.gd")
 const Targeting = preload("res://class_ability_targeting.gd")
@@ -48,41 +50,41 @@ func run() -> void:
 
 	input(game, KEY_Q, true)
 	var controller = Aim.active(game)
-	check(controller != null and controller.drawing.get_surface_count() == 1 and p.skill_at == 0, "self guard shows a preview without casting")
+	check(controller != null and controller.drawing.get_surface_count() == 1 and p[Cooldowns.STATE].deadline(Cooldowns.Q) == 0, "self guard shows a preview without casting")
 	input(game, KEY_R, true)
 	input(game, KEY_R, false)
 	input(game, KEY_Q, true, true)
-	check(controller.slot == 0 and p.skill_at == 0 and p.skill_two_at == 0, "other keys and repeats cannot commit the held slot")
+	check(controller.slot == 0 and p[Cooldowns.STATE].deadline(Cooldowns.Q) == 0 and p[Cooldowns.STATE].deadline(Cooldowns.R) == 0, "other keys and repeats cannot commit the held slot")
 	input(game, KEY_Q, false)
-	var guard_cooldown: int = p.skill_at
-	check(guard_cooldown > 0 and p.skill_two_at == 0 and controller.drawing.get_surface_count() == 0, "matching release casts and clears")
+	var guard_cooldown: int = p[Cooldowns.STATE].deadline(Cooldowns.Q)
+	check(guard_cooldown > 0 and p[Cooldowns.STATE].deadline(Cooldowns.R) == 0 and controller.drawing.get_surface_count() == 0, "matching release casts and clears")
 	input(game, KEY_Q, false)
-	check(p.skill_at == guard_cooldown, "duplicate release does not cast again")
+	check(p[Cooldowns.STATE].deadline(Cooldowns.Q) == guard_cooldown, "duplicate release does not cast again")
 	input(game, KEY_R, true)
 	game.toggle_overlay(game.pack_menu)
 	game.toggle_overlay(null)
 	input(game, KEY_R, false)
-	check(p.skill_two_at == 0 and controller.slot == -1, "opening an overlay cancels the preview")
+	check(p[Cooldowns.STATE].deadline(Cooldowns.R) == 0 and controller.slot == -1, "opening an overlay cancels the preview")
 	input(game, KEY_R, true)
 	game.encounter_number += 1
 	input(game, KEY_R, false)
-	check(p.skill_two_at == 0 and controller.slot == -1, "a release after floor travel never casts")
+	check(p[Cooldowns.STATE].deadline(Cooldowns.R) == 0 and controller.slot == -1, "a release after floor travel never casts")
 	input(game, KEY_R, true)
 	controller.get_window().focus_exited.emit()
 	input(game, KEY_R, false)
-	check(p.skill_two_at == 0, "focus loss cancels the hold")
+	check(p[Cooldowns.STATE].deadline(Cooldowns.R) == 0, "focus loss cancels the hold")
 
 	p.frame = game.Frames.CASTER
-	p.skill_at = 0
+	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	p.facing = Vector3.BACK
 	input(game, KEY_Q, true)
 	check(controller.drawing.get_surface_count() == 1, "unacquired target still shows the available range")
 	p.facing = Vector3.FORWARD
 	controller.update_preview(p)
 	input(game, KEY_Q, false)
-	check(p.skill_at > 0 and game.rooted_until > Time.get_ticks_msec(), "release uses updated direction and roots the acquired target")
+	check(p[Cooldowns.STATE].deadline(Cooldowns.Q) > 0 and game.rooted_until > Time.get_ticks_msec(), "release uses updated direction and roots the acquired target")
 	game.garden_action(1, "class_cast:stale:1:0:-1")
-	check(p.skill_two_at == 0, "stale class commands cannot spend a cooldown")
+	check(p[Cooldowns.STATE].deadline(Cooldowns.R) == 0, "stale class commands cannot spend a cooldown")
 
 	p.facing = Vector3.FORWARD
 	check_class_footprints(game, p)

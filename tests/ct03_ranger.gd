@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Progression = preload("res://ranger_connected_tree.gd")
 const Ranger = preload("res://ranger_combat.gd")
 const Mark = preload("res://core_strike_mark.gd")
@@ -92,8 +94,8 @@ func prepare(path: Array, origin := Vector3.ZERO, enemy := Vector3(2,0,0)) -> vo
 	ranger.hp = 70
 	ranger.max_hp = 90
 	ranger.fallen = false
-	ranger.skill_at = 0
-	ranger.skill_two_at = 0
+	ranger[Cooldowns.STATE] = ranger[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
+	ranger[Cooldowns.STATE] = ranger[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	ranger.strike_at = 0
 	ranger.cast_until = 0
 	ally.pos = Vector3(-8,0,2)
@@ -150,7 +152,7 @@ func tracked_and_offense() -> void:
 	for index in 24:
 		game.trait_events.append({"kind":"hit"})
 	cast(1)
-	check(trap(1).is_empty() and ranger.has(Ranger.SNARE) and ranger.skill_two_at==0 and "could not be set" in game.status,
+	check(trap(1).is_empty() and ranger.has(Ranger.SNARE) and ranger[Cooldowns.STATE].deadline(Cooldowns.R)==0 and "could not be set" in game.status,
 		"full queue refuses R and preserves its preparation and cooldown")
 	game.trait_events.clear()
 	game.enemy_pos = Vector3(5,0,0)
@@ -222,7 +224,7 @@ func balanced_and_corridor() -> void:
 	cast(1)
 	var placed := trap(1)
 	check(not placed.is_empty() and is_equal_approx(placed.radius,1.45) and placed.until-placed.next == 4550
-		and ranger.skill_two_at-stamp>=4800 and ranger.skill_two_at-stamp<4900,
+		and ranger[Cooldowns.STATE].deadline(Cooldowns.R)-stamp>=4800 and ranger[Cooldowns.STATE].deadline(Cooldowns.R)-stamp<4900,
 		"Quick Reset and Snarecraft apply to the single real R record")
 	if not placed.is_empty():
 		var tick_at: int = placed.next
@@ -278,11 +280,11 @@ func defense_and_route() -> void:
 	if not briar.is_empty():
 		game.Traits.tick(game,int(briar.next))
 		check(departure_ally.rooted_until>0 and departure_ally.hp==300,"Briar Retreat uses its native root without extra damage")
-	var q_time: int = ranger.skill_at
+	var q_time: int = ranger[Cooldowns.STATE].deadline(Cooldowns.Q)
 	ranger.class_aim_distance=0.05
-	ranger.skill_at=0
+	ranger[Cooldowns.STATE] = ranger[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	cast(0)
-	check(q_time>0 and ranger.skill_at==0 and ranger.pos.x < -4,"invalid retreat spends no cooldown or movement")
+	check(q_time>0 and ranger[Cooldowns.STATE].deadline(Cooldowns.Q)==0 and ranger.pos.x < -4,"invalid retreat spends no cooldown or movement")
 	ally.pos = Vector3(1.05,0,1.75)
 	ally.guard_until=0
 	ally.guard_charges=0
@@ -321,7 +323,7 @@ func defense_and_route() -> void:
 	for index in 24:
 		game.trait_events.append({"kind":"hit"})
 	cast(0)
-	check(ranger.pos==Vector3.ZERO and ranger.skill_at==0 and Ranger.speed_scale(game,ranger,Time.get_ticks_msec())==1.0
+	check(ranger.pos==Vector3.ZERO and ranger[Cooldowns.STATE].deadline(Cooldowns.Q)==0 and Ranger.speed_scale(game,ranger,Time.get_ticks_msec())==1.0
 		and "Could not set" in game.status,"full queue refuses the retreat before motion, Ward or speed")
 
 func run() -> void:

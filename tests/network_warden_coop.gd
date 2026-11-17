@@ -1,4 +1,6 @@
 extends SceneTree
+
+const Cooldowns = preload("res://player_cooldowns.gd")
 # Real guest input/RPC regression: Warden final kill, cleared floor, then next fight.
 var game: Node
 var base: String
@@ -32,7 +34,7 @@ func prepare(p: Dictionary,variant: int) -> void:
  game.scouts.assign([scout])
  game.encounter_rewarded=false
  for ally in game.players.values(): ally.wild=true;ally.pos=Vector3(0,0,-1.5);ally.hp=10
- p.frame=0;p.weapon_kind=0;p.skill_at=0;p.skill_two_at=0;p.character.active_class=0;p.character.upgrades[0]=variant;p.character.xp[0]=int(game.Character.LEVEL_THRESHOLDS.back())
+ p.frame=0;p.weapon_kind=0;p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0);p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0);p.character.active_class=0;p.character.upgrades[0]=variant;p.character.xp[0]=int(game.Character.LEVEL_THRESHOLDS.back())
  game.publish_character(int(game.players.keys()[1]))
 func host_run() -> void:
  check(game.host_game()==OK,"host opens")
@@ -48,16 +50,16 @@ func host_run() -> void:
   prepare(p,variant);mark("ready-"+str(variant))
   check(await until(func(): return marked("cleared-"+str(variant))),"guest sees final kill variant "+str(variant))
   check(game.encounter_cleared() and game.encounter_rewarded,"last primary and scout deaths finish combat once")
-  var cooldowns: Array=[p.skill_at,p.skill_two_at];var fx:=int(p.get("skill_fx_seq",0));var health: float=p.hp
+  var cooldowns: Array=[p[Cooldowns.STATE].deadline(Cooldowns.Q),p[Cooldowns.STATE].deadline(Cooldowns.R)];var fx:=int(p.get("skill_fx_seq",0));var health: float=p.hp
   mark("spam-"+str(variant))
   check(await until(func(): return marked("spammed-"+str(variant))),"guest remains alive through cleared-floor requests")
-  check([p.skill_at,p.skill_two_at]==cooldowns and int(p.get("skill_fx_seq",0))==fx and p.hp==health,"cleared-floor requests cause no cast, cooldown, health or FX changes")
+  check([p[Cooldowns.STATE].deadline(Cooldowns.Q),p[Cooldowns.STATE].deadline(Cooldowns.R)]==cooldowns and int(p.get("skill_fx_seq",0))==fx and p.hp==health,"cleared-floor requests cause no cast, cooldown, health or FX changes")
   check(game.players.has(id) and game.players[id].profile_ready,"guest remains registered")
   mark("checked-"+str(variant))
   check(await until(func(): return marked("ack-"+str(variant))),"guest receives host acknowledgement")
  prepare(p,0);mark("next")
  check(await until(func(): return marked("next-cast")),"guest casts in next encounter")
- check(p.skill_at>0,"post-clear guest still sends working abilities")
+ check(p[Cooldowns.STATE].deadline(Cooldowns.Q)>0,"post-clear guest still sends working abilities")
  mark("done")
  check(await until(func(): return game.players.size()==1),"guest leaves normally")
  game.leave_game("Warden fixture complete")

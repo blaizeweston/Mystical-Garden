@@ -1,4 +1,6 @@
 extends SceneTree
+
+const Cooldowns = preload("res://player_cooldowns.gd")
 const Catalog=preload("res://class_catalog.gd")
 const Parts=preload("res://weapon_parts.gd")
 const Weapons=preload("res://weapon_system.gd")
@@ -31,7 +33,7 @@ func arena(p: Dictionary):
 	p.graft_part=0
 	p.power=0
 	p.technique=0
-	p.skill_at=0
+	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	p.focus_until=0
 	p.renewal_until=0
 	p.guard_until=0
@@ -164,7 +166,7 @@ func run():
 		var now:=Time.get_ticks_msec()
 		game.send_garden_action("class_skill")
 		game.update_projectiles(Time.get_ticks_msec()+600)
-		check(p.skill_at>now,"unique class skill starts cooldown")
+		check(p[Cooldowns.STATE].deadline(Cooldowns.Q)>now,"unique class skill starts cooldown")
 		match c:
 			0: check(p.guard_until>now,"Warden guards")
 			1: check(game.rooted_until>now,"Weaver binds")

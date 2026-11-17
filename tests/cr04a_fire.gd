@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Rules = preload("res://combat_ruleset.gd")
 const Fire = preload("res://fire_combat.gd")
 const Clock = preload("res://affinity_time.gd")
@@ -104,11 +106,11 @@ func run() -> void:
 		check(game.enemy_hp==after-q.tick_hp,"another player has an independent Form")
 		p.secondary=0
 		p.catalyst=part
-		p.skill_two_at=0
+		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 		game.use_class_skill(1,p,1)
 		check(game.leader_brain.get(Fire.BURNING,{}).get("1/catalyst",{}).get("hp",0)==q.tick_hp,"native offensive class contact adds separate Catalyst burn")
 		reset()
-		p.skill_at=0
+		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		p.hurt_until=0
 		p.guard_until=0
 		p.guard_charges=0
@@ -119,7 +121,7 @@ func run() -> void:
 		reset()
 		p.frame=4
 		p.hp=50
-		p.skill_at=0
+		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		var ally: Dictionary=game.players[2]
 		ally.guard_until=0
 		ally.hurt_until=0

@@ -8,6 +8,7 @@ Edges describe gameplay/data relationships. Selection uses explicit suite covera
 flowchart LR
   expedition_grafts["Expedition graft ledgers<br/> altar quotes and source-owned adaptations"]
   departure_settlement["Detached profiles<br/> protected cargo and guarded disconnect settlement"]
+  player_cooldowns["Host-owned native Q<br/> R and dodge cooldown deadlines"]
   expedition_wallet["Run-only Essence sparks<br/> floor grants and spending"]
   affinity_cards["Affinity expedition card ledger<br/> rarity<br/> Essence rerolls and owned effects"]
   oracle_progression["Connected Oracle<br/> native Omens and first-run focus admission"]
@@ -99,6 +100,9 @@ flowchart LR
   enemy_balance["Preview enemy durability<br/> damage and reinforcement budgets"]
   expedition_sustain["Expedition sustain<br/> heal feedback and health transitions"]
   spectator_layout["Spectator panel placement below the floor tracker"]
+  player_cooldowns -->|"Native class casts and refunds use each actor’s Q and R deadlines"| classes
+  life -->|"New actors and expedition entry initialize native readiness"| player_cooldowns
+  player_cooldowns -->|"Guests receive projected readiness and remaining Q and R seconds"| world_snapshot
   expedition_grafts -->|"Basic attacks capture purchased adaptations and resolve bounded secondary effects"| combat_affinity_contracts
   expedition_grafts -->|"Reinforced Frame previews share the resolved maximum-health calculation"| life
   expeditions -->|"Earned choices, owner revisions and expedition-only currency"| affinity_cards
@@ -317,6 +321,7 @@ flowchart LR
 |---|---|---|
 | expedition_grafts | `expedition_grafts.gd`, `expedition_grafts.gd.uid`, `affinity_grafting_panel.gd`, `affinity_grafting_panel.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `ct02_weaver`, `ct04_reaper`, `cr05_native_grafts`, `cr05_native_grafts_coop`, `cr05_native_grafts_party` |
 | departure_settlement | `departure_settlement.gd`, `departure_settlement.gd.uid` | `experimental_terrain_coop`, `candidate_release_party`, `guarded_expedition`, `guarded_expedition_coop`, `monster_rewards` |
+| player_cooldowns | `player_cooldowns.gd`, `player_cooldowns.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `ct05_oracle`, `ct01_warden`, `ct02_weaver`, `ct03_ranger`, `ct04_reaper`, `world_snapshot_codec`, `cr02_combat_contracts`, `experimental_terrain`, `guarded_expedition`, `guarded_expedition_coop`, `ability_aim`, `classes_weapons`, `dual_skills`, `dual_skills_coop`, `network_warden_coop`, `player_hud` |
 | expedition_wallet | `expedition_wallet.gd`, `expedition_wallet.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `cr05_native_grafts`, `world_snapshot_codec`, `cr02_mode_coop`, `experimental_terrain`, `guarded_expedition`, `guarded_expedition_coop`, `guarded_garden_actions`, `core_combat_coop`, `monster_rewards`, `run_flow`, `weighted_upgrades` |
 | affinity_cards | `affinity_cards.gd`, `affinity_cards.gd.uid`, `affinity_card_ledger.gd`, `affinity_card_ledger.gd.uid`, `affinity_card_catalog.gd`, `affinity_card_catalog.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `cr05_native_grafts`, `cr02_mode_coop` |
 | oracle_progression | `oracle_connected_tree.gd`, `oracle_connected_tree.gd.uid`, `oracle_combat.gd`, `oracle_combat.gd.uid`, `oracle_omens.gd`, `oracle_omens.gd.uid` | `ct05_oracle`, `ct05_oracle_coop`, `ct05_oracle_party` |
@@ -745,6 +750,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_apply_loadout_action` | ct01_0 | warden_progression, classes, combat_affinity_contracts |
 | `game.gd::_apply_loadout_action` | ct01_1 | warden_progression, classes, combat_affinity_contracts |
 | `game.gd::_apply_loadout_action` | cr05_progression_0 | classes, life, combat_affinity_contracts |
+| `game.gd::dodge_player` | ar06_cooldown_1 | player_cooldowns |
+| `game.gd::dodge_player` | ar06_cooldown_2 | player_cooldowns |
 | `game.gd::dodge_player` | ec01_1 | affinity_cards |
 | `game.gd::dodge_player` | cr04c_spirit_0 | spirit_affinity, combat_affinity_contracts, world_snapshot |
 | `game.gd::move_player` | ct03_ranger_1 | terrain, ranger_progression |
@@ -799,6 +806,11 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_use_checkpoint` | garden_returns | garden_returns |
 | `game.gd::_use_checkpoint` | gate_hold | gate_access |
 | `game.gd::_use_checkpoint` | gate_range | gate_access |
+| `game.gd::_process` | ar06_cooldown_1 | player_cooldowns |
+| `game.gd::_process` | ar06_cooldown_2 | player_cooldowns |
+| `game.gd::_process` | ar06_cooldown_3 | player_cooldowns |
+| `game.gd::_process` | ar06_cooldown_4 | player_cooldowns |
+| `game.gd::_process` | ar06_cooldown_5 | player_cooldowns |
 | `game.gd::_process` | ga01a_1 | expedition_grafts |
 | `game.gd::_process` | ar02_affinity_completion_hud | affinity_cards |
 | `game.gd::_process` | ec01_1 | affinity_cards |
@@ -873,6 +885,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::toggle_overlay` | show_run_summary | expedition_summary |
 | `game.gd::toggle_overlay` | cancel_held_aim | ability_aim |
 | `game.gd::toggle_overlay` | garden_panel | garden_observations |
+| `game.gd::player_snapshot` | ar06_cooldown_1 | player_cooldowns |
+| `game.gd::player_snapshot` | ar06_cooldown_2 | player_cooldowns |
 | `game.gd::player_snapshot` | ar02_affinity_completion_snapshot | affinity_cards |
 | `game.gd::player_snapshot` | ga01a_1 | expedition_grafts |
 | `game.gd::player_snapshot` | ec01_1 | affinity_cards |
@@ -896,6 +910,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::prepare_guarded_exit` | ar05_reward_lifecycle | loot |
 | `game.gd::prepare_guarded_exit` | ar04_departure_exit | departure_settlement |
 | `game.gd::admission_error` | ar04_departure_readmission | departure_settlement |
+| `game.gd::add_player` | ar06_cooldown_1 | player_cooldowns |
+| `game.gd::add_player` | ar06_cooldown_2 | player_cooldowns |
 | `game.gd::add_player` | ar03_wallet_initialization | expedition_wallet |
 | `game.gd::add_player` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::add_player` | preview_spawn_capacity | combat_balance_preview |
@@ -952,6 +968,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::garden_action` | class_aim_command | ability_aim |
 | `game.gd::garden_action` | core_cast | core_combat |
 | `game.gd::garden_action` | growth_balance | cultivation_growth |
+| `game.gd::_enter_wilds` | ar06_cooldown_1 | player_cooldowns |
 | `game.gd::_enter_wilds` | ar03_wallet_departure | expedition_wallet |
 | `game.gd::_enter_wilds` | ga01a_1 | expedition_grafts |
 | `game.gd::_enter_wilds` | cr04c_void_0 | void_affinity, combat_affinity_contracts, world_snapshot |
@@ -1063,6 +1080,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::make_scout` | preview_juvenile_hp | combat_balance_preview |
 | `game.gd::make_scout` | heavy_and_support | enemy_attack_plan |
 | `game.gd::make_scout` | species_variants | enemy_attack_plan |
+| `game.gd::apply_weapon_hit` | ar06_cooldown_1 | player_cooldowns |
 | `game.gd::apply_weapon_hit` | ct05_oracle_1 | oracle_progression |
 | `game.gd::apply_weapon_hit` | ct05_oracle_2 | oracle_progression |
 | `game.gd::apply_weapon_hit` | ct03_ranger_1 | combat, weapons, classes, loot, enemies, enemy_attack_plan, ranger_progression |
@@ -1119,6 +1137,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::reset_encounter` | cb06_3 | enemy_balance |
 | `game.gd::reset_encounter` | core_floor_reset | core_combat |
 | `game.gd::reset_encounter` | pack_composition | encounter_composition |
+| `game.gd::use_class_skill` | ar06_cooldown_1 | player_cooldowns |
+| `game.gd::use_class_skill` | ar06_cooldown_2 | player_cooldowns |
 | `game.gd::use_class_skill` | ec01_1 | affinity_cards |
 | `game.gd::use_class_skill` | ec01_2 | affinity_cards |
 | `game.gd::use_class_skill` | ct05_oracle_1 | oracle_progression |
@@ -1385,6 +1405,20 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::return_to_garden` | thorn_form_reset | thorn_affinity, combat_affinity_contracts |
 | `game.gd::return_to_garden` | affinity_floor_state | vital_affinity, fire_affinity, combat_affinity_contracts |
 | `game.gd::return_to_garden` | cr03_frost_integration | frost_affinity |
+| `diagnostic_journal.gd` | ar06_cooldown_1 | player_cooldowns, diagnostics |
+| `diagnostic_journal.gd` | ar06_cooldown_2 | player_cooldowns, diagnostics |
+| `diagnostic_journal.gd` | ar06_cooldown_3 | player_cooldowns, diagnostics |
+| `oracle_combat.gd` | ar06_cooldown_1 | player_cooldowns |
+| `oracle_combat.gd` | ar06_cooldown_2 | player_cooldowns |
+| `ranger_combat.gd` | ar06_cooldown_1 | player_cooldowns |
+| `ranger_combat.gd` | ar06_cooldown_2 | player_cooldowns |
+| `reaper_combat.gd` | ar06_cooldown_1 | player_cooldowns |
+| `reaper_combat.gd` | ar06_cooldown_2 | player_cooldowns |
+| `reaper_combat.gd` | ar06_cooldown_3 | player_cooldowns |
+| `reaper_combat.gd` | ar06_cooldown_4 | player_cooldowns |
+| `weaver_combat.gd` | ar06_cooldown_1 | player_cooldowns |
+| `weaver_combat.gd` | ar06_cooldown_2 | player_cooldowns |
+| `weaver_combat.gd` | ar06_cooldown_3 | player_cooldowns |
 | `game_transaction.gd` | receipt_owner | loot |
 | `game_transaction.gd` | legacy_capture | loot |
 | `game_transaction.gd` | legacy_rollback | loot |
@@ -1433,6 +1467,10 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `warden_tree.gd` | ct01_3 | warden_progression, classes, combat_affinity_contracts |
 | `warden_tree.gd` | ct01_4 | warden_progression, classes, combat_affinity_contracts |
 | `warden_tree.gd` | cr02_card_lines | combat_affinity_contracts |
+| `warden_combat.gd` | ar06_cooldown_1 | player_cooldowns |
+| `warden_combat.gd` | ar06_cooldown_2 | player_cooldowns |
+| `warden_combat.gd` | ar06_cooldown_3 | player_cooldowns |
+| `warden_combat.gd` | ar06_cooldown_4 | player_cooldowns |
 | `warden_combat.gd` | ct02_1 | weaver_progression, warden_progression, combat_affinity_contracts |
 | `warden_combat.gd` | ct02_2 | weaver_progression, warden_progression, combat_affinity_contracts |
 | `warden_combat.gd` | ct01_holdfast_1 | warden_progression, combat, life |
@@ -2781,6 +2819,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `core_strike_mark.gd` | cb05_4 | core_balance |
 | `core_strike_mark.gd` | subclass_mark_release | warden_progression |
 | `core_strike_mark.gd` | subclass_mark_storage | warden_progression |
+| `ability_aim.gd` | ar06_cooldown_1 | player_cooldowns |
+| `ability_aim.gd` | ar06_cooldown_2 | player_cooldowns |
 | `ability_aim.gd` | ct01_1 | warden_progression, classes, combat_affinity_contracts |
 | `ability_aim.gd` | vital_aim_1 | vital_affinity, combat_affinity_contracts, core_combat, mouse_combat |
 | `ability_aim.gd` | vital_aim_2 | vital_affinity, combat_affinity_contracts, core_combat, mouse_combat |
@@ -2898,6 +2938,9 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `boss_phase_fights.gd` | boss_windup | event_audio |
 | `enemy_move_feedback.gd` | orchard_locked_release | boss_lair_fights |
 | `combat_audio.gd` | orchard_cage_cast_audio | boss_lair_fights |
+| `subclass_combat.gd` | ar06_cooldown_1 | player_cooldowns |
+| `subclass_combat.gd` | ar06_cooldown_2 | player_cooldowns |
+| `subclass_combat.gd` | ar06_cooldown_3 | player_cooldowns |
 | `subclass_combat.gd` | ec01_playtest_1 | weaver_progression |
 | `subclass_combat.gd` | ec01_playtest_2 | weaver_progression |
 | `subclass_combat.gd` | ec01_1 | affinity_cards |

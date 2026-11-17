@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Rules = preload("res://combat_ruleset.gd")
 const Water = preload("res://water_combat.gd")
 const Fire = preload("res://fire_combat.gd")
@@ -106,12 +108,12 @@ func run() -> void:
 		check(is_equal_approx(Water.reduction(game.leader_brain,Clock.now(game)),q.reduction),"real Form contact gives exact quality reduction")
 		p.secondary=0
 		p.catalyst=part
-		p.skill_two_at=0
+		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 		game.use_class_skill(1,p,1)
 		check(game.leader_brain.get(Water.DRENCHED,{}).size()==2,"native class contact contributes a separate Drenched Catalyst")
 		check(is_equal_approx(Water.reduction(game.leader_brain,Clock.now(game)),q.reduction),"same potency is not multiplied")
 		reset()
-		p.skill_at=0
+		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		p.guard_until=0
 		p.guard_charges=0
 		p.hurt_until=0

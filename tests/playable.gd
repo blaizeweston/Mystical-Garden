@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const World := preload("res://world.tscn")
 const Stage := preload("res://stage.gd")
 const Progress := preload("res://progress.gd")
@@ -519,10 +521,10 @@ func verify_class_frames() -> void:
 	place(1, game.enemy_pos + Vector3.RIGHT * 4.5)
 	var before: Vector3 = game.enemy_pos
 	game.send_garden_action("class_skill")
-	var ready_at: int = p.skill_at
+	var ready_at: int = p[Cooldowns.STATE].deadline(Cooldowns.Q)
 	check(game.rooted_until > Time.get_ticks_msec(), "Rootbind applies in range")
 	game.send_garden_action("class_skill")
-	check(p.skill_at == ready_at, "class cooldown prevents repeat casting")
+	check(p[Cooldowns.STATE].deadline(Cooldowns.Q) == ready_at, "class cooldown prevents repeat casting")
 	await physics_frame
 	await physics_frame
 	check(game.enemy_pos.is_equal_approx(before), "Rootbind stops pursuit")

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Oracle = preload("res://oracle_combat.gd")
 const Omens = preload("res://oracle_omens.gd")
 const Progression = preload("res://oracle_connected_tree.gd")
@@ -87,7 +89,8 @@ func reset_field() -> void:
 		Oracle.clear(player)
 		player.erase("affinity_ward_claims")
 		player.erase("subclass_follow")
-		for key in ["guard_until","guard_charges","hurt_until","slow_until","lost_health","skill_at","skill_two_at",
+		player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
+		for key in ["guard_until","guard_charges","hurt_until","slow_until","lost_health",
 				"core_ready_at","core_cast_until","cast_until","strike_at","weapon","secondary","catalyst","graft_part","weapon_kind"]:
 			player[key] = 0
 		player.run_upgrades = {}
@@ -171,10 +174,10 @@ func entry_for_each_class() -> void:
 			game.trait_events.any(func(field):return field.kind=="growth"),
 			game.trait_events.any(func(field):return field.kind=="snare"),
 			caster.has("reaper_veil_momentum"),caster.has(Omens.STATE)]
-		check(int(caster.skill_at)>Time.get_ticks_msec() and benefits[class_id],"native starting Q applies its effect")
+		check(int(caster[Cooldowns.STATE].deadline(Cooldowns.Q))>Time.get_ticks_msec() and benefits[class_id],"native starting Q applies its effect")
 		game.enemy_pos = caster.pos + Vector3(.7,0,0)
 		game.use_class_skill(1,caster,1)
-		check(int(caster.skill_two_at)>Time.get_ticks_msec(),"native R casts with no equipped parts")
+		check(int(caster[Cooldowns.STATE].deadline(Cooldowns.R))>Time.get_ticks_msec(),"native R casts with no equipped parts")
 	for class_id in qs.size():
 		check(game.Classes.connected_tree(class_id).path(caster.character).size()==1,"switching classes preserves each chosen focus")
 	InputMap.action_erase_events("class_skill")
@@ -206,7 +209,7 @@ func basic_omens() -> void:
 	var foe: Dictionary = game.make_scout(0,Vector3(2,0,.3),11)
 	game.scouts.append(foe)
 	Attacks.lock(game,foe,"swipe",caster.pos,now+500)
-	caster.skill_at=0
+	caster[Cooldowns.STATE] = caster[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	cast(0)
 	check(not foe.attack.has(Omens.FOREBODING_MS) and not record(foe,Progression.FOREBODING,now).is_empty(),"already-started attack does not consume Foreboding")
 	var old: Dictionary = foe.attack
@@ -265,7 +268,7 @@ func nodes_and_chime() -> void:
 	game.update_projectiles(timer+500)
 	var before := int(game.enemy_hp)
 	check(caster.has(Oracle.RITUAL) and before<290,"a close ordinary hit prepares Ritual Verdict")
-	caster.skill_at=0
+	caster[Cooldowns.STATE] = caster[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	cast(0)
 	check(game.enemy_hp==before-20 and not caster.has(Oracle.RITUAL),"Ritual and Verdict share one Q target and consume once")
 	cast(1)
@@ -278,7 +281,7 @@ func nodes_and_chime() -> void:
 	var omen := record(caster,Progression.GUIDED_STRIKE,timer)
 	check(int(omen.get("until",0))>=timer+5500 and game.rooted_until>=timer+650,"Resonance extends only the Portent while Anchored Ley roots")
 	cast(1)
-	check(int(caster.skill_two_at)-timer in range(5300,5330),"Quick Chime subtracts 1.7 seconds from R")
+	check(int(caster[Cooldowns.STATE].deadline(Cooldowns.R))-timer in range(5300,5330),"Quick Chime subtracts 1.7 seconds from R")
 	for focus in Progression.FOCUS_OMENS:
 		var path := MIDDLE.duplicate()
 		path[0]=focus
@@ -345,7 +348,7 @@ func coexistence() -> void:
 	check(int(breath.get("source",0))==1 and not record(ally,Progression.SECOND_BREATH,now,9).is_empty(),"two Oracle grants tie by actor ID")
 	check(record(ally,Progression.SECOND_BREATH,now+3100).is_empty(),"expiry is exclusive")
 	other.character[Progression.PROFILE_KEY]=Progression.TREE.state(["leykeeper"])
-	other.skill_at=0
+	other[Cooldowns.STATE] = other[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	game.use_class_skill(9,other,0)
 	check(not record(ally,Progression.GUIDED_STRIKE,now,9).is_empty() \
 		and not record(ally,Progression.SECOND_BREATH,now,1).is_empty(),"different Omens from two Oracles coexist")

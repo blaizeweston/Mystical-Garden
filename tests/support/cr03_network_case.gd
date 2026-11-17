@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Mode = preload("res://combat_ruleset.gd")
 const Frost = preload("res://frost_combat.gd")
 const Events = preload("res://combat_action_events.gd")
@@ -214,7 +216,7 @@ func host(menu: Node) -> void:
 	if not check(await until(func():return not game.get_meta(Core.STATE,{}).has(1)),"closing petals finish before another action"):return
 	var protected: int=ids[0]
 	var ally: Dictionary=game.players[protected]
-	local.skill_at=0
+	local[Cooldowns.STATE] = local[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	game.use_class_skill(1,local,0)
 	ally.hurt_until=0
 	var before: float=ally.hp
@@ -535,10 +537,10 @@ func exercise_connected_host(game: Node, local: Dictionary, player: Dictionary, 
 		"actual remote Q casts Thorn Counter after crossing lanes"):return false
 	var now := Time.get_ticks_msec()
 	var hp: int = player.hp
-	player.dodge_at=now+1000
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, now+1000)
 	game.apply_enemy_hit(id,player,now,4,0,game.enemy_pos)
 	var blocks := func():return events.filter(func(e):return e.kind=="actual_block" and e.source_actor==id)
-	check(player.hp==hp and player.dodge_at==now and player.get("warden_sanctuary",{}).get("until",0)>now
+	check(player.hp==hp and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)==now and player.get("warden_sanctuary",{}).get("until",0)>now
 		and player.get("warden_holdfast",{}).get("actor")==id and local.get("warden_holdfast",{}).get("actor")==id
 		and blocks.call().size()==1 and blocks.call()[0].quality=="refined","remote Q block grants Holdfast, creates Sanctuary and runs one source-owned Catalyst")
 	local.guard_until=0
@@ -688,7 +690,7 @@ func exercise_reaper_host(game: Node,id: int,entry: Vector3,target: Vector3,even
 	scout.hp=1
 	scout.stagger_until=Time.get_ticks_msec()+10000
 	scout.windup=0
-	reaper.skill_two_at=0
+	reaper[Cooldowns.STATE] = reaper[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	mark("reaper-siphon")
 	var active_charge := func() -> bool:
 		return scout.hp==0 and int(reaper.get("grave_charges",0))==1 and read("reaper-charge-seen")=="ok"
@@ -725,9 +727,9 @@ func exercise_oracle_host(game: Node,id: int,entry: Vector3) -> bool:
 	host_player.hp=60
 	host_player.guard_until=0
 	host_player.guard_charges=0
-	oracle.skill_at=0
+	oracle[Cooldowns.STATE] = oracle[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	oracle.core_cast_until=0
-	oracle.skill_two_at=0
+	oracle[Cooldowns.STATE] = oracle[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	game.enemy_stagger_until=Time.get_ticks_msec()+14000
 	mark("oracle-q")
 	var q_ready := func() -> bool:
@@ -816,21 +818,21 @@ func exercise_weaver_host(game: Node, id: int, entry: Vector3, target: Vector3, 
 	player.pos=entry
 	var aim := (target-entry).normalized()
 	var nova_deadline := Time.get_ticks_msec() + 1200
-	player.skill_two_at = nova_deadline
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, nova_deadline)
 	mark("weaver-q", str(Vector2(aim.x,aim.z)) + ":" + str(entry.distance_to(target)))
 	if not check(await until(func():return player.has("weaver_nova_origin") and game.trait_events.any(func(e):
 		return e.get("native_weaver_bloom",false) and e.owner==id)),"remote Cultivate Bloom records its actual placement"):return false
-	if not check(int(player.skill_two_at) < nova_deadline and int(player.skill_two_at) <= Time.get_ticks_msec()
+	if not check(int(player[Cooldowns.STATE].deadline(Cooldowns.R)) < nova_deadline and int(player[Cooldowns.STATE].deadline(Cooldowns.R)) <= Time.get_ticks_msec()
 			and not player.has("subclass_follow"),"remote Cultivate Bloom immediately makes the active Nova timer ready"):return false
 	var anchor: Vector3=player.weaver_nova_origin.point
-	var q_timer: int=player.skill_at
+	var q_timer: int=player[Cooldowns.STATE].deadline(Cooldowns.Q)
 	check(anchor.distance_to(target)<.2 and game.Skills.resolve_in_world(game,1,0,player.character).name=="Cultivate Bloom",
 		"crossed lane preserves remote Bloomcaller Q")
 	mark("weaver-r",str(Vector2(anchor.x,anchor.z)))
 	if not check(await until(func():return not player.has("weaver_nova_origin") and read("weaver-nova-seen")=="ok"),
 		"remote R consumes Q location and guest sees the additional Nova"):return false
 	var responses := events.filter(func(e):return e.source_actor==id and e.kind=="class_action" and e.details.adapter.begins_with("weaver/"))
-	check(player.skill_at==q_timer-1250 and responses.size()==2 and responses.all(func(e):return e.quality=="refined"),
+	check(player[Cooldowns.STATE].deadline(Cooldowns.Q)==q_timer-1250 and responses.size()==2 and responses.all(func(e):return e.quality=="refined"),
 		"actual Nova damage refunds Q and each remote cast produces one source-owned Catalyst response")
 	return true
 
@@ -1236,7 +1238,7 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 		local.character.upgrades[4]=0
 		local.character[Oracle.PROFILE_KEY]=Oracle.TREE.state(["lifekeeper"])
 		local.catalyst=game.Items.get_item("plant_part_rare_storm_reed").legacy_part
-		local.skill_at=0;local.cast_until=0;local.core_cast_until=0
+		local[Cooldowns.STATE] = local[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0);local.cast_until=0;local.core_cast_until=0
 		for id in ids:
 			if id!=ids[1]: game.players[id].pos=local.pos
 		local.class_aim_distance=0.0

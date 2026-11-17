@@ -1,4 +1,6 @@
 extends SceneTree
+
+const Cooldowns = preload("res://player_cooldowns.gd")
 var game: Node
 var failed:=false
 func check(value: bool,message: String):
@@ -39,12 +41,12 @@ func run():
 		p.wild=true
 		p.hp=4
 		p.pos=Vector3(0,0,-1.5)
-		if not await until(func(): return p.skill_at>0 and p.get("skill_two_at",0)>0):
+		if not await until(func(): return p[Cooldowns.STATE].deadline(Cooldowns.Q)>0 and p[Cooldowns.STATE].deadline(Cooldowns.R)>0):
 			check(false,"both remote skill actions reach host");quit(1);return
 		check(game.enemy_hp<100 and game.rooted_until>Time.get_ticks_msec(),"remote attack and root are authoritative")
 		game.send_garden_action("class_skill")
 		game.send_garden_action("class_skill_two")
-		check(host.skill_at>0 and host.skill_two_at>0,"host also has two independent cooldowns")
+		check(host[Cooldowns.STATE].deadline(Cooldowns.Q)>0 and host[Cooldowns.STATE].deadline(Cooldowns.R)>0,"host also has two independent cooldowns")
 		check(p.hp>=6 and p.guard_charges>=1,"Oracle heals and wards the guest")
 		await create_timer(.8).timeout
 	else:

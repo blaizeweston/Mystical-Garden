@@ -76,6 +76,7 @@ const EXTRACTION_INTERVAL := EncounterConfig.EXTRACTION_INTERVAL
 const LoadoutMaterials=preload("res://loadout_materials.gd")
 const ROUTE_ROOMS := EncounterConfig.BIOME_LENGTH
 const ExpeditionWallet = preload("res://expedition_wallet.gd")
+const Cooldowns = preload("res://player_cooldowns.gd")
 const RunUpgrades=preload("res://run_upgrade_catalog.gd")
 const AffinityCards = preload("res://affinity_cards.gd")
 const HOOK_ROOM := 3
@@ -825,12 +826,12 @@ func add_player(id: int) -> void:
 	var spawn: Vector3 = Stage.SPAWN + [Vector3.ZERO,Vector3(1.1,0,0),Vector3(-1.1,0,0),Vector3(0,0,1.1)][party_slot]
 	var base_health:=Life.Preview.hp(MAX_HEALTH)
 	players[id] = {"party_slot":party_slot,"velocity":Vector3.ZERO,"damage_seq":0,"damage_amount":0,"vitals_revision":0,"pos": spawn, "wild": false, "fallen": false, "lost_health":0, "prepared": 0, "weapon": 0, "experiment": 0, ExpeditionWallet.STATE: ExpeditionWallet.Wallet.new(), "last_offer": 0,"run_upgrades":{},"checkpoint_offers":[],"offer_floor":0,"upgrade_seed":Crypto.new().generate_random_bytes(8).hex_encode().hash(), "power": 0, "technique": 0,
-		"weapon_kind":0, "catalyst":0, "graft_part":0,"graft_floor":0, "prepared_catalyst":0, "cargo_plan":Parts.empty_counts(), "frame": Frames.WARDEN, "skill_at": 0, "skill_two_at":0, "guard_charges":0, "guard_until": 0, "attack_until":0,"attack_duration":240,"attack_combo":0,"swing_until": 0, "contributed": false,
+		"weapon_kind":0, "catalyst":0, "graft_part":0,"graft_floor":0, "prepared_catalyst":0, "cargo_plan":Parts.empty_counts(), "frame": Frames.WARDEN, Cooldowns.STATE: Cooldowns.Timers.new(), "guard_charges":0, "guard_until": 0, "attack_until":0,"attack_duration":240,"attack_combo":0,"swing_until": 0, "contributed": false,
 		"character": local_character.data if id == HOST else Character.blank(), "profile_ready": id == HOST,"joined_at":Time.get_ticks_msec(),
 		"seed_choice": 0, "seed_owner": "", "carried_seeds": [],"safe_items":[],"carried_items":{}, "pouch": false, "loot_pending": false,
 		"donation_choice": Parts.EMPTY, "cache_claimed": false,
 		"carried_parts": Parts.empty_counts(), "secondary": Parts.EMPTY,
-		"prepared_secondary": Parts.EMPTY, "graft_choice": Parts.EMPTY, "rift_hook": false, "slow_until": 0, "hp": float(base_health), "max_hp": base_health, "strike_at": 0, "dodge_at": 0, "facing": Vector3.FORWARD}
+		"prepared_secondary": Parts.EMPTY, "graft_choice": Parts.EMPTY, "rift_hook": false, "slow_until": 0, "hp": float(base_health), "max_hp": base_health, "strike_at": 0, "facing": Vector3.FORWARD}
 	if has_meta(&"combat_affinity_ruleset"):
 		players[id].combat_ruleset = get_meta(&"combat_affinity_ruleset")
 	restore_class_loadout(players[id])
@@ -1817,8 +1818,8 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	Journal.event("combat","skill_requested",{"actor":id,"slot":slot,"state":Journal.player_state(player)})
 	if slot<0 or slot>1: return
 	var now:=Time.get_ticks_msec()
-	var timer: String="skill_at" if slot==0 else "skill_two_at"
-	if not Life.alive(player) or encounter_cleared() or now<int(player.get(timer,0)) or now<int(player.get("core_cast_until",0)): return
+	var cooldowns: Cooldowns.Timers = player[Cooldowns.STATE]
+	if not Life.alive(player) or encounter_cleared() or not cooldowns.ready(slot, now) or now<int(player.get("core_cast_until",0)): return
 	var stats:=weapon_stats(player)
 	var skill: Dictionary
 	var event: RefCounted
@@ -2020,7 +2021,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	Traits.skill_cast(self,player,skill,stats,effect_point,now)
 	player.contributed=true
 	if bonus_heal>0: Life.Sustain.heal(self,player,bonus_heal,"class_healing_bonus")
-	player[timer]=now+Skills.Balance.cooldown(skill,stats)
+	player[Cooldowns.STATE] = player[Cooldowns.STATE].start(slot, now, Skills.Balance.cooldown(skill,stats))
 	var ranger_feedback := ""
 	if not ranger_snare.is_empty():
 		ranger_feedback = preload("res://ranger_combat.gd").finish_snare(self,player,ranger_snare,cast_origin,now)
@@ -2574,7 +2575,7 @@ func dodge_player(id: int, direction: Vector2) -> void:
 		return
 	var p: Dictionary = players[id]
 	var now := Time.get_ticks_msec()
-	if not Life.alive(p) or now < int(p.dodge_at):
+	if not Life.alive(p) or not p[Cooldowns.STATE].ready(Cooldowns.DODGE, now):
 		return
 	var facing := world_direction(direction).normalized()
 	if not facing.is_zero_approx():
@@ -2584,7 +2585,7 @@ func dodge_player(id: int, direction: Vector2) -> void:
 	if p.has("affinity_spirit_follow"):
 		preload("res://spirit_affinity.gd").movement(self,p,previous,p.pos)
 	var recovery := DODGE_COOLDOWN_MS - int(weapon_stats(p).get("dodge_cooldown",0))
-	p.dodge_at = now + maxi(350,recovery - AffinityCards.amount(p,"run_dodge_recovery"))
+	p[Cooldowns.STATE] = p[Cooldowns.STATE].start(Cooldowns.DODGE, now, maxi(350,recovery - AffinityCards.amount(p,"run_dodge_recovery")))
 
 
 func update_enemy(delta: float, now: int) -> void:
@@ -3256,7 +3257,8 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 		authored_damage+=int(stats.get("preview_power",preload("res://combat_ruleset.gd").legacy_power(p)))
 	if winding:
 		authored_damage+=Life.Preview.authored_amount(float(stats.get("windup_damage",0)))
-	if winding and p.rift_hook and not stats.get("core_hit",false) and not p.has("combat_ruleset"): p.dodge_at=0
+	if winding and p.rift_hook and not stats.get("core_hit",false) and not p.has("combat_ruleset"):
+		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, 0)
 	if winding and float(stats.get("windup_damage",0))>0:preload("res://combat_status.gd").proc(self,"punish",origin,point,target)
 	if Life.Preview.authored_amount(float(stats.damage))>0.0 and not stats.get("trait_secondary",false) and not stats.get("core_hit",false):
 		authored_damage+=preload("res://core_strike_mark.gd").consume(self,p,target,now)
@@ -3459,9 +3461,7 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = n
 	p.still_since=Time.get_ticks_msec();p.still_point=wild_entry(id)
 	p[ExpeditionWallet.STATE] = ExpeditionWallet.Wallet.new()
 	p.pos = wild_entry(id)
-	p.dodge_at = 0
-	p.skill_at = 0
-	p.skill_two_at=0
+	p[Cooldowns.STATE] = Cooldowns.Timers.new()
 	p.core_ready_at=0
 	p.core_cast_until=0
 	p.hurt_until=0
@@ -4087,7 +4087,10 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 		if p.has("ranger_speed_grants"):
 			stride = maxf(stride,preload("res://ranger_combat.gd").speed_scale(self,p,Time.get_ticks_msec()))
 		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":(.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get("slow_until",0)) else 1.0)*stride,"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":p.get("party_slot",0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": p.wild, "fallen":p.fallen,"lost_health":p.get("lost_health",0), "hp": p.hp, "max_hp": p.get("max_hp", MAX_HEALTH), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
-			"attack_anim":attack_animation_snapshot(p),"skill_fx":p.get("skill_fx",{}) if Time.get_ticks_msec()<int(p.get("skill_fx_until",0)) else {}, "weapon_kind":p.get("weapon_kind",0), "core_part":p.weapon if p.wild else p.prepared, "pose": combat_pose(p), "wallet": run_wallet(p),"skill_ready":Time.get_ticks_msec()>=int(p.skill_at),"skill_two_ready":Time.get_ticks_msec()>=int(p.get("skill_two_at",0)),"skill_cooldowns":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get("skill_two_at",0))-Time.get_ticks_msec())/1000.0)]}
+			"attack_anim":attack_animation_snapshot(p),"skill_fx":p.get("skill_fx",{}) if Time.get_ticks_msec()<int(p.get("skill_fx_until",0)) else {}, "weapon_kind":p.get("weapon_kind",0), "core_part":p.weapon if p.wild else p.prepared, "pose": combat_pose(p),"wallet": run_wallet(p)}
+		var cooldowns: Cooldowns.Timers = p[Cooldowns.STATE]
+		var cooldown_now := Time.get_ticks_msec()
+		state.merge(cooldowns.skill_projection(cooldown_now))
 		if stage.experimental_garden != null and not p.wild:
 			var garden = stage.experimental_garden
 			state["garden_layout_revision"] = garden.layout_revision if garden.reveal == null else -1
@@ -4105,7 +4108,7 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 					state["warden_relay_point"]=warden.relay_point(self,p,now)
 					state["warden_quake_prepared"]=warden.prepared_until(self,p,now)>0
 			state.merge({"weapon": p.weapon, "prepared": p.prepared, "experiment": p.experiment,
-				"skill_ready": Time.get_ticks_msec() >= int(p.skill_at),"skill_two_ready":Time.get_ticks_msec()>=int(p.get("skill_two_at",0)),"skill_cooldowns":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get("skill_two_at",0))-Time.get_ticks_msec())/1000.0)], "dodge_ready": Time.get_ticks_msec() >= int(p.dodge_at), "last_offer": AffinityCards.completed_floor(p) if p.has("combat_ruleset") else p.last_offer,
+				"dodge_ready": cooldowns.ready(Cooldowns.DODGE, cooldown_now), "last_offer": AffinityCards.completed_floor(p) if p.has("combat_ruleset") else p.last_offer,
 				"reclaim_choice":p.get("reclaim_choice",0),"offering_choice":p.get("offering_choice",0),"last_deposit":p.get("last_deposit",0),"weapon_kind":p.weapon_kind,"catalyst":p.catalyst,"graft_part":p.graft_part,"graft_floor":p.get("graft_floor",0),"prepared_catalyst":p.prepared_catalyst,"cargo_plan":p.cargo_plan,"stored_parts":stored_counts(p),"weapon_stats":weapon_stats(p,not p.wild), "carried_parts": p.carried_parts, "reserve_parts": seed_reserve(p).parts,"combat_events":combat_events_snapshot(),"attack_hints":attack_hints_snapshot(),"death_events":death_events_snapshot(),"run_upgrades":preload("res://combat_ruleset.gd").legacy_ranks(p),"bag":InventoryModel.snapshot(self,p),"ground_items":inventory_floor_snapshot(p), "secondary": p.secondary, "prepared_secondary": p.prepared_secondary,
 				"garden_interactions":preload("res://garden_interaction_service.gd").projection(self,id),
 				"party_travel":PartyTravel.snapshot(self,id),"seed_choice": selected_seed(p), "graft_choice": p.graft_choice, "cache_claimed": p.cache_claimed})
@@ -4234,6 +4237,8 @@ func _process(_delta: float) -> void:
 	var rendered_players: Dictionary=players if multiplayer.is_server() else net_motion.render_players(players,local_id,Time.get_ticks_msec())
 	if not multiplayer.is_server():rendered_players=preload("res://avatar_motion_view.gd").people(rendered_players,local_id,mouse_controls.local_aim)
 	var p: Dictionary = local_player
+	var local_timers: Cooldowns.Timers = p.get(Cooldowns.STATE)
+	var cooldown_now := Time.get_ticks_msec()
 	var wild: bool = p.get("wild", false)
 	var warnings: Array=attack_hints_snapshot() if multiplayer.is_server() and wild else p.get("attack_hints",[]) if wild else []
 	if not multiplayer.is_server() and client_details_key!=str([destination,encounter_number,map_seed]):
@@ -4320,7 +4325,7 @@ func _process(_delta: float) -> void:
 		var wallet: int = run_wallet(p) if multiplayer.is_server() else p.wallet
 		inventory.text += "\nRun currency     %d" % wallet
 		var frame: Dictionary = Frames.DEFINITIONS[p.frame]
-		var skill_ready: bool = Time.get_ticks_msec() >= int(p.skill_at) if multiplayer.is_server() else p.skill_ready
+		var skill_ready: bool = (local_timers == null or local_timers.ready(Cooldowns.Q, cooldown_now)) if multiplayer.is_server() else p.skill_ready
 		inventory.text += "\n\n%s: %s + %s" % [frame.weapon, Parts.part_name(p.weapon), Parts.part_name(p.secondary)]
 		skill_label.text += ("\n" if not skill_label.text.is_empty() else "") + "Q  %s%s" % [
 			Skills.resolve_in_world(self,int(p.frame),0,p.get("character",guest_character.data)).name, "" if skill_ready else " · recovering"]
@@ -4405,11 +4410,11 @@ func _process(_delta: float) -> void:
 	get_node("Soundscape").update_mix(_delta,wild,destination,encounter_number,boss_kind>=0,observer,stage.heart_unlocked)
 	stage.update_garden(int(shared[6]), int(shared[2]) + int(shared[7]) + int(shared[11]) + int(heart_state().get("clearing",0)))
 	var host_side := multiplayer.is_server()
-	var ready_skill := Time.get_ticks_msec() >= int(p.get("skill_at", 0)) if host_side else bool(p.get("skill_ready", false))
-	var second_ready: bool=Time.get_ticks_msec()>=int(p.get("skill_two_at",0)) if host_side else bool(p.get("skill_two_ready",false))
+	var ready_skill := (local_timers == null or local_timers.ready(Cooldowns.Q, cooldown_now)) if host_side else bool(p.get("skill_ready", false))
+	var second_ready := (local_timers == null or local_timers.ready(Cooldowns.R, cooldown_now)) if host_side else bool(p.get("skill_two_ready", false))
 	var skills: Array=[Skills.resolve_in_world(self,int(p.get("frame",0)),0,p.get("character",guest_character.data)),
 		Skills.resolve_in_world(self,int(p.get("frame",0)),1,p.get("character",guest_character.data))]
-	var cooldowns: Array=[maxf(0,(int(p.get("skill_at",0))-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get("skill_two_at",0))-Time.get_ticks_msec())/1000.0)] if host_side else p.get("skill_cooldowns",[0.0,0.0])
+	var cooldowns: Array = local_timers.skill_seconds(cooldown_now) if host_side and local_timers != null else p.get("skill_cooldowns", [0.0, 0.0])
 	var skill_tips: Array=Skills.wild_tooltips(self,p,skills) if wild and Life.Preview.enabled else [skills[0].name+"\n"+skills[0].description,skills[1].name+"\n"+skills[1].description]
 	var quake_prepared:=false
 	if skills[0].has("warden_focus"):
@@ -4420,7 +4425,7 @@ func _process(_delta: float) -> void:
 		for slot in 2:
 			var purchased:=Classes.Warden.card_lines(p,slot) if int(p.frame)==0 else Classes.Subclasses.card_lines(p,slot)
 			if not purchased.is_empty():skill_tips[slot]+="\n"+purchased
-	var ready_dodge := Time.get_ticks_msec() >= int(p.get("dodge_at", 0)) if host_side else bool(p.get("dodge_ready", false))
+	var ready_dodge := (local_timers == null or local_timers.ready(Cooldowns.DODGE, cooldown_now)) if host_side else bool(p.get("dodge_ready", false))
 	if session=="Host": session_label.text+="\nHosting on UDP %d"%network_port
 	appearance_button.disabled = wild
 	var look: Array = Array(p.get("character", {}).get("appearance", p.get("appearance", [0, 0, 0, 0, 0])))

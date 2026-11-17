@@ -1,5 +1,6 @@
 extends RefCounted
 ## Native Reaper preparations. Keys stay in the authoritative combat actor.
+const Cooldowns = preload("res://player_cooldowns.gd")
 const Balance = preload("res://class_skill_balance.gd")
 const Progression = preload("res://reaper_connected_tree.gd")
 const Journal = preload("res://diagnostic_journal.gd")
@@ -110,18 +111,21 @@ static func finish_siphon(game: Node, player: Dictionary, skill: Dictionary, tar
 		else:
 			prep.nodes = remaining
 		if prepared.has("swift_siphon"):
-			player.skill_two_at = maxi(now+1800,int(player.skill_two_at)-Progression.SWIFT_MS)
+			var timers: Cooldowns.Timers = player[Cooldowns.STATE]
+			player[Cooldowns.STATE] = timers.refund(Cooldowns.R, now, Progression.SWIFT_MS, Balance.COOLDOWN_MIN_MS)
 		if prepared.has("wake_ward"):
 			for peer in support_peers(game,impact):
 				game.grant_guard(game.players[peer],now+Balance.WARD_MS,1)
 		if damaged and prepared.has("veil_dance"):
-			player.dodge_at = mini(int(player.get("dodge_at",0)),now)
+			var timers: Cooldowns.Timers = player[Cooldowns.STATE]
+			player[Cooldowns.STATE] = timers.ready_by(Cooldowns.DODGE, now)
 		if damaged and prepared.has("feast_of_thorns"):
 			feast(game,player,target,impact,now)
 	if not damaged:
 		return
 	if skill.reaper_nodes.has("siphon_tempo") and game.Life.Sustain.eligible(game,target):
-		player.skill_at = maxi(now,int(player.skill_at)-Progression.TEMPO_MS)
+		var timers: Cooldowns.Timers = player[Cooldowns.STATE]
+		player[Cooldowns.STATE] = timers.refund(Cooldowns.Q, now, Progression.TEMPO_MS)
 	if skill.reaper_nodes.has("last_rites"):
 		heal_lowest(game,impact,Progression.RITES_RECIPIENTS,Progression.RITES_HP,"last_rites")
 

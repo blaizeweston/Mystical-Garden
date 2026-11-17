@@ -1,5 +1,7 @@
 extends SceneTree
 
+const Cooldowns = preload("res://player_cooldowns.gd")
+
 const Preview = preload("res://combat_balance_preview.gd")
 const Sustain = preload("res://expedition_sustain.gd")
 const Core = preload("res://core_combat.gd")
@@ -68,10 +70,11 @@ func arena() -> void:
 	game.leader_brain.clear()
 	Core.reset(game)
 	for actor in [player,ally]:
+		actor[Cooldowns.STATE] = actor[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
 		actor.merge({"wild":true,"fallen":false,"hp":30,"max_hp":100,"lost_health":0,"pos":Vector3.ZERO,
 			"renewal_until":0,"guard_until":0,"hurt_until":0,"run_upgrades":{},"weapon":0,
 			"catalyst":0,"secondary":0,"graft_part":0,"core_ready_at":0,"core_cast_until":0,"cast_until":0,
-			"skill_at":0,"skill_two_at":0,"frame":0,"weapon_kind":0,"facing":Vector3.FORWARD},true)
+			"frame":0,"weapon_kind":0,"facing":Vector3.FORWARD},true)
 	ally.profile_ready=false
 	player.character=game.Character.blank()
 

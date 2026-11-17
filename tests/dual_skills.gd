@@ -1,4 +1,6 @@
 extends SceneTree
+
+const Cooldowns = preload("res://player_cooldowns.gd")
 const Skills=preload("res://skill_catalog.gd")
 const Character=preload("res://character_profile.gd")
 var game: Node
@@ -31,8 +33,8 @@ func arena(c: int,mask: int=0) -> Dictionary:
 	p.facing=Vector3.BACK
 	p.hp=5
 	p.max_hp=10
-	p.skill_at=0
-	p.skill_two_at=0
+	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
+	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	p.strike_at=0
 	p.guard_until=0
 	p.guard_charges=0
@@ -62,10 +64,9 @@ func run():
 			var p:=arena(c)
 			var before: Vector3=p.pos
 			game.send_garden_action("class_skill" if slot==0 else "class_skill_two")
-			var timer: String="skill_at" if slot==0 else "skill_two_at"
-			check(int(p[timer])>Time.get_ticks_msec(),"base skill casts through action dispatch: "+skill.name)
-			if slot==0: check(p.skill_two_at==0,"Q leaves R cooldown ready")
-			else: check(p.skill_at==0,"R leaves Q cooldown ready")
+			check(p[Cooldowns.STATE].deadline(Cooldowns.Q if slot==0 else Cooldowns.R)>Time.get_ticks_msec(),"base skill casts through action dispatch: "+skill.name)
+			if slot==0: check(p[Cooldowns.STATE].deadline(Cooldowns.R)==0,"Q leaves R cooldown ready")
+			else: check(p[Cooldowns.STATE].deadline(Cooldowns.Q)==0,"R leaves Q cooldown ready")
 			match str(skill.mode):
 				"guard": check(p.guard_charges==1 and p.guard_until>Time.get_ticks_msec(),"Guard blocks one attack")
 				"quake": check(game.enemy_hp<80 and game.enemy_stagger_until>Time.get_ticks_msec(),"Quake damages and staggers")
@@ -101,7 +102,7 @@ func run():
 			names[skill.name]=true
 			check(skill.variant=="replacement","class choice replaces the selected slot")
 			game.send_garden_action("class_skill" if slot==0 else "class_skill_two")
-			check(int(p["skill_at" if slot==0 else "skill_two_at"])>Time.get_ticks_msec(),"replacement casts: "+skill.name)
+			check(p[Cooldowns.STATE].deadline(Cooldowns.Q if slot==0 else Cooldowns.R)>Time.get_ticks_msec(),"replacement casts: "+skill.name)
 			match str(skill.mode):
 				"bastion": check(p.guard_charges>=2,"Bastion grants layered guard")
 				"charge","harvest": check(game.enemy_hp<80 and not game.battlefield.occupied(p.pos,.34),"replacement approach is safe and attacks")
@@ -124,15 +125,15 @@ func run():
 	# Normal R input uses second skill in the Wilds, research in the Garden.
 	var p:=arena(0)
 	game.send_garden_action("class_skill")
-	var q_timer: int=p.skill_at
+	var q_timer: int=p[Cooldowns.STATE].deadline(Cooldowns.Q)
 	var key:=InputEventKey.new()
 	key.physical_keycode=KEY_R
 	key.pressed=true
 	game._unhandled_key_input(key)
-	check(p.skill_two_at==0,"holding R leaves the second cooldown untouched")
+	check(p[Cooldowns.STATE].deadline(Cooldowns.R)==0,"holding R leaves the second cooldown untouched")
 	key.pressed=false
 	game._input(key)
-	check(p.skill_two_at>0 and p.skill_at==q_timer,"releasing R casts slot two independently")
+	check(p[Cooldowns.STATE].deadline(Cooldowns.R)>0 and p[Cooldowns.STATE].deadline(Cooldowns.Q)==q_timer,"releasing R casts slot two independently")
 	p.wild=false
 	p.pos=game.Stage.HEART
 	game.progress.studying_flowering=false
@@ -146,7 +147,7 @@ func run():
 	p=arena(1)
 	p.pos=Vector3(20,0,20)
 	game.send_garden_action("class_skill")
-	check(p.skill_at==0,"out-of-range cast preserves cooldown")
+	check(p[Cooldowns.STATE].deadline(Cooldowns.Q)==0,"out-of-range cast preserves cooldown")
 	p=arena(1)
 	game.battlefield.barriers=[Rect2(-.6,-.6,1.2,.35)]
 	game.send_garden_action("class_skill_two")

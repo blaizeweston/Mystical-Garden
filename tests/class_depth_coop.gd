@@ -1,4 +1,6 @@
 extends SceneTree
+
+const Cooldowns = preload("res://player_cooldowns.gd")
 var game: Node
 var role: String
 var base: String
@@ -37,12 +39,13 @@ func host_run() -> void:
    p.character.active_class=c;p.character.xp[c]=2600;p.character.upgrades.fill(0);p.character.upgrades[c]=mask(right);p.frame=c;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.run_upgrades={}
    for player in game.players.values():player.wild=true;player.pos=Vector3(0,0,-1.5);player.hp=5;player.fallen=false
    p.facing=Vector3.BACK
-   for key in ["skill_at","skill_two_at","guard_until","front_guard_until","counter_guard_until","counter_until","hurt_until","decoy_ready","prepared_mark_until"]:p[key]=0
+   p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
+   for key in ["guard_until","front_guard_until","counter_guard_until","counter_until","hurt_until","decoy_ready","prepared_mark_until"]:p[key]=0
    game.publish_character(id);mark("ready-"+phase)
-   check(await until(func():return p.skill_at>0),"guest Q "+phase)
+   check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.Q)>0),"guest Q "+phase)
    if c==0:game.apply_enemy_hit(id,p,Time.get_ticks_msec(),1,0,game.enemy_pos)
    mark("q-"+phase)
-   check(await until(func():return p.skill_two_at>0),"guest R "+phase)
+   check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.R)>0),"guest R "+phase)
    await create_timer(.8).timeout
    check(game.enemy_hp<100 or (c==4 and not right and p.hp>5),"actual damage or support "+phase)
    mark("cast-"+phase)

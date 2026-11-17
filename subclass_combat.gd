@@ -1,5 +1,6 @@
 extends RefCounted
 
+const Cooldowns = preload("res://player_cooldowns.gd")
 const Catalog = preload("res://subclass_catalog.gd")
 const Mark = preload("res://core_strike_mark.gd")
 const Balance = preload("res://class_skill_balance.gd")
@@ -259,7 +260,8 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 	elif follow >= 0 and not (weaver and follow == 1):
 		player.subclass_follow = {"lane":follow,"epoch":game.combat_epoch,"life":player.get("lost_health",0)}
 	player.contributed = true
-	player.skill_at = now + Balance.cooldown(skill,stats)
+	var timers: Cooldowns.Timers = player[Cooldowns.STATE]
+	player[Cooldowns.STATE] = timers.start(Cooldowns.Q, now, Balance.cooldown(skill,stats))
 	player.cast_until = now+550
 	player.skill_fx_seq = int(player.get("skill_fx_seq",0))+1
 	player.subclass_pose = {"until":player.cast_until,"clip":CLIPS[skill.visual],"direction":aim}
@@ -321,7 +323,8 @@ static func follow_through(game: Node, player: Dictionary, skill: Dictionary, ce
 			echo(game,player,center,affected,Color(skill.color),now)
 		1:
 			if not skill.has("weaver_nodes"):
-				player.skill_two_at = maxi(now+1800,int(player.skill_two_at)-1700)
+				var timers: Cooldowns.Timers = player[Cooldowns.STATE]
+				player[Cooldowns.STATE] = timers.refund(Cooldowns.R, now, 1700, Balance.COOLDOWN_MIN_MS)
 		2:
 			for ally in allies(game,center,3.0):
 				game.grant_guard(ally,now+Balance.WARD_MS,1)

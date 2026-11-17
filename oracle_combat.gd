@@ -1,4 +1,5 @@
 extends RefCounted
+const Cooldowns = preload("res://player_cooldowns.gd")
 const Progression = preload("res://oracle_connected_tree.gd")
 const Omens = preload("res://oracle_omens.gd")
 const Balance = preload("res://class_skill_balance.gd")
@@ -115,7 +116,8 @@ static func finish_chime(game: Node, id: int, player: Dictionary, skill: Diction
 	var nodes: Array = skill.oracle_nodes
 	var center: Vector3 = player.pos
 	if chime.prepared and nodes.has("quick_chime"):
-		player.skill_two_at = maxi(now+1800,int(player.skill_two_at)-Progression.QUICK_MS)
+		var timers: Cooldowns.Timers = player[Cooldowns.STATE]
+		player[Cooldowns.STATE] = timers.refund(Cooldowns.R, now, Progression.QUICK_MS, Balance.COOLDOWN_MIN_MS)
 	if chime.prepared and nodes.has("fates_refrain"):
 		var targets: Array[int] = game.skill_area_targets(center,float(skill.radius),center)
 		var allies: Array = game.players.values().filter(func(ally):

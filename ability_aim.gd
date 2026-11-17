@@ -1,5 +1,6 @@
 extends Node3D
 
+const Cooldowns = preload("res://player_cooldowns.gd")
 const Core = preload("res://core_combat.gd")
 const Targeting = preload("res://class_ability_targeting.gd")
 const Contact = preload("res://weapon_contact.gd")
@@ -183,9 +184,11 @@ static func footprint(game_node: Node, local: Dictionary, field: RefCounted, ski
 	var profile: Dictionary = local.get("character", game_node.guest_character.data)
 	var skill: Dictionary = game_node.Traits.tune_skill(game_node.Skills.resolve_in_world(game_node, int(local.frame), skill_slot, profile), stats)
 	var cast := Targeting.plan(game_node, local, field, skill, stats, forward, distance)
-	var now := Time.get_ticks_msec()
-	var ready: bool = now >= int(local.get("skill_at" if skill_slot == 0 else "skill_two_at", 0))
-	if not game_node.multiplayer.is_server():
+	var ready: bool
+	if game_node.multiplayer.is_server():
+		var timers: Cooldowns.Timers = local.get(Cooldowns.STATE)
+		ready = timers == null or timers.ready(Cooldowns.Q if skill_slot == 0 else Cooldowns.R, Time.get_ticks_msec())
+	else:
 		ready = local.get("skill_ready" if skill_slot == 0 else "skill_two_ready", false)
 	return {"shapes": Targeting.footprint(game_node, local, field, skill, stats, cast), "color": skill.color, "valid": cast.valid and ready}
 
