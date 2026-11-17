@@ -28,7 +28,8 @@ var combat_last_positions: Dictionary={}
 var encounter_kill_records: Array=[]
 const MonsterRewards=preload("res://monster_rewards.gd")
 var pending_kill_rewards: Array=[]
-var pending_departures: Dictionary={}
+const DepartureSettlement=preload("res://departure_settlement.gd")
+var departure_settlement:=DepartureSettlement.new()
 var kill_receipts: Dictionary={}
 var kill_reward_notices: Dictionary={}
 var next_kill_reward_flush:=0
@@ -847,9 +848,9 @@ func remove_player(id: int) -> void:
 			players.erase(id)
 			motions.erase(id)
 			return
-		var may_settle := multiplayer.is_server() and not returning_to_title and Transactions.session_writable(self)
-		if may_settle and leaving.get("profile_ready", false):
-			pending_departures[id] = leaving
+		if leaving.get("profile_ready", false):
+			_capture_pending_departure(id, leaving)
+		var may_settle := Transactions.session_writable(self)
 		players.erase(id)
 		motions.erase(id)
 		refresh_drop()
@@ -1361,7 +1362,10 @@ func restore_expedition_runtime(state: Dictionary) -> void:
 func run_guarded_action(id: int, scope: Transactions.Scope, action: Callable) -> Dictionary:
 	var effects: Array[Callable] = []
 	var first_event := combat_event_serial
+	var already_settling := departure_settlement.is_settling()
 	var result := Transactions.run_gameplay(self, scope, action.bind(effects))
+	if not already_settling and departure_settlement.is_settling():
+		_resolve_departure_settlement(result.persistence)
 	var committed := Transactions.committed(result.persistence)
 	if not result.notice.is_empty():
 		if online_peer != null and multiplayer.is_server() and get_meta(Transactions.PENDING, false):
@@ -1427,16 +1431,55 @@ func _donate_part(id: int, player: Dictionary, effects) -> void:
 func award_combat_progress() -> void:
 	MonsterRewards.flush(self)
 
+func _capture_pending_departure(id: int, player: Dictionary) -> void:
+	var snapshot := {
+		"character": player.character,
+		"projection_base": player.get("projection_base", {}),
+		"wild": player.wild,
+		"pouch": player.pouch,
+		"safe_items": player.safe_items,
+		"carried_seeds": player.carried_seeds,
+		"garden_run_actor": player.get("garden_run_actor", ""),
+		"garden_run_id": player.get("garden_run_id", ""),
+	}
+	departure_settlement.register(id, player.seed_owner, snapshot)
+
+func _resolve_departure_settlement(boundary: Dictionary) -> void:
+	var execution: Variant = boundary.get("value")
+	var final: SaveBatch.Finalization = execution.get("outcome") if execution is Dictionary else null
+	if final == null:
+		departure_settlement.finish(DepartureSettlement.Result.UNCERTAIN)
+		set_meta(Transactions.PENDING, true)
+		set_meta(&"guarded_save_notice", "Departure save is uncertain. Recovery is required before saving again.")
+		return
+	match final.outcome:
+		SaveBatch.Outcome.COMMITTED:
+			if final.write_blocked or boundary.release_error != OK:
+				departure_settlement.finish(DepartureSettlement.Result.CLEANUP_PENDING)
+			else:
+				departure_settlement.finish(DepartureSettlement.Result.COMMITTED)
+		SaveBatch.Outcome.ABORTED_RESTORED:
+			departure_settlement.finish(DepartureSettlement.Result.RESTORED)
+		SaveBatch.Outcome.COMMITTED_CLEANUP_PENDING:
+			departure_settlement.finish(DepartureSettlement.Result.CLEANUP_PENDING)
+		SaveBatch.Outcome.UNCERTAIN:
+			departure_settlement.finish(DepartureSettlement.Result.UNCERTAIN)
+
 func settle_expedition_rewards(effects: Array[Callable], bank_kills := false) -> void:
-	if bank_kills or not MonsterRewards.checkpoint_only(self):
-		MonsterRewards.settle(self, effects)
-	for id in pending_departures:
-		var leaving: Dictionary = pending_departures[id]
-		if not leaving.get("seed_owner", "").is_empty(): record_character(id, leaving)
+	var settle_kills := bank_kills or not MonsterRewards.checkpoint_only(self)
+	var waiting_on_rewards: Array[String] = []
+	if not settle_kills:
+		waiting_on_rewards = MonsterRewards.pending_profile_ids(pending_kill_rewards)
+	var work := departure_settlement.stage(waiting_on_rewards)
+	if settle_kills:
+		MonsterRewards.settle(self, effects, work)
+	for entry in work:
+		var leaving: Dictionary = entry.actor
+		if not leaving.seed_owner.is_empty():
+			record_character(entry.peer_id, leaving)
 		_recover_pouch(leaving)
 		if leaving.wild:
 			preload("res://garden_return_service.gd").outcome(self, leaving, "disconnected")
-	pending_departures.clear()
 
 func close_flow_for(id: int) -> void:
 	if id==HOST: close_run_flow_panel()
@@ -3599,7 +3642,7 @@ func _use_checkpoint(id: int, descend: bool,effects = null) -> bool:
 					Campaign.NAMES[destination], encounter_number, enemy_name(),
 					" A grafting shrine waits off the main path." if graft_altar_open() else ""])
 		return true
-	if effects != null: settle_expedition_rewards(effects)
+	if effects != null: settle_expedition_rewards(effects, true)
 	var banked := 0
 	var banked_parts := 0
 	for player in players.values():
@@ -4323,7 +4366,7 @@ func prepare_guarded_exit(save_garden := true) -> bool:
 			if not finish_failed_expedition(): return false
 			character_dirty=false
 			return true
-		if not pending_departures.is_empty() or not pending_kill_rewards.is_empty():
+		if not departure_settlement.is_empty() or not pending_kill_rewards.is_empty():
 			if not MonsterRewards.flush(self): return false
 			character_dirty=false
 			return true
@@ -5742,8 +5785,8 @@ func admission_error(identity: String,catalog: Dictionary,protocol: int) -> Stri
 	if catalog!=progress.ContentIDs.manifest(): return "Different game content. Update all game copies before joining."
 	if not Character.valid_identity(identity): return "Invalid character identity. Choose another character."
 	if identity==local_character.identity: return "This character is already the host. Choose a different character."
-	for player in pending_departures.values():
-		if player.get("seed_owner","")==identity: return "This character's last expedition rewards are still being saved."
+	if departure_settlement.blocks_admission(identity):
+		return "This character's last expedition rewards are still being saved."
 	for player in players.values():
 		if player.profile_ready and player.get("seed_owner","")==identity: return "This character is already connected."
 	if expedition_active(): return "The host is in the Wilds. Join after the party returns to the Garden."

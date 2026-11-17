@@ -81,6 +81,28 @@ func run():
  for i in 4000:rolls+=int(not game.roll_kill_trophy(12).is_empty())
  check(rolls>100 and rolls<260,"ordinary kills keep uncommon, non-guaranteed parts")
  check(game.Director.trophy_chance(100,true,true)<=.15,"adapted guardian chance stays capped")
+ # The transport can reuse a peer ID before the old reward is settled.
+ var former_identity: String = friend.seed_owner
+ var detached_profile: Dictionary = friend.character.duplicate(true)
+ var former_xp: int = int(detached_profile.xp[0])
+ game.MonsterRewards.queue(game,"detached-identity-one",10,0,p.pos,false)
+ game.MonsterRewards.queue(game,"detached-identity-two",10,0,p.pos,false)
+ for kill in game.pending_kill_rewards:
+  kill.rewards[1].item = game.Items.part_id(game.Parts.monster_part(10))
+ var frozen_departure_rewards: Array = game.pending_kill_rewards.duplicate(true)
+ check(game.MonsterRewards.pending_profile_ids(game.pending_kill_rewards)==[former_identity]
+  and game.pending_kill_rewards==frozen_departure_rewards,"pending profile identities are unique and read from unchanged frozen rewards")
+ friend.seed_owner="f".repeat(32)
+ var replacement_wallet = game.wallet_for(friend)
+ var replacement_drops: int = game.inventory_floor_snapshot(friend).size()
+ var work: Array[Dictionary] = [{"peer_id":2,"identity":former_identity,"actor":{"character":detached_profile}}]
+ var effects: Array[Callable] = []
+ check(game.MonsterRewards.settle(game,effects,work) and int(detached_profile.xp[0])==former_xp+2
+  and int(friend.character.xp[0])==former_xp and game.wallet_for(friend)==replacement_wallet
+  and game.inventory_floor_snapshot(friend).size()==replacement_drops,
+  "detached XP follows the frozen identity without awarding run rewards to the reused peer ID")
+ check(game.MonsterRewards.settle(game,effects,work) and int(detached_profile.xp[0])==former_xp+2,
+  "the same detached work cannot consume a settled reward again")
  game.queue_free();await process_frame
  if not failed:print("PASS: individual kills, equal party rewards, owner-only drops, summon exclusion, XP, rollback and bounded drop odds")
  quit(1 if failed else 0)

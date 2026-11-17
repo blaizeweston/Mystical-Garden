@@ -245,7 +245,7 @@ func host_run(menu: Node) -> void:
 		return
 	garden.development_dialog.hide()
 	mark("expansion", str(garden.state.outline).sha256_text())
-	if not check(await until(func(): return ready_guest(game) == 0 and game.pending_departures.is_empty()), "host settles the original disconnect"):
+	if not check(await until(func(): return ready_guest(game) == 0 and game.departure_settlement.is_empty()), "host settles the original disconnect"):
 		return
 	mark("detached")
 	if not check(await until(func(): return read("rejoined") == "ok" and ready_guest(game) != 0), "same character reconnects with developed Garden"):

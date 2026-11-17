@@ -33,11 +33,11 @@ static func flush(game: Node) -> bool:
  # the existing guarded departure settlement before their identity can rejoin.
  if checkpoint_only(game) and game.expedition_active(): return true
  if game.has_meta(game.Transactions.SESSION):
-  if game.pending_kill_rewards.is_empty() and game.pending_departures.is_empty(): return true
-  if game.Life.living_ids(game).is_empty() and game.pending_departures.values().any(func(actor): return actor.get("wild",false)):
+  if game.pending_kill_rewards.is_empty() and game.departure_settlement.is_empty(): return true
+  if game.Life.living_ids(game).is_empty() and game.departure_settlement.has_wild_departure():
    return game.finish_failed_expedition()
   var result: Dictionary=game.run_guarded_action(game.HOST,game.Transactions.Scope.PAIR,func(effects):
-   game.settle_expedition_rewards(effects)
+   game.settle_expedition_rewards(effects, true)
    return true)
   return game.Transactions.committed(result.persistence)
  if not game.pending_kill_rewards.is_empty():
@@ -55,29 +55,50 @@ static func publish_notices(game: Node,notices: Dictionary, require_profile := f
   if require_profile: game.tell_profile_action(id,message)
   else: game.tell(id,message)
 
-static func settle(game: Node,effects = null) -> bool:
+static func pending_profile_ids(pending_rewards: Array) -> Array[String]:
+ var identities: Array[String] = []
+ for kill: Dictionary in pending_rewards:
+  for reward: Dictionary in kill.rewards:
+   var identity := str(reward.identity)
+   if not identity.is_empty() and not identities.has(identity):
+    identities.append(identity)
+ return identities
+
+static func _departure_actor(departure_work: Array[Dictionary], id: int, identity: String) -> Dictionary:
+ for row in departure_work:
+  if row.peer_id == id and row.identity == identity:
+   return row.actor
+ return {}
+
+static func settle(game: Node, effects = null, departure_work: Array[Dictionary] = []) -> bool:
  var notices=game.kill_reward_notices
- var actors: Dictionary={}
+ var live_profiles: Dictionary = {}
  for kill in game.pending_kill_rewards:
   for reward in kill.rewards:
-   var id=int(reward.id)
-   var p: Dictionary=game.players.get(id,game.pending_departures.get(id,{}) if effects != null else {})
-   if p.is_empty() or p.get("seed_owner","")!=reward.identity:continue
-   var c=int(reward["class"]);var profile=p.character
+   var id := int(reward.id)
+   var identity := str(reward.identity)
+   var player: Dictionary = game.players.get(id, {})
+   var is_live: bool = not player.is_empty() and player.get("seed_owner", "") == identity
+   if not is_live:
+    player = _departure_actor(departure_work, id, identity)
+   if player.is_empty(): continue
+   var c := int(reward["class"])
+   var profile: Dictionary = player.character
    profile.xp[c]=mini(game.Character.Experience.MAX_XP,int(profile.xp[c])+int(reward.xp))
    profile.monsters[int(kill.kind)]=mini(9999,int(profile.monsters[int(kill.kind)])+1)
+   # The guarded departure writes the detached profile with its protected cargo.
+   if not is_live: continue
    if effects == null: game.publish_character(id)
-   else: actors[id]=p
+   else: live_profiles[id] = true
    if kill.get("run_rewards_granted",false):
     continue
-   _grant_run_rewards(game,kill,reward,p)
+   _grant_run_rewards(game,kill,reward,player)
    if not notices.has(id):notices[id]={"essence":0,"xp":0,"parts":0}
    notices[id].essence+=int(reward.essence);notices[id].xp+=int(reward.xp);notices[id].parts+=int(not str(reward.item).is_empty())
  game.pending_kill_rewards.clear()
  if effects != null:
-  for id in actors:
-   if game.players.has(id): game.save_action_profile(id,effects)
-   else: game.record_character(id,actors[id])
+  for id in live_profiles:
+   game.save_action_profile(id,effects)
   var committed: Dictionary=notices.duplicate(true)
   notices.clear()
   if not committed.is_empty(): effects.append(publish_notices.bind(game,committed,true))

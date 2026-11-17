@@ -447,7 +447,7 @@ func host(menu: Node) -> void:
 		mark("offline")
 		return
 	check([game.progress.part_count(ordinary),game.progress.part_count(refined)]==paid,"no repeated affinity material consumption")
-	if not check(await until(func():return guests(game).is_empty() and game.pending_departures.is_empty()),"guest detached through normal teardown"):return
+	if not check(await until(func():return guests(game).is_empty() and game.departure_settlement.is_empty()),"guest detached through normal teardown"):return
 	mark("detached")
 	check(await until(func():return read("rejoined")=="ok" and guests(game).size()==1),"guest reconnects to the existing Garden")
 	if connected_warden_case:

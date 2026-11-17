@@ -3,6 +3,7 @@
   "full_after_days": 7,
   "systems": {
     "expedition_grafts": {"label": "Expedition graft ledgers, altar quotes and source-owned adaptations", "files": ["expedition_grafts.gd", "expedition_grafts.gd.uid", "affinity_grafting_panel.gd", "affinity_grafting_panel.gd.uid"]},
+    "departure_settlement": {"label": "Detached profiles, protected cargo and guarded disconnect settlement", "files": ["departure_settlement.gd", "departure_settlement.gd.uid"]},
     "expedition_wallet": {"label": "Run-only Essence sparks, floor grants and spending", "files": ["expedition_wallet.gd", "expedition_wallet.gd.uid"]},
     "affinity_cards": {"label": "Affinity expedition card ledger, rarity, Essence rerolls and owned effects", "files": ["affinity_cards.gd", "affinity_cards.gd.uid", "affinity_card_ledger.gd", "affinity_card_ledger.gd.uid", "affinity_card_catalog.gd", "affinity_card_catalog.gd.uid"]},
     "oracle_progression": {"label": "Connected Oracle, native Omens and first-run focus admission", "files": ["oracle_connected_tree.gd", "oracle_connected_tree.gd.uid", "oracle_combat.gd", "oracle_combat.gd.uid", "oracle_omens.gd", "oracle_omens.gd.uid"]},
@@ -933,6 +934,8 @@
       "persistence_operations",
       "connection_flow"
     ],
+    "_capture_pending_departure": ["departure_settlement"],
+    "_resolve_departure_settlement": ["departure_settlement"],
     "settle_expedition_rewards": [
       "loot",
       "persistence_operations",
@@ -1954,6 +1957,7 @@
     "experimental_terrain_coop": {
       "kind": "pair",
       "systems": [
+        "departure_settlement",
         "world_snapshot", "hex_terrain",
         "terrain",
         "connection_flow",
@@ -2061,7 +2065,7 @@
     },
     "candidate_release_party": {
       "kind": "party",
-      "systems": ["world_snapshot", "persistence_operations", "persistence_authorization", "menus", "characters", "connection_flow", "garden", "expeditions"],
+      "systems": ["departure_settlement", "world_snapshot", "persistence_operations", "persistence_authorization", "menus", "characters", "connection_flow", "garden", "expeditions"],
       "package": true,
       "candidate_release": true
     },
@@ -2142,6 +2146,7 @@
       "candidate_release": true,
       "kind": "unit",
       "systems": [
+        "departure_settlement",
         "expedition_wallet",
         "persistence_operations",
         "persistence_authorization",
@@ -2161,6 +2166,7 @@
     "guarded_expedition_coop": {
       "kind": "pair",
       "systems": [
+        "departure_settlement",
         "expedition_wallet",
         "world_snapshot", "persistence_operations",
         "persistence_authorization",
@@ -3569,6 +3575,7 @@
     "monster_rewards": {
       "kind": "unit",
       "systems": [
+        "departure_settlement",
         "expedition_wallet",
         "loot",
         "enemies",
@@ -4461,6 +4468,9 @@
     ["expeditions", "affinity_cards", "Earned choices, owner revisions and expedition-only currency"],
     ["expeditions", "expedition_wallet", "The latest cleared floor determines the shared milestone grant"],
     ["loot", "expedition_wallet", "Monster rewards credit sparks separately from permanent rewards"],
+    ["connection_flow", "departure_settlement", "Capture a disconnected profile and protect its identity until settlement"],
+    ["loot", "departure_settlement", "Frozen kill credits settle against detached profile identities"],
+    ["persistence_operations", "departure_settlement", "Verified save outcomes govern retry, cleanup and release of detached records"],
     ["affinity_cards", "expedition_wallet", "Accepted rerolls replace the owner wallet and ledger together"],
     ["expedition_wallet", "world_snapshot", "Guests receive the host wallet balance without its private state"],
     ["affinity_cards", "combat_affinity_contracts", "Source-scoped contributions captured by existing combat actions"],
@@ -5812,6 +5822,7 @@
       }
     },
     "_use_checkpoint": {
+      "ar04_departure_extraction": {"match": "\t\treturn true\n\tif effects != null: settle_expedition_rewards(effects, true)\n\tvar banked := 0\n", "baseline": "\t\treturn true\n\tif effects != null: settle_expedition_rewards(effects)\n\tvar banked := 0\n", "systems": ["departure_settlement"], "additive": true},
       "guarded_expedition": {
         "match": "\tif not players.has(id) or not Life.alive(players[id]):\n\t\treturn false\n\tif not descend and not extraction_checkpoint_open():\n\t\taction_feedback(effects,id, \"Extraction opens after clearing every sixth gate.\")\n\t\treturn false\n\tif players[id].pos.distance_to(battlefield.advance) > preload(\"res://gate_interaction.gd\").RANGE:\n\t\taction_feedback(effects,id, \"Use the onward gate to continue or extract at a checkpoint.\")\n\t\treturn false\n\tif not encounter_cleared():\n\t\taction_feedback(effects,id, \"Defeat the enemies to open the checkpoint.\")\n\t\treturn false\n\tvar checkpoint := battlefield.advance\n\tfor player in players.values():\n\t\tif Life.alive(player) and checkpoint.distance_to(player.pos) > preload(\"res://gate_interaction.gd\").RANGE+preload(\"res://gate_interaction.gd\").READY_MARGIN:\n\t\t\taction_feedback(effects,id, \"Gather your expedition party at this checkpoint.\")\n\t\t\treturn false\n\tif descend and upgrade_checkpoint_open():\n\t\tif effects != null and not checkpoint_all_ready(): return false\n\t\tif not checkpoint_pending:\n\t\t\tcheckpoint_pending=true\n\t\t\tcheckpoint_ready.clear()\n\t\tif not checkpoint_all_ready():\n\t\t\tfor peer_id in players:\n\t\t\t\tif Life.alive(players[peer_id]): present_checkpoint_cards(peer_id)\n\t\t\treturn false\n\t\tcheckpoint_pending=false\n\t\tcheckpoint_ready.clear()\n\t\tif effects == null:\n\t\t\tclose_run_flow_panel()\n\t\t\tfor peer_id in players:\n\t\t\t\tif peer_id!=HOST and online_peer!=null: close_run_flow_panel.rpc_id(peer_id)\n\t\telse:\n\t\t\tfor peer_id in players: effects.append(close_flow_for.bind(peer_id))\n\tif descend:\n\t\tif destination == Campaign.HEART:\n\t\t\treturn false\n\t\tif effects != null: settle_expedition_rewards(effects)\n\t\tvar crossed_biome := depth == ROUTE_ROOMS\n\t\tencounter_number += 1\n\t\tif crossed_biome:\n\t\t\tdepth = 1\n\t\t\tif destination == Campaign.HOLLOW:\n\t\t\t\tdifficulty_cycle += 1\n\t\t\tdestination = (destination + 1) % Campaign.HEART\n\t\telse:\n\t\t\tdepth += 1\n\t\tstart_encounter()\n\t\tvar recovery_hp:=Life.Sustain.recovery_hp(crossed_biome or (not Life.Preview.enabled and depth==ROUTE_ROOMS),difficulty_cycle)\n\t\tfor peer_id in players:\n\t\t\tvar player: Dictionary = players[peer_id]\n\t\t\tif player.wild:\n\t\t\t\tplayer.pos = wild_entry(peer_id)\n\t\t\t\tif Life.alive(player): Life.Sustain.restore(self,player,recovery_hp,\"floor_recovery\")\n\t\t\t\taction_feedback(effects,peer_id, \"%s \u00b7 Encounter %d. %s awaits.%s\" % [\n\t\t\t\t\tCampaign.NAMES[destination], encounter_number, enemy_name(),\n\t\t\t\t\t\" A grafting shrine waits off the main path.\" if graft_altar_open() else \"\"])\n\t\treturn true\n\tif effects != null: settle_expedition_rewards(effects)\n\tvar banked := 0\n\tvar banked_parts := 0\n\tfor player in players.values():\n\t\tif player.wild and player.fallen:\n\t\t\tif effects == null: recover_pouch(player)\n\t\t\telse: _recover_pouch(player)\n\t\telif player.wild:\n\t\t\tInventoryModel.bank_safe(self,player)\n\t\t\tInventoryModel.bank_extra(self,player)\n\t\t\tbanked += player.carried_seeds.size()\n\t\t\tpreload(\"res://garden_return_service.gd\").bank(self,player,player.carried_seeds,\"extract\")\n\t\t\tseed_reserve(player).unknown.append_array(player.carried_seeds)\n\t\t\tfor part in range(1, Parts.DEFINITIONS.size()):\n\t\t\t\tvar count: int = player.carried_parts[part]\n\t\t\t\tseed_reserve(player).parts[part] += count\n\t\t\t\tbanked_parts += count\n\tvar milestone := deepest_milestone\n\tvar message := milestone_message(\"Extracted with %d seed(s) and %d weapon part(s).\" % [banked, banked_parts], true)\n\tif destination != Campaign.HEART:\n\t\tprogress.campaign.record_guardian_memories(run_guardians,guardian_counts)\n\tfor site in Campaign.HEART:\n\t\tif (run_guardians & (1 << site)) != 0 and progress.campaign.record_clear(site):\n\t\t\tmessage += \" %s awaits at the Heart.\" % Campaign.OFFSHOOTS[site]\n\tfor peer_id in players:\n\t\tvar player: Dictionary = players[peer_id]\n\t\tif player.wild:\n\t\t\tpreload(\"res://garden_return_service.gd\").outcome(self,player,\"fallen\" if player.fallen else \"extracted\")\n\t\t\treturn_to_garden(player)\n\t\t\tif peer_id != id:\n\t\t\t\taction_feedback(effects,peer_id, message)\n\tdestination = Campaign.GROVE\n\treset_expedition()\n\tif effects == null and (banked > 0 or banked_parts > 0 or milestone > 0):\n\t\tsave_progress(id, message)\n\telse:\n\t\taction_feedback(effects,id,message)\n\treturn true\n\n\n",
         "baseline": "\tif not players.has(id) or not Life.alive(players[id]):\n\t\treturn\n\tif not descend and not extraction_checkpoint_open():\n\t\ttell(id, \"Extraction opens after clearing every sixth gate.\")\n\t\treturn\n\tif players[id].pos.distance_to(battlefield.advance) > preload(\"res://gate_interaction.gd\").RANGE:\n\t\ttell(id, \"Use the onward gate to continue or extract at a checkpoint.\")\n\t\treturn\n\tif not encounter_cleared():\n\t\ttell(id, \"Defeat the enemies to open the checkpoint.\")\n\t\treturn\n\tvar checkpoint := battlefield.advance\n\tfor player in players.values():\n\t\tif Life.alive(player) and checkpoint.distance_to(player.pos) > preload(\"res://gate_interaction.gd\").RANGE+preload(\"res://gate_interaction.gd\").READY_MARGIN:\n\t\t\ttell(id, \"Gather your expedition party at this checkpoint.\")\n\t\t\treturn\n\tif descend and upgrade_checkpoint_open():\n\t\tif not checkpoint_pending:\n\t\t\tcheckpoint_pending=true\n\t\t\tcheckpoint_ready.clear()\n\t\tif not checkpoint_all_ready():\n\t\t\tfor peer_id in players:\n\t\t\t\tif Life.alive(players[peer_id]): present_checkpoint_cards(peer_id)\n\t\t\treturn\n\t\tcheckpoint_pending=false\n\t\tcheckpoint_ready.clear()\n\t\tclose_run_flow_panel()\n\t\tfor peer_id in players:\n\t\t\tif peer_id!=HOST and online_peer!=null: close_run_flow_panel.rpc_id(peer_id)\n\tif descend:\n\t\tif destination == Campaign.HEART:\n\t\t\treturn\n\t\tvar crossed_biome := depth == ROUTE_ROOMS\n\t\tencounter_number += 1\n\t\tif crossed_biome:\n\t\t\tdepth = 1\n\t\t\tif destination == Campaign.HOLLOW:\n\t\t\t\tdifficulty_cycle += 1\n\t\t\tdestination = (destination + 1) % Campaign.HEART\n\t\telse:\n\t\t\tdepth += 1\n\t\tstart_encounter()\n\t\tvar recovery_hp:=Life.Sustain.recovery_hp(crossed_biome or (not Life.Preview.enabled and depth==ROUTE_ROOMS),difficulty_cycle)\n\t\tfor peer_id in players:\n\t\t\tvar player: Dictionary = players[peer_id]\n\t\t\tif player.wild:\n\t\t\t\tplayer.pos = wild_entry(peer_id)\n\t\t\t\tif Life.alive(player): Life.Sustain.restore(self,player,recovery_hp,\"floor_recovery\")\n\t\t\t\ttell(peer_id, \"%s \u00b7 Encounter %d. %s awaits.%s\" % [\n\t\t\t\t\tCampaign.NAMES[destination], encounter_number, enemy_name(),\n\t\t\t\t\t\" A grafting shrine waits off the main path.\" if graft_altar_open() else \"\"])\n\t\treturn\n\tvar banked := 0\n\tvar banked_parts := 0\n\tfor player in players.values():\n\t\tif player.wild and player.fallen:\n\t\t\trecover_pouch(player)\n\t\telif player.wild:\n\t\t\tInventoryModel.bank_safe(self,player)\n\t\t\tInventoryModel.bank_extra(self,player)\n\t\t\tbanked += player.carried_seeds.size()\n\t\t\tpreload(\"res://garden_return_service.gd\").bank(self,player,player.carried_seeds,\"extract\")\n\t\t\tseed_reserve(player).unknown.append_array(player.carried_seeds)\n\t\t\tfor part in range(1, Parts.DEFINITIONS.size()):\n\t\t\t\tvar count: int = player.carried_parts[part]\n\t\t\t\tseed_reserve(player).parts[part] += count\n\t\t\t\tbanked_parts += count\n\tvar milestone := deepest_milestone\n\tvar message := milestone_message(\"Extracted with %d seed(s) and %d weapon part(s).\" % [banked, banked_parts], true)\n\tif destination != Campaign.HEART:\n\t\tprogress.campaign.record_guardian_memories(run_guardians,guardian_counts)\n\tfor site in Campaign.HEART:\n\t\tif (run_guardians & (1 << site)) != 0 and progress.campaign.record_clear(site):\n\t\t\tmessage += \" %s awaits at the Heart.\" % Campaign.OFFSHOOTS[site]\n\tfor peer_id in players:\n\t\tvar player: Dictionary = players[peer_id]\n\t\tif player.wild:\n\t\t\tpreload(\"res://garden_return_service.gd\").outcome(self,player,\"fallen\" if player.fallen else \"extracted\")\n\t\t\treturn_to_garden(player)\n\t\t\tif peer_id != id:\n\t\t\t\ttell(peer_id, message)\n\tdestination = Campaign.GROVE\n\treset_expedition()\n\tif banked > 0 or banked_parts > 0 or milestone > 0:\n\t\tsave_progress(id, message)\n\telse:\n\t\ttell(id, message)\n\n\n",
@@ -6649,6 +6660,10 @@
     },
     "reset_expedition": {"ar03_wallet_reset": {"match": "\t\tplayer[ExpeditionWallet.STATE] = ExpeditionWallet.Wallet.new()\n", "baseline": "\t\tplayer.spent = 0\n\t\tplayer.essence_sparks=0\n", "systems": ["expedition_wallet"], "additive": true}},
     "_affinity_checkpoint_command": {"ar03_wallet_reroll_debit": {"match": "\tif plan.has(\"ledger\"):\n\t\tif plan.has(\"cost\"):\n\t\t\tvar debited := _plan_essence_debit(player, int(plan.cost))\n\t\t\tif debited == null:\n\t\t\t\tpresent_checkpoint_cards(id)\n\t\t\t\treturn\n\t\t\tplayer[ExpeditionWallet.STATE] = debited\n\t\tplayer[AffinityCards.STATE] = plan.ledger\n\t\tif plan.has(\"cost\"):\n", "baseline": "\tif plan.has(\"ledger\"):\n\t\tplayer[AffinityCards.STATE] = plan.ledger\n\t\tif plan.has(\"cost\"):\n\t\t\tplayer.spent += int(plan.cost)\n", "systems": ["expedition_wallet", "affinity_cards"], "additive": true}},
+    "run_guarded_action": {"ar04_departure_result": {"match": "\tvar already_settling := departure_settlement.is_settling()\n\tvar result := Transactions.run_gameplay(self, scope, action.bind(effects))\n\tif not already_settling and departure_settlement.is_settling():\n\t\t_resolve_departure_settlement(result.persistence)\n", "baseline": "\tvar result := Transactions.run_gameplay(self, scope, action.bind(effects))\n", "systems": ["departure_settlement"], "additive": true}},
+    "settle_expedition_rewards": {"ar04_departure_staging": {"match": "\tvar settle_kills := bank_kills or not MonsterRewards.checkpoint_only(self)\n\tvar waiting_on_rewards: Array[String] = []\n\tif not settle_kills:\n\t\twaiting_on_rewards = MonsterRewards.pending_profile_ids(pending_kill_rewards)\n\tvar work := departure_settlement.stage(waiting_on_rewards)\n\tif settle_kills:\n\t\tMonsterRewards.settle(self, effects, work)\n\tfor entry in work:\n\t\tvar leaving: Dictionary = entry.actor\n\t\tif not leaving.seed_owner.is_empty():\n\t\t\trecord_character(entry.peer_id, leaving)\n", "baseline": "\tif bank_kills or not MonsterRewards.checkpoint_only(self):\n\t\tMonsterRewards.settle(self, effects)\n\tfor id in pending_departures:\n\t\tvar leaving: Dictionary = pending_departures[id]\n\t\tif not leaving.get(\"seed_owner\", \"\").is_empty(): record_character(id, leaving)\n", "systems": ["departure_settlement"], "additive": true}, "ar04_departure_finalization": {"match": "\t\tif leaving.wild:\n\t\t\tpreload(\"res://garden_return_service.gd\").outcome(self, leaving, \"disconnected\")\n", "baseline": "\t\tif leaving.wild:\n\t\t\tpreload(\"res://garden_return_service.gd\").outcome(self, leaving, \"disconnected\")\n\tpending_departures.clear()\n", "systems": ["departure_settlement"], "additive": true}},
+    "prepare_guarded_exit": {"ar04_departure_exit": {"match": "\t\tif not departure_settlement.is_empty() or not pending_kill_rewards.is_empty():\n", "baseline": "\t\tif not pending_departures.is_empty() or not pending_kill_rewards.is_empty():\n", "systems": ["departure_settlement"], "additive": true}},
+    "admission_error": {"ar04_departure_readmission": {"match": "\tif departure_settlement.blocks_admission(identity):\n\t\treturn \"This character's last expedition rewards are still being saved.\"\n", "baseline": "\tfor player in pending_departures.values():\n\t\tif player.get(\"seed_owner\",\"\")==identity: return \"This character's last expedition rewards are still being saved.\"\n", "systems": ["departure_settlement"], "additive": true}},
     "add_player": {
       "ar03_wallet_initialization": {"match": "ExpeditionWallet.STATE: ExpeditionWallet.Wallet.new(),", "baseline": "\"spent\": 0,\"essence_sparks\":0,", "systems": ["expedition_wallet"], "additive": true},
       "cr02_affinity_contract": {"match": "\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\tplayers[id].combat_ruleset = get_meta(&\"combat_affinity_ruleset\")\n", "baseline": "", "additive": true, "systems": ["combat_affinity_contracts"]},
@@ -7240,6 +7255,7 @@
       }
     },
     "remove_player": {
+      "ar04_departure_capture": {"match": "\t\tif leaving.get(\"profile_ready\", false):\n\t\t\t_capture_pending_departure(id, leaving)\n\t\tvar may_settle := Transactions.session_writable(self)\n", "baseline": "\t\tvar may_settle := multiplayer.is_server() and not returning_to_title and Transactions.session_writable(self)\n\t\tif may_settle and leaving.get(\"profile_ready\", false):\n\t\t\tpending_departures[id] = leaving\n", "systems": ["departure_settlement"], "additive": true},
       "ar03_wallet_disconnect_guarded": {"match": "\t\tleaving.erase(ExpeditionWallet.STATE)\n", "baseline": "", "systems": ["expedition_wallet"], "additive": true},
       "ar03_wallet_disconnect_legacy": {"match": "\t\tif players.has(id): players[id].erase(ExpeditionWallet.STATE)\n", "baseline": "", "systems": ["expedition_wallet"], "additive": true},
       "guarded_lifecycle": {

@@ -27,7 +27,7 @@ func disk() -> Dictionary:
 func record(label: String,before: Dictionary) -> void:
  print("CASE ",JSON.stringify({"case":label,"run_id":OS.get_environment("MYSTICAL_VALIDATION_RUN"),"before":before,"after":disk(),
   "floor":world.encounter_number,"wild":world.expedition_active(),"pending":Tx.pending_notice(world),"status":world.status,
-  "queued_kills":world.pending_kill_rewards.size(),"queued_departures":world.pending_departures.size(),"event_serial":world.combat_event_serial}))
+  "queued_kills":world.pending_kill_rewards.size(),"queued_departures":world.departure_settlement.count(),"event_serial":world.combat_event_serial}))
 
 func open_world(fresh := false) -> bool:
  var title: Node = current_scene
@@ -81,7 +81,41 @@ func start_save_set() -> bool:
  set_meta(Gate.VALIDATION_ROUTE, true)
  return open_world(true)
 
+func check_departure_lifecycle() -> void:
+ var ledger := preload("res://departure_settlement.gd").new()
+ var phase := ledger.Phase
+ var outcome := ledger.Result
+ var identity := "detached-profile"
+ var snapshot := {"wild":true, "character":{"xp":[7]}, "safe_items":[{"quantity":1}]}
+ ledger.register(2,identity,snapshot)
+ ledger.register(2,identity,{"wild":false})
+ snapshot.character.xp[0]=99
+ check(ledger.count()==1 and ledger.status(identity)==phase.WAITING and ledger.has_wild_departure(),
+  "one detached departure owns captured profile and cargo")
+ check(ledger.stage([identity]).is_empty() and ledger.blocks_admission(identity),
+  "deferred Class XP prevents retirement and readmission")
+ var work := ledger.stage([])
+ check(work.size()==1 and work[0].actor.character.xp[0]==7 and ledger.stage([]).is_empty()
+  and ledger.status(identity)==phase.SETTLING,"staging detaches captured state and admits no duplicate work")
+ work[0].actor.safe_items[0].quantity=5
+ ledger.finish(outcome.RESTORED)
+ check(ledger.status(identity)==phase.RETRYABLE and ledger.blocks_admission(identity),
+  "verified rollback leaves departure retryable and blocks readmission")
+ work=ledger.stage([])
+ check(work.size()==1 and work[0].actor.safe_items[0].quantity==1,"rollback retries original cargo")
+ ledger.finish(outcome.CLEANUP_PENDING)
+ check(ledger.status(identity)==phase.CLEANUP_PENDING and ledger.blocks_admission(identity)
+  and ledger.stage([]).is_empty(),"committed cleanup hold retains identity without replaying cargo")
+ ledger.register(3,"second-profile",snapshot)
+ work=ledger.stage([])
+ ledger.finish(outcome.UNCERTAIN)
+ check(work.size()==1 and ledger.status("second-profile")==phase.UNCERTAIN
+  and ledger.stage([]).is_empty(),"uncertain departure cannot replay")
+ ledger.finish(outcome.COMMITTED)
+ check(ledger.count()==2,"later unrelated confirmation cannot retire unresolved holds")
+
 func run() -> void:
+ check_departure_lifecycle()
  var interruption:=OS.get_environment("MYSTICAL_GROUP3B2B_MODE")
  if interruption=="recover":
   var before:=disk()
@@ -276,26 +310,55 @@ func exercise() -> void:
  world.add_player(2)
  ally=world.players[2]
  ally.profile_ready=true
- ally.seed_owner="departed"
+ var departed_identity := "0000000000000000000000000000a404"
+ ally.seed_owner=departed_identity
+ var departed_class := int(ally.frame)
+ var xp_before := int(ally.character.xp[departed_class])
  actor.pos=world.Stage.GATE
  ally.pos=world.Stage.GATE
  world.enter_wilds(1,actor)
  world.enter_wilds(2,ally)
  ally.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
+ var receipt: Dictionary = world.pending_kill_rewards[0]
+ var earned_xp := 0
+ for reward: Dictionary in receipt.rewards:
+  if reward.id==2: earned_xp=int(reward.xp)
  before=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.remove_player(2)
- check(not world.players.has(2) and world.pending_departures.has(2) and world.pending_kill_rewards.size()==1 and disk()==before
+ check(not world.players.has(2) and world.departure_settlement.status(departed_identity)==world.DepartureSettlement.Phase.RETRYABLE
+  and world.pending_kill_rewards.size()==1 and disk()==before
   and not ally.has(world.ExpeditionWallet.STATE) and world.run_wallet(ally)==0,
   "failed disconnect settlement retains cargo and frozen reward and clears run-only currency")
+ var catalog: Dictionary = world.progress.ContentIDs.manifest()
+ check(world.admission_error(departed_identity,catalog,world.Network.PROTOCOL).contains("still being saved"),
+  "verified rollback does not release the character before rewards settle")
  world.grant_run_essence(2,ally,4)
  check(not ally.has(world.ExpeditionWallet.STATE) and world.run_wallet(ally)==0,"pending departure cannot receive a credit")
  world.remove_meta(&"guarded_gameplay_test_fault")
- check(world.MonsterRewards.flush(world) and world.pending_departures.is_empty() and world.pending_kill_rewards.is_empty()
-  and world.progress.character_records.departed.profile.monsters[world.enemy_kind]==1 and world.progress.reserve("departed").unknown.size()==1
+ ally.character.xp[departed_class]+=100
+ ally.safe_items.clear()
+ # Simulate a non-banking operation between departure and the experimental
+ # floor checkpoint without starting another terrain session.
+ world.set_meta(&"experimental_terrain",true)
+ var deferred: Dictionary=world.run_guarded_action(1,Tx.Scope.PAIR,func(effects):
+  world.settle_expedition_rewards(effects)
+  return true)
+ world.remove_meta(&"experimental_terrain")
+ check(Tx.committed(deferred.persistence) and world.departure_settlement.blocks_admission(departed_identity)
+  and world.pending_kill_rewards.size()==1 and not world.progress.character_records.has(departed_identity),
+  "non-banking transaction cannot retire the recipient of frozen Class XP")
+ check(world.MonsterRewards.flush(world) and world.departure_settlement.is_empty() and world.pending_kill_rewards.is_empty()
+  and earned_xp>0 and int(world.progress.character_records[departed_identity].profile.xp[departed_class])==xp_before+earned_xp
+  and world.progress.character_records[departed_identity].profile.monsters[world.enemy_kind]==1
+  and world.progress.reserve(departed_identity).unknown.size()==1
   and not ally.has(world.ExpeditionWallet.STATE) and world.run_wallet(ally)==0,
   "flush credits detached Class XP and pouch once without restoring a run wallet")
+ var settled_disk:=disk()
+ world.MonsterRewards.queue(world,receipt.key,int(receipt.kind),0,receipt.position,false)
+ check(world.MonsterRewards.flush(world) and world.pending_kill_rewards.is_empty() and disk()==settled_disk
+  and world.progress.reserve(departed_identity).unknown.size()==1,"delayed duplicate receipt cannot change settled profile or cargo")
  record("disconnect_abort_then_commit",before)
 
  var lease:=G.get_base_dir().path_join("session.cfg")

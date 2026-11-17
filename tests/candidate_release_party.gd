@@ -209,11 +209,18 @@ func host() -> void:
  if not settlement_fault.is_empty():
   await finish_blocked_disconnect(game,identity,kills,kind,disconnect_before)
   return
- check(game.pending_departures.has(leaving) and game.pending_kill_rewards.size()==1
-  and FileAccess.get_sha256(G)==disconnect_before and game.status.begins_with("Save cancelled"),"failed disconnect settlement retains pending reward and Garden bytes")
+ check(game.departure_settlement.contains_peer(leaving) and game.pending_kill_rewards.size()==1
+  and game.departure_settlement.status(identity)==game.DepartureSettlement.Phase.RETRYABLE
+  and FileAccess.get_sha256(G)==disconnect_before and game.status.begins_with("Save cancelled"),
+  "verified disconnect abort retains the reward, retryable departure and Garden bytes")
+ check(game.admission_error(identity,game.progress.ContentIDs.manifest(),Network.PROTOCOL).contains("still being saved"),
+  "admission reports the unsettled departure for this character")
  game.remove_meta(&"guarded_gameplay_test_fault")
- check(game.MonsterRewards.flush(game) and game.pending_departures.is_empty() and game.pending_kill_rewards.is_empty()
-  and int(game.progress.character_records[identity].profile.monsters[kind])==kills+1,"committed flush credits disconnected identity once")
+ check(game.MonsterRewards.flush(game) and game.departure_settlement.is_empty() and game.pending_kill_rewards.is_empty()
+  and game.departure_settlement.status(identity)==game.DepartureSettlement.Phase.ABSENT
+  and not game.departure_settlement.blocks_admission(identity)
+  and int(game.progress.character_records[identity].profile.monsters[kind])==kills+1,
+  "committed flush credits disconnected identity once and releases its admission hold")
  var flushed := FileAccess.get_sha256(G)
  check(game.MonsterRewards.flush(game) and FileAccess.get_sha256(G)==flushed,"empty retry does not duplicate detached reward")
  print("CASE ",JSON.stringify({"case":"pending_disconnect_reward","before":disconnect_before,"after":flushed,"identity":identity}))
@@ -241,6 +248,9 @@ func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: i
  var cleanup := settlement_fault=="cleanup"
  check(not evidence.is_empty() and after!=before and not Tx.session_writable(game),"disconnect preserves write-blocking evidence")
  check((warning==Tx.CLEANUP_NOTICE) if cleanup else warning.contains("uncertain"),"disconnect outcome warning")
+ var phase: int = game.DepartureSettlement.Phase.CLEANUP_PENDING if cleanup else game.DepartureSettlement.Phase.UNCERTAIN
+ check(game.departure_settlement.status(identity)==phase and game.departure_settlement.blocks_admission(identity),
+  "blocked disconnect keeps the exact settlement outcome and admission hold")
  check(int(game.progress.character_records[identity].profile.monsters[kind])==kills+1,"settlement memory retains computed reward")
  game.remove_meta(&"guarded_gameplay_test_fault")
  var old_id := game.get_instance_id()
@@ -254,7 +264,10 @@ func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: i
  if not await until(func(): return read("blocked-refused")=="yes"):
   check(false,"reconnect must be refused while host is blocked")
   return
- check(FileAccess.get_sha256(G)==after and FileAccess.get_sha256(G+".transaction")==evidence,"blocked reconnect changes no evidence")
+ check(FileAccess.get_sha256(G)==after and FileAccess.get_sha256(G+".transaction")==evidence
+  and game.departure_settlement.status(identity)==phase
+  and int(game.progress.character_records[identity].profile.monsters[kind])==kills+1,
+  "blocked reconnect preserves the original settlement, reward and disk evidence")
  if cleanup:
   check(game.net_view.snapshot_sent==snapshot_sequence,"blocked reconnect does not repeat the final snapshot")
   game.release_slot()
@@ -296,7 +309,8 @@ func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: i
  mark("host-reopened",str(reopened.network_port))
  check(await until(func():return read("rejoin-after-recovery")=="yes"),"guest rejoins after recovery")
  var record: Dictionary = reopened.progress.character_records[identity].profile
- check(int(record.monsters[kind])==kills,"uncertain disconnected reward never replays after recovery")
+ check(int(record.monsters[kind])==kills and reopened.departure_settlement.is_empty(),
+  "uncertain disconnected reward never replays or restores a stale hold after recovery")
  reopened.return_to_main_menu()
  check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"reopened host offline before detach")
 

@@ -7,6 +7,7 @@ Edges describe gameplay/data relationships. Selection uses explicit suite covera
 ```mermaid
 flowchart LR
   expedition_grafts["Expedition graft ledgers<br/> altar quotes and source-owned adaptations"]
+  departure_settlement["Detached profiles<br/> protected cargo and guarded disconnect settlement"]
   expedition_wallet["Run-only Essence sparks<br/> floor grants and spending"]
   affinity_cards["Affinity expedition card ledger<br/> rarity<br/> Essence rerolls and owned effects"]
   oracle_progression["Connected Oracle<br/> native Omens and first-run focus admission"]
@@ -103,6 +104,9 @@ flowchart LR
   expeditions -->|"Earned choices, owner revisions and expedition-only currency"| affinity_cards
   expeditions -->|"The latest cleared floor determines the shared milestone grant"| expedition_wallet
   loot -->|"Monster rewards credit sparks separately from permanent rewards"| expedition_wallet
+  connection_flow -->|"Capture a disconnected profile and protect its identity until settlement"| departure_settlement
+  loot -->|"Frozen kill credits settle against detached profile identities"| departure_settlement
+  persistence_operations -->|"Verified save outcomes govern retry, cleanup and release of detached records"| departure_settlement
   affinity_cards -->|"Accepted rerolls replace the owner wallet and ledger together"| expedition_wallet
   expedition_wallet -->|"Guests receive the host wallet balance without its private state"| world_snapshot
   affinity_cards -->|"Source-scoped contributions captured by existing combat actions"| combat_affinity_contracts
@@ -312,6 +316,7 @@ flowchart LR
 | System | Source files | Covering suites |
 |---|---|---|
 | expedition_grafts | `expedition_grafts.gd`, `expedition_grafts.gd.uid`, `affinity_grafting_panel.gd`, `affinity_grafting_panel.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `ct02_weaver`, `ct04_reaper`, `cr05_native_grafts`, `cr05_native_grafts_coop`, `cr05_native_grafts_party` |
+| departure_settlement | `departure_settlement.gd`, `departure_settlement.gd.uid` | `experimental_terrain_coop`, `candidate_release_party`, `guarded_expedition`, `guarded_expedition_coop`, `monster_rewards` |
 | expedition_wallet | `expedition_wallet.gd`, `expedition_wallet.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `cr05_native_grafts`, `world_snapshot_codec`, `cr02_mode_coop`, `experimental_terrain`, `guarded_expedition`, `guarded_expedition_coop`, `guarded_garden_actions`, `core_combat_coop`, `monster_rewards`, `run_flow`, `weighted_upgrades` |
 | affinity_cards | `affinity_cards.gd`, `affinity_cards.gd.uid`, `affinity_card_ledger.gd`, `affinity_card_ledger.gd.uid`, `affinity_card_catalog.gd`, `affinity_card_catalog.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `cr05_native_grafts`, `cr02_mode_coop` |
 | oracle_progression | `oracle_connected_tree.gd`, `oracle_connected_tree.gd.uid`, `oracle_combat.gd`, `oracle_combat.gd.uid`, `oracle_omens.gd`, `oracle_omens.gd.uid` | `ct05_oracle`, `ct05_oracle_coop`, `ct05_oracle_party` |
@@ -416,6 +421,7 @@ flowchart LR
 | `_attempt_graft` | weapons |
 | `_bank_checkpoint_item` | items, garden_returns |
 | `_buy_upgrade` | expeditions |
+| `_capture_pending_departure` | departure_settlement |
 | `_cycle_slot` | weapons, items |
 | `_damage_player` | life |
 | `_donate_part` | items, garden |
@@ -442,6 +448,7 @@ flowchart LR
 | `_recover_pouch` | life |
 | `_refuse_unowned_world` | persistence_operations, persistence_authorization, persistence_recovery_plan, persistence_save_access, menus, characters, developer_garden, connection_flow |
 | `_report_guest_projection` | persistence_operations, connection_flow, characters, expeditions, garden |
+| `_resolve_departure_settlement` | departure_settlement |
 | `_select_class` | classes, characters, weapons |
 | `_stop_guarded_session` | menus, persistence_operations |
 | `_unhandled_input` | foundation |
@@ -772,6 +779,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_act` | crop_care_adapter | garden_care |
 | `game.gd::_act` | gate_range | gate_access |
 | `game.gd::_act` | garden_inspect | garden_observations |
+| `game.gd::_use_checkpoint` | ar04_departure_extraction | departure_settlement |
 | `game.gd::_use_checkpoint` | guarded_expedition | persistence_operations, expeditions, expedition_sustain, healing_rolls, combat_balance_preview, combat_vitals, garden_returns, gate_access |
 | `game.gd::_use_checkpoint` | cb07_0 | expedition_sustain |
 | `game.gd::_use_checkpoint` | cb07_6 | expedition_sustain |
@@ -874,6 +882,11 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::player_snapshot` | garden_projection | garden_observations |
 | `game.gd::reset_expedition` | ar03_wallet_reset | expedition_wallet |
 | `game.gd::_affinity_checkpoint_command` | ar03_wallet_reroll_debit | expedition_wallet, affinity_cards |
+| `game.gd::run_guarded_action` | ar04_departure_result | departure_settlement |
+| `game.gd::settle_expedition_rewards` | ar04_departure_staging | departure_settlement |
+| `game.gd::settle_expedition_rewards` | ar04_departure_finalization | departure_settlement |
+| `game.gd::prepare_guarded_exit` | ar04_departure_exit | departure_settlement |
+| `game.gd::admission_error` | ar04_departure_readmission | departure_settlement |
 | `game.gd::add_player` | ar03_wallet_initialization | expedition_wallet |
 | `game.gd::add_player` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::add_player` | preview_spawn_capacity | combat_balance_preview |
@@ -948,6 +961,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_finish_failed_expedition` | experimental_reward_checkpoint | hex_terrain, terrain, persistence_operations |
 | `game.gd::_finish_failed_expedition` | guarded_expedition | persistence_operations, life, garden_returns |
 | `game.gd::_finish_failed_expedition` | garden_returns | garden_returns |
+| `game.gd::remove_player` | ar04_departure_capture | departure_settlement |
 | `game.gd::remove_player` | ar03_wallet_disconnect_guarded | expedition_wallet |
 | `game.gd::remove_player` | ar03_wallet_disconnect_legacy | expedition_wallet |
 | `game.gd::remove_player` | guarded_lifecycle | persistence_operations, connection_flow, foundation, garden_returns |
