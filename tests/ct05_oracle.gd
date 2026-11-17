@@ -117,6 +117,18 @@ func entry_for_each_class() -> void:
 	var build = preload("res://affinity_build.gd")
 	var qs := ["Root Anchor","Cultivate Bloom","Luring Snare","Veil Passage","Guiding Bell"]
 	var rs := ["Root Quake","Spore Nova","Bramble Snare","Siphon Cut","Warding Chime"]
+	var original_binding := InputMap.action_get_events("class_skill")
+	var rebound := InputEventKey.new()
+	rebound.physical_keycode = KEY_K
+	InputMap.action_erase_events("class_skill")
+	InputMap.action_add_event("class_skill", rebound)
+	var preview_effects := [
+		["prime your next hit","plant an anchor","directional shield"],
+		["Damage and root","pulses damage","roots enemies and wards allies"],
+		["Tracked Prey","decoy","briar trap"],
+		["recover health","2.7 s","most wounded nearby living ally"],
+		["Foreboding","Guided Strike","Second Breath"],
+	]
 	caster.character=Profile.blank()
 	for class_id in qs.size():
 		reset_field()
@@ -132,9 +144,18 @@ func entry_for_each_class() -> void:
 		check(graph.level(caster.character)==1 and caster.character.xp[class_id]==0
 			and graph.focus(caster.character).is_empty() and not build.departure_refusal(caster).is_empty()
 			and not game._enter_wilds(1,caster),"fresh class requires an explicit starting focus")
+		var before_preview: Dictionary = caster.character.duplicate(true)
 		game.loadout_view.refresh()
 		check(game.loadout_view.focus_options.visible and game.loadout_view.depart_button.disabled,"starting focus is offered in crafting UI")
-		game.garden_action(1,"learn_%d_65"%class_id)
+		for lane in preview_effects[class_id].size():
+			var preview: Label = game.loadout_view.focus_previews[lane]
+			var candidate: Dictionary = before_preview.duplicate(true)
+			candidate[graph.profile_key] = graph.state([graph.nodes[lane].id])
+			var ability_name: String = game.Skills.resolve_in_world(game,class_id,0,candidate).name
+			check(preview.visible and preview.text.begins_with(ability_name + " · ") and "cooldown" in preview.text
+				and preview_effects[class_id][lane] in preview.text,"class %d lane %d shows its named starting ability and effect before learning" % [class_id,lane])
+		check(caster.character==before_preview,"previewing focus choices leaves the actual profile untouched")
+		game.loadout_view.focus_buttons[1].pressed.emit()
 		check(graph.path(caster.character).size()==1 and build.departure_refusal(caster).is_empty()
 			and caster.character.xp[class_id]==0,"0 XP focus learns through actual host action")
 		game.loadout_view.refresh()
@@ -156,6 +177,9 @@ func entry_for_each_class() -> void:
 		check(int(caster.skill_two_at)>Time.get_ticks_msec(),"native R casts with no equipped parts")
 	for class_id in qs.size():
 		check(game.Classes.connected_tree(class_id).path(caster.character).size()==1,"switching classes preserves each chosen focus")
+	InputMap.action_erase_events("class_skill")
+	for event in original_binding:
+		InputMap.action_add_event("class_skill", event)
 
 
 func cast(slot: int) -> void:

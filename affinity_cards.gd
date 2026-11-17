@@ -61,7 +61,7 @@ static func requirement(definition: Dictionary, build: Dictionary) -> String:
 			if build.focus_id != requires.focus or skills[0].get("native_skill", {}).get("field") != requires.q_field:
 				return "Requires the Bloomcaller starting focus and Cultivate Bloom."
 	elif scope == "weapon" and not build.get("capabilities", {}).get(requires.capability, false):
-		return "Requires a functioning ordinary weapon attack."
+		return "Requires a functioning basic attack."
 	return ""
 
 
@@ -190,16 +190,14 @@ static func view(game: Node, player: Dictionary, waiting: bool) -> Dictionary:
 		var option: Dictionary = offer.cards[index]
 		var definition: Dictionary = Catalog.DEFINITIONS[option.id]
 		var reason := option_refusal(game, player, option, stats)
-		var owned := amount(player, option.id)
-		var description: String = definition.description % Catalog.amount_text(definition, int(option.amount))
-		if definition.policy == "stackable":
-			description += "\n\nAcquired: %s · With this copy: %s" % [
-				Catalog.amount_text(definition, owned), Catalog.amount_text(definition, owned + int(option.amount))]
-		if not reason.is_empty():
-			description += "\n\n" + reason
-		result.choices.append({"choice": index, "id": option.id, "title": definition.title,
+		var limit := parameter_limit(definition, stats, game.DODGE_COOLDOWN_MS)
+		var owned: Array = run.copies.filter(func(copy): return copy.id == option.id)
+		var active := mini(limit, amount(player, option.id)) if requirement(definition, stats.affinity_build).is_empty() else 0
+		var choice := choice_view(definition, option, owned, active, reason)
+		choice.merge({"choice": index, "id": option.id, "title": definition.title,
 			"rarity": option.rarity, "scope": str(definition.scope).capitalize(), "unique": definition.policy == "unique",
-			"description": description, "enabled": reason.is_empty(), "cost": 0})
+			"enabled": reason.is_empty(), "cost": 0})
+		result.choices.append(choice)
 	var cost := reroll_cost(offer)
 	result.reroll_cost = cost
 	if cost > 0:
@@ -295,23 +293,104 @@ static func project_owned(player: Dictionary, stats: Dictionary, dodge_base: int
 	return result
 
 
-static func owned_rows(copies: Array) -> Array:
-	var rows: Array = []
+static func rarity_mix(copies: Array) -> String:
+	var counts := {}
 	for copy: Dictionary in copies:
-		var definition: Dictionary = Catalog.DEFINITIONS[copy.id]
+		counts[copy.rarity] = int(counts.get(copy.rarity, 0)) + 1
+	var labels: PackedStringArray = []
+	for rarity_name: String in Catalog.RARITIES:
+		if counts.has(rarity_name):
+			labels.append("%d %s" % [counts[rarity_name], rarity_name])
+	return ", ".join(labels)
+
+
+static func copy_total(copies: Array) -> int:
+	var total := 0
+	for copy: Dictionary in copies:
+		total += int(copy.amount)
+	return total
+
+
+static func copy_list(definition: Dictionary, copies: Array) -> String:
+	if copies.is_empty():
+		return "No copies acquired."
+	var lines: PackedStringArray = [rarity_mix(copies)]
+	for copy: Dictionary in copies:
+		lines.append("%s · %s · Floor %d" % [copy.rarity, Catalog.contribution(definition, int(copy.amount)), int(copy.floor)])
+	return "\n".join(lines)
+
+
+static func detail_text(definition: Dictionary) -> String:
+	var needs: Dictionary = definition.requires
+	var lines: PackedStringArray = []
+	if needs.has("family"):
+		lines.append("Requires %s %s." % [str(needs.family).capitalize(), str(definition.scope).capitalize()])
+	elif needs.has("class"):
+		lines.append("Requires %s and %s." % [str(needs["class"]).capitalize(), needs.skill])
+	lines.append(definition.detail)
+	if definition.policy == "unique":
+		lines.append("One acquisition per expedition.")
+	else:
+		lines.append("Up to %d useful copies. Each copy keeps its offered rarity and contribution." % int(definition.limit))
+	return "\n".join(lines)
+
+
+static func choice_view(definition: Dictionary, option: Dictionary, owned: Array, active: int, reason: String) -> Dictionary:
+	var amount_offered: int = int(option.amount)
+	var description := Catalog.effect_text(definition, amount_offered)
+	var preview := ""
+	var detail := detail_text(definition)
+	if definition.policy == "stackable":
+		var total := copy_total(owned)
+		var current := Catalog.contribution(definition, active)
+		if reason.is_empty():
+			var combined := Catalog.contribution(definition, active + amount_offered)
+			var count := owned.size()
+			if definition.parameter == "strike_damage":
+				preview = "Acquired: %d %s (%s) → %d %s (%s)" % [
+					count, "copy" if count == 1 else "copies", current,
+					count + 1, "copy" if count == 0 else "copies", combined]
+			else:
+				preview = "%s: %s → %s" % [Catalog.contribution_label(definition), current, combined]
+		detail += "\n\nCurrently active: " + current
+		if active != total:
+			detail += " · Total owned: " + Catalog.contribution(definition, total)
+		detail += "\n" + copy_list(definition, owned)
+	if not reason.is_empty():
+		preview = reason
+	return {"description": description, "preview": preview, "detail": detail}
+
+
+static func owned_rows(copies: Array) -> Array:
+	var by_id := {}
+	for copy: Dictionary in copies:
+		if not by_id.has(copy.id):
+			by_id[copy.id] = []
+		by_id[copy.id].append(copy)
+	var rows: Array = []
+	for id: String in by_id:
+		var group: Array = by_id[id]
+		var first: Dictionary = group[0]
+		var definition: Dictionary = Catalog.DEFINITIONS[id]
+		var scope := str(definition.scope).capitalize()
 		var unique: bool = definition.policy == "unique"
-		var grade: String = "Unique" if unique else copy.rarity
-		var scope: String = str(definition.scope).capitalize()
-		var label := "%s · %s · %s" % [definition.title, grade, scope]
-		var description: String = definition.description % Catalog.amount_text(definition, int(copy.amount))
+		var reason: String = first.reason
+		var summary := "Unique · " + scope if unique else rarity_mix(group) + " · " + scope
+		var total := copy_total(group)
+		var applied := int(first.applied)
+		if unique:
+			summary += "\n" + Catalog.effect_text(definition, total)
+		else:
+			summary += "\n%s: %s" % [Catalog.contribution_label(definition), Catalog.contribution(definition, total)]
+			if definition.scope in ["core", "form", "catalyst", "class"] or applied != total:
+				summary += " · Active: " + Catalog.contribution(definition, applied)
+		if not reason.is_empty():
+			summary += "\nInactive: " + reason
+		var detail := detail_text(definition)
 		if not unique:
-			description += "\nAcquired total: " + Catalog.amount_text(definition, int(copy.total))
-			if int(copy.applied) != int(copy.total):
-				description += " · Applied: " + Catalog.amount_text(definition, int(copy.applied))
-		if not str(copy.reason).is_empty():
-			label += " · Inactive"
-			description += "\nInactive: " + str(copy.reason)
-		rows.append({"title": label, "tooltip": "%s\n%s" % [label, description], "rarity": grade})
+			detail += "\n\n" + copy_list(definition, group)
+		rows.append({"id": id, "title": definition.title if unique else "%s ×%d" % [definition.title, group.size()],
+			"summary": summary, "tooltip": detail})
 	return rows
 
 

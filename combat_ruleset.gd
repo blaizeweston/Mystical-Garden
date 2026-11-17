@@ -1,6 +1,6 @@
 extends RefCounted
 
-const ID := "plant-affinity-ec01"
+const ID := "plant-affinity-ec01-corrections"
 const FLAG := "--combat-affinities"
 const META := &"combat_affinity_ruleset"
 const PLAYER_KEY := "combat_ruleset"

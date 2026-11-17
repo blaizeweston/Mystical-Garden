@@ -15,6 +15,12 @@ static func lifetime(game: Node, player: Dictionary) -> Dictionary:
 
 static func on_q(game: Node, actor: int, player: Dictionary, selected: Array, point: Vector3, allies: Array,
 		contact: bool, field: Dictionary, activation: int, now: int) -> void:
+	if selected.has("threaded_nova"):
+		var prior: Dictionary = player.get("subclass_follow", {})
+		if int(prior.get("lane", -1)) == 1:
+			player.erase("subclass_follow")
+		if (selected[0] != "bloomcaller" or not field.is_empty()) and int(player.skill_two_at) > now:
+			player.skill_two_at = maxi(now, int(player.skill_two_at) - Progression.THREAD_REFUND_MS)
 	if selected.has("spore_pressure"):
 		if contact:
 			player.weaver_pressure = lifetime(game,player)

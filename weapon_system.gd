@@ -85,7 +85,7 @@ static func describe(stats: Dictionary) -> String:
 	var damage := str(stats.damage)
 	if stats.has("damage_min"):
 		damage=preload("res://combat_balance_preview.gd").range_label(Vector2i(stats.damage_min,stats.damage_max))
-	var text: String="%s\n%s · %d target(s)\n%s damage · %.1fm reach · %dms strikes" % [stats.name,str(stats.pattern).capitalize(),stats.targets,damage,stats.reach,stats.interval]
+	var text: String="%s\n%s · %d target(s)\n%s damage · %.1f m reach · %.2f s basic attack interval" % [stats.name,str(stats.pattern).capitalize(),stats.targets,damage,stats.reach,int(stats.interval)/1000.0]
 	for key in ["recovery","pull","knockback","stagger","heal_on_kill","windup_damage","skill_heal","skill_cooldown","skill_duration","dodge_cooldown"]:
 		if float(stats.get(key,0))!=0:
 			var amount=stats[key]
@@ -95,7 +95,7 @@ static func describe(stats: Dictionary) -> String:
 			else:
 				text+="\n"+Classes.effect_text({key:amount},stats.has("damage_min"))
 	if stats.has("damage_min") and float(stats.get("max_health",0))>0:
-		text+="\n+%d maximum HP"%Preview.effect_hp(float(stats.max_health))
+		text+="\n+%d Max HP"%Preview.effect_hp(float(stats.max_health))
 	if not stats.interactions.is_empty():
 		text+="\n\nInteractions: "+", ".join(stats.interactions)
 	var behavior:=Traits.describe(stats,true)

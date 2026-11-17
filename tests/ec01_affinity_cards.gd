@@ -453,6 +453,102 @@ func verify_authoring() -> void:
 		check(not str(definition.trigger).is_empty() and exists,"%s identifies its trigger and executable consumer" % id)
 
 
+func verify_presentation() -> void:
+	reset(1)
+	var honed := "ordinary_weapon_damage"
+	grant_fixture_copy(honed, 0)
+	grant_fixture_copy(honed, 0)
+	grant_fixture_copy(honed, 1)
+	at_checkpoint(3)
+	var offer := Cards.state(player)
+	offer.offer = Cards.new_offer(game,[{"id":honed,"amount":3,"rarity":"Rare"}],0)
+	var choice: Dictionary = Cards.view(game,player,false).choices[0]
+	check(choice.description == "Basic attacks gain +3 damage." and choice.scope == "Weapon"
+		and choice.preview == "Acquired: 3 copies (+4 damage) → 4 copies (+7 damage)"
+		and "2 Common, 1 Uncommon" in choice.detail,"picker uses each actual copy and reports the effective next total")
+	var projected := Cards.project_owned(player,game.weapon_stats(player),game.DODGE_COOLDOWN_MS)
+	var group: Dictionary = Cards.owned_rows(projected)[0]
+	check(group.title == "Honed Strikes ×3" and "2 Common, 1 Uncommon · Weapon" in group.summary
+		and "Damage bonus: +4 damage" in group.summary and "Uncommon · +2 damage" in group.tooltip
+		and projected[0].applied == 4,"the grouped Tab summary uses the same contribution consumed by combat")
+	game.present_checkpoint_cards(1)
+	var face: VBoxContainer = game.checkpoint_cards.get_child(0).get_child(0)
+	var info := face.get_child(3) as Button
+	info.button_pressed = true
+	var face_description := face.get_child(2).get_child(0) as Label
+	check("Weapon · Rare" == face.get_child(1).text and "2 Common, 1 Uncommon" in face_description.text,
+		"the rooted card face shows scope, and its Details button reveals acquired contributions")
+	game.toggle_overlay(null)
+	var tab: Control = game.overlay.get_node("RunSummary")
+	tab.refresh(player)
+	var tab_group: VBoxContainer = tab.grouped_cards.get_child(0)
+	tab_group.get_child(0).button_pressed = true
+	check(tab.grouped_cards.get_child_count() == 1 and "Honed Strikes ×3" == tab_group.get_child(0).text
+		and "Uncommon · +2 damage" in tab_group.get_child(2).text and tab_group.get_child(2).visible,
+		"the real Tab view groups copies and exposes individual contributions")
+	player.catalyst = material("water")
+	grant_fixture_copy("catalyst_drench_time")
+	offer.offer = Cards.new_offer(game,[{"id":"catalyst_drench_time","amount":250,"rarity":"Common"}],0)
+	choice = Cards.view(game,player,false).choices[0]
+	check(choice.preview == "Duration bonus: +0.25 s → +0.50 s" and "by 0.25 seconds" in choice.description,
+		"picker presents the exact status duration extension")
+	player.catalyst = 0
+	var inactive: Dictionary = Cards.owned_rows(Cards.project_owned(player,game.weapon_stats(player),game.DODGE_COOLDOWN_MS))[1]
+	check("Duration bonus: +0.25 s · Active: +0 s" in inactive.summary
+		and "Equip a Water Catalyst" in inactive.summary,"unequipped card stays owned with its real inactive reason")
+	var definition: Dictionary = Catalog.DEFINITIONS.ordinary_weapon_interval
+	choice = Cards.choice_view(definition,{"amount":15},[],0,"")
+	check("0.015 seconds" in choice.description and "+0.015 s" in choice.preview,"a capped offer displays its exact clipped contribution")
+
+	for species in game.Seeds.DEFINITIONS.size():
+		var seed: Dictionary = game.Seeds.DEFINITIONS[species]
+		var plant := Build.planting_description(species,true)
+		var actual := Build.for_player(player)
+		var core := Build.slot_preview(actual,"core",int(seed.part))
+		check("Ordinary:" in plant and "Refined:" in plant and str(core.summary).get_slice("\n",1).get_slice(" · ",0) in plant
+			and Build.planting_description(species,false) == game.Seeds.modifier_text(species),
+			"planting and Core share the family identity for %s, and preserve legacy text" % seed.id)
+		for slot_name: String in Build.SLOTS:
+			var ordinary := Build.slot_preview(actual,slot_name,int(seed.part))
+			var refined := Build.slot_preview(actual,slot_name,game.Parts.rare_part(species))
+			check("Ordinary" in ordinary.summary and "Refined" in refined.summary
+				and ("possible upgrade cards" in ordinary.detail or Build.Affinities.for_part(int(seed.part)).supporting_affinities.is_empty()),
+				"%s shows actual %s quality and supporting-affinity semantics" % [seed.id,slot_name])
+
+	var seeds: Array = game.Seeds.counts()
+	var dewcap: int = game.Seeds.index_of("dewcap")
+	seeds[dewcap] = 2
+	game.planting_view.begin(0,seeds)
+	game.planting_view.grid.get_child(0).pressed.emit()
+	check("Water primary affinity · Dewfall" in game.planting_view.details.text
+		and "Base growth" in game.planting_view.details.text,"the actual planting panel explains affinity while preserving cultivation details")
+
+	var thorn := material("thorn")
+	var weaver_catalyst := Build.slot_preview(Build.for_player(player),"catalyst",thorn)
+	focus(0)
+	var warden_catalyst := Build.slot_preview(Build.for_player(player),"catalyst",thorn)
+	check("Cultivate Bloom" in weaver_catalyst.summary and "Spore Nova" in weaver_catalyst.summary
+		and "Thorn Counter · After an actual block" in warden_catalyst.summary and "Root Quake" in warden_catalyst.summary,
+		"the same Catalyst distinguishes native class abilities and their triggers before equipping it")
+	player.wild = false
+	player.pos = game.stage.gate_position()
+	game.progress.add_parts(thorn,2)
+	var panel: Control = game.loadout_view
+	panel.refresh()
+	var picker: OptionButton = panel.slots[0]
+	var option := picker.get_item_index(thorn)
+	if option >= 0:
+		picker.select(option)
+		picker.item_selected.emit(option)
+		check(player.prepared == 0 and "Preview" in panel.slot_summaries[0].text
+			and "Thorn Line" in panel.slot_summaries[0].text,"browsing a real material does not equip it")
+		panel.slot_equip_buttons[0].pressed.emit()
+		check(player.prepared == thorn and not panel.slot_summaries[0].text.begins_with("Preview"),
+			"explicit Equip uses the normal transaction and retains the summary")
+	else:
+		check(false,"Thorn material is available in the real Gate panel")
+
+
 func run() -> void:
 	game = preload("res://world.tscn").instantiate()
 	game.set_meta(Rules.META,Rules.ID)
@@ -469,6 +565,7 @@ func run() -> void:
 	verify_native()
 	verify_echo()
 	verify_authoring()
+	verify_presentation()
 	if failures==0:
 		print("PASS: EC01 all 28 real card consumers and offer/lifecycle contracts (%d checks)" % checks)
 	quit(int(failures>0))

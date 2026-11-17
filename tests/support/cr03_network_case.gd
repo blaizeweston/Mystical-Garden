@@ -784,9 +784,13 @@ func exercise_weaver_host(game: Node, id: int, entry: Vector3, target: Vector3, 
 	game.enemy_stagger_until=Time.get_ticks_msec()+12500
 	player.pos=entry
 	var aim := (target-entry).normalized()
+	var nova_deadline := Time.get_ticks_msec() + 1200
+	player.skill_two_at = nova_deadline
 	mark("weaver-q", str(Vector2(aim.x,aim.z)) + ":" + str(entry.distance_to(target)))
 	if not check(await until(func():return player.has("weaver_nova_origin") and game.trait_events.any(func(e):
 		return e.get("native_weaver_bloom",false) and e.owner==id)),"remote Cultivate Bloom records its actual placement"):return false
+	if not check(int(player.skill_two_at) < nova_deadline and int(player.skill_two_at) <= Time.get_ticks_msec()
+			and not player.has("subclass_follow"),"remote Cultivate Bloom immediately makes the active Nova timer ready"):return false
 	var anchor: Vector3=player.weaver_nova_origin.point
 	var q_timer: int=player.skill_at
 	check(anchor.distance_to(target)<.2 and game.Skills.resolve_in_world(game,1,0,player.character).name=="Cultivate Bloom",
@@ -885,10 +889,14 @@ func guest(menu: Node, role: String) -> void:
 		game.send_garden_action("class_skill_two")
 	elif connected_weaver_case and starting_class==1:
 		if not check(await until(func():return not read("weaver-q").is_empty()),"await Weaver Q on generated floor"):return
+		if not check(await until(func():return not game.players[id].get("skill_two_ready",true),900),
+			"guest sees the active Nova cooldown before casting"):return
 		var release := read("weaver-q").split(":")
 		var vector := release[0].trim_prefix("(").trim_suffix(")").split(",")
 		game.send_garden_action(Aim.request(game,game.players[id],0,Vector2(float(vector[0]),float(vector[1])),float(release[1])))
 		if not check(await until(func():return not read("weaver-r").is_empty()),"await real recorded Bloom center"):return
+		if not check(await until(func():return game.players[id].get("skill_two_ready",false),900),
+			"guest receives the host's immediate Nova readiness"):return
 		var location := read("weaver-r").trim_prefix("(").trim_suffix(")").split(",")
 		var center := Vector3(float(location[0]),0,float(location[1]))
 		game.send_garden_action(Aim.request(game,game.players[id],1,Vector2.DOWN))

@@ -4957,12 +4957,12 @@ func open_checkpoint_cards(cards: Array,wallet: int,floor_number: int,waiting: b
 		var title := add_label(card,18,Color("#e4d7a5"))
 		title.text = str(data.title)
 		title.add_theme_color_override("font_color",Color({"Common":"#d0d1b3","Uncommon":"#a3c57b","Rare":"#83b7d7","Epic":"#b99adb"}.get(str(data.get("rarity","Common")),"#e4d7a5")))
-		title.custom_minimum_size = Vector2(width-28,52)
+		title.custom_minimum_size = Vector2(width-28,0 if not offer.is_empty() else 52)
 		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		if not offer.is_empty():
 			add_label(card,14,Color("#a3c57b")).text = "%s · %s" % [data.scope,"Unique" if data.unique else data.rarity]
 		var scroll := ScrollContainer.new()
-		scroll.custom_minimum_size = Vector2(width-28,200 if not offer.is_empty() else 220)
+		scroll.custom_minimum_size = Vector2(width-28,166 if not offer.is_empty() else 220)
 		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		card.add_child(scroll)
@@ -4970,6 +4970,22 @@ func open_checkpoint_cards(cards: Array,wallet: int,floor_number: int,waiting: b
 		description.text = str(data.description)
 		description.custom_minimum_size.x = width-40
 		description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if not offer.is_empty():
+			var preview: String = data.get("preview", "")
+			if not preview.is_empty():
+				description.text += "\n\n" + preview
+			var short_text := description.text
+			var details := Button.new()
+			details.text = "Details"
+			card.add_child(details)
+			details.toggle_mode = true
+			details.add_theme_font_size_override("font_size",13)
+			details.tooltip_text = data.get("detail","")
+			details.toggled.connect(func(expanded: bool):
+				details.text = "Hide details" if expanded else "Details"
+				description.text = short_text + "\n\n" + str(data.get("detail","")) if expanded else short_text
+				scroll.focus_mode = Control.FOCUS_ALL if expanded else Control.FOCUS_NONE
+				scroll.scroll_vertical = 0)
 		var choice := int(data.choice)
 		var action := affinity_checkpoint_action(int(offer.revision),str(choice)) if not offer.is_empty() else "checkpoint_choice_%d"%choice
 		var caption := "%d · Take upgrade" % (choice+1) if not offer.is_empty() else "%d · Choose · %d essence"%[choice+1,int(data.cost)]

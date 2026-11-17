@@ -36,20 +36,20 @@ const ROWS := [
 	[["omenreader","Omenreader","Learn Foretell and the Foreboding Curse."],
 	 ["leykeeper","Leykeeper","Learn Guiding Bell and the Guided Strike Portent."],
 	 ["lifekeeper","Lifekeeper","Learn Living Sanctuary and the Second Breath Blessing."]],
-	[["wide_omen","Wide Omen","Q gains 0.55 m of radius."],
-	 ["long_resonance","Long Resonance","Q gains 1.25 m of placement range."],
-	 ["kindled_ward","Kindled Ward","Q gives one 1.4 s Ward to the visible living recipient with the lowest health ratio in its footprint. You can qualify."]],
-	[["verdicts_toll","Verdict’s Toll","Q deals 10 extra base HP to one enemy nearest its effect center, even on a normally nondamaging Q."],
-	 ["anchored_ley","Anchored Ley","Root Q’s surviving victims for 0.65 s. Longer roots take priority."],
-	 ["quiet_ground","Quiet Ground","Q clears ordinary Slow for living allies in its footprint and prevents their next ordinary Slow for up to 3 s."]],
-	[["barbed_chime","Barbed Chime","After Q, the next Warding Chime deals a secondary 10 base HP hit to one enemy within 2.6 m and clear line."],
-	 ["quick_chime","Quick Chime","After Q, the next Warding Chime recovers 1.7 s sooner, down to a 1.8 s cooldown."],
-	 ["shared_shelter","Shared Shelter","After Q, the next Warding Chime grants its ordinary Ward for 2 s."]],
-	[["ritual_verdict","Ritual Verdict","An ordinary weapon hit that deals damage within 3 m prepares your next Q for 4 s. That cast adds 10 base HP to one enemy nearest its effect center."],
-	 ["omen_resonance","Omen Resonance","Your starting focus’s native Omen lasts 1.5 s longer."],
-	 ["merciful_chime","Merciful Chime","When this Chime’s Ward blocks an enemy attack, heal the protected ally for up to 6 HP, once per recipient per cast."]],
-	[["sentence_of_dawn","Sentence of Dawn","Warding Chime deals 15 base HP to enemies within 3 m and clear line. Enemies carrying your Foreboding take 10 extra base HP in the same hit."],
-	 ["fates_refrain","Fate’s Refrain","After Q, the next Warding Chime bestows your focus Omen in its own area."],
+	[["wide_omen","Wide Omen","Increases {focus}'s radius by 0.55 m."],
+	 ["long_resonance","Long Resonance","Increases {focus}'s placement range by 1.25 m."],
+	 ["kindled_ward","Kindled Ward","{focus} grants one 1.4 s Ward to the visible living recipient with the lowest HP ratio in its area. You can qualify."]],
+	[["verdicts_toll","Verdict’s Toll","{focus} deals +10 damage to the enemy nearest its effect center within its area. This also works with otherwise nondamaging abilities."],
+	 ["anchored_ley","Anchored Ley","{focus} roots surviving enemies it affects for 0.65 s. A longer existing root takes priority."],
+	 ["quiet_ground","Quiet Ground","{focus} removes ordinary Slow from living allies in its area and protects them against their next ordinary Slow for up to 3 s."]],
+	[["barbed_chime","Barbed Chime","After {focus}, your next Warding Chime deals 10 secondary damage to one enemy within 2.6 m and in clear line."],
+	 ["quick_chime","Quick Chime","After {focus}, your next valid Warding Chime starts a cooldown 1.7 s shorter, with a 1.8 s minimum."],
+	 ["shared_shelter","Shared Shelter","After {focus}, your next Warding Chime grants its Ward for 2 s instead of 1.5 s."]],
+	[["ritual_verdict","Ritual Verdict","A damaging basic attack hit within 3 m prepares {focus} for 4 s. The next cast deals +10 damage to the enemy nearest its effect center within its area."],
+	 ["omen_resonance","Omen Resonance","Extends the duration of {focus}'s Omen by 1.5 s."],
+	 ["merciful_chime","Merciful Chime","When a Warding Chime Ward blocks an enemy attack, heal the protected ally for up to 6 HP, once per recipient per cast."]],
+	[["sentence_of_dawn","Sentence of Dawn","Warding Chime deals 15 damage to enemies within 3 m and in clear line. Enemies carrying your Foreboding take +10 damage on that same hit."],
+	 ["fates_refrain","Fate’s Refrain","After {focus}, your next Warding Chime also bestows {focus}'s Omen in its own area."],
 	 ["mercys_chorus","Mercy’s Chorus","Warding Chime also grants a 4 s Portent of Mercy. Restore up to 8 HP after surviving your next unblocked direct enemy hit. Only the strongest conditional recovery responds per hit."]],
 ]
 const VERSION_DATA := [Model.VERSION,Model.XP_THRESHOLDS,ROWS,OMENS,FOCUS_OMENS,VERDICT_HP,BARBED_HP,BARBED_RADIUS,
@@ -62,7 +62,7 @@ static func omen_duration(omen: String, path: Array) -> int:
 	return int(OMENS[omen].ms) + (RESONANCE_MS if path.has("omen_resonance") else 0)
 
 
-static func configure_skill(skill: Dictionary, selected: Array, slot: int) -> void:
+static func configure_skill(skill: Dictionary, selected: Array, slot: int, ability: String) -> void:
 	skill.oracle_nodes = selected
 	var omen: String = FOCUS_OMENS[selected[0]]
 	if slot == 0:
@@ -71,4 +71,4 @@ static func configure_skill(skill: Dictionary, selected: Array, slot: int) -> vo
 		var node := TREE.node(selected[tier])
 		var q_node: bool = tier <= 2 or node.id in ["ritual_verdict","omen_resonance"]
 		if q_node == (slot == 0):
-			skill.description += "\n" + node.name + " · " + node.description
+			skill.description += "\n" + node.name + " · " + Model.focus_text(node.description, ability)

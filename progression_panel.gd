@@ -429,7 +429,11 @@ func subclass_nodes(data: Dictionary, c: int, level: int, mask: int) -> Array:
 	var lanes: Array = connected.LANES if use_connected else tree_data.LANES
 	var focus_id: String = connected.focus(data) if use_connected else game.Classes.focus_id(data,c)
 	var focus: String=game.Classes.focus_name(focus_id)
-	if use_connected: level = connected.level(data)
+	var starting_ability := ""
+	if use_connected:
+		level = connected.level(data)
+		if not focus_id.is_empty():
+			starting_ability = game.Skills.resolve(c,0,data,true).name
 	var base_y := 628.0 if use_connected else 452.0
 	var result: Array=[{"id":base,"label":title,"parents":[],"position":Vector2(350,base_y),
 		"unlocked":true,"color":"#c4be83","detail":"%s · Lv %d\n%s\n\nChoose one node per tier at the Heart or Wilds Gate. The first choice teaches your subclass skill. Later tiers can follow a root to an adjacent branch."%[title,level,focus if not focus.is_empty() else "Choose a subclass"],
@@ -444,9 +448,17 @@ func subclass_nodes(data: Dictionary, c: int, level: int, mask: int) -> Array:
 		var reason: String = connected.refusal(data,index) if use_connected else ""
 		var ready: bool = reason.is_empty() if use_connected else game.Classes.can_learn(data,c,index,level)
 		var parents: Array=[base] if node.parents.is_empty() else node.parents.map(func(id):return nodes_by_id[id])
-		var description: String=game.Classes.Weaver.description(node,focus_id) if c==1 and use_connected else node.description
-		if c==3 and use_connected:
-			description = game.Classes.Reaper.description(node,focus_id)
+		var description: String = node.description
+		if use_connected:
+			match c:
+				0: description = preload("res://warden_connected_tree.gd").description(node,focus_id,starting_ability)
+				1: description = game.Classes.Weaver.description(node,focus_id,starting_ability)
+				2: description = game.Classes.Ranger.description(node,focus_id,starting_ability)
+				3: description = game.Classes.Reaper.description(node,focus_id,starting_ability)
+				4: description = preload("res://connected_class_tree.gd").focus_text(node.description,starting_ability)
+			if c == 2 and node.id in ["trail_ward","clear_trail"] and not starting_ability.is_empty():
+				var skill: Dictionary = game.Skills.resolve(c,0,data,true)
+				description += "\nSupport radius: %.2f m." % skill.ranger_support_radius
 		var summary: String=node.name+" · "+lanes[node.lane]+"\n"+description
 		if game.has_meta(&"combat_affinity_ruleset"):
 			var restriction: String = preload("res://affinity_build.gd").RESTRICTED_NODES.get(node.id, "")

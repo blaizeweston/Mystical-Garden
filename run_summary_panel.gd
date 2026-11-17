@@ -22,6 +22,8 @@ var heading: Label
 var totals: GridContainer
 var bonuses: Label
 var cards: ItemList
+var grouped_scroll: ScrollContainer
+var grouped_cards: VBoxContainer
 var empty_cards: Label
 var close_button: Button
 var shown: Dictionary
@@ -93,6 +95,15 @@ func _ready() -> void:
 	cards.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	cards.add_theme_constant_override("v_separation", 8)
 	right.add_child(cards)
+	grouped_scroll = ScrollContainer.new()
+	grouped_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	grouped_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	grouped_scroll.follow_focus = true
+	right.add_child(grouped_scroll)
+	grouped_cards = VBoxContainer.new()
+	grouped_cards.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grouped_cards.add_theme_constant_override("separation", 10)
+	grouped_scroll.add_child(grouped_cards)
 	close_button = game.add_button(box, "Close", func(): game.toggle_overlay(null))
 	get_viewport().size_changed.connect(fit)
 	visibility_changed.connect(func(): set_process(is_visible_in_tree()))
@@ -137,16 +148,43 @@ func refresh(player: Dictionary) -> void:
 			title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			game.add_label(totals, 13, UI.INK).text = row[1]
 	bonuses.text = view.get("bonuses", "No unique bonuses active.")
-	if view.get("cards", []) != shown.get("cards", []):
+	var rows: Array = view.get("cards", [])
+	if rows != shown.get("cards", []):
 		cards.clear()
-		for card in view.cards:
-			var index := cards.add_item(card.title)
-			cards.set_item_tooltip(index, card.tooltip)
-			cards.set_item_custom_fg_color(index, {"Rare": Color("#c5b8ee"), "Epic": Color("#e1b9e5"), "Mythic": Color("#efd189")}.get(card.rarity, UI.INK))
-	empty_cards.visible = cards.item_count == 0
+		for child in grouped_cards.get_children():
+			grouped_cards.remove_child(child)
+			child.queue_free()
+		for card in rows:
+			if card.has("summary"):
+				add_grouped_card(card)
+			else:
+				var index := cards.add_item(card.title)
+				cards.set_item_tooltip(index, card.tooltip)
+				cards.set_item_custom_fg_color(index, {"Rare": Color("#c5b8ee"), "Epic": Color("#e1b9e5"), "Mythic": Color("#efd189")}.get(card.rarity, UI.INK))
+	empty_cards.visible = rows.is_empty()
 	cards.visible = cards.item_count > 0
+	grouped_scroll.visible = grouped_cards.get_child_count() > 0
 	empty_cards.text = "Waiting for expedition details…" if view.is_empty() else "No upgrades acquired yet."
 	shown = view
+
+
+func add_grouped_card(card: Dictionary) -> void:
+	var group := VBoxContainer.new()
+	grouped_cards.add_child(group)
+	var title := Button.new()
+	title.text = card.title
+	title.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	title.toggle_mode = true
+	title.tooltip_text = card.tooltip
+	group.add_child(title)
+	var summary: Label = game.add_label(group, 13, UI.INK)
+	summary.text = card.summary
+	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var details: Label = game.add_label(group, 13, UI.MUTED)
+	details.text = card.tooltip
+	details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	details.hide()
+	title.toggled.connect(func(expanded: bool): details.visible = expanded)
 
 
 static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dictionary:
@@ -197,7 +235,7 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 	rows.append(["Strike interval", compared(float(stats.interval)/1000.0, float(base.strike_ms)/1000.0, " s")])
 	rows.append(["Weapon targets", compared(stats.targets, base.targets)])
 	var base_hp: int=world.Life.Preview.hp(world.MAX_HEALTH)
-	rows.append(["Max health", compared(player.get("max_hp", base_hp), base_hp, " HP" if world.Life.Preview.enabled else "")])
+	rows.append(["Max HP", compared(player.get("max_hp", base_hp), base_hp, " HP" if world.Life.Preview.enabled else "")])
 	rows.append(["Dodge cooldown", compared(maxi(350, world.DODGE_COOLDOWN_MS-int(stats.get("dodge_cooldown", 0)))/1000.0,
 		world.DODGE_COOLDOWN_MS/1000.0, " s")])
 	var profile: Dictionary = player.get("character", world.guest_character.data)

@@ -259,6 +259,44 @@ func offense(base: int) -> void:
 	player.lost_health-=1
 
 
+func threaded_nova() -> void:
+	var ability_names := {"thornbinder":"Interwoven Bind", "bloomcaller":"Cultivate Bloom", "silkwarden":"Silk Shelter"}
+	for focus_id: String in ability_names:
+		var path := BALANCED.duplicate()
+		path[0] = focus_id
+		for remaining in [0, 1200, 1900, 5000]:
+			arena(path)
+			var before := Time.get_ticks_msec()
+			var original := before + int(remaining) if remaining > 0 else 0
+			player.skill_two_at = original
+			q()
+			var after := Time.get_ticks_msec()
+			var expected := original - Weaver.THREAD_REFUND_MS
+			var deadline := int(player.skill_two_at)
+			var correct := deadline == (expected if remaining > Weaver.THREAD_REFUND_MS else 0)
+			if remaining == 1200:
+				correct = deadline >= before and deadline <= after
+			check(correct and int(player.skill_at) > after and not player.has("subclass_follow"),
+				"%s refunds running Nova timer with %d ms left and banks nothing" % [focus_id, remaining])
+			var nova := Skills.resolve_in_world(game,1,1,player.character)
+			check("Activating %s reduces Spore Nova's remaining cooldown by 1.7 seconds." % ability_names[focus_id] in nova.description,
+				"%s appears by name in the active-timer description" % focus_id)
+
+	arena(BALANCED)
+	var original := Time.get_ticks_msec() + 5000
+	player.skill_at = original
+	player.skill_two_at = original
+	game.use_class_skill(1,player,0)
+	check(player.skill_two_at == original and game.trait_events.is_empty(),"a refused focus cast cannot refund the Nova timer")
+	arena(BALANCED)
+	player.subclass_follow = {"lane":1,"epoch":game.combat_epoch,"life":player.get("lost_health",0)}
+	var before := Time.get_ticks_msec()
+	r()
+	var cooldown := Skills.Balance.cooldown(Skills.resolve_in_world(game,1,1,player.character),game.weapon_stats(player))
+	check(int(player.skill_two_at) >= before + cooldown and not player.has("subclass_follow"),
+		"an old prepared discount is discarded without changing the newly assigned cooldown")
+
+
 func balance(base: int) -> void:
 	arena(BALANCED)
 	var origin := Vector3(7,0,0)
@@ -293,8 +331,9 @@ func balance(base: int) -> void:
 		and game.rooted_until>now and both.rooted_until>now,"Symbiotic native region and overlapping region each apply one damage and root")
 	check(nova.size()==1 and nova[0].details.center==player.pos and not nova[0].details.enemies.has(-1),
 		"extra area leaves one caster-centered Catalyst response")
-	check(player.skill_at==refund-1250 and player.skill_two_at<=now+Skills.resolve_in_world(game,1,1,player.character).cooldown-1650,
-		"Spore Cycle refunds Q once and Threaded Nova independently refunds R")
+	var nova_cooldown := Skills.Balance.cooldown(Skills.resolve_in_world(game,1,1,player.character),game.weapon_stats(player))
+	check(player.skill_at==refund-1250 and absi(int(player.skill_two_at)-now-nova_cooldown)<=50,
+		"Spore Cycle refunds the active focus timer and the next Nova uses its full cooldown")
 	check(not player.has("weaver_nova_origin") and not player.has("subclass_follow"),"consumed preparations stay consumed")
 
 	for mode in ["expired","too far","obstructed","empty"]:
@@ -428,6 +467,7 @@ func run() -> void:
 	game.set_meta(Events.RECORD,func(event):events.append(event))
 	var baseline := native_damage()
 	offense(baseline)
+	threaded_nova()
 	balance(baseline)
 	defense()
 	print("CT02 checks: ",checks)

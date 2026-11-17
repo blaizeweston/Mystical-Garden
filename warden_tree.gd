@@ -154,7 +154,8 @@ static func skill(profile: Dictionary, slot: int, base: Dictionary, connected :=
 		var about_quake: bool = node.id in ["pinning_quake","living_rhythm","sheltering_quake",
 			"faultline_impact","quakefront","aftershock","seismic_relay"]
 		if (slot == 1) == about_quake:
-			result.description += "\n" + node.name + " · " + node.description
+			var detail: String = preload("res://warden_connected_tree.gd").description(node,id,FOCUSES[id].name) if connected else node.description
+			result.description += "\n" + node.name + " · " + detail
 	return result
 
 

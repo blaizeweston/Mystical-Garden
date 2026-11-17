@@ -86,6 +86,10 @@ func lane_at(selected: Array, tier: int) -> int:
 	return int(node(selected[tier]).lane) if tier >= 0 and tier < selected.size() else -1
 
 
+static func focus_text(text: String, ability: String) -> String:
+	return text.replace("{focus}", ability if not ability.is_empty() else "your starting ability")
+
+
 func focus(profile: Dictionary) -> String:
 	var selected := path(profile)
 	return "" if selected.is_empty() else str(selected[0])

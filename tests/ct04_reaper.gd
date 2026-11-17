@@ -169,7 +169,7 @@ func focuses() -> void:
 	check(game.enemy_hp==280 and ally.guard_charges==1 and ally.guard_until-now>=1900 and ally.guard_until-now<1960
 		and player.guard_charges==0,"Lingering Veil gives the lowest ratio ally a 1.9 s Ward outside the damage cone")
 	var info := Skills.describe(Skills.resolve(3,0,player.character,true))
-	check("0.5 s longer" in info and "1.9s" in info,"Gravekeeper tooltip states actual extended duration")
+	check("Grave Sweep" in info and "Ward by 0.5 s" in info and "1.9s" in info,"Gravekeeper tooltip states actual extended duration")
 	prepare(["gravekeeper","grave_ward"])
 	ally.pos=Vector3(0,0,1)
 	cast(0)

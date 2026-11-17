@@ -1324,11 +1324,15 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `water_combat.gd` | ec01_2 | affinity_cards |
 | `frost_combat.gd` | ec01_1 | affinity_cards |
 | `combat_action_events.gd` | ec01_1 | affinity_cards |
+| `combat_ruleset.gd` | ec01_playtest_1 | combat_affinity_contracts, weaver_progression |
 | `combat_ruleset.gd` | ec01_1 | affinity_cards |
 | `combat_ruleset.gd` | ec01_2 | affinity_cards |
 | `combat_ruleset.gd` | ec01_3 | affinity_cards |
 | `combat_ruleset.gd` | ct05_oracle_1 | oracle_progression |
 | `combat_ruleset.gd` | ct05_oracle_2 | oracle_progression |
+| `affinity_build.gd` | ec01_display_1 | combat_affinity_contracts, plant_affinities, ui_copy |
+| `affinity_build.gd` | ec01_playtest_1 | combat_affinity_contracts, plant_affinities, ui_copy |
+| `affinity_build.gd` | ec01_playtest_2 | combat_affinity_contracts, plant_affinities, ui_copy |
 | `affinity_build.gd` | ct05_oracle_1 | oracle_progression, class_tree_access |
 | `affinity_build.gd` | ct05_oracle_2 | oracle_progression, class_tree_access |
 | `developer_settings.gd` | cr04a_affinity_1 | combat_affinity_contracts, fire_affinity |
@@ -1337,6 +1341,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `core_footprint.gd` | cr04b_thorn_1 | thorn_affinity, combat_affinity_contracts |
 | `core_footprint.gd` | cr04a_affinity_1 | fire_affinity, water_affinity, vital_affinity, frost_affinity, combat_affinity_contracts |
 | `core_footprint.gd` | cr03_build | frost_affinity |
+| `warden_tree.gd` | ec01_playtest_1 | warden_progression, class_tree_access |
 | `warden_tree.gd` | ct01_1 | warden_progression, classes, combat_affinity_contracts |
 | `warden_tree.gd` | ct01_2 | warden_progression, classes, combat_affinity_contracts |
 | `warden_tree.gd` | ct01_3 | warden_progression, classes, combat_affinity_contracts |
@@ -1629,6 +1634,10 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `network_compatibility.gd` | begin_check_returns | garden_returns |
 | `network_compatibility.gd` | cultivation_auth_in | cultivation_growth |
 | `network_compatibility.gd` | cultivation_auth_out | cultivation_growth |
+| `planting_panel.gd` | ec01_playtest_1 | seeds, plant_affinities, ui_copy |
+| `planting_panel.gd` | ec01_playtest_2 | seeds, plant_affinities, ui_copy |
+| `planting_panel.gd` | ec01_playtest_3 | seeds, plant_affinities, ui_copy |
+| `planting_panel.gd` | ec01_playtest_4 | seeds, plant_affinities, ui_copy |
 | `planting_panel.gd` | cleanup_feedback_1 | persistence_operations |
 | `planting_panel.gd` | ui_copy_3 | ui_copy |
 | `planting_panel.gd` | ui_copy_2 | ui_copy |
@@ -1816,6 +1825,27 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `grafting_panel.gd` | ui_copy_2 | ui_copy |
 | `grafting_panel.gd` | ui_copy_1 | ui_copy |
 | `grafting_panel.gd` | ui_copy_0 | ui_copy |
+| `loadout_panel.gd` | ec01_display_1 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_1 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_2 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_3 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_4 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_5 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_6 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_7 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_8 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_9 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_10 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_11 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_12 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_13 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_14 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_15 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | ec01_playtest_16 | class_tree_access, combat_affinity_contracts, weapons |
+| `loadout_panel.gd` | starting_focus_preview_labels | class_tree_access, oracle_progression |
+| `loadout_panel.gd` | starting_focus_preview_layout | class_tree_access, oracle_progression |
+| `loadout_panel.gd` | starting_focus_preview_effects | class_tree_access, oracle_progression |
+| `loadout_panel.gd` | starting_focus_preview_current_q | class_tree_access, oracle_progression |
 | `loadout_panel.gd` | ct05_oracle_1 | oracle_progression, class_tree_access |
 | `loadout_panel.gd` | ct05_oracle_2 | oracle_progression, class_tree_access |
 | `loadout_panel.gd` | ct05_oracle_3 | oracle_progression, class_tree_access |
@@ -1845,6 +1875,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `loadout_panel.gd` | ui_copy_2 | ui_copy |
 | `loadout_panel.gd` | ui_copy_1 | ui_copy |
 | `loadout_panel.gd` | ui_copy_0 | ui_copy |
+| `progression_panel.gd` | ec01_playtest_1 | progression, classes, class_tree_access |
+| `progression_panel.gd` | ec01_playtest_2 | progression, classes, class_tree_access |
 | `progression_panel.gd` | ct04_reaper_1 | progression, reaper_progression |
 | `progression_panel.gd` | ct02_1 | weaver_progression, warden_progression, combat_affinity_contracts |
 | `progression_panel.gd` | ct02_2 | weaver_progression, warden_progression, combat_affinity_contracts |
@@ -2314,6 +2346,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `enemy_attack.gd` | thorn_vault_landing | thorn_adaptation |
 | `enemy_attack.gd` | thorn_vault_lock | thorn_adaptation |
 | `enemy_attack.gd` | memory_growth_pose | boss_phase_fights |
+| `weapon_system.gd` | ec01_display_1 | weapons, ui_copy |
+| `weapon_system.gd` | ec01_display_2 | weapons, ui_copy |
 | `weapon_system.gd` | cb07_0 | expedition_sustain |
 | `weapon_system.gd` | healing_roll_0 | healing_rolls |
 | `weapon_system.gd` | healing_roll_1 | healing_rolls |
@@ -2761,6 +2795,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `boss_phase_fights.gd` | boss_windup | event_audio |
 | `enemy_move_feedback.gd` | orchard_locked_release | boss_lair_fights |
 | `combat_audio.gd` | orchard_cage_cast_audio | boss_lair_fights |
+| `subclass_combat.gd` | ec01_playtest_1 | weaver_progression |
+| `subclass_combat.gd` | ec01_playtest_2 | weaver_progression |
 | `subclass_combat.gd` | ec01_1 | affinity_cards |
 | `subclass_combat.gd` | ct05_oracle_1 | oracle_progression |
 | `subclass_combat.gd` | ct05_oracle_2 | oracle_progression |
@@ -2859,6 +2895,10 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `expedition_life.gd` | vitals_revive_threshold | combat_vitals |
 | `expedition_life.gd` | vitals_player_maximum | combat_vitals |
 | `expedition_life.gd` | vitals_revive_constants | combat_vitals |
+| `run_summary_panel.gd` | ec01_display_1 | affinity_cards, expedition_summary |
+| `run_summary_panel.gd` | ec01_playtest_1 | affinity_cards, expedition_summary |
+| `run_summary_panel.gd` | ec01_playtest_2 | affinity_cards, expedition_summary |
+| `run_summary_panel.gd` | ec01_playtest_3 | affinity_cards, expedition_summary |
 | `run_summary_panel.gd` | ec01_1 | affinity_cards |
 | `run_summary_panel.gd` | ec01_2 | affinity_cards |
 | `run_summary_panel.gd` | ct01_1 | warden_progression, classes, combat_affinity_contracts |
@@ -2903,6 +2943,11 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `combat_balance_preview.gd` | cb03_component_hp_fields | weapon_balance |
 | `item_catalog.gd` | cb03_inventory_component_hp | weapon_balance |
 | `inventory_slot.gd` | cb03_slot_component_tooltip | weapon_balance |
+| `subclass_catalog.gd` | ec01_playtest_1 | weaver_progression, classes, class_tree_access |
+| `subclass_catalog.gd` | ec01_playtest_2 | weaver_progression, classes, class_tree_access |
+| `subclass_catalog.gd` | ec01_playtest_3 | weaver_progression, classes, class_tree_access |
+| `subclass_catalog.gd` | ec01_playtest_4 | weaver_progression, classes, class_tree_access |
+| `subclass_catalog.gd` | ec01_playtest_5 | weaver_progression, classes, class_tree_access |
 | `subclass_catalog.gd` | ct05_oracle_1 | oracle_progression |
 | `subclass_catalog.gd` | ct05_oracle_2 | oracle_progression |
 | `subclass_catalog.gd` | ct05_oracle_3 | oracle_progression |

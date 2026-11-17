@@ -20,25 +20,31 @@ const HOLDFAST_REDUCTION := 0.15
 const SANCTUARY_MS := 3500
 const SANCTUARY_RADIUS := 3.0
 const SANCTUARY_REDUCTION := 0.25
+const DEEP_ROOTS := {
+	"vanguard": "Extends Thorn Counter's counter window by 1.25 s.",
+	"rootkeeper": "Increases Root Anchor's reach by 1.5 m.",
+	"bastion": "Increases Rootshield's radius by 0.8 m.",
+}
+
 const ROWS := [
 	[["vanguard", "Vanguard", "Learn Thorn Counter."],
 	 ["rootkeeper", "Rootkeeper", "Learn Root Anchor."],
 	 ["bastion", "Bastion", "Learn Rootshield."]],
-	[["briar_rebound", "Briar Rebound", "Your first qualifying Q block pushes up to two lesser foes within 2.25 m outward by up to 0.85 m. Committed attacks resist."],
+	[["briar_rebound", "Briar Rebound", "{focus}'s first qualifying block pushes up to two lesser enemies within 2.25 m outward by up to 0.85 m. Enemies committed to an attack resist."],
 	 ["deep_roots", "Deep Roots", "Your starting focus gains 1.25 s of Thorn Counter's counter window, 1.5 m of Root Anchor reach, or 0.8 m of Rootshield radius."],
-	 ["shared_guard", "Shared Guard", "Your first qualifying Q block grants one Guard for 0.95 s to the nearest eligible ally within 3 m, or to you when none qualifies."]],
-	[["pinning_quake", "Pinning Quake", "Within 5.5 s of a qualifying Q block, your next Root Quake roots up to two surviving lesser foes it hits for 0.95 s."],
-	 ["ready_footing", "Ready Footing", "Your first qualifying Q block readies your dodge if it is recovering."],
-	 ["clear_the_way", "Clear the Way", "Your first qualifying Q block clears ordinary Slow from you and living allies in clear line within 3 m."]],
-	[["faultline_impact", "Faultline Impact", "Within 5.5 s of a qualifying Q block, your next Root Quake deals 10 additional native HP damage per target hit."],
-	 ["living_rhythm", "Living Rhythm", "Within 5.5 s of a qualifying Q block, your next Root Quake recovers 1.25 s of Q cooldown if it hits."],
-	 ["sheltering_quake", "Sheltering Quake", "Within 5.5 s of a qualifying Q block, your next Root Quake grants allies in its area one Guard for 1.25 s."]],
-	[["quakefront", "Quakefront", "Root Quake's native area gains 0.6 m of radius."],
-	 ["measured_guard", "Measured Guard", "If Q grants protection and expires without any actual block from that cast, recover 1.25 s of its cooldown."],
-	 ["holdfast", "Holdfast", "The first actual block from your Q grants you and living allies within 3 m and clear line 15% less direct attack damage for 2.5 s. Holdfast follows recipients. Another grant refreshes its duration. Only the stronger protection applies inside Sanctuary Ground."]],
-	[["aftershock", "Aftershock", "Within 5.5 s of a qualifying Q block, your next Root Quake creates a secondary impact after 0.45 s. It deals 8 base HP within 2.25 m."],
-	 ["seismic_relay", "Seismic Relay", "A qualifying Q block leaves a relay for 5.5 s. Your next Root Quake uses it when it is in clear line within 5 m."],
-	 ["sanctuary_ground", "Sanctuary Ground", "A qualifying Q block creates a 3 m sanctuary for 3.5 s. Living allies inside take 25% less direct attack damage."]],
+	 ["shared_guard", "Shared Guard", "{focus}'s first qualifying block grants one 0.95 s Guard to the nearest eligible ally within 3 m, or to you if nobody qualifies."]],
+	[["pinning_quake", "Pinning Quake", "After a qualifying block with {focus}, you have 5.5 s to cast Root Quake and root up to two surviving lesser enemies it hits for 0.95 s."],
+	 ["ready_footing", "Ready Footing", "{focus}'s first qualifying block makes your dodge ready if it is recovering."],
+	 ["clear_the_way", "Clear the Way", "{focus}'s first qualifying block removes ordinary Slow from you and living allies within 3 m and in clear line."]],
+	[["faultline_impact", "Faultline Impact", "After a qualifying block with {focus}, your next Root Quake within 5.5 s deals +10 damage to each enemy it hits."],
+	 ["living_rhythm", "Living Rhythm", "After a qualifying block with {focus}, your next Root Quake within 5.5 s reduces {focus}'s remaining cooldown by 1.25 s if it hits an enemy."],
+	 ["sheltering_quake", "Sheltering Quake", "After a qualifying block with {focus}, your next Root Quake within 5.5 s grants allies in its area one 1.25 s Guard."]],
+	[["quakefront", "Quakefront", "Increases Root Quake's impact radius by 0.6 m."],
+	 ["measured_guard", "Measured Guard", "If protection from {focus} expires without blocking, reduce its remaining cooldown by 1.25 s."],
+	 ["holdfast", "Holdfast", "{focus}'s first actual block grants you and living allies within 3 m and clear line 15% less direct attack damage for 2.5 s. The protection follows recipients. Reapplying refreshes the duration. The strongest protection applies inside Sanctuary Ground."]],
+	[["aftershock", "Aftershock", "After a qualifying block with {focus}, Root Quake cast within 5.5 s leaves an aftershock. After 0.45 s it deals 8 secondary damage to enemies within 2.25 m."],
+	 ["seismic_relay", "Seismic Relay", "A qualifying block with {focus} leaves a relay for 5.5 s. Your next Root Quake uses it if the relay is within 5 m and in clear line."],
+	 ["sanctuary_ground", "Sanctuary Ground", "A qualifying block with {focus} creates a sanctuary with a 3 m radius for 3.5 s. Living allies inside take 25% less direct attack damage."]],
 ]
 const VERSION_DATA := [VERSION, XP_THRESHOLDS, LANES, ROWS, Q_REFUND_MS, FAULTLINE_POINTS,
 	QUAKEFRONT_RADIUS, AFTERSHOCK_MS, AFTERSHOCK_HP, AFTERSHOCK_RADIUS, RELAY_MS, RELAY_REACH,
@@ -81,3 +87,8 @@ static func refusal(profile: Dictionary, request: int) -> String:
 
 static func learn(profile: Dictionary, request: int) -> String:
 	return TREE.learn(profile,request)
+
+
+static func description(node: Dictionary, focus: String, ability: String) -> String:
+	var text: String = DEEP_ROOTS.get(focus, node.description) if node.id == "deep_roots" else node.description
+	return Model.focus_text(text, ability)

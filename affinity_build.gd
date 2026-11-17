@@ -7,6 +7,9 @@ const Classes = preload("res://class_catalog.gd")
 const Skills = preload("res://skill_catalog.gd")
 const WeaponRules = preload("res://weapon_system.gd")
 const Delivery = preload("res://core_skill_rules.gd")
+const SLOTS := ["core", "form", "catalyst"]
+const Materials = preload("res://weapon_parts.gd")
+const Seeds = preload("res://seed_catalog.gd")
 const Preview = preload("res://combat_balance_preview.gd")
 
 # The legacy Frost consumers are separate from the source-owned affinity
@@ -157,34 +160,127 @@ static func departure_refusal(player: Dictionary) -> String:
 	return ""
 
 
-static func describe(build: Dictionary) -> String:
-	var lines: Array[String] = ["Affinity development mode · " + str(build.native_weapon.name)]
-	for name in ["core", "form", "catalyst"]:
-		var part: Dictionary = build[name]
-		var summary := "Empty" if name == "core" else "Native only"
-		if part.state == "ready":
-			summary = Ruleset.FAMILIES[part.primary_affinity].description(name, part.quality)
-			if name=="core":
-				var skill := core_skill(build)
-				summary += "\nDelivery: " + str(skill.delivery).capitalize()
-			if name=="form" and part.primary_affinity=="void":
+const RESPONSE_TEXT := {
+	"brittle": "applies Brittle",
+	"brittle_burst": "applies Brittle to nearby enemies",
+	"recipient_frost_response": "lets healed allies answer their next survived enemy hit with Brittle",
+	"self_frost_response": "lets you answer your next survived enemy hit with Brittle",
+	"burn": "sets enemies Burning",
+	"ember_burst": "damages nearby enemies and sets them Burning",
+	"recipient_ember_response": "lets healed allies burn the enemy behind their next survived hit",
+	"self_ember_response": "lets you burn the enemy behind your next survived hit",
+	"drench": "Drenches enemies",
+	"radial_wash": "Drenches nearby enemies and clears ordinary Slow from nearby allies",
+	"healing_wash": "Drenches enemies and clears ordinary Slow from allies near the heal",
+	"landing_wash": "Drenches enemies and clears ordinary Slow from allies near your landing",
+	"self_vitality": "grants you Vitality on an offensive hit",
+	"radial_vitality": "grants Vitality to the protected player and nearby living allies",
+	"recipient_vitality": "grants Vitality to healed allies",
+	"landing_vitality": "grants you Vitality at landing",
+	"growth": "grows brambles at the impact",
+	"lingering_thicket": "grows a thicket around the protected player",
+	"protective_growth": "grows brambles at the heal",
+	"departure_growth": "grows brambles where you moved from",
+	"self_bark": "grants you Bark Armor on an offensive hit",
+	"radial_splinters_and_bark": "grants Bark Armor and releases splinters around the protected player",
+	"recipient_bark": "grants Bark Armor to healed allies",
+	"landing_bark": "grants you Bark Armor at landing",
+	"discharge": "releases one electrical discharge",
+	"radial_discharge": "deals electrical damage around the protected player",
+	"recipient_charge": "grants healed allies a Storm Charge for their next qualifying basic attack hit",
+	"landing_discharge": "releases an electrical burst at landing",
+	"self_stride": "grants you Spiritstride",
+	"radial_stride_and_trace": "grants nearby allies Spiritstride and leaves a trace of the protected player",
+	"recipient_stride": "grants healed allies Spiritstride",
+	"departure_trace_and_landing_stride": "leaves a trace on departure and grants you Spiritstride at landing",
+	"compression": "damages and draws in enemies at the effect location",
+	"radial_repulsion": "damages and pushes enemies away from the protected player",
+	"healing_repulsion": "damages and pushes enemies away from the heal",
+	"landing_repulsion": "damages and pushes enemies away from your landing",
+}
+
+
+static func support_text(material: Dictionary) -> String:
+	var names: PackedStringArray = []
+	for support: String in material.supporting_affinities:
+		names.append(support.capitalize())
+	if names.is_empty():
+		return ""
+	return "Supporting affinities for possible upgrade cards: " + ", ".join(names) + "."
+
+
+static func planting_description(species: int, affinity_mode: bool) -> String:
+	if not affinity_mode:
+		return Seeds.modifier_text(species)
+	var ordinary_id: int = Seeds.DEFINITIONS[species].part
+	var refined_id := Materials.rare_part(species)
+	var material := slot("core", ordinary_id)
+	if material.state != "ready":
+		return "Affinity information is unavailable for this species."
+	var family: String = material.primary_affinity
+	var core: String = Ruleset.FAMILIES[family].description("core",material.quality).get_slice(" · ",0)
+	var text := "%s primary affinity · %s (Core)\nOrdinary: %s · Refined: %s" % [
+		family.capitalize(), core, Materials.part_name(ordinary_id), Materials.part_name(refined_id)]
+	var supports := support_text(material)
+	return text + "\n" + supports if not supports.is_empty() else text
+
+
+static func slot_preview(build: Dictionary, name: String, part_id: int) -> Dictionary:
+	var material := slot(name, part_id)
+	if material.state == "empty":
+		var empty := {
+			"core": "Empty · Equip a plant part to use a Core skill.",
+			"form": "Empty · Basic attacks use your weapon's native effects.",
+			"catalyst": "Empty · Class abilities use their native effects.",
+		}
+		return {"summary": empty[name], "detail": ""}
+	if material.state != "ready":
+		return {"summary": "%s material is unavailable." % name.capitalize(), "detail": ""}
+	var family: String = material.primary_affinity
+	var header := "%s · %s" % [family.capitalize(), str(material.quality).capitalize()]
+	var authored: String = Ruleset.FAMILIES[family].description(name, material.quality)
+	authored = authored.replace("direct weapon contacts", "direct basic attack hits").replace("Direct weapon contacts", "Direct basic attack hits").replace("direct weapon attack", "basic attack").replace("eligible weapon hit", "eligible basic attack hit").replace("maximum HP", "Max HP")
+	var summary := header + "\n" + authored.get_slice("\n", 0)
+	var detail := authored
+	match name:
+		"core":
+			var candidate := build.duplicate()
+			material.delivery = build.core.delivery
+			candidate.core = material
+			var skill := core_skill(candidate)
+			var aim: String = "Centered on you." if skill.targeting == "self" else "Moves in your aimed direction." if family == "spirit" else {
+				"ground": "Aim on the ground.", "arrow": "Arrow aiming.", "bolt": "Bolt aiming.", "seed": "Seed aiming.",
+			}[skill.delivery]
+			detail += "\n" + aim
+		"form":
+			if family == "void":
 				var native := native_stats(build)
 				if float(native.get("knockback",0.0))>0.0 or float(native.get("pull",0.0))>0.0:
-					summary += "\nThis loadout retains native displacement. Drawing Strikes still adds damage."
-			if name=="catalyst":
-				for adapter in build.class_skills:
-					if not adapter.is_empty():
-						summary += "\n%s · %s" % [adapter.native_skill.name, str(adapter.response).replace("_"," ").capitalize()]
-			summary += "\nSupport reserved for future cards: " + ", ".join(part.supporting_affinities)
-		elif part.state != "empty":
-			summary = refusal(build, name)
-			if part.state == "pending":
-				summary += " Support: " + ", ".join(part.supporting_affinities) + " · " + part.quality.capitalize()
-		lines.append("%s · %s" % [name.capitalize(), summary])
-	var graft_text := Ruleset.Grafts.describe(build.graft)
-	if not graft_text.is_empty():
-		lines.append("Graft · " + graft_text)
-	return "\n".join(lines)
+					detail += "\nDrawing Strikes still adds damage when your native displacement takes priority."
+		"catalyst":
+			summary = header
+			if not build.capabilities.native_class_skills:
+				return {"summary": summary + "\nThis class path is unavailable.", "detail": support_text(material)}
+			var notes: PackedStringArray = []
+			for adapter in build.class_skills:
+				if adapter.is_empty():
+					continue
+				var response: String = adapter.responses.get(family, "")
+				if not RESPONSE_TEXT.has(response):
+					continue
+				var trigger: String = {"block": "After an actual block, ", "contact": "On contact, "}.get(adapter.trigger, "")
+				var effect: String = trigger + RESPONSE_TEXT[response]
+				if trigger.is_empty():
+					effect = effect.left(1).to_upper() + effect.substr(1)
+				summary += "\n%s · %s." % [adapter.native_skill.name, effect]
+				if family == "void" and not str(adapter.conflict).is_empty() and not notes.has(adapter.conflict):
+					notes.append(adapter.conflict)
+			if not notes.is_empty():
+				detail += "\n" + "\n".join(notes)
+	var supports := support_text(material)
+	if not supports.is_empty():
+		detail += "\n" + supports
+	return {"summary": summary, "detail": detail}
 
 
 static func core_skill(build: Dictionary) -> Dictionary:

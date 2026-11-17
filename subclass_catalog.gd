@@ -543,7 +543,7 @@ static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionar
 		for tier in range(1,selected.size()):
 			var node := Weaver.TREE.node(selected[tier])
 			if (tier in [1,2,4] and slot == 0) or (tier >= 3 and slot == 1):
-				result.description += "\n" + node.name + " · " + Weaver.description(node,entry.id)
+				result.description += "\n" + node.name + " · " + Weaver.description(node,entry.id,entry.name)
 	elif tree != null and class_id == 2:
 		result.ranger_nodes = selected
 		if slot == 0 and entry.id == "wildstalker":
@@ -556,9 +556,9 @@ static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionar
 			if ((tier <= 2 or tier == 4 or selected[tier] == "double_draw") if slot == 0 else
 					(tier == 3 or selected[tier] in ["snarecraft","bramble_corridor","escape_route"])):
 				var node := Ranger.TREE.node(selected[tier])
-				result.description += "\n" + node.name + " · " + node.description
+				result.description += "\n" + node.name + " · " + Ranger.description(node,entry.id,entry.name)
 	elif tree != null and class_id == Oracle.CLASS_ID:
-		Oracle.configure_skill(result, selected, slot)
+		Oracle.configure_skill(result, selected, slot, entry.name)
 	elif tree != null:
 		result.reaper_nodes = selected
 		if slot == 0 and entry.id == "veilwalker":
@@ -568,7 +568,7 @@ static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionar
 			var node := Reaper.TREE.node(selected[tier])
 			var affects_q: bool = tier <= 2 or node.id == "grave_offering"
 			if affects_q == (slot == 0):
-				result.description += "\n" + node.name + " · " + Reaper.description(node,entry.id)
+				result.description += "\n" + node.name + " · " + Reaper.description(node,entry.id,entry.name)
 	else:
 		for tier in range(1,4):
 			var lane := lane_at(profile,class_id,tier)
@@ -577,7 +577,8 @@ static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionar
 	if slot != 0:
 		result.subclass_follow_lane = lane_at(profile,class_id,3) if tree == null else -1
 		if tree != null and class_id == 1:
-			result.subclass_follow_lane = Weaver.TREE.lane_at(selected,3)
+			var follow_lane := Weaver.TREE.lane_at(selected,3)
+			result.subclass_follow_lane = follow_lane if follow_lane != 1 else -1
 		return result
 	var first: int = tree.lane_at(selected,1) if tree != null else lane_at(profile,class_id,1)
 	if first == 0:
@@ -592,7 +593,7 @@ static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionar
 	if result.has("ranger_nodes"):
 		result.ranger_support_radius = float(result.get("radius",2.0))
 		if selected.has("trail_ward") or selected.has("clear_trail"):
-			result.description += "\nPost-Q support radius: %.2f m." % result.ranger_support_radius
+			result.description += "\n%s support radius: %.2f m." % [entry.name,result.ranger_support_radius]
 	return result
 
 

@@ -256,7 +256,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		Reaper.after_q(game,id,player,skill,contact,nearby,reaper_damage,cast_id,now)
 	elif oracle:
 		oracle_api.after_q(game,id,player,skill,int(event.identity) if event != null else cast_id,affected,nearby,now)
-	elif follow >= 0:
+	elif follow >= 0 and not (weaver and follow == 1):
 		player.subclass_follow = {"lane":follow,"epoch":game.combat_epoch,"life":player.get("lost_health",0)}
 	player.contributed = true
 	player.skill_at = now + Balance.cooldown(skill,stats)
@@ -320,7 +320,8 @@ static func follow_through(game: Node, player: Dictionary, skill: Dictionary, ce
 		0:
 			echo(game,player,center,affected,Color(skill.color),now)
 		1:
-			player.skill_two_at = maxi(now+1800,int(player.skill_two_at)-1700)
+			if not skill.has("weaver_nodes"):
+				player.skill_two_at = maxi(now+1800,int(player.skill_two_at)-1700)
 		2:
 			for ally in allies(game,center,3.0):
 				game.grant_guard(ally,now+Balance.WARD_MS,1)
