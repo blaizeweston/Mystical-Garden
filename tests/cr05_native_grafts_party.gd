@@ -6,5 +6,5 @@ func run() -> void:
 	fixture.native_graft_case = true
 	fixture.measure_packets = true
 	var passed: bool = await fixture.run(self,true)
-	if passed: print("PASS: native grafts and learned focuses in guarded affinity co-op")
+	if passed: print("PASS: GA01A host-owned graft purchases and native combat in guarded affinity co-op")
 	quit(int(not passed))

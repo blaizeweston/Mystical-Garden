@@ -1,6 +1,6 @@
 extends RefCounted
 
-const ID := "plant-affinity-ec01-corrections"
+const ID := "plant-affinity-ga01a"
 const FLAG := "--combat-affinities"
 const META := &"combat_affinity_ruleset"
 const PLAYER_KEY := "combat_ruleset"
@@ -27,6 +27,7 @@ const Parts = preload("res://weapon_parts.gd")
 const Delivery = preload("res://core_skill_rules.gd")
 
 const Grafts = preload("res://native_grafts.gd")
+const Improvements = preload("res://expedition_grafts.gd")
 const FORMS := {"frost":"brittle_strikes", "fire":"burning_strikes", "water":"drenching_strikes",
 	"vital":"vital_strikes", "thorn":"barbed_strikes", "wood":"splintering_strikes",
 	"storm":"arcing_strikes", "spirit":"flowing_strikes", "void":"drawing_strikes"}
@@ -38,7 +39,7 @@ static var definition_signature := JSON.stringify([
 	Plants.BY_SPECIES, Plants.CORE_SKILL_BY_PRIMARY, Plants.SUPPORTING_ONLY,
 	Catalyst.KITS, Catalyst.FOCUS_Q, Catalyst.ADAPTERS, Catalyst.RESPONSES, Catalyst.CONFLICTS,
 	Classes.DEFINITIONS, Classes.Warden.FOCUSES, Classes.Subclasses.FOCUSES, ConnectedWarden.VERSION_DATA, Classes.Weaver.VERSION_DATA, Classes.Ranger.VERSION_DATA, Classes.Reaper.VERSION_DATA, Classes.Oracle.VERSION_DATA,
-	Parts.MONSTER_DEFINITIONS, Delivery.WEAPON_DELIVERY, Grafts.STAT_KEYS, Grafts.SPECIAL, Grafts.UNSUPPORTED, Grafts.TIMING, Grafts.DEATH_CHARGE_CAP, FORMS, Cards.DEFINITIONS, Cards.PLAYTEST, Frost.VERSION_DATA, Fire.VERSION_DATA, Water.VERSION_DATA, Vital.VERSION_DATA, Thorn.VERSION_DATA, Wood.VERSION_DATA, Storm.VERSION_DATA, Spirit.VERSION_DATA, Void.VERSION_DATA,
+	Parts.MONSTER_DEFINITIONS, Delivery.WEAPON_DELIVERY, Grafts.STAT_KEYS, Grafts.SPECIAL, Grafts.UNSUPPORTED, Grafts.TIMING, Grafts.DEATH_CHARGE_CAP, Grafts.VERSION_DATA, Improvements.PLAYTEST, Improvements.REINFORCEMENTS, Improvements.ADAPTATIONS, FORMS, Cards.DEFINITIONS, Cards.PLAYTEST, Frost.VERSION_DATA, Fire.VERSION_DATA, Water.VERSION_DATA, Vital.VERSION_DATA, Thorn.VERSION_DATA, Wood.VERSION_DATA, Storm.VERSION_DATA, Spirit.VERSION_DATA, Void.VERSION_DATA,
 ]).sha256_text()
 
 

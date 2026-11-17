@@ -8,6 +8,7 @@ const Skills = preload("res://skill_catalog.gd")
 const Rules = preload("res://combat_ruleset.gd")
 const Events = preload("res://combat_action_events.gd")
 const Grafts = preload("res://native_grafts.gd")
+const Improvements = preload("res://expedition_grafts.gd")
 const Mark = preload("res://core_strike_mark.gd")
 const Field = preload("res://assets/terrain_m02/experimental/experiment_wilds.gd")
 const Surface = preload("res://assets/terrain_m02/wilds_play_surface.gd")
@@ -103,6 +104,7 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 	player.graft_part=0
 	player.grave_charges=0
 	Grafts.clear(player)
+	Improvements.clear(player)
 	Rules.Spirit.clear(player)
 	for peer in game.players:
 		var recipient: Dictionary = game.players[peer]
@@ -396,24 +398,30 @@ func charges_and_void() -> void:
 
 	prepare(OFFENSE,Vector3.ZERO,Vector3(1,0,0))
 	scout(Vector3(7,0,0))
-	player.graft_part=part("monster:pallbearer")
+	Improvements.begin(game,player)
+	game.encounter_number=8
+	player.pos=game.battlefield.graft
+	player.carried_parts[part("monster:pallbearer")]=1
+	game.garden_action(1,Improvements.request(Improvements.owner_details(game,player),"funeral_charges","monster_15"))
+	player.pos=Vector3.ZERO
+	check(Improvements.run(player).copies.size()==1,"Funeral Petal is bought through the authoritative shrine")
 	game.enemy_hp=1
 	fire_melee()
-	check(player.grave_charges==1 and player[Grafts.STATE].grave_charges==1,"both sources earn independent charges from one actual native kill")
+	check(player.grave_charges==1 and Grafts.graft_charges(player)==1,"both sources earn independent charges from one actual native kill")
 	game.enemy_hp=300
 	game.enemy_pos=Vector3.RIGHT
 	roll=fire_melee()
-	check(game.enemy_hp==300-roll-10 and player.grave_charges==0 and player[Grafts.STATE].grave_charges==1,"class spends first with at most one +10 per contact")
+	check(game.enemy_hp==300-roll-10 and player.grave_charges==0 and Grafts.graft_charges(player)==1,"class spends first with at most one +10 per contact")
 	game.enemy_hp=300
 	game.enemy_pos=Vector3.RIGHT
 	roll=fire_melee()
 	check(game.enemy_hp==300-roll-10 and Grafts.grave_count(player)==0,"graft spends its own charge once when the class pool is empty")
 	player.grave_charges=2
-	player[Grafts.STATE].grave_charges=1
+	Grafts.counters(player,"monster:pallbearer").grave_charges=1
 	game.enemy_pos=Vector3.RIGHT
 	game.enemy_hp=1
 	fire_melee()
-	check(game.enemy_hp==0 and player.grave_charges==2 and player[Grafts.STATE].grave_charges==1,
+	check(game.enemy_hp==0 and player.grave_charges==2 and Grafts.graft_charges(player)==1,
 		"a killing contact refills its opened class slot at the shared cap")
 	var expired := enqueue()
 	ally.pos=player.pos
@@ -423,8 +431,8 @@ func charges_and_void() -> void:
 	game.update_projectiles(int(expired.due))
 	check(game.enemy_hp==300 and player.grave_charges==2,"a queued attack from the prior life cannot spend the revived charge")
 	game.reset_encounter()
-	check(player.grave_charges==2 and not player.has(Grafts.STATE) and player.graft_part==part("monster:pallbearer"),
-		"floor reset retains class charges and installed graft identity while clearing graft counters")
+	check(player.grave_charges==2 and not player.has(Grafts.STATE) and Improvements.run(player).copies[0].id=="funeral_charges",
+		"floor reset retains class charges and acquired graft identity while clearing graft counters")
 	game.return_to_garden(player)
 	check(Grafts.grave_count(player)==0,"expedition return clears both charge pools")
 
@@ -440,14 +448,10 @@ func charges_and_void() -> void:
 	prepare(["blood_harvester"])
 	player.catalyst=part("plant:void_willow")
 	player.graft_part=part("monster:lantern_lure")
-	check(player.graft_part>0,"fixture equips the actual native pull graft")
+	var current: Dictionary = game.weapon_stats(player)
+	check(player.graft_part>0 and not current.has("pull"),"a retired single-slot graft cannot contribute pull in affinity combat")
 	cast(0)
-	check(is_equal_approx(game.enemy_pos.x,1.35) and game.enemy_hp<280 and not game.has_meta(Rules.Void.PENDING),
-		"Void Q damage remains while inherited native pull owns displacement (%s, HP %s, %s)"
-		% [game.enemy_pos,game.enemy_hp,game.get_meta(Rules.Void.PENDING,{})])
-	game.enemy_pos=Vector3(2,0,0)
-	cast(1)
-	check(is_equal_approx(game.enemy_pos.x,1.35) and not game.has_meta(Rules.Void.PENDING),"Void R cannot add a contradictory draw to inherited pull")
+	check(game.enemy_hp<280 and game.has_meta(Rules.Void.PENDING),"Void response remains independent of the retired slot")
 
 func run() -> void:
 	verify_tree()

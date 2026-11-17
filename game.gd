@@ -1061,7 +1061,17 @@ func _garden_action(id: int, action: String) -> void:
 	if action.begins_with("inventory:"):
 		handle_inventory_action(id,player,action.trim_prefix("inventory:"))
 		return
+	if action.begins_with(preload("res://expedition_grafts.gd").COMMAND):
+		if has_meta(&"combat_affinity_ruleset"):
+			var result := preload("res://expedition_grafts.gd").purchase(self,id,player,action)
+			graft_feedback(id,player,result)
+			show_graft_menu(id)
+		return
 	if action.begins_with("graft_install_"):
+		if has_meta(&"combat_affinity_ruleset"):
+			graft_feedback(id,player,"Choose a reinforcement or adaptation at the Grafting Altar.")
+			show_graft_menu(id)
+			return
 		var value:=action.trim_prefix("graft_install_")
 		if value.is_valid_int() and int(value)>0:
 			if not attempt_graft(id,player,int(value)) and has_meta(Transactions.SESSION): return
@@ -1938,9 +1948,6 @@ func at_graft_altar(player: Dictionary) -> bool:
 func graft_block_reason(player: Dictionary,part: int) -> String:
 	if not at_graft_altar(player): return "Move next to a grafting altar in the Wilds."
 	if not Parts.is_monster(part): return "Select a carried monster part."
-	if has_meta(&"combat_affinity_ruleset"):
-		var graft := preload("res://native_grafts.gd").resolve(part)
-		if not graft.refusal.is_empty(): return graft.refusal
 	if int(player.get("carried_parts",Parts.empty_counts())[part])<=0: return "No carried component of this type remains."
 	var installed:=int(player.get("graft_part",0))
 	if installed==part: return "This component is already installed."
@@ -1948,6 +1955,7 @@ func graft_block_reason(player: Dictionary,part: int) -> String:
 	return ""
 
 func attempt_graft(id: int, player: Dictionary, requested: int = -1) -> bool:
+	if has_meta(&"combat_affinity_ruleset"): return false
 	if has_meta(Transactions.SESSION):
 		var result := run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _attempt_graft(id, player, requested, effects))
 		return Transactions.committed(result.persistence)
@@ -1970,9 +1978,7 @@ func _attempt_graft(id: int, player: Dictionary, requested: int = -1, effects = 
 	if graft_roll<probability:
 		player.graft_part=part
 		player.graft_floor=encounter_number
-		if has_meta(&"combat_affinity_ruleset"):
-			preload("res://native_grafts.gd").replace(player)
-		if Life.Preview.enabled or has_meta(&"combat_affinity_ruleset"):
+		if Life.Preview.enabled:
 			player.max_hp=Life.maximum(self,player)
 			player.hp=minf(float(player.hp),float(player.max_hp))
 		progress.record_monster_graft(part)
@@ -2966,15 +2972,19 @@ func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 		var events = preload("res://combat_action_events.gd")
 		var event: RefCounted = p.get("cr02_class_strike")
 		if event == null:
-			if not p.get("skill_burst",false) and p.has(AffinityCards.STATE):
-				AffinityCards.ordinary_weapon(p,stats,Life.Preview.scale())
+			if not p.get("skill_burst",false):
+				preload("res://expedition_grafts.gd").tune_basic(stats)
+				if p.has(AffinityCards.STATE):
+					AffinityCards.ordinary_weapon(p,stats,Life.Preview.scale())
 			var form_affinity: Dictionary = affinity_build.form
 			var ready: bool = form_affinity.state == "ready"
 			event = events.begin(self,id,"form" if ready else "native_weapon",form_affinity if ready else {},
 				form_affinity.potency_profile.values if ready else {},["weapon_contact","secondary"],now+15000)
-			var grafts = preload("res://native_grafts.gd")
-			if not affinity_build.graft.get("procs", {}).is_empty():
-				stats[grafts.CONTEXT] = grafts.capture(p, affinity_build.graft)
+			if not p.get("skill_burst",false):
+				var grafts = preload("res://native_grafts.gd")
+				var captured := grafts.capture(p,affinity_build.improvements.adaptations)
+				if not captured.is_empty():
+					stats[grafts.CONTEXT] = captured
 			if int(p.frame)==Frames.REAPER and int(affinity_build.class_skills.size())>0:
 				preload("res://reaper_combat.gd").commit_melee(self,p,affinity_build.class_skills[0].get("native_skill",{}),stats,now)
 		stats[events.CONTEXT] = event
@@ -3253,6 +3263,8 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = n
 	p.catalyst = p.prepared_catalyst
 	p.graft_part = 0
 	p.graft_floor=0
+	if has_meta(&"combat_affinity_ruleset"):
+		preload("res://expedition_grafts.gd").begin(self,p)
 	p.erase("graft_message")
 	p.prepared_catalyst = 0
 	p.prepared = Parts.EMPTY
@@ -3354,6 +3366,7 @@ func return_to_garden(p: Dictionary) -> void:
 	p.catalyst=0
 	p.graft_part=0
 	p.graft_floor=0
+	preload("res://expedition_grafts.gd").clear(p)
 	preload("res://native_grafts.gd").clear(p)
 	p.erase("graft_message")
 	p.rift_hook = false
@@ -3877,6 +3890,8 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 				"reclaim_choice":p.get("reclaim_choice",0),"offering_choice":p.get("offering_choice",0),"last_deposit":p.get("last_deposit",0),"weapon_kind":p.weapon_kind,"catalyst":p.catalyst,"graft_part":p.graft_part,"graft_floor":p.get("graft_floor",0),"prepared_catalyst":p.prepared_catalyst,"cargo_plan":p.cargo_plan,"stored_parts":stored_counts(p),"weapon_stats":weapon_stats(p,not p.wild), "carried_parts": p.carried_parts, "reserve_parts": seed_reserve(p).parts,"combat_events":combat_events_snapshot(),"attack_hints":attack_hints_snapshot(),"death_events":death_events_snapshot(),"run_upgrades":preload("res://combat_ruleset.gd").legacy_ranks(p),"bag":InventoryModel.snapshot(self,p),"ground_items":inventory_floor_snapshot(p), "secondary": p.secondary, "prepared_secondary": p.prepared_secondary,
 				"garden_interactions":preload("res://garden_interaction_service.gd").projection(self,id),
 				"party_travel":PartyTravel.snapshot(self,id),"seed_choice": selected_seed(p), "graft_choice": p.graft_choice, "cache_claimed": p.cache_claimed})
+			if p.has("combat_ruleset"):
+				state["graft_improvements"] = preload("res://expedition_grafts.gd").owner_details(self,p)
 			if p.wild and p.has(AffinityCards.STATE):
 				state["affinity_run_cards"] = AffinityCards.project_owned(p,state.weapon_stats,DODGE_COOLDOWN_MS)
 		state.diagnostic_host=Journal.current.session_id if is_instance_valid(Journal.current) else ""
@@ -4072,7 +4087,14 @@ func _process(_delta: float) -> void:
 			guide.text = "E  Search the abandoned clearing"
 		if graft_altar_open() and visual_field.graft.distance_to(p.pos) <= 1.65 and preload("res://gate_interaction.gd").shrine_preferred(visual_field,p.pos):
 			guide.text="E  Graft"
-			detail_label.text="Installed: %s · Replace at a later altar"%Parts.part_name(int(p.get("graft_part",0))) if int(p.get("graft_part",0))!=0 else "Choose a monster part to graft."
+			if has_meta(&"combat_affinity_ruleset"):
+				guide.text="E  Grafting Altar"
+				var improvements: Dictionary = preload("res://expedition_grafts.gd").owner_details(self,p) if multiplayer.is_server() else p.get("graft_improvements",{})
+				detail_label.text="Altar used" if improvements.get("used",false) else "Spend a carried trophy on an expedition improvement."
+				if improvements.has("remaining"):
+					detail_label.text += " · %d remaining" % int(improvements.remaining)
+			else:
+				detail_label.text="Installed: %s · Replace at a later altar"%Parts.part_name(int(p.get("graft_part",0))) if int(p.get("graft_part",0))!=0 else "Choose a monster part to graft."
 		var protected: bool = p.pouch if multiplayer.is_server() else client_pouch_filled
 		inventory.text += "\n\nCarried seeds   %d  |  Safe pouch   %d/1" % [carried, int(protected)]
 		var wallet: int = run_wallet(p) if multiplayer.is_server() else p.wallet
@@ -5068,11 +5090,13 @@ Already banked items and permanent progress remain."
 
 func build_grafting_panel() -> void:
 	graft_menu=hud_panel(overlay,Color("#14262b"),Vector2(20,14))
-	graft_view=preload("res://grafting_panel.gd").new()
+	graft_view=preload("res://affinity_grafting_panel.gd").new() if has_meta(&"combat_affinity_ruleset") else preload("res://grafting_panel.gd").new()
 	graft_view.game=self
 	graft_menu.add_child(graft_view)
 
 func graft_menu_data(player: Dictionary) -> Dictionary:
+	if has_meta(&"combat_affinity_ruleset"):
+		return preload("res://expedition_grafts.gd").view(self,player)
 	var installed:=int(player.get("graft_part",0))
 	var slots: Array=[player.weapon,player.secondary,player.catalyst]
 	var current:=weapon_stats(player)
@@ -5087,6 +5111,7 @@ func graft_menu_data(player: Dictionary) -> Dictionary:
 func show_graft_menu(id: int) -> void:
 	if not players.has(id) or not at_graft_altar(players[id]): return
 	var data:=graft_menu_data(players[id])
+	if data.is_empty(): return
 	if id==HOST: open_graft_menu(data)
 	else: open_graft_menu.rpc_id(id,data)
 

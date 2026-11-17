@@ -359,8 +359,7 @@ func coexistence() -> void:
 	prepare(LEFT)
 	ally.pos=Vector3(.4,0,0)
 	caster.catalyst=game.Parts.DEFINITIONS.find_custom(func(entry):return entry.id=="plant:void_willow")
-	caster.graft_part=game.Parts.DEFINITIONS.find_custom(func(entry):return entry.id=="monster:lantern_lure")
-	check(caster.catalyst>0 and caster.graft_part>0,"actual Void material and native pull graft equipped")
+	check(caster.catalyst>0,"actual Void material equipped with native Guiding Bell pull")
 	var build := preload("res://affinity_build.gd").for_player(caster)
 	var native: Dictionary=build.class_skills[0].native_displacement
 	check(is_equal_approx(float(native.pull),1.2),"Leykeeper's authored pull stays authoritative with a Void Catalyst")

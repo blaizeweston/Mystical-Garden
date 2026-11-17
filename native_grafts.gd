@@ -1,11 +1,11 @@
 extends RefCounted
-## The fourth slot owns these effects. Raw plant tags and run cards never
-## select a handler or supply potency.
+## Capture each acquired adaptation at basic attack launch. Each source
+## owns its own counters, and secondaries use the bounded native effect queue.
 const Parts = preload("res://weapon_parts.gd")
 const Preview = preload("res://combat_balance_preview.gd")
 const CONTEXT = "native_graft_contact"
 const STATE = "native_graft_state"
-const REVISION = "native_graft_revision"
+const Expedition = preload("res://expedition_grafts.gd")
 const STAT_KEYS := ["reach", "damage", "cooldown", "recovery", "pull", "knockback",
 	"stagger", "windup_damage", "targets", "heal_on_kill", "max_health", "skill_cooldown",
 	"loot_attract", "pierce"]
@@ -22,12 +22,17 @@ const SPECIAL := {
 const UNSUPPORTED := {
 	"monster:nameless": "Nameless Stigma requires a decision on whether its Mark shares consumption with native class Marks. It cannot be installed in affinity mode.",
 }
-const TIMING := {"link": 120, "cinder": 4000, "tide": 4500, "brace": 4000}
+const TIMING := {"link":120, "cinder":4000}
+const DELAYS := {"link":140, "echo":240, "chorus":180}
+const ECHO_CONTACTS := 3
+const CHORUS_CONTACTS := 4
+const MAX_GRAFT_RECORDS := 16
+const VERSION_DATA := [DELAYS,ECHO_CONTACTS,CHORUS_CONTACTS,MAX_GRAFT_RECORDS]
 const DEATH_CHARGE_CAP := 3
 
 
 static func grave_count(player: Dictionary) -> int:
-	return int(player.get("grave_charges",0)) + int(player.get(STATE,{}).get("grave_charges",0))
+	return int(player.get("grave_charges",0)) + graft_charges(player)
 
 
 static func describe(graft: Dictionary) -> String:
@@ -73,103 +78,149 @@ static func resolve(part: int) -> Dictionary:
 		"procs": procs, "pending_effects": pending, "refusal": refusal}
 
 
-static func capture(player: Dictionary, graft: Dictionary) -> Dictionary:
-	return {"item_id": graft.item_id, "component_id": graft.component_id, "effects": graft.procs,
-		"revision": player.get(REVISION, 0), "life": player.get("lost_health", 0)}
-
-
-static func equipped(player: Dictionary, source: Dictionary) -> bool:
-	var part := int(player.get("graft_part", 0))
-	return Parts.is_monster(part) and Parts.DEFINITIONS[part].id == source.component_id \
-		and int(player.get(REVISION, 0)) == int(source.revision) and player.get("lost_health", 0) == source.life
-
-
-static func replace(player: Dictionary) -> void:
-	player[REVISION] = int(player.get(REVISION, 0)) + 1
-	clear(player)
+static func capture(player: Dictionary, adaptation_ids: Array) -> Dictionary:
+	if adaptation_ids.is_empty():
+		return {}
+	var sources: Array = []
+	for component: String in adaptation_ids:
+		var graft := resolve(Parts.index_of(component))
+		if not graft.get("procs", {}).is_empty():
+			sources.append({"component_id":component, "item_id":graft.item_id, "effects":graft.procs})
+	return {} if sources.is_empty() else {"sources":sources, "run":Expedition.run(player).run, "life":player.get("lost_health", 0)}
 
 
 static func clear(player: Dictionary) -> void:
 	player.erase(STATE)
 
 
-static func ready(state: Dictionary, kind: String, now: int) -> bool:
-	if now < int(state.get(kind, 0)): return false
-	state[kind] = now + TIMING[kind]
-	return true
+static func counters(player: Dictionary, component: String) -> Dictionary:
+	return player.get(STATE, {}).get(component, {})
 
 
-static func next_count(state: Dictionary, kind: String, threshold: int) -> bool:
-	state[kind] = (int(state.get(kind, 0)) + 1) % threshold
-	return int(state[kind]) == 0
+static func graft_charges(player: Dictionary) -> int:
+	return int(counters(player, "monster:pallbearer").get("grave_charges", 0))
 
 
 static func start_contact(game: Node, player: Dictionary, stats: Dictionary, target: int, now: int) -> Dictionary:
-	var source: Dictionary = stats.get(CONTEXT, {})
-	if source.is_empty() or stats.get("trait_secondary", false) or stats.get("core_hit", false) \
-			or not game.multiplayer.is_server() or not game.Life.alive(player) or not equipped(player, source):
+	var snapshot: Dictionary = stats.get(CONTEXT, {})
+	if snapshot.is_empty() or stats.get("trait_secondary", false) or stats.get("core_hit", false) \
+			or not game.multiplayer.is_server() or not game.Life.alive(player) \
+			or int(snapshot.run) != int(Expedition.run(player).get("run",-1)) or int(snapshot.life) != int(player.get("lost_health",0)):
 		return {}
-	var event: RefCounted = stats.get("cr02_action")
-	if event == null or event.epoch != game.combat_epoch or now >= event.expires_at:
+	var action: RefCounted = stats.get("cr02_action")
+	if action == null or not action.source in ["form","native_weapon"] or action.epoch != game.combat_epoch or now >= action.expires_at:
 		return {}
-	var token := "leader" if target == -1 else str(game.scouts[target].get("spawn_token", target))
-	if not event.take_response("native_graft/" + token): return {}
-	var state: Dictionary = player.get(STATE, {})
-	player[STATE] = state
-	return {"source": source, "state": state, "point": game.enemy_position(target),
-		"attack": event.identity, "class_charge": int(player.get("grave_charges",0)) > 0}
+	var token := "leader" if target == -1 else str(game.scouts[target].get("spawn_token",target))
+	if not action.take_response("native_graft/" + token):
+		return {}
+	return {"sources":snapshot.sources, "life":snapshot.life, "run":snapshot.run, "point":game.enemy_position(target),
+		"attack":action.identity, "class_charge":int(player.get("grave_charges",0)) > 0}
 
 
-static func bonus(game: Node, player: Dictionary, contact: Dictionary, now: int) -> float:
-	var effects: Dictionary = contact.source.effects
-	var state: Dictionary = contact.state
-	var point: Vector3 = contact.point
-	var damage := 0.0
-	if effects.has("brace") and now - int(player.get("still_since", now)) >= 500:
-		damage += minf(2, float(effects.brace))
-		load("res://combat_status.gd").proc(game, "brace", player.pos, point)
-	if effects.has("death_charge") and not contact.class_charge and int(state.get("grave_charges", 0)) > 0:
-		state.grave_charges -= 1
-		damage += 1
-		load("res://combat_status.gd").proc(game, "momentum", player.pos, point)
-	return damage
+static func bonus(game: Node, player: Dictionary, contact: Dictionary, _now: int) -> float:
+	if contact.class_charge or not contact.sources.any(func(source): return source.effects.has("death_charge")):
+		return 0.0
+	var state := counters(player,"monster:pallbearer")
+	if int(state.get("grave_charges",0)) <= 0:
+		return 0.0
+	state.grave_charges -= 1
+	load("res://combat_status.gd").proc(game,"momentum",player.pos,contact.point)
+	return 1.0
+
+
+static func nearby(game: Node, exclude: int, point: Vector3, reach: float) -> Array[int]:
+	var result: Array[int] = []
+	for target in range(-1, game.scouts.size()):
+		if target == exclude or not game.Traits.valid_target(game,target):
+			continue
+		var at: Vector3 = game.enemy_position(target)
+		if point.distance_to(at) <= reach and game.battlefield.combat_sight(point,at):
+			result.append(target)
+	result.sort_custom(func(a: int,b: int):
+		var da: float = point.distance_squared_to(game.enemy_position(a))
+		var db: float = point.distance_squared_to(game.enemy_position(b))
+		return a < b if da == db else da < db)
+	return result
+
+
+static func has_room(game: Node) -> bool:
+	# Reserve part of the shared 24-record queue for native spells and traps.
+	return game.trait_events.filter(func(event): return event.has("graft_source")).size() < MAX_GRAFT_RECORDS
+
+
+static func secondary_stats(points: float) -> Dictionary:
+	return {"damage":points, "affinity_hp":Preview.effect_hp(points),
+		"trait_secondary":true, "core_hit":true, "knockback":-.35}
+
+
+static func queue_hits(game: Node, player: Dictionary, targets: Array[int], stats: Dictionary, contact: Dictionary,
+		source: Dictionary, now: int, kind: String) -> bool:
+	if targets.is_empty() or not has_room(game):
+		return false
+	var first := targets[0]
+	var size: int = game.trait_events.size()
+	game.Traits.queue_hit(game,player,first,stats,now,int(DELAYS[kind]),kind=="link",contact.point,kind,source)
+	if game.trait_events.size() == size:
+		return false
+	var row: Dictionary = game.trait_events.back()
+	row.stats = secondary_stats(float(row.stats.damage))
+	if targets.size() > 1:
+		# One bounded queue record for the entire pulse. Each victim keeps its
+		# own spawn token and must still be visible and alive at impact.
+		row.graft_targets = []
+		for target in targets:
+			var token: int = -1 if target == -1 else int(game.scouts[target].get("spawn_token",0))
+			row.graft_targets.append({"target":target,"token":token})
+	return true
+
+
+static func resolve_queued(game: Node, player: Dictionary, row: Dictionary, now: int) -> void:
+	var victims: Array = row.get("graft_targets",[{"target":row.target,"token":row.token}])
+	for victim: Dictionary in victims:
+		var target: int = victim.target
+		if not game.Traits.valid_target(game,target,int(victim.token)):
+			continue
+		var point: Vector3 = game.enemy_position(target)
+		if game.battlefield.combat_sight(row.origin,point):
+			load("res://combat_status.gd").proc(game,row.visual,row.origin,point,target)
+			game.apply_weapon_hit(player,target,row.origin,row.stats,now)
+	if game.encounter_cleared():
+		game.finish_combat(int(row.owner),row.origin)
 
 
 static func finish_contact(game: Node, player: Dictionary, target: int, stats: Dictionary,
 		contact: Dictionary, now: int, killed: bool) -> void:
-	var source: Dictionary = contact.source.duplicate()
-	source.attack = contact.attack
-	var effects: Dictionary = source.effects
-	var state: Dictionary = contact.state
-	var point: Vector3 = contact.point
-	var followup := {"damage": stats.damage}
-	if stats.has("preview_strike_hp"): followup.preview_strike_hp = stats.preview_strike_hp
-	if killed and effects.has("death_charge") and (target == -1 or not game.scouts[target].get("summoned", false)):
-		var available := maxi(0, DEATH_CHARGE_CAP - grave_count(player))
-		state.grave_charges = int(state.get("grave_charges",0)) + mini(available, int(effects.death_charge))
-	if effects.has("link") and ready(state,"link",now):
-		var recipient: int = game.Traits.other_target(game,target,point)
-		followup.link = effects.link
-		game.Traits.queue_hit(game,player,recipient,followup,now,140,true,point,"link",source)
-	if effects.has("echo") and next_count(state,"echo_charge",3):
-		var recipient: int = game.Traits.other_target(game,target,point)
-		game.Traits.queue_hit(game,player,recipient,followup,now,240,false,point,"echo",source)
-	if effects.has("chorus_pulse") and next_count(state,"chorus_contacts",4):
-		for candidate in game.skill_area_targets(point,3.2,point):
-			if candidate != target:
-				var pulse := {"damage": Preview.proc_amount(float(effects.chorus_pulse),1,3)}
-				game.Traits.queue_hit(game,player,candidate,pulse,now,180,false,point,"chorus",source)
-	if effects.has("cinder_trail") and ready(state,"cinder",now):
-		game.Traits.zone(game,player,"cinder",point,1.8,2600,Preview.proc_amount(float(effects.cinder_trail),1,3),now,false,null,source)
-	if effects.has("tide_pool") and ready(state,"tide",now):
-		var power: float = game.Life.Sustain.pool_points(Preview.proc_amount(float(effects.tide_pool),1,2))
-		game.Traits.zone(game,player,"tide",point,1.6+float(effects.pool_radius),2400,power,now,float(stats.get("pool_ward",0))>0,null,source)
-
-
-static func brace_block(player: Dictionary, now: int) -> bool:
-	var graft := resolve(int(player.get("graft_part",0)))
-	if not graft.get("procs",{}).has("brace") or now - int(player.get("still_since",now)) < 500:
-		return false
-	var state: Dictionary = player.get(STATE,{})
-	player[STATE] = state
-	return ready(state,"brace",now)
+	var states: Dictionary = player.get(STATE,{})
+	player[STATE] = states
+	for captured: Dictionary in contact.sources:
+		var component: String = captured.component_id
+		var state: Dictionary = states.get_or_add(component,{})
+		var source := captured.merged({"attack":contact.attack,"life":contact.life,"run":contact.run})
+		match component:
+			"monster:pallbearer":
+				if killed and game.Life.Sustain.eligible(game,target) and grave_count(player) < DEATH_CHARGE_CAP:
+					state.grave_charges = int(state.get("grave_charges",0)) + int(captured.effects.death_charge)
+			"monster:spore_widow":
+				if now >= int(state.get("ready_at",0)):
+					var targets := nearby(game,target,contact.point,3.0)
+					if not targets.is_empty() and queue_hits(game,player,[targets[0]],stats,contact,source,now,"link"):
+						state.ready_at = now + TIMING.link
+			"monster:glasscap":
+				state.echo_charge = mini(ECHO_CONTACTS,int(state.get("echo_charge",0)) + 1)
+				if state.echo_charge == ECHO_CONTACTS:
+					var targets := nearby(game,target,contact.point,3.0)
+					if not targets.is_empty() and queue_hits(game,player,[targets[0]],stats,contact,source,now,"echo"):
+						state.echo_charge = 0
+			"monster:root_choir":
+				state.chorus_contacts = mini(CHORUS_CONTACTS,int(state.get("chorus_contacts",0)) + 1)
+				if state.chorus_contacts == CHORUS_CONTACTS:
+					var targets := nearby(game,target,contact.point,3.2)
+					var pulse := {"damage":Preview.proc_amount(float(captured.effects.chorus_pulse),1,3)}
+					if queue_hits(game,player,targets,pulse,contact,source,now,"chorus"):
+						state.chorus_contacts = 0
+			"monster:ashen_hart":
+				if now >= int(state.get("ready_at",0)) and has_room(game):
+					var field: Dictionary = game.Traits.zone(game,player,"cinder",contact.point,1.8,2600,
+						Preview.proc_amount(float(captured.effects.cinder_trail),1,3),now,false,null,source)
+					if not field.is_empty():
+						state.ready_at = now + TIMING.cinder

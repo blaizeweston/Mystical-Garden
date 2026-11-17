@@ -111,7 +111,7 @@ func refresh() -> void:
  core_skill.text="Core skill · "+core_name
  core_skill.tooltip_text=summary
  core_skill.mouse_filter=Control.MOUSE_FILTER_PASS
- for index in 4:
+ for index in state.equipment.size():
   var part:=int(state.equipment[index])
   var entry: Dictionary={"item":Items.part_id(part),"quantity":1,"bucket":"equipment","key":"equipment:%d"%index,"slot":index} if part>0 else {}
   var slot:=add_slot(equipment,entry,"equipment",48)
@@ -169,7 +169,10 @@ func show_details() -> void:
  if selected.is_empty(): details.text="Select an item.";return
  var item:=Items.get_item(str(selected.get("item","")))
  if item.is_empty(): return
- details.text="[b]%s[/b]\n%s · %s\n\n%s"%[item.name,item.rarity,item.category.replace("_"," ").capitalize(),Items.describe(item)]
+ var description:=Items.describe(item)
+ if item.category=="monster_part" and game.has_meta(&"combat_affinity_ruleset"):
+  description="A trophy that can fund an expedition improvement at a Grafting Altar."
+ details.text="[b]%s[/b]\n%s · %s\n\n%s"%[item.name,item.rarity,item.category.replace("_"," ").capitalize(),description]
  if not item.tags.is_empty():details.text+="\n\nTags: "+", ".join(item.tags)
  if not item.monster_tags.is_empty():details.text+="\nMonster tags: "+", ".join(item.monster_tags)
  details.text+="\n\nStorage: "+("Shared Garden" if selected.get("bucket",source())=="shared" else "Personal stash" if not state.wild else "Backpack / pouch")

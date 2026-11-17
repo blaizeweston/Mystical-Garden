@@ -340,7 +340,7 @@ func refresh():
 			body+="\nPrimary tag · "+str(build.primary).capitalize()
 		var tags: Array=build.get(["secondary","form","catalyst"][slot],[])
 		if not tags.is_empty(): body+="\n"+("Secondary tags" if slot==0 else "Tags")+" · "+", ".join(tags)
-	if not prepared:
+	if not prepared and not affinity_mode:
 		body+="\n\nMonster graft: "+game.Parts.part_name(int(p.get("graft_part",0)))
 		var tags: Array=build.get("graft",[])
 		if not tags.is_empty(): body+="\nTags · "+", ".join(tags)

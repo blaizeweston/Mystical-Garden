@@ -93,8 +93,10 @@ static func resolve(class_id: int, weapon_index: int, slots: Array, graft: int, 
 static func for_player(player: Dictionary, prepared := false) -> Dictionary:
 	var fields := ["prepared", "prepared_secondary", "prepared_catalyst"] if prepared else ["weapon", "secondary", "catalyst"]
 	var parts := fields.map(func(field): return int(player.get(field, 0)))
-	return resolve(int(player.get("frame", 0)), int(player.get("weapon_kind", 0)), parts,
-		0 if prepared else int(player.get("graft_part", 0)), player.get("character", {}))
+	var build := resolve(int(player.get("frame", 0)), int(player.get("weapon_kind", 0)), parts, 0, player.get("character", {}))
+	if not prepared:
+		build.improvements = Ruleset.Improvements.resolution(player)
+	return build
 
 
 static func native_stats(build: Dictionary) -> Dictionary:
@@ -102,6 +104,8 @@ static func native_stats(build: Dictionary) -> Dictionary:
 	stats.merge({"cooldown": 0.0, "tags": [], "interactions": [], "core_build": {}})
 	WeaponRules.add_effects(stats, build.native_class_effects)
 	WeaponRules.add_effects(stats, build.graft.get("native_effects", {}))
+	if build.has("improvements"):
+		Ruleset.Improvements.tune_native(stats,build.improvements)
 	if stats.has("pierce"):
 		stats.pattern = "line"
 	var procs: Dictionary = build.graft.get("procs", {})

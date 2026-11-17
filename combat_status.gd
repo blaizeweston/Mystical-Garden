@@ -75,8 +75,9 @@ static func sync(game: Node,now: int) -> void:
    if player.has(preparation):
     add(desired,game,preparation,id,false,Ranger.prepared_until(game,player,preparation,now),1,now)
   for pair in [["grave","grave_charges"],["echo","echo_charge"]]:
-   var graft_state: Dictionary = player.get("native_graft_state", {})
-   var charges := int(player.get(pair[1],0)) + int(graft_state.get(pair[1],0))
+   var grafts = preload("res://native_grafts.gd")
+   var graft_count: int = grafts.graft_charges(player) if pair[0] == "grave" else int(grafts.counters(player,"monster:glasscap").get("echo_charge",0))
+   var charges := int(player.get(pair[1],0)) + graft_count
    add(desired,game,pair[0],id,false,now+60000,charges,now)
  for target in range(-1,game.scouts.size()):
   if not game.expedition_active() or not game.Traits.valid_target(game,target):continue

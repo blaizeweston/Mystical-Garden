@@ -32,7 +32,7 @@ ruleset.
 
 - **Cards.** The legacy catalogue stores fixed rarity and cost on each definition. Its offer list stores card IDs, its ownership state stores integer ranks, and numeric effects multiply the base contribution by rank. Rarity and affordability already influence which entry is drawn, and selection charges Essence. A rank limit of one is the closest current equivalent to a one-time unlock. These assumptions need separate offer rarity, per-copy contributions, explicit Unique acquisition, and free selection when the future design is implemented. Existing card descriptions, caps, and event consumers still need to be checked together. CR05 kept affinity cards empty. EC01 owns a separate opt-in catalogue. [Catalogue](../run_upgrade_catalog.gd) · [Checkpoint selection](../game.gd)
 - **Class tree.** The active branch tree grants one selection at each current row gate, at levels 1, 2, 4, and 7. It allows one node per row and accepts a learned adjacent predecessor. The legacy mask tree uses level minus one as its point budget, with additional tier and parent checks. Existing row exclusions already prevent buying every branch. The branch-tree budget, the current Offense/Control/Defense starting lanes, and the automatically generated adjacent links are compatibility behavior. The future graph needs the approved focus choices and deliberate connections. Level 7 currently resolves at 2,600 Class XP. Its suitability as a final-tier gate is unverified against the approved pacing goal. The current free respec at the Heart remains a legacy action. [Branch rules](../warden_tree.gd) · [Legacy rules](../class_catalog.gd) · [Current XP data](../assets/content/balance.json)
-- **Grafting Altar.** The current path consumes a carried monster part for a chance to install one component. Its same-altar restriction follows the last successful install floor, and a later successful replacement swaps the installed component. Native effects are source-scoped, with validation, feedback, and lifetimes tied to the current model. CR05 compatibility covers these existing consumers and their regressions. The future altar success limit is approved. Cumulative reinforcement, adaptation selection, and what to carry forward from the existing attempt rules await a separate specification. [Altar action and validation](../game.gd) · [Native effect ownership](../native_grafts.gd)
+- **Grafting Altar.** Legacy combat consumes a carried monster part for a chance to install or replace one component. Affinity combat uses GA01A’s run-owned purchases. [Altar action and validation](../game.gd) · [Affinity purchases](../expedition_grafts.gd)
 
 ### CT01 connected Warden
 
@@ -83,6 +83,12 @@ The host offers up to three eligible card identities at each third cleared check
 Run cards live on the authoritative expedition player. Their source contributions are captured at the applicable action. The owner’s run summary shows inactive equipment-dependent copies and the reason. Essence income and permanent XP settlement still use their established receipts. On return, the player’s expedition wallet and cards are cleared. Legacy combat uses its separate priced cards. Hosts and guests match the EC01 affinity signature. [Combat events](../combat_action_events.gd) · [Run summary](../run_summary_panel.gd) · [Ruleset](../combat_ruleset.gd)
 
 Launch the isolated affinity playtest with the [experimental terrain launcher](../tools/launch_experimental_terrain.ps1) and its `-CombatAffinities` switch. The authoring values are provisional.
+
+### GA01A cumulative affinity grafting
+
+Each player can buy one improvement per altar and up to six per expedition under the provisional playtest tuning. Reinforcements cost one chosen ordinary carried trophy. Each Unique adaptation costs one matching carried trophy. The host checks the current expedition, floor, and purchase revision before committing the material debit and receipt together. Purchases survive floor travel and revival and clear when the player returns to the Garden. Only owning peers receive their ledger through reliable detail updates. [Purchase definitions and state](../expedition_grafts.gd) · [Altar preview](../affinity_grafting_panel.gd)
+
+The four reinforcements apply to basic damage, native Max HP, native class cooldowns, or basic reach. The six available adaptations are Silken Mycelium, Prismatic Gill, Chorus Node, Funeral Petal, Cinder Antler, and Grasping Rootlet. Link, Echo, Chorus, and Cinder have independent readiness. A full effect queue leaves a response ready for the next qualifying contact. Funeral Petal shares the three-charge cap with Death’s Due and yields spending priority to class charges. Permanent Knowledge rewards belong to GA01B. [Scoped combat effects](../native_grafts.gd) · [Focused fixture](../tests/cr05_native_grafts.gd)
 
 ### Overlapping Ward claims
 
@@ -552,6 +558,8 @@ Class XP and tenths keep their existing thresholds and identify which permanent 
 Current tiered focuses use their named Q replacement and preserve native R follow-through or Root Anchor behavior. None of these rank paths changes Core, Form or Catalyst potency.
 
 ### Native monster graft compatibility
+
+This section records the CR05 baseline before GA01A replaced the single-slot affinity implementation.
 
 `native_grafts.gd` classifies every authored native statistic or special effect for all 24 grafts. The inventory item and component IDs remain the authored IDs in `weapon_parts.gd`. The affinity build reports installed numeric effects, supported procs and explicit refusal separately. Core, Form and Catalyst retain their original affinity identities. Numeric outputs still use native strike, skill and health caps.
 

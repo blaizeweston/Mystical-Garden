@@ -31,6 +31,8 @@ var extra_cores: Array = []
 var measure_packets := false
 var mixed_wood_ward := false
 var final_family_mix := false
+const Improvements = preload("res://expedition_grafts.gd")
+const Grafts = preload("res://native_grafts.gd")
 var native_graft_case := false
 var connected_warden_case := false
 var connected_weaver_case := false
@@ -293,8 +295,9 @@ func host(menu: Node) -> void:
 				check(await until(func():return read("vital-seen-"+str(source))=="ok"),"Vital capacity reaches guest through authoritative vitals")
 	if native_graft_case:
 		check(game.trait_events.any(func(e):return e.get("graft_source",{}).get("component_id")=="monster:ashen_hart")
-			or game.combat_events.any(func(e):return e.shape=="cinder_zone"),"real guest strike emitted installed Cinder")
-	if party and not connected_weaver_case and graph==null:
+			or game.combat_events.any(func(e):return e.shape=="cinder_zone"),"real guest strike emitted acquired Cinder")
+		if party and measure_packets: await sample_host_snapshots(game,ids)
+	if party and not connected_weaver_case and graph==null and not native_graft_case:
 		if measure_packets: await sample_host_snapshots(game,ids)
 		if mixed_wood_ward and measure_packets: await verify_current_snapshot_host(game,ids,local)
 		check(await until(func():return read("overflow")=="ok",22000),"overflow returns after native connection deadline")
@@ -385,6 +388,9 @@ func host(menu: Node) -> void:
 	mark("advance",str(game.travel_epoch))
 	if not check(await until(func():return game.depth==2 and ids.all(func(id):return read("guest-floor-"+str(id))=="ok")),
 		"party advances to next generated floor"):return
+	if native_graft_case:
+		check(ids.all(func(id):return Improvements.run(game.players[id]).get("copies",[]).size()==1),
+			"authoritative purchases survive the real floor transition")
 	if connected_reaper_case:
 		check(selected_player.grave_charges==1 and not selected_player.has("native_graft_state"),
 			"the guest’s native charge survives the real floor transition")
@@ -402,6 +408,11 @@ func host(menu: Node) -> void:
 	if affinity_cards_case:
 		check(game.players.values().all(func(visitor):return not visitor.has("affinity_cards") and game.run_wallet(visitor)==0),
 			"real extraction clears all four purses and decks")
+	if native_graft_case:
+		check(game.players.size()==ids.size()+1 and game.players.values().all(func(visitor):
+			return not visitor.has(Improvements.STATE) and not visitor.has(Grafts.STATE)),
+			"real extraction clears purchased improvements and counters for all connected players")
+		mark("grafts-cleared")
 	if connected_reaper_case:
 		check(selected_player.grave_charges==0,"normal extraction clears the authoritative native charge pool")
 	if party:
@@ -413,9 +424,6 @@ func host(menu: Node) -> void:
 		mark("offline")
 		return
 	check([game.progress.part_count(ordinary),game.progress.part_count(refined)]==paid,"no repeated affinity material consumption")
-	if native_graft_case:
-		check(ally.graft_part==0 and not ally.has("native_graft_state"),
-			"Garden return clears the guest's run-only graft and its counters")
 	if not check(await until(func():return guests(game).is_empty() and game.pending_departures.is_empty()),"guest detached through normal teardown"):return
 	mark("detached")
 	check(await until(func():return read("rejoined")=="ok" and guests(game).size()==1),"guest reconnects to the existing Garden")
@@ -805,29 +813,26 @@ func exercise_weaver_host(game: Node, id: int, entry: Vector3, target: Vector3, 
 
 
 func install_party_grafts(game: Node, ids: Array) -> bool:
-	var parts = preload("res://weapon_parts.gd")
 	var old_floor: int = game.encounter_number
+	var knowledge: int = game.progress.knowledge
 	game.encounter_number = 8
 	for index in ids.size():
 		var id: int = ids[index]
 		var visitor: Dictionary = game.players[id]
-		var material: int = parts.monster_part([17,18,15][index])
+		var improvement: String = ["cinder_field","prismatic_echo","funeral_charges"][index]
+		var item: String = Improvements.ADAPTATIONS[improvement].item
+		var material: int = game.Items.get_item(item).legacy_part
 		visitor.pos = game.battlefield.graft
 		visitor.carried_parts[material] = 2
-		var probability: float = game.graft_chance(visitor,material)
-		for seed_value in 1000:
-			game.rng.seed = seed_value
-			var state: int = game.rng.state
-			if game.rng.randf() < probability:
-				game.rng.state = state
-				break
-		mark("install-"+str(id),str(material))
-		if not check(await until(func():return read("graft-seen-"+str(id))=="ok"),"guarded guest graft completes and publishes"): return false
-		check(visitor.graft_part==material and visitor.carried_parts[material]==1,
-			"guest graft request consumes one part")
-		if not check(await until(func():return "already installed" in visitor.get("graft_message",""),3000),
-			"host evaluates the repeated request at the altar"): return false
-		check(visitor.carried_parts[material]==1,"repeated request consumes no second part")
+		mark("install-"+str(id),improvement+":"+item)
+		if not check(await until(func():return read("graft-seen-"+str(id))=="ok"),"guest confirms the exact matching trophy and receives its ledger"): return false
+		var ledger := Improvements.run(visitor)
+		check(ledger.copies.size()==1 and ledger.copies[0].id==improvement and ledger.copies[0].item==item
+			and visitor.carried_parts[material]==1,"authority charges the selected part once")
+		if not check(await until(func():return "already used" in visitor.get("graft_message",""),3000),
+			"host rejects a duplicate request at the same altar"): return false
+		check(visitor.carried_parts[material]==1,"the replay spends no second trophy")
+	check(game.progress.knowledge==knowledge,"guest purchases give no permanent Knowledge")
 	game.encounter_number = old_floor
 	return true
 
@@ -871,10 +876,22 @@ func guest(menu: Node, role: String) -> void:
 	if native_graft_case:
 		if not check(await until(func():return not read("install-"+str(id)).is_empty() and game.stage._has_experimental_floor()),
 			"real guest can request its graft on the shared floor"): return
-		var item := int(read("install-"+str(id)))
-		game.send_garden_action("graft_install_%d" % item)
-		if not check(await until(func():return int(game.players[id].get("graft_part",0))==item),"guest sees the committed graft identity"): return
-		game.send_garden_action("graft_install_%d" % item)
+		var selection_fields := read("install-"+str(id)).split(":")
+		if not check(await until(func():return game.encounter_number==8 and game.at_graft_altar(game.players[id])),
+			"guest has reached the same altar"):return
+		game.send_garden_action("graft")
+		if not check(await until(func():return game.graft_menu.visible and game.graft_view.data.get("floor",0)==8),
+			"guest receives its authoritative altar choices"):return
+		var request := Improvements.request(game.graft_view.data,selection_fields[0],selection_fields[1])
+		game.send_garden_action(request)
+		if not check(await until(func():
+			var copies: Array = game.players[id].get("graft_improvements",{}).get("copies",[])
+			return copies.size()==1 and copies[0].id==selection_fields[0] and copies[0].item==selection_fields[1]),
+			"guest receives its committed purchase once in owner details"):return
+		game.send_garden_action(request)
+		if not check(await until(func():return "already used" in game.graft_view.data.get("status","")),
+			"guest receives duplicate refusal"):return
+		game.toggle_overlay(null)
 		mark("graft-seen-"+str(id))
 	if not check(await until(func():return read("strike-"+str(id))=="ok" and game.stage._has_experimental_floor()),"guest sees generated Frost floor"):return
 	game.send_action(true)
@@ -933,7 +950,8 @@ func guest(menu: Node, role: String) -> void:
 			var marker := "vital-"+str(id)
 			check(await until(func():return not read(marker).is_empty() and int(game.players[id].max_hp)==int(read(marker))),"guest receives authoritative Vital capacity")
 			mark("vital-seen-"+str(id))
-	if party and not connected_weaver_case and graph==null:
+	if native_graft_case and party and measure_packets: await sample_guest_snapshots(game,id)
+	if party and not connected_weaver_case and graph==null and not native_graft_case:
 		if measure_packets: await sample_guest_snapshots(game,id)
 		if mixed_wood_ward and measure_packets: await verify_current_snapshot_guest(game,id)
 		if check(await until(func():return read("party-done")=="ok",22000),"host observes mixed-source party"):
@@ -972,10 +990,18 @@ func guest(menu: Node, role: String) -> void:
 	if affinity_cards_case:
 		check(await until(func():return game.players.get(id,{}).get("affinity_run_cards",[]).size()==1),
 			"mixed-class guest still owns its copy on the next floor")
+	if native_graft_case:
+		check(await until(func():
+			var ledger: Dictionary = game.players[id].get("graft_improvements",{})
+			return ledger.get("floor",0)==2 and ledger.get("copies",[]).size()==1),
+			"guest has the same acquired adaptation on the real next floor")
 	mark("guest-floor-"+str(id))
 	if not check(await until(func():return not read("extract").is_empty() and int(game.party_travel_state().get("epoch",-1))==int(read("extract"))),"guest receives extraction"):return
 	game.send_travel_ready(false)
 	if not check(await until(func():return not game.players[id].wild),"guest returns to Garden"):return
+	if native_graft_case:
+		check(await until(func():return game.players[id].get("graft_improvements",{}).is_empty()),
+			"owner details clear the graft purchases on return")
 	check(str(terrain.state.outline).sha256_text()==garden_outline,"same Garden outline after Frost play")
 	mark("guest-garden-"+str(id))
 	if party:
@@ -984,11 +1010,19 @@ func guest(menu: Node, role: String) -> void:
 			check(await until(func():return read("offline")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),
 				"mixed party observes normal shutdown")
 		return
+	if native_graft_case and not check(await until(func():return read("grafts-cleared")=="ok"),
+		"host confirms extraction cleanup before the guest disconnects"):return
 	game.return_to_main_menu()
 	if not check(await until(func():return read("detached")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"normal offline-before-rejoin transition"):return
 	begin_join(tree.current_scene)
 	if not check(await until(func():return tree.current_scene.get("session")=="Guest" and tree.current_scene.stage.experimental_garden.remote_revision>=0),"same isolated profile rejoins"):return
 	check(tree.current_scene.guest_character.identity==identity,"stable character identity across rejoin")
+	if native_graft_case:
+		var rejoined = tree.current_scene
+		var clean := func() -> bool:
+			var current: Dictionary = rejoined.players.get(rejoined.local_player_id(),{})
+			return not current.is_empty() and current.get("graft_improvements",{}).is_empty()
+		check(await until(clean),"rejoining the same character restores no prior run's grafts")
 	if connected_warden_case:
 		var rejoined = tree.current_scene
 		var profile: Dictionary = rejoined.guest_character.data
@@ -1119,7 +1153,7 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 	game.enemy_stagger_until=Time.get_ticks_msec()+9000
 	if native_graft_case:
 		var caster: Dictionary = game.players[ids[0]]
-		if not check(await until(func():return Time.get_ticks_msec()>=int(caster.get("native_graft_state",{}).get("cinder",0)),4500),
+		if not check(await until(func():return Time.get_ticks_msec()>=int(Grafts.counters(caster,"monster:ashen_hart").get("ready_at",0)),4500),
 			"wait for the real Cinder response interval before sampling"): return
 	mark("snapshot-arm")
 	if not check(await until(func():return ids.all(func(id):return read("snapshot-ready-"+str(id))=="ok"),4000),"every guest is watching the probe"):

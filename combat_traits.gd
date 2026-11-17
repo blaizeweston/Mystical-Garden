@@ -62,8 +62,8 @@ static func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,n
    damage+=1
   if float(hit.get("reaper_momentum",0))>0:
    var charges := int(p.get("grave_charges",0))
-   if not graft_contact.is_empty():
-    charges += int(graft_contact.state.get("grave_charges",0))
+   if not graft_contact.is_empty() and graft_contact.sources.any(func(source): return source.effects.has("death_charge")):
+    charges += Grafts.graft_charges(p)
    damage+=mini(2,charges)
   if int(p.get("grave_charges",0))>0 and Reaper.spends_class_charge(p,hit):
    damage+=1;p.grave_charges-=1
@@ -108,7 +108,7 @@ static func after_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now
  if stats.get("trait_secondary",false): return
  var point: Vector3=game.enemy_position(target)
  if killed and (target==-1 or not game.scouts[target].get("summoned",false)) and float(stats.get("death_charge",0))>0 and Reaper.spends_class_charge(p,stats):
-  var graft_charges := int(p.get("native_graft_state",{}).get("grave_charges",0))
+  var graft_charges := Grafts.graft_charges(p)
   p.grave_charges=mini(Grafts.DEATH_CHARGE_CAP-graft_charges,int(p.get("grave_charges",0))+maxi(1,roundi(float(stats.death_charge))))
  if float(stats.get("chorus_pulse",0))>0:
   p.chorus_contacts=int(p.get("chorus_contacts",0))+1
@@ -226,9 +226,12 @@ static func tick(game: Node,now: int) -> void:
   if event.kind=="hit":
    if now<int(event.due): continue
    game.trait_events.erase(event)
+   if event.has("graft_source"):
+    Grafts.resolve_queued(game,p,event,now)
+    continue
    if valid_target(game,int(event.target),int(event.token)):
     var point: Vector3=game.enemy_position(int(event.target))
-    var origin: Vector3 = event.get("origin",p.pos) if event.has("graft_source") else p.pos
+    var origin: Vector3 = p.pos
     if game.battlefield.clear_line(origin,point):
      if event.has("visual"):preload("res://combat_status.gd").proc(game,str(event.visual),event.get("origin",p.pos),point,int(event.target))
      if event.stats.has("cr02_action"):
@@ -254,7 +257,9 @@ static func tick(game: Node,now: int) -> void:
    var targets: Array[int]=game.skill_area_targets(event.position,float(event.radius),event.position)
    for target in targets:
     var hit: Dictionary={"damage":Preview.authored_amount(float(event.power)),"trait_secondary":true}
-    if event.has("graft_source") or event.get("native_weaver_bloom",false):
+    if event.has("graft_source"):
+     hit=Grafts.secondary_stats(float(event.power))
+    elif event.get("native_weaver_bloom",false):
      hit.core_hit=true
     else:
      hit.mark_damage=1
@@ -282,11 +287,7 @@ static func describe(values: Dictionary,resolved: bool=false) -> String:
  return "\n".join(lines)
 
 static func try_brace(game: Node,p: Dictionary,now: int) -> bool:
- if p.has("combat_ruleset"):
-  if not preload("res://native_grafts.gd").brace_block(p,now): return false
-  preload("res://combat_status.gd").proc(game,"brace",p.pos,p.pos)
-  game.tell(player_id(game,p),"Orchard Heartwood absorbed the impact.")
-  return true
+ if p.has("combat_ruleset"):return false
  if now<int(p.get("brace_block_ready",0)) or now-int(p.get("still_since",now))<500: return false
  if float(game.weapon_stats(p).get("brace",0))<=0: return false
  preload("res://combat_status.gd").proc(game,"brace",p.pos,p.pos)

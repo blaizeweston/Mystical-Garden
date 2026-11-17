@@ -217,6 +217,7 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 		for copy: Dictionary in copies:
 			applied[copy.id] = copy.applied
 		stats = stats.duplicate()
+		preload("res://expedition_grafts.gd").tune_basic(stats)
 		stats.damage = float(stats.damage) + float(applied.get("ordinary_weapon_damage",0)) / world.Life.Preview.scale()
 		var weapon_band: Vector2i = world.Life.Preview.weapon_range(stats,0)
 		stats.damage_min = weapon_band.x
@@ -257,6 +258,17 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 			var spec: Array = EXTRA_STATS[key]
 			rows.append([spec[0], ("+" if value > 0 else "−") + decimal(absf(value)*float(spec[2])) + spec[1]])
 	var unique: Array = stats.get("interactions", []).duplicate()
+	if stats.has("affinity_build"):
+		var grafts = preload("res://expedition_grafts.gd")
+		var ledger: Dictionary = grafts.owner_details(world,player) if world.multiplayer.is_server() else player.get("graft_improvements",{})
+		if not ledger.is_empty():
+			var names: Dictionary = grafts.REINFORCEMENTS.merged(grafts.ADAPTATIONS)
+			var counts := {}
+			for copy: Dictionary in ledger.copies:
+				counts[copy.id] = int(counts.get(copy.id,0)) + 1
+			unique.append("Grafting Altar · %d purchases remaining" % int(ledger.remaining))
+			for id: String in counts:
+				unique.append(str(names[id].name) + (" ×%d" % counts[id] if int(counts[id])>1 else ""))
 	if world.Life.Preview.enabled:
 		if world.destination!=world.Campaign.HEART:
 			var boundary: bool=world.depth==world.ROUTE_ROOMS

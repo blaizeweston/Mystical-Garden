@@ -207,8 +207,9 @@ static func interaction(game: Node,id: int,action: String,phase: String,request_
  if is_instance_valid(game.diagnostic_watch):game.diagnostic_watch.tick()
  var info={"actor":id,"action":action.get_slice(":",0).left(80),"phase":phase,"request_seq":request_seq,"state":player_state(game.players.get(id,{}))}
  if action.contains(":"):
-  var payload=JSON.parse_string(action.substr(action.find(":")+1))
-  if payload is Dictionary:
+  var parser := JSON.new()
+  if parser.parse(action.substr(action.find(":")+1)) == OK and parser.data is Dictionary:
+   var payload: Dictionary = parser.data
    for key in ["operation","source","target","item","quantity","draft","revision","id","plan"]:
     if payload.has(key):info[key]=payload[key]
  var player: Dictionary=game.players.get(id,{})
