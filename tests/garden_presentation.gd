@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Character = preload("res://character_profile.gd")
 const RootUI = preload("res://root_ui.gd")
 const Stage = preload("res://stage.gd")
@@ -36,9 +38,9 @@ func run():
 	p.wild = true
 	game.garden_action(1, "look_0")
 	check(p.character.appearance == original, "appearance cannot be changed mid-expedition")
-	p.hp = 10
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
 	game.damage_player(1, p, 1)
-	check(p.hp == 9, "one damage point removes half a heart")
+	check(PlayerVitals.current_hp(p) == 9, "one damage point removes half a heart")
 	p.wild = false
 	game._process(.016)
 	var start_radius: float = game.stage.garden_disc.scale.x

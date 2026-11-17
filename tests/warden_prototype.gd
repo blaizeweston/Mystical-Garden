@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Warden = preload("res://warden_tree.gd")
@@ -76,8 +78,8 @@ func arena(indices: Array[int], card: String) -> void:
 	player.frame=0
 	player.wild=true
 	player.fallen=false
-	player.hp=10
-	player.max_hp=10
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(10)
 	player.pos=Vector3.ZERO
 	player.facing=Vector3.FORWARD
 	player.weapon=game.Parts.index_of("plant:thorn_bloom")
@@ -115,7 +117,7 @@ func offense() -> void:
 	var now := Time.get_ticks_msec()
 	check(Combat.prepared_until(game,player,now)==0, "pressing Q alone does not prepare Quake")
 	game.apply_enemy_hit(1,player,now,1,0,game.enemy_pos)
-	check(player.hp==10 and player.counter_until>now and near.pos.x>1.9, "a real counter block repels nearby enemies")
+	check(PlayerVitals.current_hp(player)==10 and player.counter_until>now and near.pos.x>1.9, "a real counter block repels nearby enemies")
 	Status.sync(game,now)
 	check(Status.snapshot(game,now).any(func(e): return e.shape=="warden_quake_ready" and e.combo==1), "prepared Quake has a visible player status")
 	game.use_class_skill(1,player,1)
@@ -154,7 +156,7 @@ func support() -> void:
 	var ally: Dictionary=game.players[2]
 	ally.wild=true
 	ally.fallen=false
-	ally.hp=6
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(6)
 	ally.pos=Vector3(1.2,0,-3.0)
 	ally.guard_until=0
 	player.catalyst=game.Parts.index_of("plant:storm_reed")

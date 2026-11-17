@@ -1,6 +1,7 @@
 extends SceneTree
 
 const Cooldowns = preload("res://player_cooldowns.gd")
+const PlayerVitals = preload("res://player_vitals.gd")
 const Icons = preload("res://class_skill_icons.gd")
 const Summary = preload("res://run_summary_panel.gd")
 var failed := false
@@ -18,7 +19,7 @@ func run():
 	game.set_process(false)
 	game.set_physics_process(false)
 	var p: Dictionary = game.players[1]
-	p.hp = 1
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(1)
 	p.wild = true
 	p.frame = 1
 	p.carried_seeds.assign([0, 1, 1])

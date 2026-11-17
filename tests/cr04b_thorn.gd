@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Rules = preload("res://combat_ruleset.gd")
@@ -46,7 +47,7 @@ func reset(p: Dictionary) -> void:
 	p.catalyst=0
 	p.frame=0
 	p.pos=Vector3.ZERO
-	p.hp=90
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
 	p.facing=Vector3.FORWARD
 	p.core_ready_at=0
 	p.core_cast_until=0
@@ -71,7 +72,7 @@ func run() -> void:
 	p.wild=true
 	var ally: Dictionary=game.players[2]
 	ally.wild=true
-	ally.hp=90
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
 	ally.pos=Vector3.ZERO
 	var count:=0
 	for part in game.Parts.DEFINITIONS.size():

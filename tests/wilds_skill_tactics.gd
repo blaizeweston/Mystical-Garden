@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Core = preload("res://core_combat.gd")
 const Tactics = preload("res://wilds_skill_tactics.gd")
 const Attacks = preload("res://enemy_attack.gd")
@@ -33,7 +35,7 @@ func floor_fixture() -> void:
 	game.battlefield.barriers.clear()
 	player.pos = Vector3.ZERO
 	player.wild = true
-	player.hp = 10
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
 
 
 func add_scout(kind: int, at: Vector3) -> Dictionary:
@@ -144,7 +146,7 @@ func check_relay() -> void:
 	var chosen: int = attack.flank.escort.slot
 	var other := 2 if chosen == 1 else 1
 	game.resolve_scout(shepherd, game.Enemies.get_kind(10), shepherd.windup)
-	check(game.scouts[chosen].command_via == attack.flank.via and not game.scouts[other].has("command_via") and player.hp == 10, "relay only moves its warned escort")
+	check(game.scouts[chosen].command_via == attack.flank.via and not game.scouts[other].has("command_via") and PlayerVitals.current_hp(player) == 10, "relay only moves its warned escort")
 	Attacks.lock(game, shepherd, "shepherd", player.pos, now + 5000)
 	check(shepherd.attack.variant != Tactics.RELAY, "one relay per enemy")
 	floor_fixture()

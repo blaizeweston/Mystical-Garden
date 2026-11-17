@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Status=preload("res://combat_status.gd")
 var failed:=false
 func check(ok: bool,message: String):
@@ -10,7 +12,7 @@ func run():
  var game=load("res://world.tscn").instantiate();var token:=str(Time.get_ticks_usec())
  game.progress.path="res://.godot/status-"+token;game.local_character.path=game.progress.path+".character";root.add_child(game)
  game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
- var p: Dictionary=game.players[1];p.wild=true;p.hp=10;p.pos=Vector3(0,0,-1);p.power=0
+ var p: Dictionary=game.players[1];p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(0,0,-1);p.power=0
  game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.enemy_hp=80;game.enemy_pos=Vector3(0,0,1);game.enemy_traits.clear();game.scouts.clear();game.enemy_winding_up=false
  var now:=Time.get_ticks_msec();p.slow_until=now+4000
  var stats: Dictionary=game.weapon_stats(p);stats.damage=1;stats.mark_damage=2

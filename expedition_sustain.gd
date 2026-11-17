@@ -1,5 +1,6 @@
 extends RefCounted
 ## Host-side expedition recovery. Authoring still uses points, while budgets use HP.
+const PlayerVitals = preload("res://player_vitals.gd")
 const Preview = preload("res://combat_balance_preview.gd")
 const KILL_BUDGET_HP := 24
 const FLOOR_BONUS_PER_LOOP_HP := 3
@@ -66,7 +67,7 @@ static func heal_on_kill(game: Node, actor: Dictionary, target: int, points: flo
 	if not Preview.enabled:
 		return Preview.heal(actor,points,Preview.HEAL_SPREAD_HP,"heal_on_kill")
 	var remaining := kill_remaining(actor,game.combat_epoch)
-	if points<=0.0 or remaining==0 or not eligible(game,target) or not game.Life.alive(actor) or float(actor.hp)>=float(actor.max_hp):
+	if points<=0.0 or remaining==0 or not eligible(game,target) or not game.Life.alive(actor) or PlayerVitals.current_hp(actor)>=PlayerVitals.maximum_hp(actor):
 		return 0.0
 	var applied := restore(game,actor,Preview.roll_heal(points),"heal_on_kill",remaining)
 	actor.kill_heal_epoch=game.combat_epoch

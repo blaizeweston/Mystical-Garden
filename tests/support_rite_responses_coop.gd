@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Core = preload("res://core_combat.gd")
 const Attacks = preload("res://enemy_attack.gd")
 const Tactics = preload("res://wilds_skill_tactics.gd")
@@ -82,7 +84,7 @@ func prepare(response: String) -> Dictionary:
 	Core.reset(game)
 	for member in game.players.values():
 		member.wild = true
-		member.hp = 10
+		member[PlayerVitals.STATE] = member[PlayerVitals.STATE].with_hp(10)
 		member.hurt_until = 0
 		member.pos = Vector3(0, 0, 1.4)
 	var caster := actor(kind, Vector3.ZERO)
@@ -144,7 +146,7 @@ func host() -> void:
 			Tactics.SPARE_TETHER:
 				check(caster.hp == 4 and caster.consumed_corpses == [plan.corpse.token], "alternate corpse heals once")
 			Tactics.ANTIPHON:
-				check(player.hp == 9 and game.players[guest_id].hp == 10, "offset sector hits only the player who stays")
+				check(PlayerVitals.current_hp(player) == 9 and PlayerVitals.current_hp(game.players[guest_id]) == 10, "offset sector hits only the player who stays")
 		mark("resolved-" + response)
 		if not await until(func(): return marked("clear-" + response)):
 			check(false, "guest sees warning clear")

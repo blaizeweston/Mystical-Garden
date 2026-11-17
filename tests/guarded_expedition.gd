@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Tx=preload("res://game_transaction.gd")
@@ -227,16 +229,16 @@ func exercise() -> void:
  ally.pos=Vector3(.5,0,0)
  var combat_timers: Cooldowns.Timers = departed_timers.with_deadline(Cooldowns.Q, 3100).with_deadline(Cooldowns.R, 3200).with_deadline(Cooldowns.DODGE, 3300)
  actor[Cooldowns.STATE] = combat_timers
- var hp: int=int(actor.hp)
+ var hp: int=int(PlayerVitals.current_hp(actor))
  world.damage_player(1,actor,1)
- check(int(actor.hp)==hp-1 and disk()==committed,"nonlethal damage is runtime-only")
+ check(int(PlayerVitals.current_hp(actor))==hp-1 and disk()==committed,"nonlethal damage is runtime-only")
  world.damage_player(1,actor,999)
- check(actor.fallen and actor.hp==0 and world.wallet_for(actor)==earned_wallet
+ check(actor.fallen and PlayerVitals.current_hp(actor)==0 and world.wallet_for(actor)==earned_wallet
   and world.run_wallet(actor)==earned_balance,"the downed player keeps their run wallet")
  check(is_same(actor[Cooldowns.STATE],combat_timers),"fall preserves existing cooldowns")
  world.revive_player(2,1)
  var paid: int=int(actor.lost_health)
- check(not actor.fallen and actor.hp>0 and paid>0 and world.wallet_for(actor)==earned_wallet
+ check(not actor.fallen and PlayerVitals.current_hp(actor)>0 and paid>0 and world.wallet_for(actor)==earned_wallet
   and world.run_wallet(actor)==earned_balance,"revival commits one maximum-health cost without changing Essence")
  check(is_same(actor[Cooldowns.STATE],combat_timers),"revival preserves existing cooldowns")
  world.revive_player(2,1)
@@ -251,7 +253,8 @@ func exercise() -> void:
  check(world.checkpoint_pending and world.checkpoint_menu.visible and world.encounter_number==3,"checkpoint opens cards without travelling")
  world.choose_checkpoint_card(1,actor,0)
  check(world.encounter_number==3 and world.checkpoint_ready.get(1)==3 and actor.power>0,"card commits before travel")
- actor.hp=1
+ actor[PlayerVitals.STATE] = actor[PlayerVitals.STATE].with_hp(1.0)
+ var health_before_floor: PlayerVitals.Health = actor[PlayerVitals.STATE]
  field=world.battlefield
  seed=world.map_rng.state
  var healing_rng: int=world.Life.Preview.heal_rng.state
@@ -259,11 +262,13 @@ func exercise() -> void:
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.use_checkpoint(1,true)
  check(world.encounter_number==3 and world.battlefield==field and world.map_rng.state==seed and world.Life.Preview.heal_rng.state==healing_rng
-  and actor.hp==1 and world.checkpoint_ready.get(1)==3 and disk()==before,"floor abort restores navigation, RNG, vitals and purchased card")
+  and is_same(actor[PlayerVitals.STATE],health_before_floor) and PlayerVitals.current_hp(actor)==1
+  and world.checkpoint_ready.get(1)==3 and disk()==before,"floor abort restores navigation, RNG, original health owner and purchased card")
  record("checkpoint_abort",before)
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.use_checkpoint(1,true)
- check(world.encounter_number==4 and world.battlefield!=field and world.map_rng.state!=seed and actor.hp>1,"checkpoint advances after confirmed save")
+ check(world.encounter_number==4 and world.battlefield!=field and world.map_rng.state!=seed
+  and health_before_floor.hp()==1.0 and PlayerVitals.current_hp(actor)>1.0,"checkpoint advances after confirmed save and installs recovered health")
 
  clear_floor(actor,6)
  actor.carried_seeds=[0,1]
@@ -388,11 +393,11 @@ func exercise() -> void:
  foreign.set_value("session","updated",Time.get_unix_time_from_system())
  check(foreign.save(lease)==OK,"inject foreign lease")
  before=disk()
- hp=int(actor.hp)
+ hp=int(PlayerVitals.current_hp(actor))
  world.damage_player(1,actor,999)
  world.finish_combat(1,world.enemy_pos)
  world.abandon_run(1,actor)
- check(int(actor.hp)==hp and actor.wild and disk()==before,"lost lease prevents combat and settlement writes")
+ check(int(PlayerVitals.current_hp(actor))==hp and actor.wild and disk()==before,"lost lease prevents combat and settlement writes")
  world.return_to_main_menu()
  check(world.get_meta(Tx.STOPPING,false) and disk()==before,"lost lease shuts down without saving")
  record("lost_lease_shutdown",before)

@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Oracle = preload("res://oracle_combat.gd")
@@ -96,8 +97,7 @@ func reset_field() -> void:
 		player.run_upgrades = {}
 		player.wild = true
 		player.fallen = false
-		player.hp = 100
-		player.max_hp = 100
+		player[PlayerVitals.STATE] = PlayerVitals.Health.new(100.0,100)
 		player.pos = Vector3.ZERO if id==1 else Vector3(-6,0,1)
 		player.facing = Vector3.RIGHT
 		player.aim_direction = Vector3.RIGHT
@@ -235,10 +235,10 @@ func basic_omens() -> void:
 	check(not record(ally,Progression.GUIDED_STRIKE,timer).is_empty(),"same cast keeps separate recipient opportunities")
 	prepare(["lifekeeper"])
 	ally.pos=Vector3(.5,0,0)
-	caster.hp=50
+	caster[PlayerVitals.STATE] = caster[PlayerVitals.STATE].with_hp(50)
 	cast(0)
 	now=Time.get_ticks_msec()
-	check(int(caster.hp) in range(58,63) and game.trait_events.any(func(field):return field.kind=="tide" and field.power==0)
+	check(int(caster[PlayerVitals.STATE].hp()) in range(58,63) and game.trait_events.any(func(field):return field.kind=="tide" and field.power==0)
 		and not record(ally,Progression.SECOND_BREATH,now).is_empty(),"Sanctuary keeps its opening heal/cleanse and grants full-health allies Second Breath")
 	var entrant: Dictionary=game.players[9]
 	entrant.pos=Vector3(.4,0,0)
@@ -246,12 +246,12 @@ func basic_omens() -> void:
 	game.Traits.tick(game,now+1)
 	check(entrant.slow_until==0 and record(entrant,Progression.SECOND_BREATH,now+1).is_empty(),"late entrant only receives field cleanse")
 	game.apply_enemy_hit(8,ally,now+10,1.0,0,Vector3.INF,false)
-	check(ally.hp==90 and not record(ally,Progression.SECOND_BREATH,now+10).is_empty(),"hazard hit does not spend the Blessing")
+	check(ally[PlayerVitals.STATE].hp()==90 and not record(ally,Progression.SECOND_BREATH,now+10).is_empty(),"hazard hit does not spend the Blessing")
 	game.Life.down(game,1,caster)
 	Omens.grant(game,1,"lifekeeper",999,8,ally,Progression.SECOND_BREATH,3000,now+10)
 	check(int(record(ally,Progression.SECOND_BREATH,now+10).cast)!=999,"fallen Oracle cannot issue fresh grants")
 	enemy_hit(8,now+30)
-	check(ally.hp==86 and record(ally,Progression.SECOND_BREATH,now+30).is_empty(),"surviving recipient consumes 6 HP Blessing after caster falls")
+	check(ally[PlayerVitals.STATE].hp()==86 and record(ally,Progression.SECOND_BREATH,now+30).is_empty(),"surviving recipient consumes 6 HP Blessing after caster falls")
 
 
 func nodes_and_chime() -> void:
@@ -287,25 +287,25 @@ func nodes_and_chime() -> void:
 		path[0]=focus
 		prepare(path)
 		ally.pos=Vector3(.3,0,0)
-		caster.hp=50
+		caster[PlayerVitals.STATE] = caster[PlayerVitals.STATE].with_hp(50)
 		cast(0)
 		var effect: String = Progression.FOCUS_OMENS[focus]
 		var recipient: Dictionary = game.leader_brain if focus=="omenreader" else ally
 		timer=Time.get_ticks_msec()
 		var original := record(recipient,effect,timer)
-		var old_hp := int(caster.hp)
+		var old_hp := int(caster[PlayerVitals.STATE].hp())
 		var old_damage := int(game.enemy_hp)
 		var old_pos: Vector3 = game.enemy_pos
 		var zones: int = game.trait_events.size()
 		cast(1)
 		var repeated := record(recipient,effect,timer)
 		check(not original.is_empty() and not repeated.is_empty() and repeated.cast!=original.cast
-			and game.enemy_hp==old_damage and game.enemy_pos==old_pos and caster.hp==old_hp
+			and game.enemy_hp==old_damage and game.enemy_pos==old_pos and caster[PlayerVitals.STATE].hp()==old_hp
 			and game.trait_events.size()==zones,"Fate's Refrain bestows only the equipped focus Omen")
 	prepare(RIGHT)
 	ally.pos=Vector3(.3,0,0)
-	caster.hp=50
-	ally.hp=50
+	caster[PlayerVitals.STATE] = caster[PlayerVitals.STATE].with_hp(50)
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(50)
 	ally.slow_until=Time.get_ticks_msec()+5000
 	cast(0)
 	timer=Time.get_ticks_msec()
@@ -313,19 +313,19 @@ func nodes_and_chime() -> void:
 	check(ally.slow_until==0 and not record(ally,Progression.QUIET_GROUND,timer).is_empty(),"Quiet Ground cleanses and grants one-use protection")
 	cast(1)
 	check(int(ally.guard_until)-timer in range(2000,2030) and ally.guard_charges==1,"Shared Shelter extends the ordinary Ward without a second charge")
-	var healed_from := int(ally.hp)
+	var healed_from := int(ally[PlayerVitals.STATE].hp())
 	enemy_hit(8,timer+25,1600)
-	check(ally.hp==healed_from+6 and ally.slow_until==0 and not record(ally,Progression.QUIET_GROUND,timer+25).is_empty(),
+	check(ally[PlayerVitals.STATE].hp()==healed_from+6 and ally.slow_until==0 and not record(ally,Progression.QUIET_GROUND,timer+25).is_empty(),
 		"Merciful Chime heals its actual block and leaves Quiet Ground intact")
 	enemy_hit(8,timer+40,1600)
-	check(ally.hp==healed_from+4 and ally.slow_until==0 and record(ally,Progression.MERCY,timer+40).is_empty()
+	check(ally[PlayerVitals.STATE].hp()==healed_from+4 and ally.slow_until==0 and record(ally,Progression.MERCY,timer+40).is_empty()
 		and not record(ally,Progression.SECOND_BREATH,timer+40).is_empty(),"strongest recovery wins once and Quiet Ground blocks the first Slow")
 	enemy_hit(8,timer+800,1600)
-	check(ally.hp==healed_from and ally.slow_until==timer+2400,"second hit spends remaining Breath and can apply Slow")
-	var without_chime := int(ally.hp)
+	check(ally[PlayerVitals.STATE].hp()==healed_from and ally.slow_until==timer+2400,"second hit spends remaining Breath and can apply Slow")
+	var without_chime := int(ally[PlayerVitals.STATE].hp())
 	game.grant_guard(ally,Time.get_ticks_msec()+1600,1)
 	enemy_hit(8,timer+820)
-	check(ally.hp==without_chime,"ordinary Ward from a different source does not heal")
+	check(ally[PlayerVitals.STATE].hp()==without_chime,"ordinary Ward from a different source does not heal")
 	prepare(["omenreader","wide_omen","verdicts_toll","barbed_chime","ritual_verdict","sentence_of_dawn"])
 	cast(0)
 	before=int(game.enemy_hp)
@@ -356,7 +356,7 @@ func coexistence() -> void:
 	check(game.combat_events_snapshot().any(func(e):return e.shape==Progression.SECOND_BREATH and e.combo==8),"detailed status advertises the accepted Blessing")
 	enemy_hit(8,now+10)
 	enemy_hit(8,now+250)
-	check(ally.hp==86 and record(ally,Progression.SECOND_BREATH,now+250,9).is_empty(),"overlapping copies grant one shared opportunity")
+	check(ally[PlayerVitals.STATE].hp()==86 and record(ally,Progression.SECOND_BREATH,now+250,9).is_empty(),"overlapping copies grant one shared opportunity")
 	game.combat_epoch+=1
 	check(record(caster,Progression.SECOND_BREATH,now+250).is_empty(),"floor identity invalidates former effects")
 	prepare(LEFT)

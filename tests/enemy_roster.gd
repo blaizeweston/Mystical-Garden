@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Enemies = preload("res://enemy_catalog.gd")
 const Progress = preload("res://progress.gd")
 var failed := false
@@ -59,7 +61,7 @@ func run():
 	check(reload.burst_pressure==2,"unused counters fade slowly")
 	var p: Dictionary=game.players[1]
 	p.wild=true
-	p.hp=10
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
 	p.pos=Vector3(0,0,5.4)
 	game.enemy_pos=p.pos
 	game.enemy_hp=10
@@ -83,21 +85,21 @@ func run():
 	game.scouts.append(snare)
 	var now:=Time.get_ticks_msec()
 	game.resolve_scout(snare,Enemies.get_kind(5),now)
-	check(p.hp==9 and p.slow_until>now,"Willow strike damages and entangles")
-	p.slow_until=0;p.hp=10;p.hurt_until=0
+	check(PlayerVitals.current_hp(p)==9 and p.slow_until>now,"Willow strike damages and entangles")
+	p.slow_until=0;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0
 	var volley: Dictionary=game.make_scout(1,p.pos,1)
 	volley.mode="volley";volley.blast=p.pos;volley.repeat=1
 	game.scouts.assign([volley])
 	game.resolve_scout(volley,Enemies.get_kind(1),now)
-	check(p.hp==9 and volley.windup>now,"Nightbloom retains a second telegraphed pulse")
+	check(PlayerVitals.current_hp(p)==9 and volley.windup>now,"Nightbloom retains a second telegraphed pulse")
 	game.resolve_scout(volley,Enemies.get_kind(1),now+500)
-	check(p.hp==8 and volley.windup==0,"volley ends after two pulses")
+	check(PlayerVitals.current_hp(p)==8 and volley.windup==0,"volley ends after two pulses")
 	var cantor: Dictionary=game.make_scout(3,p.pos,1)
 	var ally: Dictionary=game.make_scout(0,p.pos+Vector3.RIGHT,2)
 	cantor.mode="chant"
 	game.scouts.assign([cantor,ally])
 	game.resolve_scout(cantor,Enemies.get_kind(3),now)
-	check(ally.haste_until>now and p.hp==8,"Cantor hastens allies instead of hurting the player")
+	check(ally.haste_until>now and PlayerVitals.current_hp(p)==8,"Cantor hastens allies instead of hurting the player")
 	var brood: Dictionary=game.make_scout(9,Vector3(0,0,5.4),1)
 	brood.mode="brood";p.pos=Vector3(0,0,10)
 	game.scouts.assign([brood])
@@ -111,7 +113,7 @@ func run():
 	game.enemy_mutations=Enemies.MOBILITY
 	game.enemy_pos=Vector3(-6.5,0,-4.5)
 	p.pos=Vector3(-6.5,0,-1)
-	p.hp=10
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
 	game.enemy_engaged=true
 	game.enemy_ready_at=0
 	game.enemy_stagger_until=0
@@ -125,7 +127,7 @@ func run():
 	game.enemy_hp=0
 	game.enemy_winding_up=false
 	for kind in Enemies.all().size():
-		p.wild=true;p.hp=10;p.pos=Vector3(0,0,5.4);p.slow_until=0;p.guard_until=0
+		p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(0,0,5.4);p.slow_until=0;p.guard_until=0
 		var mob: Dictionary=game.make_scout(kind,p.pos+Vector3.RIGHT*.8,1)
 		game.scouts.assign([mob])
 		var at:=Time.get_ticks_msec()

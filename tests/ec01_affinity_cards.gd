@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Rules = preload("res://combat_ruleset.gd")
@@ -67,7 +68,7 @@ func reset(class_id := 0) -> void:
 	for p: Dictionary in [player,ally]:
 		Cards.clear(p)
 		p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new()
-		for key in [Rules.Wood.GRANTS,Rules.Spirit.STRIDES,Rules.Vital.SOURCES,Rules.Vital.BONUS,"affinity_ward_claims",
+		for key in [Rules.Wood.GRANTS,Rules.Spirit.STRIDES,Rules.Vital.SOURCES,"affinity_ward_claims",
 				Rules.Storm.FORM_READY,Rules.Void.FORM_READY,Rules.Wood.FORM_READY,"subclass_follow","warden_block"]:
 			p.erase(key)
 		p[Cooldowns.STATE] = Cooldowns.Timers.new()
@@ -80,8 +81,7 @@ func reset(class_id := 0) -> void:
 		p.profile_ready = true
 		p.mouse_aim = false
 		p.facing = Vector3.FORWARD
-		p.hp = 80.0
-		p.max_hp = 100
+		p[PlayerVitals.STATE] = PlayerVitals.Health.new(80.0,100)
 	focus(class_id)
 
 
@@ -383,7 +383,7 @@ func verify_dew_shelter() -> void:
 	ally.pos = Vector3(0,0,-1.3)
 	var now := Time.get_ticks_msec()
 	ally.slow_until = now+5000
-	ally.hp = ally.max_hp
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].refilled()
 	game.garden_action(1,Core.request(game,player,Vector2.UP,1.5))
 	var cast: Dictionary = game.get_meta(Core.STATE,{}).get(1,{})
 	if cast.is_empty():
@@ -393,7 +393,7 @@ func verify_dew_shelter() -> void:
 	Clock.advance(game,.40)
 	Core.tick(game,int(cast.armed)+400)
 	var expiry: int = ally.guard_until
-	check(expiry==int(cast.armed)+1600 and ally.guard_charges==1 and ally.slow_until==0 and ally.hp==ally.max_hp
+	check(expiry==int(cast.armed)+1600 and ally.guard_charges==1 and ally.slow_until==0 and ally[PlayerVitals.STATE].hp()==ally[PlayerVitals.STATE].max_hp()
 		and game.enemy_hp==400-baseline.impact_hp-bonus,"Dewfall grants one 1.2s Ward on a real living ally contact")
 	Clock.advance(game,.12)
 	Core.tick(game,int(cast.armed)+520)
@@ -484,13 +484,13 @@ func verify_native() -> void:
 	game.dodge_player(1,Vector2.RIGHT)
 	check(player[Cooldowns.STATE].deadline(Cooldowns.DODGE)>=before+game.DODGE_COOLDOWN_MS-recovery
 		and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)<=Time.get_ticks_msec()+game.DODGE_COOLDOWN_MS-recovery,"real dodge timer consumes General recovery")
-	var old_hp: float = player.hp
+	var old_hp: float = player[PlayerVitals.STATE].hp()
 	at_checkpoint(3)
 	var extra_health := effect("run_health",3)
 	var offer := fixture_offer({"id":"run_health","rarity":"Epic","amount":extra_health})
 	action(offer.revision,"0")
-	check(player.max_hp==100+extra_health and game.Life.maximum(game,player)==player.max_hp
-		and player.hp==old_hp,"acquiring General max health changes the actual maximum without immediate heal")
+	check(player[PlayerVitals.STATE].max_hp()==100+extra_health and game.Life.maximum(game,player)==player[PlayerVitals.STATE].max_hp()
+		and player[PlayerVitals.STATE].hp()==old_hp,"acquiring General max health changes the actual maximum without immediate heal")
 
 
 func verify_echo() -> void:

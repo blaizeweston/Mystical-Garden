@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const World := preload("res://world.tscn")
@@ -187,7 +189,7 @@ func verify_expedition() -> void:
 	interact()
 	check(game.depth == 2 and game.enemy_hp > starting_health and game.players[1].carried_seeds.size() == 1,
 		"descending starts a tougher encounter and carries loot forward")
-	game.players[1].hp = 1
+	game.players[1][PlayerVitals.STATE] = game.players[1][PlayerVitals.STATE].with_hp(1)
 	game.players[1].hurt_until=0
 	place(1, game.enemy_pos)
 	game.resolve_briar_strike(Time.get_ticks_msec())
@@ -229,7 +231,7 @@ func verify_garden_growth() -> void:
 	game.players[1].carried_seeds.assign([0, 1])
 	game.send_garden_action("pouch")
 	game.send_garden_action("pouch")
-	game.players[1].hp = 1
+	game.players[1][PlayerVitals.STATE] = game.players[1][PlayerVitals.STATE].with_hp(1)
 	game.players[1].hurt_until=0
 	place(1, game.enemy_pos)
 	game.resolve_briar_strike(Time.get_ticks_msec())
@@ -253,7 +255,7 @@ func verify_garden_growth() -> void:
 	game.resolve_briar_strike(now)
 	check(game.enemy_ready_at == now + game.Director.recovery(game,750) + 700 and game.moss_recovery_bonus == 0,
 		"Mossguard extends the next attack recovery")
-	game.players[1].hp = 1
+	game.players[1][PlayerVitals.STATE] = game.players[1][PlayerVitals.STATE].with_hp(1)
 	game.players[1].hurt_until=0
 	game.resolve_briar_strike(now)
 	# Replant between each harvest; growth is advanced explicitly in this fixture.
@@ -544,9 +546,9 @@ func verify_class_frames() -> void:
 	game.send_garden_action("class_skill")
 	var now := Time.get_ticks_msec()
 	game.resolve_briar_strike(now)
-	check(p.hp == game.MAX_HEALTH and p.guard_until == 0, "Guard blocks one hit and is spent")
+	check(PlayerVitals.current_hp(p) == game.MAX_HEALTH and p.guard_until == 0, "Guard blocks one hit and is spent")
 	game.resolve_briar_strike(now)
-	check(p.hp == game.MAX_HEALTH - 1, "Guard does not block a second hit")
+	check(PlayerVitals.current_hp(p) == game.MAX_HEALTH - 1, "Guard does not block a second hit")
 
 
 func verify_adaptation() -> void:
@@ -577,10 +579,10 @@ func verify_adaptation() -> void:
 	interact()
 	check(game.depth == 4 and (game.current_mutations(0,0,0)&Enemies.REACH)!=0, "deep encounter can adapt during the run across a varied elite pool")
 	game.longlimb=true # Isolate the wider-telegraph contact fixture from species-specific mutation rolls.
-	var hp: int = p.hp
+	var hp: int = PlayerVitals.current_hp(p)
 	place(1, game.enemy_pos + Vector3.RIGHT * 2.5)
 	game.resolve_briar_strike(Time.get_ticks_msec())
-	check(p.hp == hp - 1, "Longlimb hits within its wider telegraph")
+	check(PlayerVitals.current_hp(p) == hp - 1, "Longlimb hits within its wider telegraph")
 	game.ranged_clears = 3
 	game.scouts.clear()
 	game.enemy_hp = 0
@@ -715,11 +717,11 @@ func verify_endless_route() -> void:
 	# A random rare boss on floor 19 correctly disables reinforcements.
 	# Exercise normal encounter pressure independently of the boss roll.
 	game.boss_kind = -1
-	var hp: int = p.hp
+	var hp: int = PlayerVitals.current_hp(p)
 	var now := Time.get_ticks_msec()
 	game.pressure_at = now
 	game.update_pressure(now)
-	check(p.hp == hp and game.pressure_at > now, "overstaying schedules avoidable reinforcements without automatic damage")
+	check(PlayerVitals.current_hp(p) == hp and game.pressure_at > now, "overstaying schedules avoidable reinforcements without automatic damage")
 	game.scouts.clear()
 	game.enemy_hp = 0
 	# Fast-forward the fixture to the next cleared extraction checkpoint.
@@ -754,7 +756,7 @@ func verify_spaced_pack() -> void:
 	var initial_enemy: Vector3 = game.enemy_pos
 	check(entry.distance_to(initial_enemy) > 12.0, "spawn leaves room to plan an approach")
 	await create_timer(1.25).timeout
-	check(not game.enemy_engaged and game.enemy_pos == initial_enemy and player.hp == game.MAX_HEALTH,
+	check(not game.enemy_engaged and game.enemy_pos == initial_enemy and PlayerVitals.current_hp(player) == game.MAX_HEALTH,
 		"enemy waits outside engagement range")
 	place(1, Vector3(12, 0, 8))
 	game.move_player(1, Vector2.RIGHT, 0.1)
@@ -827,14 +829,14 @@ func verify_seed_variety() -> void:
 
 
 func verify_briar_strike() -> void:
-	var start_hp: int = game.players[1].hp
+	var start_hp: int = PlayerVitals.current_hp(game.players[1])
 	var bait: Vector3 = game.enemy_pos + Vector3(0.8, 0, 0)
 	place(1, bait)
 	var windup_deadline := Time.get_ticks_msec() + 1500
 	while not game.enemy_winding_up and Time.get_ticks_msec() < windup_deadline:
 		await physics_frame
 	check(game.enemy_winding_up, "enemy telegraphs after its short hit reaction")
-	check(game.players[1].hp == start_hp, "wind-up deals no early damage")
+	check(PlayerVitals.current_hp(game.players[1]) == start_hp, "wind-up deals no early damage")
 	game.dodge_player(1, Vector2.RIGHT)
 	var dodged: Vector3 = game.players[1].pos
 	check(dodged.distance_to(game.enemy_pos) > game.BRIAR_STRIKE_RADIUS,
@@ -842,12 +844,12 @@ func verify_briar_strike() -> void:
 	game.dodge_player(1, Vector2.RIGHT)
 	check(game.players[1].pos == dodged, "dodge cooldown blocks a second immediate dodge")
 	await create_timer(0.75).timeout
-	check(game.players[1].hp == start_hp, "dodging the ring avoids damage")
+	check(PlayerVitals.current_hp(game.players[1]) == start_hp, "dodging the ring avoids damage")
 	place(1, game.enemy_pos + Vector3(0.8, 0, 0))
 	var deadline := Time.get_ticks_msec() + 2200
-	while game.players[1].hp == start_hp and Time.get_ticks_msec() < deadline:
+	while PlayerVitals.current_hp(game.players[1]) == start_hp and Time.get_ticks_msec() < deadline:
 		await physics_frame
-	check(game.players[1].hp == start_hp - 1, "standing in the ring takes one hit")
+	check(PlayerVitals.current_hp(game.players[1]) == start_hp - 1, "standing in the ring takes one hit")
 
 
 func verify_host() -> void:
@@ -890,8 +892,8 @@ func verify_shared_combat(guest: int) -> void:
 	place(1, game.enemy_pos + Vector3.LEFT * 0.7)
 	place(guest, game.enemy_pos + Vector3.RIGHT * 0.7)
 	await create_timer(1.0).timeout
-	check(game.players[1].hp == game.MAX_HEALTH - 1, "host inside the ring takes damage")
-	check(game.players.has(guest) and game.players[guest].hp == game.MAX_HEALTH,
+	check(PlayerVitals.current_hp(game.players[1]) == game.MAX_HEALTH - 1, "host inside the ring takes damage")
+	check(game.players.has(guest) and PlayerVitals.current_hp(game.players[guest]) == game.MAX_HEALTH,
 		"guest dodge avoids host-authoritative damage")
 	if not game.players.has(guest):
 		return
@@ -1027,9 +1029,9 @@ func verify_guest() -> void:
 	game.request_dodge.rpc_id(1, Vector2.RIGHT)
 	for step in 100:
 		await create_timer(0.05).timeout
-		if game.players[1].hp < game.MAX_HEALTH:
+		if PlayerVitals.current_hp(game.players[1]) < game.MAX_HEALTH:
 			break
-	check(game.players[1].hp == game.MAX_HEALTH - 1
+	check(PlayerVitals.current_hp(game.players[1]) == game.MAX_HEALTH - 1
 		and game.players[id].hp == game.MAX_HEALTH, "guest sees the resolved strike")
 	for step in 25:
 		await create_timer(0.05).timeout

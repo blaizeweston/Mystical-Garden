@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Preview = preload("res://combat_balance_preview.gd")
 const Orb = preload("res://health_orb.gd")
 const Aim = preload("res://ability_aim.gd")
@@ -78,7 +80,7 @@ func host() -> void:
 	for player in [local,remote]:
 		player.wild=true
 		player.pos=Vector3.ZERO
-		player.hp=100
+		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
 	game.encounter_number=10
 	game.destination=1
 	game.depth=4
@@ -92,25 +94,25 @@ func host() -> void:
 	if not await until(func():return marked("ready")):
 		check(false,"guest sees the Orchard and preview state")
 		return
-	remote.hp=20
+	remote[PlayerVitals.STATE] = remote[PlayerVitals.STATE].with_hp(20)
 	remote.renewal_until=Time.get_ticks_msec()+4000
 	remote.renewal_tick=Time.get_ticks_msec()
 	game.update_support_effects(Time.get_ticks_msec())
 	remote.renewal_until=0
-	check(int(remote.hp)-20 in range(3,6),"host rolls Renewal in the displayed band")
-	mark("renewal-result",str(int(remote.hp)))
+	check(int(PlayerVitals.current_hp(remote))-20 in range(3,6),"host rolls Renewal in the displayed band")
+	mark("renewal-result",str(int(PlayerVitals.current_hp(remote))))
 	check(await until(func():return marked("healed")),"guest sees the exact host roll")
-	game.damage_player(id,remote,int(remote.hp))
+	game.damage_player(id,remote,int(PlayerVitals.current_hp(remote)))
 	check(await until(func():return marked("fallen")),"guest sees the downed state")
 	check(game.Life.revive(game,1,id),"host revives guest")
 	check(await until(func():return marked("revived")),"guest sees the reduced capacity")
-	local.hp=20
-	remote.hp=25
+	local[PlayerVitals.STATE] = local[PlayerVitals.STATE].with_hp(20)
+	remote[PlayerVitals.STATE] = remote[PlayerVitals.STATE].with_hp(25)
 	remote.run_upgrades["class_4_0"]=1
 	mark("class-ready")
-	check(await until(func():return int(remote.hp)-25 in range(18,23)),"guest Oracle casts an 18–22 HP party heal on the host")
-	var class_gain:=int(remote.hp)-25
-	check(int(local.hp)-20==class_gain,"the direct heal roll is shared by both players")
+	check(await until(func():return int(PlayerVitals.current_hp(remote))-25 in range(18,23)),"guest Oracle casts an 18–22 HP party heal on the host")
+	var class_gain:=int(PlayerVitals.current_hp(remote))-25
+	check(int(PlayerVitals.current_hp(local))-20==class_gain,"the direct heal roll is shared by both players")
 	mark("class-result",str(class_gain))
 	check(await until(func():return marked("class-heal")),"guest sees the same class heal and cooldown")
 	remote.weapon=game.Parts.index_of("plant:tide_lily")
@@ -118,21 +120,21 @@ func host() -> void:
 	remote.run_upgrades["core_riptide"]=1
 	remote.cast_until=0
 	mark("wave-ready")
-	check(await until(func():return int(remote.hp)-25-class_gain in range(18,23)),"guest Riptide restores the catalyst-adjusted 18–22 HP on its return")
-	var wave_gain:=int(remote.hp)-25-class_gain
-	check(int(local.hp)-20-class_gain==wave_gain,"the returning wave shares the same roll")
+	check(await until(func():return int(PlayerVitals.current_hp(remote))-25-class_gain in range(18,23)),"guest Riptide restores the catalyst-adjusted 18–22 HP on its return")
+	var wave_gain:=int(PlayerVitals.current_hp(remote))-25-class_gain
+	check(int(PlayerVitals.current_hp(local))-20-class_gain==wave_gain,"the returning wave shares the same roll")
 	mark("wave-result",str(wave_gain))
 	check(await until(func():return marked("wave-heal")),"guest sees the authoritative Core heal")
-	var overlap_hp:=int(remote.hp)
+	var overlap_hp:=int(PlayerVitals.current_hp(remote))
 	game.Life.Sustain.restore(game,remote,6,"fixture")
 	game.damage_player(id,remote,6)
-	check(int(remote.hp)==overlap_hp,"heal and damage in one host step cancel in the pool")
+	check(int(PlayerVitals.current_hp(remote))==overlap_hp,"heal and damage in one host step cancel in the pool")
 	mark("overlap",str(overlap_hp))
 	check(await until(func():return marked("overlap-seen")),"guest displays both actual changes")
 	var boss_hit: float=game.Director.Balance.boss_hit(game,game.Enemies.get_kind(game.boss_kind),"orchard_march")
 	game.apply_enemy_hit(id,remote,Time.get_ticks_msec(),boss_hit)
-	check(int(remote.hp)==25+class_gain+wave_gain-26,"Orchard march applies a native 26 HP hit")
-	mark("boss-hit",str(int(remote.hp)))
+	check(int(PlayerVitals.current_hp(remote))==25+class_gain+wave_gain-26,"Orchard march applies a native 26 HP hit")
+	mark("boss-hit",str(int(PlayerVitals.current_hp(remote))))
 	check(await until(func():return marked("boss-hit-seen")),"guest confirms exact boss damage")
 	local.frame=2
 	local.weapon_kind=1

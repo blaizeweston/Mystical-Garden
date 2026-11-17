@@ -1,5 +1,6 @@
 extends RefCounted
 ## All combat participants in one session use the same health scale.
+const PlayerVitals = preload("res://player_vitals.gd")
 const Vitals = preload("res://combat_vitals.gd")
 const FLAG := "--combat-balance-preview"
 const STORAGE_PATH := "user://combat-balance-preview"
@@ -73,12 +74,15 @@ static func roll_heal(authored_points: float, spread_hp: int = HEAL_SPREAD_HP) -
 
 
 static func apply_heal(actor: Dictionary, rolled_hp: int, source: String, limit_hp: int = -1) -> float:
-	var applied := Vitals.heal(actor, mini(rolled_hp,limit_hp) if limit_hp>=0 else rolled_hp)
+	var health: PlayerVitals.Health = actor[PlayerVitals.STATE]
+	var applied_health := health.healed(mini(rolled_hp,limit_hp) if limit_hp>=0 else rolled_hp)
+	actor[PlayerVitals.STATE] = applied_health
+	var applied := maxf(0.0, applied_health.hp()-health.hp())
 	if enabled and rolled_hp > 0:
 		var journal = preload("res://diagnostic_journal.gd")
 		if is_instance_valid(journal.current) and journal.current.detail:
 			journal.event("combat", "healing_applied", {"source":source,"party_slot":actor.get("party_slot",-1),
-				"rolled_hp":rolled_hp,"applied_hp":applied,"hp":actor.hp,"max_hp":actor.max_hp},"debug")
+				"rolled_hp":rolled_hp,"applied_hp":applied,"hp":applied_health.hp(),"max_hp":applied_health.max_hp()},"debug")
 	return applied
 
 

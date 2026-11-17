@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Tx=preload("res://game_transaction.gd")
@@ -161,6 +163,8 @@ func host_run() -> void:
  var now := Time.get_ticks_msec()
  var timers: Cooldowns.Timers = guest[Cooldowns.STATE].with_deadline(Cooldowns.Q, now+25000).with_deadline(Cooldowns.R, now+26000).with_deadline(Cooldowns.DODGE, now+27000)
  guest[Cooldowns.STATE] = timers
+ guest[PlayerVitals.STATE] = guest[PlayerVitals.STATE].with_hp(1.0)
+ var health_before: PlayerVitals.Health = guest[PlayerVitals.STATE]
  world.use_checkpoint(1,true)
  mark("advance-wallet",str(before_travel))
  mark("advance",str(world.travel_epoch))
@@ -169,6 +173,9 @@ func host_run() -> void:
   return
  check(world.run_wallet(guest)==before_travel,"floor travel retains the guest wallet")
  check(is_same(guest[Cooldowns.STATE],timers),"floor travel keeps authoritative cooldown deadlines")
+ var recovered: PlayerVitals.Health = guest[PlayerVitals.STATE]
+ check(health_before.hp()==1.0 and recovered.hp()>1.0 and recovered.max_hp()==health_before.max_hp(),"floor recovery preserves native capacity")
+ mark("advance-hp",str(recovered.hp()))
  world.send_expedition_state(0,true)
  if not await until(func():return marked("saw-advance")):
   check(false,"guest sees committed advancement")
@@ -254,9 +261,10 @@ func guest_run() -> void:
   return (world.encounter_number==4 and local.get("wallet",-1)==int(read("advance-wallet"))
    and not local.get("skill_ready",true) and not local.get("skill_two_ready",true)
    and not local.get("dodge_ready",true) and seconds[0]>0.0 and seconds[1]>seconds[0]
-   and not local.has(Cooldowns.STATE))
+   and not local.has(Cooldowns.STATE) and not local.has(PlayerVitals.STATE)
+   and is_equal_approx(float(local.get("hp",0.0)),float(read("advance-hp"))))
  if not await until(advance_received):
-  check(false,"guest observes advancement and projected native cooldowns without host timers")
+  check(false,"guest observes advancement, projected cooldowns, and recovered health without host owner records")
   return
  mark("saw-advance")
  if not await until(func():return marked("extract")):

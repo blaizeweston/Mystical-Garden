@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 var failed=false
 func check(ok: bool,message: String) -> void:
  if not ok: failed=true;printerr("FAIL enemy depth: ",message)
@@ -6,7 +8,7 @@ func _initialize() -> void: call_deferred("run")
 func run() -> void:
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/enemy-depth-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character"
  root.add_child(game);game.set_process(false);game.set_physics_process(false)
- var p: Dictionary=game.players[1];p.wild=true;p.pos=Vector3.ZERO;p.hp=10;p.max_hp=10
+ var p: Dictionary=game.players[1];p.wild=true;p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = PlayerVitals.Health.new(10, 10)
  game.battlefield.configure(0,1);game.battlefield.barriers=[];game.enemy_hp=100;game.enemy_pos=Vector3(0,0,1)
  for kind in range(13,24):
   var part=game.Parts.monster_part(kind);p.graft_part=part;p.run_upgrades={}

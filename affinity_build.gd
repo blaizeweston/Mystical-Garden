@@ -1,5 +1,6 @@
 extends RefCounted
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Ruleset = preload("res://combat_ruleset.gd")
 const Affinities = preload("res://plant_affinities.gd")
 const Catalyst = preload("res://catalyst_adapters.gd")
@@ -102,7 +103,7 @@ static func for_player(player: Dictionary, prepared := false) -> Dictionary:
 
 static func graft_value_resolver(player: Dictionary, cards: Dictionary, base_health: int) -> Callable:
 	return graft_values.bind(for_player(player), cards, base_health,
-		int(player.get("lost_health", 0)), int(player.get("affinity_vital_bonus", 0)))
+		int(player.get("lost_health", 0)), PlayerVitals.temporary_hp(player))
 
 
 static func graft_values(improvements: Dictionary, base_build: Dictionary, cards: Dictionary,

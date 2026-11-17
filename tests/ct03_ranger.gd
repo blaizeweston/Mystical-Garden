@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Progression = preload("res://ranger_connected_tree.gd")
@@ -91,8 +92,7 @@ func prepare(path: Array, origin := Vector3.ZERO, enemy := Vector3(2,0,0)) -> vo
 	ranger.weapon = 0
 	ranger.secondary = 0
 	ranger.catalyst = 0
-	ranger.hp = 70
-	ranger.max_hp = 90
+	ranger[PlayerVitals.STATE] = PlayerVitals.Health.new(70.0,90)
 	ranger.fallen = false
 	ranger[Cooldowns.STATE] = ranger[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	ranger[Cooldowns.STATE] = ranger[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
@@ -101,8 +101,7 @@ func prepare(path: Array, origin := Vector3.ZERO, enemy := Vector3(2,0,0)) -> vo
 	ally.pos = Vector3(-8,0,2)
 	ally.guard_until = 0
 	ally.guard_charges = 0
-	ally.max_hp = 90
-	ally.hp = 20
+	ally[PlayerVitals.STATE] = PlayerVitals.Health.new(20.0,90)
 	ally.fallen = false
 	events.clear()
 

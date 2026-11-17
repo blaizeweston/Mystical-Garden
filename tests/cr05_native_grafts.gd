@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Rules = preload("res://combat_ruleset.gd")
 const Improvements = preload("res://expedition_grafts.gd")
 const Cards = preload("res://affinity_cards.gd")
@@ -263,10 +264,10 @@ func reinforcements() -> void:
 	var basic: Dictionary = game.weapon_stats(player)
 	var damage := float(basic.damage)
 	var reach := float(basic.reach)
-	player.hp=55
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(55)
 	var health: int = game.Life.maximum(game,player)
 	buy(8,"health","monster_0")
-	check(player.max_hp==health+5 and player.hp==55,"Max HP purchase leaves current HP unchanged")
+	check(player[PlayerVitals.STATE].max_hp()==health+5 and player[PlayerVitals.STATE].hp()==55,"Max HP purchase leaves current HP unchanged")
 	buy(16,"reach","monster_0")
 	buy(24,"cooldown","monster_0")
 	buy(32,"strike","monster_0")

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Core = preload("res://core_combat.gd")
 const Rules = preload("res://core_skill_rules.gd")
 const Variants = preload("res://core_weapon_variants.gd")
@@ -35,8 +37,8 @@ func prepare(species: String, form: int) -> void:
 	game.battlefield.barriers.clear()
 	player.pos = Vector3.ZERO
 	player.wild = true
-	player.hp = 8
-	player.max_hp = 10
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(8)
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(10)
 	player.weapon = game.Parts.index_of("plant:" + species)
 	player.weapon_kind = form
 	player.core_ready_at = 0
@@ -156,7 +158,7 @@ func check_gravity_and_ward() -> void:
 	var ally: Dictionary = game.players[2]
 	ally.wild = true
 	ally.pos = Vector3(0, 0, -4)
-	ally.hp = 8
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(8)
 	for weapon in [0, 2]:
 		prepare("ironroot", weapon)
 		ally.guard_charges = 0
@@ -193,11 +195,11 @@ func check_riptide() -> void:
 		game.enemy_pos = Vector3(.8, 0, -2)
 		var active := cast(2.0)
 		Core.tick(game, active.armed)
-		check(is_equal_approx(game.enemy_pos.x,.8) and player.hp == 8, "the wave starts at the caster and takes time to reach the target")
+		check(is_equal_approx(game.enemy_pos.x,.8) and PlayerVitals.current_hp(player) == 8, "the wave starts at the caster and takes time to reach the target")
 		Core.tick(game, active.armed + 700)
 		check((game.enemy_pos.x < .8) == (weapon == 0), "the outgoing wave pulls in melee and pushes at range")
-		check(player.hp == 8, "the caster is outside the wave at the turn")
+		check(PlayerVitals.current_hp(player) == 8, "the caster is outside the wave at the turn")
 		Core.tick(game, active.armed + 1400)
-		check(player.hp == 9, "the wave heals once as it returns")
+		check(PlayerVitals.current_hp(player) == 9, "the wave heals once as it returns")
 		var strokes: Array = game.combat_events.filter(func(event): return event.kind=="ability" and event.shape in ["riptide", "riptide_return"])
 		check(strokes.size() == 2 and strokes[0].from == strokes[1].to and strokes[0].to == strokes[1].from, "the outward and return crests share the committed path")

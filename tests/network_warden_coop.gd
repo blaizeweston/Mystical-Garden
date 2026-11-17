@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 # Real guest input/RPC regression: Warden final kill, cleared floor, then next fight.
 var game: Node
@@ -33,7 +35,7 @@ func prepare(p: Dictionary,variant: int) -> void:
  scout.hp=1;scout.stagger_until=Time.get_ticks_msec()+60000
  game.scouts.assign([scout])
  game.encounter_rewarded=false
- for ally in game.players.values(): ally.wild=true;ally.pos=Vector3(0,0,-1.5);ally.hp=10
+ for ally in game.players.values(): ally.wild=true;ally.pos=Vector3(0,0,-1.5);ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(10)
  p.frame=0;p.weapon_kind=0;p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0);p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0);p.character.active_class=0;p.character.upgrades[0]=variant;p.character.xp[0]=int(game.Character.LEVEL_THRESHOLDS.back())
  game.publish_character(int(game.players.keys()[1]))
 func host_run() -> void:
@@ -50,10 +52,10 @@ func host_run() -> void:
   prepare(p,variant);mark("ready-"+str(variant))
   check(await until(func(): return marked("cleared-"+str(variant))),"guest sees final kill variant "+str(variant))
   check(game.encounter_cleared() and game.encounter_rewarded,"last primary and scout deaths finish combat once")
-  var cooldowns: Array=[p[Cooldowns.STATE].deadline(Cooldowns.Q),p[Cooldowns.STATE].deadline(Cooldowns.R)];var fx:=int(p.get("skill_fx_seq",0));var health: float=p.hp
+  var cooldowns: Array=[p[Cooldowns.STATE].deadline(Cooldowns.Q),p[Cooldowns.STATE].deadline(Cooldowns.R)];var fx:=int(p.get("skill_fx_seq",0));var health: float=PlayerVitals.current_hp(p)
   mark("spam-"+str(variant))
   check(await until(func(): return marked("spammed-"+str(variant))),"guest remains alive through cleared-floor requests")
-  check([p[Cooldowns.STATE].deadline(Cooldowns.Q),p[Cooldowns.STATE].deadline(Cooldowns.R)]==cooldowns and int(p.get("skill_fx_seq",0))==fx and p.hp==health,"cleared-floor requests cause no cast, cooldown, health or FX changes")
+  check([p[Cooldowns.STATE].deadline(Cooldowns.Q),p[Cooldowns.STATE].deadline(Cooldowns.R)]==cooldowns and int(p.get("skill_fx_seq",0))==fx and PlayerVitals.current_hp(p)==health,"cleared-floor requests cause no cast, cooldown, health or FX changes")
   check(game.players.has(id) and game.players[id].profile_ready,"guest remains registered")
   mark("checked-"+str(variant))
   check(await until(func(): return marked("ack-"+str(variant))),"guest receives host acknowledgement")

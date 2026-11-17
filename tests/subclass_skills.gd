@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Aim = preload("res://ability_aim.gd")
@@ -36,8 +38,8 @@ func prepare(class_id: int, lane: int) -> void:
 	player.character.xp[class_id] = 2600
 	player.frame = class_id
 	player.pos = Vector3.ZERO
-	player.hp = 5
-	player.max_hp = 10
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(5)
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(10)
 	player.guard_until = 0
 	player.slow_until = Time.get_ticks_msec()+2000
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
@@ -101,7 +103,7 @@ func press_release(class_id: int, lane: int) -> void:
 	if skill.id=="wayfarer":
 		check(player.pos.z>2.3 and by_start.rooted_until>0 and player.guard_until>0,"retreat roots behind and card wards landing")
 	if skill.id=="blood_harvester":
-		check(game.enemy_hp<100 and player.hp>5,"harvest heals from actual contacts")
+		check(game.enemy_hp<100 and PlayerVitals.current_hp(player)>5,"harvest heals from actual contacts")
 	if skill.id=="gravekeeper":
 		check(game.enemy_hp<100 and by_start.hp==50 and player.guard_until>0,"facing sweep excludes a rear target and wards on hit")
 	if skill.id=="leykeeper":

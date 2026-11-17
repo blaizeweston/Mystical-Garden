@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Core=preload("res://core_combat.gd")
 const Preview=preload("res://combat_balance_preview.gd")
 const Journal=preload("res://diagnostic_journal.gd")
@@ -86,7 +88,7 @@ func host_run():
  check(await until(func():return marked("core-1") and marked("core-2") and marked("core-3")),"all guests get the correct private Core inventory and ready HUD")
  check(game.encounter_party_size==4 and game.scouts.size()>=12 and game.scouts.size()<=game.Director.scout_count(game),"encounter population scales to four")
  check(game.encounter_health()>=80,"four player leader health scales in preview HP")
- check(game.players.values().all(func(p):return p.max_hp==100 and p.hp==100),"four players depart at 100 HP")
+ check(game.players.values().all(func(p):return PlayerVitals.maximum_hp(p)==100 and PlayerVitals.current_hp(p)==100),"four players depart at 100 HP")
  var entries=[]
  for id in game.players:entries.append(game.wild_entry(id))
  for i in entries.size():
@@ -118,7 +120,7 @@ func host_run():
  for id in game.players:game.players[id].carried_seeds=[game.players[id].party_slot]
  game.use_checkpoint(1,false)
  check(await until(func():return game.players.values().all(func(p):return not p.wild)),"all four extract together")
- check(game.players[thorn_guest].hp==100 and game.players[thorn_guest].lost_health==0,"extraction restores the sealed capacity")
+ check(PlayerVitals.current_hp(game.players[thorn_guest])==100 and game.players[thorn_guest].lost_health==0,"extraction restores the sealed capacity")
  if not await publish_vitals("restored",thorn_guest):return
  for id in game.players:
   var p=game.players[id]
@@ -146,7 +148,7 @@ func publish_vitals(stage: String,id: int) -> bool:
  game.net_view.observe(game)
  game.diagnostic_watch.tick(true)
  var actor: Dictionary=game.players[id]
- mark(stage,JSON.stringify({"id":id,"hp":actor.hp,"max_hp":actor.max_hp,"lost_health":actor.lost_health,
+ mark(stage,JSON.stringify({"id":id,"hp":PlayerVitals.current_hp(actor),"max_hp":PlayerVitals.maximum_hp(actor),"lost_health":actor.lost_health,
   "fallen":actor.fallen,"revision":actor.vitals_revision,"damage_seq":actor.damage_seq}))
  var arrived:=await until(func():return all_guests_marked(stage),10)
  check(arrived,"all guests see authoritative "+stage+" at the exact HP revision")
@@ -172,25 +174,25 @@ func guest_vitals(id: int) -> bool:
  helper.pos=actor.pos
  game.damage_player(id,actor,35)
  if not await publish_vitals("wounded",id):return false
- check(actor.hp==65,"35 applied damage leaves 65 HP")
+ check(PlayerVitals.current_hp(actor)==65,"35 applied damage leaves 65 HP")
  now=Time.get_ticks_msec()
  actor.renewal_until=now+1000
  actor.renewal_tick=now
  game.update_support_effects(now)
  actor.renewal_until=0
- var healed:=int(actor.hp)-65
+ var healed:=int(PlayerVitals.current_hp(actor))-65
  check(healed in range(3,6),"Renewal restores one rolled tick")
  if not await publish_vitals("renewed",id):return false
- var last_hp:=int(actor.hp)
+ var last_hp:=int(PlayerVitals.current_hp(actor))
  game.damage_player(id,actor,500)
- check(actor.hp==0 and actor.fallen and actor.damage_amount==last_hp,"lethal damage reports the HP actually lost")
+ check(PlayerVitals.current_hp(actor)==0 and actor.fallen and actor.damage_amount==last_hp,"lethal damage reports the HP actually lost")
  if not await publish_vitals("fallen",id):return false
  helper.pos=actor.pos
  mark("revive")
  if not await until(func():return not actor.fallen,10):
   check(false,"guest interact revives another guest")
   return false
- check(actor.hp==80 and actor.max_hp==80 and actor.lost_health==20,"revival seals 20 maximum HP")
+ check(PlayerVitals.current_hp(actor)==80 and PlayerVitals.maximum_hp(actor)==80 and actor.lost_health==20,"revival seals 20 maximum HP")
  return await publish_vitals("revived",id)
 
 

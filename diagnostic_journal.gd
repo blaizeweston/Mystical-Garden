@@ -3,6 +3,7 @@ extends Logger
 static var current: Logger
 const SCHEMA:=1
 const Cooldowns = preload("res://player_cooldowns.gd")
+const PlayerVitals = preload("res://player_vitals.gd")
 const DEFAULT_BYTES:=1048576
 const DEFAULT_CHUNKS:=4
 const KEEP_SESSIONS:=8
@@ -200,8 +201,12 @@ func _log_error(function: String,source: String,line: int,code: String,rationale
 
 static func player_state(p: Dictionary) -> Dictionary:
  var result={}
- for key in ["pos","hp","max_hp","fallen","wild","lost_health","damage_seq","vitals_revision","frame","weapon_kind","weapon","secondary","catalyst","graft_part","prepared","prepared_secondary","prepared_catalyst","attack_combo","carried_parts","run_upgrades"]:
+ for key in ["pos","fallen","wild","lost_health","damage_seq","vitals_revision","frame","weapon_kind","weapon","secondary","catalyst","graft_part","prepared","prepared_secondary","prepared_catalyst","attack_combo","carried_parts","run_upgrades"]:
   if p.has(key):result[key]=p[key]
+ if p.has(PlayerVitals.STATE) or p.has("hp"):
+  result.hp = PlayerVitals.current_hp(p)
+ if p.has(PlayerVitals.STATE) or p.has("max_hp"):
+  result.max_hp = PlayerVitals.maximum_hp(p)
  var cooldowns: Cooldowns.Timers = p.get(Cooldowns.STATE)
  if cooldowns != null:
   result.skill_at = cooldowns.deadline(Cooldowns.Q)

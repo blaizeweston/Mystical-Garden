@@ -1,5 +1,6 @@
 extends RefCounted
 ## Host-owned Ranger effects. Corridor and route belong to an accepted trap.
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 const Progression = preload("res://ranger_connected_tree.gd")
 const Balance = preload("res://class_skill_balance.gd")
@@ -81,7 +82,7 @@ static func after_q(game: Node, actor: int, player: Dictionary, skill: Dictionar
 				continue
 			if selected.has("clear_trail"):
 				ally.slow_until = 0
-			var ratio := float(ally.hp)/maxf(1.0,float(ally.get("max_hp",1)))
+			var ratio := PlayerVitals.current_hp(ally)/maxf(1.0,float(PlayerVitals.maximum_hp(ally,1)))
 			if ratio < lowest:
 				lowest = ratio
 				recipient = ally

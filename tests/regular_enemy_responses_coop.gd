@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Attacks = preload("res://enemy_attack.gd")
 const Effects = preload("res://core_skill_effects.gd")
 const Status = preload("res://combat_status.gd")
@@ -80,7 +82,7 @@ func prepare(kind: int) -> Dictionary:
 	game.scouts.clear()
 	for member in game.players.values():
 		member.wild = true
-		member.hp = 10
+		member[PlayerVitals.STATE] = member[PlayerVitals.STATE].with_hp(10)
 		member.hurt_until = 0
 		member.pos = Vector3(0, 0, -3.4)
 	var route := 10 + posmod(-3 * (kind * 19 + int(profile.floor) * 11), 10)
@@ -111,7 +113,7 @@ func host() -> void:
 		check(false, "guest reads both warned legs before impact")
 		return
 	check(await until(func(): return stag.windup == 0), "charge resolves")
-	check(host_player.hp == 9 and guest_player.hp == 10, "host damage follows the bend and preserves the dodge")
+	check(PlayerVitals.current_hp(host_player) == 9 and PlayerVitals.current_hp(guest_player) == 10, "host damage follows the bend and preserves the dodge")
 	mark("charge-resolved")
 	if not await until(func(): return marked("charge-clear")):
 		check(false, "guest sees charge markers clear")
@@ -128,7 +130,7 @@ func host() -> void:
 		check(false, "guest reads canopy shift before movement")
 		return
 	check(await until(func(): return grazer.windup == 0), "canopy resolves")
-	check(grazer.pos.x > 2.0 and escort.pos.x > 3.6 and guest_player.hp == 10, "Grazer rejoins the displaced escort without dealing damage")
+	check(grazer.pos.x > 2.0 and escort.pos.x > 3.6 and PlayerVitals.current_hp(guest_player) == 10, "Grazer rejoins the displaced escort without dealing damage")
 	mark("canopy-resolved")
 	if not await until(func(): return marked("canopy-clear")):
 		check(false, "guest sees canopy markers clear")

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Preview = preload("res://combat_balance_preview.gd")
@@ -30,7 +32,7 @@ func run() -> void:
 	game.set_process(false)
 	game.set_physics_process(false)
 	var player: Dictionary = game.players[1]
-	check(player.hp == 100 and player.max_hp == 100, "new Warden starts at 100 HP")
+	check(PlayerVitals.current_hp(player) == 100 and PlayerVitals.maximum_hp(player) == 100, "new Warden starts at 100 HP")
 	player.pos = game.Stage.GATE
 	game.enter_wilds(1, player)
 	check(player.wild and game.scouts.size() >= 6 and game.enemy_hp in range(62,72), "normal early Wilds entrance uses converted pack and elite")
@@ -65,8 +67,8 @@ func run() -> void:
 func verify_health_pool_layout(game: Node, player: Dictionary) -> void:
 	var hud: Control = game.player_hud
 	var chart_script := preload("res://exploration.gd")
-	player.hp = 54
-	player.max_hp = 80
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(54)
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(80)
 	player.lost_health = 20
 	game._process(.016)
 	var orb: Control = hud.get_node("HealthPool")
@@ -84,9 +86,9 @@ func verify_health_pool_layout(game: Node, player: Dictionary) -> void:
 	game._process(.016)
 	check(orb.get_rect().end.x > compact.end.x - 8, "Garden places the orb in the lower-right corner")
 	player.wild = true
-	player.max_hp = 100
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(100)
 	player.lost_health = 0
-	player.hp = 100
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
 	game._process(.016)
 
 func verify_strikes(game: Node, player: Dictionary) -> void:
@@ -148,15 +150,16 @@ func verify_multi_target(game: Node, player: Dictionary) -> void:
 func verify_guard_and_core(game: Node, player: Dictionary) -> void:
 	player.weapon_kind=0
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
-	player.hp=100
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
 	player.hurt_until=0
 	game.use_class_skill(1,player,0)
 	check(int(player.guard_charges)>0,"real Warden Guard granted")
 	var now:=Time.get_ticks_msec()
+	var guarded_health: PlayerVitals.Health = player[PlayerVitals.STATE]
 	game.apply_enemy_hit(1,player,now,1)
-	check(player.hp==100 and int(player.guard_charges)==0,"guard prevents an authored monster hit")
+	check(is_same(player[PlayerVitals.STATE],guarded_health) and int(player.guard_charges)==0,"guard prevents an authored monster hit before health changes")
 	game.apply_enemy_hit(1,player,now+300,1)
-	check(player.hp==90,"a landed authored monster hit removes 10 HP")
+	check(guarded_health.hp()==100.0 and PlayerVitals.current_hp(player)==90.0,"a landed authored monster hit installs exactly 10 HP damage")
 	player.weapon=game.Parts.THORN
 	player.core_ready_at=0
 	player.core_cast_until=0
@@ -188,10 +191,10 @@ func verify_healing_rolls(game: Node) -> void:
 	var healing_state := Preview.heal_rng.state
 	check(Preview.heal_label(1.0)=="8–12 HP" and Preview.heal_label(1.5)=="13–17 HP","five flat HP shifts both bounds equally")
 	check(Preview.roll_heal(0.0)==0 and Preview.roll_heal(.1)==1 and Preview.heal_rng.state==healing_state,"display, zero healing and single-value bands consume no roll")
-	var revived := {"hp":79,"max_hp":80}
-	check(Preview.heal(revived,2.0)==1 and revived.hp==80,"overheal clamps to revived capacity and reports applied HP")
+	var revived := {PlayerVitals.STATE:PlayerVitals.Health.new(79.0, 80)}
+	check(Preview.heal(revived,2.0)==1 and PlayerVitals.current_hp(revived)==80,"overheal clamps to revived capacity and reports applied HP")
 	Preview.enabled=false
-	check(Preview.roll_heal(2.0)==2 and Preview.renewal({"hp":3,"max_hp":10})==1,"ordinary mode retains flat authored healing")
+	check(Preview.roll_heal(2.0)==2 and Preview.renewal({PlayerVitals.STATE:PlayerVitals.Health.new(3.0, 10)})==1,"ordinary mode retains flat authored healing")
 	Preview.enabled=true
 
 
@@ -204,22 +207,22 @@ func verify_recovery(game: Node, player: Dictionary) -> void:
 	game.enemy_hp=0
 	player.pos=game.battlefield.advance
 	ally.pos=player.pos
-	player.hp=20
-	ally.hp=21
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(20)
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(21)
 	game.use_checkpoint(1,true)
-	var floor_heal := int(player.hp)-20
-	check(game.encounter_number==2 and floor_heal in range(8,13) and int(ally.hp)-21==floor_heal,"floor recovery shares a roll across the living party")
+	var floor_heal := int(PlayerVitals.current_hp(player))-20
+	check(game.encounter_number==2 and floor_heal in range(8,13) and int(PlayerVitals.current_hp(ally))-21==floor_heal,"floor recovery shares a roll across the living party")
 
 	ally.pos=player.pos
-	player.hp=20
-	ally.hp=21
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(20)
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(21)
 	game.trait_events.clear()
 	game.Traits.zone(game,player,"tide",player.pos,2.0,2600,.4,3000)
 	game.Traits.tick(game,3000)
-	var pulse := int(player.hp)-20
-	check(pulse in range(3,6) and int(ally.hp)-21==pulse,"one healing pool pulse shares a roll")
+	var pulse := int(PlayerVitals.current_hp(player))-20
+	check(pulse in range(3,6) and int(PlayerVitals.current_hp(ally))-21==pulse,"one healing pool pulse shares a roll")
 	game.Traits.tick(game,3500)
-	check(int(player.hp)-20==pulse,"pool cannot heal between pulses")
+	check(int(PlayerVitals.current_hp(player))-20==pulse,"pool cannot heal between pulses")
 	game.trait_events.clear()
 
 	game.battlefield.procedural=false
@@ -241,26 +244,26 @@ func verify_recovery(game: Node, player: Dictionary) -> void:
 
 
 func verify_vitals(game: Node, player: Dictionary) -> void:
-	player.hp=20
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(20)
 	player.renewal_until=8000
 	player.renewal_tick=1000
 	game._process(.016)
 	game.update_support_effects(1000)
 	game._process(.016)
-	var first_hp := int(player.hp)
+	var first_hp := int(PlayerVitals.current_hp(player))
 	check(first_hp-20 in range(3,6) and game.player_hud.health_orb.hp==first_hp and game.player_hud.health_orb.from_hp==20,"orb tracks the first rolled Renewal tick")
 	game.update_support_effects(2000)
 	game._process(.016)
-	check(int(player.hp)-first_hp in range(3,6) and game.player_hud.health_orb.from_hp==first_hp,"second rolled tick gets its own highlight")
+	check(int(PlayerVitals.current_hp(player))-first_hp in range(3,6) and game.player_hud.health_orb.from_hp==first_hp,"second rolled tick gets its own highlight")
 	game.add_player(2)
 	var helper: Dictionary=game.players[2]
 	helper.wild=true
 	helper.pos=player.pos
-	game.damage_player(1,player,int(player.hp))
+	game.damage_player(1,player,int(PlayerVitals.current_hp(player)))
 	check(player.fallen,"downed player can be revived with a living ally")
 	check(game.Life.revive(game,2,1),"revive is accepted")
 	game._process(.016)
-	check(player.hp==80 and player.max_hp==80 and player.lost_health==20,"revival fills the reduced pool")
+	check(PlayerVitals.current_hp(player)==80 and PlayerVitals.maximum_hp(player)==80 and player.lost_health==20,"revival fills the reduced pool")
 	check(Orb.fractions(80,80,20).is_equal_approx(Vector2(.8,.8)),"orb leaves a fifth visibly sealed")
 	var rows: Array=game.player_hud.party_panel.members(game.players,2)
 	check(rows.size()==1 and rows[0].lost_health==20 and rows[0].hp==80,"compact orb receives only authoritative party vitals")

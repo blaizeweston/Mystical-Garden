@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Rules = preload("res://combat_ruleset.gd")
@@ -67,8 +68,8 @@ func run() -> void:
 		var now:=Time.get_ticks_msec()
 		var q: Dictionary=Builds.slot("core",part).potency_profile.values
 		reset()
-		p.hp=70
-		ally.hp=60
+		p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(70)
+		ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(60)
 		p.slow_until=now+5000
 		ally.slow_until=now+5000
 		ally.frost_root_until=now+3000
@@ -85,10 +86,10 @@ func run() -> void:
 		check(not cast.is_empty(),"real B starts Dewfall")
 		if not cast.is_empty():
 			Core.tick(game,cast.armed)
-			check(p.slow_until==0 and ally.slow_until>now and p.hp==70,"cleanse caster at formation, no baseline healing")
+			check(p.slow_until==0 and ally.slow_until>now and p[PlayerVitals.STATE].hp()==70,"cleanse caster at formation, no baseline healing")
 			Clock.advance(game,.4)
 			Core.tick(game,int(cast.armed)+400)
-			check(ally.slow_until==0 and ally.frost_root_until>now and ally.hp==60 and game.enemy_hp==500-q.impact_hp and game.leader_brain.has(Frost.BRITTLE) and game.leader_brain.frost_root_until==now+600,
+			check(ally.slow_until==0 and ally.frost_root_until>now and ally[PlayerVitals.STATE].hp()==60 and game.enemy_hp==500-q.impact_hp and game.leader_brain.has(Frost.BRITTLE) and game.leader_brain.frost_root_until==now+600,
 				"swept wave cleanses actual ally, damages once, preserves other status and health")
 			ally.slow_until=now+10000
 			Clock.advance(game,.12)
@@ -121,7 +122,7 @@ func run() -> void:
 		ally.slow_until=now+6000
 		game.use_class_skill(1,p,0)
 		game.apply_enemy_hit(1,p,Time.get_ticks_msec(),1.0,0,game.enemy_pos)
-		check(p.slow_until==0 and ally.slow_until==0 and p.hp==70 and is_equal_approx(Water.reduction(game.leader_brain,Clock.now(game)),q.reduction),"Ward wash Drenches enemies and cleanses protected allies")
+		check(p.slow_until==0 and ally.slow_until==0 and p[PlayerVitals.STATE].hp()==70 and is_equal_approx(Water.reduction(game.leader_brain,Clock.now(game)),q.reduction),"Ward wash Drenches enemies and cleanses protected allies")
 
 	reset()
 	var now:=Time.get_ticks_msec()
@@ -133,12 +134,12 @@ func run() -> void:
 	p.guard_until=0
 	p.guard_charges=0
 	p.hurt_until=0
-	p.hp=90
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
 	attack.lock(game,scout,"volley",p.pos,now+500)
 	var strong := event(1,"core","plant_part_rare_dewcap","core_action",now)
 	Water.drench(game,strong,0)
 	game.update_scouts(0.0,now+500)
-	check(p.hp==90-roundi(baseline*.70),"locked native ranged attack reads reduction at hit, after commitment")
+	check(p[PlayerVitals.STATE].hp()==90-roundi(baseline*.70),"locked native ranged attack reads reduction at hit, after commitment")
 	Clock.advance(game,2.0)
 	var weak := event(2,"form","part_8","weapon_contact",now)
 	weak.publish(game,"weapon_contact","new","scout",now,{"enemy":0})
@@ -146,20 +147,20 @@ func run() -> void:
 	attack.lock(game,scout,"volley",p.pos,now+4400)
 	Clock.advance(game,2.3)
 	p.hurt_until=0
-	p.hp=90
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
 	game.update_scouts(0.0,now+4400)
-	check(p.hp==90-roundi(baseline*.82),"weaker source survives stronger expiry during attack")
+	check(p[PlayerVitals.STATE].hp()==90-roundi(baseline*.82),"weaker source survives stronger expiry during attack")
 	attack.lock(game,scout,"volley",p.pos,now+6500)
 	Clock.advance(game,2.1)
 	p.hurt_until=0
-	p.hp=90
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
 	game.update_scouts(0.0,now+6500)
-	check(p.hp==90-baseline,"all effects expired before impact")
+	check(p[PlayerVitals.STATE].hp()==90-baseline,"all effects expired before impact")
 	p.hurt_until=0
-	p.hp=90
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
 	Water.drench(game,strong,0)
 	game.apply_enemy_hit(1,p,now+7800,damage,0,scout.pos)
-	check(p.hp==90-baseline,"unattributed hazard unaffected by Drenched enemy")
+	check(p[PlayerVitals.STATE].hp()==90-baseline,"unattributed hazard unaffected by Drenched enemy")
 
 	reset()
 	var adapter := {"id":"fixture_ward","trigger":"block","limit":"recipient"}

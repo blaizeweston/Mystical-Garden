@@ -77,6 +77,7 @@ const LoadoutMaterials=preload("res://loadout_materials.gd")
 const ROUTE_ROOMS := EncounterConfig.BIOME_LENGTH
 const ExpeditionWallet = preload("res://expedition_wallet.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
+const PlayerVitals = preload("res://player_vitals.gd")
 const RunUpgrades=preload("res://run_upgrade_catalog.gd")
 const AffinityCards = preload("res://affinity_cards.gd")
 const HOOK_ROOM := 3
@@ -831,7 +832,7 @@ func add_player(id: int) -> void:
 		"seed_choice": 0, "seed_owner": "", "carried_seeds": [],"safe_items":[],"carried_items":{}, "pouch": false, "loot_pending": false,
 		"donation_choice": Parts.EMPTY, "cache_claimed": false,
 		"carried_parts": Parts.empty_counts(), "secondary": Parts.EMPTY,
-		"prepared_secondary": Parts.EMPTY, "graft_choice": Parts.EMPTY, "rift_hook": false, "slow_until": 0, "hp": float(base_health), "max_hp": base_health, "strike_at": 0, "facing": Vector3.FORWARD}
+		"prepared_secondary": Parts.EMPTY, "graft_choice": Parts.EMPTY, "rift_hook": false, "slow_until": 0, PlayerVitals.STATE: PlayerVitals.Health.new(float(base_health), base_health), "strike_at": 0, "facing": Vector3.FORWARD}
 	if has_meta(&"combat_affinity_ruleset"):
 		players[id].combat_ruleset = get_meta(&"combat_affinity_ruleset")
 	restore_class_loadout(players[id])
@@ -2158,7 +2159,8 @@ func _purchase_expedition_graft(id: int, player: Dictionary, action: String) -> 
 		player.carried_parts = carry
 		player[grafts.STATE] = purchase.ledger
 		if purchase.has("health"):
-			player.max_hp = purchase.health
+			var health: PlayerVitals.Health = player[PlayerVitals.STATE]
+			player[PlayerVitals.STATE] = health.with_native_max_hp(int(purchase.health) - health.temporary_hp())
 		var receipt: Dictionary = purchase.receipt
 		Journal.event("grafting","improvement_acquired",{"actor":id,"run":ledger.identity(),"floor":receipt.floor,
 			"serial":receipt.serial,"improvement":receipt.id,"item":receipt.item,"quantity":purchase.cost})
@@ -2199,8 +2201,7 @@ func _attempt_graft(id: int, player: Dictionary, requested: int = -1, effects = 
 		player.graft_part=part
 		player.graft_floor=encounter_number
 		if Life.Preview.enabled:
-			player.max_hp=Life.maximum(self,player)
-			player.hp=minf(float(player.hp),float(player.max_hp))
+			player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(Life.native_maximum(self,player))
 		progress.record_monster_graft(part)
 		var message: String="%s grafted into the fourth slot."%Parts.part_name(part)
 		if previous!=0: message="%s replaced %s. The old component was sacrificed."%[Parts.part_name(part),Parts.part_name(previous)]
@@ -2295,7 +2296,7 @@ func _buy_upgrade(id: int,player: Dictionary,choice: int,effects = null) -> bool
 	if not reason.is_empty(): action_feedback(effects,id,reason);return false
 	var debited := _plan_essence_debit(player, int(entry.cost))
 	if debited == null: action_feedback(effects,id,"Not enough essence for that upgrade.");return false
-	var before_health:=int(player.get("max_hp",MAX_HEALTH))
+	var before_health: int = player[PlayerVitals.STATE].max_hp()
 	if not player.has("run_upgrades"): player.run_upgrades={}
 	player.run_upgrades[entry.id]=int(player.run_upgrades.get(entry.id,0))+1
 	player[ExpeditionWallet.STATE] = debited
@@ -2307,8 +2308,9 @@ func _buy_upgrade(id: int,player: Dictionary,choice: int,effects = null) -> bool
 	player.power+=int(entry.effects.get("power",0))
 	player.technique+=int(entry.effects.get("technique",0))
 	if entry.effects.has("rift_hook"): player.rift_hook=true
-	player.max_hp=Life.maximum(self,player)
-	Life.Vitals.heal(player,maxi(0,int(player.max_hp)-before_health))
+	var health: PlayerVitals.Health = player[PlayerVitals.STATE].with_native_max_hp(Life.native_maximum(self,player))
+	# Legacy rank purchases also heal by the capacity they add.
+	player[PlayerVitals.STATE] = health.healed(maxi(0,health.max_hp()-before_health))
 	var message: String="%s · Rank %d gained for this expedition."%[entry.name,int(player.run_upgrades[entry.id])]
 	if entry.id=="rift_hook" and not progress.rift_hook_discovered:
 		progress.discover_rift_hook()
@@ -2979,7 +2981,7 @@ func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: 
 		hp -= int(bark.get("absorbed",0))
 	if has_meta(Transactions.SESSION):
 		if not Transactions.session_writable(self): return
-		if hp>=int(player.hp):
+		if hp>=int(player[PlayerVitals.STATE].hp()):
 			run_guarded_action(id, Transactions.Scope.PAIR, func(effects):
 				wood.consume(player,bark)
 				apply_hit_grace(id,player,now,slow_ms,effects)
@@ -2988,9 +2990,9 @@ func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: 
 			return
 	wood.consume(player,bark)
 	apply_hit_grace(id,player,now,slow_ms)
-	var before_hp := float(player.hp)
+	var before_hp: float = player[PlayerVitals.STATE].hp()
 	damage_player(id,player,hp)
-	if has_meta(&"combat_affinity_ruleset") and Life.alive(player) and float(player.hp) < before_hp:
+	if has_meta(&"combat_affinity_ruleset") and Life.alive(player) and player[PlayerVitals.STATE].hp() < before_hp:
 		var omens = preload("res://oracle_omens.gd")
 		if player.has(omens.STATE) and omens.direct_context(self,direct_attack):
 			omens.recover_hit(self,player,now)
@@ -3011,7 +3013,7 @@ func apply_hit_grace(id: int,player: Dictionary,now: int,slow_ms: int,effects = 
 func damage_player(id: int, player: Dictionary, amount: int) -> void:
 	if has_meta(Transactions.SESSION):
 		if not Transactions.session_writable(self): return
-		if amount<int(player.hp):
+		if amount<int(player[PlayerVitals.STATE].hp()):
 			_damage_player(id,player,amount)
 		else:
 			run_guarded_action(id, Transactions.Scope.PAIR, func(effects): _damage_player(id,player,amount,effects))
@@ -3020,16 +3022,18 @@ func damage_player(id: int, player: Dictionary, amount: int) -> void:
 
 func _damage_player(id: int, player: Dictionary, amount: int,effects = null) -> void:
 	if player.get("wild",false) and not Life.alive(player): return
-	var actual_damage:=Life.Vitals.damage_taken(int(player.hp),amount)
+	var before: PlayerVitals.Health = player[PlayerVitals.STATE]
+	var after := before.damaged(amount)
+	var actual_damage := int(before.hp()) - int(after.hp())
 	if Life.Preview.enabled and actual_damage==0: return
 	player.damage_seq=int(player.get("damage_seq",0))+1
 	player.damage_amount=actual_damage if Life.Preview.enabled else maxi(0,amount)
-	player.hp = maxi(0, int(player.hp) - actual_damage)
-	var damage_record := {"actor":id,"amount":amount,"applied_hp":actual_damage,"hp":player.hp,"damage_seq":player.damage_seq,"vitals_revision":player.get("vitals_revision",0),"hp_per_point":Life.Preview.scale()}
+	player[PlayerVitals.STATE] = after
+	var damage_record := {"actor":id,"amount":amount,"applied_hp":actual_damage,"hp":int(after.hp()),"damage_seq":player.damage_seq,"vitals_revision":player.get("vitals_revision",0),"hp_per_point":Life.Preview.scale()}
 	if effects == null: Journal.event("combat","damage_applied",damage_record)
 	else: effects.append(func(): Journal.event("combat","damage_applied",damage_record))
 	if player.get("wild",false) and actual_damage>0: emit_combat_event("impact","hurt",player.pos,player.pos,.85,Color("#ff957d"),float(actual_damage),id)
-	if player.hp > 0:
+	if after.hp() > 0:
 		return
 	if player.wild:
 		Life.down(self,id,player,effects)
@@ -3508,8 +3512,8 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = n
 			progress.add_parts(part,-(amount-personal))
 			p.carried_parts[part]+=amount
 	p.cargo_plan.fill(0)
-	p.max_hp=Life.maximum(self,p)
-	Life.Vitals.heal(p,maxi(0,int(p.max_hp)-Life.Preview.hp(MAX_HEALTH)))
+	var health: PlayerVitals.Health = p[PlayerVitals.STATE].with_native_max_hp(Life.native_maximum(self,p))
+	p[PlayerVitals.STATE] = health.healed(maxi(0,health.max_hp()-Life.Preview.hp(MAX_HEALTH)))
 	if gained > 0:
 		var message := "Weapon assembled. The Heart gained %d knowledge." % gained
 		if effects == null: save_progress(id,message)
@@ -3591,11 +3595,10 @@ func return_to_garden(p: Dictionary) -> void:
 	p.erase("graft_message")
 	p.rift_hook = false
 	p.pos = stage.experimental_garden.return_position() if stage.experimental_garden != null else stage.gate_position() + Vector3(0, 0, 2.0)
-	p.hp = float(p.get("max_hp", MAX_HEALTH))
 	p.slow_until = 0
 	p.hurt_until=0
 	restore_class_loadout(p)
-	p.hp=float(p.max_hp)
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].refilled()
 
 
 func expedition_active() -> bool:
@@ -4086,7 +4089,8 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 		var stride := preload("res://spirit_affinity.gd").scale(p,preload("res://affinity_time.gd").now(self)) if p.has("affinity_spirit_strides") else 1.0
 		if p.has("ranger_speed_grants"):
 			stride = maxf(stride,preload("res://ranger_combat.gd").speed_scale(self,p,Time.get_ticks_msec()))
-		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":(.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get("slow_until",0)) else 1.0)*stride,"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":p.get("party_slot",0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": p.wild, "fallen":p.fallen,"lost_health":p.get("lost_health",0), "hp": p.hp, "max_hp": p.get("max_hp", MAX_HEALTH), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
+		var health: PlayerVitals.Health = p[PlayerVitals.STATE]
+		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":(.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get("slow_until",0)) else 1.0)*stride,"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":p.get("party_slot",0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": p.wild, "fallen":p.fallen,"lost_health":p.get("lost_health",0), "hp": health.hp(), "max_hp": health.max_hp(), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
 			"attack_anim":attack_animation_snapshot(p),"skill_fx":p.get("skill_fx",{}) if Time.get_ticks_msec()<int(p.get("skill_fx_until",0)) else {}, "weapon_kind":p.get("weapon_kind",0), "core_part":p.weapon if p.wild else p.prepared, "pose": combat_pose(p),"wallet": run_wallet(p)}
 		var cooldowns: Cooldowns.Timers = p[Cooldowns.STATE]
 		var cooldown_now := Time.get_ticks_msec()
@@ -4264,7 +4268,7 @@ func _process(_delta: float) -> void:
 	preload("res://glasscap_visuals.gd").sync(stage,observer,exploration.SIGHT)
 	var carried: int = p.carried_seeds.size() if multiplayer.is_server() and wild else client_carried_count
 	title.text = "%s  ·  Encounter %d" % [Campaign.NAMES[destination], encounter_number] if wild else "Mystical Garden"
-	var health: float = p.get("hp", 0)
+	var health := PlayerVitals.current_hp(p)
 	health_label.text = "♥".repeat(int(ceil(health / 2.0)))
 	skill_label.text = ""
 	skill_label.hide()
@@ -4378,7 +4382,7 @@ func _process(_delta: float) -> void:
 	var rescue_id:=Life.nearest(self,p)
 	if rescue_id!=0:
 		var ally: Dictionary=players[rescue_id]
-		var can_revive:=Life.Vitals.can_revive(int(ally.get("max_hp",Life.Preview.hp(MAX_HEALTH))),Life.Preview.scale())
+		var can_revive:=Life.Vitals.can_revive(PlayerVitals.maximum_hp(ally,Life.Preview.hp(MAX_HEALTH)),Life.Preview.scale())
 		var cost: String="%d maximum HP"%Life.Preview.revive_cost() if Life.Preview.enabled else "1 maximum heart"
 		guide.text="E  Revive %s · costs them %s"%[ally.get("display_name",ally.get("character",{}).get("name","ally")),cost] if can_revive else ("This ally has too little maximum health to revive." if Life.Preview.enabled else "This ally has no full heart left to sacrifice.")
 	if p.get("fallen",false) and wild: guide.text="Fallen · awaiting revival"
@@ -4439,7 +4443,7 @@ func _process(_delta: float) -> void:
 		"location": Campaign.NAMES[destination] if wild else "Mystical Garden", 
 		"floor":encounter_number,
 		"encounter": "%d foes" % [int(enemy_hp > 0) + living_scout_count()] if wild else "Your living sanctuary",
-		"damage_flash":maxf(0,(int(p.get("hurt_until",0) if host_side else p.get("client_hurt_until",0))-Time.get_ticks_msec())/250.0),"hp": health, "max_hp": p.get("max_hp", MAX_HEALTH), "lost_health":p.get("lost_health",0),"fallen":p.get("fallen",false), "wild": wild, "frame": p.get("frame", 0),
+		"damage_flash":maxf(0,(int(p.get("hurt_until",0) if host_side else p.get("client_hurt_until",0))-Time.get_ticks_msec())/250.0),"hp": health, "max_hp": PlayerVitals.maximum_hp(p,MAX_HEALTH), "lost_health":p.get("lost_health",0),"fallen":p.get("fallen",false), "wild": wild, "frame": p.get("frame", 0),
 		"skill_ready": ready_skill,"skill_two_ready":second_ready,"skill_names":[skills[0].name,skills[1].name+(" •" if quake_prepared else "")],"skill_cooldowns":cooldowns, "dodge_ready": ready_dodge,
 		"core":preload("res://core_combat.gd").hud_state(self,p),
 		"skill_tooltips":skill_tips,
@@ -4679,11 +4683,12 @@ func restore_class_loadout(player: Dictionary) -> void:
 	player.prepared=int(loadout.parts[0])
 	player.prepared_secondary=int(loadout.parts[1])
 	player.prepared_catalyst=int(loadout.parts[2])
+	var health: PlayerVitals.Health = player[PlayerVitals.STATE]
 	if has_meta(&"combat_affinity_ruleset"):
-		player.max_hp = Life.maximum(self, player, not player.get("wild", false))
+		player[PlayerVitals.STATE] = health.with_native_max_hp(Life.native_maximum(self, player, not player.get("wild", false)))
 	else:
-		player.max_hp=Life.Preview.hp(MAX_HEALTH+int(Classes.bonuses(profile,int(player.frame)).get("max_health",0)))
-	player.hp=minf(float(player.get("hp",player.max_hp)),float(player.max_hp))
+		var native_max := Life.Preview.hp(MAX_HEALTH+int(Classes.bonuses(profile,int(player.frame)).get("max_health",0)))
+		player[PlayerVitals.STATE] = health.with_capacity(native_max, 0)
 
 func persist_loadout(id: int,player: Dictionary,effects = null) -> void:
 	if effects == null and has_meta(Transactions.SESSION): return
@@ -4704,7 +4709,7 @@ func _select_class(id: int,player: Dictionary,class_id: int,effects) -> void:
 	restore_class_loadout(player)
 	if at_weapon_gate(player):
 		LoadoutMaterials.reconcile(player,stored_counts(player));player.loadout_reserving=true
-	player.hp=float(player.max_hp)
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].refilled()
 	persist_loadout(id,player,effects)
 	var message := "%s selected."%Classes.DEFINITIONS[class_id].name
 	if has_meta(&"combat_affinity_ruleset") and preload("res://affinity_build.gd").starting_tree(class_id,player.character) != null:
@@ -5289,7 +5294,7 @@ func _affinity_checkpoint_command(id: int, player: Dictionary, action: String) -
 		if plan.has("copy"):
 			var copy: Dictionary = plan.copy
 			if copy.id == "run_health":
-				player.max_hp = Life.maximum(self, player)
+				player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(Life.native_maximum(self,player))
 			Journal.event("combat", "affinity_card_acquired", {"actor": id, "floor": copy.floor,
 				"acquisition": copy.acquisition_id, "card": copy.id, "rarity": copy.rarity, "amount": copy.amount})
 	if plan.has("message"):

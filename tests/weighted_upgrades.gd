@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Catalog=preload("res://run_upgrade_catalog.gd")
 const Core=preload("res://core_combat.gd")
 var failed:=false
@@ -76,8 +78,8 @@ func run():
  # Fund a known class card to verify its live health effect.
  p.run_upgrades={};p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(game.wallet_for(p).earned_sparks(), 0);gate(game,p,18)
  p.offer_floor=18;p.checkpoint_offers=["class_0_0","power","reach"]
- p.hp=8;p.max_hp=10
- check(game.buy_upgrade(1,p,0) and p.max_hp==12 and p.hp==10,"health upgrades update current max health and grant added capacity")
+ p[PlayerVitals.STATE] = PlayerVitals.Health.new(8, 10)
+ check(game.buy_upgrade(1,p,0) and PlayerVitals.maximum_hp(p)==12 and PlayerVitals.current_hp(p)==10,"health upgrades update current max health and grant added capacity")
  check(not game.buy_upgrade(1,p,1),"one purchase per checkpoint")
  p.run_upgrades={"class_0_0":3}
  check(Catalog.weight(Catalog.get_upgrade("class_0_0"),p,20)==0,"rank cap removes exhausted upgrades")

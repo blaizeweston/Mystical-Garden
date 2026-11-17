@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Weaver = preload("res://weaver_connected_tree.gd")
@@ -146,7 +147,7 @@ func title_and_depart() -> bool:
 func arena(path: Array) -> void:
 	player.character[Weaver.PROFILE_KEY]=Weaver.TREE.state(path)
 	player.pos=Vector3.ZERO
-	player.hp=90
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(90)
 	player.facing=Vector3.FORWARD
 	player.catalyst=0
 	player.weapon=0
@@ -162,7 +163,7 @@ func arena(path: Array) -> void:
 	game.trait_events.clear()
 	game.rooted_until=0
 	for who in [ally,player]:
-		who.hp=90
+		who[PlayerVitals.STATE] = who[PlayerVitals.STATE].with_hp(90)
 		who.wild=true
 		who[Cooldowns.STATE] = who[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
 		for key in ["cast_until","core_cast_until","guard_until","guard_charges","hurt_until","slow_until"]:
@@ -400,7 +401,7 @@ func balance(base: int) -> void:
 func defense() -> void:
 	arena(DEFENSE)
 	ally.pos=Vector3(.6,0,-1.2)
-	ally.hp=45
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(45)
 	player.catalyst=game.Items.get_item("plant_part_rare_frostbell").legacy_part
 	var now := Time.get_ticks_msec()
 	ally.slow_until=now+6000
@@ -419,14 +420,14 @@ func defense() -> void:
 	check(blocks.size()==1 and blocks[0].source_actor==1 and blocks[0].quality=="refined" and ally.guard_charges==0,
 		"one actual block selects the extended source-owned Ward")
 	ally.pos=Vector3(5,0,0)
-	ally.hp=90
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
 	ally.hurt_until=0
 	game.apply_enemy_hit(2,ally,now+40,4.0)
-	check(ally.hp==55 and ally.pos==Vector3(5,0,0),"Filaments follows recipients and reduces actual direct damage to 35 of 40")
-	ally.hp=90
+	check(ally[PlayerVitals.STATE].hp()==55 and ally.pos==Vector3(5,0,0),"Filaments follows recipients and reduces actual direct damage to 35 of 40")
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
 	ally.hurt_until=0
 	game.apply_enemy_hit(2,ally,now+100,4.0,0,Vector3.INF,false)
-	check(ally.hp==50 and events.filter(func(e):return e.kind=="actual_block").size()==1,
+	check(ally[PlayerVitals.STATE].hp()==50 and events.filter(func(e):return e.kind=="actual_block").size()==1,
 		"Filaments does not mitigate hazards or emit a block")
 
 	ally.guard_until=0
@@ -448,9 +449,9 @@ func defense() -> void:
 	check(events.filter(func(e):return e.kind=="actual_block").size()==1,"unarmed Canopy Ward cannot fire a Catalyst response")
 	var filaments_expiry: int=ally.weaver_filaments.until
 	ally.hurt_until=0
-	ally.hp=90
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
 	game.apply_enemy_hit(2,ally,filaments_expiry,4.0)
-	check(ally.hp==50 and Combat.filaments_until(game,ally,filaments_expiry)==0,"Filaments ends at its exact expire time")
+	check(ally[PlayerVitals.STATE].hp()==50 and Combat.filaments_until(game,ally,filaments_expiry)==0,"Filaments ends at its exact expire time")
 	Combat.tick(game,canopy.until)
 	check(not player.has("weaver_capstone"),"Canopy expires on time")
 
@@ -462,7 +463,7 @@ func defense() -> void:
 	check(ally.guard_charges==1 and ally.guard_until>Time.get_ticks_msec(),"Sheltering Nova grants its independent prepared Ward")
 	arena(["bloomcaller","silken_gift"])
 	ally.pos=Vector3(0,0,-1.3)
-	ally.hp=30
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(30)
 	q()
 	check(ally.guard_charges==1 and player.guard_charges==0,"Silken Gift retains single-ally Ward for Bloomcaller")
 

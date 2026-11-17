@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 var failed:=false
 func check(ok: bool,message: String):
  if not ok: failed=true;printerr("FAIL support/death: ",message)
@@ -46,7 +48,7 @@ func run():
  game.battlefield.barriers=[];game.enemy_hp=0
  var caster: Dictionary=game.make_scout(3,Vector3(0,0,0),1)
  var ally: Dictionary=game.make_scout(0,Vector3(5,0,0),2);ally.engaged=true;ally.windup=Time.get_ticks_msec()+60000
- game.scouts.assign([caster,ally]);p.wild=true;p.hp=10;p.pos=Vector3(-4,0,0)
+ game.scouts.assign([caster,ally]);p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(-4,0,0)
  var before: float=caster.pos.distance_to(ally.pos)
  game.update_scouts(.2,Time.get_ticks_msec())
  check(caster.pos.distance_to(ally.pos)<before and caster.pos.x>0,"support follows combat ally, even away from player")

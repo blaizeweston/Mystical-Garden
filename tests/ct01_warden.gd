@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Connected = preload("res://warden_connected_tree.gd")
@@ -160,7 +161,7 @@ func arena(path: Array) -> void:
 	player.character[Connected.PROFILE_KEY]=Connected.state(path)
 	player.pos=Vector3.ZERO
 	player.facing=Vector3.FORWARD
-	player.hp=90
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(90)
 	player.catalyst=0
 	player.weapon=0
 	player.secondary=0
@@ -199,7 +200,7 @@ func offense() -> void:
 	var origin: Vector3=game.enemy_pos
 	game.use_class_skill(1,player,0)
 	var now := block()
-	check(player.hp==90 and player.warden_block.blocked and game.enemy_pos.distance_to(origin)>.7,
+	check(player[PlayerVitals.STATE].hp()==90 and player.warden_block.blocked and game.enemy_pos.distance_to(origin)>.7,
 		"real block triggers Briar Rebound and preserves Thorn Counter")
 	check(player.counter_until>now,"native Thorn Counter still primes its counter")
 	# Isolate the Quake node's additive damage from Thorn Counter.
@@ -280,7 +281,7 @@ func defense() -> void:
 	var ally: Dictionary=game.players[2]
 	ally.pos=Vector3(1,0,1)
 	ally.wild=true
-	ally.hp=90
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
 	ally.guard_charges=0
 	ally.guard_until=0
 	ally.erase("affinity_ward_claims")
@@ -302,14 +303,14 @@ func defense() -> void:
 	ally.guard_until=0
 	ally.hurt_until=0
 	game.apply_enemy_hit(2,ally,now+10,4.0,0,Vector3(0,0,-2))
-	check(ally.hp==60,"Sanctuary reduces a 40 HP direct attack by 25 percent")
+	check(ally[PlayerVitals.STATE].hp()==60,"Sanctuary reduces a 40 HP direct attack by 25 percent")
 	ally.hurt_until=0
 	game.apply_enemy_hit(2,ally,now+20,4.0,0,Vector3(0,0,-2),false)
-	check(ally.hp==20,"Sanctuary leaves environmental damage intact")
+	check(ally[PlayerVitals.STATE].hp()==20,"Sanctuary leaves environmental damage intact")
 	arena(DEFENSE)
 	ally.pos=Vector3(1,0,-1)
 	ally.hurt_until=0
-	ally.hp=90
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
 	game.use_class_skill(1,player,0)
 	block(2)
 	var cooldown: int=player[Cooldowns.STATE].deadline(Cooldowns.Q)
@@ -330,7 +331,7 @@ func defense() -> void:
 
 func reset_holdfast_ally(ally: Dictionary, point: Vector3) -> void:
 	ally.pos=point
-	ally.hp=90
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
 	ally.wild=true
 	ally.guard_charges=0
 	ally.guard_until=0
@@ -345,9 +346,9 @@ func sample_damage(id: int, now: int, direct := true, amount := 4.0) -> int:
 	recipient.guard_charges=0
 	recipient.guard_until=0
 	recipient.hurt_until=0
-	recipient.hp=90
+	recipient[PlayerVitals.STATE] = recipient[PlayerVitals.STATE].with_hp(90)
 	game.apply_enemy_hit(id,recipient,now,amount,0,Vector3.ZERO,direct)
-	return 90-int(recipient.hp)
+	return 90-int(recipient[PlayerVitals.STATE].hp())
 
 
 func holdfast() -> void:

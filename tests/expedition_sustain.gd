@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Preview = preload("res://combat_balance_preview.gd")
@@ -71,7 +73,8 @@ func arena() -> void:
 	Core.reset(game)
 	for actor in [player,ally]:
 		actor[Cooldowns.STATE] = actor[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
-		actor.merge({"wild":true,"fallen":false,"hp":30,"max_hp":100,"lost_health":0,"pos":Vector3.ZERO,
+		actor[PlayerVitals.STATE] = PlayerVitals.Health.new(30.0, 100)
+		actor.merge({"wild":true,"fallen":false,"lost_health":0,"pos":Vector3.ZERO,
 			"renewal_until":0,"guard_until":0,"hurt_until":0,"run_upgrades":{},"weapon":0,
 			"catalyst":0,"secondary":0,"graft_part":0,"core_ready_at":0,"core_cast_until":0,"cast_until":0,
 			"frame":0,"weapon_kind":0,"facing":Vector3.FORWARD},true)
@@ -84,8 +87,8 @@ func gate_recovery() -> void:
 	game.encounter_number=41
 	game.depth=5
 	game.difficulty_cycle=2
-	player.hp=48
-	ally.hp=50
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(48)
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(50)
 	check(Sustain.recovery_center_hp(false,2)==16 and Sustain.recovery_center_hp(true,2)==26,"floor and biome recovery scale at different depths")
 	check(Sustain.recovery_center_hp(false,40)==19,"deep recovery has a fixed midpoint cap")
 	var view:=Summary.project(game,player,game.weapon_stats(player))
@@ -99,15 +102,15 @@ func gate_recovery() -> void:
 		if game.upgrade_checkpoint_open():
 			game.checkpoint_pending=true
 			game.checkpoint_ready={1:game.encounter_number,2:game.encounter_number}
-		var before:=int(player.hp)
-		var ally_before:=int(ally.hp)
+		var before:=int(PlayerVitals.current_hp(player))
+		var ally_before:=int(PlayerVitals.current_hp(ally))
 		game._use_checkpoint(1,true)
-		var gained:=int(player.hp)-before
+		var gained:=int(PlayerVitals.current_hp(player))-before
 		check(game.encounter_number==step[0] and gained in range(step[1],step[2]+1),"normal gate commit rolls the displayed recovery range")
-		check(int(ally.hp)-ally_before==gained,"gate recovery shares its roll")
+		check(int(PlayerVitals.current_hp(ally))-ally_before==gained,"gate recovery shares its roll")
 		game.damage_player(1,player,28)
 		game.damage_player(2,ally,28)
-	check(player.hp<48 and player.hp>0,"two gates offset part of two deep contacts without resetting attrition")
+	check(PlayerVitals.current_hp(player)<48 and PlayerVitals.current_hp(player)>0,"two gates offset part of two deep contacts without resetting attrition")
 
 
 func add_enemy(at: Vector3, summoned: bool=false) -> Dictionary:
@@ -125,16 +128,16 @@ func finish_scout(summoned: bool, now: int) -> void:
 
 func kill_budget() -> void:
 	arena()
-	player.hp=99
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(99)
 	finish_scout(false,1000)
-	check(player.hp==100 and Sustain.kill_remaining(player,game.combat_epoch)==23,"overheal spends only actual HP")
-	player.hp=20
+	check(PlayerVitals.current_hp(player)==100 and Sustain.kill_remaining(player,game.combat_epoch)==23,"overheal spends only actual HP")
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(20)
 	var state := Preview.heal_rng.state
 	finish_scout(true,2000)
-	check(player.hp==20 and Preview.heal_rng.state==state,"a summoned kill cannot roll or consume the budget")
+	check(PlayerVitals.current_hp(player)==20 and Preview.heal_rng.state==state,"a summoned kill cannot roll or consume the budget")
 	for index in 5:
 		finish_scout(false,3000+index*100)
-	check(player.hp==43 and Sustain.kill_remaining(player,game.combat_epoch)==0,"large packs cannot exceed the per-floor kill heal budget")
+	check(PlayerVitals.current_hp(player)==43 and Sustain.kill_remaining(player,game.combat_epoch)==0,"large packs cannot exceed the per-floor kill heal budget")
 	player.graft_part=game.Parts.monster_part(6)
 	var stats: Dictionary=game.weapon_stats(player)
 	check(stats.heal_on_kill>0 and stats.kill_heal_remaining==0,"owner stats expose the remaining budget")
@@ -151,17 +154,17 @@ func pulse_and_refresh() -> void:
 	player.tide_ready=0
 	game.Traits.after_hit(game,player,-1,stats,1000,false)
 	game.Traits.tick(game,1000)
-	var amount:=int(player.hp)-30
-	check(amount in range(7,10) and ally.hp==player.hp,"boosted Tide pool has a scaled shared pulse")
+	var amount:=int(PlayerVitals.current_hp(player))-30
+	check(amount in range(7,10) and PlayerVitals.current_hp(ally)==PlayerVitals.current_hp(player),"boosted Tide pool has a scaled shared pulse")
 	check(game.Traits.describe(stats,true).contains("7–9 HP per pulse"),"pool tooltip matches the live scaled band")
 	game.Traits.tick(game,1500)
-	check(int(player.hp)-30==amount,"pool cannot heal between pulses")
+	check(int(PlayerVitals.current_hp(player))-30==amount,"pool cannot heal between pulses")
 	Sustain.begin_renewal(player,2000,4200,1000)
 	Sustain.begin_renewal(player,2650,3000,1000)
 	check(player.renewal_tick==3000 and player.renewal_until==6200,"refresh cannot postpone a tick or shorten the effect")
-	var before:=int(player.hp)
+	var before:=int(PlayerVitals.current_hp(player))
 	game.update_support_effects(3000)
-	check(int(player.hp)-before in range(3,6) and player.renewal_tick==4000,"refresh keeps the due Renewal tick")
+	check(int(PlayerVitals.current_hp(player))-before in range(3,6) and player.renewal_tick==4000,"refresh keeps the due Renewal tick")
 
 
 func drains() -> void:
@@ -170,7 +173,7 @@ func drains() -> void:
 	player.frame=3
 	var summon:=add_enemy(Vector3(0,0,-1),true)
 	game.use_class_skill(1,player,1)
-	check(summon.hp<summon.max_hp and player.hp==30,"Siphon Cut damages a summon without drawing health")
+	check(summon.hp<summon.max_hp and PlayerVitals.current_hp(player)==30,"Siphon Cut damages a summon without drawing health")
 	arena()
 	game.enemy_pos=Vector3(15,0,0)
 	player.weapon=game.Parts.index_of("plant:bloodbriar")
@@ -181,7 +184,7 @@ func drains() -> void:
 	check(not cast.is_empty(),"Blood Siphon commits")
 	if cast.is_empty():return
 	Core.tick(game,cast.armed)
-	check(summon.hp<summon.max_hp and ordinary.hp<ordinary.max_hp and int(player.hp)-30 in range(5,8),"Blood Siphon rolls only around the regular enemy contact")
+	check(summon.hp<summon.max_hp and ordinary.hp<ordinary.max_hp and int(PlayerVitals.current_hp(player))-30 in range(5,8),"Blood Siphon rolls only around the regular enemy contact")
 
 
 func revival() -> void:
@@ -194,23 +197,23 @@ func revival() -> void:
 	player.last_offer=0
 	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(500, game.wallet_for(player).spent_essence())
 	player.checkpoint_offers=["class_0_0","power","reach"]
-	check(game.buy_upgrade(1,player,0) and player.max_hp==120 and player.hp==50,"checkpoint bonus grants exact new capacity")
-	game.damage_player(1,player,int(player.hp))
+	check(game.buy_upgrade(1,player,0) and PlayerVitals.maximum_hp(player)==120 and PlayerVitals.current_hp(player)==50,"checkpoint bonus grants exact new capacity")
+	game.damage_player(1,player,int(PlayerVitals.current_hp(player)))
 	check(Sustain.restore(game,player,12,"fixture")==0 and player.fallen,"ordinary healing cannot revive a fallen player")
 	check(game.spectator_view.focus_id(1)==2 and game.spectator_view.caption.text.contains("30 / 100 HP") and game.spectator_view.panel.position.y>=110,"spectating shows ally health below the floor tracker")
-	check(game.Life.revive(game,2,1) and player.max_hp==100 and player.hp==100 and player.lost_health==20,"revival retains earned capacity and seals exactly 20 HP")
-	check(Orb.fractions(player.hp,player.max_hp,player.lost_health).is_equal_approx(Vector2(5.0/6.0,5.0/6.0)),"sealed segment is measured from the upgraded ceiling")
+	check(game.Life.revive(game,2,1) and PlayerVitals.maximum_hp(player)==100 and PlayerVitals.current_hp(player)==100 and player.lost_health==20,"revival retains earned capacity and seals exactly 20 HP")
+	check(Orb.fractions(PlayerVitals.current_hp(player),PlayerVitals.maximum_hp(player),player.lost_health).is_equal_approx(Vector2(5.0/6.0,5.0/6.0)),"sealed segment is measured from the upgraded ceiling")
 	check(game.spectator_view.focus_id(1)==1 and not game.spectator_view.panel.visible,"revive returns camera and HUD control")
 
 
 func overlap() -> void:
 	arena()
-	player.max_hp=80
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(80)
 	player.lost_health=20
-	player.hp=78
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(78)
 	check(Sustain.restore(game,player,12,"fixture")==2,"healing reports actual restoration after the cap")
 	game.damage_player(1,player,2)
-	check(player.hp==78,"coincident heals and hits preserve the final net value")
+	check(PlayerVitals.current_hp(player)==78,"coincident heals and hits preserve the final net value")
 	var events: Array=game.combat_events_snapshot()
 	game.combat_visuals.sync(events+events,[],"cb07-feedback",player.pos)
 	var labels: Array=game.combat_visuals.feedback.labels.map(func(entry):return entry.node.text)

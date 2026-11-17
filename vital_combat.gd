@@ -1,8 +1,8 @@
 extends RefCounted
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Clock = preload("res://affinity_time.gd")
 const SOURCES := "affinity_vital_sources"
-const BONUS := "affinity_vital_bonus"
 const NEXT := "affinity_vital_tick"
 const COLOR := Color("#abd785")
 const CORE_RADIUS := 2.65
@@ -58,12 +58,11 @@ static func grant(game: Node, event: RefCounted, id: int, elapsed: int) -> void:
 
 
 static func set_capacity(game: Node, player: Dictionary, bonus: int) -> void:
-	if bonus == int(player.get(BONUS,0)):
+	var vitals: PlayerVitals.Health = player[PlayerVitals.STATE]
+	if bonus == vitals.temporary_hp():
 		return
-	if bonus == 0: player.erase(BONUS)
-	else: player[BONUS] = bonus
-	player.max_hp = game.Life.maximum(game,player)
-	player.hp = minf(float(player.hp),float(player.max_hp))
+	var native_capacity: int = game.Life.native_maximum(game,player)
+	player[PlayerVitals.STATE] = vitals.with_capacity(native_capacity,bonus)
 
 
 static func clear(game: Node, player: Dictionary) -> void:
@@ -89,7 +88,7 @@ static func tick(game: Node, elapsed: int) -> void:
 		while next <= elapsed:
 			var regen := strongest(sources,next).y
 			if regen > 0:
-				game.Life.Vitals.heal(player,regen)
+				player[PlayerVitals.STATE] = player[PlayerVitals.STATE].healed(regen)
 			next += TICK_MS
 		player[NEXT] = next
 		for key in sources.keys():

@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Motion=preload("res://weapon_motion.gd")
 const Contact=preload("res://weapon_contact.gd")
 const Avatar=preload("res://traveller_avatar.gd")
@@ -18,7 +20,7 @@ func run():
  var game=load("res://world.tscn").instantiate();var token:=str(Time.get_ticks_usec())
  game.progress.path="res://.godot/weapon-actions-"+token+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game)
  game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
- var p: Dictionary=game.players[1];p.wild=true;p.pos=Vector3.ZERO;p.hp=10;p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.facing=Vector3(0,0,1);p.aim_direction=p.facing;p.mouse_aim=true
+ var p: Dictionary=game.players[1];p.wild=true;p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.facing=Vector3(0,0,1);p.aim_direction=p.facing;p.mouse_aim=true
  game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.scouts.clear();game.enemy_hp=100;game.enemy_pos=Vector3(0,0,1.4)
  var actor: Dictionary=game.stage.avatar_models.get(1,{})
  game._process(.016);actor=game.stage.avatar_models[1]

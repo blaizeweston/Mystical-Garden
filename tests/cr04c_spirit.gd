@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Spirit=preload("res://spirit_affinity.gd")
 const Events=preload("res://combat_action_events.gd")
 const Builds=preload("res://affinity_build.gd")
@@ -113,7 +114,7 @@ func run() -> void:
 	check(is_equal_approx(Spirit.scale(p,Clock.now(game)),1.0),"independent expiration returns native movement")
 	game.add_player(2)
 	var ally: Dictionary=game.players[2]
-	ally.wild=true;ally.hp=100;ally.pos=Vector3.ZERO
+	ally.wild=true;ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(100);ally.pos=Vector3.ZERO
 	game.enemy_pos=Vector3(-1,0,0)
 	game.leader_brain.target=2
 	var ward:=action(game,"catalyst",refined,["actual_block"])

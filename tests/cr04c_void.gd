@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Mode=preload("res://combat_ruleset.gd")
 const Builds=preload("res://affinity_build.gd")
 const Events=preload("res://combat_action_events.gd")
@@ -141,7 +142,7 @@ func run() -> void:
 
 	game.add_player(2)
 	var ally: Dictionary=game.players[2]
-	ally.wild=true;ally.hp=100;ally.pos=Vector3.ZERO
+	ally.wild=true;ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(100);ally.pos=Vector3.ZERO
 	game.enemy_hp=200;game.enemy_pos=Vector3.RIGHT
 	game.leader_brain.erase(Void.ALLOWANCE_STATE)
 	var earlier:=action(game,1,"catalyst",part,["actual_block"])
@@ -151,9 +152,9 @@ func run() -> void:
 	Events.grant_ward(game,ally,now+3000,1,earlier,adapter,now)
 	Events.grant_ward(game,ally,now+5000,2,later,adapter,now)
 	game.apply_enemy_hit(2,ally,now,2,0,game.enemy_pos)
-	check(ally.hp==100 and game.enemy_hp==188,"single actual block selects earlier Void claim around the protected ally")
+	check(ally[PlayerVitals.STATE].hp()==100 and game.enemy_hp==188,"single actual block selects earlier Void claim around the protected ally")
 	game.apply_enemy_hit(2,ally,now+1,2,0,game.enemy_pos)
-	check(ally.hp==100 and game.enemy_hp==171,"next actual block selects separate refined Storm claim")
+	check(ally[PlayerVitals.STATE].hp()==100 and game.enemy_hp==171,"next actual block selects separate refined Storm claim")
 	Void.resolve_motion(game,Clock.now(game),now)
 
 	for i in 19:

@@ -1,11 +1,13 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 var failed:=false
 func check(ok: bool,message: String) -> void:
  if not ok: failed=true;printerr("FAIL species depth: ",message)
 func _initialize() -> void: call_deferred("run")
 func arena(game: Node,p: Dictionary) -> void:
  game.enemy_traits.clear();game.trait_events.clear();game.scouts.clear();game.enemy_hp=100;game.enemy_pos=Vector3.ZERO;game.enemy_mutations=0;game.enemy_winding_up=false;game.enemy_stagger_until=0
- game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter_number=1;game.depth=1;game.destination=0;p.wild=true;p.fallen=false;p.pos=Vector3(0,0,-1);p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.run_upgrades={};p.power=0;p.hp=5;p.max_hp=10
+ game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter_number=1;game.depth=1;game.destination=0;p.wild=true;p.fallen=false;p.pos=Vector3(0,0,-1);p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.run_upgrades={};p.power=0;p[PlayerVitals.STATE] = PlayerVitals.Health.new(5, 10)
  for key in ["echo_charge","grave_charges","tide_ready","decoy_ready","link_ready","counter_until"]: p[key]=0
 func run() -> void:
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/species-depth-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
@@ -36,7 +38,7 @@ func run() -> void:
  game.apply_weapon_hit(p,-1,p.pos,stats,1000);check(p.grave_charges>0,"Gravemoss stores a death charge")
  game.enemy_hp=100;hp=p.grave_charges;game.apply_weapon_hit(p,-1,p.pos,stats,1100);check(p.grave_charges==hp-1,"death charge is consumed on a later hit")
  arena(game,p);p.weapon=game.Seeds.DEFINITIONS[20].part;stats=game.weapon_stats(p);game.apply_weapon_hit(p,-1,p.pos,stats,1000);p.slow_until=2000
- game.Traits.tick(game,1100);check(p.hp>5 and p.slow_until==0,"Tide Lily pool heals and cleanses living player")
+ game.Traits.tick(game,1100);check(PlayerVitals.current_hp(p)>5 and p.slow_until==0,"Tide Lily pool heals and cleanses living player")
  arena(game,p);p.weapon=game.Seeds.DEFINITIONS[21].part;stats=game.weapon_stats(p);game.enemy_winding_up=true
  game.apply_weapon_hit(p,-1,p.pos,stats,1000);check(not game.enemy_winding_up,"Hush Orchid interrupts a timed wind-up")
  game.enemy_winding_up=true;game.apply_weapon_hit(p,-1,p.pos,stats,1100);check(game.enemy_winding_up,"same enemy resists immediate repeated silence")

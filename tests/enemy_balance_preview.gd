@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Preview = preload("res://combat_balance_preview.gd")
 const Balance = preload("res://enemy_balance.gd")
 const Pressure = preload("res://expedition_pressure.gd")
@@ -51,8 +53,8 @@ func party(size: int) -> void:
 		actor.profile_ready=id<=size
 		actor.wild=id<=size
 		actor.fallen=false
-		actor.hp=100
-		actor.max_hp=100
+		actor[PlayerVitals.STATE] = actor[PlayerVitals.STATE].with_hp(100)
+		actor[PlayerVitals.STATE] = actor[PlayerVitals.STATE].with_native_max_hp(100)
 		actor.guard_until=0
 		actor.hurt_until=0
 
@@ -123,7 +125,7 @@ func contact_and_hazards() -> void:
 	var actor: Dictionary=game.make_scout(0,Vector3.ZERO,1)
 	Attacks.lock(game,actor,"swipe",player.pos,1000)
 	game.resolve_scout(actor,rootbound,1000)
-	check(player.hp==90,"an actual Rootbound sweep applies 10 HP")
+	check(PlayerVitals.current_hp(player)==90,"an actual Rootbound sweep applies 10 HP")
 	check(Preview.effect_hp(Balance.scout_hit(game,wasp,{}))==7 and Preview.effect_hp(Balance.scout_hit(game,colossus,{}))==19,"fast and heavy scouts have distinct contact damage")
 	check(Preview.effect_hp(Balance.scout_hit(game,rootbound,{"gate_elite":true}))==12,"elite contact premium follows its species")
 	var juvenile: Dictionary=game.make_scout(0,Vector3.ZERO,1,0,0,true)
@@ -133,16 +135,16 @@ func contact_and_hazards() -> void:
 	check(Preview.effect_hp(Balance.scout_hit(game,rootbound,{}))==28,"deep damage rises within a loop")
 	check(Preview.armor(8)==6 and Preview.armor(20)==15,"armor reduces light and heavy attacks proportionally")
 	game.enemy_hazards.clear()
-	player.hp=100
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
 	player.hurt_until=0
 	game.Bosses.hazard(game,Vector3.ZERO,1.2,2000,2300,"spores",800)
 	game.Bosses.tick_hazards(game,2799)
-	check(player.hp==100,"hazard windup applies no damage")
+	check(PlayerVitals.current_hp(player)==100,"hazard windup applies no damage")
 	game.Bosses.tick_hazards(game,2800)
-	check(player.hp==82,"preview hazard applies its own scaled native damage on contact")
+	check(PlayerVitals.current_hp(player)==82,"preview hazard applies its own scaled native damage on contact")
 	player.pos=Vector3(0,0,2)
 	game.Bosses.tick_hazards(game,3800)
-	check(player.hp==82,"walking out of the telegraph avoids the next tick")
+	check(PlayerVitals.current_hp(player)==82,"walking out of the telegraph avoids the next tick")
 
 
 func bosses() -> void:
@@ -179,7 +181,7 @@ func bosses() -> void:
 				game.leader_brain.lair_plan=plan
 				game.enemy_attack_mode=mode
 				game.Bosses.resolve(game,now)
-				check(player.hp==100 and game.Bosses.exposed(game,now),"leaving the telegraph preserves health and opens the counter window")
+				check(PlayerVitals.current_hp(player)==100 and game.Bosses.exposed(game,now),"leaving the telegraph preserves health and opens the counter window")
 		else:
 			var mode := "matriarch_lunge" if kind==22 else "memory_lance"
 			var plan:=Phases.draft(game,mode,1,"")
@@ -189,7 +191,7 @@ func bosses() -> void:
 				game.leader_brain.phase_plan=plan
 				game.enemy_attack_mode=mode
 				game.Bosses.resolve(game,now)
-				check(player.hp==100 and game.Bosses.exposed(game,now),"phase boss resolves and leaves its damage window")
+				check(PlayerVitals.current_hp(player)==100 and game.Bosses.exposed(game,now),"phase boss resolves and leaves its damage window")
 		game.enemy_mutations=0
 		game.leader_brain.lair_open={"kind":"core_exposed","until":now+2000}
 		var before: int=game.enemy_hp
@@ -211,9 +213,9 @@ func reinforcements() -> void:
 		var warnings:=Pressure.hints(game,now)
 		check(not warnings.is_empty() and warnings[0].remaining==3.0,"reinforcements are announced three seconds ahead")
 		game.update_pressure(now+2999)
-		check(game.scouts.is_empty() and player.hp==100,"no arrivals or damage before the warning resolves")
+		check(game.scouts.is_empty() and PlayerVitals.current_hp(player)==100,"no arrivals or damage before the warning resolves")
 		game.update_pressure(now+3000)
-		check(not game.scouts.is_empty() and player.hp==100,"warning resolves into a real pack with no automatic damage")
+		check(not game.scouts.is_empty() and PlayerVitals.current_hp(player)==100,"warning resolves into a real pack with no automatic damage")
 		for scout in game.scouts:
 			var regular := Balance.scout_hp(game.Enemies.get_kind(scout.kind),19,1,int(scout.growth),1)
 			check(scout.summoned and scout.max_hp==roundi(regular*.75),"arrivals use the reduced non-rewarding HP budget")

@@ -1,5 +1,6 @@
 extends RefCounted
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Status = preload("res://combat_status.gd")
 const Mark = preload("res://core_strike_mark.gd")
 const Contact = preload("res://weapon_contact.gd")
@@ -136,9 +137,9 @@ static func wave(game: Node, id: int, player: Dictionary, cast: Dictionary, now:
 				var ally: Dictionary = game.players[peer]
 				if not cast.next_hit.has(peer) and game.Life.alive(ally) and wave_reaches(game.battlefield, origin, previous, crest, ally.pos, width):
 					cast.next_hit[peer] = true
-					var previous_health := float(ally.hp)
+					var previous_health := PlayerVitals.current_hp(ally)
 					affect_ally(game, ally, phase.ally, now, int(cast.return_heal_hp), skill.id)
-					if float(ally.hp) > previous_health and not Balance.Preview.enabled:
+					if PlayerVitals.current_hp(ally) > previous_health and not Balance.Preview.enabled:
 						game.emit_combat_event("proc", "siphon", crest, ally.pos, .55, Color(skill.color), 0.0, peer)
 		if fraction < 1.0:
 			cast.wave_fraction = fraction

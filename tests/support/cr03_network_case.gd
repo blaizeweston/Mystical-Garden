@@ -1,5 +1,7 @@
 extends RefCounted
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Mode = preload("res://combat_ruleset.gd")
@@ -219,9 +221,9 @@ func host(menu: Node) -> void:
 	local[Cooldowns.STATE] = local[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	game.use_class_skill(1,local,0)
 	ally.hurt_until=0
-	var before: float=ally.hp
+	var before: float=PlayerVitals.current_hp(ally)
 	game.apply_enemy_hit(protected,ally,Time.get_ticks_msec(),1)
-	check(ally.hp==before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==1 and e.details.recipient==protected and e.quality=="refined"),"actual guest block uses host refined Catalyst")
+	check(PlayerVitals.current_hp(ally)==before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==1 and e.details.recipient==protected and e.quality=="refined"),"actual guest block uses host refined Catalyst")
 	if connected_warden_case and not await exercise_connected_host(game,local,ally,protected,rows):
 		return
 	if connected_weaver_case and not await exercise_weaver_host(game,weaver_id,floor_entry,target,rows):
@@ -239,9 +241,9 @@ func host(menu: Node) -> void:
 		warded.hurt_until=0
 		mark("wood-guard-"+str(ward_guest))
 		if not check(await until(func():return warded.guard_charges>0),"native remote Q arms Wood Ward"):return
-		var hp_before: float=warded.hp
+		var hp_before: float=PlayerVitals.current_hp(warded)
 		game.apply_enemy_hit(ward_guest,warded,Time.get_ticks_msec(),2,0,game.enemy_pos)
-		check(warded.hp==hp_before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==ward_guest and e.primary_affinity=="wood" and e.quality=="ordinary"),
+		check(PlayerVitals.current_hp(warded)==hp_before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==ward_guest and e.primary_affinity=="wood" and e.quality=="ordinary"),
 			"real Wood Ward bursts with its own provenance after the Frost Ward")
 		check(warded.get("affinity_bark_grants",[]).any(func(grant):return grant.actor==ward_guest and grant.quality=="ordinary"),"Wood Ward retains ordinary source capacity")
 	for index in extra_cores.size():
@@ -294,9 +296,9 @@ func host(menu: Node) -> void:
 				check(await until(func():return read("bark-seen-"+str(source))=="ok"),"guest receives Bark presentation through authoritative details")
 			"vital":
 				var bonus: int=preload("res://affinity_build.gd").slot("core",visitor.weapon).potency_profile.values.bonus_hp
-				check(local.max_hp==native_max+bonus and local.get("affinity_vital_sources",{}).has("%d/core"%source),
+				check(PlayerVitals.maximum_hp(local)==native_max+bonus and local.get("affinity_vital_sources",{}).has("%d/core"%source),
 					"guest Vital Bloom applies its quality to host")
-				mark("vital-"+str(source),str(visitor.max_hp))
+				mark("vital-"+str(source),str(PlayerVitals.maximum_hp(visitor)))
 				check(await until(func():return read("vital-seen-"+str(source))=="ok"),"Vital capacity reaches guest through authoritative vitals")
 	if native_graft_case:
 		check(game.trait_events.any(func(e):return e.get("graft_source",{}).get("component_id")=="monster:ashen_hart")
@@ -536,11 +538,11 @@ func exercise_connected_host(game: Node, local: Dictionary, player: Dictionary, 
 	if not check(await until(func():return player.get("warden_block",{}).get("focus")=="vanguard"),
 		"actual remote Q casts Thorn Counter after crossing lanes"):return false
 	var now := Time.get_ticks_msec()
-	var hp: int = player.hp
+	var hp: int = PlayerVitals.current_hp(player)
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, now+1000)
 	game.apply_enemy_hit(id,player,now,4,0,game.enemy_pos)
 	var blocks := func():return events.filter(func(e):return e.kind=="actual_block" and e.source_actor==id)
-	check(player.hp==hp and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)==now and player.get("warden_sanctuary",{}).get("until",0)>now
+	check(PlayerVitals.current_hp(player)==hp and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)==now and player.get("warden_sanctuary",{}).get("until",0)>now
 		and player.get("warden_holdfast",{}).get("actor")==id and local.get("warden_holdfast",{}).get("actor")==id
 		and blocks.call().size()==1 and blocks.call()[0].quality=="refined","remote Q block grants Holdfast, creates Sanctuary and runs one source-owned Catalyst")
 	local.guard_until=0
@@ -722,9 +724,9 @@ func exercise_oracle_host(game: Node,id: int,entry: Vector3) -> bool:
 	var oracle: Dictionary = game.players[id]
 	var host_player: Dictionary = game.players[1]
 	oracle.pos=entry
-	oracle.hp=40
+	oracle[PlayerVitals.STATE] = oracle[PlayerVitals.STATE].with_hp(40)
 	host_player.pos=entry
-	host_player.hp=60
+	host_player[PlayerVitals.STATE] = host_player[PlayerVitals.STATE].with_hp(60)
 	host_player.guard_until=0
 	host_player.guard_charges=0
 	oracle[Cooldowns.STATE] = oracle[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
@@ -735,7 +737,7 @@ func exercise_oracle_host(game: Node,id: int,entry: Vector3) -> bool:
 	var q_ready := func() -> bool:
 		var now := Time.get_ticks_msec()
 		var blessing := Omens.strongest(game,host_player,Oracle.SECOND_BREATH,now,id)
-		return not blessing.is_empty() and host_player.hp>60 and read("oracle-q-seen")=="ok"
+		return not blessing.is_empty() and PlayerVitals.current_hp(host_player)>60 and read("oracle-q-seen")=="ok"
 	if not check(await until(q_ready,3200),"guest Oracle Q heals host and both observe the source-owned Blessing"):return false
 	mark("oracle-r")
 	var r_ready := func() -> bool:
@@ -743,15 +745,15 @@ func exercise_oracle_host(game: Node,id: int,entry: Vector3) -> bool:
 		return not Omens.strongest(game,host_player,Oracle.MERCY,now,id).is_empty() \
 			and int(host_player.guard_until)>now and read("oracle-r-seen")=="ok"
 	if not check(await until(r_ready,2500),"remote Chime arms native Ward and projected Portent of Mercy"):return false
-	var before := int(host_player.hp)
+	var before := int(PlayerVitals.current_hp(host_player))
 	var now := Time.get_ticks_msec()
 	host_player.hurt_until=0
 	Frost.with_attacker(game,-1,game.apply_enemy_hit.bind(1,host_player,now,1.0))
-	check(host_player.guard_charges==0 and host_player.hp==before+6
+	check(host_player.guard_charges==0 and PlayerVitals.current_hp(host_player)==before+6
 		and not Omens.strongest(game,host_player,Oracle.MERCY,now,id).is_empty(),"remote Oracle Ward blocks and heals without spending a conditional recovery")
 	host_player.hurt_until=0
 	Frost.with_attacker(game,-1,game.apply_enemy_hit.bind(1,host_player,now+1,1.0))
-	check(host_player.hp==before+4 and Omens.strongest(game,host_player,Oracle.MERCY,now+1,id).is_empty()
+	check(PlayerVitals.current_hp(host_player)==before+4 and Omens.strongest(game,host_player,Oracle.MERCY,now+1,id).is_empty()
 		and not Omens.strongest(game,host_player,Oracle.SECOND_BREATH,now+1,id).is_empty(),
 		"host takes one real hit and only the stronger remote recovery responds")
 	mark("oracle-damage-seen")
@@ -1154,8 +1156,7 @@ func verify_current_snapshot_host(game: Node, ids: Array, local: Dictionary) -> 
 	game.set_meta(&"snapshot_witness",func(row):record_snapshot(witnesses,row))
 	# Two nonlethal authority hits within one frame. There is no intervening
 	# fast snapshot of the partially depleted armor or first HP value.
-	local.hp=250
-	local.max_hp=250
+	local[PlayerVitals.STATE] = PlayerVitals.Health.new(250,250)
 	local.guard_until=0
 	local.guard_charges=0
 	var now := Time.get_ticks_msec()
@@ -1163,9 +1164,9 @@ func verify_current_snapshot_host(game: Node, ids: Array, local: Dictionary) -> 
 		local.hurt_until=0
 		game.apply_enemy_hit(1,local,now,float(hp)/game.Life.Preview.scale(),0,game.enemy_pos)
 	var burst: Array = game.combat_events.filter(func(e):return e.shape=="wood_burst" and e.get("label")=="Bark break")
-	check(not local.has(wood.GRANTS) and burst.size()==1 and local.hp<250 and local.hp>0,"host consumes Bark once and emits one break response")
+	check(not local.has(wood.GRANTS) and burst.size()==1 and PlayerVitals.current_hp(local)<250 and PlayerVitals.current_hp(local)>0,"host consumes Bark once and emits one break response")
 	if burst.is_empty():return
-	mark("snapshot-full-state", "%d:%d" % [int(local.hp),int(burst[0].id)])
+	mark("snapshot-full-state", "%d:%d" % [int(PlayerVitals.current_hp(local)),int(burst[0].id)])
 	var epoch: int=game.combat_epoch
 	if not check(await until(func():return ids.all(func(id):return read("snapshot-full-seen-"+str(id))=="ok"),3500),
 		"full-occupancy snapshots converge and the old Bark status is removed on each guest"): return

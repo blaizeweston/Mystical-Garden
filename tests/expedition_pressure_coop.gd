@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Pressure=preload("res://expedition_pressure.gd")
 var game: Node
 var base: String
@@ -34,7 +36,7 @@ func host_run() -> void:
  game.set_physics_process(false)
  print("pressure host admitted")
  game.destination=0;game.encounter_number=19;game.depth=1;game.difficulty_cycle=1;game.map_seed=91273;game.reset_encounter();game.scouts.clear();game.enemy_hp=10
- for p in game.players.values():p.wild=true;p.fallen=false;p.hp=10;p.pos=game.battlefield.entry
+ for p in game.players.values():p.wild=true;p.fallen=false;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=game.battlefield.entry
  var now:=Time.get_ticks_msec();game.pressure_at=now;game.update_pressure(now)
  check(not Pressure.hints(game).is_empty(),"host plans warning")
  print("pressure host warning ready")
@@ -50,7 +52,7 @@ func host_run() -> void:
  check(game.encounter_cleared() and Pressure.hints(game).is_empty(),"clear cancels pending wave")
  mark("cleared")
  check(await until(func():return marked("done")),"guest confirmed clear")
- for p in game.players.values():check(p.hp==10,"no automatic pressure damage")
+ for p in game.players.values():check(PlayerVitals.current_hp(p)==10,"no automatic pressure damage")
 func guest_run() -> void:
  check(game.join_game("127.0.0.1")==OK,"guest connects")
  check(await until(func():return marked("warning") and game.client_details.get("attack_hints",[]).any(func(h):return h.role=="reinforcement")),"received warning on existing reliable owner snapshot")

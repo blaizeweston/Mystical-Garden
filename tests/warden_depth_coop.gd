@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 var game: Node
 var role: String
@@ -37,7 +39,7 @@ func host_run() -> void:
  p.weapon=44;p.secondary=game.Seeds.DEFINITIONS[18].part;p.graft_part=game.Parts.HOOK
  check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.Q)>0),"guest sends counter skill")
  game.apply_enemy_hit(id,p,Time.get_ticks_msec(),1,0,game.enemy_pos)
- check(p.hp==10 and p.counter_until>0,"host creates counter after blocked monster hit")
+ check(PlayerVitals.current_hp(p)==10 and p.counter_until>0,"host creates counter after blocked monster hit")
  mark("counter-ready")
  check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.R)>0),"guest sends specialized charge")
  check(game.enemy_hp<95 and p.counter_until==0,"host resolves contact with counter and installed plant/graft")

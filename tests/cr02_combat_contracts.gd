@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Rules = preload("res://combat_ruleset.gd")
@@ -35,7 +36,7 @@ func run() -> void:
 	game.set_meta(Events.RECORD, func(event): recorded.append(event))
 	var player: Dictionary = game.players[1]
 	player.wild = true
-	player.hp = 30
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(30)
 	player.pos = Vector3.ZERO
 	game.enemy_hp = 50
 	game.enemy_pos = Vector3(0,0,-1)
@@ -134,19 +135,19 @@ func check_native_progression(game: Node, player: Dictionary) -> void:
 	var native: int = game.Life.native_maximum(game, player)
 	var vital = preload("res://vital_combat.gd")
 	var elapsed := 100
-	player.hp = native - 2
-	var before: float = player.hp
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(native - 2)
+	var before: float = player[PlayerVitals.STATE].hp()
 	var source := Events.begin(game,1,"form",{},vital.QUALITY.ordinary,["weapon_contact"],Time.get_ticks_msec()+5000)
 	vital.grant(game,source,1,elapsed)
 	profile.upgrades[0] = 1
 	game.restore_class_loadout(player)
 	var learned_hp: int = game.Life.Preview.hp(2)
-	check(player.max_hp == native + learned_hp + vital.QUALITY.ordinary.bonus_hp and player.hp == before,
+	check(player[PlayerVitals.STATE].max_hp() == native + learned_hp + vital.QUALITY.ordinary.bonus_hp and player[PlayerVitals.STATE].hp() == before,
 		"native learning updates maximum capacity without healing or baking in Vitality")
-	player.hp = player.max_hp
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].refilled()
 	player[vital.NEXT] = elapsed + 10000
 	vital.tick(game,elapsed + vital.DURATIONS.form)
-	check(player.max_hp == native + learned_hp and player.hp == float(player.max_hp),
+	check(player[PlayerVitals.STATE].max_hp() == native + learned_hp and player[PlayerVitals.STATE].hp() == float(player[PlayerVitals.STATE].max_hp()),
 		"Vitality expires to learned native capacity and clamps current HP")
 	var weapons := []
 	for index in Classes.DEFINITIONS.size():
@@ -174,7 +175,7 @@ func check_runtime_focuses(game: Node, player: Dictionary) -> void:
 			player.character = profile
 			player.frame = class_id
 			player.pos = Vector3.ZERO
-			player.hp = 30
+			player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(30)
 			player.catalyst = Parts.HEARTWOOD
 			player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 			player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)

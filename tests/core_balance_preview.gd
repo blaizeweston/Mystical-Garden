@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Core = preload("res://core_combat.gd")
 const Rules = preload("res://core_skill_rules.gd")
 const Effects = preload("res://core_skill_effects.gd")
@@ -67,7 +69,7 @@ func arena(species: String) -> void:
 	game.leader_brain.clear()
 	game.battlefield.barriers.clear()
 	player.merge({"pos":Vector3.ZERO,"facing":Vector3.FORWARD,"frame":0,"weapon_kind":0,
-		"wild":true,"hp":25,"max_hp":100,"fallen":false,"weapon":part(species),"secondary":0,"catalyst":0,
+		"wild":true,PlayerVitals.STATE:PlayerVitals.Health.new(25,100),"fallen":false,"weapon":part(species),"secondary":0,"catalyst":0,
 		"graft_part":0,"power":0,"technique":0,"run_upgrades":{},"core_ready_at":0,"core_cast_until":0,
 		"cast_until":0,"guard_charges":0,"guard_until":0},true)
 
@@ -185,31 +187,31 @@ func wave_and_drain() -> void:
 	player.catalyst=part("dewcap")
 	game.add_player(2)
 	var ally: Dictionary=game.players[2]
-	ally.merge({"profile_ready":true,"wild":true,"fallen":false,"hp":90,"max_hp":100,"pos":Vector3(0,0,-1)},true)
+	ally.merge({"profile_ready":true,"wild":true,"fallen":false,PlayerVitals.STATE:PlayerVitals.Health.new(90,100),"pos":Vector3(0,0,-1)},true)
 	player.run_upgrades={"core_riptide":1}
 	var live:=cast(2.6)
 	if live.is_empty(): return
 	Core.tick(game,live.armed)
 	Core.tick(game,int(live.armed)+700)
-	check(player.hp==25 and ally.hp==90,"outbound wave does not heal")
+	check(PlayerVitals.current_hp(player)==25 and PlayerVitals.current_hp(ally)==90,"outbound wave does not heal")
 	Core.tick(game,int(live.armed)+1400)
 	Core.tick(game,int(live.armed)+1500)
-	check(int(player.hp)-25 in range(18,23) and ally.hp==100,"return heals each ally once for 18–22 HP before overheal clamp")
+	check(int(PlayerVitals.current_hp(player))-25 in range(18,23) and PlayerVitals.current_hp(ally)==100,"return heals each ally once for 18–22 HP before overheal clamp")
 	check(Rules.describe(Core.equipped(player)).contains("Returning wave · Restores 18–22 HP"),"Catalyst is included in the resolved return heal")
 	arena("worldseed")
 	ally.pos=Vector3(0,0,1)
-	ally.hp=20
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(20)
 	live=cast()
 	if live.is_empty(): return
 	player.pos=live.center
 	Core.tick(game,live.armed)
 	Core.tick(game,int(live.armed)+850)
-	var canopy := int(player.hp)-25
-	check(canopy in range(18,23) and ally.hp==20,"canopy opens and heals only its first entrant")
+	var canopy := int(PlayerVitals.current_hp(player))-25
+	check(canopy in range(18,23) and PlayerVitals.current_hp(ally)==20,"canopy opens and heals only its first entrant")
 	ally.pos=live.center
 	Core.tick(game,int(live.armed)+1400)
 	Core.tick(game,int(live.armed)+1750)
-	check(int(player.hp)-25==canopy and int(ally.hp)-20==canopy,"late entrant receives the same canopy roll once")
+	check(int(PlayerVitals.current_hp(player))-25==canopy and int(PlayerVitals.current_hp(ally))-20==canopy,"late entrant receives the same canopy roll once")
 
 	arena("bloodbriar")
 	player.catalyst=part("gravemoss")
@@ -219,7 +221,7 @@ func wave_and_drain() -> void:
 	if live.is_empty(): return
 	Core.tick(game,live.armed)
 	var cap: int=live.skill.get("siphon_cap",2)
-	check(int(player.hp)-25 in range(cap*6-1,cap*6+2) and Rules.describe(live.skill).contains("%d–%d HP at the target cap"%[cap*6-1,cap*6+1]),"siphon rolls once around the cap based on damaged contacts")
+	check(int(PlayerVitals.current_hp(player))-25 in range(cap*6-1,cap*6+2) and Rules.describe(live.skill).contains("%d–%d HP at the target cap"%[cap*6-1,cap*6+1]),"siphon rolls once around the cap based on damaged contacts")
 
 
 func checkpoint() -> void:

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Slots = preload("res://save_slots.gd")
 const Profile = preload("res://character_profile.gd")
 const Progress = preload("res://progress.gd")
@@ -78,7 +80,7 @@ func run() -> void:
 	check(game.local_character.identity == identity and Profile.level(loaded.xp[0]) == 3 and loaded.plants[0] == 9, "legacy identity, rank and plant familiarity survive import")
 	check(loaded.upgrades[0] == 1 and loaded.loadouts[0].weapon == 1 and loaded.loadouts[0].parts[0] == 1, "legacy skill and loadout IDs survive import")
 	var expected_hp: int = 100 + Preview.effect_hp(game.weapon_stats(game.players[1]).get("max_health", 0))
-	check(game.players[1].max_hp == expected_hp, "legacy character resolves the new pool and preserves max-HP bonuses")
+	check(PlayerVitals.maximum_hp(game.players[1]) == expected_hp, "legacy character resolves the new pool and preserves max-HP bonuses")
 	check(game.progress.save_garden() == OK and game.local_character.save_profile() == OK, "imported slots can be saved with current content IDs")
 	check(FileAccess.get_sha256(storage.legacy_garden) == old_garden_hash and FileAccess.get_sha256(storage.legacy_character) == old_profile_hash, "legacy originals are byte-identical")
 	check(FileAccess.get_sha256(game.progress.path + ".pre-content-v2.bak") == old_garden_hash, "the in-place Garden conversion retains an original-format backup")
@@ -91,7 +93,7 @@ func run() -> void:
 		return
 	check(game.progress.knowledge == 31 and game.progress.stock[0] == 8 and game.progress.parts[1] == 3, "current Garden opens without losing data")
 	check(game.local_character.identity == current_profile.identity and game.local_character.data.xp[1] == 134 and game.players[1].frame == 1, "current profile keeps identity, whole Class XP and chosen class")
-	check(game.players[1].max_hp == 100, "current save also resolves 100 maximum HP")
+	check(PlayerVitals.maximum_hp(game.players[1]) == 100, "current save also resolves 100 maximum HP")
 	await close_world(game)
 	game = await open_save(storage, fixture, 0, "Earlier Warden")
 	if game != null:
@@ -186,7 +188,7 @@ func verify_new_garden() -> void:
 		await process_frame
 		return
 	check(game.progress.path == "user://saves/slot_1/garden.cfg" and FileAccess.file_exists(game.progress.path), "fresh Garden persists in the regular slot")
-	check(game.local_character.data.name == "Fresh Warden" and game.players[1].max_hp == 100, "the new Garden starts with the selected character and 100 HP")
+	check(game.local_character.data.name == "Fresh Warden" and PlayerVitals.maximum_hp(game.players[1]) == 100, "the new Garden starts with the selected character and 100 HP")
 	check(not DirAccess.dir_exists_absolute(Preview.STORAGE_PATH), "regular play leaves preview storage alone")
 	await close_world(game)
 

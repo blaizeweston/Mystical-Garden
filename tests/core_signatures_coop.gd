@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Core = preload("res://core_combat.gd")
 const Mark = preload("res://core_strike_mark.gd")
 var game: Node
@@ -69,7 +71,7 @@ func host_run() -> void:
 	game.enemy_stagger_until = Time.get_ticks_msec() + 25000
 	game.scouts.clear()
 	for p in [host,guest]:
-		p.wild=true;p.pos=Vector3.ZERO;p.hp=10
+		p.wild=true;p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
 	host.weapon = game.Parts.index_of("plant:star_orchid")
 	guest.frame = 2;guest.weapon_kind = 0
 	guest.weapon = game.Parts.index_of("rare:whispervine")

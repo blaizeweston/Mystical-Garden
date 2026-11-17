@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Lairs=preload("res://boss_lair_fights.gd")
 const Phases=preload("res://boss_phase_fights.gd")
 var failed=false
@@ -11,7 +13,7 @@ func run() -> void:
  var game=load("res://world.tscn").instantiate()
  game.progress.path="res://.godot/boss-roster-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character"
  root.add_child(game);game.set_process(false);game.set_physics_process(false)
- var p: Dictionary=game.players[1];p.wild=true;p.hp=10;p.max_hp=10
+ var p: Dictionary=game.players[1];p.wild=true;p[PlayerVitals.STATE] = PlayerVitals.Health.new(10, 10)
  check(game.Enemies.all().size()==24 and game.Parts.MONSTER_DEFINITIONS.size()==24,"twenty regular enemies plus four bosses and matching components")
  var normal={}
  for floor_number in range(1,40):
@@ -44,7 +46,7 @@ func run() -> void:
   check(game.boss_kind==kind and game.used_bosses.size()==count,"combat reset preserves floor decision")
   var packet: PackedInt32Array=game.campaign_snapshot()
   check(packet[game.EncounterConfig.BOSS_KIND]==kind,"public map descriptor in snapshot")
-  p.wild=true;p.fallen=false;p.pos=Vector3(0,0,2);p.hp=10;p.hurt_until=0
+  p.wild=true;p.fallen=false;p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0
   for move in game.Enemies.get_kind(kind).moves:
    game.enemy_pos=Vector3(0,0,5);game.enemy_hazards.clear()
    if Lairs.Routes.supports(kind):

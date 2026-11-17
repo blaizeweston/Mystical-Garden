@@ -1,5 +1,6 @@
 extends RefCounted
 ## Native Reaper preparations. Keys stay in the authoritative combat actor.
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 const Balance = preload("res://class_skill_balance.gd")
 const Progression = preload("res://reaper_connected_tree.gd")
@@ -141,8 +142,8 @@ static func heal_lowest(game: Node, center: Vector3, count: int, hp: int, source
 	peers.sort_custom(func(a,b):
 		var first: Dictionary = game.players[a]
 		var second: Dictionary = game.players[b]
-		var left := float(first.hp)*float(second.max_hp)
-		var right := float(second.hp)*float(first.max_hp)
+		var left := PlayerVitals.current_hp(first)*float(PlayerVitals.maximum_hp(second))
+		var right := PlayerVitals.current_hp(second)*float(PlayerVitals.maximum_hp(first))
 		return a < b if left == right else left < right)
 	for id in peers.slice(0,count):
 		game.Life.Sustain.restore(game,game.players[id],hp,source)

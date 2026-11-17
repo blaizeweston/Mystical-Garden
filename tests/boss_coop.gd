@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Lairs=preload("res://boss_lair_fights.gd")
 const Routes=preload("res://boss_lair_routes.gd")
 const Orchard=preload("res://orchard_moves.gd")
@@ -36,7 +38,7 @@ func host_run() -> void:
  for kind in range(20,24):
   game.destination=0;game.encounter_number=20+kind-20;game.depth=kind-19;game.map_seed=91661+kind
   game.wild_item_drops.clear();game.boss_floors[str(game.encounter_number)]=kind;game.used_bosses.append(kind);game.reset_encounter();game.scouts.clear();game.enemy_stagger_until=Time.get_ticks_msec()+60000
-  for player in game.players.values(): player.wild=true;player.fallen=false;player.hp=10;player.pos=Vector3(0,0,1)
+  for player in game.players.values(): player.wild=true;player.fallen=false;player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,1)
   p.graft_part=game.Parts.monster_part(kind);p.run_upgrades={"trophy_"+game.Enemies.get_kind(kind).id:1}
   check(await until(func():return marked("view-"+str(kind))),"guest receives boss and graft "+str(kind))
   if Routes.supports(kind):await host_lair(kind,id)
@@ -74,7 +76,7 @@ func host_lair(kind: int, id: int) -> void:
  player.pos=escape
  game.Bosses.resolve(game,Time.get_ticks_msec())
  check(await until(func():return marked("release-"+str(kind))),"guest received the actual strike state")
- check(player.hp==10,"safe route also works for guest on host authority")
+ check(PlayerVitals.current_hp(player)==10,"safe route also works for guest on host authority")
  player.pos=Vector3(0,0,1)
  if kind==Routes.ORCHARD:
   game.players[1].pos=player.pos
@@ -85,7 +87,7 @@ func host_lair(kind: int, id: int) -> void:
   check(await until(func():return marked("cage-warning")),"guest receives the cage and its gaps")
   player.pos=Lairs.escape(game,plan,player.pos,now)
   game.Bosses.resolve(game,Time.get_ticks_msec())
-  check(player.hp==10 and game.players[1].hp==8,"authority respects the gap while striking the center")
+  check(PlayerVitals.current_hp(player)==10 and PlayerVitals.current_hp(game.players[1])==8,"authority respects the gap while striking the center")
   check(await until(func():return marked("cage-release")),"guest sees the committed impact")
 
 func guest_lair(kind: int, id: int) -> void:
@@ -166,7 +168,7 @@ func host_nest(id: int) -> void:
  check(await until(func():return marked("rib-grace")),"guest receives the grace cue")
  game.leader_brain.nest_shift.until=0
  Phases.advance_phase(game,1,Time.get_ticks_msec())
- check(not game.battlefield.occupied(player.pos,.34) and player.hp==10,"authority relocates the guest safely")
+ check(not game.battlefield.occupied(player.pos,.34) and PlayerVitals.current_hp(player)==10,"authority relocates the guest safely")
  check(await until(func():return marked("nest-phase")),"guest receives the committed new collision layout")
  player.pos=Vector3(0,0,7)
  game.players[1].pos=Vector3(0,0,7)
@@ -209,7 +211,7 @@ func host_memory(id: int) -> void:
  check(await until(func():return marked("memory-lanes")),"guest sees both lanes")
  game.Bosses.resolve(game,Time.get_ticks_msec())
  check(await until(func():return marked("memory-exposed")),"guest sees the memory punish window")
- check(game.players[id].hp==10,"middle gap is safe on the authority")
+ check(PlayerVitals.current_hp(game.players[id])==10,"middle gap is safe on the authority")
  game.leader_brain.lair_open.until=0
  game.progress.wilds_memory.score={"burst":16}
  Phases.advance_phase(game,1,Time.get_ticks_msec())

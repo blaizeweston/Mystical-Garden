@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 var game: Node
 var role: String
 var base: String
@@ -33,7 +35,7 @@ func host_run() -> void:
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"compatible guest joins");return
  for seed_value in [91247,91249,91255]:
   game.destination=0;game.depth=2;game.encounter_number=2;game.map_seed=seed_value;game.boss_kind=-1;game.reset_encounter()
-  for p in game.players.values():p.wild=true;p.pos=game.battlefield.entry;p.hp=10
+  for p in game.players.values():p.wild=true;p.pos=game.battlefield.entry;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
   game.enemy_hp=100;game.enemy_ready_at=Time.get_ticks_msec()+60000
   for scout in game.scouts:scout.ready=Time.get_ticks_msec()+60000;scout.rooted_until=Time.get_ticks_msec()+60000
   var f:=ConfigFile.new();f.set_value("floor","entry",game.battlefield.entry);f.set_value("floor","exit",game.battlefield.advance);f.set_value("floor","mask",var_to_bytes(game.battlefield.surface.cells).hex_encode().sha256_text());f.save(base+str(seed_value))

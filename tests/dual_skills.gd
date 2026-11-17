@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 const Skills=preload("res://skill_catalog.gd")
 const Character=preload("res://character_profile.gd")
@@ -31,8 +33,8 @@ func arena(c: int,mask: int=0) -> Dictionary:
 	p.wild=true
 	p.pos=Vector3(0,0,-1.5)
 	p.facing=Vector3.BACK
-	p.hp=5
-	p.max_hp=10
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(5)
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_native_max_hp(10)
 	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	p.strike_at=0
@@ -82,8 +84,8 @@ func run():
 				"reap":
 					game.update_projectiles(Time.get_ticks_msec()+1000)
 					check(p.pos.distance_to(before)>.1 and game.enemy_hp<80,"Reaping Step approaches safely")
-				"siphon": check(game.enemy_hp<80 and p.hp>5,"Siphon Cut drains health")
-				"heal": check(p.hp>5 and p.renewal_until>Time.get_ticks_msec(),"Renewal heals and grants regrowth")
+				"siphon": check(game.enemy_hp<80 and PlayerVitals.current_hp(p)>5,"Siphon Cut drains health")
+				"heal": check(PlayerVitals.current_hp(p)>5 and p.renewal_until>Time.get_ticks_msec(),"Renewal heals and grants regrowth")
 				"ward": check(p.guard_charges==1,"Warding Chime guards")
 			var seq: int=p.skill_fx_seq
 			game.send_garden_action("class_skill" if slot==0 else "class_skill_two")
@@ -112,7 +114,7 @@ func run():
 					check(game.rooted_until>Time.get_ticks_msec(),"Mycelial Snare roots after arming")
 				"salvo": check(game.enemy_hp<80,"Piercing Salvo damages")
 				"windstep": check(p.pos.z< -1.6 and p.focus_until>Time.get_ticks_msec(),"Windstep withdraws and empowers")
-				"bloodmoon": check(game.enemy_hp<80 and p.hp>5,"Blood Moon drains")
+				"bloodmoon": check(game.enemy_hp<80 and PlayerVitals.current_hp(p)>5,"Blood Moon drains")
 				"sanctuary": check(p.renewal_until>Time.get_ticks_msec() and p.guard_charges>=1,"Sanctuary protects and regenerates")
 				"judgement": check(game.enemy_hp<80 and game.moss_recovery_bonus>=700,"Judgement prolongs recovery")
 	check(names.size()==20,"ten distinct replacement skills")

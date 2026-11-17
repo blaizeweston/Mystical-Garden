@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Attacks = preload("res://enemy_attack.gd")
 const Core = preload("res://core_combat.gd")
 const Effects = preload("res://core_skill_effects.gd")
@@ -42,7 +44,7 @@ func setup(kind: int, profile: Dictionary) -> Dictionary:
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
 	player.wild = true
-	player.hp = 10
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
 	player.hurt_until = 0
 	player.pos = Vector3(0, 0, -3.4)
 	return add_actor(kind, Vector3.ZERO, 1)
@@ -130,15 +132,15 @@ func validate_result(kind: int, actor: Dictionary, attack: Dictionary) -> void:
 	match kind:
 		6, 14:
 			var expected := 3 if kind == 6 else 2
-			check(game.enemy_hazards.size() == expected and player.hp == 10, "only marked hazard beds are created")
+			check(game.enemy_hazards.size() == expected and PlayerVitals.current_hp(player) == 10, "only marked hazard beds are created")
 		11:
-			check(actor.pos.is_equal_approx(attack.to) and player.hp == 10, "Grazer moves without hidden damage")
+			check(actor.pos.is_equal_approx(attack.to) and PlayerVitals.current_hp(player) == 10, "Grazer moves without hidden damage")
 			var ally: Dictionary = game.scouts[1]
 			check(not Support.shelter_source(game, 1, ally.pos, ally.pos, actor.windup, true).is_empty(), "new canopy shelters the same escort")
 		16:
 			check(game.wild_item_drops.is_empty() and actor.get("stolen", []).size() == 1, "learned grab takes only the locked drop")
 		_:
-			check(player.hp < 10, "warned impact is live for " + str(attack.variant))
+			check(PlayerVitals.current_hp(player) < 10, "warned impact is live for " + str(attack.variant))
 	if kind == 1:
 		check(actor.windup == 0, "learned pulse consumes the retry without an ordinary repeat")
 
@@ -227,7 +229,7 @@ func check_counterplay() -> void:
 		return
 	actor.rooted_until = int(actor.windup) + 1
 	game.resolve_scout(actor, game.Enemies.get_kind(2), actor.windup)
-	check(actor.pos == Vector3.ZERO and player.hp == 10 and game.combat_events.any(func(e): return e.shape == "stopped"), "a new root stops movement and shows the cancel cue")
+	check(actor.pos == Vector3.ZERO and PlayerVitals.current_hp(player) == 10 and game.combat_events.any(func(e): return e.shape == "stopped"), "a new root stops movement and shows the cancel cue")
 	check(not game.combat_events.any(func(e): return e.kind == "enemy_release"), "canceled charge cannot show a successful impact")
 	actor = setup(2, profile)
 	learn(actor, profile, now)
@@ -237,7 +239,7 @@ func check_counterplay() -> void:
 			"expires": actor.windup + 500, "from": Vector3(-2, 0, -1.8), "to": Vector3(2, 0, -1.8),
 			"skill": {"mechanic": "line_trap", "radius": .35}}})
 		game.resolve_scout(actor, game.Enemies.get_kind(2), actor.windup)
-		check(actor.pos == Vector3.ZERO and player.hp == 10, "a live Thorn Line placed during the warning stops a ground charge")
+		check(actor.pos == Vector3.ZERO and PlayerVitals.current_hp(player) == 10, "a live Thorn Line placed during the warning stops a ground charge")
 	actor = setup(2, profile)
 	learn(actor, profile, now)
 	game.battlefield.barriers.append(Rect2(-2, -2.8, 4, 1.6))

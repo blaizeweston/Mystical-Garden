@@ -7,6 +7,7 @@ const Traits = preload("res://combat_traits.gd")
 const UI = preload("res://root_ui.gd")
 const Cards = preload("res://affinity_cards.gd")
 const Preview = preload("res://combat_balance_preview.gd")
+const PlayerVitals = preload("res://player_vitals.gd")
 const EXTRA_STATS := {
 	"windup_damage": ["Wind-up damage", " hp", 1.0],
 	"heal_on_kill": ["Health on kill", " hp", 1.0],
@@ -239,7 +240,7 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 		"Maximum attack speed is %s attacks/sec." % Preview.attack_speed(Cards.STRIKE_MIN_MS)])
 	rows.append(["Weapon targets", compared(stats.targets, base.targets)])
 	var base_hp: int=world.Life.Preview.hp(world.MAX_HEALTH)
-	rows.append(["Max HP", compared(player.get("max_hp", base_hp), base_hp, " HP" if world.Life.Preview.enabled else "")])
+	rows.append(["Max HP", compared(PlayerVitals.maximum_hp(player, base_hp), base_hp, " HP" if world.Life.Preview.enabled else "")])
 	var dodge_ms := maxi(Cards.DODGE_MIN_MS, world.DODGE_COOLDOWN_MS - int(stats.get("dodge_cooldown", 0)))
 	rows.append(["Dodge cooldown", compared(dodge_ms / 1000.0, world.DODGE_COOLDOWN_MS / 1000.0, " s"),
 		"Minimum dodge cooldown is %s s." % decimal(Cards.DODGE_MIN_MS / 1000.0)])

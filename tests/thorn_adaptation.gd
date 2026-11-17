@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Core = preload("res://core_combat.gd")
 const Thorn = preload("res://thorn_adaptation.gd")
 const Attacks = preload("res://enemy_attack.gd")
@@ -115,7 +117,7 @@ func run() -> void:
 	game.scouts.append(hound)
 	Core.tick(game, line.armed)
 	player.pos = landing
-	player.hp = 10
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
 	hound.engaged = true
 	game.battlefield.barriers = [Rect2(-.45, center.z + .55, .9, .3)]
 	check(Thorn.plan(game, hound, landing, line.armed).is_empty(), "a covered landing lane is rejected")
@@ -130,7 +132,7 @@ func run() -> void:
 		player.pos = origin.lerp(landing, .5) + Vector3.RIGHT * 2.0
 		game.update_scouts(.01, line.armed + Thorn.WINDUP)
 		Core.tick(game, line.armed + Thorn.WINDUP)
-		check(hound.pos == landing and player.hp == 10, "a player can bait the leap and step aside")
+		check(hound.pos == landing and PlayerVitals.current_hp(player) == 10, "a player can bait the leap and step aside")
 		check(hound.rooted_until == 0 and Core.hints(game).size() == 1, "the chosen line survives the airborne crossing")
 		check(Thorn.plan(game, hound, origin, line.armed + Thorn.WINDUP).is_empty(), "one leap per hound")
 
@@ -147,7 +149,7 @@ func run() -> void:
 	check(game.enemy_winding_up and Elite.hints(game).any(func(hint): return hint.get("cue") == Thorn.CUE), "gate elite shares the warning")
 	game.rooted_until = line.armed + Thorn.WINDUP + 500
 	Elite.tick(game, .01, line.armed + Thorn.WINDUP)
-	check(game.enemy_pos == center - Vector3.BACK * 1.45 and player.hp == 10, "a root applied during windup cancels the elite vault")
+	check(game.enemy_pos == center - Vector3.BACK * 1.45 and PlayerVitals.current_hp(player) == 10, "a root applied during windup cancels the elite vault")
 	game.queue_free()
 	await process_frame
 	if not failed:

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Preview = preload("res://combat_balance_preview.gd")
 const Summary = preload("res://run_summary_panel.gd")
 const SPREADS := [2,2,3, 2,1,3, 2,4,2, 1,3,2, 2,3,1]
@@ -28,7 +30,7 @@ func run() -> void:
 	game.set_physics_process(false)
 	var p: Dictionary=game.players[1]
 	p.wild=true
-	p.hp=100
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100)
 	p.pos=Vector3.ZERO
 	p.mouse_aim=true
 	p.facing=Vector3.BACK
@@ -178,12 +180,12 @@ func verify_components(game: Node,p: Dictionary) -> void:
 	check(game.enemy_hp==600-roll-extra,"confirmed wind-up bonus matches the resolved amount")
 	equip(p,0,0)
 	p.graft_part=game.Parts.monster_part(6)
-	p.hp=60
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(60)
 	clear_targets(game,Vector3(0,0,1.4))
 	game.scouts.append(game.make_scout(0,Vector3(.4,0,1),1))
 	game.scouts[0].hp=3
 	game.apply_weapon_hit(p,0,p.pos,game.weapon_stats(p),2000)
-	check(int(p.hp) in range(68,73),"Orchid Sac rolls 8–12 HP once on a confirmed kill")
+	check(int(PlayerVitals.current_hp(p)) in range(68,73),"Orchid Sac rolls 8–12 HP once on a confirmed kill")
 
 
 func verify_graft(game: Node,p: Dictionary) -> void:
@@ -212,14 +214,14 @@ func verify_graft(game: Node,p: Dictionary) -> void:
 	var carapace: int=game.Parts.monster_part(11)
 	game.encounter_number=24
 	p.carried_parts[carapace]=1
-	p.hp=70
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(70)
 	install_graft(game,p,carapace)
-	check(p.graft_part==carapace and p.max_hp==120 and p.hp==70,"the new graft grants capacity without healing")
+	check(p.graft_part==carapace and PlayerVitals.maximum_hp(p)==120 and PlayerVitals.current_hp(p)==70,"the new graft grants capacity without healing")
 	game.encounter_number=32
 	p.carried_parts[antler]=1
-	p.hp=110
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(110)
 	install_graft(game,p,antler)
-	check(p.graft_part==antler and p.max_hp==100 and p.hp==100,"losing the graft clamps health to the new capacity")
+	check(p.graft_part==antler and PlayerVitals.maximum_hp(p)==100 and PlayerVitals.current_hp(p)==100,"losing the graft clamps health to the new capacity")
 
 
 func install_graft(game: Node,p: Dictionary,part: int) -> void:

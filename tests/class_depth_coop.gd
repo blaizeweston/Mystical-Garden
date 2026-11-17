@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 var game: Node
 var role: String
@@ -37,7 +39,7 @@ func host_run() -> void:
    var phase: String=str(c)+str(right)
    game.battlefield.configure(0,1);game.enemy_hp=100;game.enemy_pos=Vector3.ZERO;game.enemy_stagger_until=Time.get_ticks_msec()+60000;game.enemy_traits.clear();game.trait_events.clear();game.scouts.clear();game.combat_epoch+=1
    p.character.active_class=c;p.character.xp[c]=2600;p.character.upgrades.fill(0);p.character.upgrades[c]=mask(right);p.frame=c;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.run_upgrades={}
-   for player in game.players.values():player.wild=true;player.pos=Vector3(0,0,-1.5);player.hp=5;player.fallen=false
+   for player in game.players.values():player.wild=true;player.pos=Vector3(0,0,-1.5);player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(5);player.fallen=false
    p.facing=Vector3.BACK
    p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
    for key in ["guard_until","front_guard_until","counter_guard_until","counter_until","hurt_until","decoy_ready","prepared_mark_until"]:p[key]=0
@@ -47,7 +49,7 @@ func host_run() -> void:
    mark("q-"+phase)
    check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.R)>0),"guest R "+phase)
    await create_timer(.8).timeout
-   check(game.enemy_hp<100 or (c==4 and not right and p.hp>5),"actual damage or support "+phase)
+   check(game.enemy_hp<100 or (c==4 and not right and PlayerVitals.current_hp(p)>5),"actual damage or support "+phase)
    mark("cast-"+phase)
    check(await until(func():return marked("seen-"+phase)),"guest confirms HUD "+phase)
  mark("done");check(await until(func():return game.players.size()==1),"guest leaves");game.leave_game("Class depth fixture complete")

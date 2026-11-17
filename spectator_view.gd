@@ -1,5 +1,6 @@
 extends Node
 const Life=preload("res://expedition_life.gd")
+const PlayerVitals = preload("res://player_vitals.gd")
 var game: Node
 var target_id:=0
 var panel: PanelContainer
@@ -33,7 +34,7 @@ func focus_id(local_id: int) -> int:
  var cost: String="%d maximum HP"%Life.Preview.revive_cost() if Life.Preview.enabled else "one maximum heart"
  var watched: String=target.get("character",{}).get("name",target.get("display_name","ally"))
  if Life.Preview.enabled and not target.is_empty():
-  watched+=" · %d / %d HP"%[int(target.hp),int(target.max_hp)]
+  watched+=" · %d / %d HP"%[int(PlayerVitals.current_hp(target)),PlayerVitals.maximum_hp(target)]
  caption.text="FALLEN · Watching %s\nA teammate can revive you nearby with E.\nRevival sacrifices %s until the Garden."%[watched,cost]
  next_button.visible=ids.size()>1
  return target_id if target_id!=0 else local_id

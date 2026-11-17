@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Progression = preload("res://reaper_connected_tree.gd")
@@ -117,8 +118,7 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 		recipient.erase("affinity_ward_claims")
 		recipient.wild=peer in [1,8]
 		recipient.fallen=false
-		recipient.hp=70 if peer==1 else 20
-		recipient.max_hp=100
+		recipient[PlayerVitals.STATE] = PlayerVitals.Health.new(70.0 if peer==1 else 20.0,100)
 		if peer!=1:
 			recipient.pos=Vector3(-7,0,3)
 	events.clear()
@@ -148,15 +148,15 @@ func part(id: String) -> int:
 
 func focuses() -> void:
 	prepare(["blood_harvester","long_edge"],Vector3.ZERO,Vector3(3.1,0,0))
-	player.hp=40
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(40)
 	cast(0)
-	check(game.enemy_hp==280 and player.hp>=45 and player.hp<=47,"Long Edge extends Blood Harvest and the native self-drain stays capped per contact")
+	check(game.enemy_hp==280 and player[PlayerVitals.STATE].hp()>=45 and player[PlayerVitals.STATE].hp()<=47,"Long Edge extends Blood Harvest and the native self-drain stays capped per contact")
 	prepare(["blood_harvester","lingering_veil"])
 	var added := scout(Vector3(1,0,1))
 	var summoned := scout(Vector3(1,0,-1),300,true)
-	player.hp=40
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(40)
 	cast(0)
-	check(game.enemy_hp==280 and added.hp==280 and summoned.hp==280 and player.hp>=57 and player.hp<=59,
+	check(game.enemy_hp==280 and added.hp==280 and summoned.hp==280 and player[PlayerVitals.STATE].hp()>=57 and player[PlayerVitals.STATE].hp()<=59,
 		"Lingering Veil adds one counted drain contact, with summons ignored by native sustain")
 	check("additional contact" in Skills.resolve(3,0,player.character,true).description,"Blood Harvest has its own tooltip")
 
@@ -182,7 +182,7 @@ func focuses() -> void:
 	now=Time.get_ticks_msec()
 	game.apply_enemy_hit(8,ally,now,2)
 	game.apply_enemy_hit(8,ally,now+1,2)
-	check(ally.hp==20 and ally.guard_charges==0,"both native charges block with no second activation")
+	check(ally[PlayerVitals.STATE].hp()==20 and ally.guard_charges==0,"both native charges block with no second activation")
 	prepare(["gravekeeper","grave_ward"],Vector3.ZERO,Vector3(-2,0,0))
 	cast(0)
 	check(game.enemy_hp==300 and player.guard_charges==1 and player.affinity_ward_claims.size()==1,
@@ -271,9 +271,9 @@ func siphon_effects() -> void:
 	cast(1)
 	check(player[Cooldowns.STATE].deadline(Cooldowns.R)==0 and player[Reaper.SIPHON].nodes==["barbed_siphon"],"refused R preserves the earned Barbed preparation")
 	game.enemy_pos=Vector3(2,0,0)
-	player.hp=20
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(20)
 	cast(1)
-	check(game.enemy_hp==240 and player.hp>=29 and player.hp<=31 and not player.has(Reaper.SIPHON),"Barbed Siphon adds exactly 10 without multiplying the native drain")
+	check(game.enemy_hp==240 and player[PlayerVitals.STATE].hp()>=29 and player[PlayerVitals.STATE].hp()<=31 and not player.has(Reaper.SIPHON),"Barbed Siphon adds exactly 10 without multiplying the native drain")
 
 	prepare(FEAST)
 	player.catalyst=part("plant:frostbell")
@@ -344,12 +344,12 @@ func support() -> void:
 	ally.slow_until=Time.get_ticks_msec()+3000
 	ally.unrelated_until=123456789
 	cast(0)
-	check(ally.hp==28 and ally.slow_until==0 and ally.unrelated_until==123456789,
+	check(ally[PlayerVitals.STATE].hp()==28 and ally.slow_until==0 and ally.unrelated_until==123456789,
 		"Grave Offering heals for 8 and Clear the Veil clears only Slow")
 	prepare(DEFENSE,Vector3.ZERO,Vector3(-2,0,0))
 	ally.pos=Vector3(0,0,2.8)
 	cast(0)
-	check(ally.hp==20 and ally.guard_charges==1,"empty valid Q wards, with no damage-triggered Offering heal")
+	check(ally[PlayerVitals.STATE].hp()==20 and ally.guard_charges==1,"empty valid Q wards, with no damage-triggered Offering heal")
 	prepare(DANCE)
 	var rooted := scout(Vector3(2,0,1))
 	game.rooted_until=Time.get_ticks_msec()+4000
@@ -369,20 +369,20 @@ func support() -> void:
 	third.pos=Vector3(3,0,-1)
 	cast(0)
 	cast(1)
-	check(ally.hp==26 and second.hp==26 and third.hp==20 and player.hp>=79 and player.hp<=81,
+	check(ally[PlayerVitals.STATE].hp()==26 and second[PlayerVitals.STATE].hp()==26 and third[PlayerVitals.STATE].hp()==20 and player[PlayerVitals.STATE].hp()>=79 and player[PlayerVitals.STATE].hp()<=81,
 		"Last Rites functions without Grave Offering and selects only the first two visible lowest ratios")
 	check(ally.guard_charges==2 and second.guard_charges==1 and third.guard_charges==1,
 		"Wake Ward remains a distinct benefit without stacking onto the stronger native grant")
 	prepare(RITES)
 	ally.pos=Vector3(2,0,2.8)
-	ally.hp=1
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(1)
 	second.pos=Vector3(2,0,1)
 	second.wild=true
 	second.fallen=true
 	game.battlefield.barriers.assign([Rect2(1.6,1.7,.8,.8)])
 	cast(0)
 	cast(1)
-	check(player.hp>=85 and player.hp<=87 and ally.hp==1 and second.hp==20 and ally.guard_charges==0,
+	check(player[PlayerVitals.STATE].hp()>=85 and player[PlayerVitals.STATE].hp()<=87 and ally[PlayerVitals.STATE].hp()==1 and second[PlayerVitals.STATE].hp()==20 and ally.guard_charges==0,
 		"a sole eligible Reaper gets 6 plus drain, with blocked and fallen recipients excluded")
 
 func charges_and_void() -> void:

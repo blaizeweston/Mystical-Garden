@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Mode = preload("res://assets/terrain_m02/experimental/experiment_mode.gd")
 const Field = preload("res://assets/terrain_m02/experimental/experiment_wilds.gd")
 const Parts = preload("res://weapon_parts.gd")
@@ -456,7 +458,7 @@ func run() -> void:
 	var loss_kills: int = kill_count(player) + game.monster_rewards.pending_count()
 	check(not game.encounter_cleared() and game.monster_rewards.pending_count()>0,
 		"the next floor has pending XP before the run ends")
-	game.damage_player(game.HOST, player, int(player.hp))
+	game.damage_player(game.HOST, player, int(PlayerVitals.current_hp(player)))
 	await process_frame
 	check(game.monster_rewards.pending_count()==0 and class_xp(player) == loss_xp and kill_count(player) == loss_kills,
 		"losing the run commits the partial floor's tally")

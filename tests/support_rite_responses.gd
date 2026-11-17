@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Core = preload("res://core_combat.gd")
 const Attacks = preload("res://enemy_attack.gd")
 const Tactics = preload("res://wilds_skill_tactics.gd")
@@ -41,7 +43,7 @@ func fixture(kind: int, floor_number: int) -> Dictionary:
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
 	player.wild = true
-	player.hp = 10
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
 	player.hurt_until = 0
 	player.pos = Vector3(0, 0, 1.4)
 	return actor(kind, Vector3.ZERO)
@@ -108,7 +110,7 @@ func test_echo() -> void:
 			anchor.pos.z += 1.0
 		game.resolve_scout(cantor, game.Enemies.get_kind(3), cantor.windup)
 		check((int(anchor.haste_until) > 0) != displace and (int(far.haste_until) > 0) != displace, "toll buffs two near the anchor or cancels if it moves")
-		check(close.haste_until == 0 and outer.haste_until == 0 and player.hp == 10, "no caster-centered fallback or player damage")
+		check(close.haste_until == 0 and outer.haste_until == 0 and PlayerVitals.current_hp(player) == 10, "no caster-centered fallback or player damage")
 		Attacks.lock(game, cantor, "chant", player.pos, Time.get_ticks_msec() + 1400)
 		check(cantor.attack.get("variant") != Tactics.ECHO_TOLL, "Cantor can only attempt one learned rite")
 
@@ -152,4 +154,4 @@ func test_antiphon() -> void:
 		if dodge:
 			player.pos = anchor.pos + (anchor.pos - Vector3(plan.face)).normalized()
 		game.resolve_scout(choir, game.Enemies.get_kind(19), choir.windup)
-		check(player.hp == (10 if dodge else 9) and choir.windup == 0, "only the marked sector hits and it fires once")
+		check(PlayerVitals.current_hp(player) == (10 if dodge else 9) and choir.windup == 0, "only the marked sector hits and it fires once")

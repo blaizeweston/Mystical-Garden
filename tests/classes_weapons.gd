@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 const Catalog=preload("res://class_catalog.gd")
 const Parts=preload("res://weapon_parts.gd")
@@ -38,8 +40,8 @@ func arena(p: Dictionary):
 	p.renewal_until=0
 	p.guard_until=0
 	p.strike_at=0
-	p.max_hp=10
-	p.hp=5
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_native_max_hp(10)
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(5)
 	p.character=Character.blank()
 func run():
 	game=load("res://world.tscn").instantiate()
@@ -172,16 +174,16 @@ func run():
 			1: check(game.rooted_until>now,"Weaver binds")
 			2: check(game.enemy_hp<100,"Ranger volley attacks")
 			3: check(p.pos.distance_to(old)>.1 and game.enemy_hp<100,"Reaper safely steps and strikes")
-			4: check(p.hp>=7,"Oracle renews health")
+			4: check(PlayerVitals.current_hp(p)>=7,"Oracle renews health")
 	arena(p)
 	p.frame=4
 	p.catalyst=8
 	var cast_time:=Time.get_ticks_msec()
 	game.send_garden_action("class_skill")
 	check(int(p.get("renewal_until",0))-cast_time>=2300,"Catalyst duration extends Oracle regrowth")
-	var health: float=p.hp
+	var health: float=PlayerVitals.current_hp(p)
 	game.update_support_effects(cast_time+1100)
-	check(p.hp==health+1,"Renewal regrowth performs real healing")
+	check(PlayerVitals.current_hp(p)==health+1,"Renewal regrowth performs real healing")
 	var bonus_profile:=Character.blank()
 	bonus_profile.upgrades[0]=1 << 4
 	var extra_targets:=Weapons.resolve(0,0,[0,0,0],0,0,bonus_profile)

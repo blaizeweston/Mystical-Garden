@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Track=preload("res://expedition_track.gd")
 var failed:=false
 func check(ok: bool,message: String) -> void:
@@ -27,7 +29,7 @@ func run() -> void:
  check(track.growth==0,"newly reached root grows once")
  track._process(.6);game._process(.016)
  check(track.growth==1 and not track.is_processing(),"ordinary repeated snapshots do not restart root animation")
- p.fallen=true;p.hp=0;game._process(.016)
+ p.fallen=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(0);game._process(.016)
  check(track.visible,"fallen spectator retains party expedition context")
  p.wild=false;game._process(.016)
  check(not track.visible and not track.is_processing(),"returning to Garden clears animation and hides track")

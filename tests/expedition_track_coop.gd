@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 var game: Node
 var base: String
 var role: String
@@ -26,7 +28,7 @@ func run() -> void:
 func host_run() -> void:
  check(game.host_game()==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"admission");return
- for p in game.players.values():p.wild=true;p.pos=game.battlefield.entry;p.hp=10
+ for p in game.players.values():p.wild=true;p.pos=game.battlefield.entry;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
  game.enemy_hp=80;game.enemy_ready_at=Time.get_ticks_msec()+60000;game.enemy_winding_up=false;game.scouts.clear();game.encounter_number=6
  check(await until(func():return marked("six")),"guest sees checkpoint six")
  game.encounter_number=7

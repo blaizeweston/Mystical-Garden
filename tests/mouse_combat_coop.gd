@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 var game: Node
 var role: String
 var base: String
@@ -26,7 +28,7 @@ func host_run():
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"registration");return
  game.set_physics_process(false);game.set_process(false)
  var id=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
- p.wild=true;p.hp=10;p.pos=Vector3.ZERO;p.strike_at=0
+ p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3.ZERO;p.strike_at=0
  game.scouts.clear();game.battlefield.procedural=false;game.battlefield.barriers=[];game.enemy_pos=Vector3(0,0,-1);game.enemy_hp=10000
  mark("ready")
  var end=Time.get_ticks_msec()+1400

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Core = preload("res://core_combat.gd")
 const Thorn = preload("res://thorn_adaptation.gd")
 var game: Node
@@ -75,7 +77,7 @@ func host() -> void:
 	player.pos = Vector3(0, 0, -3)
 	other.pos = Vector3(0, 0, 3)
 	player.weapon = game.Parts.THORN
-	other.hp = 10
+	other[PlayerVitals.STATE] = other[PlayerVitals.STATE].with_hp(10)
 	if not await until(func(): return marked("ready")):
 		check(false, "guest sees Wilds")
 		return
@@ -100,7 +102,7 @@ func host() -> void:
 		return
 	other.pos = end + Vector3.RIGHT * 2
 	check(await until(func(): return hound.pos == end, 1500), "host resolves the locked landing")
-	check(other.hp == 10 and hound.rooted_until == 0 and Core.hints(game).size() == 1, "guest escapes the landing and line remains active")
+	check(PlayerVitals.current_hp(other) == 10 and hound.rooted_until == 0 and Core.hints(game).size() == 1, "guest escapes the landing and line remains active")
 	mark("landed")
 	check(await until(func(): return marked("verified")), "guest verifies outcome")
 	game.leave_game("Thorn vault fixture complete")

@@ -1,5 +1,6 @@
 extends RefCounted
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 const Catalog = preload("res://subclass_catalog.gd")
 const Mark = preload("res://core_strike_mark.gd")
@@ -95,7 +96,8 @@ static func allies(game: Node, center: Vector3, radius: float) -> Array[Dictiona
 	for ally in game.players.values():
 		if game.Life.alive(ally) and center.distance_to(ally.pos) <= radius and game.battlefield.clear_line(center,ally.pos):
 			result.append(ally)
-	result.sort_custom(func(a,b): return float(a.hp)/float(a.max_hp) < float(b.hp)/float(b.max_hp))
+	result.sort_custom(func(a,b):
+		return PlayerVitals.current_hp(a)/float(PlayerVitals.maximum_hp(a)) < PlayerVitals.current_hp(b)/float(PlayerVitals.maximum_hp(b)))
 	return result
 
 

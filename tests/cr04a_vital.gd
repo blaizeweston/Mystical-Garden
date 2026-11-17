@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Rules = preload("res://combat_ruleset.gd")
@@ -45,7 +46,7 @@ func reset(p: Dictionary, ally: Dictionary) -> void:
 		Vital.clear(game,player)
 		player.wild=true
 		player.fallen=false
-		player.hp=60
+		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(60)
 		player.lost_health=0
 		player.pos=Vector3.ZERO
 		player.frame=0
@@ -62,7 +63,7 @@ func reset(p: Dictionary, ally: Dictionary) -> void:
 		player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 		player.renewal_until=0
 		player.hurt_until=0
-		player.max_hp=game.Life.native_maximum(game,player)
+		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(game.Life.native_maximum(game,player))
 
 
 func run() -> void:
@@ -80,7 +81,7 @@ func run() -> void:
 	var fallen: Dictionary=game.players[3]
 	fallen.wild=true
 	fallen.fallen=true
-	fallen.hp=0
+	fallen[PlayerVitals.STATE] = fallen[PlayerVitals.STATE].with_hp(0)
 	for pair in [["part_2","plant_part_rare_lantern_moss"],["part_9","plant_part_rare_bloodbriar"],["plant_part_plant_gravemoss","plant_part_rare_gravemoss"]]:
 		for item in pair:
 			for slot in ["core","form","catalyst"]:
@@ -91,7 +92,7 @@ func run() -> void:
 		var q: Dictionary=Builds.slot("core",part).potency_profile.values
 		var now:=Time.get_ticks_msec()
 		reset(player,ally)
-		var native: int=player.max_hp
+		var native: int=player[PlayerVitals.STATE].max_hp()
 		player.weapon=part
 		game.enemy_hp=0
 		ally.pos=Vector3(1,0,0)
@@ -108,12 +109,12 @@ func run() -> void:
 		check(not cast.is_empty(),"real Core can grant recovery between encounters")
 		if not cast.is_empty():
 			Core.tick(game,cast.armed)
-			check(player.max_hp==native+q.bonus_hp and player.hp==60 and ally.max_hp==int(game.Life.native_maximum(game,ally))+q.bonus_hp,
+			check(player[PlayerVitals.STATE].max_hp()==native+q.bonus_hp and player[PlayerVitals.STATE].hp()==60 and ally[PlayerVitals.STATE].max_hp()==int(game.Life.native_maximum(game,ally))+q.bonus_hp,
 				"capacity goes to living allies without instant heal")
-			check(fallen.hp==0 and not fallen.has(Vital.SOURCES),"Bloom never revives a fallen ally")
+			check(fallen[PlayerVitals.STATE].hp()==0 and not fallen.has(Vital.SOURCES),"Bloom never revives a fallen ally")
 			ally.pos=Vector3(8,0,0)
 			Vital.tick(game,Clock.advance(game,1.0))
-			check(player.hp==60+q.regen_per_second and ally.hp==60+q.regen_per_second,"recipient carries regeneration beyond the original area")
+			check(player[PlayerVitals.STATE].hp()==60+q.regen_per_second and ally[PlayerVitals.STATE].hp()==60+q.regen_per_second,"recipient carries regeneration beyond the original area")
 			check(not game.get_meta(Core.STATE,{}).has(1),"native cast released once")
 		reset(player,ally)
 		player.secondary=part
@@ -121,7 +122,7 @@ func run() -> void:
 		game.strike_enemy(1,player,player.pos)
 		var shot: Dictionary=game.projectile_queue.front()
 		game.update_projectiles(int(shot.due)+1)
-		check(player.get(Vital.BONUS,0)==q.bonus_hp and player.hp==60 and not ally.has(Vital.SOURCES),
+		check(player[PlayerVitals.STATE].temporary_hp()==q.bonus_hp and player[PlayerVitals.STATE].hp()==60 and not ally.has(Vital.SOURCES),
 			"real weapon contact grants self capacity without a lifesteal heal")
 		game.scouts.append(game.make_scout(0,Vector3(1,0,-1.25),0))
 		var applied_until: int=player.get(Vital.SOURCES,{}).get("1/form",{}).get("until",0)
@@ -133,12 +134,12 @@ func run() -> void:
 		reset(player,ally)
 		player.catalyst=part
 		game.use_class_skill(1,player,1)
-		check(player.get(Vital.BONUS,0)==q.bonus_hp,"native offensive class hit grants self Vitality")
+		check(player[PlayerVitals.STATE].temporary_hp()==q.bonus_hp,"native offensive class hit grants self Vitality")
 		reset(player,ally)
 		player.catalyst=part
 		player.frame=4
 		game.use_class_skill(1,player,0)
-		check(ally.get(Vital.BONUS,0)==q.bonus_hp and ally.hp>60,"native Oracle heal remains intact and grants recipient Vitality")
+		check(ally[PlayerVitals.STATE].temporary_hp()==q.bonus_hp and ally[PlayerVitals.STATE].hp()>60,"native Oracle heal remains intact and grants recipient Vitality")
 		var duration: int=ally.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",0)
 		game.update_support_effects(now+1500)
 		check(ally.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",-1)==duration,"native renewal ticks do not grant fresh Vitality")
@@ -156,7 +157,7 @@ func run() -> void:
 	var pulse_at:=Time.get_ticks_msec()+1
 	game.enemy_pos=Vector3(0,0,-1)
 	game.Traits.tick(game,pulse_at)
-	check(player.get(Vital.BONUS,0)==12,"first actual Cultivate Bloom pulse grants Vitality")
+	check(player[PlayerVitals.STATE].temporary_hp()==12,"first actual Cultivate Bloom pulse grants Vitality")
 	Clock.advance(game,.4)
 	game.Traits.tick(game,pulse_at+1000)
 	check(player.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",0)==Vital.DURATIONS.catalyst,"periodic hits cannot re-grant the class response")
@@ -173,33 +174,33 @@ func run() -> void:
 	Clock.advance(game,.4)
 	var refresh := event(1,"form","plant_part_rare_lantern_moss","weapon_contact",now)
 	refresh.publish(game,"weapon_contact","hit","leader",now,{"enemy":-1})
-	check(player.hp==60 and player.get(Vital.NEXT)==1000,"overlap and repeated hits do not add or postpone healing")
+	check(player[PlayerVitals.STATE].hp()==60 and player.get(Vital.NEXT)==1000,"overlap and repeated hits do not add or postpone healing")
 	Vital.tick(game,Clock.advance(game,.2))
-	check(player.hp==65 and player.get(Vital.BONUS,0)==18,"strongest active rate heals on original tick")
+	check(player[PlayerVitals.STATE].hp()==65 and player[PlayerVitals.STATE].temporary_hp()==18,"strongest active rate heals on original tick")
 	game.damage_player(1,player,4)
 	Vital.tick(game,Clock.advance(game,1.0))
-	check(player.hp==66,"damage does not cancel regen")
+	check(player[PlayerVitals.STATE].hp()==66,"damage does not cancel regen")
 	player.lost_health=10
 	var base: int=game.Life.native_maximum(game,player)
-	player.max_hp=game.Life.maximum(game,player)
-	check(player.max_hp==base+18,"native capacity change preserves temporary contribution")
-	player.hp=player.max_hp
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(base)
+	check(player[PlayerVitals.STATE].max_hp()==base+18,"native capacity change preserves temporary contribution")
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].refilled()
 	Vital.tick(game,Clock.advance(game,2.0))
-	check(player.max_hp==base+12 and player.hp==base+12,"short refined capacity expires and clamps to surviving ordinary cap")
-	player.hp=55
+	check(player[PlayerVitals.STATE].max_hp()==base+12 and player[PlayerVitals.STATE].hp()==base+12,"short refined capacity expires and clamps to surviving ordinary cap")
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(55)
 	Vital.tick(game,Clock.advance(game,2.0))
-	check(player.max_hp==base and player.hp>=55 and not player.has(Vital.SOURCES),"capacity expiry retains health below native cap")
-	var protected_hp: float=player.hp
+	check(player[PlayerVitals.STATE].max_hp()==base and player[PlayerVitals.STATE].hp()>=55 and not player.has(Vital.SOURCES),"capacity expiry retains health below native cap")
+	var protected_hp: float=player[PlayerVitals.STATE].hp()
 	var ward := Events.class_start(game,2,{"trigger":"block"},now,Builds.slot("catalyst",game.Items.get_item("plant_part_rare_gravemoss").legacy_part))
 	var adapter := {"trigger":"block", "limit":"recipient", "id":"vital_fixture"}
 	Events.grant_ward(game,player,now+29000,1,ward,adapter,now)
 	game.apply_enemy_hit(1,player,now+1,1.0,0,game.enemy_pos)
-	check(player.hp==protected_hp and player.get(Vital.BONUS,0)==18 and ally.get(Vital.BONUS,0)==18,
+	check(player[PlayerVitals.STATE].hp()==protected_hp and player[PlayerVitals.STATE].temporary_hp()==18 and ally[PlayerVitals.STATE].temporary_hp()==18,
 		"refined ally Ward grants radial Vitality using the granting Catalyst")
 	game.Life.down(game,2,ally)
-	check(not ally.has(Vital.SOURCES) and ally.hp==0,"fall clears Vitality without revival")
+	check(not ally.has(Vital.SOURCES) and ally[PlayerVitals.STATE].hp()==0,"fall clears Vitality without revival")
 	game.reset_encounter()
-	check(not player.has(Vital.SOURCES) and player.get(Vital.BONUS,0)==0,"floor turnover clears temporary state and capacity")
+	check(not player.has(Vital.SOURCES) and player[PlayerVitals.STATE].temporary_hp()==0,"floor turnover clears temporary state and capacity")
 	await verify_pause(player,ally)
 	benchmark(player,ally)
 	game.queue_free()
@@ -218,7 +219,7 @@ func verify_pause(player: Dictionary, ally: Dictionary) -> void:
 	await create_timer(.15,true).timeout
 	game.set_physics_process(false)
 	paused=false
-	check(Clock.now(game)==0 and player.hp==60 and player.get(Vital.BONUS,0)==12,"paused engine frames don't spend combat-time or grant ticks")
+	check(Clock.now(game)==0 and player[PlayerVitals.STATE].hp()==60 and player[PlayerVitals.STATE].temporary_hp()==12,"paused engine frames don't spend combat-time or grant ticks")
 
 
 func benchmark(player: Dictionary, ally: Dictionary) -> void:
@@ -227,7 +228,7 @@ func benchmark(player: Dictionary, ally: Dictionary) -> void:
 	for id in [3,4]:
 		game.players[id].wild=true
 		game.players[id].fallen=false
-		game.players[id].hp=70
+		game.players[id][PlayerVitals.STATE] = game.players[id][PlayerVitals.STATE].with_hp(70)
 	var now:=Time.get_ticks_msec()
 	var burns: Array = []
 	var waters: Array = []

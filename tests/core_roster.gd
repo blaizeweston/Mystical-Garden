@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Core = preload("res://core_combat.gd")
 const Rules = preload("res://core_skill_rules.gd")
 const Footprint = preload("res://core_footprint.gd")
@@ -43,8 +45,8 @@ func arena(game: Node, player: Dictionary, species: String) -> void:
 	player.catalyst = 0
 	player.graft_part = 0
 	player.wild = true
-	player.hp = 8
-	player.max_hp = 10
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(8)
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(10)
 	player.core_ready_at = 0
 	player.core_cast_until = 0
 	player.cast_until = 0
@@ -195,9 +197,9 @@ func verify_effect(game: Node, player: Dictionary, live: Dictionary, fixture: Di
 		"spore_seal":
 			check(game.rooted_until > elapsed + 750 and game.enemy_hp == 30, "Spore Seal roots without damaging")
 		"dewfall":
-			check(player.hp == 9 and player.slow_until == 0 and player.guard_charges == 1, "Dewfall cleanses and wards on upgrade")
+			check(PlayerVitals.current_hp(player) == 9 and player.slow_until == 0 and player.guard_charges == 1, "Dewfall cleanses and wards on upgrade")
 		"blood_siphon":
-			check(player.hp == 9 and game.enemy_hp == 28 and player.guard_charges == 1, "Blood Siphon heals for a hit and grants its purchased ward")
+			check(PlayerVitals.current_hp(player) == 9 and game.enemy_hp == 28 and player.guard_charges == 1, "Blood Siphon heals for a hit and grants its purchased ward")
 		"phantom_step":
 			check(player.pos.is_equal_approx(live.center) and game.rooted_until > elapsed and player.guard_charges == 1, "Phantom Step relocates and roots on arrival")
 		"moon_snare":
@@ -207,19 +209,19 @@ func verify_effect(game: Node, player: Dictionary, live: Dictionary, fixture: Di
 		"sun_pillar":
 			check(game.enemy_pos.x > fixture.origin.x and game.enemy_hp == 26 and game.enemy_stagger_until > elapsed + 1600, "Sun Pillar pushes outward before the afterlight")
 		"eclipse_maw":
-			check(game.enemy_pos.x < fixture.origin.x and game.enemy_hp == 26 and player.hp == 8, "Eclipse Maw draws enemies to the seam and bites once")
+			check(game.enemy_pos.x < fixture.origin.x and game.enemy_hp == 26 and PlayerVitals.current_hp(player) == 8, "Eclipse Maw draws enemies to the seam and bites once")
 		"worldbloom":
-			check(game.rooted_until > elapsed and player.hp == 10 and player.guard_charges == 1, "Worldbloom holds enemies and restores allies in stages")
+			check(game.rooted_until > elapsed and PlayerVitals.current_hp(player) == 10 and player.guard_charges == 1, "Worldbloom holds enemies and restores allies in stages")
 		"rime_bloom":
 			check(game.enemy_hp == 28 and game.enemy_traits.brittle == 0 and game.rooted_until > elapsed + 720, "Snap Frost shatters the Brittle stacks")
 		"ironbark":
-			check(player.hp == 8 and player.guard_charges == 0 and game.enemy_stagger_until > elapsed + 200, "Ironbark consumes the ward and staggers nearby enemies on a block")
+			check(PlayerVitals.current_hp(player) == 8 and player.guard_charges == 0 and game.enemy_stagger_until > elapsed + 200, "Ironbark consumes the ward and staggers nearby enemies on a block")
 		"mirror_bloom":
 			check(game.enemy_hp == 27 and game.scouts[0].hp == game.scouts[0].max_hp - 2, "Mirror Bloom reflects through the caster and the third bloom returns to the original spot")
 		"grave_lantern":
-			check(game.enemy_hp == 26 and player.hp == 9, "Grave Lantern reacts once to a new nearby death")
+			check(game.enemy_hp == 26 and PlayerVitals.current_hp(player) == 9, "Grave Lantern reacts once to a new nearby death")
 		"riptide":
-			check(game.enemy_hp == 30 and absf(game.enemy_pos.x) < .05 and player.hp == 9, "melee Riptide draws enemies toward the impact and heals")
+			check(game.enemy_hp == 30 and absf(game.enemy_pos.x) < .05 and PlayerVitals.current_hp(player) == 9, "melee Riptide draws enemies toward the impact and heals")
 		"hush":
 			check(not game.enemy_winding_up and game.enemy_hp == 30, "Hush cancels a lesser enemy windup")
 		"dream_lure":
@@ -284,7 +286,7 @@ func check_final_grave(game: Node, player: Dictionary) -> void:
 	player.pos = live.center
 	game.record_enemy_death(-1, live.center, player.pos)
 	Core.tick(game, live.armed + 100)
-	check(player.hp == 9 and not game.has_meta(Core.STATE), "Last Light heals when the final enemy dies inside the watch")
+	check(PlayerVitals.current_hp(player) == 9 and not game.has_meta(Core.STATE), "Last Light heals when the final enemy dies inside the watch")
 
 
 func render_fx(game: Node, skill_id: String) -> void:

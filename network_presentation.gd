@@ -1,4 +1,5 @@
 extends RefCounted
+const PlayerVitals = preload("res://player_vitals.gd")
 # Public health versions reconcile independent reliable/unreliable channels.
 var server_vitals: Dictionary={}
 var client_vitals: Dictionary={}
@@ -59,10 +60,12 @@ func observe(game: Node) -> void:
  var changes={}
  for id in game.players:
   var p=game.players[id]
-  var signature=str([p.hp,p.get("max_hp",10),p.wild,p.fallen,p.get("lost_health",0),p.get("damage_seq",0)])
+  var hp := PlayerVitals.current_hp(p)
+  var maximum := PlayerVitals.maximum_hp(p)
+  var signature=str([hp,maximum,p.wild,p.fallen,p.get("lost_health",0),p.get("damage_seq",0)])
   if server_vitals.get(id,{}).get("signature","")==signature:continue
   var revision=int(server_vitals.get(id,{}).get("revision",0))+1
-  var state={"revision":revision,"hp":p.hp,"max_hp":p.get("max_hp",10),"fallen":p.fallen,"lost_health":p.get("lost_health",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0)}
+  var state={"revision":revision,"hp":hp,"max_hp":maximum,"fallen":p.fallen,"lost_health":p.get("lost_health",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0)}
   server_vitals[id]={"signature":signature,"revision":revision};p.vitals_revision=revision;changes[id]=state
  if not changes.is_empty():
   for id in snapshot_targets(game):

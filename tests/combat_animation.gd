@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Motion=preload("res://weapon_motion.gd")
 var failed:=false
 func check(ok: bool,message: String):
@@ -48,16 +50,16 @@ func run():
  check(game.scouts[0].hp==20,"target identity prevents hits on a reused slot")
  # A marked stag lane matches the real swept charge, not only its final landing.
  var stag: Dictionary=game.make_scout(2,Vector3.ZERO,1);stag.mode="charge";stag.windup=Time.get_ticks_msec()+1000;stag.blast=Vector3(0,0,4)
- game.scouts.assign([stag]);game.enemy_hp=0;p.pos=Vector3(0,0,2);p.hp=10;p.guard_until=0
+ game.scouts.assign([stag]);game.enemy_hp=0;p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.guard_until=0
  var hints: Array=game.attack_hints_snapshot()
  check(hints.size()==1 and hints[0].role=="charge" and Vector3(hints[0].to[0],hints[0].to[1],hints[0].to[2]).distance_to(Vector3(0,0,4))<.1,"charge snapshot carries origin and locked endpoint")
  game.combat_visuals.sync([],hints,"test-lane",p.pos)
  check(game.combat_visuals.hints[0].mesh.mesh.get_surface_count()==1,"directional V lane has visible geometry")
  game.resolve_scout(stag,game.Enemies.get_kind(2),Time.get_ticks_msec()+1000)
- check(p.hp==9,"mid-lane player is struck by the projected charge")
- stag.pos=Vector3.ZERO;stag.blast=Vector3(0,0,4);p.pos=Vector3(2.5,0,2);p.hp=10
+ check(PlayerVitals.current_hp(p)==9,"mid-lane player is struck by the projected charge")
+ stag.pos=Vector3.ZERO;stag.blast=Vector3(0,0,4);p.pos=Vector3(2.5,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
  game.resolve_scout(stag,game.Enemies.get_kind(2),Time.get_ticks_msec()+1000)
- check(p.hp==10,"player outside lane and landing marker is safe")
+ check(PlayerVitals.current_hp(p)==10,"player outside lane and landing marker is safe")
  game.battlefield.barriers=[Rect2(-1.5,1.8,3,.4)];stag.pos=Vector3.ZERO;stag.blast=Vector3(0,0,4);stag.windup=1000
  hints=game.attack_hints_snapshot()
  check(float(hints[0].to[2])<1.8,"charge projection stops before blocking terrain")

@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Attacks=preload("res://enemy_attack.gd")
 const Support=preload("res://enemy_support.gd")
 const Status=preload("res://combat_status.gd")
@@ -27,7 +29,7 @@ func run() -> void:
  game.encounter_number=12
  var player: Dictionary=game.players[1]
  player.wild=true
- player.hp=10
+ player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
  player.pos=Vector3(0,0,6)
  var now:=Time.get_ticks_msec()+100
  var grazer: Dictionary=game.make_scout(11,Vector3.ZERO,2)
@@ -103,14 +105,14 @@ func run() -> void:
  game.scouts.assign([choir,escort])
  player.pos=Vector3(0,0,2)
  player.hurt_until=0
- player.hp=10
+ player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
  Attacks.lock(game,choir,"shepherd",player.pos,now+7200)
  game.resolve_scout(choir,game.Enemies.get_kind(19),now+7200)
- check(player.hp==9 and choir.attack.cue=="Second beat","the second choir sector is signalled separately")
+ check(PlayerVitals.current_hp(player)==9 and choir.attack.cue=="Second beat","the second choir sector is signalled separately")
  player.pos=Vector3(-2,0,0)
  player.hurt_until=0
  game.resolve_scout(choir,game.Enemies.get_kind(19),now+7930)
- check(player.hp==9 and choir.windup==0,"a safe sector persists after both beats")
+ check(PlayerVitals.current_hp(player)==9 and choir.windup==0,"a safe sector persists after both beats")
 
  var thief: Dictionary=game.make_scout(16,Vector3.ZERO,2)
  thief.variant="edge_thief"

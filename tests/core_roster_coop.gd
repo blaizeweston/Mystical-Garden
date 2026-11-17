@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Core = preload("res://core_combat.gd")
 const Aim = preload("res://ability_aim.gd")
 
@@ -112,15 +114,15 @@ func host() -> void:
 
 	var ally: Dictionary = game.players[1]
 	ally.pos = Vector3(0, 0, -1.6)
-	ally.hp = 6
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(6)
 	player.pos = Vector3.ZERO
-	player.hp = 6
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(6)
 	player.weapon = game.Parts.index_of("plant:tide_lily")
 	player.run_upgrades = {}
 	player.core_ready_at = 0
 	player.core_cast_until = 0
 	player.cast_until = 0
-	check(await until(func(): return ally.hp == 7 and player.hp == 7), "the guest wave heals the host ally and caster on the return")
+	check(await until(func(): return PlayerVitals.current_hp(ally) == 7 and PlayerVitals.current_hp(player) == 7), "the guest wave heals the host ally and caster on the return")
 	mark("tide-done")
 	check(await until(func(): return marked("tide-verified")), "guest confirms both crests and health")
 	game.leave_game("Core roster fixture")

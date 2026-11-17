@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Elite=preload("res://elite_enemy.gd")
 const Catalog=preload("res://enemy_catalog.gd")
 var failed:=false
@@ -24,10 +26,10 @@ func run():
   check(not Elite.empowered(kind).is_empty(),"every elite has a named signature: "+str(kind))
  var game=load("res://world.tscn").instantiate();var token:=str(Time.get_ticks_usec());game.progress.path="res://.godot/elites-"+token;game.local_character.path=game.progress.path+".character";root.add_child(game)
  game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
- var p: Dictionary=game.players[1];p.wild=true;p.pos=Vector3(0,0,.8);p.hp=10
+ var p: Dictionary=game.players[1];p.wild=true;p.pos=Vector3(0,0,.8);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
  game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.boss_kind=-1;game.destination=0
  for kind in seen:
-  var now:=Time.get_ticks_msec();game.enemy_kind=kind;game.enemy_pos=Vector3.ZERO;game.enemy_hp=80;game.enemy_ready_at=0;game.enemy_winding_up=false;game.enemy_engaged=true;game.enemy_stagger_until=0;game.rooted_until=0;game.enemy_mutations=0;game.longlimb=false;game.leader_brain.clear();game.scouts.clear();game.enemy_hazards.clear();game.moss_recovery_bonus=0;p.hp=10;p.hurt_until=0;p.guard_until=0
+  var now:=Time.get_ticks_msec();game.enemy_kind=kind;game.enemy_pos=Vector3.ZERO;game.enemy_hp=80;game.enemy_ready_at=0;game.enemy_winding_up=false;game.enemy_engaged=true;game.enemy_stagger_until=0;game.rooted_until=0;game.enemy_mutations=0;game.longlimb=false;game.leader_brain.clear();game.scouts.clear();game.enemy_hazards.clear();game.moss_recovery_bonus=0;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0;p.guard_until=0
   Elite.tick(game,.016,now)
   check(game.enemy_winding_up and game.enemy_attack_mode==Catalog.get_kind(kind).role,"species attack: "+str(kind))
   var hints:=Elite.hints(game)
@@ -56,7 +58,7 @@ func run():
  game.enemy_kind=16;game.leader_brain.clear();var thief:=Elite.state(game);thief.stolen=[{"stack":{"item":"briar_hook","quantity":1},"position":[0,0,0]}];game.wild_item_drops.clear();game.EnemyBehaviors.death(game,thief,Vector3.ZERO);check(game.wild_item_drops.size()==1 and thief.get("stolen",[]).is_empty(),"elite Thief uses the same stolen-loot recovery hook")
  game.enemy_kind=7;game.encounter_number=12;game.enemy_pos=Vector3.ZERO;game.enemy_hp=80
  game.enemy_winding_up=false;game.enemy_ready_at=0;game.enemy_stagger_until=0;game.enemy_engaged=true
- game.enemy_hazards.clear();game.leader_brain.clear();p.pos=Vector3(0,0,1.3);p.hp=10;p.hurt_until=0
+ game.enemy_hazards.clear();game.leader_brain.clear();p.pos=Vector3(0,0,1.3);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0
  var now:=Time.get_ticks_msec()
  Elite.tick(game,.016,now)
  var marked: Array=Elite.hints(game).filter(func(hint):return hint.role=="aftershock")

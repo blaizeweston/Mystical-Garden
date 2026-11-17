@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Rules=preload("res://combat_ruleset.gd")
@@ -57,8 +58,7 @@ func reset() -> void:
 		p.fallen=false
 		p.lost_health=0
 		p.pos=Vector3.ZERO
-		p.hp=250
-		p.max_hp=250
+		p[PlayerVitals.STATE] = PlayerVitals.Health.new(250.0,250)
 		p.frame=0
 		p.weapon=0
 		p.secondary=0
@@ -103,7 +103,7 @@ func run() -> void:
 		check(not cast.is_empty(),"real Core B starts Ironbark")
 		if not cast.is_empty():
 			Core.tick(game,cast.armed)
-			check(available(p)==q.core_capacity and available(ally)==q.core_capacity and p.guard_charges==0 and p.hp==250 and p.max_hp==250,"Ironbark carries finite armor without Ward, heal or Vital bonus")
+			check(available(p)==q.core_capacity and available(ally)==q.core_capacity and p.guard_charges==0 and p[PlayerVitals.STATE].hp()==250 and p[PlayerVitals.STATE].max_hp()==250,"Ironbark carries finite armor without Ward, heal or Vital bonus")
 			ally.pos=Vector3(8,0,0)
 			check(available(ally)==q.core_capacity,"recipient carries armor out of the area")
 		reset()
@@ -141,9 +141,9 @@ func run() -> void:
 		reset()
 		p.frame=4
 		p.catalyst=part
-		ally.hp=50
+		ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(50)
 		game.use_class_skill(1,p,0)
-		check(available(ally)==q.catalyst_capacity and ally.hp>50,"real Renewal retains healing and gives one Bark grant to each living recipient")
+		check(available(ally)==q.catalyst_capacity and ally[PlayerVitals.STATE].hp()>50,"real Renewal retains healing and gives one Bark grant to each living recipient")
 		game.update_support_effects(now+1500)
 		check(available(ally)==q.catalyst_capacity,"native renewal ticks do not grant more Bark")
 
@@ -173,10 +173,10 @@ func test_absorption(p: Dictionary, now: int) -> void:
 	check(Wood.grant(game,extra,1,"core")==0 and available(p)==48,"full recipient rejects grant")
 	game.grant_guard(p,now+15000,1)
 	hit(p,1,50,now)
-	check(p.hp==250 and available(p)==48,"native Ward prevents the hit before Bark")
+	check(p[PlayerVitals.STATE].hp()==250 and available(p)==48,"native Ward prevents the hit before Bark")
 	p.guard_until=0
 	hit(p,1,50,now)
-	check(p.hp==220 and available(p)==28 and p[Wood.GRANTS].size()==1 and p[Wood.GRANTS][0].actor==1 and burst_count()==0,
+	check(p[PlayerVitals.STATE].hp()==220 and available(p)==28 and p[Wood.GRANTS].size()==1 and p[Wood.GRANTS][0].actor==1 and burst_count()==0,
 		"40% absorption spends earliest expiry first and a single exhausted grant does not burst")
 	check(Wood.grant(game,extra,1,"core")==0,"a rejected grant cannot replay after capacity becomes available")
 	var topup:=event(4,"core","plant_part_rare_worldseed")
@@ -189,12 +189,12 @@ func test_absorption(p: Dictionary, now: int) -> void:
 	check(plan.damage==12 and plan.owner==1 and plan.shares[0].actor==2 and plan.shares[0].hp==18 and plan.shares[1].hp==30,
 		"breaking hit uses weighted damage and largest-share owner")
 	hit(p,1,120,now)
-	check(p.hp==178 and available(p)==0 and game.enemy_hp==488 and burst_count()==1,"overflow reaches HP and the breaking hit lands one burst")
+	check(p[PlayerVitals.STATE].hp()==178 and available(p)==0 and game.enemy_hp==488 and burst_count()==1,"overflow reaches HP and the breaking hit lands one burst")
 	game.apply_enemy_hit(1,p,now,12.0,0,game.enemy_pos)
-	check(p.hp==178 and burst_count()==1,"duplicate protected damage event does not debit or burst again")
+	check(p[PlayerVitals.STATE].hp()==178 and burst_count()==1,"duplicate protected damage event does not debit or burst again")
 	Wood.grant(game,event(2,"catalyst","part_17"),1,"support")
 	hit(p,1,30,now)
-	check(available(p)==0 and p.hp==160 and burst_count()==1,"rapid replacement depletes without a new burst")
+	check(available(p)==0 and p[PlayerVitals.STATE].hp()==160 and burst_count()==1,"rapid replacement depletes without a new burst")
 	Clock.advance(game,1.35)
 	Wood.grant(game,event(2,"catalyst","part_17"),1,"support")
 	hit(p,1,30,now)
@@ -213,20 +213,20 @@ func test_absorption(p: Dictionary, now: int) -> void:
 	reset()
 	mixture()
 	Wood.tick(game,Clock.advance(game,4.3))
-	check(available(p)==30 and p.hp==250 and burst_count()==0,"earlier grant expires independently with no damage or burst")
+	check(available(p)==30 and p[PlayerVitals.STATE].hp()==250 and burst_count()==0,"earlier grant expires independently with no damage or burst")
 	Wood.tick(game,Clock.advance(game,1.8))
-	check(not p.has(Wood.GRANTS) and p.hp==250 and burst_count()==0,"full expiry never acts as a break")
+	check(not p.has(Wood.GRANTS) and p[PlayerVitals.STATE].hp()==250 and burst_count()==0,"full expiry never acts as a break")
 	mixture()
 	var drench:=event(2,"form","plant_part_rare_dewcap",["weapon_contact"])
 	Water.drench(game,drench,-1)
 	Frost.with_attacker(game,-1,hit.bind(p,1,50,now))
-	check(p.hp==229 and available(p)==34,"Drenched reduces the hostile hit before Bark absorption")
+	check(p[PlayerVitals.STATE].hp()==229 and available(p)==34,"Drenched reduces the hostile hit before Bark absorption")
 	var paid: int=available(p)
 	game.damage_player(1,p,10)
-	check(available(p)==paid and p.hp==219,"native direct cost path does not consume Bark")
+	check(available(p)==paid and p[PlayerVitals.STATE].hp()==219,"native direct cost path does not consume Bark")
 	var vital:=event(2,"core","part_2")
 	vital.publish(game,"core_action","bloom","",now,{"center":p.pos,"recipients":[1]})
-	check(available(p)==paid and p.get(Vital.BONUS,0)==12,"temporary max HP and Bark capacity are separate")
+	check(available(p)==paid and p[PlayerVitals.STATE].temporary_hp()==12,"temporary max HP and Bark capacity are separate")
 
 	reset()
 	var guard: Dictionary={"id":"fixture","trigger":"block","limit":"recipient"}
@@ -237,9 +237,9 @@ func test_absorption(p: Dictionary, now: int) -> void:
 	hit(p,1,40,now)
 	check(available(p)==0 and Frost.state(game.leader_brain,now).get("stacks",[]).size()==1,"earliest mixed Ward uses its Frost source")
 	hit(p,1,40,now)
-	check(available(p)==18 and p.hp==250 and burst_count()==1 and game.enemy_hp==488,"next Ward gives granting Wood quality and radial damage")
+	check(available(p)==18 and p[PlayerVitals.STATE].hp()==250 and burst_count()==1 and game.enemy_hp==488,"next Ward gives granting Wood quality and radial damage")
 	hit(p,1,50,now)
-	check(available(p)==0 and burst_count()==1 and p.hp==218,"Wood Ward and Bark break share one recipient interval")
+	check(available(p)==0 and burst_count()==1 and p[PlayerVitals.STATE].hp()==218,"Wood Ward and Bark break share one recipient interval")
 	Wood.grant(game,wood,1,"fixture-new-grant")
 	game.reset_encounter()
 	check(available(p)==0 and not p.has(Wood.BURST_READY),"floor turnover clears armor and interval")
@@ -254,7 +254,7 @@ func verify_pause(p: Dictionary) -> void:
 	paused=false
 	check(Clock.now(game)==0 and available(p)==48,"paused gameplay preserves armor lifetime")
 	game.Life.down(game,1,p)
-	check(available(p)==0 and p.hp==0 and burst_count()==0,"death cleans up protection without a burst")
+	check(available(p)==0 and p[PlayerVitals.STATE].hp()==0 and burst_count()==0,"death cleans up protection without a burst")
 
 func benchmark() -> void:
 	reset()

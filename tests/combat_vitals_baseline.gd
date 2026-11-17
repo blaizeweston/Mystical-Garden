@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Vitals = preload("res://combat_vitals.gd")
 const View = preload("res://network_presentation.gd")
 const SCALE := Vitals.PROTOTYPE_HP_PER_POINT
@@ -30,6 +32,7 @@ func run() -> void:
 	check_amounts()
 	check_learning_and_phase()
 	check_network_vitals(game)
+	check_guard_and_brace(game)
 	game.queue_free()
 	await process_frame
 	if not failed:
@@ -39,7 +42,8 @@ func run() -> void:
 
 func check_live_capacity(game: Node) -> void:
 	var player: Dictionary = game.players[1]
-	check(player.hp == 10 and game.Life.maximum(game, player) == 10, "shipped player capacity")
+	check(PlayerVitals.current_hp(player) == 10.0 and game.Life.maximum(game, player) == 10
+		and not player.has("hp") and not player.has("max_hp"), "shipped player capacity has one authoritative owner")
 	var samples := [
 		# Global floor, biome, local depth, corruption loops, solo elite HP, four-player elite HP.
 		[1, 0, 1, 0, 4, 8],
@@ -77,19 +81,29 @@ func check_amounts() -> void:
 		check(Vitals.maximum(full, 0, sacrifice, scale) == full - sacrifice, "capacity after a revival")
 		check(Vitals.maximum(full, sacrifice, sacrifice, scale) == full, "a health bonus and loss compose once")
 		check(Vitals.can_revive(2 * sacrifice, scale) and not Vitals.can_revive(sacrifice, scale), "last capacity segment is protected")
-		var player := {"hp": Vitals.points(2, scale), "max_hp": full}
-		check(Vitals.heal(player, Vitals.floor_recovery(false, scale)) == scale, "ordinary floor recovery")
-		check(Vitals.heal(player, Vitals.floor_recovery(true, scale)) == 2 * scale, "biome recovery")
+		var player := PlayerVitals.Health.new(Vitals.points(2, scale), full)
+		var ordinary := player.healed(Vitals.floor_recovery(false, scale))
+		var biome := ordinary.healed(Vitals.floor_recovery(true, scale))
+		check(ordinary.hp() - player.hp() == scale, "ordinary floor recovery")
+		check(biome.hp() - ordinary.hp() == 2 * scale, "biome recovery")
 		check(Vitals.damage_taken(Vitals.points(2, scale), Vitals.points(3, scale)) == Vitals.points(2, scale), "overkill reports applied damage")
 		check(Vitals.damage_taken(full, 0) == 0, "zero damage stays zero")
 		check(Vitals.armored_damage(Vitals.points(3, scale), scale) == Vitals.points(2, scale), "armor reduction has the same strength")
 		check(Vitals.armored_damage(scale, scale) == scale, "armor keeps the shipped minimum for a hit")
-	var revived := {"hp": 20, "max_hp": 80}
-	check(Vitals.heal(revived, 4) == 4 and revived.hp == 24, "first fine-grained tick")
-	check(Vitals.heal(revived, 4) == 4 and revived.hp == 28, "second fine-grained tick")
-	revived.hp = 79
-	check(Vitals.heal(revived, 4) == 1 and revived.hp == 80, "overheal respects revival capacity")
-	check(Vitals.heal(revived, 4) == 0, "full pool reports no healing")
+	var revived := PlayerVitals.Health.new(20.0, 80)
+	var first_tick := revived.healed(4)
+	var second_tick := first_tick.healed(4)
+	check(revived.hp() == 20.0 and first_tick.hp() == 24.0, "first fine-grained tick leaves its input unchanged")
+	check(second_tick.hp() == 28.0, "second fine-grained tick")
+	var almost_full := revived.with_hp(79.0)
+	var full_revival := almost_full.healed(4)
+	check(full_revival.hp() - almost_full.hp() == 1.0 and full_revival.hp() == 80.0, "overheal respects revival capacity")
+	check(full_revival.healed(4).hp() == full_revival.hp(), "full pool reports no healing")
+	var vital := full_revival.with_capacity(80, 12)
+	check(vital.hp() == 80.0 and vital.native_max_hp() == 80 and vital.temporary_hp() == 12 and vital.max_hp() == 92,
+		"temporary capacity changes the ceiling without healing")
+	var expired := vital.healed(12).with_capacity(80, 0)
+	check(expired.hp() == 80.0 and expired.max_hp() == 80 and vital.max_hp() == 92, "expiry clamps HP without mutating the prior owner")
 
 
 func check_learning_and_phase() -> void:
@@ -106,15 +120,34 @@ func check_learning_and_phase() -> void:
 		check(Vitals.boss_phase(Vitals.points(30, scale), hp) == 2, "30 percent starts phase two")
 
 
+func check_guard_and_brace(game: Node) -> void:
+	var player: Dictionary = game.players[1]
+	var initial: PlayerVitals.Health = player[PlayerVitals.STATE]
+	player.wild = true
+	player.weapon = game.Seeds.DEFINITIONS[16].part
+	player.still_since = 1000
+	player.guard_until = 4000
+	player.guard_charges = 1
+	game.apply_enemy_hit(1,player,1600,1.0)
+	check(is_same(player[PlayerVitals.STATE],initial) and player.guard_charges==0
+		and int(player.get("brace_block_ready",0))==0,"Guard blocks before Brace can spend its response")
+	game.apply_enemy_hit(1,player,2000,1.0)
+	check(is_same(player[PlayerVitals.STATE],initial) and player.brace_block_ready==6000,
+		"Brace absorbs the next guarded-player hit without replacing health")
+	game.apply_enemy_hit(1,player,2100,1.0)
+	check(PlayerVitals.current_hp(player)==initial.hp()-1.0,"the next unmitigated hit reaches the health owner")
+	player.wild = false
+	player[PlayerVitals.STATE] = initial
+
+
 func check_network_vitals(game: Node) -> void:
 	var player: Dictionary = game.players[1]
-	player.hp = 20
-	player.max_hp = 80
+	player[PlayerVitals.STATE] = PlayerVitals.Health.new(20.0, 80)
 	player.lost_health = 20
 	var view := View.new()
 	var previous: Dictionary = game.player_snapshot(1, false)[1]
 	view.merge_health(1, previous)
-	Vitals.heal(player, 4)
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].healed(4)
 	game.net_view.observe(game)
 	var healed: Dictionary = game.player_snapshot(1, false)[1]
 	view.merge_health(1, healed)

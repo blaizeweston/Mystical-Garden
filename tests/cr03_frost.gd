@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Rules = preload("res://combat_ruleset.gd")
@@ -43,10 +44,10 @@ func run() -> void:
 	var p: Dictionary = game.players[1]
 	p.wild = true
 	p.pos = Vector3.ZERO
-	p.hp = 90
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
 	game.add_player(2)
 	game.players[2].wild = true
-	game.players[2].hp = 90
+	game.players[2][PlayerVitals.STATE] = game.players[2][PlayerVitals.STATE].with_hp(90)
 	game.players[2].pos = Vector3.ZERO
 	run_core(p,ordinary)
 	run_core(p,refined)
@@ -158,7 +159,7 @@ func run_catalyst(p: Dictionary, part: int) -> void:
 	check(current.get("stacks",[]).size()==1 and current.stacks[0].quality==("refined" if part==refined else "ordinary"),"Catalyst-only Q/R emits a native offensive contact with its quality")
 	p.frame=4
 	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
-	p.hp=60
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(60)
 	var ally: Dictionary=game.players[2]
 	ally.catalyst=ordinary if part==refined else refined
 	ally.hurt_until=0
@@ -166,9 +167,9 @@ func run_catalyst(p: Dictionary, part: int) -> void:
 	game.use_class_skill(1,p,0)
 	check(ally.has(Frost.RESPONSE),"real Renewal prepares a response for the ally")
 	var now:=Time.get_ticks_msec()
-	var hp: float=ally.hp
+	var hp: float=ally[PlayerVitals.STATE].hp()
 	Frost.with_attacker(game,-1,game.apply_enemy_hit.bind(2,ally,now,1))
-	check(ally.hp<hp and not ally.has(Frost.RESPONSE),"fallback consumes after an actual survivable hit without blocking it")
+	check(ally[PlayerVitals.STATE].hp()<hp and not ally.has(Frost.RESPONSE),"fallback consumes after an actual survivable hit without blocking it")
 	var after := Frost.state(game.leader_brain,now)
 	check(after.get("stacks",[]).size()==2 and after.stacks[1].actor==1 and after.stacks[1].quality==("refined" if part==refined else "ordinary"),"ally uses granting Catalyst quality")
 	p.frame=0
@@ -210,11 +211,11 @@ func run_wards() -> void:
 	Events.grant_ward(game,p,now+900,2,second,adapter,now)
 	Events.grant_ward(game,p,now+900,2,second,adapter,now)
 	check(p[Wards.CLAIMS].size()==2 and p.guard_charges==2 and p.guard_until==now+900,"two accepted overlapping grants and native max-merge")
-	var hp: float=p.hp
+	var hp: float=p[PlayerVitals.STATE].hp()
 	p.hurt_until=0
 	game.apply_enemy_hit(2,p,now,1)
 	game.apply_enemy_hit(2,p,now+1,1)
-	check(p.hp==hp and p.guard_charges==0 and not p.has(Wards.CLAIMS),"real block charges exhaust and clear ownership")
+	check(p[PlayerVitals.STATE].hp()==hp and p.guard_charges==0 and not p.has(Wards.CLAIMS),"real block charges exhaust and clear ownership")
 	check(seen.size()==2 and seen[0].source_actor==1 and seen[0].quality=="ordinary"
 		and seen[1].source_actor==2 and seen[1].quality=="refined","soonest Ward response first with originating potency")
 	check(not first.publish(game,"actual_block","ward","2",now+2,{"recipient":2,"center":p.pos}),"replayed Ward cannot publish twice")

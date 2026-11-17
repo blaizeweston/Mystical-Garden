@@ -1,5 +1,6 @@
 extends SceneTree
 const Hud=preload("res://party_hud.gd")
+const PlayerVitals = preload("res://player_vitals.gd")
 const Gates=preload("res://gate_interaction.gd")
 var failed:=false
 func check(ok: bool,message: String):
@@ -8,15 +9,15 @@ func _initialize():call_deferred("run")
 func run():
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/party-ui-"+str(Time.get_ticks_usec());game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var p: Dictionary=game.players[1];p.wild=true
- var other: Dictionary=p.duplicate(true);other.party_slot=2;other.character.name="Friend\nName";other.hp=7;other.max_hp=10;game.players[42]=other
- var fallen: Dictionary=p.duplicate(true);fallen.party_slot=1;fallen.character.name="Fallen Friend";fallen.hp=0;fallen.fallen=true;game.players[19]=fallen
+ var other: Dictionary=p.duplicate(true);other.party_slot=2;other.character.name="Friend\nName";other[PlayerVitals.STATE]=PlayerVitals.Health.new(7,10);game.players[42]=other
+ var fallen: Dictionary=p.duplicate(true);fallen.party_slot=1;fallen.character.name="Fallen Friend";fallen[PlayerVitals.STATE]=fallen[PlayerVitals.STATE].with_hp(0);fallen.fallen=true;game.players[19]=fallen
  var rows:=Hud.members(game.players,1)
  check(rows.size()==2 and rows[0].id==19 and rows[1].id==42,"only other players, in stable party-slot order")
  check(rows[0].fallen and rows[1].hp==7 and rows[1].max_hp==10 and not rows[1].name.contains("\n"),"real health, fallen flag and safe names")
  game._process(.016);var panel=game.player_hud.party_panel
  check(panel.visible and panel.rows.size()==2 and panel.mouse_filter==Control.MOUSE_FILTER_IGNORE,"Wilds-only non-interactive HUD")
  check(panel.size.x<=190 and panel.size.y<=150,"bounded compact footprint")
- fallen.hp=4;fallen.max_hp=8;fallen.fallen=false;game._process(.016)
+ fallen[PlayerVitals.STATE]=PlayerVitals.Health.new(4,8);fallen.fallen=false;game._process(.016)
  check(not panel.rows[0].fallen and panel.rows[0].max_hp==8,"revival clears skull and respects reduced maximum health")
  p.wild=false;game._process(.016);check(not panel.visible,"hidden in Garden")
  game.players.erase(42);game.players.erase(19);p.wild=true;game._process(.016);check(not panel.visible,"hidden when alone")

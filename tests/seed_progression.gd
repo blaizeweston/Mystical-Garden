@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Seeds=preload("res://seed_catalog.gd")
 const Progress=preload("res://progress.gd")
 const Parts=preload("res://weapon_parts.gd")
@@ -134,14 +136,14 @@ func run():
 		if kind==14: check(game.enemy_stagger_until-now>=260,"Worldseed adds real hit stagger")
 	player.weapon=Seeds.DEFINITIONS[6].part
 	player.strike_at=0
-	player.hp=5
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(5)
 	player.pos=Vector3(0,0,-1)
 	game.enemy_pos=Vector3.ZERO
 	game.enemy_hp=1
 	game.enemy_winding_up=false
 	game.strike_enemy(1,player,player.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(player.hp==7,"Bloodbriar heals on a real killing strike")
+	check(PlayerVitals.current_hp(player)==7,"Bloodbriar heals on a real killing strike")
 	player.wild=false
 	game._process(.016)
 	check(game.inventory_snapshot(player)[6].size()==24 and game.garden_snapshot()[13].size()==24,"expanded network snapshots")

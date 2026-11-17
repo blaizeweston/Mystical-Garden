@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Pressure=preload("res://expedition_pressure.gd")
 var failed:=false
 var game: Node
@@ -9,7 +11,7 @@ func _initialize() -> void:
  call_deferred("run")
 func reset_floor(seed_value: int=91273) -> void:
  game.session="Solo";game.difficulty_cycle=1;game.encounter_number=19;game.destination=0;game.depth=1;game.map_seed=seed_value;game.reset_encounter()
- for p in game.players.values():p.wild=true;p.fallen=false;p.hp=10;p.pos=game.battlefield.entry
+ for p in game.players.values():p.wild=true;p.fallen=false;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=game.battlefield.entry
  game.scouts.clear();game.enemy_hp=10
 func warn(now: int) -> Array:
  game.pressure_at=now;game.update_pressure(now)
@@ -23,7 +25,7 @@ func run() -> void:
  reset_floor()
  var p: Dictionary=game.players[1];var rng_state: int=game.rng.state
  game.update_pressure(1000)
- check(game.pressure_at==36000 and p.hp==10,"first warning waits 35 seconds and never damages")
+ check(game.pressure_at==36000 and PlayerVitals.current_hp(p)==10,"first warning waits 35 seconds and never damages")
  var hints:=warn(36000)
  check(hints.size()==1 and hints[0].role=="reinforcement" and hints[0].remaining==3.0,"first wave announces exact location for three seconds")
  check(game.attack_hints_snapshot().any(func(h):return h.role=="reinforcement"),"warning uses replicated attack hint channel")
@@ -33,9 +35,9 @@ func run() -> void:
  game.combat_visuals.sync([],[],"pressure-test",p.pos)
  check(game.combat_visuals.hints.is_empty(),"cancelled markers leave no residual graphics")
  game.update_pressure(38999)
- check(game.scouts.is_empty() and p.hp==10,"warning itself cannot hit or spawn early")
+ check(game.scouts.is_empty() and PlayerVitals.current_hp(p)==10,"warning itself cannot hit or spawn early")
  game.update_pressure(39000);game.update_pressure(39000)
- check(game.scouts.size()==1 and p.hp==10,"due wave spawns once without health loss")
+ check(game.scouts.size()==1 and PlayerVitals.current_hp(p)==10,"due wave spawns once without health loss")
  if not game.scouts.is_empty():
   var scout: Dictionary=game.scouts[0]
   check(scout.pos.distance_to(p.pos)>=Pressure.SAFE_DISTANCE and not game.battlefield.occupied(scout.pos,.5),"arrival stays on floor and away from player")
@@ -51,7 +53,7 @@ func run() -> void:
  if not hints.is_empty():
   p.pos=game.leader_brain.pressure.pending[0].pos
   game.update_pressure(4000)
-  check(game.scouts.is_empty() and p.hp==10,"occupied warning cancels rather than spawning on player or moving to unwarned site")
+  check(game.scouts.is_empty() and PlayerVitals.current_hp(p)==10,"occupied warning cancels rather than spawning on player or moving to unwarned site")
  reset_floor();warn(1000);game.enemy_hp=0;game.update_pressure(4000)
  check(game.encounter_cleared() and game.scouts.is_empty() and game.pressure_at==0 and Pressure.hints(game).is_empty(),"clearing floor cancels pending wave and keeps exit open")
  for mode in ["early","boss","garden","fallen","guest"]:
@@ -59,10 +61,10 @@ func run() -> void:
   if mode=="early":game.difficulty_cycle=0
   elif mode=="boss":game.boss_kind=24
   elif mode=="garden":p.wild=false
-  elif mode=="fallen":p.fallen=true;p.hp=0
+  elif mode=="fallen":p.fallen=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(0)
   else:game.session="Guest"
   game.update_pressure(1000);game.update_pressure(100000)
-  check(game.scouts.is_empty() and p.hp==(0 if mode=="fallen" else 10),"no pressure damage or arrivals in "+mode)
+  check(game.scouts.is_empty() and PlayerVitals.current_hp(p)==(0 if mode=="fallen" else 10),"no pressure damage or arrivals in "+mode)
  reset_floor();game.add_player(2);game.players[2].profile_ready=true;game.players[2].wild=true;game.players[2].pos=p.pos
  for wave in range(1,17):
   game.scouts.clear();game.leader_brain.pressure={"wave":wave-1,"pending":[]}

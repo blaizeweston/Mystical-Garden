@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Preview = preload("res://combat_balance_preview.gd")
@@ -66,7 +68,7 @@ func arena(class_id: int, mask: int = 0) -> void:
 	player.character.upgrades[class_id]=mask
 	player.character.xp[class_id]=2600
 	player.merge({"frame":class_id,"weapon_kind":0,"weapon":0,"secondary":0,"catalyst":0,"graft_part":0,
-		"power":0,"technique":0,"run_upgrades":{},"wild":true,"fallen":false,"max_hp":100,"hp":20,
+		"power":0,"technique":0,"run_upgrades":{},"wild":true,"fallen":false,PlayerVitals.STATE:PlayerVitals.Health.new(20,100),
 		"pos":Vector3.ZERO,"facing":Vector3.FORWARD,"lost_health":0},true)
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
 	for key in ["core_cast_until","strike_at","hurt_until","guard_until","guard_charges",
@@ -74,8 +76,8 @@ func arena(class_id: int, mask: int = 0) -> void:
 		player[key]=0
 	ally.pos=Vector3(0,0,-.4)
 	ally.fallen=false
-	ally.hp=25
-	ally.max_hp=100
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(25)
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_native_max_hp(100)
 	ally.renewal_until=0
 	ally.guard_until=0
 
@@ -158,7 +160,7 @@ func guard_and_quake() -> void:
 	game.use_class_skill(1,player,0)
 	var now:=Time.get_ticks_msec()
 	game.apply_enemy_hit(1,player,now,3)
-	check(player.hp==20 and player.guard_charges==0 and player.counter_until>now,"one charge fully blocks an incoming 30 HP hit")
+	check(PlayerVitals.current_hp(player)==20 and player.guard_charges==0 and player.counter_until>now,"one charge fully blocks an incoming 30 HP hit")
 	game.use_class_skill(1,player,1)
 	check(game.enemy_hp==570 and player.counter_until==0,"Root Quake applies 20 HP plus the 10 HP counter once")
 
@@ -185,7 +187,7 @@ func drain_and_delayed_hit() -> void:
 	for at in [Vector3(.4,0,-1.2),Vector3(-.4,0,-1.5),Vector3(0,0,-.6)]:
 		add_foe(at)
 	game.use_class_skill(1,player,0)
-	check(game.enemy_hp==580 and int(player.hp)-20 in range(23,26),"Blood Harvest rolls around 24 HP at its learned extra-contact cap")
+	check(game.enemy_hp==580 and int(PlayerVitals.current_hp(player))-20 in range(23,26),"Blood Harvest rolls around 24 HP at its learned extra-contact cap")
 	check(tooltip(0).contains("5–7 HP with one enemy hit · 23–25 HP at the target cap"),"drain tooltip reflects the learned cap")
 	arena(3,2730)
 	player.power=1
@@ -201,19 +203,19 @@ func drain_and_delayed_hit() -> void:
 
 func heal_and_punish() -> void:
 	arena(4)
-	ally.hp=97
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(97)
 	game.use_class_skill(1,player,0)
-	var initial_hp := int(player.hp)
-	check(initial_hp-20 in range(18,23) and ally.hp==100,"Renewal initial heal rolls and clamps overheal")
+	var initial_hp := int(PlayerVitals.current_hp(player))
+	check(initial_hp-20 in range(18,23) and PlayerVitals.current_hp(ally)==100,"Renewal initial heal rolls and clamps overheal")
 	game.update_support_effects(int(player.renewal_tick))
-	check(int(player.hp)-initial_hp in range(3,6) and tooltip(0).contains("3–5 HP every second"),"Renewal tick and tooltip agree")
+	check(int(PlayerVitals.current_hp(player))-initial_hp in range(3,6) and tooltip(0).contains("3–5 HP every second"),"Renewal tick and tooltip agree")
 	arena(4,1<<14)
 	player.run_upgrades={"class_4_0":1}
 	var bonus: float=game.weapon_stats(player).skill_heal
 	cast_at(0,0.0)
-	var amount:=int(player.hp)-20
+	var amount:=int(PlayerVitals.current_hp(player))-20
 	var center:=Preview.effect_hp(1.0+bonus)
-	check(bonus>0 and amount in range(center-2,center+3) and ally.hp==25+amount,"Living Sanctuary includes equipped class healing in one shared group roll")
+	check(bonus>0 and amount in range(center-2,center+3) and PlayerVitals.current_hp(ally)==25+amount,"Living Sanctuary includes equipped class healing in one shared group roll")
 	check(tooltip(0).contains("Heal living allies: "+Preview.heal_label(1.0+bonus)),"subclass tooltip shows the combined heal range")
 	arena(4,1<<12)
 	player.run_upgrades={"omenreader_signature":1}

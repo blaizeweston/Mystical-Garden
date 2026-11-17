@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Hurt=preload("res://enemy_hurtbox.gd")
 const Motion=preload("res://weapon_motion.gd")
 const Feedback=preload("res://combat_feedback.gd")
@@ -10,7 +12,7 @@ func run():
  var game=load("res://world.tscn").instantiate();var token=str(Time.get_ticks_usec())
  game.progress.path="res://.godot/readability-"+token+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game)
  game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
- var p: Dictionary=game.players[1];p.wild=true;p.pos=Vector3.ZERO;p.hp=10;p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0
+ var p: Dictionary=game.players[1];p.wild=true;p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0
  game.scouts.clear();game.depth=1;game.destination=0;game.battlefield.configure(0,1);game.battlefield.barriers=[]
  game.enemy_mutations=0;game.enemy_growth=0;game.enemy_pos=Vector3(0,0,2)
  for kind in 24:
@@ -82,9 +84,9 @@ func run():
  check(float(actor.motion_phase)>.29,"guest pose advances between network packets")
  packet.phase=.12;var after:=Motion.advance(actor,packet,.001)
  check(after.phase>.29,"late phase cannot rewind an ongoing attack")
- p.hp=10;p.guard_until=Time.get_ticks_msec()+2000;p.guard_charges=1;p.hurt_until=0
+ p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.guard_until=Time.get_ticks_msec()+2000;p.guard_charges=1;p.hurt_until=0
  game.combat_events.clear();game.apply_enemy_hit(1,p,Time.get_ticks_msec(),1)
- check(p.hp==10 and game.combat_events.back().shape=="block","blocked contact is labeled without inventing damage")
+ check(PlayerVitals.current_hp(p)==10 and game.combat_events.back().shape=="block","blocked contact is labeled without inventing damage")
  var delayed: Dictionary=game.combat_events.back().duplicate();delayed.age=.7;delayed.duration=.85
  var key:=str([game.destination,game.encounter_number,game.map_seed])
  game.received_combat_events.assign([{"event":delayed,"key":key,"born":Time.get_ticks_msec()}])

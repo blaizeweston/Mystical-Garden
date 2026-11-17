@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Rules = preload("res://combat_ruleset.gd")
@@ -45,7 +46,7 @@ func run() -> void:
 	game.add_player(2)
 	for player in game.players.values():
 		player.wild = true
-		player.hp = 90
+		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(90)
 		player.pos = Vector3.ZERO
 	for pair in [["part_6","plant_part_rare_ember_fern"],["part_7","plant_part_rare_cinder_vine"],["part_15","plant_part_rare_sun_spire"]]:
 		for item in pair:
@@ -115,12 +116,12 @@ func run() -> void:
 		p.guard_until=0
 		p.guard_charges=0
 		game.use_class_skill(1,p,0)
-		var hp_before: float=p.hp
+		var hp_before: float=p[PlayerVitals.STATE].hp()
 		game.apply_enemy_hit(1,p,Time.get_ticks_msec(),1.0,0,game.enemy_pos)
-		check(game.enemy_hp==500-q.burst_hp-q.tick_hp and p.hp==hp_before,"Ward uses selected Catalyst without changing native prevention")
+		check(game.enemy_hp==500-q.burst_hp-q.tick_hp and p[PlayerVitals.STATE].hp()==hp_before,"Ward uses selected Catalyst without changing native prevention")
 		reset()
 		p.frame=4
-		p.hp=50
+		p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(50)
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		var ally: Dictionary=game.players[2]
 		ally.guard_until=0

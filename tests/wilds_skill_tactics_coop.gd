@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Core = preload("res://core_combat.gd")
 const Attacks = preload("res://enemy_attack.gd")
 const Tactics = preload("res://wilds_skill_tactics.gd")
@@ -81,7 +83,7 @@ func host() -> void:
 	game.scouts.clear()
 	for p in game.players.values():
 		p.wild = true
-		p.hp = 10
+		p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
 		p.pos = Vector3.ZERO
 	var guest_player: Dictionary = game.players[id]
 	guest_player.frame = game.Frames.RANGER

@@ -25,12 +25,6 @@ static func damage_taken(health: int, amount: int) -> int:
 	return mini(maxi(0, health), maxi(0, amount))
 
 
-static func heal(actor: Dictionary, amount: int) -> float:
-	var before := float(actor.hp)
-	actor.hp = minf(float(actor.max_hp), before + maxi(0, amount))
-	return maxf(0.0, float(actor.hp) - before)
-
-
 static func floor_recovery(biome_boundary: bool, hp_per_point: int = LIVE_HP_PER_POINT) -> int:
 	return points(2 if biome_boundary else 1, hp_per_point)
 

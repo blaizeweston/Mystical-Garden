@@ -1,4 +1,5 @@
 extends RefCounted
+const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 const Progression = preload("res://oracle_connected_tree.gd")
 const Omens = preload("res://oracle_omens.gd")
@@ -63,7 +64,7 @@ static func lowest_recipient(game: Node, allies: Array) -> Dictionary:
 	var ratio := INF
 	var best_id := 0
 	for ally in allies:
-		var health := float(ally.hp)/float(ally.max_hp)
+		var health := PlayerVitals.current_hp(ally)/float(PlayerVitals.maximum_hp(ally))
 		var id: int = game.Traits.player_id(game,ally)
 		if health < ratio or (health == ratio and id < best_id):
 			best = ally

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 var game: Node
 var failed:=false
@@ -36,10 +38,10 @@ func run():
 		game.enemy_winding_up=false
 		game.enemy_ready_at=Time.get_ticks_msec()+60000
 		host.wild=true
-		host.hp=4
+		host[PlayerVitals.STATE] = host[PlayerVitals.STATE].with_hp(4)
 		host.pos=Vector3(.8,0,-1.5)
 		p.wild=true
-		p.hp=4
+		p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(4)
 		p.pos=Vector3(0,0,-1.5)
 		if not await until(func(): return p[Cooldowns.STATE].deadline(Cooldowns.Q)>0 and p[Cooldowns.STATE].deadline(Cooldowns.R)>0):
 			check(false,"both remote skill actions reach host");quit(1);return
@@ -47,7 +49,7 @@ func run():
 		game.send_garden_action("class_skill")
 		game.send_garden_action("class_skill_two")
 		check(host[Cooldowns.STATE].deadline(Cooldowns.Q)>0 and host[Cooldowns.STATE].deadline(Cooldowns.R)>0,"host also has two independent cooldowns")
-		check(p.hp>=6 and p.guard_charges>=1,"Oracle heals and wards the guest")
+		check(PlayerVitals.current_hp(p)>=6 and p.guard_charges>=1,"Oracle heals and wards the guest")
 		await create_timer(.8).timeout
 	else:
 		game.guest_character.data.active_class=1

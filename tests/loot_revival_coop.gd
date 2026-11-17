@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 var game: Node
 var role: String
@@ -38,20 +40,20 @@ func host_run() -> void:
  check(await until(func(): return p.carried_parts[game.Parts.HOOK]==1),"guest picks up visible private part")
  check(game.wild_item_drops.is_empty(),"pickup removes authoritative drop")
  game.damage_player(id,p,100)
- check(p.fallen and p.wild and p.hp==0,"guest down remains in expedition")
+ check(p.fallen and p.wild and PlayerVitals.current_hp(p)==0,"guest down remains in expedition")
  check(await until(func(): return marked("guest-spectates")),"guest follows host camera/fog")
  var corpse: Vector3=p.pos
  # Forged down-state action must be rejected by host too.
  check(await until(func(): return marked("blocked")),"guest sends down-state requests")
  check(p.pos==corpse and p[Cooldowns.STATE].deadline(Cooldowns.Q)==0,"down-state movement and skills blocked on authority")
  game.act(1,false)
- check(p.hp==8 and p.max_hp==8 and p.lost_health==2,"host revives guest through interact")
+ check(PlayerVitals.current_hp(p)==8 and PlayerVitals.maximum_hp(p)==8 and p.lost_health==2,"host revives guest through interact")
  check(await until(func(): return marked("guest-revived")),"guest receives lost-heart texture state")
  game.damage_player(1,host,100)
  check(host.wild and host.fallen and game.spectator_view.focus_id(1)==id,"fallen host watches guest")
  mark("revive-host")
- check(await until(func(): return not host.fallen and host.max_hp==8),"guest E request revives host")
- check(host.lost_health==2 and host.hp==8,"host pays same one-heart cost")
+ check(await until(func(): return not host.fallen and PlayerVitals.maximum_hp(host)==8),"guest E request revives host")
+ check(host.lost_health==2 and PlayerVitals.current_hp(host)==8,"host pays same one-heart cost")
  check(await until(func(): return marked("host-revived")),"guest observes authoritative host revival")
  game.damage_player(1,host,100);game.damage_player(id,p,100)
  check(not host.wild and not p.wild and host.lost_health==0 and p.lost_health==0,"party wipe resets lost hearts")
@@ -78,7 +80,10 @@ func guest_run() -> void:
  check(game.player_hud.state.fallen,"fallen HUD hides combat controls");await capture("spectator");mark("guest-spectates")
  game.request_garden_action.rpc_id(1,"class_skill");game.submit_motion.rpc_id(1,Vector2.RIGHT)
  await create_timer(.35).timeout;mark("blocked")
- check(await until(func(): return not game.players[id].get("fallen",true) and game.players[id].max_hp==8),"guest revived to eight HP")
+ var shows_revival := func():
+  var player: Dictionary = game.players[id]
+  return not player.get("fallen",true) and player.max_hp==8 and not player.has(PlayerVitals.STATE)
+ check(await until(shows_revival),"guest receives revived health without the authority owner")
  game._process(.016)
  check(game.player_hud.state.lost_health==2 and game.spectator_view.target_id==0 and game.player_hud.heart_state(8,8,4)==3,"guest restored camera and lost-heart HUD")
  await capture("revived");mark("guest-revived")

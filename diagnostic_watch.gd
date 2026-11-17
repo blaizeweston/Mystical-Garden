@@ -1,5 +1,6 @@
 extends Node
 const Journal=preload("res://diagnostic_journal.gd")
+const PlayerVitals = preload("res://player_vitals.gd")
 var game: Node
 var world_session: String
 var clock:=0.0
@@ -54,7 +55,10 @@ func tick(sample: bool=false) -> void:
     var packet: ENetPacketPeer=game.online_peer.get_peer(int(id))
     if packet!=null and packet.is_active():transport[id]={"rtt_ms":packet.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME),"enet_reliable_loss_percent_estimate":100.0*packet.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS)/ENetPacketPeer.PACKET_LOSS_SCALE,"loss_epoch_ms":packet.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS_EPOCH)}
   var positions={}
-  for id in game.players:positions[id]={"pos":game.players[id].get("pos",Vector3.ZERO),"hp":game.players[id].get("hp",0),"max_hp":game.players[id].get("max_hp",0),"lost_health":game.players[id].get("lost_health",0),"fallen":game.players[id].get("fallen",false),"damage_seq":game.players[id].get("damage_seq",0),"vitals_revision":game.players[id].get("vitals_revision",0)}
+  for id in game.players:
+   var actor: Dictionary = game.players[id]
+   positions[id]={"pos":actor.get("pos",Vector3.ZERO),"hp":PlayerVitals.current_hp(actor),"max_hp":PlayerVitals.maximum_hp(actor,0),
+    "lost_health":actor.get("lost_health",0),"fallen":actor.get("fallen",false),"damage_seq":actor.get("damage_seq",0),"vitals_revision":actor.get("vitals_revision",0)}
   Journal.event("network","sample",{"transport":transport,"rejected_snapshots":game.net_view.rejected_snapshots,"snapshot_gaps":game.net_view.snapshot_gaps,"sent_sequence":game.net_view.snapshot_sent,"received_sequence":sequence,"players":positions,"living_enemies":game.living_scout_count()+int(game.enemy_hp>0),"pending_projectiles":game.projectile_queue.size(),"movement_timing":game.net_motion.sample(),"fps":Engine.get_frames_per_second()})
 func _exit_tree() -> void:
  Journal.event("world","detached",{"world_session":world_session})

@@ -1,23 +1,26 @@
 extends RefCounted
+const PlayerVitals=preload("res://player_vitals.gd")
 const Vitals=preload("res://combat_vitals.gd")
 const Preview=preload("res://combat_balance_preview.gd")
 const Sustain=preload("res://expedition_sustain.gd")
 const REVIVE_COST:=Vitals.REVIVE_POINTS*Vitals.LIVE_HP_PER_POINT
 const REVIVE_REACH:=1.65
 static func alive(p: Dictionary) -> bool:
- return p.get("wild",false) and not p.get("fallen",false) and float(p.get("hp",0))>0
+ return p.get("wild",false) and not p.get("fallen",false) and PlayerVitals.current_hp(p)>0.0
 static func living_ids(game: Node) -> Array[int]:
  var ids: Array[int]=[]
  for id in game.players:
   if alive(game.players[id]): ids.append(int(id))
  ids.sort();return ids
 static func maximum(game: Node,p: Dictionary,prepared := false) -> int:
- return native_maximum(game,p,prepared)+int(p.get("affinity_vital_bonus",0))
+ return native_maximum(game,p,prepared)+PlayerVitals.temporary_hp(p)
 static func native_maximum(game: Node,p: Dictionary,prepared := false) -> int:
  var extra := preload("res://affinity_cards.gd").amount(p,"run_health") if not prepared else 0
  return Preview.maximum_health(game.MAX_HEALTH,float(game.weapon_stats(p,prepared).get("max_health",0)),int(p.get("lost_health",0)),extra)
 static func down(game: Node,id: int,p: Dictionary,effects = null) -> void:
- p.hp=0;p.fallen=true;p.velocity=Vector3.ZERO;p.attack_until=0;p.swing_until=0
+ var health: PlayerVitals.Health = p[PlayerVitals.STATE]
+ p[PlayerVitals.STATE] = health.with_hp(0.0)
+ p.fallen=true;p.velocity=Vector3.ZERO;p.attack_until=0;p.swing_until=0
  p.erase("affinity_ward_claims");p.erase("frost_response");p.erase("affinity_ember_response")
  preload("res://vital_combat.gd").clear(game,p)
  preload("res://wood_affinity.gd").clear(p)
@@ -51,7 +54,10 @@ static func revive(game: Node,helper_id: int,target_id: int,effects = null) -> b
  if not Vitals.can_revive(native_maximum(game,target),Preview.scale()):
   game.action_feedback(effects,helper_id,"This ally has too little maximum health to revive." if Preview.enabled else "No full heart remains to sacrifice. This ally cannot be revived again during this expedition.");return false
  target.lost_health=int(target.get("lost_health",0))+Preview.revive_cost()
- target.max_hp=maximum(game,target);target.hp=float(target.max_hp);target.fallen=false
+ var health: PlayerVitals.Health = target[PlayerVitals.STATE]
+ var revived := health.with_native_max_hp(native_maximum(game,target)).refilled()
+ target[PlayerVitals.STATE] = revived
+ target.fallen=false
  target.erase("affinity_ward_claims");target.erase("frost_response");target.erase("affinity_ember_response")
  target.hurt_until=Time.get_ticks_msec()+1500;target.guard_until=0;target.renewal_until=0
  target.velocity=Vector3.ZERO;game.motions.erase(target_id)
@@ -60,5 +66,5 @@ static func revive(game: Node,helper_id: int,target_id: int,effects = null) -> b
   game.action_feedback(effects,target_id,"Revived. %d maximum HP is lost until you return to the Garden."%Preview.revive_cost())
  else:
   game.action_feedback(effects,target_id,"Revived. One maximum heart was sacrificed until you return to the Garden.")
- game.action_feedback(effects,helper_id,"Revived %s. Their maximum health is now %d."%[target.character.get("name","Ally"),target.max_hp])
+ game.action_feedback(effects,helper_id,"Revived %s. Their maximum health is now %d."%[target.character.get("name","Ally"),revived.max_hp()])
  return true

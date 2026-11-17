@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerVitals = preload("res://player_vitals.gd")
 const Learning=preload("res://wilds_learning.gd")
 var failed:=false
 func check(ok: bool,message: String):
@@ -46,10 +48,10 @@ func run():
  game.combat_velocity[1]=Vector3(4,0,0)
  var aim: Vector3=game.Director.predict(game,1,.3)
  check(aim.x>p.pos.x and aim.distance_to(p.pos)<1.7,"ranged prediction leads motion within a bounded readable offset")
- p.hp=10;p.hurt_until=0;p.guard_until=0
+ p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0;p.guard_until=0
  game.apply_enemy_hit(1,p,1000,1);game.apply_enemy_hit(1,p,1001,1)
- check(p.hp==9,"simultaneous swarm contacts do not erase several hearts in one instant")
- game.apply_enemy_hit(1,p,1250,1);check(p.hp==8,"protection expires and later telegraphs still damage")
+ check(PlayerVitals.current_hp(p)==9,"simultaneous swarm contacts do not erase several hearts in one instant")
+ game.apply_enemy_hit(1,p,1250,1);check(PlayerVitals.current_hp(p)==8,"protection expires and later telegraphs still damage")
  var memory:=Learning.blank()
  for i in 3: Learning.observe(memory,{"ranged":true,"kite":true},1)
  check(memory.score.ranged==6 and memory.score.kite==6,"repeated successful tactics build evidence")

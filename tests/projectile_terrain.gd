@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerVitals = preload("res://player_vitals.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
@@ -282,14 +284,14 @@ func core_and_enemy_checks() -> void:
 		check((game.rooted_until > 0) == far_side, "anchored beam uses ranged obstruction after ground placement")
 		var watcher: Dictionary = game.make_scout(1,player.pos,20)
 		player.pos = game.enemy_pos
-		player.hp = 40
+		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(40)
 		player.hurt_until = 0
 		player.guard_until = 0
 		player.guard_charges = 0
 		watcher.mode = "volley"
 		watcher.attack = EnemyAttack.plan(game,watcher,"volley",player.pos)
 		game.resolve_scout(watcher,game.Enemies.get_kind(1),Time.get_ticks_msec())
-		check((player.hp < 40) == far_side, "actual Watcher volley uses the same cover role and water policy")
+		check((PlayerVitals.current_hp(player) < 40) == far_side, "actual Watcher volley uses the same cover role and water policy")
 
 func run() -> void:
 	field = floor_fixture()
