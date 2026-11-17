@@ -312,7 +312,12 @@ func refresh():
 	var use_connected := connected != null
 	var level: int = connected.level(profile) if use_connected else game.Character.level(int(profile.xp[c]))
 	var points: int = (level-connected.path(profile).size() if connected.valid(profile) else 0) if use_connected else game.Classes.points(profile,c,level)
-	var body: String="[b]%s · Lv %d[/b]\n%s\n%d class point(s) available\n\n%s"%[game.Classes.DEFINITIONS[c].name,level,game.Classes.DEFINITIONS[c].description,points,game.Weapons.describe(stats) if not stats.is_empty() else ""]
+	var weapon_stats := stats.duplicate()
+	if not prepared and stats.has("affinity_build"):
+		var cards = preload("res://affinity_cards.gd")
+		var applied: Dictionary = cards.totals(p) if game.multiplayer.is_server() else cards.applied_totals(p.get("affinity_run_cards", []))
+		game.Weapons.tune_affinity_basic(weapon_stats, applied)
+	var body: String="[b]%s · Lv %d[/b]\n%s\n%d class point(s) available\n\n%s"%[game.Classes.DEFINITIONS[c].name,level,game.Classes.DEFINITIONS[c].description,points,game.Weapons.describe(weapon_stats) if not weapon_stats.is_empty() else ""]
 	for skill_slot in range(1 if starting_tree!=null else 0,2):
 		var skill: Dictionary=game.Skills.resolve_in_world(game,c,skill_slot,profile)
 		var info: String=game.Skills.describe(skill,stats)

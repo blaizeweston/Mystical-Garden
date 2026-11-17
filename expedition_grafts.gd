@@ -17,7 +17,7 @@ const REINFORCEMENTS := {
 	"health": {"name":"Reinforced Frame", "stat":"health", "amount":5, "cap":40,
 		"text":"Gain up to 5 Max HP without healing.", "detail":"Shares the +40 HP native capacity limit with other native bonuses. Existing revive loss and separately sourced health effects still apply."},
 	"cooldown": {"name":"Quickened Ritual", "stat":"cooldown", "amount":250, "cap":900,
-		"text":"Start native class ability cooldowns up to 0.25 s shorter.", "detail":"Up to 0.9 s total from grafting. New class cooldowns cannot go below 1.8 s. A timer already running keeps its deadline."},
+		"text":"Start native class ability cooldowns up to 0.25 s shorter.", "detail":"Up to 0.9 s total from grafting. A timer already running keeps its deadline."},
 	"reach": {"name":"Extended Reach", "stat":"reach", "amount":20, "cap":60,
 		"text":"Extend basic attack reach by 0.20 m.", "detail":"Up to +0.60 m from grafting. Applies to the weapon’s real hit geometry and projectile range. Cover still applies."},
 }
@@ -109,8 +109,7 @@ static func effective(game: Node, player: Dictionary) -> Dictionary:
 		var skill: Dictionary = adapter.get("native_skill", {})
 		if not skill.is_empty():
 			skills.append({"name":skill.name, "time":Balance.cooldown(skill,stats)})
-	tune_basic(stats)
-	Cards.ordinary_weapon(player,stats,Balance.Preview.scale())
+	game.Weapons.tune_affinity_basic(stats, Cards.totals(player))
 	return {"damage":Balance.Preview.weapon_range(stats,0), "health":game.Life.maximum(game,player),
 		"reach":roundi(float(stats.reach)*100.0), "cooldown":skills}
 

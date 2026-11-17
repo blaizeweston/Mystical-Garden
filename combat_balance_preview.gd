@@ -111,6 +111,10 @@ static func armor(amount: int) -> int:
 	return Vitals.armored_damage(amount, scale())
 
 
+static func attack_speed(interval_ms: int) -> String:
+	return "%.2f" % (1000.0 / interval_ms)
+
+
 static func weapon_range(stats: Dictionary, power: int) -> Vector2i:
 	var center := effect_hp(float(stats.damage) + power)
 	var spread := int(stats.get("roll_spread_hp", DEFAULT_SPREAD_HP)) if enabled else 0

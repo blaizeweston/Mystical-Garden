@@ -3,6 +3,7 @@ extends RefCounted
 const Catalog = preload("res://affinity_card_catalog.gd")
 const Gate = preload("res://gate_interaction.gd")
 const Journal = preload("res://diagnostic_journal.gd")
+const Preview = preload("res://combat_balance_preview.gd")
 const STATE := "affinity_cards"
 const SERIAL := &"affinity_offer_serial"
 const COMMAND := "affinity_checkpoint_"
@@ -63,6 +64,10 @@ static func requirement(definition: Dictionary, build: Dictionary) -> String:
 	elif scope == "weapon" and not build.get("capabilities", {}).get(requires.capability, false):
 		return "Requires a functioning basic attack."
 	return ""
+
+
+static func attack_interval(interval_ms: int, reduction_ms: int) -> int:
+	return maxi(STRIKE_MIN_MS, interval_ms - reduction_ms)
 
 
 static func parameter_limit(definition: Dictionary, stats: Dictionary, dodge_base: int) -> int:
@@ -177,6 +182,7 @@ static func option_refusal(game: Node, player: Dictionary, option: Dictionary, s
 
 static func view(game: Node, player: Dictionary, waiting: bool) -> Dictionary:
 	var stats: Dictionary = game.weapon_stats(player)
+	game.Weapons.tune_affinity_basic(stats)
 	var offer := open(game, player, stats)
 	var run := state(player)
 	var result := {
@@ -193,7 +199,7 @@ static func view(game: Node, player: Dictionary, waiting: bool) -> Dictionary:
 		var limit := parameter_limit(definition, stats, game.DODGE_COOLDOWN_MS)
 		var owned: Array = run.copies.filter(func(copy): return copy.id == option.id)
 		var active := mini(limit, amount(player, option.id)) if requirement(definition, stats.affinity_build).is_empty() else 0
-		var choice := choice_view(definition, option, owned, active, reason)
+		var choice := choice_view(definition, option, owned, active, reason, int(stats.interval))
 		choice.merge({"choice": index, "id": option.id, "title": definition.title,
 			"rarity": option.rarity, "scope": str(definition.scope).capitalize(), "unique": definition.policy == "unique",
 			"enabled": reason.is_empty(), "cost": 0})
@@ -234,6 +240,7 @@ static func command(game: Node, actor: int, player: Dictionary, action: String) 
 	if bool(offer.closed) or exhausted(run):
 		return
 	var stats: Dictionary = game.weapon_stats(player)
+	game.Weapons.tune_affinity_basic(stats)
 	if choice == "reroll":
 		var cost := reroll_cost(offer)
 		if cost <= 0 or game.run_wallet(player) < cost:
@@ -293,6 +300,13 @@ static func project_owned(player: Dictionary, stats: Dictionary, dodge_base: int
 	return result
 
 
+static func applied_totals(copies: Array) -> Dictionary:
+	var result := {}
+	for copy: Dictionary in copies:
+		result[copy.id] = copy.applied
+	return result
+
+
 static func rarity_mix(copies: Array) -> String:
 	var counts := {}
 	for copy: Dictionary in copies:
@@ -335,7 +349,7 @@ static func detail_text(definition: Dictionary) -> String:
 	return "\n".join(lines)
 
 
-static func choice_view(definition: Dictionary, option: Dictionary, owned: Array, active: int, reason: String) -> Dictionary:
+static func choice_view(definition: Dictionary, option: Dictionary, owned: Array, active: int, reason: String, interval_ms: int) -> Dictionary:
 	var amount_offered: int = int(option.amount)
 	var description := Catalog.effect_text(definition, amount_offered)
 	var preview := ""
@@ -346,7 +360,11 @@ static func choice_view(definition: Dictionary, option: Dictionary, owned: Array
 		if reason.is_empty():
 			var combined := Catalog.contribution(definition, active + amount_offered)
 			var count := owned.size()
-			if definition.parameter == "strike_damage":
+			if definition.parameter == "strike_interval":
+				var before := attack_interval(interval_ms, active)
+				var after := attack_interval(interval_ms, active + amount_offered)
+				preview = "Attack speed: %s → %s attacks/sec" % [Preview.attack_speed(before), Preview.attack_speed(after)]
+			elif definition.parameter == "strike_damage":
 				preview = "Acquired: %d %s (%s) → %d %s (%s)" % [
 					count, "copy" if count == 1 else "copies", current,
 					count + 1, "copy" if count == 0 else "copies", combined]
@@ -425,11 +443,6 @@ static func tune_class(player: Dictionary, skill: Dictionary, build: Dictionary,
 			skill.damage = float(skill.damage) + float(contribution) / scale
 		else:
 			skill[parameter] = int(skill.get(parameter, 0)) + contribution
-
-
-static func ordinary_weapon(player: Dictionary, stats: Dictionary, scale: int) -> void:
-	stats.damage = float(stats.damage) + float(amount(player, "ordinary_weapon_damage")) / scale
-	stats.interval = maxi(STRIKE_MIN_MS, int(stats.interval) - amount(player, "ordinary_weapon_interval"))
 
 
 static func bloom_echo_source(game: Node, player: Dictionary, skill: Dictionary, now: int) -> Dictionary:

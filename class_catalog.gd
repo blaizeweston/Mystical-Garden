@@ -1763,9 +1763,19 @@ static func can_learn_legacy(profile: Dictionary,class_id: int,node_id: int,leve
  return parent_ok
 
 static func effect_text(values: Dictionary, show_hp: bool = false) -> String:
- var names := {"max_health":"health","reach":"reach (m)","cooldown":"faster strikes (ms)","targets":"extra targets","stagger":"hit stagger (ms)","skill_duration":"skill duration (ms)","skill_cooldown":"faster class skill (ms)","damage":"strike damage","windup_damage":"damage during enemy wind-up","graft_chance":"grafting chance","dodge_cooldown":"faster dodge (ms)","heal_on_kill":"health on killing strike","skill_heal":"class-skill healing","recovery":"enemy recovery (ms)","knockback":"knockback (m)","pull":"pull (m)","familiarity":"extra cultivation familiarity"}
+ var names := {"max_health":"health","reach":"reach (m)","targets":"extra targets","stagger":"hit stagger (ms)","damage":"strike damage","windup_damage":"damage during enemy wind-up","graft_chance":"grafting chance","heal_on_kill":"health on killing strike","skill_heal":"class-skill healing","recovery":"enemy recovery (ms)","knockback":"knockback (m)","pull":"pull (m)","familiarity":"extra cultivation familiarity"}
  var lines: Array[String]=[]
  for key in values:
+  if key in ["cooldown","skill_cooldown","dodge_cooldown","skill_duration"]:
+   var amount := float(values[key])
+   var seconds := ("%.3f" % (absf(amount) / 1000.0)).rstrip("0").trim_suffix(".")
+   if key == "cooldown":
+    lines.append("%s s %s between basic attacks" % [seconds, "less" if amount >= 0 else "more"])
+   else:
+    var label := {"skill_cooldown":"Class ability cooldown", "dodge_cooldown":"Dodge cooldown", "skill_duration":"Class ability duration"}
+    var displayed_change: float = amount if key == "skill_duration" else -amount
+    lines.append("%s %s%s s" % [label[key], "+" if displayed_change >= 0.0 else "−", seconds])
+   continue
   if show_hp:
    var hp: String=preload("res://combat_balance_preview.gd").component_hp_text({key:values[key]})
    if not hp.is_empty():

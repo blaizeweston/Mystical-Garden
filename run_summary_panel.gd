@@ -5,6 +5,8 @@ const Skills = preload("res://skill_catalog.gd")
 const Upgrades = preload("res://run_upgrade_catalog.gd")
 const Traits = preload("res://combat_traits.gd")
 const UI = preload("res://root_ui.gd")
+const Cards = preload("res://affinity_cards.gd")
+const Preview = preload("res://combat_balance_preview.gd")
 const EXTRA_STATS := {
 	"windup_damage": ["Wind-up damage", " hp", 1.0],
 	"heal_on_kill": ["Health on kill", " hp", 1.0],
@@ -146,7 +148,12 @@ func refresh(player: Dictionary) -> void:
 			title.text = row[0]
 			title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			game.add_label(totals, 13, UI.INK).text = row[1]
+			var value: Label = game.add_label(totals, 13, UI.INK)
+			value.text = row[1]
+			if row.size() > 2:
+				for label: Label in [title, value]:
+					label.tooltip_text = row[2]
+					label.mouse_filter = Control.MOUSE_FILTER_PASS
 	bonuses.text = view.get("bonuses", "No unique bonuses active.")
 	var rows: Array = view.get("cards", [])
 	if rows != shown.get("cards", []):
@@ -210,40 +217,38 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 			tooltip += "\n\n" + ("Per rank\n" if int(entry.max_rank) != 1 else "") + detail
 		upgrades.append({"title": entry.name + ("  ×%d" % rank if rank > 1 else ""), "tooltip": tooltip, "rarity": entry.rarity})
 	if stats.has("affinity_build"):
-		var cards_api = preload("res://affinity_cards.gd")
-		var copies: Array = cards_api.project_owned(player,stats,world.DODGE_COOLDOWN_MS) if world.multiplayer.is_server() else player.get("affinity_run_cards",[])
-		upgrades = cards_api.owned_rows(copies)
-		var applied := {}
-		for copy: Dictionary in copies:
-			applied[copy.id] = copy.applied
+		var copies: Array = Cards.project_owned(player,stats,world.DODGE_COOLDOWN_MS) if world.multiplayer.is_server() else player.get("affinity_run_cards",[])
+		upgrades = Cards.owned_rows(copies)
+		var applied := Cards.applied_totals(copies)
 		stats = stats.duplicate()
-		preload("res://expedition_grafts.gd").tune_basic(stats)
-		stats.damage = float(stats.damage) + float(applied.get("ordinary_weapon_damage",0)) / world.Life.Preview.scale()
+		world.Weapons.tune_affinity_basic(stats, applied)
 		var weapon_band: Vector2i = world.Life.Preview.weapon_range(stats,0)
 		stats.damage_min = weapon_band.x
 		stats.damage_max = weapon_band.y
-		stats.interval = int(stats.interval) - int(applied.get("ordinary_weapon_interval",0))
 		stats.dodge_cooldown = int(stats.get("dodge_cooldown",0)) + int(applied.get("run_dodge_recovery",0))
 	upgrades.sort_custom(func(a,b): return a.title.naturalnocasecmp_to(b.title) < 0)
 	if world.multiplayer.is_server():
 		power = 0 if player.has("combat_ruleset") else int(player.get("power", power))
 	if stats.has("damage_min"):
 		var band:=Vector2i(stats.damage_min,stats.damage_max)
-		rows.append(["Strike damage", world.Life.Preview.range_label(band)+" HP"])
+		rows.append(["Damage", Preview.range_label(band)])
 	else:
-		rows.append(["Strike damage", compared(float(stats.damage) + power, base.damage)])
+		rows.append(["Damage", compared(float(stats.damage) + power, base.damage)])
 	rows.append(["Reach", compared(stats.reach, base.reach, " m")])
-	rows.append(["Strike interval", compared(float(stats.interval)/1000.0, float(base.strike_ms)/1000.0, " s")])
+	rows.append(["Attack speed", Preview.attack_speed(int(stats.interval)) + " attacks/sec",
+		"Maximum attack speed is %s attacks/sec." % Preview.attack_speed(Cards.STRIKE_MIN_MS)])
 	rows.append(["Weapon targets", compared(stats.targets, base.targets)])
 	var base_hp: int=world.Life.Preview.hp(world.MAX_HEALTH)
 	rows.append(["Max HP", compared(player.get("max_hp", base_hp), base_hp, " HP" if world.Life.Preview.enabled else "")])
-	rows.append(["Dodge cooldown", compared(maxi(350, world.DODGE_COOLDOWN_MS-int(stats.get("dodge_cooldown", 0)))/1000.0,
-		world.DODGE_COOLDOWN_MS/1000.0, " s")])
+	var dodge_ms := maxi(Cards.DODGE_MIN_MS, world.DODGE_COOLDOWN_MS - int(stats.get("dodge_cooldown", 0)))
+	rows.append(["Dodge cooldown", compared(dodge_ms / 1000.0, world.DODGE_COOLDOWN_MS / 1000.0, " s"),
+		"Minimum dodge cooldown is %s s." % decimal(Cards.DODGE_MIN_MS / 1000.0)])
 	var profile: Dictionary = player.get("character", world.guest_character.data)
 	for slot in 2:
 		var skill := Skills.resolve_in_world(world, class_id, slot, profile)
-		var duration := Skills.Balance.cooldown(skill,stats)
-		rows.append([skill.name + " cooldown", decimal(duration/1000.0) + " s"])
+		var cooldown_ms := Skills.Balance.cooldown(skill,stats)
+		rows.append([skill.name + " cooldown", decimal(cooldown_ms / 1000.0) + " s",
+			"Minimum class ability cooldown is %s s." % decimal(Skills.Balance.COOLDOWN_MIN_MS / 1000.0)])
 	for key in EXTRA_STATS:
 		var value := float(stats.get(key, 0))
 		if key=="heal_on_kill" and world.Life.Preview.enabled:

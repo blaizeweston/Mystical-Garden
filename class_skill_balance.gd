@@ -7,10 +7,11 @@ const WARD_MS := 1400
 const FOLLOWUP_POINTS := 1
 const MARK_POINTS := 1
 const LEGACY_DRAIN_CAP := 3.0
+const COOLDOWN_MIN_MS := 1800
 
 
 static func cooldown(skill: Dictionary, stats: Dictionary) -> int:
-	return maxi(1800, int(skill.cooldown) - int(stats.get("skill_cooldown", 0)))
+	return maxi(COOLDOWN_MIN_MS, int(skill.cooldown) - int(stats.get("skill_cooldown", 0)))
 
 
 static func burst_points(skill: Dictionary) -> int:

@@ -362,7 +362,7 @@ flowchart LR
 | heart_growth_visual | `heart_growth_visuals.gd`, `heart_growth_visuals.gd.uid`, `assets/shaders/heart_foliage.gdshader`, `assets/shaders/heart_foliage.gdshader.uid` | `garden_cleanup`, `garden_cleanup_coop`, `garden_growth`, `garden_growth_coop`, `garden_presentation`, `garden_returns`, `garden_returns_coop`, `heart_growth_visual`, `heart_progression` |
 | garden_stations | `garden_care_panel.gd` | `guarded_garden_actions`, `cultivation_growth`, `direct_ip_coop`, `four_players_coop`, `garden_cleanup`, `garden_cleanup_coop`, `garden_crop_care_coop`, `garden_spring`, `garden_spring_coop`, `gate_garden_services`, `heart_progression`, `network_settings` |
 | menu_layout | `main_menu.gd`, `settings_panel.gd`, `menu_button_roots.gd`, `menu_button_roots.gd.uid` | `guarded_title_session`, `character_rig`, `character_roster`, `delete_saves`, `direct_ip_coop`, `four_players_coop`, `gate_garden_services`, `menu_controls`, `menu_coop`, `network_settings`, `start_menu`, `developer_garden` |
-| ui_copy |  | `class_depth`, `classes_weapons`, `cultivation_growth`, `direct_ip_coop`, `four_players_coop`, `garden_altar`, `garden_conduit`, `garden_conduit_coop`, `garden_crop_care`, `garden_crop_care_coop`, `gate_garden_services`, `grafting_menu`, `heart_progression`, `inventory_grid`, `inventory_party`, `menu_controls`, `seed_progression`, `species_depth`, `start_menu`, `status_feedback`, `tree_portraits`, `ui_copy`, `weighted_upgrades` |
+| ui_copy |  | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `class_depth`, `classes_weapons`, `cultivation_growth`, `direct_ip_coop`, `four_players_coop`, `garden_altar`, `garden_conduit`, `garden_conduit_coop`, `garden_crop_care`, `garden_crop_care_coop`, `gate_garden_services`, `grafting_menu`, `heart_progression`, `inventory_grid`, `inventory_party`, `menu_controls`, `seed_progression`, `species_depth`, `start_menu`, `status_feedback`, `tree_portraits`, `ui_copy`, `weighted_upgrades` |
 | enemy_attack_plan | `enemy_attack.gd`, `enemy_attack.gd.uid`, `enemy_variants.gd`, `enemy_variants.gd.uid`, `enemy_support.gd`, `enemy_support.gd.uid` | `boss_coop`, `boss_roster`, `combat_animation`, `combat_balance`, `combat_readability`, `combat_readability_coop`, `enemy_depth`, `enemy_roster`, `enemy_support`, `enemy_variants`, `expedition_pressure`, `expedition_pressure_coop`, `gate_elites`, `gate_elites_coop`, `monster_behaviors`, `monster_rewards`, `projectile_terrain`, `network_presentation`, `status_feedback`, `status_feedback_coop`, `support_deaths`, `support_rite_responses`, `support_rite_responses_coop`, `thorn_adaptation`, `thorn_adaptation_coop`, `wilds_skill_tactics`, `wilds_skill_tactics_coop`, `regular_enemy_responses`, `regular_enemy_responses_coop` |
 | encounter_composition | `wilds_composition.gd`, `wilds_composition.gd.uid` | `boss_coop`, `boss_roster`, `combat_balance`, `enemy_roster`, `expedition_pressure`, `expedition_pressure_coop`, `four_players_coop`, `gate_elites`, `gate_elites_coop`, `supplied_network_smoke`, `support_deaths`, `terrain_generation`, `terrain_generation_coop` |
 | boss_lair_fights | `boss_lair_fights.gd`, `boss_lair_fights.gd.uid`, `boss_lair_routes.gd`, `boss_lair_routes.gd.uid`, `orchard_moves.gd`, `orchard_moves.gd.uid` | `boss_coop`, `boss_lairs`, `boss_phase_fights`, `boss_roster`, `enemy_balance_preview` |
@@ -384,7 +384,7 @@ flowchart LR
 | ranged_release |  | `combat_animation`, `combat_readability`, `combat_readability_coop`, `core_weapon_variants`, `mouse_combat`, `mouse_combat_coop`, `network_presentation`, `supplied_network_smoke`, `weapon_actions`, `weapon_actions_coop` |
 | class_tree_access | `class_tree_access.gd`, `class_tree_access.gd.uid` | `ct05_oracle`, `ct05_oracle_coop`, `ct05_oracle_party`, `ct01_warden`, `ct01_warden_coop`, `ct02_weaver`, `ct02_weaver_coop`, `ct02_weaver_party`, `ct03_ranger`, `ct03_ranger_coop`, `ct03_ranger_party`, `ct04_reaper`, `ct04_reaper_coop`, `ct04_reaper_party`, `guarded_garden_actions`, `class_depth`, `class_depth_coop`, `classes_weapons`, `garden_cleanup`, `gate_crafting_rules`, `gate_garden_services`, `warden_prototype`, `warden_prototype_coop` |
 | class_skill_icons | `class_skill_icons.gd`, `class_skill_icons.gd.uid`, `assets/ui/class_skills.png`, `assets/ui/class_skills.png.import`, `assets/ui/class_skill_icons.json` | `player_hud` |
-| expedition_summary | `run_summary_panel.gd`, `run_summary_panel.gd.uid` | `menu_controls`, `menu_coop`, `player_hud`, `core_balance_preview`, `expedition_sustain` |
+| expedition_summary | `run_summary_panel.gd`, `run_summary_panel.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `menu_controls`, `menu_coop`, `player_hud`, `core_balance_preview`, `expedition_sustain` |
 | glasscap_feints | `glasscap_feint.gd`, `glasscap_feint.gd.uid`, `glasscap_visuals.gd`, `glasscap_visuals.gd.uid` | `enemy_variants`, `gate_elites`, `regular_enemy_responses_coop` |
 | combat_vitals | `combat_vitals.gd`, `combat_vitals.gd.uid` | `boss_coop`, `boss_lairs`, `boss_phase_fights`, `checkpoint_extraction`, `class_depth`, `combat_balance`, `combat_readability_coop`, `core_roster`, `core_roster_coop`, `core_signatures_coop`, `diagnostics_coop`, `dual_skills_coop`, `four_players_coop`, `health_points`, `loot_revival`, `loot_revival_coop`, `network_presentation`, `party_hud_gates_coop`, `supplied_network_smoke`, `support_rite_responses`, `weighted_upgrades`, `wilds_skill_tactics`, `subclass_skills`, `combat_vitals_baseline`, `combat_balance_saves`, `expedition_sustain` |
 | combat_balance_preview | `combat_balance_preview.gd`, `combat_balance_preview.gd.uid`, `health_orb.gd`, `health_orb.gd.uid` | `boss_coop`, `boss_lairs`, `combat_readability_coop`, `core_roster_coop`, `diagnostics_coop`, `direct_ip_coop`, `four_players_coop`, `health_points`, `loot_revival_coop`, `network_settings`, `party_hud_gates_coop`, `player_hud`, `start_menu`, `supplied_network_smoke`, `weapon_actions_coop`, `combat_vitals_baseline`, `combat_balance_saves`, `combat_balance_preview`, `combat_balance_preview_coop`, `class_balance_preview`, `core_balance_preview`, `enemy_balance_preview` |
@@ -1294,6 +1294,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::update_support_effects` | cb04_3 | class_balance |
 | `game.gd::update_support_effects` | preview_renewal_tick | combat_balance_preview |
 | `game.gd::update_support_effects` | vitals_renewal | combat_vitals |
+| `game.gd::strike_enemy` | ec01_speed_basic_resolution | affinity_cards, expedition_summary, combat, expedition_grafts |
 | `game.gd::strike_enemy` | ga01a_1 | expedition_grafts |
 | `game.gd::strike_enemy` | ga01a_2 | expedition_grafts |
 | `game.gd::strike_enemy` | ec01_1 | affinity_cards |
@@ -1849,6 +1850,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `grafting_panel.gd` | ui_copy_2 | ui_copy |
 | `grafting_panel.gd` | ui_copy_1 | ui_copy |
 | `grafting_panel.gd` | ui_copy_0 | ui_copy |
+| `loadout_panel.gd` | ec01_speed_equipment | affinity_cards, expedition_summary, weapons, ui_copy |
 | `loadout_panel.gd` | ga01a_1 | expedition_grafts, weapons |
 | `loadout_panel.gd` | ec01_display_1 | class_tree_access, combat_affinity_contracts, weapons |
 | `loadout_panel.gd` | ec01_playtest_1 | class_tree_access, combat_affinity_contracts, weapons |
@@ -1978,6 +1980,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `heart_catalog.gd` | ui_copy_2 | ui_copy |
 | `heart_catalog.gd` | ui_copy_1 | ui_copy |
 | `heart_catalog.gd` | ui_copy_0 | ui_copy |
+| `class_catalog.gd` | ec01_speed_modifier_text | ui_copy, classes, weapons |
 | `class_catalog.gd` | ct05_oracle_1 | oracle_progression, class_tree_access |
 | `class_catalog.gd` | ct05_oracle_2 | oracle_progression, class_tree_access |
 | `class_catalog.gd` | ct04_reaper_1 | classes, reaper_progression |
@@ -2014,6 +2017,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `class_catalog.gd` | ui_copy_2 | ui_copy |
 | `class_catalog.gd` | ui_copy_1 | ui_copy |
 | `class_catalog.gd` | ui_copy_0 | ui_copy |
+| `skill_catalog.gd` | ec01_speed_skill_damage_label | classes, ui_copy |
 | `skill_catalog.gd` | ct04_reaper_1 | classes, reaper_progression |
 | `skill_catalog.gd` | ct04_reaper_2 | classes, reaper_progression |
 | `skill_catalog.gd` | ct04_reaper_3 | classes, reaper_progression |
@@ -2045,6 +2049,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `skill_catalog.gd` | resolve_warden_subclass_skill | warden_progression |
 | `skill_catalog.gd` | ui_copy_1 | ui_copy |
 | `skill_catalog.gd` | ui_copy_0 | ui_copy |
+| `run_upgrade_catalog.gd` | ec01_speed_modifier_text | ui_copy, expedition_summary |
 | `run_upgrade_catalog.gd` | ec01_1 | affinity_cards |
 | `run_upgrade_catalog.gd` | cr02_requirement | combat_affinity_contracts |
 | `run_upgrade_catalog.gd` | cr02_effects | combat_affinity_contracts |
@@ -2372,6 +2377,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `enemy_attack.gd` | thorn_vault_landing | thorn_adaptation |
 | `enemy_attack.gd` | thorn_vault_lock | thorn_adaptation |
 | `enemy_attack.gd` | memory_growth_pose | boss_phase_fights |
+| `weapon_system.gd` | ec01_speed_resolved_weapon | affinity_cards, expedition_summary, weapons, expedition_grafts |
 | `weapon_system.gd` | ec01_display_1 | weapons, ui_copy |
 | `weapon_system.gd` | ec01_display_2 | weapons, ui_copy |
 | `weapon_system.gd` | cb07_0 | expedition_sustain |
@@ -2926,6 +2932,9 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `expedition_life.gd` | vitals_revive_threshold | combat_vitals |
 | `expedition_life.gd` | vitals_player_maximum | combat_vitals |
 | `expedition_life.gd` | vitals_revive_constants | combat_vitals |
+| `run_summary_panel.gd` | ec01_speed_summary_imports | affinity_cards, expedition_summary |
+| `run_summary_panel.gd` | ec01_speed_stat_tooltip | affinity_cards, expedition_summary |
+| `run_summary_panel.gd` | ec01_speed_summary_values | affinity_cards, expedition_summary |
 | `run_summary_panel.gd` | ga01a_1 | expedition_grafts, expedition_summary, affinity_cards |
 | `run_summary_panel.gd` | ga01a_2 | expedition_grafts, expedition_summary, affinity_cards |
 | `run_summary_panel.gd` | ec01_display_1 | affinity_cards, expedition_summary |
@@ -2958,6 +2967,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `spectator_view.gd` | cb07_0 | expedition_sustain |
 | `spectator_view.gd` | preview_spectator_cost | combat_balance_preview |
 | `assets/data/weapon_template.json` | cb03_template_roll_spread | weapon_balance |
+| `combat_balance_preview.gd` | ec01_speed_rate_label | affinity_cards, expedition_summary, weapons |
 | `combat_balance_preview.gd` | cb07_0 | expedition_sustain |
 | `combat_balance_preview.gd` | cb06_0 | enemy_balance |
 | `combat_balance_preview.gd` | healing_roll_0 | healing_rolls |
@@ -3021,6 +3031,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `expedition_pressure.gd` | cb06_3 | enemy_balance |
 | `expedition_pressure.gd` | cb06_4 | enemy_balance |
 | `expedition_pressure.gd` | cb06_5 | enemy_balance |
+| `class_skill_balance.gd` | ec01_speed_class_cooldown_limit | class_balance, expedition_summary |
 | `class_skill_balance.gd` | cb07_0 | expedition_sustain |
 | `network_presentation.gd` | cb07_0 | expedition_sustain |
 | `health_orb.gd` | cb07_0 | expedition_sustain |

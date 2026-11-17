@@ -2973,9 +2973,7 @@ func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 		var event: RefCounted = p.get("cr02_class_strike")
 		if event == null:
 			if not p.get("skill_burst",false):
-				preload("res://expedition_grafts.gd").tune_basic(stats)
-				if p.has(AffinityCards.STATE):
-					AffinityCards.ordinary_weapon(p,stats,Life.Preview.scale())
+				Weapons.tune_affinity_basic(stats, AffinityCards.totals(p))
 			var form_affinity: Dictionary = affinity_build.form
 			var ready: bool = form_affinity.state == "ready"
 			event = events.begin(self,id,"form" if ready else "native_weapon",form_affinity if ready else {},

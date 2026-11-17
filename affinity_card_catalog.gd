@@ -203,8 +203,8 @@ const DEFINITIONS := {
 		"trigger": "Ordinary attack interval begins", "consumer": ["res://game.gd", "strike_enemy"],
 		"requires": {"capability": "strike"}, "parameter": "strike_interval",
 		"values": [20, 35, 50, 65], "unit": "ms", "limit": 4,
-		"description": "Basic attacks can start %s seconds sooner, down to a 0.23 s interval.",
-		"detail": "Applies when a basic attack starts its next attack timer. Class and Core cooldowns stay the same.",
+		"description": "Increases basic attack speed.",
+		"detail": "Copies add their reductions to the time between basic attacks. The displayed attack speed comes from the resulting interval.",
 	},
 	"run_health": {
 		"title": "Hardy Frame", "scope": "general", "policy": "stackable",
@@ -217,7 +217,7 @@ const DEFINITIONS := {
 		"title": "Quick Footing", "scope": "general", "policy": "stackable",
 		"trigger": "Dodge recovery begins", "consumer": ["res://game.gd", "dodge_player"],
 		"requires": {}, "parameter": "dodge_interval", "values": [45, 70, 95, 120], "unit": "ms", "limit": 4,
-		"description": "Recover %s seconds sooner after a dodge, down to 0.35 s.",
+		"description": "Reduces your dodge cooldown by %s seconds.",
 		"detail": "Shortens the cooldown assigned by a dodge. Dodge distance and movement rules stay the same.",
 	},
 	"dew_shelter": {
@@ -256,15 +256,20 @@ static func rise(floor_number: int) -> Array[float]:
 
 
 static func effect_text(definition: Dictionary, value: int) -> String:
+	var text: String = definition.description
+	if "%s" not in text:
+		return text
 	var number := str(value) if definition.unit == "hp" else ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
-	return definition.description % number
+	return text % number
 
 
 static func contribution_label(definition: Dictionary) -> String:
 	match definition.parameter:
 		"max_hp": return "Max HP bonus"
 		"regen_per_second": return "Regeneration bonus"
-		"interval_reduction_ms", "strike_interval", "dodge_interval": return "Cooldown reduction"
+		"strike_interval": return "Basic attack timing"
+		"interval_reduction_ms": return "Arc trigger interval reduction"
+		"dodge_interval": return "Dodge cooldown reduction"
 	return "Duration bonus" if definition.unit == "ms" else "Damage bonus"
 
 
@@ -272,6 +277,7 @@ static func contribution(definition: Dictionary, value: int) -> String:
 	match definition.parameter:
 		"regen_per_second": return "+%d HP/s" % value
 		"max_hp": return "+%d Max HP" % value
+		"strike_interval": return "%s s less between basic attacks" % ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
 	if definition.unit == "hp":
 		return "+%d damage" % value
 	if value == 0:

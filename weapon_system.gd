@@ -81,11 +81,19 @@ static func resolve(class_id: int,weapon_id: int,slots: Array,graft: int,techniq
 	result["interval"]=maxi(230,int(result.strike_ms)-int(result.cooldown))
 	return result
 
+
+static func tune_affinity_basic(stats: Dictionary, cards: Dictionary = {}) -> void:
+	preload("res://expedition_grafts.gd").tune_basic(stats)
+	stats.damage = float(stats.damage) + float(cards.get("ordinary_weapon_damage", 0)) / Preview.scale()
+	stats.interval = preload("res://affinity_cards.gd").attack_interval(int(stats.interval), int(cards.get("ordinary_weapon_interval", 0)))
+
+
 static func describe(stats: Dictionary) -> String:
 	var damage := str(stats.damage)
 	if stats.has("damage_min"):
-		damage=preload("res://combat_balance_preview.gd").range_label(Vector2i(stats.damage_min,stats.damage_max))
-	var text: String="%s\n%s · %d target(s)\n%s damage · %.1f m reach · %.2f s basic attack interval" % [stats.name,str(stats.pattern).capitalize(),stats.targets,damage,stats.reach,int(stats.interval)/1000.0]
+		damage = Preview.range_label(Preview.weapon_range(stats, int(stats.get("class_power", 0))))
+	var text := "%s\n%s · %d target(s)\n%s damage · %.1f m reach\nAttack speed: %s attacks/sec" % [
+		stats.name, str(stats.pattern).capitalize(), stats.targets, damage, stats.reach, Preview.attack_speed(int(stats.interval))]
 	for key in ["recovery","pull","knockback","stagger","heal_on_kill","windup_damage","skill_heal","skill_cooldown","skill_duration","dodge_cooldown"]:
 		if float(stats.get(key,0))!=0:
 			var amount=stats[key]

@@ -33,6 +33,9 @@ var mixed_wood_ward := false
 var final_family_mix := false
 const Improvements = preload("res://expedition_grafts.gd")
 const Grafts = preload("res://native_grafts.gd")
+const UpgradeCards = preload("res://affinity_cards.gd")
+const RunSummary = preload("res://run_summary_panel.gd")
+const SPEED_CARD := "ordinary_weapon_interval"
 var native_graft_case := false
 var connected_warden_case := false
 var connected_weaver_case := false
@@ -376,14 +379,25 @@ func host(menu: Node) -> void:
 		# Run the checkpoint UI on the cleared arena from the real combat
 		# above. Select encounter 3 to exercise the production card cadence.
 		game.encounter_number = 3
+		var planned := {}
+		for id in game.players:
+			var fixture := plan_speed_offer(game, game.players[id])
+			if not check(not fixture.is_empty(),"seeded checkpoint can draw Light Grip"):return
+			planned[id] = fixture
+			mark("attack-speed-"+str(id), JSON.stringify(fixture))
 		game.use_checkpoint(1,true)
 		check(game.checkpoint_cards.get_child_count()==3,"host receives a full offer after mixed-class combat")
-		game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,"0"))
+		check_speed_face(game, planned[1])
+		game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,str(planned[1].choice)))
 		mark("affinity-cards")
 		if not check(await until(func():return ids.all(func(id):return read("owned-"+str(id))=="ok")),
 			"all four players can claim independent upgrades"):return
-		for visitor in game.players.values():
-			check(visitor.affinity_cards.copies.size()==1 and visitor.spent==0,"free host/guest choice is owned once")
+		for id in game.players:
+			var visitor: Dictionary = game.players[id]
+			check(visitor.affinity_cards.copies.size()==1 and visitor.affinity_cards.copies[0].id==SPEED_CARD and visitor.spent==0,
+				"free host/guest Light Grip is owned once")
+			check(has_attack_speed(game,visitor,game.weapon_stats(visitor),planned[id].after),
+				"host's resolved attack speed matches the promised value for this peer")
 	game.use_checkpoint(1,true)
 	mark("advance",str(game.travel_epoch))
 	if not check(await until(func():return game.depth==2 and ids.all(func(id):return read("guest-floor-"+str(id))=="ok")),
@@ -837,6 +851,31 @@ func install_party_grafts(game: Node, ids: Array) -> bool:
 	return true
 
 
+func plan_speed_offer(game: Node, player: Dictionary) -> Dictionary:
+	var stats: Dictionary = game.weapon_stats(player)
+	for seed_value in range(1,33):
+		player.upgrade_seed = seed_value
+		var options := UpgradeCards.roll(game,player,stats)
+		var index := options.find_custom(func(option):return option.id==SPEED_CARD)
+		if index >= 0:
+			var next_ms := maxi(230, int(stats.interval) - int(options[index].amount))
+			return {"choice":index, "before":"%.2f" % (1000.0 / int(stats.interval)), "after":"%.2f" % (1000.0 / next_ms)}
+	return {}
+
+
+func check_speed_face(game: Node, offer: Dictionary) -> void:
+	var face: VBoxContainer = game.checkpoint_cards.get_child(int(offer.choice)).get_child(0)
+	var label: String = face.get_child(2).get_child(0).text
+	var preview := "Attack speed: %s → %s attacks/sec" % [offer.before, offer.after]
+	check(face.get_child(0).text=="Light Grip" and preview in label,
+		"Light Grip's real card face matches host-resolved attack speeds")
+
+
+func has_attack_speed(game: Node, player: Dictionary, stats: Dictionary, expected: String) -> bool:
+	var summary := RunSummary.project(game,player,stats)
+	return summary.get("totals",[]).any(func(row):return row[0]=="Attack speed" and row[1]==expected+" attacks/sec")
+
+
 func guest(menu: Node, role: String) -> void:
 	menu.request_create_character()
 	var starting_class: int = [1,2,4][clampi(int(role)-1,0,2)] if native_graft_case or connected_weaver_case else 0
@@ -962,9 +1001,14 @@ func guest(menu: Node, role: String) -> void:
 		var offer_received := func() -> bool:
 			return read("affinity-cards")=="ok" and game.checkpoint_offer_revision>0 and game.checkpoint_cards.get_child_count()==3
 		if not check(await until(offer_received),"mixed-class guest receives three eligible cards"):return
-		game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,"0"))
-		if not check(await until(func():return game.players.get(id,{}).get("affinity_run_cards",[]).size()==1),
-			"mixed-class guest receives own copy details"):return
+		var speed: Dictionary = JSON.parse_string(read("attack-speed-"+str(id)))
+		check_speed_face(game, speed)
+		game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,str(int(speed.choice))))
+		var received := func() -> bool:
+			var player: Dictionary = game.players.get(id,{})
+			var copies: Array = player.get("affinity_run_cards",[])
+			return copies.size()==1 and copies[0].id==SPEED_CARD and has_attack_speed(game,player,player.get("weapon_stats",{}),speed.after)
+		if not check(await until(received),"the guest's replicated copy and Tab projection match the host"):return
 		mark("owned-"+str(id))
 	if not check(await until(func():return not read("advance").is_empty() and game.enemy_hp==0 and int(game.party_travel_state().get("epoch",-1))==int(read("advance"))),"guest sees cleared Gate"):return
 	if connected_warden_case:

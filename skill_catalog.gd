@@ -106,7 +106,7 @@ static func describe_preview(source: Dictionary, stats: Dictionary, ranks: Dicti
 	var card: Dictionary=card_data.get("effect",{}) if int(ranks.get(card_data.get("id",""),0))>0 else {}
 	var damage := float(skill.get("damage",0))
 	if damage>0.0:
-		lines.append("Base damage per target: %s" % Balance.hp_text(damage+float(stats.get("class_power",0))))
+		lines.append("Damage per target: %s" % Balance.hp_text(damage+float(stats.get("class_power",0))))
 	if mode in ["volley","reap"]:
 		var burst := Balance.burst_points(skill)
 		if stats.has("damage"):

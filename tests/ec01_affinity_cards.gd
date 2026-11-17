@@ -496,10 +496,6 @@ func verify_presentation() -> void:
 	var inactive: Dictionary = Cards.owned_rows(Cards.project_owned(player,game.weapon_stats(player),game.DODGE_COOLDOWN_MS))[1]
 	check("Duration bonus: +0.25 s · Active: +0 s" in inactive.summary
 		and "Equip a Water Catalyst" in inactive.summary,"unequipped card stays owned with its real inactive reason")
-	var definition: Dictionary = Catalog.DEFINITIONS.ordinary_weapon_interval
-	choice = Cards.choice_view(definition,{"amount":15},[],0,"")
-	check("0.015 seconds" in choice.description and "+0.015 s" in choice.preview,"a capped offer displays its exact clipped contribution")
-
 	for species in game.Seeds.DEFINITIONS.size():
 		var seed: Dictionary = game.Seeds.DEFINITIONS[species]
 		var plant := Build.planting_description(species,true)
@@ -549,6 +545,101 @@ func verify_presentation() -> void:
 		check(false,"Thorn material is available in the real Gate panel")
 
 
+func verify_attack_speed() -> void:
+	var card_id := "ordinary_weapon_interval"
+	var grafts = preload("res://expedition_grafts.gd")
+	for scenario: Dictionary in [
+		{"frame":2, "weapon":1, "base":1150, "ranks":[0,0], "applied":65},
+		{"frame":0, "weapon":0, "base":380, "ranks":[0,2], "applied":65},
+		{"frame":3, "weapon":0, "base":320, "ranks":[3,0], "applied":5},
+	]:
+		reset(scenario.frame)
+		player.weapon_kind = scenario.weapon
+		if scenario.frame == 0:
+			player.character.upgrades[0] = 1 << 5  # Historical Quake Resonance subtracts 70 ms.
+		grafts.begin(game, player)
+		player[grafts.STATE].copies.append({"id":"strike", "item":"monster_0", "serial":1, "floor":8})
+		player[grafts.STATE].copies.append({"id":"cooldown", "item":"monster_0", "serial":2, "floor":16})
+		var previous: Array[int] = []
+		for rank: int in scenario.ranks:
+			previous.append(grant_fixture_copy(card_id, rank))
+		at_checkpoint(18)
+		var stats: Dictionary = game.weapon_stats(player)
+		var current_ms: int = scenario.base - previous[0] - previous[1]
+		var next_ms: int = current_ms - scenario.applied
+		check(int(stats.interval) == scenario.base, "%s resolves its native weapon and learned speed" % stats.name)
+
+		var old_copies := Cards.state(player).copies as Array
+		var offer := Cards.new_offer(game,[{"id":card_id, "rarity":"Epic", "amount":scenario.applied}],0)
+		Cards.state(player).offer = offer
+		var view := Cards.view(game, player, false)
+		var choice: Dictionary = view.choices[0]
+		var before_speed := "%.2f" % (1000.0 / current_ms)
+		var after_speed := "%.2f" % (1000.0 / next_ms)
+		var preview := "Attack speed: %s → %s attacks/sec" % [before_speed, after_speed]
+		check(choice.enabled and choice.description == "Increases basic attack speed." and choice.preview == preview,
+			"Light Grip shows the resolved rate before and after for " + stats.name)
+		check("between basic attacks" in choice.detail and Catalog.RARITIES[scenario.ranks[0]] in choice.detail
+			and Catalog.RARITIES[scenario.ranks[1]] in choice.detail and "0.23 s" not in choice.detail,
+			"Details show the acquired rarities and exact contributions without engine limits")
+		game.present_checkpoint_cards(1)
+		var face: VBoxContainer = game.checkpoint_cards.get_child(0).get_child(0)
+		var face_text: String = face.get_child(2).get_child(0).text
+		check(face.get_child(1).text == "Weapon · Epic" and preview in face_text and "minimum" not in face_text.to_lower()
+			and "cooldown" not in face_text.to_lower(), "the rooted card face shows rate and omits technical limits")
+
+		var tab: Control = game.overlay.get_node("RunSummary")
+		tab.refresh(player)
+		var summary := tab.shown as Dictionary
+		var before_row := func(row) -> bool:
+			return row[0]=="Attack speed" and row[1]==before_speed+" attacks/sec" and "4.35 attacks/sec" in row[2]
+		check(summary.totals.any(before_row), "Tab shows the pre-purchase rate and its maximum in a tooltip")
+		action(view.revision, "0")
+		game.toggle_overlay(null)
+		var wanted := previous.duplicate()
+		wanted.append(int(scenario.applied))
+		check(old_copies.map(func(copy):return copy.amount) == wanted and player.spent == 0,
+			"the purchase keeps each original contribution and commits the displayed clipped amount for free")
+		tab.refresh(player)
+		summary = tab.shown
+		check(summary.totals.any(func(row):return row[0]=="Attack speed" and row[1]==after_speed+" attacks/sec")
+			and summary.totals.any(func(row):return row[0]=="Dodge cooldown" and " s" in row[1] and "0.35 s" in row[2])
+			and summary.totals.any(func(row):return row[0].ends_with(" cooldown") and "class ability cooldown is 1.8 s" in row[2]),
+			"Tab matches the post-purchase rate and keeps skill and dodge cooldown limits in seconds")
+		var rate_label := func(label) -> bool:
+			return label.text==after_speed+" attacks/sec" and "Maximum attack speed" in label.tooltip_text
+		check(tab.totals.get_children().any(rate_label), "the real Tab panel keeps the cap in the stat tooltip")
+		game.loadout_view.refresh()
+		var equipment: String = game.loadout_view.description.text
+		check("Attack speed: "+after_speed+" attacks/sec" in equipment and "Class ability cooldown −0.25 s" in equipment,
+			"equipment matches the post-purchase attack rate and formats its graft cooldown in seconds")
+		game.enemy_hp = 400
+		game.enemy_pos = game.battlefield.advance + Vector3.FORWARD
+		var now := Time.get_ticks_msec()
+		game.strike_enemy(1,player,player.pos)
+		var queued: Dictionary = game.projectile_queue.back()
+		check(int(queued.stats.interval) == next_ms and player.strike_at >= now+next_ms
+			and player.strike_at <= Time.get_ticks_msec()+next_ms and is_equal_approx(float(queued.stats.damage),float(stats.damage)+0.3),
+			"the actual basic attack uses the existing timer formula alongside graft damage")
+		var count: int = game.projectile_queue.size()
+		game.strike_enemy(1,player,player.pos)
+		check(game.projectile_queue.size() == count, "the attack timer still rejects an immediate second launch")
+		if next_ms == Cards.STRIKE_MIN_MS:
+			check(not Cards.eligible(player,game.weapon_stats(player),game.DODGE_COOLDOWN_MS).has(card_id)
+				and not Cards.roll(game,player,game.weapon_stats(player)).any(func(option):return option.id==card_id),
+				"Light Grip leaves the pool at the interval floor before its copy limit is reached")
+		grafts.clear(player)
+
+	var definition: Dictionary = Catalog.DEFINITIONS[card_id]
+	var almost_capped := Cards.choice_view(definition,{"amount":1},[],0,"",231)
+	check(almost_capped.preview == "Attack speed: 4.33 → 4.35 attacks/sec",
+		"a one-millisecond effective improvement remains visible")
+	var dodge: Dictionary = Catalog.DEFINITIONS.run_dodge_recovery
+	check(Catalog.effect_text(dodge,45) == "Reduces your dodge cooldown by 0.045 seconds."
+		and Catalog.contribution_label(Catalog.DEFINITIONS.arc_recharge) == "Arc trigger interval reduction",
+		"dodge uses cooldown terminology and Form's arc trigger keeps its own label")
+
+
 func run() -> void:
 	game = preload("res://world.tscn").instantiate()
 	game.set_meta(Rules.META,Rules.ID)
@@ -566,6 +657,7 @@ func run() -> void:
 	verify_echo()
 	verify_authoring()
 	verify_presentation()
+	verify_attack_speed()
 	if failures==0:
 		print("PASS: EC01 all 28 real card consumers and offer/lifecycle contracts (%d checks)" % checks)
 	quit(int(failures>0))

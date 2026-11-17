@@ -107,7 +107,7 @@ func verify_roster(game: Node, p: Dictionary) -> void:
 			var stats: Dictionary=game.weapon_stats(p)
 			var label:=Preview.range_label(band)
 			check(stats.damage_min==band.x and stats.damage_max==band.y,"authored spread for "+base.name)
-			check(game.Weapons.describe(stats).contains(label+" damage") and Summary.project(game,p,stats).totals[0][1]==label+" HP","matching previews for "+base.name)
+			check(game.Weapons.describe(stats).contains(label+" damage") and Summary.project(game,p,stats).totals[0]==["Damage",label],"matching previews for "+base.name)
 			var reach:=3.0 if game.WeaponMotion.is_projectile(str(base.visual)) else 1.35
 			clear_targets(game,Vector3(0,0,reach))
 			game.strike_enemy(1,p,p.pos)

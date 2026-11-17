@@ -149,7 +149,6 @@ static func effect_text(entry: Dictionary) -> String:
    else: lines.append("+%d strike damage"%int(value))
   elif key=="technique": lines.append("+%d Core technique rank"%int(value))
   elif key=="rift_hook": lines.append("Wind-up hits refresh your dodge.")
-  elif key=="cooldown" and value<0: lines.append("%dms slower strikes"%abs(int(value)))
   else: lines.append(Classes.effect_text({key:int(value) if is_equal_approx(value,roundf(value)) else value},preview))
  if preview:
   var core: Dictionary=entry.get("core",{})
