@@ -1,5 +1,8 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Character = preload("res://character_profile.gd")
 const RootUI = preload("res://root_ui.gd")
@@ -39,7 +42,7 @@ func run():
 	game.garden_action(1, "look_0")
 	check(p.character.appearance == original, "appearance cannot be changed mid-expedition")
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
-	game.damage_player(1, p, 1)
+	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 1)
 	check(PlayerVitals.current_hp(p) == 9, "one damage point removes half a heart")
 	p.wild = false
 	game._process(.016)

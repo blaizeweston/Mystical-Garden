@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -158,9 +160,9 @@ func verify_guard_and_core(game: Node, player: Dictionary) -> void:
 	check(int(player.guard_charges)>0,"real Warden Guard granted")
 	var now:=Time.get_ticks_msec()
 	var guarded_health: PlayerVitals.Health = player[PlayerVitals.STATE]
-	game.apply_enemy_hit(1,player,now,1)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now, 1)
 	check(is_same(player[PlayerVitals.STATE],guarded_health) and int(player.guard_charges)==0,"guard prevents an authored monster hit before health changes")
-	game.apply_enemy_hit(1,player,now+300,1)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now+300, 1)
 	check(guarded_health.hp()==100.0 and PlayerVitals.current_hp(player)==90.0,"a landed authored monster hit installs exactly 10 HP damage")
 	player.weapon=game.Parts.THORN
 	player.core_ready_at=0
@@ -262,7 +264,7 @@ func verify_vitals(game: Node, player: Dictionary) -> void:
 	var helper: Dictionary=game.players[2]
 	helper.wild=true
 	helper.pos=player.pos
-	game.damage_player(1,player,int(PlayerVitals.current_hp(player)))
+	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(player), int(PlayerVitals.current_hp(player)))
 	check(PlayerLifecycle.fallen(player),"downed player can be revived with a living ally")
 	check(game.Life.revive(game,2,1),"revive is accepted")
 	game._process(.016)

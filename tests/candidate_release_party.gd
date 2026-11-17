@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const Gate = preload("res://persistence_writer_integration.gd")
@@ -149,7 +151,7 @@ func host() -> void:
  game.battlefield.barriers.clear()
  helper.pos=Vector3.ZERO
  target.pos=Vector3(.5,0,0)
- game.damage_player(remote,target,999)
+ IncomingPlayerHit.apply_health_loss(game, remote, PlayerLifecycle.generation(target), 999)
  check(PlayerLifecycle.fallen(target),"real remote ally downed")
  var revive_before := FileAccess.get_sha256(G)
  game.set_meta(&"guarded_gameplay_test_fault",func(phase,_path): return ERR_FILE_CANT_WRITE if phase=="stage" else OK)

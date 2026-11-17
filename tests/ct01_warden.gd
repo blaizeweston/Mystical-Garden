@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -187,7 +189,7 @@ func arena(path: Array) -> void:
 func block(recipient: int=1) -> int:
 	var target: Dictionary=game.players[recipient]
 	var now := Time.get_ticks_msec()
-	game.apply_enemy_hit(recipient,target,now,4.0,0,Vector3(0,0,-2))
+	IncomingPlayerHit.resolve_world(game, recipient, PlayerLifecycle.generation(target), now, 4.0, 0, Vector3(0,0,-2))
 	return now
 
 
@@ -304,10 +306,10 @@ func defense() -> void:
 	ally.guard_charges=0
 	ally.guard_until=0
 	ally.hurt_until=0
-	game.apply_enemy_hit(2,ally,now+10,4.0,0,Vector3(0,0,-2))
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), now+10, 4.0, 0, Vector3(0,0,-2))
 	check(ally[PlayerVitals.STATE].hp()==60,"Sanctuary reduces a 40 HP direct attack by 25 percent")
 	ally.hurt_until=0
-	game.apply_enemy_hit(2,ally,now+20,4.0,0,Vector3(0,0,-2),false)
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), now+20, 4.0, 0, Vector3(0,0,-2), false)
 	check(ally[PlayerVitals.STATE].hp()==20,"Sanctuary leaves environmental damage intact")
 	arena(DEFENSE)
 	ally.pos=Vector3(1,0,-1)
@@ -349,7 +351,7 @@ func sample_damage(id: int, now: int, direct := true, amount := 4.0) -> int:
 	recipient.guard_until=0
 	recipient.hurt_until=0
 	recipient[PlayerVitals.STATE] = recipient[PlayerVitals.STATE].with_hp(90)
-	game.apply_enemy_hit(id,recipient,now,amount,0,Vector3.ZERO,direct)
+	IncomingPlayerHit.resolve_world(game, id, PlayerLifecycle.generation(recipient), now, amount, 0, Vector3.ZERO, direct)
 	return 90-int(recipient[PlayerVitals.STATE].hp())
 
 
@@ -391,7 +393,7 @@ func holdfast() -> void:
 	distant.character[Connected.PROFILE_KEY]=Connected.state(HOLDFAST.slice(0,5))
 	game.use_class_skill(3,distant,0)
 	var refresh := now+700
-	game.apply_enemy_hit(3,distant,refresh,4,0,distant.pos+Vector3.FORWARD)
+	IncomingPlayerHit.resolve_world(game, 3, PlayerLifecycle.generation(distant), refresh, 4, 0, distant.pos+Vector3.FORWARD)
 	check(Warden.holdfast_until(game,ally,refresh)==refresh+2500 and ally.warden_holdfast.actor==3
 		and sample_damage(2,refresh+30)==34,
 		"a later Warden refreshes with its own source and the same 15 percent strength")

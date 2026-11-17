@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -179,7 +181,7 @@ func run() -> void:
 	check(player[PlayerVitals.STATE].hp()==60 and player.get(Vital.NEXT)==1000,"overlap and repeated hits do not add or postpone healing")
 	Vital.tick(game,Clock.advance(game,.2))
 	check(player[PlayerVitals.STATE].hp()==65 and player[PlayerVitals.STATE].temporary_hp()==18,"strongest active rate heals on original tick")
-	game.damage_player(1,player,4)
+	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(player), 4)
 	Vital.tick(game,Clock.advance(game,1.0))
 	check(player[PlayerVitals.STATE].hp()==66,"damage does not cancel regen")
 	player.lost_health=10
@@ -196,7 +198,7 @@ func run() -> void:
 	var ward := Events.class_start(game,2,{"trigger":"block"},now,Builds.slot("catalyst",game.Items.get_item("plant_part_rare_gravemoss").legacy_part))
 	var adapter := {"trigger":"block", "limit":"recipient", "id":"vital_fixture"}
 	Events.grant_ward(game,player,now+29000,1,ward,adapter,now)
-	game.apply_enemy_hit(1,player,now+1,1.0,0,game.tactics.position)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now+1, 1.0, 0, game.tactics.position)
 	check(player[PlayerVitals.STATE].hp()==protected_hp and player[PlayerVitals.STATE].temporary_hp()==18 and ally[PlayerVitals.STATE].temporary_hp()==18,
 		"refined ally Ward grants radial Vitality using the granting Catalyst")
 	game.Life.down(game,2,ally)

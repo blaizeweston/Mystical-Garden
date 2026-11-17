@@ -1,5 +1,8 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -38,7 +41,7 @@ func host_run() -> void:
  for player in game.players.values():player.wild=true;player.pos=Vector3(0,0,-1)
  p.weapon=44;p.secondary=game.Seeds.DEFINITIONS[18].part;p.graft_part=game.Parts.HOOK
  check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.Q)>0),"guest sends counter skill")
- game.apply_enemy_hit(id,p,Time.get_ticks_msec(),1,0,game.tactics.position)
+ IncomingPlayerHit.resolve_world(game, id, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1, 0, game.tactics.position)
  check(PlayerVitals.current_hp(p)==10 and p.counter_until>0,"host creates counter after blocked monster hit")
  mark("counter-ready")
  check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.R)>0),"guest sends specialized charge")

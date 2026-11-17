@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -47,7 +49,7 @@ func host_run() -> void:
    for key in ["guard_until","front_guard_until","counter_guard_until","counter_until","hurt_until","decoy_ready","prepared_mark_until"]:p[key]=0
    game.publish_character(id);mark("ready-"+phase)
    check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.Q)>0),"guest Q "+phase)
-   if c==0:game.apply_enemy_hit(id,p,Time.get_ticks_msec(),1,0,game.tactics.position)
+   if c==0:IncomingPlayerHit.resolve_world(game, id, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1, 0, game.tactics.position)
    mark("q-"+phase)
    check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.R)>0),"guest R "+phase)
    await create_timer(.8).timeout

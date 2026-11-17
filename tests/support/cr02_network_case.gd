@@ -1,5 +1,8 @@
 extends RefCounted
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const Rules = preload("res://combat_ruleset.gd")
 const Events = preload("res://combat_action_events.gd")
 const Menu = preload("res://main_menu.tscn")
@@ -110,7 +113,7 @@ func host(menu: Node, mismatch: bool) -> void:
 	if not check(await until(func(): return int(remote.guard_charges)>0),"guest Q grants native Guard on host"):
 		return
 	remote.hurt_until=0
-	world.apply_enemy_hit(guest_id(world),remote,Time.get_ticks_msec(),1)
+	IncomingPlayerHit.resolve_world(world, guest_id(world), PlayerLifecycle.generation(remote), Time.get_ticks_msec(), 1)
 	check(events.size()==1 and events[0].kind=="actual_block"
 		and events[0].source_actor==guest_id(world) and events[0].details.recipient==guest_id(world),
 		"remote Guard owns the block response")
@@ -118,7 +121,7 @@ func host(menu: Node, mismatch: bool) -> void:
 	local.character.upgrades[0] = 1 << 1
 	world.use_class_skill(1,local,0)
 	check(events.size()==1 and int(remote.guard_charges)==2,"granting does not synthesize a block")
-	world.apply_enemy_hit(guest_id(world),remote,Time.get_ticks_msec(),1)
+	IncomingPlayerHit.resolve_world(world, guest_id(world), PlayerLifecycle.generation(remote), Time.get_ticks_msec(), 1)
 	check(events.size()==2 and events[1].source_actor==1 and events[1].details.recipient==guest_id(world),
 		"host-granted Ward responds around its protected remote ally")
 	# Both actors have native-only kits. A cleared checkpoint exercises the

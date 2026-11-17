@@ -1,5 +1,8 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Attacks=preload("res://enemy_attack.gd")
 var game: Node
@@ -33,7 +36,7 @@ func host_run():
  check(await until(func():return marked("ready")),"guest sees Wilds")
  game.Transactions.run(game,func():
   game.apply_weapon_hit(p,-1,p.pos,game.weapon_stats(p),Time.get_ticks_msec())
-  game._damage_player(id,p,1)
+  IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(p), 1)
   game.use_class_skill(id,p,0))
  check(await until(func():return marked("verified")),"guest verifies feedback")
  var at:=Vector3(-2.5,0,0)

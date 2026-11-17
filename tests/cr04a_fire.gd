@@ -1,5 +1,8 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
@@ -117,7 +120,7 @@ func run() -> void:
 		p.guard_charges=0
 		game.use_class_skill(1,p,0)
 		var hp_before: float=p[PlayerVitals.STATE].hp()
-		game.apply_enemy_hit(1,p,Time.get_ticks_msec(),1.0,0,game.tactics.position)
+		IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1.0, 0, game.tactics.position)
 		check(game.enemy_health()==500-q.burst_hp-q.tick_hp and p[PlayerVitals.STATE].hp()==hp_before,"Ward uses selected Catalyst without changing native prevention")
 		reset()
 		p.frame=4
@@ -130,11 +133,11 @@ func run() -> void:
 		check(ally.has(Fire.RESPONSE),"native Oracle renewal grants Fire response with caster provenance")
 		var frost=preload("res://frost_combat.gd")
 		var hit_now:=Time.get_ticks_msec()
-		frost.with_attacker(game,-1,game.apply_enemy_hit.bind(2,ally,hit_now,1.0,0,game.tactics.position))
+		frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 2, PlayerLifecycle.generation(ally), hit_now, 1.0, 0, game.tactics.position))
 		check(not ally.has(Fire.RESPONSE) and game.tactics.memory.get(Fire.BURNING,{}).get("1/catalyst",{}).get("hp",0)==q.tick_hp,"survived incoming enemy hit uses source once")
 		var after_response: int=game.enemy_health()
 		ally.hurt_until=0
-		frost.with_attacker(game,-1,game.apply_enemy_hit.bind(2,ally,hit_now,1.0,0,game.tactics.position))
+		frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 2, PlayerLifecycle.generation(ally), hit_now, 1.0, 0, game.tactics.position))
 		check(game.enemy_health()==after_response,"spent Ember Response does not stockpile")
 		p.frame=0
 	game.queue_free()

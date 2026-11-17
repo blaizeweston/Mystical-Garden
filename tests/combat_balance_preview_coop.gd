@@ -1,5 +1,8 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Preview = preload("res://combat_balance_preview.gd")
@@ -102,7 +105,7 @@ func host() -> void:
 	check(int(PlayerVitals.current_hp(remote))-20 in range(3,6),"host rolls Renewal in the displayed band")
 	mark("renewal-result",str(int(PlayerVitals.current_hp(remote))))
 	check(await until(func():return marked("healed")),"guest sees the exact host roll")
-	game.damage_player(id,remote,int(PlayerVitals.current_hp(remote)))
+	IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(remote), int(PlayerVitals.current_hp(remote)))
 	check(await until(func():return marked("fallen")),"guest sees the downed state")
 	check(game.Life.revive(game,1,id),"host revives guest")
 	check(await until(func():return marked("revived")),"guest sees the reduced capacity")
@@ -127,12 +130,12 @@ func host() -> void:
 	check(await until(func():return marked("wave-heal")),"guest sees the authoritative Core heal")
 	var overlap_hp:=int(PlayerVitals.current_hp(remote))
 	game.Life.Sustain.restore(game,remote,6,"fixture")
-	game.damage_player(id,remote,6)
+	IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(remote), 6)
 	check(int(PlayerVitals.current_hp(remote))==overlap_hp,"heal and damage in one host step cancel in the pool")
 	mark("overlap",str(overlap_hp))
 	check(await until(func():return marked("overlap-seen")),"guest displays both actual changes")
 	var boss_hit: float=game.Director.Balance.boss_hit(game,game.Enemies.get_kind(game.tactics.boss_kind),"orchard_march")
-	game.apply_enemy_hit(id,remote,Time.get_ticks_msec(),boss_hit)
+	IncomingPlayerHit.resolve_world(game, id, PlayerLifecycle.generation(remote), Time.get_ticks_msec(), boss_hit)
 	check(int(PlayerVitals.current_hp(remote))==25+class_gain+wave_gain-26,"Orchard march applies a native 26 HP hit")
 	mark("boss-hit",str(int(PlayerVitals.current_hp(remote))))
 	check(await until(func():return marked("boss-hit-seen")),"guest confirms exact boss damage")

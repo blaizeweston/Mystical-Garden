@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Mode=preload("res://combat_ruleset.gd")
@@ -158,9 +160,9 @@ func run() -> void:
 	var adapter: Dictionary={"id":"test/ward","trigger":"block","limit":"recipient"}
 	Events.grant_ward(game,ally,now+3000,1,earlier,adapter,now)
 	Events.grant_ward(game,ally,now+5000,2,later,adapter,now)
-	game.apply_enemy_hit(2,ally,now,2,0,game.tactics.position)
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), now, 2, 0, game.tactics.position)
 	check(ally[PlayerVitals.STATE].hp()==100 and game.enemy_health()==188,"single actual block selects earlier Void claim around the protected ally")
-	game.apply_enemy_hit(2,ally,now+1,2,0,game.tactics.position)
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), now+1, 2, 0, game.tactics.position)
 	check(ally[PlayerVitals.STATE].hp()==100 and game.enemy_health()==171,"next actual block selects separate refined Storm claim")
 	Void.resolve_motion(game,Clock.now(game),now)
 

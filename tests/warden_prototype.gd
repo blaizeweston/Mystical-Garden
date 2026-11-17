@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -118,7 +120,7 @@ func offense() -> void:
 	game.use_class_skill(1,player,0)
 	var now := Time.get_ticks_msec()
 	check(Combat.prepared_until(game,player,now)==0, "pressing Q alone does not prepare Quake")
-	game.apply_enemy_hit(1,player,now,1,0,game.tactics.position)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now, 1, 0, game.tactics.position)
 	check(PlayerVitals.current_hp(player)==10 and player.counter_until>now and near.pos.x>1.9, "a real counter block repels nearby enemies")
 	Status.sync(game,now)
 	check(Status.snapshot(game,now).any(func(e): return e.shape=="warden_quake_ready" and e.combo==1), "prepared Quake has a visible player status")
@@ -132,7 +134,7 @@ func neutral() -> void:
 	arena([13,16,19,22],"rootkeeper_second_growth")
 	game.use_class_skill(1,player,0)
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, Time.get_ticks_msec()+2500)
-	game.apply_enemy_hit(1,player,Time.get_ticks_msec(),1,0,game.tactics.position)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), Time.get_ticks_msec(), 1, 0, game.tactics.position)
 	check(player[Cooldowns.STATE].deadline(Cooldowns.DODGE)<=Time.get_ticks_msec(), "Ready Footing restores a recovering dodge on block")
 	player.pos=Vector3(0,0,5.5)
 	var view:=Aim.footprint(game,player,game.battlefield,1,Vector3.FORWARD,5.5)
@@ -193,10 +195,10 @@ func support() -> void:
 	game.use_class_skill(1,player,0)
 	var now:=Time.get_ticks_msec()
 	check(ally.guard_until==0,"ally outside the initial shield has no ward")
-	game.apply_enemy_hit(1,player,now,1,0,Vector3.BACK)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now, 1, 0, Vector3.BACK)
 	check(Combat.prepared_until(game,player,now)==0,"a rear hit cannot prime Thorn Shelter")
 	player.hurt_until=0
-	game.apply_enemy_hit(1,player,now,1,0,Vector3.FORWARD)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now, 1, 0, Vector3.FORWARD)
 	check(Combat.prepared_until(game,player,now)>0,"Rootshield block prepares the linked card")
 	# Clear the shorter Shared Bark ward before verifying the remote ward source.
 	ally.guard_until=0

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -152,7 +154,7 @@ func run() -> void:
 		p.catalyst=part
 		game.use_class_skill(1,p,0)
 		check(Thorn.active_fields(game,Clock.now(game)).is_empty(),"Ward grant does not plant")
-		game.apply_enemy_hit(1,p,now,1.0,0,game.tactics.position)
+		IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now, 1.0, 0, game.tactics.position)
 		check(Thorn.active_fields(game,Clock.now(game)).size()==1,"actual Ward block plants lingering growth once")
 
 	reset(p)

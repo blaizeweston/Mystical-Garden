@@ -1,5 +1,8 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
@@ -168,7 +171,7 @@ func run_catalyst(p: Dictionary, part: int) -> void:
 	check(ally.has(Frost.RESPONSE),"real Renewal prepares a response for the ally")
 	var now:=Time.get_ticks_msec()
 	var hp: float=ally[PlayerVitals.STATE].hp()
-	Frost.with_attacker(game,-1,game.apply_enemy_hit.bind(2,ally,now,1))
+	Frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 2, PlayerLifecycle.generation(ally), now, 1))
 	check(ally[PlayerVitals.STATE].hp()<hp and not ally.has(Frost.RESPONSE),"fallback consumes after an actual survivable hit without blocking it")
 	var after := Frost.state(game.tactics.memory,now)
 	check(after.get("stacks",[]).size()==2 and after.stacks[1].actor==1 and after.stacks[1].quality==("refined" if part==refined else "ordinary"),"ally uses granting Catalyst quality")
@@ -187,7 +190,7 @@ func run_focus(p: Dictionary) -> void:
 	p.hurt_until=0
 	game.use_class_skill(1,p,0)
 	var now:=Time.get_ticks_msec()
-	game.apply_enemy_hit(1,p,now,1)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now, 1)
 	var current:=Frost.state(game.tactics.memory,now)
 	check(seen.size()==1 and seen[0].details.adapter=="warden/focus/vanguard/Q"
 		and current.get("stacks",[]).size()==1 and current.stacks[0].quality=="refined","real Vanguard Thorn Counter uses the Frost block adapter")
@@ -213,8 +216,8 @@ func run_wards() -> void:
 	check(p[Wards.CLAIMS].size()==2 and p.guard_charges==2 and p.guard_until==now+900,"two accepted overlapping grants and native max-merge")
 	var hp: float=p[PlayerVitals.STATE].hp()
 	p.hurt_until=0
-	game.apply_enemy_hit(2,p,now,1)
-	game.apply_enemy_hit(2,p,now+1,1)
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now, 1)
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now+1, 1)
 	check(p[PlayerVitals.STATE].hp()==hp and p.guard_charges==0 and not p.has(Wards.CLAIMS),"real block charges exhaust and clear ownership")
 	check(seen.size()==2 and seen[0].source_actor==1 and seen[0].quality=="ordinary"
 		and seen[1].source_actor==2 and seen[1].quality=="refined","soonest Ward response first with originating potency")
@@ -222,16 +225,16 @@ func run_wards() -> void:
 	seen.clear()
 	game.grant_guard(p,now+200,1)
 	Events.grant_ward(game,p,now+800,2,cast_ward(1,refined,now),adapter,now)
-	game.apply_enemy_hit(2,p,now+250,1)
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now+250, 1)
 	check(seen.size()==1 and seen[0].quality=="refined","expired unenhanced claim cannot suppress later grant")
 	p.guard_until=0
 	p.guard_charges=0
 	seen.clear()
 	game.grant_guard(p,now+500,1)
 	Events.grant_ward(game,p,now+500,2,cast_ward(1,ordinary,now),adapter,now)
-	game.apply_enemy_hit(2,p,now+10,1)
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now+10, 1)
 	check(seen.is_empty(),"unmodified earlier claim wins equal-expiry tie by host grant order")
-	game.apply_enemy_hit(2,p,now+11,1)
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now+11, 1)
 	check(seen.size()==1 and seen[0].quality=="ordinary","remaining Ward owns the next block")
 	seen.clear()
 	p.guard_until=0
@@ -242,8 +245,8 @@ func run_wards() -> void:
 	Events.grant_ward(game,p,now+900,2,long,adapter,now)
 	Events.grant_ward(game,p,now+1200,2,long,adapter,now)
 	check(p[Wards.CLAIMS].size()==2 and p.guard_until==now+1200,"duplicate activation can never renew its response claim")
-	game.apply_enemy_hit(2,p,now+400,1)
-	game.apply_enemy_hit(2,p,now+950,1)
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now+400, 1)
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now+950, 1)
 	check(seen.size()==1 and seen[0].quality=="refined" and p.guard_charges==0,"native refresh cannot extend either same-actor enhancement")
 
 

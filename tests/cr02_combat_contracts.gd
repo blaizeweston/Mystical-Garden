@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -79,8 +81,8 @@ func run() -> void:
 	game.use_class_skill(1,player,0)
 	check(recorded.is_empty() and player.guard_charges==2, "Living Bastion activation grants native Guard only")
 	var now := Time.get_ticks_msec()
-	game.apply_enemy_hit(1,player,now,1)
-	game.apply_enemy_hit(1,player,now+1,1)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now, 1)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now+1, 1)
 	check(recorded.size()==1 and recorded[0].kind=="actual_block" and player.guard_charges==0,
 		"actual multi-block Guard records its first consumption once")
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
@@ -204,7 +206,7 @@ func check_runtime_focuses(game: Node, player: Dictionary) -> void:
 					"%s publishes its mapped event" % adapter.id)
 			elif adapter.trigger == "block":
 				check(recorded.is_empty() and player.guard_charges>0, "%s arms a genuine Ward" % adapter.id)
-				game.apply_enemy_hit(1,player,Time.get_ticks_msec(),1)
+				IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), Time.get_ticks_msec(), 1)
 				check(recorded.any(func(event): return event.kind=="actual_block"), "%s responds on consumption" % adapter.id)
 			elif adapter.trigger == "contact":
 				check(recorded.is_empty(), "%s has no grant-time response" % adapter.id)

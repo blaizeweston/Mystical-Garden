@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -110,8 +112,8 @@ func gate_recovery() -> void:
 		var gained:=int(PlayerVitals.current_hp(player))-before
 		check(game.encounter_number==step[0] and gained in range(step[1],step[2]+1),"normal gate commit rolls the displayed recovery range")
 		check(int(PlayerVitals.current_hp(ally))-ally_before==gained,"gate recovery shares its roll")
-		game.damage_player(1,player,28)
-		game.damage_player(2,ally,28)
+		IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(player), 28)
+		IncomingPlayerHit.apply_health_loss(game, 2, PlayerLifecycle.generation(ally), 28)
 	check(PlayerVitals.current_hp(player)<48 and PlayerVitals.current_hp(player)>0,"two gates offset part of two deep contacts without resetting attrition")
 
 
@@ -200,7 +202,7 @@ func revival() -> void:
 	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(500, game.wallet_for(player).spent_essence())
 	player.checkpoint_offers=["class_0_0","power","reach"]
 	check(game.buy_upgrade(1,player,0) and PlayerVitals.maximum_hp(player)==120 and PlayerVitals.current_hp(player)==50,"checkpoint bonus grants exact new capacity")
-	game.damage_player(1,player,int(PlayerVitals.current_hp(player)))
+	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(player), int(PlayerVitals.current_hp(player)))
 	check(Sustain.restore(game,player,12,"fixture")==0 and PlayerLifecycle.fallen(player),"ordinary healing cannot revive a fallen player")
 	check(game.spectator_view.focus_id(1)==2 and game.spectator_view.caption.text.contains("30 / 100 HP") and game.spectator_view.panel.position.y>=110,"spectating shows ally health below the floor tracker")
 	check(game.Life.revive(game,2,1) and PlayerVitals.maximum_hp(player)==100 and PlayerVitals.current_hp(player)==100 and player.lost_health==20,"revival retains earned capacity and seals exactly 20 HP")
@@ -214,7 +216,7 @@ func overlap() -> void:
 	player.lost_health=20
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(78)
 	check(Sustain.restore(game,player,12,"fixture")==2,"healing reports actual restoration after the cap")
-	game.damage_player(1,player,2)
+	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(player), 2)
 	check(PlayerVitals.current_hp(player)==78,"coincident heals and hits preserve the final net value")
 	var events: Array=game.combat_events_snapshot()
 	game.combat_visuals.sync(events+events,[],"cb07-feedback",player.pos)

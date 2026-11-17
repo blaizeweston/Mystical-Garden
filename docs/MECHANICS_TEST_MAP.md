@@ -105,6 +105,7 @@ flowchart LR
   spectator_layout["Spectator panel placement below the floor tracker"]
   enemy_tactics["Host enemy tactics<br/> behavior decisions and attack intent validation"]
   enemy_attack_execution["Host enemy attack execution<br/> scheduled identity and detached contacts"]
+  incoming_player_hit["Host incoming hit defenses<br/> guarded health loss and life outcomes"]
   life -->|"Falling, revival and expedition transitions replace host lifecycle state"| player_lifecycle
   player_lifecycle -->|"Delayed combat checks the captured player generation"| combat
   player_lifecycle -->|"Guest packets retain the fallen projection and existing movement epoch"| world_snapshot
@@ -328,7 +329,9 @@ flowchart LR
   enemy_tactics -->|"Validate and commit a world-aware intent through ordinary telegraphs and attack plans"| enemy_attack_plan
   enemy_tactics -->|"Project leader position, warning geometry and active boss phase"| world_snapshot
   enemy_tactics -->|"Claim the scheduled attack with current floor and spawn identity"| enemy_attack_execution
-  enemy_attack_execution -->|"Deliver a current player-life contact to existing defense and health resolution"| combat
+  enemy_attack_execution -->|"Submit a current player-life contact and its combat facts"| incoming_player_hit
+  incoming_player_hit -->|"Apply one HP outcome after Guard, Ward, Brace, and damage mitigation"| player_vitals
+  incoming_player_hit -->|"Reject stale life and report falling through the existing life boundary"| player_lifecycle
 ```
 
 ## System ownership and tests
@@ -434,6 +437,7 @@ flowchart LR
 | spectator_layout |  | `loot_revival`, `loot_revival_coop`, `party_hud_gates`, `party_hud_gates_coop`, `combat_balance_preview_coop`, `expedition_sustain` |
 | enemy_tactics | `enemy_tactics.gd`, `enemy_tactics.gd.uid`, `leader_behavior.gd`, `leader_behavior.gd.uid`, `scout_behavior.gd`, `scout_behavior.gd.uid`, `enemy_formation.gd`, `enemy_formation.gd.uid` | `encounter_roster`, `ct05_oracle`, `world_snapshot_codec`, `cr04a_water`, `cr03_frost`, `experimental_terrain_coop`, `guarded_expedition`, `guarded_expedition_coop`, `boss_coop`, `boss_lairs`, `boss_phase_fights`, `boss_roster`, `combat_animation`, `enemy_roster`, `enemy_support`, `expedition_pressure`, `four_players_coop`, `gate_elites`, `gate_elites_coop`, `monster_rewards`, `projectile_terrain`, `support_rite_responses`, `wilds_skill_tactics`, `regular_enemy_responses`, `regular_enemy_responses_coop`, `thief_escape`, `combat_vitals_baseline` |
 | enemy_attack_execution | `enemy_attack.gd`, `enemy_attack.gd.uid`, `enemy_attack_hits.gd`, `enemy_attack_hits.gd.uid`, `scout_behavior.gd`, `scout_behavior.gd.uid`, `combat_status.gd`, `combat_status.gd.uid` | `ec01_affinity_cards`, `cr05_native_grafts`, `world_snapshot_codec`, `cr04b_wood`, `experimental_terrain_coop`, `guarded_expedition`, `guarded_expedition_coop`, `boss_coop`, `boss_lairs`, `boss_phase_fights`, `boss_roster`, `combat_animation`, `enemy_support`, `four_players_coop`, `gate_elites`, `gate_elites_coop`, `health_points`, `monster_rewards`, `projectile_terrain`, `network_research_coop`, `support_rite_responses`, `regular_enemy_responses`, `regular_enemy_responses_coop`, `combat_vitals_baseline` |
+| incoming_player_hit | `incoming_player_hit.gd`, `incoming_player_hit.gd.uid` | `ec01_affinity_cards`, `ct05_oracle`, `ct01_warden`, `ct04_reaper`, `cr05_native_grafts`, `world_snapshot_codec`, `cr04b_wood`, `cr04a_vital`, `cr04a_water`, `cr04a_fire`, `experimental_terrain_coop`, `guarded_expedition`, `guarded_expedition_coop`, `boss_coop`, `boss_phase_fights`, `combat_animation`, `combat_readability_coop`, `four_players_coop`, `gate_elites`, `gate_elites_coop`, `health_points`, `loot_revival`, `loot_revival_coop`, `projectile_terrain`, `support_rite_responses`, `regular_enemy_responses`, `regular_enemy_responses_coop`, `combat_vitals_baseline` |
 
 ## Existing game dispatcher functions
 
@@ -451,7 +455,6 @@ flowchart LR
 | `_buy_upgrade` | expeditions |
 | `_capture_pending_departure` | departure_settlement |
 | `_cycle_slot` | weapons, items |
-| `_damage_player` | life |
 | `_defers_kill_profiles` | loot |
 | `_donate_part` | items, garden |
 | `_drop_inventory_stack` | loot, items |
@@ -498,7 +501,6 @@ flowchart LR
 | `admission_error` | foundation |
 | `affinity_checkpoint_action` | expeditions, affinity_cards |
 | `allow_remote` | foundation |
-| `apply_enemy_hit` | life |
 | `apply_skill_targets` | classes, affinity_cards |
 | `apply_weapon_hit` | combat, weapons, classes, loot, enemies, enemy_attack_plan, encounter_roster |
 | `apply_world_snapshot` | world_snapshot, presentation, life |
@@ -550,7 +552,6 @@ flowchart LR
 | `cycle_destination` | expeditions |
 | `cycle_reclamation` | seeds |
 | `cycle_slot` | weapons |
-| `damage_player` | life |
 | `death_events_snapshot` | presentation |
 | `deferred_save_available` | persistence_operations |
 | `dodge_player` | combat, affinity_cards |
@@ -744,7 +745,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 |---|---|---|
 | `game.gd::_queue_monster_reward` | ar08_lifecycle_1 | player_lifecycle |
 | `game.gd::_purchase_expedition_graft` | ar07_vitals_1 | player_vitals |
-| `game.gd::damage_player` | ar07_vitals_1 | player_vitals |
 | `game.gd::show_graft_menu` | ga01a_1 | expedition_grafts |
 | `game.gd::graft_menu_data` | ga01a_1 | expedition_grafts |
 | `game.gd::build_grafting_panel` | ga01a_1 | expedition_grafts |
@@ -1237,29 +1237,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::emit_combat_event` | core_shape_payload | core_combat |
 | `game.gd::emit_combat_event` | subclass_release_label | warden_progression |
 | `game.gd::emit_combat_event` | authored_core_label | core_combat |
-| `game.gd::apply_enemy_hit` | ar11_host_grace | enemy_attack_execution, oracle_progression |
-| `game.gd::apply_enemy_hit` | ar11_guarded_grace_call | enemy_attack_execution, life |
-| `game.gd::apply_enemy_hit` | ar11_live_grace_call | enemy_attack_execution, life |
-| `game.gd::apply_enemy_hit` | ar07_vitals_1 | player_vitals |
-| `game.gd::apply_enemy_hit` | ar07_vitals_2 | player_vitals |
-| `game.gd::apply_enemy_hit` | ar07_vitals_3 | player_vitals |
-| `game.gd::apply_enemy_hit` | ct05_oracle_1 | oracle_progression |
-| `game.gd::apply_enemy_hit` | ct05_oracle_2 | oracle_progression |
-| `game.gd::apply_enemy_hit` | ct01_holdfast_0 | warden_progression, combat, life |
-| `game.gd::apply_enemy_hit` | ct01_0 | warden_progression, classes, combat_affinity_contracts |
-| `game.gd::apply_enemy_hit` | ct01_1 | warden_progression, classes, combat_affinity_contracts |
-| `game.gd::apply_enemy_hit` | ct01_2 | warden_progression, classes, combat_affinity_contracts |
-| `game.gd::apply_enemy_hit` | wood_affinity_1 | wood_affinity, combat_affinity_contracts |
-| `game.gd::apply_enemy_hit` | wood_affinity_2 | wood_affinity, combat_affinity_contracts |
-| `game.gd::apply_enemy_hit` | wood_affinity_3 | wood_affinity, combat_affinity_contracts |
-| `game.gd::apply_enemy_hit` | cr03_frost_integration | fire_affinity, water_affinity, frost_affinity |
-| `game.gd::apply_enemy_hit` | cr02_affinity_contract | combat_affinity_contracts |
-| `game.gd::apply_enemy_hit` | guarded_expedition | persistence_operations, life, enemy_balance, combat_balance_preview, core_combat, enemy_move_feedback |
-| `game.gd::apply_enemy_hit` | cb06_7 | enemy_balance |
-| `game.gd::apply_enemy_hit` | cb06_8 | enemy_balance |
-| `game.gd::apply_enemy_hit` | preview_incoming_damage | combat_balance_preview |
-| `game.gd::apply_enemy_hit` | ironbark_confirmed_block | core_combat |
-| `game.gd::apply_enemy_hit` | generic_slow_copy | enemy_move_feedback |
 | `game.gd::apply_skill_targets` | ec01_1 | affinity_cards |
 | `game.gd::apply_skill_targets` | ec01_2 | affinity_cards |
 | `game.gd::apply_skill_targets` | ct04_reaper_1 | classes, reaper_progression |
@@ -1349,15 +1326,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::grant_guard` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::grant_guard` | cb04_7 | class_balance |
 | `game.gd::grant_guard` | ironbark_replaced_ward | core_combat |
-| `game.gd::_damage_player` | ar07_vitals_1 | player_vitals |
-| `game.gd::_damage_player` | ar07_vitals_2 | player_vitals |
-| `game.gd::_damage_player` | ar07_vitals_3 | player_vitals |
-| `game.gd::_damage_player` | guarded_expedition | persistence_operations, life, expedition_sustain, combat_balance_preview, combat_vitals |
-| `game.gd::_damage_player` | cb07_3 | expedition_sustain |
-| `game.gd::_damage_player` | cb07_4 | expedition_sustain |
-| `game.gd::_damage_player` | preview_damage_log_units | combat_balance_preview |
-| `game.gd::_damage_player` | vitals_damage_subtraction | combat_vitals |
-| `game.gd::_damage_player` | vitals_damage_applied | combat_vitals |
 | `game.gd::update_support_effects` | cb07_5 | expedition_sustain |
 | `game.gd::update_support_effects` | cb04_3 | class_balance |
 | `game.gd::update_support_effects` | preview_renewal_tick | combat_balance_preview |
@@ -2873,6 +2841,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `core_skill_effects.gd` | hush_rite_evidence | wilds_skill_tactics |
 | `core_skill_effects.gd` | core_area_evidence | wilds_skill_tactics |
 | `core_skill_effects.gd` | core_tactics_dependency | wilds_skill_tactics |
+| `enemy_support.gd` | ar12_choir_hit | incoming_player_hit |
+| `enemy_support.gd` | ar12_choir_life | incoming_player_hit |
 | `enemy_support.gd` | ar11_execution_1 | enemy_attack_execution |
 | `enemy_support.gd` | cb06_0 | enemy_balance |
 | `enemy_support.gd` | cb06_1 | enemy_balance |

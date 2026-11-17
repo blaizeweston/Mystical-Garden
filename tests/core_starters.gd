@@ -1,5 +1,8 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const Core = preload("res://core_combat.gd")
 const Rules = preload("res://core_skill_rules.gd")
 var failed := false
@@ -111,7 +114,7 @@ func run() -> void:
 		check(false, "Lantern Burst casts with the cultivated and crafted starter part")
 
 	p.run_upgrades={"quickroot":1}
-	game.damage_player(1,p,99)
+	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 99)
 	check(not p.wild and p.run_upgrades.is_empty() and Core.owner_state(p,Time.get_ticks_msec()).is_empty(), "wipe clears expedition upgrades and hides the Core action")
 	p.pos=game.Stage.GATE
 	game.select_class(1,p,3)

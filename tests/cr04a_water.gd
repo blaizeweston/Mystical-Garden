@@ -1,5 +1,8 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
@@ -121,7 +124,7 @@ func run() -> void:
 		p.slow_until=now+6000
 		ally.slow_until=now+6000
 		game.use_class_skill(1,p,0)
-		game.apply_enemy_hit(1,p,Time.get_ticks_msec(),1.0,0,game.tactics.position)
+		IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1.0, 0, game.tactics.position)
 		check(p.slow_until==0 and ally.slow_until==0 and p[PlayerVitals.STATE].hp()==70 and is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"Ward wash Drenches enemies and cleanses protected allies")
 
 	reset()
@@ -159,7 +162,7 @@ func run() -> void:
 	p.hurt_until=0
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
 	Water.drench(game,strong,0)
-	game.apply_enemy_hit(1,p,now+7800,damage,0,scout.pos)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now+7800, damage, 0, scout.pos)
 	check(p[PlayerVitals.STATE].hp()==90-baseline,"unattributed hazard unaffected by Drenched enemy")
 
 	reset()
@@ -171,9 +174,9 @@ func run() -> void:
 	p.hurt_until=0
 	Events.grant_ward(game,p,now+1000,1,fire,adapter,now)
 	Events.grant_ward(game,p,now+2000,2,water,adapter,now)
-	game.apply_enemy_hit(1,p,now+1,1.0,0,game.tactics.position)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now+1, 1.0, 0, game.tactics.position)
 	check(game.tactics.memory.get(Fire.BURNING,{}).has("1/catalyst") and Water.reduction(game.tactics.memory,Clock.now(game))==0.0,"earliest mixed Ward selects ordinary Fire")
-	game.apply_enemy_hit(1,p,now+2,1.0,0,game.tactics.position)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now+2, 1.0, 0, game.tactics.position)
 	check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),.30) and p.guard_charges==0,"next actual block is refined Water without removing Fire")
 	game.queue_free()
 	await process_frame

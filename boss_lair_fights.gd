@@ -4,6 +4,7 @@ const Routes = preload("res://boss_lair_routes.gd")
 const Attacks = preload("res://enemy_attack.gd")
 const Orchard = preload("res://orchard_moves.gd")
 const Feedback = preload("res://enemy_move_feedback.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const SAMPLE_MS := 400
 const HINT_BASE := -500000
 const TIDE_KIND := "lair_tide"
@@ -238,7 +239,7 @@ static func resolve(game: Node, plan: Dictionary, now: int, damage: float) -> vo
   for id in game.players:
    var player: Dictionary=game.players[id]
    if game.Life.alive(player) and covered(plan,player.pos) and game.battlefield.clear_line(plan.from,player.pos):
-    game.apply_enemy_hit(id,player,now,damage,0,plan.from)
+    load("res://incoming_player_hit.gd").resolve_world(game,id,PlayerLifecycle.generation(player),now,damage,0,plan.from)
  elif charge_clear:
   game.tactics.position=plan.to
   preload("res://enemy_attack_hits.gd").for_world(game,-1).charge(plan.from,plan.to,plan.width,plan.radius,now,damage)

@@ -1,4 +1,7 @@
 extends SceneTree
+
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 var game: Node
 var base: String
@@ -33,8 +36,8 @@ func host_run():
  for player in game.players.values():player.wild=true;player[PlayerVitals.STATE]=PlayerVitals.Health.new(10,10);player.pos=Vector3.ZERO
  game.encounter.set_hp(-1, 80);game.tactics.position=Vector3(0,0,8);game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.encounter.clear_scouts()
  check(await until(func():return marked("party")),"guest sees host portrait/name/health")
- game.damage_player(1,p,3);check(await until(func():return marked("damage")),"guest sees host damage")
- game.damage_player(1,p,99);check(await until(func():return marked("skull")),"guest sees fallen host")
+ IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 3);check(await until(func():return marked("damage")),"guest sees host damage")
+ IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 99);check(await until(func():return marked("skull")),"guest sees fallen host")
  check(game.Life.revive(game,guest_id,1),"guest revives host")
  check(await until(func():return marked("revived")),"guest sees restored portrait and reduced max health")
  mark("done");check(await until(func():return game.players.size()==1),"guest disconnects")

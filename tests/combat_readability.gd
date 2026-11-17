@@ -1,5 +1,8 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Hurt=preload("res://enemy_hurtbox.gd")
 const Motion=preload("res://weapon_motion.gd")
@@ -85,7 +88,7 @@ func run():
  packet.phase=.12;var after:=Motion.advance(actor,packet,.001)
  check(after.phase>.29,"late phase cannot rewind an ongoing attack")
  p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.guard_until=Time.get_ticks_msec()+2000;p.guard_charges=1;p.hurt_until=0
- game.combat_events.clear();game.apply_enemy_hit(1,p,Time.get_ticks_msec(),1)
+ game.combat_events.clear();IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1)
  check(PlayerVitals.current_hp(p)==10 and game.combat_events.back().shape=="block","blocked contact is labeled without inventing damage")
  var delayed: Dictionary=game.combat_events.back().duplicate();delayed.age=.7;delayed.duration=.85
  var key:=str([game.destination,game.encounter_number,game.map_seed])

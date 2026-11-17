@@ -1,4 +1,7 @@
 extends SceneTree
+
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Journal=preload("res://diagnostic_journal.gd")
 var game: Node
@@ -28,7 +31,7 @@ func host_run():
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"registration");return
  var id=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
  p.wild=true;p[PlayerVitals.STATE]=p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3.ZERO;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.progress.knowledge=47
- game.damage_player(id,p,1);game.net_view.observe(game);game.diagnostic_watch.tick(true)
+ IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(p), 1);game.net_view.observe(game);game.diagnostic_watch.tick(true)
  mark("damage");check(await until(func():return marked("guest_verified")),"guest validates log")
  check(PlayerVitals.current_hp(p)==9,"authoritative one point damage")
  Journal.event("diagnostics","user_issue",{"note":"co-op host marker"})

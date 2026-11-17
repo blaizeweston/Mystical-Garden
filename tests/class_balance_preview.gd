@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -161,7 +163,7 @@ func guard_and_quake() -> void:
 	check(tooltip(0).contains("Guard: 1 hit") and tooltip(0).contains("Counter: +10 HP"),"guard counts and counter HP display separately")
 	game.use_class_skill(1,player,0)
 	var now:=Time.get_ticks_msec()
-	game.apply_enemy_hit(1,player,now,3)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now, 3)
 	check(PlayerVitals.current_hp(player)==20 and player.guard_charges==0 and player.counter_until>now,"one charge fully blocks an incoming 30 HP hit")
 	game.use_class_skill(1,player,1)
 	check(game.enemy_health()==570 and player.counter_until==0,"Root Quake applies 20 HP plus the 10 HP counter once")

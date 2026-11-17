@@ -4,6 +4,7 @@ const Catalog = preload("res://enemy_catalog.gd")
 const Geometry = preload("res://attack_geometry.gd")
 const Tactics = preload("res://wilds_skill_tactics.gd")
 const Feedback = preload("res://enemy_move_feedback.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const CANOPY_SPAN := 2.7
 const CHOIR_SPAN := 2.05
 const INTERRUPTIBLE := ["corpse_tether", "brood", "chant", "shepherd", "choir", "lure", "trophy_grab"]
@@ -361,4 +362,4 @@ static func hit_choir_sector(game: Node, origin: Vector3, attack: Dictionary, no
  for id in game.players:
   var player: Dictionary=game.players[id]
   if game.Life.alive(player) and Geometry.accepts_sector(origin,attack.face,player.pos,0.0,attack.radius,attack.span) and game.battlefield.clear_line(origin,player.pos):
-   game.apply_enemy_hit(id,player,now,damage,500,origin)
+   load("res://incoming_player_hit.gd").resolve_world(game,id,PlayerLifecycle.generation(player),now,damage,500,origin)

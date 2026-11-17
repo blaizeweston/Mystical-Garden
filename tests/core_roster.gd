@@ -1,5 +1,8 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Core = preload("res://core_combat.gd")
@@ -110,7 +113,7 @@ func run() -> void:
 			player.pos = live.center
 		if live.skill.id == "ironbark":
 			check(game.tactics.stagger_until == 0 and player.guard_charges == 1, "Hold Ground waits for a real block")
-			game.apply_enemy_hit(1, player, live.armed + 200, 1, 0, game.tactics.position)
+			IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), live.armed + 200, 1, 0, game.tactics.position)
 		if live.skill.id == "grave_lantern":
 			var corpse: Dictionary = game.make_scout(0, Vector3(.8, 0, -2), 1)
 			corpse.hp = 0

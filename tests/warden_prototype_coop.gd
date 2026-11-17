@@ -1,5 +1,8 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const Warden = preload("res://warden_tree.gd")
 const Combat = preload("res://warden_combat.gd")
 const Aim = preload("res://ability_aim.gd")
@@ -100,7 +103,7 @@ func host() -> void:
 	if not await until(func():return not Combat.anchor(game,player,Time.get_ticks_msec()).is_empty()):
 		check(false,"guest release creates a real anchor")
 		return
-	game.apply_enemy_hit(id,player,Time.get_ticks_msec(),1,0,game.tactics.position)
+	IncomingPlayerHit.resolve_world(game, id, PlayerLifecycle.generation(player), Time.get_ticks_msec(), 1, 0, game.tactics.position)
 	player.pos=Vector3(0,0,4.6)
 	mark("move")
 	if not await until(func():return game.enemy_health()<100):

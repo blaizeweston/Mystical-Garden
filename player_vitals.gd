@@ -51,6 +51,20 @@ class Health extends RefCounted:
 	func refilled() -> Health:
 		return with_hp(float(max_hp()))
 
+## Install the next host health value and return detached damage facts.
+## The legacy path records zero damage. Preview mode keeps fractional HP intact
+## when no whole HP was lost.
+static func apply_damage(record: Dictionary, amount_hp: int, record_zero: bool) -> Dictionary:
+	var health: Health = record.get(STATE)
+	if health == null:
+		return {}
+	var damaged := health.damaged(amount_hp)
+	var applied_hp := int(health.hp()) - int(damaged.hp())
+	var recorded := record_zero or applied_hp > 0
+	if recorded:
+		record[STATE] = damaged
+	return {"applied_hp": applied_hp, "hp": damaged.hp() if recorded else health.hp(), "recorded": recorded}
+
 ## Read either a host value or the existing detached guest/HUD projection.
 ## These queries never install a component or write projection fields.
 static func current_hp(record: Dictionary, fallback: float = 0.0) -> float:

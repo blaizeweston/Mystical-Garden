@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
@@ -28,7 +30,7 @@ func run() -> void:
  game.pickup_inventory_drop(1,a,"part");game.inventory_drop_visuals._process(.3)
  check(game.inventory_drop_visuals.models.is_empty() and a.carried_parts[game.Parts.HOOK]==1,"pickup removes visible drop and awards component")
  a.carried_seeds=[0];a.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
- game.damage_player(1,a,10)
+ IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(a), 10)
  check(a.wild and PlayerLifecycle.fallen(a) and PlayerVitals.current_hp(a)==0 and a.carried_seeds==[0],"fallen player keeps run cargo pending revival")
  check(game.spectator_view.focus_id(1)==2,"fallen host spectates living teammate")
  game.add_player(3);game.players[3].wild=true;game.players[3].profile_ready=true
@@ -55,11 +57,11 @@ func run() -> void:
  a.run_upgrades={};a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_native_max_hp(8);a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_hp(8);b.pos=a.pos;game.encounter_number=1;game.encounter.set_hp(-1, 100)
  for capacity in [6,4,2]:
   var generation := PlayerLifecycle.generation(a)
-  game.damage_player(1,a,100)
+  IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(a), 100)
   check(PlayerLifecycle.matches(a,generation) and PlayerLifecycle.fallen(a),"each lethal hit changes the fallen state without replacing generation")
   check(game.Life.revive(game,2,1) and PlayerVitals.maximum_hp(a)==capacity and int(a.lost_health)==10-capacity
    and not PlayerLifecycle.matches(a,generation),"each revival spends one heart and replaces the previous generation")
- game.damage_player(1,a,100)
+ IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(a), 100)
  check(not game.Life.revive(game,2,1) and PlayerVitals.current_hp(a)==0 and PlayerVitals.maximum_hp(a)==2,"last remaining full heart cannot be sacrificed")
  # Fallen allies cannot block travel or get healed by moving floors.
  game.encounter.set_hp(-1, 0);game.encounter_rewarded=true;game.encounter_number=1
@@ -80,7 +82,7 @@ func run() -> void:
  game.abandon_run(2,b)
  check(not PlayerLifecycle.fallen(a),"ending the party expedition clears the wait before departure")
  for player in [a,b]: player.wild=true;player[PlayerLifecycle.STATE] = PlayerLifecycle.start_life();player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(1);player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(8);player.lost_health=2
- game.damage_player(1,a,100);game.damage_player(2,b,100)
+ IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(a), 100);IncomingPlayerHit.apply_health_loss(game, 2, PlayerLifecycle.generation(b), 100)
  check(not a.wild and not b.wild and PlayerVitals.current_hp(a)==10 and a.lost_health==0 and a.carried_seeds.is_empty(),"party wipe returns everyone and restores sacrificed hearts")
  # Newer revival state must survive an older movement packet.
  var view=load("res://network_presentation.gd").new()

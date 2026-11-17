@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -27,9 +29,9 @@ func run() -> void:
  check(not game.Classes.can_learn(p.character,0,9,7) and not game.Classes.can_learn(p.character,0,11,7),"exclusive specialization branches")
  check(game.Skills.resolve(0,0,p.character).mode=="front_guard","Bastion changes the actual Q mode")
  game.use_class_skill(1,p);var now:=Time.get_ticks_msec()
- game.apply_enemy_hit(1,p,now,1,0,p.pos+Vector3.FORWARD)
+ IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now, 1, 0, p.pos+Vector3.FORWARD)
  check(PlayerVitals.current_hp(p)==10 and p.guard_charges>0 and ally.guard_until>now,"front guard blocks and protects living ally")
- p.hurt_until=0;game.apply_enemy_hit(1,p,now+1,1,0,p.pos+Vector3.BACK)
+ p.hurt_until=0;IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now+1, 1, 0, p.pos+Vector3.BACK)
  check(PlayerVitals.current_hp(p)==9,"directional shield leaves the rear exposed")
  var origin: Vector3=p.pos;game.move_player(1,Vector2.RIGHT,1.0)
  check(p.pos.distance_to(origin)<game.WALK_SPEED*.5,"root shield sacrifices mobility")
@@ -37,7 +39,7 @@ func run() -> void:
  ally[PlayerLifecycle.STATE] = ally[PlayerLifecycle.STATE].fall();ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(0);game.Traits.tick(game,Time.get_ticks_msec()+1000);check(PlayerVitals.current_hp(ally)==0,"sanctuary does not revive fallen players")
  ally[PlayerLifecycle.STATE] = ally[PlayerLifecycle.STATE].clear_inactive();ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(10)
  build(game,p,[1,3,5,7,9,11]);game.use_class_skill(1,p)
- game.apply_enemy_hit(1,p,Time.get_ticks_msec(),1,0,p.pos+Vector3.FORWARD)
+ IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1, 0, p.pos+Vector3.FORWARD)
  check(p.counter_until>0,"Vanguard successful guard primes counter")
  var before: int=game.enemy_health();game.use_class_skill(1,p,1)
  check(game.enemy_health()<before-3 and p.counter_until==0,"charge consumes counter on actual hit with plant and monster stats")

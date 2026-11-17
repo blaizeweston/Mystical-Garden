@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
@@ -129,14 +131,26 @@ func check_guard_and_brace(game: Node) -> void:
 	player.still_since = 1000
 	player.guard_until = 4000
 	player.guard_charges = 1
-	game.apply_enemy_hit(1,player,1600,1.0)
-	check(is_same(player[PlayerVitals.STATE],initial) and player.guard_charges==0
+	var life := PlayerLifecycle.generation(player)
+	var blocked := IncomingPlayerHit.resolve_world(game, 1, life, 1600, 1.0)
+	check(blocked.kind == IncomingPlayerHit.Outcome.BLOCKED and blocked.applied_hp == 0
+		and is_same(player[PlayerVitals.STATE],initial) and player.guard_charges==0
 		and int(player.get("brace_block_ready",0))==0,"Guard blocks before Brace can spend its response")
-	game.apply_enemy_hit(1,player,2000,1.0)
-	check(is_same(player[PlayerVitals.STATE],initial) and player.brace_block_ready==6000,
+	var braced := IncomingPlayerHit.resolve_world(game, 1, life, 2000, 1.0)
+	check(braced.kind == IncomingPlayerHit.Outcome.BRACED
+		and is_same(player[PlayerVitals.STATE],initial) and player.brace_block_ready==6000,
 		"Brace absorbs the next guarded-player hit without replacing health")
-	game.apply_enemy_hit(1,player,2100,1.0)
-	check(PlayerVitals.current_hp(player)==initial.hp()-1.0,"the next unmitigated hit reaches the health owner")
+	var damage := IncomingPlayerHit.resolve_world(game, 1, life, 2100, 1.0)
+	check(damage.kind == IncomingPlayerHit.Outcome.DAMAGED and damage.applied_hp == 1
+		and damage.damage_recorded and PlayerVitals.current_hp(player)==initial.hp()-1.0,
+		"the next unmitigated hit reaches the health owner and reports the applied HP loss")
+	var sequence := int(player.damage_seq)
+	var simultaneous := IncomingPlayerHit.resolve_world(game, 1, life, 2100, 1.0, 600)
+	check(simultaneous.kind == IncomingPlayerHit.Outcome.GRACE and int(player.damage_seq) == sequence
+		and int(player.get("slow_until", 0)) == 0, "a second hit at the same instant spends neither HP nor a status")
+	var stale := IncomingPlayerHit.resolve_world(game, 1, life - 1, 4000, 5.0)
+	check(stale.kind == IncomingPlayerHit.Outcome.REJECTED and int(player.damage_seq) == sequence
+		and PlayerVitals.current_hp(player) == initial.hp()-1.0, "the host rejects a contact against a prior life")
 	player.wild = false
 	player[PlayerVitals.STATE] = initial
 

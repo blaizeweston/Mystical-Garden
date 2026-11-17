@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -181,8 +183,8 @@ func focuses() -> void:
 	cast(0)
 	check(ally.guard_charges==2 and ally.affinity_ward_claims.size()==1,"Grave Ward uses a single native grant for two charges on hit")
 	now=Time.get_ticks_msec()
-	game.apply_enemy_hit(8,ally,now,2)
-	game.apply_enemy_hit(8,ally,now+1,2)
+	IncomingPlayerHit.resolve_world(game, 8, PlayerLifecycle.generation(ally), now, 2)
+	IncomingPlayerHit.resolve_world(game, 8, PlayerLifecycle.generation(ally), now+1, 2)
 	check(ally[PlayerVitals.STATE].hp()==20 and ally.guard_charges==0,"both native charges block with no second activation")
 	prepare(["gravekeeper","grave_ward"],Vector3.ZERO,Vector3(-2,0,0))
 	cast(0)

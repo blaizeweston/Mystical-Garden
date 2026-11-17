@@ -124,7 +124,7 @@ static func for_world(game: Node, source_slot: int = -2, spawn_token: int = -1,
 		if not Life.alive(actor) or not PlayerLifecycle.matches(actor, target.life):
 			return false
 		var damage_sequence := int(actor.get("damage_seq", 0))
-		game.apply_enemy_hit(target.id, actor, now, damage, slow_ms, origin, direct_attack)
+		load("res://incoming_player_hit.gd").resolve_world(game, target.id, target.life, now, damage, slow_ms, origin, direct_attack)
 		var survivor: Dictionary = game.players.get(target.id, {})
 		return source_is_current.call() and Life.alive(survivor) and PlayerLifecycle.matches(survivor, target.life) \
 			and int(survivor.get("damage_seq", 0)) != damage_sequence

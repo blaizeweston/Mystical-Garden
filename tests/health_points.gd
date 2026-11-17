@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -30,9 +32,9 @@ func run():
 	check(PlayerVitals.current_hp(p) == 9 and Hud.heart_state(PlayerVitals.current_hp(p),10,4) == 1, "basic enemy hit removes one point and displays a half heart")
 	for i in 4:
 		check(Hud.heart_state(PlayerVitals.current_hp(p),10,i) == 0, "basic damage preserves the other full hearts")
-	game.damage_player(1,p,1)
+	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 1)
 	check(PlayerVitals.current_hp(p) == 8 and Hud.heart_state(PlayerVitals.current_hp(p),10,4) == 2, "second point empties the same heart")
-	game.damage_player(1,p,2)
+	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 2)
 	check(PlayerVitals.current_hp(p) == 6 and Hud.heart_state(PlayerVitals.current_hp(p),10,3) == 2, "stronger hits can remove a full heart")
 	check(Hud.heart_state(8,8,4) == 3, "lost capacity retains its separate texture")
 	var small := Hud.half_heart_pulse(0.6)
@@ -44,7 +46,7 @@ func run():
 	var snapshot: Dictionary = game.player_snapshot(1)[1]
 	check(snapshot.hp == 9 and snapshot.max_hp == 10, "multiplayer snapshot preserves health totals")
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(1)
-	game.damage_player(1,p,1)
+	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 1)
 	check(not p.wild and not PlayerLifecycle.fallen(p) and PlayerVitals.current_hp(p) == 10, "solo wipe returns to Garden with full health and a cleared fallen state")
 	await process_frame
 	if not failed: print("PASS: ten-point health, half-heart damage, pulse, stronger hits and recovery")

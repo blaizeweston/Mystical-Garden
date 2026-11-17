@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
@@ -233,9 +235,20 @@ func exercise() -> void:
  actor[Cooldowns.STATE] = combat_timers
  var hp: int=int(PlayerVitals.current_hp(actor))
  var active_generation := PlayerLifecycle.generation(actor)
- world.damage_player(1,actor,1)
+ IncomingPlayerHit.apply_health_loss(world, 1, PlayerLifecycle.generation(actor), 1)
  check(int(PlayerVitals.current_hp(actor))==hp-1 and disk()==committed,"nonlethal damage is runtime-only")
- world.damage_player(1,actor,999)
+ var before_hit_health: PlayerVitals.Health=actor[PlayerVitals.STATE]
+ var before_hit_status := [int(actor.hurt_until), int(actor.slow_until), int(actor.damage_seq), int(actor.damage_amount)]
+ var impact_at := maxi(Time.get_ticks_msec(), int(actor.hurt_until)) + 1
+ world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
+ var uncommitted := IncomingPlayerHit.resolve_world(world,1,active_generation,impact_at,999.0,750)
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ check(uncommitted.kind==IncomingPlayerHit.Outcome.UNCOMMITTED and not uncommitted.damage_recorded
+  and is_same(actor[PlayerVitals.STATE],before_hit_health) and PlayerLifecycle.matches(actor,active_generation)
+  and not PlayerLifecycle.fallen(actor) and disk()==committed
+  and before_hit_status==[int(actor.hurt_until),int(actor.slow_until),int(actor.damage_seq),int(actor.damage_amount)],
+  "aborted lethal enemy contact restores the same HP owner, life, grace, Slow and damage sequence")
+ IncomingPlayerHit.apply_health_loss(world, 1, PlayerLifecycle.generation(actor), 999)
  check(PlayerLifecycle.fallen(actor) and PlayerVitals.current_hp(actor)==0 and world.wallet_for(actor)==earned_wallet
   and world.run_wallet(actor)==earned_balance,"the downed player keeps their run wallet")
  check(is_same(actor[Cooldowns.STATE],combat_timers),"fall preserves existing cooldowns")
@@ -331,7 +344,7 @@ func exercise() -> void:
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  actor.carried_seeds=[1]
  var saved_seeds: int=world.progress.unknown.size()
- world.damage_player(1,actor,999)
+ IncomingPlayerHit.apply_health_loss(world, 1, PlayerLifecycle.generation(actor), 999)
  check(not actor.wild and world.progress.unknown.size()==saved_seeds+1 and world.status.contains("safe-pouch"),"wipe keeps only protected cargo")
  actor.pos=world.Stage.GATE
  world.enter_wilds(1,actor)
@@ -428,7 +441,7 @@ func exercise() -> void:
  check(foreign.save(lease)==OK,"inject foreign lease")
  before=disk()
  hp=int(PlayerVitals.current_hp(actor))
- world.damage_player(1,actor,999)
+ IncomingPlayerHit.apply_health_loss(world, 1, PlayerLifecycle.generation(actor), 999)
  world.finish_combat(1,world.tactics.position)
  world.abandon_run(1,actor)
  check(int(PlayerVitals.current_hp(actor))==hp and actor.wild and disk()==before,"lost lease prevents combat and settlement writes")

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -194,7 +196,7 @@ func cast(slot: int) -> void:
 func enemy_hit(id: int, now: int, slow := 0, direct := true) -> void:
 	var player: Dictionary = game.players[id]
 	player.hurt_until=0
-	preload("res://frost_combat.gd").with_attacker(game,-1,game.apply_enemy_hit.bind(id,player,now,1.0,slow,Vector3.INF,direct))
+	preload("res://frost_combat.gd").with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, id, PlayerLifecycle.generation(player), now, 1.0, slow, Vector3.INF, direct))
 
 
 func record(body: Dictionary, key: String, now: int, source := 0) -> Dictionary:
@@ -247,7 +249,7 @@ func basic_omens() -> void:
 	entrant.slow_until=now+1800
 	game.Traits.tick(game,now+1)
 	check(entrant.slow_until==0 and record(entrant,Progression.SECOND_BREATH,now+1).is_empty(),"late entrant only receives field cleanse")
-	game.apply_enemy_hit(8,ally,now+10,1.0,0,Vector3.INF,false)
+	IncomingPlayerHit.resolve_world(game, 8, PlayerLifecycle.generation(ally), now+10, 1.0, 0, Vector3.INF, false)
 	check(ally[PlayerVitals.STATE].hp()==90 and not record(ally,Progression.SECOND_BREATH,now+10).is_empty(),"hazard hit does not spend the Blessing")
 	game.Life.down(game,1,caster)
 	Omens.grant(game,1,"lifekeeper",999,8,ally,Progression.SECOND_BREATH,3000,now+10)

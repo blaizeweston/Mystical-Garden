@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -403,7 +405,7 @@ func verify_dew_shelter() -> void:
 	check(ally.guard_until==expiry and ally.guard_charges==1,"same wave cannot renew or add an ally Ward")
 	var recorded: Array = []
 	game.set_meta(Events.RECORD,func(entry):recorded.append(entry))
-	game.apply_enemy_hit(1,player,int(cast.armed)+520,1.0,0,game.tactics.position)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), int(cast.armed)+520, 1.0, 0, game.tactics.position)
 	check(player.guard_charges==0 and recorded.is_empty(),"Dew Shelter blocks as a native Ward with no Catalyst response")
 	game.remove_meta(Events.RECORD)
 

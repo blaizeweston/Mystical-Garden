@@ -1,5 +1,8 @@
 extends RefCounted
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -222,7 +225,7 @@ func host(menu: Node) -> void:
 	game.use_class_skill(1,local,0)
 	ally.hurt_until=0
 	var before: float=PlayerVitals.current_hp(ally)
-	game.apply_enemy_hit(protected,ally,Time.get_ticks_msec(),1)
+	IncomingPlayerHit.resolve_world(game, protected, PlayerLifecycle.generation(ally), Time.get_ticks_msec(), 1)
 	check(PlayerVitals.current_hp(ally)==before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==1 and e.details.recipient==protected and e.quality=="refined"),"actual guest block uses host refined Catalyst")
 	if connected_warden_case and not await exercise_connected_host(game,local,ally,protected,rows):
 		return
@@ -242,7 +245,7 @@ func host(menu: Node) -> void:
 		mark("wood-guard-"+str(ward_guest))
 		if not check(await until(func():return warded.guard_charges>0),"native remote Q arms Wood Ward"):return
 		var hp_before: float=PlayerVitals.current_hp(warded)
-		game.apply_enemy_hit(ward_guest,warded,Time.get_ticks_msec(),2,0,game.tactics.position)
+		IncomingPlayerHit.resolve_world(game, ward_guest, PlayerLifecycle.generation(warded), Time.get_ticks_msec(), 2, 0, game.tactics.position)
 		check(PlayerVitals.current_hp(warded)==hp_before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==ward_guest and e.primary_affinity=="wood" and e.quality=="ordinary"),
 			"real Wood Ward bursts with its own provenance after the Frost Ward")
 		check(warded.get("affinity_bark_grants",[]).any(func(grant):return grant.actor==ward_guest and grant.quality=="ordinary"),"Wood Ward retains ordinary source capacity")
@@ -540,7 +543,7 @@ func exercise_connected_host(game: Node, local: Dictionary, player: Dictionary, 
 	var now := Time.get_ticks_msec()
 	var hp: int = PlayerVitals.current_hp(player)
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, now+1000)
-	game.apply_enemy_hit(id,player,now,4,0,game.tactics.position)
+	IncomingPlayerHit.resolve_world(game, id, PlayerLifecycle.generation(player), now, 4, 0, game.tactics.position)
 	var blocks := func():return events.filter(func(e):return e.kind=="actual_block" and e.source_actor==id)
 	check(PlayerVitals.current_hp(player)==hp and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)==now and player.get("warden_sanctuary",{}).get("until",0)>now
 		and player.get("warden_holdfast",{}).get("actor")==id and local.get("warden_holdfast",{}).get("actor")==id
@@ -748,11 +751,11 @@ func exercise_oracle_host(game: Node,id: int,entry: Vector3) -> bool:
 	var before := int(PlayerVitals.current_hp(host_player))
 	var now := Time.get_ticks_msec()
 	host_player.hurt_until=0
-	Frost.with_attacker(game,-1,game.apply_enemy_hit.bind(1,host_player,now,1.0))
+	Frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 1, PlayerLifecycle.generation(host_player), now, 1.0))
 	check(host_player.guard_charges==0 and PlayerVitals.current_hp(host_player)==before+6
 		and not Omens.strongest(game,host_player,Oracle.MERCY,now,id).is_empty(),"remote Oracle Ward blocks and heals without spending a conditional recovery")
 	host_player.hurt_until=0
-	Frost.with_attacker(game,-1,game.apply_enemy_hit.bind(1,host_player,now+1,1.0))
+	Frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 1, PlayerLifecycle.generation(host_player), now+1, 1.0))
 	check(PlayerVitals.current_hp(host_player)==before+4 and Omens.strongest(game,host_player,Oracle.MERCY,now+1,id).is_empty()
 		and not Omens.strongest(game,host_player,Oracle.SECOND_BREATH,now+1,id).is_empty(),
 		"host takes one real hit and only the stronger remote recovery responds")
@@ -1162,7 +1165,7 @@ func verify_current_snapshot_host(game: Node, ids: Array, local: Dictionary) -> 
 	var now := Time.get_ticks_msec()
 	for hp in [10,120]:
 		local.hurt_until=0
-		game.apply_enemy_hit(1,local,now,float(hp)/game.Life.Preview.scale(),0,game.tactics.position)
+		IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(local), now, float(hp)/game.Life.Preview.scale(), 0, game.tactics.position)
 	var burst: Array = game.combat_events.filter(func(e):return e.shape=="wood_burst" and e.get("label")=="Bark break")
 	check(not local.has(wood.GRANTS) and burst.size()==1 and PlayerVitals.current_hp(local)<250 and PlayerVitals.current_hp(local)>0,"host consumes Bark once and emits one break response")
 	if burst.is_empty():return

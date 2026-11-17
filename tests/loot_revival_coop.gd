@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
@@ -40,7 +42,7 @@ func host_run() -> void:
  check(game.inventory_floor_snapshot(host).is_empty(),"host cannot see guest trophy")
  check(await until(func(): return p.carried_parts[game.Parts.HOOK]==1),"guest picks up visible private part")
  check(game.wild_item_drops.is_empty(),"pickup removes authoritative drop")
- game.damage_player(id,p,100)
+ IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(p), 100)
  check(PlayerLifecycle.fallen(p) and p.wild and PlayerVitals.current_hp(p)==0,"guest down remains in expedition")
  check(await until(func(): return marked("guest-spectates")),"guest follows host camera/fog")
  var corpse: Vector3=p.pos
@@ -50,13 +52,13 @@ func host_run() -> void:
  game.act(1,false)
  check(PlayerVitals.current_hp(p)==8 and PlayerVitals.maximum_hp(p)==8 and p.lost_health==2,"host revives guest through interact")
  check(await until(func(): return marked("guest-revived")),"guest receives lost-heart texture state")
- game.damage_player(1,host,100)
+ IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(host), 100)
  check(host.wild and PlayerLifecycle.fallen(host) and game.spectator_view.focus_id(1)==id,"fallen host watches guest")
  mark("revive-host")
  check(await until(func(): return not PlayerLifecycle.fallen(host) and PlayerVitals.maximum_hp(host)==8),"guest E request revives host")
  check(host.lost_health==2 and PlayerVitals.current_hp(host)==8,"host pays same one-heart cost")
  check(await until(func(): return marked("host-revived")),"guest observes authoritative host revival")
- game.damage_player(1,host,100);game.damage_player(id,p,100)
+ IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(host), 100);IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(p), 100)
  check(not host.wild and not p.wild and host.lost_health==0 and p.lost_health==0,"party wipe resets lost hearts")
  check(await until(func(): return marked("wipe")),"guest sees wipe and restored capacity")
  mark("done");check(await until(func(): return game.players.size()==1),"guest leaves normally");game.leave_game("Revival fixture complete")

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -35,7 +37,7 @@ func available(player: Dictionary) -> int:
 
 func hit(p: Dictionary, id: int, hp: int, now: int) -> void:
 	p.hurt_until=0
-	game.apply_enemy_hit(id,p,now,float(hp)/game.Life.Preview.scale(),0,game.tactics.position)
+	IncomingPlayerHit.resolve_world(game, id, PlayerLifecycle.generation(p), now, float(hp)/game.Life.Preview.scale(), 0, game.tactics.position)
 
 func burst_count() -> int:
 	return game.combat_events.filter(func(row):return row.shape=="wood_burst").size()
@@ -192,7 +194,7 @@ func test_absorption(p: Dictionary, now: int) -> void:
 		"breaking hit uses weighted damage and largest-share owner")
 	hit(p,1,120,now)
 	check(p[PlayerVitals.STATE].hp()==178 and available(p)==0 and game.enemy_health()==488 and burst_count()==1,"overflow reaches HP and the breaking hit lands one burst")
-	game.apply_enemy_hit(1,p,now,12.0,0,game.tactics.position)
+	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now, 12.0, 0, game.tactics.position)
 	check(p[PlayerVitals.STATE].hp()==178 and burst_count()==1,"duplicate protected damage event does not debit or burst again")
 	Wood.grant(game,event(2,"catalyst","part_17"),1,"support")
 	hit(p,1,30,now)
@@ -224,7 +226,7 @@ func test_absorption(p: Dictionary, now: int) -> void:
 	Frost.with_attacker(game,-1,hit.bind(p,1,50,now))
 	check(p[PlayerVitals.STATE].hp()==229 and available(p)==34,"Drenched reduces the hostile hit before Bark absorption")
 	var paid: int=available(p)
-	game.damage_player(1,p,10)
+	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 10)
 	check(available(p)==paid and p[PlayerVitals.STATE].hp()==219,"native direct cost path does not consume Bark")
 	var vital:=event(2,"core","part_2")
 	vital.publish(game,"core_action","bloom","",now,{"center":p.pos,"recipients":[1]})

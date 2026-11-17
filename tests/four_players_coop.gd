@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -174,7 +176,7 @@ func guest_vitals(id: int) -> bool:
   check(false,"guest reviver is available")
   return false
  helper.pos=actor.pos
- game.damage_player(id,actor,35)
+ IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(actor), 35)
  if not await publish_vitals("wounded",id):return false
  check(PlayerVitals.current_hp(actor)==65,"35 applied damage leaves 65 HP")
  now=Time.get_ticks_msec()
@@ -186,7 +188,7 @@ func guest_vitals(id: int) -> bool:
  check(healed in range(3,6),"Renewal restores one rolled tick")
  if not await publish_vitals("renewed",id):return false
  var last_hp:=int(PlayerVitals.current_hp(actor))
- game.damage_player(id,actor,500)
+ IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(actor), 500)
  check(PlayerVitals.current_hp(actor)==0 and PlayerLifecycle.fallen(actor) and actor.damage_amount==last_hp,"lethal damage reports the HP actually lost")
  if not await publish_vitals("fallen",id):return false
  helper.pos=actor.pos

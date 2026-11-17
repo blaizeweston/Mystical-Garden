@@ -1,5 +1,7 @@
 extends SceneTree
 
+const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -417,18 +419,18 @@ func defense() -> void:
 		"focus-specific tooltip and Clean Weave")
 	check(game.tactics.rooted_until>now and ally.weaver_filaments.actor==1 and Combat.filaments_until(game,ally,now)>now,
 		"native Silk root and source-owned Filaments")
-	game.apply_enemy_hit(2,ally,now+20,4.0,0,game.tactics.position)
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), now+20, 4.0, 0, game.tactics.position)
 	var blocks := events.filter(func(e):return e.kind=="actual_block")
 	check(blocks.size()==1 and blocks[0].source_actor==1 and blocks[0].quality=="refined" and ally.guard_charges==0,
 		"one actual block selects the extended source-owned Ward")
 	ally.pos=Vector3(5,0,0)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
 	ally.hurt_until=0
-	game.apply_enemy_hit(2,ally,now+40,4.0)
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), now+40, 4.0)
 	check(ally[PlayerVitals.STATE].hp()==55 and ally.pos==Vector3(5,0,0),"Filaments follows recipients and reduces actual direct damage to 35 of 40")
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
 	ally.hurt_until=0
-	game.apply_enemy_hit(2,ally,now+100,4.0,0,Vector3.INF,false)
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), now+100, 4.0, 0, Vector3.INF, false)
 	check(ally[PlayerVitals.STATE].hp()==50 and events.filter(func(e):return e.kind=="actual_block").size()==1,
 		"Filaments does not mitigate hazards or emit a block")
 
@@ -444,7 +446,7 @@ func defense() -> void:
 	check(ally.guard_charges==1 and ally.guard_until==canopy_start+1+2500,"late arrival gets one traveling Ward")
 	ally.pos=Vector3(5,0,0)
 	ally.hurt_until=0
-	game.apply_enemy_hit(2,ally,canopy_start+40,4.0)
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), canopy_start+40, 4.0)
 	ally.pos=Vector3(1,0,0)
 	Combat.tick(game,canopy_start+80)
 	check(ally.guard_charges==0 and canopy.recipients.has(2),"consuming the Ward and re-entering does not grant it again")
@@ -452,7 +454,7 @@ func defense() -> void:
 	var filaments_expiry: int=ally.weaver_filaments.until
 	ally.hurt_until=0
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
-	game.apply_enemy_hit(2,ally,filaments_expiry,4.0)
+	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), filaments_expiry, 4.0)
 	check(ally[PlayerVitals.STATE].hp()==50 and Combat.filaments_until(game,ally,filaments_expiry)==0,"Filaments ends at its exact expire time")
 	Combat.tick(game,canopy.until)
 	check(not player.has("weaver_capstone"),"Canopy expires on time")
