@@ -1,4 +1,6 @@
 extends VBoxContainer
+
+const Participation = preload("res://expedition_participation.gd")
 var game: Node
 var depart_button: Button
 var class_pick: OptionButton
@@ -211,7 +213,7 @@ func refresh():
 	var affinity_api = preload("res://affinity_build.gd")
 	if p.is_empty(): return
 	var c:=int(p.get("frame",0))
-	var prepared: bool=not p.get("wild",false)
+	var prepared: bool=not Participation.is_wild(p)
 	var counts: Array=game.stored_counts(p) if game.multiplayer.is_server() else p.get("stored_parts",game.Parts.empty_counts())
 	var parts: Array=[p.get("prepared",0),p.get("prepared_secondary",0),p.get("prepared_catalyst",0)] if prepared else [p.get("weapon",0),p.get("secondary",0),p.get("catalyst",0)]
 	if Time.get_ticks_msec()>pending_until or not prepared: pending_slots.clear()
@@ -275,7 +277,7 @@ func refresh():
 	depart_button.visible=game.at_weapon_gate(p)
 	depart_button.disabled=not allowed
 	depart_button.text="Not Ready" if game.party_travel_state().get("ready",false) else "Ready to Enter Wilds" if game.players.size()>1 else "Craft Weapon & Enter Wilds"
-	var class_allowed: bool=(game.at_heart(p) and not game.expedition_active()) or game.at_weapon_gate(p)
+	var class_allowed: bool=(game.at_heart(p) and not game.participation.active()) or game.at_weapon_gate(p)
 	class_pick.disabled=not class_allowed
 	weapon_pick.disabled=not allowed
 	for slot in slots.size():

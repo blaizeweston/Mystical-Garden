@@ -23,7 +23,7 @@ static func tick(game: Node, delta: float, now: int) -> void:
 		return
 	if not game.encounter.alive(-1):
 		return
-	if game.destination != Campaign.HEART:
+	if game.participation.route() != Campaign.HEART:
 		Elite.tick(game, delta, now)
 		return
 	if game.tactics.winding_up:
@@ -59,7 +59,7 @@ static func tick(game: Node, delta: float, now: int) -> void:
 	if distance > base_strike_radius(game) - 0.45 or not game.battlefield.clear_line(game.tactics.position, victim):
 		if unrooted:
 			var affinity_motion := Frost.motion_scale(game.tactics.memory, now) if game.has_meta(&"combat_affinity_ruleset") else 1.0
-			var speed := minf(float(Enemies.get_kind(game.enemy_kind).speed) + (game.depth - 1) * 0.30, 2.9) + 0.35 + minf(game.difficulty_cycle * 0.12, 0.72)
+			var speed := minf(float(Enemies.get_kind(game.enemy_kind).speed) + (game.participation.depth() - 1) * 0.30, 2.9) + 0.35 + minf(game.participation.cycle() * 0.12, 0.72)
 			if now < game.tactics.haste_until:
 				speed *= 1.22
 			var stride := Director.speed(game, speed + 0.55 if game.tactics.longlimb else speed)
@@ -81,7 +81,7 @@ static func _begin_attack(game: Node, mode: String, landing: Vector3, radius: fl
 
 
 static func base_strike_radius(game: Node) -> float:
-	var radius: float = LONGLIMB_STRIKE_RADIUS if game.tactics.longlimb else [BRIAR_STRIKE_RADIUS, 2.1, 2.25, 2.45][game.destination]
+	var radius: float = LONGLIMB_STRIKE_RADIUS if game.tactics.longlimb else [BRIAR_STRIKE_RADIUS, 2.1, 2.25, 2.45][game.participation.route()]
 	return radius + (0.35 if game.enemy_mutations & Enemies.SPORES else 0.0)
 
 
@@ -107,4 +107,4 @@ static func resolve(game: Node, now: int) -> void:
 	var damage := Director.Balance.scout_hit(game, Enemies.get_kind(game.enemy_kind), {"gate_elite": true})
 	preload("res://enemy_attack_hits.gd").for_world(game, -1).area(game.tactics.position, strike_radius(game), now, damage)
 	game.tactics.active_radius = 0.0
-	game.abandon_if_empty()
+	load("res://expedition_transitions.gd").finish_if_empty(game)

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -23,7 +25,7 @@ func until(predicate: Callable,seconds: float=25.0) -> bool:
  return predicate.call()
 func _initialize():call_deferred("run")
 func clear_floor(number: int):
- game.encounter_number=number;game.deepest_milestone=number;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.encounter_rewarded=true
+ ExpeditionCase.set_world(game, {"encounter_number": number});game.deepest_milestone=number;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.encounter_rewarded=true
  for p in game.players.values():p.pos=game.battlefield.advance
 func finish():
  game.queue_free();await process_frame
@@ -82,11 +84,11 @@ func host_run():
    "Player 3":
     game.select_class(id,player,4)
     game.handle_loadout_action(id,player,"loadpart_0_2")
- game.enter_wilds(1,game.players[1])
- check(await until(func():return game.travel_votes.size()==3),"first three readiness votes arrive")
- check(not game.players[1].wild and game.travel_members.size()==4,"three votes cannot launch four players")
+ ExpeditionCase.Transitions.enter(game, 1,game.players[1])
+ check(await until(func():return game.participation.vote_count()==3),"first three readiness votes arrive")
+ check(not ExpeditionCase.is_wild(game.players[1]) and game.participation.travel_members().size()==4,"three votes cannot launch four players")
  mark("last_ready")
- check(await until(func():return game.players.values().all(func(p):return p.wild)),"all four depart together")
+ check(await until(func():return game.players.values().all(func(p):return ExpeditionCase.is_wild(p))),"all four depart together")
  check(game.progress.parts[0]==0 and game.progress.parts[1]==0,"party consumes two copies of each starter part exactly once")
  check(game.players.values().all(func(p):return not game.weapon_stats(p).core_build.skill.is_empty()),"each party member has a live Core skill")
  check(await until(func():return marked("core-1") and marked("core-2") and marked("core-3")),"all guests get the correct private Core inventory and ready HUD")
@@ -113,26 +115,26 @@ func host_run():
  check(await until(func():return marked("kill_verified_1") and marked("kill_verified_2") and marked("kill_verified_3")),"all guests receive their own monster reward and XP")
  if not await guest_vitals(thorn_guest):
   return
- clear_floor(1);game.use_checkpoint(1,true)
- check(await until(func():return game.encounter_number==2),"four ready votes advance ordinary gate")
- clear_floor(6);game.use_checkpoint(1,true);game.choose_checkpoint_card(1,game.players[1],-1)
+ clear_floor(1);ExpeditionCase.Transitions.checkpoint(game, 1,true)
+ check(await until(func():return game.participation.floor()==2),"four ready votes advance ordinary gate")
+ clear_floor(6);ExpeditionCase.Transitions.checkpoint(game, 1,true);game.choose_checkpoint_card(1,game.players[1],-1)
  check(await until(func():return game.checkpoint_all_ready()),"all four choose checkpoint cards")
- check(game.encounter_number==6,"card choices do not imply host travel consent")
- game.use_checkpoint(1,true)
- check(await until(func():return game.encounter_number==7),"checkpoint advances with all confirmations")
+ check(game.participation.floor()==6,"card choices do not imply host travel consent")
+ ExpeditionCase.Transitions.checkpoint(game, 1,true)
+ check(await until(func():return game.participation.floor()==7),"checkpoint advances with all confirmations")
  clear_floor(12)
  for id in game.players:game.players[id].carried_seeds=[game.players[id].party_slot]
- game.use_checkpoint(1,false)
- check(await until(func():return game.players.values().all(func(p):return not p.wild)),"all four extract together")
+ ExpeditionCase.Transitions.checkpoint(game, 1,false)
+ check(await until(func():return game.players.values().all(func(p):return not ExpeditionCase.is_wild(p))),"all four extract together")
  check(PlayerVitals.current_hp(game.players[thorn_guest])==100 and game.players[thorn_guest].lost_health==0,"extraction restores the sealed capacity")
  if not await publish_vitals("restored",thorn_guest):return
  for id in game.players:
   var p=game.players[id]
   check(game.seed_reserve(p).unknown.has(p.party_slot),"each player's seed banks to their own reserve")
  for p in game.players.values():p.pos=game.Stage.GATE
- game.enter_wilds(1,game.players[1]);mark("disconnect")
+ ExpeditionCase.Transitions.enter(game, 1,game.players[1]);mark("disconnect")
  check(await until(func():return game.players.size()==3),"one guest disconnects")
- check(game.travel_kind.is_empty() and not game.players[1].wild,"disconnect cancels pending travel")
+ check(game.participation.travel_kind().is_empty() and not ExpeditionCase.is_wild(game.players[1]),"disconnect cancels pending travel")
  mark("rejoin")
  check(await until(func():return game.players.size()==4 and game.players.values().all(func(p):return p.profile_ready)),"guest rejoins remaining party")
  var found=false
@@ -256,7 +258,7 @@ func guest_run(index: int):
    var id=game.multiplayer.get_unique_id()
    if game.players.size()==4 and game.players.has(id):
     saw_four=true;check(game.guest_character.data.name=="Player "+str(index),"owner profile preserved")
-   if not marked("core-"+str(index)) and game.players.get(id,{}).get("wild",false):
+   if not marked("core-"+str(index)) and ExpeditionCase.is_wild(game.players.get(id,{})):
     var bag: Dictionary=game.inventory_ui_data()
     var expected: String="Thorn Line" if index==2 else "Lantern Burst"
     if bag.get("core",{}).get("skill",{}).get("name","")==expected and game.player_hud.state.get("core",{}).get("name","")==expected and is_zero_approx(float(game.player_hud.state.core.remaining)):
@@ -267,7 +269,7 @@ func guest_run(index: int):
     lantern_requested=true
    if not marked("lantern-seen-"+str(index)) and game.received_combat_events.any(func(e):return e.event.shape=="lantern_burst"):
     mark("lantern-seen-"+str(index))
-   if game.checkpoint_menu.visible and game.encounter_number==6:
+   if game.checkpoint_menu.visible and game.participation.floor()==6:
     if not saw_cards:game.send_garden_action("checkpoint_choice_-1");saw_cards=true;epochs.clear()
    if not marked("kill_verified_"+str(index)) and game.players.has(id):
     var own=game.players[id]

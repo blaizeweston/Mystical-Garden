@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
@@ -38,13 +40,13 @@ func run():
 	reload.path = game.local_character.path
 	check(reload.load_profile() == OK and reload.data.appearance == p.character.appearance, "appearance survives saving and reloading")
 	var original: Array = p.character.appearance.duplicate()
-	p.wild = true
+	ExpeditionCase.set_membership(game, p, true)
 	game.garden_action(1, "look_0")
 	check(p.character.appearance == original, "appearance cannot be changed mid-expedition")
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
 	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 1)
 	check(PlayerVitals.current_hp(p) == 9, "one damage point removes half a heart")
-	p.wild = false
+	ExpeditionCase.set_membership(game, p, false)
 	game._process(.016)
 	var start_radius: float = game.stage.garden_disc.scale.x
 	game.progress.knowledge = 120

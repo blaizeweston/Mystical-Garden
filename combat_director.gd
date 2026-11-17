@@ -1,4 +1,6 @@
 extends RefCounted
+
+const Participation = preload("res://expedition_participation.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Balance=preload("res://enemy_balance.gd")
@@ -7,26 +9,26 @@ static func config() -> Dictionary:
 static func party_size(game: Node) -> int:
  var count:=0
  for p in game.players.values():
-  if p.get("profile_ready",false) and (p.wild or not game.expedition_active()) and not PlayerLifecycle.fallen(p): count+=1
+  if p.get("profile_ready",false) and (Participation.is_wild(p) or not game.participation.active()) and not PlayerLifecycle.fallen(p): count+=1
  return maxi(1,count)
 static func scout_count(game: Node) -> int:
- if game.destination==game.Campaign.HEART: return mini(game.EncounterConfig.MAX_SCOUTS,4+2*(party_size(game)-1))
+ if game.participation.route()==game.Campaign.HEART: return mini(game.EncounterConfig.MAX_SCOUTS,4+2*(party_size(game)-1))
  var c:=config()
  var additional:=Balance.extra_scouts(int(c.coop_extra_scouts))*(party_size(game)-1)
  var limit=mini(game.EncounterConfig.MAX_SCOUTS,game.EncounterConfig.SOLO_SCOUT_LIMIT+additional)
- return mini(limit,int(c.base_scouts)+(game.encounter_number-1)/int(c.floors_per_extra_scout)+game.destination+mini(game.difficulty_cycle,3)+additional)
+ return mini(limit,int(c.base_scouts)+(game.participation.floor()-1)/int(c.floors_per_extra_scout)+game.participation.route()+mini(game.participation.cycle(),3)+additional)
 static func health(game: Node,base: int,leader: bool) -> int:
- var c:=config();var increase: int=(game.encounter_number-1)/int(c.floors_per_leader_hp if leader else c.floors_per_scout_hp)
- var value: int=base+increase+game.difficulty_cycle
- var extra_health:=float(c.coop_hp_multiplier-1.0)+minf(float(c.coop_hp_depth_cap),(game.encounter_number-1)*float(c.coop_hp_per_floor))
+ var c:=config();var increase: int=(game.participation.floor()-1)/int(c.floors_per_leader_hp if leader else c.floors_per_scout_hp)
+ var value: int=base+increase+game.participation.cycle()
+ var extra_health:=float(c.coop_hp_multiplier-1.0)+minf(float(c.coop_hp_depth_cap),(game.participation.floor()-1)*float(c.coop_hp_per_floor))
  var multiplier:=1.0+extra_health*(maxi(1,game.encounter_party_size)-1)
  return game.Life.Vitals.enemy_capacity(value,multiplier,game.Life.Preview.scale())
 static func speed(game: Node,base: float) -> float:
- return minf(float(config().speed_cap),base*(float(config().speed_multiplier)+minf(.5,(game.encounter_number-1)*float(config().speed_per_floor))))
+ return minf(float(config().speed_cap),base*(float(config().speed_multiplier)+minf(.5,(game.participation.floor()-1)*float(config().speed_per_floor))))
 static func windup(game: Node,base: int) -> int:
- return maxi(int(config().minimum_windup_ms),roundi(base*maxf(.78,.98-(game.encounter_number-1)*.007)))
+ return maxi(int(config().minimum_windup_ms),roundi(base*maxf(.78,.98-(game.participation.floor()-1)*.007)))
 static func recovery(game: Node,base: int) -> int:
- return maxi(420,roundi(base*maxf(.72,.92-(game.encounter_number-1)*.008)))
+ return maxi(420,roundi(base*maxf(.72,.92-(game.participation.floor()-1)*.008)))
 static func spawn(game: Node,origin: Vector3,index: int) -> Vector3:
  for attempt in 32:
   var angle: float=(index+attempt)*2.39996
@@ -47,13 +49,13 @@ static func alert(game: Node,origin: Vector3) -> void:
   if game.encounter.hp(slot)>0 and mob.pos.distance_to(origin)<=radius and game.battlefield.clear_line(origin,mob.pos): mob.engaged=true
 static func target(game: Node,origin: Vector3,agent: Dictionary,now: int) -> int:
  var commanded: int=agent.get("command_target",0)
- if now<int(agent.get("command_until",0)) and game.players.has(commanded) and game.players[commanded].wild and not PlayerLifecycle.fallen(game.players[commanded]) and PlayerVitals.current_hp(game.players[commanded])>0:return commanded
+ if now<int(agent.get("command_until",0)) and game.players.has(commanded) and Participation.is_wild(game.players[commanded]) and not PlayerLifecycle.fallen(game.players[commanded]) and PlayerVitals.current_hp(game.players[commanded])>0:return commanded
  var previous: int=agent.get("target",0)
- if game.players.has(previous) and game.players[previous].wild and PlayerVitals.current_hp(game.players[previous])>0 and now<int(agent.get("target_until",0)): return previous
+ if game.players.has(previous) and Participation.is_wild(game.players[previous]) and PlayerVitals.current_hp(game.players[previous])>0 and now<int(agent.get("target_until",0)): return previous
  var best:=INF;var selected:=0
  for id in game.players:
   var p: Dictionary=game.players[id]
-  if not p.wild or PlayerLifecycle.fallen(p) or PlayerVitals.current_hp(p)<=0: continue
+  if not Participation.is_wild(p) or PlayerLifecycle.fallen(p) or PlayerVitals.current_hp(p)<=0: continue
   var assigned:=0
   for slot in game.encounter.scout_count():
    var other: Dictionary=game.encounter.scout(slot)

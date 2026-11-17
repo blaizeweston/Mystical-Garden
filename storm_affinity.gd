@@ -78,7 +78,7 @@ static func grant(game: Node, event: RefCounted, id: int) -> void:
 	var damage: int = event.potency().charge
 	if int(previous.get("until",0))>elapsed and int(previous.hp)>damage \
 			and PlayerLifecycle.matches(game.players.get(previous.actor,{}),int(previous.source_life)): return
-	p[CHARGE] = {"actor":event.actor,"source_life":event.life_generation,"quality":event.quality,"hp":damage,"until":elapsed+CHARGE_MS,"epoch":game.combat_epoch}
+	p[CHARGE] = {"actor":event.actor,"source_life":event.life_generation,"quality":event.quality,"hp":damage,"until":elapsed+CHARGE_MS,"epoch":game.participation.epoch()}
 	Journal.event("combat","storm_charge_granted",{"actor":event.actor,"recipient":id,"quality":event.quality,"hp":damage})
 
 
@@ -86,7 +86,7 @@ static func use_charge(game: Node, event: RefCounted, target: int, point: Vector
 	var p: Dictionary = game.players.get(event.actor,{})
 	var charge: Dictionary = p.get(CHARGE,{})
 	if charge.is_empty(): return
-	if int(charge.until)<=Clock.now(game) or int(charge.epoch)!=game.combat_epoch \
+	if int(charge.until)<=Clock.now(game) or int(charge.epoch)!=game.participation.epoch() \
 			or not PlayerLifecycle.matches(game.players.get(charge.actor,{}),int(charge.source_life)):
 		p.erase(CHARGE)
 		return

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Seeds=preload("res://seed_catalog.gd")
 const Progress=preload("res://progress.gd")
@@ -63,7 +65,7 @@ func run():
 	for i in Seeds.NAMES.size():
 		var d: Dictionary=Seeds.DEFINITIONS[i]
 		player.pos=game.Stage.PLOTS[0]
-		player.wild=false
+		ExpeditionCase.set_membership(game, player, false)
 		player.seed_choice=i
 		g.stock[i]=1
 		g.plots[0]=Progress.empty_plot()
@@ -109,9 +111,9 @@ func run():
 	game.encounter.clear_scouts()
 	game.battlefield.procedural=false
 	game.battlefield.barriers=[]
-	game.destination=0
-	game.depth=1
-	player.wild=true
+	ExpeditionCase.set_world(game, {"destination": 0})
+	ExpeditionCase.set_world(game, {"depth": 1})
+	ExpeditionCase.set_membership(game, player, true)
 	player.frame=0
 	player.secondary=0
 	player.technique=0
@@ -144,7 +146,7 @@ func run():
 	game.strike_enemy(1,player,player.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
 	check(PlayerVitals.current_hp(player)==7,"Bloodbriar heals on a real killing strike")
-	player.wild=false
+	ExpeditionCase.set_membership(game, player, false)
 	game._process(.016)
 	check(game.inventory_snapshot(player)[6].size()==24 and game.garden_snapshot()[13].size()==24,"expanded network snapshots")
 	if not failed: print("PASS: seed lineage graph, reversible recipes, sacrifice costs, first discoveries, all-tier Wilds loot, twenty-four crop/part mappings, familiarity, save migration and reusable trees")

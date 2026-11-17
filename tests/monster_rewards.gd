@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 var failed=false
 func check(ok: bool,message: String):
@@ -10,12 +12,12 @@ func run():
  game.progress.path="res://.godot/kill-rewards-"+token+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var p=game.players[1];game.add_player(2);var friend=game.players[2]
  friend.profile_ready=true;friend.seed_owner="e".repeat(32)
- for player in game.players.values():player.wild=true;player.pos=Vector3(0,0,4);player.character.xp.fill(0)
+ for player in game.players.values():ExpeditionCase.set_membership(game, player, true);player.pos=Vector3(0,0,4);player.character.xp.fill(0)
  game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.set_hp(-1, 10);game.tactics.position=Vector3(0,0,10)
  game.add_player(3)
- game.players[3].wild=true
+ ExpeditionCase.set_membership(game, game.players[3], true)
  game.add_player(4)
- game.players[4].wild=true
+ ExpeditionCase.set_membership(game, game.players[4], true)
  game.players[4].profile_ready=true
  game.players[4][PlayerLifecycle.STATE] = game.players[4][PlayerLifecycle.STATE].fall()
  var config=game.Director.config();var saved=config.duplicate(true);config.trophy_chance=1.0;config.trophy_cap=1.0
@@ -27,8 +29,8 @@ func run():
   "kill receipt freezes the eligible host and guest and excludes unready or fallen peers")
  first_receipt.rewards[0].xp=999
  check(game.monster_rewards.pending_receipts()[0].rewards[0].xp==1,"receipt inspection is detached from owner state")
- game.players.erase(3)
- game.players.erase(4)
+ ExpeditionCase.remove_actor(game, 3)
+ ExpeditionCase.remove_actor(game, 4)
  game.record_enemy_death(0,scout.pos,p.pos)
  check(game.monster_rewards.pending_count()==1,"duplicate death cannot reroll or duplicate rewards")
  check(game.flush_kill_rewards(),"individual rewards save before encounter clear")
@@ -47,7 +49,7 @@ func run():
  p.pos=scout.pos;game.pickup_inventory_drop(1,p,own[0].id)
  check(p.carried_parts[game.Parts.monster_part(10)]==1 and game.inventory_floor_snapshot(friend).size()==1,"pickup changes only owner inventory")
  var summoned=game.make_scout(0,Vector3(0,0,5),2);summoned.summoned=true;game.encounter.clear_scouts();game.encounter.register_scout(summoned);game.encounter.set_hp(0, 0);game.record_enemy_death(0,summoned.pos,p.pos)
- var summoned_key := "%d:%s" % [game.combat_epoch, game.encounter.token(0)]
+ var summoned_key := "%d:%s" % [game.participation.epoch(), game.encounter.token(0)]
  var summoned_event: int = game.enemy_death_serial
  game.record_enemy_death(0,summoned.pos,p.pos)
  check(game.monster_rewards.status(summoned_key)==game.MonsterRewards.Phase.EXCLUDED

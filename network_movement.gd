@@ -1,4 +1,6 @@
 extends RefCounted
+
+const Participation = preload("res://expedition_participation.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 # Input prediction is disposable presentation state. Only the host changes gameplay.
 const MAX_PENDING:=120
@@ -25,7 +27,7 @@ func clear() -> void:
  gap_max_ms=0;gap_count=0;correction_max=0;correction_count=0;host_frame_max_ms=0;host_stalls=0;input_expiries=0;frame_at_usec=0
 
 func world_key(game: Node,p: Dictionary) -> String:
- return str([game.destination,game.encounter_number,game.map_seed,p.get("wild",false),PlayerLifecycle.fallen(p)])
+ return str([game.participation.route(),game.participation.floor(),game.participation.seed(),Participation.is_wild(p),PlayerLifecycle.fallen(p)])
 
 func accept(id: int,commands: Array,key: String,expected: String,now: int) -> void:
  if key!=expected or commands.size()>REDUNDANCY:return
@@ -69,26 +71,26 @@ func acknowledgement(id: int,key: String) -> Dictionary:
 func predict_step(game: Node,p: Dictionary,direction: Vector2,delta: float) -> void:
  if p.get("fallen",false):p.velocity=Vector3.ZERO;return
  var field=game.stage.visual_field
- if p.wild and field!=null and field.configured_key!=Vector3i(game.destination,game.depth,game.map_seed):p.velocity=Vector3.ZERO;return
+ if Participation.is_wild(p) and field!=null and field.configured_key!=Vector3i(game.participation.route(),game.participation.depth(),game.participation.seed()):p.velocity=Vector3.ZERO;return
  var experimental:=game.has_meta(&"experimental_terrain")
- if p.wild and experimental and (field==null or field.boss_kind!=game.tactics.boss_kind or field.boss_phase!=game.tactics.boss_phase):
+ if Participation.is_wild(p) and experimental and (field==null or field.boss_kind!=game.tactics.boss_kind or field.boss_phase!=game.tactics.boss_phase):
   p.velocity=Vector3.ZERO
   return
  var garden=game.stage.experimental_garden if experimental else null
- if not p.wild and garden!=null and (garden.remote_revision<0 or garden.remote_revision!=int(p.get("garden_layout_revision",-1))):
+ if not Participation.is_wild(p) and garden!=null and (garden.remote_revision<0 or garden.remote_revision!=int(p.get("garden_layout_revision",-1))):
   p.velocity=Vector3.ZERO
   return
  var start: Vector3=p.pos
  var desired: Vector3=start+game.world_direction(direction)*game.WALK_SPEED*float(p.get("motion_scale",1.0))*delta
- if not p.wild and garden!=null:
+ if not Participation.is_wild(p) and garden!=null:
   desired=garden.slide(start,desired)
- elif not p.wild and p.has("motion_radius"):
+ elif not Participation.is_wild(p) and p.has("motion_radius"):
   var flat:=Vector2(desired.x,desired.z).limit_length(float(p.motion_radius));desired=Vector3(flat.x,0,flat.y)
- elif p.wild and field!=null and field.procedural:
+ elif Participation.is_wild(p) and field!=null and field.procedural:
   desired.x=clampf(desired.x,field.REGION.position.x+.5,field.REGION.end.x-.5)
   desired.z=clampf(desired.z,field.REGION.position.y+.5,field.REGION.end.y-.5)
- else:desired=game.bound_position(desired,p.wild)
- p.pos=field.slide(start,desired) if p.wild and field!=null else desired
+ else:desired=game.bound_position(desired,Participation.is_wild(p))
+ p.pos=field.slide(start,desired) if Participation.is_wild(p) and field!=null else desired
  p.velocity=(p.pos-start)/maxf(delta,.001)
 
 func client_tick(game: Node,id: int,direction: Vector2,delta: float) -> Array:

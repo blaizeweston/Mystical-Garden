@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -37,10 +39,10 @@ func run():
 		game.tactics.engaged=true
 		game.tactics.winding_up=false
 		game.tactics.ready_at=Time.get_ticks_msec()+60000
-		host.wild=true
+		ExpeditionCase.set_membership(game, host, true)
 		host[PlayerVitals.STATE] = host[PlayerVitals.STATE].with_hp(4)
 		host.pos=Vector3(.8,0,-1.5)
-		p.wild=true
+		ExpeditionCase.set_membership(game, p, true)
 		p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(4)
 		p.pos=Vector3(0,0,-1.5)
 		if not await until(func(): return p[Cooldowns.STATE].deadline(Cooldowns.Q)>0 and p[Cooldowns.STATE].deadline(Cooldowns.R)>0):
@@ -58,7 +60,7 @@ func run():
 		game.guest_character.save_profile()
 		check(game.join_game()==OK,"guest connects")
 		var id: int=game.multiplayer.get_unique_id()
-		if not await until(func(): return game.session=="Guest" and game.players.has(id) and game.players[id].wild and game.client_details_key == str([game.destination, game.encounter_number, game.map_seed])):
+		if not await until(func(): return game.session=="Guest" and game.players.has(id) and ExpeditionCase.is_wild(game.players[id]) and game.client_details_key == str([game.participation.route(), game.participation.floor(), game.participation.seed()])):
 			check(false,"expedition state arrives");quit(1);return
 		game.players[id].facing=Vector3.BACK
 		var first := InputEventKey.new()

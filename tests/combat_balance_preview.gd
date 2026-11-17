@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -38,10 +40,10 @@ func run() -> void:
 	var player: Dictionary = game.players[1]
 	check(PlayerVitals.current_hp(player) == 100 and PlayerVitals.maximum_hp(player) == 100, "new Warden starts at 100 HP")
 	player.pos = game.Stage.GATE
-	game.enter_wilds(1, player)
-	check(player.wild and game.encounter.scout_count() >= 6 and game.enemy_health() in range(62,72), "normal early Wilds entrance uses converted pack and elite")
+	ExpeditionCase.Transitions.enter(game, 1, player)
+	check(ExpeditionCase.is_wild(player) and game.encounter.scout_count() >= 6 and game.enemy_health() in range(62,72), "normal early Wilds entrance uses converted pack and elite")
 	check(game.make_scout(0,Vector3.ZERO,1).hp == 32 and game.make_scout(0,Vector3.ZERO,1,0,0,true).hp == 12, "scout and summoned health use the same unit")
-	game.map_seed=0
+	ExpeditionCase.set_world(game, {"map_seed": 0})
 	game.battlefield.configure(0,1)
 	game.battlefield.barriers.clear()
 	player.pos=Vector3.ZERO
@@ -86,10 +88,10 @@ func verify_health_pool_layout(game: Node, player: Dictionary) -> void:
 	game._process(.016)
 	check(orb.get_rect().end.y < chart_script.chart_bounds(hud.size, true).position.y, "expanded map clears the main orb")
 	game.exploration.expanded = false
-	player.wild = false
+	ExpeditionCase.set_membership(game, player, false)
 	game._process(.016)
 	check(orb.get_rect().end.x > compact.end.x - 8, "Garden places the orb in the lower-right corner")
-	player.wild = true
+	ExpeditionCase.set_membership(game, player, true)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(100)
 	player.lost_health = 0
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
@@ -204,18 +206,18 @@ func verify_healing_rolls(game: Node) -> void:
 
 func verify_recovery(game: Node, player: Dictionary) -> void:
 	var ally: Dictionary=game.players[2]
-	game.encounter_number=1
-	game.depth=1
-	game.destination=0
+	ExpeditionCase.set_world(game, {"encounter_number": 1})
+	ExpeditionCase.set_world(game, {"depth": 1})
+	ExpeditionCase.set_world(game, {"destination": 0})
 	game.encounter.clear_scouts()
 	game.encounter.set_hp(-1, 0)
 	player.pos=game.battlefield.advance
 	ally.pos=player.pos
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(20)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(21)
-	game.use_checkpoint(1,true)
+	ExpeditionCase.Transitions.checkpoint(game, 1,true)
 	var floor_heal := int(PlayerVitals.current_hp(player))-20
-	check(game.encounter_number==2 and floor_heal in range(8,13) and int(PlayerVitals.current_hp(ally))-21==floor_heal,"floor recovery shares a roll across the living party")
+	check(game.participation.floor()==2 and floor_heal in range(8,13) and int(PlayerVitals.current_hp(ally))-21==floor_heal,"floor recovery shares a roll across the living party")
 
 	ally.pos=player.pos
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(20)
@@ -262,7 +264,7 @@ func verify_vitals(game: Node, player: Dictionary) -> void:
 	check(int(PlayerVitals.current_hp(player))-first_hp in range(3,6) and game.player_hud.health_orb.from_hp==first_hp,"second rolled tick gets its own highlight")
 	game.add_player(2)
 	var helper: Dictionary=game.players[2]
-	helper.wild=true
+	ExpeditionCase.set_membership(game, helper, true)
 	helper.pos=player.pos
 	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(player), int(PlayerVitals.current_hp(player)))
 	check(PlayerLifecycle.fallen(player),"downed player can be revived with a living ally")
@@ -275,10 +277,10 @@ func verify_vitals(game: Node, player: Dictionary) -> void:
 
 
 func verify_orchard(game: Node, player: Dictionary) -> void:
-	game.encounter_number=10
-	game.depth=4
-	game.destination=1
-	game.map_seed=91681
+	ExpeditionCase.set_world(game, {"encounter_number": 10})
+	ExpeditionCase.set_world(game, {"depth": 4})
+	ExpeditionCase.set_world(game, {"destination": 1})
+	ExpeditionCase.set_world(game, {"map_seed": 91681})
 	game.boss_floors.clear()
 	game.used_bosses.clear()
 	game.players[2].profile_ready=false

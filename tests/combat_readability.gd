@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
@@ -15,8 +17,8 @@ func run():
  var game=load("res://world.tscn").instantiate();var token=str(Time.get_ticks_usec())
  game.progress.path="res://.godot/readability-"+token+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game)
  game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
- var p: Dictionary=game.players[1];p.wild=true;p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0
- game.encounter.clear_scouts();game.depth=1;game.destination=0;game.battlefield.configure(0,1);game.battlefield.barriers=[]
+ var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0
+ game.encounter.clear_scouts();ExpeditionCase.set_world(game, {"depth": 1});ExpeditionCase.set_world(game, {"destination": 0});game.battlefield.configure(0,1);game.battlefield.barriers=[]
  game.enemy_mutations=0;game.enemy_growth=0;game.tactics.position=Vector3(0,0,2)
  for kind in 24:
   game.enemy_kind=kind;game.tactics.boss_kind=kind if kind>=20 else -1
@@ -33,9 +35,9 @@ func run():
   check(not Hurt.sweep(game,-1,Vector3(-5,0,2+radius*.85),Vector3(5,0,2+radius*.85)).is_empty(),"body edge and high-speed sweep hit: "+str(kind))
   check(Hurt.sweep(game,-1,Vector3(-5,0,2+radius+.3),Vector3(5,0,2+radius+.3)).is_empty(),"outside silhouette misses: "+str(kind))
  game.enemy_kind=0;game.tactics.boss_kind=-1
- var ordinary:=Hurt.radius(game,-1);game.depth=2
+ var ordinary:=Hurt.radius(game,-1);ExpeditionCase.set_world(game, {"depth": 2})
  check(Hurt.radius(game,-1)>ordinary*1.2,"leader render scale applies to hit region")
- game.depth=1;game.enemy_mutations=game.Enemies.JUVENILE;game.enemy_growth=2
+ ExpeditionCase.set_world(game, {"depth": 1});game.enemy_mutations=game.Enemies.JUVENILE;game.enemy_growth=2
  check(absf(Hurt.radius(game,-1)-ordinary*.65*1.14)<.0001,"growth and juvenile scale match renderer")
  game.enemy_mutations=0;game.enemy_growth=0;game.battlefield.barriers=[Rect2(-2,.9,4,.2)]
  check(Hurt.sweep(game,-1,Vector3.ZERO,Vector3(0,0,4)).is_empty(),"wall prevents a body-edge hit through terrain")
@@ -91,7 +93,7 @@ func run():
  game.combat_events.clear();IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1)
  check(PlayerVitals.current_hp(p)==10 and game.combat_events.back().shape=="block","blocked contact is labeled without inventing damage")
  var delayed: Dictionary=game.combat_events.back().duplicate();delayed.age=.7;delayed.duration=.85
- var key:=str([game.destination,game.encounter_number,game.map_seed])
+ var key:=str([game.participation.route(),game.participation.floor(),game.participation.seed()])
  game.received_combat_events.assign([{"event":delayed,"key":key,"born":Time.get_ticks_msec()}])
  var received: Array=game.guest_combat_events({})
  check(received.size()==1 and float(received[0].age)>=.7,"delayed event keeps host age rather than restarting its animation")

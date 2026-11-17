@@ -1,4 +1,6 @@
 extends RefCounted
+
+const Participation = preload("res://expedition_participation.gd")
 const Tx=preload("res://game_transaction.gd")
 const State=preload("res://garden_growth_state.gd")
 static func identity(game: Node,id: int) -> String:
@@ -30,9 +32,9 @@ static func projection(game: Node,id: int) -> Dictionary:
  var who:=identity(game,id);var pending: Array=[];var seen: int=int(data.get("seen",{}).get(who,int(data.get("sequence",0))))
  for event in data.get("events",[]):
   if event is Dictionary and int(event.get("sequence",0))>seen:pending.append(event.duplicate(true))
- return {"version":1,"pending":pending,"history":data.get("events",[]).duplicate(true),"seen":seen,"ready":not game.expedition_active() and game.travel_kind.is_empty()}
+ return {"version":1,"pending":pending,"history":data.get("events",[]).duplicate(true),"seen":seen,"ready":not game.participation.active() and game.participation.travel_kind().is_empty()}
 static func acknowledge(game: Node,id: int,payload: String) -> bool:
- if not game.multiplayer.is_server() or not game.players.has(id) or not game.players[id].get("profile_ready",false) or game.players[id].wild or not payload.is_valid_int():return false
+ if not game.multiplayer.is_server() or not game.players.has(id) or not game.players[id].get("profile_ready",false) or Participation.is_wild(game.players[id]) or not payload.is_valid_int():return false
  var projection_data:=projection(game,id);var sequence:=int(payload)
  if sequence<=int(projection_data.get("seen",0)):return true
  if projection_data.get("pending",[]).is_empty() or int(projection_data.pending[0].sequence)!=sequence:return false

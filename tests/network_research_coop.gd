@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 var game: Node
 var base: String
@@ -33,11 +35,11 @@ func host_run():
  var origin: Vector3=p.pos
  check(await until(func():return marked("walking")),"guest samples walking animation")
  check(p.pos.distance_to(origin)>1.5,"guest input actually moves on authority")
- p.wild=true;p.pos=Vector3(0,0,4);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.guard_until=0;p.hurt_until=0;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.encounter_rewarded=true
+ ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,4);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.guard_until=0;p.hurt_until=0;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.encounter_rewarded=true
  preload("res://enemy_attack_hits.gd").for_world(game).area(p.pos,1.2,Time.get_ticks_msec(),1)
  check(PlayerVitals.current_hp(p)==9,"monster hit applies one half-heart on host")
  check(await until(func():return marked("hit")),"guest confirms reliable HP and hit feedback")
- game.return_to_garden(p);p.pos=game.Stage.HEART;game.players[1].pos=game.Stage.HEART
+ ExpeditionCase.Transitions.return_member(game, p);p.pos=game.Stage.HEART;game.players[1].pos=game.Stage.HEART
  game.progress.knowledge=8;game.progress.parts.fill(0)
  game.garden_action(1,'heart_confirm:'+JSON.stringify({"id":"plot_4","plan":{}}))
  check(game.progress.heart.active=="plot_4" and game.progress.heart.available_insight(game.progress)==6,"host starts Knowledge research without materials")

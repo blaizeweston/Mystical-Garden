@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -63,7 +65,7 @@ func verify_tree() -> void:
 		"invalid connected data is retained for review")
 
 func prepare(path: Array, origin := Vector3.ZERO, enemy := Vector3(2,0,0)) -> void:
-	game.combat_epoch += 1
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	game.battlefield = preload("res://battlefield.gd").new()
 	game.encounter.clear_scouts()
 	game.trait_events.clear()
@@ -309,12 +311,12 @@ func defense_and_route() -> void:
 		and Ranger.speed_scale(game,ally,now+2100)==1.0,"one grant per ally, without refresh on re-entry")
 	var replacement := ally.duplicate(true)
 	replacement.erase(Ranger.SPEEDS)
-	game.players.erase(8)
-	game.players[9] = replacement
+	ExpeditionCase.remove_actor(game, 8)
+	ExpeditionCase.install_actor(game, 9, replacement)
 	Ranger.tick_route(game,placed,now+710)
 	check(not replacement.has(Ranger.SPEEDS),"same character cannot claim one route twice through a new connection")
-	game.players.erase(9)
-	game.players[8] = ally
+	ExpeditionCase.remove_actor(game, 9)
+	ExpeditionCase.install_actor(game, 8, ally)
 	ranger[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
 	game.Traits.tick(game,now+50)
 	check(trap(1).is_empty() and Ranger.speed_scale(game,ally,now+50)==1.0 and not placed.has("ranger_route"),
@@ -341,7 +343,7 @@ func run() -> void:
 	ally.seed_owner="other-character"
 	ranger.frame=2
 	for actor in [ranger,ally]:
-		actor.wild=true
+		ExpeditionCase.set_membership(game, actor, true)
 		actor.profile_ready=true
 		actor.combat_ruleset=Rules.ID
 	game.set_meta(Events.RECORD,func(event):events.append(event))

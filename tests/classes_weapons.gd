@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -25,9 +27,9 @@ func arena(p: Dictionary):
 	game.enemy_mutations=0
 	game.tactics.engaged=true
 	game.tactics.stagger_until=0
-	game.depth=1
-	game.destination=0
-	p.wild=true
+	ExpeditionCase.set_world(game, {"depth": 1})
+	ExpeditionCase.set_world(game, {"destination": 0})
+	ExpeditionCase.set_membership(game, p, true)
 	p.pos=Vector3(0,0,-1)
 	p.weapon=0
 	p.secondary=0
@@ -77,7 +79,7 @@ func run():
 	var legacy:=Character.normalize({"xp":[12,7],"plants":[4,5,6],"monsters":[2,3],"traits":[1,2]})
 	check(legacy.xp.size()==5 and legacy.xp.slice(0,2)==[120,70] and legacy.monsters.size()==preload("res://enemy_catalog.gd").all().size() and legacy.monsters.slice(0,2)==[2,3] and legacy.loadouts.size()==5,"legacy characters migrate without losing progress")
 	for c in 5:
-		p.wild=false
+		ExpeditionCase.set_membership(game, p, false)
 		p.pos=game.Stage.HEART
 		p.character=Character.blank()
 		p.character.xp[c]=int(game.Character.LEVEL_THRESHOLDS.back())
@@ -107,25 +109,25 @@ func run():
 	p.prepared_secondary=1
 	p.prepared_catalyst=1
 	p.pos=game.Stage.GATE
-	game.enter_wilds(1,p)
-	check(not p.wild and game.progress.parts[0]==1,"duplicate slots require combined material quantity")
+	ExpeditionCase.Transitions.enter(game, 1,p)
+	check(not ExpeditionCase.is_wild(p) and game.progress.parts[0]==1,"duplicate slots require combined material quantity")
 	game.progress.parts[0]=3
 	game.progress.personal_parts[Parts.HOOK]=2
 	p.cargo_plan[Parts.HOOK]=2
-	game.enter_wilds(1,p)
-	check(p.wild and game.progress.parts[0]==0 and [p.weapon,p.secondary,p.catalyst]==[1,1,1],"three slots consume three actual materials")
+	ExpeditionCase.Transitions.enter(game, 1,p)
+	check(ExpeditionCase.is_wild(p) and game.progress.parts[0]==0 and [p.weapon,p.secondary,p.catalyst]==[1,1,1],"three slots consume three actual materials")
 	check(p.carried_parts[Parts.HOOK]==2 and game.progress.personal_parts[Parts.HOOK]==0 and p.graft_part==0,"stash monster cargo is carried without pre-installing")
-	game.encounter_number=game.GRAFT_ROOM
+	ExpeditionCase.set_world(game, {"encounter_number": game.GRAFT_ROOM})
 	game.reset_encounter()
 	p.pos=game.battlefield.entry
 	var amount: int=p.carried_parts[Parts.HOOK]
 	game.attempt_graft(1,p)
 	check(p.graft_part==0 and p.carried_parts[Parts.HOOK]==amount,"no graft away from altar")
-	p.wild=false
+	ExpeditionCase.set_membership(game, p, false)
 	p.pos=game.battlefield.graft
 	game.attempt_graft(1,p)
 	check(p.graft_part==0,"no monster graft in the Garden")
-	p.wild=true
+	ExpeditionCase.set_membership(game, p, true)
 	p.carried_parts.fill(0)
 	p.carried_parts[1]=2
 	p.graft_choice=1
@@ -143,7 +145,7 @@ func run():
 	amount=p.carried_parts[Parts.HOOK]
 	game.attempt_graft(1,p)
 	check(p.carried_parts[Parts.HOOK]==amount,"filled monster slot cannot consume another trophy")
-	game.return_to_garden(p)
+	ExpeditionCase.Transitions.return_member(game, p)
 	check(p.graft_part==0 and p.carried_parts[Parts.HOOK]==0,"failure loses unbanked cargo and clears graft")
 	# Attack shapes affect real enemies.
 	arena(p)
@@ -189,7 +191,7 @@ func run():
 	var extra_targets:=Weapons.resolve(0,0,[0,0,0],0,0,bonus_profile)
 	check(extra_targets.targets==2 and extra_targets.pattern=="sweep","extra-target upgrades produce a valid multi-target pattern")
 	# Unique monster stash and class-save round trips.
-	p.wild=false
+	ExpeditionCase.set_membership(game, p, false)
 	game.progress.add_parts(26,3)
 	check(game.progress.save_garden()==OK,"save monster stash")
 	var loaded:=Progress.new()

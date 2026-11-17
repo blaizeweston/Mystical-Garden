@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
@@ -13,10 +15,10 @@ func _initialize():
  call_deferred("run")
 func run():
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/combat_balance_"+Crypto.new().generate_random_bytes(8).hex_encode()+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
- var p: Dictionary=game.players[1];p.wild=true
+ var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true)
  var counts: Array=[];var health: Array=[]
  for floor_number in [1,6,12,24,48]:
-  game.encounter_number=floor_number;game.depth=(floor_number-1)%6+1;game.destination=((floor_number-1)/6)%3;game.map_seed=91300+floor_number;game.difficulty_cycle=(floor_number-1)/18;game.reset_encounter()
+  ExpeditionCase.set_world(game, {"encounter_number": floor_number});ExpeditionCase.set_world(game, {"depth": (floor_number-1)%6+1});ExpeditionCase.set_world(game, {"destination": ((floor_number-1)/6)%3});ExpeditionCase.set_world(game, {"map_seed": 91300+floor_number});ExpeditionCase.set_world(game, {"difficulty_cycle": (floor_number-1)/18});game.reset_encounter()
   counts.append(game.encounter.scout_count());health.append(game.encounter_health())
   check(game.encounter.scout_count()<=game.EncounterConfig.MAX_SCOUTS,"population stays inside synchronized capacity")
   check(game.tactics.position.distance_to(game.battlefield.entry)>=8,"leader stays clear of player arrival")
@@ -25,27 +27,27 @@ func run():
    check(scout.pos.distance_to(game.battlefield.entry)>=8 and not game.battlefield.occupied(scout.pos,.34),"scout spawns on walkable floor away from entry")
    for j in i: check(scout.pos.distance_to(game.encounter.scout(j).pos)>.7,"distinct spawn positions remain usable")
  check(counts[0]>=6 and counts[4]>counts[0] and health[4]>health[0],"endless progression retains pressure across biome resets")
- game.destination=0;game.depth=1;game.encounter_number=1;game.difficulty_cycle=0;game.map_seed=94127;game.reset_encounter()
+ ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"depth": 1});ExpeditionCase.set_world(game, {"encounter_number": 1});ExpeditionCase.set_world(game, {"difficulty_cycle": 0});ExpeditionCase.set_world(game, {"map_seed": 94127});game.reset_encounter()
  # Conservative interior cache must agree with exact terrain at sub-grid positions.
  var geometry_rng:=RandomNumberGenerator.new();geometry_rng.seed=9271
  for i in 3000:
   var point:=Vector3(geometry_rng.randf_range(-36,36),0,geometry_rng.randf_range(-32,32))
   for clearance in [0.0,.34,.8]: check(game.battlefield.inside_floor(point,clearance)==(game.battlefield.floor_distance(point)>=clearance),"cached collision preserves exact dirt boundaries")
  var solo_count: int=game.encounter.scout_count();var solo_hp: int=game.encounter_health()
- game.add_player(2);var friend: Dictionary=game.players[2];friend.profile_ready=true;friend.wild=true;friend.seed_owner="b".repeat(32);game.reset_encounter()
+ game.add_player(2);var friend: Dictionary=game.players[2];friend.profile_ready=true;ExpeditionCase.set_membership(game, friend, true);friend.seed_owner="b".repeat(32);game.reset_encounter()
  check(game.encounter.scout_count()>solo_count and game.encounter_health()>solo_hp,"co-op adds combatants and health rather than just doubling player damage")
  var scaled_hp: int=game.encounter_health()
  check(game.player_snapshot(2,false)[2].enemy_max_hp==scaled_hp,"authoritative maximum health is included in movement snapshots")
- friend.wild=false
+ ExpeditionCase.set_membership(game, friend, false)
  check(game.encounter_health()==scaled_hp,"mid-encounter loss cannot rewrite enemy maximum health")
- friend.wild=true;game.battlefield.configure(0,1);game.battlefield.barriers=[];p.pos=Vector3(-2,0,4);friend.pos=Vector3(2,0,4)
+ ExpeditionCase.set_membership(game, friend, true);game.battlefield.configure(0,1);game.battlefield.barriers=[];p.pos=Vector3(-2,0,4);friend.pos=Vector3(2,0,4)
  var a: Dictionary=game.make_scout(0,Vector3(0,0,4),1);var b: Dictionary=game.make_scout(0,Vector3(0,0,4),2);a.engaged=true;b.engaged=true;game.encounter.clear_scouts();game.encounter.register_scout(a);game.encounter.register_scout(b);game.combat_threat.clear()
  var ta: int=game.Director.target(game,a.pos,a,1000);var tb: int=game.Director.target(game,b.pos,b,1000)
  check(ta!=tb,"equally reachable players share enemy attention")
  check(game.Director.target(game,a.pos,a,1100)==ta,"target remains stable inside commitment window")
- game.players[ta].wild=false
+ ExpeditionCase.set_membership(game, game.players[ta], false)
  check(game.Director.target(game,a.pos,a,1200)!=ta,"fallen/absent target is replaced immediately")
- p.wild=true;friend.wild=false;p.pos=Vector3(0,0,4);p.facing=Vector3.FORWARD
+ ExpeditionCase.set_membership(game, p, true);ExpeditionCase.set_membership(game, friend, false);p.pos=Vector3(0,0,4);p.facing=Vector3.FORWARD
  game.encounter.set_hp(-1, 0);a.pos=Vector3(0,0,2.8);b.pos=Vector3(0,0,4.8);p.erase("aim_target");p.erase("aim_token")
  check(game.select_attack_target(p,3)==0,"aim assistance prefers reachable enemy in front over similar enemy behind")
  game.combat_velocity[1]=Vector3(4,0,0)
@@ -74,9 +76,9 @@ func run():
  game.progress.wilds_memory=memory;game.progress.save_garden()
  var reload=game.Progress.new();reload.path=game.progress.path;check(reload.load_garden()==OK and reload.wilds_memory==memory,"host-world learning survives reload")
  var initial: Dictionary=game.progress.wilds_memory.duplicate(true);var path: String=game.progress.path
- game.progress.path="res://.godot/missing-combat-memory/fail.cfg";game.encounter_rewarded=false;game.encounter_number=4;game.destination=0;game.damage_this_room=10;game.ranged_damage_this_room=10;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.finish_combat(1,p.pos)
+ game.progress.path="res://.godot/missing-combat-memory/fail.cfg";game.encounter_rewarded=false;ExpeditionCase.set_world(game, {"encounter_number": 4});ExpeditionCase.set_world(game, {"destination": 0});game.damage_this_room=10;game.ranged_damage_this_room=10;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.finish_combat(1,p.pos)
  check(game.progress.wilds_memory==initial and not game.encounter_rewarded,"failed settlement cannot partially commit learning")
- game.progress.path=path;game.encounter_number=3;game.depth=3;game.encounter_kill_records.assign([{"kind":2,"mask":0}]);game.rng.seed=12345
+ game.progress.path=path;ExpeditionCase.set_world(game, {"encounter_number": 3});ExpeditionCase.set_world(game, {"depth": 3});game.encounter_kill_records.assign([{"kind":2,"mask":0}]);game.rng.seed=12345
  var drops:=0;var empty:=0
  for i in 1000:
   var item: String=game.roll_kill_trophy(2)

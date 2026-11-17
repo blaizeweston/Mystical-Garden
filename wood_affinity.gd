@@ -125,7 +125,7 @@ static func after_hit(game: Node, id: int, epoch: int, plan: Dictionary, now: in
 		return
 	Journal.event("combat","affinity_bark_absorbed",{"recipient":id,"absorbed":plan.absorbed,"depleted":plan.depleted,
 		"damage":plan.damage,"shares":plan.shares,"owner":plan.owner})
-	if int(plan.damage)>0 and epoch==game.combat_epoch and game.expedition_active() and not game.get_meta(game.Transactions.PENDING,false) \
+	if int(plan.damage)>0 and epoch==game.participation.epoch() and game.participation.active() and not game.get_meta(game.Transactions.PENDING,false) \
 			and PlayerLifecycle.matches(game.players.get(plan.owner,{}),int(plan.owner_life)):
 		burst(game,plan.owner,plan.center,plan.damage,now,"Bark break")
 

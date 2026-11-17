@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 var game: Node
 var role: String
@@ -34,8 +36,8 @@ func host_run() -> void:
  check(await until(func():return marked("rejected")),"guest rejects incompatible terrain")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"compatible guest joins");return
  for seed_value in [91247,91249,91255]:
-  game.destination=0;game.depth=2;game.encounter_number=2;game.map_seed=seed_value;game.tactics.boss_kind=-1;game.reset_encounter()
-  for p in game.players.values():p.wild=true;p.pos=game.battlefield.entry;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
+  ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"depth": 2});ExpeditionCase.set_world(game, {"encounter_number": 2});ExpeditionCase.set_world(game, {"map_seed": seed_value});game.tactics.boss_kind=-1;game.reset_encounter()
+  for p in game.players.values():ExpeditionCase.set_membership(game, p, true);p.pos=game.battlefield.entry;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
   game.encounter.set_hp(-1, 100);game.tactics.ready_at=Time.get_ticks_msec()+60000
   for scout in game.encounter.scout_tactics():scout.ready=Time.get_ticks_msec()+60000;scout.rooted_until=Time.get_ticks_msec()+60000
   var f:=ConfigFile.new();f.set_value("floor","entry",game.battlefield.entry);f.set_value("floor","exit",game.battlefield.advance);f.set_value("floor","mask",var_to_bytes(game.battlefield.surface.cells).hex_encode().sha256_text());f.save(base+str(seed_value))
@@ -52,7 +54,7 @@ func guest_run() -> void:
  await create_timer(.5).timeout
  check(game.join_game()==OK,"matching connection starts")
  for seed_value in [91247,91249,91255]:
-  if not await until(func():return game.session=="Guest" and game.map_seed==seed_value and game.stage.visual_field.configured_key==Vector3i(0,2,seed_value)):check(false,"host's generated floor arrives: "+game.status);return
+  if not await until(func():return game.session=="Guest" and game.participation.seed()==seed_value and game.stage.visual_field.configured_key==Vector3i(0,2,seed_value)):check(false,"host's generated floor arrives: "+game.status);return
   var f:=ConfigFile.new();check(f.load(base+str(seed_value))==OK,"host floor receipt available")
   var field=game.stage.visual_field
   check(field.entry==f.get_value("floor","entry") and field.advance==f.get_value("floor","exit") and var_to_bytes(field.surface.cells).hex_encode().sha256_text()==f.get_value("floor","mask"),"host/guest share randomized gates and exact traversable surface")

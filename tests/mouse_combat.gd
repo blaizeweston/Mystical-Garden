@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 var game: Node
 var failed=false
@@ -8,7 +10,7 @@ func check(ok: bool,message: String):
 func _initialize():call_deferred("run")
 func run():
  game=load("res://world.tscn").instantiate();var base="res://.godot/mouse-combat-"+Crypto.new().generate_random_bytes(8).hex_encode();game.progress.path=base;game.local_character.path=base+".character";root.add_child(game);game.set_physics_process(false);game.set_process(false)
- var p: Dictionary=game.players[1];p.wild=true;p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.weapon=0;p.secondary=0;p.catalyst=0;p.power=0;p.frame=0;p.strike_at=0
+ var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.weapon=0;p.secondary=0;p.catalyst=0;p.power=0;p.frame=0;p.strike_at=0
  game.encounter.clear_scouts();game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,-1);game.overlay.hide()
  var now=Time.get_ticks_msec();game.mouse_controls.receive(game,1,Vector2(0,1),true,now);game.mouse_controls.tick(game,now)
  game.update_projectiles(int(game.projectile_queue[0].due)+1)

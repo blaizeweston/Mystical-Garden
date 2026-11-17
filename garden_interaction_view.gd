@@ -1,4 +1,6 @@
 extends Node
+
+const Participation = preload("res://expedition_participation.gd")
 # Read-only rendering and intent submission. Never mutates Garden progression.
 const Service=preload("res://garden_interaction_service.gd")
 const Catalog=preload("res://garden_interaction_catalog.gd")
@@ -71,7 +73,7 @@ func record() -> void:
 func _process(_delta: float) -> void:
  if not is_instance_valid(game.stage):return
  var id: int=game.local_player_id();var player: Dictionary=game.players.get(id,{})
- var data:=Service.projection(game,id);var wild: bool=player.get("wild",false)
+ var data:=Service.projection(game,id);var wild: bool=Participation.is_wild(player)
  var context:=str([game.session,id,data.get("epoch","")])
  if context!=projection_context:
   projection_context=context;cue_revision=-1;cue_until=0;focus_serial=-1;pending=false;availability_baseline=false

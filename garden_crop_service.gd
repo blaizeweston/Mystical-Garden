@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Participation = preload("res://expedition_participation.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Tx=preload("res://game_transaction.gd")
 const State=preload("res://garden_crop_state.gd")
@@ -8,7 +10,7 @@ const Growth=preload("res://cultivation_growth.gd")
 static func eligible(game: Node,id: int,slot: int) -> bool:
  if not game.multiplayer.is_server() or not game.players.has(id) or slot<0 or slot>=game.progress.plots.size():return false
  var p: Dictionary=game.players[id]
- return p.get("profile_ready",false) and not p.get("wild",false) and not PlayerLifecycle.fallen(p) and game.travel_kind.is_empty() and p.pos.distance_to(game.stage.bed_position(slot))<=1.65 and game.progress.offshoot_in_bed(slot)<0
+ return p.get("profile_ready",false) and not Participation.is_wild(p) and not PlayerLifecycle.fallen(p) and game.participation.travel_kind().is_empty() and p.pos.distance_to(game.stage.bed_position(slot))<=1.65 and game.progress.offshoot_in_bed(slot)<0
 static func focus(game: Node,id: int,slot: int) -> bool:
  if not eligible(game,id,slot) or int(game.progress.plots[slot].species)<0:return false
  var previous: Dictionary=game.players[id].get("garden_crop_focus",{})
@@ -18,7 +20,7 @@ static func fill_water(game: Node,id: int) -> bool:
  var garden=load("res://garden_interaction_service.gd")
  if not garden.eligible(game,id):return false
  var player: Dictionary=game.players[id]
- if not game.travel_kind.is_empty() or garden.nearest(game,player,garden.projection(game,id))!="spring_water":
+ if not game.participation.travel_kind().is_empty() or garden.nearest(game,player,garden.projection(game,id))!="spring_water":
   game.tell(id,"Visit the sheltered spring to fill your watering vessel.")
   return false
  if player.get("spring_water",false):return true
@@ -32,16 +34,16 @@ static func spring_ready(game: Node) -> bool:
 static func projection(game: Node,id: int) -> Dictionary:
  if not game.multiplayer.is_server():return game.players.get(id,{}).get("garden_interactions",{}).get("cultivation",{})
  var beds: Array=[];var player: Dictionary=game.players.get(id,{})
- if player.is_empty() or player.get("wild",false):return {"version":2,"catalog":Catalog.signature,"beds":[],"focus":{}}
+ if player.is_empty() or Participation.is_wild(player):return {"version":2,"catalog":Catalog.signature,"beds":[],"focus":{}}
  var watering_available:=spring_ready(game)
  for index in game.progress.plots.size():
   var bed: Dictionary=game.progress.plots[index];var species: int=int(bed.species)
   if species<0:continue
   var care: Dictionary=bed.get("care",{});var base: float=game.Seeds.DEFINITIONS[species].grow_seconds;var policy:=Catalog.definition(str(care.get("opportunity","")))
   var familiarity: int=int(player.get("character",{}).get("plants",[])[species]) if not player.is_empty() else 0
-  var chance: float=game.rare_harvest_chance(familiarity);var work:=maxf(0,State.duration(bed,base)-float(bed.age));var seconds: float=work/Growth.rate(game.progress,bed,game.expedition_active())
-  beds.append({"slot":index,"species":species,"stage":int(bed.stage),"flowering":bool(bed.flowering),"cycle":care.get("cycle",""),"revision":care.get("revision",0),"choice":care.get("choice",""),"compatible":State.compatible(bed),"available":State.available(bed),"preserved":State.preserved(bed),"remaining":seconds,"base_chance":chance,"chance":State.chance(bed,chance),"preserve_chance":minf(float(policy.get("rare_cap",1)),chance+float(policy.get("rare_bonus",0))),"extra_seconds":base*float(policy.get("delay_fraction",0))/game.progress.heart.growth_multiplier(),"flower_enabled":game.progress.flowering_unlocked and not game.expedition_active(),"opportunity":care.get("opportunity","patient_bud")})
-  beds[-1].merge({"remaining":seconds,"garden_remaining":work/Growth.rate(game.progress,bed),"wild_remaining":work/Growth.rate(game.progress,bed,true),"growth_rate":Growth.rate(game.progress,bed,game.expedition_active()),"extra_seconds":base*float(policy.get("delay_fraction",0))/Growth.rate(game.progress,bed,game.expedition_active()),"watered":Growth.watered(bed),"water_available":Growth.supported(bed) and State.compatible(bed) and int(bed.stage)<3 and watering_available and not Growth.watered(bed),"spring_ready":watering_available,"flower_enabled":game.progress.flowering_unlocked},true)
+  var chance: float=game.rare_harvest_chance(familiarity);var work:=maxf(0,State.duration(bed,base)-float(bed.age));var seconds: float=work/Growth.rate(game.progress,bed,game.participation.active())
+  beds.append({"slot":index,"species":species,"stage":int(bed.stage),"flowering":bool(bed.flowering),"cycle":care.get("cycle",""),"revision":care.get("revision",0),"choice":care.get("choice",""),"compatible":State.compatible(bed),"available":State.available(bed),"preserved":State.preserved(bed),"remaining":seconds,"base_chance":chance,"chance":State.chance(bed,chance),"preserve_chance":minf(float(policy.get("rare_cap",1)),chance+float(policy.get("rare_bonus",0))),"extra_seconds":base*float(policy.get("delay_fraction",0))/game.progress.heart.growth_multiplier(),"flower_enabled":game.progress.flowering_unlocked and not game.participation.active(),"opportunity":care.get("opportunity","patient_bud")})
+  beds[-1].merge({"remaining":seconds,"garden_remaining":work/Growth.rate(game.progress,bed),"wild_remaining":work/Growth.rate(game.progress,bed,true),"growth_rate":Growth.rate(game.progress,bed,game.participation.active()),"extra_seconds":base*float(policy.get("delay_fraction",0))/Growth.rate(game.progress,bed,game.participation.active()),"watered":Growth.watered(bed),"water_available":Growth.supported(bed) and State.compatible(bed) and int(bed.stage)<3 and watering_available and not Growth.watered(bed),"spring_ready":watering_available,"flower_enabled":game.progress.flowering_unlocked},true)
  return {"version":2,"catalog":Catalog.signature,"beds":beds,"spring_water":player.get("spring_water",false),"focus":player.get("garden_crop_focus",{}).duplicate(true)}
 static func harvest_seeds(game: Node,id: int,slot: int) -> Dictionary:
  if not eligible(game,id,slot) or not game.progress.flowering_unlocked:return reject(game,id,"Research Flowering before harvesting seeds at a Garden bed.")

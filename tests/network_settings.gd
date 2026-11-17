@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Settings=preload("res://network_settings.gd")
 var failed:=false
 func check(ok: bool,message: String):
@@ -51,14 +53,14 @@ func run():
  check(game.admission_error(identity,manifest,Settings.PROTOCOL).is_empty(),"compatible guest admitted in Garden")
  check(not game.admission_error(identity,manifest,0).is_empty() and not game.admission_error(identity,{},Settings.PROTOCOL).is_empty(),"protocol and content mismatch rejected")
  check(not game.admission_error(game.local_character.identity,manifest,Settings.PROTOCOL).is_empty(),"host character cannot join itself")
- game.players[1].wild=true
+ ExpeditionCase.set_membership(game, game.players[1], true)
  check(game.admission_error(identity,manifest,Settings.PROTOCOL).contains("Wilds"),"late joining an expedition is explicitly blocked")
- game.players[1].wild=false;game.add_player(2)
+ ExpeditionCase.set_membership(game, game.players[1], false);game.add_player(2)
  check(not game.allow_remote(2,"action",30),"unregistered peers cannot issue gameplay actions")
  game.players[2].profile_ready=true;game.players[2].seed_owner=identity
  check(not game.admission_error(identity,manifest,Settings.PROTOCOL).is_empty(),"duplicate connected character rejected")
  for i in 30: check(game.allow_remote(2,"action",30),"normal action budget allowed")
  check(not game.allow_remote(2,"action",30),"request burst bounded")
- game.players.erase(2);game.queue_free();await process_frame
+ ExpeditionCase.remove_actor(game, 2);game.queue_free();await process_frame
  if not failed: print("PASS: direct-IP settings, validation, cancel, timeout, character safety, admission and request limits")
  quit(1 if failed else 0)

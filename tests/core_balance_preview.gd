@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -56,7 +58,7 @@ func part(id: String) -> int:
 
 func arena(species: String) -> void:
 	Core.reset(game)
-	game.combat_epoch+=1
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	game.encounter.set_hp(-1, 800)
 	game.tactics.position=Vector3(0,0,-2)
 	game.enemy_kind=0
@@ -228,7 +230,7 @@ func wave_and_drain() -> void:
 
 func checkpoint() -> void:
 	arena("mirror_mint")
-	game.encounter_number=3
+	ExpeditionCase.set_world(game, {"encounter_number": 3})
 	game.encounter.set_hp(-1, 0)
 	player.pos=game.battlefield.advance
 	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(500)
@@ -240,7 +242,7 @@ func checkpoint() -> void:
 	check(game.buy_upgrade(1,player,0),"purchase applies the third reflection")
 	check(Core.equipped(player).has("extra_phase") and not game.buy_upgrade(1,player,0),"purchase applies once")
 	for floor_number in [6,9]:
-		game.encounter_number=floor_number
+		ExpeditionCase.set_world(game, {"encounter_number": floor_number})
 		player.offer_floor=floor_number
 		player.checkpoint_offers=["power","reach","technique"]
 		check(game.buy_upgrade(1,player,0),"repeatable strike rank purchases at a later gate")

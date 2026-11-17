@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
@@ -48,7 +50,7 @@ func run() -> void:
 	game.battlefield.barriers.clear()
 	game.add_player(2)
 	for player in game.players.values():
-		player.wild = true
+		ExpeditionCase.set_membership(game, player, true)
 		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(90)
 		player.pos = Vector3.ZERO
 	for pair in [["part_6","plant_part_rare_ember_fern"],["part_7","plant_part_rare_cinder_vine"],["part_15","plant_part_rare_sun_spire"]]:

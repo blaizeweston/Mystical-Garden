@@ -1,4 +1,6 @@
 extends RefCounted
+
+const Participation = preload("res://expedition_participation.gd")
 ## Resolves a host-validated enemy contact. The recipient adapter binds one
 ## player life and bridges the existing class, affinity and save operations.
 
@@ -92,9 +94,9 @@ class Recipient extends RefCounted:
 		var observation := {
 			"hurt_until": int(_actor.get("hurt_until", 0)),
 			"guarded": Traits.guard_allows(_actor, contact.origin, contact.now),
-			"default_damage": float(1 + _world.difficulty_cycle / 2),
+			"default_damage": float(1 + _world.participation.cycle() / 2),
 			"affinity": _world.has_meta(&"combat_affinity_ruleset"),
-			"epoch": int(_world.combat_epoch),
+			"epoch": int(_world.participation.epoch()),
 		}
 		observation.make_read_only()
 		return observation
@@ -174,7 +176,7 @@ class Recipient extends RefCounted:
 		return result(Outcome.UNCOMMITTED)
 
 	func _install_loss(amount: int, effects = null) -> Dictionary:
-		if not _is_current() or (_actor.get("wild", false) and not Life.alive(_actor)):
+		if not _is_current() or (Participation.is_wild(_actor) and not Life.alive(_actor)):
 			return result(Outcome.REJECTED)
 		var loss := Vitals.apply_damage(_actor, amount, not Preview.enabled)
 		if loss.is_empty():
@@ -182,7 +184,7 @@ class Recipient extends RefCounted:
 		if not loss.recorded:
 			return result(Outcome.NO_HP_LOSS)
 		var applied: int = loss.applied_hp
-		var in_wilds: bool = _actor.get("wild", false)
+		var in_wilds: bool = Participation.is_wild(_actor)
 		_actor.damage_seq = int(_actor.get("damage_seq", 0)) + 1
 		_actor.damage_amount = applied if Preview.enabled else maxi(0, amount)
 		var record := {"actor": _peer, "amount": amount, "applied_hp": applied, "hp": int(loss.hp),
@@ -200,5 +202,5 @@ class Recipient extends RefCounted:
 		else:
 			if effects != null:
 				_world.settle_expedition_rewards(effects)
-			_world.return_to_garden(_actor)
+			load("res://expedition_transitions.gd").return_member(_world,_actor)
 		return result(Outcome.FELL, applied, true)

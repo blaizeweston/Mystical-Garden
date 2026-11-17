@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -46,9 +48,9 @@ func focus(class_id: int) -> void:
 
 
 func reset(class_id := 0) -> void:
-	game.combat_epoch += 1
-	game.encounter_number = 1
-	game.destination = game.Campaign.GROVE
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
+	ExpeditionCase.set_world(game, {"encounter_number": 1})
+	ExpeditionCase.set_world(game, {"destination": game.Campaign.GROVE})
 	game.encounter.set_hp(-1, 400)
 	game.tactics.position = Vector3(0,0,-1.2)
 	game.enemy_mutations = 0
@@ -81,7 +83,7 @@ func reset(class_id := 0) -> void:
 				"strike_at","cast_until","core_ready_at","core_cast_until","last_offer"]:
 			p[key] = 0
 		p.pos = Vector3.ZERO
-		p.wild = true
+		ExpeditionCase.set_membership(game, p, true)
 		p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive()
 		p.profile_ready = true
 		p.mouse_aim = false
@@ -120,7 +122,7 @@ func grant_fixture_copy(id: String, rank := 0, target: Dictionary = {}) -> int:
 	var ledger := card_ledger(recipient)
 	var copies := ledger.copies()
 	copies.append({"id":id,"amount":contribution,
-		"rarity":"" if definition.policy == "unique" else Catalog.RARITIES[rank], "floor":game.encounter_number,
+		"rarity":"" if definition.policy == "unique" else Catalog.RARITIES[rank], "floor":game.participation.floor(),
 		"acquisition_id":next_fixture_revision()})
 	recipient[Cards.STATE] = Cards.Ledger.new(copies, ledger.offer(), ledger.completed_floor())
 	return contribution
@@ -128,7 +130,7 @@ func grant_fixture_copy(id: String, rank := 0, target: Dictionary = {}) -> int:
 
 func fixture_offer(option: Dictionary) -> Dictionary:
 	var ledger := card_ledger(player)
-	var offer := {"floor":game.encounter_number, "revision":next_fixture_revision(),
+	var offer := {"floor":game.participation.floor(), "revision":next_fixture_revision(),
 		"rerolls":0, "cards":[option], "closed":false}
 	player[Cards.STATE] = Cards.Ledger.new(ledger.copies(), offer, ledger.completed_floor())
 	return offer
@@ -139,7 +141,7 @@ func checkpoint_view() -> Dictionary:
 
 
 func at_checkpoint(floor_number: int) -> void:
-	game.encounter_number = floor_number
+	ExpeditionCase.set_world(game, {"encounter_number": floor_number})
 	game.encounter.set_hp(-1, 0)
 	game.encounter.clear_scouts()
 	game.encounter_rewarded = true
@@ -167,11 +169,11 @@ func verify_offers() -> void:
 	capped_stats.interval = Cards.STRIKE_MIN_MS
 	check("ordinary_weapon_interval" not in card_ledger(player).eligible(capped_stats,game.DODGE_COOLDOWN_MS),
 		"an ordinary weapon already at the real interval floor cannot be offered a zero-effect card")
-	game.encounter_number = 90
+	ExpeditionCase.set_world(game, {"encounter_number": 90})
 	var mixed := false
 	for seed_value in range(1,16):
 		player.upgrade_seed = seed_value
-		var drawn := card_ledger(player).roll(player.upgrade_seed, game.encounter_number, game.weapon_stats(player), game.DODGE_COOLDOWN_MS)
+		var drawn := card_ledger(player).roll(player.upgrade_seed, game.participation.floor(), game.weapon_stats(player), game.DODGE_COOLDOWN_MS)
 		if drawn.any(func(copy):return copy.rarity!=drawn[0].rarity):
 			mixed = true
 			break
@@ -290,7 +292,7 @@ func verify_offers() -> void:
 	action(limit.revision,"skip")
 	check(game.checkpoint_ready.get(1)==60,"exhausted floor 60 can still ready the Gate")
 	game.checkpoint_ready[2] = 60
-	check(game._use_checkpoint(1,true) and game.encounter_number==61,"travel continues past floor 60 with exhausted budget")
+	check(ExpeditionCase.Transitions.commit_checkpoint(game, 1,true) and game.participation.floor()==61,"travel continues past floor 60 with exhausted budget")
 	# A shared clearance survives a partial return, but the returned actor
 	# must neither receive its contribution nor retain portable currency.
 	game.deepest_milestone = 60
@@ -300,18 +302,18 @@ func verify_offers() -> void:
 	var companion_balance: int = game.run_wallet(player)
 	grant_fixture_copy("run_health", 0, ally)
 	var companion_ledger := Cards.ledger(player)
-	game.abandon_run(2,ally)
+	ExpeditionCase.Transitions.abandon(game, 2,ally)
 	check(game.wallet_for(ally).spent_essence()==0 and game.wallet_for(ally).earned_sparks()==0
 		and game.run_wallet(ally)==0 and not ally.has(Cards.STATE)
-		and player.wild and Cards.ledger(player)==companion_ledger and game.wallet_for(player)==companion_wallet
+		and ExpeditionCase.is_wild(player) and Cards.ledger(player)==companion_ledger and game.wallet_for(player)==companion_wallet
 		and game.run_wallet(player)==companion_balance,
 		"partial party return zeroes detached wallet while the companion remains")
 	at_checkpoint(66)
-	check(game._use_checkpoint(1,false) and not player.has(Cards.STATE) and game.run_wallet(player)==0,"extraction clears run ownership and purse")
+	check(ExpeditionCase.Transitions.commit_checkpoint(game, 1,false) and not player.has(Cards.STATE) and game.run_wallet(player)==0,"extraction clears run ownership and purse")
 	reset()
 	grant_fixture_copy("run_health")
 	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(60)
-	check(game.finish_failed_expedition() and not player.has(Cards.STATE) and game.run_wallet(player)==0,"wipe clears run ownership and purse")
+	check(ExpeditionCase.Transitions.finish_failed(game) and not player.has(Cards.STATE) and game.run_wallet(player)==0,"wipe clears run ownership and purse")
 
 
 func source_event(scope: String, family: String, channel: String, now: int) -> RefCounted:
@@ -600,7 +602,11 @@ func verify_presentation() -> void:
 	check("Cultivate Bloom" in weaver_catalyst.summary and "Spore Nova" in weaver_catalyst.summary
 		and "Thorn Counter · After an actual block" in warden_catalyst.summary and "Root Quake" in warden_catalyst.summary,
 		"the same Catalyst distinguishes native class abilities and their triggers before equipping it")
-	player.wild = false
+	ExpeditionCase.set_membership(game, player, false)
+	# This synthetic loadout case is in the Garden, not a partial abandonment.
+	var garden_fixture: Dictionary = game.participation.savepoint()
+	garden_fixture.members[ExpeditionCase.Participation.peer_for(player)].waiting = false
+	game.participation.restore_savepoint(garden_fixture)
 	player.pos = game.stage.gate_position()
 	game.progress.add_parts(thorn,2)
 	var panel: Control = game.loadout_view
@@ -636,8 +642,8 @@ func verify_attack_speed() -> void:
 		var trophy: int = game.Parts.monster_part(0)
 		player.carried_parts[trophy] = 2
 		for improvement in [{"floor":8, "id":"strike"}, {"floor":16, "id":"cooldown"}]:
-			game.encounter_number = improvement.floor
-			var altar: Dictionary = grafts.owner_details(player, game.encounter_number)
+			ExpeditionCase.set_world(game, {"encounter_number": improvement.floor})
+			var altar: Dictionary = grafts.owner_details(player, game.participation.floor())
 			game.garden_action(1, grafts.request(altar, improvement.id, "monster_0"))
 		check(player.carried_parts[trophy] == 0 and grafts.owner_details(player, 16).revision == 2,
 			"the attack speed fixture acquires grafts through real purchases")
@@ -708,7 +714,7 @@ func verify_attack_speed() -> void:
 		check(game.projectile_queue.size() == count, "the attack timer still rejects an immediate second launch")
 		if next_ms == Cards.STRIKE_MIN_MS:
 			check(not card_ledger(player).eligible(game.weapon_stats(player),game.DODGE_COOLDOWN_MS).has(card_id)
-				and not card_ledger(player).roll(player.upgrade_seed, game.encounter_number, game.weapon_stats(player), game.DODGE_COOLDOWN_MS).any(func(option):return option.id==card_id),
+				and not card_ledger(player).roll(player.upgrade_seed, game.participation.floor(), game.weapon_stats(player), game.DODGE_COOLDOWN_MS).any(func(option):return option.id==card_id),
 				"Light Grip leaves the pool at the interval floor before its copy limit is reached")
 		player.erase(grafts.STATE)
 

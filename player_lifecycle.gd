@@ -3,8 +3,10 @@ extends RefCounted
 ## a fresh generation, including when a peer ID is reused. A fall suspends
 ## active actions. Already-accepted grants may retain that life until revival.
 
+const Participation = preload("res://expedition_participation.gd")
+
 const STATE := "player_lifecycle"
-enum Phase { READY, DOWNED, AWAITING_PARTY }
+enum Phase { READY, DOWNED }
 
 class Life extends RefCounted:
 	static var _last_generation: int = 0
@@ -24,9 +26,6 @@ class Life extends RefCounted:
 
 	func fall() -> Life:
 		return self if _phase == Phase.DOWNED else Life.new(_generation, Phase.DOWNED)
-
-	func await_party() -> Life:
-		return self if _phase == Phase.AWAITING_PARTY else Life.new(_generation, Phase.AWAITING_PARTY)
 
 	func clear_inactive() -> Life:
 		return next_life() if fallen() else self
@@ -48,7 +47,8 @@ static func generation(record: Dictionary) -> int:
 static func matches(record: Dictionary, captured_generation: int) -> bool:
 	return captured_generation > 0 and generation(record) == captured_generation
 
+## The participation owner supplies the existing post-return party hold.
 ## Guest presentation uses the existing detached fallen flag.
 static func fallen(record: Dictionary) -> bool:
 	var life: Life = record.get(STATE)
-	return life.fallen() if life != null else bool(record.get("fallen", false))
+	return (life.fallen() or Participation.is_waiting(record)) if life != null else bool(record.get("fallen", false))

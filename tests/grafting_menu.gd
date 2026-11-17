@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Core=preload("res://core_combat.gd")
 var failed:=false
 func check(ok: bool,message: String):
@@ -19,17 +21,17 @@ func run():
  root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var p: Dictionary=game.players[1]
  p.character=game.Character.blank()
- p.wild=true;p.weapon=1;p.secondary=2;p.catalyst=3;p.power=2;p.technique=1;p.rift_hook=true
+ ExpeditionCase.set_membership(game, p, true);p.weapon=1;p.secondary=2;p.catalyst=3;p.power=2;p.technique=1;p.rift_hook=true
  p.carried_parts.fill(0);p.carried_parts[4]=3;p.carried_parts[18]=3;p.carried_parts[19]=2;p.carried_parts[1]=4
- game.encounter_number=8;p.pos=game.battlefield.graft
+ ExpeditionCase.set_world(game, {"encounter_number": 8});p.pos=game.battlefield.graft
  var found:=0
  for floor_number in range(1,81):
-  game.encounter_number=floor_number
+  ExpeditionCase.set_world(game, {"encounter_number": floor_number})
   found+=int(game.graft_altar_open())
  check(found==10,"altars are half as frequent: every eighth encounter")
- game.encounter_number=4
+ ExpeditionCase.set_world(game, {"encounter_number": 4})
  check(not game.graft_altar_open(),"old fourth encounter no longer spawns a shrine")
- game.encounter_number=8
+ ExpeditionCase.set_world(game, {"encounter_number": 8})
  var counts: Array=p.carried_parts.duplicate()
  game.send_action(false)
  check(game.graft_menu.visible and p.carried_parts==counts and p.graft_part==0,"E opens a specialized menu without consuming parts")
@@ -47,13 +49,13 @@ func run():
  var before: int=p.carried_parts[18]
  game.send_garden_action("graft_install_18")
  check(p.graft_part==4 and p.carried_parts[18]==before,"replacement cannot happen at the installation altar")
- game.encounter_number=9
+ ExpeditionCase.set_world(game, {"encounter_number": 9})
  purchase(game,p,"quickroot")
- game.encounter_number=12
+ ExpeditionCase.set_world(game, {"encounter_number": 12})
  purchase(game,p,"graft_0")
  var reach_with_hook: float=game.weapon_stats(p).get("reach",0)
  trip(game,p,true)
- game.encounter_number=16
+ ExpeditionCase.set_world(game, {"encounter_number": 16})
  p.pos=game.battlefield.graft
  game.rng.seed=roll_seed(game,game.graft_chance(p,18),false)
  game.send_garden_action("graft_install_18")
@@ -70,7 +72,7 @@ func run():
  check(not stats.core_build.skill.has("trip_pull") and preview_text.contains("Quickroot") and not preview_text.contains("Draws a caught enemy"),"replacement preview keeps purchased behavior and drops the live Hook effect")
  check(is_equal_approx(float(stats.get("reach",0)),reach_with_hook) and is_equal_approx(float(stats.get("pull",0)),.4),"the purchased graft-specific bonus stays after replacement")
  trip(game,p,false)
- game.encounter_number=24
+ ExpeditionCase.set_world(game, {"encounter_number": 24})
  counts=p.carried_parts.duplicate()
  game.send_garden_action("graft_install_1");game.send_garden_action("graft_install_999")
  check(p.carried_parts==counts and p.graft_part==18,"plant and invalid candidate requests are harmless")
@@ -79,12 +81,12 @@ func run():
  check(p.carried_parts==counts,"distant request cannot install or consume")
  game.graft_view._process(.016)
  check(not game.graft_menu.visible,"leaving range closes the menu")
- p.pos=game.battlefield.graft;p.wild=false
+ p.pos=game.battlefield.graft;ExpeditionCase.set_membership(game, p, false)
  game.attempt_graft(1,p,19)
  check(p.carried_parts==counts,"Garden does not allow monster grafts")
- p.wild=true;game.destination=game.Campaign.HEART
+ ExpeditionCase.set_membership(game, p, true);ExpeditionCase.set_world(game, {"destination": game.Campaign.HEART})
  check(not game.graft_altar_open(),"normal altars remain excluded from finale")
- game.return_to_garden(p)
+ ExpeditionCase.Transitions.return_member(game, p)
  check(p.graft_floor==0 and p.graft_part==0,"run return clears graft location and component")
  game.free()
  if not failed: print("PASS: rare altar schedule, E/G menu, carried-only candidates, previews, explicit graft costs, later replacement success/failure, retained upgrades and authority validation")
@@ -92,10 +94,10 @@ func run():
 
 
 func purchase(game: Node,p: Dictionary,card: String) -> void:
- game.deepest_milestone=game.encounter_number
+ game.deepest_milestone=game.participation.floor()
  game.encounter.set_hp(-1, 0);game.encounter.clear_scouts()
  p.pos=game.battlefield.advance
- p.offer_floor=game.encounter_number;p.checkpoint_offers=[card,"power","reach"]
+ p.offer_floor=game.participation.floor();p.checkpoint_offers=[card,"power","reach"]
  check(game.buy_upgrade(1,p,0) and int(p.run_upgrades.get(card,0))==1,"eligible card bought at a real checkpoint: "+card)
 
 

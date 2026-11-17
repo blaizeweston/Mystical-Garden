@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Tx = preload("res://game_transaction.gd")
 const Batch = preload("res://save_batch.gd")
 const Slots = preload("res://save_slots.gd")
@@ -291,8 +293,8 @@ func gameplay() -> void:
  p=world.players[1]
  check(p.character.plants[0]==2 and Tx.session_writable(world) and audio_count()==0, "reopen restores availability without replay")
 
- p.wild=true
- world.encounter_number=8
+ ExpeditionCase.set_membership(world, p, true)
+ ExpeditionCase.set_world(world, {"encounter_number": 8})
  p.pos=world.battlefield.graft
  p.carried_parts[parts.HOOK]=2
  var chosen_seed:=0
@@ -312,7 +314,7 @@ func gameplay() -> void:
  record("graft_abort",graft_before,{"feedback":world.status})
  world.garden_action(1,"graft_install_"+str(parts.HOOK))
  check(p.graft_part==parts.HOOK and p.carried_parts[parts.HOOK]==1 and p.graft_message.contains("grafted"), "graft success consumes one and shows after commit")
- world.encounter_number=16
+ ExpeditionCase.set_world(world, {"encounter_number": 16})
  p.carried_parts[18]=1
  for seed in range(100):
   world.rng.seed=seed
@@ -322,7 +324,7 @@ func gameplay() -> void:
  world.rng.seed=chosen_seed
  world.garden_action(1,"graft_install_18")
  check(p.graft_part==parts.HOOK and p.carried_parts[18]==0 and p.graft_message.contains("failed"), "failed graft commits consumption and preserves prior part")
- world.encounter_number=18
+ ExpeditionCase.set_world(world, {"encounter_number": 18})
  world.deepest_milestone=18
  world.encounter.set_hp(-1, 0)
  world.encounter.clear_scouts()
@@ -333,7 +335,7 @@ func gameplay() -> void:
  p.checkpoint_offers=["rift_hook","power","reach"]
  world.choose_checkpoint_card(1,p,0)
  check(p.rift_hook and world.progress.rift_hook_discovered and world.wallet_for(p).spent_essence()>0 and world.checkpoint_ready.get(1)==18
-  and world.encounter_number==18,"card purchase commits Garden discovery without checkpoint advancement")
+  and world.participation.floor()==18,"card purchase commits Garden discovery without checkpoint advancement")
  var spent: int=world.wallet_for(p).spent_essence()
  world.choose_checkpoint_card(1,p,0)
  check(world.wallet_for(p).spent_essence()==spent,"duplicate card cannot spend twice")
@@ -344,9 +346,9 @@ func gameplay() -> void:
  world.progress.heart.unlocked.append("perfect_recollection")
  world.consider_recollection()
  check(not world.progress.heart.recollection_seen, "retired finale recollection remains dormant")
- record("graft_cards_courier_recollection",before,{"spent":spent,"floor":world.encounter_number,"graft":p.graft_part,"status":world.status})
+ record("graft_cards_courier_recollection",before,{"spent":spent,"floor":world.participation.floor(),"graft":p.graft_part,"status":world.status})
 
- p.wild=false
+ ExpeditionCase.set_membership(world, p, false)
  p.pos=world.Stage.PLOTS[0]
  mature(0,0)
  before=disk()
@@ -397,8 +399,8 @@ func gameplay() -> void:
 func terminal_wilds_faults() -> void:
  if not open_world(): return
  var actor: Dictionary = world.players[1]
- actor.wild=true
- world.encounter_number=8
+ ExpeditionCase.set_membership(world, actor, true)
+ ExpeditionCase.set_world(world, {"encounter_number": 8})
  actor.pos=world.battlefield.graft
  actor.carried_parts[world.Parts.HOOK]=2
  var initial := disk()
@@ -420,8 +422,8 @@ func terminal_wilds_faults() -> void:
  check(disk()[garden_path]==committed[garden_path] and disk()[garden_path+".transaction"]=="absent","title cleanup preserves graft save")
  if not open_world(): return
  actor=world.players[1]
- actor.wild=true
- world.encounter_number=6
+ ExpeditionCase.set_membership(world, actor, true)
+ ExpeditionCase.set_world(world, {"encounter_number": 6})
  world.encounter.set_hp(-1, 0)
  world.encounter.clear_scouts()
  world.encounter_rewarded=true
@@ -467,8 +469,8 @@ func caller_effects() -> void:
    var metric_before := FileAccess.get_file_as_string("user://metrics.jsonl").count('"event":"upgrade"')
    match action:
     "upgrade":
-     player.wild=true
-     world.encounter_number=18
+     ExpeditionCase.set_membership(world, player, true)
+     ExpeditionCase.set_world(world, {"encounter_number": 18})
      world.deepest_milestone=18
      world.encounter.set_hp(-1, 0)
      world.encounter.clear_scouts()
@@ -527,7 +529,7 @@ func caller_effects() -> void:
      var upgrades: int=FileAccess.get_file_as_string("user://metrics.jsonl").count('"event":"upgrade"')-metric_before
      check(world.progress.rift_hook_discovered==not aborted and int(player.get("run_upgrades",{}).get("rift_hook",0))==int(not aborted)
       and (int(world.wallet_for(player).spent_essence())>0)==not aborted and (world.checkpoint_ready.get(1,0)==18)==committed
-      and world.encounter_number==18 and world.overlay.visible==not committed
+      and world.participation.floor()==18 and world.overlay.visible==not committed
       and status.contains("Rank 1 gained")==committed and upgrades==int(committed),"upgrade entitlement, picker and publication match "+outcome)
      facts.merge({"rank":player.get("run_upgrades",{}).get("rift_hook",0),"spent":world.wallet_for(player).spent_essence(),"ready":world.checkpoint_ready.get(1,0),
       "panel_open":world.overlay.visible,"metrics":upgrades})

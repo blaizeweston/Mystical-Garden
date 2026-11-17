@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 var failed=false
 func check(ok: bool,message: String) -> void:
  if not ok:failed=true;printerr("FAIL Garden cleanup: ",message)
@@ -35,7 +37,7 @@ func run() -> void:
  game.toggle_overlay(null);g.stock[0]=1;game.garden_action(1,"plant_at_0_0")
  check(g.plots[0].species==0,"normal seeds can occupy former offshoot beds")
  g.heart.unlock_direct("perfect_recollection");game.consider_recollection()
- check(not g.finale_available() and not game.recollection_menu.visible and not p.wild,"legacy restoration cannot trigger the deferred finale")
+ check(not g.finale_available() and not game.recollection_menu.visible and not ExpeditionCase.is_wild(p),"legacy restoration cannot trigger the deferred finale")
  check(not g.heart.requirements(g,"perfect_recollection").is_empty(),"deferred research cannot be purchased")
  var packet=game.campaign_snapshot();check(packet[2]==0 and packet[3]==0 and packet[4]==0 and packet[5]==game.Campaign.UNFINISHED and packet[17]==0,"public Garden state hides deferred ending choices")
  g.save_garden();var restored=game.Progress.new();restored.path=g.path;restored.load_garden()

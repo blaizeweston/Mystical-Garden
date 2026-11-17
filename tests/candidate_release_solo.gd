@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Gate = preload("res://persistence_writer_integration.gd")
 const Tx = preload("res://game_transaction.gd")
 const Slots = preload("res://save_slots.gd")
@@ -84,7 +86,7 @@ func run() -> void:
  world.progress.add_parts(1,3)
  world.open_gate_preparation()
  world.garden_action(1,"depart")
- check(actor.wild and actor.weapon==1,"guarded departure from real title world")
+ check(ExpeditionCase.is_wild(actor) and actor.weapon==1,"guarded departure from real title world")
  world.encounter.set_hp(-1, 0)
  world.record_enemy_death(-1,world.tactics.position,Vector3.ZERO)
  world.encounter.clear_scouts()
@@ -93,15 +95,15 @@ func run() -> void:
  clear_floor(world,actor,3)
  actor.offer_floor=3
  actor.checkpoint_offers=["power"]
- world.use_checkpoint(1,true)
+ ExpeditionCase.Transitions.checkpoint(world, 1,true)
  world.choose_checkpoint_card(1,actor,0)
- world.use_checkpoint(1,true)
- check(world.encounter_number==4 and actor.power>0,"checkpoint card and advancement")
+ ExpeditionCase.Transitions.checkpoint(world, 1,true)
+ check(world.participation.floor()==4 and actor.power>0,"checkpoint card and advancement")
  clear_floor(world,actor,6)
  actor.carried_seeds=[0]
- world.use_checkpoint(1,false)
- check(not actor.wild and world.progress.campaign.best_extraction==6 and world.progress.unknown.size()>0,"guarded extraction banks loot")
- record("expedition_and_inventory_commit",{"floor":world.encounter_number,"best_extraction":world.progress.campaign.best_extraction})
+ ExpeditionCase.Transitions.checkpoint(world, 1,false)
+ check(not ExpeditionCase.is_wild(actor) and world.progress.campaign.best_extraction==6 and world.progress.unknown.size()>0,"guarded extraction banks loot")
+ record("expedition_and_inventory_commit",{"floor":world.participation.floor(),"best_extraction":world.progress.campaign.best_extraction})
  world.return_to_main_menu()
  check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer and not has_lease(G) and not has_lease(P),"return goes offline and releases leases")
  await process_frame
@@ -125,7 +127,7 @@ func has_lease(path: String) -> bool:
  return FileAccess.file_exists(path.get_base_dir().path_join("session.cfg"))
 
 func clear_floor(world: Node, actor: Dictionary, floor: int) -> void:
- world.encounter_number=floor
+ ExpeditionCase.set_world(world, {"encounter_number": floor})
  world.deepest_milestone=floor
  world.encounter.set_hp(-1, 0)
  world.encounter.clear_scouts()

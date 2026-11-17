@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Escape = preload("res://thief_escape.gd")
 const Elite = preload("res://elite_enemy.gd")
 const Support = preload("res://enemy_support.gd")
@@ -51,7 +53,7 @@ func run() -> void:
 	game.set_process(false)
 	game.set_physics_process(false)
 	var player: Dictionary = game.players[1]
-	player.wild = true
+	ExpeditionCase.set_membership(game, player, true)
 	player.pos = Vector3(0,0,-6)
 	game.battlefield.configure(0,1,0)
 	game.encounter.set_hp(-1, 0)

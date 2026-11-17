@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -306,7 +308,7 @@ func run() -> void:
 	player = game.players[game.HOST]
 	player.profile_ready = true
 	player.frame = game.Frames.RANGER
-	player.wild = true
+	ExpeditionCase.set_membership(game, player, true)
 	weapon_checks()
 	class_checks()
 	core_and_enemy_checks()

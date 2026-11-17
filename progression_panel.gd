@@ -1,4 +1,6 @@
 extends VBoxContainer
+
+const Participation = preload("res://expedition_participation.gd")
 const Seeds = preload("res://seed_catalog.gd")
 const Parts = preload("res://weapon_parts.gd")
 const Character = preload("res://character_profile.gd")
@@ -213,13 +215,13 @@ func refresh() -> void:
 			var index: int = option.get_item_index(previous)
 			if index>=0: option.select(index)
 	var p := profile()
-	var at_altar: bool = not p.is_empty() and not p.get("wild",false) and p.get("pos",Vector3.ZERO).distance_to(game.stage.altar_position())<=1.65
+	var at_altar: bool = not p.is_empty() and not Participation.is_wild(p) and p.get("pos",Vector3.ZERO).distance_to(game.stage.altar_position())<=1.65
 	var a := selected_species(first)
 	var b := selected_species(second)
 	var enough: bool = a>=0 and b>=0 and counts[a]>=(2 if a==b else 1) and counts[b]>=1
 	breed_button.disabled = not at_altar or not enough
 	identify_button.disabled = not at_altar
-	refund_button.disabled=not game.at_heart(p) or game.expedition_active()
+	refund_button.disabled=not game.at_heart(p) or game.participation.active()
 	var can_learn:=false
 	if class_tab and preload("res://class_tree_access.gd").can_learn_here(game,p):
 		var pieces:=chosen.split("_")
@@ -235,8 +237,8 @@ func refresh() -> void:
 	learn_button.disabled=not can_learn
 	if heart_tab:
 		var state: Dictionary=game.heart_state()
-		var owns: bool=game.multiplayer.is_server() and game.at_heart(p) and not game.expedition_active()
-		var can_offer: bool=game.at_heart(p) and not p.get("wild",false)
+		var owns: bool=game.multiplayer.is_server() and game.at_heart(p) and not game.participation.active()
+		var can_offer: bool=game.at_heart(p) and not Participation.is_wild(p)
 		var id: String=chosen.trim_prefix("heart_") if chosen.begins_with("heart_") else ""
 		var definition: Dictionary=game.HeartCatalog.get_node(id)
 		heart_start_button.disabled=not owns or definition.is_empty() or state.unlocked.has(id) or definition.has("memory")

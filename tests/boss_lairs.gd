@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Lairs=preload("res://boss_lair_fights.gd")
 const Routes=preload("res://boss_lair_routes.gd")
@@ -17,7 +19,7 @@ func _initialize() -> void:
  call_deferred("run")
 
 func build(game: Node, kind: int, stamp: int) -> void:
- game.map_seed=stamp
+ ExpeditionCase.set_world(game, {"map_seed": stamp})
  game.tactics.boss_kind=kind
  game.tactics.boss_phase=1
  game.tactics.boss_moves=0
@@ -39,9 +41,9 @@ func run() -> void:
  root.add_child(game)
  game.set_process(false)
  game.set_physics_process(false)
- game.encounter_number=16
+ ExpeditionCase.set_world(game, {"encounter_number": 16})
  var player: Dictionary=game.players[1]
- player.wild=true
+ ExpeditionCase.set_membership(game, player, true)
  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
  var now:=Time.get_ticks_msec()+200
  var anchor_sites: Dictionary={}
@@ -88,7 +90,7 @@ func run() -> void:
    check(PlayerVitals.current_hp(player)==8,"standing inside the outer sweep takes the expected damage")
 
   build(game,Routes.DROWNED,stamp*313)
-  var layout:=Routes.crossings(game.map_seed)
+  var layout:=Routes.crossings(game.participation.seed())
   bank_layouts[layout.banks[0]]=true
   player.pos=Routes.bank(layout,stamp%2,.9)
   for index in 9:
@@ -119,14 +121,14 @@ func run() -> void:
   check(game.tactics.position==plan.to and PlayerVitals.current_hp(player)==10 and game.tactics.memory.lair_open.kind=="core_exposed","surge stays locked while the player sidesteps and the core opens")
  check(anchor_sites.size()>15 and bank_layouts.size()>4,"multiple seeds move the arena landmarks")
  orchard_pressure(game,now)
- game.players.erase(2)
- game.players.erase(3)
- game.players.erase(4)
+ ExpeditionCase.remove_actor(game, 2)
+ ExpeditionCase.remove_actor(game, 3)
+ ExpeditionCase.remove_actor(game, 4)
 
  build(game,Routes.DROWNED,7713)
- player.pos=Routes.bank(Routes.crossings(game.map_seed),1,0.0)
+ player.pos=Routes.bank(Routes.crossings(game.participation.seed()),1,0.0)
  game.tactics.memory.lair_tracks={1:{"streak":9}}
- var blocked:=Routes.bank(Routes.crossings(game.map_seed),0,1.0)
+ var blocked:=Routes.bank(Routes.crossings(game.participation.seed()),0,1.0)
  game.Bosses.hazard(game,blocked,1.4,now,2200,"lair_tide",0)
  check(Lairs.commit(game,"grasping_pool",1,now),"base pool still commits with a blocked alternate crossing")
  check(game.tactics.memory.lair_plan.variant.is_empty(),"adaptation falls back when the other bank is unsafe")
@@ -151,12 +153,12 @@ func orchard_pressure(game: Node, now: int) -> void:
  var player: Dictionary=game.players[1]
  for id in range(2,5):
   game.add_player(id)
-  game.players[id].wild=true
+  ExpeditionCase.set_membership(game, game.players[id], true)
   game.players[id].profile_ready=true
  for stamp in range(17,41):
   build(game,Routes.ORCHARD,stamp*73)
   game.tactics.boss_phase=2
-  game.battlefield.configure(0,2,game.map_seed,Routes.ORCHARD,2)
+  game.battlefield.configure(0,2,game.participation.seed(),Routes.ORCHARD,2)
   game.tactics.position=Vector3(0,0,1).rotated(Vector3.UP,stamp*.2)
   player.pos=Vector3(0,0,7.5).rotated(Vector3.UP,stamp*.2)
   var sweep:=Lairs.draft(game,"root_sweep",1,false)
@@ -201,7 +203,7 @@ func orchard_pressure(game: Node, now: int) -> void:
   check(release.shape=="orchard_cage" and release.reach==hint.radius and release.width==hint.inner and release.span==hint.span,"cage impact uses the warning footprint")
 
  for id in range(2,5):
-  game.players[id].wild=false
+  ExpeditionCase.set_membership(game, game.players[id], false)
  build(game,Routes.ORCHARD,9143)
  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
  player.pos=Vector3(0,0,14.5)

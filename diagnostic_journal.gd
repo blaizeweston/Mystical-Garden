@@ -1,4 +1,5 @@
 extends Logger
+const Participation = preload("res://expedition_participation.gd")
 # Local, bounded and independent of gameplay save transactions.
 static var current: Logger
 const SCHEMA:=1
@@ -202,9 +203,10 @@ func _log_error(function: String,source: String,line: int,code: String,rationale
 
 static func player_state(p: Dictionary) -> Dictionary:
  var result={}
- for key in ["pos","wild","lost_health","damage_seq","vitals_revision","frame","weapon_kind","weapon","secondary","catalyst","graft_part","prepared","prepared_secondary","prepared_catalyst","attack_combo","carried_parts","run_upgrades"]:
+ for key in ["pos","lost_health","damage_seq","vitals_revision","frame","weapon_kind","weapon","secondary","catalyst","graft_part","prepared","prepared_secondary","prepared_catalyst","attack_combo","carried_parts","run_upgrades"]:
   if p.has(key):result[key]=p[key]
  if p.has(PlayerLifecycle.STATE) or p.has("fallen"):
+  result.wild = Participation.is_wild(p)
   result.fallen = PlayerLifecycle.fallen(p)
  if p.has(PlayerVitals.STATE) or p.has("hp"):
   result.hp = PlayerVitals.current_hp(p)

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -56,11 +58,11 @@ func run() -> void:
 
 
 func arena() -> void:
-	game.combat_epoch+=1
-	game.destination=0
-	game.depth=1
-	game.encounter_number=1
-	game.difficulty_cycle=0
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
+	ExpeditionCase.set_world(game, {"destination": 0})
+	ExpeditionCase.set_world(game, {"depth": 1})
+	ExpeditionCase.set_world(game, {"encounter_number": 1})
+	ExpeditionCase.set_world(game, {"difficulty_cycle": 0})
 	game.tactics.boss_kind=-1
 	game.encounter.set_hp(-1, 800)
 	game.tactics.position=Vector3(0,0,-2)
@@ -88,9 +90,9 @@ func arena() -> void:
 
 func gate_recovery() -> void:
 	arena()
-	game.encounter_number=41
-	game.depth=5
-	game.difficulty_cycle=2
+	ExpeditionCase.set_world(game, {"encounter_number": 41})
+	ExpeditionCase.set_world(game, {"depth": 5})
+	ExpeditionCase.set_world(game, {"difficulty_cycle": 2})
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(48)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(50)
 	check(Sustain.recovery_center_hp(false,2)==16 and Sustain.recovery_center_hp(true,2)==26,"floor and biome recovery scale at different depths")
@@ -105,12 +107,12 @@ func gate_recovery() -> void:
 		ally.pos=player.pos
 		if game.upgrade_checkpoint_open():
 			game.checkpoint_pending=true
-			game.checkpoint_ready={1:game.encounter_number,2:game.encounter_number}
+			game.checkpoint_ready={1:game.participation.floor(),2:game.participation.floor()}
 		var before:=int(PlayerVitals.current_hp(player))
 		var ally_before:=int(PlayerVitals.current_hp(ally))
-		game._use_checkpoint(1,true)
+		ExpeditionCase.Transitions.commit_checkpoint(game, 1,true)
 		var gained:=int(PlayerVitals.current_hp(player))-before
-		check(game.encounter_number==step[0] and gained in range(step[1],step[2]+1),"normal gate commit rolls the displayed recovery range")
+		check(game.participation.floor()==step[0] and gained in range(step[1],step[2]+1),"normal gate commit rolls the displayed recovery range")
 		check(int(PlayerVitals.current_hp(ally))-ally_before==gained,"gate recovery shares its roll")
 		IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(player), 28)
 		IncomingPlayerHit.apply_health_loss(game, 2, PlayerLifecycle.generation(ally), 28)
@@ -134,21 +136,21 @@ func kill_budget() -> void:
 	arena()
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(99)
 	finish_scout(false,1000)
-	check(PlayerVitals.current_hp(player)==100 and Sustain.kill_remaining(player,game.combat_epoch)==23,"overheal spends only actual HP")
+	check(PlayerVitals.current_hp(player)==100 and Sustain.kill_remaining(player,game.participation.epoch())==23,"overheal spends only actual HP")
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(20)
 	var state := Preview.heal_rng.state
 	finish_scout(true,2000)
 	check(PlayerVitals.current_hp(player)==20 and Preview.heal_rng.state==state,"a summoned kill cannot roll or consume the budget")
 	for index in 5:
 		finish_scout(false,3000+index*100)
-	check(PlayerVitals.current_hp(player)==43 and Sustain.kill_remaining(player,game.combat_epoch)==0,"large packs cannot exceed the per-floor kill heal budget")
+	check(PlayerVitals.current_hp(player)==43 and Sustain.kill_remaining(player,game.participation.epoch())==0,"large packs cannot exceed the per-floor kill heal budget")
 	player.graft_part=game.Parts.monster_part(6)
 	var stats: Dictionary=game.weapon_stats(player)
 	check(stats.heal_on_kill>0 and stats.kill_heal_remaining==0,"owner stats expose the remaining budget")
 	var view:=Summary.project(game,player,stats)
 	check(view.totals.has(["Kill healing left this floor","0 / 24 HP"]),"Tab shows the exhausted floor budget")
-	game.combat_epoch+=1
-	check(Sustain.kill_remaining(player,game.combat_epoch)==24,"the next floor renews the budget")
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
+	check(Sustain.kill_remaining(player,game.participation.epoch())==24,"the next floor renews the budget")
 
 
 func pulse_and_refresh() -> void:
@@ -193,7 +195,7 @@ func drains() -> void:
 
 func revival() -> void:
 	arena()
-	game.encounter_number=3
+	ExpeditionCase.set_world(game, {"encounter_number": 3})
 	game.encounter.set_hp(-1, 0)
 	player.pos=game.battlefield.advance
 	ally.pos=player.pos

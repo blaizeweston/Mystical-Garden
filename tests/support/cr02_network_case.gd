@@ -1,5 +1,7 @@
 extends RefCounted
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
@@ -95,15 +97,15 @@ func host(menu: Node, mismatch: bool) -> void:
 	world.progress.add_parts(invalid_core,1)
 	var before: int = world.progress.part_count(invalid_core)
 	local.prepared = invalid_core
-	world.enter_wilds(1,local)
-	check(not local.wild and world.travel_kind.is_empty() and before>0
+	ExpeditionCase.Transitions.enter(world, 1,local)
+	check(not ExpeditionCase.is_wild(local) and world.participation.travel_kind().is_empty() and before>0
 		and world.progress.part_count(invalid_core)==before and "Core material is invalid" in world.status,
 		"invalid Core departure is refused before proposing travel or debiting stock")
 	local.prepared=0
 	world.map_rng.seed=16
 	world.PartyTravel.request(world,1,"depart")
-	mark("depart",str(world.travel_epoch))
-	if not check(await until(func(): return remote.wild and not world.battlefield.generated.is_empty()),"native-only party enters actual generated Wilds"):
+	mark("depart",str(world.participation.travel_epoch()))
+	if not check(await until(func(): return ExpeditionCase.is_wild(remote) and not world.battlefield.generated.is_empty()),"native-only party enters actual generated Wilds"):
 		return
 	# A real guest Q is authoritative on host, and the actual block
 	# consumes the guard and reports the protected remote recipient.
@@ -126,7 +128,7 @@ func host(menu: Node, mismatch: bool) -> void:
 		"host-granted Ward responds around its protected remote ally")
 	# Both actors have native-only kits. A cleared checkpoint exercises the
 	# real reliable offer UI and owner-validated command path.
-	world.encounter_number=6
+	ExpeditionCase.set_world(world, {"encounter_number": 6})
 	world.deepest_milestone=6
 	world.encounter.set_hp(-1, 0)
 	world.encounter.clear_scouts()
@@ -137,7 +139,7 @@ func host(menu: Node, mismatch: bool) -> void:
 	local[world.ExpeditionWallet.STATE] = world.ExpeditionWallet.Wallet.new(0, world.run_wallet(local))
 	var host_wallet = world.wallet_for(local)
 	local.checkpoint_offers=["rift_hook"]
-	world.use_checkpoint(1,true)
+	ExpeditionCase.Transitions.checkpoint(world, 1,true)
 	var cards_api = world.AffinityCards
 	var host_offer: Dictionary = cards_api.ledger(local).offer()
 	var initial_ledger = cards_api.ledger(remote)
@@ -159,8 +161,8 @@ func host(menu: Node, mismatch: bool) -> void:
 		and remote.run_upgrades.is_empty() and initial_ledger.offer()==initial,
 		"host debits 2/4/6 once for the guest, both selections are free, and the prior offer stays intact")
 	world.PartyTravel.request(world,1,"advance")
-	mark("checkpoint",str(world.travel_epoch))
-	if not check(await until(func(): return read("guest-ready")=="ok" and world.encounter_number==7),
+	mark("checkpoint",str(world.participation.travel_epoch()))
+	if not check(await until(func(): return read("guest-ready")=="ok" and world.participation.floor()==7),
 		"both selections preserve the actual onward Gate"):return
 	check(cards_api.ledger(remote)==remote_cards and remote_cards.copies().size()==1
 		and cards_api.ledger(local)==host_cards and host_cards.copies().size()==1,
@@ -224,6 +226,6 @@ func guest(menu: Node, mismatch: bool) -> void:
 		"host asks for onward readiness after card acquisition"):return
 	world.send_garden_action("travel_ready:"+read("checkpoint"))
 	mark("guest-ready")
-	if not check(await until(func(): return read("done")=="ok" and world.encounter_number==7),"guest sees authoritative next floor"):
+	if not check(await until(func(): return read("done")=="ok" and world.participation.floor()==7),"guest sees authoritative next floor"):
 		return
 	mark("guest-done")

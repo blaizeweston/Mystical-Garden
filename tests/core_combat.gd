@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Core = preload("res://core_combat.gd")
@@ -62,8 +64,8 @@ func run() -> void:
 	var preview: String = game.loadout_view.description.text
 	check(preview.contains("Thorn Line") and preview.contains("Primary tag · Thorn") and preview.contains("Secondary tags · piercing"), "bench previews the exact prepared skill")
 	check(game.progress.parts[0] == 1 and game.progress.parts[1] == 1, "selection reserves without consuming")
-	game.enter_wilds(1, p)
-	check(p.wild and p.weapon == thorn and p.secondary == moss and game.encounter_number == 1, "real departure crafts the selected weapon")
+	ExpeditionCase.Transitions.enter(game, 1, p)
+	check(ExpeditionCase.is_wild(p) and p.weapon == thorn and p.secondary == moss and game.participation.floor() == 1, "real departure crafts the selected weapon")
 	check(game.progress.parts[0] == 0 and game.progress.parts[1] == 0, "departure consumes both materials once")
 	check(game.weapon_stats(p).core_build.skill == Rules.resolve("0_0", [thorn, moss, 0], 0).skill, "live build matches prepared skill")
 	var direction := legal_aim(game, p, build.skill)
@@ -138,15 +140,15 @@ func run() -> void:
 	game.encounter.set_hp(-1, 0)
 	game.encounter.clear_scouts()
 	p.pos = game.battlefield.advance
-	game.use_checkpoint(1, true)
-	check(game.encounter_number == 2 and p.core_ready_at == cooldown, "ordinary floor gate preserves cooldown")
+	ExpeditionCase.Transitions.checkpoint(game, 1, true)
+	check(game.participation.floor() == 2 and p.core_ready_at == cooldown, "ordinary floor gate preserves cooldown")
 	p.core_ready_at = 0
 	p.core_cast_until = 0
 	p.cast_until = 0
 	game.garden_action(1, request)
 	check(int(p.core_ready_at) == 0 and Core.hints(game).is_empty(), "old floor request is rejected")
 	game._garden_action(1, "abandon_run")
-	check(not p.wild and Core.owner_state(p, Time.get_ticks_msec()).is_empty(), "Garden hides the Core combat action")
+	check(not ExpeditionCase.is_wild(p) and Core.owner_state(p, Time.get_ticks_msec()).is_empty(), "Garden hides the Core combat action")
 	finish(game)
 
 

@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Participation = preload("res://expedition_participation.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const Actors = preload("res://frost_combat.gd")
@@ -63,7 +65,7 @@ static func grant(game: Node, event: RefCounted, id: int) -> void:
 
 static func movement(game: Node, p: Dictionary, before: Vector3, after: Vector3) -> void:
 	var follow: Dictionary=p.get(FOLLOW,{})
-	if follow.get("phase")!="prepared" or int(follow.until)<=Clock.now(game) or int(follow.epoch)!=game.combat_epoch: return
+	if follow.get("phase")!="prepared" or int(follow.until)<=Clock.now(game) or int(follow.epoch)!=game.participation.epoch(): return
 	follow.distance += after-before
 	if Vector3(follow.distance).length()>=READY_DISTANCE:
 		follow.phase="ready"
@@ -78,7 +80,7 @@ static func prepare(game: Node, event: RefCounted) -> void:
 	var existing: Dictionary=p.get(FOLLOW,{})
 	if int(existing.get("until",0))<=elapsed:
 		p[FOLLOW]={"phase":"prepared","distance":Vector3.ZERO,"until":elapsed+FOLLOW_MS,
-			"actor":event.actor,"quality":event.quality,"damage":event.potency().follow_hp,"epoch":game.combat_epoch}
+			"actor":event.actor,"quality":event.quality,"damage":event.potency().follow_hp,"epoch":game.participation.epoch()}
 
 
 static func launch(game: Node, p: Dictionary, stats: Dictionary, lanes: int) -> void:
@@ -133,7 +135,7 @@ static func step(game: Node, actor: int, forward: Vector3, distance := STEP_DIST
 	var stops: Array=[]
 	for id in game.players:
 		var p: Dictionary=game.players[id]
-		if id!=actor and p.get("wild",false) and game.Life.alive(p): stops.append([p.pos,PLAYER_RADIUS*2])
+		if id!=actor and Participation.is_wild(p) and game.Life.alive(p): stops.append([p.pos,PLAYER_RADIUS*2])
 	for target in range(-1,game.encounter.scout_count()):
 		if Actors.valid_target(game,target): stops.append([game.enemy_position(target),PLAYER_RADIUS+Hurt.radius(game,target)])
 	var landing:=origin
@@ -152,7 +154,7 @@ static func step(game: Node, actor: int, forward: Vector3, distance := STEP_DIST
 
 static func represents(game: Node, id: int) -> bool:
 	var p: Dictionary=game.players.get(id,{})
-	return p.get("wild",false) and game.Life.alive(p)
+	return Participation.is_wild(p) and game.Life.alive(p)
 
 
 static func trace(game: Node, event: RefCounted, id: int, at: Vector3) -> void:
@@ -169,7 +171,7 @@ static func trace(game: Node, event: RefCounted, id: int, at: Vector3) -> void:
 			continue
 		if at.distance_to(pos)>TRACE_RADIUS or not game.battlefield.clear_line(pos,at): continue
 		body[TRACE]={"actor":event.actor,"source_life":event.life_generation,"represented":id,
-			"represented_life":PlayerLifecycle.generation(game.players[id]),"point":at,"until":elapsed+duration,"epoch":game.combat_epoch}
+			"represented_life":PlayerLifecycle.generation(game.players[id]),"point":at,"until":elapsed+duration,"epoch":game.participation.epoch()}
 		body[RESIST]=elapsed+TRACE_RESIST
 	game.emit_combat_event("ability","spirit_trace",at,at,duration/1000.0,COLOR,.85,event.actor,{"label":"Fading trace"})
 	Journal.event("combat","spirit_trace",{"actor":event.actor,"represented":id,"quality":event.quality,"duration_ms":duration})
@@ -178,7 +180,7 @@ static func trace(game: Node, event: RefCounted, id: int, at: Vector3) -> void:
 static func diversion(game: Node, body: Dictionary, target: int) -> Vector3:
 	var trace_state: Dictionary=body.get(TRACE,{})
 	if trace_state.is_empty(): return Vector3.INF
-	if int(trace_state.until)<=Clock.now(game) or int(trace_state.epoch)!=game.combat_epoch or target!=int(trace_state.represented) or not represents(game,target) \
+	if int(trace_state.until)<=Clock.now(game) or int(trace_state.epoch)!=game.participation.epoch() or target!=int(trace_state.represented) or not represents(game,target) \
 			or not PlayerLifecycle.matches(game.players.get(target,{}),int(trace_state.represented_life)) \
 			or not PlayerLifecycle.matches(game.players.get(trace_state.actor,{}),int(trace_state.source_life)):
 		body.erase(TRACE)

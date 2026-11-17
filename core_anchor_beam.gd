@@ -33,7 +33,7 @@ static func fire(game: Node, id: int, cast: Dictionary, end: Vector3, now: int) 
 	var until := now + int(cast.skill.root_ms)
 	var targets: Array[int] = []
 	for hit in Lance.ordered_hits(game, star, end, radius):
-		if int(cast.get("epoch", game.combat_epoch)) != game.combat_epoch:
+		if int(cast.get("epoch", game.participation.epoch())) != game.participation.epoch():
 			break
 		if not game.encounter.alive(hit.target) or Contact.token(game, hit.target) != hit.token:
 			continue

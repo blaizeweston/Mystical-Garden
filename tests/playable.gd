@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -64,7 +66,7 @@ func run() -> void:
 
 func place(id: int, where: Vector3) -> void:
 	game.players[id].hurt_until=0 # Isolate explicitly positioned mechanic fixtures from prior contacts.
-	if where==Stage.GATE and not game.players[id].wild:
+	if where==Stage.GATE and not ExpeditionCase.is_wild(game.players[id]):
 		var p: Dictionary=game.players[id]
 		# These combat fixtures deliberately choose bare slots when a saved plan
 		# lacks materials; classes_weapons tests the normal gate rejection.
@@ -72,10 +74,10 @@ func place(id: int, where: Vector3) -> void:
 			var part:=int(p[slot])
 			if part!=0 and (not Parts.is_plant(part) or game.available_parts(p,part)==0): p[slot]=0
 	# Most mechanic fixtures use authored cover and exact positions.
-	if game.map_seed != 0 and game.multiplayer.is_server():
-		game.map_seed = 0
-		game.battlefield.configure(game.destination, game.depth)
-	if where == Stage.GATE and game.players[id].wild:
+	if game.participation.seed() != 0 and game.multiplayer.is_server():
+		ExpeditionCase.set_world(game, {"map_seed": 0})
+		game.battlefield.configure(game.participation.route(), game.participation.depth())
+	if where == Stage.GATE and ExpeditionCase.is_wild(game.players[id]):
 		game.players[id].pos = game.battlefield.advance
 		extraction_fixture = true
 	else:
@@ -92,7 +94,7 @@ func verify_loop() -> void:
 		await create_timer(0.50).timeout
 		place(1, Stage.GATE)
 		interact()
-		check(game.players[1].wild, "entry to the Wilds")
+		check(ExpeditionCase.is_wild(game.players[1]), "entry to the Wilds")
 		game.encounter.clear_scouts()
 		game.encounter.set_hp(-1, 3) # Fixed three-contact acquisition fixture, independent of encounter tuning.
 		# Keep pickup and gate interaction separate even when the elite spawns at the exit.
@@ -112,7 +114,7 @@ func verify_loop() -> void:
 			"pickup occurs only once and does not bank loot")
 		place(1, Stage.GATE)
 		interact()
-		check(not game.players[1].wild, "return to the Garden")
+		check(not ExpeditionCase.is_wild(game.players[1]), "return to the Garden")
 		place(1, Stage.PLOTS[kind])
 		interact()
 		check(not game.progress.planted[kind], "unidentified seed cannot be planted")
@@ -164,8 +166,8 @@ func verify_loop() -> void:
 	verify_endless_route()
 	await verify_spaced_pack()
 	verify_seed_variety()
-	game.destination = Campaign.HOLLOW
-	game.depth = 5
+	ExpeditionCase.set_world(game, {"destination": Campaign.HOLLOW})
+	ExpeditionCase.set_world(game, {"depth": 5})
 	game.reset_encounter()
 	check(game.encounter.scout_count()>=6 and game.encounter.scout_count()<=game.EncounterConfig.MAX_SCOUTS and game.enemy_health()>0, "late encounters field larger bounded packs")
 	for scout in game.encounter.scout_tactics():
@@ -177,7 +179,7 @@ func verify_expedition() -> void:
 	var starting_health: int=game.encounter_health()
 	place(1, Stage.GATE)
 	interact()
-	check(game.players[1].wild, "cannot extract during a live encounter")
+	check(ExpeditionCase.is_wild(game.players[1]), "cannot extract during a live encounter")
 	game.encounter.clear_scouts()
 	game.encounter.set_hp(-1, 1)
 	await create_timer(0.50).timeout
@@ -187,15 +189,15 @@ func verify_expedition() -> void:
 	interact()
 	place(1, Stage.DEEPER_GATE)
 	interact()
-	check(game.depth == 2 and game.enemy_health() > starting_health and game.players[1].carried_seeds.size() == 1,
+	check(game.participation.depth() == 2 and game.enemy_health() > starting_health and game.players[1].carried_seeds.size() == 1,
 		"descending starts a tougher encounter and carries loot forward")
 	game.players[1][PlayerVitals.STATE] = game.players[1][PlayerVitals.STATE].with_hp(1)
 	game.players[1].hurt_until=0
 	place(1, game.tactics.position)
 	preload("res://leader_behavior.gd").resolve(game, Time.get_ticks_msec())
-	check(not game.players[1].wild and game.players[1].weapon == 0
+	check(not ExpeditionCase.is_wild(game.players[1]) and game.players[1].weapon == 0
 		and game.players[1].carried_seeds.is_empty()
-		and game.progress.unknown.is_empty() and game.depth == 1,
+		and game.progress.unknown.is_empty() and game.participation.depth() == 1,
 		"a wipe loses unbanked loot and resets the route")
 	place(1, Stage.GATE)
 	interact()
@@ -213,7 +215,7 @@ func verify_expedition() -> void:
 	check(game.players[1].carried_seeds.size() == 2, "deeper briar yields two seeds")
 	place(1, Stage.GATE)
 	interact()
-	check(not game.players[1].wild and game.progress.unknown.size() == 2
+	check(not ExpeditionCase.is_wild(game.players[1]) and game.progress.unknown.size() == 2
 		and game.players[1].carried_seeds.is_empty(), "extracting banks all carried seeds")
 	var reload := Progress.new()
 	reload.path = game.progress.path
@@ -226,7 +228,7 @@ func verify_garden_growth() -> void:
 	check(game.progress.studying_flowering, "study begins at the Heart")
 	place(1, Stage.GATE)
 	interact()
-	game.depth = 2
+	ExpeditionCase.set_world(game, {"depth": 2})
 	game.deepest_milestone = 2
 	game.players[1].carried_seeds.assign([0, 1])
 	game.send_garden_action("pouch")
@@ -346,7 +348,7 @@ func verify_altar_experiment() -> void:
 
 func verify_upgrade_route() -> void:
 	for room in range(1, game.CHECKPOINT_INTERVAL + 1):
-		check(game.depth == room, "route advances one room at a time")
+		check(game.participation.depth() == room, "route advances one room at a time")
 		place(1, Stage.DEEPER_GATE)
 		game.send_garden_action("upgrade_power")
 		check(game.wallet_for(game.players[1]).spent_essence() == 0, "live encounter does not offer upgrades")
@@ -367,21 +369,21 @@ func verify_upgrade_route() -> void:
 		if room < game.CHECKPOINT_INTERVAL:
 			game.send_garden_action("upgrade_power")
 			check(game.wallet_for(game.players[1]).spent_essence() == 0, "earlier rooms do not offer upgrades")
-			game.use_checkpoint(1,true)
+			ExpeditionCase.Transitions.checkpoint(game, 1,true)
 	check(game.deepest_milestone == game.CHECKPOINT_INTERVAL, "clears earn run currency")
 	# This fixture skips all scout rewards; fund the forced technique card separately.
 	var missing:=maxi(0,int(game.RunUpgrades.get_upgrade("technique").cost)-game.run_wallet(game.players[1]))
 	var funding_sparks := missing * int(game.Director.config().essence_sparks_per_point)
 	game.players[1][game.ExpeditionWallet.STATE] = game.wallet_for(game.players[1]).credit_sparks(funding_sparks)
-	game.players[1].offer_floor=game.encounter_number
+	game.players[1].offer_floor=game.participation.floor()
 	game.players[1].checkpoint_offers=["power","technique","reach"]
-	game.use_checkpoint(1,true)
+	ExpeditionCase.Transitions.checkpoint(game, 1,true)
 	game.send_garden_action("upgrade_technique")
 	game.send_garden_action("upgrade_power")
 	check(game.players[1].technique == 1 and game.wallet_for(game.players[1]).spent_essence() == 8
 		and game.players[1].power == 0, "checkpoint allows exactly one purchase")
-	game.use_checkpoint(1,true)
-	check(game.depth == game.CHECKPOINT_INTERVAL+1 and game.players[1].technique == 1,
+	ExpeditionCase.Transitions.checkpoint(game, 1,true)
+	check(game.participation.depth() == game.CHECKPOINT_INTERVAL+1 and game.players[1].technique == 1,
 		"upgrade carries into the next room")
 	await create_timer(0.50).timeout
 	place(1, game.tactics.position)
@@ -423,9 +425,9 @@ func verify_hook_grafting() -> void:
 	game.handle_loadout_action(1,p,"pack_4")
 	place(1,Stage.GATE)
 	interact()
-	check(p.wild and p.carried_parts[Parts.HOOK]==1 and p.graft_part==0,"stash trophy departs as uninstalled cargo")
-	game.depth=game.GRAFT_ROOM
-	game.encounter_number=game.GRAFT_ROOM
+	check(ExpeditionCase.is_wild(p) and p.carried_parts[Parts.HOOK]==1 and p.graft_part==0,"stash trophy departs as uninstalled cargo")
+	ExpeditionCase.set_world(game, {"depth": game.GRAFT_ROOM})
+	ExpeditionCase.set_world(game, {"encounter_number": game.GRAFT_ROOM})
 	game.encounter.clear_scouts()
 	game.encounter.set_hp(-1, 5)
 	p.pos=game.battlefield.graft
@@ -443,8 +445,8 @@ func verify_hook_grafting() -> void:
 	game.send_garden_action("graft_install_4")
 	check(p.carried_parts[Parts.THORN]==1,"filled monster slot cannot consume plant material")
 	game.encounter.set_hp(-1, 0)
-	game.encounter_number=12
-	game.depth=5
+	ExpeditionCase.set_world(game, {"encounter_number": 12})
+	ExpeditionCase.set_world(game, {"depth": 5})
 	game.deepest_milestone=12
 	p.pos=game.battlefield.advance
 	p.offer_floor=12
@@ -454,7 +456,7 @@ func verify_hook_grafting() -> void:
 	game.buy_upgrade(1,p,2)
 	check(p.rift_hook and game.wallet_for(p).spent_essence()==12 and game.progress.rift_hook_discovered,"Veil plant plus monster Hook can unlock Rift synergy")
 	game.send_garden_action("extract")
-	check(not p.wild and p.graft_part==0,"extract clears installed monster graft")
+	check(not ExpeditionCase.is_wild(p) and p.graft_part==0,"extract clears installed monster graft")
 
 
 func verify_synergy_research() -> void:
@@ -484,13 +486,13 @@ func verify_modular_parts() -> void:
 	check(Parts.has_rift_pair(Parts.HOOK, Parts.VEIL) and Parts.has_rift_pair(Parts.VEIL, Parts.HOOK),
 		"synergy follows the installed pair in either order")
 	var p: Dictionary = game.players[1]
-	game.depth = game.GRAFT_ROOM
-	game.encounter_number = game.GRAFT_ROOM
+	ExpeditionCase.set_world(game, {"depth": game.GRAFT_ROOM})
+	ExpeditionCase.set_world(game, {"encounter_number": game.GRAFT_ROOM})
 	game.encounter.clear_scouts()
 	game.encounter.set_hp(-1, 0)
 	p.secondary = Parts.EMPTY
 	p.graft_part = Parts.EMPTY
-	p.wild = true
+	ExpeditionCase.set_membership(game, p, true)
 	p.carried_parts[Parts.HOOK] = 1
 	p.carried_parts[Parts.THORN] = 1
 	p.graft_choice = Parts.HOOK
@@ -560,8 +562,8 @@ func verify_adaptation() -> void:
 	game.send_garden_action("frame")
 	place(1, Stage.GATE)
 	interact()
-	game.depth = 3
-	game.encounter_number=3
+	ExpeditionCase.set_world(game, {"depth": 3})
+	ExpeditionCase.set_world(game, {"encounter_number": 3})
 	game.reset_encounter()
 	game.encounter.clear_scouts()
 	game.encounter.set_hp(-1, 2)
@@ -577,7 +579,7 @@ func verify_adaptation() -> void:
 	check(game.ranged_clears == 2, "distant strikes contribute to adaptive pressure")
 	place(1, Stage.DEEPER_GATE)
 	interact()
-	check(game.depth == 4 and (game.current_mutations(0,0,0)&Enemies.REACH)!=0, "deep encounter can adapt during the run across a varied elite pool")
+	check(game.participation.depth() == 4 and (game.current_mutations(0,0,0)&Enemies.REACH)!=0, "deep encounter can adapt during the run across a varied elite pool")
 	game.tactics.longlimb=true # Isolate the wider-telegraph contact fixture from species-specific mutation rolls.
 	var hp: int = PlayerVitals.current_hp(p)
 	place(1, game.tactics.position + Vector3.RIGHT * 2.5)
@@ -598,7 +600,7 @@ func verify_adaptation() -> void:
 	game.encounter.set_hp(-1, 0)
 	place(1, Stage.DEEPER_GATE)
 	interact()
-	game.depth=4;game.encounter_number=4;game.reset_encounter()
+	ExpeditionCase.set_world(game, {"depth": 4});ExpeditionCase.set_world(game, {"encounter_number": 4});game.reset_encounter()
 	check((game.current_mutations(0,0,0)&Enemies.REACH)!=0, "later expedition can use saved adaptation after the protected opening")
 	var learned: int = reload.ranged_pressure
 	reload.remember_expedition(0)
@@ -676,8 +678,8 @@ func verify_endless_route() -> void:
 	p.character.loadouts[p.frame].parts=[0,0,0]
 	p.pos = Stage.GATE
 	interact()
-	check(p.wild and game.map_seed > 0, "free Grove departure generates a map")
-	var original_seed: int = game.map_seed
+	check(ExpeditionCase.is_wild(p) and game.participation.seed() > 0, "free Grove departure generates a map")
+	var original_seed: int = game.participation.seed()
 	var original_layout: Array = game.battlefield.barriers.duplicate()
 	var original_clearings: Array = game.battlefield.clearings.duplicate()
 	var carried_before: int = p.carried_seeds.size()
@@ -692,7 +694,7 @@ func verify_endless_route() -> void:
 		"host and guest can reproduce the same terrain")
 	var previous_health := 0
 	for site in [Campaign.GROVE, Campaign.MIRE, Campaign.HOLLOW]:
-		check(game.destination == site and game.depth == 1, "free route traverses biomes in order")
+		check(game.participation.route() == site and game.participation.depth() == 1, "free route traverses biomes in order")
 		for local_encounter in game.ROUTE_ROOMS:
 			game.encounter.clear_scouts()
 			game.encounter.set_hp(-1, 1)
@@ -700,19 +702,19 @@ func verify_endless_route() -> void:
 			p.strike_at = 0
 			game.send_action(true)
 			game.update_projectiles(Time.get_ticks_msec()+1000)
-			var floor_before: int=game.encounter_number
+			var floor_before: int=game.participation.floor()
 			check(game.encounter_cleared(),"route fixture defeats the leader on floor %d" % floor_before)
 			p.pos = game.battlefield.advance
 			# A generated cache or nearby loot can receive E before the gate.
 			for attempt in 6:
 				interact()
-				if game.encounter_number!=floor_before:break
-			check(game.encounter_number==floor_before+1,"onward gate advances floor %d" % floor_before)
+				if game.participation.floor()!=floor_before:break
+			check(game.participation.floor()==floor_before+1,"onward gate advances floor %d" % floor_before)
 		previous_health = game.encounter_health()
-	check(game.destination == Campaign.GROVE and game.difficulty_cycle == 1
-		and game.encounter_number == 19 and previous_health > game.ENEMY_HEALTH,
+	check(game.participation.route() == Campaign.GROVE and game.participation.cycle() == 1
+		and game.participation.floor() == 19 and previous_health > game.ENEMY_HEALTH,
 		"crossing the Hollow loops into a harder cycle")
-	check(game.map_seed != original_seed and game.battlefield.clearings != original_clearings,
+	check(game.participation.seed() != original_seed and game.battlefield.clearings != original_clearings,
 		"later encounters generate different terrain")
 	# A random rare boss on floor 19 correctly disables reinforcements.
 	# Exercise normal encounter pressure independently of the boss roll.
@@ -725,7 +727,7 @@ func verify_endless_route() -> void:
 	game.encounter.clear_scouts()
 	game.encounter.set_hp(-1, 0)
 	# Fast-forward the fixture to the next cleared extraction checkpoint.
-	game.encounter_number = 24
+	ExpeditionCase.set_world(game, {"encounter_number": 24})
 	game.deepest_milestone = 24
 	p.pos = game.battlefield.advance
 	game.send_garden_action("extract")
@@ -740,10 +742,10 @@ func verify_endless_route() -> void:
 	p.pos = Stage.GATE
 	game.send_garden_action("destination")
 	interact()
-	check(game.destination == Campaign.MIRE and not p.wild, "unfunded shortcuts cannot depart")
+	check(game.participation.route() == Campaign.MIRE and not ExpeditionCase.is_wild(p), "unfunded shortcuts cannot depart")
 	game.progress.parts.assign([1, 1, 0])
 	interact()
-	check(p.wild and game.progress.parts.slice(0,3) == [0, 0, 0], "paid shortcut spends the quoted cost once")
+	check(ExpeditionCase.is_wild(p) and game.progress.parts.slice(0,3) == [0, 0, 0], "paid shortcut spends the quoted cost once")
 
 
 func verify_spaced_pack() -> void:
@@ -762,8 +764,8 @@ func verify_spaced_pack() -> void:
 	game.move_player(1, Vector2.RIGHT, 0.1)
 	check(player.pos.x > 12.0, "player can use the expanded Wilds bounds")
 	# The director starts reserving a control slot at floor four. Partner order can vary.
-	game.depth = 4
-	game.encounter_number = 4
+	ExpeditionCase.set_world(game, {"depth": 4})
+	ExpeditionCase.set_world(game, {"encounter_number": 4})
 	game.reset_encounter()
 	check(game.encounter.scout_count() >= 3 and game.encounter.scout_tactics().any(func(scout): return scout.ranged)
 		and not game.encounter.scout(0).ranged, "floor four has a melee frontline and a ranged scout")
@@ -775,7 +777,7 @@ func verify_spaced_pack() -> void:
 	check(not game.encounter_cleared() and not player.loot_pending, "killing the leader leaves the scout active")
 	place(1, Stage.GATE)
 	interact()
-	check(player.wild, "checkpoint stays locked until the whole pack is defeated")
+	check(ExpeditionCase.is_wild(player), "checkpoint stays locked until the whole pack is defeated")
 	for slot in game.encounter.scout_count(): game.encounter.set_hp(slot, 2) # This fixture verifies target selection and pack-clear gating.
 	var scout: Dictionary = game.encounter.scout(0)
 	place(1, scout.pos + Vector3.RIGHT * 0.8)
@@ -887,8 +889,8 @@ func verify_host() -> void:
 
 
 func verify_shared_combat(guest: int) -> void:
-	game.players[1].wild = true
-	game.players[guest].wild = true
+	ExpeditionCase.set_membership(game, game.players[1], true)
+	ExpeditionCase.set_membership(game, game.players[guest], true)
 	place(1, game.tactics.position + Vector3.LEFT * 0.7)
 	place(guest, game.tactics.position + Vector3.RIGHT * 0.7)
 	await create_timer(1.0).timeout
@@ -901,14 +903,14 @@ func verify_shared_combat(guest: int) -> void:
 	game.encounter.set_hp(-1, 0)
 	place(1, Stage.DEEPER_GATE)
 	interact()
-	check(game.depth == 1, "checkpoint waits for the expedition party")
+	check(game.participation.depth() == 1, "checkpoint waits for the expedition party")
 	place(guest, Stage.DEEPER_GATE)
 	interact()
-	check(game.depth == 2, "gathered party descends together")
+	check(game.participation.depth() == 2, "gathered party descends together")
 	await wait_for_observation("depth2")
 	if not game.players.has(guest):
 		return
-	game.depth = 3
+	ExpeditionCase.set_world(game, {"depth": 3})
 	game.reset_encounter()
 	game.encounter.scout(0).kind = 7
 	game.encounter.scout(0).mutations = Enemies.BARK
@@ -917,19 +919,19 @@ func verify_shared_combat(guest: int) -> void:
 	await wait_for_observation("depth3")
 	if not game.players.has(guest):
 		return
-	game.depth = game.CHECKPOINT_INTERVAL
-	game.encounter_number = game.CHECKPOINT_INTERVAL
+	ExpeditionCase.set_world(game, {"depth": game.CHECKPOINT_INTERVAL})
+	ExpeditionCase.set_world(game, {"encounter_number": game.CHECKPOINT_INTERVAL})
 	game.encounter.clear_scouts()
-	game.deepest_milestone = game.depth
+	game.deepest_milestone = game.participation.depth()
 	game.encounter.clear_scouts()
 	game.encounter.set_hp(-1, 0)
 	place(1, Stage.DEEPER_GATE)
 	place(guest, Stage.DEEPER_GATE)
 	game.players[guest].contributed = true
-	game.players[1].wild=false
+	ExpeditionCase.set_membership(game, game.players[1], false)
 	for kill_index in 10: game._queue_monster_reward("legacy-xp-"+str(kill_index),0,0,Vector3.ZERO,false)
 	game.award_combat_progress()
-	game.players[1].wild=true
+	ExpeditionCase.set_membership(game, game.players[1], true)
 	check(game.players[1].character.xp[0] == 0 and game.players[guest].character.xp[0] == 10,
 		"combat rewards go to the participating character")
 	for step in 100:
@@ -981,7 +983,7 @@ func verify_personal_loot(guest: int) -> void:
 	restore_heart_fixture()
 	place(1, Stage.HEART);place(guest, Stage.HEART)
 	game.send_garden_action("awaken");game.garden_action(guest,"awaken")
-	check(not host.wild and not other.wild and not game.progress.finale_available(),"legacy restoration stays in the Garden while ending is deferred")
+	check(not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(other) and not game.progress.finale_available(),"legacy restoration stays in the Garden while ending is deferred")
 	game.tell(guest,"Ending deferred fixture")
 	await wait_for_observation("ending_deferred")
 
@@ -1035,26 +1037,26 @@ func verify_guest() -> void:
 		and game.players[id].hp == game.MAX_HEALTH, "guest sees the resolved strike")
 	for step in 25:
 		await create_timer(0.05).timeout
-		if game.depth == 2:
+		if game.participation.depth() == 2:
 			break
-	check(game.depth == 2, "guest receives the deeper encounter")
-	check(game.map_seed > 0, "guest receives the host's generated layout seed")
+	check(game.participation.depth() == 2, "guest receives the deeper encounter")
+	check(game.participation.seed() > 0, "guest receives the host's generated layout seed")
 	var generated := Battlefield.new()
-	generated.configure(game.destination, game.depth, game.map_seed)
+	generated.configure(game.participation.route(), game.participation.depth(), game.participation.seed())
 	check(generated.connected() and generated.clearings.size() >= 6,
 		"guest's seed reconstructs the same connected exploration map")
 	probe.acknowledge.rpc_id(1, "depth2")
 	for step in 25:
 		await create_timer(0.05).timeout
-		if game.depth == 3 and not game.client_pack.is_empty():
+		if game.participation.depth() == 3 and not game.client_pack.is_empty():
 			break
-	check(game.depth == 3 and game.client_pack.size() >= 24, "guest receives the encounter pack")
+	check(game.participation.depth() == 3 and game.client_pack.size() >= 24, "guest receives the encounter pack")
 	var form := Enemies.decode(game.client_campaign[19])
 	check(form.kind == 7 and form.mask == Enemies.BARK and form.tier == 2, "guest receives enemy species and evolved form")
 	probe.acknowledge.rpc_id(1, "depth3")
 	for step in 100:
 		await create_timer(0.05).timeout
-		if game.depth == game.CHECKPOINT_INTERVAL and game.players[id].wallet == 10:
+		if game.participation.depth() == game.CHECKPOINT_INTERVAL and game.players[id].wallet == 10:
 			break
 	check(game.players[id].wallet == 10 and game.players[1].wallet == 10,
 		"both players get equal currency")
@@ -1086,7 +1088,7 @@ func verify_guest() -> void:
 	for step in 100:
 		await create_timer(0.05).timeout
 		if game.status.contains("Ending deferred fixture"): break
-	check(not game.players[id].wild and game.client_campaign[17]==0,"guest retains ordinary Garden progression with finale deferred")
+	check(not ExpeditionCase.is_wild(game.players[id]) and game.client_campaign[17]==0,"guest retains ordinary Garden progression with finale deferred")
 	probe.acknowledge.rpc_id(1,"ending_deferred")
 
 
@@ -1102,7 +1104,7 @@ func interact() -> void:
 		# These focused mechanic fixtures skip traversal to a cleared extraction gate.
 		# checkpoint_extraction.gd checks the actual route restrictions separately.
 		if game.encounter_cleared():
-			game.encounter_number = ceili(game.encounter_number / float(game.EXTRACTION_INTERVAL)) * game.EXTRACTION_INTERVAL
+			ExpeditionCase.set_world(game, {"encounter_number": ceili(game.participation.floor() / float(game.EXTRACTION_INTERVAL)) * game.EXTRACTION_INTERVAL})
 		game.send_garden_action("extract")
 	else:
 		if game.at_garden_altar(game.players[1]): game.send_garden_action("altar_identify")
@@ -1111,7 +1113,7 @@ func interact() -> void:
 			# These seed-loop fixtures press through nearby trophies first; the
 			# separate loot tests assert single-press component pickup behavior.
 			var p: Dictionary=game.players[1]
-			if p.wild and p.loot_pending and p.pos.distance_to(game.drop_pos)<=1.45:
+			if ExpeditionCase.is_wild(p) and p.loot_pending and p.pos.distance_to(game.drop_pos)<=1.45:
 				for attempt in 32:
 					if game.nearest_inventory_drop(p).is_empty(): break
 					game.send_action(false)

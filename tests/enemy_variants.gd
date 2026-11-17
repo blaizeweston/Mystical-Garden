@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Attacks=preload("res://enemy_attack.gd")
 const Variants=preload("res://enemy_variants.gd")
@@ -28,17 +30,17 @@ func run() -> void:
  game.battlefield.configure(0,1);game.battlefield.barriers.clear()
  game.encounter.set_hp(-1, 0)
  var p: Dictionary=game.players[1]
- p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(0,0,5)
+ ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(0,0,5)
  var now:=Time.get_ticks_msec()
- game.encounter_number=2
+ ExpeditionCase.set_world(game, {"encounter_number": 2})
  game.progress.wilds_memory.score={"ranged":20,"choke":20,"kite":20,"burst":20}
  for kind in Variants.PROFILES:
   check(Variants.choose(game,kind,2).is_empty(),"opening floor protects players")
- game.encounter_number=12
+ ExpeditionCase.set_world(game, {"encounter_number": 12})
  for kind in Variants.PROFILES:
   var eligible:=false;var baseline:=false
   for stamp in 10:
-   game.map_seed=stamp
+   ExpeditionCase.set_world(game, {"map_seed": stamp})
    var choice:=Variants.choose(game,kind,2)
    check(choice==Variants.choose(game,kind,2),"same host history and seed choose the same variant")
    eligible=eligible or choice==Variants.PROFILES[kind].id
@@ -126,7 +128,7 @@ func run() -> void:
 
 
 func check_glasscap(game: Node, p: Dictionary, now: int) -> void:
- game.destination=0;game.depth=1;game.map_seed=0;game.tactics.boss_kind=-1
+ ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"depth": 1});ExpeditionCase.set_world(game, {"map_seed": 0});game.tactics.boss_kind=-1
  game.battlefield.configure(0,1,0);game.battlefield.barriers.clear()
  game.progress.wilds_memory.score={}
  p.pos=Vector3(0,0,-1)

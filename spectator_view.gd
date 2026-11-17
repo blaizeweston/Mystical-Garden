@@ -1,4 +1,6 @@
 extends Node
+
+const Participation = preload("res://expedition_participation.gd")
 const Life=preload("res://expedition_life.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -23,7 +25,7 @@ func cycle() -> void:
  target_id=ids[(ids.find(target_id)+1)%ids.size()]
 func focus_id(local_id: int) -> int:
  var p: Dictionary=game.players.get(local_id,{})
- var fallen: bool=p.get("wild",false) and PlayerLifecycle.fallen(p)
+ var fallen: bool=Participation.is_wild(p) and PlayerLifecycle.fallen(p)
  panel.position=Vector2((game.get_viewport().get_visible_rect().size.x-430)/2.0,114 if Life.Preview.enabled else 65)
  panel.visible=fallen and not game.overlay.visible
  if fallen and not was_fallen: game.toggle_overlay(null)

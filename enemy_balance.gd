@@ -49,45 +49,45 @@ static func authored_hit(hp: int) -> float:
 
 
 static func scout_hit(game: Node, definition: Dictionary, scout: Dictionary) -> float:
-	if not Preview.enabled or game.destination==game.Campaign.HEART:
-		return int(definition.damage)+game.difficulty_cycle/2
-	var floor_offset := maxi(0,int(game.encounter_number)-1)
+	if not Preview.enabled or game.participation.route()==game.Campaign.HEART:
+		return int(definition.damage)+game.participation.cycle()/2
+	var floor_offset := maxi(0,int(game.participation.floor())-1)
 	var profile: Dictionary = tuning.juvenile if int(scout.get("mutations",0)) & Catalog.JUVENILE else tuning.regular
 	var base := float(profile.get("hit_hp",definition.preview_hit_hp))
-	var amount := base + floor_offset * float(profile.hit_per_floor) + int(game.difficulty_cycle) * float(profile.hit_per_loop)
+	var amount := base + floor_offset * float(profile.hit_per_floor) + int(game.participation.cycle()) * float(profile.hit_per_loop)
 	if scout.get("gate_elite",false):
 		amount *= float(tuning.elite.hit_multiplier)
-		if game.depth==Config.BIOME_LENGTH:
+		if game.participation.depth()==Config.BIOME_LENGTH:
 			amount += float(tuning.elite.biome_end_hit_hp)
 	return authored_hit(roundi(amount))
 
 
 static func boss_hit(game: Node, definition: Dictionary, move: String) -> float:
 	if not Preview.enabled:
-		return int(definition.damage)+int(game.difficulty_cycle)/3
+		return int(definition.damage)+int(game.participation.cycle())/3
 	var profile: Dictionary = tuning.boss
-	var floor_offset := maxi(0,int(game.encounter_number)-FIRST_BOSS_FLOOR)
+	var floor_offset := maxi(0,int(game.participation.floor())-FIRST_BOSS_FLOOR)
 	var amount := float(definition.preview_hit_hp) + floor_offset * float(profile.hit_per_floor)
-	amount += int(game.difficulty_cycle) * float(profile.hit_per_loop) + int(game.tactics.boss_phase) * float(profile.hit_per_phase)
+	amount += int(game.participation.cycle()) * float(profile.hit_per_loop) + int(game.tactics.boss_phase) * float(profile.hit_per_phase)
 	amount += float(tuning.boss_move_bonus_hp.get(move,0))
 	return authored_hit(roundi(amount))
 
 
 static func hazard_hit(game: Node, kind: String, damage: float, boss_move: String) -> float:
-	if not Preview.enabled or game.destination==game.Campaign.HEART:
+	if not Preview.enabled or game.participation.route()==game.Campaign.HEART:
 		return damage
 	if not boss_move.is_empty():
 		var ratio: float = tuning.boss.main_hazard_ratio if boss_move in PRIMARY_HAZARD_MOVES else tuning.boss.followup_hazard_ratio
 		return authored_hit(maxi(1,roundi(Preview.effect_hp(damage)*ratio)))
 	var profile: Dictionary = tuning.hazards
 	var base: float = profile.base_hp.get(kind,Preview.effect_hp(damage))
-	return authored_hit(roundi(base+maxi(0,int(game.encounter_number)-1)*float(profile.hit_per_floor)+int(game.difficulty_cycle)*float(profile.hit_per_loop)))
+	return authored_hit(roundi(base+maxi(0,int(game.participation.floor())-1)*float(profile.hit_per_floor)+int(game.participation.cycle())*float(profile.hit_per_loop)))
 
 
 static func corpse_heal(game: Node, actor: Dictionary, spare: bool) -> int:
 	var center := Preview.hp(1 if spare else 2)
 	if Preview.enabled:
-		center += mini(int(tuning.corpse_depth_bonus_cap), roundi(maxi(0,int(game.encounter_number)-1)*float(tuning.corpse_depth_hp_per_floor)))
+		center += mini(int(tuning.corpse_depth_bonus_cap), roundi(maxi(0,int(game.participation.floor())-1)*float(tuning.corpse_depth_hp_per_floor)))
 		var cap := maxi(1,floori(float(actor.get("max_hp",game.encounter.hp_for(actor)))*float(tuning.corpse_hp_fraction)))
 		return mini(cap,Preview.roll_heal_hp(mini(center,cap)))
 	return center
@@ -129,12 +129,12 @@ static func reinforcement_hp(regular_hp: int) -> int:
 
 
 static func trace_encounter(game: Node, desired: int) -> void:
-	if not Preview.enabled or not game.expedition_active():
+	if not Preview.enabled or not game.participation.active():
 		return
 	var pack_hp := 0
 	for slot in game.encounter.scout_count():
 		pack_hp += int(game.encounter.scout(slot).max_hp)
-	game.Journal.event("combat","encounter_balance",{"floor":game.encounter_number,"loop":game.difficulty_cycle,
+	game.Journal.event("combat","encounter_balance",{"floor":game.participation.floor(),"loop":game.participation.cycle(),
 		"party_size":game.encounter_party_size,"leader_species":Catalog.get_kind(game.enemy_kind).id,
 		"leader_hp":game.encounter.hp(-1),"boss":game.tactics.boss_kind>=0,"scout_budget":desired,"scouts":game.encounter.scout_count(),"scout_hp":pack_hp})
 

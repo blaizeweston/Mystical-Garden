@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -24,7 +26,7 @@ func check(value: bool, message: String) -> void:
 
 
 func prepare(class_id: int, lane: int) -> void:
-	game.combat_epoch += 1
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	game.trait_events.clear()
 	game.encounter.clear_scouts()
 	game.combat_events.clear()
@@ -151,7 +153,7 @@ func run() -> void:
 	game.battlefield.configure(0,1,0)
 	game.battlefield.procedural = false
 	player = game.players[1]
-	player.wild = true
+	ExpeditionCase.set_membership(game, player, true)
 	for class_id in range(1,5):
 		for lane in 3:
 			press_release(class_id,lane)

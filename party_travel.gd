@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Participation = preload("res://expedition_participation.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 static func members(game: Node,kind: String) -> Array:
@@ -7,40 +9,40 @@ static func members(game: Node,kind: String) -> Array:
  for id in game.players:
   var p: Dictionary=game.players[id]
   if not p.get("profile_ready",false) or p.get("rejecting",false): continue
-  if kind=="depart" or (p.wild and not PlayerLifecycle.fallen(p)): result.append(id)
+  if kind=="depart" or (Participation.is_wild(p) and not PlayerLifecycle.fallen(p)): result.append(id)
  result.sort();return result
 
 static func clear(game: Node) -> void:
- game.travel_kind="";game.travel_votes.clear();game.travel_members.clear();game.travel_epoch+=1
+ game.participation.clear_travel()
 
 static func cancel(game: Node,message: String="",effects = null) -> void:
- var pending: bool=not game.travel_kind.is_empty()
+ var pending: bool=not game.participation.travel_kind().is_empty()
  clear(game)
  if pending and not message.is_empty():
   for id in members(game,"depart"): game.action_feedback(effects,id,message)
 
 static func signature(game: Node,p: Dictionary,kind: String) -> String:
  if kind!="depart":
-  return str([game.destination,game.encounter_number,game.map_seed,p.wild,PlayerLifecycle.fallen(p)])
+  return str([game.participation.route(),game.participation.floor(),game.participation.seed(),Participation.is_wild(p),PlayerLifecycle.fallen(p)])
  var tree: RefCounted=game.Classes.connected_in_world(game,int(p.frame),p.character)
  var path: Array=[] if tree==null else tree.path(p.character)
- return str([game.destination,game.encounter_number,game.map_seed,p.frame,p.get("weapon_kind",0),p.prepared,p.prepared_secondary,p.prepared_catalyst,p.cargo_plan,p.character.get("upgrades",[]),path])
+ return str([game.participation.route(),game.participation.floor(),game.participation.seed(),p.frame,p.get("weapon_kind",0),p.prepared,p.prepared_secondary,p.prepared_catalyst,p.cargo_plan,p.character.get("upgrades",[]),path])
 
 static func point(game: Node,kind: String) -> Vector3:
- return game.Stage.HEART if kind=="depart" and game.destination==game.Campaign.HEART else game.stage.gate_position() if kind=="depart" else game.battlefield.advance
+ return game.Stage.HEART if kind=="depart" and game.participation.route()==game.Campaign.HEART else game.stage.gate_position() if kind=="depart" else game.battlefield.advance
 
 static func validate(game: Node) -> void:
- if game.travel_kind.is_empty(): return
- if members(game,game.travel_kind)!=game.travel_members:
+ if game.participation.travel_kind().is_empty(): return
+ if members(game,game.participation.travel_kind())!=game.participation.travel_members():
   cancel(game,"Party changed. Confirm readiness again at the gate.");return
- for id in game.travel_votes.keys():
+ for id in game.participation.travel_members():
+  if not game.participation.has_vote(id): continue
   var p: Dictionary=game.players[id]
-  if game.travel_votes[id]!=signature(game,p,game.travel_kind) or p.pos.distance_to(point(game,game.travel_kind))>preload("res://gate_interaction.gd").travel_range(game,game.travel_kind)+preload("res://gate_interaction.gd").READY_MARGIN:
-   game.travel_votes.erase(id);game.tell(id,"Readiness cleared. Return to the gate and confirm your current loadout.")
+  if game.participation.vote_signature(id)!=signature(game,p,game.participation.travel_kind()) or p.pos.distance_to(point(game,game.participation.travel_kind()))>preload("res://gate_interaction.gd").travel_range(game,game.participation.travel_kind())+preload("res://gate_interaction.gd").READY_MARGIN:
+   game.participation.retract_vote(id);game.tell(id,"Readiness cleared. Return to the gate and confirm your current loadout.")
 
 static func begin(game: Node,kind: String) -> void:
- if game.travel_kind!=kind or game.travel_members!=members(game,kind):
-  clear(game);game.travel_kind=kind;game.travel_members=members(game,kind)
+ game.participation.begin_travel(kind,members(game,kind))
  validate(game)
 
 static func request(game: Node,id: int,kind: String) -> void:
@@ -48,7 +50,7 @@ static func request(game: Node,id: int,kind: String) -> void:
  if kind!="depart" and game.has_meta(game.Transactions.SESSION) and not game.encounter_rewarded: return
  var p: Dictionary=game.players[id]
  if kind=="depart":
-  if game.expedition_active() or p.wild: return
+  if game.participation.active() or Participation.is_wild(p): return
   for peer in game.players.values():
    if not peer.profile_ready or peer.get("rejecting",false): game.tell(id,"Waiting for the connecting player before departure.");return
   if preload("res://combat_ruleset.gd").active(game):
@@ -57,21 +59,21 @@ static func request(game: Node,id: int,kind: String) -> void:
     game.tell(id,refusal)
     return
  else:
-  if not game.Life.alive(p) or not game.encounter_cleared() or game.destination==game.Campaign.HEART: return
+  if not game.Life.alive(p) or not game.encounter_cleared() or game.participation.route()==game.Campaign.HEART: return
   if kind=="extract" and not game.extraction_checkpoint_open(): game.tell(id,"Extraction opens at every sixth cleared gate.");return
- if p.pos.distance_to(point(game,kind))>preload("res://gate_interaction.gd").travel_range(game,kind): game.tell(id,"Confirm readiness at the Heart." if kind=="depart" and game.destination==game.Campaign.HEART else "Confirm readiness at the party's gate.");return
+ if p.pos.distance_to(point(game,kind))>preload("res://gate_interaction.gd").travel_range(game,kind): game.tell(id,"Confirm readiness at the Heart." if kind=="depart" and game.participation.route()==game.Campaign.HEART else "Confirm readiness at the party's gate.");return
  begin(game,kind)
- if kind=="advance" and game.upgrade_checkpoint_open() and int(game.checkpoint_ready.get(id,0))!=game.encounter_number:
+ if kind=="advance" and game.upgrade_checkpoint_open() and int(game.checkpoint_ready.get(id,0))!=game.participation.floor():
   # Open the existing cards, without treating a card choice as travel consent.
   if game.has_meta(game.Transactions.SESSION): game.activate_checkpoint()
-  else: game.Transactions.run(game,func(): game._use_checkpoint(id,true))
+  else: game.Transactions.run(game,func(): load("res://expedition_transitions.gd").commit_checkpoint(game,id,true))
   return
- game.travel_votes[id]=signature(game,p,kind)
+ game.participation.set_vote(id,signature(game,p,kind))
  validate(game)
- if game.travel_votes.size()!=game.travel_members.size():
+ if game.participation.vote_count()!=game.participation.travel_members().size():
   game.tell(id,"Ready. Waiting for each party member to confirm at the gate.");return
  if kind=="advance" and game.upgrade_checkpoint_open() and not game.checkpoint_all_ready(): return
- var ids: Array=game.travel_members.duplicate()
+ var ids: Array=game.participation.travel_members()
  if game.has_meta(game.Transactions.SESSION):
   var close_after: bool = kind!="advance" or not game.upgrade_checkpoint_open()
   var result: Dictionary=game.run_guarded_action(id,game.Transactions.Scope.PAIR,func(effects):
@@ -83,10 +85,10 @@ static func request(game: Node,id: int,kind: String) -> void:
      return false
     game.settle_expedition_rewards(effects)
     for peer_id in ids:
-     if not game._enter_wilds(peer_id,game.players[peer_id],cost.reserved,effects):
+     if not load("res://expedition_transitions.gd").admit(game,peer_id,game.players[peer_id],cost.reserved,effects):
       game.SaveBatch.reject_guarded_serializer(ERR_UNAVAILABLE,game.progress.path)
       return false
-   elif not game._use_checkpoint(id,kind=="advance",effects):
+   elif not load("res://expedition_transitions.gd").commit_checkpoint(game,id,kind=="advance",effects):
     return false
    clear(game)
    if close_after:
@@ -107,13 +109,13 @@ static func request(game: Node,id: int,kind: String) -> void:
  var success=game.Transactions.run(game,func():
   if kind=="depart":
    for peer_id in ids:
-    game._enter_wilds(peer_id,game.players[peer_id],reservation)
-    if not game.players[peer_id].wild:
+    load("res://expedition_transitions.gd").admit(game,peer_id,game.players[peer_id],reservation)
+    if not Participation.is_wild(game.players[peer_id]):
      game.SaveBatch.failure=ERR_UNAVAILABLE;return false
-  else: game._use_checkpoint(id,kind=="advance")
+  else: return load("res://expedition_transitions.gd").commit_checkpoint(game,id,kind=="advance")
   return true)
  if not success:
-  game.battlefield.configure(game.destination,game.depth,game.map_seed)
+  game.battlefield.configure(game.participation.route(),game.participation.depth(),game.participation.seed())
   cancel(game,"Travel could not be saved. Nothing was consumed. Confirm readiness to retry.");return
  clear(game)
  for peer_id in ids:
@@ -121,7 +123,7 @@ static func request(game: Node,id: int,kind: String) -> void:
   elif game.online_peer!=null: game.close_run_flow_panel.rpc_id(peer_id)
 
 static func departure_cost(game: Node,ids: Array) -> Dictionary:
- var available: bool=game.progress.finale_available() if game.destination==game.Campaign.HEART else game.progress.campaign.available(game.destination)
+ var available: bool=game.progress.finale_available() if game.participation.route()==game.Campaign.HEART else game.progress.campaign.available(game.participation.route())
  if not available: return {"error":"This route is still sealed."}
  var shared: Array=game.Parts.empty_counts();var reserved: Array=game.Seeds.counts()
  for id in ids:
@@ -142,10 +144,10 @@ static func departure_cost(game: Node,ids: Array) -> Dictionary:
  return {"error":"","reserved":reserved}
 
 static func snapshot(game: Node,id: int) -> Dictionary:
- if game.travel_kind.is_empty(): return {}
+ if game.participation.travel_kind().is_empty(): return {}
  var names: Array=[]
- for peer in game.travel_members:
-  if game.players.has(peer): names.append({"name":game.players[peer].character.get("name","Wanderer"),"ready":game.travel_votes.has(peer)})
- var goal: String=game.Campaign.NAMES[game.destination]
- if game.travel_kind=="depart" and game.destination!=game.Campaign.HEART and game.Campaign.SHORTCUT_COST[game.destination]>0: goal+=" (%d shared parts)"%game.Campaign.SHORTCUT_COST[game.destination]
- return {"goal":goal,"kind":game.travel_kind,"epoch":game.travel_epoch,"ready":game.travel_votes.has(id),"members":names}
+ for peer in game.participation.travel_members():
+  if game.players.has(peer): names.append({"name":game.players[peer].character.get("name","Wanderer"),"ready":game.participation.has_vote(peer)})
+ var goal: String=game.Campaign.NAMES[game.participation.route()]
+ if game.participation.travel_kind()=="depart" and game.participation.route()!=game.Campaign.HEART and game.Campaign.SHORTCUT_COST[game.participation.route()]>0: goal+=" (%d shared parts)"%game.Campaign.SHORTCUT_COST[game.participation.route()]
+ return {"goal":goal,"kind":game.participation.travel_kind(),"epoch":game.participation.travel_epoch(),"ready":game.participation.has_vote(id),"members":names}

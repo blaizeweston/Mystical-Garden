@@ -26,7 +26,7 @@ func tick(sample: bool=false) -> void:
  if not is_instance_valid(journal) or not is_instance_valid(game):return
  var role: String=game.session;var peer: int=game.multiplayer.get_unique_id()
  var host: Dictionary=game.players.get(1,{})
- var context={"role":role,"peer":peer,"host_session":journal.session_id if game.multiplayer.is_server() else host.get("diagnostic_host",""),"world_session":world_session if game.multiplayer.is_server() else host.get("diagnostic_world",""),"floor":game.encounter_number,"biome":game.destination,"map_seed":game.map_seed,"cycle":game.difficulty_cycle,"combat_epoch":game.combat_epoch}
+ var context={"role":role,"peer":peer,"host_session":journal.session_id if game.multiplayer.is_server() else host.get("diagnostic_host",""),"world_session":world_session if game.multiplayer.is_server() else host.get("diagnostic_world",""),"floor":game.participation.floor(),"biome":game.participation.route(),"map_seed":game.participation.seed(),"cycle":game.participation.cycle(),"combat_epoch":game.participation.epoch()}
  journal.set_context(context)
  if context!=previous_context:Journal.event("world","context_changed",context);previous_context=context.duplicate()
  var garden=Journal.garden_state(game)

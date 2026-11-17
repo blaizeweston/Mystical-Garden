@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Core = preload("res://core_combat.gd")
@@ -64,14 +66,14 @@ func host_run() -> void:
 	var id: int = game.players.keys().filter(func(peer): return peer != 1)[0]
 	var host: Dictionary = game.players[1]
 	var guest: Dictionary = game.players[id]
-	game.destination = 0;game.encounter_number = 1;game.depth = 1;game.map_seed = 0
+	ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"encounter_number": 1});ExpeditionCase.set_world(game, {"depth": 1});ExpeditionCase.set_world(game, {"map_seed": 0})
 	game.battlefield.configure(0,1,0)
 	game.enemy_kind = 0;game.encounter.set_hp(-1, 30);game.tactics.position = Vector3(0,0,-2.3)
 	game.tactics.winding_up = false;game.enemy_mutations = 0;game.tactics.boss_kind = -1
 	game.tactics.stagger_until = Time.get_ticks_msec() + 25000
 	game.encounter.clear_scouts()
 	for p in [host,guest]:
-		p.wild=true;p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
+		ExpeditionCase.set_membership(game, p, true);p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
 	host.weapon = game.Parts.index_of("plant:star_orchid")
 	guest.frame = 2;guest.weapon_kind = 0
 	guest.weapon = game.Parts.index_of("rare:whispervine")

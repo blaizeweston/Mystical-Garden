@@ -1,4 +1,6 @@
 extends RefCounted
+
+const Participation = preload("res://expedition_participation.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 # Public health versions reconcile independent reliable/unreliable channels.
@@ -64,7 +66,7 @@ func observe(game: Node) -> void:
   var hp := PlayerVitals.current_hp(p)
   var maximum := PlayerVitals.maximum_hp(p)
   var fallen := PlayerLifecycle.fallen(p)
-  var signature=str([hp,maximum,p.wild,fallen,p.get("lost_health",0),p.get("damage_seq",0)])
+  var signature=str([hp,maximum,Participation.is_wild(p),fallen,p.get("lost_health",0),p.get("damage_seq",0)])
   if server_vitals.get(id,{}).get("signature","")==signature:continue
   var revision=int(server_vitals.get(id,{}).get("revision",0))+1
   var state={"revision":revision,"hp":hp,"max_hp":maximum,"fallen":fallen,"lost_health":p.get("lost_health",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0)}

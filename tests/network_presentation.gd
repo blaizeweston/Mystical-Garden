@@ -4,10 +4,7 @@ func check(ok: bool,message: String):
  if not ok:failed=true;printerr("FAIL network presentation: ",message)
 class MovementFixture extends Node:
  const WALK_SPEED=3.6
- var destination=0
- var depth=1
- var encounter_number=0
- var map_seed=0
+ var participation=preload("res://expedition_participation.gd").new()
  var players={}
  var stage={"visual_field":null}
  func world_direction(v: Vector2) -> Vector3:return Vector3(v.x,0,v.y)

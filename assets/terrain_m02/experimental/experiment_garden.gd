@@ -1,5 +1,7 @@
 extends Node3D
 
+const Participation = preload("res://expedition_participation.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const Generator = preload("res://assets/terrain_m02/terrain_generator.gd")
@@ -481,7 +483,7 @@ func _may_place() -> bool:
 	if not game.players.has(game.HOST) or not game.multiplayer.is_server() or not game.slot_claimed:
 		return false
 	var player: Dictionary = game.players[game.HOST]
-	return not player.wild and not PlayerLifecycle.fallen(player) and game.travel_kind.is_empty() and reveal == null and Tx.session_writable(game)
+	return not Participation.is_wild(player) and not PlayerLifecycle.fallen(player) and game.participation.travel_kind().is_empty() and reveal == null and Tx.session_writable(game)
 
 func place(kind: String, target: Vector2, yaw: float, moving: int = 0) -> bool:
 	var refusal := _build_refusal(kind, target, yaw, moving)

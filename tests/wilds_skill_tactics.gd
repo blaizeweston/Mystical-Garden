@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Core = preload("res://core_combat.gd")
@@ -24,7 +26,7 @@ func check(ok: bool, detail: String) -> void:
 
 func floor_fixture() -> void:
 	Core.reset(game)
-	game.combat_epoch += 1
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	game.encounter_rewarded = false
 	game.encounter.set_hp(-1, 50)
 	game.enemy_kind = 0
@@ -34,7 +36,7 @@ func floor_fixture() -> void:
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
 	player.pos = Vector3.ZERO
-	player.wild = true
+	ExpeditionCase.set_membership(game, player, true)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
 
 
@@ -80,8 +82,8 @@ func run() -> void:
 	game.set_process(false)
 	game.set_physics_process(false)
 	player = game.players[1]
-	game.encounter_number = 7
-	game.map_seed = 6
+	ExpeditionCase.set_world(game, {"encounter_number": 7})
+	ExpeditionCase.set_world(game, {"map_seed": 6})
 	check_learning()
 	check_relay()
 	check_scatter()
@@ -151,7 +153,7 @@ func check_relay() -> void:
 	check(shepherd.attack.variant != Tactics.RELAY, "one relay per enemy")
 	floor_fixture()
 	shepherd = shepherd_group()
-	shepherd.rite_disrupted_epoch = game.combat_epoch
+	shepherd.rite_disrupted_epoch = game.participation.epoch()
 	Attacks.lock(game, shepherd, "shepherd", player.pos, now + 1400)
 	if shepherd.attack.get("variant") == Tactics.RELAY:
 		chosen = shepherd.attack.flank.escort.slot
@@ -162,14 +164,14 @@ func check_relay() -> void:
 
 func check_scatter() -> void:
 	floor_fixture()
-	game.encounter_number = 9
-	game.map_seed = 2
+	ExpeditionCase.set_world(game, {"encounter_number": 9})
+	ExpeditionCase.set_world(game, {"map_seed": 2})
 	player.pos = Vector3(0, 0, 2.7)
 	var mother := add_scout(9, Vector3.ZERO)
 	var now := Time.get_ticks_msec()
 	Attacks.lock(game, mother, "brood", player.pos, now + 1500)
 	check(mother.attack.variant != Tactics.SCATTER, "opening Broodmother floor does not scatter")
-	game.encounter_number = 10
+	ExpeditionCase.set_world(game, {"encounter_number": 10})
 	Attacks.lock(game, mother, "brood", player.pos, now + 1500)
 	var attack: Dictionary = mother.attack
 	check(attack.variant == Tactics.SCATTER and attack.hatch.size() == 2, "repeated area pressure spreads the hatch points")

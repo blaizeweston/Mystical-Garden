@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 var failed:=false
 func check(ok: bool,message: String):
  if not ok: failed=true;printerr("FAIL natural world: ",message)
@@ -8,7 +10,7 @@ func run():
  var token=Crypto.new().generate_random_bytes(8).hex_encode()
  game.progress.path="res://.godot/natural_test_"+token+".cfg";game.local_character.path=game.progress.path+".character"
  root.add_child(game);game.set_process(false);game.set_physics_process(false)
- var p: Dictionary=game.players[1];p.wild=true
+ var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true)
  var frontier_checks:=0
  for seed_value in range(91247,91263):
   game.battlefield.configure(0,1,seed_value)

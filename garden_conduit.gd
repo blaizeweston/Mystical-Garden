@@ -41,7 +41,7 @@ static func command(game: Node,id: int,request: Dictionary) -> Dictionary:
  var reject=preload("res://garden_interaction_service.gd").reject
  if id!=game.HOST:return reject.call(game,id,"Only the Garden host can redirect the conduit. You can still inspect and tend its plants.")
  var point:=Layout.Catalog.point(POINT)
- if request.get("point","")!=POINT or not game.progress.heart.has("living_conduit") or not Layout.enabled(point,game.progress.heart.unlocked) or not game.travel_kind.is_empty() or game.players[id].pos.distance_to(point.position)>float(point.range):return reject.call(game,id,"Research the Living Water Conduit and approach the terrace to redirect it.")
+ if request.get("point","")!=POINT or not game.progress.heart.has("living_conduit") or not Layout.enabled(point,game.progress.heart.unlocked) or not game.participation.travel_kind().is_empty() or game.players[id].pos.distance_to(point.position)>float(point.range):return reject.call(game,id,"Research the Living Water Conduit and approach the terrace to redirect it.")
  var before:=state(game.progress)
  if before.is_empty() or mode(str(request.get("mode",""))).is_empty():return reject.call(game,id,"This conduit configuration needs a compatible game version.")
  if int(request.revision)!=before.revision:return reject.call(game,id,"The conduit changed. Review its setting before choosing.")

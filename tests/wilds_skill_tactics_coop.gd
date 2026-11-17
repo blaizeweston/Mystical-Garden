@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Core = preload("res://core_combat.gd")
@@ -70,8 +72,8 @@ func host() -> void:
 		check(false, "guest registers")
 		return
 	var id: int = game.players.keys().filter(func(peer): return peer != 1)[0]
-	game.encounter_number = 7
-	game.map_seed = 6
+	ExpeditionCase.set_world(game, {"encounter_number": 7})
+	ExpeditionCase.set_world(game, {"map_seed": 6})
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
 	game.progress.wilds_memory.score[Tactics.CAST_DENIAL] = 6
@@ -82,7 +84,7 @@ func host() -> void:
 	game.tactics.engaged = false
 	game.encounter.clear_scouts()
 	for p in game.players.values():
-		p.wild = true
+		ExpeditionCase.set_membership(game, p, true)
 		p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
 		p.pos = Vector3.ZERO
 	var guest_player: Dictionary = game.players[id]
@@ -115,8 +117,8 @@ func host() -> void:
 		return
 
 	game.encounter.clear_scouts()
-	game.encounter_number = 10
-	game.map_seed = 2
+	ExpeditionCase.set_world(game, {"encounter_number": 10})
+	ExpeditionCase.set_world(game, {"map_seed": 2})
 	for p in game.players.values():
 		p.pos = Vector3(0, 0, 2.7)
 	var mother := add_scout(9, Vector3.ZERO)

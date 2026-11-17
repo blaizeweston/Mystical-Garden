@@ -109,7 +109,7 @@ static func queue_attack(game: Node,id: int,p: Dictionary,pos: Vector3,stats: Di
   var muzzle: Vector3=path.from
   end=path.to
   var flight:=maxi(30,roundi(muzzle.distance_to(end)/float(profile.speed)*1000))
-  game.projectile_queue.append({"direction":direction,"mouse_ray":true,"player":id,"epoch":game.combat_epoch,"life":PlayerLifecycle.generation(p),"release":release,"due":release+flight,"emitted":false,"projectile":true,"form":form,"origin":muzzle,"aim":end,"previous":muzzle,"stats":stats.duplicate(true),"hits":[],"remaining":int(stats.targets)})
+  game.projectile_queue.append({"direction":direction,"mouse_ray":true,"player":id,"epoch":game.participation.epoch(),"life":PlayerLifecycle.generation(p),"release":release,"due":release+flight,"emitted":false,"projectile":true,"form":form,"origin":muzzle,"aim":end,"previous":muzzle,"stats":stats.duplicate(true),"hits":[],"remaining":int(stats.targets)})
   game.projectile_queue.back().muzzle_blocked = path.muzzle_blocked
   if p.get("mouse_aim",false):
    var combo:=int(p.get("attack_combo",0))
@@ -119,7 +119,7 @@ static func queue_attack(game: Node,id: int,p: Dictionary,pos: Vector3,stats: Di
    game.projectile_queue.back().locked_target=lock_target;game.projectile_queue.back().locked_token=token(game,lock_target)
   return
  game.emit_weapon_attack(p,pos,end,stats,now)
- var melee := {"melee_shape":true,"player":id,"epoch":game.combat_epoch,"life":PlayerLifecycle.generation(p),"release":release,"due":release,"emitted":true,"projectile":false,"form":form,"origin":pos,"aim":end,"stats":stats.duplicate(true)}
+ var melee := {"melee_shape":true,"player":id,"epoch":game.participation.epoch(),"life":PlayerLifecycle.generation(p),"release":release,"due":release,"emitted":true,"projectile":false,"form":form,"origin":pos,"aim":end,"stats":stats.duplicate(true)}
  game.projectile_queue.append(melee)
 static func aim_is_live(player: Dictionary,now: int) -> bool:
  var windup: Dictionary=player.get("ranged_windup",{})
@@ -188,7 +188,7 @@ static func ray_tick(game: Node,shot: Dictionary,now: int) -> bool:
  for entry in contacts:
   if int(shot.remaining)<=0:break
   var target: int=entry.id;var point: Vector3=entry.point
-  if int(shot.get("epoch",game.combat_epoch))!=game.combat_epoch:break
+  if int(shot.get("epoch",game.participation.epoch()))!=game.participation.epoch():break
   if not game.encounter.alive(target,int(entry.token)) or shot.hits.has(token(game,target)):continue
   if not shot.hits.is_empty() and str(shot.form)!="fan":preload("res://combat_status.gd").proc(game,"pierce",previous,point,target)
   shot.hits.append(token(game,target));shot.remaining-=1

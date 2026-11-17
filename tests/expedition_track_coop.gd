@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 var game: Node
 var base: String
@@ -28,12 +30,12 @@ func run() -> void:
 func host_run() -> void:
  check(game.host_game()==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"admission");return
- for p in game.players.values():p.wild=true;p.pos=game.battlefield.entry;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
- game.encounter.set_hp(-1, 80);game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.encounter.clear_scouts();game.encounter_number=6
+ for p in game.players.values():ExpeditionCase.set_membership(game, p, true);p.pos=game.battlefield.entry;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
+ game.encounter.set_hp(-1, 80);game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.encounter.clear_scouts();ExpeditionCase.set_world(game, {"encounter_number": 6})
  check(await until(func():return marked("six")),"guest sees checkpoint six")
- game.encounter_number=7
+ ExpeditionCase.set_world(game, {"encounter_number": 7})
  check(await until(func():return marked("seven")),"guest advances to seven")
- for p in game.players.values():p.wild=false
+ for p in game.players.values():ExpeditionCase.set_membership(game, p, false)
  check(await until(func():return marked("garden")),"guest hides track on return")
  mark("done");await create_timer(.3).timeout
 func guest_run() -> void:

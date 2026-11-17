@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 const Field=preload("res://field_traveller.gd")
 const Motion=preload("res://weapon_motion.gd")
@@ -33,7 +35,7 @@ func host_run():
  var id: int=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
  check(p.character.appearance[5]==1 and p.character.appearance[6]==0 and p.character.appearance[7]==100,"host receives customized female model and independent sliders")
  game.encounter.set_hp(-1, 80);game.tactics.position=Vector3(0,0,3);game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.encounter.clear_scouts()
- p.wild=true;p.pos=Vector3.ZERO;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
+ ExpeditionCase.set_membership(game, p, true);p.pos=Vector3.ZERO;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
  mark("ready");check(await until(func():return marked("verified")),"guest confirms attack")
  check(game.enemy_health()<80,"projectile hits on the host")
  check(not game.combat_events.any(func(e):return e.kind=="windup"),"host has no generic bow circle")
@@ -49,14 +51,14 @@ func guest_run():
  game.guest_character.data.appearance=preload("res://character_appearance.gd").DEFAULT.duplicate();game.guest_character.data.appearance[5]=1;game.guest_character.data.appearance[6]=0;game.guest_character.data.appearance[7]=100;game.guest_character.data.appearance[8]=100
  game.guest_character.save_profile();check(game.join_game()==OK,"guest joins")
  var id:=game.multiplayer.get_unique_id()
- if not await until(func():return marked("ready") and game.session=="Guest" and not game.client_details.is_empty() and game.players.get(id,{}).get("wild",false)):check(false,"Wilds state");return
+ if not await until(func():return marked("ready") and game.session=="Guest" and not game.client_details.is_empty() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds state");return
  var aim:=Vector2(1,0)
  var next_input:=0
  var deadline:=Time.get_ticks_msec()+6000;var saw_clip:=false;var saw_draw:=false
  var projectile: Dictionary={}
  var saw_hit:=false
  var saw_windup:=false
- var encounter:=str([game.destination,game.encounter_number,game.map_seed])
+ var encounter:=str([game.participation.route(),game.participation.floor(),game.participation.seed()])
  while Time.get_ticks_msec()<deadline:
   var actor: Dictionary=game.stage.avatar_models.get(id,{})
   if not actor.is_empty() and str(actor.animator.current_animation)=="Attack_bow":

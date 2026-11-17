@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -26,7 +28,7 @@ func run():
 	check(PlayerVitals.current_hp(p) == 10 and PlayerVitals.maximum_hp(p) == 10, "player starts with ten health points")
 	for i in 5:
 		check(Hud.heart_state(PlayerVitals.current_hp(p),10,i) == 0, "starting hearts are full")
-	p.wild = true
+	ExpeditionCase.set_membership(game, p, true)
 	p.pos = game.battlefield.leader
 	preload("res://enemy_attack_hits.gd").for_world(game).area(p.pos, 1.0, Time.get_ticks_msec())
 	check(PlayerVitals.current_hp(p) == 9 and Hud.heart_state(PlayerVitals.current_hp(p),10,4) == 1, "basic enemy hit removes one point and displays a half heart")
@@ -47,7 +49,7 @@ func run():
 	check(snapshot.hp == 9 and snapshot.max_hp == 10, "multiplayer snapshot preserves health totals")
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(1)
 	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 1)
-	check(not p.wild and not PlayerLifecycle.fallen(p) and PlayerVitals.current_hp(p) == 10, "solo wipe returns to Garden with full health and a cleared fallen state")
+	check(not ExpeditionCase.is_wild(p) and not PlayerLifecycle.fallen(p) and PlayerVitals.current_hp(p) == 10, "solo wipe returns to Garden with full health and a cleared fallen state")
 	await process_frame
 	if not failed: print("PASS: ten-point health, half-heart damage, pulse, stronger hits and recovery")
 	quit(1 if failed else 0)

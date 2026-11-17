@@ -109,7 +109,7 @@ static func resolve_motion(game: Node, elapsed: int, now: int) -> void:
 		if not Actors.valid_target(game,target) or resisted(game,target,now): continue
 		var token:=Contact.token(game,target)
 		var options: Array = pending[target].filter(func(row):
-			return row.token==token and int(row.epoch)==game.combat_epoch \
+			return row.token==token and int(row.epoch)==game.participation.epoch() \
 				and PlayerLifecycle.matches(game.players.get(row.actor,{}),int(row.source_life)))
 		if options.is_empty(): continue
 		options.sort_custom(precedes)

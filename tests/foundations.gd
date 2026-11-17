@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const IDs=preload("res://content_ids.gd")
 const Batch=preload("res://save_batch.gd")
 var failed:=false
@@ -33,8 +35,8 @@ func run():
  Batch.write_bytes(b+".txn_link",(a+".transaction").to_utf8_buffer());Batch.write_bytes(a,"new-a".to_utf8_buffer())
  check(Batch.recover(b)==OK and FileAccess.get_file_as_string(a)=="old-a" and FileAccess.get_file_as_string(b)=="old-b","interrupted commit recovers a consistent pair")
  # An actual killed stag supplies its own familiarity and reward; no item injection.
- p.wild=true;p.pos=Vector3(0,0,4);p.frame=0;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.power=0;p.strike_at=0;p.contributed=false;p.character.monsters.fill(0)
- game.destination=0;game.encounter_number=3;game.map_seed=0;game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.set_hp(-1, 0);game.enemy_kind=0;game.encounter_rewarded=false;game.encounter_kills.clear()
+ ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,4);p.frame=0;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.power=0;p.strike_at=0;p.contributed=false;p.character.monsters.fill(0)
+ ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"encounter_number": 3});ExpeditionCase.set_world(game, {"map_seed": 0});game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.set_hp(-1, 0);game.enemy_kind=0;game.encounter_rewarded=false;game.encounter_kills.clear()
  var stag: Dictionary=game.make_scout(2,Vector3(0,0,5),1);stag.hp=1;game.encounter.clear_scouts();game.encounter.register_scout(stag)
  # Choose a deterministic successful per-kill roll before the actual kill.
  for seed_value in 1000:
@@ -46,10 +48,10 @@ func run():
  check(personal.size()==1,"the killed stag creates one personal trophy pickup")
  p.pos=stag.pos;game.pickup_inventory_drop(1,p,personal[0].id);var antler: int=game.Parts.monster_part(2)
  check(p.carried_parts[antler]==1,"individual stag reward grants the killed species component")
- game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.encounter_number=6;p.pos=game.battlefield.advance;game.use_checkpoint(1,false)
- check(not p.wild and reserve.parts[antler]==1,"earned trophy survives extraction")
- p.pos=game.Stage.GATE;p.cargo_plan[antler]=1;game.enter_wilds(1,p);check(p.wild and p.carried_parts[antler]==1,"stash trophy can be packed into next expedition")
- game.encounter_number=8;p.pos=game.battlefield.graft;game.rng.seed=1
+ game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();ExpeditionCase.set_world(game, {"encounter_number": 6});p.pos=game.battlefield.advance;ExpeditionCase.Transitions.checkpoint(game, 1,false)
+ check(not ExpeditionCase.is_wild(p) and reserve.parts[antler]==1,"earned trophy survives extraction")
+ p.pos=game.Stage.GATE;p.cargo_plan[antler]=1;ExpeditionCase.Transitions.enter(game, 1,p);check(ExpeditionCase.is_wild(p) and p.carried_parts[antler]==1,"stash trophy can be packed into next expedition")
+ ExpeditionCase.set_world(game, {"encounter_number": 8});p.pos=game.battlefield.graft;game.rng.seed=1
  for seed_value in 100:
   game.rng.seed=seed_value
   if game.rng.randf()<game.graft_chance(p,antler): game.rng.seed=seed_value;break
@@ -62,15 +64,15 @@ func run():
  g.parts.fill(0);g.parts[0]=4;g.parts[1]=5;g.heart.material_choice="lantern_moss";check(g.heart.spend_materials(g,3) and g.parts[0]==4 and g.parts[1]==2,"research spends the explicitly selected species")
  check(not g.heart.spend_materials(g,3) and g.parts[0]==4 and g.parts[1]==2,"research cannot silently substitute ingredients")
  # Complete a non-Thorn cultivation -> rare component -> weapon path.
- p.wild=false;p.pos=game.Stage.ALTAR;reserve.unknown.assign([1]);reserve.stock.fill(0);game.Altar.identify_all(game,p)
+ ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.ALTAR;reserve.unknown.assign([1]);reserve.stock.fill(0);game.Altar.identify_all(game,p)
  g.plots[0]=game.Progress.empty_plot();p.pos=game.Stage.PLOTS[0];game.act(1,false);game.garden_action(1,"plant_at_0_1");g.advance_growth(86400.)
  var rare_part: int=game.Parts.rare_part(1);var rare_before: int=g.part_count(rare_part)
  for seed_value in 1000:
   game.rng.seed=seed_value
   if game.rng.randf()<game.rare_harvest_chance(p.character.plants[1]): game.rng.seed=seed_value;break
  game.harvest(1,0);check(g.part_count(rare_part)==rare_before+1,"non-Thorn plant can naturally yield its refined material")
- p.pos=game.Stage.GATE;p.prepared=rare_part;p.prepared_secondary=0;p.prepared_catalyst=0;game.enter_wilds(1,p)
- check(p.wild and p.weapon==rare_part and g.part_count(rare_part)==rare_before,"refined harvest component can craft an expedition weapon")
+ p.pos=game.Stage.GATE;p.prepared=rare_part;p.prepared_secondary=0;p.prepared_catalyst=0;ExpeditionCase.Transitions.enter(game, 1,p)
+ check(ExpeditionCase.is_wild(p) and p.weapon==rare_part and g.part_count(rare_part)==rare_before,"refined harvest component can craft an expedition weapon")
  check(not game.Items.register({"id":"invalid_component","name":"Invalid","category":"plant_part"}),"orphan component definitions are rejected")
  if not failed: print("PASS: stable identity migration, unknown IDs, legacy progression, every-species harvest templates, transaction rollback, crash recovery and earned stag-to-graft-to-upgrade pipeline")
  game.queue_free();await process_frame;quit(1 if failed else 0)

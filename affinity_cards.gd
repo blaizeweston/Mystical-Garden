@@ -1,4 +1,6 @@
 extends RefCounted
+
+const Participation = preload("res://expedition_participation.gd")
 ## Card views and combat effects. Entries are authored in the affinity catalog.
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Catalog = preload("res://affinity_card_catalog.gd")
@@ -19,7 +21,7 @@ static func clear(player: Dictionary) -> void:
 
 # Read adapter for existing actor consumers. The ledger owns the records.
 static func ledger(player: Dictionary) -> Ledger:
-	return player.get(STATE) if player.get("wild", false) else null
+	return player.get(STATE) if Participation.is_wild(player) else null
 
 
 static func totals(player: Dictionary) -> Dictionary:
@@ -233,7 +235,7 @@ static func bloom_echo_source(game: Node, player: Dictionary, skill: Dictionary,
 	var owner: int = game.Traits.player_id(game, player)
 	for field: Dictionary in game.trait_events:
 		if field.get("native_weaver_bloom", false) and int(field.owner) == owner \
-				and int(field.epoch) == int(game.combat_epoch) and int(field.until) > now \
+				and int(field.epoch) == int(game.participation.epoch()) and int(field.until) > now \
 				and PlayerLifecycle.matches(player,int(field.get("life",-1))):
 			return field
 	return {}
@@ -245,7 +247,7 @@ static func bloom_contains(game: Node, bloom: Dictionary, target: int) -> bool:
 
 
 static func bloom_echo(game: Node, player: Dictionary, bloom: Dictionary, skill: Dictionary, now: int) -> void:
-	if int(game.combat_epoch) != int(bloom.epoch) or not game.Life.alive(player):
+	if int(game.participation.epoch()) != int(bloom.epoch) or not game.Life.alive(player):
 		return
 	skill.bloom_echo_spent = true
 	var hp: int = skill.bloom_echo_hp

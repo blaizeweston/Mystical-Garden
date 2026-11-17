@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -41,7 +43,7 @@ func run() -> void:
 	game.add_player(2)
 	ally=game.players[2]
 	ally.profile_ready=true
-	ally.wild=true
+	ExpeditionCase.set_membership(game, ally, true)
 	roster()
 	guard_and_quake()
 	class_fields_and_traps()
@@ -55,7 +57,7 @@ func run() -> void:
 
 
 func arena(class_id: int, mask: int = 0) -> void:
-	game.combat_epoch+=1
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	game.encounter.clear_scouts()
 	game.combat_events.clear()
 	game.trait_events.clear()

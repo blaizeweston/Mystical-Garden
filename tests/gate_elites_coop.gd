@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Status=preload("res://combat_status.gd")
 var game: Node
@@ -28,12 +30,12 @@ func host_run():
  check(game.host_game()==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"registration");return
  game.battlefield.configure(0,1);game.battlefield.barriers.clear()
- for player in game.players.values():player.wild=true;player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,.8)
+ for player in game.players.values():ExpeditionCase.set_membership(game, player, true);player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,.8)
  game.encounter.clear_scouts();game.encounter.set_hp(-1, 80);game.tactics.position=Vector3.ZERO;game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.enemy_mutations=0
  check(await until(func():return marked("ready")),"guest sees Wilds")
  for kind in [1,2,9,7,11]:
   game.tactics.memory.clear();game.enemy_kind=kind;game.tactics.position=Vector3.ZERO;game.encounter.begin_floor(80);game.tactics.engaged=true;game.tactics.ready_at=0;game.tactics.winding_up=false;game.tactics.stagger_until=0;game.tactics.rooted_until=0
-  if kind==7:game.encounter_number=12
+  if kind==7:ExpeditionCase.set_world(game, {"encounter_number": 12})
   if kind==11:
    var escorted: Dictionary=game.make_scout(0,Vector3(0,0,1.8),2)
    escorted.ready=Time.get_ticks_msec()+60000
@@ -52,7 +54,7 @@ func host_run():
 func guest_run():
  game.guest_character.save_profile();check(game.join_game()==OK,"connects")
  var id:=game.multiplayer.get_unique_id()
- if not await until(func():return game.session=="Guest" and not game.client_details.is_empty() and game.players.get(id,{}).get("wild",false)):check(false,"Wilds arrives");return
+ if not await until(func():return game.session=="Guest" and not game.client_details.is_empty() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds arrives");return
  mark("ready")
  for kind in [1,2,9,7,11]:
   check(await until(func():return game.enemy_kind==kind and game.stage.foe_model.kind==kind and game.players[id].get("attack_hints",[]).any(func(h):return h.id==-1 and h.role==game.Enemies.get_kind(kind).role)),"species and real attack hint "+str(kind))

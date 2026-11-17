@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Catalog=preload("res://heart_catalog.gd")
 const Progress=preload("res://progress.gd")
 var failed:=false
@@ -82,7 +84,7 @@ func run():
  migrated.save_garden()
  check(FileAccess.file_exists(legacy_path+".pre-heart-v1.bak"),"legacy Heart recovery backup")
  # Reclamation consumes matching parts and returns a known species to its owner's reserve.
- p.wild=false;p.pos=game.Stage.HEART_STATIONS.seed_archive
+ ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.HEART_STATIONS.seed_archive
  g.discoveries[0]=true;p.reclaim_choice=0
  var reserve: Dictionary=game.seed_reserve(p)
  reserve.parts.fill(0);g.parts.fill(0);g.parts[0]=10
@@ -97,28 +99,28 @@ func run():
  check(g.knowledge==knowledge_before+5 and reserve.parts[trophy]==0,"first trophy knowledge and lower repeat reward")
  check(game.monster_cargo_limit()==8,"preservation expands monster cargo")
  p.pos=game.Stage.GATE;game.send_action(false);game.send_garden_action("depart")
- game.encounter_number=6;game.encounter.set_hp(-1, 1);game.encounter.clear_scouts()
+ ExpeditionCase.set_world(game, {"encounter_number": 6});game.encounter.set_hp(-1, 1);game.encounter.clear_scouts()
  p.pos=game.battlefield.advance;p.carried_seeds.assign([0,1]);p.pouch=true
  check(not game.can_checkpoint_bank(p),"live checkpoint cannot send items")
  game.encounter.set_hp(-1, 0)
  check(game.can_checkpoint_bank(p),"cleared third-gate upgrade gate offers courier")
  var unknown_before: int=reserve.unknown.size()
  game.bank_checkpoint_item(1,p,"bank_seed_0")
- check(p.wild and p.carried_seeds==[1] and not p.pouch and reserve.unknown.size()==unknown_before+1,"one seed banks without ending expedition or transferring pouch")
+ check(ExpeditionCase.is_wild(p) and p.carried_seeds==[1] and not p.pouch and reserve.unknown.size()==unknown_before+1,"one seed banks without ending expedition or transferring pouch")
  check(not game.can_checkpoint_bank(p),"one courier item per checkpoint")
- game.encounter_number=12;p.last_deposit=0;p.carried_parts[trophy]=1
+ ExpeditionCase.set_world(game, {"encounter_number": 12});p.last_deposit=0;p.carried_parts[trophy]=1
  var valid_path: String=g.path;g.path="res://.godot/no-such-directory/courier.cfg"
  game.bank_checkpoint_item(1,p,"bank_part_%d"%trophy)
  check(p.carried_parts[trophy]==1 and p.last_deposit==0,"courier save failure returns carried material")
  g.path=valid_path
  game.bank_checkpoint_item(1,p,"bank_part_%d"%trophy)
  check(p.carried_parts[trophy]==0 and reserve.parts[trophy]==1,"courier banks a selected monster material")
- p.wild=false;game.depth=0;game.destination=game.Campaign.GROVE
+ ExpeditionCase.set_membership(game, p, false);ExpeditionCase.set_world(game, {"depth": 0});ExpeditionCase.set_world(game, {"destination": game.Campaign.GROVE})
  for phase in 6:
   game.stage.update_heart_progress({"phase":phase,"unlocked":h.unlocked})
   check(is_instance_valid(game.stage.heart_core),"phase %d constructs an organic 3D core"%phase)
  check(game.stage.heart_stations.size()==3,"three restored services retained in Heart menus")
- p.pos=game.Stage.HEART;p.wild=false
+ p.pos=game.Stage.HEART;ExpeditionCase.set_membership(game, p, false)
  game.progression_view.tabs.current_tab=1
  game.progression_view.refresh()
  check(game.progression_view.tree.nodes.size()==Catalog.DEFINITIONS.filter(func(n):return Catalog.enabled(n.id)).size(),"reusable tree displays active Heart catalog")

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -141,10 +143,10 @@ func title_and_depart() -> bool:
 	game.map_rng.seed=16
 	game.PartyTravel.request(game,1,"depart")
 	deadline = Time.get_ticks_msec()+6500
-	while (not player.wild or not game.stage._has_experimental_floor()) and Time.get_ticks_msec()<deadline:
+	while (not ExpeditionCase.is_wild(player) or not game.stage._has_experimental_floor()) and Time.get_ticks_msec()<deadline:
 		await process_frame
-	check(player.wild and game.stage._has_experimental_floor(),"real generated Wilds departure")
-	return player.wild and game.stage._has_experimental_floor()
+	check(ExpeditionCase.is_wild(player) and game.stage._has_experimental_floor(),"real generated Wilds departure")
+	return ExpeditionCase.is_wild(player) and game.stage._has_experimental_floor()
 
 
 func arena(path: Array) -> void:
@@ -167,7 +169,7 @@ func arena(path: Array) -> void:
 	game.tactics.rooted_until=0
 	for who in [ally,player]:
 		who[PlayerVitals.STATE] = who[PlayerVitals.STATE].with_hp(90)
-		who.wild=true
+		ExpeditionCase.set_membership(game, who, true)
 		who[Cooldowns.STATE] = who[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
 		for key in ["cast_until","core_cast_until","guard_until","guard_charges","hurt_until","slow_until"]:
 			who[key]=0
@@ -250,15 +252,15 @@ func offense(base: int) -> void:
 	q()
 	prior=game.enemy_health()
 	var scout_before: int=game.encounter.hp_for(near)
-	var floor_number: int = game.encounter_number
+	var floor_number: int = game.participation.floor()
 	var cast_position: Vector3 = player.pos
 	player[Improvements.STATE] = Improvements.Ledger.new(1)
-	game.encounter_number=8
+	ExpeditionCase.set_world(game, {"encounter_number": 8})
 	player.pos=game.battlefield.graft
 	player.carried_parts[game.Parts.monster_part(17)]=1
-	game.garden_action(1,Improvements.request(Improvements.owner_details(player, game.encounter_number),"cinder_field","monster_17"))
-	check(Improvements.owner_details(player, game.encounter_number).copies.size()==1,"a real Cinder purchase is active for the Nova scope check")
-	game.encounter_number=floor_number
+	game.garden_action(1,Improvements.request(Improvements.owner_details(player, game.participation.floor()),"cinder_field","monster_17"))
+	check(Improvements.owner_details(player, game.participation.floor()).copies.size()==1,"a real Cinder purchase is active for the Nova scope check")
+	ExpeditionCase.set_world(game, {"encounter_number": floor_number})
 	player.pos=cast_position
 	r()
 	player.erase(Improvements.STATE)
@@ -308,7 +310,7 @@ func threaded_nova() -> void:
 	game.use_class_skill(1,player,0)
 	check(player[Cooldowns.STATE].deadline(Cooldowns.R) == original and game.trait_events.is_empty(),"a refused focus cast cannot refund the Nova timer")
 	arena(BALANCED)
-	player.subclass_follow = {"lane":1,"epoch":game.combat_epoch,"life":PlayerLifecycle.generation(player)}
+	player.subclass_follow = {"lane":1,"epoch":game.participation.epoch(),"life":PlayerLifecycle.generation(player)}
 	var before := Time.get_ticks_msec()
 	r()
 	var cooldown := Skills.Balance.cooldown(Skills.resolve_in_world(game,1,1,player.character),game.weapon_stats(player))

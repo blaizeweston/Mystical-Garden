@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Tx=preload("res://game_transaction.gd")
 const Batch=preload("res://save_batch.gd")
 const Slots=preload("res://save_slots.gd")
@@ -139,12 +141,12 @@ func run() -> void:
  world=launch(menu)
  if world==null: quit(1);return
  world.players[1].pos=world.Stage.GATE
- world.enter_wilds(1,world.players[1])
+ ExpeditionCase.Transitions.enter(world, 1,world.players[1])
  world.players[1].safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  before=disk()
  world.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
- check(not world.expedition_active() and disk()[G]!=before[G] and disk()[G.get_base_dir().path_join("session.cfg")]=="absent"
+ check(not world.participation.active() and disk()[G]!=before[G] and disk()[G.get_base_dir().path_join("session.cfg")]=="absent"
   and disk()[C.get_base_dir().path_join("session.cfg")]=="absent" and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"window close settles pouch, detaches and releases both leases")
- record("window_close",before,{"offline":true,"wild":world.expedition_active()})
+ record("window_close",before,{"offline":true,"wild":world.participation.active()})
  if not failed:print("PASS: guarded lifecycle, preference isolation and title recovery")
  quit(1 if failed else 0)

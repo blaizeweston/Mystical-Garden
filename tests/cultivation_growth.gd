@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Growth=preload("res://cultivation_growth.gd")
 const Care=preload("res://garden_crop_state.gd")
 const Service=preload("res://garden_crop_service.gd")
@@ -24,7 +26,7 @@ func run() -> void:
  plant(game,game.Seeds.index_of("crownroot"))
  var bed: Dictionary=g.plots[0];g.advance_growth(60);check(is_equal_approx(bed.age,60) and bed.stage==0,"mythic plant stays immature after one Garden minute")
  var work: float=bed.age;g.advance_growth(60,true);check(is_equal_approx(bed.age-work,120),"Wilds clock advances twice as fast")
- work=bed.age;game.growth_clock=.99;p.wild=true;game._physics_process(.01);p.wild=false;p.pos=game.Stage.PLOTS[0]
+ work=bed.age;game.growth_clock=.99;ExpeditionCase.set_membership(game, p, true);game._physics_process(.01);ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.PLOTS[0]
  check(is_equal_approx(bed.age-work,2.0),"the live host tick selects the Wilds rate")
  work=bed.age;g.apply_milestone(6);check(bed.age==work,"milestones no longer add a second growth payout")
  var request:=View.request(shown(game),"water_crop")

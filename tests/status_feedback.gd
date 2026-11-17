@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Status=preload("res://combat_status.gd")
 var failed:=false
@@ -12,7 +14,7 @@ func run():
  var game=load("res://world.tscn").instantiate();var token:=str(Time.get_ticks_usec())
  game.progress.path="res://.godot/status-"+token;game.local_character.path=game.progress.path+".character";root.add_child(game)
  game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
- var p: Dictionary=game.players[1];p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(0,0,-1);p.power=0
+ var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(0,0,-1);p.power=0
  game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.encounter.set_hp(-1, 80);game.tactics.position=Vector3(0,0,1);game.enemy_traits.clear();game.encounter.clear_scouts();game.tactics.winding_up=false
  var now:=Time.get_ticks_msec();p.slow_until=now+4000
  var stats: Dictionary=game.weapon_stats(p);stats.damage=1;stats.mark_damage=2

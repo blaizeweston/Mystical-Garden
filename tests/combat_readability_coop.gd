@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
@@ -31,7 +33,7 @@ func host_run():
  check(game.host_game()==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"registration");return
  var id: int=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
- for player in game.players.values():player.wild=true;player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,-1)
+ for player in game.players.values():ExpeditionCase.set_membership(game, player, true);player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,-1)
  game.encounter.clear_scouts();game.encounter.set_hp(-1, 50);game.tactics.position=Vector3(0,0,1);game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.enemy_mutations=0
  check(await until(func():return marked("ready")),"guest sees Wilds")
  game.Transactions.run(game,func():
@@ -52,7 +54,7 @@ func host_run():
 func guest_run():
  game.guest_character.save_profile();check(game.join_game()==OK,"guest connects")
  var id:=game.multiplayer.get_unique_id()
- if not await until(func():return game.session=="Guest" and not game.client_details.is_empty() and game.players.get(id,{}).get("wild",false)):check(false,"Wilds state arrives");return
+ if not await until(func():return game.session=="Guest" and not game.client_details.is_empty() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds state arrives");return
  game.combat_visuals.set_process(false);mark("ready")
  check(await until(func():return game.received_combat_events.any(func(e):return e.event.kind=="ability") and game.players[id].hp==9),"committed ability and health arrive")
  game._process(.016)
@@ -62,7 +64,7 @@ func guest_run():
  check(events.any(func(e):return e.kind=="ability" and not str(e.get("label","")).is_empty()),"named ability reaches guest")
  var fx=game.combat_visuals
  check(fx.feedback.labels.size()==3,"two damage values and one ability label: "+str(fx.feedback.labels.map(func(item):return item.node.text)))
- var count: int=fx.feedback.labels.size();fx.sync(events,[],"%d:%d:%d:%s"%[game.destination,game.encounter_number,game.map_seed,str(true)],game.players[id].pos)
+ var count: int=fx.feedback.labels.size();fx.sync(events,[],"%d:%d:%d:%s"%[game.participation.route(),game.participation.floor(),game.participation.seed(),str(true)],game.players[id].pos)
  check(fx.feedback.labels.size()==count,"repeat details cannot duplicate labels")
  fx.clear();check(fx.feedback.labels.is_empty() and fx.feedback.flashes.is_empty(),"cleanup restores all feedback")
  var mix: Node=game.get_node("EventAudio")

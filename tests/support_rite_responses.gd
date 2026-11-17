@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Core = preload("res://core_combat.gd")
@@ -33,16 +35,16 @@ func actor(kind: int, at: Vector3, hp: int = -1) -> Dictionary:
 
 func fixture(kind: int, floor_number: int) -> Dictionary:
 	Core.reset(game)
-	game.combat_epoch += 1
-	game.encounter_number = floor_number
-	game.map_seed = 10 + posmod(-37 - kind * 19 - floor_number * 11, 10)
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
+	ExpeditionCase.set_world(game, {"encounter_number": floor_number})
+	ExpeditionCase.set_world(game, {"map_seed": 10 + posmod(-37 - kind * 19 - floor_number * 11, 10)})
 	game.encounter.set_hp(-1, 50)
 	game.enemy_kind = 0
 	game.tactics.position = Vector3(12, 0, 5)
 	game.encounter.clear_scouts()
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
-	player.wild = true
+	ExpeditionCase.set_membership(game, player, true)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
 	player.hurt_until = 0
 	player.pos = Vector3(0, 0, 1.4)

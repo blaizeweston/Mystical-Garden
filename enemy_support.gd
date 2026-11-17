@@ -17,13 +17,13 @@ static func visible_allies(game: Node, actor: Dictionary, origin: Vector3, radiu
  for entry in load("res://enemy_formation.gd").allies(game, actor):
   if origin.distance_to(entry.pos)>radius or not game.battlefield.clear_line(origin,entry.pos):continue
   var slot: int=entry.index
-  var token: int=game.combat_epoch if slot<0 else game.encounter.token(slot)
+  var token: int=game.participation.epoch() if slot<0 else game.encounter.token(slot)
   result.append({"slot":slot,"token":token,"point":entry.pos})
  return result
 
 static func live_ally(game: Node, ref: Dictionary) -> bool:
  var slot: int=ref.slot
- if slot<0:return game.encounter.hp(-1)>0 and ref.token==game.combat_epoch
+ if slot<0:return game.encounter.hp(-1)>0 and ref.token==game.participation.epoch()
  return game.encounter.alive(slot,ref.token)
 
 static func lock_rite_anchor(attack: Dictionary, anchor: Dictionary, response: String, radius: float) -> void:
@@ -102,11 +102,11 @@ static func observe_shelter_break(game: Node, target: int, before: Vector3, afte
  if cover.is_empty():return
  var slot: int=cover.actor
  var grazer: Dictionary=game.encounter.leader_tactics() if slot<0 else game.encounter.scout(slot)
- if grazer.is_empty() or grazer.get("summoned",false) or grazer.get("shelter_break_epoch",-1)==game.combat_epoch:return
+ if grazer.is_empty() or grazer.get("summoned",false) or grazer.get("shelter_break_epoch",-1)==game.participation.epoch():return
  var origin: Vector3=game.enemy_position(slot)
  if covers(game,grazer,origin,after,after,now,true):return
- var token: int=game.combat_epoch if target<0 else game.encounter.token(target)
- grazer.shelter_break_epoch=game.combat_epoch
+ var token: int=game.participation.epoch() if target<0 else game.encounter.token(target)
+ grazer.shelter_break_epoch=game.participation.epoch()
  grazer.shelter_escort={"slot":target,"token":token,"point":after}
  Tactics.record(game,Tactics.SHELTER_BREAK,{"species":Catalog.get_kind(11).id,"target_token":game.encounter.token_for(grazer),"escort_token":token})
  game.emit_combat_event("proc","shelter_broken",before,after,.55,Color("#f0cb97"),0,target)
@@ -167,7 +167,7 @@ static func decorate_plan(game: Node, actor: Dictionary, attack: Dictionary, tar
     attack.command=actor.get("cast_target",game.nearest_wild_player(origin))
     attack.escorts=visible_allies(game,actor,origin,attack.radius)
     attack.cue="Rally"
-    var relay: bool=int(actor.get("rite_disrupted_epoch",-1))==game.combat_epoch and Tactics.eligible(game,actor,Tactics.RELAY)
+    var relay: bool=int(actor.get("rite_disrupted_epoch",-1))==game.participation.epoch() and Tactics.eligible(game,actor,Tactics.RELAY)
     if (relay or attack.variant=="flank_command") and game.players.has(attack.command):
      var victim: Vector3=game.players[attack.command].pos
      for ally in attack.escorts:

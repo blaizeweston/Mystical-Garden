@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
@@ -57,8 +59,8 @@ func run() -> void:
 	game.add_player(2)
 	var p: Dictionary=game.players[1]
 	var ally: Dictionary=game.players[2]
-	p.wild=true
-	ally.wild=true
+	ExpeditionCase.set_membership(game, p, true)
+	ExpeditionCase.set_membership(game, ally, true)
 	p.pos=Vector3.ZERO
 	ally.pos=Vector3(0,0,-1.3)
 	for pair in [["part_8","plant_part_rare_dewcap"],["plant_part_plant_tide_lily","plant_part_rare_tide_lily"]]:

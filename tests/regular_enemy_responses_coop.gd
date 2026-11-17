@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Attacks = preload("res://enemy_attack.gd")
@@ -70,10 +72,10 @@ func run() -> void:
 
 func prepare(kind: int) -> Dictionary:
 	var profile: Dictionary = Tactics.REGULAR_RESPONSES[kind]
-	game.combat_epoch += 1
-	game.encounter_number = profile.floor
-	game.map_seed = 0
-	game.battlefield.configure(game.destination, game.depth, game.map_seed)
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
+	ExpeditionCase.set_world(game, {"encounter_number": profile.floor})
+	ExpeditionCase.set_world(game, {"map_seed": 0})
+	game.battlefield.configure(game.participation.route(), game.participation.depth(), game.participation.seed())
 	game.battlefield.barriers.clear()
 	game.encounter.set_hp(-1, 50)
 	game.enemy_kind = 0
@@ -81,7 +83,7 @@ func prepare(kind: int) -> Dictionary:
 	game.tactics.stagger_until = Time.get_ticks_msec() + 60000
 	game.encounter.clear_scouts()
 	for member in game.players.values():
-		member.wild = true
+		ExpeditionCase.set_membership(game, member, true)
 		member[PlayerVitals.STATE] = member[PlayerVitals.STATE].with_hp(10)
 		member.hurt_until = 0
 		member.pos = Vector3(0, 0, -3.4)
@@ -172,8 +174,8 @@ func guest() -> void:
 
 
 func host_glasscap() -> void:
-	game.combat_epoch += 1
-	game.encounter_number = 12
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
+	ExpeditionCase.set_world(game, {"encounter_number": 12})
 	game.progress.wilds_memory.score = {}
 	game.encounter.clear_scouts()
 	for member in game.players.values():

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Icons = preload("res://class_skill_icons.gd")
@@ -20,7 +22,7 @@ func run():
 	game.set_physics_process(false)
 	var p: Dictionary = game.players[1]
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(1)
-	p.wild = true
+	ExpeditionCase.set_membership(game, p, true)
 	p.frame = 1
 	p.carried_seeds.assign([0, 1, 1])
 	p.pouch = true
@@ -37,9 +39,9 @@ func run():
 	var model = preload("res://inventory_model.gd")
 	var items = preload("res://item_catalog.gd")
 	check(int(model.counts(game,p,"carry").get(items.part_id(1),0))==2, "Wilds inventory reads carried components")
-	p.wild=false
+	ExpeditionCase.set_membership(game, p, false)
 	check(int(model.counts(game,p,"stash").get(items.part_id(1),0))==4 and int(model.counts(game,p,"shared").get(items.part_id(int(game.Seeds.DEFINITIONS[0].part)),0))==7, "Garden inventory separates personal and shared materials")
-	p.wild=true
+	ExpeditionCase.set_membership(game, p, true)
 	var private_state: Dictionary = game.player_snapshot(1)[1]
 	check(private_state.reserve_parts[1] == 4 and not private_state.dodge_ready, "private multiplayer snapshot supplies HUD data")
 	var stranger: Dictionary = game.player_snapshot(999)[1]
@@ -53,10 +55,10 @@ func run():
 	game._input(tab)
 	check(game.pack_menu.visible and not panel.visible, "Tab leaves other open menus in place")
 	game.toggle_overlay(null)
-	p.wild=false
+	ExpeditionCase.set_membership(game, p, false)
 	game._input(tab)
 	check(not panel.visible, "Tab is reserved for the expedition summary in the Wilds")
-	p.wild=true
+	ExpeditionCase.set_membership(game, p, true)
 	p.frame=0
 	p.character.upgrades[0] = 1 << (game.Classes.Warden.OFFSET + 1)
 	game._process(.016)

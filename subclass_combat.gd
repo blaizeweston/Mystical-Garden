@@ -260,7 +260,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 	elif oracle:
 		oracle_api.after_q(game,id,player,skill,int(event.identity) if event != null else cast_id,affected,nearby,now)
 	elif follow >= 0 and not (weaver and follow == 1):
-		player.subclass_follow = {"lane":follow,"epoch":game.combat_epoch,"life":PlayerLifecycle.generation(player)}
+		player.subclass_follow = {"lane":follow,"epoch":game.participation.epoch(),"life":PlayerLifecycle.generation(player)}
 	player.contributed = true
 	var timers: Cooldowns.Timers = player[Cooldowns.STATE]
 	player[Cooldowns.STATE] = timers.start(Cooldowns.Q, now, Balance.cooldown(skill,stats))
@@ -312,7 +312,7 @@ static func echo(game: Node, player: Dictionary, center: Vector3, exclude: Array
 
 static func follow_lane(game: Node, player: Dictionary) -> int:
 	var follow: Dictionary = player.get("subclass_follow",{})
-	if follow.is_empty() or follow.epoch != game.combat_epoch or not PlayerLifecycle.matches(player,int(follow.life)) or not game.Life.alive(player):
+	if follow.is_empty() or follow.epoch != game.participation.epoch() or not PlayerLifecycle.matches(player,int(follow.life)) or not game.Life.alive(player):
 		return -1
 	return int(follow.lane)
 

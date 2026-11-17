@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Attacks=preload("res://enemy_attack.gd")
 const Status=preload("res://combat_status.gd")
@@ -11,7 +13,7 @@ func _initialize():
  call_deferred("run")
 func run():
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/monster-behaviors-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
- var p=game.players[1];p.wild=true;p.pos=Vector3(0,0,4);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
+ var p=game.players[1];ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,4);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
  game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,5);game.enemy_mutations=0
  var shepherd=game.make_scout(10,Vector3(1,0,6),1);shepherd.mode="shepherd"
  var escort=game.make_scout(0,Vector3(0,0,6),2);game.encounter.clear_scouts();game.encounter.register_scout(shepherd);game.encounter.register_scout(escort);preload("res://scout_behavior.gd").release(game, shepherd,game.Enemies.get_kind(10),2000)
@@ -31,7 +33,7 @@ func run():
  p.pos=Vector3(3,0,4);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);lure.mode="lure";lure.blast=Vector3(0,0,4)
  preload("res://scout_behavior.gd").release(game, lure,game.Enemies.get_kind(12),5000)
  check(PlayerVitals.current_hp(p)==10 and p.pos==Vector3(3,0,4),"dodging the lure circle avoids damage and forced movement")
- game.encounter_number=5
+ ExpeditionCase.set_world(game, {"encounter_number": 5})
  var now:=Time.get_ticks_msec()+2000
  var origin:=Vector3(-6.5,0,-4.5)
  var target:=Vector3(-6.5,0,-1)

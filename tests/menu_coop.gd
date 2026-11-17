@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Slots=preload("res://save_slots.gd")
 const Character=preload("res://character_profile.gd")
 var failed:=false
@@ -56,13 +58,13 @@ func run():
 		if not await until(func(): return game.players[guest_id].profile_ready):
 			check(false,"guest profile registered");finish(mode);return
 		check(game.players[guest_id].character.name=="Willow" and game.players[guest_id].character.xp[0]==3 and game.players[guest_id].character.appearance==[1,2,1,2,1,1,70,80,40,65,35,60,75],"Join carries the selected slot character")
-		game.encounter_number=game.GRAFT_ROOM
-		game.depth=4
-		game.map_seed=91247
+		ExpeditionCase.set_world(game, {"encounter_number": game.GRAFT_ROOM})
+		ExpeditionCase.set_world(game, {"depth": 4})
+		ExpeditionCase.set_world(game, {"map_seed": 91247})
 		game.reset_encounter()
 		game.encounter.clear_scouts()
 		for player in game.players.values():
-			player.wild=true
+			ExpeditionCase.set_membership(game, player, true)
 			player.pos=game.battlefield.graft
 		game.players[1].pos+=Vector3.LEFT*.5
 		game.players[guest_id].carried_parts[4]=1
@@ -86,7 +88,7 @@ func run():
 		menu.network_dialog.confirm()
 		check(current_scene.active_character_slot==1 and not current_scene.slot_claimed,"guest character selection is independent of the active world")
 		game=current_scene
-		if not await until(func(): return game.session=="Guest" and game.encounter_number==game.GRAFT_ROOM and game.players.has(game.multiplayer.get_unique_id()) and game.stage.graft_altar.visible):
+		if not await until(func(): return game.session=="Guest" and game.participation.floor()==game.GRAFT_ROOM and game.players.has(game.multiplayer.get_unique_id()) and game.stage.graft_altar.visible):
 			check(false,"Join from menu receives a visible live shrine");finish(mode);return
 		var id: int=game.multiplayer.get_unique_id()
 		check(Array(game.players[id].appearance)==[1,2,1,2,1,1,70,80,40,65,35,60,75],"full slider appearance replicated to guest")

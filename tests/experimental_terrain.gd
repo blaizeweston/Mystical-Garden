@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
@@ -298,9 +300,9 @@ func run() -> void:
 	game.PartyTravel.request(game, game.HOST, "depart")
 	for ignored in 3:
 		await process_frame
-	check(player.wild and game.battlefield is Field and not game.battlefield.generated.is_empty(),
+	check(ExpeditionCase.is_wild(player) and game.battlefield is Field and not game.battlefield.generated.is_empty(),
 		"production Gate enters the generated floor through guarded travel")
-	if not player.wild or not game.battlefield is Field or game.battlefield.generated.is_empty():
+	if not ExpeditionCase.is_wild(player) or not game.battlefield is Field or game.battlefield.generated.is_empty():
 		call("quit", 1)
 		return
 	var field: Field = game.battlefield
@@ -422,10 +424,10 @@ func run() -> void:
 	check(not player.safe_items.is_empty() and player.safe_items[0].item == trophy, "real monster drop fits in safe pouch")
 	study_work = garden.assimilation.queue[0].done
 	player.pos = field.advance
-	game.use_checkpoint(game.HOST, true)
+	ExpeditionCase.Transitions.checkpoint(game, game.HOST, true)
 	await process_frame
 	await process_frame
-	check(game.depth == 2 and game.battlefield is Field and not game.battlefield.generated.is_empty(), "the real Gate advances to another generated floor")
+	check(game.participation.depth() == 2 and game.battlefield is Field and not game.battlefield.generated.is_empty(), "the real Gate advances to another generated floor")
 	var next_field: Field = game.battlefield
 	check(next_field.entry.distance_to(Vector3(player.pos)) < 1.2
 		and next_field.entry.distance_to(next_field.advance) > game.exploration.SIGHT
@@ -470,7 +472,7 @@ func run() -> void:
 	check(stored_profile.load_profile(false) == OK and stored_profile.data.xp == player.character.xp
 		and stored_profile.data.monsters == player.character.monsters,
 		"the loss settlement persisted exact XP and kill counts")
-	check(not player.wild and garden.state.revision == 2 and garden.bed_ids[3] == stable_id
+	check(not ExpeditionCase.is_wild(player) and garden.state.revision == 2 and garden.bed_ids[3] == stable_id
 		and game.progress.plots[3].species == planted and garden.barrier.walkable(garden.planar(player.pos)),
 		"production return retains the session Garden and crop")
 	check(is_equal_approx(garden.assimilation.queue[0].done, study_work), "return preserves study progress without extra work")

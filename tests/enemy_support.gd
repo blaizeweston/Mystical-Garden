@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Attacks=preload("res://enemy_attack.gd")
 const Support=preload("res://enemy_support.gd")
@@ -26,9 +28,9 @@ func run() -> void:
  game.battlefield.barriers.clear()
  game.tactics.boss_kind=-1
  game.encounter.set_hp(-1, 0)
- game.encounter_number=12
+ ExpeditionCase.set_world(game, {"encounter_number": 12})
  var player: Dictionary=game.players[1]
- player.wild=true
+ ExpeditionCase.set_membership(game, player, true)
  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
  player.pos=Vector3(0,0,6)
  var now:=Time.get_ticks_msec()+100

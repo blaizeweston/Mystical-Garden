@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Service=preload("res://garden_return_service.gd")
 const Scenes=preload("res://garden_growth_service.gd")
 var game: Node
@@ -38,11 +40,11 @@ func host_run() -> void:
  for peer in [1,id]:
   var p: Dictionary=game.players[peer];p.pos=game.Stage.GATE;p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0;p.cargo_plan.fill(0)
  check(game.Transactions.run(game,func():
-  game._enter_wilds(1,game.players[1]);game._enter_wilds(id,game.players[id]);return true)==true,"shared run starts")
+  ExpeditionCase.Transitions.admit(game, 1,game.players[1]);ExpeditionCase.Transitions.admit(game, id,game.players[id]);return true)==true,"shared run starts")
  check(game.players[1].garden_run_id==game.players[id].garden_run_id and game.progress.garden_interactions.returns.active.members.size()==2,"both members use one expedition identity")
- game.depth=6;game.encounter_number=6;game.deepest_milestone=0;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts()
+ ExpeditionCase.set_world(game, {"depth": 6});ExpeditionCase.set_world(game, {"encounter_number": 6});game.deepest_milestone=0;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts()
  for peer in [1,id]:game.players[peer].pos=game.battlefield.advance;game.players[peer].carried_seeds=[moss]
- check(game.Transactions.run(game,func():game._use_checkpoint(1,false);return true)==true,"party banks a cleared checkpoint")
+ check(game.Transactions.run(game,func():ExpeditionCase.Transitions.commit_checkpoint(game, 1,false);return true)==true,"party banks a cleared checkpoint")
  check(game.progress.garden_interactions.returns.history.size()==1 and game.progress.garden_interactions.returns.history[0].outcomes.get("extracted",0)==2,"one closed run records both outcomes")
  for peer in [1,id]:game.players[peer].pos=game.Stage.ALTAR
  mark("banked")
@@ -60,7 +62,7 @@ func host_run() -> void:
  check(await until(func():return marked("guest-offline") and game.multiplayer.get_peers().is_empty()),"host observes guest disconnect before teardown")
 func guest_run() -> void:
  check(game.join_game()==OK,"guest joins")
- if not await until(func():return marked("banked") and game.session=="Guest" and game.players.has(game.local_player_id()) and not game.players[game.local_player_id()].wild):check(false,"banked snapshot");return
+ if not await until(func():return marked("banked") and game.session=="Guest" and game.players.has(game.local_player_id()) and not ExpeditionCase.is_wild(game.players[game.local_player_id()])):check(false,"banked snapshot");return
  check(Service.projection(game,game.local_player_id()).get("entries",[]).is_empty(),"unidentified banking reveals no species/story")
  game.send_altar_action("identify_all",[],0);mark("submitted")
  if not await until(func():return marked("identified") and Service.known(Service.projection(game,game.local_player_id()),"lantern_homecoming") and Scenes.projection(game,game.local_player_id()).get("pending",[]).size()==1):check(false,"shared discovery arrives");return

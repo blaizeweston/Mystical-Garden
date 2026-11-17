@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Tx = preload("res://game_transaction.gd")
 const Batch = preload("res://save_batch.gd")
 const Slots = preload("res://save_slots.gd")
@@ -236,7 +238,7 @@ func run() -> void:
  var peer: Dictionary = world.players[PEER]
  peer.seed_owner = "late-peer"
  peer.profile_ready = true
- peer.wild = true
+ ExpeditionCase.set_membership(world, peer, true)
  peer.safe_items = [{"item": "unidentified_seed", "quantity": 1, "seeds": [0]}]
  check(world._queue_monster_reward("late",world.enemy_kind,0,world.tactics.position,false), "freeze a real pending receipt before lease loss")
  var memory: Dictionary = world.progress.character_records.duplicate(true)

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -37,8 +39,8 @@ func host_run() -> void:
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"admission");return
  game.set_physics_process(false)
  print("pressure host admitted")
- game.destination=0;game.encounter_number=19;game.depth=1;game.difficulty_cycle=1;game.map_seed=91273;game.reset_encounter();game.encounter.clear_scouts();game.encounter.set_hp(-1, 10)
- for p in game.players.values():p.wild=true;p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=game.battlefield.entry
+ ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"encounter_number": 19});ExpeditionCase.set_world(game, {"depth": 1});ExpeditionCase.set_world(game, {"difficulty_cycle": 1});ExpeditionCase.set_world(game, {"map_seed": 91273});game.reset_encounter();game.encounter.clear_scouts();game.encounter.set_hp(-1, 10)
+ for p in game.players.values():ExpeditionCase.set_membership(game, p, true);p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=game.battlefield.entry
  var now:=Time.get_ticks_msec();game.pressure_at=now;game.update_pressure(now)
  check(not Pressure.hints(game).is_empty(),"host plans warning")
  print("pressure host warning ready")

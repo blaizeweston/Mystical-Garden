@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
@@ -47,7 +49,7 @@ func arena(game: Node, player: Dictionary, species: String) -> void:
 	player.secondary = 0
 	player.catalyst = 0
 	player.graft_part = 0
-	player.wild = true
+	ExpeditionCase.set_membership(game, player, true)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(8)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(10)
 	player.core_ready_at = 0

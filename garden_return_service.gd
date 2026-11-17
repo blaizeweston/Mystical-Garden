@@ -1,4 +1,6 @@
 extends RefCounted
+
+const Participation = preload("res://expedition_participation.gd")
 const Tx=preload("res://game_transaction.gd")
 const State=preload("res://garden_return_state.gd")
 const Catalog=preload("res://garden_return_catalog.gd")
@@ -18,7 +20,7 @@ static func join(game: Node,id: int,player: Dictionary) -> void:
  if actor.is_empty():actor="peer:"+str(id)
  State.join(value,actor);player.garden_run_actor=actor;player.garden_run_id=value.active.id
 static func bank(game: Node,player: Dictionary,seeds: Array,source: String,ancient: bool=false) -> void:
- if not player.get("wild",false):return
+ if not Participation.is_wild(player):return
  var value:=state(game)
  if value.is_empty():return
  var stable: Array=[]
@@ -38,7 +40,7 @@ static func outcome(game: Node,player: Dictionary,status: String) -> void:
  var value:=state(game)
  if not value.is_empty():State.outcome(value,str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),status)
 static func member_left(game: Node,player: Dictionary) -> void:
- if not player.get("wild",false):return
+ if not Participation.is_wild(player):return
  Tx.run_gameplay(game,Tx.Scope.PAIR,func():outcome(game,player,"disconnected");return true)
 static func identified(game: Node,species: int,ancient: bool=false) -> void:
  var value:=state(game)

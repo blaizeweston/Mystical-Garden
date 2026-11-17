@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -35,7 +37,7 @@ func prepare(p: Dictionary,variant: int) -> void:
  scout.hp=1;scout.stagger_until=Time.get_ticks_msec()+60000
  game.encounter.clear_scouts();game.encounter.register_scout(scout)
  game.encounter_rewarded=false
- for ally in game.players.values(): ally.wild=true;ally.pos=Vector3(0,0,-1.5);ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(10)
+ for ally in game.players.values(): ExpeditionCase.set_membership(game, ally, true);ally.pos=Vector3(0,0,-1.5);ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(10)
  p.frame=0;p.weapon_kind=0;p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0);p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0);p.character.active_class=0;p.character.upgrades[0]=variant;p.character.xp[0]=int(game.Character.LEVEL_THRESHOLDS.back())
  game.publish_character(int(game.players.keys()[1]))
 func host_run() -> void:
@@ -102,7 +104,7 @@ func guest_run() -> void:
  check(await until(func(): return game.session=="Guest" and not game.client_details.is_empty()),"compatible guest accepted")
  var id:=game.multiplayer.get_unique_id()
  for variant in [0,10]:
-  check(await until(func(): return marked("ready-"+str(variant)) and game.players.get(id,{}).get("wild",false) and not game.encounter_cleared() and game.guest_character.data.upgrades[0]==variant),"combat and class choices arrive variant "+str(variant))
+  check(await until(func(): return marked("ready-"+str(variant)) and ExpeditionCase.is_wild(game.players.get(id,{})) and not game.encounter_cleared() and game.guest_character.data.upgrades[0]==variant),"combat and class choices arrive variant "+str(variant))
   cast("class_skill")
   check(await until(func(): return not game.players[id].get("skill_ready",true)),"guest guard or bastion cooldown arrives")
   cast("class_skill_two")

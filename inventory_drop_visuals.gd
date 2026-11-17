@@ -1,4 +1,6 @@
 extends Node
+
+const Participation = preload("res://expedition_participation.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 var game: Node
 var models: Dictionary={}
@@ -11,14 +13,14 @@ func _process(delta: float) -> void:
  var player: Dictionary=game.players.get(game.local_player_id(),{})
  if player.is_empty(): return
  var drops: Array=game.inventory_floor_snapshot(player) if game.multiplayer.is_server() else player.get("ground_items",[])
- var next_key:=str(player.get("wild",false))+str(drops)
+ var next_key:=str(Participation.is_wild(player))+str(drops)
  if next_key!=key:
   key=next_key
   for model in models.values(): model.queue_free()
   models.clear()
   for entry in drops:
    var values: Array=entry.position
-   var node:=Node3D.new();game.stage.add_child(node);node.position=Vector3(values[0],values[1],values[2])+(game.stage.WILD_OFFSET if player.get("wild",false) else Vector3.ZERO)
+   var node:=Node3D.new();game.stage.add_child(node);node.position=Vector3(values[0],values[1],values[2])+(game.stage.WILD_OFFSET if Participation.is_wild(player) else Vector3.ZERO)
    node.set_meta("drop_position",Vector3(values[0],values[1],values[2]))
    var monster: bool=game.Items.get_item(str(entry.item)).get("category","")=="monster_part"
    var color: Color=Color("#62baff") if monster else game.Items.color(str(entry.item))
@@ -33,7 +35,7 @@ func _process(delta: float) -> void:
    game.stage.marker(Vector3(0,.65,0),"%s ×%d"%[game.Items.get_item(str(entry.item)).name,int(entry.quantity)],node)
    models[entry.id]=node
  for entry in drops:
-  if models.has(entry.id): models[entry.id].visible=not player.get("wild",false) or Vector3(models[entry.id].get_meta("drop_position")).distance_to(game.players.get(game.spectator_view.target_id if PlayerLifecycle.fallen(player) and game.spectator_view.target_id!=0 else game.local_player_id(),player).pos)<=game.exploration.SIGHT
+  if models.has(entry.id): models[entry.id].visible=not Participation.is_wild(player) or Vector3(models[entry.id].get_meta("drop_position")).distance_to(game.players.get(game.spectator_view.target_id if PlayerLifecycle.fallen(player) and game.spectator_view.target_id!=0 else game.local_player_id(),player).pos)<=game.exploration.SIGHT
 func _exit_tree() -> void:
  for model in models.values():
   if is_instance_valid(model): model.queue_free()

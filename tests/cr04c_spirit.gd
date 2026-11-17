@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Spirit=preload("res://spirit_affinity.gd")
 const Events=preload("res://combat_action_events.gd")
@@ -28,7 +30,7 @@ func run() -> void:
 	game.set_process(false)
 	game.set_physics_process(false)
 	var p: Dictionary=game.players[1]
-	p.wild=true
+	ExpeditionCase.set_membership(game, p, true)
 	p.profile_ready=true
 	p.pos=Vector3.ZERO
 	p.weapon=game.Items.get_item("part_10").legacy_part
@@ -114,7 +116,7 @@ func run() -> void:
 	check(is_equal_approx(Spirit.scale(p,Clock.now(game)),1.0),"independent expiration returns native movement")
 	game.add_player(2)
 	var ally: Dictionary=game.players[2]
-	ally.wild=true;ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(100);ally.pos=Vector3.ZERO
+	ExpeditionCase.set_membership(game, ally, true);ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(100);ally.pos=Vector3.ZERO
 	game.tactics.position=Vector3(-1,0,0)
 	game.tactics.memory.target=2
 	var ward:=action(game,"catalyst",refined,["actual_block"])

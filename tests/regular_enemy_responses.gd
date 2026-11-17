@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
@@ -29,10 +31,10 @@ func check(ok: bool, detail: String) -> void:
 
 func setup(kind: int, profile: Dictionary) -> Dictionary:
 	Core.reset(game)
-	game.combat_epoch += 1
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	game.encounter_rewarded = false
-	game.encounter_number = profile.floor
-	game.map_seed = 10 + posmod(-37 - kind * 19 - int(profile.floor) * 11, 10)
+	ExpeditionCase.set_world(game, {"encounter_number": profile.floor})
+	ExpeditionCase.set_world(game, {"map_seed": 10 + posmod(-37 - kind * 19 - int(profile.floor) * 11, 10)})
 	game.tactics.boss_kind = -1
 	game.encounter.set_hp(-1, 50)
 	game.enemy_kind = 0
@@ -45,7 +47,7 @@ func setup(kind: int, profile: Dictionary) -> Dictionary:
 	player.slow_until = 0
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
-	player.wild = true
+	ExpeditionCase.set_membership(game, player, true)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
 	player.hurt_until = 0
 	player.pos = Vector3(0, 0, -3.4)
@@ -66,7 +68,7 @@ func learn(actor: Dictionary, profile: Dictionary, now: int) -> void:
 			Attacks.lock(game, actor, profile.mode, player.pos, now + 1400)
 			check(actor.attack.variant != profile.id, "ordinary opening for " + str(profile.id))
 			Effects.affect_enemy(game, player, 0, actor.pos, {"id": "hush"}, {"only_winding": true, "interrupt_ms": 1000}, now)
-			check(actor.windup == 0 and actor.get("rite_disrupted_epoch") == game.combat_epoch, "Hush stops the committed " + str(profile.mode))
+			check(actor.windup == 0 and actor.get("rite_disrupted_epoch") == game.participation.epoch(), "Hush stops the committed " + str(profile.mode))
 		Tactics.ROUTE_DENIAL:
 			actor.engaged = false
 			Status.root(game, 0, now + 1000)
@@ -154,9 +156,9 @@ func check_roster() -> void:
 		var now := Time.get_ticks_msec()
 		check(Attacks.SkillResponses.ready_profile(game, actor).is_empty(), "history needs a local observation for " + str(profile.id))
 		learn(actor, profile, now)
-		game.encounter_number = int(profile.floor) - 1
+		ExpeditionCase.set_world(game, {"encounter_number": int(profile.floor) - 1})
 		check(Attacks.SkillResponses.ready_profile(game, actor).is_empty(), "introductory floors are protected for " + str(profile.id))
-		game.encounter_number = profile.floor
+		ExpeditionCase.set_world(game, {"encounter_number": profile.floor})
 		var move := arm(actor, profile, now + 1500)
 		check(move.get("variant") == profile.id, "AI locks " + str(profile.id) + ", got " + str(move.get("variant")))
 		if move.get("variant") != profile.id:
@@ -237,7 +239,7 @@ func check_counterplay() -> void:
 	learn(actor, profile, now)
 	move = arm(actor, profile, now + 1500)
 	if move.get("variant") == profile.id:
-		game.set_meta(Core.STATE, {1: {"epoch": game.combat_epoch, "grown": true, "life": PlayerLifecycle.generation(player),
+		game.set_meta(Core.STATE, {1: {"epoch": game.participation.epoch(), "grown": true, "life": PlayerLifecycle.generation(player),
 			"expires": actor.windup + 500, "from": Vector3(-2, 0, -1.8), "to": Vector3(2, 0, -1.8),
 			"skill": {"mechanic": "line_trap", "radius": .35}}})
 		preload("res://scout_behavior.gd").release(game, actor, game.Enemies.get_kind(2), actor.windup)
@@ -285,7 +287,7 @@ func check_scout_attack_intent() -> void:
 	var definition: Dictionary = game.Enemies.get_kind(0)
 	var life := PlayerLifecycle.generation(player)
 	var token: int = game.encounter.token(0)
-	var observation := ScoutBehavior.attack_observation(0, token, game.combat_epoch, 1,
+	var observation := ScoutBehavior.attack_observation(0, token, game.participation.epoch(), 1,
 		actor.pos, player.pos, definition.role, float(definition.range), int(actor.ready), now, life)
 	var intent := ScoutBehavior.choose_attack(observation)
 	check(observation.is_read_only() and intent == ScoutBehavior.AttackIntent.ATTACK,
@@ -299,20 +301,20 @@ func check_scout_attack_intent() -> void:
 	ScoutBehavior.apply_attack_intent(game, observation, intent, now)
 	check(actor.windup == 0 and not actor.has("attack"), "the host rejects a previously clear attack when substantial cover intervenes")
 	game.battlefield.barriers.clear()
-	player.wild = false
+	ExpeditionCase.set_membership(game, player, false)
 	ScoutBehavior.apply_attack_intent(game, observation, intent, now)
 	check(actor.windup == 0, "the host rejects an intent against a target that left the encounter")
-	player.wild = true
+	ExpeditionCase.set_membership(game, player, true)
 	var previous_life: PlayerLifecycle.Life = player[PlayerLifecycle.STATE]
 	player[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
 	ScoutBehavior.apply_attack_intent(game, observation, intent, now)
 	check(actor.windup == 0, "a respawned occupant of the same player ID invalidates a pending decision")
 	player[PlayerLifecycle.STATE] = previous_life
 
-	game.combat_epoch += 1
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	ScoutBehavior.apply_attack_intent(game, observation, intent, now)
 	check(actor.windup == 0, "a decision from the previous floor cannot be committed")
-	var previous_occupant := ScoutBehavior.attack_observation(0, token, game.combat_epoch, 1,
+	var previous_occupant := ScoutBehavior.attack_observation(0, token, game.participation.epoch(), 1,
 		actor.pos, player.pos, definition.role, float(definition.range), int(actor.ready), now, life)
 	var replacement: Dictionary = game.make_scout(0, Vector3.ZERO, 1)
 	game.encounter.register_scout(replacement, 0)
@@ -327,7 +329,7 @@ func schedule_scout_swipe(now: int) -> Dictionary:
 	player.guard_until = 0
 	player.guard_charges = 0
 	var definition: Dictionary = game.Enemies.get_kind(actor.kind)
-	var observation := ScoutBehavior.attack_observation(0, game.encounter.token(0), game.combat_epoch, 1,
+	var observation := ScoutBehavior.attack_observation(0, game.encounter.token(0), game.participation.epoch(), 1,
 		actor.pos, player.pos, definition.role, float(definition.range), int(actor.ready), now,
 		PlayerLifecycle.generation(player))
 	ScoutBehavior.apply_attack_intent(game, observation, ScoutBehavior.choose_attack(observation), now)
@@ -360,7 +362,7 @@ func check_scheduled_scout_release() -> void:
 	player.pos = Vector3.RIGHT * 5.0
 	game.add_player(2)
 	var bystander: Dictionary = game.players[2]
-	bystander.wild = true
+	ExpeditionCase.set_membership(game, bystander, true)
 	bystander.pos = Vector3(0, 0, -1.0)
 	ScoutBehavior.release(game, actor, definition, due)
 	check(int(player.damage_seq) == sequence and int(bystander.damage_seq) == 1,
@@ -387,7 +389,7 @@ func check_scheduled_scout_release() -> void:
 
 	actor = schedule_scout_swipe(now)
 	due = int(actor.windup)
-	game.combat_epoch += 1
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	ScoutBehavior.release(game, actor, definition, due)
 	check(int(player.damage_seq) == sequence, "a scheduled attack from the previous floor is refused")
 
@@ -412,7 +414,7 @@ func check_scheduled_scout_hazard() -> void:
 	var activation := int(entry.activate)
 	game.add_player(2)
 	var bystander: Dictionary = game.players[2]
-	bystander.wild = true
+	ExpeditionCase.set_membership(game, bystander, true)
 	bystander.pos = player.pos
 	var original_life: PlayerLifecycle.Life = player[PlayerLifecycle.STATE]
 	var sequence := int(player.damage_seq)

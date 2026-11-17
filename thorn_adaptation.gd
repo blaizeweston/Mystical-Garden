@@ -18,16 +18,16 @@ const EVIDENCE := &"thorn_line_evidence"
 
 static func evidence(game: Node) -> Dictionary:
 	var observed: Dictionary = game.get_meta(EVIDENCE, {})
-	if int(observed.get("epoch", -1)) == game.combat_epoch:
+	if int(observed.get("epoch", -1)) == game.participation.epoch():
 		return observed
-	return {"epoch": game.combat_epoch, "armed": 0, "crossings": 0}
+	return {"epoch": game.participation.epoch(), "armed": 0, "crossings": 0}
 
 
 static func armed(game: Node, owner: int, line: Dictionary) -> void:
 	var observed := evidence(game)
 	observed.armed += 1
 	game.set_meta(EVIDENCE, observed)
-	Journal.event("combat", "wilds_thorn_armed", {"actor": owner, "cast_id": line.id, "floor": game.encounter_number})
+	Journal.event("combat", "wilds_thorn_armed", {"actor": owner, "cast_id": line.id, "floor": game.participation.floor()})
 
 
 static func tripped(game: Node, owner: int, line: Dictionary, target: int, before: Vector3, after: Vector3) -> void:
@@ -39,14 +39,14 @@ static func tripped(game: Node, owner: int, line: Dictionary, target: int, befor
 	observed.crossings += 1
 	game.set_meta(EVIDENCE, observed)
 	Journal.event("combat", "wilds_thorn_crossing", {"actor": owner, "cast_id": line.id, "target": target,
-		"species": Catalog.get_kind(game.enemy_kind if target == -1 else int(game.encounter.scout(target).kind)).id, "floor": game.encounter_number})
+		"species": Catalog.get_kind(game.enemy_kind if target == -1 else int(game.encounter.scout(target).kind)).id, "floor": game.participation.floor()})
 
 
 static func selected(game: Node, actor: Dictionary) -> bool:
-	if int(actor.kind) != HOUND or game.encounter_number < MIN_FLOOR or actor.get("summoned", false):
+	if int(actor.kind) != HOUND or game.participation.floor() < MIN_FLOOR or actor.get("summoned", false):
 		return false
 	var score: int = game.progress.wilds_memory.score.get(TACTIC, 0)
-	var roll := posmod(int(game.map_seed) + int(actor.route) * 31 + int(game.encounter_number) * 11, 10)
+	var roll := posmod(int(game.participation.seed()) + int(actor.route) * 31 + int(game.participation.floor()) * 11, 10)
 	return score >= MIN_SCORE and roll < mini(7, 3 + floori(score / 6.0))
 
 
@@ -56,7 +56,7 @@ static func active_lines(game: Node, now: int) -> Array[Dictionary]:
 	for owner in lines:
 		var line: Dictionary = lines[owner]
 		var player: Dictionary = game.players.get(owner, {})
-		if line.skill.mechanic == "line_trap" and line.grown and int(line.epoch) == game.combat_epoch and now < int(line.expires) \
+		if line.skill.mechanic == "line_trap" and line.grown and int(line.epoch) == game.participation.epoch() and now < int(line.expires) \
 				and game.Life.alive(player) and PlayerLifecycle.matches(player,int(line.life)):
 			result.append(line)
 	return result

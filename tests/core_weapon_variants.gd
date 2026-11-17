@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Core = preload("res://core_combat.gd")
@@ -36,7 +38,7 @@ func prepare(species: String, form: int) -> void:
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
 	player.pos = Vector3.ZERO
-	player.wild = true
+	ExpeditionCase.set_membership(game, player, true)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(8)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(10)
 	player.weapon = game.Parts.index_of("plant:" + species)
@@ -99,7 +101,7 @@ func check_loadouts() -> void:
 				var variant: Dictionary = pair.ranged if game.WeaponMotion.is_projectile(weapon.visual) else pair.melee
 				check(build.primary == signature.tag and build.skill.id == signature.skill and build.skill.variant_name == variant.variant_name, "weapon determines the variant for %s / %s" % [weapon.name, species.id])
 				check(Rules.describe(build.skill).contains(variant.variant_name), "hover names the active variant")
-	player.wild = false
+	ExpeditionCase.set_membership(game, player, false)
 	player.prepared = game.Parts.index_of("plant:ghost_fern")
 	for form in [0, 2]:
 		player.weapon_kind = form
@@ -156,7 +158,7 @@ func check_gravity_and_ward() -> void:
 
 	game.add_player(2)
 	var ally: Dictionary = game.players[2]
-	ally.wild = true
+	ExpeditionCase.set_membership(game, ally, true)
 	ally.pos = Vector3(0, 0, -4)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(8)
 	for weapon in [0, 2]:
@@ -169,7 +171,7 @@ func check_gravity_and_ward() -> void:
 		active = cast(4.0)
 		Core.tick(game, active.armed)
 		check(player.guard_charges == int(weapon == 0) and ally.guard_charges == int(weapon == 2), "Ironbark wards the party member standing along the bark plates")
-	game.players.erase(2)
+	ExpeditionCase.remove_actor(game, 2)
 
 
 func check_hush_and_decoy() -> void:

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 var failed:=false
 func check(ok: bool,message: String):
@@ -15,7 +17,7 @@ func run():
  var rosters: Dictionary={}
  for biome in 3:
   for stamp in range(1,101):
-   game.destination=biome;game.depth=2+stamp%5;game.encounter_number=5+stamp%30;game.map_seed=stamp*991+biome
+   ExpeditionCase.set_world(game, {"destination": biome});ExpeditionCase.set_world(game, {"depth": 2+stamp%5});ExpeditionCase.set_world(game, {"encounter_number": 5+stamp%30});ExpeditionCase.set_world(game, {"map_seed": stamp*991+biome})
    game.reset_encounter()
    if game.tactics.boss_kind<0:
     check(game.encounter.scout_count()<=game.Director.scout_count(game),"composition uses the existing encounter budget")
@@ -35,7 +37,7 @@ func run():
  check(supports>20,"formation checks keep support enemies in the pool rather than removing them all")
  print("Escorted supports across 300 procedural floors: ",supports)
  # Force a support-only pool: existing slots become fighters instead of leaving solo supports.
- game.map_seed=0;game.destination=0;game.depth=1;game.battlefield.configure(0,1);game.encounter.set_hp(-1, 5)
+ ExpeditionCase.set_world(game, {"map_seed": 0});ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"depth": 1});game.battlefield.configure(0,1);game.encounter.set_hp(-1, 5)
  game.encounter.clear_scouts()
  for index in 4: game.encounter.register_scout(game.make_scout(3,Vector3(-5+index*3,0,3),index+1))
  preload("res://enemy_formation.gd").arrange(game)
@@ -48,7 +50,7 @@ func run():
  game.battlefield.barriers=[];game.encounter.set_hp(-1, 0)
  var caster: Dictionary=game.make_scout(3,Vector3(0,0,0),1)
  var ally: Dictionary=game.make_scout(0,Vector3(5,0,0),2);ally.engaged=true;ally.windup=Time.get_ticks_msec()+60000
- game.encounter.clear_scouts();game.encounter.register_scout(caster);game.encounter.register_scout(ally);p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(-4,0,0)
+ game.encounter.clear_scouts();game.encounter.register_scout(caster);game.encounter.register_scout(ally);ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(-4,0,0)
  var before: float=caster.pos.distance_to(ally.pos)
  preload("res://scout_behavior.gd").tick(game, .2,Time.get_ticks_msec())
  check(caster.pos.distance_to(ally.pos)<before and caster.pos.x>0,"support follows combat ally, even away from player")

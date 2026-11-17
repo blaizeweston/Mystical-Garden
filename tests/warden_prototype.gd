@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -42,7 +44,7 @@ func tree() -> void:
 	player.pos = game.Stage.HEART
 	game.local_character.data = game.Character.blank()
 	player.character = game.local_character.data
-	player.wild = false
+	ExpeditionCase.set_membership(game, player, false)
 	check(game.Classes.points(player.character,0,1)==1, "level one grants a subclass choice")
 	check(not game.Classes.can_learn(player.character,0,0,1), "new profiles cannot purchase a retired bit")
 	game.progression_view.inspected_class = 0
@@ -77,10 +79,10 @@ func tree() -> void:
 
 func arena(indices: Array[int], card: String) -> void:
 	Core.reset(game)
-	game.combat_epoch+=1
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	player.character=select_nodes(indices,2600)
 	player.frame=0
-	player.wild=true
+	ExpeditionCase.set_membership(game, player, true)
 	player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive()
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(10)
@@ -102,7 +104,7 @@ func arena(indices: Array[int], card: String) -> void:
 	game.tactics.winding_up=false
 	game.encounter.clear_scouts()
 	game.combat_events.clear()
-	game.encounter_number=1
+	ExpeditionCase.set_world(game, {"encounter_number": 1})
 	game.encounter_rewarded=false
 
 
@@ -151,14 +153,14 @@ func neutral() -> void:
 	game.use_class_skill(1,player,1)
 	check(Combat.anchor(game,player,Time.get_ticks_msec()).is_empty(),"the second use consumes the same anchor")
 	game.use_class_skill(1,player,0)
-	game.combat_epoch+=1
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	check(Combat.anchor(game,player,Time.get_ticks_msec()).is_empty(),"a floor change expires the anchor")
 
 
 func support() -> void:
 	arena([14,17,20,23],"")
 	var ally: Dictionary=game.players[2]
-	ally.wild=true
+	ExpeditionCase.set_membership(game, ally, true)
 	ally[PlayerLifecycle.STATE] = ally[PlayerLifecycle.STATE].clear_inactive()
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(6)
 	ally.pos=Vector3(1.2,0,-3.0)
@@ -172,7 +174,7 @@ func support() -> void:
 	player.catalyst=player.secondary
 	player.secondary=0
 	game.encounter.set_hp(-1, 0)
-	game.encounter_number=3
+	ExpeditionCase.set_world(game, {"encounter_number": 3})
 	player.pos=game.battlefield.advance
 	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(player).spent_essence())
 	player.last_offer=0
@@ -180,7 +182,7 @@ func support() -> void:
 	var offers: Array=game.checkpoint_offer_ids(player)
 	check(offers.size() in [3,4] and offers[0]==card.id and game.RunUpgrades.get_upgrade(offers[1]).has("core"), "Warden checkpoint shows branch and Core choices when affordable")
 	check(game.buy_upgrade(1,player,0), "Thorn Shelter buys through the normal checkpoint")
-	game.encounter_number=4
+	ExpeditionCase.set_world(game, {"encounter_number": 4})
 	game.encounter.set_hp(-1, 100)
 	game.tactics.position=Vector3(0,0,-3.25)
 	player.pos=Vector3.ZERO

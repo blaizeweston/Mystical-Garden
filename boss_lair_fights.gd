@@ -24,7 +24,7 @@ static func observe(game: Node, now: int) -> void:
   if not game.Life.alive(player):continue
   var at: Vector3=player.pos
   var old: Dictionary=tracks.get(id,{"point":at,"lane":-1,"streak":0,"outer":0})
-  var lane:=Routes.dry_lane(Routes.crossings(game.map_seed),at) if game.tactics.boss_kind==Routes.DROWNED else -1
+  var lane:=Routes.dry_lane(Routes.crossings(game.participation.seed()),at) if game.tactics.boss_kind==Routes.DROWNED else -1
   var travel: float=at.distance_to(old.point)
   var outer: bool= game.tactics.boss_kind==Routes.ORCHARD and at.length()>=9.5 and travel>=.28 and travel<=3.2 and at.distance_to(game.tactics.position)>4.0
   tracks[id]={"point":at,"lane":lane,
@@ -37,7 +37,7 @@ static func begin_phase(game: Node, next: int, now: int) -> void:
   game.tactics.memory.orchard_phase_start=game.tactics.boss_moves
  game.tactics.memory.lair_phase_until=now+1100
  game.tactics.ready_at=maxi(game.tactics.ready_at,now+1100)
- game.Journal.event("combat","boss_lair_phase",{"species":game.Enemies.get_kind(game.tactics.boss_kind).id,"phase":next,"floor":game.encounter_number})
+ game.Journal.event("combat","boss_lair_phase",{"species":game.Enemies.get_kind(game.tactics.boss_kind).id,"phase":next,"floor":game.participation.floor()})
 
 static func adaptive(game: Node, target: int, style: String) -> bool:
  if game.tactics.boss_phase<=0:return false
@@ -70,7 +70,7 @@ static func draft(game: Node, mode: String, target: int, adapted: bool) -> Dicti
    if adapted:
     var angle:=atan2(victim.z,victim.x)
     var lattice:=TAU/16.0
-    var offset:=Routes.orchard_angle(game.map_seed)
+    var offset:=Routes.orchard_angle(game.participation.seed())
     var anchor_angle:=roundf((angle-offset)/lattice)*lattice+offset
     var ray:=Vector3(cos(anchor_angle),0,sin(anchor_angle))
     result.from=Vector3.ZERO;result.to=ray*13.2;result.face=result.to;result.anchor=result.to
@@ -107,7 +107,7 @@ static func draft(game: Node, mode: String, target: int, adapted: bool) -> Dicti
    result.windup=1850 if phase==1 else 1700
    result.to=victim+facing.rotated(Vector3.UP,.84 if game.tactics.boss_moves%2==0 else -.84)
   "tidal_ring","grasping_pool":
-   var layout:=Routes.crossings(game.map_seed)
+   var layout:=Routes.crossings(game.participation.seed())
    var bank_index:=0 if victim.x<float(layout.center) else 1
    if mode=="tidal_ring":
     result.cue="Tidal relay";result.bank=bank_index
@@ -155,7 +155,7 @@ static func crosses_live_hazard(game: Node, from: Vector3, to: Vector3, now: int
  return false
 
 static func escape(game: Node, plan: Dictionary, at: Vector3, now: int) -> Vector3:
- var layout:=Routes.crossings(game.map_seed)
+ var layout:=Routes.crossings(game.participation.seed())
  var candidates: Array[Vector3]=[]
  if plan.variant=="outer_anchor":
   var inward:=at.normalized()*7.9
@@ -186,7 +186,7 @@ static func escape(game: Node, plan: Dictionary, at: Vector3, now: int) -> Vecto
 
 static func other_bank_open(game: Node, plan: Dictionary, now: int) -> bool:
  if plan.bank<0:return true
- var layout:=Routes.crossings(game.map_seed)
+ var layout:=Routes.crossings(game.participation.seed())
  var other:=1-int(plan.bank)
  var first:=Routes.bank(layout,other,layout.bars[0])
  var second:=Routes.bank(layout,other,layout.bars[1])
@@ -227,7 +227,7 @@ static func commit(game: Node, mode: String, target: int, now: int) -> bool:
  preload("res://oracle_omens.gd").begin_attack(game,game.tactics.memory,plan,now)
  preload("res://event_audio.gd").enemy(game,plan,false)
  game.tactics.boss_moves+=1
- game.Journal.event("combat","boss_lair_move",{"species":game.Enemies.get_kind(game.tactics.boss_kind).id,"move":mode,"variant":plan.variant,"phase":game.tactics.boss_phase,"floor":game.encounter_number,"areas":plan.areas.size()})
+ game.Journal.event("combat","boss_lair_move",{"species":game.Enemies.get_kind(game.tactics.boss_kind).id,"move":mode,"variant":plan.variant,"phase":game.tactics.boss_phase,"floor":game.participation.floor(),"areas":plan.areas.size()})
  return true
 
 static func resolve(game: Node, plan: Dictionary, now: int, damage: float) -> void:

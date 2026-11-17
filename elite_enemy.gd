@@ -16,10 +16,10 @@ static func choose(site: int,floor_number: int,seed_value: int,previous: int=-1)
  var random:=RandomNumberGenerator.new();random.seed=seed_value+floor_number*104729+site*7919
  return choices[random.randi_range(0,choices.size()-1)]
 static func select(game: Node) -> int:
- var key: String="%d:%d:%d"%[game.destination,game.encounter_number,game.map_seed]
+ var key: String="%d:%d:%d"%[game.participation.route(),game.participation.floor(),game.participation.seed()]
  var last: Dictionary=game.get_meta("gate_elite",{})
  if last.get("key","")==key:return int(last.kind)
- var kind:=choose(game.destination,game.encounter_number,game.map_seed,int(last.get("kind",-1)))
+ var kind:=choose(game.participation.route(),game.participation.floor(),game.participation.seed(),int(last.get("kind",-1)))
  game.set_meta("gate_elite",{"key":key,"kind":kind})
  return kind
 const SIGNATURES={
@@ -36,7 +36,7 @@ static func state(game: Node) -> Dictionary:
   body=game.make_scout(game.enemy_kind,game.tactics.position,0,game.enemy_mutations,game.enemy_growth)
   body.summons=0;body.remaining=0;body.repeat=0;body.gate_elite=true
   if game.Life.Preview.enabled: body.max_hp=game.encounter_health()
-  if game.encounter_number>=3:body.variant=SIGNATURES.get(int(game.enemy_kind),body.variant)
+  if game.participation.floor()>=3:body.variant=SIGNATURES.get(int(game.enemy_kind),body.variant)
   return game.encounter.register_leader_tactics(body)
  return body
 static func tick(game: Node,delta: float,now: int) -> void:
@@ -108,7 +108,7 @@ static func tick(game: Node,delta: float,now: int) -> void:
  game.tactics.begin_attack(mode,body.windup,body.attack.radius)
 static func resolve(game: Node,now: int) -> void:
  var body:=state(game);var definition:=Catalog.get_kind(game.enemy_kind)
- var epoch: int=game.combat_epoch
+ var epoch: int=game.participation.epoch()
  body.pos=game.tactics.position;body.blast=game.tactics.landing;body.mode=game.tactics.attack_mode;body.recovery=game.tactics.recovery_bonus
  body.rooted_until=game.tactics.rooted_until
  if game.has_meta(&"combat_affinity_ruleset"):
@@ -116,7 +116,7 @@ static func resolve(game: Node,now: int) -> void:
  else:
   preload("res://scout_behavior.gd").release(game,body,definition,now)
  # Player damage can end the floor or restore the encounter during a save abort.
- if game.combat_epoch!=epoch or not is_same(body,game.encounter.leader_tactics()):
+ if game.participation.epoch()!=epoch or not is_same(body,game.encounter.leader_tactics()):
   return
  game.tactics.position=body.pos
  game.tactics.winding_up=body.windup>0

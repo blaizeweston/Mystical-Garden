@@ -17,9 +17,9 @@ static func accepted(game: Node, player: Dictionary, before_until: int, before_c
 		return
 	var order: int = int(game.get_meta(&"ward_grant_order", 0)) + 1
 	game.set_meta(&"ward_grant_order", order)
-	var claims: Array = player.get(CLAIMS, []).filter(func(claim): return int(claim.until) > now and int(claim.epoch) == game.combat_epoch)
+	var claims: Array = player.get(CLAIMS, []).filter(func(claim): return int(claim.until) > now and int(claim.epoch) == game.participation.epoch())
 	claims.append({"event": event, "adapter": pending.get("adapter", {}),
-		"until": requested_until, "order": order, "epoch": game.combat_epoch})
+		"until": requested_until, "order": order, "epoch": game.participation.epoch()})
 	player[CLAIMS] = claims
 
 
@@ -28,7 +28,7 @@ static func block(game: Node, player: Dictionary, id: int, now: int) -> RefCount
 	var chosen: Dictionary = {}
 	var kept: Array = []
 	for claim in claims:
-		if int(claim.until) <= now or int(claim.epoch) != game.combat_epoch:
+		if int(claim.until) <= now or int(claim.epoch) != game.participation.epoch():
 			continue
 		var event: RefCounted = claim.event
 		if event != null and not event.block_available(id, claim.adapter, now):

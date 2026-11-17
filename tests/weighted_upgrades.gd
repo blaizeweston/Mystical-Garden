@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Catalog=preload("res://run_upgrade_catalog.gd")
 const Core=preload("res://core_combat.gd")
@@ -10,7 +12,7 @@ func _initialize():
  preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 func gate(game,p: Dictionary,floor_number: int):
- p.wild=true;game.encounter_number=floor_number;game.deepest_milestone=floor_number
+ ExpeditionCase.set_membership(game, p, true);ExpeditionCase.set_world(game, {"encounter_number": floor_number});game.deepest_milestone=floor_number
  game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();p.pos=game.battlefield.advance;p.last_offer=0
 func run():
  var game=load("res://world.tscn").instantiate()
@@ -68,10 +70,10 @@ func run():
  check(first_data.size()==4 and first_data[3].choice==3,"fourth choice is transmitted as a purchasable card")
  game.checkpoint_pending=true
  game.choose_checkpoint_card(1,p,99)
- check(game.wallet_for(p).spent_essence()==0 and game.encounter_number==12,"invalid indices cannot spend or advance")
+ check(game.wallet_for(p).spent_essence()==0 and game.participation.floor()==12,"invalid indices cannot spend or advance")
  var chosen: String=initial[3];var cost:=int(Catalog.get_upgrade(chosen).cost)
  game.choose_checkpoint_card(1,p,3)
- check(game.encounter_number==13 and int(p.run_upgrades.get(chosen,0))==1 and game.wallet_for(p).spent_essence()==cost,"fourth card applies once and advances only after purchase")
+ check(game.participation.floor()==13 and int(p.run_upgrades.get(chosen,0))==1 and game.wallet_for(p).spent_essence()==cost,"fourth card applies once and advances only after purchase")
  var ranks: Dictionary=p.run_upgrades.duplicate()
  game.choose_checkpoint_card(1,p,3)
  check(p.run_upgrades==ranks,"duplicate request cannot buy the same offer twice")
@@ -98,7 +100,7 @@ func run():
  p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(game.wallet_for(p).earned_sparks(), 0);p.weapon=3;p.graft_part=4;p.run_upgrades={};p.last_offer=0;p.checkpoint_offers=["rift_hook","power","reach"]
  var knowledge: int=game.progress.knowledge
  check(game.buy_upgrade(1,p,0) and p.rift_hook and game.progress.rift_hook_discovered and game.progress.knowledge==knowledge+4,"Rift Hook link is an actual upgrade and permanent first discovery")
- game.return_to_garden(p)
+ ExpeditionCase.Transitions.return_member(game, p)
  check(p.run_upgrades.is_empty() and p.checkpoint_offers.is_empty() and p.power==0 and p.technique==0 and not p.rift_hook,"return clears all expedition upgrades and cached cards")
  core_cards(game,p)
  p.weapon=game.Parts.index_of("plant:ember_fern")
@@ -173,5 +175,5 @@ func core_cards(game: Node,p: Dictionary) -> void:
  game.tactics.position=line.center
  Core.tick(game,line.armed+2001)
  check(p.core_ready_at==original_ready,"late trips do not refund the timer")
- game.return_to_garden(p)
+ ExpeditionCase.Transitions.return_member(game, p)
  check(Catalog.core_behaviors(p,"thorn_line").is_empty(),"expedition ends the purchased behaviors")

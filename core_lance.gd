@@ -53,7 +53,7 @@ static func advance(game: Node, id: int, player: Dictionary, cast: Dictionary, n
 	cast.previous_point = tip
 	var hits := ordered_hits(game, previous, tip, float(cast.skill.radius), cast.hit_tokens)
 	for hit in hits:
-		if int(cast.get("epoch", game.combat_epoch)) != game.combat_epoch:
+		if int(cast.get("epoch", game.participation.epoch())) != game.participation.epoch():
 			break
 		if game.Traits.valid_target(game, hit.target) and Contact.token(game, hit.target) == hit.token:
 			if cast.skill.get("affinity_family")=="storm":

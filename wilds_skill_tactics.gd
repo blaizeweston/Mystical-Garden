@@ -41,7 +41,7 @@ const RESPONSES := {
 
 static func evidence(game: Node) -> Dictionary:
 	var state: Dictionary = game.get_meta(STATE, {})
-	return state.get("counts", {}) if int(state.get("epoch", -1)) == game.combat_epoch else {}
+	return state.get("counts", {}) if int(state.get("epoch", -1)) == game.participation.epoch() else {}
 
 
 static func record(game: Node, tactic: String, detail: Dictionary) -> void:
@@ -49,8 +49,8 @@ static func record(game: Node, tactic: String, detail: Dictionary) -> void:
 		return
 	var counts := evidence(game)
 	counts[tactic] = int(counts.get(tactic, 0)) + 1
-	game.set_meta(STATE, {"epoch": game.combat_epoch, "counts": counts})
-	detail.merge({"tactic": tactic, "floor": game.encounter_number})
+	game.set_meta(STATE, {"epoch": game.participation.epoch(), "counts": counts})
+	detail.merge({"tactic": tactic, "floor": game.participation.floor()})
 	Journal.event("combat", "wilds_skill_evidence", detail)
 
 
@@ -78,7 +78,7 @@ static func interrupted(game: Node, actor: Dictionary, source: String) -> void:
 			return
 		actor.disrupted_corpse = corpse.token
 	attack.interruption_observed = true
-	actor.rite_disrupted_epoch = game.combat_epoch
+	actor.rite_disrupted_epoch = game.participation.epoch()
 	if kind == 1:
 		actor.denied_aim = attack.to
 	record(game, CAST_DENIAL, {"source": source, "species": Catalog.get_kind(kind).id,
@@ -88,15 +88,15 @@ static func interrupted(game: Node, actor: Dictionary, source: String) -> void:
 static func eligible(game: Node, actor: Dictionary, response: String) -> bool:
 	var kind: int = actor.kind
 	var profile: Dictionary = RESPONSES.get(response, REGULAR_RESPONSES.get(kind, {}))
-	if profile.is_empty() or profile.get("kind", kind) != kind or profile.get("id", response) != response or game.encounter_number < int(profile.floor) or actor.get("skill_response_used", false) or actor.get("summoned", false) or Catalog.get_kind(kind).get("boss", false):
+	if profile.is_empty() or profile.get("kind", kind) != kind or profile.get("id", response) != response or game.participation.floor() < int(profile.floor) or actor.get("skill_response_used", false) or actor.get("summoned", false) or Catalog.get_kind(kind).get("boss", false):
 		return false
 	var strength: int = game.progress.wilds_memory.score.get(profile.tactic, 0)
-	var roll := posmod(int(game.map_seed) + int(actor.route) * 37 + int(actor.kind) * 19 + int(game.encounter_number) * 11, 10)
+	var roll := posmod(int(game.participation.seed()) + int(actor.route) * 37 + int(actor.kind) * 19 + int(game.participation.floor()) * 11, 10)
 	return strength >= 6 and roll < mini(7, 3 + floori(strength / 6.0))
 
 
 static func retry_available(game: Node, actor: Dictionary, response: String) -> bool:
-	return int(actor.get("rite_disrupted_epoch", -1)) == game.combat_epoch and eligible(game, actor, response)
+	return int(actor.get("rite_disrupted_epoch", -1)) == game.participation.epoch() and eligible(game, actor, response)
 
 
 static func response_windup(attack: Dictionary, ordinary: int) -> int:
@@ -107,7 +107,7 @@ static func root_denied(game: Node, target: int, now: int) -> void:
 	if not game.multiplayer.is_server() or (target == -1 and game.tactics.boss_kind >= 0) or not game.Traits.valid_target(game, target):
 		return
 	var actor: Dictionary = game.encounter.scout(target) if target >= 0 else game.encounter.leader_tactics()
-	if actor.is_empty() or actor.get("summoned", false) or actor.get("route_denied_epoch", -1) == game.combat_epoch:
+	if actor.is_empty() or actor.get("summoned", false) or actor.get("route_denied_epoch", -1) == game.participation.epoch():
 		return
 	if REGULAR_RESPONSES.get(actor.kind, {}).get("tactic") != ROUTE_DENIAL:
 		return
@@ -120,7 +120,7 @@ static func root_denied(game: Node, target: int, now: int) -> void:
 	var peer: int = game.nearest_wild_player(point)
 	if peer == 0 or point.distance_squared_to(game.players[peer].pos) < 1.35 * 1.35:
 		return
-	actor.route_denied_epoch = game.combat_epoch
+	actor.route_denied_epoch = game.participation.epoch()
 	record(game, ROUTE_DENIAL, {"species": Catalog.get_kind(actor.kind).id, "target_token": game.encounter.token_for(actor)})
 
 
@@ -128,9 +128,9 @@ static func regular_ready(game: Node, actor: Dictionary, profile: Dictionary) ->
 	if not game.multiplayer.is_server() or not eligible(game, actor, profile.id):
 		return false
 	match profile.tactic:
-		CAST_DENIAL: return actor.get("rite_disrupted_epoch", -1) == game.combat_epoch
-		ROUTE_DENIAL: return actor.get("route_denied_epoch", -1) == game.combat_epoch
-		SHELTER_BREAK: return actor.get("shelter_break_epoch", -1) == game.combat_epoch
+		CAST_DENIAL: return actor.get("rite_disrupted_epoch", -1) == game.participation.epoch()
+		ROUTE_DENIAL: return actor.get("route_denied_epoch", -1) == game.participation.epoch()
+		SHELTER_BREAK: return actor.get("shelter_break_epoch", -1) == game.participation.epoch()
 	return false
 
 
@@ -142,4 +142,4 @@ static func lock_response(game: Node, actor: Dictionary, attack: Dictionary) -> 
 		return
 	actor.skill_response_used = true
 	Journal.event("combat", "wilds_skill_response", {"response": response, "species": Catalog.get_kind(int(actor.kind)).id,
-		"tactic": profile.tactic, "target_token": game.encounter.token_for(actor), "floor": game.encounter_number})
+		"tactic": profile.tactic, "target_token": game.encounter.token_for(actor), "floor": game.participation.floor()})

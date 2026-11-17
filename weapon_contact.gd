@@ -74,10 +74,10 @@ static func melee(game: Node,shot: Dictionary,now: int) -> void:
  var player: Dictionary=game.players[shot.player];var remaining:=int(shot.stats.targets);var hits: Array=[]
  var direction: Vector3=(shot.aim-shot.origin).normalized()
  shot.origin=player.pos;shot.aim=shot.origin+direction*float(shot.stats.reach)
- var epoch: int=game.combat_epoch
+ var epoch: int=game.participation.epoch()
  var scout_tokens: PackedInt64Array=game.encounter.scout_tokens()
  for target in candidates(game,shot.origin):
-  if remaining<=0 or game.combat_epoch!=epoch:break
+  if remaining<=0 or game.participation.epoch()!=epoch:break
   var sampled_token: int=-1 if target==-1 else scout_tokens[target]
   if not game.encounter.alive(target,sampled_token):continue
   if not accepts(game,target,shot.origin,shot.aim,str(shot.form),shot.stats):continue

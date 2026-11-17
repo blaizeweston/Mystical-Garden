@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const State=preload("res://garden_crop_state.gd")
 const Catalog=preload("res://garden_crop_catalog.gd")
 const Service=preload("res://garden_crop_service.gd")
@@ -30,7 +32,7 @@ func run() -> void:
  var request:=View.request(shown(game,0),"preserve_bud")
  var invalid: Dictionary=request.duplicate();invalid.stage=1
  check(act(game,invalid).has("error"),"old stage intent is rejected")
- p.wild=true;check(act(game,request).has("error"),"Wilds actors cannot tend Garden crops");p.wild=false
+ ExpeditionCase.set_membership(game, p, true);check(act(game,request).has("error"),"Wilds actors cannot tend Garden crops");ExpeditionCase.set_membership(game, p, false)
  p.pos=game.Stage.GATE;check(act(game,request).has("error"),"remote crop request is rejected");p.pos=game.Stage.PLOTS[0]
  # Fix a roll that misses the ordinary 5% but succeeds with preservation's 20%.
  for seed_value in 10000:

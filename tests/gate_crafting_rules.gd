@@ -1,22 +1,24 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 var failed=false
 func check(ok: bool,message: String) -> void:
  if not ok: failed=true;printerr("FAIL gate/crafting: ",message)
 func _initialize() -> void:call_deferred("run")
 func run() -> void:
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/gate-crafting-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character";var viewport:=SubViewport.new();viewport.size=Vector2i(1100,720);root.add_child(viewport);viewport.add_child(game);game.set_process(false);game.set_physics_process(false)
- var p: Dictionary=game.players[1];p.wild=true;game.destination=0;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts()
+ var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);ExpeditionCase.set_world(game, {"destination": 0});game.encounter.set_hp(-1, 0);game.encounter.clear_scouts()
  for floor_number in range(1,37):
-  game.encounter_number=floor_number
+  ExpeditionCase.set_world(game, {"encounter_number": floor_number})
   check(game.upgrade_checkpoint_open()==(floor_number%3==0),"cards every third gate "+str(floor_number))
   check(game.extraction_checkpoint_open()==(floor_number%6==0),"extraction every sixth gate "+str(floor_number))
   game.encounter.set_hp(-1, 1);check(not game.upgrade_checkpoint_open() and not game.extraction_checkpoint_open(),"clearing required");game.encounter.set_hp(-1, 0)
- game.encounter_number=3;p.pos=game.battlefield.advance;game._process(.016)
+ ExpeditionCase.set_world(game, {"encounter_number": 3});p.pos=game.battlefield.advance;game._process(.016)
  check(not game.guide.text.contains("T  Extract"),"third gate does not advertise extraction")
- game.use_checkpoint(1,false);check(p.wild,"third gate cannot bank carried loot")
- game.encounter_number=6;game._process(.016);check(game.guide.text.contains("T  Extract"),"sixth gate advertises extraction")
- game.destination=3;check(not game.upgrade_checkpoint_open() and not game.extraction_checkpoint_open(),"Heart finale excluded")
- game.destination=0;game.encounter.set_hp(-1, 100);p.wild=false;p.pos=game.Stage.GATE;p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0
+ ExpeditionCase.Transitions.checkpoint(game, 1,false);check(ExpeditionCase.is_wild(p),"third gate cannot bank carried loot")
+ ExpeditionCase.set_world(game, {"encounter_number": 6});game._process(.016);check(game.guide.text.contains("T  Extract"),"sixth gate advertises extraction")
+ ExpeditionCase.set_world(game, {"destination": 3});check(not game.upgrade_checkpoint_open() and not game.extraction_checkpoint_open(),"Heart finale excluded")
+ ExpeditionCase.set_world(game, {"destination": 0});game.encounter.set_hp(-1, 100);ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.GATE;p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0
  game.progress.parts.fill(0);game.seed_reserve(p).parts.fill(0);game.progress.discoveries.fill(true);game.progress.parts[0]=1
  var view=game.loadout_view;view.refresh()
  for slot in 3:
@@ -69,7 +71,7 @@ func run() -> void:
  p.pos=game.Stage.GATE+Vector3(20,0,0)
  game.garden_action(1,"learn_0_%d"%first_node)
  check(p.character.upgrades[0]==0,"the host rejects learning outside the Heart and Gate")
- p.pos=game.Stage.GATE;p.wild=true
+ p.pos=game.Stage.GATE;ExpeditionCase.set_membership(game, p, true)
  game.garden_action(1,"learn_0_%d"%first_node)
  check(p.character.upgrades[0]==0,"the host rejects learning during an expedition")
  viewport.queue_free();await process_frame

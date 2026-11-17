@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -9,7 +11,7 @@ func check(ok: bool,message: String) -> void:
 func _initialize() -> void: call_deferred("run")
 func arena(game: Node,p: Dictionary) -> void:
  game.enemy_traits.clear();game.trait_events.clear();game.encounter.clear_scouts();game.encounter.set_hp(-1, 100);game.tactics.position=Vector3.ZERO;game.enemy_mutations=0;game.tactics.winding_up=false;game.tactics.stagger_until=0
- game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter_number=1;game.depth=1;game.destination=0;p.wild=true;p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p.pos=Vector3(0,0,-1);p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.run_upgrades={};p.power=0;p[PlayerVitals.STATE] = PlayerVitals.Health.new(5, 10)
+ game.battlefield.procedural=false;game.battlefield.barriers=[];ExpeditionCase.set_world(game, {"encounter_number": 1});ExpeditionCase.set_world(game, {"depth": 1});ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_membership(game, p, true);p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p.pos=Vector3(0,0,-1);p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.run_upgrades={};p.power=0;p[PlayerVitals.STATE] = PlayerVitals.Health.new(5, 10)
  for key in ["echo_charge","grave_charges","tide_ready","decoy_ready","link_ready","counter_until"]: p[key]=0
 func run() -> void:
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/species-depth-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)

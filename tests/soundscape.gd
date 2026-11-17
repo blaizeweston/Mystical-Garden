@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Soundscape = preload("res://soundscape.gd")
 const Settings = preload("res://app_settings.gd")
 const TitleMusic = preload("res://title_music.gd")
@@ -54,28 +56,28 @@ func run() -> void:
 	check(not soundscape.levels.has("spring_water") and not soundscape.levels.has("heart_pulse"),"walking away fades both local sources")
 
 	await create_timer(.12).timeout
-	player.wild = true
-	game.destination = 0
-	game.encounter_number = 1
+	ExpeditionCase.set_membership(game, player, true)
+	ExpeditionCase.set_world(game, {"destination": 0})
+	ExpeditionCase.set_world(game, {"encounter_number": 1})
 	game._process(.5)
 	check(soundscape.levels.garden_theme>0 and soundscape.levels.wilds_theme>0 and soundscape.levels.grove_air>0,"going to the Grove crossfades music and ambience")
 	var base_voice: Node = soundscape.voices.wilds_theme
 	check(base_voice.playing and soundscape.voices.wilds_tension.playing and soundscape.levels.wilds_tension==0.0,"base and inaudible stem start together")
 	game._process(2.0)
 	check(not soundscape.voices.garden_theme.playing and is_equal_approx(soundscape.levels.wilds_theme,1.0),"Garden voices retire after the fade")
-	game.destination = 1
-	game.encounter_number = 12
+	ExpeditionCase.set_world(game, {"destination": 1})
+	ExpeditionCase.set_world(game, {"encounter_number": 12})
 	game._process(.5)
 	check(soundscape.levels.mire_air>0 and soundscape.levels.grove_air>0 and soundscape.levels.wilds_tension>0,"Mire ambience and deeper tension fade in")
-	game.destination = 2
-	game.encounter_number = 18
+	ExpeditionCase.set_world(game, {"destination": 2})
+	ExpeditionCase.set_world(game, {"encounter_number": 18})
 	game._process(.5)
 	check(soundscape.voices.wilds_theme==base_voice and soundscape.levels.hollow_air>0,"the theme continues through biome and floor changes")
 	var boss := Soundscape.targets(true,2,1,true,Vector3.ZERO,Vector3.ZERO,Vector3.ZERO,false)
 	check(is_equal_approx(float(boss.wilds_tension),.92),"boss entry raises the tension layer")
 
 	await create_timer(.12).timeout
-	player.wild = false
+	ExpeditionCase.set_membership(game, player, false)
 	game._process(2.6)
 	check(soundscape.voices.garden_theme.playing and not base_voice.playing and not soundscape.voices.wilds_tension.playing,
 		"returning to the Garden retires both Wilds music layers")

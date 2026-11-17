@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -36,14 +38,14 @@ func host_run() -> void:
   check(false,"guest registers");return
  var id:=int(game.players.keys()[1]);var p: Dictionary=game.players[id];var host: Dictionary=game.players[1]
  game.battlefield.configure(0,1);game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(12,0,12);game.tactics.stagger_until=Time.get_ticks_msec()+60000;game.encounter.clear_scouts()
- host.wild=true;host.pos=Vector3(1,0,2);p.wild=true;p.pos=Vector3(0,0,2)
+ ExpeditionCase.set_membership(game, host, true);host.pos=Vector3(1,0,2);ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,2)
  var item: String=game.Items.part_id(game.Parts.HOOK)
  game.wild_item_drops.append({"id":"guest-part","owner":id,"stack":{"item":item,"quantity":1},"position":[0,0,2]})
  check(game.inventory_floor_snapshot(host).is_empty(),"host cannot see guest trophy")
  check(await until(func(): return p.carried_parts[game.Parts.HOOK]==1),"guest picks up visible private part")
  check(game.wild_item_drops.is_empty(),"pickup removes authoritative drop")
  IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(p), 100)
- check(PlayerLifecycle.fallen(p) and p.wild and PlayerVitals.current_hp(p)==0,"guest down remains in expedition")
+ check(PlayerLifecycle.fallen(p) and ExpeditionCase.is_wild(p) and PlayerVitals.current_hp(p)==0,"guest down remains in expedition")
  check(await until(func(): return marked("guest-spectates")),"guest follows host camera/fog")
  var corpse: Vector3=p.pos
  # Forged down-state action must be rejected by host too.
@@ -53,13 +55,13 @@ func host_run() -> void:
  check(PlayerVitals.current_hp(p)==8 and PlayerVitals.maximum_hp(p)==8 and p.lost_health==2,"host revives guest through interact")
  check(await until(func(): return marked("guest-revived")),"guest receives lost-heart texture state")
  IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(host), 100)
- check(host.wild and PlayerLifecycle.fallen(host) and game.spectator_view.focus_id(1)==id,"fallen host watches guest")
+ check(ExpeditionCase.is_wild(host) and PlayerLifecycle.fallen(host) and game.spectator_view.focus_id(1)==id,"fallen host watches guest")
  mark("revive-host")
  check(await until(func(): return not PlayerLifecycle.fallen(host) and PlayerVitals.maximum_hp(host)==8),"guest E request revives host")
  check(host.lost_health==2 and PlayerVitals.current_hp(host)==8,"host pays same one-heart cost")
  check(await until(func(): return marked("host-revived")),"guest observes authoritative host revival")
  IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(host), 100);IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(p), 100)
- check(not host.wild and not p.wild and host.lost_health==0 and p.lost_health==0,"party wipe resets lost hearts")
+ check(not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(p) and host.lost_health==0 and p.lost_health==0,"party wipe resets lost hearts")
  check(await until(func(): return marked("wipe")),"guest sees wipe and restored capacity")
  mark("done");check(await until(func(): return game.players.size()==1),"guest leaves normally");game.leave_game("Revival fixture complete")
 func capture(name: String) -> void:
@@ -71,7 +73,7 @@ func guest_run() -> void:
  game.guest_character.data.name="Revival guest";game.guest_character.save_profile();check(game.join_game()==OK,"guest starts")
  if not await until(func(): return game.session=="Guest" and not game.client_details.is_empty()): check(false,"guest accepted");return
  var id:=game.multiplayer.get_unique_id()
- check(await until(func(): return game.players[id].wild and game.inventory_drop_visuals.models.has("guest-part")),"guest sees own trophy model")
+ check(await until(func(): return ExpeditionCase.is_wild(game.players[id]) and game.inventory_drop_visuals.models.has("guest-part")),"guest sees own trophy model")
  var model: Node3D=game.inventory_drop_visuals.models["guest-part"]
  check(model.visible and model.position==game.stage.WILD_OFFSET+Vector3(0,0,2),"guest trophy visible in Wilds")
  check(game.exploration.drop_color(game.Items.part_id(game.Parts.HOOK))==Color("#62baff"),"guest minimap uses blue")
@@ -94,5 +96,5 @@ func guest_run() -> void:
  game.send_action(false)
  check(await until(func(): return not game.players[1].get("fallen",true) and game.players[1].max_hp==8),"guest sees host revived")
  mark("host-revived")
- check(await until(func(): return not game.players[id].wild and game.players[id].max_hp==10 and game.players[id].hp==10),"wipe returns guest with full five hearts")
+ check(await until(func(): return not ExpeditionCase.is_wild(game.players[id]) and game.players[id].max_hp==10 and game.players[id].hp==10),"wipe returns guest with full five hearts")
  mark("wipe");check(await until(func(): return marked("done")),"host finishes");game.leave_game("Revival fixture complete")

@@ -1,4 +1,6 @@
 extends RefCounted
+
+const Participation = preload("res://expedition_participation.gd")
 # Host-derived presentation state. Never stored in character/Garden saves.
 const Warden = preload("res://warden_combat.gd")
 const Ranger = preload("res://ranger_combat.gd")
@@ -26,7 +28,7 @@ static func tint(kind: String) -> Color:
  return Color("#e6c079") if kind in ["guard","counter","grave","bark_guard","sheltered","trophy_carrier","cast_break"] else Color("#d8a2ed") if kind in ["marked","prepared_mark","echo","mark_break","core_strike_mark"] else Color("#95d7ed") if kind in ["brittle","slow","shatter"] else Color("#a6d695")
 static func add(result: Dictionary,game: Node,kind: String,owner: int,enemy: bool,until: int,stacks: int,now: int) -> void:
  if until<=now or stacks<=0:return
- var token: int=game.encounter.token(owner) if enemy and owner>=0 else int(game.combat_epoch)
+ var token: int=game.encounter.token(owner) if enemy and owner>=0 else int(game.participation.epoch())
  var key: String="%s:%d:%d:%s"%[str(enemy),owner,token,kind]
  result[key]={"kind":kind,"owner":owner,"enemy":enemy,"until":until,"stacks":stacks,"token":token}
 static func sync(game: Node,now: int) -> void:
@@ -36,7 +38,7 @@ static func sync(game: Node,now: int) -> void:
   var player: Dictionary=game.players[id]
   if player.has("affinity_ward_claims") and (int(player.get("guard_until",0))<=now or int(player.get("guard_charges",0))<=0):
    player.erase("affinity_ward_claims")
-  if not game.Life.alive(player) or not player.get("wild",false):continue
+  if not game.Life.alive(player) or not Participation.is_wild(player):continue
   if player.has(Oracle.Omens.STATE):
    var omens:=Oracle.Omens.indicators(game,player,now)
    for omen in omens: add(desired,game,omen,id,false,int(omens[omen]),1,now)
@@ -80,7 +82,7 @@ static func sync(game: Node,now: int) -> void:
    var charges := int(player.get(pair[1],0)) + graft_count
    add(desired,game,pair[0],id,false,now+60000,charges,now)
  for target in range(-1,game.encounter.scout_count()):
-  if not game.expedition_active() or not game.Traits.valid_target(game,target):continue
+  if not game.participation.active() or not game.Traits.valid_target(game,target):continue
   var omen_target:=Oracle.Omens.enemy_body(game,target)
   if omen_target.has(Oracle.Omens.STATE):
    var omens:=Oracle.Omens.indicators(game,omen_target,now)
@@ -123,7 +125,7 @@ static func sync(game: Node,now: int) -> void:
   if actor.get("attack",{}).get("variant","")=="bark_guard":
    var until: int=int(actor.windup) if target>=0 else game.tactics.strike_at if game.tactics.winding_up else 0
    add(desired,game,"bark_guard",target,true,until,1,now)
- var epoch:=str(game.combat_epoch)
+ var epoch:=str(game.participation.epoch())
  var previous: Dictionary=game.get_meta("status_feedback",{}) if str(game.get_meta("status_epoch",""))==epoch else {}
  for key in previous:
   if not desired.has(key) or desired[key].stacks!=previous[key].stacks or (desired[key].kind not in REFRESH_IN_PLACE and desired[key].until!=previous[key].until) or now-int(previous[key].event.born)>=55000:
@@ -141,7 +143,7 @@ static func sync(game: Node,now: int) -> void:
  game.set_meta("status_feedback",desired);game.set_meta("status_epoch",epoch)
 static func snapshot(game: Node,now: int) -> Array:
  var result: Array=[]
- if str(game.get_meta("status_epoch",""))!=str(game.combat_epoch):return result
+ if str(game.get_meta("status_epoch",""))!=str(game.participation.epoch()):return result
  for item in game.get_meta("status_feedback",{}).values():
   if now>=int(item.until):continue
   var event: Dictionary=item.event.duplicate(true)

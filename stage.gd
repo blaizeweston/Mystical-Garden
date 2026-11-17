@@ -1,5 +1,7 @@
 extends Node3D
 
+const Participation = preload("res://expedition_participation.gd")
+
 const WeaponMotion=preload("res://weapon_motion.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const GardenScenery=preload("res://garden_scenery.gd")
@@ -276,20 +278,20 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 			marker(Vector3.UP * 1.85, "YOU" if id == local_id else "ALLY", avatar)
 			actor.name_label=avatar.find_children("*","Label3D",true,false)[0]
 		var p: Dictionary = players[id]
-		var offset := WILD_OFFSET if p.wild else Vector3.ZERO
+		var offset := WILD_OFFSET if Participation.is_wild(p) else Vector3.ZERO
 		var actor: Dictionary = avatar_models[id]
 		actor.name_label.text="YOU" if id==local_id else str(p.get("display_name",p.get("character",{}).get("name","Wanderer")))
 		if PlayerLifecycle.fallen(p): actor.name_label.text+=" · FALLEN"
 		actor.name_label.modulate=[Color("d8edb3"),Color("a3d5ef"),Color("e5bcf2"),Color("efcf9f")][clampi(int(p.get("party_slot",0)),0,3)]
 		update_avatar(avatars[id], actor, p, offset + p.pos, now, delta)
 		var effect: Dictionary=p.get("skill_fx",{})
-		if p.wild and not effect.is_empty() and not effect.get("event_driven",false) and int(effect.get("seq",0))!=int(actor.get("skill_fx_seq",-1)):
+		if Participation.is_wild(p) and not effect.is_empty() and not effect.get("event_driven",false) and int(effect.get("seq",0))!=int(actor.get("skill_fx_seq",-1)):
 			actor.skill_fx_seq=int(effect.seq)
 			emit_skill_effect(WILD_OFFSET+Vector3(effect.pos),float(effect.radius),Color(effect.color))
 
 	var camera_id:=view_id if view_id>=0 else local_id
 	if players.has(camera_id):
-		var wild: bool = players[camera_id].wild
+		var wild: bool = Participation.is_wild(players[camera_id])
 		if experimental_garden != null:
 			experimental_garden.visible = not wild
 			terrain.visible = wild
@@ -324,7 +326,7 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 	for i in scenery.size():
 		scenery[i].visible = i == site and not _has_experimental_floor()
 	if experimental_garden != null:
-		wilderness_base.visible = bool(players.get(camera_id, {}).get("wild", false)) and not _has_experimental_floor()
+		wilderness_base.visible = bool(Participation.is_wild(players.get(camera_id, {}))) and not _has_experimental_floor()
 		if _has_experimental_floor():
 			var climate: Dictionary = visual_field.generated.climate
 			$Sun.light_color = climate.sun
@@ -491,7 +493,7 @@ func update_avatar(root: Node3D, actor: Dictionary, player: Dictionary, position
 	if animation.is_empty() and not active and swing>0: active=true;attack_phase=1.0-swing
 	var motion_form: String="staff" if rendered_animation.form=="cast" else WeaponMotion.form(player)
 	var motion:=WeaponMotion.pose(motion_form,attack_phase,active,int(animation.get("combo",0)))
-	motion.equipped=player.get("wild",false);motion.reach=animation.get("reach",2.0);motion.clip=animation.get("clip","")
+	motion.equipped=Participation.is_wild(player);motion.reach=animation.get("reach",2.0);motion.clip=animation.get("clip","")
 	motion.delivery=animation.get("delivery",WeaponMotion.profile(motion_form).delivery);motion.span=animation.get("span",WeaponMotion.profile(motion_form).span)
 	motion.ability=rendered_animation.form=="cast"
 	var direction: Variant=animation.get("direction")
@@ -501,7 +503,7 @@ func update_avatar(root: Node3D, actor: Dictionary, player: Dictionary, position
 		yaw=atan2(direction.x,direction.z)
 	if travel.length()>maxf(delta,.001)*.24:
 		actor.travel_yaw=atan2(travel.x,travel.z)
-	if not active and actor.has("travel_yaw") and (actor.speed>.24 or not player.get("wild",false)):
+	if not active and actor.has("travel_yaw") and (actor.speed>.24 or not Participation.is_wild(player)):
 		yaw=float(actor.travel_yaw)
 	var model: Node3D = actor.model
 	model.rotation.y = lerp_angle(model.rotation.y, yaw+float(motion.yaw), minf(1.0, 18.0 * delta))
@@ -531,7 +533,7 @@ func update_avatar(root: Node3D, actor: Dictionary, player: Dictionary, position
 		actor.weapon_key=visual_key
 	var visual: Node3D=actor.visual_weapon
 	preload("res://weapon_visuals.gd").animate(actor,WeaponMotion.form(player),attack_phase,active,yaw,float(motion.reach),motion)
-	var core:=int(player.get("core_part",player.get("weapon",0) if player.get("wild",false) else player.get("prepared",0)))
+	var core:=int(player.get("core_part",player.get("weapon",0) if Participation.is_wild(player) else player.get("prepared",0)))
 	if core>0 and core<Parts.DEFINITIONS.size() and Parts.is_plant(core):
 		var seed: MeshInstance3D=visual.get_node("CoreSeed")
 		(seed.material_override as StandardMaterial3D).albedo_color=Color(Seeds.DEFINITIONS[Parts.plant_source(core)].color)

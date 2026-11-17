@@ -1,4 +1,6 @@
 extends Node
+
+const Participation = preload("res://expedition_participation.gd")
 # Cosmetic only: local transforms/shaders, no gameplay RNG, saves or network events.
 const Layout=preload("res://garden_layout.gd")
 const Catalog=preload("res://garden_interaction_catalog.gd")
@@ -47,7 +49,7 @@ func _process(delta: float) -> void:
   var at: Vector3=zone.water.position
   if zone.id=="sheltered_spring" and game.has_meta(&"experimental_terrain"):
    at=game.stage.station_position("spring")
-  var visible: bool=not game.stage.get_meta("garden_growth_hidden_zones",[]).has(zone.id) and motion and not player.get("wild",false) and available.has(zone.ambience.requires_point) and at.is_finite() and game.stage.get_meta("garden_growth_camera",{}).get("target",player.get("pos",Vector3.INF)).distance_to(at)<float(zone.ambience.range)
+  var visible: bool=not game.stage.get_meta("garden_growth_hidden_zones",[]).has(zone.id) and motion and not Participation.is_wild(player) and available.has(zone.ambience.requires_point) and at.is_finite() and game.stage.get_meta("garden_growth_camera",{}).get("target",player.get("pos",Vector3.INF)).distance_to(at)<float(zone.ambience.range)
   if visible and not colonies.has(zone.id):colonies[zone.id]=build_colony(zone)
   if colonies.has(zone.id):
    colonies[zone.id].visible=visible

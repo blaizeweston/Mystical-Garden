@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Enemies = preload("res://enemy_catalog.gd")
 const Progress = preload("res://progress.gd")
@@ -60,7 +62,7 @@ func run():
 	reload.remember_expedition(0,0,0)
 	check(reload.burst_pressure==2,"unused counters fade slowly")
 	var p: Dictionary=game.players[1]
-	p.wild=true
+	ExpeditionCase.set_membership(game, p, true)
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
 	p.pos=Vector3(0,0,5.4)
 	game.tactics.position=p.pos
@@ -108,7 +110,7 @@ func run():
 	game.encounter.clear_scouts()
 	game.encounter.set_hp(-1, 3)
 	game.battlefield.configure(0,1)
-	game.encounter_number=5
+	ExpeditionCase.set_world(game, {"encounter_number": 5})
 	game.enemy_kind=0
 	game.enemy_mutations=Enemies.MOBILITY
 	game.tactics.position=Vector3(-6.5,0,-4.5)
@@ -127,7 +129,7 @@ func run():
 	game.encounter.set_hp(-1, 0)
 	game.tactics.winding_up=false
 	for kind in Enemies.all().size():
-		p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(0,0,5.4);p.slow_until=0;p.guard_until=0
+		ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(0,0,5.4);p.slow_until=0;p.guard_until=0
 		var mob: Dictionary=game.make_scout(kind,p.pos+Vector3.RIGHT*.8,1)
 		game.encounter.clear_scouts();game.encounter.register_scout(mob)
 		var at:=Time.get_ticks_msec()
@@ -135,11 +137,11 @@ func run():
 		check(mob.windup>at,"every enemy role can telegraph through the director")
 		preload("res://scout_behavior.gd").tick(game, .016,at+int(Enemies.get_kind(kind).windup)+10)
 	game.enemy_mutations=Enemies.MOBILITY
-	game.encounter_number=4
+	ExpeditionCase.set_world(game, {"encounter_number": 4})
 	game.progress.burst_pressure=0
 	game.burst_clears=2
 	check((game.current_mutations(0,0,0)&Enemies.BARK)==0,"recent tactics do not cause immediate early counters")
-	game.encounter_number=10
+	ExpeditionCase.set_world(game, {"encounter_number": 10})
 	check((game.current_mutations(0,0,0)&Enemies.BARK)!=0,"deeper encounters can respond faster within the same run")
 	var metadata: PackedInt32Array=game.campaign_snapshot()
 	check(metadata.size()==game.EncounterConfig.BOSS_PHASE+1 and Enemies.decode(metadata[18]).mask==Enemies.MOBILITY,"appearance and landing metadata synchronize compactly")

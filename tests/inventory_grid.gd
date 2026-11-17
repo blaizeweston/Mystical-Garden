@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Items=preload("res://item_catalog.gd")
 const Model=preload("res://inventory_model.gd")
 var failed:=false
@@ -41,7 +43,7 @@ func run():
  var bad_count: int=reserve.parts[4]
  game.drop_inventory_stack(1,p,"carry",part,1)
  check(reserve.parts[4]==bad_count and g.ground_items.is_empty(),"cannot use backpack source from the Garden")
- p.wild=true;p.carried_parts[4]=9;p.carried_seeds.assign([0,1,2]);p.pos=game.battlefield.entry
+ ExpeditionCase.set_membership(game, p, true);p.carried_parts[4]=9;p.carried_seeds.assign([0,1,2]);p.pos=game.battlefield.entry
  var public: Dictionary=game.player_snapshot(1)[1]
  check(public.bag.carry.size()==2 and not str(public.bag).contains('"seeds"'),"unidentified seed payloads are absent from private UI snapshots")
  Model.transfer(game,p,"carry","pouch",part,9)
@@ -77,13 +79,13 @@ func run():
  p.carried_parts[4]=3
  Model.transfer(game,p,"carry","pouch",part,3)
  var part_before: int=reserve.parts[4]
- game.encounter_number=6;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();p.pos=game.battlefield.advance
- game.use_checkpoint(1,false)
- check(not p.wild and reserve.parts[4]==part_before+3 and p.safe_items.is_empty(),"checkpoint extraction banks pouch stacks")
- p.wild=true;p.carried_parts[4]=2
+ ExpeditionCase.set_world(game, {"encounter_number": 6});game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();p.pos=game.battlefield.advance
+ ExpeditionCase.Transitions.checkpoint(game, 1,false)
+ check(not ExpeditionCase.is_wild(p) and reserve.parts[4]==part_before+3 and p.safe_items.is_empty(),"checkpoint extraction banks pouch stacks")
+ ExpeditionCase.set_membership(game, p, true);p.carried_parts[4]=2
  Model.transfer(game,p,"carry","pouch",part,2)
  part_before=reserve.parts[4]
- game.abandon_run(1,p)
+ ExpeditionCase.Transitions.abandon(game, 1,p)
  check(not p.pouch and p.safe_items.is_empty() and reserve.parts[4]==part_before,"abandonment discards safe stacks without banking")
  # Failing persistence returns Garden drops and pickup items to their original place.
  var seed_count: int=reserve.stock[0]
@@ -103,7 +105,7 @@ func run():
  var migrated=load("res://progress.gd").new();migrated.path=legacy_path;migrated.load_garden();migrated.save_garden()
  check(FileAccess.file_exists(legacy_path+".pre-inventory-v1.bak") and migrated.stock[0]==reserve.stock[0],"legacy counts migrate with a recovery backup")
  # Sorting and filtering are display operations, not item mutations.
- game.return_to_garden(p);game.toggle_overlay(game.pack_menu);game.inventory_view.refresh()
+ ExpeditionCase.Transitions.return_member(game, p);game.toggle_overlay(game.pack_menu);game.inventory_view.refresh()
  check(game.inventory_view.grid.get_child_count()>=40,"normal inventory uses square grid slots with empty spaces")
  var original: int=reserve.stock[0]
  game.inventory_view.filter_pick.select(3);game.inventory_view.key="";game.inventory_view.refresh()

@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Service=preload("res://altar_service.gd")
 const Recipes=preload("res://altar_recipes.gd")
 const Items=preload("res://item_catalog.gd")
@@ -78,10 +80,10 @@ func run():
  var unknown_before: int=reserve.unknown.size()
  Service.identify(game,p)
  check(reserve.unknown.size()==unknown_before-1 and reserve.stock[4]==1,"explicit identification is still available from altar")
- p.wild=true
+ ExpeditionCase.set_membership(game, p, true)
  captured=Service.capture(game,p);Service.combine(game,p,parts)
  check(Service.capture(game,p)==captured,"Wilds request cannot use Garden altar")
- p.wild=false;p.pos=game.Stage.GATE
+ ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.GATE
  Service.combine(game,p,parts)
  check(Service.capture(game,p)==captured,"remote altar request fails range validation")
  p.pos=game.Stage.ALTAR

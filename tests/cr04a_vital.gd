@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -48,7 +50,7 @@ func reset(p: Dictionary, ally: Dictionary) -> void:
 	game.set_meta(Clock.CLOCK,0.0)
 	for player in [p,ally]:
 		Vital.clear(game,player)
-		player.wild=true
+		ExpeditionCase.set_membership(game, player, true)
 		player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive()
 		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(60)
 		player.lost_health=0
@@ -83,7 +85,7 @@ func run() -> void:
 	var player: Dictionary=game.players[1]
 	var ally: Dictionary=game.players[2]
 	var fallen: Dictionary=game.players[3]
-	fallen.wild=true
+	ExpeditionCase.set_membership(game, fallen, true)
 	fallen[PlayerLifecycle.STATE] = fallen[PlayerLifecycle.STATE].fall()
 	fallen[PlayerVitals.STATE] = fallen[PlayerVitals.STATE].with_hp(0)
 	for pair in [["part_2","plant_part_rare_lantern_moss"],["part_9","plant_part_rare_bloodbriar"],["plant_part_plant_gravemoss","plant_part_rare_gravemoss"]]:
@@ -230,7 +232,7 @@ func benchmark(player: Dictionary, ally: Dictionary) -> void:
 	reset(player,ally)
 	game.add_player(4)
 	for id in [3,4]:
-		game.players[id].wild=true
+		ExpeditionCase.set_membership(game, game.players[id], true)
 		game.players[id][PlayerLifecycle.STATE] = game.players[id][PlayerLifecycle.STATE].clear_inactive()
 		game.players[id][PlayerVitals.STATE] = game.players[id][PlayerVitals.STATE].with_hp(70)
 	var now:=Time.get_ticks_msec()

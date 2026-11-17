@@ -1,11 +1,13 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 func _initialize():call_deferred("run")
 func run():
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/performance_fixture.cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
- var p: Dictionary=game.players[1];p.wild=true;game.encounter.set_hp(-1, 10000)
+ var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);game.encounter.set_hp(-1, 10000)
  var generation: Array=[]
  for seed_value in [91247,98723,91261,77331,42518]:
-  var start:=Time.get_ticks_usec();game.map_seed=seed_value;game.destination=1;game.depth=6;game.encounter_number=48;game.difficulty_cycle=4;game.reset_encounter();game.stage.visual_field=game.battlefield;game.stage.redraw_terrain(1,6,seed_value);generation.append((Time.get_ticks_usec()-start)/1000.)
+  var start:=Time.get_ticks_usec();ExpeditionCase.set_world(game, {"map_seed": seed_value});ExpeditionCase.set_world(game, {"destination": 1});ExpeditionCase.set_world(game, {"depth": 6});ExpeditionCase.set_world(game, {"encounter_number": 48});ExpeditionCase.set_world(game, {"difficulty_cycle": 4});game.reset_encounter();game.stage.visual_field=game.battlefield;game.stage.redraw_terrain(1,6,seed_value);generation.append((Time.get_ticks_usec()-start)/1000.)
  var frames: Array=[]
  p.pos=game.battlefield.entry;game.tactics.engaged=true
  for mob in game.encounter.scout_tactics(): mob.engaged=true

@@ -1,4 +1,6 @@
 extends Node
+
+const Participation = preload("res://expedition_participation.gd")
 # Presentation only. The host commits research; each viewer acknowledges their own scene.
 const Service=preload("res://garden_growth_service.gd")
 const Layout=preload("res://garden_layout.gd")
@@ -151,7 +153,7 @@ func _process(delta: float) -> void:
   if not event.is_empty():finish(false)
   return
  var data:=Service.projection(game,id);var pending: Array=data.get("pending",[])
- var safe: bool=not player.get("wild",false) and data.get("ready",false) and game.session!="Connecting"
+ var safe: bool=not Participation.is_wild(player) and data.get("ready",false) and game.session!="Connecting"
  if not event.is_empty():
   if not safe or source_context!=context():finish(false);return
   animate(elapsed+delta)

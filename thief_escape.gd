@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Participation = preload("res://expedition_participation.gd")
+
 const KIND := 16
 const RUN_SPEED := 2.6
 const MIN_CHASE_MS := 4500
@@ -83,13 +85,13 @@ static func steal(game: Node, actor: Dictionary, drop: Dictionary, now: int) -> 
 	game.wild_item_drops.erase(drop)
 	preload("res://event_audio.gd").emit(game,"trophy_taken",actor.pos)
 	notify_party(game,"The Graft Thief stole a trophy. Follow its trail to the tunnel!")
-	game.Journal.event("combat","thief_fled_with_trophy",{"actor":game.encounter.token_for(actor),"floor":game.encounter_number})
+	game.Journal.event("combat","thief_fled_with_trophy",{"actor":game.encounter.token_for(actor),"floor":game.participation.floor()})
 	return true
 
 
 static func notify_party(game: Node, message: String) -> void:
 	for id in game.players:
-		if game.players[id].get("wild",false) and game.players[id].get("profile_ready",false):
+		if Participation.is_wild(game.players[id]) and game.players[id].get("profile_ready",false):
 			game.tell(id,message)
 
 
@@ -146,7 +148,7 @@ static func escape(game: Node, actor: Dictionary) -> void:
 	if gate_elite:
 		game.tactics.winding_up = false
 		game.tactics.attack_mode = ""
-	game.Journal.event("combat","thief_escaped",{"actor":game.encounter.token_for(actor),"floor":game.encounter_number})
+	game.Journal.event("combat","thief_escaped",{"actor":game.encounter.token_for(actor),"floor":game.participation.floor()})
 	notify_party(game,"The Graft Thief escaped with the trophy.")
 
 
@@ -185,7 +187,7 @@ static func snapshot(game: Node) -> Array:
 static func map_routes(game: Node, player: Dictionary) -> Array:
 	if game.multiplayer.is_server():
 		return snapshot(game)
-	if game.client_details_key != str([game.destination,game.encounter_number,game.map_seed]):
+	if game.client_details_key != str([game.participation.route(),game.participation.floor(),game.participation.seed()]):
 		return []
 	var result := []
 	for row in player.get("thief_routes",[]):

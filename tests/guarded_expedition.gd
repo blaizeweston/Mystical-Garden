@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -33,7 +35,7 @@ func disk() -> Dictionary:
 
 func record(label: String,before: Dictionary) -> void:
  print("CASE ",JSON.stringify({"case":label,"run_id":OS.get_environment("MYSTICAL_VALIDATION_RUN"),"before":before,"after":disk(),
-  "floor":world.encounter_number,"wild":world.expedition_active(),"pending":Tx.pending_notice(world),"status":world.status,
+  "floor":world.participation.floor(),"wild":world.participation.active(),"pending":Tx.pending_notice(world),"status":world.status,
   "queued_kills":world.monster_rewards.pending_count(),"queued_departures":world.departure_settlement.count(),"event_serial":world.combat_event_serial}))
 
 func open_world(fresh := false) -> bool:
@@ -77,7 +79,7 @@ func fail_receipt(phase: String,_path: String) -> Error:
  return ERR_CANT_CREATE if phase=="publish_receipt" else OK
 
 func clear_floor(actor: Dictionary,floor: int) -> void:
- world.encounter_number=floor
+ ExpeditionCase.set_world(world, {"encounter_number": floor})
  world.deepest_milestone=floor
  world.encounter.set_hp(-1, 0)
  world.encounter.clear_scouts()
@@ -141,7 +143,7 @@ func run() -> void:
 func interrupted() -> void:
  var actor: Dictionary=world.players[1]
  actor.pos=world.Stage.GATE
- world.enter_wilds(1,actor)
+ ExpeditionCase.Transitions.enter(world, 1,actor)
  world.encounter.set_hp(-1, 0)
  world.record_enemy_death(-1,world.tactics.position,Vector3.ZERO)
  world.encounter.clear_scouts()
@@ -167,7 +169,7 @@ func exercise() -> void:
  world.open_gate_preparation()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.garden_action(1,"depart")
- check(disk()==before and not actor.wild and actor.prepared==1 and world.battlefield==field and world.map_rng.state==seed
+ check(disk()==before and not ExpeditionCase.is_wild(actor) and actor.prepared==1 and world.battlefield==field and world.map_rng.state==seed
   and world.loadout_menu.visible and world.run_wallet(actor)==0,
   "departure abort restores map RNG, battlefield, material, actor and open UI")
  check(is_same(actor[Cooldowns.STATE],garden_timers) and garden_timers.deadline(Cooldowns.Q)==2100
@@ -176,7 +178,7 @@ func exercise() -> void:
  record("departure_abort",before)
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.garden_action(1,"depart")
- check(actor.wild and actor.weapon==1 and world.progress.part_count(1)==2 and not world.loadout_menu.visible
+ check(ExpeditionCase.is_wild(actor) and actor.weapon==1 and world.progress.part_count(1)==2 and not world.loadout_menu.visible
   and disk()[G]!=before[G] and world.run_wallet(actor)==0,"departure commits a fresh wallet before panel closure")
  var departed_timers: Cooldowns.Timers = actor[Cooldowns.STATE]
  check(not is_same(departed_timers,garden_timers) and departed_timers.deadline(Cooldowns.Q)==0
@@ -226,7 +228,7 @@ func exercise() -> void:
  var ally: Dictionary=world.players[2]
  ally.profile_ready=true
  ally.seed_owner="ally"
- ally.wild=true
+ ExpeditionCase.set_membership(world, ally, true)
  world.battlefield.procedural=false
  world.battlefield.barriers.clear()
  actor.pos=Vector3.ZERO
@@ -272,16 +274,16 @@ func exercise() -> void:
   "revival starts a new life and preserves existing cooldowns")
  world.revive_player(2,1)
  check(actor.lost_health==paid and PlayerLifecycle.matches(actor,revived_generation),"duplicate revival cannot charge or change generation twice")
- ally.wild=false
- world.players.erase(2)
+ ExpeditionCase.set_membership(world, ally, false)
+ ExpeditionCase.remove_actor(world, 2)
 
  clear_floor(actor,3)
  actor.offer_floor=3
  actor.checkpoint_offers=["power"]
- world.use_checkpoint(1,true)
- check(world.checkpoint_pending and world.checkpoint_menu.visible and world.encounter_number==3,"checkpoint opens cards without travelling")
+ ExpeditionCase.Transitions.checkpoint(world, 1,true)
+ check(world.checkpoint_pending and world.checkpoint_menu.visible and world.participation.floor()==3,"checkpoint opens cards without travelling")
  world.choose_checkpoint_card(1,actor,0)
- check(world.encounter_number==3 and world.checkpoint_ready.get(1)==3 and actor.power>0,"card commits before travel")
+ check(world.participation.floor()==3 and world.checkpoint_ready.get(1)==3 and actor.power>0,"card commits before travel")
  actor[PlayerVitals.STATE] = actor[PlayerVitals.STATE].with_hp(1.0)
  var health_before_floor: PlayerVitals.Health = actor[PlayerVitals.STATE]
  var remains: Dictionary=world.make_scout(0,world.tactics.position,1)
@@ -297,8 +299,8 @@ func exercise() -> void:
  var healing_rng: int=world.Life.Preview.heal_rng.state
  before=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
- world.use_checkpoint(1,true)
- check(world.encounter_number==3 and world.battlefield==field and world.map_rng.state==seed and world.Life.Preview.heal_rng.state==healing_rng
+ ExpeditionCase.Transitions.checkpoint(world, 1,true)
+ check(world.participation.floor()==3 and world.battlefield==field and world.map_rng.state==seed and world.Life.Preview.heal_rng.state==healing_rng
   and is_same(actor[PlayerVitals.STATE],health_before_floor) and PlayerVitals.current_hp(actor)==1
   and world.checkpoint_ready.get(1)==3 and disk()==before,"floor abort restores navigation, RNG, original health owner and purchased card")
  check(world.encounter.cleared() and world.encounter.scout_count()==1
@@ -309,8 +311,8 @@ func exercise() -> void:
   "floor abort restores the leader position, attack deadline and nested tactics")
  record("checkpoint_abort",before)
  world.remove_meta(&"guarded_gameplay_test_fault")
- world.use_checkpoint(1,true)
- check(world.encounter_number==4 and world.battlefield!=field and world.map_rng.state!=seed
+ ExpeditionCase.Transitions.checkpoint(world, 1,true)
+ check(world.participation.floor()==4 and world.battlefield!=field and world.map_rng.state!=seed
   and health_before_floor.hp()==1.0 and PlayerVitals.current_hp(actor)>1.0,"checkpoint advances after confirmed save and installs recovered health")
  check(world.encounter.token(remains_slot)!=remains_token,"successful floor travel discards the previous roster identity")
  check(world.tactics.ready_at!=tactical_ready_at and not world.tactics.memory.has("ar10_fixture_plan"),
@@ -322,14 +324,14 @@ func exercise() -> void:
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  before=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_receipt)
- world.use_checkpoint(1,false)
+ ExpeditionCase.Transitions.checkpoint(world, 1,false)
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.refresh_feedback()
- check(not actor.wild and world.progress.unknown.size()==3 and world.progress.campaign.best_extraction==6 and disk()[G]!=before[G]
+ check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==3 and world.progress.campaign.best_extraction==6 and disk()[G]!=before[G]
   and world.feedback.text.contains("Extracted with") and world.feedback.text.contains(Tx.CLEANUP_NOTICE) and FileAccess.file_exists(G+".transaction"),
   "cleanup-pending extraction commits inventory and progression and retains notice")
  committed=disk()
- world.use_checkpoint(1,false)
+ ExpeditionCase.Transitions.checkpoint(world, 1,false)
  check(disk()==committed and world.progress.unknown.size()==3,"pending extraction cannot replay")
  record("extraction_cleanup_pending",before)
  check(Ops.recover(PackedStringArray([G])).value.verified and disk()[G]==committed[G],"cleanup preserves committed extraction")
@@ -339,34 +341,34 @@ func exercise() -> void:
  actor=world.players[1]
 
  actor.pos=world.Stage.GATE
- world.enter_wilds(1,actor)
+ ExpeditionCase.Transitions.enter(world, 1,actor)
  clear_floor(actor,2)
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  actor.carried_seeds=[1]
  var saved_seeds: int=world.progress.unknown.size()
  IncomingPlayerHit.apply_health_loss(world, 1, PlayerLifecycle.generation(actor), 999)
- check(not actor.wild and world.progress.unknown.size()==saved_seeds+1 and world.status.contains("safe-pouch"),"wipe keeps only protected cargo")
+ check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds+1 and world.status.contains("safe-pouch"),"wipe keeps only protected cargo")
  actor.pos=world.Stage.GATE
- world.enter_wilds(1,actor)
+ ExpeditionCase.Transitions.enter(world, 1,actor)
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  saved_seeds=world.progress.unknown.size()
- world.abandon_run(1,actor)
- check(not actor.wild and world.progress.unknown.size()==saved_seeds and world.status.contains("abandoned"),"abandonment discards safe pouch")
+ ExpeditionCase.Transitions.abandon(world, 1,actor)
+ check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds and world.status.contains("abandoned"),"abandonment discards safe pouch")
 
  actor.pos=world.Stage.GATE
- world.enter_wilds(1,actor)
+ ExpeditionCase.Transitions.enter(world, 1,actor)
  clear_floor(actor,6)
  actor.carried_seeds=[1]
  world.record_enemy_death(-1,world.tactics.position,Vector3.ZERO)
  before=disk()
  world.open_gate_preparation()
  world.set_meta(&"guarded_gameplay_test_fault",fail_restore)
- world.use_checkpoint(1,false)
+ ExpeditionCase.Transitions.checkpoint(world, 1,false)
  world.remove_meta(&"guarded_gameplay_test_fault")
  var split:=disk()
- check(not actor.wild and world.progress.unknown.size()==saved_seeds+1 and world.loadout_menu.visible and Tx.pending_notice(world).contains("uncertain")
+ check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds+1 and world.loadout_menu.visible and Tx.pending_notice(world).contains("uncertain")
   and split[C]!=before[C] and split[G]==before[G] and not world.status.contains("Extracted with"),"uncertain extraction keeps tentative memory and withholds notice/closure")
- world.use_checkpoint(1,false)
+ ExpeditionCase.Transitions.checkpoint(world, 1,false)
  check(disk()==split,"uncertain operation does not replay")
  record("extraction_uncertain",before)
  close_world()
@@ -388,8 +390,8 @@ func exercise() -> void:
  var xp_before := int(ally.character.xp[departed_class])
  actor.pos=world.Stage.GATE
  ally.pos=world.Stage.GATE
- world.enter_wilds(1,actor)
- world.enter_wilds(2,ally)
+ ExpeditionCase.Transitions.enter(world, 1,actor)
+ ExpeditionCase.Transitions.enter(world, 2,ally)
  ally.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  world.encounter.set_hp(-1, 0)
  world.record_enemy_death(-1,world.tactics.position,Vector3.ZERO)
@@ -443,8 +445,8 @@ func exercise() -> void:
  hp=int(PlayerVitals.current_hp(actor))
  IncomingPlayerHit.apply_health_loss(world, 1, PlayerLifecycle.generation(actor), 999)
  world.finish_combat(1,world.tactics.position)
- world.abandon_run(1,actor)
- check(int(PlayerVitals.current_hp(actor))==hp and actor.wild and disk()==before,"lost lease prevents combat and settlement writes")
+ ExpeditionCase.Transitions.abandon(world, 1,actor)
+ check(int(PlayerVitals.current_hp(actor))==hp and ExpeditionCase.is_wild(actor) and disk()==before,"lost lease prevents combat and settlement writes")
  world.return_to_main_menu()
  check(world.get_meta(Tx.STOPPING,false) and disk()==before,"lost lease shuts down without saving")
  record("lost_lease_shutdown",before)
@@ -455,19 +457,19 @@ func exercise() -> void:
  if not open_world(): return
  actor=world.players[1]
  actor.pos=world.Stage.GATE
- world.enter_wilds(1,actor)
+ ExpeditionCase.Transitions.enter(world, 1,actor)
 
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  before=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
- check(not world.get_meta(Tx.STOPPING,false) and actor.wild and disk()==before and current_scene==world,
+ check(not world.get_meta(Tx.STOPPING,false) and ExpeditionCase.is_wild(actor) and disk()==before and current_scene==world,
   "window-close settlement abort keeps the world and original saves")
  record("window_close_abort",before)
  world.return_to_main_menu()
- check(not world.returning_to_title and actor.wild and disk()==before,"title settlement abort stays in expedition")
+ check(not world.returning_to_title and ExpeditionCase.is_wild(actor) and disk()==before,"title settlement abort stays in expedition")
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.return_to_main_menu()
- check(world.returning_to_title and not actor.wild and world.multiplayer.multiplayer_peer is OfflineMultiplayerPeer and disk()[G]!=before[G],
+ check(world.returning_to_title and not ExpeditionCase.is_wild(actor) and world.multiplayer.multiplayer_peer is OfflineMultiplayerPeer and disk()[G]!=before[G],
   "title return settles exactly once and installs offline peer")
  record("title_commit",before)

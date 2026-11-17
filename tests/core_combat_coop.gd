@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Core = preload("res://core_combat.gd")
 var game: Node
 var role: String
@@ -68,11 +70,11 @@ func host_run() -> void:
 	if not await until(func(): return guest.frame == game.Frames.RANGER and guest.prepared == game.Parts.THORN and marked("preview")):
 		check(false, "guest prepared Ranger with Thorn Bloom")
 		return
-	game.enter_wilds(1, host)
-	if not await until(func(): return host.wild and guest.wild):
+	ExpeditionCase.Transitions.enter(game, 1, host)
+	if not await until(func(): return ExpeditionCase.is_wild(host) and ExpeditionCase.is_wild(guest)):
 		check(false, "both players ready and depart")
 		return
-	check(game.encounter_number == 1 and guest.weapon == game.Parts.THORN and game.progress.parts[0] == 0, "Ranger crafts and consumes the part on floor one")
+	check(game.participation.floor() == 1 and guest.weapon == game.Parts.THORN and game.progress.parts[0] == 0, "Ranger crafts and consumes the part on floor one")
 	var aim := aim_for(guest)
 	if aim.is_zero_approx():
 		check(false, "generated arena has legal Ranger ground")
@@ -121,20 +123,20 @@ func host_run() -> void:
 	guest.core_cast_until = 0
 	game.garden_action(id, original)
 	check(int(guest.core_ready_at) == 0 and not game.has_meta(Core.STATE), "pre-revival request cannot cast in a new life")
-	game.encounter_number = 3
+	ExpeditionCase.set_world(game, {"encounter_number": 3})
 	game.deepest_milestone = 3
 	game.encounter.set_hp(-1, 0)
 	game.encounter.clear_scouts()
 	host.pos = game.battlefield.advance
 	guest.pos = game.battlefield.advance
-	game.use_checkpoint(1, true)
+	ExpeditionCase.Transitions.checkpoint(game, 1, true)
 	game.choose_checkpoint_card(1, host, -1)
 	if not await until(func(): return int(guest.run_upgrades.get("quickroot", 0)) == 1):
 		check(false, "guest buys Quickroot at the third gate")
 		return
-	check(game.wallet_for(guest).spent_essence() == 6 and game.wallet_for(host).spent_essence() == 0 and host.run_upgrades.is_empty() and game.encounter_number == 3, "purchase spends only the guest's essence and does not move the party")
-	game.use_checkpoint(1, true)
-	if not await until(func(): return game.encounter_number == 4):
+	check(game.wallet_for(guest).spent_essence() == 6 and game.wallet_for(host).spent_essence() == 0 and host.run_upgrades.is_empty() and game.participation.floor() == 3, "purchase spends only the guest's essence and does not move the party")
+	ExpeditionCase.Transitions.checkpoint(game, 1, true)
+	if not await until(func(): return game.participation.floor() == 4):
 		check(false, "party advances after both confirmations")
 		return
 	aim = aim_for(guest)
@@ -199,7 +201,7 @@ func guest_run() -> void:
 		check(false, "host requests travel")
 		return
 	game.send_travel_ready(false)
-	if not await until(func(): return game.players[id].get("wild", false) and marked("aim") and not game.player_hud.state.get("core", {}).is_empty()):
+	if not await until(func(): return ExpeditionCase.is_wild(game.players[id]) and marked("aim") and not game.player_hud.state.get("core", {}).is_empty()):
 		check(false, "Ranger reaches the Wilds with ready Core HUD")
 		return
 	var aim: Array = JSON.parse_string(FileAccess.get_file_as_string(base + "-aim"))
@@ -234,7 +236,7 @@ func guest_run() -> void:
 		check(false, "guest can confirm after purchase")
 		return
 	game.send_travel_ready(false)
-	if not await until(func(): return game.encounter_number == 4 and marked("quick-aim") and game.player_hud.state.get("core", {}).get("remaining", 99) < .01):
+	if not await until(func(): return game.participation.floor() == 4 and marked("quick-aim") and game.player_hud.state.get("core", {}).get("remaining", 99) < .01):
 		check(false, "party reaches floor four with an available Core")
 		return
 	aim = JSON.parse_string(FileAccess.get_file_as_string(base + "-quick-aim"))

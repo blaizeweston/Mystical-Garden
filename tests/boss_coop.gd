@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -38,9 +40,9 @@ func host_run() -> void:
   check(false,"guest registers");return
  var id=int(game.players.keys()[1]);var p: Dictionary=game.players[id]
  for kind in range(20,24):
-  game.destination=0;game.encounter_number=20+kind-20;game.depth=kind-19;game.map_seed=91661+kind
-  game.wild_item_drops.clear();game.boss_floors[str(game.encounter_number)]=kind;game.used_bosses.append(kind);game.reset_encounter();game.encounter.clear_scouts();game.tactics.stagger_until=Time.get_ticks_msec()+60000
-  for player in game.players.values(): player.wild=true;player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive();player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,1)
+  ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"encounter_number": 20+kind-20});ExpeditionCase.set_world(game, {"depth": kind-19});ExpeditionCase.set_world(game, {"map_seed": 91661+kind})
+  game.wild_item_drops.clear();game.boss_floors[str(game.participation.floor())]=kind;game.used_bosses.append(kind);game.reset_encounter();game.encounter.clear_scouts();game.tactics.stagger_until=Time.get_ticks_msec()+60000
+  for player in game.players.values(): ExpeditionCase.set_membership(game, player, true);player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive();player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,1)
   p.graft_part=game.Parts.monster_part(kind);p.run_upgrades={"trophy_"+game.Enemies.get_kind(kind).id:1}
   check(await until(func():return marked("view-"+str(kind))),"guest receives boss and graft "+str(kind))
   if Routes.supports(kind):await host_lair(kind,id)
@@ -61,11 +63,11 @@ func host_run() -> void:
 func host_lair(kind: int, id: int) -> void:
  var now:=Time.get_ticks_msec()
  game.tactics.boss_phase=1
- game.battlefield.configure(game.destination,game.depth,game.map_seed,kind,1)
+ game.battlefield.configure(game.participation.route(),game.participation.depth(),game.participation.seed(),kind,1)
  game.tactics.position=Vector3.ZERO
  var player: Dictionary=game.players[id]
  var mode: String="root_sweep" if kind==Routes.ORCHARD else "grasping_pool"
- var layout:=Routes.crossings(game.map_seed)
+ var layout:=Routes.crossings(game.participation.seed())
  player.pos=Vector3(0,0,12.4) if kind==Routes.ORCHARD else Routes.bank(layout,1,.7)
  game.players[1].pos=Vector3(0,0,2) if kind==Routes.ORCHARD else Routes.bank(layout,0,.7)
  game.tactics.memory.lair_tracks={id:{"outer":8,"streak":8,"point":player.pos,"lane":1}}
@@ -111,7 +113,7 @@ func guest_lair(kind: int, id: int) -> void:
   var at:=point.normalized()*7.9
   check(field.clear_line(point,at,.34),"visible retreat is also clear in guest collision")
  else:
-  var layout:=Routes.crossings(game.map_seed)
+  var layout:=Routes.crossings(game.participation.seed())
   var first:=Routes.bank(layout,0,layout.bars[0])
   var second:=Routes.bank(layout,0,layout.bars[1])
   check(hint.lair=="water" and hint.cue=="Causeway flooding" and Routes.dry_lane(layout,point)==1,"guest sees the named bank and flooded footprint")
@@ -239,7 +241,7 @@ func guest_run() -> void:
  var id=game.multiplayer.get_unique_id()
  for kind in range(20,24):
   check(await until(func():return game.tactics.boss_kind==kind and game.stage.visual_field.boss_kind==kind and game.players[id].get("graft_part",0)==game.Parts.monster_part(kind)),"shared boss map/weapon descriptor "+str(kind))
-  var field=load("res://battlefield.gd").new();field.configure(0,game.depth,game.map_seed,kind,0)
+  var field=load("res://battlefield.gd").new();field.configure(0,game.participation.depth(),game.participation.seed(),kind,0)
   check(field.clearings==game.stage.visual_field.clearings and field.barriers==game.stage.visual_field.barriers,"same visible terrain as host")
   var p: Dictionary=game.players[id];var card=game.RunUpgrades.get_upgrade("trophy_"+game.Enemies.get_kind(kind).id)
   check(not p.get("weapon_stats",{}).is_empty(),"authoritative graft stats arrive")

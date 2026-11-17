@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -69,7 +71,7 @@ func verify_graph() -> void:
 
 
 func reset_field() -> void:
-	game.combat_epoch += 1
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	game.battlefield = preload("res://battlefield.gd").new()
 	game.encounter.clear_scouts()
 	game.trait_events.clear()
@@ -99,7 +101,7 @@ func reset_field() -> void:
 				"core_ready_at","core_cast_until","cast_until","strike_at","weapon","secondary","catalyst","graft_part","weapon_kind"]:
 			player[key] = 0
 		player.run_upgrades = {}
-		player.wild = true
+		ExpeditionCase.set_membership(game, player, true)
 		player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive()
 		player[PlayerVitals.STATE] = PlayerVitals.Health.new(100.0,100)
 		player.pos = Vector3.ZERO if id==1 else Vector3(-6,0,1)
@@ -140,7 +142,7 @@ func entry_for_each_class() -> void:
 	for class_id in qs.size():
 		reset_field()
 		for player in game.players.values():
-			player.wild=false
+			ExpeditionCase.set_membership(game, player, false)
 		caster.prepared=0
 		caster.prepared_secondary=0
 		caster.prepared_catalyst=0
@@ -150,7 +152,7 @@ func entry_for_each_class() -> void:
 		var graph: RefCounted = game.Classes.connected_tree(class_id)
 		check(graph.level(caster.character)==1 and caster.character.xp[class_id]==0
 			and graph.focus(caster.character).is_empty() and not build.departure_refusal(caster).is_empty()
-			and not game._enter_wilds(1,caster),"fresh class requires an explicit starting focus")
+			and not ExpeditionCase.Transitions.admit(game, 1,caster),"fresh class requires an explicit starting focus")
 		var before_preview: Dictionary = caster.character.duplicate(true)
 		game.loadout_view.refresh()
 		check(game.loadout_view.focus_options.visible and game.loadout_view.depart_button.disabled,"starting focus is offered in crafting UI")
@@ -167,7 +169,7 @@ func entry_for_each_class() -> void:
 			and caster.character.xp[class_id]==0,"0 XP focus learns through actual host action")
 		game.loadout_view.refresh()
 		check(not game.loadout_view.focus_options.visible and not game.loadout_view.depart_button.disabled,"chosen focus unlocks native departure")
-		caster.wild=true
+		ExpeditionCase.set_membership(game, caster, true)
 		caster.pos=Vector3.ZERO
 		caster.erase("cast_until")
 		caster.class_aim_distance=1.5
@@ -361,7 +363,7 @@ func coexistence() -> void:
 	enemy_hit(8,now+10)
 	enemy_hit(8,now+250)
 	check(ally[PlayerVitals.STATE].hp()==86 and record(ally,Progression.SECOND_BREATH,now+250,9).is_empty(),"overlapping copies grant one shared opportunity")
-	game.combat_epoch+=1
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	check(record(caster,Progression.SECOND_BREATH,now+250).is_empty(),"floor identity invalidates former effects")
 	prepare(LEFT)
 	ally.pos=Vector3(.4,0,0)

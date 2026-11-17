@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
@@ -40,20 +42,20 @@ func run() -> void:
 			check(Rules.resolve(weapon.id, [0], 0).skill.is_empty(), "empty old builds retain regular actions")
 	check(game.progress.parts[0] == 0 and game.progress.parts[1] == 0, "fresh Garden starts with existing stock rules")
 	p.pos = game.Stage.GATE
-	game.enter_wilds(1, p)
+	ExpeditionCase.Transitions.enter(game, 1, p)
 	var reserve: Dictionary = game.seed_reserve(p)
 	var seeds: Array = []
 	for index in 2:
-		seeds.append(game.progress.roll_seed(reserve, seeds, [], game.destination, .6, index+1))
+		seeds.append(game.progress.roll_seed(reserve, seeds, [], game.participation.route(), .6, index+1))
 	check(seeds == [0,1], "both starter species are available in the first two encounters")
 	p.carried_seeds.assign(seeds)
-	game.encounter_number = 6
+	ExpeditionCase.set_world(game, {"encounter_number": 6})
 	game.deepest_milestone = 6
 	game.encounter.set_hp(-1, 0)
 	game.encounter.clear_scouts()
 	p.pos = game.battlefield.advance
-	game.use_checkpoint(1, false)
-	check(not p.wild and reserve.unknown == seeds, "starter seeds return through extraction")
+	ExpeditionCase.Transitions.checkpoint(game, 1, false)
+	check(not ExpeditionCase.is_wild(p) and reserve.unknown == seeds, "starter seeds return through extraction")
 	p.pos = game.Stage.ALTAR
 	game.send_altar_action("identify_all", [], 1)
 	check(reserve.stock[0] == 1 and reserve.stock[1] == 1, "starter seeds identify at the existing altar")
@@ -82,8 +84,8 @@ func run() -> void:
 	var equipped: Control = view.equipment.get_child(0)
 	view.select_entry(equipped.entry)
 	check(view.details.text.contains("Lantern Burst") and not view.transfer_button.visible, "equipped Core inspection uses its own read-only details")
-	game.enter_wilds(1, p)
-	check(p.wild and p.weapon == moss and game.progress.parts[1] == 0, "normal crafting spends only the prepared part")
+	ExpeditionCase.Transitions.enter(game, 1, p)
+	check(ExpeditionCase.is_wild(p) and p.weapon == moss and game.progress.parts[1] == 0, "normal crafting spends only the prepared part")
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
 	p.pos = Vector3.ZERO
@@ -115,12 +117,12 @@ func run() -> void:
 
 	p.run_upgrades={"quickroot":1}
 	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 99)
-	check(not p.wild and p.run_upgrades.is_empty() and Core.owner_state(p,Time.get_ticks_msec()).is_empty(), "wipe clears expedition upgrades and hides the Core action")
+	check(not ExpeditionCase.is_wild(p) and p.run_upgrades.is_empty() and Core.owner_state(p,Time.get_ticks_msec()).is_empty(), "wipe clears expedition upgrades and hides the Core action")
 	p.pos=game.Stage.GATE
 	game.select_class(1,p,3)
 	game.handle_loadout_action(1,p,"loadpart_0_%d"%thorn)
-	game.enter_wilds(1,p)
-	check(p.wild and p.weapon==thorn and Core.owner_state(p,Time.get_ticks_msec()).remaining==0, "fresh expedition with the Reaper starts the other starter Core ready")
+	ExpeditionCase.Transitions.enter(game, 1,p)
+	check(ExpeditionCase.is_wild(p) and p.weapon==thorn and Core.owner_state(p,Time.get_ticks_msec()).remaining==0, "fresh expedition with the Reaper starts the other starter Core ready")
 	game.queue_free()
 	await process_frame
 	if not failed:

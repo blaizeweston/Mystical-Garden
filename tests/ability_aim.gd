@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Aim = preload("res://ability_aim.gd")
@@ -38,7 +40,7 @@ func run() -> void:
 	game.set_process(false)
 	game.set_physics_process(false)
 	var p: Dictionary = game.players[1]
-	p.wild = true
+	ExpeditionCase.set_membership(game, p, true)
 	p.pos = Vector3.ZERO
 	p.frame = game.Frames.WARDEN
 	p.facing = Vector3.FORWARD
@@ -66,7 +68,7 @@ func run() -> void:
 	input(game, KEY_R, false)
 	check(p[Cooldowns.STATE].deadline(Cooldowns.R) == 0 and controller.slot == -1, "opening an overlay cancels the preview")
 	input(game, KEY_R, true)
-	game.encounter_number += 1
+	ExpeditionCase.set_world(game, {"encounter_number": game.participation.floor() + (1)})
 	input(game, KEY_R, false)
 	check(p[Cooldowns.STATE].deadline(Cooldowns.R) == 0 and controller.slot == -1, "a release after floor travel never casts")
 	input(game, KEY_R, true)

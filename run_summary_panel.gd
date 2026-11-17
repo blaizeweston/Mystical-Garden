@@ -1,5 +1,7 @@
 extends PanelContainer
 
+const Participation = preload("res://expedition_participation.gd")
+
 const Settings = preload("res://app_settings.gd")
 const Skills = preload("res://skill_catalog.gd")
 const Upgrades = preload("res://run_upgrade_catalog.gd")
@@ -48,7 +50,7 @@ static func handle_input(world: Node, event: InputEvent) -> bool:
 	if panel == null or (world.overlay.visible and not panel.visible):
 		return false
 	var player: Dictionary = world.players.get(world.local_player_id(), {})
-	if not player.get("wild", false):
+	if not Participation.is_wild(player):
 		return false
 	world.toggle_overlay(panel)
 	if panel.visible:
@@ -121,7 +123,7 @@ func fit() -> void:
 
 func _process(_delta: float) -> void:
 	var player: Dictionary = game.players.get(game.local_player_id(), {})
-	if not player.get("wild", false):
+	if not Participation.is_wild(player):
 		game.toggle_overlay(null)
 	elif Time.get_ticks_msec() >= next_refresh:
 		refresh(player)
@@ -132,7 +134,7 @@ func refresh(player: Dictionary) -> void:
 	var stats: Dictionary
 	if game.multiplayer.is_server():
 		stats = game.weapon_stats(player)
-	elif game.client_details_key == str([game.destination, game.encounter_number, game.map_seed]):
+	elif game.client_details_key == str([game.participation.route(), game.participation.floor(), game.participation.seed()]):
 		stats = player.get("weapon_stats", {})
 	var view := project(game, player, stats)
 	var shortcut := Settings.hint("run_summary")
@@ -266,7 +268,7 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 	var unique: Array = stats.get("interactions", []).duplicate()
 	if stats.has("affinity_build"):
 		var grafts = preload("res://expedition_grafts.gd")
-		var ledger: Dictionary = grafts.owner_details(player, world.encounter_number) if world.multiplayer.is_server() else player.get("graft_improvements",{})
+		var ledger: Dictionary = grafts.owner_details(player, world.participation.floor()) if world.multiplayer.is_server() else player.get("graft_improvements",{})
 		if not ledger.is_empty():
 			var names: Dictionary = grafts.REINFORCEMENTS.merged(grafts.ADAPTATIONS)
 			var counts := {}
@@ -276,9 +278,9 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 			for id: String in counts:
 				unique.append(str(names[id].name) + (" ×%d" % counts[id] if int(counts[id])>1 else ""))
 	if world.Life.Preview.enabled:
-		if world.destination!=world.Campaign.HEART:
-			var boundary: bool=world.depth==world.ROUTE_ROOMS
-			var cycle: int=world.difficulty_cycle+int(boundary and world.destination==world.Campaign.HOLLOW)
+		if world.participation.route()!=world.Campaign.HEART:
+			var boundary: bool=world.participation.depth()==world.ROUTE_ROOMS
+			var cycle: int=world.participation.cycle()+int(boundary and world.participation.route()==world.Campaign.HOLLOW)
 			var center: int=world.Life.Sustain.recovery_center_hp(boundary,cycle)
 			rows.append(["Next gate recovery",world.Life.Preview.range_label(world.Life.Preview.heal_band(center))+" HP"])
 		var core: Dictionary = stats.get("core_build", {}).get("skill", {})

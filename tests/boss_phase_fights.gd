@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Fights=preload("res://boss_phase_fights.gd")
 const Nest=preload("res://boss_nest_layout.gd")
@@ -17,10 +19,10 @@ func _initialize() -> void:
  call_deferred("run")
 
 func setup(game: Node, kind: int, stamp: int) -> void:
- game.map_seed=stamp
- game.destination=0
- game.depth=2
- game.encounter_number=15
+ ExpeditionCase.set_world(game, {"map_seed": stamp})
+ ExpeditionCase.set_world(game, {"destination": 0})
+ ExpeditionCase.set_world(game, {"depth": 2})
+ ExpeditionCase.set_world(game, {"encounter_number": 15})
  game.tactics.boss_kind=kind
  game.tactics.boss_phase=0
  game.tactics.boss_moves=0
@@ -113,7 +115,7 @@ func check_nest(game: Node, player: Dictionary) -> void:
   game.Bosses.resolve(game,now+10000+attempt*3800)
  check(game.encounter.scout_views().filter(func(child):return child.hp>0 and child.summoned).size()<=Fights.BROOD_LIMIT,"repeated casts respect the four-living-child cap")
  for phase in 3:
-  game.battlefield.configure(0,2,game.map_seed,Fights.NEST,phase)
+  game.battlefield.configure(0,2,game.participation.seed(),Fights.NEST,phase)
   check(game.battlefield.barriers==Nest.ribs(phase) and game.battlefield.connected() and game.battlefield.spawn_points.size()>=4,"phase keeps its actual ribs, routes and legal scout staging")
 
 func check_bloom(game: Node, player: Dictionary) -> void:
@@ -184,7 +186,7 @@ func run() -> void:
  root.add_child(game)
  game.set_process(false);game.set_physics_process(false)
  var player: Dictionary=game.players[1]
- player.wild=true;player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
+ ExpeditionCase.set_membership(game, player, true);player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
  check_nest(game,player)
  check_bloom(game,player)
  game.queue_free()

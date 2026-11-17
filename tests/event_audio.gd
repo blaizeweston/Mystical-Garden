@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Cues = preload("res://event_audio.gd")
 const Attacks = preload("res://enemy_attack.gd")
 var failed := false
@@ -65,16 +67,16 @@ func verify_world(game: Node, mix: Node) -> void:
 	Cues.play_research(game,saved)
 	check(mix.voices.size()==count,"replaying the same research receipt does not replay the cue")
 
-	p.wild = true
-	game.destination = 0
+	ExpeditionCase.set_membership(game, p, true)
+	ExpeditionCase.set_world(game, {"destination": 0})
 	game.encounter.set_hp(-1, 0)
 	game.encounter.clear_scouts()
-	game.encounter_number = 5
+	ExpeditionCase.set_world(game, {"encounter_number": 5})
 	game.finish_combat(1,Vector3.ZERO)
 	game.finish_combat(1,Vector3.ZERO)
 	var clears: Array = game.combat_events.filter(func(e):return e.kind=="audio")
 	check(clears.size()==1 and clears[0].shape=="gate_ready","an ordinary clear produces exactly one gate cue")
-	game.encounter_number = 6
+	ExpeditionCase.set_world(game, {"encounter_number": 6})
 	game.encounter_rewarded = false
 	game.finish_combat(1,Vector3.ZERO)
 	clears = game.combat_events.filter(func(e):return e.kind=="audio")
@@ -129,7 +131,7 @@ func verify_combat(game: Node) -> void:
 	game.encounter.set_hp(-1, 45)
 	game.encounter.clear_scouts()
 	var p: Dictionary = game.players[1]
-	p.wild = true
+	ExpeditionCase.set_membership(game, p, true)
 	p.pos = Vector3(5,0,1)
 	var now := Time.get_ticks_msec()
 	var stag: Dictionary = game.make_scout(2,Vector3.ZERO,1)

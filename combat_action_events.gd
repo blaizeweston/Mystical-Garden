@@ -42,7 +42,7 @@ static func begin(game: Node, actor_id: int, origin: String, material: Dictionar
 	event.life_generation = life
 	event.identity = int(game.get_meta(&"cr02_activation_serial", 0)) + 1
 	game.set_meta(&"cr02_activation_serial", event.identity)
-	event.epoch = game.combat_epoch
+	event.epoch = game.participation.epoch()
 	event.actor = actor_id
 	event.source = origin
 	event.affinity = material.get("primary_affinity", "")
@@ -57,7 +57,7 @@ static func begin(game: Node, actor_id: int, origin: String, material: Dictionar
 
 
 func publish(game: Node, channel: String, contact_id: String, target: String, now: int, details: Dictionary = {}) -> bool:
-	if not Ruleset.active(game) or not game.multiplayer.is_server() or game.combat_epoch != epoch:
+	if not Ruleset.active(game) or not game.multiplayer.is_server() or game.participation.epoch() != epoch:
 		return false
 	var owner: Dictionary = game.players.get(actor,{})
 	if not PlayerLifecycle.matches(owner,life_generation):

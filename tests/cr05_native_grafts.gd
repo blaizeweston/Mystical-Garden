@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Rules = preload("res://combat_ruleset.gd")
 const Improvements = preload("res://expedition_grafts.gd")
@@ -33,16 +35,16 @@ func stock(item: String, count: int) -> void:
 
 
 func floor_at(number: int) -> void:
-	game.encounter_number = number
+	ExpeditionCase.set_world(game, {"encounter_number": number})
 	player.pos = game.battlefield.graft
 
 
 func action(id: String, item: String) -> String:
-	return Improvements.request(Improvements.owner_details(player, game.encounter_number),id,item)
+	return Improvements.request(Improvements.owner_details(player, game.participation.floor()),id,item)
 
 
 func receipts() -> Array:
-	return Improvements.owner_details(player, game.encounter_number).copies
+	return Improvements.owner_details(player, game.participation.floor()).copies
 
 
 func buy(number: int, id: String, item: String) -> void:
@@ -57,7 +59,7 @@ func buy(number: int, id: String, item: String) -> void:
 func start_expedition() -> void:
 	player.pos = game.stage.gate_position()
 	game.send_garden_action("depart")
-	check(player.wild and Improvements.active_ledger(player) != null,"actual Gate departure creates a fresh graft ledger")
+	check(ExpeditionCase.is_wild(player) and Improvements.active_ledger(player) != null,"actual Gate departure creates a fresh graft ledger")
 	game.battlefield = preload("res://battlefield.gd").new()
 	game.battlefield.configure(0,1,0)
 	game.battlefield.barriers.clear()
@@ -120,7 +122,7 @@ func purchases() -> void:
 	game.send_garden_action("graft_install_%d" % item_part("monster_14"))
 	check(receipts().is_empty() and player.carried_parts[item_part("monster_14")]==2,
 		"historical fourth-slot command cannot install in affinity combat")
-	var mismatched := Improvements.owner_details(player, game.encounter_number)
+	var mismatched := Improvements.owner_details(player, game.participation.floor())
 	mismatched.revision += 1
 	var wrong_revision := Improvements.request(mismatched,"strike","monster_0")
 	mismatched.run = "invalid"
@@ -166,7 +168,7 @@ func purchases() -> void:
 	buy(48,"funeral_charges","monster_15")
 	floor_at(56)
 	game.send_garden_action(action("strike","monster_0"))
-	check(Improvements.owner_details(player, game.encounter_number).remaining==0 and player.carried_parts[item_part("monster_0")]==3
+	check(Improvements.owner_details(player, game.participation.floor()).remaining==0 and player.carried_parts[item_part("monster_0")]==3
 		and "all graft purchases" in game.status,"six successes exhaust the shared budget on later altars")
 	check(game.progress.knowledge==knowledge and game.progress.monster_crafts==discovery
 		and game.rng.state==rng and game.run_wallet(player)==wallet and player.graft_part==0,
@@ -224,12 +226,12 @@ func lifecycle() -> void:
 	var ledger := Improvements.active_ledger(player)
 	game.add_player(8)
 	var ally: Dictionary = game.players[8]
-	ally.wild = true
+	ExpeditionCase.set_membership(game, ally, true)
 	ally.pos = player.pos
 	game.Life.down(game,1,player)
 	check(game.Life.revive(game,8,1) and Improvements.active_ledger(player)==ledger and not player.has(Grafts.STATE),
 		"revival keeps purchases and clears transient adaptation state")
-	game.players.erase(8)
+	ExpeditionCase.remove_actor(game, 8)
 	game.reset_encounter()
 	check(Improvements.active_ledger(player)==ledger,"a new terrain encounter preserves all acquired improvements")
 	var remainder: Array = player.carried_parts.duplicate()
@@ -243,14 +245,14 @@ func lifecycle() -> void:
 	game.checkpoint_ready[1] = 3
 	var wallet: int = game.run_wallet(player)
 	game.set_meta(&"guarded_gameplay_test_fault",func(phase, _path): return ERR_FILE_CANT_WRITE if phase=="stage" else OK)
-	var rolled_back: bool = not game.finish_failed_expedition()
+	var rolled_back: bool = not ExpeditionCase.Transitions.finish_failed(game)
 	game.remove_meta(&"guarded_gameplay_test_fault")
-	check(rolled_back and player.wild and Improvements.active_ledger(player)==ledger and player.carried_parts==remainder,
+	check(rolled_back and ExpeditionCase.is_wild(player) and Improvements.active_ledger(player)==ledger and player.carried_parts==remainder,
 		"a confirmed guarded rollback preserves the whole graft ledger and carry")
 	check(rolled_back and Cards.ledger(player)==card_ledger and card_ledger.copies()==card_receipts
 		and card_ledger.completed_floor()==3 and game.wallet_for(player)==run_wallet and game.run_wallet(player)==wallet
 		and game.checkpoint_ready.get(1)==3,"guarded rollback restores card ownership, wallet and Gate readiness together")
-	game.finish_failed_expedition()
+	ExpeditionCase.Transitions.finish_failed(game)
 	check(not player.has(Improvements.STATE) and not player.has(Grafts.STATE)
 		and not player.has(Cards.STATE) and game.run_wallet(player)==0 and game.wallet_for(player).earned_sparks()==0
 		and game.wallet_for(player).spent_essence()==0,"actual wipe clears both ledgers, counters and wallet")
@@ -283,7 +285,7 @@ func reinforcements() -> void:
 	check(is_equal_approx(float(attack.stats.reach),reach+.2) and is_equal_approx(float(attack.stats.damage),damage+.3),
 		"ordinary melee uses exactly the purchased reach and damage")
 	game.garden_action(1,"abandon_run")
-	check(not player.wild and not player.has(Improvements.STATE),"official abandonment clears acquired improvements")
+	check(not ExpeditionCase.is_wild(player) and not player.has(Improvements.STATE),"official abandonment clears acquired improvements")
 	start_expedition()
 	stock("monster_0",10)
 	for floor_number in [8,16,24,32]:
@@ -292,7 +294,7 @@ func reinforcements() -> void:
 	var remaining: int = player.carried_parts[item_part("monster_0")]
 	game.send_garden_action(action("strike","monster_0"))
 	check("effective limit" in game.status and player.carried_parts[item_part("monster_0")]==remaining
-		and not Improvements.owner_details(player, game.encounter_number).used,"a fully capped reinforcement spends neither trophy nor altar")
+		and not Improvements.owner_details(player, game.participation.floor()).used,"a fully capped reinforcement spends neither trophy nor altar")
 	buy(40,"health","monster_0")
 
 

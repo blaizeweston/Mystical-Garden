@@ -1,4 +1,6 @@
 extends RefCounted
+
+const Participation = preload("res://expedition_participation.gd")
 ## Host-owned Ranger effects. Corridor and route belong to an accepted trap.
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -19,15 +21,15 @@ const ESCAPE_COLOR := Color("#77c9c9")
 
 
 static func stamp(game: Node, actor: int, player: Dictionary, cast: int) -> Dictionary:
-	return {"owner":actor, "life":PlayerLifecycle.generation(player), "epoch":game.combat_epoch, "cast":cast}
+	return {"owner":actor, "life":PlayerLifecycle.generation(player), "epoch":game.participation.epoch(), "cast":cast}
 
 
 static func living_here(game: Node, player: Dictionary) -> bool:
-	return player.get("wild",false) and game.Life.alive(player)
+	return Participation.is_wild(player) and game.Life.alive(player)
 
 
 static func source_live(game: Node, record: Dictionary) -> bool:
-	if int(record.get("epoch",-1)) != game.combat_epoch:
+	if int(record.get("epoch",-1)) != game.participation.epoch():
 		return false
 	var owner: Dictionary = game.players.get(record.owner,{})
 	return living_here(game,owner) and PlayerLifecycle.matches(owner,int(record.life))

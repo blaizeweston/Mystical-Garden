@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -125,7 +127,7 @@ func host() -> void:
  for actor in game.players.values(): actor.pos = game.Stage.GATE
  game.garden_action(1,"depart")
  mark("party-depart")
- if not await until(func(): return game.players.values().all(func(actor): return actor.wild)):
+ if not await until(func(): return game.players.values().all(func(actor): return ExpeditionCase.is_wild(actor))):
   check(false,"all four ready and departed")
   return
  var battle_before := FileAccess.get_sha256(G)

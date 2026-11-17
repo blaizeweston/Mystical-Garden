@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -22,15 +24,15 @@ func arena(c: int,mask: int=0) -> Dictionary:
 	game.tactics.winding_up=false
 	game.tactics.rooted_until=0
 	game.tactics.stagger_until=0
-	game.destination=0
-	game.depth=1
+	ExpeditionCase.set_world(game, {"destination": 0})
+	ExpeditionCase.set_world(game, {"depth": 1})
 	p.frame=c
 	p.weapon_kind=0
 	p.weapon=0
 	p.secondary=0
 	p.catalyst=0
 	p.graft_part=0
-	p.wild=true
+	ExpeditionCase.set_membership(game, p, true)
 	p.pos=Vector3(0,0,-1.5)
 	p.facing=Vector3.BACK
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(5)
@@ -136,7 +138,7 @@ func run():
 	key.pressed=false
 	game._input(key)
 	check(p[Cooldowns.STATE].deadline(Cooldowns.R)>0 and p[Cooldowns.STATE].deadline(Cooldowns.Q)==q_timer,"releasing R casts slot two independently")
-	p.wild=false
+	ExpeditionCase.set_membership(game, p, false)
 	p.pos=game.Stage.HEART
 	game.progress.studying_flowering=false
 	game.progress.flowering_unlocked=false

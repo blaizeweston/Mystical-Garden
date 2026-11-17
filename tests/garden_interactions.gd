@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Catalog=preload("res://garden_interaction_catalog.gd")
 const State=preload("res://garden_interaction_state.gd")
 const Service=preload("res://garden_interaction_service.gd")
@@ -47,9 +49,9 @@ func run() -> void:
  check(request(game,0,"invalid",point.id,"grant_gold").has("error"),"unsupported verbs are rejected")
  p.pos=game.Stage.GATE
  check(request(game,0).has("error"),"remote/out-of-range observation is rejected")
- p.pos=point.position;p.wild=true
+ p.pos=point.position;ExpeditionCase.set_membership(game, p, true)
  check(request(game,0).has("error"),"expedition actors cannot alter a Garden observation")
- p.wild=false
+ ExpeditionCase.set_membership(game, p, false)
  var path: String=g.path;g.path=base+"-missing/failure.cfg"
  check(request(game,0,"failed").has("error") and g.garden_interactions.revision==0 and g.garden_interactions.observations.is_empty(),"save failure rolls back observations and receipts")
  view._process(0);check(view.cue_until==0,"failed commit emits no success cue")

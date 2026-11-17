@@ -37,7 +37,7 @@ static func description(slot: String, quality: String) -> String:
 
 static func active_fields(game: Node, elapsed: int) -> Array:
 	return game.get_meta(FIELDS,[]).filter(func(field):
-		return int(field.epoch)==game.combat_epoch and int(field.until)>elapsed \
+		return int(field.epoch)==game.participation.epoch() and int(field.until)>elapsed \
 			and game.Life.alive(game.players.get(field.actor,{})) \
 			and PlayerLifecycle.matches(game.players[field.actor],int(field.life)))
 
@@ -48,7 +48,7 @@ static func suitable(game: Node, center: Vector3) -> bool:
 
 static func grow(game: Node, event: RefCounted, center: Vector3, shapes: Array, now: int) -> bool:
 	var player: Dictionary=game.players.get(event.actor,{})
-	if event.epoch!=game.combat_epoch or not game.Life.alive(player) or shapes.is_empty():
+	if event.epoch!=game.participation.epoch() or not game.Life.alive(player) or shapes.is_empty():
 		return false
 	if not suitable(game,center):
 		return false
@@ -97,11 +97,11 @@ static func apply_occupancy(game: Node, target: int, actor: Dictionary, fields: 
 static func tick(game: Node, elapsed: int, now: int) -> void:
 	if not game.has_meta(FIELDS):
 		return
-	var epoch: int=game.combat_epoch
+	var epoch: int=game.participation.epoch()
 	var fields:=active_fields(game,elapsed)
 	var wounds_remain:=false
 	for target in range(-1,game.encounter.scout_count()):
-		if game.combat_epoch!=epoch or game.get_meta(game.Transactions.PENDING,false):
+		if game.participation.epoch()!=epoch or game.get_meta(game.Transactions.PENDING,false):
 			return
 		var actor: Dictionary=Actors.body(game,target)
 		if not Actors.valid_target(game,target):
@@ -118,14 +118,14 @@ static func tick(game: Node, elapsed: int, now: int) -> void:
 			while int(wound.next)<=elapsed and int(wound.next)<int(wound.until):
 				wound.next+=TICK_MS
 				Actors.damage(game,wound.actor,target,wound.hp,now,COLOR)
-				if game.combat_epoch!=epoch or game.get_meta(game.Transactions.PENDING,false) or not Actors.valid_target(game,target):
+				if game.participation.epoch()!=epoch or game.get_meta(game.Transactions.PENDING,false) or not Actors.valid_target(game,target):
 					break
-			if game.combat_epoch!=epoch or game.get_meta(game.Transactions.PENDING,false) or not Actors.valid_target(game,target):
+			if game.participation.epoch()!=epoch or game.get_meta(game.Transactions.PENDING,false) or not Actors.valid_target(game,target):
 				break
 			if int(wound.until)<=elapsed: sources.erase(key)
 		if sources.is_empty(): actor.erase(BLEED)
 		else: wounds_remain=true
-	if game.combat_epoch==epoch:
+	if game.participation.epoch()==epoch:
 		if fields.is_empty() and not wounds_remain: game.remove_meta(FIELDS)
 		else: game.set_meta(FIELDS,fields)
 

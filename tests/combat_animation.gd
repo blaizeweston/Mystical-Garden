@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Motion=preload("res://weapon_motion.gd")
@@ -15,8 +17,8 @@ func run():
  game.progress.path="res://.godot/combat_anim_"+token+".cfg";game.local_character.path=game.progress.path+".character"
  root.add_child(game);game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
  var p: Dictionary=game.players[1]
- game.destination=0;game.depth=1;game.map_seed=0;game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.clear_scouts()
- p.wild=true;p.pos=Vector3(0,0,4);p.weapon=0;p.secondary=0;p.catalyst=0;p.power=0;p.technique=0;p.run_upgrades={}
+ ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"depth": 1});ExpeditionCase.set_world(game, {"map_seed": 0});game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.clear_scouts()
+ ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,4);p.weapon=0;p.secondary=0;p.catalyst=0;p.power=0;p.technique=0;p.run_upgrades={}
  var poses: Array=[];var projectiles:=0
  for c in 5:
   for weapon in 3:
@@ -81,7 +83,7 @@ func run():
  check(float(hints[0].to[2])<1.8,"charge projection stops before blocking terrain")
  game.combat_visuals.sync([],[],"next-floor",p.pos)
  check(game.combat_visuals.hints.is_empty() and game.combat_visuals.active.is_empty(),"effect cleanup follows floor transitions")
- game.return_to_garden(p)
+ ExpeditionCase.Transitions.return_member(game, p)
  check(p.attack_until==0,"Garden return clears attack animation")
  game.free()
  if not failed: print("PASS: fifteen weapon motions, seven delayed projectile forms, impact events, target identity, stag chevrons, swept damage, safe lanes and terrain clipping")
@@ -104,7 +106,7 @@ func verify_ray_contact_batch(game: Node) -> void:
    game.encounter.register_scout(game.make_scout(0,Vector3(0,0,4),2),1)
    game.encounter.set_hp(1,20))
  var action: RefCounted=Events.begin(game,1,"native_weapon",{}, {},["weapon_contact"],now+1000)
- var shot := {"player":1,"epoch":game.combat_epoch,"form":"bow","origin":Vector3.ZERO,
+ var shot := {"player":1,"epoch":game.participation.epoch(),"form":"bow","origin":Vector3.ZERO,
   "aim":Vector3(0,0,6),"previous":Vector3.ZERO,"release":now-100,"due":now,
   "remaining":2,"hits":[],"stats":{"damage":2,"targets":2,"pattern":"single","knockback":-.35,Events.CONTEXT:action}}
  game.MouseCombat.ray_tick(game,shot,now)

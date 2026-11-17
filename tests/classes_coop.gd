@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Aim=preload("res://ability_aim.gd")
 var game: Node
 var failed:=false
@@ -35,14 +37,14 @@ func run():
 		check(p.frame==2 and p.weapon_kind==2 and p.character.upgrades[2]==(1<<13),"host validates class, basic weapon and learned choice")
 		p.pos=game.Stage.GATE
 		game.players[1].pos=game.Stage.GATE
-		game.enter_wilds(1,game.players[1])
-		game.enter_wilds(id,p)
-		check(p.wild and p.carried_parts[18]==1 and p.graft_part==0 and reserve.parts[18]==0,"packed trophy enters as cargo")
+		ExpeditionCase.Transitions.enter(game, 1,game.players[1])
+		ExpeditionCase.Transitions.enter(game, id,p)
+		check(ExpeditionCase.is_wild(p) and p.carried_parts[18]==1 and p.graft_part==0 and reserve.parts[18]==0,"packed trophy enters as cargo")
 		check([p.weapon,p.secondary,p.catalyst]==[1,2,3] and reserve.parts[1]==0,"three materials crafted authoritatively")
-		game.encounter_number=game.GRAFT_ROOM
-		game.depth=4
+		ExpeditionCase.set_world(game, {"encounter_number": game.GRAFT_ROOM})
+		ExpeditionCase.set_world(game, {"depth": 4})
 		# This fixture checks class/loadout RPCs, not randomized elite evasion.
-		game.map_seed=1
+		ExpeditionCase.set_world(game, {"map_seed": 1})
 		game.reset_encounter()
 		game.encounter.clear_scouts()
 		game.enemy_kind=0
@@ -81,7 +83,7 @@ func run():
 			game.send_garden_action(action)
 		if not await until(func(): return game.players[id].pos.distance_to(game.Stage.GATE)<.2): check(false,"guest moves to Gate for preparation");quit(1);return
 		for action in ["loadweapon_2","loadpart_0_1","loadpart_1_2","loadpart_2_3","pack_18"]: game.send_garden_action(action)
-		if not await until(func(): return game.players[id].wild and game.encounter_number==game.GRAFT_ROOM and game.players[id].get("catalyst",0)==3 and game.client_details_key==str([game.destination,game.encounter_number,game.map_seed])):
+		if not await until(func(): return ExpeditionCase.is_wild(game.players[id]) and game.participation.floor()==game.GRAFT_ROOM and game.players[id].get("catalyst",0)==3 and game.client_details_key==str([game.participation.route(),game.participation.floor(),game.participation.seed()])):
 			check(false,"crafted expedition snapshot arrives");quit(1);return
 		check(game.players[id].frame==2 and game.players[id].weapon_kind==2 and game.players[id].catalyst==3 and game.players[id].graft_part==0,"class and all plant slots synchronize")
 		game.send_garden_action("graft_install_18")

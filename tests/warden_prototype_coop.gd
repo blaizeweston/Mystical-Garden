@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
@@ -77,14 +79,14 @@ func host() -> void:
 	check(player.character.upgrades[1]==1<<Warden.OFFSET and player.frame==0,"host spends the guest's point on the inspected class")
 	game.encounter.set_hp(-1, 0)
 	game.tactics.position=Vector3(0,0,-1.5)
-	game.battlefield.configure(game.destination,game.depth,game.map_seed)
+	game.battlefield.configure(game.participation.route(),game.participation.depth(),game.participation.seed())
 	game.battlefield.barriers.clear()
 	game.encounter.clear_scouts()
-	game.encounter_number=3
+	ExpeditionCase.set_world(game, {"encounter_number": 3})
 	game.encounter_rewarded=true
 	game.checkpoint_pending=true
 	for member in game.players.values():
-		member.wild=true
+		ExpeditionCase.set_membership(game, member, true)
 		member.pos=game.battlefield.advance
 	player.weapon=game.Parts.index_of("plant:thorn_bloom")
 	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(player).spent_essence())
@@ -93,8 +95,8 @@ func host() -> void:
 		check(false,"guest buys the branch card")
 		return
 	game.checkpoint_pending=false
-	game.combat_epoch+=1
-	game.encounter_number=4
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
+	ExpeditionCase.set_world(game, {"encounter_number": 4})
 	game.encounter.set_hp(-1, 100)
 	game.tactics.stagger_until=Time.get_ticks_msec()+60000
 	player.pos=Vector3.ZERO
@@ -147,7 +149,7 @@ func guest() -> void:
 		check(false,"owner receives the purchased class card")
 		return
 	mark("purchase")
-	if not await until(func():return marked("arena") and game.encounter_number==4 and game.enemy_health()>0 and not game.client_details.is_empty()):
+	if not await until(func():return marked("arena") and game.participation.floor()==4 and game.enemy_health()>0 and not game.client_details.is_empty()):
 		check(false,"combat state arrives")
 		return
 	var player: Dictionary=game.players[id]

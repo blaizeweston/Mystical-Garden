@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
@@ -107,18 +109,18 @@ func host_run() -> void:
    stages.count+=1
    return ERR_FILE_CANT_WRITE
   return OK)
- world.enter_wilds(1,leader)
- mark("depart-abort",str(world.travel_epoch))
+ ExpeditionCase.Transitions.enter(world, 1,leader)
+ mark("depart-abort",str(world.participation.travel_epoch()))
  if not await until(func():return stages.count==1 and marked("saw-abort")):
   check(false,"party departure fault")
   return
- check(not leader.wild and not guest.wild and Slots._save_digest(G)==before and world.progress.part_count(1)==3
+ check(not ExpeditionCase.is_wild(leader) and not ExpeditionCase.is_wild(guest) and Slots._save_digest(G)==before and world.progress.part_count(1)==3
   and world.run_wallet(leader)==0 and world.run_wallet(guest)==0,"no departure effects or Essence before commitment")
- record("party_departure_abort",before,{"wild":false,"stage_count":stages.count,"travel_epoch":world.travel_epoch})
+ record("party_departure_abort",before,{"wild":false,"stage_count":stages.count,"travel_epoch":world.participation.travel_epoch()})
  world.remove_meta(&"guarded_gameplay_test_fault")
- world.enter_wilds(1,leader)
- mark("depart-commit",str(world.travel_epoch))
- if not await until(func():return leader.wild and guest.wild):
+ ExpeditionCase.Transitions.enter(world, 1,leader)
+ mark("depart-commit",str(world.participation.travel_epoch()))
+ if not await until(func():return ExpeditionCase.is_wild(leader) and ExpeditionCase.is_wild(guest)):
   check(false,"both votes commit one departure")
   return
  check(world.progress.part_count(1)==2 and world.run_wallet(leader)==0 and world.run_wallet(guest)==0,
@@ -149,17 +151,17 @@ func host_run() -> void:
   return
  check(guest.character.monsters[world.enemy_kind]==1,"duplicate kill is ignored")
  record("party_rewards",before,{"guest_count":guest.character.monsters[world.enemy_kind]})
- world.encounter_number=3
+ ExpeditionCase.set_world(world, {"encounter_number": 3})
  world.deepest_milestone=3
  leader.pos=world.battlefield.advance
  guest.pos=world.battlefield.advance
- world.use_checkpoint(1,true)
+ ExpeditionCase.Transitions.checkpoint(world, 1,true)
  world.choose_checkpoint_card(1,leader,-1)
  mark("cards")
  if not await until(func():return world.checkpoint_ready.get(id)==3):
   check(false,"guest chooses checkpoint card")
   return
- check(world.encounter_number==3,"choosing cards does not travel")
+ check(world.participation.floor()==3,"choosing cards does not travel")
  var before_travel: int = world.run_wallet(guest)
  var now := Time.get_ticks_msec()
  var timers: Cooldowns.Timers = guest[Cooldowns.STATE].with_deadline(Cooldowns.Q, now+25000).with_deadline(Cooldowns.R, now+26000).with_deadline(Cooldowns.DODGE, now+27000)
@@ -167,10 +169,10 @@ func host_run() -> void:
  guest[PlayerVitals.STATE] = guest[PlayerVitals.STATE].with_hp(1.0)
  var health_before: PlayerVitals.Health = guest[PlayerVitals.STATE]
  var life_before: PlayerLifecycle.Life = guest[PlayerLifecycle.STATE]
- world.use_checkpoint(1,true)
+ ExpeditionCase.Transitions.checkpoint(world, 1,true)
  mark("advance-wallet",str(before_travel))
- mark("advance",str(world.travel_epoch))
- if not await until(func():return world.encounter_number==4):
+ mark("advance",str(world.participation.travel_epoch()))
+ if not await until(func():return world.participation.floor()==4):
   check(false,"advancement commits after both consent")
   return
  check(world.run_wallet(guest)==before_travel,"floor travel retains the guest wallet")
@@ -183,7 +185,7 @@ func host_run() -> void:
  if not await until(func():return marked("saw-advance")):
   check(false,"guest sees committed advancement")
   return
- world.encounter_number=6
+ ExpeditionCase.set_world(world, {"encounter_number": 6})
  world.deepest_milestone=6
  world.encounter.set_hp(-1, 0)
  world.encounter.clear_scouts()
@@ -192,9 +194,9 @@ func host_run() -> void:
  guest.pos=world.battlefield.advance
  guest.carried_seeds=[0]
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):return ERR_CANT_CREATE if phase=="publish_receipt" else OK)
- world.use_checkpoint(1,false)
- mark("extract",str(world.travel_epoch))
- if not await until(func():return not world.expedition_active() and Tx.pending_notice(world)==Tx.CLEANUP_NOTICE):
+ ExpeditionCase.Transitions.checkpoint(world, 1,false)
+ mark("extract",str(world.participation.travel_epoch()))
+ if not await until(func():return not world.participation.active() and Tx.pending_notice(world)==Tx.CLEANUP_NOTICE):
   check(false,"party extraction commits with cleanup pending")
   return
  # Production keeps streaming public state after a cleanup-pending commit.
@@ -234,7 +236,7 @@ func guest_run() -> void:
  await create_timer(.12).timeout
  check(not marked("departed"),"stale readiness epoch cannot depart")
  world.send_garden_action("travel_ready:"+read("depart-commit"))
- if not await until(func():return marked("departed") and world.players.get(world.local_player_id(),{}).get("wild",false)):
+ if not await until(func():return marked("departed") and ExpeditionCase.is_wild(world.players.get(world.local_player_id(),{}))):
   check(false,"guest enters Wilds after commit")
   return
  check(world.players.get(world.local_player_id(),{}).get("wallet",-1)==0,"guest projects a fresh wallet at departure")
@@ -261,7 +263,7 @@ func guest_run() -> void:
  var advance_received:=func():
   var local: Dictionary = world.players.get(world.local_player_id(),{})
   var seconds: Array = local.get("skill_cooldowns", [0.0,0.0])
-  return (world.encounter_number==4 and local.get("wallet",-1)==int(read("advance-wallet"))
+  return (world.participation.floor()==4 and local.get("wallet",-1)==int(read("advance-wallet"))
    and not local.get("skill_ready",true) and not local.get("skill_two_ready",true)
    and not local.get("dodge_ready",true) and seconds[0]>0.0 and seconds[1]>seconds[0]
    and not local.has(Cooldowns.STATE) and not local.has(PlayerVitals.STATE) and not local.has(PlayerLifecycle.STATE)
@@ -274,7 +276,7 @@ func guest_run() -> void:
   check(false,"guest extraction ready")
   return
  world.send_garden_action("travel_ready:"+read("extract"))
- if not await until(func():return not world.players.get(world.local_player_id(),{}).get("wild",true) and world.get_meta(&"guarded_host_cleanup_notice","")==Tx.CLEANUP_NOTICE):
+ if not await until(func():return world.players.has(world.local_player_id()) and not ExpeditionCase.is_wild(world.players[world.local_player_id()]) and world.get_meta(&"guarded_host_cleanup_notice","")==Tx.CLEANUP_NOTICE):
   check(false,"guest sees committed Garden transition with warning")
   return
  world.send_garden_action("travel_ready:"+read("extract"))
@@ -286,7 +288,7 @@ func guest_run() -> void:
  world.toast_until=0
  world.refresh_feedback()
  check(world.feedback.text==Tx.CLEANUP_NOTICE and Slots._save_digest(C)==after,"cleanup warning survives toast and extraction does not duplicate profile credit")
- record("guest_transition_and_warning",original,{"floor":world.encounter_number,"feedback":world.feedback.text})
+ record("guest_transition_and_warning",original,{"floor":world.participation.floor(),"feedback":world.feedback.text})
  world.leave_game("Guest fixture complete")
  check(world.online_peer==null and world.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"guest offline before detachment")
  mark("guest-offline")

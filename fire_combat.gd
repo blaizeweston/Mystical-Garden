@@ -34,7 +34,7 @@ static func description(slot: String, quality: String) -> String:
 
 
 static func ignite(game: Node, event: RefCounted, target: int, now: int) -> void:
-	if event.epoch != game.combat_epoch or game.get_meta(game.Transactions.PENDING,false) or not Actors.valid_target(game, target) \
+	if event.epoch != game.participation.epoch() or game.get_meta(game.Transactions.PENDING,false) or not Actors.valid_target(game, target) \
 			or not PlayerLifecycle.matches(game.players.get(event.actor,{}),event.life_generation):
 		return
 	var actor: Dictionary = Actors.body(game, target)
@@ -53,9 +53,9 @@ static func ignite(game: Node, event: RefCounted, target: int, now: int) -> void
 
 
 static func tick(game: Node, elapsed: int, now: int) -> void:
-	var epoch: int = game.combat_epoch
+	var epoch: int = game.participation.epoch()
 	for target in range(-1, game.encounter.scout_count()):
-		if game.combat_epoch != epoch:
+		if game.participation.epoch() != epoch:
 			return
 		var actor: Dictionary = Actors.body(game, target)
 		if not actor.has(BURNING):
@@ -74,9 +74,9 @@ static func tick(game: Node, elapsed: int, now: int) -> void:
 			while int(burn.next) <= elapsed and int(burn.next) < int(burn.until):
 				burn.next += TICK_MS
 				Actors.damage(game, burn.actor, target, burn.hp, now, COLOR)
-				if game.combat_epoch != epoch or not Actors.valid_target(game, target) or game.get_meta(game.Transactions.PENDING,false):
+				if game.participation.epoch() != epoch or not Actors.valid_target(game, target) or game.get_meta(game.Transactions.PENDING,false):
 					break
-			if game.combat_epoch != epoch or not Actors.valid_target(game, target) or game.get_meta(game.Transactions.PENDING,false):
+			if game.participation.epoch() != epoch or not Actors.valid_target(game, target) or game.get_meta(game.Transactions.PENDING,false):
 				break
 			if int(burn.until) <= elapsed:
 				sources.erase(key)
@@ -139,7 +139,7 @@ static func incoming(game: Node, recipient: Dictionary, id: int, now: int) -> vo
 	var response: Dictionary = recipient.get(RESPONSE, {})
 	if response.is_empty():
 		return
-	if Clock.now(game) >= int(response.until) or response.event.epoch != game.combat_epoch:
+	if Clock.now(game) >= int(response.until) or response.event.epoch != game.participation.epoch():
 		recipient.erase(RESPONSE)
 		return
 	var target: int = game.get_meta(Actors.ATTACKER, -2)

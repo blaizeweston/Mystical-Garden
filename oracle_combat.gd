@@ -18,7 +18,7 @@ static func clear(player: Dictionary) -> void:
 
 
 static func stamp(game: Node, player: Dictionary, until: int = 0) -> Dictionary:
-	return {"epoch":game.combat_epoch,"life":PlayerLifecycle.generation(player),"until":until}
+	return {"epoch":game.participation.epoch(),"life":PlayerLifecycle.generation(player),"until":until}
 
 
 static func prepared_until(game: Node, player: Dictionary, key: String, now: int) -> int:
@@ -28,7 +28,7 @@ static func prepared_until(game: Node, player: Dictionary, key: String, now: int
 	var until := int(preparation.until)
 	if until==0:
 		until=now+60000
-	if now < until and int(preparation.epoch) == game.combat_epoch \
+	if now < until and int(preparation.epoch) == game.participation.epoch() \
 			and PlayerLifecycle.matches(player,int(preparation.life)) and game.Life.alive(player):
 		return until
 	return 0
@@ -156,7 +156,7 @@ static func ward_blocked(game: Node, player: Dictionary, id: int, event: RefCoun
 static func ordinary_contact(game: Node, player: Dictionary, target: int, at: Vector3,
 		stats: Dictionary, now: int) -> void:
 	var action: RefCounted = stats.get("cr02_action")
-	if action == null or action.epoch != game.combat_epoch or now >= action.expires_at \
+	if action == null or action.epoch != game.participation.epoch() or now >= action.expires_at \
 			or action.source not in ["form","native_weapon"] or stats.get("trait_secondary",false) \
 			or stats.get("core_hit",false):
 		return

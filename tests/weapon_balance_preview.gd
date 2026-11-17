@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Preview = preload("res://combat_balance_preview.gd")
@@ -29,7 +31,7 @@ func run() -> void:
 	game.set_process(false)
 	game.set_physics_process(false)
 	var p: Dictionary=game.players[1]
-	p.wild=true
+	ExpeditionCase.set_membership(game, p, true)
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100)
 	p.pos=Vector3.ZERO
 	p.mouse_aim=true
@@ -194,7 +196,7 @@ func verify_graft(game: Node,p: Dictionary) -> void:
 	p.graft_floor=8
 	var antler: int=game.Parts.monster_part(2)
 	p.carried_parts[antler]=1
-	game.encounter_number=16
+	ExpeditionCase.set_world(game, {"encounter_number": 16})
 	p.pos=game.battlefield.graft
 	clear_targets(game,p.pos+Vector3.BACK*3.1)
 	var prior: Dictionary=game.weapon_stats(p)
@@ -212,12 +214,12 @@ func verify_graft(game: Node,p: Dictionary) -> void:
 	var after: Dictionary=game.weapon_stats(p)
 	check(after.damage_min==8 and after.damage_max==12,"the next attack uses the new graft")
 	var carapace: int=game.Parts.monster_part(11)
-	game.encounter_number=24
+	ExpeditionCase.set_world(game, {"encounter_number": 24})
 	p.carried_parts[carapace]=1
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(70)
 	install_graft(game,p,carapace)
 	check(p.graft_part==carapace and PlayerVitals.maximum_hp(p)==120 and PlayerVitals.current_hp(p)==70,"the new graft grants capacity without healing")
-	game.encounter_number=32
+	ExpeditionCase.set_world(game, {"encounter_number": 32})
 	p.carried_parts[antler]=1
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(110)
 	install_graft(game,p,antler)

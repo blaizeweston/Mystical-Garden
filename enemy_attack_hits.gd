@@ -75,7 +75,7 @@ class HitWindow extends RefCounted:
 
 
 static func _source_matches(game: Node, slot: int, token: int, epoch: int) -> bool:
-	if not game.multiplayer.is_server() or game.combat_epoch != epoch:
+	if not game.multiplayer.is_server() or game.participation.epoch() != epoch:
 		return false
 	if slot >= 0:
 		return token > 0 and game.encounter.token(slot) == token
@@ -102,7 +102,7 @@ static func for_commitment(game: Node, commitment: Dictionary) -> HitWindow:
 ## cannot inherit the target identity sampled when the attack was scheduled.
 static func for_world(game: Node, source_slot: int = -2, spawn_token: int = -1,
 		source_epoch: int = -1, intended_peer: int = 0, intended_life: int = -1) -> HitWindow:
-	var epoch: int = game.combat_epoch if source_epoch < 0 else source_epoch
+	var epoch: int = game.participation.epoch() if source_epoch < 0 else source_epoch
 	var token: int = game.encounter.token(source_slot) if source_slot >= 0 and spawn_token < 0 else spawn_token
 	var source_is_current := func() -> bool:
 		return _source_matches(game, source_slot, token, epoch)

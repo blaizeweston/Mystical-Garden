@@ -24,10 +24,10 @@ static func plan(game: Node,wave: int) -> Array:
  var result: Array=[];var pool: Array[int]=[]
  for kind in game.Enemies.all().size():
   var definition: Dictionary=game.Enemies.get_kind(kind)
-  if not definition.get("boss",false) and not game.Enemies.is_support(kind) and game.Enemies.in_biome(definition,game.destination) and game.encounter_number>=int(definition.unlock):pool.append(kind)
+  if not definition.get("boss",false) and not game.Enemies.is_support(kind) and game.Enemies.in_biome(definition,game.participation.route()) and game.participation.floor()>=int(definition.unlock):pool.append(kind)
  if pool.is_empty():return result
- var rng:=RandomNumberGenerator.new();rng.seed=int(game.map_seed)+wave*104729
- var desired:=mini(4,1+(wave-1)/2+mini(1,game.difficulty_cycle/3)+(game.Director.party_size(game)-1)/2)
+ var rng:=RandomNumberGenerator.new();rng.seed=int(game.participation.seed())+wave*104729
+ var desired:=mini(4,1+(wave-1)/2+mini(1,game.participation.cycle()/3)+(game.Director.party_size(game)-1)/2)
  desired=mini(desired,capacity(game)-living(game))
  var sites: Array=game.battlefield.spawn_points.duplicate()
  while not sites.is_empty() and result.size()<desired:
@@ -42,27 +42,27 @@ static func plan(game: Node,wave: int) -> Array:
  return result
 static func tick(game: Node,now: int) -> void:
  if game.session=="Guest":return
- if game.difficulty_cycle<=0 or game.tactics.boss_kind>=0 or game.destination==game.Campaign.HEART or game.Life.living_ids(game).is_empty() or game.encounter_cleared():
+ if game.participation.cycle()<=0 or game.tactics.boss_kind>=0 or game.participation.route()==game.Campaign.HEART or game.Life.living_ids(game).is_empty() or game.encounter_cleared():
   game.tactics.memory.erase("pressure");game.pressure_at=0;return
  if not game.tactics.memory.has("pressure"):game.tactics.memory.pressure={"wave":0,"pending":[]}
  var state: Dictionary=game.tactics.memory.pressure
- if Balance.Preview.enabled and int(state.get("spawned_waves",0))>=Balance.pressure_limit(game.difficulty_cycle):
+ if Balance.Preview.enabled and int(state.get("spawned_waves",0))>=Balance.pressure_limit(game.participation.cycle()):
   game.pressure_at=0;return
- if game.pressure_at==0:game.pressure_at=now+interval(game.difficulty_cycle,0);return
+ if game.pressure_at==0:game.pressure_at=now+interval(game.participation.cycle(),0);return
  if now<game.pressure_at:return
  if state.pending.is_empty():
   state.wave+=1;state.pending=plan(game,int(state.wave))
-  game.pressure_at=now+(WARNING_MS if not state.pending.is_empty() else interval(game.difficulty_cycle,int(state.wave)))
+  game.pressure_at=now+(WARNING_MS if not state.pending.is_empty() else interval(game.participation.cycle(),int(state.wave)))
   if not state.pending.is_empty():
    game.status="Corruption stirs! Reinforcements emerge in 3 seconds."
-   game.Journal.event("combat","pressure_warning",{"wave":state.wave,"count":state.pending.size(),"floor":game.encounter_number})
+   game.Journal.event("combat","pressure_warning",{"wave":state.wave,"count":state.pending.size(),"floor":game.participation.floor()})
   return
  var spawned:=0;var skipped:=0
  for entry in state.pending:
   if living(game)>=capacity(game) or not safe(game,entry.pos):skipped+=1;continue
   var slot: int=game.encounter.first_open_scout_slot()
   if slot>=game.EncounterConfig.MAX_SCOUTS:skipped+=1;continue
-  var growth: int=game.Enemies.tier(game.encounter_number,game.difficulty_cycle)
+  var growth: int=game.Enemies.tier(game.participation.floor(),game.participation.cycle())
   var scout: Dictionary=game.make_scout(int(entry.kind),entry.pos,slot,game.current_mutations(int(entry.kind),growth,int(state.wave)*17+slot),growth)
   scout.engaged=true;scout.ready=now+700;scout.stagger_until=now+700;scout.summoned=true
   if Balance.Preview.enabled:
@@ -70,8 +70,8 @@ static func tick(game: Node,now: int) -> void:
   if game.encounter.register_scout(scout,slot)>=0:spawned+=1
   else:skipped+=1
  if Balance.Preview.enabled and spawned>0:state.spawned_waves=int(state.get("spawned_waves",0))+1
- state.pending=[];game.pressure_at=now+interval(game.difficulty_cycle,int(state.wave))
- game.Journal.event("combat","pressure_reinforcements",{"wave":state.wave,"spawned":spawned,"unsafe_or_full":skipped,"floor":game.encounter_number})
+ state.pending=[];game.pressure_at=now+interval(game.participation.cycle(),int(state.wave))
+ game.Journal.event("combat","pressure_reinforcements",{"wave":state.wave,"spawned":spawned,"unsafe_or_full":skipped,"floor":game.participation.floor()})
 static func hints(game: Node,now: int=-1) -> Array:
  var result: Array=[]
  if game.encounter_cleared() or not game.tactics.memory.has("pressure"):return result

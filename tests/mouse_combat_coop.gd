@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 var game: Node
 var role: String
@@ -28,7 +30,7 @@ func host_run():
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"registration");return
  game.set_physics_process(false);game.set_process(false)
  var id=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
- p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3.ZERO;p.strike_at=0
+ ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3.ZERO;p.strike_at=0
  game.encounter.clear_scouts();game.battlefield.procedural=false;game.battlefield.barriers=[];game.tactics.position=Vector3(0,0,-1);game.encounter.set_hp(-1, 10000)
  mark("ready")
  var end=Time.get_ticks_msec()+1400

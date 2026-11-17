@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -39,7 +41,7 @@ func run() -> void:
 	game.set_physics_process(false)
 	game.set_meta(Events.RECORD, func(event): recorded.append(event))
 	var player: Dictionary = game.players[1]
-	player.wild = true
+	ExpeditionCase.set_membership(game, player, true)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(30)
 	player.pos = Vector3.ZERO
 	game.encounter.set_hp(-1, 50)
@@ -177,7 +179,7 @@ func check_native_progression(game: Node, player: Dictionary) -> void:
 func check_runtime_focuses(game: Node, player: Dictionary) -> void:
 	for class_id in range(1, 5):
 		for lane in 3:
-			game.combat_epoch += 1
+			ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 			recorded.clear()
 			game.trait_events.clear()
 			game.enemy_traits.clear()

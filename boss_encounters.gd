@@ -19,12 +19,12 @@ static func choose(floor_number: int,site: int,seed_value: int,used: Array) -> i
   if Catalog.get_kind(kind).get("boss",false) and not used.has(kind): pool.append(kind)
  return -1 if pool.is_empty() else int(pool[random.randi_range(0,pool.size()-1)])
 static func prepare(game: Node) -> void:
- var key=str(game.encounter_number)
+ var key=str(game.participation.floor())
  if not game.boss_floors.has(key):
-  var kind=choose(game.encounter_number,game.destination,game.map_seed,game.used_bosses)
+  var kind=choose(game.participation.floor(),game.participation.route(),game.participation.seed(),game.used_bosses)
   game.boss_floors[key]=kind
   if kind>=0: game.used_bosses.append(kind)
- game.tactics.begin_boss(int(game.boss_floors[key]) if game.destination<3 else -1)
+ game.tactics.begin_boss(int(game.boss_floors[key]) if game.participation.route()<3 else -1)
  game.enemy_hazards.clear()
 static func phase(game: Node) -> int:
  return game.Life.Vitals.boss_phase(game.encounter.hp(-1),game.encounter_health())
@@ -95,14 +95,14 @@ static func resolve(game: Node,now: int) -> void:
  game.tactics.ready_at=now+recovery+game.tactics.recovery_bonus
  game.tactics.recovery_bonus=0
  var plan: Dictionary=game.tactics.memory.get("lair_plan",game.tactics.memory.get("phase_plan",{}))
- var epoch: int=game.combat_epoch
+ var epoch: int=game.participation.epoch()
  if Lair.Routes.supports(game.tactics.boss_kind):
   game.tactics.memory.erase("lair_plan")
   Lair.resolve(game,plan,now,damage)
  elif Phases.supports(game.tactics.boss_kind):
   game.tactics.memory.erase("phase_plan")
   Phases.resolve(game,plan,now,damage)
- if epoch==game.combat_epoch:
+ if epoch==game.participation.epoch():
   game.tactics.ready_at=preload("res://oracle_omens.gd").release_attack(game.tactics.memory,plan,game.tactics.ready_at)
 
 static func tick_hazards(game: Node,now: int) -> void:

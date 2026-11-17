@@ -14,7 +14,7 @@ const REQUIRES_SCOUT_COMMIT := &"requires_scout_commit"
 
 static func vault_target(game: Node, actor: Dictionary, target: Vector3) -> Vector3:
  var role: String = Catalog.get_kind(actor.kind).role
- if game.encounter_number < 3 or not (int(actor.mutations) & Catalog.MOBILITY) or role not in VAULT_ROLES:
+ if game.participation.floor() < 3 or not (int(actor.mutations) & Catalog.MOBILITY) or role not in VAULT_ROLES:
   return Vector3.INF
  # A mobile gate elite can still cross actual cover when its signature lacks a clear approach.
  if not actor.get("gate_elite",false) and not str(actor.get("variant","")).is_empty():
@@ -38,7 +38,7 @@ static func try_thorn_vault(game: Node, actor: Dictionary, victim: Vector3, now:
  actor.attack.recovery_bonus=450
  actor.thorn_vault_used=true
  game.Journal.event("combat", "wilds_thorn_vault_locked", {"species": Catalog.get_kind(actor.kind).id,
-  "target_token": game.encounter.token_for(actor), "cast_id": jump.line_id, "floor": game.encounter_number})
+  "target_token": game.encounter.token_for(actor), "cast_id": jump.line_id, "floor": game.participation.floor()})
  return true
 
 # Directed volleys have an impact radius, but no authored flight thickness.

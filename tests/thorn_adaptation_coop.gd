@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Core = preload("res://core_combat.gd")
@@ -62,8 +64,8 @@ func host() -> void:
 	var id: int = game.players.keys().filter(func(peer): return peer != 1)[0]
 	var player: Dictionary = game.players[1]
 	var other: Dictionary = game.players[id]
-	game.encounter_number = 6
-	game.map_seed = 3
+	ExpeditionCase.set_world(game, {"encounter_number": 6})
+	ExpeditionCase.set_world(game, {"map_seed": 3})
 	game.progress.wilds_memory.score[Thorn.TACTIC] = 6
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
@@ -72,8 +74,8 @@ func host() -> void:
 	game.tactics.ready_at = Time.get_ticks_msec() + 60000
 	game.tactics.winding_up = false
 	game.encounter.clear_scouts()
-	player.wild = true
-	other.wild = true
+	ExpeditionCase.set_membership(game, player, true)
+	ExpeditionCase.set_membership(game, other, true)
 	player.pos = Vector3(0, 0, -3)
 	other.pos = Vector3(0, 0, 3)
 	player.weapon = game.Parts.THORN
@@ -112,7 +114,7 @@ func guest() -> void:
 	game.guest_character.save_profile()
 	check(game.join_game() == OK, "guest connects")
 	var id := game.multiplayer.get_unique_id()
-	if not await until(func(): return game.session == "Guest" and game.players.get(id, {}).get("wild", false)):
+	if not await until(func(): return game.session == "Guest" and ExpeditionCase.is_wild(game.players.get(id, {}))):
 		check(false, "Wilds state arrives")
 		return
 	mark("ready")

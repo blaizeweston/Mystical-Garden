@@ -1,4 +1,6 @@
 extends Node
+
+const Participation = preload("res://expedition_participation.gd")
 # Permanent presentation of committed discoveries. No loot, timers or gameplay RNG.
 const Service=preload("res://garden_return_service.gd")
 const Places=preload("res://garden_interaction_catalog.gd")
@@ -55,10 +57,10 @@ func _process(delta: float) -> void:
    for pending in growth.get("pending",[]):
     if pending.get("discovery","")!=definition.id:continue
     amount=clampf((scenes.elapsed-5.5)/1.6,0,1) if scenes.event.get("discovery","")==definition.id else 0.0
-   traces[definition.id].visible=known and not player.get("wild",false) and amount>.001
+   traces[definition.id].visible=known and not Participation.is_wild(player) and amount>.001
    traces[definition.id].scale=Vector3.ONE*maxf(.001,smoothstep(0,1,amount))
  var resonance: bool=Service.known(data,"lantern_homecoming")
- heart.visible=resonance and not player.get("wild",false)
+ heart.visible=resonance and not Participation.is_wild(player)
  heart.material_override.emission_energy_multiplier=.18+.1*sin(Time.get_ticks_msec()/850.0-.8) if game.app_settings.values.get("ambient_motion",true) else .2
  for group in game.stage.garden_edge.get_children():
   if not group.has_meta("garden_water_position"):continue

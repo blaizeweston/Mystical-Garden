@@ -35,8 +35,8 @@ static func tick(game: Node, delta: float, now: int) -> void:
 					preload("res://frost_combat.gd").with_attacker(game,slot,release.bind(game, scout, definition, now, pending, due))
 				else:
 					release(game, scout, definition, now, pending, due)
-				if not game.expedition_active():
-					game.abandon_if_empty()
+				if not game.participation.active():
+					load("res://expedition_transitions.gd").finish_if_empty(game)
 					return
 			continue
 		if now < int(scout.get("stagger_until",0)):
@@ -92,7 +92,7 @@ static func tick(game: Node, delta: float, now: int) -> void:
 		elif now >= int(scout.ready):
 			if Variants.prepare(game, scout, victim, delta * frost_motion, now):
 				continue
-			var observation := attack_observation(slot, started[slot], game.combat_epoch,
+			var observation := attack_observation(slot, started[slot], game.participation.epoch(),
 				target, position, victim, role, attack_range, int(scout.ready), now, PlayerLifecycle.generation(game.players[target]))
 			apply_attack_intent(game, observation, choose_attack(observation), now)
 
@@ -123,7 +123,7 @@ static func apply_attack_intent(game: Node, observation: Dictionary, intent: Att
 		return
 	var slot := int(observation.slot)
 	var token := int(observation.token)
-	if slot < 0 or token <= 0 or game.combat_epoch != int(observation.epoch) or not game.encounter.alive(slot, token):
+	if slot < 0 or token <= 0 or game.participation.epoch() != int(observation.epoch) or not game.encounter.alive(slot, token):
 		return
 	var target := int(observation.target)
 	var player: Dictionary = game.players.get(target, {})
@@ -159,9 +159,9 @@ static func release(game: Node, scout: Dictionary, definition: Dictionary, now: 
 		expected_plan: Dictionary = {}, expected_due: int = -1) -> void:
 	var attack: Dictionary
 	if scout.get(Attacks.REQUIRES_SCOUT_COMMIT, false) or expected_plan.has(Attacks.SCOUT_COMMIT):
-		if not game.multiplayer.is_server() or not game.expedition_active():
+		if not game.multiplayer.is_server() or not game.participation.active():
 			return
-		attack = Attacks.claim_scout_attack(game.encounter, scout, game.combat_epoch, now, expected_plan, expected_due)
+		attack = Attacks.claim_scout_attack(game.encounter, scout, game.participation.epoch(), now, expected_plan, expected_due)
 		if attack.is_empty():
 			return
 	else:
@@ -249,7 +249,7 @@ static func release(game: Node, scout: Dictionary, definition: Dictionary, now: 
 			preload("res://glasscap_feint.gd").release(game,scout,now)
 	if hits.source_is_current() and int(scout.get("repeat", 0)) > 0 and not attack.get("learned",false):
 		var next_due := now + (1000 if attack.variant=="late_pulse" else 500)
-		if Attacks.rearm_scout_attack(game.encounter, scout, attack, game.combat_epoch, next_due):
+		if Attacks.rearm_scout_attack(game.encounter, scout, attack, game.participation.epoch(), next_due):
 			scout.repeat -= 1
 			attack.pulse+=1
 			preload("res://event_audio.gd").enemy(game,attack,false)

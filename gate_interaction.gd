@@ -3,7 +3,7 @@ extends RefCounted
 const RANGE:=2.75
 const READY_MARGIN:=.5
 static func travel_range(game: Node,kind: String) -> float:
- return 1.7 if kind=="depart" and game.destination==game.Campaign.HEART else RANGE
+ return 1.7 if kind=="depart" and game.participation.route()==game.Campaign.HEART else RANGE
 
 
 static func shrine_preferred(field: RefCounted, at: Vector3) -> bool:

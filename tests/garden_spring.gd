@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Catalog=preload("res://garden_interaction_catalog.gd")
 const Layout=preload("res://garden_layout.gd")
 const Service=preload("res://garden_interaction_service.gd")
@@ -98,9 +100,9 @@ func run() -> void:
  for key in ["damage","reach","interval","targets","skill_heal","heal_on_kill","recovery","cooldown"]:
   if improved.get(key,0)!=baseline.get(key,0):changed=true
  check(changed,"refined component changes real weapon/skill attributes")
- game.enter_wilds(1,p)
- check(p.wild and p.weapon==refined,"crafted component travels into an actual expedition")
- p.wild=false;p.pos=water.position
+ ExpeditionCase.Transitions.enter(game, 1,p)
+ check(ExpeditionCase.is_wild(p) and p.weapon==refined,"crafted component travels into an actual expedition")
+ ExpeditionCase.set_membership(game, p, false);p.pos=water.position
  var random_state: int=game.rng.state;knowledge=g.knowledge;parts=g.parts.duplicate();var interaction: Dictionary=g.garden_interactions.duplicate(true)
  game.app_settings.path=base+".settings";game.app_settings.values.ambient_motion=true;ambience._process(.2)
  check(ambience.colonies.has(zone.id) and ambience.colonies[zone.id].multimesh.instance_count<=ambience.MOTH_LIMIT,"spring fauna uses a bounded local instanced batch")

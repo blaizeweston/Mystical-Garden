@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -57,17 +59,17 @@ func check_live_capacity(game: Node) -> void:
 	]
 	game.tactics.boss_kind = -1
 	for sample in samples:
-		game.encounter_number = sample[0]
-		game.destination = sample[1]
-		game.depth = sample[2]
-		game.difficulty_cycle = sample[3]
+		ExpeditionCase.set_world(game, {"encounter_number": sample[0]})
+		ExpeditionCase.set_world(game, {"destination": sample[1]})
+		ExpeditionCase.set_world(game, {"depth": sample[2]})
+		ExpeditionCase.set_world(game, {"difficulty_cycle": sample[3]})
 		game.encounter_party_size = 1
 		check(game.encounter_health() == sample[4], "solo gate elite at floor %d" % sample[0])
 		game.encounter_party_size = 4
 		check(game.encounter_health() == sample[5], "four-player gate elite at floor %d" % sample[0])
 	game.tactics.boss_kind = game.Bosses.Lair.Routes.ORCHARD
-	game.encounter_number = 10
-	game.difficulty_cycle = 0
+	ExpeditionCase.set_world(game, {"encounter_number": 10})
+	ExpeditionCase.set_world(game, {"difficulty_cycle": 0})
 	game.encounter_party_size = 1
 	check(game.encounter_health() == 61, "solo floor 10 Orchard")
 	game.encounter_party_size = 4
@@ -126,7 +128,7 @@ func check_learning_and_phase() -> void:
 func check_guard_and_brace(game: Node) -> void:
 	var player: Dictionary = game.players[1]
 	var initial: PlayerVitals.Health = player[PlayerVitals.STATE]
-	player.wild = true
+	ExpeditionCase.set_membership(game, player, true)
 	player.weapon = game.Seeds.DEFINITIONS[16].part
 	player.still_since = 1000
 	player.guard_until = 4000
@@ -151,7 +153,7 @@ func check_guard_and_brace(game: Node) -> void:
 	var stale := IncomingPlayerHit.resolve_world(game, 1, life - 1, 4000, 5.0)
 	check(stale.kind == IncomingPlayerHit.Outcome.REJECTED and int(player.damage_seq) == sequence
 		and PlayerVitals.current_hp(player) == initial.hp()-1.0, "the host rejects a contact against a prior life")
-	player.wild = false
+	ExpeditionCase.set_membership(game, player, false)
 	player[PlayerVitals.STATE] = initial
 
 

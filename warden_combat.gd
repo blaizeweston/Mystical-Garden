@@ -19,7 +19,7 @@ static func has_card(player: Dictionary, id: String) -> bool:
 
 
 static func live_state(game: Node, player: Dictionary, state: Dictionary) -> bool:
-	return int(state.get("epoch",-1)) == game.combat_epoch and PlayerLifecycle.matches(player,int(state.get("life",-1))) and game.Life.alive(player)
+	return int(state.get("epoch",-1)) == game.participation.epoch() and PlayerLifecycle.matches(player,int(state.get("life",-1))) and game.Life.alive(player)
 
 
 static func learned(player: Dictionary, id: String) -> bool:
@@ -32,14 +32,14 @@ static func learned(player: Dictionary, id: String) -> bool:
 static func on_cast(game: Node, player: Dictionary, skill: Dictionary, expires: int, now: int, event: RefCounted = null) -> void:
 	if not skill.has("warden_focus") or int(skill.slot) != 0:
 		return
-	player.warden_block = {"epoch":game.combat_epoch, "life":PlayerLifecycle.generation(player),
+	player.warden_block = {"epoch":game.participation.epoch(), "life":PlayerLifecycle.generation(player),
 		"until":expires, "prepared":0, "focus":skill.warden_focus, "blocked":false, "quake_used":false, "line_used":false,
 		"counter_bonus":skill.get("counter_window_bonus",0)}
 	if event != null and game.has_meta(&"combat_affinity_ruleset") and Connected.eligible(player.character):
 		player.warden_block.merge({"activation":event.identity, "granted":event.has_grants(), "protection_used":false})
 	if skill.warden_focus != "rootkeeper":
 		return
-	player.warden_anchor = {"epoch":game.combat_epoch, "life":PlayerLifecycle.generation(player),
+	player.warden_anchor = {"epoch":game.participation.epoch(), "life":PlayerLifecycle.generation(player),
 		"point":player.pos, "until":now+int(skill.anchor_lifetime),
 		"uses":2 if has_card(player,"rootkeeper_second_growth") else 1}
 	Feedback.release(game,"burst",player.pos,player.pos,.65,ANCHOR)
@@ -218,7 +218,7 @@ static func quake_hit(game: Node, player: Dictionary, center: Vector3, targets: 
 	var state: Dictionary = player.warden_block
 	if learned(player,"aftershock") and not state.get("aftershock_used",false):
 		state.aftershock_used = true
-		player.warden_aftershock = {"point":center, "due":now+Connected.AFTERSHOCK_MS, "epoch":game.combat_epoch,
+		player.warden_aftershock = {"point":center, "due":now+Connected.AFTERSHOCK_MS, "epoch":game.participation.epoch(),
 			"life":PlayerLifecycle.generation(player)}
 	# Connected nodes spend their preparation on the next Quake. Historical
 	# paths keep the original next-hitting-Quake behavior.
@@ -276,11 +276,11 @@ static func connected_block(game: Node, event: RefCounted, recipient: int, now: 
 		return
 	first_block(game,player,state,now)
 	if learned(player,"seismic_relay"):
-		player.warden_relay = {"point":player.pos, "until":now+Connected.RELAY_MS, "epoch":game.combat_epoch,
+		player.warden_relay = {"point":player.pos, "until":now+Connected.RELAY_MS, "epoch":game.participation.epoch(),
 			"life":PlayerLifecycle.generation(player)}
 		Feedback.release(game,"burst",player.pos,player.pos,.65,ANCHOR)
 	if learned(player,"sanctuary_ground"):
-		player.warden_sanctuary = {"point":player.pos, "until":now+Connected.SANCTUARY_MS, "epoch":game.combat_epoch,
+		player.warden_sanctuary = {"point":player.pos, "until":now+Connected.SANCTUARY_MS, "epoch":game.participation.epoch(),
 			"life":PlayerLifecycle.generation(player)}
 		game.emit_combat_event("field","sanctuary_ground",player.pos,player.pos,
 			Connected.SANCTUARY_MS/1000.0,BARK,Connected.SANCTUARY_RADIUS,recipient,{"label":"Sanctuary Ground"})
@@ -312,11 +312,11 @@ static func grant_holdfast(game: Node, warden: Dictionary, event: RefCounted, no
 		if holdfast_until(game,ally,now) >= until:
 			continue
 		ally.warden_holdfast = {"actor":event.actor, "activation":event.identity, "until":until,
-			"epoch":game.combat_epoch, "life":PlayerLifecycle.generation(ally)}
+			"epoch":game.participation.epoch(), "life":PlayerLifecycle.generation(ally)}
 		recipients.append(id)
 	if not recipients.is_empty():
 		Journal.event("combat","holdfast_granted",{"actor":event.actor,"activation":event.identity,
-			"epoch":game.combat_epoch,"recipients":recipients,"duration_ms":Connected.HOLDFAST_MS})
+			"epoch":game.participation.epoch(),"recipients":recipients,"duration_ms":Connected.HOLDFAST_MS})
 
 
 static func holdfast_until(game: Node, player: Dictionary, now: int) -> int:

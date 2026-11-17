@@ -13,7 +13,7 @@ static func prepare(game: Node, actor: Dictionary) -> void:
 	var sequence := int(actor.get("feint_sequence",0))+1
 	actor.feint_sequence = sequence
 	var random := RandomNumberGenerator.new()
-	random.seed = hash([game.map_seed,game.combat_epoch,game.encounter.token_for(actor),sequence])
+	random.seed = hash([game.participation.seed(),game.participation.epoch(),game.encounter.token_for(actor),sequence])
 	var origin: Vector3 = actor.pos
 	var start := random.randf_range(0,TAU)
 	var points: Array[Vector3] = []
@@ -27,8 +27,8 @@ static func prepare(game: Node, actor: Dictionary) -> void:
 		points.append(point)
 		if points.size()==2:
 			break
-	actor.glass_feint = {"id":"glass:%d:%d:%d"%[game.combat_epoch,game.encounter.token_for(actor),sequence],
-		"epoch":game.combat_epoch,"points":points,"seed":random.seed,"until":0}
+	actor.glass_feint = {"id":"glass:%d:%d:%d"%[game.participation.epoch(),game.encounter.token_for(actor),sequence],
+		"epoch":game.participation.epoch(),"points":points,"seed":random.seed,"until":0}
 
 
 static func open_site(game: Node, actor: Dictionary, point: Vector3) -> bool:
@@ -48,7 +48,7 @@ static func open_site(game: Node, actor: Dictionary, point: Vector3) -> bool:
 
 static func release(game: Node, actor: Dictionary, now: int) -> void:
 	var feint: Dictionary = actor.get("glass_feint",{})
-	if feint.is_empty() or int(feint.epoch)!=game.combat_epoch or int(feint.until)>0:
+	if feint.is_empty() or int(feint.epoch)!=game.participation.epoch() or int(feint.until)>0:
 		return
 	var candidates: Array[int] = []
 	for index in feint.points.size():
@@ -65,12 +65,12 @@ static func release(game: Node, actor: Dictionary, now: int) -> void:
 	actor.pos = feint.points[selected]
 	feint.points[selected] = origin
 	feint.until = now + (1300 if actor.get("variant","")=="early_decoys" else 1050)
-	game.Journal.event("combat","glasscap_decoy_swap",{"actor":game.encounter.token_for(actor),"formation":feint.id,"floor":game.encounter_number})
+	game.Journal.event("combat","glasscap_decoy_swap",{"actor":game.encounter.token_for(actor),"formation":feint.id,"floor":game.participation.floor()})
 
 
 static func holding(game: Node, actor: Dictionary, now: int) -> bool:
 	var feint: Dictionary = actor.get("glass_feint",{})
-	return not feint.is_empty() and int(feint.epoch)==game.combat_epoch and now<int(feint.until)
+	return not feint.is_empty() and int(feint.epoch)==game.participation.epoch() and now<int(feint.until)
 
 
 static func hints(game: Node, now: int) -> Array:
@@ -78,7 +78,7 @@ static func hints(game: Node, now: int) -> Array:
 	for slot in range(-1,game.encounter.scout_count()):
 		var actor: Dictionary = game.encounter.leader_tactics() if slot<0 else game.encounter.scout(slot)
 		var feint: Dictionary = actor.get("glass_feint",{})
-		if feint.is_empty() or int(feint.epoch)!=game.combat_epoch or feint.points.is_empty():
+		if feint.is_empty() or int(feint.epoch)!=game.participation.epoch() or feint.points.is_empty():
 			continue
 		var alive: bool = game.encounter.hp(slot)>0
 		var winding: bool = game.tactics.winding_up and game.tactics.attack_mode=="volley" if slot<0 else int(actor.windup)>0 and actor.mode=="volley"

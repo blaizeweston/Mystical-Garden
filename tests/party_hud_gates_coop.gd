@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -33,7 +35,7 @@ func host_run():
  var guest_id: int=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[1];var friend: Dictionary=game.players[guest_id]
  p.character.name="Host Gardener";friend.pos=game.Stage.GATE+Vector3(2.65,0,0)
  check(await until(func():return marked("gate")),"guest opens gate at new range")
- for player in game.players.values():player.wild=true;player[PlayerVitals.STATE]=PlayerVitals.Health.new(10,10);player.pos=Vector3.ZERO
+ for player in game.players.values():ExpeditionCase.set_membership(game, player, true);player[PlayerVitals.STATE]=PlayerVitals.Health.new(10,10);player.pos=Vector3.ZERO
  game.encounter.set_hp(-1, 80);game.tactics.position=Vector3(0,0,8);game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.encounter.clear_scouts()
  check(await until(func():return marked("party")),"guest sees host portrait/name/health")
  IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 3);check(await until(func():return marked("damage")),"guest sees host damage")

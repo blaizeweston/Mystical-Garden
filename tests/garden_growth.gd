@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const State=preload("res://garden_growth_state.gd")
 const Service=preload("res://garden_growth_service.gd")
 const Transactions=preload("res://game_transaction.gd")
@@ -26,11 +28,11 @@ func run() -> void:
  game.add_player(7878);game.players[7878].profile_ready=true;game.players[7878].seed_owner="new-growth-viewer"
  check(Service.register(game,7878) and Service.projection(game,7878).pending.is_empty(),"a new character starts at the current Garden rather than replaying past scenes")
  check(Service.register(game,1) and Service.projection(game,1).pending.size()==1,"registering an existing viewer preserves their unwatched scene")
- game.players[1].wild=true
+ ExpeditionCase.set_membership(game, game.players[1], true)
  check(not Service.projection(game,1).ready and not Service.acknowledge(game,1,str(first.sequence)),"expedition completion waits until return and cannot be dismissed from the Wilds")
- game.players[1].wild=false;game.travel_kind="enter"
+ ExpeditionCase.set_membership(game, game.players[1], false);game.participation.begin_travel("enter", [1])
  check(not Service.projection(game,1).ready,"ready-check transition postpones a reveal")
- game.travel_kind=""
+ game.participation.clear_travel()
  check(not Service.acknowledge(game,1,"999") and not Service.acknowledge(game,1,"not-a-number"),"forged acknowledgements cannot skip unseen future scenes")
  game._process(.016)
  var bed: Node3D=game.stage.garden_beds.get_child(3)
@@ -112,7 +114,7 @@ func verify_permanent_structures(game: Node,view: Node) -> void:
  # Another unlock rebuilds scenery but must not remove earlier buildings.
  g.heart.complete(g,"clearing_2");g.save_garden();game._process(.016)
  for id in game.Stage.HEART_STATIONS:check(game.stage.heart_stations[id].visible,"later research preserves structure: "+id)
- game.players[1].wild=true;game._process(.016);game.players[1].wild=false;game._process(.016)
+ ExpeditionCase.set_membership(game, game.players[1], true);game._process(.016);ExpeditionCase.set_membership(game, game.players[1], false);game._process(.016)
  for id in game.Stage.HEART_STATIONS:check(game.stage.heart_stations[id].visible,"Garden return preserves structure: "+id)
  var fresh=load("res://world.tscn").instantiate();fresh.progress.path=g.path;fresh.local_character.path=g.path+".reload-character";fresh.guest_character.path=g.path+".reload-guest"
  root.add_child(fresh);fresh.set_process(false);fresh.set_physics_process(false);fresh.get_node("GardenInteractions/GrowthScenes").set_process(false)

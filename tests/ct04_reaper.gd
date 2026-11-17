@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -73,7 +75,7 @@ func verify_tree() -> void:
 		"incompatible connected data is preserved for review")
 
 func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> void:
-	game.combat_epoch += 1
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	game.battlefield = preload("res://battlefield.gd").new()
 	game.remove_meta(Rules.Void.PENDING)
 	game.encounter.clear_scouts()
@@ -119,7 +121,7 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 				"cast_until","core_ready_at","core_cast_until","strike_at","slow_until"]:
 			recipient[key]=0
 		recipient.erase("affinity_ward_claims")
-		recipient.wild=peer in [1,8]
+		ExpeditionCase.set_membership(game, recipient, peer in [1,8])
 		recipient[PlayerLifecycle.STATE] = recipient[PlayerLifecycle.STATE].clear_inactive()
 		recipient[PlayerVitals.STATE] = PlayerVitals.Health.new(70.0 if peer==1 else 20.0,100)
 		if peer!=1:
@@ -337,7 +339,7 @@ func siphon_effects() -> void:
 	check(player.pos==Vector3.ZERO and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)==paused_dodge and player[Cooldowns.STATE].deadline(Cooldowns.R)==0 and player.has(Reaper.SIPHON),
 		"a solid-cover refusal preserves every Q preparation and cannot recover dodge")
 	game.battlefield.barriers.clear()
-	game.combat_epoch+=1
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	cast(1)
 	check(player.pos==Vector3.ZERO and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)==paused_dodge,"an old-floor Veil Dance preparation cannot move or reward the player")
 
@@ -366,7 +368,7 @@ func support() -> void:
 	var second: Dictionary=game.players[9]
 	var third: Dictionary=game.players[10]
 	for peer in [ally,second,third]:
-		peer.wild=true
+		ExpeditionCase.set_membership(game, peer, true)
 	ally.pos=Vector3(2,0,1)
 	second.pos=Vector3(2,0,-1)
 	third.pos=Vector3(3,0,-1)
@@ -380,7 +382,7 @@ func support() -> void:
 	ally.pos=Vector3(2,0,2.8)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(1)
 	second.pos=Vector3(2,0,1)
-	second.wild=true
+	ExpeditionCase.set_membership(game, second, true)
 	second[PlayerLifecycle.STATE] = second[PlayerLifecycle.STATE].fall()
 	game.battlefield.barriers.assign([Rect2(1.6,1.7,.8,.8)])
 	cast(0)
@@ -405,12 +407,12 @@ func charges_and_void() -> void:
 	prepare(OFFENSE,Vector3.ZERO,Vector3(1,0,0))
 	scout(Vector3(7,0,0))
 	player[Improvements.STATE] = Improvements.Ledger.new(1)
-	game.encounter_number=8
+	ExpeditionCase.set_world(game, {"encounter_number": 8})
 	player.pos=game.battlefield.graft
 	player.carried_parts[part("monster:pallbearer")]=1
-	game.garden_action(1,Improvements.request(Improvements.owner_details(player, game.encounter_number),"funeral_charges","monster_15"))
+	game.garden_action(1,Improvements.request(Improvements.owner_details(player, game.participation.floor()),"funeral_charges","monster_15"))
 	player.pos=Vector3.ZERO
-	check(Improvements.owner_details(player, game.encounter_number).copies.size()==1,"Funeral Petal is bought through the authoritative shrine")
+	check(Improvements.owner_details(player, game.participation.floor()).copies.size()==1,"Funeral Petal is bought through the authoritative shrine")
 	game.encounter.set_hp(-1, 1)
 	fire_melee()
 	check(player.grave_charges==1 and Grafts.graft_charges(player)==1,"both sources earn independent charges from one actual native kill")
@@ -437,9 +439,9 @@ func charges_and_void() -> void:
 	game.update_projectiles(int(expired.due))
 	check(game.enemy_health()==300 and player.grave_charges==2,"a queued attack from the prior life cannot spend the revived charge")
 	game.reset_encounter()
-	check(player.grave_charges==2 and not player.has(Grafts.STATE) and Improvements.owner_details(player, game.encounter_number).copies[0].id=="funeral_charges",
+	check(player.grave_charges==2 and not player.has(Grafts.STATE) and Improvements.owner_details(player, game.participation.floor()).copies[0].id=="funeral_charges",
 		"floor reset retains class charges and acquired graft identity while clearing graft counters")
-	game.return_to_garden(player)
+	ExpeditionCase.Transitions.return_member(game, player)
 	check(Grafts.grave_count(player)==0,"expedition return clears both charge pools")
 
 	prepare(OFFENSE)

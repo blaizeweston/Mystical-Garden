@@ -1,9 +1,11 @@
 extends RefCounted
+
+const Participation = preload("res://expedition_participation.gd")
 # Availability/preview contract. Payments still use InventoryModel.take in the
 # consumer's existing transaction; this never maintains its own quantities/claims.
 const Model=preload("res://inventory_model.gd")
 static func available(game: Node,player: Dictionary,source: String,item: String) -> int:
- if player.get("wild",false) or source not in ["stash","shared"]:return 0
+ if Participation.is_wild(player) or source not in ["stash","shared"]:return 0
  var amount:=int(Model.counts(game,player,source).get(item,0));var definition:=Model.Items.get_item(item)
  if definition.has("legacy_part"):
   var part:=int(definition.legacy_part)

@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Participation = preload("res://expedition_participation.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Rules = preload("res://core_skill_rules.gd")
 const Effects = preload("res://core_skill_effects.gd")
@@ -92,7 +94,7 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 	var lifetime := int(skill.get("lifetime_ms", 1000))
 	game.combat_event_serial += 1
 	line.merge({
-		"id": "core:" + str(game.combat_event_serial), "epoch": game.combat_epoch,
+		"id": "core:" + str(game.combat_event_serial), "epoch": game.participation.epoch(),
 		"skill": skill, "owner": id, "life": PlayerLifecycle.generation(player), "release": now + release_ms,
 		"armed": now + release_ms + flight_ms, "expires": now + release_ms + flight_ms + lifetime,
 		"flight_ms": flight_ms, "released": false, "grown": false, "next_hit": {},
@@ -122,7 +124,7 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 		preload("res://spirit_affinity.gd").core_step(game,line,player,now)
 	var modifiers: Array = skill.modifiers.map(func(modifier): return modifier.id)
 	Journal.event("combat", "core_cast", {"actor": id, "skill": skill.id, "cast_id": line.id, "delivery": skill.delivery,
-		"weapon": skill.weapon_form, "variant": skill.get("variant_name", ""), "floor": game.encounter_number, "modifiers": modifiers, "behaviors": line.behaviors})
+		"weapon": skill.weapon_form, "variant": skill.get("variant_name", ""), "floor": game.participation.floor(), "modifiers": modifiers, "behaviors": line.behaviors})
 
 
 static func equipped(player: Dictionary) -> Dictionary:
@@ -135,7 +137,7 @@ static func equipped(player: Dictionary) -> Dictionary:
 
 
 static func owner_state(player: Dictionary, now: int, _cast: Dictionary = {}) -> Dictionary:
-	if not player.get("wild", false):
+	if not Participation.is_wild(player):
 		return {}
 	var skill := equipped(player)
 	if skill.is_empty():
@@ -147,12 +149,12 @@ static func owner_state(player: Dictionary, now: int, _cast: Dictionary = {}) ->
 
 
 static func hud_state(game: Node, player: Dictionary) -> Dictionary:
-	if not player.get("wild", false):
+	if not Participation.is_wild(player):
 		return {}
 	var now := Time.get_ticks_msec()
 	if game.multiplayer.is_server():
 		return owner_state(player, now, game.get_meta(STATE, {}).get(game.HOST, {}))
-	if game.client_details_key != str([game.destination, game.encounter_number, game.map_seed]):
+	if game.client_details_key != str([game.participation.route(), game.participation.floor(), game.participation.seed()]):
 		return {}
 	var state: Dictionary = player.get("core_state", {}).duplicate()
 	if not state.is_empty():
@@ -269,7 +271,7 @@ static func tick(game: Node, now: int) -> void:
 			if line.skill.get("affinity_family") == "vital":
 				continue
 			var owner: Dictionary = game.players.get(id, {})
-			if line.grown and line.skill.has("death_window_ms") and int(line.epoch) == game.combat_epoch and game.Life.alive(owner) and PlayerLifecycle.matches(owner,int(line.life)) and now < int(line.expires):
+			if line.grown and line.skill.has("death_window_ms") and int(line.epoch) == game.participation.epoch() and game.Life.alive(owner) and PlayerLifecycle.matches(owner,int(line.life)) and now < int(line.expires):
 				Effects.detonate_at_death(game, id, owner, line, now)
 			lines.erase(id)
 		if lines.is_empty():
@@ -278,7 +280,7 @@ static func tick(game: Node, now: int) -> void:
 	for id in lines.keys():
 		var line: Dictionary = lines[id]
 		var player: Dictionary = game.players.get(id, {})
-		if int(line.epoch) != game.combat_epoch or not game.Life.alive(player) or not PlayerLifecycle.matches(player,int(line.life)) or (now >= int(line.expires) and not (line.grown and line.skill.get("affinity_family") in ["fire","water","void"])):
+		if int(line.epoch) != game.participation.epoch() or not game.Life.alive(player) or not PlayerLifecycle.matches(player,int(line.life)) or (now >= int(line.expires) and not (line.grown and line.skill.get("affinity_family") in ["fire","water","void"])):
 			if line.has("flight_event") and now < int(line.armed):
 				game.emit_combat_event("projectile_end", str(line.flight_event), line.origin, line.origin, .15, Color.WHITE, 0.0, 0)
 			lines.erase(id)
@@ -418,7 +420,7 @@ static func winding_or_boss(game: Node, target: int) -> bool:
 
 static func quake(game: Node, id: int, origin: Vector3, radius: float, now: int) -> void:
 	var line: Dictionary = game.get_meta(STATE, {}).get(id, {})
-	if line.is_empty() or line.skill.mechanic != "line_trap" or not line.grown or int(line.epoch) != game.combat_epoch or now >= int(line.expires):
+	if line.is_empty() or line.skill.mechanic != "line_trap" or not line.grown or int(line.epoch) != game.participation.epoch() or now >= int(line.expires):
 		return
 	if not PlayerLifecycle.matches(game.players[id],int(line.life)) or line.get("quake_used", false):
 		return

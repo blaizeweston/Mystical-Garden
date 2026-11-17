@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 var failed:=false
 func check(ok: bool,message: String):
 	if not ok:
@@ -16,10 +18,10 @@ func run():
 	game.set_physics_process(false)
 	game.set_process(false)
 	var p: Dictionary=game.players[1]
-	p.wild=true
-	game.encounter_number=game.GRAFT_ROOM
-	game.depth=4
-	game.map_seed=91247
+	ExpeditionCase.set_membership(game, p, true)
+	ExpeditionCase.set_world(game, {"encounter_number": game.GRAFT_ROOM})
+	ExpeditionCase.set_world(game, {"depth": 4})
+	ExpeditionCase.set_world(game, {"map_seed": 91247})
 	game.reset_encounter()
 	p.pos=game.battlefield.graft
 	game._process(.016)
@@ -31,15 +33,15 @@ func run():
 	check(p.carried_parts[4]==0,"shrine accepts a graft attempt during combat")
 	p.secondary=0
 	p.graft_part=0
-	game.encounter_number=game.GRAFT_ROOM*2
+	ExpeditionCase.set_world(game, {"encounter_number": game.GRAFT_ROOM*2})
 	check(game.graft_altar_open(),"shrine schedule continues across biome boundaries")
-	game.encounter_number=5
+	ExpeditionCase.set_world(game, {"encounter_number": 5})
 	check(not game.graft_altar_open(),"ordinary floors do not claim to contain a shrine")
-	game.encounter_number=game.GRAFT_ROOM
-	game.destination=3
+	ExpeditionCase.set_world(game, {"encounter_number": game.GRAFT_ROOM})
+	ExpeditionCase.set_world(game, {"destination": 3})
 	check(not game.graft_altar_open(),"story finale does not spawn a normal shrine")
-	game.destination=0
-	game.depth=1
+	ExpeditionCase.set_world(game, {"destination": 0})
+	ExpeditionCase.set_world(game, {"depth": 1})
 	game.enemy_mutations=0
 	game.encounter.clear_scouts()
 	game.battlefield.configure(0,1)
@@ -77,10 +79,10 @@ func run():
 	game.update_projectiles(Time.get_ticks_msec()+1000)
 	check(game.tactics.position.distance_to(p.pos)<before.distance_to(p.pos),"Briar Hook pull is preserved instead of being cancelled by knockback")
 	# This generated floor places the two interaction areas on top of each other.
-	game.destination=1
-	game.depth=2
-	game.encounter_number=game.GRAFT_ROOM
-	game.map_seed=775002413
+	ExpeditionCase.set_world(game, {"destination": 1})
+	ExpeditionCase.set_world(game, {"depth": 2})
+	ExpeditionCase.set_world(game, {"encounter_number": game.GRAFT_ROOM})
+	ExpeditionCase.set_world(game, {"map_seed": 775002413})
 	game.reset_encounter()
 	game.encounter.clear_scouts()
 	game.encounter.set_hp(-1, 0)
@@ -98,7 +100,7 @@ func run():
 	game._process(.016)
 	check(game.guide.text!="E  Graft","the shrine prompt yields to the closer gate")
 	game._act(1,false)
-	check(game.encounter_number==game.GRAFT_ROOM+1 and not game.graft_menu.visible,"the gate advances when it is the closer interaction")
+	check(game.participation.floor()==game.GRAFT_ROOM+1 and not game.graft_menu.visible,"the gate advances when it is the closer interaction")
 	await process_frame
 	if not failed: print("PASS: visible mid-combat shrines, grafting, safe hit reactions and overlapping gate interactions")
 	quit(1 if failed else 0)

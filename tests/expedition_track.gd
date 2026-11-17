@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -23,17 +25,17 @@ func run() -> void:
  var p: Dictionary=game.players[1];game._process(.016)
  var track: Control=game.player_hud.floor_track
  check(not track.visible and track.mouse_filter==Control.MOUSE_FILTER_IGNORE,"Garden hides track and combat input passes through")
- p.wild=true;game.encounter_number=6;game._process(.016)
+ ExpeditionCase.set_membership(game, p, true);ExpeditionCase.set_world(game, {"encounter_number": 6});game._process(.016)
  check(track.visible and track.floor_number==6 and not game.player_hud.state.encounter.contains("Encounter"),"game supplies floor and removes duplicated text counter")
  check(track.nodes.any(func(n):return n.floor==6 and n.current and n.upgrade and n.extraction),"current upgrade/extraction floor carries both icons")
- game.encounter_number=7;game._process(.016)
+ ExpeditionCase.set_world(game, {"encounter_number": 7});game._process(.016)
  check(track.nodes.any(func(n):return n.floor==6 and n.label=="6" and not n.current),"advancing retains the previous floor number")
  check(track.growth==0,"newly reached root grows once")
  track._process(.6);game._process(.016)
  check(track.growth==1 and not track.is_processing(),"ordinary repeated snapshots do not restart root animation")
  p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].fall();p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(0);game._process(.016)
  check(track.visible,"fallen spectator retains party expedition context")
- p.wild=false;game._process(.016)
+ ExpeditionCase.set_membership(game, p, false);game._process(.016)
  check(not track.visible and not track.is_processing(),"returning to Garden clears animation and hides track")
  game.queue_free();await process_frame
  if not failed:print("PASS: centered responsive floor progression, hidden future labels, retained history, milestone icons, passive HUD and transition lifecycle")

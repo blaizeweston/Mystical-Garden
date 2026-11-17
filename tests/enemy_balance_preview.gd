@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -53,7 +55,7 @@ func party(size: int) -> void:
 	for id in range(1,5):
 		var actor: Dictionary=game.players[id]
 		actor.profile_ready=id<=size
-		actor.wild=id<=size
+		ExpeditionCase.set_membership(game, actor, id<=size)
 		actor[PlayerLifecycle.STATE] = actor[PlayerLifecycle.STATE].clear_inactive()
 		actor[PlayerVitals.STATE] = actor[PlayerVitals.STATE].with_hp(100)
 		actor[PlayerVitals.STATE] = actor[PlayerVitals.STATE].with_native_max_hp(100)
@@ -63,11 +65,11 @@ func party(size: int) -> void:
 
 func floor_state(floor_number: int, size: int, boss: int = -1) -> void:
 	party(size)
-	game.encounter_number=floor_number
-	game.depth=(floor_number-1)%6+1
-	game.destination=((floor_number-1)/6)%3
-	game.difficulty_cycle=(floor_number-1)/18
-	game.map_seed=91300+floor_number
+	ExpeditionCase.set_world(game, {"encounter_number": floor_number})
+	ExpeditionCase.set_world(game, {"depth": (floor_number-1)%6+1})
+	ExpeditionCase.set_world(game, {"destination": ((floor_number-1)/6)%3})
+	ExpeditionCase.set_world(game, {"difficulty_cycle": (floor_number-1)/18})
+	ExpeditionCase.set_world(game, {"map_seed": 91300+floor_number})
 	game.boss_floors[str(floor_number)]=boss
 	game.reset_encounter()
 	for actor in game.players.values():
@@ -104,7 +106,7 @@ func depth_curves() -> void:
 			if floor_number==1 and size==4:
 				check(game.encounter.scout_count()==15,"first four-player floor gets fifteen scouts with room to spread")
 				var ceiling: int=game.enemy_health()
-				game.players[4].wild=false
+				ExpeditionCase.set_membership(game, game.players[4], false)
 				game.players[4][PlayerLifecycle.STATE] = game.players[4][PlayerLifecycle.STATE].fall()
 				check(game.encounter_health()==ceiling,"mid-fight departure cannot change the existing HP pool")
 	print("CB-06 depth sample [floor, party, scouts, elite HP, total enemy HP]: ",JSON.stringify(rows))
@@ -132,8 +134,8 @@ func contact_and_hazards() -> void:
 	check(Preview.effect_hp(Balance.scout_hit(game,rootbound,{"gate_elite":true}))==12,"elite contact premium follows its species")
 	var juvenile: Dictionary=game.make_scout(0,Vector3.ZERO,1,0,0,true)
 	check(juvenile.max_hp==12 and Preview.effect_hp(Balance.scout_hit(game,rootbound,juvenile))==6,"juvenile has its own lower hit and HP budget")
-	game.encounter_number=48
-	game.difficulty_cycle=2
+	ExpeditionCase.set_world(game, {"encounter_number": 48})
+	ExpeditionCase.set_world(game, {"difficulty_cycle": 2})
 	check(Preview.effect_hp(Balance.scout_hit(game,rootbound,{}))==28,"deep damage rises within a loop")
 	check(Preview.armor(8)==6 and Preview.armor(20)==15,"armor reduces light and heavy attacks proportionally")
 	game.enemy_hazards.clear()

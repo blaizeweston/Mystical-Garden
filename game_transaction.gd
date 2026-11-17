@@ -3,6 +3,7 @@ const Batch=preload("res://save_batch.gd")
 const MonsterRewards = preload("res://monster_rewards.gd")
 const EncounterRoster = preload("res://encounter_roster.gd")
 const EnemyTactics = preload("res://enemy_tactics.gd")
+const ExpeditionParticipation = preload("res://expedition_participation.gd")
 
 static func snapshot(object: Object) -> Dictionary:
  var result: Dictionary={}
@@ -62,6 +63,8 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
  var encounter_savepoint := encounter.savepoint() if encounter != null else {}
  var tactics: EnemyTactics = game.get("tactics")
  var tactics_savepoint := snapshot(tactics) if tactics != null else {}
+ var participation: ExpeditionParticipation = game.get("participation")
+ var participation_savepoint := participation.savepoint() if participation != null else {}
  var begin_error := Batch.begin(game.progress.path)
  if begin_error != OK:
   verdict.error = begin_error
@@ -84,6 +87,8 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
    encounter.restore_savepoint(encounter_savepoint)
   if tactics != null:
    restore(tactics,tactics_savepoint)
+  if participation != null:
+   participation.restore_savepoint(participation_savepoint)
   if rewards != null:
    rewards.restore_savepoint(reward_savepoint)
   for id in players:
@@ -104,7 +109,7 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
   for source in game.combat_events:
    if int(source.id)<=int(state.get("combat_event_serial",0)):continue
    var event: Dictionary=source.duplicate();event.erase("born");event.age=maxf(0,(Time.get_ticks_msec()-int(source.born))/1000.0)
-   game.receive_combat_event.rpc(event,str([game.destination,game.encounter_number,game.map_seed]))
+   game.receive_combat_event.rpc(event,str([game.participation.route(),game.participation.floor(),game.participation.seed()]))
  var publishes: Array=game.transaction_publishes.duplicate();game.transaction_publishes.clear()
  for id in publishes:
   if id!=game.HOST and game.players.has(id) and game.online_peer!=null: game.receive_character.rpc_id(id,game.players[id].character)
@@ -251,6 +256,9 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
   var tactics: EnemyTactics = game.get("tactics")
   if tactics != null:
    captured.tactics = snapshot(tactics)
+  var participation: ExpeditionParticipation = game.get("participation")
+  if participation != null:
+   captured.participation = participation.savepoint()
   if game.has_method("snapshot_expedition_runtime"):
    captured.expedition = game.snapshot_expedition_runtime()
   game.transaction_publishes.clear()
@@ -350,6 +358,8 @@ static func _restore_guarded(game: Node, captured: Dictionary) -> void:
   game.encounter.restore_savepoint(captured.encounter)
  if captured.has("tactics"):
   restore(game.tactics,captured.tactics)
+ if captured.has("participation"):
+  game.participation.restore_savepoint(captured.participation)
  if captured.has("monster_rewards"):
   game.monster_rewards.restore_savepoint(captured.monster_rewards)
  restore_dict(game.players, captured.players)

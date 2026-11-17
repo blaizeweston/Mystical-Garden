@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Core = preload("res://core_combat.gd")
@@ -23,7 +25,7 @@ func check(ok: bool, detail: String) -> void:
 
 func start_floor(game: Node) -> void:
 	Core.reset(game)
-	game.combat_epoch += 1
+	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	game.encounter_rewarded = false
 	game.encounter.set_hp(-1, 40)
 	game.enemy_kind = 0
@@ -35,7 +37,7 @@ func start_floor(game: Node) -> void:
 func place(game: Node, player: Dictionary) -> Dictionary:
 	player.pos = Vector3(0, 0, -3)
 	player.facing = Vector3.BACK
-	player.wild = true
+	ExpeditionCase.set_membership(game, player, true)
 	player.weapon = game.Parts.THORN
 	player.core_ready_at = 0
 	player.core_cast_until = 0
@@ -70,8 +72,8 @@ func run() -> void:
 	game.set_physics_process(false)
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
-	game.encounter_number = 6
-	game.map_seed = 3
+	ExpeditionCase.set_world(game, {"encounter_number": 6})
+	ExpeditionCase.set_world(game, {"map_seed": 3})
 	var player: Dictionary = game.players[1]
 	start_floor(game)
 	var line := place(game, player)
@@ -104,9 +106,9 @@ func run() -> void:
 	check(quiet.score[Thorn.TACTIC] == 6, "brief changes in tactics leave the score intact")
 	Learning.observe(quiet, {}, 6)
 	check(quiet.score[Thorn.TACTIC] == 5, "quiet floors gradually lower pressure")
-	game.encounter_number = 5
+	ExpeditionCase.set_world(game, {"encounter_number": 5})
 	check(not Thorn.selected(game, {"kind": Thorn.HOUND, "route": 1}), "opening floors stay unadapted")
-	game.encounter_number = 6
+	ExpeditionCase.set_world(game, {"encounter_number": 6})
 
 	start_floor(game)
 	line = place(game, player)
@@ -137,7 +139,7 @@ func run() -> void:
 		check(Thorn.plan(game, hound, origin, line.armed + Thorn.WINDUP).is_empty(), "one leap per hound")
 
 	start_floor(game)
-	game.map_seed = 4
+	ExpeditionCase.set_world(game, {"map_seed": 4})
 	line = place(game, player)
 	center = line.center
 	game.enemy_kind = Thorn.HOUND

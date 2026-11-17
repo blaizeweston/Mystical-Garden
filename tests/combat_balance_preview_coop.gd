@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
@@ -81,13 +83,13 @@ func host() -> void:
 	var local: Dictionary=game.players[1]
 	var remote: Dictionary=game.players[id]
 	for player in [local,remote]:
-		player.wild=true
+		ExpeditionCase.set_membership(game, player, true)
 		player.pos=Vector3.ZERO
 		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
-	game.encounter_number=10
-	game.destination=1
-	game.depth=4
-	game.map_seed=91681
+	ExpeditionCase.set_world(game, {"encounter_number": 10})
+	ExpeditionCase.set_world(game, {"destination": 1})
+	ExpeditionCase.set_world(game, {"depth": 4})
+	ExpeditionCase.set_world(game, {"map_seed": 91681})
 	game.reset_encounter()
 	game.encounter.clear_scouts()
 	game.tactics.stagger_until=Time.get_ticks_msec()+45000

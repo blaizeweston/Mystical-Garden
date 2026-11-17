@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
@@ -38,7 +40,7 @@ func host_run() -> void:
  var id:=int(game.players.keys()[1]);var p: Dictionary=game.players[id]
  check(p.character.upgrades[0]==MASK,"specialization survives registration")
  game.battlefield.configure(0,1);game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,-2);game.tactics.stagger_until=Time.get_ticks_msec()+60000;game.encounter.clear_scouts()
- for player in game.players.values():player.wild=true;player.pos=Vector3(0,0,-1)
+ for player in game.players.values():ExpeditionCase.set_membership(game, player, true);player.pos=Vector3(0,0,-1)
  p.weapon=44;p.secondary=game.Seeds.DEFINITIONS[18].part;p.graft_part=game.Parts.HOOK
  check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.Q)>0),"guest sends counter skill")
  IncomingPlayerHit.resolve_world(game, id, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1, 0, game.tactics.position)
@@ -46,7 +48,7 @@ func host_run() -> void:
  mark("counter-ready")
  check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.R)>0),"guest sends specialized charge")
  check(game.enemy_health()<95 and p.counter_until==0,"host resolves contact with counter and installed plant/graft")
- game.encounter.set_hp(-1, 0);game.encounter_rewarded=true;game.encounter_number=6;game.checkpoint_pending=true;game.checkpoint_ready.clear()
+ game.encounter.set_hp(-1, 0);game.encounter_rewarded=true;ExpeditionCase.set_world(game, {"encounter_number": 6});game.checkpoint_pending=true;game.checkpoint_ready.clear()
  for player in game.players.values():player.pos=game.battlefield.advance
  p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(p).spent_essence());p.offer_floor=6;p.checkpoint_offers=["warden_guard_counter","warden_frost_link","plant_frostbell_shatter"]
  game.present_checkpoint_cards(id)
@@ -59,7 +61,7 @@ func guest_run() -> void:
  check(game.join_game()==OK,"guest joins")
  check(await until(func():return game.session=="Guest" and not game.client_details.is_empty()),"guest admitted")
  var id:=game.multiplayer.get_unique_id()
- check(await until(func():return game.players[id].wild and game.players[id].get("core_part",0)==44),"loadout arrives")
+ check(await until(func():return ExpeditionCase.is_wild(game.players[id]) and game.players[id].get("core_part",0)==44),"loadout arrives")
  check(game.Skills.resolve(0,0,game.guest_character.data).name=="Thorn Counter" and game.Skills.resolve(0,1,game.guest_character.data).name=="Shattering Advance","portable skill identities")
  game.send_garden_action("class_skill")
  check(await until(func():return marked("counter-ready")),"host confirms guard")

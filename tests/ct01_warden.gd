@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -154,9 +156,9 @@ func title_and_progression() -> bool:
 	game.map_rng.seed=16
 	game.PartyTravel.request(game,1,"depart")
 	deadline = Time.get_ticks_msec()+6500
-	while (not player.wild or not game.stage._has_experimental_floor()) and Time.get_ticks_msec()<deadline:
+	while (not ExpeditionCase.is_wild(player) or not game.stage._has_experimental_floor()) and Time.get_ticks_msec()<deadline:
 		await process_frame
-	var departed: bool = player.wild and game.stage._has_experimental_floor()
+	var departed: bool = ExpeditionCase.is_wild(player) and game.stage._has_experimental_floor()
 	check(departed,"real guarded terrain expedition departure")
 	return departed
 
@@ -244,7 +246,7 @@ func deep_roots() -> void:
 
 	var ally: Dictionary=game.players[2]
 	ally.pos=Vector3(0,0,-3.6)
-	ally.wild=true
+	ExpeditionCase.set_membership(game, ally, true)
 	for path in [["bastion"],["bastion","deep_roots"]]:
 		arena(path)
 		ally.guard_charges=0
@@ -284,7 +286,7 @@ func defense() -> void:
 	arena(DEFENSE)
 	var ally: Dictionary=game.players[2]
 	ally.pos=Vector3(1,0,1)
-	ally.wild=true
+	ExpeditionCase.set_membership(game, ally, true)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
 	ally.guard_charges=0
 	ally.guard_until=0
@@ -336,7 +338,7 @@ func defense() -> void:
 func reset_holdfast_ally(ally: Dictionary, point: Vector3) -> void:
 	ally.pos=point
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
-	ally.wild=true
+	ExpeditionCase.set_membership(game, ally, true)
 	ally.guard_charges=0
 	ally.guard_until=0
 	ally.hurt_until=0
@@ -424,7 +426,7 @@ func run() -> void:
 	offense()
 	game.add_player(2)
 	deep_roots()
-	game.players[2].wild=false
+	ExpeditionCase.set_membership(game, game.players[2], false)
 	balance()
 	defense()
 	holdfast()

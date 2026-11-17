@@ -1,4 +1,6 @@
 extends RefCounted
+
+const Participation = preload("res://expedition_participation.gd")
 ## The full circle represents the expedition's health ceiling before revival loss.
 const Preview = preload("res://combat_balance_preview.gd")
 const SHELL := Color("#1b1515")
@@ -23,7 +25,7 @@ func update(state: Dictionary, now: int) -> void:
 	var value := float(state.get("hp", 0))
 	var new_max := int(state.get("max_hp", 0))
 	var new_lost := int(state.get("lost_health", 0))
-	var in_wilds := bool(state.get("wild", false))
+	var in_wilds := bool(Participation.is_wild(state))
 	var is_fallen := bool(state.get("fallen", false))
 	if hp < 0 or new_max != maximum or new_lost != lost or in_wilds != wild or is_fallen != fallen:
 		from_hp = value

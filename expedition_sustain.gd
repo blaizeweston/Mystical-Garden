@@ -66,10 +66,10 @@ static func kill_remaining(actor: Dictionary, epoch: int) -> int:
 static func heal_on_kill(game: Node, actor: Dictionary, target: int, points: float) -> float:
 	if not Preview.enabled:
 		return Preview.heal(actor,points,Preview.HEAL_SPREAD_HP,"heal_on_kill")
-	var remaining := kill_remaining(actor,game.combat_epoch)
+	var remaining := kill_remaining(actor,game.participation.epoch())
 	if points<=0.0 or remaining==0 or not eligible(game,target) or not game.Life.alive(actor) or PlayerVitals.current_hp(actor)>=PlayerVitals.maximum_hp(actor):
 		return 0.0
 	var applied := restore(game,actor,Preview.roll_heal(points),"heal_on_kill",remaining)
-	actor.kill_heal_epoch=game.combat_epoch
+	actor.kill_heal_epoch=game.participation.epoch()
 	actor.kill_heal_spent=KILL_BUDGET_HP-remaining+roundi(applied)
 	return applied

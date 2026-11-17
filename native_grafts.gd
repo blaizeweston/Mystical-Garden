@@ -110,7 +110,7 @@ static func start_contact(game: Node, player: Dictionary, stats: Dictionary, tar
 			or int(snapshot.run) != Expedition.run_identity(player) or not PlayerLifecycle.matches(player,int(snapshot.life)):
 		return {}
 	var action: RefCounted = stats.get("cr02_action")
-	if action == null or not action.source in ["form","native_weapon"] or action.epoch != game.combat_epoch or now >= action.expires_at:
+	if action == null or not action.source in ["form","native_weapon"] or action.epoch != game.participation.epoch() or now >= action.expires_at:
 		return {}
 	var token := "leader" if target == -1 else str(game.encounter.token(target))
 	if not action.take_response("native_graft/" + token):

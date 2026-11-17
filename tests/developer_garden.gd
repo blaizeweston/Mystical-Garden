@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Developer = preload("res://developer_mode.gd")
 const Growth = preload("res://garden_growth_service.gd")
 const Inventory = preload("res://inventory_model.gd")
@@ -128,7 +130,7 @@ func run() -> void:
 
 func test_wilds_settings(game: Node) -> void:
 	var player: Dictionary = game.players[game.HOST]
-	player.wild = true
+	ExpeditionCase.set_membership(game, player, true)
 	var window: Window = game.settings_dialog
 	window.begin(game.app_settings)
 	var footer := window.find_child("SettingsActions", true, false) as HBoxContainer
@@ -151,7 +153,7 @@ func test_wilds_settings(game: Node) -> void:
 				check(gameplay.scroll_vertical > 0, "the last developer control is reachable")
 	pages.current_tab = 0
 	window.cancel()
-	player.wild = false
+	ExpeditionCase.set_membership(game, player, false)
 
 
 func test_material_stock(game: Node, tools: Node, base: String) -> void:
@@ -206,6 +208,6 @@ func test_material_stock(game: Node, tools: Node, base: String) -> void:
 	check(Inventory.counts(game, player, "shared")==shared_before and Inventory.counts(game, player, "stash")==stash_before,"failed save rolls back all inventory buckets")
 	progress.path=stable_path
 	player.pos=game.Stage.HEART
-	player.wild=true
+	ExpeditionCase.set_membership(game, player, true)
 	check(Developer.stock_materials(game).contains("available"),"an active expedition prevents stocking")
-	player.wild=false
+	ExpeditionCase.set_membership(game, player, false)

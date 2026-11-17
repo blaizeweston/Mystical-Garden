@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Codec = preload("res://world_snapshot.gd")
 const Encounter = preload("res://encounter_config.gd")
 const Network = preload("res://network_settings.gd")
@@ -119,7 +121,7 @@ func run() -> void:
 	game.receive_details(details, garden, [], "fixture")
 	game.apply_world_snapshot(newest, true)
 	check(game.net_view.snapshot_received == 16 and game.combat_event_serial == events
-		and not game.players[1].wild and game.players[1].wallet == 0,
+		and not ExpeditionCase.is_wild(game.players[1]) and game.players[1].wallet == 0,
 		"duplicate and stale frames cannot replay effects or restore a departed wallet")
 	invalid[49] = Network.MAX_PLAYERS + 1
 	check(Codec.decode(invalid).is_empty(), "impossible player count refused")

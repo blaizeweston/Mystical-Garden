@@ -29,7 +29,7 @@ static func grant(game: Node, source: int, focus: String, cast: int, target: int
 	var sources: Dictionary = state.get(omen,{})
 	var record := {"effect":omen,"type":definition.type,"trigger":definition.trigger,
 		"source":source,"source_life":PlayerLifecycle.generation(oracle),"class_id":Progression.CLASS_ID,"focus":focus,"cast":cast,
-		"epoch":game.combat_epoch,"target":target,"target_token":token(game,body),
+		"epoch":game.participation.epoch(),"target":target,"target_token":token(game,body),
 		"magnitude":definition.value,"until":now+duration}
 	if int(sources.get(source,{}).get("cast",-1)) == cast:
 		return
@@ -41,7 +41,7 @@ static func grant(game: Node, source: int, focus: String, cast: int, target: int
 
 static func valid(game: Node, body: Dictionary, record: Dictionary, now: int) -> bool:
 	var source: Dictionary = game.players.get(int(record.source), {})
-	return int(record.epoch) == game.combat_epoch and PlayerLifecycle.matches(source,int(record.source_life)) \
+	return int(record.epoch) == game.participation.epoch() and PlayerLifecycle.matches(source,int(record.source_life)) \
 		and int(record.target_token) == token(game,body) and now < int(record.until)
 
 

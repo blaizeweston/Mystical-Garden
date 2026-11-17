@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -12,8 +14,8 @@ func _initialize() -> void:
  preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 func reset_floor(seed_value: int=91273) -> void:
- game.session="Solo";game.difficulty_cycle=1;game.encounter_number=19;game.destination=0;game.depth=1;game.map_seed=seed_value;game.reset_encounter()
- for p in game.players.values():p.wild=true;p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=game.battlefield.entry
+ game.session="Solo";ExpeditionCase.set_world(game, {"difficulty_cycle": 1});ExpeditionCase.set_world(game, {"encounter_number": 19});ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"depth": 1});ExpeditionCase.set_world(game, {"map_seed": seed_value});game.reset_encounter()
+ for p in game.players.values():ExpeditionCase.set_membership(game, p, true);p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=game.battlefield.entry
  game.encounter.clear_scouts();game.encounter.set_hp(-1, 10)
 func warn(now: int) -> Array:
  game.pressure_at=now;game.update_pressure(now)
@@ -61,14 +63,14 @@ func run() -> void:
  check(game.encounter_cleared() and game.encounter.scout_count()==0 and game.pressure_at==0 and Pressure.hints(game).is_empty(),"clearing floor cancels pending wave and keeps exit open")
  for mode in ["early","boss","garden","fallen","guest"]:
   reset_floor()
-  if mode=="early":game.difficulty_cycle=0
+  if mode=="early":ExpeditionCase.set_world(game, {"difficulty_cycle": 0})
   elif mode=="boss":game.tactics.boss_kind=24
-  elif mode=="garden":p.wild=false
+  elif mode=="garden":ExpeditionCase.set_membership(game, p, false)
   elif mode=="fallen":p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].fall();p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(0)
   else:game.session="Guest"
   game.update_pressure(1000);game.update_pressure(100000)
   check(game.encounter.scout_count()==0 and PlayerVitals.current_hp(p)==(0 if mode=="fallen" else 10),"no pressure damage or arrivals in "+mode)
- reset_floor();game.add_player(2);game.players[2].profile_ready=true;game.players[2].wild=true;game.players[2].pos=p.pos
+ reset_floor();game.add_player(2);game.players[2].profile_ready=true;ExpeditionCase.set_membership(game, game.players[2], true);game.players[2].pos=p.pos
  for wave in range(1,17):
   game.encounter.clear_scouts();game.tactics.memory.pressure={"wave":wave-1,"pending":[]}
   hints=warn(wave*100000)

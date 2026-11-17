@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -58,7 +60,7 @@ func reset() -> void:
 	for p in game.players.values():
 		Wood.clear(p)
 		Vital.clear(game,p)
-		p.wild=true
+		ExpeditionCase.set_membership(game, p, true)
 		p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive()
 		p.lost_health=0
 		p.pos=Vector3.ZERO

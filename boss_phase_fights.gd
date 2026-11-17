@@ -43,11 +43,11 @@ static func begin_growth(game: Node, phase: int, now: int) -> void:
  var chosen:=memory(scores,phase)
  game.tactics.memory.memory_growth={"id":chosen,"preview_until":now+1450,"first_move":int(game.tactics.boss_moves)}
  game.tactics.ready_at=maxi(game.tactics.ready_at,now+1450)
- game.Journal.event("combat","boss_memory_phase",{"species":"nameless","phase":phase,"response":chosen,"floor":game.encounter_number})
+ game.Journal.event("combat","boss_memory_phase",{"species":"nameless","phase":phase,"response":chosen,"floor":game.participation.floor()})
 
 static func begin_nest(game: Node, phase: int, now: int) -> void:
  game.tactics.memory.nest_shift={"phase":phase,"ribs":Nest.ribs(phase),"until":now+1950,"grace":false}
- game.Journal.event("combat","boss_nest_preview",{"species":"matriarch","phase":phase,"floor":game.encounter_number})
+ game.Journal.event("combat","boss_nest_preview",{"species":"matriarch","phase":phase,"floor":game.participation.floor()})
 
 static func nest_occupants(game: Node, shift: Dictionary) -> Array:
  var occupants: Array=[{"at":game.tactics.position,"leader":true}]
@@ -87,19 +87,19 @@ static func advance_phase(game: Node, wanted: int, now: int) -> bool:
    game.tactics.memory.nest_retry_at=now+2200
    return false
  game.tactics.boss_phase=int(shift.phase)
- game.battlefield.configure(game.destination,game.depth,game.map_seed,game.tactics.boss_kind,game.tactics.boss_phase)
+ game.battlefield.configure(game.participation.route(),game.participation.depth(),game.participation.seed(),game.tactics.boss_kind,game.tactics.boss_phase)
  for entry in occupants:
   if entry.get("leader",false):game.tactics.position=entry.exit
   else:entry.actor.pos=entry.exit
  game.tactics.memory.erase("nest_shift")
  game.tactics.memory.nursery_split=game.tactics.boss_phase==2 or int(game.tactics.memory.get("nursery_pressure",0))>=2
  game.tactics.ready_at=now+400
- game.Journal.event("combat","boss_nest_shift",{"species":"matriarch","phase":game.tactics.boss_phase,"floor":game.encounter_number,"nudged":occupants.size(),"split":game.tactics.memory.nursery_split})
+ game.Journal.event("combat","boss_nest_shift",{"species":"matriarch","phase":game.tactics.boss_phase,"floor":game.participation.floor(),"nudged":occupants.size(),"split":game.tactics.memory.nursery_split})
  return true
 
 static func hatch_sites(game: Node, origin: Vector3, split: bool) -> Array[Vector3]:
  var result: Array[Vector3]=[]
- for at in Nest.exits(game.tactics.boss_phase,game.map_seed):
+ for at in Nest.exits(game.tactics.boss_phase,game.participation.seed()):
   if not game.battlefield.clear_line(origin,at,.48) or not Support.hatch_safe(game,at):continue
   result.append(at)
   if not split:break
@@ -200,7 +200,7 @@ static func commit(game: Node, normal: String, target: int, now: int) -> bool:
  preload("res://oracle_omens.gd").begin_attack(game,game.tactics.memory,plan,now)
  preload("res://event_audio.gd").enemy(game,plan,false)
  game.tactics.boss_moves+=1
- game.Journal.event("combat","boss_phase_move",{"species":game.Enemies.get_kind(game.tactics.boss_kind).id,"move":move,"variant":plan.variant,"phase":game.tactics.boss_phase,"floor":game.encounter_number})
+ game.Journal.event("combat","boss_phase_move",{"species":game.Enemies.get_kind(game.tactics.boss_kind).id,"move":move,"variant":plan.variant,"phase":game.tactics.boss_phase,"floor":game.participation.floor()})
  return true
 
 static func open(game: Node, status: String, now: int, duration: int) -> void:
@@ -216,7 +216,7 @@ static func interrupt(game: Node, at: Vector3, now: int) -> bool:
  open(game,"nursery_lull",now,1900)
  game.tactics.ready_at=preload("res://oracle_omens.gd").release_attack(game.tactics.memory,plan,game.tactics.ready_at)
  game.emit_combat_event("proc","suppress",at,at,.55,Color("#e1be92"),0,-2)
- game.Journal.event("combat","boss_brood_interrupted",{"species":"matriarch","phase":game.tactics.boss_phase,"floor":game.encounter_number})
+ game.Journal.event("combat","boss_brood_interrupted",{"species":"matriarch","phase":game.tactics.boss_phase,"floor":game.participation.floor()})
  return true
 
 static func resolve(game: Node, plan: Dictionary, now: int, damage: float) -> void:
@@ -279,7 +279,7 @@ static func hints(game: Node, now: int) -> Array:
    hint.bounds=[rect.position.x,rect.position.y,rect.size.x,rect.size.y]
    hint.lair="nursery";hint.next_phase=shift.phase
    result.append(hint)
-  var candidates:=Nest.exits(int(shift.phase),game.map_seed)
+  var candidates:=Nest.exits(int(shift.phase),game.participation.seed())
   var split: bool=int(shift.phase)==2 or int(game.tactics.memory.get("nursery_pressure",0))>=2
   for index in (2 if split else 1):
    var at: Vector3=candidates[index]

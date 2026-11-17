@@ -1,5 +1,7 @@
 extends RefCounted
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
@@ -176,8 +178,8 @@ func host(menu: Node) -> void:
 		mark("full")
 	game.map_rng.seed=16
 	game.PartyTravel.request(game,1,"depart")
-	mark("depart",str(game.travel_epoch))
-	if not check(await until(func():return game.expedition_active() and ids.all(func(id):return game.players[id].wild) and not game.battlefield.generated.is_empty()),"native guarded departure opens generated floor"): return
+	mark("depart",str(game.participation.travel_epoch()))
+	if not check(await until(func():return game.participation.active() and ids.all(func(id):return ExpeditionCase.is_wild(game.players[id])) and not game.battlefield.generated.is_empty()),"native guarded departure opens generated floor"): return
 	check(game.progress.part_count(ordinary)==before_regular-1 and game.progress.part_count(refined)==before_rare-count-1-int(connected_warden_case or connected_weaver_case or connected_reaper_case or connected_oracle_case),"exact guarded departure debits")
 	var paid := [game.progress.part_count(ordinary),game.progress.part_count(refined)]
 	for part in supplied:
@@ -385,7 +387,7 @@ func host(menu: Node) -> void:
 	if affinity_cards_case:
 		# Run the checkpoint UI on the cleared arena from the real combat
 		# above. Select encounter 3 to exercise the production card cadence.
-		game.encounter_number = 3
+		ExpeditionCase.set_world(game, {"encounter_number": 3})
 		var planned := {}
 		for id in game.players:
 			var fixture := plan_speed_offer(game, game.players[id], id == ids[0])
@@ -393,7 +395,7 @@ func host(menu: Node) -> void:
 			planned[id] = fixture
 			mark("attack-speed-"+str(id), JSON.stringify(fixture))
 			mark("wallet-"+str(id), str(fixture.balance))
-		game.use_checkpoint(1,true)
+		ExpeditionCase.Transitions.checkpoint(game, 1,true)
 		check(game.checkpoint_cards.get_child_count()==3,"host receives a full offer after mixed-class combat")
 		check_speed_face(game, planned[1])
 		game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,str(planned[1].choice)))
@@ -409,29 +411,29 @@ func host(menu: Node) -> void:
 				"one guest's reroll debits its wallet once while all four claims stay free")
 			check(has_attack_speed(game,visitor,game.weapon_stats(visitor),planned[id].after),
 				"host's resolved attack speed matches the promised value for this peer")
-	game.use_checkpoint(1,true)
-	mark("advance",str(game.travel_epoch))
-	if not check(await until(func():return game.depth==2 and ids.all(func(id):return read("guest-floor-"+str(id))=="ok")),
+	ExpeditionCase.Transitions.checkpoint(game, 1,true)
+	mark("advance",str(game.participation.travel_epoch()))
+	if not check(await until(func():return game.participation.depth()==2 and ids.all(func(id):return read("guest-floor-"+str(id))=="ok")),
 		"party advances to next generated floor"):return
 	if affinity_cards_case:
 		check(game.players.keys().all(func(id): return game.run_wallet(game.players[id]) == int(read("wallet-"+str(id)))),
 			"floor transition retains independently spent balances")
 	if native_graft_case:
-		check(ids.all(func(id):return Improvements.owner_details(game.players[id], game.encounter_number).get("copies", []).size()==1),
+		check(ids.all(func(id):return Improvements.owner_details(game.players[id], game.participation.floor()).get("copies", []).size()==1),
 			"authoritative purchases survive the real floor transition")
 	if connected_reaper_case:
 		check(selected_player.grave_charges==1 and not selected_player.has("native_graft_state"),
 			"the guest’s native charge survives the real floor transition")
-	game.encounter_number=6
+	ExpeditionCase.set_world(game, {"encounter_number": 6})
 	game.deepest_milestone=6
 	game.encounter.set_hp(-1, 0)
 	game.encounter.clear_scouts()
 	game.encounter_rewarded=true
 	local.pos=game.battlefield.advance
 	for id in ids: game.players[id].pos=local.pos
-	game.use_checkpoint(1,false)
-	mark("extract",str(game.travel_epoch))
-	if not check(await until(func():return not game.expedition_active() and ids.all(func(id):return read("guest-garden-"+str(id))=="ok")),
+	ExpeditionCase.Transitions.checkpoint(game, 1,false)
+	mark("extract",str(game.participation.travel_epoch()))
+	if not check(await until(func():return not game.participation.active() and ids.all(func(id):return read("guest-garden-"+str(id))=="ok")),
 		"party extraction restores Garden"):return
 	if affinity_cards_case:
 		var wallet_cleared := func(visitor: Dictionary) -> bool:
@@ -843,9 +845,9 @@ func exercise_weaver_host(game: Node, id: int, entry: Vector3, target: Vector3, 
 
 
 func install_party_grafts(game: Node, ids: Array) -> bool:
-	var old_floor: int = game.encounter_number
+	var old_floor: int = game.participation.floor()
 	var knowledge: int = game.progress.knowledge
-	game.encounter_number = 8
+	ExpeditionCase.set_world(game, {"encounter_number": 8})
 	for index in ids.size():
 		var id: int = ids[index]
 		var visitor: Dictionary = game.players[id]
@@ -856,14 +858,14 @@ func install_party_grafts(game: Node, ids: Array) -> bool:
 		visitor.carried_parts[material] = 2
 		mark("install-"+str(id),improvement+":"+item)
 		if not check(await until(func():return read("graft-seen-"+str(id))=="ok"),"guest confirms the exact matching trophy and receives its ledger"): return false
-		var ledger := Improvements.owner_details(visitor, game.encounter_number)
+		var ledger := Improvements.owner_details(visitor, game.participation.floor())
 		check(ledger.copies.size()==1 and ledger.copies[0].id==improvement and ledger.copies[0].item==item
 			and visitor.carried_parts[material]==1,"authority charges the selected part once")
 		if not check(await until(func():return "already used" in visitor.get("graft_message",""),3000),
 			"host rejects a duplicate request at the same altar"): return false
 		check(visitor.carried_parts[material]==1,"the replay spends no second trophy")
 	check(game.progress.knowledge==knowledge,"guest purchases give no permanent Knowledge")
-	game.encounter_number = old_floor
+	ExpeditionCase.set_world(game, {"encounter_number": old_floor})
 	return true
 
 
@@ -878,7 +880,7 @@ func plan_speed_offer(game: Node, player: Dictionary, reroll: bool) -> Dictionar
 		ledger = UpgradeCards.Ledger.new()
 	for seed_value in range(1,33):
 		player.upgrade_seed = seed_value
-		var floor_number: int = game.encounter_number
+		var floor_number: int = game.participation.floor()
 		var dodge_base: int = game.DODGE_COOLDOWN_MS
 		var offer := ledger.open_offer(floor_number, 1, seed_value, stats, dodge_base)
 		var options: Array = offer.roll(seed_value, floor_number, stats, dodge_base, true) if reroll else offer.offer().cards
@@ -943,7 +945,7 @@ func guest(menu: Node, role: String) -> void:
 		if not check(await until(func():return not read("install-"+str(id)).is_empty() and game.stage._has_experimental_floor()),
 			"real guest can request its graft on the shared floor"): return
 		var selection_fields := read("install-"+str(id)).split(":")
-		if not check(await until(func():return game.encounter_number==8 and game.at_graft_altar(game.players[id])),
+		if not check(await until(func():return game.participation.floor()==8 and game.at_graft_altar(game.players[id])),
 			"guest has reached the same altar"):return
 		game.send_garden_action("graft")
 		if not check(await until(func():return game.graft_menu.visible and game.graft_view.data.get("floor",0)==8),
@@ -1065,7 +1067,7 @@ func guest(menu: Node, role: String) -> void:
 			and Weaver.TREE.path(canonical.get_value("character","progress",{}))==WEAVER_PATH,
 			"committed guest bytes agree with host on Weaver path and XP after reward")
 	game.send_travel_ready(false)
-	if not check(await until(func():return game.depth==2 and game.stage.visual_field.configured_key.z==game.map_seed),"guest tracks next floor"):return
+	if not check(await until(func():return game.participation.depth()==2 and game.stage.visual_field.configured_key.z==game.participation.seed()),"guest tracks next floor"):return
 	if affinity_cards_case:
 		check(await until(func():return game.players.get(id,{}).get("affinity_run_cards",[]).size()==1),
 			"mixed-class guest still owns its copy on the next floor")
@@ -1077,7 +1079,7 @@ func guest(menu: Node, role: String) -> void:
 	mark("guest-floor-"+str(id))
 	if not check(await until(func():return not read("extract").is_empty() and int(game.party_travel_state().get("epoch",-1))==int(read("extract"))),"guest receives extraction"):return
 	game.send_travel_ready(false)
-	if not check(await until(func():return not game.players[id].wild),"guest returns to Garden"):return
+	if not check(await until(func():return not ExpeditionCase.is_wild(game.players[id])),"guest returns to Garden"):return
 	if native_graft_case:
 		check(await until(func():return game.players[id].get("graft_improvements",{}).is_empty()),
 			"owner details clear the graft purchases on return")
@@ -1170,7 +1172,7 @@ func verify_current_snapshot_host(game: Node, ids: Array, local: Dictionary) -> 
 	check(not local.has(wood.GRANTS) and burst.size()==1 and PlayerVitals.current_hp(local)<250 and PlayerVitals.current_hp(local)>0,"host consumes Bark once and emits one break response")
 	if burst.is_empty():return
 	mark("snapshot-full-state", "%d:%d" % [int(PlayerVitals.current_hp(local)),int(burst[0].id)])
-	var epoch: int=game.combat_epoch
+	var epoch: int=game.participation.epoch()
 	if not check(await until(func():return ids.all(func(id):return read("snapshot-full-seen-"+str(id))=="ok"),3500),
 		"full-occupancy snapshots converge and the old Bark status is removed on each guest"): return
 	game.remove_meta(&"snapshot_witness")
@@ -1178,7 +1180,7 @@ func verify_current_snapshot_host(game: Node, ids: Array, local: Dictionary) -> 
 	check(ids.all(func(id):return witnesses.any(func(row):return row.peer==id and row.bytes==max_frame and row.error==OK)),
 		"real sends reach the full payload bound for each guest")
 	print("SNAPSHOT_FULL ",JSON.stringify({"peers":ids,"application_bytes":max_frame,"scouts":limit}))
-	check(await until(func():return thorn.active_fields(game,clock.now(game)).is_empty(),8500) and game.combat_epoch==epoch,
+	check(await until(func():return thorn.active_fields(game,clock.now(game)).is_empty(),8500) and game.participation.epoch()==epoch,
 		"Thorn expires and stops applying field contact on the same floor")
 	mark("snapshot-thorn-expired")
 	check(await until(func():return ids.all(func(id):return read("snapshot-thorn-expired-"+str(id))=="ok"),3000),

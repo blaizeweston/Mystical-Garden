@@ -16,12 +16,12 @@ const FEAST_COLOR := Color("#be7890")
 
 
 static func stamp(game: Node, actor: int, player: Dictionary, cast: int) -> Dictionary:
-	return {"owner":actor, "epoch":game.combat_epoch, "life":PlayerLifecycle.generation(player), "cast":cast}
+	return {"owner":actor, "epoch":game.participation.epoch(), "life":PlayerLifecycle.generation(player), "cast":cast}
 
 
 static func ready(game: Node, player: Dictionary, key: String, now: int) -> Dictionary:
 	var record: Dictionary = player.get(key,{})
-	if int(record.get("epoch",-1)) != game.combat_epoch or not game.Life.alive(player):
+	if int(record.get("epoch",-1)) != game.participation.epoch() or not game.Life.alive(player):
 		return {}
 	if not is_same(player,game.players.get(record.owner,{})) or not PlayerLifecycle.matches(player,int(record.life)):
 		return {}

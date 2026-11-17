@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Core = preload("res://core_combat.gd")
 const Rules = preload("res://core_skill_rules.gd")
 const Status = preload("res://combat_status.gd")
@@ -68,8 +70,8 @@ func run() -> void:
 	check(bench.core_preview.visible and bench.core_preview_icon.texture.resource_path.ends_with("whisper_mark.png"),"bench displays the crafted Core icon")
 	check(index>=0 and bench.slots[0].get_popup().get_item_tooltip(index).contains("next direct hit"),"available Core part offers a hover explanation")
 	check(bench.core_preview.tooltip_text==bench.slots[0].tooltip_text,"selected part and ability preview share the tooltip")
-	game.enter_wilds(1,p)
-	check(p.wild and p.weapon==refined_whisper and game.seed_reserve(p).parts[refined_whisper]==0,"refined part crafts through existing reservation and stock")
+	ExpeditionCase.Transitions.enter(game, 1,p)
+	check(ExpeditionCase.is_wild(p) and p.weapon==refined_whisper and game.seed_reserve(p).parts[refined_whisper]==0,"refined part crafts through existing reservation and stock")
 	fixture(game)
 	p.pos=Vector3.ZERO
 	game.tactics.position=Vector3(0,0,-2.0)
@@ -126,7 +128,7 @@ func run() -> void:
 	check(game.tactics.rooted_until>fires and int(game.encounter.scout(0).rooted_until)>fires and int(game.encounter.scout(1).rooted_until)==0,"beam roots on-line enemies while leaving the off-line scout free")
 	Core.tick(game,fires+100)
 	check(Core.hints(game).is_empty() and p.core_ready_at==timer and game.combat_events.filter(func(event): return event.kind=="swing" and event.shape=="constellation").size()==1,"the star fires once and preserves the independent cooldown")
-	game.return_to_garden(p)
+	ExpeditionCase.Transitions.return_member(game, p)
 	game._process(.016)
 	check(not hud.skill_hover[2].visible,"Core hover target clears in the Garden")
 	await finish(game)

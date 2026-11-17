@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Escape = preload("res://thief_escape.gd")
 var game: Node
 var base := ""
@@ -52,12 +54,12 @@ func host() -> void:
 		return
 	var at := Vector3(0,0,-6)
 	game.battlefield.configure(0,1,0)
-	game.map_seed = 0
+	ExpeditionCase.set_world(game, {"map_seed": 0})
 	game.encounter.set_hp(-1, 0)
 	game.tactics.winding_up = false
 	game.encounter_rewarded = false
 	for player in game.players.values():
-		player.wild = true
+		ExpeditionCase.set_membership(game, player, true)
 		player.pos = at + Vector3(1.0,0,0)
 	var thief: Dictionary = game.make_scout(Escape.KIND,at,2)
 	game.encounter.clear_scouts();game.encounter.register_scout(thief)

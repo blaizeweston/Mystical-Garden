@@ -25,7 +25,7 @@ const PROFILES := {
 
 static func choose(game: Node, kind: int, route: int) -> String:
  var profile: Dictionary = PROFILES.get(kind, {})
- if profile.is_empty() or game.encounter_number < int(profile.floor):
+ if profile.is_empty() or game.participation.floor() < int(profile.floor):
   return ""
  var key: String = profile.tactic
  var score := 6 if key=="late" else int(game.progress.wilds_memory.score.get(key, 0))
@@ -34,7 +34,7 @@ static func choose(game: Node, kind: int, route: int) -> String:
  if key == "burst": score = maxi(score, int(game.progress.burst_pressure) * 2)
  if score < 6:
   return ""
- var roll := posmod(int(game.map_seed) + route * 37 + kind * 19 + int(game.encounter_number) * 11, 10)
+ var roll := posmod(int(game.participation.seed()) + route * 37 + kind * 19 + int(game.participation.floor()) * 11, 10)
  return profile.id if roll < mini(7, 2 + score / 4) else ""
 
 static func cue(variant: String, kind: int) -> String:

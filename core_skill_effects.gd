@@ -599,7 +599,7 @@ static func ironbark_block(game: Node, id: int, player: Dictionary, now: int) ->
 		return
 	var cast: Dictionary = ward.cast
 	var source: Dictionary = game.players.get(int(cast.owner), {})
-	if int(cast.epoch) != game.combat_epoch or not PlayerLifecycle.matches(source,int(cast.life)) \
+	if int(cast.epoch) != game.participation.epoch() or not PlayerLifecycle.matches(source,int(cast.life)) \
 			or cast.get("ward_spent", false) or game.encounter_cleared():
 		return
 	cast.ward_spent = true

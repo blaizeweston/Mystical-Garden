@@ -1,4 +1,6 @@
 extends RefCounted
+
+const Participation = preload("res://expedition_participation.gd")
 ## The host's per-player ledger owns all purchased expedition improvements.
 const STATE := "expedition_grafts"
 const SERIAL := &"graft_run_serial"
@@ -182,7 +184,7 @@ class Ledger extends RefCounted:
 
 
 static func active_ledger(player: Dictionary) -> Ledger:
-	return player.get(STATE) if player.get("wild", false) else null
+	return player.get(STATE) if Participation.is_wild(player) else null
 
 
 static func run_identity(player: Dictionary) -> int:

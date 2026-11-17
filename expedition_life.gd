@@ -1,4 +1,6 @@
 extends RefCounted
+
+const Participation = preload("res://expedition_participation.gd")
 const PlayerLifecycle=preload("res://player_lifecycle.gd")
 const PlayerVitals=preload("res://player_vitals.gd")
 const Vitals=preload("res://combat_vitals.gd")
@@ -7,7 +9,7 @@ const Sustain=preload("res://expedition_sustain.gd")
 const REVIVE_COST:=Vitals.REVIVE_POINTS*Vitals.LIVE_HP_PER_POINT
 const REVIVE_REACH:=1.65
 static func alive(p: Dictionary) -> bool:
- return p.get("wild",false) and not PlayerLifecycle.fallen(p) and PlayerVitals.current_hp(p)>0.0
+ return Participation.is_wild(p) and not PlayerLifecycle.fallen(p) and PlayerVitals.current_hp(p)>0.0
 static func living_ids(game: Node) -> Array[int]:
  var ids: Array[int]=[]
  for id in game.players:
@@ -38,21 +40,21 @@ static func down(game: Node,id: int,p: Dictionary,effects = null) -> void:
  var cost: String="%d maximum HP"%Preview.revive_cost() if Preview.enabled else "one maximum heart"
  game.action_feedback(effects,id,"You have fallen. Watch a living ally while a teammate reaches you. Revival costs %s for this expedition."%cost)
  if living_ids(game).is_empty():
-  if effects == null: game.finish_failed_expedition()
-  else: game._finish_failed_expedition(effects)
+  if effects == null: load("res://expedition_transitions.gd").finish_failed(game)
+  else: load("res://expedition_transitions.gd").commit_failed(game,effects)
 static func nearest(game: Node,p: Dictionary) -> int:
  if not alive(p): return 0
  var result:=0;var distance:=REVIVE_REACH
  for id in game.players:
   var other: Dictionary=game.players[id]
-  if not other.get("wild",false) or not PlayerLifecycle.fallen(other): continue
+  if not Participation.is_wild(other) or not PlayerLifecycle.fallen(other): continue
   var length: float=p.pos.distance_to(other.pos)
   if length<distance and game.battlefield.clear_line(p.pos,other.pos): distance=length;result=int(id)
  return result
 static func revive(game: Node,helper_id: int,target_id: int,effects = null) -> bool:
  if not game.players.has(helper_id) or not game.players.has(target_id) or helper_id==target_id: return false
  var helper: Dictionary=game.players[helper_id];var target: Dictionary=game.players[target_id]
- if not alive(helper) or not target.get("wild",false) or not PlayerLifecycle.fallen(target): return false
+ if not alive(helper) or not Participation.is_wild(target) or not PlayerLifecycle.fallen(target): return false
  if helper.pos.distance_to(target.pos)>REVIVE_REACH or not game.battlefield.clear_line(helper.pos,target.pos): return false
  if not Vitals.can_revive(native_maximum(game,target),Preview.scale()):
   game.action_feedback(effects,helper_id,"This ally has too little maximum health to revive." if Preview.enabled else "No full heart remains to sacrifice. This ally cannot be revived again during this expedition.");return false

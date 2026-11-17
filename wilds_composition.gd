@@ -18,10 +18,10 @@ const PREFERRED={
 static func roster(game: Node, count: int) -> Array[int]:
  var roles: Array[int]=[]
  if count<=0:return roles
- var floor_number: int=game.encounter_number
- var site: int=game.destination
+ var floor_number: int=game.participation.floor()
+ var site: int=game.participation.route()
  if game.tactics.boss_kind>=0 or site==game.Campaign.HEART:
-  for i in count:roles.append(Catalog.choose(site if site<game.Campaign.HEART else game.Campaign.HOLLOW,floor_number,i,game.map_seed))
+  for i in count:roles.append(Catalog.choose(site if site<game.Campaign.HEART else game.Campaign.HOLLOW,floor_number,i,game.participation.seed()))
   return roles
  var pool:=eligible(site,floor_number)
  var primary: Dictionary=Catalog.get_kind(game.enemy_kind)
@@ -35,7 +35,7 @@ static func roster(game: Node, count: int) -> Array[int]:
   if role in CONTROL:ranged.append(kind)
   if options.has(kind) and kind!=game.enemy_kind:partners.append(kind)
  var rng:=RandomNumberGenerator.new()
- rng.seed=int(game.map_seed)+site*8191+floor_number*103
+ rng.seed=int(game.participation.seed())+site*8191+floor_number*103
  # Keep a frontline combatant in the pack even with a support or caster modifier.
  roles.append(pick(fighters,rng,game.enemy_kind))
  if count==1:return roles
@@ -73,7 +73,7 @@ static func partner_position(game: Node, at: Vector3) -> bool:
 static func companion_spawn(game: Node, route: int) -> Vector3:
  for distance in [3.8,4.8,5.8]:
   for step in 8:
-   var angle: float=(step+posmod(int(game.map_seed),8))*TAU/8.0
+   var angle: float=(step+posmod(int(game.participation.seed()),8))*TAU/8.0
    var at: Vector3=game.tactics.position+Vector3(cos(angle),0,sin(angle))*distance
    if not partner_position(game,at) or not game.battlefield.clear_line(game.tactics.position,at,.45):continue
    var position: Vector3=game.Director.spawn(game,at,route)

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Core = preload("res://core_combat.gd")
@@ -60,8 +62,8 @@ func run() -> void:
 	game.handle_loadout_action(1, player, "loadpart_0_%d" % cinder)
 	game.loadout_view.refresh()
 	check(game.loadout_view.description.text.contains("Seed Lance") and game.loadout_view.description.text.contains("Embers widen"), "Cinder preview shows both the active and its modifier")
-	game.enter_wilds(1, player)
-	check(player.wild and player.weapon == cinder, "Cinder loadout crafts into a playable expedition")
+	ExpeditionCase.Transitions.enter(game, 1, player)
+	check(ExpeditionCase.is_wild(player) and player.weapon == cinder, "Cinder loadout crafts into a playable expedition")
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
 	player.pos = Vector3.ZERO

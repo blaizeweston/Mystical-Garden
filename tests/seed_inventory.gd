@@ -1,4 +1,6 @@
 extends SceneTree
+
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 var failed:=false
 func check(ok: bool,message: String):
  if not ok: failed=true;printerr("FAIL seed inventory: ",message)
@@ -24,7 +26,7 @@ func run():
  g.path="res://.godot/nonexistent-seed-directory/fail.cfg";game.send_garden_action("plant_at_1_0");check(g.plots[1].species==-1 and reserve.stock[0]==2,"failed planting save returns seed")
  g.path=path
  var chance: float=game.graft_chance(p,game.Parts.HOOK);p.character.traits[p.frame]=1;check(is_equal_approx(chance,game.graft_chance(p,game.Parts.HOOK)),"stale affinity cannot improve grafting")
- p.character.traits[p.frame]=2;p.wild=true;p.contributed=true;var familiarity: int=p.character.monsters[game.enemy_kind];game._queue_monster_reward("retired-affinity-test",game.enemy_kind,0,p.pos,false);game.award_combat_progress();check(p.character.monsters[game.enemy_kind]==familiarity+1,"stale scholar affinity cannot double familiarity")
+ p.character.traits[p.frame]=2;ExpeditionCase.set_membership(game, p, true);p.contributed=true;var familiarity: int=p.character.monsters[game.enemy_kind];game._queue_monster_reward("retired-affinity-test",game.enemy_kind,0,p.pos,false);game.award_combat_progress();check(p.character.monsters[game.enemy_kind]==familiarity+1,"stale scholar affinity cannot double familiarity")
  check(game.Character.normalize(p.character).traits.all(func(value): return value==0),"legacy affinity selections are neutralized")
  if not failed: print("PASS: identify all, duplicates, rollback, seed grid, selection, planting confirmation, cancellation, stale requests, save failure and retired affinity migration")
  game.queue_free();await process_frame;quit(1 if failed else 0)

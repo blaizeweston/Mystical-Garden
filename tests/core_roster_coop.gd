@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Core = preload("res://core_combat.gd")
@@ -64,7 +66,7 @@ func host() -> void:
 	var id: int = game.players.keys().filter(func(peer): return peer != 1)[0]
 	var player: Dictionary = game.players[id]
 	for member in game.players.values():
-		member.wild = true
+		ExpeditionCase.set_membership(game, member, true)
 		member.pos = Vector3.ZERO
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()

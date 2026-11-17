@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -15,7 +17,7 @@ func run() -> void:
  var game=load("res://world.tscn").instantiate()
  game.progress.path="res://.godot/boss-roster-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character"
  root.add_child(game);game.set_process(false);game.set_physics_process(false)
- var p: Dictionary=game.players[1];p.wild=true;p[PlayerVitals.STATE] = PlayerVitals.Health.new(10, 10)
+ var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = PlayerVitals.Health.new(10, 10)
  check(game.Enemies.all().size()==24 and game.Parts.MONSTER_DEFINITIONS.size()==24,"twenty regular enemies plus four bosses and matching components")
  var normal={}
  for floor_number in range(1,40):
@@ -36,7 +38,7 @@ func run() -> void:
   if game.Bosses.choose(20,0,seed_value,[])>=0: rolls+=1
  check(rolls>170 and rolls<340,"rare 2.5 percent per eligible floor")
  for kind in range(20,24):
-  game.reset_expedition();game.destination=0;game.encounter_number=20;game.depth=2;game.map_seed=9871
+  ExpeditionCase.Transitions.reset(game);ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"encounter_number": 20});ExpeditionCase.set_world(game, {"depth": 2});ExpeditionCase.set_world(game, {"map_seed": 9871})
   game.boss_floors["20"]=kind;game.used_bosses.append(kind);game.reset_encounter()
   check(game.tactics.boss_kind==kind and game.enemy_kind==kind and game.enemy_health()>=50,"boss installed as primary actor")
   check(game.battlefield.connected(),"boss lair connects entry, gate, altar and cache")
@@ -48,7 +50,7 @@ func run() -> void:
   check(game.tactics.boss_kind==kind and game.used_bosses.size()==count,"combat reset preserves floor decision")
   var packet: PackedInt32Array=game.campaign_snapshot()
   check(packet[game.EncounterConfig.BOSS_KIND]==kind,"public map descriptor in snapshot")
-  p.wild=true;p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0
+  ExpeditionCase.set_membership(game, p, true);p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0
   for move in game.Enemies.get_kind(kind).moves:
    game.tactics.position=Vector3(0,0,5);game.enemy_hazards.clear()
    if Lairs.Routes.supports(kind):
@@ -69,7 +71,7 @@ func run() -> void:
   check(game.select_attack_target(p,float(game.weapon_stats(p).reach))==-1,"large boss can be struck at its visible body edge")
   game.strike_enemy(1,p,p.pos);game.update_projectiles(Time.get_ticks_msec()+1500)
   check(game.enemy_health()<100,"committed melee release respects boss hurtbox")
-  game.enemy_kind=kind;game.encounter.set_hp(-1, 0);game.combat_epoch+=1;game.monster_rewards.retire_completed();game.wild_item_drops.clear()
+  game.enemy_kind=kind;game.encounter.set_hp(-1, 0);ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)});game.monster_rewards.retire_completed();game.wild_item_drops.clear()
   game.record_enemy_death(-1,game.tactics.position,p.pos);game.record_enemy_death(-1,game.tactics.position,p.pos)
   check(game.monster_rewards.pending_count()==1,"boss reward receipt deduplicates")
   check(game.flush_kill_rewards(),"boss reward transaction commits")
@@ -77,18 +79,18 @@ func run() -> void:
   var seeds: Array=game.wild_item_drops.filter(func(d):return d.stack.item=="boss_mystery_seed")
   check(seeds.size()==1,"one opaque ancient seed per player per boss")
   check(not seeds[0].stack.has("seeds"),"boss seed species remains undisclosed")
- game.reset_expedition();check(game.used_bosses.is_empty() and not game.boss_floors.has("20") and game.tactics.boss_kind==-1,"fresh run clears only run-local boss history")
+ ExpeditionCase.Transitions.reset(game);check(game.used_bosses.is_empty() and not game.boss_floors.has("20") and game.tactics.boss_kind==-1,"fresh run clears only run-local boss history")
  var tiers={};var random=RandomNumberGenerator.new();random.seed=1789
  for i in 5000:
   var species=game.Bosses.seed_species(random);var tier=int(game.Seeds.DEFINITIONS[species].tier);tiers[tier]=int(tiers.get(tier,0))+1
  check(not tiers.has(1) and not tiers.has(2) and tiers.get(4,0)>2300 and tiers.get(5,0)>800,"ancient seed tier weighting")
- p.wild=true;p.safe_items=[];p.pouch=false;p.carried_items={}
+ ExpeditionCase.set_membership(game, p, true);p.safe_items=[];p.pouch=false;p.carried_items={}
  game.InventoryModel.put(game,p,"carry",{"item":"boss_mystery_seed","quantity":2})
  game.InventoryModel.transfer(game,p,"carry","pouch","boss_mystery_seed",2)
  check(p.safe_items.size()==1 and p.safe_items[0].quantity==2,"ancient stack fits safe pouch")
  game.InventoryModel.bank_safe(game,p)
  check(game.Altar.ancient_count(game,p)==2,"safe recovery banks ancient seeds")
- p.wild=false;p.pos=game.Stage.ALTAR
+ ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.ALTAR
  var saved_path: String=game.progress.path;var saved_rng: int=game.rng.state
  game.progress.path="res://.godot/absent-boss-seed-directory/fail.cfg"
  game.Altar.identify_all(game,p)

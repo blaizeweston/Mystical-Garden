@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+
 const Mode = preload("res://assets/terrain_m02/experimental/experiment_mode.gd")
 const Menu = preload("res://main_menu.tscn")
 const Appearance = preload("res://character_appearance.gd")
@@ -182,8 +184,8 @@ func host_run(menu: Node) -> void:
 	traveller.pos = keeper.pos
 	game.map_rng.seed = RIVER_SEED
 	game.PartyTravel.request(game, game.HOST, "depart")
-	mark("depart", str(game.travel_epoch))
-	if not check(await until(func(): return traveller.wild and not game.battlefield.generated.is_empty()), "party enters generated Wilds"):
+	mark("depart", str(game.participation.travel_epoch()))
+	if not check(await until(func(): return ExpeditionCase.is_wild(traveller) and not game.battlefield.generated.is_empty()), "party enters generated Wilds"):
 		return
 	mark("floor", floor_identity(game.battlefield))
 	var host_entry: Vector3 = keeper.pos
@@ -219,25 +221,25 @@ func host_run(menu: Node) -> void:
 	check(not game.wild_item_drops.is_empty(), "real encounter creates monster drops")
 	keeper.pos = game.battlefield.advance
 	traveller.pos = keeper.pos
-	game.use_checkpoint(game.HOST, true)
-	mark("advance", str(game.travel_epoch))
-	if not check(await until(func(): return game.depth == 2), "party commits advancement"):
-		print("STATE ", [game.status, game.travel_kind, game.travel_epoch, game.travel_votes, game.checkpoint_ready, traveller.pos, game.battlefield.advance, game.Transactions.pending_notice(game)])
+	ExpeditionCase.Transitions.checkpoint(game, game.HOST, true)
+	mark("advance", str(game.participation.travel_epoch()))
+	if not check(await until(func(): return game.participation.depth() == 2), "party commits advancement"):
+		print("STATE ", [game.status, game.participation.travel_kind(), game.participation.travel_epoch(), game.participation.vote_count(), game.checkpoint_ready, traveller.pos, game.battlefield.advance, game.Transactions.pending_notice(game)])
 		return
 	mark("second-floor", floor_identity(game.battlefield))
 	if not check(await until(func(): return read("guest-second") == "ok"), "guest sees next generated floor"):
 		return
 	# Exercise the real extraction boundary without playing six complete floors.
-	game.encounter_number = 6
+	ExpeditionCase.set_world(game, {"encounter_number": 6})
 	game.deepest_milestone = 6
 	game.encounter.set_hp(-1, 0)
 	game.encounter.clear_scouts()
 	game.encounter_rewarded = true
 	keeper.pos = game.battlefield.advance
 	traveller.pos = keeper.pos
-	game.use_checkpoint(game.HOST, false)
-	mark("extract", str(game.travel_epoch))
-	if not check(await until(func(): return not game.expedition_active() and read("guest-return") == "ok"), "party extracts to the same developed Garden"):
+	ExpeditionCase.Transitions.checkpoint(game, game.HOST, false)
+	mark("extract", str(game.participation.travel_epoch()))
+	if not check(await until(func(): return not game.participation.active() and read("guest-return") == "ok"), "party extracts to the same developed Garden"):
 		return
 	keeper.pos = Vector3(0, 0, 1.5)
 	garden.open_development()
@@ -256,8 +258,8 @@ func host_run(menu: Node) -> void:
 	traveller.pos = keeper.pos
 	game.map_rng.seed = RIVER_SEED
 	game.PartyTravel.request(game, game.HOST, "depart")
-	mark("depart-again", str(game.travel_epoch))
-	if not check(await until(func(): return traveller.wild and read("guest-floor-again") == "ok"), "rejoined guest enters the repeated seed"):
+	mark("depart-again", str(game.participation.travel_epoch()))
+	if not check(await until(func(): return ExpeditionCase.is_wild(traveller) and read("guest-floor-again") == "ok"), "rejoined guest enters the repeated seed"):
 		return
 	check(floor_identity(game.battlefield) == read("floor"), "repeated seed retains the same cover after reconnect")
 	if not await river_host(game, traveller, "river-again"):
@@ -323,14 +325,15 @@ func guest_run(menu: Node) -> void:
 	if not check(await until(func(): return int(game.party_travel_state().get("epoch", -1)) == int(read("advance"))), "guest receives the next Gate readiness prompt"):
 		return
 	game.send_travel_ready(false)
-	if not check(await until(func(): return not read("second-floor").is_empty() and game.depth == 2 and game.stage.visual_field.configured_key.z == game.map_seed), "guest follows party advancement"):
+	if not check(await until(func(): return not read("second-floor").is_empty() and game.participation.depth() == 2 and game.stage.visual_field.configured_key.z == game.participation.seed()), "guest follows party advancement"):
 		return
 	check(floor_identity(game.stage.visual_field) == read("second-floor"), "second floor reconstruction matches")
+	check(game.participation.active() and game.participation.contains(id) and game.participation.participants().size() == 2, "guest participation owner matches accepted party snapshot")
 	mark("guest-second")
 	if not check(await until(func(): return not read("extract").is_empty() and int(game.party_travel_state().get("epoch", -1)) == int(read("extract"))), "host proposes extraction"):
 		return
 	game.send_travel_ready(false)
-	if not check(await until(func(): return not game.players[id].wild), "guest returns through party extraction"):
+	if not check(await until(func(): return not ExpeditionCase.is_wild(game.players[id])), "guest returns through party extraction"):
 		return
 	check(garden.bed_ids.get(3) == bed and game.Progress.decode_plots(game.client_garden[12])[3].species == 0, "return preserves bed and crop")
 	mark("guest-return")
@@ -355,8 +358,8 @@ func guest_run(menu: Node) -> void:
 		return
 	game.send_garden_action("travel_ready:" + read("depart-again"))
 	var rebuilt := func() -> bool:
-		return (game.stage._has_experimental_floor() and game.stage.visual_field.configured_key.z == game.map_seed
-			and game.players[game.local_player_id()].wild)
+		return (game.stage._has_experimental_floor() and game.stage.visual_field.configured_key.z == game.participation.seed()
+			and ExpeditionCase.is_wild(game.players[game.local_player_id()]))
 	if not check(await until(rebuilt), "rejoined guest reconstructs the repeated seed"):
 		return
 	check(floor_identity(game.stage.visual_field) == read("floor"), "rejoined guest reconstructs identical projectile cover")

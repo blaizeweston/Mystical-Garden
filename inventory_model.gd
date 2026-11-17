@@ -1,4 +1,6 @@
 extends RefCounted
+
+const Participation = preload("res://expedition_participation.gd")
 const Items=preload("res://item_catalog.gd")
 const POUCH_SLOTS:=1
 const SHARED_OWNER:="__shared_garden_inventory__"
@@ -25,7 +27,7 @@ static func counts(game,player: Dictionary,bucket: String) -> Dictionary:
    for stack in player.safe_items: result[stack.item]=int(result.get(stack.item,0))+int(stack.quantity)
   elif player.get("pouch",false) and not player.carried_seeds.is_empty(): result.unidentified_seed=1
   return result
- var wild: bool=player.get("wild",false)
+ var wild: bool=Participation.is_wild(player)
  if (wild and bucket not in ["carry"]) or (not wild and bucket not in ["stash","shared"]): return result
  if bucket=="carry":
   result.unidentified_seed=player.carried_seeds.size()-int(player.get("pouch",false) and player.get("safe_items",[]).is_empty() and not player.carried_seeds.is_empty())
@@ -61,7 +63,7 @@ static func stacks(values: Dictionary,bucket: String) -> Array:
    remaining-=amount;ordinal+=1
  return result
 static func snapshot(game,player: Dictionary) -> Dictionary:
- var wild: bool=player.get("wild",false)
+ var wild: bool=Participation.is_wild(player)
  var result: Dictionary={"wild":wild,"carry":[],"stash":[],"shared":[],"pouch":[],"equipment":[player.get("weapon",0),player.get("secondary",0),player.get("catalyst",0),player.get("graft_part",0)] if wild else [player.get("prepared",0),player.get("prepared_secondary",0),player.get("prepared_catalyst",0),0]}
  if game.has_meta(&"combat_affinity_ruleset"): result.equipment.resize(3)
  for bucket in (["carry","pouch"] if wild else ["stash","shared"]): result[bucket]=stacks(counts(game,player,bucket),bucket)
@@ -70,7 +72,7 @@ static func take(game,player: Dictionary,bucket: String,id: String,amount: int,p
  normalize_pouch(player)
  var definition:=Items.get_item(id)
  if definition.is_empty() or amount<=0 or amount>int(definition.stack_limit) or int(counts(game,player,bucket).get(id,0))<amount: return {}
- if protect and definition.has("legacy_part") and not player.get("wild",false):
+ if protect and definition.has("legacy_part") and not Participation.is_wild(player):
   var part:=int(definition.legacy_part)
   if bucket=="shared" and amount>game.LoadoutMaterials.shared_free(game,part):return {}
   if bucket=="stash" and game.LoadoutMaterials.claimed(game,player) and int(counts(game,player,bucket).get(id,0))-amount<mini(int(game.seed_reserve(player).parts[part]),game.LoadoutMaterials.demand(player,part)):return {}
@@ -120,7 +122,7 @@ static func put(game,player: Dictionary,bucket: String,stack: Dictionary) -> voi
 static func transfer(game,player: Dictionary,source: String,target: String,id: String,amount: int) -> String:
  normalize_pouch(player)
  if source==target: return ""
- if player.get("wild",false):
+ if Participation.is_wild(player):
   if source not in ["carry","pouch"] or target not in ["carry","pouch"]: return "Garden storage is unavailable in the Wilds."
  else:
   if source not in ["stash","shared"] or target not in ["stash","shared"]: return "The safe pouch is used during expeditions."
@@ -134,7 +136,7 @@ static func transfer(game,player: Dictionary,source: String,target: String,id: S
  var stack:=take(game,player,source,id,amount)
  if stack.is_empty(): return "That stack changed or is reserved for a weapon. Clear the relevant gate slots and retry."
  put(game,player,target,stack)
- if not player.get("wild",false) and not preload("res://save_batch.gd").guarded_active() and game.progress.save_garden()!=OK:
+ if not Participation.is_wild(player) and not preload("res://save_batch.gd").guarded_active() and game.progress.save_garden()!=OK:
   var restored:=take(game,player,target,id,amount,false);put(game,player,source,restored)
   return "Could not save the transfer. Items were returned."
  return "Moved %d %s."%[amount,definition.name]
