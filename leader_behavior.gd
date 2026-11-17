@@ -105,6 +105,6 @@ static func resolve(game: Node, now: int) -> void:
 	game.tactics.memory.erase(Omens.BRIAR_ATTACK)
 	game.tactics.recovery_bonus = 0
 	var damage := Director.Balance.scout_hit(game, Enemies.get_kind(game.enemy_kind), {"gate_elite": true})
-	game.hit_players(game.tactics.position, strike_radius(game), now, damage)
+	preload("res://enemy_attack_hits.gd").for_world(game, -1).area(game.tactics.position, strike_radius(game), now, damage)
 	game.tactics.active_radius = 0.0
 	game.abandon_if_empty()

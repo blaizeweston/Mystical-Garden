@@ -241,7 +241,7 @@ static func resolve(game: Node, plan: Dictionary, now: int, damage: float) -> vo
     game.apply_enemy_hit(id,player,now,damage,0,plan.from)
  elif charge_clear:
   game.tactics.position=plan.to
-  game.hit_players_charge(plan.from,plan.to,plan.width,plan.radius,now,damage)
+  preload("res://enemy_attack_hits.gd").for_world(game,-1).charge(plan.from,plan.to,plan.width,plan.radius,now,damage)
  for zone in plan.areas:
   game.Bosses.hazard(game,zone.point,zone.radius,now,int(zone.duration),zone.kind,int(zone.delay),damage,plan.get("mode",game.tactics.attack_mode))
  if not str(plan.open).is_empty():

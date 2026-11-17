@@ -2,6 +2,7 @@ extends RefCounted
 # Optional behavior hooks extend the common actor without forking damage/reward rules.
 const Support = preload("res://enemy_support.gd")
 const Attacks = preload("res://enemy_attack.gd")
+const Hits = preload("res://enemy_attack_hits.gd")
 const Feedback = preload("res://enemy_move_feedback.gd")
 const Thief = preload("res://thief_escape.gd")
 const Glasscap = preload("res://glasscap_feint.gd")
@@ -56,8 +57,14 @@ static func support_target(game: Node, scout: Dictionary, allies: Array, anchor:
 
 static func telegraph(game: Node,scout: Dictionary,_now: int) -> void:
  Glasscap.prepare(game,scout)
-static func resolve(game: Node,scout: Dictionary,attack: Dictionary,now: int) -> bool:
+static func _hit_window(game: Node, scout: Dictionary, window: Hits.HitWindow) -> Hits.HitWindow:
+ if window != null: return window
+ var slot: int = -1 if scout.get("gate_elite", false) else game.encounter.scout_slot(scout)
+ return Hits.for_world(game, slot)
+
+static func resolve(game: Node,scout: Dictionary,attack: Dictionary,now: int,window: Hits.HitWindow = null) -> bool:
  var kind:=int(scout.kind)
+ var commitment: Dictionary = attack.get(Attacks.SCOUT_COMMIT,{})
  if attack.mode=="canopy_shift":
   Attacks.SkillResponses.resolve_canopy(game,scout,attack,now)
   return true
@@ -65,25 +72,27 @@ static func resolve(game: Node,scout: Dictionary,attack: Dictionary,now: int) ->
   var spots: Array=attack.spots.filter(func(point):return game.battlefield.projectile_clear(attack.from,point))
   if spots.is_empty():return true
   preload("res://event_audio.gd").enemy(game,attack,true)
+  var hits := _hit_window(game,scout,window)
   for point in spots:
    Feedback.release(game,"burst",attack.from,point,attack.spot_radius,Color("#b9e6f6"))
-   Attacks.hit_players(game,point,attack.spot_radius,now,game.Director.Balance.scout_hit(game,game.Enemies.get_kind(kind),scout),0,true,true)
+   hits.area(point,attack.spot_radius,now,game.Director.Balance.scout_hit(game,game.Enemies.get_kind(kind),scout),0,true,true)
   Glasscap.release(game,scout,now)
   return true
  if kind==17 and attack.mode=="charge":
-  for at in attack.trail:game.Bosses.hazard(game,at,.85,now,2500,"ember",800)
+  for at in attack.trail:game.Bosses.hazard(game,at,.85,now,2500,"ember",800,1.0,"",commitment)
   return true
  if kind==14 and attack.mode=="snare":
   if not attack.spots.is_empty():preload("res://event_audio.gd").enemy(game,attack,true)
-  for point in attack.spots:game.Bosses.hazard(game,point,attack.spot_radius,now,2300,"web",750)
+  for point in attack.spots:game.Bosses.hazard(game,point,attack.spot_radius,now,2300,"web",750,1.0,"",commitment)
   return true
  if kind==5 and attack.mode=="snare" and not attack.spots.is_empty():
   if attack.spots.any(func(point):return game.battlefield.clear_line(attack.from,point)):
    preload("res://event_audio.gd").enemy(game,attack,true)
+  var hits := _hit_window(game,scout,window)
   for point in attack.spots:
    if game.battlefield.clear_line(attack.from,point):
     if attack.get("variant")=="forked_roots":Feedback.release(game,"burst",attack.from,point,attack.spot_radius)
-    game.hit_players(point,attack.spot_radius,now,game.Director.Balance.scout_hit(game,game.Enemies.get_kind(kind),scout),1600)
+    hits.area(point,attack.spot_radius,now,game.Director.Balance.scout_hit(game,game.Enemies.get_kind(kind),scout),1600)
   return true
  if kind==6 and attack.mode=="artillery":
   if attack.patches.any(func(point):return game.battlefield.clear_line(attack.from,point)):
@@ -91,7 +100,7 @@ static func resolve(game: Node,scout: Dictionary,attack: Dictionary,now: int) ->
   for i in attack.patches.size():
    var point: Vector3=attack.patches[i]
    if game.battlefield.clear_line(attack.from,point):
-    game.Bosses.hazard(game,point,attack.radius,now,1650,"spores",650+i*450)
+    game.Bosses.hazard(game,point,attack.radius,now,1650,"spores",650+i*450,1.0,"",commitment)
   return true
  match attack.mode:
   "brood":
@@ -123,7 +132,7 @@ static func resolve(game: Node,scout: Dictionary,attack: Dictionary,now: int) ->
     break
    return true
  if attack.has("follow") and game.battlefield.clear_line(attack.from,attack.follow.point):
-  game.Bosses.hazard(game,attack.follow.point,attack.follow.radius,now,220,"aftershock",attack.follow.delay)
+  game.Bosses.hazard(game,attack.follow.point,attack.follow.radius,now,220,"aftershock",attack.follow.delay,1.0,"",commitment)
  return false
 
 static func interrupt(game: Node, actor: Dictionary, at: Vector3, now: int) -> bool:

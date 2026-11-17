@@ -8,7 +8,9 @@ const PILGRIM_SWEEP := 2.25
 const VAULT_ID := "cover_vault"
 const VAULT_ROLES := ["swipe", "charge", "pounce", "skirmish"]
 const VAULT_WINDUP := 1000
-const CONTACT_PADDING := 0.35
+const CONTACT_PADDING := preload("res://enemy_attack_hits.gd").CONTACT_PADDING
+const SCOUT_COMMIT := &"scout_commit"
+const REQUIRES_SCOUT_COMMIT := &"requires_scout_commit"
 
 static func vault_target(game: Node, actor: Dictionary, target: Vector3) -> Vector3:
  var role: String = Catalog.get_kind(actor.kind).role
@@ -42,16 +44,6 @@ static func try_thorn_vault(game: Node, actor: Dictionary, victim: Vector3, now:
 # Directed volleys have an impact radius, but no authored flight thickness.
 static func attack_sight(field: RefCounted, from: Vector3, to: Vector3, mode: String) -> bool:
  return field.combat_sight(from,to) if mode=="volley" else field.clear_line(from,to)
-
-static func hit_players(game: Node, center: Vector3, radius: float, now: int, damage: float,
-  slow_ms: int, direct_attack: bool, ranged_impact: bool = false) -> void:
- for id in game.players:
-  var player: Dictionary = game.players[id]
-  if not game.Life.alive(player) or center.distance_to(player.pos) > radius:
-   continue
-  var clear: bool = game.battlefield.combat_sight(center,player.pos) if ranged_impact else game.battlefield.clear_line(center,player.pos)
-  if clear:
-   game.apply_enemy_hit(id,player,now,damage,slow_ms,center,direct_attack)
 
 static func aim(game: Node, actor: Dictionary, role: String, player: int) -> Vector3:
  var kind:=int(actor.kind)
@@ -145,15 +137,68 @@ static func try_skill_approach(game: Node, actor: Dictionary, target: Vector3, n
  lock(game,actor,mode,target,now+SkillResponses.MIN_WINDUP,move)
  return true
 
-static func lock(game: Node, actor: Dictionary, mode: String, target: Vector3, until: int, prepared: Dictionary = {}) -> void:
+static func lock(game: Node, actor: Dictionary, mode: String, target: Vector3, until: int,
+  prepared: Dictionary = {}, intent: Dictionary = {}) -> void:
  actor.mode = mode
  actor.attack = prepared if not prepared.is_empty() else plan(game, actor, mode, target)
  if prepared.is_empty():SkillResponses.decorate(game,actor,actor.attack,target)
  actor.blast = actor.attack.to
  actor.windup = maxi(until,Time.get_ticks_msec()+SkillResponses.MIN_WINDUP) if actor.attack.get("learned",false) else until
+ if intent.is_empty():
+  actor.erase(REQUIRES_SCOUT_COMMIT)
+ else:
+  actor[REQUIRES_SCOUT_COMMIT] = true
+  actor.attack[SCOUT_COMMIT] = {
+   "epoch": int(intent.epoch), "slot": int(intent.slot), "token": int(intent.token),
+   "target": int(intent.target), "target_life": int(intent.target_life),
+  }
  preload("res://oracle_omens.gd").begin_attack(game,actor,actor.attack,Time.get_ticks_msec())
  preload("res://wilds_skill_tactics.gd").lock_response(game,actor,actor.attack)
  preload("res://event_audio.gd").enemy(game,actor.attack,false)
+
+## A committed plan is still associated with the same roster member. After contact,
+## the source can be defeated by defense effects without redirecting the attack.
+static func scout_source_current(roster: RefCounted, attack: Dictionary, epoch: int, require_living: bool = false) -> bool:
+ var commit: Dictionary = attack.get(SCOUT_COMMIT, {})
+ if commit.is_empty():
+  return true
+ var slot := int(commit.slot)
+ var token := int(commit.token)
+ return int(commit.epoch) == epoch and slot >= 0 and token > 0 and roster.token(slot) == token \
+  and (not require_living or roster.alive(slot, token))
+
+## Claim the original locked geometry before calling any effects. Keep the route
+## marker after consumption so that a retry cannot rebuild a synthetic attack.
+static func claim_scout_attack(roster: RefCounted, actor: Dictionary, epoch: int, now: int,
+  expected_plan: Dictionary = {}, expected_due: int = -1) -> Dictionary:
+ var due := int(actor.get("windup", 0))
+ if due <= 0 or now < due or (expected_due >= 0 and due != expected_due):
+  return {}
+ var attack: Dictionary = actor.get("attack", {})
+ if not expected_plan.is_empty() and not is_same(attack, expected_plan):
+  return {}
+ var commit: Dictionary = attack.get(SCOUT_COMMIT, {})
+ actor.windup = 0
+ actor.erase("attack")
+ if commit.is_empty() or attack.get("mode") != actor.mode:
+  return {}
+ if not scout_source_current(roster, attack, epoch, true) or not is_same(roster.scout(int(commit.slot)), actor):
+  return {}
+ return attack
+
+## Nightbloom reuses the original locked point and source. Its new due time
+## belongs to the next pulse, so a callback for the first pulse cannot claim it.
+static func rearm_scout_attack(roster: RefCounted, actor: Dictionary, attack: Dictionary,
+  epoch: int, due: int) -> bool:
+ var commit: Dictionary = attack.get(SCOUT_COMMIT, {})
+ if not commit.is_empty():
+  if not scout_source_current(roster, attack, epoch, true) or not is_same(roster.scout(int(commit.slot)), actor):
+   return false
+  if int(actor.get("windup", 0)) > 0 or actor.has("attack"):
+   return false
+ actor.attack = attack
+ actor.windup = due
+ return true
 
 static func current(game: Node, actor: Dictionary) -> Dictionary:
  var saved: Dictionary = actor.get("attack", {})
@@ -161,6 +206,28 @@ static func current(game: Node, actor: Dictionary) -> Dictionary:
   return saved
  # Synthetic fixtures and legacy direct calls may supply a mode and target.
  return plan(game, actor, str(actor.mode), actor.blast)
+
+## Use the same locked plan for release and warning projection. Scripted
+## moves can still supply their own authored geometry through the fallback.
+static func scout_hints(roster: RefCounted, epoch: int, now: int, fallback: Callable) -> Array:
+ var result: Array = []
+ for slot in roster.scout_count():
+  if not roster.alive(slot):
+   continue
+  var actor: Dictionary = roster.scout(slot)
+  var due := int(actor.windup)
+  if due <= 0:
+   continue
+  var attack: Dictionary
+  if actor.get(REQUIRES_SCOUT_COMMIT, false):
+   attack = actor.get("attack", {})
+   if attack.get(SCOUT_COMMIT, {}).is_empty() or attack.get("mode") != actor.mode \
+     or not scout_source_current(roster, attack, epoch, true):
+    continue
+  else:
+   attack = fallback.call(actor)
+  result.append_array(hints(attack, slot, maxf(0, (due-now)/1000.0)))
+ return result
 
 static func hints(attack: Dictionary, id: int, remaining: float) -> Array:
  var from: Vector3 = attack.from

@@ -344,7 +344,8 @@ static func resolve_choir(game: Node, actor: Dictionary, attack: Dictionary, now
  if visible_allies(game,actor,attack.from,attack.radius).is_empty():return
  preload("res://event_audio.gd").enemy(game,attack,true)
  if attack.span<=0:
-  game.hit_players(attack.from,attack.radius,now,damage,500)
+  var slot: int = -1 if actor.get("gate_elite",false) else game.encounter.scout_slot(actor)
+  preload("res://enemy_attack_hits.gd").for_world(game,slot).area(attack.from,attack.radius,now,damage,500)
   return
  hit_choir_sector(game,attack.from,attack,now,damage)
  if not attack.get("second_beat",false):

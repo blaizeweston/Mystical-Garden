@@ -222,11 +222,12 @@ static func interrupt(game: Node, at: Vector3, now: int) -> bool:
 static func resolve(game: Node, plan: Dictionary, now: int, damage: float) -> void:
  if plan.is_empty():return
  var released: bool = not plan.areas.is_empty()
+ var hits := preload("res://enemy_attack_hits.gd").for_world(game,-1)
  for attack in plan.lanes:
   if not game.battlefield.clear_line(attack.from,attack.to,game.Battlefield.CLEARANCE):continue
   released=true
   if attack.travels:game.tactics.position=attack.to
-  game.hit_players_charge(attack.from,attack.to,attack.width,attack.radius,now,damage)
+  hits.charge(attack.from,attack.to,attack.width,attack.radius,now,damage)
   var color:=Color("#baaceb") if game.tactics.boss_kind==BLOOM else Color("#c7bd88")
   game.emit_combat_event("swing","thrust",attack.from,attack.to,.36,color,Vector3(attack.from).distance_to(attack.to),0)
  for patch in plan.areas:

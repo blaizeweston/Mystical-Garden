@@ -6,6 +6,7 @@ const Catalog=preload("res://enemy_catalog.gd")
 const Lair=preload("res://boss_lair_fights.gd")
 const Phases=preload("res://boss_phase_fights.gd")
 const Orchard=preload("res://orchard_moves.gd")
+const Hits=preload("res://enemy_attack_hits.gd")
 static func choose(floor_number: int,site: int,seed_value: int,used: Array) -> int:
  if site>=3 or floor_number<FIRST_FLOOR: return -1
  var preview=preload("res://combat_balance_preview.gd")
@@ -72,7 +73,8 @@ static func tick(game: Node,delta: float,now: int) -> void:
   return
  if Phases.supports(game.tactics.boss_kind):
   Phases.commit(game,next_move,target,now)
-static func hazard(game: Node,point: Vector3,radius: float,now: int,duration: int,kind: String,delay: int=900,damage: float=1.0,boss_move: String="") -> void:
+static func hazard(game: Node,point: Vector3,radius: float,now: int,duration: int,kind: String,delay: int=900,
+ damage: float=1.0,boss_move: String="",commitment: Dictionary={}) -> void:
  var reserved:=0
  if game.tactics.winding_up and game.encounter.hp(-1)>0:
   var plan: Dictionary=game.tactics.memory.get("lair_plan",game.tactics.memory.get("phase_plan",{}))
@@ -80,7 +82,9 @@ static func hazard(game: Node,point: Vector3,radius: float,now: int,duration: in
  if game.enemy_hazards.size()>=32-reserved: return
  game.enemy_hazard_serial+=1
  var hit: float=game.Director.Balance.hazard_hit(game,kind,damage,boss_move)
- game.enemy_hazards.append({"id":game.enemy_hazard_serial,"point":point,"radius":radius,"activate":now+delay,"until":now+delay+duration,"next":now+delay,"kind":kind,"damage":hit})
+ var entry := {"id":game.enemy_hazard_serial,"point":point,"radius":radius,"activate":now+delay,"until":now+delay+duration,"next":now+delay,"kind":kind,"damage":hit}
+ if not commitment.is_empty(): entry.source_commitment=commitment.duplicate()
+ game.enemy_hazards.append(entry)
 static func resolve(game: Node,now: int) -> void:
  var damage: float=game.Director.Balance.boss_hit(game,game.Enemies.get_kind(game.tactics.boss_kind),game.tactics.attack_mode)
  game.tactics.winding_up=false
@@ -102,12 +106,19 @@ static func resolve(game: Node,now: int) -> void:
   game.tactics.ready_at=preload("res://oracle_omens.gd").release_attack(game.tactics.memory,plan,game.tactics.ready_at)
 
 static func tick_hazards(game: Node,now: int) -> void:
+ if game.enemy_hazards.is_empty(): return
  if game.encounter.hp(-1)<=0 and game.tactics.boss_kind>=0: game.enemy_hazards.clear();return
+ var floor_hits := Hits.for_world(game)
  for entry in game.enemy_hazards.duplicate():
+  if not floor_hits.source_is_current(): return
   if now>=int(entry.until): game.enemy_hazards.erase(entry);continue
+  var commitment: Dictionary = entry.get("source_commitment",{})
+  if not commitment.is_empty() and not Hits.commitment_is_current(game,commitment):
+   game.enemy_hazards.erase(entry);continue
   if now<int(entry.next): continue
   entry.next=now+1000
-  game.hit_players(entry.point,float(entry.radius),now,float(entry.damage),700 if str(entry.kind) in ["nest","lair_pool","web"] else 0,false)
+  var hits := floor_hits if commitment.is_empty() else Hits.for_commitment(game,commitment)
+  hits.area(entry.point,float(entry.radius),now,float(entry.damage),700 if str(entry.kind) in ["nest","lair_pool","web"] else 0,false)
 static func hints(game: Node) -> Array:
  var now:=Time.get_ticks_msec()
  var result:=Lair.hints(game,now)

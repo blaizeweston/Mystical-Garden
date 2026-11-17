@@ -2651,9 +2651,6 @@ func scout_snapshot(now: int) -> PackedFloat32Array:
 	return encounter.scout_pack(now)
 
 
-func hit_players(center: Vector3, radius: float, now: int, damage: float = -1.0, slow_ms: int = 0, direct_attack := true) -> void:
-	preload("res://enemy_attack.gd").hit_players(self,center,radius,now,damage,slow_ms,direct_attack)
-
 func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: int=0,origin: Vector3=Vector3.INF,direct_attack := true) -> void:
 	if not Life.alive(player) or not Transactions.session_writable(self): return
 	if now<int(player.get("hurt_until",0)): return
@@ -2675,6 +2672,11 @@ func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: 
 	var wood = preload("res://wood_affinity.gd")
 	var bark := {}
 	var hit_epoch := combat_epoch
+	var apply_grace := func(effects) -> void:
+		var omens = preload("res://oracle_omens.gd")
+		preload("res://combat_status.gd").incoming_grace(player,now,slow_ms,int(Director.config().hit_grace_ms),
+			func() -> bool: return player.has(omens.STATE) and omens.prevent_slow(self,player,now),
+			func() -> void: action_feedback(effects,id,"Slowed."))
 	if has_meta(&"combat_affinity_ruleset"):
 		hp = preload("res://water_combat.gd").direct_damage(self,hp)
 		if direct_attack:
@@ -2686,12 +2688,12 @@ func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: 
 		if hp>=int(player[PlayerVitals.STATE].hp()):
 			run_guarded_action(id, Transactions.Scope.PAIR, func(effects):
 				wood.consume(player,bark)
-				apply_hit_grace(id,player,now,slow_ms,effects)
+				apply_grace.call(effects)
 				_damage_player(id,player,hp,effects)
 				if not bark.is_empty(): effects.append(wood.after_hit.bind(self,id,hit_epoch,bark,now)))
 			return
 	wood.consume(player,bark)
-	apply_hit_grace(id,player,now,slow_ms)
+	apply_grace.call(null)
 	var before_hp: float = player[PlayerVitals.STATE].hp()
 	damage_player(id,player,hp)
 	if has_meta(&"combat_affinity_ruleset") and Life.alive(player) and player[PlayerVitals.STATE].hp() < before_hp:
@@ -2701,16 +2703,6 @@ func apply_enemy_hit(id: int,player: Dictionary,now: int,damage: float,slow_ms: 
 		preload("res://frost_combat.gd").incoming(self,player,id,now)
 		preload("res://fire_combat.gd").incoming(self,player,id,now)
 	wood.after_hit(self,id,hit_epoch,bark,now)
-
-func apply_hit_grace(id: int,player: Dictionary,now: int,slow_ms: int,effects = null) -> void:
-	if slow_ms>0:
-		var omens = preload("res://oracle_omens.gd")
-		if not (player.has(omens.STATE) and now+slow_ms>int(player.get("slow_until",0)) and omens.prevent_slow(self,player,now)):
-			player.slow_until=now+slow_ms
-			action_feedback(effects,id,"Slowed.")
-	player.hurt_until=now+int(Director.config().hit_grace_ms)
-
-
 
 func damage_player(id: int, player: Dictionary, amount: int) -> void:
 	if has_meta(Transactions.SESSION):
@@ -5436,12 +5428,9 @@ func attack_hints_snapshot() -> Array:
 	if enemy_health()>0 and tactics.winding_up and not Bosses.owns_warnings(tactics.boss_kind) and (tactics.boss_kind>=0 or encounter.leader_tactics().is_empty()):
 		var target:=tactics.landing if tactics.attack_mode=="vault" or tactics.boss_kind>=0 else tactics.position
 		result.append({"id":-1,"role":("charge" if tactics.attack_mode in ["root_sweep","orchard_march","drowned_surge","matriarch_lunge","memory_lance","remembered_rend"] else "volley") if tactics.boss_kind>=0 else "vault" if tactics.attack_mode=="vault" else "swipe","from":[tactics.position.x,0,tactics.position.z],"to":[target.x,0,target.z],"radius":Bosses.warning_radius(self) if tactics.boss_kind>=0 else LeaderBehavior.strike_radius(self),"width":Bosses.warning_width(self) if tactics.boss_kind>=0 else .85,"remaining":maxf(0,(tactics.strike_at-Time.get_ticks_msec())/1000.0)})
-	for index in encounter.scout_count():
-		var scout: Dictionary=encounter.scout(index)
-		if encounter.hp(index)<=0 or int(scout.windup)<=0: continue
-		var attacks = preload("res://enemy_attack.gd")
-		result.append_array(attacks.hints(attacks.current(self,scout),index,maxf(0,(int(scout.windup)-Time.get_ticks_msec())/1000.0)))
 	var attacks=preload("res://enemy_attack.gd")
+	result.append_array(attacks.scout_hints(encounter,combat_epoch,Time.get_ticks_msec(),
+		func(scout: Dictionary) -> Dictionary: return attacks.current(self,scout)))
 	if enemy_kind==11 and enemy_health()>0 and tactics.engaged and encounter.leader_tactics().get("attack",{}).get("variant","")!="planted_canopy":
 		result.append(attacks.warning(-2000,"canopy",tactics.position,tactics.position,float(Enemies.get_kind(11).shelter_radius),0,0))
 	for index in encounter.scout_count():
@@ -5453,16 +5442,6 @@ func attack_hints_snapshot() -> Array:
 	result.append_array(preload("res://thorn_affinity.gd").hints(self))
 	result.append_array(preload("res://warden_combat.gd").hints(self,Time.get_ticks_msec()))
 	return result
-
-func hit_players_charge(from: Vector3,to: Vector3,width: float,landing_radius: float,now: int,damage: float) -> void:
-	for id in players:
-		var player: Dictionary=players[id]
-		if not Life.alive(player): continue
-		var nearest:=Geometry3D.get_closest_point_to_segment(player.pos,from,to)
-		if player.pos.distance_to(nearest)<=width+.35 or player.pos.distance_to(to)<=landing_radius+.35:
-			if battlefield.clear_line(nearest,player.pos): apply_enemy_hit(id,player,now,damage,0,from)
-
-
 
 func build_planting_panel() -> void:
 	planting_menu=hud_panel(overlay,Color("#14262b"),Vector2(20,14));planting_view=preload("res://planting_panel.gd").new();planting_view.game=self;planting_menu.add_child(planting_view)

@@ -152,6 +152,15 @@ static func proc(game: Node,kind: String,from: Vector3,to: Vector3,target: int=-
  game.emit_combat_event("proc",kind,from,to,.55,tint(kind),reach,target,{"height":height})
 
 
+## Apply the existing post-hit grace and Slow to the affected actor. Relevant
+## class prevention and feedback are supplied by the defending hit boundary.
+static func incoming_grace(player: Dictionary, now: int, slow_ms: int, grace_ms: int,
+  prevent_slow: Callable, notify_slow: Callable) -> void:
+ if slow_ms>0 and not (now+slow_ms>int(player.get("slow_until",0)) and prevent_slow.call()):
+  player.slow_until=now+slow_ms
+  notify_slow.call()
+ player.hurt_until=now+grace_ms
+
 static func root(game: Node, target: int, until: int) -> void:
  preload("res://wilds_skill_tactics.gd").root_denied(game,target,Time.get_ticks_msec())
  if target == -1:

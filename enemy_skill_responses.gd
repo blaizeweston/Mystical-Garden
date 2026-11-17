@@ -187,18 +187,3 @@ static func touches_line(line: Dictionary, from: Vector3, to: Vector3) -> bool:
 
 static func move_still_valid(actor: Dictionary, attack: Dictionary, now: int) -> bool:
 	return now >= int(actor.rooted_until) and Vector3(actor.pos).distance_squared_to(attack.from) < .65 * .65
-
-
-static func hit_bent_charge(game: Node, attack: Dictionary, now: int, damage: float, padding: float) -> void:
-	for id in game.players:
-		var player: Dictionary = game.players[id]
-		if not game.Life.alive(player):
-			continue
-		var first := Geometry3D.get_closest_point_to_segment(player.pos, attack.from, attack.via)
-		var second := Geometry3D.get_closest_point_to_segment(player.pos, attack.via, attack.to)
-		var point: Vector3 = player.pos
-		var width := float(attack.width) + padding
-		var contact: bool = (point.distance_to(first) <= width and game.battlefield.clear_line(first, point)) or (point.distance_to(second) <= width and game.battlefield.clear_line(second, point))
-		var landed: bool = point.distance_to(attack.to) <= float(attack.radius) + padding and game.battlefield.clear_line(attack.to, point)
-		if contact or landed:
-			game.apply_enemy_hit(id, player, now, damage, 0, attack.from)

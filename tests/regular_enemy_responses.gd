@@ -321,6 +321,115 @@ func check_scout_attack_intent() -> void:
 
 
 
+func schedule_scout_swipe(now: int) -> Dictionary:
+	var actor := setup(0, Tactics.REGULAR_RESPONSES[0])
+	player.pos = Vector3(0, 0, -1.0)
+	player.guard_until = 0
+	player.guard_charges = 0
+	var definition: Dictionary = game.Enemies.get_kind(actor.kind)
+	var observation := ScoutBehavior.attack_observation(0, game.encounter.token(0), game.combat_epoch, 1,
+		actor.pos, player.pos, definition.role, float(definition.range), int(actor.ready), now,
+		PlayerLifecycle.generation(player))
+	ScoutBehavior.apply_attack_intent(game, observation, ScoutBehavior.choose_attack(observation), now)
+	check(int(actor.windup) > now and not Attacks.hints(actor.get("attack", {}), 0, 1.0).is_empty(),
+		"the scheduled scout swipe keeps its ordinary telegraph")
+	return actor
+
+
+func check_scheduled_scout_release() -> void:
+	var now := Time.get_ticks_msec()
+	var definition: Dictionary = game.Enemies.get_kind(0)
+	var actor := schedule_scout_swipe(now)
+	var due := int(actor.windup)
+	var hp := PlayerVitals.current_hp(player)
+	var sequence := int(player.damage_seq)
+	ScoutBehavior.release(game, actor, definition, due - 1)
+	check(PlayerVitals.current_hp(player) == hp and int(actor.windup) == due,
+		"the scheduled swipe cannot strike before the telegraph deadline")
+	ScoutBehavior.tick(game, 0.0, due)
+	check(PlayerVitals.current_hp(player) < hp and int(player.damage_seq) == sequence + 1,
+		"the production scout tick resolves the committed swipe once")
+	player.hurt_until = 0
+	ScoutBehavior.release(game, actor, definition, due)
+	check(int(player.damage_seq) == sequence + 1,
+		"retrying a consumed swipe cannot deal damage, even without player hit grace")
+
+	actor = schedule_scout_swipe(now)
+	due = int(actor.windup)
+	sequence = int(player.damage_seq)
+	player.pos = Vector3.RIGHT * 5.0
+	game.add_player(2)
+	var bystander: Dictionary = game.players[2]
+	bystander.wild = true
+	bystander.pos = Vector3(0, 0, -1.0)
+	ScoutBehavior.release(game, actor, definition, due)
+	check(int(player.damage_seq) == sequence and int(bystander.damage_seq) == 1,
+		"the committed geometry misses a moved target and reaches another occupant")
+
+	actor = schedule_scout_swipe(now)
+	due = int(actor.windup)
+	sequence = int(player.damage_seq)
+	var old_life: PlayerLifecycle.Life = player[PlayerLifecycle.STATE]
+	player[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
+	bystander.hurt_until = 0
+	ScoutBehavior.release(game, actor, definition, due)
+	check(int(player.damage_seq) == sequence and int(bystander.damage_seq) == 2,
+		"the old target life is excluded while current bystanders can still be hit")
+	player[PlayerLifecycle.STATE] = old_life
+	game.remove_player(2)
+
+	actor = schedule_scout_swipe(now)
+	due = int(actor.windup)
+	actor.windup = 0
+	actor.erase("attack")
+	ScoutBehavior.release(game, actor, definition, due)
+	check(int(player.damage_seq) == sequence, "a cancelled telegraph cannot strike at its old deadline")
+
+	actor = schedule_scout_swipe(now)
+	due = int(actor.windup)
+	game.combat_epoch += 1
+	ScoutBehavior.release(game, actor, definition, due)
+	check(int(player.damage_seq) == sequence, "a scheduled attack from the previous floor is refused")
+
+	actor = schedule_scout_swipe(now)
+	due = int(actor.windup)
+	var replacement: Dictionary = game.make_scout(0, actor.pos, 1)
+	game.encounter.register_scout(replacement, 0)
+	ScoutBehavior.release(game, actor, definition, due)
+	check(int(player.damage_seq) == sequence and not replacement.has("attack"),
+		"a reused scout slot cannot release its previous occupant's plan")
+
+
+func check_scheduled_scout_hazard() -> void:
+	var now := Time.get_ticks_msec()
+	var actor := schedule_scout_swipe(now)
+	var commitment: Dictionary = actor.attack[Attacks.SCOUT_COMMIT]
+	game.Bosses.hazard(game, player.pos, 1.3, now, 3000, "web", 200, 1.0, "", commitment)
+	check(game.enemy_hazards.size() == 1, "a committed scout can arm a delayed hazard")
+	if game.enemy_hazards.size() != 1:
+		return
+	var entry: Dictionary = game.enemy_hazards[0]
+	var activation := int(entry.activate)
+	game.add_player(2)
+	var bystander: Dictionary = game.players[2]
+	bystander.wild = true
+	bystander.pos = player.pos
+	var original_life: PlayerLifecycle.Life = player[PlayerLifecycle.STATE]
+	var sequence := int(player.damage_seq)
+	player[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
+	game.Bosses.tick_hazards(game, activation)
+	check(int(player.damage_seq) == sequence and int(bystander.damage_seq) == 1 and int(entry.next) == activation + 1000,
+		"the first hazard tick excludes the old target life and rearms for current bystanders")
+	player[PlayerLifecycle.STATE] = original_life
+	bystander.hurt_until = 0
+	var replacement: Dictionary = game.make_scout(0, actor.pos, 1)
+	game.encounter.register_scout(replacement, 0)
+	game.Bosses.tick_hazards(game, int(entry.next))
+	check(game.enemy_hazards.is_empty() and int(bystander.damage_seq) == 1 and int(player.damage_seq) == sequence,
+		"the delayed follow-up expires when a new scout reuses its source slot")
+	game.remove_player(2)
+
+
 func run() -> void:
 	game = load("res://world.tscn").instantiate()
 	game.progress.path = "res://.godot/regular-enemy-responses-" + str(Time.get_ticks_usec()) + ".cfg"
@@ -331,6 +440,8 @@ func run() -> void:
 	player = game.players[1]
 	game.progress.wilds_memory.score = {Tactics.CAST_DENIAL: 6, Tactics.ROUTE_DENIAL: 6, Tactics.SHELTER_BREAK: 6}
 	check_scout_attack_intent()
+	check_scheduled_scout_release()
+	check_scheduled_scout_hazard()
 	check_roster()
 	check_counterplay()
 	check_memory()

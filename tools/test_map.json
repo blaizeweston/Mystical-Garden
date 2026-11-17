@@ -10,7 +10,7 @@
     "player_cooldowns": {"label": "Host-owned native Q, R and dodge cooldown deadlines", "files": ["player_cooldowns.gd", "player_cooldowns.gd.uid"]},
     "expedition_wallet": {"label": "Run-only Essence sparks, floor grants and spending", "files": ["expedition_wallet.gd", "expedition_wallet.gd.uid"]},
     "affinity_cards": {"label": "Affinity expedition card ledger, rarity, Essence rerolls and owned effects", "files": ["affinity_cards.gd", "affinity_cards.gd.uid", "affinity_card_ledger.gd", "affinity_card_ledger.gd.uid", "affinity_card_catalog.gd", "affinity_card_catalog.gd.uid"]},
-    "oracle_progression": {"label": "Connected Oracle, native Omens and first-run focus admission", "files": ["oracle_connected_tree.gd", "oracle_connected_tree.gd.uid", "oracle_combat.gd", "oracle_combat.gd.uid", "oracle_omens.gd", "oracle_omens.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid"]},
+    "oracle_progression": {"label": "Connected Oracle, native Omens and first-run focus admission", "files": ["oracle_connected_tree.gd", "oracle_connected_tree.gd.uid", "oracle_combat.gd", "oracle_combat.gd.uid", "oracle_omens.gd", "oracle_omens.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid", "combat_status.gd", "combat_status.gd.uid"]},
     "void_affinity": {"label":"Void wells, compression and bounded displacement", "files":["void_affinity.gd","void_affinity.gd.uid"]},
     "spirit_affinity": {"label":"Spirit stride, traces and attack claims", "files":["spirit_affinity.gd","spirit_affinity.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid"]},
     "storm_affinity": {"label": "Storm discharge and source-owned charges", "files": ["storm_affinity.gd", "storm_affinity.gd.uid"]},
@@ -53,7 +53,9 @@
         "leader_behavior.gd",
         "leader_behavior.gd.uid",
         "scout_behavior.gd",
-        "scout_behavior.gd.uid"
+        "scout_behavior.gd.uid",
+        "enemy_attack_hits.gd",
+        "enemy_attack_hits.gd.uid"
       ]
     },
     "plant_affinities": {
@@ -64,7 +66,9 @@
       "label": "Standalone M02 hex grid, terrain data, generator and welded surface",
       "files": [
         "scout_behavior.gd",
-        "scout_behavior.gd.uid"
+        "scout_behavior.gd.uid",
+        "enemy_attack_hits.gd",
+        "enemy_attack_hits.gd.uid"
       ]
     },
     "persistence_operations": {
@@ -171,7 +175,9 @@
         "class_experience.gd.uid",
         "class_catalog.gd",
         "skill_catalog.gd",
-        "combat_traits.gd"
+        "combat_traits.gd",
+        "enemy_attack_hits.gd",
+        "enemy_attack_hits.gd.uid"
       ]
     },
     "combat": {
@@ -185,7 +191,9 @@
         "weapon_contact.gd",
         "weapon_contact.gd.uid",
         "combat_status.gd",
-        "combat_status.gd.uid"
+        "combat_status.gd.uid",
+        "enemy_attack_hits.gd",
+        "enemy_attack_hits.gd.uid"
       ]
     },
     "enemies": {
@@ -258,7 +266,9 @@
       "label": "Damage, fallen state, revival and spectating",
       "files": [
         "expedition_life.gd",
-        "spectator_view.gd"
+        "spectator_view.gd",
+        "combat_status.gd",
+        "combat_status.gd.uid"
       ]
     },
     "characters": {
@@ -632,7 +642,9 @@
         "subclass_combat.gd",
         "subclass_combat.gd.uid",
         "subclass_visuals.gd",
-        "subclass_visuals.gd.uid"
+        "subclass_visuals.gd.uid",
+        "enemy_attack_hits.gd",
+        "enemy_attack_hits.gd.uid"
       ]
     },
     "weaver_progression": {
@@ -792,7 +804,9 @@
         "leader_behavior.gd",
         "leader_behavior.gd.uid",
         "scout_behavior.gd",
-        "scout_behavior.gd.uid"
+        "scout_behavior.gd.uid",
+        "enemy_attack_hits.gd",
+        "enemy_attack_hits.gd.uid"
       ]
     },
     "expedition_sustain": {
@@ -818,7 +832,8 @@
         "enemy_formation.gd",
         "enemy_formation.gd.uid"
       ]
-    }
+    },
+    "enemy_attack_execution": {"label": "Host enemy attack execution, scheduled identity and detached contacts", "files": ["enemy_attack.gd", "enemy_attack.gd.uid", "enemy_attack_hits.gd", "enemy_attack_hits.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid", "combat_status.gd", "combat_status.gd.uid"]}
   },
   "asset_rules": {
     "assets/terrain_m02/**": ["hex_terrain"],
@@ -1003,10 +1018,6 @@
     "revive_player": [
       "life",
       "persistence_operations"
-    ],
-    "apply_hit_grace": [
-      "combat",
-      "life"
     ],
     "activate_checkpoint": [
       "expeditions",
@@ -1352,9 +1363,6 @@
     "scout_snapshot": [
       "enemies",
       "encounter_roster"
-    ],
-    "hit_players": [
-      "combat"
     ],
     "apply_enemy_hit": [
       "life"
@@ -1777,9 +1785,6 @@
       "presentation",
       "enemy_attack_plan"
     ],
-    "hit_players_charge": [
-      "combat"
-    ],
     "build_planting_panel": [
       "seeds"
     ],
@@ -1862,7 +1867,7 @@
   "suites": {
     "encounter_roster": {"kind":"unit","systems":["encounter_roster","enemies","combat","world_snapshot", "enemy_tactics"],"package":true},
     "ec01_affinity_cards_party": {"kind": "party", "systems": ["player_cooldowns", "expedition_wallet", "ui_copy", "expedition_summary", "expedition_grafts", "affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "connection_flow", "world_snapshot", "hex_terrain", "encounter_roster"], "package": false},
-    "ec01_affinity_cards": {"kind": "unit", "systems": ["player_vitals", "player_cooldowns", "expedition_wallet", "ui_copy", "expedition_summary", "expedition_grafts", "affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "life", "weapons"], "package": false},
+    "ec01_affinity_cards": {"kind": "unit", "systems": ["player_vitals", "player_cooldowns", "expedition_wallet", "ui_copy", "expedition_summary", "expedition_grafts", "affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "life", "weapons", "enemy_attack_execution"], "package": false},
     "ct05_oracle": {"kind": "unit", "systems": ["player_lifecycle", "player_cooldowns", "oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim", "enemy_tactics"], "package": false},
     "ct05_oracle_coop": {"kind": "pair", "systems": ["oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim", "connection_flow", "world_snapshot", "hex_terrain"], "package": false},
     "ct05_oracle_party": {"kind": "party", "systems": ["oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim", "connection_flow", "world_snapshot", "hex_terrain"], "package": false},
@@ -1877,7 +1882,7 @@
     "ct04_reaper": {"kind":"unit","systems":["player_cooldowns","expedition_grafts", "reaper_progression","warden_progression","ranger_progression","classes","class_tree_access","combat_affinity_contracts","combat","life","terrain","ability_aim"],"package":false},
     "ct04_reaper_coop": {"kind":"pair","systems":["reaper_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life","hex_terrain"],"package":false},
     "ct04_reaper_party": {"kind":"party","systems":["reaper_progression","warden_progression","weaver_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life","hex_terrain"],"package":false},
-    "cr05_native_grafts": {"kind":"unit","systems":["player_lifecycle", "expedition_wallet", "expedition_grafts", "affinity_cards", "combat_affinity_contracts","weapons","classes","combat","life"],"package":false},
+    "cr05_native_grafts": {"kind":"unit","systems":["player_lifecycle", "expedition_wallet", "expedition_grafts", "affinity_cards", "combat_affinity_contracts","weapons","classes","combat","life", "enemy_attack_execution"],"package":false},
     "cr05_native_grafts_coop": {"kind":"pair","systems":["expedition_grafts", "combat_affinity_contracts","weapons","classes","connection_flow","world_snapshot"],"package":false},
     "cr05_native_grafts_party": {"kind":"party","systems":["expedition_grafts", "combat_affinity_contracts","weapons","classes","connection_flow","world_snapshot"],"package":false},
     "cr04c_void": {"kind":"unit","systems":["void_affinity","core_combat","combat_affinity_contracts","combat"],"package":false},
@@ -1889,12 +1894,12 @@
     "cr04c_storm_coop": {"kind": "pair", "systems": ["storm_affinity","combat_affinity_contracts","core_combat","connection_flow","world_snapshot"], "package": false},
     "world_snapshot_codec": {
       "kind": "unit",
-      "systems": ["player_lifecycle", "player_vitals", "player_cooldowns", "expedition_wallet", "world_snapshot", "connection_flow", "presentation", "encounter_roster", "enemy_tactics"],
+      "systems": ["player_lifecycle", "player_vitals", "player_cooldowns", "expedition_wallet", "world_snapshot", "connection_flow", "presentation", "encounter_roster", "enemy_tactics", "enemy_attack_execution"],
       "package": false
     },
     "cr04b_wood": {
       "kind": "unit",
-      "systems": ["wood_affinity", "thorn_affinity", "combat_affinity_contracts", "core_combat", "combat", "classes", "life", "weapons"],
+      "systems": ["wood_affinity", "thorn_affinity", "combat_affinity_contracts", "core_combat", "combat", "classes", "life", "weapons", "enemy_attack_execution"],
       "package": false
     },
     "cr04b_wood_coop": {
@@ -1998,7 +2003,8 @@
         "connection_flow",
         "garden",
         "encounter_roster",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -2201,7 +2207,8 @@
         "characters",
         "event_audio",
         "encounter_roster",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -2226,7 +2233,8 @@
         "characters",
         "event_audio",
         "encounter_roster",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -2390,7 +2398,8 @@
         "combat_balance_preview",
         "enemy_balance",
         "encounter_roster",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -2408,7 +2417,8 @@
         "combat_balance_preview",
         "enemy_balance",
         "encounter_roster",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -2428,7 +2438,8 @@
         "combat_vitals",
         "enemy_balance",
         "encounter_roster",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -2448,7 +2459,8 @@
         "boss_phase_fights",
         "enemy_balance",
         "encounter_roster",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -2584,7 +2596,8 @@
         "enemy_attack_plan",
         "ranged_release",
         "encounter_roster",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": false
     },
@@ -2987,7 +3000,8 @@
         "healing_rolls",
         "enemy_balance",
         "encounter_roster",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -3117,7 +3131,8 @@
         "expedition_sustain",
         "diagnostics",
         "encounter_roster",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -3425,7 +3440,8 @@
         "thief_escape",
         "glasscap_feints",
         "enemy_balance",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -3442,7 +3458,8 @@
         "wilds_skill_tactics",
         "thief_escape",
         "enemy_balance",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -3487,7 +3504,8 @@
         "combat",
         "presentation",
         "combat_vitals",
-        "combat_balance_preview"
+        "combat_balance_preview",
+        "enemy_attack_execution"
       ],
       "package": false
     },
@@ -3660,7 +3678,8 @@
         "enemy_attack_plan",
         "thief_escape",
         "encounter_roster",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -3679,7 +3698,7 @@
       ],
       "package": true
     },
-    "projectile_terrain": {"kind": "unit", "systems": ["combat","terrain","hex_terrain","ability_aim","classes","core_combat","enemy_attack_plan", "encounter_roster", "enemy_tactics"], "package": false},
+    "projectile_terrain": {"kind": "unit", "systems": ["combat","terrain","hex_terrain","ability_aim","classes","core_combat","enemy_attack_plan", "encounter_roster", "enemy_tactics", "enemy_attack_execution"], "package": false},
     "mouse_combat_coop": {
       "kind": "pair",
       "systems": [
@@ -3747,7 +3766,8 @@
         "garden_care",
         "cultivation_growth",
         "avatar_motion_view",
-        "characters"
+        "characters",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -4105,7 +4125,8 @@
         "healing_rolls",
         "enemy_balance",
         "encounter_roster",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -4318,7 +4339,8 @@
         "thief_escape",
         "enemy_balance",
         "encounter_roster",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -4334,7 +4356,8 @@
         "glasscap_feints",
         "enemy_balance",
         "encounter_roster",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -4448,7 +4471,8 @@
         "combat_vitals",
         "combat_balance_preview",
         "encounter_roster",
-        "enemy_tactics"
+        "enemy_tactics",
+        "enemy_attack_execution"
       ],
       "package": true
     },
@@ -5510,7 +5534,9 @@
     ],
     ["encounter_roster", "enemy_tactics", "Tick and release against the live floor epoch and spawn identity"],
     ["enemy_tactics", "enemy_attack_plan", "Validate and commit a world-aware intent through ordinary telegraphs and attack plans"],
-    ["enemy_tactics", "world_snapshot", "Project leader position, warning geometry and active boss phase"]
+    ["enemy_tactics", "world_snapshot", "Project leader position, warning geometry and active boss phase"],
+    ["enemy_tactics", "enemy_attack_execution", "Claim the scheduled attack with current floor and spawn identity"],
+    ["enemy_attack_execution", "combat", "Deliver a current player-life contact to existing defense and health resolution"]
   ],
   "game_regions": {
     "_queue_monster_reward": {"ar08_lifecycle_1": {"match": "\t\t\t\t\"profile_ready\": player.get(\"profile_ready\", false), \"wild\": player.get(\"wild\", false), \"fallen\": PlayerLifecycle.fallen(player),\n", "baseline": "\t\t\t\t\"profile_ready\": player.get(\"profile_ready\", false), \"wild\": player.get(\"wild\", false), \"fallen\": player.get(\"fallen\", false),\n", "systems": ["player_lifecycle"], "additive": true}},
@@ -5522,9 +5548,6 @@
     "attempt_graft": {"ga01a_1": {"match": "func attempt_graft(id: int, player: Dictionary, requested: int = -1) -> bool:\n\tif has_meta(&\"combat_affinity_ruleset\"): return false\n\tif has_meta(Transactions.SESSION):\n", "baseline": "func attempt_graft(id: int, player: Dictionary, requested: int = -1) -> bool:\n\tif has_meta(Transactions.SESSION):\n", "systems": ["expedition_grafts"], "additive": true}},
     "_select_class": {"ar07_vitals_1": {"match": "\tplayer[PlayerVitals.STATE] = player[PlayerVitals.STATE].refilled()\n", "baseline": "\tplayer.hp=float(player.max_hp)\n", "systems": ["player_vitals"], "additive": true},
       "ct05_oracle_1": {"match": "\tpersist_loadout(id,player,effects)\n\tvar message := \"%s selected.\"%Classes.DEFINITIONS[class_id].name\n\tif has_meta(&\"combat_affinity_ruleset\") and preload(\"res://affinity_build.gd\").starting_tree(class_id,player.character) != null:\n\t\tmessage += \" Choose your starting focus in the class tree or at the Wilds Gate.\"\n\tif effects == null: tell(id,message)\n\telse: effects.append(tell_profile_action.bind(id,message))\n", "baseline": "\tpersist_loadout(id,player,effects)\n\tvar message := \"%s selected.\"%Classes.DEFINITIONS[class_id].name\n\tif effects == null: tell(id,message)\n\telse: effects.append(tell_profile_action.bind(id,message))\n", "systems": ["oracle_progression", "class_tree_access"], "additive": true}
-    },
-    "apply_hit_grace": {
-      "ct05_oracle_1": {"match": "func apply_hit_grace(id: int,player: Dictionary,now: int,slow_ms: int,effects = null) -> void:\n\tif slow_ms>0:\n\t\tvar omens = preload(\"res://oracle_omens.gd\")\n\t\tif not (player.has(omens.STATE) and now+slow_ms>int(player.get(\"slow_until\",0)) and omens.prevent_slow(self,player,now)):\n\t\t\tplayer.slow_until=now+slow_ms\n\t\t\taction_feedback(effects,id,\"Slowed.\")\n\tplayer.hurt_until=now+int(Director.config().hit_grace_ms)\n\n", "baseline": "func apply_hit_grace(id: int,player: Dictionary,now: int,slow_ms: int,effects = null) -> void:\n\tif slow_ms>0:\n\t\tplayer.slow_until=now+slow_ms\n\t\taction_feedback(effects,id,\"Slowed.\")\n\tplayer.hurt_until=now+int(Director.config().hit_grace_ms)\n\n", "systems": ["oracle_progression"], "additive": true}
     },
     "save_guest_projection": {
       "ct01_whole_xp_0": {
@@ -7546,6 +7569,7 @@
       }
     },
     "attack_hints_snapshot": {
+      "ar11_scout_hint_projection": {"match": "\tvar attacks=preload(\"res://enemy_attack.gd\")\n\tresult.append_array(attacks.scout_hints(encounter,combat_epoch,Time.get_ticks_msec(),\n\t\tfunc(scout: Dictionary) -> Dictionary: return attacks.current(self,scout)))\n", "baseline": "\tfor index in encounter.scout_count():\n\t\tvar scout: Dictionary=encounter.scout(index)\n\t\tif encounter.hp(index)<=0 or int(scout.windup)<=0: continue\n\t\tvar attacks = preload(\"res://enemy_attack.gd\")\n\t\tresult.append_array(attacks.hints(attacks.current(self,scout),index,maxf(0,(int(scout.windup)-Time.get_ticks_msec())/1000.0)))\n\tvar attacks=preload(\"res://enemy_attack.gd\")\n", "systems": ["enemy_attack_execution", "enemy_attack_plan", "world_snapshot"], "additive": true},
       "thorn_fields": {
         "match": "\tresult.append_array(preload(\"res://thorn_affinity.gd\").hints(self))\n",
         "baseline": "",
@@ -8898,7 +8922,10 @@
         ]
       }
     },
-    "apply_enemy_hit": {"ar07_vitals_1": {"match": "\t\tif hp>=int(player[PlayerVitals.STATE].hp()):\n", "baseline": "\t\tif hp>=int(player.hp):\n", "systems": ["player_vitals"], "additive": true}, "ar07_vitals_2": {"match": "\tvar before_hp: float = player[PlayerVitals.STATE].hp()\n", "baseline": "\tvar before_hp := float(player.hp)\n", "systems": ["player_vitals"], "additive": true}, "ar07_vitals_3": {"match": "\tif has_meta(&\"combat_affinity_ruleset\") and Life.alive(player) and player[PlayerVitals.STATE].hp() < before_hp:\n", "baseline": "\tif has_meta(&\"combat_affinity_ruleset\") and Life.alive(player) and float(player.hp) < before_hp:\n", "systems": ["player_vitals"], "additive": true},
+    "apply_enemy_hit": {"ar11_host_grace": {"match": "\tvar apply_grace := func(effects) -> void:\n\t\tvar omens = preload(\"res://oracle_omens.gd\")\n\t\tpreload(\"res://combat_status.gd\").incoming_grace(player,now,slow_ms,int(Director.config().hit_grace_ms),\n\t\t\tfunc() -> bool: return player.has(omens.STATE) and omens.prevent_slow(self,player,now),\n\t\t\tfunc() -> void: action_feedback(effects,id,\"Slowed.\"))\n", "baseline": "", "systems": ["enemy_attack_execution", "oracle_progression"], "additive": true},
+      "ar11_guarded_grace_call": {"match": "\t\t\t\tapply_grace.call(effects)\n", "baseline": "\t\t\t\tapply_hit_grace(id,player,now,slow_ms,effects)\n", "systems": ["enemy_attack_execution", "life"], "additive": true},
+      "ar11_live_grace_call": {"match": "\tapply_grace.call(null)\n", "baseline": "\tapply_hit_grace(id,player,now,slow_ms)\n", "systems": ["enemy_attack_execution", "life"], "additive": true},
+      "ar07_vitals_1": {"match": "\t\tif hp>=int(player[PlayerVitals.STATE].hp()):\n", "baseline": "\t\tif hp>=int(player.hp):\n", "systems": ["player_vitals"], "additive": true}, "ar07_vitals_2": {"match": "\tvar before_hp: float = player[PlayerVitals.STATE].hp()\n", "baseline": "\tvar before_hp := float(player.hp)\n", "systems": ["player_vitals"], "additive": true}, "ar07_vitals_3": {"match": "\tif has_meta(&\"combat_affinity_ruleset\") and Life.alive(player) and player[PlayerVitals.STATE].hp() < before_hp:\n", "baseline": "\tif has_meta(&\"combat_affinity_ruleset\") and Life.alive(player) and float(player.hp) < before_hp:\n", "systems": ["player_vitals"], "additive": true},
       "ct05_oracle_1": {"match": "\t\tif block_event != null:\n\t\t\tpreload(\"res://warden_combat.gd\").connected_block(self,block_event,id,now)\n\t\t\tpreload(\"res://oracle_combat.gd\").ward_blocked(self,player,id,block_event,direct_attack)\n\t\tplayer.contributed=true;emit_combat_event(\"impact\",\"block\",player.pos,player.pos,.85,Color(\"#f1d989\"),0,id);tell(id,\"Guard blocked the attack.\");return\n\tif Traits.try_brace(self,player,now): return\n", "baseline": "\t\tif block_event != null:\n\t\t\tpreload(\"res://warden_combat.gd\").connected_block(self,block_event,id,now)\n\t\tplayer.contributed=true;emit_combat_event(\"impact\",\"block\",player.pos,player.pos,.85,Color(\"#f1d989\"),0,id);tell(id,\"Guard blocked the attack.\");return\n\tif Traits.try_brace(self,player,now): return\n", "systems": ["oracle_progression"], "additive": true},
       "ct05_oracle_2": {"match": "\tdamage_player(id,player,hp)\n\tif has_meta(&\"combat_affinity_ruleset\") and Life.alive(player) and float(player.hp) < before_hp:\n\t\tvar omens = preload(\"res://oracle_omens.gd\")\n\t\tif player.has(omens.STATE) and omens.direct_context(self,direct_attack):\n\t\t\tomens.recover_hit(self,player,now)\n\t\tpreload(\"res://frost_combat.gd\").incoming(self,player,id,now)\n\t\tpreload(\"res://fire_combat.gd\").incoming(self,player,id,now)\n", "baseline": "\tdamage_player(id,player,hp)\n\tif has_meta(&\"combat_affinity_ruleset\") and Life.alive(player) and float(player.hp) < before_hp:\n\t\tpreload(\"res://frost_combat.gd\").incoming(self,player,id,now)\n\t\tpreload(\"res://fire_combat.gd\").incoming(self,player,id,now)\n", "systems": ["oracle_progression"], "additive": true},
       "ct01_holdfast_0": {
@@ -9939,39 +9966,6 @@
         "baseline": "\t\tplayer.graft_part=part\n\t\tplayer.graft_floor=encounter_number\n\t\tprogress.record_monster_graft(part)",
         "systems": [
           "weapon_balance"
-        ],
-        "additive": true
-      }
-    },
-    "hit_players_charge": {
-      "cb06_6": {
-        "match": "landing_radius: float,now: int,damage: float) -> void:",
-        "baseline": "landing_radius: float,now: int,damage: int) -> void:",
-        "systems": [
-          "enemy_balance"
-        ],
-        "additive": true
-      }
-    },
-    "hit_players": {
-      "tc01_ranged_clearance_1": {"match": "func hit_players(center: Vector3, radius: float, now: int, damage: float = -1.0, slow_ms: int = 0, direct_attack := true) -> void:\n\tpreload(\"res://enemy_attack.gd\").hit_players(self,center,radius,now,damage,slow_ms,direct_attack)\n\n", "baseline": "func hit_players(center: Vector3, radius: float, now: int, damage: float = -1.0, slow_ms: int = 0, direct_attack := true) -> void:\n\tfor id in players:\n\t\tvar p: Dictionary = players[id]\n\t\tif not Life.alive(p) or center.distance_to(p.pos) > radius or not battlefield.clear_line(center, p.pos):\n\t\t\tcontinue\n\t\tapply_enemy_hit(id,p,now,damage,slow_ms,center,direct_attack)\n\n", "systems": ["combat", "hex_terrain"], "additive": true},
-      "ct01_0": {
-        "match": "func hit_players(center: Vector3, radius: float, now: int, damage: float = -1.0, slow_ms: int = 0, direct_attack := true) -> void:\n\tfor id in players:\n",
-        "baseline": "func hit_players(center: Vector3, radius: float, now: int, damage: float = -1.0, slow_ms: int = 0) -> void:\n\tfor id in players:\n",
-        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
-        "additive": true
-      },
-      "ct01_1": {
-        "match": "\t\t\tcontinue\n\t\tapply_enemy_hit(id,p,now,damage,slow_ms,center,direct_attack)\n\n",
-        "baseline": "\t\t\tcontinue\n\t\tapply_enemy_hit(id,p,now,damage,slow_ms,center)\n\n",
-        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
-        "additive": true
-      },
-      "cb06_9": {
-        "match": "radius: float, now: int, damage: float = -1.0, slow_ms: int = 0) -> void:",
-        "baseline": "radius: float, now: int, damage: int = -1, slow_ms: int = 0) -> void:",
-        "systems": [
-          "enemy_balance"
         ],
         "additive": true
       }
@@ -16179,6 +16173,17 @@
     "enemy_behaviors.gd": {
       "newline": "crlf",
       "regions": {
+        "ar11_execution_1": {"match": "const Hits = preload(\"res://enemy_attack_hits.gd\")\n", "baseline": "", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_2": {"match": "static func _hit_window(game: Node, scout: Dictionary, window: Hits.HitWindow) -> Hits.HitWindow:\n if window != null: return window\n var slot: int = -1 if scout.get(\"gate_elite\", false) else game.encounter.scout_slot(scout)\n return Hits.for_world(game, slot)\n\nstatic func resolve(game: Node,scout: Dictionary,attack: Dictionary,now: int,window: Hits.HitWindow = null) -> bool:\n", "baseline": "static func resolve(game: Node,scout: Dictionary,attack: Dictionary,now: int) -> bool:\n", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_3": {"match": " var commitment: Dictionary = attack.get(Attacks.SCOUT_COMMIT,{})\n", "baseline": "", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_4": {"match": "  if spots.is_empty():return true\n  preload(\"res://event_audio.gd\").enemy(game,attack,true)\n  var hits := _hit_window(game,scout,window)\n", "baseline": "  if spots.is_empty():return true\n  preload(\"res://event_audio.gd\").enemy(game,attack,true)\n", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_5": {"match": "   hits.area(point,attack.spot_radius,now,game.Director.Balance.scout_hit(game,game.Enemies.get_kind(kind),scout),0,true,true)\n", "baseline": "   Attacks.hit_players(game,point,attack.spot_radius,now,game.Director.Balance.scout_hit(game,game.Enemies.get_kind(kind),scout),0,true,true)\n", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_6": {"match": "  for at in attack.trail:game.Bosses.hazard(game,at,.85,now,2500,\"ember\",800,1.0,\"\",commitment)\n", "baseline": "  for at in attack.trail:game.Bosses.hazard(game,at,.85,now,2500,\"ember\",800)\n", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_7": {"match": "  for point in attack.spots:game.Bosses.hazard(game,point,attack.spot_radius,now,2300,\"web\",750,1.0,\"\",commitment)\n", "baseline": "  for point in attack.spots:game.Bosses.hazard(game,point,attack.spot_radius,now,2300,\"web\",750)\n", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_8": {"match": "   preload(\"res://event_audio.gd\").enemy(game,attack,true)\n  var hits := _hit_window(game,scout,window)\n", "baseline": "   preload(\"res://event_audio.gd\").enemy(game,attack,true)\n", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_9": {"match": "    hits.area(point,attack.spot_radius,now,game.Director.Balance.scout_hit(game,game.Enemies.get_kind(kind),scout),1600)\n", "baseline": "    game.hit_players(point,attack.spot_radius,now,game.Director.Balance.scout_hit(game,game.Enemies.get_kind(kind),scout),1600)\n", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_10": {"match": "    game.Bosses.hazard(game,point,attack.radius,now,1650,\"spores\",650+i*450,1.0,\"\",commitment)\n", "baseline": "    game.Bosses.hazard(game,point,attack.radius,now,1650,\"spores\",650+i*450)\n", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_11": {"match": "  game.Bosses.hazard(game,attack.follow.point,attack.follow.radius,now,220,\"aftershock\",attack.follow.delay,1.0,\"\",commitment)\n", "baseline": "  game.Bosses.hazard(game,attack.follow.point,attack.follow.radius,now,220,\"aftershock\",attack.follow.delay)\n", "systems": ["enemy_attack_execution"]},
         "ct05_oracle_1": {"match": " preload(\"res://wilds_skill_tactics.gd\").interrupted(game,actor,\"stagger\")\n actor.windup=0\n var body: Dictionary=game.tactics.memory if actor.get(\"gate_elite\",false) else actor\n actor.ready=preload(\"res://oracle_omens.gd\").release_attack(body,actor.get(\"attack\",{}),now+1100)\n actor.erase(\"attack\")\n actor.erase(\"repeat\")\n", "baseline": " preload(\"res://wilds_skill_tactics.gd\").interrupted(game,actor,\"stagger\")\n actor.windup=0\n actor.ready=now+1100\n actor.erase(\"attack\")\n actor.erase(\"repeat\")\n", "systems": ["oracle_progression"]},
         "tc01_ranged_clearance_1": {"match": "  return true\n if attack.get(\"variant\")==\"glass_crossfire\":\n  var spots: Array=attack.spots.filter(func(point):return game.battlefield.projectile_clear(attack.from,point))\n  if spots.is_empty():return true\n  preload(\"res://event_audio.gd\").enemy(game,attack,true)\n  for point in spots:\n   Feedback.release(game,\"burst\",attack.from,point,attack.spot_radius,Color(\"#b9e6f6\"))\n   Attacks.hit_players(game,point,attack.spot_radius,now,game.Director.Balance.scout_hit(game,game.Enemies.get_kind(kind),scout),0,true,true)\n  Glasscap.release(game,scout,now)\n  return true\n", "baseline": "  return true\n if attack.get(\"variant\")==\"glass_crossfire\":\n  var spots: Array=attack.spots.filter(func(point):return game.battlefield.clear_line(attack.from,point))\n  if spots.is_empty():return true\n  preload(\"res://event_audio.gd\").enemy(game,attack,true)\n  for point in spots:\n   Feedback.release(game,\"burst\",attack.from,point,attack.spot_radius,Color(\"#b9e6f6\"))\n   game.hit_players(point,attack.spot_radius,now,game.Director.Balance.scout_hit(game,game.Enemies.get_kind(kind),scout))\n  Glasscap.release(game,scout,now)\n  return true\n", "systems": ["enemies", "enemy_attack_plan", "hex_terrain"]},
         "cb06_0": {
@@ -16429,6 +16434,7 @@
     "combat_status.gd": {
       "newline": "crlf",
       "regions": {
+        "ar11_execution_1": {"match": "## Apply the existing post-hit grace and Slow to the affected actor. Relevant\n## class prevention and feedback are supplied by the defending hit boundary.\nstatic func incoming_grace(player: Dictionary, now: int, slow_ms: int, grace_ms: int,\n  prevent_slow: Callable, notify_slow: Callable) -> void:\n if slow_ms>0 and not (now+slow_ms>int(player.get(\"slow_until\",0)) and prevent_slow.call()):\n  player.slow_until=now+slow_ms\n  notify_slow.call()\n player.hurt_until=now+grace_ms\n\n", "baseline": "", "systems": ["enemy_attack_execution"]},
         "ga01a_1": {"match": "  for pair in [[\"grave\",\"grave_charges\"],[\"echo\",\"echo_charge\"]]:\n   var grafts = preload(\"res://native_grafts.gd\")\n   var graft_count: int = grafts.graft_charges(player) if pair[0] == \"grave\" else int(grafts.counters(player,\"monster:glasscap\").get(\"echo_charge\",0))\n   var charges := int(player.get(pair[1],0)) + graft_count\n   add(desired,game,pair[0],id,false,now+60000,charges,now)\n", "baseline": "  for pair in [[\"grave\",\"grave_charges\"],[\"echo\",\"echo_charge\"]]:\n   var graft_state: Dictionary = player.get(\"native_graft_state\", {})\n   var charges := int(player.get(pair[1],0)) + int(graft_state.get(pair[1],0))\n   add(desired,game,pair[0],id,false,now+60000,charges,now)\n", "systems": ["expedition_grafts", "combat_affinity_contracts", "presentation"]},
         "ct05_oracle_1": {"match": "const Ranger = preload(\"res://ranger_combat.gd\")\nconst Reaper = preload(\"res://reaper_combat.gd\")\nconst Oracle = preload(\"res://oracle_combat.gd\")\nconst LABELS={\"oracle_foreboding\":\"Foreboding\",\"oracle_guided_strike\":\"Guided Strike\",\"oracle_second_breath\":\"Second Breath\",\"oracle_quiet_ground\":\"Quiet Ground\",\"oracle_mercy\":\"Portent of Mercy\",\"oracle_ritual_verdict\":\"Ritual Verdict ready\",\"oracle_chime_prepared\":\"Chime prepared\",\"reaper_veil_momentum\":\"Veil Momentum\",\"reaper_siphon_prepared\":\"Siphon Cut prepared\",\"ranger_tracked_prey\":\"Tracked Prey\",\"ranger_follow_through\":\"Follow-Through ready\",\"ranger_double_draw\":\"Double Draw ready\",\"spirit_stride\":\"Spiritstride\",\"spirit_prepared\":\"Spirit follow-up prepared\",\"spirit_ready\":\"Spirit follow-up ready\",\"storm_charge\":\"Storm Charge\",\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"holdfast\":\"Holdfast\",\"protective_filaments\":\"Protective Filaments\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"spirit_stride\",\"spirit_prepared\",\"spirit_ready\",\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"reaper_siphon_prepared\",\"oracle_chime_prepared\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\nstatic func affinity_feedback(game: Node, player: Dictionary) -> String:\n var elapsed:=preload(\"res://affinity_time.gd\").now(game)\n", "baseline": "const Ranger = preload(\"res://ranger_combat.gd\")\nconst Reaper = preload(\"res://reaper_combat.gd\")\nconst LABELS={\"reaper_veil_momentum\":\"Veil Momentum\",\"reaper_siphon_prepared\":\"Siphon Cut prepared\",\"ranger_tracked_prey\":\"Tracked Prey\",\"ranger_follow_through\":\"Follow-Through ready\",\"ranger_double_draw\":\"Double Draw ready\",\"spirit_stride\":\"Spiritstride\",\"spirit_prepared\":\"Spirit follow-up prepared\",\"spirit_ready\":\"Spirit follow-up ready\",\"storm_charge\":\"Storm Charge\",\"subclass_follow_ready\":\"Follow-up ready\",\"warden_quake_ready\":\"Quake prepared\",\"holdfast\":\"Holdfast\",\"protective_filaments\":\"Protective Filaments\",\"slow\":\"Slowed\",\"guard\":\"Warded\",\"counter\":\"Counter ready\",\"prepared_mark\":\"Mark ready\",\"grave\":\"Death charge\",\"echo\":\"Echo charge\",\"marked\":\"Marked\",\"core_strike_mark\":\"Core Mark\",\"crown_link\":\"Crownlink\",\"brittle\":\"Brittle\",\"burning\":\"Burning\",\"bleeding\":\"Bleeding\",\"thorn_slow\":\"Thorn growth\",\"drenched\":\"Drenched\",\"vitality\":\"Vitality\",\"bark_armor\":\"Bark Armor\",\"rooted\":\"Rooted\",\"staggered\":\"Staggered\",\"haste\":\"Hastened\",\"bark_guard\":\"Bark Guard\",\"sheltered\":\"Sheltered\",\"trophy_carrier\":\"Carrying trophy\",\"rallied\":\"Rallied\",\"uprooting\":\"Uprooting\",\"core_exposed\":\"Core exposed\",\"nursery_lull\":\"Nursery lull\",\"memory_exposed\":\"Memory exposed\"}\nconst REFRESH_IN_PLACE := [\"spirit_stride\",\"spirit_prepared\",\"spirit_ready\",\"storm_charge\",\"grave\",\"echo\",\"sheltered\",\"trophy_carrier\",\"subclass_follow_ready\",\"reaper_siphon_prepared\",\"burning\",\"drenched\",\"vitality\",\"bark_armor\",\"bleeding\",\"thorn_slow\"]\nstatic func affinity_feedback(game: Node, player: Dictionary) -> String:\n var elapsed:=preload(\"res://affinity_time.gd\").now(game)\n", "systems": ["oracle_progression"]},
         "ct05_oracle_2": {"match": "static func tint(kind: String) -> Color:\n if kind==Ranger.PREY:return Ranger.PREY_COLOR\n if kind==Oracle.Progression.FOREBODING:return Color(\"#c899eb\")\n if kind.begins_with(\"oracle_\"):return Color(\"#ead68d\")\n if kind==\"burning\":return Color(\"#f29b57\")\n if kind==\"drenched\":return Color(\"#82d7ec\")\n", "baseline": "static func tint(kind: String) -> Color:\n if kind==Ranger.PREY:return Ranger.PREY_COLOR\n if kind==\"burning\":return Color(\"#f29b57\")\n if kind==\"drenched\":return Color(\"#82d7ec\")\n", "systems": ["oracle_progression"]},
@@ -16667,6 +16673,14 @@
     "boss_encounters.gd": {
       "newline": "crlf",
       "regions": {
+        "ar11_execution_1": {"match": "const Hits=preload(\"res://enemy_attack_hits.gd\")\n", "baseline": "", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_2": {"match": "static func hazard(game: Node,point: Vector3,radius: float,now: int,duration: int,kind: String,delay: int=900,\n damage: float=1.0,boss_move: String=\"\",commitment: Dictionary={}) -> void:\n", "baseline": "static func hazard(game: Node,point: Vector3,radius: float,now: int,duration: int,kind: String,delay: int=900,damage: float=1.0,boss_move: String=\"\") -> void:\n", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_3": {"match": " var entry := {\"id\":game.enemy_hazard_serial,\"point\":point,\"radius\":radius,\"activate\":now+delay,\"until\":now+delay+duration,\"next\":now+delay,\"kind\":kind,\"damage\":hit}\n if not commitment.is_empty(): entry.source_commitment=commitment.duplicate()\n game.enemy_hazards.append(entry)\n", "baseline": " game.enemy_hazards.append({\"id\":game.enemy_hazard_serial,\"point\":point,\"radius\":radius,\"activate\":now+delay,\"until\":now+delay+duration,\"next\":now+delay,\"kind\":kind,\"damage\":hit})\n", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_4": {"match": " if game.enemy_hazards.is_empty(): return\n", "baseline": "", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_5": {"match": " var floor_hits := Hits.for_world(game)\n", "baseline": "", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_6": {"match": "  if not floor_hits.source_is_current(): return\n", "baseline": "", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_7": {"match": "  var commitment: Dictionary = entry.get(\"source_commitment\",{})\n  if not commitment.is_empty() and not Hits.commitment_is_current(game,commitment):\n   game.enemy_hazards.erase(entry);continue\n", "baseline": "", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_8": {"match": "  var hits := floor_hits if commitment.is_empty() else Hits.for_commitment(game,commitment)\n  hits.area(entry.point,float(entry.radius),now,float(entry.damage),700 if str(entry.kind) in [\"nest\",\"lair_pool\",\"web\"] else 0,false)\n", "baseline": "  game.hit_players(entry.point,float(entry.radius),now,float(entry.damage),700 if str(entry.kind) in [\"nest\",\"lair_pool\",\"web\"] else 0,false)\n", "systems": ["enemy_attack_execution"]},
         "ct05_oracle_1": {"match": " game.tactics.ready_at=now+recovery+game.tactics.recovery_bonus\n game.tactics.recovery_bonus=0\n var plan: Dictionary=game.tactics.memory.get(\"lair_plan\",game.tactics.memory.get(\"phase_plan\",{}))\n var epoch: int=game.combat_epoch\n if Lair.Routes.supports(game.tactics.boss_kind):\n  game.tactics.memory.erase(\"lair_plan\")\n  Lair.resolve(game,plan,now,damage)\n elif Phases.supports(game.tactics.boss_kind):\n  game.tactics.memory.erase(\"phase_plan\")\n  Phases.resolve(game,plan,now,damage)\n if epoch==game.combat_epoch:\n  game.tactics.ready_at=preload(\"res://oracle_omens.gd\").release_attack(game.tactics.memory,plan,game.tactics.ready_at)\n\nstatic func tick_hazards(game: Node,now: int) -> void:\n", "baseline": " game.enemy_ready_at=now+recovery+game.moss_recovery_bonus\n game.moss_recovery_bonus=0\n if Lair.Routes.supports(game.boss_kind):\n  var plan: Dictionary=game.leader_brain.get(\"lair_plan\",{})\n  game.leader_brain.erase(\"lair_plan\")\n  Lair.resolve(game,plan,now,damage)\n  return\n if Phases.supports(game.boss_kind):\n  var plan: Dictionary=game.leader_brain.get(\"phase_plan\",{})\n  game.leader_brain.erase(\"phase_plan\")\n  Phases.resolve(game,plan,now,damage)\n\nstatic func tick_hazards(game: Node,now: int) -> void:\n", "systems": ["oracle_progression"]},
         "ct01_1": {
           "match": "  entry.next=now+1000\n  game.hit_players(entry.point,float(entry.radius),now,float(entry.damage),700 if str(entry.kind) in [\"nest\",\"lair_pool\",\"web\"] else 0,false)\nstatic func hints(game: Node) -> Array:\n",
@@ -16892,6 +16906,12 @@
     "enemy_attack.gd": {
       "newline": "crlf",
       "regions": {
+        "ar11_execution_1": {"match": "const CONTACT_PADDING := preload(\"res://enemy_attack_hits.gd\").CONTACT_PADDING\nconst SCOUT_COMMIT := &\"scout_commit\"\nconst REQUIRES_SCOUT_COMMIT := &\"requires_scout_commit\"\n", "baseline": "const CONTACT_PADDING := 0.35\n", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_2": {"match": " return field.combat_sight(from,to) if mode==\"volley\" else field.clear_line(from,to)\n\n", "baseline": " return field.combat_sight(from,to) if mode==\"volley\" else field.clear_line(from,to)\n\nstatic func hit_players(game: Node, center: Vector3, radius: float, now: int, damage: float,\n  slow_ms: int, direct_attack: bool, ranged_impact: bool = false) -> void:\n for id in game.players:\n  var player: Dictionary = game.players[id]\n  if not game.Life.alive(player) or center.distance_to(player.pos) > radius:\n   continue\n  var clear: bool = game.battlefield.combat_sight(center,player.pos) if ranged_impact else game.battlefield.clear_line(center,player.pos)\n  if clear:\n   game.apply_enemy_hit(id,player,now,damage,slow_ms,center,direct_attack)\n\n", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_3": {"match": "static func lock(game: Node, actor: Dictionary, mode: String, target: Vector3, until: int,\n  prepared: Dictionary = {}, intent: Dictionary = {}) -> void:\n", "baseline": "static func lock(game: Node, actor: Dictionary, mode: String, target: Vector3, until: int, prepared: Dictionary = {}) -> void:\n", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_4": {"match": " if intent.is_empty():\n  actor.erase(REQUIRES_SCOUT_COMMIT)\n else:\n  actor[REQUIRES_SCOUT_COMMIT] = true\n  actor.attack[SCOUT_COMMIT] = {\n   \"epoch\": int(intent.epoch), \"slot\": int(intent.slot), \"token\": int(intent.token),\n   \"target\": int(intent.target), \"target_life\": int(intent.target_life),\n  }\n", "baseline": "", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_5": {"match": "\n## A committed plan is still associated with the same roster member. After contact,\n## the source can be defeated by defense effects without redirecting the attack.\nstatic func scout_source_current(roster: RefCounted, attack: Dictionary, epoch: int, require_living: bool = false) -> bool:\n var commit: Dictionary = attack.get(SCOUT_COMMIT, {})\n if commit.is_empty():\n  return true\n var slot := int(commit.slot)\n var token := int(commit.token)\n return int(commit.epoch) == epoch and slot >= 0 and token > 0 and roster.token(slot) == token \\\n  and (not require_living or roster.alive(slot, token))\n\n## Claim the original locked geometry before calling any effects. Keep the route\n## marker after consumption so that a retry cannot rebuild a synthetic attack.\nstatic func claim_scout_attack(roster: RefCounted, actor: Dictionary, epoch: int, now: int,\n  expected_plan: Dictionary = {}, expected_due: int = -1) -> Dictionary:\n var due := int(actor.get(\"windup\", 0))\n if due <= 0 or now < due or (expected_due >= 0 and due != expected_due):\n  return {}\n var attack: Dictionary = actor.get(\"attack\", {})\n if not expected_plan.is_empty() and not is_same(attack, expected_plan):\n  return {}\n var commit: Dictionary = attack.get(SCOUT_COMMIT, {})\n actor.windup = 0\n actor.erase(\"attack\")\n if commit.is_empty() or attack.get(\"mode\") != actor.mode:\n  return {}\n if not scout_source_current(roster, attack, epoch, true) or not is_same(roster.scout(int(commit.slot)), actor):\n  return {}\n return attack\n\n## Nightbloom reuses the original locked point and source. Its new due time\n## belongs to the next pulse, so a callback for the first pulse cannot claim it.\nstatic func rearm_scout_attack(roster: RefCounted, actor: Dictionary, attack: Dictionary,\n  epoch: int, due: int) -> bool:\n var commit: Dictionary = attack.get(SCOUT_COMMIT, {})\n if not commit.is_empty():\n  if not scout_source_current(roster, attack, epoch, true) or not is_same(roster.scout(int(commit.slot)), actor):\n   return false\n  if int(actor.get(\"windup\", 0)) > 0 or actor.has(\"attack\"):\n   return false\n actor.attack = attack\n actor.windup = due\n return true\n", "baseline": "", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_6": {"match": "\n## Use the same locked plan for release and warning projection. Scripted\n## moves can still supply their own authored geometry through the fallback.\nstatic func scout_hints(roster: RefCounted, epoch: int, now: int, fallback: Callable) -> Array:\n var result: Array = []\n for slot in roster.scout_count():\n  if not roster.alive(slot):\n   continue\n  var actor: Dictionary = roster.scout(slot)\n  var due := int(actor.windup)\n  if due <= 0:\n   continue\n  var attack: Dictionary\n  if actor.get(REQUIRES_SCOUT_COMMIT, false):\n   attack = actor.get(\"attack\", {})\n   if attack.get(SCOUT_COMMIT, {}).is_empty() or attack.get(\"mode\") != actor.mode \\\n     or not scout_source_current(roster, attack, epoch, true):\n    continue\n  else:\n   attack = fallback.call(actor)\n  result.append_array(hints(attack, slot, maxf(0, (due-now)/1000.0)))\n return result\n", "baseline": "", "systems": ["enemy_attack_execution"]},
         "ct05_oracle_1": {"match": " actor.blast = actor.attack.to\n actor.windup = maxi(until,Time.get_ticks_msec()+SkillResponses.MIN_WINDUP) if actor.attack.get(\"learned\",false) else until\n preload(\"res://oracle_omens.gd\").begin_attack(game,actor,actor.attack,Time.get_ticks_msec())\n preload(\"res://wilds_skill_tactics.gd\").lock_response(game,actor,actor.attack)\n preload(\"res://event_audio.gd\").enemy(game,actor.attack,false)\n", "baseline": " actor.blast = actor.attack.to\n actor.windup = maxi(until,Time.get_ticks_msec()+SkillResponses.MIN_WINDUP) if actor.attack.get(\"learned\",false) else until\n preload(\"res://wilds_skill_tactics.gd\").lock_response(game,actor,actor.attack)\n preload(\"res://event_audio.gd\").enemy(game,actor.attack,false)\n", "systems": ["oracle_progression"]},
         "tc01_ranged_clearance_1": {"match": "  \"target_token\": game.encounter.token_for(actor), \"cast_id\": jump.line_id, \"floor\": game.encounter_number})\n return true\n\n# Directed volleys have an impact radius, but no authored flight thickness.\nstatic func attack_sight(field: RefCounted, from: Vector3, to: Vector3, mode: String) -> bool:\n return field.combat_sight(from,to) if mode==\"volley\" else field.clear_line(from,to)\n\nstatic func hit_players(game: Node, center: Vector3, radius: float, now: int, damage: float,\n  slow_ms: int, direct_attack: bool, ranged_impact: bool = false) -> void:\n for id in game.players:\n  var player: Dictionary = game.players[id]\n  if not game.Life.alive(player) or center.distance_to(player.pos) > radius:\n   continue\n  var clear: bool = game.battlefield.combat_sight(center,player.pos) if ranged_impact else game.battlefield.clear_line(center,player.pos)\n  if clear:\n   game.apply_enemy_hit(id,player,now,damage,slow_ms,center,direct_attack)\n\nstatic func aim(game: Node, actor: Dictionary, role: String, player: int) -> Vector3:\n", "baseline": "  \"target_token\": actor.get(\"spawn_token\", 0), \"cast_id\": jump.line_id, \"floor\": game.encounter_number})\n return true\n\nstatic func aim(game: Node, actor: Dictionary, role: String, player: int) -> Vector3:\n", "systems": ["enemy_attack_plan", "combat", "hex_terrain"]},
         "committed_windup": {
@@ -18322,6 +18342,7 @@
     "enemy_support.gd": {
       "newline": "lf",
       "regions": {
+        "ar11_execution_1": {"match": "  var slot: int = -1 if actor.get(\"gate_elite\",false) else game.encounter.scout_slot(actor)\n  preload(\"res://enemy_attack_hits.gd\").for_world(game,slot).area(attack.from,attack.radius,now,damage,500)\n", "baseline": "  game.hit_players(attack.from,attack.radius,now,damage,500)\n", "systems": ["enemy_attack_execution"]},
         "cb06_0": {
           "match": "game.apply_enemy_hit(id,player,now,damage,500,origin)",
           "baseline": "game.apply_enemy_hit(id,player,now,1,500,origin)",
@@ -18696,6 +18717,7 @@
     "enemy_skill_responses.gd": {
       "newline": "lf",
       "regions": {
+        "ar11_execution_1": {"match": "\treturn now >= int(actor.rooted_until) and Vector3(actor.pos).distance_squared_to(attack.from) < .65 * .65\n", "baseline": "\treturn now >= int(actor.rooted_until) and Vector3(actor.pos).distance_squared_to(attack.from) < .65 * .65\n\n\nstatic func hit_bent_charge(game: Node, attack: Dictionary, now: int, damage: float, padding: float) -> void:\n\tfor id in game.players:\n\t\tvar player: Dictionary = game.players[id]\n\t\tif not game.Life.alive(player):\n\t\t\tcontinue\n\t\tvar first := Geometry3D.get_closest_point_to_segment(player.pos, attack.from, attack.via)\n\t\tvar second := Geometry3D.get_closest_point_to_segment(player.pos, attack.via, attack.to)\n\t\tvar point: Vector3 = player.pos\n\t\tvar width := float(attack.width) + padding\n\t\tvar contact: bool = (point.distance_to(first) <= width and game.battlefield.clear_line(first, point)) or (point.distance_to(second) <= width and game.battlefield.clear_line(second, point))\n\t\tvar landed: bool = point.distance_to(attack.to) <= float(attack.radius) + padding and game.battlefield.clear_line(attack.to, point)\n\t\tif contact or landed:\n\t\t\tgame.apply_enemy_hit(id, player, now, damage, 0, attack.from)\n", "systems": ["enemy_attack_execution"]},
         "cb06_0": {
           "match": "now: int, damage: float, padding: float) -> void:",
           "baseline": "now: int, damage: int, padding: float) -> void:",
@@ -19910,6 +19932,7 @@
     "boss_lair_fights.gd": {
       "newline": "lf",
       "regions": {
+        "ar11_execution_1": {"match": "  preload(\"res://enemy_attack_hits.gd\").for_world(game,-1).charge(plan.from,plan.to,plan.width,plan.radius,now,damage)\n", "baseline": "  game.hit_players_charge(plan.from,plan.to,plan.width,plan.radius,now,damage)\n", "systems": ["enemy_attack_execution"]},
         "ct05_oracle_1": {"match": " game.tactics.strike_at=now+int(plan.windup)\n game.tactics.winding_up=true\n preload(\"res://oracle_omens.gd\").begin_attack(game,game.tactics.memory,plan,now)\n preload(\"res://event_audio.gd\").enemy(game,plan,false)\n game.tactics.boss_moves+=1\n", "baseline": " game.enemy_strike_at=now+int(plan.windup)\n game.enemy_winding_up=true\n preload(\"res://event_audio.gd\").enemy(game,plan,false)\n game.boss_moves+=1\n", "systems": ["oracle_progression"]},
         "cb06_0": {
           "match": "zone.kind,int(zone.delay),damage,plan.get(\"mode\",game.tactics.attack_mode))",
@@ -19958,6 +19981,8 @@
     "boss_phase_fights.gd": {
       "newline": "lf",
       "regions": {
+        "ar11_execution_1": {"match": " var hits := preload(\"res://enemy_attack_hits.gd\").for_world(game,-1)\n", "baseline": "", "systems": ["enemy_attack_execution"]},
+        "ar11_execution_2": {"match": "  hits.charge(attack.from,attack.to,attack.width,attack.radius,now,damage)\n", "baseline": "  game.hit_players_charge(attack.from,attack.to,attack.width,attack.radius,now,damage)\n", "systems": ["enemy_attack_execution"]},
         "ct05_oracle_1": {"match": " game.tactics.winding_up=true\n game.tactics.strike_at=now+int(plan.windup)\n preload(\"res://oracle_omens.gd\").begin_attack(game,game.tactics.memory,plan,now)\n preload(\"res://event_audio.gd\").enemy(game,plan,false)\n game.tactics.boss_moves+=1\n", "baseline": " game.enemy_winding_up=true\n game.enemy_strike_at=now+int(plan.windup)\n preload(\"res://event_audio.gd\").enemy(game,plan,false)\n game.boss_moves+=1\n", "systems": ["oracle_progression"]},
         "ct05_oracle_2": {"match": "static func interrupt(game: Node, at: Vector3, now: int) -> bool:\n if game.tactics.boss_kind!=NEST or not game.tactics.winding_up or game.tactics.attack_mode!=\"brood_call\":return false\n var plan: Dictionary=game.tactics.memory.get(\"phase_plan\",{})\n game.tactics.memory.erase(\"phase_plan\")\n game.tactics.winding_up=false\n open(game,\"nursery_lull\",now,1900)\n game.tactics.ready_at=preload(\"res://oracle_omens.gd\").release_attack(game.tactics.memory,plan,game.tactics.ready_at)\n game.emit_combat_event(\"proc\",\"suppress\",at,at,.55,Color(\"#e1be92\"),0,-2)\n game.Journal.event(\"combat\",\"boss_brood_interrupted\",{\"species\":\"matriarch\",\"phase\":game.tactics.boss_phase,\"floor\":game.encounter_number})\n", "baseline": "static func interrupt(game: Node, at: Vector3, now: int) -> bool:\n if game.boss_kind!=NEST or not game.enemy_winding_up or game.enemy_attack_mode!=\"brood_call\":return false\n game.leader_brain.erase(\"phase_plan\")\n game.enemy_winding_up=false\n open(game,\"nursery_lull\",now,1900)\n game.emit_combat_event(\"proc\",\"suppress\",at,at,.55,Color(\"#e1be92\"),0,-2)\n game.Journal.event(\"combat\",\"boss_brood_interrupted\",{\"species\":\"matriarch\",\"phase\":game.boss_phase,\"floor\":game.encounter_number})\n", "systems": ["oracle_progression"]},
         "cb06_0": {

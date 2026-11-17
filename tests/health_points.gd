@@ -26,7 +26,7 @@ func run():
 		check(Hud.heart_state(PlayerVitals.current_hp(p),10,i) == 0, "starting hearts are full")
 	p.wild = true
 	p.pos = game.battlefield.leader
-	game.hit_players(p.pos, 1.0, Time.get_ticks_msec())
+	preload("res://enemy_attack_hits.gd").for_world(game).area(p.pos, 1.0, Time.get_ticks_msec())
 	check(PlayerVitals.current_hp(p) == 9 and Hud.heart_state(PlayerVitals.current_hp(p),10,4) == 1, "basic enemy hit removes one point and displays a half heart")
 	for i in 4:
 		check(Hud.heart_state(PlayerVitals.current_hp(p),10,i) == 0, "basic damage preserves the other full hearts")

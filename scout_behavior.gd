@@ -7,7 +7,7 @@ const Life = preload("res://expedition_life.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Director = preload("res://combat_director.gd")
 const Battlefield = preload("res://battlefield.gd")
-const AttackGeometry = preload("res://attack_geometry.gd")
+const Hits = preload("res://enemy_attack_hits.gd")
 const Attacks = preload("res://enemy_attack.gd")
 const Variants = preload("res://enemy_variants.gd")
 const EnemyBehaviors = preload("res://enemy_behaviors.gd")
@@ -29,10 +29,12 @@ static func tick(game: Node, delta: float, now: int) -> void:
 		var mask := int(scout.get("mutations", 0))
 		if scout.windup > 0:
 			if now >= int(scout.windup):
+				var pending: Dictionary = scout.get("attack", {})
+				var due := int(scout.windup)
 				if game.has_meta(&"combat_affinity_ruleset"):
-					preload("res://frost_combat.gd").with_attacker(game,slot,release.bind(game, scout, definition, now))
+					preload("res://frost_combat.gd").with_attacker(game,slot,release.bind(game, scout, definition, now, pending, due))
 				else:
-					release(game, scout, definition, now)
+					release(game, scout, definition, now, pending, due)
 				if not game.expedition_active():
 					game.abandon_if_empty()
 					return
@@ -145,7 +147,7 @@ static func apply_attack_intent(game: Node, observation: Dictionary, intent: Att
 		return
 	var aim := Attacks.aim(game, scout, role, target)
 	var windup_ms := int(definition.windup) + (300 if scout.get("variant", "") == "early_decoys" else 0)
-	Attacks.lock(game, scout, role, aim, now + Director.windup(game, windup_ms))
+	Attacks.lock(game, scout, role, aim, now + Director.windup(game, windup_ms), {}, observation)
 	scout.erase("approach_done")
 	scout.erase("approach")
 	scout.erase("approach_used")
@@ -153,39 +155,47 @@ static func apply_attack_intent(game: Node, observation: Dictionary, intent: Att
 	scout.repeat = 1 if int(scout.kind) == 1 and role == "volley" else 0
 
 
-static func release(game: Node, scout: Dictionary, definition: Dictionary, now: int) -> void:
-	var attack: Dictionary = Attacks.current(game, scout)
+static func release(game: Node, scout: Dictionary, definition: Dictionary, now: int,
+		expected_plan: Dictionary = {}, expected_due: int = -1) -> void:
+	var attack: Dictionary
+	if scout.get(Attacks.REQUIRES_SCOUT_COMMIT, false) or expected_plan.has(Attacks.SCOUT_COMMIT):
+		if not game.multiplayer.is_server() or not game.expedition_active():
+			return
+		attack = Attacks.claim_scout_attack(game.encounter, scout, game.combat_epoch, now, expected_plan, expected_due)
+		if attack.is_empty():
+			return
+	else:
+		attack = Attacks.current(game, scout)
+		scout.windup = 0
+		scout.erase("attack")
+	var hits := Hits.for_commitment(game, attack.get(Attacks.SCOUT_COMMIT, {}))
 	var mode: String = attack.mode
 	var damage := Director.Balance.scout_hit(game,definition,scout)
 	var radius: float = attack.radius
 	var origin: Vector3 = attack.from
 	var target_point: Vector3 = attack.to
-	scout.windup = 0
 	scout.ready = now + roundi((Director.recovery(game,int(definition.recovery))+int(scout.recovery))*(.82 if now<int(scout.get("haste_until",0)) else 1.0))
 	scout.recovery = 0
-	scout.erase("attack")
 	var recovery_body: Dictionary=game.tactics.memory if scout.get("gate_elite",false) else scout
 	scout.ready = preload("res://oracle_omens.gd").release_attack(recovery_body,attack,int(scout.ready)+int(attack.get("recovery_bonus",0)))
-	if mode=="shepherd" and EnemyBehaviors.resolve(game,scout,attack,now): return
+	if mode=="shepherd" and EnemyBehaviors.resolve(game,scout,attack,now,hits): return
 	if mode=="lure":
 		var anchor: Vector3=attack.anchor
 		if not game.battlefield.clear_line(anchor,target_point): return
 		preload("res://event_audio.gd").enemy(game,attack,true)
 		var feedback = preload("res://enemy_move_feedback.gd")
 		if attack.get("learned",false):feedback.release(game,"burst",anchor,target_point,radius)
-		for id in game.players:
-			var p: Dictionary=game.players[id]
-			if not Life.alive(p) or p.pos.distance_to(target_point)>radius or not game.battlefield.clear_line(anchor,p.pos):continue
-			var before: int=int(p.get("damage_seq",0))
-			game.apply_enemy_hit(id,p,now,damage,900,anchor)
-			if Life.alive(p) and int(p.get("damage_seq",0))!=before:
-				var before_pull: Vector3=p.pos
-				p.pos=game.battlefield.dash(p.pos,p.pos.move_toward(anchor,.9))
-				if attack.get("learned",false) and not before_pull.is_equal_approx(p.pos):
-					feedback.release(game,"pulled",before_pull,p.pos,0.0,Color("#bad2ee"))
+		hits.lure(anchor,target_point,radius,now,damage,func(id: int, life: int) -> void:
+			var p: Dictionary=game.players.get(id,{})
+			if not PlayerLifecycle.matches(p,life):
+				return
+			var before_pull: Vector3=p.pos
+			p.pos=game.battlefield.dash(p.pos,p.pos.move_toward(anchor,.9))
+			if attack.get("learned",false) and not before_pull.is_equal_approx(p.pos):
+				feedback.release(game,"pulled",before_pull,p.pos,0.0,Color("#bad2ee")))
 		return
 	if mode=="chant":
-		if EnemyBehaviors.resolve(game,scout,attack,now): return
+		if EnemyBehaviors.resolve(game,scout,attack,now,hits): return
 		preload("res://event_audio.gd").enemy(game,attack,true)
 		if game.enemy_health()>0 and not Enemies.is_support(game.enemy_kind) and game.tactics.position.distance_to(origin)<=radius and game.battlefield.clear_line(origin,game.tactics.position): game.tactics.haste_until=now+3500
 		for slot in game.encounter.scout_count():
@@ -210,24 +220,22 @@ static func release(game: Node, scout: Dictionary, definition: Dictionary, now: 
 		if attack.variant==Attacks.Thorn.MOVE:
 			Attacks.Thorn.landed(game,scout,attack,now)
 		if attack.get("variant")=="antler_hook":
-			Attacks.SkillResponses.hit_bent_charge(game,attack,now,damage,Attacks.CONTACT_PADDING)
+			hits.bent_charge(attack.from,attack.via,attack.to,attack.width,attack.radius,now,damage,Attacks.CONTACT_PADDING)
 			return
 		if mode=="charge" and int(scout.kind)!=13:
-			game.hit_players_charge(origin,target_point,attack.width,radius,now,damage)
-			EnemyBehaviors.resolve(game,scout,attack,now)
+			hits.charge(origin,target_point,attack.width,radius,now,damage)
+			if hits.source_is_current():
+				EnemyBehaviors.resolve(game,scout,attack,now,hits)
 			return
-		game.hit_players(target_point,radius,now,damage)
+		hits.area(target_point,radius,now,damage)
 		return
-	if EnemyBehaviors.resolve(game,scout,attack,now): return
+	if EnemyBehaviors.resolve(game,scout,attack,now,hits): return
 	if float(attack.span)>0.0:
 		preload("res://event_audio.gd").enemy(game,attack,true)
 		if attack.get("learned",false):
 			var feedback = preload("res://enemy_move_feedback.gd")
 			feedback.release(game,"sector",origin,attack.face,radius,feedback.THREAT,0.0,attack.span)
-		for id in game.players:
-			var p: Dictionary=game.players[id]
-			if Life.alive(p) and AttackGeometry.accepts_sector(origin,attack.face,p.pos,0.0,radius,attack.span) and game.battlefield.clear_line(origin,p.pos):
-				game.apply_enemy_hit(id,p,now,damage,0,origin)
+		hits.sector(origin,attack.face,radius,attack.span,now,damage)
 		return
 	var directed := mode == "volley"
 	if (not directed and not scout.ranged) or Attacks.attack_sight(game.battlefield,origin,target_point,mode):
@@ -236,11 +244,12 @@ static func release(game: Node, scout: Dictionary, definition: Dictionary, now: 
 			preload("res://enemy_move_feedback.gd").release(game,"burst",origin,target_point,radius,Color("#b895ed"))
 		elif int(attack.pulse)>0:
 			game.emit_combat_event("swing","pulse",origin,target_point,.35,Color("#b895ed"),radius,int(attack.pulse))
-		Attacks.hit_players(game,target_point,radius,now,damage,1600 if mode=="snare" else 0,true,directed)
-		preload("res://glasscap_feint.gd").release(game,scout,now)
-	if int(scout.get("repeat", 0)) > 0 and not attack.get("learned",false):
-		scout.repeat -= 1
-		attack.pulse+=1
-		scout.attack=attack
-		scout.windup = now + (1000 if attack.variant=="late_pulse" else 500)
-		preload("res://event_audio.gd").enemy(game,attack,false)
+		hits.area(target_point,radius,now,damage,1600 if mode=="snare" else 0,true,directed)
+		if hits.source_is_current():
+			preload("res://glasscap_feint.gd").release(game,scout,now)
+	if hits.source_is_current() and int(scout.get("repeat", 0)) > 0 and not attack.get("learned",false):
+		var next_due := now + (1000 if attack.variant=="late_pulse" else 500)
+		if Attacks.rearm_scout_attack(game.encounter, scout, attack, game.combat_epoch, next_due):
+			scout.repeat -= 1
+			attack.pulse+=1
+			preload("res://event_audio.gd").enemy(game,attack,false)
