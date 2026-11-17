@@ -189,7 +189,7 @@ func revival() -> void:
 	ally.pos=player.pos
 	player.offer_floor=3
 	player.last_offer=0
-	player.essence_sparks=500
+	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(500, game.wallet_for(player).spent_essence())
 	player.checkpoint_offers=["class_0_0","power","reach"]
 	check(game.buy_upgrade(1,player,0) and player.max_hp==120 and player.hp==50,"checkpoint bonus grants exact new capacity")
 	game.damage_player(1,player,int(player.hp))

@@ -61,7 +61,7 @@ func run() -> void:
  check(hp-game.enemy_hp>=5,"Omenreader punishes marked wind-up")
  # Every class has new eligible cards; purchases augment rather than replace learned skills.
  for c in 5:
-  arena(game,p,c);game.enemy_hp=0;game.scouts.clear();game.encounter_number=6;p.pos=game.battlefield.advance;p.essence_sparks=10000;p.offer_floor=6;p.last_offer=0
+  arena(game,p,c);game.enemy_hp=0;game.scouts.clear();game.encounter_number=6;p.pos=game.battlefield.advance;p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(p).spent_essence());p.offer_floor=6;p.last_offer=0
   var candidates: Array=game.RunUpgrades.all().filter(func(e):return e.id.begins_with(["warden_","weaver_","ranger_","reaper_","oracle_"][c]))
   check(candidates.size()==4,"four new class behavior cards "+str(c))
   p.checkpoint_offers=[candidates[0].id];var mask: int=p.character.upgrades[c]

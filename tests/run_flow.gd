@@ -58,19 +58,19 @@ func run():
  check(game.checkpoint_cards.get_child_count() in [3,4],"three normal cards with a possible fourth")
  var selected_id: String=game.checkpoint_offer_ids(p)[0]
  var selected_cost: int=game.RunUpgrades.get_upgrade(selected_id).cost
- var wallet_before: int=p.spent
+ var wallet_before: int=game.wallet_for(p).spent_essence()
  game.send_garden_action("checkpoint_choice_42")
- check(game.encounter_number==6 and p.spent==wallet_before,"invalid card cannot advance or spend")
+ check(game.encounter_number==6 and game.wallet_for(p).spent_essence()==wallet_before,"invalid card cannot advance or spend")
  game.send_garden_action("checkpoint_choice_0")
- check(game.encounter_number==7 and not game.checkpoint_pending and not game.checkpoint_menu.visible and int(p.run_upgrades.get(selected_id,0))==1 and p.spent==wallet_before+selected_cost,"choosing a card applies exactly one upgrade then transports")
+ check(game.encounter_number==7 and not game.checkpoint_pending and not game.checkpoint_menu.visible and int(p.run_upgrades.get(selected_id,0))==1 and game.wallet_for(p).spent_essence()==wallet_before+selected_cost,"choosing a card applies exactly one upgrade then transports")
  game.send_garden_action("checkpoint_choice_0")
  check(int(p.run_upgrades.get(selected_id,0))==1,"stale duplicate choice cannot purchase twice")
- cleared_gate(game,12);p.weapon=3;p.graft_part=4;p.spent=0;p.offer_floor=12;p.checkpoint_offers=["power","technique","rift_hook"]
+ cleared_gate(game,12);p.weapon=3;p.graft_part=4;p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(game.wallet_for(p).earned_sparks(), 0);p.offer_floor=12;p.checkpoint_offers=["power","technique","rift_hook"]
  game.use_checkpoint(1,true)
  check(game.checkpoint_cards.get_child_count()==3,"a fixed eligible rare-link fixture remains purchasable")
  game.send_garden_action("checkpoint_choice_2")
  check(game.encounter_number==13 and p.rift_hook,"rare linked upgrade applies before transport")
- cleared_gate(game,18);p.spent=game.deepest_milestone*game.ROOM_CURRENCY
+ cleared_gate(game,18);p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(game.wallet_for(p).earned_sparks(), game.deepest_milestone*game.ExpeditionWallet.ESSENCE_PER_CLEARED_FLOOR)
  game.use_checkpoint(1,true)
  var choices: Array=game.checkpoint_card_data(p)
  check(not choices[0].enabled and not choices[1].enabled,"unaffordable cards are visibly disabled")

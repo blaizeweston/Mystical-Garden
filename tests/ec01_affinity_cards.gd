@@ -63,11 +63,12 @@ func reset(class_id := 0) -> void:
 	Core.reset(game)
 	for p: Dictionary in [player,ally]:
 		Cards.clear(p)
+		p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new()
 		for key in [Rules.Wood.GRANTS,Rules.Spirit.STRIDES,Rules.Vital.SOURCES,Rules.Vital.BONUS,"affinity_ward_claims",
 				Rules.Storm.FORM_READY,Rules.Void.FORM_READY,Rules.Wood.FORM_READY,"subclass_follow","warden_block"]:
 			p.erase(key)
 		for key in ["weapon","secondary","catalyst","graft_part","lost_health","guard_until","guard_charges",
-				"strike_at","skill_at","skill_two_at","dodge_at","cast_until","core_ready_at","core_cast_until","spent","essence_sparks","last_offer"]:
+				"strike_at","skill_at","skill_two_at","dodge_at","cast_until","core_ready_at","core_cast_until","last_offer"]:
 			p[key] = 0
 		p.pos = Vector3.ZERO
 		p.wild = true
@@ -179,25 +180,29 @@ func verify_offers() -> void:
 	game.present_checkpoint_cards(1)
 	check(Cards.ledger(player)==original_ledger and original==original_ledger.offer(),
 		"opening again preserves identities, rarities and revision")
+	var empty_wallet = game.wallet_for(player)
 	action(original.revision,"reroll")
-	check(Cards.ledger(player)==original_ledger and original==original_ledger.offer() and player.spent==0,
+	check(Cards.ledger(player)==original_ledger and original==original_ledger.offer() and game.wallet_for(player)==empty_wallet,
 		"insufficient currency changes neither the ledger nor the wallet")
-	player.essence_sparks = 48
+	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(48)
 	for cost in [2,4,6]:
 		var before_ledger := Cards.ledger(player)
 		var before := before_ledger.offer()
 		var wallet: int = game.run_wallet(player)
+		var before_wallet = game.wallet_for(player)
 		action(before.revision,"reroll")
+		var paid_wallet = game.wallet_for(player)
 		var after_ledger := Cards.ledger(player)
 		var after := after_ledger.offer()
 		check(after_ledger!=before_ledger and before_ledger.offer()==before
 			and after.revision>before.revision and game.run_wallet(player)==wallet-cost
+			and paid_wallet != before_wallet and paid_wallet.spent_essence() == before_wallet.spent_essence() + cost
 			and after.cards.any(func(card): return not before.cards.any(func(old): return old.id==card.id)),
 			"paid replacement changes the offer set and debits %d" % cost)
 		action(before.revision,"reroll")
 		action(before.revision,"0")
 		check(Cards.ledger(player)==after_ledger and after==after_ledger.offer()
-			and game.run_wallet(player)==wallet-cost and after_ledger.copies().is_empty(),
+			and game.run_wallet(player)==wallet-cost and game.wallet_for(player)==paid_wallet and after_ledger.copies().is_empty(),
 			"stale selection and reroll cannot replace or mutate the current ledger")
 	var final_offer := Cards.ledger(player).offer()
 	var offered: Dictionary = final_offer.cards[0]
@@ -232,7 +237,7 @@ func verify_offers() -> void:
 		"continuing at a closed offer restores readiness without another purchase or debit")
 	reset()
 	at_checkpoint(3)
-	player.essence_sparks = 80
+	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(80)
 	for _copy in 4:
 		grant_fixture_copy("ordinary_weapon_damage")
 		grant_fixture_copy("run_health")
@@ -240,8 +245,9 @@ func verify_offers() -> void:
 	var braked_ledger := Cards.ledger(player)
 	var braked_offer := braked_ledger.offer()
 	check(braked.choices.size()==3,"remaining legal pool fits exactly one offer")
+	var funded_wallet = game.wallet_for(player)
 	action(braked.revision,"reroll")
-	check(Cards.ledger(player)==braked_ledger and braked_ledger.offer()==braked_offer and player.spent==0,
+	check(Cards.ledger(player)==braked_ledger and braked_ledger.offer()==braked_offer and game.wallet_for(player)==funded_wallet,
 		"no valid replacement leaves the ledger, wallet and revision intact")
 
 	reset()
@@ -276,20 +282,26 @@ func verify_offers() -> void:
 	check(game.checkpoint_ready.get(1)==60,"exhausted floor 60 can still ready the Gate")
 	game.checkpoint_ready[2] = 60
 	check(game._use_checkpoint(1,true) and game.encounter_number==61,"travel continues past floor 60 with exhausted budget")
-	player.spent = 7
-	ally.essence_sparks = 8
-	ally.spent = 2
+	# A shared clearance survives a partial return, but the returned actor
+	# must neither receive its contribution nor retain portable currency.
+	game.deepest_milestone = 60
+	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(12, 7)
+	ally[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(8, 2)
+	var companion_wallet = game.wallet_for(player)
+	var companion_balance: int = game.run_wallet(player)
 	grant_fixture_copy("run_health", 0, ally)
 	var companion_ledger := Cards.ledger(player)
 	game.abandon_run(2,ally)
-	check(ally.spent==0 and game.run_wallet(ally)==0 and not ally.has(Cards.STATE)
-		and player.wild and Cards.ledger(player)==companion_ledger,
+	check(game.wallet_for(ally).spent_essence()==0 and game.wallet_for(ally).earned_sparks()==0
+		and game.run_wallet(ally)==0 and not ally.has(Cards.STATE)
+		and player.wild and Cards.ledger(player)==companion_ledger and game.wallet_for(player)==companion_wallet
+		and game.run_wallet(player)==companion_balance,
 		"partial party return zeroes detached wallet while the companion remains")
 	at_checkpoint(66)
 	check(game._use_checkpoint(1,false) and not player.has(Cards.STATE) and game.run_wallet(player)==0,"extraction clears run ownership and purse")
 	reset()
 	grant_fixture_copy("run_health")
-	player.essence_sparks=60
+	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(60)
 	check(game.finish_failed_expedition() and not player.has(Cards.STATE) and game.run_wallet(player)==0,"wipe clears run ownership and purse")
 
 
@@ -659,7 +671,7 @@ func verify_attack_speed() -> void:
 		var wanted := previous.duplicate()
 		wanted.append(int(scenario.applied))
 		check(card_ledger(player).copies().map(func(copy):return copy.amount) == wanted
-			and before_ledger.copies().map(func(copy):return copy.amount) == previous and player.spent == 0,
+			and before_ledger.copies().map(func(copy):return copy.amount) == previous and game.wallet_for(player).spent_essence() == 0,
 			"the purchase keeps each original contribution and commits the displayed clipped amount for free")
 		tab.refresh(player)
 		summary = tab.shown

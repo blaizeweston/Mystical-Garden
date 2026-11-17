@@ -35,7 +35,7 @@ func run() -> void:
  var before: int=game.enemy_hp;game.use_class_skill(1,p,1)
  check(game.enemy_hp<before-3 and p.counter_until==0,"charge consumes counter on actual hit with plant and monster stats")
  check(game.RunUpgrades.requirement(game.RunUpgrades.get_upgrade("link_frost_briar"),p).is_empty(),"Frostbell plus monster graft unlocks rare linking card")
- game.enemy_hp=0;game.encounter_number=6;p.pos=game.battlefield.advance;p.essence_sparks=10000;p.offer_floor=6;p.checkpoint_offers=["warden_guard_counter"]
+ game.enemy_hp=0;game.encounter_number=6;p.pos=game.battlefield.advance;p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(p).spent_essence());p.offer_floor=6;p.checkpoint_offers=["warden_guard_counter"]
  var mask: int=p.character.upgrades[0]
  check(game._buy_upgrade(1,p,0) and game.weapon_stats(p).counter_damage>=2,"real Wilds purchase augments class counter")
  check(p.character.upgrades[0]==mask and p.weapon==44 and p.graft_part==game.Parts.HOOK,"run purchase preserves learned choices, plant slots and graft")

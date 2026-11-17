@@ -124,12 +124,15 @@ func exercise() -> void:
  world.open_gate_preparation()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.garden_action(1,"depart")
- check(disk()==before and not actor.wild and actor.prepared==1 and world.battlefield==field and world.map_rng.state==seed and world.loadout_menu.visible,
+ check(disk()==before and not actor.wild and actor.prepared==1 and world.battlefield==field and world.map_rng.state==seed
+  and world.loadout_menu.visible and world.run_wallet(actor)==0,
   "departure abort restores map RNG, battlefield, material, actor and open UI")
  record("departure_abort",before)
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.garden_action(1,"depart")
- check(actor.wild and actor.weapon==1 and world.progress.part_count(1)==2 and not world.loadout_menu.visible and disk()[G]!=before[G],"departure commits before panel closure")
+ check(actor.wild and actor.weapon==1 and world.progress.part_count(1)==2 and not world.loadout_menu.visible
+  and disk()[G]!=before[G] and world.run_wallet(actor)==0,"departure commits a fresh wallet before panel closure")
+ var initial_wallet = world.wallet_for(actor)
  record("departure_commit",before)
 
  world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
@@ -145,16 +148,21 @@ func exercise() -> void:
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.finish_combat(1,world.enemy_pos)
  check(not world.encounter_rewarded and not actor.loot_pending and actor.character.monsters[world.enemy_kind]==0 and world.pending_kill_rewards.size()==1
-  and world.wild_item_drops.is_empty() and world.combat_event_serial==serial and world.rng.state==frozen and disk()==before,"encounter abort keeps the frozen receipt and withholds rewards, drop and cue")
+  and world.wild_item_drops.is_empty() and world.combat_event_serial==serial and world.rng.state==frozen and disk()==before
+  and world.wallet_for(actor)==initial_wallet and world.run_wallet(actor)==0,"encounter abort keeps the frozen receipt and withholds rewards, drop and cue")
  record("encounter_abort",before)
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.finish_combat(1,world.enemy_pos)
- check(world.encounter_rewarded and actor.loot_pending and actor.essence_sparks>0 and actor.character.monsters[world.enemy_kind]==1
+ var earned_wallet = world.wallet_for(actor)
+ var earned_balance: int = world.run_wallet(actor)
+ check(world.encounter_rewarded and actor.loot_pending and earned_wallet.earned_sparks()>0
+  and earned_balance>=2 and actor.character.monsters[world.enemy_kind]==1
   and world.wild_item_drops.size()==1 and world.progress.wilds_memory.encounters==1 and disk()[G]!=before[G] and disk()[C]!=before[C],
   "encounter commits frozen XP, trophy, adaptation, and cue together")
  var committed:=disk()
  world.finish_combat(1,world.enemy_pos)
- check(world.MonsterRewards.flush(world) and disk()==committed and world.wild_item_drops.size()==1,"repeat flush and completion cannot credit twice")
+ check(world.MonsterRewards.flush(world) and disk()==committed and world.wild_item_drops.size()==1
+  and world.wallet_for(actor)==earned_wallet and world.run_wallet(actor)==earned_balance,"repeat flush and completion cannot credit twice")
  record("encounter_commit",before)
 
  world.add_player(2)
@@ -170,10 +178,12 @@ func exercise() -> void:
  world.damage_player(1,actor,1)
  check(int(actor.hp)==hp-1 and disk()==committed,"nonlethal damage is runtime-only")
  world.damage_player(1,actor,999)
- check(actor.fallen and actor.hp==0,"lethal damage commits downed state")
+ check(actor.fallen and actor.hp==0 and world.wallet_for(actor)==earned_wallet
+  and world.run_wallet(actor)==earned_balance,"the downed player keeps their run wallet")
  world.revive_player(2,1)
  var paid: int=int(actor.lost_health)
- check(not actor.fallen and actor.hp>0 and paid>0,"revival commits one maximum-health cost")
+ check(not actor.fallen and actor.hp>0 and paid>0 and world.wallet_for(actor)==earned_wallet
+  and world.run_wallet(actor)==earned_balance,"revival commits one maximum-health cost without changing Essence")
  world.revive_player(2,1)
  check(actor.lost_health==paid,"duplicate revival cannot charge twice")
  ally.wild=false
@@ -276,12 +286,16 @@ func exercise() -> void:
  before=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.remove_player(2)
- check(not world.players.has(2) and world.pending_departures.has(2) and world.pending_kill_rewards.size()==1 and disk()==before,
-  "failed disconnect settlement retains cargo and frozen reward after removing peer")
+ check(not world.players.has(2) and world.pending_departures.has(2) and world.pending_kill_rewards.size()==1 and disk()==before
+  and not ally.has(world.ExpeditionWallet.STATE) and world.run_wallet(ally)==0,
+  "failed disconnect settlement retains cargo and frozen reward and clears run-only currency")
+ world.grant_run_essence(2,ally,4)
+ check(not ally.has(world.ExpeditionWallet.STATE) and world.run_wallet(ally)==0,"pending departure cannot receive a credit")
  world.remove_meta(&"guarded_gameplay_test_fault")
  check(world.MonsterRewards.flush(world) and world.pending_departures.is_empty() and world.pending_kill_rewards.is_empty()
-  and world.progress.character_records.departed.profile.monsters[world.enemy_kind]==1 and world.progress.reserve("departed").unknown.size()==1,
-  "flush credits detached identity and pouch once")
+  and world.progress.character_records.departed.profile.monsters[world.enemy_kind]==1 and world.progress.reserve("departed").unknown.size()==1
+  and not ally.has(world.ExpeditionWallet.STATE) and world.run_wallet(ally)==0,
+  "flush credits detached Class XP and pouch once without restoring a run wallet")
  record("disconnect_abort_then_commit",before)
 
  var lease:=G.get_base_dir().path_join("session.cfg")

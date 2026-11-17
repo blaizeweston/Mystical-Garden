@@ -132,7 +132,7 @@ func host_run() -> void:
 	if not await until(func(): return int(guest.run_upgrades.get("quickroot", 0)) == 1):
 		check(false, "guest buys Quickroot at the third gate")
 		return
-	check(guest.spent == 6 and host.spent == 0 and host.run_upgrades.is_empty() and game.encounter_number == 3, "purchase spends only the guest's essence and does not move the party")
+	check(game.wallet_for(guest).spent_essence() == 6 and game.wallet_for(host).spent_essence() == 0 and host.run_upgrades.is_empty() and game.encounter_number == 3, "purchase spends only the guest's essence and does not move the party")
 	game.use_checkpoint(1, true)
 	if not await until(func(): return game.encounter_number == 4):
 		check(false, "party advances after both confirmations")

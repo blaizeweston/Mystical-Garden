@@ -165,7 +165,7 @@ func support() -> void:
 	game.enemy_hp=0
 	game.encounter_number=3
 	player.pos=game.battlefield.advance
-	player.essence_sparks=10000
+	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(player).spent_essence())
 	player.last_offer=0
 	player.offer_floor=0
 	var offers: Array=game.checkpoint_offer_ids(player)

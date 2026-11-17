@@ -84,7 +84,7 @@ func host() -> void:
 		member.wild=true
 		member.pos=game.battlefield.advance
 	player.weapon=game.Parts.index_of("plant:thorn_bloom")
-	player.essence_sparks=10000
+	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(player).spent_essence())
 	game.present_checkpoint_cards(id)
 	if not await until(func():return player.run_upgrades.get(CARD,0)==1 and marked("purchase")):
 		check(false,"guest buys the branch card")

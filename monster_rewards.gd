@@ -84,8 +84,8 @@ static func settle(game: Node,effects = null) -> bool:
  return true
 
 static func _grant_run_rewards(game: Node,kill: Dictionary,reward: Dictionary,p: Dictionary) -> void:
- p.essence_sparks=int(p.get("essence_sparks",0))+int(reward.essence)
  var id := int(reward.id)
+ game.grant_run_essence(id, p, int(reward.essence))
  if int(kill.epoch)!=game.combat_epoch or not game.players.has(id):
   return
  var at: Vector3=kill.position

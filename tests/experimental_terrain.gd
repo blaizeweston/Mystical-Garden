@@ -332,7 +332,8 @@ func run() -> void:
 	var floor_before := save_digests(garden_path, profile_path)
 	var xp_before := class_xp(player)
 	var kills_before := kill_count(player)
-	var essence_before: int = player.essence_sparks
+	var wallet_before = game.wallet_for(player)
+	var essence_before: int = wallet_before.earned_sparks()
 	# Exercise actual hit and reward services with a decisive test hit for each spawned enemy.
 	for target in range(-1, game.scouts.size()):
 		if (game.enemy_hp if target == -1 else int(game.scouts[target].hp)) <= 0:
@@ -353,11 +354,14 @@ func run() -> void:
 			var frozen: Array = game.pending_kill_rewards.duplicate(true)
 			var drops: Array = game.wild_item_drops.duplicate(true)
 			var rng_state: int = game.rng.state
+			var leader_wallet = game.wallet_for(player)
 			game.record_enemy_death(target, game.enemy_pos, player.pos)
-			check(game.pending_kill_rewards == frozen and game.wild_item_drops == drops and game.rng.state == rng_state,
+			check(game.pending_kill_rewards == frozen and game.wild_item_drops == drops and game.rng.state == rng_state
+				and game.wallet_for(player) == leader_wallet,
 				"a duplicate death cannot reroll or grant rewards twice")
-			check(not game.encounter_cleared() and player.essence_sparks > essence_before and not drops.is_empty(),
-				"essence and collectible drops appear before the floor clears")
+			check(not game.encounter_cleared() and leader_wallet.earned_sparks() > essence_before
+				and wallet_before.earned_sparks() == essence_before and not drops.is_empty(),
+				"Essence and collectible drops appear before the floor clears")
 			check(game.MonsterRewards.flush(game) and game.pending_kill_rewards == frozen
 				and save_digests(garden_path, profile_path) == floor_before
 				and class_xp(player) == xp_before and kill_count(player) == kills_before,
@@ -365,7 +369,8 @@ func run() -> void:
 	var expected_xp := xp_before + queued_xp(game)
 	var expected_kills: int = kills_before + game.pending_kill_rewards.size()
 	var expected_drops: Array = game.wild_item_drops.duplicate(true)
-	var expected_essence: int = player.essence_sparks
+	var expected_wallet = game.wallet_for(player)
+	var before_clear_balance: int = game.run_wallet(player)
 	if DisplayServer.get_name() == "headless":
 		var saved_tally: Array = game.pending_kill_rewards.duplicate(true)
 		game.set_meta(&"guarded_gameplay_test_fault", func(phase: String, _path: String):
@@ -374,18 +379,21 @@ func run() -> void:
 		game.remove_meta(&"guarded_gameplay_test_fault")
 		check(not game.encounter_rewarded and game.pending_kill_rewards == saved_tally
 			and save_digests(garden_path, profile_path) == floor_before and class_xp(player) == xp_before
-			and player.essence_sparks == expected_essence and game.wild_item_drops == expected_drops,
+			and game.wallet_for(player) == expected_wallet and game.run_wallet(player) == before_clear_balance
+			and game.wild_item_drops == expected_drops,
 			"verified settlement abort restores the tally without rerolling or revoking live loot")
 	var rewarded: bool = game.MonsterRewards.flush(game)
 	game.finish_combat(game.HOST, game.enemy_pos)
 	check(game.encounter_rewarded, "the guarded combat settlement authorizes Gate progression")
 	check(game.pending_kill_rewards.is_empty() and class_xp(player) == expected_xp
-		and kill_count(player) == expected_kills and player.essence_sparks == expected_essence
-		and game.wild_item_drops == expected_drops and save_digests(garden_path, profile_path) != floor_before,
-		"floor clear commits XP and kill counts without repeating drops or essence")
+		and kill_count(player) == expected_kills and game.wallet_for(player) == expected_wallet
+		and game.run_wallet(player) == before_clear_balance + 2 and game.wild_item_drops == expected_drops
+		and save_digests(garden_path, profile_path) != floor_before,
+		"floor clear adds the shared milestone and commits XP without repeating kill Essence or drops")
 	var clear_digests := save_digests(garden_path, profile_path)
 	game.finish_combat(game.HOST, game.enemy_pos)
-	check(save_digests(garden_path, profile_path) == clear_digests and class_xp(player) == expected_xp,
+	check(save_digests(garden_path, profile_path) == clear_digests and class_xp(player) == expected_xp
+		and game.wallet_for(player) == expected_wallet and game.run_wallet(player) == before_clear_balance + 2,
 		"duplicate floor completion cannot commit the tally twice")
 	for ignored in 3:
 		await process_frame

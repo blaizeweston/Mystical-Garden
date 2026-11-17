@@ -76,7 +76,7 @@ const CHECKPOINT_INTERVAL := EncounterConfig.UPGRADE_INTERVAL
 const EXTRACTION_INTERVAL := EncounterConfig.EXTRACTION_INTERVAL
 const LoadoutMaterials=preload("res://loadout_materials.gd")
 const ROUTE_ROOMS := EncounterConfig.BIOME_LENGTH
-const ROOM_CURRENCY := 2
+const ExpeditionWallet = preload("res://expedition_wallet.gd")
 const RunUpgrades=preload("res://run_upgrade_catalog.gd")
 const AffinityCards = preload("res://affinity_cards.gd")
 const HOOK_ROOM := 3
@@ -825,7 +825,7 @@ func add_player(id: int) -> void:
 		return
 	var spawn: Vector3 = Stage.SPAWN + [Vector3.ZERO,Vector3(1.1,0,0),Vector3(-1.1,0,0),Vector3(0,0,1.1)][party_slot]
 	var base_health:=Life.Preview.hp(MAX_HEALTH)
-	players[id] = {"party_slot":party_slot,"velocity":Vector3.ZERO,"damage_seq":0,"damage_amount":0,"vitals_revision":0,"pos": spawn, "wild": false, "fallen": false, "lost_health":0, "prepared": 0, "weapon": 0, "experiment": 0, "spent": 0,"essence_sparks":0, "last_offer": 0,"run_upgrades":{},"checkpoint_offers":[],"offer_floor":0,"upgrade_seed":Crypto.new().generate_random_bytes(8).hex_encode().hash(), "power": 0, "technique": 0,
+	players[id] = {"party_slot":party_slot,"velocity":Vector3.ZERO,"damage_seq":0,"damage_amount":0,"vitals_revision":0,"pos": spawn, "wild": false, "fallen": false, "lost_health":0, "prepared": 0, "weapon": 0, "experiment": 0, ExpeditionWallet.STATE: ExpeditionWallet.Wallet.new(), "last_offer": 0,"run_upgrades":{},"checkpoint_offers":[],"offer_floor":0,"upgrade_seed":Crypto.new().generate_random_bytes(8).hex_encode().hash(), "power": 0, "technique": 0,
 		"weapon_kind":0, "catalyst":0, "graft_part":0,"graft_floor":0, "prepared_catalyst":0, "cargo_plan":Parts.empty_counts(), "frame": Frames.WARDEN, "skill_at": 0, "skill_two_at":0, "guard_charges":0, "guard_until": 0, "attack_until":0,"attack_duration":240,"attack_combo":0,"swing_until": 0, "contributed": false,
 		"character": local_character.data if id == HOST else Character.blank(), "profile_ready": id == HOST,"joined_at":Time.get_ticks_msec(),
 		"seed_choice": 0, "seed_owner": "", "carried_seeds": [],"safe_items":[],"carried_items":{}, "pouch": false, "loot_pending": false,
@@ -842,6 +842,7 @@ func remove_player(id: int) -> void:
 	Journal.event("network","peer_disconnected",{"actor":id})
 	if has_meta(Transactions.SESSION):
 		var leaving: Dictionary = players.get(id, {})
+		leaving.erase(ExpeditionWallet.STATE)
 		if not multiplayer.is_server() or session=="Guest" or session=="Connecting" or returning_to_title or get_meta(Transactions.STOPPING,false):
 			players.erase(id)
 			motions.erase(id)
@@ -864,6 +865,7 @@ func remove_player(id: int) -> void:
 			if not players[id].get("seed_owner","").is_empty(): progress.character_records[players[id].seed_owner]={"profile":players[id].character.duplicate(true),"manifest":progress.ContentIDs.manifest()}
 			recover_pouch(players[id])
 			preload("res://garden_return_service.gd").member_left(self,players[id])
+		if players.has(id): players[id].erase(ExpeditionWallet.STATE)
 		players.erase(id)
 		PartyTravel.cancel(self,"A player disconnected. Confirm readiness again to continue.")
 		refresh_drop()
@@ -1446,10 +1448,30 @@ func revive_player(id: int, target: int) -> void:
 	else:
 		Transactions.run(self, func(): return Life.revive(self, id, target))
 
+func wallet_for(player: Dictionary) -> ExpeditionWallet.Wallet:
+	return player.get(ExpeditionWallet.STATE)
+
+
 func run_wallet(player: Dictionary) -> int:
-	if not player.get("wild",false):
+	var wallet := wallet_for(player)
+	if wallet == null or not player.get("wild", false):
 		return 0
-	return maxi(0,deepest_milestone*ROOM_CURRENCY+int(player.get("essence_sparks",0))/int(Director.config().essence_sparks_per_point)-int(player.get("spent",0)))
+	return wallet.balance(deepest_milestone, int(Director.config().essence_sparks_per_point))
+
+
+func _plan_essence_debit(player: Dictionary, cost: int) -> ExpeditionWallet.Wallet:
+	var wallet := wallet_for(player)
+	if not multiplayer.is_server() or wallet == null or not player.get("wild", false):
+		return null
+	return wallet.plan_debit(cost, deepest_milestone, int(Director.config().essence_sparks_per_point))
+
+
+func grant_run_essence(id: int, player: Dictionary, sparks: int) -> void:
+	if not multiplayer.is_server() or not is_same(players.get(id), player) or not player.get("wild", false):
+		return
+	var wallet := wallet_for(player)
+	if wallet != null:
+		player[ExpeditionWallet.STATE] = wallet.credit_sparks(sparks)
 
 
 func record_character(id: int, actor: Dictionary = {}) -> void:
@@ -2104,11 +2126,12 @@ func _buy_upgrade(id: int,player: Dictionary,choice: int,effects = null) -> bool
 	var entry:=RunUpgrades.get_upgrade(str(offers[choice]))
 	var reason:=RunUpgrades.requirement(entry,player)
 	if not reason.is_empty(): action_feedback(effects,id,reason);return false
-	if run_wallet(player)<int(entry.cost): action_feedback(effects,id,"Not enough essence for that upgrade.");return false
+	var debited := _plan_essence_debit(player, int(entry.cost))
+	if debited == null: action_feedback(effects,id,"Not enough essence for that upgrade.");return false
 	var before_health:=int(player.get("max_hp",MAX_HEALTH))
 	if not player.has("run_upgrades"): player.run_upgrades={}
 	player.run_upgrades[entry.id]=int(player.run_upgrades.get(entry.id,0))+1
-	player.spent+=int(entry.cost)
+	player[ExpeditionWallet.STATE] = debited
 	var metric := {"id":entry.id,"floor":encounter_number,"cost":int(entry.cost)}
 	var record_upgrade := func(): preload("res://game_metrics.gd").record("upgrade",metric)
 	if effects == null: record_upgrade.call()
@@ -3268,7 +3291,7 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = n
 	p.lost_health=0
 	for key in ["echo_charge","grave_charges","tide_ready","decoy_ready","link_ready","counter_until","front_guard_until","counter_guard_until","brace_block_ready"]: p[key]=0
 	p.still_since=Time.get_ticks_msec();p.still_point=wild_entry(id)
-	p.essence_sparks=0
+	p[ExpeditionWallet.STATE] = ExpeditionWallet.Wallet.new()
 	p.pos = wild_entry(id)
 	p.dodge_at = 0
 	p.skill_at = 0
@@ -3361,8 +3384,7 @@ func return_to_garden(p: Dictionary) -> void:
 	preload("res://oracle_combat.gd").clear(p)
 	p.run_upgrades={}
 	AffinityCards.clear(p)
-	p.essence_sparks=0
-	p.spent=0
+	p[ExpeditionWallet.STATE] = ExpeditionWallet.Wallet.new()
 	p.last_offer=0
 	p.checkpoint_offers=[]
 	p.offer_floor=0
@@ -3766,8 +3788,7 @@ func reset_expedition() -> void:
 	for player in players.values():
 		player.fallen = false
 		player.lost_health=0
-		player.spent = 0
-		player.essence_sparks=0
+		player[ExpeditionWallet.STATE] = ExpeditionWallet.Wallet.new()
 		player.last_offer = 0
 		player.run_upgrades={}
 		AffinityCards.clear(player)
@@ -5083,9 +5104,14 @@ func _affinity_checkpoint_command(id: int, player: Dictionary, action: String) -
 		int(player.upgrade_seed), run_wallet(player), stats, DODGE_COOLDOWN_MS)
 	# Install the accepted state and debit together before publishing feedback.
 	if plan.has("ledger"):
+		if plan.has("cost"):
+			var debited := _plan_essence_debit(player, int(plan.cost))
+			if debited == null:
+				present_checkpoint_cards(id)
+				return
+			player[ExpeditionWallet.STATE] = debited
 		player[AffinityCards.STATE] = plan.ledger
 		if plan.has("cost"):
-			player.spent += int(plan.cost)
 			set_meta(AffinityCards.SERIAL, revision)
 			Journal.event("combat", "affinity_card_reroll", {"actor": id, "floor": encounter_number,
 				"revision": revision, "cost": plan.cost, "rerolls": plan.rerolls})

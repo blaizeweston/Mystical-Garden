@@ -237,8 +237,8 @@ func lifecycle() -> void:
 	]
 	var card_ledger := Cards.Ledger.new(card_receipts, {}, 3)
 	player[Cards.STATE] = card_ledger
-	player.essence_sparks = 16
-	player.spent = 2
+	var run_wallet = game.ExpeditionWallet.Wallet.new(16, 2)
+	player[game.ExpeditionWallet.STATE] = run_wallet
 	game.checkpoint_ready[1] = 3
 	var wallet: int = game.run_wallet(player)
 	game.set_meta(&"guarded_gameplay_test_fault",func(phase, _path): return ERR_FILE_CANT_WRITE if phase=="stage" else OK)
@@ -247,11 +247,12 @@ func lifecycle() -> void:
 	check(rolled_back and player.wild and Improvements.active_ledger(player)==ledger and player.carried_parts==remainder,
 		"a confirmed guarded rollback preserves the whole graft ledger and carry")
 	check(rolled_back and Cards.ledger(player)==card_ledger and card_ledger.copies()==card_receipts
-		and card_ledger.completed_floor()==3 and player.spent==2 and game.run_wallet(player)==wallet
+		and card_ledger.completed_floor()==3 and game.wallet_for(player)==run_wallet and game.run_wallet(player)==wallet
 		and game.checkpoint_ready.get(1)==3,"guarded rollback restores card ownership, wallet and Gate readiness together")
 	game.finish_failed_expedition()
 	check(not player.has(Improvements.STATE) and not player.has(Grafts.STATE)
-		and not player.has(Cards.STATE) and game.run_wallet(player)==0,"actual wipe clears both ledgers, counters and wallet")
+		and not player.has(Cards.STATE) and game.run_wallet(player)==0 and game.wallet_for(player).earned_sparks()==0
+		and game.wallet_for(player).spent_essence()==0,"actual wipe clears both ledgers, counters and wallet")
 	start_expedition()
 	check(Improvements.run_identity(player) != ledger.identity() and receipts().is_empty(),
 		"fresh expedition starts with a different identity and no acquisitions")

@@ -66,15 +66,15 @@ func run():
  check(first_data.size()==4 and first_data[3].choice==3,"fourth choice is transmitted as a purchasable card")
  game.checkpoint_pending=true
  game.choose_checkpoint_card(1,p,99)
- check(p.spent==0 and game.encounter_number==12,"invalid indices cannot spend or advance")
+ check(game.wallet_for(p).spent_essence()==0 and game.encounter_number==12,"invalid indices cannot spend or advance")
  var chosen: String=initial[3];var cost:=int(Catalog.get_upgrade(chosen).cost)
  game.choose_checkpoint_card(1,p,3)
- check(game.encounter_number==13 and int(p.run_upgrades.get(chosen,0))==1 and p.spent==cost,"fourth card applies once and advances only after purchase")
+ check(game.encounter_number==13 and int(p.run_upgrades.get(chosen,0))==1 and game.wallet_for(p).spent_essence()==cost,"fourth card applies once and advances only after purchase")
  var ranks: Dictionary=p.run_upgrades.duplicate()
  game.choose_checkpoint_card(1,p,3)
  check(p.run_upgrades==ranks,"duplicate request cannot buy the same offer twice")
  # Fund a known class card to verify its live health effect.
- p.run_upgrades={};p.spent=0;gate(game,p,18)
+ p.run_upgrades={};p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(game.wallet_for(p).earned_sparks(), 0);gate(game,p,18)
  p.offer_floor=18;p.checkpoint_offers=["class_0_0","power","reach"]
  p.hp=8;p.max_hp=10
  check(game.buy_upgrade(1,p,0) and p.max_hp==12 and p.hp==10,"health upgrades update current max health and grant added capacity")
@@ -89,18 +89,18 @@ func run():
  p.run_upgrades={};gate(game,p,24);p.offer_floor=24;p.checkpoint_offers=["graft_1","power","reach"]
  check(not game.checkpoint_card_data(p)[0].enabled and not game.buy_upgrade(1,p,0),"current loadout is validated when purchasing a cached card")
  check(p.checkpoint_offers==["graft_1","power","reach"],"changed loadout does not create a free reroll")
- p.spent=game.deepest_milestone*game.ROOM_CURRENCY
+ p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(game.wallet_for(p).earned_sparks(), game.deepest_milestone*game.ExpeditionWallet.ESSENCE_PER_CLEARED_FLOOR)
  var before: Dictionary=p.run_upgrades.duplicate()
  check(not game.buy_upgrade(1,p,1) and p.run_upgrades==before,"cannot purchase without essence")
  # Full restoration link still teaches the Garden exactly once.
- p.spent=0;p.weapon=3;p.graft_part=4;p.run_upgrades={};p.last_offer=0;p.checkpoint_offers=["rift_hook","power","reach"]
+ p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(game.wallet_for(p).earned_sparks(), 0);p.weapon=3;p.graft_part=4;p.run_upgrades={};p.last_offer=0;p.checkpoint_offers=["rift_hook","power","reach"]
  var knowledge: int=game.progress.knowledge
  check(game.buy_upgrade(1,p,0) and p.rift_hook and game.progress.rift_hook_discovered and game.progress.knowledge==knowledge+4,"Rift Hook link is an actual upgrade and permanent first discovery")
  game.return_to_garden(p)
  check(p.run_upgrades.is_empty() and p.checkpoint_offers.is_empty() and p.power==0 and p.technique==0 and not p.rift_hook,"return clears all expedition upgrades and cached cards")
  core_cards(game,p)
  p.weapon=game.Parts.index_of("plant:ember_fern")
- p.spent=0
+ p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(game.wallet_for(p).earned_sparks(), 0)
  gate(game,p,12)
  p.offer_floor=12
  p.checkpoint_offers=["core_ember_wake","power","reach"]
@@ -115,7 +115,7 @@ func run():
 func core_cards(game: Node,p: Dictionary) -> void:
  var fork := Catalog.get_upgrade("forking_roots")
  var quick := Catalog.get_upgrade("quickroot")
- p.frame=0;p.weapon_kind=0;p.weapon=game.Parts.THORN;p.secondary=0;p.catalyst=0;p.spent=0
+ p.frame=0;p.weapon_kind=0;p.weapon=game.Parts.THORN;p.secondary=0;p.catalyst=0;p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(game.wallet_for(p).earned_sparks())
  check(Catalog.weight(fork,p,6)==0 and Catalog.weight(quick,p,6)>0,"Core secondary piercing does not qualify as Form")
  p.secondary=game.Parts.index_of("plant:cinder_vine")
  check(Catalog.weight(fork,p,6)>0,"Thorn Core and piercing Form qualify")
@@ -130,13 +130,13 @@ func core_cards(game: Node,p: Dictionary) -> void:
  var card: Dictionary=game.checkpoint_card_data(p)[fork_index]
  check(card.enabled and card.description.contains("Piercing Form") and card.description.contains("nearby enemy"),"text card explains its behavior")
  p.secondary=0
- check(not game.buy_upgrade(1,p,fork_index) and p.spent==0 and game.checkpoint_offer_ids(p)==offers,"live slot change invalidates cached offer without reroll or spend")
+ check(not game.buy_upgrade(1,p,fork_index) and game.wallet_for(p).spent_essence()==0 and game.checkpoint_offer_ids(p)==offers,"live slot change invalidates cached offer without reroll or spend")
  p.secondary=game.Parts.index_of("plant:cinder_vine")
- check(game.buy_upgrade(1,p,fork_index) and p.spent==int(fork.cost),"Forking Roots purchase spends the owner's essence")
+ check(game.buy_upgrade(1,p,fork_index) and game.wallet_for(p).spent_essence()==int(fork.cost),"Forking Roots purchase spends the owner's essence")
  check(Catalog.weight(fork,p,9)==0 and not game.buy_upgrade(1,p,fork_index),"bounded card can only be acquired once")
  gate(game,p,9)
  offers=game.checkpoint_offer_ids(p)
- check(offers[0]=="quickroot" and game.buy_upgrade(1,p,0) and p.spent==int(fork.cost)+int(quick.cost),"the next gate prioritizes the available timing card")
+ check(offers[0]=="quickroot" and game.buy_upgrade(1,p,0) and game.wallet_for(p).spent_essence()==int(fork.cost)+int(quick.cost),"the next gate prioritizes the available timing card")
  check(Catalog.core_behaviors(p,"thorn_line")==["thorn_fork","thorn_rebate"],"purchased behavior IDs are independent of card order")
 
  game.battlefield.configure(0,9,0)

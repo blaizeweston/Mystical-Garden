@@ -345,7 +345,7 @@ func verify_upgrade_route() -> void:
 		check(game.depth == room, "route advances one room at a time")
 		place(1, Stage.DEEPER_GATE)
 		game.send_garden_action("upgrade_power")
-		check(game.players[1].spent == 0, "live encounter does not offer upgrades")
+		check(game.wallet_for(game.players[1]).spent_essence() == 0, "live encounter does not offer upgrades")
 		await create_timer(0.50).timeout
 		# Test the checkpoint, independently of a randomly placed enemy or its drops.
 		game.scouts.clear()
@@ -362,18 +362,19 @@ func verify_upgrade_route() -> void:
 		place(1, Stage.DEEPER_GATE)
 		if room < game.CHECKPOINT_INTERVAL:
 			game.send_garden_action("upgrade_power")
-			check(game.players[1].spent == 0, "earlier rooms do not offer upgrades")
+			check(game.wallet_for(game.players[1]).spent_essence() == 0, "earlier rooms do not offer upgrades")
 			game.use_checkpoint(1,true)
 	check(game.deepest_milestone == game.CHECKPOINT_INTERVAL, "clears earn run currency")
 	# This fixture skips all scout rewards; fund the forced technique card separately.
 	var missing:=maxi(0,int(game.RunUpgrades.get_upgrade("technique").cost)-game.run_wallet(game.players[1]))
-	game.players[1].essence_sparks+=missing*int(game.Director.config().essence_sparks_per_point)
+	var funding_sparks := missing * int(game.Director.config().essence_sparks_per_point)
+	game.players[1][game.ExpeditionWallet.STATE] = game.wallet_for(game.players[1]).credit_sparks(funding_sparks)
 	game.players[1].offer_floor=game.encounter_number
 	game.players[1].checkpoint_offers=["power","technique","reach"]
 	game.use_checkpoint(1,true)
 	game.send_garden_action("upgrade_technique")
 	game.send_garden_action("upgrade_power")
-	check(game.players[1].technique == 1 and game.players[1].spent == 8
+	check(game.players[1].technique == 1 and game.wallet_for(game.players[1]).spent_essence() == 8
 		and game.players[1].power == 0, "checkpoint allows exactly one purchase")
 	game.use_checkpoint(1,true)
 	check(game.depth == game.CHECKPOINT_INTERVAL+1 and game.players[1].technique == 1,
@@ -391,7 +392,7 @@ func verify_upgrade_route() -> void:
 	game.enemy_hp = 0
 	place(1, Stage.GATE)
 	interact()
-	check(game.players[1].spent == 0 and game.players[1].technique == 0,
+	check(game.wallet_for(game.players[1]).spent_essence() == 0 and game.players[1].technique == 0,
 		"extraction resets wallet and upgrades")
 
 
@@ -445,9 +446,9 @@ func verify_hook_grafting() -> void:
 	p.offer_floor=12
 	p.checkpoint_offers=["power","technique","rift_hook"]
 	p.last_offer=0
-	p.spent=0
+	p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(game.wallet_for(p).earned_sparks(), 0)
 	game.buy_upgrade(1,p,2)
-	check(p.rift_hook and p.spent==12 and game.progress.rift_hook_discovered,"Veil plant plus monster Hook can unlock Rift synergy")
+	check(p.rift_hook and game.wallet_for(p).spent_essence()==12 and game.progress.rift_hook_discovered,"Veil plant plus monster Hook can unlock Rift synergy")
 	game.send_garden_action("extract")
 	check(not p.wild and p.graft_part==0,"extract clears installed monster graft")
 
@@ -930,7 +931,7 @@ func verify_shared_combat(guest: int) -> void:
 	for step in 100:
 		await create_timer(0.05).timeout
 		if game.players.has(guest) and game.players[guest].power == 1:
-			check(game.players[1].spent == 0, "guest purchase spends only their wallet")
+			check(game.wallet_for(game.players[1]).spent_essence() == 0, "guest purchase spends only their wallet")
 			await create_timer(2.5).timeout
 			if not game.players.has(guest):
 				return

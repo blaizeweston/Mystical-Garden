@@ -3,6 +3,7 @@
   "full_after_days": 7,
   "systems": {
     "expedition_grafts": {"label": "Expedition graft ledgers, altar quotes and source-owned adaptations", "files": ["expedition_grafts.gd", "expedition_grafts.gd.uid", "affinity_grafting_panel.gd", "affinity_grafting_panel.gd.uid"]},
+    "expedition_wallet": {"label": "Run-only Essence sparks, floor grants and spending", "files": ["expedition_wallet.gd", "expedition_wallet.gd.uid"]},
     "affinity_cards": {"label": "Affinity expedition card ledger, rarity, Essence rerolls and owned effects", "files": ["affinity_cards.gd", "affinity_cards.gd.uid", "affinity_card_ledger.gd", "affinity_card_ledger.gd.uid", "affinity_card_catalog.gd", "affinity_card_catalog.gd.uid"]},
     "oracle_progression": {"label": "Connected Oracle, native Omens and first-run focus admission", "files": ["oracle_connected_tree.gd", "oracle_connected_tree.gd.uid", "oracle_combat.gd", "oracle_combat.gd.uid", "oracle_omens.gd", "oracle_omens.gd.uid"]},
     "void_affinity": {"label":"Void wells, compression and bounded displacement", "files":["void_affinity.gd","void_affinity.gd.uid"]},
@@ -1157,7 +1158,10 @@
     "award_combat_progress": [
       "loot"
     ],
-    "run_wallet": ["expeditions", "affinity_cards"],
+    "wallet_for": ["expedition_wallet"],
+    "_plan_essence_debit": ["expedition_wallet"],
+    "grant_run_essence": ["expedition_wallet", "loot"],
+    "run_wallet": ["expeditions", "affinity_cards", "expedition_wallet"],
     "publish_character": [
       "foundation"
     ],
@@ -1820,8 +1824,8 @@
     ]
   },
   "suites": {
-    "ec01_affinity_cards_party": {"kind": "party", "systems": ["ui_copy", "expedition_summary", "expedition_grafts", "affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "connection_flow", "world_snapshot", "hex_terrain"], "package": false},
-    "ec01_affinity_cards": {"kind": "unit", "systems": ["ui_copy", "expedition_summary", "expedition_grafts", "affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "life", "weapons"], "package": false},
+    "ec01_affinity_cards_party": {"kind": "party", "systems": ["expedition_wallet", "ui_copy", "expedition_summary", "expedition_grafts", "affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "connection_flow", "world_snapshot", "hex_terrain"], "package": false},
+    "ec01_affinity_cards": {"kind": "unit", "systems": ["expedition_wallet", "ui_copy", "expedition_summary", "expedition_grafts", "affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "life", "weapons"], "package": false},
     "ct05_oracle": {"kind": "unit", "systems": ["oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim"], "package": false},
     "ct05_oracle_coop": {"kind": "pair", "systems": ["oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim", "connection_flow", "world_snapshot", "hex_terrain"], "package": false},
     "ct05_oracle_party": {"kind": "party", "systems": ["oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim", "connection_flow", "world_snapshot", "hex_terrain"], "package": false},
@@ -1836,7 +1840,7 @@
     "ct04_reaper": {"kind":"unit","systems":["expedition_grafts", "reaper_progression","warden_progression","ranger_progression","classes","class_tree_access","combat_affinity_contracts","combat","life","terrain","ability_aim"],"package":false},
     "ct04_reaper_coop": {"kind":"pair","systems":["reaper_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life","hex_terrain"],"package":false},
     "ct04_reaper_party": {"kind":"party","systems":["reaper_progression","warden_progression","weaver_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life","hex_terrain"],"package":false},
-    "cr05_native_grafts": {"kind":"unit","systems":["expedition_grafts", "affinity_cards", "combat_affinity_contracts","weapons","classes","combat","life"],"package":false},
+    "cr05_native_grafts": {"kind":"unit","systems":["expedition_wallet", "expedition_grafts", "affinity_cards", "combat_affinity_contracts","weapons","classes","combat","life"],"package":false},
     "cr05_native_grafts_coop": {"kind":"pair","systems":["expedition_grafts", "combat_affinity_contracts","weapons","classes","connection_flow","world_snapshot"],"package":false},
     "cr05_native_grafts_party": {"kind":"party","systems":["expedition_grafts", "combat_affinity_contracts","weapons","classes","connection_flow","world_snapshot"],"package":false},
     "cr04c_void": {"kind":"unit","systems":["void_affinity","core_combat","combat_affinity_contracts","combat"],"package":false},
@@ -1848,7 +1852,7 @@
     "cr04c_storm_coop": {"kind": "pair", "systems": ["storm_affinity","combat_affinity_contracts","core_combat","connection_flow","world_snapshot"], "package": false},
     "world_snapshot_codec": {
       "kind": "unit",
-      "systems": ["world_snapshot", "connection_flow", "presentation"],
+      "systems": ["expedition_wallet", "world_snapshot", "connection_flow", "presentation"],
       "package": false
     },
     "cr04b_wood": {
@@ -1931,7 +1935,7 @@
       "systems": ["combat_affinity_contracts", "plant_affinities", "classes", "weapons"],
       "package": false
     },
-    "cr02_mode_coop": {"kind": "pair", "systems": ["combat_affinity_contracts", "hex_terrain", "connection_flow", "weapons", "garden", "affinity_cards"], "package": false},
+    "cr02_mode_coop": {"kind": "pair", "systems": ["expedition_wallet", "combat_affinity_contracts", "hex_terrain", "connection_flow", "weapons", "garden", "affinity_cards"], "package": false},
     "cr02_mode_mismatch": {
       "kind": "pair",
       "systems": ["world_snapshot", "combat_affinity_contracts", "connection_flow"],
@@ -1959,7 +1963,7 @@
     },
     "experimental_terrain": {
       "kind": "unit",
-      "systems": ["hex_terrain", "terrain", "garden_care", "persistence_operations"],
+      "systems": ["expedition_wallet", "hex_terrain", "terrain", "garden_care", "persistence_operations"],
       "package": false
     },
     "garden_offerings_preview": {
@@ -2138,6 +2142,7 @@
       "candidate_release": true,
       "kind": "unit",
       "systems": [
+        "expedition_wallet",
         "persistence_operations",
         "persistence_authorization",
         "persistence_recovery_plan",
@@ -2156,6 +2161,7 @@
     "guarded_expedition_coop": {
       "kind": "pair",
       "systems": [
+        "expedition_wallet",
         "world_snapshot", "persistence_operations",
         "persistence_authorization",
         "persistence_recovery_plan",
@@ -2175,6 +2181,7 @@
       "candidate_release": true,
       "kind": "unit",
       "systems": [
+        "expedition_wallet",
         "persistence_operations",
         "persistence_authorization",
         "persistence_recovery_plan",
@@ -2634,6 +2641,7 @@
     "core_combat_coop": {
       "kind": "pair",
       "systems": [
+        "expedition_wallet",
         "core_combat",
         "weapons",
         "terrain",
@@ -3561,6 +3569,7 @@
     "monster_rewards": {
       "kind": "unit",
       "systems": [
+        "expedition_wallet",
         "loot",
         "enemies",
         "items",
@@ -3816,6 +3825,7 @@
     "run_flow": {
       "kind": "unit",
       "systems": [
+        "expedition_wallet",
         "expeditions",
         "weapons",
         "classes",
@@ -4162,6 +4172,7 @@
     "weighted_upgrades": {
       "kind": "unit",
       "systems": [
+        "expedition_wallet",
         "expeditions",
         "classes",
         "weapons",
@@ -4448,6 +4459,10 @@
     ["expedition_grafts", "combat_affinity_contracts", "Basic attacks capture purchased adaptations and resolve bounded secondary effects"],
     ["expedition_grafts", "life", "Reinforced Frame previews share the resolved maximum-health calculation"],
     ["expeditions", "affinity_cards", "Earned choices, owner revisions and expedition-only currency"],
+    ["expeditions", "expedition_wallet", "The latest cleared floor determines the shared milestone grant"],
+    ["loot", "expedition_wallet", "Monster rewards credit sparks separately from permanent rewards"],
+    ["affinity_cards", "expedition_wallet", "Accepted rerolls replace the owner wallet and ledger together"],
+    ["expedition_wallet", "world_snapshot", "Guests receive the host wallet balance without its private state"],
     ["affinity_cards", "combat_affinity_contracts", "Source-scoped contributions captured by existing combat actions"],
     ["affinity_cards", "expedition_summary", "Acquired copy totals and inactive requirements in owner details"],
     ["affinity_cards", "expedition_grafts", "Graft previews and card effects share resolved attack and health values"],
@@ -5672,6 +5687,8 @@
       }
     },
     "_buy_upgrade": {
+      "ar03_wallet_debit_plan": {"match": "\tvar debited := _plan_essence_debit(player, int(entry.cost))\n\tif debited == null: action_feedback(effects,id,\"Not enough essence for that upgrade.\");return false\n", "baseline": "\tif run_wallet(player)<int(entry.cost): action_feedback(effects,id,\"Not enough essence for that upgrade.\");return false\n", "systems": ["expedition_wallet"], "additive": true},
+      "ar03_wallet_debit_commit": {"match": "\tplayer[ExpeditionWallet.STATE] = debited\n", "baseline": "\tplayer.spent+=int(entry.cost)\n", "systems": ["expedition_wallet"], "additive": true},
       "cr02_affinity_contract": {"match": "\tif preload(\"res://combat_ruleset.gd\").active(self): return false\n", "baseline": "", "additive": true, "systems": ["combat_affinity_contracts"]},
       "guarded_garden_actions": {
         "match": "\tif not player.wild or not upgrade_checkpoint_open() or battlefield.advance.distance_to(player.pos)>preload(\"res://gate_interaction.gd\").RANGE or int(player.last_offer)==encounter_number: return false\n\tvar offers:=checkpoint_offer_ids(player)\n\tif choice<0 or choice>=offers.size(): return false\n\tvar entry:=RunUpgrades.get_upgrade(str(offers[choice]))\n\tvar reason:=RunUpgrades.requirement(entry,player)\n\tif not reason.is_empty(): action_feedback(effects,id,reason);return false\n\tif run_wallet(player)<int(entry.cost): action_feedback(effects,id,\"Not enough essence for that upgrade.\");return false\n\tvar before_health:=int(player.get(\"max_hp\",MAX_HEALTH))\n\tif not player.has(\"run_upgrades\"): player.run_upgrades={}\n\tplayer.run_upgrades[entry.id]=int(player.run_upgrades.get(entry.id,0))+1\n\tplayer.spent+=int(entry.cost)\n\tvar metric := {\"id\":entry.id,\"floor\":encounter_number,\"cost\":int(entry.cost)}\n\tvar record_upgrade := func(): preload(\"res://game_metrics.gd\").record(\"upgrade\",metric)\n\tif effects == null: record_upgrade.call()\n\telse: effects.append(record_upgrade)\n\tplayer.last_offer=encounter_number\n\tplayer.power+=int(entry.effects.get(\"power\",0))\n\tplayer.technique+=int(entry.effects.get(\"technique\",0))\n\tif entry.effects.has(\"rift_hook\"): player.rift_hook=true\n\tplayer.max_hp=Life.maximum(self,player)\n\tLife.Vitals.heal(player,maxi(0,int(player.max_hp)-before_health))\n\tvar message: String=\"%s \u00b7 Rank %d gained for this expedition.\"%[entry.name,int(player.run_upgrades[entry.id])]\n\tif entry.id==\"rift_hook\" and not progress.rift_hook_discovered:\n\t\tprogress.discover_rift_hook()\n\t\tmessage+=\" The Heart remembers this link.\"\n\t\tif effects == null:\n\t\t\tsave_progress(id,message)\n\t\t\treturn true\n\taction_feedback(effects,id,message)\n\treturn true",
@@ -6630,7 +6647,10 @@
         "additive": true
       }
     },
+    "reset_expedition": {"ar03_wallet_reset": {"match": "\t\tplayer[ExpeditionWallet.STATE] = ExpeditionWallet.Wallet.new()\n", "baseline": "\t\tplayer.spent = 0\n\t\tplayer.essence_sparks=0\n", "systems": ["expedition_wallet"], "additive": true}},
+    "_affinity_checkpoint_command": {"ar03_wallet_reroll_debit": {"match": "\tif plan.has(\"ledger\"):\n\t\tif plan.has(\"cost\"):\n\t\t\tvar debited := _plan_essence_debit(player, int(plan.cost))\n\t\t\tif debited == null:\n\t\t\t\tpresent_checkpoint_cards(id)\n\t\t\t\treturn\n\t\t\tplayer[ExpeditionWallet.STATE] = debited\n\t\tplayer[AffinityCards.STATE] = plan.ledger\n\t\tif plan.has(\"cost\"):\n", "baseline": "\tif plan.has(\"ledger\"):\n\t\tplayer[AffinityCards.STATE] = plan.ledger\n\t\tif plan.has(\"cost\"):\n\t\t\tplayer.spent += int(plan.cost)\n", "systems": ["expedition_wallet", "affinity_cards"], "additive": true}},
     "add_player": {
+      "ar03_wallet_initialization": {"match": "ExpeditionWallet.STATE: ExpeditionWallet.Wallet.new(),", "baseline": "\"spent\": 0,\"essence_sparks\":0,", "systems": ["expedition_wallet"], "additive": true},
       "cr02_affinity_contract": {"match": "\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\tplayers[id].combat_ruleset = get_meta(&\"combat_affinity_ruleset\")\n", "baseline": "", "additive": true, "systems": ["combat_affinity_contracts"]},
       "preview_spawn_capacity": {
         "match": "\"hp\": float(base_health), \"max_hp\": base_health",
@@ -7099,6 +7119,7 @@
       }
     },
     "_enter_wilds": {
+      "ar03_wallet_departure": {"match": "\tp[ExpeditionWallet.STATE] = ExpeditionWallet.Wallet.new()\n", "baseline": "\tp.essence_sparks=0\n", "systems": ["expedition_wallet"], "additive": true},
       "ga01a_1": {"match": "\tp.graft_floor=0\n\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\tvar grafts = preload(\"res://expedition_grafts.gd\")\n\t\tvar identity := int(get_meta(grafts.SERIAL, 0)) + 1\n\t\tset_meta(grafts.SERIAL, identity)\n\t\tp[grafts.STATE] = grafts.Ledger.new(identity)\n\tp.erase(\"graft_message\")\n", "baseline": "\tp.graft_floor=0\n\tp.erase(\"graft_message\")\n", "systems": ["expedition_grafts"], "additive": true},
       "cr04c_void_0": {
         "match": "\tpreload(\"res://spirit_affinity.gd\").clear(p)\n\tp.erase(\"affinity_void_form_ready\")\n\tif p.has(\"affinity_vital_sources\"): preload(\"res://vital_combat.gd\").clear(self,p)\n",
@@ -7219,6 +7240,8 @@
       }
     },
     "remove_player": {
+      "ar03_wallet_disconnect_guarded": {"match": "\t\tleaving.erase(ExpeditionWallet.STATE)\n", "baseline": "", "systems": ["expedition_wallet"], "additive": true},
+      "ar03_wallet_disconnect_legacy": {"match": "\t\tif players.has(id): players[id].erase(ExpeditionWallet.STATE)\n", "baseline": "", "systems": ["expedition_wallet"], "additive": true},
       "guarded_lifecycle": {
         "match": "\tJournal.event(\"network\",\"peer_disconnected\",{\"actor\":id})\n\tif has_meta(Transactions.SESSION):\n\t\tvar leaving: Dictionary = players.get(id, {})\n\t\tif not multiplayer.is_server() or session==\"Guest\" or session==\"Connecting\" or returning_to_title or get_meta(Transactions.STOPPING,false):\n\t\t\tplayers.erase(id)\n\t\t\tmotions.erase(id)\n\t\t\treturn\n\t\tvar may_settle := multiplayer.is_server() and not returning_to_title and Transactions.session_writable(self)\n\t\tif may_settle and leaving.get(\"profile_ready\", false):\n\t\t\tpending_departures[id] = leaving\n\t\tplayers.erase(id)\n\t\tmotions.erase(id)\n\t\trefresh_drop()\n\t\tif may_settle:\n\t\t\tPartyTravel.cancel(self,\"A player disconnected. Confirm readiness again to continue.\")\n\t\t\tvar needs_wipe: bool = (expedition_active() or leaving.get(\"wild\",false)) and Life.living_ids(self).is_empty()\n\t\t\tif needs_wipe: finish_failed_expedition()\n\t\t\telse: MonsterRewards.flush(self)\n\t\treturn\n\tif multiplayer.is_server():\n\t\tMonsterRewards.flush(self)\n\t\tif players.has(id) and players[id].profile_ready:\n\t\t\tif not players[id].get(\"seed_owner\",\"\").is_empty(): progress.character_records[players[id].seed_owner]={\"profile\":players[id].character.duplicate(true),\"manifest\":progress.ContentIDs.manifest()}\n\t\t\trecover_pouch(players[id])\n\t\t\tpreload(\"res://garden_return_service.gd\").member_left(self,players[id])\n\t\tplayers.erase(id)\n\t\tPartyTravel.cancel(self,\"A player disconnected. Confirm readiness again to continue.\")\n\t\trefresh_drop()\n\t\tmotions.erase(id)\n\t\tabandon_if_empty()\n\t\tresume_checkpoint_if_ready()\n\n\n",
         "baseline": "\tJournal.event(\"network\",\"peer_disconnected\",{\"actor\":id})\n\tif has_meta(Transactions.SESSION):\n\t\tvar leaving: Dictionary = players.get(id, {})\n\t\tvar may_settle := multiplayer.is_server() and not returning_to_title and Transactions.session_writable(self)\n\t\tif may_settle and leaving.get(\"profile_ready\", false):\n\t\t\tpending_departures[id] = leaving\n\t\tplayers.erase(id)\n\t\tmotions.erase(id)\n\t\trefresh_drop()\n\t\tif may_settle:\n\t\t\tPartyTravel.cancel(self,\"A player disconnected. Confirm readiness again to continue.\")\n\t\t\tvar needs_wipe: bool = (expedition_active() or leaving.get(\"wild\",false)) and Life.living_ids(self).is_empty()\n\t\t\tif needs_wipe: finish_failed_expedition()\n\t\t\telse: MonsterRewards.flush(self)\n\t\treturn\n\tif multiplayer.is_server():\n\t\tMonsterRewards.flush(self)\n\t\tif players.has(id) and players[id].profile_ready:\n\t\t\tif not players[id].get(\"seed_owner\",\"\").is_empty(): progress.character_records[players[id].seed_owner]={\"profile\":players[id].character.duplicate(true),\"manifest\":progress.ContentIDs.manifest()}\n\t\t\trecover_pouch(players[id])\n\t\t\tpreload(\"res://garden_return_service.gd\").member_left(self,players[id])\n\t\tplayers.erase(id)\n\t\tPartyTravel.cancel(self,\"A player disconnected. Confirm readiness again to continue.\")\n\t\trefresh_drop()\n\t\tmotions.erase(id)\n\t\tabandon_if_empty()\n\t\tresume_checkpoint_if_ready()\n\n\n",
@@ -10142,6 +10165,7 @@
       "cr02_affinity_contract": {"match": "\tvar combat_mode = preload(\"res://combat_ruleset.gd\")\n\tif combat_mode.active(self):\n\t\ttell(id,combat_mode.EMPTY_CARDS)\n\t\treturn false\n", "baseline": "", "additive": true, "systems": ["combat_affinity_contracts"]}
     },
     "return_to_garden": {
+      "ar03_wallet_return": {"match": "\tp[ExpeditionWallet.STATE] = ExpeditionWallet.Wallet.new()\n", "baseline": "\tp.essence_sparks=0\n\tp.spent=0\n", "systems": ["expedition_wallet"], "additive": true},
       "ga01a_1": {"match": "\tp.graft_floor=0\n\tp.erase(preload(\"res://expedition_grafts.gd\").STATE)\n\tpreload(\"res://native_grafts.gd\").clear(p)\n", "baseline": "\tp.graft_floor=0\n\tpreload(\"res://native_grafts.gd\").clear(p)\n", "systems": ["expedition_grafts"], "additive": true},
       "ec01_1": {"match": "\tp.run_upgrades={}\n\tAffinityCards.clear(p)\n\tp.essence_sparks=0\n\tp.spent=0\n\tp.last_offer=0\n\tp.checkpoint_offers=[]\n", "baseline": "\tp.run_upgrades={}\n\tp.essence_sparks=0\n\tp.checkpoint_offers=[]\n", "systems": ["affinity_cards"], "additive": true},
       "ct05_oracle_1": {"match": "\tif not SaveBatch.guarded_active(): MonsterRewards.flush(self)\n\tp.attack_until=0;p.swing_until=0;p.cast_until=0\n\tpreload(\"res://oracle_combat.gd\").clear(p)\n\tp.run_upgrades={}\n\tp.essence_sparks=0\n", "baseline": "\tif not SaveBatch.guarded_active(): MonsterRewards.flush(self)\n\tp.attack_until=0;p.swing_until=0;p.cast_until=0\n\tp.run_upgrades={}\n\tp.essence_sparks=0\n", "systems": ["oracle_progression"], "additive": true},

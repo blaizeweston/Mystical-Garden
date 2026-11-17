@@ -130,8 +130,9 @@ func host(menu: Node, mismatch: bool) -> void:
 	world.encounter_rewarded=true
 	local.pos=world.battlefield.advance
 	remote.pos=local.pos
-	remote.essence_sparks=0
-	local.spent=world.run_wallet(local)
+	remote[world.ExpeditionWallet.STATE] = world.ExpeditionWallet.Wallet.new()
+	local[world.ExpeditionWallet.STATE] = world.ExpeditionWallet.Wallet.new(0, world.run_wallet(local))
+	var host_wallet = world.wallet_for(local)
 	local.checkpoint_offers=["rift_hook"]
 	world.use_checkpoint(1,true)
 	var cards_api = world.AffinityCards
@@ -150,8 +151,8 @@ func host(menu: Node, mismatch: bool) -> void:
 		"guest pays for rerolls and acquires one copy through the host"):return
 	var remote_cards = cards_api.ledger(remote)
 	var host_cards = cards_api.ledger(local)
-	check(remote_cards.offer().rerolls==3 and remote.spent==12 and world.run_wallet(remote)==0
-		and host_cards.copies().size()==1 and world.run_wallet(local)==0 and local.run_upgrades.is_empty()
+	check(remote_cards.offer().rerolls==3 and world.wallet_for(remote).spent_essence()==12 and world.run_wallet(remote)==0
+		and host_cards.copies().size()==1 and world.run_wallet(local)==0 and world.wallet_for(local)==host_wallet and local.run_upgrades.is_empty()
 		and remote.run_upgrades.is_empty() and initial_ledger.offer()==initial,
 		"host debits 2/4/6 once for the guest, both selections are free, and the prior offer stays intact")
 	world.PartyTravel.request(world,1,"advance")

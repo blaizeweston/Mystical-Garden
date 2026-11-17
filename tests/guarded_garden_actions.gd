@@ -332,11 +332,11 @@ func gameplay() -> void:
  p.offer_floor=18
  p.checkpoint_offers=["rift_hook","power","reach"]
  world.choose_checkpoint_card(1,p,0)
- check(p.rift_hook and world.progress.rift_hook_discovered and p.spent>0 and world.checkpoint_ready.get(1)==18
+ check(p.rift_hook and world.progress.rift_hook_discovered and world.wallet_for(p).spent_essence()>0 and world.checkpoint_ready.get(1)==18
   and world.encounter_number==18,"card purchase commits Garden discovery without checkpoint advancement")
- var spent: int=p.spent
+ var spent: int=world.wallet_for(p).spent_essence()
  world.choose_checkpoint_card(1,p,0)
- check(p.spent==spent,"duplicate card cannot spend twice")
+ check(world.wallet_for(p).spent_essence()==spent,"duplicate card cannot spend twice")
  world.progress.heart.unlocked.append("checkpoint_deposit")
  p.carried_parts[1]=1
  world.garden_action(1,"bank_part_1")
@@ -526,10 +526,10 @@ func caller_effects() -> void:
     "upgrade":
      var upgrades: int=FileAccess.get_file_as_string("user://metrics.jsonl").count('"event":"upgrade"')-metric_before
      check(world.progress.rift_hook_discovered==not aborted and int(player.get("run_upgrades",{}).get("rift_hook",0))==int(not aborted)
-      and (int(player.spent)>0)==not aborted and (world.checkpoint_ready.get(1,0)==18)==committed
+      and (int(world.wallet_for(player).spent_essence())>0)==not aborted and (world.checkpoint_ready.get(1,0)==18)==committed
       and world.encounter_number==18 and world.overlay.visible==not committed
       and status.contains("Rank 1 gained")==committed and upgrades==int(committed),"upgrade entitlement, picker and publication match "+outcome)
-     facts.merge({"rank":player.get("run_upgrades",{}).get("rift_hook",0),"spent":player.spent,"ready":world.checkpoint_ready.get(1,0),
+     facts.merge({"rank":player.get("run_upgrades",{}).get("rift_hook",0),"spent":world.wallet_for(player).spent_essence(),"ready":world.checkpoint_ready.get(1,0),
       "panel_open":world.overlay.visible,"metrics":upgrades})
     "water":
      var watered := preload("res://cultivation_growth.gd").watered(world.progress.plots[0])

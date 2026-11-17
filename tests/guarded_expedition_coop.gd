@@ -107,7 +107,8 @@ func host_run() -> void:
  if not await until(func():return stages.count==1 and marked("saw-abort")):
   check(false,"party departure fault")
   return
- check(not leader.wild and not guest.wild and Slots._save_digest(G)==before and world.progress.part_count(1)==3,"no departure effects before commitment")
+ check(not leader.wild and not guest.wild and Slots._save_digest(G)==before and world.progress.part_count(1)==3
+  and world.run_wallet(leader)==0 and world.run_wallet(guest)==0,"no departure effects or Essence before commitment")
  record("party_departure_abort",before,{"wild":false,"stage_count":stages.count,"travel_epoch":world.travel_epoch})
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.enter_wilds(1,leader)
@@ -115,7 +116,8 @@ func host_run() -> void:
  if not await until(func():return leader.wild and guest.wild):
   check(false,"both votes commit one departure")
   return
- check(world.progress.part_count(1)==2,"party consumed one reserved part")
+ check(world.progress.part_count(1)==2 and world.run_wallet(leader)==0 and world.run_wallet(guest)==0,
+  "party consumed one reserved part and both wallets start at zero")
  world.send_expedition_state(0,true)
  mark("departed")
  if not await until(func():return marked("saw-departure")):
@@ -127,8 +129,15 @@ func host_run() -> void:
  world.scouts.clear()
  world.finish_combat(1,world.enemy_pos)
  var saved:=Slots._save_digest(G)
- check(world.encounter_rewarded and world.MonsterRewards.flush(world) and Slots._save_digest(G)==saved,"repeated flush keeps committed bytes")
+ var kill_sparks := int(world.Director.config().leader_essence_sparks) * (6 if world.Enemies.get_kind(world.enemy_kind).get("boss",false) else 1)
+ @warning_ignore("integer_division")
+ var reward_balance := 2 + kill_sparks / int(world.Director.config().essence_sparks_per_point)
+ check(world.encounter_rewarded and world.MonsterRewards.flush(world) and Slots._save_digest(G)==saved
+  and world.wallet_for(leader).earned_sparks()==kill_sparks and world.wallet_for(guest).earned_sparks()==kill_sparks
+  and world.run_wallet(leader)==reward_balance and world.run_wallet(guest)==reward_balance,
+  "one kill plus one floor milestone grants the same expected balance to both participants")
  world.send_expedition_state(0,true)
+ mark("reward-wallet",str(reward_balance))
  mark("rewards",str(world.enemy_kind))
  if not await until(func():return marked("saw-rewards")):
   check(false,"guest stores one XP/monster projection")
@@ -146,11 +155,14 @@ func host_run() -> void:
   check(false,"guest chooses checkpoint card")
   return
  check(world.encounter_number==3,"choosing cards does not travel")
+ var before_travel: int = world.run_wallet(guest)
  world.use_checkpoint(1,true)
+ mark("advance-wallet",str(before_travel))
  mark("advance",str(world.travel_epoch))
  if not await until(func():return world.encounter_number==4):
   check(false,"advancement commits after both consent")
   return
+ check(world.run_wallet(guest)==before_travel,"floor travel retains the guest wallet")
  world.send_expedition_state(0,true)
  if not await until(func():return marked("saw-advance")):
   check(false,"guest sees committed advancement")
@@ -174,7 +186,8 @@ func host_run() -> void:
  # now that no further simulation or canonical writes are allowed.
  world.set_physics_process(true)
  var committed:=Slots._save_digest(G)
- check(world.progress.reserve(guest.seed_owner).unknown==[0] and FileAccess.file_exists(G+".transaction"),"extraction banks guest seed with journal proof")
+ check(world.progress.reserve(guest.seed_owner).unknown==[0] and FileAccess.file_exists(G+".transaction")
+  and world.run_wallet(leader)==0 and world.run_wallet(guest)==0,"extraction banks the guest seed and clears both wallets")
  if not await until(func():return marked("saw-extraction")):
   check(false,"guest sees Garden transition and retained warning")
   return
@@ -208,8 +221,12 @@ func guest_run() -> void:
  if not await until(func():return marked("departed") and world.players.get(world.local_player_id(),{}).get("wild",false)):
   check(false,"guest enters Wilds after commit")
   return
+ check(world.players.get(world.local_player_id(),{}).get("wallet",-1)==0,"guest projects a fresh wallet at departure")
  mark("saw-departure")
- if not await until(func():return marked("rewards") and world.guest_character.data.monsters[int(read("rewards"))]==1):
+ var reward_received:=func():
+  return (marked("rewards") and world.guest_character.data.monsters[int(read("rewards"))]==1
+   and world.players.get(world.local_player_id(),{}).get("wallet",-1)==int(read("reward-wallet")))
+ if not await until(reward_received):
   check(false,"guest persists one reward projection")
   return
  var after:=Slots._save_digest(C)
@@ -225,7 +242,10 @@ func guest_run() -> void:
   check(false,"guest checkpoint readiness prompt")
   return
  world.send_garden_action("travel_ready:"+read("advance"))
- if not await until(func():return world.encounter_number==4):
+ var advance_received:=func():
+  return (world.encounter_number==4
+   and world.players.get(world.local_player_id(),{}).get("wallet",-1)==int(read("advance-wallet")))
+ if not await until(advance_received):
   check(false,"guest observes authoritative advancement")
   return
  mark("saw-advance")
@@ -237,6 +257,7 @@ func guest_run() -> void:
   check(false,"guest sees committed Garden transition with warning")
   return
  world.send_garden_action("travel_ready:"+read("extract"))
+ check(world.players.get(world.local_player_id(),{}).get("wallet",-1)==0,"guest Garden snapshot carries no departed balance")
  mark("saw-extraction")
  if not await until(func():return marked("host-message") and world.status.begins_with("A later")):
   check(false,"guest gets later ordinary feedback")

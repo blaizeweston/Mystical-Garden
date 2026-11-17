@@ -227,8 +227,7 @@ func checkpoint() -> void:
 	game.encounter_number=3
 	game.enemy_hp=0
 	player.pos=game.battlefield.advance
-	player.essence_sparks=500
-	player.spent=0
+	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(500)
 	player.last_offer=0
 	player.offer_floor=3
 	player.checkpoint_offers=["core_mirror_bloom","power","reach"]

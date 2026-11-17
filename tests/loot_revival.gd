@@ -44,7 +44,7 @@ func run() -> void:
  game._process(.016)
  check(game.player_hud.state.lost_health==2 and game.player_hud.heart_state(8,8,4)==3,"lost full heart uses fourth damage texture")
  check(game.spectator_view.focus_id(1)==1,"revived camera returns to own character")
- game.enemy_hp=0;game.encounter_number=6;a.pos=game.battlefield.advance;a.essence_sparks=10000;a.offer_floor=6;a.checkpoint_offers=["class_0_0"]
+ game.enemy_hp=0;game.encounter_number=6;a.pos=game.battlefield.advance;a[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(a).spent_essence());a.offer_floor=6;a.checkpoint_offers=["class_0_0"]
  check(game._buy_upgrade(1,a,0) and a.max_hp==10 and a.lost_health==2,"real health upgrade preserves the sacrificed-heart deduction")
  a.run_upgrades={};a.max_hp=8;a.hp=8;b.pos=a.pos;game.encounter_number=1;game.enemy_hp=100
  for capacity in [6,4,2]:

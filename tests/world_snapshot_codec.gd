@@ -37,6 +37,7 @@ func run() -> void:
 		actor.pose = 12350
 		actor.party_slot = i
 		actor.wild = i > 0
+		actor.wallet = i * 7
 		actor.fallen = i == 3
 		actor.hp = 87.5
 		actor.lost_health = 15
@@ -74,6 +75,7 @@ func run() -> void:
 			and actor.motion_epoch == str([campaign[0],74,2147483647,true,true]), "motion inputs and reconstructed epoch match")
 		check(actor.appearance == appearance and actor.pose == 12350 and actor.hp == 87.5 and actor.damage_seq == 7
 			and actor.damage_amount == 11 and actor.enemy_max_hp == 500, "all appearance controls, vitals and maximum round-trip")
+		check(actor.wallet == 21 and decoded.people[2].wallet == 7, "per-player wallets use the existing fast-frame field")
 		check(decoded.people[2].attack_anim == people[2].attack_anim and decoded.people[3].attack_anim == people[3].attack_anim,
 			"weapon and class pose fields including null direction round-trip")
 		check(decoded.people[1].garden_layout_revision == -1 and not actor.has("garden_layout_revision"), "Garden reveal sentinel is distinct from an absent layout")
@@ -86,9 +88,10 @@ func run() -> void:
 	# Application-level loss/reorder injection through the production receiver.
 	# Sequence 11 is missed, then arrives late. An invalid 13 must not poison the sequence.
 	game.receive_vitals({1:{"revision":11,"hp":61,"max_hp":100,"damage_seq":8,"damage_amount":12}})
-	var newest := viewer.duplicate()
-	newest.encode_u64(0, 12)
-	newest.encode_s32(32, 455)
+	var newest_people := people.duplicate(true)
+	newest_people[1].wild = true
+	newest_people[1].wallet = 11
+	var newest := Codec.for_viewer(Codec.encode(12, newest_people, campaign, scouts, leader, 455, 500, drop, 74, 25), 317, true, true)
 	game.receive_state(newest)
 	var late := viewer.duplicate()
 	late.encode_u64(0, 11)
@@ -99,21 +102,25 @@ func run() -> void:
 	game.receive_state(invalid.slice(0, -1))
 	check(game.net_view.snapshot_received == 12 and game.net_view.snapshot_gaps == 1 and game.net_view.rejected_snapshots == 2,
 		"skipped, reordered, duplicate and truncated frames are distinguished")
-	check(game.enemy_hp == 455 and game.players[1].hp == 61 and game.players[1].damage_seq == 8, "latest state converges and newer reliable vitals survive")
+	check(game.enemy_hp == 455 and game.players[1].hp == 61 and game.players[1].damage_seq == 8
+		and game.players[1].wallet == 11, "latest wallet and newer reliable vitals survive reordered frames")
 	game.receive_state(invalid)
 	check(game.net_view.snapshot_received == 13 and game.combat_event_serial == events, "valid successor applies without replaying combat events")
-	var recovered := newest.duplicate()
-	recovered.encode_u64(0, 16)
-	recovered.encode_s32(32, 314)
+	newest_people[1].wild = false
+	newest_people[1].wallet = 0
+	var recovered := Codec.for_viewer(Codec.encode(16, newest_people, campaign, scouts, leader, 314, 500, drop, 74, 25), 317, true, true)
 	var details := var_to_bytes({"snapshot_recovery":recovered, "snapshot_roster":{1:"Recovered name"}}).compress(FileAccess.COMPRESSION_DEFLATE)
 	var garden := var_to_bytes(game.garden_snapshot()).compress(FileAccess.COMPRESSION_DEFLATE)
 	game.receive_details(details, garden, [], "fixture")
 	check(game.net_view.snapshot_received == 16 and game.enemy_hp == 314 and game.players[1].hp == 61
-		and game.players[1].display_name == "Recovered name", "reliable details recover after fast-channel silence")
+		and game.players[1].display_name == "Recovered name" and game.players[1].wallet == 0,
+		"reliable details recover the latest wallet after fast-channel silence")
 	game.receive_state(recovered)
 	game.receive_details(details, garden, [], "fixture")
-	check(game.net_view.snapshot_received == 16 and game.combat_event_serial == events,
-		"copies in either channel cannot repeat application or combat effects")
+	game.apply_world_snapshot(newest, true)
+	check(game.net_view.snapshot_received == 16 and game.combat_event_serial == events
+		and not game.players[1].wild and game.players[1].wallet == 0,
+		"duplicate and stale frames cannot replay effects or restore a departed wallet")
 	invalid[49] = Network.MAX_PLAYERS + 1
 	check(Codec.decode(invalid).is_empty(), "impossible player count refused")
 	var over := scouts.duplicate()

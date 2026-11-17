@@ -381,10 +381,11 @@ func host(menu: Node) -> void:
 		game.encounter_number = 3
 		var planned := {}
 		for id in game.players:
-			var fixture := plan_speed_offer(game, game.players[id])
+			var fixture := plan_speed_offer(game, game.players[id], id == ids[0])
 			if not check(not fixture.is_empty(),"seeded checkpoint can draw Light Grip"):return
 			planned[id] = fixture
 			mark("attack-speed-"+str(id), JSON.stringify(fixture))
+			mark("wallet-"+str(id), str(fixture.balance))
 		game.use_checkpoint(1,true)
 		check(game.checkpoint_cards.get_child_count()==3,"host receives a full offer after mixed-class combat")
 		check_speed_face(game, planned[1])
@@ -395,14 +396,19 @@ func host(menu: Node) -> void:
 		for id in game.players:
 			var visitor: Dictionary = game.players[id]
 			var copies := UpgradeCards.ledger(visitor).copies()
-			check(copies.size()==1 and copies[0].id==SPEED_CARD and visitor.spent==0,
-				"free host/guest Light Grip is owned once")
+			check(copies.size()==1 and copies[0].id==SPEED_CARD
+				and game.wallet_for(visitor).spent_essence()==planned[id].spent
+				and game.run_wallet(visitor)==planned[id].balance,
+				"one guest's reroll debits its wallet once while all four claims stay free")
 			check(has_attack_speed(game,visitor,game.weapon_stats(visitor),planned[id].after),
 				"host's resolved attack speed matches the promised value for this peer")
 	game.use_checkpoint(1,true)
 	mark("advance",str(game.travel_epoch))
 	if not check(await until(func():return game.depth==2 and ids.all(func(id):return read("guest-floor-"+str(id))=="ok")),
 		"party advances to next generated floor"):return
+	if affinity_cards_case:
+		check(game.players.keys().all(func(id): return game.run_wallet(game.players[id]) == int(read("wallet-"+str(id)))),
+			"floor transition retains independently spent balances")
 	if native_graft_case:
 		check(ids.all(func(id):return Improvements.owner_details(game.players[id], game.encounter_number).get("copies", []).size()==1),
 			"authoritative purchases survive the real floor transition")
@@ -421,8 +427,10 @@ func host(menu: Node) -> void:
 	if not check(await until(func():return not game.expedition_active() and ids.all(func(id):return read("guest-garden-"+str(id))=="ok")),
 		"party extraction restores Garden"):return
 	if affinity_cards_case:
-		check(game.players.values().all(func(visitor):return not visitor.has(UpgradeCards.STATE) and game.run_wallet(visitor)==0),
-			"real extraction clears all four purses and decks")
+		var wallet_cleared := func(visitor: Dictionary) -> bool:
+			return (not visitor.has(UpgradeCards.STATE) and game.run_wallet(visitor)==0
+				and game.wallet_for(visitor).earned_sparks()==0 and game.wallet_for(visitor).spent_essence()==0)
+		check(game.players.values().all(wallet_cleared), "real extraction clears all four purses and decks")
 	if native_graft_case:
 		check(game.players.size()==ids.size()+1 and game.players.values().all(func(visitor):
 			return not visitor.has(Improvements.STATE) and not visitor.has(Grafts.STATE)),
@@ -852,18 +860,26 @@ func install_party_grafts(game: Node, ids: Array) -> bool:
 	return true
 
 
-func plan_speed_offer(game: Node, player: Dictionary) -> Dictionary:
+func plan_speed_offer(game: Node, player: Dictionary, reroll: bool) -> Dictionary:
 	var stats: Dictionary = game.weapon_stats(player)
+	var cost: int = UpgradeCards.Catalog.PLAYTEST.reroll_costs[0] if reroll else 0
+	var essence: int = game.run_wallet(player)
+	if essence < cost:
+		return {}
 	var ledger := UpgradeCards.ledger(player)
 	if ledger == null:
 		ledger = UpgradeCards.Ledger.new()
 	for seed_value in range(1,33):
 		player.upgrade_seed = seed_value
-		var options := ledger.roll(seed_value, game.encounter_number, stats, game.DODGE_COOLDOWN_MS)
+		var floor_number: int = game.encounter_number
+		var dodge_base: int = game.DODGE_COOLDOWN_MS
+		var offer := ledger.open_offer(floor_number, 1, seed_value, stats, dodge_base)
+		var options: Array = offer.roll(seed_value, floor_number, stats, dodge_base, true) if reroll else offer.offer().cards
 		var index := options.find_custom(func(option):return option.id==SPEED_CARD)
 		if index >= 0:
 			var next_ms := maxi(230, int(stats.interval) - int(options[index].amount))
-			return {"choice":index, "before":"%.2f" % (1000.0 / int(stats.interval)), "after":"%.2f" % (1000.0 / next_ms)}
+			return {"choice":index, "before":"%.2f" % (1000.0 / int(stats.interval)), "after":"%.2f" % (1000.0 / next_ms),
+				"spent":cost, "balance":essence-cost}
 	return {}
 
 
@@ -1006,12 +1022,20 @@ func guest(menu: Node, role: String) -> void:
 			return read("affinity-cards")=="ok" and game.checkpoint_offer_revision>0 and game.checkpoint_cards.get_child_count()==3
 		if not check(await until(offer_received),"mixed-class guest receives three eligible cards"):return
 		var speed: Dictionary = JSON.parse_string(read("attack-speed-"+str(id)))
+		if int(speed.spent) > 0:
+			var revision: int = game.checkpoint_offer_revision
+			var reroll: String = game.affinity_checkpoint_action(revision, "reroll")
+			game.send_garden_action(reroll)
+			game.send_garden_action(reroll)
+			if not check(await until(func(): return game.checkpoint_offer_revision > revision),
+				"one guest receives a rerolled offer after replaying the first revision"):return
 		check_speed_face(game, speed)
 		game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,str(int(speed.choice))))
 		var received := func() -> bool:
 			var player: Dictionary = game.players.get(id,{})
 			var copies: Array = player.get("affinity_run_cards",[])
-			return copies.size()==1 and copies[0].id==SPEED_CARD and has_attack_speed(game,player,player.get("weapon_stats",{}),speed.after)
+			return copies.size()==1 and copies[0].id==SPEED_CARD and int(player.get("wallet", -1))==int(speed.balance) \
+				and has_attack_speed(game,player,player.get("weapon_stats",{}),speed.after)
 		if not check(await until(received),"the guest's replicated copy and Tab projection match the host"):return
 		mark("owned-"+str(id))
 	if not check(await until(func():return not read("advance").is_empty() and game.enemy_hp==0 and int(game.party_travel_state().get("epoch",-1))==int(read("advance"))),"guest sees cleared Gate"):return

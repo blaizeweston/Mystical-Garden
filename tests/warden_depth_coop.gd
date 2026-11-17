@@ -41,7 +41,7 @@ func host_run() -> void:
  check(game.enemy_hp<95 and p.counter_until==0,"host resolves contact with counter and installed plant/graft")
  game.enemy_hp=0;game.encounter_rewarded=true;game.encounter_number=6;game.checkpoint_pending=true;game.checkpoint_ready.clear()
  for player in game.players.values():player.pos=game.battlefield.advance
- p.essence_sparks=10000;p.offer_floor=6;p.checkpoint_offers=["warden_guard_counter","warden_frost_link","plant_frostbell_shatter"]
+ p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(p).spent_essence());p.offer_floor=6;p.checkpoint_offers=["warden_guard_counter","warden_frost_link","plant_frostbell_shatter"]
  game.present_checkpoint_cards(id)
  check(await until(func():return p.get("run_upgrades",{}).get("warden_guard_counter",0)==1),"real guest checkpoint choice buys counter upgrade")
  check(p.character.upgrades[0]==MASK and p.weapon==44 and p.graft_part==game.Parts.HOOK,"purchase preserves permanent branch and loadout")

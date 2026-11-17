@@ -7,6 +7,7 @@ Edges describe gameplay/data relationships. Selection uses explicit suite covera
 ```mermaid
 flowchart LR
   expedition_grafts["Expedition graft ledgers<br/> altar quotes and source-owned adaptations"]
+  expedition_wallet["Run-only Essence sparks<br/> floor grants and spending"]
   affinity_cards["Affinity expedition card ledger<br/> rarity<br/> Essence rerolls and owned effects"]
   oracle_progression["Connected Oracle<br/> native Omens and first-run focus admission"]
   void_affinity["Void wells<br/> compression and bounded displacement"]
@@ -100,6 +101,10 @@ flowchart LR
   expedition_grafts -->|"Basic attacks capture purchased adaptations and resolve bounded secondary effects"| combat_affinity_contracts
   expedition_grafts -->|"Reinforced Frame previews share the resolved maximum-health calculation"| life
   expeditions -->|"Earned choices, owner revisions and expedition-only currency"| affinity_cards
+  expeditions -->|"The latest cleared floor determines the shared milestone grant"| expedition_wallet
+  loot -->|"Monster rewards credit sparks separately from permanent rewards"| expedition_wallet
+  affinity_cards -->|"Accepted rerolls replace the owner wallet and ledger together"| expedition_wallet
+  expedition_wallet -->|"Guests receive the host wallet balance without its private state"| world_snapshot
   affinity_cards -->|"Source-scoped contributions captured by existing combat actions"| combat_affinity_contracts
   affinity_cards -->|"Acquired copy totals and inactive requirements in owner details"| expedition_summary
   affinity_cards -->|"Graft previews and card effects share resolved attack and health values"| expedition_grafts
@@ -307,6 +312,7 @@ flowchart LR
 | System | Source files | Covering suites |
 |---|---|---|
 | expedition_grafts | `expedition_grafts.gd`, `expedition_grafts.gd.uid`, `affinity_grafting_panel.gd`, `affinity_grafting_panel.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `ct02_weaver`, `ct04_reaper`, `cr05_native_grafts`, `cr05_native_grafts_coop`, `cr05_native_grafts_party` |
+| expedition_wallet | `expedition_wallet.gd`, `expedition_wallet.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `cr05_native_grafts`, `world_snapshot_codec`, `cr02_mode_coop`, `experimental_terrain`, `guarded_expedition`, `guarded_expedition_coop`, `guarded_garden_actions`, `core_combat_coop`, `monster_rewards`, `run_flow`, `weighted_upgrades` |
 | affinity_cards | `affinity_cards.gd`, `affinity_cards.gd.uid`, `affinity_card_ledger.gd`, `affinity_card_ledger.gd.uid`, `affinity_card_catalog.gd`, `affinity_card_catalog.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `cr05_native_grafts`, `cr02_mode_coop` |
 | oracle_progression | `oracle_connected_tree.gd`, `oracle_connected_tree.gd.uid`, `oracle_combat.gd`, `oracle_combat.gd.uid`, `oracle_omens.gd`, `oracle_omens.gd.uid` | `ct05_oracle`, `ct05_oracle_coop`, `ct05_oracle_party` |
 | void_affinity | `void_affinity.gd`, `void_affinity.gd.uid` | `cr04c_void`, `cr04c_void_coop`, `cr04c_mixed_party` |
@@ -428,6 +434,7 @@ flowchart LR
 | `_offer_monster` | garden_stations, items, knowledge |
 | `_physics_process` | foundation |
 | `_pickup_inventory_drop` | loot, items |
+| `_plan_essence_debit` | expedition_wallet |
 | `_process` | foundation, affinity_cards |
 | `_purchase_expedition_graft` | expedition_grafts |
 | `_ready` | foundation |
@@ -536,6 +543,7 @@ flowchart LR
 | `graft_feedback` | weapons |
 | `graft_menu_data` | weapons |
 | `grant_guard` | classes |
+| `grant_run_essence` | expedition_wallet, loot |
 | `guarded_growth_tick` | persistence_operations |
 | `guest_combat_events` | presentation |
 | `guest_projection_status` | persistence_operations, connection_flow, characters, expeditions, garden |
@@ -636,7 +644,7 @@ flowchart LR
 | `run_guarded_action` | persistence_operations |
 | `run_heart_save` | persistence_operations |
 | `run_seed_experiment` | seeds, items, knowledge |
-| `run_wallet` | expeditions, affinity_cards |
+| `run_wallet` | expeditions, affinity_cards, expedition_wallet |
 | `save_action_profile` | characters, persistence_operations |
 | `save_guest_projection` | characters, persistence_operations, connection_flow |
 | `save_local_character` | foundation |
@@ -695,6 +703,7 @@ flowchart LR
 | `use_checkpoint` | expeditions |
 | `use_class_skill` | classes, combat, weapons, life, affinity_cards |
 | `use_heart_research` | knowledge |
+| `wallet_for` | expedition_wallet |
 | `weapon_effect_color` | presentation |
 | `weapon_stats` | weapons, classes, expeditions, combat |
 | `wild_entry` | expeditions |
@@ -747,6 +756,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_garden_action` | growth_adapter | garden_cinematics |
 | `game.gd::_garden_action` | gate_range | gate_access |
 | `game.gd::_garden_action` | garden_command | garden_observations |
+| `game.gd::_buy_upgrade` | ar03_wallet_debit_plan | expedition_wallet |
+| `game.gd::_buy_upgrade` | ar03_wallet_debit_commit | expedition_wallet |
 | `game.gd::_buy_upgrade` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::_buy_upgrade` | guarded_garden_actions | persistence_operations, expeditions, combat_vitals, gate_access |
 | `game.gd::_buy_upgrade` | vitals_upgrade_capacity | combat_vitals |
@@ -861,6 +872,9 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::player_snapshot` | class_aim_owner | ability_aim |
 | `game.gd::player_snapshot` | core_owner_projection | core_combat |
 | `game.gd::player_snapshot` | garden_projection | garden_observations |
+| `game.gd::reset_expedition` | ar03_wallet_reset | expedition_wallet |
+| `game.gd::_affinity_checkpoint_command` | ar03_wallet_reroll_debit | expedition_wallet, affinity_cards |
+| `game.gd::add_player` | ar03_wallet_initialization | expedition_wallet |
 | `game.gd::add_player` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::add_player` | preview_spawn_capacity | combat_balance_preview |
 | `game.gd::add_player` | preview_starting_capacity | combat_balance_preview |
@@ -915,6 +929,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::garden_action` | class_aim_command | ability_aim |
 | `game.gd::garden_action` | core_cast | core_combat |
 | `game.gd::garden_action` | growth_balance | cultivation_growth |
+| `game.gd::_enter_wilds` | ar03_wallet_departure | expedition_wallet |
 | `game.gd::_enter_wilds` | ga01a_1 | expedition_grafts |
 | `game.gd::_enter_wilds` | cr04c_void_0 | void_affinity, combat_affinity_contracts, world_snapshot |
 | `game.gd::_enter_wilds` | cr04c_spirit_0 | spirit_affinity, combat_affinity_contracts, world_snapshot |
@@ -933,6 +948,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_finish_failed_expedition` | experimental_reward_checkpoint | hex_terrain, terrain, persistence_operations |
 | `game.gd::_finish_failed_expedition` | guarded_expedition | persistence_operations, life, garden_returns |
 | `game.gd::_finish_failed_expedition` | garden_returns | garden_returns |
+| `game.gd::remove_player` | ar03_wallet_disconnect_guarded | expedition_wallet |
+| `game.gd::remove_player` | ar03_wallet_disconnect_legacy | expedition_wallet |
 | `game.gd::remove_player` | guarded_lifecycle | persistence_operations, connection_flow, foundation, garden_returns |
 | `game.gd::remove_player` | guarded_expedition | persistence_operations, foundation, garden_returns |
 | `game.gd::remove_player` | guarded_gameplay_writer | persistence_operations |
@@ -1328,6 +1345,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::checkpoint_offer_ids` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::buy_upgrade` | ec01_1 | affinity_cards |
 | `game.gd::buy_upgrade` | cr02_affinity_contract | combat_affinity_contracts |
+| `game.gd::return_to_garden` | ar03_wallet_return | expedition_wallet |
 | `game.gd::return_to_garden` | ga01a_1 | expedition_grafts |
 | `game.gd::return_to_garden` | ec01_1 | affinity_cards |
 | `game.gd::return_to_garden` | ct05_oracle_1 | oracle_progression |
