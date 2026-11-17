@@ -126,7 +126,7 @@ func contact_and_hazards() -> void:
 	var colossus: Dictionary=game.Enemies.get_kind(7)
 	var actor: Dictionary=game.make_scout(0,Vector3.ZERO,1)
 	Attacks.lock(game,actor,"swipe",player.pos,1000)
-	game.resolve_scout(actor,rootbound,1000)
+	preload("res://scout_behavior.gd").release(game, actor,rootbound,1000)
 	check(PlayerVitals.current_hp(player)==90,"an actual Rootbound sweep applies 10 HP")
 	check(Preview.effect_hp(Balance.scout_hit(game,wasp,{}))==7 and Preview.effect_hp(Balance.scout_hit(game,colossus,{}))==19,"fast and heavy scouts have distinct contact damage")
 	check(Preview.effect_hp(Balance.scout_hit(game,rootbound,{"gate_elite":true}))==12,"elite contact premium follows its species")
@@ -166,10 +166,10 @@ func bosses() -> void:
 		check(game.enemy_health()>ceiling*3 and game.encounter.scout_count()<=4,"deep four-player boss increases HP with finite escorts")
 		var next_move: String=definition.moves.back()
 		var phase_zero := Preview.effect_hp(Balance.boss_hit(game,definition,next_move))
-		game.boss_phase=2
+		game.tactics.boss_phase=2
 		check(Preview.effect_hp(Balance.boss_hit(game,definition,next_move))==phase_zero+4,"late phases add four HP to a landed attack")
 		var now := 9000
-		game.enemy_pos=game.battlefield.leader
+		game.tactics.position=game.battlefield.leader
 		player.pos=game.battlefield.entry
 		if kind<=21:
 			var mode := "orchard_march" if kind==20 else "drowned_surge"
@@ -180,8 +180,8 @@ func bosses() -> void:
 				var escape:=Lair.escape(game,plan,player.pos,now)
 				check(escape.is_finite() and not Lair.covered(plan,escape),"lair warning keeps a legal exit")
 				if escape.is_finite(): player.pos=escape
-				game.leader_brain.lair_plan=plan
-				game.enemy_attack_mode=mode
+				game.tactics.memory.lair_plan=plan
+				game.tactics.attack_mode=mode
 				game.Bosses.resolve(game,now)
 				check(PlayerVitals.current_hp(player)==100 and game.Bosses.exposed(game,now),"leaving the telegraph preserves health and opens the counter window")
 		else:
@@ -190,14 +190,14 @@ func bosses() -> void:
 			check(not plan.is_empty() and not plan.lanes.is_empty() and not str(plan.open).is_empty(),"phase boss keeps its lane telegraph and opening")
 			if not plan.is_empty():
 				player.pos=Vector3(24,0,24)
-				game.leader_brain.phase_plan=plan
-				game.enemy_attack_mode=mode
+				game.tactics.memory.phase_plan=plan
+				game.tactics.attack_mode=mode
 				game.Bosses.resolve(game,now)
 				check(PlayerVitals.current_hp(player)==100 and game.Bosses.exposed(game,now),"phase boss resolves and leaves its damage window")
 		game.enemy_mutations=0
-		game.leader_brain.lair_open={"kind":"core_exposed","until":now+2000}
+		game.tactics.memory.lair_open={"kind":"core_exposed","until":now+2000}
 		var before: int=game.enemy_health()
-		game.apply_weapon_hit(player,-1,game.enemy_pos,{"damage":3.0,"core_hit":true,"trait_secondary":true},now)
+		game.apply_weapon_hit(player,-1,game.tactics.position,{"damage":3.0,"core_hit":true,"trait_secondary":true},now)
 		check(before-game.enemy_health()==39,"vulnerable boss takes 30 percent extra HP damage")
 
 

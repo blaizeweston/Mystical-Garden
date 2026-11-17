@@ -36,10 +36,10 @@ func event(id: int, slot: String, item: String, channel: String, now: int) -> Re
 func reset(p: Dictionary, ally: Dictionary) -> void:
 	game.encounter.set_hp(-1, 500)
 	game.enemy_mutations=0
-	game.boss_kind=-1
-	game.enemy_pos=Vector3(0,0,-1.25)
-	game.enemy_winding_up=false
-	game.leader_brain.clear()
+	game.tactics.boss_kind=-1
+	game.tactics.position=Vector3(0,0,-1.25)
+	game.tactics.winding_up=false
+	game.tactics.memory.clear()
 	game.encounter.clear_scouts()
 	game.projectile_queue.clear()
 	Core.reset(game)
@@ -153,11 +153,11 @@ func run() -> void:
 	var previous_mask: int=player.character.upgrades[1]
 	player.character.upgrades[1]=1<<bloom_index
 	player.catalyst=int(game.Items.get_item("part_2").legacy_part)
-	game.enemy_pos=Vector3(9,0,0)
+	game.tactics.position=Vector3(9,0,0)
 	game.use_class_skill(1,player,0)
 	check(not player.has(Vital.SOURCES),"empty Cultivate Bloom creates no Vitality on placement")
 	var pulse_at:=Time.get_ticks_msec()+1
-	game.enemy_pos=Vector3(0,0,-1)
+	game.tactics.position=Vector3(0,0,-1)
 	game.Traits.tick(game,pulse_at)
 	check(player[PlayerVitals.STATE].temporary_hp()==12,"first actual Cultivate Bloom pulse grants Vitality")
 	Clock.advance(game,.4)
@@ -196,7 +196,7 @@ func run() -> void:
 	var ward := Events.class_start(game,2,{"trigger":"block"},now,Builds.slot("catalyst",game.Items.get_item("plant_part_rare_gravemoss").legacy_part))
 	var adapter := {"trigger":"block", "limit":"recipient", "id":"vital_fixture"}
 	Events.grant_ward(game,player,now+29000,1,ward,adapter,now)
-	game.apply_enemy_hit(1,player,now+1,1.0,0,game.enemy_pos)
+	game.apply_enemy_hit(1,player,now+1,1.0,0,game.tactics.position)
 	check(player[PlayerVitals.STATE].hp()==protected_hp and player[PlayerVitals.STATE].temporary_hp()==18 and ally[PlayerVitals.STATE].temporary_hp()==18,
 		"refined ally Ward grants radial Vitality using the granting Catalyst")
 	game.Life.down(game,2,ally)

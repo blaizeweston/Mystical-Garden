@@ -85,12 +85,12 @@ func river_host(game: Node, archer: Dictionary, key: String) -> bool:
 			"river midpoint is actual impassable water"):
 		return false
 	archer.pos = RIVER_FROM
-	game.enemy_pos = RIVER_TARGET
-	game.enemy_winding_up = false
-	game.enemy_stagger_until = Time.get_ticks_msec() + 12000
+	game.tactics.position = RIVER_TARGET
+	game.tactics.winding_up = false
+	game.tactics.stagger_until = Time.get_ticks_msec() + 12000
 	for scout in game.encounter.scout_tactics():
 		scout.windup = 0
-		scout.stagger_until = game.enemy_stagger_until
+		scout.stagger_until = game.tactics.stagger_until
 	var ray := river_preview(game, archer, field)
 	if not check(not ray.is_empty(), "host preview recognizes the eligible far-bank target"):
 		return false
@@ -109,7 +109,7 @@ func river_guest(game: Node, id: int, key: String) -> bool:
 		var world = instance_from_id(world_id)
 		return (world != null and not read(key).is_empty() and world.players.has(id)
 			and Vector3(world.players[id].pos).is_equal_approx(RIVER_FROM)
-			and world.enemy_pos.is_equal_approx(RIVER_TARGET)
+			and world.tactics.position.is_equal_approx(RIVER_TARGET)
 			and world.players[id].get("skill_ready", false))
 	if not check(await until(positions_ready), "guest receives the archer and target positions"):
 		return false
@@ -204,7 +204,7 @@ func host_run(menu: Node) -> void:
 	var stats: Dictionary = game.weapon_stats(keeper)
 	stats.damage = 10000
 	for target in range(-1, game.encounter.scout_count()):
-		var hit_at: Vector3 = game.enemy_pos if target == -1 else game.encounter.scout(target).pos
+		var hit_at: Vector3 = game.tactics.position if target == -1 else game.encounter.scout(target).pos
 		var kind: int = game.enemy_kind if target == -1 else game.encounter.scout(target).kind
 		var mask: int = game.enemy_mutations if target == -1 else game.encounter.scout(target).mutations
 		for seed_value in range(1, 40):

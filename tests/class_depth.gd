@@ -16,7 +16,7 @@ func arena(game: Node,p: Dictionary,c: int,right: bool=false) -> void:
  p.frame=c;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.run_upgrades={};p.wild=true;p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p.pos=Vector3(0,0,-1.5);p[PlayerVitals.STATE] = PlayerVitals.Health.new(5, 10);p.power=0;p.technique=0;p.facing=Vector3.FORWARD;p.lost_health=0
  p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
  for key in ["guard_until","front_guard_until","counter_guard_until","counter_until","hurt_until","brace_block_ready","grave_charges","prepared_mark_until","decoy_ready"]:p[key]=0
- game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter.clear_scouts();game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3.ZERO;game.enemy_mutations=0;game.enemy_winding_up=false;game.enemy_traits.clear();game.trait_events.clear();game.encounter_number=1;game.combat_epoch+=1
+ game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter.clear_scouts();game.encounter.set_hp(-1, 100);game.tactics.position=Vector3.ZERO;game.enemy_mutations=0;game.tactics.winding_up=false;game.enemy_traits.clear();game.trait_events.clear();game.encounter_number=1;game.combat_epoch+=1
  var scout: Dictionary=game.make_scout(0,Vector3(.6,0,.2),0);scout.hp=100;game.encounter.register_scout(scout)
 func run() -> void:
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/class-depth-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
@@ -32,7 +32,7 @@ func run() -> void:
    check(nodes.size()==13 and nodes.all(func(n):return n.position.y>=0),"entire six-row tree is on canvas "+str(c))
  # Weaver Rootbinder spreads root state to real enemies.
  arena(game,p,1);game.use_class_skill(1,p,0)
- check(game.rooted_until>Time.get_ticks_msec() and game.encounter.scout(0).rooted_until>Time.get_ticks_msec(),"Rootbinder links restraints")
+ check(game.tactics.rooted_until>Time.get_ticks_msec() and game.encounter.scout(0).rooted_until>Time.get_ticks_msec(),"Rootbinder links restraints")
  arena(game,p,1,true);game.use_class_skill(1,p,1)
  check(p[Cooldowns.STATE].deadline(Cooldowns.R)==0,"Bloom Detonation without a bloom preserves cooldown")
  game.use_class_skill(1,p,0);check(game.Traits.has_growth(game,p),"Bloomcaller cultivates an actual field")
@@ -48,7 +48,7 @@ func run() -> void:
  arena(game,p,2,true);game.use_class_skill(1,p,0)
  check(game.Traits.decoy_point(game,1)!=Vector3.INF,"Snarekeeper shot lures pursuit")
  game.use_class_skill(1,p,1)
- check(game.rooted_until>Time.get_ticks_msec() and game.Traits.has_growth(game,p),"Snarekeeper lattice roots and creates damaging terrain")
+ check(game.tactics.rooted_until>Time.get_ticks_msec() and game.Traits.has_growth(game,p),"Snarekeeper lattice roots and creates damaging terrain")
  # Reaper movement and queued marks resolve through authoritative hit handling.
  arena(game,p,3);game.use_class_skill(1,p,0);game.update_projectiles(Time.get_ticks_msec()+1000)
  check(p[Cooldowns.STATE].deadline(Cooldowns.Q)>0 and game.enemy_health()<100,"Blood Harvester commits a damaging approach")
@@ -64,7 +64,7 @@ func run() -> void:
  check(PlayerVitals.current_hp(ally)>4 and ally.guard_until>Time.get_ticks_msec() and game.trait_events.any(func(e):return e.kind=="tide"),"Lifekeeper places protection and healing")
  ally.slow_until=Time.get_ticks_msec()+4000;game.use_class_skill(1,p,1);check(ally.slow_until==0,"Lifekeeper bower cleanses")
  arena(game,p,4,true);game.use_class_skill(1,p,0);check(game.enemy_traits.get("marked_until",0)>Time.get_ticks_msec(),"Omenreader foretells enemy vulnerability")
- game.enemy_winding_up=true;hp=game.enemy_health();game.use_class_skill(1,p,1)
+ game.tactics.winding_up=true;hp=game.enemy_health();game.use_class_skill(1,p,1)
  check(hp-game.enemy_health()>=5,"Omenreader punishes marked wind-up")
  # Every class has new eligible cards; purchases augment rather than replace learned skills.
  for c in 5:

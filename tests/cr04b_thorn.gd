@@ -31,11 +31,11 @@ func event(id: int, slot: String, item: String, channel: String, now: int) -> Re
 
 func reset(p: Dictionary) -> void:
 	game.encounter.set_hp(-1, 500)
-	game.enemy_pos=Vector3(0,0,-1.3)
+	game.tactics.position=Vector3(0,0,-1.3)
 	game.enemy_mutations=0
-	game.boss_kind=-1
-	game.enemy_winding_up=false
-	game.leader_brain.clear()
+	game.tactics.boss_kind=-1
+	game.tactics.winding_up=false
+	game.tactics.memory.clear()
 	game.encounter.clear_scouts()
 	game.projectile_queue.clear()
 	game.trait_events.clear()
@@ -97,12 +97,12 @@ func run() -> void:
 		check(not cast.is_empty(),"native B prepares Thorn Line")
 		if not cast.is_empty():
 			Core.tick(game,cast.armed)
-			check(is_equal_approx(game.leader_brain.get(Thorn.SLOW,0.0),q.slow) and game.enemy_health()==500,"existing occupant is immediately slowed with no separate impact damage")
-			var original: Vector3=game.enemy_pos
-			game.enemy_pos=Vector3(0,0,-3.4)
+			check(is_equal_approx(game.tactics.memory.get(Thorn.SLOW,0.0),q.slow) and game.enemy_health()==500,"existing occupant is immediately slowed with no separate impact damage")
+			var original: Vector3=game.tactics.position
+			game.tactics.position=Vector3(0,0,-3.4)
 			Thorn.tick(game,Clock.advance(game,.5),now)
-			check(not game.leader_brain.has(Thorn.SLOW) and game.leader_brain.has(Thorn.BLEED),"exit removes field slow alone")
-			game.enemy_pos=original
+			check(not game.tactics.memory.has(Thorn.SLOW) and game.tactics.memory.has(Thorn.BLEED),"exit removes field slow alone")
+			game.tactics.position=original
 			game.encounter.register_scout(game.make_scout(0,original+Vector3.RIGHT,0))
 			Thorn.tick(game,Clock.advance(game,.24),now)
 			check(game.enemy_health()==500-q.tick_hp and game.encounter.scout(0).has(Thorn.BLEED),"re-entry maintains original tick and a later entrant receives its own wound")
@@ -116,7 +116,7 @@ func run() -> void:
 		check(fields.size()==1 and is_equal_approx(fields[0].slow,q.slow),"real first weapon hit creates quality-matched Form patch")
 		if not fields.is_empty():
 			var point: Vector3=fields[0].center
-			game.enemy_pos=Vector3(0,0,-4)
+			game.tactics.position=Vector3(0,0,-4)
 			Events.contact(game,shot.stats,-1,now)
 			Events.contact(game,shot.stats,-1,now,true)
 			fields=Thorn.active_fields(game,Clock.now(game))
@@ -152,25 +152,25 @@ func run() -> void:
 		p.catalyst=part
 		game.use_class_skill(1,p,0)
 		check(Thorn.active_fields(game,Clock.now(game)).is_empty(),"Ward grant does not plant")
-		game.apply_enemy_hit(1,p,now,1.0,0,game.enemy_pos)
+		game.apply_enemy_hit(1,p,now,1.0,0,game.tactics.position)
 		check(Thorn.active_fields(game,Clock.now(game)).size()==1,"actual Ward block plants lingering growth once")
 
 	reset(p)
 	var ordinary:=event(1,"catalyst","part_1","actual_block",now)
 	var refined:=event(2,"catalyst","part_5","actual_block",now)
-	var point: Vector3=game.enemy_pos
+	var point: Vector3=game.tactics.position
 	for key in ["first","second"]:
 		ordinary.publish(game,"actual_block","ward",key,now,{"center":point})
 	refined.publish(game,"actual_block","ward","other",now,{"center":point+Vector3.RIGHT*1.8})
-	check(game.leader_brain.get(Thorn.BLEED,{}).size()==2 and is_equal_approx(Frost.motion_scale(game.leader_brain,now),.73),"overlap resolves strongest slow and one wound per source and slot")
+	check(game.tactics.memory.get(Thorn.BLEED,{}).size()==2 and is_equal_approx(Frost.motion_scale(game.tactics.memory,now),.73),"overlap resolves strongest slow and one wound per source and slot")
 	var fire:=event(1,"form","part_6","weapon_contact",now)
 	fire.publish(game,"weapon_contact","hit","leader",now,{"enemy":-1})
-	game.leader_brain[Frost.BRITTLE]={"expires":now+10000,"slow":.08}
+	game.tactics.memory[Frost.BRITTLE]={"expires":now+10000,"slow":.08}
 	Water.cleanse(p)
-	check(game.leader_brain.has(Fire.BURNING) and game.leader_brain.has(Frost.BRITTLE) and game.leader_brain.has(Thorn.BLEED),"Fire, Frost, Thorn and ordinary Slow cleanse stay independent")
-	game.enemy_pos=point+Vector3.LEFT
+	check(game.tactics.memory.has(Fire.BURNING) and game.tactics.memory.has(Frost.BRITTLE) and game.tactics.memory.has(Thorn.BLEED),"Fire, Frost, Thorn and ordinary Slow cleanse stay independent")
+	game.tactics.position=point+Vector3.LEFT
 	Thorn.tick(game,Clock.advance(game,.72),now)
-	check(game.enemy_health()==500-4-4-6 and is_equal_approx(Frost.motion_scale(game.leader_brain,now),.82),"leaving stronger growth retains the remaining slow and both scheduled wounds")
+	check(game.enemy_health()==500-4-4-6 and is_equal_approx(Frost.motion_scale(game.tactics.memory,now),.82),"leaving stronger growth retains the remaining slow and both scheduled wounds")
 	verify_bleed_lifecycle(p)
 	game.queue_free()
 	await process_frame
@@ -182,7 +182,7 @@ func verify_bleed_lifecycle(player: Dictionary) -> void:
 	reset(player)
 	var now := Time.get_ticks_msec()
 	var old_cast := event(1,"catalyst","part_1","class_contact",now)
-	old_cast.publish(game,"class_contact","hit","leader",now,{"enemy":-1,"point":game.enemy_pos})
+	old_cast.publish(game,"class_contact","hit","leader",now,{"enemy":-1,"point":game.tactics.position})
 	var original_life: PlayerLifecycle.Life = player[PlayerLifecycle.STATE]
 	player[PlayerLifecycle.STATE] = original_life.fall()
 	var tick_hp := int(Thorn.QUALITY.ordinary.tick_hp)
@@ -193,8 +193,8 @@ func verify_bleed_lifecycle(player: Dictionary) -> void:
 	player[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
 	var elapsed := Clock.advance(game,.2)
 	var new_cast := event(1,"catalyst","part_1","class_contact",now)
-	new_cast.publish(game,"class_contact","hit","leader",now,{"enemy":-1,"point":game.enemy_pos})
-	var wound: Dictionary = game.leader_brain.get(Thorn.BLEED,{}).get("1/catalyst",{})
+	new_cast.publish(game,"class_contact","hit","leader",now,{"enemy":-1,"point":game.tactics.position})
+	var wound: Dictionary = game.tactics.memory.get(Thorn.BLEED,{}).get("1/catalyst",{})
 	check(int(wound.get("next",0))==elapsed+Thorn.TICK_MS
 		and PlayerLifecycle.matches(player,int(wound.get("life",-1))),
 		"a fresh source life starts its own bleed cadence")

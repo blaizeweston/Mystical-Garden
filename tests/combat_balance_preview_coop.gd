@@ -87,10 +87,10 @@ func host() -> void:
 	game.map_seed=91681
 	game.reset_encounter()
 	game.encounter.clear_scouts()
-	game.enemy_stagger_until=Time.get_ticks_msec()+45000
+	game.tactics.stagger_until=Time.get_ticks_msec()+45000
 	game.enemy_mutations=0
-	game.enemy_pos=Vector3(0,0,1.4)
-	check(game.boss_kind==game.Bosses.Lair.Routes.ORCHARD and game.enemy_health()==960,"two-player Orchard scales with party size")
+	game.tactics.position=Vector3(0,0,1.4)
+	check(game.tactics.boss_kind==game.Bosses.Lair.Routes.ORCHARD and game.enemy_health()==960,"two-player Orchard scales with party size")
 	if not await until(func():return marked("ready")):
 		check(false,"guest sees the Orchard and preview state")
 		return
@@ -131,7 +131,7 @@ func host() -> void:
 	check(int(PlayerVitals.current_hp(remote))==overlap_hp,"heal and damage in one host step cancel in the pool")
 	mark("overlap",str(overlap_hp))
 	check(await until(func():return marked("overlap-seen")),"guest displays both actual changes")
-	var boss_hit: float=game.Director.Balance.boss_hit(game,game.Enemies.get_kind(game.boss_kind),"orchard_march")
+	var boss_hit: float=game.Director.Balance.boss_hit(game,game.Enemies.get_kind(game.tactics.boss_kind),"orchard_march")
 	game.apply_enemy_hit(id,remote,Time.get_ticks_msec(),boss_hit)
 	check(int(PlayerVitals.current_hp(remote))==25+class_gain+wave_gain-26,"Orchard march applies a native 26 HP hit")
 	mark("boss-hit",str(int(PlayerVitals.current_hp(remote))))
@@ -160,7 +160,7 @@ func guest() -> void:
 	mark("rejected")
 	Preview.enabled=true
 	check(game.join_game()==OK,"guest retries with matching preview")
-	if not await until(func():return game.session=="Guest" and game.boss_kind==20 and int(game.players.get(game.multiplayer.get_unique_id(),{}).get("max_hp",0))==100):
+	if not await until(func():return game.session=="Guest" and game.tactics.boss_kind==20 and int(game.players.get(game.multiplayer.get_unique_id(),{}).get("max_hp",0))==100):
 		check(false,"guest receives Orchard state in preview units")
 		return
 	var id: int=game.multiplayer.get_unique_id()

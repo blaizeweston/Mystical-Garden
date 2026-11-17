@@ -42,7 +42,7 @@ func run() -> void:
 	p.pos = Vector3.ZERO
 	p.frame = game.Frames.WARDEN
 	p.facing = Vector3.FORWARD
-	game.enemy_pos = Vector3(0, 0, -2)
+	game.tactics.position = Vector3(0, 0, -2)
 	game.encounter.set_hp(-1, 40)
 	game.encounter.clear_scouts()
 	game.battlefield.configure(0, 1)
@@ -82,7 +82,7 @@ func run() -> void:
 	p.facing = Vector3.FORWARD
 	controller.update_preview(p)
 	input(game, KEY_Q, false)
-	check(p[Cooldowns.STATE].deadline(Cooldowns.Q) > 0 and game.rooted_until > Time.get_ticks_msec(), "release uses updated direction and roots the acquired target")
+	check(p[Cooldowns.STATE].deadline(Cooldowns.Q) > 0 and game.tactics.rooted_until > Time.get_ticks_msec(), "release uses updated direction and roots the acquired target")
 	game.garden_action(1, "class_cast:stale:1:0:-1")
 	check(p[Cooldowns.STATE].deadline(Cooldowns.R) == 0, "stale class commands cannot spend a cooldown")
 
@@ -113,15 +113,15 @@ func check_class_footprints(game: Node, p: Dictionary) -> void:
 			check(not shapes.is_empty(), "geometry available for " + skill.name)
 			if skill.mode == "bloom_detonate":
 				check(not plan.valid, "bloom detonation requires an active growth field")
-				game.Traits.zone(game, p, "growth", game.enemy_pos, 2.0, 2000, 1, Time.get_ticks_msec())
+				game.Traits.zone(game, p, "growth", game.tactics.position, 2.0, 2000, 1, Time.get_ticks_msec())
 				plan = Targeting.plan(game, p, field, skill, stats, Vector3.FORWARD)
 				shapes = Targeting.footprint(game, p, field, skill, stats, plan)
-				check(plan.valid and shapes[0].at == game.enemy_pos and shapes[0].radius == skill.radius, "bloom detonation previews the active field")
+				check(plan.valid and shapes[0].at == game.tactics.position and shapes[0].radius == skill.radius, "bloom detonation previews the active field")
 				game.trait_events.clear()
 	p.frame = game.Frames.WARDEN
 	var stats: Dictionary = game.weapon_stats(p)
 	var charge: Dictionary = game.Classes.DEFINITIONS[p.frame].skills.replace[1]
-	game.enemy_pos = Vector3(2, 0, 1)
+	game.tactics.position = Vector3(2, 0, 1)
 	field.barriers = [Rect2(-1, -2, 2, 1)]
 	var plan := Targeting.plan(game, p, field, charge, stats, Vector3.FORWARD)
 	check(plan.center.z < 0 and plan.center.z > -1.0, "charge preview stops before a wall")

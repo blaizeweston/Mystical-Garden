@@ -105,16 +105,16 @@ func trip(game: Node,p: Dictionary,with_hook: bool) -> void:
  p.pos=Vector3.ZERO
  Core.reset(game)
  p.core_ready_at=0;p.core_cast_until=0;p.cast_until=0
- game.encounter.set_hp(-1, 30);game.enemy_kind=0;game.enemy_winding_up=false;game.boss_kind=-1;game.encounter.clear_scouts()
+ game.encounter.set_hp(-1, 30);game.enemy_kind=0;game.tactics.winding_up=false;game.tactics.boss_kind=-1;game.encounter.clear_scouts()
  game.garden_action(1,Core.request(game,p,Vector2(0,-1)))
  var line: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
  check(not line.is_empty(),"Thorn Line casts with either graft")
  if line.is_empty(): return
  var original: Vector3=line.center+Vector3.RIGHT
- game.enemy_pos=original
+ game.tactics.position=original
  var ready: int=p.core_ready_at
  Core.tick(game,line.armed)
  check(game.enemy_health()==29 and Core.hints(game).size()==1,"one contact deals damage and leaves the thorns active")
- check(game.enemy_pos.is_equal_approx(line.center if with_hook else original),"only the installed grasp graft pulls toward line center")
+ check(game.tactics.position.is_equal_approx(line.center if with_hook else original),"only the installed grasp graft pulls toward line center")
  check(p.core_ready_at==ready-3000,"purchased Quickroot remains active with either graft")
  p.pos=game.battlefield.graft

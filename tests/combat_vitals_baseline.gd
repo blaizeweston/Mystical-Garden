@@ -53,7 +53,7 @@ func check_live_capacity(game: Node) -> void:
 		[19, 0, 1, 1, 12, 34],
 		[37, 0, 1, 2, 23, 65],
 	]
-	game.boss_kind = -1
+	game.tactics.boss_kind = -1
 	for sample in samples:
 		game.encounter_number = sample[0]
 		game.destination = sample[1]
@@ -63,7 +63,7 @@ func check_live_capacity(game: Node) -> void:
 		check(game.encounter_health() == sample[4], "solo gate elite at floor %d" % sample[0])
 		game.encounter_party_size = 4
 		check(game.encounter_health() == sample[5], "four-player gate elite at floor %d" % sample[0])
-	game.boss_kind = game.Bosses.Lair.Routes.ORCHARD
+	game.tactics.boss_kind = game.Bosses.Lair.Routes.ORCHARD
 	game.encounter_number = 10
 	game.difficulty_cycle = 0
 	game.encounter_party_size = 1

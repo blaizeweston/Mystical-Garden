@@ -111,7 +111,7 @@ func run() -> void:
 	check(game.battlefield.clear_line(line.from, line.to, line.skill.radius), "whole footprint lies on legal floor")
 	var safe: Vector3 = line.center + direction * (line.skill.radius + .22)
 	var cross: Vector3 = line.center - direction * (line.skill.radius + .22)
-	game.enemy_pos = safe
+	game.tactics.position = safe
 	game.encounter.clear_scouts()
 	Core.tick(game, line.armed - 1)
 	check(Core.hints(game).is_empty(), "contact unavailable before animation release")
@@ -125,11 +125,11 @@ func run() -> void:
 	check(Core.owner_state(p, Time.get_ticks_msec()).remaining > 0 and game.player_hud.state.core.name == "Thorn Line", "owner HUD shows independent cooldown")
 	var scout: Dictionary = game.make_scout(0, cross, 1)
 	game.encounter.clear_scouts();game.encounter.register_scout(scout)
-	game.enemy_pos = cross
+	game.tactics.position = cross
 	Core.tick(game, line.armed + 1)
 	var struck: int = game.enemy_health()
-	check(game.rooted_until == 0 and int(scout.rooted_until) == 0 and Core.hints(game).size() == 1, "thorn contact leaves a damaging line active without rooting")
-	game.enemy_pos = line.center
+	check(game.tactics.rooted_until == 0 and int(scout.rooted_until) == 0 and Core.hints(game).size() == 1, "thorn contact leaves a damaging line active without rooting")
+	game.tactics.position = line.center
 	Core.tick(game, line.armed + 801)
 	check(game.enemy_health() < struck and Core.hints(game).size() == 1, "a foe remaining in the line takes another tick")
 	Core.tick(game, line.expires)

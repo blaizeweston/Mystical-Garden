@@ -402,7 +402,7 @@ static func lantern_burst(game: Node, id: int, cast: Dictionary, now: int) -> vo
 		if winding_or_boss(game, target) or not game.battlefield.clear_line(center, game.enemy_position(target)):
 			continue
 		if target == -1:
-			game.enemy_stagger_until = maxi(game.enemy_stagger_until, until)
+			game.tactics.stagger_until = maxi(game.tactics.stagger_until, until)
 		else:
 			game.encounter.scout(target).stagger_until = maxi(int(game.encounter.scout(target).stagger_until), until)
 		targets_hit.append(target)
@@ -413,7 +413,7 @@ static func lantern_burst(game: Node, id: int, cast: Dictionary, now: int) -> vo
 
 
 static func winding_or_boss(game: Node, target: int) -> bool:
-	return game.boss_kind >= 0 or game.enemy_winding_up if target == -1 else int(game.encounter.scout(target).get("windup", 0)) > 0
+	return game.tactics.boss_kind >= 0 or game.tactics.winding_up if target == -1 else int(game.encounter.scout(target).get("windup", 0)) > 0
 
 
 static func quake(game: Node, id: int, origin: Vector3, radius: float, now: int) -> void:
@@ -490,7 +490,7 @@ static func pull_to_line(game: Node, target: int, line: Dictionary) -> Vector3:
 	if point.distance_squared_to(drawn) < .0025:
 		return point
 	if target == -1:
-		game.enemy_pos = drawn
+		game.tactics.position = drawn
 	else:
 		game.encounter.scout(target).pos = drawn
 	game.emit_combat_event("link", "Hooked Thorns", point, drawn, .4, THORN_COLOR, 0.0, target)
@@ -502,7 +502,7 @@ static func pull_to_line(game: Node, target: int, line: Dictionary) -> Vector3:
 static func targets(game: Node) -> Dictionary:
 	var result := {}
 	if game.encounter.alive(-1):
-		result[-1] = {"pos": game.enemy_pos, "token": 0}
+		result[-1] = {"pos": game.tactics.position, "token": 0}
 	for index in game.encounter.scout_count():
 		var scout: Dictionary = game.encounter.scout(index)
 		if game.encounter.alive(index):
@@ -571,7 +571,7 @@ static func guest_crown_points(game: Node, field: RefCounted, shapes: Array, cen
 	var points: Array = []
 	var enemies: Array[Vector3] = []
 	if game.enemy_health() > 0:
-		enemies.append(game.enemy_pos)
+		enemies.append(game.tactics.position)
 	var pack: PackedFloat32Array = game.client_pack
 	for index in range(0, pack.size(), game.PACK_STRIDE):
 		if pack[index + 2] > 0:

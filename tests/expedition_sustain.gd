@@ -59,10 +59,10 @@ func arena() -> void:
 	game.depth=1
 	game.encounter_number=1
 	game.difficulty_cycle=0
-	game.boss_kind=-1
+	game.tactics.boss_kind=-1
 	game.encounter.set_hp(-1, 800)
-	game.enemy_pos=Vector3(0,0,-2)
-	game.enemy_winding_up=false
+	game.tactics.position=Vector3(0,0,-2)
+	game.tactics.winding_up=false
 	game.enemy_mutations=0
 	game.battlefield.configure(0,1,0)
 	game.battlefield.procedural=false
@@ -71,7 +71,7 @@ func arena() -> void:
 	game.enemy_traits.clear()
 	game.trait_events.clear()
 	game.combat_events.clear()
-	game.leader_brain.clear()
+	game.tactics.memory.clear()
 	Core.reset(game)
 	for actor in [player,ally]:
 		actor[Cooldowns.STATE] = actor[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
@@ -151,7 +151,7 @@ func kill_budget() -> void:
 
 func pulse_and_refresh() -> void:
 	arena()
-	game.enemy_pos=player.pos
+	game.tactics.position=player.pos
 	var stats := {"tide_pool":2.0}
 	player.tide_ready=0
 	game.Traits.after_hit(game,player,-1,stats,1000,false)
@@ -171,13 +171,13 @@ func pulse_and_refresh() -> void:
 
 func drains() -> void:
 	arena()
-	game.enemy_pos=Vector3(15,0,0)
+	game.tactics.position=Vector3(15,0,0)
 	player.frame=3
 	var summon:=add_enemy(Vector3(0,0,-1),true)
 	game.use_class_skill(1,player,1)
 	check(game.encounter.hp_for(summon)<summon.max_hp and PlayerVitals.current_hp(player)==30,"Siphon Cut damages a summon without drawing health")
 	arena()
-	game.enemy_pos=Vector3(15,0,0)
+	game.tactics.position=Vector3(15,0,0)
 	player.weapon=game.Parts.index_of("plant:bloodbriar")
 	summon=add_enemy(Vector3(0,0,-1.8),true)
 	var ordinary:=add_enemy(Vector3(.3,0,-2.3))

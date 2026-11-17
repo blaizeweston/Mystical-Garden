@@ -71,7 +71,7 @@ func predict_step(game: Node,p: Dictionary,direction: Vector2,delta: float) -> v
  var field=game.stage.visual_field
  if p.wild and field!=null and field.configured_key!=Vector3i(game.destination,game.depth,game.map_seed):p.velocity=Vector3.ZERO;return
  var experimental:=game.has_meta(&"experimental_terrain")
- if p.wild and experimental and (field==null or field.boss_kind!=game.boss_kind or field.boss_phase!=game.boss_phase):
+ if p.wild and experimental and (field==null or field.boss_kind!=game.tactics.boss_kind or field.boss_phase!=game.tactics.boss_phase):
   p.velocity=Vector3.ZERO
   return
  var garden=game.stage.experimental_garden if experimental else null

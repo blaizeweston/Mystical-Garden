@@ -29,8 +29,8 @@ func run() -> void:
  if not failed: print("PASS: Warden co-op ",role," pre-RPC compatibility, base/replacement skills, final kills, cleared-floor spam and next encounter")
  quit(1 if failed else 0)
 func prepare(p: Dictionary,variant: int) -> void:
- game.battlefield.configure(0,1);game.encounter.set_hp(-1, 1);game.enemy_pos=Vector3.ZERO;game.enemy_winding_up=false;game.enemy_engaged=false
- game.enemy_ready_at=Time.get_ticks_msec()+60000;game.enemy_stagger_until=Time.get_ticks_msec()+60000
+ game.battlefield.configure(0,1);game.encounter.set_hp(-1, 1);game.tactics.position=Vector3.ZERO;game.tactics.winding_up=false;game.tactics.engaged=false
+ game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.stagger_until=Time.get_ticks_msec()+60000
  var scout: Dictionary=game.make_scout(0,Vector3(.4,0,0),0)
  scout.hp=1;scout.stagger_until=Time.get_ticks_msec()+60000
  game.encounter.clear_scouts();game.encounter.register_scout(scout)

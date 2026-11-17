@@ -31,73 +31,71 @@ const SIGNATURES={
 static func empowered(kind: int) -> String:
  return Variants.cue(SIGNATURES.get(kind,""),kind)
 static func state(game: Node) -> Dictionary:
- if not game.leader_brain.has("elite") or int(game.leader_brain.elite.kind)!=int(game.enemy_kind):
-  var body: Dictionary=game.make_scout(game.enemy_kind,game.enemy_pos,0,game.enemy_mutations,game.enemy_growth)
+ var body: Dictionary=game.encounter.leader_tactics()
+ if body.is_empty() or int(body.kind)!=int(game.enemy_kind):
+  body=game.make_scout(game.enemy_kind,game.tactics.position,0,game.enemy_mutations,game.enemy_growth)
   body.summons=0;body.remaining=0;body.repeat=0;body.gate_elite=true
   if game.Life.Preview.enabled: body.max_hp=game.encounter_health()
   if game.encounter_number>=3:body.variant=SIGNATURES.get(int(game.enemy_kind),body.variant)
-  game.leader_brain.elite=game.encounter.register_leader_tactics(body)
- return game.leader_brain.elite
+  return game.encounter.register_leader_tactics(body)
+ return body
 static func tick(game: Node,delta: float,now: int) -> void:
  if game.encounter.hp(-1)<=0:return
- var frost_motion := preload("res://frost_combat.gd").motion_scale(game.leader_brain,now)
+ var frost_motion := preload("res://frost_combat.gd").motion_scale(game.tactics.memory,now)
  delta *= frost_motion
- if game.enemy_winding_up:
-  if now>=game.enemy_strike_at:resolve(game,now)
+ if game.tactics.winding_up:
+  if now>=game.tactics.strike_at:resolve(game,now)
   return
- if game.enemy_kind==16 and not game.leader_brain.get("elite",{}).get("stolen",[]).is_empty():
-  var fleeing: Dictionary=game.leader_brain.elite
-  fleeing.pos=game.enemy_pos
-  fleeing.rooted_until=game.rooted_until
-  fleeing.stagger_until=game.enemy_stagger_until
+ if game.enemy_kind==16 and not game.encounter.leader_tactics().get("stolen",[]).is_empty():
+  var fleeing: Dictionary=game.encounter.leader_tactics()
+  fleeing.pos=game.tactics.position
+  fleeing.rooted_until=game.tactics.rooted_until
+  fleeing.stagger_until=game.tactics.stagger_until
   game.EnemyBehaviors.tick(game,fleeing,delta,now)
-  game.enemy_pos=fleeing.pos
+  game.tactics.position=fleeing.pos
   return
- if preload("res://glasscap_feint.gd").holding(game,game.leader_brain.get("elite",{}),now):return
- if now<game.enemy_stagger_until:return
- var id: int=game.Director.target(game,game.enemy_pos,game.leader_brain,now)
+ if preload("res://glasscap_feint.gd").holding(game,game.encounter.leader_tactics(),now):return
+ if now<game.tactics.stagger_until:return
+ var id: int=game.Director.target(game,game.tactics.position,game.tactics.memory,now)
  if id==0:return
- var trace := preload("res://spirit_affinity.gd").diversion(game,game.leader_brain,id)
+ var trace := preload("res://spirit_affinity.gd").diversion(game,game.tactics.memory,id)
  if trace.is_finite():
-  if now>=game.rooted_until:
+  if now>=game.tactics.rooted_until:
    var speed: float=game.Director.speed(game,float(Catalog.get_kind(game.enemy_kind).speed))
-   game.enemy_pos=game.Director.navigate(game,game.enemy_pos,trace,speed*delta)
+   game.tactics.position=game.Director.navigate(game,game.tactics.position,trace,speed*delta)
   return
- var victim: Vector3=game.players[id].pos;var distance: float=game.enemy_pos.distance_to(victim)
+ var victim: Vector3=game.players[id].pos;var distance: float=game.tactics.position.distance_to(victim)
  var definition:=Catalog.get_kind(game.enemy_kind);var role: String=definition.role
- if not game.enemy_engaged and (distance>float(game.Director.config().aggro_radius) or not Attacks.attack_sight(game.battlefield,game.enemy_pos,victim,role)):return
- if not game.enemy_engaged:game.Director.alert(game,game.enemy_pos)
- game.enemy_engaged=true
+ if not game.tactics.engaged and (distance>float(game.Director.config().aggro_radius) or not Attacks.attack_sight(game.battlefield,game.tactics.position,victim,role)):return
+ if not game.tactics.engaged:game.Director.alert(game,game.tactics.position)
+ game.tactics.engaged=true
  var body:=state(game)
- body.pos=game.enemy_pos;body.rooted_until=game.rooted_until;body.mutations=game.enemy_mutations;body.haste_until=game.enemy_haste_until
+ body.pos=game.tactics.position;body.rooted_until=game.tactics.rooted_until;body.mutations=game.enemy_mutations;body.haste_until=game.tactics.haste_until
  if game.enemy_kind==16:
-  body.ready=game.enemy_ready_at;body.stagger_until=game.enemy_stagger_until
+  body.ready=game.tactics.ready_at;body.stagger_until=game.tactics.stagger_until
   if game.EnemyBehaviors.tick(game,body,delta,now):
-   game.enemy_pos=body.pos
+   game.tactics.position=body.pos
    if body.windup>0:
-    game.enemy_winding_up=true;game.enemy_attack_mode=body.mode;game.enemy_strike_at=body.windup;game.enemy_landing=body.attack.to
+    game.tactics.winding_up=true;game.tactics.attack_mode=body.mode;game.tactics.strike_at=body.windup;game.tactics.landing=body.attack.to
    return
- var reach:=float(definition.range)+(.65 if game.longlimb else 0.0)
- var can_leap: bool=frost_motion>0.0 and now>=game.rooted_until and now>=game.enemy_ready_at
+ var reach:=float(definition.range)+(.65 if game.tactics.longlimb else 0.0)
+ var can_leap: bool=frost_motion>0.0 and now>=game.tactics.rooted_until and now>=game.tactics.ready_at
  if can_leap and Attacks.try_skill_approach(game,body,victim,now):
-  game.enemy_winding_up=true
-  game.enemy_attack_mode=body.mode
-  game.enemy_strike_at=body.windup
-  game.enemy_landing=body.attack.to
-  game.active_radius=body.attack.radius
+  game.tactics.landing=body.attack.to
+  game.tactics.begin_attack(body.mode,body.windup,body.attack.radius)
   return
  var thorn_vault:=can_leap and Attacks.try_thorn_vault(game,body,victim,now)
  var landing:=Attacks.vault_target(game,body,victim) if can_leap and not thorn_vault else Vector3.INF
  var vault:=thorn_vault or landing.is_finite()
- if not vault and (distance>reach or not Attacks.attack_sight(game.battlefield,game.enemy_pos,victim,role)):
-  if now>=game.rooted_until:
+ if not vault and (distance>reach or not Attacks.attack_sight(game.battlefield,game.tactics.position,victim,role)):
+  if now>=game.tactics.rooted_until:
    var goal: Vector3=game.Director.pursuit(game,id,0)
-   if role=="skirmish" and distance<4:goal=game.enemy_pos+(victim-game.enemy_pos).normalized().rotated(Vector3.UP,.9)*2
-   game.enemy_pos=game.Director.navigate(game,game.enemy_pos,goal,game.Director.speed(game,float(definition.speed)*1.08)*(1.22 if now<game.enemy_haste_until else 1.0)*delta)
+   if role=="skirmish" and distance<4:goal=game.tactics.position+(victim-game.tactics.position).normalized().rotated(Vector3.UP,.9)*2
+   game.tactics.position=game.Director.navigate(game,game.tactics.position,goal,game.Director.speed(game,float(definition.speed)*1.08)*(1.22 if now<game.tactics.haste_until else 1.0)*delta)
   return
- if now<game.enemy_ready_at:return
+ if now<game.tactics.ready_at:return
  if not vault and Variants.prepare(game,body,victim,delta,now):
-  game.enemy_pos=body.pos
+  game.tactics.position=body.pos
   return
  body.repeat=1 if game.enemy_kind==1 and not vault else 0
  var mode: String="vault" if vault else role
@@ -106,28 +104,33 @@ static func tick(game: Node,delta: float,now: int) -> void:
  if not thorn_vault: Attacks.lock(game,body,mode,aim,now+windup)
  body.erase("approach_done");body.erase("approach");body.erase("approach_used")
  game.EnemyBehaviors.telegraph(game,body,now)
- game.enemy_landing=body.attack.to;game.enemy_attack_mode=mode;game.active_radius=body.attack.radius
- game.enemy_winding_up=true;game.enemy_strike_at=body.windup
+ game.tactics.landing=body.attack.to
+ game.tactics.begin_attack(mode,body.windup,body.attack.radius)
 static func resolve(game: Node,now: int) -> void:
  var body:=state(game);var definition:=Catalog.get_kind(game.enemy_kind)
- body.pos=game.enemy_pos;body.blast=game.enemy_landing;body.mode=game.enemy_attack_mode;body.recovery=game.moss_recovery_bonus
- body.rooted_until=game.rooted_until
+ var epoch: int=game.combat_epoch
+ body.pos=game.tactics.position;body.blast=game.tactics.landing;body.mode=game.tactics.attack_mode;body.recovery=game.tactics.recovery_bonus
+ body.rooted_until=game.tactics.rooted_until
  if game.has_meta(&"combat_affinity_ruleset"):
-  preload("res://frost_combat.gd").with_attacker(game,-1,game.resolve_scout.bind(body,definition,now))
+  preload("res://frost_combat.gd").with_attacker(game,-1,preload("res://scout_behavior.gd").release.bind(game,body,definition,now))
  else:
-  game.resolve_scout(body,definition,now)
- game.enemy_pos=body.pos
- game.enemy_winding_up=body.windup>0
- if game.enemy_winding_up:
-  game.enemy_strike_at=body.windup
+  preload("res://scout_behavior.gd").release(game,body,definition,now)
+ # Player damage can end the floor or restore the encounter during a save abort.
+ if game.combat_epoch!=epoch or not is_same(body,game.encounter.leader_tactics()):
+  return
+ game.tactics.position=body.pos
+ game.tactics.winding_up=body.windup>0
+ if game.tactics.winding_up:
+  game.tactics.strike_at=body.windup
  else:
-  game.enemy_attack_mode="";game.active_radius=0
-  game.enemy_ready_at=int(body.ready)
- game.moss_recovery_bonus=0
+  game.tactics.stop_attack()
+  game.tactics.active_radius=0
+  game.tactics.ready_at=int(body.ready)
+ game.tactics.recovery_bonus=0
 static func hints(game: Node) -> Array:
- if game.encounter.hp(-1)<=0 or not game.enemy_winding_up:return []
+ if game.encounter.hp(-1)<=0 or not game.tactics.winding_up:return []
  var body:=state(game)
- return Attacks.hints(Attacks.current(game,body),-1,maxf(0,(game.enemy_strike_at-Time.get_ticks_msec())/1000.0))
+ return Attacks.hints(Attacks.current(game,body),-1,maxf(0,(game.tactics.strike_at-Time.get_ticks_msec())/1000.0))
 static func decorate(stage: Node3D,actor: Dictionary,enabled: bool) -> void:
  var model: Node3D=actor.model
  var growth: Node3D=model.get_node_or_null("EliteGrowth")

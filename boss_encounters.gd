@@ -23,86 +23,86 @@ static func prepare(game: Node) -> void:
   var kind=choose(game.encounter_number,game.destination,game.map_seed,game.used_bosses)
   game.boss_floors[key]=kind
   if kind>=0: game.used_bosses.append(kind)
- game.boss_kind=int(game.boss_floors[key]) if game.destination<3 else -1
- game.boss_phase=0;game.boss_moves=0;game.enemy_hazards.clear()
+ game.tactics.begin_boss(int(game.boss_floors[key]) if game.destination<3 else -1)
+ game.enemy_hazards.clear()
 static func phase(game: Node) -> int:
  return game.Life.Vitals.boss_phase(game.encounter.hp(-1),game.encounter_health())
 static func tick(game: Node,delta: float,now: int) -> void:
  if game.encounter.hp(-1)<=0: return
- var lair:=Lair.Routes.supports(game.boss_kind)
- if lair and game.enemy_engaged:Lair.observe(game,now)
- if game.boss_kind==Phases.NEST:Phases.observe_brood(game,now)
- if game.enemy_winding_up:
-  if now>=game.enemy_strike_at:
+ var lair:=Lair.Routes.supports(game.tactics.boss_kind)
+ if lair and game.tactics.engaged:Lair.observe(game,now)
+ if game.tactics.boss_kind==Phases.NEST:Phases.observe_brood(game,now)
+ if game.tactics.winding_up:
+  if now>=game.tactics.strike_at:
    if game.has_meta(&"combat_affinity_ruleset"):
     preload("res://frost_combat.gd").with_attacker(game,-1,resolve.bind(game,now))
    else: resolve(game,now)
   return
- if now<game.enemy_stagger_until: return
- var target=game.Director.target(game,game.enemy_pos,game.leader_brain,now)
+ if now<game.tactics.stagger_until: return
+ var target=game.Director.target(game,game.tactics.position,game.tactics.memory,now)
  if target==0: return
  var victim: Vector3=game.players[target].pos
- if not game.enemy_engaged and game.enemy_pos.distance_to(victim)>12: return
- game.enemy_engaged=true
- var definition: Dictionary=game.Enemies.get_kind(game.boss_kind)
+ if not game.tactics.engaged and game.tactics.position.distance_to(victim)>12: return
+ game.tactics.engaged=true
+ var definition: Dictionary=game.Enemies.get_kind(game.tactics.boss_kind)
  var next_phase=phase(game)
- if Phases.supports(game.boss_kind):
+ if Phases.supports(game.tactics.boss_kind):
   if Phases.advance_phase(game,next_phase,now):return
- elif next_phase!=game.boss_phase:
-  game.boss_phase=next_phase
+ elif next_phase!=game.tactics.boss_phase:
+  game.tactics.boss_phase=next_phase
   if lair:Lair.begin_phase(game,next_phase,now)
- if now<game.enemy_ready_at: return
- var next_move: String=definition.moves[game.boss_moves%definition.moves.size()]
+ if now<game.tactics.ready_at: return
+ var next_move: String=definition.moves[game.tactics.boss_moves%definition.moves.size()]
  var reach:=float(definition.range)
- var distance: float=game.enemy_pos.distance_to(victim)
+ var distance: float=game.tactics.position.distance_to(victim)
  var remote_lair_cast:=lair and next_move=="grasping_pool" and Lair.adaptive(game,target,"bank")
- if game.boss_kind==Lair.Routes.ORCHARD:
-  next_move=Orchard.next_move(definition.moves,game.boss_phase,game.boss_moves,int(game.leader_brain.get("orchard_phase_start",0)))
+ if game.tactics.boss_kind==Lair.Routes.ORCHARD:
+  next_move=Orchard.next_move(definition.moves,game.tactics.boss_phase,game.tactics.boss_moves,int(game.tactics.memory.get("orchard_phase_start",0)))
   remote_lair_cast=next_move=="root_sweep" and Lair.adaptive(game,target,"outer")
-  if not remote_lair_cast and distance>Orchard.reach(next_move,game.boss_phase):
+  if not remote_lair_cast and distance>Orchard.reach(next_move,game.tactics.boss_phase):
    next_move="falling_fruit"
-  reach=Orchard.reach(next_move,game.boss_phase)
- if not remote_lair_cast and distance>reach and (now>=game.rooted_until or game.boss_kind==Lair.Routes.ORCHARD):
-  if now>=game.rooted_until:
-   game.enemy_pos=game.Director.navigate(game,game.enemy_pos,victim,float(definition.speed)*delta*preload("res://frost_combat.gd").motion_scale(game.leader_brain,now,true))
+  reach=Orchard.reach(next_move,game.tactics.boss_phase)
+ if not remote_lair_cast and distance>reach and (now>=game.tactics.rooted_until or game.tactics.boss_kind==Lair.Routes.ORCHARD):
+  if now>=game.tactics.rooted_until:
+   game.tactics.position=game.Director.navigate(game,game.tactics.position,victim,float(definition.speed)*delta*preload("res://frost_combat.gd").motion_scale(game.tactics.memory,now,true))
   return
  if lair:
-  if not Lair.commit(game,next_move,target,now) and game.boss_kind==Lair.Routes.ORCHARD and next_move!="falling_fruit" and distance<=Orchard.reach("falling_fruit",game.boss_phase):
+  if not Lair.commit(game,next_move,target,now) and game.tactics.boss_kind==Lair.Routes.ORCHARD and next_move!="falling_fruit" and distance<=Orchard.reach("falling_fruit",game.tactics.boss_phase):
    Lair.commit(game,"falling_fruit",target,now)
   return
- if Phases.supports(game.boss_kind):
+ if Phases.supports(game.tactics.boss_kind):
   Phases.commit(game,next_move,target,now)
 static func hazard(game: Node,point: Vector3,radius: float,now: int,duration: int,kind: String,delay: int=900,damage: float=1.0,boss_move: String="") -> void:
  var reserved:=0
- if game.enemy_winding_up and game.encounter.hp(-1)>0:
-  var plan: Dictionary=game.leader_brain.get("lair_plan",game.leader_brain.get("phase_plan",{}))
+ if game.tactics.winding_up and game.encounter.hp(-1)>0:
+  var plan: Dictionary=game.tactics.memory.get("lair_plan",game.tactics.memory.get("phase_plan",{}))
   reserved=plan.get("areas",[]).size()
  if game.enemy_hazards.size()>=32-reserved: return
  game.enemy_hazard_serial+=1
  var hit: float=game.Director.Balance.hazard_hit(game,kind,damage,boss_move)
  game.enemy_hazards.append({"id":game.enemy_hazard_serial,"point":point,"radius":radius,"activate":now+delay,"until":now+delay+duration,"next":now+delay,"kind":kind,"damage":hit})
 static func resolve(game: Node,now: int) -> void:
- var damage: float=game.Director.Balance.boss_hit(game,game.Enemies.get_kind(game.boss_kind),game.enemy_attack_mode)
- game.enemy_winding_up=false
- var recovery:=maxi(900,int(game.Enemies.get_kind(game.boss_kind).recovery)-game.boss_phase*250)
- if game.boss_kind==Lair.Routes.ORCHARD:
-  var orchard_plan: Dictionary=game.leader_brain.get("lair_plan",{})
+ var damage: float=game.Director.Balance.boss_hit(game,game.Enemies.get_kind(game.tactics.boss_kind),game.tactics.attack_mode)
+ game.tactics.winding_up=false
+ var recovery:=maxi(900,int(game.Enemies.get_kind(game.tactics.boss_kind).recovery)-game.tactics.boss_phase*250)
+ if game.tactics.boss_kind==Lair.Routes.ORCHARD:
+  var orchard_plan: Dictionary=game.tactics.memory.get("lair_plan",{})
   recovery=int(orchard_plan.get("follow_ms",recovery))
- game.enemy_ready_at=now+recovery+game.moss_recovery_bonus
- game.moss_recovery_bonus=0
- var plan: Dictionary=game.leader_brain.get("lair_plan",game.leader_brain.get("phase_plan",{}))
+ game.tactics.ready_at=now+recovery+game.tactics.recovery_bonus
+ game.tactics.recovery_bonus=0
+ var plan: Dictionary=game.tactics.memory.get("lair_plan",game.tactics.memory.get("phase_plan",{}))
  var epoch: int=game.combat_epoch
- if Lair.Routes.supports(game.boss_kind):
-  game.leader_brain.erase("lair_plan")
+ if Lair.Routes.supports(game.tactics.boss_kind):
+  game.tactics.memory.erase("lair_plan")
   Lair.resolve(game,plan,now,damage)
- elif Phases.supports(game.boss_kind):
-  game.leader_brain.erase("phase_plan")
+ elif Phases.supports(game.tactics.boss_kind):
+  game.tactics.memory.erase("phase_plan")
   Phases.resolve(game,plan,now,damage)
  if epoch==game.combat_epoch:
-  game.enemy_ready_at=preload("res://oracle_omens.gd").release_attack(game.leader_brain,plan,game.enemy_ready_at)
+  game.tactics.ready_at=preload("res://oracle_omens.gd").release_attack(game.tactics.memory,plan,game.tactics.ready_at)
 
 static func tick_hazards(game: Node,now: int) -> void:
- if game.encounter.hp(-1)<=0 and game.boss_kind>=0: game.enemy_hazards.clear();return
+ if game.encounter.hp(-1)<=0 and game.tactics.boss_kind>=0: game.enemy_hazards.clear();return
  for entry in game.enemy_hazards.duplicate():
   if now>=int(entry.until): game.enemy_hazards.erase(entry);continue
   if now<int(entry.next): continue
@@ -134,7 +134,7 @@ static func owns_warnings(kind: int) -> bool:
  return Lair.Routes.supports(kind) or Phases.supports(kind)
 
 static func exposed(game: Node, now: int) -> bool:
- return owns_warnings(game.boss_kind) and now<int(game.leader_brain.get("lair_open",{}).get("until",0))
+ return owns_warnings(game.tactics.boss_kind) and now<int(game.tactics.memory.get("lair_open",{}).get("until",0))
 
 static func seed_species(random: RandomNumberGenerator) -> int:
  # Roll tier first: high tiers do not get diluted when low-tier content grows.
@@ -146,11 +146,11 @@ static func seed_species(random: RandomNumberGenerator) -> int:
  return int(pool[random.randi_range(0,pool.size()-1)]) if not pool.is_empty() else 0
 
 static func warning_width(game: Node) -> float:
- if game.enemy_attack_mode=="memory_lance": return .8+(.7 if game.enemy_mutations&game.Enemies.REACH else 0)
- if game.enemy_attack_mode in ["root_sweep","remembered_rend"]: return 1.1+game.boss_phase*.2
+ if game.tactics.attack_mode=="memory_lance": return .8+(.7 if game.enemy_mutations&game.Enemies.REACH else 0)
+ if game.tactics.attack_mode in ["root_sweep","remembered_rend"]: return 1.1+game.tactics.boss_phase*.2
  return 1.2
 static func warning_radius(game: Node) -> float:
- if game.enemy_attack_mode=="memory_lance":return 1.4
- if game.enemy_attack_mode in ["root_sweep","remembered_rend"]:return game.active_radius*.5
- if game.enemy_attack_mode in ["orchard_march","drowned_surge","matriarch_lunge"]:return game.active_radius*.7
- return game.active_radius
+ if game.tactics.attack_mode=="memory_lance":return 1.4
+ if game.tactics.attack_mode in ["root_sweep","remembered_rend"]:return game.tactics.active_radius*.5
+ if game.tactics.attack_mode in ["orchard_march","drowned_surge","matriarch_lunge"]:return game.tactics.active_radius*.7
+ return game.tactics.active_radius

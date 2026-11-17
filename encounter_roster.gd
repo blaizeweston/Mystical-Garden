@@ -67,6 +67,10 @@ func register_leader_tactics(authored: Dictionary) -> Dictionary:
 	_leader.ended = ended
 	return _leader.tactics
 
+## Live role-specific body for the gate elite, stored once with the leader member.
+func leader_tactics() -> Dictionary:
+	return _leader.tactics
+
 func _register(authored: Dictionary) -> Member:
 	var spawn_token := int(authored.get("spawn_token", 0))
 	if not _reserved_tokens.erase(spawn_token):
@@ -223,16 +227,15 @@ func savepoint() -> Dictionary:
 func _capture(member: Member) -> Dictionary:
 	return {"token": member.token, "hp": member.hp, "ended": member.ended, "tactics": member.tactics.duplicate(true)}
 
-func _restore_member(state: Dictionary, leader_tactics: Variant = null) -> Member:
-	var behavior := state.tactics.duplicate(true) as Dictionary if leader_tactics == null else leader_tactics as Dictionary
-	var member := Member.new(int(state.token), int(state.hp), behavior)
+func _restore_member(state: Dictionary) -> Member:
+	var member := Member.new(int(state.token), int(state.hp), state.tactics.duplicate(true))
 	member.ended = bool(state.ended)
 	return member
 
-func restore_savepoint(state: Dictionary, leader_tactics: Variant = null) -> void:
+func restore_savepoint(state: Dictionary) -> void:
 	# An aborted plan must never make an ID available to another spawn.
 	_reserved_tokens.clear()
-	_leader = _restore_member(state.leader, leader_tactics)
+	_leader = _restore_member(state.leader)
 	_scouts.clear()
 	for member in state.scouts:
 		_scouts.append(_restore_member(member))

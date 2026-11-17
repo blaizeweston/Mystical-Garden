@@ -15,13 +15,13 @@ func arena(c: int,mask: int=0) -> Dictionary:
 	game.encounter.clear_scouts()
 	game.battlefield.procedural=false
 	game.battlefield.barriers=[]
-	game.enemy_pos=Vector3.ZERO
+	game.tactics.position=Vector3.ZERO
 	game.encounter.set_hp(-1, 80)
 	game.enemy_mutations=0
-	game.enemy_engaged=true
-	game.enemy_winding_up=false
-	game.rooted_until=0
-	game.enemy_stagger_until=0
+	game.tactics.engaged=true
+	game.tactics.winding_up=false
+	game.tactics.rooted_until=0
+	game.tactics.stagger_until=0
 	game.destination=0
 	game.depth=1
 	p.frame=c
@@ -71,16 +71,16 @@ func run():
 			else: check(p[Cooldowns.STATE].deadline(Cooldowns.Q)==0,"R leaves Q cooldown ready")
 			match str(skill.mode):
 				"guard": check(p.guard_charges==1 and p.guard_until>Time.get_ticks_msec(),"Guard blocks one attack")
-				"quake": check(game.enemy_health()<80 and game.enemy_stagger_until>Time.get_ticks_msec(),"Quake damages and staggers")
-				"bind": check(game.rooted_until>Time.get_ticks_msec(),"Rootbind roots")
-				"nova": check(game.enemy_health()<80 and game.rooted_until>Time.get_ticks_msec(),"Nova damages and roots")
+				"quake": check(game.enemy_health()<80 and game.tactics.stagger_until>Time.get_ticks_msec(),"Quake damages and staggers")
+				"bind": check(game.tactics.rooted_until>Time.get_ticks_msec(),"Rootbind roots")
+				"nova": check(game.enemy_health()<80 and game.tactics.rooted_until>Time.get_ticks_msec(),"Nova damages and roots")
 				"volley":
 					game.update_projectiles(Time.get_ticks_msec()+600)
 					check(game.enemy_health()<80 and p.focus_until>Time.get_ticks_msec(),"Volley empowers strikes")
 				"snare":
-					check(game.enemy_health()==80 and game.rooted_until==0,"Bramble Snare has an arming delay")
+					check(game.enemy_health()==80 and game.tactics.rooted_until==0,"Bramble Snare has an arming delay")
 					game.Traits.tick(game,Time.get_ticks_msec()+300)
-					check(game.enemy_health()<80 and game.rooted_until>Time.get_ticks_msec(),"Bramble Snare roots after arming")
+					check(game.enemy_health()<80 and game.tactics.rooted_until>Time.get_ticks_msec(),"Bramble Snare roots after arming")
 				"reap":
 					game.update_projectiles(Time.get_ticks_msec()+1000)
 					check(p.pos.distance_to(before)>.1 and game.enemy_health()<80,"Reaping Step approaches safely")
@@ -108,15 +108,15 @@ func run():
 			match str(skill.mode):
 				"bastion": check(p.guard_charges>=2,"Bastion grants layered guard")
 				"charge","harvest": check(game.enemy_health()<80 and not game.battlefield.occupied(p.pos,.34),"replacement approach is safe and attacks")
-				"strangle": check(game.enemy_health()<80 and game.rooted_until>Time.get_ticks_msec(),"Strangling Bloom damages and roots")
+				"strangle": check(game.enemy_health()<80 and game.tactics.rooted_until>Time.get_ticks_msec(),"Strangling Bloom damages and roots")
 				"snare_field":
 					game.Traits.tick(game,Time.get_ticks_msec()+300)
-					check(game.rooted_until>Time.get_ticks_msec(),"Mycelial Snare roots after arming")
+					check(game.tactics.rooted_until>Time.get_ticks_msec(),"Mycelial Snare roots after arming")
 				"salvo": check(game.enemy_health()<80,"Piercing Salvo damages")
 				"windstep": check(p.pos.z< -1.6 and p.focus_until>Time.get_ticks_msec(),"Windstep withdraws and empowers")
 				"bloodmoon": check(game.enemy_health()<80 and PlayerVitals.current_hp(p)>5,"Blood Moon drains")
 				"sanctuary": check(p.renewal_until>Time.get_ticks_msec() and p.guard_charges>=1,"Sanctuary protects and regenerates")
-				"judgement": check(game.enemy_health()<80 and game.moss_recovery_bonus>=700,"Judgement prolongs recovery")
+				"judgement": check(game.enemy_health()<80 and game.tactics.recovery_bonus>=700,"Judgement prolongs recovery")
 	check(names.size()==20,"ten distinct replacement skills")
 	for c in 5:
 		var p:=arena(c,85)
@@ -153,7 +153,7 @@ func run():
 	p=arena(1)
 	game.battlefield.barriers=[Rect2(-.6,-.6,1.2,.35)]
 	game.send_garden_action("class_skill_two")
-	check(game.enemy_health()==80 and game.rooted_until==0,"area skills cannot hit through cover")
+	check(game.enemy_health()==80 and game.tactics.rooted_until==0,"area skills cannot hit through cover")
 	# Guards refresh safely after expiration; plant Catalyst still modifies both skills.
 	p=arena(0)
 	p.guard_until=1

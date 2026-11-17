@@ -27,7 +27,7 @@ static func target_range(mode: String, skill: Dictionary, stats: Dictionary, rea
 static func positions(game: Node) -> Dictionary:
 	var result := {}
 	if game.enemy_health() > 0:
-		result[-1] = game.enemy_pos
+		result[-1] = game.tactics.position
 	if game.multiplayer.is_server():
 		for index in game.encounter.scout_count():
 			if game.encounter.alive(index):

@@ -67,14 +67,14 @@ func run():
 		game.players[1].pos+=Vector3.LEFT*.5
 		game.players[guest_id].carried_parts[4]=1
 		game.players[guest_id].graft_choice=4
-		game.enemy_pos=game.battlefield.graft+Vector3(0,0,1.0)
-		game.enemy_ready_at=Time.get_ticks_msec()+60000
-		var enemy_start: Vector3=game.enemy_pos
+		game.tactics.position=game.battlefield.graft+Vector3(0,0,1.0)
+		game.tactics.ready_at=Time.get_ticks_msec()+60000
+		var enemy_start: Vector3=game.tactics.position
 		if not await until(func(): return game.players[guest_id].carried_parts[4]==0):
 			check(false,"guest graft request reached host");finish(mode);return
 		if not await until(func(): return game.enemy_health()==game.encounter_health()-1):
 			check(false,"guest strike reached host");finish(mode);return
-		check(game.enemy_pos.distance_to(enemy_start)>.04,"guest hit produces authoritative knockback")
+		check(game.tactics.position.distance_to(enemy_start)>.04,"guest hit produces authoritative knockback")
 		game.players[1].run_upgrades = {"tempo":1}
 		game.players[guest_id].run_upgrades = {"power":2}
 		game.players[guest_id].power = 2
@@ -92,7 +92,7 @@ func run():
 		check(Array(game.players[id].appearance)==[1,2,1,2,1,1,70,80,40,65,35,60,75],"full slider appearance replicated to guest")
 		if not await until(func(): return game.players[id].get("carried_parts",[]).size()>1 and game.players[id].carried_parts[4]==1):
 			check(false,"guest receives grafting resource");finish(mode);return
-		var enemy_start: Vector3=game.enemy_pos
+		var enemy_start: Vector3=game.tactics.position
 		check(game.enemy_health()>0 and game.graft_altar_open(),"shrine usable before clearing combat")
 		game.send_garden_action("graft_install_4")
 		if not await until(func(): return game.players[id].carried_parts[4]==0):
@@ -101,7 +101,7 @@ func run():
 		game.update_projectiles(Time.get_ticks_msec()+1000)
 		if not await until(func(): return game.enemy_health()==game.encounter_health()-1):
 			check(false,"guest receives hit result");finish(mode);return
-		check(game.enemy_pos.distance_to(enemy_start)>.04,"knockback position synchronizes to guest")
+		check(game.tactics.position.distance_to(enemy_start)>.04,"knockback position synchronizes to guest")
 		check(not FileAccess.file_exists(storage.paths(slot).garden),"joining does not replace the guest's Garden slot")
 		check(await until(func(): return game.players[id].get("run_upgrades",{}).get("power",0)==2, 2.0),"guest receives their upgrade ranks")
 		game.toggle_overlay(null) # Dismiss the graft result before opening the summary.

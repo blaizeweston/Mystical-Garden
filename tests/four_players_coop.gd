@@ -160,7 +160,7 @@ func publish_vitals(stage: String,id: int) -> bool:
 func guest_vitals(id: int) -> bool:
  var actor: Dictionary=game.players[id]
  var now:=Time.get_ticks_msec()
- game.enemy_stagger_until=now+45000
+ game.tactics.stagger_until=now+45000
  for scout in game.encounter.scout_tactics():
   scout.ready=now+45000
   scout.rooted_until=now+45000

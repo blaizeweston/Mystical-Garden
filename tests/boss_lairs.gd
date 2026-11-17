@@ -18,18 +18,18 @@ func _initialize() -> void:
 
 func build(game: Node, kind: int, stamp: int) -> void:
  game.map_seed=stamp
- game.boss_kind=kind
- game.boss_phase=1
- game.boss_moves=0
+ game.tactics.boss_kind=kind
+ game.tactics.boss_phase=1
+ game.tactics.boss_moves=0
  game.enemy_kind=kind
- game.enemy_pos=Vector3(0,0,2)
+ game.tactics.position=Vector3(0,0,2)
  game.encounter.set_hp(-1, 80)
- game.enemy_ready_at=0
- game.enemy_engaged=true
- game.enemy_winding_up=false
+ game.tactics.ready_at=0
+ game.tactics.engaged=true
+ game.tactics.winding_up=false
  game.enemy_hazards.clear()
  game.encounter.clear_scouts()
- game.leader_brain.clear()
+ game.tactics.memory.clear()
  game.battlefield.configure(0,2,stamp,kind,1)
 
 func run() -> void:
@@ -57,7 +57,7 @@ func run() -> void:
    Lairs.observe(game,now+sample*Lairs.SAMPLE_MS)
   check(Lairs.adaptive(game,1,"outer"),"sustained outer movement is observed during the fight")
   check(Lairs.commit(game,"root_sweep",1,now+3600),"outer root can commit on an open lair")
-  var plan: Dictionary=game.leader_brain.lair_plan
+  var plan: Dictionary=game.tactics.memory.lair_plan
   anchor_sites[plan.anchor]=true
   var retreat:=Lairs.escape(game,plan,player.pos,now)
   check(plan.variant=="outer_anchor" and retreat.is_finite() and retreat.length()<float(plan.inner),"outer arc leaves a reachable interior path")
@@ -66,14 +66,14 @@ func run() -> void:
   check(hints.size()==2 and hints[0].role=="orchard_sweep" and hints[1].role=="orchard_anchor","one real sector and one planted anchor")
   if hints.size()==2:
    check(hints[0].radius==plan.radius and hints[0].inner==plan.inner and hints[0].span==plan.span,"sweep warning is the authoritative footprint")
-  var locked: Vector3=game.enemy_pos
+  var locked: Vector3=game.tactics.position
   game.apply_weapon_hit(player,-1,player.pos,{"damage":1,"knockback":5.0},now)
-  check(game.enemy_pos==locked,"weapon hits keep the committed cast origin")
+  check(game.tactics.position==locked,"weapon hits keep the committed cast origin")
   player.pos=retreat
   player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
   player.hurt_until=0
-  game.Bosses.resolve(game,game.enemy_strike_at)
-  var strike: int=game.enemy_strike_at
+  game.Bosses.resolve(game,game.tactics.strike_at)
+  var strike: int=game.tactics.strike_at
   check(PlayerVitals.current_hp(player)==10 and game.Bosses.exposed(game,strike),"interior retreat avoids the strike and opens the uprooting window")
   Status.sync(game,strike)
   check(Status.snapshot(game,strike).any(func(event):return event.shape=="uprooting"),"uprooting is displayed")
@@ -82,7 +82,7 @@ func run() -> void:
   check(game.enemy_health()==before-2 and not game.Bosses.exposed(game,strike+2800),"uprooting gives exactly one bonus damage during the window")
   if stamp==17:
    player.pos=plan.from+Lairs.direction(plan.from,plan.face)*12
-   game.leader_brain.lair_plan=plan
+   game.tactics.memory.lair_plan=plan
    player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.hurt_until=0
    game.Bosses.resolve(game,strike+3000)
    check(PlayerVitals.current_hp(player)==8,"standing inside the outer sweep takes the expected damage")
@@ -95,14 +95,14 @@ func run() -> void:
    Lairs.observe(game,now+index*Lairs.SAMPLE_MS)
   check(Lairs.adaptive(game,1,"bank"),"repeated dry-lane use is observed during the fight")
   check(Lairs.commit(game,"grasping_pool",1,now+4000),"favored bank can be marked")
-  plan=game.leader_brain.lair_plan
+  plan=game.tactics.memory.lair_plan
   check(plan.variant=="flood_bank" and plan.areas.size()==2,"a planned flood affects one dry bank")
   check(Lairs.other_bank_open(game,plan,now+4000),"both crossbars connect through the alternate bank")
   retreat=Lairs.escape(game,plan,player.pos,now+4000)
   check(retreat.is_finite() and Routes.dry(layout,retreat),"the threatened player can reach dry ground")
   hints=game.attack_hints_snapshot()
   check(hints.size()==2 and hints[0].lair=="water" and hints[0].radius==plan.areas[0].radius,"flood previews its actual footprint and water style")
-  strike=game.enemy_strike_at
+  strike=game.tactics.strike_at
   game.Bosses.resolve(game,strike)
   check(game.enemy_hazards.size()==2 and game.enemy_hazards[0].point==plan.areas[0].point and game.enemy_hazards[1].activate==strike+400,"the host schedules the two marked waves at the promised times")
   player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.hurt_until=0;player.pos=retreat
@@ -111,12 +111,12 @@ func run() -> void:
   game.enemy_hazards.clear()
   player.pos=Vector3(0,0,4.4)
   check(Lairs.commit(game,"drowned_surge",1,strike+3000),"Drowned locks the surge")
-  plan=game.leader_brain.lair_plan
+  plan=game.tactics.memory.lair_plan
   hints=game.attack_hints_snapshot()
   check(hints.size()==1 and hints[0].width>plan.width and hints[0].pose=="drowned_surge","surge warning includes collision padding and pose")
   player.pos=Vector3(3.5,0,4.4)
-  game.Bosses.resolve(game,game.enemy_strike_at)
-  check(game.enemy_pos==plan.to and PlayerVitals.current_hp(player)==10 and game.leader_brain.lair_open.kind=="core_exposed","surge stays locked while the player sidesteps and the core opens")
+  game.Bosses.resolve(game,game.tactics.strike_at)
+  check(game.tactics.position==plan.to and PlayerVitals.current_hp(player)==10 and game.tactics.memory.lair_open.kind=="core_exposed","surge stays locked while the player sidesteps and the core opens")
  check(anchor_sites.size()>15 and bank_layouts.size()>4,"multiple seeds move the arena landmarks")
  orchard_pressure(game,now)
  game.players.erase(2)
@@ -125,20 +125,20 @@ func run() -> void:
 
  build(game,Routes.DROWNED,7713)
  player.pos=Routes.bank(Routes.crossings(game.map_seed),1,0.0)
- game.leader_brain.lair_tracks={1:{"streak":9}}
+ game.tactics.memory.lair_tracks={1:{"streak":9}}
  var blocked:=Routes.bank(Routes.crossings(game.map_seed),0,1.0)
  game.Bosses.hazard(game,blocked,1.4,now,2200,"lair_tide",0)
  check(Lairs.commit(game,"grasping_pool",1,now),"base pool still commits with a blocked alternate crossing")
- check(game.leader_brain.lair_plan.variant.is_empty(),"adaptation falls back when the other bank is unsafe")
- game.enemy_winding_up=false
+ check(game.tactics.memory.lair_plan.variant.is_empty(),"adaptation falls back when the other bank is unsafe")
+ game.tactics.winding_up=false
  game.enemy_hazards.clear()
- game.boss_phase=0
+ game.tactics.boss_phase=0
  game.encounter.set_hp(-1, ceili(game.encounter_health()*.4))
- game.enemy_stagger_until=0
- game.enemy_ready_at=0
- game.leader_brain.erase("lair_tracks")
+ game.tactics.stagger_until=0
+ game.tactics.ready_at=0
+ game.tactics.memory.erase("lair_tracks")
  game.Bosses.tick(game,.016,Time.get_ticks_msec())
- check(game.boss_phase==1 and not game.enemy_winding_up,"phase change previews before the next attack")
+ check(game.tactics.boss_phase==1 and not game.tactics.winding_up,"phase change previews before the next attack")
  check(game.attack_hints_snapshot().any(func(hint):return hint.role=="lair_phase" and hint.cue=="Tide rising"),"phase cue is included in public warnings")
 
  game.queue_free()
@@ -155,9 +155,9 @@ func orchard_pressure(game: Node, now: int) -> void:
   game.players[id].profile_ready=true
  for stamp in range(17,41):
   build(game,Routes.ORCHARD,stamp*73)
-  game.boss_phase=2
+  game.tactics.boss_phase=2
   game.battlefield.configure(0,2,game.map_seed,Routes.ORCHARD,2)
-  game.enemy_pos=Vector3(0,0,1).rotated(Vector3.UP,stamp*.2)
+  game.tactics.position=Vector3(0,0,1).rotated(Vector3.UP,stamp*.2)
   player.pos=Vector3(0,0,7.5).rotated(Vector3.UP,stamp*.2)
   var sweep:=Lairs.draft(game,"root_sweep",1,false)
   var axis:=Lairs.direction(sweep.from,sweep.to)
@@ -176,7 +176,7 @@ func orchard_pressure(game: Node, now: int) -> void:
    game.players[id].pos=player.pos+Vector3.RIGHT.rotated(Vector3.UP,id*1.7)*2.75
 
   check(Lairs.commit(game,"root_cage",1,now),"root cage can commit with four living players")
-  var cage: Dictionary=game.leader_brain.lair_plan
+  var cage: Dictionary=game.tactics.memory.lair_plan
   var gap_axis:=Lairs.direction(cage.from,cage.to)
   var gap_distance:=3.0
   var first: Vector3=cage.from+gap_axis*gap_distance
@@ -195,7 +195,7 @@ func orchard_pressure(game: Node, now: int) -> void:
   game.players[2].pos=second
   game.players[3].pos=dangerous
   game.players[4].pos=cage.from
-  game.Bosses.resolve(game,game.enemy_strike_at)
+  game.Bosses.resolve(game,game.tactics.strike_at)
   check(PlayerVitals.current_hp(player)==10 and PlayerVitals.current_hp(game.players[2])==10 and PlayerVitals.current_hp(game.players[3])==8 and PlayerVitals.current_hp(game.players[4])==8,"the host damages only the marked cage area")
   var release: Dictionary=game.combat_events.back()
   check(release.shape=="orchard_cage" and release.reach==hint.radius and release.width==hint.inner and release.span==hint.span,"cage impact uses the warning footprint")
@@ -205,33 +205,33 @@ func orchard_pressure(game: Node, now: int) -> void:
  build(game,Routes.ORCHARD,9143)
  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
  player.pos=Vector3(0,0,14.5)
- game.enemy_stagger_until=0
+ game.tactics.stagger_until=0
  game.encounter.set_hp(-1, ceili(game.encounter_health()*.5))
  game.Bosses.tick(game,.016,now)
- check(game.enemy_winding_up and game.enemy_attack_mode=="falling_fruit","Orchard can mark a player well beyond the old 5m cast range")
- check(game.leader_brain.lair_plan.areas[0].point==player.pos,"distant fruit locks the target position")
- game.enemy_winding_up=false
- game.enemy_ready_at=0
- game.boss_moves=5
- game.boss_phase=0
+ check(game.tactics.winding_up and game.tactics.attack_mode=="falling_fruit","Orchard can mark a player well beyond the old 5m cast range")
+ check(game.tactics.memory.lair_plan.areas[0].point==player.pos,"distant fruit locks the target position")
+ game.tactics.winding_up=false
+ game.tactics.ready_at=0
+ game.tactics.boss_moves=5
+ game.tactics.boss_phase=0
  game.encounter.set_hp(-1, ceili(game.encounter_health()*.25))
  player.pos=Vector3(0,0,6)
  game.Bosses.tick(game,.016,now)
- check(game.boss_phase==2 and game.leader_brain.orchard_phase_start==5 and not game.enemy_winding_up,"the phase cue precedes the new rotation")
+ check(game.tactics.boss_phase==2 and game.tactics.memory.orchard_phase_start==5 and not game.tactics.winding_up,"the phase cue precedes the new rotation")
  var cast_time:=now+1100
  for move in Orchard.LATE_ROTATION:
   game.enemy_hazards.clear()
   game.Bosses.tick(game,.016,cast_time)
-  check(game.enemy_winding_up and game.enemy_attack_mode==move,"late rotation commits "+move)
-  if not game.enemy_winding_up:
+  check(game.tactics.winding_up and game.tactics.attack_mode==move,"late rotation commits "+move)
+  if not game.tactics.winding_up:
    break
-  var plan: Dictionary=game.leader_brain.lair_plan
-  var strike: int=game.enemy_strike_at
+  var plan: Dictionary=game.tactics.memory.lair_plan
+  var strike: int=game.tactics.strike_at
   game.Bosses.resolve(game,strike)
   if move in ["root_sweep","falling_fruit"]:
-   check(game.enemy_ready_at-strike<600,"late pressure follows quickly after "+move)
+   check(game.tactics.ready_at-strike<600,"late pressure follows quickly after "+move)
   if move=="orchard_march":
-   check(game.Bosses.exposed(game,strike) and game.enemy_ready_at-strike>=2700,"march still exposes a punish window")
+   check(game.Bosses.exposed(game,strike) and game.tactics.ready_at-strike>=2700,"march still exposes a punish window")
   player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
   player.hurt_until=0
-  cast_time=game.enemy_ready_at
+  cast_time=game.tactics.ready_at

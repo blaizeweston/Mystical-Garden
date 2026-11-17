@@ -307,7 +307,7 @@ func run() -> void:
 		and not game.stage.experimental_exit.is_visible_in_tree()
 		and not game.stage.deeper_gate.is_visible_in_tree(),
 		"arrival is separated from the Gate and its marker stays hidden under unexplored fog")
-	check(field.can_spawn(game.enemy_pos) and game.encounter.scout_tactics().all(func(scout): return field.can_spawn(scout.pos)),
+	check(field.can_spawn(game.tactics.position) and game.encounter.scout_tactics().all(func(scout): return field.can_spawn(scout.pos)),
 		"every live enemy is admitted to certified continuous terrain")
 	check(is_equal_approx(garden.assimilation.queue[0].done, study_work), "departure adds no extra work")
 	step_progress(game, 1.0)
@@ -326,7 +326,7 @@ func run() -> void:
 	for ignored in 3:
 		await process_frame
 	await _capture("wilds")
-	var old_enemy: Vector3 = game.enemy_pos
+	var old_enemy: Vector3 = game.tactics.position
 	var goal := field.navigate(old_enemy, field.entry, 0.18, 1000)
 	check(goal != old_enemy and not field.occupied(goal, Field.Navigation.RADIUS), "bounded pursuit follows continuous clearance")
 	var garden_path: String = game.progress.path
@@ -357,7 +357,7 @@ func run() -> void:
 			var drops: Array = game.wild_item_drops.duplicate(true)
 			var rng_state: int = game.rng.state
 			var leader_wallet = game.wallet_for(player)
-			game.record_enemy_death(target, game.enemy_pos, player.pos)
+			game.record_enemy_death(target, game.tactics.position, player.pos)
 			check(game.monster_rewards.pending_receipts() == frozen and game.wild_item_drops == drops and game.rng.state == rng_state
 				and game.wallet_for(player) == leader_wallet,
 				"a duplicate death cannot reroll or grant rewards twice")
@@ -379,7 +379,7 @@ func run() -> void:
 		var saved_tally: Array = game.monster_rewards.pending_receipts()
 		game.set_meta(&"guarded_gameplay_test_fault", func(phase: String, _path: String):
 			return ERR_CANT_CREATE if phase == "stage" else OK)
-		game.finish_combat(game.HOST, game.enemy_pos)
+		game.finish_combat(game.HOST, game.tactics.position)
 		game.remove_meta(&"guarded_gameplay_test_fault")
 		check(not game.encounter_rewarded and game.monster_rewards.pending_receipts() == saved_tally
 			and save_digests(garden_path, profile_path) == floor_before and class_xp(player) == xp_before
@@ -387,7 +387,7 @@ func run() -> void:
 			and game.wild_item_drops == expected_drops,
 			"verified settlement abort restores the tally without rerolling or revoking live loot")
 	var rewarded: bool = game.flush_kill_rewards()
-	game.finish_combat(game.HOST, game.enemy_pos)
+	game.finish_combat(game.HOST, game.tactics.position)
 	check(game.encounter_rewarded, "the guarded combat settlement authorizes Gate progression")
 	check(game.monster_rewards.pending_count()==0 and class_xp(player) == expected_xp
 		and kill_count(player) == expected_kills and game.wallet_for(player) == expected_wallet
@@ -395,7 +395,7 @@ func run() -> void:
 		and save_digests(garden_path, profile_path) != floor_before,
 		"floor clear adds the shared milestone and commits XP without repeating kill Essence or drops")
 	var clear_digests := save_digests(garden_path, profile_path)
-	game.finish_combat(game.HOST, game.enemy_pos)
+	game.finish_combat(game.HOST, game.tactics.position)
 	check(save_digests(garden_path, profile_path) == clear_digests and class_xp(player) == expected_xp
 		and game.wallet_for(player) == expected_wallet and game.run_wallet(player) == before_clear_balance + 2,
 		"duplicate floor completion cannot commit the tally twice")
@@ -450,7 +450,7 @@ func run() -> void:
 	step_progress(game, 1.0)
 	check(is_equal_approx(garden.assimilation.queue[0].done, study_work + 3.0), "second Wilds floor uses the same clock")
 	study_work = garden.assimilation.queue[0].done
-	player.pos = Vector3(game.enemy_pos) + Vector3(0.1, 0, 0)
+	player.pos = Vector3(game.tactics.position) + Vector3(0.1, 0, 0)
 	var last_hit: Dictionary = game.weapon_stats(player)
 	last_hit.damage = 10000
 	game.apply_weapon_hit(player, -1, player.pos, last_hit, Time.get_ticks_msec())

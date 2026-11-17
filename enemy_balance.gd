@@ -68,7 +68,7 @@ static func boss_hit(game: Node, definition: Dictionary, move: String) -> float:
 	var profile: Dictionary = tuning.boss
 	var floor_offset := maxi(0,int(game.encounter_number)-FIRST_BOSS_FLOOR)
 	var amount := float(definition.preview_hit_hp) + floor_offset * float(profile.hit_per_floor)
-	amount += int(game.difficulty_cycle) * float(profile.hit_per_loop) + int(game.boss_phase) * float(profile.hit_per_phase)
+	amount += int(game.difficulty_cycle) * float(profile.hit_per_loop) + int(game.tactics.boss_phase) * float(profile.hit_per_phase)
 	amount += float(tuning.boss_move_bonus_hp.get(move,0))
 	return authored_hit(roundi(amount))
 
@@ -110,7 +110,7 @@ static func extra_scouts(legacy: int) -> int:
 static func boss_escorts(game: Node, available: int) -> int:
 	if not Preview.enabled:
 		return mini(4,available)
-	var adds := 1 if Catalog.get_kind(game.boss_kind).id=="matriarch" else 2
+	var adds := 1 if Catalog.get_kind(game.tactics.boss_kind).id=="matriarch" else 2
 	return mini(available,adds+mini(2,int(game.encounter_party_size)-1))
 
 
@@ -136,7 +136,7 @@ static func trace_encounter(game: Node, desired: int) -> void:
 		pack_hp += int(game.encounter.scout(slot).max_hp)
 	game.Journal.event("combat","encounter_balance",{"floor":game.encounter_number,"loop":game.difficulty_cycle,
 		"party_size":game.encounter_party_size,"leader_species":Catalog.get_kind(game.enemy_kind).id,
-		"leader_hp":game.encounter.hp(-1),"boss":game.boss_kind>=0,"scout_budget":desired,"scouts":game.encounter.scout_count(),"scout_hp":pack_hp})
+		"leader_hp":game.encounter.hp(-1),"boss":game.tactics.boss_kind>=0,"scout_budget":desired,"scouts":game.encounter.scout_count(),"scout_hp":pack_hp})
 
 
 static func errors(definitions: Array) -> Array[String]:

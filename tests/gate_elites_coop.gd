@@ -29,25 +29,24 @@ func host_run():
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"registration");return
  game.battlefield.configure(0,1);game.battlefield.barriers.clear()
  for player in game.players.values():player.wild=true;player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,.8)
- game.encounter.clear_scouts();game.encounter.set_hp(-1, 80);game.enemy_pos=Vector3.ZERO;game.enemy_ready_at=Time.get_ticks_msec()+60000;game.enemy_winding_up=false;game.enemy_mutations=0
+ game.encounter.clear_scouts();game.encounter.set_hp(-1, 80);game.tactics.position=Vector3.ZERO;game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.enemy_mutations=0
  check(await until(func():return marked("ready")),"guest sees Wilds")
  for kind in [1,2,9,7,11]:
-  game.leader_brain.clear();game.enemy_kind=kind;game.enemy_pos=Vector3.ZERO;game.encounter.set_hp(-1, 80);game.enemy_engaged=true;game.enemy_ready_at=0;game.enemy_winding_up=false;game.enemy_stagger_until=0;game.rooted_until=0
+  game.tactics.memory.clear();game.enemy_kind=kind;game.tactics.position=Vector3.ZERO;game.encounter.begin_floor(80);game.tactics.engaged=true;game.tactics.ready_at=0;game.tactics.winding_up=false;game.tactics.stagger_until=0;game.tactics.rooted_until=0
   if kind==7:game.encounter_number=12
   if kind==11:
-   game.encounter.clear_scouts()
    var escorted: Dictionary=game.make_scout(0,Vector3(0,0,1.8),2)
    escorted.ready=Time.get_ticks_msec()+60000
    game.encounter.register_scout(escorted)
-  game.update_enemy(.016,Time.get_ticks_msec())
-  game.enemy_strike_at=Time.get_ticks_msec()+12000
+  preload("res://leader_behavior.gd").tick(game, .016,Time.get_ticks_msec())
+  game.tactics.strike_at=Time.get_ticks_msec()+12000
   check(await until(func():return marked("seen-"+str(kind))),"guest sees species "+str(kind))
   if kind==9:
-   game.resolve_briar_strike(Time.get_ticks_msec());game.enemy_ready_at=Time.get_ticks_msec()+60000
+   preload("res://leader_behavior.gd").resolve(game, Time.get_ticks_msec());game.tactics.ready_at=Time.get_ticks_msec()+60000
    check(await until(func():return marked("brood")),"guest sees brood wave")
   if kind==11:
    game.encounter.set_hp(-1, 0)
-   game.enemy_winding_up=false
+   game.tactics.winding_up=false
    check(await until(func():return marked("shelter-cleared")),"guest sees shelter end")
  mark("done");check(await until(func():return game.players.size()==1),"disconnect")
 func guest_run():

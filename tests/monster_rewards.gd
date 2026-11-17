@@ -11,7 +11,7 @@ func run():
  var p=game.players[1];game.add_player(2);var friend=game.players[2]
  friend.profile_ready=true;friend.seed_owner="e".repeat(32)
  for player in game.players.values():player.wild=true;player.pos=Vector3(0,0,4);player.character.xp.fill(0)
- game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.set_hp(-1, 10);game.enemy_pos=Vector3(0,0,10)
+ game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.set_hp(-1, 10);game.tactics.position=Vector3(0,0,10)
  game.add_player(3)
  game.players[3].wild=true
  game.add_player(4)

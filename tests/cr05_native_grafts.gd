@@ -61,15 +61,15 @@ func start_expedition() -> void:
 	game.battlefield = preload("res://battlefield.gd").new()
 	game.battlefield.configure(0,1,0)
 	game.battlefield.barriers.clear()
-	game.boss_kind=-1
+	game.tactics.boss_kind=-1
 
 
 func arena() -> void:
-	game.enemy_winding_up = false
+	game.tactics.winding_up = false
 	game.enemy_mutations = 0
 	game.enemy_kind = 0
 	game.encounter.set_hp(-1, 4000)
-	game.enemy_pos = Vector3(0,0,-1.15)
+	game.tactics.position = Vector3(0,0,-1.15)
 	game.encounter.clear_scouts()
 	for point: Vector3 in [Vector3(1.65,0,-1.65),Vector3(-1.7,0,-1.55),Vector3(0.0,0,-3.05)]:
 		var scout: Dictionary = game.make_scout(0,point,game.encounter.scout_count()+1)
@@ -80,14 +80,14 @@ func arena() -> void:
 	player.mouse_aim = false
 	player.secondary = game.Items.get_item("plant_part_plant_frostbell").legacy_part
 	game.trait_events.clear()
-	game.leader_brain.clear()
+	game.tactics.memory.clear()
 	game.enemy_traits.clear()
 
 
 func strike(at: int) -> void:
 	player.strike_at = 0
 	player.pos = Vector3.ZERO
-	game.enemy_pos = Vector3(0,0,-1.15)
+	game.tactics.position = Vector3(0,0,-1.15)
 	game.strike_enemy(1,player,player.pos)
 	game.update_projectiles(at)
 

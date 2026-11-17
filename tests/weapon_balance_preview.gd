@@ -37,7 +37,7 @@ func run() -> void:
 	p.aim_direction=Vector3.BACK
 	game.battlefield.configure(0,1)
 	game.battlefield.barriers.clear()
-	game.boss_kind=-1
+	game.tactics.boss_kind=-1
 	game.enemy_kind=0
 	verify_catalogue(game,p)
 	verify_roster(game,p)
@@ -70,9 +70,9 @@ func clear_targets(game: Node, at: Vector3) -> void:
 	game.trait_events.clear()
 	game.enemy_traits.clear()
 	game.encounter.set_hp(-1, 600)
-	game.enemy_pos=at
+	game.tactics.position=at
 	game.enemy_mutations=0
-	game.enemy_winding_up=false
+	game.tactics.winding_up=false
 
 
 func verify_catalogue(game: Node, p: Dictionary) -> void:
@@ -169,7 +169,7 @@ func verify_components(game: Node,p: Dictionary) -> void:
 	equip(p,0,0)
 	p.secondary=game.Parts.VEIL
 	clear_targets(game,Vector3(0,0,1.35))
-	game.enemy_winding_up=true
+	game.tactics.winding_up=true
 	stats=game.weapon_stats(p)
 	var extra:=Preview.effect_hp(float(stats.windup_damage))
 	check(extra>0 and extra%10!=0,"a Veilcap Form retains fractional wind-up damage")

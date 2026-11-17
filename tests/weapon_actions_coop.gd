@@ -32,13 +32,13 @@ func host_run():
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"registration");return
  var id: int=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
  check(p.character.appearance[5]==1 and p.character.appearance[6]==0 and p.character.appearance[7]==100,"host receives customized female model and independent sliders")
- game.encounter.set_hp(-1, 80);game.enemy_pos=Vector3(0,0,3);game.enemy_ready_at=Time.get_ticks_msec()+60000;game.enemy_winding_up=false;game.encounter.clear_scouts()
+ game.encounter.set_hp(-1, 80);game.tactics.position=Vector3(0,0,3);game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.encounter.clear_scouts()
  p.wild=true;p.pos=Vector3.ZERO;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
  mark("ready");check(await until(func():return marked("verified")),"guest confirms attack")
  check(game.enemy_health()<80,"projectile hits on the host")
  check(not game.combat_events.any(func(e):return e.kind=="windup"),"host has no generic bow circle")
  p.frame=3;p.weapon_kind=1;p.attack_until=0;p.strike_at=0
- game.enemy_pos=Vector3(0,0,1.45)
+ game.tactics.position=Vector3(0,0,1.45)
  var before: int=game.enemy_health()
  mark("scythe-ready")
  check(await until(func():return marked("scythe-checked")),"guest confirms the scythe swing")

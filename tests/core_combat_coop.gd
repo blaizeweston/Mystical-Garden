@@ -94,7 +94,7 @@ func host_run() -> void:
 	var visible: Array = Core.hints(game)
 	check(visible.size() == 1 and visible[0].from == [line.from.x, 0, line.from.z] and visible[0].to == [line.to.x, 0, line.to.z], "replicated endpoints match authoritative line")
 	var before_hp: int = game.enemy_health()
-	game.enemy_pos = line.center + direction * .08
+	game.tactics.position = line.center + direction * .08
 	if not await until(func(): return game.enemy_health() < before_hp and marked("tripped")):
 		check(false, "first crossing deals damage and replicates the callout")
 		return
@@ -147,7 +147,7 @@ func host_run() -> void:
 		return
 	var quick: Dictionary = game.get_meta(Core.STATE)[id]
 	var before: int = guest.core_ready_at
-	game.enemy_pos = quick.center
+	game.tactics.position = quick.center
 	check(await until(func(): return guest.core_ready_at == before - 3000 and marked("quick-seen")), "early trip refunds and replicates the guest's cooldown")
 	signal_file("done")
 	check(await until(func(): return game.players.size() == 1), "guest disconnects")
@@ -155,8 +155,8 @@ func host_run() -> void:
 
 func aim_for(guest: Dictionary) -> Vector2:
 	game.encounter.clear_scouts()
-	game.enemy_stagger_until = Time.get_ticks_msec() + 60000
-	game.enemy_winding_up = false
+	game.tactics.stagger_until = Time.get_ticks_msec() + 60000
+	game.tactics.winding_up = false
 	game.encounter.set_hp(-1, 80)
 	var direction := Vector3.ZERO
 	var placement := {}
@@ -172,7 +172,7 @@ func aim_for(guest: Dictionary) -> Vector2:
 			break
 	if placement.is_empty():
 		return Vector2.ZERO
-	game.enemy_pos = placement.center - direction * .48
+	game.tactics.position = placement.center - direction * .48
 	return Vector2(direction.x, direction.z)
 
 

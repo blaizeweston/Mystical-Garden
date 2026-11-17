@@ -48,11 +48,11 @@ func reset(class_id := 0) -> void:
 	game.encounter_number = 1
 	game.destination = game.Campaign.GROVE
 	game.encounter.set_hp(-1, 400)
-	game.enemy_pos = Vector3(0,0,-1.2)
+	game.tactics.position = Vector3(0,0,-1.2)
 	game.enemy_mutations = 0
-	game.enemy_winding_up = false
-	game.boss_kind = -1
-	game.rooted_until = 0
+	game.tactics.winding_up = false
+	game.tactics.boss_kind = -1
+	game.tactics.rooted_until = 0
 	game.checkpoint_pending = false
 	game.checkpoint_ready.clear()
 	game.deepest_milestone = 0
@@ -60,7 +60,7 @@ func reset(class_id := 0) -> void:
 	for records: Array in [game.trait_events,game.projectile_queue,game.combat_events]:
 		records.clear()
 	game.monster_rewards = game.MonsterRewards.new()
-	game.leader_brain.clear()
+	game.tactics.memory.clear()
 	game.enemy_traits.clear()
 	game.battlefield = preload("res://battlefield.gd").new()
 	game.battlefield.configure(0,1)
@@ -330,14 +330,14 @@ func verify_core() -> void:
 		var event := source_event("core",family,"core_action",now)
 		check(setup[1] in card_ledger(player).eligible(game.weapon_stats(player),game.DODGE_COOLDOWN_MS),"resolved Core offer "+family)
 		var baseline: Dictionary = Build.for_player(player).core.potency_profile.values
-		var data := {"enemy":-1,"center":game.enemy_pos, "origin":player.pos, "point":game.enemy_pos,
-			"recipients":[1],"start":player.pos,"shapes":[Footprint.area(game.enemy_pos,1.0)]}
+		var data := {"enemy":-1,"center":game.tactics.position, "origin":player.pos, "point":game.tactics.position,
+			"recipients":[1],"start":player.pos,"shapes":[Footprint.area(game.tactics.position,1.0)]}
 		match family:
 			"frost":
-				Frost.bloom_phase(game,{"center":game.enemy_pos,"owner":1,"affinity_action":event},"open",2,now)
+				Frost.bloom_phase(game,{"center":game.tactics.position,"owner":1,"affinity_action":event},"open",2,now)
 				check(game.enemy_health()==400-Frost.Balance.BLOOM_OPEN_HP-bonus
-					and game.leader_brain[Frost.BRITTLE].stacks.size()==2
-					and game.leader_brain[Frost.BRITTLE].stacks[0].hp==baseline.rupture_hp,"Frost opening improves damage alone")
+					and game.tactics.memory[Frost.BRITTLE].stacks.size()==2
+					and game.tactics.memory[Frost.BRITTLE].stacks[0].hp==baseline.rupture_hp,"Frost opening improves damage alone")
 			"fire":
 				event.publish(game,"core_action","test","leader",now,data)
 				check(game.enemy_health()==400-baseline.impact_hp-baseline.tick_hp-bonus,"Ember Wake impact leaves burn intensity unchanged")
@@ -365,7 +365,7 @@ func verify_core() -> void:
 					and player[Rules.Spirit.STRIDES]["1/core"].speed==baseline.speed,"Phantom Step extends stride without speed change")
 			"void":
 				event.publish(game,"core_action","collapse","",now,data)
-				check(game.enemy_health()==400-baseline.collapse-bonus and game.enemy_pos==data.center,"Gravity Well modifies collapse damage alone")
+				check(game.enemy_health()==400-baseline.collapse-bonus and game.tactics.position==data.center,"Gravity Well modifies collapse damage alone")
 
 
 func verify_dew_shelter() -> void:
@@ -403,7 +403,7 @@ func verify_dew_shelter() -> void:
 	check(ally.guard_until==expiry and ally.guard_charges==1,"same wave cannot renew or add an ally Ward")
 	var recorded: Array = []
 	game.set_meta(Events.RECORD,func(entry):recorded.append(entry))
-	game.apply_enemy_hit(1,player,int(cast.armed)+520,1.0,0,game.enemy_pos)
+	game.apply_enemy_hit(1,player,int(cast.armed)+520,1.0,0,game.tactics.position)
 	check(player.guard_charges==0 and recorded.is_empty(),"Dew Shelter blocks as a native Ward with no Catalyst response")
 	game.remove_meta(Events.RECORD)
 
@@ -419,7 +419,7 @@ func verify_form_and_catalyst() -> void:
 		var scout: Dictionary = game.make_scout(1,Vector3(0,0,-1.9),0,0)
 		scout.hp = 400
 		game.encounter.register_scout(scout)
-		Events.contact(game,{Events.CONTEXT:event},-1,now,false,game.enemy_pos,Vector3.FORWARD)
+		Events.contact(game,{Events.CONTEXT:event},-1,now,false,game.tactics.position,Vector3.FORWARD)
 		match family:
 			"fire": check(game.enemy_health()==400-plain.tick_hp-bonus,"Fire Form improves Burning applied by the hit")
 			"wood": check(game.enemy_health()==400-plain.impact_hp and game.encounter.hp_for(scout)==400-plain.fragment_hp-bonus,"Wood Form improves only fragment damage")
@@ -435,8 +435,8 @@ func verify_form_and_catalyst() -> void:
 		check(cards_by_family[family] in card_ledger(player).eligible(game.weapon_stats(player),game.DODGE_COOLDOWN_MS),"working Catalyst mapping eligible for "+family)
 		game.use_class_skill(1,player,1)
 		match family:
-			"fire": check(game.leader_brain[Rules.Fire.BURNING]["1/catalyst"].hp==plain.tick_hp+bonus,"Fire Catalyst uses source-owned upgraded burn")
-			"water": check(game.leader_brain[Rules.Water.DRENCHED]["1/catalyst"].until==Rules.Water.DURATION_MS+bonus,"Water Catalyst extends only Drenched")
+			"fire": check(game.tactics.memory[Rules.Fire.BURNING]["1/catalyst"].hp==plain.tick_hp+bonus,"Fire Catalyst uses source-owned upgraded burn")
+			"water": check(game.tactics.memory[Rules.Water.DRENCHED]["1/catalyst"].until==Rules.Water.DURATION_MS+bonus,"Water Catalyst extends only Drenched")
 			"vital": check(player[Rules.Vital.SOURCES]["1/catalyst"].regen_per_second==plain.regen_per_second+bonus
 				and player[Rules.Vital.SOURCES]["1/catalyst"].bonus_hp==plain.bonus_hp,"Vital Catalyst adds regen without adding maximum health")
 			"wood": check(player[Rules.Wood.GRANTS][0].until==Rules.Wood.CATALYST_MS+bonus and player[Rules.Wood.GRANTS][0].admitted==plain.catalyst_capacity,"Wood Catalyst extends only existing Bark Armor")
@@ -460,10 +460,10 @@ func verify_native() -> void:
 	var base_skill: Dictionary = Build.for_player(player).class_skills[1].native_skill
 	game.use_class_skill(1,player,1)
 	var trap: Dictionary = game.trait_events.front()
-	game.enemy_pos = trap.position
+	game.tactics.position = trap.position
 	var trip: int = trap.next
 	game.Traits.tick(game,trip)
-	check(game.rooted_until==trip+int(base_skill.bind)+bonus and game.enemy_health()<400,"real Bramble Snare gains only root duration at contact")
+	check(game.tactics.rooted_until==trip+int(base_skill.bind)+bonus and game.enemy_health()<400,"real Bramble Snare gains only root duration at contact")
 	reset(4)
 	bonus = grant_fixture_copy("chime_ward_time",3)
 	base_skill = Build.for_player(player).class_skills[1].native_skill
@@ -502,7 +502,7 @@ func verify_echo() -> void:
 	check("echoing_growth" not in card_ledger(player).eligible(game.weapon_stats(player),game.DODGE_COOLDOWN_MS),"Weaver Unique cannot return after acquisition")
 	game.garden_action(1,Aim.request(game,player,0,Vector2.UP,1.3))
 	var bloom: Dictionary = game.trait_events.front()
-	game.enemy_pos = bloom.position
+	game.tactics.position = bloom.position
 	var other: Dictionary = game.make_scout(1,bloom.position+Vector3(.55,0,0),0,0)
 	other.hp = 400
 	game.encounter.register_scout(other)
@@ -513,8 +513,8 @@ func verify_echo() -> void:
 	var skill: Dictionary = Build.for_player(player).class_skills[1].native_skill
 	var wanted: int = game.Life.Preview.effect_hp(skill.damage)
 	check(game.enemy_health()==prior-wanted-10 and game.encounter.hp_for(other)==400-wanted-10,"real Nova in Bloom deals one flat 10 HP pulse per target")
-	check(not game.leader_brain.has("marked_until") and not other.has("marked_until")
-		and game.rooted_until<=now+int(skill.get("bind",0))+30,"additional pulse does not reproduce Mark or extra control")
+	check(not game.tactics.memory.has("marked_until") and not other.has("marked_until")
+		and game.tactics.rooted_until<=now+int(skill.get("bind",0))+30,"additional pulse does not reproduce Mark or extra control")
 
 
 func verify_authoring() -> void:
@@ -694,7 +694,7 @@ func verify_attack_speed() -> void:
 		check("Attack speed: "+after_speed+" attacks/sec" in equipment and "Class ability cooldown −0.25 s" in equipment,
 			"equipment matches the post-purchase attack rate and formats its graft cooldown in seconds")
 		game.encounter.set_hp(-1, 400)
-		game.enemy_pos = game.battlefield.advance + Vector3.FORWARD
+		game.tactics.position = game.battlefield.advance + Vector3.FORWARD
 		var now := Time.get_ticks_msec()
 		game.strike_enemy(1,player,player.pos)
 		var queued: Dictionary = game.projectile_queue.back()

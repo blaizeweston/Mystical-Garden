@@ -79,16 +79,16 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 	game.projectile_queue.clear()
 	game.combat_events.clear()
 	game.enemy_traits.clear()
-	game.leader_brain.clear()
+	game.tactics.memory.clear()
 	game.monster_rewards = game.MonsterRewards.new()
-	game.enemy_pos=target
+	game.tactics.position=target
 	game.encounter.set_hp(-1, 300)
 	game.enemy_kind=0
 	game.enemy_growth=0
 	game.enemy_mutations=0
-	game.rooted_until=0
-	game.boss_kind=-1
-	game.enemy_winding_up=false
+	game.tactics.rooted_until=0
+	game.tactics.boss_kind=-1
+	game.tactics.winding_up=false
 	game.encounter_rewarded=false
 	player.character=Profile.blank()
 	player.character.xp[3]=2600
@@ -201,14 +201,14 @@ func momentum() -> void:
 	game.update_projectiles(int(early.due))
 	check(before-game.enemy_health()==int(early.stats.preview_strike_hp) and player.has(Reaper.MOMENTUM),
 		"a melee attack committed before Q cannot take Momentum even if it lands after the move")
-	game.enemy_pos=player.pos+Vector3.RIGHT
+	game.tactics.position=player.pos+Vector3.RIGHT
 	player.aim_direction=Vector3.BACK
 	var miss := enqueue()
 	before=game.enemy_health()
 	game.update_projectiles(int(miss.due))
 	check(game.enemy_health()==before and player.has(Reaper.MOMENTUM),"miss keeps the original preparation and contributes no damage")
 	player.aim_direction=Vector3.RIGHT
-	game.enemy_pos=player.pos+Vector3.RIGHT
+	game.tactics.position=player.pos+Vector3.RIGHT
 	var at := Time.get_ticks_msec()
 	Mark.place(game,8,-1,{"id":77,"life":PlayerLifecycle.generation(ally),"skill":{"id":"botanical","mark_ms":4000,"mark_damage":1.0,"color":"#ffffff"}},at)
 	Ranger.track(game,8,ally,-1,78,at)
@@ -240,7 +240,7 @@ func momentum() -> void:
 	player.class_aim_distance=1.5
 	cast(0)
 	check(player.has(Reaper.MOMENTUM) and player.get(Rules.Spirit.FOLLOW,{}).get("phase")=="ready","the actual Veil move readies Spirit separately")
-	game.enemy_pos=player.pos+Vector3.RIGHT
+	game.tactics.position=player.pos+Vector3.RIGHT
 	player.aim_direction=Vector3.RIGHT
 	before=game.enemy_health()
 	roll=fire_melee()
@@ -268,10 +268,10 @@ func siphon_effects() -> void:
 	prepare(OFFENSE.slice(0,4))
 	cast(0)
 	check(game.enemy_health()==270,"Rending Cut works against a single Q victim without an echo")
-	game.enemy_pos=Vector3(6,0,0)
+	game.tactics.position=Vector3(6,0,0)
 	cast(1)
 	check(player[Cooldowns.STATE].deadline(Cooldowns.R)==0 and player[Reaper.SIPHON].nodes==["barbed_siphon"],"refused R preserves the earned Barbed preparation")
-	game.enemy_pos=Vector3(2,0,0)
+	game.tactics.position=Vector3(2,0,0)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(20)
 	cast(1)
 	check(game.enemy_health()==240 and player[PlayerVitals.STATE].hp()>=29 and player[PlayerVitals.STATE].hp()<=31 and not player.has(Reaper.SIPHON),"Barbed Siphon adds exactly 10 without multiplying the native drain")
@@ -324,7 +324,7 @@ func siphon_effects() -> void:
 	now=Time.get_ticks_msec()
 	cast(1)
 	check(is_equal_approx(player.pos.x,-1.36) and game.enemy_health()==280 and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)<=now+20
-		and field.projectile_clear(player.pos,game.enemy_pos,.03),"water stops Veil Dance but the legal Siphon Cut still recovers dodge")
+		and field.projectile_clear(player.pos,game.tactics.position,.03),"water stops Veil Dance but the legal Siphon Cut still recovers dodge")
 	prepare(DANCE)
 	cast(0)
 	player.pos=Vector3.ZERO
@@ -353,11 +353,11 @@ func support() -> void:
 	check(ally[PlayerVitals.STATE].hp()==20 and ally.guard_charges==1,"empty valid Q wards, with no damage-triggered Offering heal")
 	prepare(DANCE)
 	var rooted := scout(Vector3(2,0,1))
-	game.rooted_until=Time.get_ticks_msec()+4000
-	var longest: int = game.rooted_until
+	game.tactics.rooted_until=Time.get_ticks_msec()+4000
+	var longest: int = game.tactics.rooted_until
 	var now := Time.get_ticks_msec()
 	cast(0)
-	check(game.rooted_until==longest and rooted.rooted_until>=now+650 and rooted.rooted_until<now+700,
+	check(game.tactics.rooted_until==longest and rooted.rooted_until>=now+650 and rooted.rooted_until<now+700,
 		"Grave Grip roots survivors without shortening a stronger existing root")
 
 	prepare(RITES)
@@ -413,16 +413,16 @@ func charges_and_void() -> void:
 	fire_melee()
 	check(player.grave_charges==1 and Grafts.graft_charges(player)==1,"both sources earn independent charges from one actual native kill")
 	game.encounter.set_hp(-1, 300)
-	game.enemy_pos=Vector3.RIGHT
+	game.tactics.position=Vector3.RIGHT
 	roll=fire_melee()
 	check(game.enemy_health()==300-roll-10 and player.grave_charges==0 and Grafts.graft_charges(player)==1,"class spends first with at most one +10 per contact")
 	game.encounter.set_hp(-1, 300)
-	game.enemy_pos=Vector3.RIGHT
+	game.tactics.position=Vector3.RIGHT
 	roll=fire_melee()
 	check(game.enemy_health()==300-roll-10 and Grafts.grave_count(player)==0,"graft spends its own charge once when the class pool is empty")
 	player.grave_charges=2
 	Grafts.counters(player,"monster:pallbearer").grave_charges=1
-	game.enemy_pos=Vector3.RIGHT
+	game.tactics.position=Vector3.RIGHT
 	game.encounter.set_hp(-1, 1)
 	fire_melee()
 	check(game.enemy_health()==0 and player.grave_charges==2 and Grafts.graft_charges(player)==1,

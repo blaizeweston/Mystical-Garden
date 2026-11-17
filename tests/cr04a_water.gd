@@ -34,10 +34,10 @@ func event(id: int, slot: String, item: String, channel: String, now: int) -> Re
 func reset() -> void:
 	game.encounter.set_hp(-1, 500)
 	game.enemy_mutations=0
-	game.boss_kind=-1
-	game.enemy_pos=Vector3(0,0,-1.35)
-	game.enemy_winding_up=false
-	game.leader_brain.clear()
+	game.tactics.boss_kind=-1
+	game.tactics.position=Vector3(0,0,-1.35)
+	game.tactics.winding_up=false
+	game.tactics.memory.clear()
 	game.encounter.clear_scouts()
 	game.set_meta(Clock.CLOCK,0.0)
 	Core.reset(game)
@@ -73,8 +73,8 @@ func run() -> void:
 		p.slow_until=now+5000
 		ally.slow_until=now+5000
 		ally.frost_root_until=now+3000
-		game.leader_brain[Frost.BRITTLE]={"stacks":[],"expires":now+10000,"slow":.2}
-		game.leader_brain.frost_root_until=now+600
+		game.tactics.memory[Frost.BRITTLE]={"stacks":[],"expires":now+10000,"slow":.2}
+		game.tactics.memory.frost_root_until=now+600
 		p.weapon=part
 		p.secondary=0
 		p.catalyst=0
@@ -89,7 +89,7 @@ func run() -> void:
 			check(p.slow_until==0 and ally.slow_until>now and p[PlayerVitals.STATE].hp()==70,"cleanse caster at formation, no baseline healing")
 			Clock.advance(game,.4)
 			Core.tick(game,int(cast.armed)+400)
-			check(ally.slow_until==0 and ally.frost_root_until>now and ally[PlayerVitals.STATE].hp()==60 and game.enemy_health()==500-q.impact_hp and game.leader_brain.has(Frost.BRITTLE) and game.leader_brain.frost_root_until==now+600,
+			check(ally.slow_until==0 and ally.frost_root_until>now and ally[PlayerVitals.STATE].hp()==60 and game.enemy_health()==500-q.impact_hp and game.tactics.memory.has(Frost.BRITTLE) and game.tactics.memory.frost_root_until==now+600,
 				"swept wave cleanses actual ally, damages once, preserves other status and health")
 			ally.slow_until=now+10000
 			Clock.advance(game,.12)
@@ -106,13 +106,13 @@ func run() -> void:
 		game.strike_enemy(1,p,p.pos)
 		var shot: Dictionary=game.projectile_queue.front()
 		game.update_projectiles(int(shot.due)+1)
-		check(is_equal_approx(Water.reduction(game.leader_brain,Clock.now(game)),q.reduction),"real Form contact gives exact quality reduction")
+		check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"real Form contact gives exact quality reduction")
 		p.secondary=0
 		p.catalyst=part
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 		game.use_class_skill(1,p,1)
-		check(game.leader_brain.get(Water.DRENCHED,{}).size()==2,"native class contact contributes a separate Drenched Catalyst")
-		check(is_equal_approx(Water.reduction(game.leader_brain,Clock.now(game)),q.reduction),"same potency is not multiplied")
+		check(game.tactics.memory.get(Water.DRENCHED,{}).size()==2,"native class contact contributes a separate Drenched Catalyst")
+		check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"same potency is not multiplied")
 		reset()
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		p.guard_until=0
@@ -121,8 +121,8 @@ func run() -> void:
 		p.slow_until=now+6000
 		ally.slow_until=now+6000
 		game.use_class_skill(1,p,0)
-		game.apply_enemy_hit(1,p,Time.get_ticks_msec(),1.0,0,game.enemy_pos)
-		check(p.slow_until==0 and ally.slow_until==0 and p[PlayerVitals.STATE].hp()==70 and is_equal_approx(Water.reduction(game.leader_brain,Clock.now(game)),q.reduction),"Ward wash Drenches enemies and cleanses protected allies")
+		game.apply_enemy_hit(1,p,Time.get_ticks_msec(),1.0,0,game.tactics.position)
+		check(p.slow_until==0 and ally.slow_until==0 and p[PlayerVitals.STATE].hp()==70 and is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"Ward wash Drenches enemies and cleanses protected allies")
 
 	reset()
 	var now:=Time.get_ticks_msec()
@@ -138,7 +138,7 @@ func run() -> void:
 	attack.lock(game,scout,"volley",p.pos,now+500)
 	var strong := event(1,"core","plant_part_rare_dewcap","core_action",now)
 	Water.drench(game,strong,0)
-	game.update_scouts(0.0,now+500)
+	preload("res://scout_behavior.gd").tick(game, 0.0,now+500)
 	check(p[PlayerVitals.STATE].hp()==90-roundi(baseline*.70),"locked native ranged attack reads reduction at hit, after commitment")
 	Clock.advance(game,2.0)
 	var weak := event(2,"form","part_8","weapon_contact",now)
@@ -148,13 +148,13 @@ func run() -> void:
 	Clock.advance(game,2.3)
 	p.hurt_until=0
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
-	game.update_scouts(0.0,now+4400)
+	preload("res://scout_behavior.gd").tick(game, 0.0,now+4400)
 	check(p[PlayerVitals.STATE].hp()==90-roundi(baseline*.82),"weaker source survives stronger expiry during attack")
 	attack.lock(game,scout,"volley",p.pos,now+6500)
 	Clock.advance(game,2.1)
 	p.hurt_until=0
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
-	game.update_scouts(0.0,now+6500)
+	preload("res://scout_behavior.gd").tick(game, 0.0,now+6500)
 	check(p[PlayerVitals.STATE].hp()==90-baseline,"all effects expired before impact")
 	p.hurt_until=0
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
@@ -171,10 +171,10 @@ func run() -> void:
 	p.hurt_until=0
 	Events.grant_ward(game,p,now+1000,1,fire,adapter,now)
 	Events.grant_ward(game,p,now+2000,2,water,adapter,now)
-	game.apply_enemy_hit(1,p,now+1,1.0,0,game.enemy_pos)
-	check(game.leader_brain.get(Fire.BURNING,{}).has("1/catalyst") and Water.reduction(game.leader_brain,Clock.now(game))==0.0,"earliest mixed Ward selects ordinary Fire")
-	game.apply_enemy_hit(1,p,now+2,1.0,0,game.enemy_pos)
-	check(is_equal_approx(Water.reduction(game.leader_brain,Clock.now(game)),.30) and p.guard_charges==0,"next actual block is refined Water without removing Fire")
+	game.apply_enemy_hit(1,p,now+1,1.0,0,game.tactics.position)
+	check(game.tactics.memory.get(Fire.BURNING,{}).has("1/catalyst") and Water.reduction(game.tactics.memory,Clock.now(game))==0.0,"earliest mixed Ward selects ordinary Fire")
+	game.apply_enemy_hit(1,p,now+2,1.0,0,game.tactics.position)
+	check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),.30) and p.guard_charges==0,"next actual block is refined Water without removing Fire")
 	game.queue_free()
 	await process_frame
 	if not failed: print("PASS: Water Core, Form, class wash, mixed Ward claims, direct damage and ranged timing")

@@ -91,7 +91,7 @@ static func indicators(game: Node, body: Dictionary, now: int) -> Dictionary:
 
 
 static func enemy_body(game: Node, target: int) -> Dictionary:
-	return game.leader_brain if target == -1 else game.encounter.scout(target)
+	return game.tactics.memory if target == -1 else game.encounter.scout(target)
 
 
 static func begin_attack(game: Node, actor: Dictionary, attack: Dictionary, now: int) -> void:
@@ -101,7 +101,7 @@ static func begin_attack(game: Node, actor: Dictionary, attack: Dictionary, now:
 	attack[ATTACK_STARTED] = true
 	if attack.get("mode","") in ["trophy_grab","canopy_shift"]:
 		return
-	var body: Dictionary = game.leader_brain if actor.get("gate_elite",false) else actor
+	var body: Dictionary = game.tactics.memory if actor.get("gate_elite",false) else actor
 	var curse := strongest(game,body,Progression.FOREBODING,now)
 	if not curse.is_empty():
 		attack[FOREBODING_MS] = consume(body,curse)
@@ -111,8 +111,8 @@ static func begin_briar(game: Node, now: int) -> void:
 	if not game.has_meta(&"combat_affinity_ruleset"):
 		return
 	var attack := {}
-	begin_attack(game,game.leader_brain,attack,now)
-	game.leader_brain[BRIAR_ATTACK] = attack
+	begin_attack(game,game.tactics.memory,attack,now)
+	game.tactics.memory[BRIAR_ATTACK] = attack
 
 
 static func release_attack(body: Dictionary, attack: Dictionary, ready: int) -> int:
@@ -123,10 +123,10 @@ static func release_attack(body: Dictionary, attack: Dictionary, ready: int) -> 
 	return extended
 
 
-static func current_attack(target: int, body: Dictionary) -> Dictionary:
+static func current_attack(game: Node, target: int, body: Dictionary) -> Dictionary:
 	if target >= 0:
 		return body.get("attack",{})
-	var elite: Dictionary = body.get("elite",{})
+	var elite: Dictionary = game.encounter.leader_tactics()
 	return body.get("lair_plan",body.get("phase_plan",elite.get("attack",body.get(BRIAR_ATTACK,{}))))
 
 
@@ -135,19 +135,19 @@ static func guide_contact(game: Node, recipient: Dictionary, target: int, now: i
 	if portent.is_empty() or not game.Traits.valid_target(game,target):
 		return
 	var body := enemy_body(game,target)
-	var winding: bool = game.enemy_winding_up if target == -1 else int(body.get("windup",0)) > 0
+	var winding: bool = game.tactics.winding_up if target == -1 else int(body.get("windup",0)) > 0
 	if winding:
-		var attack := current_attack(target,body)
+		var attack := current_attack(game,target,body)
 		if attack.has(ATTACK_STARTED) and not attack.has(GUIDED_MS):
 			attack[GUIDED_MS] = consume(recipient,portent)
 		return
-	var ready: int = game.enemy_ready_at if target == -1 else int(body.get("ready",0))
+	var ready: int = game.tactics.ready_at if target == -1 else int(body.get("ready",0))
 	if now < ready and int(body.get(GUIDED_DEADLINE,-1)) == ready:
 		return
 	ready = maxi(now,ready) + consume(recipient,portent)
 	body[GUIDED_DEADLINE] = ready
 	if target == -1:
-		game.enemy_ready_at = ready
+		game.tactics.ready_at = ready
 	else:
 		body.ready = ready
 

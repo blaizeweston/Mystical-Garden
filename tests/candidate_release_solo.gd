@@ -86,9 +86,9 @@ func run() -> void:
  world.garden_action(1,"depart")
  check(actor.wild and actor.weapon==1,"guarded departure from real title world")
  world.encounter.set_hp(-1, 0)
- world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
+ world.record_enemy_death(-1,world.tactics.position,Vector3.ZERO)
  world.encounter.clear_scouts()
- world.finish_combat(1,world.enemy_pos)
+ world.finish_combat(1,world.tactics.position)
  check(world.encounter_rewarded and actor.loot_pending and world.progress.wilds_memory.encounters==1,"guarded combat settlement")
  clear_floor(world,actor,3)
  actor.offer_floor=3

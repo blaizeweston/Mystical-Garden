@@ -33,7 +33,7 @@ static func spawn(game: Node,origin: Vector3,index: int) -> Vector3:
   var radius: float=0.0 if attempt==0 else 1.0+attempt*.35
   var candidate: Vector3=game.clear_spawn(origin+Vector3(cos(angle),0,sin(angle))*radius)
   if not candidate.is_finite() or candidate.distance_to(game.battlefield.entry)<float(config().spawn_entry_clearance) or game.battlefield.occupied(candidate,.4): continue
-  if index>=0 and candidate.distance_to(game.enemy_pos)<1.25: continue
+  if index>=0 and candidate.distance_to(game.tactics.position)<1.25: continue
   var clear:=true
   for slot in game.encounter.scout_count():
    if candidate.distance_to(game.encounter.position(slot))<1.15: clear=false;break
@@ -41,7 +41,7 @@ static func spawn(game: Node,origin: Vector3,index: int) -> Vector3:
  return Vector3.INF
 static func alert(game: Node,origin: Vector3) -> void:
  var radius: float=config().group_alert_radius
- if game.encounter.hp(-1)>0 and game.enemy_pos.distance_to(origin)<=radius and game.battlefield.clear_line(origin,game.enemy_pos): game.enemy_engaged=true
+ if game.encounter.hp(-1)>0 and game.tactics.position.distance_to(origin)<=radius and game.battlefield.clear_line(origin,game.tactics.position): game.tactics.engaged=true
  for slot in game.encounter.scout_count():
   var mob: Dictionary=game.encounter.scout(slot)
   if game.encounter.hp(slot)>0 and mob.pos.distance_to(origin)<=radius and game.battlefield.clear_line(origin,mob.pos): mob.engaged=true
@@ -85,7 +85,7 @@ static func pursuit(game: Node,id: int,route: int) -> Vector3:
 static func navigate(game: Node,from: Vector3,to: Vector3,distance: float,route: int=0) -> Vector3:
  var desired: Vector3=game.battlefield.navigate(from,to,distance,route)
  var repel:=Vector3.ZERO
- var positions: Array=[game.enemy_pos] if game.encounter.hp(-1)>0 else []
+ var positions: Array=[game.tactics.position] if game.encounter.hp(-1)>0 else []
  for slot in game.encounter.scout_count():
   if game.encounter.hp(slot)>0: positions.append(game.encounter.position(slot))
  for position in positions:

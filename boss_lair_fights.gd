@@ -12,7 +12,7 @@ const ANCHOR_KIND := "lair_roots"
 const FRUIT_KIND := "lair_fruit"
 
 static func observe(game: Node, now: int) -> void:
- var brain: Dictionary=game.leader_brain
+ var brain: Dictionary=game.tactics.memory
  if now<int(brain.get("lair_sample_at",0)):return
  brain.lair_sample_at=now+SAMPLE_MS
  var tracks: Dictionary=brain.get("lair_tracks",{})
@@ -23,24 +23,24 @@ static func observe(game: Node, now: int) -> void:
   if not game.Life.alive(player):continue
   var at: Vector3=player.pos
   var old: Dictionary=tracks.get(id,{"point":at,"lane":-1,"streak":0,"outer":0})
-  var lane:=Routes.dry_lane(Routes.crossings(game.map_seed),at) if game.boss_kind==Routes.DROWNED else -1
+  var lane:=Routes.dry_lane(Routes.crossings(game.map_seed),at) if game.tactics.boss_kind==Routes.DROWNED else -1
   var travel: float=at.distance_to(old.point)
-  var outer: bool= game.boss_kind==Routes.ORCHARD and at.length()>=9.5 and travel>=.28 and travel<=3.2 and at.distance_to(game.enemy_pos)>4.0
+  var outer: bool= game.tactics.boss_kind==Routes.ORCHARD and at.length()>=9.5 and travel>=.28 and travel<=3.2 and at.distance_to(game.tactics.position)>4.0
   tracks[id]={"point":at,"lane":lane,
    "streak":mini(12,int(old.streak)+1) if lane>=0 and old.lane==lane and travel<1.1 else 0,
    "outer":mini(12,int(old.outer)+1) if outer else maxi(0,int(old.outer)-1)}
  brain.lair_tracks=tracks
 
 static func begin_phase(game: Node, next: int, now: int) -> void:
- if game.boss_kind==Routes.ORCHARD:
-  game.leader_brain.orchard_phase_start=game.boss_moves
- game.leader_brain.lair_phase_until=now+1100
- game.enemy_ready_at=maxi(game.enemy_ready_at,now+1100)
- game.Journal.event("combat","boss_lair_phase",{"species":game.Enemies.get_kind(game.boss_kind).id,"phase":next,"floor":game.encounter_number})
+ if game.tactics.boss_kind==Routes.ORCHARD:
+  game.tactics.memory.orchard_phase_start=game.tactics.boss_moves
+ game.tactics.memory.lair_phase_until=now+1100
+ game.tactics.ready_at=maxi(game.tactics.ready_at,now+1100)
+ game.Journal.event("combat","boss_lair_phase",{"species":game.Enemies.get_kind(game.tactics.boss_kind).id,"phase":next,"floor":game.encounter_number})
 
 static func adaptive(game: Node, target: int, style: String) -> bool:
- if game.boss_phase<=0:return false
- var track: Dictionary=game.leader_brain.get("lair_tracks",{}).get(target,{})
+ if game.tactics.boss_phase<=0:return false
+ var track: Dictionary=game.tactics.memory.get("lair_tracks",{}).get(target,{})
  var tactic: String="kite" if style=="outer" else "ranged"
  var remembered: int=int(game.progress.wilds_memory.score.get(tactic,0))
  return int(track.get("outer" if style=="outer" else "streak",0)) >= (4 if remembered>=6 else 7)
@@ -54,9 +54,9 @@ static func area(point: Vector3, radius: float, kind: String, delay: int, durati
 
 static func draft(game: Node, mode: String, target: int, adapted: bool) -> Dictionary:
  var victim: Vector3=game.players[target].pos
- var origin: Vector3=game.enemy_pos
+ var origin: Vector3=game.tactics.position
  var facing:=direction(origin,victim)
- var phase: int=game.boss_phase
+ var phase: int=game.tactics.boss_phase
  var result := {"mode":mode,"variant":"","origin":origin,"from":origin,"to":victim,"face":victim,
   "form":"","cue":"","radius":0.0,"inner":0.0,"span":0.0,"width":0.0,"areas":[],
   "anchor":Vector3.INF,"open":"","recovery":0,"windup":1700,"bank":-1}
@@ -94,7 +94,7 @@ static func draft(game: Node, mode: String, target: int, adapted: bool) -> Dicti
    if phase>0:
     result.follow_ms=520
     var side:=facing.cross(Vector3.UP)
-    if (game.boss_moves+phase)%2!=0:side=-side
+    if (game.tactics.boss_moves+phase)%2!=0:side=-side
     for ray in [side,-side]:
      var extra: Vector3=victim+ray*4.05
      if game.battlefield.occupied(extra,.65):continue
@@ -104,7 +104,7 @@ static func draft(game: Node, mode: String, target: int, adapted: bool) -> Dicti
    result.form="cage";result.cue="Root cage";result.from=victim
    result.radius=5.8+phase*.55;result.inner=1.25;result.span=.37-phase*.035
    result.windup=1850 if phase==1 else 1700
-   result.to=victim+facing.rotated(Vector3.UP,.84 if game.boss_moves%2==0 else -.84)
+   result.to=victim+facing.rotated(Vector3.UP,.84 if game.tactics.boss_moves%2==0 else -.84)
   "tidal_ring","grasping_pool":
    var layout:=Routes.crossings(game.map_seed)
    var bank_index:=0 if victim.x<float(layout.center) else 1
@@ -164,7 +164,7 @@ static func escape(game: Node, plan: Dictionary, at: Vector3, now: int) -> Vecto
  elif plan.form=="sweep":
   var inward:=direction(plan.from,at)*maxf(0.0,float(plan.inner)-.48)
   candidates.append(plan.from+inward)
- elif plan.bank>=0 and game.boss_kind==Routes.DROWNED:
+ elif plan.bank>=0 and game.tactics.boss_kind==Routes.DROWNED:
   var other:=1-int(plan.bank)
   for z in layout.bars:
    candidates.append(Vector3(lerpf(float(layout.center),float(layout.banks[other]),.30),0,float(z)))
@@ -215,18 +215,18 @@ static func commit(game: Node, mode: String, target: int, now: int) -> bool:
     plan.to=plan.from+axis.rotated(Vector3.UP,turn)
     if safe_for_party(game,plan,now):break
  if not safe_for_party(game,plan,now) or (plan.form.is_empty() and plan.areas.is_empty()):
-  game.enemy_ready_at=now+450
+  game.tactics.ready_at=now+450
   return false
- game.leader_brain.lair_plan=plan
- game.enemy_attack_mode=mode
- game.enemy_landing=plan.to
- game.active_radius=plan.radius
- game.enemy_strike_at=now+int(plan.windup)
- game.enemy_winding_up=true
- preload("res://oracle_omens.gd").begin_attack(game,game.leader_brain,plan,now)
+ game.tactics.memory.lair_plan=plan
+ game.tactics.attack_mode=mode
+ game.tactics.landing=plan.to
+ game.tactics.active_radius=plan.radius
+ game.tactics.strike_at=now+int(plan.windup)
+ game.tactics.winding_up=true
+ preload("res://oracle_omens.gd").begin_attack(game,game.tactics.memory,plan,now)
  preload("res://event_audio.gd").enemy(game,plan,false)
- game.boss_moves+=1
- game.Journal.event("combat","boss_lair_move",{"species":game.Enemies.get_kind(game.boss_kind).id,"move":mode,"variant":plan.variant,"phase":game.boss_phase,"floor":game.encounter_number,"areas":plan.areas.size()})
+ game.tactics.boss_moves+=1
+ game.Journal.event("combat","boss_lair_move",{"species":game.Enemies.get_kind(game.tactics.boss_kind).id,"move":mode,"variant":plan.variant,"phase":game.tactics.boss_phase,"floor":game.encounter_number,"areas":plan.areas.size()})
  return true
 
 static func resolve(game: Node, plan: Dictionary, now: int, damage: float) -> void:
@@ -240,33 +240,33 @@ static func resolve(game: Node, plan: Dictionary, now: int, damage: float) -> vo
    if game.Life.alive(player) and covered(plan,player.pos) and game.battlefield.clear_line(plan.from,player.pos):
     game.apply_enemy_hit(id,player,now,damage,0,plan.from)
  elif charge_clear:
-  game.enemy_pos=plan.to
+  game.tactics.position=plan.to
   game.hit_players_charge(plan.from,plan.to,plan.width,plan.radius,now,damage)
  for zone in plan.areas:
-  game.Bosses.hazard(game,zone.point,zone.radius,now,int(zone.duration),zone.kind,int(zone.delay),damage,plan.get("mode",game.enemy_attack_mode))
+  game.Bosses.hazard(game,zone.point,zone.radius,now,int(zone.duration),zone.kind,int(zone.delay),damage,plan.get("mode",game.tactics.attack_mode))
  if not str(plan.open).is_empty():
   var until:=now+int(plan.recovery)
-  game.leader_brain.lair_open={"kind":plan.open,"until":until}
-  game.enemy_ready_at=maxi(game.enemy_ready_at,until)
+  game.tactics.memory.lair_open={"kind":plan.open,"until":until}
+  game.tactics.ready_at=maxi(game.tactics.ready_at,until)
  var root_color:=Color("#dc9a61")
  match plan.form:
   "sweep","cage":
    Feedback.release(game,"orchard_"+plan.form,plan.from,plan.to,plan.radius,root_color,plan.inner,plan.span)
   "charge":
    if charge_clear:
-    var color:=Color("#8dd9dc") if game.boss_kind==Routes.DROWNED else root_color
-    if game.boss_kind==Routes.DROWNED:
+    var color:=Color("#8dd9dc") if game.tactics.boss_kind==Routes.DROWNED else root_color
+    if game.tactics.boss_kind==Routes.DROWNED:
      game.emit_combat_event("swing","pulse",plan.from,plan.to,.42,color,1.6,0)
     else:
      Feedback.release(game,"lane",plan.from,plan.to,float(plan.radius)+Attacks.CONTACT_PADDING,color,float(plan.width)+Attacks.CONTACT_PADDING)
 
 static func hints(game: Node, now: int) -> Array:
  var result: Array=[]
- if not Routes.supports(game.boss_kind) or game.encounter.hp(-1)<=0:return result
- var plan: Dictionary=game.leader_brain.get("lair_plan",{})
- if game.enemy_winding_up and not plan.is_empty():
-  var remaining:=maxf(0.0,(game.enemy_strike_at-now)*.001)
-  var style: String="water" if game.boss_kind==Routes.DROWNED else "root"
+ if not Routes.supports(game.tactics.boss_kind) or game.encounter.hp(-1)<=0:return result
+ var plan: Dictionary=game.tactics.memory.get("lair_plan",{})
+ if game.tactics.winding_up and not plan.is_empty():
+  var remaining:=maxf(0.0,(game.tactics.strike_at-now)*.001)
+  var style: String="water" if game.tactics.boss_kind==Routes.DROWNED else "root"
   if not plan.form.is_empty():
    var role: String="charge" if plan.form=="charge" else "orchard_"+plan.form
    var padding:=Attacks.CONTACT_PADDING if role=="charge" else 0.0
@@ -291,15 +291,15 @@ static func hints(game: Node, now: int) -> Array:
     var face: Vector3=plan.face
     marker.face=[face.x,0,face.z];marker.pose=plan.mode;marker.cue=plan.cue
    result.append(marker)
- var phase_until: int=game.leader_brain.get("lair_phase_until",0)
+ var phase_until: int=game.tactics.memory.get("lair_phase_until",0)
  if phase_until>now:
-  var phase_cue:=Attacks.warning(HINT_BASE-20,"lair_phase",game.enemy_pos,game.enemy_pos,1.6,0.0,(phase_until-now)*.001)
-  phase_cue.cue="Tide rising" if game.boss_kind==Routes.DROWNED else "Roots deepen"
-  phase_cue.lair="water" if game.boss_kind==Routes.DROWNED else "root"
+  var phase_cue:=Attacks.warning(HINT_BASE-20,"lair_phase",game.tactics.position,game.tactics.position,1.6,0.0,(phase_until-now)*.001)
+  phase_cue.cue="Tide rising" if game.tactics.boss_kind==Routes.DROWNED else "Roots deepen"
+  phase_cue.lair="water" if game.tactics.boss_kind==Routes.DROWNED else "root"
   result.append(phase_cue)
- var open: Dictionary=game.leader_brain.get("lair_open",{})
+ var open: Dictionary=game.tactics.memory.get("lair_open",{})
  if int(open.get("until",0))>now:
-  var state:=Attacks.warning(HINT_BASE-21,"lair_open",game.enemy_pos,game.enemy_pos,.9,0.0,(int(open.until)-now)*.001)
+  var state:=Attacks.warning(HINT_BASE-21,"lair_open",game.tactics.position,game.tactics.position,.9,0.0,(int(open.until)-now)*.001)
   state.actor=-1;state.pose=open.kind;state.lair="open"
   result.append(state)
  return result

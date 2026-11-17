@@ -21,7 +21,7 @@ func run():
  game.progress.path="res://.godot/weapon-actions-"+token+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game)
  game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
  var p: Dictionary=game.players[1];p.wild=true;p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.facing=Vector3(0,0,1);p.aim_direction=p.facing;p.mouse_aim=true
- game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.encounter.clear_scouts();game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3(0,0,1.4)
+ game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.encounter.clear_scouts();game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,1.4)
  var actor: Dictionary=game.stage.avatar_models.get(1,{})
  game._process(.016);actor=game.stage.avatar_models[1]
  for sex in 2:
@@ -72,7 +72,7 @@ func run():
     check(float(description.contact)==float(profile.release),"shared contact marker "+form)
     var outline:=Contact.outline(description,p.pos,p.pos+p.facing*float(stats.reach))
     check(outline.size()>16,"visible delivery footprint "+form)
-    game.projectile_queue.clear();game.combat_events.clear();game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3(0,0,1.4)
+    game.projectile_queue.clear();game.combat_events.clear();game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,1.4)
     game.strike_enemy(1,p,p.pos)
     check(not game.combat_events.any(func(e):return e.kind=="windup"),"no generic circle at weapon wind-up "+form)
     check(game.projectile_queue.size()==1,"one coherent attack record "+form)
@@ -112,14 +112,14 @@ func run():
  check(cleave.pattern=="sweep" and cleave.clip=="Attack_spear_sweep","crafted spear sweep uses its matching action")
  # Narrow thrusts cannot hit something outside their visible corridor.
  p.frame=0;p.weapon_kind=1;var stats: Dictionary=game.weapon_stats(p)
- game.enemy_pos=Vector3(1.1,0,1.4);check(not Contact.accepts(game,-1,p.pos,Vector3(0,0,3),"spear",stats),"no invisible wide spear strip")
- game.enemy_pos=Vector3(.3,0,1.4);check(Contact.accepts(game,-1,p.pos,Vector3(0,0,3),"spear",stats),"visible spear corridor clips body edge")
- p.frame=4;p.weapon_kind=0;stats=game.weapon_stats(p);game.enemy_pos=Vector3(0,0,-1.5)
+ game.tactics.position=Vector3(1.1,0,1.4);check(not Contact.accepts(game,-1,p.pos,Vector3(0,0,3),"spear",stats),"no invisible wide spear strip")
+ game.tactics.position=Vector3(.3,0,1.4);check(Contact.accepts(game,-1,p.pos,Vector3(0,0,3),"spear",stats),"visible spear corridor clips body edge")
+ p.frame=4;p.weapon_kind=0;stats=game.weapon_stats(p);game.tactics.position=Vector3(0,0,-1.5)
  check(Contact.accepts(game,-1,p.pos,Vector3(0,0,3),"bell",stats),"bell pulse surrounds the caster")
  p.weapon_kind=1;stats=game.weapon_stats(p)
  check(not Contact.accepts(game,-1,p.pos,Vector3(0,0,3),"censer",stats),"censer sweep leaves rear foes untouched")
  p.weapon_kind=2;p.strike_at=0;p.cast_until=0;game.combat_events.clear();game.projectile_queue.clear()
- game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3(0,0,3)
+ game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,3)
  var outer: Dictionary=game.make_scout(0,Vector3(.96,0,3.1),1)
  var outside: Dictionary=game.make_scout(0,Vector3(2,0,3.1),2)
  game.encounter.clear_scouts();game.encounter.register_scout(outer);game.encounter.register_scout(outside)
@@ -129,7 +129,7 @@ func run():
  game.update_projectiles(int(fan.due)+350)
  check(game.enemy_health()<100 and game.encounter.hp_for(outer)<outer.max_hp and game.encounter.hp_for(outside)==outside.max_hp,"independent petals hit visible lanes and leave the space outside them clear")
  game.encounter.clear_scouts()
- p.frame=2;p.weapon_kind=0;p.strike_at=0;p.cast_until=0;game.combat_events.clear();game.projectile_queue.clear();game.enemy_pos=Vector3(0,0,2)
+ p.frame=2;p.weapon_kind=0;p.strike_at=0;p.cast_until=0;game.combat_events.clear();game.projectile_queue.clear();game.tactics.position=Vector3(0,0,2)
  game.strike_enemy(1,p,p.pos);var bow: Dictionary=game.projectile_queue[0]
  p.pos=Vector3(1,0,0);game.update_projectiles(int(bow.release))
  check(Vector3(bow.origin).x>.9,"moving bow releases from the current grip, not the old position")

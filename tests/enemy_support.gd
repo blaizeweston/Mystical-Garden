@@ -24,7 +24,7 @@ func run() -> void:
  game.set_physics_process(false)
  game.battlefield.configure(0,1)
  game.battlefield.barriers.clear()
- game.boss_kind=-1
+ game.tactics.boss_kind=-1
  game.encounter.set_hp(-1, 0)
  game.encounter_number=12
  var player: Dictionary=game.players[1]
@@ -59,13 +59,13 @@ func run() -> void:
  check(bloom.attack.corpse.get("token",-1)==game.encounter.token(1),"long tether selects one natural corpse at lock")
  check(game.attack_hints_snapshot().any(func(hint):return hint.role=="corpse_tether" and is_equal_approx(hint.to[2],6)),"corpse tether reaches the selected site")
  game.encounter.register_scout(game.make_scout(0,corpse.pos,2), 1)
- game.resolve_scout(bloom,game.Enemies.get_kind(15),now+1300)
+ preload("res://scout_behavior.gd").release(game, bloom,game.Enemies.get_kind(15),now+1300)
  check(game.encounter.hp(0)==3,"a replacement in the same slot cannot inherit a corpse tether")
  var fresh_corpse: Dictionary=game.make_scout(2,corpse.pos,2)
  fresh_corpse.hp=0
  game.encounter.register_scout(fresh_corpse, 1)
  Attacks.lock(game,bloom,"chant",bloom.pos,now+2500)
- game.resolve_scout(bloom,game.Enemies.get_kind(15),now+2500)
+ preload("res://scout_behavior.gd").release(game, bloom,game.Enemies.get_kind(15),now+2500)
  check(game.encounter.hp(0)==5 and escort.haste_until>now+2500,"natural corpse pays once and hastens nearby fighters")
  Attacks.lock(game,bloom,"chant",bloom.pos,now+3200)
  check(bloom.attack.corpse.is_empty(),"no second cast can consume the same corpse")
@@ -81,7 +81,7 @@ func run() -> void:
  mother.pos=Vector3.ZERO
  Attacks.lock(game,mother,"brood",mother.pos,now+4800)
  player.pos=hatch[0]
- game.resolve_scout(mother,game.Enemies.get_kind(9),now+4800)
+ preload("res://scout_behavior.gd").release(game, mother,game.Enemies.get_kind(9),now+4800)
  check(mother.summons==1 and game.encounter.scout(1).pos==hatch[1] and game.encounter.scout(1).summoned,"occupying one hatch blocks just that child")
 
  var shepherd: Dictionary=game.make_scout(10,Vector3.ZERO,2)
@@ -92,7 +92,7 @@ func run() -> void:
  game.encounter.clear_scouts();game.encounter.register_scout(shepherd);game.encounter.register_scout(escort)
  Attacks.lock(game,shepherd,"shepherd",shepherd.pos,now+5100)
  check(shepherd.attack.has("flank"),"open terrain permits a flanking order")
- game.resolve_scout(shepherd,game.Enemies.get_kind(10),now+5100)
+ preload("res://scout_behavior.gd").release(game, shepherd,game.Enemies.get_kind(10),now+5100)
  check(escort.get("command_target",0)==1 and escort.has("command_via"),"one escort follows the marked alternate route")
 
  var lure: Dictionary=game.make_scout(12,Vector3.ZERO,2)
@@ -102,7 +102,7 @@ func run() -> void:
  Attacks.lock(game,lure,"lure",player.pos,now+6200)
  var hint: Dictionary=Attacks.hints(lure.attack,0,.6)[0]
  check(absf(float(hint.anchor[0]))>1,"lure shows a separate pull origin")
- game.resolve_scout(lure,game.Enemies.get_kind(12),now+6200)
+ preload("res://scout_behavior.gd").release(game, lure,game.Enemies.get_kind(12),now+6200)
  check(absf(player.pos.x)>.1 and player.slow_until>now+6200,"pull follows the visible offset anchor")
 
  var choir: Dictionary=game.make_scout(19,Vector3.ZERO,2)
@@ -112,11 +112,11 @@ func run() -> void:
  player.hurt_until=0
  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
  Attacks.lock(game,choir,"shepherd",player.pos,now+7200)
- game.resolve_scout(choir,game.Enemies.get_kind(19),now+7200)
+ preload("res://scout_behavior.gd").release(game, choir,game.Enemies.get_kind(19),now+7200)
  check(PlayerVitals.current_hp(player)==9 and choir.attack.cue=="Second beat","the second choir sector is signalled separately")
  player.pos=Vector3(-2,0,0)
  player.hurt_until=0
- game.resolve_scout(choir,game.Enemies.get_kind(19),now+7930)
+ preload("res://scout_behavior.gd").release(game, choir,game.Enemies.get_kind(19),now+7930)
  check(PlayerVitals.current_hp(player)==9 and choir.windup==0,"a safe sector persists after both beats")
 
  var thief: Dictionary=game.make_scout(16,Vector3.ZERO,2)
@@ -126,13 +126,13 @@ func run() -> void:
  game.wild_item_drops.assign([trophy])
  check(game.EnemyBehaviors.tick(game,thief,.016,now+8500) and thief.mode=="trophy_grab" and thief.windup>0,"trophy can be picked up before the visible rush")
  game.wild_item_drops.clear()
- game.resolve_scout(thief,game.Enemies.get_kind(16),now+9500)
+ preload("res://scout_behavior.gd").release(game, thief,game.Enemies.get_kind(16),now+9500)
  check(thief.get("stolen",[]).is_empty(),"a trophy already picked up is never recreated")
  check(not game.combat_events.any(func(e):return e.kind=="audio" and e.shape=="trophy_taken"),"a failed grab never plays the theft alert")
  thief.ready=0
  game.wild_item_drops.assign([trophy])
  game.EnemyBehaviors.tick(game,thief,.016,now+10500)
- game.resolve_scout(thief,game.Enemies.get_kind(16),now+11500)
+ preload("res://scout_behavior.gd").release(game, thief,game.Enemies.get_kind(16),now+11500)
  Status.sync(game,now+11500)
  check(Status.snapshot(game,now+11500).any(func(event):return event.shape=="trophy_carrier"),"thief displays the stolen trophy state")
  game.EnemyBehaviors.death(game,thief,thief.pos)

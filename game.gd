@@ -21,7 +21,6 @@ var encounter_rewarded:=false
 var reward_retry_at:=0
 const Director=preload("res://combat_director.gd")
 const Learning=preload("res://wilds_learning.gd")
-var leader_brain: Dictionary={}
 var combat_threat: Dictionary={}
 var combat_velocity: Dictionary={}
 var combat_last_positions: Dictionary={}
@@ -62,12 +61,9 @@ static var PORT: int=clampi(int(OS.get_environment("MYSTICAL_GARDEN_TEST_PORT"))
 const MAX_HEALTH := 10
 const ENEMY_HEALTH := 3
 const WALK_SPEED := 5.5
-const BRIAR_STRIKE_RADIUS := 1.8
-const LONGLIMB_STRIKE_RADIUS := 3.0
 const RANGED_DISTANCE := 2.75
 const ENGAGE_RADIUS := 8.0
 const SCOUT_RADIUS := 1.45
-const BRIAR_WINDUP_MS := 650
 const DODGE_DISTANCE := 2.8
 const DODGE_COOLDOWN_MS := 850
 const EncounterConfig=preload("res://encounter_config.gd")
@@ -105,19 +101,15 @@ var slot_storage_root := "user://saves"
 var joined_from_title := false
 var returning_to_title := false
 var title_confirmation: ConfirmationDialog
-var enemy_stagger_until := 0
 var progress := Progress.new()
 var local_character := Character.new()
 var guest_character := Character.new()
 var character_dirty := false
 var players := {}
 var motions := {}
-var enemy_attack_mode := ""
-var enemy_landing := Vector3.ZERO
 var enemy_kind := 0
 var pending_finale_at:=0
 var pending_finale_peer:=1
-var enemy_haste_until:=0
 var enemy_death_serial:=0
 var enemy_death_events: Array=[]
 var death_visuals: Node3D
@@ -134,17 +126,16 @@ var burst_hits_this_room := 0
 var choke_kills_this_room := 0
 var burst_clears := 0
 var choke_clears := 0
-var enemy_pos := Stage.ENEMY_START
+const EnemyTactics = preload("res://enemy_tactics.gd")
+const LeaderBehavior = preload("res://leader_behavior.gd")
+const ScoutBehavior = preload("res://scout_behavior.gd")
+const EnemyFormation = preload("res://enemy_formation.gd")
+var tactics := EnemyTactics.new(Stage.ENEMY_START)
 const EncounterRoster = preload("res://encounter_roster.gd")
 var encounter := EncounterRoster.new(ENEMY_HEALTH)
 var client_leader_hp := ENEMY_HEALTH
-var enemy_engaged := false
 var battlefield := Battlefield.new()
 var client_pack := PackedFloat32Array()
-var enemy_strike_at := 0
-var enemy_ready_at := 0
-var rooted_until := 0
-var longlimb := false
 var destination := Campaign.GROVE
 var encounter_number := 1
 var difficulty_cycle := 0
@@ -152,14 +143,10 @@ var run_guardians := 0
 var map_seed := 0
 var map_rng := RandomNumberGenerator.new()
 var pressure_at := 0
-var attack_pattern := 0
-var active_radius := 0.0
 var client_campaign := PackedInt32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0])
 var damage_this_room := 0
 var ranged_damage_this_room := 0
 var ranged_clears := 0
-var enemy_winding_up := false
-var moss_recovery_bonus := 0
 var drop_pos := Vector3.ZERO
 var has_drop := false
 var depth := 1
@@ -209,9 +196,6 @@ var online_peer: ENetMultiplayerPeer
 var network_compatibility: Node
 const Bosses=preload("res://boss_encounters.gd")
 const EnemyBehaviors=preload("res://enemy_behaviors.gd")
-var boss_kind: int=-1
-var boss_phase: int=0
-var boss_moves: int=0
 var boss_floors: Dictionary={}
 var used_bosses: Array=[]
 var enemy_hazards: Array=[]
@@ -1302,10 +1286,10 @@ func route_rooms() -> int:
 
 
 func enemy_name() -> String:
-	if boss_kind>=0: return Enemies.get_kind(boss_kind).name
+	if tactics.boss_kind>=0: return Enemies.get_kind(tactics.boss_kind).name
 	if destination != Campaign.HEART:
-		return ("Longlimb " if longlimb else "Elite ")+Enemies.get_kind(enemy_kind).name+" · "+preload("res://elite_enemy.gd").empowered(enemy_kind)
-	if longlimb:
+		return ("Longlimb " if tactics.longlimb else "Elite ")+Enemies.get_kind(enemy_kind).name+" · "+preload("res://elite_enemy.gd").empowered(enemy_kind)
+	if tactics.longlimb:
 		return "Longlimb " + Enemies.get_kind(enemy_kind).name
 	return "Awakened Heart" if destination == Campaign.HEART else Enemies.get_kind(enemy_kind).name
 
@@ -1317,17 +1301,17 @@ func campaign_snapshot() -> PackedInt32Array:
 			flags |= 1 << i
 	var result := PackedInt32Array([destination, flags, Campaign.DORMANT if not Campaign.LEGACY_ENDING_ENABLED else progress.campaign.offshoots[0],
 		Campaign.DORMANT if not Campaign.LEGACY_ENDING_ENABLED else progress.campaign.offshoots[1], Campaign.DORMANT if not Campaign.LEGACY_ENDING_ENABLED else progress.campaign.offshoots[2], Campaign.UNFINISHED if not Campaign.LEGACY_ENDING_ENABLED else progress.campaign.ending,
-		roundi(active_radius * 100.0), 0, map_seed, encounter_number,
+		roundi(tactics.active_radius * 100.0), 0, map_seed, encounter_number,
 		difficulty_cycle, maxi(0, ceili((pressure_at - Time.get_ticks_msec()) / 1000.0)),
 		progress.campaign.best_clear, progress.campaign.best_extraction,
 		progress.campaign.memories[0], progress.campaign.memories[1], progress.campaign.memories[2],
 		int(progress.finale_available()), Enemies.encode(enemy_kind, enemy_mutations, enemy_growth)])
 	result.append_array(encounter.scout_codes())
-	result.append(roundi(enemy_landing.x * 100.0))
-	result.append(roundi(enemy_landing.z * 100.0))
-	result.append(int(enemy_attack_mode == "vault"))
-	result.append(boss_kind)
-	result.append(boss_phase)
+	result.append(roundi(tactics.landing.x * 100.0))
+	result.append(roundi(tactics.landing.z * 100.0))
+	result.append(int(tactics.attack_mode == "vault"))
+	result.append(tactics.boss_kind)
+	result.append(tactics.boss_phase)
 	return result
 
 
@@ -2091,11 +2075,11 @@ func apply_skill_targets(player: Dictionary,targets: Array[int],skill: Dictionar
 		var root_time:=Skills.Balance.bind_ms(skill,stats)
 		if root_time>0:
 			var until:=now+root_time
-			if target==-1: rooted_until=maxi(rooted_until,until)
+			if target==-1: tactics.extend_root(until)
 			else: encounter.scout(target).rooted_until=maxi(int(encounter.scout(target).get("rooted_until",0)),until)
 		var recovery:=int(skill.get("recovery",0))
 		if recovery>0:
-			if target==-1: moss_recovery_bonus=maxi(moss_recovery_bonus,recovery)
+			if target==-1: tactics.recovery_bonus=maxi(tactics.recovery_bonus,recovery)
 			else: encounter.scout(target).recovery=maxi(int(encounter.scout(target).get("recovery",0)),recovery)
 		var damage:=Life.Preview.authored_amount(float(skill.get("damage",0))) + float(adjustment.get("bonus_hp",0))/Life.Preview.scale()
 		if damage>0.0:
@@ -2414,7 +2398,7 @@ func _physics_process(delta: float) -> void:
 			elif motions.has(id) and now - int(motions[id][1]) < 250:
 				move_player(id, motions[id][0], delta)
 		mouse_controls.tick(self,now)
-		if expedition_active() and encounter_cleared() and not encounter_rewarded and now>=reward_retry_at: finish_combat(HOST,enemy_pos)
+		if expedition_active() and encounter_cleared() and not encounter_rewarded and now>=reward_retry_at: finish_combat(HOST,tactics.position)
 		if get_meta(Transactions.PENDING, false): return
 		update_projectiles(now)
 		if get_meta(Transactions.PENDING, false): return
@@ -2438,16 +2422,16 @@ func _physics_process(delta: float) -> void:
 		attract_loot(delta)
 		Bosses.tick_hazards(self,now)
 		if get_meta(Transactions.PENDING, false): return
-		if expedition_active() and encounter_cleared() and pending_finale_at==0 and not encounter_rewarded and now>=reward_retry_at: finish_combat(HOST,enemy_pos)
+		if expedition_active() and encounter_cleared() and pending_finale_at==0 and not encounter_rewarded and now>=reward_retry_at: finish_combat(HOST,tactics.position)
 		if now>=next_kill_reward_flush:
 			next_kill_reward_flush=now+150
 			flush_kill_rewards()
 		if get_meta(Transactions.PENDING, false): return
 		update_support_effects(now)
 		update_combat_tracking(delta)
-		update_enemy(delta, now)
+		LeaderBehavior.tick(self, delta, now)
 		if get_meta(Transactions.PENDING, false): return
-		update_scouts(delta, now)
+		ScoutBehavior.tick(self, delta, now)
 		if get_meta(Transactions.PENDING, false): return
 		preload("res://core_combat.gd").tick(self,now)
 		if get_meta(Transactions.PENDING, false): return
@@ -2474,10 +2458,10 @@ func send_expedition_state(delta: float,force := false) -> void:
 		if force or next_snapshot <= 0.0:
 			next_snapshot = maxf(0,next_snapshot+0.05)
 			var began := Time.get_ticks_usec() if witness.is_valid() else 0
-			var flags := int(enemy_winding_up) | (8 if now < rooted_until else 0) | (16 if longlimb else 0)
+			var flags := int(tactics.winding_up) | (8 if now < tactics.rooted_until else 0) | (16 if tactics.longlimb else 0)
 			var pack := scout_snapshot(now)
 			var shared := WorldSnapshot.encode(net_view.snapshot_sent + 1, player_snapshot(HOST,false),
-				campaign_snapshot(), pack, enemy_pos, enemy_health(), encounter_health(), drop_pos, depth, flags)
+				campaign_snapshot(), pack, tactics.position, enemy_health(), encounter_health(), drop_pos, depth, flags)
 			if shared.is_empty() or shared.size() > WorldSnapshot.PAYLOAD_BUDGET:
 				push_error("World snapshot exceeds the supported player, scout, or payload limits.")
 			else:
@@ -2589,73 +2573,6 @@ func dodge_player(id: int, direction: Vector2) -> void:
 	p[Cooldowns.STATE] = p[Cooldowns.STATE].start(Cooldowns.DODGE, now, maxi(350,recovery - AffinityCards.amount(p,"run_dodge_recovery")))
 
 
-func update_enemy(delta: float, now: int) -> void:
-	if boss_kind>=0:
-		Bosses.tick(self,delta,now)
-		return
-	if enemy_health() <= 0:
-		return
-	if destination!=Campaign.HEART:
-		preload("res://elite_enemy.gd").tick(self,delta,now)
-		return
-	if enemy_winding_up:
-		if now >= enemy_strike_at:
-			preload("res://frost_combat.gd").with_attacker(self,-1,resolve_briar_strike.bind(now))
-		return
-	if now < enemy_stagger_until:
-		return
-	var target := Director.target(self,enemy_pos,leader_brain,now)
-	if target == 0:
-		return
-	var trace := preload("res://spirit_affinity.gd").diversion(self,leader_brain,target)
-	if trace.is_finite():
-		if now>=rooted_until:
-			enemy_pos=Director.navigate(self,enemy_pos,trace,Director.speed(self,2.0)*delta*preload("res://frost_combat.gd").motion_scale(leader_brain,now))
-		return
-	var victim: Dictionary = players[target]
-	var distance := enemy_pos.distance_to(victim.pos)
-	if not enemy_engaged and (distance>float(Director.config().aggro_radius) or not battlefield.clear_line(enemy_pos,victim.pos)):
-		return
-	if not leader_brain.get("alerted",false): Director.alert(self,enemy_pos);leader_brain.alerted=true
-	enemy_engaged = true
-	if enemy_mutations & Enemies.MOBILITY and now >= enemy_ready_at and now >= rooted_until:
-		var landing := enemy_pos.move_toward(victim.pos, minf(3.0, distance))
-		if distance > 1.5 and can_vault(enemy_pos, landing):
-			enemy_attack_mode = "vault"
-			enemy_landing = landing
-			enemy_winding_up = true
-			active_radius = base_strike_radius()
-			enemy_strike_at = now + 1000
-			preload("res://oracle_omens.gd").begin_briar(self,now)
-			preload("res://event_audio.gd").enemy(self,{"mode":"vault","from":enemy_pos},false)
-			return
-	if distance > base_strike_radius() - 0.45 or not battlefield.clear_line(enemy_pos, victim.pos):
-		if now >= rooted_until:
-			var affinity_motion := preload("res://frost_combat.gd").motion_scale(leader_brain,now) if has_meta(&"combat_affinity_ruleset") else 1.0
-			var speed: float = minf(float(Enemies.get_kind(enemy_kind).speed) + (depth - 1) * 0.30, 2.9) + [0.0, -0.15, 0.25, 0.35][destination] + minf(difficulty_cycle * 0.12, 0.72)
-			if now<enemy_haste_until: speed*=1.22
-			enemy_pos = Director.navigate(self,enemy_pos, Director.pursuit(self,target,0), Director.speed(self,speed + 0.55 if longlimb else speed) * (1.18 if enemy_mutations & Enemies.MOBILITY else 1.0) * delta * affinity_motion)
-	elif now >= enemy_ready_at:
-		enemy_attack_mode = ""
-		enemy_winding_up = true
-		active_radius = base_strike_radius()
-		var windup := BRIAR_WINDUP_MS
-		if destination == Campaign.HEART:
-			attack_pattern += 1
-			if enemy_health() <= encounter_health() / 2.0 and attack_pattern % 2 == 0:
-				active_radius = 3.65
-				windup = 950
-			else:
-				windup = 540
-		elif destination == Campaign.MIRE:
-			windup = 830
-		elif destination == Campaign.HOLLOW:
-			windup = 500
-		enemy_strike_at = now + Director.windup(self,windup)
-		preload("res://oracle_omens.gd").begin_briar(self,now)
-		preload("res://event_audio.gd").enemy(self,{"mode":"swipe","from":enemy_pos},false)
-
-
 func update_pressure(now: int) -> void:
 	preload("res://expedition_pressure.gd").tick(self,now)
 
@@ -2691,184 +2608,6 @@ func scout_radius(scout: Dictionary) -> float:
 	return Enemies.radius(int(scout.get("kind", 0)), int(scout.get("mutations", 0)))
 
 
-func update_scouts(delta: float, now: int) -> void:
-	var started := encounter.scout_tokens()
-	for slot in started.size():
-		if not encounter.alive(slot, started[slot]):
-			continue
-		var scout := encounter.scout(slot)
-		var frost_motion := preload("res://frost_combat.gd").motion_scale(scout,now) if has_meta(&"combat_affinity_ruleset") else 1.0
-		if EnemyBehaviors.tick(self,scout,delta*frost_motion,now): continue
-		var definition := Enemies.get_kind(int(scout.get("kind", 0)))
-		var role: String = definition.role
-		var mask := int(scout.get("mutations", 0))
-		if scout.windup > 0:
-			if now >= int(scout.windup):
-				if has_meta(&"combat_affinity_ruleset"):
-					preload("res://frost_combat.gd").with_attacker(self,slot,resolve_scout.bind(scout,definition,now))
-				else:
-					resolve_scout(scout, definition, now)
-				if not expedition_active():
-					abandon_if_empty()
-					return
-			continue
-		if now < int(scout.get("stagger_until",0)):
-			continue
-		var target := Director.target(self,scout.pos,scout,now)
-		if target == 0:
-			continue
-		var position: Vector3 = scout.pos
-		var trace := preload("res://spirit_affinity.gd").diversion(self,scout,target)
-		if trace.is_finite():
-			if now>=int(scout.rooted_until):
-				scout.pos=Director.navigate(self,position,trace,Director.speed(self,float(definition.speed))*delta*frost_motion,int(scout.route))
-			continue
-		var victim: Vector3 = players[target].pos
-		var distance := position.distance_to(victim)
-		var allies: Array=support_allies(scout) if Enemies.is_support(int(scout.kind)) else []
-		for ally in allies:
-			if ally.engaged: scout.engaged=true
-		var attacks = preload("res://enemy_attack.gd")
-		if not scout.engaged and (distance>float(Director.config().aggro_radius) or not attacks.attack_sight(battlefield,position,victim,role)):
-			continue
-		if not scout.get("alerted",false) and distance<=float(Director.config().aggro_radius): Director.alert(self,position);scout.alerted=true
-		scout.engaged = true
-		var speed := Director.speed(self,float(definition.speed))*frost_motion * (1.18 if mask & Enemies.MOBILITY else 1.0)
-		if now < int(scout.get("haste_until", 0)):
-			speed *= 1.22
-		if mask & Enemies.JUVENILE:
-			speed *= 1.15
-		if Enemies.is_support(int(scout.kind)):
-			if not allies.is_empty():
-				update_support_position(scout,allies,definition,speed,delta,now)
-				continue
-			role="desperate"
-		if scout.has("command_via"):
-			if now<int(scout.command_until) and now>=int(scout.rooted_until) and position.distance_to(scout.command_via)>.25 and battlefield.clear_line(position,scout.command_via,Battlefield.CLEARANCE):
-				scout.pos=Director.navigate(self,position,scout.command_via,speed*delta,int(scout.route))
-				continue
-			scout.erase("command_via")
-		var attack_range := (1.15 if role=="desperate" else float(definition.range)) + (0.65 if mask & Enemies.REACH else 0.0)
-		if now >= int(scout.ready) and now >= int(scout.rooted_until) and frost_motion > 0.0:
-			if attacks.try_skill_approach(self,scout,victim,now) or attacks.try_thorn_vault(self,scout,victim,now):
-				continue
-		if mask & Enemies.MOBILITY and now >= int(scout.ready) and now >= int(scout.rooted_until) and frost_motion > 0.0:
-			var attack = preload("res://enemy_attack.gd")
-			var landing: Vector3 = attack.vault_target(self, scout, victim)
-			if landing.is_finite():
-				attack.lock(self, scout, "vault", landing, now + attack.VAULT_WINDUP)
-				continue
-		if role == "skirmish" and distance < 3.8 and distance > attack_range and now >= int(scout.rooted_until):
-			var tangent := (victim - position).normalized().rotated(Vector3.UP, 0.75 if int(scout.route) % 2 == 0 else -0.75)
-			scout.pos = battlefield.slide(position, position + tangent * speed * delta)
-		elif distance > attack_range or not attacks.attack_sight(battlefield,position,victim,role):
-			if now >= int(scout.rooted_until):
-				scout.pos = Director.navigate(self,position,Director.pursuit(self,target,int(scout.route)) if not scout.ranged else victim,speed*delta,int(scout.route))
-		elif now >= int(scout.ready):
-			if preload("res://enemy_variants.gd").prepare(self,scout,victim,delta*frost_motion,now):continue
-			var aim := preload("res://enemy_attack.gd").aim(self,scout,role,target)
-			var windup_ms: int=int(definition.windup)+(300 if scout.get("variant","")=="early_decoys" else 0)
-			preload("res://enemy_attack.gd").lock(self, scout, role, aim, now + Director.windup(self,windup_ms))
-			scout.erase("approach_done");scout.erase("approach");scout.erase("approach_used")
-			EnemyBehaviors.telegraph(self,scout,now)
-			scout.repeat = 1 if int(scout.kind)==1 and role=="volley" else 0
-
-
-func resolve_scout(scout: Dictionary, definition: Dictionary, now: int) -> void:
-	var attacks = preload("res://enemy_attack.gd")
-	var attack: Dictionary = attacks.current(self, scout)
-	var mode: String = attack.mode
-	var damage := Director.Balance.scout_hit(self,definition,scout)
-	var radius: float = attack.radius
-	var origin: Vector3 = attack.from
-	var target_point: Vector3 = attack.to
-	scout.windup = 0
-	scout.ready = now + roundi((Director.recovery(self,int(definition.recovery))+int(scout.recovery))*(.82 if now<int(scout.get("haste_until",0)) else 1.0))
-	scout.recovery = 0
-	scout.erase("attack")
-	var recovery_body: Dictionary=leader_brain if scout.get("gate_elite",false) else scout
-	scout.ready = preload("res://oracle_omens.gd").release_attack(recovery_body,attack,int(scout.ready)+int(attack.get("recovery_bonus",0)))
-	if mode=="shepherd" and EnemyBehaviors.resolve(self,scout,attack,now): return
-	if mode=="lure":
-		var anchor: Vector3=attack.anchor
-		if not battlefield.clear_line(anchor,target_point): return
-		preload("res://event_audio.gd").enemy(self,attack,true)
-		var feedback = preload("res://enemy_move_feedback.gd")
-		if attack.get("learned",false):feedback.release(self,"burst",anchor,target_point,radius)
-		for id in players:
-			var p: Dictionary=players[id]
-			if not Life.alive(p) or p.pos.distance_to(target_point)>radius or not battlefield.clear_line(anchor,p.pos):continue
-			var before: int=int(p.get("damage_seq",0))
-			apply_enemy_hit(id,p,now,damage,900,anchor)
-			if Life.alive(p) and int(p.get("damage_seq",0))!=before:
-				var before_pull: Vector3=p.pos
-				p.pos=battlefield.dash(p.pos,p.pos.move_toward(anchor,.9))
-				if attack.get("learned",false) and not before_pull.is_equal_approx(p.pos):
-					feedback.release(self,"pulled",before_pull,p.pos,0.0,Color("#bad2ee"))
-		return
-	if mode=="chant":
-		if EnemyBehaviors.resolve(self,scout,attack,now): return
-		preload("res://event_audio.gd").enemy(self,attack,true)
-		if enemy_health()>0 and not Enemies.is_support(enemy_kind) and enemy_pos.distance_to(origin)<=radius and battlefield.clear_line(origin,enemy_pos): enemy_haste_until=now+3500
-		for slot in encounter.scout_count():
-			var other := encounter.scout(slot)
-			if encounter.alive(slot) and not Enemies.is_support(int(other.get("kind",0))) and other.pos.distance_to(origin)<=radius and battlefield.clear_line(origin,other.pos): other.haste_until=now+3500
-		return
-	if mode in ["charge","pounce","vault"]:
-		var frost = preload("res://frost_combat.gd")
-		var frost_body: Dictionary = leader_brain if get_meta(frost.ATTACKER,-2)==-1 else scout
-		if frost.rooted(frost_body,now):
-			target_point = scout.pos
-			attack.to = target_point
-			attack.via = target_point if Vector3(attack.get("via",Vector3.INF)).is_finite() else Vector3.INF
-		var learned: bool=attack.get("learned_move",false) or attack.variant==attacks.Thorn.MOVE
-		var feedback = preload("res://enemy_move_feedback.gd")
-		if not attacks.landing_is_clear(self,scout,attack,now):
-			if learned:feedback.stopped(self,scout.pos)
-			return
-		preload("res://event_audio.gd").enemy(self,attack,true)
-		if learned:feedback.movement(self,attack,attacks.CONTACT_PADDING)
-		scout.pos=target_point
-		if attack.variant==attacks.Thorn.MOVE:
-			attacks.Thorn.landed(self,scout,attack,now)
-		if attack.get("variant")=="antler_hook":
-			attacks.SkillResponses.hit_bent_charge(self,attack,now,damage,attacks.CONTACT_PADDING)
-			return
-		if mode=="charge" and int(scout.kind)!=13:
-			hit_players_charge(origin,target_point,attack.width,radius,now,damage)
-			EnemyBehaviors.resolve(self,scout,attack,now)
-			return
-		hit_players(target_point,radius,now,damage)
-		return
-	if EnemyBehaviors.resolve(self,scout,attack,now): return
-	if float(attack.span)>0.0:
-		preload("res://event_audio.gd").enemy(self,attack,true)
-		if attack.get("learned",false):
-			var feedback = preload("res://enemy_move_feedback.gd")
-			feedback.release(self,"sector",origin,attack.face,radius,feedback.THREAT,0.0,attack.span)
-		for id in players:
-			var p: Dictionary=players[id]
-			if Life.alive(p) and AttackGeometry.accepts_sector(origin,attack.face,p.pos,0.0,radius,attack.span) and battlefield.clear_line(origin,p.pos):
-				apply_enemy_hit(id,p,now,damage,0,origin)
-		return
-	var directed := mode == "volley"
-	if (not directed and not scout.ranged) or attacks.attack_sight(battlefield,origin,target_point,mode):
-		preload("res://event_audio.gd").enemy(self,attack,true)
-		if attack.get("variant")=="echo_bud":
-			preload("res://enemy_move_feedback.gd").release(self,"burst",origin,target_point,radius,Color("#b895ed"))
-		elif int(attack.pulse)>0:
-			emit_combat_event("swing","pulse",origin,target_point,.35,Color("#b895ed"),radius,int(attack.pulse))
-		attacks.hit_players(self,target_point,radius,now,damage,1600 if mode=="snare" else 0,true,directed)
-		preload("res://glasscap_feint.gd").release(self,scout,now)
-	if int(scout.get("repeat", 0)) > 0 and not attack.get("learned",false):
-		scout.repeat -= 1
-		attack.pulse+=1
-		scout.attack=attack
-		scout.windup = now + (1000 if attack.variant=="late_pulse" else 500)
-		preload("res://event_audio.gd").enemy(self,attack,false)
-
-
-
 func can_vault(from: Vector3, to: Vector3) -> bool:
 	if battlefield.clear_line(from, to, Battlefield.CLEARANCE) or battlefield.occupied(to, Battlefield.CLEARANCE):
 		return false
@@ -2884,9 +2623,9 @@ func encounter_cleared() -> bool:
 
 
 func closest_enemy(origin: Vector3, visible_only: bool = false) -> int:
-	var primary_visible := enemy_health() > 0 and (not visible_only or battlefield.clear_line(origin, enemy_pos))
+	var primary_visible := enemy_health() > 0 and (not visible_only or battlefield.clear_line(origin, tactics.position))
 	var index := -1 if primary_visible else -2
-	var best := origin.distance_squared_to(enemy_pos) if primary_visible else INF
+	var best := origin.distance_squared_to(tactics.position) if primary_visible else INF
 	for i in encounter.scout_count():
 		if encounter.hp(i) > 0 and origin.distance_squared_to(encounter.scout(i).pos) < best and (
 				not visible_only or battlefield.clear_line(origin, encounter.scout(i).pos)):
@@ -2896,7 +2635,7 @@ func closest_enemy(origin: Vector3, visible_only: bool = false) -> int:
 
 
 func enemy_position(index: int) -> Vector3:
-	return enemy_pos if index == -1 else encounter.position(index)
+	return tactics.position if index == -1 else encounter.position(index)
 
 
 func enemy_health(target: int = -1) -> int:
@@ -2910,35 +2649,6 @@ func enemy_health(target: int = -1) -> int:
 
 func scout_snapshot(now: int) -> PackedFloat32Array:
 	return encounter.scout_pack(now)
-
-
-func base_strike_radius() -> float:
-	var radius: float = LONGLIMB_STRIKE_RADIUS if longlimb else [BRIAR_STRIKE_RADIUS, 2.1, 2.25, 2.45][destination]
-	return radius + (0.35 if enemy_mutations & Enemies.SPORES else 0.0)
-
-
-func strike_radius() -> float:
-	return active_radius if active_radius > 0.0 else base_strike_radius()
-
-
-func resolve_briar_strike(now: int) -> void:
-	if boss_kind<0 and leader_brain.has("elite"):
-		preload("res://elite_enemy.gd").resolve(self,now);return
-	var vault_release := enemy_attack_mode == "vault"
-	if not vault_release or not battlefield.occupied(enemy_landing, Battlefield.CLEARANCE):
-		preload("res://event_audio.gd").enemy(self,{"mode":"vault" if vault_release else "swipe","from":enemy_pos},true)
-	if enemy_attack_mode == "vault" and not battlefield.occupied(enemy_landing, Battlefield.CLEARANCE):
-		enemy_pos = enemy_landing
-	enemy_attack_mode = ""
-	enemy_winding_up = false
-	enemy_ready_at = now + roundi((Director.recovery(self,750)+moss_recovery_bonus)*(.82 if now<enemy_haste_until else 1.0))
-	var omens = preload("res://oracle_omens.gd")
-	enemy_ready_at = omens.release_attack(leader_brain,leader_brain.get(omens.BRIAR_ATTACK,{}),enemy_ready_at)
-	leader_brain.erase(omens.BRIAR_ATTACK)
-	moss_recovery_bonus = 0
-	hit_players(enemy_pos, strike_radius(), now, Director.Balance.scout_hit(self,Enemies.get_kind(enemy_kind),{"gate_elite":true}))
-	active_radius = 0.0
-	abandon_if_empty()
 
 
 func hit_players(center: Vector3, radius: float, now: int, damage: float = -1.0, slow_ms: int = 0, direct_attack := true) -> void:
@@ -3243,7 +2953,7 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 	var point:=enemy_position(target)
 	var contact_point := point
 	var distance:=origin.distance_to(point)
-	var winding: bool=stats.get("was_winding",enemy_winding_up if target==-1 else float(encounter.scout(target).windup)>0)
+	var winding: bool=stats.get("was_winding",tactics.winding_up if target==-1 else float(encounter.scout(target).windup)>0)
 	var pull:=float(stats.get("pull",0))
 	if pull>0 and not winding:
 		point=battlefield.dash(point,point.move_toward(origin,clampf(distance-0.9,0,pull)))
@@ -3267,9 +2977,9 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 	var mutations: int=enemy_mutations if target==-1 else int(encounter.scout(target).get("mutations",0))
 	if not preload("res://enemy_support.gd").shelter_source(self,target,point,origin,now).is_empty():
 		damage=Life.Preview.armor(damage)
-	if target==-1 and boss_kind>=0: push*=.2
+	if target==-1 and tactics.boss_kind>=0: push*=.2
 	elif target==-1 and (depth==ROUTE_ROOMS or destination==Campaign.HEART): push*=0.5
-	var guard_actor: Dictionary=encounter.scout(target) if target>=0 else leader_brain.get("elite",{})
+	var guard_actor: Dictionary=encounter.scout(target) if target>=0 else encounter.leader_tactics()
 	if guard_actor.get("variant","")=="bark_guard":
 		if preload("res://enemy_variants.gd").guards(guard_actor,origin,now):
 			push*=.6;damage=Life.Preview.armor(damage)
@@ -3291,19 +3001,19 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 	if Life.Vitals.counts_as_burst(damage,Life.Preview.scale()): burst_hits_this_room+=1
 	if before<=applied and battlefield.procedural and battlefield.floor_distance(point)<1.6: choke_kills_this_room+=1
 	if target==-1:
-		if enemy_winding_up and Bosses.owns_warnings(boss_kind):point=enemy_pos
-		enemy_pos=point
-		enemy_engaged=true
+		if tactics.winding_up and Bosses.owns_warnings(tactics.boss_kind):point=tactics.position
+		tactics.position=point
+		tactics.engaged=true
 		encounter.apply_damage(-1, applied)
-		moss_recovery_bonus=maxi(moss_recovery_bonus,recovery)
-		if winding and enemy_health()>0 and boss_kind==22 and float(stats.get("stagger",0))>=150:
+		tactics.recovery_bonus=maxi(tactics.recovery_bonus,recovery)
+		if winding and enemy_health()>0 and tactics.boss_kind==22 and float(stats.get("stagger",0))>=150:
 			preload("res://boss_phase_fights.gd").interrupt(self,point,now)
-		if winding and boss_kind<0 and leader_brain.has("elite") and float(stats.get("stagger",0))>=150 and EnemyBehaviors.interrupt(self,leader_brain.elite,point,now):
-			enemy_ready_at=leader_brain.elite.ready
-			enemy_winding_up=false
+		if winding and tactics.boss_kind<0 and not encounter.leader_tactics().is_empty() and float(stats.get("stagger",0))>=150 and EnemyBehaviors.interrupt(self,encounter.leader_tactics(),point,now):
+			tactics.ready_at=encounter.leader_tactics().ready
+			tactics.winding_up=false
 			winding=false
-		if not winding and not stats.has("affinity_hp"): enemy_stagger_until=stagger
-		if enemy_health()==0: enemy_winding_up=false
+		if not winding and not stats.has("affinity_hp"): tactics.stagger_until=stagger
+		if enemy_health()==0: tactics.winding_up=false
 	else:
 		var scout: Dictionary=encounter.scout(target)
 		scout.pos=point
@@ -3313,7 +3023,7 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 		if winding and float(stats.get("stagger",0))>=150 and EnemyBehaviors.interrupt(self,scout,point,now):winding=false
 		if not winding and not stats.has("affinity_hp"): scout.stagger_until=stagger
 	if stats.get("rite_suppressed",false) and applied<before:
-		var actor: Dictionary=encounter.scout(target) if target>=0 else leader_brain.get("elite",{})
+		var actor: Dictionary=encounter.scout(target) if target>=0 else encounter.leader_tactics()
 		preload("res://wilds_skill_tactics.gd").interrupted(self,actor,"suppression")
 	if applied>0:
 		if has_meta(&"combat_affinity_ruleset") and (int(p.frame)==4 or p.has("oracle_omens")):
@@ -3354,7 +3064,7 @@ func _finish_combat(id: int,loot_position: Vector3,effects = null) -> void:
 	if destination==Campaign.HEART:
 		pending_finale_peer=id
 		pending_finale_at=Time.get_ticks_msec()+1500
-		enemy_winding_up=false
+		tactics.winding_up=false
 		tell(id,"The Heart collapses as its last roots fall silent…")
 		return
 	var ranged_evidence:=Life.Vitals.counts_as_ranged(ranged_damage_this_room,damage_this_room,Life.Preview.scale())
@@ -3368,7 +3078,7 @@ func _finish_combat(id: int,loot_position: Vector3,effects = null) -> void:
 	record_settlement_metric(effects,"wilds_learning",{"floor":encounter_number,"encounters":progress.wilds_memory.encounters,"scores":progress.wilds_memory.score.duplicate(),"thorn_armed":thorn_evidence.armed,"thorn_crossings":thorn_evidence.crossings,"skill_evidence":skill_evidence,"party":encounter_party_size,"elapsed_ms":Time.get_ticks_msec()-encounter_started_at})
 	deepest_milestone=maxi(deepest_milestone,encounter_number)
 	if depth==ROUTE_ROOMS and destination<Campaign.HEART: run_guardians|=1 << destination;guardian_counts[destination]+=1
-	enemy_winding_up=false
+	tactics.winding_up=false
 	drop_pos=loot_position
 	var seeds_available := battlefield.clear_seed_count(depth) > 0
 	for player in players.values(): player.loot_pending=seeds_available and Life.alive(player)
@@ -3812,9 +3522,9 @@ func milestone_message(message: String, extracted: bool) -> String:
 func encounter_health() -> int:
 	if not multiplayer.is_server(): return int(players.get(multiplayer.get_unique_id(),{}).get("enemy_max_hp",Life.Preview.hp(ENEMY_HEALTH)))
 	if Life.Preview.enabled and destination!=Campaign.HEART:
-		if boss_kind>=0: return Director.Balance.boss_hp(Enemies.get_kind(boss_kind),encounter_number,difficulty_cycle,encounter_party_size)
+		if tactics.boss_kind>=0: return Director.Balance.boss_hp(Enemies.get_kind(tactics.boss_kind),encounter_number,difficulty_cycle,encounter_party_size)
 		return Director.Balance.elite_hp(Enemies.get_kind(enemy_kind),encounter_number,depth,difficulty_cycle,encounter_party_size)
-	if boss_kind>=0: return Director.health(self,30+int(Enemies.get_kind(boss_kind).hp)+encounter_number/3,true)
+	if tactics.boss_kind>=0: return Director.health(self,30+int(Enemies.get_kind(tactics.boss_kind).hp)+encounter_number/3,true)
 	if destination == Campaign.HEART:
 		return Director.health(self,Campaign.FINAL_HP,true)
 	return Director.health(self,int(Director.config().leader_base_hp)+depth-1+destination+(2 if depth==ROUTE_ROOMS else 0)+difficulty_cycle*(difficulty_cycle+2),true)
@@ -3829,7 +3539,7 @@ func start_encounter() -> void:
 func reset_encounter() -> void:
 	if not SaveBatch.guarded_active(): flush_kill_rewards()
 	monster_rewards.retire_completed()
-	encounter_kill_records.clear();combat_threat.clear();combat_velocity.clear();combat_last_positions.clear();leader_brain.clear();moving_ranged_hits=0;encounter_started_at=Time.get_ticks_msec();encounter_party_size=Director.party_size(self)
+	encounter_kill_records.clear();combat_threat.clear();combat_velocity.clear();combat_last_positions.clear();tactics.memory.clear();moving_ranged_hits=0;encounter_started_at=Time.get_ticks_msec();encounter_party_size=Director.party_size(self)
 	encounter_kills.clear();encounter_rewarded=false;reward_retry_at=0
 	combat_epoch+=1
 	for player in players.values():
@@ -3851,39 +3561,37 @@ func reset_encounter() -> void:
 	# A new floor has independent pathing. Keep the old object intact for abort.
 	if stage.experimental_garden != null: battlefield = preload("res://assets/terrain_m02/experimental/experiment_wilds.gd").new()
 	elif SaveBatch.guarded_active(): battlefield = Battlefield.new()
-	battlefield.configure(destination, depth, map_seed,boss_kind,boss_phase)
+	battlefield.configure(destination, depth, map_seed,tactics.boss_kind,tactics.boss_phase)
 	pressure_at = 0
-	enemy_haste_until=0
+	tactics.haste_until=0
 	pending_finale_at=0
 	enemy_death_events.clear()
 	encounter.clear_scouts()
-	enemy_pos = Director.spawn(self,battlefield.leader,-1)
-	if enemy_pos==Vector3.INF:
-		enemy_pos = clear_spawn(battlefield.leader)
-		if enemy_pos == Vector3.INF:
+	tactics.position = Director.spawn(self,battlefield.leader,-1)
+	if tactics.position==Vector3.INF:
+		tactics.position = clear_spawn(battlefield.leader)
+		if tactics.position == Vector3.INF:
 			# A generated leader room is already certified for enemy clearance.
-			enemy_pos = battlefield.leader
-	enemy_kind = boss_kind if boss_kind>=0 else 9 if destination == Campaign.HEART else preload("res://elite_enemy.gd").select(self)
+			tactics.position = battlefield.leader
+	enemy_kind = tactics.boss_kind if tactics.boss_kind>=0 else 9 if destination == Campaign.HEART else preload("res://elite_enemy.gd").select(self)
 	encounter.begin_floor(encounter_health())
-	enemy_engaged = false
-	enemy_stagger_until = 0
-	enemy_attack_mode = ""
+	tactics.reset_approach()
 	enemy_growth = Enemies.tier(encounter_number, difficulty_cycle)
 	enemy_mutations = current_mutations(enemy_kind, enemy_growth, map_seed)
 	var count := Director.scout_count(self)
-	if boss_kind>=0: count=Director.Balance.boss_escorts(self,count)
+	if tactics.boss_kind>=0: count=Director.Balance.boss_escorts(self,count)
 	var composition=preload("res://wilds_composition.gd")
 	var roster: Array[int]=composition.roster(self,count)
 	for i in count:
 		var origin: Vector3 = battlefield.spawn_points[i%battlefield.spawn_points.size()] if battlefield.procedural else Stage.SUPPORT_SPAWNS[i%Stage.SUPPORT_SPAWNS.size()]+Vector3.RIGHT*(i/Stage.SUPPORT_SPAWNS.size())*1.8
-		var spawn: Vector3=composition.companion_spawn(self,i) if i==1 and boss_kind<0 and destination!=Campaign.HEART and battlefield.procedural else Vector3.INF
+		var spawn: Vector3=composition.companion_spawn(self,i) if i==1 and tactics.boss_kind<0 and destination!=Campaign.HEART and battlefield.procedural else Vector3.INF
 		if spawn.is_finite() and not _experimental_spawn_reachable(spawn): spawn = Vector3.INF
 		if not spawn.is_finite():spawn=Director.spawn(self,origin,i)
 		if not spawn.is_finite():continue
 		var kind: int=roster[i]
 		var mutations := current_mutations(kind, enemy_growth, map_seed + i)
 		encounter.register_scout(make_scout(kind, spawn, i + 1, mutations, enemy_growth))
-	arrange_support_groups()
+	EnemyFormation.arrange(self)
 	Director.Balance.trace_encounter(self,count)
 	if stage.experimental_garden != null and map_seed != 0:
 		preload("res://game_metrics.gd").record("experimental_floor", {
@@ -3892,21 +3600,15 @@ func reset_encounter() -> void:
 			"entry": [battlefield.entry.x, battlefield.entry.z],
 			"gate": [battlefield.advance.x, battlefield.advance.z],
 			"foes": 1 + encounter.scout_count()})
-	longlimb = (enemy_mutations & Enemies.REACH)!=0
 	burst_hits_this_room = 0
 	choke_kills_this_room = 0
-	attack_pattern = 0
-	active_radius = 0.0
 	damage_this_room = 0
 	ranged_damage_this_room = 0
 	for player in players.values():
 		player.contributed = false
 		player.loot_pending = false
 		player.cache_claimed = false
-	enemy_winding_up = false
-	enemy_ready_at = 0
-	rooted_until = 0
-	moss_recovery_bonus = 0
+	tactics.reset_attack((enemy_mutations & Enemies.REACH)!=0)
 	has_drop = false
 
 
@@ -3931,7 +3633,7 @@ func _experimental_spawn_reachable(candidate: Vector3) -> bool:
 
 func reset_expedition() -> void:
 	mouse_controls.clear(self)
-	boss_kind=-1;boss_phase=0;boss_moves=0;boss_floors.clear();used_bosses.clear();enemy_hazards.clear()
+	tactics.begin_boss(-1);boss_floors.clear();used_bosses.clear();enemy_hazards.clear()
 	PartyTravel.clear(self)
 	guardian_counts.fill(0)
 	wild_item_drops.clear()
@@ -4163,17 +3865,14 @@ func apply_world_snapshot(frame: PackedByteArray, recovery: bool) -> void:
 		var public_state: Dictionary = players[local_id]
 		players[local_id] = client_details.duplicate(true)
 		players[local_id].merge(public_state,true)
-	enemy_pos = state.enemy
 	client_leader_hp = state.hp
 	var flags: int = state.flags
-	enemy_winding_up = (flags & 1) != 0
 	drop_pos = drop
 	has_drop = (flags & 2) != 0
 	depth = state.depth
 	client_carried_count = state.carried
 	client_pouch_filled = (flags & 4) != 0
 	client_briar_bound = (flags & 8) != 0
-	longlimb = (flags & 16) != 0
 	client_campaign = state.campaign
 	client_pack = state.scouts
 	var campaign_state: PackedInt32Array = state.campaign
@@ -4182,14 +3881,13 @@ func apply_world_snapshot(frame: PackedByteArray, recovery: bool) -> void:
 	enemy_kind = form.kind
 	enemy_mutations = form.mask
 	enemy_growth = form.tier
-	enemy_landing = Vector3(campaign_state[EncounterConfig.LANDING_X] / 100.0, 0, campaign_state[EncounterConfig.LANDING_Z] / 100.0)
-	enemy_attack_mode = "vault" if campaign_state[EncounterConfig.ATTACK_MODE] != 0 else ""
-	boss_kind = campaign_state[EncounterConfig.BOSS_KIND]
-	boss_phase = campaign_state[EncounterConfig.BOSS_PHASE]
+	var landing := Vector3(campaign_state[EncounterConfig.LANDING_X] / 100.0, 0, campaign_state[EncounterConfig.LANDING_Z] / 100.0)
+	tactics.project(state.enemy, (flags & 1) != 0, (flags & 16) != 0, landing,
+		"vault" if campaign_state[EncounterConfig.ATTACK_MODE] != 0 else "",
+		campaign_state[EncounterConfig.BOSS_KIND], campaign_state[EncounterConfig.BOSS_PHASE], campaign_state[6] / 100.0)
 	map_seed = campaign_state[8]
 	encounter_number = campaign_state[9]
 	difficulty_cycle = campaign_state[10]
-	active_radius = campaign_state[6] / 100.0
 	net_motion.receive(self,local_id,before_movement,Time.get_ticks_msec())
 	if received_at > 0:
 		witness.call({"phase":"repair_apply" if recovery else "apply","sequence":sequence,
@@ -4226,7 +3924,7 @@ func _process(_delta: float) -> void:
 	var local_player: Dictionary = players.get(local_id, {})
 	var data: Array = inventory_snapshot(local_player) if multiplayer.is_server() and not local_player.is_empty() else client_inventory
 	var visible_drop: bool = local_player.get("loot_pending", false) if multiplayer.is_server() else has_drop
-	var briar_bound := Time.get_ticks_msec() < rooted_until if multiplayer.is_server() else client_briar_bound
+	var briar_bound := Time.get_ticks_msec() < tactics.rooted_until if multiplayer.is_server() else client_briar_bound
 	var campaign_state := campaign_snapshot() if multiplayer.is_server() else client_campaign
 	var visual_field: RefCounted = battlefield if multiplayer.is_server() else stage.visual_field
 	if multiplayer.is_server(): stage.visual_field=battlefield
@@ -4241,7 +3939,7 @@ func _process(_delta: float) -> void:
 		warnings=warnings.filter(func(hint): return hint.role not in ["core_thorns","core_anchor","core_field","core_lured","glasscap_feint"])
 	preload("res://glasscap_visuals.gd").prepare(stage,warnings)
 	stage.set_meta("enemy_attack_poses",preload("res://enemy_attack.gd").poses(warnings))
-	stage.draw_state(rendered_players, local_id, enemy_pos, enemy_health(), enemy_winding_up, strike_radius(), drop_pos, visible_drop, data[3], depth, route_rooms(), graft_altar_open(), briar_bound, longlimb, campaign_state,
+	stage.draw_state(rendered_players, local_id, tactics.position, enemy_health(), tactics.winding_up, LeaderBehavior.strike_radius(self), drop_pos, visible_drop, data[3], depth, route_rooms(), graft_altar_open(), briar_bound, tactics.longlimb, campaign_state,
 		scout_snapshot(Time.get_ticks_msec()) if multiplayer.is_server() else client_pack, _delta,view_id)
 	update_ready_panel(p,local_id)
 	death_visuals.sync(death_events_snapshot() if multiplayer.is_server() and wild else p.get("death_events",[]) if wild else [],"%d:%d:%d:%s"%[destination,encounter_number,map_seed,str(wild)],observer)
@@ -4271,8 +3969,8 @@ func _process(_delta: float) -> void:
 		if not encounter_cleared():
 			var pack := scout_snapshot(Time.get_ticks_msec()) if multiplayer.is_server() else client_pack
 			var alive := int(enemy_health() > 0)
-			var hatching: bool=boss_kind==22 and warnings.any(func(hint):return hint.role=="nursery_exit")
-			var warning := not hatching and enemy_winding_up and (enemy_landing if enemy_attack_mode == "vault" else enemy_pos).distance_to(p.pos) < strike_radius() + 0.7
+			var hatching: bool=tactics.boss_kind==22 and warnings.any(func(hint):return hint.role=="nursery_exit")
+			var warning := not hatching and tactics.winding_up and (tactics.landing if tactics.attack_mode == "vault" else tactics.position).distance_to(p.pos) < LeaderBehavior.strike_radius(self) + 0.7
 			for i in range(2, pack.size(), PACK_STRIDE):
 				alive += int(pack[i] > 0.0)
 				var impact := Vector3(pack[i + 4], 0, pack[i + 5])
@@ -4403,7 +4101,7 @@ func _process(_delta: float) -> void:
 	var shared := garden_snapshot() if multiplayer.is_server() else client_garden
 	stage.update_plots(Progress.decode_plots(shared[12]))
 	stage.update_heart_progress(heart_state())
-	get_node("Soundscape").update_mix(_delta,wild,destination,encounter_number,boss_kind>=0,observer,stage.heart_unlocked)
+	get_node("Soundscape").update_mix(_delta,wild,destination,encounter_number,tactics.boss_kind>=0,observer,stage.heart_unlocked)
 	stage.update_garden(int(shared[6]), int(shared[2]) + int(shared[7]) + int(shared[11]) + int(heart_state().get("clearing",0)))
 	var host_side := multiplayer.is_server()
 	var ready_skill := (local_timers == null or local_timers.ready(Cooldowns.Q, cooldown_now)) if host_side else bool(p.get("skill_ready", false))
@@ -5588,88 +5286,6 @@ func update_garden_altar(data: Dictionary) -> void:
 	altar_view.set_data(data)
 
 
-func support_allies(support: Dictionary) -> Array:
-	var result: Array=[]
-	if enemy_health()>0 and not Enemies.is_support(enemy_kind): result.append({"index":-1,"pos":enemy_pos,"engaged":enemy_engaged})
-	for index in encounter.scout_count():
-		var other: Dictionary=encounter.scout(index)
-		if encounter.hp(index)>0 and not Enemies.is_support(int(other.get("kind",0))): result.append({"index":index,"pos":other.pos,"engaged":bool(other.get("engaged",false))})
-	result.sort_custom(func(a,b): return support.pos.distance_squared_to(a.pos)<support.pos.distance_squared_to(b.pos))
-	return result
-
-func formation_position(anchor: Vector3,ignore: int,phase: float) -> Vector3:
-	for radius in [1.5,2.0,2.6]:
-		for step in 20:
-			var angle:=phase+step*TAU/20
-			var candidate:=anchor+Vector3(cos(angle)*radius,0,sin(angle)*radius)
-			if battlefield.occupied(candidate,Battlefield.CLEARANCE) or not battlefield.clear_line(anchor,candidate,Battlefield.CLEARANCE): continue
-			if not preload("res://wilds_composition.gd").partner_position(self,candidate) or candidate.distance_to(enemy_pos)<.85: continue
-			var free:=true
-			for index in encounter.scout_count():
-				if index!=ignore and encounter.hp(index)>0 and candidate.distance_to(encounter.scout(index).pos)<.85: free=false;break
-			if free: return candidate
-	return Vector3.INF
-
-func arrange_support_groups() -> void:
-	for index in encounter.scout_count():
-		var support: Dictionary=encounter.scout(index)
-		if not Enemies.is_support(int(support.kind)): continue
-		var minimum:=maxi(1,int(Enemies.get_kind(int(support.kind)).get("escort_min",2)))
-		var allies:=support_allies(support)
-		# A support-heavy pool still needs fighters. Reuse slots instead of adding enemies.
-		if allies.size()<minimum:
-			for other in range(encounter.scout_count()-1,-1,-1):
-				if other==index or not Enemies.is_support(int(encounter.scout(other).kind)): continue
-				var old: Dictionary=encounter.scout(other)
-				encounter.register_scout(make_scout(0,old.pos,int(old.route),int(old.mutations),int(old.growth)), other)
-				allies=support_allies(support)
-				if allies.size()>=minimum: break
-		if allies.size()<minimum:
-			encounter.register_scout(make_scout(0,support.pos,int(support.route),int(support.mutations),int(support.growth)), index);continue
-		var anchor: Vector3=allies[0].pos
-		var placed:=formation_position(anchor,index,float(index)*1.7)
-		if placed==Vector3.INF:
-			encounter.register_scout(make_scout(0,support.pos,int(support.route),int(support.mutations),int(support.growth)), index);continue
-		support.pos=placed
-		var radius:=float(Enemies.get_kind(int(support.kind)).get("escort_radius",3.8))
-		for ally in allies.slice(1,minimum):
-			if int(ally.index)<0: continue
-			if support.pos.distance_to(ally.pos)<=radius and battlefield.clear_line(support.pos,ally.pos,Battlefield.CLEARANCE): continue
-			var companion:=formation_position(anchor,int(ally.index),float(index)*1.7+PI)
-			if companion!=Vector3.INF: encounter.scout(int(ally.index)).pos=companion
-		var nearby:=0
-		for ally in support_allies(support):
-			nearby+=int(support.pos.distance_to(ally.pos)<=radius and battlefield.clear_line(support.pos,ally.pos,Battlefield.CLEARANCE))
-		if nearby<minimum: encounter.register_scout(make_scout(0,support.pos,int(support.route),int(support.mutations),int(support.growth)), index)
-
-	# A later group may have reused an escort. Check the complete formation once more.
-	for index in encounter.scout_count():
-		var support: Dictionary=encounter.scout(index)
-		if not Enemies.is_support(int(support.kind)): continue
-		var definition:=Enemies.get_kind(int(support.kind))
-		var nearby:=0
-		for ally in support_allies(support):
-			nearby+=int(support.pos.distance_to(ally.pos)<=float(definition.get("escort_radius",3.8)) and battlefield.clear_line(support.pos,ally.pos,Battlefield.CLEARANCE))
-		if nearby<int(definition.get("escort_min",2)): encounter.register_scout(make_scout(0,support.pos,int(support.route),int(support.mutations),int(support.growth)), index)
-
-func update_support_position(scout: Dictionary,allies: Array,definition: Dictionary,speed: float,delta: float,now: int) -> void:
-	var anchor: Vector3=allies[0].pos
-	var distance: float=scout.pos.distance_to(anchor)
-	if distance>2.65 or not battlefield.clear_line(scout.pos,anchor):
-		if now>=int(scout.rooted_until): scout.pos=battlefield.navigate(scout.pos,anchor,speed*delta,int(scout.route))
-		return
-	if now>=int(scout.ready):
-		if EnemyBehaviors.support_target(self,scout,allies,anchor,speed,delta,now):return
-		scout.repeat=0
-		var attacks=preload("res://enemy_attack.gd")
-		var role: String=definition.role
-		var aim: Vector3=attacks.aim(self,scout,role,int(scout.cast_target))
-		var duration:=int(definition.windup)+(380 if scout.get("variant","")=="long_tether" else 0)
-		attacks.lock(self,scout,role,aim,now+duration)
-		var tactics=preload("res://wilds_skill_tactics.gd")
-		scout.windup=now+tactics.response_windup(scout.attack,duration)
-		if scout.get("covered_once",false):scout.covered_cast=true
-
 func record_enemy_death(target: int,position: Vector3,origin: Vector3,expected_token: int = -1) -> void:
 	if not encounter.death_pending(target, expected_token):
 		return
@@ -5684,11 +5300,11 @@ func record_enemy_death(target: int,position: Vector3,origin: Vector3,expected_t
 		encounter_kills.append(kind)
 		encounter_kill_records.append({"kind":kind,"mask":mask})
 	if target>=0: EnemyBehaviors.death(self,encounter.scout(target),position)
-	elif leader_brain.has("elite"): EnemyBehaviors.death(self,leader_brain.elite,position)
+	elif not encounter.leader_tactics().is_empty(): EnemyBehaviors.death(self,encounter.leader_tactics(),position)
 	var growth: int=enemy_growth if target==-1 else int(encounter.scout(target).get("growth",0))
 	var direction: Vector3=(position-origin).normalized()
 	enemy_death_serial+=1
-	var scale_value: float=1.0 if boss_kind>=0 and target==-1 else (1.9 if destination==Campaign.HEART or depth==ROUTE_ROOMS else 1.0 if depth==1 else 1.22) if target==-1 else 1.0
+	var scale_value: float=1.0 if tactics.boss_kind>=0 and target==-1 else (1.9 if destination==Campaign.HEART or depth==ROUTE_ROOMS else 1.0 if depth==1 else 1.22) if target==-1 else 1.0
 	enemy_death_events.append({"id":enemy_death_serial,"position":[position.x,position.y,position.z],"direction":[direction.x,0,direction.z],"code":Enemies.encode(kind,mask,growth),"scale":scale_value,"born":Time.get_ticks_msec()})
 	while enemy_death_events.size()>24: enemy_death_events.pop_front()
 
@@ -5816,18 +5432,18 @@ func update_projectiles(now: int) -> void:
 func attack_hints_snapshot() -> Array:
 	var result: Array=Bosses.hints(self)
 	result.append_array(preload("res://glasscap_feint.gd").hints(self,Time.get_ticks_msec()))
-	if boss_kind<0 and destination!=Campaign.HEART and leader_brain.has("elite"):result.append_array(preload("res://elite_enemy.gd").hints(self))
-	if enemy_health()>0 and enemy_winding_up and not Bosses.owns_warnings(boss_kind) and (boss_kind>=0 or not leader_brain.has("elite")):
-		var target:=enemy_landing if enemy_attack_mode=="vault" or boss_kind>=0 else enemy_pos
-		result.append({"id":-1,"role":("charge" if enemy_attack_mode in ["root_sweep","orchard_march","drowned_surge","matriarch_lunge","memory_lance","remembered_rend"] else "volley") if boss_kind>=0 else "vault" if enemy_attack_mode=="vault" else "swipe","from":[enemy_pos.x,0,enemy_pos.z],"to":[target.x,0,target.z],"radius":Bosses.warning_radius(self) if boss_kind>=0 else strike_radius(),"width":Bosses.warning_width(self) if boss_kind>=0 else .85,"remaining":maxf(0,(enemy_strike_at-Time.get_ticks_msec())/1000.0)})
+	if tactics.boss_kind<0 and destination!=Campaign.HEART and not encounter.leader_tactics().is_empty():result.append_array(preload("res://elite_enemy.gd").hints(self))
+	if enemy_health()>0 and tactics.winding_up and not Bosses.owns_warnings(tactics.boss_kind) and (tactics.boss_kind>=0 or encounter.leader_tactics().is_empty()):
+		var target:=tactics.landing if tactics.attack_mode=="vault" or tactics.boss_kind>=0 else tactics.position
+		result.append({"id":-1,"role":("charge" if tactics.attack_mode in ["root_sweep","orchard_march","drowned_surge","matriarch_lunge","memory_lance","remembered_rend"] else "volley") if tactics.boss_kind>=0 else "vault" if tactics.attack_mode=="vault" else "swipe","from":[tactics.position.x,0,tactics.position.z],"to":[target.x,0,target.z],"radius":Bosses.warning_radius(self) if tactics.boss_kind>=0 else LeaderBehavior.strike_radius(self),"width":Bosses.warning_width(self) if tactics.boss_kind>=0 else .85,"remaining":maxf(0,(tactics.strike_at-Time.get_ticks_msec())/1000.0)})
 	for index in encounter.scout_count():
 		var scout: Dictionary=encounter.scout(index)
 		if encounter.hp(index)<=0 or int(scout.windup)<=0: continue
 		var attacks = preload("res://enemy_attack.gd")
 		result.append_array(attacks.hints(attacks.current(self,scout),index,maxf(0,(int(scout.windup)-Time.get_ticks_msec())/1000.0)))
 	var attacks=preload("res://enemy_attack.gd")
-	if enemy_kind==11 and enemy_health()>0 and enemy_engaged and leader_brain.get("elite",{}).get("attack",{}).get("variant","")!="planted_canopy":
-		result.append(attacks.warning(-2000,"canopy",enemy_pos,enemy_pos,float(Enemies.get_kind(11).shelter_radius),0,0))
+	if enemy_kind==11 and enemy_health()>0 and tactics.engaged and encounter.leader_tactics().get("attack",{}).get("variant","")!="planted_canopy":
+		result.append(attacks.warning(-2000,"canopy",tactics.position,tactics.position,float(Enemies.get_kind(11).shelter_radius),0,0))
 	for index in encounter.scout_count():
 		var actor: Dictionary=encounter.scout(index)
 		if actor.kind==11 and encounter.hp(index)>0 and actor.engaged and actor.get("attack",{}).get("variant","")!="planted_canopy":

@@ -35,18 +35,18 @@ func available(player: Dictionary) -> int:
 
 func hit(p: Dictionary, id: int, hp: int, now: int) -> void:
 	p.hurt_until=0
-	game.apply_enemy_hit(id,p,now,float(hp)/game.Life.Preview.scale(),0,game.enemy_pos)
+	game.apply_enemy_hit(id,p,now,float(hp)/game.Life.Preview.scale(),0,game.tactics.position)
 
 func burst_count() -> int:
 	return game.combat_events.filter(func(row):return row.shape=="wood_burst").size()
 
 func reset() -> void:
 	game.encounter.set_hp(-1, 500)
-	game.enemy_pos=Vector3(0,0,-1.0)
+	game.tactics.position=Vector3(0,0,-1.0)
 	game.enemy_mutations=0
-	game.boss_kind=-1
-	game.enemy_winding_up=false
-	game.leader_brain.clear()
+	game.tactics.boss_kind=-1
+	game.tactics.winding_up=false
+	game.tactics.memory.clear()
 	game.encounter.clear_scouts()
 	game.projectile_queue.clear()
 	game.trait_events.clear()
@@ -118,11 +118,11 @@ func run() -> void:
 		check(bonus-base==q.impact_hp and available(p)==0,"real Form contact adds its exact bonus against one enemy without granting bark")
 		reset()
 		p.secondary=part
-		var ahead: Vector3=game.enemy_pos+Vector3.FORWARD*1.75
+		var ahead: Vector3=game.tactics.position+Vector3.FORWARD*1.75
 		game.encounter.register_scout(game.make_scout(0,ahead,1))
 		game.encounter.register_scout(game.make_scout(0,ahead+Vector3.RIGHT*.5,2))
 		game.encounter.register_scout(game.make_scout(0,ahead-Vector3.RIGHT*.7,3))
-		game.encounter.register_scout(game.make_scout(0,game.enemy_pos+Vector3.RIGHT*1.6,4))
+		game.encounter.register_scout(game.make_scout(0,game.tactics.position+Vector3.RIGHT*1.6,4))
 		for slot in game.encounter.scout_count(): game.encounter.set_hp(slot,100)
 		strike(p)
 		var struck: int=game.encounter.scout_views().filter(func(scout):return scout.hp<100).size()
@@ -192,7 +192,7 @@ func test_absorption(p: Dictionary, now: int) -> void:
 		"breaking hit uses weighted damage and largest-share owner")
 	hit(p,1,120,now)
 	check(p[PlayerVitals.STATE].hp()==178 and available(p)==0 and game.enemy_health()==488 and burst_count()==1,"overflow reaches HP and the breaking hit lands one burst")
-	game.apply_enemy_hit(1,p,now,12.0,0,game.enemy_pos)
+	game.apply_enemy_hit(1,p,now,12.0,0,game.tactics.position)
 	check(p[PlayerVitals.STATE].hp()==178 and burst_count()==1,"duplicate protected damage event does not debit or burst again")
 	Wood.grant(game,event(2,"catalyst","part_17"),1,"support")
 	hit(p,1,30,now)
@@ -237,7 +237,7 @@ func test_absorption(p: Dictionary, now: int) -> void:
 	Events.grant_ward(game,p,now+10000,1,frost,guard,now)
 	Events.grant_ward(game,p,now+12000,2,wood,guard,now)
 	hit(p,1,40,now)
-	check(available(p)==0 and Frost.state(game.leader_brain,now).get("stacks",[]).size()==1,"earliest mixed Ward uses its Frost source")
+	check(available(p)==0 and Frost.state(game.tactics.memory,now).get("stacks",[]).size()==1,"earliest mixed Ward uses its Frost source")
 	hit(p,1,40,now)
 	check(available(p)==18 and p[PlayerVitals.STATE].hp()==250 and burst_count()==1 and game.enemy_health()==488,"next Ward gives granting Wood quality and radial damage")
 	hit(p,1,50,now)
@@ -267,7 +267,7 @@ func benchmark() -> void:
 		game.encounter.register_scout(scout)
 	for id in [1,2,3,4]:
 		var thorn:=event(id,"form","part_1",["weapon_contact"])
-		thorn.publish(game,"weapon_contact","sample","leader",now,{"point":game.enemy_pos,"enemy":-1})
+		thorn.publish(game,"weapon_contact","sample","leader",now,{"point":game.tactics.position,"enemy":-1})
 		Wood.grant(game,event(id,"core","part_17"),id,"core")
 	var started:=Time.get_ticks_usec()
 	for index in 150:

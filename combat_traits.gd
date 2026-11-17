@@ -42,7 +42,7 @@ static func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,n
    game.emit_combat_event("impact","spark",at,at,.35,Color("#9ed6e5"),1,0)
   state.brittle=stacks;state.brittle_until=now+4000
  var was_marked: bool=now<int(state.get("marked_until",0))
- var omen_triggered: bool=was_marked and float(hit.get("omen",0))>0 and (game.enemy_winding_up if target==-1 else int(game.encounter.scout(target).windup)>0)
+ var omen_triggered: bool=was_marked and float(hit.get("omen",0))>0 and (game.tactics.winding_up if target==-1 else int(game.encounter.scout(target).windup)>0)
  if omen_triggered:
   damage+=mini(3,roundi(float(hit.omen))+1)
  if was_marked:
@@ -69,12 +69,12 @@ static func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,n
    damage+=1;p.grave_charges-=1
    preload("res://combat_status.gd").proc(game,"momentum",p.pos,game.enemy_position(target),target)
  if float(hit.get("suppress",0))>0 and now>=int(state.get("silence_ready",0)):
-  var winding: bool=game.enemy_winding_up if target==-1 else int(game.encounter.scout(target).windup)>0
+  var winding: bool=game.tactics.winding_up if target==-1 else int(game.encounter.scout(target).windup)>0
   if winding:
    state.silence_ready=now+4000;hit.was_winding=true
    hit.rite_suppressed=true
    preload("res://combat_status.gd").proc(game,"suppress",p.pos,game.enemy_position(target),target)
-   if target==-1: game.enemy_winding_up=false;game.enemy_attack_mode="";game.active_radius=0;game.enemy_ready_at=now+700
+   if target==-1: game.tactics.winding_up=false;game.tactics.attack_mode="";game.tactics.active_radius=0;game.tactics.ready_at=now+700
    else: game.encounter.scout(target).windup=0;game.encounter.scout(target).ready=now+700
    hit.stagger=float(hit.get("stagger",0))+250+mini(300,roundi(float(hit.suppress)*100))
  hit.damage=damage if Preview.enabled else int(damage)

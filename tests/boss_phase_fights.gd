@@ -21,19 +21,19 @@ func setup(game: Node, kind: int, stamp: int) -> void:
  game.destination=0
  game.depth=2
  game.encounter_number=15
- game.boss_kind=kind
- game.boss_phase=0
- game.boss_moves=0
+ game.tactics.boss_kind=kind
+ game.tactics.boss_phase=0
+ game.tactics.boss_moves=0
  game.enemy_kind=kind
- game.enemy_pos=Vector3(0,0,4.7)
+ game.tactics.position=Vector3(0,0,4.7)
  game.encounter.set_hp(-1, 85)
- game.enemy_ready_at=0
- game.enemy_stagger_until=0
- game.enemy_engaged=true
- game.enemy_winding_up=false
+ game.tactics.ready_at=0
+ game.tactics.stagger_until=0
+ game.tactics.engaged=true
+ game.tactics.winding_up=false
  game.enemy_hazards.clear()
  game.encounter.clear_scouts()
- game.leader_brain.clear()
+ game.tactics.memory.clear()
  game.battlefield.configure(0,2,stamp,kind,0)
 
 func crossing_occupant(field: RefCounted, rect: Rect2) -> Vector3:
@@ -49,9 +49,9 @@ func check_nest(game: Node, player: Dictionary) -> void:
  setup(game,Fights.NEST,98117)
  player.pos=Vector3(0,0,7.0)
  check(Fights.commit(game,"brood_call",1,now),"opening hatch is committed")
- var base: Dictionary=game.leader_brain.phase_plan
+ var base: Dictionary=game.tactics.memory.phase_plan
  check(base.hatches.size()==1,"opening phase uses one entrance")
- var strike: int=game.enemy_strike_at
+ var strike: int=game.tactics.strike_at
  game.Bosses.resolve(game,strike)
  check(game.encounter.scout_count()==1 and game.encounter.scout(0).summoned,"hatch creates a nonrewarding scout")
  for repetition in 2:
@@ -60,7 +60,7 @@ func check_nest(game: Node, player: Dictionary) -> void:
   game.apply_weapon_hit(player,0,player.pos,{"damage":2,"knockback":0},current)
   Fights.observe_brood(game,current)
   Fights.observe_brood(game,current+1)
-  check(int(game.leader_brain.get("nursery_pressure",0))==repetition+1,"a defeated hatchling counts once near the same entrance")
+  check(int(game.tactics.memory.get("nursery_pressure",0))==repetition+1,"a defeated hatchling counts once near the same entrance")
   if repetition==0:
    Fights.commit(game,"brood_call",1,current+50)
    game.Bosses.resolve(game,current+75)
@@ -76,7 +76,7 @@ func check_nest(game: Node, player: Dictionary) -> void:
  game.encounter.register_scout(escort)
  now=Time.get_ticks_msec()+7000
  check(Fights.advance_phase(game,1,now),"phase threshold starts a preview")
- check(game.boss_phase==0 and game.battlefield.barriers==original and player.pos==before,"old collision stays active during preview")
+ check(game.tactics.boss_phase==0 and game.battlefield.barriers==original and player.pos==before,"old collision stays active during preview")
  var hints: Array=game.attack_hints_snapshot()
  check(hints.filter(func(h):return h.role=="nursery_rib").size()==6,"all six future ribs are displayed")
  check(hints.filter(func(h):return h.role=="nursery_site").size()==2,"phase preview displays the two nursery sites")
@@ -84,23 +84,23 @@ func check_nest(game: Node, player: Dictionary) -> void:
  var warned: Dictionary=hints.filter(func(h):return h.role=="nursery_rib")[0]
  check(warned.bounds==[first.position.x,first.position.y,first.size.x,first.size.y],"warning matches exact future collision bounds")
  Fights.advance_phase(game,1,now+1950)
- check(game.boss_phase==0 and game.leader_brain.nest_shift.grace,"occupied ribs give a final grace period")
+ check(game.tactics.boss_phase==0 and game.tactics.memory.nest_shift.grace,"occupied ribs give a final grace period")
  Fights.advance_phase(game,1,now+2850)
- check(game.boss_phase==1 and game.battlefield.barriers==upcoming and game.battlefield.connected(),"future ribs become authority only after the grace")
+ check(game.tactics.boss_phase==1 and game.battlefield.barriers==upcoming and game.battlefield.connected(),"future ribs become authority only after the grace")
  check(before.distance_to(player.pos)<=2.8 and not game.battlefield.occupied(player.pos,.34) and not game.battlefield.occupied(escort.pos,.34),"players and escorts move to nearby open ground")
- check(PlayerVitals.current_hp(player)==10 and game.leader_brain.nursery_split,"shifting terrain is harmless and prior brood pressure opens the second site")
+ check(PlayerVitals.current_hp(player)==10 and game.tactics.memory.nursery_split,"shifting terrain is harmless and prior brood pressure opens the second site")
  game._process(.016)
  check(game.stage.get_meta("rendered_lair",Vector2i.ZERO)==Vector2i(Fights.NEST,1),"host redraws the new phase from its shared battlefield")
 
  game.encounter.clear_scouts()
- game.enemy_pos=Vector3(0,0,5)
+ game.tactics.position=Vector3(0,0,5)
  player.pos=Vector3(0,0,7)
  check(Fights.commit(game,"brood_call",1,now+3200),"both open exits are usable")
- var hatch: Array=game.leader_brain.phase_plan.hatches.duplicate()
+ var hatch: Array=game.tactics.memory.phase_plan.hatches.duplicate()
  check(hatch.size()==2,"two hatch markers are committed")
  if hatch.size()!=2:return
  game.apply_weapon_hit(player,-1,player.pos,{"damage":1,"stagger":160},now+3400)
- check(game.encounter.scout_count()==0 and not game.enemy_winding_up,"a heavy hit interrupts the hatch")
+ check(game.encounter.scout_count()==0 and not game.tactics.winding_up,"a heavy hit interrupts the hatch")
  Status.sync(game,now+3400)
  check(Status.snapshot(game,now+3400).any(func(event):return event.shape=="nursery_lull"),"nursery lull is displayed")
  Fights.commit(game,"brood_call",1,now+5500)
@@ -125,39 +125,39 @@ func check_bloom(game: Node, player: Dictionary) -> void:
  check(Fights.memory({"ranged":9,"burst":9},0)!=Fights.memory({"ranged":9,"burst":9},1),"tied evidence rotates deterministically by phase")
  game.progress.wilds_memory.score={"choke":12,"burst":9}
  check(Fights.advance_phase(game,0,now),"opening phase chooses a growth")
- check(game.leader_brain.memory_growth.id=="choke" and game.enemy_ready_at>=now+1450,"one growth is previewed before attacking")
+ check(game.tactics.memory.memory_growth.id=="choke" and game.tactics.ready_at>=now+1450,"one growth is previewed before attacking")
  game.progress.wilds_memory.score={"burst":19}
- check(game.leader_brain.memory_growth.id=="choke","phase choice stays locked when history changes")
+ check(game.tactics.memory.memory_growth.id=="choke","phase choice stays locked when history changes")
  var move_set: Array=[]
  for index in 3:
-  game.boss_moves=index
+  game.tactics.boss_moves=index
   move_set.append(Fights.choice(game,"memory_lance"))
- game.boss_moves=0
+ game.tactics.boss_moves=0
  check(move_set==["remembered_rend","memory_lance","spore_constellation"],"a phase uses its signature and both other moves")
  var hints: Array=game.attack_hints_snapshot()
  check(hints.any(func(h):return h.role=="memory_growth" and h.growth=="choke") and hints.any(func(h):return h.get("cue","")=="Forked roots"),"forked growth and its name are published")
- game.enemy_pos=Vector3(0,0,2)
+ game.tactics.position=Vector3(0,0,2)
  check(Fights.commit(game,"memory_lance",1,now+1500),"signature replaces the opening base move")
- var plan: Dictionary=game.leader_brain.phase_plan
+ var plan: Dictionary=game.tactics.memory.phase_plan
  check(plan.mode=="remembered_rend" and plan.variant=="choke" and plan.lanes.size()==2,"choke pressure creates two rend lanes")
  check(not Safety.covered(plan,player.pos,.15),"both lanes leave a central gap")
  if plan.lanes.size()!=2:return
  hints=game.attack_hints_snapshot().filter(func(h):return h.role=="charge")
  check(hints.size()==2 and hints[0].width>plan.lanes[0].width,"each damage lane has a padded warning")
- var strike: int=game.enemy_strike_at
+ var strike: int=game.tactics.strike_at
  player.pos=plan.lanes[0].from.lerp(plan.lanes[0].to,.55)
  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.hurt_until=0
  game.Bosses.resolve(game,strike)
  check(PlayerVitals.current_hp(player)==10-int(game.Enemies.get_kind(Fights.BLOOM).damage),"crossing a displayed rend branch applies damage")
  check(game.Bosses.exposed(game,strike),"memory response opens a punish window")
  check(Fights.advance_phase(game,1,strike+2500),"next phase reads the newly strongest evidence")
- check(game.leader_brain.memory_growth.id=="burst","a new phase replaces the previous growth")
+ check(game.tactics.memory.memory_growth.id=="burst","a new phase replaces the previous growth")
  player.pos=Vector3(0,0,7.0)
  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.hurt_until=0
  check(Fights.commit(game,"remembered_rend",1,strike+4000),"burst response commits")
- plan=game.leader_brain.phase_plan
+ plan=game.tactics.memory.phase_plan
  check(plan.variant=="burst" and plan.areas.size()==3,"delayed constellation marks three bounded patches")
- strike=game.enemy_strike_at
+ strike=game.tactics.strike_at
  game.Bosses.resolve(game,strike)
  game.Bosses.tick_hazards(game,strike+349)
  check(PlayerVitals.current_hp(player)==10,"constellation does not hit ahead of its announced pulse")
@@ -172,7 +172,7 @@ func check_bloom(game: Node, player: Dictionary) -> void:
   game.combat_velocity[1]=Vector3.RIGHT*3.5
   Fights.advance_phase(game,0,now)
   check(Fights.commit(game,"spore_constellation",1,now+1600),"lance adaptation commits")
-  plan=game.leader_brain.phase_plan
+  plan=game.tactics.memory.phase_plan
   check(plan.mode=="memory_lance" and plan.lanes.size()==1 and plan.variant==style,"one authored lance for "+style)
   if style=="ranged":check(absf(plan.lanes[0].from.x)>1.0,"side lance starts at the visible offset")
   else:check(plan.lanes[0].to.x>1.0,"tracking lance leads movement")

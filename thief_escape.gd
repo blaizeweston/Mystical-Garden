@@ -134,7 +134,7 @@ static func escape(game: Node, actor: Dictionary) -> void:
 	var slot: int=-1 if gate_elite else game.encounter.scout_slot(actor)
 	if not gate_elite and slot<0:
 		return
-	if gate_elite and not is_same(actor,game.leader_brain.get("elite",{})):
+	if gate_elite and not is_same(actor,game.encounter.leader_tactics()):
 		return
 	if not game.encounter.alive(slot):
 		return
@@ -144,8 +144,8 @@ static func escape(game: Node, actor: Dictionary) -> void:
 	actor.escaped = true
 	game.encounter.despawn(slot)
 	if gate_elite:
-		game.enemy_winding_up = false
-		game.enemy_attack_mode = ""
+		game.tactics.winding_up = false
+		game.tactics.attack_mode = ""
 	game.Journal.event("combat","thief_escaped",{"actor":game.encounter.token_for(actor),"floor":game.encounter_number})
 	notify_party(game,"The Graft Thief escaped with the trophy.")
 
@@ -170,7 +170,7 @@ static func route_info(game: Node, actor: Dictionary, id: int) -> Dictionary:
 static func snapshot(game: Node) -> Array:
 	var result := []
 	if game.encounter.hp(-1) > 0:
-		var leader := route_info(game,game.leader_brain.get("elite",{}),-1)
+		var leader := route_info(game,game.encounter.leader_tactics(),-1)
 		if not leader.is_empty():
 			result.append(leader)
 	for id in game.encounter.scout_count():
@@ -195,7 +195,7 @@ static func map_routes(game: Node, player: Dictionary) -> Array:
 		if id == -1:
 			if game.enemy_health() <= 0 or game.enemy_kind != KIND:
 				continue
-			at = game.enemy_pos
+			at = game.tactics.position
 		else:
 			if offset+2 >= game.client_pack.size() or game.client_pack[offset+2] <= 0.0 or 19+id >= game.client_campaign.size():
 				continue

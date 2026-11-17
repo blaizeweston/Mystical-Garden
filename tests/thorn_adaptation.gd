@@ -27,9 +27,9 @@ func start_floor(game: Node) -> void:
 	game.encounter_rewarded = false
 	game.encounter.set_hp(-1, 40)
 	game.enemy_kind = 0
-	game.enemy_pos = Vector3(9, 0, 7)
+	game.tactics.position = Vector3(9, 0, 7)
 	game.encounter.clear_scouts()
-	game.leader_brain.clear()
+	game.tactics.memory.clear()
 
 
 func place(game: Node, player: Dictionary) -> Dictionary:
@@ -123,14 +123,14 @@ func run() -> void:
 	check(Thorn.plan(game, hound, landing, line.armed).is_empty(), "a covered landing lane is rejected")
 	game.battlefield.barriers.clear()
 	check(Thorn.plan(game, hound, center - Vector3.BACK * 3.1, line.armed).is_empty(), "a trap off the pursuit path does not cause a vault")
-	game.update_scouts(.01, line.armed)
+	preload("res://scout_behavior.gd").tick(game, .01, line.armed)
 	var attack: Dictionary = hound.get("attack", {})
 	check(attack.get("variant") == Thorn.MOVE and attack.get("to") == landing, "the live scout locks the learned leap without a mobility mutation")
 	if not attack.is_empty():
 		var warning: Dictionary = Attacks.hints(attack, 0, 1.25)[0]
 		check(warning.role == "vault" and warning.cue == Thorn.CUE and warning.radius == Thorn.LANDING_RADIUS, "warning shares the fixed landing and radius")
 		player.pos = origin.lerp(landing, .5) + Vector3.RIGHT * 2.0
-		game.update_scouts(.01, line.armed + Thorn.WINDUP)
+		preload("res://scout_behavior.gd").tick(game, .01, line.armed + Thorn.WINDUP)
 		Core.tick(game, line.armed + Thorn.WINDUP)
 		check(hound.pos == landing and PlayerVitals.current_hp(player) == 10, "a player can bait the leap and step aside")
 		check(hound.rooted_until == 0 and Core.hints(game).size() == 1, "the chosen line survives the airborne crossing")
@@ -141,15 +141,15 @@ func run() -> void:
 	line = place(game, player)
 	center = line.center
 	game.enemy_kind = Thorn.HOUND
-	game.enemy_pos = center - Vector3.BACK * 1.45
-	game.enemy_engaged = true
+	game.tactics.position = center - Vector3.BACK * 1.45
+	game.tactics.engaged = true
 	player.pos = center + Vector3.BACK * 1.65
 	Core.tick(game, line.armed)
 	Elite.tick(game, .01, line.armed)
-	check(game.enemy_winding_up and Elite.hints(game).any(func(hint): return hint.get("cue") == Thorn.CUE), "gate elite shares the warning")
-	game.rooted_until = line.armed + Thorn.WINDUP + 500
+	check(game.tactics.winding_up and Elite.hints(game).any(func(hint): return hint.get("cue") == Thorn.CUE), "gate elite shares the warning")
+	game.tactics.rooted_until = line.armed + Thorn.WINDUP + 500
 	Elite.tick(game, .01, line.armed + Thorn.WINDUP)
-	check(game.enemy_pos == center - Vector3.BACK * 1.45 and PlayerVitals.current_hp(player) == 10, "a root applied during windup cancels the elite vault")
+	check(game.tactics.position == center - Vector3.BACK * 1.45 and PlayerVitals.current_hp(player) == 10, "a root applied during windup cancels the elite vault")
 	game.queue_free()
 	await process_frame
 	if not failed:

@@ -39,7 +39,7 @@ static func description(slot: String, quality: String) -> String:
 
 static func resisted(game: Node, target: int, now: int) -> bool:
 	if target==-1:
-		return game.boss_kind>=0 or game.enemy_winding_up or now<int(game.rooted_until) or Actors.rooted(game.leader_brain,now)
+		return game.tactics.boss_kind>=0 or game.tactics.winding_up or now<int(game.tactics.rooted_until) or Actors.rooted(game.tactics.memory,now)
 	var scout: Dictionary=game.encounter.scout(target)
 	return int(scout.windup)>0 or now<int(scout.rooted_until) or Actors.rooted(scout,now)
 
@@ -127,7 +127,7 @@ static func resolve_motion(game: Node, elapsed: int, now: int) -> void:
 		var end:=safe_motion(game,target,point,game.bound_position(point+Vector3(intent.direction)*strength,true))
 		var distance:=point.distance_to(end)
 		if distance<=.001: continue
-		if target==-1: game.enemy_pos=end
+		if target==-1: game.tactics.position=end
 		else: body.pos=end
 		moves.append({"at":elapsed,"amount":distance,"direction":intent.direction})
 		body[ALLOWANCE_STATE]=moves

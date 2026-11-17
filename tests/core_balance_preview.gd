@@ -58,17 +58,17 @@ func arena(species: String) -> void:
 	Core.reset(game)
 	game.combat_epoch+=1
 	game.encounter.set_hp(-1, 800)
-	game.enemy_pos=Vector3(0,0,-2)
+	game.tactics.position=Vector3(0,0,-2)
 	game.enemy_kind=0
-	game.boss_kind=-1
+	game.tactics.boss_kind=-1
 	game.enemy_mutations=0
-	game.enemy_winding_up=false
-	game.rooted_until=0
+	game.tactics.winding_up=false
+	game.tactics.rooted_until=0
 	game.enemy_traits.clear()
 	game.encounter.clear_scouts()
 	game.combat_events.clear()
 	game.trait_events.clear()
-	game.leader_brain.clear()
+	game.tactics.memory.clear()
 	game.battlefield.barriers.clear()
 	player.merge({"pos":Vector3.ZERO,"facing":Vector3.FORWARD,"frame":0,"weapon_kind":0,
 		"wild":true,PlayerVitals.STATE:PlayerVitals.Health.new(25,100),PlayerLifecycle.STATE:PlayerLifecycle.start_life(),"weapon":part(species),"secondary":0,"catalyst":0,
@@ -149,7 +149,7 @@ func burn_and_trap() -> void:
 	var core: Dictionary=game.weapon_stats(player).core_build.skill
 	check(Rules.describe(core).contains("10 HP damage") and Rules.describe(core).contains("0.85s"),"field tooltip shows actual pulse potency and cadence")
 	arena("moon_lotus")
-	game.enemy_winding_up=true
+	game.tactics.winding_up=true
 	live=cast()
 	if live.is_empty(): return
 	live.skill=live.skill.duplicate(true)
@@ -160,7 +160,7 @@ func burn_and_trap() -> void:
 	check(game.enemy_health()==800,"trap waits for its arming window")
 	Core.tick(game,int(live.armed)+650)
 	Core.tick(game,int(live.armed)+1050)
-	check(game.enemy_health()==784 and game.rooted_until>int(live.armed)+650,"a fractional trap applies 16 HP and roots its entrant only once")
+	check(game.enemy_health()==784 and game.tactics.rooted_until>int(live.armed)+650,"a fractional trap applies 16 HP and roots its entrant only once")
 
 
 func marks_and_links() -> void:

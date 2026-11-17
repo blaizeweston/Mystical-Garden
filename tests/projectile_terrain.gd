@@ -115,9 +115,9 @@ func prepare(origin: Vector3, foe: Vector3) -> void:
 	game.enemy_kind = 0
 	game.enemy_growth = 0
 	game.enemy_mutations = 0
-	game.enemy_pos = foe
+	game.tactics.position = foe
 	game.encounter.set_hp(-1, 100)
-	game.rooted_until = 0
+	game.tactics.rooted_until = 0
 	game.encounter_rewarded = false
 	player.pos = origin
 	player.facing = Vector3.RIGHT
@@ -194,13 +194,13 @@ func weapon_checks() -> void:
 		"native chain jumps across water once after a valid first contact")
 	prepare(origin, Vector3(.75,0,-2.1))
 	var hidden := scout(behind)
-	check(Storm.nearest(game, game.enemy_pos, 3.0, {"leader":true}) == -2,
+	check(Storm.nearest(game, game.tactics.position, 3.0, {"leader":true}) == -2,
 		"Storm hop cannot reach a target directly behind solid cover")
 	stats = game.weapon_stats(player)
 	stats.pattern = "chain"
 	stats.targets = 2
 	player.aim_direction = Vector3.RIGHT
-	player.facing = player.pos.direction_to(game.enemy_pos)
+	player.facing = player.pos.direction_to(game.tactics.position)
 	Mouse.queue_attack(game,game.HOST,player,origin,stats,Time.get_ticks_msec(),"bow",300)
 	var blocked_chain := finish_shots()
 	check(not blocked_chain.is_empty() and blocked_chain.hits.size() == 1 and game.encounter.hp_for(hidden) == 100 and game.enemy_health() < 100,
@@ -281,16 +281,16 @@ func core_and_enemy_checks() -> void:
 			"id":"anchor", "beam_range":6.2, "radius":.24, "root_ms":600, "targets":3, "color":"#ffffff",
 		}}
 		Beam.fire(game,game.HOST,anchor,Beam.endpoint(field,anchor,Vector3.RIGHT),Time.get_ticks_msec())
-		check((game.rooted_until > 0) == far_side, "anchored beam uses ranged obstruction after ground placement")
+		check((game.tactics.rooted_until > 0) == far_side, "anchored beam uses ranged obstruction after ground placement")
 		var watcher: Dictionary = game.make_scout(1,player.pos,20)
-		player.pos = game.enemy_pos
+		player.pos = game.tactics.position
 		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(40)
 		player.hurt_until = 0
 		player.guard_until = 0
 		player.guard_charges = 0
 		watcher.mode = "volley"
 		watcher.attack = EnemyAttack.plan(game,watcher,"volley",player.pos)
-		game.resolve_scout(watcher,game.Enemies.get_kind(1),Time.get_ticks_msec())
+		preload("res://scout_behavior.gd").release(game, watcher,game.Enemies.get_kind(1),Time.get_ticks_msec())
 		check((PlayerVitals.current_hp(player) < 40) == far_side, "actual Watcher volley uses the same cover role and water policy")
 
 func run() -> void:

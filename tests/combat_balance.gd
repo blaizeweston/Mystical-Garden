@@ -16,7 +16,7 @@ func run():
   game.encounter_number=floor_number;game.depth=(floor_number-1)%6+1;game.destination=((floor_number-1)/6)%3;game.map_seed=91300+floor_number;game.difficulty_cycle=(floor_number-1)/18;game.reset_encounter()
   counts.append(game.encounter.scout_count());health.append(game.encounter_health())
   check(game.encounter.scout_count()<=game.EncounterConfig.MAX_SCOUTS,"population stays inside synchronized capacity")
-  check(game.enemy_pos.distance_to(game.battlefield.entry)>=8,"leader stays clear of player arrival")
+  check(game.tactics.position.distance_to(game.battlefield.entry)>=8,"leader stays clear of player arrival")
   for i in game.encounter.scout_count():
    var scout: Dictionary=game.encounter.scout(i)
    check(scout.pos.distance_to(game.battlefield.entry)>=8 and not game.battlefield.occupied(scout.pos,.34),"scout spawns on walkable floor away from entry")

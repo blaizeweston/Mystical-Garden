@@ -31,7 +31,7 @@ func run() -> void:
  var hints:=warn(36000)
  check(hints.size()==1 and hints[0].role=="reinforcement" and hints[0].remaining==3.0,"first wave announces exact location for three seconds")
  check(game.attack_hints_snapshot().any(func(h):return h.role=="reinforcement"),"warning uses replicated attack hint channel")
- game.combat_visuals.sync([],hints,"pressure-test",game.leader_brain.pressure.pending[0].pos)
+ game.combat_visuals.sync([],hints,"pressure-test",game.tactics.memory.pressure.pending[0].pos)
  var visual: Dictionary=game.combat_visuals.hints[hints[0].id]
  check(visual.root.visible and visual.label.text.contains("Reinforcements") and visual.mesh.mesh.get_surface_count()>0,"spawn marker has a visible countdown label and ground ring")
  game.combat_visuals.sync([],[],"pressure-test",p.pos)
@@ -54,7 +54,7 @@ func run() -> void:
  reset_floor();hints=warn(1000)
  check(not hints.is_empty(),"unsafe-arrival fixture has a planned site")
  if not hints.is_empty():
-  p.pos=game.leader_brain.pressure.pending[0].pos
+  p.pos=game.tactics.memory.pressure.pending[0].pos
   game.update_pressure(4000)
   check(game.encounter.scout_count()==0 and PlayerVitals.current_hp(p)==10,"occupied warning cancels rather than spawning on player or moving to unwarned site")
  reset_floor();warn(1000);game.encounter.set_hp(-1, 0);game.update_pressure(4000)
@@ -62,7 +62,7 @@ func run() -> void:
  for mode in ["early","boss","garden","fallen","guest"]:
   reset_floor()
   if mode=="early":game.difficulty_cycle=0
-  elif mode=="boss":game.boss_kind=24
+  elif mode=="boss":game.tactics.boss_kind=24
   elif mode=="garden":p.wild=false
   elif mode=="fallen":p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].fall();p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(0)
   else:game.session="Guest"
@@ -70,7 +70,7 @@ func run() -> void:
   check(game.encounter.scout_count()==0 and PlayerVitals.current_hp(p)==(0 if mode=="fallen" else 10),"no pressure damage or arrivals in "+mode)
  reset_floor();game.add_player(2);game.players[2].profile_ready=true;game.players[2].wild=true;game.players[2].pos=p.pos
  for wave in range(1,17):
-  game.encounter.clear_scouts();game.leader_brain.pressure={"wave":wave-1,"pending":[]}
+  game.encounter.clear_scouts();game.tactics.memory.pressure={"wave":wave-1,"pending":[]}
   hints=warn(wave*100000)
   check(hints.size()<=4,"wave size bounded")
   game.update_pressure(wave*100000+3000)

@@ -129,10 +129,10 @@ func host_run() -> void:
   check(false,"guest sees committed floor")
   return
  world.encounter.set_hp(-1, 0)
- world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
- world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
+ world.record_enemy_death(-1,world.tactics.position,Vector3.ZERO)
+ world.record_enemy_death(-1,world.tactics.position,Vector3.ZERO)
  world.encounter.clear_scouts()
- world.finish_combat(1,world.enemy_pos)
+ world.finish_combat(1,world.tactics.position)
  var saved:=Slots._save_digest(G)
  var kill_sparks := int(world.Director.config().leader_essence_sparks) * (6 if world.Enemies.get_kind(world.enemy_kind).get("boss",false) else 1)
  @warning_ignore("integer_division")

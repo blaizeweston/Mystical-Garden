@@ -238,7 +238,7 @@ func run() -> void:
  peer.profile_ready = true
  peer.wild = true
  peer.safe_items = [{"item": "unidentified_seed", "quantity": 1, "seeds": [0]}]
- check(world._queue_monster_reward("late",world.enemy_kind,0,world.enemy_pos,false), "freeze a real pending receipt before lease loss")
+ check(world._queue_monster_reward("late",world.enemy_kind,0,world.tactics.position,false), "freeze a real pending receipt before lease loss")
  var memory: Dictionary = world.progress.character_records.duplicate(true)
  var receipts: Dictionary = world.progress.garden_interactions.duplicate(true)
  var lease := G.get_base_dir().path_join("session.cfg")

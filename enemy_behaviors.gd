@@ -130,7 +130,7 @@ static func interrupt(game: Node, actor: Dictionary, at: Vector3, now: int) -> b
  if not Support.interruptible(actor.get("attack",{})) and not (actor.kind==7 and actor.mode=="stomp"):return false
  preload("res://wilds_skill_tactics.gd").interrupted(game,actor,"stagger")
  actor.windup=0
- var body: Dictionary=game.leader_brain if actor.get("gate_elite",false) else actor
+ var body: Dictionary=game.tactics.memory if actor.get("gate_elite",false) else actor
  actor.ready=preload("res://oracle_omens.gd").release_attack(body,actor.get("attack",{}),now+1100)
  actor.erase("attack")
  actor.erase("repeat")

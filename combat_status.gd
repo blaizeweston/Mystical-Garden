@@ -92,7 +92,7 @@ static func sync(game: Node,now: int) -> void:
   if state.has(Ranger.PREY):
    var prey := Ranger.active_prey(game,state,now)
    add(desired,game,Ranger.PREY,target,true,int(prey.get("until",0)),1,now)
-  var root_until: int = game.rooted_until if target==-1 else int(game.encounter.scout(target).get("rooted_until",0))
+  var root_until: int = game.tactics.rooted_until if target==-1 else int(game.encounter.scout(target).get("rooted_until",0))
   if game.has_meta(&"combat_affinity_ruleset"):
    var frost = preload("res://frost_combat.gd")
    var body := frost.body(game,target)
@@ -107,21 +107,21 @@ static func sync(game: Node,now: int) -> void:
   else:
    add(desired,game,"brittle",target,true,int(state.get("brittle_until",0)),int(state.get("brittle",0)),now)
   add(desired,game,"rooted",target,true,root_until,1,now)
-  add(desired,game,"staggered",target,true,game.enemy_stagger_until if target==-1 else int(game.encounter.scout(target).get("stagger_until",0)),1,now)
-  add(desired,game,"haste",target,true,game.enemy_haste_until if target==-1 else int(game.encounter.scout(target).get("haste_until",0)),1,now)
-  var actor: Dictionary=game.encounter.scout(target) if target>=0 else game.leader_brain.get("elite",{})
+  add(desired,game,"staggered",target,true,game.tactics.stagger_until if target==-1 else int(game.encounter.scout(target).get("stagger_until",0)),1,now)
+  add(desired,game,"haste",target,true,game.tactics.haste_until if target==-1 else int(game.encounter.scout(target).get("haste_until",0)),1,now)
+  var actor: Dictionary=game.encounter.scout(target) if target>=0 else game.encounter.leader_tactics()
   var point: Vector3=game.enemy_position(target)
   var support=preload("res://enemy_support.gd")
   var cover: Dictionary=support.shelter_source(game,target,point,point+Vector3.RIGHT,now,true)
   if not cover.is_empty():add(desired,game,"sheltered",target,true,now+60000,1,now)
   if not actor.get("stolen",[]).is_empty():add(desired,game,"trophy_carrier",target,true,now+60000,1,now)
-  var command: Dictionary=game.leader_brain if target<0 else actor
+  var command: Dictionary=game.tactics.memory if target<0 else actor
   add(desired,game,"rallied",target,true,int(command.get("command_until",0)),1,now)
   if target==-1:
-   var open: Dictionary=game.leader_brain.get("lair_open",{})
+   var open: Dictionary=game.tactics.memory.get("lair_open",{})
    if not open.is_empty():add(desired,game,open.kind,target,true,int(open.until),1,now)
   if actor.get("attack",{}).get("variant","")=="bark_guard":
-   var until: int=int(actor.windup) if target>=0 else game.enemy_strike_at if game.enemy_winding_up else 0
+   var until: int=int(actor.windup) if target>=0 else game.tactics.strike_at if game.tactics.winding_up else 0
    add(desired,game,"bark_guard",target,true,until,1,now)
  var epoch:=str(game.combat_epoch)
  var previous: Dictionary=game.get_meta("status_feedback",{}) if str(game.get_meta("status_epoch",""))==epoch else {}
@@ -155,6 +155,6 @@ static func proc(game: Node,kind: String,from: Vector3,to: Vector3,target: int=-
 static func root(game: Node, target: int, until: int) -> void:
  preload("res://wilds_skill_tactics.gd").root_denied(game,target,Time.get_ticks_msec())
  if target == -1:
-  game.rooted_until = maxi(game.rooted_until, until)
+  game.tactics.rooted_until = maxi(game.tactics.rooted_until, until)
  else:
   game.encounter.scout(target).rooted_until = maxi(int(game.encounter.scout(target).rooted_until), until)

@@ -29,7 +29,7 @@ func host_run():
  game.set_physics_process(false);game.set_process(false)
  var id=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
  p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3.ZERO;p.strike_at=0
- game.encounter.clear_scouts();game.battlefield.procedural=false;game.battlefield.barriers=[];game.enemy_pos=Vector3(0,0,-1);game.encounter.set_hp(-1, 10000)
+ game.encounter.clear_scouts();game.battlefield.procedural=false;game.battlefield.barriers=[];game.tactics.position=Vector3(0,0,-1);game.encounter.set_hp(-1, 10000)
  mark("ready")
  var end=Time.get_ticks_msec()+1400
  while Time.get_ticks_msec()<end:

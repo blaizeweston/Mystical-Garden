@@ -43,39 +43,39 @@ func run():
 	game.enemy_mutations=0
 	game.encounter.clear_scouts()
 	game.battlefield.configure(0,1)
-	game.enemy_pos=Vector3(0,0,6.4)
+	game.tactics.position=Vector3(0,0,6.4)
 	game.encounter.set_hp(-1, 5)
-	game.enemy_winding_up=false
+	game.tactics.winding_up=false
 	p.pos=Vector3(0,0,5.4)
 	p.weapon=0;p.secondary=0;p.power=0;p.strike_at=0;p.frame=0
-	var before: Vector3=game.enemy_pos
+	var before: Vector3=game.tactics.position
 	game.strike_enemy(1,p,p.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.enemy_health()==4 and game.enemy_pos.distance_to(p.pos)>before.distance_to(p.pos)+.2,"successful monster hit applies a small knockback")
-	check(game.enemy_pos.distance_to(before)<=.36 and game.enemy_stagger_until>Time.get_ticks_msec(),"push remains small and grants a short reaction beat")
-	game.enemy_winding_up=true
-	game.enemy_strike_at=Time.get_ticks_msec()+500
+	check(game.enemy_health()==4 and game.tactics.position.distance_to(p.pos)>before.distance_to(p.pos)+.2,"successful monster hit applies a small knockback")
+	check(game.tactics.position.distance_to(before)<=.36 and game.tactics.stagger_until>Time.get_ticks_msec(),"push remains small and grants a short reaction beat")
+	game.tactics.winding_up=true
+	game.tactics.strike_at=Time.get_ticks_msec()+500
 	p.strike_at=0
 	game.strike_enemy(1,p,p.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.enemy_winding_up,"hit reaction does not cancel committed attacks")
-	game.enemy_winding_up=false
-	game.enemy_pos=Vector3(-6.5,0,-3.58)
+	check(game.tactics.winding_up,"hit reaction does not cancel committed attacks")
+	game.tactics.winding_up=false
+	game.tactics.position=Vector3(-6.5,0,-3.58)
 	p.pos=Vector3(-6.5,0,-4.58)
 	p.strike_at=0
 	game.strike_enemy(1,p,p.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(not game.battlefield.occupied(game.enemy_pos,.34) and game.enemy_pos.z < -3.53,"knockback cannot push a monster through cover")
+	check(not game.battlefield.occupied(game.tactics.position,.34) and game.tactics.position.z < -3.53,"knockback cannot push a monster through cover")
 	game.encounter.set_hp(-1, 5)
-	game.enemy_pos=Vector3(0,0,5.8)
+	game.tactics.position=Vector3(0,0,5.8)
 	p.pos=Vector3(0,0,4)
 	p.weapon=0
 	p.graft_part=4
 	p.strike_at=0
-	before=game.enemy_pos
+	before=game.tactics.position
 	game.strike_enemy(1,p,p.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.enemy_pos.distance_to(p.pos)<before.distance_to(p.pos),"Briar Hook pull is preserved instead of being cancelled by knockback")
+	check(game.tactics.position.distance_to(p.pos)<before.distance_to(p.pos),"Briar Hook pull is preserved instead of being cancelled by knockback")
 	# This generated floor places the two interaction areas on top of each other.
 	game.destination=1
 	game.depth=2

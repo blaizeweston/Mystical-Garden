@@ -48,14 +48,14 @@ func run():
 		game.enemy_kind=0
 		game.enemy_mutations=0
 		game.enemy_growth=0
-		game.enemy_winding_up=false
-		game.rooted_until=Time.get_ticks_msec()+60000
+		game.tactics.winding_up=false
+		game.tactics.rooted_until=Time.get_ticks_msec()+60000
 		game.encounter.set_hp(-1, 100)
 		p.pos=game.battlefield.graft
 		p.character.monsters[1]=100
-		game.enemy_pos=p.pos+Vector3(0,0,1)
-		check(game.battlefield.clear_line(p.pos,game.enemy_pos),"fixture has a clear attack line")
-		game.enemy_ready_at=Time.get_ticks_msec()+60000
+		game.tactics.position=p.pos+Vector3(0,0,1)
+		check(game.battlefield.clear_line(p.pos,game.tactics.position),"fixture has a clear attack line")
+		game.tactics.ready_at=Time.get_ticks_msec()+60000
 		game.rng.seed=2
 		if not await until(func(): return p.graft_part==18):
 			check(false,"guest monster graft succeeds");quit(1);return

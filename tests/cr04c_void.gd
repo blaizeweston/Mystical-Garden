@@ -31,22 +31,22 @@ func run() -> void:
 	var p: Dictionary=game.players[1]
 	p.wild=true;p.profile_ready=true;p.pos=Vector3(-4,0,0)
 	game.battlefield.procedural=false;game.battlefield.barriers.clear()
-	game.encounter.set_hp(-1, 200);game.enemy_pos=Vector3(1.4,0,0)
+	game.encounter.set_hp(-1, 200);game.tactics.position=Vector3(1.4,0,0)
 	game.encounter.clear_scouts()
 	var part: int=game.Items.get_item("part_14").legacy_part
 	var refined: int=game.Items.get_item("plant_part_rare_void_willow").legacy_part
 	var now:=Time.get_ticks_msec()
 	var form:=action(game,1,"form",part,["weapon_contact"])
-	game.enemy_winding_up=true
-	Events.contact(game,{Events.CONTEXT:form},-1,now,false,game.enemy_pos)
+	game.tactics.winding_up=true
+	Events.contact(game,{Events.CONTEXT:form},-1,now,false,game.tactics.position)
 	Void.resolve_motion(game,0,now)
-	check(game.enemy_health()==190 and game.enemy_pos.x>1.39,"committed telegraph resists motion while contact still damages")
-	game.enemy_winding_up=false
+	check(game.enemy_health()==190 and game.tactics.position.x>1.39,"committed telegraph resists motion while contact still damages")
+	game.tactics.winding_up=false
 	p.erase(Void.FORM_READY)
 	var stronger:=action(game,1,"form",refined,["weapon_contact"])
-	Events.contact(game,{Events.CONTEXT:stronger,"knockback":.75},-1,now,false,game.enemy_pos)
+	Events.contact(game,{Events.CONTEXT:stronger,"knockback":.75},-1,now,false,game.tactics.position)
 	Void.resolve_motion(game,0,now)
-	check(game.enemy_health()==175 and not game.has_meta(Void.PENDING) and game.enemy_pos.x>1.39,"refined damage survives native knockback conflict")
+	check(game.enemy_health()==175 and not game.has_meta(Void.PENDING) and game.tactics.position.x>1.39,"refined damage survives native knockback conflict")
 	game.add_player(2)
 	var ally: Dictionary=game.players[2]
 	ally.wild=true;ally.profile_ready=true;ally.pos=Vector3(7,0,7)
@@ -54,31 +54,31 @@ func run() -> void:
 	Void.queue_motion(game,old_action,-1,Vector3(7,0,0),true,.7)
 	ally[PlayerLifecycle.STATE]=PlayerLifecycle.start_life()
 	Void.resolve_motion(game,0,now)
-	check(is_equal_approx(game.enemy_pos.x,1.4),"queued displacement cannot cross into a new source life")
+	check(is_equal_approx(game.tactics.position.x,1.4),"queued displacement cannot cross into a new source life")
 	var second:=action(game,2,"form",part,["weapon_contact"])
 	Void.queue_motion(game,second,-1,Vector3(7,0,0),true,.7)
 	Void.queue_motion(game,form,-1,Vector3(-7,0,0),true,.7)
 	Void.resolve_motion(game,0,now)
-	check(is_equal_approx(game.enemy_pos.x,.7),"same-tick opposing requests use source order, regardless of enqueue order")
+	check(is_equal_approx(game.tactics.position.x,.7),"same-tick opposing requests use source order, regardless of enqueue order")
 	Void.queue_motion(game,second,-1,Vector3(7,0,0),true,.7)
 	Void.resolve_motion(game,100,now)
-	check(is_equal_approx(game.enemy_pos.x,.7),"later opposite motion refused within rolling window")
+	check(is_equal_approx(game.tactics.position.x,.7),"later opposite motion refused within rolling window")
 	Void.queue_motion(game,form,-1,Vector3(-7,0,0),true,.7)
 	Void.resolve_motion(game,100,now)
-	check(is_equal_approx(game.enemy_pos.x,.3),"multiple players share 1.10 m rolling allowance")
+	check(is_equal_approx(game.tactics.position.x,.3),"multiple players share 1.10 m rolling allowance")
 	p.erase(Void.FORM_READY)
 	var spent:=action(game,1,"form",part,["weapon_contact"])
-	Events.contact(game,{Events.CONTEXT:spent},-1,now,false,game.enemy_pos)
+	Events.contact(game,{Events.CONTEXT:spent},-1,now,false,game.tactics.position)
 	Void.resolve_motion(game,100,now)
-	check(game.enemy_health()==165 and is_equal_approx(game.enemy_pos.x,.3),"exhausted displacement allowance leaves valid bonus damage")
+	check(game.enemy_health()==165 and is_equal_approx(game.tactics.position.x,.3),"exhausted displacement allowance leaves valid bonus damage")
 	game.encounter.set_hp(-1, 175)
 	game.battlefield.barriers.assign([Rect2(.65,-1,.40,2)])
 	var blocked:=Void.safe_motion(game,-1,Vector3(-.45,0,0),Vector3(1.8,0,0))
 	check(blocked.x<.65,"displacement trace cannot cross a solid wall")
 	game.battlefield.barriers.clear()
 
-	game.enemy_pos=Vector3(1.8,0,0)
-	game.leader_brain.erase(Void.ALLOWANCE_STATE)
+	game.tactics.position=Vector3(1.8,0,0)
+	game.tactics.memory.erase(Void.ALLOWANCE_STATE)
 	p.pos=Vector3(-2,0,0)
 	p.weapon=refined
 	var escaped: Dictionary=game.make_scout(0,Vector3(1,0,1.4),1)
@@ -88,7 +88,7 @@ func run() -> void:
 	var line: Dictionary=game.get_meta(Core.STATE,{})[1]
 	Core.tick(game,int(line.armed))
 	Void.resolve_motion(game,Clock.now(game),int(line.armed))
-	check(game.enemy_pos.x<1.79 and game.enemy_health()==175 and not Core.hints(game).is_empty(),"real Core gathers with an active hint before damage")
+	check(game.tactics.position.x<1.79 and game.enemy_health()==175 and not Core.hints(game).is_empty(),"real Core gathers with an active hint before damage")
 	escaped.pos=Vector3(6,0,0)
 	Clock.advance(game,1.2)
 	Core.tick(game,int(line.armed)+1200)
@@ -96,15 +96,15 @@ func run() -> void:
 	check(game.enemy_health()==146 and game.encounter.hp_for(escaped)==120 and Core.hints(game).is_empty(),"refined collapse hits retained targets once and lets a fleeing target escape")
 	Clock.advance(game,1.0)
 	for material in [part,refined]:
-		game.encounter.set_hp(-1, 200);game.enemy_pos=Vector3(1.2,0,0)
-		game.enemy_winding_up=true
+		game.encounter.set_hp(-1, 200);game.tactics.position=Vector3(1.2,0,0)
+		game.tactics.winding_up=true
 		var ward:=action(game,1,"catalyst",material,["actual_block"])
 		ward.publish(game,"actual_block","ward","1",now,{"recipient":1,"center":Vector3.ZERO})
 		Void.resolve_motion(game,Clock.now(game),now)
-		check(game.enemy_health()==(188 if material==part else 183) and is_equal_approx(game.enemy_pos.x,1.2),
+		check(game.enemy_health()==(188 if material==part else 183) and is_equal_approx(game.tactics.position.x,1.2),
 			"Catalyst pulses use source quality and cannot move a committed victim")
-	game.enemy_winding_up=false
-	game.encounter.set_hp(-1, 200);game.enemy_pos=Vector3(1.4,0,0)
+	game.tactics.winding_up=false
+	game.encounter.set_hp(-1, 200);game.tactics.position=Vector3(1.4,0,0)
 	p.core_ready_at=0;p.core_cast_until=0;p.cast_until=0;p.weapon=part
 	Core.command(game,1,p,Core.request(game,p,Vector2.RIGHT,2.0))
 	line=game.get_meta(Core.STATE,{})[1]
@@ -129,8 +129,8 @@ func run() -> void:
 	var flames:=action(game,1,"core",fire_part,["core_action"])
 	var thorns:=action(game,1,"core",thorn_part,["core_action"])
 	var floor_ms:=Clock.now(game)
-	game.enemy_pos=Vector3(1.4,0,0)
-	game.leader_brain.erase(Void.ALLOWANCE_STATE)
+	game.tactics.position=Vector3(1.4,0,0)
+	game.tactics.memory.erase(Void.ALLOWANCE_STATE)
 	check(thorn.grow(game,thorns,point,[shape],now),"real Thorn contact area created")
 	var trail: Dictionary={"grown":true,"field_until":floor_ms+3000,"next_maintain":floor_ms,"center":point,
 		"shapes":[shape],"affinity_action":flames}
@@ -139,28 +139,28 @@ func run() -> void:
 	thorn.tick(game,floor_ms,now)
 	fire.field(game,trail,now)
 	var after_entry: int=game.enemy_health()
-	check(game.leader_brain.has(thorn.SLOW) and game.leader_brain.has(fire.BURNING) and after_entry<179,
+	check(game.tactics.memory.has(thorn.SLOW) and game.tactics.memory.has(fire.BURNING) and after_entry<179,
 		"Void displacement into real effect geometry applies Thorn occupancy and Fire entry")
 	Clock.advance(game,.09)
 	thorn.tick(game,Clock.now(game),now)
 	fire.field(game,trail,now)
 	check(game.enemy_health()==after_entry,"no duplicate entry damage while remaining inside")
-	game.enemy_pos=Vector3(3,0,0)
+	game.tactics.position=Vector3(3,0,0)
 	thorn.tick(game,Clock.now(game),now)
-	check(not game.leader_brain.has(thorn.SLOW) and game.leader_brain.has(thorn.BLEED),"leaving restores normal movement and keeps scheduled Bleed")
+	check(not game.tactics.memory.has(thorn.SLOW) and game.tactics.memory.has(thorn.BLEED),"leaving restores normal movement and keeps scheduled Bleed")
 
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(100);ally.pos=Vector3.ZERO
-	game.encounter.set_hp(-1, 200);game.enemy_pos=Vector3.RIGHT
-	game.leader_brain.erase(Void.ALLOWANCE_STATE)
+	game.encounter.set_hp(-1, 200);game.tactics.position=Vector3.RIGHT
+	game.tactics.memory.erase(Void.ALLOWANCE_STATE)
 	var earlier:=action(game,1,"catalyst",part,["actual_block"])
 	var storm_part: int=game.Items.get_item("plant_part_rare_storm_reed").legacy_part
 	var later:=action(game,2,"catalyst",storm_part,["actual_block"])
 	var adapter: Dictionary={"id":"test/ward","trigger":"block","limit":"recipient"}
 	Events.grant_ward(game,ally,now+3000,1,earlier,adapter,now)
 	Events.grant_ward(game,ally,now+5000,2,later,adapter,now)
-	game.apply_enemy_hit(2,ally,now,2,0,game.enemy_pos)
+	game.apply_enemy_hit(2,ally,now,2,0,game.tactics.position)
 	check(ally[PlayerVitals.STATE].hp()==100 and game.enemy_health()==188,"single actual block selects earlier Void claim around the protected ally")
-	game.apply_enemy_hit(2,ally,now+1,2,0,game.enemy_pos)
+	game.apply_enemy_hit(2,ally,now+1,2,0,game.tactics.position)
 	check(ally[PlayerVitals.STATE].hp()==100 and game.enemy_health()==171,"next actual block selects separate refined Storm claim")
 	Void.resolve_motion(game,Clock.now(game),now)
 

@@ -107,7 +107,7 @@ func verify_strikes(game: Node, player: Dictionary) -> void:
 			game.projectile_queue.clear()
 			game.encounter.set_hp(-1, 600)
 			game.enemy_mutations=0
-			game.enemy_pos=Vector3(0,0,1.4)
+			game.tactics.position=Vector3(0,0,1.4)
 			var stats: Dictionary=game.weapon_stats(player)
 			check(stats.damage_min==band.x and stats.damage_max==band.y,"loadout resolves the configured band")
 			if trial==0:
@@ -136,7 +136,7 @@ func verify_multi_target(game: Node, player: Dictionary) -> void:
 	player.weapon_kind=2
 	player.strike_at=0
 	game.encounter.set_hp(-1, 600)
-	game.enemy_pos=Vector3(0,0,1.4)
+	game.tactics.position=Vector3(0,0,1.4)
 	game.encounter.clear_scouts()
 	game.encounter.register_scout(game.make_scout(0,Vector3(.75,0,1.4),1))
 	var before: int=game.encounter.hp(0)
@@ -175,7 +175,7 @@ func verify_guard_and_core(game: Node, player: Dictionary) -> void:
 	check(line.get("skill",{}).get("id","")=="thorn_line","real Warden Core activation")
 	if line.is_empty():
 		return
-	game.enemy_pos=line.center
+	game.tactics.position=line.center
 	Core.tick(game,line.armed)
 	check(game.enemy_health()==590,"Thorn Line applies a fixed 10 HP tick")
 	Core.reset(game)
@@ -281,7 +281,7 @@ func verify_orchard(game: Node, player: Dictionary) -> void:
 	game.used_bosses.clear()
 	game.players[2].profile_ready=false
 	game.reset_encounter()
-	check(game.boss_kind==game.Bosses.Lair.Routes.ORCHARD and game.enemy_health()==600,"the regular preview route reaches the Orchard on floor 10")
+	check(game.tactics.boss_kind==game.Bosses.Lair.Routes.ORCHARD and game.enemy_health()==600,"the regular preview route reaches the Orchard on floor 10")
 	game.encounter.set_hp(-1, 391)
 	check(game.Bosses.phase(game)==0,"just above 65 percent")
 	game.encounter.set_hp(-1, 390)
@@ -289,7 +289,7 @@ func verify_orchard(game: Node, player: Dictionary) -> void:
 	game.encounter.set_hp(-1, 180)
 	check(game.Bosses.phase(game)==2,"at 30 percent")
 	game.enemy_mutations=0
-	game.enemy_winding_up=false
-	game.leader_brain.lair_open={"kind":"uprooting","until":5000}
-	game.apply_weapon_hit(player,-1,game.enemy_pos,{"damage":1,"trait_secondary":true},4000)
+	game.tactics.winding_up=false
+	game.tactics.memory.lair_open={"kind":"uprooting","until":5000}
+	game.apply_weapon_hit(player,-1,game.tactics.position,{"damage":1,"trait_secondary":true},4000)
 	check(game.enemy_health()==167,"uprooting adds the preview vulnerability bonus")

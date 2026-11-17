@@ -20,11 +20,11 @@ func arena(p: Dictionary):
 	game.battlefield.procedural=false
 	game.battlefield.barriers=[]
 	game.encounter.set_hp(-1, 100)
-	game.enemy_pos=Vector3.ZERO
-	game.enemy_winding_up=false
+	game.tactics.position=Vector3.ZERO
+	game.tactics.winding_up=false
 	game.enemy_mutations=0
-	game.enemy_engaged=true
-	game.enemy_stagger_until=0
+	game.tactics.engaged=true
+	game.tactics.stagger_until=0
 	game.depth=1
 	game.destination=0
 	p.wild=true
@@ -171,7 +171,7 @@ func run():
 		check(p[Cooldowns.STATE].deadline(Cooldowns.Q)>now,"unique class skill starts cooldown")
 		match c:
 			0: check(p.guard_until>now,"Warden guards")
-			1: check(game.rooted_until>now,"Weaver binds")
+			1: check(game.tactics.rooted_until>now,"Weaver binds")
 			2: check(game.enemy_health()<100,"Ranger volley attacks")
 			3: check(p.pos.distance_to(old)>.1 and game.enemy_health()<100,"Reaper safely steps and strikes")
 			4: check(PlayerVitals.current_hp(p)>=7,"Oracle renews health")

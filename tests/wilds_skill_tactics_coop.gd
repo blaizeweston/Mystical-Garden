@@ -78,8 +78,8 @@ func host() -> void:
 	game.progress.wilds_memory.score[Tactics.AREA_PRESSURE] = 6
 	game.encounter.set_hp(-1, 40)
 	game.enemy_kind = 0
-	game.enemy_pos = Vector3(12, 0, 5)
-	game.enemy_engaged = false
+	game.tactics.position = Vector3(12, 0, 5)
+	game.tactics.engaged = false
 	game.encounter.clear_scouts()
 	for p in game.players.values():
 		p.wild = true
@@ -98,7 +98,7 @@ func host() -> void:
 		return
 	check(shepherd.windup == 0, "host cancels the first rally")
 	await until(func(): return Time.get_ticks_msec() >= int(shepherd.ready))
-	game.update_support_position(shepherd, game.support_allies(shepherd), game.Enemies.get_kind(10), 0.0, .016, Time.get_ticks_msec())
+	preload("res://enemy_formation.gd").follow_support(game, shepherd, preload("res://enemy_formation.gd").allies(game, shepherd), game.Enemies.get_kind(10), 0.0, .016, Time.get_ticks_msec())
 	if shepherd.get("attack", {}).get("variant") != Tactics.RELAY:
 		check(false, "host locks the relay")
 		return

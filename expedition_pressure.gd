@@ -16,7 +16,7 @@ static func safe(game: Node,at: Vector3) -> bool:
  if at.distance_to(game.battlefield.entry)<3 or at.distance_to(game.battlefield.advance)<3:return false
  for player in game.players.values():
   if game.Life.alive(player) and player.pos.distance_to(at)<SAFE_DISTANCE:return false
- if game.encounter.hp(-1)>0 and at.distance_to(game.enemy_pos)<1.5:return false
+ if game.encounter.hp(-1)>0 and at.distance_to(game.tactics.position)<1.5:return false
  for slot in game.encounter.scout_count():
   if game.encounter.hp(slot)>0 and game.encounter.position(slot).distance_to(at)<1.5:return false
  return true
@@ -42,10 +42,10 @@ static func plan(game: Node,wave: int) -> Array:
  return result
 static func tick(game: Node,now: int) -> void:
  if game.session=="Guest":return
- if game.difficulty_cycle<=0 or game.boss_kind>=0 or game.destination==game.Campaign.HEART or game.Life.living_ids(game).is_empty() or game.encounter_cleared():
-  game.leader_brain.erase("pressure");game.pressure_at=0;return
- if not game.leader_brain.has("pressure"):game.leader_brain.pressure={"wave":0,"pending":[]}
- var state: Dictionary=game.leader_brain.pressure
+ if game.difficulty_cycle<=0 or game.tactics.boss_kind>=0 or game.destination==game.Campaign.HEART or game.Life.living_ids(game).is_empty() or game.encounter_cleared():
+  game.tactics.memory.erase("pressure");game.pressure_at=0;return
+ if not game.tactics.memory.has("pressure"):game.tactics.memory.pressure={"wave":0,"pending":[]}
+ var state: Dictionary=game.tactics.memory.pressure
  if Balance.Preview.enabled and int(state.get("spawned_waves",0))>=Balance.pressure_limit(game.difficulty_cycle):
   game.pressure_at=0;return
  if game.pressure_at==0:game.pressure_at=now+interval(game.difficulty_cycle,0);return
@@ -74,9 +74,9 @@ static func tick(game: Node,now: int) -> void:
  game.Journal.event("combat","pressure_reinforcements",{"wave":state.wave,"spawned":spawned,"unsafe_or_full":skipped,"floor":game.encounter_number})
 static func hints(game: Node,now: int=-1) -> Array:
  var result: Array=[]
- if game.encounter_cleared() or not game.leader_brain.has("pressure"):return result
+ if game.encounter_cleared() or not game.tactics.memory.has("pressure"):return result
  if now<0:now=Time.get_ticks_msec()
- var state: Dictionary=game.leader_brain.pressure
+ var state: Dictionary=game.tactics.memory.pressure
  for index in state.pending.size():
   var at: Vector3=state.pending[index].pos
   result.append({"id":-900000-int(state.wave)*10-index,"role":"reinforcement","from":[at.x,0,at.z],"to":[at.x,0,at.z],"radius":1.1,"remaining":maxf(0,(game.pressure_at-now)/1000.0)})

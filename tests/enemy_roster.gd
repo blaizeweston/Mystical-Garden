@@ -63,7 +63,7 @@ func run():
 	p.wild=true
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
 	p.pos=Vector3(0,0,5.4)
-	game.enemy_pos=p.pos
+	game.tactics.position=p.pos
 	game.encounter.set_hp(-1, 10)
 	game.encounter.clear_scouts()
 	p.power=3
@@ -84,26 +84,26 @@ func run():
 	snare.mode="snare";snare.blast=p.pos
 	game.encounter.register_scout(snare)
 	var now:=Time.get_ticks_msec()
-	game.resolve_scout(snare,Enemies.get_kind(5),now)
+	preload("res://scout_behavior.gd").release(game, snare,Enemies.get_kind(5),now)
 	check(PlayerVitals.current_hp(p)==9 and p.slow_until>now,"Willow strike damages and entangles")
 	p.slow_until=0;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0
 	var volley: Dictionary=game.make_scout(1,p.pos,1)
 	volley.mode="volley";volley.blast=p.pos;volley.repeat=1
 	game.encounter.clear_scouts();game.encounter.register_scout(volley)
-	game.resolve_scout(volley,Enemies.get_kind(1),now)
+	preload("res://scout_behavior.gd").release(game, volley,Enemies.get_kind(1),now)
 	check(PlayerVitals.current_hp(p)==9 and volley.windup>now,"Nightbloom retains a second telegraphed pulse")
-	game.resolve_scout(volley,Enemies.get_kind(1),now+500)
+	preload("res://scout_behavior.gd").release(game, volley,Enemies.get_kind(1),now+500)
 	check(PlayerVitals.current_hp(p)==8 and volley.windup==0,"volley ends after two pulses")
 	var cantor: Dictionary=game.make_scout(3,p.pos,1)
 	var ally: Dictionary=game.make_scout(0,p.pos+Vector3.RIGHT,2)
 	cantor.mode="chant"
 	game.encounter.clear_scouts();game.encounter.register_scout(cantor);game.encounter.register_scout(ally)
-	game.resolve_scout(cantor,Enemies.get_kind(3),now)
+	preload("res://scout_behavior.gd").release(game, cantor,Enemies.get_kind(3),now)
 	check(ally.haste_until>now and PlayerVitals.current_hp(p)==8,"Cantor hastens allies instead of hurting the player")
 	var brood: Dictionary=game.make_scout(9,Vector3(0,0,5.4),1)
 	brood.mode="brood";p.pos=Vector3(0,0,10)
 	game.encounter.clear_scouts();game.encounter.register_scout(brood)
-	for attempt in 4: game.resolve_scout(brood,Enemies.get_kind(9),now+attempt*4000)
+	for attempt in 4: preload("res://scout_behavior.gd").release(game, brood,Enemies.get_kind(9),now+attempt*4000)
 	check(game.encounter.scout_count()==3 and brood.summons==2 and int(game.encounter.scout(1).mutations)&Enemies.JUVENILE,"Broodmother has a finite two-seedling brood")
 	game.encounter.clear_scouts()
 	game.encounter.set_hp(-1, 3)
@@ -111,29 +111,29 @@ func run():
 	game.encounter_number=5
 	game.enemy_kind=0
 	game.enemy_mutations=Enemies.MOBILITY
-	game.enemy_pos=Vector3(-6.5,0,-4.5)
+	game.tactics.position=Vector3(-6.5,0,-4.5)
 	p.pos=Vector3(-6.5,0,-1)
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
-	game.enemy_engaged=true
-	game.enemy_ready_at=0
-	game.enemy_stagger_until=0
-	game.update_enemy(.016,Time.get_ticks_msec())
-	check(game.enemy_attack_mode=="vault" and game.enemy_winding_up,"mobility growth telegraphs a vault across cover")
-	var landing: Vector3=game.enemy_landing
-	game.resolve_briar_strike(Time.get_ticks_msec()+1100)
-	check(game.enemy_pos==landing and not game.battlefield.occupied(landing,.34),"vault lands safely beyond cover")
+	game.tactics.engaged=true
+	game.tactics.ready_at=0
+	game.tactics.stagger_until=0
+	preload("res://leader_behavior.gd").tick(game, .016,Time.get_ticks_msec())
+	check(game.tactics.attack_mode=="vault" and game.tactics.winding_up,"mobility growth telegraphs a vault across cover")
+	var landing: Vector3=game.tactics.landing
+	preload("res://leader_behavior.gd").resolve(game, Time.get_ticks_msec()+1100)
+	check(game.tactics.position==landing and not game.battlefield.occupied(landing,.34),"vault lands safely beyond cover")
 	# Exercise each role through the actual director update, not only its resolver.
 	game.enemy_mutations=0
 	game.encounter.set_hp(-1, 0)
-	game.enemy_winding_up=false
+	game.tactics.winding_up=false
 	for kind in Enemies.all().size():
 		p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(0,0,5.4);p.slow_until=0;p.guard_until=0
 		var mob: Dictionary=game.make_scout(kind,p.pos+Vector3.RIGHT*.8,1)
 		game.encounter.clear_scouts();game.encounter.register_scout(mob)
 		var at:=Time.get_ticks_msec()
-		game.update_scouts(.016,at)
+		preload("res://scout_behavior.gd").tick(game, .016,at)
 		check(mob.windup>at,"every enemy role can telegraph through the director")
-		game.update_scouts(.016,at+int(Enemies.get_kind(kind).windup)+10)
+		preload("res://scout_behavior.gd").tick(game, .016,at+int(Enemies.get_kind(kind).windup)+10)
 	game.enemy_mutations=Enemies.MOBILITY
 	game.encounter_number=4
 	game.progress.burst_pressure=0

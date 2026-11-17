@@ -21,7 +21,7 @@ func run():
  for c in 5:
   for weapon in 3:
    p.frame=c;p.weapon_kind=weapon;p.strike_at=0
-   game.encounter.set_hp(-1, 20);game.enemy_pos=Vector3(0,0,5);game.projectile_queue.clear()
+   game.encounter.set_hp(-1, 20);game.tactics.position=Vector3(0,0,5);game.projectile_queue.clear()
    var form:=Motion.form(p);var pose:=Motion.pose(form,.5,true,0)
    poses.append(str(pose))
    game.strike_enemy(1,p,p.pos)
@@ -71,10 +71,10 @@ func run():
  check(hints.size()==1 and hints[0].role=="charge" and Vector3(hints[0].to[0],hints[0].to[1],hints[0].to[2]).distance_to(Vector3(0,0,4))<.1,"charge snapshot carries origin and locked endpoint")
  game.combat_visuals.sync([],hints,"test-lane",p.pos)
  check(game.combat_visuals.hints[0].mesh.mesh.get_surface_count()==1,"directional V lane has visible geometry")
- game.resolve_scout(stag,game.Enemies.get_kind(2),Time.get_ticks_msec()+1000)
+ preload("res://scout_behavior.gd").release(game, stag,game.Enemies.get_kind(2),Time.get_ticks_msec()+1000)
  check(PlayerVitals.current_hp(p)==9,"mid-lane player is struck by the projected charge")
  stag.pos=Vector3.ZERO;stag.blast=Vector3(0,0,4);p.pos=Vector3(2.5,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
- game.resolve_scout(stag,game.Enemies.get_kind(2),Time.get_ticks_msec()+1000)
+ preload("res://scout_behavior.gd").release(game, stag,game.Enemies.get_kind(2),Time.get_ticks_msec()+1000)
  check(PlayerVitals.current_hp(p)==10,"player outside lane and landing marker is safe")
  game.battlefield.barriers=[Rect2(-1.5,1.8,3,.4)];stag.pos=Vector3.ZERO;stag.blast=Vector3(0,0,4);stag.windup=1000
  hints=game.attack_hints_snapshot()

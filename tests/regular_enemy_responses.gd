@@ -3,6 +3,7 @@ extends SceneTree
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
+const ScoutBehavior = preload("res://scout_behavior.gd")
 const Attacks = preload("res://enemy_attack.gd")
 const Core = preload("res://core_combat.gd")
 const Effects = preload("res://core_skill_effects.gd")
@@ -32,11 +33,11 @@ func setup(kind: int, profile: Dictionary) -> Dictionary:
 	game.encounter_rewarded = false
 	game.encounter_number = profile.floor
 	game.map_seed = 10 + posmod(-37 - kind * 19 - int(profile.floor) * 11, 10)
-	game.boss_kind = -1
+	game.tactics.boss_kind = -1
 	game.encounter.set_hp(-1, 50)
 	game.enemy_kind = 0
-	game.enemy_pos = Vector3(-10, 0, 8)
-	game.leader_brain.clear()
+	game.tactics.position = Vector3(-10, 0, 8)
+	game.tactics.memory.clear()
 	game.encounter.clear_scouts()
 	game.wild_item_drops.clear()
 	game.enemy_hazards.clear()
@@ -164,7 +165,7 @@ func check_roster() -> void:
 		check(Attacks.SkillResponses.ready_profile(game, actor).is_empty(), "once per actor for " + str(profile.id))
 		validate_plan(kind, actor, move)
 		var impact_at: int = actor.windup
-		game.resolve_scout(actor, game.Enemies.get_kind(kind), impact_at)
+		preload("res://scout_behavior.gd").release(game, actor, game.Enemies.get_kind(kind), impact_at)
 		validate_result(kind, actor, move)
 		validate_visibility(kind, move, impact_at)
 		if kind == 16:
@@ -229,7 +230,7 @@ func check_counterplay() -> void:
 	if move.get("variant") != profile.id:
 		return
 	actor.rooted_until = int(actor.windup) + 1
-	game.resolve_scout(actor, game.Enemies.get_kind(2), actor.windup)
+	preload("res://scout_behavior.gd").release(game, actor, game.Enemies.get_kind(2), actor.windup)
 	check(actor.pos == Vector3.ZERO and PlayerVitals.current_hp(player) == 10 and game.combat_events.any(func(e): return e.shape == "stopped"), "a new root stops movement and shows the cancel cue")
 	check(not game.combat_events.any(func(e): return e.kind == "enemy_release"), "canceled charge cannot show a successful impact")
 	actor = setup(2, profile)
@@ -239,7 +240,7 @@ func check_counterplay() -> void:
 		game.set_meta(Core.STATE, {1: {"epoch": game.combat_epoch, "grown": true, "life": PlayerLifecycle.generation(player),
 			"expires": actor.windup + 500, "from": Vector3(-2, 0, -1.8), "to": Vector3(2, 0, -1.8),
 			"skill": {"mechanic": "line_trap", "radius": .35}}})
-		game.resolve_scout(actor, game.Enemies.get_kind(2), actor.windup)
+		preload("res://scout_behavior.gd").release(game, actor, game.Enemies.get_kind(2), actor.windup)
 		check(actor.pos == Vector3.ZERO and PlayerVitals.current_hp(player) == 10, "a live Thorn Line placed during the warning stops a ground charge")
 	actor = setup(2, profile)
 	learn(actor, profile, now)
@@ -255,7 +256,7 @@ func check_counterplay() -> void:
 	if move.get("variant") == profile.id:
 		var old := Vector3(game.encounter.scout(1).pos)
 		game.encounter.register_scout(game.make_scout(0, old, 2), 1)
-		game.resolve_scout(actor, game.Enemies.get_kind(11), actor.windup)
+		preload("res://scout_behavior.gd").release(game, actor, game.Enemies.get_kind(11), actor.windup)
 		check(actor.pos == Vector3.ZERO, "a recycled escort slot cannot pull the Grazer across the field")
 
 
@@ -276,6 +277,50 @@ func check_memory() -> void:
 	check(not independent.wilds_memory.score.has(Tactics.ROUTE_DENIAL), "route learning belongs to this host world")
 
 
+
+func check_scout_attack_intent() -> void:
+	var now := Time.get_ticks_msec()
+	var actor := setup(0, Tactics.REGULAR_RESPONSES[0])
+	player.pos = Vector3(0, 0, -1.0)
+	var definition: Dictionary = game.Enemies.get_kind(0)
+	var life := PlayerLifecycle.generation(player)
+	var token: int = game.encounter.token(0)
+	var observation := ScoutBehavior.attack_observation(0, token, game.combat_epoch, 1,
+		actor.pos, player.pos, definition.role, float(definition.range), int(actor.ready), now, life)
+	var intent := ScoutBehavior.choose_attack(observation)
+	check(observation.is_read_only() and intent == ScoutBehavior.AttackIntent.ATTACK,
+		"the ordinary scout policy accepts a detached, in-range observation")
+	ScoutBehavior.apply_attack_intent(game, observation, intent, now)
+	check(actor.windup > now and actor.has("attack"), "the host commits a valid intent to the normal telegraph")
+
+	actor.windup = 0
+	actor.erase("attack")
+	game.battlefield.barriers.append(Rect2(-.5, -.75, 1.0, .25))
+	ScoutBehavior.apply_attack_intent(game, observation, intent, now)
+	check(actor.windup == 0 and not actor.has("attack"), "the host rejects a previously clear attack when substantial cover intervenes")
+	game.battlefield.barriers.clear()
+	player.wild = false
+	ScoutBehavior.apply_attack_intent(game, observation, intent, now)
+	check(actor.windup == 0, "the host rejects an intent against a target that left the encounter")
+	player.wild = true
+	var previous_life: PlayerLifecycle.Life = player[PlayerLifecycle.STATE]
+	player[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
+	ScoutBehavior.apply_attack_intent(game, observation, intent, now)
+	check(actor.windup == 0, "a respawned occupant of the same player ID invalidates a pending decision")
+	player[PlayerLifecycle.STATE] = previous_life
+
+	game.combat_epoch += 1
+	ScoutBehavior.apply_attack_intent(game, observation, intent, now)
+	check(actor.windup == 0, "a decision from the previous floor cannot be committed")
+	var previous_occupant := ScoutBehavior.attack_observation(0, token, game.combat_epoch, 1,
+		actor.pos, player.pos, definition.role, float(definition.range), int(actor.ready), now, life)
+	var replacement: Dictionary = game.make_scout(0, Vector3.ZERO, 1)
+	game.encounter.register_scout(replacement, 0)
+	ScoutBehavior.apply_attack_intent(game, previous_occupant, intent, now)
+	check(replacement.windup == 0 and not replacement.has("attack"), "a pending decision cannot arm a reused scout slot")
+
+
+
 func run() -> void:
 	game = load("res://world.tscn").instantiate()
 	game.progress.path = "res://.godot/regular-enemy-responses-" + str(Time.get_ticks_usec()) + ".cfg"
@@ -285,6 +330,7 @@ func run() -> void:
 	game.set_physics_process(false)
 	player = game.players[1]
 	game.progress.wilds_memory.score = {Tactics.CAST_DENIAL: 6, Tactics.ROUTE_DENIAL: 6, Tactics.SHELTER_BREAK: 6}
+	check_scout_attack_intent()
 	check_roster()
 	check_counterplay()
 	check_memory()

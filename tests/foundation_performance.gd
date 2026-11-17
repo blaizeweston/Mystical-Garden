@@ -7,7 +7,7 @@ func run():
  for seed_value in [91247,98723,91261,77331,42518]:
   var start:=Time.get_ticks_usec();game.map_seed=seed_value;game.destination=1;game.depth=6;game.encounter_number=48;game.difficulty_cycle=4;game.reset_encounter();game.stage.visual_field=game.battlefield;game.stage.redraw_terrain(1,6,seed_value);generation.append((Time.get_ticks_usec()-start)/1000.)
  var frames: Array=[]
- p.pos=game.battlefield.entry;game.enemy_engaged=true
+ p.pos=game.battlefield.entry;game.tactics.engaged=true
  for mob in game.encounter.scout_tactics(): mob.engaged=true
  game._process(.016)
  for i in 40:

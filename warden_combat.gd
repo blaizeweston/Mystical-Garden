@@ -108,7 +108,7 @@ static func hints(game: Node, now: int) -> Array:
 static func contacts(game: Node, origin: Vector3, radius: float, skip: Array = []) -> Array[int]:
 	var result: Array[int] = []
 	for target in game.skill_area_targets(origin,radius,origin):
-		if target in skip or (target == -1 and game.boss_kind >= 0):
+		if target in skip or (target == -1 and game.tactics.boss_kind >= 0):
 			continue
 		result.append(target)
 	result.sort_custom(func(a,b):return origin.distance_squared_to(game.enemy_position(a)) < origin.distance_squared_to(game.enemy_position(b)))
@@ -172,7 +172,7 @@ static func prepared_until(game: Node, player: Dictionary, now: int) -> int:
 static func rebound(game: Node, origin: Vector3) -> void:
 	var moved := 0
 	for target in contacts(game,origin,2.25):
-		var winding: bool = game.enemy_winding_up if target == -1 else int(game.encounter.scout(target).windup) > 0
+		var winding: bool = game.tactics.winding_up if target == -1 else int(game.encounter.scout(target).windup) > 0
 		if winding:
 			continue
 		var point: Vector3 = game.enemy_position(target)
@@ -181,7 +181,7 @@ static func rebound(game: Node, origin: Vector3) -> void:
 		if point.is_equal_approx(landing):
 			continue
 		if target == -1:
-			game.enemy_pos = landing
+			game.tactics.position = landing
 		else:
 			game.encounter.scout(target).pos = landing
 		game.emit_combat_event("link","Briar Rebound",point,landing,.42,THORN,0.0,target)
@@ -228,7 +228,7 @@ static func quake_hit(game: Node, player: Dictionary, center: Vector3, targets: 
 	if learned(player,"pinning_quake"):
 		var count := 0
 		for target in targets:
-			if (target == -1 and game.boss_kind >= 0) or not game.Traits.valid_target(game,target):
+			if (target == -1 and game.tactics.boss_kind >= 0) or not game.Traits.valid_target(game,target):
 				continue
 			load("res://combat_status.gd").root(game,target,now+950)
 			count += 1

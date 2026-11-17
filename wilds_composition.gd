@@ -20,7 +20,7 @@ static func roster(game: Node, count: int) -> Array[int]:
  if count<=0:return roles
  var floor_number: int=game.encounter_number
  var site: int=game.destination
- if game.boss_kind>=0 or site==game.Campaign.HEART:
+ if game.tactics.boss_kind>=0 or site==game.Campaign.HEART:
   for i in count:roles.append(Catalog.choose(site if site<game.Campaign.HEART else game.Campaign.HOLLOW,floor_number,i,game.map_seed))
   return roles
  var pool:=eligible(site,floor_number)
@@ -74,8 +74,8 @@ static func companion_spawn(game: Node, route: int) -> Vector3:
  for distance in [3.8,4.8,5.8]:
   for step in 8:
    var angle: float=(step+posmod(int(game.map_seed),8))*TAU/8.0
-   var at: Vector3=game.enemy_pos+Vector3(cos(angle),0,sin(angle))*distance
-   if not partner_position(game,at) or not game.battlefield.clear_line(game.enemy_pos,at,.45):continue
+   var at: Vector3=game.tactics.position+Vector3(cos(angle),0,sin(angle))*distance
+   if not partner_position(game,at) or not game.battlefield.clear_line(game.tactics.position,at,.45):continue
    var position: Vector3=game.Director.spawn(game,at,route)
    if position.is_finite() and position.distance_to(at)<.15:return position
  return Vector3.INF

@@ -72,10 +72,10 @@ func host() -> void:
 	game.encounter.set_hp(-1, 30)
 	game.enemy_kind = 0
 	game.enemy_mutations = 0
-	game.enemy_pos = Vector3(0, 0, -5.8)
-	game.enemy_engaged = true
-	game.enemy_winding_up = true
-	game.enemy_strike_at = Time.get_ticks_msec() + 90000
+	game.tactics.position = Vector3(0, 0, -5.8)
+	game.tactics.engaged = true
+	game.tactics.winding_up = true
+	game.tactics.strike_at = Time.get_ticks_msec() + 90000
 	player.frame = game.Frames.RANGER
 	player.weapon_kind = 0
 	player.weapon = game.Parts.index_of("plant:ember_fern")
@@ -84,7 +84,7 @@ func host() -> void:
 		check(false, "Banked Coals keeps the trail hot for four damage ticks on the host")
 		return
 	game.encounter.set_hp(-1, 30)
-	game.enemy_pos = Vector3(0, 0, -2)
+	game.tactics.position = Vector3(0, 0, -2)
 	player.core_ready_at = 0
 	player.core_cast_until = 0
 	player.cast_until = 0
@@ -100,15 +100,15 @@ func host() -> void:
 		return
 
 	game.encounter.clear_scouts()
-	game.rooted_until = 0
-	game.enemy_pos = Vector3(0, 0, -5.8)
+	game.tactics.rooted_until = 0
+	game.tactics.position = Vector3(0, 0, -5.8)
 	player.pos = Vector3.ZERO
 	player.weapon = game.Parts.index_of("plant:ghost_fern")
 	player.run_upgrades = {"core_phantom_step": 1}
 	player.core_ready_at = 0
 	player.core_cast_until = 0
 	player.cast_until = 0
-	check(await until(func(): return game.rooted_until > Time.get_ticks_msec() and Vector3(player.pos).distance_to(Vector3(0, 0, 1.7)) < .05), "the host resolves the remote root and backward movement")
+	check(await until(func(): return game.tactics.rooted_until > Time.get_ticks_msec() and Vector3(player.pos).distance_to(Vector3(0, 0, 1.7)) < .05), "the host resolves the remote root and backward movement")
 	mark("done")
 	check(await until(func(): return marked("verified")), "guest confirms movement and root")
 

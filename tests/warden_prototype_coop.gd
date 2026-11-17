@@ -73,7 +73,7 @@ func host() -> void:
 		return
 	check(player.character.upgrades[1]==1<<Warden.OFFSET and player.frame==0,"host spends the guest's point on the inspected class")
 	game.encounter.set_hp(-1, 0)
-	game.enemy_pos=Vector3(0,0,-1.5)
+	game.tactics.position=Vector3(0,0,-1.5)
 	game.battlefield.configure(game.destination,game.depth,game.map_seed)
 	game.battlefield.barriers.clear()
 	game.encounter.clear_scouts()
@@ -93,21 +93,21 @@ func host() -> void:
 	game.combat_epoch+=1
 	game.encounter_number=4
 	game.encounter.set_hp(-1, 100)
-	game.enemy_stagger_until=Time.get_ticks_msec()+60000
+	game.tactics.stagger_until=Time.get_ticks_msec()+60000
 	player.pos=Vector3.ZERO
 	game.players[1].pos=Vector3(0,0,2.0)
 	mark("arena")
 	if not await until(func():return not Combat.anchor(game,player,Time.get_ticks_msec()).is_empty()):
 		check(false,"guest release creates a real anchor")
 		return
-	game.apply_enemy_hit(id,player,Time.get_ticks_msec(),1,0,game.enemy_pos)
+	game.apply_enemy_hit(id,player,Time.get_ticks_msec(),1,0,game.tactics.position)
 	player.pos=Vector3(0,0,4.6)
 	mark("move")
 	if not await until(func():return game.enemy_health()<100):
 		check(false,"guest Quake hits at the anchor beyond personal reach")
 		return
 	check(player.warden_anchor.uses==1 and Combat.prepared_until(game,player,Time.get_ticks_msec())==0,"purchase preserves anchor once and confirmed Quake consumes preparation")
-	check(game.rooted_until>Time.get_ticks_msec(),"offensive bridge roots the hit from the neutral anchor")
+	check(game.tactics.rooted_until>Time.get_ticks_msec(),"offensive bridge roots the hit from the neutral anchor")
 	mark("done")
 	check(await until(func():return marked("observed")),"guest receives root feedback")
 

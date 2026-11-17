@@ -89,7 +89,7 @@ static func targets(game: Node, cast: Dictionary, skill: Dictionary, card: Dicti
 
 
 static func in_windup(game: Node, target: int, now: int) -> bool:
-	return game.enemy_winding_up if target == -1 else int(game.encounter.scout(target).get("windup",0)) > now
+	return game.tactics.winding_up if target == -1 else int(game.encounter.scout(target).get("windup",0)) > now
 
 
 static func allies(game: Node, center: Vector3, radius: float) -> Array[Dictionary]:
@@ -204,7 +204,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 			continue
 		if bind > 0:
 			var until := now+bind+int(stats.get("skill_duration",0))
-			var previous: int = game.rooted_until if target == -1 else int(game.encounter.scout(target).get("rooted_until",0))
+			var previous: int = game.tactics.rooted_until if target == -1 else int(game.encounter.scout(target).get("rooted_until",0))
 			preload("res://combat_status.gd").root(game,target,until)
 			q_contact = q_contact or until > previous
 		if skill.has("pull"):
@@ -280,12 +280,12 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 static func pull(game: Node, target: int, center: Vector3, amount: float, now: int) -> void:
 	if in_windup(game,target,now):
 		return
-	if target == -1 and game.boss_kind >= 0:
+	if target == -1 and game.tactics.boss_kind >= 0:
 		return
 	var point: Vector3 = game.enemy_position(target)
 	var moved: Vector3 = game.battlefield.dash(point,point.move_toward(center,amount))
 	if target == -1:
-		game.enemy_pos = moved
+		game.tactics.position = moved
 	else:
 		game.encounter.scout(target).pos = moved
 	if point.distance_squared_to(moved) > .01:

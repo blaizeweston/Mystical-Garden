@@ -13,7 +13,7 @@ func run():
  game.progress.path="res://.godot/status-"+token;game.local_character.path=game.progress.path+".character";root.add_child(game)
  game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
  var p: Dictionary=game.players[1];p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(0,0,-1);p.power=0
- game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.encounter.set_hp(-1, 80);game.enemy_pos=Vector3(0,0,1);game.enemy_traits.clear();game.encounter.clear_scouts();game.enemy_winding_up=false
+ game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.encounter.set_hp(-1, 80);game.tactics.position=Vector3(0,0,1);game.enemy_traits.clear();game.encounter.clear_scouts();game.tactics.winding_up=false
  var now:=Time.get_ticks_msec();p.slow_until=now+4000
  var stats: Dictionary=game.weapon_stats(p);stats.damage=1;stats.mark_damage=2
  game.apply_weapon_hit(p,-1,p.pos,stats,now);Status.sync(game,now)
@@ -40,7 +40,7 @@ func run():
  var omen: Dictionary=stats.duplicate();omen.mark_damage=0;omen.omen=1
  game.Traits.augment_hit(game,p,-1,omen,now+6)
  check(game.enemy_traits.marked_until>0,"omen preserves a mark when the enemy is not winding up")
- game.enemy_winding_up=true;game.Traits.augment_hit(game,p,-1,omen,now+7);game.enemy_winding_up=false
+ game.tactics.winding_up=true;game.Traits.augment_hit(game,p,-1,omen,now+7);game.tactics.winding_up=false
  check(game.enemy_traits.marked_until==0,"omen consumes its mark when its wind-up bonus really triggers")
  p.slow_until=now+20;Status.sync(game,now+10);Status.sync(game,now+21)
  check(not Status.snapshot(game,now+21).any(func(e):return e.shape=="slow"),"timed expiry clears status independently of text")
@@ -50,10 +50,10 @@ func run():
  game.encounter.clear_scouts();game.encounter.register_scout(game.make_scout(0,Vector3(1,0,1),0));game.encounter.set_hp(0, 80);game.encounter.scout(0).pos=Vector3(1,0,1);game.encounter.scout(0).engaged=false;game.trait_events.clear()
  var secondary: Dictionary={"damage":2,"reach":4.0}
  for kind in ["echo","link","chorus"]:
-  game.Traits.queue_hit(game,p,0,secondary,now,20,false,game.enemy_pos,kind)
+  game.Traits.queue_hit(game,p,0,secondary,now,20,false,game.tactics.position,kind)
   hp=game.encounter.hp(0);game.Traits.tick(game,now+25)
   check(game.encounter.hp(0)<hp and game.combat_events.any(func(e):return e.kind=="proc" and e.shape==kind),"confirmed "+kind+" hit has a matching effect")
- game.combat_events.clear();game.Traits.queue_hit(game,p,0,secondary,now,20,false,game.enemy_pos,"echo")
+ game.combat_events.clear();game.Traits.queue_hit(game,p,0,secondary,now,20,false,game.tactics.position,"echo")
  var replacement: Dictionary=game.make_scout(0,game.encounter.scout(0).pos,0)
  game.encounter.register_scout(replacement, 0);game.Traits.tick(game,now+25)
  check(not game.combat_events.any(func(e):return e.kind=="proc"),"stale delayed attack cannot show a false proc on a new enemy")

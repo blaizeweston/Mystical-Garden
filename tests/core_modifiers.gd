@@ -72,7 +72,7 @@ func run() -> void:
 	game.enemy_mutations = 0
 	game.enemy_growth = 0
 	game.encounter.set_hp(-1, 20)
-	game.enemy_pos = Vector3(0, 0, -2.2)
+	game.tactics.position = Vector3(0, 0, -2.2)
 	game.encounter.clear_scouts();game.encounter.register_scout(scout(game, Vector3.ZERO, 1));game.encounter.register_scout(scout(game, Vector3(0, 0, -3.5), 2));game.encounter.register_scout(scout(game, Vector3(0, 0, -4.8), 3))
 	game.encounter.scout(0).pos = Vector3(Hurt.radius(game, 0) + .24, 0, -1.15)
 	var lance := cast(game, player)
@@ -91,7 +91,7 @@ func run() -> void:
 	check(not game.has_meta(Core.STATE) and game.combat_events.any(func(event): return event.kind == "projectile_end" and event.shape == str(lance.flight_event)), "projectile dissipates after its last valid hit")
 
 	game.battlefield.barriers = [Rect2(-2, -3.2, 4, .5)]
-	game.enemy_pos = Vector3(0, 0, -3.8)
+	game.tactics.position = Vector3(0, 0, -3.8)
 	game.encounter.set_hp(-1, 20)
 	game.encounter.clear_scouts()
 	lance = cast(game, player)
@@ -105,8 +105,8 @@ func run() -> void:
 	player.secondary = cinder
 	player.catalyst = storm
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
-	game.rooted_until = 0
-	game.enemy_pos = Vector3(0, 0, -3.25)
+	game.tactics.rooted_until = 0
+	game.tactics.position = Vector3(0, 0, -3.25)
 	game.encounter.set_hp(-1, 20)
 	var trap := cast(game, player)
 	if trap.is_empty():
@@ -118,11 +118,11 @@ func run() -> void:
 	trap.release = now - 100
 	trap.armed = now - 100
 	Core.tick(game, now)
-	check(Core.hints(game).size() == 1 and game.rooted_until == 0, "enemy beyond the line does not trigger it by proximity alone")
+	check(Core.hints(game).size() == 1 and game.tactics.rooted_until == 0, "enemy beyond the line does not trigger it by proximity alone")
 	player.core_cast_until = 0
 	player.cast_until = 0
 	game.send_garden_action("class_skill_two")
-	check(game.rooted_until > now and game.enemy_health() == 20 and Core.hints(game).size() == 1, "Root Quake lashes at an enemy outside the quake and preserves the line")
+	check(game.tactics.rooted_until > now and game.enemy_health() == 20 and Core.hints(game).size() == 1, "Root Quake lashes at an enemy outside the quake and preserves the line")
 	check(game.combat_events.any(func(event): return event.shape == "Thorn lash"), "Root Quake lash is visible")
 	await finish(game)
 

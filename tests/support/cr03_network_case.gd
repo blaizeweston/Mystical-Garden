@@ -187,9 +187,9 @@ func host(menu: Node) -> void:
 		target=game.battlefield.dash(floor_entry,floor_entry+direction*1.10)
 		if floor_entry.distance_to(target)>.9:break
 	check(floor_entry.distance_to(target)>.8,"usable Frost fixture area on generated floor")
-	game.enemy_pos=target
+	game.tactics.position=target
 	game.encounter.set_hp(-1, 150)
-	game.enemy_stagger_until=Time.get_ticks_msec()+18000
+	game.tactics.stagger_until=Time.get_ticks_msec()+18000
 	var rows: Array=[]
 	var ruptures: Array=[]
 	game.set_meta(Events.RECORD,func(event):rows.append(event))
@@ -242,7 +242,7 @@ func host(menu: Node) -> void:
 		mark("wood-guard-"+str(ward_guest))
 		if not check(await until(func():return warded.guard_charges>0),"native remote Q arms Wood Ward"):return
 		var hp_before: float=PlayerVitals.current_hp(warded)
-		game.apply_enemy_hit(ward_guest,warded,Time.get_ticks_msec(),2,0,game.enemy_pos)
+		game.apply_enemy_hit(ward_guest,warded,Time.get_ticks_msec(),2,0,game.tactics.position)
 		check(PlayerVitals.current_hp(warded)==hp_before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==ward_guest and e.primary_affinity=="wood" and e.quality=="ordinary"),
 			"real Wood Ward bursts with its own provenance after the Frost Ward")
 		check(warded.get("affinity_bark_grants",[]).any(func(grant):return grant.actor==ward_guest and grant.quality=="ordinary"),"Wood Ward retains ordinary source capacity")
@@ -275,12 +275,12 @@ func host(menu: Node) -> void:
 				check((Vector3(visitor.pos)-departure).dot(aim)>=.28 and visitor.has("affinity_spirit_strides"),
 					"authorized guest step grants stride and moves along its chosen clear direction")
 			"fire":
-				check(game.leader_brain.get("affinity_burning",{}).has("%d/core"%source),"guest trail actually ignites leader")
+				check(game.tactics.memory.get("affinity_burning",{}).has("%d/core"%source),"guest trail actually ignites leader")
 			"water":
-				check(await until(func():return local.slow_until==0 and game.leader_brain.get("affinity_drenched",{}).has("%d/core"%source)),
+				check(await until(func():return local.slow_until==0 and game.tactics.memory.get("affinity_drenched",{}).has("%d/core"%source)),
 					"guest Dewfall cleanses host and actually Drenches leader")
 			"thorn":
-				check(await until(func():return game.leader_brain.get("affinity_bleed",{}).has("%d/core"%source)),
+				check(await until(func():return game.tactics.memory.get("affinity_bleed",{}).has("%d/core"%source)),
 					"stationary guest Thorn Line slows and wounds a real enemy on the host")
 				mark("thorn-"+str(source))
 				check(await until(func():return read("thorn-seen-"+str(source))=="ok"),"guest receives the authoritative field geometry")
@@ -290,7 +290,7 @@ func host(menu: Node) -> void:
 					var grants: Array=local.get("affinity_bark_grants",[])
 					check(grants.any(func(grant):return grant.actor==ward_guest and grant.quality=="ordinary") and grants.any(func(grant):return grant.actor==source and grant.admitted==36),
 						"separate Wood sources coexist with a capped refined grant")
-					var wounds: Dictionary=game.leader_brain.get("affinity_bleed",{})
+					var wounds: Dictionary=game.tactics.memory.get("affinity_bleed",{})
 					check(wounds.has("%d/core"%ids[0]) and wounds.has("%d/core"%ids[1]),"two real Thorn sources remain independent")
 				mark("bark-"+str(source))
 				check(await until(func():return read("bark-seen-"+str(source))=="ok"),"guest receives Bark presentation through authoritative details")
@@ -344,7 +344,7 @@ func host(menu: Node) -> void:
 		check(local.character.xp[0]==xp_before[0] and ally.character.xp[0]==xp_before[1],
 			"queued scout XP stays out of both profiles before floor settlement")
 	game.encounter.set_hp(-1, 3)
-	game.enemy_pos=target
+	game.tactics.position=target
 	for seed_value in range(1,40):
 		game.rng.seed=seed_value
 		var rng_before: int=game.rng.state
@@ -540,7 +540,7 @@ func exercise_connected_host(game: Node, local: Dictionary, player: Dictionary, 
 	var now := Time.get_ticks_msec()
 	var hp: int = PlayerVitals.current_hp(player)
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, now+1000)
-	game.apply_enemy_hit(id,player,now,4,0,game.enemy_pos)
+	game.apply_enemy_hit(id,player,now,4,0,game.tactics.position)
 	var blocks := func():return events.filter(func(e):return e.kind=="actual_block" and e.source_actor==id)
 	check(PlayerVitals.current_hp(player)==hp and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)==now and player.get("warden_sanctuary",{}).get("until",0)>now
 		and player.get("warden_holdfast",{}).get("actor")==id and local.get("warden_holdfast",{}).get("actor")==id
@@ -618,8 +618,8 @@ func exercise_ranger_host(game: Node,id: int,entry: Vector3,target: Vector3,even
 	var ranger: Dictionary=game.players[id]
 	var ally: Dictionary=game.players[1]
 	game.encounter.set_hp(-1, 150)
-	game.enemy_pos=target
-	game.enemy_stagger_until=Time.get_ticks_msec()+12000
+	game.tactics.position=target
+	game.tactics.stagger_until=Time.get_ticks_msec()+12000
 	ranger.pos=entry
 	ally.pos=entry
 	var direction := entry.direction_to(target)
@@ -667,8 +667,8 @@ func exercise_ranger_guest(game: Node,id: int) -> bool:
 func exercise_reaper_host(game: Node,id: int,entry: Vector3,target: Vector3,events: Array) -> bool:
 	var reaper: Dictionary = game.players[id]
 	game.encounter.set_hp(-1, 150)
-	game.enemy_pos=target
-	game.enemy_stagger_until=Time.get_ticks_msec()+14000
+	game.tactics.position=target
+	game.tactics.stagger_until=Time.get_ticks_msec()+14000
 	reaper.pos=entry
 	var direction := entry.direction_to(target)
 	mark("reaper-aim",JSON.stringify([direction.x,direction.z]))
@@ -686,7 +686,7 @@ func exercise_reaper_host(game: Node,id: int,entry: Vector3,target: Vector3,even
 	if not check(await until(spent,3000),"one live melee contact spends Momentum and emits one ordinary Form contact"):return false
 	if not check(game.encounter.scout_count()>0,"the generated floor has a scout for a native class kill"):return false
 	reaper.pos=entry
-	game.enemy_pos=game.battlefield.leader
+	game.tactics.position=game.battlefield.leader
 	var scout: Dictionary = game.encounter.scout(0)
 	scout.pos=target
 	game.encounter.set_hp(0,1)
@@ -732,7 +732,7 @@ func exercise_oracle_host(game: Node,id: int,entry: Vector3) -> bool:
 	oracle[Cooldowns.STATE] = oracle[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	oracle.core_cast_until=0
 	oracle[Cooldowns.STATE] = oracle[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
-	game.enemy_stagger_until=Time.get_ticks_msec()+14000
+	game.tactics.stagger_until=Time.get_ticks_msec()+14000
 	mark("oracle-q")
 	var q_ready := func() -> bool:
 		var now := Time.get_ticks_msec()
@@ -815,8 +815,8 @@ func learn_weaver_guest(game: Node) -> bool:
 func exercise_weaver_host(game: Node, id: int, entry: Vector3, target: Vector3, events: Array) -> bool:
 	var player: Dictionary=game.players[id]
 	game.encounter.set_hp(-1, 150)
-	game.enemy_pos=target
-	game.enemy_stagger_until=Time.get_ticks_msec()+12500
+	game.tactics.position=target
+	game.tactics.stagger_until=Time.get_ticks_msec()+12500
 	player.pos=entry
 	var aim := (target-entry).normalized()
 	var nova_deadline := Time.get_ticks_msec() + 1200
@@ -1162,7 +1162,7 @@ func verify_current_snapshot_host(game: Node, ids: Array, local: Dictionary) -> 
 	var now := Time.get_ticks_msec()
 	for hp in [10,120]:
 		local.hurt_until=0
-		game.apply_enemy_hit(1,local,now,float(hp)/game.Life.Preview.scale(),0,game.enemy_pos)
+		game.apply_enemy_hit(1,local,now,float(hp)/game.Life.Preview.scale(),0,game.tactics.position)
 	var burst: Array = game.combat_events.filter(func(e):return e.shape=="wood_burst" and e.get("label")=="Bark break")
 	check(not local.has(wood.GRANTS) and burst.size()==1 and PlayerVitals.current_hp(local)<250 and PlayerVitals.current_hp(local)>0,"host consumes Bark once and emits one break response")
 	if burst.is_empty():return
@@ -1225,7 +1225,7 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 	game.set_meta(&"snapshot_witness",func(row):record_snapshot(rows,row))
 	var previous: Vector3=game.drop_pos
 	game.encounter.set_hp(-1, 487)
-	game.enemy_stagger_until=Time.get_ticks_msec()+9000
+	game.tactics.stagger_until=Time.get_ticks_msec()+9000
 	if native_graft_case:
 		var caster: Dictionary = game.players[ids[0]]
 		if not check(await until(func():return Time.get_ticks_msec()>=int(Grafts.counters(caster,"monster:ashen_hart").get("ready_at",0)),4500),
@@ -1253,7 +1253,7 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 			game.encounter.register_scout(scout)
 		var caster: Dictionary=game.players[ids[2]]
 		caster.core_ready_at=0;caster.cast_until=0;caster.core_cast_until=0
-		var aim: Vector3=(game.enemy_pos-caster.pos).normalized()
+		var aim: Vector3=(game.tactics.position-caster.pos).normalized()
 		game.garden_action(ids[2],Core.request(game,caster,Vector2(aim.x,aim.z),1.1))
 	if native_graft_case:
 		var position: Vector3 = game.encounter.scout(game.encounter.scout_count()-1).pos

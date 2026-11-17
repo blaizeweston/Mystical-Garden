@@ -30,9 +30,9 @@ func prepare(class_id: int, lane: int) -> void:
 	game.combat_events.clear()
 	game.enemy_traits.clear()
 	game.encounter.set_hp(-1, 100)
-	game.enemy_pos = Vector3(0,0,-2.4)
-	game.enemy_winding_up = false
-	game.rooted_until = 0
+	game.tactics.position = Vector3(0,0,-2.4)
+	game.tactics.winding_up = false
+	game.tactics.rooted_until = 0
 	game.battlefield.barriers.clear()
 	player.character = game.Character.blank()
 	player.character.xp[class_id] = 2600
@@ -95,7 +95,7 @@ func press_release(class_id: int, lane: int) -> void:
 		check(game.trait_events.any(func(event): return event.kind == "snare"), "ability sets a lingering ground trap")
 		game.Traits.tick(game,Time.get_ticks_msec()+300)
 	if skill.id in ["thornbinder","silkwarden","snarekeeper"]:
-		check(game.rooted_until>Time.get_ticks_msec(),"roots the intended enemy")
+		check(game.tactics.rooted_until>Time.get_ticks_msec(),"roots the intended enemy")
 	if skill.id in ["wildstalker","veilwalker"]:
 		check(game.enemy_health()<100 and game.enemy_traits.has("core_strike_mark"),"hit leaves the promised consumable mark")
 	if skill.id=="wildstalker":

@@ -2,6 +2,7 @@ extends RefCounted
 const Batch=preload("res://save_batch.gd")
 const MonsterRewards = preload("res://monster_rewards.gd")
 const EncounterRoster = preload("res://encounter_roster.gd")
+const EnemyTactics = preload("res://enemy_tactics.gd")
 
 static func snapshot(object: Object) -> Dictionary:
  var result: Dictionary={}
@@ -59,6 +60,8 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
  var reward_savepoint: Dictionary = rewards.savepoint() if rewards != null else {}
  var encounter: EncounterRoster = game.get("encounter")
  var encounter_savepoint := encounter.savepoint() if encounter != null else {}
+ var tactics: EnemyTactics = game.get("tactics")
+ var tactics_savepoint := snapshot(tactics) if tactics != null else {}
  var begin_error := Batch.begin(game.progress.path)
  if begin_error != OK:
   verdict.error = begin_error
@@ -78,7 +81,9 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
   restore(game.progress,world);game.progress.heart.restore(heart);restore(game.progress.campaign,campaign)
   restore(game,state)
   if encounter != null:
-   encounter.restore_savepoint(encounter_savepoint, game.leader_brain.get("elite"))
+   encounter.restore_savepoint(encounter_savepoint)
+  if tactics != null:
+   restore(tactics,tactics_savepoint)
   if rewards != null:
    rewards.restore_savepoint(reward_savepoint)
   for id in players:
@@ -243,6 +248,9 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
   var encounter: EncounterRoster = game.get("encounter")
   if encounter != null:
    captured.encounter = encounter.savepoint()
+  var tactics: EnemyTactics = game.get("tactics")
+  if tactics != null:
+   captured.tactics = snapshot(tactics)
   if game.has_method("snapshot_expedition_runtime"):
    captured.expedition = game.snapshot_expedition_runtime()
   game.transaction_publishes.clear()
@@ -339,7 +347,9 @@ static func _restore_guarded(game: Node, captured: Dictionary) -> void:
  restore(game.progress.campaign, captured.campaign)
  restore(game, captured.game)
  if captured.has("encounter"):
-  game.encounter.restore_savepoint(captured.encounter, game.leader_brain.get("elite"))
+  game.encounter.restore_savepoint(captured.encounter)
+ if captured.has("tactics"):
+  restore(game.tactics,captured.tactics)
  if captured.has("monster_rewards"):
   game.monster_rewards.restore_savepoint(captured.monster_rewards)
  restore_dict(game.players, captured.players)

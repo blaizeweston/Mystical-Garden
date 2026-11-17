@@ -81,6 +81,6 @@ static func root_contact(game: Node, target: int, duration: int, now: int) -> vo
 		return
 	var until := now + duration
 	if target == -1:
-		game.rooted_until = maxi(game.rooted_until, until)
+		game.tactics.rooted_until = maxi(game.tactics.rooted_until, until)
 	else:
 		game.encounter.scout(target).rooted_until = maxi(int(game.encounter.scout(target).rooted_until), until)

@@ -54,7 +54,7 @@ func host() -> void:
 	game.battlefield.configure(0,1,0)
 	game.map_seed = 0
 	game.encounter.set_hp(-1, 0)
-	game.enemy_winding_up = false
+	game.tactics.winding_up = false
 	game.encounter_rewarded = false
 	for player in game.players.values():
 		player.wild = true

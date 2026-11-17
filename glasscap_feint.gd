@@ -37,7 +37,7 @@ static func open_site(game: Node, actor: Dictionary, point: Vector3) -> bool:
 	for player in game.players.values():
 		if game.Life.alive(player) and point.distance_to(player.pos)<1.3:
 			return false
-	if game.encounter.hp(-1)>0 and not actor.get("gate_elite",false) and point.distance_to(game.enemy_pos)<1.25:
+	if game.encounter.hp(-1)>0 and not actor.get("gate_elite",false) and point.distance_to(game.tactics.position)<1.25:
 		return false
 	for slot in game.encounter.scout_count():
 		var other: Dictionary=game.encounter.scout(slot)
@@ -76,16 +76,16 @@ static func holding(game: Node, actor: Dictionary, now: int) -> bool:
 static func hints(game: Node, now: int) -> Array:
 	var result: Array = []
 	for slot in range(-1,game.encounter.scout_count()):
-		var actor: Dictionary = game.leader_brain.get("elite",{}) if slot<0 else game.encounter.scout(slot)
+		var actor: Dictionary = game.encounter.leader_tactics() if slot<0 else game.encounter.scout(slot)
 		var feint: Dictionary = actor.get("glass_feint",{})
 		if feint.is_empty() or int(feint.epoch)!=game.combat_epoch or feint.points.is_empty():
 			continue
 		var alive: bool = game.encounter.hp(slot)>0
-		var winding: bool = game.enemy_winding_up and game.enemy_attack_mode=="volley" if slot<0 else int(actor.windup)>0 and actor.mode=="volley"
+		var winding: bool = game.tactics.winding_up and game.tactics.attack_mode=="volley" if slot<0 else int(actor.windup)>0 and actor.mode=="volley"
 		var released := int(feint.until)>0
 		if not alive or (now>=int(feint.until) if released else not winding):
 			continue
-		var at: Vector3 = game.enemy_pos if slot<0 else actor.pos
+		var at: Vector3 = game.tactics.position if slot<0 else actor.pos
 		result.append({"id":feint.id,"role":ROLE,"slot":slot,"real":pack_point(at),
 			"decoys":feint.points.map(pack_point),"released":released})
 	return result

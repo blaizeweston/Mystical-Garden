@@ -130,12 +130,12 @@ func host() -> void:
  var kind: int = game.enemy_kind
  var host_count: int = game.players[1].character.monsters[kind]
  game.encounter.set_hp(-1, 0)
- game.record_enemy_death(-1,game.enemy_pos,Vector3.ZERO)
+ game.record_enemy_death(-1,game.tactics.position,Vector3.ZERO)
  var frozen: int = game.rng.state
- game.record_enemy_death(-1,game.enemy_pos,Vector3.ZERO)
+ game.record_enemy_death(-1,game.tactics.position,Vector3.ZERO)
  check(game.monster_rewards.pending_count()==1 and game.rng.state==frozen,"duplicate kill cannot reroll")
  game.encounter.clear_scouts()
- game.finish_combat(1,game.enemy_pos)
+ game.finish_combat(1,game.tactics.position)
  if not await until(func(): return read("combat-1")=="yes" and read("combat-2")=="yes" and read("combat-3")=="yes" and committed_guests(game)==3):
   check(false,"all three guest reward profiles commit and acknowledge")
   return
@@ -166,7 +166,7 @@ func host() -> void:
  var leaving: int = player_id(game,"1")
  var identity: String = game.players[leaving].seed_owner
  var kills: int = game.players[leaving].character.monsters[kind]
- game._queue_monster_reward("pending-on-disconnect",kind,0,game.enemy_pos,false)
+ game._queue_monster_reward("pending-on-disconnect",kind,0,game.tactics.position,false)
  var disconnect_key: String = game.monster_rewards.pending_receipts()[0].key
  game.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):
   if settlement_fault=="uncertain" and phase in ["publish_commit_marker","restore"]: return ERR_CANT_CREATE

@@ -38,46 +38,46 @@ func run() -> void:
  for kind in range(20,24):
   game.reset_expedition();game.destination=0;game.encounter_number=20;game.depth=2;game.map_seed=9871
   game.boss_floors["20"]=kind;game.used_bosses.append(kind);game.reset_encounter()
-  check(game.boss_kind==kind and game.enemy_kind==kind and game.enemy_health()>=50,"boss installed as primary actor")
+  check(game.tactics.boss_kind==kind and game.enemy_kind==kind and game.enemy_health()>=50,"boss installed as primary actor")
   check(game.battlefield.connected(),"boss lair connects entry, gate, altar and cache")
   check(game.battlefield.boss_kind==kind,"authority uses lair geometry")
   var guest_field=load("res://battlefield.gd").new();guest_field.configure(0,2,9871,kind,0)
   check(guest_field.clearings==game.battlefield.clearings and guest_field.barriers==game.battlefield.barriers,"guest deterministic lair")
   if kind==20: check(game.battlefield.clearings[0].z==22,"Orchard has a broad oversized arena")
   var count: int=game.used_bosses.size();game.reset_encounter()
-  check(game.boss_kind==kind and game.used_bosses.size()==count,"combat reset preserves floor decision")
+  check(game.tactics.boss_kind==kind and game.used_bosses.size()==count,"combat reset preserves floor decision")
   var packet: PackedInt32Array=game.campaign_snapshot()
   check(packet[game.EncounterConfig.BOSS_KIND]==kind,"public map descriptor in snapshot")
   p.wild=true;p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0
   for move in game.Enemies.get_kind(kind).moves:
-   game.enemy_pos=Vector3(0,0,5);game.enemy_hazards.clear()
+   game.tactics.position=Vector3(0,0,5);game.enemy_hazards.clear()
    if Lairs.Routes.supports(kind):
     check(Lairs.commit(game,move,1,1000),"lair commits "+move)
    else:
     check(Phases.commit(game,move,1,1000),"phase fight commits "+move)
    game.Bosses.resolve(game,1000)
-   check(not game.enemy_winding_up and game.enemy_ready_at>1000,"move resolves with recovery: "+move)
+   check(not game.tactics.winding_up and game.tactics.ready_at>1000,"move resolves with recovery: "+move)
   check(game.enemy_hazards.size()<=32,"boss hazard budget")
   if kind==22:
    check(game.encounter.scout_tactics().any(func(s):return s.get("summoned",false)),"Matriarch actually breeds finite nonrewarding minions")
    for phase in 3:
     game.battlefield.configure(0,2,9871,kind,phase);check(game.battlefield.connected(),"reshaped nest remains connected")
-  game.stage.draw_state(game.players,1,game.enemy_pos,game.enemy_health(),false,3,Vector3.ZERO,false,[],2,6,true,false,false,packet,game.scout_snapshot(1000),.016)
+  game.stage.draw_state(game.players,1,game.tactics.position,game.enemy_health(),false,3,Vector3.ZERO,false,[],2,6,true,false,false,packet,game.scout_snapshot(1000),.016)
   check(game.stage.visual_field.boss_kind==kind,"rendered stage preserves boss lair")
-  game.enemy_kind=kind;game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3(0,0,3.2);p.pos=Vector3.ZERO;p.strike_at=0;p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.frame=0;p.weapon_kind=0
-  game.enemy_pos=Vector3(0,0,float(game.Enemies.get_kind(kind).hurt_radius)+float(game.weapon_stats(p).reach)-.2)
+  game.enemy_kind=kind;game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,3.2);p.pos=Vector3.ZERO;p.strike_at=0;p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.frame=0;p.weapon_kind=0
+  game.tactics.position=Vector3(0,0,float(game.Enemies.get_kind(kind).hurt_radius)+float(game.weapon_stats(p).reach)-.2)
   check(game.select_attack_target(p,float(game.weapon_stats(p).reach))==-1,"large boss can be struck at its visible body edge")
   game.strike_enemy(1,p,p.pos);game.update_projectiles(Time.get_ticks_msec()+1500)
   check(game.enemy_health()<100,"committed melee release respects boss hurtbox")
   game.enemy_kind=kind;game.encounter.set_hp(-1, 0);game.combat_epoch+=1;game.monster_rewards.retire_completed();game.wild_item_drops.clear()
-  game.record_enemy_death(-1,game.enemy_pos,p.pos);game.record_enemy_death(-1,game.enemy_pos,p.pos)
+  game.record_enemy_death(-1,game.tactics.position,p.pos);game.record_enemy_death(-1,game.tactics.position,p.pos)
   check(game.monster_rewards.pending_count()==1,"boss reward receipt deduplicates")
   check(game.flush_kill_rewards(),"boss reward transaction commits")
   check(game.wild_item_drops.count(game.wild_item_drops[0])>=1 if not game.wild_item_drops.is_empty() else false,"boss has drops")
   var seeds: Array=game.wild_item_drops.filter(func(d):return d.stack.item=="boss_mystery_seed")
   check(seeds.size()==1,"one opaque ancient seed per player per boss")
   check(not seeds[0].stack.has("seeds"),"boss seed species remains undisclosed")
- game.reset_expedition();check(game.used_bosses.is_empty() and not game.boss_floors.has("20") and game.boss_kind==-1,"fresh run clears only run-local boss history")
+ game.reset_expedition();check(game.used_bosses.is_empty() and not game.boss_floors.has("20") and game.tactics.boss_kind==-1,"fresh run clears only run-local boss history")
  var tiers={};var random=RandomNumberGenerator.new();random.seed=1789
  for i in 5000:
   var species=game.Bosses.seed_species(random);var tier=int(game.Seeds.DEFINITIONS[species].tier);tiers[tier]=int(tiers.get(tier,0))+1

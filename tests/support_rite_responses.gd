@@ -38,7 +38,7 @@ func fixture(kind: int, floor_number: int) -> Dictionary:
 	game.map_seed = 10 + posmod(-37 - kind * 19 - floor_number * 11, 10)
 	game.encounter.set_hp(-1, 50)
 	game.enemy_kind = 0
-	game.enemy_pos = Vector3(12, 0, 5)
+	game.tactics.position = Vector3(12, 0, 5)
 	game.encounter.clear_scouts()
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
@@ -67,7 +67,7 @@ func cancel_rite(caster: Dictionary, role: String) -> bool:
 
 func retry(caster: Dictionary, response: String) -> Dictionary:
 	var now := int(caster.ready) + 1
-	game.update_support_position(caster, game.support_allies(caster), game.Enemies.get_kind(caster.kind), 0.0, .016, now)
+	preload("res://enemy_formation.gd").follow_support(game, caster, preload("res://enemy_formation.gd").allies(game, caster), game.Enemies.get_kind(caster.kind), 0.0, .016, now)
 	var plan: Dictionary = caster.get("attack", {})
 	check(plan.get("variant") == response and caster.windup == now + int(Tactics.RESPONSES[response].windup), "live AI locks " + response)
 	return plan if plan.get("variant") == response else {}
@@ -108,7 +108,7 @@ func test_echo() -> void:
 		check(warning[0].from == [anchor.pos.x, 0, anchor.pos.z] and is_equal_approx(warning[0].radius, 2.35) and warning[1].role == "rally_link", "toll shows its offset circle and tether")
 		if displace:
 			anchor.pos.z += 1.0
-		game.resolve_scout(cantor, game.Enemies.get_kind(3), cantor.windup)
+		preload("res://scout_behavior.gd").release(game, cantor, game.Enemies.get_kind(3), cantor.windup)
 		check((int(anchor.haste_until) > 0) != displace and (int(far.haste_until) > 0) != displace, "toll buffs two near the anchor or cancels if it moves")
 		check(close.haste_until == 0 and outer.haste_until == 0 and PlayerVitals.current_hp(player) == 10, "no caster-centered fallback or player damage")
 		Attacks.lock(game, cantor, "chant", player.pos, Time.get_ticks_msec() + 1400)
@@ -126,7 +126,7 @@ func test_tether() -> void:
 	var plan := retry(bloom, Tactics.SPARE_TETHER)
 	if not plan.is_empty():
 		check(plan.corpse.token == game.encounter.token_for(spare) and Attacks.hints(plan, 0, 1.25)[0].role == "corpse_tether", "spare tether visibly commits to a different corpse")
-		game.resolve_scout(bloom, game.Enemies.get_kind(15), bloom.windup)
+		preload("res://scout_behavior.gd").release(game, bloom, game.Enemies.get_kind(15), bloom.windup)
 		check(bloom.consumed_corpses == [game.encounter.token_for(spare)] and game.encounter.hp_for(bloom) == 4, "spare is consumed once for one health")
 		check(first.haste_until > 0 and second.haste_until == 0, "only the marked escort gains haste")
 		Support.resolve_corpse(game, bloom, plan, int(bloom.ready))
@@ -153,5 +153,5 @@ func test_antiphon() -> void:
 		check(Support.interruptible(plan), "Antiphon stays interruptible")
 		if dodge:
 			player.pos = anchor.pos + (anchor.pos - Vector3(plan.face)).normalized()
-		game.resolve_scout(choir, game.Enemies.get_kind(19), choir.windup)
+		preload("res://scout_behavior.gd").release(game, choir, game.Enemies.get_kind(19), choir.windup)
 		check(PlayerVitals.current_hp(player) == (10 if dodge else 9) and choir.windup == 0, "only the marked sector hits and it fires once")

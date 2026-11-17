@@ -33,7 +33,7 @@ static func armed(game: Node, owner: int, line: Dictionary) -> void:
 static func tripped(game: Node, owner: int, line: Dictionary, target: int, before: Vector3, after: Vector3) -> void:
 	if before.distance_squared_to(after) < .0025 or touches(line, before):
 		return
-	if (target == -1 and game.boss_kind >= 0) or (target >= 0 and game.encounter.scout(target).get("summoned", false)):
+	if (target == -1 and game.tactics.boss_kind >= 0) or (target >= 0 and game.encounter.scout(target).get("summoned", false)):
 		return
 	var observed := evidence(game)
 	observed.crossings += 1

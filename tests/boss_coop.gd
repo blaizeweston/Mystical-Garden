@@ -39,7 +39,7 @@ func host_run() -> void:
  var id=int(game.players.keys()[1]);var p: Dictionary=game.players[id]
  for kind in range(20,24):
   game.destination=0;game.encounter_number=20+kind-20;game.depth=kind-19;game.map_seed=91661+kind
-  game.wild_item_drops.clear();game.boss_floors[str(game.encounter_number)]=kind;game.used_bosses.append(kind);game.reset_encounter();game.encounter.clear_scouts();game.enemy_stagger_until=Time.get_ticks_msec()+60000
+  game.wild_item_drops.clear();game.boss_floors[str(game.encounter_number)]=kind;game.used_bosses.append(kind);game.reset_encounter();game.encounter.clear_scouts();game.tactics.stagger_until=Time.get_ticks_msec()+60000
   for player in game.players.values(): player.wild=true;player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive();player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,1)
   p.graft_part=game.Parts.monster_part(kind);p.run_upgrades={"trophy_"+game.Enemies.get_kind(kind).id:1}
   check(await until(func():return marked("view-"+str(kind))),"guest receives boss and graft "+str(kind))
@@ -60,20 +60,20 @@ func host_run() -> void:
  mark("done");check(await until(func():return game.players.size()==1),"guest disconnects normally");game.leave_game("Boss fixture complete")
 func host_lair(kind: int, id: int) -> void:
  var now:=Time.get_ticks_msec()
- game.boss_phase=1
+ game.tactics.boss_phase=1
  game.battlefield.configure(game.destination,game.depth,game.map_seed,kind,1)
- game.enemy_pos=Vector3.ZERO
+ game.tactics.position=Vector3.ZERO
  var player: Dictionary=game.players[id]
  var mode: String="root_sweep" if kind==Routes.ORCHARD else "grasping_pool"
  var layout:=Routes.crossings(game.map_seed)
  player.pos=Vector3(0,0,12.4) if kind==Routes.ORCHARD else Routes.bank(layout,1,.7)
  game.players[1].pos=Vector3(0,0,2) if kind==Routes.ORCHARD else Routes.bank(layout,0,.7)
- game.leader_brain.lair_tracks={id:{"outer":8,"streak":8,"point":player.pos,"lane":1}}
+ game.tactics.memory.lair_tracks={id:{"outer":8,"streak":8,"point":player.pos,"lane":1}}
  check(Lairs.commit(game,mode,id,now),"host commits the adapted move")
- var plan: Dictionary=game.leader_brain.lair_plan
+ var plan: Dictionary=game.tactics.memory.lair_plan
  check(not plan.variant.is_empty(),"host has an adapted footprint")
  var escape:=Lairs.escape(game,plan,player.pos,now)
- game.enemy_strike_at=now+18000
+ game.tactics.strike_at=now+18000
  check(await until(func():return marked("warning-"+str(kind))),"guest received committed warning")
  player.pos=escape
  game.Bosses.resolve(game,Time.get_ticks_msec())
@@ -84,8 +84,8 @@ func host_lair(kind: int, id: int) -> void:
   game.players[1].pos=player.pos
   now=Time.get_ticks_msec()
   check(Lairs.commit(game,"root_cage",id,now),"host commits the root cage")
-  plan=game.leader_brain.lair_plan
-  game.enemy_strike_at=now+18000
+  plan=game.tactics.memory.lair_plan
+  game.tactics.strike_at=now+18000
   check(await until(func():return marked("cage-warning")),"guest receives the cage and its gaps")
   player.pos=Lairs.escape(game,plan,player.pos,now)
   game.Bosses.resolve(game,Time.get_ticks_msec())
@@ -155,27 +155,27 @@ func guest_cage(id: int) -> void:
 
 func host_nest(id: int) -> void:
  var now:=Time.get_ticks_msec()
- game.enemy_pos=Vector3(0,0,5)
+ game.tactics.position=Vector3(0,0,5)
  var player: Dictionary=game.players[id]
  var rib: Rect2=Nest.ribs(1)[0]
  player.pos=Vector3(rib.get_center().x,0,rib.position.y+.22)
  check(not game.battlefield.occupied(player.pos,.34),"guest starts on the future rib, on current clear ground")
- game.leader_brain.nursery_pressure=2
+ game.tactics.memory.nursery_pressure=2
  Phases.advance_phase(game,1,now)
- game.leader_brain.nest_shift.until=now+18000
+ game.tactics.memory.nest_shift.until=now+18000
  check(await until(func():return marked("rib-preview")),"guest sees future ribs")
- game.leader_brain.nest_shift.until=0
+ game.tactics.memory.nest_shift.until=0
  Phases.advance_phase(game,1,Time.get_ticks_msec())
- check(game.boss_phase==0 and game.leader_brain.nest_shift.grace,"occupied guest gets a grace period")
+ check(game.tactics.boss_phase==0 and game.tactics.memory.nest_shift.grace,"occupied guest gets a grace period")
  check(await until(func():return marked("rib-grace")),"guest receives the grace cue")
- game.leader_brain.nest_shift.until=0
+ game.tactics.memory.nest_shift.until=0
  Phases.advance_phase(game,1,Time.get_ticks_msec())
  check(not game.battlefield.occupied(player.pos,.34) and PlayerVitals.current_hp(player)==10,"authority relocates the guest safely")
  check(await until(func():return marked("nest-phase")),"guest receives the committed new collision layout")
  player.pos=Vector3(0,0,7)
  game.players[1].pos=Vector3(0,0,7)
  check(Phases.commit(game,"brood_call",id,Time.get_ticks_msec()),"both exits are available after shift")
- game.enemy_strike_at=Time.get_ticks_msec()+18000
+ game.tactics.strike_at=Time.get_ticks_msec()+18000
  check(await until(func():return marked("nest-hatches")),"guest sees both hatches")
  game.Bosses.resolve(game,Time.get_ticks_msec())
  check(await until(func():return marked("nest-brood")),"guest sees the spawned brood")
@@ -191,7 +191,7 @@ func guest_nest(id: int) -> void:
  mark("rib-preview")
  check(await until(func():return game.players[id].get("attack_hints",[]).any(func(h):return h.get("cue","")=="Ribs held open")),"guest sees the grace cue")
  mark("rib-grace")
- check(await until(func():return game.boss_phase==1 and game.stage.visual_field.boss_phase==1 and not game.stage.visual_field.occupied(game.players[id].pos,.34)),"guest position and collision agree after the shift")
+ check(await until(func():return game.tactics.boss_phase==1 and game.stage.visual_field.boss_phase==1 and not game.stage.visual_field.occupied(game.players[id].pos,.34)),"guest position and collision agree after the shift")
  check(game.stage.visual_field.barriers==ribs,"guest collision matches all previewed ribs")
  mark("nest-phase")
  check(await until(func():return game.players[id].get("attack_hints",[]).filter(func(h):return h.role=="nursery_exit").size()==2),"guest receives the two committed hatch points")
@@ -200,21 +200,21 @@ func guest_nest(id: int) -> void:
  mark("nest-brood")
 
 func host_memory(id: int) -> void:
- game.enemy_pos=Vector3(0,0,2)
+ game.tactics.position=Vector3(0,0,2)
  game.players[id].pos=Vector3(0,0,7.4)
  game.players[1].pos=Vector3(0,0,7.4)
  game.progress.wilds_memory.score={"choke":15,"burst":8}
  Phases.advance_phase(game,0,Time.get_ticks_msec())
- game.leader_brain.memory_growth.preview_until=Time.get_ticks_msec()+18000
+ game.tactics.memory.memory_growth.preview_until=Time.get_ticks_msec()+18000
  check(await until(func():return marked("memory-growth")),"guest sees one growth from host history")
- game.leader_brain.memory_growth.preview_until=0
+ game.tactics.memory.memory_growth.preview_until=0
  check(Phases.commit(game,"memory_lance",id,Time.get_ticks_msec()),"host locks remembered split attack")
- game.enemy_strike_at=Time.get_ticks_msec()+18000
+ game.tactics.strike_at=Time.get_ticks_msec()+18000
  check(await until(func():return marked("memory-lanes")),"guest sees both lanes")
  game.Bosses.resolve(game,Time.get_ticks_msec())
  check(await until(func():return marked("memory-exposed")),"guest sees the memory punish window")
  check(PlayerVitals.current_hp(game.players[id])==10,"middle gap is safe on the authority")
- game.leader_brain.lair_open.until=0
+ game.tactics.memory.lair_open.until=0
  game.progress.wilds_memory.score={"burst":16}
  Phases.advance_phase(game,1,Time.get_ticks_msec())
  check(await until(func():return marked("memory-crown")),"guest sees the new phase growth replace the old growth")
@@ -229,7 +229,7 @@ func guest_memory(id: int) -> void:
  mark("memory-lanes")
  check(await until(func():return game.combat_visuals.statuses.active.values().any(func(s):return s.label.text=="Memory exposed")),"guest gets the exposed status")
  mark("memory-exposed")
- check(await until(func():return game.boss_phase==1 and game.stage.foe_model.get("memory_key","")=="burst:1"),"guest shows the spore crown in phase one")
+ check(await until(func():return game.tactics.boss_phase==1 and game.stage.foe_model.get("memory_key","")=="burst:1"),"guest shows the spore crown in phase one")
  check(model.get_children().filter(func(node):return node.name=="MemoryGrowth").size()==1,"only one phase growth stays on the model")
  mark("memory-crown")
 
@@ -238,7 +238,7 @@ func guest_run() -> void:
  if not await until(func():return game.session=="Guest" and not game.client_details.is_empty()): check(false,"guest accepted");return
  var id=game.multiplayer.get_unique_id()
  for kind in range(20,24):
-  check(await until(func():return game.boss_kind==kind and game.stage.visual_field.boss_kind==kind and game.players[id].get("graft_part",0)==game.Parts.monster_part(kind)),"shared boss map/weapon descriptor "+str(kind))
+  check(await until(func():return game.tactics.boss_kind==kind and game.stage.visual_field.boss_kind==kind and game.players[id].get("graft_part",0)==game.Parts.monster_part(kind)),"shared boss map/weapon descriptor "+str(kind))
   var field=load("res://battlefield.gd").new();field.configure(0,game.depth,game.map_seed,kind,0)
   check(field.clearings==game.stage.visual_field.clearings and field.barriers==game.stage.visual_field.barriers,"same visible terrain as host")
   var p: Dictionary=game.players[id];var card=game.RunUpgrades.get_upgrade("trophy_"+game.Enemies.get_kind(kind).id)

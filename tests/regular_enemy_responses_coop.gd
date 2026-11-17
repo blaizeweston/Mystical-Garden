@@ -77,8 +77,8 @@ func prepare(kind: int) -> Dictionary:
 	game.battlefield.barriers.clear()
 	game.encounter.set_hp(-1, 50)
 	game.enemy_kind = 0
-	game.enemy_pos = Vector3(-11, 0, 6)
-	game.enemy_stagger_until = Time.get_ticks_msec() + 60000
+	game.tactics.position = Vector3(-11, 0, 6)
+	game.tactics.stagger_until = Time.get_ticks_msec() + 60000
 	game.encounter.clear_scouts()
 	for member in game.players.values():
 		member.wild = true
@@ -189,7 +189,7 @@ func host_glasscap() -> void:
 		check(false,"guest sees the formation during wind-up")
 		return
 	var sites: Array = watcher.glass_feint.points.duplicate()
-	game.resolve_scout(watcher,game.Enemies.get_kind(18),Time.get_ticks_msec())
+	preload("res://scout_behavior.gd").release(game, watcher,game.Enemies.get_kind(18),Time.get_ticks_msec())
 	check(sites.has(watcher.pos) and game.living_scout_count()==1,"host moves only the real Watcher")
 	check(await until(func(): return marked("glass-clear"),3500),"guest sees the formation expire")
 

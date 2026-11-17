@@ -12,7 +12,7 @@ static func valid_target(game: Node, target: int) -> bool:
 
 
 static func body(game: Node, target: int) -> Dictionary:
-	return game.leader_brain if target == -1 else game.encounter.scout(target)
+	return game.tactics.memory if target == -1 else game.encounter.scout(target)
 
 
 static func target_token(game: Node, target: int) -> String:
@@ -75,7 +75,7 @@ static func apply(game: Node, event: RefCounted, target: int, count: int, now: i
 		var hp := 0
 		for stack in spent:
 			hp += int(stack.hp)
-		if target != -1 or game.boss_kind < 0:
+		if target != -1 or game.tactics.boss_kind < 0:
 			actor.frost_root_until = maxi(int(actor.get("frost_root_until", 0)), now + Balance.ROOT_MS)
 		var point: Vector3 = game.enemy_position(target)
 		game.emit_combat_event("ability", "frost_rupture", point, point, .55, COLOR, 1.2, event.actor, {"label":"Brittle rupture"})

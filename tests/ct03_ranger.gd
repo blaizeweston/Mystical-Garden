@@ -70,13 +70,13 @@ func prepare(path: Array, origin := Vector3.ZERO, enemy := Vector3(2,0,0)) -> vo
 	game.projectile_queue.clear()
 	game.combat_events.clear()
 	game.enemy_traits.clear()
-	game.enemy_pos = enemy
+	game.tactics.position = enemy
 	game.encounter.set_hp(-1, 300)
 	game.enemy_kind = 0
 	game.enemy_growth = 0
 	game.enemy_mutations = 0
-	game.rooted_until = 0
-	game.enemy_winding_up = false
+	game.tactics.rooted_until = 0
+	game.tactics.winding_up = false
 	game.encounter_rewarded = false
 	ranger.character = Profile.blank()
 	ranger.character.xp[2] = 2600
@@ -155,7 +155,7 @@ func tracked_and_offense() -> void:
 	check(trap(1).is_empty() and ranger.has(Ranger.SNARE) and ranger[Cooldowns.STATE].deadline(Cooldowns.R)==0 and "could not be set" in game.status,
 		"full queue refuses R and preserves its preparation and cooldown")
 	game.trait_events.clear()
-	game.enemy_pos = Vector3(5,0,0)
+	game.tactics.position = Vector3(5,0,0)
 	cast(1)
 	var placed := trap(1)
 	check(not placed.is_empty() and not ranger.has(Ranger.SNARE) and game.enemy_health()==227,"placing Barbed Snare does not deal damage")
@@ -233,7 +233,7 @@ func balanced_and_corridor() -> void:
 		game.Traits.tick(game,tick_at)
 		game.Traits.tick(game,tick_at+16)
 		check(game.enemy_health()==290 and game.encounter.hp_for(corridor_enemy)==290 and placed.seen.size()==2
-			and game.rooted_until==tick_at+1300 and corridor_enemy.rooted_until==tick_at+1300,
+			and game.tactics.rooted_until==tick_at+1300 and corridor_enemy.rooted_until==tick_at+1300,
 			"one native hit and root per enemy across corridor and endpoint")
 		check(events.filter(func(item):return item.kind=="class_contact").size()==1,
 			"only the original trap footprint publishes its normal Catalyst contact")

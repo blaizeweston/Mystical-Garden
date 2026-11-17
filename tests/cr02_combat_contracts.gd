@@ -41,7 +41,7 @@ func run() -> void:
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(30)
 	player.pos = Vector3.ZERO
 	game.encounter.set_hp(-1, 50)
-	game.enemy_pos = Vector3(0,0,-1)
+	game.tactics.position = Vector3(0,0,-1)
 	game.battlefield.configure(0,1,0)
 	game.battlefield.barriers.clear()
 	game.encounter.clear_scouts()
@@ -88,7 +88,7 @@ func run() -> void:
 	check(recorded.size()==2 and recorded[1].kind=="class_action", "actual Root Quake emits one activation")
 
 	player.facing = Vector3.FORWARD
-	game.enemy_pos = Vector3(0,0,-1)
+	game.tactics.position = Vector3(0,0,-1)
 	game.strike_enemy(1,player,player.pos)
 	game.update_projectiles(Time.get_ticks_msec()+2000)
 	check(recorded.size()==3 and recorded[2].kind=="weapon_contact"
@@ -180,7 +180,7 @@ func check_runtime_focuses(game: Node, player: Dictionary) -> void:
 			game.trait_events.clear()
 			game.enemy_traits.clear()
 			game.encounter.set_hp(-1, 10000)
-			game.enemy_pos = Vector3(0,0,-2.4)
+			game.tactics.position = Vector3(0,0,-2.4)
 			var profile: Dictionary = game.Character.blank()
 			profile.upgrades[class_id] = 1 << (12 + lane)
 			player.character = profile

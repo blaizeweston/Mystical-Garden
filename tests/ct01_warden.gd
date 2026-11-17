@@ -168,13 +168,13 @@ func arena(path: Array) -> void:
 	player.weapon=0
 	player.secondary=0
 	game.encounter.set_hp(-1, 900)
-	game.enemy_pos=Vector3(0,0,-1.2)
-	game.enemy_winding_up=false
+	game.tactics.position=Vector3(0,0,-1.2)
+	game.tactics.winding_up=false
 	game.enemy_mutations=0
 	game.enemy_traits.clear()
-	game.leader_brain.clear()
+	game.tactics.memory.clear()
 	game.encounter.clear_scouts()
-	game.rooted_until=0
+	game.tactics.rooted_until=0
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
 	for key in ["cast_until","core_cast_until","counter_until","counter_guard_until","front_guard_until",
 			"guard_until","guard_charges","hurt_until","slow_until"]:
@@ -199,22 +199,22 @@ func offense() -> void:
 	var scout: Dictionary=game.make_scout(0,Vector3(3.3,0,0),4)
 	scout.hp=200
 	game.encounter.register_scout(scout)
-	var origin: Vector3=game.enemy_pos
+	var origin: Vector3=game.tactics.position
 	game.use_class_skill(1,player,0)
 	var now := block()
-	check(player[PlayerVitals.STATE].hp()==90 and player.warden_block.blocked and game.enemy_pos.distance_to(origin)>.7,
+	check(player[PlayerVitals.STATE].hp()==90 and player.warden_block.blocked and game.tactics.position.distance_to(origin)>.7,
 		"real block triggers Briar Rebound and preserves Thorn Counter")
 	check(player.counter_until>now,"native Thorn Counter still primes its counter")
 	# Isolate the Quake node's additive damage from Thorn Counter.
 	player.counter_until=0
 	game.use_class_skill(1,player,1)
-	check(900-game.enemy_health()==normal_damage+10 and game.rooted_until>now and not game.enemy_traits.has("brittle_until"),
+	check(900-game.enemy_health()==normal_damage+10 and game.tactics.rooted_until>now and not game.enemy_traits.has("brittle_until"),
 		"Pinning Quake roots and Faultline adds native damage without Brittle")
 	check(game.encounter.hp_for(scout)<200,"Quakefront hits the scout at 3.3 m")
 	var quakes := events.filter(func(event):return event.kind=="class_action" and str(event.details.adapter).begins_with("warden/"))
 	check(quakes.size()==1 and is_equal_approx(float(quakes[0].details.radius),3.0),
 		"the native area increase leaves the Catalyst area and activation count intact")
-	game.enemy_pos=Vector3(0,0,-1.1)
+	game.tactics.position=Vector3(0,0,-1.1)
 	var damage_before: int=game.enemy_health()
 	var due: int=player.get("warden_aftershock",{}).get("due",0)
 	Warden.tick(game,due-1)
@@ -325,7 +325,7 @@ func defense() -> void:
 	block()
 	ally.guard_charges=0
 	ally.guard_until=0
-	game.enemy_pos=Vector3(0,0,-9)
+	game.tactics.position=Vector3(0,0,-9)
 	game.use_class_skill(1,player,1)
 	check(game.enemy_health()==900 and ally.guard_charges==1 and player.warden_block.quake_used,
 		"Sheltering Quake protects allies on an empty impact and spends its preparation")
@@ -417,7 +417,7 @@ func run() -> void:
 	game.set_physics_process(false)
 	game.battlefield.configure(0,1,0)
 	game.battlefield.barriers.clear()
-	game.boss_kind=-1
+	game.tactics.boss_kind=-1
 	game.set_meta(Events.RECORD,func(event):events.append(event))
 	offense()
 	game.add_player(2)

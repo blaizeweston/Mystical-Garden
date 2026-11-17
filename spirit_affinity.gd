@@ -160,10 +160,10 @@ static func trace(game: Node, event: RefCounted, id: int, at: Vector3) -> void:
 	var elapsed:=Clock.now(game)
 	var duration: int=event.potency().trace_ms
 	for target in range(-1,game.encounter.scout_count()):
-		if not Actors.valid_target(game,target) or (target==-1 and game.boss_kind>=0): continue
-		var body: Dictionary=game.leader_brain if target==-1 else game.encounter.scout(target)
-		var committed: bool=game.enemy_winding_up if target==-1 else int(body.windup)>0
-		var engaged: bool=game.enemy_engaged if target==-1 else bool(body.engaged)
+		if not Actors.valid_target(game,target) or (target==-1 and game.tactics.boss_kind>=0): continue
+		var body: Dictionary=game.tactics.memory if target==-1 else game.encounter.scout(target)
+		var committed: bool=game.tactics.winding_up if target==-1 else int(body.windup)>0
+		var engaged: bool=game.tactics.engaged if target==-1 else bool(body.engaged)
 		var pos: Vector3=game.enemy_position(target)
 		if committed or not engaged or int(body.get("target",0))!=id or elapsed<int(body.get(RESIST,0)):
 			continue

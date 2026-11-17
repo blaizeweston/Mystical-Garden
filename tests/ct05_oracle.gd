@@ -74,18 +74,18 @@ func reset_field() -> void:
 	game.projectile_queue.clear()
 	game.combat_events.clear()
 	game.enemy_traits.clear()
-	game.leader_brain.clear()
+	game.tactics.memory.clear()
 	game.monster_rewards = game.MonsterRewards.new()
-	game.enemy_pos = Vector3(2,0,0)
+	game.tactics.position = Vector3(2,0,0)
 	game.encounter.set_hp(-1, 300)
 	game.enemy_kind = 0
 	game.enemy_mutations = 0
-	game.boss_kind = -1
-	game.enemy_winding_up = false
-	game.enemy_ready_at = 0
-	game.enemy_engaged = false
-	game.enemy_haste_until = 0
-	game.rooted_until = 0
+	game.tactics.boss_kind = -1
+	game.tactics.winding_up = false
+	game.tactics.ready_at = 0
+	game.tactics.engaged = false
+	game.tactics.haste_until = 0
+	game.tactics.rooted_until = 0
 	game.encounter_rewarded = false
 	for id in game.players:
 		var player: Dictionary = game.players[id]
@@ -177,7 +177,7 @@ func entry_for_each_class() -> void:
 			game.trait_events.any(func(field):return field.kind=="snare"),
 			caster.has("reaper_veil_momentum"),caster.has(Omens.STATE)]
 		check(int(caster[Cooldowns.STATE].deadline(Cooldowns.Q))>Time.get_ticks_msec() and benefits[class_id],"native starting Q applies its effect")
-		game.enemy_pos = caster.pos + Vector3(.7,0,0)
+		game.tactics.position = caster.pos + Vector3(.7,0,0)
 		game.use_class_skill(1,caster,1)
 		check(int(caster[Cooldowns.STATE].deadline(Cooldowns.R))>Time.get_ticks_msec(),"native R casts with no equipped parts")
 	for class_id in qs.size():
@@ -203,10 +203,10 @@ func record(body: Dictionary, key: String, now: int, source := 0) -> Dictionary:
 
 func basic_omens() -> void:
 	prepare(["omenreader"])
-	game.enemy_winding_up=true
+	game.tactics.winding_up=true
 	cast(0)
 	var now := Time.get_ticks_msec()
-	check(game.enemy_health()==280 and not record(game.leader_brain,Progression.FOREBODING,now).is_empty(),"wind-up punishment retained and surviving enemy gets Foreboding")
+	check(game.enemy_health()==280 and not record(game.tactics.memory,Progression.FOREBODING,now).is_empty(),"wind-up punishment retained and surviving enemy gets Foreboding")
 	check(game.enemy_traits.get("marked_until",0)==0,"native Omen does not apply a generic Mark")
 	var foe: Dictionary = game.make_scout(0,Vector3(2,0,.3),11)
 	game.encounter.register_scout(foe)
@@ -220,20 +220,20 @@ func basic_omens() -> void:
 	Attacks.lock(game,foe,"swipe",caster.pos,now+550)
 	var base: int = game.Director.recovery(game,int(game.Enemies.get_kind(0).recovery))
 	check(int(foe.attack.get(Omens.FOREBODING_MS,0))==350 and record(foe,Progression.FOREBODING,now).is_empty(),"next committed scout attack consumes Foreboding once")
-	game.resolve_scout(foe,game.Enemies.get_kind(0),now+550)
+	preload("res://scout_behavior.gd").release(game, foe,game.Enemies.get_kind(0),now+550)
 	check(int(foe.ready)==now+550+base+350,"specific attack receives exact added recovery")
 	prepare(["leykeeper"])
 	ally.pos=Vector3(.2,0,0)
 	ally.slow_until=Time.get_ticks_msec()+5000
 	cast(0)
 	var timer := Time.get_ticks_msec()
-	check(game.enemy_health()==300 and game.enemy_pos.x<2.0 and ally.slow_until==0
+	check(game.enemy_health()==300 and game.tactics.position.x<2.0 and ally.slow_until==0
 		and record(ally,Progression.GUIDED_STRIKE,timer).source==1 and caster.has(Omens.STATE),"Guiding Bell retains pull/cleanse and grants ally and self Portent")
-	game.enemy_ready_at=timer+800
-	var due := int(game.enemy_ready_at)
+	game.tactics.ready_at=timer+800
+	var due := int(game.tactics.ready_at)
 	game.strike_enemy(1,caster,caster.pos)
 	game.update_projectiles(timer+550)
-	check(game.enemy_health()<300 and game.enemy_ready_at==due+300 and record(caster,Progression.GUIDED_STRIKE,timer+550).is_empty(),"ordinary weapon contact consumes the Portent for 300 ms recovery")
+	check(game.enemy_health()<300 and game.tactics.ready_at==due+300 and record(caster,Progression.GUIDED_STRIKE,timer+550).is_empty(),"ordinary weapon contact consumes the Portent for 300 ms recovery")
 	check(not record(ally,Progression.GUIDED_STRIKE,timer).is_empty(),"same cast keeps separate recipient opportunities")
 	prepare(["lifekeeper"])
 	ally.pos=Vector3(.5,0,0)
@@ -281,7 +281,7 @@ func nodes_and_chime() -> void:
 	timer=Time.get_ticks_msec()
 	cast(0)
 	var omen := record(caster,Progression.GUIDED_STRIKE,timer)
-	check(int(omen.get("until",0))>=timer+5500 and game.rooted_until>=timer+650,"Resonance extends only the Portent while Anchored Ley roots")
+	check(int(omen.get("until",0))>=timer+5500 and game.tactics.rooted_until>=timer+650,"Resonance extends only the Portent while Anchored Ley roots")
 	cast(1)
 	check(int(caster[Cooldowns.STATE].deadline(Cooldowns.R))-timer in range(5300,5330),"Quick Chime subtracts 1.7 seconds from R")
 	for focus in Progression.FOCUS_OMENS:
@@ -292,17 +292,17 @@ func nodes_and_chime() -> void:
 		caster[PlayerVitals.STATE] = caster[PlayerVitals.STATE].with_hp(50)
 		cast(0)
 		var effect: String = Progression.FOCUS_OMENS[focus]
-		var recipient: Dictionary = game.leader_brain if focus=="omenreader" else ally
+		var recipient: Dictionary = game.tactics.memory if focus=="omenreader" else ally
 		timer=Time.get_ticks_msec()
 		var original := record(recipient,effect,timer)
 		var old_hp := int(caster[PlayerVitals.STATE].hp())
 		var old_damage := int(game.enemy_health())
-		var old_pos: Vector3 = game.enemy_pos
+		var old_pos: Vector3 = game.tactics.position
 		var zones: int = game.trait_events.size()
 		cast(1)
 		var repeated := record(recipient,effect,timer)
 		check(not original.is_empty() and not repeated.is_empty() and repeated.cast!=original.cast
-			and game.enemy_health()==old_damage and game.enemy_pos==old_pos and caster[PlayerVitals.STATE].hp()==old_hp
+			and game.enemy_health()==old_damage and game.tactics.position==old_pos and caster[PlayerVitals.STATE].hp()==old_hp
 			and game.trait_events.size()==zones,"Fate's Refrain bestows only the equipped focus Omen")
 	prepare(RIGHT)
 	ally.pos=Vector3(.3,0,0)

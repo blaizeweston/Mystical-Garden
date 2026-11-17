@@ -18,7 +18,7 @@ func build(game: Node,p: Dictionary,choices: Array) -> void:
  p.frame=0;p.weapon_kind=0;p.weapon=game.Seeds.DEFINITIONS[15].part;p.secondary=0;p.catalyst=0;p.graft_part=game.Parts.HOOK;p.run_upgrades={};p.wild=true;p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p.pos=Vector3(0,0,-1);p[PlayerVitals.STATE] = PlayerVitals.Health.new(10, 10);p.power=0;p.technique=0;p.facing=Vector3.FORWARD
  p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
  for key in ["guard_until","front_guard_until","counter_guard_until","counter_until","hurt_until","brace_block_ready"]:p[key]=0
- game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter.clear_scouts();game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3(0,0,-2);game.enemy_traits.clear();game.trait_events.clear();game.encounter_number=1
+ game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter.clear_scouts();game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,-2);game.enemy_traits.clear();game.trait_events.clear();game.encounter_number=1
 func run() -> void:
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/warden-depth-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var p: Dictionary=game.players[1];game.add_player(2);var ally: Dictionary=game.players[2];ally.profile_ready=true;ally.wild=true;ally.pos=Vector3(.3,0,-1.7)

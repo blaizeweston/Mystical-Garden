@@ -29,7 +29,7 @@ func start_theft(actor: Dictionary, now: int) -> int:
 	game.EnemyBehaviors.tick(game,actor,.016,now)
 	check(actor.windup>now and game.wild_item_drops.size()==1,"windup gives players a chance to pick up the trophy")
 	var taken_at: int = actor.windup
-	game.resolve_scout(actor,game.Enemies.get_kind(Escape.KIND),taken_at)
+	preload("res://scout_behavior.gd").release(game, actor,game.Enemies.get_kind(Escape.KIND),taken_at)
 	check(game.wild_item_drops.is_empty() and actor.has("escape") and game.status.contains("stole a trophy"),"grab commits a route and alerts the party")
 	return taken_at
 
@@ -97,7 +97,7 @@ func run() -> void:
 	var runner: Dictionary = game.make_scout(Escape.KIND,player.pos,3)
 	game.encounter.clear_scouts();game.encounter.register_scout(runner)
 	game.encounter.set_hp(-1, 10)
-	game.enemy_pos = Vector3(2,0,-6)
+	game.tactics.position = Vector3(2,0,-6)
 	start = start_theft(runner,now+1000)
 	now = follow(runner,start)
 	var escape_at: int = runner.escape.burrow_until
@@ -112,21 +112,21 @@ func run() -> void:
 	game.encounter.clear_scouts()
 	game.enemy_kind = Escape.KIND
 	game.encounter.set_hp(-1, 14)
-	game.enemy_pos = player.pos
-	game.enemy_ready_at = 0
-	game.enemy_engaged = true
-	game.enemy_stagger_until = 0
-	game.rooted_until = 0
+	game.tactics.position = player.pos
+	game.tactics.ready_at = 0
+	game.tactics.engaged = true
+	game.tactics.stagger_until = 0
+	game.tactics.rooted_until = 0
 	var elite := Elite.state(game)
 	game.wild_item_drops.assign([trophy(elite.pos)])
-	game.update_enemy(.016,escape_at+1000)
-	check(game.enemy_winding_up,"gate elite tries its normal trophy grab")
-	game.resolve_briar_strike(game.enemy_strike_at)
+	preload("res://leader_behavior.gd").tick(game, .016,escape_at+1000)
+	check(game.tactics.winding_up,"gate elite tries its normal trophy grab")
+	preload("res://leader_behavior.gd").resolve(game, game.tactics.strike_at)
 	check(elite.has("escape") and Escape.snapshot(game)[0].id==-1,"elite uses the same marked tunnel")
-	now = game.enemy_strike_at
+	now = game.tactics.strike_at
 	for step in 500:
 		now += 50
-		game.update_enemy(.05,now)
+		preload("res://leader_behavior.gd").tick(game, .05,now)
 		if game.enemy_health()==0:
 			break
 	check(game.enemy_health()==0 and elite.escaped and game.encounter_cleared(),"elite escape satisfies the real encounter-clear predicate")

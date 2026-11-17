@@ -13,7 +13,7 @@ static func interruptible(attack: Dictionary) -> bool:
 
 static func visible_allies(game: Node, actor: Dictionary, origin: Vector3, radius: float) -> Array:
  var result: Array=[]
- for entry in game.support_allies(actor):
+ for entry in load("res://enemy_formation.gd").allies(game, actor):
   if origin.distance_to(entry.pos)>radius or not game.battlefield.clear_line(origin,entry.pos):continue
   var slot: int=entry.index
   var token: int=game.combat_epoch if slot<0 else game.encounter.token(slot)
@@ -87,8 +87,8 @@ static func hatch_safe(game: Node, at: Vector3) -> bool:
 
 static func shelter_source(game: Node, target: int, at: Vector3, from: Vector3, now: int, coverage_only: bool=false) -> Dictionary:
  if game.encounter.hp(-1)>0 and target!=-1 and game.enemy_kind==11:
-  var leader: Dictionary=game.leader_brain.get("elite",{})
-  if covers(game,leader,game.enemy_pos,at,from,now,coverage_only):return {"actor":-1}
+  var leader: Dictionary=game.encounter.leader_tactics()
+  if covers(game,leader,game.tactics.position,at,from,now,coverage_only):return {"actor":-1}
  for index in game.encounter.scout_count():
   var grazer: Dictionary=game.encounter.scout(index)
   if index==target or game.encounter.hp(index)<=0 or int(grazer.kind)!=11:continue
@@ -100,7 +100,7 @@ static func observe_shelter_break(game: Node, target: int, before: Vector3, afte
  var cover:=shelter_source(game,target,before,before,now,true)
  if cover.is_empty():return
  var slot: int=cover.actor
- var grazer: Dictionary=game.leader_brain.get("elite",{}) if slot<0 else game.encounter.scout(slot)
+ var grazer: Dictionary=game.encounter.leader_tactics() if slot<0 else game.encounter.scout(slot)
  if grazer.is_empty() or grazer.get("summoned",false) or grazer.get("shelter_break_epoch",-1)==game.combat_epoch:return
  var origin: Vector3=game.enemy_position(slot)
  if covers(game,grazer,origin,after,after,now,true):return
@@ -263,7 +263,7 @@ static func resolve_brood(game: Node, actor: Dictionary, attack: Dictionary, now
  if attack.get("hatch",[]).is_empty():actor.ready=now+650
 
 static func grant_haste(game: Node, ref: Dictionary, until: int) -> void:
- if ref.slot<0:game.enemy_haste_until=maxi(game.enemy_haste_until,until)
+ if ref.slot<0:game.tactics.haste_until=maxi(game.tactics.haste_until,until)
  else:
   var ally: Dictionary=game.encounter.scout(ref.slot)
   ally.haste_until=maxi(int(ally.haste_until),until)
@@ -303,7 +303,7 @@ static func resolve_corpse(game: Node, actor: Dictionary, attack: Dictionary, no
      grant_haste(game,ally,now+2000)
   else:
    for ally in visible_allies(game,actor,attack.from,attack.radius):
-    if ally.slot<0:game.enemy_haste_until=now+3000
+    if ally.slot<0:game.tactics.haste_until=now+3000
     else:game.encounter.scout(ally.slot).haste_until=now+3000
   game.emit_combat_event("swing","pulse",ref.point,actor.pos,.55,Color("#d1bd98"),.75,0)
   return
@@ -316,7 +316,7 @@ static func resolve_shepherd(game: Node, attack: Dictionary, now: int) -> void:
   if not live_ally(game,ref):continue
   var point: Vector3=game.enemy_position(ref.slot)
   if point.distance_to(attack.from)>attack.radius or not game.battlefield.clear_line(attack.from,point):continue
-  var ally: Dictionary=game.leader_brain if ref.slot<0 else game.encounter.scout(ref.slot)
+  var ally: Dictionary=game.tactics.memory if ref.slot<0 else game.encounter.scout(ref.slot)
   if attack.get("variant")==Tactics.RELAY:
    if now<int(ally.get("rooted_until",0)) or not game.battlefield.clear_line(point,attack.flank.via,.45):continue
   if not audible_release:
@@ -325,7 +325,7 @@ static func resolve_shepherd(game: Node, attack: Dictionary, now: int) -> void:
   ally.command_target=target
   ally.command_until=now+2600
   if ref.slot>=0:ally.engaged=true
-  else:game.enemy_engaged=true
+  else:game.tactics.engaged=true
   ally.erase("command_via")
   var flank: Dictionary=attack.get("flank",{})
   if not flank.is_empty() and flank.escort.token==ref.token and flank.escort.slot==ref.slot and game.battlefield.clear_line(point,flank.via,.45):

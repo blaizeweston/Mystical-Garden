@@ -28,9 +28,9 @@ func floor_fixture() -> void:
 	game.encounter_rewarded = false
 	game.encounter.set_hp(-1, 50)
 	game.enemy_kind = 0
-	game.enemy_pos = Vector3(9, 0, 7)
+	game.tactics.position = Vector3(9, 0, 7)
 	game.encounter.clear_scouts()
-	game.leader_brain.clear()
+	game.tactics.memory.clear()
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
 	player.pos = Vector3.ZERO
@@ -137,7 +137,7 @@ func check_relay() -> void:
 	check(shepherd.attack.variant != Tactics.RELAY and shepherd.attack.escorts.size() == 2, "the first rally still needs a real interruption")
 	core_skill("hush_orchid", 2.0)
 	now = int(shepherd.ready) + 10
-	game.update_support_position(shepherd, game.support_allies(shepherd), game.Enemies.get_kind(10), 0.0, .016, now)
+	preload("res://enemy_formation.gd").follow_support(game, shepherd, preload("res://enemy_formation.gd").allies(game, shepherd), game.Enemies.get_kind(10), 0.0, .016, now)
 	var attack: Dictionary = shepherd.get("attack", {})
 	check(attack.get("variant") == Tactics.RELAY and shepherd.windup == now + Tactics.RELAY_WINDUP, "live AI locks a warned relay after the cancellation")
 	if attack.get("variant") != Tactics.RELAY:
@@ -145,7 +145,7 @@ func check_relay() -> void:
 	check(attack.escorts.size() == 1 and Attacks.hints(attack, 0, 1.15).any(func(hint): return hint.role == "rally_link"), "relay shows one escort's route")
 	var chosen: int = attack.flank.escort.slot
 	var other := 2 if chosen == 1 else 1
-	game.resolve_scout(shepherd, game.Enemies.get_kind(10), shepherd.windup)
+	preload("res://scout_behavior.gd").release(game, shepherd, game.Enemies.get_kind(10), shepherd.windup)
 	check(game.encounter.scout(chosen).command_via == attack.flank.via and not game.encounter.scout(other).has("command_via") and PlayerVitals.current_hp(player) == 10, "relay only moves its warned escort")
 	Attacks.lock(game, shepherd, "shepherd", player.pos, now + 5000)
 	check(shepherd.attack.variant != Tactics.RELAY, "one relay per enemy")
@@ -156,7 +156,7 @@ func check_relay() -> void:
 	if shepherd.attack.get("variant") == Tactics.RELAY:
 		chosen = shepherd.attack.flank.escort.slot
 		game.encounter.scout(chosen).rooted_until = now + 2000
-		game.resolve_scout(shepherd, game.Enemies.get_kind(10), now + 1400)
+		preload("res://scout_behavior.gd").release(game, shepherd, game.Enemies.get_kind(10), now + 1400)
 		check(not game.encounter.scout(chosen).has("command_target"), "rooting the escort denies the relay")
 
 
@@ -178,7 +178,7 @@ func check_scatter() -> void:
 	check(attack.hatch[0].distance_to(attack.hatch[1]) >= 6.0, "hatches are far enough apart to split most circles")
 	check(Attacks.hints(attack, 0, 1.5).filter(func(hint): return hint.role == "hatch").size() == 2, "both sites are marked")
 	player.pos = attack.hatch[0]
-	game.resolve_scout(mother, game.Enemies.get_kind(9), now + 1500)
+	preload("res://scout_behavior.gd").release(game, mother, game.Enemies.get_kind(9), now + 1500)
 	check(mother.summons == 1 and game.encounter.scout_tactics().any(func(s): return s.get("broodmother_spawn", false) and s.pos == attack.hatch[1]), "a player can deny one site by occupying it")
 	check(game.combat_events.any(func(e): return e.kind == "proc" and e.shape == "hatch_blocked"), "blocked hatch gives immediate feedback")
 	Attacks.lock(game, mother, "brood", player.pos, now + 3200)

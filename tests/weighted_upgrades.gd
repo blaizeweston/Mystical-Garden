@@ -146,7 +146,7 @@ func core_cards(game: Node,p: Dictionary) -> void:
  game.encounter.set_hp(-1, 20);game.enemy_kind=0;game.enemy_mutations=0
  p.pos=Vector3.ZERO;p.core_ready_at=0;p.core_cast_until=0;p.cast_until=0
  p.secondary=0
- game.enemy_pos=Vector3(0,0,-3.22)
+ game.tactics.position=Vector3(0,0,-3.22)
  game.encounter.clear_scouts();game.encounter.register_scout(game.make_scout(0,Vector3(0,0,-4.05),1));game.encounter.register_scout(game.make_scout(0,Vector3(.8,0,-4.3),2))
  game.garden_action(1,Core.request(game,p,Vector2(0,-1)))
  var line: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
@@ -154,23 +154,23 @@ func core_cards(game: Node,p: Dictionary) -> void:
  if line.is_empty(): return
  var original_ready: int=p.core_ready_at
  Core.tick(game,line.armed)
- game.enemy_pos=line.center
+ game.tactics.position=line.center
  Core.tick(game,line.armed+60)
- check(game.rooted_until==0 and int(game.encounter.scout(0).rooted_until)>line.armed and int(game.encounter.scout(1).rooted_until)==0,"Forking Roots takes one nearby target and cannot chain again")
+ check(game.tactics.rooted_until==0 and int(game.encounter.scout(0).rooted_until)>line.armed and int(game.encounter.scout(1).rooted_until)==0,"Forking Roots takes one nearby target and cannot chain again")
  check(Core.hints(game).size()==1 and p.core_ready_at==original_ready-3000,"first contact refunds three seconds once and leaves the line active")
  Core.tick(game,line.armed+100)
  check(p.core_ready_at==original_ready-3000,"extra simulation ticks cannot refund again")
  check(game.combat_events.any(func(e):return e.kind=="link" and e.shape=="Forking Roots") and game.combat_events.any(func(e):return e.kind=="proc" and e.shape=="Quickroot"),"both behaviors have readable combat events")
  Core.tick(game,line.expires)
  p.core_ready_at=0;p.core_cast_until=0;p.cast_until=0
- game.enemy_pos=Vector3(0,0,-3.22)
+ game.tactics.position=Vector3(0,0,-3.22)
  game.garden_action(1,Core.request(game,p,Vector2(0,-1)))
  line=game.get_meta(Core.STATE,{}).get(1,{})
  check(not line.is_empty(),"a second cast can be tested after cooldown")
  if line.is_empty(): return
  original_ready=p.core_ready_at
  Core.tick(game,line.armed)
- game.enemy_pos=line.center
+ game.tactics.position=line.center
  Core.tick(game,line.armed+2001)
  check(p.core_ready_at==original_ready,"late trips do not refund the timer")
  game.return_to_garden(p)

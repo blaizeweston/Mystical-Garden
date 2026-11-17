@@ -33,10 +33,10 @@ func run():
 		game.encounter.clear_scouts()
 		game.battlefield.configure(0,1)
 		game.encounter.set_hp(-1, 100)
-		game.enemy_pos=Vector3.ZERO
-		game.enemy_engaged=true
-		game.enemy_winding_up=false
-		game.enemy_ready_at=Time.get_ticks_msec()+60000
+		game.tactics.position=Vector3.ZERO
+		game.tactics.engaged=true
+		game.tactics.winding_up=false
+		game.tactics.ready_at=Time.get_ticks_msec()+60000
 		host.wild=true
 		host[PlayerVitals.STATE] = host[PlayerVitals.STATE].with_hp(4)
 		host.pos=Vector3(.8,0,-1.5)
@@ -45,7 +45,7 @@ func run():
 		p.pos=Vector3(0,0,-1.5)
 		if not await until(func(): return p[Cooldowns.STATE].deadline(Cooldowns.Q)>0 and p[Cooldowns.STATE].deadline(Cooldowns.R)>0):
 			check(false,"both remote skill actions reach host");quit(1);return
-		check(game.enemy_health()<100 and game.rooted_until>Time.get_ticks_msec(),"remote attack and root are authoritative")
+		check(game.enemy_health()<100 and game.tactics.rooted_until>Time.get_ticks_msec(),"remote attack and root are authoritative")
 		game.send_garden_action("class_skill")
 		game.send_garden_action("class_skill_two")
 		check(host[Cooldowns.STATE].deadline(Cooldowns.Q)>0 and host[Cooldowns.STATE].deadline(Cooldowns.R)>0,"host also has two independent cooldowns")

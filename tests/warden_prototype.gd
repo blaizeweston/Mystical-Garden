@@ -94,10 +94,10 @@ func arena(indices: Array[int], card: String) -> void:
 	game.battlefield.configure(0,1,0)
 	game.battlefield.barriers.clear()
 	game.encounter.set_hp(-1, 100)
-	game.enemy_pos=Vector3(0,0,-1.4)
+	game.tactics.position=Vector3(0,0,-1.4)
 	game.enemy_traits.clear()
-	game.rooted_until=0
-	game.enemy_winding_up=false
+	game.tactics.rooted_until=0
+	game.tactics.winding_up=false
 	game.encounter.clear_scouts()
 	game.combat_events.clear()
 	game.encounter_number=1
@@ -118,12 +118,12 @@ func offense() -> void:
 	game.use_class_skill(1,player,0)
 	var now := Time.get_ticks_msec()
 	check(Combat.prepared_until(game,player,now)==0, "pressing Q alone does not prepare Quake")
-	game.apply_enemy_hit(1,player,now,1,0,game.enemy_pos)
+	game.apply_enemy_hit(1,player,now,1,0,game.tactics.position)
 	check(PlayerVitals.current_hp(player)==10 and player.counter_until>now and near.pos.x>1.9, "a real counter block repels nearby enemies")
 	Status.sync(game,now)
 	check(Status.snapshot(game,now).any(func(e): return e.shape=="warden_quake_ready" and e.combo==1), "prepared Quake has a visible player status")
 	game.use_class_skill(1,player,1)
-	check(game.enemy_health()<98 and near.rooted_until>now and game.rooted_until>now, "the bridged Quake uses the counter and roots actual contacts")
+	check(game.enemy_health()<98 and near.rooted_until>now and game.tactics.rooted_until>now, "the bridged Quake uses the counter and roots actual contacts")
 	check(game.encounter.hp_for(far)<50 and game.combat_events.any(func(e): return e.shape=="Briar Wake"), "the branch card strikes once outside the ordinary Quake")
 	check(Combat.prepared_until(game,player,now)==0, "real Quake consumes the preparation")
 
@@ -132,7 +132,7 @@ func neutral() -> void:
 	arena([13,16,19,22],"rootkeeper_second_growth")
 	game.use_class_skill(1,player,0)
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, Time.get_ticks_msec()+2500)
-	game.apply_enemy_hit(1,player,Time.get_ticks_msec(),1,0,game.enemy_pos)
+	game.apply_enemy_hit(1,player,Time.get_ticks_msec(),1,0,game.tactics.position)
 	check(player[Cooldowns.STATE].deadline(Cooldowns.DODGE)<=Time.get_ticks_msec(), "Ready Footing restores a recovering dodge on block")
 	player.pos=Vector3(0,0,5.5)
 	var view:=Aim.footprint(game,player,game.battlefield,1,Vector3.FORWARD,5.5)
@@ -180,7 +180,7 @@ func support() -> void:
 	check(game.buy_upgrade(1,player,0), "Thorn Shelter buys through the normal checkpoint")
 	game.encounter_number=4
 	game.encounter.set_hp(-1, 100)
-	game.enemy_pos=Vector3(0,0,-3.25)
+	game.tactics.position=Vector3(0,0,-3.25)
 	player.pos=Vector3.ZERO
 	game.garden_action(1,Core.request(game,player,Vector2.UP,2.5))
 	var line: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
@@ -201,7 +201,7 @@ func support() -> void:
 	# Clear the shorter Shared Bark ward before verifying the remote ward source.
 	ally.guard_until=0
 	game.use_class_skill(1,player,1)
-	check(game.rooted_until>now and ally.guard_until>now and player.warden_block.line_used, "Quake trips the actual Thorn Line and wards beside it")
+	check(game.tactics.rooted_until>now and ally.guard_until>now and player.warden_block.line_used, "Quake trips the actual Thorn Line and wards beside it")
 	check(game.combat_events.any(func(e): return e.kind=="enemy_release" and is_equal_approx(e.reach,Combat.WARD_RADIUS)), "Thorn Shelter has a visible ward circle")
 
 

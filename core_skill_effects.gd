@@ -255,9 +255,9 @@ static func area_targets(game: Node, center: Vector3, radius: float, ranged: boo
 
 
 static func affect_enemy(game: Node, player: Dictionary, target: int, center: Vector3, skill: Dictionary, effect: Dictionary, now: int) -> bool:
-	var boss: bool = target == -1 and game.boss_kind >= 0
-	var scout: Dictionary = game.encounter.scout(target) if target >= 0 else game.leader_brain.get("elite", {})
-	var winding: bool = game.enemy_winding_up if target == -1 else int(scout.windup) > 0
+	var boss: bool = target == -1 and game.tactics.boss_kind >= 0
+	var scout: Dictionary = game.encounter.scout(target) if target >= 0 else game.encounter.leader_tactics()
+	var winding: bool = game.tactics.winding_up if target == -1 else int(scout.windup) > 0
 	if (effect.get("only_winding", false) and not winding) or (boss and effect.has("interrupt_ms")):
 		return false
 	var at: Vector3 = game.enemy_position(target)
@@ -289,10 +289,10 @@ static func affect_enemy(game: Node, player: Dictionary, target: int, center: Ve
 			scout.erase("attack")
 			scout.erase("repeat")
 		if target == -1:
-			game.enemy_winding_up = false
-			game.enemy_ready_at = ready
-			game.enemy_attack_mode = ""
-			game.active_radius = 0.0
+			game.tactics.winding_up = false
+			game.tactics.ready_at = ready
+			game.tactics.attack_mode = ""
+			game.tactics.active_radius = 0.0
 		Status.proc(game, "suppress", center, at, target)
 	var root_ms := int(effect.get("root_ms", 0))
 	if effect.has("interrupt_ms"):
@@ -304,7 +304,7 @@ static func affect_enemy(game: Node, player: Dictionary, target: int, center: Ve
 	if effect.has("stagger_ms") and not boss and not winding:
 		var until := now + int(effect.stagger_ms)
 		if target == -1:
-			game.enemy_stagger_until = maxi(game.enemy_stagger_until, until)
+			game.tactics.stagger_until = maxi(game.tactics.stagger_until, until)
 		else:
 			scout.stagger_until = maxi(int(scout.stagger_until), until)
 	if effect.has("displace") and not boss and not winding:
@@ -315,7 +315,7 @@ static func affect_enemy(game: Node, player: Dictionary, target: int, center: Ve
 		var moved: Vector3 = game.battlefield.dash(at, endpoint)
 		preload("res://enemy_support.gd").observe_shelter_break(game, target, game.enemy_position(target), moved, now)
 		if target == -1:
-			game.enemy_pos = moved
+			game.tactics.position = moved
 		else:
 			scout.pos = moved
 	return true
@@ -507,7 +507,7 @@ static func eclipse_draw(game: Node, cast: Dictionary, now: int) -> void:
 
 
 static func can_displace(game: Node, target: int) -> bool:
-	return not (game.boss_kind >= 0 or game.enemy_winding_up) if target == -1 else int(game.encounter.scout(target).windup) <= 0
+	return not (game.tactics.boss_kind >= 0 or game.tactics.winding_up) if target == -1 else int(game.encounter.scout(target).windup) <= 0
 
 
 static func displace_to(game: Node, target: int, endpoint: Vector3, now: int) -> float:
@@ -515,7 +515,7 @@ static func displace_to(game: Node, target: int, endpoint: Vector3, now: int) ->
 	var moved: Vector3 = game.battlefield.dash(at, endpoint)
 	preload("res://enemy_support.gd").observe_shelter_break(game, target, at, moved, now)
 	if target == -1:
-		game.enemy_pos = moved
+		game.tactics.position = moved
 	else:
 		game.encounter.scout(target).pos = moved
 	return at.distance_to(moved)
@@ -622,8 +622,8 @@ static func decoy_hints(game: Node, cast: Dictionary) -> Array:
 	for target in Contact.candidates(game, center):
 		if result.size() >= 4:
 			break
-		var actor: Dictionary = game.leader_brain if target == -1 else game.encounter.scout(target)
-		var engaged: bool = game.enemy_engaged if target == -1 else actor.engaged
+		var actor: Dictionary = game.tactics.memory if target == -1 else game.encounter.scout(target)
+		var engaged: bool = game.tactics.engaged if target == -1 else actor.engaged
 		var point: Vector3 = game.enemy_position(target)
 		if not engaged or int(actor.get("target", 0)) != int(cast.owner) or point.distance_to(center) > 7.0 or point.distance_to(center) < .3:
 			continue

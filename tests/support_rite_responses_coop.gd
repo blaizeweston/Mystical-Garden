@@ -78,8 +78,8 @@ func prepare(response: String) -> Dictionary:
 	game.battlefield.barriers.clear()
 	game.encounter.set_hp(-1, 50)
 	game.enemy_kind = 0
-	game.enemy_pos = Vector3(12, 0, 5)
-	game.enemy_engaged = false
+	game.tactics.position = Vector3(12, 0, 5)
+	game.tactics.engaged = false
 	game.encounter.clear_scouts()
 	Core.reset(game)
 	for member in game.players.values():
@@ -127,7 +127,7 @@ func host() -> void:
 		if not await until(func(): return Tactics.evidence(game).get(Tactics.CAST_DENIAL, 0) == 1 and Time.get_ticks_msec() >= int(caster.ready)):
 			check(false, "Hush stops the ordinary rite before " + response)
 			return
-		game.update_support_position(caster, game.support_allies(caster), game.Enemies.get_kind(caster.kind), 0.0, .016, Time.get_ticks_msec())
+		preload("res://enemy_formation.gd").follow_support(game, caster, preload("res://enemy_formation.gd").allies(game, caster), game.Enemies.get_kind(caster.kind), 0.0, .016, Time.get_ticks_msec())
 		var plan: Dictionary = caster.get("attack", {})
 		if plan.get("variant") != response:
 			check(false, "host locks " + response)

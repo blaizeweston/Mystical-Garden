@@ -69,10 +69,10 @@ func run() -> void:
 func reset_enemy(at := Vector3(0,0,-1.5)) -> void:
 	game.encounter.set_hp(-1, 150)
 	game.enemy_mutations=0
-	game.boss_kind=-1
-	game.enemy_pos=at
-	game.enemy_winding_up=false
-	game.leader_brain.clear()
+	game.tactics.boss_kind=-1
+	game.tactics.position=at
+	game.tactics.winding_up=false
+	game.tactics.memory.clear()
 	game.encounter.clear_scouts()
 	Core.reset(game)
 	bursts.clear()
@@ -102,17 +102,17 @@ func run_core(p: Dictionary, part: int) -> void:
 	Core.tick(game,at+1)
 	var quality: String = "refined" if part==refined else "ordinary"
 	var potency: Dictionary = Frost.Balance.QUALITY[quality]
-	var open := Frost.state(game.leader_brain,at)
+	var open := Frost.state(game.tactics.memory,at)
 	check(game.enemy_health()==150-Frost.Balance.BLOOM_OPEN_HP and open.get("stacks",[]).size()==2,"opening damage and two stacks once")
-	check(is_equal_approx(Frost.motion_scale(game.leader_brain,at),1-2*potency.move_slow),"two stacks alter movement immediately")
+	check(is_equal_approx(Frost.motion_scale(game.tactics.memory,at),1-2*potency.move_slow),"two stacks alter movement immediately")
 	var ready: int = p.core_ready_at
 	game.garden_action(1,cast_key)
 	check(p.core_ready_at==ready,"repeated cast during its cooldown is refused")
 	Core.tick(game,at+Frost.Balance.BLOOM_DELAY_MS)
 	check(bursts.size()==1 and bursts[0][1]==3*potency.rupture_hp
-		and Frost.motion_scale(game.leader_brain,at+Frost.Balance.BLOOM_DELAY_MS)==0.0 and Frost.state(game.leader_brain,at+Frost.Balance.BLOOM_DELAY_MS).is_empty(),
+		and Frost.motion_scale(game.tactics.memory,at+Frost.Balance.BLOOM_DELAY_MS)==0.0 and Frost.state(game.tactics.memory,at+Frost.Balance.BLOOM_DELAY_MS).is_empty(),
 		"Core alone ruptures, clears spent stacks and roots for both qualities")
-	check(Frost.motion_scale(game.leader_brain,at+Frost.Balance.BLOOM_DELAY_MS+Frost.Balance.ROOT_MS)==1.0,"root expires independently")
+	check(Frost.motion_scale(game.tactics.memory,at+Frost.Balance.BLOOM_DELAY_MS+Frost.Balance.ROOT_MS)==1.0,"root expires independently")
 
 
 func run_form(p: Dictionary, part: int, frame := 0, weapon_kind := 0) -> void:
@@ -129,10 +129,10 @@ func run_form(p: Dictionary, part: int, frame := 0, weapon_kind := 0) -> void:
 		check(false,"Form uses real native strike queue")
 		return
 	var shot: Dictionary=game.projectile_queue.front()
-	check(Frost.state(game.leader_brain,Time.get_ticks_msec()).is_empty(),"queued attack has not applied Frost")
+	check(Frost.state(game.tactics.memory,Time.get_ticks_msec()).is_empty(),"queued attack has not applied Frost")
 	var at: int=shot.due+1
 	game.update_projectiles(at)
-	var current := Frost.state(game.leader_brain,at)
+	var current := Frost.state(game.tactics.memory,at)
 	if current.is_empty():
 		check(false,"eligible real melee contact applies Frost Form")
 		return
@@ -140,8 +140,8 @@ func run_form(p: Dictionary, part: int, frame := 0, weapon_kind := 0) -> void:
 	check(current.stacks.size()==1 and current.stacks[0].quality==quality,"Form applies the correct quality on contact")
 	Events.contact(game,shot.stats,-1,at+1)
 	Events.contact(game,shot.stats,-1,at+1,true)
-	check(Frost.state(game.leader_brain,at+1).stacks.size()==1,"duplicate and secondary contacts cannot apply stacks")
-	check(Frost.motion_scale(game.leader_brain,at+Frost.Balance.BRITTLE_MS)==1.0,"unrefreshed Brittle expires")
+	check(Frost.state(game.tactics.memory,at+1).stacks.size()==1,"duplicate and secondary contacts cannot apply stacks")
+	check(Frost.motion_scale(game.tactics.memory,at+Frost.Balance.BRITTLE_MS)==1.0,"unrefreshed Brittle expires")
 
 
 func run_catalyst(p: Dictionary, part: int) -> void:
@@ -155,7 +155,7 @@ func run_catalyst(p: Dictionary, part: int) -> void:
 	p.core_cast_until=0
 	p.cast_until=0
 	game.use_class_skill(1,p,1)
-	var current := Frost.state(game.leader_brain,Time.get_ticks_msec())
+	var current := Frost.state(game.tactics.memory,Time.get_ticks_msec())
 	check(current.get("stacks",[]).size()==1 and current.stacks[0].quality==("refined" if part==refined else "ordinary"),"Catalyst-only Q/R emits a native offensive contact with its quality")
 	p.frame=4
 	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
@@ -170,7 +170,7 @@ func run_catalyst(p: Dictionary, part: int) -> void:
 	var hp: float=ally[PlayerVitals.STATE].hp()
 	Frost.with_attacker(game,-1,game.apply_enemy_hit.bind(2,ally,now,1))
 	check(ally[PlayerVitals.STATE].hp()<hp and not ally.has(Frost.RESPONSE),"fallback consumes after an actual survivable hit without blocking it")
-	var after := Frost.state(game.leader_brain,now)
+	var after := Frost.state(game.tactics.memory,now)
 	check(after.get("stacks",[]).size()==2 and after.stacks[1].actor==1 and after.stacks[1].quality==("refined" if part==refined else "ordinary"),"ally uses granting Catalyst quality")
 	p.frame=0
 
@@ -188,7 +188,7 @@ func run_focus(p: Dictionary) -> void:
 	game.use_class_skill(1,p,0)
 	var now:=Time.get_ticks_msec()
 	game.apply_enemy_hit(1,p,now,1)
-	var current:=Frost.state(game.leader_brain,now)
+	var current:=Frost.state(game.tactics.memory,now)
 	check(seen.size()==1 and seen[0].details.adapter=="warden/focus/vanguard/Q"
 		and current.get("stacks",[]).size()==1 and current.stacks[0].quality=="refined","real Vanguard Thorn Counter uses the Frost block adapter")
 	p.character.upgrades[0]=0
@@ -253,20 +253,20 @@ func run_mixed() -> void:
 	var first := Events.begin(game,1,"form",Builds.slot("form",ordinary),Frost.Balance.QUALITY.ordinary,["weapon_contact"],now+18000)
 	var second := Events.begin(game,2,"core",Builds.slot("core",refined),Frost.Balance.QUALITY.refined,["core_action"],now+18000)
 	first.publish(game,"weapon_contact","contact","leader",now,{"enemy":-1})
-	check(is_equal_approx(Frost.motion_scale(game.leader_brain,now),.92),"one ordinary stack gives its movement slow")
+	check(is_equal_approx(Frost.motion_scale(game.tactics.memory,now),.92),"one ordinary stack gives its movement slow")
 	var later:=now+Frost.Balance.BRITTLE_MS-1
-	var saved_windup: int=game.enemy_strike_at
-	game.enemy_winding_up=true
+	var saved_windup: int=game.tactics.strike_at
+	game.tactics.winding_up=true
 	second.publish(game,"core_action","open","leader",later,{"enemy":-1,"stacks":3,"opening_hp":0})
-	check(game.enemy_winding_up and game.enemy_strike_at==saved_windup,"rupture does not cancel or retime existing wind-up")
+	check(game.tactics.winding_up and game.tactics.strike_at==saved_windup,"rupture does not cancel or retime existing wind-up")
 	check(bursts.size()==1 and bursts[0][1]==18 and bursts[0][0][0].actor==1
-		and Frost.state(game.leader_brain,later).stacks.size()==1 and Frost.state(game.leader_brain,later).stacks[0].quality=="refined",
+		and Frost.state(game.tactics.memory,later).stacks.size()==1 and Frost.state(game.tactics.memory,later).stacks[0].quality=="refined",
 		"authoritative FIFO rupture uses mixed-potency contributions and retains excess")
-	check(Frost.state(game.leader_brain,later+Frost.Balance.ROOT_MS+1).stacks.size()==1,"genuine application refreshes retained Brittle")
+	check(Frost.state(game.tactics.memory,later+Frost.Balance.ROOT_MS+1).stacks.size()==1,"genuine application refreshes retained Brittle")
 	var begin:=Time.get_ticks_usec()
 	var checksum:=0.0
 	for index in 20000:
-		checksum+=Frost.motion_scale(game.leader_brain,later+Frost.Balance.ROOT_MS)
+		checksum+=Frost.motion_scale(game.tactics.memory,later+Frost.Balance.ROOT_MS)
 	print("Frost movement query: ",float(Time.get_ticks_usec()-begin)/20000.0," us/query, checksum ",checksum)
 	var sync_cost:=Time.get_ticks_usec()
 	for index in 250:

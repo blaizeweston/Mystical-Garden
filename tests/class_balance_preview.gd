@@ -60,12 +60,12 @@ func arena(class_id: int, mask: int = 0) -> void:
 	game.enemy_traits.clear()
 	game.projectile_queue.clear()
 	game.battlefield.barriers.clear()
-	game.boss_kind=-1
+	game.tactics.boss_kind=-1
 	game.encounter.set_hp(-1, 600)
-	game.enemy_pos=Vector3(0,0,-2)
-	game.enemy_winding_up=false
+	game.tactics.position=Vector3(0,0,-2)
+	game.tactics.winding_up=false
 	game.enemy_mutations=0
-	game.rooted_until=0
+	game.tactics.rooted_until=0
 	player.character=game.Character.blank()
 	player.character.upgrades[class_id]=mask
 	player.character.xp[class_id]=2600
@@ -177,10 +177,10 @@ func class_fields_and_traps() -> void:
 	arena(2)
 	var trap: Dictionary=game.Traits.tune_skill(skills()[1],{"trap_power":.5})
 	var stats := {"trap_power":.5,"skill_duration":400}
-	game.Traits.place_snare(game,player,game.enemy_pos,trap,stats,now)
+	game.Traits.place_snare(game,player,game.tactics.position,trap,stats,now)
 	check(game.enemy_health()==600 and game.trait_events[0].until-now==4200,"trap stays active for its modified duration and waits to arm")
 	game.Traits.tick(game,now+300)
-	check(game.enemy_health()==585 and game.rooted_until>=now+2100,"trap applies the fractional 15 HP hit and modified root")
+	check(game.enemy_health()==585 and game.tactics.rooted_until>=now+2100,"trap applies the fractional 15 HP hit and modified root")
 	check(game.Skills.describe(skills()[1],stats).contains("15 HP") and game.Skills.describe(skills()[1],stats).contains("4.2s"),"trap tooltip uses the same tuned values")
 
 
@@ -221,6 +221,6 @@ func heal_and_punish() -> void:
 	check(tooltip(0).contains("Heal living allies: "+Preview.heal_label(1.0+bonus)),"subclass tooltip shows the combined heal range")
 	arena(4,1<<12)
 	player.run_upgrades={"omenreader_signature":1}
-	game.enemy_winding_up=true
+	game.tactics.winding_up=true
 	cast_at(0,2.0)
 	check(game.enemy_health()==570 and tooltip(0).contains("+20 HP damage"),"Foretell deals 10 base and 20 wind-up damage with its signature")

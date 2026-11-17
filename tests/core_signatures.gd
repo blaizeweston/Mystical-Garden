@@ -22,8 +22,8 @@ func fixture(game: Node) -> void:
 	game.enemy_kind = 0
 	game.encounter.set_hp(-1, 30)
 	game.enemy_mutations = 0
-	game.enemy_winding_up = false
-	game.boss_kind = -1
+	game.tactics.winding_up = false
+	game.tactics.boss_kind = -1
 	game.enemy_traits.clear()
 	game.encounter.clear_scouts()
 	game.battlefield.configure(0, 1, 0)
@@ -72,7 +72,7 @@ func run() -> void:
 	check(p.wild and p.weapon==refined_whisper and game.seed_reserve(p).parts[refined_whisper]==0,"refined part crafts through existing reservation and stock")
 	fixture(game)
 	p.pos=Vector3.ZERO
-	game.enemy_pos=Vector3(0,0,-2.0)
+	game.tactics.position=Vector3(0,0,-2.0)
 	game.encounter.register_scout(game.make_scout(0,Vector3(0,0,-4),1))
 	game.garden_action(1,Core.request(game,p,Vector2(0,-1)))
 	var cast: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
@@ -100,7 +100,7 @@ func run() -> void:
 
 	fixture(game)
 	p.weapon=refined_star;p.secondary=thorn;p.core_ready_at=0;p.core_cast_until=0;p.cast_until=0
-	game.enemy_pos=Vector3(1.1,0,-1.9)
+	game.tactics.position=Vector3(1.1,0,-1.9)
 	game.encounter.clear_scouts();game.encounter.register_scout(game.make_scout(0,Vector3(2.3,0,-1.9),1));game.encounter.register_scout(game.make_scout(0,Vector3(2.3,0,-3.2),2))
 	var initial := Core.request(game,p,Vector2(0,-1),1.9)
 	game.garden_action(1,initial)
@@ -119,11 +119,11 @@ func run() -> void:
 	var cursor := Vector2(3,-1.9)
 	game.mouse_controls.receive(game,1,cursor.normalized()*(cursor.length()+2.0),false,fires-30)
 	Core.tick(game,fires-1)
-	check(game.rooted_until==0 and Core.hints(game).size()==1,"the star waits before firing")
+	check(game.tactics.rooted_until==0 and Core.hints(game).size()==1,"the star waits before firing")
 	Core.tick(game,fires)
 	var beam: Array=game.combat_events.filter(func(event): return event.kind=="swing" and event.shape=="constellation")
 	check(beam.size()==1 and is_equal_approx(float(beam[0].from[0]),0) and float(beam[0].to[0])>5.5 and is_equal_approx(float(beam[0].width),.34),"beam fires automatically from the anchor toward the current cursor")
-	check(game.rooted_until>fires and int(game.encounter.scout(0).rooted_until)>fires and int(game.encounter.scout(1).rooted_until)==0,"beam roots on-line enemies while leaving the off-line scout free")
+	check(game.tactics.rooted_until>fires and int(game.encounter.scout(0).rooted_until)>fires and int(game.encounter.scout(1).rooted_until)==0,"beam roots on-line enemies while leaving the off-line scout free")
 	Core.tick(game,fires+100)
 	check(Core.hints(game).is_empty() and p.core_ready_at==timer and game.combat_events.filter(func(event): return event.kind=="swing" and event.shape=="constellation").size()==1,"the star fires once and preserves the independent cooldown")
 	game.return_to_garden(p)

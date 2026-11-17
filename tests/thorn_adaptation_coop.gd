@@ -68,9 +68,9 @@ func host() -> void:
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
 	game.encounter.set_hp(-1, 40)
-	game.enemy_pos = Vector3(12, 0, 5)
-	game.enemy_ready_at = Time.get_ticks_msec() + 60000
-	game.enemy_winding_up = false
+	game.tactics.position = Vector3(12, 0, 5)
+	game.tactics.ready_at = Time.get_ticks_msec() + 60000
+	game.tactics.winding_up = false
 	game.encounter.clear_scouts()
 	player.wild = true
 	other.wild = true

@@ -135,13 +135,13 @@ func verify_combat(game: Node) -> void:
 	var stag: Dictionary = game.make_scout(2,Vector3.ZERO,1)
 	Attacks.lock(game,stag,"charge",Vector3(0,0,4),now+650)
 	check(audio_ids(game)==["enemy_charge_windup"],"the stag warns when its charge commits")
-	game.resolve_scout(stag,game.Enemies.get_kind(2),now+650)
+	preload("res://scout_behavior.gd").release(game, stag,game.Enemies.get_kind(2),now+650)
 	check(audio_ids(game)==["enemy_charge_windup","enemy_charge_release"],"a completed charge plays one release")
 	game.combat_events.clear()
 	stag.pos = Vector3.ZERO
 	Attacks.lock(game,stag,"charge",Vector3(0,0,4),now+1600)
 	game.battlefield.barriers.assign([Rect2(-1.2,2.1,2.4,1.3)])
-	game.resolve_scout(stag,game.Enemies.get_kind(2),now+1600)
+	preload("res://scout_behavior.gd").release(game, stag,game.Enemies.get_kind(2),now+1600)
 	check(audio_ids(game)==["enemy_charge_windup"],"a blocked charge cannot play a release")
 	check(Cues.Combat.enemy({"mode":"charge","variant":"antler_hook"},false)=="enemy_hook_windup",
 		"the bent charge has a distinct warning")
@@ -150,7 +150,7 @@ func verify_combat(game: Node) -> void:
 	p.pos = Vector3.ZERO
 	p.facing = Vector3.FORWARD
 	p.mouse_aim = false
-	game.enemy_pos = Vector3(5,0,1)
+	game.tactics.position = Vector3(5,0,1)
 	var stats: Dictionary = game.weapon_stats(p)
 	game.MouseCombat.queue_attack(game,1,p,p.pos,stats,now,"blade",500)
 	check(audio_ids(game).is_empty(),"a queued swing is silent before release")

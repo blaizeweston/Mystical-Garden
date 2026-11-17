@@ -120,27 +120,27 @@ func run():
 		player.weapon=Seeds.DEFINITIONS[kind].part
 		player.pos=Vector3(0,0,-1)
 		player.strike_at=0
-		game.enemy_pos=Vector3.ZERO
+		game.tactics.position=Vector3.ZERO
 		game.encounter.set_hp(-1, 20)
 		game.enemy_mutations=0
-		game.enemy_winding_up=kind==9
-		game.moss_recovery_bonus=0
+		game.tactics.winding_up=kind==9
+		game.tactics.recovery_bonus=0
 		var now:=Time.get_ticks_msec()
 		game.strike_enemy(1,player,player.pos)
 		game.update_projectiles(Time.get_ticks_msec()+1000)
 		if kind==3:
 			check(game.enemy_health()==17 and player.strike_at-now>=560,"Ember Fern trades attack speed for real strike damage")
-		if kind==7: check(game.moss_recovery_bonus==850,"Ghost Fern applies real recovery modifier")
-		if kind==8: check(game.enemy_pos.z>0.9,"Storm Reed adds real knockback")
+		if kind==7: check(game.tactics.recovery_bonus==850,"Ghost Fern applies real recovery modifier")
+		if kind==8: check(game.tactics.position.z>0.9,"Storm Reed adds real knockback")
 		if kind==9: check(game.enemy_health()==16,"Moon Lotus exploits real wind-up damage")
-		if kind==14: check(game.enemy_stagger_until-now>=260,"Worldseed adds real hit stagger")
+		if kind==14: check(game.tactics.stagger_until-now>=260,"Worldseed adds real hit stagger")
 	player.weapon=Seeds.DEFINITIONS[6].part
 	player.strike_at=0
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(5)
 	player.pos=Vector3(0,0,-1)
-	game.enemy_pos=Vector3.ZERO
+	game.tactics.position=Vector3.ZERO
 	game.encounter.set_hp(-1, 1)
-	game.enemy_winding_up=false
+	game.tactics.winding_up=false
 	game.strike_enemy(1,player,player.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
 	check(PlayerVitals.current_hp(player)==7,"Bloodbriar heals on a real killing strike")

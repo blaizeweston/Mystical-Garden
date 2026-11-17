@@ -48,7 +48,7 @@ func run() -> void:
  game.toggle_overlay(null)
  var nodes: Array=game.progression_view.seed_nodes(g.discoveries,g.stock)
  check(nodes.any(func(n):return n.id==str(i) and n.parents.size()==2 and n.icon!=null),"tree contains portrait and lineage connections")
- p.wild=true;p.weapon=part;p.secondary=0;p.catalyst=0;p.pos=Vector3(0,0,-1);game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter.clear_scouts();game.enemy_pos=Vector3.ZERO;game.encounter.set_hp(-1, 50)
+ p.wild=true;p.weapon=part;p.secondary=0;p.catalyst=0;p.pos=Vector3(0,0,-1);game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter.clear_scouts();game.tactics.position=Vector3.ZERO;game.encounter.set_hp(-1, 50)
  var stats: Dictionary=game.weapon_stats(p);var before: int=game.enemy_health()
  game.apply_weapon_hit(p,-1,p.pos,stats,1000);var first: int=before-game.enemy_health()
  game.apply_weapon_hit(p,-1,p.pos,stats,1100);before=game.enemy_health()

@@ -104,16 +104,16 @@ static func response_windup(attack: Dictionary, ordinary: int) -> int:
 
 
 static func root_denied(game: Node, target: int, now: int) -> void:
-	if not game.multiplayer.is_server() or (target == -1 and game.boss_kind >= 0) or not game.Traits.valid_target(game, target):
+	if not game.multiplayer.is_server() or (target == -1 and game.tactics.boss_kind >= 0) or not game.Traits.valid_target(game, target):
 		return
-	var actor: Dictionary = game.encounter.scout(target) if target >= 0 else game.leader_brain.get("elite", {})
+	var actor: Dictionary = game.encounter.scout(target) if target >= 0 else game.encounter.leader_tactics()
 	if actor.is_empty() or actor.get("summoned", false) or actor.get("route_denied_epoch", -1) == game.combat_epoch:
 		return
 	if REGULAR_RESPONSES.get(actor.kind, {}).get("tactic") != ROUTE_DENIAL:
 		return
-	var engaged: bool = game.enemy_engaged if target == -1 else actor.engaged
-	var winding: bool = game.enemy_winding_up if target == -1 else int(actor.windup) > 0
-	var until: int = game.rooted_until if target == -1 else actor.rooted_until
+	var engaged: bool = game.tactics.engaged if target == -1 else actor.engaged
+	var winding: bool = game.tactics.winding_up if target == -1 else int(actor.windup) > 0
+	var until: int = game.tactics.rooted_until if target == -1 else actor.rooted_until
 	if not engaged or winding or until > now:
 		return
 	var point: Vector3 = game.enemy_position(target)

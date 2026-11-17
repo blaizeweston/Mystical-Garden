@@ -66,9 +66,9 @@ func host_run() -> void:
 	var guest: Dictionary = game.players[id]
 	game.destination = 0;game.encounter_number = 1;game.depth = 1;game.map_seed = 0
 	game.battlefield.configure(0,1,0)
-	game.enemy_kind = 0;game.encounter.set_hp(-1, 30);game.enemy_pos = Vector3(0,0,-2.3)
-	game.enemy_winding_up = false;game.enemy_mutations = 0;game.boss_kind = -1
-	game.enemy_stagger_until = Time.get_ticks_msec() + 25000
+	game.enemy_kind = 0;game.encounter.set_hp(-1, 30);game.tactics.position = Vector3(0,0,-2.3)
+	game.tactics.winding_up = false;game.enemy_mutations = 0;game.tactics.boss_kind = -1
+	game.tactics.stagger_until = Time.get_ticks_msec() + 25000
 	game.encounter.clear_scouts()
 	for p in [host,guest]:
 		p.wild=true;p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
@@ -81,7 +81,7 @@ func host_run() -> void:
 	check(game.enemy_traits[Mark.STATE].owner == id and game.enemy_health() == 30, "guest marks on host authority")
 	game.apply_weapon_hit(host,-1,host.pos,{"damage":1,"knockback":-.35},Time.get_ticks_msec())
 	check(game.enemy_health() == 27 and not game.enemy_traits.has(Mark.STATE), "host hit consumes guest mark once")
-	game.enemy_stagger_until = Time.get_ticks_msec() + 15000
+	game.tactics.stagger_until = Time.get_ticks_msec() + 15000
 	if not await until(func(): return marked("burst-visible")):
 		check(false, "guest receives the consumed mark")
 		return
@@ -89,13 +89,13 @@ func host_run() -> void:
 	if not await until(func(): return marked("anchor-visible")):
 		check(false, "guest sees the host star")
 		return
-	game.enemy_pos=Vector3(1.2,0,-1.5)
+	game.tactics.position=Vector3(1.2,0,-1.5)
 	var star: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
 	if star.is_empty():
 		check(false,"star is still charging")
 		return
 	game.mouse_controls.receive(game,1,Vector2.RIGHT,false,int(star.fires_at)-1)
-	check(await until(func(): return Core.hints(game).is_empty() and game.rooted_until>Time.get_ticks_msec()),"host star automatically roots the enemy along the new aim")
+	check(await until(func(): return Core.hints(game).is_empty() and game.tactics.rooted_until>Time.get_ticks_msec()),"host star automatically roots the enemy along the new aim")
 	if not await until(func(): return marked("beam-visible")):
 		check(false, "guest sees beam and anchored marker clears")
 		return
