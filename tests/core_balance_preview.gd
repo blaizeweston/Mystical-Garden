@@ -243,6 +243,6 @@ func checkpoint() -> void:
 		check(game.buy_upgrade(1,player,0),"repeatable strike rank purchases at a later gate")
 	var stats: Dictionary=game.weapon_stats(player)
 	var view:=Summary.project(game,player,stats)
-	check(player.power==2 and view.totals[0][1]==Preview.range_label(Vector2i(stats.damage_min,stats.damage_max))+" HP","stacked ranks appear in one final strike total")
+	check(player.power==2 and view.totals[0]==["Damage",Preview.range_label(Vector2i(stats.damage_min,stats.damage_max))],"stacked ranks appear in one final strike total")
 	check(view.cards.any(func(card):return card.title.ends_with("×2") and card.tooltip.contains("+10 HP strike damage")),"rank and per-rank amount appear in the card tooltip")
 	check(view.bonuses.contains("Mirror Bloom") and view.bonuses.contains("10 HP damage per target"),"Tab includes the purchased phase in the active skill totals")

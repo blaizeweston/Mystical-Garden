@@ -107,7 +107,7 @@ func verify_strikes(game: Node, player: Dictionary) -> void:
 			if trial==0:
 				check(game.Weapons.describe(stats).contains(Preview.range_label(band)+" damage"),"weapon preview shows that same band")
 				var summary: Dictionary=preload("res://run_summary_panel.gd").project(game,player,stats)
-				check(summary.totals[0][1]==Preview.range_label(band)+" HP","Tab summary shows the same band")
+				check(summary.totals[0]==["Damage",Preview.range_label(band)],"Tab summary shows the same band")
 			game.strike_enemy(1,player,player.pos)
 			if game.projectile_queue.is_empty():
 				check(false,"attack was committed")

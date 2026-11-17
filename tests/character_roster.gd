@@ -15,7 +15,7 @@ func run():
  check(roster.create(0,"Overwrite",0,[])==ERR_ALREADY_EXISTS and roster.create(3,"Beyond",0,[])==ERR_INVALID_PARAMETER,"creation never overwrites an existing profile or aliases a slot")
  check(roster.create(1,"Mira",4,[1,2,0,2,2])==OK,"second distinct class character created")
  var rowan:=Profile.new();rowan.path=roster.paths(0).character;rowan.load_profile()
- rowan.data.xp[2]=35;rowan.data.plants[1]=9;rowan.save_profile()
+ rowan.data.xp[2]=350;rowan.data.plants[1]=9;rowan.save_profile()
  var identity:=rowan.identity
  check(rowan.data.name=="Rowan" and rowan.data.active_class==2 and rowan.data.appearance.slice(0,5) == [2,1,2,1,1],"name, starting class and appearance persist")
  check(roster.set_capacity(5)==OK and roster.count()==5 and roster.create(4,"Future",1,[])==OK,"capacity can grow without clamping new slots to the first three")

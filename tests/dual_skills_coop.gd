@@ -78,7 +78,11 @@ func run():
 		check(game.player_hud.state.skill_names==["Strangling Bloom","Spore Nova"],"HUD resolves portable replacement and augmentation")
 		check(game.players[id].skill_cooldowns[0]>0 and game.players[id].skill_cooldowns[1]>0,"relative cooldowns arrive")
 		check(await until(func(): return game.players[id].hp>=6),"host support healing arrives")
-		check(not game.players[1].get("skill_fx",{}).is_empty(),"host cast effects are visible to guest")
+		var received_casts := func() -> bool:
+			var shapes: Array = game.guest_combat_events(game.players[id]).filter(func(event):
+				return event.kind == "ability" and int(event.combo) == 1).map(func(event):return event.shape)
+			return "heal" in shapes and "ward" in shapes
+		check(await until(received_casts),"both host casts reach the guest through combat events")
 		check(game.guest_character.data.upgrades[1]==6,"class choices remain saved on guest")
 	if not failed: print("PASS: dual-skill co-op "+mode)
 	quit(1 if failed else 0)
