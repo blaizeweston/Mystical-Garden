@@ -14,7 +14,7 @@ func _initialize() -> void:
 func reset_floor(seed_value: int=91273) -> void:
  game.session="Solo";game.difficulty_cycle=1;game.encounter_number=19;game.destination=0;game.depth=1;game.map_seed=seed_value;game.reset_encounter()
  for p in game.players.values():p.wild=true;p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=game.battlefield.entry
- game.scouts.clear();game.enemy_hp=10
+ game.encounter.clear_scouts();game.encounter.set_hp(-1, 10)
 func warn(now: int) -> Array:
  game.pressure_at=now;game.update_pressure(now)
  return Pressure.hints(game,now)
@@ -37,27 +37,28 @@ func run() -> void:
  game.combat_visuals.sync([],[],"pressure-test",p.pos)
  check(game.combat_visuals.hints.is_empty(),"cancelled markers leave no residual graphics")
  game.update_pressure(38999)
- check(game.scouts.is_empty() and PlayerVitals.current_hp(p)==10,"warning itself cannot hit or spawn early")
+ check(game.encounter.scout_count()==0 and PlayerVitals.current_hp(p)==10,"warning itself cannot hit or spawn early")
  game.update_pressure(39000);game.update_pressure(39000)
- check(game.scouts.size()==1 and PlayerVitals.current_hp(p)==10,"due wave spawns once without health loss")
- if not game.scouts.is_empty():
-  var scout: Dictionary=game.scouts[0]
+ check(game.encounter.scout_count()==1 and PlayerVitals.current_hp(p)==10,"due wave spawns once without health loss")
+ if game.encounter.scout_count()>0:
+  var scout: Dictionary=game.encounter.scout(0)
   check(scout.pos.distance_to(p.pos)>=Pressure.SAFE_DISTANCE and not game.battlefield.occupied(scout.pos,.5),"arrival stays on floor and away from player")
   check(scout.engaged and scout.ready==39700 and scout.stagger_until==39700,"arrival has combat grace before normal attacks")
   check(scout.summoned and not game.Enemies.is_support(scout.kind) and not game.Enemies.get_kind(scout.kind).get("boss",false),"non-support reinforcement uses existing non-farmable summon rules")
   check(game.rng.state==rng_state,"pressure planning leaves combat/loot RNG untouched")
   var before: int=game.encounter_kills.size();var records: int=game.encounter_kill_records.size()
+  game.encounter.set_hp(0, 0)
   game.record_enemy_death(0,scout.pos,p.pos)
-  check(game.encounter_kills.size()==before and game.encounter_kill_records.size()==records,"repeatable arrivals cannot farm progression or learning records")
+  check(not game.encounter.death_pending(0) and game.encounter_kills.size()==before and game.encounter_kill_records.size()==records,"repeatable arrivals cannot farm progression or learning records")
  check(game.rng.state==rng_state,"pressure planning leaves combat/loot RNG untouched")
  reset_floor();hints=warn(1000)
  check(not hints.is_empty(),"unsafe-arrival fixture has a planned site")
  if not hints.is_empty():
   p.pos=game.leader_brain.pressure.pending[0].pos
   game.update_pressure(4000)
-  check(game.scouts.is_empty() and PlayerVitals.current_hp(p)==10,"occupied warning cancels rather than spawning on player or moving to unwarned site")
- reset_floor();warn(1000);game.enemy_hp=0;game.update_pressure(4000)
- check(game.encounter_cleared() and game.scouts.is_empty() and game.pressure_at==0 and Pressure.hints(game).is_empty(),"clearing floor cancels pending wave and keeps exit open")
+  check(game.encounter.scout_count()==0 and PlayerVitals.current_hp(p)==10,"occupied warning cancels rather than spawning on player or moving to unwarned site")
+ reset_floor();warn(1000);game.encounter.set_hp(-1, 0);game.update_pressure(4000)
+ check(game.encounter_cleared() and game.encounter.scout_count()==0 and game.pressure_at==0 and Pressure.hints(game).is_empty(),"clearing floor cancels pending wave and keeps exit open")
  for mode in ["early","boss","garden","fallen","guest"]:
   reset_floor()
   if mode=="early":game.difficulty_cycle=0
@@ -66,25 +67,25 @@ func run() -> void:
   elif mode=="fallen":p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].fall();p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(0)
   else:game.session="Guest"
   game.update_pressure(1000);game.update_pressure(100000)
-  check(game.scouts.is_empty() and PlayerVitals.current_hp(p)==(0 if mode=="fallen" else 10),"no pressure damage or arrivals in "+mode)
+  check(game.encounter.scout_count()==0 and PlayerVitals.current_hp(p)==(0 if mode=="fallen" else 10),"no pressure damage or arrivals in "+mode)
  reset_floor();game.add_player(2);game.players[2].profile_ready=true;game.players[2].wild=true;game.players[2].pos=p.pos
  for wave in range(1,17):
-  game.scouts.clear();game.leader_brain.pressure={"wave":wave-1,"pending":[]}
+  game.encounter.clear_scouts();game.leader_brain.pressure={"wave":wave-1,"pending":[]}
   hints=warn(wave*100000)
   check(hints.size()<=4,"wave size bounded")
   game.update_pressure(wave*100000+3000)
-  for scout in game.scouts:
+  for scout in game.encounter.scout_tactics():
    for player in game.players.values():check(scout.pos.distance_to(player.pos)>=Pressure.SAFE_DISTANCE,"arrival safe for every co-op player")
-  check(game.scouts.size()<=Pressure.capacity(game) and Pressure.interval(30,wave)>=18000,"bounded escalation")
+  check(game.encounter.scout_count()<=Pressure.capacity(game) and Pressure.interval(30,wave)>=18000,"bounded escalation")
  reset_floor()
- for i in Pressure.capacity(game):game.scouts.append(game.make_scout(0,game.battlefield.leader,i))
+ for i in Pressure.capacity(game):game.encounter.register_scout(game.make_scout(0,game.battlefield.leader,i))
  warn(1000);game.update_pressure(4000)
- check(game.scouts.size()==Pressure.capacity(game) and Pressure.hints(game).is_empty(),"full encounter does not overflow synchronized population")
+ check(game.encounter.scout_count()==Pressure.capacity(game) and Pressure.hints(game).is_empty(),"full encounter does not overflow synchronized population")
  reset_floor()
- var corpse: Dictionary=game.make_scout(0,game.battlefield.leader,0);corpse.hp=0;game.scouts.append(corpse)
- var token: int=corpse.spawn_token
+ var corpse: Dictionary=game.make_scout(0,game.battlefield.leader,0);corpse.hp=0;game.encounter.register_scout(corpse)
+ var token: int=game.encounter.token(0)
  warn(1000);game.update_pressure(4000)
- check(game.scouts.size()==1 and game.scouts[0].hp>0 and game.scouts[0].spawn_token>token,"dead slots reused with fresh identity")
+ check(game.encounter.scout_count()==1 and game.encounter.hp(0)>0 and game.encounter.token(0)>token,"dead slots reused with fresh identity")
  reset_floor();warn(1000);game.reset_encounter()
  check(Pressure.hints(game).is_empty() and game.pressure_at==0,"travel resets transient warnings")
  game.queue_free();await process_frame

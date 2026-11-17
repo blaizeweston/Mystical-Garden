@@ -16,10 +16,10 @@ func _initialize():
 	preload("res://combat_balance_preview.gd").enabled = false
 	call_deferred("run")
 func arena(p: Dictionary):
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.battlefield.procedural=false
 	game.battlefield.barriers=[]
-	game.enemy_hp=100
+	game.encounter.set_hp(-1, 100)
 	game.enemy_pos=Vector3.ZERO
 	game.enemy_winding_up=false
 	game.enemy_mutations=0
@@ -151,15 +151,15 @@ func run():
 	var scout: Dictionary=game.make_scout(0,Vector3(.4,0,.3),1)
 	scout.hp=20
 	scout.engaged=true
-	game.scouts.assign([scout])
+	game.encounter.clear_scouts();game.encounter.register_scout(scout)
 	game.strike_enemy(1,p,p.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.scouts[0].hp==20,"plain single-target weapon stays single-target")
+	check(game.encounter.hp(0)==20,"plain single-target weapon stays single-target")
 	p.strike_at=0
 	p.secondary=1
 	game.strike_enemy(1,p,p.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.scouts[0].hp<20,"Form piercing tag causes real line attack")
+	check(game.encounter.hp(0)<20,"Form piercing tag causes real line attack")
 	for c in 5:
 		arena(p)
 		p.frame=c
@@ -172,8 +172,8 @@ func run():
 		match c:
 			0: check(p.guard_until>now,"Warden guards")
 			1: check(game.rooted_until>now,"Weaver binds")
-			2: check(game.enemy_hp<100,"Ranger volley attacks")
-			3: check(p.pos.distance_to(old)>.1 and game.enemy_hp<100,"Reaper safely steps and strikes")
+			2: check(game.enemy_health()<100,"Ranger volley attacks")
+			3: check(p.pos.distance_to(old)>.1 and game.enemy_health()<100,"Reaper safely steps and strikes")
 			4: check(PlayerVitals.current_hp(p)>=7,"Oracle renews health")
 	arena(p)
 	p.frame=4

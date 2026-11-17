@@ -16,14 +16,14 @@ static func visible_allies(game: Node, actor: Dictionary, origin: Vector3, radiu
  for entry in game.support_allies(actor):
   if origin.distance_to(entry.pos)>radius or not game.battlefield.clear_line(origin,entry.pos):continue
   var slot: int=entry.index
-  var token: int=game.combat_epoch if slot<0 else game.scouts[slot].spawn_token
+  var token: int=game.combat_epoch if slot<0 else game.encounter.token(slot)
   result.append({"slot":slot,"token":token,"point":entry.pos})
  return result
 
 static func live_ally(game: Node, ref: Dictionary) -> bool:
  var slot: int=ref.slot
- if slot<0:return game.enemy_hp>0 and ref.token==game.combat_epoch
- return slot<game.scouts.size() and game.scouts[slot].hp>0 and game.scouts[slot].spawn_token==ref.token
+ if slot<0:return game.encounter.hp(-1)>0 and ref.token==game.combat_epoch
+ return game.encounter.alive(slot,ref.token)
 
 static func lock_rite_anchor(attack: Dictionary, anchor: Dictionary, response: String, radius: float) -> void:
  attack.rite_anchor=anchor
@@ -41,12 +41,14 @@ static func corpse(game: Node, actor: Dictionary, radius: float, exclude: int=-1
  var origin: Vector3=actor.pos
  var best:=radius
  var result: Dictionary={}
- for dead in game.scouts:
-  if dead.hp>0 or dead.get("escaped",false) or dead.get("summoned",false) or dead.spawn_token==exclude or actor.get("consumed_corpses",[]).has(dead.spawn_token):continue
+ for slot in game.encounter.scout_count():
+  var dead: Dictionary=game.encounter.scout(slot)
+  var token: int=game.encounter.token(slot)
+  if game.encounter.hp(slot)>0 or dead.get("escaped",false) or dead.get("summoned",false) or token==exclude or actor.get("consumed_corpses",[]).has(token):continue
   var distance:=origin.distance_to(dead.pos)
   if distance>best or not game.battlefield.clear_line(origin,dead.pos):continue
   best=distance
-  result={"token":dead.spawn_token,"point":dead.pos}
+  result={"token":token,"point":dead.pos}
  return result
 
 static func tether_target(game: Node, actor: Dictionary) -> Dictionary:
@@ -79,17 +81,17 @@ static func hatch_safe(game: Node, at: Vector3) -> bool:
  if game.battlefield.occupied(at,.4):return false
  var nearby: int=game.nearest_wild_player(at)
  if nearby!=0 and game.players[nearby].pos.distance_to(at)<1.5:return false
- for other in game.scouts:
-  if other.hp>0 and other.pos.distance_to(at)<1.1:return false
+ for slot in game.encounter.scout_count():
+  if game.encounter.hp(slot)>0 and game.encounter.position(slot).distance_to(at)<1.1:return false
  return true
 
 static func shelter_source(game: Node, target: int, at: Vector3, from: Vector3, now: int, coverage_only: bool=false) -> Dictionary:
- if game.enemy_hp>0 and target!=-1 and game.enemy_kind==11:
+ if game.encounter.hp(-1)>0 and target!=-1 and game.enemy_kind==11:
   var leader: Dictionary=game.leader_brain.get("elite",{})
   if covers(game,leader,game.enemy_pos,at,from,now,coverage_only):return {"actor":-1}
- for index in game.scouts.size():
-  var grazer: Dictionary=game.scouts[index]
-  if index==target or grazer.hp<=0 or int(grazer.kind)!=11:continue
+ for index in game.encounter.scout_count():
+  var grazer: Dictionary=game.encounter.scout(index)
+  if index==target or game.encounter.hp(index)<=0 or int(grazer.kind)!=11:continue
   if covers(game,grazer,grazer.pos,at,from,now,coverage_only):return {"actor":index}
  return {}
 
@@ -98,14 +100,14 @@ static func observe_shelter_break(game: Node, target: int, before: Vector3, afte
  var cover:=shelter_source(game,target,before,before,now,true)
  if cover.is_empty():return
  var slot: int=cover.actor
- var grazer: Dictionary=game.leader_brain.get("elite",{}) if slot<0 else game.scouts[slot]
+ var grazer: Dictionary=game.leader_brain.get("elite",{}) if slot<0 else game.encounter.scout(slot)
  if grazer.is_empty() or grazer.get("summoned",false) or grazer.get("shelter_break_epoch",-1)==game.combat_epoch:return
  var origin: Vector3=game.enemy_position(slot)
  if covers(game,grazer,origin,after,after,now,true):return
- var token: int=game.combat_epoch if target<0 else game.scouts[target].spawn_token
+ var token: int=game.combat_epoch if target<0 else game.encounter.token(target)
  grazer.shelter_break_epoch=game.combat_epoch
  grazer.shelter_escort={"slot":target,"token":token,"point":after}
- Tactics.record(game,Tactics.SHELTER_BREAK,{"species":Catalog.get_kind(11).id,"target_token":grazer.spawn_token,"escort_token":token})
+ Tactics.record(game,Tactics.SHELTER_BREAK,{"species":Catalog.get_kind(11).id,"target_token":game.encounter.token_for(grazer),"escort_token":token})
  game.emit_combat_event("proc","shelter_broken",before,after,.55,Color("#f0cb97"),0,target)
 
 static func covers(game: Node, actor: Dictionary, origin: Vector3, at: Vector3, from: Vector3, now: int, coverage_only: bool) -> bool:
@@ -148,7 +150,7 @@ static func decorate_plan(game: Node, actor: Dictionary, attack: Dictionary, tar
      else:attack.cue=""
   9:
    if attack.mode=="brood":
-    var count:=mini(2,4-game.scouts.filter(func(other):return other.hp>0 and other.get("elite_brood",false)).size()) if actor.get("gate_elite",false) else mini(2-int(actor.summons),2 if attack.variant=="split_nursery" else 1)
+    var count:=mini(2,4-count_elite_brood(game)) if actor.get("gate_elite",false) else mini(2-int(actor.summons),2 if attack.variant=="split_nursery" else 1)
     var can_scatter: bool=(count>=2 if actor.get("gate_elite",false) else int(actor.summons)==0)
     if can_scatter and Tactics.eligible(game,actor,Tactics.SCATTER):
      var sites:=scattered_sites(game,origin)
@@ -226,20 +228,20 @@ static func decorate_plan(game: Node, actor: Dictionary, attack: Dictionary, tar
      attack.span=CHOIR_SPAN
      attack.cue="Split chorus"
 
-static func spawn_brood_at(game: Node, position: Vector3, from_broodmother: bool=false) -> bool:
- if not hatch_safe(game,position):return false
- var slot: int=game.scouts.size()
- for index in game.scouts.size():
-  if game.scouts[index].hp<=0:
-   slot=index
-   break
- if slot>=game.EncounterConfig.MAX_SCOUTS:return false
+static func count_elite_brood(game: Node) -> int:
+ var count:=0
+ for slot in game.encounter.scout_count():
+  if game.encounter.hp(slot)>0 and game.encounter.scout(slot).get("elite_brood",false):count+=1
+ return count
+
+static func spawn_brood_at(game: Node, position: Vector3, from_broodmother: bool=false) -> int:
+ if not hatch_safe(game,position):return -1
+ var slot: int=game.encounter.first_open_scout_slot()
+ if slot>=game.EncounterConfig.MAX_SCOUTS:return -1
  var child: Dictionary=game.make_scout(0,position,slot+1,0,0,true)
  child.summoned=true
  if from_broodmother:child.broodmother_spawn=true
- if slot==game.scouts.size():game.scouts.append(child)
- else:game.scouts[slot]=child
- return true
+ return game.encounter.register_scout(child,slot)
 
 static func resolve_brood(game: Node, actor: Dictionary, attack: Dictionary, now: int) -> void:
  var audible_release:=false
@@ -250,21 +252,20 @@ static func resolve_brood(game: Node, actor: Dictionary, attack: Dictionary, now
    if player!=0 and game.players[player].pos.distance_to(at)<1.5:
     game.emit_combat_event("proc","hatch_blocked",at,at,.55,Color("#f0cb97"),0,-2)
     continue
-  if spawn_brood_at(game,at,int(actor.kind)==9):
+  var slot:=spawn_brood_at(game,at,int(actor.kind)==9)
+  if slot>=0:
    if not audible_release:
     preload("res://event_audio.gd").enemy(game,attack,true)
     audible_release=true
    actor.summons+=1
-   if actor.get("gate_elite",false):
-    for child in game.scouts:
-     if child.spawn_token==game.scout_serial:child.elite_brood=true
+   if actor.get("gate_elite",false):game.encounter.scout(slot).elite_brood=true
    game.emit_combat_event("swing","pulse",at,at,.55,Color("#c2e394"),.8,0)
  if attack.get("hatch",[]).is_empty():actor.ready=now+650
 
 static func grant_haste(game: Node, ref: Dictionary, until: int) -> void:
  if ref.slot<0:game.enemy_haste_until=maxi(game.enemy_haste_until,until)
  else:
-  var ally: Dictionary=game.scouts[ref.slot]
+  var ally: Dictionary=game.encounter.scout(ref.slot)
   ally.haste_until=maxi(int(ally.haste_until),until)
 
 static func resolve_echo_toll(game: Node, actor: Dictionary, attack: Dictionary, now: int) -> void:
@@ -279,18 +280,21 @@ static func resolve_echo_toll(game: Node, actor: Dictionary, attack: Dictionary,
 
 static func resolve_corpse(game: Node, actor: Dictionary, attack: Dictionary, now: int) -> void:
  var ref: Dictionary=attack.get("corpse",{})
- if ref.is_empty():return
- for dead in game.scouts:
-  if dead.spawn_token!=ref.token or dead.hp>0 or dead.get("escaped",false) or dead.get("summoned",false):continue
+ var actor_slot: int=game.encounter.scout_slot(actor)
+ if ref.is_empty() or actor_slot<0 or not game.encounter.alive(actor_slot):return
+ for slot in game.encounter.scout_count():
+  var dead: Dictionary=game.encounter.scout(slot)
+  if game.encounter.token(slot)!=ref.token or game.encounter.hp(slot)>0 or dead.get("escaped",false) or dead.get("summoned",false):continue
   if actor.pos.distance_to(ref.point)>7.0 or not game.battlefield.clear_line(actor.pos,ref.point) or actor.get("consumed_corpses",[]).has(ref.token):return
   if not actor.has("consumed_corpses"):actor.consumed_corpses=[]
   actor.consumed_corpses.append(ref.token)
   preload("res://event_audio.gd").enemy(game,attack,true)
   var spare: bool=attack.get("variant")==Tactics.SPARE_TETHER
-  var health_before:=int(actor.hp)
-  actor.hp=mini(int(actor.get("max_hp",actor.hp)),health_before+game.Director.Balance.corpse_heal(game,actor,spare))
+  var health_before: int=game.encounter.hp(actor_slot)
+  var healed_hp:=mini(int(actor.get("max_hp",health_before)),health_before+game.Director.Balance.corpse_heal(game,actor,spare))
+  game.encounter.set_hp(actor_slot,healed_hp)
   if spare or game.Life.Preview.enabled:
-   Feedback.release(game,"restored",ref.point,actor.pos,int(actor.hp)-health_before,Feedback.SUPPORT)
+   Feedback.release(game,"restored",ref.point,actor.pos,healed_hp-health_before,Feedback.SUPPORT)
   if spare:
    for ally in attack.get("escorts",[]):
     if not live_ally(game,ally):continue
@@ -300,7 +304,7 @@ static func resolve_corpse(game: Node, actor: Dictionary, attack: Dictionary, no
   else:
    for ally in visible_allies(game,actor,attack.from,attack.radius):
     if ally.slot<0:game.enemy_haste_until=now+3000
-    else:game.scouts[ally.slot].haste_until=now+3000
+    else:game.encounter.scout(ally.slot).haste_until=now+3000
   game.emit_combat_event("swing","pulse",ref.point,actor.pos,.55,Color("#d1bd98"),.75,0)
   return
 
@@ -312,7 +316,7 @@ static func resolve_shepherd(game: Node, attack: Dictionary, now: int) -> void:
   if not live_ally(game,ref):continue
   var point: Vector3=game.enemy_position(ref.slot)
   if point.distance_to(attack.from)>attack.radius or not game.battlefield.clear_line(attack.from,point):continue
-  var ally: Dictionary=game.leader_brain if ref.slot<0 else game.scouts[ref.slot]
+  var ally: Dictionary=game.leader_brain if ref.slot<0 else game.encounter.scout(ref.slot)
   if attack.get("variant")==Tactics.RELAY:
    if now<int(ally.get("rooted_until",0)) or not game.battlefield.clear_line(point,attack.flank.via,.45):continue
   if not audible_release:

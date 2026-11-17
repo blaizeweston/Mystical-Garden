@@ -67,13 +67,13 @@ func run() -> void:
 
 
 func reset_enemy(at := Vector3(0,0,-1.5)) -> void:
-	game.enemy_hp=150
+	game.encounter.set_hp(-1, 150)
 	game.enemy_mutations=0
 	game.boss_kind=-1
 	game.enemy_pos=at
 	game.enemy_winding_up=false
 	game.leader_brain.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	Core.reset(game)
 	bursts.clear()
 	seen.clear()
@@ -103,7 +103,7 @@ func run_core(p: Dictionary, part: int) -> void:
 	var quality: String = "refined" if part==refined else "ordinary"
 	var potency: Dictionary = Frost.Balance.QUALITY[quality]
 	var open := Frost.state(game.leader_brain,at)
-	check(game.enemy_hp==150-Frost.Balance.BLOOM_OPEN_HP and open.get("stacks",[]).size()==2,"opening damage and two stacks once")
+	check(game.enemy_health()==150-Frost.Balance.BLOOM_OPEN_HP and open.get("stacks",[]).size()==2,"opening damage and two stacks once")
 	check(is_equal_approx(Frost.motion_scale(game.leader_brain,at),1-2*potency.move_slow),"two stacks alter movement immediately")
 	var ready: int = p.core_ready_at
 	game.garden_action(1,cast_key)

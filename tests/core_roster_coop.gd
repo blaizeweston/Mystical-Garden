@@ -68,8 +68,8 @@ func host() -> void:
 		member.pos = Vector3.ZERO
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
-	game.scouts.clear()
-	game.enemy_hp = 30
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 30)
 	game.enemy_kind = 0
 	game.enemy_mutations = 0
 	game.enemy_pos = Vector3(0, 0, -5.8)
@@ -80,10 +80,10 @@ func host() -> void:
 	player.weapon_kind = 0
 	player.weapon = game.Parts.index_of("plant:ember_fern")
 	player.run_upgrades = {"core_ember_wake": 1}
-	if not await until(func(): return marked("ember") and game.enemy_hp <= 26):
+	if not await until(func(): return marked("ember") and game.enemy_health() <= 26):
 		check(false, "Banked Coals keeps the trail hot for four damage ticks on the host")
 		return
-	game.enemy_hp = 30
+	game.encounter.set_hp(-1, 30)
 	game.enemy_pos = Vector3(0, 0, -2)
 	player.core_ready_at = 0
 	player.core_cast_until = 0
@@ -92,14 +92,14 @@ func host() -> void:
 	player.run_upgrades = {"core_chain_spark": 1}
 	var scout: Dictionary = game.make_scout(0, Vector3(1.8, 0, -2), 1)
 	scout.stagger_until = Time.get_ticks_msec() + 20000
-	game.scouts.append(scout)
-	check(await until(func(): return marked("spark") and game.enemy_hp == 28 and scout.hp == scout.max_hp - 1 and scout.rooted_until > 0), "Chain Spark damage and purchased root are authoritative")
+	game.encounter.register_scout(scout)
+	check(await until(func(): return marked("spark") and game.enemy_health() == 28 and game.encounter.hp_for(scout) == scout.max_hp - 1 and scout.rooted_until > 0), "Chain Spark damage and purchased root are authoritative")
 	mark("spark-done")
 	if not await until(func(): return marked("spark-verified")):
 		check(false, "guest confirms the chain result")
 		return
 
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.rooted_until = 0
 	game.enemy_pos = Vector3(0, 0, -5.8)
 	player.pos = Vector3.ZERO

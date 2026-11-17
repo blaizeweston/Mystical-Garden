@@ -11,7 +11,7 @@ func run():
  var p=game.players[1];game.add_player(2);var friend=game.players[2]
  friend.profile_ready=true;friend.seed_owner="e".repeat(32)
  for player in game.players.values():player.wild=true;player.pos=Vector3(0,0,4);player.character.xp.fill(0)
- game.battlefield.configure(0,1);game.battlefield.barriers=[];game.enemy_hp=10;game.enemy_pos=Vector3(0,0,10)
+ game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.set_hp(-1, 10);game.enemy_pos=Vector3(0,0,10)
  game.add_player(3)
  game.players[3].wild=true
  game.add_player(4)
@@ -19,7 +19,7 @@ func run():
  game.players[4].profile_ready=true
  game.players[4][PlayerLifecycle.STATE] = game.players[4][PlayerLifecycle.STATE].fall()
  var config=game.Director.config();var saved=config.duplicate(true);config.trophy_chance=1.0;config.trophy_cap=1.0
- var scout=game.make_scout(10,Vector3(0,0,5),1);scout.hp=1;game.scouts.assign([scout])
+ var scout=game.make_scout(10,Vector3(0,0,5),1);scout.hp=1;game.encounter.clear_scouts();game.encounter.register_scout(scout)
  game.apply_weapon_hit(p,0,p.pos,{"damage":1},1000)
  check(game.monster_rewards.pending_count()==1 and not game.encounter_cleared(),"a non-final individual kill queues rewards")
  var first_receipt: Dictionary = game.monster_rewards.pending_receipts()[0]
@@ -46,8 +46,8 @@ func run():
  check(game.inventory_floor_snapshot(p).size()==1,"another player cannot steal an owned part")
  p.pos=scout.pos;game.pickup_inventory_drop(1,p,own[0].id)
  check(p.carried_parts[game.Parts.monster_part(10)]==1 and game.inventory_floor_snapshot(friend).size()==1,"pickup changes only owner inventory")
- var summoned=game.make_scout(0,Vector3(0,0,5),2);summoned.summoned=true;game.scouts.assign([summoned]);game.record_enemy_death(0,summoned.pos,p.pos)
- var summoned_key := "%d:%s" % [game.combat_epoch, summoned.spawn_token]
+ var summoned=game.make_scout(0,Vector3(0,0,5),2);summoned.summoned=true;game.encounter.clear_scouts();game.encounter.register_scout(summoned);game.encounter.set_hp(0, 0);game.record_enemy_death(0,summoned.pos,p.pos)
+ var summoned_key := "%d:%s" % [game.combat_epoch, game.encounter.token(0)]
  var summoned_event: int = game.enemy_death_serial
  game.record_enemy_death(0,summoned.pos,p.pos)
  check(game.monster_rewards.status(summoned_key)==game.MonsterRewards.Phase.EXCLUDED

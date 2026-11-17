@@ -112,7 +112,7 @@ static func start_contact(game: Node, player: Dictionary, stats: Dictionary, tar
 	var action: RefCounted = stats.get("cr02_action")
 	if action == null or not action.source in ["form","native_weapon"] or action.epoch != game.combat_epoch or now >= action.expires_at:
 		return {}
-	var token := "leader" if target == -1 else str(game.scouts[target].get("spawn_token",target))
+	var token := "leader" if target == -1 else str(game.encounter.token(target))
 	if not action.take_response("native_graft/" + token):
 		return {}
 	return {"sources":snapshot.sources, "life":snapshot.life, "run":snapshot.run, "point":game.enemy_position(target),
@@ -132,7 +132,7 @@ static func bonus(game: Node, player: Dictionary, contact: Dictionary, _now: int
 
 static func nearby(game: Node, exclude: int, point: Vector3, reach: float) -> Array[int]:
 	var result: Array[int] = []
-	for target in range(-1, game.scouts.size()):
+	for target in range(-1, game.encounter.scout_count()):
 		if target == exclude or not game.Traits.valid_target(game,target):
 			continue
 		var at: Vector3 = game.enemy_position(target)
@@ -171,7 +171,7 @@ static func queue_hits(game: Node, player: Dictionary, targets: Array[int], stat
 		# own spawn token and must still be visible and alive at impact.
 		row.graft_targets = []
 		for target in targets:
-			var token: int = -1 if target == -1 else int(game.scouts[target].get("spawn_token",0))
+			var token: int = -1 if target == -1 else game.encounter.token(target)
 			row.graft_targets.append({"target":target,"token":token})
 	return true
 

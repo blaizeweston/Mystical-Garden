@@ -48,14 +48,14 @@ func run() -> void:
  game.toggle_overlay(null)
  var nodes: Array=game.progression_view.seed_nodes(g.discoveries,g.stock)
  check(nodes.any(func(n):return n.id==str(i) and n.parents.size()==2 and n.icon!=null),"tree contains portrait and lineage connections")
- p.wild=true;p.weapon=part;p.secondary=0;p.catalyst=0;p.pos=Vector3(0,0,-1);game.battlefield.procedural=false;game.battlefield.barriers=[];game.scouts.clear();game.enemy_pos=Vector3.ZERO;game.enemy_hp=50
- var stats: Dictionary=game.weapon_stats(p);var before: int=game.enemy_hp
- game.apply_weapon_hit(p,-1,p.pos,stats,1000);var first: int=before-game.enemy_hp
- game.apply_weapon_hit(p,-1,p.pos,stats,1100);before=game.enemy_hp
- game.apply_weapon_hit(p,-1,p.pos,stats,1200);var shatter: int=before-game.enemy_hp
+ p.wild=true;p.weapon=part;p.secondary=0;p.catalyst=0;p.pos=Vector3(0,0,-1);game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter.clear_scouts();game.enemy_pos=Vector3.ZERO;game.encounter.set_hp(-1, 50)
+ var stats: Dictionary=game.weapon_stats(p);var before: int=game.enemy_health()
+ game.apply_weapon_hit(p,-1,p.pos,stats,1000);var first: int=before-game.enemy_health()
+ game.apply_weapon_hit(p,-1,p.pos,stats,1100);before=game.enemy_health()
+ game.apply_weapon_hit(p,-1,p.pos,stats,1200);var shatter: int=before-game.enemy_health()
  check(first==1 and shatter>first and game.enemy_traits.brittle==0,"three contacts produce actual shatter damage")
  check(game.RunUpgrades.requirement(game.RunUpgrades.get_upgrade("plant_frostbell_shatter"),p).is_empty(),"frost-only upgrade eligible from installed component")
- game.enemy_hp=0;game.encounter_number=6;p.pos=game.battlefield.advance;p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(p).spent_essence());p.offer_floor=6;p.checkpoint_offers=["plant_frostbell_shatter"]
+ game.encounter.set_hp(-1, 0);game.encounter_number=6;p.pos=game.battlefield.advance;p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(p).spent_essence());p.offer_floor=6;p.checkpoint_offers=["plant_frostbell_shatter"]
  check(game._buy_upgrade(1,p,0) and game.weapon_stats(p).shatter_damage>stats.shatter_damage,"checkpoint card strengthens installed plant behavior")
  p.wild=false;g.save_garden()
  var reload=load("res://progress.gd").new();reload.path=g.path;reload.load_garden()

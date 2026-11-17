@@ -64,32 +64,32 @@ func run():
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
 	p.pos=Vector3(0,0,5.4)
 	game.enemy_pos=p.pos
-	game.enemy_hp=10
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 10)
+	game.encounter.clear_scouts()
 	p.power=3
 	p.strike_at=0
 	game.enemy_mutations=Enemies.BARK
 	game.send_action(true)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.enemy_hp==7,"bark plates reduce a heavy hit by one point")
-	game.enemy_hp=10
+	check(game.enemy_health()==7,"bark plates reduce a heavy hit by one point")
+	game.encounter.set_hp(-1, 10)
 	game.enemy_mutations=0
 	p.strike_at=0
 	game.send_action(true)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.enemy_hp==6,"unarmored enemy takes the full heavy hit")
-	game.enemy_hp=0
-	game.scouts.clear()
+	check(game.enemy_health()==6,"unarmored enemy takes the full heavy hit")
+	game.encounter.set_hp(-1, 0)
+	game.encounter.clear_scouts()
 	var snare: Dictionary=game.make_scout(5,p.pos,1)
 	snare.mode="snare";snare.blast=p.pos
-	game.scouts.append(snare)
+	game.encounter.register_scout(snare)
 	var now:=Time.get_ticks_msec()
 	game.resolve_scout(snare,Enemies.get_kind(5),now)
 	check(PlayerVitals.current_hp(p)==9 and p.slow_until>now,"Willow strike damages and entangles")
 	p.slow_until=0;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0
 	var volley: Dictionary=game.make_scout(1,p.pos,1)
 	volley.mode="volley";volley.blast=p.pos;volley.repeat=1
-	game.scouts.assign([volley])
+	game.encounter.clear_scouts();game.encounter.register_scout(volley)
 	game.resolve_scout(volley,Enemies.get_kind(1),now)
 	check(PlayerVitals.current_hp(p)==9 and volley.windup>now,"Nightbloom retains a second telegraphed pulse")
 	game.resolve_scout(volley,Enemies.get_kind(1),now+500)
@@ -97,16 +97,16 @@ func run():
 	var cantor: Dictionary=game.make_scout(3,p.pos,1)
 	var ally: Dictionary=game.make_scout(0,p.pos+Vector3.RIGHT,2)
 	cantor.mode="chant"
-	game.scouts.assign([cantor,ally])
+	game.encounter.clear_scouts();game.encounter.register_scout(cantor);game.encounter.register_scout(ally)
 	game.resolve_scout(cantor,Enemies.get_kind(3),now)
 	check(ally.haste_until>now and PlayerVitals.current_hp(p)==8,"Cantor hastens allies instead of hurting the player")
 	var brood: Dictionary=game.make_scout(9,Vector3(0,0,5.4),1)
 	brood.mode="brood";p.pos=Vector3(0,0,10)
-	game.scouts.assign([brood])
+	game.encounter.clear_scouts();game.encounter.register_scout(brood)
 	for attempt in 4: game.resolve_scout(brood,Enemies.get_kind(9),now+attempt*4000)
-	check(game.scouts.size()==3 and brood.summons==2 and int(game.scouts[1].mutations)&Enemies.JUVENILE,"Broodmother has a finite two-seedling brood")
-	game.scouts.clear()
-	game.enemy_hp=3
+	check(game.encounter.scout_count()==3 and brood.summons==2 and int(game.encounter.scout(1).mutations)&Enemies.JUVENILE,"Broodmother has a finite two-seedling brood")
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 3)
 	game.battlefield.configure(0,1)
 	game.encounter_number=5
 	game.enemy_kind=0
@@ -124,12 +124,12 @@ func run():
 	check(game.enemy_pos==landing and not game.battlefield.occupied(landing,.34),"vault lands safely beyond cover")
 	# Exercise each role through the actual director update, not only its resolver.
 	game.enemy_mutations=0
-	game.enemy_hp=0
+	game.encounter.set_hp(-1, 0)
 	game.enemy_winding_up=false
 	for kind in Enemies.all().size():
 		p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(0,0,5.4);p.slow_until=0;p.guard_until=0
 		var mob: Dictionary=game.make_scout(kind,p.pos+Vector3.RIGHT*.8,1)
-		game.scouts.assign([mob])
+		game.encounter.clear_scouts();game.encounter.register_scout(mob)
 		var at:=Time.get_ticks_msec()
 		game.update_scouts(.016,at)
 		check(mob.windup>at,"every enemy role can telegraph through the director")

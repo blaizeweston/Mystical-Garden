@@ -33,8 +33,8 @@ func run() -> void:
  game._process(0.016)
  check(game.guide.text == "E  Altar", "Altar prompt omits the service list")
  game.encounter_number = 3
- game.enemy_hp = 0
- game.scouts.clear()
+ game.encounter.set_hp(-1, 0)
+ game.encounter.clear_scouts()
  player.wild = true
  player.pos = Vector3(0,0,-9)
  player.offer_floor = 3

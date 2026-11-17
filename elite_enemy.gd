@@ -36,10 +36,10 @@ static func state(game: Node) -> Dictionary:
   body.summons=0;body.remaining=0;body.repeat=0;body.gate_elite=true
   if game.Life.Preview.enabled: body.max_hp=game.encounter_health()
   if game.encounter_number>=3:body.variant=SIGNATURES.get(int(game.enemy_kind),body.variant)
-  game.leader_brain.elite=body
+  game.leader_brain.elite=game.encounter.register_leader_tactics(body)
  return game.leader_brain.elite
 static func tick(game: Node,delta: float,now: int) -> void:
- if game.enemy_hp<=0:return
+ if game.encounter.hp(-1)<=0:return
  var frost_motion := preload("res://frost_combat.gd").motion_scale(game.leader_brain,now)
  delta *= frost_motion
  if game.enemy_winding_up:
@@ -110,7 +110,7 @@ static func tick(game: Node,delta: float,now: int) -> void:
  game.enemy_winding_up=true;game.enemy_strike_at=body.windup
 static func resolve(game: Node,now: int) -> void:
  var body:=state(game);var definition:=Catalog.get_kind(game.enemy_kind)
- body.pos=game.enemy_pos;body.blast=game.enemy_landing;body.mode=game.enemy_attack_mode;body.hp=game.enemy_hp;body.recovery=game.moss_recovery_bonus
+ body.pos=game.enemy_pos;body.blast=game.enemy_landing;body.mode=game.enemy_attack_mode;body.recovery=game.moss_recovery_bonus
  body.rooted_until=game.rooted_until
  if game.has_meta(&"combat_affinity_ruleset"):
   preload("res://frost_combat.gd").with_attacker(game,-1,game.resolve_scout.bind(body,definition,now))
@@ -125,7 +125,7 @@ static func resolve(game: Node,now: int) -> void:
   game.enemy_ready_at=int(body.ready)
  game.moss_recovery_bonus=0
 static func hints(game: Node) -> Array:
- if game.enemy_hp<=0 or not game.enemy_winding_up:return []
+ if game.encounter.hp(-1)<=0 or not game.enemy_winding_up:return []
  var body:=state(game)
  return Attacks.hints(Attacks.current(game,body),-1,maxf(0,(game.enemy_strike_at-Time.get_ticks_msec())/1000.0))
 static func decorate(stage: Node3D,actor: Dictionary,enabled: bool) -> void:

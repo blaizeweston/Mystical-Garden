@@ -307,7 +307,7 @@ func run() -> void:
 		and not game.stage.experimental_exit.is_visible_in_tree()
 		and not game.stage.deeper_gate.is_visible_in_tree(),
 		"arrival is separated from the Gate and its marker stays hidden under unexplored fog")
-	check(field.can_spawn(game.enemy_pos) and game.scouts.all(func(scout): return field.can_spawn(scout.pos)),
+	check(field.can_spawn(game.enemy_pos) and game.encounter.scout_tactics().all(func(scout): return field.can_spawn(scout.pos)),
 		"every live enemy is admitted to certified continuous terrain")
 	check(is_equal_approx(garden.assimilation.queue[0].done, study_work), "departure adds no extra work")
 	step_progress(game, 1.0)
@@ -320,7 +320,7 @@ func run() -> void:
 	game._unhandled_key_input(shortcut)
 	check(not garden.development_dialog.visible, "Garden shortcut leaves Wilds weapon input available")
 	check(game.exploration.fog.visible and not game.exploration.seen(field.advance), "exit starts obscured by production fog")
-	check(not game.encounter_cleared() and not game.stage.wild_portal.visible and game.enemy_hp > 0, "real enemies seal the Gate")
+	check(not game.encounter_cleared() and not game.stage.wild_portal.visible and game.enemy_health() > 0, "real enemies seal the Gate")
 	var route := field.navigation_graph.route(field.planar(field.entry), field.planar(field.leader))
 	check(not route.is_empty(), "entry reaches real encounter position")
 	for ignored in 3:
@@ -337,14 +337,14 @@ func run() -> void:
 	var wallet_before = game.wallet_for(player)
 	var essence_before: int = wallet_before.earned_sparks()
 	# Exercise actual hit and reward services with a decisive test hit for each spawned enemy.
-	for target in range(-1, game.scouts.size()):
-		if (game.enemy_hp if target == -1 else int(game.scouts[target].hp)) <= 0:
+	for target in range(-1, game.encounter.scout_count()):
+		if (game.enemy_health() if target == -1 else int(game.encounter.hp(target))) <= 0:
 			continue
 		player.pos = game.enemy_position(target) + Vector3(0.1, 0, 0)
 		var stats: Dictionary = game.weapon_stats(player)
 		stats.damage = 10000
-		var kind: int = game.enemy_kind if target == -1 else game.scouts[target].kind
-		var mask: int = game.enemy_mutations if target == -1 else game.scouts[target].mutations
+		var kind: int = game.enemy_kind if target == -1 else game.encounter.scout(target).kind
+		var mask: int = game.enemy_mutations if target == -1 else game.encounter.scout(target).mutations
 		for seed_value in range(1, 40):
 			game.rng.seed = seed_value
 			var before_roll: int = game.rng.state
@@ -426,7 +426,7 @@ func run() -> void:
 	var next_field: Field = game.battlefield
 	check(next_field.entry.distance_to(Vector3(player.pos)) < 1.2
 		and next_field.entry.distance_to(next_field.advance) > game.exploration.SIGHT
-		and game.enemy_hp > 0 and not game.scouts.is_empty() and not game.encounter_cleared()
+		and game.enemy_health() > 0 and game.encounter.scout_count()>0 and not game.encounter_cleared()
 		and (game.stage.experimental_exit.global_position - game.Stage.WILD_OFFSET).is_equal_approx(next_field.advance)
 		and not game.stage.deeper_gate.is_visible_in_tree() and not game.stage.wild_portal.visible,
 		"new floor spawns a live encounter and its own distant, sealed Gate")

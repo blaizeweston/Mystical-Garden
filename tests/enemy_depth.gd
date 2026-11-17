@@ -9,7 +9,7 @@ func run() -> void:
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/enemy-depth-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character"
  root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var p: Dictionary=game.players[1];p.wild=true;p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = PlayerVitals.Health.new(10, 10)
- game.battlefield.configure(0,1);game.battlefield.barriers=[];game.enemy_hp=100;game.enemy_pos=Vector3(0,0,1)
+ game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3(0,0,1)
  for kind in range(13,24):
   var part=game.Parts.monster_part(kind);p.graft_part=part;p.run_upgrades={}
   check(game.Parts.DEFINITIONS[part].monster==kind,"stable trophy mapping")
@@ -40,16 +40,16 @@ func run() -> void:
  game.EnemyBehaviors.death(game,thief,Vector3(1,0,0))
  check(game.wild_item_drops.size()==1 and game.wild_item_drops[0].owner==1,"stolen trophy recovered with original owner")
  var pall=game.make_scout(15,Vector3.ZERO,1);var dead=game.make_scout(0,Vector3(0,0,1),2);dead.hp=0
- game.scouts.assign([pall,dead]);pall.mode="chant";pall.hp-=2
- var hp: int=pall.hp;game.resolve_scout(pall,game.Enemies.get_kind(15),2000);check(pall.hp==hp+2,"Pallbearer consumes a corpse")
- hp=pall.hp;game.resolve_scout(pall,game.Enemies.get_kind(15),3000);check(pall.hp==hp,"one corpse cannot be farmed repeatedly")
- p.graft_part=game.Parts.monster_part(17);p.run_upgrades={};game.scouts.clear();game.enemy_pos=Vector3.ZERO;game.enemy_hp=100
+ game.encounter.clear_scouts();game.encounter.register_scout(pall);game.encounter.register_scout(dead);pall.mode="chant";game.encounter.set_hp(0, game.encounter.hp(0)-2)
+ var hp: int=game.encounter.hp(0);game.resolve_scout(pall,game.Enemies.get_kind(15),2000);check(game.encounter.hp(0)==hp+2,"Pallbearer consumes a corpse")
+ hp=game.encounter.hp(0);game.resolve_scout(pall,game.Enemies.get_kind(15),3000);check(game.encounter.hp(0)==hp,"one corpse cannot be farmed repeatedly")
+ p.graft_part=game.Parts.monster_part(17);p.run_upgrades={};game.encounter.clear_scouts();game.enemy_pos=Vector3.ZERO;game.encounter.set_hp(-1, 100)
  game.apply_weapon_hit(p,-1,p.pos,game.weapon_stats(p),4000)
- hp=game.enemy_hp;game.Traits.tick(game,4100);check(game.enemy_hp<hp,"Cinder graft creates actual damaging ground")
+ hp=game.enemy_health();game.Traits.tick(game,4100);check(game.enemy_health()<hp,"Cinder graft creates actual damaging ground")
  p.graft_part=game.Parts.monster_part(19);game.trait_events.clear();p.chorus_contacts=0
- game.scouts.append(game.make_scout(0,Vector3(.5,0,0),1));game.scouts[0].hp=30
+ game.encounter.register_scout(game.make_scout(0,Vector3(.5,0,0),1));game.encounter.set_hp(0, 30)
  for i in 4:game.apply_weapon_hit(p,-1,p.pos,game.weapon_stats(p),5000+i*100)
- game.Traits.tick(game,5700);check(game.scouts[0].hp<30,"Chorus graft releases a bounded nearby pulse")
+ game.Traits.tick(game,5700);check(game.encounter.hp(0)<30,"Chorus graft releases a bounded nearby pulse")
  check(load("res://content_validator.gd").validate().is_empty(),"all catalog contracts validate")
  game.queue_free();await process_frame
  if not failed:print("PASS: eleven new trophy/card integrations, web hazards, corpse consumption, recoverable stolen loot, Cinder fields and Chorus pulses")

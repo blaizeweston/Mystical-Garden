@@ -11,10 +11,11 @@ const GUIDED_MS := "oracle_guided_ms"
 const BRIAR_ATTACK := "oracle_briar_attack"
 
 
-static func token(body: Dictionary) -> int:
-	if body.has("spawn_token"):
-		return int(body.spawn_token)
-	return PlayerLifecycle.generation(body) if body.has(PlayerLifecycle.STATE) else 0
+static func token(game: Node, body: Dictionary) -> int:
+	if body.has(PlayerLifecycle.STATE):
+		return PlayerLifecycle.generation(body)
+	var slot: int = game.encounter.scout_slot(body)
+	return game.encounter.token(slot) if slot >= 0 else 0
 
 
 static func grant(game: Node, source: int, focus: String, cast: int, target: int,
@@ -28,7 +29,7 @@ static func grant(game: Node, source: int, focus: String, cast: int, target: int
 	var sources: Dictionary = state.get(omen,{})
 	var record := {"effect":omen,"type":definition.type,"trigger":definition.trigger,
 		"source":source,"source_life":PlayerLifecycle.generation(oracle),"class_id":Progression.CLASS_ID,"focus":focus,"cast":cast,
-		"epoch":game.combat_epoch,"target":target,"target_token":token(body),
+		"epoch":game.combat_epoch,"target":target,"target_token":token(game,body),
 		"magnitude":definition.value,"until":now+duration}
 	if int(sources.get(source,{}).get("cast",-1)) == cast:
 		return
@@ -41,7 +42,7 @@ static func grant(game: Node, source: int, focus: String, cast: int, target: int
 static func valid(game: Node, body: Dictionary, record: Dictionary, now: int) -> bool:
 	var source: Dictionary = game.players.get(int(record.source), {})
 	return int(record.epoch) == game.combat_epoch and PlayerLifecycle.matches(source,int(record.source_life)) \
-		and int(record.target_token) == token(body) and now < int(record.until)
+		and int(record.target_token) == token(game,body) and now < int(record.until)
 
 
 static func strongest(game: Node, body: Dictionary, omen: String, now: int, source := 0) -> Dictionary:
@@ -90,7 +91,7 @@ static func indicators(game: Node, body: Dictionary, now: int) -> Dictionary:
 
 
 static func enemy_body(game: Node, target: int) -> Dictionary:
-	return game.leader_brain if target == -1 else game.scouts[target]
+	return game.leader_brain if target == -1 else game.encounter.scout(target)
 
 
 static func begin_attack(game: Node, actor: Dictionary, attack: Dictionary, now: int) -> void:

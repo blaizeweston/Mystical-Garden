@@ -21,7 +21,7 @@ func run():
  game.progress.path="res://.godot/weapon-actions-"+token+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game)
  game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
  var p: Dictionary=game.players[1];p.wild=true;p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.facing=Vector3(0,0,1);p.aim_direction=p.facing;p.mouse_aim=true
- game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.scouts.clear();game.enemy_hp=100;game.enemy_pos=Vector3(0,0,1.4)
+ game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.encounter.clear_scouts();game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3(0,0,1.4)
  var actor: Dictionary=game.stage.avatar_models.get(1,{})
  game._process(.016);actor=game.stage.avatar_models[1]
  for sex in 2:
@@ -72,7 +72,7 @@ func run():
     check(float(description.contact)==float(profile.release),"shared contact marker "+form)
     var outline:=Contact.outline(description,p.pos,p.pos+p.facing*float(stats.reach))
     check(outline.size()>16,"visible delivery footprint "+form)
-    game.projectile_queue.clear();game.combat_events.clear();game.enemy_hp=100;game.enemy_pos=Vector3(0,0,1.4)
+    game.projectile_queue.clear();game.combat_events.clear();game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3(0,0,1.4)
     game.strike_enemy(1,p,p.pos)
     check(not game.combat_events.any(func(e):return e.kind=="windup"),"no generic circle at weapon wind-up "+form)
     check(game.projectile_queue.size()==1,"one coherent attack record "+form)
@@ -80,7 +80,7 @@ func run():
     check(int(shot.release)-Time.get_ticks_msec()<=roundi(float(p.attack_duration)*float(profile.release))+1,"release follows clip "+form)
     if Motion.is_projectile(form):
      check(game.combat_events.is_empty(),"projectile cannot appear before release "+form)
-     game.update_projectiles(int(shot.release)-1);check(game.enemy_hp==100,"no pre-release damage "+form)
+     game.update_projectiles(int(shot.release)-1);check(game.enemy_health()==100,"no pre-release damage "+form)
      game.update_projectiles(int(shot.due)+2)
      var flight: Array=game.combat_events.filter(func(e):return e.kind=="projectile")
      check(flight.size()==int(profile.get("projectiles",1)) and str(flight[0].form)==form,"matching projectiles "+form)
@@ -99,8 +99,8 @@ func run():
       var glyph: Node3D=game.combat_visuals.active[int(flight[0].id)].glyph
       check(glyph.has_node(Models.MODELS[form].name),"the released projectile carries the held model "+form)
     else:
-     game.update_projectiles(int(shot.due)-1);check(game.enemy_hp==100,"melee waits for authored contact "+form)
-     game.update_projectiles(int(shot.due)+1);check(game.enemy_hp<100,"authored contact reaches foe "+form)
+     game.update_projectiles(int(shot.due)-1);check(game.enemy_health()==100,"melee waits for authored contact "+form)
+     game.update_projectiles(int(shot.due)+1);check(game.enemy_health()<100,"authored contact reaches foe "+form)
      var event: Dictionary=game.combat_events.filter(func(e):return e.kind=="swing")[0]
      check(str(event.pattern)==str(description.pattern) and float(event.width)==float(description.width),"effect and hit geometry share dimensions "+form)
   check(poses.size()==15,"fifteen genuinely distinct two-hand poses on model "+str(sex)+", got "+str(poses.size()))
@@ -119,16 +119,16 @@ func run():
  p.weapon_kind=1;stats=game.weapon_stats(p)
  check(not Contact.accepts(game,-1,p.pos,Vector3(0,0,3),"censer",stats),"censer sweep leaves rear foes untouched")
  p.weapon_kind=2;p.strike_at=0;p.cast_until=0;game.combat_events.clear();game.projectile_queue.clear()
- game.enemy_hp=100;game.enemy_pos=Vector3(0,0,3)
+ game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3(0,0,3)
  var outer: Dictionary=game.make_scout(0,Vector3(.96,0,3.1),1)
  var outside: Dictionary=game.make_scout(0,Vector3(2,0,3.1),2)
- game.scouts.assign([outer,outside])
+ game.encounter.clear_scouts();game.encounter.register_scout(outer);game.encounter.register_scout(outside)
  game.strike_enemy(1,p,p.pos)
  var fan: Dictionary=game.projectile_queue[0]
  game.update_projectiles(int(fan.release))
  game.update_projectiles(int(fan.due)+350)
- check(game.enemy_hp<100 and outer.hp<outer.max_hp and outside.hp==outside.max_hp,"independent petals hit visible lanes and leave the space outside them clear")
- game.scouts.clear()
+ check(game.enemy_health()<100 and game.encounter.hp_for(outer)<outer.max_hp and game.encounter.hp_for(outside)==outside.max_hp,"independent petals hit visible lanes and leave the space outside them clear")
+ game.encounter.clear_scouts()
  p.frame=2;p.weapon_kind=0;p.strike_at=0;p.cast_until=0;game.combat_events.clear();game.projectile_queue.clear();game.enemy_pos=Vector3(0,0,2)
  game.strike_enemy(1,p,p.pos);var bow: Dictionary=game.projectile_queue[0]
  p.pos=Vector3(1,0,0);game.update_projectiles(int(bow.release))

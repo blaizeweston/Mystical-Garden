@@ -77,8 +77,8 @@ func fail_receipt(phase: String,_path: String) -> Error:
 func clear_floor(actor: Dictionary,floor: int) -> void:
  world.encounter_number=floor
  world.deepest_milestone=floor
- world.enemy_hp=0
- world.scouts.clear()
+ world.encounter.set_hp(-1, 0)
+ world.encounter.clear_scouts()
  world.encounter_rewarded=true
  actor.pos=world.battlefield.advance
 
@@ -140,9 +140,9 @@ func interrupted() -> void:
  var actor: Dictionary=world.players[1]
  actor.pos=world.Stage.GATE
  world.enter_wilds(1,actor)
+ world.encounter.set_hp(-1, 0)
  world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
- world.enemy_hp=0
- world.scouts.clear()
+ world.encounter.clear_scouts()
  var before:=disk()
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,path):
   if phase=="replace" and path==G:
@@ -186,6 +186,7 @@ func exercise() -> void:
  var trophy_config: Dictionary = world.Director.config()
  var previous_config := trophy_config.duplicate()
  trophy_config.merge({"trophy_chance":1.0,"trophy_cap":1.0},true)
+ world.encounter.set_hp(-1, 0)
  world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
  trophy_config.merge(previous_config,true)
  var frozen: int=world.rng.state
@@ -193,8 +194,8 @@ func exercise() -> void:
  check(world.monster_rewards.pending_count()==1 and world.rng.state==frozen,"duplicate receipt does not reroll")
  var frozen_item: String = world.monster_rewards.pending_receipts()[0].rewards[0].item
  check(not frozen_item.is_empty(),"fixture freezes an actual trophy roll")
- world.enemy_hp=0
- world.scouts.clear()
+ world.encounter.set_hp(-1, 0)
+ world.encounter.clear_scouts()
  world.burst_hits_this_room=3
  before=disk()
  var serial: int=world.combat_event_serial
@@ -270,6 +271,10 @@ func exercise() -> void:
  check(world.encounter_number==3 and world.checkpoint_ready.get(1)==3 and actor.power>0,"card commits before travel")
  actor[PlayerVitals.STATE] = actor[PlayerVitals.STATE].with_hp(1.0)
  var health_before_floor: PlayerVitals.Health = actor[PlayerVitals.STATE]
+ var remains: Dictionary=world.make_scout(0,world.enemy_pos,1)
+ remains.hp=0
+ var remains_slot: int=world.encounter.register_scout(remains)
+ var remains_token: int=world.encounter.token(remains_slot)
  field=world.battlefield
  seed=world.map_rng.state
  var healing_rng: int=world.Life.Preview.heal_rng.state
@@ -279,11 +284,15 @@ func exercise() -> void:
  check(world.encounter_number==3 and world.battlefield==field and world.map_rng.state==seed and world.Life.Preview.heal_rng.state==healing_rng
   and is_same(actor[PlayerVitals.STATE],health_before_floor) and PlayerVitals.current_hp(actor)==1
   and world.checkpoint_ready.get(1)==3 and disk()==before,"floor abort restores navigation, RNG, original health owner and purchased card")
+ check(world.encounter.cleared() and world.encounter.scout_count()==1
+  and world.encounter.token(remains_slot)==remains_token and world.encounter.hp(remains_slot)==0,
+  "floor abort restores the cleared roster and its departed member identity")
  record("checkpoint_abort",before)
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.use_checkpoint(1,true)
  check(world.encounter_number==4 and world.battlefield!=field and world.map_rng.state!=seed
   and health_before_floor.hp()==1.0 and PlayerVitals.current_hp(actor)>1.0,"checkpoint advances after confirmed save and installs recovered health")
+ check(world.encounter.token(remains_slot)!=remains_token,"successful floor travel discards the previous roster identity")
 
  clear_floor(actor,6)
  actor.carried_seeds=[0,1]
@@ -360,6 +369,7 @@ func exercise() -> void:
  world.enter_wilds(1,actor)
  world.enter_wilds(2,ally)
  ally.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
+ world.encounter.set_hp(-1, 0)
  world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
  var receipt: Dictionary = world.monster_rewards.pending_receipts()[0]
  var earned_xp := 0

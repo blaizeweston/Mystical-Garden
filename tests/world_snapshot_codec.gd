@@ -83,7 +83,7 @@ func run() -> void:
 		check(false, "valid full frame decodes")
 
 	game.receive_state(viewer)
-	check(game.net_view.snapshot_received == 10 and game.enemy_hp == 487, "production receive commits a valid snapshot")
+	check(game.net_view.snapshot_received == 10 and game.client_leader_hp == 487 and game.encounter.hp() != 487, "production receive commits a valid snapshot")
 	var events: int = game.combat_event_serial
 	# Application-level loss/reorder injection through the production receiver.
 	# Sequence 11 is missed, then arrives late. An invalid 13 must not poison the sequence.
@@ -102,7 +102,7 @@ func run() -> void:
 	game.receive_state(invalid.slice(0, -1))
 	check(game.net_view.snapshot_received == 12 and game.net_view.snapshot_gaps == 1 and game.net_view.rejected_snapshots == 2,
 		"skipped, reordered, duplicate and truncated frames are distinguished")
-	check(game.enemy_hp == 455 and game.players[1].hp == 61 and game.players[1].damage_seq == 8
+	check(game.client_leader_hp == 455 and game.players[1].hp == 61 and game.players[1].damage_seq == 8
 		and game.players[1].wallet == 11, "latest wallet and newer reliable vitals survive reordered frames")
 	game.receive_state(invalid)
 	check(game.net_view.snapshot_received == 13 and game.combat_event_serial == events, "valid successor applies without replaying combat events")
@@ -112,7 +112,7 @@ func run() -> void:
 	var details := var_to_bytes({"snapshot_recovery":recovered, "snapshot_roster":{1:"Recovered name"}}).compress(FileAccess.COMPRESSION_DEFLATE)
 	var garden := var_to_bytes(game.garden_snapshot()).compress(FileAccess.COMPRESSION_DEFLATE)
 	game.receive_details(details, garden, [], "fixture")
-	check(game.net_view.snapshot_received == 16 and game.enemy_hp == 314 and game.players[1].hp == 61
+	check(game.net_view.snapshot_received == 16 and game.client_leader_hp == 314 and game.players[1].hp == 61
 		and game.players[1].display_name == "Recovered name" and game.players[1].wallet == 0,
 		"reliable details recover the latest wallet after fast-channel silence")
 	game.receive_state(recovered)

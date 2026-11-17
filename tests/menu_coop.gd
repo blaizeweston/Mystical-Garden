@@ -60,7 +60,7 @@ func run():
 		game.depth=4
 		game.map_seed=91247
 		game.reset_encounter()
-		game.scouts.clear()
+		game.encounter.clear_scouts()
 		for player in game.players.values():
 			player.wild=true
 			player.pos=game.battlefield.graft
@@ -72,7 +72,7 @@ func run():
 		var enemy_start: Vector3=game.enemy_pos
 		if not await until(func(): return game.players[guest_id].carried_parts[4]==0):
 			check(false,"guest graft request reached host");finish(mode);return
-		if not await until(func(): return game.enemy_hp==game.encounter_health()-1):
+		if not await until(func(): return game.enemy_health()==game.encounter_health()-1):
 			check(false,"guest strike reached host");finish(mode);return
 		check(game.enemy_pos.distance_to(enemy_start)>.04,"guest hit produces authoritative knockback")
 		game.players[1].run_upgrades = {"tempo":1}
@@ -93,13 +93,13 @@ func run():
 		if not await until(func(): return game.players[id].get("carried_parts",[]).size()>1 and game.players[id].carried_parts[4]==1):
 			check(false,"guest receives grafting resource");finish(mode);return
 		var enemy_start: Vector3=game.enemy_pos
-		check(game.enemy_hp>0 and game.graft_altar_open(),"shrine usable before clearing combat")
+		check(game.enemy_health()>0 and game.graft_altar_open(),"shrine usable before clearing combat")
 		game.send_garden_action("graft_install_4")
 		if not await until(func(): return game.players[id].carried_parts[4]==0):
 			check(false,"guest sees completed graft attempt");finish(mode);return
 		game.send_action(true)
 		game.update_projectiles(Time.get_ticks_msec()+1000)
-		if not await until(func(): return game.enemy_hp==game.encounter_health()-1):
+		if not await until(func(): return game.enemy_health()==game.encounter_health()-1):
 			check(false,"guest receives hit result");finish(mode);return
 		check(game.enemy_pos.distance_to(enemy_start)>.04,"knockback position synchronizes to guest")
 		check(not FileAccess.file_exists(storage.paths(slot).garden),"joining does not replace the guest's Garden slot")

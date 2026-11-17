@@ -26,10 +26,10 @@ func check(value: bool, message: String) -> void:
 func prepare(class_id: int, lane: int) -> void:
 	game.combat_epoch += 1
 	game.trait_events.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.combat_events.clear()
 	game.enemy_traits.clear()
-	game.enemy_hp = 100
+	game.encounter.set_hp(-1, 100)
 	game.enemy_pos = Vector3(0,0,-2.4)
 	game.enemy_winding_up = false
 	game.rooted_until = 0
@@ -58,9 +58,9 @@ func prepare(class_id: int, lane: int) -> void:
 
 
 func add_foe(at: Vector3) -> Dictionary:
-	var foe: Dictionary = game.make_scout(0,at,game.scouts.size()+1)
+	var foe: Dictionary = game.make_scout(0,at,game.encounter.scout_count()+1)
 	foe.hp = 50
-	game.scouts.append(foe)
+	game.encounter.register_scout(foe)
 	return foe
 
 
@@ -77,7 +77,7 @@ func press_release(class_id: int, lane: int) -> void:
 	var aim := Vector3.FORWARD
 	var preview := Aim.footprint(game,player,game.battlefield,0,aim,2.4)
 	check(preview.valid and not preview.shapes.is_empty(),"holding previews the "+str(skill.shape))
-	check(game.enemy_hp==100 and player[Cooldowns.STATE].deadline(Cooldowns.Q)==0 and game.combat_events.is_empty(),"preview commits no effects")
+	check(game.enemy_health()==100 and player[Cooldowns.STATE].deadline(Cooldowns.Q)==0 and game.combat_events.is_empty(),"preview commits no effects")
 	game.garden_action(1,Aim.request(game,player,0,Vector2.UP,2.4))
 	var releases: Array = game.combat_events.filter(func(event): return event.kind=="subclass_release")
 	check(releases.size()==1 and player[Cooldowns.STATE].deadline(Cooldowns.Q)>Time.get_ticks_msec(),"release starts one cooldown and publishes one cast")
@@ -86,7 +86,7 @@ func press_release(class_id: int, lane: int) -> void:
 	var cue: Dictionary = releases[0]
 	check(cue.shape==skill.visual and cue.pattern==skill.shape and cue.label==skill.name,"correct release style")
 	check(game.attack_animation_snapshot(player).clip==Combat.CLIPS[skill.visual],"host and guest snapshot contain the authored gesture")
-	check(outside.hp==50 and outside.rooted_until==0,"enemy outside the preview is untouched")
+	check(game.encounter.hp_for(outside)==50 and outside.rooted_until==0,"enemy outside the preview is untouched")
 	if skill.shape in ["ground","line","dash","retreat"]:
 		var shape: Dictionary = preview.shapes.filter(func(entry):return entry.kind in ["area","strip","travel"])[0]
 		var expected: Vector3 = shape.get("to",shape.get("at",Vector3.ZERO))
@@ -97,15 +97,15 @@ func press_release(class_id: int, lane: int) -> void:
 	if skill.id in ["thornbinder","silkwarden","snarekeeper"]:
 		check(game.rooted_until>Time.get_ticks_msec(),"roots the intended enemy")
 	if skill.id in ["wildstalker","veilwalker"]:
-		check(game.enemy_hp<100 and game.enemy_traits.has("core_strike_mark"),"hit leaves the promised consumable mark")
+		check(game.enemy_health()<100 and game.enemy_traits.has("core_strike_mark"),"hit leaves the promised consumable mark")
 	if skill.id=="wildstalker":
-		check(second.traits.has("core_strike_mark") and by_start.hp==50,"card marks the second forward target only")
+		check(second.traits.has("core_strike_mark") and game.encounter.hp_for(by_start)==50,"card marks the second forward target only")
 	if skill.id=="wayfarer":
 		check(player.pos.z>2.3 and by_start.rooted_until>0 and player.guard_until>0,"retreat roots behind and card wards landing")
 	if skill.id=="blood_harvester":
-		check(game.enemy_hp<100 and PlayerVitals.current_hp(player)>5,"harvest heals from actual contacts")
+		check(game.enemy_health()<100 and PlayerVitals.current_hp(player)>5,"harvest heals from actual contacts")
 	if skill.id=="gravekeeper":
-		check(game.enemy_hp<100 and by_start.hp==50 and player.guard_until>0,"facing sweep excludes a rear target and wards on hit")
+		check(game.enemy_health()<100 and game.encounter.hp_for(by_start)==50 and player.guard_until>0,"facing sweep excludes a rear target and wards on hit")
 	if skill.id=="leykeeper":
 		check(second.pos.distance_to(Vector3(0,0,-2.4))<.2,"bell pulls a visible foe to the impact")
 	if skill.id in ["bloomcaller","snarekeeper","lifekeeper"]:
@@ -134,11 +134,11 @@ func input_lifecycle() -> void:
 	check(Aim.input_event(game,input),"the press enters the actual input handler")
 	var held = Aim.active(game)
 	check(is_instance_valid(held) and held.slot==0 and held.drawing.get_surface_count()>0,"holding draws the live aiming mesh")
-	check(game.enemy_hp==100 and player[Cooldowns.STATE].deadline(Cooldowns.Q)==0,"the held input has no gameplay effect")
+	check(game.enemy_health()==100 and player[Cooldowns.STATE].deadline(Cooldowns.Q)==0,"the held input has no gameplay effect")
 	input.pressed = false
 	check(Aim.input_event(game,input),"the release enters the actual input handler")
 	check(is_instance_valid(held) and held.slot==-1 and held.drawing.get_surface_count()==0,"release removes the preview")
-	check(game.enemy_hp<100 and player[Cooldowns.STATE].deadline(Cooldowns.Q)>Time.get_ticks_msec(),"the real input release casts and starts cooldown")
+	check(game.enemy_health()<100 and player[Cooldowns.STATE].deadline(Cooldowns.Q)>Time.get_ticks_msec(),"the real input release casts and starts cooldown")
 
 
 func run() -> void:

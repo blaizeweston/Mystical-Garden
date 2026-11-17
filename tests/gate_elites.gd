@@ -29,7 +29,7 @@ func run():
  var p: Dictionary=game.players[1];p.wild=true;p.pos=Vector3(0,0,.8);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
  game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.boss_kind=-1;game.destination=0
  for kind in seen:
-  var now:=Time.get_ticks_msec();game.enemy_kind=kind;game.enemy_pos=Vector3.ZERO;game.enemy_hp=80;game.enemy_ready_at=0;game.enemy_winding_up=false;game.enemy_engaged=true;game.enemy_stagger_until=0;game.rooted_until=0;game.enemy_mutations=0;game.longlimb=false;game.leader_brain.clear();game.scouts.clear();game.enemy_hazards.clear();game.moss_recovery_bonus=0;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0;p.guard_until=0
+  var now:=Time.get_ticks_msec();game.enemy_kind=kind;game.enemy_pos=Vector3.ZERO;game.encounter.set_hp(-1, 80);game.enemy_ready_at=0;game.enemy_winding_up=false;game.enemy_engaged=true;game.enemy_stagger_until=0;game.rooted_until=0;game.enemy_mutations=0;game.longlimb=false;game.leader_brain.clear();game.encounter.clear_scouts();game.enemy_hazards.clear();game.moss_recovery_bonus=0;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0;p.guard_until=0
   Elite.tick(game,.016,now)
   check(game.enemy_winding_up and game.enemy_attack_mode==Catalog.get_kind(kind).role,"species attack: "+str(kind))
   var hints:=Elite.hints(game)
@@ -44,19 +44,19 @@ func run():
   if kind in [2,13]:check(game.enemy_hazards.is_empty(),"elite movement adds no unmarked trails")
   if kind==17:check(not game.enemy_hazards.is_empty(),"Ashen Hart retains its marked ember trail")
   if kind==9:
-   check(game.scouts.size()==2 and game.scouts.all(func(s):return s.get("summoned",false)),"brood elite creates a two-minion wave")
+   check(game.encounter.scout_count()==2 and game.encounter.scout_tactics().all(func(s):return s.get("summoned",false)),"brood elite creates a two-minion wave")
    for i in 5:
     Elite.tick(game,.016,game.enemy_ready_at+1);Elite.resolve(game,game.enemy_strike_at+1)
-   check(game.scouts.filter(func(s):return s.hp>0 and s.get("elite_brood",false)).size()<=4,"brood has a four-living-child cap")
-   game.scouts[0].hp=0;Elite.tick(game,.016,game.enemy_ready_at+1);Elite.resolve(game,game.enemy_strike_at+1);check(game.scouts.filter(func(s):return s.hp>0 and s.get("elite_brood",false)).size()==4,"brood can replenish a fallen child")
+   check(game.encounter.scout_views().filter(func(s):return s.hp>0 and s.get("elite_brood",false)).size()<=4,"brood has a four-living-child cap")
+   game.encounter.set_hp(0, 0);Elite.tick(game,.016,game.enemy_ready_at+1);Elite.resolve(game,game.enemy_strike_at+1);check(game.encounter.scout_views().filter(func(s):return s.hp>0 and s.get("elite_brood",false)).size()==4,"brood can replenish a fallen child")
   game._process(.016)
   var model: Node3D=game.stage.foe_model.model;var growth: Node3D=model.get_node_or_null("EliteGrowth")
   check(is_instance_valid(growth) and growth.get_child_count()>0,"elite has anatomical growth beyond scaling: "+str(kind))
   var count: int=growth.get_child_count();Elite.decorate(game.stage,game.stage.foe_model,true);check(growth.get_child_count()==count,"decoration is cached")
- game.enemy_kind=11;game.enemy_hp=80;game.enemy_pos=Vector3.ZERO;game.leader_brain.clear();game.scouts.assign([game.make_scout(0,Vector3(0,0,.5),1)]);game.scouts[0].hp=20
- game.apply_weapon_hit(p,0,p.pos,{"damage":4},Time.get_ticks_msec());check(game.scouts[0].hp==17,"elite Grazer retains its protection aura, hp="+str(game.scouts[0].hp))
+ game.enemy_kind=11;game.encounter.set_hp(-1, 80);game.enemy_pos=Vector3.ZERO;game.leader_brain.clear();game.encounter.clear_scouts();game.encounter.register_scout(game.make_scout(0,Vector3(0,0,.5),1));game.encounter.set_hp(0, 20)
+ game.apply_weapon_hit(p,0,p.pos,{"damage":4},Time.get_ticks_msec());check(game.encounter.hp(0)==17,"elite Grazer retains its protection aura, hp="+str(game.encounter.hp(0)))
  game.enemy_kind=16;game.leader_brain.clear();var thief:=Elite.state(game);thief.stolen=[{"stack":{"item":"briar_hook","quantity":1},"position":[0,0,0]}];game.wild_item_drops.clear();game.EnemyBehaviors.death(game,thief,Vector3.ZERO);check(game.wild_item_drops.size()==1 and thief.get("stolen",[]).is_empty(),"elite Thief uses the same stolen-loot recovery hook")
- game.enemy_kind=7;game.encounter_number=12;game.enemy_pos=Vector3.ZERO;game.enemy_hp=80
+ game.enemy_kind=7;game.encounter_number=12;game.enemy_pos=Vector3.ZERO;game.encounter.set_hp(-1, 80)
  game.enemy_winding_up=false;game.enemy_ready_at=0;game.enemy_stagger_until=0;game.enemy_engaged=true
  game.enemy_hazards.clear();game.leader_brain.clear();p.pos=Vector3(0,0,1.3);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0
  var now:=Time.get_ticks_msec()

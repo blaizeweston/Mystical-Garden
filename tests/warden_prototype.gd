@@ -93,21 +93,21 @@ func arena(indices: Array[int], card: String) -> void:
 		player[key]=0
 	game.battlefield.configure(0,1,0)
 	game.battlefield.barriers.clear()
-	game.enemy_hp=100
+	game.encounter.set_hp(-1, 100)
 	game.enemy_pos=Vector3(0,0,-1.4)
 	game.enemy_traits.clear()
 	game.rooted_until=0
 	game.enemy_winding_up=false
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.combat_events.clear()
 	game.encounter_number=1
 	game.encounter_rewarded=false
 
 
 func scout(at: Vector3) -> Dictionary:
-	var actor: Dictionary=game.make_scout(0,at,game.scouts.size()+1)
+	var actor: Dictionary=game.make_scout(0,at,game.encounter.scout_count()+1)
 	actor.hp=50
-	game.scouts.append(actor)
+	game.encounter.register_scout(actor)
 	return actor
 
 
@@ -123,8 +123,8 @@ func offense() -> void:
 	Status.sync(game,now)
 	check(Status.snapshot(game,now).any(func(e): return e.shape=="warden_quake_ready" and e.combo==1), "prepared Quake has a visible player status")
 	game.use_class_skill(1,player,1)
-	check(game.enemy_hp<98 and near.rooted_until>now and game.rooted_until>now, "the bridged Quake uses the counter and roots actual contacts")
-	check(far.hp<50 and game.combat_events.any(func(e): return e.shape=="Briar Wake"), "the branch card strikes once outside the ordinary Quake")
+	check(game.enemy_health()<98 and near.rooted_until>now and game.rooted_until>now, "the bridged Quake uses the counter and roots actual contacts")
+	check(game.encounter.hp_for(far)<50 and game.combat_events.any(func(e): return e.shape=="Briar Wake"), "the branch card strikes once outside the ordinary Quake")
 	check(Combat.prepared_until(game,player,now)==0, "real Quake consumes the preparation")
 
 
@@ -143,7 +143,7 @@ func neutral() -> void:
 	game.battlefield.barriers.clear()
 	var q_before: int=player[Cooldowns.STATE].deadline(Cooldowns.Q)
 	game.garden_action(1,Aim.request(game,player,1,Vector2.UP))
-	check(game.enemy_hp<100 and player.pos.z==5.5 and player.warden_anchor.uses==1, "remote release hits at the anchor and the card preserves one use")
+	check(game.enemy_health()<100 and player.pos.z==5.5 and player.warden_anchor.uses==1, "remote release hits at the anchor and the card preserves one use")
 	check(player[Cooldowns.STATE].deadline(Cooldowns.Q)<q_before,"Living Rhythm refunds only after contact")
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	game.use_class_skill(1,player,1)
@@ -169,7 +169,7 @@ func support() -> void:
 	check(not game.RunUpgrades.requirement(card,player).is_empty(),"a Force Form cannot substitute for a Catalyst")
 	player.catalyst=player.secondary
 	player.secondary=0
-	game.enemy_hp=0
+	game.encounter.set_hp(-1, 0)
 	game.encounter_number=3
 	player.pos=game.battlefield.advance
 	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(player).spent_essence())
@@ -179,7 +179,7 @@ func support() -> void:
 	check(offers.size() in [3,4] and offers[0]==card.id and game.RunUpgrades.get_upgrade(offers[1]).has("core"), "Warden checkpoint shows branch and Core choices when affordable")
 	check(game.buy_upgrade(1,player,0), "Thorn Shelter buys through the normal checkpoint")
 	game.encounter_number=4
-	game.enemy_hp=100
+	game.encounter.set_hp(-1, 100)
 	game.enemy_pos=Vector3(0,0,-3.25)
 	player.pos=Vector3.ZERO
 	game.garden_action(1,Core.request(game,player,Vector2.UP,2.5))

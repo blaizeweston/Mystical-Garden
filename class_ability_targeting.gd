@@ -26,12 +26,12 @@ static func target_range(mode: String, skill: Dictionary, stats: Dictionary, rea
 
 static func positions(game: Node) -> Dictionary:
 	var result := {}
-	if game.enemy_hp > 0:
+	if game.enemy_health() > 0:
 		result[-1] = game.enemy_pos
 	if game.multiplayer.is_server():
-		for index in game.scouts.size():
-			if game.scouts[index].hp > 0:
-				result[index] = game.scouts[index].pos
+		for index in game.encounter.scout_count():
+			if game.encounter.alive(index):
+				result[index] = game.encounter.scout(index).pos
 	else:
 		for index in range(0, game.client_pack.size() - game.PACK_STRIDE + 1, game.PACK_STRIDE):
 			if game.client_pack[index + 2] > 0.0:
@@ -76,8 +76,8 @@ static func automatic(game: Node, player: Dictionary, reach: float, shot: Dictio
 	var field: RefCounted = game.battlefield
 	var facing: Vector3 = player.get("facing", Vector3.FORWARD)
 	var ranged := not shot.is_empty() or line_width >= 0.0
-	for target in range(-1, game.scouts.size()):
-		if (game.enemy_hp if target == -1 else int(game.scouts[target].hp)) <= 0:
+	for target in range(-1, game.encounter.scout_count()):
+		if not game.encounter.alive(target):
 			continue
 		var edge := Hurt.contact(game, target, origin, ranged)
 		var offset := edge - origin
@@ -89,7 +89,7 @@ static func automatic(game: Node, player: Dictionary, reach: float, shot: Dictio
 		if not target_clear(game, field, origin, point, target, reach, shot, line_width):
 			continue
 		var score := distance + (1.0 - dot) * .55
-		var token: int = -1 if target == -1 else int(game.scouts[target].get("spawn_token", 0))
+		var token: int = -1 if target == -1 else game.encounter.token(target)
 		if int(player.get("aim_target", -3)) == target and int(player.get("aim_token", -99)) == token:
 			score -= .3
 		if score < best:
@@ -97,7 +97,7 @@ static func automatic(game: Node, player: Dictionary, reach: float, shot: Dictio
 			result = target
 	if result != -2:
 		player.aim_target = result
-		player.aim_token = -1 if result == -1 else int(game.scouts[result].get("spawn_token", 0))
+		player.aim_token = -1 if result == -1 else game.encounter.token(result)
 	return result
 
 

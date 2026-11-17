@@ -37,7 +37,7 @@ func start_theft(actor: Dictionary, now: int) -> int:
 func follow(actor: Dictionary, now: int) -> int:
 	for step in 500:
 		now += 50
-		if actor.get("escape",{}).get("burrow_until",0)>0 or actor.hp<=0:
+		if actor.get("escape",{}).get("burrow_until",0)>0 or game.encounter.hp_for(actor)<=0:
 			break
 		game.EnemyBehaviors.tick(game,actor,.05,now)
 	return now
@@ -54,7 +54,7 @@ func run() -> void:
 	player.wild = true
 	player.pos = Vector3(0,0,-6)
 	game.battlefield.configure(0,1,0)
-	game.enemy_hp = 0
+	game.encounter.set_hp(-1, 0)
 
 	var field := Field.new()
 	for seed in [1610,4619,9394]:
@@ -69,7 +69,7 @@ func run() -> void:
 			check(not field.occupied(path[-1],.6),"tunnel is on the walkable side of the boundary")
 
 	var thief: Dictionary = game.make_scout(Escape.KIND,player.pos,2)
-	game.scouts.assign([thief])
+	game.encounter.clear_scouts();game.encounter.register_scout(thief)
 	var start := start_theft(thief,1000)
 	if not thief.has("escape"):
 		game.queue_free()
@@ -91,12 +91,12 @@ func run() -> void:
 	game.EnemyBehaviors.tick(game,thief,.05,now+20)
 	check(thief.escape.burrow_until==0,"a stagger interrupts burrowing")
 	game.apply_weapon_hit(player,0,thief.pos,{"damage":999,"knockback":-.35},now+200)
-	check(thief.hp==0 and Escape.snapshot(game).is_empty() and game.wild_item_drops.any(func(drop): return drop.id=="owned-trophy" and drop.owner==1 and drop.stack.quantity==2),
+	check(game.encounter.hp_for(thief)==0 and Escape.snapshot(game).is_empty() and game.wild_item_drops.any(func(drop): return drop.id=="owned-trophy" and drop.owner==1 and drop.stack.quantity==2),
 		"intercepting the thief restores the exact original drop")
 
 	var runner: Dictionary = game.make_scout(Escape.KIND,player.pos,3)
-	game.scouts.assign([runner])
-	game.enemy_hp = 10
+	game.encounter.clear_scouts();game.encounter.register_scout(runner)
+	game.encounter.set_hp(-1, 10)
 	game.enemy_pos = Vector3(2,0,-6)
 	start = start_theft(runner,now+1000)
 	now = follow(runner,start)
@@ -105,20 +105,19 @@ func run() -> void:
 	var kills: int = game.encounter_kills.size()
 	var corpses: int = game.enemy_death_events.size()
 	game.EnemyBehaviors.tick(game,runner,.05,escape_at)
-	check(runner.hp==0 and runner.escaped and game.wild_item_drops.is_empty() and Escape.snapshot(game).is_empty(),"escaping removes the thief and stolen loot")
+	check(game.encounter.hp_for(runner)==0 and runner.escaped and game.wild_item_drops.is_empty() and Escape.snapshot(game).is_empty(),"escaping removes the thief and stolen loot")
 	check(game.encounter_kills.size()==kills and game.enemy_death_events.size()==corpses and not game.encounter_cleared(),"escape pays no kill rewards and leaves other foes required")
 	check(Support.corpse(game,game.make_scout(15,runner.pos,4),4.0).is_empty(),"escaped thief cannot be consumed as a corpse")
 
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.enemy_kind = Escape.KIND
-	game.enemy_hp = 14
+	game.encounter.set_hp(-1, 14)
 	game.enemy_pos = player.pos
 	game.enemy_ready_at = 0
 	game.enemy_engaged = true
 	game.enemy_stagger_until = 0
 	game.rooted_until = 0
 	var elite := Elite.state(game)
-	elite.hp = game.enemy_hp
 	game.wild_item_drops.assign([trophy(elite.pos)])
 	game.update_enemy(.016,escape_at+1000)
 	check(game.enemy_winding_up,"gate elite tries its normal trophy grab")
@@ -128,9 +127,9 @@ func run() -> void:
 	for step in 500:
 		now += 50
 		game.update_enemy(.05,now)
-		if game.enemy_hp==0:
+		if game.enemy_health()==0:
 			break
-	check(game.enemy_hp==0 and elite.escaped and game.encounter_cleared(),"elite escape satisfies the real encounter-clear predicate")
+	check(game.enemy_health()==0 and elite.escaped and game.encounter_cleared(),"elite escape satisfies the real encounter-clear predicate")
 	game._process(.016)
 	check(game.stage.wild_portal.visible and game.exploration.thief_routes.is_empty() and game.exploration.thief_tunnels.is_empty(),"portal lights and escape markers disappear")
 	game.queue_free()

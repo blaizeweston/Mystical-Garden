@@ -188,7 +188,7 @@ func host(menu: Node) -> void:
 		if floor_entry.distance_to(target)>.9:break
 	check(floor_entry.distance_to(target)>.8,"usable Frost fixture area on generated floor")
 	game.enemy_pos=target
-	game.enemy_hp=150
+	game.encounter.set_hp(-1, 150)
 	game.enemy_stagger_until=Time.get_ticks_msec()+18000
 	var rows: Array=[]
 	var ruptures: Array=[]
@@ -321,9 +321,9 @@ func host(menu: Node) -> void:
 	var xp_before := [int(local.character.xp[0]),int(ally.character.xp[0])]
 	var stats: Dictionary=game.weapon_stats(local)
 	stats.damage=10000
-	for index in game.scouts.size():
-		if game.scouts[index].hp>0:
-			game.apply_weapon_hit(local,index,game.scouts[index].pos,stats,Time.get_ticks_msec())
+	for index in game.encounter.scout_count():
+		if game.encounter.hp(index)>0:
+			game.apply_weapon_hit(local,index,game.encounter.scout(index).pos,stats,Time.get_ticks_msec())
 	var expected_xp := []
 	var selected_weaver: Dictionary=game.players.get(weaver_id,{})
 	var selected_player: Dictionary=game.players.get(path_id,{})
@@ -343,7 +343,7 @@ func host(menu: Node) -> void:
 			expected_xp.append(prior+subtotal+3)
 		check(local.character.xp[0]==xp_before[0] and ally.character.xp[0]==xp_before[1],
 			"queued scout XP stays out of both profiles before floor settlement")
-	game.enemy_hp=3
+	game.encounter.set_hp(-1, 3)
 	game.enemy_pos=target
 	for seed_value in range(1,40):
 		game.rng.seed=seed_value
@@ -359,7 +359,7 @@ func host(menu: Node) -> void:
 		game.garden_action(1,Core.request(game,local,direction,1.1))
 	if not check(await until(func():return game.encounter_cleared() and game.encounter_rewarded),"a family kill activates Gate through guarded settlement"):return
 	if thorn_kill:
-		check(game.enemy_hp==0,"the maintained Thorn wound kills without an extra attack")
+		check(game.enemy_health()==0,"the maintained Thorn wound kills without an extra attack")
 	check(not game.wild_item_drops.is_empty(),"actual enemy drops through native settlement")
 	if connected_warden_case:
 		check(await until(func():return ally.get("projection_delivery",{}).get("state")=="committed"),
@@ -421,8 +421,8 @@ func host(menu: Node) -> void:
 			"the guest’s native charge survives the real floor transition")
 	game.encounter_number=6
 	game.deepest_milestone=6
-	game.enemy_hp=0
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 0)
+	game.encounter.clear_scouts()
 	game.encounter_rewarded=true
 	local.pos=game.battlefield.advance
 	for id in ids: game.players[id].pos=local.pos
@@ -533,7 +533,7 @@ func exercise_connected_host(game: Node, local: Dictionary, player: Dictionary, 
 	player.guard_until=0
 	player.guard_charges=0
 	player.hurt_until=0
-	game.enemy_hp=180
+	game.encounter.set_hp(-1, 180)
 	mark("ct-q")
 	if not check(await until(func():return player.get("warden_block",{}).get("focus")=="vanguard"),
 		"actual remote Q casts Thorn Counter after crossing lanes"):return false
@@ -617,7 +617,7 @@ func learn_path_guest(game: Node, graph: RefCounted) -> bool:
 func exercise_ranger_host(game: Node,id: int,entry: Vector3,target: Vector3,events: Array) -> bool:
 	var ranger: Dictionary=game.players[id]
 	var ally: Dictionary=game.players[1]
-	game.enemy_hp=150
+	game.encounter.set_hp(-1, 150)
 	game.enemy_pos=target
 	game.enemy_stagger_until=Time.get_ticks_msec()+12000
 	ranger.pos=entry
@@ -666,7 +666,7 @@ func exercise_ranger_guest(game: Node,id: int) -> bool:
 
 func exercise_reaper_host(game: Node,id: int,entry: Vector3,target: Vector3,events: Array) -> bool:
 	var reaper: Dictionary = game.players[id]
-	game.enemy_hp=150
+	game.encounter.set_hp(-1, 150)
 	game.enemy_pos=target
 	game.enemy_stagger_until=Time.get_ticks_msec()+14000
 	reaper.pos=entry
@@ -684,18 +684,18 @@ func exercise_reaper_host(game: Node,id: int,entry: Vector3,target: Vector3,even
 	var spent := func() -> bool:
 		return not reaper.has(ReaperCombat.MOMENTUM) and events.filter(func(e):return e.source_actor==id and e.kind=="weapon_contact").size()==before+1
 	if not check(await until(spent,3000),"one live melee contact spends Momentum and emits one ordinary Form contact"):return false
-	if not check(not game.scouts.is_empty(),"the generated floor has a scout for a native class kill"):return false
+	if not check(game.encounter.scout_count()>0,"the generated floor has a scout for a native class kill"):return false
 	reaper.pos=entry
 	game.enemy_pos=game.battlefield.leader
-	var scout: Dictionary = game.scouts[0]
+	var scout: Dictionary = game.encounter.scout(0)
 	scout.pos=target
-	scout.hp=1
+	game.encounter.set_hp(0,1)
 	scout.stagger_until=Time.get_ticks_msec()+10000
 	scout.windup=0
 	reaper[Cooldowns.STATE] = reaper[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	mark("reaper-siphon")
 	var active_charge := func() -> bool:
-		return scout.hp==0 and int(reaper.get("grave_charges",0))==1 and read("reaper-charge-seen")=="ok"
+		return game.encounter.hp_for(scout)==0 and int(reaper.get("grave_charges",0))==1 and read("reaper-charge-seen")=="ok"
 	if not check(await until(active_charge,5000),"one real Siphon Cut kill grants the guest one native Death Charge"):return false
 	check(not reaper.has(ReaperCombat.SIPHON) and events.filter(func(e):return e.source_actor==id and e.kind=="class_action").size()==2,
 		"the native Q/R pair emits exactly its two class actions")
@@ -814,7 +814,7 @@ func learn_weaver_guest(game: Node) -> bool:
 
 func exercise_weaver_host(game: Node, id: int, entry: Vector3, target: Vector3, events: Array) -> bool:
 	var player: Dictionary=game.players[id]
-	game.enemy_hp=150
+	game.encounter.set_hp(-1, 150)
 	game.enemy_pos=target
 	game.enemy_stagger_until=Time.get_ticks_msec()+12500
 	player.pos=entry
@@ -1042,7 +1042,7 @@ func guest(menu: Node, role: String) -> void:
 				and has_attack_speed(game,player,player.get("weapon_stats",{}),speed.after)
 		if not check(await until(received),"the guest's replicated copy and Tab projection match the host"):return
 		mark("owned-"+str(id))
-	if not check(await until(func():return not read("advance").is_empty() and game.enemy_hp==0 and int(game.party_travel_state().get("epoch",-1))==int(read("advance"))),"guest sees cleared Gate"):return
+	if not check(await until(func():return not read("advance").is_empty() and game.enemy_health()==0 and int(game.party_travel_state().get("epoch",-1))==int(read("advance"))),"guest sees cleared Gate"):return
 	if connected_warden_case:
 		var canonical := ConfigFile.new()
 		var expected := int(read("ct-xp"))
@@ -1146,12 +1146,12 @@ func verify_current_snapshot_host(game: Node, ids: Array, local: Dictionary) -> 
 		"every guest saw the existing Bark status"): return
 
 	var limit: int = game.EncounterConfig.MAX_SCOUTS
-	var before_scouts: int = game.scouts.size()
-	var at: Vector3 = game.scouts.back().pos
+	var before_scouts: int = game.encounter.scout_count()
+	var at: Vector3 = game.encounter.scout(game.encounter.scout_count()-1).pos
 	for index in range(before_scouts,limit):
 		var scout: Dictionary = game.make_scout(0,at,index+1)
 		scout.stagger_until=Time.get_ticks_msec()+8000
-		game.scouts.append(scout)
+		game.encounter.register_scout(scout)
 	var witnesses: Array = []
 	game.set_meta(&"snapshot_witness",func(row):record_snapshot(witnesses,row))
 	# Two nonlethal authority hits within one frame. There is no intervening
@@ -1224,7 +1224,7 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 	var rows: Array = []
 	game.set_meta(&"snapshot_witness",func(row):record_snapshot(rows,row))
 	var previous: Vector3=game.drop_pos
-	game.enemy_hp=487
+	game.encounter.set_hp(-1, 487)
 	game.enemy_stagger_until=Time.get_ticks_msec()+9000
 	if native_graft_case:
 		var caster: Dictionary = game.players[ids[0]]
@@ -1246,21 +1246,21 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 		game.use_class_skill(1,local,0)
 		check(game.players[ids[0]].get("affinity_storm_charge",{}).get("actor")==1,
 			"real Oracle healing grants an authoritative Storm Charge to a guest")
-		var position: Vector3=game.scouts.back().pos
-		while game.scouts.size()<game.EncounterConfig.MAX_SCOUTS:
-			var scout: Dictionary=game.make_scout(0,position,game.scouts.size()+1)
+		var position: Vector3=game.encounter.scout(game.encounter.scout_count()-1).pos
+		while game.encounter.scout_count()<game.EncounterConfig.MAX_SCOUTS:
+			var scout: Dictionary=game.make_scout(0,position,game.encounter.scout_count()+1)
 			scout.stagger_until=Time.get_ticks_msec()+6000
-			game.scouts.append(scout)
+			game.encounter.register_scout(scout)
 		var caster: Dictionary=game.players[ids[2]]
 		caster.core_ready_at=0;caster.cast_until=0;caster.core_cast_until=0
 		var aim: Vector3=(game.enemy_pos-caster.pos).normalized()
 		game.garden_action(ids[2],Core.request(game,caster,Vector2(aim.x,aim.z),1.1))
 	if native_graft_case:
-		var position: Vector3 = game.scouts.back().pos
-		while game.scouts.size()<game.EncounterConfig.MAX_SCOUTS:
-			var scout: Dictionary = game.make_scout(0,position,game.scouts.size()+1)
+		var position: Vector3 = game.encounter.scout(game.encounter.scout_count()-1).pos
+		while game.encounter.scout_count()<game.EncounterConfig.MAX_SCOUTS:
+			var scout: Dictionary = game.make_scout(0,position,game.encounter.scout_count()+1)
 			scout.stagger_until=Time.get_ticks_msec()+6000
-			game.scouts.append(scout)
+			game.encounter.register_scout(scout)
 		var caster: Dictionary = game.players[ids[0]]
 		caster.strike_at = 0
 		game.strike_enemy(ids[0],caster,caster.pos)
@@ -1313,7 +1313,7 @@ func sample_guest_snapshots(game: Node, id: int) -> void:
 			saw_charge=saw_charge or str(game.player_hud.state.get("affinity_feedback","")).contains("Storm Charge")
 			saw_well=saw_well or view.get("attack_hints",[]).any(func(hint):return hint.get("skill")=="gravity_well")
 		var marker:=int(game.drop_pos.x)
-		if starts.has(marker) and not observed.has(marker) and game.players.size()==4 and game.enemy_hp>400:
+		if starts.has(marker) and not observed.has(marker) and game.players.size()==4 and game.enemy_health()>400:
 			observed[marker]={"local_us":now,"first_marker_read_us":starts[marker],
 				"wait_us":now-int(starts[marker]),"sequence":game.net_view.snapshot_received,
 				"scouts":game.client_pack.size()/game.PACK_STRIDE}

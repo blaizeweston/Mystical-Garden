@@ -71,34 +71,34 @@ func run() -> void:
 	game.enemy_kind = 0
 	game.enemy_mutations = 0
 	game.enemy_growth = 0
-	game.enemy_hp = 20
+	game.encounter.set_hp(-1, 20)
 	game.enemy_pos = Vector3(0, 0, -2.2)
-	game.scouts.assign([scout(game, Vector3.ZERO, 1), scout(game, Vector3(0, 0, -3.5), 2), scout(game, Vector3(0, 0, -4.8), 3)])
-	game.scouts[0].pos = Vector3(Hurt.radius(game, 0) + .24, 0, -1.15)
+	game.encounter.clear_scouts();game.encounter.register_scout(scout(game, Vector3.ZERO, 1));game.encounter.register_scout(scout(game, Vector3(0, 0, -3.5), 2));game.encounter.register_scout(scout(game, Vector3(0, 0, -4.8), 3))
+	game.encounter.scout(0).pos = Vector3(Hurt.radius(game, 0) + .24, 0, -1.15)
 	var lance := cast(game, player)
 	if lance.is_empty():
 		check(false, "Seed Lance casts on legal floor")
 		await finish(game)
 		return
 	Core.tick(game, lance.release - 1)
-	check(game.enemy_hp == 20 and int(game.scouts[0].hp) == 20, "cast does not hit before projectile release")
+	check(game.enemy_health() == 20 and int(game.encounter.hp(0)) == 20, "cast does not hit before projectile release")
 	Core.tick(game, lance.release + 55)
-	check(int(game.scouts[0].hp) == 17 and game.enemy_hp == 20, "wide ember projectile hits its flank while its distant targets are untouched")
+	check(int(game.encounter.hp(0)) == 17 and game.enemy_health() == 20, "wide ember projectile hits its flank while its distant targets are untouched")
 	Core.tick(game, lance.armed)
-	check(game.enemy_hp == 17 and int(game.scouts[1].hp) == 17 and int(game.scouts[2].hp) == 20, "the lance stops damaging after three distinct targets")
-	check(int(game.scouts[0].hp) == 17 and player.prepared_mark_until == prepared_mark and game.enemy_traits.is_empty(), "a target is hit once and Core damage does not consume weapon procs")
+	check(game.enemy_health() == 17 and int(game.encounter.hp(1)) == 17 and int(game.encounter.hp(2)) == 20, "the lance stops damaging after three distinct targets")
+	check(int(game.encounter.hp(0)) == 17 and player.prepared_mark_until == prepared_mark and game.enemy_traits.is_empty(), "a target is hit once and Core damage does not consume weapon procs")
 	check(game.combat_events.any(func(event): return event.shape == "needle" and is_equal_approx(float(event.projectile_radius), .32)), "visual projectile uses actual ember radius")
 	check(not game.has_meta(Core.STATE) and game.combat_events.any(func(event): return event.kind == "projectile_end" and event.shape == str(lance.flight_event)), "projectile dissipates after its last valid hit")
 
 	game.battlefield.barriers = [Rect2(-2, -3.2, 4, .5)]
 	game.enemy_pos = Vector3(0, 0, -3.8)
-	game.enemy_hp = 20
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 20)
+	game.encounter.clear_scouts()
 	lance = cast(game, player)
 	check(not lance.is_empty() and lance.to.z > -2.7, "lance terminates before blocking terrain")
 	if not lance.is_empty():
 		Core.tick(game, lance.armed)
-	check(game.enemy_hp == 20, "no damage through cover")
+	check(game.enemy_health() == 20, "no damage through cover")
 	game.battlefield.barriers.clear()
 
 	player.weapon = thorn
@@ -107,7 +107,7 @@ func run() -> void:
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	game.rooted_until = 0
 	game.enemy_pos = Vector3(0, 0, -3.25)
-	game.enemy_hp = 20
+	game.encounter.set_hp(-1, 20)
 	var trap := cast(game, player)
 	if trap.is_empty():
 		check(false, "modified thorn line casts")
@@ -122,7 +122,7 @@ func run() -> void:
 	player.core_cast_until = 0
 	player.cast_until = 0
 	game.send_garden_action("class_skill_two")
-	check(game.rooted_until > now and game.enemy_hp == 20 and Core.hints(game).size() == 1, "Root Quake lashes at an enemy outside the quake and preserves the line")
+	check(game.rooted_until > now and game.enemy_health() == 20 and Core.hints(game).size() == 1, "Root Quake lashes at an enemy outside the quake and preserves the line")
 	check(game.combat_events.any(func(event): return event.shape == "Thorn lash"), "Root Quake lash is visible")
 	await finish(game)
 

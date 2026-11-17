@@ -43,8 +43,8 @@ func run() -> void:
 	p.frame = game.Frames.WARDEN
 	p.facing = Vector3.FORWARD
 	game.enemy_pos = Vector3(0, 0, -2)
-	game.enemy_hp = 40
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 40)
+	game.encounter.clear_scouts()
 	game.battlefield.configure(0, 1)
 	game.battlefield.barriers.clear()
 

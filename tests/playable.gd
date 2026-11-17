@@ -93,8 +93,8 @@ func verify_loop() -> void:
 		place(1, Stage.GATE)
 		interact()
 		check(game.players[1].wild, "entry to the Wilds")
-		game.scouts.clear()
-		game.enemy_hp=3 # Fixed three-contact acquisition fixture, independent of encounter tuning.
+		game.encounter.clear_scouts()
+		game.encounter.set_hp(-1, 3) # Fixed three-contact acquisition fixture, independent of encounter tuning.
 		# Keep pickup and gate interaction separate even when the elite spawns at the exit.
 		game.enemy_pos=Vector3(0,0,5.4)
 		place(1, game.enemy_pos + Vector3(1.2, 0, 0))
@@ -104,7 +104,7 @@ func verify_loop() -> void:
 			game.update_projectiles(Time.get_ticks_msec()+1000)
 			if strike < 2:
 				await create_timer(0.47).timeout
-		check(game.has_drop and game.enemy_hp == 0, "three strikes drop a seed")
+		check(game.has_drop and game.enemy_health() == 0, "three strikes drop a seed")
 		place(1, game.drop_pos)
 		interact()
 		interact()
@@ -140,16 +140,16 @@ func verify_loop() -> void:
 	await create_timer(0.50).timeout
 	# Isolate weapon reach from randomized encounter placement, optional cover
 	# and scouts that may otherwise become the nearest eligible target.
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.battlefield.barriers.clear()
 	game.enemy_pos=Vector3(0,0,5.4)
 	game.players[1].strike_at=0
 	place(1, game.enemy_pos + Vector3(2.75, 0, 0))
-	game.enemy_hp=3
+	game.encounter.set_hp(-1, 3)
 	game.send_action(true)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.enemy_hp == 2, "crafted Thorn Bloom blade extends strike range")
-	game.scouts.clear()
+	check(game.enemy_health() == 2, "crafted Thorn Bloom blade extends strike range")
+	game.encounter.clear_scouts()
 	await verify_briar_strike()
 	await verify_expedition()
 	await verify_garden_growth()
@@ -167,8 +167,8 @@ func verify_loop() -> void:
 	game.destination = Campaign.HOLLOW
 	game.depth = 5
 	game.reset_encounter()
-	check(game.scouts.size()>=6 and game.scouts.size()<=game.EncounterConfig.MAX_SCOUTS and game.enemy_hp>0, "late encounters field larger bounded packs")
-	for scout in game.scouts:
+	check(game.encounter.scout_count()>=6 and game.encounter.scout_count()<=game.EncounterConfig.MAX_SCOUTS and game.enemy_health()>0, "late encounters field larger bounded packs")
+	for scout in game.encounter.scout_tactics():
 		check(not game.battlefield.occupied(scout.pos, Battlefield.CLEARANCE),
 			"large packs spawn clear of cover")
 
@@ -178,8 +178,8 @@ func verify_expedition() -> void:
 	place(1, Stage.GATE)
 	interact()
 	check(game.players[1].wild, "cannot extract during a live encounter")
-	game.scouts.clear()
-	game.enemy_hp = 1
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 1)
 	await create_timer(0.50).timeout
 	place(1, game.enemy_pos)
 	game.send_action(true)
@@ -187,7 +187,7 @@ func verify_expedition() -> void:
 	interact()
 	place(1, Stage.DEEPER_GATE)
 	interact()
-	check(game.depth == 2 and game.enemy_hp > starting_health and game.players[1].carried_seeds.size() == 1,
+	check(game.depth == 2 and game.enemy_health() > starting_health and game.players[1].carried_seeds.size() == 1,
 		"descending starts a tougher encounter and carries loot forward")
 	game.players[1][PlayerVitals.STATE] = game.players[1][PlayerVitals.STATE].with_hp(1)
 	game.players[1].hurt_until=0
@@ -199,12 +199,12 @@ func verify_expedition() -> void:
 		"a wipe loses unbanked loot and resets the route")
 	place(1, Stage.GATE)
 	interact()
-	game.scouts.clear()
-	game.enemy_hp = 0
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 0)
 	place(1, Stage.DEEPER_GATE)
 	interact()
-	game.scouts.clear()
-	game.enemy_hp = 1
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 1)
 	await create_timer(0.50).timeout
 	place(1, game.enemy_pos)
 	game.send_action(true)
@@ -336,12 +336,12 @@ func verify_altar_experiment() -> void:
 		"Veilstrike consumes a Veilcap part")
 	await create_timer(0.50).timeout
 	place(1, game.enemy_pos)
-	game.enemy_hp=3 # Fixed wind-up damage fixture.
+	game.encounter.set_hp(-1, 3) # Fixed wind-up damage fixture.
 	game.enemy_winding_up = true
 	game.enemy_strike_at = Time.get_ticks_msec() + 650
 	game.send_action(true)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.enemy_hp == 0, "Veilstrike and its arcane Core exploit wind-up")
+	check(game.enemy_health() == 0, "Veilstrike and its arcane Core exploit wind-up")
 
 
 func verify_upgrade_route() -> void:
@@ -352,10 +352,10 @@ func verify_upgrade_route() -> void:
 		check(game.wallet_for(game.players[1]).spent_essence() == 0, "live encounter does not offer upgrades")
 		await create_timer(0.50).timeout
 		# Test the checkpoint, independently of a randomly placed enemy or its drops.
-		game.scouts.clear()
+		game.encounter.clear_scouts()
 		game.battlefield.barriers.clear()
 		game.enemy_pos = Vector3(0, 0, 5.4)
-		game.enemy_hp = 1
+		game.encounter.set_hp(-1, 1)
 		game.enemy_mutations = 0
 		place(1, game.enemy_pos + Vector3.RIGHT)
 		game.players[1].facing = Vector3.LEFT
@@ -387,13 +387,13 @@ func verify_upgrade_route() -> void:
 	place(1, game.enemy_pos)
 	game.enemy_winding_up = true
 	game.enemy_strike_at = Time.get_ticks_msec() + 650
-	game.scouts.clear();game.enemy_mutations=0;game.enemy_hp=maxi(8,game.enemy_hp)
-	var hp: int = game.enemy_hp
+	game.encounter.clear_scouts();game.enemy_mutations=0;game.encounter.set_hp(-1, maxi(8,game.enemy_health()))
+	var hp: int = game.enemy_health()
 	game.send_action(true)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.enemy_hp == hp - 4, "Veilstrike technique boosts wind-up damage")
-	game.scouts.clear()
-	game.enemy_hp = 0
+	check(game.enemy_health() == hp - 4, "Veilstrike technique boosts wind-up damage")
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 0)
 	place(1, Stage.GATE)
 	interact()
 	check(game.wallet_for(game.players[1]).spent_essence() == 0 and game.players[1].technique == 0,
@@ -426,8 +426,8 @@ func verify_hook_grafting() -> void:
 	check(p.wild and p.carried_parts[Parts.HOOK]==1 and p.graft_part==0,"stash trophy departs as uninstalled cargo")
 	game.depth=game.GRAFT_ROOM
 	game.encounter_number=game.GRAFT_ROOM
-	game.scouts.clear()
-	game.enemy_hp=5
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 5)
 	p.pos=game.battlefield.graft
 	p.carried_parts[Parts.HOOK]=3
 	p.carried_parts[Parts.THORN]=1
@@ -442,7 +442,7 @@ func verify_hook_grafting() -> void:
 	check(p.graft_part==Parts.HOOK and p.weapon==Parts.VEIL and p.secondary==0 and p.technique==1,"fourth-slot graft preserves plant slots and upgrades")
 	game.send_garden_action("graft_install_4")
 	check(p.carried_parts[Parts.THORN]==1,"filled monster slot cannot consume plant material")
-	game.enemy_hp=0
+	game.encounter.set_hp(-1, 0)
 	game.encounter_number=12
 	game.depth=5
 	game.deepest_milestone=12
@@ -486,8 +486,8 @@ func verify_modular_parts() -> void:
 	var p: Dictionary = game.players[1]
 	game.depth = game.GRAFT_ROOM
 	game.encounter_number = game.GRAFT_ROOM
-	game.scouts.clear()
-	game.enemy_hp = 0
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 0)
 	p.secondary = Parts.EMPTY
 	p.graft_part = Parts.EMPTY
 	p.wild = true
@@ -518,8 +518,8 @@ func verify_class_frames() -> void:
 	place(1, Stage.GATE)
 	interact()
 	check(p.weapon == Parts.THORN and p.frame == Frames.CASTER, "staff fits the same Thorn part")
-	game.scouts.clear()
-	game.enemy_hp=3 # Skill reach fixture.
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 3) # Skill reach fixture.
 	place(1, game.enemy_pos + Vector3.RIGHT * 4.5)
 	var before: Vector3 = game.enemy_pos
 	game.send_garden_action("class_skill")
@@ -533,7 +533,7 @@ func verify_class_frames() -> void:
 	game.send_action(true)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
 	await wait_for_projectiles()
-	check(game.enemy_hp == 2, "staff and Thorn reach combine")
+	check(game.enemy_health() == 2, "staff and Thorn reach combine")
 	game.send_garden_action("frame")
 	check(p.frame == Frames.CASTER, "frame cannot change mid-expedition")
 	game.leave_game("Guard test reset")
@@ -563,8 +563,8 @@ func verify_adaptation() -> void:
 	game.depth = 3
 	game.encounter_number=3
 	game.reset_encounter()
-	game.scouts.clear()
-	game.enemy_hp = 2
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 2)
 	game.ranged_clears = 1
 	for i in 2:
 		place(1, game.enemy_pos + Vector3.RIGHT * 3.4)
@@ -584,8 +584,8 @@ func verify_adaptation() -> void:
 	game.resolve_briar_strike(Time.get_ticks_msec())
 	check(PlayerVitals.current_hp(p) == hp - 1, "Longlimb hits within its wider telegraph")
 	game.ranged_clears = 3
-	game.scouts.clear()
-	game.enemy_hp = 0
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 0)
 	place(1, Stage.GATE)
 	interact()
 	var reload := Progress.new()
@@ -594,8 +594,8 @@ func verify_adaptation() -> void:
 	place(1, Stage.GATE)
 	interact()
 	check(not game.longlimb, "opening room stays at base difficulty")
-	game.scouts.clear()
-	game.enemy_hp = 0
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 0)
 	place(1, Stage.DEEPER_GATE)
 	interact()
 	game.depth=4;game.encounter_number=4;game.reset_encounter()
@@ -627,15 +627,15 @@ func verify_character_progress() -> void:
 	game.send_garden_action("trait")
 	place(1, Stage.GATE)
 	interact()
-	game.scouts.clear()
-	game.enemy_hp = 1
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 1)
 	place(1, game.enemy_pos)
 	var encountered_kind: int=game.enemy_kind
 	var familiarity_before: int=profile.monsters[encountered_kind]
 	p.strike_at=0
 	game.send_action(true)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.enemy_hp==0 and profile.monsters[encountered_kind]==familiarity_before+1, "combat builds familiarity for the actual encountered species")
+	check(game.enemy_health()==0 and profile.monsters[encountered_kind]==familiarity_before+1, "combat builds familiarity for the actual encountered species")
 	place(1, Stage.GATE)
 	interact()
 	place(1, Stage.PLOTS[0])
@@ -694,8 +694,8 @@ func verify_endless_route() -> void:
 	for site in [Campaign.GROVE, Campaign.MIRE, Campaign.HOLLOW]:
 		check(game.destination == site and game.depth == 1, "free route traverses biomes in order")
 		for local_encounter in game.ROUTE_ROOMS:
-			game.scouts.clear()
-			game.enemy_hp = 1
+			game.encounter.clear_scouts()
+			game.encounter.set_hp(-1, 1)
 			p.pos = game.enemy_pos
 			p.strike_at = 0
 			game.send_action(true)
@@ -722,8 +722,8 @@ func verify_endless_route() -> void:
 	game.pressure_at = now
 	game.update_pressure(now)
 	check(PlayerVitals.current_hp(p) == hp and game.pressure_at > now, "overstaying schedules avoidable reinforcements without automatic damage")
-	game.scouts.clear()
-	game.enemy_hp = 0
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 0)
 	# Fast-forward the fixture to the next cleared extraction checkpoint.
 	game.encounter_number = 24
 	game.deepest_milestone = 24
@@ -765,9 +765,9 @@ func verify_spaced_pack() -> void:
 	game.depth = 4
 	game.encounter_number = 4
 	game.reset_encounter()
-	check(game.scouts.size() >= 3 and game.scouts.any(func(scout): return scout.ranged)
-		and not game.scouts[0].ranged, "floor four has a melee frontline and a ranged scout")
-	game.enemy_hp = 1
+	check(game.encounter.scout_count() >= 3 and game.encounter.scout_tactics().any(func(scout): return scout.ranged)
+		and not game.encounter.scout(0).ranged, "floor four has a melee frontline and a ranged scout")
+	game.encounter.set_hp(-1, 1)
 	place(1, game.enemy_pos)
 	player.strike_at = 0
 	game.send_action(true)
@@ -776,8 +776,8 @@ func verify_spaced_pack() -> void:
 	place(1, Stage.GATE)
 	interact()
 	check(player.wild, "checkpoint stays locked until the whole pack is defeated")
-	for mob in game.scouts: mob.hp=2 # This fixture verifies target selection and pack-clear gating.
-	var scout: Dictionary = game.scouts[0]
+	for slot in game.encounter.scout_count(): game.encounter.set_hp(slot, 2) # This fixture verifies target selection and pack-clear gating.
+	var scout: Dictionary = game.encounter.scout(0)
 	place(1, scout.pos + Vector3.RIGHT * 0.8)
 	player.facing=(scout.pos-player.pos).normalized()
 	game.update_scouts(0.016, Time.get_ticks_msec())
@@ -785,13 +785,13 @@ func verify_spaced_pack() -> void:
 	player.strike_at = 0
 	game.send_action(true)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(scout.hp == 1, "strikes can target the scout")
+	check(game.encounter.hp_for(scout) == 1, "strikes can target the scout")
 	player.strike_at = 0
 	game.send_action(true)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(scout.hp == 0 and not game.encounter_cleared(), "the rest of the pack still holds the field")
-	for other in game.scouts:
-		if other.hp <= 0:
+	check(game.encounter.hp_for(scout) == 0 and not game.encounter_cleared(), "the rest of the pack still holds the field")
+	for other in game.encounter.scout_tactics():
+		if game.encounter.hp_for(other) <= 0:
 			continue
 		place(1, other.pos)
 		for hit in 2:
@@ -897,8 +897,8 @@ func verify_shared_combat(guest: int) -> void:
 		"guest dodge avoids host-authoritative damage")
 	if not game.players.has(guest):
 		return
-	game.scouts.clear()
-	game.enemy_hp = 0
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 0)
 	place(1, Stage.DEEPER_GATE)
 	interact()
 	check(game.depth == 1, "checkpoint waits for the expedition party")
@@ -910,19 +910,19 @@ func verify_shared_combat(guest: int) -> void:
 		return
 	game.depth = 3
 	game.reset_encounter()
-	game.scouts[0].kind = 7
-	game.scouts[0].mutations = Enemies.BARK
-	game.scouts[0].growth = 2
+	game.encounter.scout(0).kind = 7
+	game.encounter.scout(0).mutations = Enemies.BARK
+	game.encounter.scout(0).growth = 2
 
 	await wait_for_observation("depth3")
 	if not game.players.has(guest):
 		return
 	game.depth = game.CHECKPOINT_INTERVAL
 	game.encounter_number = game.CHECKPOINT_INTERVAL
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.deepest_milestone = game.depth
-	game.scouts.clear()
-	game.enemy_hp = 0
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 0)
 	place(1, Stage.DEEPER_GATE)
 	place(guest, Stage.DEEPER_GATE)
 	game.players[guest].contributed = true

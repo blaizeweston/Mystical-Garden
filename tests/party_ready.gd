@@ -9,7 +9,7 @@ func setup_guest():
  game.players[1].character.name="Rowan";game.players[2].character.name="Fern"
  for p in game.players.values(): p.pos=game.Stage.GATE
 func cleared(floor_number: int):
- game.encounter_number=floor_number;game.deepest_milestone=floor_number;game.enemy_hp=0;game.scouts.clear()
+ game.encounter_number=floor_number;game.deepest_milestone=floor_number;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts()
  for p in game.players.values(): p.pos=game.battlefield.advance
 func run():
  game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/party_ready_"+Crypto.new().generate_random_bytes(8).hex_encode()+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)

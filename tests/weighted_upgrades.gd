@@ -11,7 +11,7 @@ func _initialize():
  call_deferred("run")
 func gate(game,p: Dictionary,floor_number: int):
  p.wild=true;game.encounter_number=floor_number;game.deepest_milestone=floor_number
- game.enemy_hp=0;game.scouts.clear();p.pos=game.battlefield.advance;p.last_offer=0
+ game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();p.pos=game.battlefield.advance;p.last_offer=0
 func run():
  var game=load("res://world.tscn").instantiate()
  var token=Crypto.new().generate_random_bytes(8).hex_encode()
@@ -143,11 +143,11 @@ func core_cards(game: Node,p: Dictionary) -> void:
 
  game.battlefield.configure(0,9,0)
  game.battlefield.barriers.clear()
- game.enemy_hp=20;game.enemy_kind=0;game.enemy_mutations=0
+ game.encounter.set_hp(-1, 20);game.enemy_kind=0;game.enemy_mutations=0
  p.pos=Vector3.ZERO;p.core_ready_at=0;p.core_cast_until=0;p.cast_until=0
  p.secondary=0
  game.enemy_pos=Vector3(0,0,-3.22)
- game.scouts.assign([game.make_scout(0,Vector3(0,0,-4.05),1),game.make_scout(0,Vector3(.8,0,-4.3),2)])
+ game.encounter.clear_scouts();game.encounter.register_scout(game.make_scout(0,Vector3(0,0,-4.05),1));game.encounter.register_scout(game.make_scout(0,Vector3(.8,0,-4.3),2))
  game.garden_action(1,Core.request(game,p,Vector2(0,-1)))
  var line: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
  check(not line.is_empty(),"purchased effects follow a valid Thorn Line cast")
@@ -156,7 +156,7 @@ func core_cards(game: Node,p: Dictionary) -> void:
  Core.tick(game,line.armed)
  game.enemy_pos=line.center
  Core.tick(game,line.armed+60)
- check(game.rooted_until==0 and int(game.scouts[0].rooted_until)>line.armed and int(game.scouts[1].rooted_until)==0,"Forking Roots takes one nearby target and cannot chain again")
+ check(game.rooted_until==0 and int(game.encounter.scout(0).rooted_until)>line.armed and int(game.encounter.scout(1).rooted_until)==0,"Forking Roots takes one nearby target and cannot chain again")
  check(Core.hints(game).size()==1 and p.core_ready_at==original_ready-3000,"first contact refunds three seconds once and leaves the line active")
  Core.tick(game,line.armed+100)
  check(p.core_ready_at==original_ready-3000,"extra simulation ticks cannot refund again")

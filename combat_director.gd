@@ -35,15 +35,16 @@ static func spawn(game: Node,origin: Vector3,index: int) -> Vector3:
   if not candidate.is_finite() or candidate.distance_to(game.battlefield.entry)<float(config().spawn_entry_clearance) or game.battlefield.occupied(candidate,.4): continue
   if index>=0 and candidate.distance_to(game.enemy_pos)<1.25: continue
   var clear:=true
-  for other in game.scouts:
-   if candidate.distance_to(other.pos)<1.15: clear=false;break
+  for slot in game.encounter.scout_count():
+   if candidate.distance_to(game.encounter.position(slot))<1.15: clear=false;break
   if clear: return candidate
  return Vector3.INF
 static func alert(game: Node,origin: Vector3) -> void:
  var radius: float=config().group_alert_radius
- if game.enemy_hp>0 and game.enemy_pos.distance_to(origin)<=radius and game.battlefield.clear_line(origin,game.enemy_pos): game.enemy_engaged=true
- for mob in game.scouts:
-  if mob.hp>0 and mob.pos.distance_to(origin)<=radius and game.battlefield.clear_line(origin,mob.pos): mob.engaged=true
+ if game.encounter.hp(-1)>0 and game.enemy_pos.distance_to(origin)<=radius and game.battlefield.clear_line(origin,game.enemy_pos): game.enemy_engaged=true
+ for slot in game.encounter.scout_count():
+  var mob: Dictionary=game.encounter.scout(slot)
+  if game.encounter.hp(slot)>0 and mob.pos.distance_to(origin)<=radius and game.battlefield.clear_line(origin,mob.pos): mob.engaged=true
 static func target(game: Node,origin: Vector3,agent: Dictionary,now: int) -> int:
  var commanded: int=agent.get("command_target",0)
  if now<int(agent.get("command_until",0)) and game.players.has(commanded) and game.players[commanded].wild and not PlayerLifecycle.fallen(game.players[commanded]) and PlayerVitals.current_hp(game.players[commanded])>0:return commanded
@@ -54,8 +55,9 @@ static func target(game: Node,origin: Vector3,agent: Dictionary,now: int) -> int
   var p: Dictionary=game.players[id]
   if not p.wild or PlayerLifecycle.fallen(p) or PlayerVitals.current_hp(p)<=0: continue
   var assigned:=0
-  for other in game.scouts:
-   if not is_same(other,agent) and other.hp>0 and other.engaged and int(other.get("target",0))==id: assigned+=1
+  for slot in game.encounter.scout_count():
+   var other: Dictionary=game.encounter.scout(slot)
+   if not is_same(other,agent) and game.encounter.hp(slot)>0 and other.engaged and int(other.get("target",0))==id: assigned+=1
   var threat: float=maxf(0,float(game.combat_threat.get(id,0)))
   var score: float=origin.distance_to(p.pos)+minf(3.0,assigned*1.4)-minf(2.5,threat*.12)+(0.0 if game.battlefield.clear_line(origin,p.pos) else 3.0)
   if id==previous: score-=1.1
@@ -83,9 +85,9 @@ static func pursuit(game: Node,id: int,route: int) -> Vector3:
 static func navigate(game: Node,from: Vector3,to: Vector3,distance: float,route: int=0) -> Vector3:
  var desired: Vector3=game.battlefield.navigate(from,to,distance,route)
  var repel:=Vector3.ZERO
- var positions: Array=[game.enemy_pos] if game.enemy_hp>0 else []
- for other in game.scouts:
-  if other.hp>0: positions.append(other.pos)
+ var positions: Array=[game.enemy_pos] if game.encounter.hp(-1)>0 else []
+ for slot in game.encounter.scout_count():
+  if game.encounter.hp(slot)>0: positions.append(game.encounter.position(slot))
  for position in positions:
   var offset: Vector3=from-position;var length:=offset.length()
   if length>.001 and length<.85: repel+=offset.normalized()*(.85-length)/.85

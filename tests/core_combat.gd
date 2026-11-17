@@ -112,7 +112,7 @@ func run() -> void:
 	var safe: Vector3 = line.center + direction * (line.skill.radius + .22)
 	var cross: Vector3 = line.center - direction * (line.skill.radius + .22)
 	game.enemy_pos = safe
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	Core.tick(game, line.armed - 1)
 	check(Core.hints(game).is_empty(), "contact unavailable before animation release")
 	Core.tick(game, line.armed)
@@ -124,19 +124,19 @@ func run() -> void:
 	check(game.combat_visuals.hints.has(line.id), "host renders committed thorn footprint")
 	check(Core.owner_state(p, Time.get_ticks_msec()).remaining > 0 and game.player_hud.state.core.name == "Thorn Line", "owner HUD shows independent cooldown")
 	var scout: Dictionary = game.make_scout(0, cross, 1)
-	game.scouts.assign([scout])
+	game.encounter.clear_scouts();game.encounter.register_scout(scout)
 	game.enemy_pos = cross
 	Core.tick(game, line.armed + 1)
-	var struck: int = game.enemy_hp
+	var struck: int = game.enemy_health()
 	check(game.rooted_until == 0 and int(scout.rooted_until) == 0 and Core.hints(game).size() == 1, "thorn contact leaves a damaging line active without rooting")
 	game.enemy_pos = line.center
 	Core.tick(game, line.armed + 801)
-	check(game.enemy_hp < struck and Core.hints(game).size() == 1, "a foe remaining in the line takes another tick")
+	check(game.enemy_health() < struck and Core.hints(game).size() == 1, "a foe remaining in the line takes another tick")
 	Core.tick(game, line.expires)
 	check(Core.hints(game).is_empty(), "line disappears on expiry")
 	check(game.combat_events.any(func(event): return event.kind == "proc" and event.shape == "Thorns tripped"), "trip emits feedback")
-	game.enemy_hp = 0
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 0)
+	game.encounter.clear_scouts()
 	p.pos = game.battlefield.advance
 	game.use_checkpoint(1, true)
 	check(game.encounter_number == 2 and p.core_ready_at == cooldown, "ordinary floor gate preserves cooldown")

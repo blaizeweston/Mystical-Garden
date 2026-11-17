@@ -67,8 +67,8 @@ func verify_world(game: Node, mix: Node) -> void:
 
 	p.wild = true
 	game.destination = 0
-	game.enemy_hp = 0
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 0)
+	game.encounter.clear_scouts()
 	game.encounter_number = 5
 	game.finish_combat(1,Vector3.ZERO)
 	game.finish_combat(1,Vector3.ZERO)
@@ -126,8 +126,8 @@ func verify_combat(game: Node) -> void:
 	game.combat_events.clear()
 	game.battlefield.configure(0,1,0)
 	game.battlefield.barriers.clear()
-	game.enemy_hp = 45
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 45)
+	game.encounter.clear_scouts()
 	var p: Dictionary = game.players[1]
 	p.wild = true
 	p.pos = Vector3(5,0,1)

@@ -60,14 +60,14 @@ func arena() -> void:
 	game.encounter_number=1
 	game.difficulty_cycle=0
 	game.boss_kind=-1
-	game.enemy_hp=800
+	game.encounter.set_hp(-1, 800)
 	game.enemy_pos=Vector3(0,0,-2)
 	game.enemy_winding_up=false
 	game.enemy_mutations=0
 	game.battlefield.configure(0,1,0)
 	game.battlefield.procedural=false
 	game.battlefield.barriers.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.enemy_traits.clear()
 	game.trait_events.clear()
 	game.combat_events.clear()
@@ -97,8 +97,8 @@ func gate_recovery() -> void:
 	check(view.totals.has(["Next gate recovery","14–18 HP"]),"entering a guardian floor previews the ordinary gate range")
 	var expected := [[42,14,18],[43,24,28]]
 	for step in expected:
-		game.enemy_hp=0
-		game.scouts.clear()
+		game.encounter.set_hp(-1, 0)
+		game.encounter.clear_scouts()
 		player.pos=game.battlefield.advance
 		ally.pos=player.pos
 		if game.upgrade_checkpoint_open():
@@ -116,14 +116,14 @@ func gate_recovery() -> void:
 
 
 func add_enemy(at: Vector3, summoned: bool=false) -> Dictionary:
-	var mob: Dictionary=game.make_scout(0,at,game.scouts.size()+1)
+	var mob: Dictionary=game.make_scout(0,at,game.encounter.scout_count()+1)
 	mob.summoned=summoned
-	game.scouts.append(mob)
+	game.encounter.register_scout(mob)
 	return mob
 
 
 func finish_scout(summoned: bool, now: int) -> void:
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	add_enemy(Vector3(0,0,-1),summoned)
 	game.apply_weapon_hit(player,0,player.pos,{"damage":9.0,"heal_on_kill":1.0,"knockback":-.35},now)
 
@@ -175,7 +175,7 @@ func drains() -> void:
 	player.frame=3
 	var summon:=add_enemy(Vector3(0,0,-1),true)
 	game.use_class_skill(1,player,1)
-	check(summon.hp<summon.max_hp and PlayerVitals.current_hp(player)==30,"Siphon Cut damages a summon without drawing health")
+	check(game.encounter.hp_for(summon)<summon.max_hp and PlayerVitals.current_hp(player)==30,"Siphon Cut damages a summon without drawing health")
 	arena()
 	game.enemy_pos=Vector3(15,0,0)
 	player.weapon=game.Parts.index_of("plant:bloodbriar")
@@ -186,13 +186,13 @@ func drains() -> void:
 	check(not cast.is_empty(),"Blood Siphon commits")
 	if cast.is_empty():return
 	Core.tick(game,cast.armed)
-	check(summon.hp<summon.max_hp and ordinary.hp<ordinary.max_hp and int(PlayerVitals.current_hp(player))-30 in range(5,8),"Blood Siphon rolls only around the regular enemy contact")
+	check(game.encounter.hp_for(summon)<summon.max_hp and game.encounter.hp_for(ordinary)<ordinary.max_hp and int(PlayerVitals.current_hp(player))-30 in range(5,8),"Blood Siphon rolls only around the regular enemy contact")
 
 
 func revival() -> void:
 	arena()
 	game.encounter_number=3
-	game.enemy_hp=0
+	game.encounter.set_hp(-1, 0)
 	player.pos=game.battlefield.advance
 	ally.pos=player.pos
 	player.offer_floor=3

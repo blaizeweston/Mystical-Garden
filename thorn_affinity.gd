@@ -100,7 +100,7 @@ static func tick(game: Node, elapsed: int, now: int) -> void:
 	var epoch: int=game.combat_epoch
 	var fields:=active_fields(game,elapsed)
 	var wounds_remain:=false
-	for target in range(-1,game.scouts.size()):
+	for target in range(-1,game.encounter.scout_count()):
 		if game.combat_epoch!=epoch or game.get_meta(game.Transactions.PENDING,false):
 			return
 		var actor: Dictionary=Actors.body(game,target)

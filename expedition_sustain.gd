@@ -55,7 +55,7 @@ static func renewal_tick(game: Node, actor: Dictionary) -> void:
 
 
 static func eligible(game: Node, target: int) -> bool:
-	return target==-1 or (target>=0 and target<game.scouts.size() and not game.scouts[target].get("summoned",false))
+	return target==-1 or (target>=0 and target<game.encounter.scout_count() and not game.encounter.scout(target).get("summoned",false))
 
 
 static func kill_remaining(actor: Dictionary, epoch: int) -> int:

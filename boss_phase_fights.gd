@@ -19,8 +19,9 @@ static func supports(kind: int) -> bool:
  return kind==NEST or kind==BLOOM
 
 static func observe_brood(game: Node, now: int) -> void:
- for child in game.scouts:
-  if child.hp>0 or not child.has("nursery_origin") or child.get("nursery_counted",false):continue
+ for slot in game.encounter.scout_count():
+  var child: Dictionary=game.encounter.scout(slot)
+  if game.encounter.hp(slot)>0 or not child.has("nursery_origin") or child.get("nursery_counted",false):continue
   child.nursery_counted=true
   if child.pos.distance_to(child.nursery_origin)<=2.65 and now-int(child.nursery_born)<=7500:
    game.leader_brain.nursery_pressure=int(game.leader_brain.get("nursery_pressure",0))+1
@@ -52,8 +53,10 @@ static func nest_occupants(game: Node, shift: Dictionary) -> Array:
  var occupants: Array=[{"at":game.enemy_pos,"leader":true}]
  for player in game.players.values():
   if game.Life.alive(player):occupants.append({"at":player.pos,"actor":player})
- for scout in game.scouts:
-  if scout.hp>0:occupants.append({"at":scout.pos,"actor":scout})
+ for slot in game.encounter.scout_count():
+  if game.encounter.hp(slot)>0:
+   var scout: Dictionary=game.encounter.scout(slot)
+   occupants.append({"at":scout.pos,"actor":scout})
  return occupants.filter(func(entry):return Nest.blocked(shift.ribs,entry.at,game.Battlefield.CLEARANCE+.04))
 
 static func advance_phase(game: Node, wanted: int, now: int) -> bool:
@@ -127,7 +130,9 @@ static func draft(game: Node, mode: String, target: int, adaptation: String) -> 
    "brood_call":
     plan.open="nursery_lull";plan.recovery=2150
     plan.cue="Brood hatching";plan.windup=1800
-    var count: int=game.scouts.filter(func(child):return child.hp>0 and child.get("summoned",false)).size()
+    var count:=0
+    for slot in game.encounter.scout_count():
+     if game.encounter.hp(slot)>0 and game.encounter.scout(slot).get("summoned",false):count+=1
     if count<BROOD_LIMIT:
      plan.hatches=hatch_sites(game,origin,game.leader_brain.get("nursery_split",false) and count<BROOD_LIMIT-1)
      if plan.hatches.size()>1:plan.cue="Split hatch"
@@ -227,13 +232,13 @@ static func resolve(game: Node, plan: Dictionary, now: int, damage: float) -> vo
  for patch in plan.areas:
   game.Bosses.hazard(game,patch.point,patch.radius,now,patch.duration,patch.kind,patch.delay,damage,plan.get("mode",game.enemy_attack_mode))
  for at in plan.hatches:
-  if not game.battlefield.clear_line(plan.from,at,.48) or not Support.spawn_brood_at(game,at):continue
+  if not game.battlefield.clear_line(plan.from,at,.48):continue
+  var slot:=Support.spawn_brood_at(game,at)
+  if slot<0:continue
   released=true
-  for child in game.scouts:
-   if int(child.spawn_token)!=int(game.scout_serial):continue
-   child.nursery_origin=at;child.nursery_born=now;child.haste_until=now+1350
-   child.mutations=int(child.mutations)|(game.Enemies.BARK if game.boss_phase==1 else game.Enemies.MOBILITY if game.boss_phase==2 else 0)
-   break
+  var child: Dictionary=game.encounter.scout(slot)
+  child.nursery_origin=at;child.nursery_born=now;child.haste_until=now+1350
+  child.mutations=int(child.mutations)|(game.Enemies.BARK if game.boss_phase==1 else game.Enemies.MOBILITY if game.boss_phase==2 else 0)
   game.emit_combat_event("swing","pulse",at,at,.50,Color("#bfb58b"),.85,0)
  if released:preload("res://event_audio.gd").enemy(game,plan,true)
  if not str(plan.open).is_empty():open(game,plan.open,now,int(plan.recovery))
@@ -241,7 +246,7 @@ static func resolve(game: Node, plan: Dictionary, now: int, damage: float) -> vo
 
 static func hints(game: Node, now: int) -> Array:
  var result: Array=[]
- if not supports(game.boss_kind) or game.enemy_hp<=0:return result
+ if not supports(game.boss_kind) or game.encounter.hp(-1)<=0:return result
  var plan: Dictionary=game.leader_brain.get("phase_plan",{})
  if game.enemy_winding_up and not plan.is_empty():
   var remaining:=maxf(0.0,(game.enemy_strike_at-now)*.001)

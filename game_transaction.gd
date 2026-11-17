@@ -1,6 +1,7 @@
 extends RefCounted
 const Batch=preload("res://save_batch.gd")
 const MonsterRewards = preload("res://monster_rewards.gd")
+const EncounterRoster = preload("res://encounter_roster.gd")
 
 static func snapshot(object: Object) -> Dictionary:
  var result: Dictionary={}
@@ -56,6 +57,8 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
  var rng_state: int = game.rng.state
  var rewards: MonsterRewards = game.get("monster_rewards")
  var reward_savepoint: Dictionary = rewards.savepoint() if rewards != null else {}
+ var encounter: EncounterRoster = game.get("encounter")
+ var encounter_savepoint := encounter.savepoint() if encounter != null else {}
  var begin_error := Batch.begin(game.progress.path)
  if begin_error != OK:
   verdict.error = begin_error
@@ -74,6 +77,8 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
   preload("res://game_metrics.gd").record("save_rollback",{"error":error})
   restore(game.progress,world);game.progress.heart.restore(heart);restore(game.progress.campaign,campaign)
   restore(game,state)
+  if encounter != null:
+   encounter.restore_savepoint(encounter_savepoint, game.leader_brain.get("elite"))
   if rewards != null:
    rewards.restore_savepoint(reward_savepoint)
   for id in players:
@@ -235,6 +240,9 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
   captured.rng = game.rng.state
   if rewards != null:
    captured.monster_rewards = rewards.savepoint()
+  var encounter: EncounterRoster = game.get("encounter")
+  if encounter != null:
+   captured.encounter = encounter.savepoint()
   if game.has_method("snapshot_expedition_runtime"):
    captured.expedition = game.snapshot_expedition_runtime()
   game.transaction_publishes.clear()
@@ -330,6 +338,8 @@ static func _restore_guarded(game: Node, captured: Dictionary) -> void:
  game.progress.heart.restore(captured.heart)
  restore(game.progress.campaign, captured.campaign)
  restore(game, captured.game)
+ if captured.has("encounter"):
+  game.encounter.restore_savepoint(captured.encounter, game.leader_brain.get("elite"))
  if captured.has("monster_rewards"):
   game.monster_rewards.restore_savepoint(captured.monster_rewards)
  restore_dict(game.players, captured.players)

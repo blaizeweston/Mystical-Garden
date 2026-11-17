@@ -54,14 +54,14 @@ func run() -> void:
 
 func arena(class_id: int, mask: int = 0) -> void:
 	game.combat_epoch+=1
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.combat_events.clear()
 	game.trait_events.clear()
 	game.enemy_traits.clear()
 	game.projectile_queue.clear()
 	game.battlefield.barriers.clear()
 	game.boss_kind=-1
-	game.enemy_hp=600
+	game.encounter.set_hp(-1, 600)
 	game.enemy_pos=Vector3(0,0,-2)
 	game.enemy_winding_up=false
 	game.enemy_mutations=0
@@ -97,9 +97,9 @@ func cast_at(slot: int, distance: float) -> void:
 
 
 func add_foe(at: Vector3) -> void:
-	var foe: Dictionary=game.make_scout(0,at,game.scouts.size()+1)
+	var foe: Dictionary=game.make_scout(0,at,game.encounter.scout_count()+1)
 	foe.hp=600
-	game.scouts.append(foe)
+	game.encounter.register_scout(foe)
 
 
 func roster() -> void:
@@ -164,23 +164,23 @@ func guard_and_quake() -> void:
 	game.apply_enemy_hit(1,player,now,3)
 	check(PlayerVitals.current_hp(player)==20 and player.guard_charges==0 and player.counter_until>now,"one charge fully blocks an incoming 30 HP hit")
 	game.use_class_skill(1,player,1)
-	check(game.enemy_hp==570 and player.counter_until==0,"Root Quake applies 20 HP plus the 10 HP counter once")
+	check(game.enemy_health()==570 and player.counter_until==0,"Root Quake applies 20 HP plus the 10 HP counter once")
 
 
 func class_fields_and_traps() -> void:
 	arena(1,1<<13)
 	cast_at(0,2.0)
 	var now:=Time.get_ticks_msec()
-	check(game.enemy_hp==600 and tooltip(0).contains("10 HP damage each second"),"Cultivate Bloom advertises field potency without an instant strike")
+	check(game.enemy_health()==600 and tooltip(0).contains("10 HP damage each second"),"Cultivate Bloom advertises field potency without an instant strike")
 	game.Traits.tick(game,now)
-	check(game.enemy_hp==590,"class growth applies its base pulse once")
+	check(game.enemy_health()==590,"class growth applies its base pulse once")
 	arena(2)
 	var trap: Dictionary=game.Traits.tune_skill(skills()[1],{"trap_power":.5})
 	var stats := {"trap_power":.5,"skill_duration":400}
 	game.Traits.place_snare(game,player,game.enemy_pos,trap,stats,now)
-	check(game.enemy_hp==600 and game.trait_events[0].until-now==4200,"trap stays active for its modified duration and waits to arm")
+	check(game.enemy_health()==600 and game.trait_events[0].until-now==4200,"trap stays active for its modified duration and waits to arm")
 	game.Traits.tick(game,now+300)
-	check(game.enemy_hp==585 and game.rooted_until>=now+2100,"trap applies the fractional 15 HP hit and modified root")
+	check(game.enemy_health()==585 and game.rooted_until>=now+2100,"trap applies the fractional 15 HP hit and modified root")
 	check(game.Skills.describe(skills()[1],stats).contains("15 HP") and game.Skills.describe(skills()[1],stats).contains("4.2s"),"trap tooltip uses the same tuned values")
 
 
@@ -189,7 +189,7 @@ func drain_and_delayed_hit() -> void:
 	for at in [Vector3(.4,0,-1.2),Vector3(-.4,0,-1.5),Vector3(0,0,-.6)]:
 		add_foe(at)
 	game.use_class_skill(1,player,0)
-	check(game.enemy_hp==580 and int(PlayerVitals.current_hp(player))-20 in range(23,26),"Blood Harvest rolls around 24 HP at its learned extra-contact cap")
+	check(game.enemy_health()==580 and int(PlayerVitals.current_hp(player))-20 in range(23,26),"Blood Harvest rolls around 24 HP at its learned extra-contact cap")
 	check(tooltip(0).contains("5–7 HP with one enemy hit · 23–25 HP at the target cap"),"drain tooltip reflects the learned cap")
 	arena(3,2730)
 	player.power=1
@@ -197,10 +197,10 @@ func drain_and_delayed_hit() -> void:
 	check(skill.mode=="requiem","legacy mask resolves Requiem")
 	var before:=Time.get_ticks_msec()
 	game.use_class_skill(1,player,1)
-	check(game.enemy_hp==600 and not game.trait_events.is_empty(),"Requiem schedules its damage")
+	check(game.enemy_health()==600 and not game.trait_events.is_empty(),"Requiem schedules its damage")
 	game.Traits.tick(game,before+1500)
 	var expected:=Preview.effect_hp(float(skill.damage)+1.0)
-	check(game.enemy_hp==600-expected and tooltip(1).contains("%d HP"%expected),"Requiem applies the displayed amount and adds expedition power once")
+	check(game.enemy_health()==600-expected and tooltip(1).contains("%d HP"%expected),"Requiem applies the displayed amount and adds expedition power once")
 
 
 func heal_and_punish() -> void:
@@ -223,4 +223,4 @@ func heal_and_punish() -> void:
 	player.run_upgrades={"omenreader_signature":1}
 	game.enemy_winding_up=true
 	cast_at(0,2.0)
-	check(game.enemy_hp==570 and tooltip(0).contains("+20 HP damage"),"Foretell deals 10 base and 20 wind-up damage with its signature")
+	check(game.enemy_health()==570 and tooltip(0).contains("+20 HP damage"),"Foretell deals 10 base and 20 wind-up damage with its signature")

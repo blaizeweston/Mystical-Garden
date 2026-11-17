@@ -29,7 +29,7 @@ func host_run():
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"registration");return
  var id: int=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
  for player in game.players.values():player.wild=true;player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,-1)
- game.scouts.clear();game.enemy_hp=50;game.enemy_pos=Vector3(0,0,1);game.enemy_ready_at=Time.get_ticks_msec()+60000;game.enemy_winding_up=false;game.enemy_mutations=0
+ game.encounter.clear_scouts();game.encounter.set_hp(-1, 50);game.enemy_pos=Vector3(0,0,1);game.enemy_ready_at=Time.get_ticks_msec()+60000;game.enemy_winding_up=false;game.enemy_mutations=0
  check(await until(func():return marked("ready")),"guest sees Wilds")
  game.Transactions.run(game,func():
   game.apply_weapon_hit(p,-1,p.pos,game.weapon_stats(p),Time.get_ticks_msec())

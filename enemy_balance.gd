@@ -88,7 +88,7 @@ static func corpse_heal(game: Node, actor: Dictionary, spare: bool) -> int:
 	var center := Preview.hp(1 if spare else 2)
 	if Preview.enabled:
 		center += mini(int(tuning.corpse_depth_bonus_cap), roundi(maxi(0,int(game.encounter_number)-1)*float(tuning.corpse_depth_hp_per_floor)))
-		var cap := maxi(1,floori(float(actor.get("max_hp",actor.hp))*float(tuning.corpse_hp_fraction)))
+		var cap := maxi(1,floori(float(actor.get("max_hp",game.encounter.hp_for(actor)))*float(tuning.corpse_hp_fraction)))
 		return mini(cap,Preview.roll_heal_hp(mini(center,cap)))
 	return center
 
@@ -132,11 +132,11 @@ static func trace_encounter(game: Node, desired: int) -> void:
 	if not Preview.enabled or not game.expedition_active():
 		return
 	var pack_hp := 0
-	for scout in game.scouts:
-		pack_hp += int(scout.max_hp)
+	for slot in game.encounter.scout_count():
+		pack_hp += int(game.encounter.scout(slot).max_hp)
 	game.Journal.event("combat","encounter_balance",{"floor":game.encounter_number,"loop":game.difficulty_cycle,
 		"party_size":game.encounter_party_size,"leader_species":Catalog.get_kind(game.enemy_kind).id,
-		"leader_hp":game.enemy_hp,"boss":game.boss_kind>=0,"scout_budget":desired,"scouts":game.scouts.size(),"scout_hp":pack_hp})
+		"leader_hp":game.encounter.hp(-1),"boss":game.boss_kind>=0,"scout_budget":desired,"scouts":game.encounter.scout_count(),"scout_hp":pack_hp})
 
 
 static func errors(definitions: Array) -> Array[String]:

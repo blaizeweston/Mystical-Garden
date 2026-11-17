@@ -40,12 +40,12 @@ func until(predicate: Callable, ms: int = 10500) -> bool:
 
 
 func actor(kind: int, at: Vector3, dead: bool = false) -> Dictionary:
-	var scout: Dictionary = game.make_scout(kind, at, game.scouts.size() + 1)
+	var scout: Dictionary = game.make_scout(kind, at, game.encounter.scout_count() + 1)
 	scout.engaged = true
 	scout.stagger_until = Time.get_ticks_msec() + 60000
 	if dead:
 		scout.hp = 0
-	game.scouts.append(scout)
+	game.encounter.register_scout(scout)
 	return scout
 
 
@@ -76,11 +76,11 @@ func prepare(response: String) -> Dictionary:
 	game.map_seed = 0
 	game.battlefield.configure(game.destination, game.depth, game.map_seed)
 	game.battlefield.barriers.clear()
-	game.enemy_hp = 50
+	game.encounter.set_hp(-1, 50)
 	game.enemy_kind = 0
 	game.enemy_pos = Vector3(12, 0, 5)
 	game.enemy_engaged = false
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	Core.reset(game)
 	for member in game.players.values():
 		member.wild = true
@@ -96,7 +96,7 @@ func prepare(response: String) -> Dictionary:
 			actor(0, Vector3(3.5, 0, 0))
 			actor(0, Vector3(4.3, 0, 0))
 		Tactics.SPARE_TETHER:
-			caster.hp = 3
+			game.encounter.set_hp(game.encounter.scout_slot(caster), 3)
 			actor(0, Vector3(0, 0, -1.4), true)
 			actor(0, Vector3(5.8, 0, 0), true)
 			actor(0, Vector3(-1.5, 0, 0))
@@ -142,9 +142,9 @@ func host() -> void:
 		check(await until(func(): return caster.windup == 0), "the warned move resolves")
 		match response:
 			Tactics.ECHO_TOLL:
-				check(game.scouts[1].haste_until == 0 and game.scouts[3].haste_until > 0, "offset toll only buffs the cluster (anchor %s, scouts %s)" % [plan.rite_anchor, game.scouts.map(func(s): return [s.pos, s.haste_until])])
+				check(game.encounter.scout(1).haste_until == 0 and game.encounter.scout(3).haste_until > 0, "offset toll only buffs the cluster (anchor %s, scouts %s)" % [plan.rite_anchor, game.encounter.scout_tactics().map(func(s): return [s.pos, s.haste_until])])
 			Tactics.SPARE_TETHER:
-				check(caster.hp == 4 and caster.consumed_corpses == [plan.corpse.token], "alternate corpse heals once")
+				check(game.encounter.hp_for(caster) == 4 and caster.consumed_corpses == [plan.corpse.token], "alternate corpse heals once")
 			Tactics.ANTIPHON:
 				check(PlayerVitals.current_hp(player) == 9 and PlayerVitals.current_hp(game.players[guest_id]) == 10, "offset sector hits only the player who stays")
 		mark("resolved-" + response)

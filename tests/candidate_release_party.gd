@@ -129,12 +129,12 @@ func host() -> void:
  var battle_before := FileAccess.get_sha256(G)
  var kind: int = game.enemy_kind
  var host_count: int = game.players[1].character.monsters[kind]
+ game.encounter.set_hp(-1, 0)
  game.record_enemy_death(-1,game.enemy_pos,Vector3.ZERO)
  var frozen: int = game.rng.state
  game.record_enemy_death(-1,game.enemy_pos,Vector3.ZERO)
  check(game.monster_rewards.pending_count()==1 and game.rng.state==frozen,"duplicate kill cannot reroll")
- game.enemy_hp=0
- game.scouts.clear()
+ game.encounter.clear_scouts()
  game.finish_combat(1,game.enemy_pos)
  if not await until(func(): return read("combat-1")=="yes" and read("combat-2")=="yes" and read("combat-3")=="yes" and committed_guests(game)==3):
   check(false,"all three guest reward profiles commit and acknowledge")

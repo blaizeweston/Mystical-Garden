@@ -10,18 +10,15 @@ static func interval(cycle: int, wave: int) -> int:
 static func capacity(game: Node) -> int:
  return mini(game.EncounterConfig.MAX_SCOUTS,game.EncounterConfig.SOLO_SCOUT_LIMIT+Balance.extra_scouts(int(game.Director.config().coop_extra_scouts))*(game.Director.party_size(game)-1))
 static func living(game: Node) -> int:
- var count:=0
- for scout in game.scouts:
-  if scout.hp>0:count+=1
- return count
+ return game.encounter.living_scout_count()
 static func safe(game: Node,at: Vector3) -> bool:
  if not at.is_finite() or game.battlefield.occupied(at,.5):return false
  if at.distance_to(game.battlefield.entry)<3 or at.distance_to(game.battlefield.advance)<3:return false
  for player in game.players.values():
   if game.Life.alive(player) and player.pos.distance_to(at)<SAFE_DISTANCE:return false
- if game.enemy_hp>0 and at.distance_to(game.enemy_pos)<1.5:return false
- for scout in game.scouts:
-  if scout.hp>0 and scout.pos.distance_to(at)<1.5:return false
+ if game.encounter.hp(-1)>0 and at.distance_to(game.enemy_pos)<1.5:return false
+ for slot in game.encounter.scout_count():
+  if game.encounter.hp(slot)>0 and game.encounter.position(slot).distance_to(at)<1.5:return false
  return true
 static func plan(game: Node,wave: int) -> Array:
  var result: Array=[];var pool: Array[int]=[]
@@ -63,18 +60,15 @@ static func tick(game: Node,now: int) -> void:
  var spawned:=0;var skipped:=0
  for entry in state.pending:
   if living(game)>=capacity(game) or not safe(game,entry.pos):skipped+=1;continue
-  var slot: int=game.scouts.size()
-  for index in game.scouts.size():
-   if game.scouts[index].hp<=0:slot=index;break
+  var slot: int=game.encounter.first_open_scout_slot()
   if slot>=game.EncounterConfig.MAX_SCOUTS:skipped+=1;continue
   var growth: int=game.Enemies.tier(game.encounter_number,game.difficulty_cycle)
   var scout: Dictionary=game.make_scout(int(entry.kind),entry.pos,slot,game.current_mutations(int(entry.kind),growth,int(state.wave)*17+slot),growth)
   scout.engaged=true;scout.ready=now+700;scout.stagger_until=now+700;scout.summoned=true
   if Balance.Preview.enabled:
    scout.max_hp=Balance.reinforcement_hp(int(scout.max_hp));scout.hp=scout.max_hp
-  if slot==game.scouts.size():game.scouts.append(scout)
-  else:game.scouts[slot]=scout
-  spawned+=1
+  if game.encounter.register_scout(scout,slot)>=0:spawned+=1
+  else:skipped+=1
  if Balance.Preview.enabled and spawned>0:state.spawned_waves=int(state.get("spawned_waves",0))+1
  state.pending=[];game.pressure_at=now+interval(game.difficulty_cycle,int(state.wave))
  game.Journal.event("combat","pressure_reinforcements",{"wave":state.wave,"spawned":spawned,"unsafe_or_full":skipped,"floor":game.encounter_number})

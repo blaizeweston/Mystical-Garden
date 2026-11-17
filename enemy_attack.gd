@@ -36,7 +36,7 @@ static func try_thorn_vault(game: Node, actor: Dictionary, victim: Vector3, now:
  actor.attack.recovery_bonus=450
  actor.thorn_vault_used=true
  game.Journal.event("combat", "wilds_thorn_vault_locked", {"species": Catalog.get_kind(actor.kind).id,
-  "target_token": actor.get("spawn_token", 0), "cast_id": jump.line_id, "floor": game.encounter_number})
+  "target_token": game.encounter.token_for(actor), "cast_id": jump.line_id, "floor": game.encounter_number})
  return true
 
 # Directed volleys have an impact radius, but no authored flight thickness.

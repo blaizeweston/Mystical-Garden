@@ -154,13 +154,13 @@ func arena(path: Array) -> void:
 	player.weapon=0
 	player.secondary=0
 	player.graft_part=0
-	game.enemy_hp=900
+	game.encounter.set_hp(-1, 900)
 	game.enemy_pos=Vector3(0,0,-1.2)
 	game.enemy_winding_up=false
 	game.enemy_mutations=0
 	game.enemy_traits.clear()
 	game.leader_brain.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.trait_events.clear()
 	game.rooted_until=0
 	for who in [ally,player]:
@@ -177,9 +177,9 @@ func arena(path: Array) -> void:
 
 
 func scout(at: Vector3) -> Dictionary:
-	var enemy: Dictionary=game.make_scout(0,at,game.scouts.size()+1)
+	var enemy: Dictionary=game.make_scout(0,at,game.encounter.scout_count()+1)
 	enemy.hp=200
-	game.scouts.append(enemy)
+	game.encounter.register_scout(enemy)
 	return enemy
 
 
@@ -200,7 +200,7 @@ func r() -> void:
 func native_damage() -> int:
 	arena([])
 	r()
-	return 900-game.enemy_hp
+	return 900-game.enemy_health()
 
 
 func offense(base: int) -> void:
@@ -212,30 +212,30 @@ func offense(base: int) -> void:
 	var extra := scout(Vector3(-2.3,0,-1.2))
 	q()
 	var now := Time.get_ticks_msec()
-	check(game.rooted_until>now and near.rooted_until>now and game.enemy_hp<900 and near.hp<200,
+	check(game.rooted_until>now and near.rooted_until>now and game.enemy_health()<900 and game.encounter.hp_for(near)<200,
 		"Twining Reach expands Interwoven Bind's native circle")
-	check(extra.hp==190 and extra.get("rooted_until",0)==0,"two native contacts and one Branching Spores secondary")
+	check(game.encounter.hp_for(extra)==190 and extra.get("rooted_until",0)==0,"two native contacts and one Branching Spores secondary")
 	check(player.has("weaver_pressure") and player.has("subclass_follow"),"actual Q contact prepares both bonuses")
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.enemy_pos=Vector3(8,0,0)
 	r()
 	check(player.has("subclass_follow") and not player.has("weaver_pressure") and not player.has("weaver_capstone"),
 		"empty Nova keeps Barbed, spends Pressure and schedules no burst")
 	game.enemy_pos=Vector3(0,0,-1.2)
-	var prior: int=game.enemy_hp
+	var prior: int=game.enemy_health()
 	r()
-	check(prior-game.enemy_hp==base+10,"Barbed Nova boosts the only enemy struck")
+	check(prior-game.enemy_health()==base+10,"Barbed Nova boosts the only enemy struck")
 	var burst: Dictionary=player.get("weaver_capstone",{})
 	check(burst.get("kind")=="weaver_burst","one delayed burst")
 	var by_burst := scout(burst.position+Vector3(.55,0,0))
 	var native_root: int=game.rooted_until
-	var before: int=game.enemy_hp
+	var before: int=game.enemy_health()
 	Combat.tick(game,burst.due-1)
-	check(game.enemy_hp==before and by_burst.hp==200,"Bursting Spores waits 450 ms")
+	check(game.enemy_health()==before and game.encounter.hp_for(by_burst)==200,"Bursting Spores waits 450 ms")
 	var responses := events.size()
 	Combat.tick(game,burst.due)
 	Combat.tick(game,burst.due+1)
-	check(before-game.enemy_hp==10 and by_burst.hp==190 and responses==events.size()
+	check(before-game.enemy_health()==10 and game.encounter.hp_for(by_burst)==190 and responses==events.size()
 		and game.rooted_until==native_root and by_burst.get("rooted_until",0)==0,
 		"burst damages each eligible target once with no second root, Catalyst or graft response")
 
@@ -246,8 +246,8 @@ func offense(base: int) -> void:
 	game.enemy_pos=Vector3(0,0,-1.2)
 	near=scout(Vector3(1,0,-1.2))
 	q()
-	prior=game.enemy_hp
-	var scout_before: int=near.hp
+	prior=game.enemy_health()
+	var scout_before: int=game.encounter.hp_for(near)
 	var floor_number: int = game.encounter_number
 	var cast_position: Vector3 = player.pos
 	player[Improvements.STATE] = Improvements.Ledger.new(1)
@@ -260,7 +260,7 @@ func offense(base: int) -> void:
 	player.pos=cast_position
 	r()
 	player.erase(Improvements.STATE)
-	check(prior-game.enemy_hp==base+15 and scout_before-near.hp==base+5 and not player.has("native_graft_state"),
+	check(prior-game.enemy_health()==base+15 and scout_before-game.encounter.hp_for(near)==base+5 and not player.has("native_graft_state"),
 		"Pressure applies to every native hit and stacks with one Barbed bonus without starting a graft proc")
 	arena(OFFENSE)
 	q()
@@ -324,9 +324,9 @@ func balance(base: int) -> void:
 	check(growth.position.is_equal_approx(origin) and int(growth.until)-int(growth.next)==3000 and game.rooted_until>=now+600,
 		"Patient Spore reaches seven metres and Holding Threads roots on release")
 	game.enemy_traits.marked_until=now+4000
-	var before: int=game.enemy_hp
+	var before: int=game.enemy_health()
 	game.Traits.tick(game,growth.next)
-	check(before-game.enemy_hp==10 and game.enemy_traits.marked_until==now+4000,
+	check(before-game.enemy_health()==10 and game.enemy_traits.marked_until==now+4000,
 		"affinity Bloom pulse deals native damage and leaves an existing Mark untouched")
 	game.enemy_traits.clear()
 	game.Traits.tick(game,growth.next)
@@ -340,11 +340,11 @@ func balance(base: int) -> void:
 	game.enemy_pos=Vector3(6.3,0,0)
 	player.weaver_nova_origin.point=Vector3(5,0,0)
 	var refund: int=player[Cooldowns.STATE].deadline(Cooldowns.Q)
-	var before_relay: int=game.enemy_hp
+	var before_relay: int=game.enemy_health()
 	now=Time.get_ticks_msec()
 	r()
 	var nova := events.filter(func(e):return e.kind=="class_action" and e.details.adapter.begins_with("weaver/base/1"))
-	check(before_relay-game.enemy_hp==base and near.hp==200-base and both.hp==200-base
+	check(before_relay-game.enemy_health()==base and game.encounter.hp_for(near)==200-base and game.encounter.hp_for(both)==200-base
 		and game.rooted_until>now and both.rooted_until>now,"Symbiotic native region and overlapping region each apply one damage and root")
 	check(nova.size()==1 and nova[0].details.center==player.pos and not nova[0].details.enemies.has(-1),
 		"extra area leaves one caster-centered Catalyst response")
@@ -363,7 +363,7 @@ func balance(base: int) -> void:
 		if mode=="empty": game.enemy_pos=Vector3(-7,0,0)
 		refund=player[Cooldowns.STATE].deadline(Cooldowns.Q)
 		r()
-		check(game.enemy_hp==900 and player[Cooldowns.STATE].deadline(Cooldowns.Q)==refund,"%s origin adds no hit or Q recovery" % mode)
+		check(game.enemy_health()==900 and player[Cooldowns.STATE].deadline(Cooldowns.Q)==refund,"%s origin adds no hit or Q recovery" % mode)
 		game.battlefield.barriers.clear()
 
 	for focus in ["thornbinder","silkwarden"]:
@@ -375,7 +375,7 @@ func balance(base: int) -> void:
 		check(player.get("weaver_nova_origin",{}).get("point",Vector3.INF).is_equal_approx(game.enemy_pos),
 			"%s records its actual Q location" % focus)
 		r()
-		check(game.enemy_hp<900,"the recorded %s location remains usable beyond the caster circle" % focus)
+		check(game.enemy_health()<900,"the recorded %s location remains usable beyond the caster circle" % focus)
 
 	arena(["bloomcaller","patient_spore","branching_spores","barbed_nova","spore_pressure"])
 	q()

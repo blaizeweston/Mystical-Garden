@@ -26,7 +26,7 @@ func run() -> void:
  root.add_child(game)
  game.set_process(false);game.set_physics_process(false)
  game.battlefield.configure(0,1);game.battlefield.barriers.clear()
- game.enemy_hp=0
+ game.encounter.set_hp(-1, 0)
  var p: Dictionary=game.players[1]
  p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(0,0,5)
  var now:=Time.get_ticks_msec()
@@ -83,7 +83,7 @@ func run() -> void:
  check(game.enemy_hazards.size()==3 and game.enemy_hazards[1].point==trail[1],"ember positions stay locked through release")
 
  var pilgrim:=actor(game,0,"bark_guard")
- game.scouts.assign([pilgrim])
+ game.encounter.clear_scouts();game.encounter.register_scout(pilgrim)
  Attacks.lock(game,pilgrim,"swipe",Vector3(0,0,3),now+5000)
  check(Variants.guards(pilgrim,Vector3(0,0,3),now+4200) and not Variants.guards(pilgrim,Vector3(0,0,-3),now+4200),"guard protects the front and leaves the rear open")
  Status.sync(game,now+4200)
@@ -132,7 +132,7 @@ func check_glasscap(game: Node, p: Dictionary, now: int) -> void:
  p.pos=Vector3(0,0,-1)
  var watcher:=actor(game,18,"early_decoys")
  watcher.growth=2;watcher.mutations=game.Enemies.BARK
- game.scouts.assign([watcher])
+ game.encounter.clear_scouts();game.encounter.register_scout(watcher)
  Attacks.lock(game,watcher,"volley",Vector3(0,0,5),now+950)
  game.EnemyBehaviors.telegraph(game,watcher,now)
  var points: Array=watcher.glass_feint.points.duplicate()
@@ -153,11 +153,11 @@ func check_glasscap(game: Node, p: Dictionary, now: int) -> void:
  check(game.stage.support_models[0].position.is_equal_approx(game.stage.WILD_OFFSET+watcher.pos),"the real model snaps to its swapped hit location")
  check(Feint.hints(game,now+2600).is_empty(),"the decoys expire after recovery")
 
- watcher.hp=0
+ game.encounter.set_hp(0, 0)
  game._process(.016)
  check(game.stage.get_meta(GlasscapVisuals.VIEWS,{}).is_empty(),"decoys clear with the real Watcher")
 
- game.scouts.clear();game.enemy_kind=18;game.enemy_hp=30;game.enemy_pos=Vector3.ZERO
+ game.encounter.clear_scouts();game.enemy_kind=18;game.encounter.set_hp(-1, 30);game.enemy_pos=Vector3.ZERO
  var elite: Dictionary=Elite.state(game)
  elite.variant="early_decoys"
  Attacks.lock(game,elite,"volley",Vector3(0,0,5),now+3900)
@@ -171,9 +171,9 @@ func check_glasscap(game: Node, p: Dictionary, now: int) -> void:
  Elite.resolve(game,now+3900)
  check(elite_points.has(game.enemy_pos),"the gate elite changes its authoritative position too")
 
- game.enemy_hp=0;game.enemy_winding_up=false
+ game.encounter.set_hp(-1, 0);game.enemy_winding_up=false
  watcher.hp=20;watcher.pos=Vector3.ZERO
- game.scouts.assign([watcher])
+ game.encounter.clear_scouts();game.encounter.register_scout(watcher)
  Attacks.lock(game,watcher,"volley",Vector3(0,0,5),now+5000)
  game.EnemyBehaviors.telegraph(game,watcher,now+4100)
  var second: Array=watcher.glass_feint.points

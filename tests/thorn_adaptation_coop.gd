@@ -67,11 +67,11 @@ func host() -> void:
 	game.progress.wilds_memory.score[Thorn.TACTIC] = 6
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
-	game.enemy_hp = 40
+	game.encounter.set_hp(-1, 40)
 	game.enemy_pos = Vector3(12, 0, 5)
 	game.enemy_ready_at = Time.get_ticks_msec() + 60000
 	game.enemy_winding_up = false
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	player.wild = true
 	other.wild = true
 	player.pos = Vector3(0, 0, -3)
@@ -92,7 +92,7 @@ func host() -> void:
 	var hound: Dictionary = game.make_scout(Thorn.HOUND, center - Vector3.BACK * 1.45, 1)
 	hound.engaged = true
 	hound.stagger_until = line.armed
-	game.scouts.append(hound)
+	game.encounter.register_scout(hound)
 	if not await until(func(): return hound.get("attack", {}).get("variant") == Thorn.MOVE):
 		check(false, "host locks a live vault")
 		return

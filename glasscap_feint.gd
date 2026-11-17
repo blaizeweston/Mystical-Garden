@@ -13,7 +13,7 @@ static func prepare(game: Node, actor: Dictionary) -> void:
 	var sequence := int(actor.get("feint_sequence",0))+1
 	actor.feint_sequence = sequence
 	var random := RandomNumberGenerator.new()
-	random.seed = hash([game.map_seed,game.combat_epoch,actor.spawn_token,sequence])
+	random.seed = hash([game.map_seed,game.combat_epoch,game.encounter.token_for(actor),sequence])
 	var origin: Vector3 = actor.pos
 	var start := random.randf_range(0,TAU)
 	var points: Array[Vector3] = []
@@ -27,7 +27,7 @@ static func prepare(game: Node, actor: Dictionary) -> void:
 		points.append(point)
 		if points.size()==2:
 			break
-	actor.glass_feint = {"id":"glass:%d:%d:%d"%[game.combat_epoch,actor.spawn_token,sequence],
+	actor.glass_feint = {"id":"glass:%d:%d:%d"%[game.combat_epoch,game.encounter.token_for(actor),sequence],
 		"epoch":game.combat_epoch,"points":points,"seed":random.seed,"until":0}
 
 
@@ -37,10 +37,11 @@ static func open_site(game: Node, actor: Dictionary, point: Vector3) -> bool:
 	for player in game.players.values():
 		if game.Life.alive(player) and point.distance_to(player.pos)<1.3:
 			return false
-	if game.enemy_hp>0 and not actor.get("gate_elite",false) and point.distance_to(game.enemy_pos)<1.25:
+	if game.encounter.hp(-1)>0 and not actor.get("gate_elite",false) and point.distance_to(game.enemy_pos)<1.25:
 		return false
-	for other in game.scouts:
-		if int(other.hp)>0 and not is_same(actor,other) and point.distance_to(other.pos)<1.25:
+	for slot in game.encounter.scout_count():
+		var other: Dictionary=game.encounter.scout(slot)
+		if game.encounter.hp(slot)>0 and not is_same(actor,other) and point.distance_to(other.pos)<1.25:
 			return false
 	return true
 
@@ -64,7 +65,7 @@ static func release(game: Node, actor: Dictionary, now: int) -> void:
 	actor.pos = feint.points[selected]
 	feint.points[selected] = origin
 	feint.until = now + (1300 if actor.get("variant","")=="early_decoys" else 1050)
-	game.Journal.event("combat","glasscap_decoy_swap",{"actor":actor.spawn_token,"formation":feint.id,"floor":game.encounter_number})
+	game.Journal.event("combat","glasscap_decoy_swap",{"actor":game.encounter.token_for(actor),"formation":feint.id,"floor":game.encounter_number})
 
 
 static func holding(game: Node, actor: Dictionary, now: int) -> bool:
@@ -74,12 +75,12 @@ static func holding(game: Node, actor: Dictionary, now: int) -> bool:
 
 static func hints(game: Node, now: int) -> Array:
 	var result: Array = []
-	for slot in range(-1,game.scouts.size()):
-		var actor: Dictionary = game.leader_brain.get("elite",{}) if slot<0 else game.scouts[slot]
+	for slot in range(-1,game.encounter.scout_count()):
+		var actor: Dictionary = game.leader_brain.get("elite",{}) if slot<0 else game.encounter.scout(slot)
 		var feint: Dictionary = actor.get("glass_feint",{})
 		if feint.is_empty() or int(feint.epoch)!=game.combat_epoch or feint.points.is_empty():
 			continue
-		var alive: bool = game.enemy_hp>0 if slot<0 else int(actor.hp)>0
+		var alive: bool = game.encounter.hp(slot)>0
 		var winding: bool = game.enemy_winding_up and game.enemy_attack_mode=="volley" if slot<0 else int(actor.windup)>0 and actor.mode=="volley"
 		var released := int(feint.until)>0
 		if not alive or (now>=int(feint.until) if released else not winding):

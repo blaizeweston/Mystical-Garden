@@ -28,7 +28,7 @@ func run():
  p.pos=game.Stage.GATE+Vector3(Gates.RANGE+.1,0,0);check(not game.at_weapon_gate(p),"distant crafting remains rejected")
  check(Gates.travel_range(game,"depart")==Gates.RANGE,"party departure uses same range")
  game.destination=game.Campaign.HEART;check(Gates.travel_range(game,"depart")==1.7,"Heart interaction range remains appropriate");game.destination=0
- game.toggle_overlay(null);p.wild=true;game.enemy_hp=0;game.scouts.clear();game.encounter_number=1;game.depth=1
+ game.toggle_overlay(null);p.wild=true;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.encounter_number=1;game.depth=1
  p.pos=game.battlefield.advance+Vector3(Gates.RANGE+.1,0,0);game._use_checkpoint(1,true);check(game.encounter_number==1,"distant onward gate rejected")
  p.pos=game.battlefield.advance+Vector3(2.65,0,0);game._use_checkpoint(1,true);check(game.encounter_number==2,"actual cleared onward gate accepts extended range")
  game.queue_free();await process_frame

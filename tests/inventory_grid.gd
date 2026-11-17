@@ -77,7 +77,7 @@ func run():
  p.carried_parts[4]=3
  Model.transfer(game,p,"carry","pouch",part,3)
  var part_before: int=reserve.parts[4]
- game.encounter_number=6;game.enemy_hp=0;game.scouts.clear();p.pos=game.battlefield.advance
+ game.encounter_number=6;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();p.pos=game.battlefield.advance
  game.use_checkpoint(1,false)
  check(not p.wild and reserve.parts[4]==part_before+3 and p.safe_items.is_empty(),"checkpoint extraction banks pouch stacks")
  p.wild=true;p.carried_parts[4]=2

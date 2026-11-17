@@ -404,7 +404,7 @@ static func lantern_burst(game: Node, id: int, cast: Dictionary, now: int) -> vo
 		if target == -1:
 			game.enemy_stagger_until = maxi(game.enemy_stagger_until, until)
 		else:
-			game.scouts[target].stagger_until = maxi(int(game.scouts[target].stagger_until), until)
+			game.encounter.scout(target).stagger_until = maxi(int(game.encounter.scout(target).stagger_until), until)
 		targets_hit.append(target)
 		if targets_hit.size() >= int(cast.skill.targets):
 			break
@@ -413,7 +413,7 @@ static func lantern_burst(game: Node, id: int, cast: Dictionary, now: int) -> vo
 
 
 static func winding_or_boss(game: Node, target: int) -> bool:
-	return game.boss_kind >= 0 or game.enemy_winding_up if target == -1 else int(game.scouts[target].get("windup", 0)) > 0
+	return game.boss_kind >= 0 or game.enemy_winding_up if target == -1 else int(game.encounter.scout(target).get("windup", 0)) > 0
 
 
 static func quake(game: Node, id: int, origin: Vector3, radius: float, now: int) -> void:
@@ -478,7 +478,7 @@ static func trigger_thorn(game: Node, id: int, target: int, trip: Vector3, now: 
 	if first or trigger == "quake":
 		game.emit_combat_event("proc", "Thorns tripped", trip, point, .55, THORN_COLOR, 0.0, target)
 	Journal.event("combat", "core_trip", {"actor": id, "skill": line.skill.id, "cast_id": line.id,
-		"target": target, "target_token": 0 if target == -1 else game.scouts[target].get("spawn_token", 0), "trigger": trigger, "fork_target": fork, "refund_ms": refunded})
+		"target": target, "target_token": 0 if target == -1 else game.encounter.token(target), "trigger": trigger, "fork_target": fork, "refund_ms": refunded})
 
 
 static func pull_to_line(game: Node, target: int, line: Dictionary) -> Vector3:
@@ -492,7 +492,7 @@ static func pull_to_line(game: Node, target: int, line: Dictionary) -> Vector3:
 	if target == -1:
 		game.enemy_pos = drawn
 	else:
-		game.scouts[target].pos = drawn
+		game.encounter.scout(target).pos = drawn
 	game.emit_combat_event("link", "Hooked Thorns", point, drawn, .4, THORN_COLOR, 0.0, target)
 	game.emit_combat_event("proc", "Hooked Thorns", point, drawn, .45, THORN_COLOR, 0.0, target)
 	Journal.event("combat", "core_graft_pull", {"cast_id": line.id, "target": target, "distance": point.distance_to(drawn)})
@@ -501,12 +501,12 @@ static func pull_to_line(game: Node, target: int, line: Dictionary) -> Vector3:
 
 static func targets(game: Node) -> Dictionary:
 	var result := {}
-	if game.enemy_hp > 0:
+	if game.encounter.alive(-1):
 		result[-1] = {"pos": game.enemy_pos, "token": 0}
-	for index in game.scouts.size():
-		var scout: Dictionary = game.scouts[index]
-		if scout.hp > 0:
-			result[index] = {"pos": scout.pos, "token": scout.get("spawn_token", 0)}
+	for index in game.encounter.scout_count():
+		var scout: Dictionary = game.encounter.scout(index)
+		if game.encounter.alive(index):
+			result[index] = {"pos": scout.pos, "token": game.encounter.token(index)}
 	return result
 
 
@@ -570,7 +570,7 @@ static func crown_preview(game: Node, field: RefCounted, shapes: Array, center: 
 static func guest_crown_points(game: Node, field: RefCounted, shapes: Array, center: Vector3) -> Array:
 	var points: Array = []
 	var enemies: Array[Vector3] = []
-	if game.enemy_hp > 0:
+	if game.enemy_health() > 0:
 		enemies.append(game.enemy_pos)
 	var pack: PackedFloat32Array = game.client_pack
 	for index in range(0, pack.size(), game.PACK_STRIDE):

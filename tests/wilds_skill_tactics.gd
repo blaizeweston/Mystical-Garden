@@ -26,10 +26,10 @@ func floor_fixture() -> void:
 	Core.reset(game)
 	game.combat_epoch += 1
 	game.encounter_rewarded = false
-	game.enemy_hp = 50
+	game.encounter.set_hp(-1, 50)
 	game.enemy_kind = 0
 	game.enemy_pos = Vector3(9, 0, 7)
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.leader_brain.clear()
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
@@ -39,8 +39,8 @@ func floor_fixture() -> void:
 
 
 func add_scout(kind: int, at: Vector3) -> Dictionary:
-	var actor: Dictionary = game.make_scout(kind, at, game.scouts.size() + 1)
-	game.scouts.append(actor)
+	var actor: Dictionary = game.make_scout(kind, at, game.encounter.scout_count() + 1)
+	game.encounter.register_scout(actor)
 	return actor
 
 
@@ -67,8 +67,8 @@ func core_skill(species: String, distance: float) -> Dictionary:
 
 
 func finish() -> void:
-	game.enemy_hp = 0
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 0)
+	game.encounter.clear_scouts()
 	game.finish_combat(1, Vector3.ZERO)
 
 
@@ -104,7 +104,7 @@ func check_learning() -> void:
 	check(Tactics.evidence(game).get(Tactics.CAST_DENIAL) == 1 and shepherd.windup == 0, "a real interrupting strike contributes once")
 	Attacks.lock(game, shepherd, "shepherd", player.pos, Time.get_ticks_msec() + 1400)
 	shepherd.traits = {}
-	shepherd.hp = 1
+	game.encounter.set_hp(game.encounter.scout_slot(shepherd), 1)
 	game.apply_weapon_hit(player, 0, player.pos, {"damage": 4, "stagger": 180, "suppress": 1}, Time.get_ticks_msec())
 	check(Tactics.evidence(game).get(Tactics.CAST_DENIAL) == 1, "a killing strike does not count as an interrupted rite")
 
@@ -112,7 +112,7 @@ func check_learning() -> void:
 		floor_fixture()
 		check(Tactics.evidence(game).is_empty(), "new floor starts with no observations")
 		shepherd = shepherd_group()
-		game.scouts[1].pos = Vector3(.45, 0, -2.3)
+		game.encounter.scout(1).pos = Vector3(.45, 0, -2.3)
 		Attacks.lock(game, shepherd, "shepherd", player.pos, Time.get_ticks_msec() + 1400)
 		core_skill("hush_orchid", 2.0)
 		check(shepherd.windup == 0 and Tactics.evidence(game).get(Tactics.CAST_DENIAL) == 1, "Hush cancels the rally and records a confirmed denial")
@@ -146,7 +146,7 @@ func check_relay() -> void:
 	var chosen: int = attack.flank.escort.slot
 	var other := 2 if chosen == 1 else 1
 	game.resolve_scout(shepherd, game.Enemies.get_kind(10), shepherd.windup)
-	check(game.scouts[chosen].command_via == attack.flank.via and not game.scouts[other].has("command_via") and PlayerVitals.current_hp(player) == 10, "relay only moves its warned escort")
+	check(game.encounter.scout(chosen).command_via == attack.flank.via and not game.encounter.scout(other).has("command_via") and PlayerVitals.current_hp(player) == 10, "relay only moves its warned escort")
 	Attacks.lock(game, shepherd, "shepherd", player.pos, now + 5000)
 	check(shepherd.attack.variant != Tactics.RELAY, "one relay per enemy")
 	floor_fixture()
@@ -155,9 +155,9 @@ func check_relay() -> void:
 	Attacks.lock(game, shepherd, "shepherd", player.pos, now + 1400)
 	if shepherd.attack.get("variant") == Tactics.RELAY:
 		chosen = shepherd.attack.flank.escort.slot
-		game.scouts[chosen].rooted_until = now + 2000
+		game.encounter.scout(chosen).rooted_until = now + 2000
 		game.resolve_scout(shepherd, game.Enemies.get_kind(10), now + 1400)
-		check(not game.scouts[chosen].has("command_target"), "rooting the escort denies the relay")
+		check(not game.encounter.scout(chosen).has("command_target"), "rooting the escort denies the relay")
 
 
 func check_scatter() -> void:
@@ -179,7 +179,7 @@ func check_scatter() -> void:
 	check(Attacks.hints(attack, 0, 1.5).filter(func(hint): return hint.role == "hatch").size() == 2, "both sites are marked")
 	player.pos = attack.hatch[0]
 	game.resolve_scout(mother, game.Enemies.get_kind(9), now + 1500)
-	check(mother.summons == 1 and game.scouts.any(func(s): return s.get("broodmother_spawn", false) and s.pos == attack.hatch[1]), "a player can deny one site by occupying it")
+	check(mother.summons == 1 and game.encounter.scout_tactics().any(func(s): return s.get("broodmother_spawn", false) and s.pos == attack.hatch[1]), "a player can deny one site by occupying it")
 	check(game.combat_events.any(func(e): return e.kind == "proc" and e.shape == "hatch_blocked"), "blocked hatch gives immediate feedback")
 	Attacks.lock(game, mother, "brood", player.pos, now + 3200)
 	check(mother.attack.variant != Tactics.SCATTER and mother.attack.hatch.size() <= 1, "the response does not increase the ordinary brood budget")

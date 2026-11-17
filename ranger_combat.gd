@@ -248,7 +248,7 @@ static func corridor_targets(game: Node, trap: Dictionary) -> Dictionary:
 	var route: Dictionary = trap.get("ranger_route",{})
 	if route.get("kind") != CORRIDOR:
 		return result
-	for target in range(-1,game.scouts.size()):
+	for target in range(-1,game.encounter.scout_count()):
 		if game.Traits.valid_target(game,target):
 			var origin := corridor_contact(game.battlefield,route,game.enemy_position(target))
 			if origin.is_finite():

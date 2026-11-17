@@ -134,7 +134,7 @@ static func step(game: Node, actor: int, forward: Vector3, distance := STEP_DIST
 	for id in game.players:
 		var p: Dictionary=game.players[id]
 		if id!=actor and p.get("wild",false) and game.Life.alive(p): stops.append([p.pos,PLAYER_RADIUS*2])
-	for target in range(-1,game.scouts.size()):
+	for target in range(-1,game.encounter.scout_count()):
 		if Actors.valid_target(game,target): stops.append([game.enemy_position(target),PLAYER_RADIUS+Hurt.radius(game,target)])
 	var landing:=origin
 	for i in 12:
@@ -159,9 +159,9 @@ static func trace(game: Node, event: RefCounted, id: int, at: Vector3) -> void:
 	if not represents(game,id): return
 	var elapsed:=Clock.now(game)
 	var duration: int=event.potency().trace_ms
-	for target in range(-1,game.scouts.size()):
+	for target in range(-1,game.encounter.scout_count()):
 		if not Actors.valid_target(game,target) or (target==-1 and game.boss_kind>=0): continue
-		var body: Dictionary=game.leader_brain if target==-1 else game.scouts[target]
+		var body: Dictionary=game.leader_brain if target==-1 else game.encounter.scout(target)
 		var committed: bool=game.enemy_winding_up if target==-1 else int(body.windup)>0
 		var engaged: bool=game.enemy_engaged if target==-1 else bool(body.engaged)
 		var pos: Vector3=game.enemy_position(target)

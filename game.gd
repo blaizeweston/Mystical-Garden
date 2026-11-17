@@ -128,7 +128,6 @@ var combat_event_serial:=0
 var received_combat_events: Array=[]
 var projectile_queue: Array=[]
 var combat_epoch:=0
-var scout_serial:=0
 var enemy_mutations := 0
 var enemy_growth := 0
 var burst_hits_this_room := 0
@@ -136,9 +135,10 @@ var choke_kills_this_room := 0
 var burst_clears := 0
 var choke_clears := 0
 var enemy_pos := Stage.ENEMY_START
-var enemy_hp := ENEMY_HEALTH
+const EncounterRoster = preload("res://encounter_roster.gd")
+var encounter := EncounterRoster.new(ENEMY_HEALTH)
+var client_leader_hp := ENEMY_HEALTH
 var enemy_engaged := false
-var scouts: Array[Dictionary] = []
 var battlefield := Battlefield.new()
 var client_pack := PackedFloat32Array()
 var enemy_strike_at := 0
@@ -1322,9 +1322,7 @@ func campaign_snapshot() -> PackedInt32Array:
 		progress.campaign.best_clear, progress.campaign.best_extraction,
 		progress.campaign.memories[0], progress.campaign.memories[1], progress.campaign.memories[2],
 		int(progress.finale_available()), Enemies.encode(enemy_kind, enemy_mutations, enemy_growth)])
-	for i in EncounterConfig.MAX_SCOUTS:
-		var scout: Dictionary = scouts[i] if i < scouts.size() else {}
-		result.append(Enemies.encode(int(scout.get("kind", 0)), int(scout.get("mutations", 0)), int(scout.get("growth", 0))))
+	result.append_array(encounter.scout_codes())
 	result.append(roundi(enemy_landing.x * 100.0))
 	result.append(roundi(enemy_landing.z * 100.0))
 	result.append(int(enemy_attack_mode == "vault"))
@@ -2057,8 +2055,8 @@ func grant_guard(player: Dictionary,until: int,charges: int) -> void:
 
 func skill_area_targets(center: Vector3,radius: float,origin: Vector3) -> Array[int]:
 	var result: Array[int]=[]
-	for target in range(-1,scouts.size()):
-		if (enemy_hp if target==-1 else int(scouts[target].hp))<=0: continue
+	for target in range(-1,encounter.scout_count()):
+		if encounter.hp(target)<=0: continue
 		var point:=enemy_position(target)
 		if center.distance_to(point)<=radius and battlefield.clear_line(origin,point) and battlefield.clear_line(center,point): result.append(target)
 	return result
@@ -2068,8 +2066,8 @@ func skill_line_targets(origin: Vector3,facing: Vector3,distance: float,width: f
 	var ordered: Array=[]
 	var fraction: float = battlefield.projectile_block_fraction(origin,origin+facing*distance,width)
 	var cover_distance := fraction * distance if fraction != INF else INF
-	for target in range(-1,scouts.size()):
-		if (enemy_hp if target==-1 else int(scouts[target].hp))<=0: continue
+	for target in range(-1,encounter.scout_count()):
+		if encounter.hp(target)<=0: continue
 		var point := enemy_position(target)
 		var offset := point - origin
 		var along := offset.dot(facing)
@@ -2083,7 +2081,7 @@ func skill_line_targets(origin: Vector3,facing: Vector3,distance: float,width: f
 	return result
 
 func apply_skill_targets(player: Dictionary,targets: Array[int],skill: Dictionary,stats: Dictionary,now: int) -> int:
-	var before_primary:=enemy_hp
+	var before_primary:=enemy_health()
 	var drain_contacts:=0
 	var native_hits: Dictionary = skill.get("native_hit_adjustments",{})
 	var echo_bloom := AffinityCards.bloom_echo_source(self,player,skill,now)
@@ -2094,11 +2092,11 @@ func apply_skill_targets(player: Dictionary,targets: Array[int],skill: Dictionar
 		if root_time>0:
 			var until:=now+root_time
 			if target==-1: rooted_until=maxi(rooted_until,until)
-			else: scouts[target].rooted_until=maxi(int(scouts[target].get("rooted_until",0)),until)
+			else: encounter.scout(target).rooted_until=maxi(int(encounter.scout(target).get("rooted_until",0)),until)
 		var recovery:=int(skill.get("recovery",0))
 		if recovery>0:
 			if target==-1: moss_recovery_bonus=maxi(moss_recovery_bonus,recovery)
-			else: scouts[target].recovery=maxi(int(scouts[target].get("recovery",0)),recovery)
+			else: encounter.scout(target).recovery=maxi(int(encounter.scout(target).get("recovery",0)),recovery)
 		var damage:=Life.Preview.authored_amount(float(skill.get("damage",0))) + float(adjustment.get("bonus_hp",0))/Life.Preview.scale()
 		if damage>0.0:
 			var hit: Dictionary=stats.duplicate(true)
@@ -2114,16 +2112,16 @@ func apply_skill_targets(player: Dictionary,targets: Array[int],skill: Dictionar
 				hit.ranger_direct_hit = not stats.get("ranger_trap_contact",false) and skill.mode != "salvo"
 				if skill.has("reaper_nodes"):
 					preload("res://reaper_combat.gd").tag_hit(hit,skill.reaper_nodes)
-			var before:=enemy_hp if target==-1 else int(scouts[target].hp)
+			var before:=encounter.hp(target)
 			var inside_bloom := before > 0 and not echo_bloom.is_empty() and AffinityCards.bloom_contains(self,echo_bloom,target)
 			apply_weapon_hit(player,target,adjustment.get("origin",skill.get("effect_origin",player.pos)),hit,now)
-			var after:=enemy_hp if target==-1 else int(scouts[target].hp)
+			var after:=encounter.hp(target)
 			echo_hit = echo_hit or (inside_bloom and after < before)
 			if Life.Preview.enabled and Life.Sustain.eligible(self,target):
 				drain_contacts+=int(after<before)
 	if echo_hit:
 		AffinityCards.bloom_echo(self,player,echo_bloom,skill,now)
-	if destination==Campaign.HEART and before_primary>Campaign.FINAL_HP/2.0 and enemy_hp>0 and enemy_hp<=Campaign.FINAL_HP/2.0:
+	if destination==Campaign.HEART and before_primary>Campaign.FINAL_HP/2.0 and enemy_health()>0 and enemy_health()<=Campaign.FINAL_HP/2.0:
 		for peer_id in players: tell(peer_id,"The Heart remembers: I sheltered them, too. I will not let it happen again.")
 	return drain_contacts if Life.Preview.enabled else targets.size()
 
@@ -2479,7 +2477,7 @@ func send_expedition_state(delta: float,force := false) -> void:
 			var flags := int(enemy_winding_up) | (8 if now < rooted_until else 0) | (16 if longlimb else 0)
 			var pack := scout_snapshot(now)
 			var shared := WorldSnapshot.encode(net_view.snapshot_sent + 1, player_snapshot(HOST,false),
-				campaign_snapshot(), pack, enemy_pos, enemy_hp, encounter_health(), drop_pos, depth, flags)
+				campaign_snapshot(), pack, enemy_pos, enemy_health(), encounter_health(), drop_pos, depth, flags)
 			if shared.is_empty() or shared.size() > WorldSnapshot.PAYLOAD_BUDGET:
 				push_error("World snapshot exceeds the supported player, scout, or payload limits.")
 			else:
@@ -2595,7 +2593,7 @@ func update_enemy(delta: float, now: int) -> void:
 	if boss_kind>=0:
 		Bosses.tick(self,delta,now)
 		return
-	if enemy_hp <= 0:
+	if enemy_health() <= 0:
 		return
 	if destination!=Campaign.HEART:
 		preload("res://elite_enemy.gd").tick(self,delta,now)
@@ -2644,7 +2642,7 @@ func update_enemy(delta: float, now: int) -> void:
 		var windup := BRIAR_WINDUP_MS
 		if destination == Campaign.HEART:
 			attack_pattern += 1
-			if enemy_hp <= encounter_health() / 2.0 and attack_pattern % 2 == 0:
+			if enemy_health() <= encounter_health() / 2.0 and attack_pattern % 2 == 0:
 				active_radius = 3.65
 				windup = 950
 			else:
@@ -2680,8 +2678,7 @@ func make_scout(kind: int, position: Vector3, route: int, mutations: int = 0, gr
 		hp=Director.Balance.scout_hp(definition,encounter_number,difficulty_cycle,growth,encounter_party_size,juvenile)
 	else:
 		hp=Life.Preview.hp(1) if juvenile else Director.health(self,int(Director.config().scout_base_hp)+int(definition.hp)+growth,false)
-	scout_serial+=1
-	return {"spawn_token":scout_serial,"pos": position, "kind": kind, "mutations": mutations | (Enemies.JUVENILE if juvenile else 0),
+	return {"spawn_token":encounter.reserve_token(),"pos": position, "kind": kind, "mutations": mutations | (Enemies.JUVENILE if juvenile else 0),
 		"growth": growth, "hp": hp,
 		"windup": 0, "ready": 0, "rooted_until": 0, "recovery": 0, "engaged": juvenile,
 		"ranged": Enemies.ranged(kind), "blast": position, "route": route,
@@ -2695,10 +2692,11 @@ func scout_radius(scout: Dictionary) -> float:
 
 
 func update_scouts(delta: float, now: int) -> void:
-	# Copy the list, retaining dictionary references, so a finite brood can occupy vacant slots safely.
-	for scout in scouts.duplicate():
-		if scout.hp <= 0:
+	var started := encounter.scout_tokens()
+	for slot in started.size():
+		if not encounter.alive(slot, started[slot]):
 			continue
+		var scout := encounter.scout(slot)
 		var frost_motion := preload("res://frost_combat.gd").motion_scale(scout,now) if has_meta(&"combat_affinity_ruleset") else 1.0
 		if EnemyBehaviors.tick(self,scout,delta*frost_motion,now): continue
 		var definition := Enemies.get_kind(int(scout.get("kind", 0)))
@@ -2707,7 +2705,7 @@ func update_scouts(delta: float, now: int) -> void:
 		if scout.windup > 0:
 			if now >= int(scout.windup):
 				if has_meta(&"combat_affinity_ruleset"):
-					preload("res://frost_combat.gd").with_attacker(self,scouts.find(scout),resolve_scout.bind(scout,definition,now))
+					preload("res://frost_combat.gd").with_attacker(self,slot,resolve_scout.bind(scout,definition,now))
 				else:
 					resolve_scout(scout, definition, now)
 				if not expedition_active():
@@ -2811,9 +2809,10 @@ func resolve_scout(scout: Dictionary, definition: Dictionary, now: int) -> void:
 	if mode=="chant":
 		if EnemyBehaviors.resolve(self,scout,attack,now): return
 		preload("res://event_audio.gd").enemy(self,attack,true)
-		if enemy_hp>0 and not Enemies.is_support(enemy_kind) and enemy_pos.distance_to(origin)<=radius and battlefield.clear_line(origin,enemy_pos): enemy_haste_until=now+3500
-		for other in scouts:
-			if other.hp>0 and not Enemies.is_support(int(other.get("kind",0))) and other.pos.distance_to(origin)<=radius and battlefield.clear_line(origin,other.pos): other.haste_until=now+3500
+		if enemy_health()>0 and not Enemies.is_support(enemy_kind) and enemy_pos.distance_to(origin)<=radius and battlefield.clear_line(origin,enemy_pos): enemy_haste_until=now+3500
+		for slot in encounter.scout_count():
+			var other := encounter.scout(slot)
+			if encounter.alive(slot) and not Enemies.is_support(int(other.get("kind",0))) and other.pos.distance_to(origin)<=radius and battlefield.clear_line(origin,other.pos): other.haste_until=now+3500
 		return
 	if mode in ["charge","pounce","vault"]:
 		var frost = preload("res://frost_combat.gd")
@@ -2868,10 +2867,6 @@ func resolve_scout(scout: Dictionary, definition: Dictionary, now: int) -> void:
 		scout.windup = now + (1000 if attack.variant=="late_pulse" else 500)
 		preload("res://event_audio.gd").enemy(self,attack,false)
 
-func spawn_brood(parent: Dictionary) -> bool:
-	var support=preload("res://enemy_support.gd")
-	var choices: Array[Vector3]=support.brood_sites(self,parent.pos,1)
-	return not choices.is_empty() and support.spawn_brood_at(self,choices[0])
 
 
 func can_vault(from: Vector3, to: Vector3) -> bool:
@@ -2883,42 +2878,38 @@ func can_vault(from: Vector3, to: Vector3) -> bool:
 	return true
 
 func encounter_cleared() -> bool:
-	if enemy_hp > 0:
-		return false
-	if not multiplayer.is_server():
-		for i in range(2, client_pack.size(), PACK_STRIDE):
-			if client_pack[i] > 0:
-				return false
-	else:
-		for scout in scouts:
-			if scout.hp > 0:
-				return false
-	return true
+	if multiplayer.is_server():
+		return encounter.cleared()
+	return client_leader_hp <= 0 and living_scout_count() == 0
 
 
 func closest_enemy(origin: Vector3, visible_only: bool = false) -> int:
-	var primary_visible := enemy_hp > 0 and (not visible_only or battlefield.clear_line(origin, enemy_pos))
+	var primary_visible := enemy_health() > 0 and (not visible_only or battlefield.clear_line(origin, enemy_pos))
 	var index := -1 if primary_visible else -2
 	var best := origin.distance_squared_to(enemy_pos) if primary_visible else INF
-	for i in scouts.size():
-		if scouts[i].hp > 0 and origin.distance_squared_to(scouts[i].pos) < best and (
-				not visible_only or battlefield.clear_line(origin, scouts[i].pos)):
+	for i in encounter.scout_count():
+		if encounter.hp(i) > 0 and origin.distance_squared_to(encounter.scout(i).pos) < best and (
+				not visible_only or battlefield.clear_line(origin, encounter.scout(i).pos)):
 			index = i
-			best = origin.distance_squared_to(scouts[i].pos)
+			best = origin.distance_squared_to(encounter.scout(i).pos)
 	return index
 
 
 func enemy_position(index: int) -> Vector3:
-	return enemy_pos if index == -1 else scouts[index].pos
+	return enemy_pos if index == -1 else encounter.position(index)
+
+
+func enemy_health(target: int = -1) -> int:
+	if multiplayer.is_server():
+		return encounter.hp(target)
+	if target == -1:
+		return client_leader_hp
+	var offset := target * PACK_STRIDE + 2
+	return int(client_pack[offset]) if target >= 0 and offset < client_pack.size() else 0
 
 
 func scout_snapshot(now: int) -> PackedFloat32Array:
-	var snapshot := PackedFloat32Array()
-	for scout in scouts:
-		snapshot.append_array(PackedFloat32Array([scout.pos.x, scout.pos.z, scout.hp,
-			float(scout.windup > 0), float(int(now < int(scout.rooted_until)) | (2 if now < int(scout.get("haste_until", 0)) else 0)), float(scout.ranged),
-			scout.blast.x, scout.blast.z]))
-	return snapshot
+	return encounter.scout_pack(now)
 
 
 func base_strike_radius() -> float:
@@ -3243,7 +3234,8 @@ func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 
 
 func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionary,now: int) -> void:
-	if target < -1 or target>=scouts.size() or (enemy_hp if target==-1 else int(scouts[target].hp))<=0: return
+	if not encounter.alive(target): return
+	var target_token := encounter.token(target)
 	p.contributed=true
 	var grafts = preload("res://native_grafts.gd")
 	var graft_contact := grafts.start_contact(self,p,stats,target,now)
@@ -3251,7 +3243,7 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 	var point:=enemy_position(target)
 	var contact_point := point
 	var distance:=origin.distance_to(point)
-	var winding: bool=stats.get("was_winding",enemy_winding_up if target==-1 else float(scouts[target].windup)>0)
+	var winding: bool=stats.get("was_winding",enemy_winding_up if target==-1 else float(encounter.scout(target).windup)>0)
 	var pull:=float(stats.get("pull",0))
 	if pull>0 and not winding:
 		point=battlefield.dash(point,point.move_toward(origin,clampf(distance-0.9,0,pull)))
@@ -3272,12 +3264,12 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 	if damage > 0 and stats.get("ranger_direct_hit",false) and has_meta(&"combat_affinity_ruleset") and not stats.get("trait_secondary",false) and not stats.get("core_hit",false):
 		damage += preload("res://ranger_combat.gd").consume_prey(self,p,target,now)
 	var push:=0.35+float(stats.get("knockback",0))
-	var mutations: int=enemy_mutations if target==-1 else int(scouts[target].get("mutations",0))
+	var mutations: int=enemy_mutations if target==-1 else int(encounter.scout(target).get("mutations",0))
 	if not preload("res://enemy_support.gd").shelter_source(self,target,point,origin,now).is_empty():
 		damage=Life.Preview.armor(damage)
 	if target==-1 and boss_kind>=0: push*=.2
 	elif target==-1 and (depth==ROUTE_ROOMS or destination==Campaign.HEART): push*=0.5
-	var guard_actor: Dictionary=scouts[target] if target>=0 else leader_brain.get("elite",{})
+	var guard_actor: Dictionary=encounter.scout(target) if target>=0 else leader_brain.get("elite",{})
 	if guard_actor.get("variant","")=="bark_guard":
 		if preload("res://enemy_variants.gd").guards(guard_actor,origin,now):
 			push*=.6;damage=Life.Preview.armor(damage)
@@ -3294,7 +3286,7 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 		if is_same(players[peer_id],p): player_id=peer_id;break
 	if player_id!=0: combat_threat[player_id]=float(combat_threat.get(player_id,0))+Life.Vitals.threat_from_hit(damage,Life.Preview.scale())
 	Director.alert(self,point)
-	var before: int=enemy_hp if target==-1 else int(scouts[target].hp)
+	var before: int=encounter.hp(target)
 	var applied:=Life.Vitals.damage_taken(before,damage)
 	if Life.Vitals.counts_as_burst(damage,Life.Preview.scale()): burst_hits_this_room+=1
 	if before<=applied and battlefield.procedural and battlefield.floor_distance(point)<1.6: choke_kills_this_room+=1
@@ -3302,34 +3294,34 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 		if enemy_winding_up and Bosses.owns_warnings(boss_kind):point=enemy_pos
 		enemy_pos=point
 		enemy_engaged=true
-		enemy_hp-=applied
+		encounter.apply_damage(-1, applied)
 		moss_recovery_bonus=maxi(moss_recovery_bonus,recovery)
-		if winding and enemy_hp>0 and boss_kind==22 and float(stats.get("stagger",0))>=150:
+		if winding and enemy_health()>0 and boss_kind==22 and float(stats.get("stagger",0))>=150:
 			preload("res://boss_phase_fights.gd").interrupt(self,point,now)
 		if winding and boss_kind<0 and leader_brain.has("elite") and float(stats.get("stagger",0))>=150 and EnemyBehaviors.interrupt(self,leader_brain.elite,point,now):
 			enemy_ready_at=leader_brain.elite.ready
 			enemy_winding_up=false
 			winding=false
 		if not winding and not stats.has("affinity_hp"): enemy_stagger_until=stagger
-		if enemy_hp==0: enemy_winding_up=false
+		if enemy_health()==0: enemy_winding_up=false
 	else:
-		var scout: Dictionary=scouts[target]
+		var scout: Dictionary=encounter.scout(target)
 		scout.pos=point
 		scout.engaged=true
-		scout.hp-=applied
+		encounter.apply_damage(target, applied, target_token)
 		scout.recovery=maxi(int(scout.recovery),recovery)
 		if winding and float(stats.get("stagger",0))>=150 and EnemyBehaviors.interrupt(self,scout,point,now):winding=false
 		if not winding and not stats.has("affinity_hp"): scout.stagger_until=stagger
 	if stats.get("rite_suppressed",false) and applied<before:
-		var actor: Dictionary=scouts[target] if target>=0 else leader_brain.get("elite",{})
+		var actor: Dictionary=encounter.scout(target) if target>=0 else leader_brain.get("elite",{})
 		preload("res://wilds_skill_tactics.gd").interrupted(self,actor,"suppression")
 	if applied>0:
 		if has_meta(&"combat_affinity_ruleset") and (int(p.frame)==4 or p.has("oracle_omens")):
 			preload("res://oracle_combat.gd").ordinary_contact(self,p,target,contact_point,stats,now)
 		var form := "magic" if stats.get("trait_secondary",false) else str(stats.get("audio_form",WeaponMotion.form(p)))
 		emit_combat_event("impact","hit",origin,point,.85,stats.get("affinity_color",weapon_effect_color(p)),float(applied),target,{"form":form})
-	if before>0 and applied>=before:
-		record_enemy_death(target,point,origin)
+	if encounter.death_pending(target, target_token):
+		record_enemy_death(target,point,origin,target_token)
 		var restored:=Life.Sustain.heal_on_kill(self,p,target,Life.Preview.authored_amount(float(stats.get("heal_on_kill",0))))
 		if restored>0.0 and not Life.Preview.enabled:preload("res://combat_status.gd").proc(self,"siphon",point,p.pos)
 	Traits.after_hit(self,p,target,stats,now,before>0 and applied>=before)
@@ -3612,7 +3604,7 @@ func expedition_active() -> bool:
 func abandon_if_empty() -> void:
 	if expedition_active() and Life.living_ids(self).is_empty():
 		finish_failed_expedition()
-	elif not expedition_active() and (enemy_hp < encounter_health() or deepest_milestone > 0):
+	elif not expedition_active() and (enemy_health() < encounter_health() or deepest_milestone > 0):
 		finish_failed_expedition()
 
 
@@ -3864,7 +3856,7 @@ func reset_encounter() -> void:
 	enemy_haste_until=0
 	pending_finale_at=0
 	enemy_death_events.clear()
-	scouts.clear()
+	encounter.clear_scouts()
 	enemy_pos = Director.spawn(self,battlefield.leader,-1)
 	if enemy_pos==Vector3.INF:
 		enemy_pos = clear_spawn(battlefield.leader)
@@ -3872,11 +3864,10 @@ func reset_encounter() -> void:
 			# A generated leader room is already certified for enemy clearance.
 			enemy_pos = battlefield.leader
 	enemy_kind = boss_kind if boss_kind>=0 else 9 if destination == Campaign.HEART else preload("res://elite_enemy.gd").select(self)
-	enemy_hp = encounter_health()
+	encounter.begin_floor(encounter_health())
 	enemy_engaged = false
 	enemy_stagger_until = 0
 	enemy_attack_mode = ""
-	scouts.clear()
 	enemy_growth = Enemies.tier(encounter_number, difficulty_cycle)
 	enemy_mutations = current_mutations(enemy_kind, enemy_growth, map_seed)
 	var count := Director.scout_count(self)
@@ -3891,7 +3882,7 @@ func reset_encounter() -> void:
 		if not spawn.is_finite():continue
 		var kind: int=roster[i]
 		var mutations := current_mutations(kind, enemy_growth, map_seed + i)
-		scouts.append(make_scout(kind, spawn, i + 1, mutations, enemy_growth))
+		encounter.register_scout(make_scout(kind, spawn, i + 1, mutations, enemy_growth))
 	arrange_support_groups()
 	Director.Balance.trace_encounter(self,count)
 	if stage.experimental_garden != null and map_seed != 0:
@@ -3900,7 +3891,7 @@ func reset_encounter() -> void:
 			"generated": not battlefield.generated.is_empty(),
 			"entry": [battlefield.entry.x, battlefield.entry.z],
 			"gate": [battlefield.advance.x, battlefield.advance.z],
-			"foes": 1 + scouts.size()})
+			"foes": 1 + encounter.scout_count()})
 	longlimb = (enemy_mutations & Enemies.REACH)!=0
 	burst_hits_this_room = 0
 	choke_kills_this_room = 0
@@ -4173,7 +4164,7 @@ func apply_world_snapshot(frame: PackedByteArray, recovery: bool) -> void:
 		players[local_id] = client_details.duplicate(true)
 		players[local_id].merge(public_state,true)
 	enemy_pos = state.enemy
-	enemy_hp = state.hp
+	client_leader_hp = state.hp
 	var flags: int = state.flags
 	enemy_winding_up = (flags & 1) != 0
 	drop_pos = drop
@@ -4203,7 +4194,7 @@ func apply_world_snapshot(frame: PackedByteArray, recovery: bool) -> void:
 	if received_at > 0:
 		witness.call({"phase":"repair_apply" if recovery else "apply","sequence":sequence,
 			"marker":int(drop.x),"at":Time.get_ticks_usec(),
-			"apply_us":Time.get_ticks_usec()-received_at,"people":players.size(),"floor":encounter_number,"enemy_hp":enemy_hp})
+			"apply_us":Time.get_ticks_usec()-received_at,"people":players.size(),"floor":encounter_number,"enemy_hp":enemy_health()})
 
 
 func _process(_delta: float) -> void:
@@ -4250,7 +4241,7 @@ func _process(_delta: float) -> void:
 		warnings=warnings.filter(func(hint): return hint.role not in ["core_thorns","core_anchor","core_field","core_lured","glasscap_feint"])
 	preload("res://glasscap_visuals.gd").prepare(stage,warnings)
 	stage.set_meta("enemy_attack_poses",preload("res://enemy_attack.gd").poses(warnings))
-	stage.draw_state(rendered_players, local_id, enemy_pos, enemy_hp, enemy_winding_up, strike_radius(), drop_pos, visible_drop, data[3], depth, route_rooms(), graft_altar_open(), briar_bound, longlimb, campaign_state,
+	stage.draw_state(rendered_players, local_id, enemy_pos, enemy_health(), enemy_winding_up, strike_radius(), drop_pos, visible_drop, data[3], depth, route_rooms(), graft_altar_open(), briar_bound, longlimb, campaign_state,
 		scout_snapshot(Time.get_ticks_msec()) if multiplayer.is_server() else client_pack, _delta,view_id)
 	update_ready_panel(p,local_id)
 	death_visuals.sync(death_events_snapshot() if multiplayer.is_server() and wild else p.get("death_events",[]) if wild else [],"%d:%d:%d:%s"%[destination,encounter_number,map_seed,str(wild)],observer)
@@ -4279,7 +4270,7 @@ func _process(_delta: float) -> void:
 	if wild:
 		if not encounter_cleared():
 			var pack := scout_snapshot(Time.get_ticks_msec()) if multiplayer.is_server() else client_pack
-			var alive := int(enemy_hp > 0)
+			var alive := int(enemy_health() > 0)
 			var hatching: bool=boss_kind==22 and warnings.any(func(hint):return hint.role=="nursery_exit")
 			var warning := not hatching and enemy_winding_up and (enemy_landing if enemy_attack_mode == "vault" else enemy_pos).distance_to(p.pos) < strike_radius() + 0.7
 			for i in range(2, pack.size(), PACK_STRIDE):
@@ -4295,8 +4286,8 @@ func _process(_delta: float) -> void:
 					var a:=Vector3(hint.from[0],0,hint.from[2]);var b:=Vector3(hint.to[0],0,hint.to[2])
 					warning=warning or p.pos.distance_to(Geometry3D.get_closest_point_to_segment(p.pos,a,b))<=float(hint.width)+.4
 			guide.text = "Dodge out of the marked attack!" if warning else "Stand at a hatch site to block it." if hatching else ""
-			skill_label.text = "%d foes remaining" % alive if alive > 1 or enemy_hp == 0 else (
-				"%s  %d/%d" % [enemy_name(), enemy_hp, encounter_health()])
+			skill_label.text = "%d foes remaining" % alive if alive > 1 or enemy_health() == 0 else (
+				"%s  %d/%d" % [enemy_name(), enemy_health(), encounter_health()])
 		elif visible_drop:
 			guide.text = "E  Collect seeds"
 		else:
@@ -4443,7 +4434,7 @@ func _process(_delta: float) -> void:
 	player_hud.update_state({"party":preload("res://party_hud.gd").members(players,local_id),
 		"location": Campaign.NAMES[destination] if wild else "Mystical Garden", 
 		"floor":encounter_number,
-		"encounter": "%d foes" % [int(enemy_hp > 0) + living_scout_count()] if wild else "Your living sanctuary",
+		"encounter": "%d foes" % [int(enemy_health() > 0) + living_scout_count()] if wild else "Your living sanctuary",
 		"damage_flash":maxf(0,(int(p.get("hurt_until",0) if host_side else p.get("client_hurt_until",0))-Time.get_ticks_msec())/250.0),"hp": health, "max_hp": PlayerVitals.maximum_hp(p,MAX_HEALTH), "lost_health":p.get("lost_health",0),"fallen":PlayerLifecycle.fallen(p), "wild": wild, "frame": p.get("frame", 0),
 		"skill_ready": ready_skill,"skill_two_ready":second_ready,"skill_names":[skills[0].name,skills[1].name+(" •" if quake_prepared else "")],"skill_cooldowns":cooldowns, "dodge_ready": ready_dodge,
 		"core":preload("res://core_combat.gd").hud_state(self,p),
@@ -4457,10 +4448,7 @@ func _process(_delta: float) -> void:
 
 func living_scout_count() -> int:
 	if multiplayer.is_server():
-		var count := 0
-		for scout in scouts:
-			count += int(scout.hp > 0)
-		return count
+		return encounter.living_scout_count()
 	var count := 0
 	for i in range(2, client_pack.size(), PACK_STRIDE):
 		count += int(client_pack[i] > 0)
@@ -5602,10 +5590,10 @@ func update_garden_altar(data: Dictionary) -> void:
 
 func support_allies(support: Dictionary) -> Array:
 	var result: Array=[]
-	if enemy_hp>0 and not Enemies.is_support(enemy_kind): result.append({"index":-1,"pos":enemy_pos,"engaged":enemy_engaged})
-	for index in scouts.size():
-		var other: Dictionary=scouts[index]
-		if other.hp>0 and not Enemies.is_support(int(other.get("kind",0))): result.append({"index":index,"pos":other.pos,"engaged":bool(other.get("engaged",false))})
+	if enemy_health()>0 and not Enemies.is_support(enemy_kind): result.append({"index":-1,"pos":enemy_pos,"engaged":enemy_engaged})
+	for index in encounter.scout_count():
+		var other: Dictionary=encounter.scout(index)
+		if encounter.hp(index)>0 and not Enemies.is_support(int(other.get("kind",0))): result.append({"index":index,"pos":other.pos,"engaged":bool(other.get("engaged",false))})
 	result.sort_custom(func(a,b): return support.pos.distance_squared_to(a.pos)<support.pos.distance_squared_to(b.pos))
 	return result
 
@@ -5617,52 +5605,52 @@ func formation_position(anchor: Vector3,ignore: int,phase: float) -> Vector3:
 			if battlefield.occupied(candidate,Battlefield.CLEARANCE) or not battlefield.clear_line(anchor,candidate,Battlefield.CLEARANCE): continue
 			if not preload("res://wilds_composition.gd").partner_position(self,candidate) or candidate.distance_to(enemy_pos)<.85: continue
 			var free:=true
-			for index in scouts.size():
-				if index!=ignore and scouts[index].hp>0 and candidate.distance_to(scouts[index].pos)<.85: free=false;break
+			for index in encounter.scout_count():
+				if index!=ignore and encounter.hp(index)>0 and candidate.distance_to(encounter.scout(index).pos)<.85: free=false;break
 			if free: return candidate
 	return Vector3.INF
 
 func arrange_support_groups() -> void:
-	for index in scouts.size():
-		var support: Dictionary=scouts[index]
+	for index in encounter.scout_count():
+		var support: Dictionary=encounter.scout(index)
 		if not Enemies.is_support(int(support.kind)): continue
 		var minimum:=maxi(1,int(Enemies.get_kind(int(support.kind)).get("escort_min",2)))
 		var allies:=support_allies(support)
 		# A support-heavy pool still needs fighters. Reuse slots instead of adding enemies.
 		if allies.size()<minimum:
-			for other in range(scouts.size()-1,-1,-1):
-				if other==index or not Enemies.is_support(int(scouts[other].kind)): continue
-				var old: Dictionary=scouts[other]
-				scouts[other]=make_scout(0,old.pos,int(old.route),int(old.mutations),int(old.growth))
+			for other in range(encounter.scout_count()-1,-1,-1):
+				if other==index or not Enemies.is_support(int(encounter.scout(other).kind)): continue
+				var old: Dictionary=encounter.scout(other)
+				encounter.register_scout(make_scout(0,old.pos,int(old.route),int(old.mutations),int(old.growth)), other)
 				allies=support_allies(support)
 				if allies.size()>=minimum: break
 		if allies.size()<minimum:
-			scouts[index]=make_scout(0,support.pos,int(support.route),int(support.mutations),int(support.growth));continue
+			encounter.register_scout(make_scout(0,support.pos,int(support.route),int(support.mutations),int(support.growth)), index);continue
 		var anchor: Vector3=allies[0].pos
 		var placed:=formation_position(anchor,index,float(index)*1.7)
 		if placed==Vector3.INF:
-			scouts[index]=make_scout(0,support.pos,int(support.route),int(support.mutations),int(support.growth));continue
+			encounter.register_scout(make_scout(0,support.pos,int(support.route),int(support.mutations),int(support.growth)), index);continue
 		support.pos=placed
 		var radius:=float(Enemies.get_kind(int(support.kind)).get("escort_radius",3.8))
 		for ally in allies.slice(1,minimum):
 			if int(ally.index)<0: continue
 			if support.pos.distance_to(ally.pos)<=radius and battlefield.clear_line(support.pos,ally.pos,Battlefield.CLEARANCE): continue
 			var companion:=formation_position(anchor,int(ally.index),float(index)*1.7+PI)
-			if companion!=Vector3.INF: scouts[int(ally.index)].pos=companion
+			if companion!=Vector3.INF: encounter.scout(int(ally.index)).pos=companion
 		var nearby:=0
 		for ally in support_allies(support):
 			nearby+=int(support.pos.distance_to(ally.pos)<=radius and battlefield.clear_line(support.pos,ally.pos,Battlefield.CLEARANCE))
-		if nearby<minimum: scouts[index]=make_scout(0,support.pos,int(support.route),int(support.mutations),int(support.growth))
+		if nearby<minimum: encounter.register_scout(make_scout(0,support.pos,int(support.route),int(support.mutations),int(support.growth)), index)
 
 	# A later group may have reused an escort. Check the complete formation once more.
-	for index in scouts.size():
-		var support: Dictionary=scouts[index]
+	for index in encounter.scout_count():
+		var support: Dictionary=encounter.scout(index)
 		if not Enemies.is_support(int(support.kind)): continue
 		var definition:=Enemies.get_kind(int(support.kind))
 		var nearby:=0
 		for ally in support_allies(support):
 			nearby+=int(support.pos.distance_to(ally.pos)<=float(definition.get("escort_radius",3.8)) and battlefield.clear_line(support.pos,ally.pos,Battlefield.CLEARANCE))
-		if nearby<int(definition.get("escort_min",2)): scouts[index]=make_scout(0,support.pos,int(support.route),int(support.mutations),int(support.growth))
+		if nearby<int(definition.get("escort_min",2)): encounter.register_scout(make_scout(0,support.pos,int(support.route),int(support.mutations),int(support.growth)), index)
 
 func update_support_position(scout: Dictionary,allies: Array,definition: Dictionary,speed: float,delta: float,now: int) -> void:
 	var anchor: Vector3=allies[0].pos
@@ -5682,19 +5670,22 @@ func update_support_position(scout: Dictionary,allies: Array,definition: Diction
 		scout.windup=now+tactics.response_windup(scout.attack,duration)
 		if scout.get("covered_once",false):scout.covered_cast=true
 
-func record_enemy_death(target: int,position: Vector3,origin: Vector3) -> void:
-	var spawn_token := "leader" if target == -1 else str(scouts[target].get("spawn_token", target))
-	var kind: int = enemy_kind if target == -1 else int(scouts[target].get("kind", 0))
-	var mask: int = enemy_mutations if target == -1 else int(scouts[target].get("mutations", 0))
-	var summoned := target >= 0 and bool(scouts[target].get("summoned", false))
+func record_enemy_death(target: int,position: Vector3,origin: Vector3,expected_token: int = -1) -> void:
+	if not encounter.death_pending(target, expected_token):
+		return
+	var spawn_token := "leader" if target == -1 else str(encounter.token(target))
+	var kind: int = enemy_kind if target == -1 else int(encounter.scout(target).get("kind", 0))
+	var mask: int = enemy_mutations if target == -1 else int(encounter.scout(target).get("mutations", 0))
+	var summoned := target >= 0 and bool(encounter.scout(target).get("summoned", false))
 	if not _queue_monster_reward(spawn_token, kind, mask, position, target == -1, summoned):
 		return
+	encounter.confirm_death(target)
 	if not summoned:
 		encounter_kills.append(kind)
 		encounter_kill_records.append({"kind":kind,"mask":mask})
-	if target>=0: EnemyBehaviors.death(self,scouts[target],position)
+	if target>=0: EnemyBehaviors.death(self,encounter.scout(target),position)
 	elif leader_brain.has("elite"): EnemyBehaviors.death(self,leader_brain.elite,position)
-	var growth: int=enemy_growth if target==-1 else int(scouts[target].get("growth",0))
+	var growth: int=enemy_growth if target==-1 else int(encounter.scout(target).get("growth",0))
 	var direction: Vector3=(position-origin).normalized()
 	enemy_death_serial+=1
 	var scale_value: float=1.0 if boss_kind>=0 and target==-1 else (1.9 if destination==Campaign.HEART or depth==ROUTE_ROOMS else 1.0 if depth==1 else 1.22) if target==-1 else 1.0
@@ -5734,7 +5725,7 @@ func emit_combat_event(kind: String,shape: String,from: Vector3,to: Vector3,dura
 		if key in ["form","pattern","contact","width","span","projectile_radius","height","owner","clip","target_token","core_shapes","core_phase"]:latest[key]=options[key]
 	if kind=="impact" and shape in ["hit","hurt","block","heal"]:
 		latest.amount=maxi(0,roundi(reach));latest.target_id=combo
-		latest.target_token=int(scouts[combo].get("spawn_token",0)) if shape=="hit" and combo>=0 and combo<scouts.size() else -1
+		latest.target_token=encounter.token(combo) if shape=="hit" and combo>=0 and combo<encounter.scout_count() else -1
 	if kind=="subclass_release":
 		latest.label=options.get("label","")
 	if kind=="ability":
@@ -5826,20 +5817,20 @@ func attack_hints_snapshot() -> Array:
 	var result: Array=Bosses.hints(self)
 	result.append_array(preload("res://glasscap_feint.gd").hints(self,Time.get_ticks_msec()))
 	if boss_kind<0 and destination!=Campaign.HEART and leader_brain.has("elite"):result.append_array(preload("res://elite_enemy.gd").hints(self))
-	if enemy_hp>0 and enemy_winding_up and not Bosses.owns_warnings(boss_kind) and (boss_kind>=0 or not leader_brain.has("elite")):
+	if enemy_health()>0 and enemy_winding_up and not Bosses.owns_warnings(boss_kind) and (boss_kind>=0 or not leader_brain.has("elite")):
 		var target:=enemy_landing if enemy_attack_mode=="vault" or boss_kind>=0 else enemy_pos
 		result.append({"id":-1,"role":("charge" if enemy_attack_mode in ["root_sweep","orchard_march","drowned_surge","matriarch_lunge","memory_lance","remembered_rend"] else "volley") if boss_kind>=0 else "vault" if enemy_attack_mode=="vault" else "swipe","from":[enemy_pos.x,0,enemy_pos.z],"to":[target.x,0,target.z],"radius":Bosses.warning_radius(self) if boss_kind>=0 else strike_radius(),"width":Bosses.warning_width(self) if boss_kind>=0 else .85,"remaining":maxf(0,(enemy_strike_at-Time.get_ticks_msec())/1000.0)})
-	for index in scouts.size():
-		var scout: Dictionary=scouts[index]
-		if scout.hp<=0 or int(scout.windup)<=0: continue
+	for index in encounter.scout_count():
+		var scout: Dictionary=encounter.scout(index)
+		if encounter.hp(index)<=0 or int(scout.windup)<=0: continue
 		var attacks = preload("res://enemy_attack.gd")
 		result.append_array(attacks.hints(attacks.current(self,scout),index,maxf(0,(int(scout.windup)-Time.get_ticks_msec())/1000.0)))
 	var attacks=preload("res://enemy_attack.gd")
-	if enemy_kind==11 and enemy_hp>0 and enemy_engaged and leader_brain.get("elite",{}).get("attack",{}).get("variant","")!="planted_canopy":
+	if enemy_kind==11 and enemy_health()>0 and enemy_engaged and leader_brain.get("elite",{}).get("attack",{}).get("variant","")!="planted_canopy":
 		result.append(attacks.warning(-2000,"canopy",enemy_pos,enemy_pos,float(Enemies.get_kind(11).shelter_radius),0,0))
-	for index in scouts.size():
-		var actor: Dictionary=scouts[index]
-		if actor.kind==11 and actor.hp>0 and actor.engaged and actor.get("attack",{}).get("variant","")!="planted_canopy":
+	for index in encounter.scout_count():
+		var actor: Dictionary=encounter.scout(index)
+		if actor.kind==11 and encounter.hp(index)>0 and actor.engaged and actor.get("attack",{}).get("variant","")!="planted_canopy":
 			result.append(attacks.warning(-2001-index,"canopy",actor.pos,actor.pos,float(Enemies.get_kind(11).shelter_radius),0,0))
 	result.append_array(preload("res://expedition_pressure.gd").hints(self))
 	result.append_array(preload("res://core_combat.gd").hints(self))

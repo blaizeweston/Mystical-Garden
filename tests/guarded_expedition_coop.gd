@@ -128,10 +128,10 @@ func host_run() -> void:
  if not await until(func():return marked("saw-departure")):
   check(false,"guest sees committed floor")
   return
+ world.encounter.set_hp(-1, 0)
  world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
  world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
- world.enemy_hp=0
- world.scouts.clear()
+ world.encounter.clear_scouts()
  world.finish_combat(1,world.enemy_pos)
  var saved:=Slots._save_digest(G)
  var kill_sparks := int(world.Director.config().leader_essence_sparks) * (6 if world.Enemies.get_kind(world.enemy_kind).get("boss",false) else 1)
@@ -185,8 +185,8 @@ func host_run() -> void:
   return
  world.encounter_number=6
  world.deepest_milestone=6
- world.enemy_hp=0
- world.scouts.clear()
+ world.encounter.set_hp(-1, 0)
+ world.encounter.clear_scouts()
  world.encounter_rewarded=true
  leader.pos=world.battlefield.advance
  guest.pos=world.battlefield.advance

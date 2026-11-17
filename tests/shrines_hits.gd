@@ -23,7 +23,7 @@ func run():
 	game.reset_encounter()
 	p.pos=game.battlefield.graft
 	game._process(.016)
-	check(game.enemy_hp>0 and game.graft_altar_open() and game.stage.graft_altar.visible,"eighth encounter shrine appears before combat is cleared")
+	check(game.enemy_health()>0 and game.graft_altar_open() and game.stage.graft_altar.visible,"eighth encounter shrine appears before combat is cleared")
 	check(game.exploration.has_shrine and game.exploration.seen(game.battlefield.graft),"discovered shrine appears on the floor map")
 	p.carried_parts[4]=1
 	p.graft_choice=4
@@ -41,17 +41,17 @@ func run():
 	game.destination=0
 	game.depth=1
 	game.enemy_mutations=0
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.battlefield.configure(0,1)
 	game.enemy_pos=Vector3(0,0,6.4)
-	game.enemy_hp=5
+	game.encounter.set_hp(-1, 5)
 	game.enemy_winding_up=false
 	p.pos=Vector3(0,0,5.4)
 	p.weapon=0;p.secondary=0;p.power=0;p.strike_at=0;p.frame=0
 	var before: Vector3=game.enemy_pos
 	game.strike_enemy(1,p,p.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.enemy_hp==4 and game.enemy_pos.distance_to(p.pos)>before.distance_to(p.pos)+.2,"successful monster hit applies a small knockback")
+	check(game.enemy_health()==4 and game.enemy_pos.distance_to(p.pos)>before.distance_to(p.pos)+.2,"successful monster hit applies a small knockback")
 	check(game.enemy_pos.distance_to(before)<=.36 and game.enemy_stagger_until>Time.get_ticks_msec(),"push remains small and grants a short reaction beat")
 	game.enemy_winding_up=true
 	game.enemy_strike_at=Time.get_ticks_msec()+500
@@ -66,7 +66,7 @@ func run():
 	game.strike_enemy(1,p,p.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
 	check(not game.battlefield.occupied(game.enemy_pos,.34) and game.enemy_pos.z < -3.53,"knockback cannot push a monster through cover")
-	game.enemy_hp=5
+	game.encounter.set_hp(-1, 5)
 	game.enemy_pos=Vector3(0,0,5.8)
 	p.pos=Vector3(0,0,4)
 	p.weapon=0
@@ -82,8 +82,8 @@ func run():
 	game.encounter_number=game.GRAFT_ROOM
 	game.map_seed=775002413
 	game.reset_encounter()
-	game.scouts.clear()
-	game.enemy_hp=0
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 0)
 	game.encounter_rewarded=true
 	game.wild_item_drops.clear()
 	p.loot_pending=false

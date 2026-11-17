@@ -173,22 +173,23 @@ static func volley(game: Node, shot: Dictionary, field: RefCounted = null) -> Ar
  return shots
 
 static func token(game: Node,target: int) -> String:
- return "leader" if target==-1 else str(game.scouts[target].get("spawn_token",target))
+ return "leader" if target==-1 else str(game.encounter.token(target))
 static func ray_tick(game: Node,shot: Dictionary,now: int) -> bool:
  if now<int(shot.release):return false
  var t:=clampf((now-int(shot.release))/float(maxi(1,int(shot.due)-int(shot.release))),0,1)
  var at: Vector3=Vector3(shot.origin).lerp(shot.aim,t);var previous: Vector3=shot.previous
  var contacts: Array=[]
- for target in range(-1,game.scouts.size()):
+ for target in range(-1,game.encounter.scout_count()):
   if not game.Traits.valid_target(game,target) or shot.hits.has(token(game,target)):continue
   if target==int(shot.get("locked_target",-3)) and token(game,target)!=str(shot.get("locked_token","")):continue
   var collision: Dictionary=Hurt.sweep(game,target,previous,at,float(game.WeaponMotion.profile(str(shot.form)).projectile_radius))
-  if not collision.is_empty():contacts.append({"id":target,"distance":float(collision.fraction),"point":collision.point})
+  if not collision.is_empty():contacts.append({"id":target,"token":game.encounter.token(target),"distance":float(collision.fraction),"point":collision.point})
  contacts.sort_custom(func(a,b):return a.distance<b.distance or (a.distance==b.distance and a.id<b.id))
  for entry in contacts:
   if int(shot.remaining)<=0:break
   var target: int=entry.id;var point: Vector3=entry.point
-  if not game.Traits.valid_target(game,target) or shot.hits.has(token(game,target)):continue
+  if int(shot.get("epoch",game.combat_epoch))!=game.combat_epoch:break
+  if not game.encounter.alive(target,int(entry.token)) or shot.hits.has(token(game,target)):continue
   if not shot.hits.is_empty() and str(shot.form)!="fan":preload("res://combat_status.gd").proc(game,"pierce",previous,point,target)
   shot.hits.append(token(game,target));shot.remaining-=1
   var hit: Dictionary=shot.stats.duplicate(true);hit.shot_distance=Vector3(shot.get("launch_position",shot.origin)).distance_to(game.enemy_position(target))

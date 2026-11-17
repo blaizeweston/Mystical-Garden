@@ -25,7 +25,7 @@ func run() -> void:
  game.battlefield.configure(0,1)
  game.battlefield.barriers.clear()
  game.boss_kind=-1
- game.enemy_hp=0
+ game.encounter.set_hp(-1, 0)
  game.encounter_number=12
  var player: Dictionary=game.players[1]
  player.wild=true
@@ -35,7 +35,9 @@ func run() -> void:
  var grazer: Dictionary=game.make_scout(11,Vector3.ZERO,2)
  grazer.variant="planted_canopy"
  var escort: Dictionary=game.make_scout(0,Vector3(0,0,1.5),1)
- game.scouts.assign([grazer,escort])
+ game.encounter.clear_scouts();game.encounter.register_scout(grazer);game.encounter.register_scout(escort)
+ var escort_plan: Dictionary=game.encounter.scout_view(1)
+ escort_plan.erase("spawn_token")
  Attacks.lock(game,grazer,"stomp",player.pos,now+1200)
  check(not Support.shelter_source(game,1,escort.pos,player.pos,now).is_empty(),"canopy covers an ally from the front")
  check(Support.shelter_source(game,1,escort.pos,Vector3(0,0,-3),now).is_empty(),"attacking from behind bypasses planted canopy")
@@ -52,39 +54,42 @@ func run() -> void:
  var juvenile: Dictionary=game.make_scout(0,Vector3(1,0,0),3,0,0,true)
  juvenile.hp=0
  juvenile.summoned=true
- game.scouts.assign([bloom,corpse,juvenile,escort])
+ game.encounter.clear_scouts();game.encounter.register_scout(bloom);game.encounter.register_scout(corpse);game.encounter.register_scout(juvenile);escort=escort_plan.duplicate(true);game.encounter.register_scout(escort)
  Attacks.lock(game,bloom,"chant",bloom.pos,now+1300)
- check(bloom.attack.corpse.get("token",-1)==corpse.spawn_token,"long tether selects one natural corpse at lock")
+ check(bloom.attack.corpse.get("token",-1)==game.encounter.token(1),"long tether selects one natural corpse at lock")
  check(game.attack_hints_snapshot().any(func(hint):return hint.role=="corpse_tether" and is_equal_approx(hint.to[2],6)),"corpse tether reaches the selected site")
- game.scouts[1]=game.make_scout(0,corpse.pos,2)
+ game.encounter.register_scout(game.make_scout(0,corpse.pos,2), 1)
  game.resolve_scout(bloom,game.Enemies.get_kind(15),now+1300)
- check(bloom.hp==3,"a replacement in the same slot cannot inherit a corpse tether")
- game.scouts[1]=corpse
+ check(game.encounter.hp(0)==3,"a replacement in the same slot cannot inherit a corpse tether")
+ var fresh_corpse: Dictionary=game.make_scout(2,corpse.pos,2)
+ fresh_corpse.hp=0
+ game.encounter.register_scout(fresh_corpse, 1)
  Attacks.lock(game,bloom,"chant",bloom.pos,now+2500)
  game.resolve_scout(bloom,game.Enemies.get_kind(15),now+2500)
- check(bloom.hp==5 and escort.haste_until>now+2500,"natural corpse pays once and hastens nearby fighters")
+ check(game.encounter.hp(0)==5 and escort.haste_until>now+2500,"natural corpse pays once and hastens nearby fighters")
  Attacks.lock(game,bloom,"chant",bloom.pos,now+3200)
  check(bloom.attack.corpse.is_empty(),"no second cast can consume the same corpse")
 
  var mother: Dictionary=game.make_scout(9,Vector3.ZERO,2)
  mother.variant="split_nursery"
- game.scouts.assign([mother])
+ game.encounter.clear_scouts();game.encounter.register_scout(mother)
  Attacks.lock(game,mother,"brood",mother.pos,now+3600)
  var hatch: Array=mother.attack.hatch.duplicate()
  check(hatch.size()==2 and hatch[0].distance_to(hatch[1])>3,"split hatch shows two spaced exits")
  game.apply_weapon_hit(player,0,player.pos,{"damage":1,"stagger":170},now+3400)
- check(mother.windup==0 and game.scouts.size()==1,"a stagger attack can interrupt the birth from one angle")
+ check(mother.windup==0 and game.encounter.scout_count()==1,"a stagger attack can interrupt the birth from one angle")
  mother.pos=Vector3.ZERO
  Attacks.lock(game,mother,"brood",mother.pos,now+4800)
  player.pos=hatch[0]
  game.resolve_scout(mother,game.Enemies.get_kind(9),now+4800)
- check(mother.summons==1 and game.scouts[1].pos==hatch[1] and game.scouts[1].summoned,"occupying one hatch blocks just that child")
+ check(mother.summons==1 and game.encounter.scout(1).pos==hatch[1] and game.encounter.scout(1).summoned,"occupying one hatch blocks just that child")
 
  var shepherd: Dictionary=game.make_scout(10,Vector3.ZERO,2)
  shepherd.variant="flank_command"
+ escort=escort_plan.duplicate(true)
  escort.pos=Vector3(1,0,0)
  player.pos=Vector3(0,0,6)
- game.scouts.assign([shepherd,escort])
+ game.encounter.clear_scouts();game.encounter.register_scout(shepherd);game.encounter.register_scout(escort)
  Attacks.lock(game,shepherd,"shepherd",shepherd.pos,now+5100)
  check(shepherd.attack.has("flank"),"open terrain permits a flanking order")
  game.resolve_scout(shepherd,game.Enemies.get_kind(10),now+5100)
@@ -102,7 +107,7 @@ func run() -> void:
 
  var choir: Dictionary=game.make_scout(19,Vector3.ZERO,2)
  choir.variant="split_chorus"
- game.scouts.assign([choir,escort])
+ game.encounter.clear_scouts();game.encounter.register_scout(choir);escort=escort_plan.duplicate(true);game.encounter.register_scout(escort)
  player.pos=Vector3(0,0,2)
  player.hurt_until=0
  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
@@ -116,7 +121,7 @@ func run() -> void:
 
  var thief: Dictionary=game.make_scout(16,Vector3.ZERO,2)
  thief.variant="edge_thief"
- game.scouts.assign([thief])
+ game.encounter.clear_scouts();game.encounter.register_scout(thief)
  var trophy: Dictionary={"id":"owned:99","owner":99,"stack":{"item":game.Items.part_id(game.Parts.monster_part(0)),"quantity":1},"position":[1.6,0,0]}
  game.wild_item_drops.assign([trophy])
  check(game.EnemyBehaviors.tick(game,thief,.016,now+8500) and thief.mode=="trophy_grab" and thief.windup>0,"trophy can be picked up before the visible rush")

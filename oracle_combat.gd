@@ -160,7 +160,7 @@ static func ordinary_contact(game: Node, player: Dictionary, target: int, at: Ve
 			or action.source not in ["form","native_weapon"] or stats.get("trait_secondary",false) \
 			or stats.get("core_hit",false):
 		return
-	var target_token := "leader" if target == -1 else str(game.scouts[target].get("spawn_token",target))
+	var target_token := "leader" if target == -1 else str(game.encounter.token(target))
 	if not action.take_response("oracle_contact/"+target_token):
 		return
 	if int(player.frame) == Progression.CLASS_ID and player.pos.distance_to(at) <= Progression.RITUAL_RADIUS \

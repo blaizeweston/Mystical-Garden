@@ -8,18 +8,17 @@ const Preview=preload("res://combat_balance_preview.gd")
 const KEYS: Array=["brittle","shatter_damage","brace","mark_damage","echo","echo_redirect","death_charge","tide_pool","pool_ward","pool_radius","suppress","decoy","decoy_duration","link","link_damage","link_brittle","counter_damage","counter_stagger","ward_on_block","directional_guard","spread_bind","growth_field","precision","trap_power","reaper_momentum","veil_mark","protect_growth","omen","loot_attract","cinder_trail","chorus_pulse","pierce"]
 static func target_state(game: Node,target: int) -> Dictionary:
  if target==-1: return game.enemy_traits
- if not game.scouts[target].has("traits"): game.scouts[target].traits={}
- return game.scouts[target].traits
+ if not game.encounter.scout(target).has("traits"): game.encounter.scout(target).traits={}
+ return game.encounter.scout(target).traits
 static func player_id(game: Node,p: Dictionary) -> int:
  for id in game.players:
   if is_same(game.players[id],p): return int(id)
  return 0
 static func valid_target(game: Node,target: int,token: int=-1) -> bool:
- if target==-1: return game.enemy_hp>0
- return target>=0 and target<game.scouts.size() and int(game.scouts[target].hp)>0 and (token<0 or int(game.scouts[target].get("spawn_token",0))==token)
+ return game.encounter.alive(target,token)
 static func other_target(game: Node,target: int,point: Vector3) -> int:
  var result:=-2;var distance:=3.0
- for candidate in range(-1,game.scouts.size()):
+ for candidate in range(-1,game.encounter.scout_count()):
   if candidate==target or not valid_target(game,candidate): continue
   var at: Vector3=game.enemy_position(candidate);var length:=point.distance_to(at)
   if length<distance and game.battlefield.clear_line(point,at): result=candidate;distance=length
@@ -43,7 +42,7 @@ static func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,n
    game.emit_combat_event("impact","spark",at,at,.35,Color("#9ed6e5"),1,0)
   state.brittle=stacks;state.brittle_until=now+4000
  var was_marked: bool=now<int(state.get("marked_until",0))
- var omen_triggered: bool=was_marked and float(hit.get("omen",0))>0 and (game.enemy_winding_up if target==-1 else int(game.scouts[target].windup)>0)
+ var omen_triggered: bool=was_marked and float(hit.get("omen",0))>0 and (game.enemy_winding_up if target==-1 else int(game.encounter.scout(target).windup)>0)
  if omen_triggered:
   damage+=mini(3,roundi(float(hit.omen))+1)
  if was_marked:
@@ -70,13 +69,13 @@ static func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,n
    damage+=1;p.grave_charges-=1
    preload("res://combat_status.gd").proc(game,"momentum",p.pos,game.enemy_position(target),target)
  if float(hit.get("suppress",0))>0 and now>=int(state.get("silence_ready",0)):
-  var winding: bool=game.enemy_winding_up if target==-1 else int(game.scouts[target].windup)>0
+  var winding: bool=game.enemy_winding_up if target==-1 else int(game.encounter.scout(target).windup)>0
   if winding:
    state.silence_ready=now+4000;hit.was_winding=true
    hit.rite_suppressed=true
    preload("res://combat_status.gd").proc(game,"suppress",p.pos,game.enemy_position(target),target)
    if target==-1: game.enemy_winding_up=false;game.enemy_attack_mode="";game.active_radius=0;game.enemy_ready_at=now+700
-   else: game.scouts[target].windup=0;game.scouts[target].ready=now+700
+   else: game.encounter.scout(target).windup=0;game.encounter.scout(target).ready=now+700
    hit.stagger=float(hit.get("stagger",0))+250+mini(300,roundi(float(hit.suppress)*100))
  hit.damage=damage if Preview.enabled else int(damage)
  return hit
@@ -90,7 +89,7 @@ static func queue_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now
  if not carry and float(stats.get("mark_damage",0))>0: hit.mark_damage=float(stats.mark_damage)
  hit.trait_secondary=true
  if not graft_source.is_empty(): hit.core_hit=true
- game.trait_events.append({"kind":"hit","epoch":game.combat_epoch,"owner":player_id(game,p),"life":PlayerLifecycle.generation(p),"target":target,"token":-1 if target==-1 else int(game.scouts[target].get("spawn_token",0)),"due":now+delay,"stats":hit,"visual":visual if not visual.is_empty() else "link" if carry else "echo","origin":p.pos if origin==Vector3.INF else origin})
+ game.trait_events.append({"kind":"hit","epoch":game.combat_epoch,"owner":player_id(game,p),"life":PlayerLifecycle.generation(p),"target":target,"token":-1 if target==-1 else game.encounter.token(target),"due":now+delay,"stats":hit,"visual":visual if not visual.is_empty() else "link" if carry else "echo","origin":p.pos if origin==Vector3.INF else origin})
  if not graft_source.is_empty(): game.trait_events.back().graft_source=graft_source
 static func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: float,duration: int,power: float,now: int,ward: bool=false,class_field: RefCounted=null,graft_source: Dictionary={}) -> Dictionary:
  if game.trait_events.size()>=24: return {}
@@ -108,14 +107,14 @@ static func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: fl
 static func after_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,killed: bool) -> void:
  if stats.get("trait_secondary",false): return
  var point: Vector3=game.enemy_position(target)
- if killed and (target==-1 or not game.scouts[target].get("summoned",false)) and float(stats.get("death_charge",0))>0 and Reaper.spends_class_charge(p,stats):
+ if killed and (target==-1 or not game.encounter.scout(target).get("summoned",false)) and float(stats.get("death_charge",0))>0 and Reaper.spends_class_charge(p,stats):
   var graft_charges := Grafts.graft_charges(p)
   p.grave_charges=mini(Grafts.DEATH_CHARGE_CAP-graft_charges,int(p.get("grave_charges",0))+maxi(1,roundi(float(stats.death_charge))))
  if float(stats.get("chorus_pulse",0))>0:
   p.chorus_contacts=int(p.get("chorus_contacts",0))+1
   if p.chorus_contacts>=4:
    p.chorus_contacts=0
-   for candidate in range(-1,game.scouts.size()):
+   for candidate in range(-1,game.encounter.scout_count()):
     if candidate!=target and valid_target(game,candidate) and game.enemy_position(candidate).distance_to(point)<=3.2 and game.battlefield.clear_line(point,game.enemy_position(candidate)):
      var pulse: Dictionary=stats.duplicate();pulse.damage=Preview.proc_amount(float(stats.chorus_pulse),1,3);queue_hit(game,p,candidate,pulse,now,180,false,point,"chorus")
  if float(stats.get("cinder_trail",0))>0 and now>=int(p.get("cinder_ready",0)):
@@ -241,7 +240,9 @@ static func tick(game: Node,now: int) -> void:
      if event.has("visual"):preload("res://combat_status.gd").proc(game,str(event.visual),event.get("origin",p.pos),point,int(event.target))
      if event.stats.has("cr02_action"):
       preload("res://combat_action_events.gd").contact(game,event.stats,int(event.target),now)
-     game.apply_weapon_hit(p,int(event.target),origin,event.stats,now)
+     if not event_in_current_life(game,event):continue
+     if valid_target(game,int(event.target),int(event.token)):
+      game.apply_weapon_hit(p,int(event.target),origin,event.stats,now)
      if game.encounter_cleared(): game.finish_combat(int(event.owner),point)
    continue
   if now>=int(event.until): end_zone(game,event);game.trait_events.erase(event);continue
@@ -266,10 +267,10 @@ static func tick(game: Node,now: int) -> void:
      hit.core_hit=true
     else:
      hit.mark_damage=1
-    var before: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)
+    var before: int = game.encounter.hp(target)
     game.apply_weapon_hit(p,target,event.position,hit,now)
     if event.has("weaver_pressure"):
-     var after: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)
+     var after: int = game.encounter.hp(target)
      if after < before: preload("res://weaver_combat.gd").field_contact(game,p,event)
     var source: RefCounted=event.get("class_field")
     if source!=null:
@@ -362,7 +363,7 @@ static func defer_skill(game: Node,p: Dictionary,targets: Array[int],skill: Dict
  for target in targets:
   if game.trait_events.size()>=24: break
   var hit:=stats.duplicate(true);hit.damage=Preview.authored_amount(float(skill.damage))+preload("res://combat_ruleset.gd").legacy_power(p);hit.trait_secondary=true
-  game.trait_events.append({"kind":"hit","owner":player_id(game,p),"epoch":game.combat_epoch,"life":PlayerLifecycle.generation(p),"target":target,"token":-1 if target==-1 else int(game.scouts[target].get("spawn_token",0)),"due":now+int(skill.get("delay",700)),"stats":hit})
+  game.trait_events.append({"kind":"hit","owner":player_id(game,p),"epoch":game.combat_epoch,"life":PlayerLifecycle.generation(p),"target":target,"token":-1 if target==-1 else game.encounter.token(target),"due":now+int(skill.get("delay",700)),"stats":hit})
 
 static func end_zone(game: Node,event: Dictionary) -> void:
  if event.has("ranger_route"): Ranger.end_route(game,event)

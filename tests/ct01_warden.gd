@@ -167,13 +167,13 @@ func arena(path: Array) -> void:
 	player.catalyst=0
 	player.weapon=0
 	player.secondary=0
-	game.enemy_hp=900
+	game.encounter.set_hp(-1, 900)
 	game.enemy_pos=Vector3(0,0,-1.2)
 	game.enemy_winding_up=false
 	game.enemy_mutations=0
 	game.enemy_traits.clear()
 	game.leader_brain.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.rooted_until=0
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
 	for key in ["cast_until","core_cast_until","counter_until","counter_guard_until","front_guard_until",
@@ -194,11 +194,11 @@ func block(recipient: int=1) -> int:
 func offense() -> void:
 	arena(OFFENSE)
 	game.use_class_skill(1,player,1)
-	var normal_damage: int=900-game.enemy_hp
+	var normal_damage: int=900-game.enemy_health()
 	arena(OFFENSE)
 	var scout: Dictionary=game.make_scout(0,Vector3(3.3,0,0),4)
 	scout.hp=200
-	game.scouts.append(scout)
+	game.encounter.register_scout(scout)
 	var origin: Vector3=game.enemy_pos
 	game.use_class_skill(1,player,0)
 	var now := block()
@@ -208,21 +208,21 @@ func offense() -> void:
 	# Isolate the Quake node's additive damage from Thorn Counter.
 	player.counter_until=0
 	game.use_class_skill(1,player,1)
-	check(900-game.enemy_hp==normal_damage+10 and game.rooted_until>now and not game.enemy_traits.has("brittle_until"),
+	check(900-game.enemy_health()==normal_damage+10 and game.rooted_until>now and not game.enemy_traits.has("brittle_until"),
 		"Pinning Quake roots and Faultline adds native damage without Brittle")
-	check(scout.hp<200,"Quakefront hits the scout at 3.3 m")
+	check(game.encounter.hp_for(scout)<200,"Quakefront hits the scout at 3.3 m")
 	var quakes := events.filter(func(event):return event.kind=="class_action" and str(event.details.adapter).begins_with("warden/"))
 	check(quakes.size()==1 and is_equal_approx(float(quakes[0].details.radius),3.0),
 		"the native area increase leaves the Catalyst area and activation count intact")
 	game.enemy_pos=Vector3(0,0,-1.1)
-	var damage_before: int=game.enemy_hp
+	var damage_before: int=game.enemy_health()
 	var due: int=player.get("warden_aftershock",{}).get("due",0)
 	Warden.tick(game,due-1)
-	check(game.enemy_hp==damage_before and due>now,"Aftershock waits for its scheduled impact")
+	check(game.enemy_health()==damage_before and due>now,"Aftershock waits for its scheduled impact")
 	var count := events.size()
 	Warden.tick(game,due)
 	Warden.tick(game,due+5)
-	check(damage_before-game.enemy_hp==8 and events.size()==count and not player.has("warden_aftershock"),
+	check(damage_before-game.enemy_health()==8 and events.size()==count and not player.has("warden_aftershock"),
 		"Aftershock hits once without a new affinity contact or class activation")
 
 
@@ -233,7 +233,7 @@ func deep_roots() -> void:
 		player.pos=Vector3(6,0,0)
 		game.use_class_skill(1,player,1)
 		var extended: bool = path.size()==2
-		check((game.enemy_hp<900)==extended and player.skill_fx.pos.is_equal_approx(Vector3.ZERO if extended else player.pos),
+		check((game.enemy_health()<900)==extended and player.skill_fx.pos.is_equal_approx(Vector3.ZERO if extended else player.pos),
 			"Deep Roots permits the actual six-metre anchor Quake")
 	arena(["vanguard","deep_roots"])
 	game.use_class_skill(1,player,0)
@@ -270,10 +270,10 @@ func balance() -> void:
 	check(player[Cooldowns.STATE].deadline(Cooldowns.DODGE)==now and player[Cooldowns.STATE].deadline(Cooldowns.Q)==before,"Ready Footing restores dodge and a used Q gets no expiry refund")
 	var scout: Dictionary=game.make_scout(0,Vector3(4.5,0,0),5)
 	scout.hp=200
-	game.scouts.append(scout)
+	game.encounter.register_scout(scout)
 	player.pos=Vector3(-.5,0,0)
 	game.use_class_skill(1,player,1)
-	check(not player.has("warden_relay") and player.skill_fx.pos.is_equal_approx(Vector3(2,0,0)) and scout.hp<200,
+	check(not player.has("warden_relay") and player.skill_fx.pos.is_equal_approx(Vector3(2,0,0)) and game.encounter.hp_for(scout)<200,
 		"Seismic Relay directs native Quake and is spent once")
 	check(player[Cooldowns.STATE].deadline(Cooldowns.Q)==before-1250,"Living Rhythm refunds Q after the prepared hit")
 
@@ -327,7 +327,7 @@ func defense() -> void:
 	ally.guard_until=0
 	game.enemy_pos=Vector3(0,0,-9)
 	game.use_class_skill(1,player,1)
-	check(game.enemy_hp==900 and ally.guard_charges==1 and player.warden_block.quake_used,
+	check(game.enemy_health()==900 and ally.guard_charges==1 and player.warden_block.quake_used,
 		"Sheltering Quake protects allies on an empty impact and spends its preparation")
 
 

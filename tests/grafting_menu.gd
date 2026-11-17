@@ -93,7 +93,7 @@ func run():
 
 func purchase(game: Node,p: Dictionary,card: String) -> void:
  game.deepest_milestone=game.encounter_number
- game.enemy_hp=0;game.scouts.clear()
+ game.encounter.set_hp(-1, 0);game.encounter.clear_scouts()
  p.pos=game.battlefield.advance
  p.offer_floor=game.encounter_number;p.checkpoint_offers=[card,"power","reach"]
  check(game.buy_upgrade(1,p,0) and int(p.run_upgrades.get(card,0))==1,"eligible card bought at a real checkpoint: "+card)
@@ -105,7 +105,7 @@ func trip(game: Node,p: Dictionary,with_hook: bool) -> void:
  p.pos=Vector3.ZERO
  Core.reset(game)
  p.core_ready_at=0;p.core_cast_until=0;p.cast_until=0
- game.enemy_hp=30;game.enemy_kind=0;game.enemy_winding_up=false;game.boss_kind=-1;game.scouts.clear()
+ game.encounter.set_hp(-1, 30);game.enemy_kind=0;game.enemy_winding_up=false;game.boss_kind=-1;game.encounter.clear_scouts()
  game.garden_action(1,Core.request(game,p,Vector2(0,-1)))
  var line: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
  check(not line.is_empty(),"Thorn Line casts with either graft")
@@ -114,7 +114,7 @@ func trip(game: Node,p: Dictionary,with_hook: bool) -> void:
  game.enemy_pos=original
  var ready: int=p.core_ready_at
  Core.tick(game,line.armed)
- check(game.enemy_hp==29 and Core.hints(game).size()==1,"one contact deals damage and leaves the thorns active")
+ check(game.enemy_health()==29 and Core.hints(game).size()==1,"one contact deals damage and leaves the thorns active")
  check(game.enemy_pos.is_equal_approx(line.center if with_hook else original),"only the installed grasp graft pulls toward line center")
  check(p.core_ready_at==ready-3000,"purchased Quickroot remains active with either graft")
  p.pos=game.battlefield.graft

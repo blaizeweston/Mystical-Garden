@@ -39,7 +39,7 @@ func host_run() -> void:
  var id=int(game.players.keys()[1]);var p: Dictionary=game.players[id]
  for kind in range(20,24):
   game.destination=0;game.encounter_number=20+kind-20;game.depth=kind-19;game.map_seed=91661+kind
-  game.wild_item_drops.clear();game.boss_floors[str(game.encounter_number)]=kind;game.used_bosses.append(kind);game.reset_encounter();game.scouts.clear();game.enemy_stagger_until=Time.get_ticks_msec()+60000
+  game.wild_item_drops.clear();game.boss_floors[str(game.encounter_number)]=kind;game.used_bosses.append(kind);game.reset_encounter();game.encounter.clear_scouts();game.enemy_stagger_until=Time.get_ticks_msec()+60000
   for player in game.players.values(): player.wild=true;player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive();player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,1)
   p.graft_part=game.Parts.monster_part(kind);p.run_upgrades={"trophy_"+game.Enemies.get_kind(kind).id:1}
   check(await until(func():return marked("view-"+str(kind))),"guest receives boss and graft "+str(kind))
@@ -47,7 +47,7 @@ func host_run() -> void:
   if kind==Phases.NEST:await host_nest(id)
   if kind==Phases.BLOOM:await host_memory(id)
   var entry: Dictionary=game.Enemies.get_kind(kind);var chance: float=entry.trophy_chance;entry.trophy_chance=1.0
-  game.enemy_hp=0;game.encounter_rewarded=true
+  game.encounter.set_hp(-1, 0);game.encounter_rewarded=true
   game.record_enemy_death(-1,p.pos,p.pos);check(game.flush_kill_rewards(),"boss kill commits")
   entry.trophy_chance=chance
   check(await until(func():return marked("loot-"+str(kind))),"guest sees owner-only boss loot")
@@ -179,7 +179,7 @@ func host_nest(id: int) -> void:
  check(await until(func():return marked("nest-hatches")),"guest sees both hatches")
  game.Bosses.resolve(game,Time.get_ticks_msec())
  check(await until(func():return marked("nest-brood")),"guest sees the spawned brood")
- game.scouts.clear()
+ game.encounter.clear_scouts()
  player.pos=Vector3(0,0,1)
 
 func guest_nest(id: int) -> void:

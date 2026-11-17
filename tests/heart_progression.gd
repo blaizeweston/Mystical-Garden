@@ -97,10 +97,10 @@ func run():
  check(g.knowledge==knowledge_before+5 and reserve.parts[trophy]==0,"first trophy knowledge and lower repeat reward")
  check(game.monster_cargo_limit()==8,"preservation expands monster cargo")
  p.pos=game.Stage.GATE;game.send_action(false);game.send_garden_action("depart")
- game.encounter_number=6;game.enemy_hp=1;game.scouts.clear()
+ game.encounter_number=6;game.encounter.set_hp(-1, 1);game.encounter.clear_scouts()
  p.pos=game.battlefield.advance;p.carried_seeds.assign([0,1]);p.pouch=true
  check(not game.can_checkpoint_bank(p),"live checkpoint cannot send items")
- game.enemy_hp=0
+ game.encounter.set_hp(-1, 0)
  check(game.can_checkpoint_bank(p),"cleared third-gate upgrade gate offers courier")
  var unknown_before: int=reserve.unknown.size()
  game.bank_checkpoint_item(1,p,"bank_seed_0")

@@ -33,13 +33,13 @@ static func armed(game: Node, owner: int, line: Dictionary) -> void:
 static func tripped(game: Node, owner: int, line: Dictionary, target: int, before: Vector3, after: Vector3) -> void:
 	if before.distance_squared_to(after) < .0025 or touches(line, before):
 		return
-	if (target == -1 and game.boss_kind >= 0) or (target >= 0 and game.scouts[target].get("summoned", false)):
+	if (target == -1 and game.boss_kind >= 0) or (target >= 0 and game.encounter.scout(target).get("summoned", false)):
 		return
 	var observed := evidence(game)
 	observed.crossings += 1
 	game.set_meta(EVIDENCE, observed)
 	Journal.event("combat", "wilds_thorn_crossing", {"actor": owner, "cast_id": line.id, "target": target,
-		"species": Catalog.get_kind(game.enemy_kind if target == -1 else int(game.scouts[target].kind)).id, "floor": game.encounter_number})
+		"species": Catalog.get_kind(game.enemy_kind if target == -1 else int(game.encounter.scout(target).kind)).id, "floor": game.encounter_number})
 
 
 static func selected(game: Node, actor: Dictionary) -> bool:
@@ -113,8 +113,8 @@ static func can_land(game: Node, actor: Dictionary, attack: Dictionary, now: int
 
 
 static func landed(game: Node, actor: Dictionary, attack: Dictionary, now: int) -> void:
-	var index: int = -1 if actor.get("gate_elite", false) else game.scouts.find(actor)
-	var token: int = 0 if index == -1 else actor.get("spawn_token", 0)
+	var index: int = -1 if actor.get("gate_elite", false) else game.encounter.scout_slot(actor)
+	var token: int = 0 if index == -1 else game.encounter.token_for(actor)
 	for line in active_lines(game, now):
 		if line.id != attack.thorn_line:
 			continue

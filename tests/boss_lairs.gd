@@ -23,12 +23,12 @@ func build(game: Node, kind: int, stamp: int) -> void:
  game.boss_moves=0
  game.enemy_kind=kind
  game.enemy_pos=Vector3(0,0,2)
- game.enemy_hp=80
+ game.encounter.set_hp(-1, 80)
  game.enemy_ready_at=0
  game.enemy_engaged=true
  game.enemy_winding_up=false
  game.enemy_hazards.clear()
- game.scouts.clear()
+ game.encounter.clear_scouts()
  game.leader_brain.clear()
  game.battlefield.configure(0,2,stamp,kind,1)
 
@@ -77,9 +77,9 @@ func run() -> void:
   check(PlayerVitals.current_hp(player)==10 and game.Bosses.exposed(game,strike),"interior retreat avoids the strike and opens the uprooting window")
   Status.sync(game,strike)
   check(Status.snapshot(game,strike).any(func(event):return event.shape=="uprooting"),"uprooting is displayed")
-  var before: int=game.enemy_hp
+  var before: int=game.enemy_health()
   game.apply_weapon_hit(player,-1,player.pos,{"damage":1},strike+100)
-  check(game.enemy_hp==before-2 and not game.Bosses.exposed(game,strike+2800),"uprooting gives exactly one bonus damage during the window")
+  check(game.enemy_health()==before-2 and not game.Bosses.exposed(game,strike+2800),"uprooting gives exactly one bonus damage during the window")
   if stamp==17:
    player.pos=plan.from+Lairs.direction(plan.from,plan.face)*12
    game.leader_brain.lair_plan=plan
@@ -133,7 +133,7 @@ func run() -> void:
  game.enemy_winding_up=false
  game.enemy_hazards.clear()
  game.boss_phase=0
- game.enemy_hp=ceili(game.encounter_health()*.4)
+ game.encounter.set_hp(-1, ceili(game.encounter_health()*.4))
  game.enemy_stagger_until=0
  game.enemy_ready_at=0
  game.leader_brain.erase("lair_tracks")
@@ -206,7 +206,7 @@ func orchard_pressure(game: Node, now: int) -> void:
  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
  player.pos=Vector3(0,0,14.5)
  game.enemy_stagger_until=0
- game.enemy_hp=ceili(game.encounter_health()*.5)
+ game.encounter.set_hp(-1, ceili(game.encounter_health()*.5))
  game.Bosses.tick(game,.016,now)
  check(game.enemy_winding_up and game.enemy_attack_mode=="falling_fruit","Orchard can mark a player well beyond the old 5m cast range")
  check(game.leader_brain.lair_plan.areas[0].point==player.pos,"distant fruit locks the target position")
@@ -214,7 +214,7 @@ func orchard_pressure(game: Node, now: int) -> void:
  game.enemy_ready_at=0
  game.boss_moves=5
  game.boss_phase=0
- game.enemy_hp=ceili(game.encounter_health()*.25)
+ game.encounter.set_hp(-1, ceili(game.encounter_health()*.25))
  player.pos=Vector3(0,0,6)
  game.Bosses.tick(game,.016,now)
  check(game.boss_phase==2 and game.leader_brain.orchard_phase_start==5 and not game.enemy_winding_up,"the phase cue precedes the new rotation")

@@ -125,8 +125,8 @@ func host(menu: Node, mismatch: bool) -> void:
 	# real reliable offer UI and owner-validated command path.
 	world.encounter_number=6
 	world.deepest_milestone=6
-	world.enemy_hp=0
-	world.scouts.clear()
+	world.encounter.set_hp(-1, 0)
+	world.encounter.clear_scouts()
 	world.encounter_rewarded=true
 	local.pos=world.battlefield.advance
 	remote.pos=local.pos

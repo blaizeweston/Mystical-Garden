@@ -93,17 +93,17 @@ func depth_curves() -> void:
 	for floor_number in [1,6,18,19,36,48,72]:
 		for size in [1,2,4]:
 			floor_state(floor_number,size)
-			var total_hp: int=game.enemy_hp
+			var total_hp: int=game.enemy_health()
 			var budget: int=game.Director.scout_count(game)
-			check(game.encounter_party_size==size and game.scouts.size()<=budget,"party population fits the generated floor and snapshot")
-			for scout in game.scouts:
+			check(game.encounter_party_size==size and game.encounter.scout_count()<=budget,"party population fits the generated floor and snapshot")
+			for scout in game.encounter.scout_tactics():
 				total_hp+=int(scout.max_hp)
-				check(scout.hp==scout.max_hp and scout.pos.distance_to(game.battlefield.entry)>=8.0,"fresh scout capacity and arrival spacing")
-			rows.append([floor_number,size,game.scouts.size(),game.enemy_hp,total_hp])
-			check(game.enemy_hp==game.encounter_health(),"leader capacity uses the selected elite species")
+				check(game.encounter.hp_for(scout)==scout.max_hp and scout.pos.distance_to(game.battlefield.entry)>=8.0,"fresh scout capacity and arrival spacing")
+			rows.append([floor_number,size,game.encounter.scout_count(),game.enemy_health(),total_hp])
+			check(game.enemy_health()==game.encounter_health(),"leader capacity uses the selected elite species")
 			if floor_number==1 and size==4:
-				check(game.scouts.size()==15,"first four-player floor gets fifteen scouts with room to spread")
-				var ceiling: int=game.enemy_hp
+				check(game.encounter.scout_count()==15,"first four-player floor gets fifteen scouts with room to spread")
+				var ceiling: int=game.enemy_health()
 				game.players[4].wild=false
 				game.players[4][PlayerLifecycle.STATE] = game.players[4][PlayerLifecycle.STATE].fall()
 				check(game.encounter_health()==ceiling,"mid-fight departure cannot change the existing HP pool")
@@ -119,7 +119,7 @@ func contact_and_hazards() -> void:
 	game.battlefield.configure(0,1,0)
 	game.battlefield.procedural=false
 	game.battlefield.barriers.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	player.pos=Vector3(0,0,.5)
 	var rootbound: Dictionary=game.Enemies.get_kind(0)
 	var wasp: Dictionary=game.Enemies.get_kind(8)
@@ -154,16 +154,16 @@ func bosses() -> void:
 	for kind in range(20,24):
 		var definition: Dictionary=game.Enemies.get_kind(kind)
 		floor_state(10,1,kind)
-		var ceiling: int=game.enemy_hp
-		check(ceiling==expected[kind-20] and game.scouts.size()<4,"solo boss starts at its authored HP with a smaller escort")
-		game.enemy_hp=floori(.65*ceiling)+1
+		var ceiling: int=game.enemy_health()
+		check(ceiling==expected[kind-20] and game.encounter.scout_count()<4,"solo boss starts at its authored HP with a smaller escort")
+		game.encounter.set_hp(-1, floori(.65*ceiling)+1)
 		check(game.Bosses.phase(game)==0,"just above first phase threshold")
-		game.enemy_hp=floori(.65*ceiling)
+		game.encounter.set_hp(-1, floori(.65*ceiling))
 		check(game.Bosses.phase(game)==1,"first phase threshold follows the new health pool")
-		game.enemy_hp=floori(.30*ceiling)
+		game.encounter.set_hp(-1, floori(.30*ceiling))
 		check(game.Bosses.phase(game)==2,"second phase threshold follows the new health pool")
 		floor_state(48,4,kind)
-		check(game.enemy_hp>ceiling*3 and game.scouts.size()<=4,"deep four-player boss increases HP with finite escorts")
+		check(game.enemy_health()>ceiling*3 and game.encounter.scout_count()<=4,"deep four-player boss increases HP with finite escorts")
 		var next_move: String=definition.moves.back()
 		var phase_zero := Preview.effect_hp(Balance.boss_hit(game,definition,next_move))
 		game.boss_phase=2
@@ -196,15 +196,15 @@ func bosses() -> void:
 				check(PlayerVitals.current_hp(player)==100 and game.Bosses.exposed(game,now),"phase boss resolves and leaves its damage window")
 		game.enemy_mutations=0
 		game.leader_brain.lair_open={"kind":"core_exposed","until":now+2000}
-		var before: int=game.enemy_hp
+		var before: int=game.enemy_health()
 		game.apply_weapon_hit(player,-1,game.enemy_pos,{"damage":3.0,"core_hit":true,"trait_secondary":true},now)
-		check(before-game.enemy_hp==39,"vulnerable boss takes 30 percent extra HP damage")
+		check(before-game.enemy_health()==39,"vulnerable boss takes 30 percent extra HP damage")
 
 
 func reinforcements() -> void:
 	floor_state(19,1)
-	game.scouts.clear()
-	game.enemy_hp=100
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 100)
 	var now := 1000
 	var rng_state: int=game.rng.state
 	game.update_pressure(now)
@@ -215,13 +215,13 @@ func reinforcements() -> void:
 		var warnings:=Pressure.hints(game,now)
 		check(not warnings.is_empty() and warnings[0].remaining==3.0,"reinforcements are announced three seconds ahead")
 		game.update_pressure(now+2999)
-		check(game.scouts.is_empty() and PlayerVitals.current_hp(player)==100,"no arrivals or damage before the warning resolves")
+		check(game.encounter.scout_count()==0 and PlayerVitals.current_hp(player)==100,"no arrivals or damage before the warning resolves")
 		game.update_pressure(now+3000)
-		check(not game.scouts.is_empty() and PlayerVitals.current_hp(player)==100,"warning resolves into a real pack with no automatic damage")
-		for scout in game.scouts:
+		check(game.encounter.scout_count()>0 and PlayerVitals.current_hp(player)==100,"warning resolves into a real pack with no automatic damage")
+		for scout in game.encounter.scout_tactics():
 			var regular := Balance.scout_hp(game.Enemies.get_kind(scout.kind),19,1,int(scout.growth),1)
 			check(scout.summoned and scout.max_hp==roundi(regular*.75),"arrivals use the reduced non-rewarding HP budget")
-		game.scouts.clear()
+		game.encounter.clear_scouts()
 	game.update_pressure(game.pressure_at)
 	check(game.pressure_at==0 and Pressure.hints(game).is_empty(),"first loop has a finite reinforcement budget")
 	check(Pressure.interval(40,20)==22000 and Balance.pressure_limit(40)==5,"deep reinforcement escalation remains bounded")

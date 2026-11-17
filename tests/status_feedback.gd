@@ -13,7 +13,7 @@ func run():
  game.progress.path="res://.godot/status-"+token;game.local_character.path=game.progress.path+".character";root.add_child(game)
  game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
  var p: Dictionary=game.players[1];p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(0,0,-1);p.power=0
- game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.enemy_hp=80;game.enemy_pos=Vector3(0,0,1);game.enemy_traits.clear();game.scouts.clear();game.enemy_winding_up=false
+ game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.encounter.set_hp(-1, 80);game.enemy_pos=Vector3(0,0,1);game.enemy_traits.clear();game.encounter.clear_scouts();game.enemy_winding_up=false
  var now:=Time.get_ticks_msec();p.slow_until=now+4000
  var stats: Dictionary=game.weapon_stats(p);stats.damage=1;stats.mark_damage=2
  game.apply_weapon_hit(p,-1,p.pos,stats,now);Status.sync(game,now)
@@ -26,9 +26,9 @@ func run():
  check(fx.statuses.active.has(mark_id),"renderer creates a persistent mark icon")
  var icon: Dictionary=fx.statuses.active[mark_id];game.stage.foe.position.x+=.5;fx.statuses.step(.016)
  check(absf(icon.node.position.x-game.stage.foe.position.x)<.5,"icon follows rendered monster")
- var hp: int=game.enemy_hp;game.apply_weapon_hit(p,-1,p.pos,stats,now+2);Status.sync(game,now+2)
+ var hp: int=game.enemy_health();game.apply_weapon_hit(p,-1,p.pos,stats,now+2);Status.sync(game,now+2)
  check(not game.combat_events_snapshot().any(func(e):return e.kind=="status" and e.id==mark_id),"late-join snapshot excludes a consumed mark")
- check(game.enemy_traits.marked_until==0 and hp-game.enemy_hp==3,"eligible contact consumes the mark and grants its damage once")
+ check(game.enemy_traits.marked_until==0 and hp-game.enemy_health()==3,"eligible contact consumes the mark and grants its damage once")
  check(game.combat_events.any(func(e):return e.kind=="proc" and e.shape=="mark_break"),"consumption has its own effect")
  fx.sync(game.combat_events_snapshot(),[],"status-test",p.pos)
  check(not fx.statuses.active.has(mark_id),"consumed icon removed immediately")
@@ -47,15 +47,17 @@ func run():
  stats.mark_damage=0;stats.brittle=1
  for i in 3:game.apply_weapon_hit(p,-1,p.pos,stats,now+10+i)
  check(game.enemy_traits.brittle==0 and game.combat_events.any(func(e):return e.kind=="proc" and e.shape=="shatter"),"brittle stacks shatter visibly")
- game.scouts.assign([game.make_scout(0,Vector3(1,0,1),0)]);game.scouts[0].hp=80;game.scouts[0].pos=Vector3(1,0,1);game.scouts[0].engaged=false;game.trait_events.clear()
+ game.encounter.clear_scouts();game.encounter.register_scout(game.make_scout(0,Vector3(1,0,1),0));game.encounter.set_hp(0, 80);game.encounter.scout(0).pos=Vector3(1,0,1);game.encounter.scout(0).engaged=false;game.trait_events.clear()
  var secondary: Dictionary={"damage":2,"reach":4.0}
  for kind in ["echo","link","chorus"]:
   game.Traits.queue_hit(game,p,0,secondary,now,20,false,game.enemy_pos,kind)
-  hp=game.scouts[0].hp;game.Traits.tick(game,now+25)
-  check(game.scouts[0].hp<hp and game.combat_events.any(func(e):return e.kind=="proc" and e.shape==kind),"confirmed "+kind+" hit has a matching effect")
- game.combat_events.clear();game.Traits.queue_hit(game,p,0,secondary,now,20,false,game.enemy_pos,"echo");game.scouts[0].spawn_token+=1;game.Traits.tick(game,now+25)
+  hp=game.encounter.hp(0);game.Traits.tick(game,now+25)
+  check(game.encounter.hp(0)<hp and game.combat_events.any(func(e):return e.kind=="proc" and e.shape==kind),"confirmed "+kind+" hit has a matching effect")
+ game.combat_events.clear();game.Traits.queue_hit(game,p,0,secondary,now,20,false,game.enemy_pos,"echo")
+ var replacement: Dictionary=game.make_scout(0,game.encounter.scout(0).pos,0)
+ game.encounter.register_scout(replacement, 0);game.Traits.tick(game,now+25)
  check(not game.combat_events.any(func(e):return e.kind=="proc"),"stale delayed attack cannot show a false proc on a new enemy")
- game.scouts[0].traits={"marked_until":now+5000};Status.sync(game,now+30);game.scouts[0].hp=0;Status.sync(game,now+31)
+ game.encounter.scout(0).traits={"marked_until":now+5000};Status.sync(game,now+30);game.encounter.set_hp(0, 0);Status.sync(game,now+31)
  check(not Status.snapshot(game,now+31).any(func(e):return e.form=="enemy" and e.combo==0),"dead enemy loses status")
  fx.clear();check(fx.statuses.active.is_empty(),"floor cleanup clears status nodes")
  var pending: Dictionary={"kind":"status","shape":"slow","form":"player","id":32000,"combo":99000,"duration":.5,"age":0.0,"height":2.35,"color":"95d7ed"}

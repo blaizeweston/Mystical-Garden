@@ -80,7 +80,7 @@ static func after_q(game: Node, actor: int, player: Dictionary, skill: Dictionar
 
 
 static func enemy_hp(game: Node, target: int) -> int:
-	return game.enemy_hp if target == -1 else int(game.scouts[target].hp)
+	return game.encounter.hp(target)
 
 
 static func begin_siphon(game: Node, actor: int, player: Dictionary, skill: Dictionary,

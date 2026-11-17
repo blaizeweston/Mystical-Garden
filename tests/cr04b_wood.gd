@@ -41,13 +41,13 @@ func burst_count() -> int:
 	return game.combat_events.filter(func(row):return row.shape=="wood_burst").size()
 
 func reset() -> void:
-	game.enemy_hp=500
+	game.encounter.set_hp(-1, 500)
 	game.enemy_pos=Vector3(0,0,-1.0)
 	game.enemy_mutations=0
 	game.boss_kind=-1
 	game.enemy_winding_up=false
 	game.leader_brain.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.projectile_queue.clear()
 	game.trait_events.clear()
 	game.combat_events.clear()
@@ -119,22 +119,22 @@ func run() -> void:
 		reset()
 		p.secondary=part
 		var ahead: Vector3=game.enemy_pos+Vector3.FORWARD*1.75
-		game.scouts.append(game.make_scout(0,ahead,1))
-		game.scouts.append(game.make_scout(0,ahead+Vector3.RIGHT*.5,2))
-		game.scouts.append(game.make_scout(0,ahead-Vector3.RIGHT*.7,3))
-		game.scouts.append(game.make_scout(0,game.enemy_pos+Vector3.RIGHT*1.6,4))
-		for scout in game.scouts: scout.hp=100
+		game.encounter.register_scout(game.make_scout(0,ahead,1))
+		game.encounter.register_scout(game.make_scout(0,ahead+Vector3.RIGHT*.5,2))
+		game.encounter.register_scout(game.make_scout(0,ahead-Vector3.RIGHT*.7,3))
+		game.encounter.register_scout(game.make_scout(0,game.enemy_pos+Vector3.RIGHT*1.6,4))
+		for slot in game.encounter.scout_count(): game.encounter.set_hp(slot,100)
 		strike(p)
-		var struck: int=game.scouts.filter(func(scout):return scout.hp<100).size()
-		check(struck==2 and game.scouts[3].hp==100 and game.scouts.any(func(scout):return scout.hp==100-q.fragment_hp),"forward fan hits no more than two nearby additional targets and excludes side targets")
+		var struck: int=game.encounter.scout_views().filter(func(scout):return scout.hp<100).size()
+		check(struck==2 and game.encounter.hp(3)==100 and game.encounter.scout_views().any(func(scout):return scout.hp==100-q.fragment_hp),"forward fan hits no more than two nearby additional targets and excludes side targets")
 		check(game.combat_events.filter(func(row):return row.shape=="wood_splinters").size()==1,"one attack releases the fan once")
 		reset()
 		p.secondary=part
-		game.scouts.append(game.make_scout(0,Vector3(0,0,-2.4),1))
-		game.scouts[0].hp=100
+		game.encounter.register_scout(game.make_scout(0,Vector3(0,0,-2.4),1))
+		game.encounter.set_hp(0, 100)
 		game.battlefield.barriers.append(Rect2(-.36,-1.92,.72,.36))
 		strike(p)
-		check(game.scouts[0].hp==100 and game.enemy_hp<500,"fragment fan respects cover behind the valid first contact")
+		check(game.encounter.hp(0)==100 and game.enemy_health()<500,"fragment fan respects cover behind the valid first contact")
 		game.battlefield.barriers.clear()
 		reset()
 		p.catalyst=part
@@ -158,11 +158,11 @@ func run() -> void:
 	quit(int(failed))
 
 func strike(p: Dictionary) -> int:
-	var hp_before: int=game.enemy_hp
+	var hp_before: int=game.enemy_health()
 	game.strike_enemy(1,p,p.pos)
 	var shot: Dictionary=game.projectile_queue.front()
 	game.update_projectiles(int(shot.due)+1)
-	return hp_before-int(game.enemy_hp)
+	return hp_before-int(game.enemy_health())
 
 func mixture() -> void:
 	Wood.grant(game,event(1,"core","part_17"),1,"core")
@@ -191,7 +191,7 @@ func test_absorption(p: Dictionary, now: int) -> void:
 	check(plan.damage==12 and plan.owner==1 and plan.shares[0].actor==2 and plan.shares[0].hp==18 and plan.shares[1].hp==30,
 		"breaking hit uses weighted damage and largest-share owner")
 	hit(p,1,120,now)
-	check(p[PlayerVitals.STATE].hp()==178 and available(p)==0 and game.enemy_hp==488 and burst_count()==1,"overflow reaches HP and the breaking hit lands one burst")
+	check(p[PlayerVitals.STATE].hp()==178 and available(p)==0 and game.enemy_health()==488 and burst_count()==1,"overflow reaches HP and the breaking hit lands one burst")
 	game.apply_enemy_hit(1,p,now,12.0,0,game.enemy_pos)
 	check(p[PlayerVitals.STATE].hp()==178 and burst_count()==1,"duplicate protected damage event does not debit or burst again")
 	Wood.grant(game,event(2,"catalyst","part_17"),1,"support")
@@ -239,7 +239,7 @@ func test_absorption(p: Dictionary, now: int) -> void:
 	hit(p,1,40,now)
 	check(available(p)==0 and Frost.state(game.leader_brain,now).get("stacks",[]).size()==1,"earliest mixed Ward uses its Frost source")
 	hit(p,1,40,now)
-	check(available(p)==18 and p[PlayerVitals.STATE].hp()==250 and burst_count()==1 and game.enemy_hp==488,"next Ward gives granting Wood quality and radial damage")
+	check(available(p)==18 and p[PlayerVitals.STATE].hp()==250 and burst_count()==1 and game.enemy_health()==488,"next Ward gives granting Wood quality and radial damage")
 	hit(p,1,50,now)
 	check(available(p)==0 and burst_count()==1 and p[PlayerVitals.STATE].hp()==218,"Wood Ward and Bark break share one recipient interval")
 	Wood.grant(game,wood,1,"fixture-new-grant")
@@ -264,7 +264,7 @@ func benchmark() -> void:
 	for index in 12:
 		var scout: Dictionary=game.make_scout(0,Vector3(.1*(index%6),0,-1.0-.1*index),index)
 		scout.hp=20000
-		game.scouts.append(scout)
+		game.encounter.register_scout(scout)
 	for id in [1,2,3,4]:
 		var thorn:=event(id,"form","part_1",["weapon_contact"])
 		thorn.publish(game,"weapon_contact","sample","leader",now,{"point":game.enemy_pos,"enemy":-1})

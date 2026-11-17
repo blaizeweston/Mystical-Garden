@@ -9,7 +9,7 @@ func until(predicate: Callable) -> bool:
  while not predicate.call() and Time.get_ticks_msec()<deadline: await process_frame
  return predicate.call()
 func cleared(number: int):
- game.encounter_number=number;game.deepest_milestone=number;game.enemy_hp=0;game.scouts.clear()
+ game.encounter_number=number;game.deepest_milestone=number;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts()
  for p in game.players.values(): p.pos=game.battlefield.advance
 func run():
  var role: String=OS.get_cmdline_user_args()[0]

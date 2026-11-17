@@ -172,7 +172,7 @@ static func prepared_until(game: Node, player: Dictionary, now: int) -> int:
 static func rebound(game: Node, origin: Vector3) -> void:
 	var moved := 0
 	for target in contacts(game,origin,2.25):
-		var winding: bool = game.enemy_winding_up if target == -1 else int(game.scouts[target].windup) > 0
+		var winding: bool = game.enemy_winding_up if target == -1 else int(game.encounter.scout(target).windup) > 0
 		if winding:
 			continue
 		var point: Vector3 = game.enemy_position(target)
@@ -183,7 +183,7 @@ static func rebound(game: Node, origin: Vector3) -> void:
 		if target == -1:
 			game.enemy_pos = landing
 		else:
-			game.scouts[target].pos = landing
+			game.encounter.scout(target).pos = landing
 		game.emit_combat_event("link","Briar Rebound",point,landing,.42,THORN,0.0,target)
 		moved += 1
 		if moved >= 2:

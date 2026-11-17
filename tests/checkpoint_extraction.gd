@@ -21,12 +21,12 @@ func run():
 	p.carried_seeds.assign([0])
 	for floor_number in range(1,7):
 		check(game.encounter_number == floor_number, "route advances through six encounters")
-		game.scouts.clear()
-		game.enemy_hp = 1
+		game.encounter.clear_scouts()
+		game.encounter.set_hp(-1, 1)
 		p.pos = game.battlefield.advance
 		game.send_garden_action("extract")
 		check(p.wild, "live checkpoint never extracts")
-		game.enemy_hp = 0
+		game.encounter.set_hp(-1, 0)
 		game.deepest_milestone = floor_number
 		if floor_number < 6:
 			game.send_garden_action("extract")
@@ -46,8 +46,8 @@ func run():
 	game.send_action(false)
 	game.send_garden_action("depart")
 	game.encounter_number = 6
-	game.enemy_hp = 0
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 0)
+	game.encounter.clear_scouts()
 	p.pos = game.battlefield.advance
 	game.send_action(false)
 	check(game.checkpoint_menu.visible and game.encounter_number==6,"checkpoint holds travel for a card decision")

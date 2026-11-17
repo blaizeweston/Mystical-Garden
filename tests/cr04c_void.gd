@@ -31,8 +31,8 @@ func run() -> void:
 	var p: Dictionary=game.players[1]
 	p.wild=true;p.profile_ready=true;p.pos=Vector3(-4,0,0)
 	game.battlefield.procedural=false;game.battlefield.barriers.clear()
-	game.enemy_hp=200;game.enemy_pos=Vector3(1.4,0,0)
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 200);game.enemy_pos=Vector3(1.4,0,0)
+	game.encounter.clear_scouts()
 	var part: int=game.Items.get_item("part_14").legacy_part
 	var refined: int=game.Items.get_item("plant_part_rare_void_willow").legacy_part
 	var now:=Time.get_ticks_msec()
@@ -40,13 +40,13 @@ func run() -> void:
 	game.enemy_winding_up=true
 	Events.contact(game,{Events.CONTEXT:form},-1,now,false,game.enemy_pos)
 	Void.resolve_motion(game,0,now)
-	check(game.enemy_hp==190 and game.enemy_pos.x>1.39,"committed telegraph resists motion while contact still damages")
+	check(game.enemy_health()==190 and game.enemy_pos.x>1.39,"committed telegraph resists motion while contact still damages")
 	game.enemy_winding_up=false
 	p.erase(Void.FORM_READY)
 	var stronger:=action(game,1,"form",refined,["weapon_contact"])
 	Events.contact(game,{Events.CONTEXT:stronger,"knockback":.75},-1,now,false,game.enemy_pos)
 	Void.resolve_motion(game,0,now)
-	check(game.enemy_hp==175 and not game.has_meta(Void.PENDING) and game.enemy_pos.x>1.39,"refined damage survives native knockback conflict")
+	check(game.enemy_health()==175 and not game.has_meta(Void.PENDING) and game.enemy_pos.x>1.39,"refined damage survives native knockback conflict")
 	game.add_player(2)
 	var ally: Dictionary=game.players[2]
 	ally.wild=true;ally.profile_ready=true;ally.pos=Vector3(7,0,7)
@@ -70,8 +70,8 @@ func run() -> void:
 	var spent:=action(game,1,"form",part,["weapon_contact"])
 	Events.contact(game,{Events.CONTEXT:spent},-1,now,false,game.enemy_pos)
 	Void.resolve_motion(game,100,now)
-	check(game.enemy_hp==165 and is_equal_approx(game.enemy_pos.x,.3),"exhausted displacement allowance leaves valid bonus damage")
-	game.enemy_hp=175
+	check(game.enemy_health()==165 and is_equal_approx(game.enemy_pos.x,.3),"exhausted displacement allowance leaves valid bonus damage")
+	game.encounter.set_hp(-1, 175)
 	game.battlefield.barriers.assign([Rect2(.65,-1,.40,2)])
 	var blocked:=Void.safe_motion(game,-1,Vector3(-.45,0,0),Vector3(1.8,0,0))
 	check(blocked.x<.65,"displacement trace cannot cross a solid wall")
@@ -83,35 +83,35 @@ func run() -> void:
 	p.weapon=refined
 	var escaped: Dictionary=game.make_scout(0,Vector3(1,0,1.4),1)
 	escaped.hp=120
-	game.scouts.append(escaped)
+	game.encounter.register_scout(escaped)
 	Core.command(game,1,p,Core.request(game,p,Vector2.RIGHT,2.0))
 	var line: Dictionary=game.get_meta(Core.STATE,{})[1]
 	Core.tick(game,int(line.armed))
 	Void.resolve_motion(game,Clock.now(game),int(line.armed))
-	check(game.enemy_pos.x<1.79 and game.enemy_hp==175 and not Core.hints(game).is_empty(),"real Core gathers with an active hint before damage")
+	check(game.enemy_pos.x<1.79 and game.enemy_health()==175 and not Core.hints(game).is_empty(),"real Core gathers with an active hint before damage")
 	escaped.pos=Vector3(6,0,0)
 	Clock.advance(game,1.2)
 	Core.tick(game,int(line.armed)+1200)
 	Core.tick(game,int(line.armed)+1201)
-	check(game.enemy_hp==146 and escaped.hp==120 and Core.hints(game).is_empty(),"refined collapse hits retained targets once and lets a fleeing target escape")
+	check(game.enemy_health()==146 and game.encounter.hp_for(escaped)==120 and Core.hints(game).is_empty(),"refined collapse hits retained targets once and lets a fleeing target escape")
 	Clock.advance(game,1.0)
 	for material in [part,refined]:
-		game.enemy_hp=200;game.enemy_pos=Vector3(1.2,0,0)
+		game.encounter.set_hp(-1, 200);game.enemy_pos=Vector3(1.2,0,0)
 		game.enemy_winding_up=true
 		var ward:=action(game,1,"catalyst",material,["actual_block"])
 		ward.publish(game,"actual_block","ward","1",now,{"recipient":1,"center":Vector3.ZERO})
 		Void.resolve_motion(game,Clock.now(game),now)
-		check(game.enemy_hp==(188 if material==part else 183) and is_equal_approx(game.enemy_pos.x,1.2),
+		check(game.enemy_health()==(188 if material==part else 183) and is_equal_approx(game.enemy_pos.x,1.2),
 			"Catalyst pulses use source quality and cannot move a committed victim")
 	game.enemy_winding_up=false
-	game.enemy_hp=200;game.enemy_pos=Vector3(1.4,0,0)
+	game.encounter.set_hp(-1, 200);game.enemy_pos=Vector3(1.4,0,0)
 	p.core_ready_at=0;p.core_cast_until=0;p.cast_until=0;p.weapon=part
 	Core.command(game,1,p,Core.request(game,p,Vector2.RIGHT,2.0))
 	line=game.get_meta(Core.STATE,{})[1]
 	Core.tick(game,int(line.armed))
 	Clock.advance(game,1.2)
 	Core.tick(game,int(line.armed)+1200)
-	check(game.enemy_hp==179,"ordinary Core collapse keeps its own potency")
+	check(game.enemy_health()==179,"ordinary Core collapse keeps its own potency")
 	Void.resolve_motion(game,Clock.now(game),now)
 	check(Mode.FAMILIES.size()==9,"nine live families")
 	for item in game.Parts.DEFINITIONS.size():
@@ -138,19 +138,19 @@ func run() -> void:
 	Void.resolve_motion(game,floor_ms,now)
 	thorn.tick(game,floor_ms,now)
 	fire.field(game,trail,now)
-	var after_entry: int=game.enemy_hp
+	var after_entry: int=game.enemy_health()
 	check(game.leader_brain.has(thorn.SLOW) and game.leader_brain.has(fire.BURNING) and after_entry<179,
 		"Void displacement into real effect geometry applies Thorn occupancy and Fire entry")
 	Clock.advance(game,.09)
 	thorn.tick(game,Clock.now(game),now)
 	fire.field(game,trail,now)
-	check(game.enemy_hp==after_entry,"no duplicate entry damage while remaining inside")
+	check(game.enemy_health()==after_entry,"no duplicate entry damage while remaining inside")
 	game.enemy_pos=Vector3(3,0,0)
 	thorn.tick(game,Clock.now(game),now)
 	check(not game.leader_brain.has(thorn.SLOW) and game.leader_brain.has(thorn.BLEED),"leaving restores normal movement and keeps scheduled Bleed")
 
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(100);ally.pos=Vector3.ZERO
-	game.enemy_hp=200;game.enemy_pos=Vector3.RIGHT
+	game.encounter.set_hp(-1, 200);game.enemy_pos=Vector3.RIGHT
 	game.leader_brain.erase(Void.ALLOWANCE_STATE)
 	var earlier:=action(game,1,"catalyst",part,["actual_block"])
 	var storm_part: int=game.Items.get_item("plant_part_rare_storm_reed").legacy_part
@@ -159,13 +159,13 @@ func run() -> void:
 	Events.grant_ward(game,ally,now+3000,1,earlier,adapter,now)
 	Events.grant_ward(game,ally,now+5000,2,later,adapter,now)
 	game.apply_enemy_hit(2,ally,now,2,0,game.enemy_pos)
-	check(ally[PlayerVitals.STATE].hp()==100 and game.enemy_hp==188,"single actual block selects earlier Void claim around the protected ally")
+	check(ally[PlayerVitals.STATE].hp()==100 and game.enemy_health()==188,"single actual block selects earlier Void claim around the protected ally")
 	game.apply_enemy_hit(2,ally,now+1,2,0,game.enemy_pos)
-	check(ally[PlayerVitals.STATE].hp()==100 and game.enemy_hp==171,"next actual block selects separate refined Storm claim")
+	check(ally[PlayerVitals.STATE].hp()==100 and game.enemy_health()==171,"next actual block selects separate refined Storm claim")
 	Void.resolve_motion(game,Clock.now(game),now)
 
 	for i in 19:
-		game.scouts.append(game.make_scout(0,Vector3(3.0+i%5,0,2.0+i/5.0),i+2))
+		game.encounter.register_scout(game.make_scout(0,Vector3(3.0+i%5,0,2.0+i/5.0),i+2))
 	var elapsed:=Time.get_ticks_usec()
 	for i in 120: Mode.Storm.nearest(game,Vector3.ZERO,3.0,{})
 	var storm_us:=(Time.get_ticks_usec()-elapsed)/120.0
@@ -174,7 +174,7 @@ func run() -> void:
 	var step_us:=(Time.get_ticks_usec()-elapsed)/120.0
 	elapsed=Time.get_ticks_usec()
 	for i in 120: Void.safe_motion(game,-1,Vector3(-.7,0,0),Vector3(-1.25,0,0))
-	print("AFFINITY_QUERY ",JSON.stringify({"scouts":game.scouts.size(),"iterations":120,"storm_nearest_us":storm_us,"spirit_step_us":step_us,"void_clearance_us":(Time.get_ticks_usec()-elapsed)/120.0}))
+	print("AFFINITY_QUERY ",JSON.stringify({"scouts":game.encounter.scout_count(),"iterations":120,"storm_nearest_us":storm_us,"spirit_step_us":step_us,"void_clearance_us":(Time.get_ticks_usec()-elapsed)/120.0}))
 	check_crossing(game,p)
 	game.queue_free()
 	await process_frame
@@ -186,8 +186,8 @@ func check_crossing(game: Node, p: Dictionary) -> void:
 	var experimental = preload("res://assets/terrain_m02/experimental/experiment_wilds.gd").new()
 	var shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 	var confirmed:=false
-	game.scouts.clear()
-	game.enemy_hp=0
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 0)
 	p.wild=true
 	game.players[2].wild=false
 	game.battlefield=experimental

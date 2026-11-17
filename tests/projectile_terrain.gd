@@ -108,7 +108,7 @@ func surface_checks() -> void:
 
 func prepare(origin: Vector3, foe: Vector3) -> void:
 	game.projectile_queue.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.combat_events.clear()
 	game.trait_events.clear()
 	game.enemy_traits.clear()
@@ -116,7 +116,7 @@ func prepare(origin: Vector3, foe: Vector3) -> void:
 	game.enemy_growth = 0
 	game.enemy_mutations = 0
 	game.enemy_pos = foe
-	game.enemy_hp = 100
+	game.encounter.set_hp(-1, 100)
 	game.rooted_until = 0
 	game.encounter_rewarded = false
 	player.pos = origin
@@ -137,9 +137,9 @@ func prepare(origin: Vector3, foe: Vector3) -> void:
 	Core.reset(game)
 
 func scout(at: Vector3) -> Dictionary:
-	var foe: Dictionary = game.make_scout(0, at, game.scouts.size() + 1)
+	var foe: Dictionary = game.make_scout(0, at, game.encounter.scout_count() + 1)
 	foe.hp = 100
-	game.scouts.append(foe)
+	game.encounter.register_scout(foe)
 	return foe
 
 func finish_shots() -> Dictionary:
@@ -162,7 +162,7 @@ func weapon_checks() -> void:
 	prepare(BANK, ACROSS)
 	game.strike_enemy(game.HOST, player, player.pos)
 	var bow := finish_shots()
-	check(not bow.is_empty() and bow.get("locked_target") == -1 and game.enemy_hp < 100,
+	check(not bow.is_empty() and bow.get("locked_target") == -1 and game.enemy_health() < 100,
 		"the actual Vine Bow selects and hits an enemy across water and rubble")
 	for form in ["crossbow", "ring", "staff", "wand", "orb", "fan"]:
 		var path := Mouse.projectile_path(field, BANK, Vector3.RIGHT, Motion.profile(form), 4.5)
@@ -178,7 +178,7 @@ func weapon_checks() -> void:
 	Mouse.queue_attack(game,game.HOST,player,origin,stats,Time.get_ticks_msec(),"bow",300)
 	var piercing := finish_shots()
 	check(not piercing.is_empty() and piercing.hits.size() == 2 and piercing.hits[0] == "1" and piercing.hits[1] == "2"
-		and first.hp < 100 and second.hp < 100 and game.enemy_hp == 100, "piercing resolves two ordered contacts before solid cover")
+		and game.encounter.hp_for(first) < 100 and game.encounter.hp_for(second) < 100 and game.enemy_health() == 100, "piercing resolves two ordered contacts before solid cover")
 	var end_events: Array = game.combat_events.filter(func(event): return event.kind == "projectile_end")
 	check(end_events.size() == 1 and event_point(end_events[0]).is_equal_approx(piercing.get("aim", Vector3.INF)),
 		"remaining pierce budget keeps the wall as the visual endpoint")
@@ -190,7 +190,7 @@ func weapon_checks() -> void:
 	stats.targets = 2
 	Mouse.queue_attack(game,game.HOST,player,BANK,stats,Time.get_ticks_msec(),"bow",300)
 	var chain := finish_shots()
-	check(not chain.is_empty() and chain.hits.size() == 2 and across.hp < 100 and game.enemy_hp < 100,
+	check(not chain.is_empty() and chain.hits.size() == 2 and game.encounter.hp_for(across) < 100 and game.enemy_health() < 100,
 		"native chain jumps across water once after a valid first contact")
 	prepare(origin, Vector3(.75,0,-2.1))
 	var hidden := scout(behind)
@@ -203,7 +203,7 @@ func weapon_checks() -> void:
 	player.facing = player.pos.direction_to(game.enemy_pos)
 	Mouse.queue_attack(game,game.HOST,player,origin,stats,Time.get_ticks_msec(),"bow",300)
 	var blocked_chain := finish_shots()
-	check(not blocked_chain.is_empty() and blocked_chain.hits.size() == 1 and hidden.hp == 100 and game.enemy_hp < 100,
+	check(not blocked_chain.is_empty() and blocked_chain.hits.size() == 1 and game.encounter.hp_for(hidden) == 100 and game.enemy_health() < 100,
 		"native chain stops before obstructed target")
 
 	prepare(Vector3(-3.2,0,-3.3), behind)
@@ -214,8 +214,8 @@ func weapon_checks() -> void:
 	Mouse.queue_attack(game,game.HOST,player,player.pos,fan_stats,Time.get_ticks_msec(),"fan",300)
 	var fan := finish_shots()
 	var fan_events: Array = game.combat_events.filter(func(event): return event.kind == "projectile")
-	check(fan_events.size() == 3 and overlap.hp < 100 and fan.get("hits", []).count(str(overlap.spawn_token)) == 1
-		and game.enemy_hp == 100, "fan rays clip independently and share one hit token")
+	check(fan_events.size() == 3 and game.encounter.hp_for(overlap) < 100 and fan.get("hits", []).count(str(game.encounter.token_for(overlap))) == 1
+		and game.enemy_health() == 100, "fan rays clip independently and share one hit token")
 	if fan_events.size() == 3:
 		# One petal meets the boulder while the center ray passes below it.
 		check(event_point(fan_events[0]).x > event_point(fan_events[1]).x
@@ -234,10 +234,10 @@ func class_checks() -> void:
 		if far_side:
 			var gale_shot := finish_shots()
 			var capsule: Array = gale.shapes.filter(func(shape):return shape.kind == "capsule")
-			check(game.enemy_hp < 100 and not gale_shot.is_empty() and not capsule.is_empty()
+			check(game.enemy_health() < 100 and not gale_shot.is_empty() and not capsule.is_empty()
 				and Vector3(gale_shot.aim).is_equal_approx(capsule[0].to), "Gale Volley hits through the previewed path")
 		else:
-			check(game.projectile_queue.is_empty() and game.enemy_hp == 100 and player[Cooldowns.STATE].deadline(Cooldowns.Q) == 0,
+			check(game.projectile_queue.is_empty() and game.enemy_health() == 100 and player[Cooldowns.STATE].deadline(Cooldowns.Q) == 0,
 				"blocked Gale target is not offered and spends no cooldown")
 		prepare(origin, foe)
 		player.character.upgrades[game.Frames.RANGER] = 1 << 12
@@ -248,7 +248,7 @@ func class_checks() -> void:
 		var releases: Array = game.combat_events.filter(func(event):return event.shape=="hunter")
 		if releases.is_empty():
 			releases = game.combat_events.filter(func(event):return event.kind=="subclass_release")
-		check((game.enemy_hp < 100) == far_side and strip.size() == 1 and releases.size() == 1
+		check((game.enemy_health() < 100) == far_side and strip.size() == 1 and releases.size() == 1
 			and event_point(releases[0]).is_equal_approx(strip[0].to), "Hunter's Salvo uses its traced strip for preview, hit and release")
 
 	prepare(BANK, ACROSS)
@@ -275,7 +275,7 @@ func core_and_enemy_checks() -> void:
 			if not cast.is_empty():
 				Core.tick(game,int(cast.release))
 				Core.tick(game,int(cast.armed))
-			check((game.enemy_hp < 100) == far_side, "Seed Lance crosses water and stops at the boulder")
+			check((game.enemy_health() < 100) == far_side, "Seed Lance crosses water and stops at the boulder")
 		prepare(BANK if far_side else Vector3(-2.9,0,-2.5), ACROSS if far_side else Vector3(2.8,0,-2.5))
 		var anchor := {"center":player.pos, "id":"tc01", "skill":{
 			"id":"anchor", "beam_range":6.2, "radius":.24, "root_ms":600, "targets":3, "color":"#ffffff",

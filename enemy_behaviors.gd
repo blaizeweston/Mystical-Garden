@@ -135,7 +135,7 @@ static func interrupt(game: Node, actor: Dictionary, at: Vector3, now: int) -> b
  actor.erase("attack")
  actor.erase("repeat")
  game.emit_combat_event("proc","suppress",at,at,.5,Color("#f1d28d"),0,-2)
- game.Journal.event("combat","enemy_cast_interrupted",{"species":game.Enemies.get_kind(actor.kind).id,"actor":actor.spawn_token,"move":actor.mode,"floor":game.encounter_number})
+ game.Journal.event("combat","enemy_cast_interrupted",{"species":game.Enemies.get_kind(actor.kind).id,"actor":game.encounter.token_for(actor),"move":actor.mode,"floor":game.encounter_number})
  return true
 
 static func death(game: Node,scout: Dictionary,point: Vector3) -> void:

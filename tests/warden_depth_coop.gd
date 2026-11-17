@@ -34,7 +34,7 @@ func host_run() -> void:
   check(false,"guest registers");return
  var id:=int(game.players.keys()[1]);var p: Dictionary=game.players[id]
  check(p.character.upgrades[0]==MASK,"specialization survives registration")
- game.battlefield.configure(0,1);game.enemy_hp=100;game.enemy_pos=Vector3(0,0,-2);game.enemy_stagger_until=Time.get_ticks_msec()+60000;game.scouts.clear()
+ game.battlefield.configure(0,1);game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3(0,0,-2);game.enemy_stagger_until=Time.get_ticks_msec()+60000;game.encounter.clear_scouts()
  for player in game.players.values():player.wild=true;player.pos=Vector3(0,0,-1)
  p.weapon=44;p.secondary=game.Seeds.DEFINITIONS[18].part;p.graft_part=game.Parts.HOOK
  check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.Q)>0),"guest sends counter skill")
@@ -42,8 +42,8 @@ func host_run() -> void:
  check(PlayerVitals.current_hp(p)==10 and p.counter_until>0,"host creates counter after blocked monster hit")
  mark("counter-ready")
  check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.R)>0),"guest sends specialized charge")
- check(game.enemy_hp<95 and p.counter_until==0,"host resolves contact with counter and installed plant/graft")
- game.enemy_hp=0;game.encounter_rewarded=true;game.encounter_number=6;game.checkpoint_pending=true;game.checkpoint_ready.clear()
+ check(game.enemy_health()<95 and p.counter_until==0,"host resolves contact with counter and installed plant/graft")
+ game.encounter.set_hp(-1, 0);game.encounter_rewarded=true;game.encounter_number=6;game.checkpoint_pending=true;game.checkpoint_ready.clear()
  for player in game.players.values():player.pos=game.battlefield.advance
  p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(p).spent_essence());p.offer_floor=6;p.checkpoint_offers=["warden_guard_counter","warden_frost_link","plant_frostbell_shatter"]
  game.present_checkpoint_cards(id)

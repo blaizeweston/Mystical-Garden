@@ -74,7 +74,7 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 	game.combat_epoch += 1
 	game.battlefield = preload("res://battlefield.gd").new()
 	game.remove_meta(Rules.Void.PENDING)
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.trait_events.clear()
 	game.projectile_queue.clear()
 	game.combat_events.clear()
@@ -82,7 +82,7 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 	game.leader_brain.clear()
 	game.monster_rewards = game.MonsterRewards.new()
 	game.enemy_pos=target
-	game.enemy_hp=300
+	game.encounter.set_hp(-1, 300)
 	game.enemy_kind=0
 	game.enemy_growth=0
 	game.enemy_mutations=0
@@ -128,10 +128,10 @@ func cast(slot: int) -> void:
 	game.use_class_skill(1,player,slot)
 
 func scout(point: Vector3, hp := 300, summoned := false) -> Dictionary:
-	var foe: Dictionary = game.make_scout(0,point,game.scouts.size()+1)
+	var foe: Dictionary = game.make_scout(0,point,game.encounter.scout_count()+1)
 	foe.hp=hp
 	foe.summoned=summoned
-	game.scouts.append(foe)
+	game.encounter.register_scout(foe)
 	return foe
 
 func enqueue() -> Dictionary:
@@ -151,20 +151,20 @@ func focuses() -> void:
 	prepare(["blood_harvester","long_edge"],Vector3.ZERO,Vector3(3.1,0,0))
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(40)
 	cast(0)
-	check(game.enemy_hp==280 and player[PlayerVitals.STATE].hp()>=45 and player[PlayerVitals.STATE].hp()<=47,"Long Edge extends Blood Harvest and the native self-drain stays capped per contact")
+	check(game.enemy_health()==280 and player[PlayerVitals.STATE].hp()>=45 and player[PlayerVitals.STATE].hp()<=47,"Long Edge extends Blood Harvest and the native self-drain stays capped per contact")
 	prepare(["blood_harvester","lingering_veil"])
 	var added := scout(Vector3(1,0,1))
 	var summoned := scout(Vector3(1,0,-1),300,true)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(40)
 	cast(0)
-	check(game.enemy_hp==280 and added.hp==280 and summoned.hp==280 and player[PlayerVitals.STATE].hp()>=57 and player[PlayerVitals.STATE].hp()<=59,
+	check(game.enemy_health()==280 and game.encounter.hp_for(added)==280 and game.encounter.hp_for(summoned)==280 and player[PlayerVitals.STATE].hp()>=57 and player[PlayerVitals.STATE].hp()<=59,
 		"Lingering Veil adds one counted drain contact, with summons ignored by native sustain")
 	check("additional contact" in Skills.resolve(3,0,player.character,true).description,"Blood Harvest has its own tooltip")
 
 	prepare(["veilwalker","lingering_veil"],Vector3.ZERO,Vector3(6.5,0,0))
 	player.class_aim_distance=10.0
 	cast(0)
-	check(is_equal_approx(player.pos.x,6.05) and game.enemy_hp==280 and player.has(Reaper.MOMENTUM)
+	check(is_equal_approx(player.pos.x,6.05) and game.enemy_health()==280 and player.has(Reaper.MOMENTUM)
 		and not game.enemy_traits.has(Mark.STATE),"Veil Passage moves 6.05 m and arms self Momentum after native landing damage")
 	check("maximum legal travel" in Skills.resolve(3,0,player.character,true).description,"Veilwalker tooltip explains travel")
 
@@ -172,7 +172,7 @@ func focuses() -> void:
 	ally.pos=Vector3(0,0,2.9)
 	var now := Time.get_ticks_msec()
 	cast(0)
-	check(game.enemy_hp==280 and ally.guard_charges==1 and ally.guard_until-now>=1900 and ally.guard_until-now<1960
+	check(game.enemy_health()==280 and ally.guard_charges==1 and ally.guard_until-now>=1900 and ally.guard_until-now<1960
 		and player.guard_charges==0,"Lingering Veil gives the lowest ratio ally a 1.9 s Ward outside the damage cone")
 	var info := Skills.describe(Skills.resolve(3,0,player.character,true))
 	check("Grave Sweep" in info and "Ward by 0.5 s" in info and "1.9s" in info,"Gravekeeper tooltip states actual extended duration")
@@ -186,7 +186,7 @@ func focuses() -> void:
 	check(ally[PlayerVitals.STATE].hp()==20 and ally.guard_charges==0,"both native charges block with no second activation")
 	prepare(["gravekeeper","grave_ward"],Vector3.ZERO,Vector3(-2,0,0))
 	cast(0)
-	check(game.enemy_hp==300 and player.guard_charges==1 and player.affinity_ward_claims.size()==1,
+	check(game.enemy_health()==300 and player.guard_charges==1 and player.affinity_ward_claims.size()==1,
 		"solo empty Grave Sweep still grants the learned one-charge Ward")
 	prepare(["veilwalker","grave_ward"],Vector3.ZERO,Vector3(4,0,0))
 	ally.pos=Vector3(2,0,1)
@@ -197,32 +197,32 @@ func momentum() -> void:
 	prepare(["veilwalker"],Vector3.ZERO,Vector3(2.7,0,0))
 	var early := enqueue()
 	cast(0)
-	var before: int = game.enemy_hp
+	var before: int = game.enemy_health()
 	game.update_projectiles(int(early.due))
-	check(before-game.enemy_hp==int(early.stats.preview_strike_hp) and player.has(Reaper.MOMENTUM),
+	check(before-game.enemy_health()==int(early.stats.preview_strike_hp) and player.has(Reaper.MOMENTUM),
 		"a melee attack committed before Q cannot take Momentum even if it lands after the move")
 	game.enemy_pos=player.pos+Vector3.RIGHT
 	player.aim_direction=Vector3.BACK
 	var miss := enqueue()
-	before=game.enemy_hp
+	before=game.enemy_health()
 	game.update_projectiles(int(miss.due))
-	check(game.enemy_hp==before and player.has(Reaper.MOMENTUM),"miss keeps the original preparation and contributes no damage")
+	check(game.enemy_health()==before and player.has(Reaper.MOMENTUM),"miss keeps the original preparation and contributes no damage")
 	player.aim_direction=Vector3.RIGHT
 	game.enemy_pos=player.pos+Vector3.RIGHT
 	var at := Time.get_ticks_msec()
 	Mark.place(game,8,-1,{"id":77,"life":PlayerLifecycle.generation(ally),"skill":{"id":"botanical","mark_ms":4000,"mark_damage":1.0,"color":"#ffffff"}},at)
 	Ranger.track(game,8,ally,-1,78,at)
-	before=game.enemy_hp
+	before=game.enemy_health()
 	var roll := fire_melee()
-	check(before-game.enemy_hp==roll+30 and not player.has(Reaper.MOMENTUM) and not game.enemy_traits.has(Mark.STATE)
+	check(before-game.enemy_health()==roll+30 and not player.has(Reaper.MOMENTUM) and not game.enemy_traits.has(Mark.STATE)
 		and not game.enemy_traits.has(Ranger.PREY),"ordinary contact spends Momentum and independently eligible botanical and Ranger effects")
 	prepare(["veilwalker"],Vector3.ZERO,Vector3(2.7,0,0))
 	cast(0)
 	var expired := enqueue()
 	player[Reaper.MOMENTUM].until=int(expired.due)
-	before=game.enemy_hp
+	before=game.enemy_health()
 	game.update_projectiles(int(expired.due))
-	check(before-game.enemy_hp==int(expired.stats.preview_strike_hp),"Momentum must be valid at contact as well as commitment")
+	check(before-game.enemy_health()==int(expired.stats.preview_strike_hp),"Momentum must be valid at contact as well as commitment")
 
 	prepare(["veilwalker"],Vector3.ZERO,Vector3(1,0,0))
 	player.secondary=part("plant:ghost_fern")
@@ -242,17 +242,17 @@ func momentum() -> void:
 	check(player.has(Reaper.MOMENTUM) and player.get(Rules.Spirit.FOLLOW,{}).get("phase")=="ready","the actual Veil move readies Spirit separately")
 	game.enemy_pos=player.pos+Vector3.RIGHT
 	player.aim_direction=Vector3.RIGHT
-	before=game.enemy_hp
+	before=game.enemy_health()
 	roll=fire_melee()
-	check(before-game.enemy_hp==roll+23 and not player.has(Reaper.MOMENTUM) and not player.has(Rules.Spirit.FOLLOW),
+	check(before-game.enemy_health()==roll+23 and not player.has(Reaper.MOMENTUM) and not player.has(Rules.Spirit.FOLLOW),
 		"one ordinary strike spends the native +10 and the independent ordinary Spirit +13")
 	prepare(["veilwalker"],Vector3.ZERO,Vector3(3,0,0))
 	player.weapon_kind=1
 	cast(0)
 	var farther := scout(Vector3(3.7,0,.25))
-	before=game.enemy_hp
+	before=game.enemy_health()
 	roll=fire_melee()
-	check(before-game.enemy_hp==roll+10 and farther.hp==300-roll,"one Momentum spend covers only the first eligible scythe contact")
+	check(before-game.enemy_health()==roll+10 and game.encounter.hp_for(farther)==300-roll,"one Momentum spend covers only the first eligible scythe contact")
 	prepare(["veilwalker"],Vector3.ZERO,Vector3(2,0,0))
 	player.class_aim_distance=.1
 	cast(0)
@@ -267,14 +267,14 @@ func momentum() -> void:
 func siphon_effects() -> void:
 	prepare(OFFENSE.slice(0,4))
 	cast(0)
-	check(game.enemy_hp==270,"Rending Cut works against a single Q victim without an echo")
+	check(game.enemy_health()==270,"Rending Cut works against a single Q victim without an echo")
 	game.enemy_pos=Vector3(6,0,0)
 	cast(1)
 	check(player[Cooldowns.STATE].deadline(Cooldowns.R)==0 and player[Reaper.SIPHON].nodes==["barbed_siphon"],"refused R preserves the earned Barbed preparation")
 	game.enemy_pos=Vector3(2,0,0)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(20)
 	cast(1)
-	check(game.enemy_hp==240 and player[PlayerVitals.STATE].hp()>=29 and player[PlayerVitals.STATE].hp()<=31 and not player.has(Reaper.SIPHON),"Barbed Siphon adds exactly 10 without multiplying the native drain")
+	check(game.enemy_health()==240 and player[PlayerVitals.STATE].hp()>=29 and player[PlayerVitals.STATE].hp()<=31 and not player.has(Reaper.SIPHON),"Barbed Siphon adds exactly 10 without multiplying the native drain")
 
 	prepare(FEAST)
 	player.catalyst=part("plant:frostbell")
@@ -288,7 +288,7 @@ func siphon_effects() -> void:
 	var before := events.size()
 	cast(1)
 	var r_events := events.slice(before).filter(func(event):return event.kind=="class_action")
-	check(game.enemy_hp==230 and first.hp==290 and second.hp==0 and third.hp==300 and player.grave_charges==0,
+	check(game.enemy_health()==230 and game.encounter.hp_for(first)==290 and game.encounter.hp_for(second)==0 and game.encounter.hp_for(third)==300 and player.grave_charges==0,
 		"Barbed and Feast stack on the primary, with only two nearest secondaries and no Death’s Due prerequisite")
 	check(player[Cooldowns.STATE].deadline(Cooldowns.Q)==q_deadline-1250 and r_events.size()==1 and r_events[0].details.enemies==[-1]
 		and first.traits.has(Mark.STATE) and first.traits.has(Ranger.PREY),"Tempo and one actual Catalyst honor the native impact, secondaries leave independent marks alone")
@@ -297,7 +297,7 @@ func siphon_effects() -> void:
 	first=scout(Vector3(2.5,0,1),1)
 	second=scout(Vector3(3,0,1),1)
 	cast(1)
-	check(first.hp==0 and second.hp==0 and player.grave_charges==0,"secondary Feast kills cannot produce charges even with Death’s Due")
+	check(game.encounter.hp_for(first)==0 and game.encounter.hp_for(second)==0 and player.grave_charges==0,"secondary Feast kills cannot produce charges even with Death’s Due")
 
 	prepare(DANCE,Vector3.ZERO,Vector3(2.9,0,0))
 	cast(0)
@@ -306,7 +306,7 @@ func siphon_effects() -> void:
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, Time.get_ticks_msec()+2000)
 	var now := Time.get_ticks_msec()
 	cast(1)
-	check(is_equal_approx(player.pos.x,1.5) and game.enemy_hp==260 and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)<=now+20
+	check(is_equal_approx(player.pos.x,1.5) and game.enemy_health()==260 and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)<=now+20
 		and player[Cooldowns.STATE].deadline(Cooldowns.Q)==q_deadline-1250 and player[Cooldowns.STATE].deadline(Cooldowns.R)-now>=4800 and player[Cooldowns.STATE].deadline(Cooldowns.R)-now<4860,
 		"Swift, Tempo and Veil Dance coexist and use native terrain movement before the R hit")
 	prepare(DANCE,Vector3(-1.36,0,0),Vector3(1.15,0,0))
@@ -323,7 +323,7 @@ func siphon_effects() -> void:
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, Time.get_ticks_msec()+3000)
 	now=Time.get_ticks_msec()
 	cast(1)
-	check(is_equal_approx(player.pos.x,-1.36) and game.enemy_hp==280 and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)<=now+20
+	check(is_equal_approx(player.pos.x,-1.36) and game.enemy_health()==280 and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)<=now+20
 		and field.projectile_clear(player.pos,game.enemy_pos,.03),"water stops Veil Dance but the legal Siphon Cut still recovers dodge")
 	prepare(DANCE)
 	cast(0)
@@ -389,16 +389,16 @@ func support() -> void:
 func charges_and_void() -> void:
 	prepare(OFFENSE)
 	scout(Vector3(7,0,0))
-	game.enemy_hp=1
+	game.encounter.set_hp(-1, 1)
 	cast(0)
-	check(game.enemy_hp==0 and player.grave_charges==1,"immediate native Q earns a class charge without a graft")
-	game.enemy_hp=300
+	check(game.enemy_health()==0 and player.grave_charges==1,"immediate native Q earns a class charge without a graft")
+	game.encounter.set_hp(-1, 300)
 	player.weapon_kind=2
 	var roll := fire_melee()
-	check(game.enemy_hp==300-roll-10 and player.grave_charges==0,"ordinary extended melee spends one charge with no legacy Momentum bonus")
-	game.enemy_hp=1
+	check(game.enemy_health()==300-roll-10 and player.grave_charges==0,"ordinary extended melee spends one charge with no legacy Momentum bonus")
+	game.encounter.set_hp(-1, 1)
 	cast(1)
-	check(game.enemy_hp==0 and player.grave_charges==1,"immediate native R earns a charge")
+	check(game.enemy_health()==0 and player.grave_charges==1,"immediate native R earns a charge")
 
 	prepare(OFFENSE,Vector3.ZERO,Vector3(1,0,0))
 	scout(Vector3(7,0,0))
@@ -409,31 +409,31 @@ func charges_and_void() -> void:
 	game.garden_action(1,Improvements.request(Improvements.owner_details(player, game.encounter_number),"funeral_charges","monster_15"))
 	player.pos=Vector3.ZERO
 	check(Improvements.owner_details(player, game.encounter_number).copies.size()==1,"Funeral Petal is bought through the authoritative shrine")
-	game.enemy_hp=1
+	game.encounter.set_hp(-1, 1)
 	fire_melee()
 	check(player.grave_charges==1 and Grafts.graft_charges(player)==1,"both sources earn independent charges from one actual native kill")
-	game.enemy_hp=300
+	game.encounter.set_hp(-1, 300)
 	game.enemy_pos=Vector3.RIGHT
 	roll=fire_melee()
-	check(game.enemy_hp==300-roll-10 and player.grave_charges==0 and Grafts.graft_charges(player)==1,"class spends first with at most one +10 per contact")
-	game.enemy_hp=300
+	check(game.enemy_health()==300-roll-10 and player.grave_charges==0 and Grafts.graft_charges(player)==1,"class spends first with at most one +10 per contact")
+	game.encounter.set_hp(-1, 300)
 	game.enemy_pos=Vector3.RIGHT
 	roll=fire_melee()
-	check(game.enemy_hp==300-roll-10 and Grafts.grave_count(player)==0,"graft spends its own charge once when the class pool is empty")
+	check(game.enemy_health()==300-roll-10 and Grafts.grave_count(player)==0,"graft spends its own charge once when the class pool is empty")
 	player.grave_charges=2
 	Grafts.counters(player,"monster:pallbearer").grave_charges=1
 	game.enemy_pos=Vector3.RIGHT
-	game.enemy_hp=1
+	game.encounter.set_hp(-1, 1)
 	fire_melee()
-	check(game.enemy_hp==0 and player.grave_charges==2 and Grafts.graft_charges(player)==1,
+	check(game.enemy_health()==0 and player.grave_charges==2 and Grafts.graft_charges(player)==1,
 		"a killing contact refills its opened class slot at the shared cap")
 	var expired := enqueue()
 	ally.pos=player.pos
 	game.Life.down(game,1,player)
 	check(player.grave_charges==2 and not player.has(Grafts.STATE) and game.Life.revive(game,8,1),"revival keeps native class charges and clears the graft pool")
-	game.enemy_hp=300
+	game.encounter.set_hp(-1, 300)
 	game.update_projectiles(int(expired.due))
-	check(game.enemy_hp==300 and player.grave_charges==2,"a queued attack from the prior life cannot spend the revived charge")
+	check(game.enemy_health()==300 and player.grave_charges==2,"a queued attack from the prior life cannot spend the revived charge")
 	game.reset_encounter()
 	check(player.grave_charges==2 and not player.has(Grafts.STATE) and Improvements.owner_details(player, game.encounter_number).copies[0].id=="funeral_charges",
 		"floor reset retains class charges and acquired graft identity while clearing graft counters")
@@ -443,11 +443,11 @@ func charges_and_void() -> void:
 	prepare(OFFENSE)
 	var summon := scout(Vector3(1,0,0),1,true)
 	cast(0)
-	check(summon.hp==0 and Grafts.grave_count(player)==0,"summoned enemy deaths do not generate class charges (HP %s, charges %s)" % [summon.hp,Grafts.grave_count(player)])
+	check(game.encounter.hp_for(summon)==0 and Grafts.grave_count(player)==0,"summoned enemy deaths do not generate class charges (HP %s, charges %s)" % [game.encounter.hp_for(summon),Grafts.grave_count(player)])
 	var victim := scout(Vector3(6,0,0),1)
 	player.grave_charges=1
 	preload("res://frost_combat.gd").damage(game,1,1,10,Time.get_ticks_msec())
-	check(victim.hp==0 and player.grave_charges==1,"Core and affinity secondary damage cannot spend or award native charges")
+	check(game.encounter.hp_for(victim)==0 and player.grave_charges==1,"Core and affinity secondary damage cannot spend or award native charges")
 
 	prepare(["blood_harvester"])
 	player.catalyst=part("plant:void_willow")
@@ -455,7 +455,7 @@ func charges_and_void() -> void:
 	var current: Dictionary = game.weapon_stats(player)
 	check(player.graft_part>0 and not current.has("pull"),"a retired single-slot graft cannot contribute pull in affinity combat")
 	cast(0)
-	check(game.enemy_hp<280 and game.has_meta(Rules.Void.PENDING),"Void response remains independent of the retired slot")
+	check(game.enemy_health()<280 and game.has_meta(Rules.Void.PENDING),"Void response remains independent of the retired slot")
 
 func run() -> void:
 	verify_tree()

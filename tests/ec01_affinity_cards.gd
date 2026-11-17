@@ -47,7 +47,7 @@ func reset(class_id := 0) -> void:
 	game.combat_epoch += 1
 	game.encounter_number = 1
 	game.destination = game.Campaign.GROVE
-	game.enemy_hp = 400
+	game.encounter.set_hp(-1, 400)
 	game.enemy_pos = Vector3(0,0,-1.2)
 	game.enemy_mutations = 0
 	game.enemy_winding_up = false
@@ -56,7 +56,8 @@ func reset(class_id := 0) -> void:
 	game.checkpoint_pending = false
 	game.checkpoint_ready.clear()
 	game.deepest_milestone = 0
-	for records: Array in [game.scouts,game.trait_events,game.projectile_queue,game.combat_events]:
+	game.encounter.clear_scouts()
+	for records: Array in [game.trait_events,game.projectile_queue,game.combat_events]:
 		records.clear()
 	game.monster_rewards = game.MonsterRewards.new()
 	game.leader_brain.clear()
@@ -137,8 +138,8 @@ func checkpoint_view() -> Dictionary:
 
 func at_checkpoint(floor_number: int) -> void:
 	game.encounter_number = floor_number
-	game.enemy_hp = 0
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 0)
+	game.encounter.clear_scouts()
 	game.encounter_rewarded = true
 	game.checkpoint_ready.clear()
 	game.checkpoint_pending = true
@@ -334,12 +335,12 @@ func verify_core() -> void:
 		match family:
 			"frost":
 				Frost.bloom_phase(game,{"center":game.enemy_pos,"owner":1,"affinity_action":event},"open",2,now)
-				check(game.enemy_hp==400-Frost.Balance.BLOOM_OPEN_HP-bonus
+				check(game.enemy_health()==400-Frost.Balance.BLOOM_OPEN_HP-bonus
 					and game.leader_brain[Frost.BRITTLE].stacks.size()==2
 					and game.leader_brain[Frost.BRITTLE].stacks[0].hp==baseline.rupture_hp,"Frost opening improves damage alone")
 			"fire":
 				event.publish(game,"core_action","test","leader",now,data)
-				check(game.enemy_hp==400-baseline.impact_hp-baseline.tick_hp-bonus,"Ember Wake impact leaves burn intensity unchanged")
+				check(game.enemy_health()==400-baseline.impact_hp-baseline.tick_hp-bonus,"Ember Wake impact leaves burn intensity unchanged")
 			"vital":
 				event.publish(game,"core_action","test","",now,data)
 				var vitality: Dictionary = player[Rules.Vital.SOURCES]["1/core"]
@@ -349,7 +350,7 @@ func verify_core() -> void:
 				Clock.advance(game,.74)
 				Rules.Thorn.tick(game,Clock.now(game),now+740)
 				var field: Dictionary = game.get_meta(Rules.Thorn.FIELDS)[0]
-				check(game.enemy_hp==400-baseline.tick_hp-bonus and field.slow==baseline.slow
+				check(game.enemy_health()==400-baseline.tick_hp-bonus and field.slow==baseline.slow
 					and field.until==Rules.Thorn.LIFETIME.core,"Thorn Line only increases Bleed ticks")
 			"wood":
 				event.publish(game,"core_action","test","",now,data)
@@ -357,14 +358,14 @@ func verify_core() -> void:
 				check(bark.until==Rules.Wood.CORE_MS+bonus and bark.admitted==baseline.core_capacity,"Ironbark extends only armor duration")
 			"storm":
 				event.publish(game,"core_action","test","leader",now,data)
-				check(game.enemy_hp==400-baseline.initial-bonus,"Chain Spark uses its improved base damage")
+				check(game.enemy_health()==400-baseline.initial-bonus,"Chain Spark uses its improved base damage")
 			"spirit":
 				event.publish(game,"core_action","test","",now,data)
 				check(player[Rules.Spirit.STRIDES]["1/core"].until==Rules.Spirit.STRIDE_MS+bonus
 					and player[Rules.Spirit.STRIDES]["1/core"].speed==baseline.speed,"Phantom Step extends stride without speed change")
 			"void":
 				event.publish(game,"core_action","collapse","",now,data)
-				check(game.enemy_hp==400-baseline.collapse-bonus and game.enemy_pos==data.center,"Gravity Well modifies collapse damage alone")
+				check(game.enemy_health()==400-baseline.collapse-bonus and game.enemy_pos==data.center,"Gravity Well modifies collapse damage alone")
 
 
 func verify_dew_shelter() -> void:
@@ -380,7 +381,7 @@ func verify_dew_shelter() -> void:
 	action(offer.revision,"0")
 	check("dew_shelter" not in card_ledger(player).eligible(game.weapon_stats(player),game.DODGE_COOLDOWN_MS),"claimed Dew Shelter is withheld at later offers")
 	var bonus := grant_fixture_copy("dewfall_impact",3)
-	game.enemy_hp = 400
+	game.encounter.set_hp(-1, 400)
 	player.pos = Vector3.ZERO
 	ally.pos = Vector3(0,0,-1.3)
 	var now := Time.get_ticks_msec()
@@ -396,7 +397,7 @@ func verify_dew_shelter() -> void:
 	Core.tick(game,int(cast.armed)+400)
 	var expiry: int = ally.guard_until
 	check(expiry==int(cast.armed)+1600 and ally.guard_charges==1 and ally.slow_until==0 and ally[PlayerVitals.STATE].hp()==ally[PlayerVitals.STATE].max_hp()
-		and game.enemy_hp==400-baseline.impact_hp-bonus,"Dewfall grants one 1.2s Ward on a real living ally contact")
+		and game.enemy_health()==400-baseline.impact_hp-bonus,"Dewfall grants one 1.2s Ward on a real living ally contact")
 	Clock.advance(game,.12)
 	Core.tick(game,int(cast.armed)+520)
 	check(ally.guard_until==expiry and ally.guard_charges==1,"same wave cannot renew or add an ally Ward")
@@ -417,13 +418,13 @@ func verify_form_and_catalyst() -> void:
 		var plain: Dictionary = Build.for_player(player).form.potency_profile.values
 		var scout: Dictionary = game.make_scout(1,Vector3(0,0,-1.9),0,0)
 		scout.hp = 400
-		game.scouts.append(scout)
+		game.encounter.register_scout(scout)
 		Events.contact(game,{Events.CONTEXT:event},-1,now,false,game.enemy_pos,Vector3.FORWARD)
 		match family:
-			"fire": check(game.enemy_hp==400-plain.tick_hp-bonus,"Fire Form improves Burning applied by the hit")
-			"wood": check(game.enemy_hp==400-plain.impact_hp and scout.hp==400-plain.fragment_hp-bonus,"Wood Form improves only fragment damage")
-			"storm": check(player[Rules.Storm.FORM_READY]==Rules.Storm.FORM_INTERVAL-bonus and game.enemy_hp==400-plain.arc,"Storm Form reduces only trigger interval")
-			"void": check(game.enemy_hp==400-plain.form_hp-bonus,"Void Form increases compression damage")
+			"fire": check(game.enemy_health()==400-plain.tick_hp-bonus,"Fire Form improves Burning applied by the hit")
+			"wood": check(game.enemy_health()==400-plain.impact_hp and game.encounter.hp_for(scout)==400-plain.fragment_hp-bonus,"Wood Form improves only fragment damage")
+			"storm": check(player[Rules.Storm.FORM_READY]==Rules.Storm.FORM_INTERVAL-bonus and game.enemy_health()==400-plain.arc,"Storm Form reduces only trigger interval")
+			"void": check(game.enemy_health()==400-plain.form_hp-bonus,"Void Form increases compression damage")
 	for family in ["fire","water","vital","wood"]:
 		reset()
 		var cards_by_family := {"fire":"catalyst_ember_heat","water":"catalyst_drench_time",
@@ -446,7 +447,7 @@ func class_hit(class_id: int, upgraded: bool) -> int:
 	if upgraded:
 		grant_fixture_copy(CLASS_CARDS[class_id],3)
 	game.use_class_skill(1,player,1)
-	return 400-game.enemy_hp
+	return 400-game.enemy_health()
 
 
 func verify_native() -> void:
@@ -462,7 +463,7 @@ func verify_native() -> void:
 	game.enemy_pos = trap.position
 	var trip: int = trap.next
 	game.Traits.tick(game,trip)
-	check(game.rooted_until==trip+int(base_skill.bind)+bonus and game.enemy_hp<400,"real Bramble Snare gains only root duration at contact")
+	check(game.rooted_until==trip+int(base_skill.bind)+bonus and game.enemy_health()<400,"real Bramble Snare gains only root duration at contact")
 	reset(4)
 	bonus = grant_fixture_copy("chime_ward_time",3)
 	base_skill = Build.for_player(player).class_skills[1].native_skill
@@ -480,7 +481,7 @@ func verify_native() -> void:
 	check(int(attack.stats.interval)==int(plain_stats.interval)-faster and is_equal_approx(float(attack.stats.damage),float(plain_stats.damage)+float(hit_gain)/10.0)
 		and player.strike_at>=before+int(plain_stats.interval)-faster,"ordinary strike commits with both weapon cards")
 	game.update_projectiles(int(attack.due)+1)
-	check(game.enemy_hp==400-int(attack.stats.preview_strike_hp),"the improved ordinary roll is applied on a real weapon contact")
+	check(game.enemy_health()==400-int(attack.stats.preview_strike_hp),"the improved ordinary roll is applied on a real weapon contact")
 	var recovery := grant_fixture_copy("run_dodge_recovery",3)
 	before = Time.get_ticks_msec()
 	game.dodge_player(1,Vector2.RIGHT)
@@ -504,14 +505,14 @@ func verify_echo() -> void:
 	game.enemy_pos = bloom.position
 	var other: Dictionary = game.make_scout(1,bloom.position+Vector3(.55,0,0),0,0)
 	other.hp = 400
-	game.scouts.append(other)
-	var prior: int = game.enemy_hp
+	game.encounter.register_scout(other)
+	var prior: int = game.enemy_health()
 	player.cast_until=0
 	var now := Time.get_ticks_msec()
 	game.use_class_skill(1,player,1)
 	var skill: Dictionary = Build.for_player(player).class_skills[1].native_skill
 	var wanted: int = game.Life.Preview.effect_hp(skill.damage)
-	check(game.enemy_hp==prior-wanted-10 and other.hp==400-wanted-10,"real Nova in Bloom deals one flat 10 HP pulse per target")
+	check(game.enemy_health()==prior-wanted-10 and game.encounter.hp_for(other)==400-wanted-10,"real Nova in Bloom deals one flat 10 HP pulse per target")
 	check(not game.leader_brain.has("marked_until") and not other.has("marked_until")
 		and game.rooted_until<=now+int(skill.get("bind",0))+30,"additional pulse does not reproduce Mark or extra control")
 
@@ -692,7 +693,7 @@ func verify_attack_speed() -> void:
 		var equipment: String = game.loadout_view.description.text
 		check("Attack speed: "+after_speed+" attacks/sec" in equipment and "Class ability cooldown −0.25 s" in equipment,
 			"equipment matches the post-purchase attack rate and formats its graft cooldown in seconds")
-		game.enemy_hp = 400
+		game.encounter.set_hp(-1, 400)
 		game.enemy_pos = game.battlefield.advance + Vector3.FORWARD
 		var now := Time.get_ticks_msec()
 		game.strike_enemy(1,player,player.pos)

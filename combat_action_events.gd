@@ -123,7 +123,7 @@ static func contact(game: Node, stats: Dictionary, target: int, now: int, second
 	if event == null:
 		return
 	var channel := "secondary" if secondary else "class_contact" if event.source in ["native_class", "catalyst"] else "weapon_contact"
-	var token := "leader" if target == -1 else str(game.scouts[target].get("spawn_token", target))
+	var token := "leader" if target == -1 else str(game.encounter.token(target))
 	var details := {"enemy":target,"native_displacement":float(stats.get("pull",0.0))>0.0 or float(stats.get("knockback",0.0))>0.0}
 	if point.is_finite():
 		details.point = point

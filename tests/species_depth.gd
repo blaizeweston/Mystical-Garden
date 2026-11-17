@@ -8,7 +8,7 @@ func check(ok: bool,message: String) -> void:
  if not ok: failed=true;printerr("FAIL species depth: ",message)
 func _initialize() -> void: call_deferred("run")
 func arena(game: Node,p: Dictionary) -> void:
- game.enemy_traits.clear();game.trait_events.clear();game.scouts.clear();game.enemy_hp=100;game.enemy_pos=Vector3.ZERO;game.enemy_mutations=0;game.enemy_winding_up=false;game.enemy_stagger_until=0
+ game.enemy_traits.clear();game.trait_events.clear();game.encounter.clear_scouts();game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3.ZERO;game.enemy_mutations=0;game.enemy_winding_up=false;game.enemy_stagger_until=0
  game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter_number=1;game.depth=1;game.destination=0;p.wild=true;p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p.pos=Vector3(0,0,-1);p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.run_upgrades={};p.power=0;p[PlayerVitals.STATE] = PlayerVitals.Health.new(5, 10)
  for key in ["echo_charge","grave_charges","tide_ready","decoy_ready","link_ready","counter_until"]: p[key]=0
 func run() -> void:
@@ -29,16 +29,16 @@ func run() -> void:
   check(not game.Altar.Recipes.find("parts",game.Items.part_id(part),game.Items.part_id(part)).is_empty(),"material refinement route "+d.id)
  # Mark setup: the first hit marks; only subsequent contacts exploit it.
  arena(game,p);p.weapon=game.Seeds.DEFINITIONS[17].part
- var stats: Dictionary=game.weapon_stats(p);game.apply_weapon_hit(p,-1,p.pos,stats,1000);var first: int=100-game.enemy_hp;var hp: int=game.enemy_hp;game.apply_weapon_hit(p,-1,p.pos,stats,1100)
- check(hp-game.enemy_hp>first,"Whispervine needs setup before bonus damage")
+ var stats: Dictionary=game.weapon_stats(p);game.apply_weapon_hit(p,-1,p.pos,stats,1000);var first: int=100-game.enemy_health();var hp: int=game.enemy_health();game.apply_weapon_hit(p,-1,p.pos,stats,1100)
+ check(hp-game.enemy_health()>first,"Whispervine needs setup before bonus damage")
  # Echo is bounded and secondary contacts do not generate more echoes.
  arena(game,p);p.weapon=game.Seeds.DEFINITIONS[18].part;stats=game.weapon_stats(p)
  for i in 3:game.apply_weapon_hit(p,-1,p.pos,stats,1000+i*100)
  check(game.trait_events.size()==1,"Mirror Mint queues one echo")
- hp=game.enemy_hp;game.Traits.tick(game,1600);check(game.enemy_hp<hp and game.trait_events.is_empty(),"echo deals damage once without recursion")
- arena(game,p);p.weapon=game.Seeds.DEFINITIONS[19].part;stats=game.weapon_stats(p);game.enemy_hp=1
+ hp=game.enemy_health();game.Traits.tick(game,1600);check(game.enemy_health()<hp and game.trait_events.is_empty(),"echo deals damage once without recursion")
+ arena(game,p);p.weapon=game.Seeds.DEFINITIONS[19].part;stats=game.weapon_stats(p);game.encounter.set_hp(-1, 1)
  game.apply_weapon_hit(p,-1,p.pos,stats,1000);check(p.grave_charges>0,"Gravemoss stores a death charge")
- game.enemy_hp=100;hp=p.grave_charges;game.apply_weapon_hit(p,-1,p.pos,stats,1100);check(p.grave_charges==hp-1,"death charge is consumed on a later hit")
+ game.encounter.set_hp(-1, 100);hp=p.grave_charges;game.apply_weapon_hit(p,-1,p.pos,stats,1100);check(p.grave_charges==hp-1,"death charge is consumed on a later hit")
  arena(game,p);p.weapon=game.Seeds.DEFINITIONS[20].part;stats=game.weapon_stats(p);game.apply_weapon_hit(p,-1,p.pos,stats,1000);p.slow_until=2000
  game.Traits.tick(game,1100);check(PlayerVitals.current_hp(p)>5 and p.slow_until==0,"Tide Lily pool heals and cleanses living player")
  arena(game,p);p.weapon=game.Seeds.DEFINITIONS[21].part;stats=game.weapon_stats(p);game.enemy_winding_up=true
@@ -47,11 +47,11 @@ func run() -> void:
  arena(game,p);p.weapon=game.Seeds.DEFINITIONS[22].part;stats=game.weapon_stats(p);var now:=Time.get_ticks_msec();game.apply_weapon_hit(p,-1,p.pos,stats,now)
  check(game.Traits.decoy_point(game,1)!=Vector3.INF and game.Director.predict(game,1,0)!=p.pos,"Dream Poppy diverts enemy pursuit to a decoy")
  arena(game,p);p.weapon=game.Seeds.DEFINITIONS[23].part;p.secondary=game.Seeds.DEFINITIONS[15].part;stats=game.weapon_stats(p)
- game.scouts.append(game.make_scout(0,Vector3(.5,0,.2),0));game.scouts[0].hp=20
+ game.encounter.register_scout(game.make_scout(0,Vector3(.5,0,.2),0));game.encounter.set_hp(0, 20)
  game.apply_weapon_hit(p,-1,p.pos,stats,1000);game.Traits.tick(game,1300)
- check(game.scouts[0].hp<20 and game.scouts[0].get("traits",{}).get("brittle",0)>0,"Crownroot links reduced damage and carries brittle once")
+ check(game.encounter.hp(0)<20 and game.encounter.scout(0).get("traits",{}).get("brittle",0)>0,"Crownroot links reduced damage and carries brittle once")
  arena(game,p);p.weapon=game.Seeds.DEFINITIONS[16].part;p.still_since=1000;stats=game.weapon_stats(p)
- hp=game.enemy_hp;game.apply_weapon_hit(p,-1,p.pos,stats,1800);check(hp-game.enemy_hp>int(stats.damage),"Ironroot rewards braced impact")
+ hp=game.enemy_health();game.apply_weapon_hit(p,-1,p.pos,stats,1800);check(hp-game.enemy_health()>int(stats.damage),"Ironroot rewards braced impact")
  check(game.Traits.try_brace(game,p,2000) and not game.Traits.try_brace(game,p,2100),"brace blocks once, then recovers")
  check(load("res://content_validator.gd").validate().is_empty(),"all content validates")
  game.queue_free();await process_frame

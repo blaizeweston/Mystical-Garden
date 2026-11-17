@@ -13,7 +13,7 @@ func run():
  game.progress.path="res://.godot/readability-"+token+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game)
  game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
  var p: Dictionary=game.players[1];p.wild=true;p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0
- game.scouts.clear();game.depth=1;game.destination=0;game.battlefield.configure(0,1);game.battlefield.barriers=[]
+ game.encounter.clear_scouts();game.depth=1;game.destination=0;game.battlefield.configure(0,1);game.battlefield.barriers=[]
  game.enemy_mutations=0;game.enemy_growth=0;game.enemy_pos=Vector3(0,0,2)
  for kind in 24:
   game.enemy_kind=kind;game.boss_kind=kind if kind>=20 else -1
@@ -48,12 +48,12 @@ func run():
  game.enemy_pos=Vector3(0,0,3)
  check(not game.MouseCombat.contact(game,Vector3.ZERO,Vector3(0,0,2),game.enemy_contact_point(-1,Vector3.ZERO),edge_stats,"blade",-1),"body-aware melee still respects maximum reach")
  game.enemy_pos=Vector3(0,0,2)
- game.battlefield.barriers=[];game.enemy_hp=1
+ game.battlefield.barriers=[];game.encounter.set_hp(-1, 1)
  var stats: Dictionary=game.weapon_stats(p);stats.damage=9
  game.apply_weapon_hit(p,-1,p.pos,stats,Time.get_ticks_msec())
  var impact: Dictionary=game.combat_events.filter(func(e):return e.kind=="impact").back()
  check(impact.amount==1 and impact.target_id==-1,"finishing blow displays actual remaining HP, not overkill")
- game.enemy_hp=30;game.enemy_pos=Vector3(0,0,2);game._process(.016)
+ game.encounter.set_hp(-1, 30);game.enemy_pos=Vector3(0,0,2);game._process(.016)
  var fx=game.combat_visuals;fx.clear();fx.sync([impact,impact],[],"test",Vector3.ZERO)
  check(fx.feedback.labels.size()==1,"duplicate RPC/detail events produce one damage number")
  check(fx.feedback.flashes.size()==1,"confirmed contact flashes the enemy silhouette")
@@ -63,11 +63,11 @@ func run():
  check(fx.feedback.labels.is_empty() and fx.feedback.flashes.is_empty(),"unseen combat creates no text or flash through fog")
  # Real cursor projectile crosses the first body, stops its visual and cannot hit the second.
  p.frame=2;p.weapon_kind=0;p.strike_at=0;p.attack_until=0;p.cast_until=0;p.mouse_aim=true;p.aim_direction=Vector3.RIGHT
- game.enemy_hp=30;game.enemy_pos=Vector3(1,0,0);game.scouts.assign([game.make_scout(0,Vector3(2,0,0),1)]);game.scouts[0].hp=30
+ game.encounter.set_hp(-1, 30);game.enemy_pos=Vector3(1,0,0);game.encounter.clear_scouts();game.encounter.register_scout(game.make_scout(0,Vector3(2,0,0),1));game.encounter.set_hp(0, 30)
  game.projectile_queue.clear();game.combat_events.clear();game.strike_enemy(1,p,p.pos)
  var shot: Dictionary=game.projectile_queue[0];shot.remaining=1
  game.update_projectiles(int(shot.due))
- check(game.enemy_hp<30 and game.scouts[0].hp==30,"single-target shot hits the first swept body only")
+ check(game.enemy_health()<30 and game.encounter.hp(0)==30,"single-target shot hits the first swept body only")
  check(game.combat_events.any(func(e):return e.kind=="projectile_end"),"confirmed projectile hit terminates flight visual")
  fx.clear();fx.sync(game.combat_events_snapshot(),[],"projectile",p.pos)
  check(not fx.active.values().any(func(e):return e.event.kind=="projectile"),"hit projectile is removed from rendered effects")
@@ -93,9 +93,9 @@ func run():
  var received: Array=game.guest_combat_events({})
  check(received.size()==1 and float(received[0].age)>=.7,"delayed event keeps host age rather than restarting its animation")
  # Rollback drops damage and its visual event together.
- game.combat_events.clear();game.enemy_hp=30;var old_hp: int=game.enemy_hp
+ game.combat_events.clear();game.encounter.set_hp(-1, 30);var old_hp: int=game.enemy_health()
  var committed=game.Transactions.run(game,func():game.apply_weapon_hit(p,-1,p.pos,stats,Time.get_ticks_msec());game.SaveBatch.failure=ERR_CANT_CREATE)
- check(committed==false and game.enemy_hp==old_hp and game.combat_events.is_empty(),"rolled-back damage cannot leave a confirmed-hit event")
+ check(committed==false and game.enemy_health()==old_hp and game.combat_events.is_empty(),"rolled-back damage cannot leave a confirmed-hit event")
  fx.sync([],[],"garden",Vector3.ZERO);check(fx.feedback.labels.is_empty() and fx.feedback.flashes.is_empty(),"floor cleanup includes labels and material overlays")
  game.queue_free();await process_frame
  if not failed:print("PASS: 24 scaled body footprints, swept edge hits, cover, confirmed damage, visual termination, fog, six ability families, smooth packet phases and rollback")

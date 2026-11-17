@@ -30,13 +30,13 @@ func event(id: int, slot: String, item: String, channel: String, now: int) -> Re
 	return Events.begin(game,id,slot,material,material.potency_profile.values,[channel],now+30000)
 
 func reset(p: Dictionary) -> void:
-	game.enemy_hp=500
+	game.encounter.set_hp(-1, 500)
 	game.enemy_pos=Vector3(0,0,-1.3)
 	game.enemy_mutations=0
 	game.boss_kind=-1
 	game.enemy_winding_up=false
 	game.leader_brain.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.projectile_queue.clear()
 	game.trait_events.clear()
 	Core.reset(game)
@@ -97,15 +97,15 @@ func run() -> void:
 		check(not cast.is_empty(),"native B prepares Thorn Line")
 		if not cast.is_empty():
 			Core.tick(game,cast.armed)
-			check(is_equal_approx(game.leader_brain.get(Thorn.SLOW,0.0),q.slow) and game.enemy_hp==500,"existing occupant is immediately slowed with no separate impact damage")
+			check(is_equal_approx(game.leader_brain.get(Thorn.SLOW,0.0),q.slow) and game.enemy_health()==500,"existing occupant is immediately slowed with no separate impact damage")
 			var original: Vector3=game.enemy_pos
 			game.enemy_pos=Vector3(0,0,-3.4)
 			Thorn.tick(game,Clock.advance(game,.5),now)
 			check(not game.leader_brain.has(Thorn.SLOW) and game.leader_brain.has(Thorn.BLEED),"exit removes field slow alone")
 			game.enemy_pos=original
-			game.scouts.append(game.make_scout(0,original+Vector3.RIGHT,0))
+			game.encounter.register_scout(game.make_scout(0,original+Vector3.RIGHT,0))
 			Thorn.tick(game,Clock.advance(game,.24),now)
-			check(game.enemy_hp==500-q.tick_hp and game.scouts[0].has(Thorn.BLEED),"re-entry maintains original tick and a later entrant receives its own wound")
+			check(game.enemy_health()==500-q.tick_hp and game.encounter.scout(0).has(Thorn.BLEED),"re-entry maintains original tick and a later entrant receives its own wound")
 			check(Thorn.hints(game).size()==1 and game.battlefield.clear_line(Vector3.ZERO,original),"replicated shape leaves ally/navigation routes open")
 		reset(p)
 		p.secondary=part
@@ -170,7 +170,7 @@ func run() -> void:
 	check(game.leader_brain.has(Fire.BURNING) and game.leader_brain.has(Frost.BRITTLE) and game.leader_brain.has(Thorn.BLEED),"Fire, Frost, Thorn and ordinary Slow cleanse stay independent")
 	game.enemy_pos=point+Vector3.LEFT
 	Thorn.tick(game,Clock.advance(game,.72),now)
-	check(game.enemy_hp==500-4-4-6 and is_equal_approx(Frost.motion_scale(game.leader_brain,now),.82),"leaving stronger growth retains the remaining slow and both scheduled wounds")
+	check(game.enemy_health()==500-4-4-6 and is_equal_approx(Frost.motion_scale(game.leader_brain,now),.82),"leaving stronger growth retains the remaining slow and both scheduled wounds")
 	verify_bleed_lifecycle(p)
 	game.queue_free()
 	await process_frame
@@ -187,7 +187,7 @@ func verify_bleed_lifecycle(player: Dictionary) -> void:
 	player[PlayerLifecycle.STATE] = original_life.fall()
 	var tick_hp := int(Thorn.QUALITY.ordinary.tick_hp)
 	Thorn.tick(game,Clock.advance(game,.72),now)
-	check(Thorn.active_fields(game,Clock.now(game)).is_empty() and game.enemy_hp==500-tick_hp,
+	check(Thorn.active_fields(game,Clock.now(game)).is_empty() and game.enemy_health()==500-tick_hp,
 		"an accepted wound still ticks after the source falls")
 
 	player[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
@@ -199,6 +199,6 @@ func verify_bleed_lifecycle(player: Dictionary) -> void:
 		and PlayerLifecycle.matches(player,int(wound.get("life",-1))),
 		"a fresh source life starts its own bleed cadence")
 	Thorn.tick(game,Clock.advance(game,.55),now)
-	check(game.enemy_hp==500-tick_hp,"the replacement cannot inherit the previous tick deadline")
+	check(game.enemy_health()==500-tick_hp,"the replacement cannot inherit the previous tick deadline")
 	Thorn.tick(game,Clock.advance(game,.20),now)
-	check(game.enemy_hp==500-2*tick_hp,"the new wound ticks at its own deadline")
+	check(game.enemy_health()==500-2*tick_hp,"the new wound ticks at its own deadline")

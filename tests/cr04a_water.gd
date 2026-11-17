@@ -32,13 +32,13 @@ func event(id: int, slot: String, item: String, channel: String, now: int) -> Re
 
 
 func reset() -> void:
-	game.enemy_hp=500
+	game.encounter.set_hp(-1, 500)
 	game.enemy_mutations=0
 	game.boss_kind=-1
 	game.enemy_pos=Vector3(0,0,-1.35)
 	game.enemy_winding_up=false
 	game.leader_brain.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.set_meta(Clock.CLOCK,0.0)
 	Core.reset(game)
 
@@ -89,12 +89,12 @@ func run() -> void:
 			check(p.slow_until==0 and ally.slow_until>now and p[PlayerVitals.STATE].hp()==70,"cleanse caster at formation, no baseline healing")
 			Clock.advance(game,.4)
 			Core.tick(game,int(cast.armed)+400)
-			check(ally.slow_until==0 and ally.frost_root_until>now and ally[PlayerVitals.STATE].hp()==60 and game.enemy_hp==500-q.impact_hp and game.leader_brain.has(Frost.BRITTLE) and game.leader_brain.frost_root_until==now+600,
+			check(ally.slow_until==0 and ally.frost_root_until>now and ally[PlayerVitals.STATE].hp()==60 and game.enemy_health()==500-q.impact_hp and game.leader_brain.has(Frost.BRITTLE) and game.leader_brain.frost_root_until==now+600,
 				"swept wave cleanses actual ally, damages once, preserves other status and health")
 			ally.slow_until=now+10000
 			Clock.advance(game,.12)
 			Core.tick(game,int(cast.armed)+520)
-			check(ally.slow_until>now and game.enemy_hp==500-q.impact_hp,"consumed contacts never repeat on same cast")
+			check(ally.slow_until>now and game.enemy_health()==500-q.impact_hp,"consumed contacts never repeat on same cast")
 		reset()
 		p.weapon=0
 		p.secondary=part
@@ -127,7 +127,7 @@ func run() -> void:
 	reset()
 	var now:=Time.get_ticks_msec()
 	var scout: Dictionary=game.make_scout(1,Vector3(0,0,2),0,0)
-	game.scouts.append(scout)
+	game.encounter.register_scout(scout)
 	var attack=preload("res://enemy_attack.gd")
 	var damage: float=game.Director.Balance.scout_hit(game,game.Enemies.get_kind(1),scout)
 	var baseline: int=game.Life.Preview.effect_hp(game.Life.Preview.authored_amount(damage))

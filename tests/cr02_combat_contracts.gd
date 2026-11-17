@@ -40,11 +40,11 @@ func run() -> void:
 	player.wild = true
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(30)
 	player.pos = Vector3.ZERO
-	game.enemy_hp = 50
+	game.encounter.set_hp(-1, 50)
 	game.enemy_pos = Vector3(0,0,-1)
 	game.battlefield.configure(0,1,0)
 	game.battlefield.barriers.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	player.weapon = game.Items.get_item("part_10").legacy_part
 	player.technique = 80
 	player.power = 80
@@ -179,7 +179,7 @@ func check_runtime_focuses(game: Node, player: Dictionary) -> void:
 			recorded.clear()
 			game.trait_events.clear()
 			game.enemy_traits.clear()
-			game.enemy_hp = 10000
+			game.encounter.set_hp(-1, 10000)
 			game.enemy_pos = Vector3(0,0,-2.4)
 			var profile: Dictionary = game.Character.blank()
 			profile.upgrades[class_id] = 1 << (12 + lane)

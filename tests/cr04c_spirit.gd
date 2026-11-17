@@ -32,14 +32,14 @@ func run() -> void:
 	p.profile_ready=true
 	p.pos=Vector3.ZERO
 	p.weapon=game.Items.get_item("part_10").legacy_part
-	game.enemy_hp=100
+	game.encounter.set_hp(-1, 100)
 	game.enemy_pos=Vector3(-1.5,0,0)
 	game.enemy_engaged=true
 	game.leader_brain.target=1
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	var waiting: Dictionary=game.make_scout(0,Vector3(-1.1,0,0),1)
 	waiting.engaged=true;waiting.target=1;waiting.windup=Time.get_ticks_msec()+1500
-	game.scouts.append(waiting)
+	game.encounter.register_scout(waiting)
 	var ordinary: int=p.weapon
 	var refined: int=game.Items.get_item("plant_part_rare_ghost_fern").legacy_part
 	Core.command(game,1,p,Core.request(game,p,Vector2.RIGHT))
@@ -73,7 +73,7 @@ func run() -> void:
 	Spirit.movement(game,p,Vector3(8.25,0,0),Vector3(9,0,0))
 	check(p[Spirit.FOLLOW].phase=="ready","qualifying voluntary movement readies follow-up")
 	Events.contact(game,old_stats,-1,now,false,game.enemy_pos)
-	check(game.enemy_hp==100 and p[Spirit.FOLLOW].phase=="ready","older in-flight attack cannot receive a bonus")
+	check(game.enemy_health()==100 and p[Spirit.FOLLOW].phase=="ready","older in-flight attack cannot receive a bonus")
 	var volley:=action(game,"native_weapon",ordinary,["weapon_contact"])
 	var competing:=action(game,"native_weapon",ordinary,["weapon_contact"])
 	var stats: Dictionary={Events.CONTEXT:volley}
@@ -84,7 +84,7 @@ func run() -> void:
 	Spirit.finish(game,p,stats)
 	Events.contact(game,other,-1,now,false,game.enemy_pos)
 	Spirit.finish(game,p,stats)
-	check(game.enemy_hp==100 and p[Spirit.FOLLOW].phase=="claimed","several in-flight attacks cannot steal claim; partial volley miss is inconclusive")
+	check(game.enemy_health()==100 and p[Spirit.FOLLOW].phase=="claimed","several in-flight attacks cannot steal claim; partial volley miss is inconclusive")
 	Spirit.finish(game,p,stats)
 	check(p[Spirit.FOLLOW].phase=="ready" and p[Spirit.FOLLOW].until==until,"full miss reopens the same original opportunity")
 	var next:=action(game,"native_weapon",ordinary,["weapon_contact"])
@@ -92,7 +92,7 @@ func run() -> void:
 	Spirit.launch(game,p,next_stats,1)
 	Events.contact(game,next_stats,-1,now,false,game.enemy_pos)
 	Events.contact(game,next_stats,-1,now,false,game.enemy_pos)
-	check(game.enemy_hp==87 and not p.has(Spirit.FOLLOW),"next contact spends one follow-up")
+	check(game.enemy_health()==87 and not p.has(Spirit.FOLLOW),"next contact spends one follow-up")
 	Clock.advance(game,2.0)
 	var sharp:=action(game,"form",refined,["weapon_contact"])
 	Events.contact(game,{Events.CONTEXT:sharp},-1,now,false,game.enemy_pos)
@@ -101,7 +101,7 @@ func run() -> void:
 	var bonus: Dictionary={Events.CONTEXT:attack}
 	Spirit.launch(game,p,bonus,1)
 	Events.contact(game,bonus,-1,now,false,game.enemy_pos)
-	check(game.enemy_hp==69,"refined Form grants a stronger follow-up")
+	check(game.enemy_health()==69,"refined Form grants a stronger follow-up")
 	Spirit.clear(p)
 	var common:=action(game,"catalyst",ordinary,["class_action"])
 	common.publish(game,"class_action","heal","",now,{"response":"recipient_stride","recipients":[1]})

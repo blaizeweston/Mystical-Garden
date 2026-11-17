@@ -34,19 +34,19 @@ func run():
  check(Batch.recover(b)==OK and FileAccess.get_file_as_string(a)=="old-a" and FileAccess.get_file_as_string(b)=="old-b","interrupted commit recovers a consistent pair")
  # An actual killed stag supplies its own familiarity and reward; no item injection.
  p.wild=true;p.pos=Vector3(0,0,4);p.frame=0;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.power=0;p.strike_at=0;p.contributed=false;p.character.monsters.fill(0)
- game.destination=0;game.encounter_number=3;game.map_seed=0;game.battlefield.configure(0,1);game.battlefield.barriers=[];game.enemy_hp=0;game.enemy_kind=0;game.encounter_rewarded=false;game.encounter_kills.clear()
- var stag: Dictionary=game.make_scout(2,Vector3(0,0,5),1);stag.hp=1;game.scouts.assign([stag])
+ game.destination=0;game.encounter_number=3;game.map_seed=0;game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.set_hp(-1, 0);game.enemy_kind=0;game.encounter_rewarded=false;game.encounter_kills.clear()
+ var stag: Dictionary=game.make_scout(2,Vector3(0,0,5),1);stag.hp=1;game.encounter.clear_scouts();game.encounter.register_scout(stag)
  # Choose a deterministic successful per-kill roll before the actual kill.
  for seed_value in 1000:
   game.rng.seed=seed_value
   if not game.roll_kill_trophy(2).is_empty():game.rng.seed=seed_value;break
- game.strike_enemy(1,p,p.pos);check(stag.hp==1,"melee damage waits for its contact window");game.update_projectiles(Time.get_ticks_msec()+1000)
- check(stag.hp==0 and p.character.monsters[2]==1 and p.character.monsters[0]==0,"real stag kill credits stag familiarity")
+ game.strike_enemy(1,p,p.pos);check(game.encounter.hp(0)==1,"melee damage waits for its contact window");game.update_projectiles(Time.get_ticks_msec()+1000)
+ check(game.encounter.hp(0)==0 and p.character.monsters[2]==1 and p.character.monsters[0]==0,"real stag kill credits stag familiarity")
  var personal=game.inventory_floor_snapshot(p)
  check(personal.size()==1,"the killed stag creates one personal trophy pickup")
  p.pos=stag.pos;game.pickup_inventory_drop(1,p,personal[0].id);var antler: int=game.Parts.monster_part(2)
  check(p.carried_parts[antler]==1,"individual stag reward grants the killed species component")
- game.enemy_hp=0;game.scouts.clear();game.encounter_number=6;p.pos=game.battlefield.advance;game.use_checkpoint(1,false)
+ game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.encounter_number=6;p.pos=game.battlefield.advance;game.use_checkpoint(1,false)
  check(not p.wild and reserve.parts[antler]==1,"earned trophy survives extraction")
  p.pos=game.Stage.GATE;p.cargo_plan[antler]=1;game.enter_wilds(1,p);check(p.wild and p.carried_parts[antler]==1,"stash trophy can be packed into next expedition")
  game.encounter_number=8;p.pos=game.battlefield.graft;game.rng.seed=1

@@ -62,7 +62,7 @@ static func interrupted(game: Node, actor: Dictionary, source: String) -> void:
 	var profile: Dictionary = REGULAR_RESPONSES.get(kind, {})
 	var regular_cast: String = profile.get("mode", "") if profile.get("tactic") == CAST_DENIAL else ""
 	var expected: String = SUPPORT_RITES.get(kind, regular_cast)
-	var hp: int = game.enemy_hp if actor.get("gate_elite", false) else int(actor.hp)
+	var hp: int = game.encounter.hp_for(actor)
 	if expected.is_empty() or hp <= 0 or attack.get("mode") != expected or attack.get("interruption_observed", false):
 		return
 	# Empty rituals do not teach the Wilds. There has to be an actual hatch, escort, or corpse.
@@ -82,7 +82,7 @@ static func interrupted(game: Node, actor: Dictionary, source: String) -> void:
 	if kind == 1:
 		actor.denied_aim = attack.to
 	record(game, CAST_DENIAL, {"source": source, "species": Catalog.get_kind(kind).id,
-		"target_token": actor.get("spawn_token", 0), "move": attack.get("variant", "") if not str(attack.get("variant", "")).is_empty() else expected})
+		"target_token": game.encounter.token_for(actor), "move": attack.get("variant", "") if not str(attack.get("variant", "")).is_empty() else expected})
 
 
 static func eligible(game: Node, actor: Dictionary, response: String) -> bool:
@@ -106,7 +106,7 @@ static func response_windup(attack: Dictionary, ordinary: int) -> int:
 static func root_denied(game: Node, target: int, now: int) -> void:
 	if not game.multiplayer.is_server() or (target == -1 and game.boss_kind >= 0) or not game.Traits.valid_target(game, target):
 		return
-	var actor: Dictionary = game.scouts[target] if target >= 0 else game.leader_brain.get("elite", {})
+	var actor: Dictionary = game.encounter.scout(target) if target >= 0 else game.leader_brain.get("elite", {})
 	if actor.is_empty() or actor.get("summoned", false) or actor.get("route_denied_epoch", -1) == game.combat_epoch:
 		return
 	if REGULAR_RESPONSES.get(actor.kind, {}).get("tactic") != ROUTE_DENIAL:
@@ -121,7 +121,7 @@ static func root_denied(game: Node, target: int, now: int) -> void:
 	if peer == 0 or point.distance_squared_to(game.players[peer].pos) < 1.35 * 1.35:
 		return
 	actor.route_denied_epoch = game.combat_epoch
-	record(game, ROUTE_DENIAL, {"species": Catalog.get_kind(actor.kind).id, "target_token": actor.spawn_token})
+	record(game, ROUTE_DENIAL, {"species": Catalog.get_kind(actor.kind).id, "target_token": game.encounter.token_for(actor)})
 
 
 static func regular_ready(game: Node, actor: Dictionary, profile: Dictionary) -> bool:
@@ -142,4 +142,4 @@ static func lock_response(game: Node, actor: Dictionary, attack: Dictionary) -> 
 		return
 	actor.skill_response_used = true
 	Journal.event("combat", "wilds_skill_response", {"response": response, "species": Catalog.get_kind(int(actor.kind)).id,
-		"tactic": profile.tactic, "target_token": actor.get("spawn_token", 0), "floor": game.encounter_number})
+		"tactic": profile.tactic, "target_token": game.encounter.token_for(actor), "floor": game.encounter_number})

@@ -83,7 +83,7 @@ static func steal(game: Node, actor: Dictionary, drop: Dictionary, now: int) -> 
 	game.wild_item_drops.erase(drop)
 	preload("res://event_audio.gd").emit(game,"trophy_taken",actor.pos)
 	notify_party(game,"The Graft Thief stole a trophy. Follow its trail to the tunnel!")
-	game.Journal.event("combat","thief_fled_with_trophy",{"actor":actor.spawn_token,"floor":game.encounter_number})
+	game.Journal.event("combat","thief_fled_with_trophy",{"actor":game.encounter.token_for(actor),"floor":game.encounter_number})
 	return true
 
 
@@ -130,16 +130,23 @@ static func tick(game: Node, actor: Dictionary, delta: float, now: int) -> void:
 
 
 static func escape(game: Node, actor: Dictionary) -> void:
+	var gate_elite: bool=actor.get("gate_elite",false)
+	var slot: int=-1 if gate_elite else game.encounter.scout_slot(actor)
+	if not gate_elite and slot<0:
+		return
+	if gate_elite and not is_same(actor,game.leader_brain.get("elite",{})):
+		return
+	if not game.encounter.alive(slot):
+		return
 	actor.erase("escape")
 	actor.erase("stolen")
 	# Leave the slot inactive without awarding a kill, a corpse or a trophy.
-	actor.hp = 0
 	actor.escaped = true
-	if actor.get("gate_elite",false):
-		game.enemy_hp = 0
+	game.encounter.despawn(slot)
+	if gate_elite:
 		game.enemy_winding_up = false
 		game.enemy_attack_mode = ""
-	game.Journal.event("combat","thief_escaped",{"actor":actor.spawn_token,"floor":game.encounter_number})
+	game.Journal.event("combat","thief_escaped",{"actor":game.encounter.token_for(actor),"floor":game.encounter_number})
 	notify_party(game,"The Graft Thief escaped with the trophy.")
 
 
@@ -151,25 +158,25 @@ static func recover(game: Node, actor: Dictionary, point: Vector3) -> void:
 	actor.erase("escape")
 
 
-static func route_info(actor: Dictionary, id: int) -> Dictionary:
+static func route_info(game: Node, actor: Dictionary, id: int) -> Dictionary:
 	var state: Dictionary = actor.get("escape",{})
 	if state.is_empty():
 		return {}
 	var path: PackedVector3Array = state.path
-	return {"id":id,"token":int(actor.spawn_token),"pos":actor.pos,"tunnel":state.tunnel,
+	return {"id":id,"token":int(game.encounter.token_for(actor)),"pos":actor.pos,"tunnel":state.tunnel,
 		"path":path.slice(int(state.step)),"burrowing":int(state.burrow_until)>0}
 
 
 static func snapshot(game: Node) -> Array:
 	var result := []
-	if game.enemy_hp > 0:
-		var leader := route_info(game.leader_brain.get("elite",{}),-1)
+	if game.encounter.hp(-1) > 0:
+		var leader := route_info(game,game.leader_brain.get("elite",{}),-1)
 		if not leader.is_empty():
 			result.append(leader)
-	for id in game.scouts.size():
-		if game.scouts[id].hp <= 0:
+	for id in game.encounter.scout_count():
+		if game.encounter.hp(id) <= 0:
 			continue
-		var row := route_info(game.scouts[id],id)
+		var row := route_info(game,game.encounter.scout(id),id)
 		if not row.is_empty():
 			result.append(row)
 	return result
@@ -186,7 +193,7 @@ static func map_routes(game: Node, player: Dictionary) -> Array:
 		var offset: int = id * game.PACK_STRIDE
 		var at: Vector3
 		if id == -1:
-			if game.enemy_hp <= 0 or game.enemy_kind != KIND:
+			if game.enemy_health() <= 0 or game.enemy_kind != KIND:
 				continue
 			at = game.enemy_pos
 		else:

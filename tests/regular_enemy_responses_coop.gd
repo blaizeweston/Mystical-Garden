@@ -45,7 +45,7 @@ func actor(kind: int, position: Vector3, route: int) -> Dictionary:
 	var scout: Dictionary = game.make_scout(kind, position, route)
 	scout.engaged = true
 	scout.stagger_until = Time.get_ticks_msec() + 60000
-	game.scouts.append(scout)
+	game.encounter.register_scout(scout)
 	return scout
 
 
@@ -75,11 +75,11 @@ func prepare(kind: int) -> Dictionary:
 	game.map_seed = 0
 	game.battlefield.configure(game.destination, game.depth, game.map_seed)
 	game.battlefield.barriers.clear()
-	game.enemy_hp = 50
+	game.encounter.set_hp(-1, 50)
 	game.enemy_kind = 0
 	game.enemy_pos = Vector3(-11, 0, 6)
 	game.enemy_stagger_until = Time.get_ticks_msec() + 60000
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	for member in game.players.values():
 		member.wild = true
 		member[PlayerVitals.STATE] = member[PlayerVitals.STATE].with_hp(10)
@@ -175,7 +175,7 @@ func host_glasscap() -> void:
 	game.combat_epoch += 1
 	game.encounter_number = 12
 	game.progress.wilds_memory.score = {}
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	for member in game.players.values():
 		member.pos = Vector3(0,0,-1)
 	var watcher := actor(18,Vector3.ZERO,3)

@@ -33,7 +33,7 @@ func host_run() -> void:
  if not await until(func(): return game.players.size()==2 and game.players.values().all(func(p): return p.profile_ready)):
   check(false,"guest registers");return
  var id:=int(game.players.keys()[1]);var p: Dictionary=game.players[id];var host: Dictionary=game.players[1]
- game.battlefield.configure(0,1);game.enemy_hp=100;game.enemy_pos=Vector3(12,0,12);game.enemy_stagger_until=Time.get_ticks_msec()+60000;game.scouts.clear()
+ game.battlefield.configure(0,1);game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3(12,0,12);game.enemy_stagger_until=Time.get_ticks_msec()+60000;game.encounter.clear_scouts()
  host.wild=true;host.pos=Vector3(1,0,2);p.wild=true;p.pos=Vector3(0,0,2)
  var item: String=game.Items.part_id(game.Parts.HOOK)
  game.wild_item_drops.append({"id":"guest-part","owner":id,"stack":{"item":item,"quantity":1},"position":[0,0,2]})

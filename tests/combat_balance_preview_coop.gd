@@ -86,11 +86,11 @@ func host() -> void:
 	game.depth=4
 	game.map_seed=91681
 	game.reset_encounter()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.enemy_stagger_until=Time.get_ticks_msec()+45000
 	game.enemy_mutations=0
 	game.enemy_pos=Vector3(0,0,1.4)
-	check(game.boss_kind==game.Bosses.Lair.Routes.ORCHARD and game.enemy_hp==960,"two-player Orchard scales with party size")
+	check(game.boss_kind==game.Bosses.Lair.Routes.ORCHARD and game.enemy_health()==960,"two-player Orchard scales with party size")
 	if not await until(func():return marked("ready")):
 		check(false,"guest sees the Orchard and preview state")
 		return

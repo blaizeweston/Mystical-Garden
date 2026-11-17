@@ -25,10 +25,10 @@ func start_floor(game: Node) -> void:
 	Core.reset(game)
 	game.combat_epoch += 1
 	game.encounter_rewarded = false
-	game.enemy_hp = 40
+	game.encounter.set_hp(-1, 40)
 	game.enemy_kind = 0
 	game.enemy_pos = Vector3(9, 0, 7)
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.leader_brain.clear()
 
 
@@ -48,16 +48,16 @@ func crossing(game: Node, player: Dictionary) -> void:
 	var line := place(game, player)
 	var center: Vector3 = line.center
 	var hound: Dictionary = game.make_scout(Thorn.HOUND, center - Vector3.BACK, 1)
-	game.scouts.append(hound)
+	game.encounter.register_scout(hound)
 	Core.tick(game, line.armed)
 	hound.pos = center + Vector3.BACK
 	Core.tick(game, line.armed + 50)
-	check(hound.hp < hound.max_hp and hound.rooted_until == 0, "ordinary moving enemy takes damage crossing the active line")
+	check(game.encounter.hp_for(hound) < hound.max_hp and hound.rooted_until == 0, "ordinary moving enemy takes damage crossing the active line")
 
 
 func clear_floor(game: Node) -> void:
-	game.enemy_hp = 0
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 0)
+	game.encounter.clear_scouts()
 	game.finish_combat(1, Vector3.ZERO)
 
 
@@ -76,7 +76,7 @@ func run() -> void:
 	start_floor(game)
 	var line := place(game, player)
 	var stationary: Dictionary = game.make_scout(Thorn.HOUND, line.center, 1)
-	game.scouts.append(stationary)
+	game.encounter.register_scout(stationary)
 	Core.tick(game, line.armed)
 	check(Thorn.evidence(game).armed == 1 and Thorn.evidence(game).crossings == 0, "arming on a stationary enemy does not teach a counter")
 	clear_floor(game)
@@ -86,7 +86,7 @@ func run() -> void:
 		start_floor(game)
 		crossing(game, player)
 		if index == 0:
-			game.scouts.clear()
+			game.encounter.clear_scouts()
 			crossing(game, player)
 			check(Thorn.evidence(game).crossings == 2, "two distinct crossings are recorded")
 		clear_floor(game)
@@ -114,7 +114,7 @@ func run() -> void:
 	var origin := center - Vector3.BACK * 1.45
 	var landing := center + Vector3.BACK * 1.65
 	var hound: Dictionary = game.make_scout(Thorn.HOUND, origin, 1)
-	game.scouts.append(hound)
+	game.encounter.register_scout(hound)
 	Core.tick(game, line.armed)
 	player.pos = landing
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)

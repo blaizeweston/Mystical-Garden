@@ -7,7 +7,7 @@ static func radius(game: Node,target: int) -> float:
  var mask: int=game.enemy_mutations
  var growth: int=game.enemy_growth
  if target>=0 and game.multiplayer.is_server():
-  var scout: Dictionary=game.scouts[target]
+  var scout: Dictionary=game.encounter.scout(target)
   kind=int(scout.get("kind",0))
   mask=int(scout.get("mutations",0))
   growth=int(scout.get("growth",0))
@@ -32,7 +32,7 @@ static func contact(game: Node,target: int,origin: Vector3,ranged: bool=false) -
 static func sweep(game: Node,target: int,from: Vector3,to: Vector3,padding: float=-1.0) -> Dictionary:
  var center: Vector3=game.enemy_position(target)
  if padding<0:
-  var kind: int=game.enemy_kind if target==-1 else int(game.scouts[target].get("kind",0))
+  var kind: int=game.enemy_kind if target==-1 else int(game.encounter.scout(target).get("kind",0))
   padding=clampf(float(Enemies.get_kind(kind).get("hitbox",{}).get("projectile_padding",.12)),0,.3)
  return projectile_contact(game.battlefield,from,to,center,radius(game,target),padding)
 

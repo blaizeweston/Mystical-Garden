@@ -34,13 +34,13 @@ func event(id: int, slot: String, item: String, channel: String, now: int) -> Re
 
 
 func reset(p: Dictionary, ally: Dictionary) -> void:
-	game.enemy_hp=500
+	game.encounter.set_hp(-1, 500)
 	game.enemy_mutations=0
 	game.boss_kind=-1
 	game.enemy_pos=Vector3(0,0,-1.25)
 	game.enemy_winding_up=false
 	game.leader_brain.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.projectile_queue.clear()
 	Core.reset(game)
 	game.set_meta(Clock.CLOCK,0.0)
@@ -96,7 +96,7 @@ func run() -> void:
 		reset(player,ally)
 		var native: int=player[PlayerVitals.STATE].max_hp()
 		player.weapon=part
-		game.enemy_hp=0
+		game.encounter.set_hp(-1, 0)
 		ally.pos=Vector3(1,0,0)
 		var pressed := InputEventKey.new()
 		pressed.physical_keycode=KEY_B
@@ -126,7 +126,7 @@ func run() -> void:
 		game.update_projectiles(int(shot.due)+1)
 		check(player[PlayerVitals.STATE].temporary_hp()==q.bonus_hp and player[PlayerVitals.STATE].hp()==60 and not ally.has(Vital.SOURCES),
 			"real weapon contact grants self capacity without a lifesteal heal")
-		game.scouts.append(game.make_scout(0,Vector3(1,0,-1.25),0))
+		game.encounter.register_scout(game.make_scout(0,Vector3(1,0,-1.25),0))
 		var applied_until: int=player.get(Vital.SOURCES,{}).get("1/form",{}).get("until",0)
 		Clock.advance(game,.4)
 		Events.contact(game,shot.stats,0,now)
@@ -242,7 +242,7 @@ func benchmark(player: Dictionary, ally: Dictionary) -> void:
 	for index in 12:
 		var scout: Dictionary=game.make_scout(0,Vector3(0,0,-2),index)
 		scout.hp=10000
-		game.scouts.append(scout)
+		game.encounter.register_scout(scout)
 		for source in burns:
 			Fire.ignite(game,source,index,now)
 		for source in waters:
@@ -253,5 +253,5 @@ func benchmark(player: Dictionary, ally: Dictionary) -> void:
 		var elapsed:=Clock.advance(game,1.0/60.0)
 		Fire.tick(game,elapsed,now)
 		Vital.tick(game,elapsed)
-		for scout in game.scouts: Water.reduction(scout,elapsed)
+		for scout in game.encounter.scout_tactics(): Water.reduction(scout,elapsed)
 	print("CR04A effect update (four players, 12 enemies, four sources per effect, 150 steps): ",float(Time.get_ticks_usec()-started)/count," us/step")

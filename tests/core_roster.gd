@@ -23,10 +23,10 @@ func check(ok: bool, detail: String) -> void:
 
 func arena(game: Node, player: Dictionary, species: String) -> void:
 	Core.reset(game)
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.enemy_traits.clear()
 	game.enemy_death_events.clear()
-	game.enemy_hp = 30
+	game.encounter.set_hp(-1, 30)
 	game.enemy_kind = 0
 	game.enemy_mutations = 0
 	game.enemy_winding_up = false
@@ -114,7 +114,7 @@ func run() -> void:
 		if live.skill.id == "grave_lantern":
 			var corpse: Dictionary = game.make_scout(0, Vector3(.8, 0, -2), 1)
 			corpse.hp = 0
-			game.scouts.append(corpse)
+			game.encounter.register_scout(corpse)
 			game.record_enemy_death(0, corpse.pos, player.pos)
 			player.pos = Vector3(0, 0, -2)
 		for elapsed in [400, 650, 900, 1200, 1600, 1900, 2600, 4000, 6200]:
@@ -129,14 +129,14 @@ func run() -> void:
 	var ember := cast(game, player)
 	var start: int = ember.armed
 	Core.tick(game, start)
-	check(game.enemy_hp == 29 and Core.hints(game)[0].role == "core_field", "Ember Wake burns immediately and shows the field")
+	check(game.enemy_health() == 29 and Core.hints(game)[0].role == "core_field", "Ember Wake burns immediately and shows the field")
 	Core.tick(game, start + 850)
 	game.enemy_pos = Vector3(4, 0, -2)
 	Core.tick(game, start + 1700)
-	check(game.enemy_hp == 28, "leaving the embers avoids the pulse")
+	check(game.enemy_health() == 28, "leaving the embers avoids the pulse")
 	game.enemy_pos = Vector3(0, 0, -2)
 	Core.tick(game, start + 2550)
-	check(game.enemy_hp == 27 and not Core.hints(game).is_empty(), "Banked Coals keeps the trail live for a late entrant")
+	check(game.enemy_health() == 27 and not Core.hints(game).is_empty(), "Banked Coals keeps the trail live for a late entrant")
 	Core.tick(game, start + 2750)
 	check(Core.hints(game).is_empty(), "the extended trail clears on expiration")
 	check_contact_shapes(game, player)
@@ -147,10 +147,10 @@ func run() -> void:
 	var second: Dictionary = game.make_scout(0, Vector3(1.75, 0, -2), 1)
 	var third: Dictionary = game.make_scout(0, Vector3(3.5, 0, -2), 2)
 	var last: Dictionary = game.make_scout(0, Vector3(5.25, 0, -2), 3)
-	game.scouts.assign([second, third, last])
+	game.encounter.clear_scouts();game.encounter.register_scout(second);game.encounter.register_scout(third);game.encounter.register_scout(last)
 	var spark := cast(game, player)
 	Core.tick(game, spark.armed)
-	check(game.enemy_hp == 28 and second.hp == second.max_hp - 1 and third.hp == third.max_hp - 1 and last.hp == last.max_hp, "Chain Spark visits two distinct neighbors at most")
+	check(game.enemy_health() == 28 and game.encounter.hp_for(second) == second.max_hp - 1 and game.encounter.hp_for(third) == third.max_hp - 1 and game.encounter.hp_for(last) == last.max_hp, "Chain Spark visits two distinct neighbors at most")
 	check(second.rooted_until > spark.armed and third.rooted_until > spark.armed and last.rooted_until == 0, "Grounded Current roots jumps only")
 	arena(game, player, "thorn_bloom")
 	var near := Core.aim_cast(game.battlefield, player.pos, Vector3.FORWARD, Core.equipped(player), .8)
@@ -163,9 +163,9 @@ func run() -> void:
 	check(game.rooted_until == 0 and Core.hints(game).size() == 1, "empty snare stays armed")
 	game.enemy_pos = moon.center
 	Core.tick(game, moon.armed + 2300)
-	check(game.rooted_until > moon.armed + 2300 and game.enemy_hp == 28, "a late entrant is damaged and rooted")
+	check(game.rooted_until > moon.armed + 2300 and game.enemy_health() == 28, "a late entrant is damaged and rooted")
 	Core.tick(game, moon.armed + 3000)
-	check(game.enemy_hp == 28, "an enemy triggers the same trap only once")
+	check(game.enemy_health() == 28, "an enemy triggers the same trap only once")
 	Core.tick(game, moon.expires)
 	check(Core.hints(game).is_empty(), "snare expires on schedule")
 	game.queue_free()
@@ -179,7 +179,7 @@ func prepare_effect(game: Node, player: Dictionary, skill_id: String) -> Diction
 	if skill_id in ["gravity_well", "sun_pillar", "riptide", "eclipse_maw"]:
 		game.enemy_pos.x = 1.0
 	if skill_id == "mirror_bloom":
-		game.scouts.append(game.make_scout(0, Vector3(0, 0, 2), 1))
+		game.encounter.register_scout(game.make_scout(0, Vector3(0, 0, 2), 1))
 	if skill_id == "ironbark":
 		game.enemy_pos.z = -.9
 	if skill_id == "hush":
@@ -187,7 +187,7 @@ func prepare_effect(game: Node, player: Dictionary, skill_id: String) -> Diction
 	if skill_id == "dewfall":
 		player.slow_until = Time.get_ticks_msec() + 8000
 	if skill_id == "crownlink":
-		game.scouts.append(game.make_scout(0, Vector3(.8, 0, -2), 1))
+		game.encounter.register_scout(game.make_scout(0, Vector3(.8, 0, -2), 1))
 	return {"origin": game.enemy_pos}
 
 
@@ -195,61 +195,61 @@ func verify_effect(game: Node, player: Dictionary, live: Dictionary, fixture: Di
 	var elapsed: int = live.armed
 	match live.skill.id:
 		"spore_seal":
-			check(game.rooted_until > elapsed + 750 and game.enemy_hp == 30, "Spore Seal roots without damaging")
+			check(game.rooted_until > elapsed + 750 and game.enemy_health() == 30, "Spore Seal roots without damaging")
 		"dewfall":
 			check(PlayerVitals.current_hp(player) == 9 and player.slow_until == 0 and player.guard_charges == 1, "Dewfall cleanses and wards on upgrade")
 		"blood_siphon":
-			check(PlayerVitals.current_hp(player) == 9 and game.enemy_hp == 28 and player.guard_charges == 1, "Blood Siphon heals for a hit and grants its purchased ward")
+			check(PlayerVitals.current_hp(player) == 9 and game.enemy_health() == 28 and player.guard_charges == 1, "Blood Siphon heals for a hit and grants its purchased ward")
 		"phantom_step":
 			check(player.pos.is_equal_approx(live.center) and game.rooted_until > elapsed and player.guard_charges == 1, "Phantom Step relocates and roots on arrival")
 		"moon_snare":
-			check(game.enemy_hp == 28 and game.rooted_until > elapsed + 650, "Moon Snare roots a foe even without a windup")
+			check(game.enemy_health() == 28 and game.rooted_until > elapsed + 650, "Moon Snare roots a foe even without a windup")
 		"gravity_well":
 			check(game.enemy_pos.distance_to(live.center) < Vector3(fixture.origin).distance_to(live.center) and game.rooted_until > elapsed + 400, "Gravity Well draws enemies inward and roots inside the inner ring")
 		"sun_pillar":
-			check(game.enemy_pos.x > fixture.origin.x and game.enemy_hp == 26 and game.enemy_stagger_until > elapsed + 1600, "Sun Pillar pushes outward before the afterlight")
+			check(game.enemy_pos.x > fixture.origin.x and game.enemy_health() == 26 and game.enemy_stagger_until > elapsed + 1600, "Sun Pillar pushes outward before the afterlight")
 		"eclipse_maw":
-			check(game.enemy_pos.x < fixture.origin.x and game.enemy_hp == 26 and PlayerVitals.current_hp(player) == 8, "Eclipse Maw draws enemies to the seam and bites once")
+			check(game.enemy_pos.x < fixture.origin.x and game.enemy_health() == 26 and PlayerVitals.current_hp(player) == 8, "Eclipse Maw draws enemies to the seam and bites once")
 		"worldbloom":
 			check(game.rooted_until > elapsed and PlayerVitals.current_hp(player) == 10 and player.guard_charges == 1, "Worldbloom holds enemies and restores allies in stages")
 		"rime_bloom":
-			check(game.enemy_hp == 28 and game.enemy_traits.brittle == 0 and game.rooted_until > elapsed + 720, "Snap Frost shatters the Brittle stacks")
+			check(game.enemy_health() == 28 and game.enemy_traits.brittle == 0 and game.rooted_until > elapsed + 720, "Snap Frost shatters the Brittle stacks")
 		"ironbark":
 			check(PlayerVitals.current_hp(player) == 8 and player.guard_charges == 0 and game.enemy_stagger_until > elapsed + 200, "Ironbark consumes the ward and staggers nearby enemies on a block")
 		"mirror_bloom":
-			check(game.enemy_hp == 27 and game.scouts[0].hp == game.scouts[0].max_hp - 2, "Mirror Bloom reflects through the caster and the third bloom returns to the original spot")
+			check(game.enemy_health() == 27 and game.encounter.hp(0) == game.encounter.scout(0).max_hp - 2, "Mirror Bloom reflects through the caster and the third bloom returns to the original spot")
 		"grave_lantern":
-			check(game.enemy_hp == 26 and PlayerVitals.current_hp(player) == 9, "Grave Lantern reacts once to a new nearby death")
+			check(game.enemy_health() == 26 and PlayerVitals.current_hp(player) == 9, "Grave Lantern reacts once to a new nearby death")
 		"riptide":
-			check(game.enemy_hp == 30 and absf(game.enemy_pos.x) < .05 and PlayerVitals.current_hp(player) == 9, "melee Riptide draws enemies toward the impact and heals")
+			check(game.enemy_health() == 30 and absf(game.enemy_pos.x) < .05 and PlayerVitals.current_hp(player) == 9, "melee Riptide draws enemies toward the impact and heals")
 		"hush":
-			check(not game.enemy_winding_up and game.enemy_hp == 30, "Hush cancels a lesser enemy windup")
+			check(not game.enemy_winding_up and game.enemy_health() == 30, "Hush cancels a lesser enemy windup")
 		"dream_lure":
-			check(game.enemy_hp == 27 and game.rooted_until > elapsed + 2000 and player.guard_charges == 1, "Dream Lure bursts and its card wards nearby allies")
+			check(game.enemy_health() == 27 and game.rooted_until > elapsed + 2000 and player.guard_charges == 1, "Dream Lure bursts and its card wards nearby allies")
 		"crownlink":
-			var partner: Dictionary = game.scouts[0]
+			var partner: Dictionary = game.encounter.scout(0)
 			var now: int = live.armed + 250
 			game.apply_weapon_hit(player, -1, player.pos, {"damage": 1}, now)
-			check(partner.hp == partner.max_hp - 2 and partner.rooted_until > now, "Crownlink shares and roots on a direct hit")
+			check(game.encounter.hp_for(partner) == partner.max_hp - 2 and partner.rooted_until > now, "Crownlink shares and roots on a direct hit")
 			game.apply_weapon_hit(player, -1, player.pos, {"damage": 1}, now + 1)
-			check(partner.hp == partner.max_hp - 2, "Crownlink consumes both ends once")
+			check(game.encounter.hp_for(partner) == partner.max_hp - 2, "Crownlink consumes both ends once")
 
 
 func check_contact_shapes(game: Node, player: Dictionary) -> void:
 	arena(game, player, "sun_spire")
 	game.enemy_pos = Vector3(1, 0, -3)
 	var scout: Dictionary = game.make_scout(0, Vector3(0, 0, -2), 1)
-	game.scouts.append(scout)
-	var before: int = scout.hp
+	game.encounter.register_scout(scout)
+	var before: int = game.encounter.hp_for(scout)
 	var live := cast(game, player)
 	Core.tick(game, live.armed)
 	Core.tick(game, live.armed + 900)
-	check(game.enemy_hp == 30 and scout.hp == maxi(0, before - 4), "Sun Pillar misses between rays and damages the intersection only once")
+	check(game.enemy_health() == 30 and game.encounter.hp_for(scout) == maxi(0, before - 4), "Sun Pillar misses between rays and damages the intersection only once")
 
 	arena(game, player, "veilcap")
 	player.run_upgrades["core_spore_seal"] = 1
 	var other: Dictionary = game.make_scout(0, Vector3(4, 0, -2), 1)
-	game.scouts.append(other)
+	game.encounter.register_scout(other)
 	live = cast(game, player)
 	Core.tick(game, live.armed)
 	Core.tick(game, live.armed + 750)
@@ -263,13 +263,13 @@ func check_contact_shapes(game: Node, player: Dictionary) -> void:
 	arena(game, player, "frostbell")
 	player.run_upgrades["core_rime_bloom"] = 1
 	var late: Dictionary = game.make_scout(0, Vector3(4, 0, -2), 1)
-	game.scouts.append(late)
+	game.encounter.register_scout(late)
 	live = cast(game, player)
 	Core.tick(game, live.armed)
 	game.enemy_pos.x = 4
 	late.pos = live.center
 	Core.tick(game, live.armed + 720)
-	check(game.enemy_hp == 28 and late.hp == late.max_hp and late.rooted_until == 0, "Snap Frost follows the original targets without hitting new entrants")
+	check(game.enemy_health() == 28 and game.encounter.hp_for(late) == late.max_hp and late.rooted_until == 0, "Snap Frost follows the original targets without hitting new entrants")
 
 	arena(game, player, "moon_lotus")
 	live = cast(game, player)
@@ -282,7 +282,7 @@ func check_final_grave(game: Node, player: Dictionary) -> void:
 	player.run_upgrades["core_grave_lantern"] = 1
 	var live := cast(game, player)
 	Core.tick(game, live.armed)
-	game.enemy_hp = 0
+	game.encounter.set_hp(-1, 0)
 	player.pos = live.center
 	game.record_enemy_death(-1, live.center, player.pos)
 	Core.tick(game, live.armed + 100)

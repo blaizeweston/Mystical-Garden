@@ -44,13 +44,13 @@ func run():
 		# This fixture checks class/loadout RPCs, not randomized elite evasion.
 		game.map_seed=1
 		game.reset_encounter()
-		game.scouts.clear()
+		game.encounter.clear_scouts()
 		game.enemy_kind=0
 		game.enemy_mutations=0
 		game.enemy_growth=0
 		game.enemy_winding_up=false
 		game.rooted_until=Time.get_ticks_msec()+60000
-		game.enemy_hp=100
+		game.encounter.set_hp(-1, 100)
 		p.pos=game.battlefield.graft
 		p.character.monsters[1]=100
 		game.enemy_pos=p.pos+Vector3(0,0,1)
@@ -60,7 +60,7 @@ func run():
 		if not await until(func(): return p.graft_part==18):
 			check(false,"guest monster graft succeeds");quit(1);return
 		check(p.secondary==2 and p.catalyst==3 and p.carried_parts[18]==0,"fourth slot preserves plant slots")
-		check(await until(func(): return game.enemy_hp<100),"guest weapon strike reaches host")
+		check(await until(func(): return game.enemy_health()<100),"guest weapon strike reaches host")
 		check(await until(func():return game.trait_events.any(func(e):return e.kind=="decoy" and e.owner==id)),"guest release creates the host-owned snare")
 		await create_timer(.7).timeout
 		check(p.character.upgrades[2]==(1<<13),"class upgrades cannot be changed during expedition")
@@ -91,7 +91,7 @@ func run():
 		game.send_garden_action("learn_2_2")
 		game.send_action(true)
 		game.update_projectiles(Time.get_ticks_msec()+1000)
-		check(await until(func(): return game.enemy_hp<100),"guest sees strike result")
+		check(await until(func(): return game.enemy_health()<100),"guest sees strike result")
 		check(game.guest_character.data.upgrades[2]==(1<<13),"class choices saved to guest character")
 		var local: Dictionary=game.players[id]
 		var preview:=Aim.footprint(game,local,game.stage.visual_field,0,Vector3.BACK,1.0)

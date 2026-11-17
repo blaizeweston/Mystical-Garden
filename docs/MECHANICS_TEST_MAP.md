@@ -6,6 +6,7 @@ Edges describe gameplay/data relationships. Selection uses explicit suite covera
 
 ```mermaid
 flowchart LR
+  encounter_roster["Host encounter membership<br/> HP<br/> stable target identities and defeat"]
   expedition_grafts["Expedition graft ledgers<br/> altar quotes and source-owned adaptations"]
   departure_settlement["Detached profiles<br/> protected cargo and guarded disconnect settlement"]
   player_lifecycle["Host-owned player life generations and fallen phase"]
@@ -327,6 +328,7 @@ flowchart LR
 
 | System | Source files | Covering suites |
 |---|---|---|
+| encounter_roster | `encounter_roster.gd`, `encounter_roster.gd.uid` | `encounter_roster`, `ec01_affinity_cards_party`, `world_snapshot_codec`, `experimental_terrain_coop`, `guarded_expedition`, `guarded_expedition_coop`, `boss_coop`, `boss_lairs`, `boss_phase_fights`, `boss_roster`, `combat_animation`, `enemy_support`, `expedition_pressure`, `expedition_pressure_coop`, `four_players_coop`, `monster_rewards`, `projectile_terrain`, `support_rite_responses`, `regular_enemy_responses`, `regular_enemy_responses_coop`, `thief_escape`, `thief_escape_coop`, `combat_vitals_baseline` |
 | expedition_grafts | `expedition_grafts.gd`, `expedition_grafts.gd.uid`, `affinity_grafting_panel.gd`, `affinity_grafting_panel.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `ct02_weaver`, `ct04_reaper`, `cr05_native_grafts`, `cr05_native_grafts_coop`, `cr05_native_grafts_party` |
 | departure_settlement | `departure_settlement.gd`, `departure_settlement.gd.uid` | `experimental_terrain_coop`, `candidate_release_party`, `guarded_expedition`, `guarded_expedition_coop`, `monster_rewards` |
 | player_lifecycle | `player_lifecycle.gd`, `player_lifecycle.gd.uid` | `ct05_oracle`, `cr05_native_grafts`, `world_snapshot_codec`, `cr02_combat_contracts`, `guarded_expedition`, `guarded_expedition_coop`, `loot_revival`, `loot_revival_coop`, `network_movement_coop` |
@@ -338,7 +340,7 @@ flowchart LR
 | void_affinity | `void_affinity.gd`, `void_affinity.gd.uid` | `cr04c_void`, `cr04c_void_coop`, `cr04c_mixed_party` |
 | spirit_affinity | `spirit_affinity.gd`, `spirit_affinity.gd.uid` | `cr04c_mixed_party`, `cr04c_spirit`, `cr04c_spirit_coop` |
 | storm_affinity | `storm_affinity.gd`, `storm_affinity.gd.uid` | `cr04c_mixed_party`, `cr04c_storm`, `cr04c_storm_coop` |
-| world_snapshot | `world_snapshot.gd`, `world_snapshot.gd.uid` | `ec01_affinity_cards_party`, `ct05_oracle_coop`, `ct05_oracle_party`, `ct01_warden_coop`, `ct02_weaver_coop`, `ct02_weaver_party`, `ct03_ranger_coop`, `ct03_ranger_party`, `ct04_reaper_coop`, `ct04_reaper_party`, `cr05_native_grafts_coop`, `cr05_native_grafts_party`, `cr04c_void_coop`, `cr04c_mixed_party`, `cr04c_spirit_coop`, `cr04c_storm_coop`, `world_snapshot_codec`, `cr04b_wood_coop`, `cr04b_mixed_party`, `cr04b_thorn_coop`, `cr04a_mixed_party`, `cr02_mode_mismatch`, `cr02_definitions_mismatch`, `experimental_terrain_coop`, `candidate_release_party`, `guarded_expedition_coop`, `diagnostics_coop`, `four_players_coop`, `network_movement_coop`, `network_presentation`, `status_feedback_coop`, `weapon_actions_coop` |
+| world_snapshot | `world_snapshot.gd`, `world_snapshot.gd.uid` | `encounter_roster`, `ec01_affinity_cards_party`, `ct05_oracle_coop`, `ct05_oracle_party`, `ct01_warden_coop`, `ct02_weaver_coop`, `ct02_weaver_party`, `ct03_ranger_coop`, `ct03_ranger_party`, `ct04_reaper_coop`, `ct04_reaper_party`, `cr05_native_grafts_coop`, `cr05_native_grafts_party`, `cr04c_void_coop`, `cr04c_mixed_party`, `cr04c_spirit_coop`, `cr04c_storm_coop`, `world_snapshot_codec`, `cr04b_wood_coop`, `cr04b_mixed_party`, `cr04b_thorn_coop`, `cr04a_mixed_party`, `cr02_mode_mismatch`, `cr02_definitions_mismatch`, `experimental_terrain_coop`, `candidate_release_party`, `guarded_expedition_coop`, `diagnostics_coop`, `four_players_coop`, `network_movement_coop`, `network_presentation`, `status_feedback_coop`, `weapon_actions_coop` |
 | wood_affinity | `wood_affinity.gd`, `wood_affinity.gd.uid` | `cr04b_wood`, `cr04b_wood_coop`, `cr04b_mixed_party` |
 | thorn_affinity | `thorn_affinity.gd`, `thorn_affinity.gd.uid` | `cr04b_wood`, `cr04b_mixed_party`, `cr04b_thorn`, `cr04b_thorn_coop` |
 | vital_affinity | `vital_combat.gd`, `vital_combat.gd.uid` | `cr04a_vital`, `cr04a_vital_coop`, `cr04a_mixed_party` |
@@ -358,8 +360,8 @@ flowchart LR
 | items | `item_catalog.gd`, `inventory_model.gd`, `inventory_panel.gd`, `inventory_slot.gd`, `inventory_drop_surface.gd`, `inventory_drop_visuals.gd` | `plant_affinities`, `candidate_release_solo`, `guarded_garden_actions`, `checkpoint_extraction`, `classes_coop`, `classes_weapons`, `core_starters`, `crafting_availability_coop`, `cultivation_growth`, `diagnostics`, `foundations`, `four_players_coop`, `garden_altar`, `garden_cleanup`, `garden_cleanup_coop`, `garden_conduit`, `garden_crop_care`, `garden_crop_care_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `gate_crafting_rules`, `grafting_menu`, `inventory_grid`, `inventory_party`, `loot_revival`, `loot_revival_coop`, `monster_rewards`, `player_hud`, `seed_coop`, `seed_inventory`, `seed_template`, `species_depth`, `developer_garden` |
 | weapons | `weapon_parts.gd`, `weapon_system.gd`, `weapon_frames.gd`, `loadout_materials.gd`, `loadout_panel.gd`, `grafting_panel.gd` | `ec01_affinity_cards`, `cr05_native_grafts`, `cr05_native_grafts_coop`, `cr05_native_grafts_party`, `cr04b_wood`, `cr04b_thorn`, `cr04a_vital`, `cr04a_vital_coop`, `cr04a_mixed_party`, `cr04a_water`, `cr04a_water_coop`, `cr04a_fire`, `cr04a_fire_coop`, `cr03_frost`, `cr03_frost_coop`, `cr03_frost_party`, `cr02_combat_contracts`, `cr02_mode_coop`, `plant_affinities`, `guarded_garden_actions`, `guarded_garden_actions_coop`, `boss_roster`, `character_locomotion`, `character_overhaul`, `character_rig`, `class_depth`, `class_depth_coop`, `classes_coop`, `classes_weapons`, `combat_animation`, `core_combat`, `core_combat_coop`, `core_modifiers`, `core_roster`, `core_roster_coop`, `core_signatures`, `core_signatures_coop`, `core_starters`, `crafting_availability_coop`, `dual_skills`, `dual_skills_coop`, `enemy_depth`, `foundations`, `four_players_coop`, `garden_altar`, `garden_interactions`, `garden_interactions_coop`, `garden_spring`, `garden_spring_coop`, `gate_crafting_rules`, `gate_garden_services`, `grafting_menu`, `inventory_grid`, `inventory_party`, `menu_coop`, `mouse_combat`, `mouse_combat_coop`, `network_presentation`, `network_warden_coop`, `party_ready`, `party_ready_coop`, `run_flow`, `seed_coop`, `seed_template`, `shrines_hits`, `species_depth`, `status_feedback`, `warden_depth`, `warden_depth_coop`, `weapon_actions`, `weapon_actions_coop`, `weighted_upgrades`, `developer_garden`, `core_balance_preview` |
 | classes | `class_experience.gd`, `class_experience.gd.uid`, `class_catalog.gd`, `skill_catalog.gd`, `combat_traits.gd` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `ct05_oracle`, `ct05_oracle_coop`, `ct05_oracle_party`, `ct01_warden`, `ct01_warden_coop`, `ct02_weaver`, `ct02_weaver_coop`, `ct02_weaver_party`, `ct03_ranger`, `ct03_ranger_coop`, `ct03_ranger_party`, `ct04_reaper`, `ct04_reaper_coop`, `ct04_reaper_party`, `cr05_native_grafts`, `cr05_native_grafts_coop`, `cr05_native_grafts_party`, `cr04b_wood`, `cr04b_thorn`, `cr04a_vital`, `cr04a_water`, `cr04a_fire`, `cr03_frost`, `cr02_combat_contracts`, `guarded_garden_actions`, `guarded_garden_actions_coop`, `class_depth`, `class_depth_coop`, `classes_coop`, `classes_weapons`, `core_modifiers`, `core_starters`, `dual_skills`, `dual_skills_coop`, `enemy_depth`, `foundations`, `four_players_coop`, `inventory_party`, `monster_rewards`, `mouse_combat`, `projectile_terrain`, `mouse_combat_coop`, `network_warden_coop`, `player_hud`, `run_flow`, `seed_template`, `species_depth`, `status_feedback`, `status_feedback_coop`, `warden_depth`, `warden_depth_coop`, `weapon_actions`, `weighted_upgrades`, `warden_prototype`, `warden_prototype_coop`, `subclass_skills`, `class_balance_preview` |
-| combat | `mouse_combat.gd`, `attack_geometry.gd`, `weapon_motion.gd`, `enemy_hurtbox.gd`, `enemy_hurtbox.gd.uid`, `weapon_contact.gd`, `weapon_contact.gd.uid`, `combat_status.gd`, `combat_status.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `ct05_oracle`, `ct05_oracle_coop`, `ct05_oracle_party`, `ct01_warden`, `ct01_warden_coop`, `ct02_weaver`, `ct02_weaver_coop`, `ct02_weaver_party`, `ct03_ranger`, `ct03_ranger_coop`, `ct03_ranger_party`, `ct04_reaper`, `ct04_reaper_coop`, `ct04_reaper_party`, `cr05_native_grafts`, `cr04c_void`, `cr04c_spirit`, `cr04c_storm`, `cr04b_wood`, `cr04b_thorn`, `cr04a_vital`, `cr04a_water`, `candidate_release_solo`, `guarded_expedition`, `guarded_expedition_coop`, `boss_coop`, `boss_lairs`, `boss_phase_fights`, `boss_roster`, `class_depth`, `class_depth_coop`, `classes_coop`, `classes_weapons`, `combat_animation`, `combat_balance`, `combat_readability`, `combat_readability_coop`, `core_combat`, `core_combat_coop`, `core_modifiers`, `core_roster`, `core_roster_coop`, `core_signatures`, `core_signatures_coop`, `core_starters`, `core_weapon_variants`, `diagnostics`, `diagnostics_coop`, `dual_skills`, `dual_skills_coop`, `enemy_depth`, `enemy_support`, `four_players_coop`, `gate_elites`, `gate_elites_coop`, `grafting_menu`, `health_points`, `menu_coop`, `monster_behaviors`, `mouse_combat`, `projectile_terrain`, `mouse_combat_coop`, `network_presentation`, `network_warden_coop`, `player_hud`, `shrines_hits`, `status_feedback`, `status_feedback_coop`, `supplied_network_smoke`, `support_deaths`, `support_rite_responses`, `support_rite_responses_coop`, `terrain_generation_coop`, `warden_depth`, `warden_depth_coop`, `weapon_actions`, `weapon_actions_coop`, `weighted_upgrades`, `regular_enemy_responses`, `regular_enemy_responses_coop`, `thief_escape`, `thief_escape_coop` |
-| enemies | `enemy_catalog.gd`, `enemy_behaviors.gd`, `boss_encounters.gd`, `combat_director.gd`, `wilds_learning.gd`, `game_balance.gd`, `elite_enemy.gd`, `elite_enemy.gd.uid` | `boss_coop`, `boss_lairs`, `boss_phase_fights`, `boss_roster`, `combat_animation`, `combat_balance`, `combat_readability`, `combat_readability_coop`, `enemy_depth`, `enemy_roster`, `enemy_support`, `expedition_pressure`, `expedition_pressure_coop`, `gate_elites`, `gate_elites_coop`, `monster_behaviors`, `monster_rewards`, `shrines_hits`, `status_feedback`, `support_deaths`, `terrain_generation`, `enemy_balance_preview` |
+| combat | `mouse_combat.gd`, `attack_geometry.gd`, `weapon_motion.gd`, `enemy_hurtbox.gd`, `enemy_hurtbox.gd.uid`, `weapon_contact.gd`, `weapon_contact.gd.uid`, `combat_status.gd`, `combat_status.gd.uid` | `encounter_roster`, `ec01_affinity_cards_party`, `ec01_affinity_cards`, `ct05_oracle`, `ct05_oracle_coop`, `ct05_oracle_party`, `ct01_warden`, `ct01_warden_coop`, `ct02_weaver`, `ct02_weaver_coop`, `ct02_weaver_party`, `ct03_ranger`, `ct03_ranger_coop`, `ct03_ranger_party`, `ct04_reaper`, `ct04_reaper_coop`, `ct04_reaper_party`, `cr05_native_grafts`, `cr04c_void`, `cr04c_spirit`, `cr04c_storm`, `cr04b_wood`, `cr04b_thorn`, `cr04a_vital`, `cr04a_water`, `candidate_release_solo`, `guarded_expedition`, `guarded_expedition_coop`, `boss_coop`, `boss_lairs`, `boss_phase_fights`, `boss_roster`, `class_depth`, `class_depth_coop`, `classes_coop`, `classes_weapons`, `combat_animation`, `combat_balance`, `combat_readability`, `combat_readability_coop`, `core_combat`, `core_combat_coop`, `core_modifiers`, `core_roster`, `core_roster_coop`, `core_signatures`, `core_signatures_coop`, `core_starters`, `core_weapon_variants`, `diagnostics`, `diagnostics_coop`, `dual_skills`, `dual_skills_coop`, `enemy_depth`, `enemy_support`, `four_players_coop`, `gate_elites`, `gate_elites_coop`, `grafting_menu`, `health_points`, `menu_coop`, `monster_behaviors`, `mouse_combat`, `projectile_terrain`, `mouse_combat_coop`, `network_presentation`, `network_warden_coop`, `player_hud`, `shrines_hits`, `status_feedback`, `status_feedback_coop`, `supplied_network_smoke`, `support_deaths`, `support_rite_responses`, `support_rite_responses_coop`, `terrain_generation_coop`, `warden_depth`, `warden_depth_coop`, `weapon_actions`, `weapon_actions_coop`, `weighted_upgrades`, `regular_enemy_responses`, `regular_enemy_responses_coop`, `thief_escape`, `thief_escape_coop` |
+| enemies | `enemy_catalog.gd`, `enemy_behaviors.gd`, `boss_encounters.gd`, `combat_director.gd`, `wilds_learning.gd`, `game_balance.gd`, `elite_enemy.gd`, `elite_enemy.gd.uid` | `encounter_roster`, `boss_coop`, `boss_lairs`, `boss_phase_fights`, `boss_roster`, `combat_animation`, `combat_balance`, `combat_readability`, `combat_readability_coop`, `enemy_depth`, `enemy_roster`, `enemy_support`, `expedition_pressure`, `expedition_pressure_coop`, `gate_elites`, `gate_elites_coop`, `monster_behaviors`, `monster_rewards`, `shrines_hits`, `status_feedback`, `support_deaths`, `terrain_generation`, `enemy_balance_preview` |
 | terrain | `battlefield.gd`, `encounter_config.gd`, `exploration.gd`, `walkable_surface.gd`, `walkable_surface.gd.uid`, `wilds_layout.gd`, `wilds_layout.gd.uid` | `ct03_ranger`, `ct04_reaper`, `experimental_terrain_coop`, `experimental_terrain`, `boss_coop`, `boss_lairs`, `boss_phase_fights`, `boss_roster`, `core_combat`, `core_combat_coop`, `core_modifiers`, `core_weapon_variants`, `expedition_pressure`, `exploration_maps`, `exploration_ui`, `garden_presentation`, `gate_elites`, `loot_revival`, `loot_revival_coop`, `menu_controls`, `mouse_combat`, `projectile_terrain`, `mouse_combat_coop`, `natural_world`, `network_movement_coop`, `network_presentation`, `path_junctions`, `shrines_hits`, `support_rite_responses`, `terrain_generation`, `terrain_generation_coop`, `weapon_actions`, `wilds_skill_tactics`, `regular_enemy_responses`, `thief_escape`, `thief_escape_coop` |
 | garden | `garden_visuals.gd`, `heart_visuals.gd` | `cr04a_vital_coop`, `cr04a_water_coop`, `cr04a_fire_coop`, `cr03_frost_coop`, `cr02_mode_coop`, `experimental_terrain_coop`, `candidate_release_solo`, `candidate_release_party`, `guest_projection_coop`, `garden_cleanup`, `garden_cleanup_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `gardening`, `gate_garden_services`, `heart_progression`, `network_research_coop`, `seed_inventory`, `timed_research` |
 | knowledge | `heart_catalog.gd`, `heart_progress.gd` | `guarded_garden_actions`, `guarded_gameplay_transactions`, `cultivation_growth`, `foundations`, `garden_altar`, `garden_cleanup`, `garden_cleanup_coop`, `garden_conduit`, `garden_conduit_coop`, `garden_growth`, `garden_growth_coop`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `heart_growth_visual`, `heart_progression`, `network_research_coop`, `seed_coop`, `seed_progression`, `seed_template`, `species_depth`, `timed_research`, `developer_garden` |
@@ -490,7 +492,7 @@ flowchart LR
 | `apply_enemy_hit` | life |
 | `apply_hit_grace` | combat, life |
 | `apply_skill_targets` | classes, affinity_cards |
-| `apply_weapon_hit` | combat, weapons, classes, loot, enemies, enemy_attack_plan |
+| `apply_weapon_hit` | combat, weapons, classes, loot, enemies, enemy_attack_plan, encounter_roster |
 | `apply_world_snapshot` | world_snapshot, presentation, life |
 | `arrange_support_groups` | enemies |
 | `at_garden_altar` | seeds |
@@ -550,10 +552,11 @@ flowchart LR
 | `drop_inventory_stack` | loot |
 | `emit_combat_event` | presentation |
 | `emit_weapon_attack` | presentation |
-| `encounter_cleared` | expeditions |
+| `encounter_cleared` | expeditions, encounter_roster |
 | `encounter_health` | expeditions |
 | `ending_message` | expeditions |
 | `enemy_contact_point` | combat |
+| `enemy_health` | encounter_roster, combat, world_snapshot |
 | `enemy_name` | enemies |
 | `enemy_position` | enemies |
 | `enter_wilds` | expeditions |
@@ -595,9 +598,9 @@ flowchart LR
 | `inventory_ui_data` | items |
 | `join_game` | foundation |
 | `leave_game` | foundation |
-| `living_scout_count` | enemies |
+| `living_scout_count` | enemies, encounter_roster |
 | `local_player_id` | menus |
-| `make_scout` | enemies, enemy_attack_plan |
+| `make_scout` | enemies, enemy_attack_plan, encounter_roster |
 | `mark_checkpoint_ready` | expeditions, affinity_cards |
 | `milestone_message` | expeditions |
 | `monster_cargo_limit` | knowledge |
@@ -634,13 +637,13 @@ flowchart LR
 | `receive_combat_event` | foundation |
 | `receive_details` | foundation |
 | `receive_message` | foundation |
-| `receive_state` | foundation |
+| `receive_state` | foundation, encounter_roster |
 | `receive_vitals` | foundation |
 | `reclaim_seed` | seeds, garden_stations |
 | `reclamation_cost` | seeds |
 | `reclamation_species` | seeds |
 | `record_character` | persistence_operations |
-| `record_enemy_death` | enemies, loot |
+| `record_enemy_death` | enemies, loot, encounter_roster |
 | `record_settlement_metric` | diagnostics, expeditions |
 | `recover_pouch` | life |
 | `refresh_drop` | loot |
@@ -656,7 +659,7 @@ flowchart LR
 | `request_garden_action` | foundation |
 | `request_ip_join` | menus |
 | `request_main_menu` | menus |
-| `reset_encounter` | expeditions, encounter_composition |
+| `reset_encounter` | expeditions, encounter_composition, encounter_roster |
 | `reset_expedition` | expeditions, affinity_cards |
 | `resolve_briar_strike` | enemies |
 | `resolve_scout` | enemies, enemy_attack_plan |
@@ -680,7 +683,7 @@ flowchart LR
 | `save_progress` | foundation |
 | `save_session_garden` | persistence_operations |
 | `scout_radius` | enemies |
-| `scout_snapshot` | enemies |
+| `scout_snapshot` | enemies, encounter_roster |
 | `seed_reserve` | seeds |
 | `select_attack_target` | combat |
 | `select_class` | classes, weapons, characters |
@@ -706,7 +709,6 @@ flowchart LR
 | `skill_area_targets` | classes |
 | `skill_line_targets` | classes |
 | `snapshot_expedition_runtime` | expeditions, persistence_operations |
-| `spawn_brood` | enemies, enemy_attack_plan |
 | `start_encounter` | expeditions |
 | `stored_counts` | weapons |
 | `strike_enemy` | combat, affinity_cards |
@@ -725,7 +727,7 @@ flowchart LR
 | `update_pressure` | enemies |
 | `update_projectiles` | combat, weapons, classes, enemies |
 | `update_ready_panel` | expeditions |
-| `update_scouts` | enemies, enemy_attack_plan |
+| `update_scouts` | enemies, enemy_attack_plan, encounter_roster |
 | `update_support_effects` | classes |
 | `update_support_position` | enemies, enemy_attack_plan |
 | `upgrade_checkpoint_open` | expeditions |

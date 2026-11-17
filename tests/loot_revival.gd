@@ -16,7 +16,7 @@ func run() -> void:
  game.set_process(false);game.set_physics_process(false)
  game.add_player(2);game.players[2].profile_ready=true
  var a: Dictionary=game.players[1];var b: Dictionary=game.players[2]
- game.battlefield.configure(0,1);game.enemy_hp=100;game.scouts.clear()
+ game.battlefield.configure(0,1);game.encounter.set_hp(-1, 100);game.encounter.clear_scouts()
  for p in [a,b]: p.wild=true;p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
  var item: String=game.Items.part_id(game.Parts.HOOK)
  game.wild_item_drops.assign([{"id":"part","owner":1,"stack":{"item":item,"quantity":1},"position":[0,0,2]}])
@@ -50,9 +50,9 @@ func run() -> void:
  game._process(.016)
  check(game.player_hud.state.lost_health==2 and game.player_hud.heart_state(8,8,4)==3,"lost full heart uses fourth damage texture")
  check(game.spectator_view.focus_id(1)==1,"revived camera returns to own character")
- game.enemy_hp=0;game.encounter_number=6;a.pos=game.battlefield.advance;a[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(a).spent_essence());a.offer_floor=6;a.checkpoint_offers=["class_0_0"]
+ game.encounter.set_hp(-1, 0);game.encounter_number=6;a.pos=game.battlefield.advance;a[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(a).spent_essence());a.offer_floor=6;a.checkpoint_offers=["class_0_0"]
  check(game._buy_upgrade(1,a,0) and PlayerVitals.maximum_hp(a)==10 and a.lost_health==2,"real health upgrade preserves the sacrificed-heart deduction")
- a.run_upgrades={};a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_native_max_hp(8);a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_hp(8);b.pos=a.pos;game.encounter_number=1;game.enemy_hp=100
+ a.run_upgrades={};a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_native_max_hp(8);a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_hp(8);b.pos=a.pos;game.encounter_number=1;game.encounter.set_hp(-1, 100)
  for capacity in [6,4,2]:
   var generation := PlayerLifecycle.generation(a)
   game.damage_player(1,a,100)
@@ -62,13 +62,13 @@ func run() -> void:
  game.damage_player(1,a,100)
  check(not game.Life.revive(game,2,1) and PlayerVitals.current_hp(a)==0 and PlayerVitals.maximum_hp(a)==2,"last remaining full heart cannot be sacrificed")
  # Fallen allies cannot block travel or get healed by moving floors.
- game.enemy_hp=0;game.encounter_rewarded=true;game.encounter_number=1
+ game.encounter.set_hp(-1, 0);game.encounter_rewarded=true;game.encounter_number=1
  b.pos=game.battlefield.advance;a.pos=Vector3(0,0,2)
  check(game.PartyTravel.members(game,"advance")==[2],"fallen player omitted from ready checks")
  game._use_checkpoint(2,true)
  check(a.wild and PlayerLifecycle.fallen(a) and PlayerVitals.current_hp(a)==0,"floor transition carries fallen body without reviving")
  # Extracting alive banks full cargo, while a fallen ally keeps only their pouch.
- game.enemy_hp=0;game.scouts.clear();game.encounter_number=6;game.encounter_rewarded=true;b.pos=game.battlefield.advance
+ game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.encounter_number=6;game.encounter_rewarded=true;b.pos=game.battlefield.advance
  var safe_before: int=game.seed_reserve(a).unknown.size()
  game._use_checkpoint(2,false)
  check(not a.wild and not PlayerLifecycle.fallen(a) and PlayerVitals.current_hp(a)==10 and a.lost_health==0

@@ -65,13 +65,13 @@ func verify_tree() -> void:
 func prepare(path: Array, origin := Vector3.ZERO, enemy := Vector3(2,0,0)) -> void:
 	game.combat_epoch += 1
 	game.battlefield = preload("res://battlefield.gd").new()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.trait_events.clear()
 	game.projectile_queue.clear()
 	game.combat_events.clear()
 	game.enemy_traits.clear()
 	game.enemy_pos = enemy
-	game.enemy_hp = 300
+	game.encounter.set_hp(-1, 300)
 	game.enemy_kind = 0
 	game.enemy_growth = 0
 	game.enemy_mutations = 0
@@ -116,9 +116,9 @@ func trap(slot: int) -> Dictionary:
 	return {}
 
 func scout(point: Vector3) -> Dictionary:
-	var foe: Dictionary = game.make_scout(0,point,game.scouts.size()+1)
+	var foe: Dictionary = game.make_scout(0,point,game.encounter.scout_count()+1)
 	foe.hp = 300
-	game.scouts.append(foe)
+	game.encounter.register_scout(foe)
 	return foe
 
 func tracked_and_offense() -> void:
@@ -127,7 +127,7 @@ func tracked_and_offense() -> void:
 	var first_skill := Skills.resolve(2,0,ranger.character,true)
 	check(first_skill.name=="Hunter’s Salvo" and is_equal_approx(first_skill.width,.86) and first_skill.limit==3,"Wider Pattern keeps the Salvo cap")
 	cast(0)
-	check(game.enemy_hp==270 and second.hp==280,"Splinter Ambush adds 10 HP to only the first damaged Salvo target")
+	check(game.enemy_health()==270 and game.encounter.hp_for(second)==280,"Splinter Ambush adds 10 HP to only the first damaged Salvo target")
 	var prey: Dictionary = game.enemy_traits.get(Ranger.PREY,{})
 	check(prey.get("owner")==game.HOST and not game.Traits.target_state(game,0).has(Ranger.PREY)
 		and ranger.has(Ranger.FOLLOW) and ranger.has(Ranger.DOUBLE),"Salvo tracks one survivor and prepares both timed effects")
@@ -141,10 +141,10 @@ func tracked_and_offense() -> void:
 	game.apply_weapon_hit(ally,-1,ally.pos,{"damage":0.0,"affinity_hp":3,"knockback":-.35,"core_hit":true,"trait_secondary":true},now)
 	check(game.enemy_traits.has(Ranger.PREY) and game.enemy_traits.has(Mark.STATE),"secondary damage cannot consume either mark")
 	game.apply_weapon_hit(ally,-1,ally.pos,{"damage":1.0,"knockback":-.35,"ranger_direct_hit":true},now+2)
-	check(game.enemy_hp==237 and not game.enemy_traits.has(Ranger.PREY) and not game.enemy_traits.has(Mark.STATE),
+	check(game.enemy_health()==237 and not game.enemy_traits.has(Ranger.PREY) and not game.enemy_traits.has(Mark.STATE),
 		"one ally direct hit independently consumes Tracked Prey and the botanical mark")
 	game.apply_weapon_hit(ally,-1,ally.pos,{"damage":1.0,"knockback":-.35,"ranger_direct_hit":true},now+3)
-	check(game.enemy_hp==227,"the consumed prey adds damage only once")
+	check(game.enemy_health()==227,"the consumed prey adds damage only once")
 	check(Ranger.track(game,game.HOST,ranger,-1,101,now) and Ranger.active_prey(game,game.enemy_traits,now+2700).is_empty(),
 		"Tracked Prey expires after 2.7 seconds")
 
@@ -158,11 +158,11 @@ func tracked_and_offense() -> void:
 	game.enemy_pos = Vector3(5,0,0)
 	cast(1)
 	var placed := trap(1)
-	check(not placed.is_empty() and not ranger.has(Ranger.SNARE) and game.enemy_hp==227,"placing Barbed Snare does not deal damage")
+	check(not placed.is_empty() and not ranger.has(Ranger.SNARE) and game.enemy_health()==227,"placing Barbed Snare does not deal damage")
 	if not placed.is_empty():
 		game.Traits.tick(game,int(placed.next))
 		game.Traits.tick(game,int(placed.next)+50)
-		check(game.enemy_hp==207 and not placed.has("ranger_bonus_hp"),"first actual R contact gets the bonus only once")
+		check(game.enemy_health()==207 and not placed.has("ranger_bonus_hp"),"first actual R contact gets the bonus only once")
 
 	for weapon in 3:
 		prepare(OFFENSE,Vector3.ZERO,Vector3(2.6,0,0))
@@ -181,9 +181,9 @@ func tracked_and_offense() -> void:
 			and not extras[0].has("ranger_follow_hp") and extras[0].stats.affinity_hp==roundi(rolled*.5)
 			and not extras[0].stats.has(Events.CONTEXT) and extras[0].remaining==1 and extras[0].aim==main.aim,
 			"both bonuses captured at launch, half original roll and isolated second projectile for weapon %d" % weapon)
-		var before: int = game.enemy_hp
+		var before: int = game.enemy_health()
 		game.update_projectiles(int(main.due)+1)
-		check(game.enemy_hp<before and events.filter(func(item):return item.kind=="weapon_contact").size()==1,
+		check(game.enemy_health()<before and events.filter(func(item):return item.kind=="weapon_contact").size()==1,
 			"only the original projectile publishes direct Form contact")
 	prepare(OFFENSE)
 	cast(0)
@@ -192,10 +192,10 @@ func tracked_and_offense() -> void:
 	game.strike_enemy(game.HOST,ranger,ranger.pos)
 	if not game.projectile_queue.is_empty():
 		var main: Dictionary = game.projectile_queue.front()
-		var before: int = game.enemy_hp
+		var before: int = game.enemy_health()
 		game.update_projectiles(int(main.release))
 		game.update_projectiles(int(main.release)+2000)
-		check(game.enemy_hp==before and not ranger.has(Ranger.FOLLOW) and not ranger.has(Ranger.DOUBLE),"miss spends both launched preparations")
+		check(game.enemy_health()==before and not ranger.has(Ranger.FOLLOW) and not ranger.has(Ranger.DOUBLE),"miss spends both launched preparations")
 	prepare(OFFENSE)
 	cast(0)
 	game.strike_enemy(game.HOST,ranger,ranger.pos)
@@ -232,7 +232,7 @@ func balanced_and_corridor() -> void:
 			game.trait_events.erase(bait)
 		game.Traits.tick(game,tick_at)
 		game.Traits.tick(game,tick_at+16)
-		check(game.enemy_hp==290 and corridor_enemy.hp==290 and placed.seen.size()==2
+		check(game.enemy_health()==290 and game.encounter.hp_for(corridor_enemy)==290 and placed.seen.size()==2
 			and game.rooted_until==tick_at+1300 and corridor_enemy.rooted_until==tick_at+1300,
 			"one native hit and root per enemy across corridor and endpoint")
 		check(events.filter(func(item):return item.kind=="class_contact").size()==1,
@@ -241,10 +241,10 @@ func balanced_and_corridor() -> void:
 	prepare(["snarekeeper","wider_pattern","splinter_ambush","barbed_snare"],Vector3.ZERO,Vector3(5,0,0))
 	cast(0)
 	bait = trap(0)
-	check(game.enemy_hp==300 and not bait.is_empty(),"Q trap placement spends no Splinter damage")
+	check(game.enemy_health()==300 and not bait.is_empty(),"Q trap placement spends no Splinter damage")
 	if not bait.is_empty():
 		game.Traits.tick(game,int(bait.next))
-		check(game.enemy_hp==290 and bait.ranger_caught,"actual Q trap contact deals the one native Splinter hit")
+		check(game.enemy_health()==290 and bait.ranger_caught,"actual Q trap contact deals the one native Splinter hit")
 
 	prepare(BALANCED,Vector3(-4,0,0),Vector3(3.5,0,0))
 	var water := Shape.shape("river","water",PackedVector2Array([Vector2(-1,-7),Vector2(1,-7),Vector2(1,7),Vector2(-1,7)]))
@@ -279,7 +279,7 @@ func defense_and_route() -> void:
 		and is_equal_approx(game.player_snapshot(8,false)[1].motion_scale,1.15),"Fleetfoot uses the real replicated movement multiplier")
 	if not briar.is_empty():
 		game.Traits.tick(game,int(briar.next))
-		check(departure_ally.rooted_until>0 and departure_ally.hp==300,"Briar Retreat uses its native root without extra damage")
+		check(departure_ally.rooted_until>0 and game.encounter.hp_for(departure_ally)==300,"Briar Retreat uses its native root without extra damage")
 	var q_time: int = ranger[Cooldowns.STATE].deadline(Cooldowns.Q)
 	ranger.class_aim_distance=0.05
 	ranger[Cooldowns.STATE] = ranger[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)

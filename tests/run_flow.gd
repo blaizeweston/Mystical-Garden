@@ -5,7 +5,7 @@ func check(ok: bool,message: String):
 func _initialize(): call_deferred("run")
 func cleared_gate(game,floor_number: int):
  game.encounter_number=floor_number;game.deepest_milestone=floor_number
- game.enemy_hp=0;game.scouts.clear()
+ game.encounter.set_hp(-1, 0);game.encounter.clear_scouts()
  game.players[1].pos=game.battlefield.advance
 func run():
  var game=load("res://world.tscn").instantiate()

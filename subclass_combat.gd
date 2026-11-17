@@ -89,7 +89,7 @@ static func targets(game: Node, cast: Dictionary, skill: Dictionary, card: Dicti
 
 
 static func in_windup(game: Node, target: int, now: int) -> bool:
-	return game.enemy_winding_up if target == -1 else int(game.scouts[target].get("windup",0)) > now
+	return game.enemy_winding_up if target == -1 else int(game.encounter.scout(target).get("windup",0)) > now
 
 
 static func allies(game: Node, center: Vector3, radius: float) -> Array[Dictionary]:
@@ -170,13 +170,13 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 			game.emit_combat_event("link","interwoven_bind",cast.center,impact,.5,Color(skill.color),0.0,id)
 		var windup := in_windup(game,target,now)
 		var damage := Balance.Preview.authored_amount(float(skill.get("damage",0)) + (float(skill.get("punish",0))+float(card.get("punish",0)) if windup else 0.0))
-		var rewardable: bool = target == -1 or not game.scouts[target].get("summoned",false)
+		var rewardable: bool = target == -1 or not game.encounter.scout(target).get("summoned",false)
 		var oracle_hp: int = int(oracle_hit.hp) if target == int(oracle_hit.get("target",-2)) else 0
 		if damage > 0 or oracle_hp > 0:
 			var hit := stats.duplicate() if damage > 0 else oracle_api.spell_hit(oracle_hp)
 			hit.damage = damage
 			hit.knockback = -.35
-			var before: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)
+			var before: int = game.encounter.hp(target)
 			hit.ranger_direct_hit = not ranger and damage > 0
 			if oracle_hp > 0:
 				hit.native_bonus_hp = oracle_hp
@@ -187,7 +187,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 				if not reaper_damage and skill.reaper_nodes.has("rending_cut"):
 					hit.native_bonus_hp = Catalog.Reaper.RENDING_HP
 			game.apply_weapon_hit(player,target,cast.center,hit,now)
-			var after: int = game.enemy_hp if target==-1 else int(game.scouts[target].hp)
+			var after: int = game.encounter.hp(target)
 			q_contact = q_contact or after < before
 			if reaper and after < before:
 				reaper_damage = true
@@ -204,7 +204,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 			continue
 		if bind > 0:
 			var until := now+bind+int(stats.get("skill_duration",0))
-			var previous: int = game.rooted_until if target == -1 else int(game.scouts[target].get("rooted_until",0))
+			var previous: int = game.rooted_until if target == -1 else int(game.encounter.scout(target).get("rooted_until",0))
 			preload("res://combat_status.gd").root(game,target,until)
 			q_contact = q_contact or until > previous
 		if skill.has("pull"):
@@ -287,7 +287,7 @@ static func pull(game: Node, target: int, center: Vector3, amount: float, now: i
 	if target == -1:
 		game.enemy_pos = moved
 	else:
-		game.scouts[target].pos = moved
+		game.encounter.scout(target).pos = moved
 	if point.distance_squared_to(moved) > .01:
 		game.emit_combat_event("enemy_release","pulled",point,moved,.4,Color("#e7dbad"),0.0,target)
 

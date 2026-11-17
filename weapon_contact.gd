@@ -38,11 +38,11 @@ static func accepts(game: Node,target: int,origin: Vector3,aim: Vector3,form: St
   return closest.distance_to(center)<=float(profile.width)+radius
  return Geometry.accepts_sector(origin,aim,center,radius,float(profile.reach),float(profile.span))
 static func token(game: Node,target: int) -> String:
- return "leader" if target==-1 else str(game.scouts[target].get("spawn_token",target))
+ return "leader" if target==-1 else str(game.encounter.token(target))
 static func candidates(game: Node,origin: Vector3) -> Array:
  var result: Array=[]
- for target in range(-1,game.scouts.size()):
-  if (game.enemy_hp if target==-1 else int(game.scouts[target].hp))>0:result.append(target)
+ for target in range(-1,game.encounter.scout_count()):
+  if game.encounter.alive(target):result.append(target)
  result.sort_custom(func(a,b):return origin.distance_squared_to(game.enemy_position(a))<origin.distance_squared_to(game.enemy_position(b)))
  return result
 static func secondary(game: Node,player: Dictionary,stats: Dictionary,point: Vector3,hits: Array,remaining: int) -> int:
@@ -74,8 +74,12 @@ static func melee(game: Node,shot: Dictionary,now: int) -> void:
  var player: Dictionary=game.players[shot.player];var remaining:=int(shot.stats.targets);var hits: Array=[]
  var direction: Vector3=(shot.aim-shot.origin).normalized()
  shot.origin=player.pos;shot.aim=shot.origin+direction*float(shot.stats.reach)
+ var epoch: int=game.combat_epoch
+ var scout_tokens: PackedInt64Array=game.encounter.scout_tokens()
  for target in candidates(game,shot.origin):
-  if remaining<=0:break
+  if remaining<=0 or game.combat_epoch!=epoch:break
+  var sampled_token: int=-1 if target==-1 else scout_tokens[target]
+  if not game.encounter.alive(target,sampled_token):continue
   if not accepts(game,target,shot.origin,shot.aim,str(shot.form),shot.stats):continue
   var point: Vector3=game.enemy_position(target);hits.append(token(game,target));remaining-=1
   var hit: Dictionary = shot.stats.merged({"ranger_direct_hit":true},true)

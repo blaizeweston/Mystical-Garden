@@ -36,8 +36,8 @@ func host_run() -> void:
  for seed_value in [91247,91249,91255]:
   game.destination=0;game.depth=2;game.encounter_number=2;game.map_seed=seed_value;game.boss_kind=-1;game.reset_encounter()
   for p in game.players.values():p.wild=true;p.pos=game.battlefield.entry;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
-  game.enemy_hp=100;game.enemy_ready_at=Time.get_ticks_msec()+60000
-  for scout in game.scouts:scout.ready=Time.get_ticks_msec()+60000;scout.rooted_until=Time.get_ticks_msec()+60000
+  game.encounter.set_hp(-1, 100);game.enemy_ready_at=Time.get_ticks_msec()+60000
+  for scout in game.encounter.scout_tactics():scout.ready=Time.get_ticks_msec()+60000;scout.rooted_until=Time.get_ticks_msec()+60000
   var f:=ConfigFile.new();f.set_value("floor","entry",game.battlefield.entry);f.set_value("floor","exit",game.battlefield.advance);f.set_value("floor","mask",var_to_bytes(game.battlefield.surface.cells).hex_encode().sha256_text());f.save(base+str(seed_value))
   check(await until(func():return marked("seen"+str(seed_value))),"guest reproduces floor "+str(seed_value))
  mark("done");await create_timer(.3).timeout

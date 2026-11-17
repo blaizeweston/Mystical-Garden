@@ -57,7 +57,7 @@ func part(id: String) -> int:
 func arena(species: String) -> void:
 	Core.reset(game)
 	game.combat_epoch+=1
-	game.enemy_hp=800
+	game.encounter.set_hp(-1, 800)
 	game.enemy_pos=Vector3(0,0,-2)
 	game.enemy_kind=0
 	game.boss_kind=-1
@@ -65,7 +65,7 @@ func arena(species: String) -> void:
 	game.enemy_winding_up=false
 	game.rooted_until=0
 	game.enemy_traits.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.combat_events.clear()
 	game.trait_events.clear()
 	game.leader_brain.clear()
@@ -84,9 +84,9 @@ func cast(distance: float=2.0) -> Dictionary:
 
 
 func foe(at: Vector3) -> Dictionary:
-	var scout: Dictionary=game.make_scout(0,at,game.scouts.size()+1)
+	var scout: Dictionary=game.make_scout(0,at,game.encounter.scout_count()+1)
 	scout.hp=800
-	game.scouts.append(scout)
+	game.encounter.register_scout(scout)
 	return scout
 
 
@@ -145,7 +145,7 @@ func burn_and_trap() -> void:
 	if live.is_empty(): return
 	for delta in [0,200,850,1700,2550,2750]:
 		Core.tick(game,int(live.armed)+delta)
-	check(game.enemy_hp==760,"Banked Coals hits four times for 10 HP with a per-target timer")
+	check(game.enemy_health()==760,"Banked Coals hits four times for 10 HP with a per-target timer")
 	var core: Dictionary=game.weapon_stats(player).core_build.skill
 	check(Rules.describe(core).contains("10 HP damage") and Rules.describe(core).contains("0.85s"),"field tooltip shows actual pulse potency and cadence")
 	arena("moon_lotus")
@@ -157,10 +157,10 @@ func burn_and_trap() -> void:
 	live.skill.phases[0].enemy.windup_damage=.45
 	check(Rules.describe(live.skill).contains("16 HP total against enemies winding up"),"one rounding boundary for base plus wind-up damage")
 	Core.tick(game,live.armed)
-	check(game.enemy_hp==800,"trap waits for its arming window")
+	check(game.enemy_health()==800,"trap waits for its arming window")
 	Core.tick(game,int(live.armed)+650)
 	Core.tick(game,int(live.armed)+1050)
-	check(game.enemy_hp==784 and game.rooted_until>int(live.armed)+650,"a fractional trap applies 16 HP and roots its entrant only once")
+	check(game.enemy_health()==784 and game.rooted_until>int(live.armed)+650,"a fractional trap applies 16 HP and roots its entrant only once")
 
 
 func marks_and_links() -> void:
@@ -170,9 +170,9 @@ func marks_and_links() -> void:
 	live.skill.mark_damage=.45
 	Core.tick(game,live.armed)
 	var now:=int(live.armed)+1
-	check(game.enemy_hp==800 and Rules.describe(live.skill).contains("5 HP damage"),"mark is setup only and shows its HP payoff")
+	check(game.enemy_health()==800 and Rules.describe(live.skill).contains("5 HP damage"),"mark is setup only and shows its HP payoff")
 	game.apply_weapon_hit(player,-1,player.pos,{"damage":1.2,"knockback":-.35},now)
-	check(game.enemy_hp==783 and not game.enemy_traits.has(Mark.STATE),"weapon contact consumes the fractional mark once")
+	check(game.enemy_health()==783 and not game.enemy_traits.has(Mark.STATE),"weapon contact consumes the fractional mark once")
 	arena("crownroot")
 	player.run_upgrades={"core_crownlink":1}
 	var other:=foe(Vector3(.1,0,-2.7))
@@ -181,7 +181,7 @@ func marks_and_links() -> void:
 	Core.tick(game,live.armed)
 	check(game.enemy_traits.has(Mark.STATE) and other.traits.has(Mark.STATE),"Crownlink pairs two visible targets")
 	game.apply_weapon_hit(player,-1,player.pos,{"damage":1,"knockback":-.35},int(live.armed)+1)
-	check(game.enemy_hp==790 and other.hp==780 and int(other.rooted_until)>int(live.armed),"one linked contact applies 20 HP and the card's root to the partner")
+	check(game.enemy_health()==790 and game.encounter.hp_for(other)==780 and int(other.rooted_until)>int(live.armed),"one linked contact applies 20 HP and the card's root to the partner")
 
 
 func wave_and_drain() -> void:
@@ -229,7 +229,7 @@ func wave_and_drain() -> void:
 func checkpoint() -> void:
 	arena("mirror_mint")
 	game.encounter_number=3
-	game.enemy_hp=0
+	game.encounter.set_hp(-1, 0)
 	player.pos=game.battlefield.advance
 	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(500)
 	player.last_offer=0

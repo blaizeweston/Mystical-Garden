@@ -31,7 +31,7 @@ func host_run():
  p.character.name="Host Gardener";friend.pos=game.Stage.GATE+Vector3(2.65,0,0)
  check(await until(func():return marked("gate")),"guest opens gate at new range")
  for player in game.players.values():player.wild=true;player[PlayerVitals.STATE]=PlayerVitals.Health.new(10,10);player.pos=Vector3.ZERO
- game.enemy_hp=80;game.enemy_pos=Vector3(0,0,8);game.enemy_ready_at=Time.get_ticks_msec()+60000;game.enemy_winding_up=false;game.scouts.clear()
+ game.encounter.set_hp(-1, 80);game.enemy_pos=Vector3(0,0,8);game.enemy_ready_at=Time.get_ticks_msec()+60000;game.enemy_winding_up=false;game.encounter.clear_scouts()
  check(await until(func():return marked("party")),"guest sees host portrait/name/health")
  game.damage_player(1,p,3);check(await until(func():return marked("damage")),"guest sees host damage")
  game.damage_player(1,p,99);check(await until(func():return marked("skull")),"guest sees fallen host")

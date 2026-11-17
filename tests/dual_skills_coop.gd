@@ -30,9 +30,9 @@ func run():
 		if not await until(func(): return game.players[id].profile_ready): check(false,"profile registers");quit(1);return
 		var p: Dictionary=game.players[id]
 		check(p.frame==1 and p.character.upgrades[1]==6,"replacement and augmentation choices travel with guest")
-		game.scouts.clear()
+		game.encounter.clear_scouts()
 		game.battlefield.configure(0,1)
-		game.enemy_hp=100
+		game.encounter.set_hp(-1, 100)
 		game.enemy_pos=Vector3.ZERO
 		game.enemy_engaged=true
 		game.enemy_winding_up=false
@@ -45,7 +45,7 @@ func run():
 		p.pos=Vector3(0,0,-1.5)
 		if not await until(func(): return p[Cooldowns.STATE].deadline(Cooldowns.Q)>0 and p[Cooldowns.STATE].deadline(Cooldowns.R)>0):
 			check(false,"both remote skill actions reach host");quit(1);return
-		check(game.enemy_hp<100 and game.rooted_until>Time.get_ticks_msec(),"remote attack and root are authoritative")
+		check(game.enemy_health()<100 and game.rooted_until>Time.get_ticks_msec(),"remote attack and root are authoritative")
 		game.send_garden_action("class_skill")
 		game.send_garden_action("class_skill_two")
 		check(host[Cooldowns.STATE].deadline(Cooldowns.Q)>0 and host[Cooldowns.STATE].deadline(Cooldowns.R)>0,"host also has two independent cooldowns")

@@ -54,7 +54,7 @@ static func ignite(game: Node, event: RefCounted, target: int, now: int) -> void
 
 static func tick(game: Node, elapsed: int, now: int) -> void:
 	var epoch: int = game.combat_epoch
-	for target in range(-1, game.scouts.size()):
+	for target in range(-1, game.encounter.scout_count()):
 		if game.combat_epoch != epoch:
 			return
 		var actor: Dictionary = Actors.body(game, target)

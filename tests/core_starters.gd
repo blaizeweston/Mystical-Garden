@@ -46,8 +46,8 @@ func run() -> void:
 	p.carried_seeds.assign(seeds)
 	game.encounter_number = 6
 	game.deepest_milestone = 6
-	game.enemy_hp = 0
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 0)
+	game.encounter.clear_scouts()
 	p.pos = game.battlefield.advance
 	game.use_checkpoint(1, false)
 	check(not p.wild and reserve.unknown == seeds, "starter seeds return through extraction")
@@ -86,10 +86,10 @@ func run() -> void:
 	p.pos = Vector3.ZERO
 	p.cast_until = 0
 	game.enemy_kind = 0
-	game.enemy_hp = 20
+	game.encounter.set_hp(-1, 20)
 	game.enemy_winding_up = true
 	game.enemy_stagger_until = 0
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.garden_action(1, Core.request(game, p, Vector2(0,-1)))
 	var cast: Dictionary = game.get_meta(Core.STATE, {}).get(1,{})
 	if not cast.is_empty():
@@ -98,13 +98,13 @@ func run() -> void:
 		check(Core.aim_cast(game.battlefield,p.pos,Vector3.FORWARD,cast.skill,1.15).center.is_equal_approx(p.pos+Vector3.FORWARD*1.15), "Lantern Burst follows a near cursor")
 		game.enemy_pos = at
 		for offset in [Vector3(.45,0,0),Vector3(0,0,.62),Vector3(-.75,0,0),Vector3(0,0,-1.35),Vector3(0,0,2.0)]:
-			game.scouts.append(game.make_scout(0,at+offset,1))
+			game.encounter.register_scout(game.make_scout(0,at+offset,1))
 		Core.tick(game, cast.release)
 		check(game.combat_events.any(func(event): return event.kind=="projectile" and event.shape=="orb"), "Weaver launches a visible seed")
-		check(int(game.scouts[0].stagger_until) == 0, "no stagger before landing")
+		check(int(game.encounter.scout(0).stagger_until) == 0, "no stagger before landing")
 		Core.tick(game, cast.armed)
-		check(game.enemy_stagger_until == 0 and game.enemy_winding_up and game.enemy_hp == 20, "committed attacks stay readable and the burst deals no damage")
-		check(game.scouts.slice(0,3).all(func(scout): return int(scout.stagger_until)>cast.armed) and int(game.scouts[3].stagger_until)==0 and int(game.scouts[4].stagger_until)==0, "only three nearest eligible targets in the footprint stagger")
+		check(game.enemy_stagger_until == 0 and game.enemy_winding_up and game.enemy_health() == 20, "committed attacks stay readable and the burst deals no damage")
+		check(game.encounter.scout_tactics().slice(0,3).all(func(scout): return int(scout.stagger_until)>cast.armed) and int(game.encounter.scout(3).stagger_until)==0 and int(game.encounter.scout(4).stagger_until)==0, "only three nearest eligible targets in the footprint stagger")
 		check(game.combat_events.any(func(event): return event.shape=="lantern_burst" and float(event.reach)==1.75), "visible burst carries the actual footprint")
 		check(Core.owner_state(p,Time.get_ticks_msec()).remaining>0 and not game.has_meta(Core.STATE), "burst ends while independent cooldown stays visible")
 	else:

@@ -24,13 +24,13 @@ func check(ok: bool, label: String) -> void:
 
 
 func reset() -> void:
-	game.enemy_hp = 500
+	game.encounter.set_hp(-1, 500)
 	game.enemy_mutations = 0
 	game.boss_kind = -1
 	game.enemy_pos = Vector3(0,0,-1.25)
 	game.enemy_winding_up = false
 	game.leader_brain.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.set_meta(Clock.CLOCK, 0.0)
 	Core.reset(game)
 
@@ -71,16 +71,16 @@ func run() -> void:
 		check(not cast.is_empty(),"real B starts Ember Wake")
 		if not cast.is_empty():
 			Core.tick(game,cast.armed)
-			check(game.enemy_hp==500-q.impact_hp-q.tick_hp,"one impact and immediate first tick")
+			check(game.enemy_health()==500-q.impact_hp-q.tick_hp,"one impact and immediate first tick")
 			game.enemy_pos=Vector3(3,0,-1.25)
 			Clock.advance(game,.75)
 			Core.tick(game,int(cast.armed)+750)
 			Fire.tick(game,750,int(cast.armed)+750)
-			check(game.enemy_hp==500-q.impact_hp-2*q.tick_hp,"burn persists outside the field")
+			check(game.enemy_health()==500-q.impact_hp-2*q.tick_hp,"burn persists outside the field")
 			game.enemy_pos=Vector3(0,0,-1.25)
 			Clock.advance(game,.1)
 			Core.tick(game,int(cast.armed)+850)
-			check(game.enemy_hp==500-q.impact_hp-2*q.tick_hp and game.leader_brain[Fire.BURNING]["1/core"].next==1500,
+			check(game.enemy_health()==500-q.impact_hp-2*q.tick_hp and game.leader_brain[Fire.BURNING]["1/core"].next==1500,
 				"re-entry refreshes without replaying impact or postponing scheduled tick")
 		reset()
 		p.weapon=0
@@ -93,18 +93,18 @@ func run() -> void:
 		var shot: Dictionary=game.projectile_queue.front()
 		game.update_projectiles(int(shot.due)+1)
 		check(game.leader_brain.get(Fire.BURNING,{}).get("1/form",{}).get("hp",0)==q.tick_hp,"real direct hit applies Form potency")
-		var after: int=game.enemy_hp
+		var after: int=game.enemy_health()
 		Events.contact(game,shot.stats,-1,now)
 		Events.contact(game,shot.stats,-1,now,true)
-		check(game.enemy_hp==after,"duplicate contact and secondary damage do not burn")
+		check(game.enemy_health()==after,"duplicate contact and secondary damage do not burn")
 		var material := Builds.slot("form",part)
 		var refresh := Events.begin(game,1,"form",material,q,["weapon_contact"],now+15000)
 		Clock.advance(game,.5)
 		refresh.publish(game,"weapon_contact","new","leader",now,{"enemy":-1})
-		check(game.enemy_hp==after and game.leader_brain[Fire.BURNING]["1/form"].next==750,"same source refresh preserves cadence")
+		check(game.enemy_health()==after and game.leader_brain[Fire.BURNING]["1/form"].next==750,"same source refresh preserves cadence")
 		var other := Events.begin(game,2,"form",material,q,["weapon_contact"],now+15000)
 		other.publish(game,"weapon_contact","new","leader",now,{"enemy":-1})
-		check(game.enemy_hp==after-q.tick_hp,"another player has an independent Form")
+		check(game.enemy_health()==after-q.tick_hp,"another player has an independent Form")
 		p.secondary=0
 		p.catalyst=part
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
@@ -118,7 +118,7 @@ func run() -> void:
 		game.use_class_skill(1,p,0)
 		var hp_before: float=p[PlayerVitals.STATE].hp()
 		game.apply_enemy_hit(1,p,Time.get_ticks_msec(),1.0,0,game.enemy_pos)
-		check(game.enemy_hp==500-q.burst_hp-q.tick_hp and p[PlayerVitals.STATE].hp()==hp_before,"Ward uses selected Catalyst without changing native prevention")
+		check(game.enemy_health()==500-q.burst_hp-q.tick_hp and p[PlayerVitals.STATE].hp()==hp_before,"Ward uses selected Catalyst without changing native prevention")
 		reset()
 		p.frame=4
 		p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(50)
@@ -132,10 +132,10 @@ func run() -> void:
 		var hit_now:=Time.get_ticks_msec()
 		frost.with_attacker(game,-1,game.apply_enemy_hit.bind(2,ally,hit_now,1.0,0,game.enemy_pos))
 		check(not ally.has(Fire.RESPONSE) and game.leader_brain.get(Fire.BURNING,{}).get("1/catalyst",{}).get("hp",0)==q.tick_hp,"survived incoming enemy hit uses source once")
-		var after_response: int=game.enemy_hp
+		var after_response: int=game.enemy_health()
 		ally.hurt_until=0
 		frost.with_attacker(game,-1,game.apply_enemy_hit.bind(2,ally,hit_now,1.0,0,game.enemy_pos))
-		check(game.enemy_hp==after_response,"spent Ember Response does not stockpile")
+		check(game.enemy_health()==after_response,"spent Ember Response does not stockpile")
 		p.frame=0
 	game.queue_free()
 	await process_frame

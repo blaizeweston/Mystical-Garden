@@ -40,7 +40,7 @@ func host_run() -> void:
  check(game.Transactions.run(game,func():
   game._enter_wilds(1,game.players[1]);game._enter_wilds(id,game.players[id]);return true)==true,"shared run starts")
  check(game.players[1].garden_run_id==game.players[id].garden_run_id and game.progress.garden_interactions.returns.active.members.size()==2,"both members use one expedition identity")
- game.depth=6;game.encounter_number=6;game.deepest_milestone=0;game.enemy_hp=0;game.scouts.clear()
+ game.depth=6;game.encounter_number=6;game.deepest_milestone=0;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts()
  for peer in [1,id]:game.players[peer].pos=game.battlefield.advance;game.players[peer].carried_seeds=[moss]
  check(game.Transactions.run(game,func():game._use_checkpoint(1,false);return true)==true,"party banks a cleared checkpoint")
  check(game.progress.garden_interactions.returns.history.size()==1 and game.progress.garden_interactions.returns.history[0].outcomes.get("extracted",0)==2,"one closed run records both outcomes")

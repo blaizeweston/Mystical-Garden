@@ -26,7 +26,7 @@ static func tint(kind: String) -> Color:
  return Color("#e6c079") if kind in ["guard","counter","grave","bark_guard","sheltered","trophy_carrier","cast_break"] else Color("#d8a2ed") if kind in ["marked","prepared_mark","echo","mark_break","core_strike_mark"] else Color("#95d7ed") if kind in ["brittle","slow","shatter"] else Color("#a6d695")
 static func add(result: Dictionary,game: Node,kind: String,owner: int,enemy: bool,until: int,stacks: int,now: int) -> void:
  if until<=now or stacks<=0:return
- var token:=int(game.scouts[owner].get("spawn_token",0)) if enemy and owner>=0 else int(game.combat_epoch)
+ var token: int=game.encounter.token(owner) if enemy and owner>=0 else int(game.combat_epoch)
  var key: String="%s:%d:%d:%s"%[str(enemy),owner,token,kind]
  result[key]={"kind":kind,"owner":owner,"enemy":enemy,"until":until,"stacks":stacks,"token":token}
 static func sync(game: Node,now: int) -> void:
@@ -79,20 +79,20 @@ static func sync(game: Node,now: int) -> void:
    var graft_count: int = grafts.graft_charges(player) if pair[0] == "grave" else int(grafts.counters(player,"monster:glasscap").get("echo_charge",0))
    var charges := int(player.get(pair[1],0)) + graft_count
    add(desired,game,pair[0],id,false,now+60000,charges,now)
- for target in range(-1,game.scouts.size()):
+ for target in range(-1,game.encounter.scout_count()):
   if not game.expedition_active() or not game.Traits.valid_target(game,target):continue
   var omen_target:=Oracle.Omens.enemy_body(game,target)
   if omen_target.has(Oracle.Omens.STATE):
    var omens:=Oracle.Omens.indicators(game,omen_target,now)
    for omen in omens: add(desired,game,omen,target,true,int(omens[omen]),1,now)
-  var state: Dictionary=game.enemy_traits if target==-1 else game.scouts[target].get("traits",{})
+  var state: Dictionary=game.enemy_traits if target==-1 else game.encounter.scout(target).get("traits",{})
   add(desired,game,"marked",target,true,int(state.get("marked_until",0)),1,now)
   var core_mark:=preload("res://core_strike_mark.gd").active(game,state,now)
   add(desired,game,"crown_link" if core_mark.has("partner") else "marked" if core_mark.get("subclass",false) else "core_strike_mark",target,true,int(core_mark.get("until",0)),1,now)
   if state.has(Ranger.PREY):
    var prey := Ranger.active_prey(game,state,now)
    add(desired,game,Ranger.PREY,target,true,int(prey.get("until",0)),1,now)
-  var root_until: int = game.rooted_until if target==-1 else int(game.scouts[target].get("rooted_until",0))
+  var root_until: int = game.rooted_until if target==-1 else int(game.encounter.scout(target).get("rooted_until",0))
   if game.has_meta(&"combat_affinity_ruleset"):
    var frost = preload("res://frost_combat.gd")
    var body := frost.body(game,target)
@@ -107,9 +107,9 @@ static func sync(game: Node,now: int) -> void:
   else:
    add(desired,game,"brittle",target,true,int(state.get("brittle_until",0)),int(state.get("brittle",0)),now)
   add(desired,game,"rooted",target,true,root_until,1,now)
-  add(desired,game,"staggered",target,true,game.enemy_stagger_until if target==-1 else int(game.scouts[target].get("stagger_until",0)),1,now)
-  add(desired,game,"haste",target,true,game.enemy_haste_until if target==-1 else int(game.scouts[target].get("haste_until",0)),1,now)
-  var actor: Dictionary=game.scouts[target] if target>=0 else game.leader_brain.get("elite",{})
+  add(desired,game,"staggered",target,true,game.enemy_stagger_until if target==-1 else int(game.encounter.scout(target).get("stagger_until",0)),1,now)
+  add(desired,game,"haste",target,true,game.enemy_haste_until if target==-1 else int(game.encounter.scout(target).get("haste_until",0)),1,now)
+  var actor: Dictionary=game.encounter.scout(target) if target>=0 else game.leader_brain.get("elite",{})
   var point: Vector3=game.enemy_position(target)
   var support=preload("res://enemy_support.gd")
   var cover: Dictionary=support.shelter_source(game,target,point,point+Vector3.RIGHT,now,true)
@@ -157,4 +157,4 @@ static func root(game: Node, target: int, until: int) -> void:
  if target == -1:
   game.rooted_until = maxi(game.rooted_until, until)
  else:
-  game.scouts[target].rooted_until = maxi(int(game.scouts[target].rooted_until), until)
+  game.encounter.scout(target).rooted_until = maxi(int(game.encounter.scout(target).rooted_until), until)

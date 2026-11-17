@@ -37,7 +37,7 @@ func run() -> void:
 	check(PlayerVitals.current_hp(player) == 100 and PlayerVitals.maximum_hp(player) == 100, "new Warden starts at 100 HP")
 	player.pos = game.Stage.GATE
 	game.enter_wilds(1, player)
-	check(player.wild and game.scouts.size() >= 6 and game.enemy_hp in range(62,72), "normal early Wilds entrance uses converted pack and elite")
+	check(player.wild and game.encounter.scout_count() >= 6 and game.enemy_health() in range(62,72), "normal early Wilds entrance uses converted pack and elite")
 	check(game.make_scout(0,Vector3.ZERO,1).hp == 32 and game.make_scout(0,Vector3.ZERO,1,0,0,true).hp == 12, "scout and summoned health use the same unit")
 	game.map_seed=0
 	game.battlefield.configure(0,1)
@@ -103,9 +103,9 @@ func verify_strikes(game: Node, player: Dictionary) -> void:
 		for trial in 16:
 			player.power=0
 			player.strike_at=0
-			game.scouts.clear()
+			game.encounter.clear_scouts()
 			game.projectile_queue.clear()
-			game.enemy_hp=600
+			game.encounter.set_hp(-1, 600)
 			game.enemy_mutations=0
 			game.enemy_pos=Vector3(0,0,1.4)
 			var stats: Dictionary=game.weapon_stats(player)
@@ -122,7 +122,7 @@ func verify_strikes(game: Node, player: Dictionary) -> void:
 			var locked: int=Preview.hp(int(stats.damage))+int(shot.stats.preview_roll_delta)
 			player.power=3
 			game.update_projectiles(int(shot.due)+1)
-			var applied: int=600-game.enemy_hp
+			var applied: int=600-game.enemy_health()
 			check(applied==locked and applied>=band.x and applied<=band.y,"resolved contact uses the frozen roll and bonus")
 			seen[applied]=true
 		check(seen.size()>2,"weapon has multiple real roll results")
@@ -135,18 +135,18 @@ func verify_strikes(game: Node, player: Dictionary) -> void:
 func verify_multi_target(game: Node, player: Dictionary) -> void:
 	player.weapon_kind=2
 	player.strike_at=0
-	game.enemy_hp=600
+	game.encounter.set_hp(-1, 600)
 	game.enemy_pos=Vector3(0,0,1.4)
-	game.scouts.clear()
-	game.scouts.append(game.make_scout(0,Vector3(.75,0,1.4),1))
-	var before: int=game.scouts[0].hp
+	game.encounter.clear_scouts()
+	game.encounter.register_scout(game.make_scout(0,Vector3(.75,0,1.4),1))
+	var before: int=game.encounter.hp(0)
 	game.strike_enemy(1,player,player.pos)
 	if game.projectile_queue.is_empty():
 		check(false,"multi-target strike commits")
 		return
 	var shot: Dictionary=game.projectile_queue[0]
 	game.update_projectiles(int(shot.due)+1)
-	check(game.enemy_hp<600 and before-int(game.scouts[0].hp)==600-game.enemy_hp,"one Maul roll applies to every contact")
+	check(game.enemy_health()<600 and before-int(game.encounter.hp(0))==600-game.enemy_health(),"one Maul roll applies to every contact")
 
 
 func verify_guard_and_core(game: Node, player: Dictionary) -> void:
@@ -168,8 +168,8 @@ func verify_guard_and_core(game: Node, player: Dictionary) -> void:
 	player.cast_until=0
 	player.attack_until=0
 	player.pos=Vector3.ZERO
-	game.enemy_hp=600
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 600)
+	game.encounter.clear_scouts()
 	game.garden_action(1,Core.request(game,player,Vector2(0,1)))
 	var line: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
 	check(line.get("skill",{}).get("id","")=="thorn_line","real Warden Core activation")
@@ -177,7 +177,7 @@ func verify_guard_and_core(game: Node, player: Dictionary) -> void:
 		return
 	game.enemy_pos=line.center
 	Core.tick(game,line.armed)
-	check(game.enemy_hp==590,"Thorn Line applies a fixed 10 HP tick")
+	check(game.enemy_health()==590,"Thorn Line applies a fixed 10 HP tick")
 	Core.reset(game)
 
 
@@ -205,8 +205,8 @@ func verify_recovery(game: Node, player: Dictionary) -> void:
 	game.encounter_number=1
 	game.depth=1
 	game.destination=0
-	game.scouts.clear()
-	game.enemy_hp=0
+	game.encounter.clear_scouts()
+	game.encounter.set_hp(-1, 0)
 	player.pos=game.battlefield.advance
 	ally.pos=player.pos
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(20)
@@ -229,20 +229,21 @@ func verify_recovery(game: Node, player: Dictionary) -> void:
 
 	game.battlefield.procedural=false
 	game.battlefield.barriers.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	var corpse: Dictionary=game.make_scout(0,Vector3.ZERO,1)
 	corpse.hp=0
-	game.scouts.append(corpse)
+	game.encounter.register_scout(corpse)
 	var enemy: Dictionary=game.make_scout(15,Vector3(0,0,1),2)
 	enemy.hp=20
 	enemy.max_hp=100
-	var rite := {"corpse":{"token":corpse.spawn_token,"point":corpse.pos},"from":enemy.pos,"radius":2.0}
+	game.encounter.register_scout(enemy)
+	var rite := {"corpse":{"token":game.encounter.token_for(corpse),"point":corpse.pos},"from":enemy.pos,"radius":2.0}
 	var support=preload("res://enemy_support.gd")
 	support.resolve_corpse(game,enemy,rite,4000)
-	var restored := int(enemy.hp)
+	var restored: int = game.encounter.hp_for(enemy)
 	check(restored-20 in range(18,23),"Pallbearer restoration also rolls in preview HP")
 	support.resolve_corpse(game,enemy,rite,4200)
-	check(enemy.hp==restored,"spent corpse cannot roll a second heal")
+	check(game.encounter.hp_for(enemy)==restored,"spent corpse cannot roll a second heal")
 
 
 func verify_vitals(game: Node, player: Dictionary) -> void:
@@ -280,15 +281,15 @@ func verify_orchard(game: Node, player: Dictionary) -> void:
 	game.used_bosses.clear()
 	game.players[2].profile_ready=false
 	game.reset_encounter()
-	check(game.boss_kind==game.Bosses.Lair.Routes.ORCHARD and game.enemy_hp==600,"the regular preview route reaches the Orchard on floor 10")
-	game.enemy_hp=391
+	check(game.boss_kind==game.Bosses.Lair.Routes.ORCHARD and game.enemy_health()==600,"the regular preview route reaches the Orchard on floor 10")
+	game.encounter.set_hp(-1, 391)
 	check(game.Bosses.phase(game)==0,"just above 65 percent")
-	game.enemy_hp=390
+	game.encounter.set_hp(-1, 390)
 	check(game.Bosses.phase(game)==1,"below 65 percent")
-	game.enemy_hp=180
+	game.encounter.set_hp(-1, 180)
 	check(game.Bosses.phase(game)==2,"at 30 percent")
 	game.enemy_mutations=0
 	game.enemy_winding_up=false
 	game.leader_brain.lair_open={"kind":"uprooting","until":5000}
 	game.apply_weapon_hit(player,-1,game.enemy_pos,{"damage":1,"trait_secondary":true},4000)
-	check(game.enemy_hp==167,"uprooting adds the preview vulnerability bonus")
+	check(game.enemy_health()==167,"uprooting adds the preview vulnerability bonus")

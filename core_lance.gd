@@ -53,6 +53,8 @@ static func advance(game: Node, id: int, player: Dictionary, cast: Dictionary, n
 	cast.previous_point = tip
 	var hits := ordered_hits(game, previous, tip, float(cast.skill.radius), cast.hit_tokens)
 	for hit in hits:
+		if int(cast.get("epoch", game.combat_epoch)) != game.combat_epoch:
+			break
 		if game.Traits.valid_target(game, hit.target) and Contact.token(game, hit.target) == hit.token:
 			if cast.skill.get("affinity_family")=="storm":
 				preload("res://storm_affinity.gd").core_contact(game,cast,hit.target,cast.from,hit.point,now)
@@ -73,7 +75,8 @@ static func advance(game: Node, id: int, player: Dictionary, cast: Dictionary, n
 				"damage": cast.skill.damage, "knockback": -.35, "trait_secondary": true,
 				"shot_distance": distance, "core_hit": true,
 			}, now)
-			if first and int(cast.skill.root_ms) > 0 and game.Traits.valid_target(game, hit.target):
+			if first and int(cast.skill.root_ms) > 0 and game.Traits.valid_target(game, hit.target) \
+					and Contact.token(game, hit.target) == hit.token:
 				Status.root(game, hit.target, now + int(cast.skill.root_ms))
 			Journal.event("combat", "core_lance_hit", {"actor": id, "skill": cast.skill.id, "cast_id": cast.id, "target": hit.target, "target_token": hit.token})
 			if cast.hit_tokens.size() >= int(cast.skill.targets):
@@ -90,7 +93,7 @@ static func stop(game: Node, cast: Dictionary, point: Vector3) -> void:
 
 static func ordered_hits(game: Node, from: Vector3, to: Vector3, radius: float, excluded: Dictionary = {}) -> Array[Dictionary]:
 	var hits: Array[Dictionary] = []
-	for target in range(-1, game.scouts.size()):
+	for target in range(-1, game.encounter.scout_count()):
 		if not game.Traits.valid_target(game, target):
 			continue
 		var token := Contact.token(game, target)

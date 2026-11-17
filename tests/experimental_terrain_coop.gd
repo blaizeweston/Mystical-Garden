@@ -88,18 +88,18 @@ func river_host(game: Node, archer: Dictionary, key: String) -> bool:
 	game.enemy_pos = RIVER_TARGET
 	game.enemy_winding_up = false
 	game.enemy_stagger_until = Time.get_ticks_msec() + 12000
-	for scout in game.scouts:
+	for scout in game.encounter.scout_tactics():
 		scout.windup = 0
 		scout.stagger_until = game.enemy_stagger_until
 	var ray := river_preview(game, archer, field)
 	if not check(not ray.is_empty(), "host preview recognizes the eligible far-bank target"):
 		return false
-	var before: int = game.enemy_hp
+	var before: int = game.enemy_health()
 	mark(key, str(before))
-	if not check(await until(func(): return game.enemy_hp < before and sees_arrow(game.combat_events, ray.to)),
+	if not check(await until(func(): return game.enemy_health() < before and sees_arrow(game.combat_events, ray.to)),
 			"guest Gale Volley damages the far-bank target and uses the host preview endpoint"):
 		return false
-	mark(key + "-hp", str(game.enemy_hp))
+	mark(key + "-hp", str(game.enemy_health()))
 	return check(await until(func(): return read(key + "-observed") == "ok"),
 		"guest reports the authoritative arrow endpoint and enemy health")
 
@@ -124,7 +124,7 @@ func river_guest(game: Node, id: int, key: String) -> bool:
 		if world == null:
 			return false
 		seen[0] = seen[0] or sees_arrow(world.guest_combat_events(local), ray.to)
-		return seen[0] and not read(key + "-hp").is_empty() and world.enemy_hp == int(read(key + "-hp"))
+		return seen[0] and not read(key + "-hp").is_empty() and world.enemy_health() == int(read(key + "-hp"))
 	if not check(await until(observed), "guest preview, received arrow and host health agree"):
 		return false
 	mark(key + "-observed")
@@ -203,10 +203,10 @@ func host_run(menu: Node) -> void:
 		return
 	var stats: Dictionary = game.weapon_stats(keeper)
 	stats.damage = 10000
-	for target in range(-1, game.scouts.size()):
-		var hit_at: Vector3 = game.enemy_pos if target == -1 else game.scouts[target].pos
-		var kind: int = game.enemy_kind if target == -1 else game.scouts[target].kind
-		var mask: int = game.enemy_mutations if target == -1 else game.scouts[target].mutations
+	for target in range(-1, game.encounter.scout_count()):
+		var hit_at: Vector3 = game.enemy_pos if target == -1 else game.encounter.scout(target).pos
+		var kind: int = game.enemy_kind if target == -1 else game.encounter.scout(target).kind
+		var mask: int = game.enemy_mutations if target == -1 else game.encounter.scout(target).mutations
 		for seed_value in range(1, 40):
 			game.rng.seed = seed_value
 			var before_roll: int = game.rng.state
@@ -230,8 +230,8 @@ func host_run(menu: Node) -> void:
 	# Exercise the real extraction boundary without playing six complete floors.
 	game.encounter_number = 6
 	game.deepest_milestone = 6
-	game.enemy_hp = 0
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 0)
+	game.encounter.clear_scouts()
 	game.encounter_rewarded = true
 	keeper.pos = game.battlefield.advance
 	traveller.pos = keeper.pos
@@ -318,7 +318,7 @@ func guest_run(menu: Node) -> void:
 	mark("guest-stopped", str(game.net_motion.sequence))
 	if not await river_guest(game, id, "river"):
 		return
-	if not check(await until(func(): return not read("advance").is_empty() and game.enemy_hp == 0), "guest sees authoritative enemy clear"):
+	if not check(await until(func(): return not read("advance").is_empty() and game.enemy_health() == 0), "guest sees authoritative enemy clear"):
 		return
 	if not check(await until(func(): return int(game.party_travel_state().get("epoch", -1)) == int(read("advance"))), "guest receives the next Gate readiness prompt"):
 		return

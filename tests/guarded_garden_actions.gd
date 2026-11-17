@@ -324,8 +324,8 @@ func gameplay() -> void:
  check(p.graft_part==parts.HOOK and p.carried_parts[18]==0 and p.graft_message.contains("failed"), "failed graft commits consumption and preserves prior part")
  world.encounter_number=18
  world.deepest_milestone=18
- world.enemy_hp=0
- world.scouts.clear()
+ world.encounter.set_hp(-1, 0)
+ world.encounter.clear_scouts()
  world.checkpoint_pending=true
  p.pos=world.battlefield.advance
  p.weapon=parts.VEIL
@@ -422,8 +422,8 @@ func terminal_wilds_faults() -> void:
  actor=world.players[1]
  actor.wild=true
  world.encounter_number=6
- world.enemy_hp=0
- world.scouts.clear()
+ world.encounter.set_hp(-1, 0)
+ world.encounter.clear_scouts()
  world.encounter_rewarded=true
  actor.pos=world.battlefield.advance
  world.progress.heart.unlocked.append("checkpoint_deposit")
@@ -470,8 +470,8 @@ func caller_effects() -> void:
      player.wild=true
      world.encounter_number=18
      world.deepest_milestone=18
-     world.enemy_hp=0
-     world.scouts.clear()
+     world.encounter.set_hp(-1, 0)
+     world.encounter.clear_scouts()
      world.checkpoint_pending=true
      player.pos=world.battlefield.advance
      player.weapon=world.Parts.VEIL

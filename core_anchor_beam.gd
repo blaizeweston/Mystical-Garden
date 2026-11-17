@@ -1,6 +1,7 @@
 extends RefCounted
 
 const Lance = preload("res://core_lance.gd")
+const Contact = preload("res://weapon_contact.gd")
 const Status = preload("res://combat_status.gd")
 const Journal = preload("res://diagnostic_journal.gd")
 
@@ -32,6 +33,10 @@ static func fire(game: Node, id: int, cast: Dictionary, end: Vector3, now: int) 
 	var until := now + int(cast.skill.root_ms)
 	var targets: Array[int] = []
 	for hit in Lance.ordered_hits(game, star, end, radius):
+		if int(cast.get("epoch", game.combat_epoch)) != game.combat_epoch:
+			break
+		if not game.encounter.alive(hit.target) or Contact.token(game, hit.target) != hit.token:
+			continue
 		var point: Vector3 = game.enemy_position(hit.target)
 		var edge := Geometry3D.get_closest_point_to_segment(point, star, end)
 		if not game.battlefield.combat_sight(edge, point):

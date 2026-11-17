@@ -29,13 +29,13 @@ func host_run():
  game.set_physics_process(false);game.set_process(false)
  var id=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
  p.wild=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3.ZERO;p.strike_at=0
- game.scouts.clear();game.battlefield.procedural=false;game.battlefield.barriers=[];game.enemy_pos=Vector3(0,0,-1);game.enemy_hp=10000
+ game.encounter.clear_scouts();game.battlefield.procedural=false;game.battlefield.barriers=[];game.enemy_pos=Vector3(0,0,-1);game.encounter.set_hp(-1, 10000)
  mark("ready")
  var end=Time.get_ticks_msec()+1400
  while Time.get_ticks_msec()<end:
   var now=Time.get_ticks_msec();game.mouse_controls.tick(game,now);game.update_projectiles(now);await process_frame
  check(p.attack_combo>=2 and p.attack_combo<=7,"hold respects authoritative attack speed")
- check(game.enemy_hp<10000 and p.facing.z<-.9,"remote cursor sets direction and hits")
+ check(game.enemy_health()<10000 and p.facing.z<-.9,"remote cursor sets direction and hits")
  mark("stop");check(await until(func():return marked("released")),"guest released")
  await create_timer(.1).timeout
  var combo=p.attack_combo;p.strike_at=0;game.mouse_controls.tick(game,Time.get_ticks_msec());check(p.attack_combo==combo,"remote release stops new attacks")

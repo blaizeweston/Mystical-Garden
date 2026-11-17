@@ -58,7 +58,7 @@ static func direct_damage(game: Node, hp: int) -> int:
 	# at impact. Evaluate the attacker's current Drenched sources here.
 	# Delayed ground hazards and unrelated sources have no attack context.
 	var target: int = game.get_meta(Actors.ATTACKER, -2)
-	if target < -1 or target >= game.scouts.size():
+	if target < -1 or target >= game.encounter.scout_count():
 		return hp
 	return roundi(hp * (1.0 - reduction(Actors.body(game,target), Clock.now(game))))
 

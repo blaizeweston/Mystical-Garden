@@ -37,7 +37,7 @@ func host_run() -> void:
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"admission");return
  game.set_physics_process(false)
  print("pressure host admitted")
- game.destination=0;game.encounter_number=19;game.depth=1;game.difficulty_cycle=1;game.map_seed=91273;game.reset_encounter();game.scouts.clear();game.enemy_hp=10
+ game.destination=0;game.encounter_number=19;game.depth=1;game.difficulty_cycle=1;game.map_seed=91273;game.reset_encounter();game.encounter.clear_scouts();game.encounter.set_hp(-1, 10)
  for p in game.players.values():p.wild=true;p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=game.battlefield.entry
  var now:=Time.get_ticks_msec();game.pressure_at=now;game.update_pressure(now)
  check(not Pressure.hints(game).is_empty(),"host plans warning")
@@ -45,12 +45,12 @@ func host_run() -> void:
  mark("warning")
  check(await until(func():return marked("seen")),"guest saw warning")
  game.update_pressure(game.pressure_at)
- check(game.scouts.size()==1,"host emits one wave")
+ check(game.encounter.scout_count()==1,"host emits one wave")
  mark("spawned")
  check(await until(func():return marked("arrived")),"guest saw arrival")
- for scout in game.scouts:scout.hp=0
- game.pressure_at=Time.get_ticks_msec();game.enemy_hp=10;game.update_pressure(game.pressure_at)
- game.enemy_hp=0;game.update_pressure(game.pressure_at)
+ for slot in game.encounter.scout_count():game.encounter.set_hp(slot, 0)
+ game.pressure_at=Time.get_ticks_msec();game.encounter.set_hp(-1, 10);game.update_pressure(game.pressure_at)
+ game.encounter.set_hp(-1, 0);game.update_pressure(game.pressure_at)
  check(game.encounter_cleared() and Pressure.hints(game).is_empty(),"clear cancels pending wave")
  mark("cleared")
  check(await until(func():return marked("done")),"guest confirmed clear")

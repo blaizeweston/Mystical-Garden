@@ -38,10 +38,10 @@ func until(predicate: Callable, ms: int = 12500) -> bool:
 
 
 func add_scout(kind: int, at: Vector3) -> Dictionary:
-	var actor: Dictionary = game.make_scout(kind, at, game.scouts.size() + 1)
+	var actor: Dictionary = game.make_scout(kind, at, game.encounter.scout_count() + 1)
 	actor.engaged = true
 	actor.stagger_until = Time.get_ticks_msec() + 60000
-	game.scouts.append(actor)
+	game.encounter.register_scout(actor)
 	return actor
 
 
@@ -76,11 +76,11 @@ func host() -> void:
 	game.battlefield.barriers.clear()
 	game.progress.wilds_memory.score[Tactics.CAST_DENIAL] = 6
 	game.progress.wilds_memory.score[Tactics.AREA_PRESSURE] = 6
-	game.enemy_hp = 40
+	game.encounter.set_hp(-1, 40)
 	game.enemy_kind = 0
 	game.enemy_pos = Vector3(12, 0, 5)
 	game.enemy_engaged = false
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	for p in game.players.values():
 		p.wild = true
 		p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
@@ -102,7 +102,7 @@ func host() -> void:
 	if shepherd.get("attack", {}).get("variant") != Tactics.RELAY:
 		check(false, "host locks the relay")
 		return
-	var escort: Dictionary = game.scouts[shepherd.attack.flank.escort.slot]
+	var escort: Dictionary = game.encounter.scout(shepherd.attack.flank.escort.slot)
 	if not await until(func(): return marked("relay"), 950):
 		check(false, "guest reads relay before release")
 		return
@@ -114,7 +114,7 @@ func host() -> void:
 		check(false, "guest sees relay warning clear")
 		return
 
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.encounter_number = 10
 	game.map_seed = 2
 	for p in game.players.values():

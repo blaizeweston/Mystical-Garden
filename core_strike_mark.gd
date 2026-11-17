@@ -21,7 +21,7 @@ static func link_pair(game: Node, id: int, targets: Array[int], cast: Dictionary
 		var state: Dictionary = game.Traits.target_state(game, target)
 		state[STATE] = {"owner": id, "life": int(cast.life), "cast": cast.id, "skill": cast.skill.id,
 			"until": now + int(cast.skill.mark_ms), "damage": Preview.authored_amount(float(cast.skill.mark_damage)), "color": cast.skill.color,
-			"partner": other, "token": -1 if other == -1 else int(game.scouts[other].spawn_token),
+			"partner": other, "token": -1 if other == -1 else game.encounter.token(other),
 			"root_ms": int(cast.skill.get("link_root_ms", 0))}
 	var first: Vector3 = game.enemy_position(targets[0])
 	var second: Vector3 = game.enemy_position(targets[1])
@@ -83,4 +83,4 @@ static func root_contact(game: Node, target: int, duration: int, now: int) -> vo
 	if target == -1:
 		game.rooted_until = maxi(game.rooted_until, until)
 	else:
-		game.scouts[target].rooted_until = maxi(int(game.scouts[target].rooted_until), until)
+		game.encounter.scout(target).rooted_until = maxi(int(game.encounter.scout(target).rooted_until), until)

@@ -8,15 +8,15 @@ const COLOR := Color("#97dfff")
 
 
 static func valid_target(game: Node, target: int) -> bool:
-	return target >= -1 and target < game.scouts.size() and game.Traits.valid_target(game, target)
+	return game.encounter.alive(target)
 
 
 static func body(game: Node, target: int) -> Dictionary:
-	return game.leader_brain if target == -1 else game.scouts[target]
+	return game.leader_brain if target == -1 else game.encounter.scout(target)
 
 
 static func target_token(game: Node, target: int) -> String:
-	return "leader" if target == -1 else str(game.scouts[target].get("spawn_token", target))
+	return "leader" if target == -1 else str(game.encounter.token(target))
 
 
 static func state(actor: Dictionary, now: int) -> Dictionary:

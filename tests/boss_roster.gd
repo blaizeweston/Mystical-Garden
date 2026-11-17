@@ -38,7 +38,7 @@ func run() -> void:
  for kind in range(20,24):
   game.reset_expedition();game.destination=0;game.encounter_number=20;game.depth=2;game.map_seed=9871
   game.boss_floors["20"]=kind;game.used_bosses.append(kind);game.reset_encounter()
-  check(game.boss_kind==kind and game.enemy_kind==kind and game.enemy_hp>=50,"boss installed as primary actor")
+  check(game.boss_kind==kind and game.enemy_kind==kind and game.enemy_health()>=50,"boss installed as primary actor")
   check(game.battlefield.connected(),"boss lair connects entry, gate, altar and cache")
   check(game.battlefield.boss_kind==kind,"authority uses lair geometry")
   var guest_field=load("res://battlefield.gd").new();guest_field.configure(0,2,9871,kind,0)
@@ -59,17 +59,17 @@ func run() -> void:
    check(not game.enemy_winding_up and game.enemy_ready_at>1000,"move resolves with recovery: "+move)
   check(game.enemy_hazards.size()<=32,"boss hazard budget")
   if kind==22:
-   check(game.scouts.any(func(s):return s.get("summoned",false)),"Matriarch actually breeds finite nonrewarding minions")
+   check(game.encounter.scout_tactics().any(func(s):return s.get("summoned",false)),"Matriarch actually breeds finite nonrewarding minions")
    for phase in 3:
     game.battlefield.configure(0,2,9871,kind,phase);check(game.battlefield.connected(),"reshaped nest remains connected")
-  game.stage.draw_state(game.players,1,game.enemy_pos,game.enemy_hp,false,3,Vector3.ZERO,false,[],2,6,true,false,false,packet,game.scout_snapshot(1000),.016)
+  game.stage.draw_state(game.players,1,game.enemy_pos,game.enemy_health(),false,3,Vector3.ZERO,false,[],2,6,true,false,false,packet,game.scout_snapshot(1000),.016)
   check(game.stage.visual_field.boss_kind==kind,"rendered stage preserves boss lair")
-  game.enemy_kind=kind;game.enemy_hp=100;game.enemy_pos=Vector3(0,0,3.2);p.pos=Vector3.ZERO;p.strike_at=0;p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.frame=0;p.weapon_kind=0
+  game.enemy_kind=kind;game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3(0,0,3.2);p.pos=Vector3.ZERO;p.strike_at=0;p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.frame=0;p.weapon_kind=0
   game.enemy_pos=Vector3(0,0,float(game.Enemies.get_kind(kind).hurt_radius)+float(game.weapon_stats(p).reach)-.2)
   check(game.select_attack_target(p,float(game.weapon_stats(p).reach))==-1,"large boss can be struck at its visible body edge")
   game.strike_enemy(1,p,p.pos);game.update_projectiles(Time.get_ticks_msec()+1500)
-  check(game.enemy_hp<100,"committed melee release respects boss hurtbox")
-  game.enemy_kind=kind;game.enemy_hp=0;game.combat_epoch+=1;game.monster_rewards.retire_completed();game.wild_item_drops.clear()
+  check(game.enemy_health()<100,"committed melee release respects boss hurtbox")
+  game.enemy_kind=kind;game.encounter.set_hp(-1, 0);game.combat_epoch+=1;game.monster_rewards.retire_completed();game.wild_item_drops.clear()
   game.record_enemy_death(-1,game.enemy_pos,p.pos);game.record_enemy_death(-1,game.enemy_pos,p.pos)
   check(game.monster_rewards.pending_count()==1,"boss reward receipt deduplicates")
   check(game.flush_kill_rewards(),"boss reward transaction commits")

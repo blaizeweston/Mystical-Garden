@@ -20,12 +20,12 @@ func _initialize() -> void:
 
 func fixture(game: Node) -> void:
 	game.enemy_kind = 0
-	game.enemy_hp = 30
+	game.encounter.set_hp(-1, 30)
 	game.enemy_mutations = 0
 	game.enemy_winding_up = false
 	game.boss_kind = -1
 	game.enemy_traits.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
 
@@ -73,7 +73,7 @@ func run() -> void:
 	fixture(game)
 	p.pos=Vector3.ZERO
 	game.enemy_pos=Vector3(0,0,-2.0)
-	game.scouts.append(game.make_scout(0,Vector3(0,0,-4),1))
+	game.encounter.register_scout(game.make_scout(0,Vector3(0,0,-4),1))
 	game.garden_action(1,Core.request(game,p,Vector2(0,-1)))
 	var cast: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
 	if cast.is_empty():
@@ -82,7 +82,7 @@ func run() -> void:
 		return
 	Core.tick(game,cast.armed)
 	Status.sync(game,cast.armed)
-	check(game.enemy_hp==30 and not Mark.active(game,game.enemy_traits,cast.armed).is_empty() and not game.scouts[0].get("traits",{}).has(Mark.STATE),"mark arrives on the first target without impact damage")
+	check(game.enemy_health()==30 and not Mark.active(game,game.enemy_traits,cast.armed).is_empty() and not game.encounter.scout(0).get("traits",{}).has(Mark.STATE),"mark arrives on the first target without impact damage")
 	check(game.combat_events.any(func(event):return event.shape=="core_strike_mark"),"persistent mark status is visible")
 	game._process(.016)
 	var hud: Control=game.player_hud
@@ -92,16 +92,16 @@ func run() -> void:
 	var hit := {"damage":1,"knockback":-.35}
 	var secondary:=hit.duplicate();secondary.trait_secondary=true
 	game.apply_weapon_hit(p,-1,p.pos,secondary,cast.armed+10)
-	check(game.enemy_hp==29 and game.enemy_traits.has(Mark.STATE),"secondary proc cannot consume the mark")
+	check(game.enemy_health()==29 and game.enemy_traits.has(Mark.STATE),"secondary proc cannot consume the mark")
 	game.apply_weapon_hit(p,-1,p.pos,hit,cast.armed+20)
 	game.apply_weapon_hit(p,-1,p.pos,hit,cast.armed+30)
-	check(game.enemy_hp==25 and not game.enemy_traits.has(Mark.STATE),"two strikes receive exactly one mark burst")
+	check(game.enemy_health()==25 and not game.enemy_traits.has(Mark.STATE),"two strikes receive exactly one mark burst")
 	check(game.combat_events.filter(func(event):return event.shape=="core_mark_burst").size()==1,"mark consumes once")
 
 	fixture(game)
 	p.weapon=refined_star;p.secondary=thorn;p.core_ready_at=0;p.core_cast_until=0;p.cast_until=0
 	game.enemy_pos=Vector3(1.1,0,-1.9)
-	game.scouts.assign([game.make_scout(0,Vector3(2.3,0,-1.9),1),game.make_scout(0,Vector3(2.3,0,-3.2),2)])
+	game.encounter.clear_scouts();game.encounter.register_scout(game.make_scout(0,Vector3(2.3,0,-1.9),1));game.encounter.register_scout(game.make_scout(0,Vector3(2.3,0,-3.2),2))
 	var initial := Core.request(game,p,Vector2(0,-1),1.9)
 	game.garden_action(1,initial)
 	cast=game.get_meta(Core.STATE,{}).get(1,{})
@@ -123,7 +123,7 @@ func run() -> void:
 	Core.tick(game,fires)
 	var beam: Array=game.combat_events.filter(func(event): return event.kind=="swing" and event.shape=="constellation")
 	check(beam.size()==1 and is_equal_approx(float(beam[0].from[0]),0) and float(beam[0].to[0])>5.5 and is_equal_approx(float(beam[0].width),.34),"beam fires automatically from the anchor toward the current cursor")
-	check(game.rooted_until>fires and int(game.scouts[0].rooted_until)>fires and int(game.scouts[1].rooted_until)==0,"beam roots on-line enemies while leaving the off-line scout free")
+	check(game.rooted_until>fires and int(game.encounter.scout(0).rooted_until)>fires and int(game.encounter.scout(1).rooted_until)==0,"beam roots on-line enemies while leaving the off-line scout free")
 	Core.tick(game,fires+100)
 	check(Core.hints(game).is_empty() and p.core_ready_at==timer and game.combat_events.filter(func(event): return event.kind=="swing" and event.shape=="constellation").size()==1,"the star fires once and preserves the independent cooldown")
 	game.return_to_garden(p)

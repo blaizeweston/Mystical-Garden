@@ -33,11 +33,11 @@ func setup(kind: int, profile: Dictionary) -> Dictionary:
 	game.encounter_number = profile.floor
 	game.map_seed = 10 + posmod(-37 - kind * 19 - int(profile.floor) * 11, 10)
 	game.boss_kind = -1
-	game.enemy_hp = 50
+	game.encounter.set_hp(-1, 50)
 	game.enemy_kind = 0
 	game.enemy_pos = Vector3(-10, 0, 8)
 	game.leader_brain.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.wild_item_drops.clear()
 	game.enemy_hazards.clear()
 	game.combat_events.clear()
@@ -55,7 +55,7 @@ func add_actor(kind: int, at: Vector3, route: int) -> Dictionary:
 	var actor: Dictionary = game.make_scout(kind, at, route)
 	actor.engaged = true
 	actor.hp = 20
-	game.scouts.append(actor)
+	game.encounter.register_scout(actor)
 	return actor
 
 
@@ -136,7 +136,7 @@ func validate_result(kind: int, actor: Dictionary, attack: Dictionary) -> void:
 			check(game.enemy_hazards.size() == expected and PlayerVitals.current_hp(player) == 10, "only marked hazard beds are created")
 		11:
 			check(actor.pos.is_equal_approx(attack.to) and PlayerVitals.current_hp(player) == 10, "Grazer moves without hidden damage")
-			var ally: Dictionary = game.scouts[1]
+			var ally: Dictionary = game.encounter.scout(1)
 			check(not Support.shelter_source(game, 1, ally.pos, ally.pos, actor.windup, true).is_empty(), "new canopy shelters the same escort")
 		16:
 			check(game.wild_item_drops.is_empty() and actor.get("stolen", []).size() == 1, "learned grab takes only the locked drop")
@@ -253,8 +253,8 @@ func check_counterplay() -> void:
 	learn(actor, profile, now)
 	move = arm(actor, profile, now + 1500)
 	if move.get("variant") == profile.id:
-		var old := Vector3(game.scouts[1].pos)
-		game.scouts[1] = game.make_scout(0, old, 2)
+		var old := Vector3(game.encounter.scout(1).pos)
+		game.encounter.register_scout(game.make_scout(0, old, 2), 1)
 		game.resolve_scout(actor, game.Enemies.get_kind(11), actor.windup)
 		check(actor.pos == Vector3.ZERO, "a recycled escort slot cannot pull the Grazer across the field")
 
@@ -265,8 +265,8 @@ func check_memory() -> void:
 	for i in 3:
 		var actor := setup(2, profile)
 		learn(actor, profile, Time.get_ticks_msec())
-		game.enemy_hp = 0
-		game.scouts.clear()
+		game.encounter.set_hp(-1, 0)
+		game.encounter.clear_scouts()
 		game.finish_combat(1, Vector3.ZERO)
 		check(game.progress.wilds_memory.score[Tactics.ROUTE_DENIAL] == (i + 1) * 2, "one learning update per cleared floor")
 	var saved = load("res://progress.gd").new()

@@ -26,9 +26,9 @@ static func prepare(game: Node) -> void:
  game.boss_kind=int(game.boss_floors[key]) if game.destination<3 else -1
  game.boss_phase=0;game.boss_moves=0;game.enemy_hazards.clear()
 static func phase(game: Node) -> int:
- return game.Life.Vitals.boss_phase(game.enemy_hp,game.encounter_health())
+ return game.Life.Vitals.boss_phase(game.encounter.hp(-1),game.encounter_health())
 static func tick(game: Node,delta: float,now: int) -> void:
- if game.enemy_hp<=0: return
+ if game.encounter.hp(-1)<=0: return
  var lair:=Lair.Routes.supports(game.boss_kind)
  if lair and game.enemy_engaged:Lair.observe(game,now)
  if game.boss_kind==Phases.NEST:Phases.observe_brood(game,now)
@@ -74,7 +74,7 @@ static func tick(game: Node,delta: float,now: int) -> void:
   Phases.commit(game,next_move,target,now)
 static func hazard(game: Node,point: Vector3,radius: float,now: int,duration: int,kind: String,delay: int=900,damage: float=1.0,boss_move: String="") -> void:
  var reserved:=0
- if game.enemy_winding_up and game.enemy_hp>0:
+ if game.enemy_winding_up and game.encounter.hp(-1)>0:
   var plan: Dictionary=game.leader_brain.get("lair_plan",game.leader_brain.get("phase_plan",{}))
   reserved=plan.get("areas",[]).size()
  if game.enemy_hazards.size()>=32-reserved: return
@@ -102,7 +102,7 @@ static func resolve(game: Node,now: int) -> void:
   game.enemy_ready_at=preload("res://oracle_omens.gd").release_attack(game.leader_brain,plan,game.enemy_ready_at)
 
 static func tick_hazards(game: Node,now: int) -> void:
- if game.enemy_hp<=0 and game.boss_kind>=0: game.enemy_hazards.clear();return
+ if game.encounter.hp(-1)<=0 and game.boss_kind>=0: game.enemy_hazards.clear();return
  for entry in game.enemy_hazards.duplicate():
   if now>=int(entry.until): game.enemy_hazards.erase(entry);continue
   if now<int(entry.next): continue

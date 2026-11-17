@@ -39,7 +39,7 @@ func host_run() -> void:
  for c in 5:
   for right in [false,true]:
    var phase: String=str(c)+str(right)
-   game.battlefield.configure(0,1);game.enemy_hp=100;game.enemy_pos=Vector3.ZERO;game.enemy_stagger_until=Time.get_ticks_msec()+60000;game.enemy_traits.clear();game.trait_events.clear();game.scouts.clear();game.combat_epoch+=1
+   game.battlefield.configure(0,1);game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3.ZERO;game.enemy_stagger_until=Time.get_ticks_msec()+60000;game.enemy_traits.clear();game.trait_events.clear();game.encounter.clear_scouts();game.combat_epoch+=1
    p.character.active_class=c;p.character.xp[c]=2600;p.character.upgrades.fill(0);p.character.upgrades[c]=mask(right);p.frame=c;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.run_upgrades={}
    for player in game.players.values():player.wild=true;player.pos=Vector3(0,0,-1.5);player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(5);player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive()
    p.facing=Vector3.BACK
@@ -51,7 +51,7 @@ func host_run() -> void:
    mark("q-"+phase)
    check(await until(func():return p[Cooldowns.STATE].deadline(Cooldowns.R)>0),"guest R "+phase)
    await create_timer(.8).timeout
-   check(game.enemy_hp<100 or (c==4 and not right and PlayerVitals.current_hp(p)>5),"actual damage or support "+phase)
+   check(game.enemy_health()<100 or (c==4 and not right and PlayerVitals.current_hp(p)>5),"actual damage or support "+phase)
    mark("cast-"+phase)
    check(await until(func():return marked("seen-"+phase)),"guest confirms HUD "+phase)
  mark("done");check(await until(func():return game.players.size()==1),"guest leaves");game.leave_game("Class depth fixture complete")

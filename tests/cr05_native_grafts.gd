@@ -68,13 +68,13 @@ func arena() -> void:
 	game.enemy_winding_up = false
 	game.enemy_mutations = 0
 	game.enemy_kind = 0
-	game.enemy_hp = 4000
+	game.encounter.set_hp(-1, 4000)
 	game.enemy_pos = Vector3(0,0,-1.15)
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	for point: Vector3 in [Vector3(1.65,0,-1.65),Vector3(-1.7,0,-1.55),Vector3(0.0,0,-3.05)]:
-		var scout: Dictionary = game.make_scout(0,point,game.scouts.size()+1)
+		var scout: Dictionary = game.make_scout(0,point,game.encounter.scout_count()+1)
 		scout.hp = 3000
-		game.scouts.append(scout)
+		game.encounter.register_scout(scout)
 	player.pos = Vector3.ZERO
 	player.facing = Vector3.FORWARD
 	player.mouse_aim = false
@@ -208,11 +208,11 @@ func simultaneous_effects() -> void:
 			if hit_id < 0:
 				hit_id = records[0].graft_source.attack
 			check(records[0].graft_source.attack==hit_id,"%s retains its source and attack identity" % effect)
-	var nearby: Dictionary = game.scouts[0]
-	var before: int = nearby.hp
+	var nearby: Dictionary = game.encounter.scout(0)
+	var before: int = game.encounter.hp_for(nearby)
 	var point: Vector3 = nearby.pos
 	game.Traits.tick(game,now+280)
-	check(nearby.hp<before and nearby.pos==point and Frost.state(nearby,now+280).is_empty(),
+	check(game.encounter.hp_for(nearby)<before and nearby.pos==point and Frost.state(nearby,now+280).is_empty(),
 		"delayed damage reaches the secondary target without movement or a second Form trigger")
 	check(events_for("link").is_empty() and events_for("echo").is_empty() and events_for("chorus").is_empty()
 		and Grafts.counters(player,"monster:glasscap").echo_charge==0
@@ -302,8 +302,8 @@ func rootlet() -> void:
 	stock("monster_16",1)
 	buy(8,"rootlet_attraction","monster_16")
 	player.pos=Vector3.ZERO
-	game.enemy_hp=0
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 0)
+	game.encounter.clear_scouts()
 	var ours := {"position":[2.0,0,0],"owner":1}
 	var someone_elses := {"position":[2.0,0,0],"owner":8}
 	game.wild_item_drops = [ours,someone_elses]

@@ -34,7 +34,7 @@ static func description(slot: String, quality: String) -> String:
 static func nearest(game: Node, center: Vector3, radius: float, visited: Dictionary, candidates: Array = []) -> int:
 	var best := -2
 	var distance := INF
-	var pool: Array = candidates if not candidates.is_empty() else range(-1,game.scouts.size())
+	var pool: Array = candidates if not candidates.is_empty() else range(-1,game.encounter.scout_count())
 	for target in pool:
 		if not Actors.valid_target(game,target) or visited.has(Contact.token(game,target)):
 			continue
@@ -51,7 +51,7 @@ static func discharge(game: Node, actor: int, first: int, origin: Vector3, impac
 	var target := first
 	var center := impact
 	for step in jumps+1:
-		if target < -1 or target >= game.scouts.size() or game.get_meta(game.Transactions.PENDING,false):
+		if target < -1 or target >= game.encounter.scout_count() or game.get_meta(game.Transactions.PENDING,false):
 			break
 		visited[Contact.token(game,target)] = true
 		game.emit_combat_event("link","storm_arc",origin,center,.25,COLOR,0.0,actor)

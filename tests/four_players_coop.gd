@@ -21,7 +21,7 @@ func until(predicate: Callable,seconds: float=25.0) -> bool:
  return predicate.call()
 func _initialize():call_deferred("run")
 func clear_floor(number: int):
- game.encounter_number=number;game.deepest_milestone=number;game.enemy_hp=0;game.scouts.clear();game.encounter_rewarded=true
+ game.encounter_number=number;game.deepest_milestone=number;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.encounter_rewarded=true
  for p in game.players.values():p.pos=game.battlefield.advance
 func finish():
  game.queue_free();await process_frame
@@ -88,7 +88,7 @@ func host_run():
  check(game.progress.parts[0]==0 and game.progress.parts[1]==0,"party consumes two copies of each starter part exactly once")
  check(game.players.values().all(func(p):return not game.weapon_stats(p).core_build.skill.is_empty()),"each party member has a live Core skill")
  check(await until(func():return marked("core-1") and marked("core-2") and marked("core-3")),"all guests get the correct private Core inventory and ready HUD")
- check(game.encounter_party_size==4 and game.scouts.size()>=12 and game.scouts.size()<=game.Director.scout_count(game),"encounter population scales to four")
+ check(game.encounter_party_size==4 and game.encounter.scout_count()>=12 and game.encounter.scout_count()<=game.Director.scout_count(game),"encounter population scales to four")
  check(game.encounter_health()>=80,"four player leader health scales in preview HP")
  check(game.players.values().all(func(p):return PlayerVitals.maximum_hp(p)==100 and PlayerVitals.current_hp(p)==100),"four players depart at 100 HP")
  var entries=[]
@@ -104,7 +104,7 @@ func host_run():
  # A natural kill rewards all four and exposes a different owned pickup to each guest.
  var config=game.Director.config();var old_chance=config.trophy_chance;var old_cap=config.trophy_cap
  config.trophy_chance=1.0;config.trophy_cap=1.0
- var victim=game.make_scout(10,game.players[1].pos+Vector3(0,0,1),1);victim.hp=1;game.scouts[0]=victim
+ var victim=game.make_scout(10,game.players[1].pos+Vector3(0,0,1),1);victim.hp=1;game.encounter.register_scout(victim, 0)
  game.apply_weapon_hit(game.players[1],0,game.players[1].pos,{"damage":1},Time.get_ticks_msec())
  check(game.flush_kill_rewards(),"four-way individual kill rewards commit")
  config.trophy_chance=old_chance;config.trophy_cap=old_cap
@@ -161,7 +161,7 @@ func guest_vitals(id: int) -> bool:
  var actor: Dictionary=game.players[id]
  var now:=Time.get_ticks_msec()
  game.enemy_stagger_until=now+45000
- for scout in game.scouts:
+ for scout in game.encounter.scout_tactics():
   scout.ready=now+45000
   scout.rooted_until=now+45000
   scout.windup=0
@@ -216,7 +216,7 @@ func guest_lantern() -> void:
  if placement.is_empty():
   check(false,"Weaver guest finds clear placement")
   return
- var target: Dictionary=game.scouts[0]
+ var target: Dictionary=game.encounter.scout(0)
  target.pos=placement.center
  var now:=Time.get_ticks_msec()
  target.rooted_until=now+6000;target.ready=now+6000;target.windup=0

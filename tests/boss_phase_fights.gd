@@ -26,13 +26,13 @@ func setup(game: Node, kind: int, stamp: int) -> void:
  game.boss_moves=0
  game.enemy_kind=kind
  game.enemy_pos=Vector3(0,0,4.7)
- game.enemy_hp=85
+ game.encounter.set_hp(-1, 85)
  game.enemy_ready_at=0
  game.enemy_stagger_until=0
  game.enemy_engaged=true
  game.enemy_winding_up=false
  game.enemy_hazards.clear()
- game.scouts.clear()
+ game.encounter.clear_scouts()
  game.leader_brain.clear()
  game.battlefield.configure(0,2,stamp,kind,0)
 
@@ -53,9 +53,9 @@ func check_nest(game: Node, player: Dictionary) -> void:
  check(base.hatches.size()==1,"opening phase uses one entrance")
  var strike: int=game.enemy_strike_at
  game.Bosses.resolve(game,strike)
- check(game.scouts.size()==1 and game.scouts[0].summoned,"hatch creates a nonrewarding scout")
+ check(game.encounter.scout_count()==1 and game.encounter.scout(0).summoned,"hatch creates a nonrewarding scout")
  for repetition in 2:
-  var child: Dictionary=game.scouts[0]
+  var child: Dictionary=game.encounter.scout(0)
   var current: int=strike+repetition*600
   game.apply_weapon_hit(player,0,player.pos,{"damage":2,"knockback":0},current)
   Fights.observe_brood(game,current)
@@ -73,7 +73,7 @@ func check_nest(game: Node, player: Dictionary) -> void:
  check(player.pos.is_finite(),"fixture finds a spot only occupied after the shift")
  var before: Vector3=player.pos
  var escort: Dictionary=game.make_scout(0,crossing_occupant(game.battlefield,upcoming[1]),1)
- game.scouts.append(escort)
+ game.encounter.register_scout(escort)
  now=Time.get_ticks_msec()+7000
  check(Fights.advance_phase(game,1,now),"phase threshold starts a preview")
  check(game.boss_phase==0 and game.battlefield.barriers==original and player.pos==before,"old collision stays active during preview")
@@ -92,7 +92,7 @@ func check_nest(game: Node, player: Dictionary) -> void:
  game._process(.016)
  check(game.stage.get_meta("rendered_lair",Vector2i.ZERO)==Vector2i(Fights.NEST,1),"host redraws the new phase from its shared battlefield")
 
- game.scouts.clear()
+ game.encounter.clear_scouts()
  game.enemy_pos=Vector3(0,0,5)
  player.pos=Vector3(0,0,7)
  check(Fights.commit(game,"brood_call",1,now+3200),"both open exits are usable")
@@ -100,18 +100,18 @@ func check_nest(game: Node, player: Dictionary) -> void:
  check(hatch.size()==2,"two hatch markers are committed")
  if hatch.size()!=2:return
  game.apply_weapon_hit(player,-1,player.pos,{"damage":1,"stagger":160},now+3400)
- check(game.scouts.is_empty() and not game.enemy_winding_up,"a heavy hit interrupts the hatch")
+ check(game.encounter.scout_count()==0 and not game.enemy_winding_up,"a heavy hit interrupts the hatch")
  Status.sync(game,now+3400)
  check(Status.snapshot(game,now+3400).any(func(event):return event.shape=="nursery_lull"),"nursery lull is displayed")
  Fights.commit(game,"brood_call",1,now+5500)
  player.pos=hatch[0]
  game.Bosses.resolve(game,now+7300)
- check(game.scouts.size()==1 and game.scouts[0].pos==hatch[1],"blocking one marked hatch leaves the other active")
+ check(game.encounter.scout_count()==1 and game.encounter.scout(0).pos==hatch[1],"blocking one marked hatch leaves the other active")
  player.pos=Vector3(0,0,7)
  for attempt in 5:
   Fights.commit(game,"brood_call",1,now+8200+attempt*3800)
   game.Bosses.resolve(game,now+10000+attempt*3800)
- check(game.scouts.filter(func(child):return child.hp>0 and child.summoned).size()<=Fights.BROOD_LIMIT,"repeated casts respect the four-living-child cap")
+ check(game.encounter.scout_views().filter(func(child):return child.hp>0 and child.summoned).size()<=Fights.BROOD_LIMIT,"repeated casts respect the four-living-child cap")
  for phase in 3:
   game.battlefield.configure(0,2,game.map_seed,Fights.NEST,phase)
   check(game.battlefield.barriers==Nest.ribs(phase) and game.battlefield.connected() and game.battlefield.spawn_points.size()>=4,"phase keeps its actual ribs, routes and legal scout staging")

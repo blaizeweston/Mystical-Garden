@@ -85,9 +85,9 @@ func run() -> void:
  world.open_gate_preparation()
  world.garden_action(1,"depart")
  check(actor.wild and actor.weapon==1,"guarded departure from real title world")
+ world.encounter.set_hp(-1, 0)
  world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
- world.enemy_hp=0
- world.scouts.clear()
+ world.encounter.clear_scouts()
  world.finish_combat(1,world.enemy_pos)
  check(world.encounter_rewarded and actor.loot_pending and world.progress.wilds_memory.encounters==1,"guarded combat settlement")
  clear_floor(world,actor,3)
@@ -127,7 +127,7 @@ func has_lease(path: String) -> bool:
 func clear_floor(world: Node, actor: Dictionary, floor: int) -> void:
  world.encounter_number=floor
  world.deepest_milestone=floor
- world.enemy_hp=0
- world.scouts.clear()
+ world.encounter.set_hp(-1, 0)
+ world.encounter.clear_scouts()
  world.encounter_rewarded=true
  actor.pos=world.battlefield.advance

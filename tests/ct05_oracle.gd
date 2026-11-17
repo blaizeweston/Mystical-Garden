@@ -69,7 +69,7 @@ func verify_graph() -> void:
 func reset_field() -> void:
 	game.combat_epoch += 1
 	game.battlefield = preload("res://battlefield.gd").new()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.trait_events.clear()
 	game.projectile_queue.clear()
 	game.combat_events.clear()
@@ -77,7 +77,7 @@ func reset_field() -> void:
 	game.leader_brain.clear()
 	game.monster_rewards = game.MonsterRewards.new()
 	game.enemy_pos = Vector3(2,0,0)
-	game.enemy_hp = 300
+	game.encounter.set_hp(-1, 300)
 	game.enemy_kind = 0
 	game.enemy_mutations = 0
 	game.boss_kind = -1
@@ -206,10 +206,10 @@ func basic_omens() -> void:
 	game.enemy_winding_up=true
 	cast(0)
 	var now := Time.get_ticks_msec()
-	check(game.enemy_hp==280 and not record(game.leader_brain,Progression.FOREBODING,now).is_empty(),"wind-up punishment retained and surviving enemy gets Foreboding")
+	check(game.enemy_health()==280 and not record(game.leader_brain,Progression.FOREBODING,now).is_empty(),"wind-up punishment retained and surviving enemy gets Foreboding")
 	check(game.enemy_traits.get("marked_until",0)==0,"native Omen does not apply a generic Mark")
 	var foe: Dictionary = game.make_scout(0,Vector3(2,0,.3),11)
-	game.scouts.append(foe)
+	game.encounter.register_scout(foe)
 	Attacks.lock(game,foe,"swipe",caster.pos,now+500)
 	caster[Cooldowns.STATE] = caster[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	cast(0)
@@ -227,13 +227,13 @@ func basic_omens() -> void:
 	ally.slow_until=Time.get_ticks_msec()+5000
 	cast(0)
 	var timer := Time.get_ticks_msec()
-	check(game.enemy_hp==300 and game.enemy_pos.x<2.0 and ally.slow_until==0
+	check(game.enemy_health()==300 and game.enemy_pos.x<2.0 and ally.slow_until==0
 		and record(ally,Progression.GUIDED_STRIKE,timer).source==1 and caster.has(Omens.STATE),"Guiding Bell retains pull/cleanse and grants ally and self Portent")
 	game.enemy_ready_at=timer+800
 	var due := int(game.enemy_ready_at)
 	game.strike_enemy(1,caster,caster.pos)
 	game.update_projectiles(timer+550)
-	check(game.enemy_hp<300 and game.enemy_ready_at==due+300 and record(caster,Progression.GUIDED_STRIKE,timer+550).is_empty(),"ordinary weapon contact consumes the Portent for 300 ms recovery")
+	check(game.enemy_health()<300 and game.enemy_ready_at==due+300 and record(caster,Progression.GUIDED_STRIKE,timer+550).is_empty(),"ordinary weapon contact consumes the Portent for 300 ms recovery")
 	check(not record(ally,Progression.GUIDED_STRIKE,timer).is_empty(),"same cast keeps separate recipient opportunities")
 	prepare(["lifekeeper"])
 	ally.pos=Vector3(.5,0,0)
@@ -261,20 +261,20 @@ func nodes_and_chime() -> void:
 	var skill: Dictionary = game.Skills.resolve_in_world(game,4,0,caster.character)
 	check(is_equal_approx(float(skill.radius),3.15),"Wide Omen adds 0.55 m to the native Q")
 	var foe: Dictionary = game.make_scout(0,Vector3(2.1,0,.2),22)
-	game.scouts.append(foe)
-	var other_hp := int(foe.hp)
+	game.encounter.register_scout(foe)
+	var other_hp := int(game.encounter.hp_for(foe))
 	cast(0)
-	check(game.enemy_hp==290 and foe.hp==other_hp,"Verdict's Toll adds exactly one native damage hit to Guiding Bell")
+	check(game.enemy_health()==290 and game.encounter.hp_for(foe)==other_hp,"Verdict's Toll adds exactly one native damage hit to Guiding Bell")
 	var timer := Time.get_ticks_msec()
 	game.strike_enemy(1,caster,caster.pos)
 	game.update_projectiles(timer+500)
-	var before := int(game.enemy_hp)
+	var before := int(game.enemy_health())
 	check(caster.has(Oracle.RITUAL) and before<290,"a close ordinary hit prepares Ritual Verdict")
 	caster[Cooldowns.STATE] = caster[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	cast(0)
-	check(game.enemy_hp==before-20 and not caster.has(Oracle.RITUAL),"Ritual and Verdict share one Q target and consume once")
+	check(game.enemy_health()==before-20 and not caster.has(Oracle.RITUAL),"Ritual and Verdict share one Q target and consume once")
 	cast(1)
-	check(game.enemy_hp==before-45 and caster.guard_charges==1,"Sentence works on a Leykeeper, alongside Barbed Chime and native Ward")
+	check(game.enemy_health()==before-45 and caster.guard_charges==1,"Sentence works on a Leykeeper, alongside Barbed Chime and native Ward")
 	prepare(MIDDLE)
 	skill=game.Skills.resolve_in_world(game,4,0,caster.character)
 	check(is_equal_approx(float(skill.range),7.05),"Long Resonance adds 1.25 m")
@@ -296,13 +296,13 @@ func nodes_and_chime() -> void:
 		timer=Time.get_ticks_msec()
 		var original := record(recipient,effect,timer)
 		var old_hp := int(caster[PlayerVitals.STATE].hp())
-		var old_damage := int(game.enemy_hp)
+		var old_damage := int(game.enemy_health())
 		var old_pos: Vector3 = game.enemy_pos
 		var zones: int = game.trait_events.size()
 		cast(1)
 		var repeated := record(recipient,effect,timer)
 		check(not original.is_empty() and not repeated.is_empty() and repeated.cast!=original.cast
-			and game.enemy_hp==old_damage and game.enemy_pos==old_pos and caster[PlayerVitals.STATE].hp()==old_hp
+			and game.enemy_health()==old_damage and game.enemy_pos==old_pos and caster[PlayerVitals.STATE].hp()==old_hp
 			and game.trait_events.size()==zones,"Fate's Refrain bestows only the equipped focus Omen")
 	prepare(RIGHT)
 	ally.pos=Vector3(.3,0,0)
@@ -330,9 +330,9 @@ func nodes_and_chime() -> void:
 	check(ally[PlayerVitals.STATE].hp()==without_chime,"ordinary Ward from a different source does not heal")
 	prepare(["omenreader","wide_omen","verdicts_toll","barbed_chime","ritual_verdict","sentence_of_dawn"])
 	cast(0)
-	before=int(game.enemy_hp)
+	before=int(game.enemy_health())
 	cast(1)
-	check(game.enemy_hp==before-35,"Sentence adds 10 HP to its own Foreboding target on the same hit")
+	check(game.enemy_health()==before-35,"Sentence adds 10 HP to its own Foreboding target on the same hit")
 
 
 func coexistence() -> void:

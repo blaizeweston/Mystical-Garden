@@ -25,11 +25,11 @@ func check(ok: bool, detail: String) -> void:
 func prepare(species: String, form: int) -> void:
 	Core.reset(game)
 	game.combat_events.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.enemy_traits.clear()
 	game.enemy_kind = 0
 	game.enemy_mutations = 0
-	game.enemy_hp = 30
+	game.encounter.set_hp(-1, 30)
 	game.enemy_pos = Vector3(0, 0, -3.5)
 	game.enemy_winding_up = false
 	game.rooted_until = 0

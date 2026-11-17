@@ -93,9 +93,9 @@ func host_run() -> void:
 		return
 	var visible: Array = Core.hints(game)
 	check(visible.size() == 1 and visible[0].from == [line.from.x, 0, line.from.z] and visible[0].to == [line.to.x, 0, line.to.z], "replicated endpoints match authoritative line")
-	var before_hp: int = game.enemy_hp
+	var before_hp: int = game.enemy_health()
 	game.enemy_pos = line.center + direction * .08
-	if not await until(func(): return game.enemy_hp < before_hp and marked("tripped")):
+	if not await until(func(): return game.enemy_health() < before_hp and marked("tripped")):
 		check(false, "first crossing deals damage and replicates the callout")
 		return
 	check(Core.hints(game).size()==1 and guest.core_ready_at == cooldown, "the persistent line and owner cooldown survive a hit")
@@ -123,8 +123,8 @@ func host_run() -> void:
 	check(int(guest.core_ready_at) == 0 and not game.has_meta(Core.STATE), "pre-revival request cannot cast in a new life")
 	game.encounter_number = 3
 	game.deepest_milestone = 3
-	game.enemy_hp = 0
-	game.scouts.clear()
+	game.encounter.set_hp(-1, 0)
+	game.encounter.clear_scouts()
 	host.pos = game.battlefield.advance
 	guest.pos = game.battlefield.advance
 	game.use_checkpoint(1, true)
@@ -154,10 +154,10 @@ func host_run() -> void:
 
 
 func aim_for(guest: Dictionary) -> Vector2:
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.enemy_stagger_until = Time.get_ticks_msec() + 60000
 	game.enemy_winding_up = false
-	game.enemy_hp = 80
+	game.encounter.set_hp(-1, 80)
 	var direction := Vector3.ZERO
 	var placement := {}
 	for point in [guest.pos, game.battlefield.leader, game.battlefield.advance]:

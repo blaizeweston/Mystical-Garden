@@ -40,7 +40,7 @@ static func description(slot: String, quality: String) -> String:
 static func resisted(game: Node, target: int, now: int) -> bool:
 	if target==-1:
 		return game.boss_kind>=0 or game.enemy_winding_up or now<int(game.rooted_until) or Actors.rooted(game.leader_brain,now)
-	var scout: Dictionary=game.scouts[target]
+	var scout: Dictionary=game.encounter.scout(target)
 	return int(scout.windup)>0 or now<int(scout.rooted_until) or Actors.rooted(scout,now)
 
 
@@ -54,7 +54,7 @@ static func queue_motion(game: Node, event: RefCounted, target: int, center: Vec
 	if distance<=.001: return
 	if inward: strength=minf(strength,maxf(0.0,distance-Hurt.radius(game,target)-STAND_OFF))
 	if strength<=.001: return
-	var mask: int=game.enemy_mutations if target==-1 else game.scouts[target].mutations
+	var mask: int=game.enemy_mutations if target==-1 else game.encounter.scout(target).mutations
 	if mask & game.Enemies.BARK: strength*=.60
 	var pending: Dictionary=game.get_meta(PENDING,{})
 	var intents: Array=pending.get(target,[])
@@ -77,7 +77,7 @@ static func safe_motion(game: Node, target: int, point: Vector3, end: Vector3) -
 	var stops: Array=[]
 	for id in game.Life.living_ids(game):
 		stops.append([game.players[id].pos,radius+.34+STAND_OFF])
-	for other in range(-1,game.scouts.size()):
+	for other in range(-1,game.encounter.scout_count()):
 		if other!=target and Actors.valid_target(game,other):
 			stops.append([game.enemy_position(other),radius+Hurt.radius(game,other)+STAND_OFF])
 	var current:=point

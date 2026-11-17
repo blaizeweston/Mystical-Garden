@@ -53,14 +53,14 @@ func host() -> void:
 	var at := Vector3(0,0,-6)
 	game.battlefield.configure(0,1,0)
 	game.map_seed = 0
-	game.enemy_hp = 0
+	game.encounter.set_hp(-1, 0)
 	game.enemy_winding_up = false
 	game.encounter_rewarded = false
 	for player in game.players.values():
 		player.wild = true
 		player.pos = at + Vector3(1.0,0,0)
 	var thief: Dictionary = game.make_scout(Escape.KIND,at,2)
-	game.scouts.assign([thief])
+	game.encounter.clear_scouts();game.encounter.register_scout(thief)
 	game.wild_item_drops.assign([{"id":"net-trophy","owner":1,"stack":{"item":game.Items.part_id(game.Parts.monster_part(0)),"quantity":1},
 		"position":[at.x,0,at.z]}])
 	check(await until(func(): return thief.get("escaped",false) and game.encounter_rewarded),"real host tick frees the portal")

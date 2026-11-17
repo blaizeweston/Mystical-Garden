@@ -72,11 +72,11 @@ func host() -> void:
 		check(false,"guest learns a class node at the Gate")
 		return
 	check(player.character.upgrades[1]==1<<Warden.OFFSET and player.frame==0,"host spends the guest's point on the inspected class")
-	game.enemy_hp=0
+	game.encounter.set_hp(-1, 0)
 	game.enemy_pos=Vector3(0,0,-1.5)
 	game.battlefield.configure(game.destination,game.depth,game.map_seed)
 	game.battlefield.barriers.clear()
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.encounter_number=3
 	game.encounter_rewarded=true
 	game.checkpoint_pending=true
@@ -92,7 +92,7 @@ func host() -> void:
 	game.checkpoint_pending=false
 	game.combat_epoch+=1
 	game.encounter_number=4
-	game.enemy_hp=100
+	game.encounter.set_hp(-1, 100)
 	game.enemy_stagger_until=Time.get_ticks_msec()+60000
 	player.pos=Vector3.ZERO
 	game.players[1].pos=Vector3(0,0,2.0)
@@ -103,7 +103,7 @@ func host() -> void:
 	game.apply_enemy_hit(id,player,Time.get_ticks_msec(),1,0,game.enemy_pos)
 	player.pos=Vector3(0,0,4.6)
 	mark("move")
-	if not await until(func():return game.enemy_hp<100):
+	if not await until(func():return game.enemy_health()<100):
 		check(false,"guest Quake hits at the anchor beyond personal reach")
 		return
 	check(player.warden_anchor.uses==1 and Combat.prepared_until(game,player,Time.get_ticks_msec())==0,"purchase preserves anchor once and confirmed Quake consumes preparation")
@@ -144,7 +144,7 @@ func guest() -> void:
 		check(false,"owner receives the purchased class card")
 		return
 	mark("purchase")
-	if not await until(func():return marked("arena") and game.encounter_number==4 and game.enemy_hp>0 and not game.client_details.is_empty()):
+	if not await until(func():return marked("arena") and game.encounter_number==4 and game.enemy_health()>0 and not game.client_details.is_empty()):
 		check(false,"combat state arrives")
 		return
 	var player: Dictionary=game.players[id]

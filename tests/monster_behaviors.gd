@@ -12,18 +12,18 @@ func _initialize():
 func run():
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/monster-behaviors-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var p=game.players[1];p.wild=true;p.pos=Vector3(0,0,4);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
- game.battlefield.configure(0,1);game.battlefield.barriers=[];game.enemy_hp=100;game.enemy_pos=Vector3(0,0,5);game.enemy_mutations=0
+ game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3(0,0,5);game.enemy_mutations=0
  var shepherd=game.make_scout(10,Vector3(1,0,6),1);shepherd.mode="shepherd"
- var escort=game.make_scout(0,Vector3(0,0,6),2);game.scouts.assign([shepherd,escort]);game.resolve_scout(shepherd,game.Enemies.get_kind(10),2000)
+ var escort=game.make_scout(0,Vector3(0,0,6),2);game.encounter.clear_scouts();game.encounter.register_scout(shepherd);game.encounter.register_scout(escort);game.resolve_scout(shepherd,game.Enemies.get_kind(10),2000)
  check(int(escort.get("command_target",0))==1 and int(escort.get("command_until",0))>2000,"Shepherd coordinates its escorts against a live target")
  check(game.Director.target(game,escort.pos,escort,2100)==1,"command is respected by common targeting")
- game.enemy_hp=0;game.scouts.assign([shepherd]);game.arrange_support_groups()
- check(not game.Enemies.is_support(int(game.scouts[0].kind)),"Shepherd cannot spawn without escorts")
- var grazer=game.make_scout(11,Vector3(1,0,5),3);game.scouts.assign([grazer]);game.enemy_hp=100;game.enemy_pos=Vector3(0,0,5)
+ game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.encounter.register_scout(game.make_scout(10,shepherd.pos,1));game.arrange_support_groups()
+ check(not game.Enemies.is_support(int(game.encounter.scout(0).kind)),"Shepherd cannot spawn without escorts")
+ var grazer=game.make_scout(11,Vector3(1,0,5),3);game.encounter.clear_scouts();game.encounter.register_scout(grazer);game.encounter.set_hp(-1, 100);game.enemy_pos=Vector3(0,0,5)
  game.apply_weapon_hit(p,-1,p.pos,{"damage":4},3000)
- check(game.enemy_hp==97,"living grazer reduces nearby ally damage")
- grazer.hp=0;game.apply_weapon_hit(p,-1,p.pos,{"damage":4},3200)
- check(game.enemy_hp==93,"protection ends immediately when grazer dies")
+ check(game.enemy_health()==97,"living grazer reduces nearby ally damage")
+ game.encounter.set_hp(0, 0);game.apply_weapon_hit(p,-1,p.pos,{"damage":4},3200)
+ check(game.enemy_health()==93,"protection ends immediately when grazer dies")
  var lure=game.make_scout(12,Vector3(0,0,7),4);lure.mode="lure";lure.blast=Vector3(0,0,4);lure.windup=4000
  p.pos=lure.blast;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0;p.guard_until=0
  game.resolve_scout(lure,game.Enemies.get_kind(12),4000)
@@ -41,7 +41,7 @@ func run():
  check(landing.is_finite(),"mobile charger can select a legal cover vault")
  var widow: Dictionary=game.make_scout(14,origin,1,game.Enemies.MOBILITY)
  check(not Attacks.vault_target(game,widow,target).is_finite(),"web caster keeps its attack instead of borrowing a vault")
- game.scouts.assign([hart])
+ game.encounter.clear_scouts();game.encounter.register_scout(hart)
  Attacks.lock(game,hart,"vault",landing,now)
  var vault: Dictionary=game.attack_hints_snapshot().filter(func(h):return h.id==0)[0]
  check(vault.role=="vault" and hart.attack.variant==Attacks.VAULT_ID and vault.to[2]==landing.z,"vault announces the committed move and landing")
@@ -57,7 +57,7 @@ func run():
  game.battlefield.barriers.clear()
 
  var stag: Dictionary=game.make_scout(2,Vector3.ZERO,1)
- game.scouts.assign([stag])
+ game.encounter.clear_scouts();game.encounter.register_scout(stag)
  Attacks.lock(game,stag,"charge",Vector3(0,0,4),now+2000)
  var corridor: Dictionary=game.attack_hints_snapshot().filter(func(h):return h.id==0)[0]
  check(is_equal_approx(corridor.width,stag.attack.width+Attacks.CONTACT_PADDING),"charge warning includes collision padding")
@@ -71,7 +71,7 @@ func run():
  check(PlayerVitals.current_hp(p)==10,"charge misses just outside its marked lane")
 
  widow.pos=Vector3.ZERO
- game.scouts.assign([widow])
+ game.encounter.clear_scouts();game.encounter.register_scout(widow)
  Attacks.lock(game,widow,"snare",Vector3(0,0,4),now+4000)
  var web_hints: Array=game.attack_hints_snapshot().filter(func(h):return h.get("actor",-1)==0)
  check(web_hints.size()==4 and web_hints.all(func(h):return h.pose=="snare"),"Widow projects all four web locations from one cast")
@@ -81,7 +81,7 @@ func run():
   var point: Vector3=game.enemy_hazards[i].point
   check(is_equal_approx(point.z,web_hints[i].to[2]) and is_equal_approx(game.enemy_hazards[i].radius,web_hints[i].radius),"web warning matches hazard footprint")
 
- game.scouts.assign([lure]);p.pos=Vector3(0,0,4);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0;p.slow_until=0
+ game.encounter.clear_scouts();game.encounter.register_scout(lure);p.pos=Vector3(0,0,4);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0;p.slow_until=0
  lure.pos=Vector3(0,0,7);lure.ready=0;lure.windup=0;lure.engaged=true
  game.update_scouts(.016,now+5000)
  check(lure.windup>0 and lure.blast==p.pos,"live Lure aims its circle at a target instead of itself")

@@ -11,7 +11,7 @@ func start(game: Node) -> void:
  var p: Dictionary=game.players[1];p.pos=game.Stage.GATE;p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0;p.cargo_plan.fill(0);p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive()
  game.enter_wilds(1,p)
 func extraction(game: Node) -> void:
- game.encounter_number=6;game.depth=6;game.deepest_milestone=0;game.enemy_hp=0;game.scouts.clear();game.players[1].pos=game.battlefield.advance
+ game.encounter_number=6;game.depth=6;game.deepest_milestone=0;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.players[1].pos=game.battlefield.advance
  game.use_checkpoint(1,false)
 func _initialize() -> void:call_deferred("run")
 func run() -> void:

@@ -64,12 +64,12 @@ func equip(p: Dictionary, class_id: int, weapon: int) -> void:
 
 
 func clear_targets(game: Node, at: Vector3) -> void:
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.projectile_queue.clear()
 	game.combat_events.clear()
 	game.trait_events.clear()
 	game.enemy_traits.clear()
-	game.enemy_hp=600
+	game.encounter.set_hp(-1, 600)
 	game.enemy_pos=at
 	game.enemy_mutations=0
 	game.enemy_winding_up=false
@@ -120,43 +120,43 @@ func verify_roster(game: Node, p: Dictionary) -> void:
 			var roll: int=shot.stats.preview_strike_hp
 			check(roll>=band.x and roll<=band.y,"committed roll for "+base.name)
 			game.update_projectiles(int(shot.due)+500)
-			check(game.enemy_hp==600-roll,"actual hit uses the committed roll for "+base.name)
+			check(game.enemy_health()==600-roll,"actual hit uses the committed roll for "+base.name)
 
 
 func verify_delivery(game: Node,p: Dictionary) -> void:
 	equip(p,2,0)
 	p.graft_part=game.Parts.monster_part(13)
 	clear_targets(game,Vector3(0,0,2))
-	game.scouts.append(game.make_scout(0,Vector3(0,0,4.1),1))
-	var scout_before: int=game.scouts[0].hp
+	game.encounter.register_scout(game.make_scout(0,Vector3(0,0,4.1),1))
+	var scout_before: int=game.encounter.hp(0)
 	game.strike_enemy(1,p,p.pos)
 	var shot: Dictionary=game.projectile_queue[0]
 	var roll: int=shot.stats.preview_strike_hp
 	game.update_projectiles(int(shot.due)+500)
-	check(game.enemy_hp==600-roll and game.scouts[0].hp==scout_before-roll,"piercing contacts share one roll")
+	check(game.enemy_health()==600-roll and game.encounter.hp(0)==scout_before-roll,"piercing contacts share one roll")
 	equip(p,2,2)
 	clear_targets(game,Vector3(0,0,2))
-	game.scouts.append(game.make_scout(0,Vector3(1.6,0,2.1),1))
-	scout_before=game.scouts[0].hp
+	game.encounter.register_scout(game.make_scout(0,Vector3(1.6,0,2.1),1))
+	scout_before=game.encounter.hp(0)
 	game.strike_enemy(1,p,p.pos)
 	shot=game.projectile_queue[0]
 	roll=shot.stats.preview_strike_hp
 	game.update_projectiles(int(shot.due)+500)
-	check(game.enemy_hp==600-roll and game.scouts[0].hp==scout_before-roll,"chain contacts share one roll")
+	check(game.enemy_health()==600-roll and game.encounter.hp(0)==scout_before-roll,"chain contacts share one roll")
 	equip(p,2,0)
 	clear_targets(game,Vector3(5,0,1.4))
 	game.strike_enemy(1,p,p.pos)
 	shot=game.projectile_queue[0]
 	game.update_projectiles(int(shot.due)+500)
-	check(game.enemy_hp==600 and game.combat_events.all(func(event):return event.shape!="hit"),"miss has no damage or hit feedback")
+	check(game.enemy_health()==600 and game.combat_events.all(func(event):return event.shape!="hit"),"miss has no damage or hit feedback")
 	equip(p,2,0)
 	clear_targets(game,Vector3(0,0,2))
-	game.scouts.append(game.make_scout(0,Vector3(1.5,0,2),1))
-	scout_before=game.scouts[0].hp
+	game.encounter.register_scout(game.make_scout(0,Vector3(1.5,0,2),1))
+	scout_before=game.encounter.hp(0)
 	var parent: Dictionary={"damage":1.0,"preview_strike_hp":11,"preview_roll_delta":1,"link_damage":.35,"link":1}
 	game.Traits.queue_hit(game,p,0,parent,1000,100,true)
 	game.Traits.tick(game,1100)
-	check(game.scouts[0].hp==scout_before-9,"delayed link uses half of the frozen 11 HP plus its fractional bonus")
+	check(game.encounter.hp(0)==scout_before-9,"delayed link uses half of the frozen 11 HP plus its fractional bonus")
 
 
 func verify_components(game: Node,p: Dictionary) -> void:
@@ -177,13 +177,13 @@ func verify_components(game: Node,p: Dictionary) -> void:
 	var shot: Dictionary=game.projectile_queue[0]
 	var roll: int=shot.stats.preview_strike_hp
 	game.update_projectiles(int(shot.due)+500)
-	check(game.enemy_hp==600-roll-extra,"confirmed wind-up bonus matches the resolved amount")
+	check(game.enemy_health()==600-roll-extra,"confirmed wind-up bonus matches the resolved amount")
 	equip(p,0,0)
 	p.graft_part=game.Parts.monster_part(6)
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(60)
 	clear_targets(game,Vector3(0,0,1.4))
-	game.scouts.append(game.make_scout(0,Vector3(.4,0,1),1))
-	game.scouts[0].hp=3
+	game.encounter.register_scout(game.make_scout(0,Vector3(.4,0,1),1))
+	game.encounter.set_hp(0, 3)
 	game.apply_weapon_hit(p,0,p.pos,game.weapon_stats(p),2000)
 	check(int(PlayerVitals.current_hp(p)) in range(68,73),"Orchid Sac rolls 8–12 HP once on a confirmed kill")
 
@@ -204,11 +204,11 @@ func verify_graft(game: Node,p: Dictionary) -> void:
 	var shot: Dictionary=game.projectile_queue[0]
 	var roll: int=shot.stats.preview_strike_hp
 	game.update_projectiles(int(shot.release))
-	check(shot.emitted and game.enemy_hp==600,"arrow is in flight")
+	check(shot.emitted and game.enemy_health()==600,"arrow is in flight")
 	install_graft(game,p,antler)
 	check(p.graft_part==antler and p.carried_parts[antler]==0,"regular graft action replaces the Fang")
 	game.update_projectiles(int(shot.due)+500)
-	check(game.enemy_hp==600-roll and roll>=prior.damage_min and roll<=prior.damage_max,"the in-flight arrow keeps the old component's roll")
+	check(game.enemy_health()==600-roll and roll>=prior.damage_min and roll<=prior.damage_max,"the in-flight arrow keeps the old component's roll")
 	var after: Dictionary=game.weapon_stats(p)
 	check(after.damage_min==8 and after.damage_max==12,"the next attack uses the new graft")
 	var carapace: int=game.Parts.monster_part(11)

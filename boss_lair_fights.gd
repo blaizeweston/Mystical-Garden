@@ -262,7 +262,7 @@ static func resolve(game: Node, plan: Dictionary, now: int, damage: float) -> vo
 
 static func hints(game: Node, now: int) -> Array:
  var result: Array=[]
- if not Routes.supports(game.boss_kind) or game.enemy_hp<=0:return result
+ if not Routes.supports(game.boss_kind) or game.encounter.hp(-1)<=0:return result
  var plan: Dictionary=game.leader_brain.get("lair_plan",{})
  if game.enemy_winding_up and not plan.is_empty():
   var remaining:=maxf(0.0,(game.enemy_strike_at-now)*.001)

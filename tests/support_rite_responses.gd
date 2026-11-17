@@ -24,10 +24,10 @@ func check(ok: bool, message: String) -> void:
 
 
 func actor(kind: int, at: Vector3, hp: int = -1) -> Dictionary:
-	var scout: Dictionary = game.make_scout(kind, at, game.scouts.size() + 1)
+	var scout: Dictionary = game.make_scout(kind, at, game.encounter.scout_count() + 1)
 	if hp >= 0:
 		scout.hp = hp
-	game.scouts.append(scout)
+	game.encounter.register_scout(scout)
 	return scout
 
 
@@ -36,10 +36,10 @@ func fixture(kind: int, floor_number: int) -> Dictionary:
 	game.combat_epoch += 1
 	game.encounter_number = floor_number
 	game.map_seed = 10 + posmod(-37 - kind * 19 - floor_number * 11, 10)
-	game.enemy_hp = 50
+	game.encounter.set_hp(-1, 50)
 	game.enemy_kind = 0
 	game.enemy_pos = Vector3(12, 0, 5)
-	game.scouts.clear()
+	game.encounter.clear_scouts()
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
 	player.wild = true
@@ -117,27 +117,27 @@ func test_echo() -> void:
 
 func test_tether() -> void:
 	var bloom := fixture(15, 8)
-	bloom.hp = 3
+	game.encounter.set_hp(game.encounter.scout_slot(bloom), 3)
 	var initial := actor(0, Vector3(0, 0, -1.4), 0)
 	var spare := actor(0, Vector3(5.8, 0, 0), 0)
 	var first := actor(0, Vector3(-1.5, 0, 0))
 	var second := actor(0, Vector3(2.2, 0, 0))
-	check(cancel_rite(bloom, "chant") and bloom.disrupted_corpse == initial.spawn_token, "interruption remembers the first marked corpse")
+	check(cancel_rite(bloom, "chant") and bloom.disrupted_corpse == game.encounter.token_for(initial), "interruption remembers the first marked corpse")
 	var plan := retry(bloom, Tactics.SPARE_TETHER)
 	if not plan.is_empty():
-		check(plan.corpse.token == spare.spawn_token and Attacks.hints(plan, 0, 1.25)[0].role == "corpse_tether", "spare tether visibly commits to a different corpse")
+		check(plan.corpse.token == game.encounter.token_for(spare) and Attacks.hints(plan, 0, 1.25)[0].role == "corpse_tether", "spare tether visibly commits to a different corpse")
 		game.resolve_scout(bloom, game.Enemies.get_kind(15), bloom.windup)
-		check(bloom.consumed_corpses == [spare.spawn_token] and bloom.hp == 4, "spare is consumed once for one health")
+		check(bloom.consumed_corpses == [game.encounter.token_for(spare)] and game.encounter.hp_for(bloom) == 4, "spare is consumed once for one health")
 		check(first.haste_until > 0 and second.haste_until == 0, "only the marked escort gains haste")
 		Support.resolve_corpse(game, bloom, plan, int(bloom.ready))
-		check(bloom.hp == 4, "a used corpse cannot heal twice")
+		check(game.encounter.hp_for(bloom) == 4, "a used corpse cannot heal twice")
 	bloom = fixture(15, 8)
 	initial = actor(0, Vector3(0, 0, -1.4), 0)
 	actor(0, Vector3(-1.5, 0, 0))
 	actor(0, Vector3(2.2, 0, 0))
 	check(cancel_rite(bloom, "chant"), "a lone corpse can still teach denial")
 	Attacks.lock(game, bloom, "chant", player.pos, Time.get_ticks_msec() + 1700)
-	check(bloom.attack.get("variant") != Tactics.SPARE_TETHER and bloom.attack.corpse.token == initial.spawn_token, "one corpse gives an ordinary retry")
+	check(bloom.attack.get("variant") != Tactics.SPARE_TETHER and bloom.attack.corpse.token == game.encounter.token_for(initial), "one corpse gives an ordinary retry")
 
 
 func test_antiphon() -> void:
