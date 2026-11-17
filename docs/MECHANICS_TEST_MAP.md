@@ -7,7 +7,7 @@ Edges describe gameplay/data relationships. Selection uses explicit suite covera
 ```mermaid
 flowchart LR
   expedition_grafts["Expedition graft ledgers<br/> altar quotes and source-owned adaptations"]
-  affinity_cards["Affinity expedition cards<br/> rarity<br/> Essence rerolls and owned effects"]
+  affinity_cards["Affinity expedition card ledger<br/> rarity<br/> Essence rerolls and owned effects"]
   oracle_progression["Connected Oracle<br/> native Omens and first-run focus admission"]
   void_affinity["Void wells<br/> compression and bounded displacement"]
   spirit_affinity["Spirit stride<br/> traces and attack claims"]
@@ -102,6 +102,7 @@ flowchart LR
   expeditions -->|"Earned choices, owner revisions and expedition-only currency"| affinity_cards
   affinity_cards -->|"Source-scoped contributions captured by existing combat actions"| combat_affinity_contracts
   affinity_cards -->|"Acquired copy totals and inactive requirements in owner details"| expedition_summary
+  affinity_cards -->|"Graft previews and card effects share resolved attack and health values"| expedition_grafts
   class_tree_access -->|"level one focus admission and earned Oracle choices"| oracle_progression
   oracle_progression -->|"owned attack recovery and conditional support"| combat
   oracle_progression -->|"host-owned Omen details and status feedback"| world_snapshot
@@ -306,7 +307,7 @@ flowchart LR
 | System | Source files | Covering suites |
 |---|---|---|
 | expedition_grafts | `expedition_grafts.gd`, `expedition_grafts.gd.uid`, `affinity_grafting_panel.gd`, `affinity_grafting_panel.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `ct02_weaver`, `ct04_reaper`, `cr05_native_grafts`, `cr05_native_grafts_coop`, `cr05_native_grafts_party` |
-| affinity_cards | `affinity_cards.gd`, `affinity_cards.gd.uid`, `affinity_card_catalog.gd`, `affinity_card_catalog.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `cr02_mode_coop` |
+| affinity_cards | `affinity_cards.gd`, `affinity_cards.gd.uid`, `affinity_card_ledger.gd`, `affinity_card_ledger.gd.uid`, `affinity_card_catalog.gd`, `affinity_card_catalog.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `cr05_native_grafts`, `cr02_mode_coop` |
 | oracle_progression | `oracle_connected_tree.gd`, `oracle_connected_tree.gd.uid`, `oracle_combat.gd`, `oracle_combat.gd.uid`, `oracle_omens.gd`, `oracle_omens.gd.uid` | `ct05_oracle`, `ct05_oracle_coop`, `ct05_oracle_party` |
 | void_affinity | `void_affinity.gd`, `void_affinity.gd.uid` | `cr04c_void`, `cr04c_void_coop`, `cr04c_mixed_party` |
 | spirit_affinity | `spirit_affinity.gd`, `spirit_affinity.gd.uid` | `cr04c_mixed_party`, `cr04c_spirit`, `cr04c_spirit_coop` |
@@ -404,6 +405,7 @@ flowchart LR
 | Function | Systems |
 |---|---|
 | `_act` | foundation |
+| `_affinity_checkpoint_command` | expeditions, affinity_cards |
 | `_apply_loadout_action` | classes, characters, weapons, items |
 | `_attempt_graft` | weapons |
 | `_bank_checkpoint_item` | items, garden_returns |
@@ -772,6 +774,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_use_checkpoint` | gate_hold | gate_access |
 | `game.gd::_use_checkpoint` | gate_range | gate_access |
 | `game.gd::_process` | ga01a_1 | expedition_grafts |
+| `game.gd::_process` | ar02_affinity_completion_hud | affinity_cards |
 | `game.gd::_process` | ec01_1 | affinity_cards |
 | `game.gd::_process` | ct01_0 | warden_progression, classes, combat_affinity_contracts |
 | `game.gd::_process` | ct01_1 | warden_progression, classes, combat_affinity_contracts |
@@ -844,6 +847,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::toggle_overlay` | show_run_summary | expedition_summary |
 | `game.gd::toggle_overlay` | cancel_held_aim | ability_aim |
 | `game.gd::toggle_overlay` | garden_panel | garden_observations |
+| `game.gd::player_snapshot` | ar02_affinity_completion_snapshot | affinity_cards |
 | `game.gd::player_snapshot` | ga01a_1 | expedition_grafts |
 | `game.gd::player_snapshot` | ec01_1 | affinity_cards |
 | `game.gd::player_snapshot` | ct03_ranger_1 | foundation, ranger_progression |

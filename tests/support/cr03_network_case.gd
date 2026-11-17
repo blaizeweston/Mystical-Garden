@@ -394,7 +394,8 @@ func host(menu: Node) -> void:
 			"all four players can claim independent upgrades"):return
 		for id in game.players:
 			var visitor: Dictionary = game.players[id]
-			check(visitor.affinity_cards.copies.size()==1 and visitor.affinity_cards.copies[0].id==SPEED_CARD and visitor.spent==0,
+			var copies := UpgradeCards.ledger(visitor).copies()
+			check(copies.size()==1 and copies[0].id==SPEED_CARD and visitor.spent==0,
 				"free host/guest Light Grip is owned once")
 			check(has_attack_speed(game,visitor,game.weapon_stats(visitor),planned[id].after),
 				"host's resolved attack speed matches the promised value for this peer")
@@ -420,7 +421,7 @@ func host(menu: Node) -> void:
 	if not check(await until(func():return not game.expedition_active() and ids.all(func(id):return read("guest-garden-"+str(id))=="ok")),
 		"party extraction restores Garden"):return
 	if affinity_cards_case:
-		check(game.players.values().all(func(visitor):return not visitor.has("affinity_cards") and game.run_wallet(visitor)==0),
+		check(game.players.values().all(func(visitor):return not visitor.has(UpgradeCards.STATE) and game.run_wallet(visitor)==0),
 			"real extraction clears all four purses and decks")
 	if native_graft_case:
 		check(game.players.size()==ids.size()+1 and game.players.values().all(func(visitor):
@@ -853,9 +854,12 @@ func install_party_grafts(game: Node, ids: Array) -> bool:
 
 func plan_speed_offer(game: Node, player: Dictionary) -> Dictionary:
 	var stats: Dictionary = game.weapon_stats(player)
+	var ledger := UpgradeCards.ledger(player)
+	if ledger == null:
+		ledger = UpgradeCards.Ledger.new()
 	for seed_value in range(1,33):
 		player.upgrade_seed = seed_value
-		var options := UpgradeCards.roll(game,player,stats)
+		var options := ledger.roll(seed_value, game.encounter_number, stats, game.DODGE_COOLDOWN_MS)
 		var index := options.find_custom(func(option):return option.id==SPEED_CARD)
 		if index >= 0:
 			var next_ms := maxi(230, int(stats.interval) - int(options[index].amount))

@@ -2,6 +2,7 @@ extends SceneTree
 
 const Rules = preload("res://combat_ruleset.gd")
 const Improvements = preload("res://expedition_grafts.gd")
+const Cards = preload("res://affinity_cards.gd")
 const Grafts = preload("res://native_grafts.gd")
 const Frost = preload("res://frost_combat.gd")
 const Parts = preload("res://weapon_parts.gd")
@@ -231,13 +232,26 @@ func lifecycle() -> void:
 	game.reset_encounter()
 	check(Improvements.active_ledger(player)==ledger,"a new terrain encounter preserves all acquired improvements")
 	var remainder: Array = player.carried_parts.duplicate()
+	var card_receipts: Array[Dictionary] = [
+		{"id":"ordinary_weapon_damage", "rarity":"Common", "amount":1, "acquisition_id":1, "floor":3}
+	]
+	var card_ledger := Cards.Ledger.new(card_receipts, {}, 3)
+	player[Cards.STATE] = card_ledger
+	player.essence_sparks = 16
+	player.spent = 2
+	game.checkpoint_ready[1] = 3
+	var wallet: int = game.run_wallet(player)
 	game.set_meta(&"guarded_gameplay_test_fault",func(phase, _path): return ERR_FILE_CANT_WRITE if phase=="stage" else OK)
 	var rolled_back: bool = not game.finish_failed_expedition()
 	game.remove_meta(&"guarded_gameplay_test_fault")
 	check(rolled_back and player.wild and Improvements.active_ledger(player)==ledger and player.carried_parts==remainder,
-		"a confirmed guarded rollback preserves the whole ledger and carry")
+		"a confirmed guarded rollback preserves the whole graft ledger and carry")
+	check(rolled_back and Cards.ledger(player)==card_ledger and card_ledger.copies()==card_receipts
+		and card_ledger.completed_floor()==3 and player.spent==2 and game.run_wallet(player)==wallet
+		and game.checkpoint_ready.get(1)==3,"guarded rollback restores card ownership, wallet and Gate readiness together")
 	game.finish_failed_expedition()
-	check(not player.has(Improvements.STATE) and not player.has(Grafts.STATE),"actual wipe clears the ledger and combat counters")
+	check(not player.has(Improvements.STATE) and not player.has(Grafts.STATE)
+		and not player.has(Cards.STATE) and game.run_wallet(player)==0,"actual wipe clears both ledgers, counters and wallet")
 	start_expedition()
 	check(Improvements.run_identity(player) != ledger.identity() and receipts().is_empty(),
 		"fresh expedition starts with a different identity and no acquisitions")

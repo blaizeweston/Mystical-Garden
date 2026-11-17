@@ -92,15 +92,40 @@ func effect(id: String, rank := 0) -> int:
 	return definition.fixed if definition.policy == "unique" else definition.values[rank]
 
 
-func grant_fixture_copy(id: String, rank := 0) -> int:
+func card_ledger(target: Dictionary) -> Cards.Ledger:
+	var ledger := Cards.ledger(target)
+	return Cards.Ledger.new() if ledger == null else ledger
+
+
+func next_fixture_revision() -> int:
+	var revision := int(game.get_meta(Cards.SERIAL, 0)) + 1
+	game.set_meta(Cards.SERIAL, revision)
+	return revision
+
+
+func grant_fixture_copy(id: String, rank := 0, target: Dictionary = {}) -> int:
+	var recipient := player if target.is_empty() else target
 	var definition: Dictionary = Catalog.DEFINITIONS[id]
 	var contribution := effect(id,rank)
-	var run_state := Cards.state(player)
-	run_state.copies.append({"id":id,"amount":contribution,
+	var ledger := card_ledger(recipient)
+	var copies := ledger.copies()
+	copies.append({"id":id,"amount":contribution,
 		"rarity":"" if definition.policy == "unique" else Catalog.RARITIES[rank], "floor":game.encounter_number,
-		"acquisition_id":run_state.copies.size()+1})
-	run_state.totals[id] = Cards.amount(player,id)+contribution
+		"acquisition_id":next_fixture_revision()})
+	recipient[Cards.STATE] = Cards.Ledger.new(copies, ledger.offer(), ledger.completed_floor())
 	return contribution
+
+
+func fixture_offer(option: Dictionary) -> Dictionary:
+	var ledger := card_ledger(player)
+	var offer := {"floor":game.encounter_number, "revision":next_fixture_revision(),
+		"rerolls":0, "cards":[option], "closed":false}
+	player[Cards.STATE] = Cards.Ledger.new(ledger.copies(), offer, ledger.completed_floor())
+	return offer
+
+
+func checkpoint_view() -> Dictionary:
+	return game.checkpoint_card_data(player)[0]
 
 
 func at_checkpoint(floor_number: int) -> void:
@@ -122,7 +147,7 @@ func verify_offers() -> void:
 	reset()
 	for class_id in FOCUSES.size():
 		focus(class_id)
-		var available := Cards.eligible(player,game.weapon_stats(player),game.DODGE_COOLDOWN_MS)
+		var available := card_ledger(player).eligible(game.weapon_stats(player),game.DODGE_COOLDOWN_MS)
 		check(available.size()==(6 if class_id==1 else 5) and CLASS_CARDS[class_id] in available and STARTER_CARDS.all(func(id):return id in available),
 			"level-one class %d with empty slots has real options: %s" % [class_id,available])
 	var curve := Catalog.rise(1)
@@ -130,64 +155,94 @@ func verify_offers() -> void:
 		and Catalog.rise(7)[3]>curve[3],"rarity interpolates and remains available at endless depth")
 	var capped_stats: Dictionary = game.weapon_stats(player)
 	capped_stats.interval = Cards.STRIKE_MIN_MS
-	check("ordinary_weapon_interval" not in Cards.eligible(player,capped_stats,game.DODGE_COOLDOWN_MS),
+	check("ordinary_weapon_interval" not in card_ledger(player).eligible(capped_stats,game.DODGE_COOLDOWN_MS),
 		"an ordinary weapon already at the real interval floor cannot be offered a zero-effect card")
 	game.encounter_number = 90
 	var mixed := false
 	for seed_value in range(1,16):
 		player.upgrade_seed = seed_value
-		var drawn := Cards.roll(game,player,game.weapon_stats(player))
+		var drawn := card_ledger(player).roll(player.upgrade_seed, game.encounter_number, game.weapon_stats(player), game.DODGE_COOLDOWN_MS)
 		if drawn.any(func(copy):return copy.rarity!=drawn[0].rarity):
 			mixed = true
 			break
 	check(mixed,"one offer can show different independently rolled rarities")
 	at_checkpoint(3)
 	game.present_checkpoint_cards(1)
-	var run_state := Cards.state(player)
-	var original: Dictionary = run_state.offer.duplicate(true)
+	var original_ledger := Cards.ledger(player)
+	var original := original_ledger.offer()
 	check(original.cards.size()==3 and game.checkpoint_offer_revision==original.revision and game.run_wallet(player)==0,
 		"three owner options are offered at zero Essence")
+	var detached_offer := original_ledger.offer()
+	detached_offer.cards[0].amount += 100
+	detached_offer.closed = true
+	check(original_ledger.offer()==original,"mutating an offer projection cannot alter the active offer")
 	game.present_checkpoint_cards(1)
-	check(original==run_state.offer,"opening again preserves identities, rarities and revision")
+	check(Cards.ledger(player)==original_ledger and original==original_ledger.offer(),
+		"opening again preserves identities, rarities and revision")
 	action(original.revision,"reroll")
-	check(original==run_state.offer and player.spent==0,"insufficient currency changes nothing")
+	check(Cards.ledger(player)==original_ledger and original==original_ledger.offer() and player.spent==0,
+		"insufficient currency changes neither the ledger nor the wallet")
 	player.essence_sparks = 48
 	for cost in [2,4,6]:
-		var before: Dictionary = run_state.offer
+		var before_ledger := Cards.ledger(player)
+		var before := before_ledger.offer()
 		var wallet: int = game.run_wallet(player)
 		action(before.revision,"reroll")
-		var after: Dictionary = run_state.offer
-		check(after.revision>before.revision and game.run_wallet(player)==wallet-cost
+		var after_ledger := Cards.ledger(player)
+		var after := after_ledger.offer()
+		check(after_ledger!=before_ledger and before_ledger.offer()==before
+			and after.revision>before.revision and game.run_wallet(player)==wallet-cost
 			and after.cards.any(func(card): return not before.cards.any(func(old): return old.id==card.id)),
 			"paid replacement changes the offer set and debits %d" % cost)
 		action(before.revision,"reroll")
 		action(before.revision,"0")
-		check(after==run_state.offer and game.run_wallet(player)==wallet-cost and run_state.copies.is_empty(),
-			"stale selection and reroll cannot mutate current offer")
-	var offered: Dictionary = run_state.offer.cards[0]
+		check(Cards.ledger(player)==after_ledger and after==after_ledger.offer()
+			and game.run_wallet(player)==wallet-cost and after_ledger.copies().is_empty(),
+			"stale selection and reroll cannot replace or mutate the current ledger")
+	var final_offer := Cards.ledger(player).offer()
+	var offered: Dictionary = final_offer.cards[0]
 	var profile: Dictionary = player.character.duplicate(true)
-	var rev: int = run_state.offer.revision
+	var rev: int = final_offer.revision
 	action(rev,"0")
+	var claimed := Cards.ledger(player)
+	var receipts := claimed.copies()
 	action(rev,"1")
-	check(run_state.copies.size()==1 and run_state.copies[0].acquisition_id==rev and run_state.copies[0].rarity==offered.rarity
-		and game.run_wallet(player)==0 and run_state.offer.closed and player.character==profile,
+	check(Cards.ledger(player)==claimed and receipts.size()==1 and receipts[0].acquisition_id==rev
+		and receipts[0].rarity==offered.rarity and game.run_wallet(player)==0
+		and claimed.offer().closed and player.character==profile,
 		"selection at zero costs nothing and duplicate selection cannot affect state or profile")
+	var detached_receipts := claimed.copies()
+	var detached_totals := claimed.totals()
+	detached_receipts[0].amount += 100
+	detached_totals[offered.id] = 0
+	check(claimed.copies()==receipts and claimed.amount(offered.id)==int(offered.amount),
+		"mutating receipt and contribution projections cannot alter owned cards")
 	at_checkpoint(6)
-	var next := Cards.open(game,player,game.weapon_stats(player))
-	check(next.cards.size()==3 and next.revision>rev and Cards.reroll_cost(next)==2 and run_state.copies.size()==1,
-		"new checkpoint resets escalation and preserves the acquired copy")
+	var next := checkpoint_view()
+	check(next.choices.size()==3 and next.revision>rev and next.reroll_cost==2
+		and Cards.ledger(player).copies()==receipts and Cards.ledger(player).completed_floor()==3,
+		"new checkpoint resets escalation and preserves the acquired copy and completed floor")
 	action(next.revision,"skip")
-	check(run_state.copies.size()==1 and next.closed,"skip uses only this checkpoint")
+	check(Cards.ledger(player).copies()==receipts and Cards.ledger(player).offer().closed,
+		"skip uses only this checkpoint")
+	game.checkpoint_ready.erase(1) # Falling clears gate readiness independently of card ownership.
+	action(next.revision,"skip")
+	check(Cards.ledger(player).copies()==receipts and Cards.ledger(player).completed_floor()==6
+		and game.checkpoint_ready.get(1)==6 and game.run_wallet(player)==0,
+		"continuing at a closed offer restores readiness without another purchase or debit")
 	reset()
 	at_checkpoint(3)
 	player.essence_sparks = 80
 	for _copy in 4:
 		grant_fixture_copy("ordinary_weapon_damage")
 		grant_fixture_copy("run_health")
-	var braked := Cards.open(game,player,game.weapon_stats(player))
-	check(braked.cards.size()==3,"remaining legal pool fits exactly one offer")
+	var braked := checkpoint_view()
+	var braked_ledger := Cards.ledger(player)
+	var braked_offer := braked_ledger.offer()
+	check(braked.choices.size()==3,"remaining legal pool fits exactly one offer")
 	action(braked.revision,"reroll")
-	check(Cards.state(player).offer==braked and player.spent==0,"no valid replacement leaves wallet and revision intact")
+	check(Cards.ledger(player)==braked_ledger and braked_ledger.offer()==braked_offer and player.spent==0,
+		"no valid replacement leaves the ledger, wallet and revision intact")
 
 	reset()
 	player.weapon = material("fire")
@@ -195,10 +250,9 @@ func verify_offers() -> void:
 		at_checkpoint(3*(index+1))
 		var grade := 3 if index==2 else 0
 		var option := {"id":"ember_impact","rarity":Catalog.RARITIES[grade],"amount":effect("ember_impact",grade)}
-		var offer := Cards.new_offer(game,[option],0)
-		Cards.state(player).offer = offer
+		var offer := fixture_offer(option)
 		action(offer.revision,"0")
-	var copies: Array = Cards.state(player).copies
+	var copies := card_ledger(player).copies()
 	check(copies.size()==3 and copies[0].amount==2 and copies[1].amount==2 and copies[2].amount==5
 		and Cards.amount(player,"ember_impact")==9 and copies[0].acquisition_id!=copies[1].acquisition_id,
 		"real acquisition keeps Common + Common + Epic contributions rather than upgrading earlier copies")
@@ -216,7 +270,7 @@ func verify_offers() -> void:
 	for index in int(Catalog.PLAYTEST.acquisition_limit):
 		grant_fixture_copy(STARTER_CARDS[index%STARTER_CARDS.size()])
 	at_checkpoint(60)
-	var limit := Cards.view(game,player,false)
+	var limit := checkpoint_view()
 	check(limit.exhausted and limit.choices.is_empty() and not limit.reroll_enabled,"test cap has explicit exhausted state")
 	action(limit.revision,"skip")
 	check(game.checkpoint_ready.get(1)==60,"exhausted floor 60 can still ready the Gate")
@@ -225,9 +279,11 @@ func verify_offers() -> void:
 	player.spent = 7
 	ally.essence_sparks = 8
 	ally.spent = 2
-	grant_fixture_copy("run_health")
+	grant_fixture_copy("run_health", 0, ally)
+	var companion_ledger := Cards.ledger(player)
 	game.abandon_run(2,ally)
-	check(ally.spent==0 and game.run_wallet(ally)==0 and not ally.has(Cards.STATE) and player.wild,
+	check(ally.spent==0 and game.run_wallet(ally)==0 and not ally.has(Cards.STATE)
+		and player.wild and Cards.ledger(player)==companion_ledger,
 		"partial party return zeroes detached wallet while the companion remains")
 	at_checkpoint(66)
 	check(game._use_checkpoint(1,false) and not player.has(Cards.STATE) and game.run_wallet(player)==0,"extraction clears run ownership and purse")
@@ -253,7 +309,7 @@ func verify_core() -> void:
 		var bonus := grant_fixture_copy(setup[1],3)
 		var now := Time.get_ticks_msec()
 		var event := source_event("core",family,"core_action",now)
-		check(setup[1] in Cards.eligible(player,game.weapon_stats(player),game.DODGE_COOLDOWN_MS),"resolved Core offer "+family)
+		check(setup[1] in card_ledger(player).eligible(game.weapon_stats(player),game.DODGE_COOLDOWN_MS),"resolved Core offer "+family)
 		var baseline: Dictionary = Build.for_player(player).core.potency_profile.values
 		var data := {"enemy":-1,"center":game.enemy_pos, "origin":player.pos, "point":game.enemy_pos,
 			"recipients":[1],"start":player.pos,"shapes":[Footprint.area(game.enemy_pos,1.0)]}
@@ -302,10 +358,9 @@ func verify_dew_shelter() -> void:
 	ally.pos = Vector3(0,0,-1.3)
 	at_checkpoint(3)
 	var option := {"id":"dew_shelter","rarity":"","amount":effect("dew_shelter")}
-	var offer := Cards.new_offer(game,[option],0)
-	Cards.state(player).offer = offer
+	var offer := fixture_offer(option)
 	action(offer.revision,"0")
-	check("dew_shelter" not in Cards.eligible(player,game.weapon_stats(player),game.DODGE_COOLDOWN_MS),"claimed Dew Shelter is withheld at later offers")
+	check("dew_shelter" not in card_ledger(player).eligible(game.weapon_stats(player),game.DODGE_COOLDOWN_MS),"claimed Dew Shelter is withheld at later offers")
 	var bonus := grant_fixture_copy("dewfall_impact",3)
 	game.enemy_hp = 400
 	player.pos = Vector3.ZERO
@@ -358,7 +413,7 @@ func verify_form_and_catalyst() -> void:
 		var bonus := grant_fixture_copy(cards_by_family[family],3)
 		player.catalyst = material(family)
 		var plain: Dictionary = Build.for_player(player).catalyst.potency_profile.values
-		check(cards_by_family[family] in Cards.eligible(player,game.weapon_stats(player),game.DODGE_COOLDOWN_MS),"working Catalyst mapping eligible for "+family)
+		check(cards_by_family[family] in card_ledger(player).eligible(game.weapon_stats(player),game.DODGE_COOLDOWN_MS),"working Catalyst mapping eligible for "+family)
 		game.use_class_skill(1,player,1)
 		match family:
 			"fire": check(game.leader_brain[Rules.Fire.BURNING]["1/catalyst"].hp==plain.tick_hp+bonus,"Fire Catalyst uses source-owned upgraded burn")
@@ -416,8 +471,7 @@ func verify_native() -> void:
 	var old_hp: float = player.hp
 	at_checkpoint(3)
 	var extra_health := effect("run_health",3)
-	var offer := Cards.new_offer(game,[{"id":"run_health","rarity":"Epic","amount":extra_health}],0)
-	Cards.state(player).offer = offer
+	var offer := fixture_offer({"id":"run_health","rarity":"Epic","amount":extra_health})
 	action(offer.revision,"0")
 	check(player.max_hp==100+extra_health and game.Life.maximum(game,player)==player.max_hp
 		and player.hp==old_hp,"acquiring General max health changes the actual maximum without immediate heal")
@@ -426,7 +480,7 @@ func verify_native() -> void:
 func verify_echo() -> void:
 	reset(1)
 	grant_fixture_copy("echoing_growth")
-	check("echoing_growth" not in Cards.eligible(player,game.weapon_stats(player),game.DODGE_COOLDOWN_MS),"Weaver Unique cannot return after acquisition")
+	check("echoing_growth" not in card_ledger(player).eligible(game.weapon_stats(player),game.DODGE_COOLDOWN_MS),"Weaver Unique cannot return after acquisition")
 	game.garden_action(1,Aim.request(game,player,0,Vector2.UP,1.3))
 	var bloom: Dictionary = game.trait_events.front()
 	game.enemy_pos = bloom.position
@@ -460,9 +514,8 @@ func verify_presentation() -> void:
 	grant_fixture_copy(honed, 0)
 	grant_fixture_copy(honed, 1)
 	at_checkpoint(3)
-	var offer := Cards.state(player)
-	offer.offer = Cards.new_offer(game,[{"id":honed,"amount":3,"rarity":"Rare"}],0)
-	var choice: Dictionary = Cards.view(game,player,false).choices[0]
+	fixture_offer({"id":honed,"amount":3,"rarity":"Rare"})
+	var choice: Dictionary = checkpoint_view().choices[0]
 	check(choice.description == "Basic attacks gain +3 damage." and choice.scope == "Weapon"
 		and choice.preview == "Acquired: 3 copies (+4 damage) → 4 copies (+7 damage)"
 		and "2 Common, 1 Uncommon" in choice.detail,"picker uses each actual copy and reports the effective next total")
@@ -488,8 +541,8 @@ func verify_presentation() -> void:
 		"the real Tab view groups copies and exposes individual contributions")
 	player.catalyst = material("water")
 	grant_fixture_copy("catalyst_drench_time")
-	offer.offer = Cards.new_offer(game,[{"id":"catalyst_drench_time","amount":250,"rarity":"Common"}],0)
-	choice = Cards.view(game,player,false).choices[0]
+	fixture_offer({"id":"catalyst_drench_time","amount":250,"rarity":"Common"})
+	choice = checkpoint_view().choices[0]
 	check(choice.preview == "Duration bonus: +0.25 s → +0.50 s" and "by 0.25 seconds" in choice.description,
 		"picker presents the exact status duration extension")
 	player.catalyst = 0
@@ -577,10 +630,9 @@ func verify_attack_speed() -> void:
 		var next_ms: int = current_ms - scenario.applied
 		check(int(stats.interval) == scenario.base, "%s resolves its native weapon and learned speed" % stats.name)
 
-		var old_copies := Cards.state(player).copies as Array
-		var offer := Cards.new_offer(game,[{"id":card_id, "rarity":"Epic", "amount":scenario.applied}],0)
-		Cards.state(player).offer = offer
-		var view := Cards.view(game, player, false)
+		fixture_offer({"id":card_id, "rarity":"Epic", "amount":scenario.applied})
+		var before_ledger := card_ledger(player)
+		var view := checkpoint_view()
 		var choice: Dictionary = view.choices[0]
 		var before_speed := "%.2f" % (1000.0 / current_ms)
 		var after_speed := "%.2f" % (1000.0 / next_ms)
@@ -606,7 +658,8 @@ func verify_attack_speed() -> void:
 		game.toggle_overlay(null)
 		var wanted := previous.duplicate()
 		wanted.append(int(scenario.applied))
-		check(old_copies.map(func(copy):return copy.amount) == wanted and player.spent == 0,
+		check(card_ledger(player).copies().map(func(copy):return copy.amount) == wanted
+			and before_ledger.copies().map(func(copy):return copy.amount) == previous and player.spent == 0,
 			"the purchase keeps each original contribution and commits the displayed clipped amount for free")
 		tab.refresh(player)
 		summary = tab.shown
@@ -633,8 +686,8 @@ func verify_attack_speed() -> void:
 		game.strike_enemy(1,player,player.pos)
 		check(game.projectile_queue.size() == count, "the attack timer still rejects an immediate second launch")
 		if next_ms == Cards.STRIKE_MIN_MS:
-			check(not Cards.eligible(player,game.weapon_stats(player),game.DODGE_COOLDOWN_MS).has(card_id)
-				and not Cards.roll(game,player,game.weapon_stats(player)).any(func(option):return option.id==card_id),
+			check(not card_ledger(player).eligible(game.weapon_stats(player),game.DODGE_COOLDOWN_MS).has(card_id)
+				and not card_ledger(player).roll(player.upgrade_seed, game.encounter_number, game.weapon_stats(player), game.DODGE_COOLDOWN_MS).any(func(option):return option.id==card_id),
 				"Light Grip leaves the pool at the interval floor before its copy limit is reached")
 		player.erase(grafts.STATE)
 

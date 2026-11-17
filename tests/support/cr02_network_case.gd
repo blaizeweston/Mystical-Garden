@@ -135,26 +135,32 @@ func host(menu: Node, mismatch: bool) -> void:
 	local.checkpoint_offers=["rift_hook"]
 	world.use_checkpoint(1,true)
 	var cards_api = world.AffinityCards
-	var host_cards: Dictionary = cards_api.state(local)
-	var remote_cards: Dictionary = cards_api.state(remote)
-	var initial: Dictionary = remote_cards.offer.duplicate(true)
+	var host_offer: Dictionary = cards_api.ledger(local).offer()
+	var initial_ledger = cards_api.ledger(remote)
+	var initial: Dictionary = initial_ledger.offer()
 	check(world.checkpoint_cards.get_child_count()==3 and "free" in world.checkpoint_notice.text
 		and world.run_wallet(local)==0 and not world.buy_upgrade(1,local,0),
 		"new cards are offered at zero Essence and the legacy purchase remains refused")
 	world.present_checkpoint_cards(guest_id(world))
-	check(remote_cards.offer==initial,"reopening the guest's offer preserves its full revision")
-	world.send_garden_action(world.affinity_checkpoint_action(host_cards.offer.revision,"0"))
+	check(cards_api.ledger(remote)==initial_ledger and initial_ledger.offer()==initial,
+		"reopening the guest's offer preserves its full revision")
+	world.send_garden_action(world.affinity_checkpoint_action(host_offer.revision,"0"))
 	mark("cards")
-	if not check(await until(func(): return read("guest-cards")=="ok" and remote_cards.copies.size()==1),
+	if not check(await until(func(): return read("guest-cards")=="ok" and cards_api.ledger(remote).copies().size()==1),
 		"guest pays for rerolls and acquires one copy through the host"):return
-	check(remote_cards.offer.rerolls==3 and remote.spent==12 and world.run_wallet(remote)==0
-		and host_cards.copies.size()==1 and world.run_wallet(local)==0 and local.run_upgrades.is_empty()
-		and remote.run_upgrades.is_empty(), "host debits 2/4/6 once for the guest and neither free selection changes a wallet")
+	var remote_cards = cards_api.ledger(remote)
+	var host_cards = cards_api.ledger(local)
+	check(remote_cards.offer().rerolls==3 and remote.spent==12 and world.run_wallet(remote)==0
+		and host_cards.copies().size()==1 and world.run_wallet(local)==0 and local.run_upgrades.is_empty()
+		and remote.run_upgrades.is_empty() and initial_ledger.offer()==initial,
+		"host debits 2/4/6 once for the guest, both selections are free, and the prior offer stays intact")
 	world.PartyTravel.request(world,1,"advance")
 	mark("checkpoint",str(world.travel_epoch))
 	if not check(await until(func(): return read("guest-ready")=="ok" and world.encounter_number==7),
 		"both selections preserve the actual onward Gate"):return
-	check(remote_cards.copies.size()==1 and host_cards.copies.size()==1,"independent copies survive floor travel")
+	check(cards_api.ledger(remote)==remote_cards and remote_cards.copies().size()==1
+		and cards_api.ledger(local)==host_cards and host_cards.copies().size()==1,
+		"independent receipts survive floor travel")
 	mark("done")
 	await until(func(): return read("guest-done")=="ok")
 	world.return_to_main_menu()

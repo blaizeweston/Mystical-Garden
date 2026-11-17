@@ -1119,7 +1119,7 @@ func _garden_action(id: int, action: String) -> void:
 		return
 	if action.begins_with(AffinityCards.COMMAND):
 		if preload("res://combat_ruleset.gd").active(self):
-			AffinityCards.command(self,id,player,action)
+			_affinity_checkpoint_command(id, player, action)
 		return
 	if action.begins_with("checkpoint_choice_"):
 		var value:=action.trim_prefix("checkpoint_choice_")
@@ -3918,7 +3918,7 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 					state["warden_relay_point"]=warden.relay_point(self,p,now)
 					state["warden_quake_prepared"]=warden.prepared_until(self,p,now)>0
 			state.merge({"weapon": p.weapon, "prepared": p.prepared, "experiment": p.experiment,
-				"skill_ready": Time.get_ticks_msec() >= int(p.skill_at),"skill_two_ready":Time.get_ticks_msec()>=int(p.get("skill_two_at",0)),"skill_cooldowns":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get("skill_two_at",0))-Time.get_ticks_msec())/1000.0)], "dodge_ready": Time.get_ticks_msec() >= int(p.dodge_at), "last_offer": p.last_offer,
+				"skill_ready": Time.get_ticks_msec() >= int(p.skill_at),"skill_two_ready":Time.get_ticks_msec()>=int(p.get("skill_two_at",0)),"skill_cooldowns":[maxf(0,(int(p.skill_at)-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get("skill_two_at",0))-Time.get_ticks_msec())/1000.0)], "dodge_ready": Time.get_ticks_msec() >= int(p.dodge_at), "last_offer": AffinityCards.completed_floor(p) if p.has("combat_ruleset") else p.last_offer,
 				"reclaim_choice":p.get("reclaim_choice",0),"offering_choice":p.get("offering_choice",0),"last_deposit":p.get("last_deposit",0),"weapon_kind":p.weapon_kind,"catalyst":p.catalyst,"graft_part":p.graft_part,"graft_floor":p.get("graft_floor",0),"prepared_catalyst":p.prepared_catalyst,"cargo_plan":p.cargo_plan,"stored_parts":stored_counts(p),"weapon_stats":weapon_stats(p,not p.wild), "carried_parts": p.carried_parts, "reserve_parts": seed_reserve(p).parts,"combat_events":combat_events_snapshot(),"attack_hints":attack_hints_snapshot(),"death_events":death_events_snapshot(),"run_upgrades":preload("res://combat_ruleset.gd").legacy_ranks(p),"bag":InventoryModel.snapshot(self,p),"ground_items":inventory_floor_snapshot(p), "secondary": p.secondary, "prepared_secondary": p.prepared_secondary,
 				"garden_interactions":preload("res://garden_interaction_service.gd").projection(self,id),
 				"party_travel":PartyTravel.snapshot(self,id),"seed_choice": selected_seed(p), "graft_choice": p.graft_choice, "cache_claimed": p.cache_claimed})
@@ -4107,12 +4107,13 @@ func _process(_delta: float) -> void:
 				guide.text = "E  Continue"
 			else:
 				guide.text = "Continue to %s" % Campaign.NAMES[(destination + 1) % Campaign.HEART]
-		if upgrade_checkpoint_open() and p.get("last_offer",0)!=encounter_number:
+		var last_offer := AffinityCards.completed_floor(p) if multiplayer.is_server() and p.has("combat_ruleset") else int(p.get("last_offer", 0))
+		if upgrade_checkpoint_open() and last_offer != encounter_number:
 			guide.text="E  Choose an upgrade" if visual_field.advance.distance_to(p.pos)<=preload("res://gate_interaction.gd").RANGE else "Upgrades await at the gate"
 		if extraction_checkpoint_open() and visual_field.advance.distance_to(p.pos) <= preload("res://gate_interaction.gd").RANGE:
 			guide.text = "E  Continue    ·    T  Extract to the Garden"
 			detail_label.text = "Extract or continue."
-			if p.get("last_offer", 0) != encounter_number:
+			if last_offer != encounter_number:
 				detail_label.text += "\nE  Choose an upgrade   ·   %d Essence" % (run_wallet(p) if multiplayer.is_server() else int(p.get("wallet", 0)))
 		if visual_field.has_seed_cache() and not p.get("cache_claimed", false) and (
 				visual_field.cache.distance_to(p.pos) <= 1.55 and destination != Campaign.HEART):
@@ -4940,7 +4941,18 @@ func checkpoint_all_ready() -> bool:
 
 func checkpoint_card_data(player: Dictionary) -> Array:
 	if preload("res://combat_ruleset.gd").active(self):
-		return [AffinityCards.view(self,player,int(checkpoint_ready.get(Traits.player_id(self,player),0))==encounter_number)]
+		var stats := weapon_stats(player)
+		Weapons.tune_affinity_basic(stats)
+		var ledger := AffinityCards.ledger(player)
+		if ledger == null:
+			ledger = AffinityCards.Ledger.new()
+		var revision := int(get_meta(AffinityCards.SERIAL, 0)) + 1
+		var opened := ledger.open_offer(encounter_number, revision, int(player.upgrade_seed), stats, DODGE_COOLDOWN_MS)
+		if opened != ledger:
+			player[AffinityCards.STATE] = opened
+			set_meta(AffinityCards.SERIAL, revision)
+		var waiting := int(checkpoint_ready.get(Traits.player_id(self, player), 0)) == encounter_number
+		return [AffinityCards.checkpoint_view(opened, stats, DODGE_COOLDOWN_MS, run_wallet(player), waiting)]
 	var result: Array=[]
 	var wallet: int=run_wallet(player)
 	var offers:=checkpoint_offer_ids(player)
@@ -5050,6 +5062,45 @@ func open_checkpoint_cards(cards: Array,wallet: int,floor_number: int,waiting: b
 	checkpoint_skip.disabled = waiting
 	if not checkpoint_menu.visible:
 		toggle_overlay(checkpoint_menu)
+
+
+func _affinity_checkpoint_command(id: int, player: Dictionary, action: String) -> void:
+	if not multiplayer.is_server() or not Life.alive(player) or not checkpoint_pending \
+			or not upgrade_checkpoint_open() or int(checkpoint_ready.get(id, 0)) == encounter_number \
+			or player.pos.distance_to(battlefield.advance) > preload("res://gate_interaction.gd").RANGE:
+		return
+	var fields := action.trim_prefix(AffinityCards.COMMAND).split("_")
+	if fields.size() != 2 or not fields[0].is_valid_int():
+		return
+	var ledger := AffinityCards.ledger(player)
+	if ledger == null:
+		present_checkpoint_cards(id)
+		return
+	var stats := weapon_stats(player)
+	Weapons.tune_affinity_basic(stats)
+	var revision := int(get_meta(AffinityCards.SERIAL, 0)) + 1
+	var plan := ledger.plan_choice(encounter_number, int(fields[0]), fields[1], revision,
+		int(player.upgrade_seed), run_wallet(player), stats, DODGE_COOLDOWN_MS)
+	# Install the accepted state and debit together before publishing feedback.
+	if plan.has("ledger"):
+		player[AffinityCards.STATE] = plan.ledger
+		if plan.has("cost"):
+			player.spent += int(plan.cost)
+			set_meta(AffinityCards.SERIAL, revision)
+			Journal.event("combat", "affinity_card_reroll", {"actor": id, "floor": encounter_number,
+				"revision": revision, "cost": plan.cost, "rerolls": plan.rerolls})
+		if plan.has("copy"):
+			var copy: Dictionary = plan.copy
+			if copy.id == "run_health":
+				player.max_hp = Life.maximum(self, player)
+			Journal.event("combat", "affinity_card_acquired", {"actor": id, "floor": copy.floor,
+				"acquisition": copy.acquisition_id, "card": copy.id, "rarity": copy.rarity, "amount": copy.amount})
+	if plan.has("message"):
+		tell(id, plan.message)
+	if plan.get("ready", false):
+		mark_checkpoint_ready(id)
+	elif plan.get("refresh", false):
+		present_checkpoint_cards(id)
 
 
 func affinity_checkpoint_action(revision: int, choice: String) -> String:
