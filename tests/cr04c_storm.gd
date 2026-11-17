@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const Storm = preload("res://storm_affinity.gd")
@@ -63,7 +65,7 @@ func run() -> void:
 	Events.contact(game,stats,2,now,true)
 	check(game.enemy_health()==77 and game.encounter.hp(2)==100,"repeat and secondary contact cannot discharge")
 	var Core=preload("res://core_combat.gd")
-	p.profile_ready=true
+	SessionCase.set_ready(game, p, true)
 	p.frame=2;p.weapon_kind=0;p.weapon=ordinary;p.pos=Vector3.ZERO
 	game.tactics.position=Vector3(3.2,0,0);game.encounter.set_hp(-1, 100)
 	game.battlefield.procedural=false

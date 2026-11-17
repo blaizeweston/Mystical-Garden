@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Aim=preload("res://ability_aim.gd")
 var game: Node
@@ -19,11 +21,11 @@ func run():
 	game.guest_character.path=game.progress.path+".guest"
 	root.add_child(game)
 	if mode=="host":
-		check(game.host_game()==OK,"host opens")
+		check(SessionCase.World.host(game)==OK,"host opens")
 		print("CLASS HOST READY")
 		if not await until(func(): return game.players.size()==2): check(false,"guest joins");quit(1);return
 		var id: int=game.players.keys()[1]
-		if not await until(func(): return game.players[id].profile_ready): check(false,"profile arrives");quit(1);return
+		if not await until(func(): return SessionCase.Session.ready_for(game.players[id])): check(false,"profile arrives");quit(1);return
 		var p: Dictionary=game.players[id]
 		check(p.frame==4 and p.weapon_kind==2 and p.character.upgrades[4]==1,"portable active class, weapon and choices arrive")
 		p.pos=game.Stage.HEART
@@ -73,10 +75,10 @@ func run():
 		game.guest_character.data.upgrades[4]=1
 		game.guest_character.data.loadouts[4].weapon=2
 		game.guest_character.save_profile()
-		check(game.join_game()==OK,"guest connects")
+		check(SessionCase.World.join(game)==OK,"guest connects")
 		if not await until(func():
 			var id: int=game.multiplayer.get_unique_id()
-			return game.session=="Guest" and game.players.has(id) and game.players[id].get("stored_parts",[]).size()==game.Parts.DEFINITIONS.size() and game.players[id].stored_parts[18]==1):
+			return game.network_session.role()=="Guest" and game.players.has(id) and game.players[id].get("stored_parts",[]).size()==game.Parts.DEFINITIONS.size() and game.players[id].stored_parts[18]==1):
 			check(false,"extended stash snapshot arrives");quit(1);return
 		var id: int=game.multiplayer.get_unique_id()
 		for action in ["class_2","learn_2_13"]:

@@ -41,7 +41,7 @@ static func plan(game: Node,wave: int) -> Array:
    result.append({"pos":at,"kind":Composition.reinforcement(game,pool,at,rng,previous)})
  return result
 static func tick(game: Node,now: int) -> void:
- if game.session=="Guest":return
+ if game.network_session.role()=="Guest":return
  if game.participation.cycle()<=0 or game.tactics.boss_kind>=0 or game.participation.route()==game.Campaign.HEART or game.Life.living_ids(game).is_empty() or game.encounter_cleared():
   game.tactics.memory.erase("pressure");game.pressure_at=0;return
  if not game.tactics.memory.has("pressure"):game.tactics.memory.pressure={"wave":0,"pending":[]}

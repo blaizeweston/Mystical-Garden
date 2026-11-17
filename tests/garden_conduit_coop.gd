@@ -1,4 +1,6 @@
 extends SceneTree
+
+const SessionCase = preload("res://tests/support/session_case.gd")
 const Conduit=preload("res://garden_conduit.gd")
 const Service=preload("res://garden_interaction_service.gd")
 var game: Node
@@ -22,8 +24,8 @@ func run() -> void:
  game.get_node("GardenInteractions/GrowthScenes").set_process(false)
  if role=="host":await host_run()
  else:await guest_run()
- game.leave_game("Garden conduit fixture complete")
- var offline := game.online_peer == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer
+ SessionCase.World.leave(game,"Garden conduit fixture complete")
+ var offline := game.network_session.transport() == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer
  check(offline,"offline peer is installed before world removal")
  if offline:
   if role=="guest":mark("guest-offline")
@@ -32,8 +34,8 @@ func run() -> void:
  if not failed:print("PASS: Garden conduit co-op ",role," host permissions, authoritative policy, guest tending and reconnect")
  quit(1 if failed else 0)
 func host_run() -> void:
- check(game.host_game()==OK,"host opens")
- if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"admission");return
+ check(SessionCase.World.host(game)==OK,"host opens")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"admission");return
  var id: int=game.players.keys().filter(func(peer):return peer!=1)[0];var g=game.progress
  for tech in ["clearing_1","clearing_2","flowering","irrigation","plot_4","living_conduit"]:g.heart.unlock_direct(tech)
  g.heart.complete(g,"plot_4");g.heart.sync_legacy(g);g.save_garden()
@@ -51,8 +53,8 @@ func host_run() -> void:
  mark("done")
  check(await until(func():return marked("guest-offline") and game.multiplayer.get_peers().is_empty()),"host observes guest disconnect before teardown")
 func guest_run() -> void:
- check(game.join_game()==OK,"guest joins")
- if not await until(func():return game.session=="Guest" and marked("ready") and Conduit.projection(game,game.local_player_id()).get("unlocked",false)):check(false,"host tool snapshot");return
+ check(SessionCase.World.join(game)==OK,"guest joins")
+ if not await until(func():return game.network_session.role()=="Guest" and marked("ready") and Conduit.projection(game,game.local_player_id()).get("unlocked",false)):check(false,"host tool snapshot");return
  check(not Conduit.projection(game,game.local_player_id()).host and not game.progress.heart.has("living_conduit"),"projection describes host permissions without granting local research")
  game.send_garden_action(request("deep",0))
  if not await until(func():return game.status.contains("Only the Garden host")):check(false,"server permission rejection");return
@@ -63,7 +65,7 @@ func guest_run() -> void:
  if not await until(func():return Service.projection(game,game.local_player_id()).cultivation.beds.any(func(b):return b.slot==3 and b.choice=="preserve")):check(false,"tending receipt");return
  mark("tended")
  if not await until(func():return marked("rejoin")):check(false,"rejoin allowed");return
- game.leave_game("Conduit rejoin fixture");game.toggle_overlay(null);check(game.join_game()==OK,"guest reconnects")
- if not await until(func():return game.session=="Guest" and Conduit.projection(game,game.local_player_id()).get("mode","")=="deep"):check(false,"configuration persists");return
+ SessionCase.World.leave(game,"Conduit rejoin fixture");game.toggle_overlay(null);check(SessionCase.World.join(game)==OK,"guest reconnects")
+ if not await until(func():return game.network_session.role()=="Guest" and Conduit.projection(game,game.local_player_id()).get("mode","")=="deep"):check(false,"configuration persists");return
  check(Service.projection(game,game.local_player_id()).cultivation.beds.any(func(b):return b.slot==3 and b.choice=="preserve"),"crop choice returns without reroll")
  mark("rejoined");check(await until(func():return marked("done")),"host completes")

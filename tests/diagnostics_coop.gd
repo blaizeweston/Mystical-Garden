@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -29,8 +31,8 @@ func run():
  if not failed:print("PASS: diagnostics co-op ",role," host/guest correlation, authoritative damage, reliable vitals, user markers and readable report")
  quit(1 if failed else 0)
 func host_run():
- check(game.host_game()==OK,"host opens")
- if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"registration");return
+ check(SessionCase.World.host(game)==OK,"host opens")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"registration");return
  var id=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
  ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE]=p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3.ZERO;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.progress.knowledge=47
  IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(p), 1);game.net_view.observe(game);game.diagnostic_watch.tick(true)
@@ -40,8 +42,8 @@ func host_run():
  check(not Journal.current.export_report().is_empty(),"host report exports")
  mark("done");check(await until(func():return game.players.size()==1),"guest disconnects")
 func guest_run():
- game.guest_character.save_profile();check(game.join_game()==OK,"guest joins")
- if not await until(func():return game.session=="Guest" and game.players.has(1) and not str(game.players[1].get("diagnostic_host","")).is_empty()):check(false,"host correlation arrives");return
+ game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")
+ if not await until(func():return game.network_session.role()=="Guest" and game.players.has(1) and not str(game.players[1].get("diagnostic_host","")).is_empty()):check(false,"host correlation arrives");return
  var id=game.multiplayer.get_unique_id()
  check(await until(func():return marked("damage") and game.players.get(id,{}).get("hp",10)==9 and game.client_garden.size()>16 and game.client_garden[6]==47),"reliable damage reaches guest")
  game.diagnostic_watch.tick(true)
@@ -53,4 +55,4 @@ func guest_run():
  for path in zip.get_files():
   if path.begins_with(Journal.current.session_id+"/") and path.ends_with(".jsonl"):text+=zip.read_file(path).get_string_from_utf8()
  zip.close();check(text.contains('"rtt_ms"') and text.contains('"event":"vitals_received"') and text.contains('"host_session":"'+context.host_session+'"'),"guest report has vitals and host correlation")
- mark("guest_verified");check(await until(func():return marked("done")),"host finished");game.leave_game("Diagnostics fixture")
+ mark("guest_verified");check(await until(func():return marked("done")),"host finished");SessionCase.World.leave(game,"Diagnostics fixture")

@@ -44,7 +44,7 @@ static func mount(world: Node) -> void:
 
 
 static func handle_input(world: Node, event: InputEvent) -> bool:
-	if not event.is_action_pressed("run_summary") or world.session == "Connecting" or world.returning_to_title:
+	if not event.is_action_pressed("run_summary") or world.network_session.role() == "Connecting" or world.returning_to_title:
 		return false
 	var panel: PanelContainer = world.overlay.get_node_or_null("RunSummary")
 	if panel == null or (world.overlay.visible and not panel.visible):

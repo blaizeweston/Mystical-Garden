@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -25,11 +27,11 @@ func run():
 		var host: Dictionary=game.players[1]
 		host.character.active_class=4
 		game.restore_class_loadout(host)
-		check(game.host_game()==OK,"server opens")
+		check(SessionCase.World.host(game)==OK,"server opens")
 		print("DUAL HOST READY")
 		if not await until(func(): return game.players.size()==2): check(false,"guest joins");quit(1);return
 		var id: int=game.players.keys()[1]
-		if not await until(func(): return game.players[id].profile_ready): check(false,"profile registers");quit(1);return
+		if not await until(func(): return SessionCase.Session.ready_for(game.players[id])): check(false,"profile registers");quit(1);return
 		var p: Dictionary=game.players[id]
 		check(p.frame==1 and p.character.upgrades[1]==6,"replacement and augmentation choices travel with guest")
 		game.encounter.clear_scouts()
@@ -58,9 +60,9 @@ func run():
 		game.guest_character.data.xp[1]=int(game.Character.LEVEL_THRESHOLDS.back())
 		game.guest_character.data.upgrades[1]=6
 		game.guest_character.save_profile()
-		check(game.join_game()==OK,"guest connects")
+		check(SessionCase.World.join(game)==OK,"guest connects")
 		var id: int=game.multiplayer.get_unique_id()
-		if not await until(func(): return game.session=="Guest" and game.players.has(id) and ExpeditionCase.is_wild(game.players[id]) and game.client_details_key == str([game.participation.route(), game.participation.floor(), game.participation.seed()])):
+		if not await until(func(): return game.network_session.role()=="Guest" and game.players.has(id) and ExpeditionCase.is_wild(game.players[id]) and game.client_details_key == str([game.participation.route(), game.participation.floor(), game.participation.seed()])):
 			check(false,"expedition state arrives");quit(1);return
 		game.players[id].facing=Vector3.BACK
 		var first := InputEventKey.new()

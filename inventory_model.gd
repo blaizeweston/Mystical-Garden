@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Session = preload("res://network_session.gd")
+
 const Participation = preload("res://expedition_participation.gd")
 const Items=preload("res://item_catalog.gd")
 const POUCH_SLOTS:=1
@@ -11,7 +13,7 @@ static func extras(game: Node,player: Dictionary,bucket: String) -> Dictionary:
  if not game.progress.item_stashes.has(SHARED_OWNER):game.progress.item_stashes[SHARED_OWNER]={}
  return game.progress.item_stashes[SHARED_OWNER]
 static func extra_stash(game,player: Dictionary) -> Dictionary:
- var owner: String=player.get("seed_owner","")
+ var owner: String=Session.inventory_owner(player)
  if not game.progress.item_stashes.has(owner): game.progress.item_stashes[owner]={}
  return game.progress.item_stashes[owner]
 static func normalize_pouch(player: Dictionary) -> void:

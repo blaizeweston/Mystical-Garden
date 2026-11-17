@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -306,7 +308,7 @@ func run() -> void:
 	game.set_physics_process(false)
 	game.battlefield = field
 	player = game.players[game.HOST]
-	player.profile_ready = true
+	SessionCase.set_ready(game, player, true)
 	player.frame = game.Frames.RANGER
 	ExpeditionCase.set_membership(game, player, true)
 	weapon_checks()

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Catalog=preload("res://garden_interaction_catalog.gd")
 const State=preload("res://garden_interaction_state.gd")
@@ -72,7 +74,7 @@ func run() -> void:
  check(late.cue_until==0,"late-join projection restores state without replaying a historical cue")
  late.queue_free()
  var actor: Dictionary=game.seed_reserve(p);actor.parts[1]=1;g.parts[0]=1
- game.add_player(4242);var other: Dictionary=game.players[4242];other.seed_owner="observation-fixture-other";other.profile_ready=true;other.prepared=1;other.loadout_reserving=true
+ game.add_player(4242);var other: Dictionary=game.players[4242];SessionCase.set_identity(game, other, "observation-fixture-other");SessionCase.set_ready(game, other, true);other.prepared=1;other.loadout_reserving=true
  game.seed_reserve(other).parts[1]=0;p.prepared=1;p.loadout_reserving=true;p.pos=game.Stage.ALTAR
  var item: String=Model.Items.part_id(1)
  var costs: Array=[{"item":item,"source":"shared","quantity":1}]

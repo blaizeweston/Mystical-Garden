@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -57,8 +59,8 @@ func run() -> void:
 
 
 func host() -> void:
-	check(game.host_game() == OK, "host opens")
-	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return p.profile_ready)):
+	check(SessionCase.World.host(game) == OK, "host opens")
+	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return SessionCase.Session.ready_for(p))):
 		check(false, "guest registers")
 		return
 	var id: int = game.players.keys().filter(func(peer): return peer != 1)[0]
@@ -107,14 +109,14 @@ func host() -> void:
 	check(PlayerVitals.current_hp(other) == 10 and hound.rooted_until == 0 and Core.hints(game).size() == 1, "guest escapes the landing and line remains active")
 	mark("landed")
 	check(await until(func(): return marked("verified")), "guest verifies outcome")
-	game.leave_game("Thorn vault fixture complete")
+	SessionCase.World.leave(game,"Thorn vault fixture complete")
 
 
 func guest() -> void:
 	game.guest_character.save_profile()
-	check(game.join_game() == OK, "guest connects")
+	check(SessionCase.World.join(game) == OK, "guest connects")
 	var id := game.multiplayer.get_unique_id()
-	if not await until(func(): return game.session == "Guest" and ExpeditionCase.is_wild(game.players.get(id, {}))):
+	if not await until(func(): return game.network_session.role() == "Guest" and ExpeditionCase.is_wild(game.players.get(id, {}))):
 		check(false, "Wilds state arrives")
 		return
 	mark("ready")
@@ -126,4 +128,4 @@ func guest() -> void:
 	check(await until(func(): return marked("landed") and not warning.call()), "landing warning clears")
 	check(game.players[id].hp == 10 and not game.progress.wilds_memory.score.has(Thorn.TACTIC), "guest keeps full health and owns no world learning")
 	mark("verified")
-	check(await until(func(): return game.session == "Solo"), "host finishes")
+	check(await until(func(): return game.network_session.role() == "Solo"), "host finishes")

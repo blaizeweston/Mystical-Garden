@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -34,9 +36,9 @@ func run() -> void:
  if not failed:print("PASS: reinforcement co-op ",role," warning replication, authoritative arrival, clear cancellation and unchanged health")
  quit(1 if failed else 0)
 func host_run() -> void:
- check(game.host_game()==OK,"host opens")
+ check(SessionCase.World.host(game)==OK,"host opens")
  print("pressure host awaiting admission")
- if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"admission");return
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"admission");return
  game.set_physics_process(false)
  print("pressure host admitted")
  ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"encounter_number": 19});ExpeditionCase.set_world(game, {"depth": 1});ExpeditionCase.set_world(game, {"difficulty_cycle": 1});ExpeditionCase.set_world(game, {"map_seed": 91273});game.reset_encounter();game.encounter.clear_scouts();game.encounter.set_hp(-1, 10)
@@ -58,7 +60,7 @@ func host_run() -> void:
  check(await until(func():return marked("done")),"guest confirmed clear")
  for p in game.players.values():check(PlayerVitals.current_hp(p)==10,"no automatic pressure damage")
 func guest_run() -> void:
- check(game.join_game("127.0.0.1")==OK,"guest connects")
+ check(SessionCase.World.join(game,"127.0.0.1")==OK,"guest connects")
  check(await until(func():return marked("warning") and game.client_details.get("attack_hints",[]).any(func(h):return h.role=="reinforcement")),"received warning on existing reliable owner snapshot")
  var hints: Array=game.client_details.get("attack_hints",[])
  if not hints.is_empty():check(hints.any(func(h):return h.role=="reinforcement" and h.remaining>0 and h.remaining<=3),"guest receives labeled location and countdown")

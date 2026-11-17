@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -24,14 +26,14 @@ func run():
  game=load("res://world.tscn").instantiate();game.progress.path=base+role;game.local_character.path=base+role+".character";game.guest_character.path=base+role+".guest";root.add_child(game)
  if role=="host":await host_run()
  else:await guest_run()
- if game.online_peer!=null:game.leave_game("Weapon animation fixture")
- check(game.online_peer==null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"offline before world removal")
+ if game.network_session.transport()!=null:SessionCase.World.leave(game,"Weapon animation fixture")
+ check(game.network_session.transport()==null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"offline before world removal")
  game.queue_free();await process_frame
  if not failed:print("PASS: weapon actions co-op ",role," bow draw, projectile footprint, and two-handed scythe contact")
  quit(1 if failed else 0)
 func host_run():
- check(game.host_game()==OK,"host opens")
- if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"registration");return
+ check(SessionCase.World.host(game)==OK,"host opens")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"registration");return
  var id: int=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
  check(p.character.appearance[5]==1 and p.character.appearance[6]==0 and p.character.appearance[7]==100,"host receives customized female model and independent sliders")
  game.encounter.set_hp(-1, 80);game.tactics.position=Vector3(0,0,3);game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.encounter.clear_scouts()
@@ -49,9 +51,9 @@ func host_run():
 func guest_run():
  game.guest_character.data.active_class=2
  game.guest_character.data.appearance=preload("res://character_appearance.gd").DEFAULT.duplicate();game.guest_character.data.appearance[5]=1;game.guest_character.data.appearance[6]=0;game.guest_character.data.appearance[7]=100;game.guest_character.data.appearance[8]=100
- game.guest_character.save_profile();check(game.join_game()==OK,"guest joins")
+ game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")
  var id:=game.multiplayer.get_unique_id()
- if not await until(func():return marked("ready") and game.session=="Guest" and not game.client_details.is_empty() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds state");return
+ if not await until(func():return marked("ready") and game.network_session.role()=="Guest" and not game.client_details.is_empty() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds state");return
  var aim:=Vector2(1,0)
  var next_input:=0
  var deadline:=Time.get_ticks_msec()+6000;var saw_clip:=false;var saw_draw:=false
@@ -73,7 +75,7 @@ func guest_run():
     var draw:=smoothstep(0,.55,phase)
     var nock:=weapon.to_global(Vector3(0,.2,-.2-.25*draw))
     saw_draw=saw_draw or nock.distance_to(Field.hand(actor,false))<.035
-  if game.online_peer==null:
+  if game.network_session.transport()==null:
    check(false,"guest stays connected through bow action")
    return
   # Match MouseCombat.frame's input cadence. Keep advertising the new aim
@@ -120,4 +122,4 @@ func guest_run():
  game.submit_combat.rpc_id(1,Vector2(0,1),false)
  mark("scythe-checked")
  check(await until(func():return marked("done")),"host finishes")
- game.leave_game("Weapon animation fixture")
+ SessionCase.World.leave(game,"Weapon animation fixture")

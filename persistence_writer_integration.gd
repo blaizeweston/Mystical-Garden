@@ -24,7 +24,7 @@ const REQUIRED_WRITERS = {
  "main_menu.gd::_ready/launch": "candidate default title, passive selection and guarded Continue/Join",
  "developer_mode.gd::open_garden": "candidate Developer Garden creation, replacement and lease",
  "game.gd::_ready/_notification/return_to_main_menu/_exit_tree": "candidate guarded startup, close, title return and lease release",
- "game.gd::register_character/receive_character/remove_player": "candidate guarded admission, projection and disconnect",
+ "session_world.gd::register/remove and game.gd::receive_character": "candidate guarded admission, projection and disconnect",
  "persistence_operations.gd::recover_selected": "explicit recovery with confirmed evidence and idle participants",
 }
 const AUXILIARY_WRITERS = {

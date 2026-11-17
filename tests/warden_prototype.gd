@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -218,7 +220,7 @@ func run() -> void:
 	game.set_physics_process(false)
 	player=game.players[1]
 	game.add_player(2)
-	game.players[2].profile_ready=true
+	SessionCase.set_ready(game, game.players[2], true)
 	tree()
 	offense()
 	neutral()

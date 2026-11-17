@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Service=preload("res://garden_return_service.gd")
 const Scenes=preload("res://garden_growth_service.gd")
@@ -23,8 +25,8 @@ func run() -> void:
  game.get_node("GardenInteractions/GrowthScenes").set_process(false)
  if role=="host":await host_run()
  else:await guest_run()
- game.leave_game("Garden returns fixture complete")
- var offline := game.online_peer == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer
+ SessionCase.World.leave(game,"Garden returns fixture complete")
+ var offline := game.network_session.transport() == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer
  check(offline,"offline peer is installed before world removal")
  if offline:
   if role=="guest":mark("guest-offline")
@@ -33,8 +35,8 @@ func run() -> void:
  if not failed:print("PASS: Garden returns co-op ",role," real banking/identification, private provenance, shared trace, independent acknowledgement and reconnect")
  quit(1 if failed else 0)
 func host_run() -> void:
- check(game.host_game()==OK,"host opens")
- if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"admission");return
+ check(SessionCase.World.host(game)==OK,"host opens")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"admission");return
  var id: int=game.players.keys().filter(func(peer):return peer!=1)[0];var moss: int=game.Seeds.index_of("lantern_moss")
  game.progress.discoveries[moss]=true
  for peer in [1,id]:
@@ -61,8 +63,8 @@ func host_run() -> void:
  mark("done")
  check(await until(func():return marked("guest-offline") and game.multiplayer.get_peers().is_empty()),"host observes guest disconnect before teardown")
 func guest_run() -> void:
- check(game.join_game()==OK,"guest joins")
- if not await until(func():return marked("banked") and game.session=="Guest" and game.players.has(game.local_player_id()) and not ExpeditionCase.is_wild(game.players[game.local_player_id()])):check(false,"banked snapshot");return
+ check(SessionCase.World.join(game)==OK,"guest joins")
+ if not await until(func():return marked("banked") and game.network_session.role()=="Guest" and game.players.has(game.local_player_id()) and not ExpeditionCase.is_wild(game.players[game.local_player_id()])):check(false,"banked snapshot");return
  check(Service.projection(game,game.local_player_id()).get("entries",[]).is_empty(),"unidentified banking reveals no species/story")
  game.send_altar_action("identify_all",[],0);mark("submitted")
  if not await until(func():return marked("identified") and Service.known(Service.projection(game,game.local_player_id()),"lantern_homecoming") and Scenes.projection(game,game.local_player_id()).get("pending",[]).size()==1):check(false,"shared discovery arrives");return
@@ -70,7 +72,7 @@ func guest_run() -> void:
  check(not JSON.stringify(data).contains("credits") and not JSON.stringify(data).contains("members") and game.progress.garden_interactions.get("returns",{}).get("discoveries",{}).is_empty(),"host projection omits private provenance and does not alter guest world")
  game.send_garden_action("growth_ack:"+str(Scenes.projection(game,game.local_player_id()).pending[0].sequence));mark("skipped")
  if not await until(func():return marked("rejoin")):check(false,"rejoin allowed");return
- game.leave_game("Garden return reconnect fixture");game.toggle_overlay(null);check(game.join_game()==OK,"reconnect starts")
- if not await until(func():return game.session=="Guest" and Service.known(Service.projection(game,game.local_player_id()),"lantern_homecoming")):check(false,"persistent trace returns");return
+ SessionCase.World.leave(game,"Garden return reconnect fixture");game.toggle_overlay(null);check(SessionCase.World.join(game)==OK,"reconnect starts")
+ if not await until(func():return game.network_session.role()=="Guest" and Service.known(Service.projection(game,game.local_player_id()),"lantern_homecoming")):check(false,"persistent trace returns");return
  check(Scenes.projection(game,game.local_player_id()).get("pending",[]).is_empty(),"acknowledged scene does not replay")
  mark("rejoined");check(await until(func():return marked("done")),"host completes")

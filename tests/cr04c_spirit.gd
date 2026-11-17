@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -31,7 +33,7 @@ func run() -> void:
 	game.set_physics_process(false)
 	var p: Dictionary=game.players[1]
 	ExpeditionCase.set_membership(game, p, true)
-	p.profile_ready=true
+	SessionCase.set_ready(game, p, true)
 	p.pos=Vector3.ZERO
 	p.weapon=game.Items.get_item("part_10").legacy_part
 	game.encounter.set_hp(-1, 100)

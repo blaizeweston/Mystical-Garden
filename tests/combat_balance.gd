@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -34,7 +36,7 @@ func run():
   var point:=Vector3(geometry_rng.randf_range(-36,36),0,geometry_rng.randf_range(-32,32))
   for clearance in [0.0,.34,.8]: check(game.battlefield.inside_floor(point,clearance)==(game.battlefield.floor_distance(point)>=clearance),"cached collision preserves exact dirt boundaries")
  var solo_count: int=game.encounter.scout_count();var solo_hp: int=game.encounter_health()
- game.add_player(2);var friend: Dictionary=game.players[2];friend.profile_ready=true;ExpeditionCase.set_membership(game, friend, true);friend.seed_owner="b".repeat(32);game.reset_encounter()
+ game.add_player(2);var friend: Dictionary=game.players[2];SessionCase.set_ready(game, friend, true);ExpeditionCase.set_membership(game, friend, true);SessionCase.set_identity(game, friend, "b".repeat(32));game.reset_encounter()
  check(game.encounter.scout_count()>solo_count and game.encounter_health()>solo_hp,"co-op adds combatants and health rather than just doubling player damage")
  var scaled_hp: int=game.encounter_health()
  check(game.player_snapshot(2,false)[2].enemy_max_hp==scaled_hp,"authoritative maximum health is included in movement snapshots")

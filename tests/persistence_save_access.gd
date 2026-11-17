@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const Auth = preload("res://persistence_authorization.gd")
 const Plan = preload("res://persistence_recovery_plan.gd")
 const Inspect = preload("res://persistence_save_inspection.gd")
@@ -161,7 +163,7 @@ func run() -> void:
  remove(Character + ".transaction")
  remove(Garden + ".transaction")
  passive("invalid_path", "user://unsupported/garden.cfg", "invalid", "unsafe_participant")
- write(Garden, '[garden]\nknowledge=Object(RefCounted,)\n')
+ write(Garden, '[garden]\nknowledge=Object(RefCounted)\n')
  passive("unsafe_config_constructor", Garden, "invalid", "unsafe_save_content")
  save_fixture(Garden, {"character":{"identity": id}})
  passive("invalid_garden_content", Garden, "invalid", "invalid_save_content")

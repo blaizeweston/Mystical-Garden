@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const State=preload("res://garden_growth_state.gd")
 const Service=preload("res://garden_growth_service.gd")
@@ -25,7 +27,7 @@ func run() -> void:
  var loaded=game.Progress.new();loaded.path=path
  check(loaded.load_garden()==OK and loaded.garden_interactions.growth==g.garden_interactions.growth,"queue and viewer receipts survive a reload")
  var first: Dictionary=Service.projection(game,1).pending[0]
- game.add_player(7878);game.players[7878].profile_ready=true;game.players[7878].seed_owner="new-growth-viewer"
+ game.add_player(7878);SessionCase.set_ready(game, game.players[7878], true);SessionCase.set_identity(game, game.players[7878], "new-growth-viewer")
  check(Service.register(game,7878) and Service.projection(game,7878).pending.is_empty(),"a new character starts at the current Garden rather than replaying past scenes")
  check(Service.register(game,1) and Service.projection(game,1).pending.size()==1,"registering an existing viewer preserves their unwatched scene")
  ExpeditionCase.set_membership(game, game.players[1], true)

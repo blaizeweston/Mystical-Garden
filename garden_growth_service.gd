@@ -1,14 +1,16 @@
 extends RefCounted
 
+const Session = preload("res://network_session.gd")
+
 const Participation = preload("res://expedition_participation.gd")
 const Tx=preload("res://game_transaction.gd")
 const State=preload("res://garden_growth_state.gd")
 static func identity(game: Node,id: int) -> String:
- return game.local_character.identity if id==game.HOST else str(game.players.get(id,{}).get("seed_owner",""))
+ return game.local_character.identity if id==game.HOST else str(Session.inventory_owner(game.players.get(id,{})))
 static func register(game: Node,id: int) -> bool:
- if not game.multiplayer.is_server() or not game.players.has(id) or not game.players[id].get("profile_ready",false):return false
+ if not game.multiplayer.is_server() or not game.players.has(id) or not Session.ready_for(game.players[id],false):return false
  # A title-screen guest has no local world to initialize or save.
- if game.joined_from_title and not game.slot_claimed:return false
+ if game.network_session.joined_from_title() and not game.slot_claimed:return false
  var who:=identity(game,id)
  if who.is_empty(): return false
  var growth: Variant=game.progress.garden_interactions.get("growth")
@@ -34,7 +36,7 @@ static func projection(game: Node,id: int) -> Dictionary:
   if event is Dictionary and int(event.get("sequence",0))>seen:pending.append(event.duplicate(true))
  return {"version":1,"pending":pending,"history":data.get("events",[]).duplicate(true),"seen":seen,"ready":not game.participation.active() and game.participation.travel_kind().is_empty()}
 static func acknowledge(game: Node,id: int,payload: String) -> bool:
- if not game.multiplayer.is_server() or not game.players.has(id) or not game.players[id].get("profile_ready",false) or Participation.is_wild(game.players[id]) or not payload.is_valid_int():return false
+ if not game.multiplayer.is_server() or not game.players.has(id) or not Session.ready_for(game.players[id],false) or Participation.is_wild(game.players[id]) or not payload.is_valid_int():return false
  var projection_data:=projection(game,id);var sequence:=int(payload)
  if sequence<=int(projection_data.get("seen",0)):return true
  if projection_data.get("pending",[]).is_empty() or int(projection_data.pending[0].sequence)!=sequence:return false

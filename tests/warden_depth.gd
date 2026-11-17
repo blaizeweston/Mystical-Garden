@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -25,7 +27,7 @@ func build(game: Node,p: Dictionary,choices: Array) -> void:
  game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter.clear_scouts();game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,-2);game.enemy_traits.clear();game.trait_events.clear();ExpeditionCase.set_world(game, {"encounter_number": 1})
 func run() -> void:
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/warden-depth-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
- var p: Dictionary=game.players[1];game.add_player(2);var ally: Dictionary=game.players[2];ally.profile_ready=true;ExpeditionCase.set_membership(game, ally, true);ally.pos=Vector3(.3,0,-1.7)
+ var p: Dictionary=game.players[1];game.add_player(2);var ally: Dictionary=game.players[2];SessionCase.set_ready(game, ally, true);ExpeditionCase.set_membership(game, ally, true);ally.pos=Vector3(.3,0,-1.7)
  build(game,p,[0,2,4,6,8,10])
  check(game.Classes.DEFINITIONS[0].nodes.size()==12 and game.Character.level(2600)==7,"twelve choices across seven levels")
  check(not game.Classes.can_learn(p.character,0,9,7) and not game.Classes.can_learn(p.character,0,11,7),"exclusive specialization branches")

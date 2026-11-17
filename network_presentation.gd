@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Session = preload("res://network_session.gd")
+
 const Participation = preload("res://expedition_participation.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -39,12 +41,12 @@ func clear() -> void:
  set_roster({}, "", "")
 func snapshot_targets(game: Node) -> PackedInt32Array:
  var targets := PackedInt32Array()
- var transport: ENetMultiplayerPeer = game.online_peer
+ var transport: ENetMultiplayerPeer = game.network_session.transport()
  if transport==null or game.multiplayer.multiplayer_peer!=transport or not game.multiplayer.is_server() \
   or transport.get_connection_status()!=MultiplayerPeer.CONNECTION_CONNECTED:
   return targets
  for id in game.multiplayer.get_peers():
-  if not game.players.get(id,{}).get("profile_ready",false): continue
+  if not Session.ready_for(game.players.get(id,{}),false): continue
   var peer := transport.get_peer(id)
   # Godot reserves channels 0 and 1. Snapshot RPC channel 4 uses ENet channel 5.
   if peer!=null and peer.is_active() and peer.get_state()==ENetPacketPeer.STATE_CONNECTED and peer.get_channels()>5:
@@ -53,7 +55,7 @@ func snapshot_targets(game: Node) -> PackedInt32Array:
 
 func publish_committed_cleanup(game: Node, transport: ENetMultiplayerPeer) -> void:
  var tx=preload("res://game_transaction.gd")
- if not is_instance_valid(game) or not game.is_inside_tree() or transport==null or game.online_peer!=transport:
+ if not is_instance_valid(game) or not game.is_inside_tree() or transport==null or game.network_session.transport()!=transport:
   return
  if game.get_meta(tx.STOPPING,false) or not game.has_meta(tx.SESSION) or not game.get_meta(tx.SESSION).owns_leases():
   return

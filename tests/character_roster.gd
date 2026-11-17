@@ -1,4 +1,6 @@
 extends SceneTree
+
+const SessionCase = preload("res://tests/support/session_case.gd")
 const Roster=preload("res://character_slots.gd")
 const Slots=preload("res://save_slots.gd")
 const Profile=preload("res://character_profile.gd")
@@ -54,7 +56,7 @@ func run():
  var world_bytes:=FileAccess.get_file_as_bytes(worlds.paths(0).garden)
  menu.join_game();world=current_scene
  check(not world.slot_claimed and world.character_slot_claimed and worlds.is_active(0),"guest claims its character without stealing an active world")
- world.on_connection_failed();await process_frame;menu=current_scene
+ SessionCase.World.connection_failed(world);await process_frame;menu=current_scene
  check(not roster.is_active(0) and FileAccess.get_file_as_bytes(worlds.paths(0).garden)==world_bytes,"failed connection releases character and leaves host world untouched")
  worlds.release(0);menu.free()
  # Existing profiles import by identity, once, leaving their source intact.

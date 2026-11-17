@@ -744,7 +744,7 @@ func launch(join: bool) -> void:
 	storage.remember_slot(selected);characters.remember(selected_character)
 	var game=load("res://world.tscn").instantiate()
 	game.settings_path=settings_path
-	game.network_address=network_address;game.network_port=network_port if join else host_port
+	game.network_session.configure_endpoint(network_address,network_port if join else host_port)
 	game.active_slot=selected
 	game.active_character_slot=selected_character;game.character_slot_claimed=true;game.character_storage_root=characters.root_path
 	game.slot_claimed=not join
@@ -752,12 +752,12 @@ func launch(join: bool) -> void:
 	game.progress.path=location.garden
 	game.local_character.path=characters.paths(selected_character).character
 	game.guest_character.path=characters.paths(selected_character).character
-	game.joined_from_title=join
+	game.network_session.configure_join_origin(join)
 	get_tree().root.add_child(game)
 	get_tree().current_scene=game
 	preload("res://title_music.gd").set_playing(get_tree(),false)
 	if join:
-		var error: int=game.join_game()
+		var error: int=load("res://session_world.gd").join(game)
 		if error!=OK:
 			game.return_to_main_menu(game.status)
 	elif host_choice.button_pressed:
@@ -886,8 +886,7 @@ func _launch_guarded(join: bool) -> void:
 		notice.text = "The previous session is still closing. Try again in a moment."
 		return
 	game.settings_path = settings_path
-	game.network_address = network_address
-	game.network_port = network_port if join else host_port
+	game.network_session.configure_endpoint(network_address,network_port if join else host_port)
 	game.active_slot = selected
 	game.active_character_slot = selected_character
 	game.character_storage_root = characters.root_path
@@ -895,7 +894,7 @@ func _launch_guarded(join: bool) -> void:
 	game.progress.path = location.garden
 	game.local_character.path = characters.paths(selected_character).character
 	game.guest_character.path = game.local_character.path
-	game.joined_from_title = join
+	game.network_session.configure_join_origin(join)
 	if has_meta(&"experimental_terrain"):
 		game.set_meta(&"experimental_terrain", true)
 	var combat_mode = preload("res://combat_ruleset.gd")
@@ -923,7 +922,7 @@ func _launch_guarded(join: bool) -> void:
 	var join_dialog_open: bool = join and network_dialog.visible
 	if join_dialog_open: network_dialog.exclusive = false
 	get_tree().root.add_child(game)
-	if join and game.join_game() != OK:
+	if join and load("res://session_world.gd").join(game) != OK:
 		notice.text = game.status
 		if join_dialog_open:
 			network_dialog.feedback.text = notice.text

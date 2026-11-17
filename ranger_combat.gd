@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Session = preload("res://network_session.gd")
+
 const Participation = preload("res://expedition_participation.gd")
 ## Host-owned Ranger effects. Corridor and route belong to an accepted trap.
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -226,7 +228,7 @@ static func tick_route(game: Node, trap: Dictionary, now: int) -> void:
 		return
 	for id in game.players:
 		var ally: Dictionary = game.players[id]
-		var identity: Variant = ally.get("seed_owner","")
+		var identity: Variant = Session.inventory_owner(ally)
 		if identity == "":
 			identity = id
 		if route.recipients.has(identity) or not living_here(game,ally) or not corridor_contact(game.battlefield,route,ally.pos).is_finite():

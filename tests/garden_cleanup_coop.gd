@@ -1,4 +1,6 @@
 extends SceneTree
+
+const SessionCase = preload("res://tests/support/session_case.gd")
 var game: Node
 var role: String
 var base: String
@@ -25,8 +27,8 @@ func run() -> void:
  if not failed:print("PASS: Garden cleanup co-op ",role," remote bottom anchoring, hidden legacy state, retired command rejection and shared Knowledge-only beds")
  quit(1 if failed else 0)
 func host_run() -> void:
- check(game.host_game()==OK,"host opens")
- if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):
+ check(SessionCase.World.host(game)==OK,"host opens")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
   check(false,"guest registers");return
  var g=game.progress
  for p in game.players.values():p.pos=game.Stage.HEART
@@ -49,10 +51,10 @@ func host_run() -> void:
  game.players[guest].pos=game.Stage.HEART_STATIONS.monster_studies
  if not await until(func():return marked("offered")):check(false,"guest submits a station offering");return
  check(game.seed_reserve(game.players[guest]).parts[trophy]==0 and g.knowledge==knowledge+4,"guest station offering commits on host")
- mark("done");check(await until(func():return game.players.size()==1),"guest disconnects normally");game.leave_game("Garden cleanup fixture")
+ mark("done");check(await until(func():return game.players.size()==1),"guest disconnects normally");SessionCase.World.leave(game,"Garden cleanup fixture")
 func guest_run() -> void:
- game.guest_character.save_profile();check(game.join_game()==OK,"guest joins")
- if not await until(func():return game.session=="Guest" and not game.client_details.is_empty()):check(false,"guest accepted");return
+ game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")
+ if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty()):check(false,"guest accepted");return
  var id=game.multiplayer.get_unique_id();var panel=game.progression_view
  check(await until(func():return game.client_garden.size()>13 and game.client_garden[6]==100 and game.players[id].pos.distance_to(game.Stage.HEART)<1),"Garden state arrives")
  game.send_action(false)
@@ -79,4 +81,4 @@ func guest_run() -> void:
  view.station_controls.apply.pressed.emit()
  if not await until(func():return game.status.contains("Offered")):check(false,"guest receives offering result");return
  mark("offered")
- check(await until(func():return marked("done")),"host finishes");game.leave_game("Garden cleanup fixture")
+ check(await until(func():return marked("done")),"host finishes");SessionCase.World.leave(game,"Garden cleanup fixture")

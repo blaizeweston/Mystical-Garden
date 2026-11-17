@@ -2,6 +2,8 @@ extends RefCounted
 
 const Participation = preload("res://expedition_participation.gd")
 
+const ActionIdentity = preload("res://network_action_identity.gd")
+const Session = preload("res://network_session.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Rules = preload("res://core_skill_rules.gd")
 const Effects = preload("res://core_skill_effects.gd")
@@ -33,16 +35,16 @@ static func local_aim(game: Node, player: Dictionary) -> Dictionary:
 
 
 static func request(game: Node, player: Dictionary, aim: Vector2, distance: float = 0.0) -> String:
-	return PREFIX + "%s:%s:%s:%s" % [cast_key(game, player), aim.x, aim.y, distance]
+	var stamp := cast_key(game,player)
+	return PREFIX + "%s:%s:%s:%s" % [stamp, aim.x, aim.y, distance] if not stamp.is_empty() else ""
 
 
 static func cast_key(game: Node, player: Dictionary) -> String:
-	# Preserve the injury HP suffix in the host and guest request key.
-	return "%s/%d" % [game.net_motion.world_key(game, player), int(player.get("lost_health", 0))]
+	return ActionIdentity.current_stamp(game,player)
 
 
 static func command(game: Node, id: int, player: Dictionary, action: String) -> void:
-	if not game.multiplayer.is_server() or not game.Life.alive(player) or not player.get("profile_ready", false):
+	if not game.multiplayer.is_server() or not game.Life.alive(player) or not game.network_session.ready(id) or Session.peer_for(player) != id:
 		return
 	if preload("res://combat_ruleset.gd").active(game):
 		var builds = preload("res://affinity_build.gd")
@@ -51,7 +53,8 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 			game.tell(id,refusal)
 			return
 	var args := action.split(":", true, 5)
-	if args.size() != 5 or args[1] != cast_key(game, player) or not args[2].is_valid_float() or not args[3].is_valid_float() or not args[4].is_valid_float():
+	var stamp := cast_key(game,player)
+	if stamp.is_empty() or args.size() != 5 or args[1] != stamp or not args[2].is_valid_float() or not args[3].is_valid_float() or not args[4].is_valid_float():
 		return
 	var aim := Vector2(float(args[2]), float(args[3]))
 	if not aim.is_finite() or absf(aim.x) > 1.001 or absf(aim.y) > 1.001 or aim.length_squared() < .01:

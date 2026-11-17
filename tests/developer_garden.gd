@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const Developer = preload("res://developer_mode.gd")
@@ -60,13 +62,13 @@ func run() -> void:
 	var progress: RefCounted = game.progress
 	check(game.app_settings.values.developer_mode and Developer.can_edit(game),"saved preference enables the tools in the solo test world")
 	check(progress.path.begins_with(base.path_join("developer-garden")) and game.local_character.path!=original_character,"the developer world and character use their own paths")
-	check(game.host_game()==ERR_UNAVAILABLE and game.join_game("127.0.0.1")==ERR_UNAVAILABLE,"the test Garden cannot host or join")
-	game.session="Guest"
+	check(SessionCase.World.host(game)==ERR_UNAVAILABLE and SessionCase.World.join(game,"127.0.0.1")==ERR_UNAVAILABLE,"the test Garden cannot host or join")
+	SessionCase.set_role(game, "Guest")
 	game.settings_dialog.developer_controls.setup(true)
 	check(game.settings_dialog.developer_controls.toggle.disabled and not game.settings_dialog.developer_controls.tools.visible,"co-op disables the developer setting and buttons")
 	check(not Developer.can_edit(game) and Developer.grant_resources(game).contains("available"),"an online role cannot change developer progress")
 	check(Developer.stock_materials(game).contains("available"),"material stock rejects an online role")
-	game.session="Solo"
+	SessionCase.set_role(game, "Solo")
 	await test_wilds_settings(game)
 
 	var start_knowledge: int = progress.knowledge
@@ -191,7 +193,7 @@ func test_material_stock(game: Node, tools: Node, base: String) -> void:
 	var restored: RefCounted = game.Progress.new()
 	restored.path = progress.path
 	check(restored.load_garden()==OK and restored.part_count(rare)==Developer.MATERIAL_STOCK+2 and restored.part_count(trophy)==Developer.MATERIAL_STOCK,"rare parts and trophies persist in the Garden save")
-	check(restored.reserve(player.seed_owner).stock==stock and restored.item_stashes[player.seed_owner].boss_mystery_seed==Developer.SEED_STOCK,"identified and mystery seeds survive reload")
+	check(restored.reserve(SessionCase.Session.inventory_owner(player)).stock==stock and restored.item_stashes[SessionCase.Session.inventory_owner(player)].boss_mystery_seed==Developer.SEED_STOCK,"identified and mystery seeds survive reload")
 
 	progress.add_parts(trophy, -1)
 	progress.add_parts(rare, -3)

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const Core = preload("res://core_combat.gd")
@@ -56,8 +58,8 @@ func run() -> void:
 
 
 func host_run() -> void:
-	check(game.host_game() == OK, "host opens")
-	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return p.profile_ready)):
+	check(SessionCase.World.host(game) == OK, "host opens")
+	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return SessionCase.Session.ready_for(p))):
 		check(false, "guest registers")
 		return
 	var id: int = game.players.keys().filter(func(peer): return peer != 1)[0]
@@ -181,9 +183,9 @@ func aim_for(guest: Dictionary) -> Vector2:
 
 func guest_run() -> void:
 	game.guest_character.save_profile()
-	check(game.join_game() == OK, "guest connects")
+	check(SessionCase.World.join(game) == OK, "guest connects")
 	var id := game.multiplayer.get_unique_id()
-	if not await until(func(): return game.session == "Guest" and not game.client_details.is_empty() and game.players.get(id, {}).get("pos", Vector3.INF).distance_to(game.Stage.GATE) < 1.0):
+	if not await until(func(): return game.network_session.role() == "Guest" and not game.client_details.is_empty() and game.players.get(id, {}).get("pos", Vector3.INF).distance_to(game.Stage.GATE) < 1.0):
 		check(false, "guest sees the Garden gate")
 		return
 	game.send_garden_action("class_%d" % game.Frames.RANGER)
@@ -236,7 +238,8 @@ func guest_run() -> void:
 		check(false, "guest can confirm after purchase")
 		return
 	game.send_travel_ready(false)
-	if not await until(func(): return game.participation.floor() == 4 and marked("quick-aim") and game.player_hud.state.get("core", {}).get("remaining", 99) < .01):
+	# Fast floor state can arrive before the reliable owner action identity.
+	if not await until(func(): return game.participation.floor() == 4 and marked("quick-aim") and game.client_details_key == str([game.participation.route(), game.participation.floor(), game.participation.seed()]) and not Core.cast_key(game, game.players[id]).is_empty() and game.player_hud.state.get("core", {}).get("remaining", 99) < .01):
 		check(false, "party reaches floor four with an available Core")
 		return
 	aim = JSON.parse_string(FileAccess.get_file_as_string(base + "-quick-aim"))
@@ -245,4 +248,4 @@ func guest_run() -> void:
 	check(await until(func(): return quick_seen.call() and game.player_hud.state.get("core", {}).get("remaining", 99) < 5.5), "guest sees Quickroot feedback and the reduced cooldown")
 	signal_file("quick-seen")
 	check(await until(func(): return marked("done")), "host verifies purchase and reduced cooldown")
-	game.leave_game("Core co-op fixture")
+	SessionCase.World.leave(game,"Core co-op fixture")

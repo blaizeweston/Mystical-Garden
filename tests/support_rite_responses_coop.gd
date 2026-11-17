@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -110,8 +112,8 @@ func prepare(response: String) -> Dictionary:
 
 
 func host() -> void:
-	check(game.host_game() == OK, "host opens")
-	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return p.profile_ready)):
+	check(SessionCase.World.host(game) == OK, "host opens")
+	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return SessionCase.Session.ready_for(p))):
 		check(false, "guest registers")
 		return
 	var guest_id: int = game.players.keys().filter(func(id): return id != 1)[0]
@@ -153,7 +155,7 @@ func host() -> void:
 		if not await until(func(): return marked("clear-" + response)):
 			check(false, "guest sees warning clear")
 			return
-	game.leave_game("Support rite fixture")
+	SessionCase.World.leave(game,"Support rite fixture")
 
 
 func displayed(response: String) -> bool:
@@ -167,7 +169,7 @@ func shown_status(shape: String, actor_id: int) -> bool:
 
 func guest() -> void:
 	game.guest_character.save_profile()
-	check(game.join_game() == OK, "guest connects")
+	check(SessionCase.World.join(game) == OK, "guest connects")
 	for response in RESPONSES:
 		if not await until(func(): return displayed(response)):
 			check(false, "guest sees " + response)
@@ -188,4 +190,4 @@ func guest() -> void:
 				check(not shown_status("slow", game.multiplayer.get_unique_id()), "dodging guest gets no status")
 				check(await until(func(): return not shown_status("slow", 1)), "Slowed clears after Antiphon expires")
 		mark("clear-" + response)
-	check(await until(func(): return game.session == "Solo"), "host finishes")
+	check(await until(func(): return game.network_session.role() == "Solo"), "host finishes")

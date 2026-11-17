@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 var game: Node
 var failed:=false
@@ -17,8 +19,8 @@ func run():
  var role: String=OS.get_cmdline_user_args()[0]
  game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/party_net_"+role+Crypto.new().generate_random_bytes(8).hex_encode()+".cfg";game.local_character.path=game.progress.path+".character";game.guest_character.path=game.progress.path+".guest";root.add_child(game)
  if role=="host":
-  check(game.host_game()==OK,"host starts")
-  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)): check(false,"guest registers");quit(1);return
+  check(SessionCase.World.host(game)==OK,"host starts")
+  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))): check(false,"guest registers");quit(1);return
   var id: int=game.players.keys()[1];var host: Dictionary=game.players[1];var guest: Dictionary=game.players[id]
   host.pos=game.Stage.GATE;guest.pos=game.Stage.GATE
   ExpeditionCase.Transitions.enter(game, 1,host)
@@ -46,8 +48,8 @@ func run():
   check(await until(func():return game.players.size()==1),"guest disconnect processed")
   check(not ExpeditionCase.is_wild(host) and game.participation.travel_kind().is_empty(),"disconnect never silently launches remaining player")
  else:
-  game.guest_character.data.name="Fern";game.guest_character.save_profile();check(game.join_game()==OK,"guest starts")
-  check(await until(func():return game.session=="Guest" and game.party_travel_state().get("kind","")=="depart"),"party ready state reaches guest")
+  game.guest_character.data.name="Fern";game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest starts")
+  check(await until(func():return game.network_session.role()=="Guest" and game.party_travel_state().get("kind","")=="depart"),"party ready state reaches guest")
   game.send_travel_ready(false)
   check(await until(func():return game.party_travel_state().get("ready",false)),"guest sees its confirmation")
   game.send_travel_ready(true)
@@ -64,6 +66,6 @@ func run():
   game.send_travel_ready(false)
   check(await until(func():return game.players.has(game.multiplayer.get_unique_id()) and not ExpeditionCase.is_wild(game.players[game.multiplayer.get_unique_id()])),"guest returns to Garden with party")
   check(await until(func():return game.party_travel_state().get("kind","")=="depart"),"next departure needs new confirmations")
-  game.leave_game("Ready-check disconnect fixture")
+  SessionCase.World.leave(game,"Ready-check disconnect fixture")
  if not failed: print("PASS: party ready "+role+" departure, withdrawal, stages, cards, extraction and disconnect")
  quit(1 if failed else 0)

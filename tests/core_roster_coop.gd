@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -59,8 +61,8 @@ func run() -> void:
 
 
 func host() -> void:
-	check(game.host_game() == OK, "host opens")
-	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return p.profile_ready)):
+	check(SessionCase.World.host(game) == OK, "host opens")
+	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return SessionCase.Session.ready_for(p))):
 		check(false, "guest registers")
 		return
 	var id: int = game.players.keys().filter(func(peer): return peer != 1)[0]
@@ -127,7 +129,7 @@ func host() -> void:
 	check(await until(func(): return PlayerVitals.current_hp(ally) == 7 and PlayerVitals.current_hp(player) == 7), "the guest wave heals the host ally and caster on the return")
 	mark("tide-done")
 	check(await until(func(): return marked("tide-verified")), "guest confirms both crests and health")
-	game.leave_game("Core roster fixture")
+	SessionCase.World.leave(game,"Core roster fixture")
 
 
 func preview_release(id: int) -> void:
@@ -145,9 +147,9 @@ func preview_release(id: int) -> void:
 func guest() -> void:
 	game.guest_character.data.active_class = game.Frames.RANGER
 	game.guest_character.save_profile()
-	check(game.join_game() == OK, "guest connects")
+	check(SessionCase.World.join(game) == OK, "guest connects")
 	var id: int = game.multiplayer.get_unique_id()
-	if not await until(func(): return game.session == "Guest" and game.player_hud.state.get("core", {}).get("tooltip", "").contains("Banked Coals")):
+	if not await until(func(): return game.network_session.role() == "Guest" and game.player_hud.state.get("core", {}).get("tooltip", "").contains("Banked Coals")):
 		check(false, "guest receives Ember Wake icon, tooltip and card")
 		return
 	preview_release(id)
@@ -181,4 +183,4 @@ func guest() -> void:
 	check(await until(returning), "guest sees the returning wave")
 	check(await until(func(): return marked("tide-done") and game.players[id].hp == 7 and game.players[1].hp == 7), "guest sees the synchronized ally heal")
 	mark("tide-verified")
-	check(await until(func(): return game.session == "Solo"), "host finishes")
+	check(await until(func(): return game.network_session.role() == "Solo"), "host finishes")

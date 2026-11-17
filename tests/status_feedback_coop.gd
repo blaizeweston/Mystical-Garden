@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -28,8 +30,8 @@ func run():
  if not failed:print("PASS: status co-op ",role," authoritative player callouts, enemy icons, consumed marks and proc paths")
  quit(1 if failed else 0)
 func host_run():
- check(game.host_game()==OK,"host opens")
- if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"registration");return
+ check(SessionCase.World.host(game)==OK,"host opens")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"registration");return
  var id: int=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
  for player in game.players.values():ExpeditionCase.set_membership(game, player, true);player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,-1)
  game.encounter.clear_scouts();game.encounter.set_hp(-1, 80);game.tactics.position=Vector3(0,0,1);game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.enemy_mutations=0
@@ -53,9 +55,9 @@ func host_run():
  check(await until(func():return marked("guard-ended")),"guest removes expired Bark Guard")
  mark("done");check(await until(func():return game.players.size()==1),"disconnect")
 func guest_run():
- game.guest_character.save_profile();check(game.join_game()==OK,"guest connects")
+ game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest connects")
  var id:=game.multiplayer.get_unique_id()
- if not await until(func():return game.session=="Guest" and not game.client_details.is_empty() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds arrives");return
+ if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds arrives");return
  mark("ready")
  check(await until(func():return game.combat_visuals.statuses.active.values().any(func(item):return item.event.shape=="marked") and game.combat_visuals.statuses.active.values().any(func(item):return item.event.shape=="slow" and item.event.combo==id)),"guest renderer has authoritative icons")
  var visuals: Node3D=game.combat_visuals
@@ -76,4 +78,4 @@ func guest_run():
  mark("guard-seen")
  check(await until(func():return not game.combat_visuals.statuses.active.values().any(func(item):return item.event.shape=="bark_guard")),"guard indicator clears with its effect")
  mark("guard-ended")
- check(await until(func():return marked("done")),"host finishes");game.leave_game("Status fixture")
+ check(await until(func():return marked("done")),"host finishes");SessionCase.World.leave(game,"Status fixture")

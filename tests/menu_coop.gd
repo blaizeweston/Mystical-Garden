@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Slots=preload("res://save_slots.gd")
 const Character=preload("res://character_profile.gd")
@@ -49,13 +51,13 @@ func run():
 		menu.host_choice.button_pressed=true
 		menu.continue_game()
 		game=current_scene
-		check(game.session=="Host" and game.active_slot==0,"host launches from the selected Garden slot")
-		check(game.network_dialog.visible and game.network_dialog.lan_choices.get_item_text(0).ends_with(":"+str(game.network_port)),"host sees a shareable endpoint immediately")
+		check(game.network_session.role()=="Host" and game.active_slot==0,"host launches from the selected Garden slot")
+		check(game.network_dialog.visible and game.network_dialog.lan_choices.get_item_text(0).ends_with(":"+str(game.network_session.port())),"host sees a shareable endpoint immediately")
 		print("MENU HOST READY")
 		if not await until(func(): return game.players.size()==2):
 			check(false,"menu guest connected");finish(mode);return
 		var guest_id: int=game.players.keys()[1]
-		if not await until(func(): return game.players[guest_id].profile_ready):
+		if not await until(func(): return SessionCase.Session.ready_for(game.players[guest_id])):
 			check(false,"guest profile registered");finish(mode);return
 		check(game.players[guest_id].character.name=="Willow" and game.players[guest_id].character.xp[0]==3 and game.players[guest_id].character.appearance==[1,2,1,2,1,1,70,80,40,65,35,60,75],"Join carries the selected slot character")
 		ExpeditionCase.set_world(game, {"encounter_number": game.GRAFT_ROOM})
@@ -88,7 +90,7 @@ func run():
 		menu.network_dialog.confirm()
 		check(current_scene.active_character_slot==1 and not current_scene.slot_claimed,"guest character selection is independent of the active world")
 		game=current_scene
-		if not await until(func(): return game.session=="Guest" and game.participation.floor()==game.GRAFT_ROOM and game.players.has(game.multiplayer.get_unique_id()) and game.stage.graft_altar.visible):
+		if not await until(func(): return game.network_session.role()=="Guest" and game.participation.floor()==game.GRAFT_ROOM and game.players.has(game.multiplayer.get_unique_id()) and game.stage.graft_altar.visible):
 			check(false,"Join from menu receives a visible live shrine");finish(mode);return
 		var id: int=game.multiplayer.get_unique_id()
 		check(Array(game.players[id].appearance)==[1,2,1,2,1,1,70,80,40,65,35,60,75],"full slider appearance replicated to guest")

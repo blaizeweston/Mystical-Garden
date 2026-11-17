@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -11,14 +13,14 @@ func run():
  var game=load("res://world.tscn").instantiate();var token=str(Time.get_ticks_usec())
  game.progress.path="res://.godot/kill-rewards-"+token+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var p=game.players[1];game.add_player(2);var friend=game.players[2]
- friend.profile_ready=true;friend.seed_owner="e".repeat(32)
+ SessionCase.set_ready(game, friend, true);SessionCase.set_identity(game, friend, "e".repeat(32))
  for player in game.players.values():ExpeditionCase.set_membership(game, player, true);player.pos=Vector3(0,0,4);player.character.xp.fill(0)
  game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.set_hp(-1, 10);game.tactics.position=Vector3(0,0,10)
  game.add_player(3)
  ExpeditionCase.set_membership(game, game.players[3], true)
  game.add_player(4)
  ExpeditionCase.set_membership(game, game.players[4], true)
- game.players[4].profile_ready=true
+ SessionCase.set_ready(game, game.players[4], true)
  game.players[4][PlayerLifecycle.STATE] = game.players[4][PlayerLifecycle.STATE].fall()
  var config=game.Director.config();var saved=config.duplicate(true);config.trophy_chance=1.0;config.trophy_cap=1.0
  var scout=game.make_scout(10,Vector3(0,0,5),1);scout.hp=1;game.encounter.clear_scouts();game.encounter.register_scout(scout)
@@ -124,7 +126,7 @@ func run():
  check(rolls>100 and rolls<260,"ordinary kills keep uncommon, non-guaranteed parts")
  check(game.Director.trophy_chance(100,true,true)<=.15,"adapted guardian chance stays capped")
  # The transport can reuse a peer ID before the old reward is settled.
- var former_identity: String = friend.seed_owner
+ var former_identity: String = SessionCase.Session.inventory_owner(friend)
  var detached_profile: Dictionary = friend.character.duplicate(true)
  var former_xp: int = int(detached_profile.xp[0])
  config.merge({"trophy_chance":1.0,"trophy_cap":1.0},true)
@@ -136,7 +138,7 @@ func run():
   and game.monster_rewards.pending_receipts()==frozen_departure_rewards
   and not frozen_departure_rewards[0].rewards[1].item.is_empty(),
   "pending profile identities are unique and include a frozen real trophy")
- friend.seed_owner="f".repeat(32)
+ SessionCase.set_identity(game, friend, "f".repeat(32))
  var replacement_wallet = game.wallet_for(friend)
  var replacement_drops: int = game.inventory_floor_snapshot(friend).size()
  var work: Array[Dictionary] = [{"peer_id":2,"identity":former_identity,"actor":{"character":detached_profile}}]

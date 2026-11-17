@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -54,7 +56,7 @@ func run() -> void:
 func party(size: int) -> void:
 	for id in range(1,5):
 		var actor: Dictionary=game.players[id]
-		actor.profile_ready=id<=size
+		SessionCase.set_ready(game, actor, id<=size)
 		ExpeditionCase.set_membership(game, actor, id<=size)
 		actor[PlayerLifecycle.STATE] = actor[PlayerLifecycle.STATE].clear_inactive()
 		actor[PlayerVitals.STATE] = actor[PlayerVitals.STATE].with_hp(100)

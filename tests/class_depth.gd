@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -61,7 +63,7 @@ func run() -> void:
  check(game.enemy_health()==hp and game.trait_events.any(func(e):return e.kind=="hit"),"Requiem waits before striking")
  game.Traits.tick(game,Time.get_ticks_msec()+1000)
  check(game.enemy_health()<hp,"Requiem's delayed mark resolves actual damage")
- game.add_player(2);var ally: Dictionary=game.players[2];ally.profile_ready=true;ExpeditionCase.set_membership(game, ally, true);ally[PlayerLifecycle.STATE] = ally[PlayerLifecycle.STATE].clear_inactive();ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(4);ally.pos=Vector3(.3,0,-1)
+ game.add_player(2);var ally: Dictionary=game.players[2];SessionCase.set_ready(game, ally, true);ExpeditionCase.set_membership(game, ally, true);ally[PlayerLifecycle.STATE] = ally[PlayerLifecycle.STATE].clear_inactive();ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(4);ally.pos=Vector3(.3,0,-1)
  arena(game,p,4);game.use_class_skill(1,p,0)
  check(PlayerVitals.current_hp(ally)>4 and ally.guard_until>Time.get_ticks_msec() and game.trait_events.any(func(e):return e.kind=="tide"),"Lifekeeper places protection and healing")
  ally.slow_until=Time.get_ticks_msec()+4000;game.use_class_skill(1,p,1);check(ally.slow_until==0,"Lifekeeper bower cleanses")

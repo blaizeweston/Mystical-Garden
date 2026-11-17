@@ -74,7 +74,7 @@ func _process(_delta: float) -> void:
  if not is_instance_valid(game.stage):return
  var id: int=game.local_player_id();var player: Dictionary=game.players.get(id,{})
  var data:=Service.projection(game,id);var wild: bool=Participation.is_wild(player)
- var context:=str([game.session,id,data.get("epoch","")])
+ var context:=str([game.network_session.role(),id,data.get("epoch","")])
  if context!=projection_context:
   projection_context=context;cue_revision=-1;cue_until=0;focus_serial=-1;pending=false;availability_baseline=false
  var nearest:=Service.nearest(game,player,data)

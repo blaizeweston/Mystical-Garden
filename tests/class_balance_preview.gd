@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -42,7 +44,7 @@ func run() -> void:
 	player=game.players[1]
 	game.add_player(2)
 	ally=game.players[2]
-	ally.profile_ready=true
+	SessionCase.set_ready(game, ally, true)
 	ExpeditionCase.set_membership(game, ally, true)
 	roster()
 	guard_and_quake()

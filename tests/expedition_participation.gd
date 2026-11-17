@@ -17,12 +17,10 @@ func run() -> void:
 	var first := {Participation.STATE: owner.attach(1)}
 	var ally := {Participation.STATE: owner.attach(8)}
 	check(not owner.active() and not Participation.is_wild(first), "attached player starts in Garden")
-	check(owner.identify(1, "character-one") and owner.identify(8, "character-eight"), "character identities bind before departure")
 	check(owner.reset_run(), "inactive expedition can initialize")
 	var run_id := owner.run_id()
 	check(owner.enter(8) and owner.enter(1) and not owner.enter(1), "one admission per peer")
 	check(owner.participants() == [1,8] and owner.participants().is_read_only(), "sorted detached participant projection")
-	check(not owner.identify(1, "other-character"), "active identity cannot be replaced")
 	check(not owner.reset_run(), "active expedition cannot reset")
 	check(Participation.peer_for(first) == 1 and Participation.is_wild(first), "actor link queries authoritative membership")
 	check(Participation.is_wild({"wild": true}) and not Participation.is_wild({}), "wire and frozen projections retain their explicit membership")

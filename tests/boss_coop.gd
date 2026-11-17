@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -35,8 +37,8 @@ func run() -> void:
  if not failed: print("PASS: boss co-op ",role," four synchronized lairs, boss previews and growths, safe geometry, private rewards and graft effects")
  quit(1 if failed else 0)
 func host_run() -> void:
- check(game.host_game()==OK,"host opens")
- if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):
+ check(SessionCase.World.host(game)==OK,"host opens")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
   check(false,"guest registers");return
  var id=int(game.players.keys()[1]);var p: Dictionary=game.players[id]
  for kind in range(20,24):
@@ -59,7 +61,7 @@ func host_run() -> void:
   check(p.carried_parts[game.Parts.monster_part(kind)]>0 and int(p.carried_items.get("boss_mystery_seed",0))>0,"authority credits guest pickup")
   mark("picked-"+str(kind))
   check(await until(func():return marked("next-"+str(kind))),"guest confirms pickup")
- mark("done");check(await until(func():return game.players.size()==1),"guest disconnects normally");game.leave_game("Boss fixture complete")
+ mark("done");check(await until(func():return game.players.size()==1),"guest disconnects normally");SessionCase.World.leave(game,"Boss fixture complete")
 func host_lair(kind: int, id: int) -> void:
  var now:=Time.get_ticks_msec()
  game.tactics.boss_phase=1
@@ -236,8 +238,8 @@ func guest_memory(id: int) -> void:
  mark("memory-crown")
 
 func guest_run() -> void:
- game.guest_character.data.name="Boss guest";game.guest_character.save_profile();check(game.join_game()==OK,"guest connects")
- if not await until(func():return game.session=="Guest" and not game.client_details.is_empty()): check(false,"guest accepted");return
+ game.guest_character.data.name="Boss guest";game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest connects")
+ if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty()): check(false,"guest accepted");return
  var id=game.multiplayer.get_unique_id()
  for kind in range(20,24):
   check(await until(func():return game.tactics.boss_kind==kind and game.stage.visual_field.boss_kind==kind and game.players[id].get("graft_part",0)==game.Parts.monster_part(kind)),"shared boss map/weapon descriptor "+str(kind))
@@ -258,4 +260,4 @@ func guest_run() -> void:
   mark("loot-"+str(kind))
   check(await until(func():return marked("picked-"+str(kind)) and game.players[id].get("bag",{}).get("carry",[]).any(func(s):return s.item=="boss_mystery_seed")),"pickup synchronizes carried inventory")
   mark("next-"+str(kind))
- check(await until(func():return marked("done")),"host finishes");game.leave_game("Boss fixture complete")
+ check(await until(func():return marked("done")),"host finishes");SessionCase.World.leave(game,"Boss fixture complete")

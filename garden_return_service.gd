@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Session = preload("res://network_session.gd")
+
 const Participation = preload("res://expedition_participation.gd")
 const Tx=preload("res://game_transaction.gd")
 const State=preload("res://garden_return_state.gd")
@@ -16,7 +18,7 @@ static func begin(game: Node) -> void:
 static func join(game: Node,id: int,player: Dictionary) -> void:
  var value:=state(game)
  if value.is_empty() or value.active.is_empty():return
- var actor: String=game.local_character.identity if id==game.HOST else str(player.get("seed_owner",""))
+ var actor: String=game.local_character.identity if id==game.HOST else str(Session.inventory_owner(player))
  if actor.is_empty():actor="peer:"+str(id)
  State.join(value,actor);player.garden_run_actor=actor;player.garden_run_id=value.active.id
 static func bank(game: Node,player: Dictionary,seeds: Array,source: String,ancient: bool=false) -> void:

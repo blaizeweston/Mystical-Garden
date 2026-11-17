@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Session = preload("res://network_session.gd")
+
 const Participation = preload("res://expedition_participation.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -15,7 +17,7 @@ static func allowed(game: Node,definition: Dictionary) -> bool:
  if State.observed(game.progress.garden_interactions,str(definition.observation)):return true
  return preload("res://garden_relationships.gd").matches(game,definition)
 static func eligible(game: Node,id: int) -> bool:
- return game.multiplayer.is_server() and game.players.has(id) and game.players[id].get("profile_ready",false) and not Participation.is_wild(game.players[id]) and not PlayerLifecycle.fallen(game.players[id])
+ return game.multiplayer.is_server() and game.players.has(id) and Session.ready_for(game.players[id],false) and not Participation.is_wild(game.players[id]) and not PlayerLifecycle.fallen(game.players[id])
 static func nearest(game: Node,player: Dictionary,projection: Dictionary) -> String:
  if Participation.is_wild(player) or projection.get("version",0)!=State.VERSION:return ""
  var pos: Vector3=player.get("pos",Vector3.INF);var best:=INF;var found: String=""
@@ -85,7 +87,7 @@ static func command(game: Node,id: int,payload: String) -> Dictionary:
  if player.pos.distance_to(point_position(game,definition))>float(definition.range):return reject(game,id,"Move closer to this Garden detail.")
  var state:=State.normalize(game.progress.garden_interactions)
  if state.version!=State.VERSION:return reject(game,id,"This Garden interaction save needs a newer game version.")
- var identity: String=game.local_character.identity if id==game.HOST else str(player.get("seed_owner",""))
+ var identity: String=game.local_character.identity if id==game.HOST else str(Session.inventory_owner(player))
  var key: String=identity+":"+request.request
  if request.action=="observe" and (State.observed(state,definition.observation) or not State.receipt(state,key).is_empty()):
   game.tell(id,"This observation is already recorded in the Garden.");return {"changed":false,"revision":state.revision}

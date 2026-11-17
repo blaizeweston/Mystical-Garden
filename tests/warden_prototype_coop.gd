@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -54,8 +56,8 @@ func run() -> void:
 		await host()
 	else:
 		await guest()
-	if game.session!="Solo":
-		game.leave_game("Warden prototype complete")
+	if game.network_session.role()!="Solo":
+		SessionCase.World.leave(game,"Warden prototype complete")
 	game.queue_free()
 	await process_frame
 	if not failed:
@@ -64,8 +66,8 @@ func run() -> void:
 
 
 func host() -> void:
-	check(game.host_game()==OK,"host starts")
-	if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):
+	check(SessionCase.World.host(game)==OK,"host starts")
+	if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
 		check(false,"guest profile arrives")
 		return
 	var id: int=game.players.keys().filter(func(peer):return peer!=1)[0]
@@ -121,7 +123,7 @@ func guest() -> void:
 	game.guest_character.data.xp[0]=350
 	game.guest_character.data.upgrades[0]=MASK
 	game.guest_character.save_profile()
-	check(game.join_game()==OK,"guest connects")
+	check(SessionCase.World.join(game)==OK,"guest connects")
 	var id:=game.multiplayer.get_unique_id()
 	if not await until(func():return game.loadout_menu.visible and game.at_weapon_gate(game.players.get(id,{}))):
 		check(false,"guest crafting menu arrives at the Gate")

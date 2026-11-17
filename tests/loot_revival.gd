@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -18,7 +20,7 @@ func run() -> void:
  var game=load("res://world.tscn").instantiate()
  game.progress.path="res://.godot/life-"+Crypto.new().generate_random_bytes(8).hex_encode()+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game)
  game.set_process(false);game.set_physics_process(false)
- game.add_player(2);game.players[2].profile_ready=true
+ game.add_player(2);SessionCase.set_ready(game, game.players[2], true)
  var a: Dictionary=game.players[1];var b: Dictionary=game.players[2]
  game.battlefield.configure(0,1);game.encounter.set_hp(-1, 100);game.encounter.clear_scouts()
  for p in [a,b]: ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
@@ -35,7 +37,7 @@ func run() -> void:
  IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(a), 10)
  check(ExpeditionCase.is_wild(a) and PlayerLifecycle.fallen(a) and PlayerVitals.current_hp(a)==0 and a.carried_seeds==[0],"fallen player keeps run cargo pending revival")
  check(game.spectator_view.focus_id(1)==2,"fallen host spectates living teammate")
- game.add_player(3);ExpeditionCase.set_membership(game, game.players[3], true);game.players[3].profile_ready=true
+ game.add_player(3);ExpeditionCase.set_membership(game, game.players[3], true);SessionCase.set_ready(game, game.players[3], true)
  game.spectator_view.cycle();check(game.spectator_view.focus_id(1)==3,"spectator can cycle living allies")
  game.players[3][PlayerLifecycle.STATE] = game.players[3][PlayerLifecycle.STATE].fall()
  game.players[3][PlayerVitals.STATE] = game.players[3][PlayerVitals.STATE].with_hp(0.0)
@@ -100,7 +102,7 @@ func run() -> void:
  ExpeditionCase.set_membership(game, a, true);a[PlayerLifecycle.STATE] = a[PlayerLifecycle.STATE].fall();a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_hp(0);a.lost_health=2;a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_native_max_hp(8)
  ExpeditionCase.set_membership(game, b, true);b[PlayerLifecycle.STATE] = b[PlayerLifecycle.STATE].clear_inactive();b[PlayerVitals.STATE] = b[PlayerVitals.STATE].with_hp(8)
  var departed_generation := PlayerLifecycle.generation(b)
- game.remove_player(2)
+ SessionCase.World.remove(game,2)
  check(not ExpeditionCase.is_wild(a) and PlayerVitals.current_hp(a)==10 and a.lost_health==0,"disconnecting last living ally resolves fallen player's run")
  game.add_player(2)
  var readmitted: Dictionary = game.players[2]

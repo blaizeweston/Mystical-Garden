@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -36,8 +38,8 @@ func run() -> void:
  if not failed:print("PASS: class depth co-op ",role," all ten specialization paths, twenty remote skill variants, actual combat/support and synchronized HUD")
  quit(1 if failed else 0)
 func host_run() -> void:
- check(game.host_game()==OK,"host opens")
- if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):
+ check(SessionCase.World.host(game)==OK,"host opens")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
   check(false,"guest registers");return
  var id:=int(game.players.keys()[1]);var p: Dictionary=game.players[id]
  for c in 5:
@@ -58,10 +60,10 @@ func host_run() -> void:
    check(game.enemy_health()<100 or (c==4 and not right and PlayerVitals.current_hp(p)>5),"actual damage or support "+phase)
    mark("cast-"+phase)
    check(await until(func():return marked("seen-"+phase)),"guest confirms HUD "+phase)
- mark("done");check(await until(func():return game.players.size()==1),"guest leaves");game.leave_game("Class depth fixture complete")
+ mark("done");check(await until(func():return game.players.size()==1),"guest leaves");SessionCase.World.leave(game,"Class depth fixture complete")
 func guest_run() -> void:
- game.guest_character.save_profile();check(game.join_game()==OK,"guest joins")
- check(await until(func():return game.session=="Guest" and not game.client_details.is_empty()),"guest admitted")
+ game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")
+ check(await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty()),"guest admitted")
  var id:=game.multiplayer.get_unique_id()
  for c in 5:
   for right in [false,true]:
@@ -73,4 +75,4 @@ func guest_run() -> void:
    var expected: Array=[game.Skills.resolve(c,0,game.guest_character.data).name,game.Skills.resolve(c,1,game.guest_character.data).name]
    check(game.player_hud.state.skill_names==expected and game.players[id].skill_cooldowns[0]>0 and game.players[id].skill_cooldowns[1]>0,"resolved names and independent cooldowns "+phase)
    mark("seen-"+phase)
- check(await until(func():return marked("done")),"host finishes");game.leave_game("Class depth fixture complete")
+ check(await until(func():return marked("done")),"host finishes");SessionCase.World.leave(game,"Class depth fixture complete")

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -226,8 +228,8 @@ func exercise() -> void:
 
  world.add_player(2)
  var ally: Dictionary=world.players[2]
- ally.profile_ready=true
- ally.seed_owner="ally"
+ SessionCase.set_ready(world, ally, true)
+ SessionCase.set_identity(world, ally, "ally")
  ExpeditionCase.set_membership(world, ally, true)
  world.battlefield.procedural=false
  world.battlefield.barriers.clear()
@@ -383,9 +385,9 @@ func exercise() -> void:
 
  world.add_player(2)
  ally=world.players[2]
- ally.profile_ready=true
+ SessionCase.set_ready(world, ally, true)
  var departed_identity := "0000000000000000000000000000a404"
- ally.seed_owner=departed_identity
+ SessionCase.set_identity(world, ally, departed_identity)
  var departed_class := int(ally.frame)
  var xp_before := int(ally.character.xp[departed_class])
  actor.pos=world.Stage.GATE
@@ -401,13 +403,13 @@ func exercise() -> void:
   if reward.id==2: earned_xp=int(reward.xp)
  before=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
- world.remove_player(2)
+ SessionCase.World.remove(world,2)
  check(not world.players.has(2) and world.departure_settlement.status(departed_identity)==world.DepartureSettlement.Phase.RETRYABLE
   and world.monster_rewards.pending_count()==1 and disk()==before
   and not ally.has(world.ExpeditionWallet.STATE) and world.run_wallet(ally)==0,
   "failed disconnect settlement retains cargo and frozen reward and clears run-only currency")
  var catalog: Dictionary = world.progress.ContentIDs.manifest()
- check(world.admission_error(departed_identity,catalog,world.Network.PROTOCOL).contains("still being saved"),
+ check(SessionCase.World.admission_error(world,departed_identity,catalog,world.Network.PROTOCOL).contains("still being saved"),
   "verified rollback does not release the character before rewards settle")
  world.grant_run_essence(2,ally,4)
  check(not ally.has(world.ExpeditionWallet.STATE) and world.run_wallet(ally)==0,"pending departure cannot receive a credit")

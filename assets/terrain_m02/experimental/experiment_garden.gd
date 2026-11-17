@@ -226,7 +226,7 @@ func available_here() -> bool:
 func can_view_development() -> bool:
 	if game.multiplayer.is_server():
 		return available_here()
-	return game.session == "Guest" and remote_revision >= 0 and game.at_heart(game.players.get(game.local_player_id(), {}))
+	return game.network_session.role() == "Guest" and remote_revision >= 0 and game.at_heart(game.players.get(game.local_player_id(), {}))
 
 func open_offerings() -> void:
 	if not available_here():

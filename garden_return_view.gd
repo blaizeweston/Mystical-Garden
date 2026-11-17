@@ -40,7 +40,7 @@ func _process(delta: float) -> void:
  elapsed=0
  var id: int=game.local_player_id();var player: Dictionary=game.players.get(id,{})
  var data:=Service.projection(game,id);var entries: Array=data.get("entries",[])
- var next_context:=str([game.session,id,get_parent().projection_context])
+ var next_context:=str([game.network_session.role(),id,get_parent().projection_context])
  if next_context!=context:context=next_context;visible_discoveries.clear();baseline=false
  for entry in entries:
   if baseline and not visible_discoveries.has(entry.id):preload("res://diagnostic_journal.gd").event("garden","return_discovery_received",{"discovery":entry.id,"point":entry.point,"source":"host_world" if game.multiplayer.is_server() else "host_snapshot"})

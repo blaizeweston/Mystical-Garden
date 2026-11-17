@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -62,7 +64,7 @@ func start() -> bool:
  world.local_character.path=path
  world.guest_character.path=path
  world.slot_claimed=host
- world.joined_from_title=not host
+ world.network_session.configure_join_origin(not host)
  var started:=Owner.new().start(world,slots if host else null,0,Slots._save_digest(G) if host else "",roster,0 if host else 1,Slots._save_digest(path))
  if not Owner.completed(started):
   check(false,"guarded startup "+str(started))
@@ -82,7 +84,7 @@ func run() -> void:
   return
  if host: await host_run()
  else: await guest_run()
- if is_instance_valid(world) and world.online_peer!=null: world.leave_game("Fixture finished")
+ if is_instance_valid(world) and world.network_session.transport()!=null: SessionCase.World.leave(world,"Fixture finished")
  var offline:=await until(func():return root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer)
  check(offline,"offline peer before world removal")
  if offline and is_instance_valid(world): world.free()
@@ -90,14 +92,15 @@ func run() -> void:
  quit(1 if failed else 0)
 
 func host_run() -> void:
- check(world.host_game()==OK,"guarded host listens")
+ check(SessionCase.World.host(world)==OK,"guarded host listens")
  mark("hosting")
- if not await until(func():return world.players.size()==2 and world.players.values().all(func(p):return p.profile_ready)):
+ if not await until(func():return world.players.size()==2 and world.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
   check(false,"guarded guest admission")
   return
  var id: int=world.players.keys().filter(func(p):return p!=1)[0]
  var leader: Dictionary=world.players[1]
  var guest: Dictionary=world.players[id]
+ var guest_identity := SessionCase.Session.inventory_owner(guest)
  leader.pos=world.Stage.GATE
  guest.pos=world.Stage.GATE
  world.progress.add_parts(1,3)
@@ -204,7 +207,7 @@ func host_run() -> void:
  # now that no further simulation or canonical writes are allowed.
  world.set_physics_process(true)
  var committed:=Slots._save_digest(G)
- check(world.progress.reserve(guest.seed_owner).unknown==[0] and FileAccess.file_exists(G+".transaction")
+ check(world.progress.reserve(guest_identity).unknown==[0] and FileAccess.file_exists(G+".transaction")
   and world.run_wallet(leader)==0 and world.run_wallet(guest)==0,"extraction banks the guest seed and clears both wallets")
  if not await until(func():return marked("saw-extraction")):
   check(false,"guest sees Garden transition and retained warning")
@@ -214,12 +217,13 @@ func host_run() -> void:
  if not await until(func():return marked("guest-offline") and world.multiplayer.get_peers().is_empty()):
   check(false,"guest detached before host teardown")
   return
- check(Slots._save_digest(G)==committed and world.progress.reserve(guest.seed_owner).unknown==[0],"pending, duplicate votes and disconnect cannot change committed Garden")
+ check(Slots._save_digest(G)==committed and world.progress.reserve(guest_identity).unknown==[0],"pending, duplicate votes and disconnect cannot change committed Garden")
+ check(SessionCase.Session.peer_for(guest)==0 and not SessionCase.Session.ready_for(guest),"released guest link cannot authorize later work")
  record("party_extraction_cleanup",before,{"guest_seed":1,"notice":Tx.pending_notice(world),"offline_guest":true})
 
 func guest_run() -> void:
- check(world.join_game("127.0.0.1")==OK,"guest joins with own lease")
- if not await until(func():return world.session=="Guest" and marked("depart-abort")):
+ check(SessionCase.World.join(world,"127.0.0.1")==OK,"guest joins with own lease")
+ if not await until(func():return world.network_session.role()=="Guest" and marked("depart-abort")):
   check(false,"guest sees readiness barrier")
   return
  var original:=Slots._save_digest(G)
@@ -289,6 +293,6 @@ func guest_run() -> void:
  world.refresh_feedback()
  check(world.feedback.text==Tx.CLEANUP_NOTICE and Slots._save_digest(C)==after,"cleanup warning survives toast and extraction does not duplicate profile credit")
  record("guest_transition_and_warning",original,{"floor":world.participation.floor(),"feedback":world.feedback.text})
- world.leave_game("Guest fixture complete")
- check(world.online_peer==null and world.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"guest offline before detachment")
+ SessionCase.World.leave(world,"Guest fixture complete")
+ check(world.network_session.transport()==null and world.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"guest offline before detachment")
  mark("guest-offline")

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -34,8 +36,8 @@ func run() -> void:
  if not failed:print("PASS: Warden depth co-op ",role," portable specialization, remote counter/charge, plant and monster links, three-card purchase and no cleared-floor casts")
  quit(1 if failed else 0)
 func host_run() -> void:
- check(game.host_game()==OK,"host opens")
- if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):
+ check(SessionCase.World.host(game)==OK,"host opens")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
   check(false,"guest registers");return
  var id:=int(game.players.keys()[1]);var p: Dictionary=game.players[id]
  check(p.character.upgrades[0]==MASK,"specialization survives registration")
@@ -55,11 +57,11 @@ func host_run() -> void:
  check(await until(func():return p.get("run_upgrades",{}).get("warden_guard_counter",0)==1),"real guest checkpoint choice buys counter upgrade")
  check(p.character.upgrades[0]==MASK and p.weapon==44 and p.graft_part==game.Parts.HOOK,"purchase preserves permanent branch and loadout")
  check(await until(func():return marked("verified")),"guest observes purchase and cleared-floor stability")
- mark("done");check(await until(func():return game.players.size()==1),"guest leaves");game.leave_game("Warden depth fixture complete")
+ mark("done");check(await until(func():return game.players.size()==1),"guest leaves");SessionCase.World.leave(game,"Warden depth fixture complete")
 func guest_run() -> void:
  game.guest_character.data.active_class=0;game.guest_character.data.xp[0]=2600;game.guest_character.data.upgrades[0]=MASK;game.guest_character.save_profile()
- check(game.join_game()==OK,"guest joins")
- check(await until(func():return game.session=="Guest" and not game.client_details.is_empty()),"guest admitted")
+ check(SessionCase.World.join(game)==OK,"guest joins")
+ check(await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty()),"guest admitted")
  var id:=game.multiplayer.get_unique_id()
  check(await until(func():return ExpeditionCase.is_wild(game.players[id]) and game.players[id].get("core_part",0)==44),"loadout arrives")
  check(game.Skills.resolve(0,0,game.guest_character.data).name=="Thorn Counter" and game.Skills.resolve(0,1,game.guest_character.data).name=="Shattering Advance","portable skill identities")
@@ -73,5 +75,5 @@ func guest_run() -> void:
  check(await until(func():return game.players[id].get("run_upgrades",{}).get("warden_guard_counter",0)==1),"owner upgrade state arrives")
  game.send_garden_action("class_skill");game.send_garden_action("class_skill_two")
  await create_timer(.3).timeout
- check(game.session=="Guest" and game.encounter_cleared(),"new abilities safe after cleared floor")
- mark("verified");check(await until(func():return marked("done")),"host finishes");game.leave_game("Warden depth fixture complete")
+ check(game.network_session.role()=="Guest" and game.encounter_cleared(),"new abilities safe after cleared floor")
+ mark("verified");check(await until(func():return marked("done")),"host finishes");SessionCase.World.leave(game,"Warden depth fixture complete")

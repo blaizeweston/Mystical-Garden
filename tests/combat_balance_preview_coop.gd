@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -71,12 +73,12 @@ func run() -> void:
 
 
 func host() -> void:
-	check(game.host_game()==OK,"host starts")
+	check(SessionCase.World.host(game)==OK,"host starts")
 	if not await until(func():return marked("rejected")):
 		check(false,"guest proves the mixed-mode rejection")
 		return
 	check(game.players.size()==1,"mixed scale never registers a peer")
-	if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):
+	if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
 		check(false,"matching preview guest registers")
 		return
 	var id: int=game.players.keys().filter(func(peer):return peer!=1)[0]
@@ -158,14 +160,14 @@ func guest() -> void:
 	game.guest_character.data.active_class=4
 	game.guest_character.data.upgrades[4]=1<<14
 	game.guest_character.save_profile()
-	check(game.join_game()==OK,"guest starts mixed-mode attempt")
-	if not await until(func():return game.session=="Solo" and game.status.contains("combat balance mode")):
+	check(SessionCase.World.join(game)==OK,"guest starts mixed-mode attempt")
+	if not await until(func():return game.network_session.role()=="Solo" and game.status.contains("combat balance mode")):
 		check(false,"mixed HP scale receives a specific compatibility message")
 		return
 	mark("rejected")
 	Preview.enabled=true
-	check(game.join_game()==OK,"guest retries with matching preview")
-	if not await until(func():return game.session=="Guest" and game.tactics.boss_kind==20 and int(game.players.get(game.multiplayer.get_unique_id(),{}).get("max_hp",0))==100):
+	check(SessionCase.World.join(game)==OK,"guest retries with matching preview")
+	if not await until(func():return game.network_session.role()=="Guest" and game.tactics.boss_kind==20 and int(game.players.get(game.multiplayer.get_unique_id(),{}).get("max_hp",0))==100):
 		check(false,"guest receives Orchard state in preview units")
 		return
 	var id: int=game.multiplayer.get_unique_id()
@@ -209,4 +211,4 @@ func guest() -> void:
 	)),"visible damage uses the host's roll")
 	mark("strike")
 	check(await until(func():return marked("finished")),"host finishes preview fixture")
-	game.leave_game("Preview test complete")
+	SessionCase.World.leave(game,"Preview test complete")

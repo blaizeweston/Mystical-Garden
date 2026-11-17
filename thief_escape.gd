@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Session = preload("res://network_session.gd")
+
 const Participation = preload("res://expedition_participation.gd")
 
 const KIND := 16
@@ -91,7 +93,7 @@ static func steal(game: Node, actor: Dictionary, drop: Dictionary, now: int) -> 
 
 static func notify_party(game: Node, message: String) -> void:
 	for id in game.players:
-		if Participation.is_wild(game.players[id]) and game.players[id].get("profile_ready",false):
+		if Participation.is_wild(game.players[id]) and Session.ready_for(game.players[id],false):
 			game.tell(id,message)
 
 

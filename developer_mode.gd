@@ -18,7 +18,7 @@ static func is_test_garden(game: Node) -> bool:
 
 static func is_solo(game: Node) -> bool:
 	return game != null and "session" in game and "online_peer" in game \
-		and game.session == "Solo" and game.online_peer == null and game.multiplayer.is_server() \
+		and game.network_session.role() == "Solo" and game.network_session.transport() == null and game.multiplayer.is_server() \
 		and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer
 
 

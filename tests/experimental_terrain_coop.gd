@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const Mode = preload("res://assets/terrain_m02/experimental/experiment_mode.gd")
@@ -134,7 +136,7 @@ func river_guest(game: Node, id: int, key: String) -> bool:
 
 func ready_guest(game: Node) -> int:
 	for id in game.players:
-		if id != game.HOST and game.players[id].profile_ready:
+		if id != game.HOST and SessionCase.Session.ready_for(game.players[id]):
 			return id
 	return 0
 
@@ -144,7 +146,7 @@ func host_run(menu: Node) -> void:
 	var title_id := menu.get_instance_id()
 	menu.new_game()
 	menu.create_character("Terrain Keeper", 0, Appearance.DEFAULT)
-	if not check(await until(func(): return current_scene.get_instance_id() != title_id and current_scene.get("session") == "Host"), "host created through title"):
+	if not check(await until(func(): return current_scene.get_instance_id() != title_id and SessionCase.role(current_scene) == "Host"), "host created through title"):
 		return
 	var game := current_scene
 	check(not game.multiplayer.server_relay, "the authoritative host roster does not use the engine peer relay")
@@ -277,8 +279,8 @@ func join(menu: Node) -> Node:
 		return null
 	menu.network_dialog.address_field.text = "127.0.0.1:" + str(port)
 	menu.network_dialog.submit.pressed.emit()
-	if not check(await until(func(): return current_scene.get_instance_id() != title_id and current_scene.get("session") == "Guest" and current_scene.stage.experimental_garden.remote_revision >= 0), "title admits guest and supplies Garden"):
-		print("JOIN STATE ", [current_scene.get("session"), current_scene.get("status"), current_scene.get("return_message")])
+	if not check(await until(func(): return current_scene.get_instance_id() != title_id and SessionCase.role(current_scene) == "Guest" and current_scene.stage.experimental_garden.remote_revision >= 0), "title admits guest and supplies Garden"):
+		print("JOIN STATE ", [SessionCase.role(current_scene), current_scene.get("status"), current_scene.get("return_message")])
 		return null
 	return current_scene
 

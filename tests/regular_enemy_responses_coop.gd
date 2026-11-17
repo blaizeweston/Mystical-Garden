@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -92,8 +94,8 @@ func prepare(kind: int) -> Dictionary:
 
 
 func host() -> void:
-	check(game.host_game() == OK, "host starts")
-	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return p.profile_ready)):
+	check(SessionCase.World.host(game) == OK, "host starts")
+	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return SessionCase.Session.ready_for(p))):
 		check(false, "guest registers")
 		return
 	var guest_id: int = game.players.keys().filter(func(id): return id != 1)[0]
@@ -138,7 +140,7 @@ func host() -> void:
 		check(false, "guest sees canopy markers clear")
 		return
 	await host_glasscap()
-	game.leave_game("Regular response fixture")
+	SessionCase.World.leave(game,"Regular response fixture")
 
 
 func warning(cue: String) -> Dictionary:
@@ -150,7 +152,7 @@ func warning(cue: String) -> Dictionary:
 
 func guest() -> void:
 	game.guest_character.save_profile()
-	check(game.join_game() == OK, "guest connects")
+	check(SessionCase.World.join(game) == OK, "guest connects")
 	if not await until(func(): return not warning("Antler hook").is_empty()):
 		check(false, "guest sees Antler hook")
 		return
@@ -170,7 +172,7 @@ func guest() -> void:
 	check(await until(func(): return game.combat_visuals.statuses.active.values().any(func(item): return item.event.shape == "sheltered" and item.event.combo == 1 and item.node.visible and item.label.text == "Sheltered")), "guest sees the actual sheltered escort")
 	mark("canopy-clear")
 	await guest_glasscap()
-	check(await until(func(): return game.session == "Solo"), "host finishes")
+	check(await until(func(): return game.network_session.role() == "Solo"), "host finishes")
 
 
 func host_glasscap() -> void:

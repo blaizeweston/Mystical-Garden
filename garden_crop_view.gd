@@ -74,7 +74,7 @@ func marker(index: int) -> Node3D:
 func _process(_delta: float) -> void:
  var id: int=game.local_player_id();var p: Dictionary=game.players.get(id,{})
  var data:=Service.projection(game,id);var outer: Dictionary=get_parent().Service.projection(game,id)
- var next_context:=str([game.session,id,outer.get("epoch","")])
+ var next_context:=str([game.network_session.role(),id,outer.get("epoch","")])
  if next_context!=context:
   context=next_context;serial=-1;slot=-1;waiting_until=0;last_bed={};water_seen.clear()
   if panel.visible:game.toggle_overlay(null)

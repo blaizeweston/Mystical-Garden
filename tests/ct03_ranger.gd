@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -340,11 +342,11 @@ func run() -> void:
 	ranger = game.players[1]
 	game.add_player(8)
 	ally=game.players[8]
-	ally.seed_owner="other-character"
+	SessionCase.set_identity(game, ally, "other-character")
 	ranger.frame=2
 	for actor in [ranger,ally]:
 		ExpeditionCase.set_membership(game, actor, true)
-		actor.profile_ready=true
+		SessionCase.set_ready(game, actor, true)
 		actor.combat_ruleset=Rules.ID
 	game.set_meta(Events.RECORD,func(event):events.append(event))
 	tracked_and_offense()

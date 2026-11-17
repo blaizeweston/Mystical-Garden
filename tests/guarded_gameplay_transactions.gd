@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const Tx = preload("res://game_transaction.gd")
@@ -57,7 +59,7 @@ func start(slots: RefCounted, roster: RefCounted, garden: bool) -> Node:
  world.progress.path = G
  world.local_character.path = C
  world.guest_character.path = C
- world.joined_from_title = not garden
+ world.network_session.configure_join_origin(not garden)
  world.slot_claimed = garden
  var owner := Owner.new()
  var result := owner.start(world, slots if garden else null, 0, Slots._save_digest(G) if garden else "",
@@ -224,10 +226,10 @@ func run() -> void:
 
  world = start(stores.slots, stores.roster, true)
  if world == null: return
- world.session = "Host"
+ SessionCase.set_role(world, "Host")
  world.add_player(PEER)
- world.players[PEER].seed_owner = "departing-peer"
- world.players[PEER].profile_ready = true
+ SessionCase.set_identity(world, world.players[PEER], "departing-peer")
+ SessionCase.set_ready(world, world.players[PEER], true)
  world.players[PEER].safe_items = [{"item": "unidentified_seed", "quantity": 1, "seeds": [0]}]
  before = disk()
  world.multiplayer.peer_disconnected.emit(PEER)
@@ -236,8 +238,8 @@ func run() -> void:
  record("owned_host_disconnect", before)
  world.add_player(PEER)
  var peer: Dictionary = world.players[PEER]
- peer.seed_owner = "late-peer"
- peer.profile_ready = true
+ SessionCase.set_identity(world, peer, "late-peer")
+ SessionCase.set_ready(world, peer, true)
  ExpeditionCase.set_membership(world, peer, true)
  peer.safe_items = [{"item": "unidentified_seed", "quantity": 1, "seeds": [0]}]
  check(world._queue_monster_reward("late",world.enemy_kind,0,world.tactics.position,false), "freeze a real pending receipt before lease loss")
@@ -262,7 +264,7 @@ func run() -> void:
 
  world = start(stores.slots, stores.roster, false)
  if world == null: return
- world.session = "Guest"
+ SessionCase.set_role(world, "Guest")
  before = disk()
  var unclaimed := Tx.run_guarded(world, refuse_action, Callable(), Tx.Scope.GARDEN)
  check(not unclaimed.ran and disk() == before, "guest cannot write unclaimed Garden")

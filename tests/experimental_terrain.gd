@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -66,7 +68,7 @@ func run() -> void:
 	var player: Dictionary = game.players[game.HOST]
 	check(garden != null and game.slot_claimed and game.character_slot_claimed and game.get_meta(game.Transactions.SESSION).owns_leases(),
 		"real world shows terrain with the native owner")
-	check(game.host_button.visible and game.join_game() == ERR_UNAUTHORIZED, "co-op uses title-owned guest admission")
+	check(game.host_button.visible and SessionCase.World.join(game) == ERR_UNAUTHORIZED, "co-op uses title-owned guest admission")
 	check(garden.barrier.walkable(garden.planar(player.pos)), "production avatar starts on clear ground")
 	var view := game.get_node("GardenInteractions")
 	var scar := GardenInteractions.Catalog.point("heart_root_scar")

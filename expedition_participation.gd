@@ -7,7 +7,6 @@ const STATE := "expedition_participation"
 
 class Member extends RefCounted:
 	var binding: int
-	var identity: String = ""
 	var active := false
 	var waiting := false
 	var run_id := 0
@@ -75,17 +74,6 @@ func attach(peer: int) -> Link:
 
 func attached(peer: int) -> bool:
 	return _members.has(peer)
-
-func identify(peer: int, identity: String) -> bool:
-	if not _members.has(peer):
-		return false
-	var member := _members[peer]
-	if member.identity == identity:
-		return true
-	if not member.identity.is_empty() and (member.active or member.waiting):
-		return false
-	member.identity = identity
-	return true
 
 func detach(peer: int) -> void:
 	_members.erase(peer)
@@ -290,7 +278,7 @@ func savepoint() -> Dictionary:
 	for peer in _members:
 		var member := _members[peer]
 		members[peer] = {
-			"binding": member.binding, "identity": member.identity, "active": member.active,
+			"binding": member.binding, "active": member.active,
 			"waiting": member.waiting, "run_id": member.run_id,
 		}
 	return {
@@ -309,7 +297,6 @@ func restore_savepoint(state: Dictionary) -> void:
 	for peer in state.members:
 		var item: Dictionary = state.members[peer]
 		var member := Member.new(int(item.binding))
-		member.identity = str(item.identity)
 		member.active = bool(item.active)
 		member.waiting = bool(item.waiting)
 		member.run_id = int(item.run_id)

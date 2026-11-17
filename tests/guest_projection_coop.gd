@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const Slots = preload("res://save_slots.gd")
 const Owner = preload("res://guarded_title_session.gd")
 const Profile = preload("res://character_profile.gd")
@@ -50,14 +52,14 @@ func title() -> Node:
 
 func peer() -> int:
  for id in world.players:
-  if id != 1 and world.players[id].profile_ready: return id
+  if id != 1 and SessionCase.Session.ready_for(world.players[id]): return id
  return 0
 
 func delivery(id: int) -> Dictionary:
  return world.players.get(id,{}).get("projection_delivery",{})
 
 func current(id: int) -> Dictionary:
- var record: Dictionary = world.progress.character_records[world.players[id].seed_owner]
+ var record: Dictionary = world.progress.character_records[SessionCase.Session.inventory_owner(world.players[id])]
  return {"origin":world.progress.projection_origin,"profile":record.profile,"projection":record.projection}
 
 func record_host(key: String, id: int, before: String) -> void:
@@ -97,9 +99,9 @@ func host() -> void:
  menu.host_choice.button_pressed = true
  menu.continue_game()
  world = current_scene
- check(world != menu and world.session == "Host","guarded host")
+ check(world != menu and world.network_session.role() == "Host","guarded host")
  if failed: return
- mark("listen",str(world.network_port))
+ mark("listen",str(world.network_session.port()))
  var older := {}
  var last_revision := 0
  for index in Cases.size():
@@ -149,7 +151,7 @@ func open_guest(menu: Node) -> bool:
  menu.join_game()
  world = current_scene
  if world==menu: return false
- return await until(func():return is_instance_valid(world) and world.session=="Guest" and not world.client_details.is_empty())
+ return await until(func():return is_instance_valid(world) and world.network_session.role()=="Guest" and not world.client_details.is_empty())
 
 func guest() -> void:
  if not await until(func():return read("listen").is_valid_int()):
@@ -195,7 +197,7 @@ func guest() -> void:
     if phase=="publish_commit_marker": return ERR_CANT_CREATE
     if phase=="restore": return ERR_FILE_CANT_WRITE
    if key=="disconnect" and phase=="replace" and path==P:
-    world.go_offline()
+    SessionCase.World.offline(world)
    return OK)
   mark(key+"-ready")
   if key=="pending":
@@ -223,7 +225,7 @@ func guest() -> void:
    check(Slots._save_digest(P)==before and staged.count==count,"delayed projection after lease expiry writes nothing")
   elif key=="disconnect":
    expected+=1
-   check(await until(func():return Slots._save_digest(P)!=before and world.online_peer==null),"authorized guest save can finish after transport closes")
+   check(await until(func():return Slots._save_digest(P)!=before and world.network_session.transport()==null),"authorized guest save can finish after transport closes")
    check(world.guest_character.data.plants[0]==expected and not world.status.begins_with("Profile committed disconnect"),"committed local bytes without an acknowledgment or success toast")
   else:
    expected+=int(key in ["recover","repair"])
@@ -291,10 +293,10 @@ func action_host() -> void:
  await process_frame
  if current_scene==menu: menu.new_button.pressed.emit()
  world=current_scene
- if world==menu or world.session!="Host":
+ if world==menu or world.network_session.role()!="Host":
   check(false,"actual host title launch")
   return
- mark("listen",str(world.network_port))
+ mark("listen",str(world.network_session.port()))
  for step in (["appearance"] if projection_mode=="appearance" else ["learn","respec","loadout"]):
   if not await until(func(): return peer()!=0 and delivery(peer()).get("state")=="committed" and read(step+"-ready")=="ready"):
    check(false,step+" guest admitted")

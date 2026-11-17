@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -67,8 +69,8 @@ func run() -> void:
 
 
 func host() -> void:
-	check(game.host_game() == OK, "host opens")
-	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return p.profile_ready)):
+	check(SessionCase.World.host(game) == OK, "host opens")
+	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return SessionCase.Session.ready_for(p))):
 		check(false, "guest registers")
 		return
 	var id: int = game.players.keys().filter(func(peer): return peer != 1)[0]
@@ -130,7 +132,7 @@ func host() -> void:
 	check(await until(func(): return mother.summons == 2), "two hatch sites resolve on the host")
 	mark("done")
 	check(await until(func(): return marked("verified")), "guest verifies cleanup")
-	game.leave_game("Wilds skill tactics fixture")
+	SessionCase.World.leave(game,"Wilds skill tactics fixture")
 
 
 func hints(role: String) -> Array:
@@ -144,9 +146,9 @@ func cue(value: String) -> bool:
 func guest() -> void:
 	game.guest_character.data.active_class = game.Frames.RANGER
 	game.guest_character.save_profile()
-	check(game.join_game() == OK, "guest connects")
+	check(SessionCase.World.join(game) == OK, "guest connects")
 	var id: int = game.multiplayer.get_unique_id()
-	if not await until(func(): return game.session == "Guest" and game.player_hud.state.get("core", {}).get("name") == "Hush" and cue("Rally")):
+	if not await until(func(): return game.network_session.role() == "Guest" and game.player_hud.state.get("core", {}).get("name") == "Hush" and cue("Rally")):
 		check(false, "guest sees the live rally and has Hush")
 		return
 	game.send_garden_action(Core.request(game, game.players[id], Vector2.UP, 1.8))
@@ -162,4 +164,4 @@ func guest() -> void:
 	mark("hatch")
 	check(await until(func(): return marked("done") and hints("hatch").is_empty()), "hatch warnings clear at release")
 	mark("verified")
-	check(await until(func(): return game.session == "Solo"), "host finishes")
+	check(await until(func(): return game.network_session.role() == "Solo"), "host finishes")

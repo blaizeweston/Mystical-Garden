@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -64,10 +66,10 @@ func host() -> void:
  menu.host_choice.button_pressed = true
  menu.new_button.pressed.emit()
  var game := current_scene
- if game==menu or game.session!="Host":
+ if game==menu or game.network_session.role()!="Host":
   check(false,"host New Garden handoff")
   return
- mark("port",str(game.network_port))
+ mark("port",str(game.network_session.port()))
  if not await until(func(): return game.players.size()==4 and committed_guests(game)==3):
   check(false,"all three guarded profiles acknowledged")
   return
@@ -80,7 +82,7 @@ func host() -> void:
  if not await until(func(): return game.players.get(class_id,{}).get("projection_delivery",{}).get("state")=="aborted" and read("class-abort-done")=="yes"):
   check(false,"guest class save abort acknowledged")
   return
- var class_record: Dictionary = game.progress.character_records[game.players[class_id].seed_owner]
+ var class_record: Dictionary = game.progress.character_records[SessionCase.Session.inventory_owner(game.players[class_id])]
  check(class_record.profile.active_class==1,"host commits class before guest abort")
  print("CASE ",JSON.stringify({"case":"class_host_commit_guest_abort","revision":class_record.projection.revision,"garden":FileAccess.get_sha256(G)}))
  mark("reconnect-ready")
@@ -168,7 +170,7 @@ func host() -> void:
  check(target.lost_health==cost,"repeat remote revive cannot charge twice")
  print("CASE ",JSON.stringify({"case":"remote_revive","garden":FileAccess.get_sha256(G),"cost":cost}))
  var leaving: int = player_id(game,"1")
- var identity: String = game.players[leaving].seed_owner
+ var identity: String = SessionCase.Session.inventory_owner(game.players[leaving])
  var kills: int = game.players[leaving].character.monsters[kind]
  game._queue_monster_reward("pending-on-disconnect",kind,0,game.tactics.position,false)
  var disconnect_key: String = game.monster_rewards.pending_receipts()[0].key
@@ -185,7 +187,7 @@ func host() -> void:
  # Keep the cleanup-pending world alive long enough to deliver the
  # explicit window-close notification. The ENet tree still polls.
  if settlement_fault=="cleanup": game.set_process(false)
- var transport: ENetMultiplayerPeer=game.online_peer
+ var transport: ENetMultiplayerPeer=game.network_session.transport()
  var packet := transport.get_peer(leaving)
  var callback := {}
  var snapshot_before: int=game.net_view.snapshot_sent
@@ -197,7 +199,7 @@ func host() -> void:
  transport.disconnect_peer(leaving)
  var advertised: bool=game.multiplayer.get_peers().has(leaving)
  var eligible: PackedInt32Array=game.net_view.snapshot_targets(game)
- check(advertised and game.players[leaving].profile_ready and not eligible.has(leaving) and eligible.size()==2,
+ check(advertised and SessionCase.Session.ready_for(game.players[leaving]) and not eligible.has(leaving) and eligible.size()==2,
   "send boundary rejects disconnecting ENet peer while admitted roster still contains it")
  if not await until(func(): return not game.players.has(leaving) and read("offline-1")=="yes"):
   check(false,"actual peer disconnect with pending host rewards")
@@ -221,7 +223,7 @@ func host() -> void:
   and game.departure_settlement.status(identity)==game.DepartureSettlement.Phase.RETRYABLE
   and FileAccess.get_sha256(G)==disconnect_before and game.status.begins_with("Save cancelled"),
   "verified disconnect abort retains the reward, retryable departure and Garden bytes")
- check(game.admission_error(identity,game.progress.ContentIDs.manifest(),Network.PROTOCOL).contains("still being saved"),
+ check(SessionCase.World.admission_error(game,identity,game.progress.ContentIDs.manifest(),Network.PROTOCOL).contains("still being saved"),
   "admission reports the unsettled departure for this character")
  game.remove_meta(&"guarded_gameplay_test_fault")
  check(game.flush_kill_rewards() and game.departure_settlement.is_empty() and game.monster_rewards.pending_count()==0
@@ -271,7 +273,7 @@ func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: i
   "a blocked reward flush cannot replay an award or mutate recovery evidence")
  var old_id := game.get_instance_id()
  var snapshot_sequence: int=game.net_view.snapshot_sent
- var old_transport: ENetMultiplayerPeer=game.online_peer
+ var old_transport: ENetMultiplayerPeer=game.network_session.transport()
  if cleanup:
   mark("final-snapshot",str(snapshot_sequence))
   check(await until(func():return read("snapshot-2")=="yes" and read("snapshot-3")=="yes"),
@@ -291,7 +293,7 @@ func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: i
   game.net_view.publish_committed_cleanup(game,old_transport)
   check(game.net_view.snapshot_sent==snapshot_sequence and FileAccess.get_sha256(G)==after
    and FileAccess.get_sha256(G+".transaction")==evidence,"deferred cleanup cannot send or write after ownership is lost")
-  game.go_offline()
+  SessionCase.World.offline(game)
   game.net_view.publish_committed_cleanup(game,old_transport)
   game.send_expedition_state(0.0,true)
   check(game.net_view.snapshot_sent==snapshot_sequence and game.net_view.snapshot_targets(game).is_empty(),
@@ -316,13 +318,13 @@ func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: i
  menu.host_choice.button_pressed=true
  menu.continue_button.pressed.emit()
  var reopened: Node = current_scene
- if reopened==menu or reopened.session!="Host":
+ if reopened==menu or reopened.network_session.role()!="Host":
   check(false,"verified recovery permits host restart")
   return
  var reopened_sequence: int=reopened.net_view.snapshot_sent
  reopened.net_view.publish_committed_cleanup(reopened,old_transport)
  check(reopened.net_view.snapshot_sent==reopened_sequence,"a prior session snapshot cannot be replayed on reopened transport")
- mark("host-reopened",str(reopened.network_port))
+ mark("host-reopened",str(reopened.network_session.port()))
  check(await until(func():return read("rejoin-after-recovery")=="yes"),"guest rejoins after recovery")
  var record: Dictionary = reopened.progress.character_records[identity].profile
  check(int(record.monsters[kind])==kills and reopened.departure_settlement.is_empty(),
@@ -339,7 +341,7 @@ func guest(role: String) -> void:
  if role=="1":
   var legacy: Node = connect_to_host(menu)
   if legacy == null: return
-  legacy.multiplayer.connected_to_server.disconnect(legacy.on_joined_world)
+  legacy.multiplayer.connected_to_server.disconnect(SessionCase.World.joined.bind(legacy))
   legacy.multiplayer.connected_to_server.connect(func():
    var catalog: Dictionary = legacy.progress.ContentIDs.manifest()
    catalog["guest_projection_receipts"] = legacy.guest_character.projection_receipts
@@ -359,7 +361,7 @@ func guest(role: String) -> void:
   check(false,"title Join starts")
   return
  if role=="overflow":
-  game.connection_deadline = Time.get_ticks_msec()+4500
+
   var attempt := game.get_instance_id()
   check(await until(func():return current_scene.get_instance_id()!=attempt),"overflow returned to title")
   check(FileAccess.get_sha256(P)==before and not FileAccess.file_exists(G),"overflow kept profile and no Garden")
@@ -385,7 +387,7 @@ func guest(role: String) -> void:
   game.remove_meta(&"guarded_gameplay_test_fault")
   mark("class-abort-done")
   check(await until(func():return read("reconnect-ready")=="yes"),"host observes aborted class projection")
-  game.leave_game("Reconnect acceptance")
+  SessionCase.World.leave(game,"Reconnect acceptance")
   check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer and not FileAccess.file_exists(P.get_base_dir().path_join("session.cfg")),"guest releases lease before reconnect")
   await process_frame
   menu=current_scene
@@ -539,4 +541,4 @@ func connect_to_host(menu: Node) -> Node:
  return current_scene
 
 func admitted(instance: int) -> bool:
- return is_instance_valid(current_scene) and current_scene.get_instance_id()==instance and current_scene.session=="Guest" and not current_scene.client_details.is_empty()
+ return is_instance_valid(current_scene) and current_scene.get_instance_id()==instance and SessionCase.role(current_scene)=="Guest" and not current_scene.client_details.is_empty()

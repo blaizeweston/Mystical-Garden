@@ -4,6 +4,7 @@ extends RefCounted
 
 const Participation = preload("res://expedition_participation.gd")
 const Transitions = preload("res://expedition_transitions.gd")
+const Sessions = preload("res://tests/support/session_case.gd")
 
 static func is_wild(actor: Dictionary) -> bool:
 	return Participation.is_wild(actor)
@@ -41,10 +42,12 @@ static func install_actor(game: Node, peer: int, actor: Dictionary) -> void:
 	game.participation.detach(peer)
 	actor[Participation.STATE] = game.participation.attach(peer)
 	actor.erase("wild")
+	Sessions.install_registration(game,peer,actor)
 	game.players[peer] = actor
 	if active:
 		assert(game.participation.enter(peer))
 
 static func remove_actor(game: Node, peer: int) -> void:
+	game.network_session.release_peer(peer)
 	game.participation.detach(peer)
 	game.players.erase(peer)

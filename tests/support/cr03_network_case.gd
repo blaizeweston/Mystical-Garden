@@ -1,5 +1,7 @@
 extends RefCounted
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -79,7 +81,7 @@ func read(key: String) -> String:
 
 
 func guests(game: Node) -> Array:
-	return game.players.keys().filter(func(id):return id!=1 and game.players[id].get("profile_ready",false))
+	return game.players.keys().filter(func(id):return id!=1 and SessionCase.Session.ready_for(game.players[id],false))
 
 
 func run(scene_tree: SceneTree, four := false) -> bool:
@@ -118,7 +120,7 @@ func host(menu: Node) -> void:
 	menu.host_choice.button_pressed=true
 	menu.new_game()
 	menu.create_character("Frost Host",0,Appearance.DEFAULT)
-	if not check(await until(func():return tree.current_scene.get("session")=="Host"),"host through guarded title"): return
+	if not check(await until(func():return SessionCase.role(tree.current_scene)=="Host"),"host through guarded title"): return
 	var game:=tree.current_scene
 	check(Mode.active(game) and "stocked" in Frost.stock_test_garden(game),"guarded test supplies")
 	var ordinary: int=game.Items.get_item("plant_part_plant_frostbell").legacy_part
@@ -914,7 +916,7 @@ func guest(menu: Node, role: String) -> void:
 	menu.create_character("Frost guest "+role,starting_class,Appearance.DEFAULT)
 	if not check(await until(func():return read("host")=="ok"),"host ready"):return
 	begin_join(menu)
-	if not check(await until(func():return tree.current_scene.get("session")=="Guest" and tree.current_scene.stage.experimental_garden.remote_revision>=0),"actual title joins isolated frost Garden"):return
+	if not check(await until(func():return SessionCase.role(tree.current_scene)=="Guest" and tree.current_scene.stage.experimental_garden.remote_revision>=0),"actual title joins isolated frost Garden"):return
 	var game:=tree.current_scene
 	var id: int=game.local_player_id()
 	var identity: String=game.guest_character.identity
@@ -1096,7 +1098,7 @@ func guest(menu: Node, role: String) -> void:
 	game.return_to_main_menu()
 	if not check(await until(func():return read("detached")=="ok" and tree.root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"normal offline-before-rejoin transition"):return
 	begin_join(tree.current_scene)
-	if not check(await until(func():return tree.current_scene.get("session")=="Guest" and tree.current_scene.stage.experimental_garden.remote_revision>=0),"same isolated profile rejoins"):return
+	if not check(await until(func():return SessionCase.role(tree.current_scene)=="Guest" and tree.current_scene.stage.experimental_garden.remote_revision>=0),"same isolated profile rejoins"):return
 	check(tree.current_scene.guest_character.identity==identity,"stable character identity across rejoin")
 	if native_graft_case:
 		var rejoined = tree.current_scene

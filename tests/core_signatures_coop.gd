@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -59,8 +61,8 @@ func run() -> void:
 
 
 func host_run() -> void:
-	check(game.host_game() == OK, "host opens")
-	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return p.profile_ready)):
+	check(SessionCase.World.host(game) == OK, "host opens")
+	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return SessionCase.Session.ready_for(p))):
 		check(false, "guest registers")
 		return
 	var id: int = game.players.keys().filter(func(peer): return peer != 1)[0]
@@ -107,9 +109,9 @@ func host_run() -> void:
 
 func guest_run() -> void:
 	game.guest_character.save_profile()
-	check(game.join_game()==OK, "guest connects")
+	check(SessionCase.World.join(game)==OK, "guest connects")
 	var id := game.multiplayer.get_unique_id()
-	if not await until(func(): return game.session=="Guest" and game.player_hud.state.get("core",{}).get("name")=="Whisper Mark"):
+	if not await until(func(): return game.network_session.role()=="Guest" and game.player_hud.state.get("core",{}).get("name")=="Whisper Mark"):
 		check(false, "guest receives its skill HUD")
 		return
 	var p: Dictionary=game.players[id]
@@ -135,4 +137,4 @@ func guest_run() -> void:
 	check(await until(func(): return not star.call() and game.received_combat_events.any(func(entry): return entry.event.kind=="swing" and entry.event.shape=="constellation")),"guest sees beam and star removal")
 	mark("beam-visible")
 	check(await until(func(): return marked("done")), "host completes")
-	game.leave_game("Signature fixture")
+	SessionCase.World.leave(game,"Signature fixture")

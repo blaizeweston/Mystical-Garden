@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -28,8 +30,8 @@ func run():
  if not failed:print("PASS: network research ",role," live guest locomotion, reliable monster damage, Knowledge research, timers and guest plant offerings")
  quit(1 if failed else 0)
 func host_run():
- check(game.host_game()==OK,"host starts")
- if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):
+ check(SessionCase.World.host(game)==OK,"host starts")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
   check(false,"guest registers");return
  var id=int(game.players.keys()[1]);var p=game.players[id]
  var origin: Vector3=p.pos
@@ -49,10 +51,10 @@ func host_run():
  game.progress.parts[0]=2;game.garden_action(1,"heart_start_flowering")
  check(await until(func():return game.progress.parts[0]==0 and float(game.progress.heart.work.get("flowering",0))>=60),"guest offering accelerates active research")
  check(await until(func():return marked("offering")),"guest sees confirmed material cost and research boost")
- mark("done");check(await until(func():return game.players.size()==1),"guest leaves cleanly");game.leave_game("Network research fixture complete")
+ mark("done");check(await until(func():return game.players.size()==1),"guest leaves cleanly");SessionCase.World.leave(game,"Network research fixture complete")
 func guest_run():
- game.guest_character.data.name="Guest animation probe";game.guest_character.save_profile();check(game.join_game()==OK,"guest connects")
- if not await until(func():return game.session=="Guest" and game.players.has(game.multiplayer.get_unique_id())):
+ game.guest_character.data.name="Guest animation probe";game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest connects")
+ if not await until(func():return game.network_session.role()=="Guest" and game.players.has(game.multiplayer.get_unique_id())):
   check(false,"guest accepted");return
  var id=game.multiplayer.get_unique_id()
  Input.action_press("right");var deadline=Time.get_ticks_msec()+2200;var first=Quaternion.IDENTITY;var angle=0.0;var sampled=false;var peak_pace=0.0
@@ -72,4 +74,4 @@ func guest_run():
  game.progression_view.tabs.current_tab=1;game.progression_view.refresh();game.progression_view.heart_infuse_button.pressed.emit()
  check(await until(func():return float(game.heart_state().get("work",{}).get("flowering",0))>=60 and game.client_garden[5][0]==0),"guest offering costs parts and updates research")
  check(game.heart_state().get("unlocked",[]).has("plot_4"),"completed timed bed replicates");mark("offering")
- check(await until(func():return marked("done")),"host flow finishes");game.leave_game("Network research fixture complete")
+ check(await until(func():return marked("done")),"host flow finishes");SessionCase.World.leave(game,"Network research fixture complete")

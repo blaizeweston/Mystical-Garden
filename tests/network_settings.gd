@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Settings=preload("res://network_settings.gd")
 var failed:=false
@@ -25,42 +27,42 @@ func run():
  menu.network_dialog.address_field.text=Settings.format_endpoint("127.0.0.1",Settings.DEFAULT_PORT+5)
  menu.network_dialog.confirm()
  var game=current_scene
- check(game.session=="Connecting" and game.network_port==Settings.DEFAULT_PORT+5 and not game.slot_claimed,"pasting host endpoint joins its port without claiming a world")
+ check(game.network_session.role()=="Connecting" and game.network_session.port()==Settings.DEFAULT_PORT+5 and not game.slot_claimed,"pasting host endpoint joins its port without claiming a world")
  var saved := Settings.load_settings(game.slot_storage_root)
  check(saved.port==Settings.DEFAULT_PORT+5 and saved.host_port==Settings.DEFAULT_PORT+2,"hosting port stays separate from the last join port")
- game.update_network_session()
- check(game.connection_label.text.contains("1 of 4") and game.connection_label.text.contains(str(game.network_port)),"initial connection names the endpoint")
- game.set_meta("join_phase","compatibility")
- game.update_network_session()
+ SessionCase.World.update(game)
+ check(game.connection_label.text.contains("1 of 4") and game.connection_label.text.contains(str(game.network_session.port())),"initial connection names the endpoint")
+ game.network_session.compatibility_started()
+ SessionCase.World.update(game)
  check(game.connection_label.text.contains("2 of 4"),"compatibility check has its own phase")
  var cancel: Button=game.connection_panel.find_children("*","Button",true,false)[0]
  cancel.pressed.emit()
  await process_frame
  menu=current_scene
  check(not menu.characters.is_active(0) and menu.notice.text.contains("cancelled") and not menu.network_dialog.visible,"cancel returns to co-op and releases the selected character")
- menu.join_game();game=current_scene;game.connection_deadline=Time.get_ticks_msec()-1;game.update_network_session();await process_frame;menu=current_scene
+ menu.join_game();game=current_scene;SessionCase.World.update(game,game.network_session.deadline()+1);await process_frame;menu=current_scene
  check(not menu.characters.is_active(0) and menu.notice.text.contains("timed out"),"connection timeout preserves selected profile and releases character")
  check(menu.network_dialog.visible and menu.network_dialog.feedback.text.contains("timed out") and int(menu.network_dialog.port_field.value)==Settings.DEFAULT_PORT+5,"failure reopens the join form with the attempted endpoint and reason")
  check(not FileAccess.file_exists(menu.storage.paths(0).garden),"join attempts never create a local Garden")
  menu.network_dialog.dismiss()
  menu.free()
  game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/network_policy_"+Crypto.new().generate_random_bytes(8).hex_encode()+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game)
- game.network_port=Settings.DEFAULT_PORT+4
+ game.network_session.configure_endpoint(game.network_session.address(),Settings.DEFAULT_PORT+4)
  game.host_button.pressed.emit()
- check(game.session=="Host" and game.network_dialog.visible and game.network_dialog.lan_choices.get_item_text(0).ends_with(":"+str(game.network_port)),"host opens a share panel for the live listening port")
+ check(game.network_session.role()=="Host" and game.network_dialog.visible and game.network_dialog.lan_choices.get_item_text(0).ends_with(":"+str(game.network_session.port())),"host opens a share panel for the live listening port")
  game.network_dialog.dismiss()
  var identity:="a".repeat(32);var manifest: Dictionary=game.progress.ContentIDs.manifest()
- check(game.admission_error(identity,manifest,Settings.PROTOCOL).is_empty(),"compatible guest admitted in Garden")
- check(not game.admission_error(identity,manifest,0).is_empty() and not game.admission_error(identity,{},Settings.PROTOCOL).is_empty(),"protocol and content mismatch rejected")
- check(not game.admission_error(game.local_character.identity,manifest,Settings.PROTOCOL).is_empty(),"host character cannot join itself")
+ check(SessionCase.World.admission_error(game,identity,manifest,Settings.PROTOCOL).is_empty(),"compatible guest admitted in Garden")
+ check(not SessionCase.World.admission_error(game,identity,manifest,0).is_empty() and not SessionCase.World.admission_error(game,identity,{},Settings.PROTOCOL).is_empty(),"protocol and content mismatch rejected")
+ check(not SessionCase.World.admission_error(game,game.local_character.identity,manifest,Settings.PROTOCOL).is_empty(),"host character cannot join itself")
  ExpeditionCase.set_membership(game, game.players[1], true)
- check(game.admission_error(identity,manifest,Settings.PROTOCOL).contains("Wilds"),"late joining an expedition is explicitly blocked")
+ check(SessionCase.World.admission_error(game,identity,manifest,Settings.PROTOCOL).contains("Wilds"),"late joining an expedition is explicitly blocked")
  ExpeditionCase.set_membership(game, game.players[1], false);game.add_player(2)
- check(not game.allow_remote(2,"action",30),"unregistered peers cannot issue gameplay actions")
- game.players[2].profile_ready=true;game.players[2].seed_owner=identity
- check(not game.admission_error(identity,manifest,Settings.PROTOCOL).is_empty(),"duplicate connected character rejected")
- for i in 30: check(game.allow_remote(2,"action",30),"normal action budget allowed")
- check(not game.allow_remote(2,"action",30),"request burst bounded")
+ check(not SessionCase.World.allow_remote(game,2,"action",30),"unregistered peers cannot issue gameplay actions")
+ SessionCase.set_ready(game, game.players[2], true);SessionCase.set_identity(game, game.players[2], identity)
+ check(not SessionCase.World.admission_error(game,identity,manifest,Settings.PROTOCOL).is_empty(),"duplicate connected character rejected")
+ for i in 30: check(SessionCase.World.allow_remote(game,2,"action",30),"normal action budget allowed")
+ check(not SessionCase.World.allow_remote(game,2,"action",30),"request burst bounded")
  ExpeditionCase.remove_actor(game, 2);game.queue_free();await process_frame
  if not failed: print("PASS: direct-IP settings, validation, cancel, timeout, character safety, admission and request limits")
  quit(1 if failed else 0)

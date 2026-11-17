@@ -1,5 +1,7 @@
 extends Node3D
 
+const Session = preload("res://network_session.gd")
+
 const Participation = preload("res://expedition_participation.gd")
 
 const WeaponMotion=preload("res://weapon_motion.gd")
@@ -282,7 +284,7 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 		var actor: Dictionary = avatar_models[id]
 		actor.name_label.text="YOU" if id==local_id else str(p.get("display_name",p.get("character",{}).get("name","Wanderer")))
 		if PlayerLifecycle.fallen(p): actor.name_label.text+=" · FALLEN"
-		actor.name_label.modulate=[Color("d8edb3"),Color("a3d5ef"),Color("e5bcf2"),Color("efcf9f")][clampi(int(p.get("party_slot",0)),0,3)]
+		actor.name_label.modulate=[Color("d8edb3"),Color("a3d5ef"),Color("e5bcf2"),Color("efcf9f")][clampi(int(Session.slot_for(p,0)),0,3)]
 		update_avatar(avatars[id], actor, p, offset + p.pos, now, delta)
 		var effect: Dictionary=p.get("skill_fx",{})
 		if Participation.is_wild(p) and not effect.is_empty() and not effect.get("event_driven",false) and int(effect.get("seq",0))!=int(actor.get("skill_fx_seq",-1)):

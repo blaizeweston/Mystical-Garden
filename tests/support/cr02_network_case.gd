@@ -1,5 +1,7 @@
 extends RefCounted
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -42,7 +44,7 @@ func read(key: String) -> String:
 
 func guest_id(world: Node) -> int:
 	for id in world.players:
-		if id!=1 and world.players[id].profile_ready: return id
+		if id!=1 and SessionCase.Session.ready_for(world.players[id]): return id
 	return 0
 
 
@@ -69,7 +71,7 @@ func host(menu: Node, mismatch: bool) -> void:
 	menu.host_choice.button_pressed = true
 	menu.new_game()
 	menu.create_character("Affinity Host",0,Appearance.DEFAULT)
-	if not check(await until(func(): return tree.current_scene.get("session")=="Host"),"host opens through guarded title"):
+	if not check(await until(func(): return SessionCase.role(tree.current_scene)=="Host"),"host opens through guarded title"):
 		return
 	var world := tree.current_scene
 	world.network_dialog.dismiss()
@@ -186,7 +188,7 @@ func guest(menu: Node, mismatch: bool) -> void:
 			"normal title displays specific mismatched combat mode"):
 			mark("refused")
 		return
-	if not check(await until(func(): return tree.current_scene.get("session")=="Guest" and tree.current_scene.stage.experimental_garden.remote_revision>=0),"guest joins actual Garden"):
+	if not check(await until(func(): return SessionCase.role(tree.current_scene)=="Guest" and tree.current_scene.stage.experimental_garden.remote_revision>=0),"guest joins actual Garden"):
 		return
 	var world := tree.current_scene
 	check(Rules.active(world) and not world.get_meta(world.Transactions.SESSION).authorizes(world.progress.path),

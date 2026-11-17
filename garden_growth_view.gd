@@ -24,7 +24,7 @@ var hud_layers: Dictionary={}
 var world_labels: Dictionary={}
 var source_context:=""
 func context() -> String:
- return str(game.session=="Guest")+":"+str(game.local_player_id())
+ return str(game.network_session.role()=="Guest")+":"+str(game.local_player_id())
 func _ready() -> void:
  layer=CanvasLayer.new();layer.layer=40;add_child(layer)
  curtain=Control.new();curtain.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);curtain.mouse_filter=Control.MOUSE_FILTER_STOP;layer.add_child(curtain);curtain.hide()
@@ -153,7 +153,7 @@ func _process(delta: float) -> void:
   if not event.is_empty():finish(false)
   return
  var data:=Service.projection(game,id);var pending: Array=data.get("pending",[])
- var safe: bool=not Participation.is_wild(player) and data.get("ready",false) and game.session!="Connecting"
+ var safe: bool=not Participation.is_wild(player) and data.get("ready",false) and game.network_session.role()!="Connecting"
  if not event.is_empty():
   if not safe or source_context!=context():finish(false);return
   animate(elapsed+delta)

@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Session = preload("res://network_session.gd")
+
 const Participation = preload("res://expedition_participation.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -8,7 +10,7 @@ static func members(game: Node,kind: String) -> Array:
  var result: Array=[]
  for id in game.players:
   var p: Dictionary=game.players[id]
-  if not p.get("profile_ready",false) or p.get("rejecting",false): continue
+  if not Session.ready_for(p,false) or Session.rejecting_for(p): continue
   if kind=="depart" or (Participation.is_wild(p) and not PlayerLifecycle.fallen(p)): result.append(id)
  result.sort();return result
 
@@ -46,13 +48,13 @@ static func begin(game: Node,kind: String) -> void:
  validate(game)
 
 static func request(game: Node,id: int,kind: String) -> void:
- if not game.Transactions.session_writable(game) or not game.players.has(id) or not game.players[id].profile_ready: return
+ if not game.Transactions.session_writable(game) or not game.players.has(id) or not Session.ready_for(game.players[id]): return
  if kind!="depart" and game.has_meta(game.Transactions.SESSION) and not game.encounter_rewarded: return
  var p: Dictionary=game.players[id]
  if kind=="depart":
   if game.participation.active() or Participation.is_wild(p): return
   for peer in game.players.values():
-   if not peer.profile_ready or peer.get("rejecting",false): game.tell(id,"Waiting for the connecting player before departure.");return
+   if not Session.ready_for(peer) or Session.rejecting_for(peer): game.tell(id,"Waiting for the connecting player before departure.");return
   if preload("res://combat_ruleset.gd").active(game):
    var refusal := preload("res://affinity_build.gd").departure_refusal(p)
    if not refusal.is_empty():
@@ -120,7 +122,7 @@ static func request(game: Node,id: int,kind: String) -> void:
  clear(game)
  for peer_id in ids:
   if peer_id==game.HOST: game.close_run_flow_panel()
-  elif game.online_peer!=null: game.close_run_flow_panel.rpc_id(peer_id)
+  elif game.network_session.transport()!=null: game.close_run_flow_panel.rpc_id(peer_id)
 
 static func departure_cost(game: Node,ids: Array) -> Dictionary:
  var available: bool=game.progress.finale_available() if game.participation.route()==game.Campaign.HEART else game.progress.campaign.available(game.participation.route())

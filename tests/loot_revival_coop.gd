@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -33,8 +35,8 @@ func run() -> void:
  if not failed: print("PASS: revival co-op ",role," private blue drops, guest/host spectating, authoritative E revival, max-heart penalty and party wipe")
  quit(1 if failed else 0)
 func host_run() -> void:
- check(game.host_game()==OK,"host starts")
- if not await until(func(): return game.players.size()==2 and game.players.values().all(func(p): return p.profile_ready)):
+ check(SessionCase.World.host(game)==OK,"host starts")
+ if not await until(func(): return game.players.size()==2 and game.players.values().all(func(p): return SessionCase.Session.ready_for(p))):
   check(false,"guest registers");return
  var id:=int(game.players.keys()[1]);var p: Dictionary=game.players[id];var host: Dictionary=game.players[1]
  game.battlefield.configure(0,1);game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(12,0,12);game.tactics.stagger_until=Time.get_ticks_msec()+60000;game.encounter.clear_scouts()
@@ -63,15 +65,15 @@ func host_run() -> void:
  IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(host), 100);IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(p), 100)
  check(not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(p) and host.lost_health==0 and p.lost_health==0,"party wipe resets lost hearts")
  check(await until(func(): return marked("wipe")),"guest sees wipe and restored capacity")
- mark("done");check(await until(func(): return game.players.size()==1),"guest leaves normally");game.leave_game("Revival fixture complete")
+ mark("done");check(await until(func(): return game.players.size()==1),"guest leaves normally");SessionCase.World.leave(game,"Revival fixture complete")
 func capture(name: String) -> void:
  if DisplayServer.get_name()=="headless": return
  await create_timer(.3).timeout
  await RenderingServer.frame_post_draw
  get_root().get_texture().get_image().save_png(base+"-"+name+".png")
 func guest_run() -> void:
- game.guest_character.data.name="Revival guest";game.guest_character.save_profile();check(game.join_game()==OK,"guest starts")
- if not await until(func(): return game.session=="Guest" and not game.client_details.is_empty()): check(false,"guest accepted");return
+ game.guest_character.data.name="Revival guest";game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest starts")
+ if not await until(func(): return game.network_session.role()=="Guest" and not game.client_details.is_empty()): check(false,"guest accepted");return
  var id:=game.multiplayer.get_unique_id()
  check(await until(func(): return ExpeditionCase.is_wild(game.players[id]) and game.inventory_drop_visuals.models.has("guest-part")),"guest sees own trophy model")
  var model: Node3D=game.inventory_drop_visuals.models["guest-part"]
@@ -97,4 +99,4 @@ func guest_run() -> void:
  check(await until(func(): return not game.players[1].get("fallen",true) and game.players[1].max_hp==8),"guest sees host revived")
  mark("host-revived")
  check(await until(func(): return not ExpeditionCase.is_wild(game.players[id]) and game.players[id].max_hp==10 and game.players[id].hp==10),"wipe returns guest with full five hearts")
- mark("wipe");check(await until(func(): return marked("done")),"host finishes");game.leave_game("Revival fixture complete")
+ mark("wipe");check(await until(func(): return marked("done")),"host finishes");SessionCase.World.leave(game,"Revival fixture complete")

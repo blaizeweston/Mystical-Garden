@@ -228,7 +228,7 @@ static func interaction(game: Node,id: int,action: String,phase: String,request_
    for key in ["operation","source","target","item","quantity","draft","revision","id","plan"]:
     if payload.has(key):info[key]=payload[key]
  var player: Dictionary=game.players.get(id,{})
- var character: Dictionary=player.get("character",game.guest_character.data if game.session=="Guest" else {})
+ var character: Dictionary=player.get("character",game.guest_character.data if game.network_session.role()=="Guest" else {})
  info.familiarity=character.get("plants",[])
  info.class_choices=character.get("upgrades",[])
  info.garden=garden_state(game)

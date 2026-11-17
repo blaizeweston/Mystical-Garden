@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -84,7 +86,7 @@ func arena() -> void:
 			"renewal_until":0,"guard_until":0,"hurt_until":0,"run_upgrades":{},"weapon":0,
 			"catalyst":0,"secondary":0,"graft_part":0,"core_ready_at":0,"core_cast_until":0,"cast_until":0,
 			"frame":0,"weapon_kind":0,"facing":Vector3.FORWARD},true)
-	ally.profile_ready=false
+	SessionCase.set_ready(game, ally, false)
 	player.character=game.Character.blank()
 
 

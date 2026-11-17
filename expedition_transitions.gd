@@ -247,7 +247,7 @@ static func commit_checkpoint(game: Node, id: int, descend: bool,effects = null)
 		if effects == null:
 			game.close_run_flow_panel()
 			for peer_id in game.players:
-				if peer_id!=game.HOST and game.online_peer!=null: game.close_run_flow_panel.rpc_id(peer_id)
+				if peer_id!=game.HOST and game.network_session.transport()!=null: game.close_run_flow_panel.rpc_id(peer_id)
 		else:
 			for peer_id in game.players: effects.append(game.close_flow_for.bind(peer_id))
 	if descend:
@@ -418,5 +418,5 @@ static func abandon(game: Node, id: int,player: Dictionary) -> void:
 		else:
 			game.resume_checkpoint_if_ready()
 		if id==game.HOST: game.close_run_flow_panel()
-		elif game.online_peer!=null: game.close_run_flow_panel.rpc_id(id)
+		elif game.network_session.transport()!=null: game.close_run_flow_panel.rpc_id(id)
 		return true)

@@ -39,7 +39,7 @@ static func run(game: Node,action: Callable, verdict := {}):
   return nested
  var paths := PackedStringArray([game.progress.path])
  var auxiliary: PackedStringArray = game.progress.migration_backup_paths()
- if game.session != "Guest":
+ if game.network_session.role() != "Guest":
   paths.append(game.local_character.path)
   auxiliary.append_array(game.local_character.migration_backup_paths())
  var result := {}
@@ -74,7 +74,7 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
  # All persistent world mutations and the local character form one commit.
  Batch.record_serializer_error(game.progress.save_garden(), game.progress.path)
  if game.players.has(game.HOST): game.local_character.data=game.players[game.HOST].character
- if game.session!="Guest": Batch.record_serializer_error(game.local_character.save_profile(), game.local_character.path)
+ if game.network_session.role()!="Guest": Batch.record_serializer_error(game.local_character.save_profile(), game.local_character.path)
  var error:=Batch.commit()
  verdict.error = error
  if error!=OK:
@@ -105,14 +105,14 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
  preload("res://diagnostic_journal.gd").event("save","transaction_committed",{"transaction_seq":diagnostic_transaction})
  preload("res://game_metrics.gd").flush(true)
  # Presentation confirms only committed outcomes; a rollback must not show damage.
- if game.online_peer!=null and game.multiplayer.is_server():
+ if game.network_session.transport()!=null and game.multiplayer.is_server():
   for source in game.combat_events:
    if int(source.id)<=int(state.get("combat_event_serial",0)):continue
    var event: Dictionary=source.duplicate();event.erase("born");event.age=maxf(0,(Time.get_ticks_msec()-int(source.born))/1000.0)
    game.receive_combat_event.rpc(event,str([game.participation.route(),game.participation.floor(),game.participation.seed()]))
  var publishes: Array=game.transaction_publishes.duplicate();game.transaction_publishes.clear()
  for id in publishes:
-  if id!=game.HOST and game.players.has(id) and game.online_peer!=null: game.receive_character.rpc_id(id,game.players[id].character)
+  if id!=game.HOST and game.players.has(id) and game.network_session.transport()!=null: game.receive_character.rpc_id(id,game.players[id].character)
  return result
 
 const SESSION := &"guarded_title_session"
@@ -340,11 +340,11 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
 
 static func _serializers(game: Node, scope: Scope) -> Array:
  match scope:
-  Scope.GARDEN: return [game.progress] if game.session in ["Solo", "Host"] else []
-  Scope.PROFILE: return [game.local_character] if game.session in ["Solo", "Host"] else []
-  Scope.PAIR: return [game.progress, game.local_character] if game.session in ["Solo", "Host"] else []
-  Scope.GUEST_PROFILE: return [game.guest_character] if game.session == "Guest" else []
- return [game.progress] if game.session == "Guest" else [game.progress, game.local_character]
+  Scope.GARDEN: return [game.progress] if game.network_session.role() in ["Solo", "Host"] else []
+  Scope.PROFILE: return [game.local_character] if game.network_session.role() in ["Solo", "Host"] else []
+  Scope.PAIR: return [game.progress, game.local_character] if game.network_session.role() in ["Solo", "Host"] else []
+  Scope.GUEST_PROFILE: return [game.guest_character] if game.network_session.role() == "Guest" else []
+ return [game.progress] if game.network_session.role() == "Guest" else [game.progress, game.local_character]
 
 static func _refusal(error: Error, reason: String, state := "invalid") -> Dictionary:
  return {"error": error, "state": state, "ran": false, "reason": reason, "release_error": OK, "value": null}

@@ -1,4 +1,6 @@
 extends SceneTree
+
+const SessionCase = preload("res://tests/support/session_case.gd")
 var game: Node
 var failed:=false
 func check(value: bool,message: String):
@@ -16,12 +18,12 @@ func run():
 	game.guest_character.path=game.progress.path+".guest"
 	root.add_child(game)
 	if mode=="host":
-		check(game.host_game()==OK,"host opens")
+		check(SessionCase.World.host(game)==OK,"host opens")
 		print("SEED HOST READY")
 		if not await until(func(): return game.players.size()==2):
 			check(false,"guest joins");quit(1);return
 		var id: int=game.players.keys()[1]
-		if not await until(func(): return game.players[id].profile_ready):
+		if not await until(func(): return SessionCase.Session.ready_for(game.players[id])):
 			check(false,"guest profile ready");quit(1);return
 		check(game.players[id].character.plants[14]==8 and game.players[id].character.plants[23]==12,"all 24 familiarity entries transfer")
 		var p: Dictionary=game.players[id]
@@ -41,8 +43,8 @@ func run():
 		game.guest_character.data.plants[14]=8
 		game.guest_character.data.plants[23]=12
 		game.guest_character.save_profile()
-		check(game.join_game()==OK,"guest connects")
-		if not await until(func(): return game.session=="Guest" and game.client_inventory.size()>6 and game.client_inventory[6][3]==1):
+		check(SessionCase.World.join(game)==OK,"guest connects")
+		if not await until(func(): return game.network_session.role()=="Guest" and game.client_inventory.size()>6 and game.client_inventory[6][3]==1):
 			check(false,"expanded inventory arrives");quit(1);return
 		var id: int=game.multiplayer.get_unique_id()
 		check(game.players[id].reserve_parts[17]==2,"expanded private part inventory arrives")

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -33,7 +35,7 @@ func run() -> void:
 	game.set_process(false)
 	game.set_physics_process(false)
 	var p: Dictionary=game.players[1]
-	ExpeditionCase.set_membership(game, p, true);p.profile_ready=true;p.pos=Vector3(-4,0,0)
+	ExpeditionCase.set_membership(game, p, true);SessionCase.set_ready(game, p, true);p.pos=Vector3(-4,0,0)
 	game.battlefield.procedural=false;game.battlefield.barriers.clear()
 	game.encounter.set_hp(-1, 200);game.tactics.position=Vector3(1.4,0,0)
 	game.encounter.clear_scouts()
@@ -53,7 +55,7 @@ func run() -> void:
 	check(game.enemy_health()==175 and not game.has_meta(Void.PENDING) and game.tactics.position.x>1.39,"refined damage survives native knockback conflict")
 	game.add_player(2)
 	var ally: Dictionary=game.players[2]
-	ExpeditionCase.set_membership(game, ally, true);ally.profile_ready=true;ally.pos=Vector3(7,0,7)
+	ExpeditionCase.set_membership(game, ally, true);SessionCase.set_ready(game, ally, true);ally.pos=Vector3(7,0,7)
 	var old_action:=action(game,2,"form",part,["weapon_contact"])
 	Void.queue_motion(game,old_action,-1,Vector3(7,0,0),true,.7)
 	ally[PlayerLifecycle.STATE]=PlayerLifecycle.start_life()

@@ -1,4 +1,6 @@
 extends SceneTree
+
+const SessionCase = preload("res://tests/support/session_case.gd")
 const Tx = preload("res://game_transaction.gd")
 const Batch = preload("res://save_batch.gd")
 const Progress = preload("res://progress.gd")
@@ -21,7 +23,7 @@ class TransactionFixture extends Node:
  var players := {}
  var transaction_publishes := []
  var rng := RandomNumberGenerator.new()
- var session := "Solo"
+ var network_session := SessionCase.Session.new()
  var score := 0
 
 func _initialize() -> void:
@@ -191,7 +193,7 @@ func run() -> void:
  check(Ops.recover(PackedStringArray([G])).value.verified, "B2 committed cleanup")
 
  var guest := model()
- guest.session = "Guest"
+ SessionCase.set_role(guest, "Guest")
  var guest_before := hashes()
  verify_outcome("guest_garden_only", Tx.run_guarded(guest, func():
   guest.progress.knowledge = 79), Batch.Outcome.COMMITTED, guest_before)

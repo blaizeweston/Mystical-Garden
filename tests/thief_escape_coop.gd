@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const Escape = preload("res://thief_escape.gd")
@@ -38,8 +40,8 @@ func run() -> void:
 		await host()
 	else:
 		await guest()
-	game.leave_game("Fixture complete")
-	check(game.online_peer == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer, "network shuts down before world removal")
+	SessionCase.World.leave(game,"Fixture complete")
+	check(game.network_session.transport() == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer, "network shuts down before world removal")
 	game.queue_free()
 	await process_frame
 	if not failed:
@@ -48,8 +50,8 @@ func run() -> void:
 
 
 func host() -> void:
-	check(game.host_game()==OK,"host starts")
-	if not await until(func(): return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):
+	check(SessionCase.World.host(game)==OK,"host starts")
+	if not await until(func(): return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
 		check(false,"guest profile reaches the host")
 		return
 	var at := Vector3(0,0,-6)
@@ -71,8 +73,8 @@ func host() -> void:
 
 
 func guest() -> void:
-	check(game.join_game()==OK,"guest connects")
-	if not await until(func(): return game.session=="Guest" and game.exploration.thief_routes.size()==1 and game.status.contains("stole a trophy")):
+	check(SessionCase.World.join(game)==OK,"guest connects")
+	if not await until(func(): return game.network_session.role()=="Guest" and game.exploration.thief_routes.size()==1 and game.status.contains("stole a trophy")):
 		check(false,"thief marker and party alert reach the guest")
 		return
 	var audio: Node = game.get_node("EventAudio")

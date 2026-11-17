@@ -1,4 +1,6 @@
 extends SceneTree
+
+const SessionCase = preload("res://tests/support/session_case.gd")
 var game: Node
 var role: String
 var base: String
@@ -22,8 +24,8 @@ func run() -> void:
  if not failed:print("PASS: crafting availability co-op ",role," immediate slot filtering, authoritative reservations, release/reselect and live stack counts")
  quit(1 if failed else 0)
 func host_run() -> void:
- check(game.host_game()==OK,"host opens")
- if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):
+ check(SessionCase.World.host(game)==OK,"host opens")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
   check(false,"guest registers: "+game.status+" / peers "+str(game.players.keys()));return
  var id=int(game.players.keys()[1]);var p: Dictionary=game.players[id]
  game.progress.parts.fill(0);game.seed_reserve(p).parts.fill(0);game.progress.parts[0]=1
@@ -47,10 +49,10 @@ func host_run() -> void:
  check(game.InventoryModel.counts(game,host,"shared").get(game.Items.seed_id(0),0)==2,"host sees shared seed stack")
  game.send_inventory_action("transfer","shared","stash",game.Items.seed_id(0),2)
  check(await until(func():return marked("seed-removed")),"guest sees host withdrawal")
- mark("done");check(await until(func():return game.players.size()==1),"guest disconnects");game.leave_game("Crafting fixture complete")
+ mark("done");check(await until(func():return game.players.size()==1),"guest disconnects");SessionCase.World.leave(game,"Crafting fixture complete")
 func guest_run() -> void:
- game.guest_character.save_profile();check(game.join_game()==OK,"guest joins")
- if not await until(func():return game.session=="Guest" and not game.client_details.is_empty()):check(false,"guest accepted: "+game.status+" / "+game.session);return
+ game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")
+ if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty()):check(false,"guest accepted: "+game.status+" / "+game.network_session.role());return
  var id=game.multiplayer.get_unique_id();var view=game.loadout_view
  check(await until(func():return game.players[id].pos.distance_to(game.Stage.GATE)<1 and game.players[id].get("stored_parts",[]).size()>1 and int(game.players[id].stored_parts[1])==1),"owned counts arrive")
  game.open_gate_preparation();view.refresh()
@@ -77,4 +79,4 @@ func guest_run() -> void:
  game.send_inventory_action("transfer","stash","shared",game.Items.seed_id(0),2)
  check(await until(func():return game.inventory_ui_data().get("shared",[]).any(func(s):return s.item==game.Items.seed_id(0) and s.quantity==2)),"guest sees seed sharing acknowledged");mark("seed-shared")
  check(await until(func():return not game.inventory_ui_data().get("shared",[]).any(func(s):return s.item==game.Items.seed_id(0))),"host withdrawal updates guest inventory");mark("seed-removed")
- check(await until(func():return marked("done")),"host finishes");game.leave_game("Crafting fixture complete")
+ check(await until(func():return marked("done")),"host finishes");SessionCase.World.leave(game,"Crafting fixture complete")

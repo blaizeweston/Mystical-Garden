@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 var game: Node
 var failed:=false
@@ -7,7 +9,7 @@ func check(ok: bool,message: String):
  if not ok: failed=true;printerr("FAIL party ready: ",message)
 func _initialize(): call_deferred("run")
 func setup_guest():
- game.add_player(2);game.players[2].profile_ready=true;game.players[2].seed_owner="b".repeat(32)
+ game.add_player(2);SessionCase.set_ready(game, game.players[2], true);SessionCase.set_identity(game, game.players[2], "b".repeat(32))
  game.players[1].character.name="Rowan";game.players[2].character.name="Fern"
  for p in game.players.values(): p.pos=game.Stage.GATE
 func cleared(floor_number: int):
@@ -63,7 +65,7 @@ func run():
  ExpeditionCase.Transitions.enter(game, 1,host);ExpeditionCase.Transitions.enter(game, 2,guest)
  check(not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(guest) and game.progress.parts[0]==1,"competing loadouts fail atomically without consuming resources")
  host.prepared=0;guest.prepared=0;ExpeditionCase.Transitions.enter(game, 1,host)
- game.remove_player(2)
+ SessionCase.World.remove(game,2)
  check(not ExpeditionCase.is_wild(host) and game.participation.travel_kind().is_empty(),"disconnect clears ready check without automatic departure")
  # A shared shortcut payment must reserve both players' components, not only the initiator's.
  setup_guest();guest=game.players[2];game.progress.campaign.cleared[0]=true;ExpeditionCase.set_world(game, {"destination": game.Campaign.MIRE})

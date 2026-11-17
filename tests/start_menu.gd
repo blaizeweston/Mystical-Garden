@@ -1,4 +1,6 @@
 extends SceneTree
+
+const SessionCase = preload("res://tests/support/session_case.gd")
 const Slots=preload("res://save_slots.gd")
 const Progress=preload("res://progress.gd")
 const Character=preload("res://character_profile.gd")
@@ -127,8 +129,8 @@ func run():
 	menu.select_character(1)
 	menu.join_game()
 	world=current_scene
-	check(world.session=="Connecting" and world.guest_character.path==menu.characters.paths(1).character,"main-menu Join uses the selected character")
-	world.on_connection_failed()
+	check(world.network_session.role()=="Connecting" and world.guest_character.path==menu.characters.paths(1).character,"main-menu Join uses the selected character")
+	SessionCase.World.connection_failed(world)
 	await process_frame
 	menu=current_scene
 	check(menu.notice.text.contains("Could not connect") and not slots.summary(1).exists,"failed Join returns to title without creating or replacing a Garden")

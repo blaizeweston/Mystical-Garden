@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -154,7 +156,7 @@ func orchard_pressure(game: Node, now: int) -> void:
  for id in range(2,5):
   game.add_player(id)
   ExpeditionCase.set_membership(game, game.players[id], true)
-  game.players[id].profile_ready=true
+  SessionCase.set_ready(game, game.players[id], true)
  for stamp in range(17,41):
   build(game,Routes.ORCHARD,stamp*73)
   game.tactics.boss_phase=2

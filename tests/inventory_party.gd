@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Model=preload("res://inventory_model.gd")
 const Items=preload("res://item_catalog.gd")
@@ -10,7 +12,7 @@ func _initialize():call_deferred("run")
 func run():
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/inventory-party-"+str(Time.get_ticks_usec());game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.GATE;p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0;p.cargo_plan.fill(0)
- var friend: Dictionary=p.duplicate(true);friend.seed_owner="inventory-test-friend";ExpeditionCase.install_actor(game, 2, friend)
+ var friend: Dictionary=p.duplicate(true);SessionCase.set_identity(game, friend, "inventory-test-friend");ExpeditionCase.install_actor(game, 2, friend)
  var own: Dictionary=game.seed_reserve(p);var theirs: Dictionary=game.seed_reserve(friend)
  own.parts.fill(0);theirs.parts.fill(0);game.progress.parts.fill(0);own.stock.fill(0);theirs.stock.fill(0);game.progress.parts[0]=1
  game.handle_loadout_action(1,p,"loadpart_0_1")

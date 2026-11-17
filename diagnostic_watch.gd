@@ -24,7 +24,7 @@ func _process(delta: float) -> void:
 func tick(sample: bool=false) -> void:
  var journal=Journal.current
  if not is_instance_valid(journal) or not is_instance_valid(game):return
- var role: String=game.session;var peer: int=game.multiplayer.get_unique_id()
+ var role: String=game.network_session.role();var peer: int=game.multiplayer.get_unique_id()
  var host: Dictionary=game.players.get(1,{})
  var context={"role":role,"peer":peer,"host_session":journal.session_id if game.multiplayer.is_server() else host.get("diagnostic_host",""),"world_session":world_session if game.multiplayer.is_server() else host.get("diagnostic_world",""),"floor":game.participation.floor(),"biome":game.participation.route(),"map_seed":game.participation.seed(),"cycle":game.participation.cycle(),"combat_epoch":game.participation.epoch()}
  journal.set_context(context)
@@ -51,9 +51,9 @@ func tick(sample: bool=false) -> void:
    stall_reported=true;Journal.event("network","snapshot_stall",{"last_sequence":sequence,"silence_ms":now-last_packet_at},"warning")
  if sample:
   var transport={}
-  if game.online_peer!=null and game.online_peer.get_connection_status()==MultiplayerPeer.CONNECTION_CONNECTED:
+  if game.network_session.transport()!=null and game.network_session.transport().get_connection_status()==MultiplayerPeer.CONNECTION_CONNECTED:
    for id in (game.multiplayer.get_peers() if game.multiplayer.is_server() else PackedInt32Array([1])):
-    var packet: ENetPacketPeer=game.online_peer.get_peer(int(id))
+    var packet: ENetPacketPeer=game.network_session.transport().get_peer(int(id))
     if packet!=null and packet.is_active():transport[id]={"rtt_ms":packet.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME),"enet_reliable_loss_percent_estimate":100.0*packet.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS)/ENetPacketPeer.PACKET_LOSS_SCALE,"loss_epoch_ms":packet.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS_EPOCH)}
   var positions={}
   for id in game.players:

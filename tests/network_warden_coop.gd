@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -41,12 +43,12 @@ func prepare(p: Dictionary,variant: int) -> void:
  p.frame=0;p.weapon_kind=0;p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0);p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0);p.character.active_class=0;p.character.upgrades[0]=variant;p.character.xp[0]=int(game.Character.LEVEL_THRESHOLDS.back())
  game.publish_character(int(game.players.keys()[1]))
 func host_run() -> void:
- check(game.host_game()==OK,"host opens")
+ check(SessionCase.World.host(game)==OK,"host opens")
  for kind in ["schema","protocol","growth","old_growth","garden","old_garden","legacy"]:
   check(await until(func(): return marked("rejected-"+kind)),"incompatible "+kind+" probe finishes")
   check(game.players.size()==1,"incompatible "+kind+" never creates a gameplay player")
   mark("confirmed-"+kind)
- if not await until(func(): return game.players.size()==2 and game.players.values().all(func(p): return p.profile_ready)):
+ if not await until(func(): return game.players.size()==2 and game.players.values().all(func(p): return SessionCase.Session.ready_for(p))):
   check(false,"compatible Warden admitted");return
  var id:=int(game.players.keys()[1]);var p: Dictionary=game.players[id]
  check(p.frame==0,"guest is Warden")
@@ -58,7 +60,7 @@ func host_run() -> void:
   mark("spam-"+str(variant))
   check(await until(func(): return marked("spammed-"+str(variant))),"guest remains alive through cleared-floor requests")
   check([p[Cooldowns.STATE].deadline(Cooldowns.Q),p[Cooldowns.STATE].deadline(Cooldowns.R)]==cooldowns and int(p.get("skill_fx_seq",0))==fx and PlayerVitals.current_hp(p)==health,"cleared-floor requests cause no cast, cooldown, health or FX changes")
-  check(game.players.has(id) and game.players[id].profile_ready,"guest remains registered")
+  check(game.players.has(id) and SessionCase.Session.ready_for(game.players[id]),"guest remains registered")
   mark("checked-"+str(variant))
   check(await until(func(): return marked("ack-"+str(variant))),"guest receives host acknowledgement")
  prepare(p,0);mark("next")
@@ -66,12 +68,12 @@ func host_run() -> void:
  check(p[Cooldowns.STATE].deadline(Cooldowns.Q)>0,"post-clear guest still sends working abilities")
  mark("done")
  check(await until(func(): return game.players.size()==1),"guest leaves normally")
- game.leave_game("Warden fixture complete")
+ SessionCase.World.leave(game,"Warden fixture complete")
 func bad_begin(id: int,kind: String) -> void:
- game.set_meta("join_phase","compatibility")
+ game.network_session.compatibility_started()
  if kind=="legacy": return # old peer sends no pre-RPC compatibility data
- var payload: Dictionary={"game":"mystical-garden","protocol":game.Network.PROTOCOL,"methods":game.network_compatibility.signature,"terrain":preload("res://wilds_layout.gd").SIGNATURE,"garden":preload("res://garden_return_catalog.gd").signature,"cultivation":preload("res://cultivation_growth.gd").signature}
- if kind=="schema": payload.methods="different-rpc-layout"
+ var payload: Dictionary={"game":"mystical-garden","protocol":game.Network.PROTOCOL,"contract":game.network_compatibility.signature,"terrain":preload("res://wilds_layout.gd").SIGNATURE,"garden":preload("res://garden_return_catalog.gd").signature,"cultivation":preload("res://cultivation_growth.gd").signature}
+ if kind=="schema": payload.contract="different-rpc-layout"
  elif kind=="growth": payload.cultivation="different-growth-rules"
  elif kind=="old_growth": payload.erase("cultivation")
  elif kind=="garden": payload.garden="different-garden-catalog"
@@ -92,16 +94,16 @@ func guest_run() -> void:
   var callback:=bad_begin.bind(kind)
   game.multiplayer.peer_authenticating.connect(callback)
   game.multiplayer.auth_timeout=.6 if kind=="legacy" else 3.0
-  check(game.join_game()==OK,"start incompatible "+kind+" probe")
-  check(await until(func(): return game.session=="Solo"),"incompatible "+kind+" rejected before gameplay")
+  check(SessionCase.World.join(game)==OK,"start incompatible "+kind+" probe")
+  check(await until(func(): return game.network_session.role()=="Solo"),"incompatible "+kind+" rejected before gameplay")
   check(game.status.contains("same") and game.status.contains("build"),"incompatibility asks peers to use the same build: "+game.status)
   check(game.guest_character.data.xp[0]==0,"incompatible peer preserves character")
   game.multiplayer.peer_authenticating.disconnect(callback)
   mark("rejected-"+kind)
   check(await until(func(): return marked("confirmed-"+kind)),"host confirms rejection")
  game.multiplayer.auth_timeout=10.0;game.multiplayer.peer_authenticating.connect(game.network_compatibility.begin_check)
- check(game.join_game()==OK,"compatible guest connects")
- check(await until(func(): return game.session=="Guest" and not game.client_details.is_empty()),"compatible guest accepted")
+ check(SessionCase.World.join(game)==OK,"compatible guest connects")
+ check(await until(func(): return game.network_session.role()=="Guest" and not game.client_details.is_empty()),"compatible guest accepted")
  var id:=game.multiplayer.get_unique_id()
  for variant in [0,10]:
   check(await until(func(): return marked("ready-"+str(variant)) and ExpeditionCase.is_wild(game.players.get(id,{})) and not game.encounter_cleared() and game.guest_character.data.upgrades[0]==variant),"combat and class choices arrive variant "+str(variant))
@@ -119,7 +121,7 @@ func guest_run() -> void:
    game.request_garden_action.rpc_id(1,aim.request(game,game.players[id],1,Vector2.DOWN))
    await create_timer(.12).timeout
   await create_timer(.4).timeout
-  check(game.session=="Guest" and game.players.has(id),"guest survives cleared-floor input")
+  check(game.network_session.role()=="Guest" and game.players.has(id),"guest survives cleared-floor input")
   mark("spammed-"+str(variant))
   check(await until(func(): return marked("checked-"+str(variant))),"host validates unchanged cleared state")
   mark("ack-"+str(variant))
@@ -127,4 +129,4 @@ func guest_run() -> void:
  cast("class_skill")
  check(await until(func(): return not game.players[id].get("skill_ready",true)),"abilities work again in next encounter");mark("next-cast")
  check(await until(func(): return marked("done")),"host completes")
- game.leave_game("Warden fixture complete")
+ SessionCase.World.leave(game,"Warden fixture complete")

@@ -1,4 +1,6 @@
 extends RefCounted
+
+const Session = preload("res://network_session.gd")
 ## All combat participants in one session use the same health scale.
 const PlayerVitals = preload("res://player_vitals.gd")
 const Vitals = preload("res://combat_vitals.gd")
@@ -81,7 +83,7 @@ static func apply_heal(actor: Dictionary, rolled_hp: int, source: String, limit_
 	if enabled and rolled_hp > 0:
 		var journal = preload("res://diagnostic_journal.gd")
 		if is_instance_valid(journal.current) and journal.current.detail:
-			journal.event("combat", "healing_applied", {"source":source,"party_slot":actor.get("party_slot",-1),
+			journal.event("combat", "healing_applied", {"source":source,"party_slot":Session.slot_for(actor,-1),
 				"rolled_hp":rolled_hp,"applied_hp":applied,"hp":applied_health.hp(),"max_hp":applied_health.max_hp()},"debug")
 	return applied
 

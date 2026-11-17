@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Session = preload("res://network_session.gd")
+
 const Participation = preload("res://expedition_participation.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -9,7 +11,7 @@ static func config() -> Dictionary:
 static func party_size(game: Node) -> int:
  var count:=0
  for p in game.players.values():
-  if p.get("profile_ready",false) and (Participation.is_wild(p) or not game.participation.active()) and not PlayerLifecycle.fallen(p): count+=1
+  if Session.ready_for(p,false) and (Participation.is_wild(p) or not game.participation.active()) and not PlayerLifecycle.fallen(p): count+=1
  return maxi(1,count)
 static func scout_count(game: Node) -> int:
  if game.participation.route()==game.Campaign.HEART: return mini(game.EncounterConfig.MAX_SCOUTS,4+2*(party_size(game)-1))

@@ -1,4 +1,6 @@
 extends SceneTree
+
+const SessionCase = preload("res://tests/support/session_case.gd")
 const Slots=preload("res://save_slots.gd")
 const Owner=preload("res://guarded_title_session.gd")
 const G="user://saves/slot_1/garden.cfg"
@@ -83,25 +85,25 @@ func host_run() -> void:
  menu.host_choice.button_pressed=true
  menu.continue_game()
  var world:=current_scene
- if world==menu or world.session!="Host":
+ if world==menu or world.network_session.role()!="Host":
   check(false,"host continues and starts through the actual title")
   return
  var refused:=Slots._save_digest(G)
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,path):
   if phase=="stage" and path==G+".txn_stage":return ERR_FILE_CANT_WRITE
   return OK)
- mark("listening",str(world.network_port))
+ mark("listening",str(world.network_session.port()))
  if not await until(func():return read("refused").contains("cancelled") and world.multiplayer.get_peers().is_empty()):
   check(false,"first admission refuses failed host persistence: "+read("refused"))
   return
  check(Slots._save_digest(G)==refused,"failed admission preserves host Garden")
  world.remove_meta(&"guarded_gameplay_test_fault")
  mark("admission-ready")
- if not await until(func():return read("joined")=="yes" and world.players.values().filter(func(p):return p.profile_ready).size()==2):
+ if not await until(func():return read("joined")=="yes" and world.players.values().filter(func(p):return SessionCase.Session.ready_for(p)).size()==2):
   check(false,"guest enters actual guarded host")
   return
  var original: String=read("peer")
- check(await until(func():return read("reconnected")=="yes" and world.players.values().filter(func(p):return p.profile_ready).size()==2),"guest disconnects and reconnects through title without waiting for host callback")
+ check(await until(func():return read("reconnected")=="yes" and world.players.values().filter(func(p):return SessionCase.Session.ready_for(p)).size()==2),"guest disconnects and reconnects through title without waiting for host callback")
  var ids: Array=world.players.keys().filter(func(id):return id!=1)
  check(ids.size()==1 and str(ids[0])!=original,"reconnect is a fresh network peer")
  check(Slots._save_digest(Unowned+".transaction")==proof_hash and not FileAccess.file_exists(Unowned),"unowned Garden and evidence preserved")
@@ -131,7 +133,7 @@ func guest_run() -> void:
   check(false,"failed admission returns to title")
   return
  menu=current_scene
- check(not is_instance_valid(world) or world.online_peer==null,"refused join went offline")
+ check(not is_instance_valid(world) or world.network_session.transport()==null,"refused join went offline")
  check(Slots._save_digest(P)==before and not FileAccess.file_exists(P.get_base_dir().path_join("session.cfg")),"failed join unwinds selected profile lease")
  mark("refused",menu.return_message)
  if not await until(func():return read("admission-ready")=="ready"):
@@ -139,18 +141,18 @@ func guest_run() -> void:
   return
  world=launch_guest(menu)
  if world==null: return
- if not await until(func():return is_instance_valid(world) and world.session=="Guest" and not world.client_details.is_empty()):
+ if not await until(func():return is_instance_valid(world) and world.network_session.role()=="Guest" and not world.client_details.is_empty()):
   check(false,"first successful admission")
   return
  mark("peer",str(world.local_player_id()))
  mark("joined","yes")
- world.leave_game("Reconnect from title")
+ SessionCase.World.leave(world,"Reconnect from title")
  menu=current_scene
  check(menu!=world and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"guest offline before old world detaches")
  await process_frame
  world=launch_guest(menu)
  if world==null: return
- if not await until(func():return is_instance_valid(world) and world.session=="Guest" and not world.client_details.is_empty()):
+ if not await until(func():return is_instance_valid(world) and world.network_session.role()=="Guest" and not world.client_details.is_empty()):
   check(false,"reconnect through guarded title")
   return
  mark("reconnected","yes")

@@ -1,5 +1,6 @@
 extends Node3D
 
+const Session = preload("res://network_session.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 const Core = preload("res://core_combat.gd")
 const Targeting = preload("res://class_ability_targeting.gd")
@@ -25,11 +26,11 @@ static func player(game_node: Node) -> Dictionary:
 
 
 static func available(game_node: Node, local: Dictionary, requested_slot: int) -> bool:
-	return game_node.session != "Connecting" and not game_node.returning_to_title and not game_node.overlay.visible and not game_node.checkpoint_menu.visible \
+	return game_node.network_session.role() != "Connecting" and not game_node.returning_to_title and not game_node.overlay.visible and not game_node.checkpoint_menu.visible \
 		and not game_node.get_meta("garden_cinematic_active", false) and not (game_node.settings_dialog != null and game_node.settings_dialog.visible) \
-		and game_node.Life.alive(local) \
+		and game_node.Life.alive(local) and not Core.cast_key(game_node,local).is_empty() \
 		and (not game_node.encounter_cleared() or (requested_slot == 2 and can_recover(game_node, local))) \
-		and (game_node.multiplayer.is_server() or (game_node.session == "Guest" and game_node.client_details_key == str([game_node.participation.route(), game_node.participation.floor(), game_node.participation.seed()])))
+		and (game_node.multiplayer.is_server() or (game_node.network_session.role() == "Guest" and game_node.client_details_key == str([game_node.participation.route(), game_node.participation.floor(), game_node.participation.seed()])))
 
 
 static func can_recover(game: Node, player: Dictionary) -> bool:
@@ -98,14 +99,28 @@ static func identity(event: InputEvent) -> Array:
 
 
 static func request(game_node: Node, local: Dictionary, class_slot: int, direction: Vector2, distance: float = -1.0) -> String:
-	return PREFIX + "%s:%d:%s:%s:%s" % [Core.cast_key(game_node, local), class_slot, direction.x, direction.y, distance]
+	var stamp := Core.cast_key(game_node,local)
+	return PREFIX + "%s:%d:%s:%s:%s" % [stamp, class_slot, direction.x, direction.y, distance] if not stamp.is_empty() else ""
+
+
+## Automatic targeting uses the existing native class path. This transport
+## form changes identity validation only; it does not install aimed overrides.
+static func request_native(game_node: Node, local: Dictionary, class_slot: int) -> String:
+	var stamp := Core.cast_key(game_node,local)
+	return PREFIX + "%s:%d:native" % [stamp,class_slot] if not stamp.is_empty() and class_slot in [0,1] else ""
 
 
 static func command(game_node: Node, id: int, local: Dictionary, action: String) -> void:
-	if not game_node.multiplayer.is_server() or not game_node.Life.alive(local) or not local.get("profile_ready", false) or game_node.encounter_cleared():
+	if not game_node.multiplayer.is_server() or not game_node.Life.alive(local) or not game_node.network_session.ready(id) or Session.peer_for(local) != id or game_node.encounter_cleared():
 		return
 	var args := action.split(":", true, 5)
-	if args.size() not in [5,6] or args[1] != Core.cast_key(game_node, local) or args[2] not in ["0", "1"] or not args[3].is_valid_float() or not args[4].is_valid_float():
+	var stamp := Core.cast_key(game_node,local)
+	if stamp.is_empty() or args.size() not in [4,5,6] or args[1] != stamp or args[2] not in ["0", "1"]:
+		return
+	if args.size() == 4:
+		if args[3] == "native": game_node.use_class_skill(id,local,int(args[2]))
+		return
+	if not args[3].is_valid_float() or not args[4].is_valid_float():
 		return
 	var direction := Vector2(float(args[3]), float(args[4]))
 	if not direction.is_finite() or absf(direction.x) > 1.001 or absf(direction.y) > 1.001 or direction.length_squared() < .01:

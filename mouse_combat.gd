@@ -32,7 +32,7 @@ func release(game: Node) -> void:
  armed=false
  var id: int=game.multiplayer.get_unique_id()
  if states.has(id):states[id].held=false
- if game.session=="Guest" and game.online_peer!=null and id!=game.HOST and game.multiplayer.get_peers().has(game.HOST) and game.players.has(id):
+ if game.network_session.role()=="Guest" and game.network_session.transport()!=null and id!=game.HOST and game.multiplayer.get_peers().has(game.HOST) and game.players.has(id):
   var aim: Vector3=game.players[id].get("facing",Vector3.FORWARD) if local_aim.is_zero_approx() else local_aim
   game.submit_combat.rpc_id(game.HOST,Vector2(aim.x,aim.z),false)
 func frame(game: Node) -> void:
@@ -61,7 +61,7 @@ func frame(game: Node) -> void:
  var cursor_aim:=aim*(distance+2.0) if distance>=0.0 else aim
  if game.multiplayer.is_server():
   receive(game,id,cursor_aim,held,now)
- elif game.session=="Guest" and now>=next_send:
+ elif game.network_session.role()=="Guest" and now>=next_send:
   next_send=now+50;game.submit_combat.rpc_id(game.HOST,cursor_aim,held)
   if not blocked:p.mouse_aim=true;p.facing=Vector3(aim.x,0,aim.y)
  draw_indicator(game,p,aim,not blocked and bool(game.app_settings.values.aim_indicator))

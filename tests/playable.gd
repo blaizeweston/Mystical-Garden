@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -412,7 +414,7 @@ func seed_for_roll(threshold: float, succeeds: bool) -> int:
 
 
 func verify_hook_grafting() -> void:
-	game.leave_game("Four-slot graft fixture")
+	SessionCase.World.leave(game,"Four-slot graft fixture")
 	var p: Dictionary=game.players[1]
 	place(1,Stage.HEART)
 	game.select_class(1,p,Frames.WARDEN)
@@ -506,7 +508,7 @@ func verify_modular_parts() -> void:
 
 func verify_class_frames() -> void:
 	var p: Dictionary = game.players[1]
-	game.leave_game("Class test reset")
+	SessionCase.World.leave(game,"Class test reset")
 	p = game.players[1]
 	place(1, Stage.GATE)
 	game.send_garden_action("frame")
@@ -538,7 +540,7 @@ func verify_class_frames() -> void:
 	check(game.enemy_health() == 2, "staff and Thorn reach combine")
 	game.send_garden_action("frame")
 	check(p.frame == Frames.CASTER, "frame cannot change mid-expedition")
-	game.leave_game("Guard test reset")
+	SessionCase.World.leave(game,"Guard test reset")
 	p = game.players[1]
 	place(1,Stage.HEART)
 	game.select_class(1,p,Frames.WARDEN)
@@ -556,7 +558,7 @@ func verify_class_frames() -> void:
 func verify_adaptation() -> void:
 	game.progress.wilds_memory=game.Learning.blank()
 	game.progress.burst_pressure=0;game.progress.choke_pressure=0
-	game.leave_game("Adaptation test reset")
+	SessionCase.World.leave(game,"Adaptation test reset")
 	var p: Dictionary = game.players[1]
 	place(1, Stage.HEART)
 	game.send_garden_action("frame")
@@ -610,7 +612,7 @@ func verify_adaptation() -> void:
 
 
 func verify_character_progress() -> void:
-	game.leave_game("Character test reset")
+	SessionCase.World.leave(game,"Character test reset")
 	var p: Dictionary = game.players[1]
 	var profile: Dictionary = p.character
 	check(profile.xp[Frames.WARDEN] > 0 and profile.xp[Frames.CASTER] > 0,
@@ -668,7 +670,7 @@ func restore_heart_fixture() -> void:
 
 
 func verify_endless_route() -> void:
-	game.leave_game("Endless test reset")
+	SessionCase.World.leave(game,"Endless test reset")
 	game.progress.campaign = Campaign.new()
 	game.progress.parts.assign([0, 0, 0])
 	var p: Dictionary = game.players[1]
@@ -749,7 +751,7 @@ func verify_endless_route() -> void:
 
 
 func verify_spaced_pack() -> void:
-	game.leave_game("Pack test reset")
+	SessionCase.World.leave(game,"Pack test reset")
 	game.map_rng.seed = 8461
 	place(1, Stage.GATE)
 	interact()
@@ -857,7 +859,7 @@ func verify_briar_strike() -> void:
 func verify_host() -> void:
 	game.progress.unknown = [1]
 	var seeded_guest := false
-	check(game.host_game() == OK, "host starts")
+	check(SessionCase.World.host(game) == OK, "host starts")
 	if failed:
 		return
 	print("HOST READY")
@@ -866,7 +868,7 @@ func verify_host() -> void:
 		if game.players.size() == 2:
 			var ids: Array = game.players.keys()
 			var guest: int = ids[1]
-			if not seeded_guest and game.players[guest].profile_ready:
+			if not seeded_guest and SessionCase.Session.ready_for(game.players[guest]):
 				game.seed_reserve(game.players[guest]).unknown.append(0)
 				game.garden_action(guest, "look_1")
 				game.progress.parts[0] = 4
@@ -978,7 +980,7 @@ func verify_personal_loot(guest: int) -> void:
 		"guest extraction banks only to their own reserve")
 	var reload := Progress.new()
 	reload.path = game.progress.path
-	check(reload.load_garden() == OK and reload.reserve(other.seed_owner).unknown == reserve.unknown,
+	check(reload.load_garden() == OK and reload.reserve(SessionCase.Session.inventory_owner(other)).unknown == reserve.unknown,
 		"guest reserve survives reloading the host Garden")
 	restore_heart_fixture()
 	place(1, Stage.HEART);place(guest, Stage.HEART)
@@ -989,12 +991,12 @@ func verify_personal_loot(guest: int) -> void:
 
 
 func verify_guest() -> void:
-	check(game.join_game() == OK, "guest starts")
+	check(SessionCase.World.join(game) == OK, "guest starts")
 	for step in 100:
 		await create_timer(0.05).timeout
-		if game.session == "Guest" and game.players.size() == 2 and game.client_inventory[0] == 1:
+		if game.network_session.role() == "Guest" and game.players.size() == 2 and game.client_inventory[0] == 1:
 			break
-	check(game.players.size() == 2, "guest sees both players (session %s, players %d)" % [game.session, game.players.size()])
+	check(game.players.size() == 2, "guest sees both players (session %s, players %d)" % [game.network_session.role(), game.players.size()])
 	var id: int = game.multiplayer.get_unique_id()
 	if not game.players.has(id):
 		return

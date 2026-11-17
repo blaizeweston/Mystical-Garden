@@ -1,4 +1,6 @@
 extends SceneTree
+
+const SessionCase = preload("res://tests/support/session_case.gd")
 const Service=preload("res://garden_growth_service.gd")
 var game: Node
 var role: String
@@ -19,8 +21,8 @@ func run() -> void:
  game=load("res://world.tscn").instantiate();game.progress.path=base+role+".cfg";game.local_character.path=base+role+".character";game.guest_character.path=base+role+".guest";root.add_child(game)
  if role=="host":await host_run()
  else:await guest_run()
- game.leave_game("Garden growth fixture complete")
- var offline := game.online_peer == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer
+ SessionCase.World.leave(game,"Garden growth fixture complete")
+ var offline := game.network_session.transport() == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer
  check(offline,"offline peer is installed before world removal")
  if offline:
   print("TEARDOWN: Garden growth co-op ",role," is offline before world removal")
@@ -30,8 +32,8 @@ func run() -> void:
  if not failed:print("PASS: Garden growth co-op ",role," private queues, shared unlocks, independent skip and reconnect")
  quit(1 if failed else 0)
 func host_run() -> void:
- check(game.host_game()==OK,"host opens")
- if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"admission");return
+ check(SessionCase.World.host(game)==OK,"host opens")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"admission");return
  var id: int=game.players.keys().filter(func(peer):return peer!=1)[0]
  game.progress.heart.complete(game.progress,"plot_4");game.progress.save_garden();mark("first")
  if not await until(func():return marked("skipped") and Service.projection(game,id).pending.is_empty()):check(false,"guest acknowledgement commits");return
@@ -48,8 +50,8 @@ func host_run() -> void:
  mark("done")
  check(await until(func():return marked("guest-offline") and game.multiplayer.get_peers().is_empty()),"host observes the guest disconnect before its own teardown")
 func guest_run() -> void:
- check(game.join_game()==OK,"guest joins")
- if not await until(func():return game.session=="Guest" and marked("first") and Service.projection(game,game.local_player_id()).get("pending",[]).size()==1 and game.stage.heart_tree.get_meta("heart_visual_count")==1):check(false,"private pending scene arrives");return
+ check(SessionCase.World.join(game)==OK,"guest joins")
+ if not await until(func():return game.network_session.role()=="Guest" and marked("first") and Service.projection(game,game.local_player_id()).get("pending",[]).size()==1 and game.stage.heart_tree.get_meta("heart_visual_count")==1):check(false,"private pending scene arrives");return
  var data:=Service.projection(game,game.local_player_id())
  check(data.pending[0].kind=="bed" and not game.progress.heart.has("plot_4"),"guest sees host event without changing local world research")
  check(data.pending[0].from_growth==0 and data.pending[0].to_growth==1 and game.stage.heart_tree.get_meta("heart_visual_count")==1,"guest receives per-unlock Heart growth from host research")
@@ -59,11 +61,11 @@ func guest_run() -> void:
  await create_timer(.2).timeout
  check(Service.projection(game,game.local_player_id()).pending.size()==1,"guest cannot forge a future sequence")
  var scene=game.get_node("GardenInteractions/GrowthScenes");scene.set_process(false);scene.begin(Service.projection(game,game.local_player_id()).pending[0])
- game.leave_game("Growth reconnect fixture");game.toggle_overlay(null)
+ SessionCase.World.leave(game,"Growth reconnect fixture");game.toggle_overlay(null)
  scene.force_playback=true;scene._process(0);scene.force_playback=false
  check(scene.event.is_empty() and not game.get_meta("garden_cinematic_active") and not game.stage.has_meta("garden_growth_camera"),"disconnect releases the old host's scene without acknowledging it in the local Garden")
- check(game.join_game()==OK,"reconnect")
- if not await until(func():return game.session=="Guest" and Service.projection(game,game.local_player_id()).get("pending",[]).any(func(e):return e.technology=="plot_5") and game.stage.heart_tree.get_meta("heart_visual_count")==2):check(false,"unwatched scene persists through rejoin");return
+ check(SessionCase.World.join(game)==OK,"reconnect")
+ if not await until(func():return game.network_session.role()=="Guest" and Service.projection(game,game.local_player_id()).get("pending",[]).any(func(e):return e.technology=="plot_5") and game.stage.heart_tree.get_meta("heart_visual_count")==2):check(false,"unwatched scene persists through rejoin");return
  check(Service.projection(game,game.local_player_id()).pending.size()==1,"previously acknowledged scene is not replayed")
  check(game.stage.heart_tree.get_meta("heart_visual_count")==2,"reconnecting restores accumulated Heart growth")
  mark("rejoined")

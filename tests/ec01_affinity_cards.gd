@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -85,7 +87,7 @@ func reset(class_id := 0) -> void:
 		p.pos = Vector3.ZERO
 		ExpeditionCase.set_membership(game, p, true)
 		p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive()
-		p.profile_ready = true
+		SessionCase.set_ready(game, p, true)
 		p.mouse_aim = false
 		p.facing = Vector3.FORWARD
 		p[PlayerVitals.STATE] = PlayerVitals.Health.new(80.0,100)

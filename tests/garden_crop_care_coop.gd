@@ -1,4 +1,6 @@
 extends SceneTree
+
+const SessionCase = preload("res://tests/support/session_case.gd")
 const Service=preload("res://garden_crop_service.gd")
 const Garden=preload("res://garden_interaction_service.gd")
 const View=preload("res://garden_crop_view.gd")
@@ -26,14 +28,14 @@ func run() -> void:
  game=load("res://world.tscn").instantiate();game.progress.path=base+role+".cfg";game.local_character.path=base+role+".character";game.guest_character.path=base+role+".guest";root.add_child(game)
  if role=="host":await host_run()
  else:await guest_run()
- game.leave_game("Fixture complete")
- check(game.online_peer == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer, "network shuts down before world removal")
+ SessionCase.World.leave(game,"Fixture complete")
+ check(game.network_session.transport() == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer, "network shuts down before world removal")
  game.queue_free();await process_frame
  if not failed:print("PASS: crop care co-op ",role," competing choices, private preview, durable rejoin, one harvest and stale-cycle rejection")
  quit(1 if failed else 0)
 func host_run() -> void:
- check(game.host_game()==OK,"host opens")
- if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):check(false,"admission");return
+ check(SessionCase.World.host(game)==OK,"host opens")
+ if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"admission");return
  var id: int=game.players.keys().filter(func(peer):return peer!=1)[0];var g=game.progress
  game.players[1].pos=game.Stage.PLOTS[0];game.players[id].pos=game.Stage.PLOTS[0];game.seed_reserve(game.players[1]).stock[0]=1;game.plant_seed(1,0);g.advance_growth(168.75);g.save_garden()
  var request:=View.request(bed(),"preserve_bud");var before: Array=g.parts.duplicate();var cycle: String=bed().cycle
@@ -72,8 +74,8 @@ func host_run() -> void:
  check(game.seed_reserve(game.players[1]).stock[0]+game.seed_reserve(game.players[id]).stock[0]==seed_total+2 and g.parts[0]==common_before and g.part_count(rare)==rare_before,"competing seed choices pay only two personal seeds and no parts")
  mark("done");await create_timer(.3).timeout
 func guest_run() -> void:
- check(game.join_game()==OK,"guest joins")
- if not await until(func():return game.session=="Guest" and marked("ready") and bed().get("available",false)):check(false,"host crop projection");return
+ check(SessionCase.World.join(game)==OK,"guest joins")
+ if not await until(func():return game.network_session.role()=="Guest" and marked("ready") and bed().get("available",false)):check(false,"host crop projection");return
  var old_cycle: String=bed().cycle;var request:=View.request(bed(),"leave_bud")
  check(not bed().has("roll") and bed().preserve_chance>bed().base_chance,"guest has a usable chance preview without the frozen outcome")
  game.send_action(false)
@@ -81,8 +83,8 @@ func guest_run() -> void:
  send(request);mark("submitted")
  if not await until(func():return marked("chosen") and bed().get("choice","") in ["preserve","leave"]):check(false,"shared choice arrives");return
  var choice: String=bed().choice
- game.leave_game("Crop-care rejoin fixture");game.toggle_overlay(null);check(game.join_game()==OK,"reconnect")
- if not await until(func():return game.session=="Guest" and bed().get("cycle","")==old_cycle and bed().get("choice","")==choice):check(false,"saved cycle/choice returns");return
+ SessionCase.World.leave(game,"Crop-care rejoin fixture");game.toggle_overlay(null);check(SessionCase.World.join(game)==OK,"reconnect")
+ if not await until(func():return game.network_session.role()=="Guest" and bed().get("cycle","")==old_cycle and bed().get("choice","")==choice):check(false,"saved cycle/choice returns");return
  check(game.progress.plots[0].species<0,"host care is not written into the guest's own Garden")
  mark("rejoined")
  if not await until(func():return marked("mature") and bed().get("stage",-1)==3):check(false,"mature projection arrives");return

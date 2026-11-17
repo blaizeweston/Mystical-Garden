@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const Tx = preload("res://game_transaction.gd")
 const Slots = preload("res://save_slots.gd")
 const Roster = preload("res://character_slots.gd")
@@ -61,7 +63,7 @@ func open_world() -> bool:
  game.local_character.path=path
  game.guest_character.path=path
  game.slot_claimed=host
- game.joined_from_title=not host
+ game.network_session.configure_join_origin(not host)
  var result := Owner.new().start(game,slots if host else null,0,Slots._save_digest(Garden) if host else "",roster,0 if host else 1,Slots._save_digest(path))
  check(Owner.completed(result),"real guarded launch: "+str(result))
  if not Owner.completed(result):
@@ -82,10 +84,10 @@ func run() -> void:
   return
  if host: await host_run()
  else: await guest_run()
- if is_instance_valid(game) and game.online_peer!=null: game.leave_game("Guarded fixture complete")
+ if is_instance_valid(game) and game.network_session.transport()!=null: SessionCase.World.leave(game,"Guarded fixture complete")
  # A blocked host leaves through the existing deferred title shutdown.
  var stopped := await until(func():
-  return not is_instance_valid(game) or (game.online_peer==null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer))
+  return not is_instance_valid(game) or (game.network_session.transport()==null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer))
  check(stopped and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"offline before freeing guarded world")
  if stopped and is_instance_valid(game): game.free()
  if not failed: print("PASS: guarded Garden co-op ", "host" if host else "guest")
@@ -102,14 +104,14 @@ func prepare_crop(player: Dictionary, key: String) -> void:
  player.pos=game.Stage.PLOTS[0]
 
 func host_run() -> void:
- check(game.host_game()==OK,"guarded host opens")
+ check(SessionCase.World.host(game)==OK,"guarded host opens")
  mark("host")
  if not await until(func():return game.players.size()==2 and game.players.values().any(func(p):return p.get("projection_delivery",{}).get("state")=="committed")):
   check(false,"guarded guest joins: "+game.status)
   return
  var id := int(game.players.keys().filter(func(peer): return peer!=1)[0])
  var player: Dictionary=game.players[id]
- var identity: String=player.seed_owner
+ var identity: String=SessionCase.Session.inventory_owner(player)
  prepare_crop(player,"first")
  var original := Slots._save_digest(Garden)
  var guest_before:=Slots._save_digest(GuestProfile)
@@ -152,7 +154,7 @@ func host_run() -> void:
   check(false,"host observes guest departure before the fixture rejoins")
   return
  mark("host-saw-departure")
- if not await until(func():return marked("guest-returned") and game.players.size()==2 and game.players.values().all(func(p):return p.profile_ready)):
+ if not await until(func():return marked("guest-returned") and game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
   check(false,"guest reconnects after local profile projection abort")
   return
  id=int(game.players.keys().filter(func(peer):return peer!=1)[0])
@@ -177,8 +179,8 @@ func host_run() -> void:
  record("guest_harvest_cleanup_pending",original,{"guest_disk":crop_count(),"crop":game.progress.plots[0].species,"notice":Tx.pending_notice(game)})
 
 func guest_run() -> void:
- check(game.join_game("127.0.0.1")==OK,"join without Garden lease")
- if not await until(func():return game.session=="Guest" and marked("abort-ready")):
+ check(SessionCase.World.join(game,"127.0.0.1")==OK,"join without Garden lease")
+ if not await until(func():return game.network_session.role()=="Guest" and marked("abort-ready")):
   check(false,"admission/fixture ready: "+game.status)
   return
  var before:=Slots._save_digest(GuestProfile)
@@ -227,14 +229,14 @@ func guest_run() -> void:
   return
  check(crop_count()==1 and not game.status.begins_with("Harvested"),"failed guest projection leaves its prior bytes and withholds success")
  game.remove_meta(&"guarded_gameplay_test_fault")
- game.leave_game("Reconnect to guarded Garden")
- check(game.online_peer==null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"offline before reconnect")
+ SessionCase.World.leave(game,"Reconnect to guarded Garden")
+ check(game.network_session.transport()==null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"offline before reconnect")
  mark("left-for-reconnect")
  if not await until(func():return marked("host-saw-departure")):
   check(false,"host processed the disconnect before reconnect")
   return
- check(game.join_game("127.0.0.1")==OK,"guest reconnect requested")
- if not await until(func():return is_instance_valid(game) and game.session=="Guest" and crop_count()==2):
+ check(SessionCase.World.join(game,"127.0.0.1")==OK,"guest reconnect requested")
+ if not await until(func():return is_instance_valid(game) and game.network_session.role()=="Guest" and crop_count()==2):
   check(false,"familiarity restored from the host record: "+(game.status if is_instance_valid(game) else "returned to title"))
   return
  mark("guest-returned")
@@ -253,6 +255,6 @@ func guest_run() -> void:
  game.refresh_feedback()
  check(game.feedback.text.contains(Tx.CLEANUP_NOTICE) and crop_count()==3,"later message and toast expiry preserve host warning without replay")
  record("guest_visible_host_cleanup",before,{"feedback":game.feedback.text,"guest_disk":crop_count()})
- game.leave_game("Guarded guest complete")
- check(game.online_peer==null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"guest leaves before world removal")
+ SessionCase.World.leave(game,"Guarded guest complete")
+ check(game.network_session.transport()==null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"guest leaves before world removal")
  mark("guest-offline")

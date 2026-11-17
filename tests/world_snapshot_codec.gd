@@ -1,6 +1,7 @@
 extends SceneTree
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+const SessionCase = preload("res://tests/support/session_case.gd")
 
 const Codec = preload("res://world_snapshot.gd")
 const Encounter = preload("res://encounter_config.gd")
@@ -111,8 +112,18 @@ func run() -> void:
 	newest_people[1].wild = false
 	newest_people[1].wallet = 0
 	var recovered := Codec.for_viewer(Codec.encode(16, newest_people, campaign, scouts, leader, 314, 500, drop, 74, 25), 317, true, true)
-	var details := var_to_bytes({"snapshot_recovery":recovered, "snapshot_roster":{1:"Recovered name"}}).compress(FileAccess.COMPRESSION_DEFLATE)
+	# The reliable receiver now requires an accepted connection binding. Keep
+	# codec actors above as detached wire data, then set up this receiving guest.
+	SessionCase.set_role(game,"Guest")
+	var connection: String = game.network_session.accepted_connection_key()
+	var owner_details := {"snapshot_recovery":recovered, "snapshot_roster":{1:"Recovered name"},"session_binding":connection}
+	var details := var_to_bytes(owner_details).compress(FileAccess.COMPRESSION_DEFLATE)
 	var garden := var_to_bytes(game.garden_snapshot()).compress(FileAccess.COMPRESSION_DEFLATE)
+	var old_details := owner_details.duplicate(true)
+	old_details.session_binding = "obsolete-connection-binding"
+	game.receive_details(var_to_bytes(old_details).compress(FileAccess.COMPRESSION_DEFLATE),garden,[],"obsolete")
+	check(game.net_view.snapshot_received == 13 and game.client_details.is_empty() and game.client_details_key.is_empty(),
+		"old connection details cannot replace the owner view or apply recovery")
 	game.receive_details(details, garden, [], "fixture")
 	check(game.net_view.snapshot_received == 16 and game.client_leader_hp == 314 and game.players[1].hp == 61
 		and game.players[1].display_name == "Recovered name" and game.players[1].wallet == 0,
@@ -128,6 +139,7 @@ func run() -> void:
 	var over := scouts.duplicate()
 	over.append_array(PackedFloat32Array([0,0,0,0,0,0,0,0]))
 	check(Codec.encode(1, people, campaign, over, leader, 1, 1, drop, 1, 0).is_empty(), "oversized occupancy is never silently truncated")
+	SessionCase.World.offline(game)
 	game.queue_free()
 	await process_frame
 	if not failed:

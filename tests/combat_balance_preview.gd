@@ -1,5 +1,7 @@
 extends SceneTree
 
+const SessionCase = preload("res://tests/support/session_case.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -283,7 +285,7 @@ func verify_orchard(game: Node, player: Dictionary) -> void:
 	ExpeditionCase.set_world(game, {"map_seed": 91681})
 	game.boss_floors.clear()
 	game.used_bosses.clear()
-	game.players[2].profile_ready=false
+	SessionCase.set_ready(game, game.players[2], false)
 	game.reset_encounter()
 	check(game.tactics.boss_kind==game.Bosses.Lair.Routes.ORCHARD and game.enemy_health()==600,"the regular preview route reaches the Orchard on floor 10")
 	game.encounter.set_hp(-1, 391)
