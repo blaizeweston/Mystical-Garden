@@ -44,7 +44,9 @@ static var definition_signature := JSON.stringify([
 
 
 static func requested() -> bool:
-	return OS.has_feature("editor") and not Playtest.retail() and FLAG in OS.get_cmdline_user_args()
+	if Playtest.retail():
+		return Playtest.build().get("combat_ruleset", "") == ID
+	return OS.has_feature("editor") and FLAG in OS.get_cmdline_user_args()
 
 
 static func verified() -> bool:

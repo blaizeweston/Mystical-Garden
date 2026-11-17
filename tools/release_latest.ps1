@@ -1,5 +1,6 @@
-param([string]$Engine=(Join-Path $PSScriptRoot '../../Godot_v4.7.2-stable_win64_console.exe'),[Alias('Target')][string]$TargetPath='', [switch]$Full, [switch]$VerifyOnly, [string]$PlaytestVersion='', [string]$PlaytestCommit='', [string]$InputManifestSha256='', [switch]$ExperimentalTerrain)
+param([string]$Engine=(Join-Path $PSScriptRoot '../../Godot_v4.7.2-stable_win64_console.exe'),[Alias('Target')][string]$TargetPath='', [switch]$Full, [switch]$VerifyOnly, [string]$PlaytestVersion='', [string]$PlaytestCommit='', [string]$InputManifestSha256='', [switch]$ExperimentalTerrain, [switch]$CombatAffinities)
 $ErrorActionPreference='Stop'
+if($CombatAffinities){$ExperimentalTerrain=$true}
 if($ExperimentalTerrain -and -not $PlaytestVersion){throw 'Experimental terrain requires a versioned VerifyOnly build.'}
 $project=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 if($PlaytestVersion){
@@ -81,6 +82,12 @@ if($PlaytestVersion){
   $metadata.terrain_mode=$modeVersion.Groups[1].Value
   $metadata.persistence='guarded experimental sessions with a version-specific save root'
   $metadata.persistence_label='experimental-terrain'
+ }
+ if($CombatAffinities){
+  $rules=Get-Content -LiteralPath (Join-Path $project 'combat_ruleset.gd') -Raw
+  $ruleVersion=[regex]::Match($rules,'(?m)^const ID := "([a-z0-9-]+)"\r?$')
+  if(-not $ruleVersion.Success){throw 'Plant affinity ruleset identity is missing.'}
+  $metadata.combat_ruleset=$ruleVersion.Groups[1].Value
  }
  $env:MYSTICAL_VALIDATION_DATA_DIR=$metadata.save_root
 }

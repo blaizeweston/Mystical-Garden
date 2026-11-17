@@ -111,11 +111,14 @@ class PlaytestReleaseTests(unittest.TestCase):
             (root / "evidence").mkdir()
             build = {"playtest_version": "0.1.0-playtest.1", "git_commit": "1" * 40, "built_utc": "2026-01-01T00:00:00Z",
                      "godot_version": "4.7.2", "protocol": 40, "input_manifest_sha256": "0" * 64,
-                     "save_root": "Mystical Garden Playtest 0.1.0-playtest.1"}
+                     "save_root": "Mystical Garden Playtest 0.1.0-playtest.1",
+                     "terrain_mode": "integrated-terrain-coop-fixture", "combat_ruleset": "plant-affinity-fixture"}
             release.bundle(root, exe, root, build, {"source_run_id": "s", "package_run_id": "p"}, {})
             manifest = json.loads((root / "manifest.json").read_text())
             self.assertEqual(manifest["exe_sha256"], release.sha(exe))
             self.assertEqual(len(manifest["files"]), 5)
+            self.assertEqual(manifest["combat_ruleset"], build["combat_ruleset"])
+            self.assertIn("opens in the affinity combat ruleset", (root / "game/README_PLAYTEST.txt").read_text())
             self.assertIsNone(manifest["git_tag"])
             self.assertIn(release.sha(next(root.glob("*.zip"))), (root / "SHA256SUMS.txt").read_text())
 

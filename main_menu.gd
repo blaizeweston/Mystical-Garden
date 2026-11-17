@@ -89,7 +89,7 @@ func _ready() -> void:
 		if combat_mode.verified():
 			set_meta(combat_mode.META, combat_mode.ID)
 			if return_message.is_empty():
-				return_message = "Plant affinity development mode · Co-op · Equip supported affinity materials in Core, Form, or Catalyst."
+				return_message = "Plant affinities · Co-op · Equip supported affinity materials in Core, Form, or Catalyst."
 		elif return_message.is_empty():
 			return_message = "EXPERIMENTAL TERRAIN  ·  Co-op  ·  Garden layout lasts for the host session"
 	if Playtest.retail():
@@ -199,6 +199,9 @@ void fragment() {
 		var build_label := label(sidebar,version,14,Color("#bfc594"))
 		build_label.name = "PlaytestVersion"
 		print("PLAYTEST READY: %s · protocol %d · %s" % [build_label.text,Network.PROTOCOL,Playtest.build().get("persistence_label","legacy-contained")])
+		if combat_mode.active(self):
+			label(sidebar,"Plant affinities",14,Color("#bfc594"))
+			print("PLAYTEST COMBAT: " + combat_mode.ID)
 	var title_space:=Control.new()
 	title_space.custom_minimum_size.y=16
 	sidebar.add_child(title_space)

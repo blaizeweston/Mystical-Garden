@@ -357,6 +357,8 @@ def _retail_probes(stage, pack, metadata, env, desktop_profile):
     sandbox.mkdir()
     version = metadata["playtest_version"]
     persistence_label = metadata.get("persistence_label", "legacy-contained")
+    combat_ruleset = metadata.get("combat_ruleset", "")
+    combat_line = f"PLAYTEST COMBAT: {combat_ruleset}" if combat_ruleset else ""
     ready = re.compile(rf"(?m)^PLAYTEST READY: {re.escape(version)} . protocol {metadata['protocol']} . {re.escape(persistence_label)}$")
     backend = "PLAYTEST BLOCKED: The playtest persistence library is missing or incompatible."
     expected_errors = [
@@ -452,6 +454,9 @@ def _retail_probes(stage, pack, metadata, env, desktop_profile):
         if success:
             if not ready.search(stdout) or not (release_root / "playtest.identity").is_file() or not (release_root / "diagnostics").is_dir():
                 raise ValueError(f"Retail title, version or isolated save root missing in {probe}.")
+            active_rulesets = re.findall(r"(?m)^PLAYTEST COMBAT: .+$", stdout)
+            if active_rulesets != ([combat_line] if combat_line else []):
+                raise ValueError(f"Retail title did not activate the expected combat ruleset in {probe}.")
         elif probe in blocked:
             if blocked[probe] not in stdout or "PLAYTEST READY:" in stdout or (release_root / "diagnostics").exists():
                 raise ValueError(f"Retail did not refuse the {probe} probe before gameplay.")
@@ -470,7 +475,8 @@ def _retail_probes(stage, pack, metadata, env, desktop_profile):
             reopen_exit = run([exe, *args], home, child_env, reopen, timeout=30, check=False)
             reopened = reopen.read_text(encoding="utf-8-sig", errors="replace")
             reopen_errors = (home / "reopen.stderr.log").read_text(encoding="utf-8-sig", errors="replace")
-            if reopen_exit or not ready.search(reopened) or evidence.ENGINE_ERROR.search(reopened + reopen_errors) or fingerprint != sha(identity):
+            if (reopen_exit or not ready.search(reopened) or evidence.ENGINE_ERROR.search(reopened + reopen_errors)
+                    or fingerprint != sha(identity) or combat_line and combat_line not in reopened):
                 raise ValueError("Retail could not reopen its exact version and commit.")
             reopen_id = "desktop-reopen" if probe == "desktop" else "reopen"
             results[reopen_id] = {"exit": reopen_exit, "run_id": f"{version}-{reopen_id}",
@@ -482,6 +488,8 @@ def _retail_probes(stage, pack, metadata, env, desktop_profile):
             raise ValueError(f"Unexpected canonical profile or catalog during retail probe {probe}.")
         results[probe] = {"exit": code, "run_id": f"{version}-{probe}", "exe_sha256": sha(exe), "logs": home.name,
                           "expected_errors": len(allowed), "ready": success}
+        if combat_ruleset and success:
+            results[probe]["combat_ruleset"] = combat_ruleset
     if sha(pack) != executable_hash or any(row["exe_sha256"] != executable_hash for row in results.values()):
         raise ValueError("The shared retail executable changed during probes.")
     return results
@@ -512,12 +520,18 @@ def bundle(stage, pack, project, metadata, checks, retail):
                    "On each guest, choose a character and use Co-op > Join by IP from the title. "
                    "Everyone needs the same build.\nGarden expansion, structures, growth energy and pending studies "
                    "last for the host session. Rejoin while that session is running to see its current Garden.\n")
+    if metadata.get("combat_ruleset"):
+        readme += ("\nPlant affinities\nThis playtest opens in the affinity combat ruleset. "
+                   "Choose a starting focus before departing. "
+                   "Cleared upgrade checkpoints offer free cards, with Essence used for rerolls. "
+                   "Spend carried monster trophies at the Wilds Grafting Altar for expedition improvements.\n")
     (payload / "README_PLAYTEST.txt").write_text(readme.replace("@VERSION@", version).replace("@ROOT@", metadata["save_root"]), encoding="utf-8")
     info = {
         "version": version, "git_commit": metadata["git_commit"], "git_tag": None,
         "created_utc": metadata["built_utc"], "godot": metadata["godot_version"], "target": "Windows x86_64",
         "multiplayer_protocol": metadata["protocol"], "persistence": metadata.get("persistence", "legacy route with native containment"),
         "terrain_mode": metadata.get("terrain_mode", "legacy"),
+        "combat_ruleset": metadata.get("combat_ruleset", "legacy"),
         "save_root": "%APPDATA%/" + metadata["save_root"], "compatibility": "Exact version and commit only. No automatic import.",
         "source_run_id": checks["source_run_id"], "package_run_id": checks["package_run_id"],
         "exe_sha256": sha(payload / GAME), "native_dll_sha256": sha(payload / evidence.LOCK_LIBRARY),
@@ -576,6 +590,14 @@ def build(args):
     revision = source_revision(roots.configured)
     if args.expected_revision and args.expected_revision != revision:
         raise ValueError("The clean checkout does not match the expected revision.")
+    combat_ruleset = ""
+    if args.combat_affinities:
+        source = git("show", f"{revision}:combat_ruleset.gd").decode("utf-8")
+        match = re.search(r'(?m)^const ID := "([a-z0-9-]+)"\r?$', source)
+        if not match:
+            raise ValueError("The selected checkpoint does not define an affinity ruleset identity.")
+        combat_ruleset = match[1]
+    experimental_terrain = args.experimental_terrain or args.combat_affinities
     if not roots.engine:
         raise ValueError("Supply the Godot editor executable.")
     engine = Path(roots.engine).absolute()
@@ -609,6 +631,7 @@ def build(args):
             raise ValueError(f"Missing or redirected build dependency: {required}")
     if args.plan:
         print(json.dumps({"commit": revision, "engine": str(engine), "version": version,
+                          "combat_ruleset": combat_ruleset or "legacy", "experimental_terrain": experimental_terrain,
                           "workspace": str(work), "stage": str(stage), "evidence": str(output),
                           "archive": str(archive), "desktop_profile_parent": str(profile_parent)}, indent=2))
         return
@@ -671,8 +694,10 @@ def build(args):
         release_args = [shell, "-NoProfile", "-File", project / "tools/release_latest.ps1", "-VerifyOnly",
                         "-PlaytestVersion", version, "-PlaytestCommit", revision, "-InputManifestSha256", inputs,
                         "-Engine", engine]
-        if args.experimental_terrain:
+        if experimental_terrain:
             release_args.append("-ExperimentalTerrain")
+        if combat_ruleset:
+            release_args.append("-CombatAffinities")
         if roots.configured:
             env["MYSTICAL_PLAYTEST_EXPORT_ROOT"] = str(export_root)
         run(release_args, project, env, output / "verifyonly.log")
@@ -680,8 +705,10 @@ def build(args):
         pack = Path(package["path"])
         metadata = evidence.read_json(project / "assets/content/build_manifest.json")
         source_dll = project / evidence.LOCK_RESOURCE
-        if bool(metadata.get("terrain_mode")) != args.experimental_terrain:
+        if bool(metadata.get("terrain_mode")) != experimental_terrain:
             raise ValueError("Staged build terrain mode does not match the request.")
+        if metadata.get("combat_ruleset", "") != combat_ruleset:
+            raise ValueError("Staged build combat ruleset does not match the request.")
         if (metadata["playtest_version"] != version or metadata["git_commit"] != revision
                 or metadata["input_manifest_sha256"] != inputs or pack.name != GAME
                 or pack.parent.parent != export_root or sha(pack) != package["sha256"]
@@ -840,6 +867,7 @@ def main():
     parser.add_argument("--expected-revision")
     parser.add_argument("--approve", action="store_true")
     parser.add_argument("--experimental-terrain", action="store_true")
+    parser.add_argument("--combat-affinities", action="store_true")
     parser.add_argument("--plan", action="store_true")
     parser.add_argument("--history", action="append", default=[])
     parser.add_argument("--expected-zip")

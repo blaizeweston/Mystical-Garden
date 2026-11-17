@@ -1341,6 +1341,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `water_combat.gd` | ec01_2 | affinity_cards |
 | `frost_combat.gd` | ec01_1 | affinity_cards |
 | `combat_action_events.gd` | ec01_1 | affinity_cards |
+| `combat_ruleset.gd` | retail_affinity_admission | combat_affinity_contracts, connection_flow |
 | `combat_ruleset.gd` | ga01a_1 | expedition_grafts, combat_affinity_contracts, connection_flow |
 | `combat_ruleset.gd` | ga01a_2 | expedition_grafts, combat_affinity_contracts, connection_flow |
 | `combat_ruleset.gd` | ga01a_3 | expedition_grafts, combat_affinity_contracts, connection_flow |
@@ -2726,6 +2727,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `ability_aim.gd` | subclass_aim_preview | warden_progression |
 | `ability_aim.gd` | subclass_aim_wire | warden_progression |
 | `ability_aim.gd` | subclass_commit_aim | warden_progression |
+| `main_menu.gd` | retail_affinity_notice | combat_affinity_contracts, menus, ui_copy |
+| `main_menu.gd` | retail_affinity_title | combat_affinity_contracts, menus, ui_copy |
 | `main_menu.gd` | cr04a_affinity_1 | combat_affinity_contracts, fire_affinity |
 | `main_menu.gd` | cr03__ready | frost_affinity |
 | `main_menu.gd` | cr02__ready | combat_affinity_contracts |
