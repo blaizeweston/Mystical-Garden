@@ -245,16 +245,16 @@ func offense(base: int) -> void:
 	var scout_before: int=near.hp
 	var floor_number: int = game.encounter_number
 	var cast_position: Vector3 = player.pos
-	Improvements.begin(game,player)
+	player[Improvements.STATE] = Improvements.Ledger.new(1)
 	game.encounter_number=8
 	player.pos=game.battlefield.graft
 	player.carried_parts[game.Parts.monster_part(17)]=1
-	game.garden_action(1,Improvements.request(Improvements.owner_details(game,player),"cinder_field","monster_17"))
-	check(Improvements.run(player).copies.size()==1,"a real Cinder purchase is active for the Nova scope check")
+	game.garden_action(1,Improvements.request(Improvements.owner_details(player, game.encounter_number),"cinder_field","monster_17"))
+	check(Improvements.owner_details(player, game.encounter_number).copies.size()==1,"a real Cinder purchase is active for the Nova scope check")
 	game.encounter_number=floor_number
 	player.pos=cast_position
 	r()
-	Improvements.clear(player)
+	player.erase(Improvements.STATE)
 	check(prior-game.enemy_hp==base+15 and scout_before-near.hp==base+5 and not player.has("native_graft_state"),
 		"Pressure applies to every native hit and stacks with one Barbed bonus without starting a graft proc")
 	arena(OFFENSE)

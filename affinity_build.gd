@@ -95,8 +95,33 @@ static func for_player(player: Dictionary, prepared := false) -> Dictionary:
 	var parts := fields.map(func(field): return int(player.get(field, 0)))
 	var build := resolve(int(player.get("frame", 0)), int(player.get("weapon_kind", 0)), parts, 0, player.get("character", {}))
 	if not prepared:
-		build.improvements = Ruleset.Improvements.resolution(player)
+		var ledger := Ruleset.Improvements.active_ledger(player)
+		build.improvements = ledger.resolution() if ledger != null else {"bonuses":{}, "adaptations":[]}
 	return build
+
+
+static func graft_value_resolver(player: Dictionary, cards: Dictionary, base_health: int) -> Callable:
+	return graft_values.bind(for_player(player), cards, base_health,
+		int(player.get("lost_health", 0)), int(player.get("affinity_vital_bonus", 0)))
+
+
+static func graft_values(improvements: Dictionary, base_build: Dictionary, cards: Dictionary,
+		base_health: int, lost_health: int, temporary_health: int) -> Dictionary:
+	var build := base_build.duplicate()
+	build.improvements = improvements
+	var stats := native_stats(build)
+	stats.affinity_build = build
+	var skills := []
+	var balance = preload("res://class_skill_balance.gd")
+	for adapter: Dictionary in build.class_skills:
+		var skill: Dictionary = adapter.get("native_skill", {})
+		if not skill.is_empty():
+			skills.append({"name":skill.name, "time":balance.cooldown(skill, stats)})
+	WeaponRules.tune_affinity_basic(stats, cards)
+	var health := Preview.maximum_health(base_health, float(stats.get("max_health", 0)),
+		lost_health, int(cards.get("run_health", 0))) + temporary_health
+	return {"damage":Preview.weapon_range(stats, 0), "health":health,
+		"reach":roundi(float(stats.reach)*100.0), "cooldown":skills}
 
 
 static func native_stats(build: Dictionary) -> Dictionary:

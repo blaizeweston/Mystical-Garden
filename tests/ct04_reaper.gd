@@ -104,7 +104,7 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 	player.graft_part=0
 	player.grave_charges=0
 	Grafts.clear(player)
-	Improvements.clear(player)
+	player.erase(Improvements.STATE)
 	Rules.Spirit.clear(player)
 	for peer in game.players:
 		var recipient: Dictionary = game.players[peer]
@@ -398,13 +398,13 @@ func charges_and_void() -> void:
 
 	prepare(OFFENSE,Vector3.ZERO,Vector3(1,0,0))
 	scout(Vector3(7,0,0))
-	Improvements.begin(game,player)
+	player[Improvements.STATE] = Improvements.Ledger.new(1)
 	game.encounter_number=8
 	player.pos=game.battlefield.graft
 	player.carried_parts[part("monster:pallbearer")]=1
-	game.garden_action(1,Improvements.request(Improvements.owner_details(game,player),"funeral_charges","monster_15"))
+	game.garden_action(1,Improvements.request(Improvements.owner_details(player, game.encounter_number),"funeral_charges","monster_15"))
 	player.pos=Vector3.ZERO
-	check(Improvements.run(player).copies.size()==1,"Funeral Petal is bought through the authoritative shrine")
+	check(Improvements.owner_details(player, game.encounter_number).copies.size()==1,"Funeral Petal is bought through the authoritative shrine")
 	game.enemy_hp=1
 	fire_melee()
 	check(player.grave_charges==1 and Grafts.graft_charges(player)==1,"both sources earn independent charges from one actual native kill")
@@ -431,7 +431,7 @@ func charges_and_void() -> void:
 	game.update_projectiles(int(expired.due))
 	check(game.enemy_hp==300 and player.grave_charges==2,"a queued attack from the prior life cannot spend the revived charge")
 	game.reset_encounter()
-	check(player.grave_charges==2 and not player.has(Grafts.STATE) and Improvements.run(player).copies[0].id=="funeral_charges",
+	check(player.grave_charges==2 and not player.has(Grafts.STATE) and Improvements.owner_details(player, game.encounter_number).copies[0].id=="funeral_charges",
 		"floor reset retains class charges and acquired graft identity while clearing graft counters")
 	game.return_to_garden(player)
 	check(Grafts.grave_count(player)==0,"expedition return clears both charge pools")

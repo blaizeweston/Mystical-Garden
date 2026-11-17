@@ -265,7 +265,7 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 	var unique: Array = stats.get("interactions", []).duplicate()
 	if stats.has("affinity_build"):
 		var grafts = preload("res://expedition_grafts.gd")
-		var ledger: Dictionary = grafts.owner_details(world,player) if world.multiplayer.is_server() else player.get("graft_improvements",{})
+		var ledger: Dictionary = grafts.owner_details(player, world.encounter_number) if world.multiplayer.is_server() else player.get("graft_improvements",{})
 		if not ledger.is_empty():
 			var names: Dictionary = grafts.REINFORCEMENTS.merged(grafts.ADAPTATIONS)
 			var counts := {}

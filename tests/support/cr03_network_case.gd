@@ -403,7 +403,7 @@ func host(menu: Node) -> void:
 	if not check(await until(func():return game.depth==2 and ids.all(func(id):return read("guest-floor-"+str(id))=="ok")),
 		"party advances to next generated floor"):return
 	if native_graft_case:
-		check(ids.all(func(id):return Improvements.run(game.players[id]).get("copies",[]).size()==1),
+		check(ids.all(func(id):return Improvements.owner_details(game.players[id], game.encounter_number).get("copies", []).size()==1),
 			"authoritative purchases survive the real floor transition")
 	if connected_reaper_case:
 		check(selected_player.grave_charges==1 and not selected_player.has("native_graft_state"),
@@ -840,7 +840,7 @@ func install_party_grafts(game: Node, ids: Array) -> bool:
 		visitor.carried_parts[material] = 2
 		mark("install-"+str(id),improvement+":"+item)
 		if not check(await until(func():return read("graft-seen-"+str(id))=="ok"),"guest confirms the exact matching trophy and receives its ledger"): return false
-		var ledger := Improvements.run(visitor)
+		var ledger := Improvements.owner_details(visitor, game.encounter_number)
 		check(ledger.copies.size()==1 and ledger.copies[0].id==improvement and ledger.copies[0].item==item
 			and visitor.carried_parts[material]==1,"authority charges the selected part once")
 		if not check(await until(func():return "already used" in visitor.get("graft_message",""),3000),

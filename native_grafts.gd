@@ -79,14 +79,15 @@ static func resolve(part: int) -> Dictionary:
 
 
 static func capture(player: Dictionary, adaptation_ids: Array) -> Dictionary:
-	if adaptation_ids.is_empty():
+	var run_id := Expedition.run_identity(player)
+	if run_id < 0 or adaptation_ids.is_empty():
 		return {}
 	var sources: Array = []
 	for component: String in adaptation_ids:
 		var graft := resolve(Parts.index_of(component))
 		if not graft.get("procs", {}).is_empty():
 			sources.append({"component_id":component, "item_id":graft.item_id, "effects":graft.procs})
-	return {} if sources.is_empty() else {"sources":sources, "run":Expedition.run(player).run, "life":player.get("lost_health", 0)}
+	return {} if sources.is_empty() else {"sources":sources, "run":run_id, "life":player.get("lost_health", 0)}
 
 
 static func clear(player: Dictionary) -> void:
@@ -105,7 +106,7 @@ static func start_contact(game: Node, player: Dictionary, stats: Dictionary, tar
 	var snapshot: Dictionary = stats.get(CONTEXT, {})
 	if snapshot.is_empty() or stats.get("trait_secondary", false) or stats.get("core_hit", false) \
 			or not game.multiplayer.is_server() or not game.Life.alive(player) \
-			or int(snapshot.run) != int(Expedition.run(player).get("run",-1)) or int(snapshot.life) != int(player.get("lost_health",0)):
+			or int(snapshot.run) != Expedition.run_identity(player) or int(snapshot.life) != int(player.get("lost_health",0)):
 		return {}
 	var action: RefCounted = stats.get("cr02_action")
 	if action == null or not action.source in ["form","native_weapon"] or action.epoch != game.combat_epoch or now >= action.expires_at:

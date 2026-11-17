@@ -557,9 +557,17 @@ func verify_attack_speed() -> void:
 		player.weapon_kind = scenario.weapon
 		if scenario.frame == 0:
 			player.character.upgrades[0] = 1 << 5  # Historical Quake Resonance subtracts 70 ms.
-		grafts.begin(game, player)
-		player[grafts.STATE].copies.append({"id":"strike", "item":"monster_0", "serial":1, "floor":8})
-		player[grafts.STATE].copies.append({"id":"cooldown", "item":"monster_0", "serial":2, "floor":16})
+		player[grafts.STATE] = grafts.Ledger.new(1)
+		player.pos = game.battlefield.graft
+		var trophy: int = game.Parts.monster_part(0)
+		player.carried_parts[trophy] = 2
+		for improvement in [{"floor":8, "id":"strike"}, {"floor":16, "id":"cooldown"}]:
+			game.encounter_number = improvement.floor
+			var altar: Dictionary = grafts.owner_details(player, game.encounter_number)
+			game.garden_action(1, grafts.request(altar, improvement.id, "monster_0"))
+		check(player.carried_parts[trophy] == 0 and grafts.owner_details(player, 16).revision == 2,
+			"the attack speed fixture acquires grafts through real purchases")
+		game.toggle_overlay(null)
 		var previous: Array[int] = []
 		for rank: int in scenario.ranks:
 			previous.append(grant_fixture_copy(card_id, rank))
@@ -628,7 +636,7 @@ func verify_attack_speed() -> void:
 			check(not Cards.eligible(player,game.weapon_stats(player),game.DODGE_COOLDOWN_MS).has(card_id)
 				and not Cards.roll(game,player,game.weapon_stats(player)).any(func(option):return option.id==card_id),
 				"Light Grip leaves the pool at the interval floor before its copy limit is reached")
-		grafts.clear(player)
+		player.erase(grafts.STATE)
 
 	var definition: Dictionary = Catalog.DEFINITIONS[card_id]
 	var almost_capped := Cards.choice_view(definition,{"amount":1},[],0,"",231)

@@ -1063,7 +1063,7 @@ func _garden_action(id: int, action: String) -> void:
 		return
 	if action.begins_with(preload("res://expedition_grafts.gd").COMMAND):
 		if has_meta(&"combat_affinity_ruleset"):
-			var result := preload("res://expedition_grafts.gd").purchase(self,id,player,action)
+			var result := _purchase_expedition_graft(id, player, action)
 			graft_feedback(id,player,result)
 			show_graft_menu(id)
 		return
@@ -1944,6 +1944,37 @@ func graft_altar_open() -> bool:
 func at_graft_altar(player: Dictionary) -> bool:
 	var location: Vector3=battlefield.graft if multiplayer.is_server() else stage.visual_field.graft
 	return not player.is_empty() and player.get("wild",false) and graft_altar_open() and location.distance_to(player.get("pos",Vector3.INF))<=1.65
+
+func _purchase_expedition_graft(id: int, player: Dictionary, action: String) -> String:
+	if not multiplayer.is_server() or not has_meta(&"combat_affinity_ruleset") or not Transactions.session_writable(self) \
+			or not Life.alive(player) or not player.get("profile_ready", false) or not is_same(players.get(id,{}),player):
+		return "This graft purchase is unavailable."
+	if not at_graft_altar(player) or not travel_kind.is_empty():
+		return "Use the current Grafting Altar before leaving the floor."
+	var grafts = preload("res://expedition_grafts.gd")
+	var request_data := grafts.decode_request(action)
+	if request_data.is_empty():
+		return "That graft request is invalid."
+	var ledger := grafts.active_ledger(player)
+	if ledger == null:
+		return grafts.EXPIRED
+	var build = preload("res://affinity_build.gd")
+	var project_stats := build.graft_value_resolver(player, AffinityCards.totals(player), MAX_HEALTH)
+	var purchase := ledger.plan_purchase(request_data, encounter_number, player.carried_parts, project_stats)
+	if purchase.has("ledger"):
+		# The host installs the successor and debits inventory in the same
+		# synchronous command before publishing any receipt or projection.
+		var carry: Array = player.carried_parts.duplicate()
+		carry[purchase.part] = int(carry[purchase.part]) - int(purchase.cost)
+		player.carried_parts = carry
+		player[grafts.STATE] = purchase.ledger
+		if purchase.has("health"):
+			player.max_hp = purchase.health
+		var receipt: Dictionary = purchase.receipt
+		Journal.event("grafting","improvement_acquired",{"actor":id,"run":ledger.identity(),"floor":receipt.floor,
+			"serial":receipt.serial,"improvement":receipt.id,"item":receipt.item,"quantity":purchase.cost})
+	return purchase.message
+
 
 func graft_block_reason(player: Dictionary,part: int) -> String:
 	if not at_graft_altar(player): return "Move next to a grafting altar in the Wilds."
@@ -3262,7 +3293,10 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = n
 	p.graft_part = 0
 	p.graft_floor=0
 	if has_meta(&"combat_affinity_ruleset"):
-		preload("res://expedition_grafts.gd").begin(self,p)
+		var grafts = preload("res://expedition_grafts.gd")
+		var identity := int(get_meta(grafts.SERIAL, 0)) + 1
+		set_meta(grafts.SERIAL, identity)
+		p[grafts.STATE] = grafts.Ledger.new(identity)
 	p.erase("graft_message")
 	p.prepared_catalyst = 0
 	p.prepared = Parts.EMPTY
@@ -3364,7 +3398,7 @@ func return_to_garden(p: Dictionary) -> void:
 	p.catalyst=0
 	p.graft_part=0
 	p.graft_floor=0
-	preload("res://expedition_grafts.gd").clear(p)
+	p.erase(preload("res://expedition_grafts.gd").STATE)
 	preload("res://native_grafts.gd").clear(p)
 	p.erase("graft_message")
 	p.rift_hook = false
@@ -3889,7 +3923,7 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 				"garden_interactions":preload("res://garden_interaction_service.gd").projection(self,id),
 				"party_travel":PartyTravel.snapshot(self,id),"seed_choice": selected_seed(p), "graft_choice": p.graft_choice, "cache_claimed": p.cache_claimed})
 			if p.has("combat_ruleset"):
-				state["graft_improvements"] = preload("res://expedition_grafts.gd").owner_details(self,p)
+				state["graft_improvements"] = preload("res://expedition_grafts.gd").owner_details(p, encounter_number)
 			if p.wild and p.has(AffinityCards.STATE):
 				state["affinity_run_cards"] = AffinityCards.project_owned(p,state.weapon_stats,DODGE_COOLDOWN_MS)
 		state.diagnostic_host=Journal.current.session_id if is_instance_valid(Journal.current) else ""
@@ -4087,7 +4121,7 @@ func _process(_delta: float) -> void:
 			guide.text="E  Graft"
 			if has_meta(&"combat_affinity_ruleset"):
 				guide.text="E  Grafting Altar"
-				var improvements: Dictionary = preload("res://expedition_grafts.gd").owner_details(self,p) if multiplayer.is_server() else p.get("graft_improvements",{})
+				var improvements: Dictionary = preload("res://expedition_grafts.gd").owner_details(p, encounter_number) if multiplayer.is_server() else p.get("graft_improvements",{})
 				detail_label.text="Altar used" if improvements.get("used",false) else "Spend a carried trophy on an expedition improvement."
 				if improvements.has("remaining"):
 					detail_label.text += " · %d remaining" % int(improvements.remaining)
@@ -5094,7 +5128,12 @@ func build_grafting_panel() -> void:
 
 func graft_menu_data(player: Dictionary) -> Dictionary:
 	if has_meta(&"combat_affinity_ruleset"):
-		return preload("res://expedition_grafts.gd").view(self,player)
+		var ledger := preload("res://expedition_grafts.gd").active_ledger(player)
+		if ledger == null:
+			return {}
+		var build = preload("res://affinity_build.gd")
+		var project_stats := build.graft_value_resolver(player, AffinityCards.totals(player), MAX_HEALTH)
+		return ledger.altar_view(encounter_number, player.carried_parts, str(player.get("graft_message", "")), project_stats)
 	var installed:=int(player.get("graft_part",0))
 	var slots: Array=[player.weapon,player.secondary,player.catalyst]
 	var current:=weapon_stats(player)

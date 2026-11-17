@@ -6,7 +6,7 @@ Edges describe gameplay/data relationships. Selection uses explicit suite covera
 
 ```mermaid
 flowchart LR
-  expedition_grafts["Cumulative affinity graft purchases<br/> build previews and source-owned adaptations"]
+  expedition_grafts["Expedition graft ledgers<br/> altar quotes and source-owned adaptations"]
   affinity_cards["Affinity expedition cards<br/> rarity<br/> Essence rerolls and owned effects"]
   oracle_progression["Connected Oracle<br/> native Omens and first-run focus admission"]
   void_affinity["Void wells<br/> compression and bounded displacement"]
@@ -98,6 +98,7 @@ flowchart LR
   expedition_sustain["Expedition sustain<br/> heal feedback and health transitions"]
   spectator_layout["Spectator panel placement below the floor tracker"]
   expedition_grafts -->|"Basic attacks capture purchased adaptations and resolve bounded secondary effects"| combat_affinity_contracts
+  expedition_grafts -->|"Reinforced Frame previews share the resolved maximum-health calculation"| life
   expeditions -->|"Earned choices, owner revisions and expedition-only currency"| affinity_cards
   affinity_cards -->|"Source-scoped contributions captured by existing combat actions"| combat_affinity_contracts
   affinity_cards -->|"Acquired copy totals and inactive requirements in owner details"| expedition_summary
@@ -426,6 +427,7 @@ flowchart LR
 | `_physics_process` | foundation |
 | `_pickup_inventory_drop` | loot, items |
 | `_process` | foundation, affinity_cards |
+| `_purchase_expedition_graft` | expedition_grafts |
 | `_ready` | foundation |
 | `_reclaim_seed` | garden_stations, seeds, items |
 | `_recover_pouch` | life |
@@ -1351,6 +1353,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `combat_ruleset.gd` | ec01_3 | affinity_cards |
 | `combat_ruleset.gd` | ct05_oracle_1 | oracle_progression |
 | `combat_ruleset.gd` | ct05_oracle_2 | oracle_progression |
+| `affinity_build.gd` | ar01_graft_combat_values | expedition_grafts |
 | `affinity_build.gd` | ga01a_1 | expedition_grafts, combat_affinity_contracts |
 | `affinity_build.gd` | ga01a_2 | expedition_grafts, combat_affinity_contracts |
 | `affinity_build.gd` | ec01_display_1 | combat_affinity_contracts, plant_affinities, ui_copy |
@@ -2970,6 +2973,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `spectator_view.gd` | cb07_0 | expedition_sustain |
 | `spectator_view.gd` | preview_spectator_cost | combat_balance_preview |
 | `assets/data/weapon_template.json` | cb03_template_roll_spread | weapon_balance |
+| `combat_balance_preview.gd` | ar01_native_health | expedition_grafts, life |
 | `combat_balance_preview.gd` | ec01_speed_rate_label | affinity_cards, expedition_summary, weapons |
 | `combat_balance_preview.gd` | cb07_0 | expedition_sustain |
 | `combat_balance_preview.gd` | cb06_0 | enemy_balance |

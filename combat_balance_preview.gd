@@ -49,6 +49,10 @@ static func capped_amount(value: float, cap: int) -> Variant:
 	return minf(value, cap) if enabled else mini(int(value), cap)
 
 
+static func maximum_health(base_health: int, bonus: float, lost_health: int, card_health: int) -> int:
+	return Vitals.maximum(hp(base_health), effect_hp(authored_amount(bonus)) + card_health, lost_health, scale())
+
+
 static func proc_amount(value: float, legacy_minimum: int, cap: int) -> float:
 	return clampf(value, .1 * legacy_minimum, cap) if enabled else float(clampi(roundi(value), legacy_minimum, cap))
 
