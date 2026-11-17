@@ -44,7 +44,7 @@ func host_run() -> void:
   if kind==Phases.BLOOM:await host_memory(id)
   var entry: Dictionary=game.Enemies.get_kind(kind);var chance: float=entry.trophy_chance;entry.trophy_chance=1.0
   game.enemy_hp=0;game.encounter_rewarded=true
-  game.record_enemy_death(-1,p.pos,p.pos);check(game.MonsterRewards.flush(game),"boss kill commits")
+  game.record_enemy_death(-1,p.pos,p.pos);check(game.flush_kill_rewards(),"boss kill commits")
   entry.trophy_chance=chance
   check(await until(func():return marked("loot-"+str(kind))),"guest sees owner-only boss loot")
   var own: Array=game.inventory_floor_snapshot(game.players[1]);var guest: Array=game.inventory_floor_snapshot(p)

@@ -130,14 +130,14 @@ func host() -> void:
  game.record_enemy_death(-1,game.enemy_pos,Vector3.ZERO)
  var frozen: int = game.rng.state
  game.record_enemy_death(-1,game.enemy_pos,Vector3.ZERO)
- check(game.pending_kill_rewards.size()==1 and game.rng.state==frozen,"duplicate kill cannot reroll")
+ check(game.monster_rewards.pending_count()==1 and game.rng.state==frozen,"duplicate kill cannot reroll")
  game.enemy_hp=0
  game.scouts.clear()
  game.finish_combat(1,game.enemy_pos)
  if not await until(func(): return read("combat-1")=="yes" and read("combat-2")=="yes" and read("combat-3")=="yes" and committed_guests(game)==3):
   check(false,"all three guest reward profiles commit and acknowledge")
   return
- check(game.encounter_rewarded and game.pending_kill_rewards.is_empty() and game.players[1].character.monsters[kind]==host_count+1
+ check(game.encounter_rewarded and game.monster_rewards.pending_count()==0 and game.players[1].character.monsters[kind]==host_count+1
   and FileAccess.get_sha256(G)!=battle_before,"host reward and adaptation commit")
  print("CASE ",JSON.stringify({"case":"four_player_combat","before":battle_before,"after":FileAccess.get_sha256(G),"kind":kind}))
  var remote: int = player_id(game,"2")
@@ -164,7 +164,8 @@ func host() -> void:
  var leaving: int = player_id(game,"1")
  var identity: String = game.players[leaving].seed_owner
  var kills: int = game.players[leaving].character.monsters[kind]
- game.MonsterRewards.queue(game,"pending-on-disconnect",kind,0,game.enemy_pos,false)
+ game._queue_monster_reward("pending-on-disconnect",kind,0,game.enemy_pos,false)
+ var disconnect_key: String = game.monster_rewards.pending_receipts()[0].key
  game.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):
   if settlement_fault=="uncertain" and phase in ["publish_commit_marker","restore"]: return ERR_CANT_CREATE
   if settlement_fault=="cleanup" and phase=="publish_receipt": return ERR_CANT_CREATE
@@ -207,22 +208,24 @@ func host() -> void:
   "callback":callback,"before":snapshot_before,"after":game.net_view.snapshot_sent,"status_before":ordinary_before,
   "status_after":game.status,"garden_before":disconnect_before,"garden_after":FileAccess.get_sha256(G)}))
  if not settlement_fault.is_empty():
-  await finish_blocked_disconnect(game,identity,kills,kind,disconnect_before)
+  await finish_blocked_disconnect(game,identity,kills,kind,disconnect_before,disconnect_key)
   return
- check(game.departure_settlement.contains_peer(leaving) and game.pending_kill_rewards.size()==1
+ check(game.departure_settlement.contains_peer(leaving) and game.monster_rewards.pending_count()==1
+  and game.monster_rewards.status(disconnect_key)==game.MonsterRewards.Phase.PENDING
   and game.departure_settlement.status(identity)==game.DepartureSettlement.Phase.RETRYABLE
   and FileAccess.get_sha256(G)==disconnect_before and game.status.begins_with("Save cancelled"),
   "verified disconnect abort retains the reward, retryable departure and Garden bytes")
  check(game.admission_error(identity,game.progress.ContentIDs.manifest(),Network.PROTOCOL).contains("still being saved"),
   "admission reports the unsettled departure for this character")
  game.remove_meta(&"guarded_gameplay_test_fault")
- check(game.MonsterRewards.flush(game) and game.departure_settlement.is_empty() and game.pending_kill_rewards.is_empty()
+ check(game.flush_kill_rewards() and game.departure_settlement.is_empty() and game.monster_rewards.pending_count()==0
   and game.departure_settlement.status(identity)==game.DepartureSettlement.Phase.ABSENT
+  and game.monster_rewards.status(disconnect_key)==game.MonsterRewards.Phase.COMMITTED
   and not game.departure_settlement.blocks_admission(identity)
   and int(game.progress.character_records[identity].profile.monsters[kind])==kills+1,
   "committed flush credits disconnected identity once and releases its admission hold")
  var flushed := FileAccess.get_sha256(G)
- check(game.MonsterRewards.flush(game) and FileAccess.get_sha256(G)==flushed,"empty retry does not duplicate detached reward")
+ check(game.flush_kill_rewards() and FileAccess.get_sha256(G)==flushed,"empty retry does not duplicate detached reward")
  print("CASE ",JSON.stringify({"case":"pending_disconnect_reward","before":disconnect_before,"after":flushed,"identity":identity}))
  mark("expire-lease")
  var peer_id: int = player_id(game,"3")
@@ -241,7 +244,7 @@ func host() -> void:
  check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"host offline before detach")
  check(await until(func():return read("offline-1")=="yes" and read("offline-2")=="yes" and read("offline-3")=="yes"),"all guests return through title")
 
-func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: int, before: String) -> void:
+func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: int, before: String, key: String) -> void:
  var after := FileAccess.get_sha256(G)
  var evidence := FileAccess.get_sha256(G+".transaction")
  var warning := Tx.pending_notice(game)
@@ -252,7 +255,14 @@ func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: i
  check(game.departure_settlement.status(identity)==phase and game.departure_settlement.blocks_admission(identity),
   "blocked disconnect keeps the exact settlement outcome and admission hold")
  check(int(game.progress.character_records[identity].profile.monsters[kind])==kills+1,"settlement memory retains computed reward")
+ var reward_phase: int = game.MonsterRewards.Phase.CLEANUP_PENDING if cleanup else game.MonsterRewards.Phase.UNCERTAIN
+ check(game.monster_rewards.status(key)==reward_phase and game.monster_rewards.pending_count()==0,
+  "blocked settlement owner keeps its outcome out of the retryable queue")
  game.remove_meta(&"guarded_gameplay_test_fault")
+ check(not game.flush_kill_rewards() and game.monster_rewards.status(key)==reward_phase
+  and int(game.progress.character_records[identity].profile.monsters[kind])==kills+1
+  and FileAccess.get_sha256(G)==after and FileAccess.get_sha256(G+".transaction")==evidence,
+  "a blocked reward flush cannot replay an award or mutate recovery evidence")
  var old_id := game.get_instance_id()
  var snapshot_sequence: int=game.net_view.snapshot_sent
  var old_transport: ENetMultiplayerPeer=game.online_peer

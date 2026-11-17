@@ -132,7 +132,7 @@ func host_run() -> void:
  var kill_sparks := int(world.Director.config().leader_essence_sparks) * (6 if world.Enemies.get_kind(world.enemy_kind).get("boss",false) else 1)
  @warning_ignore("integer_division")
  var reward_balance := 2 + kill_sparks / int(world.Director.config().essence_sparks_per_point)
- check(world.encounter_rewarded and world.MonsterRewards.flush(world) and Slots._save_digest(G)==saved
+ check(world.encounter_rewarded and world.flush_kill_rewards() and Slots._save_digest(G)==saved
   and world.wallet_for(leader).earned_sparks()==kill_sparks and world.wallet_for(guest).earned_sparks()==kill_sparks
   and world.run_wallet(leader)==reward_balance and world.run_wallet(guest)==reward_balance,
   "one kill plus one floor milestone grants the same expected balance to both participants")

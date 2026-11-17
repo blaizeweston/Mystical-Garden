@@ -923,7 +923,7 @@ func verify_shared_combat(guest: int) -> void:
 	place(guest, Stage.DEEPER_GATE)
 	game.players[guest].contributed = true
 	game.players[1].wild=false
-	for kill_index in 10: game.MonsterRewards.queue(game,"legacy-xp-"+str(kill_index),0,0,Vector3.ZERO,false)
+	for kill_index in 10: game._queue_monster_reward("legacy-xp-"+str(kill_index),0,0,Vector3.ZERO,false)
 	game.award_combat_progress()
 	game.players[1].wild=true
 	check(game.players[1].character.xp[0] == 0 and game.players[guest].character.xp[0] == 10,

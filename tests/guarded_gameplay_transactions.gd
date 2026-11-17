@@ -238,7 +238,7 @@ func run() -> void:
  peer.profile_ready = true
  peer.wild = true
  peer.safe_items = [{"item": "unidentified_seed", "quantity": 1, "seeds": [0]}]
- world.pending_kill_rewards = [{"key":"late", "rewards":[{"id":PEER}]}]
+ check(world._queue_monster_reward("late",world.enemy_kind,0,world.enemy_pos,false), "freeze a real pending receipt before lease loss")
  var memory: Dictionary = world.progress.character_records.duplicate(true)
  var receipts: Dictionary = world.progress.garden_interactions.duplicate(true)
  var lease := G.get_base_dir().path_join("session.cfg")
@@ -248,7 +248,7 @@ func run() -> void:
  var foreign: Dictionary = refused_feedback.persistence
  check(not refused_feedback.completed and refused_feedback.value == null, "authorization refusal has no gameplay completion")
  world.multiplayer.peer_disconnected.emit(PEER)
- check(not foreign.ran and not world.players.has(PEER) and world.pending_kill_rewards.size() == 1
+ check(not foreign.ran and not world.players.has(PEER) and world.monster_rewards.pending_count() == 1
   and world.progress.character_records == memory and world.progress.garden_interactions == receipts and disk() == before, "late host disconnect only cleans network state after lease loss")
  record("late_host_disconnect_foreign_lease", before, foreign)
  marker(lease, OS.get_process_id(), 60)

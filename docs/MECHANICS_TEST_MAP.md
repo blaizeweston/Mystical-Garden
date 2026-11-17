@@ -350,7 +350,7 @@ flowchart LR
 | knowledge | `heart_catalog.gd`, `heart_progress.gd` | `guarded_garden_actions`, `guarded_gameplay_transactions`, `cultivation_growth`, `foundations`, `garden_altar`, `garden_cleanup`, `garden_cleanup_coop`, `garden_conduit`, `garden_conduit_coop`, `garden_growth`, `garden_growth_coop`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `heart_growth_visual`, `heart_progression`, `network_research_coop`, `seed_coop`, `seed_progression`, `seed_template`, `species_depth`, `timed_research`, `developer_garden` |
 | progression | `progression_panel.gd`, `progression_tree.gd` | `garden_cleanup`, `garden_cleanup_coop`, `heart_progression`, `seed_progression`, `tree_portraits` |
 | expeditions | `party_travel.gd`, `run_upgrade_catalog.gd`, `campaign.gd` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `candidate_release_solo`, `candidate_release_party`, `guest_projection_coop`, `guarded_expedition`, `guarded_expedition_coop`, `guarded_garden_actions`, `boss_coop`, `boss_roster`, `checkpoint_extraction`, `class_depth`, `class_depth_coop`, `combat_balance`, `core_starters`, `crafting_availability_coop`, `diagnostics_coop`, `enemy_depth`, `expedition_pressure`, `expedition_pressure_coop`, `expedition_track`, `expedition_track_coop`, `foundations`, `four_players_coop`, `garden_cleanup`, `garden_cleanup_coop`, `garden_growth`, `garden_growth_coop`, `garden_returns`, `garden_returns_coop`, `gate_crafting_rules`, `grafting_menu`, `heart_progression`, `loot_revival`, `loot_revival_coop`, `party_hud_gates`, `party_hud_gates_coop`, `party_ready`, `party_ready_coop`, `run_flow`, `shrines_hits`, `species_depth`, `supplied_network_smoke`, `terrain_generation`, `terrain_generation_coop`, `warden_depth`, `warden_depth_coop`, `weighted_upgrades`, `regular_enemy_responses`, `warden_prototype`, `warden_prototype_coop`, `subclass_skills`, `thief_escape`, `thief_escape_coop`, `soundscape`, `event_audio` |
-| loot | `monster_rewards.gd` | `guarded_expedition`, `guarded_expedition_coop`, `guarded_garden_actions`, `boss_coop`, `boss_phase_fights`, `boss_roster`, `checkpoint_extraction`, `combat_balance`, `enemy_depth`, `enemy_roster`, `enemy_support`, `expedition_pressure`, `gate_elites`, `inventory_grid`, `loot_revival`, `loot_revival_coop`, `monster_rewards`, `seed_template`, `support_deaths` |
+| loot | `monster_rewards.gd` | `cr03_frost_coop`, `cr03_frost_party`, `experimental_terrain_coop`, `experimental_terrain`, `candidate_release_party`, `guarded_expedition`, `guarded_expedition_coop`, `guarded_garden_actions`, `guarded_gameplay_transactions`, `boss_coop`, `boss_phase_fights`, `boss_roster`, `checkpoint_extraction`, `combat_balance`, `enemy_depth`, `enemy_roster`, `enemy_support`, `expedition_pressure`, `four_players_coop`, `gate_elites`, `inventory_grid`, `loot_revival`, `loot_revival_coop`, `monster_rewards`, `seed_inventory`, `seed_template`, `support_deaths` |
 | life | `expedition_life.gd`, `spectator_view.gd` | `ec01_affinity_cards`, `ct05_oracle`, `ct05_oracle_coop`, `ct05_oracle_party`, `ct01_warden`, `ct01_warden_coop`, `ct02_weaver`, `ct02_weaver_coop`, `ct02_weaver_party`, `ct03_ranger`, `ct03_ranger_coop`, `ct03_ranger_party`, `ct04_reaper`, `ct04_reaper_coop`, `ct04_reaper_party`, `cr05_native_grafts`, `cr04b_wood`, `cr04b_wood_coop`, `cr04b_mixed_party`, `guarded_expedition`, `guarded_expedition_coop`, `checkpoint_extraction`, `combat_balance`, `combat_readability`, `combat_readability_coop`, `core_combat`, `core_combat_coop`, `core_signatures_coop`, `core_starters`, `diagnostics_coop`, `expedition_pressure`, `expedition_pressure_coop`, `four_players_coop`, `health_points`, `loot_revival`, `loot_revival_coop`, `mouse_combat`, `mouse_combat_coop`, `network_movement_coop`, `network_presentation`, `network_warden_coop`, `party_hud_gates`, `party_hud_gates_coop`, `party_ready`, `party_ready_coop`, `player_hud`, `run_flow`, `status_feedback`, `status_feedback_coop`, `supplied_network_smoke`, `warden_depth`, `warden_depth_coop`, `expedition_sustain` |
 | characters | `character_slots.gd`, `character_creator.gd`, `character_appearance.gd`, `traveller_avatar.gd` | `legacy_import_recovery`, `legacy_mutation_containment`, `candidate_release_solo`, `candidate_release_party`, `production_persistence`, `guest_projection_coop`, `serializer_integrity`, `guarded_lifecycle`, `guarded_lifecycle_coop`, `guarded_expedition`, `guarded_expedition_coop`, `guarded_garden_actions`, `guarded_garden_actions_coop`, `guarded_gameplay_transactions`, `guarded_title_session`, `persistence_destructive_slots`, `persistence_slot_roster`, `character_locomotion`, `character_overhaul`, `character_rig`, `character_roster`, `delete_saves`, `direct_ip_coop`, `four_players_coop`, `garden_crop_care`, `garden_crop_care_coop`, `garden_presentation`, `menu_controls`, `menu_coop`, `network_presentation`, `network_research_coop`, `network_settings`, `party_hud_gates`, `start_menu`, `supplied_network_smoke`, `weapon_actions`, `weapon_actions_coop`, `combat_balance_saves` |
 | menus | `network_panel.gd` | `legacy_import_recovery`, `legacy_mutation_containment`, `candidate_release_solo`, `candidate_release_party`, `production_persistence`, `guarded_lifecycle`, `guarded_lifecycle_coop`, `guarded_title_session`, `persistence_destructive_slots`, `persistence_slot_roster`, `character_rig`, `character_roster`, `delete_saves`, `direct_ip_coop`, `four_players_coop`, `gate_garden_services`, `menu_controls`, `menu_coop`, `network_settings`, `start_menu`, `developer_garden`, `combat_balance_saves` |
@@ -418,12 +418,15 @@ flowchart LR
 | `_act` | foundation |
 | `_affinity_checkpoint_command` | expeditions, affinity_cards |
 | `_apply_loadout_action` | classes, characters, weapons, items |
+| `_apply_pending_kill_rewards` | loot |
+| `_apply_run_kill_reward` | loot |
 | `_attempt_graft` | weapons |
 | `_bank_checkpoint_item` | items, garden_returns |
 | `_buy_upgrade` | expeditions |
 | `_capture_pending_departure` | departure_settlement |
 | `_cycle_slot` | weapons, items |
 | `_damage_player` | life |
+| `_defers_kill_profiles` | loot |
 | `_donate_part` | items, garden |
 | `_drop_inventory_stack` | loot, items |
 | `_enter_wilds` | expeditions |
@@ -436,13 +439,16 @@ flowchart LR
 | `_harvest` | seeds, garden, knowledge, items |
 | `_init` | foundation |
 | `_input` | foundation |
+| `_kill_reward_identity` | loot |
 | `_notification` | foundation |
 | `_offer_monster` | garden_stations, items, knowledge |
 | `_physics_process` | foundation |
 | `_pickup_inventory_drop` | loot, items |
 | `_plan_essence_debit` | expedition_wallet |
 | `_process` | foundation, affinity_cards |
+| `_publish_kill_reward_notices` | loot |
 | `_purchase_expedition_graft` | expedition_grafts |
+| `_queue_monster_reward` | loot |
 | `_ready` | foundation |
 | `_reclaim_seed` | garden_stations, seeds, items |
 | `_recover_pouch` | life |
@@ -540,6 +546,7 @@ flowchart LR
 | `extraction_checkpoint_open` | expeditions |
 | `finish_combat` | loot, enemies, expeditions, classes |
 | `finish_failed_expedition` | life |
+| `flush_kill_rewards` | loot |
 | `formation_position` | enemies, encounter_composition |
 | `garden_action` | foundation |
 | `garden_snapshot` | foundation |
@@ -618,7 +625,7 @@ flowchart LR
 | `reclamation_cost` | seeds |
 | `reclamation_species` | seeds |
 | `record_character` | persistence_operations |
-| `record_enemy_death` | enemies |
+| `record_enemy_death` | enemies, loot |
 | `record_settlement_metric` | diagnostics, expeditions |
 | `recover_pouch` | life |
 | `refresh_drop` | loot |
@@ -883,8 +890,10 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::reset_expedition` | ar03_wallet_reset | expedition_wallet |
 | `game.gd::_affinity_checkpoint_command` | ar03_wallet_reroll_debit | expedition_wallet, affinity_cards |
 | `game.gd::run_guarded_action` | ar04_departure_result | departure_settlement |
+| `game.gd::settle_expedition_rewards` | ar05_reward_lifecycle | loot |
 | `game.gd::settle_expedition_rewards` | ar04_departure_staging | departure_settlement |
 | `game.gd::settle_expedition_rewards` | ar04_departure_finalization | departure_settlement |
+| `game.gd::prepare_guarded_exit` | ar05_reward_lifecycle | loot |
 | `game.gd::prepare_guarded_exit` | ar04_departure_exit | departure_settlement |
 | `game.gd::admission_error` | ar04_departure_readmission | departure_settlement |
 | `game.gd::add_player` | ar03_wallet_initialization | expedition_wallet |
@@ -911,6 +920,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_unhandled_key_input` | core_press | core_combat |
 | `game.gd::_unhandled_key_input` | crop_care_adapter | garden_care |
 | `game.gd::_unhandled_key_input` | growth_adapter | garden_cinematics |
+| `game.gd::_physics_process` | ar05_reward_lifecycle | loot |
 | `game.gd::_physics_process` | ct02_0 | weaver_progression, warden_progression, combat_affinity_contracts |
 | `game.gd::_physics_process` | ct01_0 | warden_progression, classes, combat_affinity_contracts |
 | `game.gd::_physics_process` | cr04c_void_0 | void_affinity, combat_affinity_contracts, world_snapshot |
@@ -961,6 +971,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_finish_failed_expedition` | experimental_reward_checkpoint | hex_terrain, terrain, persistence_operations |
 | `game.gd::_finish_failed_expedition` | guarded_expedition | persistence_operations, life, garden_returns |
 | `game.gd::_finish_failed_expedition` | garden_returns | garden_returns |
+| `game.gd::remove_player` | ar05_reward_lifecycle_1 | loot |
+| `game.gd::remove_player` | ar05_reward_lifecycle_2 | loot |
 | `game.gd::remove_player` | ar04_departure_capture | departure_settlement |
 | `game.gd::remove_player` | ar03_wallet_disconnect_guarded | expedition_wallet |
 | `game.gd::remove_player` | ar03_wallet_disconnect_legacy | expedition_wallet |
@@ -1088,6 +1100,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::apply_weapon_hit` | boss_lair_fights | boss_lair_fights |
 | `game.gd::apply_weapon_hit` | heavy_and_support | enemy_attack_plan |
 | `game.gd::apply_weapon_hit` | species_variants | enemy_attack_plan |
+| `game.gd::reset_encounter` | ar05_reward_lifecycle | loot |
 | `game.gd::reset_encounter` | ct05_oracle_1 | oracle_progression |
 | `game.gd::reset_encounter` | cr05_grafts_0 | combat_affinity_contracts, weapons, classes, life |
 | `game.gd::reset_encounter` | cr04c_void_0 | void_affinity, combat_affinity_contracts, world_snapshot |
@@ -1359,6 +1372,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::checkpoint_offer_ids` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::buy_upgrade` | ec01_1 | affinity_cards |
 | `game.gd::buy_upgrade` | cr02_affinity_contract | combat_affinity_contracts |
+| `game.gd::return_to_garden` | ar05_reward_lifecycle | loot |
 | `game.gd::return_to_garden` | ar03_wallet_return | expedition_wallet |
 | `game.gd::return_to_garden` | ga01a_1 | expedition_grafts |
 | `game.gd::return_to_garden` | ec01_1 | affinity_cards |
@@ -1371,6 +1385,16 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::return_to_garden` | thorn_form_reset | thorn_affinity, combat_affinity_contracts |
 | `game.gd::return_to_garden` | affinity_floor_state | vital_affinity, fire_affinity, combat_affinity_contracts |
 | `game.gd::return_to_garden` | cr03_frost_integration | frost_affinity |
+| `game_transaction.gd` | receipt_owner | loot |
+| `game_transaction.gd` | legacy_capture | loot |
+| `game_transaction.gd` | legacy_rollback | loot |
+| `game_transaction.gd` | legacy_commit | loot |
+| `game_transaction.gd` | guarded_owner | loot |
+| `game_transaction.gd` | guarded_capture | loot |
+| `game_transaction.gd` | guarded_missing_outcome | loot |
+| `game_transaction.gd` | guarded_uncertainty | loot |
+| `game_transaction.gd` | guarded_commit | loot |
+| `game_transaction.gd` | guarded_rollback | loot |
 | `spirit_affinity.gd` | ec01_1 | affinity_cards |
 | `storm_affinity.gd` | ec01_1 | affinity_cards |
 | `wood_affinity.gd` | ec01_1 | affinity_cards |

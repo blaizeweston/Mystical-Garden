@@ -76,7 +76,7 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 	game.combat_events.clear()
 	game.enemy_traits.clear()
 	game.leader_brain.clear()
-	game.pending_kill_rewards.clear()
+	game.monster_rewards = game.MonsterRewards.new()
 	game.enemy_pos=target
 	game.enemy_hp=300
 	game.enemy_kind=0

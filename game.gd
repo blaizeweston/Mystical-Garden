@@ -27,11 +27,9 @@ var combat_velocity: Dictionary={}
 var combat_last_positions: Dictionary={}
 var encounter_kill_records: Array=[]
 const MonsterRewards=preload("res://monster_rewards.gd")
-var pending_kill_rewards: Array=[]
+var monster_rewards:=MonsterRewards.new()
 const DepartureSettlement=preload("res://departure_settlement.gd")
 var departure_settlement:=DepartureSettlement.new()
-var kill_receipts: Dictionary={}
-var kill_reward_notices: Dictionary={}
 var next_kill_reward_flush:=0
 var moving_ranged_hits:=0
 var encounter_started_at:=0
@@ -858,10 +856,10 @@ func remove_player(id: int) -> void:
 			PartyTravel.cancel(self,"A player disconnected. Confirm readiness again to continue.")
 			var needs_wipe: bool = (expedition_active() or leaving.get("wild",false)) and Life.living_ids(self).is_empty()
 			if needs_wipe: finish_failed_expedition()
-			else: MonsterRewards.flush(self)
+			else: flush_kill_rewards()
 		return
 	if multiplayer.is_server():
-		MonsterRewards.flush(self)
+		flush_kill_rewards()
 		if players.has(id) and players[id].profile_ready:
 			if not players[id].get("seed_owner","").is_empty(): progress.character_records[players[id].seed_owner]={"profile":players[id].character.duplicate(true),"manifest":progress.ContentIDs.manifest()}
 			recover_pouch(players[id])
@@ -1429,7 +1427,132 @@ func _donate_part(id: int, player: Dictionary, effects) -> void:
 
 
 func award_combat_progress() -> void:
-	MonsterRewards.flush(self)
+	flush_kill_rewards()
+
+func _defers_kill_profiles() -> bool:
+	return has_meta(&"experimental_terrain") and has_meta(Transactions.SESSION)
+
+func flush_kill_rewards() -> bool:
+	if get_meta(Transactions.PENDING, false):
+		return false
+	# The active experimental floor pays run loot promptly and banks Class XP
+	# at a checkpoint. Garden disconnects still use guarded settlement.
+	if _defers_kill_profiles() and expedition_active():
+		return true
+	if has_meta(Transactions.SESSION):
+		if not monster_rewards.has_pending() and departure_settlement.is_empty():
+			return true
+		if Life.living_ids(self).is_empty() and departure_settlement.has_wild_departure():
+			return finish_failed_expedition()
+		var result := run_guarded_action(HOST, Transactions.Scope.PAIR, func(effects):
+			settle_expedition_rewards(effects, true)
+			return true)
+		return Transactions.committed(result.persistence)
+	if monster_rewards.has_pending() and not Transactions.run(self, _apply_pending_kill_rewards):
+		return false
+	if not SaveBatch.active:
+		_publish_kill_reward_notices(monster_rewards.take_legacy_notices())
+	return true
+
+func _kill_reward_identity(id: int, player: Dictionary) -> String:
+	return local_character.identity if id == HOST else player.get("seed_owner", "")
+
+func _queue_monster_reward(spawn_token: String, kind: int, mask: int, position: Vector3, leader: bool, summoned := false) -> bool:
+	if not multiplayer.is_server() or not Transactions.session_writable(self):
+		return false
+	var candidates: Array[Dictionary] = []
+	if not summoned:
+		for id in players:
+			var player: Dictionary = players[id]
+			candidates.append({
+				"id": id, "identity": _kill_reward_identity(id, player), "class": int(player.get("frame", Frames.WARDEN)),
+				"profile_ready": player.get("profile_ready", false), "wild": player.get("wild", false), "fallen": player.get("fallen", false),
+			})
+	var death := {"kind":kind, "position":position, "leader":leader, "summoned":summoned}
+	var key := monster_rewards.admit_kill(combat_epoch, spawn_token, death, candidates, roll_kill_trophy.bind(kind, mask, leader), rng.randf)
+	if key.is_empty():
+		return false
+	if _defers_kill_profiles():
+		var receipt := monster_rewards.take_run_awards(key)
+		if not receipt.is_empty():
+			var notices: Array[Dictionary] = []
+			for reward: Dictionary in receipt.rewards:
+				notices.append(_apply_run_kill_reward(receipt, reward, players[reward.id]))
+			if not SaveBatch.guarded_active():
+				_publish_kill_reward_notices(notices, false, true)
+	return true
+
+func _apply_pending_kill_rewards(effects = null, departure_work: Array[Dictionary] = []) -> bool:
+	var notices: Array[Dictionary] = []
+	var live_profiles: Dictionary = {}
+	for receipt in monster_rewards.stage_pending():
+		for reward: Dictionary in receipt.rewards:
+			var id: int = reward.id
+			var player: Dictionary = players.get(id, {})
+			var is_live: bool = not player.is_empty() and _kill_reward_identity(id, player) == reward.identity
+			if not is_live:
+				player = {}
+				for entry in departure_work:
+					if entry.peer_id == id and entry.identity == reward.identity:
+						player = entry.actor
+						break
+			if player.is_empty():
+				continue
+			var profile: Dictionary = player.character
+			var class_id: int = reward["class"]
+			var kind: int = receipt.kind
+			profile.xp[class_id] = mini(Character.Experience.MAX_XP, int(profile.xp[class_id]) + int(reward.xp))
+			profile.monsters[kind] = mini(9999, int(profile.monsters[kind]) + 1)
+			# DepartureSettlement banks detached profiles with protected cargo.
+			if not is_live:
+				continue
+			if effects == null:
+				publish_character(id)
+			else:
+				live_profiles[id] = true
+			if not receipt.run_rewards_granted:
+				notices.append(_apply_run_kill_reward(receipt, reward, player))
+	if effects == null:
+		monster_rewards.defer_legacy_notices(notices)
+	else:
+		for id in live_profiles:
+			save_action_profile(id, effects)
+		if not notices.is_empty():
+			effects.append(_publish_kill_reward_notices.bind(notices, true))
+	return true
+
+func _apply_run_kill_reward(receipt: Dictionary, reward: Dictionary, player: Dictionary) -> Dictionary:
+	var id: int = reward.id
+	grant_run_essence(id, player, int(reward.essence))
+	if int(receipt.epoch) == combat_epoch:
+		var at: Vector3 = receipt.position
+		var drop_id := "%s:%d" % [receipt.key, id]
+		if not reward.item.is_empty():
+			wild_item_drops.append({"id":drop_id, "owner":id, "stack":{"item":reward.item,"quantity":1}, "position":[at.x, at.y, at.z]})
+		if reward.boss_seed:
+			at.x += 0.7
+			wild_item_drops.append({"id":drop_id+":seed", "owner":id, "stack":{"item":"boss_mystery_seed","quantity":1}, "position":[at.x, at.y, at.z]})
+	return {"id":id, "identity":reward.identity, "essence":reward.essence, "xp":reward.xp, "parts":int(not reward.item.is_empty())}
+
+func _publish_kill_reward_notices(notices: Array[Dictionary], require_profile := false, xp_pending := false) -> void:
+	var totals := {}
+	for notice in notices:
+		var id: int = notice.id
+		if not players.has(id) or _kill_reward_identity(id, players[id]) != notice.identity:
+			continue
+		if not totals.has(id):
+			totals[id] = {"essence":0, "xp":0, "parts":0}
+		totals[id].essence += int(notice.essence)
+		totals[id].xp += int(notice.xp)
+		totals[id].parts += int(notice.parts)
+	for id in totals:
+		var notice: Dictionary = totals[id]
+		var essence := int(notice.essence) / float(Director.config().essence_sparks_per_point)
+		var message := "+%.2f essence · +%d class XP%s%s" % [essence, notice.xp, " pending" if xp_pending else "", " · Monster part nearby" if notice.parts > 0 else ""]
+		if require_profile:
+			tell_profile_action(id, message)
+		else:
+			tell(id, message)
 
 func _capture_pending_departure(id: int, player: Dictionary) -> void:
 	var snapshot := {
@@ -1466,13 +1589,13 @@ func _resolve_departure_settlement(boundary: Dictionary) -> void:
 			departure_settlement.finish(DepartureSettlement.Result.UNCERTAIN)
 
 func settle_expedition_rewards(effects: Array[Callable], bank_kills := false) -> void:
-	var settle_kills := bank_kills or not MonsterRewards.checkpoint_only(self)
+	var settle_kills := bank_kills or not _defers_kill_profiles()
 	var waiting_on_rewards: Array[String] = []
 	if not settle_kills:
-		waiting_on_rewards = MonsterRewards.pending_profile_ids(pending_kill_rewards)
+		waiting_on_rewards = monster_rewards.pending_profile_ids()
 	var work := departure_settlement.stage(waiting_on_rewards)
 	if settle_kills:
-		MonsterRewards.settle(self, effects, work)
+		_apply_pending_kill_rewards(effects, work)
 	for entry in work:
 		var leaving: Dictionary = entry.actor
 		if not leaving.seed_owner.is_empty():
@@ -2316,7 +2439,7 @@ func _physics_process(delta: float) -> void:
 		if expedition_active() and encounter_cleared() and pending_finale_at==0 and not encounter_rewarded and now>=reward_retry_at: finish_combat(HOST,enemy_pos)
 		if now>=next_kill_reward_flush:
 			next_kill_reward_flush=now+150
-			MonsterRewards.flush(self)
+			flush_kill_rewards()
 		if get_meta(Transactions.PENDING, false): return
 		update_support_effects(now)
 		update_combat_tracking(delta)
@@ -3218,7 +3341,7 @@ func finish_combat(id: int,loot_position: Vector3) -> void:
 			_finish_combat(id,loot_position,effects))
 		if not encounter_rewarded: reward_retry_at=Time.get_ticks_msec()+1000
 		return
-	if not MonsterRewards.flush(self): return
+	if not flush_kill_rewards(): return
 	Transactions.run(self,func(): _finish_combat(id,loot_position))
 	if not encounter_rewarded: reward_retry_at=Time.get_ticks_msec()+1000
 
@@ -3422,7 +3545,7 @@ func ending_message(ending: int) -> String:
 
 
 func return_to_garden(p: Dictionary) -> void:
-	if not SaveBatch.guarded_active(): MonsterRewards.flush(self)
+	if not SaveBatch.guarded_active(): flush_kill_rewards()
 	p.attack_until=0;p.swing_until=0;p.cast_until=0
 	preload("res://oracle_combat.gd").clear(p)
 	p.run_upgrades={}
@@ -3708,8 +3831,8 @@ func start_encounter() -> void:
 
 
 func reset_encounter() -> void:
-	if not SaveBatch.guarded_active(): MonsterRewards.flush(self)
-	if pending_kill_rewards.is_empty(): kill_receipts.clear()
+	if not SaveBatch.guarded_active(): flush_kill_rewards()
+	monster_rewards.retire_completed()
 	encounter_kill_records.clear();combat_threat.clear();combat_velocity.clear();combat_last_positions.clear();leader_brain.clear();moving_ranged_hits=0;encounter_started_at=Time.get_ticks_msec();encounter_party_size=Director.party_size(self)
 	encounter_kills.clear();encounter_rewarded=false;reward_retry_at=0
 	combat_epoch+=1
@@ -4366,8 +4489,8 @@ func prepare_guarded_exit(save_garden := true) -> bool:
 			if not finish_failed_expedition(): return false
 			character_dirty=false
 			return true
-		if not departure_settlement.is_empty() or not pending_kill_rewards.is_empty():
-			if not MonsterRewards.flush(self): return false
+		if not departure_settlement.is_empty() or monster_rewards.has_pending():
+			if not flush_kill_rewards(): return false
 			character_dirty=false
 			return true
 		if save_garden:
@@ -5547,15 +5670,15 @@ func update_support_position(scout: Dictionary,allies: Array,definition: Diction
 		if scout.get("covered_once",false):scout.covered_cast=true
 
 func record_enemy_death(target: int,position: Vector3,origin: Vector3) -> void:
-	if not Transactions.session_writable(self): return
-	var key:=str(combat_epoch)+":"+("leader" if target==-1 else str(scouts[target].get("spawn_token",target)))
-	if kill_receipts.has(key): return
-	var kind: int=enemy_kind if target==-1 else int(scouts[target].get("kind",0))
-	if target==-1 or not scouts[target].get("summoned",false): encounter_kills.append(kind)
-	var mask: int=enemy_mutations if target==-1 else int(scouts[target].get("mutations",0))
-	if target==-1 or not scouts[target].get("summoned",false): encounter_kill_records.append({"kind":kind,"mask":mask})
-	if target==-1 or not scouts[target].get("summoned",false): MonsterRewards.queue(self,key,kind,mask,position,target==-1)
-	else: kill_receipts[key]=true
+	var spawn_token := "leader" if target == -1 else str(scouts[target].get("spawn_token", target))
+	var kind: int = enemy_kind if target == -1 else int(scouts[target].get("kind", 0))
+	var mask: int = enemy_mutations if target == -1 else int(scouts[target].get("mutations", 0))
+	var summoned := target >= 0 and bool(scouts[target].get("summoned", false))
+	if not _queue_monster_reward(spawn_token, kind, mask, position, target == -1, summoned):
+		return
+	if not summoned:
+		encounter_kills.append(kind)
+		encounter_kill_records.append({"kind":kind,"mask":mask})
 	if target>=0: EnemyBehaviors.death(self,scouts[target],position)
 	elif leader_brain.has("elite"): EnemyBehaviors.death(self,leader_brain.elite,position)
 	var growth: int=enemy_growth if target==-1 else int(scouts[target].get("growth",0))

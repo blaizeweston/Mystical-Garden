@@ -351,41 +351,43 @@ func run() -> void:
 				break
 		game.apply_weapon_hit(player, target, player.pos, stats, Time.get_ticks_msec())
 		if target == -1:
-			var frozen: Array = game.pending_kill_rewards.duplicate(true)
+			var frozen: Array = game.monster_rewards.pending_receipts()
 			var drops: Array = game.wild_item_drops.duplicate(true)
 			var rng_state: int = game.rng.state
 			var leader_wallet = game.wallet_for(player)
 			game.record_enemy_death(target, game.enemy_pos, player.pos)
-			check(game.pending_kill_rewards == frozen and game.wild_item_drops == drops and game.rng.state == rng_state
+			check(game.monster_rewards.pending_receipts() == frozen and game.wild_item_drops == drops and game.rng.state == rng_state
 				and game.wallet_for(player) == leader_wallet,
 				"a duplicate death cannot reroll or grant rewards twice")
-			check(not game.encounter_cleared() and leader_wallet.earned_sparks() > essence_before
+			check(frozen.size() == 1 and frozen[0].run_rewards_granted
+				and game.monster_rewards.status(frozen[0].key) == game.MonsterRewards.Phase.PENDING
+				and not game.encounter_cleared() and leader_wallet.earned_sparks() > essence_before
 				and wallet_before.earned_sparks() == essence_before and not drops.is_empty(),
 				"Essence and collectible drops appear before the floor clears")
-			check(game.MonsterRewards.flush(game) and game.pending_kill_rewards == frozen
+			check(game.flush_kill_rewards() and game.monster_rewards.pending_receipts() == frozen
 				and save_digests(garden_path, profile_path) == floor_before
 				and class_xp(player) == xp_before and kill_count(player) == kills_before,
 				"the mid-floor flush leaves XP and kill counts pending without changing save bytes")
 	var expected_xp := xp_before + queued_xp(game)
-	var expected_kills: int = kills_before + game.pending_kill_rewards.size()
+	var expected_kills: int = kills_before + game.monster_rewards.pending_count()
 	var expected_drops: Array = game.wild_item_drops.duplicate(true)
 	var expected_wallet = game.wallet_for(player)
 	var before_clear_balance: int = game.run_wallet(player)
 	if DisplayServer.get_name() == "headless":
-		var saved_tally: Array = game.pending_kill_rewards.duplicate(true)
+		var saved_tally: Array = game.monster_rewards.pending_receipts()
 		game.set_meta(&"guarded_gameplay_test_fault", func(phase: String, _path: String):
 			return ERR_CANT_CREATE if phase == "stage" else OK)
 		game.finish_combat(game.HOST, game.enemy_pos)
 		game.remove_meta(&"guarded_gameplay_test_fault")
-		check(not game.encounter_rewarded and game.pending_kill_rewards == saved_tally
+		check(not game.encounter_rewarded and game.monster_rewards.pending_receipts() == saved_tally
 			and save_digests(garden_path, profile_path) == floor_before and class_xp(player) == xp_before
 			and game.wallet_for(player) == expected_wallet and game.run_wallet(player) == before_clear_balance
 			and game.wild_item_drops == expected_drops,
 			"verified settlement abort restores the tally without rerolling or revoking live loot")
-	var rewarded: bool = game.MonsterRewards.flush(game)
+	var rewarded: bool = game.flush_kill_rewards()
 	game.finish_combat(game.HOST, game.enemy_pos)
 	check(game.encounter_rewarded, "the guarded combat settlement authorizes Gate progression")
-	check(game.pending_kill_rewards.is_empty() and class_xp(player) == expected_xp
+	check(game.monster_rewards.pending_count()==0 and class_xp(player) == expected_xp
 		and kill_count(player) == expected_kills and game.wallet_for(player) == expected_wallet
 		and game.run_wallet(player) == before_clear_balance + 2 and game.wild_item_drops == expected_drops
 		and save_digests(garden_path, profile_path) != floor_before,
@@ -451,12 +453,12 @@ func run() -> void:
 	last_hit.damage = 10000
 	game.apply_weapon_hit(player, -1, player.pos, last_hit, Time.get_ticks_msec())
 	var loss_xp := class_xp(player) + queued_xp(game)
-	var loss_kills: int = kill_count(player) + game.pending_kill_rewards.size()
-	check(not game.encounter_cleared() and not game.pending_kill_rewards.is_empty(),
+	var loss_kills: int = kill_count(player) + game.monster_rewards.pending_count()
+	check(not game.encounter_cleared() and game.monster_rewards.pending_count()>0,
 		"the next floor has pending XP before the run ends")
 	game.damage_player(game.HOST, player, int(player.hp))
 	await process_frame
-	check(game.pending_kill_rewards.is_empty() and class_xp(player) == loss_xp and kill_count(player) == loss_kills,
+	check(game.monster_rewards.pending_count()==0 and class_xp(player) == loss_xp and kill_count(player) == loss_kills,
 		"losing the run commits the partial floor's tally")
 	var stored_profile = game.Character.new()
 	stored_profile.path = profile_path
@@ -625,7 +627,7 @@ func kill_count(player: Dictionary) -> int:
 
 func queued_xp(game: Node) -> int:
 	var total := 0
-	for kill: Dictionary in game.pending_kill_rewards:
+	for kill: Dictionary in game.monster_rewards.pending_receipts():
 		for reward: Dictionary in kill.rewards:
 			total += int(reward.xp)
 	return total

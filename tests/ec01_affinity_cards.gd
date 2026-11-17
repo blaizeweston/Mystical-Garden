@@ -51,8 +51,9 @@ func reset(class_id := 0) -> void:
 	game.checkpoint_pending = false
 	game.checkpoint_ready.clear()
 	game.deepest_milestone = 0
-	for records: Array in [game.scouts,game.trait_events,game.projectile_queue,game.combat_events,game.pending_kill_rewards]:
+	for records: Array in [game.scouts,game.trait_events,game.projectile_queue,game.combat_events]:
 		records.clear()
+	game.monster_rewards = game.MonsterRewards.new()
 	game.leader_brain.clear()
 	game.enemy_traits.clear()
 	game.battlefield = preload("res://battlefield.gd").new()

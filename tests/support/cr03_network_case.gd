@@ -326,7 +326,7 @@ func host(menu: Node) -> void:
 	var path_xp_before: int=selected_player.character.xp[graph.class_id] if graph!=null else 0
 	var weaver_xp_before: int=selected_weaver.character.xp[1] if connected_weaver_case else 0
 	if connected_warden_case:
-		var pending: Array = game.pending_kill_rewards.duplicate()
+		var pending: Array = game.monster_rewards.pending_receipts()
 		for index in [0,1]:
 			var actor: int = 1 if index==0 else protected
 			var prior := int(xp_before[index])

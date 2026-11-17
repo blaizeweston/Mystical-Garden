@@ -70,7 +70,7 @@ func reset_field() -> void:
 	game.combat_events.clear()
 	game.enemy_traits.clear()
 	game.leader_brain.clear()
-	game.pending_kill_rewards.clear()
+	game.monster_rewards = game.MonsterRewards.new()
 	game.enemy_pos = Vector3(2,0,0)
 	game.enemy_hp = 300
 	game.enemy_kind = 0

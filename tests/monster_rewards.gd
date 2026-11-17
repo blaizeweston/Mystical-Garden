@@ -10,16 +10,33 @@ func run():
  friend.profile_ready=true;friend.seed_owner="e".repeat(32)
  for player in game.players.values():player.wild=true;player.pos=Vector3(0,0,4);player.character.xp.fill(0)
  game.battlefield.configure(0,1);game.battlefield.barriers=[];game.enemy_hp=10;game.enemy_pos=Vector3(0,0,10)
+ game.add_player(3)
+ game.players[3].wild=true
+ game.add_player(4)
+ game.players[4].wild=true
+ game.players[4].profile_ready=true
+ game.players[4].fallen=true
  var config=game.Director.config();var saved=config.duplicate(true);config.trophy_chance=1.0;config.trophy_cap=1.0
  var scout=game.make_scout(10,Vector3(0,0,5),1);scout.hp=1;game.scouts.assign([scout])
  game.apply_weapon_hit(p,0,p.pos,{"damage":1},1000)
- check(game.pending_kill_rewards.size()==1 and not game.encounter_cleared(),"a non-final individual kill queues rewards")
+ check(game.monster_rewards.pending_count()==1 and not game.encounter_cleared(),"a non-final individual kill queues rewards")
+ var first_receipt: Dictionary = game.monster_rewards.pending_receipts()[0]
+ check(first_receipt.rewards.map(func(reward): return reward.id)==[1,2],
+  "kill receipt freezes the eligible host and guest and excludes unready or fallen peers")
+ first_receipt.rewards[0].xp=999
+ check(game.monster_rewards.pending_receipts()[0].rewards[0].xp==1,"receipt inspection is detached from owner state")
+ game.players.erase(3)
+ game.players.erase(4)
  game.record_enemy_death(0,scout.pos,p.pos)
- check(game.pending_kill_rewards.size()==1,"duplicate death cannot reroll or duplicate rewards")
- check(game.MonsterRewards.flush(game),"individual rewards save before encounter clear")
+ check(game.monster_rewards.pending_count()==1,"duplicate death cannot reroll or duplicate rewards")
+ check(game.flush_kill_rewards(),"individual rewards save before encounter clear")
  check(game.wallet_for(p).earned_sparks()==1 and game.wallet_for(friend).earned_sparks()==1
   and p.character.xp[0]==1 and friend.character.xp[0]==1,"support and attacker get equal Essence and Class XP")
  check(game.run_wallet(p)==0 and game.run_wallet(friend)==0,"one spark does not yet grant spendable Essence")
+ game.record_enemy_death(0,scout.pos,p.pos)
+ check(game.monster_rewards.status(first_receipt.key)==game.MonsterRewards.Phase.COMMITTED
+  and game.monster_rewards.pending_count()==0 and game.wallet_for(p).earned_sparks()==1,
+  "a repeated death cannot reopen a committed receipt")
  var own=game.inventory_floor_snapshot(p);var other=game.inventory_floor_snapshot(friend)
  check(own.size()==1 and other.size()==1 and own[0].id!=other[0].id,"each player sees only their own kill drop")
  check(own[0].item==game.Items.part_id(game.Parts.monster_part(10)),"part belongs to actual killed species")
@@ -28,22 +45,37 @@ func run():
  p.pos=scout.pos;game.pickup_inventory_drop(1,p,own[0].id)
  check(p.carried_parts[game.Parts.monster_part(10)]==1 and game.inventory_floor_snapshot(friend).size()==1,"pickup changes only owner inventory")
  var summoned=game.make_scout(0,Vector3(0,0,5),2);summoned.summoned=true;game.scouts.assign([summoned]);game.record_enemy_death(0,summoned.pos,p.pos)
- check(game.pending_kill_rewards.is_empty(),"summoned enemies cannot farm parts, essence or XP")
+ var summoned_key := "%d:%s" % [game.combat_epoch, summoned.spawn_token]
+ var summoned_event: int = game.enemy_death_serial
+ game.record_enemy_death(0,summoned.pos,p.pos)
+ check(game.monster_rewards.status(summoned_key)==game.MonsterRewards.Phase.EXCLUDED
+  and game.monster_rewards.pending_count()==0 and game.enemy_death_serial==summoned_event,
+  "summoned deaths emit once and never farm parts, Essence or XP")
  # A failed save retains the same pre-rolled queue and restores all affected players.
  var before = game.wallet_for(p)
  var friend_before = game.wallet_for(friend)
- game.MonsterRewards.queue(game,"failure-fixture",11,0,p.pos,false)
- var frozen=game.pending_kill_rewards.duplicate(true);var path=game.progress.path
+ game._queue_monster_reward("failure-fixture",11,0,p.pos,false)
+ var frozen=game.monster_rewards.pending_receipts();var path=game.progress.path
  game.progress.path="res://.godot/missing-kill-rewards-directory/fail.cfg"
- check(not game.MonsterRewards.flush(game),"failed persistence rejects reward settlement")
- check(game.wallet_for(p)==before and game.wallet_for(friend)==friend_before and game.pending_kill_rewards==frozen,
+ check(not game.flush_kill_rewards(),"failed persistence rejects reward settlement")
+ check(game.wallet_for(p)==before and game.wallet_for(friend)==friend_before and game.monster_rewards.pending_receipts()==frozen,
   "rollback preserves rolls and restores the previous immutable wallets")
- game.progress.path=path;check(game.MonsterRewards.flush(game),"same reward can be retried without reroll")
+ game.progress.path=path
+ var staged_inside_outer: Array[bool] = []
+ var rejected_outer = game.Transactions.run(game,func():
+  staged_inside_outer.append(game.flush_kill_rewards())
+  staged_inside_outer.append(game.monster_rewards.status(frozen[0].key)==game.MonsterRewards.Phase.STAGED)
+  game.SaveBatch.record_serializer_error(ERR_FILE_CANT_WRITE,game.progress.path)
+  return true)
+ check(not rejected_outer and staged_inside_outer==[true,true] and game.monster_rewards.pending_receipts()==frozen
+  and game.wallet_for(p)==before and game.wallet_for(friend)==friend_before and p.character.xp[0]==1,
+  "outer serializer rollback restores frozen intents after a nested reward flush")
+ check(game.flush_kill_rewards(),"same reward can be retried without reroll")
  var credited = game.wallet_for(p)
  check(credited.earned_sparks()==before.earned_sparks()+1 and game.wallet_for(friend).earned_sparks()==friend_before.earned_sparks()+1
-  and game.MonsterRewards.flush(game) and game.wallet_for(p)==credited,"retry applies each eligible award exactly once")
- for i in 8:game.MonsterRewards.queue(game,"xp-fixture-"+str(i),0,0,p.pos,false)
- game.MonsterRewards.flush(game)
+  and game.flush_kill_rewards() and game.wallet_for(p)==credited,"retry applies each eligible award exactly once")
+ for i in 8:game._queue_monster_reward("xp-fixture-"+str(i),0,0,p.pos,false)
+ game.flush_kill_rewards()
  check(p.character.xp[0]==10,"ten normal kills award ten whole Class XP")
  var profile=game.Character.new();profile.path=game.local_character.path;profile.load_profile()
  check(profile.data.xp[0]==10 and game.Character.Experience.current(profile.data),"kill XP persists independently of extraction")
@@ -53,17 +85,23 @@ func run():
    and not saved_data.encode_to_text().contains("essence_sparks"),"run-only wallet state is absent from canonical save bytes")
  game.award_combat_progress();check(p.character.xp[0]==10,"floor clear cannot duplicate kill XP")
  p.frame=2
- game.MonsterRewards.queue(game,"leader-xp",0,0,p.pos,true)
+ game._queue_monster_reward("leader-xp",0,0,p.pos,true)
  var boss: int=game.Enemies.all().map(func(enemy):return enemy.id).find("orchard")
- game.MonsterRewards.queue(game,"boss-xp",boss,0,p.pos,true)
- check(game.pending_kill_rewards[0].rewards[0].xp==3 and game.pending_kill_rewards[1].rewards[0].xp==24,
+ game._queue_monster_reward("boss-xp",boss,0,p.pos,true)
+ var leaders: Array = game.monster_rewards.pending_receipts()
+ check(leaders[0].rewards[0].xp==3 and leaders[1].rewards[0].xp==24,
   "ordinary and boss leaders queue 3 and 24 whole XP")
- check(game.MonsterRewards.flush(game) and p.character.xp[2]==27 and friend.character.xp[0]==37,
-  "authoritative settlement awards each participant's selected class once")
+ p.frame=3
+ friend.frame=1
+ check(game.flush_kill_rewards() and p.character.xp[2]==27 and friend.character.xp[0]==37
+  and p.character.xp[3]==0 and friend.character.xp[1]==0,
+  "settlement awards the classes selected at the kill even if loadouts changed")
  check("+27 class XP" in game.status,"reward feedback displays whole XP")
+ p.frame=2
+ friend.frame=0
  p.character.xp[2]=game.Character.Experience.MAX_XP-1
- game.MonsterRewards.queue(game,"xp-ceiling",0,0,p.pos,true)
- check(game.MonsterRewards.flush(game) and p.character.xp[2]==game.Character.Experience.MAX_XP,
+ game._queue_monster_reward("xp-ceiling",0,0,p.pos,true)
+ check(game.flush_kill_rewards() and p.character.xp[2]==game.Character.Experience.MAX_XP,
   "reward cap admits the full previous maximum and fractional remainder")
  config.clear();config.merge(saved,true)
  var unit = game.ExpeditionWallet.Wallet.new(7)
@@ -85,24 +123,32 @@ func run():
  var former_identity: String = friend.seed_owner
  var detached_profile: Dictionary = friend.character.duplicate(true)
  var former_xp: int = int(detached_profile.xp[0])
- game.MonsterRewards.queue(game,"detached-identity-one",10,0,p.pos,false)
- game.MonsterRewards.queue(game,"detached-identity-two",10,0,p.pos,false)
- for kill in game.pending_kill_rewards:
-  kill.rewards[1].item = game.Items.part_id(game.Parts.monster_part(10))
- var frozen_departure_rewards: Array = game.pending_kill_rewards.duplicate(true)
- check(game.MonsterRewards.pending_profile_ids(game.pending_kill_rewards)==[former_identity]
-  and game.pending_kill_rewards==frozen_departure_rewards,"pending profile identities are unique and read from unchanged frozen rewards")
+ config.merge({"trophy_chance":1.0,"trophy_cap":1.0},true)
+ game._queue_monster_reward("detached-identity-one",10,0,p.pos,false)
+ game._queue_monster_reward("detached-identity-two",10,0,p.pos,false)
+ config.merge(saved,true)
+ var frozen_departure_rewards: Array = game.monster_rewards.pending_receipts()
+ check(game.monster_rewards.pending_profile_ids()==[game.local_character.identity,former_identity]
+  and game.monster_rewards.pending_receipts()==frozen_departure_rewards
+  and not frozen_departure_rewards[0].rewards[1].item.is_empty(),
+  "pending profile identities are unique and include a frozen real trophy")
  friend.seed_owner="f".repeat(32)
  var replacement_wallet = game.wallet_for(friend)
  var replacement_drops: int = game.inventory_floor_snapshot(friend).size()
  var work: Array[Dictionary] = [{"peer_id":2,"identity":former_identity,"actor":{"character":detached_profile}}]
  var effects: Array[Callable] = []
- check(game.MonsterRewards.settle(game,effects,work) and int(detached_profile.xp[0])==former_xp+2
+ var settled = game.Transactions.run(game,func():
+  var applied: bool = game._apply_pending_kill_rewards(effects,work)
+  var repeated: bool = game._apply_pending_kill_rewards(effects,work)
+  return applied and repeated)
+ check(settled and int(detached_profile.xp[0])==former_xp+2
   and int(friend.character.xp[0])==former_xp and game.wallet_for(friend)==replacement_wallet
   and game.inventory_floor_snapshot(friend).size()==replacement_drops,
-  "detached XP follows the frozen identity without awarding run rewards to the reused peer ID")
- check(game.MonsterRewards.settle(game,effects,work) and int(detached_profile.xp[0])==former_xp+2,
-  "the same detached work cannot consume a settled reward again")
+  "one settlement gives detached XP to the frozen identity without crediting the reused peer ID")
+ check(game.monster_rewards.pending_count()==0
+  and game.monster_rewards.status(frozen_departure_rewards[0].key)==game.MonsterRewards.Phase.COMMITTED
+  and game.monster_rewards.status(frozen_departure_rewards[1].key)==game.MonsterRewards.Phase.COMMITTED,
+  "the outer save commits the detached receipts exactly once")
  game.queue_free();await process_frame
  if not failed:print("PASS: individual kills, equal party rewards, owner-only drops, summon exclusion, XP, rollback and bounded drop odds")
  quit(1 if failed else 0)

@@ -102,7 +102,7 @@ func host_run():
  config.trophy_chance=1.0;config.trophy_cap=1.0
  var victim=game.make_scout(10,game.players[1].pos+Vector3(0,0,1),1);victim.hp=1;game.scouts[0]=victim
  game.apply_weapon_hit(game.players[1],0,game.players[1].pos,{"damage":1},Time.get_ticks_msec())
- check(game.MonsterRewards.flush(game),"four-way individual kill rewards commit")
+ check(game.flush_kill_rewards(),"four-way individual kill rewards commit")
  config.trophy_chance=old_chance;config.trophy_cap=old_cap
  check(await until(func():return marked("kill_verified_1") and marked("kill_verified_2") and marked("kill_verified_3")),"all guests receive their own monster reward and XP")
  if not await guest_vitals(thorn_guest):

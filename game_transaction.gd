@@ -1,5 +1,7 @@
 extends RefCounted
 const Batch=preload("res://save_batch.gd")
+const MonsterRewards = preload("res://monster_rewards.gd")
+
 static func snapshot(object: Object) -> Dictionary:
  var result: Dictionary={}
  for property in object.get_property_list():
@@ -52,6 +54,8 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
  var state:=snapshot(game);state.erase("players");var local:=snapshot(game.local_character);var guest:=snapshot(game.guest_character)
  var players: Dictionary=game.players.duplicate(true)
  var rng_state: int = game.rng.state
+ var rewards: MonsterRewards = game.get("monster_rewards")
+ var reward_savepoint: Dictionary = rewards.savepoint() if rewards != null else {}
  var begin_error := Batch.begin(game.progress.path)
  if begin_error != OK:
   verdict.error = begin_error
@@ -70,6 +74,8 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
   preload("res://game_metrics.gd").record("save_rollback",{"error":error})
   restore(game.progress,world);game.progress.heart.restore(heart);restore(game.progress.campaign,campaign)
   restore(game,state)
+  if rewards != null:
+   rewards.restore_savepoint(reward_savepoint)
   for id in players:
    if not game.players.has(id): game.players[id]=players[id].duplicate(true)
    else: restore_dict(game.players[id],players[id])
@@ -79,6 +85,8 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
   game.rng.state=rng_state
   game.transaction_publishes.clear();game.status="Could not save this action. Nothing was consumed; please retry."
   return false
+ if rewards != null:
+  rewards.finish_settlement(MonsterRewards.Result.COMMITTED)
  preload("res://diagnostic_journal.gd").event("save","transaction_committed",{"transaction_seq":diagnostic_transaction})
  preload("res://game_metrics.gd").flush(true)
  # Presentation confirms only committed outcomes; a rollback must not show damage.
@@ -212,6 +220,7 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
   return {"error": OK, "ran": true, "nested": true, "value": action.call()}
 
  var captured := {}
+ var rewards: MonsterRewards = game.get("monster_rewards")
  var operations = load("res://persistence_operations.gd")
  var anchor: String = serializers[0].path
  var action_and_save := func():
@@ -224,6 +233,8 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
   captured.local = snapshot(game.local_character)
   captured.guest = snapshot(game.guest_character)
   captured.rng = game.rng.state
+  if rewards != null:
+   captured.monster_rewards = rewards.savepoint()
   if game.has_method("snapshot_expedition_runtime"):
    captured.expedition = game.snapshot_expedition_runtime()
   game.transaction_publishes.clear()
@@ -274,6 +285,13 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
    boundary = _refusal(execution.get("error", ERR_BUG), execution.get("reason", "transaction_refused"),
     "pending_recovery" if execution.get("reason") == "unresolved_transaction" else execution.get("state", "invalid"))
    boundary.release_error = release_error
+  if captured.has("monster_rewards"):
+   # Gameplay ran, but its save verdict is missing. Hold tentative rewards.
+   rewards.finish_settlement(MonsterRewards.Result.UNCERTAIN)
+   game.transaction_publishes.clear()
+   boundary.state = "unresolved"
+   boundary.reason = "missing_gameplay_finalization"
+   if boundary.error == OK: boundary.error = ERR_BUG
   if boundary.state in ["pending_recovery", "ambiguous", "unresolved"] or boundary.release_error != OK:
    game.set_meta(PENDING, true)
   return boundary
@@ -283,7 +301,13 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
    if execution.action_ran:
     _restore_guarded(game, captured)
   Batch.Outcome.UNCERTAIN:
+   if rewards != null:
+    rewards.finish_settlement(MonsterRewards.Result.UNCERTAIN)
    game.transaction_publishes.clear()
+  Batch.Outcome.COMMITTED, Batch.Outcome.COMMITTED_CLEANUP_PENDING:
+   if rewards != null:
+    var cleanup: bool = finalized.outcome == Batch.Outcome.COMMITTED_CLEANUP_PENDING or finalized.write_blocked or boundary.release_error != OK
+    rewards.finish_settlement(MonsterRewards.Result.CLEANUP_PENDING if cleanup else MonsterRewards.Result.COMMITTED)
  if finalized.write_blocked or boundary.release_error != OK:
   game.set_meta(PENDING, true)
  if committed(boundary) and publish.is_valid():
@@ -306,6 +330,8 @@ static func _restore_guarded(game: Node, captured: Dictionary) -> void:
  game.progress.heart.restore(captured.heart)
  restore(game.progress.campaign, captured.campaign)
  restore(game, captured.game)
+ if captured.has("monster_rewards"):
+  game.monster_rewards.restore_savepoint(captured.monster_rewards)
  restore_dict(game.players, captured.players)
  restore(game.local_character, captured.local)
  restore(game.guest_character, captured.guest)

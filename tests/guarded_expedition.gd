@@ -27,7 +27,7 @@ func disk() -> Dictionary:
 func record(label: String,before: Dictionary) -> void:
  print("CASE ",JSON.stringify({"case":label,"run_id":OS.get_environment("MYSTICAL_VALIDATION_RUN"),"before":before,"after":disk(),
   "floor":world.encounter_number,"wild":world.expedition_active(),"pending":Tx.pending_notice(world),"status":world.status,
-  "queued_kills":world.pending_kill_rewards.size(),"queued_departures":world.departure_settlement.count(),"event_serial":world.combat_event_serial}))
+  "queued_kills":world.monster_rewards.pending_count(),"queued_departures":world.departure_settlement.count(),"event_serial":world.combat_event_serial}))
 
 func open_world(fresh := false) -> bool:
  var title: Node = current_scene
@@ -169,11 +169,16 @@ func exercise() -> void:
  var initial_wallet = world.wallet_for(actor)
  record("departure_commit",before)
 
+ var trophy_config: Dictionary = world.Director.config()
+ var previous_config := trophy_config.duplicate()
+ trophy_config.merge({"trophy_chance":1.0,"trophy_cap":1.0},true)
  world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
+ trophy_config.merge(previous_config,true)
  var frozen: int=world.rng.state
  world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
- check(world.pending_kill_rewards.size()==1 and world.rng.state==frozen,"duplicate receipt does not reroll")
- world.pending_kill_rewards[0].rewards[0].item=world.Items.part_id(world.Parts.HOOK)
+ check(world.monster_rewards.pending_count()==1 and world.rng.state==frozen,"duplicate receipt does not reroll")
+ var frozen_item: String = world.monster_rewards.pending_receipts()[0].rewards[0].item
+ check(not frozen_item.is_empty(),"fixture freezes an actual trophy roll")
  world.enemy_hp=0
  world.scouts.clear()
  world.burst_hits_this_room=3
@@ -181,7 +186,7 @@ func exercise() -> void:
  var serial: int=world.combat_event_serial
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.finish_combat(1,world.enemy_pos)
- check(not world.encounter_rewarded and not actor.loot_pending and actor.character.monsters[world.enemy_kind]==0 and world.pending_kill_rewards.size()==1
+ check(not world.encounter_rewarded and not actor.loot_pending and actor.character.monsters[world.enemy_kind]==0 and world.monster_rewards.pending_count()==1
   and world.wild_item_drops.is_empty() and world.combat_event_serial==serial and world.rng.state==frozen and disk()==before
   and world.wallet_for(actor)==initial_wallet and world.run_wallet(actor)==0,"encounter abort keeps the frozen receipt and withholds rewards, drop and cue")
  record("encounter_abort",before)
@@ -191,11 +196,12 @@ func exercise() -> void:
  var earned_balance: int = world.run_wallet(actor)
  check(world.encounter_rewarded and actor.loot_pending and earned_wallet.earned_sparks()>0
   and earned_balance>=2 and actor.character.monsters[world.enemy_kind]==1
-  and world.wild_item_drops.size()==1 and world.progress.wilds_memory.encounters==1 and disk()[G]!=before[G] and disk()[C]!=before[C],
+  and world.wild_item_drops.size()==1 and world.wild_item_drops[0].stack.item==frozen_item
+  and world.progress.wilds_memory.encounters==1 and disk()[G]!=before[G] and disk()[C]!=before[C],
   "encounter commits frozen XP, trophy, adaptation, and cue together")
  var committed:=disk()
  world.finish_combat(1,world.enemy_pos)
- check(world.MonsterRewards.flush(world) and disk()==committed and world.wild_item_drops.size()==1
+ check(world.flush_kill_rewards() and disk()==committed and world.wild_item_drops.size()==1
   and world.wallet_for(actor)==earned_wallet and world.run_wallet(actor)==earned_balance,"repeat flush and completion cannot credit twice")
  record("encounter_commit",before)
 
@@ -320,7 +326,7 @@ func exercise() -> void:
  world.enter_wilds(2,ally)
  ally.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  world.record_enemy_death(-1,world.enemy_pos,Vector3.ZERO)
- var receipt: Dictionary = world.pending_kill_rewards[0]
+ var receipt: Dictionary = world.monster_rewards.pending_receipts()[0]
  var earned_xp := 0
  for reward: Dictionary in receipt.rewards:
   if reward.id==2: earned_xp=int(reward.xp)
@@ -328,7 +334,7 @@ func exercise() -> void:
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.remove_player(2)
  check(not world.players.has(2) and world.departure_settlement.status(departed_identity)==world.DepartureSettlement.Phase.RETRYABLE
-  and world.pending_kill_rewards.size()==1 and disk()==before
+  and world.monster_rewards.pending_count()==1 and disk()==before
   and not ally.has(world.ExpeditionWallet.STATE) and world.run_wallet(ally)==0,
   "failed disconnect settlement retains cargo and frozen reward and clears run-only currency")
  var catalog: Dictionary = world.progress.ContentIDs.manifest()
@@ -347,17 +353,17 @@ func exercise() -> void:
   return true)
  world.remove_meta(&"experimental_terrain")
  check(Tx.committed(deferred.persistence) and world.departure_settlement.blocks_admission(departed_identity)
-  and world.pending_kill_rewards.size()==1 and not world.progress.character_records.has(departed_identity),
+  and world.monster_rewards.pending_count()==1 and not world.progress.character_records.has(departed_identity),
   "non-banking transaction cannot retire the recipient of frozen Class XP")
- check(world.MonsterRewards.flush(world) and world.departure_settlement.is_empty() and world.pending_kill_rewards.is_empty()
+ check(world.flush_kill_rewards() and world.departure_settlement.is_empty() and world.monster_rewards.pending_count()==0
   and earned_xp>0 and int(world.progress.character_records[departed_identity].profile.xp[departed_class])==xp_before+earned_xp
   and world.progress.character_records[departed_identity].profile.monsters[world.enemy_kind]==1
   and world.progress.reserve(departed_identity).unknown.size()==1
   and not ally.has(world.ExpeditionWallet.STATE) and world.run_wallet(ally)==0,
   "flush credits detached Class XP and pouch once without restoring a run wallet")
  var settled_disk:=disk()
- world.MonsterRewards.queue(world,receipt.key,int(receipt.kind),0,receipt.position,false)
- check(world.MonsterRewards.flush(world) and world.pending_kill_rewards.is_empty() and disk()==settled_disk
+ world._queue_monster_reward(receipt.key.get_slice(":",1),int(receipt.kind),0,receipt.position,false)
+ check(world.flush_kill_rewards() and world.monster_rewards.pending_count()==0 and disk()==settled_disk
   and world.progress.reserve(departed_identity).unknown.size()==1,"delayed duplicate receipt cannot change settled profile or cargo")
  record("disconnect_abort_then_commit",before)
 

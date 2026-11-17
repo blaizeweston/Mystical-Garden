@@ -63,7 +63,7 @@ func check_nest(game: Node, player: Dictionary) -> void:
    Fights.commit(game,"brood_call",1,current+50)
    game.Bosses.resolve(game,current+75)
    strike=current+75
- check(game.pending_kill_rewards.is_empty(),"killed brood never pays rewards")
+ check(game.monster_rewards.pending_count()==0,"killed brood never pays rewards")
 
  var original: Array=game.battlefield.barriers.duplicate()
  var upcoming:=Nest.ribs(1)

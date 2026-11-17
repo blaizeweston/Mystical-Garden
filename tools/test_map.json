@@ -1158,6 +1158,13 @@
     "donate_part": [
       "seeds"
     ],
+    "_defers_kill_profiles": ["loot"],
+    "flush_kill_rewards": ["loot"],
+    "_queue_monster_reward": ["loot"],
+    "_apply_pending_kill_rewards": ["loot"],
+    "_apply_run_kill_reward": ["loot"],
+    "_publish_kill_reward_notices": ["loot"],
+    "_kill_reward_identity": ["loot"],
     "award_combat_progress": [
       "loot"
     ],
@@ -1714,7 +1721,8 @@
       "enemy_attack_plan"
     ],
     "record_enemy_death": [
-      "enemies"
+      "enemies",
+      "loot"
     ],
     "death_events_snapshot": [
       "presentation"
@@ -1925,12 +1933,12 @@
     },
     "cr03_frost_coop": {
       "kind": "pair",
-      "systems": ["frost_affinity", "combat_affinity_contracts", "hex_terrain", "connection_flow", "weapons", "garden"],
+      "systems": ["loot", "frost_affinity", "combat_affinity_contracts", "hex_terrain", "connection_flow", "weapons", "garden"],
       "package": false
     },
     "cr03_frost_party": {
       "kind": "party",
-      "systems": ["frost_affinity", "combat_affinity_contracts", "hex_terrain", "connection_flow", "weapons"],
+      "systems": ["loot", "frost_affinity", "combat_affinity_contracts", "hex_terrain", "connection_flow", "weapons"],
       "package": false
     },
     "cr02_combat_contracts": {
@@ -1957,6 +1965,7 @@
     "experimental_terrain_coop": {
       "kind": "pair",
       "systems": [
+        "loot",
         "departure_settlement",
         "world_snapshot", "hex_terrain",
         "terrain",
@@ -1967,7 +1976,7 @@
     },
     "experimental_terrain": {
       "kind": "unit",
-      "systems": ["expedition_wallet", "hex_terrain", "terrain", "garden_care", "persistence_operations"],
+      "systems": ["loot", "expedition_wallet", "hex_terrain", "terrain", "garden_care", "persistence_operations"],
       "package": false
     },
     "garden_offerings_preview": {
@@ -2065,7 +2074,7 @@
     },
     "candidate_release_party": {
       "kind": "party",
-      "systems": ["departure_settlement", "world_snapshot", "persistence_operations", "persistence_authorization", "menus", "characters", "connection_flow", "garden", "expeditions"],
+      "systems": ["loot", "departure_settlement", "world_snapshot", "persistence_operations", "persistence_authorization", "menus", "characters", "connection_flow", "garden", "expeditions"],
       "package": true,
       "candidate_release": true
     },
@@ -2224,7 +2233,7 @@
     "guarded_gameplay_transactions": {
       "candidate_release": true,
       "kind": "unit",
-      "systems": ["persistence_operations", "persistence_recovery_plan", "persistence_authorization", "garden_cinematics", "garden_care", "knowledge", "characters", "connection_flow"],
+      "systems": ["loot", "persistence_operations", "persistence_recovery_plan", "persistence_authorization", "garden_cinematics", "garden_care", "knowledge", "characters", "connection_flow"],
       "package": true
     },
     "guarded_title_session": {
@@ -3023,6 +3032,7 @@
     "four_players_coop": {
       "kind": "party",
       "systems": [
+        "loot",
         "world_snapshot", "health_pool_hud",
         "expeditions",
         "life",
@@ -3859,6 +3869,7 @@
     "seed_inventory": {
       "kind": "unit",
       "systems": [
+        "loot",
         "seeds",
         "items",
         "garden",
@@ -6661,8 +6672,8 @@
     "reset_expedition": {"ar03_wallet_reset": {"match": "\t\tplayer[ExpeditionWallet.STATE] = ExpeditionWallet.Wallet.new()\n", "baseline": "\t\tplayer.spent = 0\n\t\tplayer.essence_sparks=0\n", "systems": ["expedition_wallet"], "additive": true}},
     "_affinity_checkpoint_command": {"ar03_wallet_reroll_debit": {"match": "\tif plan.has(\"ledger\"):\n\t\tif plan.has(\"cost\"):\n\t\t\tvar debited := _plan_essence_debit(player, int(plan.cost))\n\t\t\tif debited == null:\n\t\t\t\tpresent_checkpoint_cards(id)\n\t\t\t\treturn\n\t\t\tplayer[ExpeditionWallet.STATE] = debited\n\t\tplayer[AffinityCards.STATE] = plan.ledger\n\t\tif plan.has(\"cost\"):\n", "baseline": "\tif plan.has(\"ledger\"):\n\t\tplayer[AffinityCards.STATE] = plan.ledger\n\t\tif plan.has(\"cost\"):\n\t\t\tplayer.spent += int(plan.cost)\n", "systems": ["expedition_wallet", "affinity_cards"], "additive": true}},
     "run_guarded_action": {"ar04_departure_result": {"match": "\tvar already_settling := departure_settlement.is_settling()\n\tvar result := Transactions.run_gameplay(self, scope, action.bind(effects))\n\tif not already_settling and departure_settlement.is_settling():\n\t\t_resolve_departure_settlement(result.persistence)\n", "baseline": "\tvar result := Transactions.run_gameplay(self, scope, action.bind(effects))\n", "systems": ["departure_settlement"], "additive": true}},
-    "settle_expedition_rewards": {"ar04_departure_staging": {"match": "\tvar settle_kills := bank_kills or not MonsterRewards.checkpoint_only(self)\n\tvar waiting_on_rewards: Array[String] = []\n\tif not settle_kills:\n\t\twaiting_on_rewards = MonsterRewards.pending_profile_ids(pending_kill_rewards)\n\tvar work := departure_settlement.stage(waiting_on_rewards)\n\tif settle_kills:\n\t\tMonsterRewards.settle(self, effects, work)\n\tfor entry in work:\n\t\tvar leaving: Dictionary = entry.actor\n\t\tif not leaving.seed_owner.is_empty():\n\t\t\trecord_character(entry.peer_id, leaving)\n", "baseline": "\tif bank_kills or not MonsterRewards.checkpoint_only(self):\n\t\tMonsterRewards.settle(self, effects)\n\tfor id in pending_departures:\n\t\tvar leaving: Dictionary = pending_departures[id]\n\t\tif not leaving.get(\"seed_owner\", \"\").is_empty(): record_character(id, leaving)\n", "systems": ["departure_settlement"], "additive": true}, "ar04_departure_finalization": {"match": "\t\tif leaving.wild:\n\t\t\tpreload(\"res://garden_return_service.gd\").outcome(self, leaving, \"disconnected\")\n", "baseline": "\t\tif leaving.wild:\n\t\t\tpreload(\"res://garden_return_service.gd\").outcome(self, leaving, \"disconnected\")\n\tpending_departures.clear()\n", "systems": ["departure_settlement"], "additive": true}},
-    "prepare_guarded_exit": {"ar04_departure_exit": {"match": "\t\tif not departure_settlement.is_empty() or not pending_kill_rewards.is_empty():\n", "baseline": "\t\tif not pending_departures.is_empty() or not pending_kill_rewards.is_empty():\n", "systems": ["departure_settlement"], "additive": true}},
+    "settle_expedition_rewards": {"ar05_reward_lifecycle": {"match": "\tvar settle_kills := bank_kills or not _defers_kill_profiles()\n\tvar waiting_on_rewards: Array[String] = []\n\tif not settle_kills:\n\t\twaiting_on_rewards = monster_rewards.pending_profile_ids()\n\tvar work := departure_settlement.stage(waiting_on_rewards)\n\tif settle_kills:\n\t\t_apply_pending_kill_rewards(effects, work)\n", "baseline": "\tvar settle_kills := bank_kills or not MonsterRewards.checkpoint_only(self)\n\tvar waiting_on_rewards: Array[String] = []\n\tif not settle_kills:\n\t\twaiting_on_rewards = MonsterRewards.pending_profile_ids(pending_kill_rewards)\n\tvar work := departure_settlement.stage(waiting_on_rewards)\n\tif settle_kills:\n\t\tMonsterRewards.settle(self, effects, work)\n", "systems": ["loot"], "additive": true}, "ar04_departure_staging": {"match": "\tvar settle_kills := bank_kills or not MonsterRewards.checkpoint_only(self)\n\tvar waiting_on_rewards: Array[String] = []\n\tif not settle_kills:\n\t\twaiting_on_rewards = MonsterRewards.pending_profile_ids(pending_kill_rewards)\n\tvar work := departure_settlement.stage(waiting_on_rewards)\n\tif settle_kills:\n\t\tMonsterRewards.settle(self, effects, work)\n\tfor entry in work:\n\t\tvar leaving: Dictionary = entry.actor\n\t\tif not leaving.seed_owner.is_empty():\n\t\t\trecord_character(entry.peer_id, leaving)\n", "baseline": "\tif bank_kills or not MonsterRewards.checkpoint_only(self):\n\t\tMonsterRewards.settle(self, effects)\n\tfor id in pending_departures:\n\t\tvar leaving: Dictionary = pending_departures[id]\n\t\tif not leaving.get(\"seed_owner\", \"\").is_empty(): record_character(id, leaving)\n", "systems": ["departure_settlement"], "additive": true}, "ar04_departure_finalization": {"match": "\t\tif leaving.wild:\n\t\t\tpreload(\"res://garden_return_service.gd\").outcome(self, leaving, \"disconnected\")\n", "baseline": "\t\tif leaving.wild:\n\t\t\tpreload(\"res://garden_return_service.gd\").outcome(self, leaving, \"disconnected\")\n\tpending_departures.clear()\n", "systems": ["departure_settlement"], "additive": true}},
+    "prepare_guarded_exit": {"ar05_reward_lifecycle": {"match": "\t\tif not departure_settlement.is_empty() or monster_rewards.has_pending():\n\t\t\tif not flush_kill_rewards(): return false\n", "baseline": "\t\tif not departure_settlement.is_empty() or not pending_kill_rewards.is_empty():\n\t\t\tif not MonsterRewards.flush(self): return false\n", "systems": ["loot"], "additive": true}, "ar04_departure_exit": {"match": "\t\tif not departure_settlement.is_empty() or not pending_kill_rewards.is_empty():\n", "baseline": "\t\tif not pending_departures.is_empty() or not pending_kill_rewards.is_empty():\n", "systems": ["departure_settlement"], "additive": true}},
     "admission_error": {"ar04_departure_readmission": {"match": "\tif departure_settlement.blocks_admission(identity):\n\t\treturn \"This character's last expedition rewards are still being saved.\"\n", "baseline": "\tfor player in pending_departures.values():\n\t\tif player.get(\"seed_owner\",\"\")==identity: return \"This character's last expedition rewards are still being saved.\"\n", "systems": ["departure_settlement"], "additive": true}},
     "add_player": {
       "ar03_wallet_initialization": {"match": "ExpeditionWallet.STATE: ExpeditionWallet.Wallet.new(),", "baseline": "\"spent\": 0,\"essence_sparks\":0,", "systems": ["expedition_wallet"], "additive": true},
@@ -6858,7 +6869,7 @@
         "additive": true
       }
     },
-    "_physics_process": {
+    "_physics_process": {"ar05_reward_lifecycle": {"match": "\t\t\tflush_kill_rewards()\n", "baseline": "\t\t\tMonsterRewards.flush(self)\n", "systems": ["loot"], "additive": true},
       "ct02_0": {
         "match": "\t\t\tif get_meta(Transactions.PENDING, false): return\n\t\t\tpreload(\"res://weaver_combat.gd\").tick(self,now)\n\t\t\tif get_meta(Transactions.PENDING, false): return\n\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n",
         "baseline": "\t\t\tif get_meta(Transactions.PENDING, false): return\n\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n",
@@ -7254,7 +7265,7 @@
         "additive": true
       }
     },
-    "remove_player": {
+    "remove_player": {"ar05_reward_lifecycle_1": {"match": "\t\t\telse: flush_kill_rewards()\n", "baseline": "\t\t\telse: MonsterRewards.flush(self)\n", "systems": ["loot"], "additive": true}, "ar05_reward_lifecycle_2": {"match": "\t\tflush_kill_rewards()\n\t\tif players.has(id)", "baseline": "\t\tMonsterRewards.flush(self)\n\t\tif players.has(id)", "systems": ["loot"], "additive": true},
       "ar04_departure_capture": {"match": "\t\tif leaving.get(\"profile_ready\", false):\n\t\t\t_capture_pending_departure(id, leaving)\n\t\tvar may_settle := Transactions.session_writable(self)\n", "baseline": "\t\tvar may_settle := multiplayer.is_server() and not returning_to_title and Transactions.session_writable(self)\n\t\tif may_settle and leaving.get(\"profile_ready\", false):\n\t\t\tpending_departures[id] = leaving\n", "systems": ["departure_settlement"], "additive": true},
       "ar03_wallet_disconnect_guarded": {"match": "\t\tleaving.erase(ExpeditionWallet.STATE)\n", "baseline": "", "systems": ["expedition_wallet"], "additive": true},
       "ar03_wallet_disconnect_legacy": {"match": "\t\tif players.has(id): players[id].erase(ExpeditionWallet.STATE)\n", "baseline": "", "systems": ["expedition_wallet"], "additive": true},
@@ -8210,7 +8221,7 @@
         "additive": true
       }
     },
-    "reset_encounter": {
+    "reset_encounter": {"ar05_reward_lifecycle": {"match": "\tif not SaveBatch.guarded_active(): flush_kill_rewards()\n\tmonster_rewards.retire_completed()\n", "baseline": "\tif not SaveBatch.guarded_active(): MonsterRewards.flush(self)\n\tif pending_kill_rewards.is_empty(): kill_receipts.clear()\n", "systems": ["loot"], "additive": true},
       "ct05_oracle_1": {"match": "\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\tfor player in players.values():\n\t\t\tpreload(\"res://oracle_combat.gd\").clear(player)\n\t\t\tpreload(\"res://vital_combat.gd\").clear(self,player)\n\t\t\tpreload(\"res://wood_affinity.gd\").clear(player)\n", "baseline": "\tif has_meta(&\"combat_affinity_ruleset\"):\n\t\tfor player in players.values():\n\t\t\tpreload(\"res://vital_combat.gd\").clear(self,player)\n\t\t\tpreload(\"res://wood_affinity.gd\").clear(player)\n", "systems": ["oracle_progression"], "additive": true},
       "cr05_grafts_0": {
         "match": "\tcombat_epoch+=1\n\tfor player in players.values():\n\t\tpreload(\"res://native_grafts.gd\").clear(player)\n\tif has_meta(&\"combat_affinity_ruleset\"):\n",
@@ -10180,7 +10191,7 @@
       "ec01_1": {"match": "\tif combat_mode.active(self):\n\t\ttell(id,combat_mode.LEGACY_CARD_REFUSAL)\n\t\treturn false\n", "baseline": "\tif combat_mode.active(self):\n\t\ttell(id,combat_mode.EMPTY_CARDS)\n\t\treturn false\n", "systems": ["affinity_cards"], "additive": true},
       "cr02_affinity_contract": {"match": "\tvar combat_mode = preload(\"res://combat_ruleset.gd\")\n\tif combat_mode.active(self):\n\t\ttell(id,combat_mode.EMPTY_CARDS)\n\t\treturn false\n", "baseline": "", "additive": true, "systems": ["combat_affinity_contracts"]}
     },
-    "return_to_garden": {
+    "return_to_garden": {"ar05_reward_lifecycle": {"match": "\tif not SaveBatch.guarded_active(): flush_kill_rewards()\n", "baseline": "\tif not SaveBatch.guarded_active(): MonsterRewards.flush(self)\n", "systems": ["loot"], "additive": true},
       "ar03_wallet_return": {"match": "\tp[ExpeditionWallet.STATE] = ExpeditionWallet.Wallet.new()\n", "baseline": "\tp.essence_sparks=0\n\tp.spent=0\n", "systems": ["expedition_wallet"], "additive": true},
       "ga01a_1": {"match": "\tp.graft_floor=0\n\tp.erase(preload(\"res://expedition_grafts.gd\").STATE)\n\tpreload(\"res://native_grafts.gd\").clear(p)\n", "baseline": "\tp.graft_floor=0\n\tpreload(\"res://native_grafts.gd\").clear(p)\n", "systems": ["expedition_grafts"], "additive": true},
       "ec01_1": {"match": "\tp.run_upgrades={}\n\tAffinityCards.clear(p)\n\tp.essence_sparks=0\n\tp.spent=0\n\tp.last_offer=0\n\tp.checkpoint_offers=[]\n", "baseline": "\tp.run_upgrades={}\n\tp.essence_sparks=0\n\tp.checkpoint_offers=[]\n", "systems": ["affinity_cards"], "additive": true},
@@ -10226,6 +10237,7 @@
     }
   },
   "file_regions": {
+    "game_transaction.gd": {"newline": "crlf", "regions": {"receipt_owner": {"match": "const MonsterRewards = preload(\"res://monster_rewards.gd\")\n\n", "baseline": "", "systems": ["loot"]}, "legacy_capture": {"match": " var rewards: MonsterRewards = game.get(\"monster_rewards\")\n var reward_savepoint: Dictionary = rewards.savepoint() if rewards != null else {}\n", "baseline": "", "systems": ["loot"]}, "legacy_rollback": {"match": "  if rewards != null:\n   rewards.restore_savepoint(reward_savepoint)\n", "baseline": "", "systems": ["loot"]}, "legacy_commit": {"match": " if rewards != null:\n  rewards.finish_settlement(MonsterRewards.Result.COMMITTED)\n", "baseline": "", "systems": ["loot"]}, "guarded_owner": {"match": " var rewards: MonsterRewards = game.get(\"monster_rewards\")\n", "baseline": "", "systems": ["loot"]}, "guarded_capture": {"match": "  if rewards != null:\n   captured.monster_rewards = rewards.savepoint()\n", "baseline": "", "systems": ["loot"]}, "guarded_missing_outcome": {"match": "  if captured.has(\"monster_rewards\"):\n   # Gameplay ran, but its save verdict is missing. Hold tentative rewards.\n   rewards.finish_settlement(MonsterRewards.Result.UNCERTAIN)\n   game.transaction_publishes.clear()\n   boundary.state = \"unresolved\"\n   boundary.reason = \"missing_gameplay_finalization\"\n   if boundary.error == OK: boundary.error = ERR_BUG\n", "baseline": "", "systems": ["loot"]}, "guarded_uncertainty": {"match": "   if rewards != null:\n    rewards.finish_settlement(MonsterRewards.Result.UNCERTAIN)\n", "baseline": "", "systems": ["loot"]}, "guarded_commit": {"match": "  Batch.Outcome.COMMITTED, Batch.Outcome.COMMITTED_CLEANUP_PENDING:\n   if rewards != null:\n    var cleanup: bool = finalized.outcome == Batch.Outcome.COMMITTED_CLEANUP_PENDING or finalized.write_blocked or boundary.release_error != OK\n    rewards.finish_settlement(MonsterRewards.Result.CLEANUP_PENDING if cleanup else MonsterRewards.Result.COMMITTED)\n", "baseline": "", "systems": ["loot"]}, "guarded_rollback": {"match": " if captured.has(\"monster_rewards\"):\n  game.monster_rewards.restore_savepoint(captured.monster_rewards)\n", "baseline": "", "systems": ["loot"]}}},
     "spirit_affinity.gd": {"regions": {"ec01_1": {"match": "\tvar key: String=\"%d/%s\"%[event.actor,event.source]\n\tvar potency: Dictionary=event.potency()\n\tvar speed: float=potency.speed\n\tvar old: Dictionary=sources.get(key,{})\n\tif int(old.get(\"until\",0))>elapsed and float(old.speed)>speed: return\n\tsources[key]={\"actor\":event.actor,\"quality\":event.quality,\"speed\":speed,\"until\":elapsed+STRIDE_MS+int(potency.get(\"duration_bonus_ms\",0))}\n\tp[STRIDES]=sources\n", "baseline": "\tvar key: String=\"%d/%s\"%[event.actor,event.source]\n\tvar speed: float=event.potency().speed\n\tvar old: Dictionary=sources.get(key,{})\n\tif int(old.get(\"until\",0))>elapsed and float(old.speed)>speed: return\n\tsources[key]={\"actor\":event.actor,\"quality\":event.quality,\"speed\":speed,\"until\":elapsed+STRIDE_MS}\n\tp[STRIDES]=sources\n", "systems": ["affinity_cards"]}}},
     "storm_affinity.gd": {"regions": {"ec01_1": {"match": "\t\t\tif not game.Life.alive(p) or elapsed<int(p.get(FORM_READY,0)) or not event.take_response(\"storm_form\"): return\n\t\t\tp[FORM_READY]=elapsed+FORM_INTERVAL-int(q.get(\"interval_reduction_ms\",0))\n\t\t\tvar point: Vector3=details.get(\"point\",game.enemy_position(details.enemy))\n", "baseline": "\t\t\tif not game.Life.alive(p) or elapsed<int(p.get(FORM_READY,0)) or not event.take_response(\"storm_form\"): return\n\t\t\tp[FORM_READY]=elapsed+FORM_INTERVAL\n\t\t\tvar point: Vector3=details.get(\"point\",game.enemy_position(details.enemy))\n", "systems": ["affinity_cards"]}}},
     "wood_affinity.gd": {"regions": {"ec01_1": {"match": "\t\t\"activation\":event.identity,\"order\":order,\"remaining\":admitted,\"admitted\":admitted,\"break_hp\":q.break_hp,\n\t\t\"until\":elapsed+(CORE_MS if is_core else CATALYST_MS)+int(q.get(\"duration_bonus_ms\",0))})\n\tplayer[GRANTS]=grants\n", "baseline": "\t\t\"activation\":event.identity,\"order\":order,\"remaining\":admitted,\"admitted\":admitted,\"break_hp\":q.break_hp,\n\t\t\"until\":elapsed+(CORE_MS if is_core else CATALYST_MS)})\n\tplayer[GRANTS]=grants\n", "systems": ["affinity_cards"]}}},
