@@ -7,8 +7,8 @@ const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Attacks = preload("res://enemy_attack.gd")
-const Effects = preload("res://core_skill_effects.gd")
 const Status = preload("res://combat_status.gd")
+const Support = preload("res://enemy_support.gd")
 const Tactics = preload("res://wilds_skill_tactics.gd")
 const Feint = preload("res://glasscap_feint.gd")
 const GlasscapVisuals = preload("res://glasscap_visuals.gd")
@@ -19,7 +19,6 @@ var failed := false
 
 
 func _initialize() -> void:
-	preload("res://combat_balance_preview.gd").enabled = false
 	call_deferred("run")
 
 
@@ -86,7 +85,7 @@ func prepare(kind: int) -> Dictionary:
 	game.encounter.clear_scouts()
 	for member in game.players.values():
 		ExpeditionCase.set_membership(game, member, true)
-		member[PlayerVitals.STATE] = member[PlayerVitals.STATE].with_hp(10)
+		member[PlayerVitals.STATE] = member[PlayerVitals.STATE].with_hp(40)
 		member.hurt_until = 0
 		member.pos = Vector3(0, 0, -3.4)
 	var route := 10 + posmod(-3 * (kind * 19 + int(profile.floor) * 11), 10)
@@ -117,7 +116,7 @@ func host() -> void:
 		check(false, "guest reads both warned legs before impact")
 		return
 	check(await until(func(): return stag.windup == 0), "charge resolves")
-	check(PlayerVitals.current_hp(host_player) == 9 and PlayerVitals.current_hp(guest_player) == 10, "host damage follows the bend and preserves the dodge")
+	check(PlayerVitals.current_hp(host_player) == 30 and PlayerVitals.current_hp(guest_player) == 40, "host damage follows the bend and preserves the dodge")
 	mark("charge-resolved")
 	if not await until(func(): return marked("charge-clear")):
 		check(false, "guest sees charge markers clear")
@@ -125,7 +124,7 @@ func host() -> void:
 
 	var grazer := prepare(11)
 	var escort := actor(0, Vector3.RIGHT * 2.35, 1)
-	Effects.affect_enemy(game, host_player, 1, Vector3(2, 0, 0), {"id": "riptide"}, {"displace": 1.35}, Time.get_ticks_msec())
+	observe_displacement(1,1.35,Time.get_ticks_msec())
 	if not Attacks.try_skill_approach(game, grazer, host_player.pos, Time.get_ticks_msec()):
 		check(false, "host locks the canopy relocation")
 		return
@@ -134,7 +133,7 @@ func host() -> void:
 		check(false, "guest reads canopy shift before movement")
 		return
 	check(await until(func(): return grazer.windup == 0), "canopy resolves")
-	check(grazer.pos.x > 2.0 and escort.pos.x > 3.6 and PlayerVitals.current_hp(guest_player) == 10, "Grazer rejoins the displaced escort without dealing damage")
+	check(grazer.pos.x > 2.0 and escort.pos.x > 3.6 and PlayerVitals.current_hp(guest_player) == 40, "Grazer rejoins the displaced escort without dealing damage")
 	mark("canopy-resolved")
 	if not await until(func(): return marked("canopy-clear")):
 		check(false, "guest sees canopy markers clear")
@@ -227,3 +226,13 @@ func guest_glasscap() -> void:
 		"the real render model snaps to the host's swapped location")
 	check(await until(func(): return game.stage.get_meta(GlasscapVisuals.VIEWS,{}).is_empty()),"guest removes expired decoys")
 	mark("glass-clear")
+
+
+## The fixture supplies an already-resolved legal movement observation to the live
+## shelter response boundary. It does not recreate the retired Riptide spell.
+func observe_displacement(target: int, distance: float, now: int) -> void:
+	var actor: Dictionary=game.encounter.scout(target)
+	var before: Vector3=actor.pos
+	var after: Vector3=game.battlefield.dash(before,before+Vector3.RIGHT*distance)
+	Support.observe_shelter_break(game,target,before,after,now)
+	actor.pos=after

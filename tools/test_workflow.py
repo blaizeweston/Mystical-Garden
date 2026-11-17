@@ -141,7 +141,10 @@ class Workflow:
 
  def runtime_files(self):
   files=[p for p in self.project.iterdir() if p.is_file() and p.suffix in TEXT_EXT|{'.uid'}]
-  files += [p for p in (self.project/'assets').rglob('*') if p.is_file() and 'source' not in p.relative_to(self.project/'assets').parts and p.name!='build_manifest.json']
+  native_folder=self.project/'assets/native/persistence_lock'
+  # Godot's loaded DLL copies are editor artifacts; b0_native_lock.dll remains an input.
+  files += [p for p in (self.project/'assets').rglob('*') if p.is_file() and 'source' not in p.relative_to(self.project/'assets').parts and p.name!='build_manifest.json'
+            and not (p.parent==native_folder and re.fullmatch(r'~b0_native_lock\.dll(?:~RF[0-9a-fA-F]{8}\.TMP)?',p.name))]
   return sorted(files)
 
  def scoped_game(self,text):

@@ -10,6 +10,7 @@ const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
 const Core=preload("res://core_combat.gd")
+const Builds=preload("res://affinity_build.gd")
 const Preview=preload("res://combat_balance_preview.gd")
 const Journal=preload("res://diagnostic_journal.gd")
 var game: Node
@@ -35,7 +36,6 @@ func finish():
  quit(1 if failed else 0)
 func run():
  role=OS.get_cmdline_user_args()[0];base="res://.godot/four-"+OS.get_cmdline_user_args()[1]
- Preview.enabled=true
  Preview.heal_rng.seed=9308
  Journal.current.detail=true
  Journal.event("test","four_player_combat_fixture",{"token":OS.get_cmdline_user_args()[1],"role":role})
@@ -86,13 +86,19 @@ func host_run():
    "Player 3":
     game.select_class(id,player,4)
     game.handle_loadout_action(id,player,"loadpart_0_2")
+ for actor in game.players.values():
+  var tree=game.Classes.connected_tree(int(actor.frame))
+  actor.character[tree.profile_key]=tree.state([tree.nodes[0].id])
  ExpeditionCase.Transitions.enter(game, 1,game.players[1])
  check(await until(func():return game.participation.vote_count()==3),"first three readiness votes arrive")
  check(not ExpeditionCase.is_wild(game.players[1]) and game.participation.travel_members().size()==4,"three votes cannot launch four players")
  mark("last_ready")
  check(await until(func():return game.players.values().all(func(p):return ExpeditionCase.is_wild(p))),"all four depart together")
  check(game.progress.parts[0]==0 and game.progress.parts[1]==0,"party consumes two copies of each starter part exactly once")
- check(game.players.values().all(func(p):return not game.weapon_stats(p).core_build.skill.is_empty()),"each party member has a live Core skill")
+ for actor in game.players.values():
+  var build: Dictionary=Builds.for_player(actor)
+  var skill: Dictionary=Core.equipped(actor)
+  check(build.capabilities.core_action and not skill.is_empty() and skill.id==build.core.affinity_core_skill_id,"each party member has the executable Core matching the equipped affinity slot")
  check(await until(func():return marked("core-1") and marked("core-2") and marked("core-3")),"all guests get the correct private Core inventory and ready HUD")
  check(game.encounter_party_size==4 and game.encounter.scout_count()>=12 and game.encounter.scout_count()<=game.Director.scout_count(game),"encounter population scales to four")
  check(game.encounter_health()>=80,"four player leader health scales in preview HP")
@@ -119,7 +125,7 @@ func host_run():
   return
  clear_floor(1);ExpeditionCase.Transitions.checkpoint(game, 1,true)
  check(await until(func():return game.participation.floor()==2),"four ready votes advance ordinary gate")
- clear_floor(6);ExpeditionCase.Transitions.checkpoint(game, 1,true);game.choose_checkpoint_card(1,game.players[1],-1)
+ clear_floor(6);ExpeditionCase.Transitions.checkpoint(game, 1,true);game.garden_action(1,game.affinity_checkpoint_action(int(game.checkpoint_card_data(game.players[1])[0].revision),"skip"))
  check(await until(func():return game.checkpoint_all_ready()),"all four choose checkpoint cards")
  check(game.participation.floor()==6,"card choices do not imply host travel consent")
  ExpeditionCase.Transitions.checkpoint(game, 1,true)
@@ -184,12 +190,10 @@ func guest_vitals(id: int) -> bool:
  if not await publish_vitals("wounded",id):return false
  check(PlayerVitals.current_hp(actor)==65,"35 applied damage leaves 65 HP")
  now=Time.get_ticks_msec()
- actor.renewal_until=now+1000
- actor.renewal_tick=now
- game.update_support_effects(now)
- actor.renewal_until=0
+ # This control verifies authoritative health projection, not a new support spell.
+ actor[PlayerVitals.STATE]=actor[PlayerVitals.STATE].healed(4)
  var healed:=int(PlayerVitals.current_hp(actor))-65
- check(healed in range(3,6),"Renewal restores one rolled tick")
+ check(healed==4,"explicit validated healing updates the HP owner")
  if not await publish_vitals("renewed",id):return false
  var last_hp:=int(PlayerVitals.current_hp(actor))
  IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(actor), 500)
@@ -227,8 +231,9 @@ func guest_lantern() -> void:
  var now:=Time.get_ticks_msec()
  target.rooted_until=now+6000;target.ready=now+6000;target.windup=0
  mark("try-lantern",JSON.stringify([aim.x,aim.z]))
- check(await until(func():return marked("lantern-seen-1") and marked("lantern-seen-2") and marked("lantern-seen-3"),8),"guests receive Weaver's committed Lantern Burst")
- check(caster.core_ready_at>0 and game.combat_events.any(func(e):return e.shape=="lantern_burst"),"host accepts the guest cast and spends that player's cooldown")
+ check(await until(func():return marked("lantern-seen-1") and marked("lantern-seen-2") and marked("lantern-seen-3"),8),"guests receive Weaver's committed Vital Bloom")
+ check(caster.core_ready_at>0 and game.combat_events.any(func(e):return e.shape=="vital_bloom"),"host accepts the guest cast and spends that player's cooldown")
+ check(await until(func():return game.players.values().all(func(actor):return not actor.has("affinity_vital_sources")),8),"temporary Vitality expires naturally before the fixed-capacity synchronization control")
 
 
 func verify_vitals_marker(stage: String,index: int) -> void:
@@ -262,17 +267,25 @@ func guest_run(index: int):
     saw_four=true;check(game.guest_character.data.name=="Player "+str(index),"owner profile preserved")
    if not marked("core-"+str(index)) and ExpeditionCase.is_wild(game.players.get(id,{})):
     var bag: Dictionary=game.inventory_ui_data()
-    var expected: String="Thorn Line" if index==2 else "Lantern Burst"
-    if bag.get("core",{}).get("skill",{}).get("name","")==expected and game.player_hud.state.get("core",{}).get("name","")==expected and is_zero_approx(float(game.player_hud.state.core.remaining)):
+    var own: Dictionary=game.players[id]
+    var expected_part: int=1 if index==2 else 2
+    var equipment: Array=bag.get("equipment",[])
+    var build: Dictionary=own.get("weapon_stats",{}).get("affinity_build",{})
+    var skill: Dictionary=Builds.core_skill(build)
+    var expected_material: Dictionary=Builds.slot("core",expected_part)
+    var hud_core: Dictionary=game.player_hud.state.get("core",{})
+    if equipment.size()==3 and int(equipment[0])==expected_part and int(own.get("core_part",0))==expected_part \
+      and build.get("core",{}).get("primary_affinity","")==expected_material.primary_affinity \
+      and not skill.is_empty() and hud_core.get("name","")==skill.name and is_zero_approx(float(hud_core.get("remaining",-1))):
      mark("core-"+str(index))
    if index==1 and not lantern_requested and marked("try-lantern"):
     var aim: Array=JSON.parse_string(FileAccess.get_file_as_string(base+"-try-lantern"))
     game.send_garden_action(Core.request(game,game.players[id],Vector2(aim[0],aim[1])))
     lantern_requested=true
-   if not marked("lantern-seen-"+str(index)) and game.received_combat_events.any(func(e):return e.event.shape=="lantern_burst"):
+   if not marked("lantern-seen-"+str(index)) and game.received_combat_events.any(func(e):return e.event.shape=="vital_bloom"):
     mark("lantern-seen-"+str(index))
    if game.checkpoint_menu.visible and game.participation.floor()==6:
-    if not saw_cards:game.send_garden_action("checkpoint_choice_-1");saw_cards=true;epochs.clear()
+    if not saw_cards:game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,"skip"));saw_cards=true;epochs.clear()
    if not marked("kill_verified_"+str(index)) and game.players.has(id):
     var own=game.players[id]
     var expected_xp := [100+10*index,0,0,0,0]

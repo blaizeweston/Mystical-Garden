@@ -10,10 +10,10 @@ const HEAL_TINT := Color("#a7e3a5")
 
 
 static func restore(game: Node, actor: Dictionary, rolled_hp: int, source: String, limit_hp: int = -1) -> float:
-	if Preview.enabled and (not game.multiplayer.is_server() or not game.Life.alive(actor)):
+	if not game.multiplayer.is_server() or not game.Life.alive(actor):
 		return 0.0
 	var applied := Preview.apply_heal(actor,rolled_hp,source,limit_hp)
-	if Preview.enabled and applied>0.0 and game.multiplayer.is_server():
+	if applied>0.0 and game.multiplayer.is_server():
 		for id in game.players:
 			if not is_same(actor,game.players[id]):
 				continue
@@ -28,8 +28,7 @@ static func heal(game: Node, actor: Dictionary, points: float, source: String, s
 
 static func recovery_center_hp(boundary: bool, cycle: int) -> int:
 	var center := Preview.Vitals.floor_recovery(boundary,Preview.scale())
-	if Preview.enabled:
-		center += mini(FLOOR_BONUS_CAP_HP,maxi(0,cycle)*FLOOR_BONUS_PER_LOOP_HP)
+	center += mini(FLOOR_BONUS_CAP_HP,maxi(0,cycle)*FLOOR_BONUS_PER_LOOP_HP)
 	return center
 
 
@@ -38,20 +37,7 @@ static func recovery_hp(boundary: bool, cycle: int) -> int:
 
 
 static func pool_points(points: float) -> float:
-	return points*POOL_HEAL_RATIO if Preview.enabled else points
-
-
-static func begin_renewal(actor: Dictionary, now: int, duration: int, interval: int) -> void:
-	if Preview.enabled and now<int(actor.get("renewal_until",0)):
-		actor.renewal_until=maxi(int(actor.renewal_until),now+duration)
-	else:
-		actor.renewal_until=now+duration
-		actor.renewal_tick=now+interval
-
-
-static func renewal_tick(game: Node, actor: Dictionary) -> void:
-	var center := Preview.RENEWAL_HP if Preview.enabled else Preview.hp(1)
-	restore(game,actor,Preview.roll_heal_hp(center,Preview.HEAL_TICK_SPREAD_HP),"renewal")
+	return points*POOL_HEAL_RATIO
 
 
 static func eligible(game: Node, target: int) -> bool:
@@ -64,8 +50,6 @@ static func kill_remaining(actor: Dictionary, epoch: int) -> int:
 
 
 static func heal_on_kill(game: Node, actor: Dictionary, target: int, points: float) -> float:
-	if not Preview.enabled:
-		return Preview.heal(actor,points,Preview.HEAL_SPREAD_HP,"heal_on_kill")
 	var remaining := kill_remaining(actor,game.participation.epoch())
 	if points<=0.0 or remaining==0 or not eligible(game,target) or not game.Life.alive(actor) or PlayerVitals.current_hp(actor)>=PlayerVitals.maximum_hp(actor):
 		return 0.0

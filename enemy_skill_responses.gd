@@ -4,7 +4,6 @@ const Tactics = preload("res://wilds_skill_tactics.gd")
 const Catalog = preload("res://enemy_catalog.gd")
 const Support = preload("res://enemy_support.gd")
 const Variants = preload("res://enemy_variants.gd")
-const Thorn = preload("res://thorn_adaptation.gd")
 const APPROACH := {2: "charge", 8: "pounce", 11: "canopy_shift", 13: "charge", 17: "charge"}
 const MIN_WINDUP := 1150
 const GRAB_REACH := 3.1
@@ -70,7 +69,7 @@ static func decorate(game: Node, actor: Dictionary, attack: Dictionary, aim: Vec
 			attack.anchor = lamps[0]
 			attack.radius = 1.15
 		16:
-			if origin.distance_to(aim) > GRAB_REACH or not game.battlefield.clear_line(origin, aim, game.Battlefield.CLEARANCE) or not avoids_thorns(game, attack, Time.get_ticks_msec()):
+			if origin.distance_to(aim) > GRAB_REACH or not game.battlefield.clear_line(origin, aim, game.Battlefield.CLEARANCE):
 				return
 			attack.grab_reach = GRAB_REACH
 	commit(attack, profile)
@@ -123,8 +122,6 @@ static func approach(game: Node, actor: Dictionary, attack: Dictionary, aim: Vec
 				return false
 			attack.to = landing
 			attack.trail = embers
-	if not avoids_thorns(game, attack, Time.get_ticks_msec()):
-		return false
 	commit(attack, profile)
 	attack.learned_move = true
 	return true
@@ -152,7 +149,7 @@ static func plan_canopy(game: Node, actor: Dictionary, attack: Dictionary) -> bo
 
 
 static func resolve_canopy(game: Node, actor: Dictionary, attack: Dictionary, now: int) -> void:
-	if not move_still_valid(actor, attack, now) or not avoids_thorns(game, attack, now):
+	if not move_still_valid(actor,attack,now):
 		return
 	var ref: Dictionary = attack.escorts[0]
 	if not Support.live_ally(game, ref):
@@ -167,22 +164,6 @@ static func resolve_canopy(game: Node, actor: Dictionary, attack: Dictionary, no
 	actor.pos = goal
 	var feedback = preload("res://enemy_move_feedback.gd")
 	feedback.release(game,"burst",attack.from,goal,attack.radius,feedback.SUPPORT)
-
-
-static func avoids_thorns(game: Node, attack: Dictionary, now: int) -> bool:
-	var via: Vector3 = attack.via
-	for line in Thorn.active_lines(game, now):
-		# Ground snapshots advance to the landing at once, so also check the direct span.
-		if touches_line(line, attack.from, attack.to):
-			return false
-		if via.is_finite() and (touches_line(line, attack.from, via) or touches_line(line, via, attack.to)):
-			return false
-	return true
-
-
-static func touches_line(line: Dictionary, from: Vector3, to: Vector3) -> bool:
-	var contact := Geometry3D.get_closest_points_between_segments(from, to, line.from, line.to)
-	return contact[0].distance_squared_to(contact[1]) <= pow(float(line.skill.radius), 2)
 
 
 static func move_still_valid(actor: Dictionary, attack: Dictionary, now: int) -> bool:

@@ -1,8 +1,6 @@
 extends RefCounted
 
 const Status = preload("res://combat_status.gd")
-const Effects = preload("res://core_skill_effects.gd")
-const StrikeMark = preload("res://core_strike_mark.gd")
 const Hurt = preload("res://enemy_hurtbox.gd")
 const Contact = preload("res://weapon_contact.gd")
 const Mouse = preload("res://mouse_combat.gd")
@@ -26,14 +24,8 @@ static func placement(field: RefCounted, origin: Vector3, forward: Vector3, skil
 
 
 static func release(game: Node, cast: Dictionary) -> void:
-	if cast.skill.get("affinity_family")=="storm":
-		game.emit_combat_event("projectile",cast.skill.projectile,cast.from,cast.to,cast.flight_ms/1000.0,
-			Color(cast.skill.color),cast.from.distance_to(cast.to),0,{"projectile_radius":cast.skill.radius,"height":0.0})
-		return
-	var height: float = float(cast.origin.y) if cast.skill.delivery != "ground" else .85
-	var lift := Vector3.UP * height
-	game.emit_combat_event("projectile", "needle", cast.from + lift, cast.to + lift, cast.flight_ms / 1000.0,
-		Color(cast.skill.color), cast.from.distance_to(cast.to), 0, {"projectile_radius": cast.skill.radius, "height": 0.0})
+	game.emit_combat_event("projectile",cast.skill.projectile,cast.from,cast.to,cast.flight_ms/1000.0,
+		Color(cast.skill.color),cast.from.distance_to(cast.to),0,{"projectile_radius":cast.skill.radius,"height":0.0})
 
 
 static func advance(game: Node, id: int, player: Dictionary, cast: Dictionary, now: int) -> bool:
@@ -56,32 +48,9 @@ static func advance(game: Node, id: int, player: Dictionary, cast: Dictionary, n
 		if int(cast.get("epoch", game.participation.epoch())) != game.participation.epoch():
 			break
 		if game.Traits.valid_target(game, hit.target) and Contact.token(game, hit.target) == hit.token:
-			if cast.skill.get("affinity_family")=="storm":
-				preload("res://storm_affinity.gd").core_contact(game,cast,hit.target,cast.from,hit.point,now)
-				stop(game,cast,hit.point)
-				return true
-			if cast.skill.get("contact", "damage") == "strike_mark":
-				StrikeMark.place(game, id, hit.target, cast, now)
-				stop(game, cast, hit.point)
-				return true
-			if cast.skill.get("contact") == "chain":
-				Effects.chain(game, id, player, cast, hit.target, now)
-				stop(game, cast, hit.point)
-				return true
-			var first: bool = cast.hit_tokens.is_empty()
-			cast.hit_tokens[hit.token] = true
-			var distance: float = cast.from.distance_to(game.enemy_position(hit.target))
-			game.apply_weapon_hit(player, hit.target, cast.from, {
-				"damage": cast.skill.damage, "knockback": -.35, "trait_secondary": true,
-				"shot_distance": distance, "core_hit": true,
-			}, now)
-			if first and int(cast.skill.root_ms) > 0 and game.Traits.valid_target(game, hit.target) \
-					and Contact.token(game, hit.target) == hit.token:
-				Status.root(game, hit.target, now + int(cast.skill.root_ms))
-			Journal.event("combat", "core_lance_hit", {"actor": id, "skill": cast.skill.id, "cast_id": cast.id, "target": hit.target, "target_token": hit.token})
-			if cast.hit_tokens.size() >= int(cast.skill.targets):
-				stop(game, cast, hit.point)
-				return true
+			preload("res://storm_affinity.gd").core_contact(game,cast,hit.target,cast.from,hit.point,now)
+			stop(game,cast,hit.point)
+			return true
 	if blocked:
 		stop(game, cast, tip)
 	return blocked or fraction >= 1.0

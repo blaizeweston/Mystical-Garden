@@ -8,6 +8,7 @@ const Classes = preload("res://class_catalog.gd")
 const Experience = preload("res://class_experience.gd")
 const ConnectedWarden = preload("res://warden_connected_tree.gd")
 const ConnectedWeaver = preload("res://weaver_connected_tree.gd")
+const ConnectedTree = preload("res://connected_class_tree.gd")
 const Parts = preload("res://weapon_parts.gd")
 const Seeds = preload("res://seed_catalog.gd")
 
@@ -81,11 +82,49 @@ static func normalize(source: Dictionary) -> Dictionary:
 				for slot in mini(3,parts.size()):
 					var part:=int(parts[slot]) if parts[slot] is int else 0
 					result.loadouts[c].parts[slot]=part if Parts.is_plant(part) else 0
-	for key in [ConnectedWarden.PROFILE_KEY,ConnectedWeaver.PROFILE_KEY,Classes.Ranger.PROFILE_KEY,Classes.Reaper.PROFILE_KEY,Classes.Oracle.PROFILE_KEY]:
+	for key in [ConnectedWarden.PROFILE_KEY,ConnectedWeaver.PROFILE_KEY,Classes.Ranger.PROFILE_KEY,Classes.Reaper.PROFILE_KEY,Classes.Oracle.PROFILE_KEY,ConnectedTree.MIGRATION_KEY]:
 		if source.has(key):
 			var progression: Variant = source[key]
 			result[key] = progression.duplicate(true) if progression is Dictionary or progression is Array else progression
 	return result
+
+
+## Explicit Heart refund only. Ordinary load preserves historical investments unchanged.
+## The archive protects original bits; the marker grants access to the current tree, not old effects.
+static func refund_historical_class(source: Dictionary, class_id: int) -> Dictionary:
+	var tree := Classes.connected_tree(class_id)
+	if tree == null or not Experience.supported(source):
+		return {"error":ERR_INVALID_DATA}
+	if tree.eligible(source):
+		return {"error":OK,"profile":source.duplicate(true),"changed":false,"level":tree.level(source)}
+	if not tree.valid(source):
+		return {"error":ERR_INVALID_DATA}
+	var upgrades: Variant = source.get("upgrades")
+	var quarantine: Variant = source.get("quarantine",{})
+	var migrations: Variant = source.get(ConnectedTree.MIGRATION_KEY,{})
+	if not upgrades is Array or class_id >= upgrades.size() or not upgrades[class_id] is int \
+		or not quarantine is Dictionary or not migrations is Dictionary:
+		return {"error":ERR_INVALID_DATA}
+	if migrations.has(tree.class_key) and migrations[tree.class_key] != ConnectedTree.MIGRATION_VERSION:
+		return {"error":ERR_INVALID_DATA}
+	var archived: Variant = quarantine.get("learned_class_masks",{})
+	if not archived is Dictionary or (archived.has(tree.class_key) and not archived[tree.class_key] is int):
+		return {"error":ERR_INVALID_DATA}
+	var result := source.duplicate(true)
+	result.quarantine = quarantine.duplicate(true)
+	result.quarantine.learned_class_masks = archived.duplicate(true)
+	result.quarantine.learned_class_masks[tree.class_key] = int(archived.get(tree.class_key,0)) | int(upgrades[class_id])
+	result.upgrades[class_id] = 0
+	result[ConnectedTree.MIGRATION_KEY] = migrations.duplicate(true)
+	result[ConnectedTree.MIGRATION_KEY][tree.class_key] = ConnectedTree.MIGRATION_VERSION
+	result[tree.profile_key] = tree.state([])
+	var xp := []
+	for index in Classes.DEFINITIONS.size():
+		xp.append(Experience.value(source,index))
+	result.xp = xp
+	result[Experience.VERSION_KEY] = Experience.VERSION
+	result.erase("xp_tenths")
+	return {"error":OK,"profile":result,"changed":true,"level":tree.level(result)}
 
 
 static func clean_name(value: String) -> String:

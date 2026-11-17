@@ -24,7 +24,7 @@ static func members(players: Dictionary,local_id: int) -> Array:
  result.sort_custom(func(a,b):return a.slot<b.slot if a.slot!=b.slot else a.id<b.id)
  return result.slice(0,3)
 func _ready() -> void:
- mouse_filter=Control.MOUSE_FILTER_IGNORE;position=Vector2(20,77 if Orb.Preview.enabled else 65)
+ mouse_filter=Control.MOUSE_FILTER_IGNORE;position=Vector2(20,77)
  panel_style=StyleBoxFlat.new();panel_style.bg_color=Color("#142019c9");panel_style.border_color=Color("#697853");panel_style.set_border_width_all(1);panel_style.set_corner_radius_all(6)
 func update_party(party: Array,wild: bool) -> void:
  rows=party;visible=wild and not rows.is_empty();size=Vector2(ROW_SIZE.x,rows.size()*(ROW_SIZE.y+SPACING));queue_redraw()
@@ -57,15 +57,9 @@ func _draw() -> void:
   var row: Dictionary=rows[i];var at:=Vector2(0,i*(ROW_SIZE.y+SPACING));draw_style_box(panel_style,Rect2(at,ROW_SIZE))
   portrait(at+Vector2(23,22),row.appearance,row.fallen)
   var name: String=row.name
-  var name_width:=100 if Orb.Preview.enabled else 125
+  var name_width:=100
   while font.get_string_size(name,HORIZONTAL_ALIGNMENT_LEFT,-1,12).x>name_width and name.length()>1:name=name.left(name.length()-2)+"…"
   draw_string(font,at+Vector2(46,16),name,HORIZONTAL_ALIGNMENT_LEFT,name_width+3,12,Color("#ddd5b9"))
-  if Orb.Preview.enabled:
-   Orb.paint(self,at+Vector2(161,22),12.0,0.0 if row.fallen else row.hp,row.max_hp,row.get("lost_health",0))
-   var vitals: String="Fallen" if row.fallen else "%d / %d HP"%[int(row.hp),row.max_hp]
-   draw_string(font,at+Vector2(46,34),vitals,HORIZONTAL_ALIGNMENT_LEFT,100,10,Color("#baae97"))
-   continue
-  draw_style_box(make_face(Color("#29352a")),Rect2(at+Vector2(46,23),Vector2(128,7)))
-  var ratio:=0.0 if row.fallen else clampf(float(row.hp)/float(row.max_hp),0,1)
-  if ratio>0:draw_style_box(make_face(Color("#b68852") if ratio<=.3 else Color("#8eb375")),Rect2(at+Vector2(46,23),Vector2(128*ratio,7)))
-  draw_string(font,at+Vector2(46,40),"Fallen" if row.fallen else "%s / %d"%[str(snappedf(row.hp,.5)),row.max_hp],HORIZONTAL_ALIGNMENT_LEFT,128,9,Color("#baae97"))
+  Orb.paint(self,at+Vector2(161,22),12.0,0.0 if row.fallen else row.hp,row.max_hp,row.get("lost_health",0))
+  var vitals: String="Fallen" if row.fallen else "%d / %d HP"%[int(row.hp),row.max_hp]
+  draw_string(font,at+Vector2(46,34),vitals,HORIZONTAL_ALIGNMENT_LEFT,100,10,Color("#baae97"))

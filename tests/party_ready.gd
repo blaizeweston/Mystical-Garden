@@ -11,7 +11,10 @@ func _initialize(): call_deferred("run")
 func setup_guest():
  game.add_player(2);SessionCase.set_ready(game, game.players[2], true);SessionCase.set_identity(game, game.players[2], "b".repeat(32))
  game.players[1].character.name="Rowan";game.players[2].character.name="Fern"
- for p in game.players.values(): p.pos=game.Stage.GATE
+ for p in game.players.values():
+  p.pos=game.Stage.GATE
+  var tree=game.Classes.connected_tree(int(p.frame))
+  p.character[tree.profile_key]=tree.state([tree.nodes[0].id])
 func cleared(floor_number: int):
  ExpeditionCase.set_world(game, {"encounter_number": floor_number});game.deepest_milestone=floor_number;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts()
  for p in game.players.values(): p.pos=game.battlefield.advance
@@ -50,7 +53,8 @@ func run():
  check(game.participation.floor()==2 and game.participation.travel_kind().is_empty(),"old ready messages cannot advance another stage")
  cleared(6);ExpeditionCase.Transitions.checkpoint(game, 1,true)
  check(game.checkpoint_pending and game.participation.floor()==6,"sixth-stage cards hold travel")
- game.choose_checkpoint_card(1,host,-1);game.choose_checkpoint_card(2,guest,-1)
+ for peer in [1,2]:
+  game.garden_action(peer,game.affinity_checkpoint_action(int(game.checkpoint_card_data(game.players[peer])[0].revision),"skip"))
  check(game.participation.floor()==6 and (game.participation.vote_count() == 0),"card choices never substitute for party readiness")
  ExpeditionCase.Transitions.checkpoint(game, 1,true);ExpeditionCase.Transitions.checkpoint(game, 2,true)
  check(game.participation.floor()==7 and ExpeditionCase.is_wild(host) and ExpeditionCase.is_wild(guest),"explicit confirmations advance after cards")

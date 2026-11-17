@@ -232,8 +232,6 @@ func refresh() -> void:
 			var connected = game.Classes.connected_in_world(game,c,data)
 			if connected != null:
 				can_learn = connected.refusal(data,n).is_empty()
-			else:
-				can_learn=game.Classes.can_learn(data,c,n,Character.level(int(data.xp[c])))
 	learn_button.disabled=not can_learn
 	if heart_tab:
 		var state: Dictionary=game.heart_state()
@@ -268,25 +266,19 @@ func refresh() -> void:
 	notice.text = ("Combine seeds at the Altar. Failed combinations return materials and a clue." if at_altar else "Identify and combine seeds at the Altar.")
 	if class_tab:
 		var class_profile: Dictionary=p.get("character",game.guest_character.data)
-		refund_button.text="Refund and switch to new tree" if game.Classes.Warden.legacy(class_profile,inspected_class) else "Refund class choices"
+		refund_button.text="Refund historical class choices" if not game.Classes.connected_tree(inspected_class).eligible(class_profile) else "Refund class choices"
 	if class_tab:
 		var data: Dictionary=p.get("character",game.guest_character.data)
 		var connected = game.Classes.connected_in_world(game,inspected_class,data)
-		var level:=Character.level(int(data.xp[inspected_class]))
-		var available: int=game.Classes.points(data,inspected_class,level)
 		var class_name_text: String=game.Classes.DEFINITIONS[inspected_class].name
-		if connected != null:
-			if connected.valid(data):
-				level = connected.level(data)
-				available = level-connected.path(data).size()
-				notice.text="%s level %d / %d · %d XP · %d available"%[class_name_text,level,
-					connected.XP_THRESHOLDS.size(),data.xp[inspected_class],available]
-			else:
-				notice.text="Connected %s data needs review before it can change."%class_name_text
-		elif game.Classes.Warden.legacy(data,inspected_class):
-			notice.text="%s level %d · %d available · Refund at the Heart to switch to the new tree."%[class_name_text,level,available]
+		if not connected.eligible(data):
+			notice.text="%s has preserved historical investments. Refund this class at the Heart to activate its connected tree; Class XP is preserved." % class_name_text
+		elif not connected.valid(data):
+			notice.text="Connected %s data needs review before it can change." % class_name_text
 		else:
-			notice.text="%s level %d · %d available · Choose a subclass, then follow a root to the next tier."%[class_name_text,level,available]
+			var level: int=connected.level(data)
+			notice.text="%s level %d / %d · %d XP · %d available" % [class_name_text,level,
+				connected.XP_THRESHOLDS.size(),data.xp[inspected_class],level-connected.path(data).size()]
 	tree_hint.text="Select an upgrade to inspect it. Roots mark your chosen path." if class_tab else "Select a seed to inspect it. ? marks an undiscovered species."
 	if heart_tab:
 		var state: Dictionary=game.heart_state()
@@ -382,109 +374,55 @@ func heart_nodes() -> Array:
 func class_nodes() -> Array:
 	var p:=profile()
 	var data: Dictionary=p.get("character",game.guest_character.data)
-	var c:=inspected_class
-	var definition: Dictionary=game.Classes.DEFINITIONS[c]
-	var level:=Character.level(int(data.xp[c]))
-	var mask:=int(data.upgrades[c])
-	if not game.Classes.Warden.legacy(data,c):
-		return subclass_nodes(data,c,level,mask)
-	var points: int=game.Classes.points(data,c,level)
-	var base_y: float=65.0*(definition.nodes.size()/2+1)
-	var node_indices: Dictionary={}
-	for index in definition.nodes.size(): node_indices[str(definition.nodes[index].id)]=index
-	var base: String="class_%d_base"%c
-	var result: Array=[{"id":base,"label":definition.name,"parents":[],"position":Vector2(350,base_y),"unlocked":true,"color":"#c4be83","detail":"%s · Lv %d\n%s\n\nXP: %d · Available points: %d\n\nOne choice per row. Learn at the Heart or Wilds Gate between expeditions. Refunds are free at the Heart."%[definition.name,level,definition.description,int(data.xp[c]),points],"summary":definition.name+"\n"+definition.description}]
-	for i in definition.nodes.size():
-		var node: Dictionary=definition.nodes[i]
-		var id: String="class_%d_%d"%[c,i]
-		var parents: Array=[base] if node.get("parents",[]).is_empty() else []
-		for parent in node.get("parents",[]):
-			if node_indices.has(str(parent)): parents.append("class_%d_%d"%[c,int(node_indices[str(parent)])])
-		var learned: bool=bool(mask & (1 << i))
-		var change: Dictionary=node.get("skill_change",{})
-		var effects: String=game.Classes.effect_text(node.effects,game.Life.Preview.enabled)
-		if game.has_meta(&"combat_affinity_ruleset"):
-			effects = preload("res://affinity_build.gd").class_effects_text(node.effects)
-		var change_text: String=game.Skills.change_text(c,change)
-		if game.Life.Preview.enabled and not change.is_empty():
-			var candidate: Dictionary=data.duplicate(true)
-			candidate.upgrades[c]=mask | (1 << i) if learned else (mask & ~(3 << (i-i%2))) | (1 << i)
-			var affected: Array=[0,1] if change.kind in ["power","efficient"] else [int(change.get("slot",0))]
-			var preview_stats: Dictionary = game.Classes.bonuses(candidate,c)
-			if game.has_meta(&"combat_affinity_ruleset"):
-				var resolver = preload("res://affinity_build.gd")
-				var loadout: Dictionary = candidate.loadouts[c]
-				preview_stats = resolver.native_stats(resolver.resolve(c,int(loadout.weapon),loadout.parts,0,candidate))
-			change_text+="\n\n"+ "\n\n".join(affected.map(func(slot):return game.Skills.describe(game.Skills.resolve(c,slot,candidate),preview_stats)))
-		var detail: String="%s\nRequires class level %d · 1 point\n\n%s\n\n%s\nChoose one upgrade in this row. Previous row must be learned. Choices stay with this character."%[node.name,node.level,effects+"\n\n"+change_text,"Learned" if learned else "Available" if game.Classes.can_learn(data,c,i,level) else "Locked / alternative path"]
-		result.append({"id":id,"label":node.name,"parents":parents,"position":Vector2(245+(i%2)*210,base_y-70-int(node.tier)*65),"unlocked":learned,"detail":detail,"summary":node.name+"\n"+change_text+"\n"+effects,"color":"#a8bc86"})
-	return result
+	return connected_nodes(data,inspected_class)
 
-func subclass_nodes(data: Dictionary, c: int, level: int, mask: int) -> Array:
-	var tree_data = game.Classes.Warden
-	var base := "class_%d_base"%c
+func connected_nodes(data: Dictionary, c: int) -> Array:
+	var connected = game.Classes.connected_tree(c)
+	var base := "class_%d_base" % c
 	var title: String=game.Classes.DEFINITIONS[c].name
-	var connected = game.Classes.connected_in_world(game,c,data)
-	var use_connected := connected != null
-	var nodes: Array = connected.nodes if use_connected else game.Classes.branch_nodes(c)
-	var offset: int = connected.REQUEST_OFFSET if use_connected else tree_data.OFFSET
-	var lanes: Array = connected.LANES if use_connected else tree_data.LANES
-	var focus_id: String = connected.focus(data) if use_connected else game.Classes.focus_id(data,c)
+	var level: int=connected.level(data)
+	var selected: Array=connected.path(data) if connected.eligible(data) else []
+	var focus_id: String=connected.focus(data) if connected.eligible(data) else ""
 	var focus: String=game.Classes.focus_name(focus_id)
-	var starting_ability := ""
-	if use_connected:
-		level = connected.level(data)
-		if not focus_id.is_empty():
-			starting_ability = game.Skills.resolve(c,0,data,true).name
-	var base_y := 628.0 if use_connected else 452.0
+	var starting_ability: String=game.Skills.resolve(c,0,data).name if not focus_id.is_empty() else ""
+	var base_y := 628.0
+	var introduction := "%s · Lv %d\n%s\n\nChoose one node per level through level 6. Follow a connected root into each next tier; crossing lanes preserves your starting Q." % [title,level,focus if not focus.is_empty() else "Choose a starting focus"]
+	if not connected.eligible(data):
+		introduction += "\n\nHistorical investments are preserved. Refund this class at the Heart to activate the connected tree without losing Class XP."
 	var result: Array=[{"id":base,"label":title,"parents":[],"position":Vector2(350,base_y),
-		"unlocked":true,"color":"#c4be83","detail":"%s · Lv %d\n%s\n\nChoose one node per tier at the Heart or Wilds Gate. The first choice teaches your subclass skill. Later tiers can follow a root to an adjacent branch."%[title,level,focus if not focus.is_empty() else "Choose a subclass"],
-		"summary":title+" · "+", ".join(lanes),"caption":title}]
+		"unlocked":true,"color":"#c4be83","detail":introduction,
+		"summary":title+" · "+", ".join(connected.LANES),"caption":title}]
 	var nodes_by_id: Dictionary={}
-	for i in nodes.size():
-		nodes_by_id[nodes[i].id]="class_%d_%d"%[c,offset+i]
-	for i in nodes.size():
-		var node: Dictionary=nodes[i]
-		var index: int=offset+i
-		var learned: bool = connected.path(data).has(node.id) if use_connected else bool(mask & (1<<index))
-		var reason: String = connected.refusal(data,index) if use_connected else ""
-		var ready: bool = reason.is_empty() if use_connected else game.Classes.can_learn(data,c,index,level)
+	for i in connected.nodes.size():
+		nodes_by_id[connected.nodes[i].id]="class_%d_%d" % [c,connected.REQUEST_OFFSET+i]
+	for i in connected.nodes.size():
+		var node: Dictionary=connected.nodes[i]
+		var index: int=connected.REQUEST_OFFSET+i
+		var learned: bool=selected.has(node.id)
+		var reason: String=connected.refusal(data,index)
+		var ready := reason.is_empty()
 		var parents: Array=[base] if node.parents.is_empty() else node.parents.map(func(id):return nodes_by_id[id])
-		var description: String = node.description
-		if use_connected:
-			match c:
-				0: description = preload("res://warden_connected_tree.gd").description(node,focus_id,starting_ability)
-				1: description = game.Classes.Weaver.description(node,focus_id,starting_ability)
-				2: description = game.Classes.Ranger.description(node,focus_id,starting_ability)
-				3: description = game.Classes.Reaper.description(node,focus_id,starting_ability)
-				4: description = preload("res://connected_class_tree.gd").focus_text(node.description,starting_ability)
-			if c == 2 and node.id in ["trail_ward","clear_trail"] and not starting_ability.is_empty():
-				var skill: Dictionary = game.Skills.resolve(c,0,data,true)
-				description += "\nSupport radius: %.2f m." % skill.ranger_support_radius
-		var summary: String=node.name+" · "+lanes[node.lane]+"\n"+description
-		if game.has_meta(&"combat_affinity_ruleset"):
-			var restriction: String = preload("res://affinity_build.gd").RESTRICTED_NODES.get(node.id, "")
-			if not restriction.is_empty():
-				summary = node.name + "\n" + restriction
-				ready = false
-		if node.tier==0:
-			if game.Life.Preview.enabled:
-				var candidate: Dictionary=data.duplicate(true)
-				if not learned:
-					if use_connected: candidate[connected.profile_key] = connected.state([node.id])
-					else: candidate.upgrades[c]=1<<index
-				summary+="\n"+game.Skills.describe(game.Skills.resolve(c,0,candidate,use_connected))
-			else:
-				summary+="\n"+str(tree_data.FOCUSES[node.id].description if c==0 else game.Classes.Subclasses.FOCUSES[c-1][node.lane].description)
-		var detail: String=summary+"\n\nLevel %d · %s"%[node.level,"Learned" if learned else "Available" if ready else "Locked"]
-		if use_connected and not ready and not learned:
-			detail += "\n" + reason
+		var description: String=node.description
+		match c:
+			0: description=preload("res://warden_connected_tree.gd").description(node,focus_id,starting_ability)
+			1: description=game.Classes.Weaver.description(node,focus_id,starting_ability)
+			2: description=game.Classes.Ranger.description(node,focus_id,starting_ability)
+			3: description=game.Classes.Reaper.description(node,focus_id,starting_ability)
+			4: description=preload("res://connected_class_tree.gd").focus_text(node.description,starting_ability)
+		if c==2 and node.id in ["trail_ward","clear_trail"] and not starting_ability.is_empty():
+			description+="\nSupport radius: %.2f m." % game.Skills.resolve(c,0,data).ranger_support_radius
+		var summary: String=node.name+" · "+connected.LANES[node.lane]+"\n"+description
+		if node.tier==0 and connected.eligible(data):
+			var candidate: Dictionary=data.duplicate(true)
+			if not learned:candidate[connected.profile_key]=connected.state([node.id])
+			summary+="\n"+game.Skills.describe(game.Skills.resolve(c,0,candidate))
+		var detail: String=summary+"\n\nLevel %d · %s" % [node.level,"Learned" if learned else "Available" if ready else "Locked"]
+		if not ready and not learned:detail+="\n"+reason
 		result.append({"id":nodes_by_id[node.id],"label":node.name,"parents":parents,
 			"position":Vector2(145+205*int(node.lane),base_y-98-88*int(node.tier)),"unlocked":learned,
-			"available":ready,"show_route":true,"color":tree_data.COLORS[node.lane],"summary":summary,"detail":detail,
-			"caption":node.name if node.tier==0 else ""})
+			"available":ready,"show_route":true,"color":game.Classes.Warden.COLORS[node.lane],
+			"summary":summary,"detail":detail,"caption":node.name if node.tier==0 else ""})
 	return result
-
 
 func select_node(id: String) -> void:
 	previewed=""

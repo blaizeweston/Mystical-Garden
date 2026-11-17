@@ -72,19 +72,19 @@ func profiles() -> void:
 	legacy.upgrades[4]=1<<12
 	var copied := Profile.normalize(legacy)
 	check(copied==legacy and not Connected.eligible(copied),"historical investments and XP survive normalization")
-	check(Builds.resolve(0,0,[0,0,0],0,copied).class_skills[0].native_skill.name=="Rootshield",
-		"affinity resolver keeps the historical focus")
+	check(not Builds.resolve(0,0,[0,0,0],copied).capabilities.class_actions,
+		"historical data is retained without executing retired class mechanics")
 	var connected := Profile.blank()
 	connected.xp[0]=2600
 	connected[Connected.PROFILE_KEY]=Connected.state(["vanguard","deep_roots"])
 	var normalized := Profile.normalize(connected)
 	check(Connected.valid(normalized) and Connected.focus(normalized)=="vanguard" and normalized.upgrades[0]==0,
 		"versioned stable IDs round trip separately from masks")
-	check(Skills.resolve(0,0,normalized).name=="Guard" and Skills.resolve(0,0,normalized,true).name=="Thorn Counter",
-		"legacy mode ignores the versioned tree")
+	check(Skills.resolve(0,0,normalized).name=="Thorn Counter",
+		"one resolver executes the versioned starting focus")
 	for invalid in [null, {"version":2,"path":["vanguard"]},{"version":1,"path":["vanguard","shared_guard"]}]:
 		normalized[Connected.PROFILE_KEY]=invalid
-		check(not Connected.valid(normalized) and not Builds.resolve(0,0,[0,0,0],0,normalized).capabilities.class_actions,
+		check(not Connected.valid(normalized) and not Builds.resolve(0,0,[0,0,0],normalized).capabilities.class_actions,
 			"invalid connected data cannot execute class skills")
 		check(Profile.normalize(normalized)[Connected.PROFILE_KEY]==invalid,"invalid data stays readable for review")
 
@@ -107,7 +107,7 @@ func title_and_progression() -> bool:
 		return false
 	game=current_scene
 	player=game.players[1]
-	check(Rules.active(game) and game.has_meta(game.Transactions.SESSION),"real guarded affinity session")
+	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Rules.ID and game.has_meta(game.Transactions.SESSION),"real guarded affinity session")
 	var old_catalog: Dictionary = game.progress.ContentIDs.manifest()
 	old_catalog.erase(Profile.Experience.VERSION_KEY)
 	old_catalog.levels = [0,5,15,35,70,140,260]

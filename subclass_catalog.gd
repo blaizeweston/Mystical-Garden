@@ -1,5 +1,5 @@
 extends RefCounted
-## Each row defines a class. Each focus owns its skill, release style and checkpoint card.
+## Authoritative native focus Q definitions. Connected node values live beside each class runtime.
 const Graph = preload("res://warden_tree.gd")
 const Ranger = preload("res://ranger_connected_tree.gd")
 const Reaper = preload("res://reaper_connected_tree.gd")
@@ -21,25 +21,7 @@ const FOCUSES := [
    "radius": 1.85,
    "bind": 1600,
    "damage": 1,
-   "limit": 2,
-   "card": {
-    "id": "thornbinder_signature",
-    "name": "Tangled Canopy",
-    "description": "Bind reaches two additional enemies in its circle.",
-    "classes": [
-     1
-    ],
-    "focus": "thornbinder",
-    "class_behavior": "subclass",
-    "effect": {
-     "extra": 2
-    },
-    "rarity": "Rare",
-    "cost": 4,
-    "weight": 2.2,
-    "max_rank": 1,
-    "effects": {}
-   }
+   "limit": 2
   },
   {
    "id": "bloomcaller",
@@ -54,25 +36,7 @@ const FOCUSES := [
    "range": 6,
    "radius": 2.35,
    "field": "growth",
-   "duration": 3000,
-   "card": {
-    "id": "bloomcaller_signature",
-    "name": "Sheltering Bloom",
-    "description": "Casting the bloom also wards allies inside its circle.",
-    "classes": [
-     1
-    ],
-    "focus": "bloomcaller",
-    "class_behavior": "subclass",
-    "effect": {
-     "ward": true
-    },
-    "rarity": "Rare",
-    "cost": 4,
-    "weight": 2.2,
-    "max_rank": 1,
-    "effects": {}
-   }
+   "duration": 3000
   },
   {
    "id": "silkwarden",
@@ -87,25 +51,7 @@ const FOCUSES := [
    "range": 5.5,
    "radius": 2.45,
    "bind": 1000,
-   "ward": true,
-   "card": {
-    "id": "silkwarden_signature",
-    "name": "Clear the Web",
-    "description": "Casting Silk Shelter cleanses Slow from allies inside.",
-    "classes": [
-     1
-    ],
-    "focus": "silkwarden",
-    "class_behavior": "subclass",
-    "effect": {
-     "cleanse": true
-    },
-    "rarity": "Rare",
-    "cost": 4,
-    "weight": 2.2,
-    "max_rank": 1,
-    "effects": {}
-   }
+   "ward": true
   }
  ],
  [
@@ -122,26 +68,7 @@ const FOCUSES := [
    "range": 8.5,
    "width": 0.62,
    "damage": 2,
-   "limit": 3,
-   "marks": 1,
-   "card": {
-    "id": "wildstalker_signature",
-    "name": "Two on the Trail",
-    "description": "Mark a second survivor in the shot lane.",
-    "classes": [
-     2
-    ],
-    "focus": "wildstalker",
-    "class_behavior": "subclass",
-    "effect": {
-     "marks": 1
-    },
-    "rarity": "Rare",
-    "cost": 4,
-    "weight": 2.2,
-    "max_rank": 1,
-    "effects": {}
-   }
+   "limit": 3
   },
   {
    "id": "snarekeeper",
@@ -157,25 +84,7 @@ const FOCUSES := [
    "radius": 2.35,
    "bind": 1250,
    "field": "decoy",
-   "duration": 2700,
-   "card": {
-    "id": "snarekeeper_signature",
-    "name": "Baited Thorns",
-    "description": "The decoy also leaves a damaging thorn patch.",
-    "classes": [
-     2
-    ],
-    "focus": "snarekeeper",
-    "class_behavior": "subclass",
-    "effect": {
-     "thorn_patch": true
-    },
-    "rarity": "Rare",
-    "cost": 4,
-    "weight": 2.2,
-    "max_rank": 1,
-    "effects": {}
-   }
+   "duration": 2700
   },
   {
    "id": "wayfarer",
@@ -189,25 +98,7 @@ const FOCUSES := [
    "cooldown": 7600,
    "range": 4.1,
    "radius": 2.15,
-   "bind": 1350,
-   "card": {
-    "id": "wayfarer_signature",
-    "name": "Covered Tracks",
-    "description": "Gain a ward at your landing point.",
-    "classes": [
-     2
-    ],
-    "focus": "wayfarer",
-    "class_behavior": "subclass",
-    "effect": {
-     "landing_ward": true
-    },
-    "rarity": "Rare",
-    "cost": 4,
-    "weight": 2.2,
-    "max_rank": 1,
-    "effects": {}
-   }
+   "bind": 1350
   }
  ],
  [
@@ -223,25 +114,7 @@ const FOCUSES := [
    "cooldown": 7600,
    "radius": 2.75,
    "damage": 2,
-   "leech": true,
-   "card": {
-    "id": "blood_harvester_signature",
-    "name": "Reap the Fallen",
-    "description": "Killing an enemy with the sweep primes bonus damage on your next weapon hit.",
-    "classes": [
-     3
-    ],
-    "focus": "blood_harvester",
-    "class_behavior": "subclass",
-    "effect": {
-     "grave": true
-    },
-    "rarity": "Rare",
-    "cost": 4,
-    "weight": 2.2,
-    "max_rank": 1,
-    "effects": {}
-   }
+   "leech": true
   },
   {
    "id": "veilwalker",
@@ -255,26 +128,7 @@ const FOCUSES := [
    "cooldown": 7600,
    "range": 4.8,
    "radius": 2.15,
-   "damage": 2,
-   "marks": 1,
-   "card": {
-    "id": "veilwalker_signature",
-    "name": "Through the Veil",
-    "description": "Enemies at the landing point are briefly rooted.",
-    "classes": [
-     3
-    ],
-    "focus": "veilwalker",
-    "class_behavior": "subclass",
-    "effect": {
-     "bind": 900
-    },
-    "rarity": "Rare",
-    "cost": 4,
-    "weight": 2.2,
-    "max_rank": 1,
-    "effects": {}
-   }
+   "damage": 2
   },
   {
    "id": "gravekeeper",
@@ -289,25 +143,7 @@ const FOCUSES := [
    "radius": 3.1,
    "span": 2.35,
    "damage": 2,
-   "hit_ward": true,
-   "card": {
-    "id": "gravekeeper_signature",
-    "name": "Grave Chorus",
-    "description": "A successful sweep wards all nearby living allies.",
-    "classes": [
-     3
-    ],
-    "focus": "gravekeeper",
-    "class_behavior": "subclass",
-    "effect": {
-     "party_hit_ward": true
-    },
-    "rarity": "Rare",
-    "cost": 4,
-    "weight": 2.2,
-    "max_rank": 1,
-    "effects": {}
-   }
+   "hit_ward": true
   }
  ],
  [
@@ -324,25 +160,7 @@ const FOCUSES := [
    "range": 6.2,
    "radius": 2.4,
    "damage": 1,
-   "punish": 1,
-   "card": {
-    "id": "omenreader_signature",
-    "name": "Sentence of Dawn",
-    "description": "Foretell deals more damage to enemies winding up.",
-    "classes": [
-     4
-    ],
-    "focus": "omenreader",
-    "class_behavior": "subclass",
-    "effect": {
-     "punish": 1
-    },
-    "rarity": "Rare",
-    "cost": 4,
-    "weight": 2.2,
-    "max_rank": 1,
-    "effects": {}
-   }
+   "punish": 1
   },
   {
    "id": "leykeeper",
@@ -357,25 +175,7 @@ const FOCUSES := [
    "range": 5.8,
    "radius": 2.6,
    "pull": 1.2,
-   "cleanse": true,
-   "card": {
-    "id": "leykeeper_signature",
-    "name": "Hushed Chime",
-    "description": "Root enemies briefly after the pull.",
-    "classes": [
-     4
-    ],
-    "focus": "leykeeper",
-    "class_behavior": "subclass",
-    "effect": {
-     "bind": 750
-    },
-    "rarity": "Rare",
-    "cost": 4,
-    "weight": 2.2,
-    "max_rank": 1,
-    "effects": {}
-   }
+   "cleanse": true
   },
   {
    "id": "lifekeeper",
@@ -392,25 +192,7 @@ const FOCUSES := [
    "heal": 1,
    "field": "tide",
    "field_power": 0,
-   "duration": 3000,
-   "card": {
-    "id": "lifekeeper_signature",
-    "name": "Bower of Light",
-    "description": "Grant a ward to living allies inside when the sanctuary opens.",
-    "classes": [
-     4
-    ],
-    "focus": "lifekeeper",
-    "class_behavior": "subclass",
-    "effect": {
-     "ward": true
-    },
-    "rarity": "Rare",
-    "cost": 4,
-    "weight": 2.2,
-    "max_rank": 1,
-    "effects": {}
-   }
+   "duration": 3000
   }
  ]
 ]
@@ -520,23 +302,15 @@ static func lane_at(profile: Dictionary, class_id: int, tier: int) -> int:
 	return -1
 
 
-static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionary, connected := false) -> Dictionary:
-	var tree: RefCounted
-	if connected:
-		match class_id:
-			1: tree = Weaver.TREE
-			2: tree = Ranger.TREE
-			3: tree = Reaper.TREE
-			4: tree = Oracle.TREE
-	var selected: Array = tree.path(profile) if tree != null else []
-	var entry := focus(profile,class_id)
-	if not selected.is_empty():
-		entry = FOCUSES[class_id-1][tree.lane_at(selected,0)]
+static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionary) -> Dictionary:
+	var tree := {1:Weaver.TREE,2:Ranger.TREE,3:Reaper.TREE,4:Oracle.TREE}[class_id] as RefCounted
+	var selected: Array = tree.path(profile) if tree.eligible(profile) else []
+	var entry: Dictionary = FOCUSES[class_id-1][tree.lane_at(selected,0)] if not selected.is_empty() else {}
 	if entry.is_empty():
 		return base
 	var result := entry.duplicate(true) if slot == 0 else base
 	result.subclass_focus = entry.id
-	if tree != null and class_id == 1:
+	if class_id == 1:
 		result.weaver_nodes = selected
 		if slot == 0 and entry.id == "thornbinder":
 			result.description = "Damage and root a visible foe and up to one nearby enemy."
@@ -544,11 +318,10 @@ static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionar
 			var node := Weaver.TREE.node(selected[tier])
 			if (tier in [1,2,4] and slot == 0) or (tier >= 3 and slot == 1):
 				result.description += "\n" + node.name + " · " + Weaver.description(node,entry.id,entry.name)
-	elif tree != null and class_id == 2:
+	elif class_id == 2:
 		result.ranger_nodes = selected
 		if slot == 0 and entry.id == "wildstalker":
 			result.description = Ranger.PREY_DESCRIPTION
-			result.erase("marks")
 		if slot == 1 and selected.has("snarecraft"):
 			result.radius = float(result.radius) + Ranger.CRAFT_RADIUS
 			result.trap_ms = int(result.get("trap_ms",3800)) + Ranger.CRAFT_MS
@@ -557,30 +330,24 @@ static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionar
 					(tier == 3 or selected[tier] in ["snarecraft","bramble_corridor","escape_route"])):
 				var node := Ranger.TREE.node(selected[tier])
 				result.description += "\n" + node.name + " · " + Ranger.description(node,entry.id,entry.name)
-	elif tree != null and class_id == Oracle.CLASS_ID:
+	elif class_id == Oracle.CLASS_ID:
 		Oracle.configure_skill(result, selected, slot, entry.name)
 	elif tree != null:
 		result.reaper_nodes = selected
 		if slot == 0 and entry.id == "veilwalker":
 			result.description = Reaper.VEIL_DESCRIPTION
-			result.erase("marks")
 		for tier in range(1,selected.size()):
 			var node := Reaper.TREE.node(selected[tier])
 			var affects_q: bool = tier <= 2 or node.id == "grave_offering"
 			if affects_q == (slot == 0):
 				result.description += "\n" + node.name + " · " + Reaper.description(node,entry.id,entry.name)
-	else:
-		for tier in range(1,4):
-			var lane := lane_at(profile,class_id,tier)
-			if lane >= 0 and (tier == 3) == (slot == 1):
-				result.description += "\n" + TITLES[class_id-1][tier-1][lane] + " · " + EFFECTS[tier-1][lane]
 	if slot != 0:
-		result.subclass_follow_lane = lane_at(profile,class_id,3) if tree == null else -1
-		if tree != null and class_id == 1:
+		result.subclass_follow_lane = -1
+		if class_id == 1:
 			var follow_lane := Weaver.TREE.lane_at(selected,3)
 			result.subclass_follow_lane = follow_lane if follow_lane != 1 else -1
 		return result
-	var first: int = tree.lane_at(selected,1) if tree != null else lane_at(profile,class_id,1)
+	var first: int = tree.lane_at(selected,1)
 	if first == 0:
 		if result.shape == "line":
 			result.width += .24
@@ -589,19 +356,11 @@ static func skill(profile: Dictionary, class_id: int, slot: int, base: Dictionar
 	if first == 1 and result.has("range"):
 		result.range += 1.25
 	result.first = first
-	result.second = tree.lane_at(selected,2) if tree != null else lane_at(profile,class_id,2)
+	result.second = tree.lane_at(selected,2)
 	if result.has("ranger_nodes"):
 		result.ranger_support_radius = float(result.get("radius",2.0))
 		if selected.has("trail_ward") or selected.has("clear_trail"):
 			result.description += "\n%s support radius: %.2f m." % [entry.name,result.ranger_support_radius]
-	return result
-
-
-static func cards() -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	for group in FOCUSES:
-		for entry in group:
-			result.append(entry.card)
 	return result
 
 
@@ -611,12 +370,3 @@ static func focus_name(id: String) -> String:
 			if entry.id == id:
 				return entry.focus
 	return ""
-
-
-static func card_lines(player: Dictionary, slot: int) -> String:
-	if slot != 0 or int(player.get("frame",0)) == 0 or player.has("combat_ruleset"):
-		return ""
-	var entry := focus(player.get("character",{}),int(player.frame))
-	if entry.is_empty() or int(player.get("run_upgrades",{}).get(entry.card.id,0)) == 0:
-		return ""
-	return entry.card.name + " · " + entry.card.description

@@ -11,13 +11,12 @@ var failed=false
 func check(ok: bool,message: String) -> void:
  if not ok: failed=true;printerr("FAIL bosses: ",message)
 func _initialize() -> void:
- preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 func run() -> void:
  var game=load("res://world.tscn").instantiate()
  game.progress.path="res://.godot/boss-roster-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character"
  root.add_child(game);game.set_process(false);game.set_physics_process(false)
- var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = PlayerVitals.Health.new(10, 10)
+ var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = PlayerVitals.Health.new(100, 100)
  check(game.Enemies.all().size()==24 and game.Parts.MONSTER_DEFINITIONS.size()==24,"twenty regular enemies plus four bosses and matching components")
  var normal={}
  for floor_number in range(1,40):
@@ -38,9 +37,10 @@ func run() -> void:
   if game.Bosses.choose(20,0,seed_value,[])>=0: rolls+=1
  check(rolls>170 and rolls<340,"rare 2.5 percent per eligible floor")
  for kind in range(20,24):
+  ExpeditionCase.set_membership(game, p, false)
   ExpeditionCase.Transitions.reset(game);ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"encounter_number": 20});ExpeditionCase.set_world(game, {"depth": 2});ExpeditionCase.set_world(game, {"map_seed": 9871})
   game.boss_floors["20"]=kind;game.used_bosses.append(kind);game.reset_encounter()
-  check(game.tactics.boss_kind==kind and game.enemy_kind==kind and game.enemy_health()>=50,"boss installed as primary actor")
+  check(game.tactics.boss_kind==kind and game.enemy_kind==kind and game.enemy_health()>=500,"boss installed as primary actor")
   check(game.battlefield.connected(),"boss lair connects entry, gate, altar and cache")
   check(game.battlefield.boss_kind==kind,"authority uses lair geometry")
   var guest_field=load("res://battlefield.gd").new();guest_field.configure(0,2,9871,kind,0)
@@ -50,7 +50,7 @@ func run() -> void:
   check(game.tactics.boss_kind==kind and game.used_bosses.size()==count,"combat reset preserves floor decision")
   var packet: PackedInt32Array=game.campaign_snapshot()
   check(packet[game.EncounterConfig.BOSS_KIND]==kind,"public map descriptor in snapshot")
-  ExpeditionCase.set_membership(game, p, true);p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0
+  ExpeditionCase.set_membership(game, p, true);p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0
   for move in game.Enemies.get_kind(kind).moves:
    game.tactics.position=Vector3(0,0,5);game.enemy_hazards.clear()
    if Lairs.Routes.supports(kind):
@@ -66,7 +66,7 @@ func run() -> void:
     game.battlefield.configure(0,2,9871,kind,phase);check(game.battlefield.connected(),"reshaped nest remains connected")
   game.stage.draw_state(game.players,1,game.tactics.position,game.enemy_health(),false,3,Vector3.ZERO,false,[],2,6,true,false,false,packet,game.scout_snapshot(1000),.016)
   check(game.stage.visual_field.boss_kind==kind,"rendered stage preserves boss lair")
-  game.enemy_kind=kind;game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,3.2);p.pos=Vector3.ZERO;p.strike_at=0;p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.frame=0;p.weapon_kind=0
+  game.enemy_kind=kind;game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,3.2);p.pos=Vector3.ZERO;p.strike_at=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.frame=0;p.weapon_kind=0
   game.tactics.position=Vector3(0,0,float(game.Enemies.get_kind(kind).hurt_radius)+float(game.weapon_stats(p).reach)-.2)
   check(game.select_attack_target(p,float(game.weapon_stats(p).reach))==-1,"large boss can be struck at its visible body edge")
   game.strike_enemy(1,p,p.pos);game.update_projectiles(Time.get_ticks_msec()+1500)
@@ -79,6 +79,10 @@ func run() -> void:
   var seeds: Array=game.wild_item_drops.filter(func(d):return d.stack.item=="boss_mystery_seed")
   check(seeds.size()==1,"one opaque ancient seed per player per boss")
   check(not seeds[0].stack.has("seeds"),"boss seed species remains undisclosed")
+ var active_boss_history: Array=game.used_bosses.duplicate()
+ ExpeditionCase.Transitions.reset(game)
+ check(game.participation.active() and game.used_bosses==active_boss_history and game.boss_floors.has("20"),"active expedition reset is refused without erasing boss history")
+ ExpeditionCase.set_membership(game, p, false)
  ExpeditionCase.Transitions.reset(game);check(game.used_bosses.is_empty() and not game.boss_floors.has("20") and game.tactics.boss_kind==-1,"fresh run clears only run-local boss history")
  var tiers={};var random=RandomNumberGenerator.new();random.seed=1789
  for i in 5000:

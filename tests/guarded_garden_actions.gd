@@ -1,6 +1,7 @@
 extends SceneTree
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+const Cards = preload("res://affinity_cards.gd")
 
 const Tx = preload("res://game_transaction.gd")
 const Batch = preload("res://save_batch.gd")
@@ -14,7 +15,6 @@ var failed := false
 var world: Node
 
 func _initialize() -> void:
- preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 
 func check(ok: bool, message: String) -> void:
@@ -56,6 +56,14 @@ func open_world(fresh := false) -> bool:
  check(world.get_meta(Tx.SESSION).owns_leases(), "title handoff owns Garden and profile leases")
  world.set_process(false)
  world.set_physics_process(false)
+ var actor: Dictionary=world.players[1]
+ var tree=world.Classes.connected_tree(int(actor.frame))
+ if tree.focus(actor.character).is_empty():
+  var prior_position: Vector3=actor.pos
+  actor.pos=world.Stage.HEART
+  world.handle_loadout_action(1,actor,"learn_%d_64"%int(actor.frame))
+  actor.pos=prior_position
+  world.toggle_overlay(null)
  return true
 
 func close_world() -> void:
@@ -80,13 +88,45 @@ func run() -> void:
   current_scene.select_slot(1)
   garden_path = "user://saves/slot_2/garden.cfg"
   await caller_effects()
- if not failed: print("PASS: guarded Garden actions, harvest, grafting, cards, loadouts, abort, uncertainty and cleanup")
+ if not failed: print("PASS: guarded Garden actions, harvest, modern cards, loadouts, abort, uncertainty and cleanup")
  quit(1 if failed else 0)
 
 func fail_stage(phase: String, _path: String) -> Error:
  return ERR_FILE_CANT_WRITE if phase=="stage" else OK
 
+func historical_refund() -> void:
+ var actor: Dictionary=world.players[1]
+ var original: Dictionary=actor.character.duplicate(true)
+ var historical: Dictionary=world.Character.blank()
+ historical.upgrades[0]=1
+ historical.xp[0]=350
+ # Install the fixture through the canonical guarded profile owner before
+ # testing rollback. Replacing only the actor dictionary would leave its
+ # serializer pointing at a different, unmodified character.
+ var initialized: Dictionary=world.run_guarded_action(1,Tx.Scope.PAIR,func(effects):
+  world.players[1].character=historical.duplicate(true)
+  world.save_action_profile(1,effects))
+ actor=world.players[1]
+ check(Tx.committed(initialized.persistence) and actor.character==historical and world.local_character.data==historical,
+  "historical fixture is durably initialized with one canonical profile")
+ actor.pos=world.Stage.HEART
+ var before:=disk()
+ world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
+ world.handle_loadout_action(1,actor,"respec_0")
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ actor=world.players[1]
+ check(actor.character==historical and disk()==before,"failed historical refund restores masks, XP and durable files")
+ world.handle_loadout_action(1,actor,"respec_0")
+ check(actor.character.upgrades[0]==0 and actor.character.xp[0]==350
+  and world.Classes.connected_tree(0).eligible(actor.character),"accepted historical refund retains XP and archives investments")
+ var restored: Dictionary=world.run_guarded_action(1,Tx.Scope.PAIR,func(effects):
+  world.players[1].character=original
+  world.save_action_profile(1,effects))
+ check(Tx.committed(restored.persistence) and world.players[1].character==original and world.local_character.data==original,
+  "fixture restores the original canonical character before subsequent cases")
+
 func gameplay() -> void:
+ historical_refund()
  var p: Dictionary = world.players[1]
  var parts = world.Parts
  var items = world.Items
@@ -233,20 +273,23 @@ func gameplay() -> void:
  world.progress.add_parts(1,-world.progress.part_count(1))
  world.show_gate_preparation(1)
  check(world.loadout_menu.visible and p.prepared==0 and p.character.loadouts[1].parts[0]==0, "crafting reconciliation persisted before opening panel")
- p.character.xp[1]=10000
+ var weaver_progression=world.Classes.connected_tree(1)
+ p.character.xp[1]=weaver_progression.XP_THRESHOLDS[1]
  p.pos=world.Stage.HEART
- var learn := "learn_1_"+str(world.Classes.DEFINITIONS[1].nodes.size())
+ var learn := "learn_1_"+str(weaver_progression.REQUEST_OFFSET)
  var learn_before := disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.garden_action(1,learn)
  world.remove_meta(&"guarded_gameplay_test_fault")
- check(p.character.upgrades[1]==0 and disk()==learn_before and world.status.begins_with("Save cancelled"),
+ check(weaver_progression.path(p.character).is_empty() and disk()==learn_before and world.status.begins_with("Save cancelled"),
   "learning abort preserves skill points, profile bytes and failure feedback")
  record("class_learn_abort",learn_before,{"feedback":world.status})
  world.garden_action(1,learn)
- check(p.character.upgrades[1]!=0 and world.status.begins_with("Learned"), "class learning commits")
+ check(weaver_progression.path(p.character)==["thornbinder"] and world.status.begins_with("Learned"), "connected focus learning commits")
+ world.garden_action(1,"learn_1_67")
+ check(weaver_progression.path(p.character)==["thornbinder","twining_reach"] and p.character.xp[1]==50,"earned second level grants its connected selection")
  world.handle_loadout_action(1,p,"respec_1")
- check(p.character.upgrades[1]==0 and world.status.begins_with("Class points refunded"), "class respec commits")
+ check(weaver_progression.path(p.character).is_empty() and p.character.xp[1]==50 and world.status.begins_with("Class points refunded"), "connected respec commits without changing XP")
  record("stations_inventory_class_loadout",before,{"profile":p.character.loadouts[1],"status":world.status})
 
  p.pos=world.Stage.PLOTS[0]
@@ -294,36 +337,7 @@ func gameplay() -> void:
  check(p.character.plants[0]==2 and Tx.session_writable(world) and audio_count()==0, "reopen restores availability without replay")
 
  ExpeditionCase.set_membership(world, p, true)
- ExpeditionCase.set_world(world, {"encounter_number": 8})
- p.pos=world.battlefield.graft
- p.carried_parts[parts.HOOK]=2
- var chosen_seed:=0
- for seed in range(100):
-  world.rng.seed=seed
-  if world.rng.randf()<world.graft_chance(p,parts.HOOK):
-   chosen_seed=seed
-   break
- world.rng.seed=chosen_seed
- var graft_before := disk()
- var graft_rng: int = world.rng.state
- world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
- world.garden_action(1,"graft_install_"+str(parts.HOOK))
- world.remove_meta(&"guarded_gameplay_test_fault")
- check(p.graft_part!=parts.HOOK and p.carried_parts[parts.HOOK]==2 and disk()==graft_before
-  and world.rng.state==graft_rng and not world.graft_menu.visible,"graft abort keeps trophy, RNG and menu closed")
- record("graft_abort",graft_before,{"feedback":world.status})
- world.garden_action(1,"graft_install_"+str(parts.HOOK))
- check(p.graft_part==parts.HOOK and p.carried_parts[parts.HOOK]==1 and p.graft_message.contains("grafted"), "graft success consumes one and shows after commit")
- ExpeditionCase.set_world(world, {"encounter_number": 16})
- p.carried_parts[18]=1
- for seed in range(100):
-  world.rng.seed=seed
-  if world.rng.randf()>=world.graft_chance(p,18):
-   chosen_seed=seed
-   break
- world.rng.seed=chosen_seed
- world.garden_action(1,"graft_install_18")
- check(p.graft_part==parts.HOOK and p.carried_parts[18]==0 and p.graft_message.contains("failed"), "failed graft commits consumption and preserves prior part")
+ # Cumulative graft rollback is covered by cr05_native_grafts.
  ExpeditionCase.set_world(world, {"encounter_number": 18})
  world.deepest_milestone=18
  world.encounter.set_hp(-1, 0)
@@ -331,14 +345,14 @@ func gameplay() -> void:
  world.checkpoint_pending=true
  p.pos=world.battlefield.advance
  p.weapon=parts.VEIL
- p.offer_floor=18
- p.checkpoint_offers=["rift_hook","power","reach"]
- world.choose_checkpoint_card(1,p,0)
- check(p.rift_hook and world.progress.rift_hook_discovered and world.wallet_for(p).spent_essence()>0 and world.checkpoint_ready.get(1)==18
-  and world.participation.floor()==18,"card purchase commits Garden discovery without checkpoint advancement")
+ var offer: Dictionary=world.checkpoint_card_data(p)[0]
  var spent: int=world.wallet_for(p).spent_essence()
- world.choose_checkpoint_card(1,p,0)
- check(world.wallet_for(p).spent_essence()==spent,"duplicate card cannot spend twice")
+ var command: String=world.affinity_checkpoint_action(offer.revision,"0")
+ world.send_garden_action(command)
+ check(Cards.ledger(p).count()==1 and world.wallet_for(p).spent_essence()==spent and world.checkpoint_ready.get(1)==18
+  and world.participation.floor()==18,"free card is acquired without checkpoint advancement or Essence spending")
+ world.send_garden_action(command)
+ check(Cards.ledger(p).count()==1 and world.wallet_for(p).spent_essence()==spent,"duplicate card cannot acquire or spend twice")
  world.progress.heart.unlocked.append("checkpoint_deposit")
  p.carried_parts[1]=1
  world.garden_action(1,"bank_part_1")
@@ -346,7 +360,7 @@ func gameplay() -> void:
  world.progress.heart.unlocked.append("perfect_recollection")
  world.consider_recollection()
  check(not world.progress.heart.recollection_seen, "retired finale recollection remains dormant")
- record("graft_cards_courier_recollection",before,{"spent":spent,"floor":world.participation.floor(),"graft":p.graft_part,"status":world.status})
+ record("cards_courier_recollection",before,{"spent":spent,"floor":world.participation.floor(),"cards":Cards.ledger(p).count(),"status":world.status})
 
  ExpeditionCase.set_membership(world, p, false)
  p.pos=world.Stage.PLOTS[0]
@@ -400,29 +414,7 @@ func terminal_wilds_faults() -> void:
  if not open_world(): return
  var actor: Dictionary = world.players[1]
  ExpeditionCase.set_membership(world, actor, true)
- ExpeditionCase.set_world(world, {"encounter_number": 8})
- actor.pos=world.battlefield.graft
- actor.carried_parts[world.Parts.HOOK]=2
- var initial := disk()
- world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path): return ERR_CANT_CREATE if phase=="publish_receipt" else OK)
- world.garden_action(1,"graft_install_"+str(world.Parts.HOOK))
- world.remove_meta(&"guarded_gameplay_test_fault")
- world.refresh_feedback()
- check(actor.carried_parts[world.Parts.HOOK]==1 and not actor.graft_message.is_empty()
-  and world.feedback.text.contains(Tx.CLEANUP_NOTICE) and disk()[garden_path+".transaction"]!="absent",
-  "committed graft consumes a part once and retains cleanup warning")
- var committed := disk()
- world.garden_action(1,"graft_install_"+str(world.Parts.HOOK))
- check(disk()==committed and actor.carried_parts[world.Parts.HOOK]==1,"pending graft cannot replay")
- record("graft_cleanup_pending",initial,{"feedback":world.feedback.text,"graft":actor.graft_message})
- close_world()
- await process_frame
- current_scene.garden_recovery_button.pressed.emit()
- current_scene.recovery_confirmation.confirmed.emit()
- check(disk()[garden_path]==committed[garden_path] and disk()[garden_path+".transaction"]=="absent","title cleanup preserves graft save")
- if not open_world(): return
- actor=world.players[1]
- ExpeditionCase.set_membership(world, actor, true)
+ # Cumulative graft terminal outcomes are exercised by the GA01A fixtures.
  ExpeditionCase.set_world(world, {"encounter_number": 6})
  world.encounter.set_hp(-1, 0)
  world.encounter.clear_scouts()
@@ -430,7 +422,7 @@ func terminal_wilds_faults() -> void:
  actor.pos=world.battlefield.advance
  world.progress.heart.unlocked.append("checkpoint_deposit")
  actor.carried_parts[1]=1
- initial=disk()
+ var initial:=disk()
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):
   return ERR_CANT_CREATE if phase in ["publish_commit_marker","restore"] else OK)
  world.garden_action(1,"bank_part_1")
@@ -458,7 +450,7 @@ func caller_effect_fault(phase: String, _path: String, outcome: String, attempts
 
 func caller_effects() -> void:
  var fresh := true
- for action in ["upgrade","water","observation"]:
+ for action in ["water","observation"]:
   for outcome in ["ABORTED_RESTORED","UNCERTAIN","COMMITTED_CLEANUP_PENDING"]:
    if not open_world(fresh): return
    fresh=false
@@ -466,22 +458,7 @@ func caller_effects() -> void:
    var committed: bool = outcome=="COMMITTED_CLEANUP_PENDING"
    var aborted: bool = outcome=="ABORTED_RESTORED"
    var command := ""
-   var metric_before := FileAccess.get_file_as_string("user://metrics.jsonl").count('"event":"upgrade"')
    match action:
-    "upgrade":
-     ExpeditionCase.set_membership(world, player, true)
-     ExpeditionCase.set_world(world, {"encounter_number": 18})
-     world.deepest_milestone=18
-     world.encounter.set_hp(-1, 0)
-     world.encounter.clear_scouts()
-     world.checkpoint_pending=true
-     player.pos=world.battlefield.advance
-     player.weapon=world.Parts.VEIL
-     player.graft_part=world.Parts.HOOK
-     player.offer_floor=18
-     player.checkpoint_offers=["rift_hook","power","reach"]
-     world.present_checkpoint_cards(1)
-     command="checkpoint_choice_0"
     "water":
      for tech in ["clearing_1","irrigation"]:
       if not world.progress.heart.has(tech): world.progress.heart.unlocked.append(tech)
@@ -525,14 +502,6 @@ func caller_effects() -> void:
      and ((notice==Tx.CLEANUP_NOTICE) if committed else notice.contains("uncertain"))),action+" "+outcome+" evidence")
    player=world.players[1]
    match action:
-    "upgrade":
-     var upgrades: int=FileAccess.get_file_as_string("user://metrics.jsonl").count('"event":"upgrade"')-metric_before
-     check(world.progress.rift_hook_discovered==not aborted and int(player.get("run_upgrades",{}).get("rift_hook",0))==int(not aborted)
-      and (int(world.wallet_for(player).spent_essence())>0)==not aborted and (world.checkpoint_ready.get(1,0)==18)==committed
-      and world.participation.floor()==18 and world.overlay.visible==not committed
-      and status.contains("Rank 1 gained")==committed and upgrades==int(committed),"upgrade entitlement, picker and publication match "+outcome)
-     facts.merge({"rank":player.get("run_upgrades",{}).get("rift_hook",0),"spent":world.wallet_for(player).spent_essence(),"ready":world.checkpoint_ready.get(1,0),
-      "panel_open":world.overlay.visible,"metrics":upgrades})
     "water":
      var watered := preload("res://cultivation_growth.gd").watered(world.progress.plots[0])
      var cues: int=world.combat_events.filter(func(event):return event.shape=="crop_watered").size()

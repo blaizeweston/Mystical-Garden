@@ -66,8 +66,7 @@ static func stacks(values: Dictionary,bucket: String) -> Array:
  return result
 static func snapshot(game,player: Dictionary) -> Dictionary:
  var wild: bool=Participation.is_wild(player)
- var result: Dictionary={"wild":wild,"carry":[],"stash":[],"shared":[],"pouch":[],"equipment":[player.get("weapon",0),player.get("secondary",0),player.get("catalyst",0),player.get("graft_part",0)] if wild else [player.get("prepared",0),player.get("prepared_secondary",0),player.get("prepared_catalyst",0),0]}
- if game.has_meta(&"combat_affinity_ruleset"): result.equipment.resize(3)
+ var result: Dictionary={"wild":wild,"carry":[],"stash":[],"shared":[],"pouch":[],"equipment":[player.get("weapon",0),player.get("secondary",0),player.get("catalyst",0)] if wild else [player.get("prepared",0),player.get("prepared_secondary",0),player.get("prepared_catalyst",0)]}
  for bucket in (["carry","pouch"] if wild else ["stash","shared"]): result[bucket]=stacks(counts(game,player,bucket),bucket)
  return result
 static func take(game,player: Dictionary,bucket: String,id: String,amount: int,protect: bool=true) -> Dictionary:

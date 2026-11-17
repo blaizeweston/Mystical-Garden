@@ -21,7 +21,6 @@ const SUFFIXES = ["", ".pre-content-v2.bak", ".pre-content-v2.bak.tmp"]
 var failed := false
 
 func _initialize() -> void:
- preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 
 func check(ok: bool, message: String) -> void:

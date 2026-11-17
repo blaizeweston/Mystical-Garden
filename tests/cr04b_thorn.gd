@@ -47,10 +47,15 @@ func reset(p: Dictionary) -> void:
 	if game.has_meta(Thorn.FIELDS):game.remove_meta(Thorn.FIELDS)
 	game.set_meta(Clock.CLOCK,0.0)
 	p.erase(Thorn.FORM_READY)
+	preload("res://oracle_combat.gd").clear(p)
+	p.erase("affinity_ward_claims")
 	p.weapon=0
 	p.secondary=0
 	p.catalyst=0
 	p.frame=0
+	p.character=game.Character.blank()
+	var tree=game.Classes.connected_tree(0)
+	p.character[tree.profile_key]=tree.state(["rootkeeper"])
 	p.pos=Vector3.ZERO
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
 	p.facing=Vector3.FORWARD
@@ -66,7 +71,7 @@ func reset(p: Dictionary) -> void:
 
 func run() -> void:
 	game=preload("res://world.tscn").instantiate()
-	game.set_meta(Rules.META,Rules.ID)
+
 	root.add_child(game)
 	game.set_process(false)
 	game.set_physics_process(false)
@@ -138,20 +143,24 @@ func run() -> void:
 		reset(p)
 		p.catalyst=part
 		p.frame=4
+		var oracle=game.Classes.connected_tree(4)
+		p.character[oracle.profile_key]=oracle.state(["lifekeeper"])
+		p.class_aim=Vector3.FORWARD
+		p.class_aim_distance=0.0
 		game.use_class_skill(1,p,0)
+		p.erase("class_aim")
+		p.erase("class_aim_distance")
 		check(Thorn.active_fields(game,Clock.now(game)).size()==1,"native group heal plants one patch")
-		game.update_support_effects(now+1500)
-		check(Thorn.active_fields(game,Clock.now(game)).size()==1,"renewal ticks do not grow more patches")
+		game.Traits.tick(game,now+1500)
+		check(Thorn.active_fields(game,Clock.now(game)).size()==1,"Sanctuary updates do not grow more patches")
 		reset(p)
 		p.catalyst=part
 		p.frame=2
-		var retreat_index: int=game.Classes.DEFINITIONS[2].nodes.find_custom(func(node):return node.id=="10")
-		var old_mask: int=p.character.upgrades[2]
-		p.character.upgrades[2]=1<<retreat_index
-		game.use_class_skill(1,p,1)
+		var ranger=game.Classes.connected_tree(2)
+		p.character[ranger.profile_key]=ranger.state(["wayfarer"])
+		game.use_class_skill(1,p,0)
 		var departure:=Thorn.active_fields(game,Clock.now(game))
 		check(departure.size()==1 and departure[0].center==Vector3.ZERO and p.pos.length()>.5,"native Ranger retreat leaves a departure patch")
-		p.character.upgrades[2]=old_mask
 		reset(p)
 		p.catalyst=part
 		game.use_class_skill(1,p,0)

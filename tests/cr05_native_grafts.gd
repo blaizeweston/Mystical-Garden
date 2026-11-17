@@ -171,7 +171,7 @@ func purchases() -> void:
 	check(Improvements.owner_details(player, game.participation.floor()).remaining==0 and player.carried_parts[item_part("monster_0")]==3
 		and "all graft purchases" in game.status,"six successes exhaust the shared budget on later altars")
 	check(game.progress.knowledge==knowledge and game.progress.monster_crafts==discovery
-		and game.rng.state==rng and game.run_wallet(player)==wallet and player.graft_part==0,
+		and game.rng.state==rng and game.run_wallet(player)==wallet and not player.has("graft_part"),
 		"purchases grant no permanent discovery, change no Essence, take no RNG and use no installed slot")
 	check(Improvements.active_ledger(player).resolution().adaptations.size()==5,"five different adaptations remain acquired and active")
 	game.toggle_overlay(null)
@@ -334,7 +334,7 @@ func run() -> void:
 	player = game.players[1]
 	player.pos=game.stage.gate_position()
 	game.send_garden_action("learn_0_64")
-	check(Rules.active(game) and game.has_meta(game.Transactions.SESSION),"guarded affinity session")
+	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Rules.ID and game.has_meta(game.Transactions.SESSION),"guarded affinity session")
 	start_expedition()
 	purchases()
 	simultaneous_effects()

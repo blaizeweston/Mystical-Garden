@@ -59,6 +59,7 @@ func reset() -> void:
 	game.set_meta(Clock.CLOCK,0.0)
 	for p in game.players.values():
 		Wood.clear(p)
+		preload("res://oracle_combat.gd").clear(p)
 		Vital.clear(game,p)
 		ExpeditionCase.set_membership(game, p, true)
 		p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive()
@@ -66,6 +67,9 @@ func reset() -> void:
 		p.pos=Vector3.ZERO
 		p[PlayerVitals.STATE] = PlayerVitals.Health.new(250.0,250)
 		p.frame=0
+		p.character=game.Character.blank()
+		var tree=game.Classes.connected_tree(0)
+		p.character[tree.profile_key]=tree.state(["rootkeeper"])
 		p.weapon=0
 		p.secondary=0
 		p.catalyst=0
@@ -79,12 +83,11 @@ func reset() -> void:
 		p.hurt_until=0
 		p.guard_charges=0
 		p.guard_until=0
-		p.renewal_until=0
 		p.erase("affinity_ward_claims")
 
 func run() -> void:
 	game=preload("res://world.tscn").instantiate()
-	game.set_meta(Rules.META,Rules.ID)
+
 	root.add_child(game)
 	game.set_process(false)
 	game.set_physics_process(false)
@@ -146,12 +149,18 @@ func run() -> void:
 		check(available(p)==q.catalyst_capacity and available(ally)==0,"native offensive class hit gives one self grant")
 		reset()
 		p.frame=4
+		var oracle=game.Classes.connected_tree(4)
+		p.character[oracle.profile_key]=oracle.state(["lifekeeper"])
+		p.class_aim=Vector3.FORWARD
+		p.class_aim_distance=0.0
 		p.catalyst=part
 		ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(50)
 		game.use_class_skill(1,p,0)
-		check(available(ally)==q.catalyst_capacity and ally[PlayerVitals.STATE].hp()>50,"real Renewal retains healing and gives one Bark grant to each living recipient")
-		game.update_support_effects(now+1500)
-		check(available(ally)==q.catalyst_capacity,"native renewal ticks do not grant more Bark")
+		p.erase("class_aim")
+		p.erase("class_aim_distance")
+		check(available(ally)==q.catalyst_capacity and ally[PlayerVitals.STATE].hp()>50,"real Living Sanctuary retains opening healing and gives one Bark grant to each living recipient")
+		game.Traits.tick(game,now+1500)
+		check(available(ally)==q.catalyst_capacity,"native Sanctuary updates do not grant more Bark")
 
 	test_absorption(p,now)
 	await verify_pause(p)

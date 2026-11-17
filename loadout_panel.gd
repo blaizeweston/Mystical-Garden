@@ -16,15 +16,10 @@ var slot_detail_buttons: Array[Button] = []
 var slot_equip_buttons: Array[Button] = []
 var part_previews: Array[Dictionary] = [{}, {}, {}]
 var displayed_parts: Array = []
-var affinity_mode := false
 var cargo_pick: OptionButton
 var pack_button: Button
 var clear_button: Button
 var description: RichTextLabel
-var core_preview: HBoxContainer
-var core_preview_icon: TextureRect
-var core_preview_name: Label
-var core_preview_path: String=""
 var cargo_label: Label
 var notice: Label
 var elapsed:=0.0
@@ -94,11 +89,7 @@ func _ready():
 		option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		options.add_child(option)
 		slots.append(option)
-		option.item_selected.connect(func(index):
-			if affinity_mode:
-				show_part_preview(slot)
-			else:
-				select_part(slot,option.get_item_id(index)))
+		option.item_selected.connect(func(_index): show_part_preview(slot))
 		var equip := Button.new()
 		equip.text = "Equip"
 		options.add_child(equip)
@@ -135,21 +126,6 @@ func _ready():
 	cargo_label.custom_minimum_size.x=420
 	var right:=VBoxContainer.new()
 	row.add_child(right)
-	core_preview=HBoxContainer.new()
-	core_preview.mouse_filter=Control.MOUSE_FILTER_PASS
-	core_preview.add_theme_constant_override("separation",8)
-	right.add_child(core_preview)
-	core_preview_icon=TextureRect.new()
-	core_preview_icon.custom_minimum_size=Vector2(34,34)
-	core_preview_icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
-	core_preview_icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	core_preview_icon.mouse_filter=Control.MOUSE_FILTER_IGNORE
-	core_preview.add_child(core_preview_icon)
-	core_preview_name=Label.new()
-	core_preview_name.mouse_filter=Control.MOUSE_FILTER_IGNORE
-	core_preview_name.add_theme_color_override("font_color",Color("#d5e4aa"))
-	core_preview.add_child(core_preview_name)
-	core_preview.hide()
 	description=RichTextLabel.new()
 	description.custom_minimum_size=Vector2(350,366)
 	description.bbcode_enabled=true
@@ -209,7 +185,6 @@ func show_part_preview(slot: int) -> void:
 
 func refresh():
 	var p:=player()
-	affinity_mode = preload("res://combat_ruleset.gd").active(game)
 	var affinity_api = preload("res://affinity_build.gd")
 	if p.is_empty(): return
 	var c:=int(p.get("frame",0))
@@ -222,12 +197,11 @@ func refresh():
 		else: parts[slot]=int(pending_slots[slot])
 	var cargo: Array=p.get("cargo_plan",game.Parts.empty_counts())
 	var profile: Dictionary=p.get("character",game.guest_character.data)
-	var graft := 0 if prepared else int(p.get("graft_part",0))
-	var key:=str([c,p.get("weapon_kind",0),counts,parts,cargo,profile if affinity_mode else {},graft,affinity_mode])
+	var key:=str([c,p.get("weapon_kind",0),counts,parts,cargo,profile])
 	if key!=state_key:
 		state_key=key
 		displayed_parts = parts
-		var resolved := affinity_api.resolve(c,int(p.get("weapon_kind",0)),parts,graft,profile) if affinity_mode else {}
+		var resolved := affinity_api.resolve(c,int(p.get("weapon_kind",0)),parts,profile)
 		class_pick.select(c)
 		weapon_pick.clear()
 		for i in game.Classes.DEFINITIONS[c].weapons.size(): weapon_pick.add_item(game.Classes.DEFINITIONS[c].weapons[i].name,i)
@@ -238,28 +212,18 @@ func refresh():
 			option.add_item("Empty",0)
 			part_previews[slot].clear()
 			var slot_name: String = affinity_api.SLOTS[slot]
-			if affinity_mode:
-				part_previews[slot][0] = affinity_api.slot_preview(resolved,slot_name,0)
+			part_previews[slot][0] = affinity_api.slot_preview(resolved,slot_name,0)
 			for part in range(1,game.Parts.DEFINITIONS.size()):
 				if not game.Parts.is_plant(part): continue
 				var available: int=game.LoadoutMaterials.remaining(counts,parts,slot,part)
 				if available<=0: continue
 				var icon: String=game.Items.get_item(game.Items.part_id(part)).icon
 				var part_title := "%s · %d available" % [game.Parts.part_name(part), available]
-				if not affinity_mode:
-					part_title += " [%s]" % ", ".join(game.Parts.DEFINITIONS[part].tags)
 				option.add_icon_item(load(icon),part_title,part)
 				option.get_popup().set_item_icon_max_width(option.item_count-1,28)
-				if affinity_mode:
-					var preview := affinity_api.slot_preview(resolved,slot_name,part)
-					part_previews[slot][part] = preview
-					option.get_popup().set_item_tooltip(option.item_count-1,preview.summary)
-				elif slot==0:
-					var candidate:=parts.duplicate()
-					candidate[0]=part
-					var weapon: Dictionary=game.Classes.DEFINITIONS[c].weapons[int(p.get("weapon_kind",0))]
-					var build:=preload("res://core_skill_rules.gd").resolve(weapon.id,candidate,0)
-					option.get_popup().set_item_tooltip(option.item_count-1,game.Weapons.core_description(build))
+				var preview := affinity_api.slot_preview(resolved,slot_name,part)
+				part_previews[slot][part] = preview
+				option.get_popup().set_item_tooltip(option.item_count-1,preview.summary)
 			option.select(maxi(0,option.get_item_index(int(parts[slot]))))
 		var selected_cargo: int=cargo_pick.get_selected_id()
 		cargo_pick.clear()
@@ -282,18 +246,12 @@ func refresh():
 	weapon_pick.disabled=not allowed
 	for slot in slots.size():
 		slots[slot].disabled = not allowed
-		slot_summaries[slot].visible = affinity_mode
-		slot_equip_buttons[slot].visible = affinity_mode
-		slot_detail_buttons[slot].visible = affinity_mode
-		if affinity_mode:
-			show_part_preview(slot)
-		else:
-			slot_details[slot].hide()
+		show_part_preview(slot)
 	cargo_pick.disabled=not allowed
 	pack_button.disabled=not allowed or cargo_pick.item_count==0 or cargo.reduce(func(a,b): return a+int(b),0)>=game.monster_cargo_limit()
 	clear_button.disabled=not allowed
 	var stats: Dictionary=game.weapon_stats(p,prepared) if game.multiplayer.is_server() else p.get("weapon_stats",{})
-	var starting_tree := affinity_api.starting_tree(c,profile) if affinity_mode and prepared else null
+	var starting_tree := affinity_api.starting_tree(c,profile) if prepared else null
 	focus_options.visible=starting_tree!=null
 	if starting_tree!=null:
 		focus_class_id=c
@@ -310,53 +268,35 @@ func refresh():
 				ability.name,game.Skills.Balance.seconds(cooldown),ability.description]
 			focus_buttons[lane].tooltip_text = game.Skills.describe(ability,stats)
 			focus_buttons[lane].disabled=not class_allowed
-	var connected = game.Classes.connected_in_world(game,c,profile)
-	var use_connected := connected != null
-	var level: int = connected.level(profile) if use_connected else game.Character.level(int(profile.xp[c]))
-	var points: int = (level-connected.path(profile).size() if connected.valid(profile) else 0) if use_connected else game.Classes.points(profile,c,level)
+	var connected = game.Classes.connected_tree(c)
+	var current_progression: bool = connected.eligible(profile) and connected.valid(profile)
+	var level: int = connected.level(profile)
+	var points: int = level-connected.path(profile).size() if current_progression else 0
+	var focused: bool = current_progression and not connected.focus(profile).is_empty()
+	if not current_progression:
+		depart_button.disabled = true
+		depart_button.text = "Review class progression at the Heart"
 	var weapon_stats := stats.duplicate()
 	if not prepared and stats.has("affinity_build"):
 		var cards = preload("res://affinity_cards.gd")
 		var applied: Dictionary = cards.totals(p) if game.multiplayer.is_server() else cards.applied_totals(p.get("affinity_run_cards", []))
 		game.Weapons.tune_affinity_basic(weapon_stats, applied)
 	var body: String="[b]%s · Lv %d[/b]\n%s\n%d class point(s) available\n\n%s"%[game.Classes.DEFINITIONS[c].name,level,game.Classes.DEFINITIONS[c].description,points,game.Weapons.describe(weapon_stats) if not weapon_stats.is_empty() else ""]
-	for skill_slot in range(1 if starting_tree!=null else 0,2):
+	for skill_slot in range(0 if focused else 1,2):
 		var skill: Dictionary=game.Skills.resolve_in_world(game,c,skill_slot,profile)
 		var info: String=game.Skills.describe(skill,stats)
 		info=info.substr(info.find("\n")+1)
 		body+="\n\n[b]%s[/b]\n%s"%[skill.name,info]
-	var build: Dictionary=stats.get("core_build",{})
-	var core: Dictionary=build.get("skill",{})
-	if not affinity_mode and prepared and not pending_slots.is_empty():
-		var weapon: Dictionary=game.Classes.DEFINITIONS[c].weapons[int(p.get("weapon_kind",0))]
-		build=preload("res://core_skill_rules.gd").resolve(weapon.id,parts,0)
-		core=build.skill
-	core_preview.visible=not core.is_empty()
-	var tip: String=game.Weapons.core_description(build)
-	core_preview_name.text=tip.get_slice("\n",0)
-	core_preview.tooltip_text=tip
-	slots[0].tooltip_text="" if affinity_mode else tip
-	var icon_path: String=core.get("icon","")
-	if icon_path!=core_preview_path:
-		core_preview_path=icon_path
-		core_preview_icon.texture=load(icon_path) if not icon_path.is_empty() else null
-	for slot in range(0 if affinity_mode else 3):
-		var part:=int(parts[slot])
-		body+="\n\n%s: %s"%[game.Weapons.SLOT_NAMES[slot],game.Parts.part_name(part)]
-		if slot==0 and not str(build.get("primary","")).is_empty():
-			body+="\nPrimary tag · "+str(build.primary).capitalize()
-		var tags: Array=build.get(["secondary","form","catalyst"][slot],[])
-		if not tags.is_empty(): body+="\n"+("Secondary tags" if slot==0 else "Tags")+" · "+", ".join(tags)
-	if not prepared and not affinity_mode:
-		body+="\n\nMonster graft: "+game.Parts.part_name(int(p.get("graft_part",0)))
-		var tags: Array=build.get("graft",[])
-		if not tags.is_empty(): body+="\nTags · "+", ".join(tags)
 	description.text=body
 	notice.text=("Uses one part per filled slot on departure. Selected parts are reserved for you.\nPacked monster parts need a Wilds altar. Unbanked cargo is lost on defeat." if allowed else "Craft and pack at the Wilds Gate.")
-	if affinity_mode and allowed:
+	if allowed:
 		notice.text = "Browse plant parts to preview each slot. Equip confirms your choice. Empty slots keep native combat."
 	if starting_tree!=null:
 		notice.text = "Level 1 focus is available now. Choose it before departure. Plant slots are optional."
+	elif not connected.eligible(profile):
+		notice.text = "Historical investments are preserved. Refund this class at the Heart to activate its connected tree. Class XP is preserved."
+	elif not connected.valid(profile):
+		notice.text = "This connected class path needs review before it can change or enter combat."
 	var travel: Dictionary=game.party_travel_state()
 	if not travel.is_empty():
 		var rows: Array=[]

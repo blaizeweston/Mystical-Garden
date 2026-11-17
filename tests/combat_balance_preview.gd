@@ -30,7 +30,6 @@ func _initialize() -> void:
 
 
 func run() -> void:
-	Preview.enabled = true
 	Preview.playtest = true
 	Preview.strike_rng.seed = 28389
 	var game: Node = load("res://world.tscn").instantiate()
@@ -40,6 +39,7 @@ func run() -> void:
 	game.set_process(false)
 	game.set_physics_process(false)
 	var player: Dictionary = game.players[1]
+	player.character[game.Classes.Warden.Connected.PROFILE_KEY]=game.Classes.Warden.Connected.state(["vanguard"])
 	check(PlayerVitals.current_hp(player) == 100 and PlayerVitals.maximum_hp(player) == 100, "new Warden starts at 100 HP")
 	player.pos = game.Stage.GATE
 	ExpeditionCase.Transitions.enter(game, 1, player)
@@ -68,7 +68,7 @@ func run() -> void:
 	menu.queue_free()
 	await process_frame
 	if not failed:
-		print("PASS: 100 HP Warden, rolled melee, defensive skill, Core, orb, regeneration, revival and Orchard phase parity")
+		print("PASS: 100 HP Warden, rolled melee, defensive skill, Core, orb, healing, revival and Orchard phase parity")
 	quit(1 if failed else 0)
 
 
@@ -134,7 +134,7 @@ func verify_strikes(game: Node, player: Dictionary) -> void:
 		check(seen.size()>2,"weapon has multiple real roll results")
 		player.power=1
 		var upgraded: Dictionary=game.weapon_stats(player)
-		check(upgraded.damage_min==band.x+10 and upgraded.damage_max==band.y+10,"authored flat bonus moves both endpoints")
+		check(upgraded.damage_min==band.x and upgraded.damage_max==band.y,"retired expedition power cannot alter the current damage band")
 	player.power=0
 
 
@@ -168,7 +168,7 @@ func verify_guard_and_core(game: Node, player: Dictionary) -> void:
 	check(is_same(player[PlayerVitals.STATE],guarded_health) and int(player.guard_charges)==0,"guard prevents an authored monster hit before health changes")
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now+300, 1)
 	check(guarded_health.hp()==100.0 and PlayerVitals.current_hp(player)==90.0,"a landed authored monster hit installs exactly 10 HP damage")
-	player.weapon=game.Parts.THORN
+	player.weapon=game.Parts.index_of("plant:frostbell")
 	player.core_ready_at=0
 	player.core_cast_until=0
 	player.cast_until=0
@@ -178,12 +178,12 @@ func verify_guard_and_core(game: Node, player: Dictionary) -> void:
 	game.encounter.clear_scouts()
 	game.garden_action(1,Core.request(game,player,Vector2(0,1)))
 	var line: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
-	check(line.get("skill",{}).get("id","")=="thorn_line","real Warden Core activation")
+	check(line.get("skill",{}).get("id","")=="rime_bloom","actual affinity Core activation")
 	if line.is_empty():
 		return
 	game.tactics.position=line.center
 	Core.tick(game,line.armed)
-	check(game.enemy_health()==590,"Thorn Line applies a fixed 10 HP tick")
+	check(game.enemy_health()==591,"Rime Bloom applies its fixed native 9 HP opening")
 	Core.reset(game)
 
 
@@ -201,9 +201,6 @@ func verify_healing_rolls(game: Node) -> void:
 	check(Preview.roll_heal(0.0)==0 and Preview.roll_heal(.1)==1 and Preview.heal_rng.state==healing_state,"display, zero healing and single-value bands consume no roll")
 	var revived := {PlayerVitals.STATE:PlayerVitals.Health.new(79.0, 80)}
 	check(Preview.heal(revived,2.0)==1 and PlayerVitals.current_hp(revived)==80,"overheal clamps to revived capacity and reports applied HP")
-	Preview.enabled=false
-	check(Preview.roll_heal(2.0)==2 and Preview.renewal({PlayerVitals.STATE:PlayerVitals.Health.new(3.0, 10)})==1,"ordinary mode retains flat authored healing")
-	Preview.enabled=true
 
 
 func verify_recovery(game: Node, player: Dictionary) -> void:
@@ -254,16 +251,13 @@ func verify_recovery(game: Node, player: Dictionary) -> void:
 
 func verify_vitals(game: Node, player: Dictionary) -> void:
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(20)
-	player.renewal_until=8000
-	player.renewal_tick=1000
 	game._process(.016)
-	game.update_support_effects(1000)
+	game.Life.Sustain.restore(game,player,4,"fixture_heal")
 	game._process(.016)
-	var first_hp := int(PlayerVitals.current_hp(player))
-	check(first_hp-20 in range(3,6) and game.player_hud.health_orb.hp==first_hp and game.player_hud.health_orb.from_hp==20,"orb tracks the first rolled Renewal tick")
-	game.update_support_effects(2000)
+	check(PlayerVitals.current_hp(player)==24 and game.player_hud.health_orb.hp==24 and game.player_hud.health_orb.from_hp==20,"orb tracks a current authoritative heal")
+	game.Life.Sustain.restore(game,player,4,"fixture_heal")
 	game._process(.016)
-	check(int(PlayerVitals.current_hp(player))-first_hp in range(3,6) and game.player_hud.health_orb.from_hp==first_hp,"second rolled tick gets its own highlight")
+	check(PlayerVitals.current_hp(player)==28 and game.player_hud.health_orb.from_hp==24,"separate authoritative heals receive separate highlights")
 	game.add_player(2)
 	var helper: Dictionary=game.players[2]
 	ExpeditionCase.set_membership(game, helper, true)

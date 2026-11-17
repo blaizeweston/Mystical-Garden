@@ -57,14 +57,12 @@ func verify_graph() -> void:
 	check(graph.learn(profile,65).is_empty() and not graph.learn(profile,67).is_empty(),"0 XP grants focus only")
 	profile.xp[4] = 50
 	check(graph.learn(profile,67).is_empty() and Profile.normalize(profile)==profile,"cross-lane choices persist in versioned profile")
-	check(game.Skills.resolve(4,0,profile,true).name=="Guiding Bell" and game.Skills.resolve(4,1,profile,true).name=="Warding Chime","lane choice preserves focus and R")
-	check(game.Skills.resolve(4,0,profile).name=="Renewal","legacy combat resolves the same profile's base Q")
+	check(game.Skills.resolve(4,0,profile).name=="Guiding Bell" and game.Skills.resolve(4,1,profile).name=="Warding Chime","lane choice preserves focus and R")
 	profile.xp[4] = 2600
 	profile.upgrades[4] = 1 << 12
-	check(Profile.normalize(profile)==profile and not graph.eligible(profile) and not game.Skills.resolve(4,0,profile).has("oracle_nodes"),"historical Oracle focus mask retains its own behavior")
-	profile.upgrades[4] = (1<<0)|(1<<2)|(1<<4)|(1<<6)|(1<<8)|(1<<10)
-	check(Profile.normalize(profile)==profile and game.Skills.resolve(4,0,profile).name=="Living Sanctuary"
-		and game.Skills.resolve(4,1,profile).name=="Cleansing Bower","historical Oracle replacements and XP survive normalization")
+	check(Profile.normalize(profile)==profile and not graph.eligible(profile)
+		and not preload("res://affinity_build.gd").resolve(4,0,[0,0,0],profile).capabilities.class_actions,
+		"historical Oracle investment is retained without executing retired abilities")
 	profile.upgrades[4] = 0
 	profile[graph.profile_key] = graph.state(["omenreader","kindled_ward"])
 	check(not graph.valid(profile) and Profile.normalize(profile)[graph.profile_key]==profile[graph.profile_key],"invalid paths retained for review")
@@ -98,9 +96,8 @@ func reset_field() -> void:
 		player.erase("subclass_follow")
 		player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
 		for key in ["guard_until","guard_charges","hurt_until","slow_until","lost_health",
-				"core_ready_at","core_cast_until","cast_until","strike_at","weapon","secondary","catalyst","graft_part","weapon_kind"]:
+				"core_ready_at","core_cast_until","cast_until","strike_at","weapon","secondary","catalyst","weapon_kind"]:
 			player[key] = 0
-		player.run_upgrades = {}
 		ExpeditionCase.set_membership(game, player, true)
 		player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive()
 		player[PlayerVitals.STATE] = PlayerVitals.Health.new(100.0,100)
@@ -143,12 +140,13 @@ func entry_for_each_class() -> void:
 		reset_field()
 		for player in game.players.values():
 			ExpeditionCase.set_membership(game, player, false)
+		check(game.participation.reset_run(),"fresh Garden fixture clears completed synthetic party holds")
 		caster.prepared=0
 		caster.prepared_secondary=0
 		caster.prepared_catalyst=0
 		caster.pos=game.stage.gate_position()
 		game.garden_action(1,"class_%d"%class_id)
-		check(caster.frame==class_id and caster.character.active_class==class_id,"changing to an unplayed class uses its own focus choice")
+		check(caster.frame==class_id and caster.character.active_class==class_id,"changing to an unplayed class uses its own focus choice: "+game.status)
 		var graph: RefCounted = game.Classes.connected_tree(class_id)
 		check(graph.level(caster.character)==1 and caster.character.xp[class_id]==0
 			and graph.focus(caster.character).is_empty() and not build.departure_refusal(caster).is_empty()
@@ -166,7 +164,7 @@ func entry_for_each_class() -> void:
 		check(caster.character==before_preview,"previewing focus choices leaves the actual profile untouched")
 		game.loadout_view.focus_buttons[1].pressed.emit()
 		check(graph.path(caster.character).size()==1 and build.departure_refusal(caster).is_empty()
-			and caster.character.xp[class_id]==0,"0 XP focus learns through actual host action")
+			and caster.character.xp[class_id]==0,"0 XP focus learns through actual host action: "+game.status)
 		game.loadout_view.refresh()
 		check(not game.loadout_view.focus_options.visible and not game.loadout_view.depart_button.disabled,"chosen focus unlocks native departure")
 		ExpeditionCase.set_membership(game, caster, true)
@@ -380,7 +378,6 @@ func coexistence() -> void:
 
 func run() -> void:
 	game=preload("res://world.tscn").instantiate()
-	game.set_meta(Rules.META,Rules.ID)
 	game.progress.path="user://release-fixtures/ct05-garden.cfg"
 	game.local_character.path="user://release-fixtures/ct05-character.cfg"
 	root.add_child(game)

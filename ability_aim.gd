@@ -34,8 +34,6 @@ static func available(game_node: Node, local: Dictionary, requested_slot: int) -
 
 
 static func can_recover(game: Node, player: Dictionary) -> bool:
-	if not preload("res://combat_ruleset.gd").active(game):
-		return false
 	if game.multiplayer.is_server():
 		return Core.equipped(player).get("affinity_family") == "vital"
 	var build: Dictionary = player.get("weapon_stats", {}).get("affinity_build", {})
@@ -197,7 +195,7 @@ static func footprint(game_node: Node, local: Dictionary, field: RefCounted, ski
 	if stats.is_empty():
 		return {}
 	var profile: Dictionary = local.get("character", game_node.guest_character.data)
-	var skill: Dictionary = game_node.Traits.tune_skill(game_node.Skills.resolve_in_world(game_node, int(local.frame), skill_slot, profile), stats)
+	var skill: Dictionary = game_node.Skills.resolve(int(local.frame),skill_slot,profile)
 	var cast := Targeting.plan(game_node, local, field, skill, stats, forward, distance)
 	var ready: bool
 	if game_node.multiplayer.is_server():

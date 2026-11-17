@@ -1,7 +1,8 @@
 extends RefCounted
 
 const Session = preload("res://network_session.gd")
-## All combat participants in one session use the same health scale.
+## Authoritative modern combat HP, damage rolls and healing rolls.
+## The historical filename and playtest flag remain for isolated save routing.
 const PlayerVitals = preload("res://player_vitals.gd")
 const Vitals = preload("res://combat_vitals.gd")
 const FLAG := "--combat-balance-preview"
@@ -20,7 +21,6 @@ const HEAL_SPREAD_HP := 2
 const HEAL_TICK_SPREAD_HP := 1
 const HEAL_DRAIN_SPREAD_HP := 1
 
-static var enabled := true
 static var playtest := OS.get_cmdline_user_args().has(FLAG)
 static var strike_rng := make_rng()
 static var heal_rng := make_rng()
@@ -33,7 +33,7 @@ static func make_rng() -> RandomNumberGenerator:
 
 
 static func scale() -> int:
-	return Vitals.PROTOTYPE_HP_PER_POINT if enabled else Vitals.LIVE_HP_PER_POINT
+	return Vitals.PROTOTYPE_HP_PER_POINT
 
 
 static func hp(authored_points: int) -> int:
@@ -45,11 +45,11 @@ static func effect_hp(authored_points: float) -> int:
 
 
 static func authored_amount(value: float) -> float:
-	return value if enabled else float(int(value))
+	return value
 
 
 static func capped_amount(value: float, cap: int) -> Variant:
-	return minf(value, cap) if enabled else mini(int(value), cap)
+	return minf(value, cap)
 
 
 static func maximum_health(base_health: int, bonus: float, lost_health: int, card_health: int) -> int:
@@ -57,12 +57,12 @@ static func maximum_health(base_health: int, bonus: float, lost_health: int, car
 
 
 static func proc_amount(value: float, legacy_minimum: int, cap: int) -> float:
-	return clampf(value, .1 * legacy_minimum, cap) if enabled else float(clampi(roundi(value), legacy_minimum, cap))
+	return clampf(value, .1 * legacy_minimum, cap)
 
 
 static func heal_band(center_hp: int, spread_hp: int = HEAL_SPREAD_HP) -> Vector2i:
 	var center := maxi(0, center_hp)
-	var spread := clampi(spread_hp, 0, maxi(0, center - 1)) if enabled else 0
+	var spread := clampi(spread_hp, 0, maxi(0, center - 1))
 	return Vector2i(center - spread, center + spread)
 
 
@@ -80,7 +80,7 @@ static func apply_heal(actor: Dictionary, rolled_hp: int, source: String, limit_
 	var applied_health := health.healed(mini(rolled_hp,limit_hp) if limit_hp>=0 else rolled_hp)
 	actor[PlayerVitals.STATE] = applied_health
 	var applied := maxf(0.0, applied_health.hp()-health.hp())
-	if enabled and rolled_hp > 0:
+	if rolled_hp > 0:
 		var journal = preload("res://diagnostic_journal.gd")
 		if is_instance_valid(journal.current) and journal.current.detail:
 			journal.event("combat", "healing_applied", {"source":source,"party_slot":Session.slot_for(actor,-1),
@@ -106,19 +106,13 @@ static func component_hp_text(values: Dictionary) -> String:
 	return "\n".join(lines)
 
 
-static func renewal(actor: Dictionary) -> float:
-	return apply_heal(actor, roll_heal_hp(RENEWAL_HP if enabled else hp(1), HEAL_TICK_SPREAD_HP), "renewal")
-
-
 static func revive_cost() -> int:
 	return hp(Vitals.REVIVE_POINTS)
 
 
 static func armor(amount: int) -> int:
-	if enabled:
-		var balance=load("res://enemy_balance.gd")
-		return balance.armor(amount)
-	return Vitals.armored_damage(amount, scale())
+	var balance=load("res://enemy_balance.gd")
+	return balance.armor(amount)
 
 
 static func attack_speed(interval_ms: int) -> String:
@@ -127,7 +121,7 @@ static func attack_speed(interval_ms: int) -> String:
 
 static func weapon_range(stats: Dictionary, power: int) -> Vector2i:
 	var center := effect_hp(float(stats.damage) + power)
-	var spread := int(stats.get("roll_spread_hp", DEFAULT_SPREAD_HP)) if enabled else 0
+	var spread := int(stats.get("roll_spread_hp", DEFAULT_SPREAD_HP))
 	return Vector2i(maxi(1, center - spread), maxi(1, center + spread))
 
 
@@ -136,8 +130,6 @@ static func range_label(band: Vector2i) -> String:
 
 
 static func lock_strike(stats: Dictionary, power: int) -> void:
-	if not enabled:
-		return
 	var band := weapon_range(stats, power)
 	var center := effect_hp(float(stats.damage) + power)
 	stats.preview_power = power
@@ -146,19 +138,17 @@ static func lock_strike(stats: Dictionary, power: int) -> void:
 
 
 static func resolved_hit(authored_damage: float, stats: Dictionary) -> int:
-	if not enabled:
-		return int(authored_damage)
 	var delta := 0 if stats.get("trait_secondary", false) or stats.get("core_hit", false) else int(stats.get("preview_roll_delta", 0))
 	return maxi(0, effect_hp(authored_damage) + delta)
 
 
 static func followup_amount(stats: Dictionary, linked: bool, pulse: bool) -> float:
 	var points := float(stats.damage)
-	if enabled and not pulse and stats.has("preview_strike_hp"):
+	if not pulse and stats.has("preview_strike_hp"):
 		points = float(stats.preview_strike_hp) / scale()
-	if enabled and pulse:
+	if pulse:
 		return points
 	var amount := points * .5
 	if linked:
 		amount += float(stats.get("link_damage", 0)) + maxf(0, float(stats.get("link", 1)) - 1.0) * .5
-	return maxf(.1, amount) if enabled else float(maxi(1, ceili(amount)))
+	return maxf(.1, amount)

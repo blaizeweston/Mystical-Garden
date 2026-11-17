@@ -72,19 +72,19 @@ func profile_contract() -> void:
 	var quarantine := Profile.blank()
 	quarantine.quarantine.learned_class_masks = {"weaver":1<<30}
 	check(not Weaver.TREE.eligible(quarantine),"unmapped historical bits keep their separate path")
-	var legacy: Dictionary = Build.resolve(1,0,[0,0,0],0,copy)
-	check(legacy.class_skills[0].native_skill.name=="Cultivate Bloom" and legacy.focus_id=="bloomcaller",
-		"old Weaver investments keep their native focus in affinity combat")
+	var legacy: Dictionary = Build.resolve(1,0,[0,0,0],copy)
+	check(not legacy.capabilities.class_actions and legacy.focus_id.is_empty(),
+		"historical Weaver investments remain data until explicit progression conversion")
 
 	old.upgrades[1]=0
 	old[Weaver.PROFILE_KEY]=Weaver.TREE.state(["silkwarden","silken_gift"])
 	copy=Profile.normalize(old)
-	check(copy==old and Skills.resolve(1,0,copy).name=="Rootbind" and Skills.resolve(1,0,copy,true).name=="Silk Shelter",
-		"connected data stays versioned and ordinary combat resolves the historical kit")
+	check(copy==old and Skills.resolve(1,0,copy).name=="Silk Shelter",
+		"versioned connected data selects the sole native kit")
 	for invalid in [null,{"version":0,"path":[]},Weaver.TREE.state(["thornbinder","silken_gift"]),Weaver.TREE.state(CROSS)]:
 		copy[Weaver.PROFILE_KEY]=invalid
 		check(Profile.normalize(copy)[Weaver.PROFILE_KEY]==invalid
-			and not Build.resolve(1,0,[0,0,0],0,copy).capabilities.class_actions,
+			and not Build.resolve(1,0,[0,0,0],copy).capabilities.class_actions,
 			"invalid, disconnected or unearned progression is preserved and class casts refuse")
 
 
@@ -106,7 +106,7 @@ func title_and_depart() -> bool:
 		return false
 	game=current_scene
 	player=game.players[1]
-	check(Rules.active(game) and game.has_meta(game.Transactions.SESSION),"guarded affinity world")
+	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Rules.ID and game.has_meta(game.Transactions.SESSION),"guarded affinity world")
 	player.pos=game.stage.gate_position()
 	choose("patient_spore")
 	check(Weaver.TREE.path(player.character).is_empty(),"host refuses a choice before the focus")
@@ -202,7 +202,7 @@ func r() -> void:
 
 
 func native_damage() -> int:
-	arena([])
+	arena(["thornbinder"])
 	r()
 	return 900-game.enemy_health()
 
@@ -391,17 +391,6 @@ func balance(base: int) -> void:
 	game.Traits.tick(game,growth.next)
 	check(not player.has("weaver_pressure"),"later pulses cannot rearm the same cast")
 
-	arena([])
-	game.remove_meta(Rules.META)
-	player.erase("combat_ruleset")
-	player.character.upgrades[1]=1<<13
-	q()
-	growth=game.trait_events[0]
-	game.Traits.tick(game,growth.next)
-	check(game.enemy_traits.has("marked_until"),"legacy Bloomcaller retains its original Mark behavior")
-	game.set_meta(Rules.META,Rules.ID)
-	player.combat_ruleset=Rules.ID
-	player.character.upgrades[1]=0
 
 
 func defense() -> void:

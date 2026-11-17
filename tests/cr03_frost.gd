@@ -35,7 +35,7 @@ func check(ok: bool, label: String) -> void:
 
 func run() -> void:
 	game = preload("res://world.tscn").instantiate()
-	game.set_meta(Rules.META,Rules.ID)
+
 	game.settings_path = "user://frost-settings.cfg"
 	root.add_child(game)
 	game.set_process(false)
@@ -47,6 +47,7 @@ func run() -> void:
 	game.battlefield.configure(0,1,0)
 	game.battlefield.barriers.clear()
 	var p: Dictionary = game.players[1]
+	equip_native_focus(p)
 	ExpeditionCase.set_membership(game, p, true)
 	p.pos = Vector3.ZERO
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
@@ -72,6 +73,13 @@ func run() -> void:
 
 
 func reset_enemy(at := Vector3(0,0,-1.5)) -> void:
+	for actor in game.players.values():
+		preload("res://oracle_combat.gd").clear(actor)
+		actor.erase("affinity_ward_claims")
+		actor.erase("affinity_ward_grant")
+		actor.guard_until=0
+		actor.guard_charges=0
+	game.trait_events.clear()
 	game.encounter.set_hp(-1, 150)
 	game.enemy_mutations=0
 	game.tactics.boss_kind=-1
@@ -169,14 +177,21 @@ func run_catalyst(p: Dictionary, part: int) -> void:
 	ally.catalyst=ordinary if part==refined else refined
 	ally.hurt_until=0
 	ally.guard_until=0
+	p.class_aim=Vector3.FORWARD
+	p.class_aim_distance=0.0
 	game.use_class_skill(1,p,0)
-	check(ally.has(Frost.RESPONSE),"real Renewal prepares a response for the ally")
+	p.erase("class_aim")
+	p.erase("class_aim_distance")
+	check(ally.has(Frost.RESPONSE),"Living Sanctuary opening heal prepares a response for the ally")
 	var now:=Time.get_ticks_msec()
 	var hp: float=ally[PlayerVitals.STATE].hp()
 	Frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 2, PlayerLifecycle.generation(ally), now, 1))
 	check(ally[PlayerVitals.STATE].hp()<hp and not ally.has(Frost.RESPONSE),"fallback consumes after an actual survivable hit without blocking it")
+	check(ally[PlayerVitals.STATE].hp()==hp-10+6,"native Second Breath independently restores 6 HP after the survived direct hit")
 	var after := Frost.state(game.tactics.memory,now)
 	check(after.get("stacks",[]).size()==2 and after.stacks[1].actor==1 and after.stacks[1].quality==("refined" if part==refined else "ordinary"),"ally uses granting Catalyst quality")
+	game.Traits.tick(game,now+1100)
+	check(not ally.has(Frost.RESPONSE),"Sanctuary field pulses do not regrant the opening Catalyst response")
 	p.frame=0
 
 
@@ -185,7 +200,7 @@ func run_focus(p: Dictionary) -> void:
 	p.frame=0
 	p.weapon_kind=0
 	p.catalyst=refined
-	p.character.upgrades[0]=1 << game.Classes.Warden.OFFSET
+	p.character[game.Classes.Warden.Connected.PROFILE_KEY]=game.Classes.Warden.Connected.state(["vanguard"])
 	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	p.guard_until=0
 	p.guard_charges=0
@@ -196,7 +211,7 @@ func run_focus(p: Dictionary) -> void:
 	var current:=Frost.state(game.tactics.memory,now)
 	check(seen.size()==1 and seen[0].details.adapter=="warden/focus/vanguard/Q"
 		and current.get("stacks",[]).size()==1 and current.stacks[0].quality=="refined","real Vanguard Thorn Counter uses the Frost block adapter")
-	p.character.upgrades[0]=0
+	p.character[game.Classes.Warden.Connected.PROFILE_KEY]=game.Classes.Warden.Connected.state(["rootkeeper"])
 
 
 func cast_ward(id: int, part: int, now: int) -> RefCounted:
@@ -277,3 +292,11 @@ func run_mixed() -> void:
 	for index in 250:
 		Status.sync(game,later+Frost.Balance.ROOT_MS)
 	print("Host status sync (two players, one affected enemy): ", float(Time.get_ticks_usec()-sync_cost)/250.0, " us/update")
+
+
+## Family fixtures use the current native focus kit, never historical learned masks.
+func equip_native_focus(player: Dictionary) -> void:
+	for class_id in game.Classes.DEFINITIONS.size():
+		var tree: RefCounted=game.Classes.connected_tree(class_id)
+		var focus: String="rootkeeper" if class_id==0 else "lifekeeper" if class_id==4 else str(tree.nodes[0].id)
+		player.character[tree.profile_key]=tree.state([focus])

@@ -15,7 +15,6 @@ func check(ok: bool, message: String) -> void:
   printerr("FAIL boss phase fights: ",message)
 
 func _initialize() -> void:
- preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 
 func setup(game: Node, kind: int, stamp: int) -> void:
@@ -28,7 +27,7 @@ func setup(game: Node, kind: int, stamp: int) -> void:
  game.tactics.boss_moves=0
  game.enemy_kind=kind
  game.tactics.position=Vector3(0,0,4.7)
- game.encounter.set_hp(-1, 85)
+ game.encounter.set_hp(-1, 850)
  game.tactics.ready_at=0
  game.tactics.stagger_until=0
  game.tactics.engaged=true
@@ -90,7 +89,7 @@ func check_nest(game: Node, player: Dictionary) -> void:
  Fights.advance_phase(game,1,now+2850)
  check(game.tactics.boss_phase==1 and game.battlefield.barriers==upcoming and game.battlefield.connected(),"future ribs become authority only after the grace")
  check(before.distance_to(player.pos)<=2.8 and not game.battlefield.occupied(player.pos,.34) and not game.battlefield.occupied(escort.pos,.34),"players and escorts move to nearby open ground")
- check(PlayerVitals.current_hp(player)==10 and game.tactics.memory.nursery_split,"shifting terrain is harmless and prior brood pressure opens the second site")
+ check(PlayerVitals.current_hp(player)==100 and game.tactics.memory.nursery_split,"shifting terrain is harmless and prior brood pressure opens the second site")
  game._process(.016)
  check(game.stage.get_meta("rendered_lair",Vector2i.ZERO)==Vector2i(Fights.NEST,1),"host redraws the new phase from its shared battlefield")
 
@@ -148,23 +147,24 @@ func check_bloom(game: Node, player: Dictionary) -> void:
  check(hints.size()==2 and hints[0].width>plan.lanes[0].width,"each damage lane has a padded warning")
  var strike: int=game.tactics.strike_at
  player.pos=plan.lanes[0].from.lerp(plan.lanes[0].to,.55)
- player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.hurt_until=0
+ player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100);player.hurt_until=0
+ var rend_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.boss_hit(game,game.Enemies.get_kind(Fights.BLOOM),"remembered_rend"))
  game.Bosses.resolve(game,strike)
- check(PlayerVitals.current_hp(player)==10-int(game.Enemies.get_kind(Fights.BLOOM).damage),"crossing a displayed rend branch applies damage")
+ check(PlayerVitals.current_hp(player)==100-rend_damage,"crossing a displayed rend branch applies damage")
  check(game.Bosses.exposed(game,strike),"memory response opens a punish window")
  check(Fights.advance_phase(game,1,strike+2500),"next phase reads the newly strongest evidence")
  check(game.tactics.memory.memory_growth.id=="burst","a new phase replaces the previous growth")
  player.pos=Vector3(0,0,7.0)
- player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.hurt_until=0
+ player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100);player.hurt_until=0
  check(Fights.commit(game,"remembered_rend",1,strike+4000),"burst response commits")
  plan=game.tactics.memory.phase_plan
  check(plan.variant=="burst" and plan.areas.size()==3,"delayed constellation marks three bounded patches")
  strike=game.tactics.strike_at
  game.Bosses.resolve(game,strike)
  game.Bosses.tick_hazards(game,strike+349)
- check(PlayerVitals.current_hp(player)==10,"constellation does not hit ahead of its announced pulse")
+ check(PlayerVitals.current_hp(player)==100,"constellation does not hit ahead of its announced pulse")
  game.Bosses.tick_hazards(game,strike+350)
- check(PlayerVitals.current_hp(player)<10,"constellation hits at its announced time")
+ check(PlayerVitals.current_hp(player)<100,"constellation hits at its announced time")
  game.enemy_hazards.clear()
 
  for style in ["ranged","kite"]:
@@ -186,7 +186,7 @@ func run() -> void:
  root.add_child(game)
  game.set_process(false);game.set_physics_process(false)
  var player: Dictionary=game.players[1]
- ExpeditionCase.set_membership(game, player, true);player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
+ ExpeditionCase.set_membership(game, player, true);player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
  check_nest(game,player)
  check_bloom(game,player)
  game.queue_free()

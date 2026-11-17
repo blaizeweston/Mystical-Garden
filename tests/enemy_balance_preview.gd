@@ -31,7 +31,6 @@ func check(ok: bool, detail: String) -> void:
 
 
 func run() -> void:
-	Preview.enabled=true
 	game=load("res://world.tscn").instantiate()
 	game.progress.path="res://.godot/cb06-enemies-"+str(Time.get_ticks_usec())+".cfg"
 	game.local_character.path=game.progress.path+".character"

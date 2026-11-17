@@ -4,7 +4,7 @@ const Ranger=preload("res://ranger_combat.gd")
 const Reaper=preload("res://reaper_combat.gd")
 const Grafts=preload("res://native_grafts.gd")
 const Preview=preload("res://combat_balance_preview.gd")
-# Bounded, authored effect vocabulary shared by plant slots, skills and cards.
+# Historical effect vocabulary remains for profile-schema validation only. Active native effects have explicit owners.
 const KEYS: Array=["brittle","shatter_damage","brace","mark_damage","echo","echo_redirect","death_charge","tide_pool","pool_ward","pool_radius","suppress","decoy","decoy_duration","link","link_damage","link_brittle","counter_damage","counter_stagger","ward_on_block","directional_guard","spread_bind","growth_field","precision","trap_power","reaper_momentum","veil_mark","protect_growth","omen","loot_attract","cinder_trail","chorus_pulse","pierce"]
 static func target_state(game: Node,target: int) -> Dictionary:
  if target==-1: return game.enemy_traits
@@ -23,70 +23,25 @@ static func other_target(game: Node,target: int,point: Vector3) -> int:
   var at: Vector3=game.enemy_position(candidate);var length:=point.distance_to(at)
   if length<distance and game.battlefield.clear_line(point,at): result=candidate;distance=length
  return result
-static func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,graft_contact: Dictionary={}) -> Dictionary:
- var hit:=stats.duplicate(true);var state:=target_state(game,target)
- var secondary: bool=hit.get("trait_secondary",false)
+static func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,_graft_contact: Dictionary={}) -> Dictionary:
+ var hit:=stats.duplicate(true)
  var damage:=Preview.authored_amount(float(hit.damage))
- if now<int(p.get("prepared_mark_until",0)):
-  hit.mark_damage=maxf(1.0,float(hit.get("mark_damage",0)));p.prepared_mark_until=0
- if float(hit.get("brittle",0))>0 and not p.has("combat_ruleset"):
-  var stacks:=int(state.get("brittle",0)) if now<int(state.get("brittle_until",0)) else 0
-  stacks+=maxi(1,roundi(float(hit.brittle)))
-  if stacks>=3:
-   var shatter:=float(hit.get("shatter_damage",2))
-   damage+=maxf(.1,shatter) if Preview.enabled else maxi(1,roundi(shatter))
-   stacks=0
-   preload("res://combat_status.gd").proc(game,"shatter",game.enemy_position(target),game.enemy_position(target),target)
-   preload("res://core_skill_effects.gd").shatter_rime(game,state,target,now)
-   var at: Vector3=game.enemy_position(target)
-   game.emit_combat_event("impact","spark",at,at,.35,Color("#9ed6e5"),1,0)
-  state.brittle=stacks;state.brittle_until=now+4000
- var was_marked: bool=now<int(state.get("marked_until",0))
- var omen_triggered: bool=was_marked and float(hit.get("omen",0))>0 and (game.tactics.winding_up if target==-1 else int(game.encounter.scout(target).windup)>0)
- if omen_triggered:
-  damage+=mini(3,roundi(float(hit.omen))+1)
- if was_marked:
-  damage+=maxf(0.0,float(hit.get("mark_damage",0))) if Preview.enabled else maxi(0,roundi(float(hit.get("mark_damage",0))))
- if was_marked and (float(hit.get("mark_damage",0))>0 or (float(hit.get("precision",0))>0 and not secondary) or omen_triggered):
-  state.marked_until=0
-  preload("res://combat_status.gd").proc(game,"mark_break",game.enemy_position(target),game.enemy_position(target),target)
- elif not was_marked and float(hit.get("mark_damage",0))>0:state.marked_until=now+4000
- if not secondary:
+ if not hit.get("trait_secondary",false):
   if now<int(p.get("counter_until",0)):
    preload("res://combat_status.gd").proc(game,"counter",p.pos,game.enemy_position(target),target)
-   damage+=Preview.authored_amount(float(p.get("counter_power",1)));hit.stagger=float(hit.get("stagger",0))+float(hit.get("counter_stagger",0));p.counter_until=0
-  if float(hit.get("brace",0))>0 and now-int(p.get("still_since",now))>=500:
-   damage+=mini(2,maxi(1,roundi(float(hit.brace))))
-   preload("res://combat_status.gd").proc(game,"brace",p.pos,game.enemy_position(target),target)
-  if float(hit.get("precision",0))>0 and was_marked:
-   damage+=1
-  if float(hit.get("reaper_momentum",0))>0:
-   var charges := int(p.get("grave_charges",0))
-   if not graft_contact.is_empty() and graft_contact.sources.any(func(source): return source.effects.has("death_charge")):
-    charges += Grafts.graft_charges(p)
-   damage+=mini(2,charges)
+   damage+=Preview.authored_amount(float(p.get("counter_power",1)))
+   p.counter_until=0
   if int(p.get("grave_charges",0))>0 and Reaper.spends_class_charge(p,hit):
    damage+=1;p.grave_charges-=1
    preload("res://combat_status.gd").proc(game,"momentum",p.pos,game.enemy_position(target),target)
- if float(hit.get("suppress",0))>0 and now>=int(state.get("silence_ready",0)):
-  var winding: bool=game.tactics.winding_up if target==-1 else int(game.encounter.scout(target).windup)>0
-  if winding:
-   state.silence_ready=now+4000;hit.was_winding=true
-   hit.rite_suppressed=true
-   preload("res://combat_status.gd").proc(game,"suppress",p.pos,game.enemy_position(target),target)
-   if target==-1: game.tactics.winding_up=false;game.tactics.attack_mode="";game.tactics.active_radius=0;game.tactics.ready_at=now+700
-   else: game.encounter.scout(target).windup=0;game.encounter.scout(target).ready=now+700
-   hit.stagger=float(hit.get("stagger",0))+250+mini(300,roundi(float(hit.suppress)*100))
- hit.damage=damage if Preview.enabled else int(damage)
+ hit.damage=damage
  return hit
+
 static func queue_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,delay: int,carry: bool,origin: Vector3=Vector3.INF,visual: String="",graft_source: Dictionary={}) -> void:
  if target==-2 or game.trait_events.size()>=24: return
  var hit: Dictionary=stats.duplicate(true) if carry else {"reach":stats.get("reach",2.0)}
  var amount:=Preview.followup_amount(stats,carry,visual=="chorus")
- hit.damage=amount if Preview.enabled else int(amount)
- if carry and float(stats.get("link_brittle",0))>0:
-  hit.brittle=float(hit.get("brittle",0))+float(stats.link_brittle)
- if not carry and float(stats.get("mark_damage",0))>0: hit.mark_damage=float(stats.mark_damage)
+ hit.damage=amount
  hit.trait_secondary=true
  if not graft_source.is_empty(): hit.core_hit=true
  game.trait_events.append({"kind":"hit","epoch":game.participation.epoch(),"owner":player_id(game,p),"life":PlayerLifecycle.generation(p),"target":target,"token":-1 if target==-1 else game.encounter.token(target),"due":now+delay,"stats":hit,"visual":visual if not visual.is_empty() else "link" if carry else "echo","origin":p.pos if origin==Vector3.INF else origin})
@@ -104,51 +59,17 @@ static func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: fl
  game.emit_combat_event("field",kind+"_zone",point,point,duration/1000.0,color,radius,0)
  game.trait_events.back().visual_id=game.combat_event_serial
  return game.trait_events.back()
-static func after_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now: int,killed: bool) -> void:
- if stats.get("trait_secondary",false): return
- var point: Vector3=game.enemy_position(target)
+static func after_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,_now: int,killed: bool) -> void:
+ if stats.get("trait_secondary",false):return
  if killed and (target==-1 or not game.encounter.scout(target).get("summoned",false)) and float(stats.get("death_charge",0))>0 and Reaper.spends_class_charge(p,stats):
   var graft_charges := Grafts.graft_charges(p)
   p.grave_charges=mini(Grafts.DEATH_CHARGE_CAP-graft_charges,int(p.get("grave_charges",0))+maxi(1,roundi(float(stats.death_charge))))
- if float(stats.get("chorus_pulse",0))>0:
-  p.chorus_contacts=int(p.get("chorus_contacts",0))+1
-  if p.chorus_contacts>=4:
-   p.chorus_contacts=0
-   for candidate in range(-1,game.encounter.scout_count()):
-    if candidate!=target and valid_target(game,candidate) and game.enemy_position(candidate).distance_to(point)<=3.2 and game.battlefield.clear_line(point,game.enemy_position(candidate)):
-     var pulse: Dictionary=stats.duplicate();pulse.damage=Preview.proc_amount(float(stats.chorus_pulse),1,3);queue_hit(game,p,candidate,pulse,now,180,false,point,"chorus")
- if float(stats.get("cinder_trail",0))>0 and now>=int(p.get("cinder_ready",0)):
-  p.cinder_ready=now+4000
-  zone(game,p,"cinder",point,1.8,2600,Preview.proc_amount(float(stats.cinder_trail),1,3),now)
- if float(stats.get("echo",0))>0:
-  p.echo_charge=int(p.get("echo_charge",0))+maxi(1,roundi(float(stats.echo)))
-  if p.echo_charge>=3:
-   p.echo_charge=0
-   var destination:=other_target(game,target,point) if float(stats.get("echo_redirect",0))>0 else target
-   if destination==-2 or not valid_target(game,destination): destination=other_target(game,target,point)
-   queue_hit(game,p,destination,stats,now,240,false,point)
- if float(stats.get("link",0))>0 and now>=int(p.get("link_ready",0)):
-  p.link_ready=now+120
-  var other:=other_target(game,target,point)
-  queue_hit(game,p,other,stats,now,140,true,point)
- if float(stats.get("tide_pool",0))>0 and now>=int(p.get("tide_ready",0)):
-  p.tide_ready=now+4500
-  zone(game,p,"tide",point,1.6+float(stats.get("pool_radius",0)),2400,game.Life.Sustain.pool_points(Preview.proc_amount(float(stats.tide_pool),1,2)),now,float(stats.get("pool_ward",0))>0)
- if float(stats.get("decoy",0))>0 and now>=int(p.get("decoy_ready",0)):
-  p.decoy_ready=now+6000
-  var facing: Vector3=p.get("facing",Vector3.FORWARD)
-  var at: Vector3=game.battlefield.dash(p.pos,p.pos+facing.rotated(Vector3.UP,1.1)*2.5)
-  zone(game,p,"decoy",at,1.0,2200+mini(1600,roundi(float(stats.get("decoy_duration",0))+float(stats.decoy)*300)),0,now)
+
 static func decoy_point(game: Node,id: int) -> Vector3:
- var cast: Dictionary=game.get_meta("core_combat",{}).get(id,{})
- if not cast.is_empty() and cast.grown and cast.skill.has("decoy_ms") and int(cast.epoch)==game.participation.epoch() and Time.get_ticks_msec()<int(cast.sequence_at)+int(cast.skill.decoy_ms):
-  var player: Dictionary=game.players.get(id,{})
-  if game.Life.alive(player) and PlayerLifecycle.matches(player,int(cast.life)): return cast.center
  for event in game.trait_events:
   if int(event.get("owner",0))!=id or not event_in_current_life(game,event): continue
   if event.kind=="snare" and Time.get_ticks_msec()<int(event.get("ranger_decoy_until",0)) and Ranger.source_live(game,event):
    return event.position
-  if event.kind=="decoy" and Time.get_ticks_msec()<int(event.until): return event.position
  return Vector3.INF
 static func place_snare(game: Node,p: Dictionary,point: Vector3,skill: Dictionary,stats: Dictionary,now: int) -> Dictionary:
  var owner:=player_id(game,p)
@@ -178,7 +99,7 @@ static func trip_snare(game: Node,p: Dictionary,event: Dictionary,now: int) -> v
  var contact=preload("res://weapon_contact.gd")
  for target in entrants.duplicate():
   if event.seen.has(contact.token(game,target)):entrants.erase(target)
- var targets:=entrants.duplicate() if skill.mode=="subclass" else spread_targets(game,p,entrants,skill,event.stats).duplicate()
+ var targets: Array[int]=entrants.duplicate()
  var ranger := skill.has("ranger_nodes")
  var corridor := Ranger.corridor_targets(game,event) if ranger else {}
  var endpoint_targets := targets.duplicate()
@@ -265,8 +186,6 @@ static func tick(game: Node,now: int) -> void:
      hit=Grafts.secondary_stats(float(event.power))
     elif event.get("native_weaver_bloom",false):
      hit.core_hit=true
-    else:
-     hit.mark_damage=1
     var before: int = game.encounter.hp(target)
     game.apply_weapon_hit(p,target,event.position,hit,now)
     if event.has("weaver_pressure"):
@@ -283,20 +202,12 @@ static func describe(values: Dictionary,resolved: bool=false) -> String:
   var amount:=float(values.get(key,0))
   if amount<=0:continue
   var value:=str(values[key]).trim_suffix(".0")
-  if Preview.enabled and key=="tide_pool" and resolved:
+  if key=="tide_pool" and resolved:
    value=Preview.heal_label(preload("res://expedition_sustain.gd").pool_points(Preview.proc_amount(amount,1,2)),Preview.HEAL_TICK_SPREAD_HP)+" per pulse"
-  elif Preview.enabled and Preview.COMPONENT_HP_LABELS.has(key):
+  elif Preview.COMPONENT_HP_LABELS.has(key):
    value="%d HP"%Preview.effect_hp(amount)
   lines.append("%s: %s"%[labels.get(key,key.replace("_"," ").capitalize()),value])
  return "\n".join(lines)
-
-static func try_brace(game: Node,p: Dictionary,now: int) -> bool:
- if p.has("combat_ruleset"):return false
- if now<int(p.get("brace_block_ready",0)) or now-int(p.get("still_since",now))<500: return false
- if float(game.weapon_stats(p).get("brace",0))<=0: return false
- preload("res://combat_status.gd").proc(game,"brace",p.pos,p.pos)
- p.brace_block_ready=now+4000;game.tell(player_id(game,p),"Ironroot absorbed the impact. Rebrace before the next committed strike.")
- return true
 
 static func guard_allows(p: Dictionary,origin: Vector3,now: int) -> bool:
  if now>=int(p.get("guard_until",0)): return false
@@ -308,63 +219,6 @@ static func blocked(game: Node,p: Dictionary,now: int) -> void:
  if float(stats.get("counter_damage",0))>0 or now<int(p.get("counter_guard_until",0)):
   var balance=preload("res://class_skill_balance.gd")
   p.counter_until=now+balance.COUNTER_WINDOW_MS;p.counter_power=balance.counter_points(stats)
- if float(stats.get("ward_on_block",0))>0:
-  for ally in game.players.values():
-   if not is_same(ally,p) and game.Life.alive(ally) and ally.pos.distance_to(p.pos)<=3.0 and game.battlefield.clear_line(p.pos,ally.pos): game.grant_guard(ally,now+800,1)
- if int(p.get("frame",-1))==0:
-  preload("res://warden_combat.gd").block_effects(game,p,now)
-static func skill_cast(game: Node,p: Dictionary,skill: Dictionary,stats: Dictionary,point: Vector3,now: int) -> void:
- if skill.has("field"):
-  var balance=preload("res://class_skill_balance.gd")
-  var duration: int=balance.duration(skill,stats,"field_duration",2400) if Preview.enabled else int(skill.get("field_duration",2400))
-  zone(game,p,str(skill.field),point,float(skill.get("radius",2.0)),duration,balance.field_power(skill),now,bool(skill.get("field_ward",false)),
-   preload("res://combat_action_events.gd").field_action(stats))
- if not skill.has("field") and float(stats.get("growth_field",0))>0 and str(skill.mode)!="bloom_detonate":
-  zone(game,p,"growth",point,2.0,2600+mini(1000,roundi(float(stats.growth_field)*250)),mini(2,maxi(1,roundi(float(stats.growth_field)))),now)
- if not skill.has("field") and float(stats.get("protect_growth",0))>0 and str(skill.mode) in ["heal","sanctuary"]:
-  var balance=preload("res://class_skill_balance.gd")
-  zone(game,p,"tide",point,3.0,2600,balance.field_power({"field":"tide","mode":skill.mode}),now,true)
- if skill.get("cleanse",false):
-  for ally in game.players.values():
-   if game.Life.alive(ally) and ally.pos.distance_to(p.pos)<=float(skill.get("radius",4)) and game.battlefield.clear_line(p.pos,ally.pos): ally.slow_until=0
- if float(stats.get("veil_mark",0))>0 and str(skill.mode) in ["windstep","reap","harvest"]: p.prepared_mark_until=now+3000
-
-static func tune_skill(skill: Dictionary,stats: Dictionary) -> Dictionary:
- var result:=skill.duplicate(true)
- if result.get("field","")=="growth" and float(stats.get("growth_field",0))>0:
-  result.field_duration=int(result.get("field_duration",2400))+mini(1500,roundi(float(stats.growth_field)*250))
-  result.field_power=int(result.get("field_power",1))+mini(1,maxi(0,roundi(float(stats.growth_field))-1))
- if result.get("field","")=="tide" and float(stats.get("protect_growth",0))>0:
-  result.field_duration=int(result.get("field_duration",2400))+mini(1500,roundi(float(stats.protect_growth)*300))
- if str(result.mode) in ["bind","strangle","snare","snare_field"] and float(stats.get("trap_power",0))>0:
-  result.bind=int(result.get("bind",0))+mini(900,roundi(float(stats.trap_power)*300))
-  result.damage=Preview.authored_amount(float(result.get("damage",0)))+ (minf(2.0,float(stats.trap_power)) if Preview.enabled else mini(2,roundi(float(stats.trap_power))))
- return result
-static func spread_targets(game: Node,p: Dictionary,targets: Array[int],skill: Dictionary,stats: Dictionary) -> Array[int]:
- if targets.is_empty() or float(stats.get("spread_bind",0))<=0 or not (skill.has("bind") or str(skill.mode) in ["bind","strangle"]): return targets
- var result: Array[int]=targets.duplicate()
- for target in targets:
-  var extra:=other_target(game,target,game.enemy_position(target))
-  if extra!=-2 and not result.has(extra) and game.battlefield.clear_line(p.pos,game.enemy_position(extra)): result.append(extra)
-  if result.size()>=targets.size()+mini(2,maxi(1,roundi(float(stats.spread_bind)))): break
- return result
-static func detonation_targets(game: Node,p: Dictionary,radius: float) -> Array[int]:
- var targets: Array[int]=[];var id:=player_id(game,p)
- for event in game.trait_events.duplicate():
-  if event.kind!="growth" or event.owner!=id or not event_in_current_life(game,event): continue
-  for target in game.skill_area_targets(event.position,radius,event.position):
-   if not targets.has(target): targets.append(target)
-  end_zone(game,event);game.trait_events.erase(event)
- return targets
-static func has_growth(game: Node,p: Dictionary) -> bool:
- var id:=player_id(game,p)
- return game.trait_events.any(func(e):return e.kind=="growth" and e.owner==id and event_in_current_life(game,e))
-static func defer_skill(game: Node,p: Dictionary,targets: Array[int],skill: Dictionary,stats: Dictionary,now: int) -> void:
- for target in targets:
-  if game.trait_events.size()>=24: break
-  var hit:=stats.duplicate(true);hit.damage=Preview.authored_amount(float(skill.damage))+preload("res://combat_ruleset.gd").legacy_power(p);hit.trait_secondary=true
-  game.trait_events.append({"kind":"hit","owner":player_id(game,p),"epoch":game.participation.epoch(),"life":PlayerLifecycle.generation(p),"target":target,"token":-1 if target==-1 else game.encounter.token(target),"due":now+int(skill.get("delay",700)),"stats":hit})
-
 static func end_zone(game: Node,event: Dictionary) -> void:
  if event.has("ranger_route"): Ranger.end_route(game,event)
  if event.has("visual_id"):

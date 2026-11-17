@@ -14,7 +14,7 @@ const Wood = preload("res://wood_affinity.gd")
 const Omens = preload("res://oracle_omens.gd")
 const Journal = preload("res://diagnostic_journal.gd")
 
-enum Outcome { REJECTED, GRACE, BLOCKED, BRACED, NO_HP_LOSS, DAMAGED, FELL, UNCOMMITTED }
+enum Outcome { REJECTED, GRACE, BLOCKED, NO_HP_LOSS, DAMAGED, FELL, UNCOMMITTED }
 
 
 class Contact extends RefCounted:
@@ -47,17 +47,14 @@ static func _resolve(contact: Contact, observation: Dictionary, recipient: Recip
 	if observation.guarded:
 		recipient.consume_guard(contact)
 		return Recipient.result(Outcome.BLOCKED)
-	if recipient.try_brace(contact.now):
-		return Recipient.result(Outcome.BRACED)
 
 	var points := float(observation.default_damage) if contact.authored_damage < 0.0 \
 		else Preview.authored_amount(contact.authored_damage)
 	var hp := Preview.effect_hp(points)
 	var bark: Dictionary = {}
-	if observation.affinity:
-		hp = recipient.modify_affinity_damage(contact, hp)
-		bark = recipient.plan_bark(hp)
-		hp -= int(bark.get("absorbed", 0))
+	hp = recipient.modify_affinity_damage(contact,hp)
+	bark = recipient.plan_bark(hp)
+	hp -= int(bark.get("absorbed",0))
 	return recipient.commit_contact(contact, hp, bark, int(observation.epoch))
 
 
@@ -95,21 +92,19 @@ class Recipient extends RefCounted:
 			"hurt_until": int(_actor.get("hurt_until", 0)),
 			"guarded": Traits.guard_allows(_actor, contact.origin, contact.now),
 			"default_damage": float(1 + _world.participation.cycle() / 2),
-			"affinity": _world.has_meta(&"combat_affinity_ruleset"),
 			"epoch": int(_world.participation.epoch()),
 		}
 		observation.make_read_only()
 		return observation
 
 	func consume_guard(contact: Contact) -> void:
-		var recorded_ward := _world.has_meta(&"combat_affinity_ruleset") and int(_actor.get("guard_charges", 0)) > 0
+		var recorded_ward := int(_actor.get("guard_charges",0)) > 0
 		_actor.guard_charges = maxi(0, int(_actor.get("guard_charges", 1)) - 1)
 		if _actor.guard_charges == 0:
 			_actor.guard_until = 0
 		var block_event: RefCounted
 		if recorded_ward:
 			block_event = preload("res://combat_action_events.gd").blocked(_world, _peer, _actor, contact.now)
-		preload("res://core_skill_effects.gd").ironbark_block(_world, _peer, _actor, contact.now)
 		Traits.blocked(_world, _actor, contact.now)
 		if block_event != null:
 			preload("res://warden_combat.gd").connected_block(_world, block_event, _peer, contact.now)
@@ -117,9 +112,6 @@ class Recipient extends RefCounted:
 		_actor.contributed = true
 		_world.emit_combat_event("impact", "block", _actor.pos, _actor.pos, .85, Color("#f1d989"), 0, _peer)
 		_world.tell(_peer, "Guard blocked the attack.")
-
-	func try_brace(now: int) -> bool:
-		return Traits.try_brace(_world, _actor, now)
 
 	func modify_affinity_damage(contact: Contact, hp: int) -> int:
 		var adjusted := preload("res://water_combat.gd").direct_damage(_world, hp)
@@ -143,7 +135,7 @@ class Recipient extends RefCounted:
 		_prepare_contact(contact, bark, null)
 		var before_hp := Vitals.current_hp(_actor)
 		var resolution := apply_health_loss(hp)
-		if _world.has_meta(&"combat_affinity_ruleset") and Life.alive(_actor) and Vitals.current_hp(_actor) < before_hp:
+		if Life.alive(_actor) and Vitals.current_hp(_actor) < before_hp:
 			if _actor.has(Omens.STATE) and Omens.direct_context(_world, contact.direct):
 				Omens.recover_hit(_world, _actor, contact.now)
 			preload("res://frost_combat.gd").incoming(_world, _actor, _peer, contact.now)
@@ -178,7 +170,7 @@ class Recipient extends RefCounted:
 	func _install_loss(amount: int, effects = null) -> Dictionary:
 		if not _is_current() or (Participation.is_wild(_actor) and not Life.alive(_actor)):
 			return result(Outcome.REJECTED)
-		var loss := Vitals.apply_damage(_actor, amount, not Preview.enabled)
+		var loss := Vitals.apply_damage(_actor, amount, false)
 		if loss.is_empty():
 			return result(Outcome.REJECTED)
 		if not loss.recorded:
@@ -186,7 +178,7 @@ class Recipient extends RefCounted:
 		var applied: int = loss.applied_hp
 		var in_wilds: bool = Participation.is_wild(_actor)
 		_actor.damage_seq = int(_actor.get("damage_seq", 0)) + 1
-		_actor.damage_amount = applied if Preview.enabled else maxi(0, amount)
+		_actor.damage_amount = applied
 		var record := {"actor": _peer, "amount": amount, "applied_hp": applied, "hp": int(loss.hp),
 			"damage_seq": _actor.damage_seq, "vitals_revision": _actor.get("vitals_revision", 0), "hp_per_point": Preview.scale()}
 		if effects == null:

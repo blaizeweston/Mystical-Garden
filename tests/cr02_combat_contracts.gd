@@ -14,7 +14,8 @@ const Build = preload("res://affinity_build.gd")
 const Events = preload("res://combat_action_events.gd")
 const Classes = preload("res://class_catalog.gd")
 const Parts = preload("res://weapon_parts.gd")
-const Cards = preload("res://run_upgrade_catalog.gd")
+const Cards = preload("res://affinity_cards.gd")
+const CardDefinitions = preload("res://affinity_card_catalog.gd")
 var failures := 0
 var recorded: Array[Dictionary] = []
 
@@ -32,7 +33,7 @@ func check(ok: bool, message: String) -> void:
 func run() -> void:
 	var profiles := check_mappings()
 	var game: Node = preload("res://world.tscn").instantiate()
-	game.set_meta(Rules.META, Rules.ID)
+
 	game.settings_path = "user://cr02-settings.cfg"
 	game.progress.path = "user://cr02-garden.cfg"
 	game.local_character.path = "user://cr02-character.cfg"
@@ -44,27 +45,17 @@ func run() -> void:
 	ExpeditionCase.set_membership(game, player, true)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(30)
 	player.pos = Vector3.ZERO
-	game.encounter.set_hp(-1, 50)
+	game.encounter.set_hp(-1, 500)
 	game.tactics.position = Vector3(0,0,-1)
 	game.battlefield.configure(0,1,0)
 	game.battlefield.barriers.clear()
 	game.encounter.clear_scouts()
+	var graph=Classes.connected_tree(0)
+	player.character[graph.profile_key]=graph.state(["bastion"])
 	player.weapon = game.Items.get_item("part_10").legacy_part
-	player.technique = 80
-	player.power = 80
-	player.run_upgrades = {"vanguard_briar_wake": 1, "rift_hook": 1}
-	player.checkpoint_offers = ["rift_hook"]
 	var active: Dictionary = game.weapon_stats(player)
-	var native := Build.native_stats(Build.resolve(0,0,[0,0,0],0,player.character))
-	check(active.reach == native.reach and active.interval == native.interval and active.class_power == 0 and active.core_build.is_empty(), "old ranks, empty-Core haste and old slot stats are excluded")
-	check(Cards.roll(player,6,7,99).is_empty() and Cards.effects(player).is_empty()
-		and Cards.core_cards(player,"thorn_line").is_empty()
-		and not preload("res://warden_combat.gd").has_card(player,"vanguard_briar_wake"), "offer, modifier and event consumer quarantine")
-	var wallet: int = game.run_wallet(player)
-	var ranks: Dictionary = player.run_upgrades.duplicate()
-	check(not game.buy_upgrade(1,player,0) and game.checkpoint_offer_ids(player).is_empty()
-		and game.run_wallet(player)==wallet and player.run_upgrades==ranks
-		and player.checkpoint_offers==["rift_hook"], "stale offers cannot purchase and are not erased")
+	var native := Build.native_stats(Build.resolve(0,0,[0,0,0],player.character))
+	check(active.reach==native.reach and active.interval==native.interval and active.class_power==0 and not active.has("core_build"),"plant slots do not change native weapon stats or grant empty-Core haste")
 	var ready_core: int=player.weapon
 	player.weapon = -1
 	player.secondary = -1
@@ -79,14 +70,12 @@ func run() -> void:
 	player.weapon = ready_core
 	player.secondary = 0
 	player.catalyst = 0
-	player.character.upgrades[0] = 1 << 1
 	game.use_class_skill(1,player,0)
-	check(recorded.is_empty() and player.guard_charges==2, "Living Bastion activation grants native Guard only")
+	check(recorded.is_empty() and player.guard_charges==1, "connected Bastion activation grants native Rootshield only")
 	var now := Time.get_ticks_msec()
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now, 1)
-	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now+1, 1)
 	check(recorded.size()==1 and recorded[0].kind=="actual_block" and player.guard_charges==0,
-		"actual multi-block Guard records its first consumption once")
+		"actual connected Q block records its first consumption once")
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	game.use_class_skill(1,player,1)
 	check(recorded.size()==2 and recorded[1].kind=="class_action", "actual Root Quake emits one activation")
@@ -145,30 +134,32 @@ func check_native_progression(game: Node, player: Dictionary) -> void:
 	check(profile.upgrades[0] == 1 and profile.quarantine.learned_class_masks.warden == 1 << 50
 		and character.normalize(profile) == profile, "legacy investment and unknown learned bits survive normalization")
 	profile.upgrades[0] = 0
+	var graph=Classes.connected_tree(0)
+	profile[graph.profile_key]=graph.state(["bastion"])
 	player.character = profile
-	player.graft_part = 0
 	var native: int = game.Life.native_maximum(game, player)
 	var vital = preload("res://vital_combat.gd")
 	var elapsed := 100
-	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(native - 2)
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(native).with_hp(native - 2)
 	var before: float = player[PlayerVitals.STATE].hp()
 	var source := Events.begin(game,1,"form",{},vital.QUALITY.ordinary,["weapon_contact"],Time.get_ticks_msec()+5000)
 	vital.grant(game,source,1,elapsed)
-	profile.upgrades[0] = 1
+	var learned_hp: int=CardDefinitions.DEFINITIONS.run_health.values[0]
+	var copies: Array[Dictionary]=[{"id":"run_health","rarity":"Common","amount":learned_hp,"floor":3,"acquisition_id":1}]
+	player[Cards.STATE]=Cards.Ledger.new(copies)
 	game.restore_class_loadout(player)
-	var learned_hp: int = game.Life.Preview.hp(2)
 	check(player[PlayerVitals.STATE].max_hp() == native + learned_hp + vital.QUALITY.ordinary.bonus_hp and player[PlayerVitals.STATE].hp() == before,
-		"native learning updates maximum capacity without healing or baking in Vitality")
+		"current card capacity updates without free healing or baking in Vitality")
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].refilled()
 	player[vital.NEXT] = elapsed + 10000
 	vital.tick(game,elapsed + vital.DURATIONS.form)
 	check(player[PlayerVitals.STATE].max_hp() == native + learned_hp and player[PlayerVitals.STATE].hp() == float(player[PlayerVitals.STATE].max_hp()),
-		"Vitality expires to learned native capacity and clamps current HP")
+		"Vitality expires to current native capacity and clamps current HP")
 	var weapons := []
 	for index in Classes.DEFINITIONS.size():
 		var local := []
 		for weapon_index in 3:
-			var build := Build.resolve(index,weapon_index,[0,0,0],0,{})
+			var build := Build.resolve(index,weapon_index,[0,0,0],{})
 			local.append(build.weapon_id)
 			weapons.append(build.weapon_id)
 		check(local.size() == 3 and local[0] != local[1] and local[0] != local[2] and local[1] != local[2],
@@ -186,7 +177,8 @@ func check_runtime_focuses(game: Node, player: Dictionary) -> void:
 			game.encounter.set_hp(-1, 10000)
 			game.tactics.position = Vector3(0,0,-2.4)
 			var profile: Dictionary = game.Character.blank()
-			profile.upgrades[class_id] = 1 << (12 + lane)
+			var graph=Classes.connected_tree(class_id)
+			profile[graph.profile_key]=graph.state([graph.nodes[lane].id])
 			player.character = profile
 			player.frame = class_id
 			player.pos = Vector3.ZERO
@@ -219,34 +211,25 @@ func check_runtime_focuses(game: Node, player: Dictionary) -> void:
 func check_mappings() -> int:
 	var total := 0
 	for class_id in Classes.DEFINITIONS.size():
-		var masks: Array[int] = [0, 1 << 1, 1 << 3]
-		var frame: Dictionary = Classes.DEFINITIONS[class_id]
-		for index in frame.nodes.size():
-			masks.append(1 << index)
+		var graph=Classes.connected_tree(class_id)
 		for lane in 3:
-			masks.append(1 << (Classes.Warden.OFFSET + lane))
-			masks.append((1 << (Classes.Warden.OFFSET + lane)) | (1 << 3) | (1 << 11))
-		for mask in masks:
-			var profile := {"upgrades": [0,0,0,0,0]}
-			profile.upgrades[class_id] = mask
-			var build := Build.resolve(class_id,2,[Parts.THORN,Parts.MOSS,Parts.VEIL],Parts.HOOK,profile)
+			var profile := preload("res://character_profile.gd").blank()
+			profile[graph.profile_key]=graph.state([graph.nodes[lane].id])
+			var build := Build.resolve(class_id,2,[Parts.THORN,Parts.MOSS,Parts.VEIL],profile)
 			for adapter in build.class_skills:
 				check(not adapter.is_empty() and adapter.responses.size()==9
-					and not str(adapter.get("id","")).is_empty() and not adapter.response.is_empty(), "explicit adapter for %s mask %s" % [frame.id,mask])
+					and not str(adapter.get("id","")).is_empty() and not adapter.response.is_empty(), "explicit adapter for %s focus %s" % [Classes.DEFINITIONS[class_id].id,graph.nodes[lane].id])
 				total += 1
-	var base := Build.resolve(0,0,[Parts.THORN, Parts.MOSS, Parts.VEIL],Parts.HOOK,{})
-	var refined := Build.resolve(0,0,[Parts.HEARTWOOD, Parts.MOSS, Parts.VEIL],Parts.HOOK,{})
-	var other := Build.resolve(0,0,[Parts.THORN, Parts.VEIL, Parts.MOSS],Parts.HOOK,{})
+	var profile:=preload("res://character_profile.gd").blank()
+	var graph=Classes.connected_tree(0)
+	profile[graph.profile_key]=graph.state(["vanguard"])
+	var base := Build.resolve(0,0,[Parts.THORN, Parts.MOSS, Parts.VEIL],profile)
+	var refined := Build.resolve(0,0,[Parts.HEARTWOOD, Parts.MOSS, Parts.VEIL],profile)
+	var other := Build.resolve(0,0,[Parts.THORN, Parts.VEIL, Parts.MOSS],profile)
 	check(base.core.card_requirements==refined.core.card_requirements
 		and base.core.affinity_core_skill_id==refined.core.affinity_core_skill_id
 		and base.core.potency_profile.id!=refined.core.potency_profile.id, "quality retains identity and selects its own potency profile")
 	check(base.core==other.core and base.form!=other.form and base.catalyst!=other.catalyst
-		and Build.native_stats(base)==Build.native_stats(other), "plant slots are isolated from core and native stats")
-	check(base.graft.has("native_effects") and not base.core.card_requirements.has("graft"), "graft cannot satisfy plant cards")
-	for part in range(1,Parts.DEFINITIONS.size()):
-		if not Parts.is_monster(part): continue
-		var definition: Dictionary = Parts.MONSTER_DEFINITIONS[int(Parts.DEFINITIONS[part].monster)]
-		var build := Build.resolve(0,0,[0,0,0],part,{})
-		var effects: Dictionary = build.graft.native_effects.merged(build.graft.pending_effects).merged(build.graft.procs)
-		check(effects==definition.effects, "each native graft effect is applied or explicitly pending")
+		and Build.native_stats(base)==Build.native_stats(other), "plant slots are isolated from Core and native stats")
+	check(not base.has("graft") and not base.core.card_requirements.has("graft"), "retired installed graft slot cannot satisfy plant requirements")
 	return total

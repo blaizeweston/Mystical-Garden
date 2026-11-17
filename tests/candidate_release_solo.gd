@@ -1,6 +1,7 @@
 extends SceneTree
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+const Cards = preload("res://affinity_cards.gd")
 const Gate = preload("res://persistence_writer_integration.gd")
 const Tx = preload("res://game_transaction.gd")
 const Slots = preload("res://save_slots.gd")
@@ -64,6 +65,9 @@ func run() -> void:
  world.set_process(false)
  world.set_physics_process(false)
  var actor: Dictionary = world.players[1]
+ actor.pos=world.Stage.HEART
+ world.handle_loadout_action(1,actor,"learn_0_64")
+ world.toggle_overlay(null)
  actor.pos = world.Stage.PLOTS[0]
  world.progress.plots[0] = world.progress.empty_plot().merged({"species":0,"stage":3,"age":10000.0},true)
  world.progress.sync_plot_flags()
@@ -93,12 +97,11 @@ func run() -> void:
  world.finish_combat(1,world.tactics.position)
  check(world.encounter_rewarded and actor.loot_pending and world.progress.wilds_memory.encounters==1,"guarded combat settlement")
  clear_floor(world,actor,3)
- actor.offer_floor=3
- actor.checkpoint_offers=["power"]
  ExpeditionCase.Transitions.checkpoint(world, 1,true)
- world.choose_checkpoint_card(1,actor,0)
+ var offer: Dictionary=world.checkpoint_card_data(actor)[0]
+ world.send_garden_action(world.affinity_checkpoint_action(offer.revision,"0"))
  ExpeditionCase.Transitions.checkpoint(world, 1,true)
- check(world.participation.floor()==4 and actor.power>0,"checkpoint card and advancement")
+ check(world.participation.floor()==4 and Cards.ledger(actor).count()==1,"free checkpoint card and guarded advancement")
  clear_floor(world,actor,6)
  actor.carried_seeds=[0]
  ExpeditionCase.Transitions.checkpoint(world, 1,false)

@@ -13,27 +13,6 @@ const Materials = preload("res://weapon_parts.gd")
 const Seeds = preload("res://seed_catalog.gd")
 const Preview = preload("res://combat_balance_preview.gd")
 
-# The legacy Frost consumers are separate from the source-owned affinity
-# rupture system. Preserve learned nodes, with their other effects intact.
-const RESTRICTED_CLASS_EFFECTS := {
-	"shatter_damage": "Legacy Shatter bonuses are pending a source-ownership decision for Frost rupture.",
-}
-const RESTRICTED_NODES := {
-	"cracking_roots": "Cracking Roots is pending a decision on native Brittle grants in the affinity ruleset.",
-}
-
-static func class_effects_text(effects: Dictionary) -> String:
-	var active := effects.duplicate()
-	var lines: Array[String] = []
-	for key in RESTRICTED_CLASS_EFFECTS:
-		if active.erase(key):
-			lines.append(RESTRICTED_CLASS_EFFECTS[key])
-	var description := Classes.effect_text(active, Preview.enabled)
-	if not description.is_empty():
-		lines.push_front(description)
-	return "\n".join(lines)
-
-
 static func slot(name: String, part: int) -> Dictionary:
 	var identity := Affinities.for_part(part)
 	if identity.is_empty():
@@ -51,29 +30,35 @@ static func slot(name: String, part: int) -> Dictionary:
 	return identity
 
 
-static func resolve(class_id: int, weapon_index: int, slots: Array, graft: int, profile: Dictionary) -> Dictionary:
+static func resolve(class_id: int, weapon_index: int, slots: Array, profile: Dictionary) -> Dictionary:
 	class_id = clampi(class_id, 0, Classes.DEFINITIONS.size() - 1)
 	var frame: Dictionary = Classes.DEFINITIONS[class_id]
 	var weapon: Dictionary = frame.weapons[clampi(weapon_index, 0, frame.weapons.size() - 1)]
 	var tree := Classes.connected_tree(class_id)
 	var connected := tree != null and tree.eligible(profile)
-	var focus := tree.focus(profile) if connected else Classes.focus_id(profile, class_id)
+	var focus := tree.focus(profile) if connected else ""
+	var class_refusal := ""
+	if not connected:
+		class_refusal = "Refund this historical %s class at the Heart to activate its connected tree. Class XP is preserved." % frame.name
+	elif not tree.valid(profile):
+		class_refusal = "This character's connected %s progression needs review before combat." % frame.name
+	elif focus.is_empty():
+		class_refusal = "Choose your level 1 %s starting focus at the Wilds Gate before using class abilities." % frame.name
 	var result := {
 		"ruleset": Ruleset.ID, "class_id": frame.id, "focus_id": focus,
-		"weapon_id": weapon.id, "native_weapon": weapon.duplicate(true),
-		"native_class_effects": Classes.bonuses(profile, class_id),
+		"weapon_id": weapon.id, "native_weapon": weapon.duplicate(true), "class_refusal":class_refusal,
+		"native_class_effects": {},
 		"core": slot("core", int(slots[0])), "form": slot("form", int(slots[1])),
-		"catalyst": slot("catalyst", int(slots[2])), "graft": {}, "class_skills": [],
-		"capabilities": {"native_weapon": true, "native_class_skills": not connected or tree.valid(profile), "affinity_effects": false},
+		"catalyst": slot("catalyst", int(slots[2])), "class_skills": [],
+		"capabilities": {"native_weapon": true, "native_class_skills": class_refusal.is_empty(), "affinity_effects": false},
 	}
 	# The weapon supplies presentation/placement. Old species-specific melee
 	# movement overrides are deliberately excluded.
 	result.core.delivery = Delivery.WEAPON_DELIVERY.get(weapon.visual, {}).duplicate()
 	result.form.behavior = Ruleset.FORMS.get(result.form.get("primary_affinity"), "")
-	result.graft = Ruleset.Grafts.resolve(graft)
-	var native_pull := float(result.native_class_effects.get("pull",0)) + float(result.graft.get("native_effects",{}).get("pull",0))
+	var native_pull := float(result.native_weapon.get("pull",0))
 	for index in 2:
-		var skill := Skills.resolve(class_id, index, profile, connected)
+		var skill := Skills.resolve(class_id,index,profile)
 		var adapter := Catalyst.resolve(class_id, index, profile, skill)
 		if not adapter.is_empty():
 			adapter.response = adapter.responses.get(result.catalyst.get("primary_affinity"), "")
@@ -94,7 +79,7 @@ static func resolve(class_id: int, weapon_index: int, slots: Array, graft: int, 
 static func for_player(player: Dictionary, prepared := false) -> Dictionary:
 	var fields := ["prepared", "prepared_secondary", "prepared_catalyst"] if prepared else ["weapon", "secondary", "catalyst"]
 	var parts := fields.map(func(field): return int(player.get(field, 0)))
-	var build := resolve(int(player.get("frame", 0)), int(player.get("weapon_kind", 0)), parts, 0, player.get("character", {}))
+	var build := resolve(int(player.get("frame", 0)), int(player.get("weapon_kind", 0)), parts,player.get("character", {}))
 	if not prepared:
 		var ledger := Ruleset.Improvements.active_ledger(player)
 		build.improvements = ledger.resolution() if ledger != null else {"bonuses":{}, "adaptations":[]}
@@ -127,29 +112,19 @@ static func graft_values(improvements: Dictionary, base_build: Dictionary, cards
 
 static func native_stats(build: Dictionary) -> Dictionary:
 	var stats: Dictionary = build.native_weapon.duplicate(true)
-	stats.merge({"cooldown": 0.0, "tags": [], "interactions": [], "core_build": {}})
+	stats.merge({"cooldown": 0.0, "tags": [], "interactions": []})
 	WeaponRules.add_effects(stats, build.native_class_effects)
-	WeaponRules.add_effects(stats, build.graft.get("native_effects", {}))
 	if build.has("improvements"):
 		Ruleset.Improvements.tune_native(stats,build.improvements)
 	if stats.has("pierce"):
 		stats.pattern = "line"
-	var procs: Dictionary = build.graft.get("procs", {})
-	if procs.has("spread_bind"):
-		stats.spread_bind = float(stats.get("spread_bind", 0)) + float(procs.spread_bind)
-	var graft_text := Ruleset.Grafts.describe(build.graft)
-	if not graft_text.is_empty():
-		stats.interactions.append(graft_text)
-	# Legacy Shatter has no approved native source in affinity Frost.
-	for effect in RESTRICTED_CLASS_EFFECTS:
-		stats.erase(effect)
 	for key in ["cooldown", "recovery", "stagger", "skill_cooldown", "skill_duration", "dodge_cooldown", "windup_damage"]:
-		if stats.has(key) and (key != "windup_damage" or not Preview.enabled):
+		if stats.has(key) and key != "windup_damage":
 			stats[key] = roundi(float(stats[key]))
 	stats.targets = clampi(int(stats.targets), 1, 5)
 	if stats.targets > 1 and stats.pattern == "single":
 		stats.pattern = "sweep" if build.class_id in ["warden", "reaper"] else "chain"
-	stats.damage = maxf(1.0, float(stats.damage)) if Preview.enabled else maxi(1, roundi(float(stats.damage)))
+	stats.damage = maxf(1.0, float(stats.damage))
 	stats.heal_on_kill = Preview.capped_amount(float(stats.get("heal_on_kill", 0)), 2)
 	stats.skill_heal = Preview.capped_amount(float(stats.get("skill_heal", 0)), 3)
 	stats.max_health = Preview.capped_amount(float(stats.get("max_health", 0)), 4)
@@ -159,7 +134,7 @@ static func native_stats(build: Dictionary) -> Dictionary:
 
 static func refusal(build: Dictionary, name: String) -> String:
 	if name == "catalyst" and not build.capabilities.native_class_skills:
-		return "This character's connected %s data needs review." % str(build.class_id).capitalize()
+		return str(build.class_refusal)
 	var part: Dictionary = build[name]
 	if part.executable:
 		return ""
@@ -236,12 +211,10 @@ static func support_text(material: Dictionary) -> String:
 		names.append(support.capitalize())
 	if names.is_empty():
 		return ""
-	return "Supporting affinities for possible upgrade cards: " + ", ".join(names) + "."
+	return "Supporting affinities for possible upgrade cards (future only): " + ", ".join(names) + ". No baseline effects."
 
 
-static func planting_description(species: int, affinity_mode: bool) -> String:
-	if not affinity_mode:
-		return Seeds.modifier_text(species)
+static func planting_description(species: int) -> String:
 	var ordinary_id: int = Seeds.DEFINITIONS[species].part
 	var refined_id := Materials.rare_part(species)
 	var material := slot("core", ordinary_id)
@@ -249,10 +222,25 @@ static func planting_description(species: int, affinity_mode: bool) -> String:
 		return "Affinity information is unavailable for this species."
 	var family: String = material.primary_affinity
 	var core: String = Ruleset.FAMILIES[family].description("core",material.quality).get_slice(" · ",0)
-	var text := "%s primary affinity · %s (Core)\nOrdinary: %s · Refined: %s" % [
-		family.capitalize(), core, Materials.part_name(ordinary_id), Materials.part_name(refined_id)]
+	var form: String = Ruleset.FAMILIES[family].description("form",material.quality).get_slice(" · ",0)
+	var text := "%s primary affinity · %s (Core)\nForm: %s · Catalyst: %s class-ability responses\nOrdinary: %s · Refined: %s" % [
+		family.capitalize(), core, form, family.capitalize(), Materials.part_name(ordinary_id), Materials.part_name(refined_id)]
 	var supports := support_text(material)
 	return text + "\n" + supports if not supports.is_empty() else text
+
+
+static func material_description(part_id: int) -> String:
+	var material := slot("core",part_id)
+	if material.state != "ready":
+		return "Affinity information is unavailable for this material."
+	var family: String = material.primary_affinity
+	var lines: Array[String] = ["%s quality · %s primary affinity" % [str(material.quality).capitalize(),family.capitalize()]]
+	for name: String in SLOTS:
+		lines.append("%s · %s" % [name.capitalize(),Ruleset.FAMILIES[family].description(name,material.quality)])
+	var supports := support_text(material)
+	if not supports.is_empty():
+		lines.append(supports)
+	return "\n".join(lines)
 
 
 static func slot_preview(build: Dictionary, name: String, part_id: int) -> Dictionary:

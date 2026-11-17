@@ -25,7 +25,7 @@ func action(game: Node, slot: String, part: int, channels: Array, id:=1) -> RefC
 
 func run() -> void:
 	var game:=preload("res://world.tscn").instantiate()
-	game.set_meta(Mode.META,Mode.ID)
+
 	game.progress.path="user://cr04c-spirit/garden.cfg"
 	game.local_character.path="user://cr04c-spirit/player.cfg"
 	root.add_child(game)

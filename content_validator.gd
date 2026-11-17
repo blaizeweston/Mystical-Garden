@@ -4,7 +4,7 @@ const Parts=preload("res://weapon_parts.gd")
 const Classes=preload("res://class_catalog.gd")
 const Enemies=preload("res://enemy_catalog.gd")
 const Motion=preload("res://weapon_motion.gd")
-const Upgrades=preload("res://run_upgrade_catalog.gd")
+const Cards=preload("res://affinity_card_catalog.gd")
 const MODES: Array=["guard","front_guard","counter_guard","bastion","ward","bind","strangle","snare","volley","reap","windstep","charge","harvest","quake","nova","bloodmoon","snare_field","judgement","salvo","siphon","heal","sanctuary","growth","bloom_detonate","requiem"]
 const Effects: Array=["reach","damage","windup_damage","cooldown","recovery","pull","knockback","stagger","heal_on_kill","skill_heal","max_health","skill_cooldown","skill_duration","dodge_cooldown","graft_chance","targets","familiarity","power","technique","rift_hook"]
 static func effect_errors(effects: Dictionary,label: String) -> Array[String]:
@@ -22,8 +22,7 @@ static func unique(entries: Array,label: String) -> Array[String]:
   seen.append(id)
  return errors
 static func validate() -> Array[String]:
- var errors: Array[String]=[];errors.append_array(preload("res://garden_interaction_catalog.gd").errors());errors.append_array(unique(Seeds.DEFINITIONS,"seed"));errors.append_array(unique(Parts.DEFINITIONS,"part"));errors.append_array(unique(Classes.DEFINITIONS,"class"));errors.append_array(unique(Enemies.all(),"enemy"));errors.append_array(unique(Upgrades.all(),"upgrade"))
- errors.append_array(preload("res://core_skill_rules.gd").errors(Classes.DEFINITIONS))
+ var errors: Array[String]=[];errors.append_array(preload("res://garden_interaction_catalog.gd").errors());errors.append_array(unique(Seeds.DEFINITIONS,"seed"));errors.append_array(unique(Parts.DEFINITIONS,"part"));errors.append_array(unique(Classes.DEFINITIONS,"class"));errors.append_array(unique(Enemies.all(),"enemy"))
  errors.append_array(preload("res://plant_affinities.gd").errors())
  var pairs: Array=[]
  for i in Seeds.DEFINITIONS.size():
@@ -39,13 +38,23 @@ static func validate() -> Array[String]:
     elif int(Seeds.DEFINITIONS[int(parent)].tier)>=int(seed.tier): errors.append("Invalid lineage tier "+str(seed.id))
  for class_id in Classes.DEFINITIONS.size():
   var c: Dictionary=Classes.DEFINITIONS[class_id]
+  # Historical masks remain validated as data, never as an alternate combat tree.
   var nodes: Array=Classes.all_nodes(class_id)
+  var tree=Classes.connected_tree(class_id)
+  if tree==null or tree.nodes.size()!=18:
+   errors.append("Class requires three focuses and five connected tiers: "+str(c.id))
+  else:
+   errors.append_array(unique(tree.nodes,"connected node "+str(c.id)))
+   for active_node: Dictionary in tree.nodes:
+    for parent: String in active_node.parents:
+     if tree.node(parent).is_empty(): errors.append("Missing connected parent "+parent)
   if nodes.size()>63: errors.append("Class exceeds 63 learned-node capacity "+str(c.id))
   errors.append_array(unique(c.weapons,"weapon "+str(c.id)));errors.append_array(unique(nodes,"node "+str(c.id)))
   for weapon in c.weapons:
    if not Motion.PROFILES.has(weapon.visual): errors.append("Missing weapon motion "+str(weapon.id))
+   if not preload("res://core_skill_rules.gd").WEAPON_DELIVERY.has(weapon.visual): errors.append("Missing Core delivery "+str(weapon.id))
    if weapon.pattern not in ["single","line","sweep","splash","chain"]: errors.append("Unknown attack pattern "+str(weapon.id))
-  for kit in ["base","replace"]:
+  for kit in ["base"]:
    if c.skills.get(kit,[]).size()!=2: errors.append("Class must have two skills: "+str(c.id))
    for skill in c.skills.get(kit,[]):
     if not MODES.has(skill.get("mode","")): errors.append("Unsupported skill mode: "+str(c.id))
@@ -72,24 +81,23 @@ static func validate() -> Array[String]:
  var published_order=JSON.parse_string(FileAccess.get_file_as_string("res://assets/content/part_order.json"))
  if not published_order is Array or published_order.size()!=Parts.DEFINITIONS.size(): errors.append("Published component order does not cover registry")
  elif published_order!=Parts.DEFINITIONS.map(func(part):return str(part.id)): errors.append("Component order changed outside append-only contract")
- for entry in Upgrades.all():
-  errors.append_array(Upgrades.core_errors(entry))
-  if entry.has("class_behavior"):
-   if Classes.focus_name(entry.get("focus","")).is_empty() or int(entry.max_rank)!=1:
-    errors.append("Invalid subclass requirement "+str(entry.id))
-   if entry.has("class_core"):
-    var requirement: Dictionary=entry.class_core
-    var rules=preload("res://core_skill_rules.gd")
-    if rules.skill_by_id(requirement.get("skill","")).is_empty():errors.append("Unknown linked Core "+str(entry.id))
-    for slot in requirement.get("slots",{}):
-     for tag in requirement.slots[slot]:
-      if not rules.valid_slot_tag(tag,slot):errors.append("Unknown subclass card tag "+str(entry.id))
-  errors.append_array(effect_errors(entry.effects,"upgrade "+str(entry.id)))
-  if not Upgrades.RARITY_WEIGHT.has(entry.rarity): errors.append("Unknown rarity "+str(entry.id))
-  for mode in entry.get("skill_modes_any",[]):
-   if not MODES.has(mode): errors.append("Upgrade requires unsupported skill: "+str(entry.id))
-  for c in entry.get("classes",[]):
-   if int(c)<0 or int(c)>=Classes.DEFINITIONS.size(): errors.append("Missing upgrade class "+str(entry.id))
+ # Only the current catalog executes. Historical card ranks were run-only.
+ for card_id: String in Cards.DEFINITIONS:
+  var card: Dictionary=Cards.DEFINITIONS[card_id]
+  for field in ["title","trigger","description","detail","parameter"]:
+   if str(card.get(field,"")).is_empty(): errors.append("Card missing "+field+": "+card_id)
+  if card_id.is_empty() or card.get("scope","") not in ["core","form","catalyst","class","weapon","general"]: errors.append("Invalid card identity/scope "+card_id)
+  if card.get("policy","") not in ["stackable","unique"] or int(card.get("limit",0))<1: errors.append("Invalid card acquisition policy "+card_id)
+  if card.get("unit","") not in ["hp","ms"] or not card.get("requires") is Dictionary: errors.append("Invalid card units/requirements "+card_id)
+  if card.get("policy")=="unique":
+   if int(card.get("limit",0))!=1 or int(card.get("fixed",0))<=0: errors.append("Invalid Unique card contribution "+card_id)
+  elif card.get("values",[]).size()!=Cards.RARITIES.size(): errors.append("Card must author one contribution per rarity "+card_id)
+  var consumer: Array=card.get("consumer",[])
+  if consumer.size()!=2 or not ResourceLoader.exists(str(consumer[0])):
+   errors.append("Missing card consumer "+card_id)
+  else:
+   var script: Script=load(str(consumer[0]))
+   if script==null or not script.get_script_method_list().any(func(method):return str(method.name)==str(consumer[1])): errors.append("Unknown card consumer "+card_id)
  var boss_count:=0
  for kind in Enemies.all().size():
   var entry: Dictionary=Enemies.get_kind(kind)

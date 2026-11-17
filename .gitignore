@@ -2,6 +2,10 @@
 /.godot/
 *.blend1
 
+# Godot hot-reload copies of the native persistence extension (not the source DLL)
+/assets/native/persistence_lock/~b0_native_lock.dll
+/assets/native/persistence_lock/~b0_native_lock.dll~RF[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F].TMP
+
 # Local playtest diagnostics and generated analysis views
 /Gameplay logs/*
 !/Gameplay logs/.gdignore

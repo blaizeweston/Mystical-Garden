@@ -6,18 +6,11 @@ const ActionIdentity = preload("res://network_action_identity.gd")
 const Session = preload("res://network_session.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Rules = preload("res://core_skill_rules.gd")
-const Effects = preload("res://core_skill_effects.gd")
 const Footprint = preload("res://core_footprint.gd")
-const Variants = preload("res://core_weapon_variants.gd")
 const Lance = preload("res://core_lance.gd")
-const Anchor = preload("res://core_anchor_beam.gd")
-const Upgrades = preload("res://run_upgrade_catalog.gd")
-const Status = preload("res://combat_status.gd")
 const Mouse = preload("res://mouse_combat.gd")
 const Journal = preload("res://diagnostic_journal.gd")
-const THORN_COLOR := Color("#baf187")
-const Thorn = preload("res://thorn_adaptation.gd")
-const STATE := Thorn.CORE_STATE
+const STATE := &"core_combat"
 const PREFIX := "core_cast:"
 
 
@@ -46,12 +39,11 @@ static func cast_key(game: Node, player: Dictionary) -> String:
 static func command(game: Node, id: int, player: Dictionary, action: String) -> void:
 	if not game.multiplayer.is_server() or not game.Life.alive(player) or not game.network_session.ready(id) or Session.peer_for(player) != id:
 		return
-	if preload("res://combat_ruleset.gd").active(game):
-		var builds = preload("res://affinity_build.gd")
-		var refusal := builds.refusal(builds.for_player(player),"core")
-		if not refusal.is_empty():
-			game.tell(id,refusal)
-			return
+	var builds = preload("res://affinity_build.gd")
+	var refusal := builds.refusal(builds.for_player(player),"core")
+	if not refusal.is_empty():
+		game.tell(id,refusal)
+		return
 	var args := action.split(":", true, 5)
 	var stamp := cast_key(game,player)
 	if stamp.is_empty() or args.size() != 5 or args[1] != stamp or not args[2].is_valid_float() or not args[3].is_valid_float() or not args[4].is_valid_float():
@@ -101,11 +93,10 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 		"skill": skill, "owner": id, "life": PlayerLifecycle.generation(player), "release": now + release_ms,
 		"armed": now + release_ms + flight_ms, "expires": now + release_ms + flight_ms + lifetime,
 		"flight_ms": flight_ms, "released": false, "grown": false, "next_hit": {},
-		"origin": origin, "cast_origin": player.pos, "previous": {}, "behaviors": Upgrades.core_behaviors(player, skill.id),
+		"origin": origin, "cast_origin": player.pos, "previous": {},
 	})
-	if skill.has("affinity_family"):
-		line.affinity_action = preload("res://combat_action_events.gd").begin(game,id,"core",skill.material,
-			skill.material.potency_profile.values,["core_action"],0x7fffffffffffffff)
+	line.affinity_action = preload("res://combat_action_events.gd").begin(game,id,"core",skill.material,
+		skill.material.potency_profile.values,["core_action"],0x7fffffffffffffff)
 	if not step:
 		lines[id] = line
 		game.set_meta(STATE, lines)
@@ -127,16 +118,12 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 		preload("res://spirit_affinity.gd").core_step(game,line,player,now)
 	var modifiers: Array = skill.modifiers.map(func(modifier): return modifier.id)
 	Journal.event("combat", "core_cast", {"actor": id, "skill": skill.id, "cast_id": line.id, "delivery": skill.delivery,
-		"weapon": skill.weapon_form, "variant": skill.get("variant_name", ""), "floor": game.participation.floor(), "modifiers": modifiers, "behaviors": line.behaviors})
+		"weapon": skill.weapon_form, "variant": skill.get("variant_name", ""), "floor": game.participation.floor(), "modifiers": modifiers})
 
 
 static func equipped(player: Dictionary) -> Dictionary:
-	if preload("res://combat_ruleset.gd").uses_affinities(player):
-		var builds = preload("res://affinity_build.gd")
-		return builds.core_skill(builds.for_player(player))
-	var skill: Dictionary = Rules.player_build(player).skill
-	Upgrades.tune_core(player, skill)
-	return skill
+	var builds = preload("res://affinity_build.gd")
+	return builds.core_skill(builds.for_player(player))
 
 
 static func owner_state(player: Dictionary, now: int, _cast: Dictionary = {}) -> Dictionary:
@@ -146,7 +133,7 @@ static func owner_state(player: Dictionary, now: int, _cast: Dictionary = {}) ->
 	if skill.is_empty():
 		return {}
 	return {
-		"name": skill.name, "icon": skill.icon, "tooltip": skill.tooltip if skill.has("affinity_family") else Rules.describe(skill, Upgrades.core_card_lines(player, skill.id)),
+		"name": skill.name, "icon": skill.icon, "tooltip": skill.tooltip,
 		"remaining": maxf(0, (int(player.get("core_ready_at", 0)) - now) / 1000.0),
 	}
 
@@ -167,96 +154,38 @@ static func hud_state(game: Node, player: Dictionary) -> Dictionary:
 
 
 static func preview(game: Node, player: Dictionary, field: RefCounted, forward: Vector3, distance: float) -> Dictionary:
-	var skill := equipped(player) if game.multiplayer.is_server() else Dictionary(player.get("weapon_stats", {})).get("core_build", {}).get("skill", {}) as Dictionary
-	if not game.multiplayer.is_server() and preload("res://combat_ruleset.gd").active(game):
-		skill = preload("res://affinity_build.gd").core_skill(player.get("weapon_stats",{}).get("affinity_build",{}))
+	var skill := equipped(player) if game.multiplayer.is_server() else preload("res://affinity_build.gd").core_skill(player.get("weapon_stats",{}).get("affinity_build",{}))
 	if skill.is_empty():
 		return {}
 	var origin: Vector3 = player.pos
 	var state := hud_state(game, player)
-	var reach: float = skill.range
 	var shapes: Array = []
-	if reach > 0.0:
-		shapes.append({"kind": "range", "at": origin, "radius": reach})
-	var cast := aim_cast(field, origin, forward, skill, distance)
-	var valid := not cast.is_empty() and float(state.get("remaining", INF)) <= 0.0
-	if skill.get("affinity_family")=="spirit":
+	if float(skill.range) > 0.0:
+		shapes.append({"kind":"range", "at":origin, "radius":skill.range})
+	if skill.affinity_family == "spirit":
 		var end: Vector3 = field.dash(origin,origin+forward*float(skill.range))
 		var can_step := origin.distance_to(end)>=preload("res://spirit_affinity.gd").MIN_STEP
 		return {"shapes":[{"kind":"travel","from":origin,"to":end}],"color":skill.color,
 			"valid":can_step and float(state.get("remaining",INF))<=0.0}
+	var cast := aim_cast(field, origin, forward, skill, distance)
 	if not cast.is_empty():
-		match skill.mechanic:
-			"ground_sequence":
-				if skill.get("footprint") == "wave":
-					shapes.append({"kind": "capsule", "from": origin, "to": cast.center, "width": Effects.wave_width(skill)})
-				else:
-					cast.skill = skill
-					var contact_shapes := Footprint.build(field, cast, origin)
-					if contact_shapes.is_empty() and skill.get("footprint") == "reflection":
-						contact_shapes.append(Footprint.area(cast.center, skill.radius))
-						if cast.has("reflection"):
-							contact_shapes.append(Footprint.area(cast.reflection, skill.radius))
-					shapes.append_array(contact_shapes)
-					if skill.id in ["eclipse_maw", "worldbloom"]:
-						shapes.append_array(Footprint.build(field, cast, origin, 1))
-					if skill.id == "gravity_well" and skill.has("inner_root_ms"):
-						shapes.append({"kind": "range", "at": cast.center, "radius": float(skill.radius) * .28})
-					if skill.id == "grave_lantern":
-						shapes.append({"kind": "range", "at": cast.center, "radius": skill.burst_radius})
-					if skill.id == "moon_snare":
-						shapes = shapes.filter(func(shape): return shape.kind != "capsule")
-						shapes.append({"kind": "crescent_guide", "segments": contact_shapes})
-					if skill.id == "crownlink":
-						shapes.append_array(crown_preview(game, field, contact_shapes, cast.center))
-				var landing := Variants.travel(field, origin, cast.center, forward, skill)
-				if not origin.is_equal_approx(landing):
-					shapes.append({"kind": "travel", "from": origin, "to": landing})
-			"line_trap", "swept_projectile":
-				shapes.append({"kind": "capsule", "from": cast.from, "to": cast.to, "width": skill.radius})
-			"ground_burst":
-				shapes.append({"kind": "area", "at": cast.center, "radius": skill.radius})
-			"anchor_beam":
-				shapes.append({"kind": "point", "at": cast.center, "radius": .45})
-				shapes.append({"kind": "capsule", "from": cast.center, "to": Anchor.endpoint(field, {"center": cast.center, "skill": skill}, forward), "width": skill.radius})
-	return {"shapes": shapes, "color": skill.color, "valid": valid}
+		if skill.mechanic == "swept_projectile":
+			shapes.append({"kind":"capsule", "from":cast.from, "to":cast.to, "width":skill.radius})
+		else:
+			cast.skill = skill
+			shapes.append_array(Footprint.build(field,cast,origin))
+	return {"shapes":shapes, "color":skill.color,
+		"valid":not cast.is_empty() and float(state.get("remaining",INF))<=0.0}
 
 
 static func aim_cast(field: RefCounted, origin: Vector3, forward: Vector3, skill: Dictionary, distance: float = 0.0) -> Dictionary:
-	match skill.mechanic:
-		"line_trap":
-			return placement(field, origin, forward, skill, distance)
-		"swept_projectile":
-			return Lance.placement(field, origin, forward, skill)
-		"ground_burst", "anchor_beam", "ground_sequence":
-			if skill.get("targeting") == "self":
-				return {"center": origin, "forward": forward} if not field.occupied(origin) else {}
-			var minimum := .85 if skill.mechanic == "anchor_beam" or skill.get("movement") == "approach" else .01
-			var reach := clampf(distance, minimum, float(skill.range)) if distance > 0.0 else float(skill.range)
-			var center: Vector3 = field.dash(origin, origin + forward * reach)
-			if origin.distance_to(center) + .0001 < minimum:
-				return {}
-			var cast := {"center": center, "forward": forward}
-			if skill.get("footprint") == "reflection":
-				var mirror := origin * 2.0 - center
-				if field.clear_line(origin, mirror) and not field.occupied(mirror):
-					cast.reflection = mirror
-			return cast
-	return {}
-
-
-static func placement(field: RefCounted, origin: Vector3, forward: Vector3, skill: Dictionary, distance: float = 0.0) -> Dictionary:
-	var side := forward.cross(Vector3.UP)
-	var radius: float = skill.radius
-	var reach := minf(distance, float(skill.range)) if distance > 0.0 else float(skill.range)
-	var center: Vector3 = field.dash(origin, origin + forward * reach)
-	while (center - origin).dot(forward) >= -.0001:
-		var from := center - side * float(skill.half_length)
-		var to := center + side * float(skill.half_length)
-		if field.clear_line(from, to, radius):
-			return {"from": from, "to": to, "center": center}
-		center -= forward * .25
-	return {}
+	if skill.mechanic == "swept_projectile":
+		return Lance.placement(field,origin,forward,skill)
+	if skill.get("targeting") == "self":
+		return {"center":origin,"forward":forward} if not field.occupied(origin) else {}
+	var reach := clampf(distance,.01,float(skill.range)) if distance>0.0 else float(skill.range)
+	var center: Vector3 = field.dash(origin,origin+forward*reach)
+	return {"center":center,"forward":forward} if origin.distance_to(center)+.0001>=.01 else {}
 
 
 static func reset(game: Node) -> void:
@@ -273,9 +202,6 @@ static func tick(game: Node, now: int) -> void:
 			var line: Dictionary = lines[id]
 			if line.skill.get("affinity_family") == "vital":
 				continue
-			var owner: Dictionary = game.players.get(id, {})
-			if line.grown and line.skill.has("death_window_ms") and int(line.epoch) == game.participation.epoch() and game.Life.alive(owner) and PlayerLifecycle.matches(owner,int(line.life)) and now < int(line.expires):
-				Effects.detonate_at_death(game, id, owner, line, now)
 			lines.erase(id)
 		if lines.is_empty():
 			reset(game)
@@ -344,245 +270,29 @@ static func tick(game: Node, now: int) -> void:
 				preload("res://vital_combat.gd").bloom(game,line,player,now)
 				lines.erase(id)
 				continue
-		if line.skill.mechanic == "ground_sequence":
-			if Effects.sequence(game, id, player, line, now):
-				lines.erase(id)
-			continue
-		if line.skill.mechanic == "ground_burst":
-			lantern_burst(game, id, line, now)
-			lines.erase(id)
-			continue
-		if line.skill.mechanic == "anchor_beam":
-			if not line.grown:
-				line.grown = true
-				line.fires_at = now + int(line.skill.lifetime_ms)
-				line.expires = int(line.fires_at) + 1500
-				game.emit_combat_event("ability", line.skill.id, line.center, line.center, .5, Color(line.skill.color), .8, id)
-			if now >= int(line.fires_at):
-				var end := Anchor.endpoint(game.battlefield, line, Anchor.direction(game, id, line, now))
-				Anchor.fire(game, id, line, end, now)
-				lines.erase(id)
-			continue
-		if not line.grown:
-			if not game.battlefield.clear_line(line.from, line.to, line.skill.radius):
-				lines.erase(id)
-				continue
-			line.grown = true
-			line.grown_at = now
-			Thorn.armed(game, id, line)
-			game.emit_combat_event("ability", line.skill.id, line.center, line.center, .5, THORN_COLOR, 1.0, id)
-		var current := targets(game)
-		for target in current:
-			var actor: Dictionary = current[target]
-			var previous: Dictionary = line.previous.get(target, {})
-			var point: Vector3 = actor.pos
-			var before: Vector3 = previous.get("pos", point) if previous.get("token", -1) == actor.token else point
-			var trip := contact(game.battlefield, line, before, point)
-			if trip == Vector3.INF:
-				continue
-			var token: String = preload("res://weapon_contact.gd").token(game, target)
-			if now >= int(line.next_hit.get(token, 0)):
-				if not line.next_hit.has(token):
-					Thorn.tripped(game, id, line, target, before, point)
-				line.next_hit[token] = now + int(line.skill.interval_ms)
-				trigger_thorn(game, id, target, trip, now, "crossing")
-			if game.encounter_cleared():
-				break
-		line.previous = current
+		# All admitted casts have an explicit implemented affinity family.
+		lines.erase(id)
 	if lines.is_empty():
 		reset(game)
 
 
-static func lantern_burst(game: Node, id: int, cast: Dictionary, now: int) -> void:
-	var center: Vector3 = cast.center
-	var radius: float = cast.skill.radius
-	var targets_hit: Array[int] = []
-	if cast.skill.has("area_guard_ms"):
-		Effects.affect_allies(game, center, radius, cast.skill, {"guard_ms": cast.skill.area_guard_ms}, now)
-	var until := now + int(cast.skill.stagger_ms)
-	var candidates := preload("res://weapon_contact.gd").candidates(game, center)
-	for target in candidates:
-		if game.enemy_position(target).distance_to(center) > radius:
-			break
-		if winding_or_boss(game, target) or not game.battlefield.clear_line(center, game.enemy_position(target)):
-			continue
-		if target == -1:
-			game.tactics.stagger_until = maxi(game.tactics.stagger_until, until)
-		else:
-			game.encounter.scout(target).stagger_until = maxi(int(game.encounter.scout(target).stagger_until), until)
-		targets_hit.append(target)
-		if targets_hit.size() >= int(cast.skill.targets):
-			break
-	game.emit_combat_event("ability", cast.skill.id, center, center, .55, Color(cast.skill.color), radius, id)
-	Journal.event("combat", "core_burst", {"actor": id, "skill": cast.skill.id, "cast_id": cast.id, "targets": targets_hit})
-
-
-static func winding_or_boss(game: Node, target: int) -> bool:
-	return game.tactics.boss_kind >= 0 or game.tactics.winding_up if target == -1 else int(game.encounter.scout(target).get("windup", 0)) > 0
-
-
-static func quake(game: Node, id: int, origin: Vector3, radius: float, now: int) -> void:
-	var line: Dictionary = game.get_meta(STATE, {}).get(id, {})
-	if line.is_empty() or line.skill.mechanic != "line_trap" or not line.grown or int(line.epoch) != game.participation.epoch() or now >= int(line.expires):
-		return
-	if not PlayerLifecycle.matches(game.players[id],int(line.life)) or line.get("quake_used", false):
-		return
-	var reach := float(line.skill.get("quake_reach", 0.0))
-	if reach <= 0:
-		return
-	var anchor := Geometry3D.get_closest_point_to_segment(origin, line.from, line.to)
-	if origin.distance_to(anchor) > radius or not game.battlefield.clear_line(origin, anchor):
-		return
-	var best := -2
-	var at := Vector3.ZERO
-	var nearest := reach
-	for target in targets(game):
-		var point: Vector3 = game.enemy_position(target)
-		var base := Geometry3D.get_closest_point_to_segment(point, line.from, line.to)
-		var distance := point.distance_to(base)
-		if distance <= nearest and game.battlefield.clear_line(base, point):
-			best = target
-			at = base
-			nearest = distance
-	if best != -2:
-		trigger_thorn(game, id, best, at, now, "quake")
-
-
-static func trigger_thorn(game: Node, id: int, target: int, trip: Vector3, now: int, trigger: String) -> void:
-	var line: Dictionary = game.get_meta(STATE, {})[id]
-	var player: Dictionary = game.players[id]
-	var first: bool = trigger == "crossing" and not line.get("first_contact", false)
-	if first:
-		line.first_contact = true
-	var point: Vector3 = game.enemy_position(target)
-	if first or trigger == "quake":
-		point = pull_to_line(game, target, line)
-	if trigger == "quake":
-		Status.root(game, target, now + int(line.skill.root_ms))
-	else:
-		Effects.damage(game, player, target, trip, float(line.skill.damage), now)
-	var fork := -2
-	if first and "thorn_fork" in line.behaviors:
-		var other: int = game.Traits.other_target(game, target, point)
-		if other != -2 and point.distance_to(game.enemy_position(other)) <= 2.2:
-			fork = other
-			Status.root(game, fork, now + int(line.skill.root_ms))
-			game.emit_combat_event("link", "Forking Roots", point, game.enemy_position(fork), .5, THORN_COLOR, 0.0, fork)
-			game.emit_combat_event("proc", "Forking Roots", point, game.enemy_position(fork), .55, THORN_COLOR, 0.0, fork)
-	var refunded := 0
-	if first and "thorn_rebate" in line.behaviors and now - int(line.grown_at) <= 2000:
-		var ready := int(player.core_ready_at)
-		player.core_ready_at = maxi(now, ready - Effects.Balance.THORN_REFUND_MS)
-		refunded = ready - int(player.core_ready_at)
-		game.emit_combat_event("proc", "Quickroot", point, player.pos, .55, THORN_COLOR, 0.0, id)
-	if trigger == "quake":
-		line.quake_used = true
-		line.next_hit[preload("res://weapon_contact.gd").token(game, target)] = now + int(line.skill.interval_ms)
-		game.emit_combat_event("link", "Thorn lash", trip, point, .45, THORN_COLOR, 0.0, target)
-		preload("res://warden_combat.gd").thorn_tripped(game,game.players[id],trip,now)
-	if first or trigger == "quake":
-		game.emit_combat_event("proc", "Thorns tripped", trip, point, .55, THORN_COLOR, 0.0, target)
-	Journal.event("combat", "core_trip", {"actor": id, "skill": line.skill.id, "cast_id": line.id,
-		"target": target, "target_token": 0 if target == -1 else game.encounter.token(target), "trigger": trigger, "fork_target": fork, "refund_ms": refunded})
-
-
-static func pull_to_line(game: Node, target: int, line: Dictionary) -> Vector3:
-	var point: Vector3 = game.enemy_position(target)
-	var pull := float(line.skill.get("trip_pull", 0))
-	if pull <= 0.0 or winding_or_boss(game, target):
-		return point
-	var drawn: Vector3 = game.battlefield.dash(point, point.move_toward(line.center, pull))
-	if point.distance_squared_to(drawn) < .0025:
-		return point
-	if target == -1:
-		game.tactics.position = drawn
-	else:
-		game.encounter.scout(target).pos = drawn
-	game.emit_combat_event("link", "Hooked Thorns", point, drawn, .4, THORN_COLOR, 0.0, target)
-	game.emit_combat_event("proc", "Hooked Thorns", point, drawn, .45, THORN_COLOR, 0.0, target)
-	Journal.event("combat", "core_graft_pull", {"cast_id": line.id, "target": target, "distance": point.distance_to(drawn)})
-	return drawn
-
-
-static func targets(game: Node) -> Dictionary:
-	var result := {}
-	if game.encounter.alive(-1):
-		result[-1] = {"pos": game.tactics.position, "token": 0}
-	for index in game.encounter.scout_count():
-		var scout: Dictionary = game.encounter.scout(index)
-		if game.encounter.alive(index):
-			result[index] = {"pos": scout.pos, "token": game.encounter.token(index)}
-	return result
-
-
-static func contact(field: RefCounted, line: Dictionary, before: Vector3, point: Vector3) -> Vector3:
-	var limit := float(line.skill.radius)
-	var endpoint := Geometry3D.get_closest_point_to_segment(point, line.from, line.to)
-	if point.distance_to(endpoint) <= limit:
-		return endpoint
-	if before.is_equal_approx(point) or not field.clear_line(before, point):
-		return Vector3.INF
-	var closest := Geometry3D.get_closest_points_between_segments(before, point, line.from, line.to)
-	return closest[1] if closest[0].distance_to(closest[1]) <= limit else Vector3.INF
-
-
 static func hints(game: Node) -> Array:
 	var result := []
-	for line in game.get_meta(STATE, {}).values():
+	for line in game.get_meta(STATE,{}).values():
 		if not line.grown:
 			continue
-		if line.skill.get("affinity_family") == "fire":
-			var elapsed: int = preload("res://affinity_time.gd").now(game)
-			var hint := Effects.field_hint(line.id,line.center,maxf(0.0,(int(line.field_until)-elapsed)/1000.0),line.skill)
+		var elapsed: int = preload("res://affinity_time.gd").now(game)
+		if line.skill.affinity_family == "fire":
+			var hint := field_hint(line.id,line.center,maxf(0.0,(int(line.field_until)-elapsed)/1000.0),line.skill)
 			hint.core_shapes = Footprint.encode(line.shapes)
 			hint.core_phase = preload("res://fire_combat.gd").FIELD_MS - maxi(0,int(line.field_until)-elapsed)
 			result.append(hint)
-		elif line.skill.get("affinity_family")=="void":
-			var elapsed:=preload("res://affinity_time.gd").now(game)
-			result.append(Effects.field_hint(line.id,line.center,maxf(0.0,(int(line.well_until)-elapsed)/1000.0),line.skill))
-		elif not line.skill.has("affinity_family") and line.skill.mechanic == "ground_sequence":
-			result.append_array(Effects.hints(game, line, Time.get_ticks_msec()))
-		elif line.skill.has("affinity_family"):
-			continue
-		elif line.skill.mechanic == "anchor_beam":
-			var center: Vector3 = line.center
-			var at := [center.x, 0, center.z]
-			var owner: int = int(line.get("owner", 0))
-			var now := Time.get_ticks_msec()
-			var end := Anchor.endpoint(game.battlefield, line, Anchor.direction(game, owner, line, now))
-			result.append({"id": line.id, "role": "core_anchor", "from": at, "to": [end.x, 0, end.z],
-				"radius": .36, "width": line.skill.radius, "color": line.skill.color})
-		else:
-			var from: Vector3 = line.from
-			var to: Vector3 = line.to
-			result.append({"id": line.id, "role": "core_thorns", "from": [from.x, 0, from.z], "to": [to.x, 0, to.z], "radius": line.skill.radius})
+		elif line.skill.affinity_family == "void":
+			result.append(field_hint(line.id,line.center,maxf(0.0,(int(line.well_until)-elapsed)/1000.0),line.skill))
 	return result
 
 
-static func crown_preview(game: Node, field: RefCounted, shapes: Array, center: Vector3) -> Array:
-	var points: Array = []
-	if game.multiplayer.is_server():
-		for target in Footprint.targets(game, shapes, center).slice(0, 2):
-			points.append(game.enemy_position(target))
-	else:
-		points = guest_crown_points(game, field, shapes, center)
-	if points.size() < 2 or not field.clear_line(points[0], points[1]):
-		return []
-	return [{"kind": "point", "at": points[0], "radius": .34}, {"kind": "point", "at": points[1], "radius": .34},
-		{"kind": "link_guide", "from": points[0], "to": points[1]}]
-
-
-static func guest_crown_points(game: Node, field: RefCounted, shapes: Array, center: Vector3) -> Array:
-	var points: Array = []
-	var enemies: Array[Vector3] = []
-	if game.enemy_health() > 0:
-		enemies.append(game.tactics.position)
-	var pack: PackedFloat32Array = game.client_pack
-	for index in range(0, pack.size(), game.PACK_STRIDE):
-		if pack[index + 2] > 0:
-			enemies.append(Vector3(pack[index], 0, pack[index + 1]))
-	for point in enemies:
-		if Footprint.reaches(field, shapes, point, center):
-			points.append(point)
-	points.sort_custom(func(a, b): return center.distance_squared_to(a) < center.distance_squared_to(b))
-	return points.slice(0, 2)
+static func field_hint(id: String, center: Vector3, remaining: float, skill: Dictionary) -> Dictionary:
+	var point := [center.x,0,center.z]
+	return {"id":id,"role":"core_field","from":point,"to":point,"radius":skill.radius,
+		"remaining":remaining,"color":skill.color,"skill":skill.id,"decoy":false}

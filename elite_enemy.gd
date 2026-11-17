@@ -35,7 +35,7 @@ static func state(game: Node) -> Dictionary:
  if body.is_empty() or int(body.kind)!=int(game.enemy_kind):
   body=game.make_scout(game.enemy_kind,game.tactics.position,0,game.enemy_mutations,game.enemy_growth)
   body.summons=0;body.remaining=0;body.repeat=0;body.gate_elite=true
-  if game.Life.Preview.enabled: body.max_hp=game.encounter_health()
+  body.max_hp=game.encounter_health()
   if game.participation.floor()>=3:body.variant=SIGNATURES.get(int(game.enemy_kind),body.variant)
   return game.encounter.register_leader_tactics(body)
  return body
@@ -84,9 +84,8 @@ static func tick(game: Node,delta: float,now: int) -> void:
   game.tactics.landing=body.attack.to
   game.tactics.begin_attack(body.mode,body.windup,body.attack.radius)
   return
- var thorn_vault:=can_leap and Attacks.try_thorn_vault(game,body,victim,now)
- var landing:=Attacks.vault_target(game,body,victim) if can_leap and not thorn_vault else Vector3.INF
- var vault:=thorn_vault or landing.is_finite()
+ var landing:=Attacks.vault_target(game,body,victim) if can_leap else Vector3.INF
+ var vault:=landing.is_finite()
  if not vault and (distance>reach or not Attacks.attack_sight(game.battlefield,game.tactics.position,victim,role)):
   if now>=game.tactics.rooted_until:
    var goal: Vector3=game.Director.pursuit(game,id,0)
@@ -101,7 +100,7 @@ static func tick(game: Node,delta: float,now: int) -> void:
  var mode: String="vault" if vault else role
  var aim: Vector3=landing if vault else Attacks.aim(game,body,role,id)
  var windup: int=Attacks.VAULT_WINDUP if vault else game.Director.windup(game,maxi(650,int(definition.windup))+(300 if body.get("variant","")=="early_decoys" else 0))
- if not thorn_vault: Attacks.lock(game,body,mode,aim,now+windup)
+ Attacks.lock(game,body,mode,aim,now+windup)
  body.erase("approach_done");body.erase("approach");body.erase("approach_used")
  game.EnemyBehaviors.telegraph(game,body,now)
  game.tactics.landing=body.attack.to
@@ -111,10 +110,7 @@ static func resolve(game: Node,now: int) -> void:
  var epoch: int=game.participation.epoch()
  body.pos=game.tactics.position;body.blast=game.tactics.landing;body.mode=game.tactics.attack_mode;body.recovery=game.tactics.recovery_bonus
  body.rooted_until=game.tactics.rooted_until
- if game.has_meta(&"combat_affinity_ruleset"):
-  preload("res://frost_combat.gd").with_attacker(game,-1,preload("res://scout_behavior.gd").release.bind(game,body,definition,now))
- else:
-  preload("res://scout_behavior.gd").release(game,body,definition,now)
+ preload("res://frost_combat.gd").with_attacker(game,-1,preload("res://scout_behavior.gd").release.bind(game,body,definition,now))
  # Player damage can end the floor or restore the encounter during a save abort.
  if game.participation.epoch()!=epoch or not is_same(body,game.encounter.leader_tactics()):
   return

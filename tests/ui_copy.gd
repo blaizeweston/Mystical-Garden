@@ -9,12 +9,13 @@ func check(ok: bool, message: String) -> void:
 func _initialize() -> void:
  call_deferred("run")
 func run() -> void:
- var upgrades = preload("res://run_upgrade_catalog.gd")
+ var upgrades = preload("res://affinity_card_catalog.gd")
  var classes = preload("res://class_catalog.gd")
  var heart = preload("res://heart_catalog.gd")
- for entry in upgrades.all():
+ for id: String in upgrades.DEFINITIONS:
+  var entry: Dictionary=upgrades.DEFINITIONS[id]
   for phrase in ["weighted", "committed contact", "bounded echo", "a living technique shaped", "draw a stronger expression", "refine the living form"]:
-   check(not str(entry.description).to_lower().contains(phrase), "upgrade copy avoids implementation wording " + entry.id)
+   check(not str(entry.description).to_lower().contains(phrase), "upgrade copy avoids implementation wording " + id)
  check(classes.effect_text({"windup_damage": 1}).contains("during enemy wind-up"), "wind-up damage identifies the enemy's attack phase")
  check(heart.get_node("flowering").description.contains("mature plant"), "Flowering describes the current harvest choice")
  var game = load("res://world.tscn").instantiate()
@@ -39,16 +40,18 @@ func run() -> void:
  game.encounter.clear_scouts()
  ExpeditionCase.set_membership(game, player, true)
  player.pos = Vector3(0,0,-9)
- player.offer_floor = 3
- player.run_upgrades = {}
- player.checkpoint_offers = ["power"]
- player.last_offer = 0
- # Existing card rendering must retain the exact effects when generic prose is absent.
- var cards: Array = game.checkpoint_card_data(player)
- check(cards.size()==1,"checkpoint fixture displays one upgrade")
- if not cards.is_empty():
-  check(not str(cards[0].description).contains("weighted"), "card text excludes weighting terminology")
-  check(not str(cards[0].description).ends_with("\n\n"), "empty descriptions leave no trailing paragraph")
+ var tree=game.Classes.connected_tree(0)
+ player.character[tree.profile_key]=tree.state(["vanguard"])
+ # The host-created envelope retains one earned choice and the exact card prose.
+ var offers: Array = game.checkpoint_card_data(player)
+ check(offers.size()==1 and offers[0].get("affinity_offer",false),"checkpoint displays the modern offer envelope")
+ if not offers.is_empty():
+  var cards: Array=offers[0].get("choices",[])
+  check(cards.size()==3,"checkpoint displays three eligible card identities")
+  for card: Dictionary in cards:
+   check(not str(card.description).contains("weighted"), "card text excludes weighting terminology")
+   check(not str(card.description).ends_with("\n\n"), "empty descriptions leave no trailing paragraph")
+   check(not str(card.scope).is_empty() and int(card.cost)==0,"card scope and free choice are explicit")
  game.queue_free()
  await process_frame
  if not failed:

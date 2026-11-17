@@ -1,6 +1,7 @@
 extends RefCounted
 const Seeds=preload("res://seed_catalog.gd")
 const Parts=preload("res://weapon_parts.gd")
+const MONSTER_PART_DESCRIPTION := "Spend at Grafting Altars on expedition reinforcements or eligible adaptations. One successful improvement per player at each altar. Selected monster parts are consumed on a successful purchase."
 const RARITIES: Array=["Common","Uncommon","Rare","Epic","Mythic"]
 const COLORS: Array=["#b8bca7","#88b963","#6dafe0","#b489db","#e0b25b"]
 static var registry: Dictionary={}
@@ -17,7 +18,7 @@ static func all() -> Dictionary:
   var source:=Parts.plant_source(part)
   var id: String=str(Parts.DEFINITIONS[part].item_id)
   var rarity: String=str(Parts.DEFINITIONS[part].get("rarity","Uncommon")) if monster else str(Parts.DEFINITIONS[part].get("rarity",Seeds.DEFINITIONS[source].rarity))
-  var entry: Dictionary={"id":id,"name":Parts.part_name(part),"category":"monster_part" if monster else "plant_part","rarity":rarity,"stack_limit":99,"tags":Parts.DEFINITIONS[part].get("tags",[]).duplicate(),"monster_tags":[],"legacy_part":part,"icon":"" if monster else "res://assets/ui/parts/"+str(Parts.DEFINITIONS[part].id).replace(":","_")+".svg","description":"A monster component for the fourth weapon slot." if monster else "A plant material for crafting and Garden technologies.","pouch_allowed":true,"loot_weight":1.0}
+  var entry: Dictionary={"id":id,"name":Parts.part_name(part),"category":"monster_part" if monster else "plant_part","rarity":rarity,"stack_limit":99,"tags":Parts.DEFINITIONS[part].get("tags",[]).duplicate(),"monster_tags":[],"legacy_part":part,"icon":"" if monster else "res://assets/ui/parts/"+str(Parts.DEFINITIONS[part].id).replace(":","_")+".svg","description":MONSTER_PART_DESCRIPTION if monster else "A plant material for crafting and Garden technologies.","pouch_allowed":true,"loot_weight":1.0}
   if monster:
    var enemies: Array=JSON.parse_string(FileAccess.get_file_as_string("res://assets/enemies/catalog.json"))
    entry.monster_tags=[str(enemies[int(Parts.DEFINITIONS[part].monster)].id)]
@@ -42,13 +43,14 @@ static func register(entry: Dictionary) -> bool:
 static func get_item(id: String) -> Dictionary:
  return all().get(id,{})
 static func describe(item: Dictionary) -> String:
- var description:=str(item.get("description",""))
  var part:=int(item.get("legacy_part",0))
- var preview=preload("res://combat_balance_preview.gd")
- if not preview.enabled or part<=0 or part>=Parts.DEFINITIONS.size():return description
- var effects: String=preview.component_hp_text(Parts.DEFINITIONS[part])
- if effects.is_empty():return description
- return description+"\n\n"+("Core slot bonuses\n" if Parts.is_plant(part) else "")+effects
+ if part>0 and part<Parts.DEFINITIONS.size():
+  if Parts.is_monster(part):return MONSTER_PART_DESCRIPTION
+  if Parts.is_plant(part):
+   # Deferred to avoid a static Items/Seeds/Parts/affinity preload cycle.
+   # Reuse the current family descriptions rather than duplicate their tunable values.
+   return load("res://affinity_build.gd").material_description(part)
+ return str(item.get("description",""))
 
 static func seed_id(index: int) -> String:
  return "seed_"+str(Seeds.DEFINITIONS[index].id)

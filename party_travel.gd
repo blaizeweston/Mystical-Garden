@@ -55,11 +55,10 @@ static func request(game: Node,id: int,kind: String) -> void:
   if game.participation.active() or Participation.is_wild(p): return
   for peer in game.players.values():
    if not Session.ready_for(peer) or Session.rejecting_for(peer): game.tell(id,"Waiting for the connecting player before departure.");return
-  if preload("res://combat_ruleset.gd").active(game):
-   var refusal := preload("res://affinity_build.gd").departure_refusal(p)
-   if not refusal.is_empty():
-    game.tell(id,refusal)
-    return
+  var refusal := preload("res://affinity_build.gd").departure_refusal(p)
+  if not refusal.is_empty():
+   game.tell(id,refusal)
+   return
  else:
   if not game.Life.alive(p) or not game.encounter_cleared() or game.participation.route()==game.Campaign.HEART: return
   if kind=="extract" and not game.extraction_checkpoint_open(): game.tell(id,"Extraction opens at every sixth cleared gate.");return
@@ -130,9 +129,8 @@ static func departure_cost(game: Node,ids: Array) -> Dictionary:
  var shared: Array=game.Parts.empty_counts();var reserved: Array=game.Seeds.counts()
  for id in ids:
   var p: Dictionary=game.players[id];var needed: Array=game.Parts.empty_counts()
-  if preload("res://combat_ruleset.gd").active(game):
-   var refusal := preload("res://affinity_build.gd").departure_refusal(p)
-   if not refusal.is_empty(): return {"error":refusal}
+  var refusal := preload("res://affinity_build.gd").departure_refusal(p)
+  if not refusal.is_empty(): return {"error":refusal}
   for part in [p.prepared,p.prepared_secondary,p.prepared_catalyst]:
    if part==0: continue
    if not game.Parts.is_plant(part): return {"error":"Choose valid plant parts before readying."}

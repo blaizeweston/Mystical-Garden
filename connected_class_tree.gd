@@ -1,6 +1,8 @@
 extends RefCounted
 ## Versioned profile paths and host-side selection rules shared by connected class trees.
 const VERSION := 1
+const MIGRATION_KEY := "connected_class_migrations"
+const MIGRATION_VERSION := 1
 const REQUEST_OFFSET := 64
 const XP_THRESHOLDS := [0, 50, 150, 350, 1400, 2600]
 const LANES := ["Offensive", "Balanced", "Defensive"]
@@ -35,11 +37,16 @@ func _make_nodes(rows: Array) -> Array[Dictionary]:
 
 
 func eligible(profile: Dictionary) -> bool:
-	var upgrades: Array = profile.get("upgrades", [])
+	var upgrades: Array = profile.get("upgrades",[])
 	if class_id < upgrades.size() and int(upgrades[class_id]) != 0:
 		return false
-	var preserved: Variant = profile.get("quarantine", {}).get("learned_class_masks", {})
-	return not preserved is Dictionary or not preserved.has(class_key)
+	var migrations: Variant = profile.get(MIGRATION_KEY,{})
+	if not migrations is Dictionary or (migrations.has(class_key) and migrations[class_key] != MIGRATION_VERSION):
+		return false
+	var preserved: Variant = profile.get("quarantine",{}).get("learned_class_masks",{})
+	if not preserved is Dictionary:
+		return false
+	return not preserved.has(class_key) or migrations.get(class_key) == MIGRATION_VERSION
 
 
 func level(profile: Dictionary) -> int:
@@ -101,7 +108,7 @@ func state(selected: Array) -> Dictionary:
 
 func refusal(profile: Dictionary, request: int) -> String:
 	if not eligible(profile):
-		return "This %s keeps its historical class tree." % label
+		return "Refund this historical %s class at the Heart to activate its connected tree. Class XP is preserved." % label
 	if not valid(profile):
 		return "This character's connected %s data needs review before it can change." % label
 	var index := request - REQUEST_OFFSET

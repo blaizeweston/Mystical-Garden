@@ -706,30 +706,9 @@ static func recipe(first: int, second: int) -> int:
  return -1
 
 static func modifier_text(kind: int) -> String:
- var e: Dictionary = DEFINITIONS[kind].effects
- var lines: Array[String] = []
- for key in ["reach", "damage", "windup_damage", "cooldown", "recovery", "pull", "knockback", "stagger", "heal_on_kill"]:
-  if not e.has(key):
-   continue
-  var value: float = e[key]
-  match key:
-   "reach": lines.append("+%.1fm reach" % value)
-   "damage","windup_damage":
-    var preview=preload("res://combat_balance_preview.gd")
-    if preview.enabled:
-     lines.append(preview.component_hp_text({key:value}))
-    else:
-     lines.append(("+%d strike damage" if key=="damage" else "+%d damage against winding-up enemies") % int(value))
-   "cooldown": lines.append("%dms %s strikes" % [absi(int(value)), "faster" if value > 0 else "slower"])
-   "recovery": lines.append("+%dms enemy recovery after attacks" % int(value))
-   "pull": lines.append("%.1fm pull (outside enemy wind-up)" % value)
-   "knockback": lines.append("+%.1fm knockback" % value)
-   "stagger": lines.append("+%dms hit stagger (outside wind-up)" % int(value))
-   "heal_on_kill":
-    var preview=preload("res://combat_balance_preview.gd")
-    lines.append(preview.component_hp_text({key:value}) if preview.enabled else "Restore %d health on a killing strike" % int(value))
- if DEFINITIONS[kind].has("behavior"): lines.append(str(DEFINITIONS[kind].behavior))
- return "\n".join(lines)
+ # Deferred presentation load avoids the foundational Seeds/Parts/Items preload cycle.
+ # Reuse affinity descriptions; gameplay tuning stays in the family definitions.
+ return load("res://affinity_build.gd").planting_description(kind)
 
 static func index_of(id: String) -> int:
  for i in DEFINITIONS.size():

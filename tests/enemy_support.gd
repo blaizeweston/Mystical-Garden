@@ -3,6 +3,7 @@ extends SceneTree
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
+const Preview = preload("res://combat_balance_preview.gd")
 const Attacks=preload("res://enemy_attack.gd")
 const Support=preload("res://enemy_support.gd")
 const Status=preload("res://combat_status.gd")
@@ -14,7 +15,6 @@ func check(condition: bool, description: String) -> void:
   printerr("FAIL enemy support: ",description)
 
 func _initialize() -> void:
- preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 
 func run() -> void:
@@ -31,7 +31,7 @@ func run() -> void:
  ExpeditionCase.set_world(game, {"encounter_number": 12})
  var player: Dictionary=game.players[1]
  ExpeditionCase.set_membership(game, player, true)
- player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
+ player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
  player.pos=Vector3(0,0,6)
  var now:=Time.get_ticks_msec()+100
  var grazer: Dictionary=game.make_scout(11,Vector3.ZERO,2)
@@ -48,8 +48,8 @@ func run() -> void:
  check(game.attack_hints_snapshot().any(func(hint):return hint.role=="canopy_sector"),"canopy shows its facing")
 
  var bloom: Dictionary=game.make_scout(15,Vector3.ZERO,1)
- bloom.hp=3
- bloom.max_hp=9
+ bloom.hp=30
+ bloom.max_hp=90
  bloom.variant="long_tether"
  var corpse: Dictionary=game.make_scout(2,Vector3(0,0,6),2)
  corpse.hp=0
@@ -62,13 +62,16 @@ func run() -> void:
  check(game.attack_hints_snapshot().any(func(hint):return hint.role=="corpse_tether" and is_equal_approx(hint.to[2],6)),"corpse tether reaches the selected site")
  game.encounter.register_scout(game.make_scout(0,corpse.pos,2), 1)
  preload("res://scout_behavior.gd").release(game, bloom,game.Enemies.get_kind(15),now+1300)
- check(game.encounter.hp(0)==3,"a replacement in the same slot cannot inherit a corpse tether")
+ check(game.encounter.hp(0)==30,"a replacement in the same slot cannot inherit a corpse tether")
  var fresh_corpse: Dictionary=game.make_scout(2,corpse.pos,2)
  fresh_corpse.hp=0
  game.encounter.register_scout(fresh_corpse, 1)
  Attacks.lock(game,bloom,"chant",bloom.pos,now+2500)
+ var heal_state: int=Preview.heal_rng.state
+ var expected_heal: int=game.Director.Balance.corpse_heal(game,bloom,false)
+ Preview.heal_rng.state=heal_state
  preload("res://scout_behavior.gd").release(game, bloom,game.Enemies.get_kind(15),now+2500)
- check(game.encounter.hp(0)==5 and escort.haste_until>now+2500,"natural corpse pays once and hastens nearby fighters")
+ check(game.encounter.hp(0)==30+expected_heal and escort.haste_until>now+2500,"natural corpse pays once and hastens nearby fighters")
  Attacks.lock(game,bloom,"chant",bloom.pos,now+3200)
  check(bloom.attack.corpse.is_empty(),"no second cast can consume the same corpse")
 
@@ -112,14 +115,15 @@ func run() -> void:
  game.encounter.clear_scouts();game.encounter.register_scout(choir);escort=escort_plan.duplicate(true);game.encounter.register_scout(escort)
  player.pos=Vector3(0,0,2)
  player.hurt_until=0
- player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
+ player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
  Attacks.lock(game,choir,"shepherd",player.pos,now+7200)
+ var choir_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.scout_hit(game,game.Enemies.get_kind(19),choir))
  preload("res://scout_behavior.gd").release(game, choir,game.Enemies.get_kind(19),now+7200)
- check(PlayerVitals.current_hp(player)==9 and choir.attack.cue=="Second beat","the second choir sector is signalled separately")
+ check(PlayerVitals.current_hp(player)==100-choir_damage and choir.attack.cue=="Second beat","the second choir sector is signalled separately")
  player.pos=Vector3(-2,0,0)
  player.hurt_until=0
  preload("res://scout_behavior.gd").release(game, choir,game.Enemies.get_kind(19),now+7930)
- check(PlayerVitals.current_hp(player)==9 and choir.windup==0,"a safe sector persists after both beats")
+ check(PlayerVitals.current_hp(player)==100-choir_damage and choir.windup==0,"a safe sector persists after both beats")
 
  var thief: Dictionary=game.make_scout(16,Vector3.ZERO,2)
  thief.variant="edge_thief"

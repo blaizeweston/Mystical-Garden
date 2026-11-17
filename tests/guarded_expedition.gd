@@ -3,6 +3,7 @@ extends SceneTree
 const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+const Cards = preload("res://affinity_cards.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 
@@ -63,6 +64,14 @@ func open_world(fresh := false) -> bool:
  check(world.get_meta(Tx.SESSION).owns_leases(), "title handoff owns Garden and profile leases")
  world.set_process(false)
  world.set_physics_process(false)
+ var actor: Dictionary=world.players[1]
+ var tree=world.Classes.connected_tree(int(actor.frame))
+ if tree.focus(actor.character).is_empty():
+  var prior_position: Vector3=actor.pos
+  actor.pos=world.Stage.HEART
+  world.handle_loadout_action(1,actor,"learn_0_64")
+  actor.pos=prior_position
+  world.toggle_overlay(null)
  return true
 
 func close_world() -> void:
@@ -280,12 +289,13 @@ func exercise() -> void:
  ExpeditionCase.remove_actor(world, 2)
 
  clear_floor(actor,3)
- actor.offer_floor=3
- actor.checkpoint_offers=["power"]
  ExpeditionCase.Transitions.checkpoint(world, 1,true)
  check(world.checkpoint_pending and world.checkpoint_menu.visible and world.participation.floor()==3,"checkpoint opens cards without travelling")
- world.choose_checkpoint_card(1,actor,0)
- check(world.participation.floor()==3 and world.checkpoint_ready.get(1)==3 and actor.power>0,"card commits before travel")
+ var offer: Dictionary=world.checkpoint_card_data(actor)[0]
+ var card_wallet: int=world.wallet_for(actor).spent_essence()
+ world.send_garden_action(world.affinity_checkpoint_action(offer.revision,"0"))
+ var selected_cards=Cards.ledger(actor)
+ check(world.participation.floor()==3 and world.checkpoint_ready.get(1)==3 and selected_cards.count()==1 and world.wallet_for(actor).spent_essence()==card_wallet,"free card is accepted before guarded travel")
  actor[PlayerVitals.STATE] = actor[PlayerVitals.STATE].with_hp(1.0)
  var health_before_floor: PlayerVitals.Health = actor[PlayerVitals.STATE]
  var remains: Dictionary=world.make_scout(0,world.tactics.position,1)
@@ -304,7 +314,7 @@ func exercise() -> void:
  ExpeditionCase.Transitions.checkpoint(world, 1,true)
  check(world.participation.floor()==3 and world.battlefield==field and world.map_rng.state==seed and world.Life.Preview.heal_rng.state==healing_rng
   and is_same(actor[PlayerVitals.STATE],health_before_floor) and PlayerVitals.current_hp(actor)==1
-  and world.checkpoint_ready.get(1)==3 and disk()==before,"floor abort restores navigation, RNG, original health owner and purchased card")
+  and world.checkpoint_ready.get(1)==3 and is_same(Cards.ledger(actor),selected_cards) and disk()==before,"floor abort restores navigation, RNG, original health owner and acquired card owner")
  check(world.encounter.cleared() and world.encounter.scout_count()==1
   and world.encounter.token(remains_slot)==remains_token and world.encounter.hp(remains_slot)==0,
   "floor abort restores the cleared roster and its departed member identity")
@@ -389,11 +399,18 @@ func exercise() -> void:
  var departed_identity := "0000000000000000000000000000a404"
  SessionCase.set_identity(world, ally, departed_identity)
  var departed_class := int(ally.frame)
+ var guest_tree: RefCounted = world.Classes.connected_tree(departed_class)
+ # Synthetic guest setup must supply an actual modern focus without banking
+ # its profile before the pending-departure settlement under test.
+ check(guest_tree.learn(ally.character,guest_tree.REQUEST_OFFSET).is_empty(),
+  "guest selects a valid native starting focus before party admission")
  var xp_before := int(ally.character.xp[departed_class])
  actor.pos=world.Stage.GATE
  ally.pos=world.Stage.GATE
  ExpeditionCase.Transitions.enter(world, 1,actor)
  ExpeditionCase.Transitions.enter(world, 2,ally)
+ check(ExpeditionCase.is_wild(actor) and ExpeditionCase.is_wild(ally),
+  "host and focused guest commit actual party admission before freezing kill rewards")
  ally.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  world.encounter.set_hp(-1, 0)
  world.record_enemy_death(-1,world.tactics.position,Vector3.ZERO)

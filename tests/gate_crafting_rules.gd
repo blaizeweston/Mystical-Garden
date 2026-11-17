@@ -23,7 +23,11 @@ func run() -> void:
  var view=game.loadout_view;view.refresh()
  for slot in 3:
   check(view.slots[slot].get_item_index(1)>=0 and view.slots[slot].get_item_index(2)<0,"only owned material appears despite discovered species")
- view.slots[0].item_selected.emit(view.slots[0].get_item_index(1))
+ var core_choice: int=view.slots[0].get_item_index(1)
+ view.slots[0].select(core_choice)
+ view.slots[0].item_selected.emit(core_choice)
+ check(p.prepared==0 and not view.slot_equip_buttons[0].disabled,"browsing previews a part without reserving it")
+ view.slot_equip_buttons[0].pressed.emit()
  check(p.prepared==1 and view.slots[0].get_item_index(1)>=0 and view.slots[1].get_item_index(1)<0 and view.slots[2].get_item_index(1)<0,"Core reserves sole part immediately")
  game.handle_loadout_action(1,p,"loadpart_1_1");check(p.prepared_secondary==0,"authority rejects duplicate reservation")
  view.select_part(0,0);check(view.slots[1].get_item_index(1)>=0,"removal releases material")
@@ -43,7 +47,7 @@ func run() -> void:
  class_tree.pressed.emit()
  var progression: Control=game.progression_view
  check(game.progression_menu.visible and progression.tabs.current_tab==2 and progression.inspected_class==1,"crafting opens the current class tree")
- var first_node: int=game.Classes.Warden.OFFSET
+ var first_node: int=game.Classes.Weaver.TREE.REQUEST_OFFSET
  progression.select_node("class_1_%d"%first_node)
  await process_frame
  await process_frame
@@ -62,10 +66,10 @@ func run() -> void:
  progression.refresh()
  check(learn.is_pressed(),"a periodic tree refresh preserves the mouse press")
  mouse_click(viewport,point,false)
- check(p.character.upgrades[1]==1<<first_node and learn.disabled,"first click spends exactly one point and immediately updates Learn")
+ check(game.Classes.Weaver.TREE.path(p.character)==["thornbinder"] and learn.disabled,"first click spends exactly one point and immediately updates Learn")
  var saved=game.Character.new()
  saved.path=game.local_character.path
- check(saved.load_profile()==OK and saved.data.upgrades[1]==p.character.upgrades[1],"the new class node is saved")
+ check(saved.load_profile()==OK and game.Classes.Weaver.TREE.path(saved.data)==["thornbinder"],"the new class node is saved")
  progression.close_button.pressed.emit()
  check(game.loadout_menu.visible and not game.progression_menu.visible and p.prepared==1,"Back returns to the prepared weapon")
  p.pos=game.Stage.GATE+Vector3(20,0,0)

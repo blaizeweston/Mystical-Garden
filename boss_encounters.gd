@@ -35,9 +35,7 @@ static func tick(game: Node,delta: float,now: int) -> void:
  if game.tactics.boss_kind==Phases.NEST:Phases.observe_brood(game,now)
  if game.tactics.winding_up:
   if now>=game.tactics.strike_at:
-   if game.has_meta(&"combat_affinity_ruleset"):
-    preload("res://frost_combat.gd").with_attacker(game,-1,resolve.bind(game,now))
-   else: resolve(game,now)
+   preload("res://frost_combat.gd").with_attacker(game,-1,resolve.bind(game,now))
   return
  if now<game.tactics.stagger_until: return
  var target=game.Director.target(game,game.tactics.position,game.tactics.memory,now)

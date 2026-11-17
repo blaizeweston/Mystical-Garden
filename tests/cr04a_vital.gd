@@ -50,12 +50,17 @@ func reset(p: Dictionary, ally: Dictionary) -> void:
 	game.set_meta(Clock.CLOCK,0.0)
 	for player in [p,ally]:
 		Vital.clear(game,player)
+		preload("res://oracle_combat.gd").clear(player)
+		player.erase("affinity_ward_claims")
 		ExpeditionCase.set_membership(game, player, true)
 		player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive()
 		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(60)
 		player.lost_health=0
 		player.pos=Vector3.ZERO
 		player.frame=0
+		player.character=game.Character.blank()
+		var tree=game.Classes.connected_tree(0)
+		player.character[tree.profile_key]=tree.state(["rootkeeper"])
 		player.weapon=0
 		player.secondary=0
 		player.catalyst=0
@@ -67,14 +72,13 @@ func reset(p: Dictionary, ally: Dictionary) -> void:
 		player.core_ready_at=0
 		player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
-		player.renewal_until=0
 		player.hurt_until=0
 		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(game.Life.native_maximum(game,player))
 
 
 func run() -> void:
 	game=preload("res://world.tscn").instantiate()
-	game.set_meta(Rules.META,Rules.ID)
+
 	root.add_child(game)
 	game.set_process(false)
 	game.set_physics_process(false)
@@ -144,18 +148,24 @@ func run() -> void:
 		reset(player,ally)
 		player.catalyst=part
 		player.frame=4
+		var oracle=game.Classes.connected_tree(4)
+		player.character[oracle.profile_key]=oracle.state(["lifekeeper"])
+		player.class_aim=Vector3.FORWARD
+		player.class_aim_distance=0.0
 		game.use_class_skill(1,player,0)
+		player.erase("class_aim")
+		player.erase("class_aim_distance")
 		check(ally[PlayerVitals.STATE].temporary_hp()==q.bonus_hp and ally[PlayerVitals.STATE].hp()>60,"native Oracle heal remains intact and grants recipient Vitality")
 		var duration: int=ally.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",0)
-		game.update_support_effects(now+1500)
-		check(ally.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",-1)==duration,"native renewal ticks do not grant fresh Vitality")
+		game.Traits.tick(game,now+1500)
+		check(ally.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",-1)==duration,"native Sanctuary updates do not grant fresh Vitality")
 
 	reset(player,ally)
 	player.frame=1
-	var nodes: Array=game.Classes.DEFINITIONS[1].nodes
-	var bloom_index:=nodes.find_custom(func(node):return node.id=="9")
-	var previous_mask: int=player.character.upgrades[1]
-	player.character.upgrades[1]=1<<bloom_index
+	var weaver=game.Classes.connected_tree(1)
+	player.character[weaver.profile_key]=weaver.state(["bloomcaller"])
+	player.class_aim=Vector3.FORWARD
+	player.class_aim_distance=0.0
 	player.catalyst=int(game.Items.get_item("part_2").legacy_part)
 	game.tactics.position=Vector3(9,0,0)
 	game.use_class_skill(1,player,0)
@@ -167,7 +177,8 @@ func run() -> void:
 	Clock.advance(game,.4)
 	game.Traits.tick(game,pulse_at+1000)
 	check(player.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",0)==Vital.DURATIONS.catalyst,"periodic hits cannot re-grant the class response")
-	player.character.upgrades[1]=previous_mask
+	player.erase("class_aim")
+	player.erase("class_aim_distance")
 	game.trait_events.clear()
 
 	reset(player,ally)

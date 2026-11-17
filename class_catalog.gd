@@ -309,30 +309,6 @@ const DEFINITIONS := [
      "push": 0.8,
      "color": "#c8a96d"
     }
-   ],
-   "replace": [
-    {
-     "name": "Living Bastion",
-     "mode": "bastion",
-     "cooldown": 7200,
-     "description": "Protect nearby allies with a layered guard.",
-     "duration": 1800,
-     "charges": 2,
-     "radius": 3.5,
-     "color": "#d9cc8c"
-    },
-    {
-     "name": "Briar Charge",
-     "mode": "charge",
-     "cooldown": 7200,
-     "description": "Rush safely forward and batter nearby enemies.",
-     "damage": 2,
-     "radius": 2.0,
-     "travel": 3.5,
-     "stagger": 250,
-     "push": 1.0,
-     "color": "#b8be79"
-    }
    ]
   },
   "specializations": [
@@ -640,29 +616,6 @@ const DEFINITIONS := [
      "bind": 600,
      "recovery": 250,
      "color": "#c2a1ce"
-    }
-   ],
-   "replace": [
-    {
-     "name": "Strangling Bloom",
-     "mode": "strangle",
-     "cooldown": 7500,
-     "description": "Damage and root a visible enemy for longer.",
-     "damage": 2,
-     "duration": 2200,
-     "range": 5.5,
-     "color": "#b5a1d2"
-    },
-    {
-     "name": "Mycelial Snare",
-     "mode": "snare_field",
-     "cooldown": 8500,
-     "description": "Plant a lingering snare that roots enemies entering it.",
-     "radius": 2.5,
-     "range": 6.0,
-     "bind": 1800,
-     "recovery": 600,
-     "color": "#a3d0be"
     }
    ]
   },
@@ -977,28 +930,6 @@ const DEFINITIONS := [
      "radius": 1.05,
      "color": "#9cc194"
     }
-   ],
-   "replace": [
-    {
-     "name": "Piercing Salvo",
-     "mode": "salvo",
-     "cooldown": 8000,
-     "description": "Send a powerful piercing line through several visible enemies.",
-     "damage": 3,
-     "range": 8.0,
-     "width": 1.0,
-     "targets": 4,
-     "color": "#d4d7a0"
-    },
-    {
-     "name": "Windstep",
-     "mode": "windstep",
-     "cooldown": 5500,
-     "description": "Step away safely and gain Gale Focus.",
-     "travel": 3.0,
-     "duration": 1900,
-     "color": "#c0dfd0"
-    }
    ]
   },
   "specializations": [
@@ -1308,31 +1239,6 @@ const DEFINITIONS := [
      "range": 3.0,
      "heal": 1,
      "color": "#ca8797"
-    }
-   ],
-   "replace": [
-    {
-     "name": "Shadow Harvest",
-     "mode": "harvest",
-     "cooldown": 7500,
-     "description": "Rush into a cluster and harvest enemies around the landing.",
-     "travel": 4.0,
-     "range": 7.0,
-     "radius": 2.2,
-     "damage": 3,
-     "duration": 450,
-     "color": "#b798cd"
-    },
-    {
-     "name": "Blood Moon",
-     "mode": "bloodmoon",
-     "cooldown": 9000,
-     "description": "Damage nearby enemies and drain health from those hit.",
-     "damage": 2,
-     "radius": 3.0,
-     "heal": 1,
-     "recovery": 400,
-     "color": "#cf849f"
     }
    ]
   },
@@ -1657,31 +1563,6 @@ const DEFINITIONS := [
      "charges": 1,
      "color": "#e6d59c"
     }
-   ],
-   "replace": [
-    {
-     "name": "Sanctuary",
-     "mode": "sanctuary",
-     "cooldown": 10000,
-     "description": "Grant allies longer regrowth and a brief protective ward.",
-     "heal": 1,
-     "radius": 4.5,
-     "duration": 4500,
-     "charges": 1,
-     "ward_duration": 800,
-     "color": "#dfd4a6"
-    },
-    {
-     "name": "Judgement Bell",
-     "mode": "judgement",
-     "cooldown": 8500,
-     "description": "Strike a distant cluster and prolong enemy recovery.",
-     "damage": 2,
-     "range": 6.0,
-     "radius": 2.8,
-     "recovery": 700,
-     "color": "#e3c195"
-    }
    ]
   },
   "specializations": [
@@ -1704,16 +1585,6 @@ static func count_bits(value: int) -> int:
   total += (value >> i) & 1
  return total
 
-static func bonuses(profile: Dictionary, class_id: int) -> Dictionary:
- var result := {}
- var learned: Array = profile.get("upgrades", [0,0,0,0,0])
- var mask: int = int(learned[class_id]) if class_id<learned.size() else 0
- for i in DEFINITIONS[class_id].nodes.size():
-  if mask & (1 << i):
-   for key in DEFINITIONS[class_id].nodes[i].effects:
-    result[key] = float(result.get(key,0)) + float(DEFINITIONS[class_id].nodes[i].effects[key])
- return result
-
 static func connected_tree(class_id: int) -> ConnectedTree:
  match class_id:
   0: return Warden.Connected.TREE
@@ -1724,11 +1595,11 @@ static func connected_tree(class_id: int) -> ConnectedTree:
  return null
 
 
-static func connected_in_world(game: Node, class_id: int, profile: Dictionary) -> ConnectedTree:
- var tree := connected_tree(class_id)
- return tree if tree != null and game.has_meta(&"combat_affinity_ruleset") and tree.eligible(profile) else null
+static func connected_in_world(_game: Node, class_id: int, _profile: Dictionary) -> ConnectedTree:
+ return connected_tree(class_id)
 
 
+# Historical profile schema only; these nodes never select active gameplay.
 static func branch_nodes(class_id: int) -> Array:
  return Warden.NODES if class_id==0 else Subclasses.NODES[class_id-1]
 

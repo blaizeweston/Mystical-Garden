@@ -37,7 +37,7 @@ static func tag_hit(hit: Dictionary, nodes: Array) -> void:
 
 
 static func spends_class_charge(player: Dictionary, hit: Dictionary) -> bool:
-	if hit.get(DIRECT,false) or not player.has("combat_ruleset") or int(player.get("frame",-1)) != Progression.TREE.class_id:
+	if hit.get(DIRECT,false) or int(player.get("frame",-1)) != Progression.TREE.class_id:
 		return true
 	return not Progression.TREE.eligible(player.get("character",{}))
 

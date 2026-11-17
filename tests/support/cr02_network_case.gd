@@ -8,6 +8,8 @@ const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const Rules = preload("res://combat_ruleset.gd")
+const Build = preload("res://affinity_build.gd")
+const Experiment = preload("res://assets/terrain_m02/experimental/experiment_mode.gd")
 const Events = preload("res://combat_action_events.gd")
 const Menu = preload("res://main_menu.tscn")
 const Appearance = preload("res://character_appearance.gd")
@@ -51,13 +53,16 @@ func guest_id(world: Node) -> int:
 func run(scene_tree: SceneTree, mismatch: bool, definition_mismatch := false) -> bool:
 	tree = scene_tree
 	var role := OS.get_cmdline_user_args()[0]
-	if definition_mismatch and role == "guest": Rules.definition_signature = "different-definitions"
+	if mismatch and role == "guest":
+		# Deliberately advertise incompatible gameplay; there is no selectable
+		# historical runtime. Each fixture process owns its own contract value.
+		Rules.definition_signature = "different-definitions" if definition_mismatch else "retired-gameplay"
 	signal_root = OS.get_environment("MYSTICAL_TERRAIN_TEST_SIGNALS")
 	port = int(OS.get_environment("MYSTICAL_GARDEN_TEST_PORT"))
 	var menu := Menu.instantiate()
 	tree.root.add_child(menu)
 	tree.current_scene = menu
-	if not check(Rules.active(menu)==(role=="host" or not mismatch or definition_mismatch),"real title selects requested ruleset"):
+	if not check(Experiment.verified() and Experiment.active(menu),"real title retains isolated terrain and save protection"):
 		return false
 	if role=="host":
 		await host(menu,mismatch)
@@ -75,7 +80,7 @@ func host(menu: Node, mismatch: bool) -> void:
 		return
 	var world := tree.current_scene
 	world.network_dialog.dismiss()
-	check(Rules.active(world),"host hands the ruleset to the world")
+	check(Build.for_player(world.players[1]).ruleset==Rules.ID,"host uses the sole modern build contract")
 	mark("host")
 	if mismatch:
 		check(await until(func(): return read("refused")=="ok"),"mismatched guest observes clear refusal")
@@ -93,8 +98,7 @@ func host(menu: Node, mismatch: bool) -> void:
 	var remote_focused := func() -> bool:
 		return preload("res://warden_connected_tree.gd").focus(remote.character)=="vanguard"
 	if not check(await until(remote_focused),"guest chooses a native starting focus at zero XP"):return
-	# Ghost Fern now supplies Spirit. Inject a stocked fourth-slot part into
-	# the Core field to exercise the invalid-build departure boundary.
+	# A monster material is invalid in a plant slot, before any travel or debit.
 	var invalid_core: int = world.Parts.HOOK
 	world.progress.add_parts(invalid_core,1)
 	var before: int = world.progress.part_count(invalid_core)
@@ -122,9 +126,9 @@ func host(menu: Node, mismatch: bool) -> void:
 		and events[0].source_actor==guest_id(world) and events[0].details.recipient==guest_id(world),
 		"remote Guard owns the block response")
 	local.pos = remote.pos
-	local.character.upgrades[0] = 1 << 1
+	check(preload("res://warden_connected_tree.gd").focus(local.character)=="bastion","host keeps the selected connected Bastion focus")
 	world.use_class_skill(1,local,0)
-	check(events.size()==1 and int(remote.guard_charges)==2,"granting does not synthesize a block")
+	check(events.size()==1 and int(remote.guard_charges)==1,"Rootshield grants one native Ward without synthesizing a block")
 	IncomingPlayerHit.resolve_world(world, guest_id(world), PlayerLifecycle.generation(remote), Time.get_ticks_msec(), 1)
 	check(events.size()==2 and events[1].source_actor==1 and events[1].details.recipient==guest_id(world),
 		"host-granted Ward responds around its protected remote ally")
@@ -140,15 +144,14 @@ func host(menu: Node, mismatch: bool) -> void:
 	remote[world.ExpeditionWallet.STATE] = world.ExpeditionWallet.Wallet.new()
 	local[world.ExpeditionWallet.STATE] = world.ExpeditionWallet.Wallet.new(0, world.run_wallet(local))
 	var host_wallet = world.wallet_for(local)
-	local.checkpoint_offers=["rift_hook"]
 	ExpeditionCase.Transitions.checkpoint(world, 1,true)
 	var cards_api = world.AffinityCards
 	var host_offer: Dictionary = cards_api.ledger(local).offer()
 	var initial_ledger = cards_api.ledger(remote)
 	var initial: Dictionary = initial_ledger.offer()
 	check(world.checkpoint_cards.get_child_count()==3 and "free" in world.checkpoint_notice.text
-		and world.run_wallet(local)==0 and not world.buy_upgrade(1,local,0),
-		"new cards are offered at zero Essence and the legacy purchase remains refused")
+		and world.run_wallet(local)==0 and not world.has_method("buy_upgrade"),
+		"new cards are offered at zero Essence and the retired purchase implementation is absent")
 	world.present_checkpoint_cards(guest_id(world))
 	check(cards_api.ledger(remote)==initial_ledger and initial_ledger.offer()==initial,
 		"reopening the guest's offer preserves its full revision")
@@ -159,8 +162,8 @@ func host(menu: Node, mismatch: bool) -> void:
 	var remote_cards = cards_api.ledger(remote)
 	var host_cards = cards_api.ledger(local)
 	check(remote_cards.offer().rerolls==3 and world.wallet_for(remote).spent_essence()==12 and world.run_wallet(remote)==0
-		and host_cards.copies().size()==1 and world.run_wallet(local)==0 and world.wallet_for(local)==host_wallet and local.run_upgrades.is_empty()
-		and remote.run_upgrades.is_empty() and initial_ledger.offer()==initial,
+		and host_cards.copies().size()==1 and world.run_wallet(local)==0 and world.wallet_for(local)==host_wallet
+		and not local.has("run_upgrades") and not remote.has("run_upgrades") and initial_ledger.offer()==initial,
 		"host debits 2/4/6 once for the guest, both selections are free, and the prior offer stays intact")
 	world.PartyTravel.request(world,1,"advance")
 	mark("checkpoint",str(world.participation.travel_epoch()))
@@ -185,14 +188,15 @@ func guest(menu: Node, mismatch: bool) -> void:
 	menu.network_dialog.submit.pressed.emit()
 	if mismatch:
 		if check(await until(func(): return tree.current_scene.get("return_message")==Rules.MISMATCH),
-			"normal title displays specific mismatched combat mode"):
+			"normal title displays specific incompatible gameplay refusal"):
 			mark("refused")
 		return
 	if not check(await until(func(): return SessionCase.role(tree.current_scene)=="Guest" and tree.current_scene.stage.experimental_garden.remote_revision>=0),"guest joins actual Garden"):
 		return
 	var world := tree.current_scene
-	check(Rules.active(world) and not world.get_meta(world.Transactions.SESSION).authorizes(world.progress.path),
-		"guest resolves same mode with no host save ownership")
+	check(Build.for_player(world.players[world.local_player_id()]).ruleset==Rules.ID
+		and not world.get_meta(world.Transactions.SESSION).authorizes(world.progress.path),
+		"guest resolves modern gameplay without host save ownership")
 	mark("admitted")
 	if not check(await until(func():return read("focus-gate")=="ok"),"host opens the starting focus picker"):return
 	world.send_garden_action("learn_0_64")

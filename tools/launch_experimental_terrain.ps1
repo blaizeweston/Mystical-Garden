@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$GodotExe,
+    # Deprecated, inert alias retained for existing isolated playtest shortcuts.
     [switch]$CombatAffinities
 )
 $ErrorActionPreference = 'Stop'
@@ -19,7 +20,6 @@ $start = [Diagnostics.ProcessStartInfo]::new()
 $start.FileName = $engine
 $start.WorkingDirectory = $project
 $start.Arguments = '--path "' + $project + '" --log-file "' + (Join-Path $profile 'engine.log') + '" -- --experimental-terrain'
-if ($CombatAffinities) { $start.Arguments += ' --combat-affinities' }
 $start.UseShellExecute = $false
 $start.EnvironmentVariables['APPDATA'] = $profile
 $start.EnvironmentVariables['LOCALAPPDATA'] = $profile

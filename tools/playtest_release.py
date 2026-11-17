@@ -531,7 +531,7 @@ def bundle(stage, pack, project, metadata, checks, retail):
         "created_utc": metadata["built_utc"], "godot": metadata["godot_version"], "target": "Windows x86_64",
         "multiplayer_protocol": metadata["protocol"], "persistence": metadata.get("persistence", "legacy route with native containment"),
         "terrain_mode": metadata.get("terrain_mode", "legacy"),
-        "combat_ruleset": metadata.get("combat_ruleset", "legacy"),
+        "combat_ruleset": metadata["combat_ruleset"],
         "save_root": "%APPDATA%/" + metadata["save_root"], "compatibility": "Exact version and commit only. No automatic import.",
         "source_run_id": checks["source_run_id"], "package_run_id": checks["package_run_id"],
         "exe_sha256": sha(payload / GAME), "native_dll_sha256": sha(payload / evidence.LOCK_LIBRARY),
@@ -590,13 +590,12 @@ def build(args):
     revision = source_revision(roots.configured)
     if args.expected_revision and args.expected_revision != revision:
         raise ValueError("The clean checkout does not match the expected revision.")
-    combat_ruleset = ""
-    if args.combat_affinities:
-        source = git("show", f"{revision}:combat_ruleset.gd").decode("utf-8")
-        match = re.search(r'(?m)^const ID := "([a-z0-9-]+)"\r?$', source)
-        if not match:
-            raise ValueError("The selected checkpoint does not define an affinity ruleset identity.")
-        combat_ruleset = match[1]
+    source = git("show", f"{revision}:combat_ruleset.gd").decode("utf-8")
+    match = re.search(r'(?m)^const ID := "([a-z0-9-]+)"\r?$', source)
+    if not match:
+        raise ValueError("The selected checkpoint does not define the modern gameplay identity.")
+    combat_ruleset = match[1]
+    # The historical flag only requests isolated terrain; gameplay is always modern.
     experimental_terrain = args.experimental_terrain or args.combat_affinities
     if not roots.engine:
         raise ValueError("Supply the Godot editor executable.")
@@ -631,7 +630,7 @@ def build(args):
             raise ValueError(f"Missing or redirected build dependency: {required}")
     if args.plan:
         print(json.dumps({"commit": revision, "engine": str(engine), "version": version,
-                          "combat_ruleset": combat_ruleset or "legacy", "experimental_terrain": experimental_terrain,
+                          "combat_ruleset": combat_ruleset, "experimental_terrain": experimental_terrain,
                           "workspace": str(work), "stage": str(stage), "evidence": str(output),
                           "archive": str(archive), "desktop_profile_parent": str(profile_parent)}, indent=2))
         return
@@ -696,8 +695,6 @@ def build(args):
                         "-Engine", engine]
         if experimental_terrain:
             release_args.append("-ExperimentalTerrain")
-        if combat_ruleset:
-            release_args.append("-CombatAffinities")
         if roots.configured:
             env["MYSTICAL_PLAYTEST_EXPORT_ROOT"] = str(export_root)
         run(release_args, project, env, output / "verifyonly.log")
@@ -867,7 +864,8 @@ def main():
     parser.add_argument("--expected-revision")
     parser.add_argument("--approve", action="store_true")
     parser.add_argument("--experimental-terrain", action="store_true")
-    parser.add_argument("--combat-affinities", action="store_true")
+    parser.add_argument("--combat-affinities", action="store_true",
+                        help="Deprecated alias for --experimental-terrain; modern gameplay is always enabled.")
     parser.add_argument("--plan", action="store_true")
     parser.add_argument("--history", action="append", default=[])
     parser.add_argument("--expected-zip")

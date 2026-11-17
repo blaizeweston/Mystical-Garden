@@ -1,5 +1,6 @@
 param([string]$Engine=(Join-Path $PSScriptRoot '../../Godot_v4.7.2-stable_win64_console.exe'),[Alias('Target')][string]$TargetPath='', [switch]$Full, [switch]$VerifyOnly, [string]$PlaytestVersion='', [string]$PlaytestCommit='', [string]$InputManifestSha256='', [switch]$ExperimentalTerrain, [switch]$CombatAffinities)
 $ErrorActionPreference='Stop'
+# Historical alias requests isolated terrain only; gameplay is always modern.
 if($CombatAffinities){$ExperimentalTerrain=$true}
 if($ExperimentalTerrain -and -not $PlaytestVersion){throw 'Experimental terrain requires a versioned VerifyOnly build.'}
 $project=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -69,6 +70,10 @@ $fingerprint=& (Join-Path $PSScriptRoot 'runtime_fingerprint.ps1') -Project $pro
 $stamp=Join-Path $project '.godot/stabilization/validated-source.sha256'
 if(-not (Test-Path -LiteralPath $stamp) -or (Get-Content -LiteralPath $stamp -Raw).Trim() -ne $fingerprint){throw 'Runtime source changed since validation. Run validate_release.ps1 again.'}
 $metadata=@{schema=2;milestone=$target.BaseName;built_utc=[DateTime]::UtcNow.ToString('o');source_fingerprint=$fingerprint;engine='4.7.2';checks=$results.Count}
+$rules=Get-Content -LiteralPath (Join-Path $project 'combat_ruleset.gd') -Raw -Encoding utf8
+$ruleVersion=[regex]::Match($rules,'(?m)^const ID := "([a-z0-9-]+)"\r?$')
+if(-not $ruleVersion.Success){throw 'Modern gameplay identity is missing.'}
+$metadata.combat_ruleset=$ruleVersion.Groups[1].Value
 if($PlaytestVersion){
  $metadata.playtest_version=$PlaytestVersion
  $metadata.git_commit=$PlaytestCommit
@@ -82,12 +87,6 @@ if($PlaytestVersion){
   $metadata.terrain_mode=$modeVersion.Groups[1].Value
   $metadata.persistence='guarded experimental sessions with a version-specific save root'
   $metadata.persistence_label='experimental-terrain'
- }
- if($CombatAffinities){
-  $rules=Get-Content -LiteralPath (Join-Path $project 'combat_ruleset.gd') -Raw
-  $ruleVersion=[regex]::Match($rules,'(?m)^const ID := "([a-z0-9-]+)"\r?$')
-  if(-not $ruleVersion.Success){throw 'Plant affinity ruleset identity is missing.'}
-  $metadata.combat_ruleset=$ruleVersion.Groups[1].Value
  }
  $env:MYSTICAL_VALIDATION_DATA_DIR=$metadata.save_root
 }

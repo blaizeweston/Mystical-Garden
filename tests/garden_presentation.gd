@@ -7,7 +7,7 @@ const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
 const Character = preload("res://character_profile.gd")
-const RootUI = preload("res://root_ui.gd")
+const Orb = preload("res://health_orb.gd")
 const Stage = preload("res://stage.gd")
 var failed := false
 func check(ok: bool, message: String):
@@ -17,10 +17,10 @@ func check(ok: bool, message: String):
 func _initialize():
 	call_deferred("run")
 func run():
-	check(RootUI.heart_state(10.0, 10, 4) == 0, "a complete heart uses the full texture")
-	check(RootUI.heart_state(9.0, 10, 4) == 1, "half a heart uses the cracked red texture")
-	check(RootUI.heart_state(8.0, 10, 4) == 2, "recoverable damage uses the dark damaged texture")
-	check(RootUI.heart_state(8.0, 8, 4) == 3, "lost capacity uses the permanently lost texture")
+	check(Orb.fractions(100,100,0).is_equal_approx(Vector2.ONE), "full health fills the health pool")
+	check(Orb.fractions(90,100,0).is_equal_approx(Vector2(.9,1)), "damage reduces the health fill without changing capacity")
+	check(Orb.fractions(80,100,0).is_equal_approx(Vector2(.8,1)), "recoverable damage remains separate from capacity")
+	check(Orb.fractions(80,80,20).is_equal_approx(Vector2(.8,.8)), "revival capacity loss reserves a separate pool segment")
 	var old_profile := Character.normalize({"xp": [2, 0]})
 	check(old_profile.appearance.slice(0,5) == [0,0,0,0,0] and old_profile.xp[0] == 20, "old profiles gain default appearance without losing progress")
 	var malformed := Character.normalize({"appearance": [999,-1,999,999,999]})
@@ -43,9 +43,9 @@ func run():
 	ExpeditionCase.set_membership(game, p, true)
 	game.garden_action(1, "look_0")
 	check(p.character.appearance == original, "appearance cannot be changed mid-expedition")
-	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
-	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 1)
-	check(PlayerVitals.current_hp(p) == 9, "one damage point removes half a heart")
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100)
+	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 10)
+	check(PlayerVitals.current_hp(p) == 90, "resolved damage removes its stated HP")
 	ExpeditionCase.set_membership(game, p, false)
 	game._process(.016)
 	var start_radius: float = game.stage.garden_disc.scale.x
@@ -77,6 +77,6 @@ func run():
 	game._process(.016)
 	check(not game.stage.heart_tree.scale.is_equal_approx(old_scale), "living Heart visibly pulses over time")
 	await process_frame
-	if not failed: print("PASS: heart stages, Garden growth, circular bounds and saved appearance")
+	if not failed: print("PASS: health pool, Garden growth, circular bounds and saved appearance")
 	quit(1 if failed else 0)
 

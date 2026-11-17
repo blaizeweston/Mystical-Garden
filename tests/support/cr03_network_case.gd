@@ -93,7 +93,7 @@ func run(scene_tree: SceneTree, four := false) -> bool:
 	var menu := Menu.instantiate()
 	tree.root.add_child(menu)
 	tree.current_scene=menu
-	if not check(Mode.verified() and Mode.active(menu),"real isolated affinity title"):
+	if not check(preload("res://assets/terrain_m02/experimental/experiment_mode.gd").verified() and menu.has_meta(&"experimental_terrain"),"real isolated affinity title"):
 		return false
 	if role=="host": await host(menu)
 	elif role=="overflow":
@@ -122,7 +122,7 @@ func host(menu: Node) -> void:
 	menu.create_character("Frost Host",0,Appearance.DEFAULT)
 	if not check(await until(func():return SessionCase.role(tree.current_scene)=="Host"),"host through guarded title"): return
 	var game:=tree.current_scene
-	check(Mode.active(game) and "stocked" in Frost.stock_test_garden(game),"guarded test supplies")
+	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Mode.ID and "stocked" in Frost.stock_test_garden(game),"guarded test supplies")
 	var ordinary: int=game.Items.get_item("plant_part_plant_frostbell").legacy_part
 	var refined: int=game.Items.get_item("plant_part_rare_frostbell").legacy_part
 	var local: Dictionary=game.players[1]

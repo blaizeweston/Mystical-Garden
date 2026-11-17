@@ -43,6 +43,7 @@ func run() -> void:
 	ExpeditionCase.set_membership(game, p, true)
 	p.pos = Vector3.ZERO
 	p.frame = game.Frames.WARDEN
+	p.character[game.Classes.Warden.Connected.PROFILE_KEY]=game.Classes.Warden.Connected.state(["rootkeeper"])
 	p.facing = Vector3.FORWARD
 	game.tactics.position = Vector3(0, 0, -2)
 	game.encounter.set_hp(-1, 40)
@@ -77,6 +78,7 @@ func run() -> void:
 	check(p[Cooldowns.STATE].deadline(Cooldowns.R) == 0, "focus loss cancels the hold")
 
 	p.frame = game.Frames.CASTER
+	p.character[game.Classes.Weaver.PROFILE_KEY]=game.Classes.Weaver.TREE.state(["thornbinder"])
 	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	p.facing = Vector3.BACK
 	input(game, KEY_Q, true)
@@ -99,56 +101,46 @@ func run() -> void:
 
 
 func check_class_footprints(game: Node, p: Dictionary) -> void:
-	var field: RefCounted = game.battlefield
+	var field: RefCounted=game.battlefield
 	for class_id in game.Classes.DEFINITIONS.size():
-		p.frame = class_id
-		var stats: Dictionary = game.weapon_stats(p)
-		var definition: Dictionary = game.Classes.DEFINITIONS[class_id]
-		var variants: Array = definition.skills.base + definition.skills.replace
-		for node in definition.nodes:
-			var change: Dictionary = node.get("skill_change", {})
-			if change.get("kind") == "modify" and change.values.has("mode"):
-				variants.append(definition.skills.base[int(change.slot)].merged(change.values, true))
-		for skill in variants:
-			var plan := Targeting.plan(game, p, field, skill, stats, Vector3.FORWARD)
-			var shapes := Targeting.footprint(game, p, field, skill, stats, plan)
-			check(not shapes.is_empty(), "geometry available for " + skill.name)
-			if skill.mode == "bloom_detonate":
-				check(not plan.valid, "bloom detonation requires an active growth field")
-				game.Traits.zone(game, p, "growth", game.tactics.position, 2.0, 2000, 1, Time.get_ticks_msec())
-				plan = Targeting.plan(game, p, field, skill, stats, Vector3.FORWARD)
-				shapes = Targeting.footprint(game, p, field, skill, stats, plan)
-				check(plan.valid and shapes[0].at == game.tactics.position and shapes[0].radius == skill.radius, "bloom detonation previews the active field")
-				game.trait_events.clear()
-	p.frame = game.Frames.WARDEN
-	var stats: Dictionary = game.weapon_stats(p)
-	var charge: Dictionary = game.Classes.DEFINITIONS[p.frame].skills.replace[1]
-	game.tactics.position = Vector3(2, 0, 1)
-	field.barriers = [Rect2(-1, -2, 2, 1)]
-	var plan := Targeting.plan(game, p, field, charge, stats, Vector3.FORWARD)
-	check(plan.center.z < 0 and plan.center.z > -1.0, "charge preview stops before a wall")
+		p.frame=class_id
+		var tree: RefCounted=game.Classes.connected_tree(class_id)
+		for focus in tree.nodes.slice(0,3):
+			p.character[tree.profile_key]=tree.state([focus.id])
+			var stats: Dictionary=game.weapon_stats(p)
+			for slot in 2:
+				var skill: Dictionary=game.Skills.resolve(class_id,slot,p.character)
+				var plan:=Targeting.plan(game,p,field,skill,stats,Vector3.FORWARD)
+				var shapes:=Targeting.footprint(game,p,field,skill,stats,plan)
+				check(not shapes.is_empty(),"current native geometry available for "+skill.name)
+	# Current Veil Passage uses actor clearance for its movement preview.
+	p.frame=3
+	p.character[game.Classes.Reaper.PROFILE_KEY]=game.Classes.Reaper.TREE.state(["veilwalker"])
+	var skill: Dictionary=game.Skills.resolve(3,0,p.character)
+	var stats: Dictionary=game.weapon_stats(p)
+	game.tactics.position=Vector3(2,0,1)
+	field.barriers=[Rect2(-1,-2,2,1)]
+	var plan:=Targeting.plan(game,p,field,skill,stats,Vector3.FORWARD)
+	check(plan.endpoint.z<0 and plan.endpoint.z>-1.0,"current Veil Passage preview stops before a wall")
 	field.barriers.clear()
 
 
 func check_core_footprints(game: Node, p: Dictionary) -> void:
-	var field: RefCounted = game.battlefield
-	p.frame = game.Frames.WARDEN
-	p.core_ready_at = 0
-	p.cast_until = 0
-	p.core_cast_until = 0
-	var parts := [game.Parts.THORN, game.Parts.MOSS, game.Parts.index_of("plant:cinder_vine"),
-		game.Parts.index_of("plant:whispervine"), game.Parts.index_of("plant:star_orchid")]
-	for part in parts:
-		p.weapon = part
-		var preview := Aim.footprint(game, p, field, 2, Vector3.FORWARD, 3.0)
-		var skill := Core.equipped(p)
-		var cast := Core.aim_cast(field, p.pos, Vector3.FORWARD, skill, 3.0)
-		var shape_count := 3 if skill.mechanic == "anchor_beam" else 2
-		check(preview.valid and preview.shapes.size() == shape_count and preview.shapes[0].radius == skill.range, skill.name + " shows reach and impact geometry")
-		if skill.mechanic == "anchor_beam":
-			check(preview.shapes[1].at == cast.center, "star previews its exact placement")
-			check(preview.shapes[2].from == cast.center and preview.shapes[2].width == skill.radius, "hold previews the automatic beam from the planned star")
-		elif skill.mechanic == "ground_burst":
-			check(preview.shapes[1].at == cast.center and preview.shapes[1].radius == skill.radius, "burst uses its resolved placement and radius")
+	var field: RefCounted=game.battlefield
+	p.frame=0
+	p.character[game.Classes.Warden.Connected.PROFILE_KEY]=game.Classes.Warden.Connected.state(["rootkeeper"])
+	p.core_ready_at=0
+	p.cast_until=0
+	p.core_cast_until=0
+	for species in ["thorn_bloom","ember_fern","dewcap","frostbell","ghost_fern","void_willow"]:
+		p.weapon=game.Parts.index_of("plant:"+species)
+		var skill:=Core.equipped(p)
+		var preview:=Aim.footprint(game,p,field,2,Vector3.FORWARD,3.0)
+		check(preview.valid and not preview.shapes.is_empty(),skill.name+" has a current Core preview")
+		if skill.affinity_family=="spirit":
+			check(preview.shapes[0].kind=="travel" and preview.shapes[0].to==field.dash(p.pos,p.pos+Vector3.FORWARD*float(skill.range)),"Spirit uses legal actor travel")
 		else:
-			check(preview.shapes[1].from == cast.from and preview.shapes[1].to == cast.to and preview.shapes[1].width == skill.radius, skill.name + " shares the cast capsule")
+			var cast:=Core.aim_cast(field,p.pos,Vector3.FORWARD,skill,3.0)
+			cast.skill=skill
+			var geometry: Array=preload("res://core_footprint.gd").build(field,cast,p.pos)
+			check(preview.shapes.filter(func(shape):return shape.kind!="range")==geometry,skill.name+" shares its host impact geometry")

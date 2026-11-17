@@ -21,7 +21,7 @@ static func token(game: Node, body: Dictionary) -> int:
 static func grant(game: Node, source: int, focus: String, cast: int, target: int,
 		body: Dictionary, omen: String, duration: int, now: int) -> void:
 	var oracle: Dictionary = game.players.get(source,{})
-	if not game.multiplayer.is_server() or not game.has_meta(&"combat_affinity_ruleset") \
+	if not game.multiplayer.is_server() \
 			or not game.Life.alive(oracle) or int(oracle.frame) != Progression.CLASS_ID:
 		return
 	var definition: Dictionary = Progression.OMENS[omen]
@@ -95,7 +95,7 @@ static func enemy_body(game: Node, target: int) -> Dictionary:
 
 
 static func begin_attack(game: Node, actor: Dictionary, attack: Dictionary, now: int) -> void:
-	if not game.has_meta(&"combat_affinity_ruleset") or not game.multiplayer.is_server() \
+	if not game.multiplayer.is_server() \
 			or attack.has(ATTACK_STARTED):
 		return
 	attack[ATTACK_STARTED] = true
@@ -108,8 +108,6 @@ static func begin_attack(game: Node, actor: Dictionary, attack: Dictionary, now:
 
 
 static func begin_briar(game: Node, now: int) -> void:
-	if not game.has_meta(&"combat_affinity_ruleset"):
-		return
 	var attack := {}
 	begin_attack(game,game.tactics.memory,attack,now)
 	game.tactics.memory[BRIAR_ATTACK] = attack

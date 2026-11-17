@@ -17,6 +17,7 @@ const Sustain = preload("res://expedition_sustain.gd")
 const Core = preload("res://core_combat.gd")
 const Summary = preload("res://run_summary_panel.gd")
 const Orb = preload("res://health_orb.gd")
+const Cards=preload("res://affinity_cards.gd")
 
 var game: Node
 var player: Dictionary
@@ -35,7 +36,6 @@ func check(ok: bool, detail: String) -> void:
 
 
 func run() -> void:
-	Preview.enabled=true
 	Preview.heal_rng.seed=58397
 	game=load("res://world.tscn").instantiate()
 	game.progress.path="res://.godot/cb07-sustain-"+str(Time.get_ticks_usec())+".cfg"
@@ -48,14 +48,13 @@ func run() -> void:
 	ally=game.players[2]
 	gate_recovery()
 	kill_budget()
-	pulse_and_refresh()
 	drains()
 	revival()
 	overlap()
 	game.queue_free()
 	await process_frame
 	if not failed:
-		print("PASS: CB-07 repeated floors, pool and Renewal pacing, actual kill budget, summon exclusion, revive after max HP upgrades and deduplicated healing feedback")
+		print("PASS: CB-07 repeated floors, actual kill budget, summon exclusion, revive after max HP upgrades and deduplicated healing feedback")
 	quit(1 if failed else 0)
 
 
@@ -80,14 +79,18 @@ func arena() -> void:
 	game.tactics.memory.clear()
 	Core.reset(game)
 	for actor in [player,ally]:
+		ExpeditionCase.set_membership(game,actor,true)
+		Cards.clear(actor)
 		actor[Cooldowns.STATE] = actor[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
 		actor[PlayerVitals.STATE] = PlayerVitals.Health.new(30.0, 100)
 		actor.merge({"wild":true,PlayerLifecycle.STATE:PlayerLifecycle.start_life(),"lost_health":0,"pos":Vector3.ZERO,
-			"renewal_until":0,"guard_until":0,"hurt_until":0,"run_upgrades":{},"weapon":0,
-			"catalyst":0,"secondary":0,"graft_part":0,"core_ready_at":0,"core_cast_until":0,"cast_until":0,
+			"renewal_until":0,"guard_until":0,"hurt_until":0,"weapon":0,
+			"catalyst":0,"secondary":0,"core_ready_at":0,"core_cast_until":0,"cast_until":0,
 			"frame":0,"weapon_kind":0,"facing":Vector3.FORWARD},true)
 	SessionCase.set_ready(game, ally, false)
 	player.character=game.Character.blank()
+	var tree=game.Classes.connected_tree(0)
+	player.character[tree.profile_key]=tree.state(["vanguard"])
 
 
 func gate_recovery() -> void:
@@ -146,53 +149,26 @@ func kill_budget() -> void:
 	for index in 5:
 		finish_scout(false,3000+index*100)
 	check(PlayerVitals.current_hp(player)==43 and Sustain.kill_remaining(player,game.participation.epoch())==0,"large packs cannot exceed the per-floor kill heal budget")
-	player.graft_part=game.Parts.monster_part(6)
 	var stats: Dictionary=game.weapon_stats(player)
-	check(stats.heal_on_kill>0 and stats.kill_heal_remaining==0,"owner stats expose the remaining budget")
+	# Detached presentation facts exercise the existing kill-healing budget.
+	stats.heal_on_kill=1.0
+	stats.kill_heal_remaining=Sustain.kill_remaining(player,game.participation.epoch())
+	check(stats.kill_heal_remaining==0,"owner projection exposes the exhausted budget")
 	var view:=Summary.project(game,player,stats)
 	check(view.totals.has(["Kill healing left this floor","0 / 24 HP"]),"Tab shows the exhausted floor budget")
 	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	check(Sustain.kill_remaining(player,game.participation.epoch())==24,"the next floor renews the budget")
 
 
-func pulse_and_refresh() -> void:
-	arena()
-	game.tactics.position=player.pos
-	var stats := {"tide_pool":2.0}
-	player.tide_ready=0
-	game.Traits.after_hit(game,player,-1,stats,1000,false)
-	game.Traits.tick(game,1000)
-	var amount:=int(PlayerVitals.current_hp(player))-30
-	check(amount in range(7,10) and PlayerVitals.current_hp(ally)==PlayerVitals.current_hp(player),"boosted Tide pool has a scaled shared pulse")
-	check(game.Traits.describe(stats,true).contains("7–9 HP per pulse"),"pool tooltip matches the live scaled band")
-	game.Traits.tick(game,1500)
-	check(int(PlayerVitals.current_hp(player))-30==amount,"pool cannot heal between pulses")
-	Sustain.begin_renewal(player,2000,4200,1000)
-	Sustain.begin_renewal(player,2650,3000,1000)
-	check(player.renewal_tick==3000 and player.renewal_until==6200,"refresh cannot postpone a tick or shorten the effect")
-	var before:=int(PlayerVitals.current_hp(player))
-	game.update_support_effects(3000)
-	check(int(PlayerVitals.current_hp(player))-before in range(3,6) and player.renewal_tick==4000,"refresh keeps the due Renewal tick")
-
-
 func drains() -> void:
 	arena()
 	game.tactics.position=Vector3(15,0,0)
 	player.frame=3
+	var tree=game.Classes.connected_tree(3)
+	player.character[tree.profile_key]=tree.state(["blood_harvester"])
 	var summon:=add_enemy(Vector3(0,0,-1),true)
 	game.use_class_skill(1,player,1)
 	check(game.encounter.hp_for(summon)<summon.max_hp and PlayerVitals.current_hp(player)==30,"Siphon Cut damages a summon without drawing health")
-	arena()
-	game.tactics.position=Vector3(15,0,0)
-	player.weapon=game.Parts.index_of("plant:bloodbriar")
-	summon=add_enemy(Vector3(0,0,-1.8),true)
-	var ordinary:=add_enemy(Vector3(.3,0,-2.3))
-	game.garden_action(1,Core.request(game,player,Vector2.UP,2.0))
-	var cast: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
-	check(not cast.is_empty(),"Blood Siphon commits")
-	if cast.is_empty():return
-	Core.tick(game,cast.armed)
-	check(game.encounter.hp_for(summon)<summon.max_hp and game.encounter.hp_for(ordinary)<ordinary.max_hp and int(PlayerVitals.current_hp(player))-30 in range(5,8),"Blood Siphon rolls only around the regular enemy contact")
 
 
 func revival() -> void:
@@ -201,11 +177,15 @@ func revival() -> void:
 	game.encounter.set_hp(-1, 0)
 	player.pos=game.battlefield.advance
 	ally.pos=player.pos
-	player.offer_floor=3
-	player.last_offer=0
-	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(500, game.wallet_for(player).spent_essence())
-	player.checkpoint_offers=["class_0_0","power","reach"]
-	check(game.buy_upgrade(1,player,0) and PlayerVitals.maximum_hp(player)==120 and PlayerVitals.current_hp(player)==50,"checkpoint bonus grants exact new capacity")
+	var copies: Array[Dictionary]=[
+		{"id":"run_health","rarity":"Common","amount":3,"floor":3,"acquisition_id":1},
+		{"id":"run_health","rarity":"Common","amount":3,"floor":6,"acquisition_id":2},
+		{"id":"run_health","rarity":"Uncommon","amount":5,"floor":9,"acquisition_id":3},
+		{"id":"run_health","rarity":"Epic","amount":9,"floor":12,"acquisition_id":4},
+	]
+	player[Cards.STATE]=Cards.Ledger.new(copies)
+	player[PlayerVitals.STATE]=player[PlayerVitals.STATE].with_native_max_hp(game.Life.native_maximum(game,player))
+	check(PlayerVitals.maximum_hp(player)==120 and PlayerVitals.current_hp(player)==30,"actual acquired contributions grant capacity without free healing")
 	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(player), int(PlayerVitals.current_hp(player)))
 	check(Sustain.restore(game,player,12,"fixture")==0 and PlayerLifecycle.fallen(player),"ordinary healing cannot revive a fallen player")
 	check(game.spectator_view.focus_id(1)==2 and game.spectator_view.caption.text.contains("30 / 100 HP") and game.spectator_view.panel.position.y>=110,"spectating shows ally health below the floor tracker")

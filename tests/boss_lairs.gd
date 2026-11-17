@@ -17,7 +17,6 @@ func check(ok: bool, message: String) -> void:
   printerr("FAIL boss lairs: ",message)
 
 func _initialize() -> void:
- preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 
 func build(game: Node, kind: int, stamp: int) -> void:
@@ -27,7 +26,7 @@ func build(game: Node, kind: int, stamp: int) -> void:
  game.tactics.boss_moves=0
  game.enemy_kind=kind
  game.tactics.position=Vector3(0,0,2)
- game.encounter.set_hp(-1, 80)
+ game.encounter.set_hp(-1, 800)
  game.tactics.ready_at=0
  game.tactics.engaged=true
  game.tactics.winding_up=false
@@ -46,7 +45,7 @@ func run() -> void:
  ExpeditionCase.set_world(game, {"encounter_number": 16})
  var player: Dictionary=game.players[1]
  ExpeditionCase.set_membership(game, player, true)
- player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
+ player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
  var now:=Time.get_ticks_msec()+200
  var anchor_sites: Dictionary={}
  var bank_layouts: Dictionary={}
@@ -74,22 +73,23 @@ func run() -> void:
   game.apply_weapon_hit(player,-1,player.pos,{"damage":1,"knockback":5.0},now)
   check(game.tactics.position==locked,"weapon hits keep the committed cast origin")
   player.pos=retreat
-  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
+  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
   player.hurt_until=0
   game.Bosses.resolve(game,game.tactics.strike_at)
   var strike: int=game.tactics.strike_at
-  check(PlayerVitals.current_hp(player)==10 and game.Bosses.exposed(game,strike),"interior retreat avoids the strike and opens the uprooting window")
+  check(PlayerVitals.current_hp(player)==100 and game.Bosses.exposed(game,strike),"interior retreat avoids the strike and opens the uprooting window")
   Status.sync(game,strike)
   check(Status.snapshot(game,strike).any(func(event):return event.shape=="uprooting"),"uprooting is displayed")
   var before: int=game.enemy_health()
   game.apply_weapon_hit(player,-1,player.pos,{"damage":1},strike+100)
-  check(game.enemy_health()==before-2 and not game.Bosses.exposed(game,strike+2800),"uprooting gives exactly one bonus damage during the window")
+  check(game.enemy_health()==before-13 and not game.Bosses.exposed(game,strike+2800),"uprooting adds the current 3-damage exposure bonus to the native 10-damage hit")
   if stamp==17:
    player.pos=plan.from+Lairs.direction(plan.from,plan.face)*12
    game.tactics.memory.lair_plan=plan
-   player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.hurt_until=0
+   player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100);player.hurt_until=0
+   var sweep_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.boss_hit(game,game.Enemies.get_kind(Routes.ORCHARD),"root_sweep"))
    game.Bosses.resolve(game,strike+3000)
-   check(PlayerVitals.current_hp(player)==8,"standing inside the outer sweep takes the expected damage")
+   check(PlayerVitals.current_hp(player)==100-sweep_damage,"standing inside the outer sweep takes the expected damage")
 
   build(game,Routes.DROWNED,stamp*313)
   var layout:=Routes.crossings(game.participation.seed())
@@ -109,9 +109,9 @@ func run() -> void:
   strike=game.tactics.strike_at
   game.Bosses.resolve(game,strike)
   check(game.enemy_hazards.size()==2 and game.enemy_hazards[0].point==plan.areas[0].point and game.enemy_hazards[1].activate==strike+400,"the host schedules the two marked waves at the promised times")
-  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.hurt_until=0;player.pos=retreat
+  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100);player.hurt_until=0;player.pos=retreat
   game.Bosses.tick_hazards(game,strike)
-  check(PlayerVitals.current_hp(player)==10,"the alternate route stays harmless when the water rises")
+  check(PlayerVitals.current_hp(player)==100,"the alternate route stays harmless when the water rises")
   game.enemy_hazards.clear()
   player.pos=Vector3(0,0,4.4)
   check(Lairs.commit(game,"drowned_surge",1,strike+3000),"Drowned locks the surge")
@@ -120,7 +120,7 @@ func run() -> void:
   check(hints.size()==1 and hints[0].width>plan.width and hints[0].pose=="drowned_surge","surge warning includes collision padding and pose")
   player.pos=Vector3(3.5,0,4.4)
   game.Bosses.resolve(game,game.tactics.strike_at)
-  check(game.tactics.position==plan.to and PlayerVitals.current_hp(player)==10 and game.tactics.memory.lair_open.kind=="core_exposed","surge stays locked while the player sidesteps and the core opens")
+  check(game.tactics.position==plan.to and PlayerVitals.current_hp(player)==100 and game.tactics.memory.lair_open.kind=="core_exposed","surge stays locked while the player sidesteps and the core opens")
  check(anchor_sites.size()>15 and bank_layouts.size()>4,"multiple seeds move the arena landmarks")
  orchard_pressure(game,now)
  ExpeditionCase.remove_actor(game, 2)
@@ -191,7 +191,7 @@ func orchard_pressure(game: Node, now: int) -> void:
   for member in game.players.values():
    if Lairs.covered(cage,member.pos,.25):
     check(Lairs.escape(game,cage,member.pos,now).is_finite(),"committed cage has an escape for every threatened party member")
-   member[PlayerVitals.STATE] = member[PlayerVitals.STATE].with_hp(10)
+   member[PlayerVitals.STATE] = member[PlayerVitals.STATE].with_hp(100)
    member.hurt_until=0
   var hint: Dictionary=game.attack_hints_snapshot().filter(func(h):return h.role=="orchard_cage")[0]
   check(hint.inner==cage.inner and hint.radius==cage.radius and hint.span==cage.span,"cage warning carries the committed safe gap geometry")
@@ -199,15 +199,16 @@ func orchard_pressure(game: Node, now: int) -> void:
   game.players[2].pos=second
   game.players[3].pos=dangerous
   game.players[4].pos=cage.from
+  var cage_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.boss_hit(game,game.Enemies.get_kind(Routes.ORCHARD),"root_cage"))
   game.Bosses.resolve(game,game.tactics.strike_at)
-  check(PlayerVitals.current_hp(player)==10 and PlayerVitals.current_hp(game.players[2])==10 and PlayerVitals.current_hp(game.players[3])==8 and PlayerVitals.current_hp(game.players[4])==8,"the host damages only the marked cage area")
+  check(PlayerVitals.current_hp(player)==100 and PlayerVitals.current_hp(game.players[2])==100 and PlayerVitals.current_hp(game.players[3])==100-cage_damage and PlayerVitals.current_hp(game.players[4])==100-cage_damage,"the host damages only the marked cage area")
   var release: Dictionary=game.combat_events.back()
   check(release.shape=="orchard_cage" and release.reach==hint.radius and release.width==hint.inner and release.span==hint.span,"cage impact uses the warning footprint")
 
  for id in range(2,5):
   ExpeditionCase.set_membership(game, game.players[id], false)
  build(game,Routes.ORCHARD,9143)
- player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
+ player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
  player.pos=Vector3(0,0,14.5)
  game.tactics.stagger_until=0
  game.encounter.set_hp(-1, ceili(game.encounter_health()*.5))
@@ -236,6 +237,6 @@ func orchard_pressure(game: Node, now: int) -> void:
    check(game.tactics.ready_at-strike<600,"late pressure follows quickly after "+move)
   if move=="orchard_march":
    check(game.Bosses.exposed(game,strike) and game.tactics.ready_at-strike>=2700,"march still exposes a punish window")
-  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
+  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
   player.hurt_until=0
   cast_time=game.tactics.ready_at

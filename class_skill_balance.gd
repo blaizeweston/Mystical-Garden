@@ -36,7 +36,7 @@ static func direct_heal(skill: Dictionary, stats: Dictionary) -> float:
 
 static func drain_per_target(skill: Dictionary) -> float:
 	if skill.get("leech", false):
-		return .6 if Preview.enabled else 1.0
+		return .6
 	return minf(LEGACY_DRAIN_CAP, Preview.authored_amount(float(skill.get("heal", 0))))
 
 
@@ -50,7 +50,7 @@ static func drain_amount(skill: Dictionary, contacts: int) -> float:
 static func field_power(skill: Dictionary) -> float:
 	var kind := str(skill.get("field", ""))
 	var points := float(skill.get("field_power", 1.0 if kind == "growth" or skill.mode != "subclass" else 0.0))
-	if Preview.enabled and kind == "tide":
+	if kind == "tide":
 		return preload("res://expedition_sustain.gd").pool_points(points)
 	return Preview.authored_amount(points)
 
@@ -70,7 +70,7 @@ static func duration(skill: Dictionary, stats: Dictionary, key: String = "durati
 
 static func trap_duration(skill: Dictionary, stats: Dictionary) -> int:
 	var base := int(skill.get("trap_ms", skill.get("duration", 3800) if skill.mode == "subclass" else 3800))
-	return base + int(stats.get("skill_duration", 0)) if Preview.enabled else base
+	return base + int(stats.get("skill_duration", 0))
 
 
 static func seconds(ms: int) -> String:
@@ -79,4 +79,4 @@ static func seconds(ms: int) -> String:
 
 static func hp_text(points: float) -> String:
 	var amount := Preview.effect_hp(points)
-	return "%d HP" % amount if Preview.enabled else str(amount)
+	return "%d HP" % amount

@@ -71,8 +71,7 @@ var character_return_page:=0
 
 func _ready() -> void:
 	var experiment = preload("res://assets/terrain_m02/experimental/experiment_mode.gd")
-	var combat_mode = preload("res://combat_ruleset.gd")
-	if experiment.requested() or combat_mode.requested():
+	if experiment.requested():
 		if not experiment.verified():
 			var refusal := Label.new()
 			refusal.text = "Experimental terrain could not verify its isolated save folder."
@@ -86,12 +85,8 @@ func _ready() -> void:
 		set_meta(&"experimental_terrain", true)
 		guarded_persistence = true
 		import_legacy = false
-		if combat_mode.verified():
-			set_meta(combat_mode.META, combat_mode.ID)
-			if return_message.is_empty():
-				return_message = "Plant affinities · Co-op · Equip supported affinity materials in Core, Form, or Catalyst."
-		elif return_message.is_empty():
-			return_message = "EXPERIMENTAL TERRAIN  ·  Co-op  ·  Garden layout lasts for the host session"
+		if return_message.is_empty():
+			return_message = "Plant affinities · Co-op · Connected classes, free checkpoint cards and cumulative grafts."
 	if Playtest.retail():
 		import_legacy = false
 		if not Playtest.refusal.is_empty():
@@ -199,9 +194,8 @@ void fragment() {
 		var build_label := label(sidebar,version,14,Color("#bfc594"))
 		build_label.name = "PlaytestVersion"
 		print("PLAYTEST READY: %s · protocol %d · %s" % [build_label.text,Network.PROTOCOL,Playtest.build().get("persistence_label","legacy-contained")])
-		if combat_mode.active(self):
-			label(sidebar,"Plant affinities",14,Color("#bfc594"))
-			print("PLAYTEST COMBAT: " + combat_mode.ID)
+		label(sidebar,"Plant affinities",14,Color("#bfc594"))
+		print("PLAYTEST COMBAT: " + preload("res://combat_ruleset.gd").ID)
 	var title_space:=Control.new()
 	title_space.custom_minimum_size.y=16
 	sidebar.add_child(title_space)
@@ -897,9 +891,6 @@ func _launch_guarded(join: bool) -> void:
 	game.network_session.configure_join_origin(join)
 	if has_meta(&"experimental_terrain"):
 		game.set_meta(&"experimental_terrain", true)
-	var combat_mode = preload("res://combat_ruleset.gd")
-	if combat_mode.active(self):
-		game.set_meta(combat_mode.META, combat_mode.ID)
 	var session_owner := GuardedSession.new()
 	var result := session_owner.start(game, null if join else storage, selected, garden.get("digest", ""), characters, selected_character, profile.digest)
 	if not GuardedSession.completed(result):

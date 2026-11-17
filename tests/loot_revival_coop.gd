@@ -9,6 +9,7 @@ const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
+const Orb=preload("res://health_orb.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 var game: Node
 var role: String
@@ -24,7 +25,6 @@ func until(predicate: Callable) -> bool:
  while not predicate.call() and Time.get_ticks_msec()<deadline: await process_frame
  return predicate.call()
 func _initialize() -> void:
- preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 func run() -> void:
  role=OS.get_cmdline_user_args()[0];base="res://.godot/revival-net-"+OS.get_cmdline_user_args()[1]
@@ -32,7 +32,7 @@ func run() -> void:
  if role=="host": await host_run()
  else: await guest_run()
  game.queue_free();await process_frame
- if not failed: print("PASS: revival co-op ",role," private blue drops, guest/host spectating, authoritative E revival, max-heart penalty and party wipe")
+ if not failed: print("PASS: revival co-op ",role," private blue drops, guest/host spectating, authoritative E revival, capacity penalty and party wipe")
  quit(1 if failed else 0)
 func host_run() -> void:
  check(SessionCase.World.host(game)==OK,"host starts")
@@ -54,16 +54,16 @@ func host_run() -> void:
  check(await until(func(): return marked("blocked")),"guest sends down-state requests")
  check(p.pos==corpse and p[Cooldowns.STATE].deadline(Cooldowns.Q)==0,"down-state movement and skills blocked on authority")
  game.act(1,false)
- check(PlayerVitals.current_hp(p)==8 and PlayerVitals.maximum_hp(p)==8 and p.lost_health==2,"host revives guest through interact")
- check(await until(func(): return marked("guest-revived")),"guest receives lost-heart texture state")
+ check(PlayerVitals.current_hp(p)==80 and PlayerVitals.maximum_hp(p)==80 and p.lost_health==20,"host revives guest through interact")
+ check(await until(func(): return marked("guest-revived")),"guest receives lost-capacity state")
  IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(host), 100)
  check(ExpeditionCase.is_wild(host) and PlayerLifecycle.fallen(host) and game.spectator_view.focus_id(1)==id,"fallen host watches guest")
  mark("revive-host")
- check(await until(func(): return not PlayerLifecycle.fallen(host) and PlayerVitals.maximum_hp(host)==8),"guest E request revives host")
- check(host.lost_health==2 and PlayerVitals.current_hp(host)==8,"host pays same one-heart cost")
+ check(await until(func(): return not PlayerLifecycle.fallen(host) and PlayerVitals.maximum_hp(host)==80),"guest E request revives host")
+ check(host.lost_health==20 and PlayerVitals.current_hp(host)==80,"host pays same 20-HP capacity cost")
  check(await until(func(): return marked("host-revived")),"guest observes authoritative host revival")
  IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(host), 100);IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(p), 100)
- check(not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(p) and host.lost_health==0 and p.lost_health==0,"party wipe resets lost hearts")
+ check(not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(p) and host.lost_health==0 and p.lost_health==0,"party wipe resets lost capacity")
  check(await until(func(): return marked("wipe")),"guest sees wipe and restored capacity")
  mark("done");check(await until(func(): return game.players.size()==1),"guest leaves normally");SessionCase.World.leave(game,"Revival fixture complete")
 func capture(name: String) -> void:
@@ -89,14 +89,14 @@ func guest_run() -> void:
  await create_timer(.35).timeout;mark("blocked")
  var shows_revival := func():
   var player: Dictionary = game.players[id]
-  return not player.get("fallen",true) and player.max_hp==8 and not player.has(PlayerVitals.STATE) and not player.has(PlayerLifecycle.STATE)
+  return not player.get("fallen",true) and player.max_hp==80 and not player.has(PlayerVitals.STATE) and not player.has(PlayerLifecycle.STATE)
  check(await until(shows_revival),"guest receives revival scalars without the health or lifecycle owners")
  game._process(.016)
- check(game.player_hud.state.lost_health==2 and game.spectator_view.target_id==0 and game.player_hud.heart_state(8,8,4)==3,"guest restored camera and lost-heart HUD")
+ check(game.player_hud.state.lost_health==20 and game.spectator_view.target_id==0 and Orb.fractions(80,80,20).is_equal_approx(Vector2(.8,.8)),"guest restored camera and lost-capacity HUD")
  await capture("revived");mark("guest-revived")
  check(await until(func(): return marked("revive-host") and game.players[1].get("fallen",false)),"host fallen state arrives")
  game.send_action(false)
- check(await until(func(): return not game.players[1].get("fallen",true) and game.players[1].max_hp==8),"guest sees host revived")
+ check(await until(func(): return not game.players[1].get("fallen",true) and game.players[1].max_hp==80),"guest sees host revived")
  mark("host-revived")
- check(await until(func(): return not ExpeditionCase.is_wild(game.players[id]) and game.players[id].max_hp==10 and game.players[id].hp==10),"wipe returns guest with full five hearts")
+ check(await until(func(): return not ExpeditionCase.is_wild(game.players[id]) and game.players[id].max_hp==100 and game.players[id].hp==100),"wipe returns guest with full health capacity")
  mark("wipe");check(await until(func(): return marked("done")),"host finishes");SessionCase.World.leave(game,"Revival fixture complete")

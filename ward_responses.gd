@@ -5,8 +5,6 @@ const PENDING := "affinity_ward_grant"
 
 
 static func accepted(game: Node, player: Dictionary, before_until: int, before_charges: int, requested_until: int, now: int) -> void:
-	if not game.has_meta(&"combat_affinity_ruleset"):
-		return
 	if before_until <= now or before_charges <= 0:
 		player.erase(CLAIMS)
 	if player.guard_until <= now or (player.guard_until == before_until and player.guard_charges == before_charges):

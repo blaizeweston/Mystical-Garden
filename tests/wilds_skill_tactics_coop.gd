@@ -79,6 +79,8 @@ func host() -> void:
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
 	game.progress.wilds_memory.score[Tactics.CAST_DENIAL] = 6
+	# Existing recorded observation input exercises response replication; modern Fire
+	# does not produce this memory input in the current baseline.
 	game.progress.wilds_memory.score[Tactics.AREA_PRESSURE] = 6
 	game.encounter.set_hp(-1, 40)
 	game.enemy_kind = 0
@@ -87,22 +89,29 @@ func host() -> void:
 	game.encounter.clear_scouts()
 	for p in game.players.values():
 		ExpeditionCase.set_membership(game, p, true)
-		p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
+		p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100)
 		p.pos = Vector3.ZERO
 	var guest_player: Dictionary = game.players[id]
-	guest_player.frame = game.Frames.RANGER
-	guest_player.weapon = game.Parts.index_of("plant:hush_orchid")
+	check(game.Classes.connected_tree(game.Frames.WARDEN).focus(guest_player.character)=="vanguard", "host receives the guest starting focus")
 	var shepherd := add_scout(10, Vector3(0, 0, -1.8))
-	add_scout(0, Vector3(2.1, 0, -2))
-	add_scout(0, Vector3(-2.1, 0, -2))
+	# Quake must strike the caster without releasing the escorts' fixture hold.
+	# Both escorts remain within native support reach and have a legal long flank.
+	var first_escort := add_scout(0, Vector3(1.8, 0, -3.4))
+	var second_escort := add_scout(0, Vector3(-1.8, 0, -3.4))
+	var shepherd_health: int = game.encounter.hp_for(shepherd)
+	var escort_health: Array[int] = [game.encounter.hp_for(first_escort),game.encounter.hp_for(second_escort)]
 	shepherd.cast_target = id
 	Attacks.lock(game, shepherd, "shepherd", guest_player.pos, Time.get_ticks_msec() + 3500)
 	if not await until(func(): return Tactics.evidence(game).get(Tactics.CAST_DENIAL, 0) == 1):
-		check(false, "guest's Hush interrupts the host rally")
+		check(false, "guest's native Root Quake interrupts the host rally")
 		return
 	check(shepherd.windup == 0, "host cancels the first rally")
+	check(game.encounter.hp_for(shepherd) < shepherd_health and game.encounter.hp_for(shepherd) > 0, "native Root Quake damages the surviving caster")
+	check(game.encounter.hp_for(first_escort) == escort_health[0] and game.encounter.hp_for(second_escort) == escort_health[1] and escort_health.all(func(hp): return hp > 0), "out-of-footprint escorts remain alive and untouched by Quake")
 	await until(func(): return Time.get_ticks_msec() >= int(shepherd.ready))
-	preload("res://enemy_formation.gd").follow_support(game, shepherd, preload("res://enemy_formation.gd").allies(game, shepherd), game.Enemies.get_kind(10), 0.0, .016, Time.get_ticks_msec())
+	# Keep an actual retry already scheduled by live physics.
+	if int(shepherd.windup) <= 0:
+		preload("res://enemy_formation.gd").follow_support(game, shepherd, preload("res://enemy_formation.gd").allies(game, shepherd), game.Enemies.get_kind(10), 0.0, .016, Time.get_ticks_msec())
 	if shepherd.get("attack", {}).get("variant") != Tactics.RELAY:
 		check(false, "host locks the relay")
 		return
@@ -144,14 +153,16 @@ func cue(value: String) -> bool:
 
 
 func guest() -> void:
-	game.guest_character.data.active_class = game.Frames.RANGER
+	game.guest_character.data.active_class = game.Frames.WARDEN
+	var tree: RefCounted = game.Classes.connected_tree(game.Frames.WARDEN)
+	check(tree.learn(game.guest_character.data,tree.REQUEST_OFFSET).is_empty(), "zero-XP guest chooses Vanguard")
 	game.guest_character.save_profile()
 	check(SessionCase.World.join(game) == OK, "guest connects")
 	var id: int = game.multiplayer.get_unique_id()
-	if not await until(func(): return game.network_session.role() == "Guest" and game.player_hud.state.get("core", {}).get("name") == "Hush" and cue("Rally")):
-		check(false, "guest sees the live rally and has Hush")
+	if not await until(func(): return game.network_session.role() == "Guest" and game.Classes.connected_tree(game.Frames.WARDEN).focus(game.guest_character.data)=="vanguard" and not Core.cast_key(game,game.players.get(id,{})).is_empty() and cue("Rally")):
+		check(false, "guest sees the live rally and has native Root Quake")
 		return
-	game.send_garden_action(Core.request(game, game.players[id], Vector2.UP, 1.8))
+	game.send_garden_action(preload("res://ability_aim.gd").request(game, game.players[id], 1, Vector2.UP))
 	if not await until(func(): return cue("Relay order") and hints("rally_link").size() == 2):
 		check(false, "guest reads the new relay label, tether and flank")
 		return

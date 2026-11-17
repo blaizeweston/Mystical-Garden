@@ -1,5 +1,5 @@
 extends RefCounted
-## Native preview HP for encounter populations and enemy attacks. The legacy path uses authored points.
+## Authoritative encounter HP and attack scaling. Heart keeps its authored campaign values.
 const Preview = preload("res://combat_balance_preview.gd")
 const Config = preload("res://encounter_config.gd")
 const Catalog = preload("res://enemy_catalog.gd")
@@ -49,7 +49,7 @@ static func authored_hit(hp: int) -> float:
 
 
 static func scout_hit(game: Node, definition: Dictionary, scout: Dictionary) -> float:
-	if not Preview.enabled or game.participation.route()==game.Campaign.HEART:
+	if game.participation.route()==game.Campaign.HEART:
 		return int(definition.damage)+game.participation.cycle()/2
 	var floor_offset := maxi(0,int(game.participation.floor())-1)
 	var profile: Dictionary = tuning.juvenile if int(scout.get("mutations",0)) & Catalog.JUVENILE else tuning.regular
@@ -63,8 +63,6 @@ static func scout_hit(game: Node, definition: Dictionary, scout: Dictionary) -> 
 
 
 static func boss_hit(game: Node, definition: Dictionary, move: String) -> float:
-	if not Preview.enabled:
-		return int(definition.damage)+int(game.participation.cycle())/3
 	var profile: Dictionary = tuning.boss
 	var floor_offset := maxi(0,int(game.participation.floor())-FIRST_BOSS_FLOOR)
 	var amount := float(definition.preview_hit_hp) + floor_offset * float(profile.hit_per_floor)
@@ -74,7 +72,7 @@ static func boss_hit(game: Node, definition: Dictionary, move: String) -> float:
 
 
 static func hazard_hit(game: Node, kind: String, damage: float, boss_move: String) -> float:
-	if not Preview.enabled or game.participation.route()==game.Campaign.HEART:
+	if game.participation.route()==game.Campaign.HEART:
 		return damage
 	if not boss_move.is_empty():
 		var ratio: float = tuning.boss.main_hazard_ratio if boss_move in PRIMARY_HAZARD_MOVES else tuning.boss.followup_hazard_ratio
@@ -86,11 +84,9 @@ static func hazard_hit(game: Node, kind: String, damage: float, boss_move: Strin
 
 static func corpse_heal(game: Node, actor: Dictionary, spare: bool) -> int:
 	var center := Preview.hp(1 if spare else 2)
-	if Preview.enabled:
-		center += mini(int(tuning.corpse_depth_bonus_cap), roundi(maxi(0,int(game.participation.floor())-1)*float(tuning.corpse_depth_hp_per_floor)))
-		var cap := maxi(1,floori(float(actor.get("max_hp",game.encounter.hp_for(actor)))*float(tuning.corpse_hp_fraction)))
-		return mini(cap,Preview.roll_heal_hp(mini(center,cap)))
-	return center
+	center += mini(int(tuning.corpse_depth_bonus_cap), roundi(maxi(0,int(game.participation.floor())-1)*float(tuning.corpse_depth_hp_per_floor)))
+	var cap := maxi(1,floori(float(actor.get("max_hp",game.encounter.hp_for(actor)))*float(tuning.corpse_hp_fraction)))
+	return mini(cap,Preview.roll_heal_hp(mini(center,cap)))
 
 
 static func armor(amount: int) -> int:
@@ -98,18 +94,14 @@ static func armor(amount: int) -> int:
 
 
 static func exposed_bonus(amount: int) -> int:
-	if not Preview.enabled:
-		return Preview.hp(1)
 	return maxi(int(tuning.boss.exposed_minimum_bonus_hp),roundi(amount*float(tuning.boss.exposed_bonus_ratio)))
 
 
-static func extra_scouts(legacy: int) -> int:
-	return int(tuning.coop_extra_scouts) if Preview.enabled else legacy
+static func extra_scouts() -> int:
+	return int(tuning.coop_extra_scouts)
 
 
 static func boss_escorts(game: Node, available: int) -> int:
-	if not Preview.enabled:
-		return mini(4,available)
 	var adds := 1 if Catalog.get_kind(game.tactics.boss_kind).id=="matriarch" else 2
 	return mini(available,adds+mini(2,int(game.encounter_party_size)-1))
 
@@ -129,7 +121,7 @@ static func reinforcement_hp(regular_hp: int) -> int:
 
 
 static func trace_encounter(game: Node, desired: int) -> void:
-	if not Preview.enabled or not game.participation.active():
+	if not game.participation.active():
 		return
 	var pack_hp := 0
 	for slot in game.encounter.scout_count():

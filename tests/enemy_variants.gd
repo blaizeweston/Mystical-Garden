@@ -15,7 +15,6 @@ func check(ok: bool,message: String) -> void:
   failed=true
   printerr("FAIL enemy variants: ",message)
 func _initialize() -> void:
- preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 func actor(game: Node,kind: int,variant: String,at:=Vector3.ZERO) -> Dictionary:
  var result: Dictionary=game.make_scout(kind,at,2)
@@ -30,7 +29,7 @@ func run() -> void:
  game.battlefield.configure(0,1);game.battlefield.barriers.clear()
  game.encounter.set_hp(-1, 0)
  var p: Dictionary=game.players[1]
- ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(0,0,5)
+ ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.pos=Vector3(0,0,5)
  var now:=Time.get_ticks_msec()
  ExpeditionCase.set_world(game, {"encounter_number": 2})
  game.progress.wilds_memory.score={"ranged":20,"choke":20,"kite":20,"burst":20}
@@ -62,7 +61,7 @@ func run() -> void:
  Attacks.lock(game,hound,"pounce",long_aim,now+1000)
  p.pos=long_aim*.5;p.hurt_until=0
  preload("res://scout_behavior.gd").release(game, hound,game.Enemies.get_kind(4),now+1000)
- check(PlayerVitals.current_hp(p)==10 and hound.pos.distance_to(long_aim)<.05,"pounce has a landing hit rather than a swept lane")
+ check(PlayerVitals.current_hp(p)==100 and hound.pos.distance_to(long_aim)<.05,"pounce has a landing hit rather than a swept lane")
 
  var burrow:=actor(game,13,"bent_seam")
  Attacks.lock(game,burrow,"charge",Vector3(0,0,5),now+2000)
@@ -70,7 +69,7 @@ func run() -> void:
  check(seam.role=="burrow" and seam.has("via") and seam.has("cue"),"bent seam announces both legs and the eruption")
  p.pos=burrow.attack.via;p.hurt_until=0
  preload("res://scout_behavior.gd").release(game, burrow,game.Enemies.get_kind(13),now+2000)
- check(PlayerVitals.current_hp(p)==10 and burrow.pos==Vector3(0,0,5),"crossing the seam outside the eruption is safe")
+ check(PlayerVitals.current_hp(p)==100 and burrow.pos==Vector3(0,0,5),"crossing the seam outside the eruption is safe")
  burrow.pos=Vector3.ZERO
  check(not Attacks.plan(game,burrow,"charge",Vector3(0,0,1.5)).via.is_finite(),"short paths fall back to a straight seam")
  var hart:=actor(game,17,"cutoff_charge")
@@ -92,7 +91,7 @@ func run() -> void:
  check(Status.snapshot(game,now+4200).any(func(e):return e.shape=="bark_guard" and e.form=="enemy"),"Bark Guard has a visible condition")
  p.pos=Vector3(0,0,-1);p.hurt_until=0
  preload("res://scout_behavior.gd").release(game, pilgrim,game.Enemies.get_kind(0),now+5000)
- check(PlayerVitals.current_hp(p)==10,"sweep respects the sector rather than hitting behind the Pilgrim")
+ check(PlayerVitals.current_hp(p)==100,"sweep respects the sector rather than hitting behind the Pilgrim")
 
  var night:=actor(game,1,"late_pulse")
  night.repeat=1
@@ -105,7 +104,7 @@ func run() -> void:
  check(patches.size()==2 and patches[0].distance_to(patches[1])>orchid.attack.radius*2,"Orchid marks two distinct patches with a gap")
  game.enemy_hazards.clear();p.pos=Vector3(0,0,5)
  preload("res://scout_behavior.gd").release(game, orchid,game.Enemies.get_kind(6),now+7000)
- check(PlayerVitals.current_hp(p)==10 and game.enemy_hazards.size()==2 and game.enemy_hazards[1].activate>game.enemy_hazards[0].activate,"Orchid fields activate later and in order")
+ check(PlayerVitals.current_hp(p)==100 and game.enemy_hazards.size()==2 and game.enemy_hazards[1].activate>game.enemy_hazards[0].activate,"Orchid fields activate later and in order")
 
  var willow:=actor(game,5,"root_line")
  Attacks.lock(game,willow,"snare",Vector3(0,0,5),now+8000)

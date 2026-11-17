@@ -73,11 +73,8 @@ const ExpeditionWallet = preload("res://expedition_wallet.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
-const RunUpgrades=preload("res://run_upgrade_catalog.gd")
 const AffinityCards = preload("res://affinity_cards.gd")
-const HOOK_ROOM := 3
 const GRAFT_ROOM := EncounterConfig.GRAFT_INTERVAL
-const GRAFT_CHANCE := 0.65
 const Parts = preload("res://weapon_parts.gd")
 const Frames = preload("res://weapon_frames.gd")
 const Character = preload("res://character_profile.gd")
@@ -603,15 +600,13 @@ func add_player(id: int) -> void:
 	var party_slot := link.slot()
 	var spawn: Vector3 = Stage.SPAWN + [Vector3.ZERO,Vector3(1.1,0,0),Vector3(-1.1,0,0),Vector3(0,0,1.1)][party_slot]
 	var base_health:=Life.Preview.hp(MAX_HEALTH)
-	players[id] = {Session.STATE:link,"velocity":Vector3.ZERO,"damage_seq":0,"damage_amount":0,"vitals_revision":0,"pos": spawn, Participation.STATE: participation.attach(id), PlayerLifecycle.STATE: PlayerLifecycle.start_life(), "lost_health":0, "prepared": 0, "weapon": 0, "experiment": 0, ExpeditionWallet.STATE: ExpeditionWallet.Wallet.new(), "last_offer": 0,"run_upgrades":{},"checkpoint_offers":[],"offer_floor":0,"upgrade_seed":Crypto.new().generate_random_bytes(8).hex_encode().hash(), "power": 0, "technique": 0,
-		"weapon_kind":0, "catalyst":0, "graft_part":0,"graft_floor":0, "prepared_catalyst":0, "cargo_plan":Parts.empty_counts(), "frame": Frames.WARDEN, Cooldowns.STATE: Cooldowns.Timers.new(), "guard_charges":0, "guard_until": 0, "attack_until":0,"attack_duration":240,"attack_combo":0,"swing_until": 0, "contributed": false,
+	players[id] = {Session.STATE:link,"velocity":Vector3.ZERO,"damage_seq":0,"damage_amount":0,"vitals_revision":0,"pos": spawn, Participation.STATE: participation.attach(id), PlayerLifecycle.STATE: PlayerLifecycle.start_life(), "lost_health":0, "prepared": 0, "weapon": 0, "experiment": 0, ExpeditionWallet.STATE: ExpeditionWallet.Wallet.new(), "upgrade_seed":Crypto.new().generate_random_bytes(8).hex_encode().hash(),
+		"weapon_kind":0, "catalyst":0, "prepared_catalyst":0, "cargo_plan":Parts.empty_counts(), "frame": Frames.WARDEN, Cooldowns.STATE: Cooldowns.Timers.new(), "guard_charges":0, "guard_until": 0, "attack_until":0,"attack_duration":240,"attack_combo":0,"swing_until": 0, "contributed": false,
 		"character": local_character.data if id == HOST else Character.blank(),
 		"seed_choice": 0, "carried_seeds": [],"safe_items":[],"carried_items":{}, "pouch": false, "loot_pending": false,
 		"donation_choice": Parts.EMPTY, "cache_claimed": false,
 		"carried_parts": Parts.empty_counts(), "secondary": Parts.EMPTY,
-		"prepared_secondary": Parts.EMPTY, "graft_choice": Parts.EMPTY, "rift_hook": false, "slow_until": 0, PlayerVitals.STATE: PlayerVitals.Health.new(float(base_health), base_health), "strike_at": 0, "facing": Vector3.FORWARD}
-	if has_meta(&"combat_affinity_ruleset"):
-		players[id].combat_ruleset = get_meta(&"combat_affinity_ruleset")
+		"prepared_secondary": Parts.EMPTY, "slow_until": 0, PlayerVitals.STATE: PlayerVitals.Health.new(float(base_health), base_health), "strike_at": 0, "facing": Vector3.FORWARD}
 	restore_class_loadout(players[id])
 	preload("res://garden_growth_service.gd").register(self,id)
 
@@ -668,8 +663,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			if event.is_action_pressed(["upgrade_power","upgrade_technique","upgrade_synergy","upgrade_fourth"][index]):
 				if checkpoint_offer_revision > 0:
 					send_garden_action(affinity_checkpoint_action(checkpoint_offer_revision, str(index)))
-				else:
-					send_garden_action("checkpoint_choice_%d"%index)
 				get_viewport().set_input_as_handled()
 				return
 	if overlay.visible:
@@ -679,7 +672,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		return
 	var local_player: Dictionary=players.get(HOST if multiplayer.is_server() else multiplayer.get_unique_id(),{})
 	if not Participation.is_wild(local_player):
-		for old_action in ["research","experiment","catalyst","graft","select_graft","donate","select_donation","awaken","destination","nurture","harvest_offshoot","trait","frame","expand_plot"]:
+		for old_action in ["research","experiment","catalyst","graft","donate","select_donation","awaken","destination","nurture","harvest_offshoot","trait","frame","expand_plot"]:
 			if event.is_action_pressed(old_action): return
 		if event.is_action_pressed("craft") and nearby_plot(local_player.get("pos",Vector3.INF))<0: return
 	if event.is_action_pressed("interact"):
@@ -696,20 +689,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		send_garden_action("catalyst")
 	elif event.is_action_pressed("craft"):
 		send_garden_action("craft")
-	elif event.is_action_pressed("upgrade_power"):
-		send_garden_action("upgrade_power")
-	elif event.is_action_pressed("upgrade_technique"):
-		send_garden_action("upgrade_technique")
-	elif event.is_action_pressed("upgrade_synergy"):
-		send_garden_action("upgrade_synergy")
 	elif event.is_action_pressed("expand_plot"):
 		send_garden_action("expand_plot")
 	elif event.is_action_pressed("extract"):
 		send_garden_action("extract")
 	elif event.is_action_pressed("graft"):
 		send_garden_action("graft")
-	elif event.is_action_pressed("select_graft"):
-		send_garden_action("select_graft")
 	elif event.is_action_pressed("donate"):
 		send_garden_action("donate")
 	elif event.is_action_pressed("select_donation"):
@@ -810,20 +795,9 @@ func _garden_action(id: int, action: String) -> void:
 		handle_inventory_action(id,player,action.trim_prefix("inventory:"))
 		return
 	if action.begins_with(preload("res://expedition_grafts.gd").COMMAND):
-		if has_meta(&"combat_affinity_ruleset"):
-			var result := _purchase_expedition_graft(id, player, action)
-			graft_feedback(id,player,result)
-			show_graft_menu(id)
-		return
-	if action.begins_with("graft_install_"):
-		if has_meta(&"combat_affinity_ruleset"):
-			graft_feedback(id,player,"Choose a reinforcement or adaptation at the Grafting Altar.")
-			show_graft_menu(id)
-			return
-		var value:=action.trim_prefix("graft_install_")
-		if value.is_valid_int() and int(value)>0:
-			if not attempt_graft(id,player,int(value)) and has_meta(Transactions.SESSION): return
-		if at_graft_altar(player): show_graft_menu(id)
+		var result := _purchase_expedition_graft(id, player, action)
+		graft_feedback(id,player,result)
+		show_graft_menu(id)
 		return
 	if action=="abandon_run":
 		load("res://expedition_transitions.gd").abandon(self,id,player)
@@ -866,12 +840,7 @@ func _garden_action(id: int, action: String) -> void:
 			if Participation.is_wild(player) and not has_meta(Transactions.SESSION): close_flow_for(id)
 		return
 	if action.begins_with(AffinityCards.COMMAND):
-		if preload("res://combat_ruleset.gd").active(self):
-			_affinity_checkpoint_command(id, player, action)
-		return
-	if action.begins_with("checkpoint_choice_"):
-		var value:=action.trim_prefix("checkpoint_choice_")
-		if value.is_valid_int(): choose_checkpoint_card(id,player,int(value))
+		_affinity_checkpoint_command(id, player, action)
 		return
 	if action.begins_with("heart_material_"):
 		if at_heart(player) and not Participation.is_wild(player):
@@ -956,20 +925,11 @@ func _garden_action(id: int, action: String) -> void:
 				player.donation_choice = next_part(selected_donation(player), seed_reserve(player).parts, Parts.EMPTY, false)
 		"trait":
 			return # Retired class affinity; class tree choices are authoritative.
-		"upgrade_power":
-			choose_checkpoint_card(id, player, 0)
-		"upgrade_technique":
-			choose_checkpoint_card(id, player, 1)
-		"upgrade_synergy":
-			choose_checkpoint_card(id, player, 2)
 		"graft":
 			if Participation.is_wild(player):
 				show_graft_menu(id)
 			elif at_weapon_gate(player):
 				cycle_slot(id, player, "prepared_secondary", player.prepared)
-		"select_graft":
-			if Participation.is_wild(player) and graft_altar_open() and battlefield.graft.distance_to(player.pos) <= 1.65:
-				player.graft_choice = next_monster_part(selected_graft(player), player.carried_parts)
 		"frame":
 			if not Participation.is_wild(player) and not participation.active() and Stage.HEART.distance_to(player.pos) <= 1.7:
 				select_class(id,player,(int(player.frame)+1)%Classes.DEFINITIONS.size())
@@ -1552,10 +1512,6 @@ func save_local_character() -> bool:
 	return false
 
 
-func graft_chance(player: Dictionary, part: int) -> float:
-	var profile: Dictionary = player.get("character", guest_character.data)
-	var familiarity: int = profile.monsters[int(Parts.DEFINITIONS[part].monster)] if Parts.is_monster(part) else profile.plants[Parts.plant_source(part)]
-	return minf(0.95, GRAFT_CHANCE + minf(.25,mini(5,familiarity)*.04+maxi(0,familiarity-5)*.002) + (0.05 if heart_state().get("unlocked",[]).has("monster_studies") else 0.0) + float(weapon_stats(player).get("graft_chance",0)))
 
 
 func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
@@ -1590,7 +1546,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 			stats[combat_events_api.CONTEXT] = event
 	else:
 		skill = Skills.resolve(int(player.frame),slot,player.character)
-	skill=Traits.tune_skill(skill,stats)
+	skill=skill.duplicate(true)
 	if skill.mode=="subclass":
 		preload("res://subclass_combat.gd").cast_skill(self,id,player,skill,stats,now)
 		return
@@ -1614,7 +1570,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	if aimed:
 		plan=preload("res://class_ability_targeting.gd").plan(self,player,battlefield,skill,stats,player.class_aim,float(player.get("class_aim_distance",-1)))
 		if not plan.valid:
-			tell(id,"Cultivate a bloom before detonating it." if mode=="bloom_detonate" else "%s: no enemy within clear range."%skill.name)
+			tell(id,"%s: no enemy within clear range."%skill.name)
 			return
 		target=plan.target
 		point=plan.point
@@ -1623,14 +1579,9 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 		player.aim_direction=plan.forward
 	else:
 		var targeting = preload("res://class_ability_targeting.gd")
-		var form := WeaponMotion.form(player)
-		if mode == "volley" and WeaponMotion.is_projectile(form):
-			target=targeting.automatic(self,player,float(stats.reach),WeaponMotion.profile(form))
-		else:
-			var width := float(skill.width) if mode == "salvo" else -1.0
-			target=targeting.automatic(self,player,range_limit+float(skill.get("travel",0)),{},width)
+		target=targeting.automatic(self,player,range_limit+float(skill.get("travel",0)))
 		if target!=-2: point=enemy_position(target)
-	if not aimed and mode in ["bind","strangle","siphon","salvo","judgement","reap","harvest","requiem"]:
+	if not aimed and mode in ["siphon"]:
 		var extra_travel:=float(skill.get("travel",0)) if not skill.has("range") else 0.0
 		if target==-2 or player.pos.distance_to(point)>range_limit+extra_travel:
 			tell(id,"%s: no enemy within clear range."%skill.name)
@@ -1638,15 +1589,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	if slot==1 and skill.has("oracle_nodes"):
 		chime = oracle.begin_chime(self,player,skill,event,now)
 	match mode:
-		"growth":
-			effect_point=point if target!=-2 and player.pos.distance_to(point)<=range_limit else player.pos
-		"bloom_detonate":
-			if not Traits.has_growth(self,player): tell(id,"Cultivate a bloom before detonating it.");return
-			targets=Traits.detonation_targets(self,player,radius)
-		"requiem":
-			effect_point=point
-			Traits.defer_skill(self,player,skill_area_targets(point,radius,player.pos),skill,stats,now)
-		"front_guard", "counter_guard":
+		"front_guard","counter_guard":
 			combat_events_api.grant_ward(self,player,now+int(skill.duration)+duration,int(skill.charges),event,adapter,now)
 			if mode=="front_guard":
 				player.front_guard_until=now+int(skill.duration)+duration;player.guard_face=player.facing.normalized()
@@ -1657,15 +1600,12 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 			else: player.counter_guard_until=now+int(skill.duration)+duration
 		"guard":
 			combat_events_api.grant_ward(self,player,now+int(skill.duration)+duration,int(skill.charges),event,adapter,now)
-		"bastion","ward":
+		"ward":
 			var ward_ms := int(chime.get("duration",skill.duration)) + duration + int(skill.get("ward_ms",0))
 			for ally in players.values():
 				if Life.alive(ally) and ally.pos.distance_to(player.pos)<=radius and battlefield.clear_line(player.pos,ally.pos):
 					combat_events_api.grant_ward(self,ally,now+ward_ms,int(skill.charges),event,adapter,now)
-		"bind","strangle":
-			targets.assign([target])
-			effect_point=point
-		"snare","snare_field":
+		"snare":
 			effect_point=plan.center if aimed else battlefield.dash(player.pos,point if target!=-2 else player.pos+Vector3(player.facing)*range_limit)
 			if skill.has("ranger_nodes") and battlefield.occupied(effect_point):
 				tell(id,"Bramble Snare needs supported ground.")
@@ -1676,69 +1616,18 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 					tell(id,"Bramble Snare could not be set. Wait for an active effect to expire.")
 					return
 				ranger_snare = placed
-		"volley","reap":
-			if target==-2 or player.pos.distance_to(point)>float(stats.reach)+(float(skill.get("travel",3)) if mode=="reap" else 0.0):
-				tell(id,"No enemy within skill range.")
-				return
-			if mode=="volley": player.focus_until=now+int(skill.duration)+duration
-			else:
-				grant_guard(player,now+int(skill.duration)+duration,1)
-				player.pos=plan.center if aimed else battlefield.dash(player.pos,player.pos.move_toward(point,minf(float(skill.travel),maxf(0,player.pos.distance_to(point)-.6))))
-			player.skill_burst=true
-			player.skill_burst_damage=Skills.Balance.burst_points(skill)
-			player.skill_burst_targets=2+int(skill.mastered)
-			player.strike_at=0
-			if event != null: player.cr02_class_strike = event
-			strike_enemy(id,player,player.pos)
-			if event != null: player.erase("cr02_class_strike")
-			player.skill_burst=false
-			effect_point=player.pos
-		"windstep":
-			var facing: Vector3=player.get("facing",Vector3.FORWARD)
-			if facing.length_squared()<.01: facing=Vector3.FORWARD
-			player.pos=plan.center if aimed else battlefield.dash(player.pos,player.pos-facing.normalized()*float(skill.travel))
-			player.focus_until=now+int(skill.duration)+duration
-			effect_point=player.pos
-		"charge","harvest":
-			var facing: Vector3=(point-player.pos).normalized() if target!=-2 else player.facing
-			var distance:=float(skill.travel)
-			if target!=-2: distance=minf(distance,maxf(0,player.pos.distance_to(point)-.6))
-			player.pos=plan.center if aimed else battlefield.dash(player.pos,player.pos+facing*distance)
-			effect_point=player.pos
-			if mode=="harvest": grant_guard(player,now+int(skill.duration)+duration,1)
-			targets=skill_area_targets(player.pos,radius,player.pos)
-		"quake","nova","bloodmoon":
+		"quake","nova":
 			if mode=="quake" and skill.has("warden_focus"):
 				effect_point=plan.center if aimed else preload("res://warden_combat.gd").quake_center(self,player,battlefield,skill,now)
 				skill.effect_origin=effect_point
 			targets=skill_area_targets(effect_point,radius,effect_point)
-		"judgement":
-			effect_point=point
-			targets=skill_area_targets(point,radius,player.pos)
-		"salvo":
-			var aim: Vector3=point-player.pos
-			player.facing=aim.normalized() if aim.length_squared()>.001 else player.get("facing",Vector3.FORWARD)
-			if player.facing.length_squared()<.001: player.facing=Vector3.FORWARD
-			targets=skill_line_targets(player.pos,player.facing,range_limit,float(skill.width),int(skill.targets))
-			effect_point=point
 		"siphon":
 			targets.assign([target])
 			effect_point=point
 			if skill.has("reaper_nodes"):
 				reaper_siphon = preload("res://reaper_combat.gd").begin_siphon(self,id,player,skill,target,point,now)
-		"heal","sanctuary":
-			var heal_hp:=Life.Preview.roll_heal(Skills.Balance.direct_heal(skill,stats))
-			for ally_id in players:
-				var ally: Dictionary = players[ally_id]
-				if Life.alive(ally) and ally.pos.distance_to(player.pos)<=radius and battlefield.clear_line(player.pos,ally.pos):
-					if event != null: recipients.append(ally_id)
-					Life.Sustain.restore(self,ally,heal_hp,mode)
-					Life.Sustain.begin_renewal(ally,now,int(skill.duration)+duration,Skills.Balance.RENEWAL_INTERVAL_MS)
-					if mode=="sanctuary": combat_events_api.grant_ward(self,ally,now+int(skill.ward_duration)+duration,int(skill.charges),event,adapter,now)
-			bonus_heal=0
 	if player.has("affinity_spirit_follow") and player.pos!=cast_origin:
 		preload("res://spirit_affinity.gd").movement(self,player,cast_origin,player.pos)
-	targets=Traits.spread_targets(self,player,targets,skill,stats)
 	var native_weaver_nova := mode=="nova" and skill.has("weaver_nodes")
 	var catalyst_targets := targets.duplicate() if native_weaver_nova else targets
 	var weaver_impact := Vector3.INF
@@ -1755,14 +1644,12 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	if skill.has("warden_focus") and slot==0:
 		preload("res://warden_combat.gd").on_cast(self,player,skill,now+int(skill.duration)+duration,now,event)
 	if mode=="quake":
-		preload("res://core_combat.gd").quake(self,id,effect_point,secondary_radius,now)
 		if skill.has("warden_focus"):
 			var warden=preload("res://warden_combat.gd")
 			warden.consume_anchor(self,player,effect_point,now)
 			warden.quake_hit(self,player,effect_point,targets,radius,now)
-	if mode in ["siphon","bloodmoon"] and hits>0:
+	if mode=="siphon" and hits>0:
 		Life.Sustain.heal(self,player,Skills.Balance.drain_amount(skill,hits),mode,Life.Preview.HEAL_DRAIN_SPREAD_HP)
-	Traits.skill_cast(self,player,skill,stats,effect_point,now)
 	player.contributed=true
 	if bonus_heal>0: Life.Sustain.heal(self,player,bonus_heal,"class_healing_bonus")
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].start(slot, now, Skills.Balance.cooldown(skill,stats))
@@ -1788,14 +1675,12 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	if encounter_cleared(): finish_combat(id,enemy_position(targets.back()) if not targets.is_empty() else effect_point)
 
 func grant_guard(player: Dictionary,until: int,charges: int) -> void:
-	if charges > 1 or until > int(player.get("guard_until",0)): player.erase("ironbark_ward")
 	var previous_until := int(player.get("guard_until",0))
 	var now := Time.get_ticks_msec()
 	var old_charges := int(player.get("guard_charges",0)) if previous_until > now else 0
 	player.guard_until=maxi(previous_until,until)
 	player.guard_charges=maxi(old_charges,Skills.Balance.guard_charges(charges))
-	if has_meta(&"combat_affinity_ruleset"):
-		preload("res://ward_responses.gd").accepted(self,player,previous_until,old_charges,until,now)
+	preload("res://ward_responses.gd").accepted(self,player,previous_until,old_charges,until,now)
 
 func skill_area_targets(center: Vector3,radius: float,origin: Vector3) -> Array[int]:
 	var result: Array[int]=[]
@@ -1861,13 +1746,13 @@ func apply_skill_targets(player: Dictionary,targets: Array[int],skill: Dictionar
 			apply_weapon_hit(player,target,adjustment.get("origin",skill.get("effect_origin",player.pos)),hit,now)
 			var after:=encounter.hp(target)
 			echo_hit = echo_hit or (inside_bloom and after < before)
-			if Life.Preview.enabled and Life.Sustain.eligible(self,target):
+			if Life.Sustain.eligible(self,target):
 				drain_contacts+=int(after<before)
 	if echo_hit:
 		AffinityCards.bloom_echo(self,player,echo_bloom,skill,now)
 	if participation.route()==Campaign.HEART and before_primary>Campaign.FINAL_HP/2.0 and enemy_health()>0 and enemy_health()<=Campaign.FINAL_HP/2.0:
 		for peer_id in players: tell(peer_id,"The Heart remembers: I sheltered them, too. I will not let it happen again.")
-	return drain_contacts if Life.Preview.enabled else targets.size()
+	return drain_contacts
 
 
 func graft_altar_open() -> bool:
@@ -1879,7 +1764,7 @@ func at_graft_altar(player: Dictionary) -> bool:
 	return not player.is_empty() and Participation.is_wild(player) and graft_altar_open() and location.distance_to(player.get("pos",Vector3.INF))<=1.65
 
 func _purchase_expedition_graft(id: int, player: Dictionary, action: String) -> String:
-	if not multiplayer.is_server() or not has_meta(&"combat_affinity_ruleset") or not Transactions.session_writable(self) \
+	if not multiplayer.is_server() or not Transactions.session_writable(self) \
 			or not Life.alive(player) or not Session.ready_for(player,false) or not is_same(players.get(id,{}),player):
 		return "This graft purchase is unavailable."
 	if not at_graft_altar(player) or not participation.travel_kind().is_empty():
@@ -1910,57 +1795,13 @@ func _purchase_expedition_graft(id: int, player: Dictionary, action: String) -> 
 	return purchase.message
 
 
-func graft_block_reason(player: Dictionary,part: int) -> String:
-	if not at_graft_altar(player): return "Move next to a grafting altar in the Wilds."
-	if not Parts.is_monster(part): return "Select a carried monster part."
-	if int(player.get("carried_parts",Parts.empty_counts())[part])<=0: return "No carried component of this type remains."
-	var installed:=int(player.get("graft_part",0))
-	if installed==part: return "This component is already installed."
-	if installed!=0 and participation.floor()<=int(player.get("graft_floor",0)): return "Replacement requires an altar on a later encounter."
-	return ""
-
-func attempt_graft(id: int, player: Dictionary, requested: int = -1) -> bool:
-	if has_meta(&"combat_affinity_ruleset"): return false
-	if has_meta(Transactions.SESSION):
-		var result := run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _attempt_graft(id, player, requested, effects))
-		return Transactions.committed(result.persistence)
-	return Transactions.run(self, func(): _attempt_graft(id, player, requested)) != false
-
-func _attempt_graft(id: int, player: Dictionary, requested: int = -1, effects = null) -> void:
-	var part: int=selected_graft(player) if requested==-1 else requested
-	var reason:=graft_block_reason(player,part)
-	if not reason.is_empty():
-		graft_feedback(id,player,reason,effects)
-		return
-	var previous:=int(player.get("graft_part",0))
-	player.graft_choice=part
-	player.carried_parts[part]-=1
-	var graft_roll:=rng.randf()
-	var probability:=graft_chance(player,part)
-	var report_roll := func(): Journal.event("grafting","roll",{"actor":id,"part":part,"previous_part":previous,"probability":probability,"roll":graft_roll,"success":graft_roll<probability})
-	if effects == null: report_roll.call()
-	else: effects.append(report_roll)
-	if graft_roll<probability:
-		player.graft_part=part
-		player.graft_floor=participation.floor()
-		if Life.Preview.enabled:
-			player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(Life.native_maximum(self,player))
-		progress.record_monster_graft(part)
-		var message: String="%s grafted into the fourth slot."%Parts.part_name(part)
-		if previous!=0: message="%s replaced %s. The old component was sacrificed."%[Parts.part_name(part),Parts.part_name(previous)]
-		if effects == null and progress.save_garden()!=OK:
-			message+=" Save failed. Use Save Garden to retry."
-			if id!=HOST: status="Garden save failed. Use Save Garden to retry."
-		graft_feedback(id,player,message,effects)
-	else:
-		graft_feedback(id,player,"The graft failed and consumed %s.%s"%[Parts.part_name(part)," The installed component remains intact." if previous!=0 else ""],effects)
 
 
-func selected_graft(player: Dictionary) -> int:
-	var choice: int=player.graft_choice
-	if Parts.is_monster(choice) and player.carried_parts[choice]>0:
-		return choice
-	return next_monster_part(0,player.carried_parts)
+
+
+
+
+
 
 func next_monster_part(current: int,counts: Array) -> int:
 	for offset in range(1,Parts.DEFINITIONS.size()):
@@ -2010,59 +1851,10 @@ func extraction_checkpoint_open() -> bool:
 	return participation.route() != Campaign.HEART and participation.floor() % EXTRACTION_INTERVAL == 0 and encounter_cleared()
 
 
-func checkpoint_offer_ids(player: Dictionary) -> Array:
-	if preload("res://combat_ruleset.gd").active(self): return []
-	if not Participation.is_wild(player) or not upgrade_checkpoint_open(): return []
-	if int(player.get("offer_floor",0))!=participation.floor():
-		var wallet: int=run_wallet(player)
-		player.checkpoint_offers=RunUpgrades.roll(player,participation.floor(),int(player.get("upgrade_seed",1)),wallet)
-		player.offer_floor=participation.floor()
-	return player.get("checkpoint_offers",[])
 
-func buy_upgrade(id: int,player: Dictionary,choice: int) -> bool:
-	var combat_mode = preload("res://combat_ruleset.gd")
-	if combat_mode.active(self):
-		tell(id,combat_mode.LEGACY_CARD_REFUSAL)
-		return false
-	if has_meta(Transactions.SESSION):
-		var result := run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): return _buy_upgrade(id, player, choice, effects))
-		return Transactions.committed(result.persistence) and result.value == true
-	return bool(Transactions.run(self,func(): return _buy_upgrade(id,player,choice)))
 
-func _buy_upgrade(id: int,player: Dictionary,choice: int,effects = null) -> bool:
-	if preload("res://combat_ruleset.gd").active(self): return false
-	if not Participation.is_wild(player) or not upgrade_checkpoint_open() or battlefield.advance.distance_to(player.pos)>preload("res://gate_interaction.gd").RANGE or int(player.last_offer)==participation.floor(): return false
-	var offers:=checkpoint_offer_ids(player)
-	if choice<0 or choice>=offers.size(): return false
-	var entry:=RunUpgrades.get_upgrade(str(offers[choice]))
-	var reason:=RunUpgrades.requirement(entry,player)
-	if not reason.is_empty(): action_feedback(effects,id,reason);return false
-	var debited := _plan_essence_debit(player, int(entry.cost))
-	if debited == null: action_feedback(effects,id,"Not enough essence for that upgrade.");return false
-	var before_health: int = player[PlayerVitals.STATE].max_hp()
-	if not player.has("run_upgrades"): player.run_upgrades={}
-	player.run_upgrades[entry.id]=int(player.run_upgrades.get(entry.id,0))+1
-	player[ExpeditionWallet.STATE] = debited
-	var metric := {"id":entry.id,"floor":participation.floor(),"cost":int(entry.cost)}
-	var record_upgrade := func(): preload("res://game_metrics.gd").record("upgrade",metric)
-	if effects == null: record_upgrade.call()
-	else: effects.append(record_upgrade)
-	player.last_offer=participation.floor()
-	player.power+=int(entry.effects.get("power",0))
-	player.technique+=int(entry.effects.get("technique",0))
-	if entry.effects.has("rift_hook"): player.rift_hook=true
-	var health: PlayerVitals.Health = player[PlayerVitals.STATE].with_native_max_hp(Life.native_maximum(self,player))
-	# Legacy rank purchases also heal by the capacity they add.
-	player[PlayerVitals.STATE] = health.healed(maxi(0,health.max_hp()-before_health))
-	var message: String="%s · Rank %d gained for this expedition."%[entry.name,int(player.run_upgrades[entry.id])]
-	if entry.id=="rift_hook" and not progress.rift_hook_discovered:
-		progress.discover_rift_hook()
-		message+=" The Heart remembers this link."
-		if effects == null:
-			save_progress(id,message)
-			return true
-	action_feedback(effects,id,message)
-	return true
+
+
 
 
 func guarded_growth_tick(elapsed: float) -> void:
@@ -2164,7 +1956,7 @@ func _physics_process(delta: float) -> void:
 		if get_meta(Transactions.PENDING, false): return
 		Traits.tick(self,now)
 		if get_meta(Transactions.PENDING, false): return
-		if has_meta(&"combat_affinity_ruleset") and participation.active():
+		if participation.active():
 			preload("res://warden_combat.gd").tick(self,now)
 			if get_meta(Transactions.PENDING, false): return
 			preload("res://weaver_combat.gd").tick(self,now)
@@ -2187,7 +1979,6 @@ func _physics_process(delta: float) -> void:
 			next_kill_reward_flush=now+150
 			flush_kill_rewards()
 		if get_meta(Transactions.PENDING, false): return
-		update_support_effects(now)
 		update_combat_tracking(delta)
 		LeaderBehavior.tick(self, delta, now)
 		if get_meta(Transactions.PENDING, false): return
@@ -2353,7 +2144,7 @@ func nearest_wild_player(origin: Vector3) -> int:
 func make_scout(kind: int, position: Vector3, route: int, mutations: int = 0, growth: int = 0, juvenile: bool = false) -> Dictionary:
 	var definition := Enemies.get_kind(kind)
 	var hp: int
-	if Life.Preview.enabled and participation.route()!=Campaign.HEART:
+	if participation.route()!=Campaign.HEART:
 		hp=Director.Balance.scout_hp(definition,participation.floor(),participation.cycle(),growth,encounter_party_size,juvenile)
 	else:
 		hp=Life.Preview.hp(1) if juvenile else Director.health(self,int(Director.config().scout_base_hp)+int(definition.hp)+growth,false)
@@ -2525,7 +2316,7 @@ func _harvest(id: int, slot: int, effects = null) -> bool:
 	progress.sync_plot_flags()
 	var profile: Dictionary = players[id].character
 	var familiarity: int = profile.plants[kind]
-	profile.plants[kind] = mini(9999, familiarity + 1 + int(progress.heart.has("nursery")) + int(Classes.bonuses(profile,int(players[id].frame)).get("familiarity",0)))
+	profile.plants[kind] = mini(9999, familiarity + 1 + int(progress.heart.has("nursery")))
 	save_action_profile(id, effects)
 	var message: String
 	if seeds:
@@ -2564,31 +2355,22 @@ func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 			tell(id, refusal)
 			return
 		var events = preload("res://combat_action_events.gd")
-		var event: RefCounted = p.get("cr02_class_strike")
-		if event == null:
-			if not p.get("skill_burst",false):
-				Weapons.tune_affinity_basic(stats, AffinityCards.totals(p))
-			var form_affinity: Dictionary = affinity_build.form
-			var ready: bool = form_affinity.state == "ready"
-			event = events.begin(self,id,"form" if ready else "native_weapon",form_affinity if ready else {},
-				form_affinity.potency_profile.values if ready else {},["weapon_contact","secondary"],now+15000)
-			if not p.get("skill_burst",false):
-				var grafts = preload("res://native_grafts.gd")
-				var captured := grafts.capture(p,affinity_build.improvements.adaptations)
-				if not captured.is_empty():
-					stats[grafts.CONTEXT] = captured
-			if int(p.frame)==Frames.REAPER and int(affinity_build.class_skills.size())>0:
-				preload("res://reaper_combat.gd").commit_melee(self,p,affinity_build.class_skills[0].get("native_skill",{}),stats,now)
+		Weapons.tune_affinity_basic(stats, AffinityCards.totals(p))
+		var form_affinity: Dictionary = affinity_build.form
+		var ready: bool = form_affinity.state == "ready"
+		var event: RefCounted = events.begin(self,id,"form" if ready else "native_weapon",form_affinity if ready else {},
+			form_affinity.potency_profile.values if ready else {},["weapon_contact","secondary"],now+15000)
+		var grafts = preload("res://native_grafts.gd")
+		var captured := grafts.capture(p,affinity_build.improvements.adaptations)
+		if not captured.is_empty():
+			stats[grafts.CONTEXT] = captured
+		if int(p.frame)==Frames.REAPER and int(affinity_build.class_skills.size())>0:
+			preload("res://reaper_combat.gd").commit_melee(self,p,affinity_build.class_skills[0].get("native_skill",{}),stats,now)
 		stats[events.CONTEXT] = event
 		stats.erase("affinity_build")
-		if int(p.frame)==Frames.RANGER and has_meta(&"combat_affinity_ruleset") and p.character.has(Classes.Ranger.PROFILE_KEY) \
-				and not p.get("skill_burst",false) and not p.has("cr02_class_strike"):
+		if int(p.frame)==Frames.RANGER and p.character.has(Classes.Ranger.PROFILE_KEY):
 			stats.ranger_ordinary = true
-	if p.get("skill_burst",false):
-		stats.targets=mini(5,int(stats.targets)+int(p.get("skill_burst_targets",2)))
-		stats.damage+=int(p.get("skill_burst_damage",1))
-		stats.pattern="chain" if int(p.frame)==Frames.RANGER else "sweep"
-	Life.Preview.lock_strike(stats,preload("res://combat_ruleset.gd").legacy_power(p))
+	Life.Preview.lock_strike(stats,0)
 	p.strike_at=now+int(stats.interval)
 	p.cast_until=0
 	var form:=WeaponMotion.form(p)
@@ -2628,17 +2410,13 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 	if not graft_contact.is_empty():
 		authored_damage += grafts.bonus(self,p,graft_contact,now)
 	if not stats.get("trait_secondary",false):
-		authored_damage+=int(stats.get("preview_power",preload("res://combat_ruleset.gd").legacy_power(p)))
+		authored_damage+=int(stats.get("preview_power",0))
 	if winding:
 		authored_damage+=Life.Preview.authored_amount(float(stats.get("windup_damage",0)))
-	if winding and p.rift_hook and not stats.get("core_hit",false) and not p.has("combat_ruleset"):
-		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, 0)
 	if winding and float(stats.get("windup_damage",0))>0:preload("res://combat_status.gd").proc(self,"punish",origin,point,target)
-	if Life.Preview.authored_amount(float(stats.damage))>0.0 and not stats.get("trait_secondary",false) and not stats.get("core_hit",false):
-		authored_damage+=preload("res://core_strike_mark.gd").consume(self,p,target,now)
 	var damage := int(stats.affinity_hp) if stats.has("affinity_hp") else Life.Preview.resolved_hit(authored_damage,stats)
 	damage += int(stats.get("native_bonus_hp",0))
-	if damage > 0 and stats.get("ranger_direct_hit",false) and has_meta(&"combat_affinity_ruleset") and not stats.get("trait_secondary",false) and not stats.get("core_hit",false):
+	if damage > 0 and stats.get("ranger_direct_hit",false) and not stats.get("trait_secondary",false) and not stats.get("core_hit",false):
 		damage += preload("res://ranger_combat.gd").consume_prey(self,p,target,now)
 	var push:=0.35+float(stats.get("knockback",0))
 	var mutations: int=enemy_mutations if target==-1 else int(encounter.scout(target).get("mutations",0))
@@ -2693,14 +2471,13 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 		var actor: Dictionary=encounter.scout(target) if target>=0 else encounter.leader_tactics()
 		preload("res://wilds_skill_tactics.gd").interrupted(self,actor,"suppression")
 	if applied>0:
-		if has_meta(&"combat_affinity_ruleset") and (int(p.frame)==4 or p.has("oracle_omens")):
+		if (int(p.frame)==4 or p.has("oracle_omens")):
 			preload("res://oracle_combat.gd").ordinary_contact(self,p,target,contact_point,stats,now)
 		var form := "magic" if stats.get("trait_secondary",false) else str(stats.get("audio_form",WeaponMotion.form(p)))
 		emit_combat_event("impact","hit",origin,point,.85,stats.get("affinity_color",weapon_effect_color(p)),float(applied),target,{"form":form})
 	if encounter.death_pending(target, target_token):
 		record_enemy_death(target,point,origin,target_token)
-		var restored:=Life.Sustain.heal_on_kill(self,p,target,Life.Preview.authored_amount(float(stats.get("heal_on_kill",0))))
-		if restored>0.0 and not Life.Preview.enabled:preload("res://combat_status.gd").proc(self,"siphon",point,p.pos)
+		Life.Sustain.heal_on_kill(self,p,target,Life.Preview.authored_amount(float(stats.get("heal_on_kill",0))))
 	Traits.after_hit(self,p,target,stats,now,before>0 and applied>=before)
 	if not graft_contact.is_empty() and applied > 0:
 		grafts.finish_contact(self,p,target,stats,graft_contact,now,before>0 and applied>=before)
@@ -2737,12 +2514,11 @@ func _finish_combat(id: int,loot_position: Vector3,effects = null) -> void:
 	var ranged_evidence:=Life.Vitals.counts_as_ranged(ranged_damage_this_room,damage_this_room,Life.Preview.scale())
 	if ranged_evidence: ranged_clears+=1
 	var previous_memory: Dictionary=progress.wilds_memory.score.duplicate()
-	var thorn_evidence:=preload("res://thorn_adaptation.gd").evidence(self)
 	var skill_evidence:=preload("res://wilds_skill_tactics.gd").evidence(self)
-	var learned: Dictionary={"ranged":ranged_evidence,"burst":burst_hits_this_room>=2,"choke":choke_kills_this_room>=3 and choke_kills_this_room*2>=encounter_kills.size(),"kite":moving_ranged_hits>=3 and Time.get_ticks_msec()-encounter_started_at>=8000,"thorn_line":thorn_evidence.crossings>0}
+	var learned: Dictionary={"ranged":ranged_evidence,"burst":burst_hits_this_room>=2,"choke":choke_kills_this_room>=3 and choke_kills_this_room*2>=encounter_kills.size(),"kite":moving_ranged_hits>=3 and Time.get_ticks_msec()-encounter_started_at>=8000}
 	for tactic in skill_evidence: learned[tactic]=int(skill_evidence[tactic])>0
 	Learning.observe(progress.wilds_memory,learned,participation.floor())
-	record_settlement_metric(effects,"wilds_learning",{"floor":participation.floor(),"encounters":progress.wilds_memory.encounters,"scores":progress.wilds_memory.score.duplicate(),"thorn_armed":thorn_evidence.armed,"thorn_crossings":thorn_evidence.crossings,"skill_evidence":skill_evidence,"party":encounter_party_size,"elapsed_ms":Time.get_ticks_msec()-encounter_started_at})
+	record_settlement_metric(effects,"wilds_learning",{"floor":participation.floor(),"encounters":progress.wilds_memory.encounters,"scores":progress.wilds_memory.score.duplicate(),"skill_evidence":skill_evidence,"party":encounter_party_size,"elapsed_ms":Time.get_ticks_msec()-encounter_started_at})
 	deepest_milestone=maxi(deepest_milestone,participation.floor())
 	if participation.depth()==ROUTE_ROOMS and participation.route()<Campaign.HEART: run_guardians|=1 << participation.route();guardian_counts[participation.route()]+=1
 	tactics.winding_up=false
@@ -2846,13 +2622,11 @@ func milestone_message(message: String, extracted: bool) -> String:
 
 func encounter_health() -> int:
 	if not multiplayer.is_server(): return int(players.get(multiplayer.get_unique_id(),{}).get("enemy_max_hp",Life.Preview.hp(ENEMY_HEALTH)))
-	if Life.Preview.enabled and participation.route()!=Campaign.HEART:
+	if participation.route()!=Campaign.HEART:
 		if tactics.boss_kind>=0: return Director.Balance.boss_hp(Enemies.get_kind(tactics.boss_kind),participation.floor(),participation.cycle(),encounter_party_size)
 		return Director.Balance.elite_hp(Enemies.get_kind(enemy_kind),participation.floor(),participation.depth(),participation.cycle(),encounter_party_size)
 	if tactics.boss_kind>=0: return Director.health(self,30+int(Enemies.get_kind(tactics.boss_kind).hp)+participation.floor()/3,true)
-	if participation.route() == Campaign.HEART:
-		return Director.health(self,Campaign.FINAL_HP,true)
-	return Director.health(self,int(Director.config().leader_base_hp)+participation.depth()-1+participation.route()+(2 if participation.depth()==ROUTE_ROOMS else 0)+participation.cycle()*(participation.cycle()+2),true)
+	return Director.health(self,Campaign.FINAL_HP,true)
 
 
 func start_encounter() -> void:
@@ -2868,15 +2642,14 @@ func reset_encounter(seed_value: int = -1) -> void:
 	participation.begin_floor(seed_value)
 	for player in players.values():
 		preload("res://native_grafts.gd").clear(player)
-	if has_meta(&"combat_affinity_ruleset"):
-		for player in players.values():
-			preload("res://oracle_combat.gd").clear(player)
-			preload("res://vital_combat.gd").clear(self,player)
-			preload("res://wood_affinity.gd").clear(player)
-			preload("res://storm_affinity.gd").clear(player)
-			preload("res://spirit_affinity.gd").clear(player)
-			player.erase("affinity_void_form_ready")
-			player.erase("affinity_thorn_form_ready")
+	for player in players.values():
+		preload("res://oracle_combat.gd").clear(player)
+		preload("res://vital_combat.gd").clear(self,player)
+		preload("res://wood_affinity.gd").clear(player)
+		preload("res://storm_affinity.gd").clear(player)
+		preload("res://spirit_affinity.gd").clear(player)
+		player.erase("affinity_void_form_ready")
+		player.erase("affinity_thorn_form_ready")
 	preload("res://core_combat.gd").reset(self)
 	enemy_traits.clear();trait_events.clear()
 	projectile_queue.clear()
@@ -3076,7 +2849,7 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 			var garden = stage.experimental_garden
 			state["garden_layout_revision"] = garden.layout_revision if garden.reveal == null else -1
 		if id == viewer and include_details:
-			if p.has("combat_ruleset") and Participation.is_wild(p):
+			if Participation.is_wild(p):
 				state["affinity_feedback"]=preload("res://combat_status.gd").affinity_feedback(self,p)
 			state["core_state"]=preload("res://core_combat.gd").owner_state(p,Time.get_ticks_msec(),get_meta("core_combat",{}).get(id,{}))
 			if Participation.is_wild(p):
@@ -3089,12 +2862,11 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 					state["warden_relay_point"]=warden.relay_point(self,p,now)
 					state["warden_quake_prepared"]=warden.prepared_until(self,p,now)>0
 			state.merge({"weapon": p.weapon, "prepared": p.prepared, "experiment": p.experiment,
-				"dodge_ready": cooldowns.ready(Cooldowns.DODGE, cooldown_now), "last_offer": AffinityCards.completed_floor(p) if p.has("combat_ruleset") else p.last_offer,
-				"reclaim_choice":p.get("reclaim_choice",0),"offering_choice":p.get("offering_choice",0),"last_deposit":p.get("last_deposit",0),"weapon_kind":p.weapon_kind,"catalyst":p.catalyst,"graft_part":p.graft_part,"graft_floor":p.get("graft_floor",0),"prepared_catalyst":p.prepared_catalyst,"cargo_plan":p.cargo_plan,"stored_parts":stored_counts(p),"weapon_stats":weapon_stats(p,not Participation.is_wild(p)), "carried_parts": p.carried_parts, "reserve_parts": seed_reserve(p).parts,"combat_events":combat_events_snapshot(),"attack_hints":attack_hints_snapshot(),"death_events":death_events_snapshot(),"run_upgrades":preload("res://combat_ruleset.gd").legacy_ranks(p),"bag":InventoryModel.snapshot(self,p),"ground_items":inventory_floor_snapshot(p), "secondary": p.secondary, "prepared_secondary": p.prepared_secondary,
+				"dodge_ready": cooldowns.ready(Cooldowns.DODGE, cooldown_now), "last_offer": AffinityCards.completed_floor(p),
+				"reclaim_choice":p.get("reclaim_choice",0),"offering_choice":p.get("offering_choice",0),"last_deposit":p.get("last_deposit",0),"weapon_kind":p.weapon_kind,"catalyst":p.catalyst,"graft_part":0,"graft_floor":0,"prepared_catalyst":p.prepared_catalyst,"cargo_plan":p.cargo_plan,"stored_parts":stored_counts(p),"weapon_stats":weapon_stats(p,not Participation.is_wild(p)), "carried_parts": p.carried_parts, "reserve_parts": seed_reserve(p).parts,"combat_events":combat_events_snapshot(),"attack_hints":attack_hints_snapshot(),"death_events":death_events_snapshot(),"run_upgrades":{},"bag":InventoryModel.snapshot(self,p),"ground_items":inventory_floor_snapshot(p), "secondary": p.secondary, "prepared_secondary": p.prepared_secondary,
 				"garden_interactions":preload("res://garden_interaction_service.gd").projection(self,id),
-				"party_travel":PartyTravel.snapshot(self,id),"seed_choice": selected_seed(p), "graft_choice": p.graft_choice, "cache_claimed": p.cache_claimed})
-			if p.has("combat_ruleset"):
-				state["graft_improvements"] = preload("res://expedition_grafts.gd").owner_details(p, participation.floor())
+				"party_travel":PartyTravel.snapshot(self,id),"seed_choice": selected_seed(p), "graft_choice": 0, "cache_claimed": p.cache_claimed})
+			state["graft_improvements"] = preload("res://expedition_grafts.gd").owner_details(p, participation.floor())
 			if Participation.is_wild(p) and p.has(AffinityCards.STATE):
 				state["affinity_run_cards"] = AffinityCards.project_owned(p,state.weapon_stats,DODGE_COOLDOWN_MS)
 		state.diagnostic_host=Journal.current.session_id if is_instance_valid(Journal.current) else ""
@@ -3280,7 +3052,7 @@ func _process(_delta: float) -> void:
 				guide.text = "E  Continue"
 			else:
 				guide.text = "Continue to %s" % Campaign.NAMES[(participation.route() + 1) % Campaign.HEART]
-		var last_offer := AffinityCards.completed_floor(p) if multiplayer.is_server() and p.has("combat_ruleset") else int(p.get("last_offer", 0))
+		var last_offer := AffinityCards.completed_floor(p) if multiplayer.is_server() else int(p.get("last_offer", 0))
 		if upgrade_checkpoint_open() and last_offer != participation.floor():
 			guide.text="E  Choose an upgrade" if visual_field.advance.distance_to(p.pos)<=preload("res://gate_interaction.gd").RANGE else "Upgrades await at the gate"
 		if extraction_checkpoint_open() and visual_field.advance.distance_to(p.pos) <= preload("res://gate_interaction.gd").RANGE:
@@ -3293,14 +3065,11 @@ func _process(_delta: float) -> void:
 			guide.text = "E  Search the abandoned clearing"
 		if graft_altar_open() and visual_field.graft.distance_to(p.pos) <= 1.65 and preload("res://gate_interaction.gd").shrine_preferred(visual_field,p.pos):
 			guide.text="E  Graft"
-			if has_meta(&"combat_affinity_ruleset"):
-				guide.text="E  Grafting Altar"
-				var improvements: Dictionary = preload("res://expedition_grafts.gd").owner_details(p, participation.floor()) if multiplayer.is_server() else p.get("graft_improvements",{})
-				detail_label.text="Altar used" if improvements.get("used",false) else "Spend a carried trophy on an expedition improvement."
-				if improvements.has("remaining"):
-					detail_label.text += " · %d remaining" % int(improvements.remaining)
-			else:
-				detail_label.text="Installed: %s · Replace at a later altar"%Parts.part_name(int(p.get("graft_part",0))) if int(p.get("graft_part",0))!=0 else "Choose a monster part to graft."
+			guide.text="E  Grafting Altar"
+			var improvements: Dictionary = preload("res://expedition_grafts.gd").owner_details(p, participation.floor()) if multiplayer.is_server() else p.get("graft_improvements",{})
+			detail_label.text="Altar used" if improvements.get("used",false) else "Spend a carried trophy on an expedition improvement."
+			if improvements.has("remaining"):
+				detail_label.text += " · %d remaining" % int(improvements.remaining)
 		var protected: bool = p.pouch if multiplayer.is_server() else client_pouch_filled
 		inventory.text += "\n\nCarried seeds   %d  |  Safe pouch   %d/1" % [carried, int(protected)]
 		var wallet: int = run_wallet(p) if multiplayer.is_server() else p.wallet
@@ -3360,8 +3129,8 @@ func _process(_delta: float) -> void:
 	if rescue_id!=0:
 		var ally: Dictionary=players[rescue_id]
 		var can_revive:=Life.Vitals.can_revive(PlayerVitals.maximum_hp(ally,Life.Preview.hp(MAX_HEALTH)),Life.Preview.scale())
-		var cost: String="%d maximum HP"%Life.Preview.revive_cost() if Life.Preview.enabled else "1 maximum heart"
-		guide.text="E  Revive %s · costs them %s"%[ally.get("display_name",ally.get("character",{}).get("name","ally")),cost] if can_revive else ("This ally has too little maximum health to revive." if Life.Preview.enabled else "This ally has no full heart left to sacrifice.")
+		var cost: String="%d maximum HP"%Life.Preview.revive_cost()
+		guide.text="E  Revive %s · costs them %s"%[ally.get("display_name",ally.get("character",{}).get("name","ally")),cost] if can_revive else "This ally has too little maximum health to revive."
 	if PlayerLifecycle.fallen(p) and wild: guide.text="Fallen · awaiting revival"
 	var ground_id:=nearest_inventory_drop(p) if multiplayer.is_server() else nearest_visible_inventory_drop(p)
 	if not ground_id.is_empty() and rescue_id==0 and not PlayerLifecycle.fallen(p): guide.text="E  Pick up item"
@@ -3396,16 +3165,12 @@ func _process(_delta: float) -> void:
 	var skills: Array=[Skills.resolve_in_world(self,int(p.get("frame",0)),0,p.get("character",guest_character.data)),
 		Skills.resolve_in_world(self,int(p.get("frame",0)),1,p.get("character",guest_character.data))]
 	var cooldowns: Array = local_timers.skill_seconds(cooldown_now) if host_side and local_timers != null else p.get("skill_cooldowns", [0.0, 0.0])
-	var skill_tips: Array=Skills.wild_tooltips(self,p,skills) if wild and Life.Preview.enabled else [skills[0].name+"\n"+skills[0].description,skills[1].name+"\n"+skills[1].description]
+	var skill_tips: Array=Skills.wild_tooltips(self,p,skills) if wild else [skills[0].name+"\n"+skills[0].description,skills[1].name+"\n"+skills[1].description]
 	var quake_prepared:=false
 	if skills[0].has("warden_focus"):
 		var warden=preload("res://warden_combat.gd")
 		quake_prepared=warden.prepared_until(self,p,Time.get_ticks_msec())>0 if host_side else bool(p.get("warden_quake_prepared",false))
 		if quake_prepared:skill_tips[1]+="\nQuake prepared."
-	if skills[0].has("warden_focus") or skills[0].has("subclass_focus"):
-		for slot in 2:
-			var purchased:=Classes.Warden.card_lines(p,slot) if int(p.frame)==0 else Classes.Subclasses.card_lines(p,slot)
-			if not purchased.is_empty():skill_tips[slot]+="\n"+purchased
 	var ready_dodge := (local_timers == null or local_timers.ready(Cooldowns.DODGE, cooldown_now)) if host_side else bool(p.get("dodge_ready", false))
 	if network_session.role()=="Host": session_label.text+="\nHosting on UDP %d"%network_session.port()
 	appearance_button.disabled = wild
@@ -3587,44 +3352,13 @@ func build_progression_panel() -> void:
 	progression_menu.add_child(progression_view)
 
 func weapon_stats(player: Dictionary, prepared: bool=false) -> Dictionary:
-	var slots: Array=[player.get("prepared",0),player.get("prepared_secondary",0),player.get("prepared_catalyst",0)] if prepared else [player.get("weapon",0),player.get("secondary",0),player.get("catalyst",0)]
-	var affinity_mode := preload("res://combat_ruleset.gd").active(self)
-	var result: Dictionary
-	if affinity_mode:
-		var builds = preload("res://affinity_build.gd")
-		var build := builds.for_player(player,prepared)
-		result = builds.native_stats(build)
-		result.affinity_build = build
-	else:
-		result = Weapons.resolve(int(player.get("frame",0)),int(player.get("weapon_kind",0)),slots,0 if prepared else int(player.get("graft_part",0)),int(player.get("technique",0)),player.get("character",guest_character.data))
-	if not affinity_mode and not prepared and Participation.is_wild(player):
-		Weapons.add_effects(result,RunUpgrades.effects(player))
-		var core: Dictionary=result.core_build.skill
-		if not core.is_empty():
-			RunUpgrades.tune_core(player,core)
-			var cards:=RunUpgrades.core_card_lines(player,core.id)
-			if not cards.is_empty(): core.cards=cards
-		result.damage=maxf(1.0,float(result.damage)) if Life.Preview.enabled else maxi(1,roundi(float(result.damage)))
-		result.targets=clampi(int(result.targets),1,5)
-		if result.targets>1 and result.pattern=="single": result.pattern="sweep" if int(player.frame) in [0,3] else "chain"
-		result.interval=maxi(230,int(result.strike_ms)-int(result.cooldown))
-		for key in ["recovery","stagger","skill_cooldown","skill_duration","dodge_cooldown","windup_damage"]:
-			if result.has(key) and (key!="windup_damage" or not Life.Preview.enabled): result[key]=roundi(float(result[key]))
-		result.max_health=Life.Preview.capped_amount(float(result.get("max_health",0)),12)
-		result.heal_on_kill=Life.Preview.capped_amount(float(result.get("heal_on_kill",0)),3)
-		if Life.Preview.enabled and result.heal_on_kill>0:
-			result["kill_heal_remaining"]=Life.Sustain.kill_remaining(player,participation.epoch())
-		result.skill_heal=Life.Preview.capped_amount(float(result.get("skill_heal",0)),4)
-	if not prepared and Participation.is_wild(player) and Time.get_ticks_msec()<int(player.get("focus_until",0)):
-		result.targets=mini(5,int(result.targets)+1)
-		result.interval=maxi(230,int(result.interval)-60)
-		if result.pattern=="single": result.pattern="chain"
-		result.interactions.append("Gale Focus")
-	if Life.Preview.enabled:
-		var strike_power := preload("res://combat_ruleset.gd").legacy_power(player) if not prepared and Participation.is_wild(player) else 0
-		result["class_power"]=strike_power
-		var band:=Life.Preview.weapon_range(result,strike_power)
-		result.damage_min=band.x;result.damage_max=band.y
+	var builds = preload("res://affinity_build.gd")
+	var build := builds.for_player(player,prepared)
+	var result: Dictionary = builds.native_stats(build)
+	result.affinity_build = build
+	result["class_power"] = 0
+	var band := Life.Preview.weapon_range(result,0)
+	result.damage_min=band.x;result.damage_max=band.y
 	return result
 
 func shared_parts_snapshot() -> Array:
@@ -3644,12 +3378,7 @@ func restore_class_loadout(player: Dictionary) -> void:
 	player.prepared_secondary=int(loadout.parts[1])
 	player.prepared_catalyst=int(loadout.parts[2])
 	var health: PlayerVitals.Health = player[PlayerVitals.STATE]
-	if has_meta(&"combat_affinity_ruleset"):
-		player[PlayerVitals.STATE] = health.with_native_max_hp(Life.native_maximum(self, player, not Participation.is_wild(player)))
-	else:
-		var native_max := Life.Preview.hp(MAX_HEALTH+int(Classes.bonuses(profile,int(player.frame)).get("max_health",0)))
-		player[PlayerVitals.STATE] = health.with_capacity(native_max, 0)
-
+	player[PlayerVitals.STATE] = health.with_native_max_hp(Life.native_maximum(self, player, not Participation.is_wild(player)))
 func persist_loadout(id: int,player: Dictionary,effects = null) -> void:
 	if effects == null and has_meta(Transactions.SESSION): return
 	player.character.active_class=int(player.frame)
@@ -3672,7 +3401,7 @@ func _select_class(id: int,player: Dictionary,class_id: int,effects) -> void:
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].refilled()
 	persist_loadout(id,player,effects)
 	var message := "%s selected."%Classes.DEFINITIONS[class_id].name
-	if has_meta(&"combat_affinity_ruleset") and preload("res://affinity_build.gd").starting_tree(class_id,player.character) != null:
+	if preload("res://affinity_build.gd").starting_tree(class_id,player.character) != null:
 		message += " Choose your starting focus in the class tree or at the Wilds Gate."
 	if effects == null: tell(id,message)
 	else: effects.append(tell_profile_action.bind(id,message))
@@ -3742,19 +3471,8 @@ func _apply_loadout_action(id: int, player: Dictionary, fields: PackedStringArra
 					action_feedback(effects,id,refusal)
 					return
 				title = connected.nodes[node-connected.REQUEST_OFFSET].name
-			elif tree != null and player.character.has(tree.profile_key):
-				action_feedback(effects,id,"Use the affinity session to change this connected %s path." % tree.label)
-				return
-			elif Classes.can_learn(player.character,c,node,Character.level(int(player.character.xp[c])) if c>=0 and c<Classes.DEFINITIONS.size() else 0):
-				var definition: Dictionary = Classes.all_nodes(c)[node]
-				if has_meta(&"combat_affinity_ruleset"):
-					var refusal: String = preload("res://affinity_build.gd").RESTRICTED_NODES.get(definition.id, "")
-					if not refusal.is_empty():
-						action_feedback(effects, id, refusal)
-						return
-				player.character.upgrades[c] |= 1 << node
-				title = definition.name
 			else:
+				action_feedback(effects,id,"Historical class investments are preserved. Refund them at the Heart, then choose your connected path before departing.")
 				return
 			restore_class_loadout(player)
 			save_action_profile(id, effects)
@@ -3765,21 +3483,24 @@ func _apply_loadout_action(id: int, player: Dictionary, fields: PackedStringArra
 			if fields.size()==2 and int(fields[1])>=0 and int(fields[1])<Classes.DEFINITIONS.size():
 				var c := int(fields[1])
 				var tree := Classes.connected_tree(c)
-				if tree != null and player.character.has(tree.profile_key):
-					if Classes.connected_in_world(self,c,player.character) == null or not tree.valid(player.character):
-						action_feedback(effects,id,"This connected %s path cannot be refunded in the current session." % tree.label)
+				if tree == null or not tree.valid(player.character):
+					action_feedback(effects,id,"This class path needs review before it can be refunded.")
+					return
+				if not tree.eligible(player.character):
+					var refunded := Character.refund_historical_class(player.character,c)
+					if refunded.error != OK:
+						action_feedback(effects,id,"The historical class refund could not be validated. Your investments are unchanged.")
 						return
-					player.character[tree.profile_key] = tree.state([])
+					player.character = refunded.profile
 				else:
-					player.character.upgrades[c]=0
+					player.character[tree.profile_key] = tree.state([])
 				restore_class_loadout(player)
 				save_action_profile(id, effects)
 				var message := "Class points refunded. Choose a new path before the next expedition."
 				if effects == null: tell(id,message)
 				else: effects.append(tell_profile_action.bind(id,message))
 
-func has_rift_loadout(player: Dictionary) -> bool:
-	return [player.get("weapon",0),player.get("secondary",0),player.get("catalyst",0)].has(Parts.VEIL) and int(player.get("graft_part",0))==Parts.HOOK
+
 
 func build_loadout_panel() -> void:
 	loadout_menu=hud_panel(overlay,Color("#14262b"),Vector2(20,14))
@@ -3789,13 +3510,6 @@ func build_loadout_panel() -> void:
 
 
 
-
-
-func update_support_effects(now: int) -> void:
-	for player in players.values():
-		if Life.alive(player) and now<int(player.get("renewal_until",0)) and now>=int(player.get("renewal_tick",0)):
-			Life.Sustain.renewal_tick(self,player)
-			player.renewal_tick=now+Skills.Balance.RENEWAL_INTERVAL_MS
 
 
 func heart_state() -> Dictionary:
@@ -4062,38 +3776,18 @@ func checkpoint_all_ready() -> bool:
 	return true
 
 func checkpoint_card_data(player: Dictionary) -> Array:
-	if preload("res://combat_ruleset.gd").active(self):
-		var stats := weapon_stats(player)
-		Weapons.tune_affinity_basic(stats)
-		var ledger := AffinityCards.ledger(player)
-		if ledger == null:
-			ledger = AffinityCards.Ledger.new()
-		var revision := int(get_meta(AffinityCards.SERIAL, 0)) + 1
-		var opened := ledger.open_offer(participation.floor(), revision, int(player.upgrade_seed), stats, DODGE_COOLDOWN_MS)
-		if opened != ledger:
-			player[AffinityCards.STATE] = opened
-			set_meta(AffinityCards.SERIAL, revision)
-		var waiting := int(checkpoint_ready.get(Traits.player_id(self, player), 0)) == participation.floor()
-		return [AffinityCards.checkpoint_view(opened, stats, DODGE_COOLDOWN_MS, run_wallet(player), waiting)]
-	var result: Array=[]
-	var wallet: int=run_wallet(player)
-	var offers:=checkpoint_offer_ids(player)
-	for index in offers.size():
-		var entry:=RunUpgrades.get_upgrade(str(offers[index]))
-		var rank:=int(player.get("run_upgrades",{}).get(entry.id,0))
-		var reason:=RunUpgrades.requirement(entry,player)
-		var text: String="%s · %s"%[entry.rarity,RunUpgrades.source_text(entry,player)]
-		if not entry.has("behavior") and not entry.has("class_behavior"):
-			var details:=RunUpgrades.effect_text(entry)
-			if not details.is_empty(): text+="\n\n"+details
-			text+="\n\nRank %d → %d%s"%[rank,rank+1," / %d"%int(entry.max_rank) if int(entry.max_rank)>0 else ""]
-		if Life.Preview.enabled and entry.has("class_behavior"):
-			var details:=RunUpgrades.effect_text(entry)
-			if not details.is_empty(): text+="\n\n"+details
-		if not str(entry.description).is_empty():text+="\n\n"+str(entry.description)
-		if not reason.is_empty(): text+="\n"+reason
-		result.append({"choice":index,"id":entry.id,"title":entry.name,"rarity":entry.rarity,"description":text,"cost":int(entry.cost),"enabled":int(player.last_offer)!=participation.floor() and wallet>=int(entry.cost) and reason.is_empty()})
-	return result
+	var stats := weapon_stats(player)
+	Weapons.tune_affinity_basic(stats)
+	var ledger := AffinityCards.ledger(player)
+	if ledger == null:
+		ledger = AffinityCards.Ledger.new()
+	var revision := int(get_meta(AffinityCards.SERIAL, 0)) + 1
+	var opened := ledger.open_offer(participation.floor(), revision, int(player.upgrade_seed), stats, DODGE_COOLDOWN_MS)
+	if opened != ledger:
+		player[AffinityCards.STATE] = opened
+		set_meta(AffinityCards.SERIAL, revision)
+	var waiting := int(checkpoint_ready.get(Traits.player_id(self, player), 0)) == participation.floor()
+	return [AffinityCards.checkpoint_view(opened, stats, DODGE_COOLDOWN_MS, run_wallet(player), waiting)]
 
 func present_checkpoint_cards(id: int) -> void:
 	var player: Dictionary=players[id]
@@ -4104,38 +3798,31 @@ func present_checkpoint_cards(id: int) -> void:
 
 @rpc("authority","call_remote","reliable")
 func open_checkpoint_cards(cards: Array,wallet: int,floor_number: int,waiting: bool) -> void:
-	var offer: Dictionary = {}
-	if cards.size() == 1 and cards[0].get("affinity_offer", false):
-		if floor_number < participation.floor():
-			return
-		offer = cards[0]
-		cards = offer.choices
-	checkpoint_offer_revision = int(offer.get("revision", 0))
-	checkpoint_reroll.visible = not offer.is_empty() and not waiting and not offer.closed and not offer.exhausted
+	if cards.size() != 1 or not cards[0].get("affinity_offer", false) or floor_number < participation.floor():
+		return
+	var offer: Dictionary = cards[0]
+	cards = offer.choices
+	checkpoint_offer_revision = int(offer.revision)
+	checkpoint_reroll.visible = not waiting and not offer.closed and not offer.exhausted
 	for child in checkpoint_cards.get_children():
 		checkpoint_cards.remove_child(child)
 		child.queue_free()
-	checkpoint_notice.text = "Checkpoint %d · %d Essence\nChoose one upgrade." % [floor_number,wallet]
-	checkpoint_notice.text += " Then confirm readiness at the gate with your party." if players.size()>1 else " It lasts until this expedition ends."
-	if not offer.is_empty():
-		checkpoint_notice.text = "Checkpoint %d · %d Essence · %d/%d upgrades claimed" % [floor_number,wallet,offer.acquired,offer.limit]
-		if offer.exhausted:
-			checkpoint_notice.text += "\nUpgrade limit reached. Continue at the Gate."
-		elif offer.closed:
-			checkpoint_notice.text += "\nThis checkpoint choice is complete."
-		elif cards.is_empty():
-			checkpoint_notice.text += "\nNo eligible upgrades for your build. You can continue at the Gate."
-		else:
-			checkpoint_notice.text += "\nChoose one free upgrade."
-		var cost: int = offer.reroll_cost
-		checkpoint_reroll.text = "Reroll · %d Essence" % cost if cost > 0 else "Rerolls used"
-		checkpoint_reroll.disabled = not offer.reroll_enabled
-		checkpoint_reroll.tooltip_text = offer.reroll_reason
-	elif cards.size()==4:
-		checkpoint_notice.text += "\nA hidden root reveals a fourth choice."
+	checkpoint_notice.text = "Checkpoint %d · %d Essence · %d/%d upgrades claimed" % [floor_number,wallet,offer.acquired,offer.limit]
+	if offer.exhausted:
+		checkpoint_notice.text += "\nUpgrade limit reached. Continue at the Gate."
+	elif offer.closed:
+		checkpoint_notice.text += "\nThis checkpoint choice is complete."
+	elif cards.is_empty():
+		checkpoint_notice.text += "\nNo eligible upgrades for your build. You can continue at the Gate."
+	else:
+		checkpoint_notice.text += "\nChoose one free upgrade."
+	var cost: int = offer.reroll_cost
+	checkpoint_reroll.text = "Reroll · %d Essence" % cost if cost > 0 else "Rerolls used"
+	checkpoint_reroll.disabled = not offer.reroll_enabled
+	checkpoint_reroll.tooltip_text = offer.reroll_reason
 	if waiting:
-		checkpoint_notice.text = "Ready. Waiting for party." if not offer.is_empty() else "Upgrade chosen. Waiting for party."
-	var width: float = 190 if cards.size()==4 else 225
+		checkpoint_notice.text = "Ready. Waiting for party."
+	var width: float = 225
 	for data in cards:
 		var frame := hud_panel(checkpoint_cards,Color("#14262b"),Vector2(12,12))
 		frame.custom_minimum_size = Vector2(width,340)
@@ -4145,12 +3832,11 @@ func open_checkpoint_cards(cards: Array,wallet: int,floor_number: int,waiting: b
 		var title := add_label(card,18,Color("#e4d7a5"))
 		title.text = str(data.title)
 		title.add_theme_color_override("font_color",Color({"Common":"#d0d1b3","Uncommon":"#a3c57b","Rare":"#83b7d7","Epic":"#b99adb"}.get(str(data.get("rarity","Common")),"#e4d7a5")))
-		title.custom_minimum_size = Vector2(width-28,0 if not offer.is_empty() else 52)
+		title.custom_minimum_size = Vector2(width-28,0)
 		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		if not offer.is_empty():
-			add_label(card,14,Color("#a3c57b")).text = "%s · %s" % [data.scope,"Unique" if data.unique else data.rarity]
+		add_label(card,14,Color("#a3c57b")).text = "%s · %s" % [data.scope,"Unique" if data.unique else data.rarity]
 		var scroll := ScrollContainer.new()
-		scroll.custom_minimum_size = Vector2(width-28,166 if not offer.is_empty() else 220)
+		scroll.custom_minimum_size = Vector2(width-28,166)
 		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		card.add_child(scroll)
@@ -4158,29 +3844,27 @@ func open_checkpoint_cards(cards: Array,wallet: int,floor_number: int,waiting: b
 		description.text = str(data.description)
 		description.custom_minimum_size.x = width-40
 		description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		if not offer.is_empty():
-			var preview: String = data.get("preview", "")
-			if not preview.is_empty():
-				description.text += "\n\n" + preview
-			var short_text := description.text
-			var details := Button.new()
-			details.text = "Details"
-			card.add_child(details)
-			details.toggle_mode = true
-			details.add_theme_font_size_override("font_size",13)
-			details.tooltip_text = data.get("detail","")
-			details.toggled.connect(func(expanded: bool):
-				details.text = "Hide details" if expanded else "Details"
-				description.text = short_text + "\n\n" + str(data.get("detail","")) if expanded else short_text
-				scroll.focus_mode = Control.FOCUS_ALL if expanded else Control.FOCUS_NONE
-				scroll.scroll_vertical = 0)
+		var preview: String = data.get("preview", "")
+		if not preview.is_empty():
+			description.text += "\n\n" + preview
+		var short_text := description.text
+		var details := Button.new()
+		details.text = "Details"
+		card.add_child(details)
+		details.toggle_mode = true
+		details.add_theme_font_size_override("font_size",13)
+		details.tooltip_text = data.get("detail","")
+		details.toggled.connect(func(expanded: bool):
+			details.text = "Hide details" if expanded else "Details"
+			description.text = short_text + "\n\n" + str(data.get("detail","")) if expanded else short_text
+			scroll.focus_mode = Control.FOCUS_ALL if expanded else Control.FOCUS_NONE
+			scroll.scroll_vertical = 0)
 		var choice := int(data.choice)
-		var action := affinity_checkpoint_action(int(offer.revision),str(choice)) if not offer.is_empty() else "checkpoint_choice_%d"%choice
-		var caption := "%d · Take upgrade" % (choice+1) if not offer.is_empty() else "%d · Choose · %d essence"%[choice+1,int(data.cost)]
-		var button := add_button(card,caption,func(): send_garden_action(action))
+		var action := affinity_checkpoint_action(int(offer.revision),str(choice))
+		var button := add_button(card,"%d · Take upgrade" % (choice+1),func(): send_garden_action(action))
 		button.add_theme_font_size_override("font_size",13)
 		button.disabled = waiting or not bool(data.enabled)
-	checkpoint_skip.text = "Waiting for party…" if waiting else "Continue at the Gate" if not offer.is_empty() and (offer.exhausted or offer.closed or cards.is_empty()) else "Skip upgrade"
+	checkpoint_skip.text = "Waiting for party…" if waiting else "Continue at the Gate" if offer.exhausted or offer.closed or cards.is_empty() else "Skip upgrade"
 	checkpoint_skip.disabled = waiting
 	if not checkpoint_menu.visible:
 		toggle_overlay(checkpoint_menu)
@@ -4233,17 +3917,6 @@ func _affinity_checkpoint_command(id: int, player: Dictionary, action: String) -
 func affinity_checkpoint_action(revision: int, choice: String) -> String:
 	return "%s%d_%s" % [AffinityCards.COMMAND,revision,choice]
 
-func choose_checkpoint_card(id: int,player: Dictionary,choice: int) -> void:
-	if preload("res://combat_ruleset.gd").active(self): return
-	if not Transactions.session_writable(self): return
-	if not checkpoint_pending or not Life.alive(player) or not upgrade_checkpoint_open() or player.pos.distance_to(battlefield.advance)>preload("res://gate_interaction.gd").RANGE or int(checkpoint_ready.get(id,0))==participation.floor(): return
-	if choice>=0:
-		if not has_meta(Transactions.SESSION) and choice>=checkpoint_offer_ids(player).size(): return
-		if not buy_upgrade(id,player,choice):
-			if Transactions.session_writable(self): present_checkpoint_cards(id)
-			return
-	elif choice!=-1: return
-	mark_checkpoint_ready(id)
 
 
 func mark_checkpoint_ready(id: int) -> void:
@@ -4290,9 +3963,7 @@ Already banked items and permanent progress remain."
 	box.add_child(controls)
 	checkpoint_skip = add_button(controls,"Continue without another upgrade",func():
 		if checkpoint_offer_revision > 0:
-			send_garden_action(affinity_checkpoint_action(checkpoint_offer_revision,"skip"))
-		else:
-			send_garden_action("checkpoint_choice_-1"))
+			send_garden_action(affinity_checkpoint_action(checkpoint_offer_revision,"skip")))
 	checkpoint_reroll = add_button(controls,"Reroll",func():
 		send_garden_action(affinity_checkpoint_action(checkpoint_offer_revision,"reroll")))
 	checkpoint_reroll.hide()
@@ -4300,28 +3971,17 @@ Already banked items and permanent progress remain."
 
 func build_grafting_panel() -> void:
 	graft_menu=hud_panel(overlay,Color("#14262b"),Vector2(20,14))
-	graft_view=preload("res://affinity_grafting_panel.gd").new() if has_meta(&"combat_affinity_ruleset") else preload("res://grafting_panel.gd").new()
+	graft_view=preload("res://affinity_grafting_panel.gd").new()
 	graft_view.game=self
 	graft_menu.add_child(graft_view)
 
 func graft_menu_data(player: Dictionary) -> Dictionary:
-	if has_meta(&"combat_affinity_ruleset"):
-		var ledger := preload("res://expedition_grafts.gd").active_ledger(player)
-		if ledger == null:
-			return {}
-		var build = preload("res://affinity_build.gd")
-		var project_stats := build.graft_value_resolver(player, AffinityCards.totals(player), MAX_HEALTH)
-		return ledger.altar_view(participation.floor(), player.carried_parts, str(player.get("graft_message", "")), project_stats)
-	var installed:=int(player.get("graft_part",0))
-	var slots: Array=[player.weapon,player.secondary,player.catalyst]
-	var current:=weapon_stats(player)
-	var options: Array=[]
-	for part in range(1,Parts.DEFINITIONS.size()):
-		if not Parts.is_monster(part) or int(player.carried_parts[part])<=0: continue
-		var candidate: Dictionary=player.duplicate(true)
-		candidate.graft_part=part
-		options.append({"part":part,"name":Parts.part_name(part),"count":int(player.carried_parts[part]),"chance":graft_chance(player,part),"tags":Parts.DEFINITIONS[part].tags,"preview":Weapons.describe(weapon_stats(candidate)),"reason":graft_block_reason(player,part)})
-	return {"floor":participation.floor(),"slots":slots,"installed":installed,"installed_floor":int(player.get("graft_floor",0)),"current":Weapons.describe(current),"options":options,"status":str(player.get("graft_message","Choose a carried component. Grafting does not pause the Wilds."))}
+	var ledger := preload("res://expedition_grafts.gd").active_ledger(player)
+	if ledger == null:
+		return {}
+	var build = preload("res://affinity_build.gd")
+	var project_stats := build.graft_value_resolver(player, AffinityCards.totals(player), MAX_HEALTH)
+	return ledger.altar_view(participation.floor(), player.carried_parts, str(player.get("graft_message", "")), project_stats)
 
 func show_graft_menu(id: int) -> void:
 	if not players.has(id) or not at_graft_altar(players[id]): return
@@ -4349,7 +4009,8 @@ func inventory_ui_data() -> Dictionary:
 	var data: Dictionary=InventoryModel.snapshot(self,player) if multiplayer.is_server() else player.get("bag",{}).duplicate()
 	if data.is_empty(): return data
 	var stats: Dictionary=weapon_stats(player,not Participation.is_wild(data)) if multiplayer.is_server() else player.get("weapon_stats",{})
-	data.core=stats.get("core_build",{})
+	# Local view only: reliable weapon details already carry this resolved build.
+	data.affinity_build=stats.get("affinity_build",{}).duplicate(true)
 	return data
 
 func send_inventory_action(operation: String,source: String,target: String,item: String,quantity: int) -> void:
@@ -4441,8 +4102,6 @@ func _pickup_inventory_drop(id: int,player: Dictionary,key: String,effects) -> v
 		var target: String="carry" if Participation.is_wild(player) else "stash"
 		drops.remove_at(index)
 		InventoryModel.put(self,player,target,entry.stack)
-		var component:=int(Items.get_item(entry.stack.item).get("legacy_part",0))
-		if Parts.is_monster(component): player.graft_choice=component
 		if effects == null and not Participation.is_wild(player) and progress.save_garden()!=OK:
 			InventoryModel.take(self,player,target,entry.stack.item,int(entry.stack.quantity));drops.insert(index,entry)
 			tell(id,"Could not save pickup. The stack remains on the ground.");return

@@ -38,6 +38,24 @@ class WorkflowTests(unittest.TestCase):
    log=f.root/(n+'.log');log.write_text('PASS: fixture\n')
    f.cache[n]={'passed':True,'key':f.keys[n],'logs':{log.name:w.digest(log.read_bytes())}}
   w.write_json(f.root/'cache.json',f.cache)
+ def test_native_lock_editor_copies_are_not_runtime_inputs(self):
+  folder='assets/native/persistence_lock/'
+  library=folder+'b0_native_lock.dll'
+  copies=[folder+'~b0_native_lock.dll',folder+'~b0_native_lock.dll~RF21d70d64.TMP']
+  retained=[library,folder+'persistence_lock.gdextension',folder+'unrelated.TMP',
+            folder+'~b0_native_lock.dll~RFnothex00.TMP',folder+'~b1_native_lock.dll',
+            folder+'~b0_other.dll~RF21d70d64.TMP','assets/other/~b0_native_lock.dll~RF21d70d64.TMP']
+  for name in copies+retained:self.put(name,'source input')
+  flow=self.new()
+  paths={path.relative_to(self.p).as_posix() for path in flow.runtime_files()}
+  self.assertTrue(set(copies).isdisjoint(paths))
+  self.assertTrue(set(copies).isdisjoint(flow.raw))
+  self.assertTrue(set(retained)<=paths)
+  self.assertTrue(set(retained)<=flow.raw.keys())
+  original=flow.raw[library]
+  self.put(library,'changed authoritative library')
+  self.assertNotEqual(self.new().raw[library],original)
+
  def test_no_change_reuses_without_execution(self):
   f=self.new();plan=f.plan();self.assertEqual(plan['run_count'],0);self.assertTrue(f.release_ready())
  def test_seed_change_includes_weapon_consumers_not_settings(self):

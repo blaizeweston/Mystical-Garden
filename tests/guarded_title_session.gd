@@ -9,7 +9,6 @@ const Developer = preload("res://developer_mode.gd")
 var failed := false
 
 func _initialize() -> void:
- preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 
 func check(ok: bool, message: String) -> void:

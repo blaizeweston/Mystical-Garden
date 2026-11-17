@@ -1,6 +1,5 @@
 extends VBoxContainer
 const AffinityBuild = preload("res://affinity_build.gd")
-const Ruleset = preload("res://combat_ruleset.gd")
 var game: Node
 var slot:=-1
 var selected:=-1
@@ -23,13 +22,12 @@ func begin(bed: int,stock: Array):
  slot=bed;counts=stock;selected=-1;title.text="PLANTING BED %d"%(slot+1);confirm.disabled=true
  for child in grid.get_children(): grid.remove_child(child);child.queue_free()
  var available:=0
- var affinity_mode := Ruleset.active(game)
  var selection_group:=ButtonGroup.new()
  for species in stock.size():
   if int(stock[species])<=0: continue
   available+=1
   var seed: Dictionary=game.Seeds.DEFINITIONS[species]
-  var plant_description := AffinityBuild.planting_description(species, affinity_mode)
+  var plant_description := AffinityBuild.planting_description(species)
   var button:=Button.new();button.toggle_mode=true;button.button_group=selection_group;button.custom_minimum_size=Vector2(90,96);button.tooltip_text="%s · %s\n%s"%[seed.name,seed.rarity,plant_description];grid.add_child(button)
   var content:=VBoxContainer.new();content.mouse_filter=Control.MOUSE_FILTER_IGNORE;button.add_child(content);content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);content.add_theme_constant_override("separation",0)
   var icon:=TextureRect.new();icon.texture=load("res://assets/ui/seeds/"+str(seed.id)+".png");icon.custom_minimum_size=Vector2(68,68);icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;content.add_child(icon)

@@ -1,6 +1,7 @@
 extends SceneTree
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+const Cards = preload("res://affinity_cards.gd")
 var failed:=false
 func check(ok: bool,message: String):
  if not ok: failed=true;printerr("FAIL run flow: ",message)
@@ -18,6 +19,8 @@ func run():
  var p: Dictionary=game.players[1]
  var g=game.progress
  p.pos=game.Stage.HEART
+ game.handle_loadout_action(1,p,"learn_0_64")
+ game.toggle_overlay(null)
  game.handle_loadout_action(1,p,"loadpart_0_1")
  check(p.prepared==0,"weapon editing no longer happens at the Heart")
  game.send_garden_action("depart")
@@ -54,32 +57,34 @@ func run():
  ExpeditionCase.Transitions.checkpoint(game, 1,true)
  check(game.participation.floor()==6 and not game.checkpoint_pending,"ordinary gate advances immediately")
  cleared_gate(game,6)
- var power_before: int=p.power
  ExpeditionCase.Transitions.checkpoint(game, 1,true)
  check(game.participation.floor()==6 and game.checkpoint_pending and game.checkpoint_menu.visible,"sixth gate presents cards before transport")
- check(game.checkpoint_cards.get_child_count() in [3,4],"three normal cards with a possible fourth")
- var selected_id: String=game.checkpoint_offer_ids(p)[0]
- var selected_cost: int=game.RunUpgrades.get_upgrade(selected_id).cost
+ check(game.checkpoint_cards.get_child_count()==3,"three distinct modern card choices")
+ var offer: Dictionary=game.checkpoint_card_data(p)[0]
+ var selected_id: String=offer.choices[0].id
  var wallet_before: int=game.wallet_for(p).spent_essence()
- game.send_garden_action("checkpoint_choice_42")
+ game.send_garden_action(game.affinity_checkpoint_action(offer.revision,"42"))
  check(game.participation.floor()==6 and game.wallet_for(p).spent_essence()==wallet_before,"invalid card cannot advance or spend")
- game.send_garden_action("checkpoint_choice_0")
- check(game.participation.floor()==7 and not game.checkpoint_pending and not game.checkpoint_menu.visible and int(p.run_upgrades.get(selected_id,0))==1 and game.wallet_for(p).spent_essence()==wallet_before+selected_cost,"choosing a card applies exactly one upgrade then transports")
- game.send_garden_action("checkpoint_choice_0")
- check(int(p.run_upgrades.get(selected_id,0))==1,"stale duplicate choice cannot purchase twice")
- cleared_gate(game,12);p.weapon=3;p.graft_part=4;p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(game.wallet_for(p).earned_sparks(), 0);p.offer_floor=12;p.checkpoint_offers=["power","technique","rift_hook"]
+ var command: String=game.affinity_checkpoint_action(offer.revision,"0")
+ game.send_garden_action(command)
+ check(game.participation.floor()==7 and not game.checkpoint_pending and not game.checkpoint_menu.visible and Cards.ledger(p).count()==1 and Cards.ledger(p).copies()[0].id==selected_id and game.wallet_for(p).spent_essence()==wallet_before,"one free card applies before solo transport")
+ game.send_garden_action(command)
+ check(Cards.ledger(p).count()==1,"stale duplicate choice cannot acquire twice")
+ cleared_gate(game,12)
  ExpeditionCase.Transitions.checkpoint(game, 1,true)
- check(game.checkpoint_cards.get_child_count()==3,"a fixed eligible rare-link fixture remains purchasable")
- game.send_garden_action("checkpoint_choice_2")
- check(game.participation.floor()==13 and p.rift_hook,"rare linked upgrade applies before transport")
- cleared_gate(game,18);p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(game.wallet_for(p).earned_sparks(), game.deepest_milestone*game.ExpeditionWallet.ESSENCE_PER_CLEARED_FLOOR)
+ offer=game.checkpoint_card_data(p)[0]
+ check(offer.choices.size()==3,"a later checkpoint retains three eligible identities")
+ game.send_garden_action(game.affinity_checkpoint_action(offer.revision,"0"))
+ check(game.participation.floor()==13 and Cards.ledger(p).count()==2,"later earned selection preserves the earlier acquired copy")
+ cleared_gate(game,18)
+ p[game.ExpeditionWallet.STATE]=game.ExpeditionWallet.Wallet.new(0,game.deepest_milestone*game.ExpeditionWallet.ESSENCE_PER_CLEARED_FLOOR)
  ExpeditionCase.Transitions.checkpoint(game, 1,true)
- var choices: Array=game.checkpoint_card_data(p)
- check(not choices[0].enabled and not choices[1].enabled,"unaffordable cards are visibly disabled")
- game.send_garden_action("checkpoint_choice_1")
- check(game.participation.floor()==18,"unaffordable purchase cannot bypass choice")
- game.send_garden_action("checkpoint_choice_-1")
- check(game.participation.floor()==19,"explicit skip advances with no purchase")
+ offer=game.checkpoint_card_data(p)[0]
+ check(game.run_wallet(p)==0 and offer.choices.all(func(card):return card.enabled and int(card.cost)==0) and not offer.reroll_enabled,"zero Essence preserves free choices while paid rerolls remain unavailable")
+ game.send_garden_action(game.affinity_checkpoint_action(offer.revision,"reroll"))
+ check(game.participation.floor()==18 and Cards.ledger(p).offer().revision==offer.revision,"unaffordable reroll cannot change the offer or travel")
+ game.send_garden_action(game.affinity_checkpoint_action(offer.revision,"skip"))
+ check(game.participation.floor()==19 and Cards.ledger(p).count()==2,"explicit skip advances without acquiring a card")
  game.free()
- if not failed: print("PASS: gate preparation, explicit crafting departure, abandon confirmation and no rewards, checkpoint text cards, costs, rare synergy, skip and transport sequencing")
+ if not failed: print("PASS: gate preparation, explicit crafting departure, abandon confirmation and no rewards, free checkpoint cards, revision safety, paid reroll refusal, skip and transport sequencing")
  quit(1 if failed else 0)

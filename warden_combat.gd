@@ -14,34 +14,27 @@ const BLOCK_RADIUS := 3.0
 const PREPARED_MS := 5500
 
 
-static func has_card(player: Dictionary, id: String) -> bool:
-	return int(preload("res://combat_ruleset.gd").legacy_ranks(player).get(id,0)) > 0
-
-
 static func live_state(game: Node, player: Dictionary, state: Dictionary) -> bool:
 	return int(state.get("epoch",-1)) == game.participation.epoch() and PlayerLifecycle.matches(player,int(state.get("life",-1))) and game.Life.alive(player)
 
 
 static func learned(player: Dictionary, id: String) -> bool:
-	var profile: Dictionary = player.character
-	if player.has("combat_ruleset") and Connected.eligible(profile):
-		return Connected.path(profile).has(id)
-	return Progression.learned(profile,id)
+	return Connected.eligible(player.character) and Connected.path(player.character).has(id)
 
 
 static func on_cast(game: Node, player: Dictionary, skill: Dictionary, expires: int, now: int, event: RefCounted = null) -> void:
 	if not skill.has("warden_focus") or int(skill.slot) != 0:
 		return
 	player.warden_block = {"epoch":game.participation.epoch(), "life":PlayerLifecycle.generation(player),
-		"until":expires, "prepared":0, "focus":skill.warden_focus, "blocked":false, "quake_used":false, "line_used":false,
+		"until":expires, "prepared":0, "focus":skill.warden_focus, "blocked":false, "quake_used":false,
 		"counter_bonus":skill.get("counter_window_bonus",0)}
-	if event != null and game.has_meta(&"combat_affinity_ruleset") and Connected.eligible(player.character):
+	if event != null:
 		player.warden_block.merge({"activation":event.identity, "granted":event.has_grants(), "protection_used":false})
 	if skill.warden_focus != "rootkeeper":
 		return
 	player.warden_anchor = {"epoch":game.participation.epoch(), "life":PlayerLifecycle.generation(player),
 		"point":player.pos, "until":now+int(skill.anchor_lifetime),
-		"uses":2 if has_card(player,"rootkeeper_second_growth") else 1}
+		"uses":1}
 	Feedback.release(game,"burst",player.pos,player.pos,.65,ANCHOR)
 
 
@@ -115,13 +108,6 @@ static func contacts(game: Node, origin: Vector3, radius: float, skip: Array = [
 	return result
 
 
-static func block_effects(game: Node, player: Dictionary, now: int) -> void:
-	var state: Dictionary = player.get("warden_block",{})
-	if state.has("activation") or not live_state(game,player,state) or int(state.get("until",0)) <= now or state.blocked:
-		return
-	first_block(game,player,state,now)
-
-
 static func first_block(game: Node, player: Dictionary, state: Dictionary, now: int) -> void:
 	state.blocked = true
 	if int(player.get("counter_until",0)) > now:
@@ -130,8 +116,6 @@ static func first_block(game: Node, player: Dictionary, state: Dictionary, now: 
 		rebound(game,player.pos)
 	if learned(player,"shared_guard"):
 		shared_guard(game,player,now,"Shared Guard")
-	elif learned(player,"shared_bark"):
-		shared_guard(game,player,now,"Shared Bark")
 	if learned(player,"ready_footing"):
 		var timers: Cooldowns.Timers = player[Cooldowns.STATE]
 		if not timers.ready(Cooldowns.DODGE, now):
@@ -142,20 +126,13 @@ static func first_block(game: Node, player: Dictionary, state: Dictionary, now: 
 			if int(ally.get("slow_until",0)) > now and in_circle(game,ally,player.pos,BLOCK_RADIUS):
 				ally.slow_until = 0
 				cue(game,"Cleansed",ally.pos)
-	if learned(player,"cracking_roots") and not player.has("combat_ruleset"):
-		var nearby := contacts(game,player.pos,BLOCK_RADIUS)
-		if not nearby.is_empty():
-			var traits: Dictionary = game.Traits.target_state(game,nearby[0])
-			var old := int(traits.get("brittle",0)) if int(traits.get("brittle_until",0)) > now else 0
-			traits.brittle = mini(2,old+1)
-			traits.brittle_until = now+4000
-	if needs_quake(player) or learned(player,"aftershock") or has_card(player,"bastion_thorn_shelter"):
+	if needs_quake(player) or learned(player,"aftershock"):
 		state.prepared = now+PREPARED_MS
 
 
 static func needs_quake(player: Dictionary) -> bool:
 	return learned(player,"pinning_quake") or learned(player,"living_rhythm") or learned(player,"sheltering_quake") \
-		or learned(player,"faultline_impact") or has_card(player,"vanguard_briar_wake")
+		or learned(player,"faultline_impact")
 
 
 static func prepared_until(game: Node, player: Dictionary, now: int) -> int:
@@ -163,7 +140,7 @@ static func prepared_until(game: Node, player: Dictionary, now: int) -> int:
 	var expires := int(state.get("prepared",0))
 	if expires <= now or not live_state(game,player,state):
 		return 0
-	if (not state.quake_used and needs_quake(player)) or (not state.line_used and has_card(player,"bastion_thorn_shelter")) \
+	if (not state.quake_used and needs_quake(player)) \
 		or (not state.get("aftershock_used",false) and learned(player,"aftershock")):
 		return expires
 	return 0
@@ -220,9 +197,7 @@ static func quake_hit(game: Node, player: Dictionary, center: Vector3, targets: 
 		state.aftershock_used = true
 		player.warden_aftershock = {"point":center, "due":now+Connected.AFTERSHOCK_MS, "epoch":game.participation.epoch(),
 			"life":PlayerLifecycle.generation(player)}
-	# Connected nodes spend their preparation on the next Quake. Historical
-	# paths keep the original next-hitting-Quake behavior.
-	if (targets.is_empty() and not state.has("activation")) or state.quake_used or not needs_quake(player):
+	if state.quake_used or not needs_quake(player):
 		return
 	state.quake_used = true
 	if learned(player,"pinning_quake"):
@@ -241,27 +216,6 @@ static func quake_hit(game: Node, player: Dictionary, center: Vector3, targets: 
 			cue(game,"Living Rhythm",player.pos)
 	if learned(player,"sheltering_quake"):
 		ward_circle(game,center,radius,now)
-	if state.focus == "vanguard" and has_card(player,"vanguard_briar_wake"):
-		var targets_outside := contacts(game,center,radius+1.4,targets)
-		for target in targets_outside:
-			var at: Vector3 = game.enemy_position(target)
-			if center.distance_to(at) <= radius:
-				continue
-			game.emit_combat_event("link","Briar Wake",center,at,.45,THORN,0.0,target)
-			game.apply_weapon_hit(player,target,center,{"damage":2,"knockback":-.35,"trait_secondary":true},now)
-			break
-
-
-static func thorn_tripped(game: Node, player: Dictionary, point: Vector3, now: int) -> void:
-	if not has_card(player,"bastion_thorn_shelter") or prepared_until(game,player,now) == 0:
-		return
-	var state: Dictionary = player.warden_block
-	if state.focus != "bastion" or state.line_used:
-		return
-	if ward_circle(game,point,WARD_RADIUS,now):
-		state.line_used = true
-
-
 static func connected_block(game: Node, event: RefCounted, recipient: int, now: int) -> void:
 	var player: Dictionary = game.players.get(event.actor, {})
 	var state: Dictionary = player.get("warden_block", {})

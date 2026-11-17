@@ -23,7 +23,7 @@ func check(ok: bool, detail: String) -> void:
 
 
 func run() -> void:
-	check(Preview.enabled and not Preview.playtest, "the new combat balance is active on ordinary launch")
+	check(Preview.scale() == 10 and Preview.hp(10) == 100 and not Preview.playtest, "ordinary launch uses the authoritative modern HP scale without isolated storage routing")
 	await verify_new_garden()
 	var fixture := "res://.godot/balance-saves-" + Crypto.new().generate_random_bytes(8).hex_encode()
 	var storage := Slots.new()
@@ -79,8 +79,8 @@ func run() -> void:
 	var loaded: Dictionary = game.local_character.data
 	check(game.local_character.identity == identity and Profile.level(loaded.xp[0]) == 3 and loaded.plants[0] == 9, "legacy identity, rank and plant familiarity survive import")
 	check(loaded.upgrades[0] == 1 and loaded.loadouts[0].weapon == 1 and loaded.loadouts[0].parts[0] == 1, "legacy skill and loadout IDs survive import")
-	var expected_hp: int = 100 + Preview.effect_hp(game.weapon_stats(game.players[1]).get("max_health", 0))
-	check(PlayerVitals.maximum_hp(game.players[1]) == expected_hp, "legacy character resolves the new pool and preserves max-HP bonuses")
+	var expected_hp := 100
+	check(PlayerVitals.maximum_hp(game.players[1]) == expected_hp, "historical investments remain data and do not activate retired max-HP bonuses")
 	check(game.progress.save_garden() == OK and game.local_character.save_profile() == OK, "imported slots can be saved with current content IDs")
 	check(FileAccess.get_sha256(storage.legacy_garden) == old_garden_hash and FileAccess.get_sha256(storage.legacy_character) == old_profile_hash, "legacy originals are byte-identical")
 	check(FileAccess.get_sha256(game.progress.path + ".pre-content-v2.bak") == old_garden_hash, "the in-place Garden conversion retains an original-format backup")

@@ -10,7 +10,6 @@ const PlayerVitals = preload("res://player_vitals.gd")
 const ScoutBehavior = preload("res://scout_behavior.gd")
 const Attacks = preload("res://enemy_attack.gd")
 const Core = preload("res://core_combat.gd")
-const Effects = preload("res://core_skill_effects.gd")
 const Status = preload("res://combat_status.gd")
 const Support = preload("res://enemy_support.gd")
 const Tactics = preload("res://wilds_skill_tactics.gd")
@@ -21,7 +20,6 @@ var failed := false
 
 
 func _initialize() -> void:
-	preload("res://combat_balance_preview.gd").enabled = false
 	call_deferred("run")
 
 
@@ -50,7 +48,7 @@ func setup(kind: int, profile: Dictionary) -> Dictionary:
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
 	ExpeditionCase.set_membership(game, player, true)
-	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(40)
 	player.hurt_until = 0
 	player.pos = Vector3(0, 0, -3.4)
 	return add_actor(kind, Vector3.ZERO, 1)
@@ -69,8 +67,8 @@ func learn(actor: Dictionary, profile: Dictionary, now: int) -> void:
 		Tactics.CAST_DENIAL:
 			Attacks.lock(game, actor, profile.mode, player.pos, now + 1400)
 			check(actor.attack.variant != profile.id, "ordinary opening for " + str(profile.id))
-			Effects.affect_enemy(game, player, 0, actor.pos, {"id": "hush"}, {"only_winding": true, "interrupt_ms": 1000}, now)
-			check(actor.windup == 0 and actor.get("rite_disrupted_epoch") == game.participation.epoch(), "Hush stops the committed " + str(profile.mode))
+			game.EnemyBehaviors.interrupt(game,actor,actor.pos,now)
+			check(actor.windup == 0 and actor.get("rite_disrupted_epoch") == game.participation.epoch(), "Native stagger stops the committed " + str(profile.mode))
 		Tactics.ROUTE_DENIAL:
 			actor.engaged = false
 			Status.root(game, 0, now + 1000)
@@ -83,9 +81,9 @@ func learn(actor: Dictionary, profile: Dictionary, now: int) -> void:
 		Tactics.SHELTER_BREAK:
 			var escort := add_actor(0, Vector3.RIGHT * 2.35, 2)
 			check(not Support.shelter_source(game, 1, escort.pos, escort.pos, now, true).is_empty(), "escort starts sheltered")
-			Effects.affect_enemy(game, player, 1, Vector3(2, 0, 0), {"id": "riptide"}, {"displace": .2}, now)
+			observe_displacement(1,.2,now)
 			check(Tactics.evidence(game).is_empty(), "a short nudge does not teach the Grazer")
-			Effects.affect_enemy(game, player, 1, Vector3(2, 0, 0), {"id": "riptide"}, {"displace": 1.35}, now)
+			observe_displacement(1,1.35,now)
 			check(Tactics.evidence(game).get(Tactics.SHELTER_BREAK) == 1 and escort.pos.x > 3.8, "real displacement out of shelter teaches the Grazer")
 
 
@@ -138,15 +136,15 @@ func validate_result(kind: int, actor: Dictionary, attack: Dictionary) -> void:
 	match kind:
 		6, 14:
 			var expected := 3 if kind == 6 else 2
-			check(game.enemy_hazards.size() == expected and PlayerVitals.current_hp(player) == 10, "only marked hazard beds are created")
+			check(game.enemy_hazards.size() == expected and PlayerVitals.current_hp(player) == 40, "only marked hazard beds are created")
 		11:
-			check(actor.pos.is_equal_approx(attack.to) and PlayerVitals.current_hp(player) == 10, "Grazer moves without hidden damage")
+			check(actor.pos.is_equal_approx(attack.to) and PlayerVitals.current_hp(player) == 40, "Grazer moves without hidden damage")
 			var ally: Dictionary = game.encounter.scout(1)
 			check(not Support.shelter_source(game, 1, ally.pos, ally.pos, actor.windup, true).is_empty(), "new canopy shelters the same escort")
 		16:
 			check(game.wild_item_drops.is_empty() and actor.get("stolen", []).size() == 1, "learned grab takes only the locked drop")
 		_:
-			check(PlayerVitals.current_hp(player) < 10, "warned impact is live for " + str(attack.variant))
+			check(PlayerVitals.current_hp(player) < 40, "warned impact is live for " + str(attack.variant))
 	if kind == 1:
 		check(actor.windup == 0, "learned pulse consumes the retry without an ordinary repeat")
 
@@ -235,17 +233,8 @@ func check_counterplay() -> void:
 		return
 	actor.rooted_until = int(actor.windup) + 1
 	preload("res://scout_behavior.gd").release(game, actor, game.Enemies.get_kind(2), actor.windup)
-	check(actor.pos == Vector3.ZERO and PlayerVitals.current_hp(player) == 10 and game.combat_events.any(func(e): return e.shape == "stopped"), "a new root stops movement and shows the cancel cue")
+	check(actor.pos == Vector3.ZERO and PlayerVitals.current_hp(player) == 40 and game.combat_events.any(func(e): return e.shape == "stopped"), "a new root stops movement and shows the cancel cue")
 	check(not game.combat_events.any(func(e): return e.kind == "enemy_release"), "canceled charge cannot show a successful impact")
-	actor = setup(2, profile)
-	learn(actor, profile, now)
-	move = arm(actor, profile, now + 1500)
-	if move.get("variant") == profile.id:
-		game.set_meta(Core.STATE, {1: {"epoch": game.participation.epoch(), "grown": true, "life": PlayerLifecycle.generation(player),
-			"expires": actor.windup + 500, "from": Vector3(-2, 0, -1.8), "to": Vector3(2, 0, -1.8),
-			"skill": {"mechanic": "line_trap", "radius": .35}}})
-		preload("res://scout_behavior.gd").release(game, actor, game.Enemies.get_kind(2), actor.windup)
-		check(actor.pos == Vector3.ZERO and PlayerVitals.current_hp(player) == 10, "a live Thorn Line placed during the warning stops a ground charge")
 	actor = setup(2, profile)
 	learn(actor, profile, now)
 	game.battlefield.barriers.append(Rect2(-2, -2.8, 4, 1.6))
@@ -454,3 +443,13 @@ func run() -> void:
 	if not failed:
 		print("PASS: 14 regular enemy responses, confirmed evidence, hit geometry, fallbacks, and persistence")
 	quit(1 if failed else 0)
+
+
+## The fixture supplies an already-resolved legal movement observation to the live
+## shelter response boundary. It does not recreate the retired Riptide spell.
+func observe_displacement(target: int, distance: float, now: int) -> void:
+	var actor: Dictionary=game.encounter.scout(target)
+	var before: Vector3=actor.pos
+	var after: Vector3=game.battlefield.dash(before,before+Vector3.RIGHT*distance)
+	Support.observe_shelter_break(game,target,before,after,now)
+	actor.pos=after

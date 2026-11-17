@@ -1,5 +1,6 @@
 extends VBoxContainer
 const Items=preload("res://item_catalog.gd")
+const Builds=preload("res://affinity_build.gd")
 const Slot=preload("res://inventory_slot.gd")
 var game: Node
 var heading: Label
@@ -52,7 +53,7 @@ func _ready() -> void:
  var scroll:=ScrollContainer.new();scroll.custom_minimum_size=Vector2(570,350);row.add_child(scroll)
  grid=GridContainer.new();grid.columns=8;grid.add_theme_constant_override("h_separation",6);grid.add_theme_constant_override("v_separation",6);scroll.add_child(grid)
  var side:=VBoxContainer.new();side.custom_minimum_size.x=240;row.add_child(side)
- var label:=Label.new();label.text="Weapon components";side.add_child(label)
+ var label:=Label.new();label.text="Plant affinities";side.add_child(label)
  equipment=HBoxContainer.new();side.add_child(equipment)
  core_skill=Label.new();core_skill.add_theme_color_override("font_color",Color("#c8df99"));side.add_child(core_skill)
  pouch_row=VBoxContainer.new();side.add_child(pouch_row)
@@ -104,9 +105,10 @@ func refresh() -> void:
  for empty in maxi(0,PAGE_SIZE-visible_entries.size()):add_slot(grid,{},source())
  clear_children(equipment)
  var equipment_entries: Array=[]
- var core: Dictionary=state.get("core",{})
- var core_name: String=core.get("skill",{}).get("name","")
- var summary: String=game.Weapons.core_description(core)
+ var build: Dictionary=state.get("affinity_build",{})
+ var core: Dictionary=Builds.core_skill(build) if not build.is_empty() else {}
+ var core_name: String=core.get("name","")
+ var summary: String=slot_description(0)
  core_skill.visible=not core_name.is_empty()
  core_skill.text="Core skill · "+core_name
  core_skill.tooltip_text=summary
@@ -117,7 +119,8 @@ func refresh() -> void:
   var slot:=add_slot(equipment,entry,"equipment",48)
   slot.tooltip_text=game.Weapons.SLOT_NAMES[index]+": "+game.Parts.part_name(part)
   if not entry.is_empty(): equipment_entries.append(entry)
-  if index==0 and not summary.is_empty(): slot.tooltip_text+="\n\n"+summary
+  var slot_text:=slot_description(index)
+  if not slot_text.is_empty(): slot.tooltip_text+="\n\n"+slot_text
  pouch_row.visible=bool(state.wild)
  clear_children(pouch_holder)
  if state.wild:
@@ -153,12 +156,22 @@ func add_slot(parent: Node,entry: Dictionary,bucket: String,dimension: int=64) -
  var slot:=Slot.new();parent.add_child(slot);slot.setup(self,entry,bucket,dimension);return slot
 func select_entry(entry: Dictionary) -> void:
  selected=entry;show_details()
+# All equipment descriptions resolve the same live Core/Form/Catalyst build.
+func slot_description(index: int) -> String:
+ var build: Dictionary=state.get("affinity_build",{})
+ var equipped: Array=state.get("equipment",[])
+ if build.is_empty() or index<0 or index>=Builds.SLOTS.size() or index>=equipped.size(): return ""
+ var preview: Dictionary=Builds.slot_preview(build,Builds.SLOTS[index],int(equipped[index]))
+ var text: String=preview.summary
+ if not str(preview.detail).is_empty(): text+="\n\n"+str(preview.detail)
+ return text
+
 func show_details() -> void:
  if selected.get("bucket","")=="equipment":
   transfer_button.hide()
   var slot: int=selected.slot
   var item:=Items.get_item(str(selected.item))
-  var summary: String=game.Weapons.core_description(state.get("core",{}))
+  var summary: String=slot_description(slot)
   details.text="[b]%s[/b]\n%s"%[item.name,game.Weapons.SLOT_NAMES[slot]]
   if not item.tags.is_empty(): details.text+=" · "+", ".join(item.tags)
   if not summary.is_empty(): details.text+="\n\n"+summary
@@ -170,7 +183,7 @@ func show_details() -> void:
  var item:=Items.get_item(str(selected.get("item","")))
  if item.is_empty(): return
  var description:=Items.describe(item)
- if item.category=="monster_part" and game.has_meta(&"combat_affinity_ruleset"):
+ if item.category=="monster_part":
   description="A trophy that can fund an expedition improvement at a Grafting Altar."
  details.text="[b]%s[/b]\n%s · %s\n\n%s"%[item.name,item.rarity,item.category.replace("_"," ").capitalize(),description]
  if not item.tags.is_empty():details.text+="\n\nTags: "+", ".join(item.tags)

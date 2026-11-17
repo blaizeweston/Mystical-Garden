@@ -22,7 +22,7 @@ static func tick(game: Node, delta: float, now: int) -> void:
 		if not game.encounter.alive(slot, started[slot]):
 			continue
 		var scout: Dictionary = game.encounter.scout(slot)
-		var frost_motion := preload("res://frost_combat.gd").motion_scale(scout,now) if game.has_meta(&"combat_affinity_ruleset") else 1.0
+		var frost_motion := preload("res://frost_combat.gd").motion_scale(scout,now)
 		if EnemyBehaviors.tick(game,scout,delta*frost_motion,now): continue
 		var definition := Enemies.get_kind(int(scout.get("kind", 0)))
 		var role: String = definition.role
@@ -31,10 +31,7 @@ static func tick(game: Node, delta: float, now: int) -> void:
 			if now >= int(scout.windup):
 				var pending: Dictionary = scout.get("attack", {})
 				var due := int(scout.windup)
-				if game.has_meta(&"combat_affinity_ruleset"):
-					preload("res://frost_combat.gd").with_attacker(game,slot,release.bind(game, scout, definition, now, pending, due))
-				else:
-					release(game, scout, definition, now, pending, due)
+				preload("res://frost_combat.gd").with_attacker(game,slot,release.bind(game, scout, definition, now, pending, due))
 				if not game.participation.active():
 					load("res://expedition_transitions.gd").finish_if_empty(game)
 					return
@@ -76,7 +73,7 @@ static func tick(game: Node, delta: float, now: int) -> void:
 			scout.erase("command_via")
 		var attack_range := (1.15 if role=="desperate" else float(definition.range)) + (0.65 if mask & Enemies.REACH else 0.0)
 		if now >= int(scout.ready) and now >= int(scout.rooted_until) and frost_motion > 0.0:
-			if Attacks.try_skill_approach(game,scout,victim,now) or Attacks.try_thorn_vault(game,scout,victim,now):
+			if Attacks.try_skill_approach(game,scout,victim,now):
 				continue
 		if mask & Enemies.MOBILITY and now >= int(scout.ready) and now >= int(scout.rooted_until) and frost_motion > 0.0:
 			var landing: Vector3 = Attacks.vault_target(game, scout, victim)
@@ -209,7 +206,7 @@ static func release(game: Node, scout: Dictionary, definition: Dictionary, now: 
 			target_point = scout.pos
 			attack.to = target_point
 			attack.via = target_point if Vector3(attack.get("via",Vector3.INF)).is_finite() else Vector3.INF
-		var learned: bool=attack.get("learned_move",false) or attack.variant==Attacks.Thorn.MOVE
+		var learned: bool=attack.get("learned_move",false)
 		var feedback = preload("res://enemy_move_feedback.gd")
 		if not Attacks.landing_is_clear(game,scout,attack,now):
 			if learned:feedback.stopped(game,scout.pos)
@@ -217,8 +214,6 @@ static func release(game: Node, scout: Dictionary, definition: Dictionary, now: 
 		preload("res://event_audio.gd").enemy(game,attack,true)
 		if learned:feedback.movement(game,attack,Attacks.CONTACT_PADDING)
 		scout.pos=target_point
-		if attack.variant==Attacks.Thorn.MOVE:
-			Attacks.Thorn.landed(game,scout,attack,now)
 		if attack.get("variant")=="antler_hook":
 			hits.bent_charge(attack.from,attack.via,attack.to,attack.width,attack.radius,now,damage,Attacks.CONTACT_PADDING)
 			return

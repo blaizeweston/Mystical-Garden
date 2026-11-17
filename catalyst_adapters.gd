@@ -30,21 +30,9 @@ const RESPONSES := {
 		"vital":"landing_vitality", "thorn":"departure_growth", "wood":"landing_bark",
 		"storm":"landing_discharge", "spirit":"departure_trace_and_landing_stride", "void":"landing_repulsion"},
 }
-# Rows are Q/R at the stable class-local positions. Legacy keys are learned node IDs.
-const KITS := {
-	"warden": {"base": ["self_guard", "attack"], "replacement": ["party_guard", "landing_attack"],
-		"legacy": {"8":"party_guard", "9":"self_guard", "10":"attack", "11":"landing_attack"}},
-	"weaver": {"base": ["attack", "attack"], "replacement": ["attack", "trap"],
-		"legacy": {"8":"attack", "9":"field", "10":"trap", "11":"attack"}},
-	"ranger": {"base": ["delayed", "trap"], "replacement": ["attack", "movement"],
-		"legacy": {"8":"attack", "9":"attack", "10":"movement", "11":"trap"}},
-	"reaper": {"base": ["delayed", "attack"], "replacement": ["landing_attack", "attack"],
-		"legacy": {"8":"delayed", "9":"landing_attack", "10":"attack", "11":"delayed"}},
-	"oracle": {"base": ["heal", "party_ward"], "replacement": ["party_ward", "attack"],
-		"legacy": {"8":"party_ward", "9":"attack", "10":"party_ward", "11":"attack"}},
-}
-# Focus Q replaces the base kit. Focus R modifies its native skill and keeps
-# that skill's trigger, even for a legacy replacement carried on an old mask.
+# Connected focuses replace native Q; all classes retain their authored base R.
+const KITS := {"warden":["self_guard","attack"],"weaver":["attack","attack"],
+	"ranger":["delayed","trap"],"reaper":["delayed","attack"],"oracle":["heal","party_ward"]}
 const FOCUS_Q := {
 	"vanguard":"self_guard", "rootkeeper":"self_guard", "bastion":"party_ward",
 	"thornbinder":"attack", "bloomcaller":"field", "silkwarden":"party_ward",
@@ -53,49 +41,16 @@ const FOCUS_Q := {
 	"omenreader":"attack", "leykeeper":"attack", "lifekeeper":"heal",
 }
 const CONFLICTS := {
-	"sanctuary": "Only the initial Ward is armed. Renewal and field pulses remain native.",
-	"reap": "The native Ward is retained; the Catalyst responds to the attack.",
-	"harvest": "The native Ward is retained; the Catalyst responds to the attack.",
-	"charge": "Native displacement takes priority on the affected enemies.",
 	"gravekeeper": "The native hit Ward is retained; the Catalyst responds to the sweep.",
 	"wayfarer": "Movement is the single response. The native snare remains separate.",
 	"silkwarden": "Only actual block consumption responds, even when the cast also binds.",
 	"leykeeper": "The native pull takes priority over Catalyst displacement.",
 }
-# CR05 review inputs. These are the existing consumers, not new scaling rules.
-const PASSIVE_CONSUMERS := {
-	"native_stats": ["max_health", "graft_chance", "familiarity", "dodge_cooldown"],
-	"weapon_handling": ["damage", "reach", "cooldown", "stagger", "windup_damage", "knockback", "pull", "recovery", "targets", "heal_on_kill"],
-	"native_skill_parameters": ["skill_duration", "skill_cooldown", "skill_heal"],
-	"legacy_trait_review": ["directional_guard", "counter_damage", "ward_on_block", "shatter_damage",
-		"counter_stagger", "spread_bind", "mark_damage", "growth_field", "precision", "decoy",
-		"trap_power", "veil_mark", "death_charge", "reaper_momentum", "protect_growth", "omen", "pool_ward"],
-	"legacy_rank_review": ["technique", "generic_duration", "extra_targets"],
-	"cr05_adaptations": {
-		"power": "Native legacy nodes can modify both Q/R and several parameters. Give any affinity scaling a separate consumer.",
-		"duration": "Retain native bind, Guard, and field durations. Define Catalyst durations per response.",
-		"targets": "Native weapon contact remains capped by weapon geometry. Set explicit targets for any extra affinity events.",
-		"focus_masks": "Keep native Q replacements and R follow-through or anchor behavior. Do not migrate learned bits into affinity ranks.",
-		"native_graft_procs": "Review old proc triggers and purchased-card lifetime independently of plant requirements.",
-	},
-}
-
-
-static func resolve(class_id: int, slot: int, profile: Dictionary, skill: Dictionary) -> Dictionary:
+static func resolve(class_id: int, slot: int, _profile: Dictionary, skill: Dictionary) -> Dictionary:
 	var frame: Dictionary = Classes.DEFINITIONS[class_id]
-	var focus: String = skill.get("warden_focus", skill.get("subclass_focus", Classes.focus_id(profile, class_id)))
-	var kit: Dictionary = KITS[frame.id]
-	var variant: String = skill.get("variant", "base")
-	var stable_id := "%s/%s/%s" % [frame.id, variant, slot]
-	var adapter: String = kit[variant][slot]
-	var masks: Array = profile.get("upgrades", [])
-	var mask := int(masks[class_id]) if class_id < masks.size() else 0
-	for index in frame.nodes.size():
-		var node: Dictionary = frame.nodes[index]
-		var change: Dictionary = node.get("skill_change", {})
-		if mask & (1 << index) and change.get("kind") == "modify" and int(change.slot) == slot:
-			adapter = kit.legacy.get(node.id, "")
-			stable_id = "%s/legacy/%s" % [frame.id, node.id]
+	var focus: String = skill.get("warden_focus",skill.get("subclass_focus",""))
+	var stable_id := "%s/base/%s" % [frame.id,slot]
+	var adapter: String = KITS[frame.id][slot]
 	if not focus.is_empty():
 		if not FOCUS_Q.has(focus):
 			return {}

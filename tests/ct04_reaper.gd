@@ -17,7 +17,7 @@ const Rules = preload("res://combat_ruleset.gd")
 const Events = preload("res://combat_action_events.gd")
 const Grafts = preload("res://native_grafts.gd")
 const Improvements = preload("res://expedition_grafts.gd")
-const Mark = preload("res://core_strike_mark.gd")
+const Frost = preload("res://frost_combat.gd")
 const Field = preload("res://assets/terrain_m02/experimental/experiment_wilds.gd")
 const Surface = preload("res://assets/terrain_m02/wilds_play_surface.gd")
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
@@ -60,16 +60,14 @@ func verify_tree() -> void:
 	var current := Profile.blank()
 	check(graph.learn(current,65).is_empty() and not graph.learn(current,67).is_empty(),"level one permits focus only")
 	current.xp[3]=50
-	check(graph.learn(current,67).is_empty() and Skills.resolve(3,0,current,true).name=="Veil Passage"
-		and Skills.resolve(3,1,current,true).name=="Siphon Cut" and Profile.normalize(current)==current,
+	check(graph.learn(current,67).is_empty() and Skills.resolve(3,0,current).name=="Veil Passage"
+		and Skills.resolve(3,1,current).name=="Siphon Cut" and Profile.normalize(current)==current,
 		"cross-lane path retains Q, R and versioned profile data")
-	check(Skills.resolve(3,0,current).name=="Reaping Step","legacy mode uses native fallback on the same profile")
 	var old := Profile.blank()
 	old.xp[3]=2600
 	for bit in [0,2,4,6,9,11]:
 		old.upgrades[3] |= 1 << bit
-	check(Profile.normalize(old)==old and not graph.eligible(old) and Skills.resolve(3,0,old).mode=="harvest"
-		and Skills.resolve(3,1,old).mode=="requiem","historical learned mask, moves and XP remain intact")
+	check(Profile.normalize(old)==old and not graph.eligible(old),"historical learned mask and XP remain data without obsolete skill replacement execution")
 	current[Progression.PROFILE_KEY]=graph.state(["gravekeeper","long_edge"])
 	check(not graph.valid(current) and Profile.normalize(current)[Progression.PROFILE_KEY]==current[Progression.PROFILE_KEY],
 		"incompatible connected data is preserved for review")
@@ -163,14 +161,14 @@ func focuses() -> void:
 	cast(0)
 	check(game.enemy_health()==280 and game.encounter.hp_for(added)==280 and game.encounter.hp_for(summoned)==280 and player[PlayerVitals.STATE].hp()>=57 and player[PlayerVitals.STATE].hp()<=59,
 		"Lingering Veil adds one counted drain contact, with summons ignored by native sustain")
-	check("additional contact" in Skills.resolve(3,0,player.character,true).description,"Blood Harvest has its own tooltip")
+	check("additional contact" in Skills.resolve(3,0,player.character).description,"Blood Harvest has its own tooltip")
 
 	prepare(["veilwalker","lingering_veil"],Vector3.ZERO,Vector3(6.5,0,0))
 	player.class_aim_distance=10.0
 	cast(0)
 	check(is_equal_approx(player.pos.x,6.05) and game.enemy_health()==280 and player.has(Reaper.MOMENTUM)
-		and not game.enemy_traits.has(Mark.STATE),"Veil Passage moves 6.05 m and arms self Momentum after native landing damage")
-	check("maximum legal travel" in Skills.resolve(3,0,player.character,true).description,"Veilwalker tooltip explains travel")
+		and not game.enemy_traits.has("core_strike_mark"),"Veil Passage moves 6.05 m and arms self Momentum after native landing damage")
+	check("maximum legal travel" in Skills.resolve(3,0,player.character).description,"Veilwalker tooltip explains travel")
 
 	prepare(["gravekeeper","lingering_veil"])
 	ally.pos=Vector3(0,0,2.9)
@@ -178,7 +176,7 @@ func focuses() -> void:
 	cast(0)
 	check(game.enemy_health()==280 and ally.guard_charges==1 and ally.guard_until-now>=1900 and ally.guard_until-now<1960
 		and player.guard_charges==0,"Lingering Veil gives the lowest ratio ally a 1.9 s Ward outside the damage cone")
-	var info := Skills.describe(Skills.resolve(3,0,player.character,true))
+	var info := Skills.describe(Skills.resolve(3,0,player.character))
 	check("Grave Sweep" in info and "Ward by 0.5 s" in info and "1.9s" in info,"Gravekeeper tooltip states actual extended duration")
 	prepare(["gravekeeper","grave_ward"])
 	ally.pos=Vector3(0,0,1)
@@ -214,12 +212,12 @@ func momentum() -> void:
 	player.aim_direction=Vector3.RIGHT
 	game.tactics.position=player.pos+Vector3.RIGHT
 	var at := Time.get_ticks_msec()
-	Mark.place(game,8,-1,{"id":77,"life":PlayerLifecycle.generation(ally),"skill":{"id":"botanical","mark_ms":4000,"mark_damage":1.0,"color":"#ffffff"}},at)
+	apply_frost(-1,at)
 	Ranger.track(game,8,ally,-1,78,at)
 	before=game.enemy_health()
 	var roll := fire_melee()
-	check(before-game.enemy_health()==roll+30 and not player.has(Reaper.MOMENTUM) and not game.enemy_traits.has(Mark.STATE)
-		and not game.enemy_traits.has(Ranger.PREY),"ordinary contact spends Momentum and independently eligible botanical and Ranger effects")
+	check(before-game.enemy_health()==roll+20 and not player.has(Reaper.MOMENTUM) and Frost.state(Frost.body(game,-1),at).stacks.size()==1
+		and not game.enemy_traits.has(Ranger.PREY),"ordinary contact spends Momentum and Tracked Prey while preserving an independent Frost status")
 	prepare(["veilwalker"],Vector3.ZERO,Vector3(2.7,0,0))
 	cast(0)
 	var expired := enqueue()
@@ -265,8 +263,8 @@ func momentum() -> void:
 	prepare([])
 	player.character.upgrades[3]=1<<13
 	cast(0)
-	check(game.enemy_traits.has(Mark.STATE) and Reaper.ready(game,player,Reaper.MOMENTUM,Time.get_ticks_msec()).is_empty(),
-		"historical branch Veilwalker still uses its existing Mark")
+	check(not game.enemy_traits.has("core_strike_mark") and Reaper.ready(game,player,Reaper.MOMENTUM,Time.get_ticks_msec()).is_empty()
+		and player[Cooldowns.STATE].deadline(Cooldowns.Q)==0,"historical branch investment refuses combat until explicit conversion")
 
 func siphon_effects() -> void:
 	prepare(OFFENSE.slice(0,4))
@@ -286,7 +284,7 @@ func siphon_effects() -> void:
 	var first := scout(Vector3(2.5,0,.2))
 	var second := scout(Vector3(3,0,.2),10)
 	var third := scout(Vector3(3.5,0,.2))
-	Mark.place(game,8,0,{"id":77,"life":PlayerLifecycle.generation(ally),"skill":{"id":"botanical","mark_ms":4000,"mark_damage":1.0,"color":"#ffffff"}},Time.get_ticks_msec())
+	apply_frost(0,Time.get_ticks_msec())
 	Ranger.track(game,8,ally,0,78,Time.get_ticks_msec())
 	var q_deadline: int = player[Cooldowns.STATE].deadline(Cooldowns.Q)
 	var before := events.size()
@@ -295,7 +293,7 @@ func siphon_effects() -> void:
 	check(game.enemy_health()==230 and game.encounter.hp_for(first)==290 and game.encounter.hp_for(second)==0 and game.encounter.hp_for(third)==300 and player.grave_charges==0,
 		"Barbed and Feast stack on the primary, with only two nearest secondaries and no Death’s Due prerequisite")
 	check(player[Cooldowns.STATE].deadline(Cooldowns.Q)==q_deadline-1250 and r_events.size()==1 and r_events[0].details.enemies==[-1]
-		and first.traits.has(Mark.STATE) and first.traits.has(Ranger.PREY),"Tempo and one actual Catalyst honor the native impact, secondaries leave independent marks alone")
+		and Frost.state(first,Time.get_ticks_msec()).stacks.size()==1 and first.traits.has(Ranger.PREY),"Tempo and one actual Catalyst honor the native impact, secondaries leave independent Frost and Tracked Prey alone")
 	prepare(OFFENSE)
 	cast(0)
 	first=scout(Vector3(2.5,0,1),1)
@@ -464,7 +462,7 @@ func charges_and_void() -> void:
 func run() -> void:
 	verify_tree()
 	game=preload("res://world.tscn").instantiate()
-	game.set_meta(Rules.META,Rules.ID)
+
 	game.progress.path="user://release-fixtures/ct04-garden.cfg"
 	game.local_character.path="user://release-fixtures/ct04-character.cfg"
 	root.add_child(game)
@@ -486,3 +484,10 @@ func run() -> void:
 	if failures==0:
 		print("PASS: CT04 all fifteen nodes, three focuses, separate event ownership and compatibility (%d checks)" % checks)
 	quit(int(failures>0))
+
+
+func apply_frost(target: int, now: int) -> void:
+	var material:=preload("res://affinity_build.gd").slot("form",game.Parts.index_of("plant:frostbell"))
+	var event:=Events.begin(game,8,"form",material,material.potency_profile.values,["weapon_contact"],now+4000)
+	check(event!=null,"independent Frost source has a valid current-life event")
+	if event!=null:Frost.apply(game,event,target,1,now)

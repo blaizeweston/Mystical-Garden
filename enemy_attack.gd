@@ -24,24 +24,7 @@ static func vault_target(game: Node, actor: Dictionary, target: Vector3) -> Vect
  var landing := origin.move_toward(target, minf(3.0, distance))
  return landing if distance > 1.5 and game.can_vault(origin, landing) else Vector3.INF
 
-const Thorn = preload("res://thorn_adaptation.gd")
 
-static func try_thorn_vault(game: Node, actor: Dictionary, victim: Vector3, now: int) -> bool:
- var jump := Thorn.plan(game, actor, victim, now)
- if jump.is_empty():
-  return false
- lock(game, actor, "vault", jump.landing, now + Thorn.WINDUP)
- actor.attack.variant=Thorn.MOVE
- actor.attack.thorn_line=jump.line_id
- actor.attack.radius=Thorn.LANDING_RADIUS
- actor.attack.cue=Thorn.CUE
- actor.attack.recovery_bonus=450
- actor.thorn_vault_used=true
- game.Journal.event("combat", "wilds_thorn_vault_locked", {"species": Catalog.get_kind(actor.kind).id,
-  "target_token": game.encounter.token_for(actor), "cast_id": jump.line_id, "floor": game.participation.floor()})
- return true
-
-# Directed volleys have an impact radius, but no authored flight thickness.
 static func attack_sight(field: RefCounted, from: Vector3, to: Vector3, mode: String) -> bool:
  return field.combat_sight(from,to) if mode=="volley" else field.clear_line(from,to)
 
@@ -313,10 +296,8 @@ static func warning(id: int, mode: String, origin: Vector3, target: Vector3, rad
 
 static func landing_is_clear(game: Node, actor: Dictionary, attack: Dictionary, now: int = 0) -> bool:
  if attack.get("learned_move",false):
-  if not SkillResponses.move_still_valid(actor,attack,now) or not SkillResponses.avoids_thorns(game,attack,now):
+  if not SkillResponses.move_still_valid(actor,attack,now):
    return false
- if attack.variant == Thorn.MOVE:
-  return Thorn.can_land(game, actor, attack, now)
  var target: Vector3 = attack.to
  if game.battlefield.occupied(target, game.Battlefield.CLEARANCE):
   return false

@@ -2,7 +2,6 @@ extends Control
 
 const Frames = preload("res://weapon_frames.gd")
 const ClassIcons = preload("res://class_skill_icons.gd")
-const HEARTS = preload("res://assets/ui/hearts.png")
 const Orb = preload("res://health_orb.gd")
 const FRAME = preload("res://assets/ui/root_frame.png")
 const POOL_SHADER = preload("res://health_pool.gdshader")
@@ -75,7 +74,6 @@ var state := {}
 var skill_hover: Array[Control]=[]
 var core_icon: Texture2D
 var core_icon_path: String=""
-var heart_icons: Array[AtlasTexture] = []
 var health_orb := Orb.new()
 var health_pool := ColorRect.new()
 var pool_vitals := Label.new()
@@ -120,22 +118,13 @@ func _ready() -> void:
 		skill_hover.append(hover)
 	frame_style = root_style()
 	slot_style = root_style(true)
-	var cell_width := HEARTS.get_width() / 4.0
-	for i in 4:
-		var atlas := AtlasTexture.new()
-		atlas.atlas = HEARTS
-		atlas.region = Rect2(i * cell_width, 100, cell_width, HEARTS.get_height() - 200)
-		heart_icons.append(atlas)
 	setup_health_pool()
 	resized.connect(layout_health_pool)
 
 func update_state(new_state: Dictionary) -> void:
 	state = new_state
-	if Orb.Preview.enabled:
-		health_orb.update(state,Time.get_ticks_msec())
-		update_health_pool()
-	else:
-		health_pool.hide()
+	health_orb.update(state,Time.get_ticks_msec())
+	update_health_pool()
 	floor_track.update_track(int(state.get("floor",1)),bool(state.get("wild",false)))
 	party_panel.update_party(state.get("party",[]),bool(state.get("wild",false)))
 	var active: bool=state.get("wild",false) and not state.get("fallen",false)
@@ -231,21 +220,6 @@ func slot(canvas: Control, rect: Rect2, key: String, name_text: String, ready: b
 	if not ready:
 		canvas.draw_rect(Rect2(rect.position + Vector2(9, rect.size.y - 7), Vector2(rect.size.x - 18, 2)), Color("#6c5d3d"))
 
-static func heart_state(health: float, capacity: int, index: int) -> int:
-	if index * 2 >= capacity:
-		return 3
-	var remaining := health - index * 2
-	if remaining >= 2.0:
-		return 0
-	if remaining > 0.0:
-		return 1
-	return 2
-
-
-static func half_heart_pulse(seconds: float) -> float:
-	return 1.0 + 0.10 * (0.5 + 0.5 * sin(seconds * TAU * 1.25))
-
-
 func _draw() -> void:
 	if state.is_empty():
 		return
@@ -267,22 +241,8 @@ func _draw() -> void:
 	var core: Dictionary=state.get("core",{})
 	var has_core: bool=active and not state.get("fallen",false) and not core.is_empty()
 	draw_style_box(frame_style, Rect2(12, bottom, (660 if has_core else 560) if active else 360, 138 if active else 88))
-	var health := float(state.hp)
-	var capacity := int(state.get("max_hp", 10))
-	if not Orb.Preview.enabled:
-		var heart_count:=maxi(5,ceili((capacity+int(state.get("lost_health",0)))/2.0))
-		for i in heart_count:
-			var icon := heart_state(health, capacity, i)
-			var rect := Rect2(30 + i * 31, bottom + 15, 27, 27)
-			if icon == 1:
-				var pulse := half_heart_pulse(Time.get_ticks_msec() / 1000.0)
-				var center := rect.get_center()
-				rect.size *= pulse
-				rect.position = center - rect.size * 0.5
-			draw_texture_rect(heart_icons[icon], rect, false)
-		text(self, Vector2(30+heart_count*31+10, bottom + 35), "%s / %d" % [str(health).trim_suffix(".0"), capacity], 13)
 	if not active:
-		text(self, Vector2(30, bottom + (50 if Orb.Preview.enabled else 65)), "Seeds %d · Knowledge %d available · I Storage" % [int(state.carried),int(state.get("insight",0))], 12, GREEN)
+		text(self, Vector2(30, bottom + 50), "Seeds %d · Knowledge %d available · I Storage" % [int(state.carried),int(state.get("insight",0))], 12, GREEN)
 		return
 	if state.get("fallen",false):
 		text(self,Vector2(30,bottom+75),"FALLEN · awaiting a teammate",15,MUTED)

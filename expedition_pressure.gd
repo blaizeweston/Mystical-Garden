@@ -5,10 +5,9 @@ const Balance=preload("res://enemy_balance.gd")
 const WARNING_MS := 3000
 const SAFE_DISTANCE := 6.0
 static func interval(cycle: int, wave: int) -> int:
- if Balance.Preview.enabled:return Balance.pressure_interval(cycle,wave)
- return maxi(18000,35000-maxi(0,cycle-1)*2000-wave*1500)
+ return Balance.pressure_interval(cycle,wave)
 static func capacity(game: Node) -> int:
- return mini(game.EncounterConfig.MAX_SCOUTS,game.EncounterConfig.SOLO_SCOUT_LIMIT+Balance.extra_scouts(int(game.Director.config().coop_extra_scouts))*(game.Director.party_size(game)-1))
+ return mini(game.EncounterConfig.MAX_SCOUTS,game.EncounterConfig.SOLO_SCOUT_LIMIT+Balance.extra_scouts()*(game.Director.party_size(game)-1))
 static func living(game: Node) -> int:
  return game.encounter.living_scout_count()
 static func safe(game: Node,at: Vector3) -> bool:
@@ -46,7 +45,7 @@ static func tick(game: Node,now: int) -> void:
   game.tactics.memory.erase("pressure");game.pressure_at=0;return
  if not game.tactics.memory.has("pressure"):game.tactics.memory.pressure={"wave":0,"pending":[]}
  var state: Dictionary=game.tactics.memory.pressure
- if Balance.Preview.enabled and int(state.get("spawned_waves",0))>=Balance.pressure_limit(game.participation.cycle()):
+ if int(state.get("spawned_waves",0))>=Balance.pressure_limit(game.participation.cycle()):
   game.pressure_at=0;return
  if game.pressure_at==0:game.pressure_at=now+interval(game.participation.cycle(),0);return
  if now<game.pressure_at:return
@@ -65,11 +64,10 @@ static func tick(game: Node,now: int) -> void:
   var growth: int=game.Enemies.tier(game.participation.floor(),game.participation.cycle())
   var scout: Dictionary=game.make_scout(int(entry.kind),entry.pos,slot,game.current_mutations(int(entry.kind),growth,int(state.wave)*17+slot),growth)
   scout.engaged=true;scout.ready=now+700;scout.stagger_until=now+700;scout.summoned=true
-  if Balance.Preview.enabled:
-   scout.max_hp=Balance.reinforcement_hp(int(scout.max_hp));scout.hp=scout.max_hp
+  scout.max_hp=Balance.reinforcement_hp(int(scout.max_hp));scout.hp=scout.max_hp
   if game.encounter.register_scout(scout,slot)>=0:spawned+=1
   else:skipped+=1
- if Balance.Preview.enabled and spawned>0:state.spawned_waves=int(state.get("spawned_waves",0))+1
+ if spawned>0:state.spawned_waves=int(state.get("spawned_waves",0))+1
  state.pending=[];game.pressure_at=now+interval(game.participation.cycle(),int(state.wave))
  game.Journal.event("combat","pressure_reinforcements",{"wave":state.wave,"spawned":spawned,"unsafe_or_full":skipped,"floor":game.participation.floor()})
 static func hints(game: Node,now: int=-1) -> Array:

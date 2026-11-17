@@ -11,7 +11,6 @@ func check(ok: bool, message: String):
 		failed = true
 		printerr("FAIL: ",message)
 func _initialize():
-	preload("res://combat_balance_preview.gd").enabled = false
 	call_deferred("run")
 func run():
 	check(Enemies.all().size() == 24, "roster has twenty-four unique enemies")
@@ -63,45 +62,42 @@ func run():
 	check(reload.burst_pressure==2,"unused counters fade slowly")
 	var p: Dictionary=game.players[1]
 	ExpeditionCase.set_membership(game, p, true)
-	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100)
 	p.pos=Vector3(0,0,5.4)
 	game.tactics.position=p.pos
-	game.encounter.set_hp(-1, 10)
+	game.encounter.set_hp(-1, 100)
 	game.encounter.clear_scouts()
-	p.power=3
-	p.strike_at=0
 	game.enemy_mutations=Enemies.BARK
-	game.send_action(true)
-	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.enemy_health()==7,"bark plates reduce a heavy hit by one point")
-	game.encounter.set_hp(-1, 10)
+	game.apply_weapon_hit(p,-1,p.pos,{"damage":4},Time.get_ticks_msec())
+	check(game.enemy_health()==70,"bark plates reduce a 40-damage native hit by 25 percent")
+	game.encounter.set_hp(-1, 100)
 	game.enemy_mutations=0
-	p.strike_at=0
-	game.send_action(true)
-	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.enemy_health()==6,"unarmored enemy takes the full heavy hit")
+	game.apply_weapon_hit(p,-1,p.pos,{"damage":4},Time.get_ticks_msec())
+	check(game.enemy_health()==60,"unarmored enemy takes the full 40-damage native hit")
 	game.encounter.set_hp(-1, 0)
 	game.encounter.clear_scouts()
 	var snare: Dictionary=game.make_scout(5,p.pos,1)
 	snare.mode="snare";snare.blast=p.pos
 	game.encounter.register_scout(snare)
 	var now:=Time.get_ticks_msec()
+	var snare_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.scout_hit(game,Enemies.get_kind(5),snare))
 	preload("res://scout_behavior.gd").release(game, snare,Enemies.get_kind(5),now)
-	check(PlayerVitals.current_hp(p)==9 and p.slow_until>now,"Willow strike damages and entangles")
-	p.slow_until=0;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0
+	check(PlayerVitals.current_hp(p)==100-snare_damage and p.slow_until>now,"Willow strike damages and entangles")
+	p.slow_until=0;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0
 	var volley: Dictionary=game.make_scout(1,p.pos,1)
 	volley.mode="volley";volley.blast=p.pos;volley.repeat=1
 	game.encounter.clear_scouts();game.encounter.register_scout(volley)
+	var volley_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.scout_hit(game,Enemies.get_kind(1),volley))
 	preload("res://scout_behavior.gd").release(game, volley,Enemies.get_kind(1),now)
-	check(PlayerVitals.current_hp(p)==9 and volley.windup>now,"Nightbloom retains a second telegraphed pulse")
+	check(PlayerVitals.current_hp(p)==100-volley_damage and volley.windup>now,"Nightbloom retains a second telegraphed pulse")
 	preload("res://scout_behavior.gd").release(game, volley,Enemies.get_kind(1),now+500)
-	check(PlayerVitals.current_hp(p)==8 and volley.windup==0,"volley ends after two pulses")
+	check(PlayerVitals.current_hp(p)==100-2*volley_damage and volley.windup==0,"volley ends after two pulses")
 	var cantor: Dictionary=game.make_scout(3,p.pos,1)
 	var ally: Dictionary=game.make_scout(0,p.pos+Vector3.RIGHT,2)
 	cantor.mode="chant"
 	game.encounter.clear_scouts();game.encounter.register_scout(cantor);game.encounter.register_scout(ally)
 	preload("res://scout_behavior.gd").release(game, cantor,Enemies.get_kind(3),now)
-	check(ally.haste_until>now and PlayerVitals.current_hp(p)==8,"Cantor hastens allies instead of hurting the player")
+	check(ally.haste_until>now and PlayerVitals.current_hp(p)==100-2*volley_damage,"Cantor hastens allies instead of hurting the player")
 	var brood: Dictionary=game.make_scout(9,Vector3(0,0,5.4),1)
 	brood.mode="brood";p.pos=Vector3(0,0,10)
 	game.encounter.clear_scouts();game.encounter.register_scout(brood)
@@ -115,7 +111,7 @@ func run():
 	game.enemy_mutations=Enemies.MOBILITY
 	game.tactics.position=Vector3(-6.5,0,-4.5)
 	p.pos=Vector3(-6.5,0,-1)
-	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
+	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100)
 	game.tactics.engaged=true
 	game.tactics.ready_at=0
 	game.tactics.stagger_until=0
@@ -129,7 +125,7 @@ func run():
 	game.encounter.set_hp(-1, 0)
 	game.tactics.winding_up=false
 	for kind in Enemies.all().size():
-		ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(0,0,5.4);p.slow_until=0;p.guard_until=0
+		ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.pos=Vector3(0,0,5.4);p.slow_until=0;p.guard_until=0
 		var mob: Dictionary=game.make_scout(kind,p.pos+Vector3.RIGHT*.8,1)
 		game.encounter.clear_scouts();game.encounter.register_scout(mob)
 		var at:=Time.get_ticks_msec()

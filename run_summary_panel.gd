@@ -4,7 +4,6 @@ const Participation = preload("res://expedition_participation.gd")
 
 const Settings = preload("res://app_settings.gd")
 const Skills = preload("res://skill_catalog.gd")
-const Upgrades = preload("res://run_upgrade_catalog.gd")
 const Traits = preload("res://combat_traits.gd")
 const UI = preload("res://root_ui.gd")
 const Cards = preload("res://affinity_cards.gd")
@@ -19,14 +18,12 @@ const EXTRA_STATS := {
 	"recovery": ["Enemy recovery", " s", .001],
 	"knockback": ["Knockback", " m", 1.0],
 	"pull": ["Pull", " m", 1.0],
-	"graft_chance": ["Grafting chance", "%", 100.0],
 }
 
 var game: Node
 var heading: Label
 var totals: GridContainer
 var bonuses: Label
-var cards: ItemList
 var grouped_scroll: ScrollContainer
 var grouped_cards: VBoxContainer
 var empty_cards: Label
@@ -96,10 +93,6 @@ func _ready() -> void:
 	game.add_label(right, 16, UI.GREEN).text = "Expedition upgrades"
 	empty_cards = game.add_label(right, 13, UI.MUTED)
 	empty_cards.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	cards = ItemList.new()
-	cards.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	cards.add_theme_constant_override("v_separation", 8)
-	right.add_child(cards)
 	grouped_scroll = ScrollContainer.new()
 	grouped_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	grouped_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -160,19 +153,12 @@ func refresh(player: Dictionary) -> void:
 	bonuses.text = view.get("bonuses", "No unique bonuses active.")
 	var rows: Array = view.get("cards", [])
 	if rows != shown.get("cards", []):
-		cards.clear()
 		for child in grouped_cards.get_children():
 			grouped_cards.remove_child(child)
 			child.queue_free()
 		for card in rows:
-			if card.has("summary"):
-				add_grouped_card(card)
-			else:
-				var index := cards.add_item(card.title)
-				cards.set_item_tooltip(index, card.tooltip)
-				cards.set_item_custom_fg_color(index, {"Rare": Color("#c5b8ee"), "Epic": Color("#e1b9e5"), "Mythic": Color("#efd189")}.get(card.rarity, UI.INK))
+			add_grouped_card(card)
 	empty_cards.visible = rows.is_empty()
-	cards.visible = cards.item_count > 0
 	grouped_scroll.visible = grouped_cards.get_child_count() > 0
 	empty_cards.text = "Waiting for expedition details…" if view.is_empty() else "No upgrades acquired yet."
 	shown = view
@@ -204,21 +190,6 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 	var class_id := int(player.frame)
 	var base: Dictionary = world.Classes.DEFINITIONS[class_id].weapons[int(player.get("weapon_kind", 0))]
 	var upgrades: Array = []
-	var power := 0
-	var rift_hook := false
-	for entry in Upgrades.all():
-		var rank := int(preload("res://combat_ruleset.gd").legacy_ranks(player).get(entry.id, 0))
-		if rank <= 0:
-			continue
-		power += int(entry.effects.get("power", 0)) * rank
-		rift_hook = rift_hook or entry.effects.has("rift_hook")
-		var detail: String = Upgrades.effect_text(entry).strip_edges()
-		var tooltip: String = entry.name + "\n" + entry.rarity + " · Rank " + str(rank)
-		if not str(entry.description).is_empty():
-			tooltip += "\n\n" + entry.description
-		if not detail.is_empty():
-			tooltip += "\n\n" + ("Per rank\n" if int(entry.max_rank) != 1 else "") + detail
-		upgrades.append({"title": entry.name + ("  ×%d" % rank if rank > 1 else ""), "tooltip": tooltip, "rarity": entry.rarity})
 	if stats.has("affinity_build"):
 		var copies: Array = Cards.project_owned(player,stats,world.DODGE_COOLDOWN_MS) if world.multiplayer.is_server() else player.get("affinity_run_cards",[])
 		upgrades = Cards.owned_rows(copies)
@@ -230,19 +201,17 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 		stats.damage_max = weapon_band.y
 		stats.dodge_cooldown = int(stats.get("dodge_cooldown",0)) + int(applied.get("run_dodge_recovery",0))
 	upgrades.sort_custom(func(a,b): return a.title.naturalnocasecmp_to(b.title) < 0)
-	if world.multiplayer.is_server():
-		power = 0 if player.has("combat_ruleset") else int(player.get("power", power))
 	if stats.has("damage_min"):
 		var band:=Vector2i(stats.damage_min,stats.damage_max)
 		rows.append(["Damage", Preview.range_label(band)])
 	else:
-		rows.append(["Damage", compared(float(stats.damage) + power, base.damage)])
+		rows.append(["Damage", compared(float(stats.damage), base.damage)])
 	rows.append(["Reach", compared(stats.reach, base.reach, " m")])
 	rows.append(["Attack speed", Preview.attack_speed(int(stats.interval)) + " attacks/sec",
 		"Maximum attack speed is %s attacks/sec." % Preview.attack_speed(Cards.STRIKE_MIN_MS)])
 	rows.append(["Weapon targets", compared(stats.targets, base.targets)])
 	var base_hp: int=world.Life.Preview.hp(world.MAX_HEALTH)
-	rows.append(["Max HP", compared(PlayerVitals.maximum_hp(player, base_hp), base_hp, " HP" if world.Life.Preview.enabled else "")])
+	rows.append(["Max HP", compared(PlayerVitals.maximum_hp(player, base_hp), base_hp, " HP")])
 	var dodge_ms := maxi(Cards.DODGE_MIN_MS, world.DODGE_COOLDOWN_MS - int(stats.get("dodge_cooldown", 0)))
 	rows.append(["Dodge cooldown", compared(dodge_ms / 1000.0, world.DODGE_COOLDOWN_MS / 1000.0, " s"),
 		"Minimum dodge cooldown is %s s." % decimal(Cards.DODGE_MIN_MS / 1000.0)])
@@ -254,7 +223,7 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 			"Minimum class ability cooldown is %s s." % decimal(Skills.Balance.COOLDOWN_MIN_MS / 1000.0)])
 	for key in EXTRA_STATS:
 		var value := float(stats.get(key, 0))
-		if key=="heal_on_kill" and world.Life.Preview.enabled:
+		if key=="heal_on_kill":
 			if value>0.0:
 				rows.append(["Healing on kill",world.Life.Preview.heal_label(value)])
 				var limit: int=world.Life.Sustain.KILL_BUDGET_HP
@@ -277,18 +246,11 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 			unique.append("Grafting Altar · %d purchases remaining" % int(ledger.remaining))
 			for id: String in counts:
 				unique.append(str(names[id].name) + (" ×%d" % counts[id] if int(counts[id])>1 else ""))
-	if world.Life.Preview.enabled:
-		if world.participation.route()!=world.Campaign.HEART:
-			var boundary: bool=world.participation.depth()==world.ROUTE_ROOMS
-			var cycle: int=world.participation.cycle()+int(boundary and world.participation.route()==world.Campaign.HOLLOW)
-			var center: int=world.Life.Sustain.recovery_center_hp(boundary,cycle)
-			rows.append(["Next gate recovery",world.Life.Preview.range_label(world.Life.Preview.heal_band(center))+" HP"])
-		var core: Dictionary = stats.get("core_build", {}).get("skill", {})
-		if not core.is_empty():
-			rows.append([str(core.name) + " cooldown", decimal(float(core.cooldown_ms)/1000.0) + " s"])
-			var resolved: Array[String] = Upgrades.CoreRules.Balance.effect_lines(core)
-			if not resolved.is_empty():
-				unique.push_front(str(core.name) + "\n" + "\n".join(resolved))
+	if world.participation.route()!=world.Campaign.HEART:
+		var boundary: bool=world.participation.depth()==world.ROUTE_ROOMS
+		var cycle: int=world.participation.cycle()+int(boundary and world.participation.route()==world.Campaign.HOLLOW)
+		var center: int=world.Life.Sustain.recovery_center_hp(boundary,cycle)
+		rows.append(["Next gate recovery",world.Life.Preview.range_label(world.Life.Preview.heal_band(center))+" HP"])
 	if stats.pattern != base.pattern:
 		unique.append("Attack pattern · " + str(stats.pattern).capitalize())
 	var traits := {}
@@ -298,8 +260,6 @@ static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dicti
 	var trait_text := Traits.describe(traits,true)
 	if not trait_text.is_empty():
 		unique.append(trait_text)
-	if rift_hook:
-		unique.append("Rift Hook · Wind-up hits refresh your dodge.")
 	return {"totals": rows, "cards": upgrades, "bonuses": "\n".join(unique) if not unique.is_empty() else "No unique bonuses active."}
 
 

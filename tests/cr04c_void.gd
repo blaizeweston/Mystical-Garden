@@ -28,7 +28,7 @@ func action(game: Node, actor: int, slot: String, part: int, channels: Array) ->
 
 func run() -> void:
 	var game:=preload("res://world.tscn").instantiate()
-	game.set_meta(Mode.META,Mode.ID)
+
 	game.progress.path="user://cr04c-void/garden.cfg"
 	game.local_character.path="user://cr04c-void/player.cfg"
 	root.add_child(game)
@@ -122,7 +122,7 @@ func run() -> void:
 	check(Mode.FAMILIES.size()==9,"nine live families")
 	for item in game.Parts.DEFINITIONS.size():
 		if not game.Parts.is_plant(item):continue
-		var build:=Builds.resolve(0,0,[item,item,item],0,p.character)
+		var build:=Builds.resolve(0,0,[item,item,item],p.character)
 		check(build.core.executable and build.form.executable and build.catalyst.executable and not Builds.core_skill(build).is_empty(),
 			"all plant qualities resolve three executable slots")
 

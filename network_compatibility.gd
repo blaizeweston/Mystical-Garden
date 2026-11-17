@@ -50,7 +50,7 @@ func receive_compatibility(id: int,data: PackedByteArray) -> void:
   preload("res://diagnostic_journal.gd").event("network","compatibility_rejected",{"actor":id,"reason":"health_scale"},"warning")
   # Keep the peer unauthenticated while it reads our handshake and shows the reason.
   if not multiplayer.is_server():
-   failure_reason="Everyone must launch with the same combat balance mode."
+   failure_reason="Everyone must use the same current combat build and health scale."
    finish_failed_check.call_deferred(get_parent().network_session.session_identity())
   return
  preload("res://diagnostic_journal.gd").event("network","compatibility_accepted",{"actor":id})

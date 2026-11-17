@@ -5,6 +5,7 @@ const SessionCase = preload("res://tests/support/session_case.gd")
 const Slots = preload("res://save_slots.gd")
 const Owner = preload("res://guarded_title_session.gd")
 const Profile = preload("res://character_profile.gd")
+const Warden = preload("res://warden_connected_tree.gd")
 const Tx = preload("res://game_transaction.gd")
 const Ops = preload("res://persistence_operations.gd")
 const Integration = preload("res://persistence_writer_integration.gd")
@@ -65,7 +66,7 @@ func current(id: int) -> Dictionary:
 func record_host(key: String, id: int, before: String) -> void:
  var payload := current(id)
  print("CASE ",JSON.stringify({"case":key,"role":"host","before":before,"after":Slots._save_digest(G),
-  "receipt":payload.projection,"familiarity":payload.profile.plants[0],"upgrades":payload.profile.upgrades,
+  "receipt":payload.projection,"familiarity":payload.profile.plants[0],"connected_path":Warden.path(payload.profile),
   "loadout":payload.profile.loadouts[0],"appearance":payload.profile.appearance,"delivery":delivery(id).get("state","")}))
 
 func record_guest(key: String, before: String) -> void:
@@ -83,7 +84,7 @@ func send_action(id: int, key: String) -> bool:
  var result: Dictionary = world.run_guarded_action(id,Tx.Scope.GARDEN,func(effects):
   player.character.plants[0] += 1
   player.character.xp[0] += 1000
-  player.character.upgrades[0] = 0
+  player.character[Warden.PROFILE_KEY] = Warden.state([])
   player.character.loadouts[0].weapon = 1
   world.save_action_profile(id,effects)
   effects.append(world.tell_profile_action.bind(id,"Profile committed "+key))
@@ -163,7 +164,7 @@ func guest() -> void:
  initial.path = P
  check(initial.load_profile(false)==OK,"load initial guest class data")
  initial.data.xp[0] = Profile.Experience.MAX_XP
- initial.data.upgrades[0] = 1 << initial.Classes.Warden.OFFSET
+ initial.data[Warden.PROFILE_KEY] = Warden.state(["vanguard"])
  initial.data.loadouts[0].weapon = 2
  check(initial.save_profile_guarded().value.outcome.outcome==preload("res://save_batch.gd").Outcome.COMMITTED,"seed existing class and loadout before join")
  if not await open_guest(menu):
@@ -205,11 +206,11 @@ func guest() -> void:
    mark("pending-done")
    return
   if key=="apply":
-   check(world.guest_character.data.upgrades[0]!=0 and world.guest_character.data.loadouts[0].weapon==2,"initial non-monotonic values are present")
+   check(not Warden.path(world.guest_character.data).is_empty() and world.guest_character.data.loadouts[0].weapon==2,"initial non-monotonic values are present")
    expected+=1
    check(await until(func():return world.status=="Profile committed apply"),"success feedback after acknowledgment")
    check(staged.count==count+1 and world.guest_character.data.plants[0]==expected,"duplicate and delayed old revision do not stage or apply")
-   check(world.guest_character.data.upgrades[0]==0 and world.guest_character.data.loadouts[0].weapon==1,"respec and reduced weapon choice are committed")
+   check(Warden.path(world.guest_character.data).is_empty() and world.guest_character.data.loadouts[0].weapon==1,"respec and reduced weapon choice are committed")
   elif key=="abort":
    check(await until(func():return world.has_meta(&"guest_projection_notice")),"aborted projection is visible")
    check(Slots._save_digest(P)==before and world.guest_character.data.plants[0]==expected and not world.status.begins_with("Profile committed"),"abort preserves guest bytes, memory and withholds success")
@@ -320,8 +321,8 @@ func action_host() -> void:
   var committed := current(id)
   check(committed.projection.revision==old.projection.revision+1 and Slots._save_digest(G)!=before,"host commits one "+step+" revision")
   match step:
-   "learn": check(committed.profile.upgrades[0]!=0,"actual learn updates host projection")
-   "respec": check(committed.profile.upgrades[0]==0,"actual respec updates host projection")
+   "learn": check(not Warden.path(committed.profile).is_empty(),"actual learn updates host projection")
+   "respec": check(Warden.path(committed.profile).is_empty(),"actual respec updates host projection")
    "loadout": check(committed.profile.loadouts[0].weapon==1,"actual loadout updates host projection")
    "appearance": check(committed.profile.appearance[0]==(int(old.profile.appearance[0])+1)%world.LOOK_NAMES[0].size(),"host records appearance once without waiting for the guest save")
   record_host("actual_"+step,id,before)
@@ -371,16 +372,16 @@ func action_guest() -> void:
   if not await until(func(): return read(step+"-send")=="ready"):
    check(false,step+" host positions traveller")
    return
-  world.send_garden_action({"learn":"learn_0_12","respec":"respec_0","loadout":"loadweapon_1","appearance":"look_0"}[step])
+  world.send_garden_action({"learn":"learn_0_64","respec":"respec_0","loadout":"loadweapon_1","appearance":"look_0"}[step])
   if not await until(func(): return stages.count==1 and (world.has_meta(&"guest_projection_notice") or not Tx.pending_notice(world).is_empty())):
    check(false,step+" local projection result")
    return
   var blocked := Slots._save_digest(P)
   match step:
    "learn":
-    check(blocked==before and world.guest_character.data.upgrades==prior.upgrades and not world.status.begins_with("Learned"),"Learn abort preserves points and withholds feedback")
+    check(blocked==before and Warden.path(world.guest_character.data)==Warden.path(prior) and not world.status.begins_with("Learned"),"Learn abort preserves points and withholds feedback")
    "respec":
-    check(blocked!=before and world.guest_character.data.upgrades[0]==0 and Tx.pending_notice(world)==Tx.CLEANUP_NOTICE,"respec cleanup pending keeps confirmed change and warning")
+    check(blocked!=before and Warden.path(world.guest_character.data).is_empty() and Tx.pending_notice(world)==Tx.CLEANUP_NOTICE,"respec cleanup pending keeps confirmed change and warning")
    "loadout":
     check(Tx.pending_notice(world).contains("uncertain") and FileAccess.file_exists(P+".transaction"),"uncertain loadout keeps recovery evidence")
    "appearance":
@@ -405,8 +406,8 @@ func action_guest() -> void:
    check(false,step+" guest reconnects")
    return
   match step:
-   "learn": check(world.guest_character.data.upgrades[0]!=0,"Learn is applied once on reconnect")
-   "respec": check(world.guest_character.data.upgrades[0]==0,"reconnect preserves refunded class points")
+   "learn": check(not Warden.path(world.guest_character.data).is_empty(),"Learn is applied once on reconnect")
+   "respec": check(Warden.path(world.guest_character.data).is_empty(),"reconnect preserves refunded class points")
    "loadout": check(world.guest_character.data.loadouts[0].weapon==1,"reconnect applies current loadout")
    "appearance":
     check(world.guest_character.data.appearance[0]==(int(prior.appearance[0])+1)%world.LOOK_NAMES[0].size()

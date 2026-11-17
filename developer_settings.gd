@@ -21,7 +21,7 @@ func _ready() -> void:
 	toggle = settings.check(self,"Developer Mode")
 	toggle.toggled.connect(func(_value): refresh_tools())
 	hint = settings.label(self,"")
-	if context != null and preload("res://combat_ruleset.gd").active(context):
+	if context != null:
 		settings.button(self,"Stock affinity materials in isolated Garden",func():
 			settings.notice.text = preload("res://frost_combat.gd").stock_test_garden(context))
 	tools = VBoxContainer.new()

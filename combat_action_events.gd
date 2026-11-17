@@ -30,7 +30,7 @@ var _responses := {}
 
 static func begin(game: Node, actor_id: int, origin: String, material: Dictionary,
 		potency: Dictionary, permitted: Array, until: int, charge_limit := -1) -> RefCounted:
-	if not Ruleset.active(game) or not game.multiplayer.is_server() or permitted.is_empty():
+	if not game.multiplayer.is_server() or permitted.is_empty():
 		return null
 	for channel in permitted:
 		if channel not in CHANNELS:
@@ -57,7 +57,7 @@ static func begin(game: Node, actor_id: int, origin: String, material: Dictionar
 
 
 func publish(game: Node, channel: String, contact_id: String, target: String, now: int, details: Dictionary = {}) -> bool:
-	if not Ruleset.active(game) or not game.multiplayer.is_server() or game.participation.epoch() != epoch:
+	if not game.multiplayer.is_server() or game.participation.epoch() != epoch:
 		return false
 	var owner: Dictionary = game.players.get(actor,{})
 	if not PlayerLifecycle.matches(owner,life_generation):
@@ -128,7 +128,7 @@ static func contact(game: Node, stats: Dictionary, target: int, now: int, second
 	if point.is_finite():
 		details.point = point
 		details.forward = forward
-	var charge: bool = channel=="weapon_contact" and Ruleset.active(game) and game.players.get(event.actor,{}).has(Ruleset.Storm.CHARGE)
+	var charge: bool = channel=="weapon_contact" and game.players.get(event.actor,{}).has(Ruleset.Storm.CHARGE)
 	if event.publish(game, channel, "contact", token, now, details) and channel=="weapon_contact":
 		Ruleset.Spirit.contact(game,event,target,now)
 		if charge:

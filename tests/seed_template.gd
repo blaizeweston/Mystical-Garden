@@ -1,11 +1,11 @@
 extends SceneTree
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+const Cards=preload("res://affinity_cards.gd")
 var failed:=false
 func check(ok: bool,message: String) -> void:
  if not ok: failed=true;printerr("FAIL seed template: ",message)
 func _initialize() -> void:
- preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 func pair(a: String,b: String,source: String="stash") -> Array:
  return [{"item":a,"source":source},{"item":b,"source":source}]
@@ -51,18 +51,15 @@ func run() -> void:
  var nodes: Array=game.progression_view.seed_nodes(g.discoveries,g.stock)
  check(nodes.any(func(n):return n.id==str(i) and n.parents.size()==2 and n.icon!=null),"tree contains portrait and lineage connections")
  ExpeditionCase.set_membership(game, p, true);p.weapon=part;p.secondary=0;p.catalyst=0;p.pos=Vector3(0,0,-1);game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter.clear_scouts();game.tactics.position=Vector3.ZERO;game.encounter.set_hp(-1, 50)
- var stats: Dictionary=game.weapon_stats(p);var before: int=game.enemy_health()
- game.apply_weapon_hit(p,-1,p.pos,stats,1000);var first: int=before-game.enemy_health()
- game.apply_weapon_hit(p,-1,p.pos,stats,1100);before=game.enemy_health()
- game.apply_weapon_hit(p,-1,p.pos,stats,1200);var shatter: int=before-game.enemy_health()
- check(first==1 and shatter>first and game.enemy_traits.brittle==0,"three contacts produce actual shatter damage")
- check(game.RunUpgrades.requirement(game.RunUpgrades.get_upgrade("plant_frostbell_shatter"),p).is_empty(),"frost-only upgrade eligible from installed component")
- game.encounter.set_hp(-1, 0);ExpeditionCase.set_world(game, {"encounter_number": 6});p.pos=game.battlefield.advance;p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(10000, game.wallet_for(p).spent_essence());p.offer_floor=6;p.checkpoint_offers=["plant_frostbell_shatter"]
- check(game._buy_upgrade(1,p,0) and game.weapon_stats(p).shatter_damage>stats.shatter_damage,"checkpoint card strengthens installed plant behavior")
+ var tree=game.Classes.connected_tree(0)
+ p.character[tree.profile_key]=tree.state(["vanguard"])
+ var stats: Dictionary=game.weapon_stats(p)
+ check(stats.affinity_build.core.primary_affinity=="frost" and stats.affinity_build.core.affinity_core_skill_id=="rime_bloom","Frostbell resolves its approved explicit Core identity")
+ check("rime_opening" in Cards.Ledger.new().eligible(stats,game.DODGE_COOLDOWN_MS),"the created Frostbell material enables its actual modern Core card")
  ExpeditionCase.set_membership(game, p, false);g.save_garden()
  var reload=load("res://progress.gd").new();reload.path=g.path;reload.load_garden()
  check(reload.discoveries[i] and reload.altar_recipes==g.altar_recipes,"discovery and recipes survive reload")
  check(load("res://content_validator.gd").validate().is_empty(),"catalog, effects, component IDs and portraits validate")
  game.queue_free();await process_frame
- if not failed: print("PASS: Frostbell template altar, Wilds acquisition, growth, parts, refinement, tree, real shatter, checkpoint upgrade and persistence")
+ if not failed: print("PASS: Frostbell template altar, Wilds acquisition, growth, parts, refinement, tree, explicit affinity/card eligibility and persistence")
  quit(1 if failed else 0)

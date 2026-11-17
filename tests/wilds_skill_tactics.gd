@@ -14,7 +14,6 @@ var failed := false
 
 
 func _initialize() -> void:
-	preload("res://combat_balance_preview.gd").enabled = false
 	call_deferred("run")
 
 
@@ -28,7 +27,7 @@ func floor_fixture() -> void:
 	Core.reset(game)
 	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	game.encounter_rewarded = false
-	game.encounter.set_hp(-1, 50)
+	game.encounter.set_hp(-1, 500)
 	game.enemy_kind = 0
 	game.tactics.position = Vector3(9, 0, 7)
 	game.encounter.clear_scouts()
@@ -37,7 +36,7 @@ func floor_fixture() -> void:
 	game.battlefield.barriers.clear()
 	player.pos = Vector3.ZERO
 	ExpeditionCase.set_membership(game, player, true)
-	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
 
 
 func add_scout(kind: int, at: Vector3) -> Dictionary:
@@ -90,7 +89,7 @@ func run() -> void:
 	game.queue_free()
 	await process_frame
 	if not failed:
-		print("PASS: Core evidence, host-world learning, relay, scattered hatches and player counterplay")
+		print("PASS: native interruption, recorded memory inputs, relay, scattered hatches and player counterplay")
 	quit(1 if failed else 0)
 
 
@@ -98,37 +97,36 @@ func check_learning() -> void:
 	floor_fixture()
 	var shepherd := shepherd_group()
 	core_skill("hush_orchid", 2.0)
-	check(Tactics.evidence(game).is_empty(), "Hush on an idle Shepherd is not evidence")
-	core_skill("veilcap", 2.0)
-	check(Tactics.evidence(game).is_empty(), "control with no actual damage is not area pressure")
+	check(Tactics.evidence(game).is_empty(), "Gravity Well on an idle Shepherd does not invent cast-denial evidence")
 	Attacks.lock(game, shepherd, "shepherd", player.pos, Time.get_ticks_msec() + 1400)
-	game.apply_weapon_hit(player, 0, player.pos, {"damage": 1, "stagger": 180, "suppress": 1}, Time.get_ticks_msec())
-	check(Tactics.evidence(game).get(Tactics.CAST_DENIAL) == 1 and shepherd.windup == 0, "a real interrupting strike contributes once")
+	game.apply_weapon_hit(player, 0, player.pos, {"damage": 1, "stagger": 180}, Time.get_ticks_msec())
+	check(Tactics.evidence(game).get(Tactics.CAST_DENIAL) == 1 and shepherd.windup == 0, "a real native stagger contact contributes once")
 	Attacks.lock(game, shepherd, "shepherd", player.pos, Time.get_ticks_msec() + 1400)
 	shepherd.traits = {}
 	game.encounter.set_hp(game.encounter.scout_slot(shepherd), 1)
-	game.apply_weapon_hit(player, 0, player.pos, {"damage": 4, "stagger": 180, "suppress": 1}, Time.get_ticks_msec())
+	game.apply_weapon_hit(player, 0, player.pos, {"damage": 4, "stagger": 180}, Time.get_ticks_msec())
 	check(Tactics.evidence(game).get(Tactics.CAST_DENIAL) == 1, "a killing strike does not count as an interrupted rite")
 
 	for index in 3:
 		floor_fixture()
 		check(Tactics.evidence(game).is_empty(), "new floor starts with no observations")
 		shepherd = shepherd_group()
-		game.encounter.scout(1).pos = Vector3(.45, 0, -2.3)
 		Attacks.lock(game, shepherd, "shepherd", player.pos, Time.get_ticks_msec() + 1400)
-		core_skill("hush_orchid", 2.0)
-		check(shepherd.windup == 0 and Tactics.evidence(game).get(Tactics.CAST_DENIAL) == 1, "Hush cancels the rally and records a confirmed denial")
+		game.apply_weapon_hit(player, 0, player.pos, {"damage": 1, "stagger": 180}, Time.get_ticks_msec())
+		check(shepherd.windup == 0 and Tactics.evidence(game).get(Tactics.CAST_DENIAL) == 1, "native stagger cancels the rally and records a confirmed denial")
 		if index == 0:
 			Attacks.lock(game, shepherd, "shepherd", player.pos, Time.get_ticks_msec() + 1400)
 			check(shepherd.attack.variant != Tactics.RELAY, "one interrupted floor is below the response threshold")
-		var embers := core_skill("ember_fern", 2.0)
-		Core.tick(game, embers.armed + 850)
-		check(int(Tactics.evidence(game).get(Tactics.AREA_PRESSURE, 0)) == 2, "two contact ticks hit a real cluster along the trail")
+		# The modern baseline has no AREA_PRESSURE producer. These explicit recorded
+		# observations test the existing memory/response consumer, not Fire delivery.
+		for observation in 2:
+			Tactics.record(game,Tactics.AREA_PRESSURE,{"source":"fixture:recorded-area-observation","observation":observation})
+		check(int(Tactics.evidence(game).get(Tactics.AREA_PRESSURE, 0)) == 2, "explicit recorded area observations reach the memory consumer")
 		finish()
 		check(game.progress.wilds_memory.score[Tactics.CAST_DENIAL] == 2 * (index + 1) and game.progress.wilds_memory.score[Tactics.AREA_PRESSURE] == 2 * (index + 1), "each observed tactic scores once on a cleared floor")
 	var saved = load("res://progress.gd").new()
 	saved.path = game.progress.path
-	check(saved.load_garden() == OK and saved.wilds_memory.score[Tactics.CAST_DENIAL] == 6 and saved.wilds_memory.score[Tactics.AREA_PRESSURE] == 6, "both memories survive a host-world reload")
+	check(saved.load_garden() == OK and saved.wilds_memory.score[Tactics.CAST_DENIAL] == 6 and saved.wilds_memory.score[Tactics.AREA_PRESSURE] == 6, "native denial and recorded area memories survive a host-world reload")
 
 
 func check_relay() -> void:
@@ -137,7 +135,7 @@ func check_relay() -> void:
 	var now := Time.get_ticks_msec()
 	Attacks.lock(game, shepherd, "shepherd", player.pos, now + 1400)
 	check(shepherd.attack.variant != Tactics.RELAY and shepherd.attack.escorts.size() == 2, "the first rally still needs a real interruption")
-	core_skill("hush_orchid", 2.0)
+	game.apply_weapon_hit(player,0,player.pos,{"damage":1,"stagger":180},now)
 	now = int(shepherd.ready) + 10
 	preload("res://enemy_formation.gd").follow_support(game, shepherd, preload("res://enemy_formation.gd").allies(game, shepherd), game.Enemies.get_kind(10), 0.0, .016, now)
 	var attack: Dictionary = shepherd.get("attack", {})
@@ -148,7 +146,7 @@ func check_relay() -> void:
 	var chosen: int = attack.flank.escort.slot
 	var other := 2 if chosen == 1 else 1
 	preload("res://scout_behavior.gd").release(game, shepherd, game.Enemies.get_kind(10), shepherd.windup)
-	check(game.encounter.scout(chosen).command_via == attack.flank.via and not game.encounter.scout(other).has("command_via") and PlayerVitals.current_hp(player) == 10, "relay only moves its warned escort")
+	check(game.encounter.scout(chosen).command_via == attack.flank.via and not game.encounter.scout(other).has("command_via") and PlayerVitals.current_hp(player) == 100, "relay only moves its warned escort")
 	Attacks.lock(game, shepherd, "shepherd", player.pos, now + 5000)
 	check(shepherd.attack.variant != Tactics.RELAY, "one relay per enemy")
 	floor_fixture()
@@ -186,5 +184,5 @@ func check_scatter() -> void:
 	Attacks.lock(game, mother, "brood", player.pos, now + 3200)
 	check(mother.attack.variant != Tactics.SCATTER and mother.attack.hatch.size() <= 1, "the response does not increase the ordinary brood budget")
 	player.pos = Vector3(attack.hatch[1]) + Vector3.BACK * 1.8
-	core_skill("ember_fern", 1.8)
-	check(Tactics.evidence(game).get(Tactics.AREA_PRESSURE) == 1, "a burning trail that wipes out a Broodmother seedling counts even when it is alone")
+	game.apply_weapon_hit(player,1,player.pos,{"damage":4},now+3300)
+	check(not game.encounter.alive(1) and game.monster_rewards.pending_count()==0, "the surviving hatchling remains a real killable nonrewarding summon")

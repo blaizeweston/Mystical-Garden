@@ -10,7 +10,7 @@ const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Progression = preload("res://ranger_connected_tree.gd")
 const Ranger = preload("res://ranger_combat.gd")
-const Mark = preload("res://core_strike_mark.gd")
+const Frost = preload("res://frost_combat.gd")
 const Rules = preload("res://combat_ruleset.gd")
 const Profile = preload("res://character_profile.gd")
 const Skills = preload("res://skill_catalog.gd")
@@ -55,13 +55,13 @@ func verify_tree() -> void:
 	var fresh := Profile.blank()
 	check(tree.learn(fresh,66).is_empty() and not tree.learn(fresh,68).is_empty(),"focus is earned at level one, next tier requires XP")
 	fresh.xp[2]=50
-	check(tree.learn(fresh,68).is_empty() and Skills.resolve(2,0,fresh,true).name=="Briar Retreat"
-		and Skills.resolve(2,1,fresh,true).name=="Bramble Snare","cross-lane choice preserves the original Q and R")
-	check(Profile.normalize(fresh)==fresh and Skills.resolve(2,0,fresh).name=="Gale Volley","separate versioned path leaves legacy Ranger independent")
+	check(tree.learn(fresh,68).is_empty() and Skills.resolve(2,0,fresh).name=="Briar Retreat"
+		and Skills.resolve(2,1,fresh).name=="Bramble Snare","cross-lane choice preserves the original Q and R")
+	check(Profile.normalize(fresh)==fresh and Skills.resolve(2,0,fresh).name=="Briar Retreat","one versioned path preserves the chosen starting Q")
 	var old := Profile.blank()
 	old.xp[2]=570
 	old.upgrades[2]=1<<12
-	check(Profile.normalize(old)==old and not tree.eligible(old) and Skills.resolve(2,0,old).has("marks"),"historical focus, Mark and XP are retained")
+	check(Profile.normalize(old)==old and not tree.eligible(old),"historical focus investments and XP remain intact without legacy Mark execution")
 	fresh[Progression.PROFILE_KEY] = tree.state(["wayfarer","wider_pattern"])
 	check(not tree.valid(fresh) and Profile.normalize(fresh)[Progression.PROFILE_KEY]==fresh[Progression.PROFILE_KEY],
 		"invalid connected data is retained for review")
@@ -128,7 +128,7 @@ func scout(point: Vector3) -> Dictionary:
 func tracked_and_offense() -> void:
 	prepare(OFFENSE)
 	var second := scout(Vector3(4,0,.34))
-	var first_skill := Skills.resolve(2,0,ranger.character,true)
+	var first_skill := Skills.resolve(2,0,ranger.character)
 	check(first_skill.name=="Hunter’s Salvo" and is_equal_approx(first_skill.width,.86) and first_skill.limit==3,"Wider Pattern keeps the Salvo cap")
 	cast(0)
 	check(game.enemy_health()==270 and game.encounter.hp_for(second)==280,"Splinter Ambush adds 10 HP to only the first damaged Salvo target")
@@ -138,17 +138,16 @@ func tracked_and_offense() -> void:
 	if prey.is_empty():
 		return
 	var now := int(prey.until)-Progression.PREY_MS
-	Mark.place(game,8,-1,{"id":"botanical","life":PlayerLifecycle.generation(ally),"skill":{
-		"id":"whisper_mark","mark_ms":4000,"mark_damage":1.0,"color":"#ffffff"}},now)
-	check(not Ranger.track(game,game.HOST,ranger,-1,100,now+1) and Mark.active(game,game.enemy_traits,now).cast=="botanical",
-		"another preparation cannot overwrite either independent mark")
+	apply_frost(-1,now)
+	check(not Ranger.track(game,game.HOST,ranger,-1,100,now+1) and Frost.state(Frost.body(game,-1),now).stacks.size()==1,
+		"another preparation cannot overwrite Tracked Prey or an independent botanical status")
 	game.apply_weapon_hit(ally,-1,ally.pos,{"damage":0.0,"affinity_hp":3,"knockback":-.35,"core_hit":true,"trait_secondary":true},now)
-	check(game.enemy_traits.has(Ranger.PREY) and game.enemy_traits.has(Mark.STATE),"secondary damage cannot consume either mark")
+	check(game.enemy_traits.has(Ranger.PREY) and Frost.state(Frost.body(game,-1),now).stacks.size()==1,"secondary damage cannot consume Tracked Prey or the independent Frost status")
 	game.apply_weapon_hit(ally,-1,ally.pos,{"damage":1.0,"knockback":-.35,"ranger_direct_hit":true},now+2)
-	check(game.enemy_health()==237 and not game.enemy_traits.has(Ranger.PREY) and not game.enemy_traits.has(Mark.STATE),
-		"one ally direct hit independently consumes Tracked Prey and the botanical mark")
+	check(game.enemy_health()==247 and not game.enemy_traits.has(Ranger.PREY) and Frost.state(Frost.body(game,-1),now).stacks.size()==1,
+		"one ally direct hit consumes Tracked Prey without consuming the independent Frost status")
 	game.apply_weapon_hit(ally,-1,ally.pos,{"damage":1.0,"knockback":-.35,"ranger_direct_hit":true},now+3)
-	check(game.enemy_health()==227,"the consumed prey adds damage only once")
+	check(game.enemy_health()==237,"the consumed prey adds damage only once")
 	check(Ranger.track(game,game.HOST,ranger,-1,101,now) and Ranger.active_prey(game,game.enemy_traits,now+2700).is_empty(),
 		"Tracked Prey expires after 2.7 seconds")
 
@@ -162,11 +161,11 @@ func tracked_and_offense() -> void:
 	game.tactics.position = Vector3(5,0,0)
 	cast(1)
 	var placed := trap(1)
-	check(not placed.is_empty() and not ranger.has(Ranger.SNARE) and game.enemy_health()==227,"placing Barbed Snare does not deal damage")
+	check(not placed.is_empty() and not ranger.has(Ranger.SNARE) and game.enemy_health()==237,"placing Barbed Snare does not deal damage")
 	if not placed.is_empty():
 		game.Traits.tick(game,int(placed.next))
 		game.Traits.tick(game,int(placed.next)+50)
-		check(game.enemy_health()==207 and not placed.has("ranger_bonus_hp"),"first actual R contact gets the bonus only once")
+		check(game.enemy_health()==217 and not placed.has("ranger_bonus_hp"),"first actual R contact gets the bonus only once")
 
 	for weapon in 3:
 		prepare(OFFENSE,Vector3.ZERO,Vector3(2.6,0,0))
@@ -212,14 +211,14 @@ func tracked_and_offense() -> void:
 
 func balanced_and_corridor() -> void:
 	prepare(BALANCED,Vector3.ZERO,Vector3(5,0,0))
-	var q := Skills.resolve(2,0,ranger.character,true)
+	var q := Skills.resolve(2,0,ranger.character)
 	check(q.name=="Luring Snare" and is_equal_approx(q.range,7.25),"Long Draw extends native placement by 1.25 m")
 	cast(0)
 	var bait := trap(0)
 	check(not bait.is_empty() and game.Traits.decoy_point(game,1)==bait.position and bait.skill.bind==1900,
 		"Snarekeeper atomically sets its actual lure and extended Q root")
 	var corridor_enemy := scout(Vector3(2,0,0))
-	var r := Skills.resolve(2,1,ranger.character,true)
+	var r := Skills.resolve(2,1,ranger.character)
 	var preview := Aim.footprint(game,ranger,game.battlefield,1,Vector3.RIGHT,5.0)
 	check(is_equal_approx(r.radius,1.45) and Skills.Balance.trap_duration(r,{})==4800
 		and preview.shapes.any(func(s):return s.kind=="area" and is_equal_approx(s.radius,1.45)),
@@ -333,7 +332,7 @@ func defense_and_route() -> void:
 func run() -> void:
 	verify_tree()
 	game = preload("res://world.tscn").instantiate()
-	game.set_meta(Rules.META,Rules.ID)
+
 	game.progress.path = "user://release-fixtures/ct03-garden.cfg"
 	game.local_character.path = "user://release-fixtures/ct03-character.cfg"
 	root.add_child(game)
@@ -347,7 +346,7 @@ func run() -> void:
 	for actor in [ranger,ally]:
 		ExpeditionCase.set_membership(game, actor, true)
 		SessionCase.set_ready(game, actor, true)
-		actor.combat_ruleset=Rules.ID
+
 	game.set_meta(Events.RECORD,func(event):events.append(event))
 	tracked_and_offense()
 	balanced_and_corridor()
@@ -355,3 +354,10 @@ func run() -> void:
 	game.free()
 	if failures==0:print("PASS: CT03 all fifteen nodes, three focuses, versioned paths and combat outcomes (%d checks)" % checks)
 	quit(int(failures!=0))
+
+
+func apply_frost(target: int, now: int) -> void:
+	var material:=preload("res://affinity_build.gd").slot("form",game.Parts.index_of("plant:frostbell"))
+	var event:=Events.begin(game,8,"form",material,material.potency_profile.values,["weapon_contact"],now+4000)
+	check(event!=null,"independent Frost source has a valid current-life event")
+	if event!=null:Frost.apply(game,event,target,1,now)

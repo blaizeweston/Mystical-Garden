@@ -13,7 +13,6 @@ var failed:=false
 func check(ok: bool,message: String):
  if not ok: failed=true;printerr("FAIL combat balance: ",message)
 func _initialize():
- preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 func run():
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/combat_balance_"+Crypto.new().generate_random_bytes(8).hex_encode()+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
@@ -55,10 +54,10 @@ func run():
  game.combat_velocity[1]=Vector3(4,0,0)
  var aim: Vector3=game.Director.predict(game,1,.3)
  check(aim.x>p.pos.x and aim.distance_to(p.pos)<1.7,"ranged prediction leads motion within a bounded readable offset")
- p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0;p.guard_until=0
+ p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0;p.guard_until=0
  IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), 1000, 1);IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), 1001, 1)
- check(PlayerVitals.current_hp(p)==9,"simultaneous swarm contacts do not erase several hearts in one instant")
- IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), 1250, 1);check(PlayerVitals.current_hp(p)==8,"protection expires and later telegraphs still damage")
+ check(PlayerVitals.current_hp(p)==90,"simultaneous swarm contacts respect hit grace")
+ IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), 1250, 1);check(PlayerVitals.current_hp(p)==80,"protection expires and later telegraphs still damage")
  var memory:=Learning.blank()
  for i in 3: Learning.observe(memory,{"ranged":true,"kite":true},1)
  check(memory.score.ranged==6 and memory.score.kite==6,"repeated successful tactics build evidence")

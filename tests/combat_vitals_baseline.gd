@@ -21,7 +21,6 @@ func check(ok: bool, message: String) -> void:
 
 
 func _initialize() -> void:
-	preload("res://combat_balance_preview.gd").enabled = false
 	call_deferred("run")
 
 
@@ -37,7 +36,7 @@ func run() -> void:
 	check_amounts()
 	check_learning_and_phase()
 	check_network_vitals(game)
-	check_guard_and_brace(game)
+	check_guard_and_health(game)
 	game.queue_free()
 	await process_frame
 	if not failed:
@@ -47,33 +46,8 @@ func run() -> void:
 
 func check_live_capacity(game: Node) -> void:
 	var player: Dictionary = game.players[1]
-	check(PlayerVitals.current_hp(player) == 10.0 and game.Life.maximum(game, player) == 10
+	check(PlayerVitals.current_hp(player) == 100.0 and game.Life.maximum(game, player) == 100
 		and not player.has("hp") and not player.has("max_hp"), "shipped player capacity has one authoritative owner")
-	var samples := [
-		# Global floor, biome, local depth, corruption loops, solo elite HP, four-player elite HP.
-		[1, 0, 1, 0, 4, 8],
-		[6, 0, 6, 0, 12, 27],
-		[18, 2, 6, 0, 17, 48],
-		[19, 0, 1, 1, 12, 34],
-		[37, 0, 1, 2, 23, 65],
-	]
-	game.tactics.boss_kind = -1
-	for sample in samples:
-		ExpeditionCase.set_world(game, {"encounter_number": sample[0]})
-		ExpeditionCase.set_world(game, {"destination": sample[1]})
-		ExpeditionCase.set_world(game, {"depth": sample[2]})
-		ExpeditionCase.set_world(game, {"difficulty_cycle": sample[3]})
-		game.encounter_party_size = 1
-		check(game.encounter_health() == sample[4], "solo gate elite at floor %d" % sample[0])
-		game.encounter_party_size = 4
-		check(game.encounter_health() == sample[5], "four-player gate elite at floor %d" % sample[0])
-	game.tactics.boss_kind = game.Bosses.Lair.Routes.ORCHARD
-	ExpeditionCase.set_world(game, {"encounter_number": 10})
-	ExpeditionCase.set_world(game, {"difficulty_cycle": 0})
-	game.encounter_party_size = 1
-	check(game.encounter_health() == 61, "solo floor 10 Orchard")
-	game.encounter_party_size = 4
-	check(game.encounter_health() == 146, "four-player floor 10 Orchard")
 	check(Vitals.enemy_capacity(61, 2.386, SCALE) == 1460, "convert Orchard after its original co-op ceiling")
 	check(Vitals.enemy_capacity(3, 1.90, SCALE) == 60, "ordinary scout keeps the shipped co-op ceiling")
 
@@ -125,26 +99,19 @@ func check_learning_and_phase() -> void:
 		check(Vitals.boss_phase(Vitals.points(30, scale), hp) == 2, "30 percent starts phase two")
 
 
-func check_guard_and_brace(game: Node) -> void:
+func check_guard_and_health(game: Node) -> void:
 	var player: Dictionary = game.players[1]
 	var initial: PlayerVitals.Health = player[PlayerVitals.STATE]
 	ExpeditionCase.set_membership(game, player, true)
-	player.weapon = game.Seeds.DEFINITIONS[16].part
-	player.still_since = 1000
 	player.guard_until = 4000
 	player.guard_charges = 1
 	var life := PlayerLifecycle.generation(player)
 	var blocked := IncomingPlayerHit.resolve_world(game, 1, life, 1600, 1.0)
 	check(blocked.kind == IncomingPlayerHit.Outcome.BLOCKED and blocked.applied_hp == 0
-		and is_same(player[PlayerVitals.STATE],initial) and player.guard_charges==0
-		and int(player.get("brace_block_ready",0))==0,"Guard blocks before Brace can spend its response")
-	var braced := IncomingPlayerHit.resolve_world(game, 1, life, 2000, 1.0)
-	check(braced.kind == IncomingPlayerHit.Outcome.BRACED
-		and is_same(player[PlayerVitals.STATE],initial) and player.brace_block_ready==6000,
-		"Brace absorbs the next guarded-player hit without replacing health")
+		and is_same(player[PlayerVitals.STATE],initial) and player.guard_charges==0,"Guard blocks before any HP change")
 	var damage := IncomingPlayerHit.resolve_world(game, 1, life, 2100, 1.0)
-	check(damage.kind == IncomingPlayerHit.Outcome.DAMAGED and damage.applied_hp == 1
-		and damage.damage_recorded and PlayerVitals.current_hp(player)==initial.hp()-1.0,
+	check(damage.kind == IncomingPlayerHit.Outcome.DAMAGED and damage.applied_hp == 10
+		and damage.damage_recorded and PlayerVitals.current_hp(player)==initial.hp()-10.0,
 		"the next unmitigated hit reaches the health owner and reports the applied HP loss")
 	var sequence := int(player.damage_seq)
 	var simultaneous := IncomingPlayerHit.resolve_world(game, 1, life, 2100, 1.0, 600)
@@ -152,7 +119,7 @@ func check_guard_and_brace(game: Node) -> void:
 		and int(player.get("slow_until", 0)) == 0, "a second hit at the same instant spends neither HP nor a status")
 	var stale := IncomingPlayerHit.resolve_world(game, 1, life - 1, 4000, 5.0)
 	check(stale.kind == IncomingPlayerHit.Outcome.REJECTED and int(player.damage_seq) == sequence
-		and PlayerVitals.current_hp(player) == initial.hp()-1.0, "the host rejects a contact against a prior life")
+		and PlayerVitals.current_hp(player) == initial.hp()-10.0, "the host rejects a contact against a prior life")
 	ExpeditionCase.set_membership(game, player, false)
 	player[PlayerVitals.STATE] = initial
 

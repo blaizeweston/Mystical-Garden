@@ -7,21 +7,14 @@ const Preview = preload("res://combat_balance_preview.gd")
 const CONTEXT = "native_graft_contact"
 const STATE = "native_graft_state"
 const Expedition = preload("res://expedition_grafts.gd")
-const STAT_KEYS := ["reach", "damage", "cooldown", "recovery", "pull", "knockback",
-	"stagger", "windup_damage", "targets", "heal_on_kill", "max_health", "skill_cooldown",
-	"loot_attract", "pierce"]
-const SPECIAL := {
+# Only the contact adaptations authored in ExpeditionGrafts can enter this
+# execution path. Monster material identities remain in weapon_parts.gd.
+const PROC_KEYS := {
 	"monster:spore_widow": ["link"],
 	"monster:pallbearer": ["death_charge"],
 	"monster:ashen_hart": ["cinder_trail"],
 	"monster:glasscap": ["echo", "echo_redirect"],
 	"monster:root_choir": ["chorus_pulse"],
-	"monster:orchard": ["brace"],
-	"monster:drowned": ["tide_pool", "pool_radius"],
-	"monster:matriarch": ["link", "spread_bind"],
-}
-const UNSUPPORTED := {
-	"monster:nameless": "Nameless Stigma requires a decision on whether its Mark shares consumption with native class Marks. It cannot be installed in affinity mode.",
 }
 const TIMING := {"link":120, "cinder":4000}
 const DELAYS := {"link":140, "echo":240, "chorus":180}
@@ -36,58 +29,23 @@ static func grave_count(player: Dictionary) -> int:
 	return int(player.get("grave_charges",0)) + graft_charges(player)
 
 
-static func describe(graft: Dictionary) -> String:
-	if graft.is_empty(): return ""
-	if not graft.refusal.is_empty(): return graft.refusal
-	var text: String = {
-		"monster:seamroot": "Piercing contacts follow the native attack line, up to the resolved target limit.",
-		"monster:spore_widow": "Direct contact links once to a nearby enemy in clear sight.",
-		"monster:pallbearer": "An eligible killing strike earns one Death Charge (max 3). Direct contact spends one for bonus damage.",
-		"monster:graft_thief": "Attracts available loose loot within 3.5 m.",
-		"monster:ashen_hart": "Direct contact ignites a short damaging field. 4 s between fields.",
-		"monster:glasscap": "Every third direct contact echoes to another nearby enemy in clear sight.",
-		"monster:root_choir": "Every fourth direct contact pulses to other nearby enemies in clear sight.",
-		"monster:orchard": "After 0.5 s stationary, brace adds weapon damage and can absorb an incoming hit once every 4 s.",
-		"monster:drowned": "Direct contact creates a healing pool. 4.5 s between pools.",
-		"monster:matriarch": "Direct contact links to a nearby enemy. A compatible Bind can spread to one nearby enemy.",
-	}.get(graft.component_id, "")
-	return text
-
-
-static func resolve(part: int) -> Dictionary:
-	if not Parts.is_monster(part): return {}
-	var entry: Dictionary = Parts.DEFINITIONS[part]
-	var id: String = entry.id
-	var effects: Dictionary = Parts.MONSTER_DEFINITIONS[int(entry.monster)].effects
-	var accepted_procs: Array = SPECIAL.get(id, [])
-	var native := {}
-	var procs := {}
-	var pending := {}
-	for key in effects:
-		if id in UNSUPPORTED:
-			pending[key] = effects[key]
-		elif key in STAT_KEYS:
-			native[key] = effects[key]
-		elif key in accepted_procs:
-			procs[key] = effects[key]
-		else:
-			pending[key] = effects[key]
-	var refusal: String = UNSUPPORTED.get(id, "")
-	if refusal.is_empty() and not pending.is_empty():
-		refusal = "%s has an unsupported native graft effect in affinity mode." % entry.name
-	return {"item_id": entry.item_id, "component_id": id, "native_effects": native,
-		"procs": procs, "pending_effects": pending, "refusal": refusal}
-
-
 static func capture(player: Dictionary, adaptation_ids: Array) -> Dictionary:
 	var run_id := Expedition.run_identity(player)
 	if run_id < 0 or adaptation_ids.is_empty():
 		return {}
 	var sources: Array = []
 	for component: String in adaptation_ids:
-		var graft := resolve(Parts.index_of(component))
-		if not graft.get("procs", {}).is_empty():
-			sources.append({"component_id":component, "item_id":graft.item_id, "effects":graft.procs})
+		if not PROC_KEYS.has(component):
+			continue
+		var part := Parts.index_of(component)
+		if not Parts.is_monster(part):
+			continue
+		var entry: Dictionary = Parts.DEFINITIONS[part]
+		var authored: Dictionary = Parts.MONSTER_DEFINITIONS[int(entry.monster)].effects
+		var effects := {}
+		for key: String in PROC_KEYS[component]:
+			effects[key] = authored[key]
+		sources.append({"component_id":component, "item_id":entry.item_id, "effects":effects})
 	return {} if sources.is_empty() else {"sources":sources, "run":run_id, "life":PlayerLifecycle.generation(player)}
 
 

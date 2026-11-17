@@ -209,8 +209,7 @@ class Ledger extends RefCounted:
 				return "Requires " + str(requires["class"]).capitalize() + "."
 			var skills: Array = build.class_skills
 			var ability: Dictionary = skills[1].get("native_skill", {})
-			if not build.capabilities.class_actions or ability.get("variant") != "base" \
-					or ability.get("mode") != requires.mode or ability.get("name") != requires.skill:
+			if not build.capabilities.class_actions or ability.get("mode") != requires.mode or ability.get("name") != requires.skill:
 				return "Requires native " + str(requires.skill) + "."
 			if requires.has("focus"):
 				if build.focus_id != requires.focus or skills[0].get("native_skill", {}).get("field") != requires.q_field:

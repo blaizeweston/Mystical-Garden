@@ -29,6 +29,13 @@ func check(ok: bool, label: String) -> void:
 
 
 func reset() -> void:
+	for actor in game.players.values():
+		preload("res://oracle_combat.gd").clear(actor)
+		actor.erase("affinity_ward_claims")
+		actor.erase("affinity_ward_grant")
+		actor.guard_until=0
+		actor.guard_charges=0
+	game.trait_events.clear()
 	game.encounter.set_hp(-1, 500)
 	game.enemy_mutations = 0
 	game.tactics.boss_kind = -1
@@ -42,7 +49,7 @@ func reset() -> void:
 
 func run() -> void:
 	game = preload("res://world.tscn").instantiate()
-	game.set_meta(Rules.META, Rules.ID)
+
 	root.add_child(game)
 	game.set_process(false)
 	game.set_physics_process(false)
@@ -62,6 +69,7 @@ func run() -> void:
 	for item in ["part_6","plant_part_rare_ember_fern"]:
 		var part: int = game.Items.get_item(item).legacy_part
 		var p: Dictionary = game.players[1]
+		equip_native_focus(p)
 		var q: Dictionary = Builds.slot("core",part).potency_profile.values
 		var now := Time.get_ticks_msec()
 		reset()
@@ -131,18 +139,34 @@ func run() -> void:
 		var ally: Dictionary=game.players[2]
 		ally.guard_until=0
 		ally.hurt_until=0
+		p.class_aim=Vector3.FORWARD
+		p.class_aim_distance=0.0
 		game.use_class_skill(1,p,0)
-		check(ally.has(Fire.RESPONSE),"native Oracle renewal grants Fire response with caster provenance")
+		p.erase("class_aim")
+		p.erase("class_aim_distance")
+		check(ally.has(Fire.RESPONSE),"Living Sanctuary opening heal grants Fire response with caster provenance")
 		var frost=preload("res://frost_combat.gd")
 		var hit_now:=Time.get_ticks_msec()
+		var before_native: float=ally[PlayerVitals.STATE].hp()
 		frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 2, PlayerLifecycle.generation(ally), hit_now, 1.0, 0, game.tactics.position))
 		check(not ally.has(Fire.RESPONSE) and game.tactics.memory.get(Fire.BURNING,{}).get("1/catalyst",{}).get("hp",0)==q.tick_hp,"survived incoming enemy hit uses source once")
+		check(ally[PlayerVitals.STATE].hp()==before_native-10+6,"native Second Breath independently restores 6 HP without changing Fire potency")
 		var after_response: int=game.enemy_health()
 		ally.hurt_until=0
 		frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 2, PlayerLifecycle.generation(ally), hit_now, 1.0, 0, game.tactics.position))
 		check(game.enemy_health()==after_response,"spent Ember Response does not stockpile")
+		game.Traits.tick(game,hit_now+1100)
+		check(not ally.has(Fire.RESPONSE),"Sanctuary field pulses do not regrant the opening Ember Response")
 		p.frame=0
 	game.queue_free()
 	await process_frame
 	if not failed: print("PASS: Fire mappings, Core field, Form refresh, independent sources, Catalyst and wards")
 	quit(int(failed))
+
+
+## Family fixtures use the current native focus kit, never historical learned masks.
+func equip_native_focus(player: Dictionary) -> void:
+	for class_id in game.Classes.DEFINITIONS.size():
+		var tree: RefCounted=game.Classes.connected_tree(class_id)
+		var focus: String="rootkeeper" if class_id==0 else "lifekeeper" if class_id==4 else str(tree.nodes[0].id)
+		player.character[tree.profile_key]=tree.state([focus])

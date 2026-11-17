@@ -672,8 +672,3 @@ static func decode_plots(packed: PackedByteArray) -> Array:
 	for i in range(0, packed.size() - 2, 3):
 		beds.append({"species": int(packed[i]) - 1, "stage": int(packed[i + 1]), "flowering": (packed[i+2]&1)!=0,"offshoot":((packed[i+2]>>2)&3)-1 if Campaign.LEGACY_ENDING_ENABLED else -1})
 	return beds
-
-func record_monster_graft(part: int) -> void:
-	if not Parts.is_monster(part): return
-	knowledge += 1 if monster_crafts.has(part) else 4
-	if not monster_crafts.has(part): monster_crafts.append(part)

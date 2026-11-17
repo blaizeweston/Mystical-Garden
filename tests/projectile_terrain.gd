@@ -18,7 +18,6 @@ const Mouse = preload("res://mouse_combat.gd")
 const Hurt = preload("res://enemy_hurtbox.gd")
 const Aim = preload("res://ability_aim.gd")
 const Core = preload("res://core_combat.gd")
-const Beam = preload("res://core_anchor_beam.gd")
 const Storm = preload("res://storm_affinity.gd")
 const EnemyAttack = preload("res://enemy_attack.gd")
 const BANK := Vector3(-2.9, 0, 0)
@@ -138,6 +137,8 @@ func prepare(origin: Vector3, foe: Vector3) -> void:
 	player.erase("class_aim")
 	player.erase("class_aim_distance")
 	player.character = game.Character.blank()
+	var tree: RefCounted = game.Classes.connected_tree(int(player.frame))
+	player.character[tree.profile_key] = tree.state([tree.nodes[0].id])
 	Core.reset(game)
 
 func scout(at: Vector3) -> Dictionary:
@@ -231,21 +232,6 @@ func class_checks() -> void:
 		var foe := ACROSS if far_side else Vector3(2.8,0,-2.5)
 		prepare(origin, foe)
 		player.class_aim = Vector3.RIGHT
-		var gale := Aim.footprint(game,player,field,0,Vector3.RIGHT,6.0)
-		check(gale.valid == far_side and gale.shapes.any(func(shape): return shape.kind == "capsule"),
-			"Gale preview distinguishes clear water and an obstructed target")
-		game.use_class_skill(game.HOST,player,0)
-		if far_side:
-			var gale_shot := finish_shots()
-			var capsule: Array = gale.shapes.filter(func(shape):return shape.kind == "capsule")
-			check(game.enemy_health() < 100 and not gale_shot.is_empty() and not capsule.is_empty()
-				and Vector3(gale_shot.aim).is_equal_approx(capsule[0].to), "Gale Volley hits through the previewed path")
-		else:
-			check(game.projectile_queue.is_empty() and game.enemy_health() == 100 and player[Cooldowns.STATE].deadline(Cooldowns.Q) == 0,
-				"blocked Gale target is not offered and spends no cooldown")
-		prepare(origin, foe)
-		player.character.upgrades[game.Frames.RANGER] = 1 << 12
-		player.class_aim = Vector3.RIGHT
 		var salvo := Aim.footprint(game,player,field,0,Vector3.RIGHT,6.0)
 		var strip: Array = salvo.shapes.filter(func(shape):return shape.kind=="strip")
 		game.use_class_skill(game.HOST,player,0)
@@ -266,10 +252,10 @@ func class_checks() -> void:
 func core_and_enemy_checks() -> void:
 	for far_side in [true, false]:
 		prepare(BANK if far_side else Vector3(-2.9,0,-2.5), ACROSS if far_side else Vector3(2.8,0,-2.5))
-		player.weapon = game.Parts.index_of("plant:cinder_vine")
+		player.weapon = game.Parts.index_of("plant:storm_reed")
 		var skill := Core.equipped(player)
-		check(skill.get("id") == "seed_lance", "Seed Lance is an actual equipped Core skill")
-		if skill.get("id") == "seed_lance":
+		check(skill.get("id") == "chain_spark", "Chain Spark is an actual equipped Core skill")
+		if skill.get("id") == "chain_spark":
 			var aim := Core.preview(game, player, field, Vector3.RIGHT, 0.0)
 			Core.command(game,game.HOST,player,Core.request(game,player,Vector2.RIGHT))
 			var cast: Dictionary = game.get_meta(Core.STATE,{}).get(game.HOST,{})
@@ -279,13 +265,7 @@ func core_and_enemy_checks() -> void:
 			if not cast.is_empty():
 				Core.tick(game,int(cast.release))
 				Core.tick(game,int(cast.armed))
-			check((game.enemy_health() < 100) == far_side, "Seed Lance crosses water and stops at the boulder")
-		prepare(BANK if far_side else Vector3(-2.9,0,-2.5), ACROSS if far_side else Vector3(2.8,0,-2.5))
-		var anchor := {"center":player.pos, "id":"tc01", "skill":{
-			"id":"anchor", "beam_range":6.2, "radius":.24, "root_ms":600, "targets":3, "color":"#ffffff",
-		}}
-		Beam.fire(game,game.HOST,anchor,Beam.endpoint(field,anchor,Vector3.RIGHT),Time.get_ticks_msec())
-		check((game.tactics.rooted_until > 0) == far_side, "anchored beam uses ranged obstruction after ground placement")
+			check((game.enemy_health() < 100) == far_side, "Chain Spark crosses water and stops at the boulder")
 		var watcher: Dictionary = game.make_scout(1,player.pos,20)
 		player.pos = game.tactics.position
 		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(40)

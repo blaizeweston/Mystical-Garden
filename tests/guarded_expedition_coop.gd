@@ -103,6 +103,9 @@ func host_run() -> void:
  var guest_identity := SessionCase.Session.inventory_owner(guest)
  leader.pos=world.Stage.GATE
  guest.pos=world.Stage.GATE
+ for actor in [leader,guest]:
+  var tree=world.Classes.connected_tree(int(actor.frame))
+  actor.character[tree.profile_key]=tree.state([tree.nodes[0].id])
  world.progress.add_parts(1,3)
  leader.prepared=1
  var before:=Slots._save_digest(G)
@@ -159,7 +162,7 @@ func host_run() -> void:
  leader.pos=world.battlefield.advance
  guest.pos=world.battlefield.advance
  ExpeditionCase.Transitions.checkpoint(world, 1,true)
- world.choose_checkpoint_card(1,leader,-1)
+ world.garden_action(1,world.affinity_checkpoint_action(int(world.checkpoint_card_data(leader)[0].revision),"skip"))
  mark("cards")
  if not await until(func():return world.checkpoint_ready.get(id)==3):
   check(false,"guest chooses checkpoint card")
@@ -259,7 +262,7 @@ func guest_run() -> void:
  if not await until(func():return marked("cards") and world.checkpoint_menu.visible):
   check(false,"guest sees checkpoint cards")
   return
- world.send_garden_action("checkpoint_choice_-1")
+ world.send_garden_action(world.affinity_checkpoint_action(world.checkpoint_offer_revision,"skip"))
  if not await until(func():return marked("advance")):
   check(false,"guest checkpoint readiness prompt")
   return

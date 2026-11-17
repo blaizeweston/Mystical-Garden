@@ -21,7 +21,6 @@ func until(predicate: Callable) -> bool:
  while not predicate.call() and Time.get_ticks_msec()<deadline:await process_frame
  return predicate.call()
 func _initialize():
- preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 func run():
  role=OS.get_cmdline_user_args()[0];base="res://.godot/party-ui-net-"+OS.get_cmdline_user_args()[1]
@@ -37,10 +36,10 @@ func host_run():
  var guest_id: int=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[1];var friend: Dictionary=game.players[guest_id]
  p.character.name="Host Gardener";friend.pos=game.Stage.GATE+Vector3(2.65,0,0)
  check(await until(func():return marked("gate")),"guest opens gate at new range")
- for player in game.players.values():ExpeditionCase.set_membership(game, player, true);player[PlayerVitals.STATE]=PlayerVitals.Health.new(10,10);player.pos=Vector3.ZERO
+ for player in game.players.values():ExpeditionCase.set_membership(game, player, true);player[PlayerVitals.STATE]=PlayerVitals.Health.new(100,100);player.pos=Vector3.ZERO
  game.encounter.set_hp(-1, 80);game.tactics.position=Vector3(0,0,8);game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.encounter.clear_scouts()
  check(await until(func():return marked("party")),"guest sees host portrait/name/health")
- IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 3);check(await until(func():return marked("damage")),"guest sees host damage")
+ IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 30);check(await until(func():return marked("damage")),"guest sees host damage")
  IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(p), 99);check(await until(func():return marked("skull")),"guest sees fallen host")
  check(game.Life.revive(game,guest_id,1),"guest revives host")
  check(await until(func():return marked("revived")),"guest sees restored portrait and reduced max health")
@@ -52,9 +51,9 @@ func guest_run():
  if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty() and game.players[id].pos.distance_to(game.Stage.GATE)<2.75):check(false,"Garden position arrives");return
  game.send_action(false);check(await until(func():return game.loadout_menu.visible),"authoritative gate interaction at 2.65m")
  check(not game.player_hud.party_panel.visible,"no Garden party clutter");mark("gate")
- check(await until(func():return game.player_hud.party_panel.visible and game.player_hud.party_panel.rows.size()==1 and game.player_hud.party_panel.rows[0].name=="Host Gardener" and game.player_hud.party_panel.rows[0].hp==10),"public teammate HUD state")
+ check(await until(func():return game.player_hud.party_panel.visible and game.player_hud.party_panel.rows.size()==1 and game.player_hud.party_panel.rows[0].name=="Host Gardener" and game.player_hud.party_panel.rows[0].hp==100),"public teammate HUD state")
  game.toggle_overlay(null);mark("party")
- check(await until(func():return game.player_hud.party_panel.rows[0].hp==7),"remote host health damage");mark("damage")
+ check(await until(func():return game.player_hud.party_panel.rows[0].hp==70),"remote host health damage");mark("damage")
  check(await until(func():return game.player_hud.party_panel.rows[0].fallen),"skull state");mark("skull")
- check(await until(func():return not game.player_hud.party_panel.rows[0].fallen and game.player_hud.party_panel.rows[0].max_hp==8 and game.player_hud.party_panel.rows[0].hp>0),"revived health and portrait")
+ check(await until(func():return not game.player_hud.party_panel.rows[0].fallen and game.player_hud.party_panel.rows[0].max_hp==80 and game.player_hud.party_panel.rows[0].hp>0),"revived health and portrait")
  mark("revived");check(await until(func():return marked("done")),"host finishes");SessionCase.World.leave(game,"Party HUD fixture")

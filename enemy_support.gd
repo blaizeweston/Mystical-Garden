@@ -294,8 +294,7 @@ static func resolve_corpse(game: Node, actor: Dictionary, attack: Dictionary, no
   var health_before: int=game.encounter.hp(actor_slot)
   var healed_hp:=mini(int(actor.get("max_hp",health_before)),health_before+game.Director.Balance.corpse_heal(game,actor,spare))
   game.encounter.set_hp(actor_slot,healed_hp)
-  if spare or game.Life.Preview.enabled:
-   Feedback.release(game,"restored",ref.point,actor.pos,healed_hp-health_before,Feedback.SUPPORT)
+  Feedback.release(game,"restored",ref.point,actor.pos,healed_hp-health_before,Feedback.SUPPORT)
   if spare:
    for ally in attack.get("escorts",[]):
     if not live_ally(game,ally):continue
@@ -334,7 +333,7 @@ static func resolve_shepherd(game: Node, attack: Dictionary, now: int) -> void:
   game.emit_combat_event("swing","pulse",attack.from,point,.35,Color("#b4d9ad"),.42,0)
 
 static func resolve_choir(game: Node, actor: Dictionary, attack: Dictionary, now: int) -> void:
- var damage: float=game.Director.Balance.scout_hit(game,game.Enemies.get_kind(int(actor.kind)),actor) if game.Life.Preview.enabled else 1.0
+ var damage: float=game.Director.Balance.scout_hit(game,game.Enemies.get_kind(int(actor.kind)),actor)
  if attack.get("variant")==Tactics.ANTIPHON:
   var anchor: Dictionary=attack.rite_anchor
   if anchored_rite_intact(game,actor,anchor):

@@ -8,11 +8,10 @@ const Participation = preload("res://expedition_participation.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
 static func enter(game: Node, id: int, p: Dictionary) -> void:
-	if preload("res://combat_ruleset.gd").active(game):
-		var refusal := preload("res://affinity_build.gd").departure_refusal(p)
-		if not refusal.is_empty():
-			game.tell(id,refusal)
-			return
+	var refusal := preload("res://affinity_build.gd").departure_refusal(p)
+	if not refusal.is_empty():
+		game.tell(id,refusal)
+		return
 	if game.players.size()>1: game.PartyTravel.request(game,id,"depart")
 	elif game.has_meta(game.Transactions.SESSION):
 		if not game.at_weapon_gate(p) or Participation.is_wild(p) or game.participation.active(): return
@@ -28,11 +27,10 @@ static func admit(game: Node, id: int, p: Dictionary,reserved_override: Array=[]
 	if Participation.peer_for(p) != id or not game.players.has(id) or not is_same(game.players[id],p) \
 			or game.participation.contains(id):
 		return false
-	if preload("res://combat_ruleset.gd").active(game):
-		var refusal := preload("res://affinity_build.gd").departure_refusal(p)
-		if not refusal.is_empty():
-			game.action_feedback(effects,id,refusal)
-			return false
+	var refusal := preload("res://affinity_build.gd").departure_refusal(p)
+	if not refusal.is_empty():
+		game.action_feedback(effects,id,refusal)
+		return false
 	var starting: bool = not game.participation.active()
 	var available: bool = game.progress.finale_available() if game.participation.route() == game.Campaign.HEART else game.progress.campaign.available(game.participation.route())
 	if starting and not available:
@@ -79,7 +77,7 @@ static func admit(game: Node, id: int, p: Dictionary,reserved_override: Array=[]
 	preload("res://garden_return_service.gd").join(game,id,p)
 	p[game.PlayerLifecycle.STATE] = game.PlayerLifecycle.start_life()
 	p.lost_health=0
-	for key in ["echo_charge","grave_charges","tide_ready","decoy_ready","link_ready","counter_until","front_guard_until","counter_guard_until","brace_block_ready"]: p[key]=0
+	for key in ["grave_charges","counter_until","front_guard_until","counter_guard_until"]: p[key]=0
 	p.still_since=Time.get_ticks_msec();p.still_point=game.wild_entry(id)
 	p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new()
 	p.pos = game.wild_entry(id)
@@ -101,13 +99,10 @@ static func admit(game: Node, id: int, p: Dictionary,reserved_override: Array=[]
 	p.weapon = p.prepared
 	p.secondary = p.prepared_secondary
 	p.catalyst = p.prepared_catalyst
-	p.graft_part = 0
-	p.graft_floor=0
-	if game.has_meta(&"combat_affinity_ruleset"):
-		var grafts = preload("res://expedition_grafts.gd")
-		var identity := int(game.get_meta(grafts.SERIAL, 0)) + 1
-		game.set_meta(grafts.SERIAL, identity)
-		p[grafts.STATE] = grafts.Ledger.new(identity)
+	var grafts = preload("res://expedition_grafts.gd")
+	var identity := int(game.get_meta(grafts.SERIAL, 0)) + 1
+	game.set_meta(grafts.SERIAL, identity)
+	p[grafts.STATE] = grafts.Ledger.new(identity)
 	p.erase("graft_message")
 	p.prepared_catalyst = 0
 	p.prepared = game.Parts.EMPTY
@@ -148,14 +143,8 @@ static func return_member(game: Node, p: Dictionary) -> void:
 	if not game.SaveBatch.guarded_active(): game.flush_kill_rewards()
 	p.attack_until=0;p.swing_until=0;p.cast_until=0
 	preload("res://oracle_combat.gd").clear(p)
-	p.run_upgrades={}
 	game.AffinityCards.clear(p)
 	p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new()
-	p.last_offer=0
-	p.checkpoint_offers=[]
-	p.offer_floor=0
-	p.power=0
-	p.technique=0
 	game.participation.leave(peer)
 	p[game.PlayerLifecycle.STATE] = game.PlayerLifecycle.start_life()
 	p.lost_health=0
@@ -170,11 +159,9 @@ static func return_member(game: Node, p: Dictionary) -> void:
 	p.erase("affinity_void_form_ready")
 	if p.has("affinity_vital_sources"): preload("res://vital_combat.gd").clear(game,p)
 	p.guard_until = 0
-	p.front_guard_until=0;p.counter_guard_until=0;p.counter_until=0;p.grave_charges=0;p.echo_charge=0
-	p.focus_until=0
+	p.front_guard_until=0;p.counter_guard_until=0;p.counter_until=0;p.grave_charges=0
 	p.skill_fx_until=0
 	p.guard_charges=0
-	p.renewal_until=0
 	p.carried_parts.fill(0)
 	p.carried_seeds.clear()
 	p.safe_items=[]
@@ -184,12 +171,9 @@ static func return_member(game: Node, p: Dictionary) -> void:
 	game.refresh_drop()
 	p.secondary = game.Parts.EMPTY
 	p.catalyst=0
-	p.graft_part=0
-	p.graft_floor=0
 	p.erase(preload("res://expedition_grafts.gd").STATE)
 	preload("res://native_grafts.gd").clear(p)
 	p.erase("graft_message")
-	p.rift_hook = false
 	p.pos = game.stage.experimental_garden.return_position() if game.stage.experimental_garden != null else game.stage.gate_position() + Vector3(0, 0, 2.0)
 	p.slow_until = 0
 	p.hurt_until=0
@@ -257,7 +241,7 @@ static func commit_checkpoint(game: Node, id: int, descend: bool,effects = null)
 		var crossed_biome: bool = game.participation.depth() == game.ROUTE_ROOMS
 		if not game.participation.advance(game.participation.epoch(),game.ROUTE_ROOMS,game.Campaign.HEART): return false
 		game.start_encounter()
-		var recovery_hp: int =game.Life.Sustain.recovery_hp(crossed_biome or (not game.Life.Preview.enabled and game.participation.depth()==game.ROUTE_ROOMS),game.participation.cycle())
+		var recovery_hp: int =game.Life.Sustain.recovery_hp(crossed_biome,game.participation.cycle())
 		for peer_id in game.players:
 			var player: Dictionary = game.players[peer_id]
 			if Participation.is_wild(player):
@@ -331,23 +315,15 @@ static func reset(game: Node) -> void:
 			else player[game.PlayerLifecycle.STATE].clear_inactive()
 		player.lost_health=0
 		player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new()
-		player.last_offer = 0
-		player.run_upgrades={}
 		game.AffinityCards.clear(player)
-		player.checkpoint_offers=[]
-		player.offer_floor=0
 		player.upgrade_seed=Crypto.new().generate_random_bytes(8).hex_encode().hash()
 		player.last_deposit=0
-		player.power = 0
-		player.technique = 0
 		player.carried_parts.fill(0)
 		player.carried_seeds.clear()
 		player.pouch = false
 		player.safe_items=[]
 		player.carried_items={}
 		player.secondary = game.Parts.EMPTY
-		player.graft_choice = game.Parts.EMPTY
-		player.rift_hook = false
 	game.reset_encounter()
 
 

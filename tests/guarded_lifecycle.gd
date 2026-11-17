@@ -140,9 +140,16 @@ func run() -> void:
  check(Ops.recover(PackedStringArray([C])).value.verified,"verified B2 restoration")
  world=launch(menu)
  if world==null: quit(1);return
- world.players[1].pos=world.Stage.GATE
- ExpeditionCase.Transitions.enter(world, 1,world.players[1])
- world.players[1].safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
+ var actor: Dictionary=world.players[1]
+ var tree: RefCounted = world.Classes.connected_tree(int(actor.frame))
+ if tree.focus(actor.character).is_empty():
+  actor.pos=world.Stage.HEART
+  world.handle_loadout_action(1,actor,"learn_%d_%d" % [int(actor.frame),tree.REQUEST_OFFSET])
+ check(not tree.focus(actor.character).is_empty(),"zero-XP character chooses native focus through the guarded Heart action")
+ actor.pos=world.Stage.GATE
+ ExpeditionCase.Transitions.enter(world, 1,actor)
+ check(ExpeditionCase.is_wild(actor),"window-close fixture enters the actual expedition before protecting cargo")
+ actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  before=disk()
  world.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
  check(not world.participation.active() and disk()[G]!=before[G] and disk()[G.get_base_dir().path_join("session.cfg")]=="absent"

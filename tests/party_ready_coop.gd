@@ -23,6 +23,9 @@ func run():
   if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))): check(false,"guest registers");quit(1);return
   var id: int=game.players.keys()[1];var host: Dictionary=game.players[1];var guest: Dictionary=game.players[id]
   host.pos=game.Stage.GATE;guest.pos=game.Stage.GATE
+  for actor in [host,guest]:
+   var tree=game.Classes.connected_tree(int(actor.frame))
+   actor.character[tree.profile_key]=tree.state([tree.nodes[0].id])
   ExpeditionCase.Transitions.enter(game, 1,host)
   check(not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(guest),"host cannot depart alone")
   game.garden_action(1,"travel_unready:"+str(game.participation.travel_epoch()))
@@ -35,7 +38,7 @@ func run():
   cleared(1);ExpeditionCase.Transitions.checkpoint(game, 1,true)
   check(game.participation.floor()==1,"ordinary gate waits")
   check(await until(func():return game.participation.floor()==2),"both confirmations advance stage")
-  cleared(6);ExpeditionCase.Transitions.checkpoint(game, 1,true);game.choose_checkpoint_card(1,host,-1)
+  cleared(6);ExpeditionCase.Transitions.checkpoint(game, 1,true);game.garden_action(1,game.affinity_checkpoint_action(int(game.checkpoint_card_data(host)[0].revision),"skip"))
   check(await until(func():return game.checkpoint_all_ready()),"both upgrade decisions arrive")
   check(game.participation.floor()==6,"cards do not advance without host travel consent")
   ExpeditionCase.Transitions.checkpoint(game, 1,true)
@@ -59,7 +62,7 @@ func run():
   check(await until(func():return game.party_travel_state().get("kind","")=="advance" and game.participation.floor()==1),"ordinary stage ready prompt arrives")
   game.send_travel_ready(false)
   check(await until(func():return game.checkpoint_menu.visible and game.participation.floor()==6),"upgrade cards arrive")
-  game.send_garden_action("checkpoint_choice_-1")
+  game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,"skip"))
   check(await until(func():return not game.checkpoint_menu.visible),"card confirmation closes cards")
   game.send_travel_ready(false)
   check(await until(func():return game.party_travel_state().get("kind","")=="extract" and game.participation.floor()==12),"extraction ready check arrives")

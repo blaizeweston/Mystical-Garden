@@ -18,6 +18,8 @@ func run():
 	game.set_process(false)
 	var p: Dictionary = game.players[1]
 	p.pos = game.Stage.GATE
+	var tree=game.Classes.connected_tree(int(p.frame))
+	p.character[tree.profile_key]=tree.state([tree.nodes[0].id])
 	game.send_action(false)
 	game.send_garden_action("depart")
 	p.carried_seeds.assign([0])
@@ -34,7 +36,7 @@ func run():
 			game.send_garden_action("extract")
 			check(ExpeditionCase.is_wild(p) and game.seed_reserve(p).unknown.is_empty(), "ordinary cleared floors cannot bank loot")
 			game.send_action(false)
-			if game.checkpoint_pending: game.send_garden_action("checkpoint_choice_-1")
+			if game.checkpoint_pending: game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,"skip"))
 		else:
 			p.pos = game.battlefield.entry
 			game.send_garden_action("extract")
@@ -53,7 +55,7 @@ func run():
 	p.pos = game.battlefield.advance
 	game.send_action(false)
 	check(game.checkpoint_menu.visible and game.participation.floor()==6,"checkpoint holds travel for a card decision")
-	game.send_garden_action("checkpoint_choice_-1")
+	game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,"skip"))
 	check(ExpeditionCase.is_wild(p) and game.participation.floor() == 7, "E continues instead of extracting at the checkpoint")
 	await process_frame
 	if not failed: print("PASS: cleared checkpoint extraction, onward choice and real six-floor route")

@@ -576,12 +576,11 @@ func verify_presentation() -> void:
 		and "Equip a Water Catalyst" in inactive.summary,"unequipped card stays owned with its real inactive reason")
 	for species in game.Seeds.DEFINITIONS.size():
 		var seed: Dictionary = game.Seeds.DEFINITIONS[species]
-		var plant := Build.planting_description(species,true)
+		var plant := Build.planting_description(species)
 		var actual := Build.for_player(player)
 		var core := Build.slot_preview(actual,"core",int(seed.part))
-		check("Ordinary:" in plant and "Refined:" in plant and str(core.summary).get_slice("\n",1).get_slice(" · ",0) in plant
-			and Build.planting_description(species,false) == game.Seeds.modifier_text(species),
-			"planting and Core share the family identity for %s, and preserve legacy text" % seed.id)
+		check("Ordinary:" in plant and "Refined:" in plant and str(core.summary).get_slice("\n",1).get_slice(" · ",0) in plant,
+			"planting and Core share the sole family identity for %s" % seed.id)
 		for slot_name: String in Build.SLOTS:
 			var ordinary := Build.slot_preview(actual,slot_name,int(seed.part))
 			var refined := Build.slot_preview(actual,slot_name,game.Parts.rare_part(species))
@@ -632,13 +631,11 @@ func verify_attack_speed() -> void:
 	var grafts = preload("res://expedition_grafts.gd")
 	for scenario: Dictionary in [
 		{"frame":2, "weapon":1, "base":1150, "ranks":[0,0], "applied":65},
-		{"frame":0, "weapon":0, "base":380, "ranks":[0,2], "applied":65},
+		{"frame":0, "weapon":0, "base":450, "ranks":[0,2], "applied":65},
 		{"frame":3, "weapon":0, "base":320, "ranks":[3,0], "applied":5},
 	]:
 		reset(scenario.frame)
 		player.weapon_kind = scenario.weapon
-		if scenario.frame == 0:
-			player.character.upgrades[0] = 1 << 5  # Historical Quake Resonance subtracts 70 ms.
 		player[grafts.STATE] = grafts.Ledger.new(1)
 		player.pos = game.battlefield.graft
 		var trophy: int = game.Parts.monster_part(0)
@@ -657,7 +654,7 @@ func verify_attack_speed() -> void:
 		var stats: Dictionary = game.weapon_stats(player)
 		var current_ms: int = scenario.base - previous[0] - previous[1]
 		var next_ms: int = current_ms - scenario.applied
-		check(int(stats.interval) == scenario.base, "%s resolves its native weapon and learned speed" % stats.name)
+		check(int(stats.interval) == scenario.base, "%s resolves its native weapon interval" % stats.name)
 
 		fixture_offer({"id":card_id, "rarity":"Epic", "amount":scenario.applied})
 		var before_ledger := card_ledger(player)
@@ -732,7 +729,7 @@ func verify_attack_speed() -> void:
 
 func run() -> void:
 	game = preload("res://world.tscn").instantiate()
-	game.set_meta(Rules.META,Rules.ID)
+
 	root.add_child(game)
 	game.set_process(false)
 	game.set_physics_process(false)

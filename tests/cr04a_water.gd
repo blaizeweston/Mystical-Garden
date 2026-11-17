@@ -37,6 +37,13 @@ func event(id: int, slot: String, item: String, channel: String, now: int) -> Re
 
 
 func reset() -> void:
+	for actor in game.players.values():
+		preload("res://oracle_combat.gd").clear(actor)
+		actor.erase("affinity_ward_claims")
+		actor.erase("affinity_ward_grant")
+		actor.guard_until=0
+		actor.guard_charges=0
+	game.trait_events.clear()
 	game.encounter.set_hp(-1, 500)
 	game.enemy_mutations=0
 	game.tactics.boss_kind=-1
@@ -50,7 +57,7 @@ func reset() -> void:
 
 func run() -> void:
 	game=preload("res://world.tscn").instantiate()
-	game.set_meta(Rules.META,Rules.ID)
+
 	root.add_child(game)
 	game.set_process(false)
 	game.set_physics_process(false)
@@ -58,6 +65,7 @@ func run() -> void:
 	game.battlefield.barriers.clear()
 	game.add_player(2)
 	var p: Dictionary=game.players[1]
+	equip_native_focus(p)
 	var ally: Dictionary=game.players[2]
 	ExpeditionCase.set_membership(game, p, true)
 	ExpeditionCase.set_membership(game, ally, true)
@@ -184,3 +192,11 @@ func run() -> void:
 	await process_frame
 	if not failed: print("PASS: Water Core, Form, class wash, mixed Ward claims, direct damage and ranged timing")
 	quit(int(failed))
+
+
+## Family fixtures use the current native focus kit, never historical learned masks.
+func equip_native_focus(player: Dictionary) -> void:
+	for class_id in game.Classes.DEFINITIONS.size():
+		var tree: RefCounted=game.Classes.connected_tree(class_id)
+		var focus: String="rootkeeper" if class_id==0 else "lifekeeper" if class_id==4 else str(tree.nodes[0].id)
+		player.character[tree.profile_key]=tree.state([focus])

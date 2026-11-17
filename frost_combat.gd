@@ -47,7 +47,7 @@ static func damage(game: Node, actor: int, target: int, hp: int, now: int, color
 
 
 static func apply(game: Node, event: RefCounted, target: int, count: int, now: int) -> void:
-	if not game.has_meta(&"combat_affinity_ruleset") or not game.multiplayer.is_server() or event.epoch != game.participation.epoch() or not valid_target(game, target):
+	if not game.multiplayer.is_server() or event.epoch != game.participation.epoch() or not valid_target(game, target):
 		return
 	var actor := body(game, target)
 	var current := state(actor, now)
@@ -141,9 +141,6 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 
 
 static func with_attacker(game: Node, attacker: int, attack: Callable) -> void:
-	if not game.has_meta(&"combat_affinity_ruleset"):
-		attack.call()
-		return
 	var previous: int = game.get_meta(ATTACKER, -2)
 	game.set_meta(ATTACKER, attacker)
 	attack.call()
@@ -166,7 +163,7 @@ static func incoming(game: Node, recipient: Dictionary, id: int, now: int) -> vo
 
 static func stock_test_garden(game: Node) -> String:
 	var ruleset = load("res://combat_ruleset.gd")
-	if not ruleset.active(game) or not ruleset.verified() or not game.multiplayer.is_server() or game.participation.active() or not game.has_meta(game.Transactions.SESSION):
+	if not preload("res://assets/terrain_m02/experimental/experiment_mode.gd").verified() or not game.multiplayer.is_server() or game.participation.active() or not game.has_meta(game.Transactions.SESSION):
 		return "Affinity supplies are available to the host in the isolated affinity Garden."
 	return game.run_heart_save(func():
 		for part in game.Parts.DEFINITIONS.size():

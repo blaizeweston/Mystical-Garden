@@ -16,7 +16,7 @@ static func party_size(game: Node) -> int:
 static func scout_count(game: Node) -> int:
  if game.participation.route()==game.Campaign.HEART: return mini(game.EncounterConfig.MAX_SCOUTS,4+2*(party_size(game)-1))
  var c:=config()
- var additional:=Balance.extra_scouts(int(c.coop_extra_scouts))*(party_size(game)-1)
+ var additional:=Balance.extra_scouts()*(party_size(game)-1)
  var limit=mini(game.EncounterConfig.MAX_SCOUTS,game.EncounterConfig.SOLO_SCOUT_LIMIT+additional)
  return mini(limit,int(c.base_scouts)+(game.participation.floor()-1)/int(c.floors_per_extra_scout)+game.participation.route()+mini(game.participation.cycle(),3)+additional)
 static func health(game: Node,base: int,leader: bool) -> int:

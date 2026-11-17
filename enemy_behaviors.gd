@@ -22,7 +22,7 @@ static func tick(game: Node, scout: Dictionary, delta: float, now: int) -> bool:
   if distance>=7 or not game.battlefield.clear_line(scout.pos,at):continue
   var edge: bool=scout.get("variant","")=="edge_thief"
   var ordinary_reach:=2.3 if edge else 1.15
-  var extended: bool=learned and distance<=Attacks.SkillResponses.GRAB_REACH and game.battlefield.clear_line(scout.pos,at,game.Battlefield.CLEARANCE) and Attacks.SkillResponses.avoids_thorns(game,{"from":scout.pos,"to":at,"via":Vector3.INF},now)
+  var extended: bool=learned and distance<=Attacks.SkillResponses.GRAB_REACH and game.battlefield.clear_line(scout.pos,at,game.Battlefield.CLEARANCE)
   if distance<=ordinary_reach or extended:
    scout.drop_target=drop.id
    Attacks.lock(game,scout,"trophy_grab",at,now+(930 if edge else 680))
@@ -120,7 +120,7 @@ static func resolve(game: Node,scout: Dictionary,attack: Dictionary,now: int,win
   "trophy_grab":
    for drop in game.wild_item_drops:
     var grab_reach:=float(attack.get("grab_reach",2.4))
-    if attack.get("learned",false) and (not Attacks.SkillResponses.move_still_valid(scout,attack,now) or not Attacks.SkillResponses.avoids_thorns(game,attack,now)):break
+    if attack.get("learned",false) and not Attacks.SkillResponses.move_still_valid(scout,attack,now):break
     if drop.id!=attack.get("drop_id","") or not game.battlefield.clear_line(scout.pos,attack.to) or scout.pos.distance_to(attack.to)>grab_reach:continue
     if attack.get("learned",false):
      var point:=Vector3(drop.position[0],0,drop.position[2])

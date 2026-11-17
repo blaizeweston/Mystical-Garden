@@ -1,13 +1,13 @@
 extends SceneTree
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+const Grafts=preload("res://expedition_grafts.gd")
 var failed:=false
 func check(ok: bool,message: String):
 	if not ok:
 		failed=true
 		printerr("FAIL: ",message)
 func _initialize():
-	preload("res://combat_balance_preview.gd").enabled = false
 	call_deferred("run")
 func run():
 	var game=load("res://world.tscn").instantiate()
@@ -19,6 +19,9 @@ func run():
 	game.set_process(false)
 	var p: Dictionary=game.players[1]
 	ExpeditionCase.set_membership(game, p, true)
+	var tree=game.Classes.connected_tree(0)
+	p.character[tree.profile_key]=tree.state(["rootkeeper"])
+	p[Grafts.STATE]=Grafts.Ledger.new(1)
 	ExpeditionCase.set_world(game, {"encounter_number": game.GRAFT_ROOM})
 	ExpeditionCase.set_world(game, {"depth": 4})
 	ExpeditionCase.set_world(game, {"map_seed": 91247})
@@ -28,11 +31,9 @@ func run():
 	check(game.enemy_health()>0 and game.graft_altar_open() and game.stage.graft_altar.visible,"eighth encounter shrine appears before combat is cleared")
 	check(game.exploration.has_shrine and game.exploration.seen(game.battlefield.graft),"discovered shrine appears on the floor map")
 	p.carried_parts[4]=1
-	p.graft_choice=4
-	game.attempt_graft(1,p)
-	check(p.carried_parts[4]==0,"shrine accepts a graft attempt during combat")
+	game.send_garden_action(Grafts.request(Grafts.owner_details(p,game.participation.floor()),"reach",game.Items.part_id(4)))
+	check(p.carried_parts[4]==0 and Grafts.owner_details(p,game.participation.floor()).revision==1,"shrine accepts one cumulative reinforcement during combat")
 	p.secondary=0
-	p.graft_part=0
 	ExpeditionCase.set_world(game, {"encounter_number": game.GRAFT_ROOM*2})
 	check(game.graft_altar_open(),"shrine schedule continues across biome boundaries")
 	ExpeditionCase.set_world(game, {"encounter_number": 5})
@@ -46,14 +47,14 @@ func run():
 	game.encounter.clear_scouts()
 	game.battlefield.configure(0,1)
 	game.tactics.position=Vector3(0,0,6.4)
-	game.encounter.set_hp(-1, 5)
+	game.encounter.set_hp(-1, 100)
 	game.tactics.winding_up=false
 	p.pos=Vector3(0,0,5.4)
-	p.weapon=0;p.secondary=0;p.power=0;p.strike_at=0;p.frame=0
+	p.weapon=0;p.secondary=0;p.strike_at=0;p.frame=0
 	var before: Vector3=game.tactics.position
 	game.strike_enemy(1,p,p.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.enemy_health()==4 and game.tactics.position.distance_to(p.pos)>before.distance_to(p.pos)+.2,"successful monster hit applies a small knockback")
+	check(game.enemy_health()>0 and game.enemy_health()<100 and game.tactics.position.distance_to(p.pos)>before.distance_to(p.pos)+.2,"successful monster hit applies a small knockback")
 	check(game.tactics.position.distance_to(before)<=.36 and game.tactics.stagger_until>Time.get_ticks_msec(),"push remains small and grants a short reaction beat")
 	game.tactics.winding_up=true
 	game.tactics.strike_at=Time.get_ticks_msec()+500
@@ -68,16 +69,6 @@ func run():
 	game.strike_enemy(1,p,p.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
 	check(not game.battlefield.occupied(game.tactics.position,.34) and game.tactics.position.z < -3.53,"knockback cannot push a monster through cover")
-	game.encounter.set_hp(-1, 5)
-	game.tactics.position=Vector3(0,0,5.8)
-	p.pos=Vector3(0,0,4)
-	p.weapon=0
-	p.graft_part=4
-	p.strike_at=0
-	before=game.tactics.position
-	game.strike_enemy(1,p,p.pos)
-	game.update_projectiles(Time.get_ticks_msec()+1000)
-	check(game.tactics.position.distance_to(p.pos)<before.distance_to(p.pos),"Briar Hook pull is preserved instead of being cancelled by knockback")
 	# This generated floor places the two interaction areas on top of each other.
 	ExpeditionCase.set_world(game, {"destination": 1})
 	ExpeditionCase.set_world(game, {"depth": 2})
@@ -91,14 +82,14 @@ func run():
 	p.loot_pending=false
 	p.pos=game.battlefield.graft
 	game._process(.016)
-	check(game.guide.text=="E  Graft","standing at the shrine shows its prompt")
+	check(game.guide.text=="E  Grafting Altar","standing at the shrine shows its prompt")
 	game._act(1,false)
 	check(game.graft_menu.visible,"standing at the shrine still opens grafting")
 	game.toggle_overlay(null)
 	p.pos=game.battlefield.advance
 	check(game.at_graft_altar(p),"the generated fixture reproduces overlapping interaction ranges")
 	game._process(.016)
-	check(game.guide.text!="E  Graft","the shrine prompt yields to the closer gate")
+	check(game.guide.text!="E  Grafting Altar","the shrine prompt yields to the closer gate")
 	game._act(1,false)
 	check(game.participation.floor()==game.GRAFT_ROOM+1 and not game.graft_menu.visible,"the gate advances when it is the closer interaction")
 	await process_frame

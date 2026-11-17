@@ -58,7 +58,7 @@ static func tick(game: Node, delta: float, now: int) -> void:
 			return
 	if distance > base_strike_radius(game) - 0.45 or not game.battlefield.clear_line(game.tactics.position, victim):
 		if unrooted:
-			var affinity_motion := Frost.motion_scale(game.tactics.memory, now) if game.has_meta(&"combat_affinity_ruleset") else 1.0
+			var affinity_motion := Frost.motion_scale(game.tactics.memory, now)
 			var speed := minf(float(Enemies.get_kind(game.enemy_kind).speed) + (game.participation.depth() - 1) * 0.30, 2.9) + 0.35 + minf(game.participation.cycle() * 0.12, 0.72)
 			if now < game.tactics.haste_until:
 				speed *= 1.22

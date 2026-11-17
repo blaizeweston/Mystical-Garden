@@ -3,6 +3,7 @@ extends SceneTree
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
+const Preview = preload("res://combat_balance_preview.gd")
 
 const Core = preload("res://core_combat.gd")
 const Attacks = preload("res://enemy_attack.gd")
@@ -15,7 +16,6 @@ var failed := false
 
 
 func _initialize() -> void:
-	preload("res://combat_balance_preview.gd").enabled = false
 	call_deferred("run")
 
 
@@ -38,14 +38,14 @@ func fixture(kind: int, floor_number: int) -> Dictionary:
 	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	ExpeditionCase.set_world(game, {"encounter_number": floor_number})
 	ExpeditionCase.set_world(game, {"map_seed": 10 + posmod(-37 - kind * 19 - floor_number * 11, 10)})
-	game.encounter.set_hp(-1, 50)
+	game.encounter.set_hp(-1, 500)
 	game.enemy_kind = 0
 	game.tactics.position = Vector3(12, 0, 5)
 	game.encounter.clear_scouts()
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
 	ExpeditionCase.set_membership(game, player, true)
-	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
+	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
 	player.hurt_until = 0
 	player.pos = Vector3(0, 0, 1.4)
 	return actor(kind, Vector3.ZERO)
@@ -54,16 +54,7 @@ func fixture(kind: int, floor_number: int) -> Dictionary:
 func cancel_rite(caster: Dictionary, role: String) -> bool:
 	var now := Time.get_ticks_msec()
 	Attacks.lock(game, caster, role, player.pos, now + 1600)
-	player.weapon = game.Parts.index_of("plant:hush_orchid")
-	player.core_ready_at = 0
-	player.core_cast_until = 0
-	player.cast_until = 0
-	game.garden_action(1, Core.request(game, player, Vector2.UP, 1.4))
-	var cast: Dictionary = game.get_meta(Core.STATE, {}).get(1, {})
-	check(not cast.is_empty(), "Hush starts on the locked rite")
-	if cast.is_empty():
-		return false
-	Core.tick(game, cast.armed)
+	game.apply_weapon_hit(player,game.encounter.scout_slot(caster),player.pos,{"damage":1,"stagger":180},now)
 	return caster.windup == 0 and Tactics.evidence(game).get(Tactics.CAST_DENIAL, 0) == 1
 
 
@@ -103,7 +94,7 @@ func test_echo() -> void:
 		var outer := actor(0, Vector3(5.0, 0, 0))
 		Attacks.lock(game, cantor, "chant", player.pos, Time.get_ticks_msec() + 1400)
 		check(cantor.attack.get("variant") != Tactics.ECHO_TOLL, "prior memory alone keeps the opening toll ordinary")
-		check(cancel_rite(cantor, "chant"), "Hush cancels a staffed Cantor rite")
+		check(cancel_rite(cantor, "chant"), "Native stagger cancels a staffed Cantor rite")
 		var plan := retry(cantor, Tactics.ECHO_TOLL)
 		if plan.is_empty(): continue
 		var warning: Array = Attacks.hints(plan, 0, 1.3)
@@ -112,14 +103,14 @@ func test_echo() -> void:
 			anchor.pos.z += 1.0
 		preload("res://scout_behavior.gd").release(game, cantor, game.Enemies.get_kind(3), cantor.windup)
 		check((int(anchor.haste_until) > 0) != displace and (int(far.haste_until) > 0) != displace, "toll buffs two near the anchor or cancels if it moves")
-		check(close.haste_until == 0 and outer.haste_until == 0 and PlayerVitals.current_hp(player) == 10, "no caster-centered fallback or player damage")
+		check(close.haste_until == 0 and outer.haste_until == 0 and PlayerVitals.current_hp(player) == 100, "no caster-centered fallback or player damage")
 		Attacks.lock(game, cantor, "chant", player.pos, Time.get_ticks_msec() + 1400)
 		check(cantor.attack.get("variant") != Tactics.ECHO_TOLL, "Cantor can only attempt one learned rite")
 
 
 func test_tether() -> void:
 	var bloom := fixture(15, 8)
-	game.encounter.set_hp(game.encounter.scout_slot(bloom), 3)
+	game.encounter.set_hp(game.encounter.scout_slot(bloom), 30)
 	var initial := actor(0, Vector3(0, 0, -1.4), 0)
 	var spare := actor(0, Vector3(5.8, 0, 0), 0)
 	var first := actor(0, Vector3(-1.5, 0, 0))
@@ -128,11 +119,15 @@ func test_tether() -> void:
 	var plan := retry(bloom, Tactics.SPARE_TETHER)
 	if not plan.is_empty():
 		check(plan.corpse.token == game.encounter.token_for(spare) and Attacks.hints(plan, 0, 1.25)[0].role == "corpse_tether", "spare tether visibly commits to a different corpse")
+		var health_before_heal: int = game.encounter.hp_for(bloom)
+		var heal_state: int = Preview.heal_rng.state
+		var expected_heal: int = game.Director.Balance.corpse_heal(game,bloom,true)
+		Preview.heal_rng.state = heal_state
 		preload("res://scout_behavior.gd").release(game, bloom, game.Enemies.get_kind(15), bloom.windup)
-		check(bloom.consumed_corpses == [game.encounter.token_for(spare)] and game.encounter.hp_for(bloom) == 4, "spare is consumed once for one health")
+		check(bloom.consumed_corpses == [game.encounter.token_for(spare)] and game.encounter.hp_for(bloom) == health_before_heal+expected_heal, "spare is consumed once for its current capped rolled heal")
 		check(first.haste_until > 0 and second.haste_until == 0, "only the marked escort gains haste")
 		Support.resolve_corpse(game, bloom, plan, int(bloom.ready))
-		check(game.encounter.hp_for(bloom) == 4, "a used corpse cannot heal twice")
+		check(game.encounter.hp_for(bloom) == health_before_heal+expected_heal, "a used corpse cannot heal twice")
 	bloom = fixture(15, 8)
 	initial = actor(0, Vector3(0, 0, -1.4), 0)
 	actor(0, Vector3(-1.5, 0, 0))
@@ -147,7 +142,7 @@ func test_antiphon() -> void:
 		var choir := fixture(19, 9)
 		var anchor := actor(0, Vector3(2.15, 0, .9))
 		actor(0, Vector3(-3.8, 0, 0))
-		check(cancel_rite(choir, "shepherd"), "Hush stops a supported Choir pulse")
+		check(cancel_rite(choir, "shepherd"), "Native stagger stops a supported Choir pulse")
 		var plan := retry(choir, Tactics.ANTIPHON)
 		if plan.is_empty(): continue
 		var warning: Array = Attacks.hints(plan, 0, 1.35)
@@ -155,5 +150,6 @@ func test_antiphon() -> void:
 		check(Support.interruptible(plan), "Antiphon stays interruptible")
 		if dodge:
 			player.pos = anchor.pos + (anchor.pos - Vector3(plan.face)).normalized()
+		var choir_damage: int = Preview.effect_hp(game.Director.Balance.scout_hit(game,game.Enemies.get_kind(19),choir))
 		preload("res://scout_behavior.gd").release(game, choir, game.Enemies.get_kind(19), choir.windup)
-		check(PlayerVitals.current_hp(player) == (10 if dodge else 9) and choir.windup == 0, "only the marked sector hits and it fires once")
+		check(PlayerVitals.current_hp(player) == (100 if dodge else 100-choir_damage) and choir.windup == 0, "only the marked sector hits and it fires once")

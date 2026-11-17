@@ -26,7 +26,6 @@ func until(predicate: Callable) -> bool:
  while not predicate.call() and Time.get_ticks_msec()<deadline: await process_frame
  return predicate.call()
 func _initialize() -> void:
- preload("res://combat_balance_preview.gd").enabled = false
  call_deferred("run")
 func run() -> void:
  role=OS.get_cmdline_user_args()[0];base="res://.godot/boss-net-"+OS.get_cmdline_user_args()[1]
@@ -34,7 +33,7 @@ func run() -> void:
  if role=="host": await host_run()
  else: await guest_run()
  game.queue_free();await process_frame
- if not failed: print("PASS: boss co-op ",role," four synchronized lairs, boss previews and growths, safe geometry, private rewards and graft effects")
+ if not failed: print("PASS: boss co-op ",role," four synchronized lairs, boss previews and growths, safe geometry, private rewards and modern build projections")
  quit(1 if failed else 0)
 func host_run() -> void:
  check(SessionCase.World.host(game)==OK,"host opens")
@@ -44,9 +43,8 @@ func host_run() -> void:
  for kind in range(20,24):
   ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"encounter_number": 20+kind-20});ExpeditionCase.set_world(game, {"depth": kind-19});ExpeditionCase.set_world(game, {"map_seed": 91661+kind})
   game.wild_item_drops.clear();game.boss_floors[str(game.participation.floor())]=kind;game.used_bosses.append(kind);game.reset_encounter();game.encounter.clear_scouts();game.tactics.stagger_until=Time.get_ticks_msec()+60000
-  for player in game.players.values(): ExpeditionCase.set_membership(game, player, true);player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive();player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,1)
-  p.graft_part=game.Parts.monster_part(kind);p.run_upgrades={"trophy_"+game.Enemies.get_kind(kind).id:1}
-  check(await until(func():return marked("view-"+str(kind))),"guest receives boss and graft "+str(kind))
+  for player in game.players.values(): ExpeditionCase.set_membership(game, player, true);player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive();player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100);player.pos=Vector3(0,0,1)
+  check(await until(func():return marked("view-"+str(kind))),"guest receives boss presentation "+str(kind))
   if Routes.supports(kind):await host_lair(kind,id)
   if kind==Phases.NEST:await host_nest(id)
   if kind==Phases.BLOOM:await host_memory(id)
@@ -82,7 +80,7 @@ func host_lair(kind: int, id: int) -> void:
  player.pos=escape
  game.Bosses.resolve(game,Time.get_ticks_msec())
  check(await until(func():return marked("release-"+str(kind))),"guest received the actual strike state")
- check(PlayerVitals.current_hp(player)==10,"safe route also works for guest on host authority")
+ check(PlayerVitals.current_hp(player)==100,"safe route also works for guest on host authority")
  player.pos=Vector3(0,0,1)
  if kind==Routes.ORCHARD:
   game.players[1].pos=player.pos
@@ -92,8 +90,9 @@ func host_lair(kind: int, id: int) -> void:
   game.tactics.strike_at=now+18000
   check(await until(func():return marked("cage-warning")),"guest receives the cage and its gaps")
   player.pos=Lairs.escape(game,plan,player.pos,now)
+  var cage_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.boss_hit(game,game.Enemies.get_kind(kind),"root_cage"))
   game.Bosses.resolve(game,Time.get_ticks_msec())
-  check(PlayerVitals.current_hp(player)==10 and PlayerVitals.current_hp(game.players[1])==8,"authority respects the gap while striking the center")
+  check(PlayerVitals.current_hp(player)==100 and PlayerVitals.current_hp(game.players[1])==100-cage_damage,"authority respects the gap while striking the center")
   check(await until(func():return marked("cage-release")),"guest sees the committed impact")
 
 func guest_lair(kind: int, id: int) -> void:
@@ -174,7 +173,7 @@ func host_nest(id: int) -> void:
  check(await until(func():return marked("rib-grace")),"guest receives the grace cue")
  game.tactics.memory.nest_shift.until=0
  Phases.advance_phase(game,1,Time.get_ticks_msec())
- check(not game.battlefield.occupied(player.pos,.34) and PlayerVitals.current_hp(player)==10,"authority relocates the guest safely")
+ check(not game.battlefield.occupied(player.pos,.34) and PlayerVitals.current_hp(player)==100,"authority relocates the guest safely")
  check(await until(func():return marked("nest-phase")),"guest receives the committed new collision layout")
  player.pos=Vector3(0,0,7)
  game.players[1].pos=Vector3(0,0,7)
@@ -217,7 +216,7 @@ func host_memory(id: int) -> void:
  check(await until(func():return marked("memory-lanes")),"guest sees both lanes")
  game.Bosses.resolve(game,Time.get_ticks_msec())
  check(await until(func():return marked("memory-exposed")),"guest sees the memory punish window")
- check(PlayerVitals.current_hp(game.players[id])==10,"middle gap is safe on the authority")
+ check(PlayerVitals.current_hp(game.players[id])==100,"middle gap is safe on the authority")
  game.tactics.memory.lair_open.until=0
  game.progress.wilds_memory.score={"burst":16}
  Phases.advance_phase(game,1,Time.get_ticks_msec())
@@ -242,12 +241,11 @@ func guest_run() -> void:
  if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty()): check(false,"guest accepted");return
  var id=game.multiplayer.get_unique_id()
  for kind in range(20,24):
-  check(await until(func():return game.tactics.boss_kind==kind and game.stage.visual_field.boss_kind==kind and game.players[id].get("graft_part",0)==game.Parts.monster_part(kind)),"shared boss map/weapon descriptor "+str(kind))
+  check(await until(func():return game.tactics.boss_kind==kind and game.stage.visual_field.boss_kind==kind),"shared boss map/weapon descriptor "+str(kind))
   var field=load("res://battlefield.gd").new();field.configure(0,game.participation.depth(),game.participation.seed(),kind,0)
   check(field.clearings==game.stage.visual_field.clearings and field.barriers==game.stage.visual_field.barriers,"same visible terrain as host")
-  var p: Dictionary=game.players[id];var card=game.RunUpgrades.get_upgrade("trophy_"+game.Enemies.get_kind(kind).id)
-  check(not p.get("weapon_stats",{}).is_empty(),"authoritative graft stats arrive")
-  for key in card.effects:check(float(p.weapon_stats.get(key,0))>0,"graft card effect reaches guest "+str(key))
+  var p: Dictionary=game.players[id]
+  check(not p.get("weapon_stats",{}).get("affinity_build",{}).is_empty(),"authoritative modern build arrives")
   check(game.encounter_health()==int(game.players[id].enemy_max_hp),"guest boss maximum health matches host party scaling")
   mark("view-"+str(kind))
   if Routes.supports(kind):await guest_lair(kind,id)

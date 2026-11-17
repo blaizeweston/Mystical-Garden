@@ -203,7 +203,7 @@ func _log_error(function: String,source: String,line: int,code: String,rationale
 
 static func player_state(p: Dictionary) -> Dictionary:
  var result={}
- for key in ["pos","lost_health","damage_seq","vitals_revision","frame","weapon_kind","weapon","secondary","catalyst","graft_part","prepared","prepared_secondary","prepared_catalyst","attack_combo","carried_parts","run_upgrades"]:
+ for key in ["pos","lost_health","damage_seq","vitals_revision","frame","weapon_kind","weapon","secondary","catalyst","prepared","prepared_secondary","prepared_catalyst","attack_combo","carried_parts"]:
   if p.has(key):result[key]=p[key]
  if p.has(PlayerLifecycle.STATE) or p.has("fallen"):
   result.wild = Participation.is_wild(p)

@@ -4,7 +4,6 @@ const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 const Catalog = preload("res://subclass_catalog.gd")
-const Mark = preload("res://core_strike_mark.gd")
 const Balance = preload("res://class_skill_balance.gd")
 const WeaverCombat = preload("res://weaver_combat.gd")
 const Ranger = preload("res://ranger_combat.gd")
@@ -71,7 +70,7 @@ static func footprint(cast: Dictionary) -> Array:
 	return shapes
 
 
-static func targets(game: Node, cast: Dictionary, skill: Dictionary, card: Dictionary) -> Array[int]:
+static func targets(game: Node, cast: Dictionary, skill: Dictionary) -> Array[int]:
 	if cast.shape == "line":
 		return game.skill_line_targets(cast.origin,cast.forward,cast.range,cast.width,int(skill.limit))
 	var result: Array[int] = game.skill_area_targets(cast.center,cast.radius,cast.origin)
@@ -79,7 +78,7 @@ static func targets(game: Node, cast: Dictionary, skill: Dictionary, card: Dicti
 		result.erase(cast.target)
 		result.sort_custom(func(a,b): return cast.center.distance_squared_to(game.enemy_position(a)) < cast.center.distance_squared_to(game.enemy_position(b)))
 		result.push_front(cast.target)
-		result.resize(mini(result.size(),int(skill.limit)+int(card.get("extra",0))))
+		result.resize(mini(result.size(),int(skill.limit)))
 	elif cast.shape == "cone":
 		for target in result.duplicate():
 			var offset: Vector3 = game.enemy_position(target)-Vector3(cast.origin)
@@ -116,7 +115,6 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 	if not cast.valid:
 		game.tell(id,"No clear target for %s." % skill.name)
 		return
-	var card: Dictionary = skill.card.effect if int(preload("res://combat_ruleset.gd").legacy_ranks(player).get(skill.card.id,0)) > 0 else {}
 	var adapter: Dictionary = stats.get("cr02_adapter", {})
 	var events = preload("res://combat_action_events.gd")
 	var event: RefCounted = stats.get(events.CONTEXT)
@@ -126,7 +124,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 	var reaper := skill.has("reaper_nodes")
 	var oracle := skill.has("oracle_nodes")
 	var oracle_api = preload("res://oracle_combat.gd")
-	var bind := Balance.subclass_bind(skill,card)
+	var bind := Balance.subclass_bind(skill,{})
 	if ranger and leaves_snare:
 		var trap := skill.duplicate()
 		trap.bind = bind
@@ -135,7 +133,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 			return
 	var affected: Array[int] = []
 	if not leaves_snare:
-		affected = targets(game,cast,skill,card)
+		affected = targets(game,cast,skill)
 	var release_end: Vector3 = cast.endpoint if cast.shape in ["line","dash","retreat","cone"] else cast.center
 	player.facing = aim
 	player.aim_direction = aim
@@ -157,7 +155,6 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		var trap := skill.duplicate()
 		trap.bind = bind
 		game.Traits.place_snare(game,player,cast.center,trap,stats,now)
-	var marks := int(skill.get("marks",0)) + int(card.get("marks",0))
 	var kills := 0
 	var drain_contacts := 0
 	var radius: float = cast.radius if cast.radius > 0.0 else 2.0
@@ -169,7 +166,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		if cast.shape == "target" and target != cast.target:
 			game.emit_combat_event("link","interwoven_bind",cast.center,impact,.5,Color(skill.color),0.0,id)
 		var windup := in_windup(game,target,now)
-		var damage := Balance.Preview.authored_amount(float(skill.get("damage",0)) + (float(skill.get("punish",0))+float(card.get("punish",0)) if windup else 0.0))
+		var damage := Balance.Preview.authored_amount(float(skill.get("damage",0)) + (float(skill.get("punish",0)) if windup else 0.0))
 		var rewardable: bool = target == -1 or not game.encounter.scout(target).get("summoned",false)
 		var oracle_hp: int = int(oracle_hit.hp) if target == int(oracle_hit.get("target",-2)) else 0
 		if damage > 0 or oracle_hp > 0:
@@ -197,7 +194,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 				ranger_damage = true
 				if not prey_set and after > 0 and skill.subclass_focus == "wildstalker":
 					prey_set = Ranger.track(game,id,player,target,cast_id,now)
-			if Balance.Preview.enabled and rewardable:
+			if rewardable:
 				drain_contacts += int(after<before)
 		if not game.Traits.valid_target(game,target):
 			kills += int(rewardable)
@@ -209,47 +206,37 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 			q_contact = q_contact or until > previous
 		if skill.has("pull"):
 			pull(game,target,cast.center,float(skill.pull),now)
-		if marks > 0 and Mark.active(game,game.Traits.target_state(game,target),now).is_empty():
-			Mark.place(game,id,target,{"id":cast_id,"life":PlayerLifecycle.generation(player),
-				"skill":{"id":skill.id,"mark_ms":2700,"mark_damage":Balance.MARK_POINTS,"color":skill.color,"subclass_mark":true}},now)
-			marks -= 1
-	if not ranger and not reaper and not oracle and not affected.is_empty() and skill.second == 0:
+	if weaver and not affected.is_empty() and skill.second == 0:
 		echo(game,player,contact,affected,Color(skill.color),now,weaver)
-	var drain_count := drain_contacts if Balance.Preview.enabled else affected.size()
+	var drain_count := drain_contacts
 	if skill.get("leech",false) and drain_count>0:
 		game.Life.Sustain.heal(game,player,Balance.drain_amount(skill,drain_count),skill.id,Balance.Preview.HEAL_DRAIN_SPREAD_HP)
-	if card.get("grave",false) and kills > 0:
-		player.grave_charges = mini(3,int(player.get("grave_charges",0))+1)
-	var field_duration := Balance.duration(skill,stats) if Balance.Preview.enabled else int(skill.get("duration",0))
+	var field_duration := Balance.duration(skill,stats)
 	var field := {}
 	if skill.has("field") and not (ranger and leaves_snare):
 		field = game.Traits.zone(game,player,skill.field,cast.center,cast.radius,field_duration,Balance.field_power(skill),now,false,
 			events.field_action(stats))
-		if not field.is_empty() and player.has("combat_ruleset") and skill.subclass_focus == "bloomcaller":
+		if not field.is_empty() and skill.subclass_focus == "bloomcaller":
 			field.native_weaver_bloom = true
-	if card.get("thorn_patch",false):
-		game.Traits.zone(game,player,"cinder",cast.center,cast.radius,field_duration,Balance.FOLLOWUP_POINTS,now)
 	var nearby := allies(game,contact,radius)
 	var extend_ward: bool = weaver and skill.subclass_focus == "silkwarden" and skill.first == 2
 	var heal_hp := 0
 	if skill.has("heal") and not nearby.is_empty():
-		var healing := Balance.direct_heal(skill,stats) if Balance.Preview.enabled else float(skill.heal)
+		var healing := Balance.direct_heal(skill,stats)
 		heal_hp = Balance.Preview.roll_heal(healing)
 	for ally in nearby:
 		if heal_hp > 0:
 			game.Life.Sustain.restore(game,ally,heal_hp,skill.id)
-		if skill.get("cleanse",false) or card.get("cleanse",false) or (not ranger and not oracle and skill.second == 2):
+		if skill.get("cleanse",false) or (not ranger and not oracle and skill.second == 2):
 			ally.slow_until = 0
-		if skill.get("ward",false) or card.get("ward",false) or (card.get("party_hit_ward",false) and not affected.is_empty()):
+		if skill.get("ward",false):
 			var extra := Catalog.Weaver.GIFT_EXTENSION_MS if extend_ward and is_same(ally,nearby[0]) else 0
 			events.grant_ward(game,ally,now+Balance.WARD_MS+extra,1,event,adapter,now)
 	if not reaper and not oracle and not nearby.is_empty() and ((not ranger and skill.first == 2 and not extend_ward) or (skill.get("hit_ward",false) and not affected.is_empty())):
 		game.grant_guard(nearby[0],now+Balance.WARD_MS,1)
-	if card.get("landing_ward",false):
-		game.grant_guard(player,now+Balance.WARD_MS,1)
-	if Balance.Preview.enabled and not skill.has("heal") and Balance.healing_bonus(stats) > 0.0:
+	if not skill.has("heal") and Balance.healing_bonus(stats) > 0.0:
 		game.Life.Sustain.heal(game,player,Balance.healing_bonus(stats),"class_healing_bonus")
-	var follow := Catalog.lane_at(player.character,int(player.frame),3)
+	var follow := -1
 	if weaver:
 		follow = Catalog.Weaver.TREE.lane_at(skill.weaver_nodes,3)
 		WeaverCombat.on_q(game,id,player,skill.weaver_nodes,contact,nearby,q_contact,field,cast_id,now)
@@ -259,7 +246,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		Reaper.after_q(game,id,player,skill,contact,nearby,reaper_damage,cast_id,now)
 	elif oracle:
 		oracle_api.after_q(game,id,player,skill,int(event.identity) if event != null else cast_id,affected,nearby,now)
-	elif follow >= 0 and not (weaver and follow == 1):
+	elif weaver and follow >= 0 and follow != 1:
 		player.subclass_follow = {"lane":follow,"epoch":game.participation.epoch(),"life":PlayerLifecycle.generation(player)}
 	player.contributed = true
 	var timers: Cooldowns.Timers = player[Cooldowns.STATE]
@@ -317,20 +304,13 @@ static func follow_lane(game: Node, player: Dictionary) -> int:
 	return int(follow.lane)
 
 
-static func follow_through(game: Node, player: Dictionary, skill: Dictionary, center: Vector3, affected: Array[int], now: int) -> void:
+static func follow_through(game: Node, player: Dictionary, skill: Dictionary, center: Vector3, _affected: Array[int], now: int) -> void:
 	var lane := follow_lane(game,player)
 	player.erase("subclass_follow")
-	match lane:
-		0:
-			echo(game,player,center,affected,Color(skill.color),now)
-		1:
-			if not skill.has("weaver_nodes"):
-				var timers: Cooldowns.Timers = player[Cooldowns.STATE]
-				player[Cooldowns.STATE] = timers.refund(Cooldowns.R, now, 1700, Balance.COOLDOWN_MIN_MS)
-		2:
-			for ally in allies(game,center,3.0):
-				game.grant_guard(ally,now+Balance.WARD_MS,1)
-			game.emit_combat_event("subclass_release","silk",center,center,.55,Color(skill.color),3.0,0,{"pattern":"ground"})
+	if lane == 2 and skill.has("weaver_nodes"):
+		for ally in allies(game,center,3.0):
+			game.grant_guard(ally,now+Balance.WARD_MS,1)
+		game.emit_combat_event("subclass_release","silk",center,center,.55,Color(skill.color),3.0,0,{"pattern":"ground"})
 
 
 static func pose_state(player: Dictionary, now: int) -> Dictionary:

@@ -62,7 +62,7 @@ static func sync(game: Node,now: int) -> void:
   if player.has("affinity_bark_grants"):add(desired,game,"bark_armor",id,false,now+60000,1,now)
   add(desired,game,"holdfast",id,false,Warden.holdfast_until(game,player,now),1,now)
   add(desired,game,"protective_filaments",id,false,preload("res://weaver_combat.gd").filaments_until(game,player,now),1,now)
-  for pair in [["slow","slow_until"],["guard","guard_until"],["counter","counter_until"],["prepared_mark","prepared_mark_until"]]:
+  for pair in [["slow","slow_until"],["guard","guard_until"],["counter","counter_until"]]:
    add(desired,game,pair[0],id,false,int(player.get(pair[1],0)),1,now)
   if int(player.get("frame",-1))==0:
    add(desired,game,"warden_quake_ready",id,false,Warden.prepared_until(game,player,now),1,now)
@@ -76,11 +76,11 @@ static func sync(game: Node,now: int) -> void:
   for preparation in [Ranger.FOLLOW,Ranger.DOUBLE]:
    if player.has(preparation):
     add(desired,game,preparation,id,false,Ranger.prepared_until(game,player,preparation,now),1,now)
-  for pair in [["grave","grave_charges"],["echo","echo_charge"]]:
-   var grafts = preload("res://native_grafts.gd")
-   var graft_count: int = grafts.graft_charges(player) if pair[0] == "grave" else int(grafts.counters(player,"monster:glasscap").get("echo_charge",0))
-   var charges := int(player.get(pair[1],0)) + graft_count
-   add(desired,game,pair[0],id,false,now+60000,charges,now)
+  var grafts = preload("res://native_grafts.gd")
+  var grave_charges := int(player.get("grave_charges",0)) + grafts.graft_charges(player)
+  add(desired,game,"grave",id,false,now+60000,grave_charges,now)
+  var echo_charge := int(grafts.counters(player,"monster:glasscap").get("echo_charge",0))
+  add(desired,game,"echo",id,false,now+60000,echo_charge,now)
  for target in range(-1,game.encounter.scout_count()):
   if not game.participation.active() or not game.Traits.valid_target(game,target):continue
   var omen_target:=Oracle.Omens.enemy_body(game,target)
@@ -88,26 +88,20 @@ static func sync(game: Node,now: int) -> void:
    var omens:=Oracle.Omens.indicators(game,omen_target,now)
    for omen in omens: add(desired,game,omen,target,true,int(omens[omen]),1,now)
   var state: Dictionary=game.enemy_traits if target==-1 else game.encounter.scout(target).get("traits",{})
-  add(desired,game,"marked",target,true,int(state.get("marked_until",0)),1,now)
-  var core_mark:=preload("res://core_strike_mark.gd").active(game,state,now)
-  add(desired,game,"crown_link" if core_mark.has("partner") else "marked" if core_mark.get("subclass",false) else "core_strike_mark",target,true,int(core_mark.get("until",0)),1,now)
   if state.has(Ranger.PREY):
    var prey := Ranger.active_prey(game,state,now)
    add(desired,game,Ranger.PREY,target,true,int(prey.get("until",0)),1,now)
   var root_until: int = game.tactics.rooted_until if target==-1 else int(game.encounter.scout(target).get("rooted_until",0))
-  if game.has_meta(&"combat_affinity_ruleset"):
-   var frost = preload("res://frost_combat.gd")
-   var body := frost.body(game,target)
-   var brittle := frost.state(body,now)
-   add(desired,game,"brittle",target,true,int(brittle.get("expires",0)),brittle.get("stacks",[]).size(),now)
-   if not body.get("affinity_burning",{}).is_empty():add(desired,game,"burning",target,true,now+60000,1,now)
-   if not body.get("affinity_bleed",{}).is_empty():add(desired,game,"bleeding",target,true,now+60000,1,now)
-   if body.has("affinity_thorn_slow"):add(desired,game,"thorn_slow",target,true,now+60000,1,now)
-   var elapsed: int=preload("res://affinity_time.gd").now(game)
-   if preload("res://water_combat.gd").reduction(body,elapsed)>0.0:add(desired,game,"drenched",target,true,now+60000,1,now)
-   root_until=maxi(root_until,int(body.get("frost_root_until",0)))
-  else:
-   add(desired,game,"brittle",target,true,int(state.get("brittle_until",0)),int(state.get("brittle",0)),now)
+  var frost = preload("res://frost_combat.gd")
+  var body := frost.body(game,target)
+  var brittle := frost.state(body,now)
+  add(desired,game,"brittle",target,true,int(brittle.get("expires",0)),brittle.get("stacks",[]).size(),now)
+  if not body.get("affinity_burning",{}).is_empty():add(desired,game,"burning",target,true,now+60000,1,now)
+  if not body.get("affinity_bleed",{}).is_empty():add(desired,game,"bleeding",target,true,now+60000,1,now)
+  if body.has("affinity_thorn_slow"):add(desired,game,"thorn_slow",target,true,now+60000,1,now)
+  var elapsed: int=preload("res://affinity_time.gd").now(game)
+  if preload("res://water_combat.gd").reduction(body,elapsed)>0.0:add(desired,game,"drenched",target,true,now+60000,1,now)
+  root_until=maxi(root_until,int(body.get("frost_root_until",0)))
   add(desired,game,"rooted",target,true,root_until,1,now)
   add(desired,game,"staggered",target,true,game.tactics.stagger_until if target==-1 else int(game.encounter.scout(target).get("stagger_until",0)),1,now)
   add(desired,game,"haste",target,true,game.tactics.haste_until if target==-1 else int(game.encounter.scout(target).get("haste_until",0)),1,now)
