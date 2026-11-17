@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
@@ -170,7 +171,34 @@ func run() -> void:
 	game.enemy_pos=point+Vector3.LEFT
 	Thorn.tick(game,Clock.advance(game,.72),now)
 	check(game.enemy_hp==500-4-4-6 and is_equal_approx(Frost.motion_scale(game.leader_brain,now),.82),"leaving stronger growth retains the remaining slow and both scheduled wounds")
+	verify_bleed_lifecycle(p)
 	game.queue_free()
 	await process_frame
 	if not failed:print("PASS: Thorn affinity mapping, real casts/weapon/Class/Ward, occupancy, overlap, cadence and limits")
 	quit(int(failed))
+
+
+func verify_bleed_lifecycle(player: Dictionary) -> void:
+	reset(player)
+	var now := Time.get_ticks_msec()
+	var old_cast := event(1,"catalyst","part_1","class_contact",now)
+	old_cast.publish(game,"class_contact","hit","leader",now,{"enemy":-1,"point":game.enemy_pos})
+	var original_life: PlayerLifecycle.Life = player[PlayerLifecycle.STATE]
+	player[PlayerLifecycle.STATE] = original_life.fall()
+	var tick_hp := int(Thorn.QUALITY.ordinary.tick_hp)
+	Thorn.tick(game,Clock.advance(game,.72),now)
+	check(Thorn.active_fields(game,Clock.now(game)).is_empty() and game.enemy_hp==500-tick_hp,
+		"an accepted wound still ticks after the source falls")
+
+	player[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
+	var elapsed := Clock.advance(game,.2)
+	var new_cast := event(1,"catalyst","part_1","class_contact",now)
+	new_cast.publish(game,"class_contact","hit","leader",now,{"enemy":-1,"point":game.enemy_pos})
+	var wound: Dictionary = game.leader_brain.get(Thorn.BLEED,{}).get("1/catalyst",{})
+	check(int(wound.get("next",0))==elapsed+Thorn.TICK_MS
+		and PlayerLifecycle.matches(player,int(wound.get("life",-1))),
+		"a fresh source life starts its own bleed cadence")
+	Thorn.tick(game,Clock.advance(game,.55),now)
+	check(game.enemy_hp==500-tick_hp,"the replacement cannot inherit the previous tick deadline")
+	Thorn.tick(game,Clock.advance(game,.20),now)
+	check(game.enemy_hp==500-2*tick_hp,"the new wound ticks at its own deadline")

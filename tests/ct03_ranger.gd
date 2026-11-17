@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
@@ -93,7 +94,7 @@ func prepare(path: Array, origin := Vector3.ZERO, enemy := Vector3(2,0,0)) -> vo
 	ranger.secondary = 0
 	ranger.catalyst = 0
 	ranger[PlayerVitals.STATE] = PlayerVitals.Health.new(70.0,90)
-	ranger.fallen = false
+	ranger[PlayerLifecycle.STATE] = ranger[PlayerLifecycle.STATE].clear_inactive()
 	ranger[Cooldowns.STATE] = ranger[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	ranger[Cooldowns.STATE] = ranger[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	ranger.strike_at = 0
@@ -102,7 +103,7 @@ func prepare(path: Array, origin := Vector3.ZERO, enemy := Vector3(2,0,0)) -> vo
 	ally.guard_until = 0
 	ally.guard_charges = 0
 	ally[PlayerVitals.STATE] = PlayerVitals.Health.new(20.0,90)
-	ally.fallen = false
+	ally[PlayerLifecycle.STATE] = ally[PlayerLifecycle.STATE].clear_inactive()
 	events.clear()
 
 func cast(slot: int) -> void:
@@ -133,7 +134,7 @@ func tracked_and_offense() -> void:
 	if prey.is_empty():
 		return
 	var now := int(prey.until)-Progression.PREY_MS
-	Mark.place(game,8,-1,{"id":"botanical","life":ally.lost_health,"skill":{
+	Mark.place(game,8,-1,{"id":"botanical","life":PlayerLifecycle.generation(ally),"skill":{
 		"id":"whisper_mark","mark_ms":4000,"mark_damage":1.0,"color":"#ffffff"}},now)
 	check(not Ranger.track(game,game.HOST,ranger,-1,100,now+1) and Mark.active(game,game.enemy_traits,now).cast=="botanical",
 		"another preparation cannot overwrite either independent mark")
@@ -314,7 +315,7 @@ func defense_and_route() -> void:
 	check(not replacement.has(Ranger.SPEEDS),"same character cannot claim one route twice through a new connection")
 	game.players.erase(9)
 	game.players[8] = ally
-	ranger.lost_health += 1
+	ranger[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
 	game.Traits.tick(game,now+50)
 	check(trap(1).is_empty() and Ranger.speed_scale(game,ally,now+50)==1.0 and not placed.has("ranger_route"),
 		"owner life change removes the route and its remaining grants")

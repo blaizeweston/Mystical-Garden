@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Vitals = preload("res://combat_vitals.gd")
@@ -143,7 +144,10 @@ func check_guard_and_brace(game: Node) -> void:
 func check_network_vitals(game: Node) -> void:
 	var player: Dictionary = game.players[1]
 	player[PlayerVitals.STATE] = PlayerVitals.Health.new(20.0, 80)
+	var life_generation := PlayerLifecycle.generation(player)
 	player.lost_health = 20
+	check(PlayerLifecycle.matches(player,life_generation) and not player.has("fallen"),
+		"injury is independent of the authoritative lifecycle generation")
 	var view := View.new()
 	var previous: Dictionary = game.player_snapshot(1, false)[1]
 	view.merge_health(1, previous)
@@ -152,5 +156,6 @@ func check_network_vitals(game: Node) -> void:
 	var healed: Dictionary = game.player_snapshot(1, false)[1]
 	view.merge_health(1, healed)
 	view.merge_health(1, previous)
-	check(previous.hp == 24 and previous.max_hp == 80 and previous.lost_health == 20, "older snapshot cannot undo fine-grained healing or revival loss")
+	check(previous.hp == 24 and previous.max_hp == 80 and previous.lost_health == 20 and previous.has("fallen")
+		and not previous.has(PlayerLifecycle.STATE), "older snapshot cannot undo healing, and guests receive scalar lifecycle projections")
 	check(not view.flash_until.has(1), "healing alone does not look like damage")

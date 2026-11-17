@@ -1,4 +1,5 @@
 extends RefCounted
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Ranger=preload("res://ranger_combat.gd")
 const Reaper=preload("res://reaper_combat.gd")
 const Grafts=preload("res://native_grafts.gd")
@@ -89,7 +90,7 @@ static func queue_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,now
  if not carry and float(stats.get("mark_damage",0))>0: hit.mark_damage=float(stats.mark_damage)
  hit.trait_secondary=true
  if not graft_source.is_empty(): hit.core_hit=true
- game.trait_events.append({"kind":"hit","epoch":game.combat_epoch,"owner":player_id(game,p),"target":target,"token":-1 if target==-1 else int(game.scouts[target].get("spawn_token",0)),"due":now+delay,"stats":hit,"visual":visual if not visual.is_empty() else "link" if carry else "echo","origin":p.pos if origin==Vector3.INF else origin})
+ game.trait_events.append({"kind":"hit","epoch":game.combat_epoch,"owner":player_id(game,p),"life":PlayerLifecycle.generation(p),"target":target,"token":-1 if target==-1 else int(game.scouts[target].get("spawn_token",0)),"due":now+delay,"stats":hit,"visual":visual if not visual.is_empty() else "link" if carry else "echo","origin":p.pos if origin==Vector3.INF else origin})
  if not graft_source.is_empty(): game.trait_events.back().graft_source=graft_source
 static func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: float,duration: int,power: float,now: int,ward: bool=false,class_field: RefCounted=null,graft_source: Dictionary={}) -> Dictionary:
  if game.trait_events.size()>=24: return {}
@@ -97,7 +98,7 @@ static func zone(game: Node,p: Dictionary,kind: String,point: Vector3,radius: fl
  for event in game.trait_events.duplicate():
   if event.kind==kind and int(event.owner)==id and event.has("graft_source")==not graft_source.is_empty():
    end_zone(game,event);game.trait_events.erase(event)
- game.trait_events.append({"kind":kind,"epoch":game.combat_epoch,"owner":id,"position":point,"radius":radius,"until":now+duration,"next":now,"power":power,"ward":ward})
+ game.trait_events.append({"kind":kind,"epoch":game.combat_epoch,"owner":id,"life":PlayerLifecycle.generation(p),"position":point,"radius":radius,"until":now+duration,"next":now,"power":power,"ward":ward})
  if class_field!=null: game.trait_events.back().class_field=class_field
  if not graft_source.is_empty(): game.trait_events.back().graft_source=graft_source
  var color:=Color("#e7a15f") if kind=="cinder" else Color("#88d7de") if kind=="tide" else Color("#d9a4c3") if kind=="decoy" else Color("#97c978")
@@ -143,9 +144,9 @@ static func decoy_point(game: Node,id: int) -> Vector3:
  var cast: Dictionary=game.get_meta("core_combat",{}).get(id,{})
  if not cast.is_empty() and cast.grown and cast.skill.has("decoy_ms") and int(cast.epoch)==game.combat_epoch and Time.get_ticks_msec()<int(cast.sequence_at)+int(cast.skill.decoy_ms):
   var player: Dictionary=game.players.get(id,{})
-  if game.Life.alive(player) and int(player.get("lost_health",0))==int(cast.life): return cast.center
+  if game.Life.alive(player) and PlayerLifecycle.matches(player,int(cast.life)): return cast.center
  for event in game.trait_events:
-  if int(event.owner)!=id or int(event.epoch)!=game.combat_epoch: continue
+  if int(event.get("owner",0))!=id or not event_in_current_life(game,event): continue
   if event.kind=="snare" and Time.get_ticks_msec()<int(event.get("ranger_decoy_until",0)) and Ranger.source_live(game,event):
    return event.position
   if event.kind=="decoy" and Time.get_ticks_msec()<int(event.until): return event.position
@@ -164,7 +165,7 @@ static func place_snare(game: Node,p: Dictionary,point: Vector3,skill: Dictionar
  var radius:=float(skill.get("radius",1.05))
  var decoy: bool = skill.has("ranger_nodes") and skill.slot==0 and skill.subclass_focus=="snarekeeper"
  game.emit_combat_event("field","luring_snare_zone" if decoy else "snare_zone",point,point,duration/1000.,Color(skill.color),radius,0)
- var placed := {"kind":"snare","epoch":game.combat_epoch,"owner":owner,"life":p.get("lost_health",0),
+ var placed := {"kind":"snare","epoch":game.combat_epoch,"owner":owner,"life":PlayerLifecycle.generation(p),
   "position":point,"radius":radius,"until":now+duration,"next":now+250,"skill":skill.duplicate(true),
   "stats":stats.duplicate(true),"seen":{},"visual_id":game.combat_event_serial}
  if decoy:
@@ -212,6 +213,10 @@ static func trip_snare(game: Node,p: Dictionary,event: Dictionary,now: int) -> v
   load("res://subclass_combat.gd").echo(game,p,event.position,targets,Color(skill.color),now)
   if game.encounter_cleared():game.finish_combat(int(event.owner),event.position)
 
+static func event_in_current_life(game: Node,event: Dictionary) -> bool:
+ var owner: Dictionary=game.players.get(int(event.get("owner",0)),{})
+ return int(event.get("epoch",-1))==game.combat_epoch and PlayerLifecycle.matches(owner,int(event.get("life",-1)))
+
 static func tick(game: Node,now: int) -> void:
  for p in game.players.values():
   if not game.Life.alive(p): continue
@@ -219,9 +224,9 @@ static func tick(game: Node,now: int) -> void:
   if p.pos.distance_to(last)>.05: p.still_since=now;p.still_point=p.pos
   elif not p.has("still_since"): p.still_since=now;p.still_point=p.pos
  for event in game.trait_events.duplicate():
-  if int(event.epoch)!=game.combat_epoch or not game.players.has(event.owner) or not game.Life.alive(game.players[event.owner]): end_zone(game,event);game.trait_events.erase(event);continue
+  if not event_in_current_life(game,event) or not game.Life.alive(game.players[event.owner]): end_zone(game,event);game.trait_events.erase(event);continue
   var p: Dictionary=game.players[event.owner]
-  if event.has("graft_source") and int(event.graft_source.life)!=int(p.get("lost_health",0)):
+  if event.has("graft_source") and not PlayerLifecycle.matches(p,int(event.graft_source.life)):
    end_zone(game,event);game.trait_events.erase(event);continue
   if event.kind=="hit":
    if now<int(event.due): continue
@@ -240,8 +245,6 @@ static func tick(game: Node,now: int) -> void:
      if game.encounter_cleared(): game.finish_combat(int(event.owner),point)
    continue
   if now>=int(event.until): end_zone(game,event);game.trait_events.erase(event);continue
-  if event.kind=="snare" and int(event.life)!=int(p.get("lost_health",0)):
-   end_zone(game,event);game.trait_events.erase(event);continue
   if event.has("ranger_route"): Ranger.tick_route(game,event,now)
   if now<int(event.next): continue
   if event.kind=="snare":
@@ -347,19 +350,19 @@ static func spread_targets(game: Node,p: Dictionary,targets: Array[int],skill: D
 static func detonation_targets(game: Node,p: Dictionary,radius: float) -> Array[int]:
  var targets: Array[int]=[];var id:=player_id(game,p)
  for event in game.trait_events.duplicate():
-  if event.kind!="growth" or event.owner!=id or event.epoch!=game.combat_epoch: continue
+  if event.kind!="growth" or event.owner!=id or not event_in_current_life(game,event): continue
   for target in game.skill_area_targets(event.position,radius,event.position):
    if not targets.has(target): targets.append(target)
   end_zone(game,event);game.trait_events.erase(event)
  return targets
 static func has_growth(game: Node,p: Dictionary) -> bool:
  var id:=player_id(game,p)
- return game.trait_events.any(func(e):return e.kind=="growth" and e.owner==id and e.epoch==game.combat_epoch)
+ return game.trait_events.any(func(e):return e.kind=="growth" and e.owner==id and event_in_current_life(game,e))
 static func defer_skill(game: Node,p: Dictionary,targets: Array[int],skill: Dictionary,stats: Dictionary,now: int) -> void:
  for target in targets:
   if game.trait_events.size()>=24: break
   var hit:=stats.duplicate(true);hit.damage=Preview.authored_amount(float(skill.damage))+preload("res://combat_ruleset.gd").legacy_power(p);hit.trait_secondary=true
-  game.trait_events.append({"kind":"hit","owner":player_id(game,p),"epoch":game.combat_epoch,"target":target,"token":-1 if target==-1 else int(game.scouts[target].get("spawn_token",0)),"due":now+int(skill.get("delay",700)),"stats":hit})
+  game.trait_events.append({"kind":"hit","owner":player_id(game,p),"epoch":game.combat_epoch,"life":PlayerLifecycle.generation(p),"target":target,"token":-1 if target==-1 else int(game.scouts[target].get("spawn_token",0)),"due":now+int(skill.get("delay",700)),"stats":hit})
 
 static func end_zone(game: Node,event: Dictionary) -> void:
  if event.has("ranger_route"): Ranger.end_route(game,event)

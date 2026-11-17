@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
@@ -77,7 +79,7 @@ func reset(class_id := 0) -> void:
 			p[key] = 0
 		p.pos = Vector3.ZERO
 		p.wild = true
-		p.fallen = false
+		p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive()
 		p.profile_ready = true
 		p.mouse_aim = false
 		p.facing = Vector3.FORWARD

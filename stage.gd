@@ -1,6 +1,7 @@
 extends Node3D
 
 const WeaponMotion=preload("res://weapon_motion.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const GardenScenery=preload("res://garden_scenery.gd")
 const Frames = preload("res://weapon_frames.gd")
 const Campaign = preload("res://campaign.gd")
@@ -278,7 +279,7 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 		var offset := WILD_OFFSET if p.wild else Vector3.ZERO
 		var actor: Dictionary = avatar_models[id]
 		actor.name_label.text="YOU" if id==local_id else str(p.get("display_name",p.get("character",{}).get("name","Wanderer")))
-		if p.get("fallen",false): actor.name_label.text+=" · FALLEN"
+		if PlayerLifecycle.fallen(p): actor.name_label.text+=" · FALLEN"
 		actor.name_label.modulate=[Color("d8edb3"),Color("a3d5ef"),Color("e5bcf2"),Color("efcf9f")][clampi(int(p.get("party_slot",0)),0,3)]
 		update_avatar(avatars[id], actor, p, offset + p.pos, now, delta)
 		var effect: Dictionary=p.get("skill_fx",{})
@@ -482,7 +483,8 @@ func update_avatar(root: Node3D, actor: Dictionary, player: Dictionary, position
 		var remaining:=int(player.attack_until)-now
 		animation={"active":remaining>0,"phase":clampf(1.0-remaining/float(maxi(1,int(player.get("attack_duration",240)))),0,1),"combo":int(player.get("attack_combo",0)),"duration":int(player.get("attack_duration",240)),"reach":player.get("attack_reach",2.0),"direction":preload("res://mouse_combat.gd").attack_direction(player,now),"clip":player.get("attack_clip",WeaponMotion.profile(WeaponMotion.form(player)).clip),"delivery":player.get("attack_delivery","sweep"),"span":player.get("attack_span",1.9),"form":"weapon"}
 		if int(player.get("cast_until",0))>now:animation=get_parent().attack_animation_snapshot(player)
-	if player.get("fallen",false):animation.active=false
+	var fallen := PlayerLifecycle.fallen(player)
+	if fallen:animation.active=false
 	var rendered_animation:=WeaponMotion.advance(actor,animation,delta)
 	var active: bool=rendered_animation.active
 	var attack_phase: float=rendered_animation.phase
@@ -508,12 +510,12 @@ func update_avatar(root: Node3D, actor: Dictionary, player: Dictionary, position
 	motion.aim_yaw=yaw
 	var dash:=clampf((float(actor.get("speed",0.0))-7.5)/8.0,0,1)
 	model.position.y=0.0
-	model.rotation.z=lerp_angle(model.rotation.z,PI*.48 if player.get("fallen",false) else 0.0,minf(1.0,8.0*delta))
+	model.rotation.z=lerp_angle(model.rotation.z,PI*.48 if fallen else 0.0,minf(1.0,8.0*delta))
 	model.rotation.x=0.0
 	var forward:=Vector3(sin(model.rotation.y),0,cos(model.rotation.y))
 	model.position.x=forward.x*dash*.5;model.position.z=forward.z*dash*.5
 	preload("res://traveller_avatar.gd").animate(actor,active,attack_phase,motion_form,motion,delta)
-	if player.get("fallen",false): model.position.y=.3
+	if fallen: model.position.y=.3
 	var class_id:=clampi(int(player.frame),0,Classes.DEFINITIONS.size()-1)
 	var weapon_id:=clampi(int(player.get("weapon_kind",0)),0,Classes.DEFINITIONS[class_id].weapons.size()-1)
 	var visual_key: String=str(Classes.DEFINITIONS[class_id].id)+":"+str(Classes.DEFINITIONS[class_id].weapons[weapon_id].id)

@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -165,6 +166,7 @@ func host_run() -> void:
  guest[Cooldowns.STATE] = timers
  guest[PlayerVitals.STATE] = guest[PlayerVitals.STATE].with_hp(1.0)
  var health_before: PlayerVitals.Health = guest[PlayerVitals.STATE]
+ var life_before: PlayerLifecycle.Life = guest[PlayerLifecycle.STATE]
  world.use_checkpoint(1,true)
  mark("advance-wallet",str(before_travel))
  mark("advance",str(world.travel_epoch))
@@ -172,7 +174,8 @@ func host_run() -> void:
   check(false,"advancement commits after both consent")
   return
  check(world.run_wallet(guest)==before_travel,"floor travel retains the guest wallet")
- check(is_same(guest[Cooldowns.STATE],timers),"floor travel keeps authoritative cooldown deadlines")
+ check(is_same(guest[Cooldowns.STATE],timers) and is_same(guest[PlayerLifecycle.STATE],life_before),
+  "floor travel preserves cooldown deadlines and the current life generation")
  var recovered: PlayerVitals.Health = guest[PlayerVitals.STATE]
  check(health_before.hp()==1.0 and recovered.hp()>1.0 and recovered.max_hp()==health_before.max_hp(),"floor recovery preserves native capacity")
  mark("advance-hp",str(recovered.hp()))
@@ -261,7 +264,7 @@ func guest_run() -> void:
   return (world.encounter_number==4 and local.get("wallet",-1)==int(read("advance-wallet"))
    and not local.get("skill_ready",true) and not local.get("skill_two_ready",true)
    and not local.get("dodge_ready",true) and seconds[0]>0.0 and seconds[1]>seconds[0]
-   and not local.has(Cooldowns.STATE) and not local.has(PlayerVitals.STATE)
+   and not local.has(Cooldowns.STATE) and not local.has(PlayerVitals.STATE) and not local.has(PlayerLifecycle.STATE)
    and is_equal_approx(float(local.get("hp",0.0)),float(read("advance-hp"))))
  if not await until(advance_received):
   check(false,"guest observes advancement, projected cooldowns, and recovered health without host owner records")

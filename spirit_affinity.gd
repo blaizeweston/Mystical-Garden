@@ -1,5 +1,7 @@
 extends RefCounted
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const Actors = preload("res://frost_combat.gd")
 const Clock = preload("res://affinity_time.gd")
 const Hurt = preload("res://enemy_hurtbox.gd")
@@ -166,7 +168,8 @@ static func trace(game: Node, event: RefCounted, id: int, at: Vector3) -> void:
 		if committed or not engaged or int(body.get("target",0))!=id or elapsed<int(body.get(RESIST,0)):
 			continue
 		if at.distance_to(pos)>TRACE_RADIUS or not game.battlefield.clear_line(pos,at): continue
-		body[TRACE]={"actor":event.actor,"represented":id,"point":at,"until":elapsed+duration,"epoch":game.combat_epoch}
+		body[TRACE]={"actor":event.actor,"source_life":event.life_generation,"represented":id,
+			"represented_life":PlayerLifecycle.generation(game.players[id]),"point":at,"until":elapsed+duration,"epoch":game.combat_epoch}
 		body[RESIST]=elapsed+TRACE_RESIST
 	game.emit_combat_event("ability","spirit_trace",at,at,duration/1000.0,COLOR,.85,event.actor,{"label":"Fading trace"})
 	Journal.event("combat","spirit_trace",{"actor":event.actor,"represented":id,"quality":event.quality,"duration_ms":duration})
@@ -175,7 +178,9 @@ static func trace(game: Node, event: RefCounted, id: int, at: Vector3) -> void:
 static func diversion(game: Node, body: Dictionary, target: int) -> Vector3:
 	var trace_state: Dictionary=body.get(TRACE,{})
 	if trace_state.is_empty(): return Vector3.INF
-	if int(trace_state.until)<=Clock.now(game) or int(trace_state.epoch)!=game.combat_epoch or target!=int(trace_state.represented) or not represents(game,target):
+	if int(trace_state.until)<=Clock.now(game) or int(trace_state.epoch)!=game.combat_epoch or target!=int(trace_state.represented) or not represents(game,target) \
+			or not PlayerLifecycle.matches(game.players.get(target,{}),int(trace_state.represented_life)) \
+			or not PlayerLifecycle.matches(game.players.get(trace_state.actor,{}),int(trace_state.source_life)):
 		body.erase(TRACE)
 		return Vector3.INF
 	return trace_state.point

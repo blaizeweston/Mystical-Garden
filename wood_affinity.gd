@@ -1,5 +1,7 @@
 extends RefCounted
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const Actors = preload("res://frost_combat.gd")
 const Clock = preload("res://affinity_time.gd")
 const Journal = preload("res://diagnostic_journal.gd")
@@ -66,7 +68,7 @@ static func grant(game: Node, event: RefCounted, id: int, response: String) -> i
 		return 0
 	var order:=int(game.get_meta(GRANT_ORDER,0))+1
 	game.set_meta(GRANT_ORDER,order)
-	grants.append({"actor":event.actor,"slot":event.source,"item":event.material_id,"quality":event.quality,
+	grants.append({"actor":event.actor,"source_life":event.life_generation,"slot":event.source,"item":event.material_id,"quality":event.quality,
 		"activation":event.identity,"order":order,"remaining":admitted,"admitted":admitted,"break_hp":q.break_hp,
 		"until":elapsed+(CORE_MS if is_core else CATALYST_MS)+int(q.get("duration_bonus_ms",0))})
 	player[GRANTS]=grants
@@ -94,7 +96,7 @@ static func absorption_plan(player: Dictionary, hp: int, elapsed: int) -> Dictio
 		var take:=mini(amount_left,int(entry.remaining))
 		entry.remaining-=take
 		amount_left-=take
-		var share:={"actor":entry.actor,"slot":entry.slot,"item":entry.item,"quality":entry.quality,
+		var share:={"actor":entry.actor,"source_life":entry.get("source_life",-1),"slot":entry.slot,"item":entry.item,"quality":entry.quality,
 			"activation":entry.activation,"order":entry.order,"hp":take,"burst_hp":entry.break_hp}
 		shares.append(share)
 		if owner.is_empty() or int(owner.hp)<take or (int(owner.hp)==take and int(share.order)<int(owner.order)):
@@ -106,7 +108,7 @@ static func absorption_plan(player: Dictionary, hp: int, elapsed: int) -> Dictio
 	if depleted and elapsed>=int(player.get(BURST_READY,0)):
 		damage=clampi(roundi(float(weighted)/absorbed),0,ceiling)
 	return {"grants":grants.filter(func(entry):return int(entry.remaining)>0),"absorbed":absorbed,"depleted":depleted,
-		"elapsed":elapsed,"center":player.pos,"owner":owner.actor,"damage":damage,"shares":shares}
+		"elapsed":elapsed,"center":player.pos,"owner":owner.actor,"owner_life":owner.source_life,"damage":damage,"shares":shares}
 
 
 static func consume(player: Dictionary, plan: Dictionary) -> void:
@@ -123,7 +125,8 @@ static func after_hit(game: Node, id: int, epoch: int, plan: Dictionary, now: in
 		return
 	Journal.event("combat","affinity_bark_absorbed",{"recipient":id,"absorbed":plan.absorbed,"depleted":plan.depleted,
 		"damage":plan.damage,"shares":plan.shares,"owner":plan.owner})
-	if int(plan.damage)>0 and epoch==game.combat_epoch and game.expedition_active() and not game.get_meta(game.Transactions.PENDING,false):
+	if int(plan.damage)>0 and epoch==game.combat_epoch and game.expedition_active() and not game.get_meta(game.Transactions.PENDING,false) \
+			and PlayerLifecycle.matches(game.players.get(plan.owner,{}),int(plan.owner_life)):
 		burst(game,plan.owner,plan.center,plan.damage,now,"Bark break")
 
 

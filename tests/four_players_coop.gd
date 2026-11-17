@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Core=preload("res://core_combat.gd")
 const Preview=preload("res://combat_balance_preview.gd")
@@ -149,7 +151,7 @@ func publish_vitals(stage: String,id: int) -> bool:
  game.diagnostic_watch.tick(true)
  var actor: Dictionary=game.players[id]
  mark(stage,JSON.stringify({"id":id,"hp":PlayerVitals.current_hp(actor),"max_hp":PlayerVitals.maximum_hp(actor),"lost_health":actor.lost_health,
-  "fallen":actor.fallen,"revision":actor.vitals_revision,"damage_seq":actor.damage_seq}))
+  "fallen":PlayerLifecycle.fallen(actor),"revision":actor.vitals_revision,"damage_seq":actor.damage_seq}))
  var arrived:=await until(func():return all_guests_marked(stage),10)
  check(arrived,"all guests see authoritative "+stage+" at the exact HP revision")
  return arrived
@@ -185,11 +187,11 @@ func guest_vitals(id: int) -> bool:
  if not await publish_vitals("renewed",id):return false
  var last_hp:=int(PlayerVitals.current_hp(actor))
  game.damage_player(id,actor,500)
- check(PlayerVitals.current_hp(actor)==0 and actor.fallen and actor.damage_amount==last_hp,"lethal damage reports the HP actually lost")
+ check(PlayerVitals.current_hp(actor)==0 and PlayerLifecycle.fallen(actor) and actor.damage_amount==last_hp,"lethal damage reports the HP actually lost")
  if not await publish_vitals("fallen",id):return false
  helper.pos=actor.pos
  mark("revive")
- if not await until(func():return not actor.fallen,10):
+ if not await until(func():return not PlayerLifecycle.fallen(actor),10):
   check(false,"guest interact revives another guest")
   return false
  check(PlayerVitals.current_hp(actor)==80 and PlayerVitals.maximum_hp(actor)==80 and actor.lost_health==20,"revival seals 20 maximum HP")

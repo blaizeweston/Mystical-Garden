@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
@@ -96,7 +98,7 @@ func reset_field() -> void:
 			player[key] = 0
 		player.run_upgrades = {}
 		player.wild = true
-		player.fallen = false
+		player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive()
 		player[PlayerVitals.STATE] = PlayerVitals.Health.new(100.0,100)
 		player.pos = Vector3.ZERO if id==1 else Vector3(-6,0,1)
 		player.facing = Vector3.RIGHT

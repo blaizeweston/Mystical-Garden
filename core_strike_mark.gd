@@ -1,5 +1,6 @@
 extends RefCounted
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Journal = preload("res://diagnostic_journal.gd")
 const Preview = preload("res://combat_balance_preview.gd")
 const STATE := &"core_strike_mark"
@@ -32,7 +33,7 @@ static func active(game: Node, state: Dictionary, now: int) -> Dictionary:
 	if mark.is_empty():
 		return {}
 	var owner: Dictionary = game.players.get(mark.owner, {})
-	if now >= int(mark.until) or not game.Life.alive(owner) or int(owner.get("lost_health", 0)) != int(mark.life) or (mark.has("partner") and not partner_is_linked(game, mark)):
+	if now >= int(mark.until) or not game.Life.alive(owner) or not PlayerLifecycle.matches(owner,int(mark.life)) or (mark.has("partner") and not partner_is_linked(game, mark)):
 		state.erase(STATE)
 		return {}
 	return mark

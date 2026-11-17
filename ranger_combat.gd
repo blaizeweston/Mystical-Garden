@@ -1,5 +1,6 @@
 extends RefCounted
 ## Host-owned Ranger effects. Corridor and route belong to an accepted trap.
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 const Progression = preload("res://ranger_connected_tree.gd")
@@ -18,7 +19,7 @@ const ESCAPE_COLOR := Color("#77c9c9")
 
 
 static func stamp(game: Node, actor: int, player: Dictionary, cast: int) -> Dictionary:
-	return {"owner":actor, "life":int(player.get("lost_health",0)), "epoch":game.combat_epoch, "cast":cast}
+	return {"owner":actor, "life":PlayerLifecycle.generation(player), "epoch":game.combat_epoch, "cast":cast}
 
 
 static func living_here(game: Node, player: Dictionary) -> bool:
@@ -29,7 +30,7 @@ static func source_live(game: Node, record: Dictionary) -> bool:
 	if int(record.get("epoch",-1)) != game.combat_epoch:
 		return false
 	var owner: Dictionary = game.players.get(record.owner,{})
-	return living_here(game,owner) and int(owner.get("lost_health",0)) == int(record.life)
+	return living_here(game,owner) and PlayerLifecycle.matches(owner,int(record.life))
 
 
 static func active_prey(game: Node, state: Dictionary, now: int) -> Dictionary:
@@ -143,7 +144,7 @@ static func grant_speed(ally: Dictionary, key: String, source: Dictionary, amoun
 	for name in grants.keys():
 		if now >= int(grants[name].until):
 			grants.erase(name)
-	grants[key] = source.merged({"until":now+Progression.SPEED_MS,"speed":amount,"recipient_life":int(ally.get("lost_health",0))})
+	grants[key] = source.merged({"until":now+Progression.SPEED_MS,"speed":amount,"recipient_life":PlayerLifecycle.generation(ally)})
 	ally[SPEEDS] = grants
 
 
@@ -152,7 +153,7 @@ static func speed_scale(game: Node, ally: Dictionary, now: int) -> float:
 	if not ally.has(SPEEDS) or not living_here(game,ally):
 		return 1.0
 	for grant: Dictionary in ally[SPEEDS].values():
-		if now < int(grant.until) and int(grant.recipient_life) == int(ally.get("lost_health",0)) and source_live(game,grant):
+		if now < int(grant.until) and PlayerLifecycle.matches(ally,int(grant.recipient_life)) and source_live(game,grant):
 			result = maxf(result,float(grant.speed))
 	return 1.0 + result
 

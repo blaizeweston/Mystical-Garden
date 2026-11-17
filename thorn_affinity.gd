@@ -1,5 +1,6 @@
 extends RefCounted
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Actors = preload("res://frost_combat.gd")
 const Clock = preload("res://affinity_time.gd")
 const Footprint = preload("res://core_footprint.gd")
@@ -38,7 +39,7 @@ static func active_fields(game: Node, elapsed: int) -> Array:
 	return game.get_meta(FIELDS,[]).filter(func(field):
 		return int(field.epoch)==game.combat_epoch and int(field.until)>elapsed \
 			and game.Life.alive(game.players.get(field.actor,{})) \
-			and int(game.players[field.actor].get("lost_health",0))==int(field.life))
+			and PlayerLifecycle.matches(game.players[field.actor],int(field.life)))
 
 
 static func suitable(game: Node, center: Vector3) -> bool:
@@ -60,7 +61,7 @@ static func grow(game: Node, event: RefCounted, center: Vector3, shapes: Array, 
 	var q: Dictionary=event.potency()
 	fields.append({"id":"affinity-thorn:%d:%s" % [event.identity,str(center)],"epoch":event.epoch,
 		"actor":event.actor,"key":key,"slot":event.source,"quality":event.quality,"item":event.material_id,
-		"activation":event.identity,"life":player.get("lost_health",0),"center":center,"shapes":shapes,
+		"activation":event.identity,"life":PlayerLifecycle.generation(player),"center":center,"shapes":shapes,
 		"slow":q.slow,"hp":q.tick_hp,"until":elapsed+int(LIFETIME[event.source])})
 	game.set_meta(FIELDS,fields)
 	Journal.event("combat","affinity_thorn_grown",{"actor":event.actor,"activation":event.identity,"slot":event.source,"quality":event.quality})
@@ -85,8 +86,9 @@ static func apply_occupancy(game: Node, target: int, actor: Dictionary, fields: 
 	for key in active:
 		var wound: Dictionary=sources.get(key,{})
 		var field: Dictionary=active[key]
-		var next:=elapsed+TICK_MS if int(wound.get("until",0))<=elapsed else int(wound.next)
-		sources[key]={"actor":field.actor,"activation":field.activation,"item":field.item,"quality":field.quality,
+		var continuing := int(wound.get("life",-1)) == int(field.life) and int(wound.get("until",0)) > elapsed
+		var next := int(wound.next) if continuing else elapsed+TICK_MS
+		sources[key]={"actor":field.actor,"life":field.life,"activation":field.activation,"item":field.item,"quality":field.quality,
 			"hp":field.hp,"next":next,"until":elapsed+BLEED_MS}
 	if not sources.is_empty(): actor[BLEED]=sources
 	return sources
@@ -109,6 +111,10 @@ static func tick(game: Node, elapsed: int, now: int) -> void:
 		var sources:=apply_occupancy(game,target,actor,fields,elapsed)
 		for key in sources.keys():
 			var wound: Dictionary=sources[key]
+			var owner: Dictionary = game.players.get(int(wound.actor),{})
+			if not PlayerLifecycle.matches(owner,int(wound.life)):
+				sources.erase(key)
+				continue
 			while int(wound.next)<=elapsed and int(wound.next)<int(wound.until):
 				wound.next+=TICK_MS
 				Actors.damage(game,wound.actor,target,wound.hp,now,COLOR)

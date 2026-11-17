@@ -1,4 +1,5 @@
 extends RefCounted
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 # Input prediction is disposable presentation state. Only the host changes gameplay.
 const MAX_PENDING:=120
 const REDUNDANCY:=18
@@ -24,7 +25,7 @@ func clear() -> void:
  gap_max_ms=0;gap_count=0;correction_max=0;correction_count=0;host_frame_max_ms=0;host_stalls=0;input_expiries=0;frame_at_usec=0
 
 func world_key(game: Node,p: Dictionary) -> String:
- return str([game.destination,game.encounter_number,game.map_seed,p.get("wild",false),p.get("fallen",false)])
+ return str([game.destination,game.encounter_number,game.map_seed,p.get("wild",false),PlayerLifecycle.fallen(p)])
 
 func accept(id: int,commands: Array,key: String,expected: String,now: int) -> void:
  if key!=expected or commands.size()>REDUNDANCY:return

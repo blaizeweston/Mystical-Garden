@@ -1,4 +1,6 @@
 extends SceneTree
+
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 var failed=false
 func check(ok: bool,message: String):
  if not ok:failed=true;printerr("FAIL monster rewards: ",message)
@@ -15,7 +17,7 @@ func run():
  game.add_player(4)
  game.players[4].wild=true
  game.players[4].profile_ready=true
- game.players[4].fallen=true
+ game.players[4][PlayerLifecycle.STATE] = game.players[4][PlayerLifecycle.STATE].fall()
  var config=game.Director.config();var saved=config.duplicate(true);config.trophy_chance=1.0;config.trophy_cap=1.0
  var scout=game.make_scout(10,Vector3(0,0,5),1);scout.hp=1;game.scouts.assign([scout])
  game.apply_weapon_hit(p,0,p.pos,{"damage":1},1000)

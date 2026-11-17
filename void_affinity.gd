@@ -1,5 +1,7 @@
 extends RefCounted
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const Actors=preload("res://frost_combat.gd")
 const Clock=preload("res://affinity_time.gd")
 const Hurt=preload("res://enemy_hurtbox.gd")
@@ -56,7 +58,7 @@ static func queue_motion(game: Node, event: RefCounted, target: int, center: Vec
 	if mask & game.Enemies.BARK: strength*=.60
 	var pending: Dictionary=game.get_meta(PENDING,{})
 	var intents: Array=pending.get(target,[])
-	intents.append({"token":token,"epoch":event.epoch,"scope":SCOPES[event.source],"actor":event.actor,
+	intents.append({"token":token,"epoch":event.epoch,"scope":SCOPES[event.source],"actor":event.actor,"source_life":event.life_generation,
 		"direction":direction/distance,"strength":strength,"cast":cast})
 	pending[target]=intents
 	game.set_meta(PENDING,pending)
@@ -106,7 +108,9 @@ static func resolve_motion(game: Node, elapsed: int, now: int) -> void:
 	for target in targets:
 		if not Actors.valid_target(game,target) or resisted(game,target,now): continue
 		var token:=Contact.token(game,target)
-		var options: Array=pending[target].filter(func(row):return row.token==token and int(row.epoch)==game.combat_epoch)
+		var options: Array = pending[target].filter(func(row):
+			return row.token==token and int(row.epoch)==game.combat_epoch \
+				and PlayerLifecycle.matches(game.players.get(row.actor,{}),int(row.source_life)))
 		if options.is_empty(): continue
 		options.sort_custom(precedes)
 		var intent: Dictionary=options[0]

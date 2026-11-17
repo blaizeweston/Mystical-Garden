@@ -1,5 +1,6 @@
 extends RefCounted
 ## Native Reaper preparations. Keys stay in the authoritative combat actor.
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 const Balance = preload("res://class_skill_balance.gd")
@@ -15,14 +16,14 @@ const FEAST_COLOR := Color("#be7890")
 
 
 static func stamp(game: Node, actor: int, player: Dictionary, cast: int) -> Dictionary:
-	return {"owner":actor, "epoch":game.combat_epoch, "life":int(player.get("lost_health",0)), "cast":cast}
+	return {"owner":actor, "epoch":game.combat_epoch, "life":PlayerLifecycle.generation(player), "cast":cast}
 
 
 static func ready(game: Node, player: Dictionary, key: String, now: int) -> Dictionary:
 	var record: Dictionary = player.get(key,{})
 	if int(record.get("epoch",-1)) != game.combat_epoch or not game.Life.alive(player):
 		return {}
-	if not is_same(player,game.players.get(record.owner,{})) or int(record.life) != int(player.get("lost_health",0)):
+	if not is_same(player,game.players.get(record.owner,{})) or not PlayerLifecycle.matches(player,int(record.life)):
 		return {}
 	if record.has("until") and now >= int(record.until):
 		return {}

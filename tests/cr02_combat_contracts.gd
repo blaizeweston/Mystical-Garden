@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
@@ -93,6 +95,7 @@ func run() -> void:
 		and recorded[2].source=="native_weapon", "native melee labels the real contact separately from the class action")
 
 	# A scoped recording test, with an ally's refined potency snapshot.
+	game.add_player(20)
 	var potency := {"duration_ms": 600, "nested": {"bonus": 7}}
 	var material := preload("res://plant_affinities.gd").for_part(Parts.HEARTWOOD)
 	var source := Events.begin(game,20,"catalyst",material,potency,["periodic","secondary"],now+1000)
@@ -112,6 +115,14 @@ func run() -> void:
 	var one := Events.begin(game,20,"native_class",{}, {},["actual_block"],now+100,1)
 	check(one.publish(game,"actual_block","ward","recipient1",now)
 		and not one.publish(game,"actual_block","ward","recipient2",now), "charge scope is enforced")
+	var ward := Events.begin(game,20,"native_class",{}, {},["actual_block"],now+1000)
+	var life: Dictionary = game.players[20]
+	life[PlayerLifecycle.STATE] = life[PlayerLifecycle.STATE].fall()
+	check(ward.publish(game,"actual_block","retained","recipient1",now)
+		and not source.publish(game,"periodic","downed","recipient1",now),"a downed source retains accepted defense and cannot publish offense")
+	life[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
+	check(not ward.publish(game,"actual_block","retired","recipient2",now)
+		and not refresh.publish(game,"periodic","retired","recipient2",now),"retired life cannot publish defense or delayed offense")
 	check_native_progression(game, player)
 	check_runtime_focuses(game, player)
 	game.queue_free()

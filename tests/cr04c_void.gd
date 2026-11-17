@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Mode=preload("res://combat_ruleset.gd")
 const Builds=preload("res://affinity_build.gd")
@@ -46,6 +47,14 @@ func run() -> void:
 	Events.contact(game,{Events.CONTEXT:stronger,"knockback":.75},-1,now,false,game.enemy_pos)
 	Void.resolve_motion(game,0,now)
 	check(game.enemy_hp==175 and not game.has_meta(Void.PENDING) and game.enemy_pos.x>1.39,"refined damage survives native knockback conflict")
+	game.add_player(2)
+	var ally: Dictionary=game.players[2]
+	ally.wild=true;ally.profile_ready=true;ally.pos=Vector3(7,0,7)
+	var old_action:=action(game,2,"form",part,["weapon_contact"])
+	Void.queue_motion(game,old_action,-1,Vector3(7,0,0),true,.7)
+	ally[PlayerLifecycle.STATE]=PlayerLifecycle.start_life()
+	Void.resolve_motion(game,0,now)
+	check(is_equal_approx(game.enemy_pos.x,1.4),"queued displacement cannot cross into a new source life")
 	var second:=action(game,2,"form",part,["weapon_contact"])
 	Void.queue_motion(game,second,-1,Vector3(7,0,0),true,.7)
 	Void.queue_motion(game,form,-1,Vector3(-7,0,0),true,.7)
@@ -140,9 +149,7 @@ func run() -> void:
 	thorn.tick(game,Clock.now(game),now)
 	check(not game.leader_brain.has(thorn.SLOW) and game.leader_brain.has(thorn.BLEED),"leaving restores normal movement and keeps scheduled Bleed")
 
-	game.add_player(2)
-	var ally: Dictionary=game.players[2]
-	ally.wild=true;ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(100);ally.pos=Vector3.ZERO
+	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(100);ally.pos=Vector3.ZERO
 	game.enemy_hp=200;game.enemy_pos=Vector3.RIGHT
 	game.leader_brain.erase(Void.ALLOWANCE_STATE)
 	var earlier:=action(game,1,"catalyst",part,["actual_block"])

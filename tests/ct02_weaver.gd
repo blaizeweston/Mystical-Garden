@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
@@ -268,10 +269,11 @@ func offense(base: int) -> void:
 	check(player.get("weaver_capstone",{}).get("kind")=="weaver_burst" and game.trait_events.size()==24,
 		"the existing generic queue limit leaves the one scheduled native burst available")
 	var obsolete: Dictionary=player.weaver_capstone
-	player.lost_health+=1
+	var prior_life: PlayerLifecycle.Life = player[PlayerLifecycle.STATE]
+	player[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
 	Combat.tick(game,obsolete.due)
-	check(not player.has("weaver_capstone"),"falling invalidates scheduled native damage")
-	player.lost_health-=1
+	check(not player.has("weaver_capstone"),"new life invalidates scheduled native damage")
+	player[PlayerLifecycle.STATE] = prior_life
 
 
 func threaded_nova() -> void:
@@ -304,7 +306,7 @@ func threaded_nova() -> void:
 	game.use_class_skill(1,player,0)
 	check(player[Cooldowns.STATE].deadline(Cooldowns.R) == original and game.trait_events.is_empty(),"a refused focus cast cannot refund the Nova timer")
 	arena(BALANCED)
-	player.subclass_follow = {"lane":1,"epoch":game.combat_epoch,"life":player.get("lost_health",0)}
+	player.subclass_follow = {"lane":1,"epoch":game.combat_epoch,"life":PlayerLifecycle.generation(player)}
 	var before := Time.get_ticks_msec()
 	r()
 	var cooldown := Skills.Balance.cooldown(Skills.resolve_in_world(game,1,1,player.character),game.weapon_stats(player))

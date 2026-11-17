@@ -2,6 +2,7 @@ extends Control
 # Compact cosmetic view of authoritative public player state. No input capture.
 const Orb=preload("res://health_orb.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const ROW_SIZE:=Vector2(184,44)
 const SPACING:=5.0
 var rows: Array=[]
@@ -17,7 +18,7 @@ static func members(players: Dictionary,local_id: int) -> Array:
   var appearance=profile.get("appearance",p.get("appearance",[]))
   var name: String=str(profile.get("name",p.get("display_name","Wanderer"))).replace("\n"," ").replace("\r"," ").replace("\t"," ")
   var hp := PlayerVitals.current_hp(p)
-  result.append({"id":int(id),"slot":int(p.get("party_slot",id)),"name":name,"hp":maxf(0,hp),"max_hp":maxi(1,PlayerVitals.maximum_hp(p)),"lost_health":int(p.get("lost_health",0)),"fallen":bool(p.get("fallen",false)) or hp<=0,"appearance":Array(appearance)})
+  result.append({"id":int(id),"slot":int(p.get("party_slot",id)),"name":name,"hp":maxf(0,hp),"max_hp":maxi(1,PlayerVitals.maximum_hp(p)),"lost_health":int(p.get("lost_health",0)),"fallen":PlayerLifecycle.fallen(p) or hp<=0,"appearance":Array(appearance)})
  result.sort_custom(func(a,b):return a.slot<b.slot if a.slot!=b.slot else a.id<b.id)
  return result.slice(0,3)
 func _ready() -> void:

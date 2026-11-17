@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Pressure=preload("res://expedition_pressure.gd")
 var failed:=false
@@ -11,7 +13,7 @@ func _initialize() -> void:
  call_deferred("run")
 func reset_floor(seed_value: int=91273) -> void:
  game.session="Solo";game.difficulty_cycle=1;game.encounter_number=19;game.destination=0;game.depth=1;game.map_seed=seed_value;game.reset_encounter()
- for p in game.players.values():p.wild=true;p.fallen=false;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=game.battlefield.entry
+ for p in game.players.values():p.wild=true;p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=game.battlefield.entry
  game.scouts.clear();game.enemy_hp=10
 func warn(now: int) -> Array:
  game.pressure_at=now;game.update_pressure(now)
@@ -61,7 +63,7 @@ func run() -> void:
   if mode=="early":game.difficulty_cycle=0
   elif mode=="boss":game.boss_kind=24
   elif mode=="garden":p.wild=false
-  elif mode=="fallen":p.fallen=true;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(0)
+  elif mode=="fallen":p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].fall();p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(0)
   else:game.session="Guest"
   game.update_pressure(1000);game.update_pressure(100000)
   check(game.scouts.is_empty() and PlayerVitals.current_hp(p)==(0 if mode=="fallen" else 10),"no pressure damage or arrivals in "+mode)

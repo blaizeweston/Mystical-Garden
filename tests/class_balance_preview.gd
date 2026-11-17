@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -68,14 +70,14 @@ func arena(class_id: int, mask: int = 0) -> void:
 	player.character.upgrades[class_id]=mask
 	player.character.xp[class_id]=2600
 	player.merge({"frame":class_id,"weapon_kind":0,"weapon":0,"secondary":0,"catalyst":0,"graft_part":0,
-		"power":0,"technique":0,"run_upgrades":{},"wild":true,"fallen":false,PlayerVitals.STATE:PlayerVitals.Health.new(20,100),
+		"power":0,"technique":0,"run_upgrades":{},"wild":true,PlayerLifecycle.STATE:PlayerLifecycle.start_life(),PlayerVitals.STATE:PlayerVitals.Health.new(20,100),
 		"pos":Vector3.ZERO,"facing":Vector3.FORWARD,"lost_health":0},true)
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
 	for key in ["core_cast_until","strike_at","hurt_until","guard_until","guard_charges",
 		"counter_until","counter_guard_until","front_guard_until","renewal_until","grave_charges","focus_until"]:
 		player[key]=0
 	ally.pos=Vector3(0,0,-.4)
-	ally.fallen=false
+	ally[PlayerLifecycle.STATE] = ally[PlayerLifecycle.STATE].clear_inactive()
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(25)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_native_max_hp(100)
 	ally.renewal_until=0

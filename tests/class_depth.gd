@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -11,7 +13,7 @@ func arena(game: Node,p: Dictionary,c: int,right: bool=false) -> void:
  p.character=game.Character.blank();p.character.active_class=c;p.character.xp[c]=2600
  for index in ([1,3,5,7,9,11] if right else [0,2,4,6,8,10]):
   check(game.Classes.can_learn_legacy(p.character,c,index,7),"learn valid branch "+str(c)+":"+str(index));p.character.upgrades[c]|=1<<index
- p.frame=c;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.run_upgrades={};p.wild=true;p.fallen=false;p.pos=Vector3(0,0,-1.5);p[PlayerVitals.STATE] = PlayerVitals.Health.new(5, 10);p.power=0;p.technique=0;p.facing=Vector3.FORWARD;p.lost_health=0
+ p.frame=c;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.graft_part=0;p.run_upgrades={};p.wild=true;p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p.pos=Vector3(0,0,-1.5);p[PlayerVitals.STATE] = PlayerVitals.Health.new(5, 10);p.power=0;p.technique=0;p.facing=Vector3.FORWARD;p.lost_health=0
  p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
  for key in ["guard_until","front_guard_until","counter_guard_until","counter_until","hurt_until","brace_block_ready","grave_charges","prepared_mark_until","decoy_ready"]:p[key]=0
  game.battlefield.procedural=false;game.battlefield.barriers=[];game.scouts.clear();game.enemy_hp=100;game.enemy_pos=Vector3.ZERO;game.enemy_mutations=0;game.enemy_winding_up=false;game.enemy_traits.clear();game.trait_events.clear();game.encounter_number=1;game.combat_epoch+=1
@@ -57,7 +59,7 @@ func run() -> void:
  check(game.enemy_hp==hp and game.trait_events.any(func(e):return e.kind=="hit"),"Requiem waits before striking")
  game.Traits.tick(game,Time.get_ticks_msec()+1000)
  check(game.enemy_hp<hp,"Requiem's delayed mark resolves actual damage")
- game.add_player(2);var ally: Dictionary=game.players[2];ally.profile_ready=true;ally.wild=true;ally.fallen=false;ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(4);ally.pos=Vector3(.3,0,-1)
+ game.add_player(2);var ally: Dictionary=game.players[2];ally.profile_ready=true;ally.wild=true;ally[PlayerLifecycle.STATE] = ally[PlayerLifecycle.STATE].clear_inactive();ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(4);ally.pos=Vector3(.3,0,-1)
  arena(game,p,4);game.use_class_skill(1,p,0)
  check(PlayerVitals.current_hp(ally)>4 and ally.guard_until>Time.get_ticks_msec() and game.trait_events.any(func(e):return e.kind=="tide"),"Lifekeeper places protection and healing")
  ally.slow_until=Time.get_ticks_msec()+4000;game.use_class_skill(1,p,1);check(ally.slow_until==0,"Lifekeeper bower cleanses")

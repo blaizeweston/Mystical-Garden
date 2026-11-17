@@ -1,4 +1,6 @@
 extends RefCounted
+
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Tx=preload("res://game_transaction.gd")
 const Catalog=preload("res://garden_interaction_catalog.gd")
 const State=preload("res://garden_interaction_state.gd")
@@ -11,7 +13,7 @@ static func allowed(game: Node,definition: Dictionary) -> bool:
  if State.observed(game.progress.garden_interactions,str(definition.observation)):return true
  return preload("res://garden_relationships.gd").matches(game,definition)
 static func eligible(game: Node,id: int) -> bool:
- return game.multiplayer.is_server() and game.players.has(id) and game.players[id].get("profile_ready",false) and not game.players[id].get("wild",false) and not game.players[id].get("fallen",false)
+ return game.multiplayer.is_server() and game.players.has(id) and game.players[id].get("profile_ready",false) and not game.players[id].get("wild",false) and not PlayerLifecycle.fallen(game.players[id])
 static func nearest(game: Node,player: Dictionary,projection: Dictionary) -> String:
  if player.get("wild",false) or projection.get("version",0)!=State.VERSION:return ""
  var pos: Vector3=player.get("pos",Vector3.INF);var best:=INF;var found: String=""

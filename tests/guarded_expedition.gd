@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -230,19 +231,33 @@ func exercise() -> void:
  var combat_timers: Cooldowns.Timers = departed_timers.with_deadline(Cooldowns.Q, 3100).with_deadline(Cooldowns.R, 3200).with_deadline(Cooldowns.DODGE, 3300)
  actor[Cooldowns.STATE] = combat_timers
  var hp: int=int(PlayerVitals.current_hp(actor))
+ var active_generation := PlayerLifecycle.generation(actor)
  world.damage_player(1,actor,1)
  check(int(PlayerVitals.current_hp(actor))==hp-1 and disk()==committed,"nonlethal damage is runtime-only")
  world.damage_player(1,actor,999)
- check(actor.fallen and PlayerVitals.current_hp(actor)==0 and world.wallet_for(actor)==earned_wallet
+ check(PlayerLifecycle.fallen(actor) and PlayerVitals.current_hp(actor)==0 and world.wallet_for(actor)==earned_wallet
   and world.run_wallet(actor)==earned_balance,"the downed player keeps their run wallet")
  check(is_same(actor[Cooldowns.STATE],combat_timers),"fall preserves existing cooldowns")
+ check(PlayerLifecycle.matches(actor,active_generation),"fall keeps the current generation until successful revival")
+ var fallen_life: PlayerLifecycle.Life = actor[PlayerLifecycle.STATE]
+ var fallen_health: PlayerVitals.Health = actor[PlayerVitals.STATE]
+ var revive_before := disk()
+ world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
+ world.revive_player(2,1)
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ check(PlayerLifecycle.fallen(actor) and is_same(actor[PlayerLifecycle.STATE],fallen_life)
+  and is_same(actor[PlayerVitals.STATE],fallen_health) and int(actor.lost_health)==0 and disk()==revive_before,
+  "guarded revival abort restores the fallen owner, generation, health and injury")
  world.revive_player(2,1)
  var paid: int=int(actor.lost_health)
- check(not actor.fallen and PlayerVitals.current_hp(actor)>0 and paid>0 and world.wallet_for(actor)==earned_wallet
-  and world.run_wallet(actor)==earned_balance,"revival commits one maximum-health cost without changing Essence")
- check(is_same(actor[Cooldowns.STATE],combat_timers),"revival preserves existing cooldowns")
+ var revived_generation := PlayerLifecycle.generation(actor)
+ check(not PlayerLifecycle.fallen(actor) and PlayerVitals.current_hp(actor)>0 and paid==world.Life.Preview.revive_cost()
+  and world.wallet_for(actor)==earned_wallet and world.run_wallet(actor)==earned_balance,
+  "revival commits one maximum-health cost without changing Essence")
+ check(revived_generation!=active_generation and is_same(actor[Cooldowns.STATE],combat_timers),
+  "revival starts a new life and preserves existing cooldowns")
  world.revive_player(2,1)
- check(actor.lost_health==paid,"duplicate revival cannot charge twice")
+ check(actor.lost_health==paid and PlayerLifecycle.matches(actor,revived_generation),"duplicate revival cannot charge or change generation twice")
  ally.wild=false
  world.players.erase(2)
 

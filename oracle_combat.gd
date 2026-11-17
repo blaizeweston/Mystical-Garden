@@ -1,4 +1,5 @@
 extends RefCounted
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 const Progression = preload("res://oracle_connected_tree.gd")
@@ -17,7 +18,7 @@ static func clear(player: Dictionary) -> void:
 
 
 static func stamp(game: Node, player: Dictionary, until: int = 0) -> Dictionary:
-	return {"epoch":game.combat_epoch,"life":player.get("lost_health",0),"until":until}
+	return {"epoch":game.combat_epoch,"life":PlayerLifecycle.generation(player),"until":until}
 
 
 static func prepared_until(game: Node, player: Dictionary, key: String, now: int) -> int:
@@ -28,7 +29,7 @@ static func prepared_until(game: Node, player: Dictionary, key: String, now: int
 	if until==0:
 		until=now+60000
 	if now < until and int(preparation.epoch) == game.combat_epoch \
-			and int(preparation.life) == int(player.get("lost_health",0)) and game.Life.alive(player):
+			and PlayerLifecycle.matches(player,int(preparation.life)) and game.Life.alive(player):
 		return until
 	return 0
 

@@ -1,5 +1,7 @@
 extends RefCounted
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const Actors = preload("res://frost_combat.gd")
 const Clock = preload("res://affinity_time.gd")
 const Footprint = preload("res://core_footprint.gd")
@@ -32,17 +34,18 @@ static func description(slot: String, quality: String) -> String:
 
 
 static func ignite(game: Node, event: RefCounted, target: int, now: int) -> void:
-	if event.epoch != game.combat_epoch or game.get_meta(game.Transactions.PENDING,false) or not Actors.valid_target(game, target):
+	if event.epoch != game.combat_epoch or game.get_meta(game.Transactions.PENDING,false) or not Actors.valid_target(game, target) \
+			or not PlayerLifecycle.matches(game.players.get(event.actor,{}),event.life_generation):
 		return
 	var actor: Dictionary = Actors.body(game, target)
 	var sources: Dictionary = actor.get(BURNING, {})
 	var key := "%d/%s" % [event.actor, event.source]
 	var elapsed := Clock.now(game)
 	var previous: Dictionary = sources.get(key, {})
-	var fresh := int(previous.get("until", 0)) <= elapsed
+	var fresh: bool = int(previous.get("until", 0)) <= elapsed or int(previous.get("source_life",-1)) != event.life_generation
 	var next := elapsed + TICK_MS if fresh else int(previous.next)
 	var hp: int = event.potency().tick_hp
-	sources[key] = {"actor": event.actor, "hp": hp, "next": next,
+	sources[key] = {"actor": event.actor, "source_life": event.life_generation, "hp": hp, "next": next,
 		"until": elapsed + BURN_MS, "quality": event.quality, "activation": event.identity, "item": event.material_id}
 	actor[BURNING] = sources
 	if fresh:
@@ -63,6 +66,9 @@ static func tick(game: Node, elapsed: int, now: int) -> void:
 		var sources: Dictionary = actor[BURNING]
 		for key in sources.keys():
 			var burn: Dictionary = sources[key]
+			if not PlayerLifecycle.matches(game.players.get(burn.actor,{}),int(burn.source_life)):
+				sources.erase(key)
+				continue
 			# The expiry is exclusive. A stalled host processes due ticks once,
 			# and stops if the target dies or the encounter is replaced.
 			while int(burn.next) <= elapsed and int(burn.next) < int(burn.until):

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Core = preload("res://core_combat.gd")
@@ -69,7 +71,7 @@ func arena(species: String) -> void:
 	game.leader_brain.clear()
 	game.battlefield.barriers.clear()
 	player.merge({"pos":Vector3.ZERO,"facing":Vector3.FORWARD,"frame":0,"weapon_kind":0,
-		"wild":true,PlayerVitals.STATE:PlayerVitals.Health.new(25,100),"fallen":false,"weapon":part(species),"secondary":0,"catalyst":0,
+		"wild":true,PlayerVitals.STATE:PlayerVitals.Health.new(25,100),PlayerLifecycle.STATE:PlayerLifecycle.start_life(),"weapon":part(species),"secondary":0,"catalyst":0,
 		"graft_part":0,"power":0,"technique":0,"run_upgrades":{},"core_ready_at":0,"core_cast_until":0,
 		"cast_until":0,"guard_charges":0,"guard_until":0},true)
 
@@ -187,7 +189,7 @@ func wave_and_drain() -> void:
 	player.catalyst=part("dewcap")
 	game.add_player(2)
 	var ally: Dictionary=game.players[2]
-	ally.merge({"profile_ready":true,"wild":true,"fallen":false,PlayerVitals.STATE:PlayerVitals.Health.new(90,100),"pos":Vector3(0,0,-1)},true)
+	ally.merge({"profile_ready":true,"wild":true,PlayerLifecycle.STATE:PlayerLifecycle.start_life(),PlayerVitals.STATE:PlayerVitals.Health.new(90,100),"pos":Vector3(0,0,-1)},true)
 	player.run_upgrades={"core_riptide":1}
 	var live:=cast(2.6)
 	if live.is_empty(): return

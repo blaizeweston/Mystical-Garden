@@ -1,4 +1,5 @@
 extends Node
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 var game: Node
 var models: Dictionary={}
 var key: String=""
@@ -32,7 +33,7 @@ func _process(delta: float) -> void:
    game.stage.marker(Vector3(0,.65,0),"%s ×%d"%[game.Items.get_item(str(entry.item)).name,int(entry.quantity)],node)
    models[entry.id]=node
  for entry in drops:
-  if models.has(entry.id): models[entry.id].visible=not player.get("wild",false) or Vector3(models[entry.id].get_meta("drop_position")).distance_to(game.players.get(game.spectator_view.target_id if player.get("fallen",false) and game.spectator_view.target_id!=0 else game.local_player_id(),player).pos)<=game.exploration.SIGHT
+  if models.has(entry.id): models[entry.id].visible=not player.get("wild",false) or Vector3(models[entry.id].get_meta("drop_position")).distance_to(game.players.get(game.spectator_view.target_id if PlayerLifecycle.fallen(player) and game.spectator_view.target_id!=0 else game.local_player_id(),player).pos)<=game.exploration.SIGHT
 func _exit_tree() -> void:
  for model in models.values():
   if is_instance_valid(model): model.queue_free()

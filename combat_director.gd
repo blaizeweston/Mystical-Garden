@@ -1,4 +1,5 @@
 extends RefCounted
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Balance=preload("res://enemy_balance.gd")
 static func config() -> Dictionary:
@@ -6,7 +7,7 @@ static func config() -> Dictionary:
 static func party_size(game: Node) -> int:
  var count:=0
  for p in game.players.values():
-  if p.get("profile_ready",false) and (p.wild or not game.expedition_active()) and not p.fallen: count+=1
+  if p.get("profile_ready",false) and (p.wild or not game.expedition_active()) and not PlayerLifecycle.fallen(p): count+=1
  return maxi(1,count)
 static func scout_count(game: Node) -> int:
  if game.destination==game.Campaign.HEART: return mini(game.EncounterConfig.MAX_SCOUTS,4+2*(party_size(game)-1))
@@ -45,13 +46,13 @@ static func alert(game: Node,origin: Vector3) -> void:
   if mob.hp>0 and mob.pos.distance_to(origin)<=radius and game.battlefield.clear_line(origin,mob.pos): mob.engaged=true
 static func target(game: Node,origin: Vector3,agent: Dictionary,now: int) -> int:
  var commanded: int=agent.get("command_target",0)
- if now<int(agent.get("command_until",0)) and game.players.has(commanded) and game.players[commanded].wild and not game.players[commanded].fallen and PlayerVitals.current_hp(game.players[commanded])>0:return commanded
+ if now<int(agent.get("command_until",0)) and game.players.has(commanded) and game.players[commanded].wild and not PlayerLifecycle.fallen(game.players[commanded]) and PlayerVitals.current_hp(game.players[commanded])>0:return commanded
  var previous: int=agent.get("target",0)
  if game.players.has(previous) and game.players[previous].wild and PlayerVitals.current_hp(game.players[previous])>0 and now<int(agent.get("target_until",0)): return previous
  var best:=INF;var selected:=0
  for id in game.players:
   var p: Dictionary=game.players[id]
-  if not p.wild or p.fallen or PlayerVitals.current_hp(p)<=0: continue
+  if not p.wild or PlayerLifecycle.fallen(p) or PlayerVitals.current_hp(p)<=0: continue
   var assigned:=0
   for other in game.scouts:
    if not is_same(other,agent) and other.hp>0 and other.engaged and int(other.get("target",0))==id: assigned+=1

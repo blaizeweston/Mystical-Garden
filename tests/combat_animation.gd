@@ -1,6 +1,7 @@
 extends SceneTree
 
 const PlayerVitals = preload("res://player_vitals.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Motion=preload("res://weapon_motion.gd")
 var failed:=false
 func check(ok: bool,message: String):
@@ -41,6 +42,20 @@ func run():
  for pose in poses:
   if not unique.has(pose): unique.append(pose)
  check(unique.size()==15 and projectiles==7,"fifteen distinct weapon poses and seven projectile forms")
+ p.frame=2;p.weapon_kind=0;p.strike_at=0;game.enemy_hp=20;game.projectile_queue.clear()
+ game.strike_enemy(1,p,p.pos)
+ var retired: int = PlayerLifecycle.generation(p)
+ p[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
+ game.update_projectiles(Time.get_ticks_msec()+1000)
+ check(not PlayerLifecycle.matches(p,retired) and int(p.lost_health)==0 and game.enemy_hp==20
+  and game.projectile_queue.is_empty(),"previous-life projectile cannot hit at the same injury and floor")
+ p.strike_at=0
+ game.strike_enemy(1,p,p.pos)
+ p.lost_health=2
+ game.update_projectiles(Time.get_ticks_msec()+1000)
+ check(game.enemy_hp<20,"a current-life projectile still hits after an injury-only change")
+ p.lost_health=0
+ game.projectile_queue.clear()
  # Reused brood slots must not receive a projectile intended for their predecessor.
  p.frame=2;p.weapon_kind=0;p.strike_at=0;game.enemy_hp=0
  var victim: Dictionary=game.make_scout(0,Vector3(0,0,5),1);victim.hp=20;game.scouts.assign([victim])

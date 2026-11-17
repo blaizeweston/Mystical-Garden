@@ -1,11 +1,13 @@
 extends RefCounted
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 static func members(game: Node,kind: String) -> Array:
  var result: Array=[]
  for id in game.players:
   var p: Dictionary=game.players[id]
   if not p.get("profile_ready",false) or p.get("rejecting",false): continue
-  if kind=="depart" or (p.wild and not p.fallen): result.append(id)
+  if kind=="depart" or (p.wild and not PlayerLifecycle.fallen(p)): result.append(id)
  result.sort();return result
 
 static func clear(game: Node) -> void:
@@ -19,7 +21,7 @@ static func cancel(game: Node,message: String="",effects = null) -> void:
 
 static func signature(game: Node,p: Dictionary,kind: String) -> String:
  if kind!="depart":
-  return str([game.destination,game.encounter_number,game.map_seed,p.wild,p.fallen])
+  return str([game.destination,game.encounter_number,game.map_seed,p.wild,PlayerLifecycle.fallen(p)])
  var tree: RefCounted=game.Classes.connected_in_world(game,int(p.frame),p.character)
  var path: Array=[] if tree==null else tree.path(p.character)
  return str([game.destination,game.encounter_number,game.map_seed,p.frame,p.get("weapon_kind",0),p.prepared,p.prepared_secondary,p.prepared_catalyst,p.cargo_plan,p.character.get("upgrades",[]),path])

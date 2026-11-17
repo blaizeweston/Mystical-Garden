@@ -1,5 +1,7 @@
 extends RefCounted
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const Ruleset = preload("res://combat_ruleset.gd")
 
 const RECORD = &"cr02_record_combat_event"
@@ -12,6 +14,7 @@ const CHANNELS := ["weapon_contact", "core_action", "class_action", "class_conta
 var identity: int
 var epoch: int
 var actor: int
+var life_generation: int
 var source: String
 var affinity: String
 var quality: String
@@ -32,7 +35,11 @@ static func begin(game: Node, actor_id: int, origin: String, material: Dictionar
 	for channel in permitted:
 		if channel not in CHANNELS:
 			return null
+	var life := PlayerLifecycle.generation(game.players.get(actor_id,{}))
+	if life < 1:
+		return null
 	var event := new()
+	event.life_generation = life
 	event.identity = int(game.get_meta(&"cr02_activation_serial", 0)) + 1
 	game.set_meta(&"cr02_activation_serial", event.identity)
 	event.epoch = game.combat_epoch
@@ -51,6 +58,12 @@ static func begin(game: Node, actor_id: int, origin: String, material: Dictionar
 
 func publish(game: Node, channel: String, contact_id: String, target: String, now: int, details: Dictionary = {}) -> bool:
 	if not Ruleset.active(game) or not game.multiplayer.is_server() or game.combat_epoch != epoch:
+		return false
+	var owner: Dictionary = game.players.get(actor,{})
+	if not PlayerLifecycle.matches(owner,life_generation):
+		return false
+	# Accepted defensive grants can still respond while their source is downed.
+	if PlayerLifecycle.fallen(owner) and channel not in ["actual_block","incoming_hit"]:
 		return false
 	if now >= expires_at or charges == 0 or not channel in _permitted:
 		return false

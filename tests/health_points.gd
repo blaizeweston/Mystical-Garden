@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Hud = preload("res://root_ui.gd")
 var failed := false
@@ -43,7 +45,7 @@ func run():
 	check(snapshot.hp == 9 and snapshot.max_hp == 10, "multiplayer snapshot preserves health totals")
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(1)
 	game.damage_player(1,p,1)
-	check(not p.wild and not p.fallen and PlayerVitals.current_hp(p) == 10, "solo wipe returns to Garden with full health and a cleared fallen state")
+	check(not p.wild and not PlayerLifecycle.fallen(p) and PlayerVitals.current_hp(p) == 10, "solo wipe returns to Garden with full health and a cleared fallen state")
 	await process_frame
 	if not failed: print("PASS: ten-point health, half-heart damage, pulse, stronger hits and recovery")
 	quit(1 if failed else 0)

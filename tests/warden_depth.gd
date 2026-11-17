@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -13,7 +15,7 @@ func build(game: Node,p: Dictionary,choices: Array) -> void:
  p.character=game.Character.blank();p.character.xp[0]=2600
  for index in choices:
   check(game.Classes.can_learn_legacy(p.character,0,index,7),"learned choice "+str(index));p.character.upgrades[0]|=1<<index
- p.frame=0;p.weapon_kind=0;p.weapon=game.Seeds.DEFINITIONS[15].part;p.secondary=0;p.catalyst=0;p.graft_part=game.Parts.HOOK;p.run_upgrades={};p.wild=true;p.fallen=false;p.pos=Vector3(0,0,-1);p[PlayerVitals.STATE] = PlayerVitals.Health.new(10, 10);p.power=0;p.technique=0;p.facing=Vector3.FORWARD
+ p.frame=0;p.weapon_kind=0;p.weapon=game.Seeds.DEFINITIONS[15].part;p.secondary=0;p.catalyst=0;p.graft_part=game.Parts.HOOK;p.run_upgrades={};p.wild=true;p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p.pos=Vector3(0,0,-1);p[PlayerVitals.STATE] = PlayerVitals.Health.new(10, 10);p.power=0;p.technique=0;p.facing=Vector3.FORWARD
  p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
  for key in ["guard_until","front_guard_until","counter_guard_until","counter_until","hurt_until","brace_block_ready"]:p[key]=0
  game.battlefield.procedural=false;game.battlefield.barriers=[];game.scouts.clear();game.enemy_hp=100;game.enemy_pos=Vector3(0,0,-2);game.enemy_traits.clear();game.trait_events.clear();game.encounter_number=1
@@ -32,8 +34,8 @@ func run() -> void:
  var origin: Vector3=p.pos;game.move_player(1,Vector2.RIGHT,1.0)
  check(p.pos.distance_to(origin)<game.WALK_SPEED*.5,"root shield sacrifices mobility")
  p.pos=Vector3(0,0,-1);game.use_class_skill(1,p,1);check(game.trait_events.any(func(e):return e.kind=="tide" and e.ward),"Bastion R creates a warding field")
- ally.fallen=true;ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(0);game.Traits.tick(game,Time.get_ticks_msec()+1000);check(PlayerVitals.current_hp(ally)==0,"sanctuary does not revive fallen players")
- ally.fallen=false;ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(10)
+ ally[PlayerLifecycle.STATE] = ally[PlayerLifecycle.STATE].fall();ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(0);game.Traits.tick(game,Time.get_ticks_msec()+1000);check(PlayerVitals.current_hp(ally)==0,"sanctuary does not revive fallen players")
+ ally[PlayerLifecycle.STATE] = ally[PlayerLifecycle.STATE].clear_inactive();ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(10)
  build(game,p,[1,3,5,7,9,11]);game.use_class_skill(1,p)
  game.apply_enemy_hit(1,p,Time.get_ticks_msec(),1,0,p.pos+Vector3.FORWARD)
  check(p.counter_until>0,"Vanguard successful guard primes counter")

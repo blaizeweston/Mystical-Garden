@@ -117,7 +117,7 @@ static func growth_centers(game: Node, id: int) -> Array:
 	var result := []
 	var now := Time.get_ticks_msec()
 	for field in game.trait_events:
-		if field.kind == "growth" and field.owner == id and field.epoch == game.combat_epoch and now < int(field.until):
+		if field.kind == "growth" and field.owner == id and game.Traits.event_in_current_life(game,field) and now < int(field.until):
 			result.append(field.position)
 	return result
 

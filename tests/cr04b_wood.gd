@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
@@ -55,7 +57,7 @@ func reset() -> void:
 		Wood.clear(p)
 		Vital.clear(game,p)
 		p.wild=true
-		p.fallen=false
+		p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive()
 		p.lost_health=0
 		p.pos=Vector3.ZERO
 		p[PlayerVitals.STATE] = PlayerVitals.Health.new(250.0,250)

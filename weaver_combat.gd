@@ -1,5 +1,6 @@
 extends RefCounted
 ## Host-side connected Weaver effects. Extra areas and delayed effects are native spell damage.
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 const Progression = preload("res://weaver_connected_tree.gd")
 const Journal = preload("res://diagnostic_journal.gd")
@@ -7,11 +8,11 @@ const COLOR := Color("#c9a8db")
 
 
 static func current(game: Node, player: Dictionary, state: Dictionary) -> bool:
-	return int(state.get("epoch",-1)) == game.combat_epoch and int(state.get("life",-1)) == int(player.get("lost_health",0)) and game.Life.alive(player)
+	return int(state.get("epoch",-1)) == game.combat_epoch and PlayerLifecycle.matches(player,int(state.get("life",-1))) and game.Life.alive(player)
 
 
 static func lifetime(game: Node, player: Dictionary) -> Dictionary:
-	return {"epoch":game.combat_epoch,"life":int(player.get("lost_health",0))}
+	return {"epoch":game.combat_epoch,"life":PlayerLifecycle.generation(player)}
 
 
 static func on_q(game: Node, actor: int, player: Dictionary, selected: Array, point: Vector3, allies: Array,

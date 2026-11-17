@@ -1,5 +1,6 @@
 extends RefCounted
 ## Native Oracle grants. Each named effect has one opportunity per recipient.
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Progression = preload("res://oracle_connected_tree.gd")
 const Journal = preload("res://diagnostic_journal.gd")
 const STATE := "oracle_omens"
@@ -11,7 +12,9 @@ const BRIAR_ATTACK := "oracle_briar_attack"
 
 
 static func token(body: Dictionary) -> int:
-	return int(body.get("spawn_token",body.get("lost_health",0)))
+	if body.has("spawn_token"):
+		return int(body.spawn_token)
+	return PlayerLifecycle.generation(body) if body.has(PlayerLifecycle.STATE) else 0
 
 
 static func grant(game: Node, source: int, focus: String, cast: int, target: int,
@@ -24,7 +27,7 @@ static func grant(game: Node, source: int, focus: String, cast: int, target: int
 	var state: Dictionary = body.get(STATE,{})
 	var sources: Dictionary = state.get(omen,{})
 	var record := {"effect":omen,"type":definition.type,"trigger":definition.trigger,
-		"source":source,"class_id":Progression.CLASS_ID,"focus":focus,"cast":cast,
+		"source":source,"source_life":PlayerLifecycle.generation(oracle),"class_id":Progression.CLASS_ID,"focus":focus,"cast":cast,
 		"epoch":game.combat_epoch,"target":target,"target_token":token(body),
 		"magnitude":definition.value,"until":now+duration}
 	if int(sources.get(source,{}).get("cast",-1)) == cast:
@@ -36,7 +39,9 @@ static func grant(game: Node, source: int, focus: String, cast: int, target: int
 
 
 static func valid(game: Node, body: Dictionary, record: Dictionary, now: int) -> bool:
-	return int(record.epoch) == game.combat_epoch and int(record.target_token) == token(body) and now < int(record.until)
+	var source: Dictionary = game.players.get(int(record.source), {})
+	return int(record.epoch) == game.combat_epoch and PlayerLifecycle.matches(source,int(record.source_life)) \
+		and int(record.target_token) == token(body) and now < int(record.until)
 
 
 static func strongest(game: Node, body: Dictionary, omen: String, now: int, source := 0) -> Dictionary:

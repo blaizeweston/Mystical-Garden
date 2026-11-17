@@ -45,7 +45,7 @@ static func block(game: Node, player: Dictionary, id: int, now: int) -> RefCount
 	# Claims without an enhancement take their ordinary priority and consume
 	# just their own response budget. Protection has already been consumed.
 	if not chosen.is_empty() and chosen.event != null:
-		chosen.event.publish(game, "actual_block", "ward", chosen.event.block_scope(id, chosen.adapter), now,
-			{"adapter": chosen.adapter.id, "recipient": id, "center": player.pos})
-		return chosen.event
+		if chosen.event.publish(game, "actual_block", "ward", chosen.event.block_scope(id, chosen.adapter), now,
+				{"adapter": chosen.adapter.id, "recipient": id, "center": player.pos}):
+			return chosen.event
 	return null

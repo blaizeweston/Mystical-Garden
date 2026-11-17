@@ -1,5 +1,6 @@
 extends RefCounted
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Journal = preload("res://diagnostic_journal.gd")
 const Catalog = preload("res://enemy_catalog.gd")
 const CORE_STATE := &"core_combat"
@@ -56,7 +57,7 @@ static func active_lines(game: Node, now: int) -> Array[Dictionary]:
 		var line: Dictionary = lines[owner]
 		var player: Dictionary = game.players.get(owner, {})
 		if line.skill.mechanic == "line_trap" and line.grown and int(line.epoch) == game.combat_epoch and now < int(line.expires) \
-				and game.Life.alive(player) and int(player.get("lost_health", 0)) == int(line.life):
+				and game.Life.alive(player) and PlayerLifecycle.matches(player,int(line.life)):
 			result.append(line)
 	return result
 

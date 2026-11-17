@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -77,7 +79,7 @@ func arena(indices: Array[int], card: String) -> void:
 	player.character=select_nodes(indices,2600)
 	player.frame=0
 	player.wild=true
-	player.fallen=false
+	player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive()
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(10)
 	player.pos=Vector3.ZERO
@@ -155,7 +157,7 @@ func support() -> void:
 	arena([14,17,20,23],"")
 	var ally: Dictionary=game.players[2]
 	ally.wild=true
-	ally.fallen=false
+	ally[PlayerLifecycle.STATE] = ally[PlayerLifecycle.STATE].clear_inactive()
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(6)
 	ally.pos=Vector3(1.2,0,-3.0)
 	ally.guard_until=0

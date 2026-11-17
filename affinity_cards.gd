@@ -1,5 +1,6 @@
 extends RefCounted
 ## Card views and combat effects. Entries are authored in the affinity catalog.
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Catalog = preload("res://affinity_card_catalog.gd")
 const CardState = preload("res://affinity_card_ledger.gd")
 const Ledger = CardState.Ledger
@@ -233,7 +234,7 @@ static func bloom_echo_source(game: Node, player: Dictionary, skill: Dictionary,
 	for field: Dictionary in game.trait_events:
 		if field.get("native_weaver_bloom", false) and int(field.owner) == owner \
 				and int(field.epoch) == int(game.combat_epoch) and int(field.until) > now \
-				and int(field.get("bloom_life", -1)) == int(player.get("lost_health", 0)):
+				and PlayerLifecycle.matches(player,int(field.get("life",-1))):
 			return field
 	return {}
 

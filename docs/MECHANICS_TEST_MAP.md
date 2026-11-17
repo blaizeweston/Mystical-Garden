@@ -8,6 +8,7 @@ Edges describe gameplay/data relationships. Selection uses explicit suite covera
 flowchart LR
   expedition_grafts["Expedition graft ledgers<br/> altar quotes and source-owned adaptations"]
   departure_settlement["Detached profiles<br/> protected cargo and guarded disconnect settlement"]
+  player_lifecycle["Host-owned player life generations and fallen phase"]
   player_vitals["Host-owned current HP<br/> native capacity and temporary Vital capacity"]
   player_cooldowns["Host-owned native Q<br/> R and dodge cooldown deadlines"]
   expedition_wallet["Run-only Essence sparks<br/> floor grants and spending"]
@@ -101,6 +102,9 @@ flowchart LR
   enemy_balance["Preview enemy durability<br/> damage and reinforcement budgets"]
   expedition_sustain["Expedition sustain<br/> heal feedback and health transitions"]
   spectator_layout["Spectator panel placement below the floor tracker"]
+  life -->|"Falling, revival and expedition transitions replace host lifecycle state"| player_lifecycle
+  player_lifecycle -->|"Delayed combat checks the captured player generation"| combat
+  player_lifecycle -->|"Guest packets retain the fallen projection and existing movement epoch"| world_snapshot
   combat_vitals -->|"Health uses existing HP rules and resolved native capacity"| player_vitals
   life -->|"Falling and revival operate on the same host health value"| player_vitals
   player_vitals -->|"Fast and reliable channels project the existing health fields"| world_snapshot
@@ -325,6 +329,7 @@ flowchart LR
 |---|---|---|
 | expedition_grafts | `expedition_grafts.gd`, `expedition_grafts.gd.uid`, `affinity_grafting_panel.gd`, `affinity_grafting_panel.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `ct02_weaver`, `ct04_reaper`, `cr05_native_grafts`, `cr05_native_grafts_coop`, `cr05_native_grafts_party` |
 | departure_settlement | `departure_settlement.gd`, `departure_settlement.gd.uid` | `experimental_terrain_coop`, `candidate_release_party`, `guarded_expedition`, `guarded_expedition_coop`, `monster_rewards` |
+| player_lifecycle | `player_lifecycle.gd`, `player_lifecycle.gd.uid` | `ct05_oracle`, `cr05_native_grafts`, `world_snapshot_codec`, `cr02_combat_contracts`, `guarded_expedition`, `guarded_expedition_coop`, `loot_revival`, `loot_revival_coop`, `network_movement_coop` |
 | player_vitals | `player_vitals.gd`, `player_vitals.gd.uid` | `ec01_affinity_cards`, `world_snapshot_codec`, `cr04a_vital`, `guarded_expedition`, `guarded_expedition_coop`, `loot_revival`, `loot_revival_coop`, `party_hud_gates_coop`, `player_hud`, `combat_vitals_baseline`, `expedition_sustain` |
 | player_cooldowns | `player_cooldowns.gd`, `player_cooldowns.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `ct05_oracle`, `ct01_warden`, `ct02_weaver`, `ct03_ranger`, `ct04_reaper`, `world_snapshot_codec`, `cr02_combat_contracts`, `experimental_terrain`, `guarded_expedition`, `guarded_expedition_coop`, `ability_aim`, `classes_weapons`, `dual_skills`, `dual_skills_coop`, `network_warden_coop`, `player_hud` |
 | expedition_wallet | `expedition_wallet.gd`, `expedition_wallet.gd.uid` | `ec01_affinity_cards_party`, `ec01_affinity_cards`, `cr05_native_grafts`, `world_snapshot_codec`, `cr02_mode_coop`, `experimental_terrain`, `guarded_expedition`, `guarded_expedition_coop`, `guarded_garden_actions`, `core_combat_coop`, `monster_rewards`, `run_flow`, `weighted_upgrades` |
@@ -739,6 +744,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 
 | Location | Region | Systems |
 |---|---|---|
+| `game.gd::_queue_monster_reward` | ar08_lifecycle_1 | player_lifecycle |
 | `game.gd::_purchase_expedition_graft` | ar07_vitals_1 | player_vitals |
 | `game.gd::damage_player` | ar07_vitals_1 | player_vitals |
 | `game.gd::show_graft_menu` | ga01a_1 | expedition_grafts |
@@ -767,6 +773,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::move_player` | cr04c_spirit_1 | spirit_affinity, combat_affinity_contracts, world_snapshot |
 | `game.gd::send_expedition_state` | experimental_coop_1 | hex_terrain, terrain, connection_flow, garden |
 | `game.gd::collect_drop` | experimental_seed_rewards_1 | hex_terrain, loot, terrain |
+| `game.gd::_garden_action` | ar08_lifecycle_1 | player_lifecycle |
 | `game.gd::_garden_action` | ga01a_1 | expedition_grafts |
 | `game.gd::_garden_action` | ec01_1 | affinity_cards |
 | `game.gd::_garden_action` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
@@ -803,6 +810,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_act` | crop_care_adapter | garden_care |
 | `game.gd::_act` | gate_range | gate_access |
 | `game.gd::_act` | garden_inspect | garden_observations |
+| `game.gd::_use_checkpoint` | ar08_lifecycle_1 | player_lifecycle |
+| `game.gd::_use_checkpoint` | ar08_lifecycle_2 | player_lifecycle |
 | `game.gd::_use_checkpoint` | ar04_departure_extraction | departure_settlement |
 | `game.gd::_use_checkpoint` | guarded_expedition | persistence_operations, expeditions, expedition_sustain, healing_rolls, combat_balance_preview, combat_vitals, garden_returns, gate_access |
 | `game.gd::_use_checkpoint` | cb07_0 | expedition_sustain |
@@ -816,6 +825,9 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_use_checkpoint` | garden_returns | garden_returns |
 | `game.gd::_use_checkpoint` | gate_hold | gate_access |
 | `game.gd::_use_checkpoint` | gate_range | gate_access |
+| `game.gd::_process` | ar08_lifecycle_1 | player_lifecycle |
+| `game.gd::_process` | ar08_lifecycle_2 | player_lifecycle |
+| `game.gd::_process` | ar08_lifecycle_3 | player_lifecycle |
 | `game.gd::_process` | ar07_vitals_1 | player_vitals |
 | `game.gd::_process` | ar07_vitals_2 | player_vitals |
 | `game.gd::_process` | ar07_vitals_3 | player_vitals |
@@ -878,6 +890,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_process` | floor_track | expedition_ui |
 | `game.gd::_process` | garden_stories_label | garden_stations |
 | `game.gd::can_checkpoint_bank` | gate_range | gate_access |
+| `game.gd::at_weapon_gate` | ar08_lifecycle_1 | player_lifecycle |
 | `game.gd::at_weapon_gate` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
 | `game.gd::at_weapon_gate` | gate_range | gate_access |
 | `game.gd::resume_checkpoint_if_ready` | guarded_expedition | persistence_operations, expeditions, gate_access |
@@ -898,6 +911,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::toggle_overlay` | show_run_summary | expedition_summary |
 | `game.gd::toggle_overlay` | cancel_held_aim | ability_aim |
 | `game.gd::toggle_overlay` | garden_panel | garden_observations |
+| `game.gd::player_snapshot` | ar08_lifecycle_1 | player_lifecycle |
 | `game.gd::player_snapshot` | ar07_vitals_1 | player_vitals |
 | `game.gd::player_snapshot` | ar06_cooldown_1 | player_cooldowns |
 | `game.gd::player_snapshot` | ar06_cooldown_2 | player_cooldowns |
@@ -915,6 +929,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::player_snapshot` | class_aim_owner | ability_aim |
 | `game.gd::player_snapshot` | core_owner_projection | core_combat |
 | `game.gd::player_snapshot` | garden_projection | garden_observations |
+| `game.gd::reset_expedition` | ar08_lifecycle_1 | player_lifecycle |
 | `game.gd::reset_expedition` | ar03_wallet_reset | expedition_wallet |
 | `game.gd::_affinity_checkpoint_command` | ar07_vitals_1 | player_vitals |
 | `game.gd::_affinity_checkpoint_command` | ar03_wallet_reroll_debit | expedition_wallet, affinity_cards |
@@ -925,6 +940,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::prepare_guarded_exit` | ar05_reward_lifecycle | loot |
 | `game.gd::prepare_guarded_exit` | ar04_departure_exit | departure_settlement |
 | `game.gd::admission_error` | ar04_departure_readmission | departure_settlement |
+| `game.gd::add_player` | ar08_lifecycle_1 | player_lifecycle |
 | `game.gd::add_player` | ar07_vitals_1 | player_vitals |
 | `game.gd::add_player` | ar06_cooldown_1 | player_cooldowns |
 | `game.gd::add_player` | ar06_cooldown_2 | player_cooldowns |
@@ -984,6 +1000,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::garden_action` | class_aim_command | ability_aim |
 | `game.gd::garden_action` | core_cast | core_combat |
 | `game.gd::garden_action` | growth_balance | cultivation_growth |
+| `game.gd::_enter_wilds` | ar08_lifecycle_1 | player_lifecycle |
+| `game.gd::_enter_wilds` | ar08_lifecycle_2 | player_lifecycle |
 | `game.gd::_enter_wilds` | ar07_vitals_1 | player_vitals |
 | `game.gd::_enter_wilds` | ar06_cooldown_1 | player_cooldowns |
 | `game.gd::_enter_wilds` | ar03_wallet_departure | expedition_wallet |
@@ -1014,6 +1032,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::remove_player` | guarded_expedition | persistence_operations, foundation, garden_returns |
 | `game.gd::remove_player` | guarded_gameplay_writer | persistence_operations |
 | `game.gd::remove_player` | garden_returns | garden_returns |
+| `game.gd::abandon_run` | ar08_lifecycle_1 | player_lifecycle |
+| `game.gd::abandon_run` | ar08_lifecycle_2 | player_lifecycle |
 | `game.gd::abandon_run` | experimental_reward_checkpoint | hex_terrain, terrain, persistence_operations |
 | `game.gd::abandon_run` | guarded_expedition | persistence_operations, expeditions, ui_copy, garden_returns |
 | `game.gd::abandon_run` | ui_copy | ui_copy |
@@ -1036,6 +1056,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::attack_hints_snapshot` | heavy_and_support | enemy_attack_plan |
 | `game.gd::attack_hints_snapshot` | enemy_attack_plan | enemy_attack_plan |
 | `game.gd::attack_hints_snapshot` | reinforcement_hints | expedition_pressure |
+| `game.gd::at_garden_station` | ar08_lifecycle_1 | player_lifecycle |
 | `game.gd::at_garden_station` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
 | `game.gd::at_garden_station` | station_access | garden_stations |
 | `game.gd::reclaim_seed` | guarded_garden_actions | persistence_operations, seeds, garden_stations |
@@ -1345,6 +1366,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::host_game` | guarded_lifecycle | persistence_operations, connection_flow, foundation, developer_garden |
 | `game.gd::host_game` | cleanup_feedback | persistence_operations |
 | `game.gd::host_game` | block_developer_host | developer_garden |
+| `game.gd::update_projectiles` | ar08_lifecycle_1 | player_lifecycle |
 | `game.gd::update_projectiles` | ct03_ranger_1 | combat, weapons, classes, enemies, ranger_progression |
 | `game.gd::update_projectiles` | ct03_ranger_2 | combat, weapons, classes, enemies, ranger_progression |
 | `game.gd::update_projectiles` | ct03_ranger_3 | combat, weapons, classes, enemies, ranger_progression |
@@ -1419,6 +1441,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::checkpoint_offer_ids` | cr02_affinity_contract | combat_affinity_contracts |
 | `game.gd::buy_upgrade` | ec01_1 | affinity_cards |
 | `game.gd::buy_upgrade` | cr02_affinity_contract | combat_affinity_contracts |
+| `game.gd::return_to_garden` | ar08_lifecycle_1 | player_lifecycle |
 | `game.gd::return_to_garden` | ar07_vitals_1 | player_vitals |
 | `game.gd::return_to_garden` | ar07_vitals_2 | player_vitals |
 | `game.gd::return_to_garden` | ar05_reward_lifecycle | loot |
@@ -1434,29 +1457,77 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::return_to_garden` | thorn_form_reset | thorn_affinity, combat_affinity_contracts |
 | `game.gd::return_to_garden` | affinity_floor_state | vital_affinity, fire_affinity, combat_affinity_contracts |
 | `game.gd::return_to_garden` | cr03_frost_integration | frost_affinity |
+| `affinity_cards.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `affinity_cards.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `class_tree_access.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `class_tree_access.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `fire_combat.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `fire_combat.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `fire_combat.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `fire_combat.gd` | ar08_lifecycle_4 | player_lifecycle |
+| `fire_combat.gd` | ar08_lifecycle_5 | player_lifecycle |
+| `inventory_drop_visuals.gd` | ar08_lifecycle_1 | player_lifecycle, items |
+| `inventory_drop_visuals.gd` | ar08_lifecycle_2 | player_lifecycle, items |
+| `native_grafts.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `native_grafts.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `native_grafts.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `oracle_omens.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `oracle_omens.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `oracle_omens.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `oracle_omens.gd` | ar08_lifecycle_4 | player_lifecycle |
+| `thorn_adaptation.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `thorn_adaptation.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `thorn_affinity.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `thorn_affinity.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `thorn_affinity.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `thorn_affinity.gd` | ar08_lifecycle_4 | player_lifecycle |
+| `thorn_affinity.gd` | ar08_lifecycle_5 | player_lifecycle |
+| `void_affinity.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `void_affinity.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `void_affinity.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `ward_responses.gd` | ar08_lifecycle_1 | player_lifecycle |
 | `combat_vitals.gd` | ar07_vitals_1 | player_vitals |
 | `expedition_sustain.gd` | ar07_vitals_1 | player_vitals |
 | `expedition_sustain.gd` | ar07_vitals_2 | player_vitals |
+| `diagnostic_journal.gd` | ar08_lifecycle_1 | player_lifecycle, diagnostics |
+| `diagnostic_journal.gd` | ar08_lifecycle_2 | player_lifecycle, diagnostics |
+| `diagnostic_journal.gd` | ar08_lifecycle_3 | player_lifecycle, diagnostics |
 | `diagnostic_journal.gd` | ar07_vitals_1 | player_vitals, diagnostics |
 | `diagnostic_journal.gd` | ar07_vitals_2 | player_vitals, diagnostics |
 | `diagnostic_journal.gd` | ar07_vitals_3 | player_vitals, diagnostics |
 | `diagnostic_journal.gd` | ar06_cooldown_1 | player_cooldowns, diagnostics |
 | `diagnostic_journal.gd` | ar06_cooldown_2 | player_cooldowns, diagnostics |
 | `diagnostic_journal.gd` | ar06_cooldown_3 | player_cooldowns, diagnostics |
+| `oracle_combat.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `oracle_combat.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `oracle_combat.gd` | ar08_lifecycle_3 | player_lifecycle |
 | `oracle_combat.gd` | ar07_vitals_1 | player_vitals |
 | `oracle_combat.gd` | ar07_vitals_2 | player_vitals |
 | `oracle_combat.gd` | ar06_cooldown_1 | player_cooldowns |
 | `oracle_combat.gd` | ar06_cooldown_2 | player_cooldowns |
+| `ranger_combat.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `ranger_combat.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `ranger_combat.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `ranger_combat.gd` | ar08_lifecycle_4 | player_lifecycle |
+| `ranger_combat.gd` | ar08_lifecycle_5 | player_lifecycle |
 | `ranger_combat.gd` | ar07_vitals_1 | player_vitals |
 | `ranger_combat.gd` | ar07_vitals_2 | player_vitals |
 | `ranger_combat.gd` | ar06_cooldown_1 | player_cooldowns |
 | `ranger_combat.gd` | ar06_cooldown_2 | player_cooldowns |
+| `reaper_combat.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `reaper_combat.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `reaper_combat.gd` | ar08_lifecycle_3 | player_lifecycle |
 | `reaper_combat.gd` | ar07_vitals_1 | player_vitals |
 | `reaper_combat.gd` | ar07_vitals_2 | player_vitals |
 | `reaper_combat.gd` | ar06_cooldown_1 | player_cooldowns |
 | `reaper_combat.gd` | ar06_cooldown_2 | player_cooldowns |
 | `reaper_combat.gd` | ar06_cooldown_3 | player_cooldowns |
 | `reaper_combat.gd` | ar06_cooldown_4 | player_cooldowns |
+| `weaver_combat.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `weaver_combat.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `weaver_combat.gd` | ar08_lifecycle_3 | player_lifecycle |
 | `weaver_combat.gd` | ar06_cooldown_1 | player_cooldowns |
 | `weaver_combat.gd` | ar06_cooldown_2 | player_cooldowns |
 | `weaver_combat.gd` | ar06_cooldown_3 | player_cooldowns |
@@ -1470,8 +1541,19 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game_transaction.gd` | guarded_uncertainty | loot |
 | `game_transaction.gd` | guarded_commit | loot |
 | `game_transaction.gd` | guarded_rollback | loot |
+| `spirit_affinity.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `spirit_affinity.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `spirit_affinity.gd` | ar08_lifecycle_3 | player_lifecycle |
 | `spirit_affinity.gd` | ec01_1 | affinity_cards |
+| `storm_affinity.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `storm_affinity.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `storm_affinity.gd` | ar08_lifecycle_3 | player_lifecycle |
 | `storm_affinity.gd` | ec01_1 | affinity_cards |
+| `wood_affinity.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `wood_affinity.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `wood_affinity.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `wood_affinity.gd` | ar08_lifecycle_4 | player_lifecycle |
+| `wood_affinity.gd` | ar08_lifecycle_5 | player_lifecycle |
 | `wood_affinity.gd` | ec01_1 | affinity_cards |
 | `vital_combat.gd` | ar07_vitals_1 | player_vitals |
 | `vital_combat.gd` | ar07_vitals_2 | player_vitals |
@@ -1482,6 +1564,11 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `water_combat.gd` | ec01_1 | affinity_cards |
 | `water_combat.gd` | ec01_2 | affinity_cards |
 | `frost_combat.gd` | ec01_1 | affinity_cards |
+| `combat_action_events.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `combat_action_events.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `combat_action_events.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `combat_action_events.gd` | ar08_lifecycle_4 | player_lifecycle |
+| `combat_action_events.gd` | ar08_lifecycle_5 | player_lifecycle |
 | `combat_action_events.gd` | ec01_1 | affinity_cards |
 | `combat_ruleset.gd` | retail_affinity_admission | combat_affinity_contracts, connection_flow |
 | `combat_ruleset.gd` | ga01a_1 | expedition_grafts, combat_affinity_contracts, connection_flow |
@@ -1515,6 +1602,14 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `warden_tree.gd` | ct01_3 | warden_progression, classes, combat_affinity_contracts |
 | `warden_tree.gd` | ct01_4 | warden_progression, classes, combat_affinity_contracts |
 | `warden_tree.gd` | cr02_card_lines | combat_affinity_contracts |
+| `warden_combat.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `warden_combat.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `warden_combat.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `warden_combat.gd` | ar08_lifecycle_4 | player_lifecycle |
+| `warden_combat.gd` | ar08_lifecycle_5 | player_lifecycle |
+| `warden_combat.gd` | ar08_lifecycle_6 | player_lifecycle |
+| `warden_combat.gd` | ar08_lifecycle_7 | player_lifecycle |
+| `warden_combat.gd` | ar08_lifecycle_8 | player_lifecycle |
 | `warden_combat.gd` | ar06_cooldown_1 | player_cooldowns |
 | `warden_combat.gd` | ar06_cooldown_2 | player_cooldowns |
 | `warden_combat.gd` | ar06_cooldown_3 | player_cooldowns |
@@ -1552,6 +1647,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `weapon_contact.gd` | cr03_melee | frost_affinity |
 | `weapon_contact.gd` | cr02_secondary | combat_affinity_contracts |
 | `weapon_contact.gd` | cr02_melee | combat_affinity_contracts |
+| `network_movement.gd` | ar08_lifecycle_1 | player_lifecycle, presentation |
+| `network_movement.gd` | ar08_lifecycle_2 | player_lifecycle, presentation |
 | `network_movement.gd` | experimental_coop_1 | hex_terrain, terrain, connection_flow, garden |
 | `network_movement.gd` | experimental_coop_2 | hex_terrain, terrain, connection_flow, garden |
 | `diagnostics_boot.gd` | experimental_coop_1 | hex_terrain, terrain, connection_flow, garden |
@@ -1585,6 +1682,9 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `root_ui.gd` | party_field | party_ui |
 | `root_ui.gd` | party_child | party_ui |
 | `root_ui.gd` | party_update | party_ui |
+| `party_travel.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `party_travel.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `party_travel.gd` | ar08_lifecycle_3 | player_lifecycle |
 | `party_travel.gd` | ct05_oracle_1 | oracle_progression, class_tree_access |
 | `party_travel.gd` | ct05_oracle_2 | oracle_progression, class_tree_access |
 | `party_travel.gd` | cr02_departure_cost | combat_affinity_contracts |
@@ -1643,6 +1743,11 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `garden_visuals.gd` | accents_growth | garden_cinematics |
 | `garden_visuals.gd` | accents_adapter | garden_zones, garden_life |
 | `garden_visuals.gd` | observation_anchors | garden_observations |
+| `stage.gd` | ar08_lifecycle_1 | player_lifecycle, presentation |
+| `stage.gd` | ar08_lifecycle_2 | player_lifecycle, presentation |
+| `stage.gd` | ar08_lifecycle_3 | player_lifecycle, presentation |
+| `stage.gd` | ar08_lifecycle_4 | player_lifecycle, presentation |
+| `stage.gd` | ar08_lifecycle_5 | player_lifecycle, presentation |
 | `stage.gd` | experimental_seed_rewards_1 | hex_terrain, loot, terrain |
 | `stage.gd` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
 | `stage.gd` | experimental_terrain_3 | hex_terrain, terrain, garden, persistence_operations |
@@ -1752,6 +1857,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `settings_panel.gd` | garden_motion_save | garden_life |
 | `settings_panel.gd` | garden_motion_refresh | garden_life |
 | `settings_panel.gd` | garden_motion_create | garden_life |
+| `garden_interaction_service.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `garden_interaction_service.gd` | ar08_lifecycle_2 | player_lifecycle |
 | `garden_interaction_service.gd` | experimental_research_landmarks_1 | hex_terrain, garden, garden_observations |
 | `garden_interaction_service.gd` | experimental_research_landmarks_2 | hex_terrain, garden, garden_observations |
 | `garden_interaction_service.gd` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
@@ -1946,6 +2053,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `exploration.gd` | fog_extent_input | terrain |
 | `exploration.gd` | chart_extent | terrain |
 | `heart_visuals.gd` | tree_attach | heart_growth_visual |
+| `garden_crop_service.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `garden_crop_service.gd` | ar08_lifecycle_2 | player_lifecycle |
 | `garden_crop_service.gd` | experimental_research_landmarks_1 | hex_terrain, garden, garden_care |
 | `garden_crop_service.gd` | experimental_research_landmarks_2 | hex_terrain, garden, garden_care |
 | `garden_crop_service.gd` | experimental_research_landmarks_3 | hex_terrain, garden, garden_care |
@@ -2570,6 +2679,10 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `status_feedback.gd` | status_application_visible_age | enemy_move_feedback |
 | `status_feedback.gd` | await_status_actor_snapshot | enemy_move_feedback |
 | `status_feedback.gd` | strike_mark_shape | core_combat |
+| `mouse_combat.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `mouse_combat.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `mouse_combat.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `mouse_combat.gd` | ar08_lifecycle_4 | player_lifecycle |
 | `mouse_combat.gd` | ct04_reaper_1 | combat, reaper_progression |
 | `mouse_combat.gd` | ct03_ranger_1 | combat, ranger_progression |
 | `mouse_combat.gd` | ct03_ranger_2 | combat, ranger_progression |
@@ -2598,6 +2711,12 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `mouse_combat.gd` | attack_uses_projectile_path | ability_aim |
 | `mouse_combat.gd` | shared_aim_projectile_path | ability_aim |
 | `mouse_combat.gd` | core_cursor_distance | core_combat |
+| `core_combat.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `core_combat.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `core_combat.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `core_combat.gd` | ar08_lifecycle_4 | player_lifecycle |
+| `core_combat.gd` | ar08_lifecycle_5 | player_lifecycle |
+| `core_combat.gd` | ar08_lifecycle_6 | player_lifecycle |
 | `core_combat.gd` | tc01_ranged_clearance_1 | core_combat, combat, ability_aim, hex_terrain |
 | `core_combat.gd` | cr04c_void_1 | void_affinity, core_combat, combat_affinity_contracts |
 | `core_combat.gd` | cr04c_void_2 | void_affinity, core_combat, combat_affinity_contracts |
@@ -2641,6 +2760,19 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `core_combat.gd` | record_thorn_success | thorn_adaptation |
 | `core_combat.gd` | record_thorn_opportunity | thorn_adaptation |
 | `core_combat.gd` | thorn_learning_dependency | thorn_adaptation |
+| `combat_traits.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `combat_traits.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `combat_traits.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `combat_traits.gd` | ar08_lifecycle_4 | player_lifecycle |
+| `combat_traits.gd` | ar08_lifecycle_5 | player_lifecycle |
+| `combat_traits.gd` | ar08_lifecycle_6 | player_lifecycle |
+| `combat_traits.gd` | ar08_lifecycle_7 | player_lifecycle |
+| `combat_traits.gd` | ar08_lifecycle_8 | player_lifecycle |
+| `combat_traits.gd` | ar08_lifecycle_9 | player_lifecycle |
+| `combat_traits.gd` | ar08_lifecycle_10 | player_lifecycle |
+| `combat_traits.gd` | ar08_lifecycle_11 | player_lifecycle |
+| `combat_traits.gd` | ar08_lifecycle_12 | player_lifecycle |
+| `combat_traits.gd` | ar08_lifecycle_13 | player_lifecycle |
 | `combat_traits.gd` | ga01a_1 | expedition_grafts, combat, weapons, reaper_progression |
 | `combat_traits.gd` | ga01a_2 | expedition_grafts, combat, weapons, reaper_progression |
 | `combat_traits.gd` | ga01a_3 | expedition_grafts, combat, weapons, reaper_progression |
@@ -2722,6 +2854,10 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `combat_traits.gd` | warden_confirmed_guard_event | warden_progression |
 | `combat_traits.gd` | suppression_rite_evidence | wilds_skill_tactics |
 | `combat_traits.gd` | expanded_core_decoy | core_combat |
+| `core_skill_effects.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `core_skill_effects.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `core_skill_effects.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `core_skill_effects.gd` | ar08_lifecycle_4 | player_lifecycle |
 | `core_skill_effects.gd` | ar07_vitals_1 | player_vitals |
 | `core_skill_effects.gd` | ar07_vitals_2 | player_vitals |
 | `core_skill_effects.gd` | ar07_vitals_3 | player_vitals |
@@ -2845,6 +2981,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `content_ids.gd` | manifest_warden_nodes | warden_progression |
 | `progression_tree.gd` | show_warden_subclass_labels | warden_progression |
 | `progression_tree.gd` | show_unlearned_warden_routes | warden_progression |
+| `class_ability_targeting.gd` | ar08_lifecycle_1 | player_lifecycle |
 | `class_ability_targeting.gd` | ct03_ranger_1 | ability_aim, ranger_progression |
 | `class_ability_targeting.gd` | tc01_ranged_clearance_1 | ability_aim, combat, ranged_release, hex_terrain |
 | `class_ability_targeting.gd` | tc01_ranged_clearance_2 | ability_aim, combat, ranged_release, hex_terrain |
@@ -2863,6 +3000,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `class_ability_targeting.gd` | subclass_footprint | warden_progression |
 | `class_ability_targeting.gd` | subclass_plan | warden_progression |
 | `class_ability_targeting.gd` | warden_anchor_preview_center | warden_progression |
+| `core_strike_mark.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `core_strike_mark.gd` | ar08_lifecycle_2 | player_lifecycle |
 | `core_strike_mark.gd` | cb05_0 | core_balance |
 | `core_strike_mark.gd` | cb05_1 | core_balance |
 | `core_strike_mark.gd` | cb05_2 | core_balance |
@@ -2950,6 +3089,10 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `assets/characters/weapon_actions.json` | censer_release_profile | combat_readability, avatar_motion_view, ranged_release |
 | `assets/characters/weapon_actions.json` | orb_release_profile | ranged_release, avatar_motion_view, core_combat, combat_readability |
 | `field_traveller.gd` | lift_seed_focus | avatar_motion_view, ranged_release |
+| `combat_director.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `combat_director.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `combat_director.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `combat_director.gd` | ar08_lifecycle_4 | player_lifecycle |
 | `combat_director.gd` | ar07_vitals_1 | player_vitals |
 | `combat_director.gd` | ar07_vitals_2 | player_vitals |
 | `combat_director.gd` | ar07_vitals_3 | player_vitals |
@@ -2993,6 +3136,11 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `boss_phase_fights.gd` | boss_windup | event_audio |
 | `enemy_move_feedback.gd` | orchard_locked_release | boss_lair_fights |
 | `combat_audio.gd` | orchard_cage_cast_audio | boss_lair_fights |
+| `subclass_combat.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `subclass_combat.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `subclass_combat.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `subclass_combat.gd` | ar08_lifecycle_4 | player_lifecycle |
+| `subclass_combat.gd` | ar08_lifecycle_5 | player_lifecycle |
 | `subclass_combat.gd` | ar07_vitals_1 | player_vitals |
 | `subclass_combat.gd` | ar07_vitals_2 | player_vitals |
 | `subclass_combat.gd` | ar06_cooldown_1 | player_cooldowns |
@@ -3066,6 +3214,12 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `subclass_combat.gd` | cb02_subclass_combat_1_2 | combat_balance_preview |
 | `subclass_combat.gd` | vitals_subclass_ally | combat_vitals |
 | `subclass_combat.gd` | vitals_subclass_siphon | combat_vitals |
+| `expedition_life.gd` | ar08_lifecycle_1 | player_lifecycle |
+| `expedition_life.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `expedition_life.gd` | ar08_lifecycle_3 | player_lifecycle |
+| `expedition_life.gd` | ar08_lifecycle_4 | player_lifecycle |
+| `expedition_life.gd` | ar08_lifecycle_5 | player_lifecycle |
+| `expedition_life.gd` | ar08_lifecycle_6 | player_lifecycle |
 | `expedition_life.gd` | ar07_vitals_1 | player_vitals |
 | `expedition_life.gd` | ar07_vitals_2 | player_vitals |
 | `expedition_life.gd` | ar07_vitals_3 | player_vitals |
@@ -3132,15 +3286,21 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `run_summary_panel.gd` | cb02_run_summary_panel_1_2 | combat_balance_preview |
 | `run_summary_panel.gd` | cb02_run_summary_panel_2_1 | combat_balance_preview |
 | `run_summary_panel.gd` | cb02_run_summary_panel_1_0 | combat_balance_preview |
+| `party_hud.gd` | ar08_lifecycle_1 | player_lifecycle, party_ui |
+| `party_hud.gd` | ar08_lifecycle_2 | player_lifecycle, party_ui |
 | `party_hud.gd` | ar07_vitals_1 | player_vitals, party_ui |
 | `party_hud.gd` | ar07_vitals_2 | player_vitals, party_ui |
 | `party_hud.gd` | preview_party_clearance | combat_balance_preview |
 | `party_hud.gd` | cb02_party_hud_3_2 | combat_balance_preview |
 | `party_hud.gd` | cb02_party_hud_2_1 | combat_balance_preview |
 | `party_hud.gd` | cb02_party_hud_1_0 | combat_balance_preview |
+| `diagnostic_watch.gd` | ar08_lifecycle_1 | player_lifecycle, diagnostics |
+| `diagnostic_watch.gd` | ar08_lifecycle_2 | player_lifecycle, diagnostics |
 | `diagnostic_watch.gd` | ar07_vitals_1 | player_vitals, diagnostics |
 | `diagnostic_watch.gd` | ar07_vitals_2 | player_vitals, diagnostics |
 | `diagnostic_watch.gd` | preview_logged_health_scale | combat_balance_preview |
+| `spectator_view.gd` | ar08_lifecycle_1 | player_lifecycle, life |
+| `spectator_view.gd` | ar08_lifecycle_2 | player_lifecycle, life |
 | `spectator_view.gd` | ar07_vitals_1 | player_vitals, life |
 | `spectator_view.gd` | ar07_vitals_2 | player_vitals, life |
 | `spectator_view.gd` | preview_spectator_layout | spectator_layout |
@@ -3217,6 +3377,9 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `expedition_pressure.gd` | cb06_5 | enemy_balance |
 | `class_skill_balance.gd` | ec01_speed_class_cooldown_limit | class_balance, expedition_summary |
 | `class_skill_balance.gd` | cb07_0 | expedition_sustain |
+| `network_presentation.gd` | ar08_lifecycle_1 | player_lifecycle, presentation |
+| `network_presentation.gd` | ar08_lifecycle_2 | player_lifecycle, presentation |
+| `network_presentation.gd` | ar08_lifecycle_3 | player_lifecycle, presentation |
 | `network_presentation.gd` | ar07_vitals_1 | player_vitals, presentation |
 | `network_presentation.gd` | ar07_vitals_2 | player_vitals, presentation |
 | `network_presentation.gd` | ar07_vitals_3 | player_vitals, presentation |

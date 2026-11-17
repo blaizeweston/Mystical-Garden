@@ -78,6 +78,7 @@ const ROUTE_ROOMS := EncounterConfig.BIOME_LENGTH
 const ExpeditionWallet = preload("res://expedition_wallet.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const RunUpgrades=preload("res://run_upgrade_catalog.gd")
 const AffinityCards = preload("res://affinity_cards.gd")
 const HOOK_ROOM := 3
@@ -826,7 +827,7 @@ func add_player(id: int) -> void:
 		return
 	var spawn: Vector3 = Stage.SPAWN + [Vector3.ZERO,Vector3(1.1,0,0),Vector3(-1.1,0,0),Vector3(0,0,1.1)][party_slot]
 	var base_health:=Life.Preview.hp(MAX_HEALTH)
-	players[id] = {"party_slot":party_slot,"velocity":Vector3.ZERO,"damage_seq":0,"damage_amount":0,"vitals_revision":0,"pos": spawn, "wild": false, "fallen": false, "lost_health":0, "prepared": 0, "weapon": 0, "experiment": 0, ExpeditionWallet.STATE: ExpeditionWallet.Wallet.new(), "last_offer": 0,"run_upgrades":{},"checkpoint_offers":[],"offer_floor":0,"upgrade_seed":Crypto.new().generate_random_bytes(8).hex_encode().hash(), "power": 0, "technique": 0,
+	players[id] = {"party_slot":party_slot,"velocity":Vector3.ZERO,"damage_seq":0,"damage_amount":0,"vitals_revision":0,"pos": spawn, "wild": false, PlayerLifecycle.STATE: PlayerLifecycle.start_life(), "lost_health":0, "prepared": 0, "weapon": 0, "experiment": 0, ExpeditionWallet.STATE: ExpeditionWallet.Wallet.new(), "last_offer": 0,"run_upgrades":{},"checkpoint_offers":[],"offer_floor":0,"upgrade_seed":Crypto.new().generate_random_bytes(8).hex_encode().hash(), "power": 0, "technique": 0,
 		"weapon_kind":0, "catalyst":0, "graft_part":0,"graft_floor":0, "prepared_catalyst":0, "cargo_plan":Parts.empty_counts(), "frame": Frames.WARDEN, Cooldowns.STATE: Cooldowns.Timers.new(), "guard_charges":0, "guard_until": 0, "attack_until":0,"attack_duration":240,"attack_combo":0,"swing_until": 0, "contributed": false,
 		"character": local_character.data if id == HOST else Character.blank(), "profile_ready": id == HOST,"joined_at":Time.get_ticks_msec(),
 		"seed_choice": 0, "seed_owner": "", "carried_seeds": [],"safe_items":[],"carried_items":{}, "pouch": false, "loot_pending": false,
@@ -1047,7 +1048,7 @@ func _garden_action(id: int, action: String) -> void:
 		preload("res://garden_growth_service.gd").acknowledge(self,id,action.trim_prefix("growth_ack:"));return
 	if action.begins_with("garden:"):
 		preload("res://garden_interaction_service.gd").command(self,id,action.trim_prefix("garden:"));return
-	if player.get("fallen",false) and player.get("wild",false) and action!="abandon_run": return
+	if PlayerLifecycle.fallen(player) and player.get("wild",false) and action!="abandon_run": return
 	if not player.profile_ready:
 		return
 	if action.begins_with("revive:"):
@@ -1468,7 +1469,7 @@ func _queue_monster_reward(spawn_token: String, kind: int, mask: int, position: 
 			var player: Dictionary = players[id]
 			candidates.append({
 				"id": id, "identity": _kill_reward_identity(id, player), "class": int(player.get("frame", Frames.WARDEN)),
-				"profile_ready": player.get("profile_ready", false), "wild": player.get("wild", false), "fallen": player.get("fallen", false),
+				"profile_ready": player.get("profile_ready", false), "wild": player.get("wild", false), "fallen": PlayerLifecycle.fallen(player),
 			})
 	var death := {"kind":kind, "position":position, "leader":leader, "summoned":summoned}
 	var key := monster_rewards.admit_kill(combat_epoch, spawn_token, death, candidates, roll_kill_trophy.bind(kind, mask, leader), rng.randf)
@@ -3420,7 +3421,7 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = n
 	if starting and not available:
 		action_feedback(effects,id, "This path is still sealed.")
 		return false
-	if expedition_active() and p.fallen:
+	if expedition_active() and PlayerLifecycle.fallen(p):
 		action_feedback(effects,id, "Wait for your party to finish the expedition.")
 		return false
 	var selected: Array = [p.prepared, p.prepared_secondary, p.get("prepared_catalyst",0)]
@@ -3459,7 +3460,7 @@ func _enter_wilds(id: int, p: Dictionary,reserved_override: Array=[],effects = n
 	if starting:preload("res://garden_return_service.gd").begin(self)
 	preload("res://garden_return_service.gd").join(self,id,p)
 	p.wild = true
-	p.fallen=false
+	p[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
 	p.lost_health=0
 	for key in ["echo_charge","grave_charges","tide_ready","decoy_ready","link_ready","counter_until","front_guard_until","counter_guard_until","brace_block_ready"]: p[key]=0
 	p.still_since=Time.get_ticks_msec();p.still_point=wild_entry(id)
@@ -3561,7 +3562,7 @@ func return_to_garden(p: Dictionary) -> void:
 	p.power=0
 	p.technique=0
 	p.wild = false
-	p.fallen=false
+	p[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
 	p.lost_health=0
 	p.weapon = 0
 	p.erase("affinity_ward_claims")
@@ -3772,7 +3773,7 @@ func _use_checkpoint(id: int, descend: bool,effects = null) -> bool:
 	var banked := 0
 	var banked_parts := 0
 	for player in players.values():
-		if player.wild and player.fallen:
+		if player.wild and PlayerLifecycle.fallen(player):
 			if effects == null: recover_pouch(player)
 			else: _recover_pouch(player)
 		elif player.wild:
@@ -3795,7 +3796,7 @@ func _use_checkpoint(id: int, descend: bool,effects = null) -> bool:
 	for peer_id in players:
 		var player: Dictionary = players[peer_id]
 		if player.wild:
-			preload("res://garden_return_service.gd").outcome(self,player,"fallen" if player.fallen else "extracted")
+			preload("res://garden_return_service.gd").outcome(self,player,"fallen" if PlayerLifecycle.fallen(player) else "extracted")
 			return_to_garden(player)
 			if peer_id != id:
 				action_feedback(effects,peer_id, message)
@@ -3955,7 +3956,7 @@ func reset_expedition() -> void:
 	burst_clears = 0
 	choke_clears = 0
 	for player in players.values():
-		player.fallen = false
+		player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive()
 		player.lost_health=0
 		player[ExpeditionWallet.STATE] = ExpeditionWallet.Wallet.new()
 		player.last_offer = 0
@@ -4090,7 +4091,7 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 		if p.has("ranger_speed_grants"):
 			stride = maxf(stride,preload("res://ranger_combat.gd").speed_scale(self,p,Time.get_ticks_msec()))
 		var health: PlayerVitals.Health = p[PlayerVitals.STATE]
-		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":(.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get("slow_until",0)) else 1.0)*stride,"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":p.get("party_slot",0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": p.wild, "fallen":p.fallen,"lost_health":p.get("lost_health",0), "hp": health.hp(), "max_hp": health.max_hp(), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
+		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":(.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get("slow_until",0)) else 1.0)*stride,"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":p.get("party_slot",0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": p.wild, "fallen":PlayerLifecycle.fallen(p),"lost_health":p.get("lost_health",0), "hp": health.hp(), "max_hp": health.max_hp(), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
 			"attack_anim":attack_animation_snapshot(p),"skill_fx":p.get("skill_fx",{}) if Time.get_ticks_msec()<int(p.get("skill_fx_until",0)) else {}, "weapon_kind":p.get("weapon_kind",0), "core_part":p.weapon if p.wild else p.prepared, "pose": combat_pose(p),"wallet": run_wallet(p)}
 		var cooldowns: Cooldowns.Timers = p[Cooldowns.STATE]
 		var cooldown_now := Time.get_ticks_msec()
@@ -4385,9 +4386,9 @@ func _process(_delta: float) -> void:
 		var can_revive:=Life.Vitals.can_revive(PlayerVitals.maximum_hp(ally,Life.Preview.hp(MAX_HEALTH)),Life.Preview.scale())
 		var cost: String="%d maximum HP"%Life.Preview.revive_cost() if Life.Preview.enabled else "1 maximum heart"
 		guide.text="E  Revive %s · costs them %s"%[ally.get("display_name",ally.get("character",{}).get("name","ally")),cost] if can_revive else ("This ally has too little maximum health to revive." if Life.Preview.enabled else "This ally has no full heart left to sacrifice.")
-	if p.get("fallen",false) and wild: guide.text="Fallen · awaiting revival"
+	if PlayerLifecycle.fallen(p) and wild: guide.text="Fallen · awaiting revival"
 	var ground_id:=nearest_inventory_drop(p) if multiplayer.is_server() else nearest_visible_inventory_drop(p)
-	if not ground_id.is_empty() and rescue_id==0 and not p.get("fallen",false): guide.text="E  Pick up item"
+	if not ground_id.is_empty() and rescue_id==0 and not PlayerLifecycle.fallen(p): guide.text="E  Pick up item"
 	if deposit_button!=null: deposit_button.disabled=not can_checkpoint_bank(p)
 	if abandon_button!=null: abandon_button.disabled=not wild
 	if multiplayer.is_server() and not expedition_active(): consider_recollection()
@@ -4443,7 +4444,7 @@ func _process(_delta: float) -> void:
 		"location": Campaign.NAMES[destination] if wild else "Mystical Garden", 
 		"floor":encounter_number,
 		"encounter": "%d foes" % [int(enemy_hp > 0) + living_scout_count()] if wild else "Your living sanctuary",
-		"damage_flash":maxf(0,(int(p.get("hurt_until",0) if host_side else p.get("client_hurt_until",0))-Time.get_ticks_msec())/250.0),"hp": health, "max_hp": PlayerVitals.maximum_hp(p,MAX_HEALTH), "lost_health":p.get("lost_health",0),"fallen":p.get("fallen",false), "wild": wild, "frame": p.get("frame", 0),
+		"damage_flash":maxf(0,(int(p.get("hurt_until",0) if host_side else p.get("client_hurt_until",0))-Time.get_ticks_msec())/250.0),"hp": health, "max_hp": PlayerVitals.maximum_hp(p,MAX_HEALTH), "lost_health":p.get("lost_health",0),"fallen":PlayerLifecycle.fallen(p), "wild": wild, "frame": p.get("frame", 0),
 		"skill_ready": ready_skill,"skill_two_ready":second_ready,"skill_names":[skills[0].name,skills[1].name+(" •" if quake_prepared else "")],"skill_cooldowns":cooldowns, "dodge_ready": ready_dodge,
 		"core":preload("res://core_combat.gd").hud_state(self,p),
 		"skill_tooltips":skill_tips,
@@ -4847,7 +4848,7 @@ func monster_cargo_limit() -> int:
 	return Weapons.MONSTER_CARGO_LIMIT+(2 if heart_state().get("unlocked",[]).has("spore_bench") else 0)
 
 func at_garden_station(player: Dictionary,id: String) -> bool:
-	if player.is_empty() or player.get("wild",false) or player.get("fallen",false) or expedition_active() or not travel_kind.is_empty():
+	if player.is_empty() or player.get("wild",false) or PlayerLifecycle.fallen(player) or expedition_active() or not travel_kind.is_empty():
 		return false
 	return Stage.HEART_STATIONS.has(id) and heart_state().get("unlocked",[]).has(id) and stage.station_position(id).distance_to(player.get("pos",Vector3.INF))<=1.8
 
@@ -5061,7 +5062,7 @@ func consider_recollection() -> void:
 
 
 func at_weapon_gate(player: Dictionary) -> bool:
-	return not player.is_empty() and not player.get("wild",false) and not player.get("fallen",false) and stage.gate_position().distance_to(player.get("pos",Vector3.INF))<=preload("res://gate_interaction.gd").RANGE
+	return not player.is_empty() and not player.get("wild",false) and not PlayerLifecycle.fallen(player) and stage.gate_position().distance_to(player.get("pos",Vector3.INF))<=preload("res://gate_interaction.gd").RANGE
 
 func local_player_id() -> int:
 	return HOST if multiplayer.is_server() else multiplayer.get_unique_id()
@@ -5076,7 +5077,8 @@ func abandon_run(id: int,player: Dictionary) -> void:
 			settle_expedition_rewards(effects, true)
 			preload("res://garden_return_service.gd").outcome(self,player,"abandoned")
 			return_to_garden(player)
-			player.fallen=expedition_active()
+			if expedition_active():
+				player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].await_party()
 			checkpoint_ready.erase(id)
 			action_feedback(effects,id,"Expedition abandoned. All carried items lost, including the safe pouch. Class progress kept.")
 			PartyTravel.cancel(self,"A teammate left the expedition. Confirm readiness again at the gate.",effects)
@@ -5090,7 +5092,8 @@ func abandon_run(id: int,player: Dictionary) -> void:
 	Transactions.run(self,func():
 		preload("res://garden_return_service.gd").outcome(self,player,"abandoned")
 		return_to_garden(player)
-		player.fallen=expedition_active()
+		if expedition_active():
+			player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].await_party()
 		checkpoint_ready.erase(id)
 		tell(id,"Expedition abandoned. All carried items lost, including the safe pouch. Class progress kept.")
 		if expedition_active() and Life.living_ids(self).is_empty():
@@ -5777,7 +5780,7 @@ func combat_events_snapshot() -> Array:
 func update_projectiles(now: int) -> void:
 	for shot in projectile_queue.duplicate():
 		if int(shot.epoch)!=combat_epoch or not players.has(shot.player) or not Life.alive(players[shot.player]):projectile_queue.erase(shot);continue
-		if shot.has("life") and int(shot.life)!=int(players[shot.player].get("lost_health",0)):projectile_queue.erase(shot);continue
+		if not PlayerLifecycle.matches(players[shot.player],int(shot.get("life",-1))):projectile_queue.erase(shot);continue
 		if shot.get("melee_shape",false):
 			if now>=int(shot.due):
 				preload("res://event_audio.gd").weapon(self,shot.form,players[shot.player].pos)

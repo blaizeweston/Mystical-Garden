@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -260,7 +262,7 @@ func verify_vitals(game: Node, player: Dictionary) -> void:
 	helper.wild=true
 	helper.pos=player.pos
 	game.damage_player(1,player,int(PlayerVitals.current_hp(player)))
-	check(player.fallen,"downed player can be revived with a living ally")
+	check(PlayerLifecycle.fallen(player),"downed player can be revived with a living ally")
 	check(game.Life.revive(game,2,1),"revive is accepted")
 	game._process(.016)
 	check(PlayerVitals.current_hp(player)==80 and PlayerVitals.maximum_hp(player)==80 and player.lost_health==20,"revival fills the reduced pool")

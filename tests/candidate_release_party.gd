@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const Gate = preload("res://persistence_writer_integration.gd")
 const Tx = preload("res://game_transaction.gd")
 const Network = preload("res://network_settings.gd")
@@ -148,16 +150,16 @@ func host() -> void:
  helper.pos=Vector3.ZERO
  target.pos=Vector3(.5,0,0)
  game.damage_player(remote,target,999)
- check(target.fallen,"real remote ally downed")
+ check(PlayerLifecycle.fallen(target),"real remote ally downed")
  var revive_before := FileAccess.get_sha256(G)
  game.set_meta(&"guarded_gameplay_test_fault",func(phase,_path): return ERR_FILE_CANT_WRITE if phase=="stage" else OK)
  game.garden_action(1,"revive:"+str(remote))
  game.remove_meta(&"guarded_gameplay_test_fault")
- check(target.fallen and target.lost_health==0 and FileAccess.get_sha256(G)==revive_before,
+ check(PlayerLifecycle.fallen(target) and target.lost_health==0 and FileAccess.get_sha256(G)==revive_before,
   "revive abort preserves real remote ally's downed state")
  game.garden_action(1,"revive:"+str(remote))
  var cost: int = target.lost_health
- check(not target.fallen and cost>0,"real remote ally revives at one cost")
+ check(not PlayerLifecycle.fallen(target) and cost>0,"real remote ally revives at one cost")
  game.garden_action(1,"revive:"+str(remote))
  check(target.lost_health==cost,"repeat remote revive cannot charge twice")
  print("CASE ",JSON.stringify({"case":"remote_revive","garden":FileAccess.get_sha256(G),"cost":cost}))

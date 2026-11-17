@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Attacks = preload("res://enemy_attack.gd")
@@ -235,7 +236,7 @@ func check_counterplay() -> void:
 	learn(actor, profile, now)
 	move = arm(actor, profile, now + 1500)
 	if move.get("variant") == profile.id:
-		game.set_meta(Core.STATE, {1: {"epoch": game.combat_epoch, "grown": true, "life": player.lost_health,
+		game.set_meta(Core.STATE, {1: {"epoch": game.combat_epoch, "grown": true, "life": PlayerLifecycle.generation(player),
 			"expires": actor.windup + 500, "from": Vector3(-2, 0, -1.8), "to": Vector3(2, 0, -1.8),
 			"skill": {"mechanic": "line_trap", "radius": .35}}})
 		game.resolve_scout(actor, game.Enemies.get_kind(2), actor.windup)

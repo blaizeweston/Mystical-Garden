@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -74,7 +76,7 @@ func arena() -> void:
 	for actor in [player,ally]:
 		actor[Cooldowns.STATE] = actor[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
 		actor[PlayerVitals.STATE] = PlayerVitals.Health.new(30.0, 100)
-		actor.merge({"wild":true,"fallen":false,"lost_health":0,"pos":Vector3.ZERO,
+		actor.merge({"wild":true,PlayerLifecycle.STATE:PlayerLifecycle.start_life(),"lost_health":0,"pos":Vector3.ZERO,
 			"renewal_until":0,"guard_until":0,"hurt_until":0,"run_upgrades":{},"weapon":0,
 			"catalyst":0,"secondary":0,"graft_part":0,"core_ready_at":0,"core_cast_until":0,"cast_until":0,
 			"frame":0,"weapon_kind":0,"facing":Vector3.FORWARD},true)
@@ -199,7 +201,7 @@ func revival() -> void:
 	player.checkpoint_offers=["class_0_0","power","reach"]
 	check(game.buy_upgrade(1,player,0) and PlayerVitals.maximum_hp(player)==120 and PlayerVitals.current_hp(player)==50,"checkpoint bonus grants exact new capacity")
 	game.damage_player(1,player,int(PlayerVitals.current_hp(player)))
-	check(Sustain.restore(game,player,12,"fixture")==0 and player.fallen,"ordinary healing cannot revive a fallen player")
+	check(Sustain.restore(game,player,12,"fixture")==0 and PlayerLifecycle.fallen(player),"ordinary healing cannot revive a fallen player")
 	check(game.spectator_view.focus_id(1)==2 and game.spectator_view.caption.text.contains("30 / 100 HP") and game.spectator_view.panel.position.y>=110,"spectating shows ally health below the floor tracker")
 	check(game.Life.revive(game,2,1) and PlayerVitals.maximum_hp(player)==100 and PlayerVitals.current_hp(player)==100 and player.lost_health==20,"revival retains earned capacity and seals exactly 20 HP")
 	check(Orb.fractions(PlayerVitals.current_hp(player),PlayerVitals.maximum_hp(player),player.lost_health).is_equal_approx(Vector2(5.0/6.0,5.0/6.0)),"sealed segment is measured from the upgraded ceiling")

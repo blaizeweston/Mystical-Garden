@@ -1,4 +1,5 @@
 extends RefCounted
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Hurt = preload("res://enemy_hurtbox.gd")
 const MAX_AGE:=250
 var states: Dictionary={}
@@ -108,10 +109,8 @@ static func queue_attack(game: Node,id: int,p: Dictionary,pos: Vector3,stats: Di
   var muzzle: Vector3=path.from
   end=path.to
   var flight:=maxi(30,roundi(muzzle.distance_to(end)/float(profile.speed)*1000))
-  game.projectile_queue.append({"direction":direction,"mouse_ray":true,"player":id,"epoch":game.combat_epoch,"release":release,"due":release+flight,"emitted":false,"projectile":true,"form":form,"origin":muzzle,"aim":end,"previous":muzzle,"stats":stats.duplicate(true),"hits":[],"remaining":int(stats.targets)})
+  game.projectile_queue.append({"direction":direction,"mouse_ray":true,"player":id,"epoch":game.combat_epoch,"life":PlayerLifecycle.generation(p),"release":release,"due":release+flight,"emitted":false,"projectile":true,"form":form,"origin":muzzle,"aim":end,"previous":muzzle,"stats":stats.duplicate(true),"hits":[],"remaining":int(stats.targets)})
   game.projectile_queue.back().muzzle_blocked = path.muzzle_blocked
-  if stats.get("ranger_ordinary",false):
-   game.projectile_queue.back().life = int(p.get("lost_health",0))
   if p.get("mouse_aim",false):
    var combo:=int(p.get("attack_combo",0))
    p.ranged_windup={"combo":combo,"release":release}
@@ -120,9 +119,7 @@ static func queue_attack(game: Node,id: int,p: Dictionary,pos: Vector3,stats: Di
    game.projectile_queue.back().locked_target=lock_target;game.projectile_queue.back().locked_token=token(game,lock_target)
   return
  game.emit_weapon_attack(p,pos,end,stats,now)
- var melee := {"melee_shape":true,"player":id,"epoch":game.combat_epoch,"release":release,"due":release,"emitted":true,"projectile":false,"form":form,"origin":pos,"aim":end,"stats":stats.duplicate(true)}
- if stats.has(preload("res://reaper_combat.gd").STRIKE):
-  melee.life = int(p.get("lost_health",0))
+ var melee := {"melee_shape":true,"player":id,"epoch":game.combat_epoch,"life":PlayerLifecycle.generation(p),"release":release,"due":release,"emitted":true,"projectile":false,"form":form,"origin":pos,"aim":end,"stats":stats.duplicate(true)}
  game.projectile_queue.append(melee)
 static func aim_is_live(player: Dictionary,now: int) -> bool:
  var windup: Dictionary=player.get("ranged_windup",{})

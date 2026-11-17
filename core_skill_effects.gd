@@ -1,5 +1,6 @@
 extends RefCounted
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Status = preload("res://combat_status.gd")
 const Mark = preload("res://core_strike_mark.gd")
@@ -586,7 +587,7 @@ static func shaped_allies(game: Node, cast: Dictionary, shapes: Array, effect: D
 		var can_own_ward := int(ally.get("guard_until", 0)) <= now or (int(ally.get("guard_charges", 0)) == 1 and int(ally.guard_until) < now + int(on_contact.get("guard_ms", 0)))
 		affect_ally(game, ally, on_contact, now, heal_hp, skill.id)
 		if skill.id == "ironbark" and skill.has("block_stagger_ms") and can_own_ward:
-			ally.ironbark_ward = {"cast": cast, "until": now + int(on_contact.guard_ms), "life": int(ally.get("lost_health", 0))}
+			ally.ironbark_ward = {"cast": cast, "until": now + int(on_contact.guard_ms), "life": PlayerLifecycle.generation(ally)}
 		result.append(peer)
 	return result
 
@@ -594,10 +595,12 @@ static func shaped_allies(game: Node, cast: Dictionary, shapes: Array, effect: D
 static func ironbark_block(game: Node, id: int, player: Dictionary, now: int) -> void:
 	var ward: Dictionary = player.get("ironbark_ward", {})
 	player.erase("ironbark_ward")
-	if ward.is_empty() or now >= int(ward.until) or int(ward.life) != int(player.get("lost_health", 0)):
+	if ward.is_empty() or now >= int(ward.until) or not PlayerLifecycle.matches(player,int(ward.life)):
 		return
 	var cast: Dictionary = ward.cast
-	if int(cast.epoch) != game.combat_epoch or cast.get("ward_spent", false) or game.encounter_cleared():
+	var source: Dictionary = game.players.get(int(cast.owner), {})
+	if int(cast.epoch) != game.combat_epoch or not PlayerLifecycle.matches(source,int(cast.life)) \
+			or cast.get("ward_spent", false) or game.encounter_cleared():
 		return
 	cast.ward_spent = true
 	var effect := {"stagger_ms": cast.skill.block_stagger_ms}

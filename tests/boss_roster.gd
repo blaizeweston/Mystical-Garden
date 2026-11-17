@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Lairs=preload("res://boss_lair_fights.gd")
 const Phases=preload("res://boss_phase_fights.gd")
@@ -46,7 +48,7 @@ func run() -> void:
   check(game.boss_kind==kind and game.used_bosses.size()==count,"combat reset preserves floor decision")
   var packet: PackedInt32Array=game.campaign_snapshot()
   check(packet[game.EncounterConfig.BOSS_KIND]==kind,"public map descriptor in snapshot")
-  p.wild=true;p.fallen=false;p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0
+  p.wild=true;p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.hurt_until=0
   for move in game.Enemies.get_kind(kind).moves:
    game.enemy_pos=Vector3(0,0,5);game.enemy_hazards.clear()
    if Lairs.Routes.supports(kind):

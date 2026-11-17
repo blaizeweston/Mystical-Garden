@@ -1,5 +1,6 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
@@ -117,7 +118,7 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 			recipient[key]=0
 		recipient.erase("affinity_ward_claims")
 		recipient.wild=peer in [1,8]
-		recipient.fallen=false
+		recipient[PlayerLifecycle.STATE] = recipient[PlayerLifecycle.STATE].clear_inactive()
 		recipient[PlayerVitals.STATE] = PlayerVitals.Health.new(70.0 if peer==1 else 20.0,100)
 		if peer!=1:
 			recipient.pos=Vector3(-7,0,3)
@@ -209,7 +210,7 @@ func momentum() -> void:
 	player.aim_direction=Vector3.RIGHT
 	game.enemy_pos=player.pos+Vector3.RIGHT
 	var at := Time.get_ticks_msec()
-	Mark.place(game,8,-1,{"id":77,"life":ally.lost_health,"skill":{"id":"botanical","mark_ms":4000,"mark_damage":1.0,"color":"#ffffff"}},at)
+	Mark.place(game,8,-1,{"id":77,"life":PlayerLifecycle.generation(ally),"skill":{"id":"botanical","mark_ms":4000,"mark_damage":1.0,"color":"#ffffff"}},at)
 	Ranger.track(game,8,ally,-1,78,at)
 	before=game.enemy_hp
 	var roll := fire_melee()
@@ -281,7 +282,7 @@ func siphon_effects() -> void:
 	var first := scout(Vector3(2.5,0,.2))
 	var second := scout(Vector3(3,0,.2),10)
 	var third := scout(Vector3(3.5,0,.2))
-	Mark.place(game,8,0,{"id":77,"life":ally.lost_health,"skill":{"id":"botanical","mark_ms":4000,"mark_damage":1.0,"color":"#ffffff"}},Time.get_ticks_msec())
+	Mark.place(game,8,0,{"id":77,"life":PlayerLifecycle.generation(ally),"skill":{"id":"botanical","mark_ms":4000,"mark_damage":1.0,"color":"#ffffff"}},Time.get_ticks_msec())
 	Ranger.track(game,8,ally,0,78,Time.get_ticks_msec())
 	var q_deadline: int = player[Cooldowns.STATE].deadline(Cooldowns.Q)
 	var before := events.size()
@@ -378,7 +379,7 @@ func support() -> void:
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(1)
 	second.pos=Vector3(2,0,1)
 	second.wild=true
-	second.fallen=true
+	second[PlayerLifecycle.STATE] = second[PlayerLifecycle.STATE].fall()
 	game.battlefield.barriers.assign([Rect2(1.6,1.7,.8,.8)])
 	cast(0)
 	cast(1)

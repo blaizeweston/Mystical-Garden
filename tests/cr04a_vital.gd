@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
@@ -45,7 +47,7 @@ func reset(p: Dictionary, ally: Dictionary) -> void:
 	for player in [p,ally]:
 		Vital.clear(game,player)
 		player.wild=true
-		player.fallen=false
+		player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive()
 		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(60)
 		player.lost_health=0
 		player.pos=Vector3.ZERO
@@ -80,7 +82,7 @@ func run() -> void:
 	var ally: Dictionary=game.players[2]
 	var fallen: Dictionary=game.players[3]
 	fallen.wild=true
-	fallen.fallen=true
+	fallen[PlayerLifecycle.STATE] = fallen[PlayerLifecycle.STATE].fall()
 	fallen[PlayerVitals.STATE] = fallen[PlayerVitals.STATE].with_hp(0)
 	for pair in [["part_2","plant_part_rare_lantern_moss"],["part_9","plant_part_rare_bloodbriar"],["plant_part_plant_gravemoss","plant_part_rare_gravemoss"]]:
 		for item in pair:
@@ -227,7 +229,7 @@ func benchmark(player: Dictionary, ally: Dictionary) -> void:
 	game.add_player(4)
 	for id in [3,4]:
 		game.players[id].wild=true
-		game.players[id].fallen=false
+		game.players[id][PlayerLifecycle.STATE] = game.players[id][PlayerLifecycle.STATE].clear_inactive()
 		game.players[id][PlayerVitals.STATE] = game.players[id][PlayerVitals.STATE].with_hp(70)
 	var now:=Time.get_ticks_msec()
 	var burns: Array = []

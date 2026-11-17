@@ -1,5 +1,6 @@
 extends RefCounted
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Rules = preload("res://core_skill_rules.gd")
 const Effects = preload("res://core_skill_effects.gd")
 const Footprint = preload("res://core_footprint.gd")
@@ -34,6 +35,7 @@ static func request(game: Node, player: Dictionary, aim: Vector2, distance: floa
 
 
 static func cast_key(game: Node, player: Dictionary) -> String:
+	# Preserve the injury HP suffix in the host and guest request key.
 	return "%s/%d" % [game.net_motion.world_key(game, player), int(player.get("lost_health", 0))]
 
 
@@ -91,7 +93,7 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 	game.combat_event_serial += 1
 	line.merge({
 		"id": "core:" + str(game.combat_event_serial), "epoch": game.combat_epoch,
-		"skill": skill, "owner": id, "life": int(player.get("lost_health", 0)), "release": now + release_ms,
+		"skill": skill, "owner": id, "life": PlayerLifecycle.generation(player), "release": now + release_ms,
 		"armed": now + release_ms + flight_ms, "expires": now + release_ms + flight_ms + lifetime,
 		"flight_ms": flight_ms, "released": false, "grown": false, "next_hit": {},
 		"origin": origin, "cast_origin": player.pos, "previous": {}, "behaviors": Upgrades.core_behaviors(player, skill.id),
@@ -267,7 +269,7 @@ static func tick(game: Node, now: int) -> void:
 			if line.skill.get("affinity_family") == "vital":
 				continue
 			var owner: Dictionary = game.players.get(id, {})
-			if line.grown and line.skill.has("death_window_ms") and int(line.epoch) == game.combat_epoch and game.Life.alive(owner) and int(owner.get("lost_health", 0)) == int(line.life) and now < int(line.expires):
+			if line.grown and line.skill.has("death_window_ms") and int(line.epoch) == game.combat_epoch and game.Life.alive(owner) and PlayerLifecycle.matches(owner,int(line.life)) and now < int(line.expires):
 				Effects.detonate_at_death(game, id, owner, line, now)
 			lines.erase(id)
 		if lines.is_empty():
@@ -276,7 +278,7 @@ static func tick(game: Node, now: int) -> void:
 	for id in lines.keys():
 		var line: Dictionary = lines[id]
 		var player: Dictionary = game.players.get(id, {})
-		if int(line.epoch) != game.combat_epoch or not game.Life.alive(player) or int(player.get("lost_health", 0)) != int(line.life) or (now >= int(line.expires) and not (line.grown and line.skill.get("affinity_family") in ["fire","water","void"])):
+		if int(line.epoch) != game.combat_epoch or not game.Life.alive(player) or not PlayerLifecycle.matches(player,int(line.life)) or (now >= int(line.expires) and not (line.grown and line.skill.get("affinity_family") in ["fire","water","void"])):
 			if line.has("flight_event") and now < int(line.armed):
 				game.emit_combat_event("projectile_end", str(line.flight_event), line.origin, line.origin, .15, Color.WHITE, 0.0, 0)
 			lines.erase(id)
@@ -418,7 +420,7 @@ static func quake(game: Node, id: int, origin: Vector3, radius: float, now: int)
 	var line: Dictionary = game.get_meta(STATE, {}).get(id, {})
 	if line.is_empty() or line.skill.mechanic != "line_trap" or not line.grown or int(line.epoch) != game.combat_epoch or now >= int(line.expires):
 		return
-	if int(game.players[id].get("lost_health", 0)) != int(line.life) or line.get("quake_used", false):
+	if not PlayerLifecycle.matches(game.players[id],int(line.life)) or line.get("quake_used", false):
 		return
 	var reach := float(line.skill.get("quake_reach", 0.0))
 	if reach <= 0:

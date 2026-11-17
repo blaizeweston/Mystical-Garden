@@ -1,5 +1,6 @@
 extends RefCounted
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 const Catalog = preload("res://subclass_catalog.gd")
@@ -209,7 +210,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		if skill.has("pull"):
 			pull(game,target,cast.center,float(skill.pull),now)
 		if marks > 0 and Mark.active(game,game.Traits.target_state(game,target),now).is_empty():
-			Mark.place(game,id,target,{"id":cast_id,"life":player.get("lost_health",0),
+			Mark.place(game,id,target,{"id":cast_id,"life":PlayerLifecycle.generation(player),
 				"skill":{"id":skill.id,"mark_ms":2700,"mark_damage":Balance.MARK_POINTS,"color":skill.color,"subclass_mark":true}},now)
 			marks -= 1
 	if not ranger and not reaper and not oracle and not affected.is_empty() and skill.second == 0:
@@ -226,7 +227,6 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 			events.field_action(stats))
 		if not field.is_empty() and player.has("combat_ruleset") and skill.subclass_focus == "bloomcaller":
 			field.native_weaver_bloom = true
-			field.bloom_life = int(player.get("lost_health",0))
 	if card.get("thorn_patch",false):
 		game.Traits.zone(game,player,"cinder",cast.center,cast.radius,field_duration,Balance.FOLLOWUP_POINTS,now)
 	var nearby := allies(game,contact,radius)
@@ -260,7 +260,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 	elif oracle:
 		oracle_api.after_q(game,id,player,skill,int(event.identity) if event != null else cast_id,affected,nearby,now)
 	elif follow >= 0 and not (weaver and follow == 1):
-		player.subclass_follow = {"lane":follow,"epoch":game.combat_epoch,"life":player.get("lost_health",0)}
+		player.subclass_follow = {"lane":follow,"epoch":game.combat_epoch,"life":PlayerLifecycle.generation(player)}
 	player.contributed = true
 	var timers: Cooldowns.Timers = player[Cooldowns.STATE]
 	player[Cooldowns.STATE] = timers.start(Cooldowns.Q, now, Balance.cooldown(skill,stats))
@@ -312,7 +312,7 @@ static func echo(game: Node, player: Dictionary, center: Vector3, exclude: Array
 
 static func follow_lane(game: Node, player: Dictionary) -> int:
 	var follow: Dictionary = player.get("subclass_follow",{})
-	if follow.is_empty() or follow.epoch != game.combat_epoch or follow.life != player.get("lost_health",0) or not game.Life.alive(player):
+	if follow.is_empty() or follow.epoch != game.combat_epoch or not PlayerLifecycle.matches(player,int(follow.life)) or not game.Life.alive(player):
 		return -1
 	return int(follow.lane)
 

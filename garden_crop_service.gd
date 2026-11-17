@@ -1,4 +1,6 @@
 extends RefCounted
+
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Tx=preload("res://game_transaction.gd")
 const State=preload("res://garden_crop_state.gd")
 const Catalog=preload("res://garden_crop_catalog.gd")
@@ -6,7 +8,7 @@ const Growth=preload("res://cultivation_growth.gd")
 static func eligible(game: Node,id: int,slot: int) -> bool:
  if not game.multiplayer.is_server() or not game.players.has(id) or slot<0 or slot>=game.progress.plots.size():return false
  var p: Dictionary=game.players[id]
- return p.get("profile_ready",false) and not p.get("wild",false) and not p.get("fallen",false) and game.travel_kind.is_empty() and p.pos.distance_to(game.stage.bed_position(slot))<=1.65 and game.progress.offshoot_in_bed(slot)<0
+ return p.get("profile_ready",false) and not p.get("wild",false) and not PlayerLifecycle.fallen(p) and game.travel_kind.is_empty() and p.pos.distance_to(game.stage.bed_position(slot))<=1.65 and game.progress.offshoot_in_bed(slot)<0
 static func focus(game: Node,id: int,slot: int) -> bool:
  if not eligible(game,id,slot) or int(game.progress.plots[slot].species)<0:return false
  var previous: Dictionary=game.players[id].get("garden_crop_focus",{})

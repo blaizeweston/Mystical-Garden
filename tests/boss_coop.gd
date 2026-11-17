@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Lairs=preload("res://boss_lair_fights.gd")
 const Routes=preload("res://boss_lair_routes.gd")
@@ -38,7 +40,7 @@ func host_run() -> void:
  for kind in range(20,24):
   game.destination=0;game.encounter_number=20+kind-20;game.depth=kind-19;game.map_seed=91661+kind
   game.wild_item_drops.clear();game.boss_floors[str(game.encounter_number)]=kind;game.used_bosses.append(kind);game.reset_encounter();game.scouts.clear();game.enemy_stagger_until=Time.get_ticks_msec()+60000
-  for player in game.players.values(): player.wild=true;player.fallen=false;player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,1)
+  for player in game.players.values(): player.wild=true;player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive();player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,1)
   p.graft_part=game.Parts.monster_part(kind);p.run_upgrades={"trophy_"+game.Enemies.get_kind(kind).id:1}
   check(await until(func():return marked("view-"+str(kind))),"guest receives boss and graft "+str(kind))
   if Routes.supports(kind):await host_lair(kind,id)

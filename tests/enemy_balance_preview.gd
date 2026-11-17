@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Preview = preload("res://combat_balance_preview.gd")
@@ -52,7 +54,7 @@ func party(size: int) -> void:
 		var actor: Dictionary=game.players[id]
 		actor.profile_ready=id<=size
 		actor.wild=id<=size
-		actor.fallen=false
+		actor[PlayerLifecycle.STATE] = actor[PlayerLifecycle.STATE].clear_inactive()
 		actor[PlayerVitals.STATE] = actor[PlayerVitals.STATE].with_hp(100)
 		actor[PlayerVitals.STATE] = actor[PlayerVitals.STATE].with_native_max_hp(100)
 		actor.guard_until=0
@@ -103,7 +105,7 @@ func depth_curves() -> void:
 				check(game.scouts.size()==15,"first four-player floor gets fifteen scouts with room to spread")
 				var ceiling: int=game.enemy_hp
 				game.players[4].wild=false
-				game.players[4].fallen=true
+				game.players[4][PlayerLifecycle.STATE] = game.players[4][PlayerLifecycle.STATE].fall()
 				check(game.encounter_health()==ceiling,"mid-fight departure cannot change the existing HP pool")
 	print("CB-06 depth sample [floor, party, scouts, elite HP, total enemy HP]: ",JSON.stringify(rows))
 	check(rows[0][4]<rows[3][4] and rows[3][4]<rows[6][4] and rows[15][4]<rows[18][4],"regular floor HP budget grows across the sample")

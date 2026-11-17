@@ -1,5 +1,7 @@
 extends SceneTree
 
+const PlayerLifecycle = preload("res://player_lifecycle.gd")
+
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 
@@ -361,7 +363,7 @@ func holdfast() -> void:
 	reset_holdfast_ally(ally,Vector3(1,0,-1))
 	reset_holdfast_ally(distant,Vector3(6,0,0))
 	reset_holdfast_ally(fallen,Vector3(1,0,1))
-	fallen.fallen=true
+	fallen[PlayerLifecycle.STATE] = fallen[PlayerLifecycle.STATE].fall()
 	player.catalyst=game.Items.get_item("plant_part_rare_frostbell").legacy_part
 	game.use_class_skill(1,player,0)
 	check(not player.has("warden_holdfast") and not ally.has("warden_holdfast"),"cast alone grants no Holdfast")

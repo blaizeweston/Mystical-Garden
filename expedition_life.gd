@@ -1,4 +1,5 @@
 extends RefCounted
+const PlayerLifecycle=preload("res://player_lifecycle.gd")
 const PlayerVitals=preload("res://player_vitals.gd")
 const Vitals=preload("res://combat_vitals.gd")
 const Preview=preload("res://combat_balance_preview.gd")
@@ -6,7 +7,7 @@ const Sustain=preload("res://expedition_sustain.gd")
 const REVIVE_COST:=Vitals.REVIVE_POINTS*Vitals.LIVE_HP_PER_POINT
 const REVIVE_REACH:=1.65
 static func alive(p: Dictionary) -> bool:
- return p.get("wild",false) and not p.get("fallen",false) and PlayerVitals.current_hp(p)>0.0
+ return p.get("wild",false) and not PlayerLifecycle.fallen(p) and PlayerVitals.current_hp(p)>0.0
 static func living_ids(game: Node) -> Array[int]:
  var ids: Array[int]=[]
  for id in game.players:
@@ -20,7 +21,9 @@ static func native_maximum(game: Node,p: Dictionary,prepared := false) -> int:
 static func down(game: Node,id: int,p: Dictionary,effects = null) -> void:
  var health: PlayerVitals.Health = p[PlayerVitals.STATE]
  p[PlayerVitals.STATE] = health.with_hp(0.0)
- p.fallen=true;p.velocity=Vector3.ZERO;p.attack_until=0;p.swing_until=0
+ var lifecycle: PlayerLifecycle.Life = p[PlayerLifecycle.STATE]
+ p[PlayerLifecycle.STATE] = lifecycle.fall()
+ p.velocity=Vector3.ZERO;p.attack_until=0;p.swing_until=0
  p.erase("affinity_ward_claims");p.erase("frost_response");p.erase("affinity_ember_response")
  preload("res://vital_combat.gd").clear(game,p)
  preload("res://wood_affinity.gd").clear(p)
@@ -42,14 +45,14 @@ static func nearest(game: Node,p: Dictionary) -> int:
  var result:=0;var distance:=REVIVE_REACH
  for id in game.players:
   var other: Dictionary=game.players[id]
-  if not other.get("wild",false) or not other.get("fallen",false): continue
+  if not other.get("wild",false) or not PlayerLifecycle.fallen(other): continue
   var length: float=p.pos.distance_to(other.pos)
   if length<distance and game.battlefield.clear_line(p.pos,other.pos): distance=length;result=int(id)
  return result
 static func revive(game: Node,helper_id: int,target_id: int,effects = null) -> bool:
  if not game.players.has(helper_id) or not game.players.has(target_id) or helper_id==target_id: return false
  var helper: Dictionary=game.players[helper_id];var target: Dictionary=game.players[target_id]
- if not alive(helper) or not target.get("wild",false) or not target.get("fallen",false): return false
+ if not alive(helper) or not target.get("wild",false) or not PlayerLifecycle.fallen(target): return false
  if helper.pos.distance_to(target.pos)>REVIVE_REACH or not game.battlefield.clear_line(helper.pos,target.pos): return false
  if not Vitals.can_revive(native_maximum(game,target),Preview.scale()):
   game.action_feedback(effects,helper_id,"This ally has too little maximum health to revive." if Preview.enabled else "No full heart remains to sacrifice. This ally cannot be revived again during this expedition.");return false
@@ -57,7 +60,7 @@ static func revive(game: Node,helper_id: int,target_id: int,effects = null) -> b
  var health: PlayerVitals.Health = target[PlayerVitals.STATE]
  var revived := health.with_native_max_hp(native_maximum(game,target)).refilled()
  target[PlayerVitals.STATE] = revived
- target.fallen=false
+ target[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
  target.erase("affinity_ward_claims");target.erase("frost_response");target.erase("affinity_ember_response")
  target.hurt_until=Time.get_ticks_msec()+1500;target.guard_until=0;target.renewal_until=0
  target.velocity=Vector3.ZERO;game.motions.erase(target_id)
