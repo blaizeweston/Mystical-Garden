@@ -94,6 +94,16 @@ func host_run():
  check(not ExpeditionCase.is_wild(game.players[1]) and game.participation.travel_members().size()==4,"three votes cannot launch four players")
  mark("last_ready")
  check(await until(func():return game.players.values().all(func(p):return ExpeditionCase.is_wild(p))),"all four depart together")
+ # Incoming damage is explicit in this synchronization control. Hold live AI
+ # before awaiting Core presentation and natural Vitality expiry.
+ var control_now:=Time.get_ticks_msec()
+ game.tactics.stop_attack()
+ game.tactics.stagger_until=control_now+45000
+ for scout in game.encounter.scout_tactics():
+  scout.ready=control_now+45000
+  scout.rooted_until=control_now+45000
+  scout.windup=0
+  scout.erase("attack")
  check(game.progress.parts[0]==0 and game.progress.parts[1]==0,"party consumes two copies of each starter part exactly once")
  for actor in game.players.values():
   var build: Dictionary=Builds.for_player(actor)
@@ -171,12 +181,6 @@ func publish_vitals(stage: String,id: int) -> bool:
 
 func guest_vitals(id: int) -> bool:
  var actor: Dictionary=game.players[id]
- var now:=Time.get_ticks_msec()
- game.tactics.stagger_until=now+45000
- for scout in game.encounter.scout_tactics():
-  scout.ready=now+45000
-  scout.rooted_until=now+45000
-  scout.windup=0
  var helper: Dictionary={}
  for player in game.players.values():
   if player.character.name=="Player 1":
@@ -189,7 +193,6 @@ func guest_vitals(id: int) -> bool:
  IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(actor), 35)
  if not await publish_vitals("wounded",id):return false
  check(PlayerVitals.current_hp(actor)==65,"35 applied damage leaves 65 HP")
- now=Time.get_ticks_msec()
  # This control verifies authoritative health projection, not a new support spell.
  actor[PlayerVitals.STATE]=actor[PlayerVitals.STATE].healed(4)
  var healed:=int(PlayerVitals.current_hp(actor))-65
@@ -233,7 +236,10 @@ func guest_lantern() -> void:
  mark("try-lantern",JSON.stringify([aim.x,aim.z]))
  check(await until(func():return marked("lantern-seen-1") and marked("lantern-seen-2") and marked("lantern-seen-3"),8),"guests receive Weaver's committed Vital Bloom")
  check(caster.core_ready_at>0 and game.combat_events.any(func(e):return e.shape=="vital_bloom"),"host accepts the guest cast and spends that player's cooldown")
- check(await until(func():return game.players.values().all(func(actor):return not actor.has("affinity_vital_sources")),8),"temporary Vitality expires naturally before the fixed-capacity synchronization control")
+ var support_expired:=func() -> bool:
+  return (not game.get_meta(Core.STATE,{}).has(SessionCase.Session.peer_for(caster))
+   and game.players.values().all(func(actor):return not actor.has("affinity_vital_sources")))
+ check(await until(support_expired,8),"the Core cast completes and temporary Vitality expires naturally before the fixed-capacity synchronization control")
 
 
 func verify_vitals_marker(stage: String,index: int) -> void:

@@ -9,6 +9,7 @@ const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const Rules = preload("res://combat_ruleset.gd")
 const Build = preload("res://affinity_build.gd")
+const Core = preload("res://core_combat.gd")
 const Experiment = preload("res://assets/terrain_m02/experimental/experiment_mode.gd")
 const Events = preload("res://combat_action_events.gd")
 const Menu = preload("res://main_menu.tscn")
@@ -113,6 +114,17 @@ func host(menu: Node, mismatch: bool) -> void:
 	mark("depart",str(world.participation.travel_epoch()))
 	if not check(await until(func(): return ExpeditionCase.is_wild(remote) and not world.battlefield.generated.is_empty()),"native-only party enters actual generated Wilds"):
 		return
+	# Hold unrelated AI while this fixture injects the exact two defense contacts.
+	# Keep networking, the real generated roster and authoritative health active.
+	var held_until := Time.get_ticks_msec()+18000
+	world.tactics.stop_attack()
+	world.tactics.stagger_until=held_until
+	world.tactics.ready_at=held_until
+	for scout in world.encounter.scout_tactics():
+		scout.windup=0
+		scout.erase("attack")
+		scout.stagger_until=held_until
+		scout.ready=held_until
 	# A real guest Q is authoritative on host, and the actual block
 	# consumes the guard and reports the protected remote recipient.
 	var events: Array[Dictionary] = []
@@ -203,7 +215,10 @@ func guest(menu: Node, mismatch: bool) -> void:
 	if not check(await until(func(): return not read("depart").is_empty()),"host proposes travel"):
 		return
 	world.send_garden_action("travel_ready:"+read("depart"))
-	if not check(await until(func(): return read("guard")=="ok" and world.stage._has_experimental_floor()),"guest receives generated floor"):
+	var native_action_ready := func() -> bool:
+		return (read("guard")=="ok" and world.stage._has_experimental_floor()
+			and not Core.cast_key(world,world.players.get(world.local_player_id(),{})).is_empty())
+	if not check(await until(native_action_ready),"guest receives generated floor and current native-action identity"):
 		return
 	world.send_garden_action("class_skill")
 	var offer_received := func() -> bool:
