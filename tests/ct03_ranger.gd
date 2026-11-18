@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -272,12 +273,12 @@ func defense_and_route() -> void:
 	prepare(DEFENSE)
 	ally.pos = Vector3(-4.1,0,1)
 	var departure_ally := scout(Vector3.ZERO)
-	ally.slow_until = Time.get_ticks_msec()+4000
+	ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(Time.get_ticks_msec()+4000)
 	ally.other_status = 99
 	cast(0)
 	var briar := trap(0)
 	check(is_equal_approx(ranger.pos.x,-4.1) and not briar.is_empty() and briar.position==Vector3.ZERO
-		and ally[Protection.STATE].charge_count()==1 and ally.slow_until==0 and ally.other_status==99 and ranger[Protection.STATE].charge_count()==0,
+		and ally[Protection.STATE].charge_count()==1 and ally[Conditions.STATE].slow_until_ms()==0 and ally.other_status==99 and ranger[Protection.STATE].charge_count()==0,
 		"valid retreat leaves its trap at departure, then wards and cleanses at landing")
 	check(is_equal_approx(Ranger.speed_scale(game,ranger,Time.get_ticks_msec()),1.15)
 		and is_equal_approx(game.player_snapshot(8,false)[1].motion_scale,1.15),"Fleetfoot uses the real replicated movement multiplier")

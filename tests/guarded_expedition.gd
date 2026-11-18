@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -270,15 +271,17 @@ func exercise() -> void:
  IncomingPlayerHit.apply_health_loss(world, 1, PlayerLifecycle.generation(actor), 1)
  check(int(PlayerVitals.current_hp(actor))==hp-1 and disk()==committed,"nonlethal damage is runtime-only")
  var before_hit_health: PlayerVitals.Health=actor[PlayerVitals.STATE]
- var before_hit_status := [int(actor.hurt_until), int(actor.slow_until), int(actor.damage_seq), int(actor.damage_amount)]
- var impact_at := maxi(Time.get_ticks_msec(), int(actor.hurt_until)) + 1
+ var before_conditions: Conditions.State=actor[Conditions.STATE]
+ var before_hit_status := [int(actor[Conditions.STATE].grace_until_ms()), int(actor[Conditions.STATE].slow_until_ms()), int(actor.damage_seq), int(actor.damage_amount)]
+ var impact_at := maxi(Time.get_ticks_msec(), int(actor[Conditions.STATE].grace_until_ms())) + 1
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  var uncommitted := IncomingPlayerHit.resolve_world(world,1,active_generation,impact_at,999.0,750)
  world.remove_meta(&"guarded_gameplay_test_fault")
  check(uncommitted.kind==IncomingPlayerHit.Outcome.UNCOMMITTED and not uncommitted.damage_recorded
+  and is_same(actor[Conditions.STATE],before_conditions)
   and is_same(actor[PlayerVitals.STATE],before_hit_health) and PlayerLifecycle.matches(actor,active_generation)
   and not PlayerLifecycle.fallen(actor) and disk()==committed
-  and before_hit_status==[int(actor.hurt_until),int(actor.slow_until),int(actor.damage_seq),int(actor.damage_amount)],
+  and before_hit_status==[int(actor[Conditions.STATE].grace_until_ms()),int(actor[Conditions.STATE].slow_until_ms()),int(actor.damage_seq),int(actor.damage_amount)],
   "aborted lethal enemy contact restores the same HP owner, life, grace, Slow and damage sequence")
  IncomingPlayerHit.apply_health_loss(world, 1, PlayerLifecycle.generation(actor), 999)
  check(PlayerLifecycle.fallen(actor) and PlayerVitals.current_hp(actor)==0 and world.wallet_for(actor)==earned_wallet

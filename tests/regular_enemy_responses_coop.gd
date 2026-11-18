@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -88,7 +89,7 @@ func prepare(kind: int) -> Dictionary:
 	for member in game.players.values():
 		ExpeditionCase.set_membership(game, member, true)
 		member[PlayerVitals.STATE] = member[PlayerVitals.STATE].with_hp(40)
-		member.hurt_until = 0
+		member[Conditions.STATE] = member[Conditions.STATE].clear_grace()
 		member.pos = Vector3(0, 0, -3.4)
 	var route := 10 + posmod(-3 * (kind * 19 + int(profile.floor) * 11), 10)
 	return actor(kind, Vector3.ZERO, route)

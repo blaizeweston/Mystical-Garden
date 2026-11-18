@@ -1,4 +1,5 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -230,7 +231,7 @@ func host(menu: Node) -> void:
 	var ally: Dictionary=game.players[protected]
 	local[Cooldowns.STATE] = local[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	game.use_class_skill(1,local,0)
-	ally.hurt_until=0
+	ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 	var before: float=PlayerVitals.current_hp(ally)
 	IncomingPlayerHit.resolve_world(game, protected, PlayerLifecycle.generation(ally), Time.get_ticks_msec(), 1)
 	check(PlayerVitals.current_hp(ally)==before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==1 and e.details.recipient==protected and e.quality=="refined"),"actual guest block uses host refined Catalyst")
@@ -247,7 +248,7 @@ func host(menu: Node) -> void:
 	if mixed_wood_ward:
 		var warded: Dictionary=game.players[ward_guest]
 		warded[Protection.STATE] = warded[Protection.STATE].clear_expedition()
-		warded.hurt_until=0
+		warded[Conditions.STATE] = warded[Conditions.STATE].clear_grace()
 		mark("wood-guard-"+str(ward_guest))
 		if not check(await until(func():return warded[Protection.STATE].charge_count()>0),"native remote Q arms Wood Ward"):return
 		var hp_before: float=PlayerVitals.current_hp(warded)
@@ -259,7 +260,7 @@ func host(menu: Node) -> void:
 		var visitor: Dictionary=game.players[ids[index]]
 		var source: int=ids[index]
 		var primary: String=preload("res://plant_affinities.gd").for_part(visitor.weapon).primary_affinity
-		if primary=="water": local.slow_until=Time.get_ticks_msec()+4000
+		if primary=="water": local[Conditions.STATE] = local[Conditions.STATE].with_slow_until(Time.get_ticks_msec()+4000)
 		var native_max: int=game.Life.native_maximum(game,local)
 		if not check(await until(func():
 			return Time.get_ticks_msec()>=maxi(int(visitor.get("cast_until",0)),int(visitor.get("core_cast_until",0)))),
@@ -286,7 +287,7 @@ func host(menu: Node) -> void:
 			"fire":
 				check(game.tactics.memory.get("affinity_burning",{}).has("%d/core"%source),"guest trail actually ignites leader")
 			"water":
-				check(await until(func():return local.slow_until==0 and game.tactics.memory.get("affinity_drenched",{}).has("%d/core"%source)),
+				check(await until(func():return local[Conditions.STATE].slow_until_ms()==0 and game.tactics.memory.get("affinity_drenched",{}).has("%d/core"%source)),
 					"guest Dewfall cleanses host and actually Drenches leader")
 			"thorn":
 				check(await until(func():return game.tactics.memory.get("affinity_bleed",{}).has("%d/core"%source)),
@@ -540,7 +541,7 @@ func learn_connected_guest(game: Node) -> bool:
 
 func exercise_connected_host(game: Node, local: Dictionary, player: Dictionary, id: int, events: Array) -> bool:
 	player[Protection.STATE] = player[Protection.STATE].clear_expedition()
-	player.hurt_until=0
+	player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
 	game.encounter.set_hp(-1, 180)
 	mark("ct-q")
 	if not check(await until(func():return player.get("warden_block",{}).get("focus")=="vanguard"),
@@ -753,11 +754,11 @@ func exercise_oracle_host(game: Node,id: int,entry: Vector3) -> bool:
 	if not check(await until(r_ready,2500),"remote Chime arms native Ward and projected Portent of Mercy"):return false
 	var before := int(PlayerVitals.current_hp(host_player))
 	var now := Time.get_ticks_msec()
-	host_player.hurt_until=0
+	host_player[Conditions.STATE] = host_player[Conditions.STATE].clear_grace()
 	Frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 1, PlayerLifecycle.generation(host_player), now, 1.0))
 	check(host_player[Protection.STATE].charge_count()==0 and PlayerVitals.current_hp(host_player)==before+6
 		and not Omens.strongest(game,host_player,Oracle.MERCY,now,id).is_empty(),"remote Oracle Ward blocks and heals without spending a conditional recovery")
-	host_player.hurt_until=0
+	host_player[Conditions.STATE] = host_player[Conditions.STATE].clear_grace()
 	Frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 1, PlayerLifecycle.generation(host_player), now+1, 1.0))
 	check(PlayerVitals.current_hp(host_player)==before+4 and Omens.strongest(game,host_player,Oracle.MERCY,now+1,id).is_empty()
 		and not Omens.strongest(game,host_player,Oracle.SECOND_BREATH,now+1,id).is_empty(),
@@ -1166,7 +1167,7 @@ func verify_current_snapshot_host(game: Node, ids: Array, local: Dictionary) -> 
 	local[Protection.STATE] = local[Protection.STATE].clear_expedition()
 	var now := Time.get_ticks_msec()
 	for hp in [10,120]:
-		local.hurt_until=0
+		local[Conditions.STATE] = local[Conditions.STATE].clear_grace()
 		IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(local), now, float(hp)/game.Life.Preview.scale(), 0, game.tactics.position)
 	var burst: Array = game.combat_events.filter(func(e):return e.shape=="wood_burst" and e.get("label")=="Bark break")
 	check(not local.has(wood.GRANTS) and burst.size()==1 and PlayerVitals.current_hp(local)<250 and PlayerVitals.current_hp(local)>0,"host consumes Bark once and emits one break response")

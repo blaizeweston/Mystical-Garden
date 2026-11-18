@@ -1,4 +1,6 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -84,7 +86,7 @@ func arena() -> void:
 		actor[Cooldowns.STATE] = actor[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
 		actor[PlayerVitals.STATE] = PlayerVitals.Health.new(30.0, 100)
 		actor.merge({"wild":true,PlayerLifecycle.STATE:PlayerLifecycle.start_life(),"lost_health":0,"pos":Vector3.ZERO,
-			"renewal_until":0,"guard_until":0,"hurt_until":0,"weapon":0,
+			"renewal_until":0,Protection.STATE:actor[Protection.STATE].clear_guard(),Conditions.STATE:actor[Conditions.STATE].clear_grace(),"weapon":0,
 			"catalyst":0,"secondary":0,"core_ready_at":0,"core_cast_until":0,"cast_until":0,
 			"frame":0,"weapon_kind":0,"facing":Vector3.FORWARD},true)
 	SessionCase.set_ready(game, ally, false)

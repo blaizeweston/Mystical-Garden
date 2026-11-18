@@ -1,4 +1,5 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const Participation = preload("res://expedition_participation.gd")
@@ -42,7 +43,7 @@ static func resolve_world(world: Node, peer_id: int, target_life: int, now: int,
 static func _resolve(contact: Contact, observation: Dictionary, recipient: Recipient) -> Dictionary:
 	if observation.is_empty():
 		return Recipient.result(Outcome.REJECTED)
-	if contact.now < int(observation.hurt_until):
+	if observation.within_hit_grace:
 		return Recipient.result(Outcome.GRACE)
 	if observation.guarded:
 		recipient.consume_guard(contact)
@@ -89,7 +90,7 @@ class Recipient extends RefCounted:
 		if not _is_current() or not Life.alive(_actor) or not _world.persistence_session.can_write():
 			return {}
 		var observation := {
-			"hurt_until": int(_actor.get("hurt_until", 0)),
+			"within_hit_grace": _actor[Conditions.STATE].grace_active(contact.now),
 			"guarded": _actor[Protection.STATE].allows_block(_actor.pos, contact.origin, contact.now),
 			"default_damage": float(1 + _world.participation.cycle() / 2),
 			"epoch": int(_world.participation.epoch()),
@@ -144,10 +145,13 @@ class Recipient extends RefCounted:
 
 	func _prepare_contact(contact: Contact, bark: Dictionary, effects) -> void:
 		Wood.consume(_actor, bark)
-		var grace_ms := int(preload("res://combat_director.gd").config().hit_grace_ms)
-		preload("res://combat_status.gd").incoming_grace(_actor, contact.now, contact.slow_ms, grace_ms,
-			func() -> bool: return _actor.has(Omens.STATE) and Omens.prevent_slow(_world, _actor, contact.now),
-			func() -> void: _world.action_feedback(effects, _peer, "Slowed."))
+		var conditions: Conditions.State = _actor[Conditions.STATE]
+		var prevented := conditions.slow_needs_prevention(contact.now, contact.slow_ms) \
+			and _actor.has(Omens.STATE) and Omens.prevent_slow(_world, _actor, contact.now)
+		var grace_ms := int(preload("res://game_balance.gd").values.combat.hit_grace_ms)
+		var update := conditions.after_hit(contact.now, contact.slow_ms, grace_ms, prevented)
+		_actor[Conditions.STATE] = update.next_state
+		if update.slow_applied: _world.action_feedback(effects, _peer, "Slowed.")
 
 	func apply_health_loss(amount: int) -> Dictionary:
 		if not _is_current() or not _world.persistence_session.can_write():

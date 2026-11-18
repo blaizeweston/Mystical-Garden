@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -41,7 +42,7 @@ func available(player: Dictionary) -> int:
 	return Wood.capacity(Wood.live_grants(player,Clock.now(game)))
 
 func hit(p: Dictionary, id: int, hp: int, now: int) -> void:
-	p.hurt_until=0
+	p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
 	IncomingPlayerHit.resolve_world(game, id, PlayerLifecycle.generation(p), now, float(hp)/game.Life.Preview.scale(), 0, game.tactics.position)
 
 func burst_count() -> int:
@@ -83,7 +84,7 @@ func reset() -> void:
 		p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
-		p.hurt_until=0
+		p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
 		p[Protection.STATE] = p[Protection.STATE].clear_expedition()
 		p[Protection.STATE] = p[Protection.STATE].clear_guard()
 		p[Protection.STATE] = p[Protection.STATE].clear_guard()

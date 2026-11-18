@@ -1,4 +1,5 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const Actors = preload("res://frost_combat.gd")
@@ -65,7 +66,7 @@ static func direct_damage(game: Node, hp: int) -> int:
 
 
 static func cleanse(player: Dictionary) -> void:
-	player.slow_until = 0
+	player[Conditions.STATE] = player[Conditions.STATE].cleanse_slow()
 
 
 static func wash(game: Node, event: RefCounted, center: Vector3) -> void:

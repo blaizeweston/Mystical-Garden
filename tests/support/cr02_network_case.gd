@@ -1,4 +1,5 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
@@ -142,7 +143,7 @@ func host(menu: Node, mismatch: bool) -> void:
 	if not check(await until(func(): return int(remote[Protection.STATE].charge_count())>0),"guest Q grants native Guard on host"):
 		return
 	print("CASE CR02 authoritative_action ",JSON.stringify({"actor":guest_id(world),"guard_charges":int(remote[Protection.STATE].charge_count())}))
-	remote.hurt_until=0
+	remote[Conditions.STATE] = remote[Conditions.STATE].clear_grace()
 	IncomingPlayerHit.resolve_world(world, guest_id(world), PlayerLifecycle.generation(remote), Time.get_ticks_msec(), 1)
 	check(events.size()==1 and events[0].kind=="actual_block"
 		and events[0].source_actor==guest_id(world) and events[0].details.recipient==guest_id(world),

@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -176,7 +177,7 @@ func run_catalyst(p: Dictionary, part: int) -> void:
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(60)
 	var ally: Dictionary=game.players[2]
 	ally.catalyst=ordinary if part==refined else refined
-	ally.hurt_until=0
+	ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 	ally[Protection.STATE] = ally[Protection.STATE].clear_guard()
 	p.class_aim=Vector3.FORWARD
 	p.class_aim_distance=0.0
@@ -204,7 +205,7 @@ func run_focus(p: Dictionary) -> void:
 	p.character[game.Classes.Warden.Connected.PROFILE_KEY]=game.Classes.Warden.Connected.state(["vanguard"])
 	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	p[Protection.STATE] = p[Protection.STATE].clear_expedition()
-	p.hurt_until=0
+	p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
 	game.use_class_skill(1,p,0)
 	var now:=Time.get_ticks_msec()
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now, 1)
@@ -231,7 +232,7 @@ func run_wards() -> void:
 	Events.grant_ward(game,p,now+900,2,second,adapter,now)
 	check(p[Protection.STATE].claim_count()==2 and p[Protection.STATE].charge_count()==2 and p[Protection.STATE].guard_until_ms()==now+900,"two accepted overlapping grants and native max-merge")
 	var hp: float=p[PlayerVitals.STATE].hp()
-	p.hurt_until=0
+	p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now, 1)
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now+1, 1)
 	check(p[PlayerVitals.STATE].hp()==hp and p[Protection.STATE].charge_count()==0 and p[Protection.STATE].claim_count()==0,"real block charges exhaust and clear ownership")

@@ -1,4 +1,5 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -229,7 +230,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		if heal_hp > 0:
 			game.Life.Sustain.restore(game,ally,heal_hp,skill.id)
 		if skill.get("cleanse",false) or (not ranger and not oracle and skill.second == 2):
-			ally.slow_until = 0
+			ally[Conditions.STATE] = ally[Conditions.STATE].cleanse_slow()
 		if skill.get("ward",false):
 			var extra := Catalog.Weaver.GIFT_EXTENSION_MS if extend_ward and is_same(ally,nearby[0]) else 0
 			events.grant_ward(game,ally,now+Balance.WARD_MS+extra,1,event,adapter,now)

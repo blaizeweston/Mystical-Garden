@@ -1,4 +1,5 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const Participation = preload("res://expedition_participation.gd")
@@ -68,7 +69,7 @@ static func revive(game: Node,helper_id: int,target_id: int,effects = null) -> b
  target[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
  target[Protection.STATE] = target[Protection.STATE].clear_guard()
  target.erase("frost_response");target.erase("affinity_ember_response")
- target.hurt_until=Time.get_ticks_msec()+1500
+ target[Conditions.STATE] = target[Conditions.STATE].with_grace_until(Time.get_ticks_msec()+int(preload("res://game_balance.gd").values.combat.revival_grace_ms))
  target.velocity=Vector3.ZERO;game.motions.erase(target_id)
  game.PartyTravel.cancel(game,"A teammate was revived. Confirm readiness again at the gate.",effects)
  game.action_feedback(effects,target_id,"Revived. %d maximum HP is lost until you return to the Garden."%Preview.revive_cost())

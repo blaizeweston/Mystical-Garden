@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -52,7 +53,7 @@ func run() -> void:
   check(game.tactics.boss_kind==kind and game.used_bosses.size()==count,"combat reset preserves floor decision")
   var packet: PackedInt32Array=game.campaign_snapshot()
   check(packet[game.EncounterConfig.BOSS_KIND]==kind,"public map descriptor in snapshot")
-  ExpeditionCase.set_membership(game, p, true);p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0
+  ExpeditionCase.set_membership(game, p, true);p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive();p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
   for move in game.Enemies.get_kind(kind).moves:
    game.tactics.position=Vector3(0,0,5);game.enemy_hazards.clear()
    if Lairs.Routes.supports(kind):

@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -127,7 +128,7 @@ func run() -> void:
 		check(game.tactics.memory.get(Fire.BURNING,{}).get("1/catalyst",{}).get("hp",0)==q.tick_hp,"native offensive class contact adds separate Catalyst burn")
 		reset()
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
-		p.hurt_until=0
+		p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
 		p[Protection.STATE] = p[Protection.STATE].clear_expedition()
 		game.use_class_skill(1,p,0)
 		var hp_before: float=p[PlayerVitals.STATE].hp()
@@ -139,7 +140,7 @@ func run() -> void:
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		var ally: Dictionary=game.players[2]
 		ally[Protection.STATE] = ally[Protection.STATE].clear_guard()
-		ally.hurt_until=0
+		ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 		p.class_aim=Vector3.FORWARD
 		p.class_aim_distance=0.0
 		game.use_class_skill(1,p,0)
@@ -153,7 +154,7 @@ func run() -> void:
 		check(not ally.has(Fire.RESPONSE) and game.tactics.memory.get(Fire.BURNING,{}).get("1/catalyst",{}).get("hp",0)==q.tick_hp,"survived incoming enemy hit uses source once")
 		check(ally[PlayerVitals.STATE].hp()==before_native-10+6,"native Second Breath independently restores 6 HP without changing Fire potency")
 		var after_response: int=game.enemy_health()
-		ally.hurt_until=0
+		ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 		frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 2, PlayerLifecycle.generation(ally), hit_now, 1.0, 0, game.tactics.position))
 		check(game.enemy_health()==after_response,"spent Ember Response does not stockpile")
 		game.Traits.tick(game,hit_now+1100)

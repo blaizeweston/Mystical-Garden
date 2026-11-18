@@ -1,4 +1,5 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -98,7 +99,7 @@ static func after_q(game: Node, id: int, player: Dictionary, skill: Dictionary, 
 		lowest_recipient(game,allies)[Protection.STATE] = lowest_recipient(game,allies)[Protection.STATE].grant(now+Balance.WARD_MS,1,Time.get_ticks_msec(),game.participation.epoch())
 	if nodes.has("quiet_ground"):
 		for ally in allies:
-			ally.slow_until = 0
+			ally[Conditions.STATE] = ally[Conditions.STATE].cleanse_slow()
 			var target: int = game.Traits.player_id(game,ally)
 			var duration := int(Progression.OMENS[Progression.QUIET_GROUND].ms)
 			Omens.grant(game,id,skill.subclass_focus,cast,target,ally,Progression.QUIET_GROUND,duration,now)

@@ -1,4 +1,5 @@
 extends Node3D
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const Participation = preload("res://expedition_participation.gd")
@@ -611,7 +612,7 @@ func add_player(id: int) -> void:
 		"seed_choice": 0, "carried_seeds": [],"safe_items":[],"carried_items":{}, "pouch": false, "loot_pending": false,
 		"donation_choice": Parts.EMPTY, "cache_claimed": false,
 		"carried_parts": Parts.empty_counts(), "secondary": Parts.EMPTY,
-		"prepared_secondary": Parts.EMPTY, "slow_until": 0, PlayerVitals.STATE: PlayerVitals.Health.new(float(base_health), base_health), "facing": Vector3.FORWARD}
+		"prepared_secondary": Parts.EMPTY, Conditions.STATE: Conditions.State.new(), PlayerVitals.STATE: PlayerVitals.Health.new(float(base_health), base_health), "facing": Vector3.FORWARD}
 	restore_class_loadout(players[id])
 	preload("res://garden_growth_service.gd").register(self,id)
 
@@ -2073,7 +2074,7 @@ func move_player(id: int, direction: Vector2, delta: float) -> void:
 	var stride := preload("res://spirit_affinity.gd").scale(p,preload("res://affinity_time.gd").now(self)) if p.has("affinity_spirit_strides") else 1.0
 	if p.has("ranger_speed_grants"):
 		stride = maxf(stride,preload("res://ranger_combat.gd").speed_scale(self,p,Time.get_ticks_msec()))
-	var desired := bound_position(p.pos + move * WALK_SPEED * guard_speed * stride * (0.6 if Time.get_ticks_msec() < int(p.get("slow_until", 0)) else 1.0) * delta, Participation.is_wild(p))
+	var desired := bound_position(p.pos + move * WALK_SPEED * guard_speed * stride * p[Conditions.STATE].movement_scale(Time.get_ticks_msec()) * delta, Participation.is_wild(p))
 	var previous: Vector3=p.pos
 	if Participation.is_wild(p):
 		p.pos = battlefield.slide(p.pos, desired)
@@ -2840,7 +2841,7 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 		if p.has("ranger_speed_grants"):
 			stride = maxf(stride,preload("res://ranger_combat.gd").speed_scale(self,p,Time.get_ticks_msec()))
 		var health: PlayerVitals.Health = p[PlayerVitals.STATE]
-		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":p[Protection.STATE].movement_scale(Time.get_ticks_msec())*(.6 if Time.get_ticks_msec()<int(p.get("slow_until",0)) else 1.0)*stride,"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":Session.slot_for(p,0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": Participation.is_wild(p), "fallen":PlayerLifecycle.fallen(p),"lost_health":p.get("lost_health",0), "hp": health.hp(), "max_hp": health.max_hp(), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
+		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":p[Protection.STATE].movement_scale(Time.get_ticks_msec())*p[Conditions.STATE].movement_scale(Time.get_ticks_msec())*stride,"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":Session.slot_for(p,0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": Participation.is_wild(p), "fallen":PlayerLifecycle.fallen(p),"lost_health":p.get("lost_health",0), "hp": health.hp(), "max_hp": health.max_hp(), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
 			"attack_anim":attack_animation_snapshot(p),"skill_fx":p.get("skill_fx",{}) if Time.get_ticks_msec()<int(p.get("skill_fx_until",0)) else {}, "weapon_kind":p.get("weapon_kind",0), "core_part":p.weapon if Participation.is_wild(p) else p.prepared, "pose": combat_pose(p),"wallet": run_wallet(p)}
 		var cooldowns: Cooldowns.Timers = p[Cooldowns.STATE]
 		var cooldown_now := Time.get_ticks_msec()
@@ -3185,7 +3186,7 @@ func _process(_delta: float) -> void:
 		"location": Campaign.NAMES[participation.route()] if wild else "Mystical Garden",
 		"floor":participation.floor(),
 		"encounter": "%d foes" % [int(enemy_health() > 0) + living_scout_count()] if wild else "Your living sanctuary",
-		"damage_flash":maxf(0,(int(p.get("hurt_until",0) if host_side else p.get("client_hurt_until",0))-Time.get_ticks_msec())/250.0),"hp": health, "max_hp": PlayerVitals.maximum_hp(p,MAX_HEALTH), "lost_health":p.get("lost_health",0),"fallen":PlayerLifecycle.fallen(p), "wild": wild, "frame": p.get("frame", 0),
+		"damage_flash":maxf(0,(int(p[Conditions.STATE].grace_until_ms() if host_side else p.get("client_hurt_until",0))-Time.get_ticks_msec())/250.0),"hp": health, "max_hp": PlayerVitals.maximum_hp(p,MAX_HEALTH), "lost_health":p.get("lost_health",0),"fallen":PlayerLifecycle.fallen(p), "wild": wild, "frame": p.get("frame", 0),
 		"skill_ready": ready_skill,"skill_two_ready":second_ready,"skill_names":[skills[0].name,skills[1].name+(" •" if quake_prepared else "")],"skill_cooldowns":cooldowns, "dodge_ready": ready_dodge,
 		"core":preload("res://core_combat.gd").hud_state(self,p),
 		"skill_tooltips":skill_tips,

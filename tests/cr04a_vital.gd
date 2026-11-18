@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -74,7 +75,7 @@ func reset(p: Dictionary, ally: Dictionary) -> void:
 		player.core_ready_at=0
 		player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
-		player.hurt_until=0
+		player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
 		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(game.Life.native_maximum(game,player))
 
 

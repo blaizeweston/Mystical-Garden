@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
@@ -62,7 +63,7 @@ func party(size: int) -> void:
 		actor[PlayerVitals.STATE] = actor[PlayerVitals.STATE].with_hp(100)
 		actor[PlayerVitals.STATE] = actor[PlayerVitals.STATE].with_native_max_hp(100)
 		actor[Protection.STATE] = actor[Protection.STATE].clear_guard()
-		actor.hurt_until=0
+		actor[Conditions.STATE] = actor[Conditions.STATE].clear_grace()
 
 
 func floor_state(floor_number: int, size: int, boss: int = -1) -> void:
@@ -142,7 +143,7 @@ func contact_and_hazards() -> void:
 	check(Preview.armor(8)==6 and Preview.armor(20)==15,"armor reduces light and heavy attacks proportionally")
 	game.enemy_hazards.clear()
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
-	player.hurt_until=0
+	player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
 	game.Bosses.hazard(game,Vector3.ZERO,1.2,2000,2300,"spores",800)
 	game.Bosses.tick_hazards(game,2799)
 	check(PlayerVitals.current_hp(player)==100,"hazard windup applies no damage")

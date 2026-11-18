@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -31,7 +32,7 @@ func run():
  var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,.8);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100)
  game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.tactics.boss_kind=-1;ExpeditionCase.set_world(game, {"destination": 0})
  for kind in seen:
-  var now:=Time.get_ticks_msec();game.enemy_kind=kind;game.tactics.position=Vector3.ZERO;game.encounter.begin_floor(800);game.tactics.ready_at=0;game.tactics.winding_up=false;game.tactics.engaged=true;game.tactics.stagger_until=0;game.tactics.rooted_until=0;game.enemy_mutations=0;game.tactics.longlimb=false;game.tactics.memory.clear();game.enemy_hazards.clear();game.tactics.recovery_bonus=0;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0;p[Protection.STATE] = p[Protection.STATE].clear_guard()
+  var now:=Time.get_ticks_msec();game.enemy_kind=kind;game.tactics.position=Vector3.ZERO;game.encounter.begin_floor(800);game.tactics.ready_at=0;game.tactics.winding_up=false;game.tactics.engaged=true;game.tactics.stagger_until=0;game.tactics.rooted_until=0;game.enemy_mutations=0;game.tactics.longlimb=false;game.tactics.memory.clear();game.enemy_hazards.clear();game.tactics.recovery_bonus=0;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p[Conditions.STATE] = p[Conditions.STATE].clear_grace();p[Protection.STATE] = p[Protection.STATE].clear_guard()
   Elite.tick(game,.016,now)
   check(game.tactics.winding_up and game.tactics.attack_mode==Catalog.get_kind(kind).role,"species attack: "+str(kind))
   var hints:=Elite.hints(game)
@@ -60,7 +61,7 @@ func run():
  game.enemy_kind=16;game.encounter.begin_floor(800);game.tactics.memory.clear();var thief:=Elite.state(game);thief.stolen=[{"stack":{"item":"briar_hook","quantity":1},"position":[0,0,0]}];game.wild_item_drops.clear();game.EnemyBehaviors.death(game,thief,Vector3.ZERO);check(game.wild_item_drops.size()==1 and thief.get("stolen",[]).is_empty(),"elite Thief uses the same stolen-loot recovery hook")
  game.enemy_kind=7;ExpeditionCase.set_world(game, {"encounter_number": 12});game.tactics.position=Vector3.ZERO;game.encounter.begin_floor(800)
  game.tactics.winding_up=false;game.tactics.ready_at=0;game.tactics.stagger_until=0;game.tactics.engaged=true
- game.enemy_hazards.clear();game.tactics.memory.clear();p.pos=Vector3(0,0,1.3);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0
+ game.enemy_hazards.clear();game.tactics.memory.clear();p.pos=Vector3(0,0,1.3);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
  var now:=Time.get_ticks_msec()
  Elite.tick(game,.016,now)
  var marked: Array=Elite.hints(game).filter(func(hint):return hint.role=="aftershock")

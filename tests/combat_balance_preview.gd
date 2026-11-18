@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -162,7 +163,7 @@ func verify_guard_and_core(game: Node, player: Dictionary) -> void:
 	player.weapon_kind=0
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
-	player.hurt_until=0
+	player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
 	game.use_class_skill(1,player,0)
 	check(int(player[Protection.STATE].charge_count())>0,"real Warden Guard granted")
 	var now:=Time.get_ticks_msec()

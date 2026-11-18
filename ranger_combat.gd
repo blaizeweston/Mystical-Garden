@@ -1,4 +1,5 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const Session = preload("res://network_session.gd")
@@ -87,7 +88,7 @@ static func after_q(game: Node, actor: int, player: Dictionary, skill: Dictionar
 			if not nearby(game,ally,center,float(skill.ranger_support_radius)):
 				continue
 			if selected.has("clear_trail"):
-				ally.slow_until = 0
+				ally[Conditions.STATE] = ally[Conditions.STATE].cleanse_slow()
 			var ratio := PlayerVitals.current_hp(ally)/maxf(1.0,float(PlayerVitals.maximum_hp(ally,1)))
 			if ratio < lowest:
 				lowest = ratio

@@ -1,4 +1,5 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Ranger=preload("res://ranger_combat.gd")
@@ -177,7 +178,7 @@ static func tick(game: Node,now: int) -> void:
    var heal_hp:=Preview.roll_heal(Preview.authored_amount(float(event.power)),Preview.HEAL_TICK_SPREAD_HP)
    for ally in game.players.values():
     if not game.Life.alive(ally) or ally.pos.distance_to(event.position)>float(event.radius) or not game.battlefield.clear_line(event.position,ally.pos): continue
-    game.Life.Sustain.restore(game,ally,heal_hp,event.kind);ally.slow_until=0
+    game.Life.Sustain.restore(game,ally,heal_hp,event.kind);ally[Conditions.STATE] = ally[Conditions.STATE].cleanse_slow()
     if event.ward: ally[Protection.STATE] = ally[Protection.STATE].grant(now+800,1,Time.get_ticks_msec(),game.participation.epoch())
   elif event.kind in ["growth","cinder"]:
    var targets: Array[int]=game.skill_area_targets(event.position,float(event.radius),event.position)

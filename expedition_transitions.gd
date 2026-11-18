@@ -1,4 +1,5 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const Participation = preload("res://expedition_participation.gd")
@@ -92,7 +93,7 @@ static func admit(game: Node, id: int, p: Dictionary,reserved_override: Array=[]
 	p[game.Cooldowns.STATE] = game.Cooldowns.Timers.new()
 	p.core_ready_at=0
 	p.core_cast_until=0
-	p.hurt_until=0
+	p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
 	p[Protection.STATE] = p[Protection.STATE].clear_expedition()
 	p.erase("frost_response")
 	p.erase("affinity_ember_response")
@@ -181,8 +182,7 @@ static func return_member(game: Node, p: Dictionary) -> void:
 	preload("res://native_grafts.gd").clear(p)
 	p.erase("graft_message")
 	p.pos = game.stage.experimental_garden.return_position() if game.stage.experimental_garden != null else game.stage.gate_position() + Vector3(0, 0, 2.0)
-	p.slow_until = 0
-	p.hurt_until=0
+	p[Conditions.STATE] = p[Conditions.STATE].clear_all()
 	game.restore_class_loadout(p)
 	p[game.PlayerVitals.STATE] = p[game.PlayerVitals.STATE].refilled()
 

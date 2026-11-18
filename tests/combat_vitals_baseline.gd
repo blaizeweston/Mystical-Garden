@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -116,7 +117,7 @@ func check_guard_and_health(game: Node) -> void:
 	var sequence := int(player.damage_seq)
 	var simultaneous := IncomingPlayerHit.resolve_world(game, 1, life, 2100, 1.0, 600)
 	check(simultaneous.kind == IncomingPlayerHit.Outcome.GRACE and int(player.damage_seq) == sequence
-		and int(player.get("slow_until", 0)) == 0, "a second hit at the same instant spends neither HP nor a status")
+		and int(player[Conditions.STATE].slow_until_ms()) == 0, "a second hit at the same instant spends neither HP nor a status")
 	var stale := IncomingPlayerHit.resolve_world(game, 1, life - 1, 4000, 5.0)
 	check(stale.kind == IncomingPlayerHit.Outcome.REJECTED and int(player.damage_seq) == sequence
 		and PlayerVitals.current_hp(player) == initial.hp()-10.0, "the host rejects a contact against a prior life")

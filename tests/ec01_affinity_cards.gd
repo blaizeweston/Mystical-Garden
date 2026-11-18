@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -401,7 +402,7 @@ func verify_dew_shelter() -> void:
 	player.pos = Vector3.ZERO
 	ally.pos = Vector3(0,0,-1.3)
 	var now := Time.get_ticks_msec()
-	ally.slow_until = now+5000
+	ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(now+5000)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].refilled()
 	game.garden_action(1,Core.request(game,player,Vector2.UP,1.5))
 	var cast: Dictionary = game.get_meta(Core.STATE,{}).get(1,{})
@@ -412,7 +413,7 @@ func verify_dew_shelter() -> void:
 	Clock.advance(game,.40)
 	Core.tick(game,int(cast.armed)+400)
 	var expiry: int = ally[Protection.STATE].guard_until_ms()
-	check(expiry==int(cast.armed)+1600 and ally[Protection.STATE].charge_count()==1 and ally.slow_until==0 and ally[PlayerVitals.STATE].hp()==ally[PlayerVitals.STATE].max_hp()
+	check(expiry==int(cast.armed)+1600 and ally[Protection.STATE].charge_count()==1 and ally[Conditions.STATE].slow_until_ms()==0 and ally[PlayerVitals.STATE].hp()==ally[PlayerVitals.STATE].max_hp()
 		and game.enemy_health()==400-baseline.impact_hp-bonus,"Dewfall grants one 1.2s Ward on a real living ally contact")
 	Clock.advance(game,.12)
 	Core.tick(game,int(cast.armed)+520)

@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -119,8 +120,9 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 		var recipient: Dictionary = game.players[peer]
 		recipient[Cooldowns.STATE] = Cooldowns.Timers.new()
 		recipient[Protection.STATE] = recipient[Protection.STATE].clear_expedition()
-		for key in ["hurt_until","lost_health",
-				"cast_until","core_ready_at","core_cast_until","slow_until"]:
+		recipient[Conditions.STATE] = recipient[Conditions.STATE].clear_all()
+		for key in ["lost_health",
+				"cast_until","core_ready_at","core_cast_until"]:
 			recipient[key]=0
 		recipient[WeaponActions.STATE] = recipient[WeaponActions.STATE].with_ready_at(0)
 		recipient[Protection.STATE] = recipient[Protection.STATE].clear_guard()
@@ -349,10 +351,10 @@ func siphon_effects() -> void:
 func support() -> void:
 	prepare(DEFENSE)
 	ally.pos=Vector3(0,0,2.8)
-	ally.slow_until=Time.get_ticks_msec()+3000
+	ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(Time.get_ticks_msec()+3000)
 	ally.unrelated_until=123456789
 	cast(0)
-	check(ally[PlayerVitals.STATE].hp()==28 and ally.slow_until==0 and ally.unrelated_until==123456789,
+	check(ally[PlayerVitals.STATE].hp()==28 and ally[Conditions.STATE].slow_until_ms()==0 and ally.unrelated_until==123456789,
 		"Grave Offering heals for 8 and Clear the Veil clears only Slow")
 	prepare(DEFENSE,Vector3.ZERO,Vector3(-2,0,0))
 	ally.pos=Vector3(0,0,2.8)

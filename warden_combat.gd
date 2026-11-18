@@ -1,4 +1,5 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 ## Host-owned effects from a confirmed Warden block or a committed Root Quake.
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -123,8 +124,8 @@ static func first_block(game: Node, player: Dictionary, state: Dictionary, now: 
 			cue(game,"Ready Footing",player.pos)
 	if learned(player,"clear_the_way"):
 		for ally in game.players.values():
-			if int(ally.get("slow_until",0)) > now and in_circle(game,ally,player.pos,BLOCK_RADIUS):
-				ally.slow_until = 0
+			if ally[Conditions.STATE].slow_active(now) and in_circle(game,ally,player.pos,BLOCK_RADIUS):
+				ally[Conditions.STATE] = ally[Conditions.STATE].cleanse_slow()
 				cue(game,"Cleansed",ally.pos)
 	if needs_quake(player) or learned(player,"aftershock"):
 		state.prepared = now+PREPARED_MS
