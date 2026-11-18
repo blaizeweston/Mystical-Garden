@@ -484,9 +484,41 @@ class WorkflowTests(unittest.TestCase):
   for i,(code,output,payload,expected) in enumerate(cases):
    with self.subTest(code=code,output=output,payload=payload):
     Process.code=code;Process.output=output;Process.payload=payload
-    with patch.object(w.execution.subprocess,'Popen',Process):
+    with patch.object(w.execution.subprocess,'Popen',Process),patch.object(w.execution,'stage_packaged_fixture_helpers',side_effect=AssertionError('source run staged package helpers')):
      result=self.flow.execute('settings',self.flow.root/f'execution-{i}')
     self.assertEqual(result['passed'],expected,result)
+
+ def test_packaged_helpers_stage_recursive_test_only_closure(self):
+  first = 'const Nested=preload("res://tests/helpers/nested.gd")\nconst Runtime=preload("res://settings.gd")\n'
+  nested = 'const First=preload("res://tests/helpers/first.gd")\n'
+  unused = 'extends RefCounted\n'
+  self.put('tests/helpers/first.gd',first);self.put('tests/helpers/nested.gd',nested)
+  self.put('tests/helpers/unused.gd',unused)
+  source = 'extends SceneTree\nconst Helper=preload("res://tests/helpers/first.gd")\n'
+  runtime = self.p/'external-package-fixture';runtime.mkdir()
+  pack = self.p/'export.exe';pack.write_bytes(b'unchanged retail package')
+  w.execution.stage_packaged_fixture_helpers(self.p,runtime,source)
+  self.assertEqual({p.relative_to(runtime).as_posix() for p in runtime.rglob('*') if p.is_file()},
+                   {'tests/helpers/first.gd','tests/helpers/nested.gd'})
+  self.assertEqual((runtime/'tests/helpers/first.gd').read_text(),first)
+  self.assertEqual((runtime/'tests/helpers/nested.gd').read_text(),nested)
+  self.assertFalse((runtime/'settings.gd').exists())
+  self.assertEqual((self.p/'tests/helpers/first.gd').read_text(),first)
+  self.assertEqual((self.p/'tests/helpers/nested.gd').read_text(),nested)
+  self.assertEqual(pack.read_bytes(),b'unchanged retail package')
+
+ def test_packaged_startup_without_helpers_stages_nothing(self):
+  runtime = self.p/'package-startup-fixture';runtime.mkdir()
+  source = 'extends SceneTree\nconst Runtime=preload("res://settings.gd")\n'
+  w.execution.stage_packaged_fixture_helpers(self.p,runtime,source)
+  self.assertEqual(list(runtime.iterdir()),[])
+
+ def test_packaged_helpers_reject_parent_traversal(self):
+  runtime = self.p/'unsafe-package-fixture';runtime.mkdir()
+  source = 'const Helper=preload("res://tests/../settings.gd")\n'
+  with self.assertRaisesRegex(ValueError,'Unsafe fixture helper path'):
+   w.execution.stage_packaged_fixture_helpers(self.p,runtime,source)
+  self.assertEqual(list(runtime.iterdir()),[])
 
  def test_peer_stderr_errors_fail_and_stderr_pass_marker_is_insufficient(self):
   result={'schema':1,'run_id':'r','fixture':'fixture','peer':'host','status':'PASS','exit':0,'expected_engine_errors':[]}

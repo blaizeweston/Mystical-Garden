@@ -43,6 +43,34 @@ def stage_packaged_lock(project, pack, runtime):
     shutil.copyfile(companion, destination)
 
 
+def stage_packaged_fixture_helpers(project, runtime, source):
+    """Keep excluded test helpers beside the external driver, outside the pack."""
+    project, runtime = Path(project).resolve(), Path(runtime).resolve()
+    helper_root = (project / "tests").resolve()
+    if not helper_root.is_relative_to(project):
+        raise ValueError("Fixture helper directory escapes the source project")
+    literals = re.compile(r"""\b(?:preload|load)\s*\(\s*(["'])(res://tests/[^"'\r\n]+\.gd)\1\s*\)""")
+    pending, staged = [source], set()
+    while pending:
+        text = pending.pop()
+        for match in literals.finditer(text):
+            relative = Path(match[2].removeprefix("res://"))
+            if "\\" in match[2] or ".." in relative.parts:
+                raise ValueError("Unsafe fixture helper path: " + match[2])
+            if relative in staged:
+                continue
+            helper = (project / relative).resolve(strict=True)
+            destination = runtime / relative
+            if (not helper.is_relative_to(helper_root) or not helper.is_file()
+                    or not destination.resolve().is_relative_to(runtime)):
+                raise ValueError("Fixture helper escapes its owned directories: " + match[2])
+            data = helper.read_bytes()
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(data)
+            staged.add(relative)
+            pending.append(data.decode("utf-8-sig"))
+
+
 def read_json(path):
     try:
         value = Path(path).read_text(encoding="utf-8-sig")
@@ -222,6 +250,7 @@ def run_fixture(project, engine, fixture, kind, script, folder, run_id, pack=Non
     driver.write_text(instrument(source), encoding="utf-8", newline="\n")
     runtime = folder if pack else project
     if pack:
+        stage_packaged_fixture_helpers(project, runtime, source)
         stage_packaged_lock(project, pack, runtime)
     if kind == "party":
         frames = "9000"
