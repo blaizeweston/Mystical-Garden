@@ -51,13 +51,13 @@ func guest_id(world: Node) -> int:
 	return 0
 
 
-func run(scene_tree: SceneTree, mismatch: bool, definition_mismatch := false) -> bool:
+func run(scene_tree: SceneTree, mismatch: bool) -> bool:
 	tree = scene_tree
 	var role := OS.get_cmdline_user_args()[0]
 	if mismatch and role == "guest":
-		# Deliberately advertise incompatible gameplay; there is no selectable
-		# historical runtime. Each fixture process owns its own contract value.
-		Rules.definition_signature = "different-definitions" if definition_mismatch else "retired-gameplay"
+		# Keep the modern ruleset ID and advertise incompatible definitions.
+		# Each fixture process owns its own contract value.
+		Rules.definition_signature = "different-definitions"
 	signal_root = OS.get_environment("MYSTICAL_TERRAIN_TEST_SIGNALS")
 	port = int(OS.get_environment("MYSTICAL_GARDEN_TEST_PORT"))
 	var menu := Menu.instantiate()
@@ -65,6 +65,8 @@ func run(scene_tree: SceneTree, mismatch: bool, definition_mismatch := false) ->
 	tree.current_scene = menu
 	if not check(Experiment.verified() and Experiment.active(menu),"real title retains isolated terrain and save protection"):
 		return false
+	print("CASE CR02 isolation ",JSON.stringify({"peer":role,"verified":true,
+		"profile":OS.get_environment(Experiment.PROFILE_ENV),"user_data":OS.get_user_data_dir()}))
 	if role=="host":
 		await host(menu,mismatch)
 	else:
@@ -82,10 +84,16 @@ func host(menu: Node, mismatch: bool) -> void:
 	var world := tree.current_scene
 	world.network_dialog.dismiss()
 	check(Build.for_player(world.players[1]).ruleset==Rules.ID,"host uses the sole modern build contract")
+	var authenticated_guests: Array[int] = []
+	var record_admission := func(id: int) -> void: authenticated_guests.append(id)
+	if mismatch: world.multiplayer.peer_connected.connect(record_admission)
 	mark("host")
 	if mismatch:
 		check(await until(func(): return read("refused")=="ok"),"mismatched guest observes clear refusal")
-		check(guest_id(world)==0 and world.players.size()==1,"mismatch never admits a guest")
+		check(authenticated_guests.is_empty() and guest_id(world)==0 and world.players.size()==1,"mismatch never admits a guest")
+		print("CASE CR02 rejection ",JSON.stringify({"authenticated_guests":authenticated_guests,
+			"ready_guest":guest_id(world),"players":world.players.size()}))
+		world.multiplayer.peer_connected.disconnect(record_admission)
 		world.return_to_main_menu()
 		return
 	if not check(await until(func(): return guest_id(world)!=0 and read("admitted")=="ok"),"matching peers are admitted"):
@@ -132,6 +140,7 @@ func host(menu: Node, mismatch: bool) -> void:
 	mark("guard")
 	if not check(await until(func(): return int(remote.guard_charges)>0),"guest Q grants native Guard on host"):
 		return
+	print("CASE CR02 authoritative_action ",JSON.stringify({"actor":guest_id(world),"guard_charges":int(remote.guard_charges)}))
 	remote.hurt_until=0
 	IncomingPlayerHit.resolve_world(world, guest_id(world), PlayerLifecycle.generation(remote), Time.get_ticks_msec(), 1)
 	check(events.size()==1 and events[0].kind=="actual_block"
@@ -201,6 +210,7 @@ func guest(menu: Node, mismatch: bool) -> void:
 	if mismatch:
 		if check(await until(func(): return tree.current_scene.get("return_message")==Rules.MISMATCH),
 			"normal title displays specific incompatible gameplay refusal"):
+			print("CASE CR02 refusal ",tree.current_scene.get("return_message"))
 			mark("refused")
 		return
 	if not check(await until(func(): return SessionCase.role(tree.current_scene)=="Guest" and tree.current_scene.stage.experimental_garden.remote_revision>=0),"guest joins actual Garden"):
@@ -220,6 +230,7 @@ func guest(menu: Node, mismatch: bool) -> void:
 			and not Core.cast_key(world,world.players.get(world.local_player_id(),{})).is_empty())
 	if not check(await until(native_action_ready),"guest receives generated floor and current native-action identity"):
 		return
+	print("CASE CR02 action_ready ",JSON.stringify({"current_identity":not Core.cast_key(world,world.players[world.local_player_id()]).is_empty()}))
 	world.send_garden_action("class_skill")
 	var offer_received := func() -> bool:
 		return read("cards")=="ok" and world.checkpoint_offer_revision>0 and world.checkpoint_cards.get_child_count()==3 and "12 Essence" in world.checkpoint_notice.text

@@ -1835,11 +1835,6 @@
       "package": false
     },
     "cr02_mode_coop": {"kind": "pair", "systems": ["expedition_wallet", "combat_affinity_contracts", "hex_terrain", "connection_flow", "weapons", "garden", "affinity_cards", "network_session"], "package": false},
-    "cr02_mode_mismatch": {
-      "kind": "pair",
-      "systems": ["world_snapshot", "combat_affinity_contracts", "connection_flow", "network_session"],
-      "package": false
-    },
     "cr02_definitions_mismatch": {
       "kind": "pair",
       "systems": ["world_snapshot", "combat_affinity_contracts", "connection_flow", "network_session"],
