@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -66,7 +68,7 @@ func reset(p: Dictionary, ally: Dictionary) -> void:
 		player.catalyst=0
 		player.guard_until=0
 		player.guard_charges=0
-		player.strike_at=0
+		player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 		player.cast_until=0
 		player.core_cast_until=0
 		player.core_ready_at=0

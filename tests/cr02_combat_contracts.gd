@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -60,11 +62,11 @@ func run() -> void:
 	player.weapon = -1
 	player.secondary = -1
 	player.catalyst = -1
-	var timers: Array = [player.strike_at,player[Cooldowns.STATE].deadline(Cooldowns.Q)]
+	var timers: Array = [player[WeaponActions.STATE].ready_at_ms(),player[Cooldowns.STATE].deadline(Cooldowns.Q)]
 	game.strike_enemy(1,player,player.pos)
 	game.use_class_skill(1,player,0)
 	game.garden_action(1,"core_cast:unavailable")
-	check([player.strike_at,player[Cooldowns.STATE].deadline(Cooldowns.Q)] == timers and game.projectile_queue.is_empty()
+	check([player[WeaponActions.STATE].ready_at_ms(),player[Cooldowns.STATE].deadline(Cooldowns.Q)] == timers and game.projectile_queue.is_empty()
 		and "invalid" in game.status, "invalid Form, Catalyst and Core do not execute")
 
 	player.weapon = ready_core

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -108,7 +110,7 @@ func verify_strikes(game: Node, player: Dictionary) -> void:
 		var seen: Dictionary={}
 		for trial in 16:
 			player.power=0
-			player.strike_at=0
+			player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 			game.encounter.clear_scouts()
 			game.projectile_queue.clear()
 			game.encounter.set_hp(-1, 600)
@@ -140,7 +142,7 @@ func verify_strikes(game: Node, player: Dictionary) -> void:
 
 func verify_multi_target(game: Node, player: Dictionary) -> void:
 	player.weapon_kind=2
-	player.strike_at=0
+	player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 	game.encounter.set_hp(-1, 600)
 	game.tactics.position=Vector3(0,0,1.4)
 	game.encounter.clear_scouts()
@@ -172,7 +174,7 @@ func verify_guard_and_core(game: Node, player: Dictionary) -> void:
 	player.core_ready_at=0
 	player.core_cast_until=0
 	player.cast_until=0
-	player.attack_until=0
+	player[WeaponActions.STATE] = player[WeaponActions.STATE].clear_active()
 	player.pos=Vector3.ZERO
 	game.encounter.set_hp(-1, 600)
 	game.encounter.clear_scouts()

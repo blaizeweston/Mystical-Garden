@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Grafts=preload("res://expedition_grafts.gd")
 var failed:=false
@@ -50,7 +52,7 @@ func run():
 	game.encounter.set_hp(-1, 100)
 	game.tactics.winding_up=false
 	p.pos=Vector3(0,0,5.4)
-	p.weapon=0;p.secondary=0;p.strike_at=0;p.frame=0
+	p.weapon=0;p.secondary=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);p.frame=0
 	var before: Vector3=game.tactics.position
 	game.strike_enemy(1,p,p.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
@@ -58,14 +60,14 @@ func run():
 	check(game.tactics.position.distance_to(before)<=.36 and game.tactics.stagger_until>Time.get_ticks_msec(),"push remains small and grants a short reaction beat")
 	game.tactics.winding_up=true
 	game.tactics.strike_at=Time.get_ticks_msec()+500
-	p.strike_at=0
+	p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
 	game.strike_enemy(1,p,p.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
 	check(game.tactics.winding_up,"hit reaction does not cancel committed attacks")
 	game.tactics.winding_up=false
 	game.tactics.position=Vector3(-6.5,0,-3.58)
 	p.pos=Vector3(-6.5,0,-4.58)
-	p.strike_at=0
+	p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
 	game.strike_enemy(1,p,p.pos)
 	game.update_projectiles(Time.get_ticks_msec()+1000)
 	check(not game.battlefield.occupied(game.tactics.position,.34) and game.tactics.position.z < -3.53,"knockback cannot push a monster through cover")

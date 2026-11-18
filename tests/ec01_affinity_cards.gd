@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -82,8 +84,9 @@ func reset(class_id := 0) -> void:
 			p.erase(key)
 		p[Cooldowns.STATE] = Cooldowns.Timers.new()
 		for key in ["weapon","secondary","catalyst","graft_part","lost_health","guard_until","guard_charges",
-				"strike_at","cast_until","core_ready_at","core_cast_until","last_offer"]:
+				"cast_until","core_ready_at","core_cast_until","last_offer"]:
 			p[key] = 0
+		p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
 		p.pos = Vector3.ZERO
 		ExpeditionCase.set_membership(game, p, true)
 		p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive()
@@ -491,7 +494,7 @@ func verify_native() -> void:
 	game.strike_enemy(1,player,player.pos)
 	var attack: Dictionary = game.projectile_queue.front()
 	check(int(attack.stats.interval)==int(plain_stats.interval)-faster and is_equal_approx(float(attack.stats.damage),float(plain_stats.damage)+float(hit_gain)/10.0)
-		and player.strike_at>=before+int(plain_stats.interval)-faster,"ordinary strike commits with both weapon cards")
+		and player[WeaponActions.STATE].ready_at_ms()>=before+int(plain_stats.interval)-faster,"ordinary strike commits with both weapon cards")
 	game.update_projectiles(int(attack.due)+1)
 	check(game.enemy_health()==400-int(attack.stats.preview_strike_hp),"the improved ordinary roll is applied on a real weapon contact")
 	var recovery := grant_fixture_copy("run_dodge_recovery",3)
@@ -711,8 +714,8 @@ func verify_attack_speed() -> void:
 		var now := Time.get_ticks_msec()
 		game.strike_enemy(1,player,player.pos)
 		var queued: Dictionary = game.projectile_queue.back()
-		check(int(queued.stats.interval) == next_ms and player.strike_at >= now+next_ms
-			and player.strike_at <= Time.get_ticks_msec()+next_ms and is_equal_approx(float(queued.stats.damage),float(stats.damage)+0.3),
+		check(int(queued.stats.interval) == next_ms and player[WeaponActions.STATE].ready_at_ms() >= now+next_ms
+			and player[WeaponActions.STATE].ready_at_ms() <= Time.get_ticks_msec()+next_ms and is_equal_approx(float(queued.stats.damage),float(stats.damage)+0.3),
 			"the actual basic attack uses the existing timer formula alongside graft damage")
 		var count: int = game.projectile_queue.size()
 		game.strike_enemy(1,player,player.pos)

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -41,7 +43,7 @@ func host_run():
  mark("ready");check(await until(func():return marked("verified")),"guest confirms attack")
  check(game.enemy_health()<80,"projectile hits on the host")
  check(not game.combat_events.any(func(e):return e.kind=="windup"),"host has no generic bow circle")
- p.frame=3;p.weapon_kind=1;p.attack_until=0;p.strike_at=0
+ p.frame=3;p.weapon_kind=1;p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active();p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
  game.tactics.position=Vector3(0,0,1.45)
  var before: int=game.enemy_health()
  mark("scythe-ready")
@@ -54,6 +56,8 @@ func guest_run():
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")
  var id:=game.multiplayer.get_unique_id()
  if not await until(func():return marked("ready") and game.network_session.role()=="Guest" and not game.client_details.is_empty() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds state");return
+ check(not game.players[id].has(WeaponActions.STATE) and not game.players[id].has("strike_at")
+  and not game.players[id].has("attack_until"),"guest has detached attack presentation, not a second authoritative timeline")
  var aim:=Vector2(1,0)
  var next_input:=0
  var deadline:=Time.get_ticks_msec()+6000;var saw_clip:=false;var saw_draw:=false

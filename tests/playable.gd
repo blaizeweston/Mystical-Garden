@@ -1,4 +1,6 @@
 extends SceneTree
+
+const WeaponActions = preload("res://player_weapon_actions.gd")
 ## Current integrated solo smoke. Historical species/paid-card/graft branches
 ## are retired; focused Garden and independent co-op fixtures retain coverage.
 const ExpeditionCase=preload("res://tests/support/expedition_case.gd")
@@ -52,7 +54,7 @@ func run() -> void:
 	check(world.enemy_health()<100 and actor[Cooldowns.STATE].deadline(Cooldowns.R)>0,"native Root Quake damages a real enemy")
 	world.encounter.set_hp(-1,1)
 	actor.cast_until=0
-	actor.strike_at=0
+	actor[WeaponActions.STATE] = actor[WeaponActions.STATE].with_ready_at(0)
 	world.strike_enemy(1,actor,actor.pos)
 	world.update_projectiles(Time.get_ticks_msec()+2000)
 	check(world.enemy_health()==0 and world.monster_rewards.pending_count()>=0,"a real ordinary weapon contact resolves an authoritative kill")

@@ -1,4 +1,6 @@
 extends SceneTree
+
+const WeaponActions = preload("res://player_weapon_actions.gd")
 const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -88,7 +90,7 @@ func arena() -> void:
 
 
 func strike(at: int) -> void:
-	player.strike_at = 0
+	player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 	player.pos = Vector3.ZERO
 	game.tactics.position = Vector3(0,0,-1.15)
 	game.strike_enemy(1,player,player.pos)
@@ -280,7 +282,7 @@ func reinforcements() -> void:
 		and true_class==game.Skills.Balance.cooldown(basic.affinity_build.class_skills[0].native_skill,basic)-250,
 		"reach/damage are absent from native class stats, with only the authored cooldown change")
 	arena()
-	player.strike_at = 0
+	player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 	game.strike_enemy(1,player,player.pos)
 	var attack: Dictionary = game.projectile_queue.back()
 	check(is_equal_approx(float(attack.stats.reach),reach+.2) and is_equal_approx(float(attack.stats.damage),damage+.3),

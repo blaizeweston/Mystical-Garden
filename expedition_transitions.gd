@@ -6,6 +6,7 @@ const Participation = preload("res://expedition_participation.gd")
 ## inventory, rewards and guarded transaction owners retain their state.
 
 const PlayerVitals = preload("res://player_vitals.gd")
+const WeaponActions = preload("res://player_weapon_actions.gd")
 const Session = preload("res://network_session.gd")
 
 static func enter(game: Node, id: int, p: Dictionary) -> void:
@@ -148,7 +149,8 @@ static func return_member(game: Node, p: Dictionary) -> void:
 	if peer == 0 or not game.players.has(peer) or not is_same(game.players[peer],p): return
 	if not game.SaveBatch.guarded_active(): game.flush_kill_rewards()
 	game.monster_rewards.finish_expedition(game._kill_reward_identity(peer, p), game.participation.run_id())
-	p.attack_until=0;p.swing_until=0;p.cast_until=0
+	p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active()
+	p.cast_until=0
 	preload("res://oracle_combat.gd").clear(p)
 	game.AffinityCards.clear(p)
 	p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new()

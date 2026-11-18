@@ -1,5 +1,7 @@
 extends RefCounted
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -635,7 +637,7 @@ func exercise_ranger_host(game: Node,id: int,entry: Vector3,target: Vector3,even
 		return (int(game.enemy_traits.get(RangerCombat.PREY,{}).get("owner",0))==id
 			and ranger.has(RangerCombat.DOUBLE) and read("ranger-prey-seen")=="ok")
 	if not check(await until(prey_ready),"actual guest Salvo tracks its survivor and prepares Double Draw"):return false
-	ally.strike_at=0
+	ally[WeaponActions.STATE] = ally[WeaponActions.STATE].with_ready_at(0)
 	ally.mouse_aim=false
 	ally.facing=direction
 	game.strike_enemy(1,ally,entry)
@@ -645,7 +647,7 @@ func exercise_ranger_host(game: Node,id: int,entry: Vector3,target: Vector3,even
 	if not check(await until(prey_spent),"host’s actual direct strike consumes the guest Ranger’s prep"):return false
 	var serial: int=game.combat_event_serial
 	var before := events.filter(func(e):return e.source_actor==id and e.kind=="weapon_contact").size()
-	ranger.strike_at=0
+	ranger[WeaponActions.STATE] = ranger[WeaponActions.STATE].with_ready_at(0)
 	mark("ranger-shoot")
 	var arrows := func() -> bool:
 		return game.combat_events.filter(func(e):return e.id>serial and e.kind=="projectile" and e.shape=="arrow").size()==2
@@ -686,7 +688,7 @@ func exercise_reaper_host(game: Node,id: int,entry: Vector3,target: Vector3,even
 	if not check(await until(q_ready,3000),"guest uses live Veil Passage with offensive Catalyst and replicated Momentum"):return false
 	check(not game.enemy_traits.has("core_strike_mark"),"connected Veil Passage generates no shared Mark")
 	var before := events.filter(func(e):return e.source_actor==id and e.kind=="weapon_contact").size()
-	reaper.strike_at=0
+	reaper[WeaponActions.STATE] = reaper[WeaponActions.STATE].with_ready_at(0)
 	mark("reaper-strike")
 	var spent := func() -> bool:
 		return not reaper.has(ReaperCombat.MOMENTUM) and events.filter(func(e):return e.source_actor==id and e.kind=="weapon_contact").size()==before+1
@@ -1269,7 +1271,7 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 			scout.stagger_until=Time.get_ticks_msec()+6000
 			game.encounter.register_scout(scout)
 		var caster: Dictionary = game.players[ids[0]]
-		caster.strike_at = 0
+		caster[WeaponActions.STATE] = caster[WeaponActions.STATE].with_ready_at(0)
 		game.strike_enemy(ids[0],caster,caster.pos)
 		if not check(await until(func():return game.trait_events.any(func(e):
 			return e.get("graft_source",{}).get("component_id")=="monster:ashen_hart"),1300),

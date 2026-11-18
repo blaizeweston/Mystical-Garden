@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -96,8 +98,9 @@ func reset_field() -> void:
 		player.erase("subclass_follow")
 		player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
 		for key in ["guard_until","guard_charges","hurt_until","slow_until","lost_health",
-				"core_ready_at","core_cast_until","cast_until","strike_at","weapon","secondary","catalyst","weapon_kind"]:
+				"core_ready_at","core_cast_until","cast_until","weapon","secondary","catalyst","weapon_kind"]:
 			player[key] = 0
+		player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 		ExpeditionCase.set_membership(game, player, true)
 		player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive()
 		player[PlayerVitals.STATE] = PlayerVitals.Health.new(100.0,100)

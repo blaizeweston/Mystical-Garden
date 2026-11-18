@@ -2,6 +2,7 @@ extends RefCounted
 
 const Participation = preload("res://expedition_participation.gd")
 const PlayerLifecycle=preload("res://player_lifecycle.gd")
+const WeaponActions = preload("res://player_weapon_actions.gd")
 const PlayerVitals=preload("res://player_vitals.gd")
 const Vitals=preload("res://combat_vitals.gd")
 const Preview=preload("res://combat_balance_preview.gd")
@@ -24,7 +25,8 @@ static func down(game: Node,id: int,p: Dictionary,effects = null) -> void:
  p[PlayerVitals.STATE] = health.with_hp(0.0)
  var lifecycle: PlayerLifecycle.Life = p[PlayerLifecycle.STATE]
  p[PlayerLifecycle.STATE] = lifecycle.fall()
- p.velocity=Vector3.ZERO;p.attack_until=0;p.swing_until=0
+ p.velocity=Vector3.ZERO
+ p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active()
  p.erase("affinity_ward_claims");p.erase("frost_response");p.erase("affinity_ember_response")
  preload("res://vital_combat.gd").clear(game,p)
  preload("res://wood_affinity.gd").clear(p)

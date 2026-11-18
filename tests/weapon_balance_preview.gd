@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -59,7 +61,7 @@ func equip(p: Dictionary, class_id: int, weapon: int) -> void:
 	p.weapon=0
 	p.secondary=0
 	p.catalyst=0
-	p.strike_at=0
+	p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
 
 
 func clear_targets(game: Node, at: Vector3) -> void:

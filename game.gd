@@ -72,6 +72,7 @@ const LoadoutMaterials=preload("res://loadout_materials.gd")
 const ROUTE_ROOMS := EncounterConfig.BIOME_LENGTH
 const ExpeditionWallet = preload("res://expedition_wallet.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
+const WeaponActions = preload("res://player_weapon_actions.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const AffinityCards = preload("res://affinity_cards.gd")
@@ -604,12 +605,12 @@ func add_player(id: int) -> void:
 	var spawn: Vector3 = Stage.SPAWN + [Vector3.ZERO,Vector3(1.1,0,0),Vector3(-1.1,0,0),Vector3(0,0,1.1)][party_slot]
 	var base_health:=Life.Preview.hp(MAX_HEALTH)
 	players[id] = {Session.STATE:link,"velocity":Vector3.ZERO,"damage_seq":0,"damage_amount":0,"vitals_revision":0,"pos": spawn, Participation.STATE: participation.attach(id), PlayerLifecycle.STATE: PlayerLifecycle.start_life(), "lost_health":0, "prepared": 0, "weapon": 0, "experiment": 0, ExpeditionWallet.STATE: ExpeditionWallet.Wallet.new(), "upgrade_seed":Crypto.new().generate_random_bytes(8).hex_encode().hash(),
-		"weapon_kind":0, "catalyst":0, "prepared_catalyst":0, "cargo_plan":Parts.empty_counts(), "frame": Frames.WARDEN, Cooldowns.STATE: Cooldowns.Timers.new(), "guard_charges":0, "guard_until": 0, "attack_until":0,"attack_duration":240,"attack_combo":0,"swing_until": 0, "contributed": false,
+		"weapon_kind":0, "catalyst":0, "prepared_catalyst":0, "cargo_plan":Parts.empty_counts(), "frame": Frames.WARDEN, Cooldowns.STATE: Cooldowns.Timers.new(), "guard_charges":0, "guard_until": 0, WeaponActions.STATE: WeaponActions.State.new(), "contributed": false,
 		"character": local_character.data if id == HOST else Character.blank(),
 		"seed_choice": 0, "carried_seeds": [],"safe_items":[],"carried_items":{}, "pouch": false, "loot_pending": false,
 		"donation_choice": Parts.EMPTY, "cache_claimed": false,
 		"carried_parts": Parts.empty_counts(), "secondary": Parts.EMPTY,
-		"prepared_secondary": Parts.EMPTY, "slow_until": 0, PlayerVitals.STATE: PlayerVitals.Health.new(float(base_health), base_health), "strike_at": 0, "facing": Vector3.FORWARD}
+		"prepared_secondary": Parts.EMPTY, "slow_until": 0, PlayerVitals.STATE: PlayerVitals.Health.new(float(base_health), base_health), "facing": Vector3.FORWARD}
 	restore_class_loadout(players[id])
 	preload("res://garden_growth_service.gd").register(self,id)
 
@@ -1639,7 +1640,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	if native_weaver_nova:
 		weaver_impact = weaver.prepare_nova(self,id,player,skill,targets,effect_point,now)
 	if not targets.is_empty():
-		player.swing_until=now+240
+		player[WeaponActions.STATE] = player[WeaponActions.STATE].swing_until(now + WeaponMotion.DEFAULT_POSE_MS)
 		if mode=="quake" and skill.has("warden_focus"):
 			preload("res://warden_combat.gd").prepare_quake_damage(self,player,skill,now)
 	var hits:=apply_skill_targets(player,targets,skill,stats,now)
@@ -2350,7 +2351,8 @@ func rare_harvest_chance(familiarity: int) -> float:
 func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 	if not Life.alive(p): return
 	var now:=Time.get_ticks_msec()
-	if now<int(p.strike_at): return
+	var attack: WeaponActions.State = p[WeaponActions.STATE]
+	if not attack.ready(now): return
 	var stats:=weapon_stats(p)
 	var affinity_build: Dictionary = stats.get("affinity_build", {})
 	if not affinity_build.is_empty():
@@ -2375,11 +2377,12 @@ func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 		if int(p.frame)==Frames.RANGER and p.character.has(Classes.Ranger.PROFILE_KEY):
 			stats.ranger_ordinary = true
 	Life.Preview.lock_strike(stats,0)
-	p.strike_at=now+int(stats.interval)
-	p.cast_until=0
 	var form:=WeaponMotion.form(p)
-	var duration:=maxi(180,mini(roundi(float(WeaponMotion.profile(form).duration)*1000),roundi(int(stats.interval)*.9)))
-	p.attack_reach=float(stats.reach);p.attack_duration=duration;p.attack_until=now+duration;p.swing_until=now+duration;p.attack_combo=int(p.get("attack_combo",0))+1
+	var started := attack.try_start(now, int(stats.interval), roundi(float(WeaponMotion.profile(form).duration)*1000), float(stats.reach))
+	if started == null: return
+	p[WeaponActions.STATE] = started
+	p.cast_until=0
+	var duration := started.duration_ms()
 	if p.get("mouse_aim",false):
 		MouseCombat.queue_attack(self,id,p,pos,stats,now,form,duration)
 		return
@@ -2832,7 +2835,7 @@ func receive_message(message: String) -> void:
 func combat_pose(player: Dictionary) -> int:
 	var facing: Vector3 = player.facing
 	var degrees := posmod(roundi(rad_to_deg(atan2(facing.x, facing.z))), 360)
-	var swing := clampi(ceili((int(player.swing_until) - Time.get_ticks_msec()) / 10.0), 0, 24)
+	var swing: int = player[WeaponActions.STATE].swing_ticks(Time.get_ticks_msec())
 	return degrees | (swing << 9)
 
 
@@ -4216,13 +4219,12 @@ func death_events_snapshot() -> Array:
 
 
 func attack_animation_snapshot(player: Dictionary) -> Dictionary:
-	var duration:=maxi(1,int(player.get("attack_duration",240)))
-	var remaining:=int(player.get("attack_until",0))-Time.get_ticks_msec()
-	if int(player.get("cast_until",0))>Time.get_ticks_msec():
-		var cast_pose: Dictionary = preload("res://subclass_combat.gd").pose_state(player,Time.get_ticks_msec())
-		return {"active":true,"phase":clampf(1.0-(int(player.cast_until)-Time.get_ticks_msec())/550.0,0,1),"combo":int(player.get("skill_fx_seq",0)),"duration":550,"form":"cast","clip":cast_pose.get("clip",""),"direction":cast_pose.get("direction",null)}
 	var now:=Time.get_ticks_msec()
-	return {"active":remaining>0,"phase":clampf(1.0-remaining/float(duration),0,1),"combo":int(player.get("attack_combo",0)),"duration":duration,"reach":player.get("attack_reach",2.0),"direction":MouseCombat.attack_direction(player,now),"aim_live":MouseCombat.aim_is_live(player,now),"clip":player.get("attack_clip",WeaponMotion.profile(WeaponMotion.form(player)).clip),"delivery":player.get("attack_delivery","sweep"),"span":player.get("attack_span",1.9),"form":"weapon"}
+	if int(player.get("cast_until",0))>now:
+		var cast_pose: Dictionary = preload("res://subclass_combat.gd").pose_state(player,now)
+		return {"active":true,"phase":clampf(1.0-(int(player.cast_until)-now)/550.0,0,1),"combo":int(player.get("skill_fx_seq",0)),"duration":550,"form":"cast","clip":cast_pose.get("clip",""),"direction":cast_pose.get("direction",null)}
+	var attack: WeaponActions.State = player[WeaponActions.STATE]
+	return attack.animation(now,player.facing,bool(player.get("mouse_aim",false)),player.get("aim_direction",Vector3.INF),WeaponMotion.profile(WeaponMotion.form(player)).clip)
 
 func weapon_effect_color(player: Dictionary) -> Color:
 	var part:=int(player.get("weapon",0))
@@ -4262,12 +4264,13 @@ func publish_combat_event(source: Dictionary) -> void:
 
 func emit_weapon_attack(player: Dictionary,from: Vector3,to: Vector3,stats: Dictionary,_now: int) -> void:
 	var form:=WeaponMotion.form(player);var profile:=WeaponMotion.profile(form)
-	var duration: float=int(player.get("attack_duration",240))/1000.0
+	var attack: WeaponActions.State = player[WeaponActions.STATE]
+	var duration: float=attack.duration_ms()/1000.0
 	if WeaponMotion.is_projectile(form): duration=clampf(from.distance_to(to)/float(profile.speed),.08,.45)
 	var description:=preload("res://weapon_contact.gd").describe(form,stats)
 	for id in players:
 		if is_same(players[id],player):description.owner=id;break
-	emit_combat_event("projectile" if WeaponMotion.is_projectile(form) else "swing",str(profile.shape),from,to,duration,weapon_effect_color(player),float(stats.reach),int(player.get("attack_combo",0)),description)
+	emit_combat_event("projectile" if WeaponMotion.is_projectile(form) else "swing",str(profile.shape),from,to,duration,weapon_effect_color(player),float(stats.reach),attack.sequence(),description)
 
 func combat_events_snapshot() -> Array:
 	var now:=Time.get_ticks_msec();var result: Array=[]

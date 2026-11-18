@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -21,14 +23,14 @@ func run():
  var poses: Array=[];var projectiles:=0
  for c in 5:
   for weapon in 3:
-   p.frame=c;p.weapon_kind=weapon;p.strike_at=0
+   p.frame=c;p.weapon_kind=weapon;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
    var tree=game.Classes.connected_tree(c)
    p.character[tree.profile_key]=tree.state([tree.nodes[0].id])
    game.encounter.set_hp(-1, 20);game.tactics.position=Vector3(0,0,5);game.projectile_queue.clear()
    var form:=Motion.form(p);var pose:=Motion.pose(form,.5,true,0)
    poses.append(str(pose))
    game.strike_enemy(1,p,p.pos)
-   check(p.attack_until>Time.get_ticks_msec() and int(p.attack_duration)>0,"weapon has timed attack pose: "+form)
+   check(p[WeaponActions.STATE].pose_until_ms()>Time.get_ticks_msec() and int(p[WeaponActions.STATE].duration_ms())>0,"weapon has timed attack pose: "+form)
    if Motion.is_projectile(form):
     projectiles+=1
     check(game.enemy_health()==20 and game.projectile_queue.size()==1,"ranged damage waits for projectile: "+form)
@@ -45,14 +47,14 @@ func run():
  for pose in poses:
   if not unique.has(pose): unique.append(pose)
  check(unique.size()==15 and projectiles==7,"fifteen distinct weapon poses and seven projectile forms")
- p.frame=2;p.weapon_kind=0;p.strike_at=0;game.encounter.set_hp(-1, 20);game.projectile_queue.clear()
+ p.frame=2;p.weapon_kind=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);game.encounter.set_hp(-1, 20);game.projectile_queue.clear()
  game.strike_enemy(1,p,p.pos)
  var retired: int = PlayerLifecycle.generation(p)
  p[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
  game.update_projectiles(Time.get_ticks_msec()+1000)
  check(not PlayerLifecycle.matches(p,retired) and int(p.lost_health)==0 and game.enemy_health()==20
   and game.projectile_queue.is_empty(),"previous-life projectile cannot hit at the same injury and floor")
- p.strike_at=0
+ p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
  game.strike_enemy(1,p,p.pos)
  p.lost_health=20
  game.update_projectiles(Time.get_ticks_msec()+1000)
@@ -60,7 +62,7 @@ func run():
  p.lost_health=0
  game.projectile_queue.clear()
  # Reused brood slots must not receive a projectile intended for their predecessor.
- p.frame=2;p.weapon_kind=0;p.strike_at=0;game.encounter.set_hp(-1, 0)
+ p.frame=2;p.weapon_kind=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);game.encounter.set_hp(-1, 0)
  var victim: Dictionary=game.make_scout(0,Vector3(0,0,5),1);victim.hp=20;game.encounter.clear_scouts();game.encounter.register_scout(victim)
  game.strike_enemy(1,p,p.pos)
  game.encounter.register_scout(game.make_scout(0,Vector3(0,0,5),1), 0);game.encounter.set_hp(0, 20)
@@ -85,7 +87,7 @@ func run():
  game.combat_visuals.sync([],[],"next-floor",p.pos)
  check(game.combat_visuals.hints.is_empty() and game.combat_visuals.active.is_empty(),"effect cleanup follows floor transitions")
  ExpeditionCase.Transitions.return_member(game, p)
- check(p.attack_until==0,"Garden return clears attack animation")
+ check(p[WeaponActions.STATE].pose_until_ms()==0,"Garden return clears attack animation")
  game.free()
  if not failed: print("PASS: fifteen weapon motions, seven delayed projectile forms, impact events, target identity, stag chevrons, swept damage, safe lanes and terrain clipping")
  quit(1 if failed else 0)

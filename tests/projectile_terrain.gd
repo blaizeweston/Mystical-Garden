@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -125,7 +127,7 @@ func prepare(origin: Vector3, foe: Vector3) -> void:
 	player.pos = origin
 	player.facing = Vector3.RIGHT
 	player.aim_direction = Vector3.RIGHT
-	player.strike_at = 0
+	player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	player.cast_until = 0

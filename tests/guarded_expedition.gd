@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -196,6 +198,18 @@ func exercise() -> void:
   and departed_timers.deadline(Cooldowns.R)==0 and departed_timers.deadline(Cooldowns.DODGE)==0,
   "successful expedition entry starts three fresh cooldowns")
  var initial_wallet = world.wallet_for(actor)
+ var action_before: WeaponActions.State=actor[WeaponActions.STATE]
+ var queue_before: int=world.projectile_queue.size()
+ world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
+ var refused_attack: Dictionary=world.run_guarded_action(1,Tx.Scope.PAIR,func(_effects):
+  world.strike_enemy(1,actor,actor.pos)
+  return true)
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ check(not Tx.committed(refused_attack.persistence) and is_same(actor[WeaponActions.STATE],action_before)
+  and actor[WeaponActions.STATE].sequence()==0 and world.projectile_queue.size()==queue_before,
+  "guarded attack abort restores the original weapon state and removes the attempted contact")
+ check(not actor.has("strike_at") and not actor.has("attack_until") and not actor.has("ranged_windup"),
+  "host actor has one authoritative weapon component, not duplicate raw fields")
  record("departure_commit",before)
 
  var trophy_config: Dictionary = world.Director.config()

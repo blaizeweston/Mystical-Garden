@@ -1,5 +1,7 @@
 extends RefCounted
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const Participation = preload("res://expedition_participation.gd")
 
 const ActionIdentity = preload("res://network_action_identity.gd")
@@ -103,17 +105,9 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 	player.core_ready_at = now + int(skill.cooldown_ms)
 	player.core_cast_until = now + duration
 	player.facing = forward
-	player.attack_direction = forward
-	player.attack_reach = line.center.distance_to(player.pos)
-	player.attack_span = float(weapon.span)
-	player.attack_delivery = weapon.delivery
-	player.attack_combo = int(player.get("attack_combo", 0)) + 1
+	player[WeaponActions.STATE] = player[WeaponActions.STATE].core_pose(now,duration,line.center.distance_to(player.pos),forward,weapon.clip,weapon.delivery,float(weapon.span),not blade_cast)
 	player.skill_fx_seq = int(player.get("skill_fx_seq", 0)) + 1
-	player.attack_clip = weapon.clip
-	player.attack_duration = duration
-	player.attack_until = 0 if blade_cast else now + duration
 	player.cast_until = now + duration if blade_cast else 0
-	player.strike_at = maxi(int(player.get("strike_at", 0)), int(player.core_cast_until))
 	if step:
 		preload("res://spirit_affinity.gd").core_step(game,line,player,now)
 	var modifiers: Array = skill.modifiers.map(func(modifier): return modifier.id)

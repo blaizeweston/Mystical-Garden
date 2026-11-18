@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -101,7 +103,7 @@ func prepare(path: Array, origin := Vector3.ZERO, enemy := Vector3(2,0,0)) -> vo
 	ranger[PlayerLifecycle.STATE] = ranger[PlayerLifecycle.STATE].clear_inactive()
 	ranger[Cooldowns.STATE] = ranger[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	ranger[Cooldowns.STATE] = ranger[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
-	ranger.strike_at = 0
+	ranger[WeaponActions.STATE] = ranger[WeaponActions.STATE].with_ready_at(0)
 	ranger.cast_until = 0
 	ally.pos = Vector3(-8,0,2)
 	ally.guard_until = 0

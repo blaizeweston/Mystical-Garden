@@ -1,5 +1,14 @@
 extends RefCounted
 const Classes=preload("res://class_catalog.gd")
+# Ordinary attack pose limits, in milliseconds. Actual attack frequency still
+# comes from the resolved weapon interval; authored clips are in weapon_actions.json.
+const DEFAULT_POSE_MS := 240
+const MIN_BASIC_POSE_MS := 180
+const BASIC_INTERVAL_POSE_FRACTION := 0.9
+
+static func basic_duration_ms(authored_ms: int, interval_ms: int) -> int:
+ return maxi(MIN_BASIC_POSE_MS, mini(authored_ms, roundi(interval_ms * BASIC_INTERVAL_POSE_FRACTION)))
+
 static var PROFILES: Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://assets/characters/weapon_actions.json"))
 static func form(player: Dictionary) -> String:
  var c:=clampi(int(player.get("frame",0)),0,Classes.DEFINITIONS.size()-1)

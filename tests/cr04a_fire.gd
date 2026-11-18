@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -100,7 +102,7 @@ func run() -> void:
 		p.secondary=part
 		p.core_cast_until=0
 		p.cast_until=0
-		p.strike_at=0
+		p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
 		p.facing=Vector3.FORWARD
 		game.strike_enemy(1,p,p.pos)
 		var shot: Dictionary=game.projectile_queue.front()

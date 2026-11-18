@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -116,8 +118,9 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 		var recipient: Dictionary = game.players[peer]
 		recipient[Cooldowns.STATE] = Cooldowns.Timers.new()
 		for key in ["guard_until","guard_charges","hurt_until","lost_health",
-				"cast_until","core_ready_at","core_cast_until","strike_at","slow_until"]:
+				"cast_until","core_ready_at","core_cast_until","slow_until"]:
 			recipient[key]=0
+		recipient[WeaponActions.STATE] = recipient[WeaponActions.STATE].with_ready_at(0)
 		recipient.erase("affinity_ward_claims")
 		ExpeditionCase.set_membership(game, recipient, peer in [1,8])
 		recipient[PlayerLifecycle.STATE] = recipient[PlayerLifecycle.STATE].clear_inactive()
@@ -137,7 +140,7 @@ func scout(point: Vector3, hp := 300, summoned := false) -> Dictionary:
 	return foe
 
 func enqueue() -> Dictionary:
-	player.strike_at=0
+	player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 	game.strike_enemy(1,player,player.pos)
 	return game.projectile_queue.back()
 

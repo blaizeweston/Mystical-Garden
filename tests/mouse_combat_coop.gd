@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -32,17 +34,17 @@ func host_run():
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"registration");return
  game.set_physics_process(false);game.set_process(false)
  var id=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
- ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3.ZERO;p.strike_at=0
+ ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3.ZERO;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
  game.encounter.clear_scouts();game.battlefield.procedural=false;game.battlefield.barriers=[];game.tactics.position=Vector3(0,0,-1);game.encounter.set_hp(-1, 10000)
  mark("ready")
  var end=Time.get_ticks_msec()+1400
  while Time.get_ticks_msec()<end:
   var now=Time.get_ticks_msec();game.mouse_controls.tick(game,now);game.update_projectiles(now);await process_frame
- check(p.attack_combo>=2 and p.attack_combo<=7,"hold respects authoritative attack speed")
+ check(p[WeaponActions.STATE].sequence()>=2 and p[WeaponActions.STATE].sequence()<=7,"hold respects authoritative attack speed")
  check(game.enemy_health()<10000 and p.facing.z<-.9,"remote cursor sets direction and hits")
  mark("stop");check(await until(func():return marked("released")),"guest released")
  await create_timer(.1).timeout
- var combo=p.attack_combo;p.strike_at=0;game.mouse_controls.tick(game,Time.get_ticks_msec());check(p.attack_combo==combo,"remote release stops new attacks")
+ var combo=p[WeaponActions.STATE].sequence();p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);game.mouse_controls.tick(game,Time.get_ticks_msec());check(p[WeaponActions.STATE].sequence()==combo,"remote release stops new attacks")
  mark("done");await create_timer(.3).timeout
 func guest_run():
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")

@@ -8,6 +8,7 @@
   },
   "full_after_days": 7,
   "systems": {
+    "player_weapon_actions": {"label": "Host weapon action recovery, sequence, aim and pose state", "files": ["player_weapon_actions.gd", "player_weapon_actions.gd.uid"]},
     "persistence_cutover": {"label": "Separate guarded save root and explicit offline copy migration", "files": ["persistence_root.gd", "persistence_root.gd.uid", "assets/content/save_cutover.json", "tools/save_cutover.py", "tools/tests/test_save_cutover.py"]},
     "encounter_roster": {"label":"Host encounter membership, HP, stable target identities and defeat","files":["encounter_roster.gd","encounter_roster.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid"]},
     "expedition_grafts": {"label": "Expedition graft ledgers, altar quotes and source-owned adaptations", "files": ["expedition_grafts.gd", "expedition_grafts.gd.uid", "affinity_grafting_panel.gd", "affinity_grafting_panel.gd.uid"]},
@@ -1624,9 +1625,7 @@
     "death_events_snapshot": [
       "presentation"
     ],
-    "attack_animation_snapshot": [
-      "presentation"
-    ],
+    "attack_animation_snapshot": ["player_weapon_actions", "presentation", "ranged_release", "warden_progression"],
     "weapon_effect_color": [
       "presentation"
     ],
@@ -1717,6 +1716,7 @@
     ]
   },
   "suites": {
+    "player_weapon_actions": {"kind": "unit", "systems": ["player_weapon_actions", "weapons", "combat"], "package": true},
     "persistence_cutover": {"kind": "unit", "systems": ["persistence_cutover", "persistence_operations"], "package": true},
     "modern_gameplay_cutover": {
       "kind": "unit",
@@ -4092,6 +4092,10 @@
     "foundation_performance": "Optional performance benchmark, run explicitly; not a correctness release suite."
   },
   "relationships": [
+    ["player_weapon_actions", "combat", "One immutable timeline admits weapon actions and captures sequence-bound aim"],
+    ["player_weapon_actions", "core_combat", "Core uses the existing attack exclusion deadline and pose without owning the weapon state"],
+    ["player_weapon_actions", "life", "Fall and Garden return cancel active presentation through the owner"],
+    ["player_weapon_actions", "world_snapshot", "Guests receive existing detached attack_anim and compact pose projections"],
     ["life", "player_lifecycle", "Falling, revival and expedition transitions replace host lifecycle state"],
     ["player_lifecycle", "combat", "Delayed combat checks the captured player generation"],
     ["player_lifecycle", "world_snapshot", "Guest packets retain the fallen projection and existing movement epoch"],
@@ -6514,20 +6518,6 @@
         "additive": true
       },
       "warden_damage_from_committed_origin": {
-        "additive": true,
-        "systems": [
-          "warden_progression"
-        ]
-      }
-    },
-    "attack_animation_snapshot": {
-      "ranged_aim_snapshot": {
-        "additive": true,
-        "systems": [
-          "ranged_release"
-        ]
-      },
-      "subclass_release_pose": {
         "additive": true,
         "systems": [
           "warden_progression"

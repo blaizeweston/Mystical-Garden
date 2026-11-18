@@ -1237,16 +1237,6 @@
         "baseline": "\t\t\tapply_weapon_hit(player,target,player.pos,hit,now)\n"
       }
     },
-    "attack_animation_snapshot": {
-      "ranged_aim_snapshot": {
-        "match": "\tvar now:=Time.get_ticks_msec()\n\treturn {\"active\":remaining>0,\"phase\":clampf(1.0-remaining/float(duration),0,1),\"combo\":int(player.get(\"attack_combo\",0)),\"duration\":duration,\"reach\":player.get(\"attack_reach\",2.0),\"direction\":MouseCombat.attack_direction(player,now),\"aim_live\":MouseCombat.aim_is_live(player,now),\"clip\":player.get(\"attack_clip\",WeaponMotion.profile(WeaponMotion.form(player)).clip),\"delivery\":player.get(\"attack_delivery\",\"sweep\"),\"span\":player.get(\"attack_span\",1.9),\"form\":\"weapon\"}\n",
-        "baseline": "\treturn {\"active\":remaining>0,\"phase\":clampf(1.0-remaining/float(duration),0,1),\"combo\":int(player.get(\"attack_combo\",0)),\"duration\":duration,\"reach\":player.get(\"attack_reach\",2.0),\"direction\":player.get(\"attack_direction\",player.get(\"facing\",Vector3.FORWARD)),\"clip\":player.get(\"attack_clip\",WeaponMotion.profile(WeaponMotion.form(player)).clip),\"delivery\":player.get(\"attack_delivery\",\"sweep\"),\"span\":player.get(\"attack_span\",1.9),\"form\":\"weapon\"}\n"
-      },
-      "subclass_release_pose": {
-        "match": "\tif int(player.get(\"cast_until\",0))>Time.get_ticks_msec():\n\t\tvar cast_pose: Dictionary = preload(\"res://subclass_combat.gd\").pose_state(player,Time.get_ticks_msec())\n\t\treturn {\"active\":true,\"phase\":clampf(1.0-(int(player.cast_until)-Time.get_ticks_msec())/550.0,0,1),\"combo\":int(player.get(\"skill_fx_seq\",0)),\"duration\":550,\"form\":\"cast\",\"clip\":cast_pose.get(\"clip\",\"\"),\"direction\":cast_pose.get(\"direction\",null)}",
-        "baseline": "\tif int(player.get(\"cast_until\",0))>Time.get_ticks_msec():return {\"active\":true,\"phase\":clampf(1.0-(int(player.cast_until)-Time.get_ticks_msec())/550.0,0,1),\"combo\":int(player.get(\"skill_fx_seq\",0)),\"duration\":550,\"form\":\"cast\"}"
-      }
-    },
     "return_to_main_menu": {
       "guarded_lifecycle": {
         "match": "\tif returning_to_title:\n\t\treturn\n\treturning_to_title = true\n\tif persistence_session.is_guarded():\n\t\tvar owned: bool=persistence_session.owns_leases()\n\t\tif not prepare_guarded_exit():\n\t\t\treturning_to_title=false\n\t\t\treturn\n\t\t_finish_title_return(message if owned else \"This session lost access to its save. Returning to the title.\")\n\t\treturn\n\tif network_session.role() in [\"Solo\",\"Host\"] and not network_session.joined_from_title():\n\t\tif participation.active():\n\t\t\tif not load(\"res://expedition_transitions.gd\").finish_voluntary(self):\n\t\t\t\treturning_to_title = false\n\t\t\t\treturn\n\t\t\tfor player in players.values():\n\t\t\t\tif Participation.is_wild(player):\n\t\t\t\t\tload(\"res://expedition_transitions.gd\").return_member(self,player)\n\t\tif not save_session_garden():\n\t\t\treturning_to_title = false\n\t\t\tif not persistence_session.is_guarded(): status = \"Could not save this Garden. Use Save Garden before leaving.\"\n\t\t\treturn\n\t\tif not persistence_session.pending_notice().is_empty():\n\t\t\t_finish_title_return(message)\n\t\t\treturn\n\tif character_dirty and not save_local_character():\n\t\treturning_to_title = false\n\t\treturn\n\t_finish_title_return(message)\n\n",
@@ -2549,7 +2539,7 @@
         "baseline": "\tif active and animation.get(\"direction\") is Vector3:\n\t\tyaw=atan2(animation.direction.x,animation.direction.z)\n"
       },
       "host_ranged_direction": {
-        "match": "\t\tanimation={\"active\":remaining>0,\"phase\":clampf(1.0-remaining/float(maxi(1,int(player.get(\"attack_duration\",240)))),0,1),\"combo\":int(player.get(\"attack_combo\",0)),\"duration\":int(player.get(\"attack_duration\",240)),\"reach\":player.get(\"attack_reach\",2.0),\"direction\":preload(\"res://mouse_combat.gd\").attack_direction(player,now),\"clip\":player.get(\"attack_clip\",WeaponMotion.profile(WeaponMotion.form(player)).clip),\"delivery\":player.get(\"attack_delivery\",\"sweep\"),\"span\":player.get(\"attack_span\",1.9),\"form\":\"weapon\"}\n",
+        "match": "\t\tvar attack: WeaponActions.State = player[WeaponActions.STATE]\n\t\tanimation=attack.animation(now,player.facing,bool(player.get(\"mouse_aim\",false)),player.get(\"aim_direction\",Vector3.INF),WeaponMotion.profile(WeaponMotion.form(player)).clip)\n",
         "baseline": "\t\tanimation={\"active\":remaining>0,\"phase\":clampf(1.0-remaining/float(maxi(1,int(player.get(\"attack_duration\",240)))),0,1),\"combo\":int(player.get(\"attack_combo\",0)),\"duration\":int(player.get(\"attack_duration\",240)),\"reach\":player.get(\"attack_reach\",2.0),\"direction\":player.get(\"attack_direction\",player.facing),\"clip\":player.get(\"attack_clip\",WeaponMotion.profile(WeaponMotion.form(player)).clip),\"delivery\":player.get(\"attack_delivery\",\"sweep\"),\"span\":player.get(\"attack_span\",1.9),\"form\":\"weapon\"}\n"
       },
       "gait_facing": {
@@ -2617,7 +2607,7 @@
         "baseline": "\t\tsupport_rings[i].visible = active and pack[start + 3] > 0.0\n"
       },
       "guest_core_aim": {
-        "match": "\t\tif player.has(\"swing_until\"):\n\t\t\tswing = clampf((int(player.swing_until) - now) / 240.0, 0.0, 1.0)\n",
+        "match": "\t\tif player.has(WeaponActions.STATE):\n\t\t\tswing = player[WeaponActions.STATE].swing_fraction(now)\n",
         "baseline": "\t\tswing = clampf((int(player.swing_until) - now) / 240.0, 0.0, 1.0)\n"
       },
       "nest_rib_models": {
@@ -5167,11 +5157,11 @@
         "baseline": " var melee := {\"melee_shape\":true,\"player\":id,\"epoch\":game.participation.epoch(),\"release\":release,\"due\":release,\"emitted\":true,\"projectile\":false,\"form\":form,\"origin\":pos,\"aim\":end,\"stats\":stats.duplicate(true)}\n if stats.has(preload(\"res://reaper_combat.gd\").STRIKE):\n  melee.life = int(p.get(\"lost_health\",0))\n"
       },
       "ct04_reaper_1": {
-        "match": "  return\n game.emit_weapon_attack(p,pos,end,stats,now)\n var melee := {\"melee_shape\":true,\"player\":id,\"epoch\":game.participation.epoch(),\"release\":release,\"due\":release,\"emitted\":true,\"projectile\":false,\"form\":form,\"origin\":pos,\"aim\":end,\"stats\":stats.duplicate(true)}\n if stats.has(preload(\"res://reaper_combat.gd\").STRIKE):\n  melee.life = int(p.get(\"lost_health\",0))\n game.projectile_queue.append(melee)\nstatic func aim_is_live(player: Dictionary,now: int) -> bool:\n var windup: Dictionary=player.get(\"ranged_windup\",{})\n",
+        "match": "  return\n game.emit_weapon_attack(p,pos,end,stats,now)\n var melee := {\"melee_shape\":true,\"player\":id,\"epoch\":game.participation.epoch(),\"release\":release,\"due\":release,\"emitted\":true,\"projectile\":false,\"form\":form,\"origin\":pos,\"aim\":end,\"stats\":stats.duplicate(true)}\n if stats.has(preload(\"res://reaper_combat.gd\").STRIKE):\n  melee.life = int(p.get(\"lost_health\",0))\n game.projectile_queue.append(melee)\n",
         "baseline": "  return\n game.emit_weapon_attack(p,pos,end,stats,now)\n game.projectile_queue.append({\"melee_shape\":true,\"player\":id,\"epoch\":game.participation.epoch(),\"release\":release,\"due\":release,\"emitted\":true,\"projectile\":false,\"form\":form,\"origin\":pos,\"aim\":end,\"stats\":stats.duplicate(true)})\nstatic func aim_is_live(player: Dictionary,now: int) -> bool:\n var windup: Dictionary=player.get(\"ranged_windup\",{})\n"
       },
       "ct03_ranger_1": {
-        "match": "  game.projectile_queue.append({\"direction\":direction,\"mouse_ray\":true,\"player\":id,\"epoch\":game.participation.epoch(),\"release\":release,\"due\":release+flight,\"emitted\":false,\"projectile\":true,\"form\":form,\"origin\":muzzle,\"aim\":end,\"previous\":muzzle,\"stats\":stats.duplicate(true),\"hits\":[],\"remaining\":int(stats.targets)})\n  game.projectile_queue.back().muzzle_blocked = path.muzzle_blocked\n  if stats.get(\"ranger_ordinary\",false):\n   game.projectile_queue.back().life = int(p.get(\"lost_health\",0))\n  if p.get(\"mouse_aim\",false):\n   var combo:=int(p.get(\"attack_combo\",0))\n",
+        "match": "  game.projectile_queue.append({\"direction\":direction,\"mouse_ray\":true,\"player\":id,\"epoch\":game.participation.epoch(),\"release\":release,\"due\":release+flight,\"emitted\":false,\"projectile\":true,\"form\":form,\"origin\":muzzle,\"aim\":end,\"previous\":muzzle,\"stats\":stats.duplicate(true),\"hits\":[],\"remaining\":int(stats.targets)})\n  game.projectile_queue.back().muzzle_blocked = path.muzzle_blocked\n  if stats.get(\"ranger_ordinary\",false):\n   game.projectile_queue.back().life = int(p.get(\"lost_health\",0))\n  if p.get(\"mouse_aim\",false):\n   var combo: int=p[WeaponActions.STATE].sequence()\n",
         "baseline": "  game.projectile_queue.append({\"direction\":direction,\"mouse_ray\":true,\"player\":id,\"epoch\":game.participation.epoch(),\"release\":release,\"due\":release+flight,\"emitted\":false,\"projectile\":true,\"form\":form,\"origin\":muzzle,\"aim\":end,\"previous\":muzzle,\"stats\":stats.duplicate(true),\"hits\":[],\"remaining\":int(stats.targets)})\n  game.projectile_queue.back().muzzle_blocked = path.muzzle_blocked\n  if p.get(\"mouse_aim\",false):\n   var combo:=int(p.get(\"attack_combo\",0))\n"
       },
       "ct03_ranger_2": {
@@ -5179,7 +5169,7 @@
         "baseline": "  shot.hits.append(token(game,target));shot.remaining-=1\n  var hit: Dictionary=shot.stats.duplicate(true);hit.shot_distance=Vector3(shot.get(\"launch_position\",shot.origin)).distance_to(game.enemy_position(target))\n  game.apply_weapon_hit(game.players[int(shot.player)],target,shot.origin,hit,now)\n  if hit.has(\"cr02_action\"):\n"
       },
       "tc01_ranged_clearance_1": {
-        "match": "extends RefCounted\nconst Hurt = preload(\"res://enemy_hurtbox.gd\")\nconst MAX_AGE:=250\nvar states: Dictionary={}\n",
+        "match": "extends RefCounted\nconst WeaponActions = preload(\"res://player_weapon_actions.gd\")\nconst Hurt = preload(\"res://enemy_hurtbox.gd\")\nconst MAX_AGE:=250\nvar states: Dictionary={}\n",
         "baseline": "extends RefCounted\nconst MAX_AGE:=250\nvar states: Dictionary={}\n"
       },
       "tc01_ranged_clearance_2": {
@@ -5243,11 +5233,11 @@
         "baseline": ""
       },
       "ranged_launch": {
-        "match": "static func aim_is_live(player: Dictionary,now: int) -> bool:\n var windup: Dictionary=player.get(\"ranged_windup\",{})\n return player.get(\"mouse_aim\",false) and int(windup.get(\"combo\",-1))==int(player.get(\"attack_combo\",0)) and now<int(windup.get(\"release\",0))\n\nstatic func attack_direction(player: Dictionary,now: int) -> Vector3:\n var committed: Vector3=player.get(\"attack_direction\",player.get(\"facing\",Vector3.FORWARD))\n return player.get(\"aim_direction\",committed) if aim_is_live(player,now) else committed\n\nstatic func launch(game: Node,shot: Dictionary) -> void:\n var caster: Dictionary=game.players[shot.player]\n var direction: Vector3=shot.direction\n # Aim is sampled once on the release tick. Flight and collision share this path.\n if shot.has(\"aim_combo\") and caster.get(\"mouse_aim\",false):\n  direction=caster.get(\"aim_direction\",direction)\n  if int(shot.aim_combo)==int(caster.get(\"attack_combo\",0)):\n   caster.attack_direction=direction\n var profile: Dictionary=game.WeaponMotion.profile(str(shot.form))\n var start: Vector3=caster.pos\n var path:=projectile_path(game.battlefield,start,direction,profile,float(shot.stats.reach))\n shot.emitted=true\n shot.direction=direction\n shot.launch_position=start\n shot.origin=path.from\n shot.previous=path.from\n shot.aim=path.to\n shot.due=int(shot.release)+maxi(30,roundi(Vector3(shot.origin).distance_to(shot.aim)/float(profile.speed)*1000))\n\nstatic func token(game: Node,target: int) -> String:\n",
+        "match": "static func launch(game: Node,shot: Dictionary) -> void:\n var caster: Dictionary=game.players[shot.player]\n var direction: Vector3=shot.direction\n # Aim is sampled once on the release tick. Flight and collision share this path.\n if shot.has(\"aim_combo\") and caster.get(\"mouse_aim\",false):\n  direction=caster.get(\"aim_direction\",direction)\n  caster[WeaponActions.STATE] = caster[WeaponActions.STATE].sample_release(int(shot.aim_combo),direction)\n var profile: Dictionary=game.WeaponMotion.profile(str(shot.form))\n var start: Vector3=caster.pos\n var path:=projectile_path(game.battlefield,start,direction,profile,float(shot.stats.reach))\n shot.emitted=true\n shot.direction=direction\n shot.launch_position=start\n shot.origin=path.from\n shot.previous=path.from\n shot.aim=path.to\n shot.due=int(shot.release)+maxi(30,roundi(Vector3(shot.origin).distance_to(shot.aim)/float(profile.speed)*1000))\n\nstatic func token(game: Node,target: int) -> String:\n",
         "baseline": "static func token(game: Node,target: int) -> String:\n"
       },
       "track_windup_cursor": {
-        "match": "  if p.get(\"mouse_aim\",false):\n   var combo:=int(p.get(\"attack_combo\",0))\n   p.ranged_windup={\"combo\":combo,\"release\":release}\n   game.projectile_queue.back().aim_combo=combo\n  if lock_target>=-1:\n",
+        "match": "  if p.get(\"mouse_aim\",false):\n   var combo:=int(p.get(\"attack_combo\",0))\n   p[WeaponActions.STATE] = p[WeaponActions.STATE].follow_cursor_until(release)\n   game.projectile_queue.back().aim_combo=combo\n  if lock_target>=-1:\n",
         "baseline": "  if lock_target>=-1:\n"
       },
       "clear_release_aim": {
@@ -5313,7 +5303,7 @@
         "baseline": "\tvar weapon: Dictionary = game.WeaponMotion.profile(skill.weapon_form)\n\tvar ground: bool = skill.delivery == \"ground\" or skill.get(\"footprint\") == \"wave\" or skill.get(\"affinity_family\") in [\"water\",\"vital\",\"wood\"]\n\tvar blade_cast: bool = skill.weapon_form == \"blade\"\n"
       },
       "cr04c_spirit_4": {
-        "match": "\tplayer.strike_at = maxi(int(player.get(\"strike_at\", 0)), int(player.core_cast_until))\n\tif step:\n\t\tpreload(\"res://spirit_affinity.gd\").core_step(game,line,player,now)\n\tvar modifiers: Array = skill.modifiers.map(func(modifier): return modifier.id)\n",
+        "match": "\tif step:\n\t\tpreload(\"res://spirit_affinity.gd\").core_step(game,line,player,now)\n\tvar modifiers: Array = skill.modifiers.map(func(modifier): return modifier.id)\n",
         "baseline": "\tplayer.strike_at = maxi(int(player.get(\"strike_at\", 0)), int(player.core_cast_until))\n\tvar modifiers: Array = skill.modifiers.map(func(modifier): return modifier.id)\n"
       },
       "cr04c_storm_1": {
@@ -6519,7 +6509,7 @@
         "baseline": " return Participation.is_wild(p) and not p.get(\"fallen\",false) and PlayerVitals.current_hp(p)>0.0\n"
       },
       "ar08_lifecycle_3": {
-        "match": " var lifecycle: PlayerLifecycle.Life = p[PlayerLifecycle.STATE]\n p[PlayerLifecycle.STATE] = lifecycle.fall()\n p.velocity=Vector3.ZERO;p.attack_until=0;p.swing_until=0\n",
+        "match": " var lifecycle: PlayerLifecycle.Life = p[PlayerLifecycle.STATE]\n p[PlayerLifecycle.STATE] = lifecycle.fall()\n p.velocity=Vector3.ZERO\n p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active()\n",
         "baseline": " p.fallen=true;p.velocity=Vector3.ZERO;p.attack_until=0;p.swing_until=0\n"
       },
       "ar08_lifecycle_4": {

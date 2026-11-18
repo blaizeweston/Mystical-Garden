@@ -1,5 +1,6 @@
 extends RefCounted
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
+const WeaponActions = preload("res://player_weapon_actions.gd")
 const Hurt = preload("res://enemy_hurtbox.gd")
 const MAX_AGE:=250
 var states: Dictionary={}
@@ -98,9 +99,8 @@ static func can_shoot(field: RefCounted, origin: Vector3, center: Vector3, body_
  return not Hurt.projectile_contact(field, path.from, path.to, center, body_radius, float(profile.projectile_radius)).is_empty()
 static func queue_attack(game: Node,id: int,p: Dictionary,pos: Vector3,stats: Dictionary,now: int,form: String,duration: int,lock_target: int=-2) -> void:
  var direction: Vector3=(p.get("aim_direction",p.facing) if p.get("mouse_aim",false) else p.facing).normalized();p.facing=direction
- p.attack_direction=direction
  var description:=preload("res://weapon_contact.gd").describe(form,stats)
- p.attack_clip=description.clip;p.attack_delivery=description.pattern;p.attack_span=description.span
+ p[WeaponActions.STATE] = p[WeaponActions.STATE].with_pose(direction,description.clip,description.pattern,float(description.span))
  var end: Vector3=pos+direction*float(stats.reach)
  var profile: Dictionary=game.WeaponMotion.profile(form)
  var release:=now+roundi(duration*float(profile.release))
@@ -112,8 +112,8 @@ static func queue_attack(game: Node,id: int,p: Dictionary,pos: Vector3,stats: Di
   game.projectile_queue.append({"direction":direction,"mouse_ray":true,"player":id,"epoch":game.participation.epoch(),"life":PlayerLifecycle.generation(p),"release":release,"due":release+flight,"emitted":false,"projectile":true,"form":form,"origin":muzzle,"aim":end,"previous":muzzle,"stats":stats.duplicate(true),"hits":[],"remaining":int(stats.targets)})
   game.projectile_queue.back().muzzle_blocked = path.muzzle_blocked
   if p.get("mouse_aim",false):
-   var combo:=int(p.get("attack_combo",0))
-   p.ranged_windup={"combo":combo,"release":release}
+   var combo: int=p[WeaponActions.STATE].sequence()
+   p[WeaponActions.STATE] = p[WeaponActions.STATE].follow_cursor_until(release)
    game.projectile_queue.back().aim_combo=combo
   if lock_target>=-1:
    game.projectile_queue.back().locked_target=lock_target;game.projectile_queue.back().locked_token=token(game,lock_target)
@@ -121,22 +121,13 @@ static func queue_attack(game: Node,id: int,p: Dictionary,pos: Vector3,stats: Di
  game.emit_weapon_attack(p,pos,end,stats,now)
  var melee := {"melee_shape":true,"player":id,"epoch":game.participation.epoch(),"life":PlayerLifecycle.generation(p),"release":release,"due":release,"emitted":true,"projectile":false,"form":form,"origin":pos,"aim":end,"stats":stats.duplicate(true)}
  game.projectile_queue.append(melee)
-static func aim_is_live(player: Dictionary,now: int) -> bool:
- var windup: Dictionary=player.get("ranged_windup",{})
- return player.get("mouse_aim",false) and int(windup.get("combo",-1))==int(player.get("attack_combo",0)) and now<int(windup.get("release",0))
-
-static func attack_direction(player: Dictionary,now: int) -> Vector3:
- var committed: Vector3=player.get("attack_direction",player.get("facing",Vector3.FORWARD))
- return player.get("aim_direction",committed) if aim_is_live(player,now) else committed
-
 static func launch(game: Node,shot: Dictionary) -> void:
  var caster: Dictionary=game.players[shot.player]
  var direction: Vector3=shot.direction
  # Aim is sampled once on the release tick. Flight and collision share this path.
  if shot.has("aim_combo") and caster.get("mouse_aim",false):
   direction=caster.get("aim_direction",direction)
-  if int(shot.aim_combo)==int(caster.get("attack_combo",0)):
-   caster.attack_direction=direction
+  caster[WeaponActions.STATE] = caster[WeaponActions.STATE].sample_release(int(shot.aim_combo),direction)
  var profile: Dictionary=game.WeaponMotion.profile(str(shot.form))
  var start: Vector3=caster.pos
  var path:=projectile_path(game.battlefield,start,direction,profile,float(shot.stats.reach))
