@@ -71,6 +71,17 @@ var coop_character: Label
 var character_return_page:=0
 
 func _ready() -> void:
+	var save_refusal := Persistence.startup_refusal()
+	if not save_refusal.is_empty():
+		var blocked := Label.new()
+		blocked.text = save_refusal
+		blocked.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		blocked.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		blocked.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		add_child(blocked)
+		set_process(false)
+		set_process_unhandled_key_input(false)
+		return
 	var experiment = preload("res://assets/terrain_m02/experimental/experiment_mode.gd")
 	if experiment.requested():
 		if not experiment.verified():

@@ -8,6 +8,7 @@
   },
   "full_after_days": 7,
   "systems": {
+    "persistence_cutover": {"label": "Separate guarded save root and explicit offline copy migration", "files": ["persistence_root.gd", "persistence_root.gd.uid", "assets/content/save_cutover.json", "tools/save_cutover.py", "tools/tests/test_save_cutover.py"]},
     "encounter_roster": {"label":"Host encounter membership, HP, stable target identities and defeat","files":["encounter_roster.gd","encounter_roster.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid"]},
     "expedition_grafts": {"label": "Expedition graft ledgers, altar quotes and source-owned adaptations", "files": ["expedition_grafts.gd", "expedition_grafts.gd.uid", "affinity_grafting_panel.gd", "affinity_grafting_panel.gd.uid"]},
     "departure_settlement": {"label": "Detached profiles, protected cargo and guarded disconnect settlement", "files": ["departure_settlement.gd", "departure_settlement.gd.uid"]},
@@ -1716,6 +1717,7 @@
     ]
   },
   "suites": {
+    "persistence_cutover": {"kind": "unit", "systems": ["persistence_cutover", "persistence_operations"], "package": true},
     "modern_gameplay_cutover": {
       "kind": "unit",
       "systems": [
@@ -4094,7 +4096,7 @@
     ["combat_vitals", "player_vitals", "Health uses existing HP rules and resolved native capacity"],
     ["life", "player_vitals", "Falling and revival operate on the same host health value"],
     ["player_vitals", "world_snapshot", "Fast and reliable channels project the existing health fields"],
-    ["player_cooldowns", "classes", "Native class casts and refunds use each actor’s Q and R deadlines"],
+    ["player_cooldowns", "classes", "Native class casts and refunds use each actorâ€™s Q and R deadlines"],
     ["life", "player_cooldowns", "New actors and expedition entry initialize native readiness"],
     ["player_cooldowns", "world_snapshot", "Guests receive projected readiness and remaining Q and R seconds"],
     ["expedition_grafts", "combat_affinity_contracts", "Basic attacks capture purchased adaptations and resolve bounded secondary effects"],

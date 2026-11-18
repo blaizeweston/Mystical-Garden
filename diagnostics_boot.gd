@@ -5,6 +5,9 @@ const Experiment=preload("res://assets/terrain_m02/experimental/experiment_mode.
 var journal: Logger
 var clock:=0.0
 func _init() -> void:
+ # Validate the separately deployed root before diagnostics can create files.
+ if not preload("res://persistence_writer_integration.gd").startup_refusal().is_empty():
+  return
  if Playtest.retail():
   Playtest.refusal=Playtest.inspect(Playtest.build())
   if not Playtest.refusal.is_empty():

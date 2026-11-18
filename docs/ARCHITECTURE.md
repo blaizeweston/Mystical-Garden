@@ -373,6 +373,35 @@ The original AC-06 split-commit bug was dropped serializer return codes. The leg
 
 AR01 through AR14 establish owners for run or host-session state and use the existing save schema. Keep real historical profiles and Gardens intact. Before any future cutover, establish which real schemas must remain readable and preserve their originals. Where needed, convert those fields with a bounded, versioned migration and disposable fixtures. An obsolete experimental save set does not by itself justify retaining the old gameplay runtime.
 
+## AC-06 deployment boundary
+
+The original first-error serializer defect is fixed. Stage A2 also implements source-attributed guest projection receipts and acknowledgments; it is no longer an unimplemented prerequisite. F6 records historical writer acceptance, while the current focused checks cover the modern title, transactions, recovery, and guest lifecycle. **Production activation remains NO-GO.** `PRODUCTION_CUTOVER_APPROVED` is false and both verification collections remain empty. Local evidence must not be relabeled as desktop or separate-PC acceptance.
+
+| Responsibility | Authoritative location and interface |
+|---|---|
+| Physical guarded-root identity | [`persistence_root.gd`](../persistence_root.gd): `location_error`, `valid_marker`, `policy_digest`, `prepare`. It has no mutable runtime state and never receives Game. It validates the default account Roaming parent, separate root name, native filesystem gate, and root identity before canonical startup. A fresh root can contain only known engine cache/startup-log data. Existing unmarked save directories and malformed markers are preserved and refused. |
+| Root name, schema, and offline limits | [`assets/content/save_cutover.json`](../assets/content/save_cutover.json). Proposed production root: `%USERPROFILE%/AppData/Roaming/Mystical Garden Guarded 1`. The normal project still selects `Mystical Garden Prototype`; this checkpoint neither changes it nor creates the proposed real root. Identity depends on schema/name/marker, independently of JSON formatting and operational file/byte limits. |
+| Explicit offline copy | [`tools/save_cutover.py`](../tools/save_cutover.py): `inspect_backup`, `stage`, `verify`. It reads a quiescent backup, checks a reviewed SHA-256 manifest, verifies each copied file, and publishes by a no-replace NTFS directory rename. Complete matching stages resume; incomplete/foreign evidence refuses without deletion. An already published root is never reimported over later progress. No schema conversion, recovery, live-root source selection, automatic migration, or production activation occurs here. |
+| Activation sign-off | [`persistence_writer_integration.gd`](../persistence_writer_integration.gd): `evaluate_activation`, `activation_status`, `startup_refusal`. Each writer and named deployment requirement must be accounted for, plus explicit approval. Requirements are now satisfiable by reviewed evidence rather than appended unconditionally. An incompletely approved build refuses startup; it cannot fall back to contained legacy IO. Diagnostics, Title, and Developer entry check this boundary. |
+
+For a **disposable rehearsal**, inspect an operator-selected quiescent backup and retain the plan outside both roots:
+
+```powershell
+python -B tools/save_cutover.py inspect 'BACKUP-PATH' --plan 'REVIEWED-PLAN.json'
+python -B tools/save_cutover.py stage 'REVIEWED-PLAN.json' --manifest-sha256 'PRINTED-HASH' --destination 'DISPOSABLE-PARENT/Mystical Garden Guarded 1'
+python -B tools/save_cutover.py verify 'REVIEWED-PLAN.json' --manifest-sha256 'PRINTED-HASH' --destination 'DISPOSABLE-PARENT/Mystical Garden Guarded 1'
+```
+
+Close the source game and use a separate quiescent backup, not a live save folder. The tool rejects known live source roots, recovery/lease artifacts, redirected or hard-linked files, unsupported local filesystems, case-sensitive ancestry, source drift, stale manifests, and conflicting destinations. Ambiguous copies remain available for operator review. The tool does not establish quiescence against an uncooperative old executable. Production rollout must preserve the original root and pre-cutover executable together. Rollback opens only that original pair; it does not copy newer guarded progress back into an older engine.
+
+Focused ownership: `tests/persistence_cutover.gd` covers sign-off and location/identity contracts; explicit disposable modes cover native root initialization/refusal and a copied save entering the real guarded title. `tools/tests/test_save_cutover.py` covers interruption/restart, independent-process termination, concurrency, source/destination drift, links, and exact-copy/idempotence. Existing serializer, import/recovery, title, lifecycle, guest projection, Garden, expedition and candidate solo/party fixtures retain transaction coverage. The registry grows from 213 to 214 suites. The shared startup change predicts 206 related invalidations; this checkpoint runs the bounded 15-suite persistence plan. A broad source/package release evidence refresh remains separate.
+
+Current deployment evidence is indexed outside the repository at `C:/Users/sutte/Documents/Codex/2026-11-05/referenced-chatgpt-conversation-this-is-an/work/ac06-deployment-20261118/verification.json`. It distinguishes accepted results, failed fixture attempts, original inputs, and restoration of the disposable project settings. No installed playtest or real saves were changed.
+
+Targeted packaged-resource probes also pass: the same native root initialization/refusal and copied-save guarded-title admission ran against a temporary PCK with the matching DLL. These are Godot-console package checks, not a distributed EXE or a complete release verdict. The first staging export logged five `get_multiple_md5` errors during reimport and was rejected; one populated-cache export passed the unchanged strict diagnostic checks. Both attempts are retained.
+
+Remaining acceptance: complete current Windows release writer/startup evidence, manual desktop recovery and actual window-close/relaunch, separate-PC co-op, an operator-approved real backup/migration/rollback plan, and explicit production cutover approval. `VERIFIED_REQUIREMENTS` keeps those decisions visible. Host-memory rewards not yet committed remain vulnerable to host-process failure; no durable reward journal is introduced. Process-termination tests do not establish sudden power-loss durability. Keep the broader AC-06 item open until those deployment gates are genuinely satisfied, and do not continue the next architectural extraction automatically.
+
 ## Where to change things
 
 | Change | Start here |

@@ -29,6 +29,8 @@ static func can_edit(game: Node) -> bool:
 
 
 static func open_garden(menu: Node, reset: bool, digests := {}) -> Error:
+	if not preload("res://persistence_writer_integration.gd").startup_refusal().is_empty():
+		return ERR_UNAVAILABLE
 	if menu.transitioning or not menu.content_valid or not menu.app_settings.values.get("developer_mode",false):
 		return ERR_UNAUTHORIZED
 	if menu.production_route and not menu.production_backend_ready:
