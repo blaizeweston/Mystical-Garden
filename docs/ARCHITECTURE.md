@@ -375,6 +375,21 @@ AR01 through AR14 establish owners for run or host-session state and use the exi
 
 ## AC-06 deployment boundary
 
+Scope clarification from the user, 2026-11-18: host-crash expedition recovery and guest mid-run crash/reconnect recovery are deferred features. Loss of rewards that have not reached a supported save boundary is an accepted current limitation, **not an AC-06 completion blocker**. Existing journal recovery of an interrupted save transaction remains in scope; it does not resume the expedition or recreate host-memory reward receipts. AC-06 must protect the saves attempted at the supported settlement points, report failure truthfully, preserve committed outcomes, and avoid duplicate grants.
+
+The stated gameplay contract banks XP at floor completion, player death, and run end, with reward forfeiture on voluntary abandonment. Source-derived distinctions requiring an explicit decision are recorded below; this documentation does not silently change gameplay:
+
+| Boundary | Current implementation and distinction |
+|---|---|
+| Floor completion | `game.gd::finish_combat()` calls `settle_expedition_rewards(effects, true)` before the guarded clear outcome. Active experimental floors defer permanent kill awards between settlement points through `_defers_kill_profiles()` and `flush_kill_rewards()`. |
+| Player death/fall | `expedition_life.gd::down()` records a revivable fall. When no living expedition players remain, it invokes `ExpeditionTransitions.commit_failed()`/`finish_failed()`, which banks pending rewards. A fall while teammates remain alive is not an independent XP-bank call. Clarify whether "player death" means this revivable fall or the final failed-run outcome before changing the timing. |
+| Extraction and failed run | `expedition_transitions.gd::commit_checkpoint()` on extraction and `commit_failed()` bank pending rewards. Run currency and acquisitions retain their existing expedition-only lifecycle. |
+| Voluntary abandonment | `expedition_transitions.gd::abandon()` currently banks pending rewards on its guarded path and explicitly reports "Class progress kept." Carried items, including the safe pouch, are lost. This conflicts with the stated forfeiture rule if that rule includes Class XP. Whether forfeiture includes previously banked XP from earlier floors or only unbanked rewards remains awaiting clarification; neither interpretation is implemented by this documentation. |
+| Guest disconnect/rejoin | `session_world.gd::admission_error()` rejects admission while the expedition is active. Garden rejoin, profile acknowledgment/reconciliation, and pending-settlement holds are supported boundaries, not mid-run reconnection. `server_disconnected()` leaves the session; it does not restore the host's expedition. |
+
+Normal supported co-op acceptance still applies. No active-run reconnect, host migration, durable per-kill journal, or crash-resume requirement is added to AC-06. Reward-policy changes, if requested after clarification, must remain separate from save-transaction correctness.
+
+
 The original first-error serializer defect is fixed. Stage A2 also implements source-attributed guest projection receipts and acknowledgments; it is no longer an unimplemented prerequisite. F6 records historical writer acceptance, while the current focused checks cover the modern title, transactions, recovery, and guest lifecycle. **Production activation remains NO-GO.** `PRODUCTION_CUTOVER_APPROVED` is false and both verification collections remain empty. Local evidence must not be relabeled as desktop or separate-PC acceptance.
 
 | Responsibility | Authoritative location and interface |
@@ -400,7 +415,7 @@ Current deployment evidence is indexed outside the repository at `C:/Users/sutte
 
 Targeted packaged-resource probes also pass: the same native root initialization/refusal and copied-save guarded-title admission ran against a temporary PCK with the matching DLL. These are Godot-console package checks, not a distributed EXE or a complete release verdict. The first staging export logged five `get_multiple_md5` errors during reimport and was rejected; one populated-cache export passed the unchanged strict diagnostic checks. Both attempts are retained.
 
-Remaining acceptance: complete current Windows release writer/startup evidence, manual desktop recovery and actual window-close/relaunch, separate-PC co-op, an operator-approved real backup/migration/rollback plan, and explicit production cutover approval. `VERIFIED_REQUIREMENTS` keeps those decisions visible. Host-memory rewards not yet committed remain vulnerable to host-process failure; no durable reward journal is introduced. Process-termination tests do not establish sudden power-loss durability. Keep the broader AC-06 item open until those deployment gates are genuinely satisfied, and do not continue the next architectural extraction automatically.
+Remaining acceptance: complete current Windows release writer/startup evidence, manual desktop recovery and actual window-close/relaunch, separate-PC co-op, an operator-approved real backup/migration/rollback plan, and explicit production cutover approval. `VERIFIED_REQUIREMENTS` keeps those decisions visible. Loss of host-memory rewards before a supported settlement is accepted for the current design; crash-resume and mid-run reconnection are deferred and do not block AC-06. No durable per-kill reward journal is required for this checkpoint. Process-termination tests do not establish sudden power-loss durability. Keep the broader AC-06 item open until those deployment gates are genuinely satisfied, and do not continue the next architectural extraction automatically.
 
 ## Where to change things
 
