@@ -1,4 +1,8 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
+
+const WeaponActions = preload("res://player_weapon_actions.gd")
+const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -87,7 +91,7 @@ func arena() -> void:
 
 
 func strike(at: int) -> void:
-	player.strike_at = 0
+	player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 	player.pos = Vector3.ZERO
 	game.tactics.position = Vector3(0,0,-1.15)
 	game.strike_enemy(1,player,player.pos)
@@ -108,7 +112,7 @@ func purchases() -> void:
 	stock("monster_23", 1)
 	floor_at(8)
 	game.show_graft_menu(1)
-	var panel: Control = game.graft_view
+	var panel: Control = UIFixture.control(game,"graft_view")
 	check(panel.tabs.get_tab_count()==2 and panel.data.remaining==6 and panel.confirm.disabled,
 		"affinity shrine shows both sections with a fresh budget and explicit selection")
 	panel.selected = "strike"
@@ -116,7 +120,7 @@ func purchases() -> void:
 	panel.show_selection()
 	check(not panel.confirm.disabled and Parts.part_name(item_part("monster_0")) in panel.confirm.text,
 		"preview names the exact trophy before confirming")
-	game.toggle_overlay(null)
+	game.ui.close_panels()
 	check(receipts().is_empty() and player.carried_parts[item_part("monster_0")]==4,
 		"browsing and closing consume no stock or opportunity")
 	game.send_garden_action("graft_install_%d" % item_part("monster_14"))
@@ -174,7 +178,7 @@ func purchases() -> void:
 		and game.rng.state==rng and game.run_wallet(player)==wallet and not player.has("graft_part"),
 		"purchases grant no permanent discovery, change no Essence, take no RNG and use no installed slot")
 	check(Improvements.active_ledger(player).resolution().adaptations.size()==5,"five different adaptations remain acquired and active")
-	game.toggle_overlay(null)
+	game.ui.close_panels()
 
 
 func simultaneous_effects() -> void:
@@ -279,7 +283,7 @@ func reinforcements() -> void:
 		and true_class==game.Skills.Balance.cooldown(basic.affinity_build.class_skills[0].native_skill,basic)-250,
 		"reach/damage are absent from native class stats, with only the authored cooldown change")
 	arena()
-	player.strike_at = 0
+	player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 	game.strike_enemy(1,player,player.pos)
 	var attack: Dictionary = game.projectile_queue.back()
 	check(is_equal_approx(float(attack.stats.reach),reach+.2) and is_equal_approx(float(attack.stats.damage),damage+.3),
@@ -334,7 +338,7 @@ func run() -> void:
 	player = game.players[1]
 	player.pos=game.stage.gate_position()
 	game.send_garden_action("learn_0_64")
-	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Rules.ID and game.has_meta(game.Transactions.SESSION),"guarded affinity session")
+	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Rules.ID and SessionCase.has_guarded_session(game),"guarded affinity session")
 	start_expedition()
 	purchases()
 	simultaneous_effects()

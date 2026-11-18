@@ -1,4 +1,9 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
+
+const WeaponActions = preload("res://player_weapon_actions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -77,13 +82,14 @@ func reset(class_id := 0) -> void:
 	for p: Dictionary in [player,ally]:
 		Cards.clear(p)
 		p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new()
-		for key in [Rules.Wood.GRANTS,Rules.Spirit.STRIDES,Rules.Vital.SOURCES,"affinity_ward_claims",
+		for key in [Rules.Wood.GRANTS,Rules.Spirit.STRIDES,Rules.Vital.SOURCES,
 				Rules.Storm.FORM_READY,Rules.Void.FORM_READY,Rules.Wood.FORM_READY,"subclass_follow","warden_block"]:
 			p.erase(key)
 		p[Cooldowns.STATE] = Cooldowns.Timers.new()
-		for key in ["weapon","secondary","catalyst","graft_part","lost_health","guard_until","guard_charges",
-				"strike_at","cast_until","core_ready_at","core_cast_until","last_offer"]:
+		p[Protection.STATE] = p[Protection.STATE].clear_expedition()
+		for key in ["weapon","secondary","catalyst","graft_part","lost_health","cast_until","core_ready_at","core_cast_until","last_offer"]:
 			p[key] = 0
+		p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
 		p.pos = Vector3.ZERO
 		ExpeditionCase.set_membership(game, p, true)
 		p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive()
@@ -92,6 +98,12 @@ func reset(class_id := 0) -> void:
 		p.facing = Vector3.FORWARD
 		p[PlayerVitals.STATE] = PlayerVitals.Health.new(80.0,100)
 	focus(class_id)
+	# This suite constructs Wilds actors directly instead of using admission.
+	# Supply the same reward boundary required by a real partial abandonment.
+	for p: Dictionary in [player,ally]:
+		var peer := ExpeditionCase.Participation.peer_for(p)
+		check(game.monster_rewards.begin_expedition(game._kill_reward_identity(peer,p),game.participation.run_id(),p.character.xp,p.character.monsters),
+			"synthetic expedition captures its pre-entry reward counters")
 
 
 func material(family: String) -> int:
@@ -184,7 +196,7 @@ func verify_offers() -> void:
 	game.present_checkpoint_cards(1)
 	var original_ledger := Cards.ledger(player)
 	var original := original_ledger.offer()
-	check(original.cards.size()==3 and game.checkpoint_offer_revision==original.revision and game.run_wallet(player)==0,
+	check(original.cards.size()==3 and game.ui.checkpoint_revision()==original.revision and game.run_wallet(player)==0,
 		"three owner options are offered at zero Essence")
 	var detached_offer := original_ledger.offer()
 	detached_offer.cards[0].amount += 100
@@ -391,7 +403,7 @@ func verify_dew_shelter() -> void:
 	player.pos = Vector3.ZERO
 	ally.pos = Vector3(0,0,-1.3)
 	var now := Time.get_ticks_msec()
-	ally.slow_until = now+5000
+	ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(now+5000)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].refilled()
 	game.garden_action(1,Core.request(game,player,Vector2.UP,1.5))
 	var cast: Dictionary = game.get_meta(Core.STATE,{}).get(1,{})
@@ -401,16 +413,16 @@ func verify_dew_shelter() -> void:
 	Core.tick(game,cast.armed)
 	Clock.advance(game,.40)
 	Core.tick(game,int(cast.armed)+400)
-	var expiry: int = ally.guard_until
-	check(expiry==int(cast.armed)+1600 and ally.guard_charges==1 and ally.slow_until==0 and ally[PlayerVitals.STATE].hp()==ally[PlayerVitals.STATE].max_hp()
+	var expiry: int = ally[Protection.STATE].guard_until_ms()
+	check(expiry==int(cast.armed)+1600 and ally[Protection.STATE].charge_count()==1 and ally[Conditions.STATE].slow_until_ms()==0 and ally[PlayerVitals.STATE].hp()==ally[PlayerVitals.STATE].max_hp()
 		and game.enemy_health()==400-baseline.impact_hp-bonus,"Dewfall grants one 1.2s Ward on a real living ally contact")
 	Clock.advance(game,.12)
 	Core.tick(game,int(cast.armed)+520)
-	check(ally.guard_until==expiry and ally.guard_charges==1,"same wave cannot renew or add an ally Ward")
+	check(ally[Protection.STATE].guard_until_ms()==expiry and ally[Protection.STATE].charge_count()==1,"same wave cannot renew or add an ally Ward")
 	var recorded: Array = []
 	game.set_meta(Events.RECORD,func(entry):recorded.append(entry))
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), int(cast.armed)+520, 1.0, 0, game.tactics.position)
-	check(player.guard_charges==0 and recorded.is_empty(),"Dew Shelter blocks as a native Ward with no Catalyst response")
+	check(player[Protection.STATE].charge_count()==0 and recorded.is_empty(),"Dew Shelter blocks as a native Ward with no Catalyst response")
 	game.remove_meta(Events.RECORD)
 
 
@@ -475,8 +487,8 @@ func verify_native() -> void:
 	base_skill = Build.for_player(player).class_skills[1].native_skill
 	var earliest := Time.get_ticks_msec()+int(base_skill.duration)+bonus
 	game.use_class_skill(1,player,1)
-	check(ally.guard_until>=earliest and ally.guard_until<=Time.get_ticks_msec()+int(base_skill.duration)+bonus
-		and ally.guard_charges==int(base_skill.charges),"Warding Chime gives longer native Ward with the same charges")
+	check(ally[Protection.STATE].guard_until_ms()>=earliest and ally[Protection.STATE].guard_until_ms()<=Time.get_ticks_msec()+int(base_skill.duration)+bonus
+		and ally[Protection.STATE].charge_count()==int(base_skill.charges),"Warding Chime gives longer native Ward with the same charges")
 	reset()
 	var plain_stats: Dictionary = game.weapon_stats(player)
 	var faster := grant_fixture_copy("ordinary_weapon_interval",3)
@@ -485,7 +497,7 @@ func verify_native() -> void:
 	game.strike_enemy(1,player,player.pos)
 	var attack: Dictionary = game.projectile_queue.front()
 	check(int(attack.stats.interval)==int(plain_stats.interval)-faster and is_equal_approx(float(attack.stats.damage),float(plain_stats.damage)+float(hit_gain)/10.0)
-		and player.strike_at>=before+int(plain_stats.interval)-faster,"ordinary strike commits with both weapon cards")
+		and player[WeaponActions.STATE].ready_at_ms()>=before+int(plain_stats.interval)-faster,"ordinary strike commits with both weapon cards")
 	game.update_projectiles(int(attack.due)+1)
 	check(game.enemy_health()==400-int(attack.stats.preview_strike_hp),"the improved ordinary roll is applied on a real weapon contact")
 	var recovery := grant_fixture_copy("run_dodge_recovery",3)
@@ -550,15 +562,15 @@ func verify_presentation() -> void:
 		and "Damage bonus: +4 damage" in group.summary and "Uncommon · +2 damage" in group.tooltip
 		and projected[0].applied == 4,"the grouped Tab summary uses the same contribution consumed by combat")
 	game.present_checkpoint_cards(1)
-	var face: VBoxContainer = game.checkpoint_cards.get_child(0).get_child(0)
+	var face: VBoxContainer = UIFixture.control(game,"checkpoint_cards").get_child(0).get_child(0)
 	var info := face.get_child(3) as Button
 	info.button_pressed = true
 	var face_description := face.get_child(2).get_child(0) as Label
 	check("Weapon · Rare" == face.get_child(1).text and "2 Common, 1 Uncommon" in face_description.text,
 		"the rooted card face shows scope, and its Details button reveals acquired contributions")
-	game.toggle_overlay(null)
-	var tab: Control = game.overlay.get_node("RunSummary")
-	tab.refresh(player)
+	game.ui.close_panels()
+	var tab: Control = UIFixture.control(game,"summary_view")
+	tab.refresh()
 	var tab_group: VBoxContainer = tab.grouped_cards.get_child(0)
 	tab_group.get_child(0).button_pressed = true
 	check(tab.grouped_cards.get_child_count() == 1 and "Honed Strikes ×3" == tab_group.get_child(0).text
@@ -591,10 +603,10 @@ func verify_presentation() -> void:
 	var seeds: Array = game.Seeds.counts()
 	var dewcap: int = game.Seeds.index_of("dewcap")
 	seeds[dewcap] = 2
-	game.planting_view.begin(0,seeds)
-	game.planting_view.grid.get_child(0).pressed.emit()
-	check("Water primary affinity · Dewfall" in game.planting_view.details.text
-		and "Base growth" in game.planting_view.details.text,"the actual planting panel explains affinity while preserving cultivation details")
+	UIFixture.control(game,"planting_view").begin(0,seeds)
+	UIFixture.control(game,"planting_view").grid.get_child(0).pressed.emit()
+	check("Water primary affinity · Dewfall" in UIFixture.control(game,"planting_view").details.text
+		and "Base growth" in UIFixture.control(game,"planting_view").details.text,"the actual planting panel explains affinity while preserving cultivation details")
 
 	var thorn := material("thorn")
 	var weaver_catalyst := Build.slot_preview(Build.for_player(player),"catalyst",thorn)
@@ -610,7 +622,7 @@ func verify_presentation() -> void:
 	game.participation.restore_savepoint(garden_fixture)
 	player.pos = game.stage.gate_position()
 	game.progress.add_parts(thorn,2)
-	var panel: Control = game.loadout_view
+	var panel: Control = UIFixture.control(game,"loadout_view")
 	panel.refresh()
 	var picker: OptionButton = panel.slots[0]
 	var option := picker.get_item_index(thorn)
@@ -646,7 +658,7 @@ func verify_attack_speed() -> void:
 			game.garden_action(1, grafts.request(altar, improvement.id, "monster_0"))
 		check(player.carried_parts[trophy] == 0 and grafts.owner_details(player, 16).revision == 2,
 			"the attack speed fixture acquires grafts through real purchases")
-		game.toggle_overlay(null)
+		game.ui.close_panels()
 		var previous: Array[int] = []
 		for rank: int in scenario.ranks:
 			previous.append(grant_fixture_copy(card_id, rank))
@@ -669,25 +681,25 @@ func verify_attack_speed() -> void:
 			and Catalog.RARITIES[scenario.ranks[1]] in choice.detail and "0.23 s" not in choice.detail,
 			"Details show the acquired rarities and exact contributions without engine limits")
 		game.present_checkpoint_cards(1)
-		var face: VBoxContainer = game.checkpoint_cards.get_child(0).get_child(0)
+		var face: VBoxContainer = UIFixture.control(game,"checkpoint_cards").get_child(0).get_child(0)
 		var face_text: String = face.get_child(2).get_child(0).text
 		check(face.get_child(1).text == "Weapon · Epic" and preview in face_text and "minimum" not in face_text.to_lower()
 			and "cooldown" not in face_text.to_lower(), "the rooted card face shows rate and omits technical limits")
 
-		var tab: Control = game.overlay.get_node("RunSummary")
-		tab.refresh(player)
+		var tab: Control = UIFixture.control(game,"summary_view")
+		tab.refresh()
 		var summary := tab.shown as Dictionary
 		var before_row := func(row) -> bool:
 			return row[0]=="Attack speed" and row[1]==before_speed+" attacks/sec" and "4.35 attacks/sec" in row[2]
 		check(summary.totals.any(before_row), "Tab shows the pre-purchase rate and its maximum in a tooltip")
 		action(view.revision, "0")
-		game.toggle_overlay(null)
+		game.ui.close_panels()
 		var wanted := previous.duplicate()
 		wanted.append(int(scenario.applied))
 		check(card_ledger(player).copies().map(func(copy):return copy.amount) == wanted
 			and before_ledger.copies().map(func(copy):return copy.amount) == previous and game.wallet_for(player).spent_essence() == 0,
 			"the purchase keeps each original contribution and commits the displayed clipped amount for free")
-		tab.refresh(player)
+		tab.refresh()
 		summary = tab.shown
 		check(summary.totals.any(func(row):return row[0]=="Attack speed" and row[1]==after_speed+" attacks/sec")
 			and summary.totals.any(func(row):return row[0]=="Dodge cooldown" and " s" in row[1] and "0.35 s" in row[2])
@@ -696,8 +708,8 @@ func verify_attack_speed() -> void:
 		var rate_label := func(label) -> bool:
 			return label.text==after_speed+" attacks/sec" and "Maximum attack speed" in label.tooltip_text
 		check(tab.totals.get_children().any(rate_label), "the real Tab panel keeps the cap in the stat tooltip")
-		game.loadout_view.refresh()
-		var equipment: String = game.loadout_view.description.text
+		UIFixture.control(game,"loadout_view").refresh()
+		var equipment: String = UIFixture.control(game,"loadout_view").description.text
 		check("Attack speed: "+after_speed+" attacks/sec" in equipment and "Class ability cooldown −0.25 s" in equipment,
 			"equipment matches the post-purchase attack rate and formats its graft cooldown in seconds")
 		game.encounter.set_hp(-1, 400)
@@ -705,8 +717,8 @@ func verify_attack_speed() -> void:
 		var now := Time.get_ticks_msec()
 		game.strike_enemy(1,player,player.pos)
 		var queued: Dictionary = game.projectile_queue.back()
-		check(int(queued.stats.interval) == next_ms and player.strike_at >= now+next_ms
-			and player.strike_at <= Time.get_ticks_msec()+next_ms and is_equal_approx(float(queued.stats.damage),float(stats.damage)+0.3),
+		check(int(queued.stats.interval) == next_ms and player[WeaponActions.STATE].ready_at_ms() >= now+next_ms
+			and player[WeaponActions.STATE].ready_at_ms() <= Time.get_ticks_msec()+next_ms and is_equal_approx(float(queued.stats.damage),float(stats.damage)+0.3),
 			"the actual basic attack uses the existing timer formula alongside graft damage")
 		var count: int = game.projectile_queue.size()
 		game.strike_enemy(1,player,player.pos)

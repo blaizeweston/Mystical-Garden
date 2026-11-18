@@ -51,7 +51,7 @@ static func discharge(game: Node, actor: int, first: int, origin: Vector3, impac
 	var target := first
 	var center := impact
 	for step in jumps+1:
-		if target < -1 or target >= game.encounter.scout_count() or game.get_meta(game.Transactions.PENDING,false):
+		if target < -1 or target >= game.encounter.scout_count() or game.persistence_session.is_blocked():
 			break
 		visited[Contact.token(game,target)] = true
 		game.emit_combat_event("link","storm_arc",origin,center,.25,COLOR,0.0,actor)
@@ -66,7 +66,7 @@ static func discharge(game: Node, actor: int, first: int, origin: Vector3, impac
 static func burst(game: Node, event: RefCounted, center: Vector3, now: int) -> void:
 	game.emit_combat_event("ability","storm_burst",center,center,.42,COLOR,BURST_RADIUS,event.actor,{"label":"Storm burst"})
 	for target in game.skill_area_targets(center,BURST_RADIUS,center):
-		if game.get_meta(game.Transactions.PENDING,false): break
+		if game.persistence_session.is_blocked(): break
 		Actors.damage(game,event.actor,target,event.potency().burst,now,COLOR)
 
 

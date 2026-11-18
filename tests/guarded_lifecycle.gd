@@ -1,4 +1,5 @@
 extends SceneTree
+const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Tx=preload("res://game_transaction.gd")
@@ -47,7 +48,7 @@ func title() -> Node:
 func launch(menu: Node) -> Node:
  menu.select_slot(0)
  menu.continue_game()
- check(current_scene!=menu and current_scene.has_meta(Tx.SESSION),"real guarded Continue")
+ check(current_scene!=menu and SessionCase.has_guarded_session(current_scene),"real guarded Continue")
  return current_scene if current_scene!=menu else null
 
 func preferences(world: Node) -> void:
@@ -109,12 +110,12 @@ func run() -> void:
  world.progress.knowledge+=2
  world.return_to_main_menu()
  menu=current_scene
- check(menu!=world and menu.has_meta(&"guarded_return_notice") and menu.get_meta(&"guarded_return_notice")==Tx.CLEANUP_NOTICE
+ check(menu!=world and (not str(menu.persistence_return_view().get("notice", "")).is_empty()) and menu.persistence_return_view().get("notice", "")==Tx.CLEANUP_NOTICE
   and menu.garden_summary(0).state=="pending_recovery" and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"cleanup-pending exit shows warning and blocks Continue")
  var retained:=disk()
  menu.continue_game()
  check(current_scene==menu and disk()==retained,"passive title refuses cleanup-pending")
- record("cleanup_pending_title",before,{"warning":menu.get_meta(&"guarded_return_notice"),"offline":true})
+ record("cleanup_pending_title",before,{"warning":menu.persistence_return_view().get("notice", ""),"offline":true})
  await process_frame
  check(not FileAccess.file_exists(G.get_base_dir().path_join("session.cfg")) and not FileAccess.file_exists(C.get_base_dir().path_join("session.cfg")),
   "terminal owner can release its markers without changing pending recovery")
@@ -129,11 +130,11 @@ func run() -> void:
   if phase=="replace" and path==G:return ERR_CANT_CREATE
   return ERR_FILE_CANT_WRITE if phase=="restore" else OK)
  world.return_to_main_menu()
- check(current_scene==world and Tx.pending_notice(world).contains("uncertain") and disk()[C]!=before[C] and disk()[G]==before[G],"uncertain first exit retains runtime and evidence")
+ check(current_scene==world and world.persistence_session.pending_notice().contains("uncertain") and disk()[C]!=before[C] and disk()[G]==before[G],"uncertain first exit retains runtime and evidence")
  world.return_to_main_menu()
  menu=current_scene
- check(menu!=world and str(menu.get_meta(&"guarded_return_notice","")).contains("uncertain") and menu.garden_summary(0).state=="pending_recovery","uncertain title retry does not replay")
- record("uncertain_title",before,{"notice":menu.get_meta(&"guarded_return_notice",""),"offline":root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer})
+ check(menu!=world and str(menu.persistence_return_view().get("notice", "")).contains("uncertain") and menu.garden_summary(0).state=="pending_recovery","uncertain title retry does not replay")
+ record("uncertain_title",before,{"notice":menu.persistence_return_view().get("notice", ""),"offline":root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer})
  await process_frame
  check(not FileAccess.file_exists(G.get_base_dir().path_join("session.cfg")) and not FileAccess.file_exists(C.get_base_dir().path_join("session.cfg")),
   "uncertain title transition releases owned markers but keeps journals")

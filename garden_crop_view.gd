@@ -27,7 +27,7 @@ var last_bed: Dictionary={}
 var wet_marks: Dictionary={}
 var water_seen: Dictionary={}
 func _ready() -> void:
- panel=game.hud_panel(game.overlay,Color("#14262b"),Vector2(24,20));panel.set_meta("garden_interaction_panel",true);panel.hide()
+ panel=game.ui.create_overlay_panel(Color("#14262b"),Vector2(24,20));panel.set_meta("garden_interaction_panel",true);panel.hide()
  var box:=VBoxContainer.new();box.custom_minimum_size=Vector2(570,350);box.add_theme_constant_override("separation",14);panel.add_child(box)
  title=Label.new();title.add_theme_font_size_override("font_size",23);box.add_child(title)
  var row:=HBoxContainer.new();box.add_child(row)
@@ -43,10 +43,10 @@ func _ready() -> void:
  quick_water.text="Water plant"
  quick_water.tooltip_text="Use one vessel of spring water for 25% faster growth."
  quick_water.focus_mode=Control.FOCUS_NONE
- game.guide.get_parent().add_child(quick_water)
+ game.ui.mount_prompt_control(quick_water)
  quick_water.hide()
  quick_water.pressed.connect(water_nearby)
- var close:=Button.new();close.text="Close · Esc";box.add_child(close);close.pressed.connect(func():game.toggle_overlay(null))
+ var close:=Button.new();close.text="Close · Esc";box.add_child(close);close.pressed.connect(func():game.ui.close_panels())
 func button(parent: Node,text: String,action: String) -> Button:
  var result:=Button.new();result.text=text;parent.add_child(result);result.pressed.connect(func():submit(action));return result
 static func request(bed: Dictionary,action: String) -> Dictionary:
@@ -77,7 +77,7 @@ func _process(_delta: float) -> void:
  var next_context:=str([game.network_session.role(),id,outer.get("epoch","")])
  if next_context!=context:
   context=next_context;serial=-1;slot=-1;waiting_until=0;last_bed={};water_seen.clear()
-  if panel.visible:game.toggle_overlay(null)
+  if panel.visible:game.ui.close_panels()
  var valid: bool=data.get("version",0)==2 and data.get("catalog","")==Catalog.signature
  var beds: Array=data.get("beds",[]) if valid else []
  var present: Array=[]
@@ -96,16 +96,16 @@ func _process(_delta: float) -> void:
  for index in wet_marks:
   if not present.has(index):wet_marks[index].hide();water_seen.erase(index)
  if p.is_empty() or Participation.is_wild(p) or not valid:
-  if panel.visible:game.toggle_overlay(null)
+  if panel.visible:game.ui.close_panels()
   return
  var focus: Dictionary=data.get("focus",{})
  if int(focus.get("serial",0))!=serial:
   serial=int(focus.get("serial",0));slot=int(focus.get("slot",-1))
-  if slot>=0 and not game.overlay.visible:game.toggle_overlay(panel)
+  if slot>=0 and not game.ui.is_overlay_open():game.ui.toggle_external(panel)
  if not panel.visible:return
  var matching: Array=beds.filter(func(b):return int(b.slot)==slot)
  if matching.is_empty() or p.pos.distance_to(game.stage.bed_position(slot))>1.85:
-  game.toggle_overlay(null);return
+  game.ui.close_panels();return
  var bed: Dictionary=matching[0]
  if bed.get("revision",0)!=last_bed.get("revision",-1) or bed.get("stage",0)!=last_bed.get("stage",0):waiting_until=0
  last_bed=bed.duplicate(true)
@@ -131,7 +131,7 @@ func _process(_delta: float) -> void:
  flower.text="Harvest 2 seeds instead of parts" if int(bed.stage)==3 else "Seed harvest · available when mature"
  harvest.visible=int(bed.stage)==3;harvest.disabled=pending
 func nearby_crop(player: Dictionary,data: Dictionary) -> Dictionary:
- if player.is_empty() or Participation.is_wild(player) or game.overlay.visible or game.get_meta("garden_cinematic_active",false):
+ if player.is_empty() or Participation.is_wild(player) or game.ui.is_overlay_open() or game.get_meta("garden_cinematic_active",false):
   return {}
  var nearby: int=game.nearby_plot(player.get("pos",Vector3.INF))
  for bed in data.get("beds",[]):
@@ -143,12 +143,12 @@ func water_nearby() -> void:
  var bed:=nearby_crop(game.players.get(id,{}),data)
  if not data.get("spring_water",false) or not bed.get("water_available",false):return
  game.send_garden_action("garden:"+JSON.stringify(request(bed,"water_crop")))
-func update_prompt(player: Dictionary) -> void:
+func context_prompt(player: Dictionary) -> String:
  var data:=Service.projection(game,game.local_player_id())
  var bed:=nearby_crop(player,data)
  quick_water.visible=data.get("spring_water",false) and bed.get("water_available",false)
- if bed.is_empty():return
- game.guide.text="%s  Inspect %s%s"%[preload("res://app_settings.gd").hint("interact"),game.Seeds.NAMES[int(bed.species)]," · unusual bud" if bed.get("available",false) else " · bud preserved" if bed.get("preserved",false) else ""]
+ if bed.is_empty():return ""
+ return "%s  Inspect %s%s"%[preload("res://app_settings.gd").hint("interact"),game.Seeds.NAMES[int(bed.species)]," · unusual bud" if bed.get("available",false) else " · bud preserved" if bed.get("preserved",false) else ""]
 func update_water(bed: Dictionary,player: Dictionary) -> void:
  var index:=int(bed.slot);var wet: bool=bed.get("watered",false)
  var before: Dictionary=water_seen.get(index,{})

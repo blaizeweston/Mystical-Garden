@@ -100,15 +100,14 @@ func _leave_sandbox() -> void:
 
 
 func _trim_session_menu() -> void:
-	for button: Control in [save_button, host_button, join_button, leave_button, abandon_button, appearance_button]:
-		button.hide()
-	var exits: Node = abandon_button.get_parent()
-	for child in exits.get_children():
-		if child is Button and child.text == "Neural Arena":
-			child.hide()
-	add_button(exits, "Arena Setup", func():
-		toggle_overlay(null)
-		hud.show_setup())
+	ui.configure_arena_menu(false,true)
+
+func _handle_ui_request(command: String, data: Dictionary) -> void:
+	if command == "arena_setup":
+		ui.close_panels()
+		hud.show_setup()
+	else:
+		super(command,data)
 
 
 func is_guest_session() -> bool:
@@ -325,14 +324,16 @@ func _prepare_player(peer: int) -> void:
 	var identity := int(get_meta(Grafts.SERIAL, 0)) + 1
 	set_meta(Grafts.SERIAL, identity)
 	player[Grafts.STATE] = Grafts.Ledger.new(identity)
-	for key in ["lost_health", "grave_charges", "counter_until", "front_guard_until", "counter_guard_until", "core_ready_at", "core_cast_until",
-			"hurt_until", "guard_charges", "guard_until", "strike_at", "attack_until", "swing_until", "cast_until", "slow_until"]:
+	for key in ["lost_health", "grave_charges", "core_ready_at", "core_cast_until", "cast_until"]:
 		player[key] = 0
 	player.weapon = player.prepared
 	player.secondary = player.prepared_secondary
 	player.catalyst = player.prepared_catalyst
 	player.pos = wild_entry(peer)
 	player.still_point = player.pos
+	player[WeaponActions.STATE] = WeaponActions.State.new()
+	player[Protection.STATE] = Protection.State.new()
+	player[Conditions.STATE] = Conditions.State.new()
 	player.still_since = CombatClock.now()
 	var health: PlayerVitals.Health = player[PlayerVitals.STATE]
 	player[PlayerVitals.STATE] = health.with_native_max_hp(Life.native_maximum(self, player)).refilled()

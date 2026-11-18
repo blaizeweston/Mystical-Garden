@@ -233,7 +233,7 @@ func host_run(menu: Node) -> void:
 	ExpeditionCase.Transitions.checkpoint(game, game.HOST, true)
 	mark("advance", str(game.participation.travel_epoch()))
 	if not check(await until(func(): return game.participation.depth() == 2), "party commits advancement"):
-		print("STATE ", [game.status, game.participation.travel_kind(), game.participation.travel_epoch(), game.participation.vote_count(), game.checkpoint_ready, traveller.pos, game.battlefield.advance, game.Transactions.pending_notice(game)])
+		print("STATE ", [game.status, game.participation.travel_kind(), game.participation.travel_epoch(), game.participation.vote_count(), game.checkpoint_ready, traveller.pos, game.battlefield.advance, game.persistence_session.pending_notice()])
 		return
 	mark("second-floor", floor_identity(game.battlefield))
 	if not check(await until(func(): return read("guest-second") == "ok"), "guest sees next generated floor"):
@@ -303,7 +303,7 @@ func guest_run(menu: Node) -> void:
 	var garden = game.stage.experimental_garden
 	var id: int = game.local_player_id()
 	var bed: int = int(read("host-ready"))
-	check(not game.get_meta(game.Transactions.SESSION).authorizes(game.progress.path)
+	check(not game.persistence_session.authorizes(game.progress.path)
 		and garden.bed_ids.get(3) == bed and game.stage.bed_position(3).is_equal_approx(Vector3(2.34, 0, -4.58))
 		and is_equal_approx(garden.bed_yaw(3), -0.37), "guest has matching stable bed transform and no host save access")
 	check(not garden.remote_development.queue.is_empty() and garden.remote_development.energy > 0

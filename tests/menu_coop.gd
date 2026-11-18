@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -154,18 +155,18 @@ func run():
 		if observation!=null:
 			observation.store_string("observed")
 			observation.close()
-		check(await until(func():return game.checkpoint_menu.visible and game.participation.floor()==9),"free checkpoint offer arrives")
-		var choice: int=game.checkpoint_cards.get_children().find_custom(func(frame):return frame.get_child(0).get_child(0).text=="Honed Strikes")
+		check(await until(func():return UIFixture.control(game,"checkpoint_menu").visible and game.participation.floor()==9),"free checkpoint offer arrives")
+		var choice: int=UIFixture.control(game,"checkpoint_cards").get_children().find_custom(func(frame):return frame.get_child(0).get_child(0).text=="Honed Strikes")
 		check(choice>=0,"the real picker shows Honed Strikes")
 		if choice<0:finish(mode);return
-		game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,str(choice)))
+		game.send_garden_action(game.affinity_checkpoint_action(game.ui.checkpoint_revision(),str(choice)))
 		check(await until(func():return game.players[id].get("affinity_run_cards",[]).size()==1),"guest receives their acquired copy")
-		game.toggle_overlay(null)
+		game.ui.close_panels()
 		var tab := InputEventKey.new()
 		tab.physical_keycode = KEY_TAB
 		tab.pressed = true
 		game._input(tab)
-		var summary: PanelContainer = game.overlay.get_node("RunSummary")
+		var summary: PanelContainer = UIFixture.control(game,"summary_view")
 		check(summary.visible and summary.grouped_cards.get_child_count()==1 and summary.shown.cards[0].id=="ordinary_weapon_damage"
 			and summary.shown.cards[0].summary.contains("damage"), "guest summary shows only their actual card contribution")
 	finish(mode)

@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Cards = preload("res://affinity_cards.gd")
@@ -20,20 +21,20 @@ func run():
  var g=game.progress
  p.pos=game.Stage.HEART
  game.handle_loadout_action(1,p,"learn_0_64")
- game.toggle_overlay(null)
+ game.ui.close_panels()
  game.handle_loadout_action(1,p,"loadpart_0_1")
  check(p.prepared==0,"weapon editing no longer happens at the Heart")
  game.send_garden_action("depart")
  check(not ExpeditionCase.is_wild(p),"remote departure cannot bypass gate position")
  p.pos=game.Stage.GATE;g.parts[0]=3
  game.send_action(false)
- check(not ExpeditionCase.is_wild(p) and game.loadout_menu.visible and g.parts[0]==3,"gate opens preparation before charging or entering")
+ check(not ExpeditionCase.is_wild(p) and UIFixture.control(game,"loadout_menu").visible and g.parts[0]==3,"gate opens preparation before charging or entering")
  game.handle_loadout_action(1,p,"loadpart_0_1")
  check(p.prepared==1 and g.parts[0]==3,"gate prepares modular weapon without premature spending")
- game.loadout_view.refresh()
- check(game.loadout_view.depart_button.visible and not game.loadout_view.depart_button.disabled,"gate has explicit Craft and enter button")
- game.loadout_view.depart_button.pressed.emit()
- check(ExpeditionCase.is_wild(p) and p.weapon==1 and g.parts[0]==2 and not game.overlay.visible,"departure crafts weapon once and enters")
+ UIFixture.control(game,"loadout_view").refresh()
+ check(UIFixture.control(game,"loadout_view").depart_button.visible and not UIFixture.control(game,"loadout_view").depart_button.disabled,"gate has explicit Craft and enter button")
+ UIFixture.control(game,"loadout_view").depart_button.pressed.emit()
+ check(ExpeditionCase.is_wild(p) and p.weapon==1 and g.parts[0]==2 and not game.ui.is_overlay_open(),"departure crafts weapon once and enters")
  # Abandonment has no extraction, protected-seed, guardian or research payout.
  var reserve: Dictionary=game.seed_reserve(p)
  reserve.unknown.clear();reserve.parts.fill(0)
@@ -45,8 +46,8 @@ func run():
  var xp_before: Array=p.character.xp.duplicate()
  game.deepest_milestone=10;game.run_guardians=1
  game.request_abandon_run()
- check(game.abandon_confirmation.visible and ExpeditionCase.is_wild(p),"abandon confirmation does not abandon before confirming")
- game.abandon_confirmation.hide()
+ check(UIFixture.control(game,"abandon_confirmation").visible and ExpeditionCase.is_wild(p),"abandon confirmation does not abandon before confirming")
+ UIFixture.control(game,"abandon_confirmation").hide()
  game.send_garden_action("abandon_run")
  check(not ExpeditionCase.is_wild(p) and p.carried_seeds.is_empty() and p.carried_parts[4]==0 and not p.pouch,"abandon drops all carried and protected loot")
  check(reserve.unknown.is_empty() and reserve.parts[4]==0 and g.heart.progress==research_before and g.campaign.memories==memories_before and g.knowledge==knowledge_before and p.character.xp==xp_before,"abandon gives no loot, milestone, memory or additional character reward")
@@ -58,8 +59,8 @@ func run():
  check(game.participation.floor()==6 and not game.checkpoint_pending,"ordinary gate advances immediately")
  cleared_gate(game,6)
  ExpeditionCase.Transitions.checkpoint(game, 1,true)
- check(game.participation.floor()==6 and game.checkpoint_pending and game.checkpoint_menu.visible,"sixth gate presents cards before transport")
- check(game.checkpoint_cards.get_child_count()==3,"three distinct modern card choices")
+ check(game.participation.floor()==6 and game.checkpoint_pending and UIFixture.control(game,"checkpoint_menu").visible,"sixth gate presents cards before transport")
+ check(UIFixture.control(game,"checkpoint_cards").get_child_count()==3,"three distinct modern card choices")
  var offer: Dictionary=game.checkpoint_card_data(p)[0]
  var selected_id: String=offer.choices[0].id
  var wallet_before: int=game.wallet_for(p).spent_essence()
@@ -67,7 +68,7 @@ func run():
  check(game.participation.floor()==6 and game.wallet_for(p).spent_essence()==wallet_before,"invalid card cannot advance or spend")
  var command: String=game.affinity_checkpoint_action(offer.revision,"0")
  game.send_garden_action(command)
- check(game.participation.floor()==7 and not game.checkpoint_pending and not game.checkpoint_menu.visible and Cards.ledger(p).count()==1 and Cards.ledger(p).copies()[0].id==selected_id and game.wallet_for(p).spent_essence()==wallet_before,"one free card applies before solo transport")
+ check(game.participation.floor()==7 and not game.checkpoint_pending and not UIFixture.control(game,"checkpoint_menu").visible and Cards.ledger(p).count()==1 and Cards.ledger(p).copies()[0].id==selected_id and game.wallet_for(p).spent_essence()==wallet_before,"one free card applies before solo transport")
  game.send_garden_action(command)
  check(Cards.ledger(p).count()==1,"stale duplicate choice cannot acquire twice")
  cleared_gate(game,12)

@@ -1,4 +1,5 @@
 extends SceneTree
+const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Cards = preload("res://affinity_cards.gd")
@@ -39,12 +40,15 @@ func run() -> void:
  refused.queue_free()
  await process_frame
  var stale: Node = load("res://world.tscn").instantiate()
- stale.set_meta(Tx.SESSION, preload("res://guarded_title_session.gd").new())
+ var invalid: Dictionary = stale.persistence_session.start(stale.progress, stale.local_character, stale.guest_character,
+  null, -1, "", null, -1, "")
+ check(not preload("res://guarded_title_session.gd").completed(invalid)
+  and not stale.persistence_session.is_guarded(),"failed confirmation grants no session authority")
  root.add_child(stale)
  var stale_id := stale.get_instance_id()
- check(await until(func(): return not is_instance_id_valid(stale_id)), "metadata without leases refuses world startup")
- check(not FileAccess.file_exists(G) and not FileAccess.file_exists(P),"invalid owner metadata wrote no canonical file")
- record("unowned_session_metadata_refused")
+ check(await until(func(): return not is_instance_id_valid(stale_id)), "failed session confirmation refuses world startup")
+ check(not FileAccess.file_exists(G) and not FileAccess.file_exists(P),"failed session confirmation wrote no canonical file")
+ record("failed_session_confirmation_refused")
  current_scene.queue_free()
  await process_frame
  check(change_scene_to_file(ProjectSettings.get_setting("application/run/main_scene"))==OK,"load configured main scene")
@@ -55,19 +59,19 @@ func run() -> void:
  check(title.creator.visible,"New Garden opens real creator")
  title.creator.name_field.text = "Release Keeper"
  title.creator.confirmed.emit()
- check(await until(func(): return is_instance_valid(current_scene) and current_scene.has_meta(Tx.SESSION)),"creator completes New Garden title handoff")
- if not is_instance_valid(current_scene) or not current_scene.has_meta(Tx.SESSION):
+ check(await until(func(): return is_instance_valid(current_scene) and SessionCase.has_guarded_session(current_scene)),"creator completes New Garden title handoff")
+ if not is_instance_valid(current_scene) or not SessionCase.has_guarded_session(current_scene):
   quit(1)
   return
  var world: Node = current_scene
- check(world.get_meta(Tx.SESSION).owns_leases() and world.local_character.data.name=="Release Keeper","Garden and roster leases own correct canonical paths")
+ check(world.persistence_session.owns_leases() and world.local_character.data.name=="Release Keeper","Garden and roster leases own correct canonical paths")
  check(world.progress.save_garden()==ERR_UNAUTHORIZED and world.local_character.save_profile()==ERR_UNAUTHORIZED,"legacy standalone serializers cannot save active candidate session")
  world.set_process(false)
  world.set_physics_process(false)
  var actor: Dictionary = world.players[1]
  actor.pos=world.Stage.HEART
  world.handle_loadout_action(1,actor,"learn_0_64")
- world.toggle_overlay(null)
+ world.ui.close_panels()
  actor.pos = world.Stage.PLOTS[0]
  world.progress.plots[0] = world.progress.empty_plot().merged({"species":0,"stage":3,"age":10000.0},true)
  world.progress.sync_plot_flags()
@@ -112,8 +116,8 @@ func run() -> void:
  await process_frame
  title=current_scene
  title.continue_button.pressed.emit()
- check(is_instance_valid(current_scene) and current_scene.has_meta(Tx.SESSION),"real Continue loads saved world")
- if not is_instance_valid(current_scene) or not current_scene.has_meta(Tx.SESSION):
+ check(is_instance_valid(current_scene) and SessionCase.has_guarded_session(current_scene),"real Continue loads saved world")
+ if not is_instance_valid(current_scene) or not SessionCase.has_guarded_session(current_scene):
   quit(1)
   return
  world=current_scene

@@ -1,0 +1,121 @@
+extends RefCounted
+## Pure display projection. Receives detached facts, never Game or an actor.
+const Classes = preload("res://class_catalog.gd")
+const Skills = preload("res://skill_catalog.gd")
+const Weapons = preload("res://weapon_system.gd")
+const Cards = preload("res://affinity_cards.gd")
+const Preview = preload("res://combat_balance_preview.gd")
+const Traits = preload("res://combat_traits.gd")
+const EXTRA_STATS := {
+	"windup_damage": ["Wind-up damage", " hp", 1.0],
+	"heal_on_kill": ["Health on kill", " hp", 1.0],
+	"skill_heal": ["Class skill healing bonus", " HP", 1.0],
+	"skill_duration": ["Class skill duration", " s", .001],
+	"stagger": ["Hit stagger", " s", .001],
+	"recovery": ["Enemy recovery", " s", .001],
+	"knockback": ["Knockback", " m", 1.0],
+	"pull": ["Pull", " m", 1.0],
+}
+
+
+const CLASS_PROFILE_FIELDS := ["xp","upgrades",Classes.ConnectedTree.MIGRATION_KEY,"quarantine"]
+
+static func class_profile(profile: Dictionary, class_id: int) -> Dictionary:
+	return _profile_fields(profile,CLASS_PROFILE_FIELDS+[Classes.connected_tree(class_id).profile_key])
+
+static func progression_profile(profile: Dictionary) -> Dictionary:
+	var keys := CLASS_PROFILE_FIELDS.duplicate()
+	for class_id in Classes.DEFINITIONS.size(): keys.append(Classes.connected_tree(class_id).profile_key)
+	return _profile_fields(profile,keys)
+
+static func _profile_fields(profile: Dictionary, keys: Array) -> Dictionary:
+	var result := {}
+	for key in keys:
+		if profile.has(key): result[key]=profile[key]
+	return result.duplicate(true)
+
+static func summary(facts: Dictionary) -> Dictionary:
+	var stats: Dictionary = facts.get("stats",{}).duplicate(true)
+	if stats.is_empty():
+		return {}
+	var rows: Array = []
+	var class_id := int(facts.class_id)
+	var base: Dictionary = Classes.DEFINITIONS[class_id].weapons[int(facts.weapon_kind)]
+	var upgrades: Array = []
+	if stats.has("affinity_build"):
+		var copies: Array = facts.copies
+		upgrades = Cards.owned_rows(copies)
+		var applied := Cards.applied_totals(copies)
+		stats = stats.duplicate()
+		Weapons.tune_affinity_basic(stats, applied)
+		var weapon_band: Vector2i = Preview.weapon_range(stats,0)
+		stats.damage_min = weapon_band.x
+		stats.damage_max = weapon_band.y
+		stats.dodge_cooldown = int(stats.get("dodge_cooldown",0)) + int(applied.get("run_dodge_recovery",0))
+	upgrades.sort_custom(func(a,b): return a.title.naturalnocasecmp_to(b.title) < 0)
+	if stats.has("damage_min"):
+		var band:=Vector2i(stats.damage_min,stats.damage_max)
+		rows.append(["Damage", Preview.range_label(band)])
+	else:
+		rows.append(["Damage", compared(float(stats.damage), base.damage)])
+	rows.append(["Reach", compared(stats.reach, base.reach, " m")])
+	rows.append(["Attack speed", Preview.attack_speed(int(stats.interval)) + " attacks/sec",
+		"Maximum attack speed is %s attacks/sec." % Preview.attack_speed(Cards.STRIKE_MIN_MS)])
+	rows.append(["Weapon targets", compared(stats.targets, base.targets)])
+	var base_hp: int=int(facts.base_hp)
+	rows.append(["Max HP", compared(int(facts.max_hp), base_hp, " HP")])
+	var dodge_ms := maxi(Cards.DODGE_MIN_MS, int(facts.dodge_ms) - int(stats.get("dodge_cooldown", 0)))
+	rows.append(["Dodge cooldown", compared(dodge_ms / 1000.0, int(facts.dodge_ms) / 1000.0, " s"),
+		"Minimum dodge cooldown is %s s." % decimal(Cards.DODGE_MIN_MS / 1000.0)])
+	for slot in 2:
+		var skill: Dictionary = facts.skills[slot]
+		var cooldown_ms := Skills.Balance.cooldown(skill,stats)
+		rows.append([skill.name + " cooldown", decimal(cooldown_ms / 1000.0) + " s",
+			"Minimum class ability cooldown is %s s." % decimal(Skills.Balance.COOLDOWN_MIN_MS / 1000.0)])
+	for key in EXTRA_STATS:
+		var value := float(stats.get(key, 0))
+		if key=="heal_on_kill":
+			if value>0.0:
+				rows.append(["Healing on kill",Preview.heal_label(value)])
+				var limit: int=int(facts.kill_heal_limit)
+				rows.append(["Kill healing left this floor","%d / %d HP"%[int(stats.get("kill_heal_remaining",limit)),limit]])
+			continue
+		if key in ["windup_damage","heal_on_kill","skill_heal"]:
+			value=float(Preview.effect_hp(value))
+		if not is_zero_approx(value):
+			var spec: Array = EXTRA_STATS[key]
+			rows.append([spec[0], ("+" if value > 0 else "−") + decimal(absf(value)*float(spec[2])) + spec[1]])
+	var unique: Array = stats.get("interactions", []).duplicate()
+	if stats.has("affinity_build"):
+		var grafts = preload("res://expedition_grafts.gd")
+		var ledger: Dictionary = facts.grafts
+		if not ledger.is_empty():
+			var names: Dictionary = grafts.REINFORCEMENTS.merged(grafts.ADAPTATIONS)
+			var counts := {}
+			for copy: Dictionary in ledger.copies:
+				counts[copy.id] = int(counts.get(copy.id,0)) + 1
+			unique.append("Grafting Altar · %d purchases remaining" % int(ledger.remaining))
+			for id: String in counts:
+				unique.append(str(names[id].name) + (" ×%d" % counts[id] if int(counts[id])>1 else ""))
+	if facts.has("recovery_band"):
+		rows.append(["Next gate recovery",Preview.range_label(facts.recovery_band)+" HP"])
+	if stats.pattern != base.pattern:
+		unique.append("Attack pattern · " + str(stats.pattern).capitalize())
+	var traits := {}
+	for key in Traits.KEYS:
+		if float(stats.get(key, 0)) > 0.0:
+			traits[key] = snappedf(float(stats[key]), .01)
+	var trait_text := Traits.describe(traits,true)
+	if not trait_text.is_empty():
+		unique.append(trait_text)
+	return {"totals": rows, "cards": upgrades, "bonuses": "\n".join(unique) if not unique.is_empty() else "No unique bonuses active."}
+
+static func decimal(value: float) -> String:
+	return ("%.2f" % value).rstrip("0").trim_suffix(".")
+
+static func compared(total: float, base: float, unit: String = "") -> String:
+	var delta := total-base
+	var formatted := decimal(total) + unit
+	if not is_zero_approx(delta):
+		formatted += "  (%s%s)" % ["+" if delta > 0 else "−", decimal(absf(delta)) + unit]
+	return formatted

@@ -65,7 +65,7 @@ func guest_run() -> void:
  if not await until(func():return Service.projection(game,game.local_player_id()).cultivation.beds.any(func(b):return b.slot==3 and b.choice=="preserve")):check(false,"tending receipt");return
  mark("tended")
  if not await until(func():return marked("rejoin")):check(false,"rejoin allowed");return
- SessionCase.World.leave(game,"Conduit rejoin fixture");game.toggle_overlay(null);check(SessionCase.World.join(game)==OK,"guest reconnects")
+ SessionCase.World.leave(game,"Conduit rejoin fixture");game.ui.close_panels();check(SessionCase.World.join(game)==OK,"guest reconnects")
  if not await until(func():return game.network_session.role()=="Guest" and Conduit.projection(game,game.local_player_id()).get("mode","")=="deep"):check(false,"configuration persists");return
  check(Service.projection(game,game.local_player_id()).cultivation.beds.any(func(b):return b.slot==3 and b.choice=="preserve"),"crop choice returns without reroll")
  mark("rejoined");check(await until(func():return marked("done")),"host completes")

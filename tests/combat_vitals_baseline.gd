@@ -1,4 +1,6 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -103,12 +105,11 @@ func check_guard_and_health(game: Node) -> void:
 	var player: Dictionary = game.players[1]
 	var initial: PlayerVitals.Health = player[PlayerVitals.STATE]
 	ExpeditionCase.set_membership(game, player, true)
-	player.guard_until = 4000
-	player.guard_charges = 1
+	player[Protection.STATE] = player[Protection.STATE].grant(4000,1,0,game.participation.epoch())
 	var life := PlayerLifecycle.generation(player)
 	var blocked := IncomingPlayerHit.resolve_world(game, 1, life, 1600, 1.0)
 	check(blocked.kind == IncomingPlayerHit.Outcome.BLOCKED and blocked.applied_hp == 0
-		and is_same(player[PlayerVitals.STATE],initial) and player.guard_charges==0,"Guard blocks before any HP change")
+		and is_same(player[PlayerVitals.STATE],initial) and player[Protection.STATE].charge_count()==0,"Guard blocks before any HP change")
 	var damage := IncomingPlayerHit.resolve_world(game, 1, life, 2100, 1.0)
 	check(damage.kind == IncomingPlayerHit.Outcome.DAMAGED and damage.applied_hp == 10
 		and damage.damage_recorded and PlayerVitals.current_hp(player)==initial.hp()-10.0,
@@ -116,7 +117,7 @@ func check_guard_and_health(game: Node) -> void:
 	var sequence := int(player.damage_seq)
 	var simultaneous := IncomingPlayerHit.resolve_world(game, 1, life, 2100, 1.0, 600)
 	check(simultaneous.kind == IncomingPlayerHit.Outcome.GRACE and int(player.damage_seq) == sequence
-		and int(player.get("slow_until", 0)) == 0, "a second hit at the same instant spends neither HP nor a status")
+		and int(player[Conditions.STATE].slow_until_ms()) == 0, "a second hit at the same instant spends neither HP nor a status")
 	var stale := IncomingPlayerHit.resolve_world(game, 1, life - 1, 4000, 5.0)
 	check(stale.kind == IncomingPlayerHit.Outcome.REJECTED and int(player.damage_seq) == sequence
 		and PlayerVitals.current_hp(player) == initial.hp()-10.0, "the host rejects a contact against a prior life")

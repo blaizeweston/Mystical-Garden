@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -103,25 +104,25 @@ func run() -> void:
  var lure: Dictionary=game.make_scout(12,Vector3.ZERO,2)
  lure.variant="side_lantern"
  player.pos=Vector3(0,0,4)
- player.hurt_until=0
+ player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
  Attacks.lock(game,lure,"lure",player.pos,now+6200)
  var hint: Dictionary=Attacks.hints(lure.attack,0,.6)[0]
  check(absf(float(hint.anchor[0]))>1,"lure shows a separate pull origin")
  preload("res://scout_behavior.gd").release(game, lure,game.Enemies.get_kind(12),now+6200)
- check(absf(player.pos.x)>.1 and player.slow_until>now+6200,"pull follows the visible offset anchor")
+ check(absf(player.pos.x)>.1 and player[Conditions.STATE].slow_until_ms()>now+6200,"pull follows the visible offset anchor")
 
  var choir: Dictionary=game.make_scout(19,Vector3.ZERO,2)
  choir.variant="split_chorus"
  game.encounter.clear_scouts();game.encounter.register_scout(choir);escort=escort_plan.duplicate(true);game.encounter.register_scout(escort)
  player.pos=Vector3(0,0,2)
- player.hurt_until=0
+ player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
  Attacks.lock(game,choir,"shepherd",player.pos,now+7200)
  var choir_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.scout_hit(game,game.Enemies.get_kind(19),choir))
  preload("res://scout_behavior.gd").release(game, choir,game.Enemies.get_kind(19),now+7200)
  check(PlayerVitals.current_hp(player)==100-choir_damage and choir.attack.cue=="Second beat","the second choir sector is signalled separately")
  player.pos=Vector3(-2,0,0)
- player.hurt_until=0
+ player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
  preload("res://scout_behavior.gd").release(game, choir,game.Enemies.get_kind(19),now+7930)
  check(PlayerVitals.current_hp(player)==100-choir_damage and choir.windup==0,"a safe sector persists after both beats")
 

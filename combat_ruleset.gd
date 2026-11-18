@@ -1,4 +1,5 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
 
 const ID := "modern-gameplay-1"
 const MISMATCH := "Combat ruleset mismatch. Host and guest require the same modern gameplay version and definitions."
@@ -29,7 +30,7 @@ const FORMS := {"frost":"brittle_strikes", "fire":"burning_strikes", "water":"dr
 
 # All peers must agree on modern gameplay definitions and behavior version.
 static var definition_signature := JSON.stringify([
-	Plants.BY_SPECIES, Plants.CORE_SKILL_BY_PRIMARY, Plants.SUPPORTING_ONLY,
+	Plants.BY_SPECIES, Plants.CORE_SKILL_BY_PRIMARY, Plants.SUPPORTING_ONLY, Conditions.rules_contract(),
 	Catalyst.KITS, Catalyst.FOCUS_Q, Catalyst.ADAPTERS, Catalyst.RESPONSES, Catalyst.CONFLICTS,
 	Classes.DEFINITIONS, Classes.Warden.FOCUSES, Classes.Subclasses.FOCUSES, ConnectedWarden.VERSION_DATA, Classes.Weaver.VERSION_DATA, Classes.Ranger.VERSION_DATA, Classes.Reaper.VERSION_DATA, Classes.Oracle.VERSION_DATA,
 	Parts.MONSTER_DEFINITIONS, Delivery.WEAPON_DELIVERY, Grafts.PROC_KEYS, Grafts.TIMING, Grafts.DEATH_CHARGE_CAP, Grafts.VERSION_DATA, Improvements.PLAYTEST, Improvements.REINFORCEMENTS, Improvements.ADAPTATIONS, FORMS, Cards.DEFINITIONS, Cards.PLAYTEST, Frost.VERSION_DATA, Fire.VERSION_DATA, Water.VERSION_DATA, Vital.VERSION_DATA, Thorn.VERSION_DATA, Wood.VERSION_DATA, Storm.VERSION_DATA, Spirit.VERSION_DATA, Void.VERSION_DATA,

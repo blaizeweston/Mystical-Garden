@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -111,7 +112,7 @@ func run() -> void:
 	common.publish(game,"class_action","heal","",now,{"response":"recipient_stride","recipients":[1]})
 	check(is_equal_approx(Spirit.scale(p,Clock.now(game)),1.2),"ordinary healing grants its own speed")
 	p.pos=Vector3.ZERO
-	p.slow_until=Time.get_ticks_msec()+2000
+	p[Conditions.STATE] = p[Conditions.STATE].with_slow_until(Time.get_ticks_msec()+2000)
 	game.move_player(1,Vector2.RIGHT,.1)
 	check(is_equal_approx(Vector3(p.velocity).length(),game.WALK_SPEED*.60*1.20),"Spiritstride stacks multiplicatively with native Slow without cleansing it")
 	Clock.advance(game,5.0);Spirit.tick(game,Clock.now(game))

@@ -100,8 +100,8 @@ static func safe_motion(game: Node, target: int, point: Vector3, end: Vector3) -
 
 
 static func resolve_motion(game: Node, elapsed: int, now: int) -> void:
-	if not game.has_meta(PENDING): return
-	var pending: Dictionary=game.get_meta(PENDING)
+	if not game.persistence_session.is_blocked(): return
+	var pending: Dictionary=game.persistence_session.is_blocked()
 	game.remove_meta(PENDING)
 	var targets:=pending.keys()
 	targets.sort()
@@ -141,7 +141,7 @@ static func pulse(game: Node, event: RefCounted, center: Vector3, inward: bool, 
 	game.emit_combat_event("ability","void_pulse",center,center,.46,COLOR,AREA_RADIUS,event.actor,
 		{"label":"Compression" if inward else "Void repulsion"})
 	for target in targets:
-		if game.get_meta(game.Transactions.PENDING,false): break
+		if game.persistence_session.is_blocked(): break
 		if not Actors.valid_target(game,target) or not game.battlefield.clear_line(center,game.enemy_position(target)): continue
 		if not preserve_native: queue_motion(game,event,target,center,inward,q.pulse_force)
 		Actors.damage(game,event.actor,target,q.pulse,now,COLOR)
@@ -175,7 +175,7 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 			var center: Vector3=details.center
 			game.emit_combat_event("ability","void_collapse",center,center,.55,COLOR,CORE_RADIUS,event.actor,{"label":"Gravity Well collapse"})
 			for target in game.skill_area_targets(center,CORE_RADIUS,center):
-				if game.get_meta(game.Transactions.PENDING,false): break
+				if game.persistence_session.is_blocked(): break
 				Actors.damage(game,event.actor,target,q.collapse,now,COLOR)
 		"weapon_contact":
 			var p: Dictionary=game.players.get(event.actor,{})

@@ -1,4 +1,8 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
+
+const WeaponActions = preload("res://player_weapon_actions.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -48,7 +52,7 @@ func reset(p: Dictionary) -> void:
 	game.set_meta(Clock.CLOCK,0.0)
 	p.erase(Thorn.FORM_READY)
 	preload("res://oracle_combat.gd").clear(p)
-	p.erase("affinity_ward_claims")
+	p[Protection.STATE] = p[Protection.STATE].clear_guard()
 	p.weapon=0
 	p.secondary=0
 	p.catalyst=0
@@ -62,12 +66,12 @@ func reset(p: Dictionary) -> void:
 	p.core_ready_at=0
 	p.core_cast_until=0
 	p.cast_until=0
-	p.strike_at=0
+	p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
 	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
-	p.hurt_until=0
-	p.guard_charges=0
-	p.guard_until=0
+	p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
+	p[Protection.STATE] = p[Protection.STATE].clear_expedition()
+	p[Protection.STATE] = p[Protection.STATE].clear_guard()
 
 func run() -> void:
 	game=preload("res://world.tscn").instantiate()

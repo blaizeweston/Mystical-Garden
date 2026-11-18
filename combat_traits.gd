@@ -1,4 +1,6 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Ranger=preload("res://ranger_combat.gd")
 const Reaper=preload("res://reaper_combat.gd")
@@ -27,10 +29,10 @@ static func augment_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,n
  var hit:=stats.duplicate(true)
  var damage:=Preview.authored_amount(float(hit.damage))
  if not hit.get("trait_secondary",false):
-  if now<int(p.get("counter_until",0)):
+  if p[Protection.STATE].counter_ready(now):
    preload("res://combat_status.gd").proc(game,"counter",p.pos,game.enemy_position(target),target)
-   damage+=Preview.authored_amount(float(p.get("counter_power",1)))
-   p.counter_until=0
+   damage+=Preview.authored_amount(p[Protection.STATE].counter_points())
+   p[Protection.STATE] = p[Protection.STATE].spend_counter()
   if int(p.get("grave_charges",0))>0 and Reaper.spends_class_charge(p,hit):
    damage+=1;p.grave_charges-=1
    preload("res://combat_status.gd").proc(game,"momentum",p.pos,game.enemy_position(target),target)
@@ -176,8 +178,8 @@ static func tick(game: Node,now: int) -> void:
    var heal_hp:=Preview.roll_heal(Preview.authored_amount(float(event.power)),Preview.HEAL_TICK_SPREAD_HP)
    for ally in game.players.values():
     if not game.Life.alive(ally) or ally.pos.distance_to(event.position)>float(event.radius) or not game.battlefield.clear_line(event.position,ally.pos): continue
-    game.Life.Sustain.restore(game,ally,heal_hp,event.kind);ally.slow_until=0
-    if event.ward: game.grant_guard(ally,now+800,1)
+    game.Life.Sustain.restore(game,ally,heal_hp,event.kind);ally[Conditions.STATE] = ally[Conditions.STATE].cleanse_slow()
+    if event.ward: ally[Protection.STATE] = ally[Protection.STATE].grant(now+800,1,Time.get_ticks_msec(),game.participation.epoch())
   elif event.kind in ["growth","cinder"]:
    var targets: Array[int]=game.skill_area_targets(event.position,float(event.radius),event.position)
    for target in targets:
@@ -209,16 +211,6 @@ static func describe(values: Dictionary,resolved: bool=false) -> String:
   lines.append("%s: %s"%[labels.get(key,key.replace("_"," ").capitalize()),value])
  return "\n".join(lines)
 
-static func guard_allows(p: Dictionary,origin: Vector3,now: int) -> bool:
- if now>=int(p.get("guard_until",0)): return false
- if now>=int(p.get("front_guard_until",0)) or origin==Vector3.INF: return true
- var direction: Vector3=origin-p.pos
- return direction.length_squared()<.01 or direction.normalized().dot(p.get("guard_face",Vector3.FORWARD))>=.15
-static func blocked(game: Node,p: Dictionary,now: int) -> void:
- var stats: Dictionary=game.weapon_stats(p)
- if float(stats.get("counter_damage",0))>0 or now<int(p.get("counter_guard_until",0)):
-  var balance=preload("res://class_skill_balance.gd")
-  p.counter_until=now+balance.COUNTER_WINDOW_MS;p.counter_power=balance.counter_points(stats)
 static func end_zone(game: Node,event: Dictionary) -> void:
  if event.has("ranger_route"): Ranger.end_route(game,event)
  if event.has("visual_id"):

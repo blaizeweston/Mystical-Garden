@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -74,7 +75,7 @@ func run() -> void:
   check(game.tactics.position==locked,"weapon hits keep the committed cast origin")
   player.pos=retreat
   player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
-  player.hurt_until=0
+  player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
   game.Bosses.resolve(game,game.tactics.strike_at)
   var strike: int=game.tactics.strike_at
   check(PlayerVitals.current_hp(player)==100 and game.Bosses.exposed(game,strike),"interior retreat avoids the strike and opens the uprooting window")
@@ -86,7 +87,7 @@ func run() -> void:
   if stamp==17:
    player.pos=plan.from+Lairs.direction(plan.from,plan.face)*12
    game.tactics.memory.lair_plan=plan
-   player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100);player.hurt_until=0
+   player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100);player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
    var sweep_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.boss_hit(game,game.Enemies.get_kind(Routes.ORCHARD),"root_sweep"))
    game.Bosses.resolve(game,strike+3000)
    check(PlayerVitals.current_hp(player)==100-sweep_damage,"standing inside the outer sweep takes the expected damage")
@@ -109,7 +110,7 @@ func run() -> void:
   strike=game.tactics.strike_at
   game.Bosses.resolve(game,strike)
   check(game.enemy_hazards.size()==2 and game.enemy_hazards[0].point==plan.areas[0].point and game.enemy_hazards[1].activate==strike+400,"the host schedules the two marked waves at the promised times")
-  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100);player.hurt_until=0;player.pos=retreat
+  player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100);player[Conditions.STATE] = player[Conditions.STATE].clear_grace();player.pos=retreat
   game.Bosses.tick_hazards(game,strike)
   check(PlayerVitals.current_hp(player)==100,"the alternate route stays harmless when the water rises")
   game.enemy_hazards.clear()
@@ -192,7 +193,7 @@ func orchard_pressure(game: Node, now: int) -> void:
    if Lairs.covered(cage,member.pos,.25):
     check(Lairs.escape(game,cage,member.pos,now).is_finite(),"committed cage has an escape for every threatened party member")
    member[PlayerVitals.STATE] = member[PlayerVitals.STATE].with_hp(100)
-   member.hurt_until=0
+   member[Conditions.STATE] = member[Conditions.STATE].clear_grace()
   var hint: Dictionary=game.attack_hints_snapshot().filter(func(h):return h.role=="orchard_cage")[0]
   check(hint.inner==cage.inner and hint.radius==cage.radius and hint.span==cage.span,"cage warning carries the committed safe gap geometry")
   player.pos=first
@@ -238,5 +239,5 @@ func orchard_pressure(game: Node, now: int) -> void:
   if move=="orchard_march":
    check(game.Bosses.exposed(game,strike) and game.tactics.ready_at-strike>=2700,"march still exposes a punish window")
   player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
-  player.hurt_until=0
+  player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
   cast_time=game.tactics.ready_at

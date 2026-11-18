@@ -1,4 +1,5 @@
 extends SceneTree
+const SessionCase = preload("res://tests/support/session_case.gd")
 
 const Gate = preload("res://persistence_writer_integration.gd")
 const Ops = preload("res://persistence_operations.gd")
@@ -271,7 +272,7 @@ func run() -> void:
  menu.select_slot(0)
  menu.continue_game()
  var world := current_scene
- check(world!=menu and world.has_meta(Tx.SESSION) and world.progress.knowledge==23,"default Continue has guarded lease and loaded bytes")
+ check(world!=menu and SessionCase.has_guarded_session(world) and world.progress.knowledge==23,"default Continue has guarded lease and loaded bytes")
  if world==menu: quit(1); return
  check(world.progress.save_garden()==ERR_UNAUTHORIZED and world.local_character.save_profile()==ERR_UNAUTHORIZED,"standalone writes refuse outside session transaction")
  var before := Slots._save_digest(G)
@@ -337,7 +338,7 @@ func run() -> void:
  check(menu.garden_summary(0).state=="empty" and menu.character_summary(0).exists,"Garden delete leaves roster")
  menu.new_game()
  world=current_scene
- check(world!=menu and world.has_meta(Tx.SESSION),"fresh Garden from default title")
+ check(world!=menu and SessionCase.has_guarded_session(world),"fresh Garden from default title")
  if world==menu: quit(1); return
  world.return_to_main_menu()
  await process_frame
@@ -352,7 +353,7 @@ func run() -> void:
  menu.app_settings.values.developer_mode=true
  check(Developer.open_garden(menu,true,Developer.reset_snapshot(menu))==OK,"guarded Developer Garden reset")
  world=current_scene
- check(world!=menu and world.progress.knowledge==0 and world.has_meta(Tx.SESSION),"Developer reset preserves guarded session")
+ check(world!=menu and world.progress.knowledge==0 and SessionCase.has_guarded_session(world),"Developer reset preserves guarded session")
  if world==menu: quit(1); return
  world.app_settings.values.developer_mode=true
  var dev_before := Slots._save_digest(world.progress.path)
@@ -408,10 +409,10 @@ func selected_technology_effects() -> void:
   menu.settings_dialog.begin(menu.app_settings)
   menu.settings_dialog.developer_controls.open_garden()
   var game: Node=current_scene
-  if game==menu or not game.has_meta(Tx.SESSION):
+  if game==menu or not SessionCase.has_guarded_session(game):
    check(false,"Developer Settings opens a guarded world")
    return
-  check(game.get_meta(Tx.SESSION).owns_leases(),"Developer Garden and profile leases owned")
+  check(game.persistence_session.owns_leases(),"Developer Garden and profile leases owned")
   game.set_process(false)
   game.set_physics_process(false)
   game.app_settings.values.garden_cinematics=true
@@ -448,7 +449,7 @@ func selected_technology_effects() -> void:
   controls.unlock_button.pressed.emit()
   scene._process(0)
   var pending: Array=growth_service.projection(game,1).get("pending",[])
-  var notice := Tx.pending_notice(game)
+  var notice: String = game.persistence_session.pending_notice()
   var cleanup: bool = expected=="COMMITTED_CLEANUP_PENDING"
   var abort: bool = expected=="ABORTED_RESTORED"
   var garden_after := Slots._save_digest(garden_path)
@@ -468,7 +469,7 @@ func selected_technology_effects() -> void:
     and pending.is_empty() and settings.notice.text.begins_with("Save cancelled"),"aborted unlock leaves no growth receipt")
   else:
    check(game.progress.heart.has("irrigation") and pending.size()==1 and garden_after!=garden_before and primary!="absent"
-    and not Tx.session_writable(game) and (notice==Tx.CLEANUP_NOTICE if cleanup else notice.contains("uncertain")),
+    and not game.persistence_session.can_write() and (notice==Tx.CLEANUP_NOTICE if cleanup else notice.contains("uncertain")),
     "blocked Developer action retains committed or tentative Garden with one selected reveal")
    controls.unlock_button.pressed.emit()
    scene._process(0)

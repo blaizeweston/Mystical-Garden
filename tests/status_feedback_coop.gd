@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -39,7 +40,7 @@ func host_run():
  for player in game.players.values():ExpeditionCase.set_membership(game, player, true);player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,-1)
  game.encounter.clear_scouts();game.encounter.set_hp(-1, 80);game.tactics.position=Vector3(0,0,1);game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.enemy_mutations=0
  check(await until(func():return marked("ready")),"guest sees Wilds")
- var now:=Time.get_ticks_msec();p.slow_until=now+12000
+ var now:=Time.get_ticks_msec();p[Conditions.STATE] = p[Conditions.STATE].with_slow_until(now+12000)
  var stats: Dictionary={"damage":1.0,"reach":4.0,"knockback":-.35,"ranger_direct_hit":true}
  check(Ranger.track(game,id,p,-1,1,now),"source-owned Tracked Prey is accepted")
  Status.sync(game,now)

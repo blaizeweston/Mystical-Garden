@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -31,11 +32,11 @@ func run():
  var saved := Settings.load_settings(game.slot_storage_root)
  check(saved.port==Settings.DEFAULT_PORT+5 and saved.host_port==Settings.DEFAULT_PORT+2,"hosting port stays separate from the last join port")
  SessionCase.World.update(game)
- check(game.connection_label.text.contains("1 of 4") and game.connection_label.text.contains(str(game.network_session.port())),"initial connection names the endpoint")
+ check(UIFixture.control(game,"connection_label").text.contains("1 of 4") and UIFixture.control(game,"connection_label").text.contains(str(game.network_session.port())),"initial connection names the endpoint")
  game.network_session.compatibility_started()
  SessionCase.World.update(game)
- check(game.connection_label.text.contains("2 of 4"),"compatibility check has its own phase")
- var cancel: Button=game.connection_panel.find_children("*","Button",true,false)[0]
+ check(UIFixture.control(game,"connection_label").text.contains("2 of 4"),"compatibility check has its own phase")
+ var cancel: Button=UIFixture.control(game,"connection_panel").find_children("*","Button",true,false)[0]
  cancel.pressed.emit()
  await process_frame
  menu=current_scene
@@ -48,7 +49,7 @@ func run():
  menu.free()
  game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/network_policy_"+Crypto.new().generate_random_bytes(8).hex_encode()+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game)
  game.network_session.configure_endpoint(game.network_session.address(),Settings.DEFAULT_PORT+4)
- game.host_button.pressed.emit()
+ UIFixture.control(game,"host_button").pressed.emit()
  check(game.network_session.role()=="Host" and game.network_dialog.visible and game.network_dialog.lan_choices.get_item_text(0).ends_with(":"+str(game.network_session.port())),"host opens a share panel for the live listening port")
  game.network_dialog.dismiss()
  var identity:="a".repeat(32);var manifest: Dictionary=game.progress.ContentIDs.manifest()

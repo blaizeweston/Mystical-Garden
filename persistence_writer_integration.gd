@@ -3,6 +3,7 @@ extends RefCounted
 ## There is no settings, feature-flag or environment override for this checkpoint.
 
 const PRODUCTION_CUTOVER_APPROVED := false
+const Root = preload("res://persistence_root.gd")
 const VALIDATION_ROUTE := &"persistence_production_route_validation"
 const REQUIRED_WRITERS = {
  "save_batch.gd::write_bytes/write": "raw writes, staging and standalone replacement",
@@ -37,15 +38,38 @@ const CUTOVER_REQUIREMENTS = [
  "legacy_build_exclusion",
  "production_recovery_and_migration_validation",
  "stage_a_serializer_and_guest_acknowledgment",
+ "desktop_recovery_and_close_acceptance",
+ "separate_pc_multiplayer_acceptance",
 ]
 # Record production entry points here only once the actual call sites enforce the
 # scope and both source and packaged writer fixtures cover refusal and success.
 const VERIFIED_WRITERS = []
+# Each entry must reference the reviewed evidence, not a runtime preference.
+# These remain empty until current candidate and deployment acceptance is signed.
+const VERIFIED_REQUIREMENTS = {}
+
+static func evaluate_activation(approved: bool, writers: Array, requirements: Dictionary) -> Dictionary:
+ var blockers := PackedStringArray()
+ for writer: String in REQUIRED_WRITERS:
+  if not writers.has(writer): blockers.append(writer)
+ for requirement: String in CUTOVER_REQUIREMENTS:
+  var evidence: Variant = requirements.get(requirement, "")
+  if not evidence is String or evidence.strip_edges().is_empty(): blockers.append(requirement)
+ if not approved: blockers.append("production_cutover_not_approved")
+ blockers.sort()
+ return {"allowed":blockers.is_empty(),"blockers":blockers}
+
+static func startup_refusal() -> String:
+ if not PRODUCTION_CUTOVER_APPROVED: return ""
+ if not activation_status().allowed:
+  return "The production save cutover is not signed off. No save files were opened."
+ return Root.prepare()
 
 static func default_route(tree: SceneTree) -> bool:
  if tree == null:
   return false
- if activation_status().allowed:
+ # An incomplete approved build must refuse startup, never fall back to old IO.
+ if PRODUCTION_CUTOVER_APPROVED:
   return true
  # Internal fixture seam. No command line or player preference enables this.
  return (OS.has_feature("editor") or OS.has_feature("debug")) and DisplayServer.get_name() == "headless" and tree.has_meta(VALIDATION_ROUTE) \
@@ -77,12 +101,4 @@ const GROUP_2B_GUARDED_ROUTES = {
 }
 
 static func activation_status() -> Dictionary:
- var blockers := PackedStringArray()
- for writer: String in REQUIRED_WRITERS:
-  if not VERIFIED_WRITERS.has(writer):
-   blockers.append(writer)
- blockers.append_array(CUTOVER_REQUIREMENTS)
- if not PRODUCTION_CUTOVER_APPROVED:
-  blockers.append("production_cutover_not_approved")
- blockers.sort()
- return {"allowed": blockers.is_empty(), "blockers": blockers}
+ return evaluate_activation(PRODUCTION_CUTOVER_APPROVED, VERIFIED_WRITERS, VERIFIED_REQUIREMENTS)

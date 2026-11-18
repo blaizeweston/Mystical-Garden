@@ -155,6 +155,27 @@ func run():
   and game.monster_rewards.status(frozen_departure_rewards[0].key)==game.MonsterRewards.Phase.COMMITTED
   and game.monster_rewards.status(frozen_departure_rewards[1].key)==game.MonsterRewards.Phase.COMMITTED,
   "the outer save commits the detached receipts exactly once")
+ # The contained writer remains live while guarded production cutover is off.
+ # Its actual abandonment must undo already saved XP, including on retry.
+ p.frame=0
+ var entry_xp: Array=p.character.xp.duplicate()
+ var entry_monsters: Array=p.character.monsters.duplicate()
+ check(game.monster_rewards.begin_expedition(game._kill_reward_identity(1,p),game.participation.run_id(),entry_xp,entry_monsters),
+  "contained expedition records the entry reward boundary")
+ game._queue_monster_reward("contained-forfeiture",0,0,p.pos,false)
+ check(game.flush_kill_rewards() and p.character.xp[0]==int(entry_xp[0])+1,"contained route banks a real reward before forfeiture")
+ var companion_xp: Array=friend.character.xp.duplicate()
+ var canonical_path: String=game.progress.path
+ game.progress.path="res://.godot/missing-forfeiture-directory/fail.cfg"
+ ExpeditionCase.Transitions.abandon(game,1,p)
+ check(ExpeditionCase.is_wild(p) and p.character.xp[0]==int(entry_xp[0])+1,
+  "contained serializer failure restores participation, banked XP and the forfeiture claim")
+ game.progress.path=canonical_path
+ ExpeditionCase.Transitions.abandon(game,1,p)
+ profile.load_profile()
+ check(not ExpeditionCase.is_wild(p) and p.character.xp==entry_xp and p.character.monsters==entry_monsters
+  and profile.data.xp==entry_xp and friend.character.xp==companion_xp and ExpeditionCase.is_wild(friend),
+  "contained retry revokes the whole personal run without changing the teammate's rewards")
  game.queue_free();await process_frame
  if not failed:print("PASS: individual kills, equal party rewards, owner-only drops, summon exclusion, XP, rollback and bounded drop odds")
  quit(1 if failed else 0)

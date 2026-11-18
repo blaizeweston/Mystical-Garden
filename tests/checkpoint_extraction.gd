@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 var failed := false
@@ -36,14 +37,14 @@ func run():
 			game.send_garden_action("extract")
 			check(ExpeditionCase.is_wild(p) and game.seed_reserve(p).unknown.is_empty(), "ordinary cleared floors cannot bank loot")
 			game.send_action(false)
-			if game.checkpoint_pending: game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,"skip"))
+			if game.checkpoint_pending: game.send_garden_action(game.affinity_checkpoint_action(game.ui.checkpoint_revision(),"skip"))
 		else:
 			p.pos = game.battlefield.entry
 			game.send_garden_action("extract")
 			check(ExpeditionCase.is_wild(p), "extraction is unavailable at the map entrance")
 			p.pos = game.battlefield.advance
 			game._process(.016)
-			check(game.guide.text.contains("T  Extract"), "checkpoint offers extraction next to onward gate")
+			check(UIFixture.control(game,"guide").text.contains("T  Extract"), "checkpoint offers extraction next to onward gate")
 			game.send_garden_action("extract")
 			check(not ExpeditionCase.is_wild(p) and game.seed_reserve(p).unknown == [0], "checkpoint banks carried loot and returns to Garden")
 	p.pos = game.Stage.GATE
@@ -54,8 +55,8 @@ func run():
 	game.encounter.clear_scouts()
 	p.pos = game.battlefield.advance
 	game.send_action(false)
-	check(game.checkpoint_menu.visible and game.participation.floor()==6,"checkpoint holds travel for a card decision")
-	game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,"skip"))
+	check(UIFixture.control(game,"checkpoint_menu").visible and game.participation.floor()==6,"checkpoint holds travel for a card decision")
+	game.send_garden_action(game.affinity_checkpoint_action(game.ui.checkpoint_revision(),"skip"))
 	check(ExpeditionCase.is_wild(p) and game.participation.floor() == 7, "E continues instead of extracting at the checkpoint")
 	await process_frame
 	if not failed: print("PASS: cleared checkpoint extraction, onward choice and real six-floor route")

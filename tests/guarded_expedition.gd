@@ -1,4 +1,9 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
+
+const WeaponActions = preload("res://player_weapon_actions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -38,7 +43,7 @@ func disk() -> Dictionary:
 
 func record(label: String,before: Dictionary) -> void:
  print("CASE ",JSON.stringify({"case":label,"run_id":OS.get_environment("MYSTICAL_VALIDATION_RUN"),"before":before,"after":disk(),
-  "floor":world.participation.floor(),"wild":world.participation.active(),"pending":Tx.pending_notice(world),"status":world.status,
+  "floor":world.participation.floor(),"wild":world.participation.active(),"pending":world.persistence_session.pending_notice(),"status":world.status,
   "queued_kills":world.monster_rewards.pending_count(),"queued_departures":world.departure_settlement.count(),"event_serial":world.combat_event_serial}))
 
 func open_world(fresh := false) -> bool:
@@ -57,11 +62,11 @@ func open_world(fresh := false) -> bool:
   if current_scene == title: title.new_button.pressed.emit()
  else:
   title.continue_button.pressed.emit()
- if current_scene == title or not current_scene.has_meta(Tx.SESSION):
+ if current_scene == title or not SessionCase.has_guarded_session(current_scene):
   check(false, "guarded title handoff failed: " + title.notice.text)
   return false
  world = current_scene
- check(world.get_meta(Tx.SESSION).owns_leases(), "title handoff owns Garden and profile leases")
+ check(world.persistence_session.owns_leases(), "title handoff owns Garden and profile leases")
  world.set_process(false)
  world.set_physics_process(false)
  var actor: Dictionary=world.players[1]
@@ -71,7 +76,7 @@ func open_world(fresh := false) -> bool:
   actor.pos=world.Stage.HEART
   world.handle_loadout_action(1,actor,"learn_0_64")
   actor.pos=prior_position
-  world.toggle_overlay(null)
+  world.ui.close_panels()
  return true
 
 func close_world() -> void:
@@ -181,7 +186,7 @@ func exercise() -> void:
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.garden_action(1,"depart")
  check(disk()==before and not ExpeditionCase.is_wild(actor) and actor.prepared==1 and world.battlefield==field and world.map_rng.state==seed
-  and world.loadout_menu.visible and world.run_wallet(actor)==0,
+  and UIFixture.control(world,"loadout_menu").visible and world.run_wallet(actor)==0,
   "departure abort restores map RNG, battlefield, material, actor and open UI")
  check(is_same(actor[Cooldowns.STATE],garden_timers) and garden_timers.deadline(Cooldowns.Q)==2100
   and garden_timers.deadline(Cooldowns.R)==2200 and garden_timers.deadline(Cooldowns.DODGE)==2300,
@@ -189,13 +194,29 @@ func exercise() -> void:
  record("departure_abort",before)
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.garden_action(1,"depart")
- check(ExpeditionCase.is_wild(actor) and actor.weapon==1 and world.progress.part_count(1)==2 and not world.loadout_menu.visible
+ check(ExpeditionCase.is_wild(actor) and actor.weapon==1 and world.progress.part_count(1)==2 and not UIFixture.control(world,"loadout_menu").visible
   and disk()[G]!=before[G] and world.run_wallet(actor)==0,"departure commits a fresh wallet before panel closure")
  var departed_timers: Cooldowns.Timers = actor[Cooldowns.STATE]
  check(not is_same(departed_timers,garden_timers) and departed_timers.deadline(Cooldowns.Q)==0
   and departed_timers.deadline(Cooldowns.R)==0 and departed_timers.deadline(Cooldowns.DODGE)==0,
   "successful expedition entry starts three fresh cooldowns")
  var initial_wallet = world.wallet_for(actor)
+ var protection_before: Protection.State=actor[Protection.STATE]
+ var action_before: WeaponActions.State=actor[WeaponActions.STATE]
+ var queue_before: int=world.projectile_queue.size()
+ world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
+ var refused_attack: Dictionary=world.run_guarded_action(1,Tx.Scope.PAIR,func(_effects):
+  world.strike_enemy(1,actor,actor.pos)
+  actor[Protection.STATE] = actor[Protection.STATE].grant(Time.get_ticks_msec()+2000,2,Time.get_ticks_msec(),world.participation.epoch()).with_front_guard(Time.get_ticks_msec()+2000,Vector3.FORWARD).prepare_counter(Time.get_ticks_msec()+3500,1)
+  return true)
+ world.remove_meta(&"guarded_gameplay_test_fault")
+ check(not Tx.committed(refused_attack.persistence) and is_same(actor[WeaponActions.STATE],action_before)
+  and actor[WeaponActions.STATE].sequence()==0 and world.projectile_queue.size()==queue_before,
+  "guarded attack abort restores the original weapon state and removes the attempted contact")
+ check(not actor.has("strike_at") and not actor.has("attack_until") and not actor.has("ranged_windup"),
+  "host actor has one authoritative weapon component, not duplicate raw fields")
+ check(is_same(actor[Protection.STATE],protection_before) and protection_before.charge_count()==0 and protection_before.claim_count()==0,
+  "guarded abort restores the original protection, native windows and claim owner")
  record("departure_commit",before)
 
  var trophy_config: Dictionary = world.Director.config()
@@ -251,15 +272,17 @@ func exercise() -> void:
  IncomingPlayerHit.apply_health_loss(world, 1, PlayerLifecycle.generation(actor), 1)
  check(int(PlayerVitals.current_hp(actor))==hp-1 and disk()==committed,"nonlethal damage is runtime-only")
  var before_hit_health: PlayerVitals.Health=actor[PlayerVitals.STATE]
- var before_hit_status := [int(actor.hurt_until), int(actor.slow_until), int(actor.damage_seq), int(actor.damage_amount)]
- var impact_at := maxi(Time.get_ticks_msec(), int(actor.hurt_until)) + 1
+ var before_conditions: Conditions.State=actor[Conditions.STATE]
+ var before_hit_status := [int(actor[Conditions.STATE].grace_until_ms()), int(actor[Conditions.STATE].slow_until_ms()), int(actor.damage_seq), int(actor.damage_amount)]
+ var impact_at := maxi(Time.get_ticks_msec(), int(actor[Conditions.STATE].grace_until_ms())) + 1
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  var uncommitted := IncomingPlayerHit.resolve_world(world,1,active_generation,impact_at,999.0,750)
  world.remove_meta(&"guarded_gameplay_test_fault")
  check(uncommitted.kind==IncomingPlayerHit.Outcome.UNCOMMITTED and not uncommitted.damage_recorded
+  and is_same(actor[Conditions.STATE],before_conditions)
   and is_same(actor[PlayerVitals.STATE],before_hit_health) and PlayerLifecycle.matches(actor,active_generation)
   and not PlayerLifecycle.fallen(actor) and disk()==committed
-  and before_hit_status==[int(actor.hurt_until),int(actor.slow_until),int(actor.damage_seq),int(actor.damage_amount)],
+  and before_hit_status==[int(actor[Conditions.STATE].grace_until_ms()),int(actor[Conditions.STATE].slow_until_ms()),int(actor.damage_seq),int(actor.damage_amount)],
   "aborted lethal enemy contact restores the same HP owner, life, grace, Slow and damage sequence")
  IncomingPlayerHit.apply_health_loss(world, 1, PlayerLifecycle.generation(actor), 999)
  check(PlayerLifecycle.fallen(actor) and PlayerVitals.current_hp(actor)==0 and world.wallet_for(actor)==earned_wallet
@@ -290,7 +313,7 @@ func exercise() -> void:
 
  clear_floor(actor,3)
  ExpeditionCase.Transitions.checkpoint(world, 1,true)
- check(world.checkpoint_pending and world.checkpoint_menu.visible and world.participation.floor()==3,"checkpoint opens cards without travelling")
+ check(world.checkpoint_pending and UIFixture.control(world,"checkpoint_menu").visible and world.participation.floor()==3,"checkpoint opens cards without travelling")
  var offer: Dictionary=world.checkpoint_card_data(actor)[0]
  var card_wallet: int=world.wallet_for(actor).spent_essence()
  world.send_garden_action(world.affinity_checkpoint_action(offer.revision,"0"))
@@ -340,7 +363,7 @@ func exercise() -> void:
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.refresh_feedback()
  check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==3 and world.progress.campaign.best_extraction==6 and disk()[G]!=before[G]
-  and world.feedback.text.contains("Extracted with") and world.feedback.text.contains(Tx.CLEANUP_NOTICE) and FileAccess.file_exists(G+".transaction"),
+  and UIFixture.control(world,"feedback").text.contains("Extracted with") and UIFixture.control(world,"feedback").text.contains(Tx.CLEANUP_NOTICE) and FileAccess.file_exists(G+".transaction"),
   "cleanup-pending extraction commits inventory and progression and retains notice")
  committed=disk()
  ExpeditionCase.Transitions.checkpoint(world, 1,false)
@@ -378,7 +401,7 @@ func exercise() -> void:
  ExpeditionCase.Transitions.checkpoint(world, 1,false)
  world.remove_meta(&"guarded_gameplay_test_fault")
  var split:=disk()
- check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds+1 and world.loadout_menu.visible and Tx.pending_notice(world).contains("uncertain")
+ check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds+1 and UIFixture.control(world,"loadout_menu").visible and world.persistence_session.pending_notice().contains("uncertain")
   and split[C]!=before[C] and split[G]==before[G] and not world.status.contains("Extracted with"),"uncertain extraction keeps tentative memory and withholds notice/closure")
  ExpeditionCase.Transitions.checkpoint(world, 1,false)
  check(disk()==split,"uncertain operation does not replay")
@@ -467,7 +490,7 @@ func exercise() -> void:
  ExpeditionCase.Transitions.abandon(world, 1,actor)
  check(int(PlayerVitals.current_hp(actor))==hp and ExpeditionCase.is_wild(actor) and disk()==before,"lost lease prevents combat and settlement writes")
  world.return_to_main_menu()
- check(world.get_meta(Tx.STOPPING,false) and disk()==before,"lost lease shuts down without saving")
+ check(world.persistence_session.is_stopping() and disk()==before,"lost lease shuts down without saving")
  record("lost_lease_shutdown",before)
  await process_frame
  check(current_scene != world and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"lost lease shutdown detaches after offline")
@@ -482,7 +505,7 @@ func exercise() -> void:
  before=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
- check(not world.get_meta(Tx.STOPPING,false) and ExpeditionCase.is_wild(actor) and disk()==before and current_scene==world,
+ check(not world.persistence_session.is_stopping() and ExpeditionCase.is_wild(actor) and disk()==before and current_scene==world,
   "window-close settlement abort keeps the world and original saves")
  record("window_close_abort",before)
  world.return_to_main_menu()

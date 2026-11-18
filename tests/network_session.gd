@@ -42,6 +42,10 @@ func run() -> void:
 		check(owner.allow(7,"action",3,200),"ordinary request budget accepts allowed requests")
 	check(not owner.allow(7,"action",3,200) and owner.allow(7,"motion",1,200),"budgets are per connection and request channel")
 	check(owner.allow(7,"action",3,1200),"request budget resets at its normal interval")
+	check(not owner.mark_departure_saved(7,first_binding+1,"a".repeat(32))
+		and not owner.mark_departure_saved(7,first_binding,"bad"),"departure confirmation requires the current binding and a valid nonce")
+	check(owner.mark_departure_saved(7,first_binding,"a".repeat(32))
+		and owner.departure_receipt(7)=="a".repeat(32),"saved departure receipt is scoped to the accepted connection")
 	var released := owner.release_peer(7)
 	check(released.is_read_only() and released.identity == "remote-character" and not owner.ready(7),"release preserves only detached departure facts")
 	check(Session.peer_for(remote) == 0 and not Session.ready_for(remote) and not owner.has_character("remote-character"),"removed actor link cannot authorize work")
@@ -51,6 +55,7 @@ func run() -> void:
 	check(owner.bind_character(7,"replacement-character",next_binding) and owner.connection_key(7) != connection,
 		"a different character on a reused peer receives a fresh connection key")
 	check(owner.allow(7,"action",1,1300),"replacement peer does not inherit spent budgets")
+	check(owner.departure_receipt(7).is_empty(),"reused peer cannot inherit a saved-departure acknowledgement")
 	var pending := {Session.STATE:owner.admit_peer(8,100)}
 	var third := {Session.STATE:owner.admit_peer(9,1500)}
 	check(owner.bind_character(9,"third-character",owner.binding(9)),"fourth participant can register")

@@ -1,4 +1,8 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
+
+const WeaponActions = preload("res://player_weapon_actions.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -39,10 +43,9 @@ func event(id: int, slot: String, item: String, channel: String, now: int) -> Re
 func reset() -> void:
 	for actor in game.players.values():
 		preload("res://oracle_combat.gd").clear(actor)
-		actor.erase("affinity_ward_claims")
-		actor.erase("affinity_ward_grant")
-		actor.guard_until=0
-		actor.guard_charges=0
+		actor[Protection.STATE] = actor[Protection.STATE].clear_guard()
+
+		actor[Protection.STATE] = actor[Protection.STATE].clear_expedition()
 	game.trait_events.clear()
 	game.encounter.set_hp(-1, 500)
 	game.enemy_mutations=0
@@ -83,8 +86,8 @@ func run() -> void:
 		reset()
 		p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(70)
 		ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(60)
-		p.slow_until=now+5000
-		ally.slow_until=now+5000
+		p[Conditions.STATE] = p[Conditions.STATE].with_slow_until(now+5000)
+		ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(now+5000)
 		ally.frost_root_until=now+3000
 		game.tactics.memory[Frost.BRITTLE]={"stacks":[],"expires":now+10000,"slow":.2}
 		game.tactics.memory.frost_root_until=now+600
@@ -99,22 +102,22 @@ func run() -> void:
 		check(not cast.is_empty(),"real B starts Dewfall")
 		if not cast.is_empty():
 			Core.tick(game,cast.armed)
-			check(p.slow_until==0 and ally.slow_until>now and p[PlayerVitals.STATE].hp()==70,"cleanse caster at formation, no baseline healing")
+			check(p[Conditions.STATE].slow_until_ms()==0 and ally[Conditions.STATE].slow_until_ms()>now and p[PlayerVitals.STATE].hp()==70,"cleanse caster at formation, no baseline healing")
 			Clock.advance(game,.4)
 			Core.tick(game,int(cast.armed)+400)
-			check(ally.slow_until==0 and ally.frost_root_until>now and ally[PlayerVitals.STATE].hp()==60 and game.enemy_health()==500-q.impact_hp and game.tactics.memory.has(Frost.BRITTLE) and game.tactics.memory.frost_root_until==now+600,
+			check(ally[Conditions.STATE].slow_until_ms()==0 and ally.frost_root_until>now and ally[PlayerVitals.STATE].hp()==60 and game.enemy_health()==500-q.impact_hp and game.tactics.memory.has(Frost.BRITTLE) and game.tactics.memory.frost_root_until==now+600,
 				"swept wave cleanses actual ally, damages once, preserves other status and health")
-			ally.slow_until=now+10000
+			ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(now+10000)
 			Clock.advance(game,.12)
 			Core.tick(game,int(cast.armed)+520)
-			check(ally.slow_until>now and game.enemy_health()==500-q.impact_hp,"consumed contacts never repeat on same cast")
+			check(ally[Conditions.STATE].slow_until_ms()>now and game.enemy_health()==500-q.impact_hp,"consumed contacts never repeat on same cast")
 		reset()
 		p.weapon=0
 		p.secondary=part
 		p.catalyst=0
 		p.core_cast_until=0
 		p.cast_until=0
-		p.strike_at=0
+		p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
 		p.facing=Vector3.FORWARD
 		game.strike_enemy(1,p,p.pos)
 		var shot: Dictionary=game.projectile_queue.front()
@@ -128,14 +131,13 @@ func run() -> void:
 		check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"same potency is not multiplied")
 		reset()
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
-		p.guard_until=0
-		p.guard_charges=0
-		p.hurt_until=0
-		p.slow_until=now+6000
-		ally.slow_until=now+6000
+		p[Protection.STATE] = p[Protection.STATE].clear_expedition()
+		p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
+		p[Conditions.STATE] = p[Conditions.STATE].with_slow_until(now+6000)
+		ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(now+6000)
 		game.use_class_skill(1,p,0)
 		IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1.0, 0, game.tactics.position)
-		check(p.slow_until==0 and ally.slow_until==0 and p[PlayerVitals.STATE].hp()==70 and is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"Ward wash Drenches enemies and cleanses protected allies")
+		check(p[Conditions.STATE].slow_until_ms()==0 and ally[Conditions.STATE].slow_until_ms()==0 and p[PlayerVitals.STATE].hp()==70 and is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"Ward wash Drenches enemies and cleanses protected allies")
 
 	reset()
 	var now:=Time.get_ticks_msec()
@@ -144,9 +146,8 @@ func run() -> void:
 	var attack=preload("res://enemy_attack.gd")
 	var damage: float=game.Director.Balance.scout_hit(game,game.Enemies.get_kind(1),scout)
 	var baseline: int=game.Life.Preview.effect_hp(game.Life.Preview.authored_amount(damage))
-	p.guard_until=0
-	p.guard_charges=0
-	p.hurt_until=0
+	p[Protection.STATE] = p[Protection.STATE].clear_expedition()
+	p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
 	attack.lock(game,scout,"volley",p.pos,now+500)
 	var strong := event(1,"core","plant_part_rare_dewcap","core_action",now)
@@ -159,17 +160,17 @@ func run() -> void:
 	check(is_equal_approx(Water.reduction(scout,Clock.now(game)),.30),"weaker application cannot override stronger")
 	attack.lock(game,scout,"volley",p.pos,now+4400)
 	Clock.advance(game,2.3)
-	p.hurt_until=0
+	p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
 	preload("res://scout_behavior.gd").tick(game, 0.0,now+4400)
 	check(p[PlayerVitals.STATE].hp()==90-roundi(baseline*.82),"weaker source survives stronger expiry during attack")
 	attack.lock(game,scout,"volley",p.pos,now+6500)
 	Clock.advance(game,2.1)
-	p.hurt_until=0
+	p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
 	preload("res://scout_behavior.gd").tick(game, 0.0,now+6500)
 	check(p[PlayerVitals.STATE].hp()==90-baseline,"all effects expired before impact")
-	p.hurt_until=0
+	p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
 	p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
 	Water.drench(game,strong,0)
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now+7800, damage, 0, scout.pos)
@@ -179,15 +180,14 @@ func run() -> void:
 	var adapter := {"id":"fixture_ward","trigger":"block","limit":"recipient"}
 	var fire := event(1,"catalyst","part_6","actual_block",now)
 	var water := event(2,"catalyst","plant_part_rare_dewcap","actual_block",now)
-	p.guard_until=0
-	p.guard_charges=0
-	p.hurt_until=0
+	p[Protection.STATE] = p[Protection.STATE].clear_expedition()
+	p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
 	Events.grant_ward(game,p,now+1000,1,fire,adapter,now)
 	Events.grant_ward(game,p,now+2000,2,water,adapter,now)
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now+1, 1.0, 0, game.tactics.position)
 	check(game.tactics.memory.get(Fire.BURNING,{}).has("1/catalyst") and Water.reduction(game.tactics.memory,Clock.now(game))==0.0,"earliest mixed Ward selects ordinary Fire")
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now+2, 1.0, 0, game.tactics.position)
-	check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),.30) and p.guard_charges==0,"next actual block is refined Water without removing Fire")
+	check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),.30) and p[Protection.STATE].charge_count()==0,"next actual block is refined Water without removing Fire")
 	game.queue_free()
 	await process_frame
 	if not failed: print("PASS: Water Core, Form, class wash, mixed Ward claims, direct damage and ranged timing")

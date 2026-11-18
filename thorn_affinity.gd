@@ -101,7 +101,7 @@ static func tick(game: Node, elapsed: int, now: int) -> void:
 	var fields:=active_fields(game,elapsed)
 	var wounds_remain:=false
 	for target in range(-1,game.encounter.scout_count()):
-		if game.participation.epoch()!=epoch or game.get_meta(game.Transactions.PENDING,false):
+		if game.participation.epoch()!=epoch or game.persistence_session.is_blocked():
 			return
 		var actor: Dictionary=Actors.body(game,target)
 		if not Actors.valid_target(game,target):
@@ -118,9 +118,9 @@ static func tick(game: Node, elapsed: int, now: int) -> void:
 			while int(wound.next)<=elapsed and int(wound.next)<int(wound.until):
 				wound.next+=TICK_MS
 				Actors.damage(game,wound.actor,target,wound.hp,now,COLOR)
-				if game.participation.epoch()!=epoch or game.get_meta(game.Transactions.PENDING,false) or not Actors.valid_target(game,target):
+				if game.participation.epoch()!=epoch or game.persistence_session.is_blocked() or not Actors.valid_target(game,target):
 					break
-			if game.participation.epoch()!=epoch or game.get_meta(game.Transactions.PENDING,false) or not Actors.valid_target(game,target):
+			if game.participation.epoch()!=epoch or game.persistence_session.is_blocked() or not Actors.valid_target(game,target):
 				break
 			if int(wound.until)<=elapsed: sources.erase(key)
 		if sources.is_empty(): actor.erase(BLEED)

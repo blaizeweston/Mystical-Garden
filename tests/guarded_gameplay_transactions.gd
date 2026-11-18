@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -60,9 +61,9 @@ func start(slots: RefCounted, roster: RefCounted, garden: bool) -> Node:
  world.guest_character.path = C
  world.network_session.configure_join_origin(not garden)
  world.slot_claimed = garden
- var owner := Owner.new()
- var result := owner.start(world, slots if garden else null, 0, Slots._save_digest(G) if garden else "",
-  roster, 0, Slots._save_digest(C))
+ var owner: Owner = world.persistence_session
+ var result := owner.start(world.progress, world.local_character, world.guest_character, slots if garden else null, 0, Slots._save_digest(G) if garden else "",
+  roster, 0, Slots._save_digest(C), world.has_meta(&"experimental_terrain"))
  check(Owner.completed(result), "guarded launch " + str(result))
  if not Owner.completed(result):
   world.free()
@@ -101,7 +102,7 @@ func run() -> void:
  var stores := seed_save_set()
  var world := start(stores.slots, stores.roster, true)
  if world == null: return
- check(world.has_meta(Tx.SESSION) and world.progress.require_guarded_access, "real session and raw save refusal enabled")
+ check(SessionCase.has_guarded_session(world) and world.progress.require_guarded_access, "real session and raw save refusal enabled")
  var before := disk()
  var garden := Tx.run_gameplay(world, Tx.Scope.GARDEN, func(): world.progress.knowledge = 21; return false)
  verify("garden_false_business_commit", garden.persistence, Batch.Outcome.COMMITTED, before)
@@ -119,11 +120,11 @@ func run() -> void:
  host.pos = world.Stage.PLOTS[0]
  world.seed_reserve(host).stock[0] = 1
  world.show_planting_picker(world.HOST,0)
- check(world.planting_menu.visible,"ordinary planting starts with an open picker")
+ check(UIFixture.control(world,"planting_menu").visible,"ordinary planting starts with an open picker")
  world.garden_action(world.HOST, "plant_at_0_0")
  check(world.progress.plots[0].species == 0 and world.seed_reserve(host).stock[0] == 0
   and disk()[G] != before[G] and disk()[C] == before[C] and world.status.ends_with("planted.")
-  and not world.planting_menu.visible, "ordinary planting commits, reports success and closes the picker")
+  and not UIFixture.control(world,"planting_menu").visible, "ordinary planting commits, reports success and closes the picker")
  record("planting", before)
  before = disk()
  host.pos = world.Stage.ALTAR
@@ -203,7 +204,7 @@ func run() -> void:
  world.tell(world.HOST,"later message")
  world.receive_message("later notification")
  world.refresh_feedback()
- check(world.feedback.text.contains(unsure.notice),"uncertain feedback remains visible")
+ check(UIFixture.control(world,"feedback").text.contains(unsure.notice),"uncertain feedback remains visible")
  var split := disk()
  check(world.progress.knowledge == 51 and split[G] == before[G] and split[C] != before[C]
   and not Tx.run_guarded(world, refuse_action, Callable(), Tx.Scope.PAIR).ran and disk() == split, "uncertain keeps memory and evidence without automatic replay")
@@ -312,15 +313,15 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
     host.pos = world.Stage.PLOTS[1]
     world.seed_reserve(host).stock[0] = 1
     world.show_planting_picker(world.HOST,1)
-    var seed_button: Button = world.planting_view.grid.get_child(0)
+    var seed_button: Button = UIFixture.control(world,"planting_view").grid.get_child(0)
     seed_button.pressed.emit()
-    world.planting_view.confirm.pressed.emit()
+    UIFixture.control(world,"planting_view").confirm.pressed.emit()
     world.refresh_feedback()
     check(world.progress.plots[1].species == 0 and world.seed_reserve(host).stock[0] == 0, "cleanup-pending plant and spent seed are retained")
     ordinary = "%s planted." % world.Progress.PLANT_NAMES[0]
-    check(not world.overlay.visible and not world.planting_menu.visible,
+    check(not world.ui.is_overlay_open() and not UIFixture.control(world,"planting_menu").visible,
      "confirmed cleanup-pending planting closes the picker normally")
-    check(world.feedback.text.contains(CleanupNotice) and world.toast_panel.visible,
+    check(UIFixture.control(world,"feedback").text.contains(CleanupNotice) and UIFixture.control(world,"toast_panel").visible,
      "cleanup pending is visible after the picker closes")
    "altar":
     host.pos = world.Stage.ALTAR
@@ -369,9 +370,9 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
   check(journal.load(G + ".transaction") == OK and journal.get_value("transaction","committed",false),
    feature + " retains the committed journal")
   world.refresh_feedback()
-  check(proof.state == "pending_recovery" and committed_disk[G] != before[G] and Tx.pending_notice(world) == CleanupNotice
-   and world.status == ordinary and world.feedback.text.contains(ordinary) and world.feedback.text.contains(CleanupNotice)
-   and world.toast_panel.visible, feature + " committed bytes, ordinary feedback and persistent warning")
+  check(proof.state == "pending_recovery" and committed_disk[G] != before[G] and world.persistence_session.pending_notice() == CleanupNotice
+   and world.status == ordinary and UIFixture.control(world,"feedback").text.contains(ordinary) and UIFixture.control(world,"feedback").text.contains(CleanupNotice)
+   and UIFixture.control(world,"toast_panel").visible, feature + " committed bytes, ordinary feedback and persistent warning")
   var journal_log = preload("res://diagnostic_journal.gd").current
   var event_path: String = journal_log.directory.path_join("events-%06d.jsonl" % journal_log.chunk)
   var event_rows := FileAccess.get_file_as_string(event_path).split("\n", false)
@@ -398,33 +399,33 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
   world.tell(world.HOST,"later ordinary success")
   world.receive_message("later network notification")
   world.refresh_feedback()
-  check(world.feedback.text.contains("later network notification") and world.feedback.text.contains(CleanupNotice),
+  check(UIFixture.control(world,"feedback").text.contains("later network notification") and UIFixture.control(world,"feedback").text.contains(CleanupNotice),
    feature + " received notification retains warning")
   world.status = "later direct notification"
   world.refresh_feedback()
-  check(world.feedback.text.contains("later direct notification") and world.feedback.text.contains(CleanupNotice),
+  check(UIFixture.control(world,"feedback").text.contains("later direct notification") and UIFixture.control(world,"feedback").text.contains(CleanupNotice),
    feature + " later messages share the channel with the warning")
-  world.toggle_overlay(world.session_menu)
+  world.ui.toggle_panel("session")
   world.toast_until = 0
   world.refresh_feedback()
-  check(world.menu_notice.visible and world.menu_notice.text == CleanupNotice,
+  check(UIFixture.control(world,"menu_notice").visible and UIFixture.control(world,"menu_notice").text == CleanupNotice,
    feature + " warning survives toast expiry in the session menu")
-  world.toggle_overlay(null)
+  world.ui.close_panels()
   world.refresh_feedback()
-  check(world.toast_panel.visible and world.feedback.text == CleanupNotice,
+  check(UIFixture.control(world,"toast_panel").visible and UIFixture.control(world,"feedback").text == CleanupNotice,
    feature + " warning remains after panel closure")
-  record("cleanup_feedback_"+feature,before,{"success":ordinary,"notice":world.feedback.text,"outcome":typed_outcome,
+  record("cleanup_feedback_"+feature,before,{"success":ordinary,"notice":UIFixture.control(world,"feedback").text,"outcome":typed_outcome,
    "journal_committed":journal.get_value("transaction","committed",false),"retry_state":retry.persistence.state,
    "retry_ran":retry.persistence.ran,"replacements":attempts.replacements,"receipt_attempts":attempts.receipts,
    "rng_unchanged_on_refusal":world.rng.state == committed_rng})
   var recovered := Ops.recover(PackedStringArray([G]))
   check(recovered.ran and recovered.value.verified and disk()[G] == committed_disk[G] and not FileAccess.file_exists(G+".transaction"),
    feature + " cleanup preserves committed bytes")
-  check(not Tx.pending_notice(world).is_empty(),"old session remains blocked until reconciliation by reopening")
+  check(not world.persistence_session.pending_notice().is_empty(),"old session remains blocked until reconciliation by reopening")
   world.free()
   var reconciled := start(stores.slots, stores.roster, true)
   if reconciled == null: return
-  check(Tx.pending_notice(reconciled).is_empty() and Tx.session_writable(reconciled)
+  check(reconciled.persistence_session.pending_notice().is_empty() and reconciled.persistence_session.can_write()
    and reconciled.status != ordinary and reconciled.combat_event_serial == 0 and disk()[G] == committed_disk[G],
    feature + " reopening permits writes without replaying success, audio or the action")
   reconciled.free()
@@ -449,7 +450,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
  profile_world.players[profile_world.HOST].character.name = "Cleanup profile"
  profile_world.character_dirty = true
  profile_world.set_meta(&"guarded_gameplay_test_fault",fail_receipt)
- check(profile_world.save_local_character() and not profile_world.character_dirty and Tx.pending_notice(profile_world) == CleanupNotice,
+ check(profile_world.save_local_character() and not profile_world.character_dirty and profile_world.persistence_session.pending_notice() == CleanupNotice,
   "profile cleanup retains committed completion and clears the dirty flag")
  profile_world.remove_meta(&"guarded_gameplay_test_fault")
  var profile_after := disk()
@@ -458,7 +459,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
  check(profile_read.load_profile(false) == OK and profile_read.data.name == "Cleanup profile"
   and profile_after[C] != profile_before[C] and profile_after[G] == profile_before[G]
   and Plan.discover(PackedStringArray([C])).state == "pending_recovery","profile bytes committed with evidence")
- record("cleanup_feedback_explicit_profile",profile_before,{"notice":Tx.pending_notice(profile_world)})
+ record("cleanup_feedback_explicit_profile",profile_before,{"notice":profile_world.persistence_session.pending_notice()})
  check(Ops.recover(PackedStringArray([C])).value.verified and disk()[C] == profile_after[C],"profile cleanup preserves new bytes")
  profile_world.free()
 
@@ -469,7 +470,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
   resumed.progress.knowledge += 1
   return "Ordinary save success")
  check(result.completed and result.value == "Ordinary save success" and result.notice.is_empty()
-  and Tx.pending_notice(resumed).is_empty() and disk()[G] != before[G],
+  and resumed.persistence_session.pending_notice().is_empty() and disk()[G] != before[G],
   "fresh authorized session resumes after cleanup")
  verify("feedback_resumed_after_cleanup",result.persistence,Batch.Outcome.COMMITTED,before)
  resumed.free()

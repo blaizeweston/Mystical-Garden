@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -19,7 +20,7 @@ func run():
  var rows:=Hud.members(game.players,1)
  check(rows.size()==2 and rows[0].id==19 and rows[1].id==42,"only other players, in stable party-slot order")
  check(rows[0].fallen and rows[1].hp==70 and rows[1].max_hp==100 and not rows[1].name.contains("\n"),"real health, fallen flag and safe names")
- game._process(.016);var panel=game.player_hud.party_panel
+ game._process(.016);var panel=UIFixture.control(game,"player_hud").party_panel
  check(panel.visible and panel.rows.size()==2 and panel.mouse_filter==Control.MOUSE_FILTER_IGNORE,"Wilds-only non-interactive HUD")
  check(panel.size.x<=190 and panel.size.y<=150,"bounded compact footprint")
  fallen[PlayerVitals.STATE]=PlayerVitals.Health.new(40,80);fallen[PlayerLifecycle.STATE]=PlayerLifecycle.start_life();game._process(.016)
@@ -28,11 +29,11 @@ func run():
  ExpeditionCase.remove_actor(game, 42);ExpeditionCase.remove_actor(game, 19);ExpeditionCase.set_membership(game, p, true);game._process(.016);check(not panel.visible,"hidden when alone")
  ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.GATE+Vector3(2.65,0,0)
  check(game.at_weapon_gate(p),"gate crafting accepts visually adjacent player")
- game._act(1,false);check(game.loadout_menu.visible,"actual interaction opens the gate workbench at extended range")
+ game._act(1,false);check(UIFixture.control(game,"loadout_menu").visible,"actual interaction opens the gate workbench at extended range")
  p.pos=game.Stage.GATE+Vector3(Gates.RANGE+.1,0,0);check(not game.at_weapon_gate(p),"distant crafting remains rejected")
  check(Gates.travel_range(game,"depart")==Gates.RANGE,"party departure uses same range")
  ExpeditionCase.set_world(game, {"destination": game.Campaign.HEART});check(Gates.travel_range(game,"depart")==1.7,"Heart interaction range remains appropriate");ExpeditionCase.set_world(game, {"destination": 0})
- game.toggle_overlay(null);ExpeditionCase.set_membership(game, p, true);game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();ExpeditionCase.set_world(game, {"encounter_number": 1});ExpeditionCase.set_world(game, {"depth": 1})
+ game.ui.close_panels();ExpeditionCase.set_membership(game, p, true);game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();ExpeditionCase.set_world(game, {"encounter_number": 1});ExpeditionCase.set_world(game, {"depth": 1})
  p.pos=game.battlefield.advance+Vector3(Gates.RANGE+.1,0,0);ExpeditionCase.Transitions.commit_checkpoint(game, 1,true);check(game.participation.floor()==1,"distant onward gate rejected")
  p.pos=game.battlefield.advance+Vector3(2.65,0,0);ExpeditionCase.Transitions.commit_checkpoint(game, 1,true);check(game.participation.floor()==2,"actual cleared onward gate accepts extended range")
  game.queue_free();await process_frame

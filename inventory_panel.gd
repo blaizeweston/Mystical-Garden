@@ -2,7 +2,10 @@ extends VBoxContainer
 const Items=preload("res://item_catalog.gd")
 const Builds=preload("res://affinity_build.gd")
 const Slot=preload("res://inventory_slot.gd")
-var game: Node
+const Weapons = preload("res://weapon_system.gd")
+const Parts = preload("res://weapon_parts.gd")
+signal refresh_requested
+signal requested(command: String, data: Dictionary)
 var heading: Label
 var storage_pick: OptionButton
 var filter_pick: OptionButton
@@ -63,7 +66,7 @@ func _ready() -> void:
  transfer_button=Button.new();side.add_child(transfer_button)
  transfer_button.pressed.connect(func():
   if selected.is_empty(): return
-  game.send_inventory_action("transfer",str(selected.get("bucket",source())),"stash" if selected.get("bucket",source())=="shared" else "shared",str(selected.item),int(selected.quantity));key="";refresh())
+  requested.emit("inventory_transfer",{"source":str(selected.get("bucket",source())),"target":"stash" if selected.get("bucket",source())=="shared" else "shared","item":str(selected.item),"quantity":int(selected.quantity)});key="";refresh())
  notice=Label.new();notice.custom_minimum_size.x=820;notice.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;notice.add_theme_font_size_override("font_size",12);add_child(notice)
  refresh()
 func clear_children(node: Node) -> void:
@@ -71,10 +74,14 @@ func clear_children(node: Node) -> void:
 func source() -> String:
  return "carry" if bool(state.get("wild",false)) else "all" if storage_pick.selected==0 else "shared" if storage_pick.selected==2 else "stash"
 func refresh() -> void:
- if game==null or grid==null or get_viewport().gui_is_dragging(): return
- var fresh: Dictionary=game.inventory_ui_data()
+ if grid==null or get_viewport().gui_is_dragging(): return
+ refresh_requested.emit()
+
+func present(fresh: Dictionary) -> void:
+ if grid==null or get_viewport().gui_is_dragging(): return
+ fresh=fresh.duplicate(true)
  if fresh.is_empty(): return
- var next_key:=str(fresh)+str([storage_pick.selected,filter_pick.selected,rarity_pick.selected,sort_pick.selected,ascending,order,page,game.status])
+ var next_key:=str(fresh)+str([storage_pick.selected,filter_pick.selected,rarity_pick.selected,sort_pick.selected,ascending,order,page,str(fresh.get("notice",""))])
  if next_key==key: return
  var changed_mode: bool=state.get("wild",null)!=fresh.wild
  state=fresh
@@ -84,7 +91,7 @@ func refresh() -> void:
   if state.wild: storage_pick.add_item("Backpack")
   else: storage_pick.add_item("All Garden storage");storage_pick.add_item("Personal stash");storage_pick.add_item("Shared Garden")
  storage_pick.disabled=bool(state.wild)
- key=str(fresh)+str([storage_pick.selected,filter_pick.selected,rarity_pick.selected,sort_pick.selected,ascending,order,page,game.status])
+ key=str(fresh)+str([storage_pick.selected,filter_pick.selected,rarity_pick.selected,sort_pick.selected,ascending,order,page,str(fresh.get("notice",""))])
  sort_button.text="Sort ↑" if ascending else "Sort ↓"
  heading.text="BACKPACK" if state.wild else "GARDEN STASH"
  shown=[]
@@ -117,7 +124,7 @@ func refresh() -> void:
   var part:=int(state.equipment[index])
   var entry: Dictionary={"item":Items.part_id(part),"quantity":1,"bucket":"equipment","key":"equipment:%d"%index,"slot":index} if part>0 else {}
   var slot:=add_slot(equipment,entry,"equipment",48)
-  slot.tooltip_text=game.Weapons.SLOT_NAMES[index]+": "+game.Parts.part_name(part)
+  slot.tooltip_text=Weapons.SLOT_NAMES[index]+": "+Parts.part_name(part)
   if not entry.is_empty(): equipment_entries.append(entry)
   var slot_text:=slot_description(index)
   if not slot_text.is_empty(): slot.tooltip_text+="\n\n"+slot_text
@@ -129,7 +136,7 @@ func refresh() -> void:
   var tip:=Label.new();tip.text="Drag a stack here\nto protect it.";tip.add_theme_font_size_override("font_size",12);pouch_holder.add_child(tip)
  notice.text="Drag outside to drop. Shift + drag for one item. %d stacks."%shown.size()
  if not state.wild: notice.text+=" Shared Garden seeds/parts and personal storage are labeled separately."
- if not game.status.is_empty():notice.text+="\n"+game.status
+ if not str(fresh.get("notice","")).is_empty():notice.text+="\n"+str(fresh.get("notice",""))
  var candidates: Array=shown.duplicate()
  candidates.append_array(state.get("pouch",[]))
  candidates.append_array(equipment_entries)
@@ -172,7 +179,7 @@ func show_details() -> void:
   var slot: int=selected.slot
   var item:=Items.get_item(str(selected.item))
   var summary: String=slot_description(slot)
-  details.text="[b]%s[/b]\n%s"%[item.name,game.Weapons.SLOT_NAMES[slot]]
+  details.text="[b]%s[/b]\n%s"%[item.name,Weapons.SLOT_NAMES[slot]]
   if not item.tags.is_empty(): details.text+=" · "+", ".join(item.tags)
   if not summary.is_empty(): details.text+="\n\n"+summary
   return
@@ -213,7 +220,7 @@ func move_stack(bucket: String,payload: Dictionary,target_key: String="") -> voi
   if origin>=0:
    keys.remove_at(origin);keys.insert(clampi(target,0,keys.size()) if target>=0 else keys.size(),payload.key);order[source()]=keys;key="";refresh()
  else:
-  game.send_inventory_action("transfer",str(payload.source),bucket,str(payload.item),int(payload.quantity));key="";refresh()
+  requested.emit("inventory_transfer",{"source":str(payload.source),"target":bucket,"item":str(payload.item),"quantity":int(payload.quantity)});key="";refresh()
 func _process(delta: float) -> void:
  if not is_visible_in_tree(): return
  elapsed+=delta

@@ -83,7 +83,7 @@ func guest_run() -> void:
  send(request);mark("submitted")
  if not await until(func():return marked("chosen") and bed().get("choice","") in ["preserve","leave"]):check(false,"shared choice arrives");return
  var choice: String=bed().choice
- SessionCase.World.leave(game,"Crop-care rejoin fixture");game.toggle_overlay(null);check(SessionCase.World.join(game)==OK,"reconnect")
+ SessionCase.World.leave(game,"Crop-care rejoin fixture");game.ui.close_panels();check(SessionCase.World.join(game)==OK,"reconnect")
  if not await until(func():return game.network_session.role()=="Guest" and bed().get("cycle","")==old_cycle and bed().get("choice","")==choice):check(false,"saved cycle/choice returns");return
  check(game.progress.plots[0].species<0,"host care is not written into the guest's own Garden")
  mark("rejoined")
@@ -101,10 +101,10 @@ func guest_run() -> void:
  game.send_action(false)
  var view=game.get_node("GardenInteractions")
  if not await until(func():return Service.projection(game,id).get("spring_water",false) and game.players[id].pos.distance_to(game.Stage.PLOTS[0])<1.0):check(false,"water carried to crop");return
- check(not game.overlay.visible,"guest fills without opening a menu")
+ check(not game.ui.is_overlay_open(),"guest fills without opening a menu")
  var water_request:=View.request(bed(),"water_crop")
  var crops=view.get_node("Crops")
- crops.update_prompt(game.players[id])
+ game.ui.set_prompt(crops.context_prompt(game.players[id]))
  check(crops.quick_water.visible,"guest sees the nearby Water plant button")
  crops.quick_water.pressed.emit();send(water_request);mark("water_sent")
  if not await until(func():return marked("seed_ready") and bed().get("stage",-1)==3 and bed().get("flower_enabled",false)):check(false,"seed harvest choice arrives");return

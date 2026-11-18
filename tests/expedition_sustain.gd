@@ -1,4 +1,7 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -15,7 +18,6 @@ const Cooldowns = preload("res://player_cooldowns.gd")
 const Preview = preload("res://combat_balance_preview.gd")
 const Sustain = preload("res://expedition_sustain.gd")
 const Core = preload("res://core_combat.gd")
-const Summary = preload("res://run_summary_panel.gd")
 const Orb = preload("res://health_orb.gd")
 const Cards=preload("res://affinity_cards.gd")
 
@@ -84,7 +86,7 @@ func arena() -> void:
 		actor[Cooldowns.STATE] = actor[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
 		actor[PlayerVitals.STATE] = PlayerVitals.Health.new(30.0, 100)
 		actor.merge({"wild":true,PlayerLifecycle.STATE:PlayerLifecycle.start_life(),"lost_health":0,"pos":Vector3.ZERO,
-			"renewal_until":0,"guard_until":0,"hurt_until":0,"weapon":0,
+			"renewal_until":0,Protection.STATE:actor[Protection.STATE].clear_guard(),Conditions.STATE:actor[Conditions.STATE].clear_grace(),"weapon":0,
 			"catalyst":0,"secondary":0,"core_ready_at":0,"core_cast_until":0,"cast_until":0,
 			"frame":0,"weapon_kind":0,"facing":Vector3.FORWARD},true)
 	SessionCase.set_ready(game, ally, false)
@@ -102,7 +104,7 @@ func gate_recovery() -> void:
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(50)
 	check(Sustain.recovery_center_hp(false,2)==16 and Sustain.recovery_center_hp(true,2)==26,"floor and biome recovery scale at different depths")
 	check(Sustain.recovery_center_hp(false,40)==19,"deep recovery has a fixed midpoint cap")
-	var view:=Summary.project(game,player,game.weapon_stats(player))
+	var view:=UIFixture.summary(game,player,game.weapon_stats(player))
 	check(view.totals.has(["Next gate recovery","14–18 HP"]),"entering a guardian floor previews the ordinary gate range")
 	var expected := [[42,14,18],[43,24,28]]
 	for step in expected:
@@ -154,7 +156,7 @@ func kill_budget() -> void:
 	stats.heal_on_kill=1.0
 	stats.kill_heal_remaining=Sustain.kill_remaining(player,game.participation.epoch())
 	check(stats.kill_heal_remaining==0,"owner projection exposes the exhausted budget")
-	var view:=Summary.project(game,player,stats)
+	var view:=UIFixture.summary(game,player,stats)
 	check(view.totals.has(["Kill healing left this floor","0 / 24 HP"]),"Tab shows the exhausted floor budget")
 	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	check(Sustain.kill_remaining(player,game.participation.epoch())==24,"the next floor renews the budget")

@@ -1,5 +1,6 @@
 extends VBoxContainer
 ## Owner-only choices from the host. Browsing and closing this panel spend nothing.
+const UI = preload("res://root_ui.gd")
 const Grafts = preload("res://expedition_grafts.gd")
 var game: Node
 var data: Dictionary = {}
@@ -17,8 +18,8 @@ var busy := false
 
 func _ready() -> void:
 	add_theme_constant_override("separation", 8)
-	game.add_label(self,23,Color("#e4d7a5")).text = "Grafting Altar"
-	budget = game.add_label(self,15,Color("#a3c57b"))
+	UI.label(self,23,Color("#e4d7a5")).text = "Grafting Altar"
+	budget = UI.label(self,15,Color("#a3c57b"))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation",16)
 	add_child(row)
@@ -52,10 +53,10 @@ func _ready() -> void:
 	materials.item_selected.connect(func(index: int):
 		trophy = str(materials.get_item_metadata(index))
 		update_confirm())
-	confirm = game.add_button(right,"Confirm improvement",send_purchase)
-	notice = game.add_label(self,13,Color("#c8d1bd"))
+	confirm = UI.button(right,"Confirm improvement",send_purchase)
+	notice = UI.label(self,13,Color("#c8d1bd"))
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	game.add_button(self,"Close",func(): game.toggle_overlay(null))
+	UI.button(self,"Close",func(): game.ui.close_panels())
 
 
 func set_data(value: Dictionary) -> void:
@@ -160,4 +161,4 @@ func send_purchase() -> void:
 
 func _process(_delta: float) -> void:
 	if is_visible_in_tree() and not game.at_graft_altar(game.players.get(game.local_player_id(),{})):
-		game.toggle_overlay(null)
+		game.ui.close_panels()

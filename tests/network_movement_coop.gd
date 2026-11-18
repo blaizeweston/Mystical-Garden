@@ -39,7 +39,7 @@ func guest_run():
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest connects")
  if not await until(func():return game.network_session.role()=="Guest" and game.players.has(game.multiplayer.get_unique_id())):check(false,"state arrives");return
  var id:=game.multiplayer.get_unique_id()
- game.overlay.hide()
+ game.ui.close_panels()
  check(await until(func():return marked("ready")),"host ready")
  Input.action_press("right")
  var until_ms:=Time.get_ticks_msec()+1200

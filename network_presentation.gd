@@ -54,10 +54,9 @@ func snapshot_targets(game: Node) -> PackedInt32Array:
  return targets
 
 func publish_committed_cleanup(game: Node, transport: ENetMultiplayerPeer) -> void:
- var tx=preload("res://game_transaction.gd")
  if not is_instance_valid(game) or not game.is_inside_tree() or transport==null or game.network_session.transport()!=transport:
   return
- if game.get_meta(tx.STOPPING,false) or not game.has_meta(tx.SESSION) or not game.get_meta(tx.SESSION).owns_leases():
+ if game.persistence_session.is_stopping() or not game.persistence_session.is_guarded() or not game.persistence_session.owns_leases():
   return
  game.send_expedition_state(0.0,true)
 

@@ -1,6 +1,7 @@
 extends RefCounted
 const Batch = preload("res://save_batch.gd")
 const Catalog=preload("res://heart_catalog.gd")
+const Seeds=preload("res://seed_catalog.gd")
 var unlocked: Array=["heart"]
 var paid: Array=[]
 var progress: Dictionary={}
@@ -138,14 +139,17 @@ func requirements(owner: RefCounted,id: String) -> String:
 	return ""
 
 func material_plan(owner: RefCounted,amount: int) -> Dictionary:
+	return plan_materials(owner.parts,material_choice,amount)
+
+static func plan_materials(parts: Array,choice: String,amount: int) -> Dictionary:
 	var plan: Dictionary={};var order: Array=[]
-	for i in owner.parts.size():
-		if material_choice.is_empty() or str(owner.Seeds.DEFINITIONS[i].id)==material_choice: order.append(i)
-	order.sort_custom(func(a,b): return int(owner.Seeds.DEFINITIONS[a].tier)<int(owner.Seeds.DEFINITIONS[b].tier) if int(owner.Seeds.DEFINITIONS[a].tier)!=int(owner.Seeds.DEFINITIONS[b].tier) else a<b)
+	for i in parts.size():
+		if choice.is_empty() or str(Seeds.DEFINITIONS[i].id)==choice: order.append(i)
+	order.sort_custom(func(a,b): return int(Seeds.DEFINITIONS[a].tier)<int(Seeds.DEFINITIONS[b].tier) if int(Seeds.DEFINITIONS[a].tier)!=int(Seeds.DEFINITIONS[b].tier) else a<b)
 	var left:=amount
 	for i in order:
-		var take:=mini(maxi(0,int(owner.parts[i])),left)
-		if take>0: plan[str(owner.Seeds.DEFINITIONS[i].id)]=take;left-=take
+		var take:=mini(maxi(0,int(parts[i])),left)
+		if take>0: plan[str(Seeds.DEFINITIONS[i].id)]=take;left-=take
 	return {"parts":plan,"missing":left}
 func spend_materials(owner: RefCounted,amount: int) -> bool:
 	var plan:=material_plan(owner,amount)

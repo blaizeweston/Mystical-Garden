@@ -1,4 +1,9 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
+
+const WeaponActions = preload("res://player_weapon_actions.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -92,12 +97,15 @@ func reset_field() -> void:
 	for id in game.players:
 		var player: Dictionary = game.players[id]
 		Oracle.clear(player)
-		player.erase("affinity_ward_claims")
+		player[Protection.STATE] = player[Protection.STATE].clear_guard()
 		player.erase("subclass_follow")
 		player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
-		for key in ["guard_until","guard_charges","hurt_until","slow_until","lost_health",
-				"core_ready_at","core_cast_until","cast_until","strike_at","weapon","secondary","catalyst","weapon_kind"]:
+		player[Protection.STATE] = player[Protection.STATE].clear_expedition()
+		player[Conditions.STATE] = player[Conditions.STATE].clear_all()
+		for key in ["lost_health",
+				"core_ready_at","core_cast_until","cast_until","weapon","secondary","catalyst","weapon_kind"]:
 			player[key] = 0
+		player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 		ExpeditionCase.set_membership(game, player, true)
 		player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive()
 		player[PlayerVitals.STATE] = PlayerVitals.Health.new(100.0,100)
@@ -152,21 +160,21 @@ func entry_for_each_class() -> void:
 			and graph.focus(caster.character).is_empty() and not build.departure_refusal(caster).is_empty()
 			and not ExpeditionCase.Transitions.admit(game, 1,caster),"fresh class requires an explicit starting focus")
 		var before_preview: Dictionary = caster.character.duplicate(true)
-		game.loadout_view.refresh()
-		check(game.loadout_view.focus_options.visible and game.loadout_view.depart_button.disabled,"starting focus is offered in crafting UI")
+		UIFixture.control(game,"loadout_view").refresh()
+		check(UIFixture.control(game,"loadout_view").focus_options.visible and UIFixture.control(game,"loadout_view").depart_button.disabled,"starting focus is offered in crafting UI")
 		for lane in preview_effects[class_id].size():
-			var preview: Label = game.loadout_view.focus_previews[lane]
+			var preview: Label = UIFixture.control(game,"loadout_view").focus_previews[lane]
 			var candidate: Dictionary = before_preview.duplicate(true)
 			candidate[graph.profile_key] = graph.state([graph.nodes[lane].id])
 			var ability_name: String = game.Skills.resolve_in_world(game,class_id,0,candidate).name
 			check(preview.visible and preview.text.begins_with(ability_name + " · ") and "cooldown" in preview.text
 				and preview_effects[class_id][lane] in preview.text,"class %d lane %d shows its named starting ability and effect before learning" % [class_id,lane])
 		check(caster.character==before_preview,"previewing focus choices leaves the actual profile untouched")
-		game.loadout_view.focus_buttons[1].pressed.emit()
+		UIFixture.control(game,"loadout_view").focus_buttons[1].pressed.emit()
 		check(graph.path(caster.character).size()==1 and build.departure_refusal(caster).is_empty()
 			and caster.character.xp[class_id]==0,"0 XP focus learns through actual host action: "+game.status)
-		game.loadout_view.refresh()
-		check(not game.loadout_view.focus_options.visible and not game.loadout_view.depart_button.disabled,"chosen focus unlocks native departure")
+		UIFixture.control(game,"loadout_view").refresh()
+		check(not UIFixture.control(game,"loadout_view").focus_options.visible and not UIFixture.control(game,"loadout_view").depart_button.disabled,"chosen focus unlocks native departure")
 		ExpeditionCase.set_membership(game, caster, true)
 		caster.pos=Vector3.ZERO
 		caster.erase("cast_until")
@@ -195,7 +203,7 @@ func cast(slot: int) -> void:
 
 func enemy_hit(id: int, now: int, slow := 0, direct := true) -> void:
 	var player: Dictionary = game.players[id]
-	player.hurt_until=0
+	player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
 	preload("res://frost_combat.gd").with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, id, PlayerLifecycle.generation(player), now, 1.0, slow, Vector3.INF, direct))
 
 
@@ -226,10 +234,10 @@ func basic_omens() -> void:
 	check(int(foe.ready)==now+550+base+350,"specific attack receives exact added recovery")
 	prepare(["leykeeper"])
 	ally.pos=Vector3(.2,0,0)
-	ally.slow_until=Time.get_ticks_msec()+5000
+	ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(Time.get_ticks_msec()+5000)
 	cast(0)
 	var timer := Time.get_ticks_msec()
-	check(game.enemy_health()==300 and game.tactics.position.x<2.0 and ally.slow_until==0
+	check(game.enemy_health()==300 and game.tactics.position.x<2.0 and ally[Conditions.STATE].slow_until_ms()==0
 		and record(ally,Progression.GUIDED_STRIKE,timer).source==1 and caster.has(Omens.STATE),"Guiding Bell retains pull/cleanse and grants ally and self Portent")
 	game.tactics.ready_at=timer+800
 	var due := int(game.tactics.ready_at)
@@ -246,9 +254,9 @@ func basic_omens() -> void:
 		and not record(ally,Progression.SECOND_BREATH,now).is_empty(),"Sanctuary keeps its opening heal/cleanse and grants full-health allies Second Breath")
 	var entrant: Dictionary=game.players[9]
 	entrant.pos=Vector3(.4,0,0)
-	entrant.slow_until=now+1800
+	entrant[Conditions.STATE] = entrant[Conditions.STATE].with_slow_until(now+1800)
 	game.Traits.tick(game,now+1)
-	check(entrant.slow_until==0 and record(entrant,Progression.SECOND_BREATH,now+1).is_empty(),"late entrant only receives field cleanse")
+	check(entrant[Conditions.STATE].slow_until_ms()==0 and record(entrant,Progression.SECOND_BREATH,now+1).is_empty(),"late entrant only receives field cleanse")
 	IncomingPlayerHit.resolve_world(game, 8, PlayerLifecycle.generation(ally), now+10, 1.0, 0, Vector3.INF, false)
 	check(ally[PlayerVitals.STATE].hp()==90 and not record(ally,Progression.SECOND_BREATH,now+10).is_empty(),"hazard hit does not spend the Blessing")
 	game.Life.down(game,1,caster)
@@ -276,7 +284,7 @@ func nodes_and_chime() -> void:
 	cast(0)
 	check(game.enemy_health()==before-20 and not caster.has(Oracle.RITUAL),"Ritual and Verdict share one Q target and consume once")
 	cast(1)
-	check(game.enemy_health()==before-45 and caster.guard_charges==1,"Sentence works on a Leykeeper, alongside Barbed Chime and native Ward")
+	check(game.enemy_health()==before-45 and caster[Protection.STATE].charge_count()==1,"Sentence works on a Leykeeper, alongside Barbed Chime and native Ward")
 	prepare(MIDDLE)
 	skill=game.Skills.resolve_in_world(game,4,0,caster.character)
 	check(is_equal_approx(float(skill.range),7.05),"Long Resonance adds 1.25 m")
@@ -310,24 +318,24 @@ func nodes_and_chime() -> void:
 	ally.pos=Vector3(.3,0,0)
 	caster[PlayerVitals.STATE] = caster[PlayerVitals.STATE].with_hp(50)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(50)
-	ally.slow_until=Time.get_ticks_msec()+5000
+	ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(Time.get_ticks_msec()+5000)
 	cast(0)
 	timer=Time.get_ticks_msec()
-	check(caster.guard_charges==1 and ally.guard_charges==0,"Kindled Ward tie selects the lower actor ID")
-	check(ally.slow_until==0 and not record(ally,Progression.QUIET_GROUND,timer).is_empty(),"Quiet Ground cleanses and grants one-use protection")
+	check(caster[Protection.STATE].charge_count()==1 and ally[Protection.STATE].charge_count()==0,"Kindled Ward tie selects the lower actor ID")
+	check(ally[Conditions.STATE].slow_until_ms()==0 and not record(ally,Progression.QUIET_GROUND,timer).is_empty(),"Quiet Ground cleanses and grants one-use protection")
 	cast(1)
-	check(int(ally.guard_until)-timer in range(2000,2030) and ally.guard_charges==1,"Shared Shelter extends the ordinary Ward without a second charge")
+	check(int(ally[Protection.STATE].guard_until_ms())-timer in range(2000,2030) and ally[Protection.STATE].charge_count()==1,"Shared Shelter extends the ordinary Ward without a second charge")
 	var healed_from := int(ally[PlayerVitals.STATE].hp())
 	enemy_hit(8,timer+25,1600)
-	check(ally[PlayerVitals.STATE].hp()==healed_from+6 and ally.slow_until==0 and not record(ally,Progression.QUIET_GROUND,timer+25).is_empty(),
+	check(ally[PlayerVitals.STATE].hp()==healed_from+6 and ally[Conditions.STATE].slow_until_ms()==0 and not record(ally,Progression.QUIET_GROUND,timer+25).is_empty(),
 		"Merciful Chime heals its actual block and leaves Quiet Ground intact")
 	enemy_hit(8,timer+40,1600)
-	check(ally[PlayerVitals.STATE].hp()==healed_from+4 and ally.slow_until==0 and record(ally,Progression.MERCY,timer+40).is_empty()
+	check(ally[PlayerVitals.STATE].hp()==healed_from+4 and ally[Conditions.STATE].slow_until_ms()==0 and record(ally,Progression.MERCY,timer+40).is_empty()
 		and not record(ally,Progression.SECOND_BREATH,timer+40).is_empty(),"strongest recovery wins once and Quiet Ground blocks the first Slow")
 	enemy_hit(8,timer+800,1600)
-	check(ally[PlayerVitals.STATE].hp()==healed_from and ally.slow_until==timer+2400,"second hit spends remaining Breath and can apply Slow")
+	check(ally[PlayerVitals.STATE].hp()==healed_from and ally[Conditions.STATE].slow_until_ms()==timer+2400,"second hit spends remaining Breath and can apply Slow")
 	var without_chime := int(ally[PlayerVitals.STATE].hp())
-	game.grant_guard(ally,Time.get_ticks_msec()+1600,1)
+	ally[Protection.STATE] = ally[Protection.STATE].grant(Time.get_ticks_msec()+1600,1,Time.get_ticks_msec(),game.participation.epoch())
 	enemy_hit(8,timer+820)
 	check(ally[PlayerVitals.STATE].hp()==without_chime,"ordinary Ward from a different source does not heal")
 	prepare(["omenreader","wide_omen","verdicts_toll","barbed_chime","ritual_verdict","sentence_of_dawn"])

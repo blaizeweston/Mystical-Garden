@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Catalog=preload("res://heart_catalog.gd")
@@ -126,13 +127,13 @@ func run():
   check(is_instance_valid(game.stage.heart_core),"phase %d constructs an organic 3D core"%phase)
  check(game.stage.heart_stations.size()==3,"three restored services retained in Heart menus")
  p.pos=game.Stage.HEART;ExpeditionCase.set_membership(game, p, false)
- game.progression_view.tabs.current_tab=1
- game.progression_view.refresh()
- check(game.progression_view.tree.nodes.size()==Catalog.DEFINITIONS.filter(func(n):return Catalog.enabled(n.id)).size(),"reusable tree displays active Heart catalog")
+ UIFixture.control(game,"progression_view").tabs.current_tab=1
+ UIFixture.control(game,"progression_view").refresh()
+ check(UIFixture.control(game,"progression_view").tree.nodes.size()==Catalog.DEFINITIONS.filter(func(n):return Catalog.enabled(n.id)).size(),"reusable tree displays active Heart catalog")
  game.consider_recollection()
- check(not game.recollection_menu.visible,"deferred recollection does not interrupt the Garden")
- game.toggle_overlay(null);game.consider_recollection()
- check(not game.recollection_menu.visible,"narrative does not repeatedly interrupt Garden")
+ check(not UIFixture.control(game,"recollection_menu").visible,"deferred recollection does not interrupt the Garden")
+ game.ui.close_panels();game.consider_recollection()
+ check(not UIFixture.control(game,"recollection_menu").visible,"narrative does not repeatedly interrupt Garden")
  game.free()
  if not failed: print("PASS: Heart catalog, costs, research, infusion, rollback, save persistence, six 3D forms, stations and deferred recollection")
  quit(1 if failed else 0)

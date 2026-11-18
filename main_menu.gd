@@ -6,6 +6,7 @@ const Persistence = preload("res://persistence_writer_integration.gd")
 # Default-route selection is owned by Persistence.
 const Playtest = preload("res://playtest_storage.gd")
 var guarded_persistence := false
+var _persistence_return: Dictionary = {}
 var production_route := false
 var production_backend_ready := true
 var garden_recovery_button: Button
@@ -70,6 +71,17 @@ var coop_character: Label
 var character_return_page:=0
 
 func _ready() -> void:
+	var save_refusal := Persistence.startup_refusal()
+	if not save_refusal.is_empty():
+		var blocked := Label.new()
+		blocked.text = save_refusal
+		blocked.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		blocked.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		blocked.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		add_child(blocked)
+		set_process(false)
+		set_process_unhandled_key_input(false)
+		return
 	var experiment = preload("res://assets/terrain_m02/experimental/experiment_mode.gd")
 	if experiment.requested():
 		if not experiment.verified():
@@ -126,7 +138,7 @@ func _ready() -> void:
 			if boot.error != OK:
 				preparation = GuardedSession.Ops.management_result(boot.error,"directory_bootstrap_failed")
 				if boot.error == ERR_UNAVAILABLE: production_backend_ready = false
-		elif not has_meta(&"guarded_return_from_world"):
+		elif not bool(_persistence_return.get("guarded", false)):
 			preparation = GuardedSession.prepare(storage, characters, import_legacy)
 	else:
 		error = storage.prepare(import_legacy)
@@ -305,7 +317,7 @@ void fragment() {
 	add_child(network_dialog)
 	network_dialog.applied.connect(apply_network_settings)
 
-	var save_notice := str(get_meta(&"guarded_return_notice",""))
+	var save_notice := str(_persistence_return.get("notice", ""))
 	if guarded_persistence and not save_notice.is_empty():
 		recovery_notice = label(content,save_notice,14,Color("#e6c689"))
 	notice=label(content,"" if not save_notice.is_empty() else return_message,14,Color("#c4c697"))
@@ -331,7 +343,7 @@ void fragment() {
 	if guarded_persistence:
 		for dialog in [confirmation, deletion_confirmation, character_deletion]:
 			dialog.dialog_hide_on_ok = false
-		if not preparation.is_empty() and not GuardedSession.completed(preparation) and not has_meta(&"guarded_return_notice"):
+		if not preparation.is_empty() and not GuardedSession.completed(preparation) and str(_persistence_return.get("notice", "")).is_empty():
 			notice.text = GuardedSession.notice(preparation)
 			if production_route and not production_backend_ready:
 				notice.text = "The Windows persistence library is unavailable or incompatible. Save actions are disabled."
@@ -528,12 +540,12 @@ func apply_recovery() -> void:
 		var committed: bool = recovery.records.any(func(record): return record.disposition == "committed_cleanup")
 		message = "Original saves restored and committed saves cleaned up." if restored and committed else "Original saves restored." if restored else "Committed saves verified and recovery cleanup completed."
 		recovery_confirmation.hide()
-		var return_paths: PackedStringArray = get_meta(&"guarded_return_recovery_paths",PackedStringArray())
+		var return_paths: PackedStringArray = _persistence_return.get("recovery_paths", PackedStringArray())
 		if is_instance_valid(recovery_notice) and not return_paths.is_empty() and Array(return_paths).any(func(path): return reviewed_recovery.participants.has(path)):
 			var fresh := GuardedSession.Ops.review_recovery(return_paths)
 			if fresh.selection.state in ["healthy","empty"] and GuardedSession.Ops.recovery_scratch(fresh.selection.participants).is_empty():
 				recovery_notice.hide()
-				remove_meta(&"guarded_return_recovery_paths")
+				_persistence_return.erase("recovery_paths")
 	else:
 		recovery_confirmation.dialog_text = message
 		recovery_confirmation.get_ok_button().disabled = true
@@ -567,10 +579,10 @@ func import_legacy_saves() -> void:
 		"legacy_import_no_changes": notice.text = "No eligible older saves needed importing."
 		_: notice.text = "Older saves imported." if GuardedSession.completed(result) else GuardedSession.notice(result)
 	if result.get("outcome") != null and result.outcome.write_blocked:
-		var pending_paths: PackedStringArray = get_meta(&"guarded_return_recovery_paths", PackedStringArray())
+		var pending_paths: PackedStringArray = _persistence_return.get("recovery_paths", PackedStringArray())
 		for path in result.outcome.paths:
 			if not pending_paths.has(path): pending_paths.append(path)
-		set_meta(&"guarded_return_recovery_paths", pending_paths)
+		_persistence_return.recovery_paths = pending_paths
 		if not is_instance_valid(recovery_notice):
 			recovery_notice = label(notice.get_parent(), "", 14, Color("#e6c689"))
 			recovery_notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -755,7 +767,7 @@ func launch(join: bool) -> void:
 		if error!=OK:
 			game.return_to_main_menu(game.status)
 	elif host_choice.button_pressed:
-		game.host_button.pressed.emit()
+		game.request_host_session()
 	queue_free()
 
 
@@ -891,8 +903,8 @@ func _launch_guarded(join: bool) -> void:
 	game.network_session.configure_join_origin(join)
 	if has_meta(&"experimental_terrain"):
 		game.set_meta(&"experimental_terrain", true)
-	var session_owner := GuardedSession.new()
-	var result := session_owner.start(game, null if join else storage, selected, garden.get("digest", ""), characters, selected_character, profile.digest)
+	var session_owner: GuardedSession = game.persistence_session
+	var result := session_owner.start(game.progress, game.local_character, game.guest_character, null if join else storage, selected, garden.get("digest", ""), characters, selected_character, profile.digest, game.has_meta(&"experimental_terrain"))
 	if not GuardedSession.completed(result):
 		game.free()
 		notice.text = GuardedSession.notice(result)
@@ -926,5 +938,16 @@ func _launch_guarded(join: bool) -> void:
 	if network_dialog.visible: network_dialog.dismiss()
 	get_tree().current_scene = game
 	preload("res://title_music.gd").set_playing(get_tree(),false)
-	if not join and host_choice.button_pressed: game.host_button.pressed.emit()
+	if not join and host_choice.button_pressed: game.request_host_session()
 	queue_free()
+
+
+## Passive presentation from the completed world. This cannot reopen a session,
+## clear a recovery hold or authorize a write; recovery still inspects disk.
+func accept_persistence_return(view: Dictionary) -> void:
+	_persistence_return = view.duplicate(true)
+	guarded_persistence = bool(_persistence_return.get("guarded", false))
+	return_message = str(_persistence_return.get("message", ""))
+
+func persistence_return_view() -> Dictionary:
+	return _persistence_return.duplicate(true)

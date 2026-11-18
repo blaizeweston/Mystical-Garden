@@ -1,4 +1,7 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -36,7 +39,7 @@ func host_run():
  var origin: Vector3=p.pos
  check(await until(func():return marked("walking")),"guest samples walking animation")
  check(p.pos.distance_to(origin)>1.5,"guest input actually moves on authority")
- ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,4);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.guard_until=0;p.hurt_until=0;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.encounter_rewarded=true
+ ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,4);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p[Protection.STATE] = p[Protection.STATE].clear_guard();p[Conditions.STATE] = p[Conditions.STATE].clear_grace();game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.encounter_rewarded=true
  preload("res://enemy_attack_hits.gd").for_world(game).area(p.pos,1.2,Time.get_ticks_msec(),1)
  check(PlayerVitals.current_hp(p)==90,"monster hit applies ten HP on host")
  check(await until(func():return marked("hit")),"guest confirms reliable HP and hit feedback")
@@ -70,7 +73,14 @@ func guest_run():
  check(await until(func():return game.heart_state().get("active","")=="plot_4"),"guest sees research project")
  check(game.heart_state().get("insight",0)==6,"guest sees spendable Knowledge decrease");mark("timer")
  check(await until(func():return game.heart_state().get("active","")=="flowering" and game.client_garden[5][0]==2),"guest sees available offering materials")
- game.progression_view.tabs.current_tab=1;game.progression_view.refresh();game.progression_view.heart_infuse_button.pressed.emit()
+ var panel=UIFixture.control(game,"progression_view")
+ panel.tabs.current_tab=1;panel.refresh()
+ var shown: Dictionary=game.progression_ui_data({"tab":1,"chosen":"heart_plot_4"})
+ check(not shown.is_host and not shown.may_start_research and panel.heart_start_button.disabled,"detached guest facts preserve host-only research authority")
+ shown.shared_parts[0]=99;shown.heart.active="stale project";shown.profile.xp[0]=99999
+ check(game.client_garden[5][0]==2 and game.heart_state().active=="flowering" and game.guest_character.data.xp[0]!=99999,"guest display models cannot mutate reliable Garden/profile caches")
+ check(panel.offering_plan()==game.progress.heart.plan_materials(game.client_garden[5],"",2),"guest presentation and authoritative spending use the same material planning rule")
+ panel.heart_infuse_button.pressed.emit()
  check(await until(func():return float(game.heart_state().get("work",{}).get("flowering",0))>=60 and game.client_garden[5][0]==0),"guest offering costs parts and updates research")
  check(game.heart_state().get("unlocked",[]).has("plot_4"),"completed timed bed replicates");mark("offering")
  check(await until(func():return marked("done")),"host flow finishes");SessionCase.World.leave(game,"Network research fixture complete")

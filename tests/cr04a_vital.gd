@@ -1,4 +1,8 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
+
+const WeaponActions = preload("res://player_weapon_actions.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -51,7 +55,7 @@ func reset(p: Dictionary, ally: Dictionary) -> void:
 	for player in [p,ally]:
 		Vital.clear(game,player)
 		preload("res://oracle_combat.gd").clear(player)
-		player.erase("affinity_ward_claims")
+		player[Protection.STATE] = player[Protection.STATE].clear_guard()
 		ExpeditionCase.set_membership(game, player, true)
 		player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive()
 		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(60)
@@ -64,15 +68,14 @@ func reset(p: Dictionary, ally: Dictionary) -> void:
 		player.weapon=0
 		player.secondary=0
 		player.catalyst=0
-		player.guard_until=0
-		player.guard_charges=0
-		player.strike_at=0
+		player[Protection.STATE] = player[Protection.STATE].clear_expedition()
+		player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 		player.cast_until=0
 		player.core_cast_until=0
 		player.core_ready_at=0
 		player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
-		player.hurt_until=0
+		player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
 		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(game.Life.native_maximum(game,player))
 
 

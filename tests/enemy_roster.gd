@@ -1,4 +1,6 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -82,8 +84,8 @@ func run():
 	var now:=Time.get_ticks_msec()
 	var snare_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.scout_hit(game,Enemies.get_kind(5),snare))
 	preload("res://scout_behavior.gd").release(game, snare,Enemies.get_kind(5),now)
-	check(PlayerVitals.current_hp(p)==100-snare_damage and p.slow_until>now,"Willow strike damages and entangles")
-	p.slow_until=0;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0
+	check(PlayerVitals.current_hp(p)==100-snare_damage and p[Conditions.STATE].slow_until_ms()>now,"Willow strike damages and entangles")
+	p[Conditions.STATE] = p[Conditions.STATE].cleanse_slow();p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
 	var volley: Dictionary=game.make_scout(1,p.pos,1)
 	volley.mode="volley";volley.blast=p.pos;volley.repeat=1
 	game.encounter.clear_scouts();game.encounter.register_scout(volley)
@@ -125,7 +127,7 @@ func run():
 	game.encounter.set_hp(-1, 0)
 	game.tactics.winding_up=false
 	for kind in Enemies.all().size():
-		ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.pos=Vector3(0,0,5.4);p.slow_until=0;p.guard_until=0
+		ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.pos=Vector3(0,0,5.4);p[Conditions.STATE] = p[Conditions.STATE].cleanse_slow();p[Protection.STATE] = p[Protection.STATE].clear_guard()
 		var mob: Dictionary=game.make_scout(kind,p.pos+Vector3.RIGHT*.8,1)
 		game.encounter.clear_scouts();game.encounter.register_scout(mob)
 		var at:=Time.get_ticks_msec()

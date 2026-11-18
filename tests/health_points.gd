@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const IncomingPlayerHit = preload("res://incoming_player_hit.gd")
@@ -34,7 +35,7 @@ func run():
  check(Orb.fractions(80,80,20).is_equal_approx(Vector2(.8,.8)), "sacrificed capacity stays distinct from missing HP")
  p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(90)
  game._process(.016)
- check(game.player_hud.state.hp == 90 and game.player_hud.state.max_hp == 100, "HUD receives resolved HP totals")
+ check(UIFixture.control(game,"player_hud").state.hp == 90 and UIFixture.control(game,"player_hud").state.max_hp == 100, "HUD receives resolved HP totals")
  var snapshot: Dictionary = game.player_snapshot(1)[1]
  check(snapshot.hp == 90 and snapshot.max_hp == 100, "multiplayer snapshot preserves HP totals")
  p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(1)

@@ -1,4 +1,7 @@
 extends RefCounted
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -51,13 +54,13 @@ func guest_id(world: Node) -> int:
 	return 0
 
 
-func run(scene_tree: SceneTree, mismatch: bool, definition_mismatch := false) -> bool:
+func run(scene_tree: SceneTree, mismatch: bool) -> bool:
 	tree = scene_tree
 	var role := OS.get_cmdline_user_args()[0]
 	if mismatch and role == "guest":
-		# Deliberately advertise incompatible gameplay; there is no selectable
-		# historical runtime. Each fixture process owns its own contract value.
-		Rules.definition_signature = "different-definitions" if definition_mismatch else "retired-gameplay"
+		# Keep the modern ruleset ID and advertise incompatible definitions.
+		# Each fixture process owns its own contract value.
+		Rules.definition_signature = "different-definitions"
 	signal_root = OS.get_environment("MYSTICAL_TERRAIN_TEST_SIGNALS")
 	port = int(OS.get_environment("MYSTICAL_GARDEN_TEST_PORT"))
 	var menu := Menu.instantiate()
@@ -65,6 +68,8 @@ func run(scene_tree: SceneTree, mismatch: bool, definition_mismatch := false) ->
 	tree.current_scene = menu
 	if not check(Experiment.verified() and Experiment.active(menu),"real title retains isolated terrain and save protection"):
 		return false
+	print("CASE CR02 isolation ",JSON.stringify({"peer":role,"verified":true,
+		"profile":OS.get_environment(Experiment.PROFILE_ENV),"user_data":OS.get_user_data_dir()}))
 	if role=="host":
 		await host(menu,mismatch)
 	else:
@@ -82,10 +87,16 @@ func host(menu: Node, mismatch: bool) -> void:
 	var world := tree.current_scene
 	world.network_dialog.dismiss()
 	check(Build.for_player(world.players[1]).ruleset==Rules.ID,"host uses the sole modern build contract")
+	var authenticated_guests: Array[int] = []
+	var record_admission := func(id: int) -> void: authenticated_guests.append(id)
+	if mismatch: world.multiplayer.peer_connected.connect(record_admission)
 	mark("host")
 	if mismatch:
 		check(await until(func(): return read("refused")=="ok"),"mismatched guest observes clear refusal")
-		check(guest_id(world)==0 and world.players.size()==1,"mismatch never admits a guest")
+		check(authenticated_guests.is_empty() and guest_id(world)==0 and world.players.size()==1,"mismatch never admits a guest")
+		print("CASE CR02 rejection ",JSON.stringify({"authenticated_guests":authenticated_guests,
+			"ready_guest":guest_id(world),"players":world.players.size()}))
+		world.multiplayer.peer_connected.disconnect(record_admission)
 		world.return_to_main_menu()
 		return
 	if not check(await until(func(): return guest_id(world)!=0 and read("admitted")=="ok"),"matching peers are admitted"):
@@ -130,9 +141,10 @@ func host(menu: Node, mismatch: bool) -> void:
 	var events: Array[Dictionary] = []
 	world.set_meta(Events.RECORD,func(event): events.append(event))
 	mark("guard")
-	if not check(await until(func(): return int(remote.guard_charges)>0),"guest Q grants native Guard on host"):
+	if not check(await until(func(): return int(remote[Protection.STATE].charge_count())>0),"guest Q grants native Guard on host"):
 		return
-	remote.hurt_until=0
+	print("CASE CR02 authoritative_action ",JSON.stringify({"actor":guest_id(world),"guard_charges":int(remote[Protection.STATE].charge_count())}))
+	remote[Conditions.STATE] = remote[Conditions.STATE].clear_grace()
 	IncomingPlayerHit.resolve_world(world, guest_id(world), PlayerLifecycle.generation(remote), Time.get_ticks_msec(), 1)
 	check(events.size()==1 and events[0].kind=="actual_block"
 		and events[0].source_actor==guest_id(world) and events[0].details.recipient==guest_id(world),
@@ -140,7 +152,7 @@ func host(menu: Node, mismatch: bool) -> void:
 	local.pos = remote.pos
 	check(preload("res://warden_connected_tree.gd").focus(local.character)=="bastion","host keeps the selected connected Bastion focus")
 	world.use_class_skill(1,local,0)
-	check(events.size()==1 and int(remote.guard_charges)==1,"Rootshield grants one native Ward without synthesizing a block")
+	check(events.size()==1 and int(remote[Protection.STATE].charge_count())==1,"Rootshield grants one native Ward without synthesizing a block")
 	IncomingPlayerHit.resolve_world(world, guest_id(world), PlayerLifecycle.generation(remote), Time.get_ticks_msec(), 1)
 	check(events.size()==2 and events[1].source_actor==1 and events[1].details.recipient==guest_id(world),
 		"host-granted Ward responds around its protected remote ally")
@@ -161,7 +173,7 @@ func host(menu: Node, mismatch: bool) -> void:
 	var host_offer: Dictionary = cards_api.ledger(local).offer()
 	var initial_ledger = cards_api.ledger(remote)
 	var initial: Dictionary = initial_ledger.offer()
-	check(world.checkpoint_cards.get_child_count()==3 and "free" in world.checkpoint_notice.text
+	check(UIFixture.control(world,"checkpoint_cards").get_child_count()==3 and "free" in UIFixture.control(world,"checkpoint_notice").text
 		and world.run_wallet(local)==0 and not world.has_method("buy_upgrade"),
 		"new cards are offered at zero Essence and the retired purchase implementation is absent")
 	world.present_checkpoint_cards(guest_id(world))
@@ -201,13 +213,14 @@ func guest(menu: Node, mismatch: bool) -> void:
 	if mismatch:
 		if check(await until(func(): return tree.current_scene.get("return_message")==Rules.MISMATCH),
 			"normal title displays specific incompatible gameplay refusal"):
+			print("CASE CR02 refusal ",tree.current_scene.get("return_message"))
 			mark("refused")
 		return
 	if not check(await until(func(): return SessionCase.role(tree.current_scene)=="Guest" and tree.current_scene.stage.experimental_garden.remote_revision>=0),"guest joins actual Garden"):
 		return
 	var world := tree.current_scene
 	check(Build.for_player(world.players[world.local_player_id()]).ruleset==Rules.ID
-		and not world.get_meta(world.Transactions.SESSION).authorizes(world.progress.path),
+		and not world.persistence_session.authorizes(world.progress.path),
 		"guest resolves modern gameplay without host save ownership")
 	mark("admitted")
 	if not check(await until(func():return read("focus-gate")=="ok"),"host opens the starting focus picker"):return
@@ -220,21 +233,22 @@ func guest(menu: Node, mismatch: bool) -> void:
 			and not Core.cast_key(world,world.players.get(world.local_player_id(),{})).is_empty())
 	if not check(await until(native_action_ready),"guest receives generated floor and current native-action identity"):
 		return
+	print("CASE CR02 action_ready ",JSON.stringify({"current_identity":not Core.cast_key(world,world.players[world.local_player_id()]).is_empty()}))
 	world.send_garden_action("class_skill")
 	var offer_received := func() -> bool:
-		return read("cards")=="ok" and world.checkpoint_offer_revision>0 and world.checkpoint_cards.get_child_count()==3 and "12 Essence" in world.checkpoint_notice.text
+		return read("cards")=="ok" and world.ui.checkpoint_revision()>0 and UIFixture.control(world,"checkpoint_cards").get_child_count()==3 and "12 Essence" in UIFixture.control(world,"checkpoint_notice").text
 	if not check(await until(offer_received),
 		"guest receives three actual options and an authoritative starting wallet"):return
 	for balance in [10,6,0]:
-		var revision: int = world.checkpoint_offer_revision
+		var revision: int = world.ui.checkpoint_revision()
 		world.send_garden_action(world.affinity_checkpoint_action(revision,"reroll"))
 		world.send_garden_action(world.affinity_checkpoint_action(revision,"0"))
 		world.send_garden_action(world.affinity_checkpoint_action(revision,"reroll"))
 		var reroll_received := func() -> bool:
-			return world.checkpoint_offer_revision>revision and "%d Essence" % balance in world.checkpoint_notice.text
+			return world.ui.checkpoint_revision()>revision and "%d Essence" % balance in UIFixture.control(world,"checkpoint_notice").text
 		if not check(await until(reroll_received),
 			"new offer revision and exact balance after reroll; stale requests do nothing"):return
-	var chosen: String = world.affinity_checkpoint_action(world.checkpoint_offer_revision,"0")
+	var chosen: String = world.affinity_checkpoint_action(world.ui.checkpoint_revision(),"0")
 	world.send_garden_action(chosen)
 	world.send_garden_action(chosen)
 	var local := func() -> Dictionary: return world.players.get(world.local_player_id(),{})

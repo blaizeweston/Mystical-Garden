@@ -25,10 +25,12 @@ static func is_solo(game: Node) -> bool:
 static func can_edit(game: Node) -> bool:
 	return is_test_garden(game) and is_solo(game) and game.app_settings.values.get("developer_mode",false) \
 		and not game.participation.active() and not game.returning_to_title \
-		and not game.get_meta("garden_cinematic_active",false) and Transactions.session_writable(game)
+		and not game.get_meta("garden_cinematic_active",false) and game.persistence_session.can_write()
 
 
 static func open_garden(menu: Node, reset: bool, digests := {}) -> Error:
+	if not preload("res://persistence_writer_integration.gd").startup_refusal().is_empty():
+		return ERR_UNAVAILABLE
 	if menu.transitioning or not menu.content_valid or not menu.app_settings.values.get("developer_mode",false):
 		return ERR_UNAUTHORIZED
 	if menu.production_route and not menu.production_backend_ready:
@@ -107,8 +109,8 @@ static func _open_guarded(menu: Node, reset: bool, digests: Dictionary) -> Dicti
 	world.progress.path = location.garden
 	world.local_character.path = location.character
 	world.guest_character.path = location.character
-	var owner := GuardedSession.new()
-	var result := owner.start(world, slots, 0, garden.digest, null, -1, character.digest)
+	var owner: GuardedSession = world.persistence_session
+	var result := owner.start(world.progress, world.local_character, world.guest_character, slots, 0, garden.digest, null, -1, character.digest, world.has_meta(&"experimental_terrain"))
 	if not GuardedSession.completed(result):
 		world.free()
 		return result

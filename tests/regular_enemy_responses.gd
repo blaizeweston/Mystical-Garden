@@ -1,4 +1,6 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -44,12 +46,12 @@ func setup(kind: int, profile: Dictionary) -> Dictionary:
 	game.wild_item_drops.clear()
 	game.enemy_hazards.clear()
 	game.combat_events.clear()
-	player.slow_until = 0
+	player[Conditions.STATE] = player[Conditions.STATE].cleanse_slow()
 	game.battlefield.configure(0, 1, 0)
 	game.battlefield.barriers.clear()
 	ExpeditionCase.set_membership(game, player, true)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(40)
-	player.hurt_until = 0
+	player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
 	player.pos = Vector3(0, 0, -3.4)
 	return add_actor(kind, Vector3.ZERO, 1)
 
@@ -223,8 +225,8 @@ func validate_visibility(kind: int, attack: Dictionary, now: int) -> void:
 			game.Bosses.tick_hazards(game, now)
 		Status.sync(game, now)
 		check(Status.snapshot(game, now).any(func(e): return e.form == "player" and e.shape == "slow"), "actual hit applies the visible Slowed condition")
-		Status.sync(game, int(player.slow_until) + 1)
-		check(not Status.snapshot(game, int(player.slow_until) + 1).any(func(e): return e.shape == "slow"), "Slowed clears at expiry")
+		Status.sync(game, int(player[Conditions.STATE].slow_until_ms()) + 1)
+		check(not Status.snapshot(game, int(player[Conditions.STATE].slow_until_ms()) + 1).any(func(e): return e.shape == "slow"), "Slowed clears at expiry")
 	if kind == 12:
 		check(releases.any(func(e): return e.shape == "pulled" and e.from != e.to), "pull feedback requires real displacement")
 	if kind == 11:
@@ -330,8 +332,7 @@ func check_scout_attack_intent() -> void:
 func schedule_scout_swipe(now: int) -> Dictionary:
 	var actor := setup(0, Tactics.REGULAR_RESPONSES[0])
 	player.pos = Vector3(0, 0, -1.0)
-	player.guard_until = 0
-	player.guard_charges = 0
+	player[Protection.STATE] = player[Protection.STATE].clear_expedition()
 	var definition: Dictionary = game.Enemies.get_kind(actor.kind)
 	var observation := ScoutBehavior.attack_observation(0, game.encounter.token(0), game.participation.epoch(), 1,
 		actor.pos, player.pos, definition.role, float(definition.range), int(actor.ready), now,
@@ -355,7 +356,7 @@ func check_scheduled_scout_release() -> void:
 	ScoutBehavior.tick(game, 0.0, due)
 	check(PlayerVitals.current_hp(player) < hp and int(player.damage_seq) == sequence + 1,
 		"the production scout tick resolves the committed swipe once")
-	player.hurt_until = 0
+	player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
 	ScoutBehavior.release(game, actor, definition, due)
 	check(int(player.damage_seq) == sequence + 1,
 		"retrying a consumed swipe cannot deal damage, even without player hit grace")
@@ -377,7 +378,7 @@ func check_scheduled_scout_release() -> void:
 	sequence = int(player.damage_seq)
 	var old_life: PlayerLifecycle.Life = player[PlayerLifecycle.STATE]
 	player[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
-	bystander.hurt_until = 0
+	bystander[Conditions.STATE] = bystander[Conditions.STATE].clear_grace()
 	ScoutBehavior.release(game, actor, definition, due)
 	check(int(player.damage_seq) == sequence and int(bystander.damage_seq) == 2,
 		"the old target life is excluded while current bystanders can still be hit")
@@ -427,7 +428,7 @@ func check_scheduled_scout_hazard() -> void:
 	check(int(player.damage_seq) == sequence and int(bystander.damage_seq) == 1 and int(entry.next) == activation + 1000,
 		"the first hazard tick excludes the old target life and rearms for current bystanders")
 	player[PlayerLifecycle.STATE] = original_life
-	bystander.hurt_until = 0
+	bystander[Conditions.STATE] = bystander[Conditions.STATE].clear_grace()
 	var replacement: Dictionary = game.make_scout(0, actor.pos, 1)
 	game.encounter.register_scout(replacement, 0)
 	game.Bosses.tick_hazards(game, int(entry.next))

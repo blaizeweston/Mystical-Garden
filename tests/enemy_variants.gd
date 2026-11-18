@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -59,7 +60,7 @@ func run() -> void:
  check(long_aim.x>normal_aim.x+.5,"pounce leads an observed moving target farther")
  game.combat_velocity.clear()
  Attacks.lock(game,hound,"pounce",long_aim,now+1000)
- p.pos=long_aim*.5;p.hurt_until=0
+ p.pos=long_aim*.5;p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
  preload("res://scout_behavior.gd").release(game, hound,game.Enemies.get_kind(4),now+1000)
  check(PlayerVitals.current_hp(p)==100 and hound.pos.distance_to(long_aim)<.05,"pounce has a landing hit rather than a swept lane")
 
@@ -67,7 +68,7 @@ func run() -> void:
  Attacks.lock(game,burrow,"charge",Vector3(0,0,5),now+2000)
  var seam: Dictionary=Attacks.hints(burrow.attack,0,1.0)[0]
  check(seam.role=="burrow" and seam.has("via") and seam.has("cue"),"bent seam announces both legs and the eruption")
- p.pos=burrow.attack.via;p.hurt_until=0
+ p.pos=burrow.attack.via;p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
  preload("res://scout_behavior.gd").release(game, burrow,game.Enemies.get_kind(13),now+2000)
  check(PlayerVitals.current_hp(p)==100 and burrow.pos==Vector3(0,0,5),"crossing the seam outside the eruption is safe")
  burrow.pos=Vector3.ZERO
@@ -89,7 +90,7 @@ func run() -> void:
  check(Variants.guards(pilgrim,Vector3(0,0,3),now+4200) and not Variants.guards(pilgrim,Vector3(0,0,-3),now+4200),"guard protects the front and leaves the rear open")
  Status.sync(game,now+4200)
  check(Status.snapshot(game,now+4200).any(func(e):return e.shape=="bark_guard" and e.form=="enemy"),"Bark Guard has a visible condition")
- p.pos=Vector3(0,0,-1);p.hurt_until=0
+ p.pos=Vector3(0,0,-1);p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
  preload("res://scout_behavior.gd").release(game, pilgrim,game.Enemies.get_kind(0),now+5000)
  check(PlayerVitals.current_hp(p)==100,"sweep respects the sector rather than hitting behind the Pilgrim")
 
@@ -109,7 +110,7 @@ func run() -> void:
  var willow:=actor(game,5,"root_line")
  Attacks.lock(game,willow,"snare",Vector3(0,0,5),now+8000)
  check(Attacks.hints(willow.attack,0,1.0).size()==2,"Willow projects its two root areas")
- p.pos=willow.attack.spots[0];p.hurt_until=0
+ p.pos=willow.attack.spots[0];p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
  preload("res://scout_behavior.gd").release(game, willow,game.Enemies.get_kind(5),now+8000)
  Status.sync(game,now+8000)
  check(Status.snapshot(game,now+8000).any(func(e):return e.shape=="slow" and e.form=="player"),"root line displays Slowed on a hit")

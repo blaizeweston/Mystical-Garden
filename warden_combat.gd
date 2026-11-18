@@ -1,4 +1,6 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
 ## Host-owned effects from a confirmed Warden block or a committed Root Quake.
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -110,8 +112,7 @@ static func contacts(game: Node, origin: Vector3, radius: float, skip: Array = [
 
 static func first_block(game: Node, player: Dictionary, state: Dictionary, now: int) -> void:
 	state.blocked = true
-	if int(player.get("counter_until",0)) > now:
-		player.counter_until += int(state.counter_bonus)
+	player[Protection.STATE] = player[Protection.STATE].extend_ready_counter(now, int(state.counter_bonus))
 	if learned(player,"briar_rebound"):
 		rebound(game,player.pos)
 	if learned(player,"shared_guard"):
@@ -123,8 +124,8 @@ static func first_block(game: Node, player: Dictionary, state: Dictionary, now: 
 			cue(game,"Ready Footing",player.pos)
 	if learned(player,"clear_the_way"):
 		for ally in game.players.values():
-			if int(ally.get("slow_until",0)) > now and in_circle(game,ally,player.pos,BLOCK_RADIUS):
-				ally.slow_until = 0
+			if ally[Conditions.STATE].slow_active(now) and in_circle(game,ally,player.pos,BLOCK_RADIUS):
+				ally[Conditions.STATE] = ally[Conditions.STATE].cleanse_slow()
 				cue(game,"Cleansed",ally.pos)
 	if needs_quake(player) or learned(player,"aftershock"):
 		state.prepared = now+PREPARED_MS
@@ -181,7 +182,7 @@ static func shared_guard(game: Node, player: Dictionary, now: int, label: String
 			continue
 		best = ally
 		nearest = Vector3(player.pos).distance_to(ally.pos)
-	game.grant_guard(best,now+950,1)
+	best[Protection.STATE] = best[Protection.STATE].grant(now+950,1,Time.get_ticks_msec(),game.participation.epoch())
 	cue(game,label,best.pos)
 
 
@@ -320,7 +321,7 @@ static func tick(game: Node, now: int) -> void:
 				"trait_secondary":true,"core_hit":true,"knockback":-.35},now)
 		if not targets.is_empty() and game.encounter_cleared():
 			game.finish_combat(id,center)
-			if not game.Transactions.session_writable(game):
+			if not game.persistence_session.can_write():
 				return
 
 
@@ -328,7 +329,7 @@ static func ward_circle(game: Node, point: Vector3, radius: float, now: int) -> 
 	var warded := false
 	for ally in game.players.values():
 		if in_circle(game,ally,point,radius):
-			game.grant_guard(ally,now+1250,1)
+			ally[Protection.STATE] = ally[Protection.STATE].grant(now+1250,1,Time.get_ticks_msec(),game.participation.epoch())
 			warded = true
 	if warded:
 		Feedback.release(game,"burst",point,point,radius,BARK)

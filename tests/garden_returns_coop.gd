@@ -78,7 +78,7 @@ func guest_run() -> void:
  check(not JSON.stringify(data).contains("credits") and not JSON.stringify(data).contains("members") and game.progress.garden_interactions.get("returns",{}).get("discoveries",{}).is_empty(),"host projection omits private provenance and does not alter guest world")
  game.send_garden_action("growth_ack:"+str(Scenes.projection(game,game.local_player_id()).pending[0].sequence));mark("skipped")
  if not await until(func():return marked("rejoin")):check(false,"rejoin allowed");return
- SessionCase.World.leave(game,"Garden return reconnect fixture");game.toggle_overlay(null);check(SessionCase.World.join(game)==OK,"reconnect starts")
+ SessionCase.World.leave(game,"Garden return reconnect fixture");game.ui.close_panels();check(SessionCase.World.join(game)==OK,"reconnect starts")
  if not await until(func():return game.network_session.role()=="Guest" and Service.known(Service.projection(game,game.local_player_id()),"lantern_homecoming")):check(false,"persistent trace returns");return
  check(Scenes.projection(game,game.local_player_id()).get("pending",[]).is_empty(),"acknowledged scene does not replay")
  mark("rejoined");check(await until(func():return marked("done")),"host completes")

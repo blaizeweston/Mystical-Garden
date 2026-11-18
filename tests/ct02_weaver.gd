@@ -1,4 +1,8 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
+const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -106,11 +110,11 @@ func title_and_depart() -> bool:
 		return false
 	game=current_scene
 	player=game.players[1]
-	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Rules.ID and game.has_meta(game.Transactions.SESSION),"guarded affinity world")
+	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Rules.ID and SessionCase.has_guarded_session(game),"guarded affinity world")
 	player.pos=game.stage.gate_position()
 	choose("patient_spore")
 	check(Weaver.TREE.path(player.character).is_empty(),"host refuses a choice before the focus")
-	var panel = game.progression_view
+	var panel = UIFixture.control(game,"progression_view")
 	panel.inspected_class=1
 	panel.tabs.current_tab=2
 	panel.refresh()
@@ -171,9 +175,11 @@ func arena(path: Array) -> void:
 		who[PlayerVitals.STATE] = who[PlayerVitals.STATE].with_hp(90)
 		ExpeditionCase.set_membership(game, who, true)
 		who[Cooldowns.STATE] = who[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
-		for key in ["cast_until","core_cast_until","guard_until","guard_charges","hurt_until","slow_until"]:
+		who[Protection.STATE] = who[Protection.STATE].clear_expedition()
+		who[Conditions.STATE] = who[Conditions.STATE].clear_all()
+		for key in ["cast_until","core_cast_until"]:
 			who[key]=0
-		for key in ["subclass_follow","weaver_pressure","weaver_nova_origin","weaver_filaments","warden_holdfast","affinity_ward_claims","weaver_capstone",
+		for key in ["subclass_follow","weaver_pressure","weaver_nova_origin","weaver_filaments","warden_holdfast","weaver_capstone",
 			"class_aim","class_aim_distance","prepared_mark_until"]:
 			who.erase(key)
 	ally.pos=Vector3(8,0,0)
@@ -399,34 +405,33 @@ func defense() -> void:
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(45)
 	player.catalyst=game.Items.get_item("plant_part_rare_frostbell").legacy_part
 	var now := Time.get_ticks_msec()
-	ally.slow_until=now+6000
-	player.slow_until=now+6000
+	ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(now+6000)
+	player[Conditions.STATE] = player[Conditions.STATE].with_slow_until(now+6000)
 	q()
-	var ally_claims: Array=ally.get("affinity_ward_claims",[])
-	check(ally.guard_charges==1 and ally.guard_until-player.guard_until==600 and ally_claims.size()==1,
+	var ally_claim_count: int=ally[Protection.STATE].claim_count()
+	check(ally[Protection.STATE].charge_count()==1 and ally[Protection.STATE].guard_until_ms()-player[Protection.STATE].guard_until_ms()==600 and ally_claim_count==1,
 		"Silken Gift extends the lowest-HP Silk Shelter Ward with no redundant grant")
 	var gift_tooltip := Skills.describe(Skills.resolve_in_world(game,1,0,player.character))
-	check("0.6 s" in gift_tooltip and "2.0s" in gift_tooltip.replace(" ","") and ally.slow_until==0 and player.slow_until==0,
+	check("0.6 s" in gift_tooltip and "2.0s" in gift_tooltip.replace(" ","") and ally[Conditions.STATE].slow_until_ms()==0 and player[Conditions.STATE].slow_until_ms()==0,
 		"focus-specific tooltip and Clean Weave")
 	check(game.tactics.rooted_until>now and ally.weaver_filaments.actor==1 and Combat.filaments_until(game,ally,now)>now,
 		"native Silk root and source-owned Filaments")
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), now+20, 4.0, 0, game.tactics.position)
 	var blocks := events.filter(func(e):return e.kind=="actual_block")
-	check(blocks.size()==1 and blocks[0].source_actor==1 and blocks[0].quality=="refined" and ally.guard_charges==0,
+	check(blocks.size()==1 and blocks[0].source_actor==1 and blocks[0].quality=="refined" and ally[Protection.STATE].charge_count()==0,
 		"one actual block selects the extended source-owned Ward")
 	ally.pos=Vector3(5,0,0)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
-	ally.hurt_until=0
+	ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), now+40, 4.0)
 	check(ally[PlayerVitals.STATE].hp()==55 and ally.pos==Vector3(5,0,0),"Filaments follows recipients and reduces actual direct damage to 35 of 40")
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
-	ally.hurt_until=0
+	ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), now+100, 4.0, 0, Vector3.INF, false)
 	check(ally[PlayerVitals.STATE].hp()==50 and events.filter(func(e):return e.kind=="actual_block").size()==1,
 		"Filaments does not mitigate hazards or emit a block")
 
-	ally.guard_until=0
-	ally.guard_charges=0
+	ally[Protection.STATE] = ally[Protection.STATE].clear_expedition()
 	r()
 	var canopy: Dictionary=player.weaver_capstone
 	check(canopy.kind=="weaver_canopy" and canopy.position==player.pos and canopy.recipients.has(1) and not canopy.recipients.has(2),
@@ -434,16 +439,16 @@ func defense() -> void:
 	ally.pos=Vector3(2.9,0,0)
 	var canopy_start: int=canopy.until-Weaver.CANOPY_MS
 	Combat.tick(game,canopy_start+1)
-	check(ally.guard_charges==1 and ally.guard_until==canopy_start+1+2500,"late arrival gets one traveling Ward")
+	check(ally[Protection.STATE].charge_count()==1 and ally[Protection.STATE].guard_until_ms()==canopy_start+1+2500,"late arrival gets one traveling Ward")
 	ally.pos=Vector3(5,0,0)
-	ally.hurt_until=0
+	ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), canopy_start+40, 4.0)
 	ally.pos=Vector3(1,0,0)
 	Combat.tick(game,canopy_start+80)
-	check(ally.guard_charges==0 and canopy.recipients.has(2),"consuming the Ward and re-entering does not grant it again")
+	check(ally[Protection.STATE].charge_count()==0 and canopy.recipients.has(2),"consuming the Ward and re-entering does not grant it again")
 	check(events.filter(func(e):return e.kind=="actual_block").size()==1,"unarmed Canopy Ward cannot fire a Catalyst response")
 	var filaments_expiry: int=ally.weaver_filaments.until
-	ally.hurt_until=0
+	ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), filaments_expiry, 4.0)
 	check(ally[PlayerVitals.STATE].hp()==50 and Combat.filaments_until(game,ally,filaments_expiry)==0,"Filaments ends at its exact expire time")
@@ -453,14 +458,14 @@ func defense() -> void:
 	arena(DEFENSE.slice(0,4))
 	ally.pos=Vector3(2.9,0,0)
 	q()
-	check(ally.guard_charges==0,"ally lies outside the Q ward circle")
+	check(ally[Protection.STATE].charge_count()==0,"ally lies outside the Q ward circle")
 	r()
-	check(ally.guard_charges==1 and ally.guard_until>Time.get_ticks_msec(),"Sheltering Nova grants its independent prepared Ward")
+	check(ally[Protection.STATE].charge_count()==1 and ally[Protection.STATE].guard_until_ms()>Time.get_ticks_msec(),"Sheltering Nova grants its independent prepared Ward")
 	arena(["bloomcaller","silken_gift"])
 	ally.pos=Vector3(0,0,-1.3)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(30)
 	q()
-	check(ally.guard_charges==1 and player.guard_charges==0,"Silken Gift retains single-ally Ward for Bloomcaller")
+	check(ally[Protection.STATE].charge_count()==1 and player[Protection.STATE].charge_count()==0,"Silken Gift retains single-ally Ward for Bloomcaller")
 
 
 func run() -> void:

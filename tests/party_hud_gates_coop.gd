@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -44,16 +45,16 @@ func host_run():
  check(game.Life.revive(game,guest_id,1),"guest revives host")
  check(await until(func():return marked("revived")),"guest sees restored portrait and reduced max health")
  mark("done");check(await until(func():return game.players.size()==1),"guest disconnects")
- game._process(.016);check(not game.player_hud.party_panel.visible,"host panel removes disconnected teammate")
+ game._process(.016);check(not UIFixture.control(game,"player_hud").party_panel.visible,"host panel removes disconnected teammate")
 func guest_run():
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest connects")
  var id:=game.multiplayer.get_unique_id()
  if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty() and game.players[id].pos.distance_to(game.Stage.GATE)<2.75):check(false,"Garden position arrives");return
- game.send_action(false);check(await until(func():return game.loadout_menu.visible),"authoritative gate interaction at 2.65m")
- check(not game.player_hud.party_panel.visible,"no Garden party clutter");mark("gate")
- check(await until(func():return game.player_hud.party_panel.visible and game.player_hud.party_panel.rows.size()==1 and game.player_hud.party_panel.rows[0].name=="Host Gardener" and game.player_hud.party_panel.rows[0].hp==100),"public teammate HUD state")
- game.toggle_overlay(null);mark("party")
- check(await until(func():return game.player_hud.party_panel.rows[0].hp==70),"remote host health damage");mark("damage")
- check(await until(func():return game.player_hud.party_panel.rows[0].fallen),"skull state");mark("skull")
- check(await until(func():return not game.player_hud.party_panel.rows[0].fallen and game.player_hud.party_panel.rows[0].max_hp==80 and game.player_hud.party_panel.rows[0].hp>0),"revived health and portrait")
+ game.send_action(false);check(await until(func():return UIFixture.control(game,"loadout_menu").visible),"authoritative gate interaction at 2.65m")
+ check(not UIFixture.control(game,"player_hud").party_panel.visible,"no Garden party clutter");mark("gate")
+ check(await until(func():return UIFixture.control(game,"player_hud").party_panel.visible and UIFixture.control(game,"player_hud").party_panel.rows.size()==1 and UIFixture.control(game,"player_hud").party_panel.rows[0].name=="Host Gardener" and UIFixture.control(game,"player_hud").party_panel.rows[0].hp==100),"public teammate HUD state")
+ game.ui.close_panels();mark("party")
+ check(await until(func():return UIFixture.control(game,"player_hud").party_panel.rows[0].hp==70),"remote host health damage");mark("damage")
+ check(await until(func():return UIFixture.control(game,"player_hud").party_panel.rows[0].fallen),"skull state");mark("skull")
+ check(await until(func():return not UIFixture.control(game,"player_hud").party_panel.rows[0].fallen and UIFixture.control(game,"player_hud").party_panel.rows[0].max_hp==80 and UIFixture.control(game,"player_hud").party_panel.rows[0].hp>0),"revived health and portrait")
  mark("revived");check(await until(func():return marked("done")),"host finishes");SessionCase.World.leave(game,"Party HUD fixture")

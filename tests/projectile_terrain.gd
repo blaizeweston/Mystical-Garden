@@ -1,4 +1,8 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
+
+const WeaponActions = preload("res://player_weapon_actions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -125,7 +129,7 @@ func prepare(origin: Vector3, foe: Vector3) -> void:
 	player.pos = origin
 	player.facing = Vector3.RIGHT
 	player.aim_direction = Vector3.RIGHT
-	player.strike_at = 0
+	player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	player.cast_until = 0
@@ -269,9 +273,8 @@ func core_and_enemy_checks() -> void:
 		var watcher: Dictionary = game.make_scout(1,player.pos,20)
 		player.pos = game.tactics.position
 		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(40)
-		player.hurt_until = 0
-		player.guard_until = 0
-		player.guard_charges = 0
+		player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
+		player[Protection.STATE] = player[Protection.STATE].clear_expedition()
 		watcher.mode = "volley"
 		watcher.attack = EnemyAttack.plan(game,watcher,"volley",player.pos)
 		preload("res://scout_behavior.gd").release(game, watcher,game.Enemies.get_kind(1),Time.get_ticks_msec())

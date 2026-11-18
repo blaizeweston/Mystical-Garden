@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
@@ -32,7 +34,7 @@ func run():
   var poses: Array=[]
   for c in 5:
    for w in 3:
-    p.frame=c;p.weapon_kind=w;p.attack_until=0;p.cast_until=0;p.strike_at=0
+    p.frame=c;p.weapon_kind=w;p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active();p.cast_until=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
     var form:=Motion.form(p);var profile:=Motion.profile(form)
     for clip in profile.get("variants",{}).values():check(actor.animator.has_animation(str(clip)),"crafted delivery clip "+str(clip))
     check(actor.animator.has_animation(str(profile.clip)) and actor.animator.has_animation(str(profile.ready)),"named Blender clips "+str(sex)+":"+form)
@@ -79,7 +81,7 @@ func run():
     check(not game.combat_events.any(func(e):return e.kind=="windup"),"no generic circle at weapon wind-up "+form)
     check(game.projectile_queue.size()==1,"one coherent attack record "+form)
     var shot: Dictionary=game.projectile_queue[0]
-    check(int(shot.release)-Time.get_ticks_msec()<=roundi(float(p.attack_duration)*float(profile.release))+1,"release follows clip "+form)
+    check(int(shot.release)-Time.get_ticks_msec()<=roundi(float(p[WeaponActions.STATE].duration_ms())*float(profile.release))+1,"release follows clip "+form)
     if Motion.is_projectile(form):
      check(game.combat_events.is_empty(),"projectile cannot appear before release "+form)
      game.update_projectiles(int(shot.release)-1);check(game.enemy_health()==100,"no pre-release damage "+form)
@@ -120,7 +122,7 @@ func run():
  check(Contact.accepts(game,-1,p.pos,Vector3(0,0,3),"bell",stats),"bell pulse surrounds the caster")
  p.weapon_kind=1;stats=game.weapon_stats(p)
  check(not Contact.accepts(game,-1,p.pos,Vector3(0,0,3),"censer",stats),"censer sweep leaves rear foes untouched")
- p.weapon_kind=2;p.strike_at=0;p.cast_until=0;game.combat_events.clear();game.projectile_queue.clear()
+ p.weapon_kind=2;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);p.cast_until=0;game.combat_events.clear();game.projectile_queue.clear()
  game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,3)
  var outer: Dictionary=game.make_scout(0,Vector3(.96,0,3.1),1)
  var outside: Dictionary=game.make_scout(0,Vector3(2,0,3.1),2)
@@ -131,7 +133,7 @@ func run():
  game.update_projectiles(int(fan.due)+350)
  check(game.enemy_health()<100 and game.encounter.hp_for(outer)<outer.max_hp and game.encounter.hp_for(outside)==outside.max_hp,"independent petals hit visible lanes and leave the space outside them clear")
  game.encounter.clear_scouts()
- p.frame=2;p.weapon_kind=0;p.strike_at=0;p.cast_until=0;game.combat_events.clear();game.projectile_queue.clear();game.tactics.position=Vector3(0,0,2)
+ p.frame=2;p.weapon_kind=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);p.cast_until=0;game.combat_events.clear();game.projectile_queue.clear();game.tactics.position=Vector3(0,0,2)
  game.strike_enemy(1,p,p.pos);var bow: Dictionary=game.projectile_queue[0]
  p.pos=Vector3(1,0,0);game.update_projectiles(int(bow.release))
  check(Vector3(bow.origin).x>.9,"moving bow releases from the current grip, not the old position")

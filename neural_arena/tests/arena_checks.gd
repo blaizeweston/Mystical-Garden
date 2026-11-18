@@ -238,7 +238,7 @@ func test_menu_button() -> void:
 	game.set_process(false)
 	game.set_physics_process(false)
 	var found := false
-	for child in game.abandon_button.get_parent().get_children():
+	for child in game.ui.find_children("*", "Button", true, false):
 		found = found or (child is Button and child.text == "Neural Arena")
 	check(found, "the game menu offers the Neural Arena")
 	Entry.open_from(game)

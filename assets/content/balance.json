@@ -37,6 +37,8 @@
     "trophy_adapted_bonus": 0.015,
     "trophy_cap": 0.15,
     "hit_grace_ms": 220,
+    "revival_grace_ms": 1500,
+    "player_slow_movement_scale": 0.6,
     "coop_hp_per_floor": 0.018,
     "coop_hp_depth_cap": 0.3,
     "kill_essence_sparks": 1,

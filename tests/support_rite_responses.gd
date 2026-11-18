@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -46,7 +47,7 @@ func fixture(kind: int, floor_number: int) -> Dictionary:
 	game.battlefield.barriers.clear()
 	ExpeditionCase.set_membership(game, player, true)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
-	player.hurt_until = 0
+	player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
 	player.pos = Vector3(0, 0, 1.4)
 	return actor(kind, Vector3.ZERO)
 

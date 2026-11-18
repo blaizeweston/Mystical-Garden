@@ -1,4 +1,8 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
+
+const WeaponActions = preload("res://player_weapon_actions.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -67,7 +71,7 @@ func run():
  fx.clear();fx.sync([impact],[],"fog",Vector3(25,0,25))
  check(fx.feedback.labels.is_empty() and fx.feedback.flashes.is_empty(),"unseen combat creates no text or flash through fog")
  # Real cursor projectile crosses the first body, stops its visual and cannot hit the second.
- p.frame=2;p.weapon_kind=0;p.strike_at=0;p.attack_until=0;p.cast_until=0;p.mouse_aim=true;p.aim_direction=Vector3.RIGHT
+ p.frame=2;p.weapon_kind=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active();p.cast_until=0;p.mouse_aim=true;p.aim_direction=Vector3.RIGHT
  game.encounter.set_hp(-1, 30);game.tactics.position=Vector3(1,0,0);game.encounter.clear_scouts();game.encounter.register_scout(game.make_scout(0,Vector3(2,0,0),1));game.encounter.set_hp(0, 30)
  game.projectile_queue.clear();game.combat_events.clear();game.strike_enemy(1,p,p.pos)
  var shot: Dictionary=game.projectile_queue[0];shot.remaining=1
@@ -89,7 +93,7 @@ func run():
  check(float(actor.motion_phase)>.29,"guest pose advances between network packets")
  packet.phase=.12;var after:=Motion.advance(actor,packet,.001)
  check(after.phase>.29,"late phase cannot rewind an ongoing attack")
- p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.guard_until=Time.get_ticks_msec()+2000;p.guard_charges=1;p.hurt_until=0
+ p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p[Protection.STATE] = p[Protection.STATE].grant(Time.get_ticks_msec()+2000,1,Time.get_ticks_msec(),game.participation.epoch());p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
  game.combat_events.clear();IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1)
  check(PlayerVitals.current_hp(p)==10 and game.combat_events.back().shape=="block","blocked contact is labeled without inventing damage")
  var delayed: Dictionary=game.combat_events.back().duplicate();delayed.age=.7;delayed.duration=.85

@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -89,7 +90,7 @@ func prepare(response: String) -> Dictionary:
 	for member in game.players.values():
 		ExpeditionCase.set_membership(game, member, true)
 		member[PlayerVitals.STATE] = member[PlayerVitals.STATE].with_hp(100)
-		member.hurt_until = 0
+		member[Conditions.STATE] = member[Conditions.STATE].clear_grace()
 		member.pos = Vector3(0, 0, 1.4)
 	var caster := actor(kind, Vector3.ZERO)
 	# Pick an eligible route while keeping the networked scene on the same flat test layout.

@@ -1,5 +1,7 @@
 extends Node3D
 
+const WeaponActions = preload("res://player_weapon_actions.gd")
+
 const Session = preload("res://network_session.gd")
 
 const Participation = preload("res://expedition_participation.gd")
@@ -480,12 +482,12 @@ func update_avatar(root: Node3D, actor: Dictionary, player: Dictionary, position
 	if player.has("facing"):
 		var facing: Vector3 = player.facing
 		yaw = atan2(facing.x, facing.z)
-		if player.has("swing_until"):
-			swing = clampf((int(player.swing_until) - now) / 240.0, 0.0, 1.0)
+		if player.has(WeaponActions.STATE):
+			swing = player[WeaponActions.STATE].swing_fraction(now)
 	var animation: Dictionary=player.get("attack_anim",{})
-	if player.has("attack_until"):
-		var remaining:=int(player.attack_until)-now
-		animation={"active":remaining>0,"phase":clampf(1.0-remaining/float(maxi(1,int(player.get("attack_duration",240)))),0,1),"combo":int(player.get("attack_combo",0)),"duration":int(player.get("attack_duration",240)),"reach":player.get("attack_reach",2.0),"direction":preload("res://mouse_combat.gd").attack_direction(player,now),"clip":player.get("attack_clip",WeaponMotion.profile(WeaponMotion.form(player)).clip),"delivery":player.get("attack_delivery","sweep"),"span":player.get("attack_span",1.9),"form":"weapon"}
+	if player.has(WeaponActions.STATE):
+		var attack: WeaponActions.State = player[WeaponActions.STATE]
+		animation=attack.animation(now,player.facing,bool(player.get("mouse_aim",false)),player.get("aim_direction",Vector3.INF),WeaponMotion.profile(WeaponMotion.form(player)).clip)
 		if int(player.get("cast_until",0))>now:animation=get_parent().attack_animation_snapshot(player)
 	var fallen := PlayerLifecycle.fallen(player)
 	if fallen:animation.active=false

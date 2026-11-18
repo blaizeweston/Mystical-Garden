@@ -4,6 +4,7 @@ extends RefCounted
 
 const EXTENSION := "res://mob_sim/mob_nav.gdextension"
 const CLASS_NAME := &"MobNavWorld"
+const WINDOWS_LIBRARY := "res://mob_sim/bin/mob_nav.dll"
 const FLOOR_CELL := 0.5
 const ORIGIN := Vector2(-31.0, -30.0)
 const FLOOR_SIZE := Vector2i(124, 120)
@@ -15,6 +16,8 @@ enum Mode { HOLD, SEEK, FLEE, DIRECT }
 static func ensure_loaded() -> bool:
 	if ClassDB.class_exists(CLASS_NAME):
 		return true
+	# The backend is optional in source checkouts; report unavailability without engine load errors.
+	if OS.get_name()=="Windows" and not FileAccess.file_exists(WINDOWS_LIBRARY): return false
 	var status := GDExtensionManager.load_extension(EXTENSION)
 	if status != GDExtensionManager.LOAD_STATUS_OK and status != GDExtensionManager.LOAD_STATUS_ALREADY_LOADED:
 		return false

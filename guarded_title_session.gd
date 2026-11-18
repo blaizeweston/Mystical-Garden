@@ -1,12 +1,13 @@
 extends RefCounted
-## Owns only the leases acquired for one opt-in title launch. The original
-## store instances must survive the handoff because they own the lease digests.
+## Owns one world's persistence access, recovery hold and shutdown lifecycle.
+## Original store instances retain their lease digests across title/world handoff.
+## Receives only persistence participants and confirmed selection facts, never Game.
 
 const Ops = preload("res://persistence_operations.gd")
 const Slots = preload("res://save_slots.gd")
 const Inspection = preload("res://persistence_save_inspection.gd")
 const Profile = preload("res://character_profile.gd")
-const META := &"guarded_title_session"
+const Batch = preload("res://save_batch.gd")
 
 var _garden: RefCounted
 var _roster: RefCounted
@@ -17,6 +18,116 @@ var _profile_path := ""
 var _heartbeat_at := 0.0
 var _profile_heartbeat_at := 0.0
 var _stagger_heartbeats := false
+
+## Session state is independent of scene lifetime, reward receipts and durable
+## recovery evidence. A released guarded session never becomes an unguarded one.
+enum Block { NONE, RECOVERY, UNCERTAIN, COMMITTED_CLEANUP, READ_ONLY }
+const CLEANUP_NOTICE := "Saved. Recovery cleanup is pending. Further saves are blocked."
+var _guarded := false
+var _stopping := false
+var _block: Block = Block.NONE
+var _pending_notice := ""
+var _feedback_reported := false
+
+func is_guarded() -> bool:
+ return _guarded
+
+func is_stopping() -> bool:
+ return _stopping
+
+func is_blocked() -> bool:
+ return _block != Block.NONE
+
+func can_write() -> bool:
+ return not _guarded or (not _stopping and not is_blocked() and owns_leases())
+
+func pending_notice() -> String:
+ return _pending_notice if is_blocked() else ""
+
+func can_publish_state() -> bool:
+ # A confirmed cleanup warning may travel to guests, but combat stays stopped.
+ return not is_blocked() or (_block == Block.COMMITTED_CLEANUP and _feedback_reported)
+
+func begin_shutdown() -> bool:
+ if _stopping: return false
+ _stopping = true
+ return true
+
+func finish_network_detach() -> void:
+ # Leaving a network session may retain this Garden. It never clears recovery.
+ _stopping = false
+
+func status() -> Dictionary:
+ return {"guarded": _guarded, "stopping": _stopping, "blocked": is_blocked(),
+  "block": Block.keys()[_block], "writable": can_write(), "owns_leases": owns_leases(),
+  "notice": pending_notice()}
+
+func record_finalization(boundary: Dictionary) -> void:
+ if is_blocked(): return # A retry cannot reinterpret an already held outcome.
+ var execution: Variant = boundary.get("value")
+ var final: Batch.Finalization = execution.get("outcome") if execution is Dictionary else null
+ if final == null:
+  if boundary.get("state") in ["pending_recovery", "ambiguous", "unresolved"] or boundary.get("release_error", OK) != OK:
+   _block = Block.UNCERTAIN if boundary.get("reason") == "missing_gameplay_finalization" else Block.RECOVERY
+ elif final.write_blocked or boundary.get("release_error", OK) != OK:
+  match final.outcome:
+   Batch.Outcome.COMMITTED_CLEANUP_PENDING: _block = Block.COMMITTED_CLEANUP
+   Batch.Outcome.UNCERTAIN: _block = Block.UNCERTAIN
+   _: _block = Block.READ_ONLY
+
+func require_departure_recovery() -> void:
+ _block = Block.UNCERTAIN
+ _pending_notice = "Departure save is uncertain. Recovery is required before saving again."
+ _feedback_reported = true
+
+func finalization_feedback(boundary: Dictionary) -> Dictionary:
+ var execution: Variant = boundary.get("value")
+ var final: Batch.Finalization = execution.get("outcome") if execution is Dictionary else null
+ var message := "Save could not start. No changes were saved."
+ if final != null:
+  match final.outcome:
+   Batch.Outcome.COMMITTED:
+    message = "" if boundary.error == OK else "Saved. Further saves are blocked until the session is reopened."
+   Batch.Outcome.COMMITTED_CLEANUP_PENDING:
+    message = CLEANUP_NOTICE
+   Batch.Outcome.ABORTED_RESTORED:
+    message = "Save cancelled. The original state was verified."
+    if final.write_blocked: message += " Recovery cleanup is pending."
+   Batch.Outcome.UNCERTAIN:
+    message = "Save state is uncertain. Recovery is required before saving again."
+ elif boundary.get("state") in ["pending_recovery", "ambiguous", "unresolved"] or boundary.get("reason") == "guarded_persistence_pending":
+  message = "Save recovery is pending. Your files are preserved."
+ elif boundary.get("reason") in ["stale_session_lease", "unowned_participant", "foreign_session_lease", "guarded_session_stopping"]:
+  message = "This session no longer has access to the selected save."
+ var prior := pending_notice()
+ var clear_status := false
+ var set_status := false
+ if not prior.is_empty():
+  message = prior
+ elif is_blocked():
+  _pending_notice = message
+  _feedback_reported = true
+  clear_status = true
+ else:
+  set_status = not message.is_empty()
+ return {"notice": message, "clear_status": clear_status, "set_status": set_status}
+
+func title_return_view(role: String, message: String, guest_notice := "", unguarded_paths := PackedStringArray()) -> Dictionary:
+ var pending := pending_notice()
+ var paths := PackedStringArray()
+ if not pending.is_empty():
+  if not _guarded:
+   paths = unguarded_paths.duplicate()
+  elif role in ["Solo", "Host"]:
+   paths.append(_garden_path)
+   paths.append(_profile_path)
+  elif role in ["Guest", "Connecting"]:
+   paths.append(_profile_path)
+ elif not guest_notice.is_empty():
+  pending = guest_notice
+ return {"guarded": _guarded, "notice": pending, "recovery_paths": paths,
+  "message": message if pending.is_empty() else pending}
+
 
 static func outcome(boundary: Dictionary) -> Dictionary:
  if boundary.get("ran", false) and boundary.get("value") is Dictionary:
@@ -105,12 +216,13 @@ static func prepare(worlds: RefCounted, roster: RefCounted, import_legacy: bool)
 
 ## Claim first, then validate exact confirmed bytes and load under the root
 ## lock. Title Join supplies no Garden store or Garden digest.
-func start(world: Node, garden: RefCounted, garden_slot: int, garden_digest: String,
- roster: RefCounted, profile_slot: int, profile_digest: String) -> Dictionary:
- if _garden != null or _roster != null or profile_digest.is_empty() or (garden != null and garden_digest.is_empty()):
+func start(progress: RefCounted, local_profile: RefCounted, guest_profile: RefCounted,
+ garden: RefCounted, garden_slot: int, garden_digest: String,
+ roster: RefCounted, profile_slot: int, profile_digest: String, stagger_heartbeats := false) -> Dictionary:
+ if _guarded or _stopping or is_blocked() or _garden != null or _roster != null or profile_digest.is_empty() or (garden != null and garden_digest.is_empty()):
   return Ops.management_result(ERR_INVALID_PARAMETER, "startup_confirmation_missing")
  var result := Ops.management_result(OK, "")
- _profile_path = world.local_character.path
+ _profile_path = local_profile.path
  if roster != null:
   if roster.paths(profile_slot).get("character") != _profile_path:
    return Ops.management_result(ERR_INVALID_PARAMETER, "profile_destination_changed")
@@ -123,7 +235,7 @@ func start(world: Node, garden: RefCounted, garden_slot: int, garden_digest: Str
    return _startup_failed(result if not completed(result) else Ops.management_result(ERR_BUSY, "profile_lease_lost"))
  if garden != null:
   _garden_path = garden.paths(garden_slot).garden
-  if _garden_path != world.progress.path or (roster == null and garden.paths(garden_slot).character != _profile_path):
+  if _garden_path != progress.path or (roster == null and garden.paths(garden_slot).character != _profile_path):
    return _startup_failed(Ops.management_result(ERR_INVALID_PARAMETER, "garden_destination_changed"))
   var claim: Dictionary = garden.claim_guarded(garden_slot)
   result = outcome(claim)
@@ -149,24 +261,24 @@ func start(world: Node, garden: RefCounted, garden_slot: int, garden_digest: Str
    _apply_scratch_state(_garden_path, inspected.result)
    if inspected.result.state != "healthy":
     return Ops.management_result(ERR_INVALID_DATA, inspected.result.reason, inspected.result.state)
-  world.local_character.identity = ""
-  var error: Error = world.local_character.load_profile(false)
-  if error == OK and not Profile.valid_identity(world.local_character.identity):
+  local_profile.identity = ""
+  var error: Error = local_profile.load_profile(false)
+  if error == OK and not Profile.valid_identity(local_profile.identity):
    error = ERR_INVALID_DATA
-  if error == OK and world.guest_character.path == _profile_path:
-   error = world.guest_character.load_profile(false)
+  if error == OK and guest_profile.path == _profile_path:
+   error = guest_profile.load_profile(false)
   if error == OK and _garden != null:
-   error = world.progress.load_garden(false)
+   error = progress.load_garden(false)
   return Ops.management_result(error, "" if error == OK else "startup_load_failed")))
  if not completed(result):
   return _startup_failed(result)
  _heartbeat_at = Time.get_unix_time_from_system()
- _stagger_heartbeats = world.has_meta(&"experimental_terrain") and _garden != null and _roster != null
+ _stagger_heartbeats = stagger_heartbeats and _garden != null and _roster != null
  _profile_heartbeat_at = _heartbeat_at - 0.5
- world.progress.require_guarded_access = true
- world.local_character.require_guarded_access = true
- world.guest_character.require_guarded_access = true
- world.set_meta(META, self)
+ progress.require_guarded_access = true
+ local_profile.require_guarded_access = true
+ guest_profile.require_guarded_access = true
+ _guarded = true
  return result
 
 static func _claim_written(boundary: Dictionary) -> bool:

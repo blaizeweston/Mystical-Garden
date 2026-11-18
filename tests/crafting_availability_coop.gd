@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 var game: Node
@@ -53,7 +54,24 @@ func host_run() -> void:
 func guest_run() -> void:
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")
  if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty()):check(false,"guest accepted: "+game.status+" / "+game.network_session.role());return
- var id=game.multiplayer.get_unique_id();var view=game.loadout_view
+ var id=game.multiplayer.get_unique_id();var view=UIFixture.control(game,"loadout_view")
+ var cached_bag: Dictionary=game.players[id].get("bag",{})
+ var original_bag:=JSON.stringify(cached_bag)
+ var display_bag: Dictionary=game.inventory_ui_data()
+ check(not display_bag.is_empty() and display_bag.equipment.size()==3,"inventory read port supplies an equipped-slot projection")
+ display_bag.equipment.clear();display_bag.stash.clear();display_bag.shared.clear()
+ check(JSON.stringify(cached_bag)==original_bag,"mutating detached inventory output cannot alter replicated guest state")
+ var original_counts: Array=game.players[id].get("stored_parts",[]).duplicate()
+ var original_guest_xp: Array=game.guest_character.data.xp.duplicate()
+ var original_actor_profile:=JSON.stringify(game.players[id].get("character",{}))
+ var display_loadout: Dictionary=game.loadout_ui_data()
+ display_loadout.counts.clear();display_loadout.profile.xp.clear()
+ check(game.players[id].get("stored_parts",[])==original_counts and game.guest_character.data.xp==original_guest_xp and JSON.stringify(game.players[id].get("character",{}))==original_actor_profile,
+  "loadout read results cannot edit reservations or permanent XP")
+ var original_stats:=JSON.stringify(game.players[id].get("weapon_stats",{}))
+ var display_summary: Dictionary=game.run_summary_ui_data()
+ display_summary.stats.clear();display_summary.copies.clear()
+ check(JSON.stringify(game.players[id].get("weapon_stats",{}))==original_stats,"Tab read results cannot edit reliable weapon details")
  check(await until(func():return game.players[id].pos.distance_to(game.Stage.GATE)<1 and game.players[id].get("stored_parts",[]).size()>1 and int(game.players[id].stored_parts[1])==1),"owned counts arrive")
  game.open_gate_preparation();view.refresh()
  check(view.slots[1].get_item_index(1)>=0,"sole part initially available")

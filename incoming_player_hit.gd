@@ -1,4 +1,6 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
 
 const Participation = preload("res://expedition_participation.gd")
 ## Resolves a host-validated enemy contact. The recipient adapter binds one
@@ -9,7 +11,6 @@ const Lifecycle = preload("res://player_lifecycle.gd")
 const Vitals = preload("res://player_vitals.gd")
 const Preview = preload("res://combat_balance_preview.gd")
 const Transactions = preload("res://game_transaction.gd")
-const Traits = preload("res://combat_traits.gd")
 const Wood = preload("res://wood_affinity.gd")
 const Omens = preload("res://oracle_omens.gd")
 const Journal = preload("res://diagnostic_journal.gd")
@@ -42,7 +43,7 @@ static func resolve_world(world: Node, peer_id: int, target_life: int, now: int,
 static func _resolve(contact: Contact, observation: Dictionary, recipient: Recipient) -> Dictionary:
 	if observation.is_empty():
 		return Recipient.result(Outcome.REJECTED)
-	if contact.now < int(observation.hurt_until):
+	if observation.within_hit_grace:
 		return Recipient.result(Outcome.GRACE)
 	if observation.guarded:
 		recipient.consume_guard(contact)
@@ -86,11 +87,11 @@ class Recipient extends RefCounted:
 			and is_same(_actor, _world.players.get(_peer, {}))
 
 	func observe(contact: Contact) -> Dictionary:
-		if not _is_current() or not Life.alive(_actor) or not Transactions.session_writable(_world):
+		if not _is_current() or not Life.alive(_actor) or not _world.persistence_session.can_write():
 			return {}
 		var observation := {
-			"hurt_until": int(_actor.get("hurt_until", 0)),
-			"guarded": Traits.guard_allows(_actor, contact.origin, contact.now),
+			"within_hit_grace": _actor[Conditions.STATE].grace_active(contact.now),
+			"guarded": _actor[Protection.STATE].allows_block(_actor.pos, contact.origin, contact.now),
 			"default_damage": float(1 + _world.participation.cycle() / 2),
 			"epoch": int(_world.participation.epoch()),
 		}
@@ -98,14 +99,13 @@ class Recipient extends RefCounted:
 		return observation
 
 	func consume_guard(contact: Contact) -> void:
-		var recorded_ward := int(_actor.get("guard_charges",0)) > 0
-		_actor.guard_charges = maxi(0, int(_actor.get("guard_charges", 1)) - 1)
-		if _actor.guard_charges == 0:
-			_actor.guard_until = 0
-		var block_event: RefCounted
-		if recorded_ward:
-			block_event = preload("res://combat_action_events.gd").blocked(_world, _peer, _actor, contact.now)
-		Traits.blocked(_world, _actor, contact.now)
+		var consumed: Protection.Block = _actor[Protection.STATE].consume_block(contact.now, _world.participation.epoch(), _peer)
+		_actor[Protection.STATE] = consumed.next_state
+		var block_event := preload("res://ward_responses.gd").block(_world, consumed, _peer, _actor.pos, contact.now)
+		var stats: Dictionary = _world.weapon_stats(_actor)
+		if float(stats.get("counter_damage",0)) > 0 or _actor[Protection.STATE].counter_guard_active(contact.now):
+			var balance = preload("res://class_skill_balance.gd")
+			_actor[Protection.STATE] = _actor[Protection.STATE].prepare_counter(contact.now + balance.COUNTER_WINDOW_MS, balance.counter_points(stats))
 		if block_event != null:
 			preload("res://warden_combat.gd").connected_block(_world, block_event, _peer, contact.now)
 			preload("res://oracle_combat.gd").ward_blocked(_world, _actor, _peer, block_event, contact.direct)
@@ -123,9 +123,9 @@ class Recipient extends RefCounted:
 		return Wood.absorption_plan(_actor, hp, preload("res://affinity_time.gd").now(_world))
 
 	func commit_contact(contact: Contact, hp: int, bark: Dictionary, epoch: int) -> Dictionary:
-		if not _is_current() or not Transactions.session_writable(_world):
+		if not _is_current() or not _world.persistence_session.can_write():
 			return result(Outcome.REJECTED)
-		if _world.has_meta(Transactions.SESSION) and hp >= int(Vitals.current_hp(_actor)):
+		if _world.persistence_session.is_guarded() and hp >= int(Vitals.current_hp(_actor)):
 			return _guarded_loss(func(effects) -> Dictionary:
 				_prepare_contact(contact, bark, effects)
 				var resolution := _install_loss(hp, effects)
@@ -145,15 +145,18 @@ class Recipient extends RefCounted:
 
 	func _prepare_contact(contact: Contact, bark: Dictionary, effects) -> void:
 		Wood.consume(_actor, bark)
-		var grace_ms := int(preload("res://combat_director.gd").config().hit_grace_ms)
-		preload("res://combat_status.gd").incoming_grace(_actor, contact.now, contact.slow_ms, grace_ms,
-			func() -> bool: return _actor.has(Omens.STATE) and Omens.prevent_slow(_world, _actor, contact.now),
-			func() -> void: _world.action_feedback(effects, _peer, "Slowed."))
+		var conditions: Conditions.State = _actor[Conditions.STATE]
+		var prevented := conditions.slow_needs_prevention(contact.now, contact.slow_ms) \
+			and _actor.has(Omens.STATE) and Omens.prevent_slow(_world, _actor, contact.now)
+		var grace_ms := int(preload("res://game_balance.gd").values.combat.hit_grace_ms)
+		var update := conditions.after_hit(contact.now, contact.slow_ms, grace_ms, prevented)
+		_actor[Conditions.STATE] = update.next_state
+		if update.slow_applied: _world.action_feedback(effects, _peer, "Slowed.")
 
 	func apply_health_loss(amount: int) -> Dictionary:
-		if not _is_current() or not Transactions.session_writable(_world):
+		if not _is_current() or not _world.persistence_session.can_write():
 			return result(Outcome.REJECTED)
-		if _world.has_meta(Transactions.SESSION):
+		if _world.persistence_session.is_guarded():
 			if amount < int(Vitals.current_hp(_actor)):
 				return _install_loss(amount)
 			return _guarded_loss(func(effects) -> Dictionary: return _install_loss(amount, effects))

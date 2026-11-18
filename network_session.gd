@@ -4,6 +4,7 @@ extends RefCounted
 
 const Settings = preload("res://network_settings.gd")
 const STATE := "network_session"
+enum Exit { NONE, TITLE, APPLICATION, SESSION }
 
 class Peer extends RefCounted:
 	var binding: int
@@ -14,6 +15,7 @@ class Peer extends RefCounted:
 	var ready := false
 	var rejecting := false
 	var budgets: Dictionary = {}
+	var departure_receipt := ""
 
 	func _init(token: int, party_slot: int, arrived: int, is_local: bool) -> void:
 		binding = token
@@ -68,6 +70,37 @@ var _join_cancelled := false
 var _joined_from_title := false
 var _accepted_connection_key := ""
 var _accepted_identity := ""
+var _exit_intent: Exit = Exit.NONE
+var _exit_nonce := ""
+var _exit_confirmed := false
+
+## Voluntary guest departure is correlated with a saved host projection.
+## These are connection controls, not reward or character state.
+func request_abandonment_exit(intent: Exit) -> String:
+	if _role != "Guest" or _transport == null or intent == Exit.NONE: return ""
+	if _transport.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED: return ""
+	if _exit_nonce.is_empty(): _exit_nonce = Crypto.new().generate_random_bytes(16).hex_encode()
+	_exit_intent = intent
+	return _exit_nonce
+
+func abandonment_exit_confirmed() -> bool:
+	return _exit_confirmed
+
+func awaiting_abandonment_save() -> bool:
+	return not _exit_nonce.is_empty() and not _exit_confirmed
+
+func confirm_abandonment_exit(nonce: String) -> Exit:
+	if _role != "Guest" or nonce.is_empty() or nonce != _exit_nonce or _exit_confirmed: return Exit.NONE
+	_exit_confirmed = true
+	return _exit_intent
+
+func mark_departure_saved(peer: int, expected_binding: int, nonce: String) -> bool:
+	if not matches(peer,expected_binding) or not ready(peer) or nonce.length() != 32 or not nonce.is_valid_hex_number(false): return false
+	_peers[peer].departure_receipt = nonce
+	return true
+
+func departure_receipt(peer: int) -> String:
+	return _peers[peer].departure_receipt if ready(peer) else ""
 
 static func belongs_to(record: Dictionary, owner: RefCounted) -> bool:
 	var link: Link = record.get(STATE)
@@ -207,6 +240,9 @@ func clear_deadline() -> void:
 	_deadline = 0
 
 func close_transport() -> void:
+	_exit_intent = Exit.NONE
+	_exit_nonce = ""
+	_exit_confirmed = false
 	var departing_transport := _transport
 	_transport = null
 	_peers.clear()

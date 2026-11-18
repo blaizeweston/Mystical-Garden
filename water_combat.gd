@@ -1,4 +1,6 @@
 extends RefCounted
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
 
 const Actors = preload("res://frost_combat.gd")
 const Clock = preload("res://affinity_time.gd")
@@ -64,7 +66,7 @@ static func direct_damage(game: Node, hp: int) -> int:
 
 
 static func cleanse(player: Dictionary) -> void:
-	player.slow_until = 0
+	player[Conditions.STATE] = player[Conditions.STATE].cleanse_slow()
 
 
 static func wash(game: Node, event: RefCounted, center: Vector3) -> void:
@@ -112,7 +114,7 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 					cleanse(game.players[id])
 					var ward_ms := int(event.potency().get("shelter_ward_ms",0))
 					if ward_ms > 0:
-						game.grant_guard(game.players[id],now+ward_ms,1)
+						game.players[id][Protection.STATE] = game.players[id][Protection.STATE].grant(now+ward_ms,1,Time.get_ticks_msec(),game.participation.epoch())
 			else:
 				Actors.damage(game,event.actor,int(details.enemy),int(event.potency().impact_hp),now,COLOR)
 				drench(game,event,int(details.enemy))

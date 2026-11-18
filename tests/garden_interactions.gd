@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -40,12 +41,12 @@ func run() -> void:
   check(Service.nearest(game,p,Service.projection(game,1)).is_empty(),"canonical station/bed wins at its own anchor")
  p.pos=point.position
  game._process(.016)
- check(game.guide.text.contains("Inspect") and game.prompt_panel.visible,"the actual on-screen prompt includes the observation action")
+ check(UIFixture.control(game,"guide").text.contains("Inspect") and UIFixture.control(game,"prompt_panel").visible,"the actual on-screen prompt includes the observation action")
  game.send_action(false);view._process(0)
- check(view.panel.visible and game.overlay.visible,"E opens the catalog-backed inspect panel")
- game.toggle_overlay(game.pack_menu)
- check(not view.panel.visible and game.pack_menu.visible,"other menus replace the inspection panel")
- game.toggle_overlay(null);view._process(0)
+ check(view.panel.visible and game.ui.is_overlay_open(),"E opens the catalog-backed inspect panel")
+ game.ui.toggle_panel("pack")
+ check(not view.panel.visible and UIFixture.control(game,"pack_menu").visible,"other menus replace the inspection panel")
+ game.ui.close_panels();view._process(0)
  check(request(game,1).has("error") and g.garden_interactions.revision==0,"old or future state revisions cannot mutate")
  check(request(game,0,"invalid","missing").has("error"),"unknown point is rejected")
  check(request(game,0,"invalid",point.id,"grant_gold").has("error"),"unsupported verbs are rejected")

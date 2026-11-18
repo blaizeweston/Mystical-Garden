@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Service=preload("res://altar_service.gd")
@@ -18,7 +19,7 @@ func run():
  var g=game.progress;var p: Dictionary=game.players[1];var reserve: Dictionary=game.seed_reserve(p)
  p.pos=game.Stage.ALTAR;reserve.stock[0]=5;reserve.stock[1]=5;reserve.parts[1]=5;reserve.parts[2]=5
  game.send_action(false)
- check(game.altar_menu.visible and reserve.stock[0]==5,"E opens altar without identifying, crafting or spending")
+ check(UIFixture.control(game,"altar_menu").visible and reserve.stock[0]==5,"E opens altar without identifying, crafting or spending")
  var seeds:=pair(Items.seed_id(0),Items.seed_id(1))
  var preview:=Service.preview(game,p,seeds)
  check(preview.can_combine and not preview.known and preview.item=="","unknown result is a concealed question mark")

@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -20,7 +21,7 @@ func run():
  var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.pos=Vector3(0,0,-1);p.frame=2
  var tree=game.Classes.connected_tree(2);p.character[tree.profile_key]=tree.state(["wildstalker"])
  game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.encounter.set_hp(-1, 80);game.tactics.position=Vector3(0,0,1);game.enemy_traits.clear();game.encounter.clear_scouts();game.tactics.winding_up=false
- var now:=Time.get_ticks_msec();p.slow_until=now+4000
+ var now:=Time.get_ticks_msec();p[Conditions.STATE] = p[Conditions.STATE].with_slow_until(now+4000)
  var stats: Dictionary={"damage":1.0,"reach":4.0,"knockback":-.35,"ranger_direct_hit":true}
  check(Ranger.track(game,1,p,-1,1,now),"a source-owned Tracked Prey record is accepted")
  Status.sync(game,now)
@@ -43,9 +44,9 @@ func run():
  check(Ranger.track(game,1,p,-1,2,now+3),"a later cast may grant a fresh Tracked Prey record")
  Status.sync(game,now+3);check(Status.snapshot(game,now+3).any(func(e):return e.shape==Ranger.PREY),"fresh source-owned status is visible")
  game.combat_events.clear();check(Status.snapshot(game,now+4).size()>=2 and game.combat_events_snapshot().any(func(e):return e.kind=="status"),"active statuses survive transient event eviction for late joiners")
- p.slow_until=0;game.enemy_traits.erase(Ranger.PREY);Status.sync(game,now+5)
+ p[Conditions.STATE] = p[Conditions.STATE].cleanse_slow();game.enemy_traits.erase(Ranger.PREY);Status.sync(game,now+5)
  check(not Status.snapshot(game,now+5).any(func(e):return e.shape in [Ranger.PREY,"slow"]),"cleansing and consumption remove live state")
- p.slow_until=now+20;Status.sync(game,now+10);Status.sync(game,now+21)
+ p[Conditions.STATE] = p[Conditions.STATE].with_slow_until(now+20);Status.sync(game,now+10);Status.sync(game,now+21)
  check(not Status.snapshot(game,now+21).any(func(e):return e.shape=="slow"),"timed expiry clears status independently of text")
  var material: Dictionary=Builds.slot("form",game.Items.get_item("plant_part_plant_frostbell").legacy_part)
  var frost_event: RefCounted=Events.begin(game,1,"form",material,Frost.Balance.QUALITY.ordinary,["weapon_contact"],now+5000)

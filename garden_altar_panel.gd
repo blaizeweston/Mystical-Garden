@@ -70,7 +70,7 @@ func _ready() -> void:
  combine_button=Button.new();combine_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;actions.add_child(combine_button);combine_button.pressed.connect(func(): request("combine"))
  clear_button=Button.new();clear_button.text="Clear slots";actions.add_child(clear_button);clear_button.pressed.connect(func(): draft=[{},{}];request("preview"))
  message=Label.new();message.custom_minimum_size=Vector2(840,34);message.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;message.add_theme_font_size_override("font_size",13);add_child(message)
- var close:=Button.new();close.text="Close · Esc";close.pressed.connect(func(): game.toggle_overlay(null));add_child(close)
+ var close:=Button.new();close.text="Close · Esc";close.pressed.connect(func(): game.ui.close_panels());add_child(close)
 func begin(value: Dictionary) -> void:
  revision=0;draft=[{},{}];busy=false;pending_data={};set_data(value)
 func set_data(value: Dictionary) -> void:
@@ -177,6 +177,6 @@ func _process(delta: float) -> void:
  if not is_visible_in_tree(): return
  if not pending_data.is_empty() and not get_viewport().gui_is_dragging():
   var pending:=pending_data;pending_data={};set_data(pending)
- if not game.at_garden_altar(game.players.get(game.local_player_id(),{})): game.toggle_overlay(null);return
+ if not game.at_garden_altar(game.players.get(game.local_player_id(),{})): game.ui.close_panels();return
  elapsed+=delta
  if elapsed>=.8 and not busy and not get_viewport().gui_is_dragging(): elapsed=0;request("preview")

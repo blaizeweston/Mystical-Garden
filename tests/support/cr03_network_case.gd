@@ -1,4 +1,9 @@
 extends RefCounted
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
+
+const WeaponActions = preload("res://player_weapon_actions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -45,7 +50,6 @@ var final_family_mix := false
 const Improvements = preload("res://expedition_grafts.gd")
 const Grafts = preload("res://native_grafts.gd")
 const UpgradeCards = preload("res://affinity_cards.gd")
-const RunSummary = preload("res://run_summary_panel.gd")
 const SPEED_CARD := "ordinary_weapon_interval"
 var native_graft_case := false
 var connected_warden_case := false
@@ -227,7 +231,7 @@ func host(menu: Node) -> void:
 	var ally: Dictionary=game.players[protected]
 	local[Cooldowns.STATE] = local[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	game.use_class_skill(1,local,0)
-	ally.hurt_until=0
+	ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 	var before: float=PlayerVitals.current_hp(ally)
 	IncomingPlayerHit.resolve_world(game, protected, PlayerLifecycle.generation(ally), Time.get_ticks_msec(), 1)
 	check(PlayerVitals.current_hp(ally)==before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==1 and e.details.recipient==protected and e.quality=="refined"),"actual guest block uses host refined Catalyst")
@@ -243,11 +247,10 @@ func host(menu: Node) -> void:
 		return
 	if mixed_wood_ward:
 		var warded: Dictionary=game.players[ward_guest]
-		warded.guard_until=0
-		warded.guard_charges=0
-		warded.hurt_until=0
+		warded[Protection.STATE] = warded[Protection.STATE].clear_expedition()
+		warded[Conditions.STATE] = warded[Conditions.STATE].clear_grace()
 		mark("wood-guard-"+str(ward_guest))
-		if not check(await until(func():return warded.guard_charges>0),"native remote Q arms Wood Ward"):return
+		if not check(await until(func():return warded[Protection.STATE].charge_count()>0),"native remote Q arms Wood Ward"):return
 		var hp_before: float=PlayerVitals.current_hp(warded)
 		IncomingPlayerHit.resolve_world(game, ward_guest, PlayerLifecycle.generation(warded), Time.get_ticks_msec(), 2, 0, game.tactics.position)
 		check(PlayerVitals.current_hp(warded)==hp_before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==ward_guest and e.primary_affinity=="wood" and e.quality=="ordinary"),
@@ -257,7 +260,7 @@ func host(menu: Node) -> void:
 		var visitor: Dictionary=game.players[ids[index]]
 		var source: int=ids[index]
 		var primary: String=preload("res://plant_affinities.gd").for_part(visitor.weapon).primary_affinity
-		if primary=="water": local.slow_until=Time.get_ticks_msec()+4000
+		if primary=="water": local[Conditions.STATE] = local[Conditions.STATE].with_slow_until(Time.get_ticks_msec()+4000)
 		var native_max: int=game.Life.native_maximum(game,local)
 		if not check(await until(func():
 			return Time.get_ticks_msec()>=maxi(int(visitor.get("cast_until",0)),int(visitor.get("core_cast_until",0)))),
@@ -284,7 +287,7 @@ func host(menu: Node) -> void:
 			"fire":
 				check(game.tactics.memory.get("affinity_burning",{}).has("%d/core"%source),"guest trail actually ignites leader")
 			"water":
-				check(await until(func():return local.slow_until==0 and game.tactics.memory.get("affinity_drenched",{}).has("%d/core"%source)),
+				check(await until(func():return local[Conditions.STATE].slow_until_ms()==0 and game.tactics.memory.get("affinity_drenched",{}).has("%d/core"%source)),
 					"guest Dewfall cleanses host and actually Drenches leader")
 			"thorn":
 				check(await until(func():return game.tactics.memory.get("affinity_bleed",{}).has("%d/core"%source)),
@@ -398,9 +401,9 @@ func host(menu: Node) -> void:
 			mark("attack-speed-"+str(id), JSON.stringify(fixture))
 			mark("wallet-"+str(id), str(fixture.balance))
 		ExpeditionCase.Transitions.checkpoint(game, 1,true)
-		check(game.checkpoint_cards.get_child_count()==3,"host receives a full offer after mixed-class combat")
+		check(UIFixture.control(game,"checkpoint_cards").get_child_count()==3,"host receives a full offer after mixed-class combat")
 		check_speed_face(game, planned[1])
-		game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,str(planned[1].choice)))
+		game.send_garden_action(game.affinity_checkpoint_action(game.ui.checkpoint_revision(),str(planned[1].choice)))
 		mark("affinity-cards")
 		if not check(await until(func():return ids.all(func(id):return read("owned-"+str(id))=="ok")),
 			"all four players can claim independent upgrades"):return
@@ -537,9 +540,8 @@ func learn_connected_guest(game: Node) -> bool:
 
 
 func exercise_connected_host(game: Node, local: Dictionary, player: Dictionary, id: int, events: Array) -> bool:
-	player.guard_until=0
-	player.guard_charges=0
-	player.hurt_until=0
+	player[Protection.STATE] = player[Protection.STATE].clear_expedition()
+	player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
 	game.encounter.set_hp(-1, 180)
 	mark("ct-q")
 	if not check(await until(func():return player.get("warden_block",{}).get("focus")=="vanguard"),
@@ -552,10 +554,9 @@ func exercise_connected_host(game: Node, local: Dictionary, player: Dictionary, 
 	check(PlayerVitals.current_hp(player)==hp and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)==now and player.get("warden_sanctuary",{}).get("until",0)>now
 		and player.get("warden_holdfast",{}).get("actor")==id and local.get("warden_holdfast",{}).get("actor")==id
 		and blocks.call().size()==1 and blocks.call()[0].quality=="refined","remote Q block grants Holdfast, creates Sanctuary and runs one source-owned Catalyst")
-	local.guard_until=0
-	local.guard_charges=0
+	local[Protection.STATE] = local[Protection.STATE].clear_expedition()
 	mark("ct-r")
-	if not check(await until(func():return player.warden_block.quake_used and local.guard_charges>0),
+	if not check(await until(func():return player.warden_block.quake_used and local[Protection.STATE].charge_count()>0),
 		"actual remote Root Quake consumes preparation and shelters nearby host"):return false
 	check(blocks.call().size()==1 and events.filter(func(e):return e.kind=="class_action" and e.source_actor==id).size()==1,
 		"one remote R response with no duplicate Ward or class activation")
@@ -635,7 +636,7 @@ func exercise_ranger_host(game: Node,id: int,entry: Vector3,target: Vector3,even
 		return (int(game.enemy_traits.get(RangerCombat.PREY,{}).get("owner",0))==id
 			and ranger.has(RangerCombat.DOUBLE) and read("ranger-prey-seen")=="ok")
 	if not check(await until(prey_ready),"actual guest Salvo tracks its survivor and prepares Double Draw"):return false
-	ally.strike_at=0
+	ally[WeaponActions.STATE] = ally[WeaponActions.STATE].with_ready_at(0)
 	ally.mouse_aim=false
 	ally.facing=direction
 	game.strike_enemy(1,ally,entry)
@@ -645,7 +646,7 @@ func exercise_ranger_host(game: Node,id: int,entry: Vector3,target: Vector3,even
 	if not check(await until(prey_spent),"host’s actual direct strike consumes the guest Ranger’s prep"):return false
 	var serial: int=game.combat_event_serial
 	var before := events.filter(func(e):return e.source_actor==id and e.kind=="weapon_contact").size()
-	ranger.strike_at=0
+	ranger[WeaponActions.STATE] = ranger[WeaponActions.STATE].with_ready_at(0)
 	mark("ranger-shoot")
 	var arrows := func() -> bool:
 		return game.combat_events.filter(func(e):return e.id>serial and e.kind=="projectile" and e.shape=="arrow").size()==2
@@ -686,7 +687,7 @@ func exercise_reaper_host(game: Node,id: int,entry: Vector3,target: Vector3,even
 	if not check(await until(q_ready,3000),"guest uses live Veil Passage with offensive Catalyst and replicated Momentum"):return false
 	check(not game.enemy_traits.has("core_strike_mark"),"connected Veil Passage generates no shared Mark")
 	var before := events.filter(func(e):return e.source_actor==id and e.kind=="weapon_contact").size()
-	reaper.strike_at=0
+	reaper[WeaponActions.STATE] = reaper[WeaponActions.STATE].with_ready_at(0)
 	mark("reaper-strike")
 	var spent := func() -> bool:
 		return not reaper.has(ReaperCombat.MOMENTUM) and events.filter(func(e):return e.source_actor==id and e.kind=="weapon_contact").size()==before+1
@@ -734,8 +735,7 @@ func exercise_oracle_host(game: Node,id: int,entry: Vector3) -> bool:
 	oracle[PlayerVitals.STATE] = oracle[PlayerVitals.STATE].with_hp(40)
 	host_player.pos=entry
 	host_player[PlayerVitals.STATE] = host_player[PlayerVitals.STATE].with_hp(60)
-	host_player.guard_until=0
-	host_player.guard_charges=0
+	host_player[Protection.STATE] = host_player[Protection.STATE].clear_expedition()
 	oracle[Cooldowns.STATE] = oracle[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	oracle.core_cast_until=0
 	oracle[Cooldowns.STATE] = oracle[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
@@ -750,15 +750,15 @@ func exercise_oracle_host(game: Node,id: int,entry: Vector3) -> bool:
 	var r_ready := func() -> bool:
 		var now := Time.get_ticks_msec()
 		return not Omens.strongest(game,host_player,Oracle.MERCY,now,id).is_empty() \
-			and int(host_player.guard_until)>now and read("oracle-r-seen")=="ok"
+			and int(host_player[Protection.STATE].guard_until_ms())>now and read("oracle-r-seen")=="ok"
 	if not check(await until(r_ready,2500),"remote Chime arms native Ward and projected Portent of Mercy"):return false
 	var before := int(PlayerVitals.current_hp(host_player))
 	var now := Time.get_ticks_msec()
-	host_player.hurt_until=0
+	host_player[Conditions.STATE] = host_player[Conditions.STATE].clear_grace()
 	Frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 1, PlayerLifecycle.generation(host_player), now, 1.0))
-	check(host_player.guard_charges==0 and PlayerVitals.current_hp(host_player)==before+6
+	check(host_player[Protection.STATE].charge_count()==0 and PlayerVitals.current_hp(host_player)==before+6
 		and not Omens.strongest(game,host_player,Oracle.MERCY,now,id).is_empty(),"remote Oracle Ward blocks and heals without spending a conditional recovery")
-	host_player.hurt_until=0
+	host_player[Conditions.STATE] = host_player[Conditions.STATE].clear_grace()
 	Frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 1, PlayerLifecycle.generation(host_player), now+1, 1.0))
 	check(PlayerVitals.current_hp(host_player)==before+4 and Omens.strongest(game,host_player,Oracle.MERCY,now+1,id).is_empty()
 		and not Omens.strongest(game,host_player,Oracle.SECOND_BREATH,now+1,id).is_empty(),
@@ -895,7 +895,7 @@ func plan_speed_offer(game: Node, player: Dictionary, reroll: bool) -> Dictionar
 
 
 func check_speed_face(game: Node, offer: Dictionary) -> void:
-	var face: VBoxContainer = game.checkpoint_cards.get_child(int(offer.choice)).get_child(0)
+	var face: VBoxContainer = UIFixture.control(game,"checkpoint_cards").get_child(int(offer.choice)).get_child(0)
 	var label: String = face.get_child(2).get_child(0).text
 	var preview := "Attack speed: %s → %s attacks/sec" % [offer.before, offer.after]
 	check(face.get_child(0).text=="Light Grip" and preview in label,
@@ -903,7 +903,7 @@ func check_speed_face(game: Node, offer: Dictionary) -> void:
 
 
 func has_attack_speed(game: Node, player: Dictionary, stats: Dictionary, expected: String) -> bool:
-	var summary := RunSummary.project(game,player,stats)
+	var summary := UIFixture.summary(game,player,stats)
 	return summary.get("totals",[]).any(func(row):return row[0]=="Attack speed" and row[1]==expected+" attacks/sec")
 
 
@@ -950,18 +950,18 @@ func guest(menu: Node, role: String) -> void:
 		if not check(await until(func():return game.participation.floor()==8 and game.at_graft_altar(game.players[id])),
 			"guest has reached the same altar"):return
 		game.send_garden_action("graft")
-		if not check(await until(func():return game.graft_menu.visible and game.graft_view.data.get("floor",0)==8),
+		if not check(await until(func():return UIFixture.control(game,"graft_menu").visible and UIFixture.control(game,"graft_view").data.get("floor",0)==8),
 			"guest receives its authoritative altar choices"):return
-		var request := Improvements.request(game.graft_view.data,selection_fields[0],selection_fields[1])
+		var request := Improvements.request(UIFixture.control(game,"graft_view").data,selection_fields[0],selection_fields[1])
 		game.send_garden_action(request)
 		if not check(await until(func():
 			var copies: Array = game.players[id].get("graft_improvements",{}).get("copies",[])
 			return copies.size()==1 and copies[0].id==selection_fields[0] and copies[0].item==selection_fields[1]),
 			"guest receives its committed purchase once in owner details"):return
 		game.send_garden_action(request)
-		if not check(await until(func():return "already used" in game.graft_view.data.get("status","")),
+		if not check(await until(func():return "already used" in UIFixture.control(game,"graft_view").data.get("status","")),
 			"guest receives duplicate refusal"):return
-		game.toggle_overlay(null)
+		game.ui.close_panels()
 		mark("graft-seen-"+str(id))
 	if not check(await until(func():return read("strike-"+str(id))=="ok" and game.stage._has_experimental_floor()),"guest sees generated Frost floor"):return
 	game.send_action(true)
@@ -1030,18 +1030,18 @@ func guest(menu: Node, role: String) -> void:
 		return
 	if affinity_cards_case:
 		var offer_received := func() -> bool:
-			return read("affinity-cards")=="ok" and game.checkpoint_offer_revision>0 and game.checkpoint_cards.get_child_count()==3
+			return read("affinity-cards")=="ok" and game.ui.checkpoint_revision()>0 and UIFixture.control(game,"checkpoint_cards").get_child_count()==3
 		if not check(await until(offer_received),"mixed-class guest receives three eligible cards"):return
 		var speed: Dictionary = JSON.parse_string(read("attack-speed-"+str(id)))
 		if int(speed.spent) > 0:
-			var revision: int = game.checkpoint_offer_revision
+			var revision: int = game.ui.checkpoint_revision()
 			var reroll: String = game.affinity_checkpoint_action(revision, "reroll")
 			game.send_garden_action(reroll)
 			game.send_garden_action(reroll)
-			if not check(await until(func(): return game.checkpoint_offer_revision > revision),
+			if not check(await until(func(): return game.ui.checkpoint_revision() > revision),
 				"one guest receives a rerolled offer after replaying the first revision"):return
 		check_speed_face(game, speed)
-		game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,str(int(speed.choice))))
+		game.send_garden_action(game.affinity_checkpoint_action(game.ui.checkpoint_revision(),str(int(speed.choice))))
 		var received := func() -> bool:
 			var player: Dictionary = game.players.get(id,{})
 			var copies: Array = player.get("affinity_run_cards",[])
@@ -1164,11 +1164,10 @@ func verify_current_snapshot_host(game: Node, ids: Array, local: Dictionary) -> 
 	# Two nonlethal authority hits within one frame. There is no intervening
 	# fast snapshot of the partially depleted armor or first HP value.
 	local[PlayerVitals.STATE] = PlayerVitals.Health.new(250,250)
-	local.guard_until=0
-	local.guard_charges=0
+	local[Protection.STATE] = local[Protection.STATE].clear_expedition()
 	var now := Time.get_ticks_msec()
 	for hp in [10,120]:
-		local.hurt_until=0
+		local[Conditions.STATE] = local[Conditions.STATE].clear_grace()
 		IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(local), now, float(hp)/game.Life.Preview.scale(), 0, game.tactics.position)
 	var burst: Array = game.combat_events.filter(func(e):return e.shape=="wood_burst" and e.get("label")=="Bark break")
 	check(not local.has(wood.GRANTS) and burst.size()==1 and PlayerVitals.current_hp(local)<250 and PlayerVitals.current_hp(local)>0,"host consumes Bark once and emits one break response")
@@ -1269,7 +1268,7 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 			scout.stagger_until=Time.get_ticks_msec()+6000
 			game.encounter.register_scout(scout)
 		var caster: Dictionary = game.players[ids[0]]
-		caster.strike_at = 0
+		caster[WeaponActions.STATE] = caster[WeaponActions.STATE].with_ready_at(0)
 		game.strike_enemy(ids[0],caster,caster.pos)
 		if not check(await until(func():return game.trait_events.any(func(e):
 			return e.get("graft_source",{}).get("component_id")=="monster:ashen_hart"),1300),
@@ -1317,7 +1316,7 @@ func sample_guest_snapshots(game: Node, id: int) -> void:
 				starts[marker]=now
 		if final_family_mix:
 			var view: Dictionary=game.players.get(id,{})
-			saw_charge=saw_charge or str(game.player_hud.state.get("affinity_feedback","")).contains("Storm Charge")
+			saw_charge=saw_charge or str(UIFixture.control(game,"player_hud").state.get("affinity_feedback","")).contains("Storm Charge")
 			saw_well=saw_well or view.get("attack_hints",[]).any(func(hint):return hint.get("skill")=="gravity_well")
 		var marker:=int(game.drop_pos.x)
 		if starts.has(marker) and not observed.has(marker) and game.players.size()==4 and game.enemy_health()>400:

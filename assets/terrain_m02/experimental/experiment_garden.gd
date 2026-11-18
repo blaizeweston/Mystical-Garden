@@ -278,7 +278,7 @@ func contribute(quote: Dictionary) -> bool:
 	return accepted
 
 func advance_assimilation(elapsed: float, in_wilds: bool) -> void:
-	if elapsed <= 0.0 or assimilation.queue.is_empty() or get_tree().paused or not Tx.session_writable(game):
+	if elapsed <= 0.0 or assimilation.queue.is_empty() or get_tree().paused or not game.persistence_session.can_write():
 		return
 	var next := assimilation.plan(game.progress.heart.progression_work(elapsed, in_wilds))
 	var knowledge: int = next.earned
@@ -302,7 +302,7 @@ func _offering_studies(items: Dictionary) -> Dictionary:
 	var state := assimilation.summary()
 	state.available = game.progress.heart.available_insight(game.progress)
 	state.selected = Study.quote(items).knowledge if not items.is_empty() else 0
-	state.blocked = Tx.pending_notice(game)
+	state.blocked = game.persistence_session.pending_notice()
 	return state
 
 func _study_light(value: float, seconds: float, settle := false) -> void:
@@ -483,7 +483,7 @@ func _may_place() -> bool:
 	if not game.players.has(game.HOST) or not game.multiplayer.is_server() or not game.slot_claimed:
 		return false
 	var player: Dictionary = game.players[game.HOST]
-	return not Participation.is_wild(player) and not PlayerLifecycle.fallen(player) and game.participation.travel_kind().is_empty() and reveal == null and Tx.session_writable(game)
+	return not Participation.is_wild(player) and not PlayerLifecycle.fallen(player) and game.participation.travel_kind().is_empty() and reveal == null and game.persistence_session.can_write()
 
 func place(kind: String, target: Vector2, yaw: float, moving: int = 0) -> bool:
 	var refusal := _build_refusal(kind, target, yaw, moving)

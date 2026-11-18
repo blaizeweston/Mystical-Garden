@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -42,7 +43,7 @@ func run():
   game.progress.add_parts(part,1);var definition:=Items.get_item(Items.part_id(part));paths[definition.icon]=true;total+=1
   check(ResourceLoader.exists(definition.icon) and not str(definition.icon).contains("/seeds/"),"independent component icon "+str(part))
  check(total==48 and paths.size()==48,"all normal and rare plant components have unique icons")
- var view=game.inventory_view;view.refresh();view.filter_pick.select(0);view.storage_pick.select(0);view.key="";view.refresh()
+ var view=UIFixture.control(game,"inventory_view");view.refresh();view.filter_pick.select(0);view.storage_pick.select(0);view.key="";view.refresh()
  check(view.source()=="all" and view.shown.any(func(e):return e.bucket=="shared" and Items.get_item(e.item).category=="plant_part"),"default Garden view includes harvested shared plant parts")
  check(view.shown.size()>40 and view.grid.get_child_count()==40 and not view.next_page.disabled,"large collection is paginated")
  var first: Dictionary=view.shown[0];var moved: Dictionary={"type":"garden_item_stack","source":first.bucket,"item":first.item,"quantity":first.quantity,"key":first.key}

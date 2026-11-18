@@ -36,7 +36,7 @@ Everything else lives in new folders: `neural_arena/`, `mob_sim/` and `ai/`, plu
 | `game.gd` | Added the `CombatClock` constant | Gives combat rules one replaceable time source |
 | `game.gd` | 52 combat time reads now call `CombatClock.now()` | Pause, slow motion, fast-forward and repeatable fights all need combat time the arena can control |
 | `game.gd` | Moved the three enemy update lines from `_physics_process` into a new `tick_enemies(delta, now)` | Gives the arena one function to replace, so it can run the bridge instead of the scripted scouts |
-| `game.gd` | Added the **Neural Arena** button after **Return to Main Menu** in `build_hud` | Requested entry point. It is hidden when the arena files are absent |
+| `game.gd` | The original commit added the **Neural Arena** button in `build_hud`; the integration now mounts it through `GameplayUI.configure_arena_menu` | Requested entry point. It is hidden when the arena files are absent |
 | 16 other scripts | 25 combat time reads now call `preload("res://combat_clock.gd").now()` | Same reason as above. The full list is below |
 | `tools/test_map.json` | Registered the clock, `tick_enemies`, the button and the converted reads | Keeps the validation planner's code fingerprints accurate |
 | `docs/MECHANICS_TEST_MAP.md` | Regenerated from the map | Generated file |
@@ -66,8 +66,8 @@ These five reads in `game.gd` are not combat rules, so they were left alone:
 |---|---|
 | `tick_enemies` is renamed, moved or split | The override in `arena_world.gd` |
 | `LeaderBehavior.tick` or `ScoutBehavior.tick` signatures change | `tick_enemies` in `game.gd` and `arena_world.gd` |
-| `build_hud` or the exit row moves | The button, and the `build_hud#neural_arena_button` region in `tools/test_map.json` |
-| `save_button`, `host_button`, `join_button`, `leave_button`, `abandon_button` or `appearance_button` change, or the button's "Neural Arena" label changes | `_trim_session_menu` in `arena_world.gd` |
+| Gameplay menu presentation changes | `GameplayUI.configure_arena_menu`, its `arena_open`/`arena_setup` intentions, `Game._handle_ui_request`, and `ArenaWorld._handle_ui_request` |
+| Arena menu options change | `_trim_session_menu` requests `ui.configure_arena_menu(false, true)`; do not restore removed Game control fields or inspect private UI children |
 | `world.tscn` changes its root script or is renamed | `arena_entry.gd`, which applies `arena_world.gd` to that scene |
 
 ### 2. Combat clock reads
@@ -114,7 +114,7 @@ New combat rule code should call the clock rather than `Time.get_ticks_msec()`. 
 
 | Owner | Members used |
 |---|---|
-| `game.gd` | `players`, `motions`, `combat_velocity`, `mouse_controls`, `HOST`, `status`, `spectator_view`, `closest_enemy`, `enemy_position`, `dodge_player`, `use_class_skill`, `revive_player`, `weapon_stats`, `add_button`, `toggle_overlay` |
+| `game.gd` | `players`, `motions`, `combat_velocity`, `mouse_controls`, `HOST`, `status`, `spectator_view`, `closest_enemy`, `enemy_position`, `dodge_player`, `use_class_skill`, `revive_player`, `weapon_stats` |
 | Encounter roster | `encounter.scout`, `scout_count`, `living_scout_count`, `alive`, `hp`, `set_hp`, `token`, `register_scout`, `clear_scouts` |
 | `expedition_participation.gd` | `active`, `epoch`, `contains`, `seed`, `reset_run`, `enter`, `detach`, `detach_all`, `savepoint`, `restore_savepoint` |
 | `network_session.gd` | `role`, `transport`, `binding`, `bind_character`, `start_join`, `release_peer`, `peer_for`, `ready_for`, `slot_for` |
@@ -137,13 +137,13 @@ New combat rule code should call the clock rather than `Time.get_ticks_msec()`. 
 
 ### 6. Validation map entries
 
-`tools/test_map.json` stores exact code text, so these entries must change with the code:
+`tools/test_map.json` owns coverage; retained exact anchors live in `tools/validation_scope_matches.json`. Keep ownership and matching records aligned without rewriting historical baselines:
 
 | Entry | Covers |
 |---|---|
 | `systems.combat.files` | `combat_clock.gd` and its `.uid` |
 | `game_functions.tick_enemies` | Ownership of the new function |
-| `game_regions.build_hud.neural_arena_button` | The menu button |
+| `systems.gameplay_ui` and `game_functions.configure_gameplay_ui` / `_handle_ui_request` | UI-owned Arena controls and authorized requests |
 | `file_regions.<file>.regions.shared_combat_clock` | The converted reads in each of the 16 scripts |
 | `game_regions`, text containing `CombatClock.now()` | The converted reads in `game.gd` |
 
@@ -152,7 +152,7 @@ Run `python tools/test_workflow.py document --project . --engine <godot>` after 
 ## Removing the arena
 
 1. Delete `neural_arena/`.
-2. Remove the button from `build_hud`, along with its region in `tools/test_map.json`.
+2. Remove its UI menu options and the authorized `arena_open` request. Keep other gameplay-menu coverage intact.
 3. Keep `combat_clock.gd` and `tick_enemies` if the neural net is still planned, because the training loop needs both.
 
 ## Current limits
@@ -186,3 +186,11 @@ All arena tests use their own temporary user data folder and never touch real sa
 The same 12 suites fail on the unmodified commit `b1d1291` with the same failure messages, so the arena changes did not cause them:
 
 `developer_garden`, `experimental_terrain`, `garden_growth`, `garden_returns`, `garden_spring`, `heart_growth_visual`, `heart_progression`, `inventory_party`, `production_persistence`, `regular_enemy_responses`, `serializer_integrity`, `tree_portraits`.
+
+## Integrated owner/UI checkpoint
+
+The 2026-11-18 integration retains the newer typed weapon, protection and hit-condition owners, whole-run forfeiture, explicit persistence-session state and complete UI feature ports. Moved combat reads use `CombatClock.now()`; toast, connection and audio timing stay on real time. The Arena prepares immutable owner values instead of retired raw actor timers. The world replacement waits for queued departure to finish, preserving the `MysticalGarden` RPC root. Arena entry describes the current whole-run forfeiture, including safe-pouch contents; courier deliveries remain protected.
+
+Native compilation no longer assumes another contributor's absolute toolchain path. Run `mob_sim/native/build.ps1 -Zig <zig.exe> -Interface <header-directory>`, or pass the existing llvm-mingw `-Toolchain` option. Generate the header with Godot 4.7.2's `--dump-gdextension-interface` in an isolated SDK directory. CPU/OS AVX2 detection is explicit and no longer relies on a hidden libgcc runtime symbol; numerical kernels and FP flags are unchanged. Missing optional native binaries return an unavailable result rather than engine load errors.
+
+Focused integration checks passed six owner/UI/forfeiture suites and a real matching host/guest pair. The source-built native core passed its checks, and the Arena passed all 49 checks, including all five classes, twenty regular species, real neural movement/damage, attacker limits, repeatability, time controls and save canaries. The disposable checkout needed its ignored native DLL and model artifacts generated first. The Arena check used an explicitly recorded deterministic NumPy-initialized untrained fixture; this is not training, PyTorch parity, separate-PC or internet evidence. The original failed runs remain archived. Production save activation remains off.

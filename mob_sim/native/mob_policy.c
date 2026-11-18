@@ -1,6 +1,7 @@
 #include "mob_policy.h"
 
 #include <math.h>
+#include <cpuid.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -40,9 +41,22 @@ static void add_scaled_avx2(float *out, const float *column, float scale, int co
 
 static AddScaled add_scaled = add_scaled_base;
 
+/* Query CPU and OS vector support directly. This avoids a hidden dependency
+ * on libgcc's __cpu_model when building the extension with another Clang driver. */
+static int supports_avx2(void) {
+    unsigned int eax, ebx, ecx, edx;
+    if (__get_cpuid_max(0, NULL) < 7) return 0;
+    __cpuid(1, eax, ebx, ecx, edx);
+    if ((ecx & (1u << 27)) == 0 || (ecx & (1u << 28)) == 0) return 0;
+    unsigned int xcr0_low, xcr0_high;
+    __asm__ volatile ("xgetbv" : "=a"(xcr0_low), "=d"(xcr0_high) : "c"(0));
+    if ((xcr0_low & 6u) != 6u) return 0;
+    __cpuid_count(7, 0, eax, ebx, ecx, edx);
+    return (ebx & (1u << 5)) != 0;
+}
+
 static void choose_kernel(void) {
-    __builtin_cpu_init();
-    add_scaled = __builtin_cpu_supports("avx2") ? add_scaled_avx2 : add_scaled_base;
+    add_scaled = supports_avx2() ? add_scaled_avx2 : add_scaled_base;
 }
 
 static void dense_apply(const Dense *layer, const float *input, float *out) {

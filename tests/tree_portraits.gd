@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 var failed:=false
 func _initialize(): call_deferred("run")
 func check(ok: bool,message: String):
@@ -13,8 +14,8 @@ func run():
 	game.progress.discoveries.fill(false)
 	game.progress.discoveries[0]=true
 	game.progress.discoveries[1]=true
-	game.toggle_overlay(game.progression_menu)
-	var panel=game.progression_view
+	game.ui.toggle_panel("progression")
+	var panel=UIFixture.control(game,"progression_view")
 	panel.refresh()
 	var tree=panel.tree
 	var node: Dictionary=tree.node_at("0")

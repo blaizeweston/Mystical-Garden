@@ -13,7 +13,7 @@ static func open_from(game: Node) -> void:
 	if game.participation.active() and game.network_session.role() in ["Solo", "Host"]:
 		var dialog := ConfirmationDialog.new()
 		dialog.title = "End this expedition?"
-		dialog.dialog_text = "Opening the Neural Arena ends the expedition. Only safe-pouch contents are kept, and unbanked loot is lost."
+		dialog.dialog_text = "Opening the Neural Arena ends the expedition. Your run's Class XP, monster familiarity and carried items, including the safe pouch, are forfeited. Courier deliveries remain."
 		dialog.ok_button_text = "Open Neural Arena"
 		dialog.confirmed.connect(_leave_for_arena.bind(game))
 		game.add_child(dialog)
@@ -30,7 +30,7 @@ static func _leave_for_arena(game: Node) -> void:
 	var menu: Node = tree.current_scene
 	if menu != null and menu != game:
 		menu.queue_free()
-	tree.process_frame.connect(launch.bind(tree, Config.new(), false), CONNECT_ONE_SHOT)
+	_launch_after_departure(tree, Config.new(), false)
 
 
 ## Creates the arena world. With start set, the session begins without showing the setup screen.
@@ -53,4 +53,11 @@ static func relaunch(world: Node, config: Config) -> void:
 	world.returning_to_title = true
 	world.SessionWorld.offline(world)
 	world.queue_free()
-	tree.process_frame.connect(launch.bind(tree, config, true), CONNECT_ONE_SHOT)
+	_launch_after_departure(tree, config, true)
+
+static func _launch_after_departure(tree: SceneTree, config: Config, start: bool) -> void:
+	# process_frame is emitted before queued nodes are freed. Preserve the RPC root
+	# name by admitting its replacement after the departed world is actually gone.
+	await tree.process_frame
+	await tree.process_frame
+	launch(tree,config,start)

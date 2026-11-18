@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Progress = preload("res://progress.gd")
 const Stage = preload("res://stage.gd")
 var failed := false
@@ -86,5 +87,5 @@ func run():
 
 func interact(game,p: Dictionary):
 	game.send_action(false)
-	if game.planting_menu.visible: game.send_garden_action("plant_at_%d_%d"%[game.planting_view.slot,p.seed_choice])
+	if UIFixture.control(game,"planting_menu").visible: game.send_garden_action("plant_at_%d_%d"%[UIFixture.control(game,"planting_view").slot,p.seed_choice])
 

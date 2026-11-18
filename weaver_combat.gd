@@ -1,4 +1,5 @@
 extends RefCounted
+const Protection = preload("res://player_protection.gd")
 ## Host-side connected Weaver effects. Extra areas and delayed effects are native spell damage.
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -127,7 +128,7 @@ static func tick(game: Node, now: int) -> void:
 		elif effect.kind == "weaver_burst" and now >= int(effect.due):
 			player.erase("weaver_capstone")
 			burst(game,player,effect,now)
-			if not game.Transactions.session_writable(game):
+			if not game.persistence_session.can_write():
 				return
 		elif effect.kind == "weaver_canopy":
 			if now >= int(effect.until):
@@ -146,7 +147,7 @@ static func canopy_contacts(game: Node, canopy: Dictionary, now: int) -> void:
 			continue
 		canopy.recipients[id] = true
 		# Standard one-charge Ward with no affinity block response attached.
-		game.grant_guard(ally,now+Progression.CANOPY_WARD_MS,1)
+		ally[Protection.STATE] = ally[Protection.STATE].grant(now+Progression.CANOPY_WARD_MS,1,Time.get_ticks_msec(),game.participation.epoch())
 		Journal.event("combat","canopy_ward",{"actor":canopy.owner,"cast":canopy.visual_id,"recipient":id})
 
 

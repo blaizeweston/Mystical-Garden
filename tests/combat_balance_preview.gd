@@ -1,4 +1,9 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
+
+const WeaponActions = preload("res://player_weapon_actions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -73,7 +78,7 @@ func run() -> void:
 
 
 func verify_health_pool_layout(game: Node, player: Dictionary) -> void:
-	var hud: Control = game.player_hud
+	var hud: Control = UIFixture.control(game,"player_hud")
 	var chart_script := preload("res://exploration.gd")
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(54)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(80)
@@ -108,7 +113,7 @@ func verify_strikes(game: Node, player: Dictionary) -> void:
 		var seen: Dictionary={}
 		for trial in 16:
 			player.power=0
-			player.strike_at=0
+			player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 			game.encounter.clear_scouts()
 			game.projectile_queue.clear()
 			game.encounter.set_hp(-1, 600)
@@ -118,7 +123,7 @@ func verify_strikes(game: Node, player: Dictionary) -> void:
 			check(stats.damage_min==band.x and stats.damage_max==band.y,"loadout resolves the configured band")
 			if trial==0:
 				check(game.Weapons.describe(stats).contains(Preview.range_label(band)+" damage"),"weapon preview shows that same band")
-				var summary: Dictionary=preload("res://run_summary_panel.gd").project(game,player,stats)
+				var summary: Dictionary=UIFixture.summary(game,player,stats)
 				check(summary.totals[0]==["Damage",Preview.range_label(band)],"Tab summary shows the same band")
 			game.strike_enemy(1,player,player.pos)
 			if game.projectile_queue.is_empty():
@@ -140,7 +145,7 @@ func verify_strikes(game: Node, player: Dictionary) -> void:
 
 func verify_multi_target(game: Node, player: Dictionary) -> void:
 	player.weapon_kind=2
-	player.strike_at=0
+	player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 	game.encounter.set_hp(-1, 600)
 	game.tactics.position=Vector3(0,0,1.4)
 	game.encounter.clear_scouts()
@@ -159,20 +164,20 @@ func verify_guard_and_core(game: Node, player: Dictionary) -> void:
 	player.weapon_kind=0
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
-	player.hurt_until=0
+	player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
 	game.use_class_skill(1,player,0)
-	check(int(player.guard_charges)>0,"real Warden Guard granted")
+	check(int(player[Protection.STATE].charge_count())>0,"real Warden Guard granted")
 	var now:=Time.get_ticks_msec()
 	var guarded_health: PlayerVitals.Health = player[PlayerVitals.STATE]
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now, 1)
-	check(is_same(player[PlayerVitals.STATE],guarded_health) and int(player.guard_charges)==0,"guard prevents an authored monster hit before health changes")
+	check(is_same(player[PlayerVitals.STATE],guarded_health) and int(player[Protection.STATE].charge_count())==0,"guard prevents an authored monster hit before health changes")
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now+300, 1)
 	check(guarded_health.hp()==100.0 and PlayerVitals.current_hp(player)==90.0,"a landed authored monster hit installs exactly 10 HP damage")
 	player.weapon=game.Parts.index_of("plant:frostbell")
 	player.core_ready_at=0
 	player.core_cast_until=0
 	player.cast_until=0
-	player.attack_until=0
+	player[WeaponActions.STATE] = player[WeaponActions.STATE].clear_active()
 	player.pos=Vector3.ZERO
 	game.encounter.set_hp(-1, 600)
 	game.encounter.clear_scouts()
@@ -254,10 +259,10 @@ func verify_vitals(game: Node, player: Dictionary) -> void:
 	game._process(.016)
 	game.Life.Sustain.restore(game,player,4,"fixture_heal")
 	game._process(.016)
-	check(PlayerVitals.current_hp(player)==24 and game.player_hud.health_orb.hp==24 and game.player_hud.health_orb.from_hp==20,"orb tracks a current authoritative heal")
+	check(PlayerVitals.current_hp(player)==24 and UIFixture.control(game,"player_hud").health_orb.hp==24 and UIFixture.control(game,"player_hud").health_orb.from_hp==20,"orb tracks a current authoritative heal")
 	game.Life.Sustain.restore(game,player,4,"fixture_heal")
 	game._process(.016)
-	check(PlayerVitals.current_hp(player)==28 and game.player_hud.health_orb.from_hp==24,"separate authoritative heals receive separate highlights")
+	check(PlayerVitals.current_hp(player)==28 and UIFixture.control(game,"player_hud").health_orb.from_hp==24,"separate authoritative heals receive separate highlights")
 	game.add_player(2)
 	var helper: Dictionary=game.players[2]
 	ExpeditionCase.set_membership(game, helper, true)
@@ -268,7 +273,7 @@ func verify_vitals(game: Node, player: Dictionary) -> void:
 	game._process(.016)
 	check(PlayerVitals.current_hp(player)==80 and PlayerVitals.maximum_hp(player)==80 and player.lost_health==20,"revival fills the reduced pool")
 	check(Orb.fractions(80,80,20).is_equal_approx(Vector2(.8,.8)),"orb leaves a fifth visibly sealed")
-	var rows: Array=game.player_hud.party_panel.members(game.players,2)
+	var rows: Array=UIFixture.control(game,"player_hud").party_panel.members(game.players,2)
 	check(rows.size()==1 and rows[0].lost_health==20 and rows[0].hp==80,"compact orb receives only authoritative party vitals")
 
 

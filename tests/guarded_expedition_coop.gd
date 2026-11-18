@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -65,7 +66,7 @@ func start() -> bool:
  world.guest_character.path=path
  world.slot_claimed=host
  world.network_session.configure_join_origin(not host)
- var started:=Owner.new().start(world,slots if host else null,0,Slots._save_digest(G) if host else "",roster,0 if host else 1,Slots._save_digest(path))
+ var started: Dictionary =world.persistence_session.start(world.progress,world.local_character,world.guest_character,slots if host else null,0,Slots._save_digest(G) if host else "",roster,0 if host else 1,Slots._save_digest(path))
  if not Owner.completed(started):
   check(false,"guarded startup "+str(started))
   world.free()
@@ -202,7 +203,7 @@ func host_run() -> void:
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):return ERR_CANT_CREATE if phase=="publish_receipt" else OK)
  ExpeditionCase.Transitions.checkpoint(world, 1,false)
  mark("extract",str(world.participation.travel_epoch()))
- if not await until(func():return not world.participation.active() and Tx.pending_notice(world)==Tx.CLEANUP_NOTICE):
+ if not await until(func():return not world.participation.active() and world.persistence_session.pending_notice()==Tx.CLEANUP_NOTICE):
   check(false,"party extraction commits with cleanup pending")
   return
  # Production keeps streaming public state after a cleanup-pending commit.
@@ -222,7 +223,7 @@ func host_run() -> void:
   return
  check(Slots._save_digest(G)==committed and world.progress.reserve(guest_identity).unknown==[0],"pending, duplicate votes and disconnect cannot change committed Garden")
  check(SessionCase.Session.peer_for(guest)==0 and not SessionCase.Session.ready_for(guest),"released guest link cannot authorize later work")
- record("party_extraction_cleanup",before,{"guest_seed":1,"notice":Tx.pending_notice(world),"offline_guest":true})
+ record("party_extraction_cleanup",before,{"guest_seed":1,"notice":world.persistence_session.pending_notice(),"offline_guest":true})
 
 func guest_run() -> void:
  check(SessionCase.World.join(world,"127.0.0.1")==OK,"guest joins with own lease")
@@ -259,10 +260,10 @@ func guest_run() -> void:
  verified.path=C
  check(verified.load_profile(false)==OK and verified.data.monsters[int(read("rewards"))]==1,"guest disk confirms one kill receipt")
  mark("saw-rewards")
- if not await until(func():return marked("cards") and world.checkpoint_menu.visible):
+ if not await until(func():return marked("cards") and UIFixture.control(world,"checkpoint_menu").visible):
   check(false,"guest sees checkpoint cards")
   return
- world.send_garden_action(world.affinity_checkpoint_action(world.checkpoint_offer_revision,"skip"))
+ world.send_garden_action(world.affinity_checkpoint_action(world.ui.checkpoint_revision(),"skip"))
  if not await until(func():return marked("advance")):
   check(false,"guest checkpoint readiness prompt")
   return
@@ -294,8 +295,8 @@ func guest_run() -> void:
   return
  world.toast_until=0
  world.refresh_feedback()
- check(world.feedback.text==Tx.CLEANUP_NOTICE and Slots._save_digest(C)==after,"cleanup warning survives toast and extraction does not duplicate profile credit")
- record("guest_transition_and_warning",original,{"floor":world.participation.floor(),"feedback":world.feedback.text})
+ check(UIFixture.control(world,"feedback").text==Tx.CLEANUP_NOTICE and Slots._save_digest(C)==after,"cleanup warning survives toast and extraction does not duplicate profile credit")
+ record("guest_transition_and_warning",original,{"floor":world.participation.floor(),"feedback":UIFixture.control(world,"feedback").text})
  SessionCase.World.leave(world,"Guest fixture complete")
  check(world.network_session.transport()==null and world.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"guest offline before detachment")
  mark("guest-offline")

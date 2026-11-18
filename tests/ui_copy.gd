@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 var failed := false
@@ -31,10 +32,10 @@ func run() -> void:
  game._process(0.016)
  player.pos = game.Stage.HEART
  game._process(0.016)
- check(game.guide.text == "E  Heart", "Heart prompt names the interaction")
+ check(UIFixture.control(game,"guide").text == "E  Heart", "Heart prompt names the interaction")
  player.pos = game.Stage.ALTAR
  game._process(0.016)
- check(game.guide.text == "E  Altar", "Altar prompt omits the service list")
+ check(UIFixture.control(game,"guide").text == "E  Altar", "Altar prompt omits the service list")
  ExpeditionCase.set_world(game, {"encounter_number": 3})
  game.encounter.set_hp(-1, 0)
  game.encounter.clear_scouts()

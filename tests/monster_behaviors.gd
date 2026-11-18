@@ -1,4 +1,6 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -26,10 +28,10 @@ func run():
  game.encounter.set_hp(0, 0);game.apply_weapon_hit(p,-1,p.pos,{"damage":4},3200)
  check(game.enemy_health()==30,"protection ends immediately when grazer dies")
  var lure=game.make_scout(12,Vector3(0,0,7),4);lure.mode="lure";lure.blast=Vector3(0,0,4);lure.windup=4000
- p.pos=lure.blast;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0;p.guard_until=0
+ p.pos=lure.blast;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p[Conditions.STATE] = p[Conditions.STATE].clear_grace();p[Protection.STATE] = p[Protection.STATE].clear_guard()
  var lure_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.scout_hit(game,game.Enemies.get_kind(12),lure))
  preload("res://scout_behavior.gd").release(game, lure,game.Enemies.get_kind(12),4000)
- check(PlayerVitals.current_hp(p)==100-lure_damage and p.pos.z>4.5 and p.slow_until>4000,"Lure damages, slows and pulls only at its telegraphed point")
+ check(PlayerVitals.current_hp(p)==100-lure_damage and p.pos.z>4.5 and p[Conditions.STATE].slow_until_ms()>4000,"Lure damages, slows and pulls only at its telegraphed point")
  p.pos=Vector3(3,0,4);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);lure.mode="lure";lure.blast=Vector3(0,0,4)
  preload("res://scout_behavior.gd").release(game, lure,game.Enemies.get_kind(12),5000)
  check(PlayerVitals.current_hp(p)==100 and p.pos==Vector3(3,0,4),"dodging the lure circle avoids damage and forced movement")
@@ -47,7 +49,7 @@ func run():
  Attacks.lock(game,hart,"vault",landing,now)
  var vault: Dictionary=game.attack_hints_snapshot().filter(func(h):return h.id==0)[0]
  check(vault.role=="vault" and hart.attack.variant==Attacks.VAULT_ID and vault.to[2]==landing.z,"vault announces the committed move and landing")
- p.pos=landing;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0;p.guard_until=0
+ p.pos=landing;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p[Conditions.STATE] = p[Conditions.STATE].clear_grace();p[Protection.STATE] = p[Protection.STATE].clear_guard()
  var hart_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.scout_hit(game,game.Enemies.get_kind(17),hart))
  preload("res://scout_behavior.gd").release(game, hart,game.Enemies.get_kind(17),now)
  check(hart.pos==landing and PlayerVitals.current_hp(p)==100-hart_damage and game.enemy_hazards.is_empty(),"Hart vault lands without using its charge trail")
@@ -64,13 +66,13 @@ func run():
  Attacks.lock(game,stag,"charge",Vector3(0,0,4),now+2000)
  var corridor: Dictionary=game.attack_hints_snapshot().filter(func(h):return h.id==0)[0]
  check(is_equal_approx(corridor.width,stag.attack.width+Attacks.CONTACT_PADDING),"charge warning includes collision padding")
- p.pos=Vector3(corridor.width-.02,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0
+ p.pos=Vector3(corridor.width-.02,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
  var stag_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.scout_hit(game,game.Enemies.get_kind(2),stag))
  preload("res://scout_behavior.gd").release(game, stag,game.Enemies.get_kind(2),now+2000)
  check(PlayerVitals.current_hp(p)==100-stag_damage,"charge hits just inside its marked lane")
  stag.pos=Vector3.ZERO
  Attacks.lock(game,stag,"charge",Vector3(0,0,4),now+3000)
- p.pos=Vector3(corridor.width+.02,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0
+ p.pos=Vector3(corridor.width+.02,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
  preload("res://scout_behavior.gd").release(game, stag,game.Enemies.get_kind(2),now+3000)
  check(PlayerVitals.current_hp(p)==100,"charge misses just outside its marked lane")
 
@@ -85,17 +87,17 @@ func run():
   var point: Vector3=game.enemy_hazards[i].point
   check(is_equal_approx(point.z,web_hints[i].to[2]) and is_equal_approx(game.enemy_hazards[i].radius,web_hints[i].radius),"web warning matches hazard footprint")
 
- game.encounter.clear_scouts();game.encounter.register_scout(lure);p.pos=Vector3(0,0,4);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0;p.slow_until=0
+ game.encounter.clear_scouts();game.encounter.register_scout(lure);p.pos=Vector3(0,0,4);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p[Conditions.STATE] = p[Conditions.STATE].clear_grace();p[Conditions.STATE] = p[Conditions.STATE].cleanse_slow()
  lure.pos=Vector3(0,0,7);lure.ready=0;lure.windup=0;lure.engaged=true
  preload("res://scout_behavior.gd").tick(game, .016,now+5000)
  check(lure.windup>0 and lure.blast==p.pos,"live Lure aims its circle at a target instead of itself")
  var snare_due: int=lure.windup
  preload("res://scout_behavior.gd").release(game, lure,game.Enemies.get_kind(12),snare_due-1)
- check(lure.windup==snare_due and PlayerVitals.current_hp(p)==100 and p.slow_until==0,"committed Lure cannot resolve before its real windup")
+ check(lure.windup==snare_due and PlayerVitals.current_hp(p)==100 and p[Conditions.STATE].slow_until_ms()==0,"committed Lure cannot resolve before its real windup")
  var snare_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.scout_hit(game,game.Enemies.get_kind(12),lure))
  preload("res://scout_behavior.gd").release(game, lure,game.Enemies.get_kind(12),snare_due)
  Status.sync(game,snare_due)
- check(PlayerVitals.current_hp(p)==100-snare_damage and p.slow_until>snare_due and Status.snapshot(game,snare_due).any(func(event):return event.shape=="slow" and event.combo==1),"landed snare damages and displays Slowed at the real release time")
+ check(PlayerVitals.current_hp(p)==100-snare_damage and p[Conditions.STATE].slow_until_ms()>snare_due and Status.snapshot(game,snare_due).any(func(event):return event.shape=="slow" and event.combo==1),"landed snare damages and displays Slowed at the real release time")
 
  var memory: Dictionary=game.Learning.blank()
  memory.score={"ranged":8,"choke":8}

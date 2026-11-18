@@ -3,6 +3,9 @@ extends RefCounted
 const Preview = preload("res://combat_balance_preview.gd")
 const RENEWAL_INTERVAL_MS := 1000
 const COUNTER_WINDOW_MS := 3500
+const FRONT_GUARD_SPEED_SCALE := .4
+const FRONT_GUARD_MIN_DOT := .15
+const FRONT_GUARD_POINT_EPSILON_SQ := .01
 const WARD_MS := 1400
 const FOLLOWUP_POINTS := 1
 const MARK_POINTS := 1

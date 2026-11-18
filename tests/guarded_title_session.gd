@@ -1,4 +1,5 @@
 extends SceneTree
+const SessionCase = preload("res://tests/support/session_case.gd")
 
 const Session = preload("res://guarded_title_session.gd")
 const Slots = preload("res://save_slots.gd")
@@ -47,21 +48,21 @@ func startup(menu: Node) -> void:
  world.guest_character.path = profile
  var garden_digest := Slots._save_digest(garden)
  var profile_digest := Slots._save_digest(profile)
- var owner := Session.new()
+ var owner: Session = world.persistence_session
  lease_marker(marker, OS.get_process_id() + 1, 0)
  var marker_hash := Slots._save_digest(marker)
- var refused := owner.start(world, menu.storage, 0, garden_digest, menu.characters, 0, profile_digest)
+ var refused := owner.start(world.progress, world.local_character, world.guest_character, menu.storage, 0, garden_digest, menu.characters, 0, profile_digest, world.has_meta(&"experimental_terrain"))
  check(refused.state == "busy" and Slots._save_digest(marker) == marker_hash and not FileAccess.file_exists(profile_marker),
   "failed Garden claim unwinds only newly claimed profile")
  check(Slots._save_digest(profile) == profile_digest and Slots._save_digest(garden) == garden_digest, "claim refusal preserves saves")
  lease_marker(marker, OS.get_process_id() + 1, 60)
- refused = owner.start(world, menu.storage, 0, "wrong-digest", menu.characters, 0, profile_digest)
+ refused = owner.start(world.progress, world.local_character, world.guest_character, menu.storage, 0, "wrong-digest", menu.characters, 0, profile_digest, world.has_meta(&"experimental_terrain"))
  check(refused.reason == "stale_startup_confirmation" and not FileAccess.file_exists(marker) and not FileAccess.file_exists(profile_marker),
   "failed startup unwinds both acquired leases")
- check(Session.completed(owner.start(world, menu.storage, 0, garden_digest, menu.characters, 0, profile_digest)),
+ check(Session.completed(owner.start(world.progress, world.local_character, world.guest_character, menu.storage, 0, garden_digest, menu.characters, 0, profile_digest, world.has_meta(&"experimental_terrain"))),
   "expired lease can be replaced")
  var competing := Session.new()
- refused = competing.start(world, menu.storage, 0, garden_digest, menu.characters, 0, profile_digest)
+ refused = competing.start(world.progress, world.local_character, world.guest_character, menu.storage, 0, garden_digest, menu.characters, 0, profile_digest, world.has_meta(&"experimental_terrain"))
  check(refused.state == "busy" and owner.owns_leases(), "competing launch cannot release original owner")
  var renewed_before := Slots._save_digest(profile_marker)
  owner._heartbeat_at -= 2.0
@@ -73,6 +74,7 @@ func startup(menu: Node) -> void:
  owner._heartbeat_at -= 2.0
  check(not Session.completed(owner.tick()), "stale heartbeat refused")
  owner.release()
+ check(owner.is_guarded() and not owner.can_write() and not owner.authorizes(profile), "released owner never falls through to unguarded saving")
  check(Slots._save_digest(profile_marker) == renewed_before and not FileAccess.file_exists(marker), "release touches only owned markers")
  check(completed(successor.release_guarded(0)), "successor releases its profile")
  world.free()
@@ -90,8 +92,8 @@ func staggered_heartbeat(menu: Node) -> void:
  world.progress.path = garden
  world.local_character.path = profile
  world.guest_character.path = profile
- var owner := Session.new()
- check(Session.completed(owner.start(world, menu.storage, 0, garden_digest, menu.characters, 0, profile_digest)),
+ var owner: Session = world.persistence_session
+ check(Session.completed(owner.start(world.progress, world.local_character, world.guest_character, menu.storage, 0, garden_digest, menu.characters, 0, profile_digest, world.has_meta(&"experimental_terrain"))),
   "experimental session owns both leases before renewal")
  var first_garden := Slots._save_digest(garden_marker)
  var first_profile := Slots._save_digest(profile_marker)
@@ -123,7 +125,78 @@ func staggered_heartbeat(menu: Node) -> void:
  world.free()
  record("experimental_staggered_heartbeat", {"garden": garden_digest, "profile": profile_digest})
 
+
+func finalized(kind: Batch.Outcome, blocked := false, release_error := OK) -> Dictionary:
+ var value := Batch.Finalization.new()
+ value.outcome = kind
+ value.write_blocked = blocked
+ return {"error": release_error, "release_error": release_error, "state": "completed", "reason": "",
+  "value": {"outcome": value, "action_ran": true}}
+
+func session_state() -> void:
+ var ordinary := Session.new()
+ check(not ordinary.is_guarded() and not ordinary.owns_leases() and ordinary.can_write(),
+  "ordinary production route does not acquire guarded authority")
+ check(ordinary.begin_shutdown() and not ordinary.begin_shutdown() and ordinary.is_stopping(),
+  "shutdown is claimed once")
+ ordinary.finish_network_detach()
+ check(not ordinary.is_stopping(), "network detach may retain the current Garden")
+
+ var restored := Session.new()
+ var abort := finalized(Batch.Outcome.ABORTED_RESTORED)
+ restored.record_finalization(abort)
+ check(not restored.is_blocked() and restored.finalization_feedback(abort).notice.contains("original state was verified"),
+  "verified rollback remains retryable without claiming success")
+
+ var cleanup := Session.new()
+ var commit := finalized(Batch.Outcome.COMMITTED_CLEANUP_PENDING, true)
+ cleanup.record_finalization(commit)
+ check(cleanup.is_blocked() and not cleanup.can_publish_state(), "unreported blocked result is held")
+ var feedback := cleanup.finalization_feedback(commit)
+ check(feedback.notice == Session.CLEANUP_NOTICE and feedback.clear_status and cleanup.can_publish_state(),
+  "confirmed cleanup may publish its warning without resuming gameplay")
+ var projection := cleanup.status()
+ projection.blocked = false
+ projection.notice = "changed view"
+ cleanup.record_finalization(abort)
+ check(cleanup.is_blocked() and cleanup.pending_notice() == Session.CLEANUP_NOTICE,
+  "detached views and later callbacks cannot clear a committed cleanup hold")
+ cleanup.begin_shutdown()
+ cleanup.finish_network_detach()
+ check(cleanup.is_blocked(), "finishing network detach never clears recovery")
+
+ var uncertain := Session.new()
+ var unknown := finalized(Batch.Outcome.UNCERTAIN, true)
+ uncertain.record_finalization(unknown)
+ uncertain.finalization_feedback(unknown)
+ check(uncertain.is_blocked() and not uncertain.can_publish_state() and uncertain.pending_notice().contains("uncertain"),
+  "uncertainty holds simulation and its first recovery notice")
+ var retry := {"error": ERR_BUSY, "release_error": OK, "state": "pending_recovery",
+  "reason": "guarded_persistence_pending", "value": null}
+ check(uncertain.finalization_feedback(retry).notice.contains("uncertain"), "retry preserves the original uncertainty")
+ var return_view := uncertain.title_return_view("Guest", "ordinary message", "", PackedStringArray(["fixture-profile"]))
+ var title = load("res://main_menu.tscn").instantiate()
+ title.accept_persistence_return(return_view)
+ return_view.notice = "changed external view"
+ var title_view: Dictionary = title.persistence_return_view()
+ title_view.recovery_paths.clear()
+ check(title.return_message.contains("uncertain") and title.persistence_return_view().recovery_paths == PackedStringArray(["fixture-profile"]),
+  "title handoff is detached presentation and preserves recovery paths")
+ title.free()
+ uncertain.require_departure_recovery()
+ check(uncertain.pending_notice().begins_with("Departure save is uncertain"), "missing departure verdict has an explicit recovery operation")
+
+ var missing := Session.new()
+ missing.record_finalization({"state": "unresolved", "reason": "missing_gameplay_finalization", "release_error": OK})
+ check(missing.is_blocked() and not missing.can_publish_state(), "missing finalization cannot be invented as success")
+ var release_failed := Session.new()
+ var released := finalized(Batch.Outcome.COMMITTED, false, ERR_CANT_CREATE)
+ release_failed.record_finalization(released)
+ check(release_failed.is_blocked() and release_failed.finalization_feedback(released).notice.begins_with("Saved."),
+  "committed release failure stays committed and blocks another write")
+
 func run() -> void:
+ session_state()
  var legacy := Slots.new()
  var old = preload("res://progress.gd").new()
  old.path = legacy.legacy_garden
@@ -226,7 +299,7 @@ func run() -> void:
  menu.new_game()
  menu.confirmation.confirmed.emit()
  var started = current_scene
- check(started != menu and started.has_meta(Session.META), "confirmed replacement launches through guarded title")
+ check(started != menu and SessionCase.has_guarded_session(started), "confirmed replacement launches through guarded title")
  if started == menu:
   quit(1)
   return
@@ -252,7 +325,7 @@ func run() -> void:
  menu.app_settings.values.developer_mode = true
  check(Developer.open_garden(menu, false) == OK, "guarded developer launch")
  var dev = current_scene
- check(dev.has_meta(Session.META) and dev.has_meta(Developer.WORLD_META), "Developer Garden lease handoff")
+ check(SessionCase.has_guarded_session(dev) and dev.has_meta(Developer.WORLD_META), "Developer Garden lease handoff")
  var developer_path: String = dev.progress.path
  dev.progress.knowledge = 45
  dev.return_to_main_menu()

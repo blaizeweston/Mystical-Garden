@@ -48,8 +48,8 @@ static func begin(game: Node,kind: String) -> void:
  validate(game)
 
 static func request(game: Node,id: int,kind: String) -> void:
- if not game.Transactions.session_writable(game) or not game.players.has(id) or not Session.ready_for(game.players[id]): return
- if kind!="depart" and game.has_meta(game.Transactions.SESSION) and not game.encounter_rewarded: return
+ if not game.persistence_session.can_write() or not game.players.has(id) or not Session.ready_for(game.players[id]): return
+ if kind!="depart" and game.persistence_session.is_guarded() and not game.encounter_rewarded: return
  var p: Dictionary=game.players[id]
  if kind=="depart":
   if game.participation.active() or Participation.is_wild(p): return
@@ -66,7 +66,7 @@ static func request(game: Node,id: int,kind: String) -> void:
  begin(game,kind)
  if kind=="advance" and game.upgrade_checkpoint_open() and int(game.checkpoint_ready.get(id,0))!=game.participation.floor():
   # Open the existing cards, without treating a card choice as travel consent.
-  if game.has_meta(game.Transactions.SESSION): game.activate_checkpoint()
+  if game.persistence_session.is_guarded(): game.activate_checkpoint()
   else: game.Transactions.run(game,func(): load("res://expedition_transitions.gd").commit_checkpoint(game,id,true))
   return
  game.participation.set_vote(id,signature(game,p,kind))
@@ -75,7 +75,7 @@ static func request(game: Node,id: int,kind: String) -> void:
   game.tell(id,"Ready. Waiting for each party member to confirm at the gate.");return
  if kind=="advance" and game.upgrade_checkpoint_open() and not game.checkpoint_all_ready(): return
  var ids: Array=game.participation.travel_members()
- if game.has_meta(game.Transactions.SESSION):
+ if game.persistence_session.is_guarded():
   var close_after: bool = kind!="advance" or not game.upgrade_checkpoint_open()
   var result: Dictionary=game.run_guarded_action(id,game.Transactions.Scope.PAIR,func(effects):
    if kind=="depart":
@@ -97,7 +97,7 @@ static func request(game: Node,id: int,kind: String) -> void:
    return true)
   # After a refusal or verified abort, fresh votes are required. An uncertain
   # transaction keeps its snapshot and session write block for recovery.
-  if not game.Transactions.committed(result.persistence) and game.Transactions.session_writable(game):
+  if not game.Transactions.committed(result.persistence) and game.persistence_session.can_write():
    cancel(game)
   return
  var reservation: Array=[]

@@ -61,7 +61,7 @@ func guest_run() -> void:
  await create_timer(.2).timeout
  check(Service.projection(game,game.local_player_id()).pending.size()==1,"guest cannot forge a future sequence")
  var scene=game.get_node("GardenInteractions/GrowthScenes");scene.set_process(false);scene.begin(Service.projection(game,game.local_player_id()).pending[0])
- SessionCase.World.leave(game,"Growth reconnect fixture");game.toggle_overlay(null)
+ SessionCase.World.leave(game,"Growth reconnect fixture");game.ui.close_panels()
  scene.force_playback=true;scene._process(0);scene.force_playback=false
  check(scene.event.is_empty() and not game.get_meta("garden_cinematic_active") and not game.stage.has_meta("garden_growth_camera"),"disconnect releases the old host's scene without acknowledging it in the local Garden")
  check(SessionCase.World.join(game)==OK,"reconnect")

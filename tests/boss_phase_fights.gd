@@ -1,4 +1,5 @@
 extends SceneTree
+const Conditions = preload("res://player_hit_conditions.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -147,7 +148,7 @@ func check_bloom(game: Node, player: Dictionary) -> void:
  check(hints.size()==2 and hints[0].width>plan.lanes[0].width,"each damage lane has a padded warning")
  var strike: int=game.tactics.strike_at
  player.pos=plan.lanes[0].from.lerp(plan.lanes[0].to,.55)
- player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100);player.hurt_until=0
+ player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100);player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
  var rend_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.boss_hit(game,game.Enemies.get_kind(Fights.BLOOM),"remembered_rend"))
  game.Bosses.resolve(game,strike)
  check(PlayerVitals.current_hp(player)==100-rend_damage,"crossing a displayed rend branch applies damage")
@@ -155,7 +156,7 @@ func check_bloom(game: Node, player: Dictionary) -> void:
  check(Fights.advance_phase(game,1,strike+2500),"next phase reads the newly strongest evidence")
  check(game.tactics.memory.memory_growth.id=="burst","a new phase replaces the previous growth")
  player.pos=Vector3(0,0,7.0)
- player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100);player.hurt_until=0
+ player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100);player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
  check(Fights.commit(game,"remembered_rend",1,strike+4000),"burst response commits")
  plan=game.tactics.memory.phase_plan
  check(plan.variant=="burst" and plan.areas.size()==3,"delayed constellation marks three bounded patches")

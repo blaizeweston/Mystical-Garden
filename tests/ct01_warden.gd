@@ -1,4 +1,7 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
+const Conditions = preload("res://player_hit_conditions.gd")
+const Protection = preload("res://player_protection.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -107,7 +110,7 @@ func title_and_progression() -> bool:
 		return false
 	game=current_scene
 	player=game.players[1]
-	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Rules.ID and game.has_meta(game.Transactions.SESSION),"real guarded affinity session")
+	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Rules.ID and SessionCase.has_guarded_session(game),"real guarded affinity session")
 	var old_catalog: Dictionary = game.progress.ContentIDs.manifest()
 	old_catalog.erase(Profile.Experience.VERSION_KEY)
 	old_catalog.levels = [0,5,15,35,70,140,260]
@@ -116,7 +119,7 @@ func title_and_progression() -> bool:
 	player.pos=game.stage.gate_position()
 	choose("briar_rebound")
 	check(Connected.path(player.character).is_empty(),"a node cannot precede the focus")
-	var panel = game.progression_view
+	var panel = UIFixture.control(game,"progression_view")
 	panel.inspected_class=0
 	panel.tabs.current_tab=2
 	panel.refresh()
@@ -182,10 +185,11 @@ func arena(path: Array) -> void:
 	game.encounter.clear_scouts()
 	game.tactics.rooted_until=0
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
-	for key in ["cast_until","core_cast_until","counter_until","counter_guard_until","front_guard_until",
-			"guard_until","guard_charges","hurt_until","slow_until"]:
+	player[Protection.STATE] = player[Protection.STATE].clear_expedition()
+	player[Conditions.STATE] = player[Conditions.STATE].clear_all()
+	for key in ["cast_until","core_cast_until"]:
 		player[key]=0
-	for key in ["warden_block","warden_anchor","warden_relay","warden_aftershock","warden_sanctuary","warden_holdfast","affinity_ward_claims"]:
+	for key in ["warden_block","warden_anchor","warden_relay","warden_aftershock","warden_sanctuary","warden_holdfast"]:
 		player.erase(key)
 	events.clear()
 
@@ -210,9 +214,9 @@ func offense() -> void:
 	var now := block()
 	check(player[PlayerVitals.STATE].hp()==90 and player.warden_block.blocked and game.tactics.position.distance_to(origin)>.7,
 		"real block triggers Briar Rebound and preserves Thorn Counter")
-	check(player.counter_until>now,"native Thorn Counter still primes its counter")
+	check(player[Protection.STATE].counter_until_ms()>now,"native Thorn Counter still primes its counter")
 	# Isolate the Quake node's additive damage from Thorn Counter.
-	player.counter_until=0
+	player[Protection.STATE] = player[Protection.STATE].spend_counter()
 	game.use_class_skill(1,player,1)
 	check(900-game.enemy_health()==normal_damage+10 and game.tactics.rooted_until>now and not game.enemy_traits.has("brittle_until"),
 		"Pinning Quake roots and Faultline adds native damage without Brittle")
@@ -244,17 +248,17 @@ func deep_roots() -> void:
 	arena(["vanguard","deep_roots"])
 	game.use_class_skill(1,player,0)
 	var now := block()
-	check(player.counter_until==now+4750,"Deep Roots extends the earned Thorn Counter window")
+	check(player[Protection.STATE].counter_until_ms()==now+4750,"Deep Roots extends the earned Thorn Counter window")
 
 	var ally: Dictionary=game.players[2]
 	ally.pos=Vector3(0,0,-3.6)
 	ExpeditionCase.set_membership(game, ally, true)
 	for path in [["bastion"],["bastion","deep_roots"]]:
 		arena(path)
-		ally.guard_charges=0
-		ally.guard_until=0
+		ally[Protection.STATE] = ally[Protection.STATE].clear_expedition()
+		ally[Protection.STATE] = ally[Protection.STATE].clear_guard()
 		game.use_class_skill(1,player,0)
-		check((ally.guard_charges==1)==(path.size()==2),"Deep Roots changes actual Rootshield coverage")
+		check((ally[Protection.STATE].charge_count()==1)==(path.size()==2),"Deep Roots changes actual Rootshield coverage")
 
 
 func balance() -> void:
@@ -290,34 +294,34 @@ func defense() -> void:
 	ally.pos=Vector3(1,0,1)
 	ExpeditionCase.set_membership(game, ally, true)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
-	ally.guard_charges=0
-	ally.guard_until=0
-	ally.erase("affinity_ward_claims")
+	ally[Protection.STATE] = ally[Protection.STATE].clear_expedition()
+	ally[Protection.STATE] = ally[Protection.STATE].clear_guard()
+	ally[Protection.STATE] = ally[Protection.STATE].clear_guard()
 	player.catalyst=game.Items.get_item("plant_part_rare_frostbell").legacy_part
-	player.slow_until=Time.get_ticks_msec()+8000
-	ally.slow_until=player.slow_until
+	player[Conditions.STATE] = player[Conditions.STATE].with_slow_until(Time.get_ticks_msec()+8000)
+	ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(player[Conditions.STATE].slow_until_ms())
 	game.use_class_skill(1,player,0)
-	check(ally.guard_charges==0,"ally behind Rootshield has no native Ward")
+	check(ally[Protection.STATE].charge_count()==0,"ally behind Rootshield has no native Ward")
 	var now := block()
-	check(ally.guard_charges==1 and ally.guard_until==now+950 and player.slow_until==0 and ally.slow_until==0,
+	check(ally[Protection.STATE].charge_count()==1 and ally[Protection.STATE].guard_until_ms()==now+950 and player[Conditions.STATE].slow_until_ms()==0 and ally[Conditions.STATE].slow_until_ms()==0,
 		"Shared Guard and Clear the Way affect the intended nearby ally")
 	block(2)
 	var block_events := events.filter(func(event):return event.kind=="actual_block")
 	check(block_events.size()==1 and block_events[0].source_actor==1 and block_events[0].quality=="refined",
 		"the original Q Ward keeps the Catalyst source, and Shared Guard does not reproc it")
 	game.use_class_skill(1,player,1)
-	check(ally.guard_charges==1 and ally.guard_until>now+1100,"Sheltering Quake grants new Guard after a prepared hit")
-	ally.guard_charges=0
-	ally.guard_until=0
-	ally.hurt_until=0
+	check(ally[Protection.STATE].charge_count()==1 and ally[Protection.STATE].guard_until_ms()>now+1100,"Sheltering Quake grants new Guard after a prepared hit")
+	ally[Protection.STATE] = ally[Protection.STATE].clear_expedition()
+	ally[Protection.STATE] = ally[Protection.STATE].clear_guard()
+	ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), now+10, 4.0, 0, Vector3(0,0,-2))
 	check(ally[PlayerVitals.STATE].hp()==60,"Sanctuary reduces a 40 HP direct attack by 25 percent")
-	ally.hurt_until=0
+	ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(ally), now+20, 4.0, 0, Vector3(0,0,-2), false)
 	check(ally[PlayerVitals.STATE].hp()==20,"Sanctuary leaves environmental damage intact")
 	arena(DEFENSE)
 	ally.pos=Vector3(1,0,-1)
-	ally.hurt_until=0
+	ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
 	game.use_class_skill(1,player,0)
 	block(2)
@@ -329,11 +333,11 @@ func defense() -> void:
 	ally.pos=Vector3(1,0,1)
 	game.use_class_skill(1,player,0)
 	block()
-	ally.guard_charges=0
-	ally.guard_until=0
+	ally[Protection.STATE] = ally[Protection.STATE].clear_expedition()
+	ally[Protection.STATE] = ally[Protection.STATE].clear_guard()
 	game.tactics.position=Vector3(0,0,-9)
 	game.use_class_skill(1,player,1)
-	check(game.enemy_health()==900 and ally.guard_charges==1 and player.warden_block.quake_used,
+	check(game.enemy_health()==900 and ally[Protection.STATE].charge_count()==1 and player.warden_block.quake_used,
 		"Sheltering Quake protects allies on an empty impact and spends its preparation")
 
 
@@ -341,19 +345,19 @@ func reset_holdfast_ally(ally: Dictionary, point: Vector3) -> void:
 	ally.pos=point
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
 	ExpeditionCase.set_membership(game, ally, true)
-	ally.guard_charges=0
-	ally.guard_until=0
-	ally.hurt_until=0
-	ally.slow_until=0
-	ally.erase("affinity_ward_claims")
+	ally[Protection.STATE] = ally[Protection.STATE].clear_expedition()
+	ally[Protection.STATE] = ally[Protection.STATE].clear_guard()
+	ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
+	ally[Conditions.STATE] = ally[Conditions.STATE].cleanse_slow()
+	ally[Protection.STATE] = ally[Protection.STATE].clear_guard()
 	ally.erase("warden_holdfast")
 
 
 func sample_damage(id: int, now: int, direct := true, amount := 4.0) -> int:
 	var recipient: Dictionary=game.players[id]
-	recipient.guard_charges=0
-	recipient.guard_until=0
-	recipient.hurt_until=0
+	recipient[Protection.STATE] = recipient[Protection.STATE].clear_expedition()
+	recipient[Protection.STATE] = recipient[Protection.STATE].clear_guard()
+	recipient[Conditions.STATE] = recipient[Conditions.STATE].clear_grace()
 	recipient[PlayerVitals.STATE] = recipient[PlayerVitals.STATE].with_hp(90)
 	IncomingPlayerHit.resolve_world(game, id, PlayerLifecycle.generation(recipient), now, amount, 0, Vector3.ZERO, direct)
 	return 90-int(recipient[PlayerVitals.STATE].hp())
@@ -374,9 +378,9 @@ func holdfast() -> void:
 	game.use_class_skill(1,player,0)
 	check(not player.has("warden_holdfast") and not ally.has("warden_holdfast"),"cast alone grants no Holdfast")
 	var slowed_until := Time.get_ticks_msec()+4500
-	ally.slow_until=slowed_until
+	ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(slowed_until)
 	var now := block(2)
-	check(ally.slow_until==slowed_until,"Holdfast itself neither roots nor cleanses an ally")
+	check(ally[Conditions.STATE].slow_until_ms()==slowed_until,"Holdfast itself neither roots nor cleanses an ally")
 	var original: Dictionary = ally.get("warden_holdfast",{}).duplicate()
 	check(Warden.holdfast_until(game,player,now)==now+2500 and original.get("until")==now+2500 and original.get("actor")==1
 		and original.get("activation")==player.warden_block.activation,"ally's actual Q block grants one sourced Holdfast to caster and recipient")
@@ -388,7 +392,7 @@ func holdfast() -> void:
 	ally.pos=Vector3(6,0,0)
 	var event_count := events.size()
 	check(sample_damage(2,now+40)==34 and ally.pos==Vector3(6,0,0)
-		and not ally.has("affinity_bark_grants") and ally.guard_charges==0 and ally.slow_until==0,
+		and not ally.has("affinity_bark_grants") and ally[Protection.STATE].charge_count()==0 and ally[Conditions.STATE].slow_until_ms()==0,
 		"moving recipient takes 34 of 40 direct HP with no extra Ward, Bark or movement restriction")
 	check(sample_damage(2,now+80,false)==40 and sample_damage(2,now+90,true,.1)==1 and events.size()==event_count,
 		"environmental hits are unreduced and Holdfast cannot block a hit or produce a Catalyst event")

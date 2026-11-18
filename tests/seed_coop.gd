@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 var game: Node
@@ -52,8 +53,8 @@ func run():
 		game.send_garden_action("breed_0_3")
 		check(await until(func(): return game.client_garden.size()>13 and game.client_garden[13][4] and game.client_inventory[6][4]==1),"seed and permanent tree discovery synchronize")
 		check(game.client_inventory[6][0]==0 and game.client_inventory[6][3]==0,"updated parent counts synchronize")
-		game.toggle_overlay(game.progression_menu)
-		game.progression_view.refresh()
-		check(game.progression_view.known_flags()[4],"guest tree reads hosted discoveries")
+		game.ui.toggle_panel("progression")
+		UIFixture.control(game,"progression_view").refresh()
+		check(UIFixture.control(game,"progression_view").known_flags()[4],"guest tree reads hosted discoveries")
 	if not failed: print("PASS: seed co-op "+mode)
 	quit(1 if failed else 0)
