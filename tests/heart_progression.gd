@@ -98,7 +98,12 @@ func run():
  game.offer_monster(1,p);game.offer_monster(1,p)
  check(g.knowledge==knowledge_before+5 and reserve.parts[trophy]==0,"first trophy knowledge and lower repeat reward")
  check(game.monster_cargo_limit()==8,"preservation expands monster cargo")
- p.pos=game.Stage.GATE;game.send_action(false);game.send_garden_action("depart")
+ p.pos=game.Stage.GATE
+ var focus_tree=game.Classes.connected_tree(0)
+ game.handle_loadout_action(1,p,"learn_0_%d"%focus_tree.REQUEST_OFFSET)
+ check(focus_tree.focus(p.character)==focus_tree.nodes[0].id,"level-one starting focus is available before departure")
+ game.send_action(false);game.send_garden_action("depart")
+ check(ExpeditionCase.is_wild(p),"focused character enters Wilds before checkpoint courier checks")
  ExpeditionCase.set_world(game, {"encounter_number": 6});game.encounter.set_hp(-1, 1);game.encounter.clear_scouts()
  p.pos=game.battlefield.advance;p.carried_seeds.assign([0,1]);p.pouch=true
  check(not game.can_checkpoint_bank(p),"live checkpoint cannot send items")

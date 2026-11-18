@@ -75,6 +75,7 @@ func run() -> void:
  view.force_playback=true;game.app_settings.values.garden_cinematics=false;view._process(0);view.force_playback=false
  check(Service.projection(game,1).seen>seen_before and not game.get_meta("garden_cinematic_active") and not game.stage.has_meta("garden_growth_camera"),"disabling scenes records a local skip without forcing the camera")
  verify_permanent_structures(game,view)
+ var reload_path: String=g.path;var expected_plots: int=g.plots.size()
  # Existing saves and future additive fields remain safe.
  var old: Dictionary=g.garden_interactions.duplicate(true);old.erase("growth");g.garden_interactions=State.initialize(old,State.snapshot(g))
  check(State.prepare(g).growth.events.is_empty(),"loading an established Garden does not replay historical unlocks")
@@ -87,6 +88,7 @@ func run() -> void:
  g.garden_interactions.growth.version=99;var future: Dictionary=g.garden_interactions.duplicate(true)
  check(State.prepare(g)==future and Service.projection(game,1).is_empty(),"future presentation versions are retained without execution")
  game.queue_free();await process_frame
+ verify_reloaded_structures(reload_path,expected_plots)
  if not failed:print("PASS: Garden growth persistence, transaction rollback, deferred reveals, root-tip camera, in-place formation and skip safety")
  quit(1 if failed else 0)
 
@@ -118,13 +120,15 @@ func verify_permanent_structures(game: Node,view: Node) -> void:
  for id in game.Stage.HEART_STATIONS:check(game.stage.heart_stations[id].visible,"later research preserves structure: "+id)
  ExpeditionCase.set_membership(game, game.players[1], true);game._process(.016);ExpeditionCase.set_membership(game, game.players[1], false);game._process(.016)
  for id in game.Stage.HEART_STATIONS:check(game.stage.heart_stations[id].visible,"Garden return preserves structure: "+id)
- var fresh=load("res://world.tscn").instantiate();fresh.progress.path=g.path;fresh.local_character.path=g.path+".reload-character";fresh.guest_character.path=g.path+".reload-guest"
+
+func verify_reloaded_structures(path: String,expected_plots: int) -> void:
+ var fresh=load("res://world.tscn").instantiate();fresh.progress.path=path;fresh.local_character.path=path+".reload-character";fresh.guest_character.path=path+".reload-guest"
  root.add_child(fresh);fresh.set_process(false);fresh.set_physics_process(false);fresh.get_node("GardenInteractions/GrowthScenes").set_process(false)
  check(fresh.progress.load_garden()==OK,"reload uses saved fixture research")
  fresh._process(.016)
- for id in game.Stage.HEART_STATIONS:
+ for id in fresh.Stage.HEART_STATIONS:
   check(fresh.stage.heart_stations[id].visible and fresh.stage.heart_stations[id].scale.is_equal_approx(Vector3.ONE),"saved-world reload reconstructs permanent structure: "+id)
- check(fresh.stage.active_plots==g.plots.size(),"saved-world reload reconstructs researched planting beds")
+ check(fresh.stage.active_plots==expected_plots,"saved-world reload reconstructs researched planting beds")
  var water_found:=false
  for model in fresh.stage.garden_edge.get_children():
   if model.has_meta("garden_water_position") and model.get_meta("garden_water_position").distance_to(Vector3(6.6,0,-.15))<.1:water_found=model.visible

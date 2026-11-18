@@ -5,6 +5,8 @@ const SessionCase = preload("res://tests/support/session_case.gd")
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
 const PlayerVitals = preload("res://player_vitals.gd")
+const Balance = preload("res://enemy_balance.gd")
+const Preview = preload("res://combat_balance_preview.gd")
 
 const Attacks = preload("res://enemy_attack.gd")
 const Status = preload("res://combat_status.gd")
@@ -112,11 +114,19 @@ func host() -> void:
 		return
 	host_player.pos = stag.attack.via
 	guest_player.pos = Vector3(-float(stag.attack.via.x), 0, -1.5)
+	var host_hp_before: int = PlayerVitals.current_hp(host_player)
+	var guest_hp_before: int = PlayerVitals.current_hp(guest_player)
+	var host_sequence: int = host_player.damage_seq
+	var guest_sequence: int = guest_player.damage_seq
+	var charge_damage: int = Preview.effect_hp(Balance.scout_hit(game, game.Enemies.get_kind(int(stag.kind)), stag))
 	if not await until(func(): return marked("seen-charge"), 1000):
 		check(false, "guest reads both warned legs before impact")
 		return
 	check(await until(func(): return stag.windup == 0), "charge resolves")
-	check(PlayerVitals.current_hp(host_player) == 30 and PlayerVitals.current_hp(guest_player) == 40, "host damage follows the bend and preserves the dodge")
+	check(PlayerVitals.current_hp(host_player) == host_hp_before - charge_damage
+		and int(host_player.damage_seq) == host_sequence + 1
+		and PlayerVitals.current_hp(guest_player) == guest_hp_before and int(guest_player.damage_seq) == guest_sequence,
+		"one host hit uses the current scaled damage, follows the bend and preserves the guest dodge")
 	mark("charge-resolved")
 	if not await until(func(): return marked("charge-clear")):
 		check(false, "guest sees charge markers clear")

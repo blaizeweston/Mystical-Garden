@@ -67,9 +67,9 @@ func floor_identity(field) -> String:
 	return str([field.configured_key, field.entry, field.advance, field.spawn_points,
 		layout.water, layout.trail_network, field.ground.projectile_cover, field.has_seed_cache(), field.cache]).sha256_text()
 
-func sees_arrow(events: Array, endpoint: Vector3) -> bool:
+func sees_salvo(events: Array, endpoint: Vector3) -> bool:
 	for event in events:
-		if event.kind != "projectile" or event.shape != "arrow":
+		if event.kind != "subclass_release" or event.shape != "salvo":
 			continue
 		var end := Vector3(event.to[0], event.to[1], event.to[2])
 		if end.is_equal_approx(endpoint):
@@ -78,7 +78,7 @@ func sees_arrow(events: Array, endpoint: Vector3) -> bool:
 
 func river_preview(game: Node, archer: Dictionary, field: RefCounted) -> Dictionary:
 	var preview := Aim.footprint(game, archer, field, 0, Vector3.RIGHT, 6.0)
-	var rays: Array = preview.get("shapes", []).filter(func(shape):return shape.kind == "capsule")
+	var rays: Array = preview.get("shapes", []).filter(func(shape):return shape.kind == "strip")
 	return rays[0] if preview.get("valid", false) and rays.size() == 1 else {}
 
 func river_host(game: Node, archer: Dictionary, key: String) -> bool:
@@ -100,12 +100,12 @@ func river_host(game: Node, archer: Dictionary, key: String) -> bool:
 		return false
 	var before: int = game.enemy_health()
 	mark(key, str(before))
-	if not check(await until(func(): return game.enemy_health() < before and sees_arrow(game.combat_events, ray.to)),
-			"guest Gale Volley damages the far-bank target and uses the host preview endpoint"):
+	if not check(await until(func(): return game.enemy_health() < before and sees_salvo(game.combat_events, ray.to)),
+			"guest Hunter's Salvo damages the far-bank target and uses the host preview endpoint"):
 		return false
 	mark(key + "-hp", str(game.enemy_health()))
 	return check(await until(func(): return read(key + "-observed") == "ok"),
-		"guest reports the authoritative arrow endpoint and enemy health")
+		"guest reports the authoritative Salvo endpoint and enemy health")
 
 func river_guest(game: Node, id: int, key: String) -> bool:
 	var world_id := game.get_instance_id()
@@ -127,9 +127,9 @@ func river_guest(game: Node, id: int, key: String) -> bool:
 		var world = instance_from_id(world_id)
 		if world == null:
 			return false
-		seen[0] = seen[0] or sees_arrow(world.guest_combat_events(local), ray.to)
+		seen[0] = seen[0] or sees_salvo(world.guest_combat_events(local), ray.to)
 		return seen[0] and not read(key + "-hp").is_empty() and world.enemy_health() == int(read(key + "-hp"))
-	if not check(await until(observed), "guest preview, received arrow and host health agree"):
+	if not check(await until(observed), "guest preview, received Salvo and host health agree"):
 		return false
 	mark(key + "-observed")
 	return true
@@ -184,6 +184,13 @@ func host_run(menu: Node) -> void:
 	check(game.seed_reserve(traveller).stock[0] == 0, "guest consumes one seed")
 	keeper.pos = game.stage.gate_position()
 	traveller.pos = keeper.pos
+	for member_id in [game.HOST, peer]:
+		var member: Dictionary = game.players[member_id]
+		var starting_tree = game.Classes.connected_tree(int(member.frame))
+		game.handle_loadout_action(member_id, member, "learn_%d_%d" % [member.frame, starting_tree.REQUEST_OFFSET])
+	check(game.Classes.connected_tree(int(keeper.frame)).focus(keeper.character) == "vanguard"
+		and game.Classes.connected_tree(int(traveller.frame)).focus(traveller.character) == "wildstalker",
+		"the host validates both explicit free starting-focus choices")
 	game.map_rng.seed = RIVER_SEED
 	game.PartyTravel.request(game, game.HOST, "depart")
 	mark("depart", str(game.participation.travel_epoch()))

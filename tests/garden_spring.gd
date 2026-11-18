@@ -1,6 +1,8 @@
 extends SceneTree
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
+const AffinityBuild=preload("res://affinity_build.gd")
+const Core=preload("res://core_combat.gd")
 const Catalog=preload("res://garden_interaction_catalog.gd")
 const Layout=preload("res://garden_layout.gd")
 const Service=preload("res://garden_interaction_service.gd")
@@ -93,15 +95,23 @@ func run() -> void:
  var output: Dictionary=Items.get_item(recipe.output);var refined:=int(output.legacy_part)
  check(g.altar_recipes.has(recipe.id) and int(game.seed_reserve(p).parts[refined])>0,"Altar consumes harvested materials and discovers its own output")
  check(Relations.clue(game,trace).begins_with("You already know"),"known-recipe fallback provides context without another reward")
- p.pos=stage.GATE;var baseline: Dictionary=game.weapon_stats(p,true)
+ p.pos=stage.GATE
+ var tree=game.Classes.connected_tree(int(p.frame))
+ game.handle_loadout_action(1,p,"learn_%d_%d"%[p.frame,tree.REQUEST_OFFSET])
+ check(not tree.focus(p.character).is_empty(),"the fresh character explicitly selects a free starting focus")
+ var baseline: Dictionary=game.weapon_stats(p,true)
  game.garden_action(1,"loadpart_0_%d"%refined)
  check(p.prepared==refined,"refined component enters the existing availability-filtered gate slots")
- var improved: Dictionary=game.weapon_stats(p,true);var changed:=false
+ var improved: Dictionary=game.weapon_stats(p,true);var native_unchanged:=true
  for key in ["damage","reach","interval","targets","skill_heal","heal_on_kill","recovery","cooldown"]:
-  if improved.get(key,0)!=baseline.get(key,0):changed=true
- check(changed,"refined component changes real weapon/skill attributes")
+  if improved.get(key,0)!=baseline.get(key,0):native_unchanged=false
+ var build: Dictionary=improved.affinity_build;var material: Dictionary=build.core
+ check(material.state=="ready" and material.executable and material.primary_affinity=="vital" and material.quality=="refined"
+  and AffinityBuild.core_skill(build).get("id")=="vital_bloom","refined material resolves the executable Vital Bloom Core")
+ check(native_unchanged,"Core equipment preserves native weapon and class statistics")
  ExpeditionCase.Transitions.enter(game, 1,p)
- check(ExpeditionCase.is_wild(p) and p.weapon==refined,"crafted component travels into an actual expedition")
+ check(ExpeditionCase.is_wild(p) and p.weapon==refined and Core.equipped(p).get("id")=="vital_bloom"
+  and Core.equipped(p).get("material",{}).get("quality")=="refined","crafted component travels into an actual expedition with its executable refined Core")
  ExpeditionCase.set_membership(game, p, false);p.pos=water.position
  var random_state: int=game.rng.state;knowledge=g.knowledge;parts=g.parts.duplicate();var interaction: Dictionary=g.garden_interactions.duplicate(true)
  game.app_settings.path=base+".settings";game.app_settings.values.ambient_motion=true;ambience._process(.2)

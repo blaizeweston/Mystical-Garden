@@ -67,8 +67,21 @@ func learn(actor: Dictionary, profile: Dictionary, now: int) -> void:
 		Tactics.CAST_DENIAL:
 			Attacks.lock(game, actor, profile.mode, player.pos, now + 1400)
 			check(actor.attack.variant != profile.id, "ordinary opening for " + str(profile.id))
-			game.EnemyBehaviors.interrupt(game,actor,actor.pos,now)
-			check(actor.windup == 0 and actor.get("rite_disrupted_epoch") == game.participation.epoch(), "Native stagger stops the committed " + str(profile.mode))
+			var stopped: bool = game.EnemyBehaviors.interrupt(game, actor, actor.pos, now)
+			if int(actor.kind) in [1, 5, 6, 14, 18]:
+				check(not stopped and actor.windup > now and Tactics.evidence(game).is_empty(),
+					"native stagger cannot cancel the committed " + str(profile.mode))
+				# These retained response plans have no modern production interruption
+				# source. Supply a recorded observation to verify their consumer only.
+				Tactics.interrupted(game, actor, "fixture_recorded_interruption")
+				check(actor.get("rite_disrupted_epoch") == game.participation.epoch()
+					and Tactics.evidence(game).get(Tactics.CAST_DENIAL) == 1,
+					"a recorded interruption enables the retained " + str(profile.id) + " response plan")
+				actor.windup = 0
+				actor.erase("attack")
+			else:
+				check(stopped and actor.windup == 0 and actor.get("rite_disrupted_epoch") == game.participation.epoch(),
+					"native stagger stops the supported committed " + str(profile.mode))
 		Tactics.ROUTE_DENIAL:
 			actor.engaged = false
 			Status.root(game, 0, now + 1000)
@@ -441,7 +454,7 @@ func run() -> void:
 	game.queue_free()
 	await process_frame
 	if not failed:
-		print("PASS: 14 regular enemy responses, confirmed evidence, hit geometry, fallbacks, and persistence")
+		print("PASS: 14 regular response plans, supported native interference, five recorded-only cast observations, hit geometry and persistence")
 	quit(1 if failed else 0)
 
 

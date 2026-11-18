@@ -24,7 +24,7 @@ func run():
 	var motion:=InputEventMouseMotion.new()
 	motion.position=node.position
 	tree._gui_input(motion)
-	check(panel.previewed=="0" and panel.details.text.contains("Thorn Bloom") and panel.details.text.contains("reach"),"hover immediately shows name and quick effect")
+	check(panel.previewed=="0" and panel.details.text.contains("Thorn Bloom") and panel.details.text.contains("Thorn primary affinity") and panel.details.text.contains("Thorn Line (Core)"),"hover immediately shows name and explicit affinity/Core effect")
 	check(tree._get_tooltip(node.position).contains("Thorn Bloom"),"native tooltip also provides name")
 	var click:=InputEventMouseButton.new()
 	click.position=node.position

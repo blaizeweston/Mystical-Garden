@@ -1,6 +1,8 @@
 extends Node
 # Test-only synchronization; all admission, movement and snapshots use game.gd.
 const Network=preload("res://network_settings.gd")
+const Session=preload("res://network_session.gd")
+const SessionWorld=preload("res://session_world.gd")
 const MOVE_THRESHOLD=.3
 var role="host"
 var index=0
@@ -57,7 +59,7 @@ func _ready() -> void:
  add_child(game)
  if game.local_character.save_profile()!=OK or game.guest_character.save_profile()!=OK:finish(3,"Could not save isolated test profiles");return
  phase="connecting";deadline=Time.get_ticks_msec()+timeout_ms
- var code=game.host_game(port) if role=="host" else game.join_game(address,port)
+ var code=SessionWorld.host(game,port) if role=="host" else SessionWorld.join(game,address,port)
  if code!=OK:finish(3,"Cannot start %s on UDP %d (error %d)"%[role,port,code]);return
  log_line("protocol=%d role=%s guests=%d address=%s port=%d run=%s"%[Network.PROTOCOL,role,guests,address,port,run_id])
  if role=="host":write_json("host.ready.json",{"run_id":run_id,"port":port,"protocol":Network.PROTOCOL})
@@ -65,11 +67,11 @@ func _process(_delta: float) -> void:
  if finished or game==null:return
  var now=Time.get_ticks_msec()
  if now>deadline:finish(2,"Timed out in %s: %s"%[phase,game.status]);return
- if role=="guest" and phase!="connecting" and game.session!="Guest":finish(1,"Lost host during "+phase+": "+game.status);return
+ if role=="guest" and phase!="connecting" and game.network_session.role()!="Guest":finish(1,"Lost host during "+phase+": "+game.status);return
  if role=="guest" and phase=="connecting":
   var id=game.multiplayer.get_unique_id()
-  if game.session=="Solo":finish(1,"Connection failed: "+game.status);return
-  if game.session=="Guest" and game.players.has(id) and game.players.size()==guests+1 and not game.client_details.is_empty():
+  if game.network_session.role()=="Solo":finish(1,"Connection failed: "+game.status);return
+  if game.network_session.role()=="Guest" and game.players.has(id) and game.players.size()==guests+1 and not game.client_details.is_empty():
    phase="waiting_start";deadline=now+timeout_ms
    peer_ready.rpc_id(1,run_id,index)
  if role=="host" and phase=="connecting" and ready_peers.size()==guests and game.players.size()==guests+1:
@@ -108,9 +110,9 @@ func metrics() -> Dictionary:
  for id in traces:paths[str(id)]={"distance":traces[id].distance,"updates":traces[id].updates}
  var id=game.multiplayer.get_unique_id();var slots=[];var privacy=true
  for peer in game.players:
-  slots.append(int(game.players[peer].get("party_slot",-1)))
+  slots.append(Session.slot_for(game.players[peer],-1))
   if role=="guest" and peer!=id and game.players[peer].has("bag"):privacy=false
- return {"peer":id,"samples":samples,"paths":paths,"snapshot_updates":snapshots,"joint_excursion":joint_excursion,"peak_pace":peak_pace,"details":not game.client_details.is_empty(),"party_size":game.players.size(),"party_slots":slots,"private_inventory":privacy,"still_connected":game.session==("Host" if role=="host" else "Guest")}
+ return {"peer":id,"samples":samples,"paths":paths,"snapshot_updates":snapshots,"joint_excursion":joint_excursion,"peak_pace":peak_pace,"details":not game.client_details.is_empty(),"party_size":game.players.size(),"party_slots":slots,"private_inventory":privacy,"still_connected":game.network_session.role()==("Host" if role=="host" else "Guest")}
 func problems(data: Dictionary,guest: bool) -> Array[String]:
  var errors: Array[String]=[]
  if not data.get("still_connected",false):errors.append("connection lost")
@@ -141,7 +143,7 @@ func peer_ready(tag: String,guest_index: int) -> void:
  if role!="host" or phase!="connecting":return
  var id=multiplayer.get_remote_sender_id()
  if tag!=run_id or guest_index<0 or guest_index>=guests or ready_peers.values().has(guest_index):finish(1,"Unexpected or duplicate test peer");return
- if not game.players.has(id) or not game.players[id].profile_ready:finish(1,"Peer bypassed game admission");return
+ if not game.players.has(id) or not Session.ready_for(game.players[id]):finish(1,"Peer bypassed game admission");return
  ready_peers[id]=guest_index
 @rpc("authority","call_remote","reliable",2)
 func begin_play(tag: String) -> void:
@@ -198,7 +200,9 @@ func stop_fixture() -> void:
  # behavior is covered by direct_ip_coop and four_players_coop, not this smoke.
  if game==null:return
  game.set_process(false);game.set_physics_process(false)
- if game.multiplayer.peer_disconnected.is_connected(game.remove_player):game.multiplayer.peer_disconnected.disconnect(game.remove_player)
+ for connection: Dictionary in game.multiplayer.peer_disconnected.get_connections():
+  var callback: Callable=connection.callable
+  if callback.get_object()==game:game.multiplayer.peer_disconnected.disconnect(callback)
  if game.multiplayer.peer_connected.is_connected(game.add_player):game.multiplayer.peer_connected.disconnect(game.add_player)
 func finish(code: int,message: String) -> void:
  if finished:return
@@ -209,5 +213,5 @@ func finish(code: int,message: String) -> void:
  log_line("RESULT %s (exit=%d) %s"%[status,code,message])
  if game!=null:
   stop_fixture()
-  game.leave_game("Network test complete");game.queue_free()
+  SessionWorld.leave(game,"Network test complete");game.queue_free()
  get_tree().create_timer(.15).timeout.connect(func():get_tree().quit(code))

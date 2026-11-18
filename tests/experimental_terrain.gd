@@ -298,6 +298,9 @@ func run() -> void:
 	study_work = garden.assimilation.queue[0].done
 	research = game.progress.heart.work.flowering
 	player.pos = game.stage.gate_position()
+	var starting_tree = game.Classes.connected_tree(int(player.frame))
+	game.handle_loadout_action(game.HOST, player, "learn_%d_%d" % [player.frame, starting_tree.REQUEST_OFFSET])
+	check(starting_tree.focus(player.character) == "vanguard", "the fresh Warden explicitly selects its free starting focus before departure")
 	game.map_rng.seed = 16 # First floor rolls a clear seed; the second has an off-route cache.
 	game.PartyTravel.request(game, game.HOST, "depart")
 	for ignored in 3:

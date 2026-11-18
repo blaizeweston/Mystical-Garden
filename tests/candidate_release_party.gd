@@ -123,6 +123,17 @@ func host() -> void:
   check(false,"guest deduplicates loadout projection")
   return
 
+ # Select each class's free starting focus through the real host validation path.
+ for peer in game.players:
+  var actor: Dictionary=game.players[peer]
+  var tree=game.Classes.connected_tree(int(actor.frame))
+  actor.pos=game.Stage.HEART
+  game.handle_loadout_action(peer,actor,"learn_%d_%d"%[int(actor.frame),tree.REQUEST_OFFSET])
+  check(tree.path(actor.character).size()==1,"starting focus is available at zero Class XP")
+ if not await until(func():return committed_guests(game)==3):
+  check(false,"all selected starting focuses are committed and acknowledged")
+  return
+
  # Hold only host simulation so the fixture can inspect departure and a frozen
  # reward deterministically. ENet polling and the guest worlds remain live.
  game.set_physics_process(false)
@@ -374,6 +385,13 @@ func guest(role: String) -> void:
   return
  check(FileAccess.get_sha256(P)!=before and game.guest_character.projection_receipts.size()==1 and not FileAccess.file_exists(G),"guest committed only its own receipt")
  print("CASE ",JSON.stringify({"case":"guest_receipt","role":role,"before":before,"after":FileAccess.get_sha256(P),"receipts":game.guest_character.projection_receipts}))
+ # Overflow refusal is a separate admission phase; later per-action timers start after it.
+ if not await until(func():return read("full")=="yes"):
+  check(false,"party admission completes before profile actions")
+  return
+ if not await until(func():return read("overflow-done")=="yes"):
+  check(false,"capacity refusal completes before profile actions")
+  return
  if role=="1":
   if not await until(func():return read("class-abort-ready")=="yes"):
    check(false,"host prepared class change")

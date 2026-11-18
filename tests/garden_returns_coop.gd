@@ -41,8 +41,14 @@ func host_run() -> void:
  game.progress.discoveries[moss]=true
  for peer in [1,id]:
   var p: Dictionary=game.players[peer];p.pos=game.Stage.GATE;p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0;p.cargo_plan.fill(0)
+  var tree=game.Classes.connected_tree(int(p.frame))
+  game.handle_loadout_action(peer,p,"learn_%d_%d"%[p.frame,tree.REQUEST_OFFSET])
+  check(not tree.focus(p.character).is_empty(),"host validates the explicit free starting focus")
  check(game.Transactions.run(game,func():
-  ExpeditionCase.Transitions.admit(game, 1,game.players[1]);ExpeditionCase.Transitions.admit(game, id,game.players[id]);return true)==true,"shared run starts")
+  if not ExpeditionCase.Transitions.admit(game,1,game.players[1]):return false
+  return ExpeditionCase.Transitions.admit(game,id,game.players[id]))==true,"shared run starts")
+ if not ExpeditionCase.is_wild(game.players[1]) or not ExpeditionCase.is_wild(game.players[id]):
+  check(false,"both members must be admitted before inspecting run provenance");return
  check(game.players[1].garden_run_id==game.players[id].garden_run_id and game.progress.garden_interactions.returns.active.members.size()==2,"both members use one expedition identity")
  ExpeditionCase.set_world(game, {"depth": 6});ExpeditionCase.set_world(game, {"encounter_number": 6});game.deepest_milestone=0;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts()
  for peer in [1,id]:game.players[peer].pos=game.battlefield.advance;game.players[peer].carried_seeds=[moss]

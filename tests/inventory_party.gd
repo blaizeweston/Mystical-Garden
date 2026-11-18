@@ -23,7 +23,10 @@ func run():
  own.parts[1]=1;check(game.stored_counts(p)[1]==1,"personal materials remain available despite another player's shared claim")
  var item:=Items.part_id(1)
  check(Model.take(game,p,"shared",item,1).is_empty(),"reserved shared material cannot be withdrawn")
- ExpeditionCase.remove_actor(game, 2);check(game.stored_counts(p)[1]==2,"disconnect releases reservations without consuming inventory");ExpeditionCase.install_actor(game, 2, friend)
+ ExpeditionCase.remove_actor(game, 2);check(game.stored_counts(p)[1]==2,"disconnect releases reservations without consuming inventory")
+ SessionCase.set_identity(game,friend,"inventory-test-friend");SessionCase.set_ready(game,friend,true)
+ ExpeditionCase.install_actor(game, 2, friend)
+ check(SessionCase.Session.ready_for(friend) and SessionCase.Session.inventory_owner(friend)=="inventory-test-friend","readmitted friend retains a ready character-owned inventory")
  friend.prepared_catalyst=0;friend.loadout_reserving=false;p.loadout_reserving=false
  own.stock[0]=5
  check(Model.transfer(game,p,"stash","shared",Items.seed_id(0),3).begins_with("Moved"),"identified seed stack shares")

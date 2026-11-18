@@ -9,6 +9,7 @@ const Garden = preload("res://progress.gd")
 const Profile = preload("res://character_profile.gd")
 const Settings = preload("res://app_settings.gd")
 const Metrics = preload("res://game_metrics.gd")
+const NetworkSession = preload("res://network_session.gd")
 const G = "user://saves/slot_1/garden.cfg"
 const P = "user://saves/characters/slot_1/character.cfg"
 const GB = G + ".pre-content-v2.bak"
@@ -25,9 +26,8 @@ class LegacyWorld extends Node:
  var transaction_publishes := []
  var combat_events := []
  var rng := RandomNumberGenerator.new()
- var session := "Solo"
+ var network_session := NetworkSession.new()
  var status := ""
- var online_peer: MultiplayerPeer
 
 func _initialize() -> void:
  call_deferred("run")

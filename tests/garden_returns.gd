@@ -11,9 +11,15 @@ const Scenes=preload("res://garden_growth_service.gd")
 var failed:=false
 func check(ok: bool,message: String) -> void:
  if not ok:failed=true;printerr("FAIL Garden returns: ",message)
-func start(game: Node) -> void:
+func start(game: Node) -> bool:
  var p: Dictionary=game.players[1];p.pos=game.Stage.GATE;p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0;p.cargo_plan.fill(0);p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive()
+ var tree=game.Classes.connected_tree(int(p.frame))
+ if tree.focus(p.character).is_empty():game.handle_loadout_action(1,p,"learn_%d_%d"%[p.frame,tree.REQUEST_OFFSET])
+ check(not tree.focus(p.character).is_empty(),"a free starting focus is selected explicitly before entry")
  ExpeditionCase.Transitions.enter(game, 1,p)
+ var admitted: bool=ExpeditionCase.is_wild(p) and p.has("garden_run_id")
+ check(admitted,"real expedition admission establishes return provenance")
+ return admitted
 func extraction(game: Node) -> void:
  ExpeditionCase.set_world(game, {"encounter_number": 6});ExpeditionCase.set_world(game, {"depth": 6});game.deepest_milestone=0;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.players[1].pos=game.battlefield.advance
  ExpeditionCase.Transitions.checkpoint(game, 1,false)
@@ -26,9 +32,11 @@ func run() -> void:
  var view=game.get_node("GardenInteractions/ReturnLife");view.set_process(false);var scene=game.get_node("GardenInteractions/GrowthScenes");scene.set_process(false);var ambience=game.get_node("GardenInteractions/Ambience");ambience.set_process(false)
  g.discoveries[moss]=true;p.pos=game.Stage.ALTAR;reserve.unknown.append(moss);game.Altar.identify(game,p)
  check(Service.projection(game,1).entries.is_empty(),"an old or crafted/unverified stash seed does not invent a returned discovery")
- start(game);var abandoned_run: String=p.garden_run_id;p.carried_seeds=[moss];ExpeditionCase.Transitions.abandon(game, 1,p)
+ if not start(game):quit(1);return
+ var abandoned_run: String=p.garden_run_id;p.carried_seeds=[moss];ExpeditionCase.Transitions.abandon(game, 1,p)
  check(not ExpeditionCase.is_wild(p) and g.garden_interactions.returns.history.size()==1 and not g.garden_interactions.returns.credits.has("lantern_moss"),"abandonment records one outcome and credits no lost seed")
- start(game);check(p.garden_run_id!=abandoned_run,"a new expedition has a new saved identity")
+ if not start(game):quit(1);return
+ check(p.garden_run_id!=abandoned_run,"a new expedition has a new saved identity")
  p.carried_seeds=[moss];var history: int=g.garden_interactions.returns.history.size();var profile_path: String=game.local_character.path
  game.local_character.path=base+"-missing/profile";extraction(game)
  check(ExpeditionCase.is_wild(p) and p.carried_seeds==[moss] and g.garden_interactions.returns.history.size()==history and not g.garden_interactions.returns.credits.has("lantern_moss"),"failed extraction rolls loot and outcome provenance back together")
@@ -65,9 +73,12 @@ func run() -> void:
  game.add_player(9090);SessionCase.set_ready(game, game.players[9090], true);SessionCase.set_identity(game, game.players[9090], "return-late-viewer");Scenes.register(game,9090)
  check(Scenes.projection(game,9090).pending.is_empty() and Service.known(Service.projection(game,9090),"lantern_homecoming"),"late join sees the changed Garden without replaying an old award/scene")
  ExpeditionCase.remove_actor(game, 9090)
- start(game);p.carried_seeds=[moss];p.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[ghost]}];var unknown_before: int=reserve.unknown.size();ExpeditionCase.Transitions.finish_failed(game)
+ if not start(game):quit(1);return
+ p.carried_seeds=[moss];p.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[ghost]}];var unknown_before: int=reserve.unknown.size();ExpeditionCase.Transitions.finish_failed(game)
  check(reserve.unknown.size()==unknown_before+1 and g.garden_interactions.returns.credits.has("ghost_fern") and g.garden_interactions.returns.history[-1].outcomes.has("wipe"),"wipe credits only the actually recovered safe-pouch seed")
- var void_seed: int=game.Seeds.index_of("void_willow");start(game);p.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[void_seed]}];unknown_before=reserve.unknown.size();ExpeditionCase.Transitions.abandon(game, 1,p)
+ var void_seed: int=game.Seeds.index_of("void_willow")
+ if not start(game):quit(1);return
+ p.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[void_seed]}];unknown_before=reserve.unknown.size();ExpeditionCase.Transitions.abandon(game, 1,p)
  check(reserve.unknown.size()==unknown_before and not g.garden_interactions.returns.credits.has("void_willow"),"abandonment loses even the pouch and cannot create discovery credit")
  var pure: Dictionary=State.initialize({"version":1}).returns
  State.begin(pure)

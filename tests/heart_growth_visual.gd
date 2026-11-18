@@ -52,9 +52,11 @@ func run() -> void:
  var old_events: Array=[]
  for i in 3:old_events.append({"sequence":i+1,"technology":ids[ids.size()-3+i]})
  for i in 3:check(Growth.counts(old_events[i],old_events,g.heart.unlocked)==Vector2i(completed-3+i,completed-2+i),"old queued scenes infer their research order safely")
- var fresh=load("res://world.tscn").instantiate();fresh.progress.path=g.path;fresh.local_character.path=base+"/reload-character";fresh.guest_character.path=base+"/reload-guest";root.add_child(fresh);fresh.set_process(false);fresh.set_physics_process(false);fresh.get_node("GardenInteractions/GrowthScenes").set_process(false);fresh._process(.016)
+ var saved_path: String=g.path
+ game.free()
+ var fresh=load("res://world.tscn").instantiate();fresh.progress.path=saved_path;fresh.local_character.path=base+"/reload-character";fresh.guest_character.path=base+"/reload-guest";root.add_child(fresh);fresh.set_process(false);fresh.set_physics_process(false);fresh.get_node("GardenInteractions/GrowthScenes").set_process(false);fresh._process(.016)
  check(int(fresh.stage.heart_tree.get_meta("heart_visual_count"))==completed and fresh.stage.heart_tree.has_node("HeartTree"),"reloading reconstructs earned mature tree")
  check(not fresh.stage.heart_tree.get_node("SeedForm").visible,"reload does not resurrect the old overlapping form")
- fresh.free();game.queue_free();await process_frame
+ fresh.free();await process_frame
  if not failed:print("PASS: every Knowledge unlock animates permanent Heart growth, sapling to mature tree, legacy queues, reload, bounded rebuilds, motion preference and deferred-ending safety")
  quit(1 if failed else 0)
