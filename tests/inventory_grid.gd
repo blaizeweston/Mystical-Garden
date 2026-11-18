@@ -83,6 +83,8 @@ func run():
  ExpeditionCase.Transitions.checkpoint(game, 1,false)
  check(not ExpeditionCase.is_wild(p) and reserve.parts[4]==part_before+3 and p.safe_items.is_empty(),"checkpoint extraction banks pouch stacks")
  ExpeditionCase.set_membership(game, p, true);p.carried_parts[4]=2
+ check(game.monster_rewards.begin_expedition(game._kill_reward_identity(1,p),game.participation.run_id(),p.character.xp,p.character.monsters),
+  "synthetic new inventory run records pre-entry rewards before abandonment")
  Model.transfer(game,p,"carry","pouch",part,2)
  part_before=reserve.parts[4]
  ExpeditionCase.Transitions.abandon(game, 1,p)

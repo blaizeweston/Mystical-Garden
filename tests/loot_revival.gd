@@ -88,6 +88,10 @@ func run() -> void:
  check(not ExpeditionCase.is_wild(a) and not PlayerLifecycle.fallen(a) and PlayerVitals.current_hp(a)==100 and a.lost_health==0
   and game.seed_reserve(a).unknown.size()==safe_before+1,"extraction restores fallen ally while banking only their safe pouch")
  for player in [a,b]: ExpeditionCase.set_membership(game, player, true);player[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
+ for peer in [1,2]:
+  var actor: Dictionary=game.players[peer]
+  check(game.monster_rewards.begin_expedition(game._kill_reward_identity(peer,actor),game.participation.run_id(),actor.character.xp,actor.character.monsters),
+   "synthetic post-extraction run records entry rewards before abandonment")
  ExpeditionCase.Transitions.abandon(game, 1,a)
  check(not ExpeditionCase.is_wild(a) and ExpeditionCase.is_wild(b) and PlayerLifecycle.fallen(a) and not ExpeditionCase.Transitions.admit(game, 1,a),
   "abandoned player waits in the Garden while the party expedition continues")
@@ -105,6 +109,8 @@ func run() -> void:
  check(not stale.fallen and stale.hp==80 and stale.lost_health==20,"stale snapshots cannot undo revived state or penalty")
  ExpeditionCase.set_membership(game, a, true);a[PlayerLifecycle.STATE] = a[PlayerLifecycle.STATE].fall();a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_hp(0);a.lost_health=20;a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_native_max_hp(80)
  ExpeditionCase.set_membership(game, b, true);b[PlayerLifecycle.STATE] = b[PlayerLifecycle.STATE].clear_inactive();b[PlayerVitals.STATE] = b[PlayerVitals.STATE].with_hp(80)
+ check(game.monster_rewards.begin_expedition(game._kill_reward_identity(2,b),game.participation.run_id(),b.character.xp,b.character.monsters),
+  "synthetic last-living-ally run records the forfeiter's entry rewards")
  ExpeditionCase.Transitions.abandon(game, 2,b)
  check(not ExpeditionCase.is_wild(a) and PlayerVitals.current_hp(a)==100 and a.lost_health==0,"last living ally abandoning resolves fallen player's run")
  ExpeditionCase.set_membership(game, a, true);a[PlayerLifecycle.STATE] = a[PlayerLifecycle.STATE].fall();a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_hp(0);a.lost_health=20;a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_native_max_hp(80)

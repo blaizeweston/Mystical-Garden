@@ -308,6 +308,7 @@ func _refuse_unowned_world() -> void:
 func _notification(what: int) -> void:
 	if what==NOTIFICATION_WM_WINDOW_FOCUS_OUT: mouse_controls.release(self)
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		if load("res://expedition_transitions.gd").request_guest_exit(self,Session.Exit.APPLICATION): return
 		if persistence_session.is_guarded():
 			if not prepare_guarded_exit(): return
 			persistence_session.begin_shutdown()
@@ -316,7 +317,7 @@ func _notification(what: int) -> void:
 			get_tree().quit()
 			return
 		if network_session.role() in ["Host","Solo"] and participation.active():
-			load("res://expedition_transitions.gd").finish_failed(self)
+			if not load("res://expedition_transitions.gd").finish_voluntary(self): return
 		if character_dirty:
 			save_local_character()
 		get_tree().quit()
@@ -421,7 +422,8 @@ func build_hud() -> void:
 		if network_session.role()=="Host":
 			network_dialog.begin_host(network_session.port(),Network.lan_addresses(),"Your Garden",not participation.active()))
 	join_button=add_button(session_actions,"Join by IP",request_ip_join)
-	leave_button=add_button(session_actions,"Leave Session",func():SessionWorld.leave(self,"Back in your own Garden."))
+	leave_button=add_button(session_actions,"Leave Session",func():
+		if not load("res://expedition_transitions.gd").request_guest_exit(self,Session.Exit.SESSION): SessionWorld.leave(self,"Back in your own Garden."))
 	var exit_row:=HBoxContainer.new()
 	exit_row.add_theme_constant_override("separation",8)
 	menu.add_child(exit_row)
@@ -454,7 +456,7 @@ func build_hud() -> void:
 	title_confirmation = ConfirmationDialog.new()
 	add_child(title_confirmation)
 	title_confirmation.title = "End this expedition?"
-	title_confirmation.dialog_text = "Returning to the main menu ends the expedition. Only safe-pouch contents are kept; unbanked loot is lost."
+	title_confirmation.dialog_text = "Leaving ends the expedition. Your run's Class XP, monster familiarity and carried items (including the safe pouch) will be forfeited. Courier deliveries and progression from earlier expeditions remain."
 	title_confirmation.ok_button_text = "Return to Main Menu"
 	title_confirmation.confirmed.connect(func(): return_to_main_menu())
 	menu_notice = add_label(menu, 14, Color("#9ddad7"))
@@ -778,7 +780,7 @@ func _garden_action(id: int, action: String) -> void:
 		preload("res://garden_growth_service.gd").acknowledge(self,id,action.trim_prefix("growth_ack:"));return
 	if action.begins_with("garden:"):
 		preload("res://garden_interaction_service.gd").command(self,id,action.trim_prefix("garden:"));return
-	if PlayerLifecycle.fallen(player) and Participation.is_wild(player) and action!="abandon_run": return
+	if PlayerLifecycle.fallen(player) and Participation.is_wild(player) and action!="abandon_run" and not action.begins_with("abandon_run:"): return
 	if not Session.ready_for(player):
 		return
 	if action.begins_with("revive:"):
@@ -800,8 +802,8 @@ func _garden_action(id: int, action: String) -> void:
 		graft_feedback(id,player,result)
 		show_graft_menu(id)
 		return
-	if action=="abandon_run":
-		load("res://expedition_transitions.gd").abandon(self,id,player)
+	if action=="abandon_run" or action.begins_with("abandon_run:"):
+		load("res://expedition_transitions.gd").abandon(self,id,player,action.trim_prefix("abandon_run:") if action.begins_with("abandon_run:") else "")
 		return
 	if action.begins_with("care_"):
 		var pieces:=action.split("_")
@@ -1308,6 +1310,7 @@ func settle_expedition_rewards(effects: Array[Callable], bank_kills := false) ->
 		_recover_pouch(leaving)
 		if Participation.is_wild(leaving):
 			preload("res://garden_return_service.gd").outcome(self, leaving, "disconnected")
+		monster_rewards.finish_expedition(entry.identity, participation.run_id())
 
 func close_flow_for(id: int) -> void:
 	if id==HOST: close_run_flow_panel()
@@ -1384,7 +1387,7 @@ func send_committed_profile(id: int) -> void:
 		var delivery: Dictionary = player.get("projection_delivery",{})
 		if delivery.get("revision") != revision:
 			player.projection_delivery = {"revision":revision,"state":"pending","feedback":delivery.get("feedback",[])}
-		receive_character.rpc_id(id,{"profile":record.profile,"origin":progress.projection_origin,"projection":record.projection})
+		receive_character.rpc_id(id,{"profile":record.profile,"origin":progress.projection_origin,"projection":record.projection,"departure_receipt":network_session.departure_receipt(id)})
 
 func tell_profile_action(id: int, message: String) -> void:
 	if id == HOST or not persistence_session.is_guarded():
@@ -1430,6 +1433,7 @@ func publish_character(id: int) -> void:
 @rpc("authority", "call_remote", "reliable")
 func receive_character(profile: Dictionary) -> void:
 	if network_session.role() != "Guest": return
+	var departure: String = str(profile.get("departure_receipt",""))
 	if persistence_session.is_guarded():
 		if not profile.get("origin") is String or not profile.get("projection") is Dictionary or not profile.get("profile") is Dictionary: return
 		var origin: String = profile.origin
@@ -1440,12 +1444,12 @@ func receive_character(profile: Dictionary) -> void:
 			if origin == get_meta(&"guest_projection_origin","") and projection.valid_origin(origin) and projection.valid_descriptor(descriptor,profile):
 				_report_guest_projection(origin,descriptor,"refused")
 			return
-		save_guest_projection(profile,origin,descriptor)
+		if save_guest_projection(profile,origin,descriptor): load("res://expedition_transitions.gd").confirm_guest_exit(self,departure)
 		return
 	if profile.has("projection") or not Character.Experience.supported(profile): return
 	guest_character.data = Character.normalize(profile)
 	character_dirty = true
-	save_local_character()
+	if save_local_character(): load("res://expedition_transitions.gd").confirm_guest_exit(self,departure)
 
 func save_guest_projection(profile: Dictionary, origin: String, descriptor: Dictionary) -> bool:
 	if not Character.Experience.supported(profile): return false
@@ -3207,8 +3211,8 @@ func living_scout_count() -> int:
 
 
 func request_main_menu() -> void:
-	if participation.active() and network_session.role() in ["Solo","Host"]:
-		title_confirmation.popup_centered(Vector2i(480,180))
+	if participation.active() and network_session.role() in ["Solo","Host"] or Participation.is_wild(players.get(local_player_id(),{})):
+		title_confirmation.popup_centered(Vector2i(540,220))
 	else:
 		return_to_main_menu()
 
@@ -3217,7 +3221,7 @@ func prepare_guarded_exit(save_garden := true) -> bool:
 	if not persistence_session.can_write(): return true
 	if network_session.role() in ["Solo","Host"] and slot_claimed:
 		if participation.active():
-			if not load("res://expedition_transitions.gd").finish_failed(self): return false
+			if not load("res://expedition_transitions.gd").finish_voluntary(self): return false
 			character_dirty=false
 			return true
 		if not departure_settlement.is_empty() or monster_rewards.has_pending():
@@ -3233,6 +3237,7 @@ func prepare_guarded_exit(save_garden := true) -> bool:
 	return not character_dirty or save_local_character()
 
 func return_to_main_menu(message: String = "") -> void:
+	if load("res://expedition_transitions.gd").request_guest_exit(self,Session.Exit.TITLE): return
 	if returning_to_title:
 		return
 	returning_to_title = true
@@ -3245,7 +3250,9 @@ func return_to_main_menu(message: String = "") -> void:
 		return
 	if network_session.role() in ["Solo","Host"] and not network_session.joined_from_title():
 		if participation.active():
-			load("res://expedition_transitions.gd").finish_failed(self)
+			if not load("res://expedition_transitions.gd").finish_voluntary(self):
+				returning_to_title = false
+				return
 			for player in players.values():
 				if Participation.is_wild(player):
 					load("res://expedition_transitions.gd").return_member(self,player)
@@ -3943,7 +3950,7 @@ func build_run_flow_panels() -> void:
 	abandon_confirmation.title="Abandon this expedition?"
 	abandon_confirmation.dialog_text="Return to the Garden now? All carried seeds, materials, monster cargo and safe-pouch contents will be lost.
 No expedition milestone, research or guardian-memory rewards will be granted.
-Already banked items and permanent progress remain."
+All Class XP and monster familiarity earned this run, including earlier cleared floors, will be revoked. Courier deliveries and progression from earlier expeditions remain."
 	abandon_confirmation.ok_button_text="Abandon & return"
 	abandon_confirmation.cancel_button_text="Keep exploring"
 	add_child(abandon_confirmation)

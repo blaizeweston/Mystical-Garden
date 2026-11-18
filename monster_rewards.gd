@@ -10,6 +10,33 @@ enum Result { COMMITTED, CLEANUP_PENDING, UNCERTAIN }
 
 var _receipts: Dictionary = {}
 var _legacy_notices: Array[Dictionary] = []
+# Immutable entry-time counters, not a second current-XP balance. They survive
+# floor receipt retirement and revival, and share this owner's savepoint.
+var _expeditions: Dictionary = {}
+
+func begin_expedition(identity: String, run_id: int, class_xp: Array, familiarity: Array) -> bool:
+	if identity.is_empty() or run_id <= 0 or class_xp.is_empty() or familiarity.is_empty(): return false
+	var previous: Dictionary = _expeditions.get(identity, {})
+	if not previous.is_empty() and (not previous.closed or int(previous.run_id) == run_id): return false
+	if pending_profile_ids().has(identity): return false
+	_expeditions[identity] = {"run_id":run_id,"xp":class_xp.duplicate(true),"monsters":familiarity.duplicate(true),"closed":false}
+	return true
+
+## Claims one voluntary forfeiture. Remove only this character's unbanked
+## awards; other party members retain their frozen awards and progression.
+func forfeit_expedition(identity: String, run_id: int) -> Dictionary:
+	var entry: Dictionary = _expeditions.get(identity, {})
+	if entry.is_empty() or entry.closed or int(entry.run_id) != run_id: return {}
+	entry.closed = true
+	for receipt: Dictionary in _receipts.values():
+		if receipt.phase == Phase.PENDING:
+			receipt.rewards = receipt.rewards.filter(func(reward): return reward.identity != identity)
+	_legacy_notices = _legacy_notices.filter(func(notice): return notice.get("identity", "") != identity)
+	return {"xp":entry.xp.duplicate(true),"monsters":entry.monsters.duplicate(true)}
+
+func finish_expedition(identity: String, run_id: int) -> void:
+	var entry: Dictionary = _expeditions.get(identity, {})
+	if not entry.is_empty() and int(entry.run_id) == run_id: entry.closed = true
 
 ## Returns the accepted receipt key, or an empty string for a duplicate death.
 ## Summons need a key for death-event deduplication but generate no awards.
@@ -122,11 +149,12 @@ func retire_completed() -> void:
 ## Rollback follows the actual outer save boundary, including nested legacy
 ## settlement. The temporary savepoint is detached and never serialized.
 func savepoint() -> Dictionary:
-	return {"receipts": _receipts.duplicate(true), "notices": _legacy_notices.duplicate(true)}
+	return {"receipts": _receipts.duplicate(true), "notices": _legacy_notices.duplicate(true), "expeditions": _expeditions.duplicate(true)}
 
 func restore_savepoint(checkpoint: Dictionary) -> void:
 	_receipts = checkpoint.receipts.duplicate(true)
 	_legacy_notices.assign(checkpoint.notices.duplicate(true))
+	_expeditions = checkpoint.get("expeditions", {}).duplicate(true)
 
 func defer_legacy_notices(notices: Array[Dictionary]) -> void:
 	_legacy_notices.append_array(notices.duplicate(true))

@@ -92,6 +92,12 @@ func reset(class_id := 0) -> void:
 		p.facing = Vector3.FORWARD
 		p[PlayerVitals.STATE] = PlayerVitals.Health.new(80.0,100)
 	focus(class_id)
+	# This suite constructs Wilds actors directly instead of using admission.
+	# Supply the same reward boundary required by a real partial abandonment.
+	for p: Dictionary in [player,ally]:
+		var peer := ExpeditionCase.Participation.peer_for(p)
+		check(game.monster_rewards.begin_expedition(game._kill_reward_identity(peer,p),game.participation.run_id(),p.character.xp,p.character.monsters),
+			"synthetic expedition captures its pre-entry reward counters")
 
 
 func material(family: String) -> int:

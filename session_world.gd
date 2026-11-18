@@ -190,7 +190,8 @@ static func leave(game: Node, message: String) -> void:
 		if game.character_dirty:
 			game.save_local_character()
 			if not game.persistence_session.pending_notice().is_empty(): return
-		if game.network_session.role() == "Host" and game.participation.active(): load("res://expedition_transitions.gd").finish_failed(game)
+		if game.network_session.role() == "Host" and game.participation.active():
+			if not load("res://expedition_transitions.gd").finish_voluntary(game): return
 	if game.persistence_session.is_guarded(): game.persistence_session.begin_shutdown()
 	offline(game)
 	game.net_view.clear();game.net_motion.clear()

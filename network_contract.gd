@@ -15,6 +15,7 @@ const CAPABILITIES := {
 	"native_class_request": 1,
 	"guest_profile_projection": 1,
 	"expedition_travel_consent": 1,
+	"expedition_abandonment_forfeiture": 1,
 }
 
 ## Authored sender, transport/channel, ordered argument types and optional count.

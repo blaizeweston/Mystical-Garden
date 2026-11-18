@@ -2053,6 +2053,8 @@
       ],
       "package": true
     },
+    "expedition_forfeiture": {"kind": "unit", "systems": ["player_lifecycle", "player_vitals", "player_cooldowns", "departure_settlement", "expedition_wallet", "persistence_operations", "persistence_authorization", "persistence_recovery_plan", "combat", "life", "expeditions", "loot", "connection_flow", "garden_returns", "expedition_sustain", "characters", "event_audio", "encounter_roster", "enemy_tactics", "enemy_attack_execution", "incoming_player_hit", "expedition_participation", "network_session"], "package": false},
+    "expedition_forfeiture_coop": {"kind": "pair", "systems": ["player_lifecycle", "player_vitals", "player_cooldowns", "departure_settlement", "expedition_wallet", "world_snapshot", "persistence_operations", "persistence_authorization", "persistence_recovery_plan", "combat", "life", "expeditions", "loot", "connection_flow", "garden_returns", "expedition_sustain", "characters", "event_audio", "encounter_roster", "enemy_tactics", "enemy_attack_execution", "incoming_player_hit", "expedition_participation", "network_session"], "package": false},
     "guarded_expedition": {
       "candidate_release": true,
       "kind": "unit",
