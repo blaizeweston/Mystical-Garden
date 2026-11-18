@@ -158,7 +158,7 @@ static func incoming_grace(player: Dictionary, now: int, slow_ms: int, grace_ms:
  player.hurt_until=now+grace_ms
 
 static func root(game: Node, target: int, until: int) -> void:
- preload("res://wilds_skill_tactics.gd").root_denied(game,target,Time.get_ticks_msec())
+ preload("res://wilds_skill_tactics.gd").root_denied(game,target,preload("res://combat_clock.gd").now())
  if target == -1:
   game.tactics.rooted_until = maxi(game.tactics.rooted_until, until)
  else:

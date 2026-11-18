@@ -56,7 +56,7 @@ func frame(game: Node) -> void:
  var held: bool=not blocked and armed and Input.is_action_pressed("attack")
  var hovered: Control=game.get_viewport().gui_get_hovered_control()
  if hovered is BaseButton:held=false
- var now:=Time.get_ticks_msec()
+ var now:=preload("res://combat_clock.gd").now()
  # Unit aim remains valid for fallback inputs. Live cursor input carries distance in its magnitude.
  var cursor_aim:=aim*(distance+2.0) if distance>=0.0 else aim
  if game.multiplayer.is_server():

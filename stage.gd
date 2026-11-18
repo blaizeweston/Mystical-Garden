@@ -263,7 +263,7 @@ func focus(origin: Vector3, wild: bool, delta: float = 1.0) -> void:
 
 func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 		winding_up: bool, strike_radius: float, drop: Vector3, has_drop: bool, planted: Array, depth: int, route_rooms: int, show_graft_altar: bool, briar_bound: bool, longlimb: bool, campaign: PackedInt32Array, pack: PackedFloat32Array, delta: float, view_id: int=-1) -> void:
-	var now := Time.get_ticks_msec()
+	var now := preload("res://combat_clock.gd").now()
 	for id in avatars.keys():
 		if not players.has(id):
 			avatars[id].queue_free()
@@ -563,19 +563,19 @@ func animate_enemy(root: Node3D, actor: Dictionary, position: Vector3, winding: 
 		facing=WILD_OFFSET+Vector3(cue.target)-position
 	elif not winding and not last_cue.is_empty():
 		if position.distance_to(WILD_OFFSET+Vector3(last_cue.target))<.15 and previous.distance_to(position)>.2:
-			if last_cue.mode in ["pounce","vault"]:actor.jump_until=Time.get_ticks_msec()+350
+			if last_cue.mode in ["pounce","vault"]:actor.jump_until=preload("res://combat_clock.gd").now()+350
 			if last_cue.mode=="burrow":
 				actor.burrow={"elapsed":0.0,"from":previous,"to":position,"via":WILD_OFFSET+Vector3(last_cue.via) if last_cue.has("via") else previous.lerp(position,.5)}
 		actor.erase("attack_cue")
 	elif not winding and motion.length()>1.5 and int(actor.mask)&Enemies.MOBILITY and get_meta("enemy_attack_poses",{}).is_empty():
-		actor.jump_until=Time.get_ticks_msec()+350
+		actor.jump_until=preload("res://combat_clock.gd").now()+350
 	if facing.length_squared()>0.00002:
 		model.rotation.y=lerp_angle(model.rotation.y,atan2(facing.x,facing.z),minf(1.0,10.0*delta))
 	var brace := lerpf(float(actor.windup), 1.0 if winding else 0.0, minf(1.0, 9.0 * delta))
 	actor.windup = brace
 	var pace: float = actor.pace
 	var phase: float = actor.phase
-	model.rotation.x = 0.14 * maxf(0.0,(int(actor.get("hit_until",0)) - Time.get_ticks_msec()) / 115.0)
+	model.rotation.x = 0.14 * maxf(0.0,(int(actor.get("hit_until",0)) - preload("res://combat_clock.gd").now()) / 115.0)
 	var gait: String = Enemies.get_kind(actor.kind).motion
 	model.position.y = absf(sin(phase)) * (0.15 if gait == "bound" else 0.065) * pace - 0.12 * brace
 	model.rotation.z = 0.0
@@ -620,8 +620,8 @@ func animate_enemy(root: Node3D, actor: Dictionary, position: Vector3, winding: 
 		preload("res://boss_lair_visuals.gd").pose(actor,cue,brace)
 	if int(actor.kind) in [22,23]:
 		preload("res://boss_phase_visuals.gd").pose(actor,cue,brace)
-	if int(actor.get("jump_until", 0)) > Time.get_ticks_msec():
-		var t := 1.0 - (int(actor.jump_until) - Time.get_ticks_msec()) / 350.0
+	if int(actor.get("jump_until", 0)) > preload("res://combat_clock.gd").now():
+		var t := 1.0 - (int(actor.jump_until) - preload("res://combat_clock.gd").now()) / 350.0
 		model.position.y += sin(t * PI) * 0.7
 	for i in actor.legs.size():
 		var offset := PI if i == 1 or i == 2 else 0.0

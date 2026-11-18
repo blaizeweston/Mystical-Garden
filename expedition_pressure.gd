@@ -73,7 +73,7 @@ static func tick(game: Node,now: int) -> void:
 static func hints(game: Node,now: int=-1) -> Array:
  var result: Array=[]
  if game.encounter_cleared() or not game.tactics.memory.has("pressure"):return result
- if now<0:now=Time.get_ticks_msec()
+ if now<0:now=preload("res://combat_clock.gd").now()
  var state: Dictionary=game.tactics.memory.pressure
  for index in state.pending.size():
   var at: Vector3=state.pending[index].pos

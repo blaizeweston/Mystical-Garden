@@ -118,7 +118,7 @@ static func tick_hazards(game: Node,now: int) -> void:
   var hits := floor_hits if commitment.is_empty() else Hits.for_commitment(game,commitment)
   hits.area(entry.point,float(entry.radius),now,float(entry.damage),700 if str(entry.kind) in ["nest","lair_pool","web"] else 0,false)
 static func hints(game: Node) -> Array:
- var now:=Time.get_ticks_msec()
+ var now:=preload("res://combat_clock.gd").now()
  var result:=Lair.hints(game,now)
  result.append_array(Phases.hints(game,now))
  for entry in game.enemy_hazards:

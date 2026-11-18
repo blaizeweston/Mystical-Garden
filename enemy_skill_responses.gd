@@ -133,7 +133,7 @@ static func plan_canopy(game: Node, actor: Dictionary, attack: Dictionary) -> bo
 		return false
 	var origin: Vector3 = actor.pos
 	var ally: Vector3 = game.enemy_position(ref.slot)
-	if Support.covers(game, actor, origin, ally, origin, Time.get_ticks_msec(), true):
+	if Support.covers(game, actor, origin, ally, origin, preload("res://combat_clock.gd").now(), true):
 		return false
 	var goal := origin.move_toward(ally, minf(2.7, origin.distance_to(ally) - 1.1))
 	var radius := float(Catalog.get_kind(11).shelter_radius)

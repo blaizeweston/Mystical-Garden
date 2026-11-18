@@ -66,8 +66,8 @@ static func secondary(game: Node,player: Dictionary,stats: Dictionary,point: Vec
   var next: Vector3=game.enemy_position(found);hits.append(token(game,found));remaining-=1
   if stats.pattern=="chain":game.emit_combat_event("link","chain",cursor,next,.20,game.weapon_effect_color(player),0,0)
   if stats.has("cr02_action"):
-   preload("res://combat_action_events.gd").contact(game,stats,found,Time.get_ticks_msec(),true)
-  game.apply_weapon_hit(player,found,cursor,hit,Time.get_ticks_msec())
+   preload("res://combat_action_events.gd").contact(game,stats,found,preload("res://combat_clock.gd").now(),true)
+  game.apply_weapon_hit(player,found,cursor,hit,preload("res://combat_clock.gd").now())
   if stats.pattern=="chain":cursor=next
  return remaining
 static func melee(game: Node,shot: Dictionary,now: int) -> void:

@@ -78,7 +78,7 @@ static func admit(game: Node, id: int, p: Dictionary,reserved_override: Array=[]
 	p[game.PlayerLifecycle.STATE] = game.PlayerLifecycle.start_life()
 	p.lost_health=0
 	for key in ["grave_charges","counter_until","front_guard_until","counter_guard_until"]: p[key]=0
-	p.still_since=Time.get_ticks_msec();p.still_point=game.wild_entry(id)
+	p.still_since=preload("res://combat_clock.gd").now();p.still_point=game.wild_entry(id)
 	p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new()
 	p.pos = game.wild_entry(id)
 	p[game.Cooldowns.STATE] = game.Cooldowns.Timers.new()
