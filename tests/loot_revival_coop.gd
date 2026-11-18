@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -84,7 +85,7 @@ func guest_run() -> void:
  check(await until(func(): return game.players[id].get("fallen",false)),"guest receives fallen state")
  game._process(.016)
  check(game.spectator_view.target_id==1 and game.exploration.player.distance_to(game.players[1].pos)<.1,"guest camera and fog follow living host")
- check(game.player_hud.state.fallen,"fallen HUD hides combat controls");await capture("spectator");mark("guest-spectates")
+ check(UIFixture.control(game,"player_hud").state.fallen,"fallen HUD hides combat controls");await capture("spectator");mark("guest-spectates")
  game.request_garden_action.rpc_id(1,"class_skill");game.submit_motion.rpc_id(1,Vector2.RIGHT)
  await create_timer(.35).timeout;mark("blocked")
  var shows_revival := func():
@@ -92,7 +93,7 @@ func guest_run() -> void:
   return not player.get("fallen",true) and player.max_hp==80 and not player.has(PlayerVitals.STATE) and not player.has(PlayerLifecycle.STATE)
  check(await until(shows_revival),"guest receives revival scalars without the health or lifecycle owners")
  game._process(.016)
- check(game.player_hud.state.lost_health==20 and game.spectator_view.target_id==0 and Orb.fractions(80,80,20).is_equal_approx(Vector2(.8,.8)),"guest restored camera and lost-capacity HUD")
+ check(UIFixture.control(game,"player_hud").state.lost_health==20 and game.spectator_view.target_id==0 and Orb.fractions(80,80,20).is_equal_approx(Vector2(.8,.8)),"guest restored camera and lost-capacity HUD")
  await capture("revived");mark("guest-revived")
  check(await until(func(): return marked("revive-host") and game.players[1].get("fallen",false)),"host fallen state arrives")
  game.send_action(false)

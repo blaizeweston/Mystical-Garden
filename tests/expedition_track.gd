@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -23,10 +24,10 @@ func run() -> void:
  var game=load("res://world.tscn").instantiate();var base:="user://release-fixtures/floor-track-"+Crypto.new().generate_random_bytes(8).hex_encode();DirAccess.make_dir_recursive_absolute(base)
  game.progress.path=base+"/world";game.local_character.path=base+"/character";game.guest_character.path=base+"/guest";root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var p: Dictionary=game.players[1];game._process(.016)
- var track: Control=game.player_hud.floor_track
+ var track: Control=UIFixture.control(game,"player_hud").floor_track
  check(not track.visible and track.mouse_filter==Control.MOUSE_FILTER_IGNORE,"Garden hides track and combat input passes through")
  ExpeditionCase.set_membership(game, p, true);ExpeditionCase.set_world(game, {"encounter_number": 6});game._process(.016)
- check(track.visible and track.floor_number==6 and not game.player_hud.state.encounter.contains("Encounter"),"game supplies floor and removes duplicated text counter")
+ check(track.visible and track.floor_number==6 and not UIFixture.control(game,"player_hud").state.encounter.contains("Encounter"),"game supplies floor and removes duplicated text counter")
  check(track.nodes.any(func(n):return n.floor==6 and n.current and n.upgrade and n.extraction),"current upgrade/extraction floor carries both icons")
  ExpeditionCase.set_world(game, {"encounter_number": 7});game._process(.016)
  check(track.nodes.any(func(n):return n.floor==6 and n.label=="6" and not n.current),"advancing retains the previous floor number")

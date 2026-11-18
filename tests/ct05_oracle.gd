@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -159,21 +160,21 @@ func entry_for_each_class() -> void:
 			and graph.focus(caster.character).is_empty() and not build.departure_refusal(caster).is_empty()
 			and not ExpeditionCase.Transitions.admit(game, 1,caster),"fresh class requires an explicit starting focus")
 		var before_preview: Dictionary = caster.character.duplicate(true)
-		game.loadout_view.refresh()
-		check(game.loadout_view.focus_options.visible and game.loadout_view.depart_button.disabled,"starting focus is offered in crafting UI")
+		UIFixture.control(game,"loadout_view").refresh()
+		check(UIFixture.control(game,"loadout_view").focus_options.visible and UIFixture.control(game,"loadout_view").depart_button.disabled,"starting focus is offered in crafting UI")
 		for lane in preview_effects[class_id].size():
-			var preview: Label = game.loadout_view.focus_previews[lane]
+			var preview: Label = UIFixture.control(game,"loadout_view").focus_previews[lane]
 			var candidate: Dictionary = before_preview.duplicate(true)
 			candidate[graph.profile_key] = graph.state([graph.nodes[lane].id])
 			var ability_name: String = game.Skills.resolve_in_world(game,class_id,0,candidate).name
 			check(preview.visible and preview.text.begins_with(ability_name + " · ") and "cooldown" in preview.text
 				and preview_effects[class_id][lane] in preview.text,"class %d lane %d shows its named starting ability and effect before learning" % [class_id,lane])
 		check(caster.character==before_preview,"previewing focus choices leaves the actual profile untouched")
-		game.loadout_view.focus_buttons[1].pressed.emit()
+		UIFixture.control(game,"loadout_view").focus_buttons[1].pressed.emit()
 		check(graph.path(caster.character).size()==1 and build.departure_refusal(caster).is_empty()
 			and caster.character.xp[class_id]==0,"0 XP focus learns through actual host action: "+game.status)
-		game.loadout_view.refresh()
-		check(not game.loadout_view.focus_options.visible and not game.loadout_view.depart_button.disabled,"chosen focus unlocks native departure")
+		UIFixture.control(game,"loadout_view").refresh()
+		check(not UIFixture.control(game,"loadout_view").focus_options.visible and not UIFixture.control(game,"loadout_view").depart_button.disabled,"chosen focus unlocks native departure")
 		ExpeditionCase.set_membership(game, caster, true)
 		caster.pos=Vector3.ZERO
 		caster.erase("cast_until")

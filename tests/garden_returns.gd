@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -68,7 +69,7 @@ func run() -> void:
    if model is MeshInstance3D and model.get_meta("garden_pond",false) and float(model.material_override.get_shader_parameter("resonance"))>.5:responding=true
  check(responding and reserve.stock==before_stock and game.rng.state==rng_state,"spring response, camera and fauna are cosmetic only")
  game.app_settings.values.ambient_motion=false;ambience._process(.2);check(not ambience.colonies.return_moths.visible,"motion preference suppresses moving fauna")
- var story=game.progression_view.care;story.refresh(Service.projection(game,1));check(story.stories.text.contains("Lantern Moss") and story.stories.text.contains("root scar"),"bounded recap survives skipped scenes")
+ var story=UIFixture.control(game,"progression_view").care;story.refresh(Service.projection(game,1));check(story.stories.text.contains("Lantern Moss") and story.stories.text.contains("root scar"),"bounded recap survives skipped scenes")
  g.save_garden()
  game.add_player(9090);SessionCase.set_ready(game, game.players[9090], true);SessionCase.set_identity(game, game.players[9090], "return-late-viewer");Scenes.register(game,9090)
  check(Scenes.projection(game,9090).pending.is_empty() and Service.known(Service.projection(game,9090),"lantern_homecoming"),"late join sees the changed Garden without replaying an old award/scene")

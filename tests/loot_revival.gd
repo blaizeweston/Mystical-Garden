@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -59,7 +60,7 @@ func run() -> void:
  check(not PlayerLifecycle.fallen(a) and PlayerVitals.current_hp(a)==80 and PlayerVitals.maximum_hp(a)==80 and a.lost_health==20,"nearby E revives at full reduced capacity")
  check(not game.Life.revive(game,2,1) and a.lost_health==20,"duplicate requests cannot charge twice")
  game._process(.016)
- check(game.player_hud.state.lost_health==20 and Orb.fractions(80,80,20).is_equal_approx(Vector2(.8,.8)),"health orb reserves the sacrificed capacity separately from current HP")
+ check(UIFixture.control(game,"player_hud").state.lost_health==20 and Orb.fractions(80,80,20).is_equal_approx(Vector2(.8,.8)),"health orb reserves the sacrificed capacity separately from current HP")
  check(game.spectator_view.focus_id(1)==1,"revived camera returns to own character")
  var health_copies: Array[Dictionary]=[{"id":"run_health","rarity":"Common","amount":3,"floor":6,"acquisition_id":1}]
  a[Cards.STATE]=Cards.Ledger.new(health_copies)

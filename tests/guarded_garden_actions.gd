@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -64,7 +65,7 @@ func open_world(fresh := false) -> bool:
   actor.pos=world.Stage.HEART
   world.handle_loadout_action(1,actor,"learn_%d_64"%int(actor.frame))
   actor.pos=prior_position
-  world.toggle_overlay(null)
+  world.ui.close_panels()
  return true
 
 func close_world() -> void:
@@ -273,7 +274,7 @@ func gameplay() -> void:
  world.seed_reserve(p).parts[1] = 0
  world.progress.add_parts(1,-world.progress.part_count(1))
  world.show_gate_preparation(1)
- check(world.loadout_menu.visible and p.prepared==0 and p.character.loadouts[1].parts[0]==0, "crafting reconciliation persisted before opening panel")
+ check(UIFixture.control(world,"loadout_menu").visible and p.prepared==0 and p.character.loadouts[1].parts[0]==0, "crafting reconciliation persisted before opening panel")
  var weaver_progression=world.Classes.connected_tree(1)
  p.character.xp[1]=weaver_progression.XP_THRESHOLDS[1]
  p.pos=world.Stage.HEART
@@ -324,12 +325,12 @@ func gameplay() -> void:
  world.refresh_feedback()
  check(world.progress.stock[0]==seed_count+2 and p.character.plants[0]==2 and world.rng.state==rng_before and audio_count()==start_audio+2
   and disk()[garden_path]!=before[garden_path] and disk()[C]!=before[C] and Plan.discover(PackedStringArray([garden_path])).state=="pending_recovery"
-  and world.feedback.text.contains("Harvested two") and world.feedback.text.contains("Recovery cleanup is pending"),
+  and UIFixture.control(world,"feedback").text.contains("Harvested two") and UIFixture.control(world,"feedback").text.contains("Recovery cleanup is pending"),
   "flowering confirmed with one success/audio and retained cleanup warning")
  var committed:=disk()
  world.garden_action(1,"flower")
  check(disk()==committed and audio_count()==start_audio+2,"pending blocks replay")
- record("flower_committed_cleanup_pending",before,{"notice":world.persistence_session.pending_notice(),"feedback":world.feedback.text,"audio":audio_count()})
+ record("flower_committed_cleanup_pending",before,{"notice":world.persistence_session.pending_notice(),"feedback":UIFixture.control(world,"feedback").text,"audio":audio_count()})
  check(Ops.recover(PackedStringArray([garden_path])).value.verified and disk()[garden_path]==committed[garden_path] and disk()[C]==committed[C], "verified B2 cleanup preserves committed bytes")
  close_world()
  await process_frame
@@ -521,8 +522,8 @@ func caller_effects() -> void:
     world.send_garden_action(command)
     world.refresh_feedback()
     check(attempts.count==staged and disk()==after and world.rng.state==rng_before
-     and world.feedback.text.contains(notice),action+" replay leaves bytes, RNG, and visible warning intact")
-    facts["feedback_after_replay"]=world.feedback.text
+     and UIFixture.control(world,"feedback").text.contains(notice),action+" replay leaves bytes, RNG, and visible warning intact")
+    facts["feedback_after_replay"]=UIFixture.control(world,"feedback").text
    world.remove_meta(&"guarded_gameplay_test_fault")
    record(action+"_"+outcome.to_lower(),before,facts)
    close_world()

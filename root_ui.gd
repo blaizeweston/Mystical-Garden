@@ -303,3 +303,30 @@ func skill_slot(canvas: Control,rect: Rect2,key: String,label: String,remaining:
 		text(canvas,rect.position+Vector2(10,rect.size.y-15),label,11,INK if ready else MUTED)
 	if not ready:
 		canvas.draw_rect(Rect2(rect.position+Vector2(9,rect.size.y-6),Vector2(rect.size.x-18,2)),Color("#6c5d3d"))
+
+static func panel(parent: Node, color: Color, margin: Vector2) -> PanelContainer:
+	var panel := PanelContainer.new()
+	parent.add_child(panel)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := root_style()
+	style.content_margin_left = maxf(18.0, margin.x)
+	style.content_margin_right = maxf(18.0, margin.x)
+	style.content_margin_top = maxf(16.0, margin.y)
+	style.content_margin_bottom = maxf(16.0, margin.y)
+	panel.add_theme_stylebox_override("panel", style)
+	return panel
+
+static func label(parent: Control, size: int, color: Color) -> Label:
+	var label := Label.new()
+	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_color_override("font_color", color)
+	parent.add_child(label)
+	return label
+
+static func button(parent: Control, caption: String, action: Callable, focus: int = Control.FOCUS_ALL) -> Button:
+	var button := Button.new()
+	button.text = caption
+	button.focus_mode = focus
+	button.pressed.connect(action)
+	parent.add_child(button)
+	return button

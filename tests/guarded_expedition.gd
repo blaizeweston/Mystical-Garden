@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -75,7 +76,7 @@ func open_world(fresh := false) -> bool:
   actor.pos=world.Stage.HEART
   world.handle_loadout_action(1,actor,"learn_0_64")
   actor.pos=prior_position
-  world.toggle_overlay(null)
+  world.ui.close_panels()
  return true
 
 func close_world() -> void:
@@ -185,7 +186,7 @@ func exercise() -> void:
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.garden_action(1,"depart")
  check(disk()==before and not ExpeditionCase.is_wild(actor) and actor.prepared==1 and world.battlefield==field and world.map_rng.state==seed
-  and world.loadout_menu.visible and world.run_wallet(actor)==0,
+  and UIFixture.control(world,"loadout_menu").visible and world.run_wallet(actor)==0,
   "departure abort restores map RNG, battlefield, material, actor and open UI")
  check(is_same(actor[Cooldowns.STATE],garden_timers) and garden_timers.deadline(Cooldowns.Q)==2100
   and garden_timers.deadline(Cooldowns.R)==2200 and garden_timers.deadline(Cooldowns.DODGE)==2300,
@@ -193,7 +194,7 @@ func exercise() -> void:
  record("departure_abort",before)
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.garden_action(1,"depart")
- check(ExpeditionCase.is_wild(actor) and actor.weapon==1 and world.progress.part_count(1)==2 and not world.loadout_menu.visible
+ check(ExpeditionCase.is_wild(actor) and actor.weapon==1 and world.progress.part_count(1)==2 and not UIFixture.control(world,"loadout_menu").visible
   and disk()[G]!=before[G] and world.run_wallet(actor)==0,"departure commits a fresh wallet before panel closure")
  var departed_timers: Cooldowns.Timers = actor[Cooldowns.STATE]
  check(not is_same(departed_timers,garden_timers) and departed_timers.deadline(Cooldowns.Q)==0
@@ -312,7 +313,7 @@ func exercise() -> void:
 
  clear_floor(actor,3)
  ExpeditionCase.Transitions.checkpoint(world, 1,true)
- check(world.checkpoint_pending and world.checkpoint_menu.visible and world.participation.floor()==3,"checkpoint opens cards without travelling")
+ check(world.checkpoint_pending and UIFixture.control(world,"checkpoint_menu").visible and world.participation.floor()==3,"checkpoint opens cards without travelling")
  var offer: Dictionary=world.checkpoint_card_data(actor)[0]
  var card_wallet: int=world.wallet_for(actor).spent_essence()
  world.send_garden_action(world.affinity_checkpoint_action(offer.revision,"0"))
@@ -362,7 +363,7 @@ func exercise() -> void:
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.refresh_feedback()
  check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==3 and world.progress.campaign.best_extraction==6 and disk()[G]!=before[G]
-  and world.feedback.text.contains("Extracted with") and world.feedback.text.contains(Tx.CLEANUP_NOTICE) and FileAccess.file_exists(G+".transaction"),
+  and UIFixture.control(world,"feedback").text.contains("Extracted with") and UIFixture.control(world,"feedback").text.contains(Tx.CLEANUP_NOTICE) and FileAccess.file_exists(G+".transaction"),
   "cleanup-pending extraction commits inventory and progression and retains notice")
  committed=disk()
  ExpeditionCase.Transitions.checkpoint(world, 1,false)
@@ -400,7 +401,7 @@ func exercise() -> void:
  ExpeditionCase.Transitions.checkpoint(world, 1,false)
  world.remove_meta(&"guarded_gameplay_test_fault")
  var split:=disk()
- check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds+1 and world.loadout_menu.visible and world.persistence_session.pending_notice().contains("uncertain")
+ check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds+1 and UIFixture.control(world,"loadout_menu").visible and world.persistence_session.pending_notice().contains("uncertain")
   and split[C]!=before[C] and split[G]==before[G] and not world.status.contains("Extracted with"),"uncertain extraction keeps tentative memory and withholds notice/closure")
  ExpeditionCase.Transitions.checkpoint(world, 1,false)
  check(disk()==split,"uncertain operation does not replay")

@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -93,8 +94,8 @@ func run():
 	g.stock[3]=1
 	game.send_garden_action("breed_0_3")
 	check(g.stock[4]>=1,"host validated UI breed action")
-	game.toggle_overlay(game.progression_menu)
-	var panel=game.progression_view
+	game.ui.toggle_panel("progression")
+	var panel=UIFixture.control(game,"progression_view")
 	panel.refresh()
 	check(panel.tree.nodes.size()==24,"generic tree receives all seed nodes")
 	panel.select_node("14")
@@ -106,7 +107,7 @@ func run():
 	panel.refresh()
 	check(panel.tree.nodes.size()==1+game.Classes.connected_tree(panel.inspected_class).nodes.size(),"same tree accepts selectable class choices")
 	# Material identity affects its explicit affinity slot, never hidden species weapon passives.
-	game.toggle_overlay(null)
+	game.ui.close_panels()
 	player.frame=0
 	var tree=game.Classes.connected_tree(0)
 	player.character[tree.profile_key]=tree.state(["vanguard"])

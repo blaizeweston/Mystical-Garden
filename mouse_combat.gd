@@ -40,7 +40,7 @@ func frame(game: Node) -> void:
  if DisplayServer.get_name()=="headless":return
  var id: int=game.multiplayer.get_unique_id();var p: Dictionary=game.players.get(id,{})
  var focused: bool=DisplayServer.window_is_focused()
- var blocked: bool=not game.Life.alive(p) or game.overlay.visible or game.settings_dialog.visible or not focused
+ var blocked: bool=not game.Life.alive(p) or game.ui.is_overlay_open() or game.settings_dialog.visible or not focused
  if blocked:armed=false
  elif not Input.is_action_pressed("attack"):armed=true
  var aim:=Vector2(local_aim.x,local_aim.z)
@@ -72,7 +72,7 @@ func tick(game: Node,now: int) -> void:
   var p: Dictionary=game.players[id];var state: Dictionary=states[id]
   if not game.Life.alive(p) or now-int(state.at)>MAX_AGE:state.held=false;continue
   p.facing=state.aim
-  if state.held and not (id==game.HOST and (game.overlay.visible or game.settings_dialog.visible)):game.strike_enemy(id,p,p.pos)
+  if state.held and not (id==game.HOST and (game.ui.is_overlay_open() or game.settings_dialog.visible)):game.strike_enemy(id,p,p.pos)
 func draw_indicator(game: Node,p: Dictionary,aim: Vector2,shown: bool) -> void:
  if not is_instance_valid(marker):
   marker=MeshInstance3D.new();game.stage.add_child(marker)

@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -253,8 +254,8 @@ func guest_run() -> void:
  check(await until(func():return marked("host-done") and game.status.begins_with("Later unrelated")),"later normal host feedback arrives")
  game.toast_until=0
  game.refresh_feedback()
- check(game.feedback.text.contains(Tx.CLEANUP_NOTICE) and crop_count()==3,"later message and toast expiry preserve host warning without replay")
- record("guest_visible_host_cleanup",before,{"feedback":game.feedback.text,"guest_disk":crop_count()})
+ check(UIFixture.control(game,"feedback").text.contains(Tx.CLEANUP_NOTICE) and crop_count()==3,"later message and toast expiry preserve host warning without replay")
+ record("guest_visible_host_cleanup",before,{"feedback":UIFixture.control(game,"feedback").text,"guest_disk":crop_count()})
  SessionCase.World.leave(game,"Guarded guest complete")
  check(game.network_session.transport()==null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"guest leaves before world removal")
  mark("guest-offline")

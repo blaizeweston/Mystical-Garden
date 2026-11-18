@@ -32,28 +32,20 @@ var shown: Dictionary
 var next_refresh := 0
 
 
-static func mount(world: Node) -> void:
-	var panel = load("res://run_summary_panel.gd").new()
-	panel.name = "RunSummary"
-	panel.game = world
-	panel.hide()
-	world.overlay.add_child(panel)
-
-
 static func handle_input(world: Node, event: InputEvent) -> bool:
 	if not event.is_action_pressed("run_summary") or world.network_session.role() == "Connecting" or world.returning_to_title:
 		return false
-	var panel: PanelContainer = world.overlay.get_node_or_null("RunSummary")
-	if panel == null or (world.overlay.visible and not panel.visible):
-		return false
+	if world.ui.is_overlay_open() and not world.ui.panel_is_open("summary"): return false
 	var player: Dictionary = world.players.get(world.local_player_id(), {})
 	if not Participation.is_wild(player):
 		return false
-	world.toggle_overlay(panel)
-	if panel.visible:
-		panel.refresh(player)
-		panel.close_button.grab_focus()
+	world.ui.toggle_summary()
 	return true
+
+
+func opened() -> void:
+	refresh(game.players.get(game.local_player_id(),{}))
+	close_button.grab_focus()
 
 
 func _ready() -> void:
@@ -62,7 +54,7 @@ func _ready() -> void:
 	box.add_theme_constant_override("separation", 12)
 	add_child(box)
 
-	heading = game.add_label(box, 22, UI.INK)
+	heading = UI.label(box, 22, UI.INK)
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 22)
 	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -76,22 +68,22 @@ func _ready() -> void:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left.add_theme_constant_override("separation", 10)
 	scroll.add_child(left)
-	game.add_label(left, 16, UI.GREEN).text = "Combat stats"
+	UI.label(left, 16, UI.GREEN).text = "Combat stats"
 	totals = GridContainer.new()
 	totals.columns = 2
 	totals.add_theme_constant_override("v_separation", 5)
 	totals.add_theme_constant_override("h_separation", 16)
 	left.add_child(totals)
-	game.add_label(left, 16, UI.GREEN).text = "Unique bonuses"
-	bonuses = game.add_label(left, 13, UI.INK)
+	UI.label(left, 16, UI.GREEN).text = "Unique bonuses"
+	bonuses = UI.label(left, 13, UI.INK)
 	bonuses.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 	var right := VBoxContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.add_theme_constant_override("separation", 8)
 	columns.add_child(right)
-	game.add_label(right, 16, UI.GREEN).text = "Expedition upgrades"
-	empty_cards = game.add_label(right, 13, UI.MUTED)
+	UI.label(right, 16, UI.GREEN).text = "Expedition upgrades"
+	empty_cards = UI.label(right, 13, UI.MUTED)
 	empty_cards.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	grouped_scroll = ScrollContainer.new()
 	grouped_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -102,7 +94,7 @@ func _ready() -> void:
 	grouped_cards.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grouped_cards.add_theme_constant_override("separation", 10)
 	grouped_scroll.add_child(grouped_cards)
-	close_button = game.add_button(box, "Close", func(): game.toggle_overlay(null))
+	close_button = UI.button(box, "Close", func(): game.ui.close_panels())
 	get_viewport().size_changed.connect(fit)
 	visibility_changed.connect(func(): set_process(is_visible_in_tree()))
 	fit()
@@ -117,7 +109,7 @@ func fit() -> void:
 func _process(_delta: float) -> void:
 	var player: Dictionary = game.players.get(game.local_player_id(), {})
 	if not Participation.is_wild(player):
-		game.toggle_overlay(null)
+		game.ui.close_panels()
 	elif Time.get_ticks_msec() >= next_refresh:
 		refresh(player)
 
@@ -140,11 +132,11 @@ func refresh(player: Dictionary) -> void:
 			totals.remove_child(child)
 			child.queue_free()
 		for row in view.get("totals", []):
-			var title: Label = game.add_label(totals, 13, UI.INK)
+			var title: Label = UI.label(totals, 13, UI.INK)
 			title.text = row[0]
 			title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			var value: Label = game.add_label(totals, 13, UI.INK)
+			var value: Label = UI.label(totals, 13, UI.INK)
 			value.text = row[1]
 			if row.size() > 2:
 				for label: Label in [title, value]:
@@ -173,10 +165,10 @@ func add_grouped_card(card: Dictionary) -> void:
 	title.toggle_mode = true
 	title.tooltip_text = card.tooltip
 	group.add_child(title)
-	var summary: Label = game.add_label(group, 13, UI.INK)
+	var summary: Label = UI.label(group, 13, UI.INK)
 	summary.text = card.summary
 	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	var details: Label = game.add_label(group, 13, UI.MUTED)
+	var details: Label = UI.label(group, 13, UI.MUTED)
 	details.text = card.tooltip
 	details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	details.hide()

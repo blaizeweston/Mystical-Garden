@@ -27,8 +27,8 @@ func focus_id(local_id: int) -> int:
  var p: Dictionary=game.players.get(local_id,{})
  var fallen: bool=Participation.is_wild(p) and PlayerLifecycle.fallen(p)
  panel.position=Vector2((game.get_viewport().get_visible_rect().size.x-430)/2.0,114)
- panel.visible=fallen and not game.overlay.visible
- if fallen and not was_fallen: game.toggle_overlay(null)
+ panel.visible=fallen and not game.ui.is_overlay_open()
+ if fallen and not was_fallen: game.ui.close_panels()
  was_fallen=fallen
  if not fallen: target_id=0;return local_id
  var ids:=Life.living_ids(game)

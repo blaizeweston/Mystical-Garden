@@ -129,7 +129,7 @@ func _ready() -> void:
 	heart_finale_button=Button.new()
 	heart_finale_button.text="Face the Heart"
 	heart_buttons.add_child(heart_finale_button)
-	heart_finale_button.pressed.connect(func(): game.send_garden_action("awaken");game.toggle_overlay(null))
+	heart_finale_button.pressed.connect(func(): game.send_garden_action("awaken");game.ui.close_panels())
 	material_row=HBoxContainer.new();add_child(material_row);var label:=Label.new();label.text="Research ingredients:";material_row.add_child(label)
 	material_pick=OptionButton.new();material_pick.size_flags_horizontal=Control.SIZE_EXPAND_FILL;material_row.add_child(material_pick)
 	material_pick.item_selected.connect(func(index):
@@ -146,7 +146,7 @@ func _ready() -> void:
 		if from_crafting and game.at_weapon_gate(profile()):
 			game.open_gate_preparation()
 		else:
-			game.toggle_overlay(null))
+			game.ui.close_panels())
 	add_child(close_button)
 	refresh()
 	visibility_changed.connect(func():
@@ -160,7 +160,7 @@ func open_from_crafting() -> void:
 		change_tab(2)
 	else:
 		tabs.current_tab=2
-	game.toggle_overlay(game.progression_menu)
+	game.ui.toggle_panel("progression")
 
 func _process(delta: float) -> void:
 	if not is_visible_in_tree():

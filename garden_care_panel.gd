@@ -21,7 +21,7 @@ func _ready() -> void:
  apply.pressed.connect(submit)
  status=Label.new();status.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;add_child(status)
  var close:=Button.new();close.text="Close · Esc";add_child(close)
- close.pressed.connect(func():game.toggle_overlay(null))
+ close.pressed.connect(func():game.ui.close_panels())
 func open(id: String) -> void:
  station=id;signature=""
  title.text=label(id)

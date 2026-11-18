@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -42,8 +43,8 @@ func host_run() -> void:
  mark("done");await create_timer(.3).timeout
 func guest_run() -> void:
  check(SessionCase.World.join(game)==OK,"guest joins")
- if not await until(func():return game.network_session.role()=="Guest" and game.player_hud.floor_track.visible and game.player_hud.floor_track.floor_number==6):check(false,"authoritative floor six arrives");return
- var track=game.player_hud.floor_track
+ if not await until(func():return game.network_session.role()=="Guest" and UIFixture.control(game,"player_hud").floor_track.visible and UIFixture.control(game,"player_hud").floor_track.floor_number==6):check(false,"authoritative floor six arrives");return
+ var track=UIFixture.control(game,"player_hud").floor_track
  check(track.nodes.any(func(n):return n.current and n.label=="6" and n.upgrade and n.extraction),"guest checkpoint matches host schedule")
  mark("six")
  check(await until(func():return track.floor_number==7),"guest floor updates from snapshot")

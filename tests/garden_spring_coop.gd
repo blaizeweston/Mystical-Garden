@@ -81,7 +81,7 @@ func guest_run() -> void:
  check(data.clues.get("moss_whisper_resonance","").contains("Altar") and data.available.has("spring_weave"),"recorded clue remains readable after a required plant is harvested")
  mark("first_verified")
  if not await until(func():return marked("rejoin")):check(false,"host allows rejoin");return
- SessionCase.World.leave(game,"Spring rejoin fixture");game.toggle_overlay(null);check(SessionCase.World.join(game)==OK,"guest reconnects")
+ SessionCase.World.leave(game,"Spring rejoin fixture");game.ui.close_panels();check(SessionCase.World.join(game)==OK,"guest reconnects")
  if not await until(func():return game.network_session.role()=="Guest" and Service.projection(game,game.local_player_id()).get("revision",0)==1):check(false,"shared journal returns");return
  await process_frame
  check(view.cue_until==0 and not view.panel.visible and Service.projection(game,game.local_player_id()).clues.has("moss_whisper_resonance"),"late join restores context without reward/animation replay")

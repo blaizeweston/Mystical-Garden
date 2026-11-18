@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 var failed=false
 func check(ok: bool,message: String):
  if not ok:failed=true;printerr("FAIL timed research: ",message)
@@ -6,7 +7,7 @@ func _initialize():call_deferred("run")
 func run():
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/timed-research-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var g=game.progress;var h=g.heart;var p=game.players[1];p.pos=game.Stage.HEART;g.knowledge=4;g.parts.fill(0)
- var ui=game.progression_view;ui.tabs.current_tab=1;ui.chosen="heart_plot_4";ui.refresh()
+ var ui=UIFixture.control(game,"progression_view");ui.tabs.current_tab=1;ui.chosen="heart_plot_4";ui.refresh()
  check(not ui.heart_start_button.disabled,"Knowledge can start a visible node with no plant parts")
  ui.heart_start_button.pressed.emit()
  check(h.active=="plot_4" and h.spent==2 and h.available_insight(g)==2 and g.plots.size()==3,"start spends Knowledge once and begins timed research")

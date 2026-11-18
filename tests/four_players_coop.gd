@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -279,7 +280,7 @@ func guest_run(index: int):
     var build: Dictionary=own.get("weapon_stats",{}).get("affinity_build",{})
     var skill: Dictionary=Builds.core_skill(build)
     var expected_material: Dictionary=Builds.slot("core",expected_part)
-    var hud_core: Dictionary=game.player_hud.state.get("core",{})
+    var hud_core: Dictionary=UIFixture.control(game,"player_hud").state.get("core",{})
     if equipment.size()==3 and int(equipment[0])==expected_part and int(own.get("core_part",0))==expected_part \
       and build.get("core",{}).get("primary_affinity","")==expected_material.primary_affinity \
       and not skill.is_empty() and hud_core.get("name","")==skill.name and is_zero_approx(float(hud_core.get("remaining",-1))):
@@ -290,8 +291,8 @@ func guest_run(index: int):
     lantern_requested=true
    if not marked("lantern-seen-"+str(index)) and game.received_combat_events.any(func(e):return e.event.shape=="vital_bloom"):
     mark("lantern-seen-"+str(index))
-   if game.checkpoint_menu.visible and game.participation.floor()==6:
-    if not saw_cards:game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,"skip"));saw_cards=true;epochs.clear()
+   if UIFixture.control(game,"checkpoint_menu").visible and game.participation.floor()==6:
+    if not saw_cards:game.send_garden_action(game.affinity_checkpoint_action(game.ui.checkpoint_revision(),"skip"));saw_cards=true;epochs.clear()
    if not marked("kill_verified_"+str(index)) and game.players.has(id):
     var own=game.players[id]
     var expected_xp := [100+10*index,0,0,0,0]
@@ -308,7 +309,7 @@ func guest_run(index: int):
    var state=game.party_travel_state()
    if not state.is_empty() and not epochs.has(state.epoch) and not marked("disconnect"):
     if state.kind!="depart" or index!=3 or marked("last_ready"):
-     if not game.checkpoint_menu.visible:
+     if not UIFixture.control(game,"checkpoint_menu").visible:
       game.send_travel_ready(false);epochs[state.epoch]=true
   await process_frame
  check(marked("done") and saw_four and saw_cards,"full-party flow completes")

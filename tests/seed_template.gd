@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Cards=preload("res://affinity_cards.gd")
@@ -40,15 +41,15 @@ func run() -> void:
  game.Altar.combine(game,p,refine)
  check(reserve.parts[game.Parts.rare_part(i)]==1,"altar refines matching materials to rare-harvest counterpart")
  game.show_garden_altar(1)
- check(game.altar_view.recipe_pick.item_count>1,"altar offers remembered recipes")
- for index in range(1,game.altar_view.recipe_pick.item_count):
-  var recorded: Dictionary=game.altar_view.recipe_pick.get_item_metadata(index)
+ check(UIFixture.control(game,"altar_view").recipe_pick.item_count>1,"altar offers remembered recipes")
+ for index in range(1,UIFixture.control(game,"altar_view").recipe_pick.item_count):
+  var recorded: Dictionary=UIFixture.control(game,"altar_view").recipe_pick.get_item_metadata(index)
   if recorded.output==game.Items.seed_id(i):
-   game.altar_view.recipe_pick.item_selected.emit(index)
-   check(game.altar_view.draft[0].item==game.Items.seed_id(a) and game.altar_view.draft[1].item==game.Items.seed_id(b),"recorded recipe selector populates both real sacrifice slots")
+   UIFixture.control(game,"altar_view").recipe_pick.item_selected.emit(index)
+   check(UIFixture.control(game,"altar_view").draft[0].item==game.Items.seed_id(a) and UIFixture.control(game,"altar_view").draft[1].item==game.Items.seed_id(b),"recorded recipe selector populates both real sacrifice slots")
    break
- game.toggle_overlay(null)
- var nodes: Array=game.progression_view.seed_nodes(g.discoveries,g.stock)
+ game.ui.close_panels()
+ var nodes: Array=UIFixture.control(game,"progression_view").seed_nodes(g.discoveries,g.stock)
  check(nodes.any(func(n):return n.id==str(i) and n.parents.size()==2 and n.icon!=null),"tree contains portrait and lineage connections")
  ExpeditionCase.set_membership(game, p, true);p.weapon=part;p.secondary=0;p.catalyst=0;p.pos=Vector3(0,0,-1);game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter.clear_scouts();game.tactics.position=Vector3.ZERO;game.encounter.set_hp(-1, 50)
  var tree=game.Classes.connected_tree(0)

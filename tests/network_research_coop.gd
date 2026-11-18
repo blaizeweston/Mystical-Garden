@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -72,7 +73,7 @@ func guest_run():
  check(await until(func():return game.heart_state().get("active","")=="plot_4"),"guest sees research project")
  check(game.heart_state().get("insight",0)==6,"guest sees spendable Knowledge decrease");mark("timer")
  check(await until(func():return game.heart_state().get("active","")=="flowering" and game.client_garden[5][0]==2),"guest sees available offering materials")
- game.progression_view.tabs.current_tab=1;game.progression_view.refresh();game.progression_view.heart_infuse_button.pressed.emit()
+ UIFixture.control(game,"progression_view").tabs.current_tab=1;UIFixture.control(game,"progression_view").refresh();UIFixture.control(game,"progression_view").heart_infuse_button.pressed.emit()
  check(await until(func():return float(game.heart_state().get("work",{}).get("flowering",0))>=60 and game.client_garden[5][0]==0),"guest offering costs parts and updates research")
  check(game.heart_state().get("unlocked",[]).has("plot_4"),"completed timed bed replicates");mark("offering")
  check(await until(func():return marked("done")),"host flow finishes");SessionCase.World.leave(game,"Network research fixture complete")

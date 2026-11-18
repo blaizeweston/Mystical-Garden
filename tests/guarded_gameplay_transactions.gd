@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -119,11 +120,11 @@ func run() -> void:
  host.pos = world.Stage.PLOTS[0]
  world.seed_reserve(host).stock[0] = 1
  world.show_planting_picker(world.HOST,0)
- check(world.planting_menu.visible,"ordinary planting starts with an open picker")
+ check(UIFixture.control(world,"planting_menu").visible,"ordinary planting starts with an open picker")
  world.garden_action(world.HOST, "plant_at_0_0")
  check(world.progress.plots[0].species == 0 and world.seed_reserve(host).stock[0] == 0
   and disk()[G] != before[G] and disk()[C] == before[C] and world.status.ends_with("planted.")
-  and not world.planting_menu.visible, "ordinary planting commits, reports success and closes the picker")
+  and not UIFixture.control(world,"planting_menu").visible, "ordinary planting commits, reports success and closes the picker")
  record("planting", before)
  before = disk()
  host.pos = world.Stage.ALTAR
@@ -203,7 +204,7 @@ func run() -> void:
  world.tell(world.HOST,"later message")
  world.receive_message("later notification")
  world.refresh_feedback()
- check(world.feedback.text.contains(unsure.notice),"uncertain feedback remains visible")
+ check(UIFixture.control(world,"feedback").text.contains(unsure.notice),"uncertain feedback remains visible")
  var split := disk()
  check(world.progress.knowledge == 51 and split[G] == before[G] and split[C] != before[C]
   and not Tx.run_guarded(world, refuse_action, Callable(), Tx.Scope.PAIR).ran and disk() == split, "uncertain keeps memory and evidence without automatic replay")
@@ -312,15 +313,15 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
     host.pos = world.Stage.PLOTS[1]
     world.seed_reserve(host).stock[0] = 1
     world.show_planting_picker(world.HOST,1)
-    var seed_button: Button = world.planting_view.grid.get_child(0)
+    var seed_button: Button = UIFixture.control(world,"planting_view").grid.get_child(0)
     seed_button.pressed.emit()
-    world.planting_view.confirm.pressed.emit()
+    UIFixture.control(world,"planting_view").confirm.pressed.emit()
     world.refresh_feedback()
     check(world.progress.plots[1].species == 0 and world.seed_reserve(host).stock[0] == 0, "cleanup-pending plant and spent seed are retained")
     ordinary = "%s planted." % world.Progress.PLANT_NAMES[0]
-    check(not world.overlay.visible and not world.planting_menu.visible,
+    check(not world.ui.is_overlay_open() and not UIFixture.control(world,"planting_menu").visible,
      "confirmed cleanup-pending planting closes the picker normally")
-    check(world.feedback.text.contains(CleanupNotice) and world.toast_panel.visible,
+    check(UIFixture.control(world,"feedback").text.contains(CleanupNotice) and UIFixture.control(world,"toast_panel").visible,
      "cleanup pending is visible after the picker closes")
    "altar":
     host.pos = world.Stage.ALTAR
@@ -370,8 +371,8 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
    feature + " retains the committed journal")
   world.refresh_feedback()
   check(proof.state == "pending_recovery" and committed_disk[G] != before[G] and world.persistence_session.pending_notice() == CleanupNotice
-   and world.status == ordinary and world.feedback.text.contains(ordinary) and world.feedback.text.contains(CleanupNotice)
-   and world.toast_panel.visible, feature + " committed bytes, ordinary feedback and persistent warning")
+   and world.status == ordinary and UIFixture.control(world,"feedback").text.contains(ordinary) and UIFixture.control(world,"feedback").text.contains(CleanupNotice)
+   and UIFixture.control(world,"toast_panel").visible, feature + " committed bytes, ordinary feedback and persistent warning")
   var journal_log = preload("res://diagnostic_journal.gd").current
   var event_path: String = journal_log.directory.path_join("events-%06d.jsonl" % journal_log.chunk)
   var event_rows := FileAccess.get_file_as_string(event_path).split("\n", false)
@@ -398,22 +399,22 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
   world.tell(world.HOST,"later ordinary success")
   world.receive_message("later network notification")
   world.refresh_feedback()
-  check(world.feedback.text.contains("later network notification") and world.feedback.text.contains(CleanupNotice),
+  check(UIFixture.control(world,"feedback").text.contains("later network notification") and UIFixture.control(world,"feedback").text.contains(CleanupNotice),
    feature + " received notification retains warning")
   world.status = "later direct notification"
   world.refresh_feedback()
-  check(world.feedback.text.contains("later direct notification") and world.feedback.text.contains(CleanupNotice),
+  check(UIFixture.control(world,"feedback").text.contains("later direct notification") and UIFixture.control(world,"feedback").text.contains(CleanupNotice),
    feature + " later messages share the channel with the warning")
-  world.toggle_overlay(world.session_menu)
+  world.ui.toggle_panel("session")
   world.toast_until = 0
   world.refresh_feedback()
-  check(world.menu_notice.visible and world.menu_notice.text == CleanupNotice,
+  check(UIFixture.control(world,"menu_notice").visible and UIFixture.control(world,"menu_notice").text == CleanupNotice,
    feature + " warning survives toast expiry in the session menu")
-  world.toggle_overlay(null)
+  world.ui.close_panels()
   world.refresh_feedback()
-  check(world.toast_panel.visible and world.feedback.text == CleanupNotice,
+  check(UIFixture.control(world,"toast_panel").visible and UIFixture.control(world,"feedback").text == CleanupNotice,
    feature + " warning remains after panel closure")
-  record("cleanup_feedback_"+feature,before,{"success":ordinary,"notice":world.feedback.text,"outcome":typed_outcome,
+  record("cleanup_feedback_"+feature,before,{"success":ordinary,"notice":UIFixture.control(world,"feedback").text,"outcome":typed_outcome,
    "journal_committed":journal.get_value("transaction","committed",false),"retry_state":retry.persistence.state,
    "retry_ran":retry.persistence.ran,"replacements":attempts.replacements,"receipt_attempts":attempts.receipts,
    "rng_unchanged_on_refusal":world.rng.state == committed_rng})

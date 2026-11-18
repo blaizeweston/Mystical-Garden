@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://game.gd" id="1"]
 [ext_resource type="Script" path="res://stage.gd" id="2"]
+[ext_resource type="PackedScene" path="res://ui/gameplay/gameplay_ui.tscn" id="3"]
 
 [sub_resource type="Environment" id="Environment"]
 ambient_light_source = 3
@@ -26,3 +27,5 @@ shadow_enabled = true
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="Stage"]
 environment = SubResource("Environment")
+
+[node name="GameplayUI" parent="." instance=ExtResource("3")]

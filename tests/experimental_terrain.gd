@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -68,7 +69,7 @@ func run() -> void:
 	var player: Dictionary = game.players[game.HOST]
 	check(garden != null and game.slot_claimed and game.character_slot_claimed and game.persistence_session.owns_leases(),
 		"real world shows terrain with the native owner")
-	check(game.host_button.visible and SessionCase.World.join(game) == ERR_UNAUTHORIZED, "co-op uses title-owned guest admission")
+	check(UIFixture.control(game,"host_button").visible and SessionCase.World.join(game) == ERR_UNAUTHORIZED, "co-op uses title-owned guest admission")
 	check(garden.barrier.walkable(garden.planar(player.pos)), "production avatar starts on clear ground")
 	var view := game.get_node("GardenInteractions")
 	var scar := GardenInteractions.Catalog.point("heart_root_scar")
@@ -210,7 +211,7 @@ func run() -> void:
 			escape.pressed = true
 			cancel = escape
 		root.push_input(cancel, true)
-		check(garden.build_kind.is_empty() and garden.ghost == null and not game.overlay.visible
+		check(garden.build_kind.is_empty() and garden.ghost == null and not game.ui.is_overlay_open()
 			and game.progress.plots.size() == 3 and game.status == "Placement cancelled.",
 			"cancel clears the ghost without opening the session menu or placing a bed")
 	var menu_key := InputEventKey.new()
@@ -218,9 +219,9 @@ func run() -> void:
 	menu_key.physical_keycode = KEY_ESCAPE
 	menu_key.pressed = true
 	root.push_input(menu_key, true)
-	check(game.overlay.visible, "Escape still opens the session menu outside placement")
+	check(game.ui.is_overlay_open(), "Escape still opens the session menu outside placement")
 	root.push_input(menu_key, true)
-	check(not game.overlay.visible, "Escape closes the session menu outside placement")
+	check(not game.ui.is_overlay_open(), "Escape closes the session menu outside placement")
 	var built: bool = garden.place("bed", place, 0.37)
 	check(built and game.progress.plots.size() == 4, "placed bed receives a real production plot")
 	if not built:

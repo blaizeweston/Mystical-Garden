@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -27,7 +28,7 @@ func run():
  ExpeditionCase.Transitions.enter(game, 1,host)
  check(not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(guest) and game.participation.has_vote(1),"one player cannot start expedition alone")
  game._process(.016)
- check(game.travel_panel.get_combined_minimum_size().x<600 and game.travel_panel.get_combined_minimum_size().y<200,"ready HUD stays compact")
+ check(UIFixture.control(game,"travel_panel").get_combined_minimum_size().x<600 and UIFixture.control(game,"travel_panel").get_combined_minimum_size().y<200,"ready HUD stays compact")
  var epoch: int=game.participation.travel_epoch()
  game.garden_action(1,"travel_unready:"+str(epoch))
  check((game.participation.vote_count() == 0),"ready can be withdrawn")

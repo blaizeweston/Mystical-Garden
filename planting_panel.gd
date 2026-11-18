@@ -17,7 +17,7 @@ func _ready():
  confirm=Button.new();confirm.text="Plant";confirm.disabled=true;add_child(confirm)
  confirm.pressed.connect(func():
   if selected>=0: game.send_garden_action("plant_at_%d_%d"%[slot,selected]))
- var close:=Button.new();close.text="Cancel · Esc";add_child(close);close.pressed.connect(func(): game.toggle_overlay(null))
+ var close:=Button.new();close.text="Cancel · Esc";add_child(close);close.pressed.connect(func(): game.ui.close_panels())
 func begin(bed: int,stock: Array):
  slot=bed;counts=stock;selected=-1;title.text="PLANTING BED %d"%(slot+1);confirm.disabled=true
  for child in grid.get_children(): grid.remove_child(child);child.queue_free()

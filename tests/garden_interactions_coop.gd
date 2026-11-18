@@ -71,7 +71,7 @@ func guest_run() -> void:
  if not await until(func():return game.status.contains("closer")):check(false,"range rejection arrives");return
  mark("rejected")
  if not await until(func():return marked("rejoin")):check(false,"rejoin allowed");return
- SessionCase.World.leave(game,"Observation rejoin fixture");game.toggle_overlay(null)
+ SessionCase.World.leave(game,"Observation rejoin fixture");game.ui.close_panels()
  check(SessionCase.World.join(game)==OK,"guest reconnects")
  if not await until(func():return game.network_session.role()=="Guest" and Service.projection(game,game.local_player_id()).get("revision",0)==1):check(false,"late-join state arrives");return
  await process_frame

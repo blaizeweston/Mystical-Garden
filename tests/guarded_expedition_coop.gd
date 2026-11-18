@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -259,10 +260,10 @@ func guest_run() -> void:
  verified.path=C
  check(verified.load_profile(false)==OK and verified.data.monsters[int(read("rewards"))]==1,"guest disk confirms one kill receipt")
  mark("saw-rewards")
- if not await until(func():return marked("cards") and world.checkpoint_menu.visible):
+ if not await until(func():return marked("cards") and UIFixture.control(world,"checkpoint_menu").visible):
   check(false,"guest sees checkpoint cards")
   return
- world.send_garden_action(world.affinity_checkpoint_action(world.checkpoint_offer_revision,"skip"))
+ world.send_garden_action(world.affinity_checkpoint_action(world.ui.checkpoint_revision(),"skip"))
  if not await until(func():return marked("advance")):
   check(false,"guest checkpoint readiness prompt")
   return
@@ -294,8 +295,8 @@ func guest_run() -> void:
   return
  world.toast_until=0
  world.refresh_feedback()
- check(world.feedback.text==Tx.CLEANUP_NOTICE and Slots._save_digest(C)==after,"cleanup warning survives toast and extraction does not duplicate profile credit")
- record("guest_transition_and_warning",original,{"floor":world.participation.floor(),"feedback":world.feedback.text})
+ check(UIFixture.control(world,"feedback").text==Tx.CLEANUP_NOTICE and Slots._save_digest(C)==after,"cleanup warning survives toast and extraction does not duplicate profile credit")
+ record("guest_transition_and_warning",original,{"floor":world.participation.floor(),"feedback":UIFixture.control(world,"feedback").text})
  SessionCase.World.leave(world,"Guest fixture complete")
  check(world.network_session.transport()==null and world.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"guest offline before detachment")
  mark("guest-offline")

@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 const SessionCase = preload("res://tests/support/session_case.gd")
@@ -113,7 +114,7 @@ func title_and_depart() -> bool:
 	player.pos=game.stage.gate_position()
 	choose("patient_spore")
 	check(Weaver.TREE.path(player.character).is_empty(),"host refuses a choice before the focus")
-	var panel = game.progression_view
+	var panel = UIFixture.control(game,"progression_view")
 	panel.inspected_class=1
 	panel.tabs.current_tab=2
 	panel.refresh()

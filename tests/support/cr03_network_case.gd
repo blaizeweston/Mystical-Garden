@@ -1,4 +1,5 @@
 extends RefCounted
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -401,9 +402,9 @@ func host(menu: Node) -> void:
 			mark("attack-speed-"+str(id), JSON.stringify(fixture))
 			mark("wallet-"+str(id), str(fixture.balance))
 		ExpeditionCase.Transitions.checkpoint(game, 1,true)
-		check(game.checkpoint_cards.get_child_count()==3,"host receives a full offer after mixed-class combat")
+		check(UIFixture.control(game,"checkpoint_cards").get_child_count()==3,"host receives a full offer after mixed-class combat")
 		check_speed_face(game, planned[1])
-		game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,str(planned[1].choice)))
+		game.send_garden_action(game.affinity_checkpoint_action(game.ui.checkpoint_revision(),str(planned[1].choice)))
 		mark("affinity-cards")
 		if not check(await until(func():return ids.all(func(id):return read("owned-"+str(id))=="ok")),
 			"all four players can claim independent upgrades"):return
@@ -895,7 +896,7 @@ func plan_speed_offer(game: Node, player: Dictionary, reroll: bool) -> Dictionar
 
 
 func check_speed_face(game: Node, offer: Dictionary) -> void:
-	var face: VBoxContainer = game.checkpoint_cards.get_child(int(offer.choice)).get_child(0)
+	var face: VBoxContainer = UIFixture.control(game,"checkpoint_cards").get_child(int(offer.choice)).get_child(0)
 	var label: String = face.get_child(2).get_child(0).text
 	var preview := "Attack speed: %s → %s attacks/sec" % [offer.before, offer.after]
 	check(face.get_child(0).text=="Light Grip" and preview in label,
@@ -950,18 +951,18 @@ func guest(menu: Node, role: String) -> void:
 		if not check(await until(func():return game.participation.floor()==8 and game.at_graft_altar(game.players[id])),
 			"guest has reached the same altar"):return
 		game.send_garden_action("graft")
-		if not check(await until(func():return game.graft_menu.visible and game.graft_view.data.get("floor",0)==8),
+		if not check(await until(func():return UIFixture.control(game,"graft_menu").visible and UIFixture.control(game,"graft_view").data.get("floor",0)==8),
 			"guest receives its authoritative altar choices"):return
-		var request := Improvements.request(game.graft_view.data,selection_fields[0],selection_fields[1])
+		var request := Improvements.request(UIFixture.control(game,"graft_view").data,selection_fields[0],selection_fields[1])
 		game.send_garden_action(request)
 		if not check(await until(func():
 			var copies: Array = game.players[id].get("graft_improvements",{}).get("copies",[])
 			return copies.size()==1 and copies[0].id==selection_fields[0] and copies[0].item==selection_fields[1]),
 			"guest receives its committed purchase once in owner details"):return
 		game.send_garden_action(request)
-		if not check(await until(func():return "already used" in game.graft_view.data.get("status","")),
+		if not check(await until(func():return "already used" in UIFixture.control(game,"graft_view").data.get("status","")),
 			"guest receives duplicate refusal"):return
-		game.toggle_overlay(null)
+		game.ui.close_panels()
 		mark("graft-seen-"+str(id))
 	if not check(await until(func():return read("strike-"+str(id))=="ok" and game.stage._has_experimental_floor()),"guest sees generated Frost floor"):return
 	game.send_action(true)
@@ -1030,18 +1031,18 @@ func guest(menu: Node, role: String) -> void:
 		return
 	if affinity_cards_case:
 		var offer_received := func() -> bool:
-			return read("affinity-cards")=="ok" and game.checkpoint_offer_revision>0 and game.checkpoint_cards.get_child_count()==3
+			return read("affinity-cards")=="ok" and game.ui.checkpoint_revision()>0 and UIFixture.control(game,"checkpoint_cards").get_child_count()==3
 		if not check(await until(offer_received),"mixed-class guest receives three eligible cards"):return
 		var speed: Dictionary = JSON.parse_string(read("attack-speed-"+str(id)))
 		if int(speed.spent) > 0:
-			var revision: int = game.checkpoint_offer_revision
+			var revision: int = game.ui.checkpoint_revision()
 			var reroll: String = game.affinity_checkpoint_action(revision, "reroll")
 			game.send_garden_action(reroll)
 			game.send_garden_action(reroll)
-			if not check(await until(func(): return game.checkpoint_offer_revision > revision),
+			if not check(await until(func(): return game.ui.checkpoint_revision() > revision),
 				"one guest receives a rerolled offer after replaying the first revision"):return
 		check_speed_face(game, speed)
-		game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,str(int(speed.choice))))
+		game.send_garden_action(game.affinity_checkpoint_action(game.ui.checkpoint_revision(),str(int(speed.choice))))
 		var received := func() -> bool:
 			var player: Dictionary = game.players.get(id,{})
 			var copies: Array = player.get("affinity_run_cards",[])
@@ -1316,7 +1317,7 @@ func sample_guest_snapshots(game: Node, id: int) -> void:
 				starts[marker]=now
 		if final_family_mix:
 			var view: Dictionary=game.players.get(id,{})
-			saw_charge=saw_charge or str(game.player_hud.state.get("affinity_feedback","")).contains("Storm Charge")
+			saw_charge=saw_charge or str(UIFixture.control(game,"player_hud").state.get("affinity_feedback","")).contains("Storm Charge")
 			saw_well=saw_well or view.get("attack_hints",[]).any(func(hint):return hint.get("skill")=="gravity_well")
 		var marker:=int(game.drop_pos.x)
 		if starts.has(marker) and not observed.has(marker) and game.players.size()==4 and game.enemy_health()>400:

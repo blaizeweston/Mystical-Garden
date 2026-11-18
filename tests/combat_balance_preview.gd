@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -77,7 +78,7 @@ func run() -> void:
 
 
 func verify_health_pool_layout(game: Node, player: Dictionary) -> void:
-	var hud: Control = game.player_hud
+	var hud: Control = UIFixture.control(game,"player_hud")
 	var chart_script := preload("res://exploration.gd")
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(54)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(80)
@@ -258,10 +259,10 @@ func verify_vitals(game: Node, player: Dictionary) -> void:
 	game._process(.016)
 	game.Life.Sustain.restore(game,player,4,"fixture_heal")
 	game._process(.016)
-	check(PlayerVitals.current_hp(player)==24 and game.player_hud.health_orb.hp==24 and game.player_hud.health_orb.from_hp==20,"orb tracks a current authoritative heal")
+	check(PlayerVitals.current_hp(player)==24 and UIFixture.control(game,"player_hud").health_orb.hp==24 and UIFixture.control(game,"player_hud").health_orb.from_hp==20,"orb tracks a current authoritative heal")
 	game.Life.Sustain.restore(game,player,4,"fixture_heal")
 	game._process(.016)
-	check(PlayerVitals.current_hp(player)==28 and game.player_hud.health_orb.from_hp==24,"separate authoritative heals receive separate highlights")
+	check(PlayerVitals.current_hp(player)==28 and UIFixture.control(game,"player_hud").health_orb.from_hp==24,"separate authoritative heals receive separate highlights")
 	game.add_player(2)
 	var helper: Dictionary=game.players[2]
 	ExpeditionCase.set_membership(game, helper, true)
@@ -272,7 +273,7 @@ func verify_vitals(game: Node, player: Dictionary) -> void:
 	game._process(.016)
 	check(PlayerVitals.current_hp(player)==80 and PlayerVitals.maximum_hp(player)==80 and player.lost_health==20,"revival fills the reduced pool")
 	check(Orb.fractions(80,80,20).is_equal_approx(Vector2(.8,.8)),"orb leaves a fifth visibly sealed")
-	var rows: Array=game.player_hud.party_panel.members(game.players,2)
+	var rows: Array=UIFixture.control(game,"player_hud").party_panel.members(game.players,2)
 	check(rows.size()==1 and rows[0].lost_health==20 and rows[0].hp==80,"compact orb receives only authoritative party vitals")
 
 

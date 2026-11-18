@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -84,16 +85,16 @@ func run():
 	p.loot_pending=false
 	p.pos=game.battlefield.graft
 	game._process(.016)
-	check(game.guide.text=="E  Grafting Altar","standing at the shrine shows its prompt")
+	check(UIFixture.control(game,"guide").text=="E  Grafting Altar","standing at the shrine shows its prompt")
 	game._act(1,false)
-	check(game.graft_menu.visible,"standing at the shrine still opens grafting")
-	game.toggle_overlay(null)
+	check(UIFixture.control(game,"graft_menu").visible,"standing at the shrine still opens grafting")
+	game.ui.close_panels()
 	p.pos=game.battlefield.advance
 	check(game.at_graft_altar(p),"the generated fixture reproduces overlapping interaction ranges")
 	game._process(.016)
-	check(game.guide.text!="E  Grafting Altar","the shrine prompt yields to the closer gate")
+	check(UIFixture.control(game,"guide").text!="E  Grafting Altar","the shrine prompt yields to the closer gate")
 	game._act(1,false)
-	check(game.participation.floor()==game.GRAFT_ROOM+1 and not game.graft_menu.visible,"the gate advances when it is the closer interaction")
+	check(game.participation.floor()==game.GRAFT_ROOM+1 and not UIFixture.control(game,"graft_menu").visible,"the gate advances when it is the closer interaction")
 	await process_frame
 	if not failed: print("PASS: visible mid-combat shrines, grafting, safe hit reactions and overlapping gate interactions")
 	quit(1 if failed else 0)

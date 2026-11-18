@@ -26,7 +26,7 @@ static func player(game_node: Node) -> Dictionary:
 
 
 static func available(game_node: Node, local: Dictionary, requested_slot: int) -> bool:
-	return game_node.network_session.role() != "Connecting" and not game_node.returning_to_title and not game_node.overlay.visible and not game_node.checkpoint_menu.visible \
+	return game_node.network_session.role() != "Connecting" and not game_node.returning_to_title and not game_node.ui.is_overlay_open() and not game_node.ui.panel_is_open("checkpoint") \
 		and not game_node.get_meta("garden_cinematic_active", false) and not (game_node.settings_dialog != null and game_node.settings_dialog.visible) \
 		and game_node.Life.alive(local) and not Core.cast_key(game_node,local).is_empty() \
 		and (not game_node.encounter_cleared() or (requested_slot == 2 and can_recover(game_node, local))) \

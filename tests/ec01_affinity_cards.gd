@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -195,7 +196,7 @@ func verify_offers() -> void:
 	game.present_checkpoint_cards(1)
 	var original_ledger := Cards.ledger(player)
 	var original := original_ledger.offer()
-	check(original.cards.size()==3 and game.checkpoint_offer_revision==original.revision and game.run_wallet(player)==0,
+	check(original.cards.size()==3 and game.ui.checkpoint_revision()==original.revision and game.run_wallet(player)==0,
 		"three owner options are offered at zero Essence")
 	var detached_offer := original_ledger.offer()
 	detached_offer.cards[0].amount += 100
@@ -561,14 +562,14 @@ func verify_presentation() -> void:
 		and "Damage bonus: +4 damage" in group.summary and "Uncommon · +2 damage" in group.tooltip
 		and projected[0].applied == 4,"the grouped Tab summary uses the same contribution consumed by combat")
 	game.present_checkpoint_cards(1)
-	var face: VBoxContainer = game.checkpoint_cards.get_child(0).get_child(0)
+	var face: VBoxContainer = UIFixture.control(game,"checkpoint_cards").get_child(0).get_child(0)
 	var info := face.get_child(3) as Button
 	info.button_pressed = true
 	var face_description := face.get_child(2).get_child(0) as Label
 	check("Weapon · Rare" == face.get_child(1).text and "2 Common, 1 Uncommon" in face_description.text,
 		"the rooted card face shows scope, and its Details button reveals acquired contributions")
-	game.toggle_overlay(null)
-	var tab: Control = game.overlay.get_node("RunSummary")
+	game.ui.close_panels()
+	var tab: Control = UIFixture.control(game,"summary_view")
 	tab.refresh(player)
 	var tab_group: VBoxContainer = tab.grouped_cards.get_child(0)
 	tab_group.get_child(0).button_pressed = true
@@ -602,10 +603,10 @@ func verify_presentation() -> void:
 	var seeds: Array = game.Seeds.counts()
 	var dewcap: int = game.Seeds.index_of("dewcap")
 	seeds[dewcap] = 2
-	game.planting_view.begin(0,seeds)
-	game.planting_view.grid.get_child(0).pressed.emit()
-	check("Water primary affinity · Dewfall" in game.planting_view.details.text
-		and "Base growth" in game.planting_view.details.text,"the actual planting panel explains affinity while preserving cultivation details")
+	UIFixture.control(game,"planting_view").begin(0,seeds)
+	UIFixture.control(game,"planting_view").grid.get_child(0).pressed.emit()
+	check("Water primary affinity · Dewfall" in UIFixture.control(game,"planting_view").details.text
+		and "Base growth" in UIFixture.control(game,"planting_view").details.text,"the actual planting panel explains affinity while preserving cultivation details")
 
 	var thorn := material("thorn")
 	var weaver_catalyst := Build.slot_preview(Build.for_player(player),"catalyst",thorn)
@@ -621,7 +622,7 @@ func verify_presentation() -> void:
 	game.participation.restore_savepoint(garden_fixture)
 	player.pos = game.stage.gate_position()
 	game.progress.add_parts(thorn,2)
-	var panel: Control = game.loadout_view
+	var panel: Control = UIFixture.control(game,"loadout_view")
 	panel.refresh()
 	var picker: OptionButton = panel.slots[0]
 	var option := picker.get_item_index(thorn)
@@ -657,7 +658,7 @@ func verify_attack_speed() -> void:
 			game.garden_action(1, grafts.request(altar, improvement.id, "monster_0"))
 		check(player.carried_parts[trophy] == 0 and grafts.owner_details(player, 16).revision == 2,
 			"the attack speed fixture acquires grafts through real purchases")
-		game.toggle_overlay(null)
+		game.ui.close_panels()
 		var previous: Array[int] = []
 		for rank: int in scenario.ranks:
 			previous.append(grant_fixture_copy(card_id, rank))
@@ -680,19 +681,19 @@ func verify_attack_speed() -> void:
 			and Catalog.RARITIES[scenario.ranks[1]] in choice.detail and "0.23 s" not in choice.detail,
 			"Details show the acquired rarities and exact contributions without engine limits")
 		game.present_checkpoint_cards(1)
-		var face: VBoxContainer = game.checkpoint_cards.get_child(0).get_child(0)
+		var face: VBoxContainer = UIFixture.control(game,"checkpoint_cards").get_child(0).get_child(0)
 		var face_text: String = face.get_child(2).get_child(0).text
 		check(face.get_child(1).text == "Weapon · Epic" and preview in face_text and "minimum" not in face_text.to_lower()
 			and "cooldown" not in face_text.to_lower(), "the rooted card face shows rate and omits technical limits")
 
-		var tab: Control = game.overlay.get_node("RunSummary")
+		var tab: Control = UIFixture.control(game,"summary_view")
 		tab.refresh(player)
 		var summary := tab.shown as Dictionary
 		var before_row := func(row) -> bool:
 			return row[0]=="Attack speed" and row[1]==before_speed+" attacks/sec" and "4.35 attacks/sec" in row[2]
 		check(summary.totals.any(before_row), "Tab shows the pre-purchase rate and its maximum in a tooltip")
 		action(view.revision, "0")
-		game.toggle_overlay(null)
+		game.ui.close_panels()
 		var wanted := previous.duplicate()
 		wanted.append(int(scenario.applied))
 		check(card_ledger(player).copies().map(func(copy):return copy.amount) == wanted
@@ -707,8 +708,8 @@ func verify_attack_speed() -> void:
 		var rate_label := func(label) -> bool:
 			return label.text==after_speed+" attacks/sec" and "Maximum attack speed" in label.tooltip_text
 		check(tab.totals.get_children().any(rate_label), "the real Tab panel keeps the cap in the stat tooltip")
-		game.loadout_view.refresh()
-		var equipment: String = game.loadout_view.description.text
+		UIFixture.control(game,"loadout_view").refresh()
+		var equipment: String = UIFixture.control(game,"loadout_view").description.text
 		check("Attack speed: "+after_speed+" attacks/sec" in equipment and "Class ability cooldown −0.25 s" in equipment,
 			"equipment matches the post-purchase attack rate and formats its graft cooldown in seconds")
 		game.encounter.set_hp(-1, 400)

@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 var failed=false
@@ -16,7 +17,7 @@ func capture(game: Node,name: String) -> void:
 func _initialize() -> void:call_deferred("run")
 func run() -> void:
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/garden-cleanup-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_physics_process(false)
- var g=game.progress;var p: Dictionary=game.players[1];var panel=game.progression_view
+ var g=game.progress;var p: Dictionary=game.players[1];var panel=UIFixture.control(game,"progression_view")
  p.pos=game.Stage.HEART;g.knowledge=400;g.parts.fill(60)
  var before=g.heart.serialize();game.send_garden_action("expand_plot")
  check(g.heart.serialize()==before and g.plots.size()==3,"retired bed shortcut cannot start or pay for research")
@@ -33,11 +34,11 @@ func run() -> void:
  check(g.campaign.offshoots==old and g.campaign.offshoot_beds==beds and g.campaign.offshoot_progress==growth and g.heartwood_barbs==barbs and g.campaign.ending==game.Campaign.CORRUPTION,"retired actions and growth cannot mutate legacy history or grant rewards")
  check(g.offshoot_in_bed(0)==-1 and game.Progress.decode_plots(g.plot_snapshot()).all(func(b):return b.offshoot==-1),"old offshoot beds are released in authority and snapshots")
  p.pos=game.Stage.PLOTS[0];game.show_planting_picker(1,0)
- check(game.planting_menu.visible,"a previously reserved bed accepts normal planting")
- game.toggle_overlay(null);g.stock[0]=1;game.garden_action(1,"plant_at_0_0")
+ check(UIFixture.control(game,"planting_menu").visible,"a previously reserved bed accepts normal planting")
+ game.ui.close_panels();g.stock[0]=1;game.garden_action(1,"plant_at_0_0")
  check(g.plots[0].species==0,"normal seeds can occupy former offshoot beds")
  g.heart.unlock_direct("perfect_recollection");game.consider_recollection()
- check(not g.finale_available() and not game.recollection_menu.visible and not ExpeditionCase.is_wild(p),"legacy restoration cannot trigger the deferred finale")
+ check(not g.finale_available() and not UIFixture.control(game,"recollection_menu").visible and not ExpeditionCase.is_wild(p),"legacy restoration cannot trigger the deferred finale")
  check(not g.heart.requirements(g,"perfect_recollection").is_empty(),"deferred research cannot be purchased")
  var packet=game.campaign_snapshot();check(packet[2]==0 and packet[3]==0 and packet[4]==0 and packet[5]==game.Campaign.UNFINISHED and packet[17]==0,"public Garden state hides deferred ending choices")
  g.save_garden();var restored=game.Progress.new();restored.path=g.path;restored.load_garden()
@@ -70,7 +71,7 @@ func run() -> void:
  check(personal[1]==2 and game.progress.part_count(1)==shared_before,"inventory transfer back to personal stash remains intact")
  await capture(game,"care")
  panel.tabs.current_tab=1;await frames();check(bottom(panel),"switching back to Knowledge starts at its base")
- game.toggle_overlay(null);panel.tree_scroll.scroll_vertical=0;game.open_heart_tree();await frames();check(bottom(panel),"reopening the same Knowledge tab also resets to the base")
+ game.ui.close_panels();panel.tree_scroll.scroll_vertical=0;game.open_heart_tree();await frames();check(bottom(panel),"reopening the same Knowledge tab also resets to the base")
  game.queue_free();await process_frame
  if not failed:print("PASS: Knowledge-only bed expansion, retired offshoot/finale routes, released legacy beds, save preservation, clean care tabs and bottom-anchored Knowledge view")
  quit(1 if failed else 0)

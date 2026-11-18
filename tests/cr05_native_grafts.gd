@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 const SessionCase = preload("res://tests/support/session_case.gd")
@@ -111,7 +112,7 @@ func purchases() -> void:
 	stock("monster_23", 1)
 	floor_at(8)
 	game.show_graft_menu(1)
-	var panel: Control = game.graft_view
+	var panel: Control = UIFixture.control(game,"graft_view")
 	check(panel.tabs.get_tab_count()==2 and panel.data.remaining==6 and panel.confirm.disabled,
 		"affinity shrine shows both sections with a fresh budget and explicit selection")
 	panel.selected = "strike"
@@ -119,7 +120,7 @@ func purchases() -> void:
 	panel.show_selection()
 	check(not panel.confirm.disabled and Parts.part_name(item_part("monster_0")) in panel.confirm.text,
 		"preview names the exact trophy before confirming")
-	game.toggle_overlay(null)
+	game.ui.close_panels()
 	check(receipts().is_empty() and player.carried_parts[item_part("monster_0")]==4,
 		"browsing and closing consume no stock or opportunity")
 	game.send_garden_action("graft_install_%d" % item_part("monster_14"))
@@ -177,7 +178,7 @@ func purchases() -> void:
 		and game.rng.state==rng and game.run_wallet(player)==wallet and not player.has("graft_part"),
 		"purchases grant no permanent discovery, change no Essence, take no RNG and use no installed slot")
 	check(Improvements.active_ledger(player).resolution().adaptations.size()==5,"five different adaptations remain acquired and active")
-	game.toggle_overlay(null)
+	game.ui.close_panels()
 
 
 func simultaneous_effects() -> void:

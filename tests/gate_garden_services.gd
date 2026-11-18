@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 var failed:=false
 func check(ok: bool,message: String):
  if not ok: failed=true;printerr("FAIL gate services: ",message)
@@ -14,9 +15,9 @@ func run():
  game.encounter.set_hp(0, 0);game._process(.016)
  check(game.stage.wild_portal.visible,"portal appears once every enemy is defeated")
  game.encounter.set_hp(-1, 2);game._process(.016);check(not game.stage.wild_portal.visible,"next encounter locks portal again")
- p.pos=game.Stage.HEART;game.act(1,false);check(game.progression_menu.visible,"E opens detailed Heart menu")
- game.progression_view.tabs.current_tab=3;game.progression_view.refresh();check(game.progression_view.care.visible,"Garden care tab is reachable")
- check(not game.guide.text.contains("N ") and not game.detail_label.text.contains("Select donation"),"legacy Heart hotkey clutter removed")
+ p.pos=game.Stage.HEART;game.act(1,false);check(UIFixture.control(game,"progression_menu").visible,"E opens detailed Heart menu")
+ UIFixture.control(game,"progression_view").tabs.current_tab=3;UIFixture.control(game,"progression_view").refresh();check(UIFixture.control(game,"progression_view").care.visible,"Garden care tab is reachable")
+ check(not UIFixture.control(game,"guide").text.contains("N ") and not UIFixture.control(game,"detail_label").text.contains("Select donation"),"legacy Heart hotkey clutter removed")
  game.progress.heart.unlock_direct("seed_archive");game.progress.heart.unlock_direct("monster_studies")
  game.progress.heart.unlock_direct("living_archive")
  var view=game.get_node("GardenInteractions")
@@ -25,11 +26,11 @@ func run():
  game.progress.discoveries[0]=true;game.progress.parts[0]=10
  game.garden_action(1,"care_reclaim_0")
  check(seeds[0]==before and game.progress.parts[0]==10,"Heart cannot reclaim a seed")
- game.toggle_overlay(null)
+ game.ui.close_panels()
  for station in game.Stage.HEART_STATIONS:
   p.pos=game.Stage.HEART_STATIONS[station]
-  view.update_prompt(p)
-  check(game.guide.text.contains(view.station_controls.label(station)),"nearby station offers a matching prompt")
+  game.ui.set_prompt(view.context_prompt(p))
+  check(UIFixture.control(game,"guide").text.contains(view.station_controls.label(station)),"nearby station offers a matching prompt")
   game.act(1,false);view._process(0.0)
   check(view.station_panel.visible and view.station_controls.station==station,"interact opens "+station)
   if station=="seed_archive":

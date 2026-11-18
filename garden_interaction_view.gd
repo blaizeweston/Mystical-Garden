@@ -25,17 +25,17 @@ static func mount(owner_game: Node) -> void:
  var view=load("res://garden_interaction_view.gd").new();view.game=owner_game;view.name="GardenInteractions";owner_game.add_child(view)
 func _ready() -> void:
  var scenes=preload("res://garden_growth_view.gd").new();scenes.game=game;scenes.name="GrowthScenes";add_child(scenes)
- panel=game.hud_panel(game.overlay,Color("#14262b"),Vector2(22,20));panel.set_meta("garden_interaction_panel",true);panel.hide()
+ panel=game.ui.create_overlay_panel(Color("#14262b"),Vector2(22,20));panel.set_meta("garden_interaction_panel",true);panel.hide()
  var box:=VBoxContainer.new();box.custom_minimum_size=Vector2(470,260);box.add_theme_constant_override("separation",14);panel.add_child(box)
  title=Label.new();title.add_theme_font_size_override("font_size",23);box.add_child(title)
  description=Label.new();description.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;description.custom_minimum_size=Vector2(470,80);box.add_child(description)
  observe=Button.new();observe.text="Record observation";box.add_child(observe);observe.pressed.connect(record)
- station_panel=game.hud_panel(game.overlay,Color("#14262b"),Vector2(22,20))
+ station_panel=game.ui.create_overlay_panel(Color("#14262b"),Vector2(22,20))
  station_panel.set_meta("garden_interaction_panel",true);station_panel.hide()
  station_controls=preload("res://garden_care_panel.gd").new()
  station_controls.game=game;station_panel.add_child(station_controls)
  journal=Label.new();journal.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;journal.custom_minimum_size=Vector2(470,80);box.add_child(journal)
- var close:=Button.new();close.text="Close · Esc";box.add_child(close);close.pressed.connect(func():game.toggle_overlay(null))
+ var close:=Button.new();close.text="Close · Esc";box.add_child(close);close.pressed.connect(func():game.ui.close_panels())
  for definition in Catalog.POINTS:points[definition.id]=build_point(definition)
  var crops=preload("res://garden_crop_view.gd").new();crops.game=game;crops.name="Crops";add_child(crops)
  var returns=preload("res://garden_return_view.gd").new();returns.game=game;returns.name="ReturnLife";add_child(returns)
@@ -92,14 +92,14 @@ func _process(_delta: float) -> void:
   model.set_meta("available",available);model.visible=not wild and available
   var reveal:=clampf((Time.get_ticks_msec()-int(model.get_meta("reveal_at",-10000)))/1100.0,0,1)
   model.scale=Vector3.ONE*lerpf(.10,1.0,reveal*reveal*(3-2*reveal)) if game.app_settings.values.get("ambient_motion",true) else Vector3.ONE
-  model.get_node("Hint").visible=nearest==point_id and not game.overlay.visible and player.get("pos",Vector3.INF).distance_to(model.position)>1.0
+  model.get_node("Hint").visible=nearest==point_id and not game.ui.is_overlay_open() and player.get("pos",Vector3.INF).distance_to(model.position)>1.0
   var scar: MeshInstance3D=model.get_node("Scar")
   var pulse:=.20+.12*(.5+.5*sin(Time.get_ticks_msec()/700.0))
   if Time.get_ticks_msec()<cue_until and data.get("latest",{}).get("point","")==point_id:pulse+=.9
   scar.material_override.emission_energy_multiplier=pulse
  if data.get("version",0)==1:availability_baseline=true
  if wild or player.is_empty():
-  if panel.visible or station_panel.visible:game.toggle_overlay(null)
+  if panel.visible or station_panel.visible:game.ui.close_panels()
   return
  var focus: Dictionary=data.get("focus",{})
  if int(focus.get("serial",0))!=focus_serial:
@@ -107,17 +107,17 @@ func _process(_delta: float) -> void:
   var target: String=str(focus.get("point",""))
   if game.at_garden_station(player,target):
    station_controls.open(target)
-   if not station_panel.visible:game.toggle_overlay(station_panel)
+   if not station_panel.visible:game.ui.toggle_external(station_panel)
   var definition:=Catalog.point(target)
   if not definition.is_empty() and nearest==definition.id:
    selected=definition.id;pending=false
-   if not panel.visible:game.toggle_overlay(panel)
+   if not panel.visible:game.ui.toggle_external(panel)
  if station_panel.visible:
-  if not game.at_garden_station(player,station_controls.station):game.toggle_overlay(null)
+  if not game.at_garden_station(player,station_controls.station):game.ui.close_panels()
   else:station_controls.refresh()
- if panel.visible and game.overlay.visible:
+ if panel.visible and game.ui.is_overlay_open():
   var definition:=Catalog.point(selected)
-  if definition.is_empty():game.toggle_overlay(null);return
+  if definition.is_empty():game.ui.close_panels();return
   var recorded: bool=data.get("observations",[]).has(definition.observation)
   if recorded or Time.get_ticks_msec()-requested_at>1500:pending=false
   title.text=definition.name;description.text=definition.description
@@ -127,19 +127,19 @@ func _process(_delta: float) -> void:
   observe.disabled=recorded or pending or nearest!=selected
   var clue: String=data.get("clues",{}).get(definition.observation,"") if recorded else ""
   journal.text=(definition.recorded if recorded else definition.hint)+("\n\n"+clue if not clue.is_empty() else "")+"\n\nGarden observations · %d recorded"%data.get("observations",[]).size()
-func update_prompt(player: Dictionary) -> void:
- get_node("Crops").update_prompt(player)
+func context_prompt(player: Dictionary) -> String:
+ var crop_prompt: String=get_node("Crops").context_prompt(player)
  var station:=Service.station_near(game,player)
- if not station.is_empty() and not game.overlay.visible:
-  game.guide.text="%s  Use %s"%[preload("res://app_settings.gd").hint("interact"),station_controls.label(station)]
-  return
+ if not station.is_empty() and not game.ui.is_overlay_open():
+  return "%s  Use %s"%[preload("res://app_settings.gd").hint("interact"),station_controls.label(station)]
  var data:=Service.projection(game,game.local_player_id())
  var point_id:=Service.nearest(game,player,data)
- if not point_id.is_empty() and not game.overlay.visible:
+ if not point_id.is_empty() and not game.ui.is_overlay_open():
   var action: String="Inspect "+Catalog.point(point_id).name
   if point_id=="spring_water" and not data.get("cultivation",{}).get("spring_water",false):
    action="Fill watering vessel"
-  game.guide.text="%s  %s"%[preload("res://app_settings.gd").hint("interact"),action]
+  return "%s  %s"%[preload("res://app_settings.gd").hint("interact"),action]
+ return crop_prompt
 func _exit_tree() -> void:
  for point in points.values():
   if is_instance_valid(point):point.queue_free()

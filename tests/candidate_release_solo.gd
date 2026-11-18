@@ -71,7 +71,7 @@ func run() -> void:
  var actor: Dictionary = world.players[1]
  actor.pos=world.Stage.HEART
  world.handle_loadout_action(1,actor,"learn_0_64")
- world.toggle_overlay(null)
+ world.ui.close_panels()
  actor.pos = world.Stage.PLOTS[0]
  world.progress.plots[0] = world.progress.empty_plot().merged({"species":0,"stage":3,"age":10000.0},true)
  world.progress.sync_plot_flags()

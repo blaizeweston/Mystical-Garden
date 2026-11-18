@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 var game: Node
@@ -53,7 +54,7 @@ func host_run() -> void:
 func guest_run() -> void:
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")
  if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty()):check(false,"guest accepted: "+game.status+" / "+game.network_session.role());return
- var id=game.multiplayer.get_unique_id();var view=game.loadout_view
+ var id=game.multiplayer.get_unique_id();var view=UIFixture.control(game,"loadout_view")
  check(await until(func():return game.players[id].pos.distance_to(game.Stage.GATE)<1 and game.players[id].get("stored_parts",[]).size()>1 and int(game.players[id].stored_parts[1])==1),"owned counts arrive")
  game.open_gate_preparation();view.refresh()
  check(view.slots[1].get_item_index(1)>=0,"sole part initially available")

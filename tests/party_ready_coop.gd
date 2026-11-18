@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -61,9 +62,9 @@ func run():
   check(await until(func():return ExpeditionCase.is_wild(game.players.get(game.multiplayer.get_unique_id(),{}))),"guest enters with host")
   check(await until(func():return game.party_travel_state().get("kind","")=="advance" and game.participation.floor()==1),"ordinary stage ready prompt arrives")
   game.send_travel_ready(false)
-  check(await until(func():return game.checkpoint_menu.visible and game.participation.floor()==6),"upgrade cards arrive")
-  game.send_garden_action(game.affinity_checkpoint_action(game.checkpoint_offer_revision,"skip"))
-  check(await until(func():return not game.checkpoint_menu.visible),"card confirmation closes cards")
+  check(await until(func():return UIFixture.control(game,"checkpoint_menu").visible and game.participation.floor()==6),"upgrade cards arrive")
+  game.send_garden_action(game.affinity_checkpoint_action(game.ui.checkpoint_revision(),"skip"))
+  check(await until(func():return not UIFixture.control(game,"checkpoint_menu").visible),"card confirmation closes cards")
   game.send_travel_ready(false)
   check(await until(func():return game.party_travel_state().get("kind","")=="extract" and game.participation.floor()==12),"extraction ready check arrives")
   game.send_travel_ready(false)

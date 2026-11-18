@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -118,7 +119,7 @@ func title_and_progression() -> bool:
 	player.pos=game.stage.gate_position()
 	choose("briar_rebound")
 	check(Connected.path(player.character).is_empty(),"a node cannot precede the focus")
-	var panel = game.progression_view
+	var panel = UIFixture.control(game,"progression_view")
 	panel.inspected_class=0
 	panel.tabs.current_tab=2
 	panel.refresh()

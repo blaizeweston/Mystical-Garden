@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 var game: Node
@@ -15,7 +16,7 @@ func until(predicate: Callable) -> bool:
  while not predicate.call() and Time.get_ticks_msec()<deadline:await process_frame
  return predicate.call()
 func bottom() -> bool:
- var panel=game.progression_view;var bar=panel.tree_scroll.get_v_scroll_bar()
+ var panel=UIFixture.control(game,"progression_view");var bar=panel.tree_scroll.get_v_scroll_bar()
  return panel.is_visible_in_tree() and bar.max_value>bar.page and absi(panel.tree_scroll.scroll_vertical-roundi(bar.max_value-bar.page))<=1
 func _initialize() -> void:call_deferred("run")
 func run() -> void:
@@ -55,7 +56,7 @@ func host_run() -> void:
 func guest_run() -> void:
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")
  if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty()):check(false,"guest accepted");return
- var id=game.multiplayer.get_unique_id();var panel=game.progression_view
+ var id=game.multiplayer.get_unique_id();var panel=UIFixture.control(game,"progression_view")
  check(await until(func():return game.client_garden.size()>13 and game.client_garden[6]==100 and game.players[id].pos.distance_to(game.Stage.HEART)<1),"Garden state arrives")
  game.send_action(false)
  check(await until(func():return panel.tabs.current_tab==1 and bottom()),"remote E opens the tree at its base")
@@ -73,7 +74,7 @@ func guest_run() -> void:
  if not await until(func():return marked("trophy_ready") and game.heart_state().unlocked.has("monster_studies")):check(false,"offering unlock arrives");return
  game.send_garden_action("care_offer_%d"%game.Parts.HOOK)
  if not await until(func():return game.status.contains("appropriate Garden station")):check(false,"remote offering rejected at Heart");return
- mark("remote_rejected");game.toggle_overlay(null)
+ mark("remote_rejected");game.ui.close_panels()
  if not await until(func():return game.at_garden_station(game.players[id],"monster_studies")):check(false,"guest is near the Offering Altar");return
  game.send_action(false)
  var view=game.get_node("GardenInteractions")

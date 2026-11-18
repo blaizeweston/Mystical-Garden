@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Growth=preload("res://cultivation_growth.gd")
@@ -38,16 +39,16 @@ func run() -> void:
  check(not p.get("spring_water",false),"cannot fill at a bed")
  p.pos=Garden.Catalog.point("spring_water").position
  var garden_view=game.get_node("GardenInteractions")
- garden_view.update_prompt(p)
- check(game.guide.text.contains("Fill watering vessel"),"the spring advertises its direct interaction")
+ game.ui.set_prompt(garden_view.context_prompt(p))
+ check(UIFixture.control(game,"guide").text.contains("Fill watering vessel"),"the spring advertises its direct interaction")
  game.act(1,false);garden_view._process(0.0)
- check(p.get("spring_water",false) and not game.overlay.visible,"spring interaction fills the vessel directly")
+ check(p.get("spring_water",false) and not game.ui.is_overlay_open(),"spring interaction fills the vessel directly")
  check(game.combat_events.filter(func(e):return e.kind=="audio" and e.shape=="vessel_filled").size()==1,"a real spring fill emits one cue")
- garden_view.update_prompt(p)
- check(game.guide.text.contains("Inspect"),"the full vessel exposes spring inspection")
+ game.ui.set_prompt(garden_view.context_prompt(p))
+ check(UIFixture.control(game,"guide").text.contains("Inspect"),"the full vessel exposes spring inspection")
  game.act(1,false);garden_view._process(0.0)
  check(garden_view.panel.visible and garden_view.selected=="spring_water","the observation remains accessible")
- game.toggle_overlay(null)
+ game.ui.close_panels()
  p.pos=game.Stage.PLOTS[0]
  var before_age: float=bed.age;var rng_before: int=game.rng.state;var xp: Array=p.character.xp.duplicate();var fam: Array=p.character.plants.duplicate();var stock: Array=g.stock.duplicate()
  var path: String=g.path;var old: Dictionary=bed.duplicate(true);g.path=base+"-missing/save"
@@ -55,15 +56,15 @@ func run() -> void:
  check(not game.combat_events.any(func(e):return e.kind=="audio" and e.shape=="crop_watered"),"save failure emits no watering cue")
  g.path=path;bed=g.plots[0];request=View.request(shown(game),"water_crop")
  var crop_view=game.get_node("GardenInteractions/Crops")
- crop_view.update_prompt(p)
- check(crop_view.quick_water.visible and not game.overlay.visible,"a filled vessel exposes the Water plant button at the growing bed")
+ game.ui.set_prompt(crop_view.context_prompt(p))
+ check(crop_view.quick_water.visible and not game.ui.is_overlay_open(),"a filled vessel exposes the Water plant button at the growing bed")
  p.pos=game.Stage.HEART
- crop_view.update_prompt(p)
+ game.ui.set_prompt(crop_view.context_prompt(p))
  check(not crop_view.quick_water.visible,"the button disappears away from the bed")
  p.pos=game.Stage.PLOTS[0]
- crop_view.update_prompt(p);crop_view.quick_water.pressed.emit()
+ game.ui.set_prompt(crop_view.context_prompt(p));crop_view.quick_water.pressed.emit()
  check(Growth.watered(bed) and bed.age==before_age and not p.spring_water,"watering commits a rate, not free instant progress")
- crop_view.update_prompt(p)
+ game.ui.set_prompt(crop_view.context_prompt(p))
  check(not crop_view.quick_water.visible,"the button disappears after watering")
  check(not Garden.command(game,1,JSON.stringify(request)).changed and is_equal_approx(Growth.rate(g,bed),1.5),"co-op retries cannot stack watering")
  check(game.combat_events.filter(func(e):return e.kind=="audio" and e.shape=="crop_watered").size()==1,"watering plays once after the crop is saved")

@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 var failed=false
@@ -14,13 +15,13 @@ func run() -> void:
   check(game.extraction_checkpoint_open()==(floor_number%6==0),"extraction every sixth gate "+str(floor_number))
   game.encounter.set_hp(-1, 1);check(not game.upgrade_checkpoint_open() and not game.extraction_checkpoint_open(),"clearing required");game.encounter.set_hp(-1, 0)
  ExpeditionCase.set_world(game, {"encounter_number": 3});p.pos=game.battlefield.advance;game._process(.016)
- check(not game.guide.text.contains("T  Extract"),"third gate does not advertise extraction")
+ check(not UIFixture.control(game,"guide").text.contains("T  Extract"),"third gate does not advertise extraction")
  ExpeditionCase.Transitions.checkpoint(game, 1,false);check(ExpeditionCase.is_wild(p),"third gate cannot bank carried loot")
- ExpeditionCase.set_world(game, {"encounter_number": 6});game._process(.016);check(game.guide.text.contains("T  Extract"),"sixth gate advertises extraction")
+ ExpeditionCase.set_world(game, {"encounter_number": 6});game._process(.016);check(UIFixture.control(game,"guide").text.contains("T  Extract"),"sixth gate advertises extraction")
  ExpeditionCase.set_world(game, {"destination": 3});check(not game.upgrade_checkpoint_open() and not game.extraction_checkpoint_open(),"Heart finale excluded")
  ExpeditionCase.set_world(game, {"destination": 0});game.encounter.set_hp(-1, 100);ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.GATE;p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0
  game.progress.parts.fill(0);game.seed_reserve(p).parts.fill(0);game.progress.discoveries.fill(true);game.progress.parts[0]=1
- var view=game.loadout_view;view.refresh()
+ var view=UIFixture.control(game,"loadout_view");view.refresh()
  for slot in 3:
   check(view.slots[slot].get_item_index(1)>=0 and view.slots[slot].get_item_index(2)<0,"only owned material appears despite discovered species")
  var core_choice: int=view.slots[0].get_item_index(1)
@@ -45,8 +46,8 @@ func run() -> void:
  check(view.slots[0].allow_reselect,"Empty can clear a stale selection after inventory changes")
  var class_tree: Button=view.find_children("*","Button",true,false).filter(func(button):return button.text=="Class tree")[0]
  class_tree.pressed.emit()
- var progression: Control=game.progression_view
- check(game.progression_menu.visible and progression.tabs.current_tab==2 and progression.inspected_class==1,"crafting opens the current class tree")
+ var progression: Control=UIFixture.control(game,"progression_view")
+ check(UIFixture.control(game,"progression_menu").visible and progression.tabs.current_tab==2 and progression.inspected_class==1,"crafting opens the current class tree")
  var first_node: int=game.Classes.Weaver.TREE.REQUEST_OFFSET
  progression.select_node("class_1_%d"%first_node)
  await process_frame
@@ -71,7 +72,7 @@ func run() -> void:
  saved.path=game.local_character.path
  check(saved.load_profile()==OK and game.Classes.Weaver.TREE.path(saved.data)==["thornbinder"],"the new class node is saved")
  progression.close_button.pressed.emit()
- check(game.loadout_menu.visible and not game.progression_menu.visible and p.prepared==1,"Back returns to the prepared weapon")
+ check(UIFixture.control(game,"loadout_menu").visible and not UIFixture.control(game,"progression_menu").visible and p.prepared==1,"Back returns to the prepared weapon")
  p.pos=game.Stage.GATE+Vector3(20,0,0)
  game.garden_action(1,"learn_0_%d"%first_node)
  check(p.character.upgrades[0]==0,"the host rejects learning outside the Heart and Gate")

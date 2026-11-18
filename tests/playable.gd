@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -35,7 +36,7 @@ func run() -> void:
 	var graph=world.Classes.connected_tree(0)
 	check(graph.focus(actor.character)=="vanguard" and actor.character.xp[0]==0,"starting focus is a real host-validated zero-XP selection")
 	world.send_action(false)
-	check(world.loadout_menu.visible and not ExpeditionCase.is_wild(actor),"Gate presents preparation before entry")
+	check(UIFixture.control(world,"loadout_menu").visible and not ExpeditionCase.is_wild(actor),"Gate presents preparation before entry")
 	world.send_garden_action("depart")
 	check(ExpeditionCase.is_wild(actor) and actor.weapon==0 and actor.secondary==0 and actor.catalyst==0,"empty plant slots permit native class combat")
 	if not ExpeditionCase.is_wild(actor):
@@ -67,7 +68,7 @@ func run() -> void:
 	actor.pos=world.battlefield.advance
 	ExpeditionCase.Transitions.checkpoint(world,1,true)
 	var offer: Dictionary=world.checkpoint_card_data(actor)[0]
-	check(world.checkpoint_menu.visible and offer.choices.size()==3,"cleared checkpoint opens three modern choices")
+	check(UIFixture.control(world,"checkpoint_menu").visible and offer.choices.size()==3,"cleared checkpoint opens three modern choices")
 	var spent: int=world.wallet_for(actor).spent_essence()
 	var command: String=world.affinity_checkpoint_action(offer.revision,"0")
 	world.send_garden_action(command)

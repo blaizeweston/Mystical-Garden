@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -35,7 +36,7 @@ func run():
 	game.seed_reserve(p).parts[1] = 4
 	game.progress.parts[0] = 7
 	game._process(.016)
-	var hud = game.player_hud
+	var hud = UIFixture.control(game,"player_hud")
 	check(hud.state.hp == 1 and hud.state.max_hp == 100 and hud.health_orb.hp == 1 and hud.health_pool.visible and hud.pool_vitals.text == "1 / 100 HP", "current health pool presents exact HP and native capacity")
 	check(hud.state.carried == 3 and hud.state.pouch, "satchel reflects carried and protected loot")
 	check(not hud.state.skill_ready and not hud.state.dodge_ready, "ability slots reflect cooldown readiness")
@@ -54,15 +55,15 @@ func run():
 	inventory_action.pressed = true
 	game._input(inventory_action)
 	await process_frame
-	check(game.pack_menu.visible and not game.inventory.visible and game.inventory_view != null and game.inventory_view.is_visible_in_tree(), "I opens the illustrated inventory")
+	check(UIFixture.control(game,"pack_menu").visible and UIFixture.control(game,"inventory_view") != null and UIFixture.control(game,"inventory_view").is_visible_in_tree(), "I opens the illustrated inventory")
 	await check_inventory_affinity_slots(game,p)
 	var tab := InputEventKey.new()
 	tab.physical_keycode = KEY_TAB
 	tab.pressed = true
-	var panel: PanelContainer = game.overlay.get_node("RunSummary")
+	var panel: PanelContainer = UIFixture.control(game,"summary_view")
 	game._input(tab)
-	check(game.pack_menu.visible and not panel.visible, "Tab leaves other open menus in place")
-	game.toggle_overlay(null)
+	check(UIFixture.control(game,"pack_menu").visible and not panel.visible, "Tab leaves other open menus in place")
+	game.ui.close_panels()
 	ExpeditionCase.set_membership(game, p, false)
 	game._input(tab)
 	check(not panel.visible, "Tab is reserved for the expedition summary in the Wilds")
@@ -91,7 +92,7 @@ func run():
 	game._input(tab)
 	check(panel.visible and panel.grouped_cards.get_child_count()==2,"Tab opens one modern group per acquired identity")
 	game._input(tab)
-	check(not panel.visible and not game.overlay.visible, "Tab closes the summary")
+	check(not panel.visible and not game.ui.is_overlay_open(), "Tab closes the summary")
 	await process_frame
 	if not failed: print("PASS: current health pool, ability states, resources and private inventory HUD")
 	quit(1 if failed else 0)
@@ -121,11 +122,11 @@ func check_inventory_affinity_slots(game: Node, player: Dictionary) -> void:
 	player.weapon=game.Seeds.DEFINITIONS[game.Seeds.index_of("thorn_bloom")].part
 	player.secondary=game.Seeds.DEFINITIONS[game.Seeds.index_of("ember_fern")].part
 	player.catalyst=game.Seeds.DEFINITIONS[game.Seeds.index_of("dewcap")].part
-	var panel=game.inventory_view
+	var panel=UIFixture.control(game,"inventory_view")
 	panel.key=""
 	panel.refresh()
 	await process_frame
-	check(game.pack_menu.visible and panel.is_visible_in_tree() and panel.equipment.get_child_count()==3,"the actual open inventory presents all three affinity slots")
+	check(UIFixture.control(game,"pack_menu").visible and panel.is_visible_in_tree() and panel.equipment.get_child_count()==3,"the actual open inventory presents all three affinity slots")
 	check(not panel.state.has("core") and not panel.state.affinity_build.is_empty(),"inventory uses a local resolved affinity projection without the retired Core shape")
 	check(panel.core_skill.visible and panel.core_skill.text=="Core skill · Thorn Line","inventory resolves the current Thorn Core ability label")
 	var names: Array=["Thorn Line","Burning Strikes","Drenched"]

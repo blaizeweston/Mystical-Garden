@@ -137,7 +137,7 @@ func _ready():
 	var tree_button:=Button.new()
 	tree_button.text="Class tree"
 	var navigation:=HBoxContainer.new();add_child(navigation);navigation.add_child(tree_button);tree_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	tree_button.pressed.connect(func(): game.progression_view.open_from_crafting())
+	tree_button.pressed.connect(func(): game.ui.show_progression(true))
 	var route:=Button.new();route.text="Change destination";navigation.add_child(route);route.pressed.connect(func(): game.send_garden_action("destination"))
 	depart_button=Button.new()
 	depart_button.text="Craft weapon & enter the Wilds"
@@ -148,7 +148,7 @@ func _ready():
 	var close:=Button.new()
 	close.text="Close"
 	add_child(close)
-	close.pressed.connect(func(): game.toggle_overlay(null))
+	close.pressed.connect(func(): game.ui.close_panels())
 	refresh()
 func label(parent: Control,value: String) -> Label:
 	var result:=Label.new()

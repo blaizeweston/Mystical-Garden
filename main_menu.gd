@@ -767,7 +767,7 @@ func launch(join: bool) -> void:
 		if error!=OK:
 			game.return_to_main_menu(game.status)
 	elif host_choice.button_pressed:
-		game.host_button.pressed.emit()
+		game.request_host_session()
 	queue_free()
 
 
@@ -938,7 +938,7 @@ func _launch_guarded(join: bool) -> void:
 	if network_dialog.visible: network_dialog.dismiss()
 	get_tree().current_scene = game
 	preload("res://title_music.gd").set_playing(get_tree(),false)
-	if not join and host_choice.button_pressed: game.host_button.pressed.emit()
+	if not join and host_choice.button_pressed: game.request_host_session()
 	queue_free()
 
 

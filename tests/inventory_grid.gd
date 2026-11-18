@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Items=preload("res://item_catalog.gd")
@@ -107,12 +108,12 @@ func run():
  var migrated=load("res://progress.gd").new();migrated.path=legacy_path;migrated.load_garden();migrated.save_garden()
  check(FileAccess.file_exists(legacy_path+".pre-inventory-v1.bak") and migrated.stock[0]==reserve.stock[0],"legacy counts migrate with a recovery backup")
  # Sorting and filtering are display operations, not item mutations.
- ExpeditionCase.Transitions.return_member(game, p);game.toggle_overlay(game.pack_menu);game.inventory_view.refresh()
- check(game.inventory_view.grid.get_child_count()>=40,"normal inventory uses square grid slots with empty spaces")
+ ExpeditionCase.Transitions.return_member(game, p);game.ui.toggle_panel("pack");UIFixture.control(game,"inventory_view").refresh()
+ check(UIFixture.control(game,"inventory_view").grid.get_child_count()>=40,"normal inventory uses square grid slots with empty spaces")
  var original: int=reserve.stock[0]
- game.inventory_view.filter_pick.select(3);game.inventory_view.key="";game.inventory_view.refresh()
- for entry in game.inventory_view.shown: check(Items.get_item(entry.item).category=="monster_part","type filter hides other items")
- game.inventory_view.sort_pick.select(1);game.inventory_view.sort_button.pressed.emit()
+ UIFixture.control(game,"inventory_view").filter_pick.select(3);UIFixture.control(game,"inventory_view").key="";UIFixture.control(game,"inventory_view").refresh()
+ for entry in UIFixture.control(game,"inventory_view").shown: check(Items.get_item(entry.item).category=="monster_part","type filter hides other items")
+ UIFixture.control(game,"inventory_view").sort_pick.select(1);UIFixture.control(game,"inventory_view").sort_button.pressed.emit()
  check(reserve.stock[0]==original,"sorting never moves or loses stored counts")
  var snapshot: Dictionary=game.player_snapshot(999)[1]
  check(not snapshot.has("bag"),"other characters cannot see private inventories")

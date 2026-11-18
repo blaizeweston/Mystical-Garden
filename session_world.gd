@@ -32,7 +32,7 @@ static func host(game: Node, port: int=0) -> Error:
 	game.multiplayer.multiplayer_peer=game.network_session.transport()
 	game.status="Hosting co-op on UDP port %d. Share your reachable IP with up to three friends."%game.network_session.port()
 	Journal.event("network","host_started",{"port":game.network_session.port()})
-	game.toggle_overlay(null);return OK
+	game.ui.close_panels();return OK
 
 
 static func joined(game: Node) -> void:
@@ -42,7 +42,7 @@ static func joined(game: Node) -> void:
 	if not game.network_session.transport_connected(Time.get_ticks_msec()): return
 	Journal.event("network","transport_connected")
 	game.status = Network.join_progress("character",game.network_session.address(),game.network_session.port())
-	game.toggle_overlay(null)
+	game.ui.close_panels()
 	var guarded = game.persistence_session.is_guarded()
 	var catalog: Dictionary = game.progress.ContentIDs.manifest()
 	if guarded: catalog["guest_projection_receipts"] = game.guest_character.projection_receipts
@@ -169,7 +169,7 @@ static func join(game: Node, address: String="",port: int=0) -> Error:
 	if game.has_meta(&"guarded_host_cleanup_notice"): game.remove_meta(&"guarded_host_cleanup_notice")
 	if game.has_meta(&"guest_projection_origin"): game.remove_meta(&"guest_projection_origin")
 	game.status = Network.join_progress("connect",game.network_session.address(),game.network_session.port())
-	game.toggle_overlay(null)
+	game.ui.close_panels()
 	return OK
 
 
@@ -339,7 +339,7 @@ static func accepted(game: Node, profile: Dictionary) -> void:
 	Journal.event("network","join_accepted")
 	game.status="Joined the host's Garden."
 	if not game.persistence_session.is_guarded(): game.receive_character(payload)
-	game.toggle_overlay(null)
+	game.ui.close_panels()
 
 
 static func rejected(game: Node, reason: String) -> void:
@@ -350,13 +350,12 @@ static func rejected(game: Node, reason: String) -> void:
 
 
 static func update(game: Node, now: int = -1) -> void:
-	if game.connection_panel==null: return
+	if not is_instance_valid(game.ui): return
 	var instant := Time.get_ticks_msec() if now < 0 else now
 	var waiting: bool=game.network_session.role()=="Connecting" or (game.network_session.role()=="Guest" and game.client_details.is_empty())
-	game.connection_panel.visible=waiting
+	game.ui.present_connection(waiting,Network.join_progress(game.network_session.join_phase(),game.network_session.address(),game.network_session.port()) if waiting else "")
 	if waiting:
 		var phase: String = game.network_session.join_phase()
-		game.connection_label.text=Network.join_progress(phase,game.network_session.address(),game.network_session.port())
 		if game.network_session.deadline()>0 and instant>game.network_session.deadline():
 			rejected(game,Network.join_failure(phase,game.network_session.address(),game.network_session.port(),true))
 	elif game.network_session.role()=="Guest":

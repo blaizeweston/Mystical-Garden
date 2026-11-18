@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 const Slots=preload("res://save_slots.gd")
@@ -103,21 +104,21 @@ func run():
 	var world=current_scene
 	await process_frame
 	check(world.active_slot==2 and world.progress.path==slots.paths(2).garden,"Continue opens the selected world")
-	world.toggle_overlay(world.session_menu)
-	var resume: Button=world.session_menu.find_child("Resume",true,false)
+	world.ui.toggle_panel("session")
+	var resume: Button=UIFixture.control(world,"session_menu").find_child("Resume",true,false)
 	check(resume!=null and resume.has_focus(),"game menu focuses Resume")
 	check(resume.get_node("ReachingRoots").highlighted,"keyboard focus highlights the in-game menu")
 	resume.pressed.emit()
-	check(not world.overlay.visible,"Resume closes the menu")
-	world.toggle_overlay(world.pack_menu)
-	var inventory_close: Button=world.pack_menu.find_children("*","Button",true,false).filter(func(button):return button.text=="Close")[0]
+	check(not world.ui.is_overlay_open(),"Resume closes the menu")
+	world.ui.toggle_panel("pack")
+	var inventory_close: Button=UIFixture.control(world,"pack_menu").find_children("*","Button",true,false).filter(func(button):return button.text=="Close")[0]
 	inventory_close.grab_focus()
 	check(inventory_close.get_node("ReachingRoots").highlighted,"inventory buttons use the same keyboard highlight")
 	world.settings_dialog.begin(world.app_settings)
 	var binding: Button=world.settings_dialog.binding_buttons.attack[0]
 	check(binding.has_node("ReachingRoots"),"nested settings buttons use the shared highlight")
 	world.settings_dialog.cancel()
-	world.toggle_overlay(null)
+	world.ui.close_panels()
 	world.progress.knowledge=9
 	world.return_to_main_menu()
 	await process_frame

@@ -171,7 +171,7 @@ func _process(delta: float) -> void:
   waiting_sequence=int(pending[0].sequence);retry=1;game.send_garden_action("growth_ack:"+str(waiting_sequence));return
  preload("res://heart_growth_visuals.gd").hold(game.stage,preload("res://heart_growth_visuals.gd").counts(pending[0],pending,game.stage.heart_unlocked).x)
  game.stage.set_meta("garden_growth_phase",int(pending[0].get("from_phase",0)));conceal(pending)
- if not game.overlay.visible and not game.settings_dialog.visible:begin(pending[0])
+ if not game.ui.is_overlay_open() and not game.settings_dialog.visible:begin(pending[0])
 func _exit_tree() -> void:
  restore_visuals();restore_interface()
  if is_instance_valid(game):game.set_meta("garden_cinematic_active",false)

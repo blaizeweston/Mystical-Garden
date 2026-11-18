@@ -1,4 +1,5 @@
 extends RefCounted
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -172,7 +173,7 @@ func host(menu: Node, mismatch: bool) -> void:
 	var host_offer: Dictionary = cards_api.ledger(local).offer()
 	var initial_ledger = cards_api.ledger(remote)
 	var initial: Dictionary = initial_ledger.offer()
-	check(world.checkpoint_cards.get_child_count()==3 and "free" in world.checkpoint_notice.text
+	check(UIFixture.control(world,"checkpoint_cards").get_child_count()==3 and "free" in UIFixture.control(world,"checkpoint_notice").text
 		and world.run_wallet(local)==0 and not world.has_method("buy_upgrade"),
 		"new cards are offered at zero Essence and the retired purchase implementation is absent")
 	world.present_checkpoint_cards(guest_id(world))
@@ -235,19 +236,19 @@ func guest(menu: Node, mismatch: bool) -> void:
 	print("CASE CR02 action_ready ",JSON.stringify({"current_identity":not Core.cast_key(world,world.players[world.local_player_id()]).is_empty()}))
 	world.send_garden_action("class_skill")
 	var offer_received := func() -> bool:
-		return read("cards")=="ok" and world.checkpoint_offer_revision>0 and world.checkpoint_cards.get_child_count()==3 and "12 Essence" in world.checkpoint_notice.text
+		return read("cards")=="ok" and world.ui.checkpoint_revision()>0 and UIFixture.control(world,"checkpoint_cards").get_child_count()==3 and "12 Essence" in UIFixture.control(world,"checkpoint_notice").text
 	if not check(await until(offer_received),
 		"guest receives three actual options and an authoritative starting wallet"):return
 	for balance in [10,6,0]:
-		var revision: int = world.checkpoint_offer_revision
+		var revision: int = world.ui.checkpoint_revision()
 		world.send_garden_action(world.affinity_checkpoint_action(revision,"reroll"))
 		world.send_garden_action(world.affinity_checkpoint_action(revision,"0"))
 		world.send_garden_action(world.affinity_checkpoint_action(revision,"reroll"))
 		var reroll_received := func() -> bool:
-			return world.checkpoint_offer_revision>revision and "%d Essence" % balance in world.checkpoint_notice.text
+			return world.ui.checkpoint_revision()>revision and "%d Essence" % balance in UIFixture.control(world,"checkpoint_notice").text
 		if not check(await until(reroll_received),
 			"new offer revision and exact balance after reroll; stale requests do nothing"):return
-	var chosen: String = world.affinity_checkpoint_action(world.checkpoint_offer_revision,"0")
+	var chosen: String = world.affinity_checkpoint_action(world.ui.checkpoint_revision(),"0")
 	world.send_garden_action(chosen)
 	world.send_garden_action(chosen)
 	var local := func() -> Dictionary: return world.players.get(world.local_player_id(),{})
