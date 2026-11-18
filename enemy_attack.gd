@@ -126,7 +126,7 @@ static func lock(game: Node, actor: Dictionary, mode: String, target: Vector3, u
  actor.attack = prepared if not prepared.is_empty() else plan(game, actor, mode, target)
  if prepared.is_empty():SkillResponses.decorate(game,actor,actor.attack,target)
  actor.blast = actor.attack.to
- actor.windup = maxi(until,Time.get_ticks_msec()+SkillResponses.MIN_WINDUP) if actor.attack.get("learned",false) else until
+ actor.windup = maxi(until,preload("res://combat_clock.gd").now()+SkillResponses.MIN_WINDUP) if actor.attack.get("learned",false) else until
  if intent.is_empty():
   actor.erase(REQUIRES_SCOUT_COMMIT)
  else:
@@ -135,7 +135,7 @@ static func lock(game: Node, actor: Dictionary, mode: String, target: Vector3, u
    "epoch": int(intent.epoch), "slot": int(intent.slot), "token": int(intent.token),
    "target": int(intent.target), "target_life": int(intent.target_life),
   }
- preload("res://oracle_omens.gd").begin_attack(game,actor,actor.attack,Time.get_ticks_msec())
+ preload("res://oracle_omens.gd").begin_attack(game,actor,actor.attack,preload("res://combat_clock.gd").now())
  preload("res://wilds_skill_tactics.gd").lock_response(game,actor,actor.attack)
  preload("res://event_audio.gd").enemy(game,actor.attack,false)
 

@@ -91,7 +91,7 @@ static func growth_centers(game: Node, id: int) -> Array:
 	if not game.multiplayer.is_server():
 		return game.players.get(id, {}).get("ability_growth_centers", [])
 	var result := []
-	var now := Time.get_ticks_msec()
+	var now := preload("res://combat_clock.gd").now()
 	for field in game.trait_events:
 		if field.kind == "growth" and field.owner == id and game.Traits.event_in_current_life(game,field) and now < int(field.until):
 			result.append(field.position)
@@ -110,7 +110,7 @@ static func plan(game: Node, player: Dictionary, field: RefCounted, skill: Dicti
 		"reach":reach, "range":reach, "center":origin, "forward":forward,
 		"valid":found or mode != "siphon"}
 	if mode == "quake" and skill.has("warden_focus"):
-		result.center = preload("res://warden_combat.gd").quake_center(game,player,field,skill,Time.get_ticks_msec())
+		result.center = preload("res://warden_combat.gd").quake_center(game,player,field,skill,preload("res://combat_clock.gd").now())
 	elif mode == "snare":
 		var amount := minf(distance,reach) if distance >= 0.0 else reach
 		result.center = field.dash(origin,origin+forward*amount)

@@ -63,7 +63,7 @@ static func revive(game: Node,helper_id: int,target_id: int,effects = null) -> b
  target[PlayerVitals.STATE] = revived
  target[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
  target.erase("affinity_ward_claims");target.erase("frost_response");target.erase("affinity_ember_response")
- target.hurt_until=Time.get_ticks_msec()+1500;target.guard_until=0
+ target.hurt_until=preload("res://combat_clock.gd").now()+1500;target.guard_until=0
  target.velocity=Vector3.ZERO;game.motions.erase(target_id)
  game.PartyTravel.cancel(game,"A teammate was revived. Confirm readiness again at the gate.",effects)
  game.action_feedback(effects,target_id,"Revived. %d maximum HP is lost until you return to the Garden."%Preview.revive_cost())
