@@ -50,7 +50,6 @@ var final_family_mix := false
 const Improvements = preload("res://expedition_grafts.gd")
 const Grafts = preload("res://native_grafts.gd")
 const UpgradeCards = preload("res://affinity_cards.gd")
-const RunSummary = preload("res://run_summary_panel.gd")
 const SPEED_CARD := "ordinary_weapon_interval"
 var native_graft_case := false
 var connected_warden_case := false
@@ -904,7 +903,7 @@ func check_speed_face(game: Node, offer: Dictionary) -> void:
 
 
 func has_attack_speed(game: Node, player: Dictionary, stats: Dictionary, expected: String) -> bool:
-	var summary := RunSummary.project(game,player,stats)
+	var summary := UIFixture.summary(game,player,stats)
 	return summary.get("totals",[]).any(func(row):return row[0]=="Attack speed" and row[1]==expected+" attacks/sec")
 
 

@@ -1,26 +1,10 @@
 extends PanelContainer
 
-const Participation = preload("res://expedition_participation.gd")
-
 const Settings = preload("res://app_settings.gd")
-const Skills = preload("res://skill_catalog.gd")
-const Traits = preload("res://combat_traits.gd")
 const UI = preload("res://root_ui.gd")
-const Cards = preload("res://affinity_cards.gd")
-const Preview = preload("res://combat_balance_preview.gd")
-const PlayerVitals = preload("res://player_vitals.gd")
-const EXTRA_STATS := {
-	"windup_damage": ["Wind-up damage", " hp", 1.0],
-	"heal_on_kill": ["Health on kill", " hp", 1.0],
-	"skill_heal": ["Class skill healing bonus", " HP", 1.0],
-	"skill_duration": ["Class skill duration", " s", .001],
-	"stagger": ["Hit stagger", " s", .001],
-	"recovery": ["Enemy recovery", " s", .001],
-	"knockback": ["Knockback", " m", 1.0],
-	"pull": ["Pull", " m", 1.0],
-}
-
-var game: Node
+const BuildView = preload("res://ui/gameplay/player_build_projection.gd")
+signal refresh_requested
+signal requested(command: String, data: Dictionary)
 var heading: Label
 var totals: GridContainer
 var bonuses: Label
@@ -32,19 +16,8 @@ var shown: Dictionary
 var next_refresh := 0
 
 
-static func handle_input(world: Node, event: InputEvent) -> bool:
-	if not event.is_action_pressed("run_summary") or world.network_session.role() == "Connecting" or world.returning_to_title:
-		return false
-	if world.ui.is_overlay_open() and not world.ui.panel_is_open("summary"): return false
-	var player: Dictionary = world.players.get(world.local_player_id(), {})
-	if not Participation.is_wild(player):
-		return false
-	world.ui.toggle_summary()
-	return true
-
-
 func opened() -> void:
-	refresh(game.players.get(game.local_player_id(),{}))
+	refresh()
 	close_button.grab_focus()
 
 
@@ -94,7 +67,7 @@ func _ready() -> void:
 	grouped_cards.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grouped_cards.add_theme_constant_override("separation", 10)
 	grouped_scroll.add_child(grouped_cards)
-	close_button = UI.button(box, "Close", func(): game.ui.close_panels())
+	close_button = UI.button(box, "Close", func(): requested.emit("close",{}))
 	get_viewport().size_changed.connect(fit)
 	visibility_changed.connect(func(): set_process(is_visible_in_tree()))
 	fit()
@@ -107,21 +80,20 @@ func fit() -> void:
 
 
 func _process(_delta: float) -> void:
-	var player: Dictionary = game.players.get(game.local_player_id(), {})
-	if not Participation.is_wild(player):
-		game.ui.close_panels()
-	elif Time.get_ticks_msec() >= next_refresh:
-		refresh(player)
+	if Time.get_ticks_msec() >= next_refresh: refresh()
 
 
-func refresh(player: Dictionary) -> void:
+func refresh() -> void:
 	next_refresh = Time.get_ticks_msec() + 200
-	var stats: Dictionary
-	if game.multiplayer.is_server():
-		stats = game.weapon_stats(player)
-	elif game.client_details_key == str([game.participation.route(), game.participation.floor(), game.participation.seed()]):
-		stats = player.get("weapon_stats", {})
-	var view := project(game, player, stats)
+	refresh_requested.emit()
+
+func present(facts: Dictionary) -> void:
+	facts = facts.duplicate(true)
+	if not facts.get("active",false):
+		if is_visible_in_tree(): requested.emit("close",{})
+		return
+	var stats: Dictionary = facts.get("stats",{})
+	var view := BuildView.summary(facts)
 	var shortcut := Settings.hint("run_summary")
 	close_button.text = "Close" if shortcut == "Unbound" else "Close · " + shortcut
 	if view == shown and not heading.text.is_empty():
@@ -173,95 +145,3 @@ func add_grouped_card(card: Dictionary) -> void:
 	details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	details.hide()
 	title.toggled.connect(func(expanded: bool): details.visible = expanded)
-
-
-static func project(world: Node, player: Dictionary, stats: Dictionary) -> Dictionary:
-	if stats.is_empty():
-		return {}
-	var rows: Array = []
-	var class_id := int(player.frame)
-	var base: Dictionary = world.Classes.DEFINITIONS[class_id].weapons[int(player.get("weapon_kind", 0))]
-	var upgrades: Array = []
-	if stats.has("affinity_build"):
-		var copies: Array = Cards.project_owned(player,stats,world.DODGE_COOLDOWN_MS) if world.multiplayer.is_server() else player.get("affinity_run_cards",[])
-		upgrades = Cards.owned_rows(copies)
-		var applied := Cards.applied_totals(copies)
-		stats = stats.duplicate()
-		world.Weapons.tune_affinity_basic(stats, applied)
-		var weapon_band: Vector2i = world.Life.Preview.weapon_range(stats,0)
-		stats.damage_min = weapon_band.x
-		stats.damage_max = weapon_band.y
-		stats.dodge_cooldown = int(stats.get("dodge_cooldown",0)) + int(applied.get("run_dodge_recovery",0))
-	upgrades.sort_custom(func(a,b): return a.title.naturalnocasecmp_to(b.title) < 0)
-	if stats.has("damage_min"):
-		var band:=Vector2i(stats.damage_min,stats.damage_max)
-		rows.append(["Damage", Preview.range_label(band)])
-	else:
-		rows.append(["Damage", compared(float(stats.damage), base.damage)])
-	rows.append(["Reach", compared(stats.reach, base.reach, " m")])
-	rows.append(["Attack speed", Preview.attack_speed(int(stats.interval)) + " attacks/sec",
-		"Maximum attack speed is %s attacks/sec." % Preview.attack_speed(Cards.STRIKE_MIN_MS)])
-	rows.append(["Weapon targets", compared(stats.targets, base.targets)])
-	var base_hp: int=world.Life.Preview.hp(world.MAX_HEALTH)
-	rows.append(["Max HP", compared(PlayerVitals.maximum_hp(player, base_hp), base_hp, " HP")])
-	var dodge_ms := maxi(Cards.DODGE_MIN_MS, world.DODGE_COOLDOWN_MS - int(stats.get("dodge_cooldown", 0)))
-	rows.append(["Dodge cooldown", compared(dodge_ms / 1000.0, world.DODGE_COOLDOWN_MS / 1000.0, " s"),
-		"Minimum dodge cooldown is %s s." % decimal(Cards.DODGE_MIN_MS / 1000.0)])
-	var profile: Dictionary = player.get("character", world.guest_character.data)
-	for slot in 2:
-		var skill := Skills.resolve_in_world(world, class_id, slot, profile)
-		var cooldown_ms := Skills.Balance.cooldown(skill,stats)
-		rows.append([skill.name + " cooldown", decimal(cooldown_ms / 1000.0) + " s",
-			"Minimum class ability cooldown is %s s." % decimal(Skills.Balance.COOLDOWN_MIN_MS / 1000.0)])
-	for key in EXTRA_STATS:
-		var value := float(stats.get(key, 0))
-		if key=="heal_on_kill":
-			if value>0.0:
-				rows.append(["Healing on kill",world.Life.Preview.heal_label(value)])
-				var limit: int=world.Life.Sustain.KILL_BUDGET_HP
-				rows.append(["Kill healing left this floor","%d / %d HP"%[int(stats.get("kill_heal_remaining",limit)),limit]])
-			continue
-		if key in ["windup_damage","heal_on_kill","skill_heal"]:
-			value=float(world.Life.Preview.effect_hp(value))
-		if not is_zero_approx(value):
-			var spec: Array = EXTRA_STATS[key]
-			rows.append([spec[0], ("+" if value > 0 else "−") + decimal(absf(value)*float(spec[2])) + spec[1]])
-	var unique: Array = stats.get("interactions", []).duplicate()
-	if stats.has("affinity_build"):
-		var grafts = preload("res://expedition_grafts.gd")
-		var ledger: Dictionary = grafts.owner_details(player, world.participation.floor()) if world.multiplayer.is_server() else player.get("graft_improvements",{})
-		if not ledger.is_empty():
-			var names: Dictionary = grafts.REINFORCEMENTS.merged(grafts.ADAPTATIONS)
-			var counts := {}
-			for copy: Dictionary in ledger.copies:
-				counts[copy.id] = int(counts.get(copy.id,0)) + 1
-			unique.append("Grafting Altar · %d purchases remaining" % int(ledger.remaining))
-			for id: String in counts:
-				unique.append(str(names[id].name) + (" ×%d" % counts[id] if int(counts[id])>1 else ""))
-	if world.participation.route()!=world.Campaign.HEART:
-		var boundary: bool=world.participation.depth()==world.ROUTE_ROOMS
-		var cycle: int=world.participation.cycle()+int(boundary and world.participation.route()==world.Campaign.HOLLOW)
-		var center: int=world.Life.Sustain.recovery_center_hp(boundary,cycle)
-		rows.append(["Next gate recovery",world.Life.Preview.range_label(world.Life.Preview.heal_band(center))+" HP"])
-	if stats.pattern != base.pattern:
-		unique.append("Attack pattern · " + str(stats.pattern).capitalize())
-	var traits := {}
-	for key in Traits.KEYS:
-		if float(stats.get(key, 0)) > 0.0:
-			traits[key] = snappedf(float(stats[key]), .01)
-	var trait_text := Traits.describe(traits,true)
-	if not trait_text.is_empty():
-		unique.append(trait_text)
-	return {"totals": rows, "cards": upgrades, "bonuses": "\n".join(unique) if not unique.is_empty() else "No unique bonuses active."}
-
-
-static func decimal(value: float) -> String:
-	return ("%.2f" % value).rstrip("0").trim_suffix(".")
-
-
-static func compared(total: float, base: float, unit: String = "") -> String:
-	var delta := total-base
-	var formatted := decimal(total) + unit
-	if not is_zero_approx(delta):
-		formatted += "  (%s%s)" % ["+" if delta > 0 else "−", decimal(absf(delta)) + unit]
-	return formatted

@@ -1,4 +1,5 @@
 extends SceneTree
+const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -7,7 +8,6 @@ const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Preview = preload("res://combat_balance_preview.gd")
-const Summary = preload("res://run_summary_panel.gd")
 const SPREADS := [2,2,3, 2,1,3, 2,4,2, 1,3,2, 2,3,1]
 
 var failed := false
@@ -105,7 +105,7 @@ func verify_roster(game: Node, p: Dictionary) -> void:
 			var stats: Dictionary=game.weapon_stats(p)
 			var label:=Preview.range_label(band)
 			check(stats.damage_min==band.x and stats.damage_max==band.y,"authored spread for "+base.name)
-			check(game.Weapons.describe(stats).contains(label+" damage") and Summary.project(game,p,stats).totals[0]==["Damage",label],"matching previews for "+base.name)
+			check(game.Weapons.describe(stats).contains(label+" damage") and UIFixture.summary(game,p,stats).totals[0]==["Damage",label],"matching previews for "+base.name)
 			var reach:=3.0 if game.WeaponMotion.is_projectile(str(base.visual)) else 1.35
 			clear_targets(game,Vector3(0,0,reach))
 			game.strike_enemy(1,p,p.pos)

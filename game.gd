@@ -284,13 +284,13 @@ func configure_gameplay_ui() -> void:
 	var entries: Array = []
 	for definition in Enemies.all(): entries.append({"name":definition.name,"description":definition.description})
 	ui.fill_bestiary(entries)
-	# Feature panels keep their existing domain adapters until plan step 1b.
+	# Research and Garden panels retain their existing domain adapters.
 	for feature in ["inventory","progression","loadout","graft","altar","planting","summary"]:
 		var path: String = {"inventory":"inventory_panel","progression":"progression_panel",
 			"loadout":"loadout_panel","graft":"affinity_grafting_panel","altar":"garden_altar_panel",
 			"planting":"planting_panel","summary":"run_summary_panel"}[feature]
 		var view = load("res://"+path+".gd").new()
-		view.game = self
+		if feature not in ["inventory","loadout","summary"]: view.game = self
 		ui.mount_feature(feature,view)
 	network_dialog=preload("res://network_panel.gd").new()
 	add_child(network_dialog)
@@ -332,6 +332,14 @@ func _handle_ui_request(command: String, data: Dictionary) -> void:
 		"bank":
 			var value := int(data.value)
 			send_garden_action("bank_part_%d"%(value-1000) if value>=1000 else "bank_seed_%d"%value)
+		"refresh_inventory": ui.present_inventory(inventory_ui_data())
+		"refresh_loadout": ui.present_loadout(loadout_ui_data())
+		"refresh_summary": ui.present_summary(run_summary_ui_data())
+		"inventory_transfer": send_inventory_action("transfer",str(data.source),str(data.target),str(data.item),int(data.quantity))
+		"garden_action": send_garden_action(str(data.action))
+		"depart":
+			if party_travel_state().get("ready",false): send_travel_ready(true)
+			else: send_garden_action("depart")
 		"inventory_drop": send_inventory_action("drop",str(data.source),"",str(data.item),int(data.quantity))
 		"face_heart":
 			var player: Dictionary = players.get(HOST,{})
@@ -386,7 +394,8 @@ func _input(event: InputEvent) -> void:
 	if stage != null and stage.experimental_garden != null and stage.experimental_garden.cancel_placement_input(event):
 		get_viewport().set_input_as_handled()
 		return
-	if preload("res://run_summary_panel.gd").handle_input(self,event):
+	if event.is_action_pressed("run_summary") and ui.summary_input(event,network_session.role()!="Connecting" and not returning_to_title
+			and Participation.is_wild(players.get(local_player_id(),{}))):
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("session_menu"):
@@ -3576,7 +3585,43 @@ func inventory_ui_data() -> Dictionary:
 	var stats: Dictionary=weapon_stats(player,not Participation.is_wild(data)) if multiplayer.is_server() else player.get("weapon_stats",{})
 	# Local view only: reliable weapon details already carry this resolved build.
 	data.affinity_build=stats.get("affinity_build",{}).duplicate(true)
-	return data
+	data.notice = status
+	return data.duplicate(true)
+
+func loadout_ui_data() -> Dictionary:
+	var player: Dictionary = players.get(local_player_id(),{})
+	if player.is_empty(): return {}
+	var host := multiplayer.is_server()
+	var prepared := not Participation.is_wild(player)
+	return {"class_id":int(player.get("frame",0)),"weapon_kind":int(player.get("weapon_kind",0)),
+		"prepared":prepared,"counts":stored_counts(player) if host else player.get("stored_parts",Parts.empty_counts()),
+		"equipment":[player.get("prepared",0),player.get("prepared_secondary",0),player.get("prepared_catalyst",0)] if prepared else [player.get("weapon",0),player.get("secondary",0),player.get("catalyst",0)],
+		"cargo":player.get("cargo_plan",Parts.empty_counts()),
+		"profile":preload("res://ui/gameplay/player_build_projection.gd").class_profile(player.get("character",guest_character.data),int(player.get("frame",0))),
+		"stats":weapon_stats(player,prepared) if host else player.get("weapon_stats",{}),
+		"card_totals":AffinityCards.totals(player) if host else AffinityCards.applied_totals(player.get("affinity_run_cards",[])),
+		"at_gate":at_weapon_gate(player),"class_allowed":(at_heart(player) and not participation.active()) or at_weapon_gate(player),
+		"cargo_limit":monster_cargo_limit(),"party_size":players.size(),"travel":party_travel_state(),"notice":status}.duplicate(true)
+
+func run_summary_ui_data(peer_id: int = -1) -> Dictionary:
+	var player: Dictionary = players.get(local_player_id() if peer_id < 0 else peer_id,{})
+	if player.is_empty(): return {}
+	var host := multiplayer.is_server()
+	var stats: Dictionary = weapon_stats(player) if host else player.get("weapon_stats",{}) if client_details_key==str([participation.route(),participation.floor(),participation.seed()]) else {}
+	var class_id := int(player.get("frame",0))
+	var profile: Dictionary = player.get("character",guest_character.data)
+	var facts := {"active":Participation.is_wild(player),"stats":stats,"class_id":class_id,
+		"weapon_kind":int(player.get("weapon_kind",0)),"base_hp":Life.Preview.hp(MAX_HEALTH),
+		"max_hp":PlayerVitals.maximum_hp(player,Life.Preview.hp(MAX_HEALTH)),"dodge_ms":DODGE_COOLDOWN_MS,
+		"skills":[Skills.resolve(class_id,0,profile),Skills.resolve(class_id,1,profile)],
+		"copies":AffinityCards.project_owned(player,stats,DODGE_COOLDOWN_MS) if host else player.get("affinity_run_cards",[]),
+		"grafts":preload("res://expedition_grafts.gd").owner_details(player,participation.floor()) if host else player.get("graft_improvements",{}),
+		"kill_heal_limit":Life.Sustain.KILL_BUDGET_HP}
+	if participation.route()!=Campaign.HEART:
+		var boundary := participation.depth()==ROUTE_ROOMS
+		var cycle := participation.cycle()+int(boundary and participation.route()==Campaign.HOLLOW)
+		facts.recovery_band = Life.Preview.heal_band(Life.Sustain.recovery_center_hp(boundary,cycle))
+	return facts.duplicate(true)
 
 func send_inventory_action(operation: String,source: String,target: String,item: String,quantity: int) -> void:
 	send_garden_action("inventory:"+JSON.stringify({"operation":operation,"source":source,"target":target,"item":item,"quantity":quantity}))

@@ -436,6 +436,9 @@ func mount_feature(kind: String, view: Control) -> void:
 	# The shell owns frames. The feature owns its content and existing domain port.
 	assert(not _features.has(kind))
 	_features[kind] = view
+	if kind in ["inventory","loadout","summary"]:
+		view.refresh_requested.connect(func(): requested.emit("refresh_"+kind,{}))
+		view.requested.connect(_feature_request)
 	view.name = kind.to_pascal_case()+"View"
 	if kind == "inventory":
 		_inventory_mount.add_child(view)
@@ -518,6 +521,7 @@ func show_deposit(items: Array) -> void:
 	toggle_panel("deposit")
 
 func present_hud(state: Dictionary, chart_expanded: bool) -> void:
+	if panel_is_open("summary") and not bool(state.get("wild",false)): close_panels()
 	_player_hud.set_chart_expanded(chart_expanded)
 	_player_hud.update_state(state.duplicate(true))
 
@@ -560,3 +564,24 @@ func fill_bestiary(entries: Array) -> void:
 		description.custom_minimum_size.x = 520
 		description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		description.text = entry.description
+
+func _feature_request(command: String, data: Dictionary) -> void:
+	match command:
+		"close": close_panels()
+		"build_class_tree": show_progression(true)
+		_: requested.emit(command,data.duplicate(true))
+
+func present_inventory(data: Dictionary) -> void:
+	_features.inventory.present(data)
+
+func present_loadout(data: Dictionary) -> void:
+	_features.loadout.present(data)
+
+func present_summary(data: Dictionary) -> void:
+	_features.summary.present(data)
+
+func summary_input(event: InputEvent, allowed: bool) -> bool:
+	if not allowed or not event.is_action_pressed("run_summary"): return false
+	if is_overlay_open() and not panel_is_open("summary"): return false
+	toggle_summary()
+	return true

@@ -6,7 +6,6 @@ const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Icons = preload("res://class_skill_icons.gd")
-const Summary = preload("res://run_summary_panel.gd")
 const Cards = preload("res://affinity_cards.gd")
 const Skills = preload("res://skill_catalog.gd")
 var failed := false
@@ -75,14 +74,14 @@ func run():
 	check(hud.state.skill_names[0]=="Root Anchor" and Icons.icon(hud.state.skill_names[0])!=Icons.icon("Guard"), "the HUD switches to the unlocked subclass icon")
 	check_icons(game)
 
-	var before: Dictionary = Summary.project(game,p,game.weapon_stats(p))
+	var before: Dictionary = UIFixture.summary(game,p,game.weapon_stats(p))
 	var copies: Array[Dictionary]=[
 		{"id":"ordinary_weapon_damage","rarity":"Common","amount":1,"floor":3,"acquisition_id":1},
 		{"id":"ordinary_weapon_damage","rarity":"Epic","amount":4,"floor":6,"acquisition_id":2},
 		{"id":"ordinary_weapon_interval","rarity":"Uncommon","amount":35,"floor":9,"acquisition_id":3},
 	]
 	p[Cards.STATE]=Cards.Ledger.new(copies)
-	var projection := Summary.project(game,p,game.weapon_stats(p))
+	var projection := UIFixture.summary(game,p,game.weapon_stats(p))
 	var speed_before: Array=before.totals.filter(func(row):return row[0]=="Attack speed")
 	var speed_after: Array=projection.totals.filter(func(row):return row[0]=="Attack speed")
 	check(speed_before.size()==1 and speed_after.size()==1 and speed_before[0][1]!=speed_after[0][1],"summary resolves the acquired attack-speed contribution")

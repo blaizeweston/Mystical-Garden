@@ -473,7 +473,7 @@
         "baseline": ""
       },
       "run_summary_shortcut": {
-        "match": "\tif preload(\"res://run_summary_panel.gd\").handle_input(self,event):\n\t\tget_viewport().set_input_as_handled()\n\t\treturn\n",
+        "match": "\tif event.is_action_pressed(\"run_summary\") and ui.summary_input(event,network_session.role()!=\"Connecting\" and not returning_to_title\n\t\t\tand Participation.is_wild(players.get(local_player_id(),{}))):\n\t\tget_viewport().set_input_as_handled()\n\t\treturn\n",
         "baseline": ""
       },
       "held_aim_release": {
@@ -1035,7 +1035,7 @@
     },
     "inventory_ui_data": {
       "core_inventory_summary": {
-        "match": "\tvar data: Dictionary=InventoryModel.snapshot(self,player) if multiplayer.is_server() else player.get(\"bag\",{}).duplicate()\n\tif data.is_empty(): return data\n\tvar stats: Dictionary=weapon_stats(player,not Participation.is_wild(data)) if multiplayer.is_server() else player.get(\"weapon_stats\",{})\n\t# Local view only: reliable weapon details already carry this resolved build.\n\tdata.affinity_build=stats.get(\"affinity_build\",{}).duplicate(true)\n\treturn data\n",
+        "match": "\tvar data: Dictionary=InventoryModel.snapshot(self,player) if multiplayer.is_server() else player.get(\"bag\",{}).duplicate()\n\tif data.is_empty(): return data\n\tvar stats: Dictionary=weapon_stats(player,not Participation.is_wild(data)) if multiplayer.is_server() else player.get(\"weapon_stats\",{})\n\t# Local view only: reliable weapon details already carry this resolved build.\n\tdata.affinity_build=stats.get(\"affinity_build\",{}).duplicate(true)\n\tdata.notice = status\n\treturn data.duplicate(true)\n",
         "baseline": "\treturn InventoryModel.snapshot(self,player) if multiplayer.is_server() else player.get(\"bag\",{})\n"
       }
     },
@@ -3724,48 +3724,6 @@
         "baseline": "var has_water: bool=Service.projection(game,game.local_player_id()).get(\"spring_water\",false)"
       }
     },
-    "inventory_panel.gd": {
-      "ga01a_1": {
-        "match": " core_skill.mouse_filter=Control.MOUSE_FILTER_PASS\n for index in state.equipment.size():\n  var part:=int(state.equipment[index])\n",
-        "baseline": " core_skill.mouse_filter=Control.MOUSE_FILTER_PASS\n for index in 4:\n  var part:=int(state.equipment[index])\n"
-      },
-      "core_equipment_details": {
-        "match": "func show_details() -> void:\n if selected.get(\"bucket\",\"\")==\"equipment\":\n  transfer_button.hide()\n  var slot: int=selected.slot\n  var item:=Items.get_item(str(selected.item))\n  var summary: String=slot_description(slot)\n  details.text=\"[b]%s[/b]\\n%s\"%[item.name,game.Weapons.SLOT_NAMES[slot]]\n  if not item.tags.is_empty(): details.text+=\" \u00b7 \"+\", \".join(item.tags)\n  if not summary.is_empty(): details.text+=\"\\n\\n\"+summary\n  return\n transfer_button.visible=not bool(state.get(\"wild\",false))\n",
-        "baseline": "func show_details() -> void:\n transfer_button.visible=not bool(state.get(\"wild\",false))\n"
-      },
-      "core_equipment_selection": {
-        "match": " candidates.append_array(state.get(\"pouch\",[]))\n candidates.append_array(equipment_entries)\n",
-        "baseline": " candidates.append_array(state.get(\"pouch\",[]))\n"
-      },
-      "core_equipment_entries": {
-        "match": " clear_children(equipment)\n var equipment_entries: Array=[]\n var build: Dictionary=state.get(\"affinity_build\",{})\n var core: Dictionary=Builds.core_skill(build) if not build.is_empty() else {}\n var core_name: String=core.get(\"name\",\"\")\n var summary: String=slot_description(0)\n core_skill.visible=not core_name.is_empty()\n core_skill.text=\"Core skill \u00b7 \"+core_name\n core_skill.tooltip_text=summary\n core_skill.mouse_filter=Control.MOUSE_FILTER_PASS\n for index in 4:\n  var part:=int(state.equipment[index])\n  var entry: Dictionary={\"item\":Items.part_id(part),\"quantity\":1,\"bucket\":\"equipment\",\"key\":\"equipment:%d\"%index,\"slot\":index} if part>0 else {}\n  var slot:=add_slot(equipment,entry,\"equipment\",48)\n  slot.tooltip_text=game.Weapons.SLOT_NAMES[index]+\": \"+game.Parts.part_name(part)\n  if not entry.is_empty(): equipment_entries.append(entry)\n  var slot_text:=slot_description(index)\n  if not slot_text.is_empty(): slot.tooltip_text+=\"\\n\\n\"+slot_text\n",
-        "baseline": " clear_children(equipment)\n for index in 4:\n  var part:=int(state.equipment[index])\n  var slot:=add_slot(equipment,{\"item\":Items.part_id(part),\"quantity\":1} if part>0 else {},\"equipment\",48)\n  slot.tooltip_text=game.Weapons.SLOT_NAMES[index]+\": \"+game.Parts.part_name(part)+\"\\nCraft at the gate. Graft at Wilds altars.\"\n"
-      },
-      "core_equipment_heading": {
-        "match": " equipment=HBoxContainer.new();side.add_child(equipment)\n core_skill=Label.new();core_skill.add_theme_color_override(\"font_color\",Color(\"#c8df99\"));side.add_child(core_skill)\n",
-        "baseline": " equipment=HBoxContainer.new();side.add_child(equipment)\n"
-      },
-      "core_equipment_label": {
-        "match": "var equipment: HBoxContainer\nvar core_skill: Label\n",
-        "baseline": "var equipment: HBoxContainer\n"
-      },
-      "ui_copy_3": {
-        "match": "  var tip:=Label.new();tip.text=\"Drag a stack here\\nto protect it.\";tip.add_theme_font_size_override(\"font_size\",12);pouch_holder.add_child(tip)\n notice.text=\"Drag outside to drop. Shift + drag for one item. %d stacks.\"%shown.size()\n if not state.wild: notice.text+=\" Shared Garden seeds/parts and personal storage are labeled separately.\"\n",
-        "baseline": "  var tip:=Label.new();tip.text=\"Drag a stack here\\nto protect it.\";tip.add_theme_font_size_override(\"font_size\",12);pouch_holder.add_child(tip)\n notice.text=\"Drag outside the window to drop a stack nearby. Shift + drag moves one item. %d stack(s) shown.\"%shown.size()\n if not state.wild: notice.text+=\" Shared Garden seeds/parts and personal storage are labeled separately.\"\n"
-      },
-      "ui_copy_2": {
-        "match": "  var slot:=add_slot(equipment,{\"item\":Items.part_id(part),\"quantity\":1} if part>0 else {},\"equipment\",48)\n  slot.tooltip_text=game.Weapons.SLOT_NAMES[index]+\": \"+game.Parts.part_name(part)+\"\\nCraft at the gate. Graft at Wilds altars.\"\n pouch_row.visible=bool(state.wild)\n",
-        "baseline": "  var slot:=add_slot(equipment,{\"item\":Items.part_id(part),\"quantity\":1} if part>0 else {},\"equipment\",48)\n  slot.tooltip_text=game.Weapons.SLOT_NAMES[index]+\": \"+game.Parts.part_name(part)+\"\\nPrepare at the gate; graft monster parts at Wilds altars.\"\n pouch_row.visible=bool(state.wild)\n"
-      },
-      "ui_copy_1": {
-        "match": " sort_button.text=\"Sort \u2191\" if ascending else \"Sort \u2193\"\n heading.text=\"BACKPACK\" if state.wild else \"GARDEN STASH\"\n shown=[]\n",
-        "baseline": " sort_button.text=\"Sort \u2191\" if ascending else \"Sort \u2193\"\n heading.text=\"BACKPACK \u00b7 unlimited ordinary stacks\" if state.wild else \"GARDEN STASH\"\n shown=[]\n"
-      },
-      "ui_copy_0": {
-        "match": " pouch_row=VBoxContainer.new();side.add_child(pouch_row)\n var pouch_label:=Label.new();pouch_label.text=\"Safe pouch \u00b7 1 stack\";pouch_row.add_child(pouch_label)\n pouch_holder=HBoxContainer.new();pouch_row.add_child(pouch_holder)\n",
-        "baseline": " pouch_row=VBoxContainer.new();side.add_child(pouch_row)\n var pouch_label:=Label.new();pouch_label.text=\"Safe pouch \u00b7 one full stack (up to 99)\";pouch_row.add_child(pouch_label)\n pouch_holder=HBoxContainer.new();pouch_row.add_child(pouch_holder)\n"
-      }
-    },
     "garden_altar_panel.gd": {
       "ui_copy_3": {
         "match": " identify_all_button.disabled=busy or int(data.get(\"unknown\",0))<=0\n identify_button.text=\"Identify \u00b7 %d seeds\"%int(data.get(\"unknown\",0));identify_button.disabled=busy or int(data.get(\"unknown\",0))<=0\n clear_button.disabled=busy\n",
@@ -3782,80 +3740,6 @@
       "ui_copy_0": {
         "match": "func _ready() -> void:\n var title:=Label.new();title.text=\"ALTAR\";title.add_theme_font_size_override(\"font_size\",23);add_child(title)\n var navigation:=HBoxContainer.new();add_child(navigation)\n",
         "baseline": "func _ready() -> void:\n var title:=Label.new();title.text=\"GARDEN SACRIFICE ALTAR\";title.add_theme_font_size_override(\"font_size\",23);add_child(title)\n var navigation:=HBoxContainer.new();add_child(navigation)\n"
-      }
-    },
-    "loadout_panel.gd": {
-      "ec01_playtest_2": {
-        "match": "\tfor slot in 3:\n\t\tlabel(plant_page,game.Weapons.SLOT_NAMES[slot])\n\t\tvar options := HBoxContainer.new()\n\t\tplant_page.add_child(options)\n\t\tvar option:=OptionButton.new()\n",
-        "baseline": "\tfor slot in 3:\n\t\tlabel(plant_page,game.Weapons.SLOT_NAMES[slot]+\"\")\n\t\tvar option:=OptionButton.new()\n"
-      },
-      "ec01_playtest_4": {
-        "match": "\tvar close:=Button.new()\n\tclose.text=\"Close\"\n\tadd_child(close)\n",
-        "baseline": "\tvar close:=Button.new()\n\tclose.text=\"Close \u00b7 F2 / Esc\"\n\tadd_child(close)\n"
-      },
-      "ec01_playtest_11": {
-        "match": "\t\t\tvar cooldown: int = game.Skills.Balance.cooldown(ability,stats)\n\t\t\tfocus_previews[lane].text = \"%s \u00b7 %s cooldown\\n%s\" % [\n\t\t\t\tability.name,game.Skills.Balance.seconds(cooldown),ability.description]\n",
-        "baseline": "\t\t\tvar cooldown: int = game.Skills.Balance.cooldown(ability,stats)\n\t\t\tfocus_previews[lane].text = \"Q \u00b7 %s \u00b7 %s cooldown\\n%s\" % [\n\t\t\t\tability.name,game.Skills.Balance.seconds(cooldown),ability.description]\n"
-      },
-      "starting_focus_preview_labels": {
-        "match": "var focus_buttons: Array[Button]=[]\nvar focus_previews: Array[Label] = []\n",
-        "baseline": "var focus_buttons: Array[Button]=[]\n"
-      },
-      "starting_focus_preview_layout": {
-        "match": "\tfocus_options.add_theme_constant_override(\"separation\",10)\n\tlabel(focus_options,\"Choose a starting focus\")\n\tfor lane in 3:\n\t\tvar choice := VBoxContainer.new()\n\t\tchoice.add_theme_constant_override(\"separation\",3)\n\t\tfocus_options.add_child(choice)\n\t\tvar focus_button := Button.new()\n\t\tchoice.add_child(focus_button)\n\t\tfocus_buttons.append(focus_button)\n\t\tvar preview := label(choice,\"\")\n\t\tpreview.add_theme_font_size_override(\"font_size\",14)\n\t\tpreview.mouse_filter = Control.MOUSE_FILTER_IGNORE\n\t\tfocus_previews.append(preview)\n",
-        "baseline": "\tlabel(focus_options,\"Choose a starting focus\")\n\tfor lane in 3:\n\t\tvar focus_button:=Button.new()\n\t\tfocus_options.add_child(focus_button)\n\t\tfocus_buttons.append(focus_button)\n"
-      },
-      "starting_focus_preview_effects": {
-        "match": "\t\t\tvar candidate := profile.duplicate()\n\t\t\tcandidate[starting_tree.profile_key] = starting_tree.state([node.id])\n\t\t\tvar ability: Dictionary = game.Skills.resolve_in_world(game,c,0,candidate)\n\t\t\tvar cooldown: int = game.Skills.Balance.cooldown(ability,stats)\n\t\t\tfocus_previews[lane].text = \"Q \u00b7 %s \u00b7 %s cooldown\\n%s\" % [\n\t\t\t\tability.name,game.Skills.Balance.seconds(cooldown),ability.description]\n\t\t\tfocus_buttons[lane].tooltip_text = game.Skills.describe(ability,stats)\n",
-        "baseline": "\t\t\tfocus_buttons[lane].tooltip_text=node.description\n"
-      },
-      "ct05_oracle_1": {
-        "match": "var depart_button: Button\nvar class_pick: OptionButton\nvar focus_options: VBoxContainer\nvar focus_buttons: Array[Button]=[]\nvar focus_class_id: int=0\nvar weapon_pick: OptionButton\nvar slots: Array[OptionButton]=[]\n",
-        "baseline": "var depart_button: Button\nvar class_pick: OptionButton\nvar weapon_pick: OptionButton\nvar slots: Array[OptionButton]=[]\n"
-      },
-      "ct05_oracle_2": {
-        "match": "\tleft.add_child(class_pick)\n\tclass_pick.item_selected.connect(func(index): pending_slots.clear();game.send_garden_action(\"class_%d\"%class_pick.get_item_id(index)))\n\tfocus_options=VBoxContainer.new()\n\tleft.add_child(focus_options)\n\tlabel(focus_options,\"Choose a starting focus\")\n\tfor lane in 3:\n\t\tvar focus_button:=Button.new()\n\t\tfocus_options.add_child(focus_button)\n\t\tfocus_buttons.append(focus_button)\n\t\tfocus_button.pressed.connect(func():\n\t\t\tvar request:=preload(\"res://connected_class_tree.gd\").REQUEST_OFFSET+lane\n\t\t\tgame.send_garden_action(\"learn_%d_%d\"%[focus_class_id,request]))\n\tfocus_options.hide()\n\tlabel(left,\"Weapon\")\n\tweapon_pick=OptionButton.new()\n",
-        "baseline": "\tleft.add_child(class_pick)\n\tclass_pick.item_selected.connect(func(index): pending_slots.clear();game.send_garden_action(\"class_%d\"%class_pick.get_item_id(index)))\n\tlabel(left,\"Weapon\")\n\tweapon_pick=OptionButton.new()\n"
-      },
-      "class_location_copy": {
-        "match": "Craft and pack at the Wilds Gate.",
-        "baseline": "Craft and pack at the Wilds Gate. Learn class upgrades at the Heart."
-      },
-      "open_class_tree_from_crafting": {
-        "match": "\ttree_button.pressed.connect(func(): game.ui.show_progression(true))\n",
-        "baseline": "\ttree_button.pressed.connect(func():\n\t\tgame.progression_view.tabs.current_tab=2\n\t\tgame.progression_view.class_pick.select(int(player().get(\"frame\",0)))\n\t\tgame.progression_view.inspected_class=int(player().get(\"frame\",0))\n\t\tgame.toggle_overlay(game.progression_menu))\n"
-      },
-      "ui_copy_9": {
-        "match": "\t\tif cargo_pick.get_item_index(selected_cargo)>=0: cargo_pick.select(cargo_pick.get_item_index(selected_cargo))\n\t\tcargo_label.text=\"Packed %d / %d: %s\"%[total,game.monster_cargo_limit(),\", \".join(cargo_text)]\n\tvar allowed: bool=game.at_weapon_gate(p)\n",
-        "baseline": "\t\tif cargo_pick.get_item_index(selected_cargo)>=0: cargo_pick.select(cargo_pick.get_item_index(selected_cargo))\n\t\tcargo_label.text=\"Cargo plan %d / %d: %s\"%[total,game.monster_cargo_limit(),\", \".join(cargo_text)]\n\tvar allowed: bool=game.at_weapon_gate(p)\n"
-      },
-      "ui_copy_7": {
-        "match": "\t\tgame.toggle_overlay(game.progression_menu))\n\tvar route:=Button.new();route.text=\"Change destination\";navigation.add_child(route);route.pressed.connect(func(): game.send_garden_action(\"destination\"))\n\tdepart_button=Button.new()\n",
-        "baseline": "\t\tgame.toggle_overlay(game.progression_menu))\n\tvar route:=Button.new();route.text=\"Change destination \u00b7 paid shortcuts\";navigation.add_child(route);route.pressed.connect(func(): game.send_garden_action(\"destination\"))\n\tdepart_button=Button.new()\n"
-      },
-      "ui_copy_6": {
-        "match": "\tvar tree_button:=Button.new()\n\ttree_button.text=\"Class tree\"\n\tvar navigation:=HBoxContainer.new();add_child(navigation);navigation.add_child(tree_button);tree_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL\n",
-        "baseline": "\tvar tree_button:=Button.new()\n\ttree_button.text=\"Class choices / living roots\"\n\tvar navigation:=HBoxContainer.new();add_child(navigation);navigation.add_child(tree_button);tree_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL\n"
-      },
-      "ui_copy_5": {
-        "match": "\tclear_button=Button.new()\n\tclear_button.text=\"Unpack all\"\n\tmonster_page.add_child(clear_button)\n",
-        "baseline": "\tclear_button=Button.new()\n\tclear_button.text=\"Clear cargo plan\"\n\tmonster_page.add_child(clear_button)\n"
-      },
-      "ui_copy_4": {
-        "match": "\tpack_button=Button.new()\n\tpack_button.text=\"Pack one\"\n\tmonster_page.add_child(pack_button)\n",
-        "baseline": "\tpack_button=Button.new()\n\tpack_button.text=\"Pack one for the run\"\n\tmonster_page.add_child(pack_button)\n"
-      },
-      "ui_copy_2": {
-        "match": "\tfor slot in 3:\n\t\tlabel(plant_page,game.Weapons.SLOT_NAMES[slot]+\"\")\n\t\tvar option:=OptionButton.new()\n",
-        "baseline": "\tfor slot in 3:\n\t\tlabel(plant_page,game.Weapons.SLOT_NAMES[slot]+\" \u00b7 plant material\")\n\t\tvar option:=OptionButton.new()\n"
-      },
-      "ui_copy_1": {
-        "match": "\tclass_pick.item_selected.connect(func(index): pending_slots.clear();game.send_garden_action(\"class_%d\"%class_pick.get_item_id(index)))\n\tlabel(left,\"Weapon\")\n\tweapon_pick=OptionButton.new()\n",
-        "baseline": "\tclass_pick.item_selected.connect(func(index): pending_slots.clear();game.send_garden_action(\"class_%d\"%class_pick.get_item_id(index)))\n\tlabel(left,\"Basic weapon\")\n\tweapon_pick=OptionButton.new()\n"
-      },
-      "ui_copy_0": {
-        "match": "\tvar title:=Label.new()\n\ttitle.text=\"WEAPON CRAFTING\"\n\ttitle.add_theme_font_size_override(\"font_size\",22)\n",
-        "baseline": "\tvar title:=Label.new()\n\ttitle.text=\"CLASS & WEAPON WORKBENCH\"\n\ttitle.add_theme_font_size_override(\"font_size\",22)\n"
       }
     },
     "progression_panel.gd": {
@@ -6514,48 +6398,6 @@
       "vitals_revive_constants": {
         "match": "const Vitals=preload(\"res://combat_vitals.gd\")\n",
         "baseline": "const REVIVE_COST:=2\n"
-      }
-    },
-    "run_summary_panel.gd": {
-      "ar07_vitals_1": {
-        "match": "const PlayerVitals = preload(\"res://player_vitals.gd\")\n",
-        "baseline": ""
-      },
-      "ar07_vitals_2": {
-        "match": "\trows.append([\"Max HP\", compared(PlayerVitals.maximum_hp(player, base_hp), base_hp, \" HP\")])\n",
-        "baseline": "\trows.append([\"Max HP\", compared(player.get(\"max_hp\", base_hp), base_hp, \" HP\" if world.Life.Preview.enabled else \"\")])\n"
-      },
-      "ec01_speed_stat_tooltip": {
-        "match": "\t\t\ttitle.text = row[0]\n\t\t\ttitle.size_flags_horizontal = Control.SIZE_EXPAND_FILL\n\t\t\ttitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n\t\t\tvar value: Label = UI.label(totals, 13, UI.INK)\n\t\t\tvalue.text = row[1]\n\t\t\tif row.size() > 2:\n\t\t\t\tfor label: Label in [title, value]:\n\t\t\t\t\tlabel.tooltip_text = row[2]\n\t\t\t\t\tlabel.mouse_filter = Control.MOUSE_FILTER_PASS\n\tbonuses.text = view.get(\"bonuses\", \"No unique bonuses active.\")\n\tvar rows: Array = view.get(\"cards\", [])\n\tif rows != shown.get(\"cards\", []):\n",
-        "baseline": "\t\t\ttitle.text = row[0]\n\t\t\ttitle.size_flags_horizontal = Control.SIZE_EXPAND_FILL\n\t\t\ttitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n\t\t\tgame.add_label(totals, 13, UI.INK).text = row[1]\n\tbonuses.text = view.get(\"bonuses\", \"No unique bonuses active.\")\n\tvar rows: Array = view.get(\"cards\", [])\n\tif rows != shown.get(\"cards\", []):\n"
-      },
-      "ga01a_2": {
-        "match": "\tvar unique: Array = stats.get(\"interactions\", []).duplicate()\n\tif stats.has(\"affinity_build\"):\n\t\tvar grafts = preload(\"res://expedition_grafts.gd\")\n\t\tvar ledger: Dictionary = grafts.owner_details(player, world.participation.floor()) if world.multiplayer.is_server() else player.get(\"graft_improvements\",{})\n\t\tif not ledger.is_empty():\n\t\t\tvar names: Dictionary = grafts.REINFORCEMENTS.merged(grafts.ADAPTATIONS)\n\t\t\tvar counts := {}\n\t\t\tfor copy: Dictionary in ledger.copies:\n\t\t\t\tcounts[copy.id] = int(counts.get(copy.id,0)) + 1\n\t\t\tunique.append(\"Grafting Altar \u00b7 %d purchases remaining\" % int(ledger.remaining))\n\t\t\tfor id: String in counts:\n\t\t\t\tunique.append(str(names[id].name) + (\" \u00d7%d\" % counts[id] if int(counts[id])>1 else \"\"))\n",
-        "baseline": "\tvar unique: Array = stats.get(\"interactions\", []).duplicate()\n"
-      },
-      "cb07_1": {
-        "match": "\t\t\tif value>0.0:\n\t\t\t\trows.append([\"Healing on kill\",world.Life.Preview.heal_label(value)])\n\t\t\t\tvar limit: int=world.Life.Sustain.KILL_BUDGET_HP\n\t\t\t\trows.append([\"Kill healing left this floor\",\"%d / %d HP\"%[int(stats.get(\"kill_heal_remaining\",limit)),limit]])\n\t\t\tcontinue",
-        "baseline": "\t\t\tif value>0.0:\n\t\t\t\trows.append([\"Healing on kill\",world.Life.Preview.heal_label(value)])\n\t\t\tcontinue"
-      },
-      "healing_roll_0": {
-        "match": "Traits.describe(traits,true)",
-        "baseline": "Traits.describe(traits)"
-      },
-      "healing_roll_1": {
-        "match": "\t\tif key==\"heal_on_kill\":\n\t\t\tif value>0.0:\n\t\t\t\trows.append([\"Healing on kill\",world.Life.Preview.heal_label(value)])\n\t\t\tcontinue\n\t\tif key in [\"windup_damage\",\"heal_on_kill\",\"skill_heal\"]:\n\t\t\tvalue=float(world.Life.Preview.effect_hp(value))",
-        "baseline": "\t\tif key in [\"windup_damage\",\"heal_on_kill\",\"skill_heal\"]:\n\t\t\tvalue=float(world.Life.Preview.effect_hp(value))"
-      },
-      "healing_roll_2": {
-        "match": "\"skill_heal\": [\"Class skill healing bonus\", \" HP\", 1.0],",
-        "baseline": "\"skill_heal\": [\"Class skill healing\", \" hp\", 1.0],"
-      },
-      "cb03_summary_effect_hp": {
-        "match": "value=float(world.Life.Preview.effect_hp(value))",
-        "baseline": "value*=world.Life.Preview.scale()"
-      },
-      "cb02_run_summary_panel_1_2": {
-        "match": "\t\tvar value := float(stats.get(key, 0))\n\t\tif key in [\"windup_damage\",\"heal_on_kill\",\"skill_heal\"]:\n\t\t\tvalue*=world.Life.Preview.scale()\n\t\tif not is_zero_approx(value):",
-        "baseline": "\t\tvar value := float(stats.get(key, 0))\n\t\tif not is_zero_approx(value):"
       }
     },
     "party_hud.gd": {

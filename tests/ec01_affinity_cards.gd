@@ -570,7 +570,7 @@ func verify_presentation() -> void:
 		"the rooted card face shows scope, and its Details button reveals acquired contributions")
 	game.ui.close_panels()
 	var tab: Control = UIFixture.control(game,"summary_view")
-	tab.refresh(player)
+	tab.refresh()
 	var tab_group: VBoxContainer = tab.grouped_cards.get_child(0)
 	tab_group.get_child(0).button_pressed = true
 	check(tab.grouped_cards.get_child_count() == 1 and "Honed Strikes ×3" == tab_group.get_child(0).text
@@ -687,7 +687,7 @@ func verify_attack_speed() -> void:
 			and "cooldown" not in face_text.to_lower(), "the rooted card face shows rate and omits technical limits")
 
 		var tab: Control = UIFixture.control(game,"summary_view")
-		tab.refresh(player)
+		tab.refresh()
 		var summary := tab.shown as Dictionary
 		var before_row := func(row) -> bool:
 			return row[0]=="Attack speed" and row[1]==before_speed+" attacks/sec" and "4.35 attacks/sec" in row[2]
@@ -699,7 +699,7 @@ func verify_attack_speed() -> void:
 		check(card_ledger(player).copies().map(func(copy):return copy.amount) == wanted
 			and before_ledger.copies().map(func(copy):return copy.amount) == previous and game.wallet_for(player).spent_essence() == 0,
 			"the purchase keeps each original contribution and commits the displayed clipped amount for free")
-		tab.refresh(player)
+		tab.refresh()
 		summary = tab.shown
 		check(summary.totals.any(func(row):return row[0]=="Attack speed" and row[1]==after_speed+" attacks/sec")
 			and summary.totals.any(func(row):return row[0]=="Dodge cooldown" and " s" in row[1] and "0.35 s" in row[2])
