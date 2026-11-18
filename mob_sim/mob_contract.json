@@ -1,0 +1,42 @@
+{
+	"version": 1,
+	"tick_rate": 60,
+	"slots": {
+		"players": 4,
+		"allies": 6,
+		"attacks": 4,
+		"message_symbols": 4
+	},
+	"behaviours": [
+		{"name": "idle_wander", "target": "none", "hold_ms": 400, "summary": "Roam near spawn or leader"},
+		{"name": "search", "target": "enemy", "hold_ms": 500, "summary": "Go to the target's last known position, then sweep"},
+		{"name": "approach", "target": "enemy", "hold_ms": 250, "summary": "Close to preferred range using the manoeuvre"},
+		{"name": "melee_attack", "target": "enemy", "hold_ms": 250, "attack": 0, "delivery": "melee", "summary": "Close and use the basic melee attack"},
+		{"name": "ranged_attack", "target": "enemy", "hold_ms": 250, "attack": 0, "delivery": "ranged", "summary": "Hold range and sight, then use the basic ranged attack"},
+		{"name": "ability_1", "target": "ability", "hold_ms": 250, "attack": 1, "summary": "Get in range and cast the species ability"},
+		{"name": "ability_2", "target": "ability", "hold_ms": 250, "attack": 2, "summary": "Get in range and cast the second ability"},
+		{"name": "ability_3", "target": "ability", "hold_ms": 250, "attack": 3, "leader_only": true, "summary": "Leaders and elites only"},
+		{"name": "flee", "target": "enemy", "hold_ms": 600, "summary": "Move away along the route field"},
+		{"name": "take_cover", "target": "enemy", "hold_ms": 800, "summary": "Move to nearby cover that blocks sight from the target"},
+		{"name": "hide", "target": "enemy", "hold_ms": 800, "available": false, "missing": "Darkness and light do not exist yet.", "summary": "Break sight and stay in darkness"},
+		{"name": "defend_ally", "target": "ally", "hold_ms": 600, "summary": "Stay between the ally and its nearest threat"},
+		{"name": "block_enemy", "target": "enemy", "hold_ms": 600, "summary": "Body-block the enemy's path"},
+		{"name": "dodge", "target": "none", "hold_ms": 300, "available": false, "missing": "Mobs have no dodge yet.", "summary": "Dodge now"}
+	],
+	"manoeuvres": ["direct", "circle_left", "circle_right", "get_behind", "keep_max_range"],
+	"rules": {
+		"max_attackers_per_player": 6,
+		"decision_ticks_smart": 6,
+		"decision_ticks_dim": 30,
+		"sleep_after_ms": 5000,
+		"messages_enabled": false,
+		"goal_fields": 12,
+		"goal_refresh_ticks": 6
+	},
+	"perception": {
+		"refresh_ticks": 6,
+		"awareness_radius": 14.0,
+		"ally_sense_radius": 14.0,
+		"ally_release_ms": 2000
+	}
+}

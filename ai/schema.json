@@ -1,0 +1,223 @@
+{
+	"version": 1,
+	"contract": "mob_sim/mob_contract.json",
+	"clip": 5.0,
+	"scales": {
+		"flag": {"kind": "none"},
+		"unit": {"kind": "none"},
+		"speed": {"kind": "divide", "max": 8.0},
+		"size": {"kind": "divide", "max": 3.0},
+		"reach": {"kind": "divide", "max": 12.0},
+		"sense": {"kind": "divide", "max": 20.0},
+		"seconds": {"kind": "divide", "max": 10.0},
+		"long_seconds": {"kind": "divide", "max": 120.0},
+		"health": {"kind": "log1p", "max": 8.0},
+		"damage": {"kind": "log1p", "max": 5.0},
+		"count": {"kind": "divide", "max": 20.0},
+		"world": {"kind": "divide", "max": 30.0},
+		"relative": {"kind": "vision"}
+	},
+	"masked_reasons": {
+		"flying": "Flying does not exist yet.",
+		"armour": "Mob armour and evasion do not exist yet.",
+		"senses": "Hearing, smell and darkvision do not exist yet.",
+		"resource": "Mobs have no ability resource yet.",
+		"dodge": "Mobs have no dodge yet.",
+		"light": "Darkness and light do not exist yet.",
+		"damage_over_time": "Damage over time on mobs is not in the simulation yet.",
+		"hazards": "Hazards are not in the mob simulation yet.",
+		"party_profile": "Party statistics arrive with the adaptation phase.",
+		"player_stats": "Player combat stats are not published to the mob simulation yet.",
+		"objective": "The night objective was dropped and has no replacement yet."
+	},
+	"observation": [
+		{"name": "self_capabilities", "encoder": "self", "fields": [
+			{"name": "walk_speed", "scale": "speed"},
+			{"name": "fly_speed", "scale": "speed", "masked": "flying"},
+			{"name": "size", "scale": "size"},
+			{"name": "armour", "scale": "unit", "masked": "armour"},
+			{"name": "max_hp", "scale": "health"},
+			{"name": "vision_range", "scale": "sense"},
+			{"name": "hearing_range", "scale": "sense", "masked": "senses"},
+			{"name": "smell_range", "scale": "sense", "masked": "senses"},
+			{"name": "darkvision_range", "scale": "sense", "masked": "senses"},
+			{"name": "evasion", "scale": "unit", "masked": "armour"},
+			{"name": "auto_damage", "scale": "damage"},
+			{"name": "auto_range", "scale": "reach"},
+			{"name": "auto_cooldown", "scale": "seconds"}
+		]},
+		{"name": "self_ability", "encoder": "self", "repeat": 3, "fields": [
+			{"name": "exists", "scale": "flag"},
+			{"name": "damage", "scale": "damage"},
+			{"name": "range", "scale": "reach"},
+			{"name": "cooldown_total", "scale": "seconds"},
+			{"name": "cooldown_remaining", "scale": "seconds"},
+			{"name": "effect_sign", "scale": "unit"},
+			{"name": "area_radius", "scale": "reach"},
+			{"name": "windup_time", "scale": "seconds"}
+		]},
+		{"name": "self_dynamic", "encoder": "self", "fields": [
+			{"name": "hp_fraction", "scale": "unit"},
+			{"name": "hp_change_1s", "scale": "unit"},
+			{"name": "hp_change_3s", "scale": "unit"},
+			{"name": "damage_dealt_1s", "scale": "damage"},
+			{"name": "damage_dealt_3s", "scale": "damage"},
+			{"name": "resource_fraction", "scale": "unit", "masked": "resource"},
+			{"name": "dodge_cooldown", "scale": "seconds", "masked": "dodge"},
+			{"name": "auto_cooldown_remaining", "scale": "seconds"},
+			{"name": "time_since_behaviour_change", "scale": "seconds"},
+			{"name": "behaviour_progress", "scale": "unit"},
+			{"name": "time_in_combat", "scale": "long_seconds"},
+			{"name": "time_since_sight_lost", "scale": "seconds"},
+			{"name": "light_level", "scale": "unit", "masked": "light"},
+			{"name": "is_leader", "scale": "flag"},
+			{"name": "is_airborne", "scale": "flag", "masked": "flying"},
+			{"name": "intelligence", "scale": "unit"}
+		]},
+		{"name": "self_status", "encoder": "self", "fields": [
+			{"name": "stunned", "scale": "flag"},
+			{"name": "slowed", "scale": "flag"},
+			{"name": "rooted", "scale": "flag"},
+			{"name": "damage_over_time", "scale": "flag", "masked": "damage_over_time"},
+			{"name": "buffed", "scale": "flag"}
+		]},
+		{"name": "self_intent", "encoder": "self", "fields": [
+			{"name": "behaviour", "scale": "flag", "size": 14},
+			{"name": "target", "scale": "flag", "size": 12}
+		]},
+		{"name": "self_archetype", "encoder": "self", "fields": [
+			{"name": "archetype", "scale": "flag", "size": 16}
+		]},
+		{"name": "context_counts", "encoder": "self", "fields": [
+			{"name": "allies_nearby", "scale": "count"},
+			{"name": "enemies_nearby", "scale": "count"},
+			{"name": "enemy_total_hp", "scale": "health"},
+			{"name": "enemy_hp_fraction", "scale": "unit"},
+			{"name": "ally_total_hp", "scale": "health"},
+			{"name": "ally_hp_fraction", "scale": "unit"}
+		]},
+		{"name": "context_walls", "encoder": "self", "fields": [
+			{"name": "wall_distance", "scale": "reach", "size": 8}
+		]},
+		{"name": "context_cover", "encoder": "self", "repeat": 2, "fields": [
+			{"name": "present", "scale": "flag"},
+			{"name": "dx", "scale": "relative"},
+			{"name": "dy", "scale": "relative"},
+			{"name": "distance", "scale": "relative"},
+			{"name": "blocks_target_sight", "scale": "flag"}
+		]},
+		{"name": "context_hazard", "encoder": "self", "repeat": 2, "fields": [
+			{"name": "present", "scale": "flag", "masked": "hazards"},
+			{"name": "dx", "scale": "relative", "masked": "hazards"},
+			{"name": "dy", "scale": "relative", "masked": "hazards"},
+			{"name": "radius", "scale": "reach", "masked": "hazards"},
+			{"name": "time_to_impact", "scale": "seconds", "masked": "hazards"},
+			{"name": "hostile", "scale": "flag", "masked": "hazards"},
+			{"name": "mob_is_inside", "scale": "flag", "masked": "hazards"}
+		]},
+		{"name": "context_party", "encoder": "self", "fields": [
+			{"name": "profile", "scale": "unit", "size": 12, "masked": "party_profile"}
+		]},
+		{"name": "enemy", "encoder": "enemy", "repeat": 4, "fields": [
+			{"name": "present", "scale": "flag"},
+			{"name": "visible", "scale": "flag"},
+			{"name": "time_since_seen", "scale": "seconds"},
+			{"name": "dx", "scale": "relative"},
+			{"name": "dy", "scale": "relative"},
+			{"name": "distance", "scale": "relative"},
+			{"name": "relative_vx", "scale": "speed"},
+			{"name": "relative_vy", "scale": "speed"},
+			{"name": "hp_fraction", "scale": "unit"},
+			{"name": "max_hp", "scale": "health"},
+			{"name": "melee_damage", "scale": "damage", "masked": "player_stats"},
+			{"name": "ranged_damage", "scale": "damage", "masked": "player_stats"},
+			{"name": "melee_range", "scale": "reach", "masked": "player_stats"},
+			{"name": "ranged_range", "scale": "reach", "masked": "player_stats"},
+			{"name": "speed", "scale": "speed", "masked": "player_stats"},
+			{"name": "attack_speed", "scale": "unit", "masked": "player_stats"},
+			{"name": "dodge_cooldown", "scale": "seconds", "masked": "player_stats"},
+			{"name": "armour", "scale": "unit", "masked": "player_stats"},
+			{"name": "resist_auto", "scale": "unit", "masked": "player_stats"},
+			{"name": "resist_ability_1", "scale": "unit", "masked": "player_stats"},
+			{"name": "resist_ability_2", "scale": "unit", "masked": "player_stats"},
+			{"name": "buff_count", "scale": "count", "masked": "player_stats"},
+			{"name": "buff_strength", "scale": "unit", "masked": "player_stats"},
+			{"name": "debuff_count", "scale": "count", "masked": "player_stats"},
+			{"name": "debuff_strength", "scale": "unit", "masked": "player_stats"},
+			{"name": "winding_up", "scale": "flag", "masked": "player_stats"},
+			{"name": "dodging", "scale": "flag", "masked": "player_stats"},
+			{"name": "downed", "scale": "flag"},
+			{"name": "facing_me", "scale": "flag"},
+			{"name": "has_sight_of_me", "scale": "flag"},
+			{"name": "light_level", "scale": "unit", "masked": "light"},
+			{"name": "damage_they_dealt_me", "scale": "damage"},
+			{"name": "damage_i_dealt_them", "scale": "damage"},
+			{"name": "allies_targeting", "scale": "count"}
+		]},
+		{"name": "ally", "encoder": "ally", "repeat": 6, "fields": [
+			{"name": "present", "scale": "flag"},
+			{"name": "dx", "scale": "relative"},
+			{"name": "dy", "scale": "relative"},
+			{"name": "distance", "scale": "relative"},
+			{"name": "hp_fraction", "scale": "unit"},
+			{"name": "hp_lost_1s", "scale": "unit"},
+			{"name": "damage_dealt_1s", "scale": "damage"},
+			{"name": "is_elite", "scale": "flag"},
+			{"name": "role_melee", "scale": "flag"},
+			{"name": "role_ranged", "scale": "flag"},
+			{"name": "role_support", "scale": "flag"},
+			{"name": "behaviour", "scale": "flag", "size": 14},
+			{"name": "enemy_target", "scale": "flag", "size": 5},
+			{"name": "message", "scale": "flag", "size": 8}
+		]},
+		{"name": "leader", "encoder": "leader", "fields": [
+			{"name": "present", "scale": "flag"},
+			{"name": "dx", "scale": "relative"},
+			{"name": "dy", "scale": "relative"},
+			{"name": "distance", "scale": "relative"},
+			{"name": "hp_fraction", "scale": "unit"},
+			{"name": "hp_lost_1s", "scale": "unit"},
+			{"name": "damage_dealt_1s", "scale": "damage"},
+			{"name": "is_elite", "scale": "flag"},
+			{"name": "role_melee", "scale": "flag"},
+			{"name": "role_ranged", "scale": "flag"},
+			{"name": "role_support", "scale": "flag"},
+			{"name": "behaviour", "scale": "flag", "size": 14},
+			{"name": "enemy_target", "scale": "flag", "size": 5},
+			{"name": "message", "scale": "flag", "size": 8},
+			{"name": "ability_cooldown", "scale": "seconds", "size": 3}
+		]}
+	],
+	"global_state": [
+		{"name": "player", "repeat": 4, "fields": [
+			{"name": "present", "scale": "flag"},
+			{"name": "alive", "scale": "flag"},
+			{"name": "x", "scale": "world"},
+			{"name": "z", "scale": "world"},
+			{"name": "vx", "scale": "speed"},
+			{"name": "vz", "scale": "speed"},
+			{"name": "hp_fraction", "scale": "unit"},
+			{"name": "max_hp", "scale": "health"}
+		]},
+		{"name": "totals", "fields": [
+			{"name": "alive_by_archetype", "scale": "count", "size": 16},
+			{"name": "mob_total_hp", "scale": "health"},
+			{"name": "party_total_hp", "scale": "health"},
+			{"name": "episode_time", "scale": "long_seconds"},
+			{"name": "objective_progress", "scale": "unit", "masked": "objective"}
+		]}
+	],
+	"archetypes": ["swipe", "skirmish", "stomp", "volley", "charge", "pounce", "snare", "artillery", "lure", "chant", "shepherd", "brood"],
+	"sampling": {
+		"temperature_at_zero_intelligence": 1.5,
+		"temperature_at_full_intelligence": 0.3
+	},
+	"network": {
+		"self_hidden": 128,
+		"enemy_hidden": 32,
+		"ally_hidden": 24,
+		"leader_hidden": 32,
+		"trunk_hidden": 256,
+		"recurrent_hidden": 64
+	}
+}

@@ -54,7 +54,7 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 	var distance := float(args[4])
 	if not is_finite(distance) or distance < 0.0 or distance > 20.001:
 		return
-	var now := Time.get_ticks_msec()
+	var now := preload("res://combat_clock.gd").now()
 	var forward := Vector3(aim.x, 0, aim.y).normalized()
 	var lines: Dictionary = game.get_meta(STATE, {})
 	if lines.has(id):
@@ -141,7 +141,7 @@ static func owner_state(player: Dictionary, now: int, _cast: Dictionary = {}) ->
 static func hud_state(game: Node, player: Dictionary) -> Dictionary:
 	if not Participation.is_wild(player):
 		return {}
-	var now := Time.get_ticks_msec()
+	var now := preload("res://combat_clock.gd").now()
 	if game.multiplayer.is_server():
 		return owner_state(player, now, game.get_meta(STATE, {}).get(game.HOST, {}))
 	if game.client_details_key != str([game.participation.route(), game.participation.floor(), game.participation.seed()]):

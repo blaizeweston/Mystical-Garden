@@ -366,6 +366,10 @@ AR01 through AR14 establish owners for run or host-session state and use the exi
 | Player, weapon or plant visuals | `traveller_avatar.gd` selects player rigs under `assets/characters/`. `weapon_visuals.gd` and `plant_weapon_models.gd` map weapon appearances to `assets/weapons/`. Garden crop meshes are currently authored procedurally in `stage.gd` (`build_crop` and `build_lineage_crop`). Crop inspection and icons belong to `garden_crop_view.gd` and the item catalog. |
 | Terrain and effect visuals | [`terrain_feature_view.gd`](../assets/terrain_m02/terrain_feature_view.gd) maps vegetation and props to imported assets, including `assets/garden/field/`. `terrain_heart_preview.gd` uses `assets/terrain_m02/garden_heart.glb`. Use `core_skill_visuals.gd`, `status_feedback.gd` and `combat_feedback.gd` for effect presentation. Terrain collision belongs to `wilds_play_surface.gd` and feature geometry. Artistic replacement does not require tuning those rules unless the authored footprint itself changes. |
 
+## Neural Arena
+
+The Neural Arena is a separate test session for the mob neural net. Combat rules read time through [`combat_clock.gd`](../combat_clock.gd), and `tick_enemies` in `game.gd` is the arena's replacement point for enemy updates. When refactoring combat, enemy, session or menu code, check the reference lists in [NEURAL_ARENA.md](NEURAL_ARENA.md).
+
 ## Tests and next ownership changes
 
 | Lane | Scope |

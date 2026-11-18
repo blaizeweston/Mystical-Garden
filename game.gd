@@ -1,5 +1,6 @@
 extends Node3D
 
+const CombatClock = preload("res://combat_clock.gd")
 const Participation = preload("res://expedition_participation.gd")
 const Session = preload("res://network_session.gd")
 const SessionWorld = preload("res://session_world.gd")
@@ -426,6 +427,8 @@ func build_hud() -> void:
 	menu.add_child(exit_row)
 	abandon_button=add_button(exit_row,"Abandon Expedition",request_abandon_run)
 	add_button(exit_row,"Return to Main Menu",request_main_menu)
+	if FileAccess.file_exists("res://neural_arena/arena_entry.gd"):
+		add_button(exit_row,"Neural Arena",func():load("res://neural_arena/arena_entry.gd").open_from(self))
 	network_dialog=preload("res://network_panel.gd").new();add_child(network_dialog)
 	network_dialog.applied.connect(func(address: String,port: int,_join: bool):
 		var saved := Network.save_settings(slot_storage_root,address,port)
@@ -1022,7 +1025,7 @@ func campaign_snapshot() -> PackedInt32Array:
 	var result := PackedInt32Array([participation.route(), flags, Campaign.DORMANT if not Campaign.LEGACY_ENDING_ENABLED else progress.campaign.offshoots[0],
 		Campaign.DORMANT if not Campaign.LEGACY_ENDING_ENABLED else progress.campaign.offshoots[1], Campaign.DORMANT if not Campaign.LEGACY_ENDING_ENABLED else progress.campaign.offshoots[2], Campaign.UNFINISHED if not Campaign.LEGACY_ENDING_ENABLED else progress.campaign.ending,
 		roundi(tactics.active_radius * 100.0), 0, participation.seed(), participation.floor(),
-		participation.cycle(), maxi(0, ceili((pressure_at - Time.get_ticks_msec()) / 1000.0)),
+		participation.cycle(), maxi(0, ceili((pressure_at - CombatClock.now()) / 1000.0)),
 		progress.campaign.best_clear, progress.campaign.best_extraction,
 		progress.campaign.memories[0], progress.campaign.memories[1], progress.campaign.memories[2],
 		int(progress.finale_available()), Enemies.encode(enemy_kind, enemy_mutations, enemy_growth)])
@@ -1517,7 +1520,7 @@ func save_local_character() -> bool:
 func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	Journal.event("combat","skill_requested",{"actor":id,"slot":slot,"state":Journal.player_state(player)})
 	if slot<0 or slot>1: return
-	var now:=Time.get_ticks_msec()
+	var now:=CombatClock.now()
 	var cooldowns: Cooldowns.Timers = player[Cooldowns.STATE]
 	if not Life.alive(player) or encounter_cleared() or not cooldowns.ready(slot, now) or now<int(player.get("core_cast_until",0)): return
 	var stats:=weapon_stats(player)
@@ -1676,7 +1679,7 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 
 func grant_guard(player: Dictionary,until: int,charges: int) -> void:
 	var previous_until := int(player.get("guard_until",0))
-	var now := Time.get_ticks_msec()
+	var now := CombatClock.now()
 	var old_charges := int(player.get("guard_charges",0)) if previous_until > now else 0
 	player.guard_until=maxi(previous_until,until)
 	player.guard_charges=maxi(old_charges,Skills.Balance.guard_charges(charges))
@@ -1902,14 +1905,14 @@ func request_dodge(direction: Vector2) -> void:
 func submit_motion(direction: Vector2) -> void:
 	var id := multiplayer.get_remote_sender_id()
 	if multiplayer.is_server() and direction.is_finite() and SessionWorld.allow_remote(self,id,"motion",120):
-		motions[id] = [direction.limit_length(), Time.get_ticks_msec()]
+		motions[id] = [direction.limit_length(), CombatClock.now()]
 
 
 @rpc("any_peer", "call_remote", "unreliable_ordered",3)
 func submit_movement(commands: Array,epoch: String) -> void:
 	var id:=multiplayer.get_remote_sender_id()
 	if not multiplayer.is_server() or not players.has(id) or not Session.ready_for(players[id],false) or not SessionWorld.allow_remote(self,id,"motion",120):return
-	net_motion.accept(id,commands,epoch,net_motion.world_key(self,players[id]),Time.get_ticks_msec())
+	net_motion.accept(id,commands,epoch,net_motion.world_key(self,players[id]),CombatClock.now())
 
 
 func _physics_process(delta: float) -> void:
@@ -1924,7 +1927,7 @@ func _physics_process(delta: float) -> void:
 	mouse_controls.frame(self)
 	var direction := Vector2.ZERO if overlay.visible or get_meta("garden_cinematic_active",false) else Input.get_vector("left", "right", "up", "down")
 	if multiplayer.is_server():
-		var now := Time.get_ticks_msec()
+		var now := CombatClock.now()
 		growth_clock += delta
 		if growth_clock >= 1.0:
 			var elapsed := growth_clock
@@ -1980,9 +1983,7 @@ func _physics_process(delta: float) -> void:
 			flush_kill_rewards()
 		if get_meta(Transactions.PENDING, false): return
 		update_combat_tracking(delta)
-		LeaderBehavior.tick(self, delta, now)
-		if get_meta(Transactions.PENDING, false): return
-		ScoutBehavior.tick(self, delta, now)
+		tick_enemies(delta, now)
 		if get_meta(Transactions.PENDING, false): return
 		preload("res://core_combat.gd").tick(self,now)
 		if get_meta(Transactions.PENDING, false): return
@@ -1997,8 +1998,15 @@ func _physics_process(delta: float) -> void:
 		if not commands.is_empty():submit_movement.rpc_id(HOST,commands,net_motion.epoch)
 
 
+## Advances enemy behaviour for one physics step. The Neural Arena replaces this step.
+func tick_enemies(delta: float, now: int) -> void:
+	LeaderBehavior.tick(self, delta, now)
+	if get_meta(Transactions.PENDING, false): return
+	ScoutBehavior.tick(self, delta, now)
+
+
 func send_expedition_state(delta: float,force := false) -> void:
-	var now := Time.get_ticks_msec()
+	var now := CombatClock.now()
 	net_view.observe(self)
 	var peers := net_view.snapshot_targets(self)
 	if not peers.is_empty():
@@ -2071,11 +2079,11 @@ func move_player(id: int, direction: Vector2, delta: float) -> void:
 	var move := world_direction(direction)
 	if not move.is_zero_approx() and (not Participation.is_wild(p) or not p.get("mouse_aim",false)):
 		p.facing = move.normalized()
-	var guard_speed: float=.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0
+	var guard_speed: float=.4 if CombatClock.now()<int(p.get("front_guard_until",0)) else 1.0
 	var stride := preload("res://spirit_affinity.gd").scale(p,preload("res://affinity_time.gd").now(self)) if p.has("affinity_spirit_strides") else 1.0
 	if p.has("ranger_speed_grants"):
-		stride = maxf(stride,preload("res://ranger_combat.gd").speed_scale(self,p,Time.get_ticks_msec()))
-	var desired := bound_position(p.pos + move * WALK_SPEED * guard_speed * stride * (0.6 if Time.get_ticks_msec() < int(p.get("slow_until", 0)) else 1.0) * delta, Participation.is_wild(p))
+		stride = maxf(stride,preload("res://ranger_combat.gd").speed_scale(self,p,CombatClock.now()))
+	var desired := bound_position(p.pos + move * WALK_SPEED * guard_speed * stride * (0.6 if CombatClock.now() < int(p.get("slow_until", 0)) else 1.0) * delta, Participation.is_wild(p))
 	var previous: Vector3=p.pos
 	if Participation.is_wild(p):
 		p.pos = battlefield.slide(p.pos, desired)
@@ -2112,7 +2120,7 @@ func dodge_player(id: int, direction: Vector2) -> void:
 	if not players.has(id):
 		return
 	var p: Dictionary = players[id]
-	var now := Time.get_ticks_msec()
+	var now := CombatClock.now()
 	if not Life.alive(p) or not p[Cooldowns.STATE].ready(Cooldowns.DODGE, now):
 		return
 	var facing := world_direction(direction).normalized()
@@ -2345,7 +2353,7 @@ func rare_harvest_chance(familiarity: int) -> float:
 
 func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 	if not Life.alive(p): return
-	var now:=Time.get_ticks_msec()
+	var now:=CombatClock.now()
 	if now<int(p.strike_at): return
 	var stats:=weapon_stats(p)
 	var affinity_build: Dictionary = stats.get("affinity_build", {})
@@ -2492,11 +2500,11 @@ func finish_combat(id: int,loot_position: Vector3) -> void:
 		run_guarded_action(id, Transactions.Scope.PAIR, func(effects):
 			settle_expedition_rewards(effects, true)
 			_finish_combat(id,loot_position,effects))
-		if not encounter_rewarded: reward_retry_at=Time.get_ticks_msec()+1000
+		if not encounter_rewarded: reward_retry_at=CombatClock.now()+1000
 		return
 	if not flush_kill_rewards(): return
 	Transactions.run(self,func(): _finish_combat(id,loot_position))
-	if not encounter_rewarded: reward_retry_at=Time.get_ticks_msec()+1000
+	if not encounter_rewarded: reward_retry_at=CombatClock.now()+1000
 
 func _finish_combat(id: int,loot_position: Vector3,effects = null) -> void:
 	if pending_finale_at>0 or encounter_rewarded: return
@@ -2507,7 +2515,7 @@ func _finish_combat(id: int,loot_position: Vector3,effects = null) -> void:
 	if effects == null: award_combat_progress()
 	if participation.route()==Campaign.HEART:
 		pending_finale_peer=id
-		pending_finale_at=Time.get_ticks_msec()+1500
+		pending_finale_at=CombatClock.now()+1500
 		tactics.winding_up=false
 		tell(id,"The Heart collapses as its last roots fall silent…")
 		return
@@ -2515,10 +2523,10 @@ func _finish_combat(id: int,loot_position: Vector3,effects = null) -> void:
 	if ranged_evidence: ranged_clears+=1
 	var previous_memory: Dictionary=progress.wilds_memory.score.duplicate()
 	var skill_evidence:=preload("res://wilds_skill_tactics.gd").evidence(self)
-	var learned: Dictionary={"ranged":ranged_evidence,"burst":burst_hits_this_room>=2,"choke":choke_kills_this_room>=3 and choke_kills_this_room*2>=encounter_kills.size(),"kite":moving_ranged_hits>=3 and Time.get_ticks_msec()-encounter_started_at>=8000}
+	var learned: Dictionary={"ranged":ranged_evidence,"burst":burst_hits_this_room>=2,"choke":choke_kills_this_room>=3 and choke_kills_this_room*2>=encounter_kills.size(),"kite":moving_ranged_hits>=3 and CombatClock.now()-encounter_started_at>=8000}
 	for tactic in skill_evidence: learned[tactic]=int(skill_evidence[tactic])>0
 	Learning.observe(progress.wilds_memory,learned,participation.floor())
-	record_settlement_metric(effects,"wilds_learning",{"floor":participation.floor(),"encounters":progress.wilds_memory.encounters,"scores":progress.wilds_memory.score.duplicate(),"skill_evidence":skill_evidence,"party":encounter_party_size,"elapsed_ms":Time.get_ticks_msec()-encounter_started_at})
+	record_settlement_metric(effects,"wilds_learning",{"floor":participation.floor(),"encounters":progress.wilds_memory.encounters,"scores":progress.wilds_memory.score.duplicate(),"skill_evidence":skill_evidence,"party":encounter_party_size,"elapsed_ms":CombatClock.now()-encounter_started_at})
 	deepest_milestone=maxi(deepest_milestone,participation.floor())
 	if participation.depth()==ROUTE_ROOMS and participation.route()<Campaign.HEART: run_guardians|=1 << participation.route();guardian_counts[participation.route()]+=1
 	tactics.winding_up=false
@@ -2637,7 +2645,7 @@ func start_encounter() -> void:
 func reset_encounter(seed_value: int = -1) -> void:
 	if not SaveBatch.guarded_active(): flush_kill_rewards()
 	monster_rewards.retire_completed()
-	encounter_kill_records.clear();combat_threat.clear();combat_velocity.clear();combat_last_positions.clear();tactics.memory.clear();moving_ranged_hits=0;encounter_started_at=Time.get_ticks_msec();encounter_party_size=Director.party_size(self)
+	encounter_kill_records.clear();combat_threat.clear();combat_velocity.clear();combat_last_positions.clear();tactics.memory.clear();moving_ranged_hits=0;encounter_started_at=CombatClock.now();encounter_party_size=Director.party_size(self)
 	encounter_kills.clear();encounter_rewarded=false;reward_retry_at=0
 	participation.begin_floor(seed_value)
 	for player in players.values():
@@ -2828,7 +2836,7 @@ func receive_message(message: String) -> void:
 func combat_pose(player: Dictionary) -> int:
 	var facing: Vector3 = player.facing
 	var degrees := posmod(roundi(rad_to_deg(atan2(facing.x, facing.z))), 360)
-	var swing := clampi(ceili((int(player.swing_until) - Time.get_ticks_msec()) / 10.0), 0, 24)
+	var swing := clampi(ceili((int(player.swing_until) - CombatClock.now()) / 10.0), 0, 24)
 	return degrees | (swing << 9)
 
 
@@ -2838,12 +2846,12 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 		var p: Dictionary = players[id]
 		var stride := preload("res://spirit_affinity.gd").scale(p,preload("res://affinity_time.gd").now(self)) if p.has("affinity_spirit_strides") else 1.0
 		if p.has("ranger_speed_grants"):
-			stride = maxf(stride,preload("res://ranger_combat.gd").speed_scale(self,p,Time.get_ticks_msec()))
+			stride = maxf(stride,preload("res://ranger_combat.gd").speed_scale(self,p,CombatClock.now()))
 		var health: PlayerVitals.Health = p[PlayerVitals.STATE]
-		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":(.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get("slow_until",0)) else 1.0)*stride,"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":Session.slot_for(p,0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": Participation.is_wild(p), "fallen":PlayerLifecycle.fallen(p),"lost_health":p.get("lost_health",0), "hp": health.hp(), "max_hp": health.max_hp(), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
-			"attack_anim":attack_animation_snapshot(p),"skill_fx":p.get("skill_fx",{}) if Time.get_ticks_msec()<int(p.get("skill_fx_until",0)) else {}, "weapon_kind":p.get("weapon_kind",0), "core_part":p.weapon if Participation.is_wild(p) else p.prepared, "pose": combat_pose(p),"wallet": run_wallet(p)}
+		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":(.4 if CombatClock.now()<int(p.get("front_guard_until",0)) else 1.0)*(.6 if CombatClock.now()<int(p.get("slow_until",0)) else 1.0)*stride,"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":Session.slot_for(p,0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": Participation.is_wild(p), "fallen":PlayerLifecycle.fallen(p),"lost_health":p.get("lost_health",0), "hp": health.hp(), "max_hp": health.max_hp(), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
+			"attack_anim":attack_animation_snapshot(p),"skill_fx":p.get("skill_fx",{}) if CombatClock.now()<int(p.get("skill_fx_until",0)) else {}, "weapon_kind":p.get("weapon_kind",0), "core_part":p.weapon if Participation.is_wild(p) else p.prepared, "pose": combat_pose(p),"wallet": run_wallet(p)}
 		var cooldowns: Cooldowns.Timers = p[Cooldowns.STATE]
-		var cooldown_now := Time.get_ticks_msec()
+		var cooldown_now := CombatClock.now()
 		state.merge(cooldowns.skill_projection(cooldown_now))
 		if stage.experimental_garden != null and not Participation.is_wild(p):
 			var garden = stage.experimental_garden
@@ -2851,13 +2859,13 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 		if id == viewer and include_details:
 			if Participation.is_wild(p):
 				state["affinity_feedback"]=preload("res://combat_status.gd").affinity_feedback(self,p)
-			state["core_state"]=preload("res://core_combat.gd").owner_state(p,Time.get_ticks_msec(),get_meta("core_combat",{}).get(id,{}))
+			state["core_state"]=preload("res://core_combat.gd").owner_state(p,CombatClock.now(),get_meta("core_combat",{}).get(id,{}))
 			if Participation.is_wild(p):
 				state["thief_routes"]=preload("res://thief_escape.gd").snapshot(self)
 				state["ability_growth_centers"]=preload("res://class_ability_targeting.gd").growth_centers(self,id)
 				if int(p.frame)==0:
 					var warden=preload("res://warden_combat.gd")
-					var now:=Time.get_ticks_msec()
+					var now:=CombatClock.now()
 					state["warden_anchor_point"]=warden.anchor_point(self,p,now)
 					state["warden_relay_point"]=warden.relay_point(self,p,now)
 					state["warden_quake_prepared"]=warden.prepared_until(self,p,now)>0
@@ -2947,7 +2955,7 @@ func apply_world_snapshot(frame: PackedByteArray, recovery: bool) -> void:
 	tactics.project(state.enemy, (flags & 1) != 0, (flags & 16) != 0, landing,
 		"vault" if campaign_state[EncounterConfig.ATTACK_MODE] != 0 else "",
 		campaign_state[EncounterConfig.BOSS_KIND], campaign_state[EncounterConfig.BOSS_PHASE], campaign_state[6] / 100.0)
-	net_motion.receive(self,local_id,before_movement,Time.get_ticks_msec())
+	net_motion.receive(self,local_id,before_movement,CombatClock.now())
 	if received_at > 0:
 		witness.call({"phase":"repair_apply" if recovery else "apply","sequence":sequence,
 			"marker":int(drop.x),"at":Time.get_ticks_usec(),
@@ -2983,15 +2991,15 @@ func _process(_delta: float) -> void:
 	var local_player: Dictionary = players.get(local_id, {})
 	var data: Array = inventory_snapshot(local_player) if multiplayer.is_server() and not local_player.is_empty() else client_inventory
 	var visible_drop: bool = local_player.get("loot_pending", false) if multiplayer.is_server() else has_drop
-	var briar_bound := Time.get_ticks_msec() < tactics.rooted_until if multiplayer.is_server() else client_briar_bound
+	var briar_bound := CombatClock.now() < tactics.rooted_until if multiplayer.is_server() else client_briar_bound
 	var campaign_state := campaign_snapshot() if multiplayer.is_server() else client_campaign
 	var visual_field: RefCounted = battlefield if multiplayer.is_server() else stage.visual_field
 	if multiplayer.is_server(): stage.visual_field=battlefield
-	var rendered_players: Dictionary=players if multiplayer.is_server() else net_motion.render_players(players,local_id,Time.get_ticks_msec())
+	var rendered_players: Dictionary=players if multiplayer.is_server() else net_motion.render_players(players,local_id,CombatClock.now())
 	if not multiplayer.is_server():rendered_players=preload("res://avatar_motion_view.gd").people(rendered_players,local_id,mouse_controls.local_aim)
 	var p: Dictionary = local_player
 	var local_timers: Cooldowns.Timers = p.get(Cooldowns.STATE)
-	var cooldown_now := Time.get_ticks_msec()
+	var cooldown_now := CombatClock.now()
 	var wild: bool = Participation.is_wild(p)
 	var warnings: Array=attack_hints_snapshot() if multiplayer.is_server() and wild else p.get("attack_hints",[]) if wild else []
 	if not multiplayer.is_server() and client_details_key!=str([participation.route(),participation.floor(),participation.seed()]):
@@ -2999,7 +3007,7 @@ func _process(_delta: float) -> void:
 	preload("res://glasscap_visuals.gd").prepare(stage,warnings)
 	stage.set_meta("enemy_attack_poses",preload("res://enemy_attack.gd").poses(warnings))
 	stage.draw_state(rendered_players, local_id, tactics.position, enemy_health(), tactics.winding_up, LeaderBehavior.strike_radius(self), drop_pos, visible_drop, data[3], participation.depth(), route_rooms(), graft_altar_open(), briar_bound, tactics.longlimb, campaign_state,
-		scout_snapshot(Time.get_ticks_msec()) if multiplayer.is_server() else client_pack, _delta,view_id)
+		scout_snapshot(CombatClock.now()) if multiplayer.is_server() else client_pack, _delta,view_id)
 	update_ready_panel(p,local_id)
 	death_visuals.sync(death_events_snapshot() if multiplayer.is_server() and wild else p.get("death_events",[]) if wild else [],"%d:%d:%d:%s"%[participation.route(),participation.floor(),participation.seed(),str(wild)],observer)
 	var presentation_key := "%d:%d:%d:%s"%[participation.route(),participation.floor(),participation.seed(),str(wild)]
@@ -3026,7 +3034,7 @@ func _process(_delta: float) -> void:
 		data[0], data[1], data[2], data[4]]
 	if wild:
 		if not encounter_cleared():
-			var pack := scout_snapshot(Time.get_ticks_msec()) if multiplayer.is_server() else client_pack
+			var pack := scout_snapshot(CombatClock.now()) if multiplayer.is_server() else client_pack
 			var alive := int(enemy_health() > 0)
 			var hatching: bool=tactics.boss_kind==22 and warnings.any(func(hint):return hint.role=="nursery_exit")
 			var warning := not hatching and tactics.winding_up and (tactics.landing if tactics.attack_mode == "vault" else tactics.position).distance_to(p.pos) < LeaderBehavior.strike_radius(self) + 0.7
@@ -3169,7 +3177,7 @@ func _process(_delta: float) -> void:
 	var quake_prepared:=false
 	if skills[0].has("warden_focus"):
 		var warden=preload("res://warden_combat.gd")
-		quake_prepared=warden.prepared_until(self,p,Time.get_ticks_msec())>0 if host_side else bool(p.get("warden_quake_prepared",false))
+		quake_prepared=warden.prepared_until(self,p,CombatClock.now())>0 if host_side else bool(p.get("warden_quake_prepared",false))
 		if quake_prepared:skill_tips[1]+="\nQuake prepared."
 	var ready_dodge := (local_timers == null or local_timers.ready(Cooldowns.DODGE, cooldown_now)) if host_side else bool(p.get("dodge_ready", false))
 	if network_session.role()=="Host": session_label.text+="\nHosting on UDP %d"%network_session.port()
@@ -3185,7 +3193,7 @@ func _process(_delta: float) -> void:
 		"location": Campaign.NAMES[participation.route()] if wild else "Mystical Garden",
 		"floor":participation.floor(),
 		"encounter": "%d foes" % [int(enemy_health() > 0) + living_scout_count()] if wild else "Your living sanctuary",
-		"damage_flash":maxf(0,(int(p.get("hurt_until",0) if host_side else p.get("client_hurt_until",0))-Time.get_ticks_msec())/250.0),"hp": health, "max_hp": PlayerVitals.maximum_hp(p,MAX_HEALTH), "lost_health":p.get("lost_health",0),"fallen":PlayerLifecycle.fallen(p), "wild": wild, "frame": p.get("frame", 0),
+		"damage_flash":maxf(0,(int(p.get("hurt_until",0) if host_side else p.get("client_hurt_until",0))-CombatClock.now())/250.0),"hp": health, "max_hp": PlayerVitals.maximum_hp(p,MAX_HEALTH), "lost_health":p.get("lost_health",0),"fallen":PlayerLifecycle.fallen(p), "wild": wild, "frame": p.get("frame", 0),
 		"skill_ready": ready_skill,"skill_two_ready":second_ready,"skill_names":[skills[0].name,skills[1].name+(" •" if quake_prepared else "")],"skill_cooldowns":cooldowns, "dodge_ready": ready_dodge,
 		"core":preload("res://core_combat.gd").hud_state(self,p),
 		"skill_tooltips":skill_tips,
@@ -4200,11 +4208,11 @@ func record_enemy_death(target: int,position: Vector3,origin: Vector3,expected_t
 	var direction: Vector3=(position-origin).normalized()
 	enemy_death_serial+=1
 	var scale_value: float=1.0 if tactics.boss_kind>=0 and target==-1 else (1.9 if participation.route()==Campaign.HEART or participation.depth()==ROUTE_ROOMS else 1.0 if participation.depth()==1 else 1.22) if target==-1 else 1.0
-	enemy_death_events.append({"id":enemy_death_serial,"position":[position.x,position.y,position.z],"direction":[direction.x,0,direction.z],"code":Enemies.encode(kind,mask,growth),"scale":scale_value,"born":Time.get_ticks_msec()})
+	enemy_death_events.append({"id":enemy_death_serial,"position":[position.x,position.y,position.z],"direction":[direction.x,0,direction.z],"code":Enemies.encode(kind,mask,growth),"scale":scale_value,"born":CombatClock.now()})
 	while enemy_death_events.size()>24: enemy_death_events.pop_front()
 
 func death_events_snapshot() -> Array:
-	var now:=Time.get_ticks_msec()
+	var now:=CombatClock.now()
 	var result: Array=[]
 	for index in range(enemy_death_events.size()-1,-1,-1):
 		if now-int(enemy_death_events[index].born)>2300: enemy_death_events.remove_at(index)
@@ -4215,11 +4223,11 @@ func death_events_snapshot() -> Array:
 
 func attack_animation_snapshot(player: Dictionary) -> Dictionary:
 	var duration:=maxi(1,int(player.get("attack_duration",240)))
-	var remaining:=int(player.get("attack_until",0))-Time.get_ticks_msec()
-	if int(player.get("cast_until",0))>Time.get_ticks_msec():
-		var cast_pose: Dictionary = preload("res://subclass_combat.gd").pose_state(player,Time.get_ticks_msec())
-		return {"active":true,"phase":clampf(1.0-(int(player.cast_until)-Time.get_ticks_msec())/550.0,0,1),"combo":int(player.get("skill_fx_seq",0)),"duration":550,"form":"cast","clip":cast_pose.get("clip",""),"direction":cast_pose.get("direction",null)}
-	var now:=Time.get_ticks_msec()
+	var remaining:=int(player.get("attack_until",0))-CombatClock.now()
+	if int(player.get("cast_until",0))>CombatClock.now():
+		var cast_pose: Dictionary = preload("res://subclass_combat.gd").pose_state(player,CombatClock.now())
+		return {"active":true,"phase":clampf(1.0-(int(player.cast_until)-CombatClock.now())/550.0,0,1),"combo":int(player.get("skill_fx_seq",0)),"duration":550,"form":"cast","clip":cast_pose.get("clip",""),"direction":cast_pose.get("direction",null)}
+	var now:=CombatClock.now()
 	return {"active":remaining>0,"phase":clampf(1.0-remaining/float(duration),0,1),"combo":int(player.get("attack_combo",0)),"duration":duration,"reach":player.get("attack_reach",2.0),"direction":MouseCombat.attack_direction(player,now),"aim_live":MouseCombat.aim_is_live(player,now),"clip":player.get("attack_clip",WeaponMotion.profile(WeaponMotion.form(player)).clip),"delivery":player.get("attack_delivery","sweep"),"span":player.get("attack_span",1.9),"form":"weapon"}
 
 func weapon_effect_color(player: Dictionary) -> Color:
@@ -4229,7 +4237,7 @@ func weapon_effect_color(player: Dictionary) -> Color:
 
 func emit_combat_event(kind: String,shape: String,from: Vector3,to: Vector3,duration: float,color: Color,reach: float,combo: int,options: Dictionary={}) -> void:
 	combat_event_serial+=1
-	combat_events.append({"id":combat_event_serial,"kind":kind,"shape":shape,"from":[from.x,from.y,from.z],"to":[to.x,to.y,to.z],"duration":duration,"color":color.to_html(),"reach":reach,"combo":combo,"span":2.7 if shape=="wide_arc" else 1.3 if shape=="knife_arc" else 1.9,"born":Time.get_ticks_msec()})
+	combat_events.append({"id":combat_event_serial,"kind":kind,"shape":shape,"from":[from.x,from.y,from.z],"to":[to.x,to.y,to.z],"duration":duration,"color":color.to_html(),"reach":reach,"combo":combo,"span":2.7 if shape=="wide_arc" else 1.3 if shape=="knife_arc" else 1.9,"born":CombatClock.now()})
 
 	var latest: Dictionary=combat_events.back()
 	for key in options:
@@ -4255,7 +4263,7 @@ func publish_combat_event(source: Dictionary) -> void:
 	if network_session.transport()==null or not multiplayer.is_server(): return
 	var event := source.duplicate()
 	event.erase("born")
-	event.age=maxf(0,(Time.get_ticks_msec()-int(source.born))/1000.0)
+	event.age=maxf(0,(CombatClock.now()-int(source.born))/1000.0)
 	receive_combat_event.rpc(event,str([participation.route(),participation.floor(),participation.seed()]))
 
 func emit_weapon_attack(player: Dictionary,from: Vector3,to: Vector3,stats: Dictionary,_now: int) -> void:
@@ -4268,7 +4276,7 @@ func emit_weapon_attack(player: Dictionary,from: Vector3,to: Vector3,stats: Dict
 	emit_combat_event("projectile" if WeaponMotion.is_projectile(form) else "swing",str(profile.shape),from,to,duration,weapon_effect_color(player),float(stats.reach),int(player.get("attack_combo",0)),description)
 
 func combat_events_snapshot() -> Array:
-	var now:=Time.get_ticks_msec();var result: Array=[]
+	var now:=CombatClock.now();var result: Array=[]
 	for index in range(combat_events.size()-1,-1,-1):
 		if now-int(combat_events[index].born)>float(combat_events[index].duration)*1000+150: combat_events.remove_at(index)
 	for event in combat_events:
@@ -4326,13 +4334,13 @@ func update_projectiles(now: int) -> void:
 
 func attack_hints_snapshot() -> Array:
 	var result: Array=Bosses.hints(self)
-	result.append_array(preload("res://glasscap_feint.gd").hints(self,Time.get_ticks_msec()))
+	result.append_array(preload("res://glasscap_feint.gd").hints(self,CombatClock.now()))
 	if tactics.boss_kind<0 and participation.route()!=Campaign.HEART and not encounter.leader_tactics().is_empty():result.append_array(preload("res://elite_enemy.gd").hints(self))
 	if enemy_health()>0 and tactics.winding_up and not Bosses.owns_warnings(tactics.boss_kind) and (tactics.boss_kind>=0 or encounter.leader_tactics().is_empty()):
 		var target:=tactics.landing if tactics.attack_mode=="vault" or tactics.boss_kind>=0 else tactics.position
-		result.append({"id":-1,"role":("charge" if tactics.attack_mode in ["root_sweep","orchard_march","drowned_surge","matriarch_lunge","memory_lance","remembered_rend"] else "volley") if tactics.boss_kind>=0 else "vault" if tactics.attack_mode=="vault" else "swipe","from":[tactics.position.x,0,tactics.position.z],"to":[target.x,0,target.z],"radius":Bosses.warning_radius(self) if tactics.boss_kind>=0 else LeaderBehavior.strike_radius(self),"width":Bosses.warning_width(self) if tactics.boss_kind>=0 else .85,"remaining":maxf(0,(tactics.strike_at-Time.get_ticks_msec())/1000.0)})
+		result.append({"id":-1,"role":("charge" if tactics.attack_mode in ["root_sweep","orchard_march","drowned_surge","matriarch_lunge","memory_lance","remembered_rend"] else "volley") if tactics.boss_kind>=0 else "vault" if tactics.attack_mode=="vault" else "swipe","from":[tactics.position.x,0,tactics.position.z],"to":[target.x,0,target.z],"radius":Bosses.warning_radius(self) if tactics.boss_kind>=0 else LeaderBehavior.strike_radius(self),"width":Bosses.warning_width(self) if tactics.boss_kind>=0 else .85,"remaining":maxf(0,(tactics.strike_at-CombatClock.now())/1000.0)})
 	var attacks=preload("res://enemy_attack.gd")
-	result.append_array(attacks.scout_hints(encounter,participation.epoch(),Time.get_ticks_msec(),
+	result.append_array(attacks.scout_hints(encounter,participation.epoch(),CombatClock.now(),
 		func(scout: Dictionary) -> Dictionary: return attacks.current(self,scout)))
 	if enemy_kind==11 and enemy_health()>0 and tactics.engaged and encounter.leader_tactics().get("attack",{}).get("variant","")!="planted_canopy":
 		result.append(attacks.warning(-2000,"canopy",tactics.position,tactics.position,float(Enemies.get_kind(11).shelter_radius),0,0))
@@ -4343,7 +4351,7 @@ func attack_hints_snapshot() -> Array:
 	result.append_array(preload("res://expedition_pressure.gd").hints(self))
 	result.append_array(preload("res://core_combat.gd").hints(self))
 	result.append_array(preload("res://thorn_affinity.gd").hints(self))
-	result.append_array(preload("res://warden_combat.gd").hints(self,Time.get_ticks_msec()))
+	result.append_array(preload("res://warden_combat.gd").hints(self,CombatClock.now()))
 	return result
 
 func build_planting_panel() -> void:
@@ -4379,18 +4387,18 @@ func receive_details(payload: PackedByteArray,garden: PackedByteArray,inventory_
 	var recovery: PackedByteArray = decoded.get("snapshot_recovery", PackedByteArray())
 	decoded.erase("snapshot_recovery")
 	client_details=decoded;client_details_key=state_key;client_inventory=inventory_data;client_garden=world
-	set_meta("core_details_at",Time.get_ticks_msec())
+	set_meta("core_details_at",CombatClock.now())
 	var id:=multiplayer.get_unique_id()
 	if players.has(id): players[id].merge(client_details,true)
 	if not recovery.is_empty(): apply_world_snapshot(recovery, true)
 
 @rpc("authority","call_remote","reliable",2)
 func receive_combat_event(event: Dictionary,key: String) -> void:
-	received_combat_events.append({"event":event,"key":key,"born":Time.get_ticks_msec()})
+	received_combat_events.append({"event":event,"key":key,"born":CombatClock.now()})
 	while received_combat_events.size()>100: received_combat_events.pop_front()
 
 func guest_combat_events(player: Dictionary) -> Array:
-	var result: Array=[];var key:=str([participation.route(),participation.floor(),participation.seed()]);var now:=Time.get_ticks_msec()
+	var result: Array=[];var key:=str([participation.route(),participation.floor(),participation.seed()]);var now:=CombatClock.now()
 	for entry in received_combat_events.duplicate():
 		var age: float=maxf(0,float(entry.event.get("age",0)))+(now-int(entry.born))/1000.0
 		if age>float(entry.event.duration)+.2: received_combat_events.erase(entry);continue
@@ -4476,4 +4484,4 @@ func enemy_contact_point(target: int,origin: Vector3) -> Vector3:
 @rpc("any_peer","call_remote","unreliable_ordered",1)
 func submit_combat(aim: Vector2,held: bool) -> void:
 	var id:=multiplayer.get_remote_sender_id()
-	if multiplayer.is_server() and aim.is_finite() and SessionWorld.allow_remote(self,id,"combat_input",60):mouse_controls.receive(self,id,aim,held,Time.get_ticks_msec())
+	if multiplayer.is_server() and aim.is_finite() and SessionWorld.allow_remote(self,id,"combat_input",60):mouse_controls.receive(self,id,aim,held,CombatClock.now())

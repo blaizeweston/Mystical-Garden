@@ -108,7 +108,7 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
  if game.network_session.transport()!=null and game.multiplayer.is_server():
   for source in game.combat_events:
    if int(source.id)<=int(state.get("combat_event_serial",0)):continue
-   var event: Dictionary=source.duplicate();event.erase("born");event.age=maxf(0,(Time.get_ticks_msec()-int(source.born))/1000.0)
+   var event: Dictionary=source.duplicate();event.erase("born");event.age=maxf(0,(preload("res://combat_clock.gd").now()-int(source.born))/1000.0)
    game.receive_combat_event.rpc(event,str([game.participation.route(),game.participation.floor(),game.participation.seed()]))
  var publishes: Array=game.transaction_publishes.duplicate();game.transaction_publishes.clear()
  for id in publishes:

@@ -68,7 +68,7 @@ static func after_hit(game: Node,p: Dictionary,target: int,stats: Dictionary,_no
 static func decoy_point(game: Node,id: int) -> Vector3:
  for event in game.trait_events:
   if int(event.get("owner",0))!=id or not event_in_current_life(game,event): continue
-  if event.kind=="snare" and Time.get_ticks_msec()<int(event.get("ranger_decoy_until",0)) and Ranger.source_live(game,event):
+  if event.kind=="snare" and preload("res://combat_clock.gd").now()<int(event.get("ranger_decoy_until",0)) and Ranger.source_live(game,event):
    return event.position
  return Vector3.INF
 static func place_snare(game: Node,p: Dictionary,point: Vector3,skill: Dictionary,stats: Dictionary,now: int) -> Dictionary:

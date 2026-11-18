@@ -200,7 +200,7 @@ static func footprint(game_node: Node, local: Dictionary, field: RefCounted, ski
 	var ready: bool
 	if game_node.multiplayer.is_server():
 		var timers: Cooldowns.Timers = local.get(Cooldowns.STATE)
-		ready = timers == null or timers.ready(Cooldowns.Q if skill_slot == 0 else Cooldowns.R, Time.get_ticks_msec())
+		ready = timers == null or timers.ready(Cooldowns.Q if skill_slot == 0 else Cooldowns.R, preload("res://combat_clock.gd").now())
 	else:
 		ready = local.get("skill_ready" if skill_slot == 0 else "skill_two_ready", false)
 	return {"shapes": Targeting.footprint(game_node, local, field, skill, stats, cast), "color": skill.color, "valid": cast.valid and ready}
