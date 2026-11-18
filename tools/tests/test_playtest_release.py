@@ -149,6 +149,73 @@ class PlaytestReleaseTests(unittest.TestCase):
                 self.assertEqual(release.approval_selection(version, history, [])["location"],
                                  str(history / version))
 
+    def release_cache_fixture(self, root):
+        project = root / "project"
+        validation = project / ".godot/validation"
+        validation.mkdir(parents=True)
+        (project / "tools").mkdir()
+        release.evidence.write_json(project / "tools/test_map.json", {"suites": {"first": {}, "reused": {}}})
+        rows = {}
+        for name in ("first", "reused"):
+            path = f"runs/current/{name}/verdict.json"
+            verdict = validation / path
+            verdict.parent.mkdir(parents=True)
+            release.evidence.write_json(verdict, {"run_id": name, "script_sha256": "a" * 64,
+                                                "peers": {"unit": {"exit": 0}}})
+            rows[name] = {"key": name, "passed": True, "logs": {path: release.sha(verdict)}}
+        release.evidence.write_json(validation / "latest-report.json", {
+            "run_id": "connected", "passed": True, "stable_inputs": True, "release_ready": True,
+            "plan": {"selected": {"first": {}}}})
+        package = {"plan": {"keys": {"first": "package-key"}, "run_id": "package"}, "startup_logs": {}}
+        release.evidence.write_json(validation / "package-cache.json", {
+            "results": {"first": rows["first"]["logs"]}})
+        output = root / "evidence"
+        output.mkdir()
+        return project, validation, rows, package, output
+
+    def test_summary_includes_reused_current_suites_and_ignores_retired_history(self):
+        with tempfile.TemporaryDirectory() as folder:
+            project, validation, rows, package, output = self.release_cache_fixture(Path(folder))
+            rows["retired"] = {"passed": False, "logs": {"missing/retired.json": "b" * 64}}
+            release.evidence.write_json(validation / "cache.json", rows)
+            original = (validation / "cache.json").read_bytes()
+            summary = release.summarize(project, package, output)
+            self.assertEqual(set(summary["source"]), {"first", "reused"})
+            self.assertEqual((validation / "cache.json").read_bytes(), original)
+
+    def test_summary_rejects_missing_current_suite_even_when_latest_plan_is_small(self):
+        with tempfile.TemporaryDirectory() as folder:
+            project, validation, rows, package, output = self.release_cache_fixture(Path(folder))
+            rows.pop("reused")
+            release.evidence.write_json(validation / "cache.json", rows)
+            with self.assertRaisesRegex(ValueError, "current registry"):
+                release.summarize(project, package, output)
+
+    def test_keep_cache_preserves_history_and_publishes_only_current_rows(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            project, validation, rows, package, output = self.release_cache_fixture(root)
+            rows["retired"] = {"passed": False, "logs": {"missing/retired.json": "b" * 64}}
+            release.evidence.write_json(validation / "cache.json", rows)
+            original = (validation / "cache.json").read_bytes()
+            shared = root / "shared"
+            release.keep_cache(project, shared, output)
+            self.assertEqual((validation / "cache.json").read_bytes(), original)
+            self.assertEqual((output / "source-cache-history.json").read_bytes(), original)
+            published = release.evidence.read_json(shared / "validation/cache.json")
+            self.assertEqual(published, {name: rows[name] for name in ("first", "reused")})
+            self.assertEqual((output / "cache.json").read_bytes(), (shared / "validation/cache.json").read_bytes())
+
+    def test_keep_cache_still_rejects_changed_current_log(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            project, validation, rows, package, output = self.release_cache_fixture(root)
+            release.evidence.write_json(validation / "cache.json", rows)
+            path = next(iter(rows["reused"]["logs"]))
+            (validation / path).write_text("changed retained log")
+            with self.assertRaisesRegex(ValueError, "changed or escaped"):
+                release.keep_cache(project, root / "shared", output)
+
     @patch.object(release, "git")
     def test_approval_rejects_changed_review_identity_before_tag(self, git):
         identity = {"zip_sha256": "a" * 64, "manifest_sha256": "b" * 64}

@@ -53,7 +53,7 @@ Final focused verification passed 73 distinct fixtures: 58 units, one title-base
 
 The final inventory test opens the real panel, refreshes it, and inspects Core/Form/Catalyst equipment details. Modernized enemy fixtures respect current attack deadlines, participation reset refusal, and actual native Root Quake damage/displacement. These fixture corrections do not change combat tuning.
 
-The planner has 214 registered suites and zero scope/unmapped-input warnings. The native-copy planner unit passed. This is local loopback, not separate-PC or internet verification; no release export or production save activation was performed. The existing approved playtest and six local design references are preserved.
+At cutover the planner had 214 suites. The later duplicate-mismatch retirement leaves 213 registered suites and preserves the definition-mismatch, matching-build and separate RPC-contract controls. The current structural audit has zero scope/unmapped-input warnings. The native-copy planner unit passed. This is local loopback, not separate-PC or internet verification; no release export or production save activation was performed. The existing approved playtest and six local design references are preserved.
 
 ## State ownership
 
@@ -333,7 +333,7 @@ The first final pass exposed a real teardown regression: static multiplayer sign
 
 | Mode | What actually happens |
 |---|---|
-| Isolated experimental playtesting | The source launcher gives the game disposable `APPDATA` and a matching marker. Retail playtest.7 uses a verified version-specific save root. These modes have no write access through the game to the normal player save set. They **do write** guarded Garden and character files, preferences and diagnostics inside their own roots. Legacy import and experimental Garden Continue are disabled. The generated Garden layout belongs to the host session. Graft receipts, cards and wallets are run-only. A refused root stops title admission. |
+| Isolated experimental playtesting | The source launcher gives the game disposable `APPDATA` and a matching marker. The existing playtest.8 candidate uses a verified version-specific save root; it is not an approved release tag. These modes have no write access through the game to the normal player save set. They **do write** guarded Garden and character files, preferences and diagnostics inside their own roots. Legacy import and experimental Garden Continue are disabled. The generated Garden layout belongs to the host session. Graft receipts, cards and wallets are run-only. A refused root stops title admission. |
 | Temporary persistence fixtures | The validation executor supplies separate throwaway profiles. Fixtures open, write, corrupt or inject faults only against controlled files. Tests of the candidate production route enable it through the headless validation hook. |
 | Ordinary production route | The contained production serializer route remains in place, independently of modern gameplay. `persistence_writer_integration.gd` keeps production AC-06 cutover off. The guarded candidate and explicit recovery remain available to controlled fixtures. |
 
@@ -381,6 +381,14 @@ Next narrow the actor registry and world integration: SessionWorld and Expeditio
 The planner ignores only Godot's recognized native-lock hot-reload copies in `assets/native/persistence_lock/`. The authoritative `b0_native_lock.dll`, extension definition, and other assets remain hashed. A focused Python fixture verifies both that exclusion and authoritative-DLL invalidation. This allows source checks while an editor holds its generated DLL copy; it does not suppress native loading errors in gameplay verdicts.
 
 The gameplay cutover retires 26 fixtures dedicated to obsolete species, mask, priced-card or installed-graft behavior. Mixed fixtures retain current contracts; `playable.gd` is a focused modern smoke instead of the historical all-mechanics matrix. Keep provenance/recording checks distinct from actual integrated combat and independent process loopback. See `modern_gameplay_cutover`, `cr02_combat_contracts`, CT01–CT05, EC01, current graft tests, `projectile_terrain`, and guarded transaction/network fixtures.
+
+## Validation ownership
+
+`tools/test_map.json` is the human-edited authority for suite coverage, systems and isolated fixture profiles. `tools/validation_scope_matches.json` holds only retained exact source anchors and normalization baselines; `validation_registry.py` validates and joins them. Do not copy ownership into that matching file or regenerate its baselines indiscriminately.
+
+`validation_inputs.py` separates source execution keys from package preparation and raw mid-run stability. `validation_execution.py` owns peer processes, isolated profiles, strict structured verdicts and error checks. `packaged_fixture_support.py` owns package-only external helper staging. `test_workflow.py` owns resource/region coverage, planning and cache verification. `playtest_release.py` summarizes all active suites, preserves retired cache history and archives current evidence. See [VALIDATION_WORKFLOW.md](VALIDATION_WORKFLOW.md) for editing locations, scoped previews and the explicit format-2 evidence epoch.
+
+The focused tool tests live under `tools/tests/`. They cover retirement without unrelated rekeys, explicit environments, source/package separation, current-versus-retired cache rows, unchanged log hashes and rejection of mid-run edits. This tooling change does not refresh all gameplay or packaged acceptance evidence. Preserve current failures and schedule any broad release refresh separately.
 
 ## Contributing
 

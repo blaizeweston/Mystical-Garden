@@ -1,6 +1,6 @@
 # Mechanics and test coverage map
 
-Generated from `tools/test_map.json` by `test_workflow.py document`.
+Generated from `tools/test_map.json` by `test_workflow.py document`. Ownership stays in that readable map; retained matching snapshots live in `tools/validation_scope_matches.json`.
 
 Edges describe gameplay/data relationships. Selection uses explicit suite coverage and resource dependencies; it does not follow every visual edge recursively.
 

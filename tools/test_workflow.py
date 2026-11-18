@@ -4,6 +4,8 @@ import ast, argparse, contextlib, datetime as dt, fnmatch, hashlib, json, os, re
 from pathlib import Path
 
 import validation_execution as execution
+import validation_inputs as contract
+from validation_registry import load_map, fixture_profile
 
 SCHEMA=1
 TEXT_EXT={'.gd','.tscn','.tres','.godot','.cfg','.gdshader','.json'}
@@ -72,7 +74,7 @@ class Workflow:
  def __init__(self,project,engine):
   self.project=Path(project).resolve();self.engine=Path(engine).resolve();self.tools=self.project/'tools'
   self.root=self.project/'.godot/validation';self.root.mkdir(parents=True,exist_ok=True)
-  self.map=read_json(self.tools/'test_map.json')
+  self.map=load_map(self.project)
   if not self.map or self.map.get('schema')!=SCHEMA:raise ValueError('Missing or unsupported test map')
   if not self.engine.is_file():raise ValueError('Godot executable not found: '+str(self.engine))
   self.engine_hash=self.engine_signature();self.owner={}
@@ -92,7 +94,8 @@ class Workflow:
   self.input_keys={}
   self.infrastructure_paths={p.relative_to(self.project).as_posix() for p in self.infrastructure_files() if p.is_file()}
   self.infrastructure=self.infrastructure_hash()
-  self.lineage=read_json(self.root/'key-lineage.json',{}) or {}
+  self.harness_inputs=contract.source_harness(self.project,Path(__file__),Path(execution.__file__))
+  self.package_inputs=contract.package_harness(self.project)
   self.keys={name:self.suite_key(name,record_inputs=True) for name in self.suites}
   self.known_inputs=set().union(*self.input_keys.values())
 
@@ -114,6 +117,7 @@ class Workflow:
   for name,suite in self.suites.items():
    if suite.get('candidate_release') and (not suite.get('package') or suite['kind'] not in ('unit','pair','party')):
     raise ValueError('Candidate release suite must support source and package execution: '+name)
+   fixture_profile(self.project,name,self.map)
    if not set(suite['systems'])<=systems:raise ValueError('Unknown system in '+name)
    if suite['kind'] not in ['unit','solo','pair','party','smoke']:raise ValueError('Unknown runner for '+name)
    source=self.source(name)
@@ -242,28 +246,21 @@ class Workflow:
   return tokens,domains,raw
 
  def infrastructure_files(self):
-  return (list(self.tools.glob('*.ps1'))+list((self.tools/'playtest').glob('*.ps1'))
-          +[self.tools/name for name in ('test_map.json','test_workflow.py','validation_execution.py','playtest_release.py')]
-          +list((self.tools/'tests').glob('*.py'))+list((self.project/'test').glob('*')))
+  # Broad stability barrier, not a cross-run cache salt.
+  files=(list(self.tools.glob('*.ps1'))+list((self.tools/'playtest').glob('*.ps1'))
+         +list(self.tools.glob('*.py'))+list((self.tools/'tests').glob('*.py'))
+         +list((self.project/'test').glob('*'))+[self.tools/'test_map.json'])
+  if self.map.get('matching_data'):files.append(self.tools/self.map['matching_data'])
+  return files
 
  def infrastructure_hash(self):
   return hashed({str(p.relative_to(self.project)):digest(p.read_bytes()) for p in self.infrastructure_files() if p.is_file()})
 
  def runner_signature(self):
-  nodes=[n for n in ast.walk(ast.parse(Path(__file__).read_text(encoding='utf-8-sig'))) if isinstance(n,ast.FunctionDef) and n.name in ['execute','environment','source']]
-  return hashed([digest(Path(execution.__file__).read_bytes()),*[ast.dump(n,include_attributes=False) for n in nodes]])
+  return hashed(self.harness_inputs['shared'])
 
- def suite_salt(self,suite):
-  if self.lineage.get('runner')!=self.runner_signature():return self.infrastructure
-  changes={}
-  for path,old in self.lineage.get('files',{}).items():
-   path=path.replace('\\','/')
-   relevant=(suite['kind']=='party' and path=='tools/test_four_players.ps1') or (suite['kind']=='smoke' and path.startswith('test/'))
-   if relevant:
-    file=self.project/path;value=digest(file.read_bytes()) if file.is_file() else 'missing'
-    if value!=old:changes[path]=value
-  anchor=self.lineage['anchor']
-  return hashed({'anchor':anchor,'runner_changes':changes}) if changes else anchor
+ def package_key(self,name):
+  return hashed({'schema':contract.KEY_SCHEMA,'source':self.keys[name],'package_inputs':self.package_inputs})
 
  def resources(self,start,systems=None):
   """Follow literal resources, stopping traversal at the shared dispatcher."""
@@ -308,10 +305,14 @@ class Workflow:
   for path in dependencies-{'game.gd'}:
    file=self.project/path
    if file.is_file():inputs['resource:'+path]=self.tokens[path] if path in self.map.get('file_regions',{}) or path in self.map.get('binary_regions',{}) else digest(file.read_bytes())
+  inputs.update(self.harness_inputs['shared'])
+  if suite['kind']=='smoke':inputs.update(self.harness_inputs['smoke'])
+  inputs['suite:'+name]=hashed(suite)
+  inputs['profile:'+suite.get('profile','standard')]=hashed(fixture_profile(self.project,name,self.map))
   if record_inputs:
    self.input_keys[name]=frozenset(inputs)
    self.fixture_calls[name]=(direct,dynamic)
-  return hashed({'schema':SCHEMA,'engine':self.engine_hash,'infrastructure':self.suite_salt(suite),'suite':suite,'inputs':inputs})
+  return hashed({'schema':contract.KEY_SCHEMA,'engine':self.engine_hash,'inputs':inputs})
 
  def valid(self,name):
   row=self.cache.get(name,{})
@@ -327,6 +328,15 @@ class Workflow:
   for change in changes:
    token=str(change).replace('\\','/').removeprefix('./')
    literal='resource:'+token
+   scoped='tools/test_map.json::'
+   if preview and token.startswith(scoped):
+    category,separator,name=token[len(scoped):].partition(':')
+    if category=='suite' and name in self.suites:inputs.add('suite:'+name)
+    elif category=='profile' and name in self.map.get('profiles',{'standard':{}}):inputs.add('profile:'+name)
+    elif category=='system' and name in self.map['systems']:
+     inputs.update(p for p in self.tokens if name=='foundation' or name in self.domains[p])
+    else:unmapped.append('Unknown registry scope: '+token);unbounded=True
+    continue
    if not preview:
     inputs.add(token)
     if literal in self.known_inputs:inputs.add(literal)
@@ -336,8 +346,16 @@ class Workflow:
    elif token in self.map.get('binary_regions',{}):
     inputs.add(token+'::#visual')
    elif token in self.infrastructure_paths:
-    notes.append('Validation infrastructure impact requires the edited files: '+token)
-    unbounded=True
+    runner_tokens={key for key in self.known_inputs if key.startswith('runner:'+token)
+                   and (key=='runner:'+token or key.startswith('runner:'+token+'::'))}
+    if token=='tools/test_map.json' or token=='tools/'+self.map.get('matching_data',''):
+     notes.append('Registry preview needs a suite/profile/system scope or the actual edited declarations: '+token)
+     unbounded=True
+    else:
+     inputs.update(runner_tokens)
+     if literal in self.known_inputs:inputs.add(literal)
+     if not runner_tokens and literal not in self.known_inputs:
+      notes.append('No source-execution dependency; packaging/stability checks still track: '+token)
    elif token in self.tokens or token in self.known_inputs or literal in self.known_inputs:
     inputs.add(token)
     if literal in self.known_inputs:inputs.add(literal)
@@ -453,7 +471,7 @@ class Workflow:
     error=str(failure)
   if error:
    files=[p for pattern in ('*.log','*.json') for p in folder.glob(pattern)]
-  result={'key':self.keys[name],'passed':not error,'at':utc(),'run_id':token,
+  result={'key':self.keys[name],'key_schema':contract.KEY_SCHEMA,'passed':not error,'at':utc(),'run_id':token,
           'seconds':round(time.monotonic()-started,3),'logs':self.evidence_hashes(files),'exit_codes':codes}
   if error:result['error']=error
   return result
@@ -535,11 +553,11 @@ class Workflow:
   selected={kind:[] for kind in ['unit','pair','party','smoke']};reused=[]
   for name,suite in self.suites.items():
    if not suite['package']:continue
-   if full or suite.get('candidate_release') or cached_keys.get(name)!=self.keys[name] or not self.intact_evidence(cached_results.get(name)):selected[suite['kind']].append(name)
+   if full or suite.get('candidate_release') or cached_keys.get(name)!=self.package_key(name) or not self.intact_evidence(cached_results.get(name)):selected[suite['kind']].append(name)
    else:reused.append(name)
   # Every new package exercises startup/catalogs separately, plus real peer connection.
   if 'supplied_network_smoke' not in selected['smoke']:selected['smoke'].append('supplied_network_smoke');reused=[n for n in reused if n!='supplied_network_smoke']
-  plan={'schema':SCHEMA,'run_id':uuid.uuid4().hex,'full':full,'template':template,'source':hashed(self.tokens),'engine':self.engine_hash,'infrastructure':self.infrastructure,'keys':{n:self.keys[n] for n in self.suites if self.suites[n]['package']},'selected':selected,'reused':reused}
+  plan={'schema':SCHEMA,'run_id':uuid.uuid4().hex,'full':full,'template':template,'source':hashed(self.tokens),'engine':self.engine_hash,'infrastructure':self.infrastructure,'keys':{n:self.package_key(n) for n in self.suites if self.suites[n]['package']},'selected':selected,'reused':reused}
   write_json(self.root/'package-plan.json',plan);return plan
 
  def commit_package(self,pack):
@@ -577,7 +595,7 @@ class Workflow:
              'plan':plan,'evidence':str(folder),'startup_logs':self.evidence_hashes(preflight+startup)})
 
  def document(self):
-  lines=['# Mechanics and test coverage map','','Generated from `tools/test_map.json` by `test_workflow.py document`.','','Edges describe gameplay/data relationships. Selection uses explicit suite coverage and resource dependencies; it does not follow every visual edge recursively.','','```mermaid','flowchart LR']
+  lines=['# Mechanics and test coverage map','','Generated from `tools/test_map.json` by `test_workflow.py document`. Ownership stays in that readable map; retained matching snapshots live in `tools/validation_scope_matches.json`.','','Edges describe gameplay/data relationships. Selection uses explicit suite coverage and resource dependencies; it does not follow every visual edge recursively.','','```mermaid','flowchart LR']
   for name,definition in self.map['systems'].items():lines.append('  '+name+'["'+definition['label'].replace(',','<br/>')+'"]')
   for a,b,reason in self.map['relationships']:lines.append('  '+a+' -->|"'+reason+'"| '+b)
   lines+=['```','','## System ownership and tests','','| System | Source files | Covering suites |','|---|---|---|']

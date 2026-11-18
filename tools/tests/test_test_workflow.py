@@ -33,7 +33,6 @@ class WorkflowTests(unittest.TestCase):
   f=self.flow
   f.baseline={'at':w.utc(),'engine':f.engine_hash,'infrastructure':f.infrastructure,'tokens':copy.deepcopy(f.tokens)}
   w.write_json(f.root/'full-baseline.json',f.baseline)
-  if not (f.root/'key-lineage.json').exists():w.write_json(f.root/'key-lineage.json',{'anchor':f.infrastructure,'runner':f.runner_signature(),'files':{}})
   for n in f.suites:
    log=f.root/(n+'.log');log.write_text('PASS: fixture\n')
    f.cache[n]={'passed':True,'key':f.keys[n],'logs':{log.name:w.digest(log.read_bytes())}}
@@ -297,16 +296,15 @@ class WorkflowTests(unittest.TestCase):
   self.assertTrue(plan['uncertain'])
   self.assertTrue(any('normalized away' in note for note in plan['notes']))
 
- def test_infrastructure_preview_reports_uncertainty_even_for_literal_fixture_input(self):
+ def test_test_helper_preview_follows_only_actual_consumers(self):
   self.put('test/helper.gd','extends RefCounted\n')
   self.put('tests/settings.gd','extends SceneTree\nconst Helper=preload("res://test/helper.gd")\n')
   flow=self.new()
   self.assertIn('resource:test/helper.gd',flow.input_keys['settings'])
   plan=flow.plan(changed=['test/helper.gd'])
-  self.assertTrue(plan['uncertain'])
+  self.assertFalse(plan['uncertain'])
   self.assertFalse(plan['blocked'])
-  self.assertEqual(set(plan['predicted_invalidations']),set(flow.suites))
-  self.assertTrue(any('Validation infrastructure impact' in note for note in plan['notes']))
+  self.assertEqual(plan['predicted_invalidations'],['settings'])
  def test_missing_or_modified_log_rejects_cached_pass(self):
   (self.flow.root/'settings.log').write_text('PASS: changed log\n');self.assertFalse(self.new().valid('settings'))
   (self.flow.root/'seeds.log').unlink();self.assertFalse(self.new().valid('seeds'))
@@ -345,7 +343,7 @@ class WorkflowTests(unittest.TestCase):
   for name in f.suites:
    log=f.root/('package-'+name+'.log');log.write_text('PASS: packaged fixture')
    results[name]=f.evidence_hashes([log])
-  w.write_json(f.root/'package-cache.json',{'template':f.template_signature(),'keys':f.keys,'results':results})
+  w.write_json(f.root/'package-cache.json',{'template':f.template_signature(),'keys':{n:f.package_key(n) for n in f.suites},'results':results})
   plan=f.package_plan();self.assertEqual(plan['selected']['unit'],[]);self.assertFalse(plan['full'])
   (f.root/'package-settings.log').write_text('altered evidence')
   self.assertIn('settings',f.package_plan()['selected']['unit'])
@@ -358,7 +356,7 @@ class WorkflowTests(unittest.TestCase):
   for name in f.suites:
    log=f.root/('candidate-'+name+'.log');log.write_text('PASS: fixture')
    results[name]=f.evidence_hashes([log])
-  w.write_json(f.root/'package-cache.json',{'template':f.template_signature(),'keys':f.keys,'results':results})
+  w.write_json(f.root/'package-cache.json',{'template':f.template_signature(),'keys':{n:f.package_key(n) for n in f.suites},'results':results})
   plan=f.package_plan()
   self.assertEqual(plan['selected']['unit'],['settings'])
   self.assertNotIn('settings',plan['reused'])
@@ -594,5 +592,121 @@ class WorkflowTests(unittest.TestCase):
   self.m['binary_regions']={asset:{'baseline_sha256':w.digest(b'mesh'),'systems':['settings'],'contract':'Stable skeleton'}};self.save_map();self.flow=self.new();self.seed_passes()
   self.flow.package_plan();self.put(asset,'edited after validation')
   with self.assertRaises(ValueError):self.new().commit_package(self.engine)
+
+
+ def test_retiring_suite_preserves_other_passes_and_history(self):
+  before=dict(self.new().keys)
+  self.m['suites'].pop('settings_coop');(self.p/'tests/settings_coop.gd').unlink();self.save_map()
+  flow=self.new()
+  self.assertEqual(set(flow.keys),set(before)-{'settings_coop'})
+  for name,key in flow.keys.items():
+   self.assertEqual(key,before[name]);self.assertTrue(flow.valid(name),name)
+  self.assertIn('settings_coop',flow.cache)
+  self.assertTrue(flow.release_ready());self.assertEqual(flow.plan()['run_count'],0)
+
+ def test_registry_labels_and_relationships_are_not_execution_inputs(self):
+  before=self.new().keys
+  self.m['systems']['settings']['label']='Readable settings';self.m['relationships']=[['settings','seeds','documentation']]
+  self.save_map();self.assertEqual(self.new().keys,before)
+
+ def test_new_suite_does_not_rekey_existing_suites(self):
+  before=self.new().keys
+  self.put('tests/new_settings.gd','extends SceneTree\nfunc run():\n quit(0)\n')
+  self.m['suites']['new_settings']={'kind':'unit','systems':['settings'],'package':False};self.save_map()
+  flow=self.new()
+  for name,key in before.items():self.assertEqual(flow.keys[name],key)
+  self.assertEqual(set(flow.plan()['selected']),{'new_settings'})
+
+ def test_profile_change_only_invalidates_its_fixtures(self):
+  self.m['profiles']={'standard':{},'terrain':{'isolated_terrain':True,'arguments':['--experimental-terrain']}}
+  self.m['suites']['settings_coop']['profile']='terrain';self.save_map()
+  before=self.new().keys
+  self.m['profiles']['terrain']['arguments'].append('--combat-affinities');self.save_map()
+  after=self.new()
+  self.assertEqual({n for n in before if before[n]!=after.keys[n]},{'settings_coop'})
+  self.assertEqual(after.plan(changed=['tools/test_map.json::profile:terrain'])['predicted_invalidations'],['settings_coop'])
+  self.assertEqual(after.plan(changed=['tools/test_map.json::suite:settings'])['predicted_invalidations'],['settings'])
+
+ def test_unknown_or_unsafe_fixture_profiles_fail_closed(self):
+  from validation_registry import fixture_profile
+  for profile in [{'arguments':['--script']},{'isolated_terrain':True},
+                  {'isolated_terrain':True,'arguments':['--experimental-terrain','--experimental-terrain']}]:
+   with self.subTest(profile=profile),self.assertRaises(ValueError):
+    fixture_profile(self.p,'settings',{'profiles':{'standard':profile}})
+  self.m['suites']['settings']['profile']='unknown';self.save_map()
+  with self.assertRaisesRegex(ValueError,'Unknown fixture profile'):self.new()
+
+ def test_selftests_are_stability_inputs_not_cache_salts(self):
+  before=self.new();source=dict(before.keys);pack={n:before.package_key(n) for n in before.suites}
+  self.put('tools/tests/extra_check.py','assert True\n')
+  after=self.new()
+  self.assertNotEqual(before.infrastructure,after.infrastructure)
+  self.assertEqual(after.keys,source)
+  self.assertEqual({n:after.package_key(n) for n in after.suites},pack)
+  self.assertTrue(after.release_ready())
+
+ def test_packaging_changes_preserve_source_but_rekey_package(self):
+  before=self.new();source=dict(before.keys);pack={n:before.package_key(n) for n in before.suites}
+  self.put('tools/packaged_fixture_support.py','# changed external package preparation\n')
+  after=self.new();self.assertEqual(after.keys,source)
+  self.assertTrue(all(after.package_key(n)!=pack[n] for n in after.suites))
+  self.assertEqual(after.plan(changed=['tools/packaged_fixture_support.py'])['predicted_invalidations'],[])
+
+ def test_smoke_launcher_only_rekeys_smoke(self):
+  self.put('test/net_test.gd','extends Node\n');self.put('test/run_net_test.ps1','# launcher\n')
+  self.m['suites']['supplied_network_smoke']={'kind':'smoke','systems':['settings'],'package':True};self.save_map()
+  before=self.new().keys
+  self.put('test/run_net_test.ps1','# changed launcher\n')
+  after=self.new()
+  self.assertEqual({n for n in before if before[n]!=after.keys[n]},{'supplied_network_smoke'})
+  self.assertEqual(after.plan(changed=['test/run_net_test.ps1'])['predicted_invalidations'],['supplied_network_smoke'])
+
+ def test_shared_executor_changes_rekey_source(self):
+  before=self.new().keys
+  self.put('tools/validation_execution.py','EXECUTOR_CONTRACT=2\n')
+  self.assertTrue(all(self.new().keys[n]!=key for n,key in before.items()))
+
+ def test_shared_local_executor_helper_is_a_real_execution_input(self):
+  self.put('tools/validation_execution.py','import fixture_environment_helper\n')
+  self.put('tools/fixture_environment_helper.py','PROFILE_VERSION=1\n')
+  before=self.new().keys
+  self.put('tools/fixture_environment_helper.py','PROFILE_VERSION=2\n')
+  self.assertTrue(all(self.new().keys[n]!=key for n,key in before.items()))
+
+ def test_relative_validator_import_requires_explicit_boundary(self):
+  self.put('tools/validation_execution.py','from . import unmapped_helper\n')
+  with self.assertRaisesRegex(ValueError,'explicit input boundary'):self.new()
+
+ def test_midrun_authoring_edit_still_discards_results(self):
+  flow=self.new()
+  def execute(name,folder):
+   self.put('tools/tests/changed_during_run.py','# new check\n')
+   return {'key':flow.keys[name],'passed':True,'seconds':0,'logs':flow.cache.get(name,{}).get('logs',{})}
+  with patch.object(flow,'execute',side_effect=execute):self.assertFalse(flow.run('focused',no_cache=True))
+  self.assertFalse(w.read_json(flow.root/'latest-report.json')['stable_inputs'])
+
+ def test_old_lineage_cannot_relabel_an_old_key(self):
+  cache=w.read_json(self.flow.root/'cache.json');cache['settings']['key']='old-format-key';w.write_json(self.flow.root/'cache.json',cache)
+  w.write_json(self.flow.root/'key-lineage.json',{'anchor':self.flow.infrastructure,'runner':self.flow.runner_signature(),'files':{}})
+  self.assertFalse(self.new().valid('settings'))
+  self.assertEqual(w.read_json(self.flow.root/'cache.json')['settings']['key'],'old-format-key')
+
+ def test_external_matching_snapshots_preserve_tokens_and_keys(self):
+  self.m['game_regions']={'plant':{'feature':{'match':'return 1','baseline':'return 0','systems':['seeds']}}}
+  self.save_map();before=self.new()
+  rule=self.m['game_regions']['plant']['feature']
+  pair={key:rule.pop(key) for key in ['match','baseline']}
+  self.m['matching_data']='matches.json';self.save_map()
+  self.put('tools/matches.json',json.dumps({'schema':1,'game_regions':{'plant':{'feature':pair}},'file_regions':{}}))
+  after=self.new()
+  self.assertEqual(after.tokens,before.tokens);self.assertEqual(after.keys,before.keys)
+  self.assertEqual(after.map['game_regions'],before.map['game_regions'])
+
+ def test_external_matching_data_rejects_missing_or_escaping_records(self):
+  self.m['matching_data']='../escape.json';self.save_map()
+  with self.assertRaisesRegex(ValueError,'stay inside tools'):self.new()
+  self.m['matching_data']='matches.json';self.save_map()
+  self.put('tools/matches.json',json.dumps({'schema':1,'game_regions':{'unknown':{}},'file_regions':{}}))
+  with self.assertRaisesRegex(ValueError,'ownership differs'):self.new()
 
 if __name__=='__main__':unittest.main()

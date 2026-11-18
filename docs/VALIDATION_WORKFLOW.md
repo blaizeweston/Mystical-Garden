@@ -4,7 +4,7 @@ User testing policy, reaffirmed 2026-11-10: full game-suite runs are reserved fo
 
 Inspect the plan before running it. Update ownership and interaction coverage alongside implementation, then run the affected unit suites and relevant integration/network scenarios. Reuse trustworthy results for unaffected inputs. A tree update, new test, elapsed week, or broad file dependency is not by itself a reason to rerun the full game suite.
 
-The planner now keeps Full explicit. Map-only edits and planner self-tests do not discard verified evidence for unchanged runtime inputs. A verified cache lineage preserves the original keys when executor semantics are unchanged; actual executor/engine changes invalidate the appropriate evidence. Existing result rows and log hashes are never rewritten to manufacture a pass.
+The planner keeps Full explicit. Cache-key format 2 separates source execution, package preparation and mid-run stability. Registry neighbours, planner self-tests and packaging-only edits do not invalidate unchanged source execution. Actual executor, engine, relevant coverage and fixture-profile changes still invalidate their consumers. Existing result rows and log hashes are never rewritten to manufacture a pass. Old format keys and `key-lineage.json` cannot certify format 2: adopting it causes one explicit evidence refresh, which must be scheduled separately from this tooling change.
 
 Narrow, explicitly mapped wiring regions allow a gate-distance call or a HUD hook in a large dispatcher to own its specific coverage. The untouched remainder retains its previous identity, while the extracted fragment, its location and its service are fingerprinted for their declared consumers. Changes elsewhere in that dispatcher remain conservatively covered. Resource traversal respects these region boundaries. Unknown inputs block execution until classified; they do not silently trigger Full.
 
@@ -49,6 +49,22 @@ Use Full only for a major release or explicit user request. Shared changes can r
 
 `-NoCache` reruns checks eligible for the selected mode; it does not promote the mode to Full. `-VerifyOnly` tests a staged package without replacing the player's EXE. Packaged validation reuses matching suite evidence and always checks startup/catalogs and a real peer connection.
 
+## Validation definitions and input boundaries
+
+| Edit or input | Authoritative location | Effect on retained evidence |
+|---|---|---|
+| Systems, suite runners, coverage, explicit fixture profiles and relationships | `tools/test_map.json` | Only a changed suite's effective inputs invalidate it. Labels and relationship explanations do not execute fixtures. Removing a suite does not rekey surviving suites. |
+| Exact scoped-source anchors and prior normalization text | `tools/validation_scope_matches.json`, joined by `validation_registry.py` | Retained matching data, not a second ownership map. Missing, orphaned, escaping or duplicated records fail closed. These baseline strings are migration records; do not recapture them blindly from current code. |
+| Source execution and verdict checks | `validation_execution.py`; execution/evidence methods in `test_workflow.py`; local helper closure in `validation_inputs.py` | Shared execution changes rekey affected source results. Engine binaries, actual fixture bytes, reachable resources and declared runtime regions remain required. |
+| Package preparation and export checks | `packaged_fixture_support.py`, `release_latest.ps1`, `playtest_release.py`, `build_playtest.ps1`, `validation_python.ps1` | Package keys include the source key plus this contract. Package-only edits invalidate package evidence, not source gameplay passes. |
+| Raw tools, declarations, matching data, self-tests and runtime bytes | Mid-run stability checks | Editing any of these while a run is active discards its new results, even when the edit would not change cross-run suite keys. |
+
+Fixture environments are explicit: `standard` uses the ordinary disposable profile, `terrain` adds the independently marked terrain save root, and `affinity` preserves the existing terrain/affinity arguments. New fixtures declare the appropriate profile rather than being added to a runner name list. Unknown profiles or unsafe arguments stop validation.
+
+The readable map contains ownership and options only; the larger matching file retains exact strings required by existing scoped fingerprints. A scope change requires reviewing both its ownership and matching record, then regenerating the documentation. Moving matching strings between these files does not change runtime tokens.
+
+Release summaries require every **currently registered** source suite, including reused results not executed by the latest plan. Retired rows remain historical evidence and are excluded from current coverage. Export archives retain the original index as `source-cache-history.json` and publish an active-only reusable index without changing verdicts, keys or hashes. Missing current results still block release. This does not authorize a release from a partial focused run.
+
 ## What selects tests
 
 Each suite declares the mechanics and interactions it covers. The planner combines those declarations with literal `res://` resource dependencies found in the test and its referenced files. Inputs include runtime code, assets and import settings, test code, Godot and validation tooling. A change invalidates only results whose relevant input fingerprint changed; absent or modified evidence logs invalidate reuse too.
@@ -63,7 +79,7 @@ For suites whose literal resource dependencies reach `game.gd`, the planner also
 
 If a recognized receiver uses a computed method name, that fixture depends on all dispatcher bodies and regions. Receiver aliases passed through arbitrary helpers, scene signals, runtime dispatch and transitive method calls still rely on declared ownership. Include those consumers in the function or region's system ownership. If the affected systems cannot be bounded confidently, use foundation ownership for that function or region so connected validation rechecks all suites. A new dependency can make older evidence stale even if the gameplay files are identical.
 
-Dependency declarations require judgment, especially for dynamic loading or shared state. If impact is uncertain, run Full and update the map before relying on selective results. Automated test selection reduces repeated work; it does not replace playtesting combat feel, visuals or real internet conditions.
+Dependency declarations require judgment, especially for dynamic loading or shared state. If impact is uncertain, classify the dependency and review the affected plan before relying on selective results. Reserve Full for a major release or an explicit user request. Automated test selection reduces repeated work; it does not replace playtesting combat feel, visuals or real internet conditions.
 
 ## Preview an idea
 
@@ -72,11 +88,15 @@ Dependency declarations require judgment, especially for dynamic loading or shar
 ./tools/validate_release.ps1 -PlanOnly -ChangedFiles seed_catalog.gd
 ./tools/validate_release.ps1 -PlanOnly -ChangedFiles 'game.gd::harvest'
 ./tools/validate_release.ps1 -PlanOnly -ChangedFiles save_batch.gd
+./tools/validate_release.ps1 -PlanOnly -ChangedFiles 'tools/test_map.json::suite:cr02_mode_coop'
+./tools/validate_release.ps1 -PlanOnly -ChangedFiles 'tools/test_map.json::profile:affinity'
 ```
 
 Previews use the same input set as each suite fingerprint. This includes implicit foundation inputs, literal resource dependencies, and dispatcher calls found in fixtures. `predicted_invalidations` lists every matching suite. Focused mode displays only the unit suites it would schedule.
 
 A path-only preview assumes the specified fingerprint changes. Use `game.gd::$contract` for signature, RPC declaration, or shared declaration edits. Use `game.gd::function` for a known body token and include any region tokens affected by the edit. An unqualified `game.gd` conservatively includes the shared contract. A bare scoped text file name previews its normalized base. Include `path::#region` for every affected region. Normalized-away edits, such as local export path changes, can leave fingerprints unchanged. New dependency edges, changes to ownership or validation infrastructure, and compound edits may require inspecting the edited files to determine the exact impact.
+
+A map selector can name `suite:<id>`, `profile:<name>` or `system:<id>` to review that declaration's consumers. Whole-map or matching-file previews cannot infer which records will change and remain conservative; inspect the actual edited keys. A self-test or package-only path reports no source invalidation, while the mid-run edit guard still applies.
 
 An unrecognized proposed input reports `blocked` and shows all suites as a conservative estimate. The actual runner stops before launching tests when it discovers unmapped runtime inputs or unregistered fixtures. Classify the input or inspect the edited project to resolve the estimate. Actual validation hashes current files and checks cached evidence integrity independently of the preview.
 
@@ -90,7 +110,7 @@ Import new scripts/resources with Godot before source validation so generated `.
 
 1. Content added through an existing template keeps its existing system ownership. Update the relevant content-validation/template tests when needed.
 2. For a new runtime file, add its system ownership or a specific asset rule to `tools/test_map.json`. Unmapped runtime files block validation until classified.
-3. Register a new suite's runner (`unit`, `pair`, `solo`, `party`, `smoke`), covered systems and packaged-test capability. The discovery audit catches unregistered tests. Optional benchmarks need an explicit explanation in `ignored_tests`.
+3. Register a new suite's runner (`unit`, `pair`, `solo`, `party`, `smoke`), covered systems, fixture profile and packaged-test capability. The discovery audit catches unregistered tests. Optional benchmarks need an explicit explanation in `ignored_tests`.
 4. Packaged unit tests must work with compiled scripts and replace `res://.godot/` fixtures with `user://release-fixtures/`. Source-only tests can inspect source; mark them accordingly. Every package always receives startup/catalog/exclusion smoke and a real host/three-guest connection smoke. Portable affected suites add feature-specific checks.
 5. Regenerate the human-readable map:
 

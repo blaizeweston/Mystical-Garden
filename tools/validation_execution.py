@@ -26,49 +26,8 @@ GDSCRIPT = re.compile(r'''(?P<literal>"""(?:\\.|(?!""").)*"""|\'\'\'(?:\\.|(?!\'
 PEERS = {"unit": ("unit",), "solo": ("solo",), "pair": ("host", "guest"),
          "party": ("host", "1", "2", "3", "overflow")}
 WINDOWS_NETWORK_MUTEX = r"Global\MysticalGarden.Validation.UDP.v1"
-LOCK_LIBRARY = "b0_native_lock.dll"
-LOCK_RESOURCE = Path("assets/native/persistence_lock") / LOCK_LIBRARY
-
-
-def stage_packaged_lock(project, pack, runtime):
-    """Expose the exported companion at its res:// path for editor --main-pack."""
-    source = project / LOCK_RESOURCE
-    if not source.is_file():
-        return
-    companion = pack.with_name(LOCK_LIBRARY)
-    if not companion.is_file() or companion.read_bytes() != source.read_bytes():
-        raise ValueError(f"Missing or mismatched packaged persistence lock: {companion}")
-    destination = runtime / LOCK_RESOURCE
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(companion, destination)
-
-
-def stage_packaged_fixture_helpers(project, runtime, source):
-    """Keep excluded test helpers beside the external driver, outside the pack."""
-    project, runtime = Path(project).resolve(), Path(runtime).resolve()
-    helper_root = (project / "tests").resolve()
-    if not helper_root.is_relative_to(project):
-        raise ValueError("Fixture helper directory escapes the source project")
-    literals = re.compile(r"""\b(?:preload|load)\s*\(\s*(["'])(res://tests/[^"'\r\n]+\.gd)\1\s*\)""")
-    pending, staged = [source], set()
-    while pending:
-        text = pending.pop()
-        for match in literals.finditer(text):
-            relative = Path(match[2].removeprefix("res://"))
-            if "\\" in match[2] or ".." in relative.parts:
-                raise ValueError("Unsafe fixture helper path: " + match[2])
-            if relative in staged:
-                continue
-            helper = (project / relative).resolve(strict=True)
-            destination = runtime / relative
-            if (not helper.is_relative_to(helper_root) or not helper.is_file()
-                    or not destination.resolve().is_relative_to(runtime)):
-                raise ValueError("Fixture helper escapes its owned directories: " + match[2])
-            data = helper.read_bytes()
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(data)
-            staged.add(relative)
-            pending.append(data.decode("utf-8-sig"))
+from packaged_fixture_support import LOCK_LIBRARY, LOCK_RESOURCE, stage_packaged_lock, stage_packaged_fixture_helpers
+from validation_registry import fixture_profile
 
 
 def read_json(path):
@@ -235,8 +194,8 @@ def run_fixture(project, engine, fixture, kind, script, folder, run_id, pack=Non
         raise ValueError("invalid fixture name or run ID")
     folder = folder.resolve()
     folder.mkdir(parents=True, exist_ok=False)
-    affinity_fixtures = ("cr02_mode_coop", "cr02_definitions_mismatch", "cr03_frost_coop", "cr03_frost_party", "cr04a_fire_coop", "cr04a_water_coop", "cr04a_vital_coop", "cr04a_mixed_party", "cr04b_thorn_coop", "cr04b_wood_coop", "cr04b_mixed_party", "cr04c_storm_coop", "cr04c_spirit_coop", "cr04c_void_coop", "cr04c_mixed_party", "cr05_native_grafts", "cr05_native_grafts_coop", "cr05_native_grafts_party", "ct01_warden", "ct01_warden_coop", "ct02_weaver", "ct02_weaver_coop", "ct02_weaver_party", "ct03_ranger_coop", "ct03_ranger_party", "ct04_reaper_coop", "ct04_reaper_party", "ct05_oracle_coop", "ct05_oracle_party", "ec01_affinity_cards_party")
-    terrain_coop = fixture == "experimental_terrain_coop" or fixture in affinity_fixtures
+    profile = fixture_profile(project, fixture)
+    terrain_coop = profile["isolated_terrain"]
     env = None if terrain_coop else fixture_environment(project)
     default_port = 32295 if kind == "party" else 32291 if pack else 32283
     terrain_signals = folder / "signals"
@@ -282,9 +241,7 @@ def run_fixture(project, engine, fixture, kind, script, folder, run_id, pack=Non
                                  MYSTICAL_GARDEN_TEST_PORT=str(port or default_port))
                 if terrain_coop:
                     child_env["MYSTICAL_TERRAIN_TEST_SIGNALS"] = str(terrain_signals)
-                    user_args.append("--experimental-terrain")
-                    if fixture in affinity_fixtures:
-                        user_args.append("--combat-affinities")
+                user_args.extend(profile["arguments"])
                 profile_roots[peer] = child_env["APPDATA"]
                 with (folder / f"{peer}.log").open("wb") as log, (folder / f"{peer}.stderr.log").open("wb") as stderr:
                     processes[peer] = subprocess.Popen(

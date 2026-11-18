@@ -273,12 +273,26 @@ def seed_cache(project, shared):
         shutil.copyfile(index, destination / name)
 
 
+def active_source_rows(project, rows):
+    """Require current suites; retained retired rows are historical evidence only."""
+    registry = evidence.read_json(project / "tools/test_map.json")
+    suites = registry.get("suites") if isinstance(registry, dict) else None
+    if not isinstance(suites, dict) or not suites or not isinstance(rows, dict) or not suites.keys() <= rows.keys():
+        raise ValueError("Incomplete source suite evidence for the current registry.")
+    return {name: rows[name] for name in suites}
+
+
 def keep_cache(project, shared, output):
     validation = project / ".godot/validation"
     for name, results in (("cache.json", False), ("package-cache.json", True)):
         cache = evidence.read_json(validation / name)
         if not cache:
             raise ValueError("Incomplete release validation cache.")
+        if not results:
+            # Preserve the original index without republishing retired results as
+            # current coverage. Never change a retained verdict, key or log hash.
+            shutil.copyfile(validation / name, output / "source-cache-history.json")
+            cache = active_source_rows(project, cache)
         rows = cache["results"].values() if results else (item["logs"] for item in cache.values())
         for row in rows:
             for relative, digest in row.items():
@@ -296,9 +310,9 @@ def keep_cache(project, shared, output):
                     raise ValueError("A prior validation log already uses this identity.")
         latest = shared / "validation" / name
         scratch = latest.with_suffix("." + uuid.uuid4().hex + ".tmp")
-        shutil.copyfile(validation / name, scratch)
+        evidence.write_json(scratch, cache)
         scratch.replace(latest)
-        shutil.copyfile(validation / name, output / name)
+        shutil.copyfile(latest, output / name)
 
 
 def summarize(project, package, output):
@@ -310,8 +324,9 @@ def summarize(project, package, output):
     package_rows = evidence.read_json(root / "package-cache.json")
     if not source_rows or not package_rows:
         raise ValueError("Missing connected or packaged fixture records.")
-    if set(source_rows) != set(source["plan"]["selected"]) or set(package_rows["results"]) != set(package["plan"]["keys"]):
-        raise ValueError("Incomplete source or packaged suite evidence.")
+    source_rows = active_source_rows(project, source_rows)
+    if set(package_rows["results"]) != set(package["plan"]["keys"]):
+        raise ValueError("Incomplete packaged suite evidence.")
     registry = evidence.read_json(project / "tools/test_map.json")["suites"]
 
     def row(name, paths):
