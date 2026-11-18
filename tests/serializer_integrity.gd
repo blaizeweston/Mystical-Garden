@@ -19,6 +19,7 @@ const Identity = "cc390ac1d0464c02a1ca4ec967e131ea"
 var failed := false
 
 class LegacyWorld extends Node:
+ var persistence_session := preload("res://guarded_title_session.gd").new()
  const HOST = 1
  var progress := Garden.new()
  var local_character := Profile.new()

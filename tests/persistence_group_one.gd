@@ -16,6 +16,7 @@ var failed := false
 var notifications := 0
 
 class TransactionFixture extends Node:
+ var persistence_session := preload("res://guarded_title_session.gd").new()
  const HOST := 1
  var progress := Progress.new()
  var local_character := Profile.new()
