@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -125,7 +126,7 @@ func run():
 	game.encounter.set_hp(-1, 0)
 	game.tactics.winding_up=false
 	for kind in Enemies.all().size():
-		ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.pos=Vector3(0,0,5.4);p.slow_until=0;p.guard_until=0
+		ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.pos=Vector3(0,0,5.4);p.slow_until=0;p[Protection.STATE] = p[Protection.STATE].clear_guard()
 		var mob: Dictionary=game.make_scout(kind,p.pos+Vector3.RIGHT*.8,1)
 		game.encounter.clear_scouts();game.encounter.register_scout(mob)
 		var at:=Time.get_ticks_msec()

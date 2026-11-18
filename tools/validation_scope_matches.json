@@ -63,7 +63,7 @@
     },
     "move_player": {
       "ct03_ranger_1": {
-        "match": "\tvar guard_speed: float=.4 if Time.get_ticks_msec()<int(p.get(\"front_guard_until\",0)) else 1.0\n\tvar stride := preload(\"res://spirit_affinity.gd\").scale(p,preload(\"res://affinity_time.gd\").now(self)) if p.has(\"affinity_spirit_strides\") else 1.0\n\tif p.has(\"ranger_speed_grants\"):\n\t\tstride = maxf(stride,preload(\"res://ranger_combat.gd\").speed_scale(self,p,Time.get_ticks_msec()))\n\tvar desired := bound_position(p.pos + move * WALK_SPEED * guard_speed * stride * (0.6 if Time.get_ticks_msec() < int(p.get(\"slow_until\", 0)) else 1.0) * delta, Participation.is_wild(p))\n\tvar previous: Vector3=p.pos\n",
+        "match": "\tvar guard_speed: float=p[Protection.STATE].movement_scale(Time.get_ticks_msec())\n\tvar stride := preload(\"res://spirit_affinity.gd\").scale(p,preload(\"res://affinity_time.gd\").now(self)) if p.has(\"affinity_spirit_strides\") else 1.0\n\tif p.has(\"ranger_speed_grants\"):\n\t\tstride = maxf(stride,preload(\"res://ranger_combat.gd\").speed_scale(self,p,Time.get_ticks_msec()))\n\tvar desired := bound_position(p.pos + move * WALK_SPEED * guard_speed * stride * (0.6 if Time.get_ticks_msec() < int(p.get(\"slow_until\", 0)) else 1.0) * delta, Participation.is_wild(p))\n\tvar previous: Vector3=p.pos\n",
         "baseline": "\tvar guard_speed: float=.4 if Time.get_ticks_msec()<int(p.get(\"front_guard_until\",0)) else 1.0\n\tvar stride := preload(\"res://spirit_affinity.gd\").scale(p,preload(\"res://affinity_time.gd\").now(self)) if p.has(\"affinity_spirit_strides\") else 1.0\n\tvar desired := bound_position(p.pos + move * WALK_SPEED * guard_speed * stride * (0.6 if Time.get_ticks_msec() < int(p.get(\"slow_until\", 0)) else 1.0) * delta, Participation.is_wild(p))\n\tvar previous: Vector3=p.pos\n"
       },
       "cr04c_spirit_0": {
@@ -465,7 +465,7 @@
     },
     "player_snapshot": {
       "ar08_lifecycle_1": {
-        "match": "\t\tvar state := {\"motion_radius\":bound_position(Vector3(1000,0,0)).x,\"motion_epoch\":net_motion.world_key(self,p),\"motion_ack\":net_motion.acknowledgement(id,net_motion.world_key(self,p)),\"motion_scale\":(.4 if Time.get_ticks_msec()<int(p.get(\"front_guard_until\",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get(\"slow_until\",0)) else 1.0)*stride,\"velocity\":p.get(\"velocity\",Vector3.ZERO),\"vitals_revision\":p.get(\"vitals_revision\",0),\"damage_seq\":p.get(\"damage_seq\",0),\"damage_amount\":p.get(\"damage_amount\",0),\"party_slot\":Session.slot_for(p,0),\"display_name\":p.character.get(\"name\",\"Wanderer\"),\"enemy_max_hp\":encounter_health(),\"pos\": p.pos, \"wild\": Participation.is_wild(p), \"fallen\":PlayerLifecycle.fallen(p),\"lost_health\":p.get(\"lost_health\",0), \"hp\": health.hp(), \"max_hp\": health.max_hp(), \"appearance\": PackedByteArray(p.character.get(\"appearance\", [0,0,0,0,0])), \"frame\": p.frame,\n",
+        "match": "\t\tvar state := {\"motion_radius\":bound_position(Vector3(1000,0,0)).x,\"motion_epoch\":net_motion.world_key(self,p),\"motion_ack\":net_motion.acknowledgement(id,net_motion.world_key(self,p)),\"motion_scale\":p[Protection.STATE].movement_scale(Time.get_ticks_msec())*(.6 if Time.get_ticks_msec()<int(p.get(\"slow_until\",0)) else 1.0)*stride,\"velocity\":p.get(\"velocity\",Vector3.ZERO),\"vitals_revision\":p.get(\"vitals_revision\",0),\"damage_seq\":p.get(\"damage_seq\",0),\"damage_amount\":p.get(\"damage_amount\",0),\"party_slot\":Session.slot_for(p,0),\"display_name\":p.character.get(\"name\",\"Wanderer\"),\"enemy_max_hp\":encounter_health(),\"pos\": p.pos, \"wild\": Participation.is_wild(p), \"fallen\":PlayerLifecycle.fallen(p),\"lost_health\":p.get(\"lost_health\",0), \"hp\": health.hp(), \"max_hp\": health.max_hp(), \"appearance\": PackedByteArray(p.character.get(\"appearance\", [0,0,0,0,0])), \"frame\": p.frame,\n",
         "baseline": "\t\tvar state := {\"motion_radius\":bound_position(Vector3(1000,0,0)).x,\"motion_epoch\":net_motion.world_key(self,p),\"motion_ack\":net_motion.acknowledgement(id,net_motion.world_key(self,p)),\"motion_scale\":(.4 if Time.get_ticks_msec()<int(p.get(\"front_guard_until\",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get(\"slow_until\",0)) else 1.0)*stride,\"velocity\":p.get(\"velocity\",Vector3.ZERO),\"vitals_revision\":p.get(\"vitals_revision\",0),\"damage_seq\":p.get(\"damage_seq\",0),\"damage_amount\":p.get(\"damage_amount\",0),\"party_slot\":Session.slot_for(p,0),\"display_name\":p.character.get(\"name\",\"Wanderer\"),\"enemy_max_hp\":encounter_health(),\"pos\": p.pos, \"wild\": Participation.is_wild(p), \"fallen\":p.fallen,\"lost_health\":p.get(\"lost_health\",0), \"hp\": health.hp(), \"max_hp\": health.max_hp(), \"appearance\": PackedByteArray(p.character.get(\"appearance\", [0,0,0,0,0])), \"frame\": p.frame,\n"
       },
       "ar07_vitals_1": {
@@ -1377,12 +1377,6 @@
         "baseline": "\tbutton.focus_mode = Control.FOCUS_NONE\n"
       }
     },
-    "grant_guard": {
-      "cb04_7": {
-        "match": "player.guard_charges=maxi(old_charges,Skills.Balance.guard_charges(charges))",
-        "baseline": "player.guard_charges=maxi(old_charges,clampi(charges,1,4))"
-      }
-    },
     "encounter_health": {
       "cb06_4": {
         "match": "\tif not multiplayer.is_server(): return int(players.get(multiplayer.get_unique_id(),{}).get(\"enemy_max_hp\",Life.Preview.hp(ENEMY_HEALTH)))\n\tif participation.route()!=Campaign.HEART:\n\t\tif tactics.boss_kind>=0: return Director.Balance.boss_hp(Enemies.get_kind(tactics.boss_kind),participation.floor(),participation.cycle(),encounter_party_size)\n\t\treturn Director.Balance.elite_hp(Enemies.get_kind(enemy_kind),participation.floor(),participation.depth(),participation.cycle(),encounter_party_size)\n\tif tactics.boss_kind>=0:",
@@ -1535,12 +1529,6 @@
       "ar08_lifecycle_3": {
         "match": "\t\tvar options: Array = pending[target].filter(func(row):\n\t\t\treturn row.token==token and int(row.epoch)==game.participation.epoch() \\\n\t\t\t\tand PlayerLifecycle.matches(game.players.get(row.actor,{}),int(row.source_life)))\n",
         "baseline": "\t\tvar options: Array=pending[target].filter(func(row):return row.token==token and int(row.epoch)==game.participation.epoch())\n"
-      }
-    },
-    "ward_responses.gd": {
-      "ar08_lifecycle_1": {
-        "match": "\t\tif chosen.event.publish(game, \"actual_block\", \"ward\", chosen.event.block_scope(id, chosen.adapter), now,\n\t\t\t\t{\"adapter\": chosen.adapter.id, \"recipient\": id, \"center\": player.pos}):\n\t\t\treturn chosen.event\n",
-        "baseline": "\t\tchosen.event.publish(game, \"actual_block\", \"ward\", chosen.event.block_scope(id, chosen.adapter), now,\n\t\t\t{\"adapter\": chosen.adapter.id, \"recipient\": id, \"center\": player.pos})\n\t\treturn chosen.event\n"
       }
     },
     "combat_vitals.gd": {
@@ -1853,7 +1841,7 @@
         "baseline": "\tsources[\"%d/%s\" % [event.actor,event.source]] = {\n\t\t\"reduction\": event.potency().reduction, \"until\": elapsed + DURATION_MS,\n\t\t\"quality\": event.quality, \"activation\": event.identity, \"item\": event.material_id,\n"
       },
       "ec01_2": {
-        "match": "\t\t\t\t\tcleanse(game.players[id])\n\t\t\t\t\tvar ward_ms := int(event.potency().get(\"shelter_ward_ms\",0))\n\t\t\t\t\tif ward_ms > 0:\n\t\t\t\t\t\tgame.grant_guard(game.players[id],now+ward_ms,1)\n\t\t\telse:\n",
+        "match": "\t\t\t\t\tcleanse(game.players[id])\n\t\t\t\t\tvar ward_ms := int(event.potency().get(\"shelter_ward_ms\",0))\n\t\t\t\t\tif ward_ms > 0:\n\t\t\t\t\t\tgame.players[id][Protection.STATE] = game.players[id][Protection.STATE].grant(now+ward_ms,1,Time.get_ticks_msec(),game.participation.epoch())\n\t\t\telse:\n",
         "baseline": "\t\t\t\t\tcleanse(game.players[id])\n\t\t\telse:\n"
       }
     },
@@ -2023,7 +2011,7 @@
         "baseline": "\nstatic func shared_bark(game: Node, player: Dictionary, now: int) -> void:\n\tvar best: Dictionary = player\n"
       },
       "ct01_13": {
-        "match": "\tgame.grant_guard(best,now+950,1)\n\tcue(game,label,best.pos)\n\n",
+        "match": "\tbest[Protection.STATE] = best[Protection.STATE].grant(now+950,1,Time.get_ticks_msec(),game.participation.epoch())\n\tcue(game,label,best.pos)\n\n",
         "baseline": "\tgame.grant_guard(best,now+950,1)\n\tcue(game,\"Shared Bark\",best.pos)\n\n"
       },
       "ct01_15": {
@@ -4697,7 +4685,7 @@
         "baseline": "static func tint(kind: String) -> Color:\n if kind==Ranger.PREY:return Ranger.PREY_COLOR\n if kind==\"burning\":return Color(\"#f29b57\")\n if kind==\"drenched\":return Color(\"#82d7ec\")\n"
       },
       "ct05_oracle_3": {
-        "match": "   player.erase(\"affinity_ward_claims\")\n  if not game.Life.alive(player) or not Participation.is_wild(player):continue\n  if player.has(Oracle.Omens.STATE):\n   var omens:=Oracle.Omens.indicators(game,player,now)\n   for omen in omens: add(desired,game,omen,id,false,int(omens[omen]),1,now)\n  if player.has(Oracle.RITUAL):\n   add(desired,game,Oracle.RITUAL,id,false,Oracle.prepared_until(game,player,Oracle.RITUAL,now),1,now)\n  if player.has(Oracle.CHIME) and Oracle.prepared_until(game,player,Oracle.CHIME,now)>0:\n   add(desired,game,Oracle.CHIME,id,false,now+60000,1,now)\n  if player.has(\"affinity_vital_sources\"):add(desired,game,\"vitality\",id,false,now+60000,1,now)\n  var charge: Dictionary=player.get(\"affinity_storm_charge\",{})\n",
+        "match": "  if not game.Life.alive(player) or not Participation.is_wild(player):continue\n  if player.has(Oracle.Omens.STATE):\n   var omens:=Oracle.Omens.indicators(game,player,now)\n   for omen in omens: add(desired,game,omen,id,false,int(omens[omen]),1,now)\n  if player.has(Oracle.RITUAL):\n   add(desired,game,Oracle.RITUAL,id,false,Oracle.prepared_until(game,player,Oracle.RITUAL,now),1,now)\n  if player.has(Oracle.CHIME) and Oracle.prepared_until(game,player,Oracle.CHIME,now)>0:\n   add(desired,game,Oracle.CHIME,id,false,now+60000,1,now)\n  if player.has(\"affinity_vital_sources\"):add(desired,game,\"vitality\",id,false,now+60000,1,now)\n  var charge: Dictionary=player.get(\"affinity_storm_charge\",{})\n",
         "baseline": "   player.erase(\"affinity_ward_claims\")\n  if not game.Life.alive(player) or not Participation.is_wild(player):continue\n  if player.has(\"affinity_vital_sources\"):add(desired,game,\"vitality\",id,false,now+60000,1,now)\n  var charge: Dictionary=player.get(\"affinity_storm_charge\",{})\n"
       },
       "ct04_reaper_1": {
@@ -5504,17 +5492,9 @@
         "match": "  if event.kind==\"tide\" or event.kind==\"sanctuary\":\n   var heal_hp:=Preview.roll_heal(Preview.authored_amount(float(event.power)),Preview.HEAL_TICK_SPREAD_HP)\n   for ally in game.players.values():",
         "baseline": "  if event.kind==\"tide\" or event.kind==\"sanctuary\":\n   for ally in game.players.values():"
       },
-      "cb04_4": {
-        "match": "var balance=preload(\"res://class_skill_balance.gd\")\n  p.counter_until=now+balance.COUNTER_WINDOW_MS;p.counter_power=balance.counter_points(stats)",
-        "baseline": "p.counter_until=now+3500;p.counter_power=Preview.proc_amount(1.0+float(stats.get(\"counter_damage\",0)),1,4)"
-      },
       "cb04_5": {
         "match": "var duration:=preload(\"res://class_skill_balance.gd\").trap_duration(skill,stats)",
         "baseline": "var duration:=int(skill.get(\"trap_ms\",3800))"
-      },
-      "cb03_counter_potency": {
-        "match": "p.counter_power=Preview.proc_amount(1.0+float(stats.get(\"counter_damage\",0)),1,4)",
-        "baseline": "p.counter_power=mini(4,1+roundi(float(stats.get(\"counter_damage\",0))))"
       },
       "cb03_trait_hp_tooltip": {
         "match": " for key in KEYS:\n  var amount:=float(values.get(key,0))\n  if amount<=0:continue\n  var value:=str(values[key]).trim_suffix(\".0\")\n  if Preview.enabled and Preview.COMPONENT_HP_LABELS.has(key):\n   value=\"%d HP\"%Preview.effect_hp(amount)\n  lines.append(\"%s: %s\"%[labels.get(key,key.replace(\"_\",\" \").capitalize()),value])",
@@ -6455,7 +6435,7 @@
         "baseline": "Balance.Preview.heal(player,Balance.drain_amount(skill,affected.size()))"
       },
       "cb04_ward_time_1": {
-        "match": "\t\tgame.grant_guard(nearby[0],now+Balance.WARD_MS,1)",
+        "match": "\t\tnearby[0][Protection.STATE] = nearby[0][Protection.STATE].grant(now+Balance.WARD_MS,1,Time.get_ticks_msec(),game.participation.epoch())",
         "baseline": "\t\tgame.grant_guard(nearby[0],now+1400,1)"
       },
       "cb04_0": {

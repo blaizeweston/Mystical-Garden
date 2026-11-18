@@ -1,4 +1,5 @@
 extends RefCounted
+const Protection = preload("res://player_protection.gd")
 
 const Participation = preload("res://expedition_participation.gd")
 ## World transition adapter for expedition admission, return, floor advance,
@@ -84,7 +85,7 @@ static func admit(game: Node, id: int, p: Dictionary,reserved_override: Array=[]
 	preload("res://garden_return_service.gd").join(game,id,p)
 	p[game.PlayerLifecycle.STATE] = game.PlayerLifecycle.start_life()
 	p.lost_health=0
-	for key in ["grave_charges","counter_until","front_guard_until","counter_guard_until"]: p[key]=0
+	p.grave_charges=0
 	p.still_since=Time.get_ticks_msec();p.still_point=game.wild_entry(id)
 	p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new()
 	p.pos = game.wild_entry(id)
@@ -92,7 +93,7 @@ static func admit(game: Node, id: int, p: Dictionary,reserved_override: Array=[]
 	p.core_ready_at=0
 	p.core_cast_until=0
 	p.hurt_until=0
-	p.erase("affinity_ward_claims")
+	p[Protection.STATE] = p[Protection.STATE].clear_expedition()
 	p.erase("frost_response")
 	p.erase("affinity_ember_response")
 	p.erase("affinity_thorn_form_ready")
@@ -101,8 +102,6 @@ static func admit(game: Node, id: int, p: Dictionary,reserved_override: Array=[]
 	preload("res://spirit_affinity.gd").clear(p)
 	p.erase("affinity_void_form_ready")
 	if p.has("affinity_vital_sources"): preload("res://vital_combat.gd").clear(game,p)
-	p.guard_charges=0
-	p.guard_until = 0
 	p.weapon = p.prepared
 	p.secondary = p.prepared_secondary
 	p.catalyst = p.prepared_catalyst
@@ -158,7 +157,7 @@ static func return_member(game: Node, p: Dictionary) -> void:
 	p[game.PlayerLifecycle.STATE] = game.PlayerLifecycle.start_life()
 	p.lost_health=0
 	p.weapon = 0
-	p.erase("affinity_ward_claims")
+	p[Protection.STATE] = p[Protection.STATE].clear_expedition()
 	p.erase("frost_response")
 	p.erase("affinity_ember_response")
 	p.erase("affinity_thorn_form_ready")
@@ -167,10 +166,8 @@ static func return_member(game: Node, p: Dictionary) -> void:
 	preload("res://spirit_affinity.gd").clear(p)
 	p.erase("affinity_void_form_ready")
 	if p.has("affinity_vital_sources"): preload("res://vital_combat.gd").clear(game,p)
-	p.guard_until = 0
-	p.front_guard_until=0;p.counter_guard_until=0;p.counter_until=0;p.grave_charges=0
+	p.grave_charges=0
 	p.skill_fx_until=0
-	p.guard_charges=0
 	p.carried_parts.fill(0)
 	p.carried_seeds.clear()
 	p.safe_items=[]

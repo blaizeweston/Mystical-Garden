@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -79,12 +80,12 @@ func reset(class_id := 0) -> void:
 	for p: Dictionary in [player,ally]:
 		Cards.clear(p)
 		p[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new()
-		for key in [Rules.Wood.GRANTS,Rules.Spirit.STRIDES,Rules.Vital.SOURCES,"affinity_ward_claims",
+		for key in [Rules.Wood.GRANTS,Rules.Spirit.STRIDES,Rules.Vital.SOURCES,
 				Rules.Storm.FORM_READY,Rules.Void.FORM_READY,Rules.Wood.FORM_READY,"subclass_follow","warden_block"]:
 			p.erase(key)
 		p[Cooldowns.STATE] = Cooldowns.Timers.new()
-		for key in ["weapon","secondary","catalyst","graft_part","lost_health","guard_until","guard_charges",
-				"cast_until","core_ready_at","core_cast_until","last_offer"]:
+		p[Protection.STATE] = p[Protection.STATE].clear_expedition()
+		for key in ["weapon","secondary","catalyst","graft_part","lost_health","cast_until","core_ready_at","core_cast_until","last_offer"]:
 			p[key] = 0
 		p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
 		p.pos = Vector3.ZERO
@@ -410,16 +411,16 @@ func verify_dew_shelter() -> void:
 	Core.tick(game,cast.armed)
 	Clock.advance(game,.40)
 	Core.tick(game,int(cast.armed)+400)
-	var expiry: int = ally.guard_until
-	check(expiry==int(cast.armed)+1600 and ally.guard_charges==1 and ally.slow_until==0 and ally[PlayerVitals.STATE].hp()==ally[PlayerVitals.STATE].max_hp()
+	var expiry: int = ally[Protection.STATE].guard_until_ms()
+	check(expiry==int(cast.armed)+1600 and ally[Protection.STATE].charge_count()==1 and ally.slow_until==0 and ally[PlayerVitals.STATE].hp()==ally[PlayerVitals.STATE].max_hp()
 		and game.enemy_health()==400-baseline.impact_hp-bonus,"Dewfall grants one 1.2s Ward on a real living ally contact")
 	Clock.advance(game,.12)
 	Core.tick(game,int(cast.armed)+520)
-	check(ally.guard_until==expiry and ally.guard_charges==1,"same wave cannot renew or add an ally Ward")
+	check(ally[Protection.STATE].guard_until_ms()==expiry and ally[Protection.STATE].charge_count()==1,"same wave cannot renew or add an ally Ward")
 	var recorded: Array = []
 	game.set_meta(Events.RECORD,func(entry):recorded.append(entry))
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), int(cast.armed)+520, 1.0, 0, game.tactics.position)
-	check(player.guard_charges==0 and recorded.is_empty(),"Dew Shelter blocks as a native Ward with no Catalyst response")
+	check(player[Protection.STATE].charge_count()==0 and recorded.is_empty(),"Dew Shelter blocks as a native Ward with no Catalyst response")
 	game.remove_meta(Events.RECORD)
 
 
@@ -484,8 +485,8 @@ func verify_native() -> void:
 	base_skill = Build.for_player(player).class_skills[1].native_skill
 	var earliest := Time.get_ticks_msec()+int(base_skill.duration)+bonus
 	game.use_class_skill(1,player,1)
-	check(ally.guard_until>=earliest and ally.guard_until<=Time.get_ticks_msec()+int(base_skill.duration)+bonus
-		and ally.guard_charges==int(base_skill.charges),"Warding Chime gives longer native Ward with the same charges")
+	check(ally[Protection.STATE].guard_until_ms()>=earliest and ally[Protection.STATE].guard_until_ms()<=Time.get_ticks_msec()+int(base_skill.duration)+bonus
+		and ally[Protection.STATE].charge_count()==int(base_skill.charges),"Warding Chime gives longer native Ward with the same charges")
 	reset()
 	var plain_stats: Dictionary = game.weapon_stats(player)
 	var faster := grant_fixture_copy("ordinary_weapon_interval",3)

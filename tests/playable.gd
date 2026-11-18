@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 ## Current integrated solo smoke. Historical species/paid-card/graft branches
@@ -49,7 +50,7 @@ func run() -> void:
 	actor.pos=Vector3.ZERO
 	actor.facing=Vector3.FORWARD
 	world.use_class_skill(1,actor,0)
-	check(actor.guard_charges==1 and actor[Cooldowns.STATE].deadline(Cooldowns.Q)>0,"native Thorn Counter works without plants or upgrades")
+	check(actor[Protection.STATE].charge_count()==1 and actor[Cooldowns.STATE].deadline(Cooldowns.Q)>0,"native Thorn Counter works without plants or upgrades")
 	world.use_class_skill(1,actor,1)
 	check(world.enemy_health()<100 and actor[Cooldowns.STATE].deadline(Cooldowns.R)>0,"native Root Quake damages a real enemy")
 	world.encounter.set_hp(-1,1)

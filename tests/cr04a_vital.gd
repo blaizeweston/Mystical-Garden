@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -53,7 +54,7 @@ func reset(p: Dictionary, ally: Dictionary) -> void:
 	for player in [p,ally]:
 		Vital.clear(game,player)
 		preload("res://oracle_combat.gd").clear(player)
-		player.erase("affinity_ward_claims")
+		player[Protection.STATE] = player[Protection.STATE].clear_guard()
 		ExpeditionCase.set_membership(game, player, true)
 		player[PlayerLifecycle.STATE] = player[PlayerLifecycle.STATE].clear_inactive()
 		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(60)
@@ -66,8 +67,7 @@ func reset(p: Dictionary, ally: Dictionary) -> void:
 		player.weapon=0
 		player.secondary=0
 		player.catalyst=0
-		player.guard_until=0
-		player.guard_charges=0
+		player[Protection.STATE] = player[Protection.STATE].clear_expedition()
 		player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 		player.cast_until=0
 		player.core_cast_until=0

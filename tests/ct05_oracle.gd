@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -94,10 +95,11 @@ func reset_field() -> void:
 	for id in game.players:
 		var player: Dictionary = game.players[id]
 		Oracle.clear(player)
-		player.erase("affinity_ward_claims")
+		player[Protection.STATE] = player[Protection.STATE].clear_guard()
 		player.erase("subclass_follow")
 		player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0).with_deadline(Cooldowns.R, 0)
-		for key in ["guard_until","guard_charges","hurt_until","slow_until","lost_health",
+		player[Protection.STATE] = player[Protection.STATE].clear_expedition()
+		for key in ["hurt_until","slow_until","lost_health",
 				"core_ready_at","core_cast_until","cast_until","weapon","secondary","catalyst","weapon_kind"]:
 			player[key] = 0
 		player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
@@ -279,7 +281,7 @@ func nodes_and_chime() -> void:
 	cast(0)
 	check(game.enemy_health()==before-20 and not caster.has(Oracle.RITUAL),"Ritual and Verdict share one Q target and consume once")
 	cast(1)
-	check(game.enemy_health()==before-45 and caster.guard_charges==1,"Sentence works on a Leykeeper, alongside Barbed Chime and native Ward")
+	check(game.enemy_health()==before-45 and caster[Protection.STATE].charge_count()==1,"Sentence works on a Leykeeper, alongside Barbed Chime and native Ward")
 	prepare(MIDDLE)
 	skill=game.Skills.resolve_in_world(game,4,0,caster.character)
 	check(is_equal_approx(float(skill.range),7.05),"Long Resonance adds 1.25 m")
@@ -316,10 +318,10 @@ func nodes_and_chime() -> void:
 	ally.slow_until=Time.get_ticks_msec()+5000
 	cast(0)
 	timer=Time.get_ticks_msec()
-	check(caster.guard_charges==1 and ally.guard_charges==0,"Kindled Ward tie selects the lower actor ID")
+	check(caster[Protection.STATE].charge_count()==1 and ally[Protection.STATE].charge_count()==0,"Kindled Ward tie selects the lower actor ID")
 	check(ally.slow_until==0 and not record(ally,Progression.QUIET_GROUND,timer).is_empty(),"Quiet Ground cleanses and grants one-use protection")
 	cast(1)
-	check(int(ally.guard_until)-timer in range(2000,2030) and ally.guard_charges==1,"Shared Shelter extends the ordinary Ward without a second charge")
+	check(int(ally[Protection.STATE].guard_until_ms())-timer in range(2000,2030) and ally[Protection.STATE].charge_count()==1,"Shared Shelter extends the ordinary Ward without a second charge")
 	var healed_from := int(ally[PlayerVitals.STATE].hp())
 	enemy_hit(8,timer+25,1600)
 	check(ally[PlayerVitals.STATE].hp()==healed_from+6 and ally.slow_until==0 and not record(ally,Progression.QUIET_GROUND,timer+25).is_empty(),
@@ -330,7 +332,7 @@ func nodes_and_chime() -> void:
 	enemy_hit(8,timer+800,1600)
 	check(ally[PlayerVitals.STATE].hp()==healed_from and ally.slow_until==timer+2400,"second hit spends remaining Breath and can apply Slow")
 	var without_chime := int(ally[PlayerVitals.STATE].hp())
-	game.grant_guard(ally,Time.get_ticks_msec()+1600,1)
+	ally[Protection.STATE] = ally[Protection.STATE].grant(Time.get_ticks_msec()+1600,1,Time.get_ticks_msec(),game.participation.epoch())
 	enemy_hit(8,timer+820)
 	check(ally[PlayerVitals.STATE].hp()==without_chime,"ordinary Ward from a different source does not heal")
 	prepare(["omenreader","wide_omen","verdicts_toll","barbed_chime","ritual_verdict","sentence_of_dawn"])

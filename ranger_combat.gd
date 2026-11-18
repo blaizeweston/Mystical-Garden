@@ -1,4 +1,5 @@
 extends RefCounted
+const Protection = preload("res://player_protection.gd")
 
 const Session = preload("res://network_session.gd")
 
@@ -92,7 +93,7 @@ static func after_q(game: Node, actor: int, player: Dictionary, skill: Dictionar
 				lowest = ratio
 				recipient = ally
 		if selected.has("trail_ward") and not recipient.is_empty():
-			game.grant_guard(recipient,now+Balance.WARD_MS,1)
+			recipient[Protection.STATE] = recipient[Protection.STATE].grant(now+Balance.WARD_MS,1,Time.get_ticks_msec(),game.participation.epoch())
 	# One tier-three choice, independent of the attack preparations.
 	if selected.size() > 3:
 		player[SNARE] = record.merged({"node":selected[3]})
@@ -196,7 +197,7 @@ static func finish_snare(game: Node, player: Dictionary, trap: Dictionary, from:
 			"safe_passage":
 				for ally in game.players.values():
 					if nearby(game,ally,trap.position,Progression.PASSAGE_RADIUS):
-						game.grant_guard(ally,now+Balance.WARD_MS,1)
+						ally[Protection.STATE] = ally[Protection.STATE].grant(now+Balance.WARD_MS,1,Time.get_ticks_msec(),game.participation.epoch())
 	var nodes: Array = trap.skill.ranger_nodes
 	var escape := nodes.has("escape_route")
 	if not escape and not nodes.has("bramble_corridor"):

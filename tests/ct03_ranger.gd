@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -93,8 +94,7 @@ func prepare(path: Array, origin := Vector3.ZERO, enemy := Vector3(2,0,0)) -> vo
 	ranger.class_aim_distance = 5.0
 	ranger.aim_direction = Vector3.RIGHT
 	ranger.mouse_aim = false
-	ranger.guard_until = 0
-	ranger.guard_charges = 0
+	ranger[Protection.STATE] = ranger[Protection.STATE].clear_expedition()
 	ranger.weapon_kind = 0
 	ranger.weapon = 0
 	ranger.secondary = 0
@@ -106,8 +106,7 @@ func prepare(path: Array, origin := Vector3.ZERO, enemy := Vector3(2,0,0)) -> vo
 	ranger[WeaponActions.STATE] = ranger[WeaponActions.STATE].with_ready_at(0)
 	ranger.cast_until = 0
 	ally.pos = Vector3(-8,0,2)
-	ally.guard_until = 0
-	ally.guard_charges = 0
+	ally[Protection.STATE] = ally[Protection.STATE].clear_expedition()
 	ally[PlayerVitals.STATE] = PlayerVitals.Health.new(20.0,90)
 	ally[PlayerLifecycle.STATE] = ally[PlayerLifecycle.STATE].clear_inactive()
 	events.clear()
@@ -278,7 +277,7 @@ func defense_and_route() -> void:
 	cast(0)
 	var briar := trap(0)
 	check(is_equal_approx(ranger.pos.x,-4.1) and not briar.is_empty() and briar.position==Vector3.ZERO
-		and ally.guard_charges==1 and ally.slow_until==0 and ally.other_status==99 and ranger.guard_charges==0,
+		and ally[Protection.STATE].charge_count()==1 and ally.slow_until==0 and ally.other_status==99 and ranger[Protection.STATE].charge_count()==0,
 		"valid retreat leaves its trap at departure, then wards and cleanses at landing")
 	check(is_equal_approx(Ranger.speed_scale(game,ranger,Time.get_ticks_msec()),1.15)
 		and is_equal_approx(game.player_snapshot(8,false)[1].motion_scale,1.15),"Fleetfoot uses the real replicated movement multiplier")
@@ -291,12 +290,11 @@ func defense_and_route() -> void:
 	cast(0)
 	check(q_time>0 and ranger[Cooldowns.STATE].deadline(Cooldowns.Q)==0 and ranger.pos.x < -4,"invalid retreat spends no cooldown or movement")
 	ally.pos = Vector3(1.05,0,1.75)
-	ally.guard_until=0
-	ally.guard_charges=0
+	ally[Protection.STATE] = ally[Protection.STATE].clear_expedition()
 	ranger.class_aim_distance=5.0
 	cast(1)
 	var placed := trap(1)
-	check(not placed.is_empty() and ally.guard_charges==1 and not ranger.has(Ranger.SNARE),"Safe Passage grants the placement Ward once")
+	check(not placed.is_empty() and ally[Protection.STATE].charge_count()==1 and not ranger.has(Ranger.SNARE),"Safe Passage grants the placement Ward once")
 	if placed.is_empty() or not placed.has("ranger_route"):
 		check(false,"Escape Route visual and support are attached to the accepted trap")
 		return

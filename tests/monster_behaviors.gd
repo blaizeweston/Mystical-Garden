@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -26,7 +27,7 @@ func run():
  game.encounter.set_hp(0, 0);game.apply_weapon_hit(p,-1,p.pos,{"damage":4},3200)
  check(game.enemy_health()==30,"protection ends immediately when grazer dies")
  var lure=game.make_scout(12,Vector3(0,0,7),4);lure.mode="lure";lure.blast=Vector3(0,0,4);lure.windup=4000
- p.pos=lure.blast;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0;p.guard_until=0
+ p.pos=lure.blast;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0;p[Protection.STATE] = p[Protection.STATE].clear_guard()
  var lure_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.scout_hit(game,game.Enemies.get_kind(12),lure))
  preload("res://scout_behavior.gd").release(game, lure,game.Enemies.get_kind(12),4000)
  check(PlayerVitals.current_hp(p)==100-lure_damage and p.pos.z>4.5 and p.slow_until>4000,"Lure damages, slows and pulls only at its telegraphed point")
@@ -47,7 +48,7 @@ func run():
  Attacks.lock(game,hart,"vault",landing,now)
  var vault: Dictionary=game.attack_hints_snapshot().filter(func(h):return h.id==0)[0]
  check(vault.role=="vault" and hart.attack.variant==Attacks.VAULT_ID and vault.to[2]==landing.z,"vault announces the committed move and landing")
- p.pos=landing;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0;p.guard_until=0
+ p.pos=landing;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0;p[Protection.STATE] = p[Protection.STATE].clear_guard()
  var hart_damage: int=game.Life.Preview.effect_hp(game.Director.Balance.scout_hit(game,game.Enemies.get_kind(17),hart))
  preload("res://scout_behavior.gd").release(game, hart,game.Enemies.get_kind(17),now)
  check(hart.pos==landing and PlayerVitals.current_hp(p)==100-hart_damage and game.enemy_hazards.is_empty(),"Hart vault lands without using its charge trail")

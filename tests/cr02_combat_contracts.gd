@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -73,10 +74,10 @@ func run() -> void:
 	player.secondary = 0
 	player.catalyst = 0
 	game.use_class_skill(1,player,0)
-	check(recorded.is_empty() and player.guard_charges==1, "connected Bastion activation grants native Rootshield only")
+	check(recorded.is_empty() and player[Protection.STATE].charge_count()==1, "connected Bastion activation grants native Rootshield only")
 	var now := Time.get_ticks_msec()
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now, 1)
-	check(recorded.size()==1 and recorded[0].kind=="actual_block" and player.guard_charges==0,
+	check(recorded.size()==1 and recorded[0].kind=="actual_block" and player[Protection.STATE].charge_count()==0,
 		"actual connected Q block records its first consumption once")
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	game.use_class_skill(1,player,1)
@@ -201,7 +202,7 @@ func check_runtime_focuses(game: Node, player: Dictionary) -> void:
 				check(recorded.any(func(event): return event.kind=="class_action" and event.details.adapter==adapter.id),
 					"%s publishes its mapped event" % adapter.id)
 			elif adapter.trigger == "block":
-				check(recorded.is_empty() and player.guard_charges>0, "%s arms a genuine Ward" % adapter.id)
+				check(recorded.is_empty() and player[Protection.STATE].charge_count()>0, "%s arms a genuine Ward" % adapter.id)
 				IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), Time.get_ticks_msec(), 1)
 				check(recorded.any(func(event): return event.kind=="actual_block"), "%s responds on consumption" % adapter.id)
 			elif adapter.trigger == "contact":

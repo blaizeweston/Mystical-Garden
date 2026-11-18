@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -60,7 +61,7 @@ func party(size: int) -> void:
 		actor[PlayerLifecycle.STATE] = actor[PlayerLifecycle.STATE].clear_inactive()
 		actor[PlayerVitals.STATE] = actor[PlayerVitals.STATE].with_hp(100)
 		actor[PlayerVitals.STATE] = actor[PlayerVitals.STATE].with_native_max_hp(100)
-		actor.guard_until=0
+		actor[Protection.STATE] = actor[Protection.STATE].clear_guard()
 		actor.hurt_until=0
 
 

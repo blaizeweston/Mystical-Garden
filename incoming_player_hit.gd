@@ -1,4 +1,5 @@
 extends RefCounted
+const Protection = preload("res://player_protection.gd")
 
 const Participation = preload("res://expedition_participation.gd")
 ## Resolves a host-validated enemy contact. The recipient adapter binds one
@@ -9,7 +10,6 @@ const Lifecycle = preload("res://player_lifecycle.gd")
 const Vitals = preload("res://player_vitals.gd")
 const Preview = preload("res://combat_balance_preview.gd")
 const Transactions = preload("res://game_transaction.gd")
-const Traits = preload("res://combat_traits.gd")
 const Wood = preload("res://wood_affinity.gd")
 const Omens = preload("res://oracle_omens.gd")
 const Journal = preload("res://diagnostic_journal.gd")
@@ -90,7 +90,7 @@ class Recipient extends RefCounted:
 			return {}
 		var observation := {
 			"hurt_until": int(_actor.get("hurt_until", 0)),
-			"guarded": Traits.guard_allows(_actor, contact.origin, contact.now),
+			"guarded": _actor[Protection.STATE].allows_block(_actor.pos, contact.origin, contact.now),
 			"default_damage": float(1 + _world.participation.cycle() / 2),
 			"epoch": int(_world.participation.epoch()),
 		}
@@ -98,14 +98,13 @@ class Recipient extends RefCounted:
 		return observation
 
 	func consume_guard(contact: Contact) -> void:
-		var recorded_ward := int(_actor.get("guard_charges",0)) > 0
-		_actor.guard_charges = maxi(0, int(_actor.get("guard_charges", 1)) - 1)
-		if _actor.guard_charges == 0:
-			_actor.guard_until = 0
-		var block_event: RefCounted
-		if recorded_ward:
-			block_event = preload("res://combat_action_events.gd").blocked(_world, _peer, _actor, contact.now)
-		Traits.blocked(_world, _actor, contact.now)
+		var consumed: Protection.Block = _actor[Protection.STATE].consume_block(contact.now, _world.participation.epoch(), _peer)
+		_actor[Protection.STATE] = consumed.next_state
+		var block_event := preload("res://ward_responses.gd").block(_world, consumed, _peer, _actor.pos, contact.now)
+		var stats: Dictionary = _world.weapon_stats(_actor)
+		if float(stats.get("counter_damage",0)) > 0 or _actor[Protection.STATE].counter_guard_active(contact.now):
+			var balance = preload("res://class_skill_balance.gd")
+			_actor[Protection.STATE] = _actor[Protection.STATE].prepare_counter(contact.now + balance.COUNTER_WINDOW_MS, balance.counter_points(stats))
 		if block_event != null:
 			preload("res://warden_combat.gd").connected_block(_world, block_event, _peer, contact.now)
 			preload("res://oracle_combat.gd").ward_blocked(_world, _actor, _peer, block_event, contact.direct)

@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -163,11 +164,11 @@ func verify_guard_and_core(game: Node, player: Dictionary) -> void:
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
 	player.hurt_until=0
 	game.use_class_skill(1,player,0)
-	check(int(player.guard_charges)>0,"real Warden Guard granted")
+	check(int(player[Protection.STATE].charge_count())>0,"real Warden Guard granted")
 	var now:=Time.get_ticks_msec()
 	var guarded_health: PlayerVitals.Health = player[PlayerVitals.STATE]
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now, 1)
-	check(is_same(player[PlayerVitals.STATE],guarded_health) and int(player.guard_charges)==0,"guard prevents an authored monster hit before health changes")
+	check(is_same(player[PlayerVitals.STATE],guarded_health) and int(player[Protection.STATE].charge_count())==0,"guard prevents an authored monster hit before health changes")
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now+300, 1)
 	check(guarded_health.hp()==100.0 and PlayerVitals.current_hp(player)==90.0,"a landed authored monster hit installs exactly 10 HP damage")
 	player.weapon=game.Parts.index_of("plant:frostbell")

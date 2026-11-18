@@ -1,4 +1,5 @@
 extends RefCounted
+const Protection = preload("res://player_protection.gd")
 
 const Participation = preload("res://expedition_participation.gd")
 # Host-derived presentation state. Never stored in character/Garden saves.
@@ -36,8 +37,7 @@ static func sync(game: Node,now: int) -> void:
  var desired: Dictionary={}
  for id in game.players:
   var player: Dictionary=game.players[id]
-  if player.has("affinity_ward_claims") and (int(player.get("guard_until",0))<=now or int(player.get("guard_charges",0))<=0):
-   player.erase("affinity_ward_claims")
+  player[Protection.STATE] = player[Protection.STATE].expire_claims(now)
   if not game.Life.alive(player) or not Participation.is_wild(player):continue
   if player.has(Oracle.Omens.STATE):
    var omens:=Oracle.Omens.indicators(game,player,now)
@@ -62,8 +62,9 @@ static func sync(game: Node,now: int) -> void:
   if player.has("affinity_bark_grants"):add(desired,game,"bark_armor",id,false,now+60000,1,now)
   add(desired,game,"holdfast",id,false,Warden.holdfast_until(game,player,now),1,now)
   add(desired,game,"protective_filaments",id,false,preload("res://weaver_combat.gd").filaments_until(game,player,now),1,now)
-  for pair in [["slow","slow_until"],["guard","guard_until"],["counter","counter_until"]]:
-   add(desired,game,pair[0],id,false,int(player.get(pair[1],0)),1,now)
+  add(desired,game,"slow",id,false,int(player.get("slow_until",0)),1,now)
+  add(desired,game,"guard",id,false,player[Protection.STATE].guard_until_ms(),1,now)
+  add(desired,game,"counter",id,false,player[Protection.STATE].counter_until_ms(),1,now)
   if int(player.get("frame",-1))==0:
    add(desired,game,"warden_quake_ready",id,false,Warden.prepared_until(game,player,now),1,now)
   elif preload("res://subclass_combat.gd").follow_lane(game,player)>=0:

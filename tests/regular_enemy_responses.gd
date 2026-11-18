@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -330,8 +331,7 @@ func check_scout_attack_intent() -> void:
 func schedule_scout_swipe(now: int) -> Dictionary:
 	var actor := setup(0, Tactics.REGULAR_RESPONSES[0])
 	player.pos = Vector3(0, 0, -1.0)
-	player.guard_until = 0
-	player.guard_charges = 0
+	player[Protection.STATE] = player[Protection.STATE].clear_expedition()
 	var definition: Dictionary = game.Enemies.get_kind(actor.kind)
 	var observation := ScoutBehavior.attack_observation(0, game.encounter.token(0), game.participation.epoch(), 1,
 		actor.pos, player.pos, definition.role, float(definition.range), int(actor.ready), now,

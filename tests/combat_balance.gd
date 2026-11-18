@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -54,7 +55,7 @@ func run():
  game.combat_velocity[1]=Vector3(4,0,0)
  var aim: Vector3=game.Director.predict(game,1,.3)
  check(aim.x>p.pos.x and aim.distance_to(p.pos)<1.7,"ranged prediction leads motion within a bounded readable offset")
- p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0;p.guard_until=0
+ p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0;p[Protection.STATE] = p[Protection.STATE].clear_guard()
  IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), 1000, 1);IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), 1001, 1)
  check(PlayerVitals.current_hp(p)==90,"simultaneous swarm contacts respect hit grace")
  IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), 1250, 1);check(PlayerVitals.current_hp(p)==80,"protection expires and later telegraphs still damage")

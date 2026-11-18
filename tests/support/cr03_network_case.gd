@@ -1,4 +1,5 @@
 extends RefCounted
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -245,11 +246,10 @@ func host(menu: Node) -> void:
 		return
 	if mixed_wood_ward:
 		var warded: Dictionary=game.players[ward_guest]
-		warded.guard_until=0
-		warded.guard_charges=0
+		warded[Protection.STATE] = warded[Protection.STATE].clear_expedition()
 		warded.hurt_until=0
 		mark("wood-guard-"+str(ward_guest))
-		if not check(await until(func():return warded.guard_charges>0),"native remote Q arms Wood Ward"):return
+		if not check(await until(func():return warded[Protection.STATE].charge_count()>0),"native remote Q arms Wood Ward"):return
 		var hp_before: float=PlayerVitals.current_hp(warded)
 		IncomingPlayerHit.resolve_world(game, ward_guest, PlayerLifecycle.generation(warded), Time.get_ticks_msec(), 2, 0, game.tactics.position)
 		check(PlayerVitals.current_hp(warded)==hp_before and rows.any(func(e):return e.kind=="actual_block" and e.source_actor==ward_guest and e.primary_affinity=="wood" and e.quality=="ordinary"),
@@ -539,8 +539,7 @@ func learn_connected_guest(game: Node) -> bool:
 
 
 func exercise_connected_host(game: Node, local: Dictionary, player: Dictionary, id: int, events: Array) -> bool:
-	player.guard_until=0
-	player.guard_charges=0
+	player[Protection.STATE] = player[Protection.STATE].clear_expedition()
 	player.hurt_until=0
 	game.encounter.set_hp(-1, 180)
 	mark("ct-q")
@@ -554,10 +553,9 @@ func exercise_connected_host(game: Node, local: Dictionary, player: Dictionary, 
 	check(PlayerVitals.current_hp(player)==hp and player[Cooldowns.STATE].deadline(Cooldowns.DODGE)==now and player.get("warden_sanctuary",{}).get("until",0)>now
 		and player.get("warden_holdfast",{}).get("actor")==id and local.get("warden_holdfast",{}).get("actor")==id
 		and blocks.call().size()==1 and blocks.call()[0].quality=="refined","remote Q block grants Holdfast, creates Sanctuary and runs one source-owned Catalyst")
-	local.guard_until=0
-	local.guard_charges=0
+	local[Protection.STATE] = local[Protection.STATE].clear_expedition()
 	mark("ct-r")
-	if not check(await until(func():return player.warden_block.quake_used and local.guard_charges>0),
+	if not check(await until(func():return player.warden_block.quake_used and local[Protection.STATE].charge_count()>0),
 		"actual remote Root Quake consumes preparation and shelters nearby host"):return false
 	check(blocks.call().size()==1 and events.filter(func(e):return e.kind=="class_action" and e.source_actor==id).size()==1,
 		"one remote R response with no duplicate Ward or class activation")
@@ -736,8 +734,7 @@ func exercise_oracle_host(game: Node,id: int,entry: Vector3) -> bool:
 	oracle[PlayerVitals.STATE] = oracle[PlayerVitals.STATE].with_hp(40)
 	host_player.pos=entry
 	host_player[PlayerVitals.STATE] = host_player[PlayerVitals.STATE].with_hp(60)
-	host_player.guard_until=0
-	host_player.guard_charges=0
+	host_player[Protection.STATE] = host_player[Protection.STATE].clear_expedition()
 	oracle[Cooldowns.STATE] = oracle[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	oracle.core_cast_until=0
 	oracle[Cooldowns.STATE] = oracle[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
@@ -752,13 +749,13 @@ func exercise_oracle_host(game: Node,id: int,entry: Vector3) -> bool:
 	var r_ready := func() -> bool:
 		var now := Time.get_ticks_msec()
 		return not Omens.strongest(game,host_player,Oracle.MERCY,now,id).is_empty() \
-			and int(host_player.guard_until)>now and read("oracle-r-seen")=="ok"
+			and int(host_player[Protection.STATE].guard_until_ms())>now and read("oracle-r-seen")=="ok"
 	if not check(await until(r_ready,2500),"remote Chime arms native Ward and projected Portent of Mercy"):return false
 	var before := int(PlayerVitals.current_hp(host_player))
 	var now := Time.get_ticks_msec()
 	host_player.hurt_until=0
 	Frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 1, PlayerLifecycle.generation(host_player), now, 1.0))
-	check(host_player.guard_charges==0 and PlayerVitals.current_hp(host_player)==before+6
+	check(host_player[Protection.STATE].charge_count()==0 and PlayerVitals.current_hp(host_player)==before+6
 		and not Omens.strongest(game,host_player,Oracle.MERCY,now,id).is_empty(),"remote Oracle Ward blocks and heals without spending a conditional recovery")
 	host_player.hurt_until=0
 	Frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 1, PlayerLifecycle.generation(host_player), now+1, 1.0))
@@ -1166,8 +1163,7 @@ func verify_current_snapshot_host(game: Node, ids: Array, local: Dictionary) -> 
 	# Two nonlethal authority hits within one frame. There is no intervening
 	# fast snapshot of the partially depleted armor or first HP value.
 	local[PlayerVitals.STATE] = PlayerVitals.Health.new(250,250)
-	local.guard_until=0
-	local.guard_charges=0
+	local[Protection.STATE] = local[Protection.STATE].clear_expedition()
 	var now := Time.get_ticks_msec()
 	for hp in [10,120]:
 		local.hurt_until=0

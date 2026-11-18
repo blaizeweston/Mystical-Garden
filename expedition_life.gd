@@ -1,4 +1,5 @@
 extends RefCounted
+const Protection = preload("res://player_protection.gd")
 
 const Participation = preload("res://expedition_participation.gd")
 const PlayerLifecycle=preload("res://player_lifecycle.gd")
@@ -27,7 +28,8 @@ static func down(game: Node,id: int,p: Dictionary,effects = null) -> void:
  p[PlayerLifecycle.STATE] = lifecycle.fall()
  p.velocity=Vector3.ZERO
  p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active()
- p.erase("affinity_ward_claims");p.erase("frost_response");p.erase("affinity_ember_response")
+ p[Protection.STATE] = p[Protection.STATE].clear_guard()
+ p.erase("frost_response");p.erase("affinity_ember_response")
  preload("res://vital_combat.gd").clear(game,p)
  preload("res://wood_affinity.gd").clear(p)
  preload("res://storm_affinity.gd").clear(p)
@@ -35,7 +37,7 @@ static func down(game: Node,id: int,p: Dictionary,effects = null) -> void:
  preload("res://native_grafts.gd").clear(p)
  p.erase("affinity_void_form_ready")
  preload("res://oracle_combat.gd").clear(p)
- p.guard_until=0;p.skill_fx_until=0
+ p.skill_fx_until=0
  game.motions.erase(id);game.checkpoint_ready.erase(id)
  game.PartyTravel.cancel(game,"A teammate has fallen. Readiness was cleared.",effects)
  var cost: String="%d maximum HP"%Preview.revive_cost()
@@ -64,8 +66,9 @@ static func revive(game: Node,helper_id: int,target_id: int,effects = null) -> b
  var revived := health.with_native_max_hp(native_maximum(game,target)).refilled()
  target[PlayerVitals.STATE] = revived
  target[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
- target.erase("affinity_ward_claims");target.erase("frost_response");target.erase("affinity_ember_response")
- target.hurt_until=Time.get_ticks_msec()+1500;target.guard_until=0
+ target[Protection.STATE] = target[Protection.STATE].clear_guard()
+ target.erase("frost_response");target.erase("affinity_ember_response")
+ target.hurt_until=Time.get_ticks_msec()+1500
  target.velocity=Vector3.ZERO;game.motions.erase(target_id)
  game.PartyTravel.cancel(game,"A teammate was revived. Confirm readiness again at the gate.",effects)
  game.action_feedback(effects,target_id,"Revived. %d maximum HP is lost until you return to the Garden."%Preview.revive_cost())

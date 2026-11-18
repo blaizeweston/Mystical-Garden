@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -12,7 +13,6 @@ const Cooldowns = preload("res://player_cooldowns.gd")
 
 const Rules = preload("res://combat_ruleset.gd")
 const Frost = preload("res://frost_combat.gd")
-const Wards = preload("res://ward_responses.gd")
 const Events = preload("res://combat_action_events.gd")
 const Builds = preload("res://affinity_build.gd")
 const Core = preload("res://core_combat.gd")
@@ -77,10 +77,9 @@ func run() -> void:
 func reset_enemy(at := Vector3(0,0,-1.5)) -> void:
 	for actor in game.players.values():
 		preload("res://oracle_combat.gd").clear(actor)
-		actor.erase("affinity_ward_claims")
-		actor.erase("affinity_ward_grant")
-		actor.guard_until=0
-		actor.guard_charges=0
+		actor[Protection.STATE] = actor[Protection.STATE].clear_guard()
+
+		actor[Protection.STATE] = actor[Protection.STATE].clear_expedition()
 	game.trait_events.clear()
 	game.encounter.set_hp(-1, 150)
 	game.enemy_mutations=0
@@ -178,7 +177,7 @@ func run_catalyst(p: Dictionary, part: int) -> void:
 	var ally: Dictionary=game.players[2]
 	ally.catalyst=ordinary if part==refined else refined
 	ally.hurt_until=0
-	ally.guard_until=0
+	ally[Protection.STATE] = ally[Protection.STATE].clear_guard()
 	p.class_aim=Vector3.FORWARD
 	p.class_aim_distance=0.0
 	game.use_class_skill(1,p,0)
@@ -204,8 +203,7 @@ func run_focus(p: Dictionary) -> void:
 	p.catalyst=refined
 	p.character[game.Classes.Warden.Connected.PROFILE_KEY]=game.Classes.Warden.Connected.state(["vanguard"])
 	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
-	p.guard_until=0
-	p.guard_charges=0
+	p[Protection.STATE] = p[Protection.STATE].clear_expedition()
 	p.hurt_until=0
 	game.use_class_skill(1,p,0)
 	var now:=Time.get_ticks_msec()
@@ -223,8 +221,7 @@ func cast_ward(id: int, part: int, now: int) -> RefCounted:
 func run_wards() -> void:
 	reset_enemy()
 	var p: Dictionary=game.players[2]
-	p.guard_until=0
-	p.guard_charges=0
+	p[Protection.STATE] = p[Protection.STATE].clear_expedition()
 	var now:=Time.get_ticks_msec()
 	var adapter:={"id":"test_ward","trigger":"block","limit":"recipient"}
 	var first := cast_ward(1,ordinary,now)
@@ -232,41 +229,39 @@ func run_wards() -> void:
 	Events.grant_ward(game,p,now+500,1,first,adapter,now)
 	Events.grant_ward(game,p,now+900,2,second,adapter,now)
 	Events.grant_ward(game,p,now+900,2,second,adapter,now)
-	check(p[Wards.CLAIMS].size()==2 and p.guard_charges==2 and p.guard_until==now+900,"two accepted overlapping grants and native max-merge")
+	check(p[Protection.STATE].claim_count()==2 and p[Protection.STATE].charge_count()==2 and p[Protection.STATE].guard_until_ms()==now+900,"two accepted overlapping grants and native max-merge")
 	var hp: float=p[PlayerVitals.STATE].hp()
 	p.hurt_until=0
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now, 1)
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now+1, 1)
-	check(p[PlayerVitals.STATE].hp()==hp and p.guard_charges==0 and not p.has(Wards.CLAIMS),"real block charges exhaust and clear ownership")
+	check(p[PlayerVitals.STATE].hp()==hp and p[Protection.STATE].charge_count()==0 and p[Protection.STATE].claim_count()==0,"real block charges exhaust and clear ownership")
 	check(seen.size()==2 and seen[0].source_actor==1 and seen[0].quality=="ordinary"
 		and seen[1].source_actor==2 and seen[1].quality=="refined","soonest Ward response first with originating potency")
 	check(not first.publish(game,"actual_block","ward","2",now+2,{"recipient":2,"center":p.pos}),"replayed Ward cannot publish twice")
 	seen.clear()
-	game.grant_guard(p,now+200,1)
+	p[Protection.STATE] = p[Protection.STATE].grant(now+200,1,Time.get_ticks_msec(),game.participation.epoch())
 	Events.grant_ward(game,p,now+800,2,cast_ward(1,refined,now),adapter,now)
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now+250, 1)
 	check(seen.size()==1 and seen[0].quality=="refined","expired unenhanced claim cannot suppress later grant")
-	p.guard_until=0
-	p.guard_charges=0
+	p[Protection.STATE] = p[Protection.STATE].clear_expedition()
 	seen.clear()
-	game.grant_guard(p,now+500,1)
+	p[Protection.STATE] = p[Protection.STATE].grant(now+500,1,Time.get_ticks_msec(),game.participation.epoch())
 	Events.grant_ward(game,p,now+500,2,cast_ward(1,ordinary,now),adapter,now)
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now+10, 1)
 	check(seen.is_empty(),"unmodified earlier claim wins equal-expiry tie by host grant order")
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now+11, 1)
 	check(seen.size()==1 and seen[0].quality=="ordinary","remaining Ward owns the next block")
 	seen.clear()
-	p.guard_until=0
-	p.guard_charges=0
+	p[Protection.STATE] = p[Protection.STATE].clear_expedition()
 	var short := cast_ward(1,ordinary,now)
 	var long := cast_ward(1,refined,now)
 	Events.grant_ward(game,p,now+300,1,short,adapter,now)
 	Events.grant_ward(game,p,now+900,2,long,adapter,now)
 	Events.grant_ward(game,p,now+1200,2,long,adapter,now)
-	check(p[Wards.CLAIMS].size()==2 and p.guard_until==now+1200,"duplicate activation can never renew its response claim")
+	check(p[Protection.STATE].claim_count()==2 and p[Protection.STATE].guard_until_ms()==now+1200,"duplicate activation can never renew its response claim")
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now+400, 1)
 	IncomingPlayerHit.resolve_world(game, 2, PlayerLifecycle.generation(p), now+950, 1)
-	check(seen.size()==1 and seen[0].quality=="refined" and p.guard_charges==0,"native refresh cannot extend either same-actor enhancement")
+	check(seen.size()==1 and seen[0].quality=="refined" and p[Protection.STATE].charge_count()==0,"native refresh cannot extend either same-actor enhancement")
 
 
 func run_mixed() -> void:

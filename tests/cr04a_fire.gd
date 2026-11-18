@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -33,10 +34,9 @@ func check(ok: bool, label: String) -> void:
 func reset() -> void:
 	for actor in game.players.values():
 		preload("res://oracle_combat.gd").clear(actor)
-		actor.erase("affinity_ward_claims")
-		actor.erase("affinity_ward_grant")
-		actor.guard_until=0
-		actor.guard_charges=0
+		actor[Protection.STATE] = actor[Protection.STATE].clear_guard()
+
+		actor[Protection.STATE] = actor[Protection.STATE].clear_expedition()
 	game.trait_events.clear()
 	game.encounter.set_hp(-1, 500)
 	game.enemy_mutations = 0
@@ -128,8 +128,7 @@ func run() -> void:
 		reset()
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		p.hurt_until=0
-		p.guard_until=0
-		p.guard_charges=0
+		p[Protection.STATE] = p[Protection.STATE].clear_expedition()
 		game.use_class_skill(1,p,0)
 		var hp_before: float=p[PlayerVitals.STATE].hp()
 		IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1.0, 0, game.tactics.position)
@@ -139,7 +138,7 @@ func run() -> void:
 		p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(50)
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		var ally: Dictionary=game.players[2]
-		ally.guard_until=0
+		ally[Protection.STATE] = ally[Protection.STATE].clear_guard()
 		ally.hurt_until=0
 		p.class_aim=Vector3.FORWARD
 		p.class_aim_distance=0.0

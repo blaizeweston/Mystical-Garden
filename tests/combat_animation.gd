@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -71,7 +72,7 @@ func run():
  verify_ray_contact_batch(game)
  # A marked stag lane matches the real swept charge, not only its final landing.
  var stag: Dictionary=game.make_scout(2,Vector3.ZERO,1);stag.mode="charge";stag.windup=Time.get_ticks_msec()+1000;stag.blast=Vector3(0,0,4)
- game.encounter.clear_scouts();game.encounter.register_scout(stag);game.encounter.set_hp(-1, 0);p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.guard_until=0
+ game.encounter.clear_scouts();game.encounter.register_scout(stag);game.encounter.set_hp(-1, 0);p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p[Protection.STATE] = p[Protection.STATE].clear_guard()
  var hints: Array=game.attack_hints_snapshot()
  check(hints.size()==1 and hints[0].role=="charge" and Vector3(hints[0].to[0],hints[0].to[1],hints[0].to[2]).distance_to(Vector3(0,0,4))<.1,"charge snapshot carries origin and locked endpoint")
  game.combat_visuals.sync([],hints,"test-lane",p.pos)

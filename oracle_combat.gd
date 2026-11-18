@@ -1,4 +1,5 @@
 extends RefCounted
+const Protection = preload("res://player_protection.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -94,7 +95,7 @@ static func after_q(game: Node, id: int, player: Dictionary, skill: Dictionary, 
 	bestow(game,id,skill,cast,affected,allies,now)
 	var nodes: Array = skill.oracle_nodes
 	if nodes.has("kindled_ward") and not allies.is_empty():
-		game.grant_guard(lowest_recipient(game,allies),now+Balance.WARD_MS,1)
+		lowest_recipient(game,allies)[Protection.STATE] = lowest_recipient(game,allies)[Protection.STATE].grant(now+Balance.WARD_MS,1,Time.get_ticks_msec(),game.participation.epoch())
 	if nodes.has("quiet_ground"):
 		for ally in allies:
 			ally.slow_until = 0

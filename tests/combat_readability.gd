@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -91,7 +92,7 @@ func run():
  check(float(actor.motion_phase)>.29,"guest pose advances between network packets")
  packet.phase=.12;var after:=Motion.advance(actor,packet,.001)
  check(after.phase>.29,"late phase cannot rewind an ongoing attack")
- p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.guard_until=Time.get_ticks_msec()+2000;p.guard_charges=1;p.hurt_until=0
+ p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p[Protection.STATE] = p[Protection.STATE].grant(Time.get_ticks_msec()+2000,1,Time.get_ticks_msec(),game.participation.epoch());p.hurt_until=0
  game.combat_events.clear();IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1)
  check(PlayerVitals.current_hp(p)==10 and game.combat_events.back().shape=="block","blocked contact is labeled without inventing damage")
  var delayed: Dictionary=game.combat_events.back().duplicate();delayed.age=.7;delayed.duration=.85

@@ -1,4 +1,5 @@
 extends Node3D
+const Protection = preload("res://player_protection.gd")
 
 const Participation = preload("res://expedition_participation.gd")
 const Session = preload("res://network_session.gd")
@@ -605,7 +606,7 @@ func add_player(id: int) -> void:
 	var spawn: Vector3 = Stage.SPAWN + [Vector3.ZERO,Vector3(1.1,0,0),Vector3(-1.1,0,0),Vector3(0,0,1.1)][party_slot]
 	var base_health:=Life.Preview.hp(MAX_HEALTH)
 	players[id] = {Session.STATE:link,"velocity":Vector3.ZERO,"damage_seq":0,"damage_amount":0,"vitals_revision":0,"pos": spawn, Participation.STATE: participation.attach(id), PlayerLifecycle.STATE: PlayerLifecycle.start_life(), "lost_health":0, "prepared": 0, "weapon": 0, "experiment": 0, ExpeditionWallet.STATE: ExpeditionWallet.Wallet.new(), "upgrade_seed":Crypto.new().generate_random_bytes(8).hex_encode().hash(),
-		"weapon_kind":0, "catalyst":0, "prepared_catalyst":0, "cargo_plan":Parts.empty_counts(), "frame": Frames.WARDEN, Cooldowns.STATE: Cooldowns.Timers.new(), "guard_charges":0, "guard_until": 0, WeaponActions.STATE: WeaponActions.State.new(), "contributed": false,
+		"weapon_kind":0, "catalyst":0, "prepared_catalyst":0, "cargo_plan":Parts.empty_counts(), "frame": Frames.WARDEN, Cooldowns.STATE: Cooldowns.Timers.new(), Protection.STATE: Protection.State.new(), WeaponActions.STATE: WeaponActions.State.new(), "contributed": false,
 		"character": local_character.data if id == HOST else Character.blank(),
 		"seed_choice": 0, "carried_seeds": [],"safe_items":[],"carried_items":{}, "pouch": false, "loot_pending": false,
 		"donation_choice": Parts.EMPTY, "cache_claimed": false,
@@ -1597,12 +1598,12 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 		"front_guard","counter_guard":
 			combat_events_api.grant_ward(self,player,now+int(skill.duration)+duration,int(skill.charges),event,adapter,now)
 			if mode=="front_guard":
-				player.front_guard_until=now+int(skill.duration)+duration;player.guard_face=player.facing.normalized()
+				player[Protection.STATE] = player[Protection.STATE].with_front_guard(now+int(skill.duration)+duration,player.facing)
 				for ally in players.values():
 					var offset: Vector3=ally.pos-player.pos
-					if not is_same(ally,player) and Life.alive(ally) and offset.length()<=radius and (offset.length_squared()<.01 or offset.normalized().dot(player.guard_face)>=.15) and battlefield.clear_line(player.pos,ally.pos):
+					if not is_same(ally,player) and Life.alive(ally) and offset.length()<=radius and (offset.length_squared()<.01 or offset.normalized().dot(player.facing.normalized())>=Skills.Balance.FRONT_GUARD_MIN_DOT) and battlefield.clear_line(player.pos,ally.pos):
 						combat_events_api.grant_ward(self,ally,now+int(skill.duration)+duration,1,event,adapter,now)
-			else: player.counter_guard_until=now+int(skill.duration)+duration
+			else: player[Protection.STATE] = player[Protection.STATE].with_counter_guard(now+int(skill.duration)+duration)
 		"guard":
 			combat_events_api.grant_ward(self,player,now+int(skill.duration)+duration,int(skill.charges),event,adapter,now)
 		"ward":
@@ -1678,14 +1679,6 @@ func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
 	preload("res://event_audio.gd").emit(self,"combat_cast",cast_origin)
 	tell(id,"%s used."%skill.name if ranger_feedback.is_empty() else ranger_feedback)
 	if encounter_cleared(): finish_combat(id,enemy_position(targets.back()) if not targets.is_empty() else effect_point)
-
-func grant_guard(player: Dictionary,until: int,charges: int) -> void:
-	var previous_until := int(player.get("guard_until",0))
-	var now := Time.get_ticks_msec()
-	var old_charges := int(player.get("guard_charges",0)) if previous_until > now else 0
-	player.guard_until=maxi(previous_until,until)
-	player.guard_charges=maxi(old_charges,Skills.Balance.guard_charges(charges))
-	preload("res://ward_responses.gd").accepted(self,player,previous_until,old_charges,until,now)
 
 func skill_area_targets(center: Vector3,radius: float,origin: Vector3) -> Array[int]:
 	var result: Array[int]=[]
@@ -2076,7 +2069,7 @@ func move_player(id: int, direction: Vector2, delta: float) -> void:
 	var move := world_direction(direction)
 	if not move.is_zero_approx() and (not Participation.is_wild(p) or not p.get("mouse_aim",false)):
 		p.facing = move.normalized()
-	var guard_speed: float=.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0
+	var guard_speed: float=p[Protection.STATE].movement_scale(Time.get_ticks_msec())
 	var stride := preload("res://spirit_affinity.gd").scale(p,preload("res://affinity_time.gd").now(self)) if p.has("affinity_spirit_strides") else 1.0
 	if p.has("ranger_speed_grants"):
 		stride = maxf(stride,preload("res://ranger_combat.gd").speed_scale(self,p,Time.get_ticks_msec()))
@@ -2847,7 +2840,7 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 		if p.has("ranger_speed_grants"):
 			stride = maxf(stride,preload("res://ranger_combat.gd").speed_scale(self,p,Time.get_ticks_msec()))
 		var health: PlayerVitals.Health = p[PlayerVitals.STATE]
-		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":(.4 if Time.get_ticks_msec()<int(p.get("front_guard_until",0)) else 1.0)*(.6 if Time.get_ticks_msec()<int(p.get("slow_until",0)) else 1.0)*stride,"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":Session.slot_for(p,0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": Participation.is_wild(p), "fallen":PlayerLifecycle.fallen(p),"lost_health":p.get("lost_health",0), "hp": health.hp(), "max_hp": health.max_hp(), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
+		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":p[Protection.STATE].movement_scale(Time.get_ticks_msec())*(.6 if Time.get_ticks_msec()<int(p.get("slow_until",0)) else 1.0)*stride,"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":Session.slot_for(p,0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": Participation.is_wild(p), "fallen":PlayerLifecycle.fallen(p),"lost_health":p.get("lost_health",0), "hp": health.hp(), "max_hp": health.max_hp(), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
 			"attack_anim":attack_animation_snapshot(p),"skill_fx":p.get("skill_fx",{}) if Time.get_ticks_msec()<int(p.get("skill_fx_until",0)) else {}, "weapon_kind":p.get("weapon_kind",0), "core_part":p.weapon if Participation.is_wild(p) else p.prepared, "pose": combat_pose(p),"wallet": run_wallet(p)}
 		var cooldowns: Cooldowns.Timers = p[Cooldowns.STATE]
 		var cooldown_now := Time.get_ticks_msec()

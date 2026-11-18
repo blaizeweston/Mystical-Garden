@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -198,11 +199,13 @@ func exercise() -> void:
   and departed_timers.deadline(Cooldowns.R)==0 and departed_timers.deadline(Cooldowns.DODGE)==0,
   "successful expedition entry starts three fresh cooldowns")
  var initial_wallet = world.wallet_for(actor)
+ var protection_before: Protection.State=actor[Protection.STATE]
  var action_before: WeaponActions.State=actor[WeaponActions.STATE]
  var queue_before: int=world.projectile_queue.size()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  var refused_attack: Dictionary=world.run_guarded_action(1,Tx.Scope.PAIR,func(_effects):
   world.strike_enemy(1,actor,actor.pos)
+  actor[Protection.STATE] = actor[Protection.STATE].grant(Time.get_ticks_msec()+2000,2,Time.get_ticks_msec(),world.participation.epoch()).with_front_guard(Time.get_ticks_msec()+2000,Vector3.FORWARD).prepare_counter(Time.get_ticks_msec()+3500,1)
   return true)
  world.remove_meta(&"guarded_gameplay_test_fault")
  check(not Tx.committed(refused_attack.persistence) and is_same(actor[WeaponActions.STATE],action_before)
@@ -210,6 +213,8 @@ func exercise() -> void:
   "guarded attack abort restores the original weapon state and removes the attempted contact")
  check(not actor.has("strike_at") and not actor.has("attack_until") and not actor.has("ranged_windup"),
   "host actor has one authoritative weapon component, not duplicate raw fields")
+ check(is_same(actor[Protection.STATE],protection_before) and protection_before.charge_count()==0 and protection_before.claim_count()==0,
+  "guarded abort restores the original protection, native windows and claim owner")
  record("departure_commit",before)
 
  var trophy_config: Dictionary = world.Director.config()

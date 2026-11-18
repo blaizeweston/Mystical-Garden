@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -83,9 +84,9 @@ func reset() -> void:
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 		p.hurt_until=0
-		p.guard_charges=0
-		p.guard_until=0
-		p.erase("affinity_ward_claims")
+		p[Protection.STATE] = p[Protection.STATE].clear_expedition()
+		p[Protection.STATE] = p[Protection.STATE].clear_guard()
+		p[Protection.STATE] = p[Protection.STATE].clear_guard()
 
 func run() -> void:
 	game=preload("res://world.tscn").instantiate()
@@ -114,7 +115,7 @@ func run() -> void:
 		check(not cast.is_empty(),"real Core B starts Ironbark")
 		if not cast.is_empty():
 			Core.tick(game,cast.armed)
-			check(available(p)==q.core_capacity and available(ally)==q.core_capacity and p.guard_charges==0 and p[PlayerVitals.STATE].hp()==250 and p[PlayerVitals.STATE].max_hp()==250,"Ironbark carries finite armor without Ward, heal or Vital bonus")
+			check(available(p)==q.core_capacity and available(ally)==q.core_capacity and p[Protection.STATE].charge_count()==0 and p[PlayerVitals.STATE].hp()==250 and p[PlayerVitals.STATE].max_hp()==250,"Ironbark carries finite armor without Ward, heal or Vital bonus")
 			ally.pos=Vector3(8,0,0)
 			check(available(ally)==q.core_capacity,"recipient carries armor out of the area")
 		reset()
@@ -188,10 +189,10 @@ func test_absorption(p: Dictionary, now: int) -> void:
 	mixture()
 	var extra:=event(3,"core","part_17")
 	check(Wood.grant(game,extra,1,"core")==0 and available(p)==48,"full recipient rejects grant")
-	game.grant_guard(p,now+15000,1)
+	p[Protection.STATE] = p[Protection.STATE].grant(now+15000,1,Time.get_ticks_msec(),game.participation.epoch())
 	hit(p,1,50,now)
 	check(p[PlayerVitals.STATE].hp()==250 and available(p)==48,"native Ward prevents the hit before Bark")
-	p.guard_until=0
+	p[Protection.STATE] = p[Protection.STATE].clear_guard()
 	hit(p,1,50,now)
 	check(p[PlayerVitals.STATE].hp()==220 and available(p)==28 and p[Wood.GRANTS].size()==1 and p[Wood.GRANTS][0].actor==1 and burst_count()==0,
 		"40% absorption spends earliest expiry first and a single exhausted grant does not burst")

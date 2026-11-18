@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -272,8 +273,7 @@ func core_and_enemy_checks() -> void:
 		player.pos = game.tactics.position
 		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(40)
 		player.hurt_until = 0
-		player.guard_until = 0
-		player.guard_charges = 0
+		player[Protection.STATE] = player[Protection.STATE].clear_expedition()
 		watcher.mode = "volley"
 		watcher.attack = EnemyAttack.plan(game,watcher,"volley",player.pos)
 		preload("res://scout_behavior.gd").release(game, watcher,game.Enemies.get_kind(1),Time.get_ticks_msec())

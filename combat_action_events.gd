@@ -1,4 +1,5 @@
 extends RefCounted
+const Protection = preload("res://player_protection.gd")
 
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
@@ -7,7 +8,6 @@ const Ruleset = preload("res://combat_ruleset.gd")
 const RECORD = &"cr02_record_combat_event"
 const CONTEXT = "cr02_action"
 const Frost = preload("res://frost_combat.gd")
-const Wards = preload("res://ward_responses.gd")
 const CHANNELS := ["weapon_contact", "core_action", "class_action", "class_contact",
 	"actual_block", "armor_break", "periodic", "secondary", "incoming_hit", "class_field_contact"]
 
@@ -136,15 +136,11 @@ static func contact(game: Node, stats: Dictionary, target: int, now: int, second
 
 
 static func grant_ward(game: Node, recipient: Dictionary, until: int, charges: int,
-		event: RefCounted, adapter: Dictionary, now: int) -> void:
-	if event != null and adapter.trigger == "block":
-		recipient[Wards.PENDING] = {"event": event, "adapter": adapter}
-	game.grant_guard(recipient, until, charges)
-	recipient.erase(Wards.PENDING)
-
-
-static func blocked(game: Node, recipient_id: int, recipient: Dictionary, now: int) -> RefCounted:
-	return Wards.block(game, recipient, recipient_id, now)
+		event: RefCounted, adapter: Dictionary, _now: int) -> void:
+	var response: RefCounted = event if event != null and adapter.trigger == "block" else null
+	var recipient_id: int = game.Traits.player_id(game, recipient)
+	recipient[Protection.STATE] = recipient[Protection.STATE].grant(until, charges, Time.get_ticks_msec(),
+		game.participation.epoch(), response, adapter, recipient_id)
 
 
 func has_grants() -> bool:
@@ -175,11 +171,7 @@ func block_available(recipient_id: int, adapter: Dictionary, now: int) -> bool:
 	return now < expires_at and charges != 0 and not _seen.has(JSON.stringify(["actual_block", "ward", block_scope(recipient_id, adapter)]))
 
 
-func accept_grant(game: Node, recipient: Dictionary) -> bool:
-	for id in game.players:
-		if is_same(game.players[id], recipient):
-			if _granted.has(id):
-				return false
-			_granted[id] = true
-			return true
-	return false
+func accept_grant(recipient_id: int) -> bool:
+	if recipient_id <= 0 or _granted.has(recipient_id): return false
+	_granted[recipient_id] = true
+	return true

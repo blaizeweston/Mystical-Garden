@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -117,11 +118,12 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 	for peer in game.players:
 		var recipient: Dictionary = game.players[peer]
 		recipient[Cooldowns.STATE] = Cooldowns.Timers.new()
-		for key in ["guard_until","guard_charges","hurt_until","lost_health",
+		recipient[Protection.STATE] = recipient[Protection.STATE].clear_expedition()
+		for key in ["hurt_until","lost_health",
 				"cast_until","core_ready_at","core_cast_until","slow_until"]:
 			recipient[key]=0
 		recipient[WeaponActions.STATE] = recipient[WeaponActions.STATE].with_ready_at(0)
-		recipient.erase("affinity_ward_claims")
+		recipient[Protection.STATE] = recipient[Protection.STATE].clear_guard()
 		ExpeditionCase.set_membership(game, recipient, peer in [1,8])
 		recipient[PlayerLifecycle.STATE] = recipient[PlayerLifecycle.STATE].clear_inactive()
 		recipient[PlayerVitals.STATE] = PlayerVitals.Health.new(70.0 if peer==1 else 20.0,100)
@@ -177,26 +179,26 @@ func focuses() -> void:
 	ally.pos=Vector3(0,0,2.9)
 	var now := Time.get_ticks_msec()
 	cast(0)
-	check(game.enemy_health()==280 and ally.guard_charges==1 and ally.guard_until-now>=1900 and ally.guard_until-now<1960
-		and player.guard_charges==0,"Lingering Veil gives the lowest ratio ally a 1.9 s Ward outside the damage cone")
+	check(game.enemy_health()==280 and ally[Protection.STATE].charge_count()==1 and ally[Protection.STATE].guard_until_ms()-now>=1900 and ally[Protection.STATE].guard_until_ms()-now<1960
+		and player[Protection.STATE].charge_count()==0,"Lingering Veil gives the lowest ratio ally a 1.9 s Ward outside the damage cone")
 	var info := Skills.describe(Skills.resolve(3,0,player.character))
 	check("Grave Sweep" in info and "Ward by 0.5 s" in info and "1.9s" in info,"Gravekeeper tooltip states actual extended duration")
 	prepare(["gravekeeper","grave_ward"])
 	ally.pos=Vector3(0,0,1)
 	cast(0)
-	check(ally.guard_charges==2 and ally.affinity_ward_claims.size()==1,"Grave Ward uses a single native grant for two charges on hit")
+	check(ally[Protection.STATE].charge_count()==2 and ally[Protection.STATE].claim_count()==1,"Grave Ward uses a single native grant for two charges on hit")
 	now=Time.get_ticks_msec()
 	IncomingPlayerHit.resolve_world(game, 8, PlayerLifecycle.generation(ally), now, 2)
 	IncomingPlayerHit.resolve_world(game, 8, PlayerLifecycle.generation(ally), now+1, 2)
-	check(ally[PlayerVitals.STATE].hp()==20 and ally.guard_charges==0,"both native charges block with no second activation")
+	check(ally[PlayerVitals.STATE].hp()==20 and ally[Protection.STATE].charge_count()==0,"both native charges block with no second activation")
 	prepare(["gravekeeper","grave_ward"],Vector3.ZERO,Vector3(-2,0,0))
 	cast(0)
-	check(game.enemy_health()==300 and player.guard_charges==1 and player.affinity_ward_claims.size()==1,
+	check(game.enemy_health()==300 and player[Protection.STATE].charge_count()==1 and player[Protection.STATE].claim_count()==1,
 		"solo empty Grave Sweep still grants the learned one-charge Ward")
 	prepare(["veilwalker","grave_ward"],Vector3.ZERO,Vector3(4,0,0))
 	ally.pos=Vector3(2,0,1)
 	cast(0)
-	check(ally.guard_charges==1 and player.guard_charges==0,"Veilwalker Grave Ward uses the landing footprint")
+	check(ally[Protection.STATE].charge_count()==1 and player[Protection.STATE].charge_count()==0,"Veilwalker Grave Ward uses the landing footprint")
 
 func momentum() -> void:
 	prepare(["veilwalker"],Vector3.ZERO,Vector3(2.7,0,0))
@@ -355,7 +357,7 @@ func support() -> void:
 	prepare(DEFENSE,Vector3.ZERO,Vector3(-2,0,0))
 	ally.pos=Vector3(0,0,2.8)
 	cast(0)
-	check(ally[PlayerVitals.STATE].hp()==20 and ally.guard_charges==1,"empty valid Q wards, with no damage-triggered Offering heal")
+	check(ally[PlayerVitals.STATE].hp()==20 and ally[Protection.STATE].charge_count()==1,"empty valid Q wards, with no damage-triggered Offering heal")
 	prepare(DANCE)
 	var rooted := scout(Vector3(2,0,1))
 	game.tactics.rooted_until=Time.get_ticks_msec()+4000
@@ -377,7 +379,7 @@ func support() -> void:
 	cast(1)
 	check(ally[PlayerVitals.STATE].hp()==26 and second[PlayerVitals.STATE].hp()==26 and third[PlayerVitals.STATE].hp()==20 and player[PlayerVitals.STATE].hp()>=79 and player[PlayerVitals.STATE].hp()<=81,
 		"Last Rites functions without Grave Offering and selects only the first two visible lowest ratios")
-	check(ally.guard_charges==2 and second.guard_charges==1 and third.guard_charges==1,
+	check(ally[Protection.STATE].charge_count()==2 and second[Protection.STATE].charge_count()==1 and third[Protection.STATE].charge_count()==1,
 		"Wake Ward remains a distinct benefit without stacking onto the stronger native grant")
 	prepare(RITES)
 	ally.pos=Vector3(2,0,2.8)
@@ -388,7 +390,7 @@ func support() -> void:
 	game.battlefield.barriers.assign([Rect2(1.6,1.7,.8,.8)])
 	cast(0)
 	cast(1)
-	check(player[PlayerVitals.STATE].hp()>=85 and player[PlayerVitals.STATE].hp()<=87 and ally[PlayerVitals.STATE].hp()==1 and second[PlayerVitals.STATE].hp()==20 and ally.guard_charges==0,
+	check(player[PlayerVitals.STATE].hp()>=85 and player[PlayerVitals.STATE].hp()<=87 and ally[PlayerVitals.STATE].hp()==1 and second[PlayerVitals.STATE].hp()==20 and ally[Protection.STATE].charge_count()==0,
 		"a sole eligible Reaper gets 6 plus drain, with blocked and fallen recipients excluded")
 
 func charges_and_void() -> void:

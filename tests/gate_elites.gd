@@ -1,4 +1,5 @@
 extends SceneTree
+const Protection = preload("res://player_protection.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -30,7 +31,7 @@ func run():
  var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,.8);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100)
  game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.tactics.boss_kind=-1;ExpeditionCase.set_world(game, {"destination": 0})
  for kind in seen:
-  var now:=Time.get_ticks_msec();game.enemy_kind=kind;game.tactics.position=Vector3.ZERO;game.encounter.begin_floor(800);game.tactics.ready_at=0;game.tactics.winding_up=false;game.tactics.engaged=true;game.tactics.stagger_until=0;game.tactics.rooted_until=0;game.enemy_mutations=0;game.tactics.longlimb=false;game.tactics.memory.clear();game.enemy_hazards.clear();game.tactics.recovery_bonus=0;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0;p.guard_until=0
+  var now:=Time.get_ticks_msec();game.enemy_kind=kind;game.tactics.position=Vector3.ZERO;game.encounter.begin_floor(800);game.tactics.ready_at=0;game.tactics.winding_up=false;game.tactics.engaged=true;game.tactics.stagger_until=0;game.tactics.rooted_until=0;game.enemy_mutations=0;game.tactics.longlimb=false;game.tactics.memory.clear();game.enemy_hazards.clear();game.tactics.recovery_bonus=0;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.hurt_until=0;p[Protection.STATE] = p[Protection.STATE].clear_guard()
   Elite.tick(game,.016,now)
   check(game.tactics.winding_up and game.tactics.attack_mode==Catalog.get_kind(kind).role,"species attack: "+str(kind))
   var hints:=Elite.hints(game)
