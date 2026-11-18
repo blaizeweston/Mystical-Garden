@@ -18,12 +18,20 @@ const EXTRA_STATS := {
 }
 
 
+const CLASS_PROFILE_FIELDS := ["xp","upgrades",Classes.ConnectedTree.MIGRATION_KEY,"quarantine"]
+
 static func class_profile(profile: Dictionary, class_id: int) -> Dictionary:
-	# Only the chosen class path, XP and migration eligibility reach the view.
-	var tree = Classes.connected_tree(class_id)
+	return _profile_fields(profile,CLASS_PROFILE_FIELDS+[Classes.connected_tree(class_id).profile_key])
+
+static func progression_profile(profile: Dictionary) -> Dictionary:
+	var keys := CLASS_PROFILE_FIELDS.duplicate()
+	for class_id in Classes.DEFINITIONS.size(): keys.append(Classes.connected_tree(class_id).profile_key)
+	return _profile_fields(profile,keys)
+
+static func _profile_fields(profile: Dictionary, keys: Array) -> Dictionary:
 	var result := {}
-	for key in ["xp","upgrades",Classes.ConnectedTree.MIGRATION_KEY,"quarantine",tree.profile_key]:
-		if profile.has(key): result[key] = profile[key]
+	for key in keys:
+		if profile.has(key): result[key]=profile[key]
 	return result.duplicate(true)
 
 static func summary(facts: Dictionary) -> Dictionary:

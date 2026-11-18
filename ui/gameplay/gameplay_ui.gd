@@ -436,6 +436,9 @@ func mount_feature(kind: String, view: Control) -> void:
 	# The shell owns frames. The feature owns its content and existing domain port.
 	assert(not _features.has(kind))
 	_features[kind] = view
+	if kind == "progression":
+		view.refresh_requested.connect(func(selection: Dictionary): requested.emit("refresh_progression",selection.duplicate(true)))
+		view.requested.connect(_feature_request)
 	if kind in ["inventory","loadout","summary"]:
 		view.refresh_requested.connect(func(): requested.emit("refresh_"+kind,{}))
 		view.requested.connect(_feature_request)
@@ -569,6 +572,7 @@ func _feature_request(command: String, data: Dictionary) -> void:
 	match command:
 		"close": close_panels()
 		"build_class_tree": show_progression(true)
+		"open_progression": toggle_panel("progression")
 		_: requested.emit(command,data.duplicate(true))
 
 func present_inventory(data: Dictionary) -> void:
@@ -585,3 +589,6 @@ func summary_input(event: InputEvent, allowed: bool) -> bool:
 	if is_overlay_open() and not panel_is_open("summary"): return false
 	toggle_summary()
 	return true
+
+func present_progression(data: Dictionary) -> void:
+	_features.progression.present(data)

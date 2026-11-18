@@ -284,13 +284,13 @@ func configure_gameplay_ui() -> void:
 	var entries: Array = []
 	for definition in Enemies.all(): entries.append({"name":definition.name,"description":definition.description})
 	ui.fill_bestiary(entries)
-	# Research and Garden panels retain their existing domain adapters.
+	# The remaining Altar, graft and planting views retain domain adapters.
 	for feature in ["inventory","progression","loadout","graft","altar","planting","summary"]:
 		var path: String = {"inventory":"inventory_panel","progression":"progression_panel",
 			"loadout":"loadout_panel","graft":"affinity_grafting_panel","altar":"garden_altar_panel",
 			"planting":"planting_panel","summary":"run_summary_panel"}[feature]
 		var view = load("res://"+path+".gd").new()
-		if feature not in ["inventory","loadout","summary"]: view.game = self
+		if feature not in ["inventory","loadout","summary","progression"]: view.game = self
 		ui.mount_feature(feature,view)
 	network_dialog=preload("res://network_panel.gd").new()
 	add_child(network_dialog)
@@ -332,6 +332,10 @@ func _handle_ui_request(command: String, data: Dictionary) -> void:
 		"bank":
 			var value := int(data.value)
 			send_garden_action("bank_part_%d"%(value-1000) if value>=1000 else "bank_seed_%d"%value)
+		"refresh_progression": ui.present_progression(progression_ui_data(data))
+		"close_progression":
+			if bool(data.from_crafting) and at_weapon_gate(players.get(local_player_id(),{})): open_gate_preparation()
+			else: ui.close_panels()
 		"refresh_inventory": ui.present_inventory(inventory_ui_data())
 		"refresh_loadout": ui.present_loadout(loadout_ui_data())
 		"refresh_summary": ui.present_summary(run_summary_ui_data())
@@ -3587,6 +3591,33 @@ func inventory_ui_data() -> Dictionary:
 	data.affinity_build=stats.get("affinity_build",{}).duplicate(true)
 	data.notice = status
 	return data.duplicate(true)
+
+func progression_ui_data(selection: Dictionary) -> Dictionary:
+	var id := local_player_id()
+	var player: Dictionary = players.get(id,{})
+	if player.is_empty(): return {}
+	var host := multiplayer.is_server()
+	var garden: Array = garden_snapshot() if host else client_garden
+	var heart: Dictionary = garden[16] if garden.size()>16 and garden[16] is Dictionary else heart_state()
+	var campaign: PackedInt32Array = campaign_snapshot() if host else client_campaign
+	var at_home := at_heart(player)
+	var between_runs := not participation.active()
+	var may_start := host and at_home and between_runs
+	var chosen := str(selection.get("chosen",""))
+	var chosen_id := chosen.trim_prefix("heart_") if chosen.begins_with("heart_") else ""
+	var refusal := progress.heart.requirements(progress,chosen_id) if may_start and int(selection.get("tab",0))==1 else ""
+	return {"class_id":int(player.get("frame",0)),
+		"profile":preload("res://ui/gameplay/player_build_projection.gd").progression_profile(player.get("character",guest_character.data)),
+		"known_seeds":garden[13] if garden.size()>13 else Seeds.counts(false),
+		"seed_stock":seed_reserve(player).stock if host else client_inventory[6] if client_inventory.size()>6 else Seeds.counts(),
+		"heart":heart,"shared_parts":garden[5],"knowledge":int(garden[6]),"veilcap":bool(garden[7]),
+		"memories":[campaign[14],campaign[15],campaign[16]],"finale_available":bool(campaign[17]),
+		"at_altar":not Participation.is_wild(player) and player.get("pos",Vector3.ZERO).distance_to(stage.altar_position())<=1.65,
+		"may_learn":preload("res://class_tree_access.gd").can_learn_here(self,player),"may_respec":at_home and between_runs,
+		"is_host":host,"may_start_research":may_start,"may_offer":at_home and not Participation.is_wild(player),
+		"research_refusal":refusal,"offering":preload("res://heart_progress.gd").plan_materials(garden[5],str(heart.get("material_choice","")),int(heart.get("offering_cost",preload("res://heart_progress.gd").OFFER_PARTS))),
+		"stories":preload("res://garden_return_service.gd").projection(self,id) if int(selection.get("tab",0))==3 else {},
+		"notice":status}.duplicate(true)
 
 func loadout_ui_data() -> Dictionary:
 	var player: Dictionary = players.get(local_player_id(),{})

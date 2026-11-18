@@ -8,6 +8,7 @@
   },
   "full_after_days": 7,
   "systems": {
+    "progression_ui": {"label": "Detached seed, Heart research, connected-class and Garden-story views", "files": ["progression_panel.gd", "progression_panel.gd.uid", "garden_story_panel.gd", "garden_story_panel.gd.uid", "ui/gameplay/player_build_projection.gd", "ui/gameplay/player_build_projection.gd.uid"]},
     "player_build_ui": {"label": "Detached inventory, gate-loadout and Tab stat presentation", "files": ["inventory_panel.gd", "inventory_panel.gd.uid", "loadout_panel.gd", "loadout_panel.gd.uid", "run_summary_panel.gd", "run_summary_panel.gd.uid", "ui/gameplay/player_build_projection.gd", "ui/gameplay/player_build_projection.gd.uid"]},
     "gameplay_ui": {"label": "Owned HUD, overlay lifecycle, checkpoint offers and travel presentation", "files": ["ui/gameplay/gameplay_ui.gd", "ui/gameplay/gameplay_ui.gd.uid", "ui/gameplay/gameplay_ui.tscn", "inventory_drop_surface.gd", "inventory_drop_surface.gd.uid"]},
     "player_hit_conditions": {"label": "Owned ordinary Slow, incoming-hit grace and cleansing", "files": ["player_hit_conditions.gd", "player_hit_conditions.gd.uid"]},
@@ -914,6 +915,7 @@
     ]
   },
   "game_functions": {
+    "progression_ui_data": ["progression_ui", "gameplay_ui", "classes", "knowledge", "seeds", "garden_returns", "garden", "items"],
     "run_summary_ui_data": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_grafts", "life"],
     "loadout_ui_data": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_grafts", "life"],
     "request_host_session": ["gameplay_ui", "network_session", "menus"],
@@ -1676,7 +1678,8 @@
     ]
   },
   "suites": {
-    "player_build_ui": {"kind": "unit", "systems": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_summary"], "package": false},
+    "progression_ui": {"kind": "unit", "systems": ["progression_ui", "gameplay_ui", "classes", "knowledge", "seeds", "garden_returns"], "package": false},
+    "player_build_ui": {"kind": "unit", "systems": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_summary", "progression_ui"], "package": false},
     "gameplay_ui": {"kind": "unit", "systems": ["gameplay_ui", "presentation", "affinity_cards", "party_ui"], "package": false},
     "player_hit_conditions": {"kind": "unit", "systems": ["player_hit_conditions", "combat", "life"], "package": true},
     "player_protection": {"kind": "unit", "systems": ["player_protection", "class_balance", "combat"], "package": true},
@@ -1690,25 +1693,26 @@
         "affinity_cards",
         "expedition_grafts",
         "expeditions",
-        "network_session"
+        "network_session",
+        "progression_ui"
       ],
       "package": false
     },
     "encounter_roster": {"kind":"unit","systems":["encounter_roster","enemies","combat","world_snapshot", "enemy_tactics"],"package":true},
-    "ec01_affinity_cards_party": {"profile": "affinity", "kind": "party", "systems": ["player_cooldowns", "expedition_wallet", "ui_copy", "expedition_summary", "expedition_grafts", "affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "connection_flow", "world_snapshot", "hex_terrain", "encounter_roster", "expedition_participation", "network_session", "player_protection", "player_hit_conditions", "gameplay_ui", "player_build_ui"], "package": false},
-    "ec01_affinity_cards": {"kind": "unit", "systems": ["player_vitals", "player_cooldowns", "expedition_wallet", "ui_copy", "expedition_summary", "expedition_grafts", "affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "life", "weapons", "enemy_attack_execution", "incoming_player_hit", "expedition_participation", "player_protection", "player_hit_conditions", "gameplay_ui", "player_build_ui"], "package": false},
-    "ct05_oracle": {"kind": "unit", "systems": ["player_lifecycle", "player_cooldowns", "oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim", "enemy_tactics", "incoming_player_hit", "player_protection", "player_hit_conditions", "player_build_ui"], "package": false},
-    "ct05_oracle_coop": {"profile": "affinity", "kind": "pair", "systems": ["oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim", "connection_flow", "world_snapshot", "hex_terrain", "player_protection", "player_hit_conditions", "player_build_ui"], "package": false},
+    "ec01_affinity_cards_party": {"profile": "affinity", "kind": "party", "systems": ["player_cooldowns", "expedition_wallet", "ui_copy", "expedition_summary", "expedition_grafts", "affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "connection_flow", "world_snapshot", "hex_terrain", "encounter_roster", "expedition_participation", "network_session", "player_protection", "player_hit_conditions", "gameplay_ui", "player_build_ui", "progression_ui"], "package": false},
+    "ec01_affinity_cards": {"kind": "unit", "systems": ["player_vitals", "player_cooldowns", "expedition_wallet", "ui_copy", "expedition_summary", "expedition_grafts", "affinity_cards", "expeditions", "combat_affinity_contracts", "classes", "combat", "life", "weapons", "enemy_attack_execution", "incoming_player_hit", "expedition_participation", "player_protection", "player_hit_conditions", "gameplay_ui", "player_build_ui", "progression_ui"], "package": false},
+    "ct05_oracle": {"kind": "unit", "systems": ["player_lifecycle", "player_cooldowns", "oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim", "enemy_tactics", "incoming_player_hit", "player_protection", "player_hit_conditions", "player_build_ui", "progression_ui"], "package": false},
+    "ct05_oracle_coop": {"profile": "affinity", "kind": "pair", "systems": ["oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim", "connection_flow", "world_snapshot", "hex_terrain", "player_protection", "player_hit_conditions", "player_build_ui", "progression_ui"], "package": false},
     "ct05_oracle_party": {"profile": "affinity", "kind": "party", "systems": ["oracle_progression", "classes", "class_tree_access", "combat_affinity_contracts", "combat", "life", "ability_aim", "connection_flow", "world_snapshot", "hex_terrain", "player_protection"], "package": false},
-    "ct01_warden": {"profile": "affinity", "kind":"unit","systems":["player_cooldowns","warden_progression","classes","class_tree_access","combat_affinity_contracts","combat","life", "incoming_player_hit", "player_protection", "player_hit_conditions"],"package":false},
+    "ct01_warden": {"profile": "affinity", "kind":"unit","systems":["player_cooldowns","warden_progression","classes","class_tree_access","combat_affinity_contracts","combat","life", "incoming_player_hit", "player_protection", "player_hit_conditions", "progression_ui"],"package":false},
     "ct01_warden_coop": {"profile": "affinity", "kind":"pair","systems":["warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life", "player_protection", "player_hit_conditions"],"package":false},
-    "ct02_weaver": {"profile": "affinity", "kind":"unit","systems":["player_cooldowns","expedition_grafts", "weaver_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","combat","life", "player_protection", "player_hit_conditions"],"package":false},
+    "ct02_weaver": {"profile": "affinity", "kind":"unit","systems":["player_cooldowns","expedition_grafts", "weaver_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","combat","life", "player_protection", "player_hit_conditions", "progression_ui"],"package":false},
     "ct02_weaver_coop": {"profile": "affinity", "kind":"pair","systems":["weaver_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life", "player_protection"],"package":false},
     "ct02_weaver_party": {"profile": "affinity", "kind":"party","systems":["weaver_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life"],"package":false},
-    "ct03_ranger": {"kind":"unit","systems":["player_cooldowns","ranger_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","combat","life","terrain","ability_aim", "player_protection", "player_hit_conditions"],"package":false},
+    "ct03_ranger": {"kind":"unit","systems":["player_cooldowns","ranger_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","combat","life","terrain","ability_aim", "player_protection", "player_hit_conditions", "progression_ui"],"package":false},
     "ct03_ranger_coop": {"profile": "affinity", "kind":"pair","systems":["ranger_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life","hex_terrain", "player_protection"],"package":false},
     "ct03_ranger_party": {"profile": "affinity", "kind":"party","systems":["ranger_progression","weaver_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life","hex_terrain"],"package":false},
-    "ct04_reaper": {"kind":"unit","systems":["player_cooldowns","expedition_grafts", "reaper_progression","warden_progression","ranger_progression","classes","class_tree_access","combat_affinity_contracts","combat","life","terrain","ability_aim", "incoming_player_hit", "player_protection", "player_hit_conditions"],"package":false},
+    "ct04_reaper": {"kind":"unit","systems":["player_cooldowns","expedition_grafts", "reaper_progression","warden_progression","ranger_progression","classes","class_tree_access","combat_affinity_contracts","combat","life","terrain","ability_aim", "incoming_player_hit", "player_protection", "player_hit_conditions", "progression_ui"],"package":false},
     "ct04_reaper_coop": {"profile": "affinity", "kind":"pair","systems":["reaper_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life","hex_terrain", "player_protection"],"package":false},
     "ct04_reaper_party": {"profile": "affinity", "kind":"party","systems":["reaper_progression","warden_progression","weaver_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life","hex_terrain"],"package":false},
     "cr05_native_grafts": {"profile": "affinity", "kind":"unit","systems":["player_lifecycle", "expedition_wallet", "expedition_grafts", "affinity_cards", "combat_affinity_contracts", "weapons", "classes", "combat", "life", "enemy_attack_execution", "incoming_player_hit", "expedition_participation", "player_build_ui"],"package":false},
@@ -1806,10 +1810,10 @@
       "systems": ["player_lifecycle", "player_cooldowns", "combat_affinity_contracts", "plant_affinities", "classes", "weapons", "player_protection"],
       "package": false
     },
-    "cr02_mode_coop": {"profile": "affinity", "kind": "pair", "systems": ["expedition_wallet", "combat_affinity_contracts", "hex_terrain", "connection_flow", "weapons", "garden", "affinity_cards", "network_session", "player_build_ui"], "package": false},
+    "cr02_mode_coop": {"profile": "affinity", "kind": "pair", "systems": ["expedition_wallet", "combat_affinity_contracts", "hex_terrain", "connection_flow", "weapons", "garden", "affinity_cards", "network_session", "player_build_ui", "progression_ui"], "package": false},
     "cr02_definitions_mismatch": {"profile": "affinity",
       "kind": "pair",
-      "systems": ["world_snapshot", "combat_affinity_contracts", "connection_flow", "network_session", "player_build_ui"],
+      "systems": ["world_snapshot", "combat_affinity_contracts", "connection_flow", "network_session", "player_build_ui", "progression_ui"],
       "package": false
     },
     "plant_affinities": {
@@ -2105,7 +2109,8 @@
         "class_tree_access",
         "event_audio",
         "expeditions",
-        "player_build_ui"
+        "player_build_ui",
+        "progression_ui"
       ],
       "package": true
     },
@@ -2119,14 +2124,15 @@
         "weapons",
         "garden_care",
         "garden_returns",
-        "event_audio"
+        "event_audio",
+        "progression_ui"
       ],
       "package": true
     },
     "guarded_gameplay_transactions": {
       "candidate_release": true,
       "kind": "unit",
-      "systems": ["loot", "persistence_operations", "persistence_recovery_plan", "persistence_authorization", "garden_cinematics", "garden_care", "knowledge", "characters", "connection_flow", "player_build_ui"],
+      "systems": ["loot", "persistence_operations", "persistence_recovery_plan", "persistence_authorization", "garden_cinematics", "garden_care", "knowledge", "characters", "connection_flow", "player_build_ui", "progression_ui"],
       "package": true
     },
     "guarded_title_session": {
@@ -2517,7 +2523,8 @@
         "garden_costs",
         "core_combat",
         "weapon_balance",
-        "player_build_ui"
+        "player_build_ui",
+        "progression_ui"
       ],
       "package": true
     },
@@ -2982,7 +2989,8 @@
         "expeditions",
         "items",
         "seeds",
-        "heart_growth_visual"
+        "heart_growth_visual",
+        "progression_ui"
       ],
       "package": true
     },
@@ -2996,7 +3004,8 @@
         "expeditions",
         "items",
         "seeds",
-        "heart_growth_visual"
+        "heart_growth_visual",
+        "progression_ui"
       ],
       "package": true
     },
@@ -3063,7 +3072,8 @@
         "gate_access",
         "core_combat",
         "class_tree_access",
-        "player_build_ui"
+        "player_build_ui",
+        "progression_ui"
       ],
       "package": true
     },
@@ -3125,7 +3135,8 @@
         "menu_layout",
         "ui_copy",
         "class_tree_access",
-        "player_build_ui"
+        "player_build_ui",
+        "progression_ui"
       ],
       "package": false
     },
@@ -3170,7 +3181,8 @@
         "heart_growth_visual",
         "garden_stations",
         "ui_copy",
-        "developer_garden"
+        "developer_garden",
+        "progression_ui"
       ],
       "package": false
     },
@@ -3405,7 +3417,8 @@
         "cultivation_growth",
         "avatar_motion_view",
         "characters",
-        "enemy_attack_execution"
+        "enemy_attack_execution",
+        "progression_ui"
       ],
       "package": true
     },
@@ -3605,7 +3618,8 @@
         "seeds",
         "items",
         "weapons",
-        "knowledge"
+        "knowledge",
+        "progression_ui"
       ],
       "package": false
     },
@@ -3630,7 +3644,8 @@
         "knowledge",
         "garden_care",
         "cultivation_growth",
-        "ui_copy"
+        "ui_copy",
+        "progression_ui"
       ],
       "package": false
     },
@@ -3835,7 +3850,8 @@
         "seeds",
         "garden_cinematics",
         "garden_conduit",
-        "developer_garden"
+        "developer_garden",
+        "progression_ui"
       ],
       "package": true
     },
@@ -3845,7 +3861,8 @@
         "progression",
         "seeds",
         "presentation",
-        "ui_copy"
+        "ui_copy",
+        "progression_ui"
       ],
       "package": false
     },
@@ -4102,6 +4119,9 @@
     "foundation_performance": "Optional performance benchmark, run explicitly; not a correctness release suite."
   },
   "relationships": [
+    ["progression_ui", "gameplay_ui", "One feature presents detached research/class/seed/story facts and emits explicit refresh and existing action requests"],
+    ["progression_ui", "knowledge", "Research offering previews and authoritative spending share HeartProgress material planning"],
+    ["progression_ui", "garden_returns", "Story presentation receives a bounded discovery projection without a world reference"],
     ["player_hit_conditions", "incoming_player_hit", "Validated unblocked contacts update Slow and grace through one immutable owner"],
     ["player_hit_conditions", "oracle_progression", "Only an eligible stronger Slow asks the Omen owner to consume Quiet Ground"],
     ["player_hit_conditions", "life", "Entry, revival and Garden return retain their distinct condition lifetimes"],
@@ -9001,127 +9021,6 @@
             "ui_copy"
           ]
         },
-        "ui_copy_1": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_0": {
-          "systems": [
-            "ui_copy"
-          ]
-        }
-      }
-    },
-    "progression_panel.gd": {
-      "newline": "crlf",
-      "regions": {
-        "ct02_1": {
-          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
-        },
-        "experimental_terrain_1": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        },
-        "refund_station_tooltip": {
-          "systems": [
-            "class_tree_access"
-          ]
-        },
-        "class_details_placeholder": {
-          "systems": [
-            "class_tree_access"
-          ]
-        },
-        "shared_tree_base_scroll": {
-          "systems": [
-            "class_tree_access"
-          ]
-        },
-        "scroll_classes_to_base": {
-          "systems": [
-            "class_tree_access"
-          ]
-        },
-        "clear_highlight_on_class_tab_switch": {
-          "systems": [
-            "class_tree_access"
-          ]
-        },
-        "hide_retired_seed_actions": {
-          "systems": [
-            "class_tree_access"
-          ]
-        },
-        "stable_progression_rows": {
-          "systems": [
-            "class_tree_access"
-          ]
-        },
-        "open_class_tree_page": {
-          "systems": [
-            "class_tree_access"
-          ]
-        },
-        "class_page_return": {
-          "systems": [
-            "class_tree_access"
-          ]
-        },
-        "crafting_navigation_state": {
-          "systems": [
-            "class_tree_access"
-          ]
-        },
-        "ui_copy_8": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_7": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_5": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_4": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_3": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_2": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_1": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_0": {
-          "systems": [
-            "ui_copy"
-          ]
-        }
-      }
-    },
-    "garden_story_panel.gd": {
-      "newline": "lf",
-      "regions": {
         "ui_copy_1": {
           "systems": [
             "ui_copy"
