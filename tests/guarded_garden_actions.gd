@@ -1,4 +1,5 @@
 extends SceneTree
+const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Cards = preload("res://affinity_cards.gd")
@@ -49,11 +50,11 @@ func open_world(fresh := false) -> bool:
   if current_scene == title: title.new_button.pressed.emit()
  else:
   title.continue_button.pressed.emit()
- if current_scene == title or not current_scene.has_meta(Tx.SESSION):
+ if current_scene == title or not SessionCase.has_guarded_session(current_scene):
   check(false, "guarded title handoff failed: " + title.notice.text)
   return false
  world = current_scene
- check(world.get_meta(Tx.SESSION).owns_leases(), "title handoff owns Garden and profile leases")
+ check(world.persistence_session.owns_leases(), "title handoff owns Garden and profile leases")
  world.set_process(false)
  world.set_physics_process(false)
  var actor: Dictionary=world.players[1]
@@ -328,13 +329,13 @@ func gameplay() -> void:
  var committed:=disk()
  world.garden_action(1,"flower")
  check(disk()==committed and audio_count()==start_audio+2,"pending blocks replay")
- record("flower_committed_cleanup_pending",before,{"notice":Tx.pending_notice(world),"feedback":world.feedback.text,"audio":audio_count()})
+ record("flower_committed_cleanup_pending",before,{"notice":world.persistence_session.pending_notice(),"feedback":world.feedback.text,"audio":audio_count()})
  check(Ops.recover(PackedStringArray([garden_path])).value.verified and disk()[garden_path]==committed[garden_path] and disk()[C]==committed[C], "verified B2 cleanup preserves committed bytes")
  close_world()
  await process_frame
  if not open_world(): return
  p=world.players[1]
- check(p.character.plants[0]==2 and Tx.session_writable(world) and audio_count()==0, "reopen restores availability without replay")
+ check(p.character.plants[0]==2 and world.persistence_session.can_write() and audio_count()==0, "reopen restores availability without replay")
 
  ExpeditionCase.set_membership(world, p, true)
  # Cumulative graft rollback is covered by cr05_native_grafts.
@@ -374,9 +375,9 @@ func gameplay() -> void:
  world.remove_meta(&"guarded_gameplay_test_fault")
  var split:=disk()
  check(world.progress.plots[0].species<0 and p.character.plants[0]==3 and world.rng.state!=rng_before and audio_count()==0
-  and split[C]!=before[C] and split[garden_path]==before[garden_path] and Tx.pending_notice(world).contains("uncertain"),"uncertainty preserves tentative memory and split proof without cue")
+  and split[C]!=before[C] and split[garden_path]==before[garden_path] and world.persistence_session.pending_notice().contains("uncertain"),"uncertainty preserves tentative memory and split proof without cue")
  check(not world.harvest(1,0) and split==disk(),"uncertain replay refused")
- record("harvest_uncertain",before,{"tentative_familiarity":p.character.plants[0],"notice":Tx.pending_notice(world)})
+ record("harvest_uncertain",before,{"tentative_familiarity":p.character.plants[0],"notice":world.persistence_session.pending_notice()})
  check(Ops.recover(PackedStringArray([C])).value.verified and disk()==before, "reverse recovery restores original pair")
  close_world()
  await process_frame
@@ -402,8 +403,8 @@ func gameplay() -> void:
  cfg.set_value("transaction","committed",false)
  check(cfg.save(garden_path+".transaction")==OK,"create pending journal")
  before=disk()
- check(not world.harvest(1,0) and disk()==before and world.progress.plots[0].species==0 and Tx.pending_notice(world).contains("recovery is pending"),"pending journal refuses without mutation")
- record("lease_and_recovery_refusals",before,{"notice":Tx.pending_notice(world)})
+ check(not world.harvest(1,0) and disk()==before and world.progress.plots[0].species==0 and world.persistence_session.pending_notice().contains("recovery is pending"),"pending journal refuses without mutation")
+ record("lease_and_recovery_refusals",before,{"notice":world.persistence_session.pending_notice()})
  check(Ops.recover(PackedStringArray([garden_path])).value.verified,"recover disposable pending fixture")
  close_world()
  await process_frame
@@ -427,13 +428,13 @@ func terminal_wilds_faults() -> void:
   return ERR_CANT_CREATE if phase in ["publish_commit_marker","restore"] else OK)
  world.garden_action(1,"bank_part_1")
  world.remove_meta(&"guarded_gameplay_test_fault")
- check(actor.carried_parts[1]==0 and actor.last_deposit==6 and Tx.pending_notice(world).contains("uncertain")
+ check(actor.carried_parts[1]==0 and actor.last_deposit==6 and world.persistence_session.pending_notice().contains("uncertain")
   and not world.status.begins_with("Banked") and disk()[garden_path+".transaction"]!="absent",
   "courier uncertainty retains tentative cargo and withholds success")
  var unresolved := disk()
  world.garden_action(1,"bank_part_1")
  check(disk()==unresolved,"courier replay is blocked")
- record("courier_uncertain",initial,{"notice":Tx.pending_notice(world)})
+ record("courier_uncertain",initial,{"notice":world.persistence_session.pending_notice()})
  close_world()
  await process_frame
  current_scene.garden_recovery_button.pressed.emit()
@@ -485,7 +486,7 @@ func caller_effects() -> void:
    world.send_garden_action(command)
    var after := disk()
    var status: String=world.status
-   var notice := Tx.pending_notice(world)
+   var notice: String = world.persistence_session.pending_notice()
    var staged: int=attempts.count
    var finalization := {}
    for line in FileAccess.get_file_as_string(journal.file.get_path()).split("
@@ -498,7 +499,7 @@ func caller_effects() -> void:
     "rng_before":str(rng_before),"rng_after":str(world.rng.state)}
    check(staged>0 and world.rng.state==rng_before,action+" stages without consuming RNG")
    check((after==before and notice.is_empty() and status.begins_with("Save cancelled")) if aborted else
-    (after[garden_path]!=before[garden_path] and after[garden_path+".transaction"]!="absent" and not Tx.session_writable(world)
+    (after[garden_path]!=before[garden_path] and after[garden_path+".transaction"]!="absent" and not world.persistence_session.can_write()
      and ((notice==Tx.CLEANUP_NOTICE) if committed else notice.contains("uncertain"))),action+" "+outcome+" evidence")
    player=world.players[1]
    match action:

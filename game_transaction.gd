@@ -1,5 +1,6 @@
 extends RefCounted
 const Batch=preload("res://save_batch.gd")
+const Session = preload("res://guarded_title_session.gd")
 const MonsterRewards = preload("res://monster_rewards.gd")
 const EncounterRoster = preload("res://encounter_roster.gd")
 const EnemyTactics = preload("res://enemy_tactics.gd")
@@ -27,8 +28,8 @@ static func restore(object: Object,state: Dictionary) -> void:
   elif current is Dictionary and value is Dictionary: restore_dict(current,value)
   else: object.set(key,value)
 static func run(game: Node,action: Callable, verdict := {}):
- if game.has_meta(SESSION):
-  if session_writable(game):
+ if game.persistence_session.is_guarded():
+  if game.persistence_session.can_write():
    game.status = "This action is unavailable in the guarded session."
   return false
  if Batch.guarded_active():
@@ -115,30 +116,19 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
   if id!=game.HOST and game.players.has(id) and game.network_session.transport()!=null: game.receive_character.rpc_id(id,game.players[id].character)
  return result
 
-const SESSION := &"guarded_title_session"
-const PENDING := &"guarded_persistence_pending"
-const STOPPING := &"guarded_session_stopping"
-const CLEANUP_NOTICE := "Saved. Recovery cleanup is pending. Further saves are blocked."
+const CLEANUP_NOTICE := Session.CLEANUP_NOTICE
 enum Scope { LEGACY, GARDEN, PROFILE, PAIR, GUEST_PROFILE }
 
 static var _owner: Node
 static var _participants: Array = []
-
-static func session_writable(game: Node) -> bool:
- if not game.has_meta(SESSION):
-  return true
- return not game.get_meta(STOPPING, false) and not game.get_meta(PENDING, false) and game.get_meta(SESSION).owns_leases()
 
 static func committed(boundary: Dictionary) -> bool:
  var execution: Variant = boundary.get("value")
  var final: Batch.Finalization = execution.get("outcome") if execution is Dictionary else null
  return final != null and final.outcome in [Batch.Outcome.COMMITTED, Batch.Outcome.COMMITTED_CLEANUP_PENDING]
 
-static func pending_notice(game: Node) -> String:
- return str(game.get_meta(&"guarded_save_notice", "")) if game.get_meta(PENDING, false) else ""
-
 static func feedback_text(game: Node, message: String) -> String:
- var pending := pending_notice(game)
+ var pending: String = game.persistence_session.pending_notice()
  if pending.is_empty() or message == pending or message.ends_with("\n" + pending): return message
  return pending if message.is_empty() else message + "\n" + pending
 
@@ -150,7 +140,7 @@ static func feedback(result: Dictionary, fallback: String) -> String:
 # Keep the existing boundary and typed finalization available to callers.
 # Gameplay completion and the recovery notice can coexist.
 static func run_gameplay(game: Node, scope: Scope, action: Callable, legacy_transaction := true) -> Dictionary:
- if not game.has_meta(SESSION):
+ if not game.persistence_session.is_guarded():
   # Legacy callers keep their existing business conventions. There is no
   # typed persistence verdict on that route.
   var verdict := {}
@@ -171,31 +161,10 @@ static func run_gameplay(game: Node, scope: Scope, action: Callable, legacy_tran
 static func _report(game: Node, boundary: Dictionary) -> String:
  var execution: Variant = boundary.get("value")
  var final: Batch.Finalization = execution.get("outcome") if execution is Dictionary else null
- var notice := "Save could not start. No changes were saved."
- if final != null:
-  match final.outcome:
-   Batch.Outcome.COMMITTED:
-    notice = "" if boundary.error == OK else "Saved. Further saves are blocked until the session is reopened."
-   Batch.Outcome.COMMITTED_CLEANUP_PENDING:
-    notice = CLEANUP_NOTICE
-   Batch.Outcome.ABORTED_RESTORED:
-    notice = "Save cancelled. The original state was verified."
-    if final.write_blocked: notice += " Recovery cleanup is pending."
-   Batch.Outcome.UNCERTAIN:
-    notice = "Save state is uncertain. Recovery is required before saving again."
- elif boundary.state in ["pending_recovery", "ambiguous", "unresolved"] or boundary.reason == "guarded_persistence_pending":
-  notice = "Save recovery is pending. Your files are preserved."
- elif boundary.reason in ["stale_session_lease", "unowned_participant", "foreign_session_lease", "guarded_session_stopping"]:
-  notice = "This session no longer has access to the selected save."
- # A later refusal must not replace the reason this world is blocked.
- var prior := pending_notice(game)
- if not prior.is_empty():
-  notice = prior
- elif game.get_meta(PENDING, false):
-  game.set_meta(&"guarded_save_notice", notice)
-  game.status = ""
- elif not notice.is_empty():
-  game.status = notice
+ var feedback: Dictionary = game.persistence_session.finalization_feedback(boundary)
+ var notice: String = feedback.notice
+ if feedback.clear_status: game.status = ""
+ elif feedback.set_status: game.status = notice
  if not notice.is_empty():
   preload("res://diagnostic_journal.gd").event("save", "guarded_gameplay_result", {
    "reason": boundary.reason, "state": boundary.state, "error": boundary.error,
@@ -213,14 +182,14 @@ static func run_guarded(game: Node, action: Callable, publish := Callable(), sco
 static func _run_guarded(game: Node, action: Callable, publish: Callable, fault := Callable(), scope := Scope.LEGACY) -> Dictionary:
  if not Thread.is_main_thread() or not is_instance_valid(game) or not action.is_valid():
   return _refusal(ERR_INVALID_PARAMETER, "invalid_transaction")
- var owner: RefCounted = game.get_meta(SESSION) if game.has_meta(SESSION) else null
+ var owner: RefCounted = game.persistence_session if game.persistence_session.is_guarded() else null
  if owner != null and scope == Scope.LEGACY:
   return _refusal(ERR_UNAUTHORIZED, "explicit_gameplay_scope_required")
  if owner == null and scope != Scope.LEGACY:
   return _refusal(ERR_UNAUTHORIZED, "gameplay_session_required")
- if game.get_meta(PENDING, false):
+ if game.persistence_session.is_blocked():
   return _refusal(ERR_BUSY, "guarded_persistence_pending", "pending_recovery")
- if game.get_meta(STOPPING, false):
+ if game.persistence_session.is_stopping():
   return _refusal(ERR_UNAUTHORIZED, "guarded_session_stopping")
  var serializers := _serializers(game, scope)
  if serializers.is_empty():
@@ -316,8 +285,7 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
    boundary.state = "unresolved"
    boundary.reason = "missing_gameplay_finalization"
    if boundary.error == OK: boundary.error = ERR_BUG
-  if boundary.state in ["pending_recovery", "ambiguous", "unresolved"] or boundary.release_error != OK:
-   game.set_meta(PENDING, true)
+  game.persistence_session.record_finalization(boundary)
   return boundary
 
  match finalized.outcome:
@@ -332,8 +300,7 @@ static func _run_guarded(game: Node, action: Callable, publish: Callable, fault 
    if rewards != null:
     var cleanup: bool = finalized.outcome == Batch.Outcome.COMMITTED_CLEANUP_PENDING or finalized.write_blocked or boundary.release_error != OK
     rewards.finish_settlement(MonsterRewards.Result.CLEANUP_PENDING if cleanup else MonsterRewards.Result.COMMITTED)
- if finalized.write_blocked or boundary.release_error != OK:
-  game.set_meta(PENDING, true)
+ game.persistence_session.record_finalization(boundary)
  if committed(boundary) and publish.is_valid():
   publish.call(execution.value)
  return boundary

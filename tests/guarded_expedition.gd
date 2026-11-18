@@ -38,7 +38,7 @@ func disk() -> Dictionary:
 
 func record(label: String,before: Dictionary) -> void:
  print("CASE ",JSON.stringify({"case":label,"run_id":OS.get_environment("MYSTICAL_VALIDATION_RUN"),"before":before,"after":disk(),
-  "floor":world.participation.floor(),"wild":world.participation.active(),"pending":Tx.pending_notice(world),"status":world.status,
+  "floor":world.participation.floor(),"wild":world.participation.active(),"pending":world.persistence_session.pending_notice(),"status":world.status,
   "queued_kills":world.monster_rewards.pending_count(),"queued_departures":world.departure_settlement.count(),"event_serial":world.combat_event_serial}))
 
 func open_world(fresh := false) -> bool:
@@ -57,11 +57,11 @@ func open_world(fresh := false) -> bool:
   if current_scene == title: title.new_button.pressed.emit()
  else:
   title.continue_button.pressed.emit()
- if current_scene == title or not current_scene.has_meta(Tx.SESSION):
+ if current_scene == title or not SessionCase.has_guarded_session(current_scene):
   check(false, "guarded title handoff failed: " + title.notice.text)
   return false
  world = current_scene
- check(world.get_meta(Tx.SESSION).owns_leases(), "title handoff owns Garden and profile leases")
+ check(world.persistence_session.owns_leases(), "title handoff owns Garden and profile leases")
  world.set_process(false)
  world.set_physics_process(false)
  var actor: Dictionary=world.players[1]
@@ -378,7 +378,7 @@ func exercise() -> void:
  ExpeditionCase.Transitions.checkpoint(world, 1,false)
  world.remove_meta(&"guarded_gameplay_test_fault")
  var split:=disk()
- check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds+1 and world.loadout_menu.visible and Tx.pending_notice(world).contains("uncertain")
+ check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds+1 and world.loadout_menu.visible and world.persistence_session.pending_notice().contains("uncertain")
   and split[C]!=before[C] and split[G]==before[G] and not world.status.contains("Extracted with"),"uncertain extraction keeps tentative memory and withholds notice/closure")
  ExpeditionCase.Transitions.checkpoint(world, 1,false)
  check(disk()==split,"uncertain operation does not replay")
@@ -467,7 +467,7 @@ func exercise() -> void:
  ExpeditionCase.Transitions.abandon(world, 1,actor)
  check(int(PlayerVitals.current_hp(actor))==hp and ExpeditionCase.is_wild(actor) and disk()==before,"lost lease prevents combat and settlement writes")
  world.return_to_main_menu()
- check(world.get_meta(Tx.STOPPING,false) and disk()==before,"lost lease shuts down without saving")
+ check(world.persistence_session.is_stopping() and disk()==before,"lost lease shuts down without saving")
  record("lost_lease_shutdown",before)
  await process_frame
  check(current_scene != world and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"lost lease shutdown detaches after offline")
@@ -482,7 +482,7 @@ func exercise() -> void:
  before=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  world.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
- check(not world.get_meta(Tx.STOPPING,false) and ExpeditionCase.is_wild(actor) and disk()==before and current_scene==world,
+ check(not world.persistence_session.is_stopping() and ExpeditionCase.is_wild(actor) and disk()==before and current_scene==world,
   "window-close settlement abort keeps the world and original saves")
  record("window_close_abort",before)
  world.return_to_main_menu()

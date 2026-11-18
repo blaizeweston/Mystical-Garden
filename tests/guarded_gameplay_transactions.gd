@@ -60,9 +60,9 @@ func start(slots: RefCounted, roster: RefCounted, garden: bool) -> Node:
  world.guest_character.path = C
  world.network_session.configure_join_origin(not garden)
  world.slot_claimed = garden
- var owner := Owner.new()
- var result := owner.start(world, slots if garden else null, 0, Slots._save_digest(G) if garden else "",
-  roster, 0, Slots._save_digest(C))
+ var owner: Owner = world.persistence_session
+ var result := owner.start(world.progress, world.local_character, world.guest_character, slots if garden else null, 0, Slots._save_digest(G) if garden else "",
+  roster, 0, Slots._save_digest(C), world.has_meta(&"experimental_terrain"))
  check(Owner.completed(result), "guarded launch " + str(result))
  if not Owner.completed(result):
   world.free()
@@ -101,7 +101,7 @@ func run() -> void:
  var stores := seed_save_set()
  var world := start(stores.slots, stores.roster, true)
  if world == null: return
- check(world.has_meta(Tx.SESSION) and world.progress.require_guarded_access, "real session and raw save refusal enabled")
+ check(SessionCase.has_guarded_session(world) and world.progress.require_guarded_access, "real session and raw save refusal enabled")
  var before := disk()
  var garden := Tx.run_gameplay(world, Tx.Scope.GARDEN, func(): world.progress.knowledge = 21; return false)
  verify("garden_false_business_commit", garden.persistence, Batch.Outcome.COMMITTED, before)
@@ -369,7 +369,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
   check(journal.load(G + ".transaction") == OK and journal.get_value("transaction","committed",false),
    feature + " retains the committed journal")
   world.refresh_feedback()
-  check(proof.state == "pending_recovery" and committed_disk[G] != before[G] and Tx.pending_notice(world) == CleanupNotice
+  check(proof.state == "pending_recovery" and committed_disk[G] != before[G] and world.persistence_session.pending_notice() == CleanupNotice
    and world.status == ordinary and world.feedback.text.contains(ordinary) and world.feedback.text.contains(CleanupNotice)
    and world.toast_panel.visible, feature + " committed bytes, ordinary feedback and persistent warning")
   var journal_log = preload("res://diagnostic_journal.gd").current
@@ -420,11 +420,11 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
   var recovered := Ops.recover(PackedStringArray([G]))
   check(recovered.ran and recovered.value.verified and disk()[G] == committed_disk[G] and not FileAccess.file_exists(G+".transaction"),
    feature + " cleanup preserves committed bytes")
-  check(not Tx.pending_notice(world).is_empty(),"old session remains blocked until reconciliation by reopening")
+  check(not world.persistence_session.pending_notice().is_empty(),"old session remains blocked until reconciliation by reopening")
   world.free()
   var reconciled := start(stores.slots, stores.roster, true)
   if reconciled == null: return
-  check(Tx.pending_notice(reconciled).is_empty() and Tx.session_writable(reconciled)
+  check(reconciled.persistence_session.pending_notice().is_empty() and reconciled.persistence_session.can_write()
    and reconciled.status != ordinary and reconciled.combat_event_serial == 0 and disk()[G] == committed_disk[G],
    feature + " reopening permits writes without replaying success, audio or the action")
   reconciled.free()
@@ -449,7 +449,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
  profile_world.players[profile_world.HOST].character.name = "Cleanup profile"
  profile_world.character_dirty = true
  profile_world.set_meta(&"guarded_gameplay_test_fault",fail_receipt)
- check(profile_world.save_local_character() and not profile_world.character_dirty and Tx.pending_notice(profile_world) == CleanupNotice,
+ check(profile_world.save_local_character() and not profile_world.character_dirty and profile_world.persistence_session.pending_notice() == CleanupNotice,
   "profile cleanup retains committed completion and clears the dirty flag")
  profile_world.remove_meta(&"guarded_gameplay_test_fault")
  var profile_after := disk()
@@ -458,7 +458,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
  check(profile_read.load_profile(false) == OK and profile_read.data.name == "Cleanup profile"
   and profile_after[C] != profile_before[C] and profile_after[G] == profile_before[G]
   and Plan.discover(PackedStringArray([C])).state == "pending_recovery","profile bytes committed with evidence")
- record("cleanup_feedback_explicit_profile",profile_before,{"notice":Tx.pending_notice(profile_world)})
+ record("cleanup_feedback_explicit_profile",profile_before,{"notice":profile_world.persistence_session.pending_notice()})
  check(Ops.recover(PackedStringArray([C])).value.verified and disk()[C] == profile_after[C],"profile cleanup preserves new bytes")
  profile_world.free()
 
@@ -469,7 +469,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
   resumed.progress.knowledge += 1
   return "Ordinary save success")
  check(result.completed and result.value == "Ordinary save success" and result.notice.is_empty()
-  and Tx.pending_notice(resumed).is_empty() and disk()[G] != before[G],
+  and resumed.persistence_session.pending_notice().is_empty() and disk()[G] != before[G],
   "fresh authorized session resumes after cleanup")
  verify("feedback_resumed_after_cleanup",result.persistence,Batch.Outcome.COMMITTED,before)
  resumed.free()

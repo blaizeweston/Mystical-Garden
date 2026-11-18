@@ -13,7 +13,7 @@ static func enter(game: Node, id: int, p: Dictionary) -> void:
 		game.tell(id,refusal)
 		return
 	if game.players.size()>1: game.PartyTravel.request(game,id,"depart")
-	elif game.has_meta(game.Transactions.SESSION):
+	elif game.persistence_session.is_guarded():
 		if not game.at_weapon_gate(p) or Participation.is_wild(p) or game.participation.active(): return
 		game.run_guarded_action(id, game.Transactions.Scope.PAIR, func(effects):
 			game.settle_expedition_rewards(effects)
@@ -182,11 +182,11 @@ static func return_member(game: Node, p: Dictionary) -> void:
 
 
 static func checkpoint(game: Node, id: int, descend: bool) -> void:
-	if game.has_meta(game.Transactions.SESSION):
-		if not game.Transactions.session_writable(game) or not game.encounter_rewarded or not game.Life.alive(game.players.get(id,{})): return
+	if game.persistence_session.is_guarded():
+		if not game.persistence_session.can_write() or not game.encounter_rewarded or not game.Life.alive(game.players.get(id,{})): return
 	if game.PartyTravel.members(game,"advance").size()>1:
 		game.PartyTravel.request(game,id,"advance" if descend else "extract");return
-	if game.has_meta(game.Transactions.SESSION):
+	if game.persistence_session.is_guarded():
 		if descend and game.players[id].pos.distance_to(game.battlefield.advance)<=preload("res://gate_interaction.gd").RANGE and game.activate_checkpoint(): return
 		game.run_guarded_action(id, game.Transactions.Scope.PAIR, func(effects):
 			if not commit_checkpoint(game, id,descend,effects): return false
@@ -335,7 +335,7 @@ static func finish_if_empty(game: Node) -> void:
 
 
 static func finish_failed(game: Node) -> bool:
-	if game.has_meta(game.Transactions.SESSION):
+	if game.persistence_session.is_guarded():
 		var result: Dictionary = game.run_guarded_action(game.HOST, game.Transactions.Scope.PAIR, func(effects): commit_failed(game, effects))
 		return game.Transactions.committed(result.persistence)
 	var returned=game.Transactions.run(game,func(): commit_failed(game))
@@ -366,7 +366,7 @@ static func commit_failed(game: Node, effects = null) -> void:
 
 static func abandon(game: Node, id: int,player: Dictionary) -> void:
 	if not Participation.is_wild(player): return
-	if game.has_meta(game.Transactions.SESSION):
+	if game.persistence_session.is_guarded():
 		game.run_guarded_action(id, game.Transactions.Scope.PAIR, func(effects):
 			game.settle_expedition_rewards(effects, true)
 			preload("res://garden_return_service.gd").outcome(game,player,"abandoned")

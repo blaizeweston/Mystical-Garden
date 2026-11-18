@@ -1,4 +1,5 @@
 extends SceneTree
+const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -106,7 +107,7 @@ func title_and_depart() -> bool:
 		return false
 	game=current_scene
 	player=game.players[1]
-	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Rules.ID and game.has_meta(game.Transactions.SESSION),"guarded affinity world")
+	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Rules.ID and SessionCase.has_guarded_session(game),"guarded affinity world")
 	player.pos=game.stage.gate_position()
 	choose("patient_spore")
 	check(Weaver.TREE.path(player.character).is_empty(),"host refuses a choice before the focus")

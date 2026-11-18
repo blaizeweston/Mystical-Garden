@@ -129,7 +129,7 @@ func guest_run() -> void:
  check(menu.garden_summary(2).state=="pending_recovery" and menu.join_button.disabled==false,"guest can join with another Garden pending")
  var world:=launch_guest(menu)
  if world==null: return
- if not await until(func():return is_instance_valid(current_scene) and current_scene.has_meta(&"guarded_return_from_world")):
+ if not await until(func():return is_instance_valid(current_scene) and SessionCase.returned_to_guarded_title(current_scene)):
   check(false,"failed admission returns to title")
   return
  menu=current_scene
@@ -156,7 +156,7 @@ func guest_run() -> void:
   check(false,"reconnect through guarded title")
   return
  mark("reconnected","yes")
- if not await until(func():return current_scene!=world and is_instance_valid(current_scene) and current_scene.has_meta(&"guarded_return_from_world")):
+ if not await until(func():return current_scene!=world and is_instance_valid(current_scene) and SessionCase.returned_to_guarded_title(current_scene)):
   check(false,"host disconnect returns guest to title")
   return
  var marker:=P.get_base_dir().path_join("session.cfg")

@@ -320,7 +320,7 @@ static func tick(game: Node, now: int) -> void:
 				"trait_secondary":true,"core_hit":true,"knockback":-.35},now)
 		if not targets.is_empty() and game.encounter_cleared():
 			game.finish_combat(id,center)
-			if not game.Transactions.session_writable(game):
+			if not game.persistence_session.can_write():
 				return
 
 

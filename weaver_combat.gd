@@ -127,7 +127,7 @@ static func tick(game: Node, now: int) -> void:
 		elif effect.kind == "weaver_burst" and now >= int(effect.due):
 			player.erase("weaver_capstone")
 			burst(game,player,effect,now)
-			if not game.Transactions.session_writable(game):
+			if not game.persistence_session.can_write():
 				return
 		elif effect.kind == "weaver_canopy":
 			if now >= int(effect.until):

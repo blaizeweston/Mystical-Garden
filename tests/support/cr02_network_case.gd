@@ -217,7 +217,7 @@ func guest(menu: Node, mismatch: bool) -> void:
 		return
 	var world := tree.current_scene
 	check(Build.for_player(world.players[world.local_player_id()]).ruleset==Rules.ID
-		and not world.get_meta(world.Transactions.SESSION).authorizes(world.progress.path),
+		and not world.persistence_session.authorizes(world.progress.path),
 		"guest resolves modern gameplay without host save ownership")
 	mark("admitted")
 	if not check(await until(func():return read("focus-gate")=="ok"),"host opens the starting focus picker"):return

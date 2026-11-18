@@ -78,7 +78,7 @@
       ]
     },
     "persistence_operations": {
-      "label": "Opt-in guarded persistence operation scope and activation gate",
+      "label": "Guarded persistence operations, explicit session holds and activation gate",
       "files": [
         "guest_profile_projection.gd",
         "guest_profile_projection.gd.uid",
@@ -1409,7 +1409,7 @@
       "foundation"
     ],
     "_stop_guarded_session": ["menus", "persistence_operations"],
-    "_finish_title_return": ["menus", "connection_flow", "persistence_operations"],
+    "_finish_title_return": ["menus", "connection_flow", "persistence_operations", "persistence_authorization", "persistence_recovery_plan", "persistence_save_access", "characters", "developer_garden", "expeditions", "garden"],
     "release_slot": [
       "foundation"
     ],
@@ -6576,83 +6576,6 @@
         ]
       },
       "join_does_not_save_garden": {
-        "additive": true,
-        "systems": [
-          "connection_flow"
-        ]
-      }
-    },
-    "_finish_title_return": {
-      "production_route": {
-        "additive": true,
-        "systems": [
-          "persistence_operations",
-          "persistence_authorization",
-          "persistence_recovery_plan",
-          "persistence_save_access",
-          "menus",
-          "characters",
-          "developer_garden",
-          "connection_flow",
-          "expeditions",
-          "garden"
-        ]
-      },
-      "guest_projection": {
-        "systems": [
-          "persistence_operations",
-          "connection_flow",
-          "characters",
-          "expeditions",
-          "garden",
-          "menus",
-          "developer_garden"
-        ],
-        "additive": true
-      },
-      "guarded_lifecycle": {
-        "systems": [
-          "persistence_operations",
-          "connection_flow",
-          "menus",
-          "developer_garden"
-        ],
-        "additive": true
-      },
-      "guarded_expedition": {
-        "systems": [
-          "persistence_operations",
-          "menus",
-          "connection_flow",
-          "developer_garden"
-        ],
-        "additive": true
-      },
-      "cleanup_feedback": {
-        "systems": [
-          "persistence_operations"
-        ],
-        "additive": true
-      },
-      "guarded_gameplay_writer": {
-        "systems": [
-          "persistence_operations"
-        ],
-        "additive": true
-      },
-      "return_from_developer_garden": {
-        "additive": true,
-        "systems": [
-          "developer_garden"
-        ]
-      },
-      "close_share_on_return": {
-        "additive": true,
-        "systems": [
-          "connection_flow"
-        ]
-      },
-      "join_menu_restore": {
         "additive": true,
         "systems": [
           "connection_flow"

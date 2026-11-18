@@ -65,7 +65,7 @@ func start() -> bool:
  world.guest_character.path=path
  world.slot_claimed=host
  world.network_session.configure_join_origin(not host)
- var started:=Owner.new().start(world,slots if host else null,0,Slots._save_digest(G) if host else "",roster,0 if host else 1,Slots._save_digest(path))
+ var started: Dictionary =world.persistence_session.start(world.progress,world.local_character,world.guest_character,slots if host else null,0,Slots._save_digest(G) if host else "",roster,0 if host else 1,Slots._save_digest(path))
  if not Owner.completed(started):
   check(false,"guarded startup "+str(started))
   world.free()
@@ -202,7 +202,7 @@ func host_run() -> void:
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):return ERR_CANT_CREATE if phase=="publish_receipt" else OK)
  ExpeditionCase.Transitions.checkpoint(world, 1,false)
  mark("extract",str(world.participation.travel_epoch()))
- if not await until(func():return not world.participation.active() and Tx.pending_notice(world)==Tx.CLEANUP_NOTICE):
+ if not await until(func():return not world.participation.active() and world.persistence_session.pending_notice()==Tx.CLEANUP_NOTICE):
   check(false,"party extraction commits with cleanup pending")
   return
  # Production keeps streaming public state after a cleanup-pending commit.
@@ -222,7 +222,7 @@ func host_run() -> void:
   return
  check(Slots._save_digest(G)==committed and world.progress.reserve(guest_identity).unknown==[0],"pending, duplicate votes and disconnect cannot change committed Garden")
  check(SessionCase.Session.peer_for(guest)==0 and not SessionCase.Session.ready_for(guest),"released guest link cannot authorize later work")
- record("party_extraction_cleanup",before,{"guest_seed":1,"notice":Tx.pending_notice(world),"offline_guest":true})
+ record("party_extraction_cleanup",before,{"guest_seed":1,"notice":world.persistence_session.pending_notice(),"offline_guest":true})
 
 func guest_run() -> void:
  check(SessionCase.World.join(world,"127.0.0.1")==OK,"guest joins with own lease")

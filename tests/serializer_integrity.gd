@@ -1,4 +1,5 @@
 extends SceneTree
+const SessionCase = preload("res://tests/support/session_case.gd")
 
 const Batch = preload("res://save_batch.gd")
 const Ops = preload("res://persistence_operations.gd")
@@ -77,7 +78,7 @@ func launch() -> Node:
  menu.select_character(0)
  menu.select_slot(0)
  menu.continue_button.pressed.emit()
- check(current_scene != menu and current_scene.has_meta(Tx.SESSION), "guarded legacy save opened through title")
+ check(current_scene != menu and SessionCase.has_guarded_session(current_scene), "guarded legacy save opened through title")
  return current_scene if current_scene != menu else null
 
 func result_code(result: Dictionary) -> Batch.Finalization:
@@ -212,7 +213,7 @@ func first_open_migration() -> void:
  var before := state()
  var world := launch()
  if world == null: return
- check(world.get_meta(Tx.SESSION).owns_leases() and world.progress.knowledge==9
+ check(world.persistence_session.owns_leases() and world.progress.knowledge==9
   and world.local_character.identity==Identity,"Continue reads supported old saves under owned leases")
  var after := state()
  check(after[G]==before[G] and after[P]==before[P] and after[PB+".tmp"]==before[PB+".tmp"]
@@ -313,7 +314,7 @@ func run() -> void:
   return false)
  final = result_code(committed)
  check(committed.completed and committed.value == false and final.outcome == Batch.Outcome.COMMITTED_CLEANUP_PENDING
-  and Tx.pending_notice(world) == Tx.CLEANUP_NOTICE and world.progress.knowledge == 37, "cleanup pending remains committed with false business value and warning")
+  and world.persistence_session.pending_notice() == Tx.CLEANUP_NOTICE and world.progress.knowledge == 37, "cleanup pending remains committed with false business value and warning")
  check(not world.progress.needs_content_backup and not world.local_character.needs_content_backup and not world.progress.needs_plot_backup, "committed cleanup pending clears migration flags")
  check(state()[GB] == before[GB] and state()[PB] == before[PB] and state()[G] != before[G] and state()[P] != before[P], "confirmed canonical bytes and original backups")
  record("committed_migration_cleanup_pending", before, {"outcome":final.outcome, "flags":flags(world), "notice":committed.notice})

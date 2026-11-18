@@ -28,7 +28,7 @@ flowchart LR
   combat_affinity_contracts["CR02 development build resolution<br/> Catalyst contracts and event provenance"]
   plant_affinities["Explicit plant affinities and material quality for the inactive combat rework"]
   hex_terrain["Standalone M02 hex grid<br/> terrain data<br/> generator and welded surface"]
-  persistence_operations["Opt-in guarded persistence operation scope and activation gate"]
+  persistence_operations["Guarded persistence operations<br/> explicit session holds and activation gate"]
   health_pool_hud["Main health pool and floor map layout"]
   persistence_save_access["Opt-in save directory bootstrap and passive inspection"]
   persistence_recovery_plan["Read-only save participant and journal discovery"]
@@ -472,7 +472,7 @@ flowchart LR
 | `_exit_tree` | foundation |
 | `_experimental_spawn_reachable` | hex_terrain, terrain |
 | `_finish_combat` | loot, enemies, expeditions, classes |
-| `_finish_title_return` | menus, connection_flow, persistence_operations |
+| `_finish_title_return` | menus, connection_flow, persistence_operations, persistence_authorization, persistence_recovery_plan, persistence_save_access, characters, developer_garden, expeditions, garden |
 | `_garden_action` | foundation, affinity_cards |
 | `_harvest` | seeds, garden, knowledge, items |
 | `_init` | foundation |
@@ -1014,15 +1014,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::return_to_main_menu` | guarded_gameplay_writer | persistence_operations |
 | `game.gd::return_to_main_menu` | guarded_return_save_gate | persistence_operations, menus, connection_flow |
 | `game.gd::return_to_main_menu` | join_does_not_save_garden | connection_flow |
-| `game.gd::_finish_title_return` | production_route | persistence_operations, persistence_authorization, persistence_recovery_plan, persistence_save_access, menus, characters, developer_garden, connection_flow, expeditions, garden |
-| `game.gd::_finish_title_return` | guest_projection | persistence_operations, connection_flow, characters, expeditions, garden, menus, developer_garden |
-| `game.gd::_finish_title_return` | guarded_lifecycle | persistence_operations, connection_flow, menus, developer_garden |
-| `game.gd::_finish_title_return` | guarded_expedition | persistence_operations, menus, connection_flow, developer_garden |
-| `game.gd::_finish_title_return` | cleanup_feedback | persistence_operations |
-| `game.gd::_finish_title_return` | guarded_gameplay_writer | persistence_operations |
-| `game.gd::_finish_title_return` | return_from_developer_garden | developer_garden |
-| `game.gd::_finish_title_return` | close_share_on_return | connection_flow |
-| `game.gd::_finish_title_return` | join_menu_restore | connection_flow |
 | `game.gd::request_ip_join` | experimental_coop_1 | hex_terrain, terrain, connection_flow, garden |
 | `game.gd::request_ip_join` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
 | `game.gd::request_ip_join` | in_world_join_endpoint | connection_flow |

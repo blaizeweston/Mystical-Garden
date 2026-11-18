@@ -266,9 +266,9 @@ func host() -> void:
 func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: int, before: String, key: String) -> void:
  var after := FileAccess.get_sha256(G)
  var evidence := FileAccess.get_sha256(G+".transaction")
- var warning := Tx.pending_notice(game)
+ var warning: String = game.persistence_session.pending_notice()
  var cleanup := settlement_fault=="cleanup"
- check(not evidence.is_empty() and after!=before and not Tx.session_writable(game),"disconnect preserves write-blocking evidence")
+ check(not evidence.is_empty() and after!=before and not game.persistence_session.can_write(),"disconnect preserves write-blocking evidence")
  check((warning==Tx.CLEANUP_NOTICE) if cleanup else warning.contains("uncertain"),"disconnect outcome warning")
  var phase: int = game.DepartureSettlement.Phase.CLEANUP_PENDING if cleanup else game.DepartureSettlement.Phase.UNCERTAIN
  check(game.departure_settlement.status(identity)==phase and game.departure_settlement.blocks_admission(identity),
@@ -300,7 +300,7 @@ func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: i
  if cleanup:
   check(game.net_view.snapshot_sent==snapshot_sequence,"blocked reconnect does not repeat the final snapshot")
   game.release_slot()
-  check(not game.get_meta(Tx.SESSION).owns_leases(),"host relinquishes leases while still connected")
+  check(not game.persistence_session.owns_leases(),"host relinquishes leases while still connected")
   game.net_view.publish_committed_cleanup(game,old_transport)
   check(game.net_view.snapshot_sent==snapshot_sequence and FileAccess.get_sha256(G)==after
    and FileAccess.get_sha256(G+".transaction")==evidence,"deferred cleanup cannot send or write after ownership is lost")
@@ -485,7 +485,7 @@ func guest(role: String) -> void:
   marker.set_value("session","updated",Time.get_unix_time_from_system()-60.0)
   var lease := P.get_base_dir().path_join("session.cfg")
   check(marker.save(lease)==OK,"expire disposable profile lease")
-  game.get_meta(Tx.SESSION)._heartbeat_at = Time.get_unix_time_from_system()+25.0
+  game.persistence_session._heartbeat_at = Time.get_unix_time_from_system()+25.0
   var stable := FileAccess.get_sha256(P)
   var stages := {"count":0}
   game.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):

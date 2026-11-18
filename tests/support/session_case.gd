@@ -5,6 +5,16 @@ const Session = preload("res://network_session.gd")
 const World = preload("res://session_world.gd")
 const ROLE_FACTS := &"ar14_fixture_session_facts"
 
+
+static func returned_to_guarded_title(scene: Object) -> bool:
+	if not is_instance_valid(scene) or not scene.has_method("persistence_return_view"): return false
+	return bool(scene.persistence_return_view().get("guarded", false))
+
+static func has_guarded_session(world: Object) -> bool:
+	if not is_instance_valid(world): return false
+	var owner: RefCounted = world.get("persistence_session")
+	return owner != null and owner.is_guarded()
+
 static func role(world: Node) -> String:
 	if not is_instance_valid(world): return ""
 	var owner: RefCounted = world.get("network_session")

@@ -107,7 +107,7 @@ func title_and_progression() -> bool:
 		return false
 	game=current_scene
 	player=game.players[1]
-	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Rules.ID and game.has_meta(game.Transactions.SESSION),"real guarded affinity session")
+	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Rules.ID and SessionCase.has_guarded_session(game),"real guarded affinity session")
 	var old_catalog: Dictionary = game.progress.ContentIDs.manifest()
 	old_catalog.erase(Profile.Experience.VERSION_KEY)
 	old_catalog.levels = [0,5,15,35,70,140,260]

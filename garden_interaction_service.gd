@@ -96,7 +96,7 @@ static func command(game: Node,id: int,payload: String) -> Dictionary:
  var result=Tx.run_gameplay(game,Tx.Scope.PAIR,func():return State.record(game.progress.garden_interactions,definition,key))
  if not result.completed or not result.value is Dictionary:
   var notice:=Tx.feedback(result,"Could not save this observation. Please retry.")
-  if game.has_meta(Tx.SESSION):game.tell(id,notice)
+  if game.persistence_session.is_guarded():game.tell(id,notice)
   return {"changed":false,"error":notice}
  var saved: Dictionary=result.value
  if saved.get("changed",false):

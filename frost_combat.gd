@@ -163,7 +163,7 @@ static func incoming(game: Node, recipient: Dictionary, id: int, now: int) -> vo
 
 static func stock_test_garden(game: Node) -> String:
 	var ruleset = load("res://combat_ruleset.gd")
-	if not preload("res://assets/terrain_m02/experimental/experiment_mode.gd").verified() or not game.multiplayer.is_server() or game.participation.active() or not game.has_meta(game.Transactions.SESSION):
+	if not preload("res://assets/terrain_m02/experimental/experiment_mode.gd").verified() or not game.multiplayer.is_server() or game.participation.active() or not game.persistence_session.is_guarded():
 		return "Affinity supplies are available to the host in the isolated affinity Garden."
 	return game.run_heart_save(func():
 		for part in game.Parts.DEFINITIONS.size():

@@ -170,7 +170,7 @@ func run() -> void:
   return ERR_FILE_CANT_WRITE if phase == "restore" else OK)
  verify_outcome("uncertain", pending, Batch.Outcome.UNCERTAIN, before)
  var split := hashes()
- check(world.progress.knowledge == 64 and world.score == 7 and notifications == 1 and world.has_meta("guarded_persistence_pending"), "uncertain preserves tentative memory without publication")
+ check(world.progress.knowledge == 64 and world.score == 7 and notifications == 1 and world.persistence_session.is_blocked(), "uncertain preserves tentative memory without publication")
  var retry := Tx.run_guarded(world, func(): check(false, "uncertain action replayed"), published)
  check(not retry.ran and retry.reason == "guarded_persistence_pending" and split == hashes(), "uncertain retry refused")
  var read_pending: Dictionary = persisted.progress.load_garden_guarded()
@@ -189,7 +189,7 @@ func run() -> void:
   return true, published, func(phase, _path):
   return ERR_CANT_CREATE if phase == "publish_receipt" else OK)
  verify_outcome("committed_cleanup_pending", committed_cleanup, Batch.Outcome.COMMITTED_CLEANUP_PENDING, before)
- check(refreshed.progress.knowledge == 77 and notifications == 2 and refreshed.has_meta("guarded_persistence_pending"), "confirmed commit keeps state and publishes once")
+ check(refreshed.progress.knowledge == 77 and notifications == 2 and refreshed.persistence_session.is_blocked(), "confirmed commit keeps state and publishes once")
  check(Ops.recover(PackedStringArray([G])).value.verified, "B2 committed cleanup")
 
  var guest := model()

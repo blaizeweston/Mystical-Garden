@@ -1,4 +1,5 @@
 extends SceneTree
+const SessionCase = preload("res://tests/support/session_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -334,7 +335,7 @@ func run() -> void:
 	player = game.players[1]
 	player.pos=game.stage.gate_position()
 	game.send_garden_action("learn_0_64")
-	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Rules.ID and game.has_meta(game.Transactions.SESSION),"guarded affinity session")
+	check(game.weapon_stats(game.players[1]).affinity_build.ruleset==Rules.ID and SessionCase.has_guarded_session(game),"guarded affinity session")
 	start_expedition()
 	purchases()
 	simultaneous_effects()

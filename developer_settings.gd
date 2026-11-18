@@ -100,7 +100,7 @@ func refresh_tools() -> void:
 	materials_button.disabled = not available
 	if not available and toggle.button_pressed and not context.app_settings.values.get("developer_mode",false):
 		hint.text = "Apply Settings to enable the tools."
-	var pending := Transactions.pending_notice(context)
+	var pending: String = "" if title_menu else context.persistence_session.pending_notice()
 	if not pending.is_empty(): hint.text = pending
 
 
@@ -129,7 +129,7 @@ func run_tool(action: String) -> void:
 	if not toggle.button_pressed:
 		return
 	if not Developer.can_edit(context):
-		var pending := Transactions.pending_notice(context)
+		var pending: String = "" if title_menu else context.persistence_session.pending_notice()
 		settings.notice.text = "Developer tools are available in the single-player Developer Garden." if pending.is_empty() else pending
 		return
 	var result := ""
@@ -150,7 +150,7 @@ func run_tool(action: String) -> void:
 	settings.notice.text = Transactions.feedback_text(context, result)
 	refresh_tools()
 	# An uncertain save retains tentative research in memory for recovery.
-	var pending := Transactions.pending_notice(context)
+	var pending: String = "" if title_menu else context.persistence_session.pending_notice()
 	if not tech.is_empty() and context.progress.heart.has(tech) and (pending.is_empty() or pending == Transactions.CLEANUP_NOTICE):
 		context.tell(context.HOST,result)
 		settings.cancel()

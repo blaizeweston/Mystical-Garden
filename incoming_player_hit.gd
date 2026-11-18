@@ -86,7 +86,7 @@ class Recipient extends RefCounted:
 			and is_same(_actor, _world.players.get(_peer, {}))
 
 	func observe(contact: Contact) -> Dictionary:
-		if not _is_current() or not Life.alive(_actor) or not Transactions.session_writable(_world):
+		if not _is_current() or not Life.alive(_actor) or not _world.persistence_session.can_write():
 			return {}
 		var observation := {
 			"hurt_until": int(_actor.get("hurt_until", 0)),
@@ -123,9 +123,9 @@ class Recipient extends RefCounted:
 		return Wood.absorption_plan(_actor, hp, preload("res://affinity_time.gd").now(_world))
 
 	func commit_contact(contact: Contact, hp: int, bark: Dictionary, epoch: int) -> Dictionary:
-		if not _is_current() or not Transactions.session_writable(_world):
+		if not _is_current() or not _world.persistence_session.can_write():
 			return result(Outcome.REJECTED)
-		if _world.has_meta(Transactions.SESSION) and hp >= int(Vitals.current_hp(_actor)):
+		if _world.persistence_session.is_guarded() and hp >= int(Vitals.current_hp(_actor)):
 			return _guarded_loss(func(effects) -> Dictionary:
 				_prepare_contact(contact, bark, effects)
 				var resolution := _install_loss(hp, effects)
@@ -151,9 +151,9 @@ class Recipient extends RefCounted:
 			func() -> void: _world.action_feedback(effects, _peer, "Slowed."))
 
 	func apply_health_loss(amount: int) -> Dictionary:
-		if not _is_current() or not Transactions.session_writable(_world):
+		if not _is_current() or not _world.persistence_session.can_write():
 			return result(Outcome.REJECTED)
-		if _world.has_meta(Transactions.SESSION):
+		if _world.persistence_session.is_guarded():
 			if amount < int(Vitals.current_hp(_actor)):
 				return _install_loss(amount)
 			return _guarded_loss(func(effects) -> Dictionary: return _install_loss(amount, effects))

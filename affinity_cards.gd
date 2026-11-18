@@ -256,7 +256,7 @@ static func bloom_echo(game: Node, player: Dictionary, bloom: Dictionary, skill:
 	game.emit_combat_event("ability", "bloom_echo", point, point, .5, Color("#b5c775"), float(bloom.radius), bloom.owner,
 		{"label": "Echoing Growth"})
 	for target in targets:
-		if game.get_meta(game.Transactions.PENDING, false):
+		if game.persistence_session.is_blocked():
 			break
 		game.apply_weapon_hit(player, target, point,
 			{"damage": 0.0, "affinity_hp": hp, "trait_secondary": true, "core_hit": true, "knockback": -.35}, now)

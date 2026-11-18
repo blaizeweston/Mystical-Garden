@@ -18,6 +18,7 @@ const Progress = preload("res://progress.gd")
 const AttackGeometry=preload("res://attack_geometry.gd")
 const Transactions=preload("res://game_transaction.gd")
 const GuardedTitleSession=preload("res://guarded_title_session.gd")
+var persistence_session := GuardedTitleSession.new()
 const SaveBatch=preload("res://save_batch.gd")
 var transaction_publishes: Array=[]
 var encounter_kills: Array=[]
@@ -244,7 +245,7 @@ func _ready() -> void:
 		_refuse_unowned_world.call_deferred()
 		return
 	if has_meta(&"experimental_terrain") or preload("res://persistence_writer_integration.gd").default_route(get_tree()):
-		var owner: Variant = get_meta(Transactions.SESSION, null) if has_meta(Transactions.SESSION) else null
+		var owner: Variant = persistence_session if persistence_session.is_guarded() else null
 		if not (owner is GuardedTitleSession) or not owner.authorizes(local_character.path) or (not network_session.joined_from_title() and not owner.authorizes(progress.path)):
 			set_process(false)
 			set_physics_process(false)
@@ -256,7 +257,7 @@ func _ready() -> void:
 		stage.add_child(terrain_experiment)
 		terrain_experiment.configure(self, stage)
 	toast_until = Time.get_ticks_msec() + 4800
-	if not has_meta("guarded_title_session"):
+	if not persistence_session.is_guarded():
 		var character_error := local_character.load_profile()
 		if character_error != OK and character_error != ERR_FILE_NOT_FOUND:
 			status = "Character progress could not be loaded."
@@ -282,7 +283,7 @@ func _ready() -> void:
 	add_child(exploration)
 	spectator_view=preload("res://spectator_view.gd").new()
 	add_child(spectator_view)
-	if not has_meta("guarded_title_session"):
+	if not persistence_session.is_guarded():
 		var result := progress.load_garden()
 		if result != OK and result != ERR_FILE_NOT_FOUND:
 			status = "Could not read Garden save (error %d)." % result
@@ -307,9 +308,9 @@ func _refuse_unowned_world() -> void:
 func _notification(what: int) -> void:
 	if what==NOTIFICATION_WM_WINDOW_FOCUS_OUT: mouse_controls.release(self)
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		if has_meta(Transactions.SESSION):
+		if persistence_session.is_guarded():
 			if not prepare_guarded_exit(): return
-			set_meta(Transactions.STOPPING, true)
+			persistence_session.begin_shutdown()
 			SessionWorld.offline(self)
 			release_slot()
 			get_tree().quit()
@@ -727,7 +728,7 @@ func send_action(strike: bool) -> void:
 
 
 func send_garden_action(action: String) -> void:
-	if not Transactions.pending_notice(self).is_empty(): return
+	if not persistence_session.pending_notice().is_empty(): return
 	if not (action.begins_with("core_cast:") or action.begins_with("class_cast:")): Journal.interaction(self,multiplayer.get_unique_id(),action,"requested")
 	if action in ["class_skill","class_skill_two"] and encounter_cleared(): return
 	if multiplayer.is_server():
@@ -754,7 +755,7 @@ func request_garden_action(action: String) -> void:
 
 
 func garden_action(id: int, action: String) -> void:
-	if not Transactions.session_writable(self): return
+	if not persistence_session.can_write(): return
 	if action.begins_with("core_cast:"):
 		preload("res://core_combat.gd").command(self,id,players.get(id,{}),action)
 		return
@@ -763,7 +764,7 @@ func garden_action(id: int, action: String) -> void:
 		return
 	var diagnostic_request:=Journal.interaction(self,id,action,"begin")
 	var persistent: bool=action in ["experiment","donate"] or action.begins_with("breed_") or action.begins_with("care_")
-	if persistent and not has_meta(Transactions.SESSION): Transactions.run(self,func(): _garden_action(id,action))
+	if persistent and not persistence_session.is_guarded(): Transactions.run(self,func(): _garden_action(id,action))
 	else: _garden_action(id,action)
 	Journal.interaction(self,id,action,"end",diagnostic_request)
 
@@ -837,7 +838,7 @@ func _garden_action(id: int, action: String) -> void:
 	if action=="depart":
 		if at_weapon_gate(player):
 			load("res://expedition_transitions.gd").enter(self,id,player)
-			if Participation.is_wild(player) and not has_meta(Transactions.SESSION): close_flow_for(id)
+			if Participation.is_wild(player) and not persistence_session.is_guarded(): close_flow_for(id)
 		return
 	if action.begins_with(AffinityCards.COMMAND):
 		_affinity_checkpoint_command(id, player, action)
@@ -887,7 +888,7 @@ func _garden_action(id: int, action: String) -> void:
 	if action.begins_with("look_"):
 		if not Participation.is_wild(player) and action in ["look_0", "look_1", "look_2", "look_3", "look_4"]:
 			var index := int(action.trim_prefix("look_"))
-			if has_meta(Transactions.SESSION) and id != HOST:
+			if persistence_session.is_guarded() and id != HOST:
 				run_guarded_action(id,Transactions.Scope.GARDEN,func(effects):
 					var look: Array = player.character.appearance
 					look[index] = (int(look[index]) + 1) % LOOK_NAMES[index].size()
@@ -896,7 +897,7 @@ func _garden_action(id: int, action: String) -> void:
 			var applied := Transactions.run_gameplay(self, Transactions.Scope.PROFILE, func():
 				var look: Array = player.character.appearance
 				look[index] = (int(look[index]) + 1) % LOOK_NAMES[index].size()
-				if not has_meta(Transactions.SESSION): publish_character(id)
+				if not persistence_session.is_guarded(): publish_character(id)
 				return true, false)
 			if Transactions.committed(applied.persistence): record_character(id)
 		return
@@ -1071,7 +1072,7 @@ func run_guarded_action(id: int, scope: Transactions.Scope, action: Callable) ->
 		_resolve_departure_settlement(result.persistence)
 	var committed := Transactions.committed(result.persistence)
 	if not result.notice.is_empty():
-		if network_session.transport() != null and multiplayer.is_server() and get_meta(Transactions.PENDING, false):
+		if network_session.transport() != null and multiplayer.is_server() and persistence_session.is_blocked():
 			for peer_id in multiplayer.get_peers():
 				if Session.ready_for(players.get(peer_id, {}),false): tell(peer_id,result.notice)
 		elif id != HOST:
@@ -1081,7 +1082,7 @@ func run_guarded_action(id: int, scope: Transactions.Scope, action: Callable) ->
 			if int(event.id)>first_event: publish_combat_event(event)
 		for effect in effects:
 			effect.call()
-		if Transactions.pending_notice(self)==Transactions.CLEANUP_NOTICE and multiplayer.is_server():
+		if persistence_session.is_blocked() and persistence_session.can_publish_state() and multiplayer.is_server():
 			net_view.publish_committed_cleanup.call_deferred(self,network_session.transport())
 	return result
 
@@ -1106,13 +1107,13 @@ func run_seed_experiment(id: int, player: Dictionary, first: int, second: int, l
 			save_progress(id, outcome)
 		else:
 			action_feedback(effects, id, outcome)
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		run_guarded_action(id, Transactions.Scope.GARDEN, action)
 	else:
 		action.call(null)
 
 func donate_part(id: int, player: Dictionary) -> void:
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _donate_part(id, player, effects))
 	else:
 		_donate_part(id, player, null)
@@ -1135,16 +1136,16 @@ func award_combat_progress() -> void:
 	flush_kill_rewards()
 
 func _defers_kill_profiles() -> bool:
-	return has_meta(&"experimental_terrain") and has_meta(Transactions.SESSION)
+	return has_meta(&"experimental_terrain") and persistence_session.is_guarded()
 
 func flush_kill_rewards() -> bool:
-	if get_meta(Transactions.PENDING, false):
+	if persistence_session.is_blocked():
 		return false
 	# The active experimental floor pays run loot promptly and banks Class XP
 	# at a checkpoint. Garden disconnects still use guarded settlement.
 	if _defers_kill_profiles() and participation.active():
 		return true
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		if not monster_rewards.has_pending() and departure_settlement.is_empty():
 			return true
 		if Life.living_ids(self).is_empty() and departure_settlement.has_wild_departure():
@@ -1163,7 +1164,7 @@ func _kill_reward_identity(id: int, player: Dictionary) -> String:
 	return local_character.identity if id == HOST else Session.inventory_owner(player)
 
 func _queue_monster_reward(spawn_token: String, kind: int, mask: int, position: Vector3, leader: bool, summoned := false) -> bool:
-	if not multiplayer.is_server() or not Transactions.session_writable(self):
+	if not multiplayer.is_server() or not persistence_session.can_write():
 		return false
 	var candidates: Array[Dictionary] = []
 	if not summoned:
@@ -1277,8 +1278,7 @@ func _resolve_departure_settlement(boundary: Dictionary) -> void:
 	var final: SaveBatch.Finalization = execution.get("outcome") if execution is Dictionary else null
 	if final == null:
 		departure_settlement.finish(DepartureSettlement.Result.UNCERTAIN)
-		set_meta(Transactions.PENDING, true)
-		set_meta(&"guarded_save_notice", "Departure save is uncertain. Recovery is required before saving again.")
+		persistence_session.require_departure_recovery()
 		return
 	match final.outcome:
 		SaveBatch.Outcome.COMMITTED:
@@ -1314,7 +1314,7 @@ func close_flow_for(id: int) -> void:
 	elif network_session.transport()!=null and multiplayer.get_peers().has(id): close_run_flow_panel.rpc_id(id)
 
 func revive_player(id: int, target: int) -> void:
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		run_guarded_action(id, Transactions.Scope.PAIR, func(effects): return Life.revive(self, id, target, effects))
 	else:
 		Transactions.run(self, func(): return Life.revive(self, id, target))
@@ -1350,7 +1350,7 @@ func record_character(id: int, actor: Dictionary = {}) -> void:
 	var owner: String=local_character.identity if id==HOST else Session.inventory_owner(player)
 	var record := {"profile":player.character.duplicate(true),"manifest":progress.ContentIDs.manifest()}
 	var base: Dictionary = player.get("projection_base", {})
-	if has_meta(Transactions.SESSION) and id!=HOST and not base.is_empty():
+	if persistence_session.is_guarded() and id!=HOST and not base.is_empty():
 		var projection = load("res://guest_profile_projection.gd")
 		var prior: Dictionary = progress.character_records.get(owner, {}).get("projection", {})
 		record.profile = Character.normalize(player.character)
@@ -1387,7 +1387,7 @@ func send_committed_profile(id: int) -> void:
 		receive_character.rpc_id(id,{"profile":record.profile,"origin":progress.projection_origin,"projection":record.projection})
 
 func tell_profile_action(id: int, message: String) -> void:
-	if id == HOST or not has_meta(Transactions.SESSION):
+	if id == HOST or not persistence_session.is_guarded():
 		tell(id,message)
 		return
 	var delivery: Dictionary = players.get(id,{}).get("projection_delivery",{})
@@ -1397,7 +1397,7 @@ func tell_profile_action(id: int, message: String) -> void:
 		delivery.feedback.append(message)
 
 func guest_projection_status(id: int, origin: String, revision: int, digest: String, disposition: String) -> void:
-	if not has_meta(Transactions.SESSION) or network_session.role()!="Host" or not multiplayer.is_server() or origin!=progress.projection_origin: return
+	if not persistence_session.is_guarded() or network_session.role()!="Host" or not multiplayer.is_server() or origin!=progress.projection_origin: return
 	var player: Dictionary = players.get(id,{})
 	var delivery: Dictionary = player.get("projection_delivery",{})
 	var current: Dictionary = progress.character_records.get(Session.inventory_owner(player),{}).get("projection",{})
@@ -1414,7 +1414,7 @@ func guest_projection_status(id: int, origin: String, revision: int, digest: Str
 		Journal.event("save","guest_projection_unconfirmed",{"actor":id,"revision":revision,"state":disposition},"warning")
 
 func publish_character(id: int) -> void:
-	if has_meta(Transactions.SESSION): return
+	if persistence_session.is_guarded(): return
 	record_character(id)
 	if SaveBatch.active:
 		if not transaction_publishes.has(id): transaction_publishes.append(id)
@@ -1430,12 +1430,12 @@ func publish_character(id: int) -> void:
 @rpc("authority", "call_remote", "reliable")
 func receive_character(profile: Dictionary) -> void:
 	if network_session.role() != "Guest": return
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		if not profile.get("origin") is String or not profile.get("projection") is Dictionary or not profile.get("profile") is Dictionary: return
 		var origin: String = profile.origin
 		var descriptor: Dictionary = profile.projection
 		profile = profile.profile
-		if not Transactions.session_writable(self):
+		if not persistence_session.can_write():
 			var projection = load("res://guest_profile_projection.gd")
 			if origin == get_meta(&"guest_projection_origin","") and projection.valid_origin(origin) and projection.valid_descriptor(descriptor,profile):
 				_report_guest_projection(origin,descriptor,"refused")
@@ -1460,7 +1460,7 @@ func save_guest_projection(profile: Dictionary, origin: String, descriptor: Dict
 		if get_meta(&"guest_projection_uncertain_revision",0)==descriptor.revision:
 			_report_guest_projection(origin,descriptor,"uncertain")
 			return false
-		if network_session.role()=="Guest" and not Transactions.session_writable(self) and Transactions.pending_notice(self)!=Transactions.CLEANUP_NOTICE: return false
+		if network_session.role()=="Guest" and not persistence_session.can_write() and not persistence_session.can_publish_state(): return false
 		_report_guest_projection(origin,descriptor,"committed")
 		return true
 	var local_digest: String = projection.digest(guest_character.data)
@@ -1487,7 +1487,7 @@ func save_guest_projection(profile: Dictionary, origin: String, descriptor: Dict
 		if final.outcome == SaveBatch.Outcome.UNCERTAIN:
 			set_meta(&"guest_projection_uncertain_revision",descriptor.revision)
 	_report_guest_projection(origin,descriptor,disposition)
-	if not committed and Transactions.pending_notice(self).is_empty():
+	if not committed and persistence_session.pending_notice().is_empty():
 		set_meta(&"guest_projection_notice","Profile update not saved. Reconnect to reconcile it.")
 	elif committed and has_meta(&"guest_projection_notice"):
 		remove_meta(&"guest_projection_notice")
@@ -1500,7 +1500,7 @@ func _report_guest_projection(origin: String, descriptor: Dictionary, dispositio
 
 func save_local_character() -> bool:
 	var active := guest_character if network_session.role() == "Guest" else local_character
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		var scope := Transactions.Scope.GUEST_PROFILE if network_session.role() == "Guest" else Transactions.Scope.PROFILE
 		var saved := Transactions.run_gameplay(self, scope, func(): return true)
 		if Transactions.committed(saved.persistence): character_dirty = false
@@ -1764,7 +1764,7 @@ func at_graft_altar(player: Dictionary) -> bool:
 	return not player.is_empty() and Participation.is_wild(player) and graft_altar_open() and location.distance_to(player.get("pos",Vector3.INF))<=1.65
 
 func _purchase_expedition_graft(id: int, player: Dictionary, action: String) -> String:
-	if not multiplayer.is_server() or not Transactions.session_writable(self) \
+	if not multiplayer.is_server() or not persistence_session.can_write() \
 			or not Life.alive(player) or not Session.ready_for(player,false) or not is_same(players.get(id,{}),player):
 		return "This graft purchase is unavailable."
 	if not at_graft_altar(player) or not participation.travel_kind().is_empty():
@@ -1824,7 +1824,7 @@ func next_part(current: int, counts: Array, excluded: int, allow_empty: bool = t
 
 func cycle_slot(id: int, player: Dictionary, slot: String, _excluded: int) -> void:
 	if not at_weapon_gate(player): return
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		run_guarded_action(id, actor_profile_scope(id), func(effects): _cycle_slot(id, player, slot, effects))
 	else:
 		_cycle_slot(id, player, slot, null)
@@ -1858,7 +1858,7 @@ func extraction_checkpoint_open() -> bool:
 
 
 func guarded_growth_tick(elapsed: float) -> void:
-	if not Transactions.session_writable(self): return
+	if not persistence_session.can_write(): return
 	var original: Array = progress.plots.duplicate(true)
 	if not progress.advance_growth(elapsed,participation.active()): return
 	var updated: Array = progress.plots.duplicate(true)
@@ -1913,13 +1913,13 @@ func submit_movement(commands: Array,epoch: String) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if has_meta(Transactions.SESSION):
-		if returning_to_title or get_meta(Transactions.STOPPING, false): return
-		if get_meta(Transactions.PENDING, false):
-			if multiplayer.is_server() and Transactions.pending_notice(self)==Transactions.CLEANUP_NOTICE:
+	if persistence_session.is_guarded():
+		if returning_to_title or persistence_session.is_stopping(): return
+		if persistence_session.is_blocked():
+			if multiplayer.is_server() and persistence_session.can_publish_state():
 				send_expedition_state(delta)
 			return
-		if not Transactions.session_writable(self): return
+		if not persistence_session.can_write(): return
 	if multiplayer.is_server():net_motion.frame(delta,players)
 	mouse_controls.frame(self)
 	var direction := Vector2.ZERO if overlay.visible or get_meta("garden_cinematic_active",false) else Input.get_vector("left", "right", "up", "down")
@@ -1929,9 +1929,9 @@ func _physics_process(delta: float) -> void:
 		if growth_clock >= 1.0:
 			var elapsed := growth_clock
 			growth_clock = 0.0
-			if has_meta(Transactions.SESSION):
+			if persistence_session.is_guarded():
 				guarded_growth_tick(elapsed)
-				if Transactions.session_writable(self) and not progress.heart.active.is_empty():
+				if persistence_session.can_write() and not progress.heart.active.is_empty():
 					var message := run_heart_save(progress.heart.tick.bind(progress,elapsed,participation.active()))
 					if not message.is_empty(): status = message
 				if stage.experimental_garden != null:
@@ -1941,7 +1941,7 @@ func _physics_process(delta: float) -> void:
 					status = "Plant growth could not be saved. Use Save Garden to retry."
 				var research_message:=progress.heart.tick(progress,elapsed,participation.active())
 				if not research_message.is_empty(): status=research_message
-		if get_meta(Transactions.PENDING, false): return
+		if persistence_session.is_blocked(): return
 		motions[HOST] = [direction, now]
 		for id in players:
 			players[id].velocity=Vector3.ZERO
@@ -1951,46 +1951,46 @@ func _physics_process(delta: float) -> void:
 				move_player(id, motions[id][0], delta)
 		mouse_controls.tick(self,now)
 		if participation.active() and encounter_cleared() and not encounter_rewarded and now>=reward_retry_at: finish_combat(HOST,tactics.position)
-		if get_meta(Transactions.PENDING, false): return
+		if persistence_session.is_blocked(): return
 		update_projectiles(now)
-		if get_meta(Transactions.PENDING, false): return
+		if persistence_session.is_blocked(): return
 		Traits.tick(self,now)
-		if get_meta(Transactions.PENDING, false): return
+		if persistence_session.is_blocked(): return
 		if participation.active():
 			preload("res://warden_combat.gd").tick(self,now)
-			if get_meta(Transactions.PENDING, false): return
+			if persistence_session.is_blocked(): return
 			preload("res://weaver_combat.gd").tick(self,now)
-			if get_meta(Transactions.PENDING, false): return
+			if persistence_session.is_blocked(): return
 			var elapsed := preload("res://affinity_time.gd").advance(self,delta)
 			preload("res://void_affinity.gd").resolve_motion(self,elapsed,now)
 			preload("res://fire_combat.gd").tick(self,elapsed,now)
-			if get_meta(Transactions.PENDING, false): return
+			if persistence_session.is_blocked(): return
 			preload("res://vital_combat.gd").tick(self,elapsed)
 			preload("res://thorn_affinity.gd").tick(self,elapsed,now)
 			preload("res://wood_affinity.gd").tick(self,elapsed)
 			preload("res://spirit_affinity.gd").tick(self,elapsed)
-			if get_meta(Transactions.PENDING,false): return
+			if persistence_session.is_blocked(): return
 		preload("res://combat_status.gd").sync(self,now)
 		attract_loot(delta)
 		Bosses.tick_hazards(self,now)
-		if get_meta(Transactions.PENDING, false): return
+		if persistence_session.is_blocked(): return
 		if participation.active() and encounter_cleared() and pending_finale_at==0 and not encounter_rewarded and now>=reward_retry_at: finish_combat(HOST,tactics.position)
 		if now>=next_kill_reward_flush:
 			next_kill_reward_flush=now+150
 			flush_kill_rewards()
-		if get_meta(Transactions.PENDING, false): return
+		if persistence_session.is_blocked(): return
 		update_combat_tracking(delta)
 		LeaderBehavior.tick(self, delta, now)
-		if get_meta(Transactions.PENDING, false): return
+		if persistence_session.is_blocked(): return
 		ScoutBehavior.tick(self, delta, now)
-		if get_meta(Transactions.PENDING, false): return
+		if persistence_session.is_blocked(): return
 		preload("res://core_combat.gd").tick(self,now)
-		if get_meta(Transactions.PENDING, false): return
+		if persistence_session.is_blocked(): return
 		update_pressure(now)
 		if pending_finale_at>0 and now>=pending_finale_at:
 			pending_finale_at=0
 			complete_finale(pending_finale_peer)
-		if not get_meta(Transactions.PENDING, false) or Transactions.pending_notice(self)==Transactions.CLEANUP_NOTICE:
+		if persistence_session.can_publish_state():
 			send_expedition_state(delta)
 	elif network_session.role() == "Guest":
 		var commands: Array=net_motion.client_tick(self,multiplayer.get_unique_id(),direction,delta)
@@ -2210,7 +2210,7 @@ func act(id: int, strike: bool) -> void:
 	if not strike:Journal.interaction(self,id,"interact","end",request)
 
 func _act(id: int, strike: bool) -> void:
-	if not Transactions.session_writable(self): return
+	if not persistence_session.can_write(): return
 	if not players.has(id) or not Session.ready_for(players[id]):
 		return
 	var p: Dictionary = players[id]
@@ -2274,7 +2274,7 @@ func nearby_plot(pos: Vector3) -> int:
 
 func harvest(id: int, slot: int) -> bool:
 	if not players.has(id) or slot<0 or slot>=progress.plots.size():return false
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		return harvest_guarded(id, slot, false)
 	var bed: Dictionary=progress.plots[slot].duplicate(true)
 	var before_rng: int=rng.state
@@ -2487,8 +2487,8 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 		if player_id!=0 and combat_velocity.get(player_id,Vector3.ZERO).length()>.8: moving_ranged_hits+=1
 
 func finish_combat(id: int,loot_position: Vector3) -> void:
-	if has_meta(Transactions.SESSION):
-		if not Transactions.session_writable(self) or not participation.active() or encounter_rewarded or not encounter_cleared() or participation.route()==Campaign.HEART: return
+	if persistence_session.is_guarded():
+		if not persistence_session.can_write() or not participation.active() or encounter_rewarded or not encounter_cleared() or participation.route()==Campaign.HEART: return
 		run_guarded_action(id, Transactions.Scope.PAIR, func(effects):
 			settle_expedition_rewards(effects, true)
 			_finish_combat(id,loot_position,effects))
@@ -2540,7 +2540,7 @@ func wild_entry(id: int) -> Vector3:
 
 
 func complete_finale(id: int) -> void:
-	if has_meta(Transactions.SESSION): return
+	if persistence_session.is_guarded(): return
 	if not Campaign.LEGACY_ENDING_ENABLED: return
 	if not players.has(id): id=HOST
 	progress.campaign.finish()
@@ -2757,7 +2757,7 @@ func plant_seed(id: int, slot: int) -> bool:
 		stock[kind] -= 1
 		progress.plots[slot] = {"species": kind, "age": 0.0, "stage": 0, "flowering": false,"growth_rules":2,"growth_base":float(Seeds.DEFINITIONS[kind].grow_seconds),"care":preload("res://garden_conduit.gd").cycle(progress,slot,kind)}
 		progress.sync_plot_flags()
-		if has_meta(Transactions.SESSION) or progress.save_garden()==OK: return true
+		if persistence_session.is_guarded() or progress.save_garden()==OK: return true
 		stock[kind]+=1;progress.plots[slot]=before;progress.sync_plot_flags()
 		return false, false)
 	if not planted.completed or planted.value != true:
@@ -2767,17 +2767,17 @@ func plant_seed(id: int, slot: int) -> bool:
 	return true
 
 func deferred_save_available(id: int) -> bool:
-	if not has_meta(Transactions.SESSION): return true
-	if Transactions.session_writable(self): tell(id, "This action is unavailable in the guarded session.")
+	if not persistence_session.is_guarded(): return true
+	if persistence_session.can_write(): tell(id, "This action is unavailable in the guarded session.")
 	return false
 
 func save_session_garden() -> bool:
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		return Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func(): return true).completed
 	return progress.save_garden() == OK
 
 func save_progress(id: int, message: String) -> void:
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		if save_session_garden():
 			tell(id, message)
 		return
@@ -2793,7 +2793,7 @@ func save_progress(id: int, message: String) -> void:
 func refresh_feedback() -> void:
 	var remote_notice := str(get_meta(&"guarded_host_cleanup_notice", "")) if network_session.role() == "Guest" else ""
 	var profile_notice := str(get_meta(&"guest_projection_notice", "")) if network_session.role() == "Guest" else ""
-	var pending := not Transactions.pending_notice(self).is_empty() or not remote_notice.is_empty() or not profile_notice.is_empty()
+	var pending := not persistence_session.pending_notice().is_empty() or not remote_notice.is_empty() or not profile_notice.is_empty()
 	var message := status if Time.get_ticks_msec() < toast_until else ""
 	if not remote_notice.is_empty() and message != remote_notice and not message.ends_with("\n" + remote_notice):
 		message = remote_notice if message.is_empty() else message + "\n" + remote_notice
@@ -2819,7 +2819,7 @@ func tell(id: int, message: String) -> void:
 
 @rpc("authority", "call_remote", "reliable")
 func receive_message(message: String) -> void:
-	if has_meta(Transactions.SESSION) and network_session.role() == "Guest" and (message == Transactions.CLEANUP_NOTICE or message.ends_with("\n" + Transactions.CLEANUP_NOTICE)):
+	if persistence_session.is_guarded() and network_session.role() == "Guest" and (message == Transactions.CLEANUP_NOTICE or message.ends_with("\n" + Transactions.CLEANUP_NOTICE)):
 		# The host's blocked Garden is distinct from this guest's local profile.
 		set_meta(&"guarded_host_cleanup_notice", Transactions.CLEANUP_NOTICE)
 	status = message
@@ -2955,22 +2955,22 @@ func apply_world_snapshot(frame: PackedByteArray, recovery: bool) -> void:
 
 
 func _process(_delta: float) -> void:
-	if not Transactions.pending_notice(self).is_empty() or (network_session.role() == "Guest" and has_meta(&"guarded_host_cleanup_notice")):
+	if not persistence_session.pending_notice().is_empty() or (network_session.role() == "Guest" and has_meta(&"guarded_host_cleanup_notice")):
 		refresh_feedback()
-	if get_meta(Transactions.PENDING, false) and Transactions.pending_notice(self)!=Transactions.CLEANUP_NOTICE:
+	if not persistence_session.can_publish_state():
 		# Keep the last presented floor while the retained state awaits recovery.
 		return
-	if has_meta("guarded_title_session") and not returning_to_title:
-		var owner = get_meta("guarded_title_session")
+	if persistence_session.is_guarded() and not returning_to_title:
+		var owner = persistence_session
 		var renewal: Dictionary = owner.tick()
 		if renewal.error != OK:
 			_stop_guarded_session("This session lost access to its save. Returning to the title.")
 			return
-	if multiplayer.is_server() and not get_meta(Transactions.PENDING,false): PartyTravel.validate(self)
+	if multiplayer.is_server() and not persistence_session.is_blocked(): PartyTravel.validate(self)
 	SessionWorld.update(self)
 	if returning_to_title: return
 	if not multiplayer.is_server() and client_details.is_empty(): return
-	if not has_meta("guarded_title_session") and (slot_claimed or character_slot_claimed) and Time.get_unix_time_from_system() - slot_heartbeat_at >= 1.0:
+	if not persistence_session.is_guarded() and (slot_claimed or character_slot_claimed) and Time.get_unix_time_from_system() - slot_heartbeat_at >= 1.0:
 		var slots := preload("res://save_slots.gd").new()
 		slots.root_path = slot_storage_root
 		if slot_claimed: slots.heartbeat(active_slot)
@@ -3214,7 +3214,7 @@ func request_main_menu() -> void:
 
 
 func prepare_guarded_exit(save_garden := true) -> bool:
-	if not Transactions.session_writable(self): return true
+	if not persistence_session.can_write(): return true
 	if network_session.role() in ["Solo","Host"] and slot_claimed:
 		if participation.active():
 			if not load("res://expedition_transitions.gd").finish_failed(self): return false
@@ -3236,8 +3236,8 @@ func return_to_main_menu(message: String = "") -> void:
 	if returning_to_title:
 		return
 	returning_to_title = true
-	if has_meta(Transactions.SESSION):
-		var owned: bool=get_meta(Transactions.SESSION).owns_leases()
+	if persistence_session.is_guarded():
+		var owned: bool=persistence_session.owns_leases()
 		if not prepare_guarded_exit():
 			returning_to_title=false
 			return
@@ -3251,9 +3251,9 @@ func return_to_main_menu(message: String = "") -> void:
 					load("res://expedition_transitions.gd").return_member(self,player)
 		if not save_session_garden():
 			returning_to_title = false
-			if not has_meta(Transactions.SESSION): status = "Could not save this Garden. Use Save Garden before leaving."
+			if not persistence_session.is_guarded(): status = "Could not save this Garden. Use Save Garden before leaving."
 			return
-		if not Transactions.pending_notice(self).is_empty():
+		if not persistence_session.pending_notice().is_empty():
 			_finish_title_return(message)
 			return
 	if character_dirty and not save_local_character():
@@ -3262,8 +3262,7 @@ func return_to_main_menu(message: String = "") -> void:
 	_finish_title_return(message)
 
 func _stop_guarded_session(message: String) -> void:
-	if get_meta(Transactions.STOPPING, false): return
-	set_meta(Transactions.STOPPING, true)
+	if not persistence_session.begin_shutdown(): return
 	returning_to_title = true
 	process_mode = Node.PROCESS_MODE_DISABLED
 	set_process(false)
@@ -3271,14 +3270,12 @@ func _stop_guarded_session(message: String) -> void:
 	_finish_title_return.call_deferred(message)
 
 func _finish_title_return(message: String) -> void:
-	if has_meta(Transactions.SESSION): set_meta(Transactions.STOPPING, true)
+	if persistence_session.is_guarded(): persistence_session.begin_shutdown()
 	SessionWorld.offline(self)
 	release_slot()
 	if network_dialog.visible:
 		network_dialog.dismiss()
 	var menu = load("res://main_menu.tscn").instantiate()
-	menu.guarded_persistence = has_meta("guarded_title_session")
-	if menu.guarded_persistence: menu.set_meta(&"guarded_return_from_world", true)
 	menu.settings_path=settings_path
 	var dev_return: Dictionary=get_meta("developer_garden",{})
 	menu.storage.root_path = dev_return.get("root",slot_storage_root)
@@ -3287,16 +3284,14 @@ func _finish_title_return(message: String) -> void:
 	menu.selected = dev_return.get("slot",maxi(0,active_slot))
 	menu.selected_character=dev_return.get("character",maxi(0,active_character_slot))
 	menu.restore_last_character=false
-	var pending := Transactions.pending_notice(self)
-	if pending.is_empty(): pending = str(get_meta(&"guest_projection_notice",""))
-	menu.return_message = message if pending.is_empty() else pending
-	if not pending.is_empty(): menu.set_meta(&"guarded_return_notice", pending)
-	if not Transactions.pending_notice(self).is_empty():
-		var recovery_paths := PackedStringArray()
-		if network_session.role() in ["Solo","Host"]: recovery_paths.append(progress.path)
-		if network_session.role() in ["Guest","Connecting"]: recovery_paths.append(guest_character.path)
-		elif network_session.role() in ["Solo","Host"]: recovery_paths.append(local_character.path)
-		menu.set_meta(&"guarded_return_recovery_paths",recovery_paths)
+	var recovery_paths := PackedStringArray()
+	if network_session.role() in ["Solo","Host"]:
+		recovery_paths.append(progress.path)
+		recovery_paths.append(local_character.path)
+	elif network_session.role() in ["Guest","Connecting"]:
+		recovery_paths.append(guest_character.path)
+	menu.accept_persistence_return(persistence_session.title_return_view(
+		network_session.role(), message, str(get_meta(&"guest_projection_notice", "")), recovery_paths))
 	if network_session.joined_from_title() or network_session.role()=="Connecting" or network_session.join_phase()=="garden":
 		menu.set_meta("join_return",{"address":network_session.address(),"port":network_session.port(),"open":not network_session.join_cancelled()})
 	set_process(false)
@@ -3307,8 +3302,8 @@ func _finish_title_return(message: String) -> void:
 
 
 func release_slot() -> void:
-	if has_meta("guarded_title_session"):
-		var released: Dictionary=get_meta("guarded_title_session").release()
+	if persistence_session.is_guarded():
+		var released: Dictionary=persistence_session.release()
 		if released.get("error",OK)!=OK:
 			Journal.event("save","session_lease_release_failed",{"error":released.error,"reason":released.get("reason","")},"warning")
 		character_slot_claimed = false
@@ -3325,7 +3320,7 @@ func release_slot() -> void:
 
 
 func _exit_tree() -> void:
-	set_meta(Transactions.STOPPING,true)
+	persistence_session.begin_shutdown()
 	# Static callables outlive a Node; release the connections this world owns.
 	if multiplayer.connected_to_server.is_connected(SessionWorld.joined.bind(self)):
 		multiplayer.connected_to_server.disconnect(SessionWorld.joined.bind(self))
@@ -3380,14 +3375,14 @@ func restore_class_loadout(player: Dictionary) -> void:
 	var health: PlayerVitals.Health = player[PlayerVitals.STATE]
 	player[PlayerVitals.STATE] = health.with_native_max_hp(Life.native_maximum(self, player, not Participation.is_wild(player)))
 func persist_loadout(id: int,player: Dictionary,effects = null) -> void:
-	if effects == null and has_meta(Transactions.SESSION): return
+	if effects == null and persistence_session.is_guarded(): return
 	player.character.active_class=int(player.frame)
 	player.character.loadouts[player.frame]={"weapon":int(player.weapon_kind),"parts":[int(player.prepared),int(player.prepared_secondary),int(player.prepared_catalyst)]}
 	save_action_profile(id, effects)
 
 func select_class(id: int,player: Dictionary,class_id: int) -> void:
 	if class_id<0 or class_id>=Classes.DEFINITIONS.size() or not ((at_heart(player) and not participation.active()) or at_weapon_gate(player)): return
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		run_guarded_action(id, actor_profile_scope(id), func(effects): _select_class(id, player, class_id, effects))
 	else:
 		_select_class(id, player, class_id, null)
@@ -3423,7 +3418,7 @@ func handle_loadout_action(id: int,player: Dictionary,action: String) -> void:
 	var command := fields[0]
 	if command == "class":
 		if fields.size()==2: select_class(id,player,int(fields[1]))
-	elif has_meta(Transactions.SESSION) and command in ["loadweapon", "loadpart", "learn", "respec"]:
+	elif persistence_session.is_guarded() and command in ["loadweapon", "loadpart", "learn", "respec"]:
 		run_guarded_action(id, actor_profile_scope(id), func(effects): _apply_loadout_action(id, player, fields, effects))
 	else:
 		_apply_loadout_action(id, player, fields, null)
@@ -3560,7 +3555,7 @@ func cycle_reclamation(player: Dictionary) -> void:
 
 func reclaim_seed(id: int,player: Dictionary,requested := -1) -> void:
 	if not at_garden_station(player,"seed_archive"): return
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _reclaim_seed(id, player, requested, effects))
 	else:
 		_reclaim_seed(id, player, requested, null)
@@ -3597,7 +3592,7 @@ func selected_offering(player: Dictionary) -> int:
 
 func offer_monster(id: int,player: Dictionary,requested := -1) -> void:
 	if not at_garden_station(player,"monster_studies"): return
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _offer_monster(id, player, requested, effects))
 	else:
 		_offer_monster(id, player, requested, null)
@@ -3648,7 +3643,7 @@ func bank_checkpoint_item(id: int,player: Dictionary,action: String) -> void:
 	if not can_checkpoint_bank(player): return
 	var fields:=action.split("_")
 	if fields.size()!=3 or not fields[2].is_valid_int(): return
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _bank_checkpoint_item(id, player, fields, effects))
 	else:
 		_bank_checkpoint_item(id, player, fields, null)
@@ -3720,7 +3715,7 @@ func consider_recollection() -> void:
 	if not Campaign.LEGACY_ENDING_ENABLED: return
 	if not progress.heart.has("perfect_recollection") or progress.heart.recollection_seen or progress.campaign.ending!=Campaign.UNFINISHED or players.is_empty(): return
 	if overlay.visible: return
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		var result := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func(): progress.heart.recollection_seen=true)
 		if not Transactions.committed(result.persistence): return
 	else:
@@ -3746,8 +3741,8 @@ func request_abandon_run() -> void:
 func show_gate_preparation(id: int) -> void:
 	if not players.has(id) or not at_weapon_gate(players[id]): return
 	var player: Dictionary = players[id]
-	if has_meta(Transactions.SESSION):
-		if not Transactions.session_writable(self): return
+	if persistence_session.is_guarded():
+		if not persistence_session.can_write(): return
 		var projected := player.duplicate()
 		if LoadoutMaterials.reconcile(projected,stored_counts(player)):
 			var result := run_guarded_action(id, actor_profile_scope(id), func(effects):
@@ -3921,7 +3916,7 @@ func affinity_checkpoint_action(revision: int, choice: String) -> String:
 
 func mark_checkpoint_ready(id: int) -> void:
 	checkpoint_ready[id]=participation.floor()
-	if has_meta(Transactions.SESSION):
+	if persistence_session.is_guarded():
 		# Selection is independent of expedition settlement in guarded sessions.
 		if id==HOST: close_run_flow_panel()
 		elif network_session.transport()!=null: close_run_flow_panel.rpc_id(id)
@@ -3935,7 +3930,7 @@ func mark_checkpoint_ready(id: int) -> void:
 	if checkpoint_pending: present_checkpoint_cards(id)
 
 func resume_checkpoint_if_ready() -> void:
-	if has_meta(Transactions.SESSION): return
+	if persistence_session.is_guarded(): return
 	if PartyTravel.members(self,"advance").size()>1: return
 	if not checkpoint_pending or not checkpoint_all_ready(): return
 	for id in players:
@@ -4066,7 +4061,7 @@ func nearest_inventory_drop(player: Dictionary) -> String:
 	return found
 
 func drop_inventory_stack(id: int,player: Dictionary,source: String,item: String,quantity: int) -> void:
-	if not Participation.is_wild(player) and has_meta(Transactions.SESSION):
+	if not Participation.is_wild(player) and persistence_session.is_guarded():
 		run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _drop_inventory_stack(id, player, source, item, quantity, effects))
 	else:
 		_drop_inventory_stack(id, player, source, item, quantity, null)
@@ -4087,7 +4082,7 @@ func _drop_inventory_stack(id: int,player: Dictionary,source: String,item: Strin
 	action_feedback(effects,id,"Dropped %d %s. Close the inventory and press E nearby to recover it."%[quantity,Items.get_item(item).name])
 
 func pickup_inventory_drop(id: int,player: Dictionary,key: String) -> void:
-	if not Participation.is_wild(player) and has_meta(Transactions.SESSION):
+	if not Participation.is_wild(player) and persistence_session.is_guarded():
 		run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): _pickup_inventory_drop(id, player, key, effects))
 	else:
 		_pickup_inventory_drop(id, player, key, null)
@@ -4164,7 +4159,7 @@ func handle_altar_action(id: int,player: Dictionary,payload: String) -> void:
 	var draft:=Altar.clean_draft(request.get("draft",[]))
 	var revision:=clampi(int(request.get("revision",0)),0,2147483647)
 	if request.operation=="combine":
-		if has_meta(Transactions.SESSION):
+		if persistence_session.is_guarded():
 			var result := run_guarded_action(id, Transactions.Scope.GARDEN, func(effects): return Altar.combine(self, player, draft, effects))
 			player.altar_message = Transactions.feedback(result, "Could not save the Altar offering.")
 			tell(id, player.altar_message)

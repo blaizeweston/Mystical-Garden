@@ -66,7 +66,7 @@ func run() -> void:
 	game.set_physics_process(false) # Step the existing gameplay clock deterministically in this fixture.
 	var garden = game.stage.experimental_garden
 	var player: Dictionary = game.players[game.HOST]
-	check(garden != null and game.slot_claimed and game.character_slot_claimed and game.get_meta(game.Transactions.SESSION).owns_leases(),
+	check(garden != null and game.slot_claimed and game.character_slot_claimed and game.persistence_session.owns_leases(),
 		"real world shows terrain with the native owner")
 	check(game.host_button.visible and SessionCase.World.join(game) == ERR_UNAUTHORIZED, "co-op uses title-owned guest admission")
 	check(garden.barrier.walkable(garden.planar(player.pos)), "production avatar starts on clear ground")

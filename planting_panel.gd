@@ -33,7 +33,7 @@ func begin(bed: int,stock: Array):
   var icon:=TextureRect.new();icon.texture=load("res://assets/ui/seeds/"+str(seed.id)+".png");icon.custom_minimum_size=Vector2(68,68);icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;content.add_child(icon)
   var quantity:=Label.new();quantity.text="×%d"%int(stock[species]);quantity.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;quantity.mouse_filter=Control.MOUSE_FILTER_IGNORE;content.add_child(quantity)
   button.pressed.connect(func():
-   if not preload("res://game_transaction.gd").pending_notice(game).is_empty():return
+   if not game.persistence_session.pending_notice().is_empty():return
    selected=species;details.text="%s · %s · %d available\nBase growth: %s · 2× in the Wilds, plus Knowledge and watering bonuses\n%s"%[seed.name,seed.rarity,stock[species],preload("res://cultivation_growth.gd").time_text(float(seed.grow_seconds)),plant_description];confirm.disabled=false)
  details.text="Choose a seed." if available>0 else "No seeds available. Identify mysterious seeds at the Altar."
 

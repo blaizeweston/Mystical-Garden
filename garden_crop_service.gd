@@ -51,7 +51,7 @@ static func harvest_seeds(game: Node,id: int,slot: int) -> Dictionary:
  if not eligible(game,id,slot) or not game.progress.flowering_unlocked:return reject(game,id,"Research Flowering before harvesting seeds at a Garden bed.")
  var before: Dictionary=game.progress.plots[slot].duplicate(true)
  if int(before.species)<0 or int(before.stage)<3:return reject(game,id,"Let this plant mature, then choose seeds or parts at harvest.")
- if game.has_meta(Tx.SESSION):
+ if game.persistence_session.is_guarded():
   return {"changed":game.harvest_guarded(id,slot,true)}
  var result=Tx.run(game,func():
   game.progress.plots[slot].flowering=true

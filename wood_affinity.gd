@@ -125,7 +125,7 @@ static func after_hit(game: Node, id: int, epoch: int, plan: Dictionary, now: in
 		return
 	Journal.event("combat","affinity_bark_absorbed",{"recipient":id,"absorbed":plan.absorbed,"depleted":plan.depleted,
 		"damage":plan.damage,"shares":plan.shares,"owner":plan.owner})
-	if int(plan.damage)>0 and epoch==game.participation.epoch() and game.participation.active() and not game.get_meta(game.Transactions.PENDING,false) \
+	if int(plan.damage)>0 and epoch==game.participation.epoch() and game.participation.active() and not game.persistence_session.is_blocked() \
 			and PlayerLifecycle.matches(game.players.get(plan.owner,{}),int(plan.owner_life)):
 		burst(game,plan.owner,plan.center,plan.damage,now,"Bark break")
 
@@ -156,7 +156,7 @@ static func nearby(game: Node, center: Vector3, radius: float) -> Array[int]:
 static func burst(game: Node, owner: int, center: Vector3, damage: int, now: int, label: String) -> void:
 	game.emit_combat_event("ability","wood_burst",center,center,.55,COLOR,WARD_RADIUS,owner,{"label":label})
 	for target in game.skill_area_targets(center,WARD_RADIUS,center):
-		if game.get_meta(game.Transactions.PENDING,false): break
+		if game.persistence_session.is_blocked(): break
 		Actors.damage(game,owner,target,damage,now,COLOR)
 
 
@@ -178,7 +178,7 @@ static func splinters(game: Node, event: RefCounted, details: Dictionary, now: i
 	game.emit_combat_event("ability","wood_splinters",at,at+forward*FAN_RADIUS,.36,COLOR,FAN_RADIUS,event.actor,{"label":"Splintering strike"})
 	var remaining:=FRAGMENT_LIMIT
 	for other in Contact.candidates(game,at):
-		if remaining==0 or game.get_meta(game.Transactions.PENDING,false): break
+		if remaining==0 or game.persistence_session.is_blocked(): break
 		if other==target:continue
 		var pos: Vector3=game.enemy_position(other)
 		var offset:=pos-at

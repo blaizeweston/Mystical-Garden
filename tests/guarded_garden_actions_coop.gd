@@ -64,7 +64,7 @@ func open_world() -> bool:
  game.guest_character.path=path
  game.slot_claimed=host
  game.network_session.configure_join_origin(not host)
- var result := Owner.new().start(game,slots if host else null,0,Slots._save_digest(Garden) if host else "",roster,0 if host else 1,Slots._save_digest(path))
+ var result: Dictionary = game.persistence_session.start(game.progress,game.local_character,game.guest_character,slots if host else null,0,Slots._save_digest(Garden) if host else "",roster,0 if host else 1,Slots._save_digest(path))
  check(Owner.completed(result),"real guarded launch: "+str(result))
  if not Owner.completed(result):
   game.free()
@@ -143,7 +143,7 @@ func host_run() -> void:
  player.pos=game.Stage.GATE
  mark("craft")
  if not await until(func():return marked("crafted")):
-  check(false,"guest observes loadout projection: "+str([game.status,player.character.active_class,player.character.loadouts[1].weapon,player.pos,game.at_weapon_gate(player),Tx.pending_notice(game)]))
+  check(false,"guest observes loadout projection: "+str([game.status,player.character.active_class,player.character.loadouts[1].weapon,player.pos,game.at_weapon_gate(player),game.persistence_session.pending_notice()]))
   return
  check(player.character.active_class==1 and player.character.loadouts[1].weapon==1 and player.character.plants[0]==1
   and game.progress.character_records[identity].profile.loadouts[1].weapon==1,"guest loadout persisted in Garden projection")
@@ -170,13 +170,13 @@ func host_run() -> void:
   return
  var committed:=Slots._save_digest(Garden)
  check(player.character.plants[0]==3 and crop_count()==3 and game.progress.plots[0].species<0
-  and Tx.pending_notice(game)==Tx.CLEANUP_NOTICE and FileAccess.file_exists(Garden+".transaction"),
+  and game.persistence_session.pending_notice()==Tx.CLEANUP_NOTICE and FileAccess.file_exists(Garden+".transaction"),
   "cleanup-pending host commit preserves evidence and guest projection")
  game.tell(id,"Later unrelated host message.")
  mark("host-done")
  check(await until(func():return marked("guest-offline") and game.multiplayer.get_peers().is_empty()),"guest detaches after offline replacement")
  check(Slots._save_digest(Garden)==committed and player.character.plants[0]==3,"later actions cannot replay or write")
- record("guest_harvest_cleanup_pending",original,{"guest_disk":crop_count(),"crop":game.progress.plots[0].species,"notice":Tx.pending_notice(game)})
+ record("guest_harvest_cleanup_pending",original,{"guest_disk":crop_count(),"crop":game.progress.plots[0].species,"notice":game.persistence_session.pending_notice()})
 
 func guest_run() -> void:
  check(SessionCase.World.join(game,"127.0.0.1")==OK,"join without Garden lease")

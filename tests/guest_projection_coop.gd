@@ -77,7 +77,7 @@ func record_guest(key: String, before: String) -> void:
   "receipts":profile.projection_receipts,"canonical_familiarity":profile.data.plants[0],
   "memory_familiarity":world.guest_character.data.plants[0],"loadout":profile.data.loadouts[0],
   "canonical_appearance":profile.data.appearance,"memory_appearance":world.guest_character.data.appearance,
-  "notice":Tx.pending_notice(world),"feedback":world.status,"journal":Slots._save_digest(P+".transaction")}))
+  "notice":world.persistence_session.pending_notice(),"feedback":world.status,"journal":Slots._save_digest(P+".transaction")}))
 
 func send_action(id: int, key: String) -> bool:
  var player: Dictionary = world.players[id]
@@ -182,17 +182,17 @@ func guest() -> void:
    lease.set_value("session","process_id",OS.get_process_id())
    lease.set_value("session","updated",Time.get_unix_time_from_system()-60)
    check(lease.save(marker)==OK,"expire guest lease")
-   world.get_meta(Tx.SESSION)._heartbeat_at=Time.get_unix_time_from_system()+20
+   world.persistence_session._heartbeat_at=Time.get_unix_time_from_system()+20
   if key=="cleanup":
    # Observe the positive acknowledgment while the peer is still attached.
    # The next heartbeat can legitimately return a cleanup-pending guest to title.
-   world.get_meta(Tx.SESSION)._heartbeat_at=Time.get_unix_time_from_system()
+   world.persistence_session._heartbeat_at=Time.get_unix_time_from_system()
   world.set_meta(&"guarded_gameplay_test_fault",func(phase,path):
    if phase=="stage":
     staged.count += 1
     if key=="abort": return ERR_FILE_CANT_WRITE
    if key=="cleanup" and phase=="publish_receipt":
-    world.get_meta(Tx.SESSION)._heartbeat_at=Time.get_unix_time_from_system()+8.0
+    world.persistence_session._heartbeat_at=Time.get_unix_time_from_system()+8.0
     return ERR_CANT_CREATE
    if key=="uncertain":
     if phase=="publish_commit_marker": return ERR_CANT_CREATE
@@ -216,10 +216,10 @@ func guest() -> void:
    check(Slots._save_digest(P)==before and world.guest_character.data.plants[0]==expected and not world.status.begins_with("Profile committed"),"abort preserves guest bytes, memory and withholds success")
   elif key=="cleanup":
    expected+=1
-   check(await until(func():return Tx.pending_notice(world)==Tx.CLEANUP_NOTICE),"confirmed cleanup pending")
+   check(await until(func():return world.persistence_session.pending_notice()==Tx.CLEANUP_NOTICE),"confirmed cleanup pending")
    check(world.guest_character.data.plants[0]==expected and Slots._save_digest(P)!=before,"cleanup pending retains committed profile")
   elif key=="uncertain":
-   check(await until(func():return Tx.pending_notice(world).contains("uncertain")),"uncertain guest commit")
+   check(await until(func():return world.persistence_session.pending_notice().contains("uncertain")),"uncertain guest commit")
    check(FileAccess.file_exists(P+".transaction") and world.guest_character.data.plants[0]==expected+1,"uncertain retains tentative memory and journal")
   elif key=="lease":
    await create_timer(.35).timeout
@@ -250,9 +250,9 @@ func guest() -> void:
     # Now exercise the real pending heartbeat exit rather than requiring it
     # to race the acknowledgment. Recovery remains explicit after detach.
     if is_instance_valid(world) and current_scene == world:
-     world.get_meta(Tx.SESSION)._heartbeat_at=0.0
+     world.persistence_session._heartbeat_at=0.0
     check(await until(func():return current_scene!=world),"cleanup-pending heartbeat returns guest to title")
-    check(current_scene.get_meta(&"guarded_return_notice","")==Tx.CLEANUP_NOTICE,"cleanup notice survives title handoff")
+    check(current_scene.persistence_return_view().get("notice", "")==Tx.CLEANUP_NOTICE,"cleanup notice survives title handoff")
    elif is_instance_valid(world) and current_scene == world: world.return_to_main_menu()
    check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"guest offline before world detach")
    await process_frame
@@ -373,7 +373,7 @@ func action_guest() -> void:
    check(false,step+" host positions traveller")
    return
   world.send_garden_action({"learn":"learn_0_64","respec":"respec_0","loadout":"loadweapon_1","appearance":"look_0"}[step])
-  if not await until(func(): return stages.count==1 and (world.has_meta(&"guest_projection_notice") or not Tx.pending_notice(world).is_empty())):
+  if not await until(func(): return stages.count==1 and (world.has_meta(&"guest_projection_notice") or not world.persistence_session.pending_notice().is_empty())):
    check(false,step+" local projection result")
    return
   var blocked := Slots._save_digest(P)
@@ -381,9 +381,9 @@ func action_guest() -> void:
    "learn":
     check(blocked==before and Warden.path(world.guest_character.data)==Warden.path(prior) and not world.status.begins_with("Learned"),"Learn abort preserves points and withholds feedback")
    "respec":
-    check(blocked!=before and Warden.path(world.guest_character.data).is_empty() and Tx.pending_notice(world)==Tx.CLEANUP_NOTICE,"respec cleanup pending keeps confirmed change and warning")
+    check(blocked!=before and Warden.path(world.guest_character.data).is_empty() and world.persistence_session.pending_notice()==Tx.CLEANUP_NOTICE,"respec cleanup pending keeps confirmed change and warning")
    "loadout":
-    check(Tx.pending_notice(world).contains("uncertain") and FileAccess.file_exists(P+".transaction"),"uncertain loadout keeps recovery evidence")
+    check(world.persistence_session.pending_notice().contains("uncertain") and FileAccess.file_exists(P+".transaction"),"uncertain loadout keeps recovery evidence")
    "appearance":
     check(blocked==before and world.guest_character.data.appearance==prior.appearance
      and world.get_meta(&"guest_projection_notice","").contains("not saved"),
