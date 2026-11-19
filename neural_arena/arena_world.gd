@@ -160,6 +160,7 @@ func _start_join() -> Error:
 		status = "Could not start the connection. Check the address and port."
 		return result
 	net_view.clear()
+	replication.clear_session()
 	net_motion.clear()
 	participation.detach_all()
 	players.clear()

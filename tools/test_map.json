@@ -33,7 +33,7 @@
     "storm_affinity": {"label": "Storm discharge and source-owned charges", "files": ["storm_affinity.gd", "storm_affinity.gd.uid"]},
     "world_snapshot": {
       "label": "Protocol 41 bounded unreliable world snapshots, roster metadata and receive convergence",
-      "files": ["world_snapshot.gd", "world_snapshot.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid"]
+      "files": ["world_snapshot.gd", "world_snapshot.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid", "world_replication.gd", "world_replication_source.gd"]
     },
     "wood_affinity": {
       "label": "CR04B Wood, finite Bark absorption and secondary splinters",
@@ -960,11 +960,7 @@
       "combat",
       "connection_flow"
     ],
-    "send_expedition_state": [
-      "connection_flow",
-      "expeditions",
-      "life"
-    ],
+    "send_expedition_state": ["connection_flow", "expeditions", "life", "world_snapshot"],
     "record_settlement_metric": [
       "diagnostics",
       "expeditions"
@@ -1331,7 +1327,7 @@
     "combat_pose": [
       "presentation"
     ],
-    "player_snapshot": ["foundation", "affinity_cards"],
+    "player_snapshot": ["foundation", "affinity_cards", "world_snapshot"],
     "inventory_snapshot": [
       "items"
     ],
@@ -1630,6 +1626,7 @@
     ]
   },
   "suites": {
+    "world_replication": {"kind":"unit", "systems":["world_snapshot","connection_flow","presentation","network_session","affinity_cards","expedition_grafts","player_vitals","classes","items","life"], "package":false},
     "resolved_combat_build": {"kind":"unit", "systems":["combat_builds","classes","weapons","affinity_cards","expedition_grafts","player_build_ui","player_cooldowns","life","core_combat","ability_aim"], "package":false},
     "weapon_attack_queue": {"kind":"unit", "systems":["weapon_attacks","weapons","combat","combat_affinity_contracts","classes","player_weapon_actions","player_lifecycle","ranged_release","hex_terrain"], "package":false},
     "outgoing_hits": {"kind":"unit", "systems":["arena_combat_bridge","combat","weapons","classes","loot","enemies","encounter_roster","player_lifecycle","combat_affinity_contracts"], "package":false},
@@ -5097,17 +5094,7 @@
         "additive": true
       }
     },
-    "send_expedition_state": {
-      "experimental_coop_1": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "connection_flow",
-          "garden"
-        ],
-        "additive": true
-      }
-    },
+
     "collect_drop": {
       "experimental_seed_rewards_1": {
         "systems": [
@@ -5439,42 +5426,7 @@
         ]
       }
     },
-    "player_snapshot": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"], "additive": true}, "ar07_vitals_1": {"systems": ["player_vitals"], "additive": true}, "ar06_cooldown_1": {"systems": ["player_cooldowns"], "additive": true},     "ct03_ranger_1": {"systems": ["foundation", "ranger_progression"], "additive": true}, "ct01_0": {
-        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
-        "additive": true
-      },  "cr04c_spirit_0": {
-        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
-        "additive": true
-      },  "experimental_coop_1": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "connection_flow",
-          "garden"
-        ],
-        "additive": true
-      }, "replicate_thief_routes": {
-        "additive": true,
-        "systems": [
-          "thief_escape"
-        ]
-      }, "warden_private_combat_state": {
-        "additive": true,
-        "systems": [
-          "warden_progression"
-        ]
-      }, "class_aim_owner": {
-        "additive": true,
-        "systems": [
-          "ability_aim"
-        ]
-      },  "garden_projection": {
-        "systems": [
-          "garden_observations"
-        ],
-        "additive": true
-      }
-    },
+
     "_affinity_checkpoint_command": {"ar07_vitals_1": {"systems": ["player_vitals"], "additive": true}, "ar03_wallet_reroll_debit": {"systems": ["expedition_wallet", "affinity_cards"], "additive": true}},
     "run_guarded_action": {"ar04_departure_result": {"systems": ["departure_settlement"], "additive": true}},
     "settle_expedition_rewards": {"ar05_reward_lifecycle": {"systems": ["loot"], "additive": true}, "ar04_departure_staging": {"systems": ["departure_settlement"], "additive": true}, "ar04_departure_finalization": {"systems": ["departure_settlement"], "additive": true}},

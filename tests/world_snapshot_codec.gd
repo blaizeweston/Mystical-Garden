@@ -40,6 +40,7 @@ func run() -> void:
 		actor.pose = 12350
 		actor.party_slot = i
 		actor.wild = i > 0
+		if i>0: actor.erase("garden_layout_revision")
 		actor.wallet = i * 7
 		actor.fallen = i == 3
 		actor.hp = 87.5
@@ -118,7 +119,9 @@ func run() -> void:
 	var connection: String = game.network_session.accepted_connection_key()
 	var owner_details := {"snapshot_recovery":recovered, "snapshot_roster":{1:"Recovered name"},"session_binding":connection}
 	var details := var_to_bytes(owner_details).compress(FileAccess.COMPRESSION_DEFLATE)
-	var garden := var_to_bytes(game.garden_snapshot()).compress(FileAccess.COMPRESSION_DEFLATE)
+	var garden_state: Array = game.garden_snapshot()
+	if game.stage.experimental_garden != null: garden_state.append(game.stage.experimental_garden.snapshot())
+	var garden := var_to_bytes(garden_state).compress(FileAccess.COMPRESSION_DEFLATE)
 	var old_details := owner_details.duplicate(true)
 	old_details.session_binding = "obsolete-connection-binding"
 	game.receive_details(var_to_bytes(old_details).compress(FileAccess.COMPRESSION_DEFLATE),garden,[],"obsolete")

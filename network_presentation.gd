@@ -9,15 +9,9 @@ const PlayerLifecycle = preload("res://player_lifecycle.gd")
 var server_vitals: Dictionary={}
 var client_vitals: Dictionary={}
 var flash_until: Dictionary={}
-var snapshot_sent:=0
 var snapshot_received:=-1
 var rejected_snapshots:=0
 var snapshot_gaps:=0
-# Reuse the current replacement frame on the existing reliable details channel
-# when ENet is shedding most unreliable sends.
-const RECOVERY_THROTTLE := ENetPacketPeer.PACKET_THROTTLE_SCALE / 2.0
-var latest_frame := PackedByteArray()
-var latest_frame_key := ""
 var names: Dictionary = {}
 var diagnostic_host := ""
 var diagnostic_world := ""
@@ -35,9 +29,7 @@ func apply_roster(people: Dictionary) -> void:
   p.diagnostic_world = diagnostic_world
 
 func clear() -> void:
- server_vitals.clear();client_vitals.clear();flash_until.clear();snapshot_sent=0;snapshot_received=-1;rejected_snapshots=0;snapshot_gaps=0
- latest_frame.clear()
- latest_frame_key = ""
+ server_vitals.clear();client_vitals.clear();flash_until.clear();snapshot_received=-1;rejected_snapshots=0;snapshot_gaps=0
  set_roster({}, "", "")
 func snapshot_targets(game: Node) -> PackedInt32Array:
  var targets := PackedInt32Array()

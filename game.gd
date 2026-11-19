@@ -47,6 +47,10 @@ var encounter_party_size:=1
 const PartyTravel=preload("res://party_travel.gd")
 const Network=preload("res://network_settings.gd")
 const WorldSnapshot = preload("res://world_snapshot.gd")
+const WorldReplication = preload("res://world_replication.gd")
+const ReplicationSource = preload("res://world_replication_source.gd")
+var replication := WorldReplication.new()
+var replication_source := ReplicationSource.new(self)
 var network_dialog: Window
 const AppSettings=preload("res://app_settings.gd")
 const MouseCombat=preload("res://mouse_combat.gd")
@@ -156,8 +160,6 @@ var checkpoint_ready: Dictionary={}
 const Altar=preload("res://altar_service.gd")
 
 var client_garden := [0, false, false, [false, false, false], [false, false, false], [0, 0, 0], 0, false, 0, false, 0, false, PackedByteArray([0,0,0,0,0,0,0,0,0])]
-var next_snapshot := 0.0
-var next_details:=0.0
 var client_details: Dictionary={}
 var client_details_key: String=""
 var toast_until := 0
@@ -1578,71 +1580,7 @@ func tick_enemies(delta: float, now: int) -> void:
 
 
 func send_expedition_state(delta: float,force := false) -> void:
-	var now := CombatClock.now()
-	net_view.observe(self)
-	var peers := net_view.snapshot_targets(self)
-	if not peers.is_empty():
-		next_details-=delta
-		next_snapshot -= delta
-		var witness: Callable = get_meta(&"snapshot_witness", Callable())
-		var state_key := str([participation.route(), participation.floor(), participation.seed()])
-		if force or next_snapshot <= 0.0:
-			next_snapshot = maxf(0,next_snapshot+0.05)
-			var began := Time.get_ticks_usec() if witness.is_valid() else 0
-			var flags := int(tactics.winding_up) | (8 if now < tactics.rooted_until else 0) | (16 if tactics.longlimb else 0)
-			var pack := scout_snapshot(now)
-			var shared := WorldSnapshot.encode(net_view.snapshot_sent + 1, player_snapshot(HOST,false),
-				campaign_snapshot(), pack, tactics.position, enemy_health(), encounter_health(), drop_pos, participation.depth(), flags)
-			if shared.is_empty() or shared.size() > WorldSnapshot.PAYLOAD_BUDGET:
-				push_error("World snapshot exceeds the supported player, scout, or payload limits.")
-			else:
-				net_view.snapshot_sent += 1
-				net_view.latest_frame = shared
-				net_view.latest_frame_key = state_key
-				for peer_id in peers:
-					var guest: Dictionary = players[peer_id]
-					var frame := WorldSnapshot.for_viewer(shared, guest.carried_seeds.size(), guest.loot_pending, guest.pouch)
-					var transport: ENetPacketPeer = network_session.transport().get_peer(peer_id) if began > 0 else null
-					var throttle := int(transport.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE)) if transport != null else -1
-					var counter := int(transport.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_COUNTER)) if transport != null else -1
-					var packed_at := Time.get_ticks_usec() if transport != null else 0
-					var error := rpc_id(peer_id, "receive_state", frame)
-					if transport != null:
-						var enqueued_at := Time.get_ticks_usec()
-						witness.call({"phase":"send","peer":peer_id,"sequence":net_view.snapshot_sent,"at":packed_at,
-							"bytes":frame.size(),"marker":int(drop_pos.x),"scout_count":pack.size() / float(PACK_STRIDE),
-							"encode_us":packed_at-began,"enqueue_us":enqueued_at-packed_at,"error":error,
-							"throttle":throttle,"counter_before":counter,
-							"counter_after":int(transport.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_COUNTER))})
-		if force or next_details<=0:
-			next_details=maxf(0,next_details+.25)
-			var shared_garden := garden_snapshot()
-			if stage.experimental_garden != null:
-				shared_garden.append(stage.experimental_garden.snapshot())
-			var garden_bytes:=var_to_bytes(shared_garden).compress(FileAccess.COMPRESSION_DEFLATE)
-			var roster := {}
-			for id in players:
-				roster[id] = players[id].character.get("name", "Wanderer")
-			for peer_id in peers:
-				var details: Dictionary=player_snapshot(peer_id)[peer_id]
-				for key in player_snapshot(peer_id,false)[peer_id]: details.erase(key)
-				details[ActionIdentity.BINDING_KEY] = network_session.connection_key(peer_id)
-				details[ActionIdentity.KEY] = ActionIdentity.current_stamp(self,players[peer_id])
-				details.snapshot_roster = roster
-				details.diagnostic_host = Journal.current.session_id if is_instance_valid(Journal.current) else ""
-				details.diagnostic_world = diagnostic_watch.world_session if is_instance_valid(diagnostic_watch) else ""
-				var guest: Dictionary = players[peer_id]
-				var transport := network_session.transport().get_peer(peer_id)
-				var repairing: bool = not net_view.latest_frame.is_empty() and net_view.latest_frame_key == state_key \
-					and transport.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE) <= net_view.RECOVERY_THROTTLE
-				if repairing:
-					details.snapshot_recovery = WorldSnapshot.for_viewer(net_view.latest_frame,
-						guest.carried_seeds.size(), guest.loot_pending, guest.pouch)
-				var payload := var_to_bytes(details).compress(FileAccess.COMPRESSION_DEFLATE)
-				var result := rpc_id(peer_id, "receive_details", payload, garden_bytes, inventory_snapshot(guest), state_key)
-				if repairing and witness.is_valid():
-					witness.call({"phase":"repair_send", "peer":peer_id, "sequence":net_view.snapshot_sent,
-						"at":Time.get_ticks_usec(), "bytes":details.snapshot_recovery.size(), "error":result})
+	replication.publish(replication_source,delta,force)
 
 
 func move_player(id: int, direction: Vector2, delta: float) -> void:
@@ -2248,46 +2186,7 @@ func combat_pose(player: Dictionary) -> int:
 
 
 func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
-	var snapshot := {}
-	for id in players:
-		var p: Dictionary = players[id]
-		var stride := preload("res://spirit_affinity.gd").scale(p,preload("res://affinity_time.gd").now(self)) if p.has("affinity_spirit_strides") else 1.0
-		if p.has("ranger_speed_grants"):
-			stride = maxf(stride,preload("res://ranger_combat.gd").speed_scale(self,p,CombatClock.now()))
-		var health: PlayerVitals.Health = p[PlayerVitals.STATE]
-		var state := {"motion_radius":bound_position(Vector3(1000,0,0)).x,"motion_epoch":net_motion.world_key(self,p),"motion_ack":net_motion.acknowledgement(id,net_motion.world_key(self,p)),"motion_scale":p[Protection.STATE].movement_scale(CombatClock.now())*p[Conditions.STATE].movement_scale(CombatClock.now())*stride,"velocity":p.get("velocity",Vector3.ZERO),"vitals_revision":p.get("vitals_revision",0),"damage_seq":p.get("damage_seq",0),"damage_amount":p.get("damage_amount",0),"party_slot":Session.slot_for(p,0),"display_name":p.character.get("name","Wanderer"),"enemy_max_hp":encounter_health(),"pos": p.pos, "wild": Participation.is_wild(p), "fallen":PlayerLifecycle.fallen(p),"lost_health":p.get("lost_health",0), "hp": health.hp(), "max_hp": health.max_hp(), "appearance": PackedByteArray(p.character.get("appearance", [0,0,0,0,0])), "frame": p.frame,
-			"attack_anim":attack_animation_snapshot(p),"skill_fx":p.get("skill_fx",{}) if CombatClock.now()<int(p.get("skill_fx_until",0)) else {}, "weapon_kind":p.get("weapon_kind",0), "core_part":p.weapon if Participation.is_wild(p) else p.prepared, "pose": combat_pose(p),"wallet": run_wallet(p)}
-		var cooldowns: Cooldowns.Timers = p[Cooldowns.STATE]
-		var cooldown_now := CombatClock.now()
-		state.merge(cooldowns.skill_projection(cooldown_now))
-		if stage.experimental_garden != null and not Participation.is_wild(p):
-			var garden = stage.experimental_garden
-			state["garden_layout_revision"] = garden.layout_revision if garden.reveal == null else -1
-		if id == viewer and include_details:
-			if Participation.is_wild(p):
-				state["affinity_feedback"]=preload("res://combat_status.gd").affinity_feedback(self,p)
-			state["core_state"]=preload("res://core_combat.gd").owner_state(p,CombatClock.now(),combat_build(p).core_skill())
-			if Participation.is_wild(p):
-				state["thief_routes"]=preload("res://thief_escape.gd").snapshot(self)
-				state["ability_growth_centers"]=preload("res://class_ability_targeting.gd").growth_centers(self,id)
-				if int(p.frame)==0:
-					var warden=preload("res://warden_combat.gd")
-					var now:=CombatClock.now()
-					state["warden_anchor_point"]=warden.anchor_point(self,p,now)
-					state["warden_relay_point"]=warden.relay_point(self,p,now)
-					state["warden_quake_prepared"]=warden.prepared_until(self,p,now)>0
-			state.merge({"weapon": p.weapon, "prepared": p.prepared, "experiment": p.experiment,
-				"dodge_ready": cooldowns.ready(Cooldowns.DODGE, cooldown_now), "last_offer": AffinityCards.completed_floor(p),
-				"reclaim_choice":p.get("reclaim_choice",0),"offering_choice":p.get("offering_choice",0),"last_deposit":p.get("last_deposit",0),"weapon_kind":p.weapon_kind,"catalyst":p.catalyst,"graft_part":0,"graft_floor":0,"prepared_catalyst":p.prepared_catalyst,"cargo_plan":p.cargo_plan,"stored_parts":stored_counts(p),"weapon_stats":weapon_stats(p,not Participation.is_wild(p)), "carried_parts": p.carried_parts, "reserve_parts": seed_reserve(p).parts,"combat_events":combat_events_snapshot(),"attack_hints":attack_hints_snapshot(),"death_events":death_events_snapshot(),"run_upgrades":{},"bag":InventoryModel.snapshot(self,p),"ground_items":inventory_floor_snapshot(p), "secondary": p.secondary, "prepared_secondary": p.prepared_secondary,
-				"garden_interactions":preload("res://garden_interaction_service.gd").projection(self,id),
-				"party_travel":PartyTravel.snapshot(self,id),"seed_choice": selected_seed(p), "graft_choice": 0, "cache_claimed": p.cache_claimed})
-			state["graft_improvements"] = preload("res://expedition_grafts.gd").owner_details(p, participation.floor())
-			if Participation.is_wild(p) and p.has(AffinityCards.STATE):
-				state["affinity_run_cards"] = AffinityCards.project_owned(p,state.weapon_stats,DODGE_COOLDOWN_MS)
-		state.diagnostic_host=Journal.current.session_id if is_instance_valid(Journal.current) else ""
-		state.diagnostic_world=diagnostic_watch.world_session if is_instance_valid(diagnostic_watch) else ""
-		snapshot[id] = state
-	return snapshot
+	return replication_source.players(viewer,include_details)
 
 
 func inventory_snapshot(player: Dictionary) -> Array:

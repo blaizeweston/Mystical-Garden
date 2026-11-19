@@ -21,7 +21,7 @@ func until(predicate: Callable) -> bool:
  var end:=Time.get_ticks_msec()+18000
  while not predicate.call() and Time.get_ticks_msec()<end:
   if role=="host" and not game.is_physics_processing():
-   game.next_snapshot=0;game.next_details=0;game._physics_process(0)
+   game.send_expedition_state(0,true)
   await create_timer(.05).timeout
  return predicate.call()
 func _initialize() -> void:call_deferred("run")

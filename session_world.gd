@@ -160,7 +160,7 @@ static func join(game: Node, address: String="",port: int=0) -> Error:
 		Journal.event("network","join_failed",{"error":result},"error")
 		game.status = "Could not start the connection. Check the address and port."
 		return result
-	game.net_view.clear();game.net_motion.clear()
+	game.net_view.clear();game.replication.clear_session();game.net_motion.clear()
 	game.participation.detach_all()
 	game.players.clear()
 	game.motions.clear()
@@ -194,7 +194,7 @@ static func leave(game: Node, message: String) -> void:
 			if not load("res://expedition_transitions.gd").finish_voluntary(game): return
 	if game.persistence_session.is_guarded(): game.persistence_session.begin_shutdown()
 	offline(game)
-	game.net_view.clear();game.net_motion.clear()
+	game.net_view.clear();game.replication.clear_session();game.net_motion.clear()
 	game.participation.detach_all()
 	game.players.clear()
 	game.motions.clear()
@@ -307,10 +307,13 @@ static func reject(game: Node, id: int, reason: String, expected_binding: int = 
 	Journal.event("network","peer_rejected",{"actor":id,"reason":reason},"warning")
 	game.connection_rejected.rpc_id(id,reason)
 	var rejected_transport: ENetMultiplayerPeer = game.network_session.transport()
+	var held_world: WeakRef = weakref(game)
 	game.get_tree().create_timer(.25).timeout.connect(func():
-		if game.network_session.transport()==rejected_transport and game.multiplayer.is_server() \
-				and game.network_session.matches(id,binding) and game.network_session.rejecting(id):
-			game.network_session.disconnect_transport_peer(id,binding))
+		var current = held_world.get_ref()
+		if current == null or not current.is_inside_tree() or current.is_queued_for_deletion(): return
+		if current.network_session.transport()==rejected_transport and current.multiplayer.is_server() \
+				and current.network_session.matches(id,binding) and current.network_session.rejecting(id):
+			current.network_session.disconnect_transport_peer(id,binding))
 
 
 static func accepted(game: Node, profile: Dictionary) -> void:
