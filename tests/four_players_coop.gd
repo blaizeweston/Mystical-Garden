@@ -110,7 +110,7 @@ func host_run():
  check(game.progress.parts[0]==0 and game.progress.parts[1]==0,"party consumes two copies of each starter part exactly once")
  for actor in game.players.values():
   var build: Dictionary=Builds.for_player(actor)
-  var skill: Dictionary=Core.equipped(actor)
+  var skill: Dictionary=game.combat_build(actor).core_skill()
   check(build.capabilities.core_action and not skill.is_empty() and skill.id==build.core.affinity_core_skill_id,"each party member has the executable Core matching the equipped affinity slot")
  check(await until(func():return marked("core-1") and marked("core-2") and marked("core-3")),"all guests get the correct private Core inventory and ready HUD")
  check(game.encounter_party_size==4 and game.encounter.scout_count()>=12 and game.encounter.scout_count()<=game.Director.scout_count(game),"encounter population scales to four")
@@ -225,7 +225,7 @@ func guest_lantern() -> void:
  var placement: Dictionary={}
  for i in 36:
   var candidate:=Vector3.FORWARD.rotated(Vector3.UP,i*TAU/36.0)
-  placement=Core.aim_cast(game.battlefield,caster.pos,candidate,Core.equipped(caster))
+  placement=Core.aim_cast(game.battlefield,caster.pos,candidate,game.combat_build(caster).core_skill())
   if not placement.is_empty():
    aim=candidate
    break

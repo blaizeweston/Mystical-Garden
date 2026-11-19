@@ -35,8 +35,7 @@ static func cast(caster: Caster, slot: int = 0) -> void:
 		if adapter.is_empty():
 			caster.tell("This class ability has no affinity contract.")
 			return
-		skill = adapter.native_skill.duplicate()
-		caster.tune_class(skill, build)
+		skill = caster.resolved_class_skill(slot)
 		event = caster.begin_event(adapter, now, build.catalyst)
 		if adapter.trigger == "contact" or (event != null and event.affinity in ["vital", "wood"] and adapter.recipients == "designated_area"):
 			stats[Events.CONTEXT] = event
@@ -75,7 +74,7 @@ static func cast(caster: Caster, slot: int = 0) -> void:
 	var reaper_siphon := false
 	match mode:
 		"front_guard", "counter_guard", "guard", "ward":
-			var ward_ms := int(chime.get("duration", skill.duration)) + duration + int(skill.get("ward_ms", 0)) if mode == "ward" else int(skill.duration) + duration
+			var ward_ms := Balance.protection_ms(skill, stats, int(chime.get("duration", skill.duration)))
 			_protect(caster, mode, origin, plan.forward, radius, now + ward_ms, int(skill.charges), event, adapter, now)
 		"snare":
 			center = plan.center if facts.aimed else caster.ground_endpoint(point if target != -2 else origin + Vector3(plan.forward) * reach)

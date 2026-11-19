@@ -743,7 +743,17 @@ func exercise_oracle_host(game: Node,id: int,entry: Vector3) -> bool:
 	oracle[Cooldowns.STATE] = oracle[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	oracle.core_cast_until=0
 	oracle[Cooldowns.STATE] = oracle[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
-	game.tactics.stagger_until=Time.get_ticks_msec()+14000
+	# This phase delivers its own two incoming contacts after the guest observes
+	# the grant. Hold already committed attacks as well as new AI decisions;
+	# staggering only the leader let a due attack spend the Ward in the wait.
+	var held_until := Time.get_ticks_msec()+14000
+	game.tactics.stagger_until=held_until
+	game.tactics.ready_at=held_until
+	if game.tactics.winding_up: game.tactics.strike_at=held_until
+	for scout: Dictionary in game.encounter.scout_tactics():
+		scout.stagger_until=held_until
+		scout.ready=held_until
+		if int(scout.windup)>0: scout.windup=held_until
 	mark("oracle-q")
 	var q_ready := func() -> bool:
 		var now := Time.get_ticks_msec()

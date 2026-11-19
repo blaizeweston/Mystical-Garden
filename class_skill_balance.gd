@@ -71,6 +71,13 @@ static func duration(skill: Dictionary, stats: Dictionary, key: String = "durati
 	return int(skill.get(key, fallback)) + int(stats.get("skill_duration", 0))
 
 
+## Shared by actual protection and its tooltip. Oracle's authored per-cast
+## base may change after Q; its flat Ward card remains a separate contribution.
+static func protection_ms(skill: Dictionary, stats: Dictionary, base_ms: int = -1) -> int:
+	var base := int(skill.get("duration", 0)) if base_ms < 0 else base_ms
+	return base + int(stats.get("skill_duration", 0)) + (int(skill.get("ward_ms", 0)) if skill.mode == "ward" else 0)
+
+
 static func trap_duration(skill: Dictionary, stats: Dictionary) -> int:
 	var base := int(skill.get("trap_ms", skill.get("duration", 3800) if skill.mode == "subclass" else 3800))
 	return base + int(stats.get("skill_duration", 0))

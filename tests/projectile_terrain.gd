@@ -267,7 +267,7 @@ func core_and_enemy_checks() -> void:
 	for far_side in [true, false]:
 		prepare(BANK if far_side else Vector3(-2.9,0,-2.5), ACROSS if far_side else Vector3(2.8,0,-2.5))
 		player.weapon = game.Parts.index_of("plant:storm_reed")
-		var skill := Core.equipped(player)
+		var skill: Dictionary = game.combat_build(player).core_skill()
 		check(skill.get("id") == "chain_spark", "Chain Spark is an actual equipped Core skill")
 		if skill.get("id") == "chain_spark":
 			var aim := Core.preview(game, player, field, Vector3.RIGHT, 0.0)

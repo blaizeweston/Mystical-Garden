@@ -54,8 +54,7 @@ static func describe_preview(source: Dictionary, stats: Dictionary, _ranks: Dict
 			lines.append("Drain: %s with one enemy hit · %s at the target cap" % [single,Balance.Preview.heal_label(Balance.drain_amount(skill,99),spread)])
 		lines.append("Drains from regular enemies, elites and bosses.")
 	if skill.has("charges"):
-		var key := "duration"
-		lines.append("Guard: %d hit(s) for %s" % [Balance.guard_charges(int(skill.charges)),Balance.seconds(Balance.duration(skill,stats,key))])
+		lines.append("Guard: %d hit(s) for %s" % [Balance.guard_charges(int(skill.charges)),Balance.seconds(Balance.protection_ms(skill,stats))])
 	elif subclass and (skill.get("ward",false) or skill.get("hit_ward",false) or int(skill.get("first",-1))==2):
 		if connected_weaver and skill.subclass_focus=="silkwarden" and int(skill.first)==2:
 			lines.append("Ward: 1 hit for %s per ally, extended to %s for the lowest HP ratio" %
@@ -96,26 +95,8 @@ static func describe_preview(source: Dictionary, stats: Dictionary, _ranks: Dict
 	return "\n".join(lines)
 
 
-static func wild_tooltips(game: Node, player: Dictionary, skills: Array) -> Array:
-	var stats: Dictionary = player.get("weapon_stats",{})
-	if game.multiplayer.is_server():
-		var key := [player.frame,player.character.get(Classes.Warden.Connected.PROFILE_KEY),
-			player.character.get(Classes.Weaver.PROFILE_KEY),player.character.get(Classes.Ranger.PROFILE_KEY),
-			player.character.get(Classes.Reaper.PROFILE_KEY),player.character.get(Classes.Oracle.PROFILE_KEY),
-			player.weapon_kind,player.weapon,player.secondary,player.catalyst]
-		var cached: Dictionary = game.get_meta("class_skill_tooltip_stats",{})
-		if cached.get("key",[]) != key:
-			stats=game.weapon_stats(player)
-			cached={"key":key.duplicate(true),"tips":resolved_tooltips(skills,stats,{})}
-			game.set_meta("class_skill_tooltip_stats",cached)
-		return cached.tips.duplicate()
-	return resolved_tooltips(skills,stats,{})
-
-
 static func resolved_tooltips(skills: Array, stats: Dictionary, ranks: Dictionary) -> Array:
-	var adapters: Array = stats.get("affinity_build", {}).get("class_skills", [])
 	var tips := []
-	for slot in skills.size():
-		var adapter: Dictionary = adapters[slot] if slot < adapters.size() else {}
-		tips.append(describe(adapter.get("native_skill", skills[slot]), stats, ranks))
+	for skill: Dictionary in skills:
+		tips.append(describe(skill,stats,ranks) if not skill.is_empty() else "")
 	return tips

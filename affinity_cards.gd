@@ -215,10 +215,10 @@ static func affinity_potency(player: Dictionary, source: String, material: Dicti
 		potency[parameter] = int(potency.get(parameter, 0)) + int(contributions[id])
 
 
-static func tune_class(player: Dictionary, skill: Dictionary, build: Dictionary, scale: int) -> void:
+## Pure class-card contribution step; shared by real casts and resolved previews.
+static func tune_class_contributions(skill: Dictionary, build: Dictionary, contributions: Dictionary, scale: int) -> void:
 	if int(skill.slot) != 1:
 		return
-	var contributions := totals(player)
 	for id: String in contributions:
 		var definition: Dictionary = Catalog.DEFINITIONS[id]
 		if definition.scope != "class" or not Ledger.requirement(definition, build).is_empty():

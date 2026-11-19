@@ -48,18 +48,9 @@
         "match": "\tif not Life.alive(p) or not p[Cooldowns.STATE].ready(Cooldowns.DODGE, now):\n",
         "baseline": "\tif not Life.alive(p) or now < int(p.dodge_at):\n"
       },
-      "ar06_cooldown_2": {
-        "match": "\tp[Cooldowns.STATE] = p[Cooldowns.STATE].start(Cooldowns.DODGE, now, maxi(350,recovery - AffinityCards.amount(p,\"run_dodge_recovery\")))\n",
-        "baseline": "\tp.dodge_at = now + maxi(350,recovery - AffinityCards.amount(p,\"run_dodge_recovery\"))\n"
-      },
-      "ec01_1": {
-        "match": "\t\tpreload(\"res://spirit_affinity.gd\").movement(self,p,previous,p.pos)\n\tvar recovery := DODGE_COOLDOWN_MS - int(weapon_stats(p).get(\"dodge_cooldown\",0))\n\tp.dodge_at = now + maxi(350,recovery - AffinityCards.amount(p,\"run_dodge_recovery\"))\n\n",
-        "baseline": "\t\tpreload(\"res://spirit_affinity.gd\").movement(self,p,previous,p.pos)\n\tp.dodge_at = now + maxi(350,DODGE_COOLDOWN_MS-int(weapon_stats(p).get(\"dodge_cooldown\",0)))\n\n"
-      },
-      "cr04c_spirit_0": {
-        "match": "\t\tp.facing = facing\n\tvar previous: Vector3 = p.pos\n\tp.pos = battlefield.dash(p.pos, bound_position(p.pos + p.facing * DODGE_DISTANCE, true))\n\tif p.has(\"affinity_spirit_follow\"):\n\t\tpreload(\"res://spirit_affinity.gd\").movement(self,p,previous,p.pos)\n\tp.dodge_at = now + maxi(350,DODGE_COOLDOWN_MS-int(weapon_stats(p).get(\"dodge_cooldown\",0)))\n",
-        "baseline": "\t\tp.facing = facing\n\tp.pos = battlefield.dash(p.pos, bound_position(p.pos + p.facing * DODGE_DISTANCE, true))\n\tp.dodge_at = now + maxi(350,DODGE_COOLDOWN_MS-int(weapon_stats(p).get(\"dodge_cooldown\",0)))\n"
-      }
+
+
+      "cr04c_spirit_0": {"match": "\t\tp.facing = facing\n\tvar previous: Vector3 = p.pos\n\tp.pos = battlefield.dash(p.pos, bound_position(p.pos + p.facing * DODGE_DISTANCE, true))\n\tif p.has(\"affinity_spirit_follow\"):\n\t\tpreload(\"res://spirit_affinity.gd\").movement(self,p,previous,p.pos)\n", "baseline": "\t\tp.facing = facing\n\tp.pos = battlefield.dash(p.pos, bound_position(p.pos + p.facing * DODGE_DISTANCE, true))\n"}
     },
     "move_player": {
       "ct03_ranger_1": {
@@ -200,10 +191,7 @@
         "match": "\t\t\tif last_offer != participation.floor():\n\t\t\t\tdetails += \"\\nE  Choose an upgrade   \u00b7   %d Essence\" % (run_wallet(p) if multiplayer.is_server() else int(p.get(\"wallet\", 0)))\n\t\tif visual_field.has_seed_cache() and not p.get(\"cache_claimed\", false) and (\n",
         "baseline": "\t\t\tif p.get(\"last_offer\", 0) != participation.floor():\n\t\t\t\tdetail_label.text += \"\\nE  Review next-floor readiness\" if has_meta(&\"combat_affinity_ruleset\") else \"\\nE  Choose upgrade cards   \u00b7   %d essence available\" % (run_wallet(p) if multiplayer.is_server() else int(p.get(\"wallet\", 0)))\n\t\tif visual_field.has_seed_cache() and not p.get(\"cache_claimed\", false) and (\n"
       },
-      "ct01_1": {
-        "match": "\tvar second_ready: bool=Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)) if host_side else bool(p.get(\"skill_two_ready\",false))\n\tvar skills: Array=[Skills.resolve_in_world(self,int(p.get(\"frame\",0)),0,p.get(\"character\",guest_character.data)),\n\t\tSkills.resolve_in_world(self,int(p.get(\"frame\",0)),1,p.get(\"character\",guest_character.data))]\n\tvar cooldowns: Array=[maxf(0,(int(p.get(\"skill_at\",0))-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)] if host_side else p.get(\"skill_cooldowns\",[0.0,0.0])\n",
-        "baseline": "\tvar second_ready: bool=Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)) if host_side else bool(p.get(\"skill_two_ready\",false))\n\tvar skills: Array=[Skills.resolve(int(p.get(\"frame\",0)),0,p.get(\"character\",guest_character.data)),Skills.resolve(int(p.get(\"frame\",0)),1,p.get(\"character\",guest_character.data))]\n\tvar cooldowns: Array=[maxf(0,(int(p.get(\"skill_at\",0))-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)] if host_side else p.get(\"skill_cooldowns\",[0.0,0.0])\n"
-      },
+      "ct01_1": {"match": "\tvar second_ready: bool=Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)) if host_side else bool(p.get(\"skill_two_ready\",false))\n\tvar resolved := combat_build(p,not wild)\n\tvar skills: Array=resolved.class_skills()\n\tvar has_resolved_skills: bool=skills.size()==2 and not skills.any(func(skill): return skill.is_empty())\n\tif not has_resolved_skills:\n\t\tskills=[Skills.resolve_in_world(self,int(p.get(\"frame\",0)),0,p.get(\"character\",guest_character.data)),\n\t\t\tSkills.resolve_in_world(self,int(p.get(\"frame\",0)),1,p.get(\"character\",guest_character.data))]\n\tvar cooldowns: Array=[maxf(0,(int(p.get(\"skill_at\",0))-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)] if host_side else p.get(\"skill_cooldowns\",[0.0,0.0])\n", "baseline": "\tvar second_ready: bool=Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)) if host_side else bool(p.get(\"skill_two_ready\",false))\n\tvar skills: Array=[Skills.resolve(int(p.get(\"frame\",0)),0,p.get(\"character\",guest_character.data)),Skills.resolve(int(p.get(\"frame\",0)),1,p.get(\"character\",guest_character.data))]\n\tvar cooldowns: Array=[maxf(0,(int(p.get(\"skill_at\",0))-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)] if host_side else p.get(\"skill_cooldowns\",[0.0,0.0])\n"},
       "cr04c_void_hud_0": {
         "match": "\t\t\"skill_tooltips\":skill_tips,\n\t\t\"affinity_feedback\":preload(\"res://combat_status.gd\").affinity_feedback(self,p) if host_side and wild else str(p.get(\"affinity_feedback\",\"\")) if wild else \"\",\n\t\t\"carried\": carried if wild else data[0],\n",
         "baseline": "\t\t\"skill_tooltips\":skill_tips,\n\t\t\"carried\": carried if wild else data[0],\n"
@@ -240,10 +228,7 @@
         "match": "\tif not persistence_session.is_guarded() and (slot_claimed or character_slot_claimed) and Time.get_unix_time_from_system() - slot_heartbeat_at >= 1.0:",
         "baseline": "\tif (slot_claimed or character_slot_claimed) and Time.get_unix_time_from_system() - slot_heartbeat_at >= 1.0:"
       },
-      "cb04_1": {
-        "match": "var skill_tips: Array=Skills.wild_tooltips(self,p,skills) if wild else [skills[0].name+\"\\n\"+skills[0].description,skills[1].name+\"\\n\"+skills[1].description]",
-        "baseline": "var skill_tips: Array=[skills[0].name+\"\\n\"+skills[0].description,skills[1].name+\"\\n\"+skills[1].description]"
-      },
+
       "preview_revive_prompt": {
         "match": "\t\tvar can_revive:=Life.Vitals.can_revive(int(ally.get(\"max_hp\",Life.Preview.hp(MAX_HEALTH))),Life.Preview.scale())\n\t\tvar cost: String=\"%d maximum HP\"%Life.Preview.revive_cost()\n\t\tprompt=\"E  Revive %s \u00b7 costs them %s\"%[ally.get(\"display_name\",ally.get(\"character\",{}).get(\"name\",\"ally\")),cost] if can_revive else \"This ally has too little maximum health to revive.\"",
         "baseline": "\t\tguide.text=\"E  Revive %s \u00b7 costs them 1 maximum heart\"%ally.get(\"display_name\",ally.get(\"character\",{}).get(\"name\",\"ally\")) if int(ally.get(\"max_hp\",10))>=4 else \"This ally has no full heart left to sacrifice.\""
@@ -1432,18 +1417,9 @@
       }
     },
     "affinity_build.gd": {
-      "ar07_vitals_1": {
-        "match": "const PlayerVitals = preload(\"res://player_vitals.gd\")\n",
-        "baseline": ""
-      },
-      "ar07_vitals_2": {
-        "match": "\t\tint(player.get(\"lost_health\", 0)), PlayerVitals.temporary_hp(player))\n",
-        "baseline": "\t\tint(player.get(\"lost_health\", 0)), int(player.get(\"affinity_vital_bonus\", 0)))\n"
-      },
-      "ar01_graft_combat_values": {
-        "match": "static func graft_value_resolver(player: Dictionary, cards: Dictionary, base_health: int) -> Callable:\n\treturn graft_values.bind(for_player(player), cards, base_health,\n\t\tint(player.get(\"lost_health\", 0)), int(player.get(\"affinity_vital_bonus\", 0)))\n\n\nstatic func graft_values(improvements: Dictionary, base_build: Dictionary, cards: Dictionary,\n\t\tbase_health: int, lost_health: int, temporary_health: int) -> Dictionary:\n\tvar build := base_build.duplicate()\n\tbuild.improvements = improvements\n\tvar stats := native_stats(build)\n\tstats.affinity_build = build\n\tvar skills := []\n\tvar balance = preload(\"res://class_skill_balance.gd\")\n\tfor adapter: Dictionary in build.class_skills:\n\t\tvar skill: Dictionary = adapter.get(\"native_skill\", {})\n\t\tif not skill.is_empty():\n\t\t\tskills.append({\"name\":skill.name, \"time\":balance.cooldown(skill, stats)})\n\tWeaponRules.tune_affinity_basic(stats, cards)\n\tvar health := Preview.maximum_health(base_health, float(stats.get(\"max_health\", 0)),\n\t\tlost_health, int(cards.get(\"run_health\", 0))) + temporary_health\n\treturn {\"damage\":Preview.weapon_range(stats, 0), \"health\":health,\n\t\t\"reach\":roundi(float(stats.reach)*100.0), \"cooldown\":skills}\n\n\n",
-        "baseline": ""
-      },
+
+
+
       "ec01_display_1": {
         "match": "\t\t\tsummary = header\n\t\t\tif not build.capabilities.native_class_skills:\n\t\t\t\treturn {\"summary\": summary + \"\\nThis class path is unavailable.\", \"detail\": support_text(material)}\n\t\t\tvar notes: PackedStringArray = []\n",
         "baseline": "\t\t\tsummary = header\n\t\t\tvar notes: PackedStringArray = []\n"
@@ -4349,10 +4325,7 @@
         "match": "static func command(game: Node, id: int, player: Dictionary, action: String) -> void:\n\tif not game.multiplayer.is_server() or not game.Life.alive(player) or not game.network_session.ready(id) or Session.peer_for(player) != id:\n\t\treturn\n",
         "baseline": "static func command(game: Node, id: int, player: Dictionary, action: String) -> void:\n\tif not game.multiplayer.is_server() or not game.Life.alive(player) or not Session.ready_for(player,false) or game.encounter_cleared():\n\t\treturn\n"
       },
-      "cr04a_affinity_2": {
-        "match": "\tvar skill := equipped(player)\n\tif skill.is_empty() or (game.encounter_cleared() and skill.get(\"affinity_family\") != \"vital\"):\n\t\treturn\n",
-        "baseline": "\tvar skill := equipped(player)\n\tif skill.is_empty():\n\t\treturn\n"
-      },
+      "cr04a_affinity_2": {"match": "\tvar skill: Dictionary = resolved.core_skill()\n\tif skill.is_empty() or (game.encounter_cleared() and skill.get(\"affinity_family\") != \"vital\"):\n\t\treturn\n", "baseline": "\tvar skill: Dictionary = resolved.core_skill()\n\tif skill.is_empty():\n\t\treturn\n"},
       "cr04a_affinity_3": {
         "match": "\tvar weapon: Dictionary = game.WeaponMotion.profile(skill.weapon_form)\n\tvar ground: bool = skill.delivery == \"ground\" or skill.get(\"footprint\") == \"wave\" or skill.get(\"affinity_family\") in [\"water\",\"vital\"]\n\tvar blade_cast: bool = skill.weapon_form == \"blade\"\n",
         "baseline": "\tvar weapon: Dictionary = game.WeaponMotion.profile(skill.weapon_form)\n\tvar ground: bool = skill.delivery == \"ground\" or skill.get(\"footprint\") == \"wave\"\n\tvar blade_cast: bool = skill.weapon_form == \"blade\"\n"

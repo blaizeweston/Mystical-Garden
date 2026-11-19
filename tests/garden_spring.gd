@@ -110,8 +110,8 @@ func run() -> void:
   and AffinityBuild.core_skill(build).get("id")=="vital_bloom","refined material resolves the executable Vital Bloom Core")
  check(native_unchanged,"Core equipment preserves native weapon and class statistics")
  ExpeditionCase.Transitions.enter(game, 1,p)
- check(ExpeditionCase.is_wild(p) and p.weapon==refined and Core.equipped(p).get("id")=="vital_bloom"
-  and Core.equipped(p).get("material",{}).get("quality")=="refined","crafted component travels into an actual expedition with its executable refined Core")
+ check(ExpeditionCase.is_wild(p) and p.weapon==refined and game.combat_build(p).core_skill().get("id")=="vital_bloom"
+  and game.combat_build(p).core_skill().get("material",{}).get("quality")=="refined","crafted component travels into an actual expedition with its executable refined Core")
  ExpeditionCase.set_membership(game, p, false);p.pos=water.position
  var random_state: int=game.rng.state;knowledge=g.knowledge;parts=g.parts.duplicate();var interaction: Dictionary=g.garden_interactions.duplicate(true)
  game.app_settings.path=base+".settings";game.app_settings.values.ambient_motion=true;ambience._process(.2)

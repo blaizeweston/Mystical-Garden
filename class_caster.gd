@@ -72,8 +72,8 @@ func native_skill(slot: int) -> Dictionary:
 	return Skills.resolve(int(_actor.frame), slot, _actor.character).duplicate(true)
 
 
-func tune_class(skill: Dictionary, build: Dictionary) -> void:
-	preload("res://affinity_cards.gd").tune_class(_actor, skill, build, Life.Preview.scale())
+func resolved_class_skill(slot: int) -> Dictionary:
+	return _world.combat_build(_actor).class_skill(slot)
 
 
 func begin_event(adapter: Dictionary, now: int, catalyst: Dictionary) -> RefCounted:

@@ -117,6 +117,8 @@ var combat_event_serial:=0
 var received_combat_events: Array=[]
 const WeaponAttackQueue = preload("res://weapon_attack_queue.gd")
 const WeaponAttackWorld = preload("res://weapon_attack_world.gd")
+const ResolvedBuild = preload("res://resolved_combat_build.gd")
+var combat_builds := ResolvedBuild.Cache.new()
 var weapon_attacks: WeaponAttackQueue = WeaponAttackQueue.new()
 var weapon_attack_world := WeaponAttackWorld.new(self)
 var enemy_mutations := 0
@@ -1350,8 +1352,7 @@ func _purchase_expedition_graft(id: int, player: Dictionary, action: String) -> 
 	var ledger := grafts.active_ledger(player)
 	if ledger == null:
 		return grafts.EXPIRED
-	var build = preload("res://affinity_build.gd")
-	var project_stats := build.graft_value_resolver(player, AffinityCards.totals(player), MAX_HEALTH)
+	var project_stats := combat_build(player).graft_value_resolver(MAX_HEALTH,int(player.get("lost_health",0)),PlayerVitals.temporary_hp(player))
 	var purchase := ledger.plan_purchase(request_data, participation.floor(), player.carried_parts, project_stats)
 	if purchase.has("ledger"):
 		# The host installs the successor and debits inventory in the same
@@ -1690,8 +1691,7 @@ func dodge_player(id: int, direction: Vector2) -> void:
 	p.pos = battlefield.dash(p.pos, bound_position(p.pos + p.facing * DODGE_DISTANCE, true))
 	if p.has("affinity_spirit_follow"):
 		preload("res://spirit_affinity.gd").movement(self,p,previous,p.pos)
-	var recovery := DODGE_COOLDOWN_MS - int(weapon_stats(p).get("dodge_cooldown",0))
-	p[Cooldowns.STATE] = p[Cooldowns.STATE].start(Cooldowns.DODGE, now, maxi(350,recovery - AffinityCards.amount(p,"run_dodge_recovery")))
+	p[Cooldowns.STATE] = p[Cooldowns.STATE].start(Cooldowns.DODGE, now, combat_build(p).dodge_ms(DODGE_COOLDOWN_MS))
 
 
 func update_pressure(now: int) -> void:
@@ -2266,7 +2266,7 @@ func player_snapshot(viewer: int,include_details: bool=true) -> Dictionary:
 		if id == viewer and include_details:
 			if Participation.is_wild(p):
 				state["affinity_feedback"]=preload("res://combat_status.gd").affinity_feedback(self,p)
-			state["core_state"]=preload("res://core_combat.gd").owner_state(p,CombatClock.now(),get_meta("core_combat",{}).get(id,{}))
+			state["core_state"]=preload("res://core_combat.gd").owner_state(p,CombatClock.now(),combat_build(p).core_skill())
 			if Participation.is_wild(p):
 				state["thief_routes"]=preload("res://thief_escape.gd").snapshot(self)
 				state["ability_growth_centers"]=preload("res://class_ability_targeting.gd").growth_centers(self,id)
@@ -2534,10 +2534,14 @@ func _process(_delta: float) -> void:
 	var host_side := multiplayer.is_server()
 	var ready_skill := (local_timers == null or local_timers.ready(Cooldowns.Q, cooldown_now)) if host_side else bool(p.get("skill_ready", false))
 	var second_ready := (local_timers == null or local_timers.ready(Cooldowns.R, cooldown_now)) if host_side else bool(p.get("skill_two_ready", false))
-	var skills: Array=[Skills.resolve_in_world(self,int(p.get("frame",0)),0,p.get("character",guest_character.data)),
-		Skills.resolve_in_world(self,int(p.get("frame",0)),1,p.get("character",guest_character.data))]
+	var resolved := combat_build(p,not wild)
+	var skills: Array=resolved.class_skills()
+	var has_resolved_skills: bool=skills.size()==2 and not skills.any(func(skill): return skill.is_empty())
+	if not has_resolved_skills:
+		skills=[Skills.resolve_in_world(self,int(p.get("frame",0)),0,p.get("character",guest_character.data)),
+			Skills.resolve_in_world(self,int(p.get("frame",0)),1,p.get("character",guest_character.data))]
 	var cooldowns: Array = local_timers.skill_seconds(cooldown_now) if host_side and local_timers != null else p.get("skill_cooldowns", [0.0, 0.0])
-	var skill_tips: Array=Skills.wild_tooltips(self,p,skills) if wild else [skills[0].name+"\n"+skills[0].description,skills[1].name+"\n"+skills[1].description]
+	var skill_tips: Array=resolved.tooltips() if wild and has_resolved_skills else [skills[0].name+"\n"+skills[0].description,skills[1].name+"\n"+skills[1].description]
 	var quake_prepared:=false
 	if skills[0].has("warden_focus"):
 		var warden=preload("res://warden_combat.gd")
@@ -2715,15 +2719,18 @@ func current_mutations(kind: int, growth: int, stamp: int) -> int:
 	return Learning.bounded(traits,participation.floor(),stamp)
 
 
-func weapon_stats(player: Dictionary, prepared: bool=false) -> Dictionary:
-	var builds = preload("res://affinity_build.gd")
-	var build := builds.for_player(player,prepared)
-	var result: Dictionary = builds.native_stats(build)
-	result.affinity_build = build
-	result["class_power"] = 0
-	var band := Life.Preview.weapon_range(result,0)
-	result.damage_min=band.x;result.damage_max=band.y
-	return result
+func combat_build(player: Dictionary, prepared: bool = false) -> ResolvedBuild.Snapshot:
+	if not multiplayer.is_server():
+		return combat_builds.received(player.get("weapon_stats",{}), AffinityCards.applied_totals(player.get("affinity_run_cards",[])))
+	var fields := ["prepared","prepared_secondary","prepared_catalyst"] if prepared else ["weapon","secondary","catalyst"]
+	var parts := fields.map(func(field): return int(player.get(field,0)))
+	var class_id := int(player.get("frame",0))
+	return combat_builds.resolve(class_id,int(player.get("weapon_kind",0)),parts,Classes.combat_profile(player.get("character",{}),class_id),
+		AffinityCards.ledger(player) if not prepared else null,
+		preload("res://expedition_grafts.gd").active_ledger(player) if not prepared else null,not prepared)
+
+func weapon_stats(player: Dictionary, prepared: bool = false) -> Dictionary:
+	return combat_build(player,prepared).native_stats()
 
 func shared_parts_snapshot() -> Array:
 	var result:=Parts.empty_counts()
@@ -3102,8 +3109,7 @@ func checkpoint_all_ready() -> bool:
 	return true
 
 func checkpoint_card_data(player: Dictionary) -> Array:
-	var stats := weapon_stats(player)
-	Weapons.tune_affinity_basic(stats)
+	var stats := combat_build(player).weapon_base_stats()
 	var ledger := AffinityCards.ledger(player)
 	if ledger == null:
 		ledger = AffinityCards.Ledger.new()
@@ -3140,8 +3146,7 @@ func _affinity_checkpoint_command(id: int, player: Dictionary, action: String) -
 	if ledger == null:
 		present_checkpoint_cards(id)
 		return
-	var stats := weapon_stats(player)
-	Weapons.tune_affinity_basic(stats)
+	var stats := combat_build(player).weapon_base_stats()
 	var revision := int(get_meta(AffinityCards.SERIAL, 0)) + 1
 	var plan := ledger.plan_choice(participation.floor(), int(fields[0]), fields[1], revision,
 		int(player.upgrade_seed), run_wallet(player), stats, DODGE_COOLDOWN_MS)
@@ -3210,8 +3215,7 @@ func graft_menu_data(player: Dictionary) -> Dictionary:
 	var ledger := preload("res://expedition_grafts.gd").active_ledger(player)
 	if ledger == null:
 		return {}
-	var build = preload("res://affinity_build.gd")
-	var project_stats := build.graft_value_resolver(player, AffinityCards.totals(player), MAX_HEALTH)
+	var project_stats := combat_build(player).graft_value_resolver(MAX_HEALTH,int(player.get("lost_health",0)),PlayerVitals.temporary_hp(player))
 	return ledger.altar_view(participation.floor(), player.carried_parts, str(player.get("graft_message", "")), project_stats)
 
 func show_graft_menu(id: int) -> void:

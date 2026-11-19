@@ -134,7 +134,7 @@ func check_core_footprints(game: Node, p: Dictionary) -> void:
 	p.core_cast_until=0
 	for species in ["thorn_bloom","ember_fern","dewcap","frostbell","ghost_fern","void_willow"]:
 		p.weapon=game.Parts.index_of("plant:"+species)
-		var skill:=Core.equipped(p)
+		var skill: Dictionary=game.combat_build(p).core_skill()
 		var preview:=Aim.footprint(game,p,field,2,Vector3.FORWARD,3.0)
 		check(preview.valid and not preview.shapes.is_empty(),skill.name+" has a current Core preview")
 		if skill.affinity_family=="spirit":

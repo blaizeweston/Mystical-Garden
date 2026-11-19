@@ -12,7 +12,6 @@ const Mouse = preload("res://mouse_combat.gd")
 const Events = preload("res://combat_action_events.gd")
 const Spirit = preload("res://spirit_affinity.gd")
 const Outgoing = preload("res://outgoing_hits.gd")
-const Weapons = preload("res://weapon_system.gd")
 const Frames = preload("res://weapon_frames.gd")
 const Classes = preload("res://class_catalog.gd")
 var _world: Node
@@ -28,14 +27,13 @@ func start_facts(peer: int, now: int) -> Dictionary:
 
 func capture_attack(peer: int, now: int) -> Dictionary:
 	var actor: Dictionary = _world.players[peer]
-	var stats: Dictionary = _world.weapon_stats(actor)
+	var stats: Dictionary = _world.combat_build(actor).basic_stats()
 	var build: Dictionary = stats.get("affinity_build", {})
 	if build.is_empty(): return stats
 	var refusal := preload("res://affinity_build.gd").refusal(build, "form")
 	if not refusal.is_empty():
 		_world.tell(peer, refusal)
 		return {}
-	Weapons.tune_affinity_basic(stats, preload("res://affinity_cards.gd").totals(actor))
 	var form: Dictionary = build.form
 	var ready: bool = form.state == "ready"
 	var event := Events.begin(_world, peer, "form" if ready else "native_weapon", form if ready else {},

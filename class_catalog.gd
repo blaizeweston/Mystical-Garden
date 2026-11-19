@@ -1655,3 +1655,19 @@ static func effect_text(values: Dictionary, show_hp: bool = false) -> String:
    lines.append(preload("res://combat_traits.gd").describe({key:values[key]}));continue
   lines.append("+%d%% grafting chance"%roundi(float(values[key])*100) if key=="graft_chance" else "+%s %s" % [str(values[key]),str(names.get(key,key))])
  return "\n".join(lines)
+
+
+# The one class-profile projection used by combat compilation and class UI.
+# These are input facts, not another character save or progression owner.
+const COMBAT_PROFILE_FIELDS := ["xp", "upgrades", ConnectedTree.MIGRATION_KEY, "quarantine"]
+
+static func combat_profile(profile: Dictionary, class_id: int = -1) -> Dictionary:
+ var fields := COMBAT_PROFILE_FIELDS.duplicate()
+ if class_id >= 0:
+  fields.append(connected_tree(clampi(class_id,0,DEFINITIONS.size()-1)).profile_key)
+ else:
+  for index in DEFINITIONS.size(): fields.append(connected_tree(index).profile_key)
+ var result := {}
+ for key in fields:
+  if profile.has(key): result[key] = profile[key]
+ return result.duplicate(true)

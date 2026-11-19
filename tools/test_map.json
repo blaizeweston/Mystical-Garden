@@ -8,6 +8,7 @@
   },
   "full_after_days": 7,
   "systems": {
+    "combat_builds": {"label":"Shared resolved native, basic, class and preview values", "files":["resolved_combat_build.gd"]},
     "weapon_attacks": {"label":"Owned ordinary-attack launch, release, projectile lifecycle and rollback", "files":["weapon_attack_queue.gd","weapon_attack_world.gd"]},
     "arena_combat_bridge": {"label":"Neural Arena outgoing-contact integration", "files":["neural_arena/arena_world.gd","neural_arena/arena_mob_bridge.gd"]},
     "progression_ui": {"label": "Detached seed, Heart research, connected-class and Garden-story views", "files": ["progression_panel.gd", "progression_panel.gd.uid", "garden_story_panel.gd", "garden_story_panel.gd.uid", "ui/gameplay/player_build_projection.gd", "ui/gameplay/player_build_projection.gd.uid"]},
@@ -882,6 +883,7 @@
     ]
   },
   "game_functions": {
+    "combat_build": ["weapons", "classes", "expeditions", "combat", "combat_builds"],
     "tick_enemies": ["enemies", "enemy_tactics", "enemy_attack_execution"],
     "progression_ui_data": ["progression_ui", "gameplay_ui", "classes", "knowledge", "seeds", "garden_returns", "garden", "items"],
     "run_summary_ui_data": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_grafts", "life"],
@@ -1200,7 +1202,7 @@
     "bound_position": [
       "terrain"
     ],
-    "dodge_player": ["combat", "affinity_cards"],
+    "dodge_player": ["combat", "affinity_cards", "player_cooldowns", "combat_builds"],
     "update_pressure": [
       "enemies"
     ],
@@ -1343,7 +1345,7 @@
       "foundation",
       "encounter_roster"
     ],
-    "_process": ["foundation", "affinity_cards"],
+    "_process": ["foundation", "affinity_cards", "class_balance", "combat_builds"],
     "living_scout_count": [
       "enemies",
       "encounter_roster"
@@ -1365,12 +1367,7 @@
     "current_mutations": [
       "enemies"
     ],
-    "weapon_stats": [
-      "weapons",
-      "classes",
-      "expeditions",
-      "combat"
-    ],
+    "weapon_stats": ["weapons", "classes", "expeditions", "combat", "combat_builds"],
     "shared_parts_snapshot": [
       "weapons"
     ],
@@ -1633,6 +1630,7 @@
     ]
   },
   "suites": {
+    "resolved_combat_build": {"kind":"unit", "systems":["combat_builds","classes","weapons","affinity_cards","expedition_grafts","player_build_ui","player_cooldowns","life","core_combat","ability_aim"], "package":false},
     "weapon_attack_queue": {"kind":"unit", "systems":["weapon_attacks","weapons","combat","combat_affinity_contracts","classes","player_weapon_actions","player_lifecycle","ranged_release","hex_terrain"], "package":false},
     "outgoing_hits": {"kind":"unit", "systems":["arena_combat_bridge","combat","weapons","classes","loot","enemies","encounter_roster","player_lifecycle","combat_affinity_contracts"], "package":false},
     "native_class_actions": {"kind":"unit", "systems":["classes","combat","class_balance","combat_affinity_contracts","life","player_lifecycle","player_cooldowns","player_protection","ability_aim"], "package":false},
@@ -5081,8 +5079,8 @@
         "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"],
         "additive": true
       }},
-    "dodge_player": {"ar06_cooldown_1": {"systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_2": {"systems": ["player_cooldowns"], "additive": true},
-      "ec01_1": {"systems": ["affinity_cards"], "additive": true},
+    "dodge_player": {"ar06_cooldown_1": {"systems": ["player_cooldowns"], "additive": true},
+
       "cr04c_spirit_0": {
         "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
         "additive": true
@@ -5314,7 +5312,7 @@
           "menus",
           "connection_flow"
         ]
-      },  "cb04_1": {"systems": ["class_balance"], "additive": true}, "preview_revive_prompt": {"systems": ["combat_balance_preview"], "additive": true}, "render_glasscap_copies": {
+      },   "preview_revive_prompt": {"systems": ["combat_balance_preview"], "additive": true}, "render_glasscap_copies": {
         "systems": [
           "glasscap_feints"
         ],
@@ -6247,8 +6245,8 @@
     },
     "affinity_build.gd": {
       "newline": "lf",
-      "regions": {"ar07_vitals_1": {"systems": ["player_vitals"]}, "ar07_vitals_2": {"systems": ["player_vitals"]},
-        "ar01_graft_combat_values": {"systems": ["expedition_grafts"]},
+      "regions": {
+
         "ec01_display_1": {"systems": ["combat_affinity_contracts", "plant_affinities", "ui_copy"]},
         "ec01_playtest_1": {"systems": ["combat_affinity_contracts", "plant_affinities", "ui_copy"]},
         "ct05_oracle_1": {"systems": ["oracle_progression", "class_tree_access"]},

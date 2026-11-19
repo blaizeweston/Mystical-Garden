@@ -1,4 +1,5 @@
 extends VBoxContainer
+const ResolvedBuild = preload("res://resolved_combat_build.gd")
 
 const Classes = preload("res://class_catalog.gd")
 const Weapons = preload("res://weapon_system.gd")
@@ -283,13 +284,12 @@ func present(data: Dictionary) -> void:
 	if not current_progression:
 		depart_button.disabled = true
 		depart_button.text = "Review class progression at the Heart"
-	var weapon_stats := stats.duplicate()
-	if not prepared and stats.has("affinity_build"):
-		var applied: Dictionary = data.card_totals
-		Weapons.tune_affinity_basic(weapon_stats, applied)
+	var resolved := ResolvedBuild.Snapshot.new(stats,data.card_totals if not prepared else {})
+	var weapon_stats := resolved.native_stats() if prepared else resolved.basic_stats()
 	var body: String="[b]%s · Lv %d[/b]\n%s\n%d class point(s) available\n\n%s"%[Classes.DEFINITIONS[c].name,level,Classes.DEFINITIONS[c].description,points,Weapons.describe(weapon_stats) if not weapon_stats.is_empty() else ""]
 	for skill_slot in range(0 if focused else 1,2):
-		var skill: Dictionary=Skills.resolve(c,skill_slot,profile)
+		var skill: Dictionary=resolved.class_skill(skill_slot)
+		if skill.is_empty(): skill=Skills.resolve(c,skill_slot,profile)
 		var info: String=Skills.describe(skill,stats)
 		info=info.substr(info.find("\n")+1)
 		body+="\n\n[b]%s[/b]\n%s"%[skill.name,info]

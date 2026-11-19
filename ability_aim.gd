@@ -36,7 +36,7 @@ static func available(game_node: Node, local: Dictionary, requested_slot: int) -
 
 static func can_recover(game: Node, player: Dictionary) -> bool:
 	if game.multiplayer.is_server():
-		return Core.equipped(player).get("affinity_family") == "vital"
+		return game.combat_build(player).core_skill().get("affinity_family") == "vital"
 	var build: Dictionary = player.get("weapon_stats", {}).get("affinity_build", {})
 	var core: Dictionary = build.get("core", {})
 	return core.get("state") == "ready" and core.get("primary_affinity") == "vital"

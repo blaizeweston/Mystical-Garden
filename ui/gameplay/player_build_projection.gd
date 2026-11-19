@@ -2,7 +2,7 @@ extends RefCounted
 ## Pure display projection. Receives detached facts, never Game or an actor.
 const Classes = preload("res://class_catalog.gd")
 const Skills = preload("res://skill_catalog.gd")
-const Weapons = preload("res://weapon_system.gd")
+const ResolvedBuild = preload("res://resolved_combat_build.gd")
 const Cards = preload("res://affinity_cards.gd")
 const Preview = preload("res://combat_balance_preview.gd")
 const Traits = preload("res://combat_traits.gd")
@@ -18,21 +18,11 @@ const EXTRA_STATS := {
 }
 
 
-const CLASS_PROFILE_FIELDS := ["xp","upgrades",Classes.ConnectedTree.MIGRATION_KEY,"quarantine"]
-
 static func class_profile(profile: Dictionary, class_id: int) -> Dictionary:
-	return _profile_fields(profile,CLASS_PROFILE_FIELDS+[Classes.connected_tree(class_id).profile_key])
+	return Classes.combat_profile(profile,class_id)
 
 static func progression_profile(profile: Dictionary) -> Dictionary:
-	var keys := CLASS_PROFILE_FIELDS.duplicate()
-	for class_id in Classes.DEFINITIONS.size(): keys.append(Classes.connected_tree(class_id).profile_key)
-	return _profile_fields(profile,keys)
-
-static func _profile_fields(profile: Dictionary, keys: Array) -> Dictionary:
-	var result := {}
-	for key in keys:
-		if profile.has(key): result[key]=profile[key]
-	return result.duplicate(true)
+	return Classes.combat_profile(profile)
 
 static func summary(facts: Dictionary) -> Dictionary:
 	var stats: Dictionary = facts.get("stats",{}).duplicate(true)
@@ -45,13 +35,8 @@ static func summary(facts: Dictionary) -> Dictionary:
 	if stats.has("affinity_build"):
 		var copies: Array = facts.copies
 		upgrades = Cards.owned_rows(copies)
-		var applied := Cards.applied_totals(copies)
-		stats = stats.duplicate()
-		Weapons.tune_affinity_basic(stats, applied)
-		var weapon_band: Vector2i = Preview.weapon_range(stats,0)
-		stats.damage_min = weapon_band.x
-		stats.damage_max = weapon_band.y
-		stats.dodge_cooldown = int(stats.get("dodge_cooldown",0)) + int(applied.get("run_dodge_recovery",0))
+	var resolved := ResolvedBuild.Snapshot.new(stats,Cards.applied_totals(facts.copies))
+	stats = resolved.basic_stats()
 	upgrades.sort_custom(func(a,b): return a.title.naturalnocasecmp_to(b.title) < 0)
 	if stats.has("damage_min"):
 		var band:=Vector2i(stats.damage_min,stats.damage_max)
@@ -64,11 +49,12 @@ static func summary(facts: Dictionary) -> Dictionary:
 	rows.append(["Weapon targets", compared(stats.targets, base.targets)])
 	var base_hp: int=int(facts.base_hp)
 	rows.append(["Max HP", compared(int(facts.max_hp), base_hp, " HP")])
-	var dodge_ms := maxi(Cards.DODGE_MIN_MS, int(facts.dodge_ms) - int(stats.get("dodge_cooldown", 0)))
+	var dodge_ms := resolved.dodge_ms(int(facts.dodge_ms))
 	rows.append(["Dodge cooldown", compared(dodge_ms / 1000.0, int(facts.dodge_ms) / 1000.0, " s"),
 		"Minimum dodge cooldown is %s s." % decimal(Cards.DODGE_MIN_MS / 1000.0)])
 	for slot in 2:
-		var skill: Dictionary = facts.skills[slot]
+		var skill := resolved.class_skill(slot)
+		if skill.is_empty(): skill = facts.skills[slot]
 		var cooldown_ms := Skills.Balance.cooldown(skill,stats)
 		rows.append([skill.name + " cooldown", decimal(cooldown_ms / 1000.0) + " s",
 			"Minimum class ability cooldown is %s s." % decimal(Skills.Balance.COOLDOWN_MIN_MS / 1000.0)])

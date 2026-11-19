@@ -41,8 +41,8 @@ static func cast_key(game: Node, player: Dictionary) -> String:
 static func command(game: Node, id: int, player: Dictionary, action: String) -> void:
 	if not game.multiplayer.is_server() or not game.Life.alive(player) or not game.network_session.ready(id) or Session.peer_for(player) != id:
 		return
-	var builds = preload("res://affinity_build.gd")
-	var refusal := builds.refusal(builds.for_player(player),"core")
+	var resolved = game.combat_build(player)
+	var refusal: String = resolved.refusal("core")
 	if not refusal.is_empty():
 		game.tell(id,refusal)
 		return
@@ -63,7 +63,7 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 		return
 	if now < int(player.get("core_ready_at", 0)) or now < int(player.get("cast_until", 0)) or now < int(player.get("core_cast_until", 0)):
 		return
-	var skill := equipped(player)
+	var skill: Dictionary = resolved.core_skill()
 	if skill.is_empty() or (game.encounter_cleared() and skill.get("affinity_family") != "vital"):
 		return
 	var step: bool = skill.get("affinity_family")=="spirit"
@@ -115,15 +115,9 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 		"weapon": skill.weapon_form, "variant": skill.get("variant_name", ""), "floor": game.participation.floor(), "modifiers": modifiers})
 
 
-static func equipped(player: Dictionary) -> Dictionary:
-	var builds = preload("res://affinity_build.gd")
-	return builds.core_skill(builds.for_player(player))
-
-
-static func owner_state(player: Dictionary, now: int, _cast: Dictionary = {}) -> Dictionary:
+static func owner_state(player: Dictionary, now: int, skill: Dictionary) -> Dictionary:
 	if not Participation.is_wild(player):
 		return {}
-	var skill := equipped(player)
 	if skill.is_empty():
 		return {}
 	return {
@@ -137,7 +131,7 @@ static func hud_state(game: Node, player: Dictionary) -> Dictionary:
 		return {}
 	var now := preload("res://combat_clock.gd").now()
 	if game.multiplayer.is_server():
-		return owner_state(player, now, game.get_meta(STATE, {}).get(game.HOST, {}))
+		return owner_state(player, now, game.combat_build(player).core_skill())
 	if game.client_details_key != str([game.participation.route(), game.participation.floor(), game.participation.seed()]):
 		return {}
 	var state: Dictionary = player.get("core_state", {}).duplicate()
@@ -148,7 +142,7 @@ static func hud_state(game: Node, player: Dictionary) -> Dictionary:
 
 
 static func preview(game: Node, player: Dictionary, field: RefCounted, forward: Vector3, distance: float) -> Dictionary:
-	var skill := equipped(player) if game.multiplayer.is_server() else preload("res://affinity_build.gd").core_skill(player.get("weapon_stats",{}).get("affinity_build",{}))
+	var skill: Dictionary = game.combat_build(player).core_skill()
 	if skill.is_empty():
 		return {}
 	var origin: Vector3 = player.pos
