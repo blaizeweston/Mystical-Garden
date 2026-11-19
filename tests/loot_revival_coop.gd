@@ -74,7 +74,7 @@ func capture(name: String) -> void:
  get_root().get_texture().get_image().save_png(base+"-"+name+".png")
 func guest_run() -> void:
  game.guest_character.data.name="Revival guest";game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest starts")
- if not await until(func(): return game.network_session.role()=="Guest" and not game.client_details.is_empty()): check(false,"guest accepted");return
+ if not await until(func(): return game.network_session.role()=="Guest" and game.guest_replication.has_details()): check(false,"guest accepted");return
  var id:=game.multiplayer.get_unique_id()
  check(await until(func(): return ExpeditionCase.is_wild(game.players[id]) and game.inventory_drop_visuals.models.has("guest-part")),"guest sees own trophy model")
  var model: Node3D=game.inventory_drop_visuals.models["guest-part"]

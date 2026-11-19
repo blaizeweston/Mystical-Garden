@@ -31,7 +31,7 @@ static func available(game_node: Node, local: Dictionary, requested_slot: int) -
 		and not game_node.ui.cinematic_active() and not (game_node.settings_dialog != null and game_node.settings_dialog.visible) \
 		and game_node.Life.alive(local) and not Core.cast_key(game_node,local).is_empty() \
 		and (not game_node.encounter_cleared() or (requested_slot == 2 and can_recover(game_node, local))) \
-		and (game_node.multiplayer.is_server() or (game_node.network_session.role() == "Guest" and game_node.client_details_key == str([game_node.participation.route(), game_node.participation.floor(), game_node.participation.seed()])))
+		and (game_node.multiplayer.is_server() or (game_node.network_session.role() == "Guest" and game_node.guest_replication.details_key() == str([game_node.participation.route(), game_node.participation.floor(), game_node.participation.seed()])))
 
 
 static func can_recover(game: Node, player: Dictionary) -> bool:

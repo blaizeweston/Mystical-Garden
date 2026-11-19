@@ -186,8 +186,10 @@ static func snapshot(game: Node) -> Array:
 static func map_routes(game: Node, player: Dictionary) -> Array:
 	if game.multiplayer.is_server():
 		return snapshot(game)
-	if game.client_details_key != str([game.participation.route(),game.participation.floor(),game.participation.seed()]):
+	if game.guest_replication.details_key() != str([game.participation.route(),game.participation.floor(),game.participation.seed()]):
 		return []
+	var pack: PackedFloat32Array = game.guest_replication.scouts()
+	var campaign: PackedInt32Array = game.guest_replication.campaign()
 	var result := []
 	for row in player.get("thief_routes",[]):
 		var id: int = row.id
@@ -198,11 +200,11 @@ static func map_routes(game: Node, player: Dictionary) -> Array:
 				continue
 			at = game.tactics.position
 		else:
-			if offset+2 >= game.client_pack.size() or game.client_pack[offset+2] <= 0.0 or 19+id >= game.client_campaign.size():
+			if offset+2 >= pack.size() or pack[offset+2] <= 0.0 or 19+id >= campaign.size():
 				continue
-			if int(game.Enemies.decode(game.client_campaign[19+id]).kind) != KIND:
+			if int(game.Enemies.decode(campaign[19+id]).kind) != KIND:
 				continue
-			at = Vector3(game.client_pack[offset],0,game.client_pack[offset+1])
+			at = Vector3(pack[offset],0,pack[offset+1])
 		var marker: Dictionary = row.duplicate()
 		marker.pos = at
 		result.append(marker)

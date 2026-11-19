@@ -466,10 +466,10 @@ func guest(role: String) -> void:
   if settlement_fault=="cleanup":
    check(await until(func():
     return (read("final-snapshot").is_valid_int()
-     and game.net_view.snapshot_received==int(read("final-snapshot"))
+     and game.guest_replication.sequence()==int(read("final-snapshot"))
      and game.get_meta(&"guarded_host_cleanup_notice","")==Tx.CLEANUP_NOTICE)),
     "guest receives one final deferred snapshot with persistent cleanup warning")
-   print("CASE ",JSON.stringify({"case":"guest_final_disconnect_snapshot","sequence":game.net_view.snapshot_received,
+   print("CASE ",JSON.stringify({"case":"guest_final_disconnect_snapshot","sequence":game.guest_replication.sequence(),
     "warning":game.get_meta(&"guarded_host_cleanup_notice",""),"role":role}))
    mark("snapshot-"+role)
   var original_world := game.get_instance_id()
@@ -559,4 +559,4 @@ func connect_to_host(menu: Node) -> Node:
  return current_scene
 
 func admitted(instance: int) -> bool:
- return is_instance_valid(current_scene) and current_scene.get_instance_id()==instance and SessionCase.role(current_scene)=="Guest" and not current_scene.client_details.is_empty()
+ return is_instance_valid(current_scene) and current_scene.get_instance_id()==instance and SessionCase.role(current_scene)=="Guest" and current_scene.guest_replication.has_details()

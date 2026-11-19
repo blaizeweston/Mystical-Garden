@@ -49,7 +49,7 @@ func host_run():
 func guest_run():
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest connects")
  var id:=game.multiplayer.get_unique_id()
- if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty() and game.players[id].pos.distance_to(game.stage.gate_position())<2.75):check(false,"Garden position arrives");return
+ if not await until(func():return game.network_session.role()=="Guest" and game.guest_replication.has_details() and game.players[id].pos.distance_to(game.stage.gate_position())<2.75):check(false,"Garden position arrives");return
  game.send_action(false);check(await until(func():return UIFixture.control(game,"loadout_menu").visible),"authoritative gate interaction at 2.65m")
  check(not UIFixture.control(game,"player_hud").party_panel.visible,"no Garden party clutter");mark("gate")
  check(await until(func():return UIFixture.control(game,"player_hud").party_panel.visible and UIFixture.control(game,"player_hud").party_panel.rows.size()==1 and UIFixture.control(game,"player_hud").party_panel.rows[0].name=="Host Gardener" and UIFixture.control(game,"player_hud").party_panel.rows[0].hp==100),"public teammate HUD state")

@@ -160,11 +160,10 @@ static func join(game: Node, address: String="",port: int=0) -> Error:
 		Journal.event("network","join_failed",{"error":result},"error")
 		game.status = "Could not start the connection. Check the address and port."
 		return result
-	game.net_view.clear();game.replication.clear_session();game.net_motion.clear()
+	game.net_view.clear();game.replication.clear_session();game.guest_replication.clear_session();game.net_motion.clear()
 	game.participation.detach_all()
 	game.players.clear()
 	game.motions.clear()
-	game.client_details.clear();game.client_details_key="";game.received_combat_events.clear()
 	game.multiplayer.multiplayer_peer = game.network_session.transport()
 	if game.has_meta(&"guarded_host_cleanup_notice"): game.remove_meta(&"guarded_host_cleanup_notice")
 	if game.has_meta(&"guest_projection_origin"): game.remove_meta(&"guest_projection_origin")
@@ -194,7 +193,7 @@ static func leave(game: Node, message: String) -> void:
 			if not load("res://expedition_transitions.gd").finish_voluntary(game): return
 	if game.persistence_session.is_guarded(): game.persistence_session.begin_shutdown()
 	offline(game)
-	game.net_view.clear();game.replication.clear_session();game.net_motion.clear()
+	game.net_view.clear();game.replication.clear_session();game.guest_replication.clear_session();game.net_motion.clear()
 	game.participation.detach_all()
 	game.players.clear()
 	game.motions.clear()
@@ -355,7 +354,7 @@ static func rejected(game: Node, reason: String) -> void:
 static func update(game: Node, now: int = -1) -> void:
 	if not is_instance_valid(game.ui): return
 	var instant := Time.get_ticks_msec() if now < 0 else now
-	var waiting: bool=game.network_session.role()=="Connecting" or (game.network_session.role()=="Guest" and game.client_details.is_empty())
+	var waiting: bool=game.network_session.role()=="Connecting" or (game.network_session.role()=="Guest" and not game.guest_replication.has_details())
 	game.ui.present_connection(waiting,Network.join_progress(game.network_session.join_phase(),game.network_session.address(),game.network_session.port()) if waiting else "")
 	if waiting:
 		var phase: String = game.network_session.join_phase()

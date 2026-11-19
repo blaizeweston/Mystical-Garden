@@ -63,9 +63,9 @@ func host_run():
 func guest_run():
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest connects")
  var id:=game.multiplayer.get_unique_id()
- if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds state arrives");return
+ if not await until(func():return game.network_session.role()=="Guest" and game.guest_replication.has_details() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds state arrives");return
  game.combat_visuals.set_process(false);mark("ready")
- check(await until(func():return game.received_combat_events.any(func(e):return e.event.kind=="ability") and game.players[id].hp==9),"committed ability and health arrive")
+ check(await until(func():return game.guest_replication.received_events().any(func(e):return e.event.kind=="ability") and game.players[id].hp==9),"committed ability and health arrive")
  game._process(.016)
  var events: Array=game.guest_combat_events(game.players[id])
  check(events.any(func(e):return e.kind=="impact" and e.shape=="hurt" and int(e.get("amount",0))==1),"player damage uses actual amount")

@@ -141,7 +141,7 @@ func guest_run() -> void:
   return
  world=launch_guest(menu)
  if world==null: return
- if not await until(func():return is_instance_valid(world) and world.network_session.role()=="Guest" and not world.client_details.is_empty()):
+ if not await until(func():return is_instance_valid(world) and world.network_session.role()=="Guest" and world.guest_replication.has_details()):
   check(false,"first successful admission")
   return
  mark("peer",str(world.local_player_id()))
@@ -152,7 +152,7 @@ func guest_run() -> void:
  await process_frame
  world=launch_guest(menu)
  if world==null: return
- if not await until(func():return is_instance_valid(world) and world.network_session.role()=="Guest" and not world.client_details.is_empty()):
+ if not await until(func():return is_instance_valid(world) and world.network_session.role()=="Guest" and world.guest_replication.has_details()):
   check(false,"reconnect through guarded title")
   return
  mark("reconnected","yes")

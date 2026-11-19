@@ -238,7 +238,7 @@ func guest_memory(id: int) -> void:
 
 func guest_run() -> void:
  game.guest_character.data.name="Boss guest";game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest connects")
- if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty()): check(false,"guest accepted");return
+ if not await until(func():return game.network_session.role()=="Guest" and game.guest_replication.has_details()): check(false,"guest accepted");return
  var id=game.multiplayer.get_unique_id()
  for kind in range(20,24):
   check(await until(func():return game.tactics.boss_kind==kind and game.stage.visual_field.boss_kind==kind),"shared boss map/weapon descriptor "+str(kind))

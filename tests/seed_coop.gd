@@ -45,14 +45,14 @@ func run():
 		game.guest_character.data.plants[23]=12
 		game.guest_character.save_profile()
 		check(SessionCase.World.join(game)==OK,"guest connects")
-		if not await until(func(): return game.network_session.role()=="Guest" and game.client_inventory.size()>6 and game.client_inventory[6][3]==1):
+		if not await until(func(): return game.network_session.role()=="Guest" and game.guest_replication.inventory().size()>6 and game.guest_replication.inventory()[6][3]==1):
 			check(false,"expanded inventory arrives");quit(1);return
 		var id: int=game.multiplayer.get_unique_id()
 		check(game.players[id].reserve_parts[17]==2,"expanded private part inventory arrives")
-		check(game.client_inventory[6][23]==3 and game.players[id].reserve_parts[game.Seeds.DEFINITIONS[23].part]==2,"last new seed and material synchronize privately")
+		check(game.guest_replication.inventory()[6][23]==3 and game.players[id].reserve_parts[game.Seeds.DEFINITIONS[23].part]==2,"last new seed and material synchronize privately")
 		game.send_garden_action("breed_0_3")
-		check(await until(func(): return game.client_garden.size()>13 and game.client_garden[13][4] and game.client_inventory[6][4]==1),"seed and permanent tree discovery synchronize")
-		check(game.client_inventory[6][0]==0 and game.client_inventory[6][3]==0,"updated parent counts synchronize")
+		check(await until(func(): return game.guest_replication.garden_progress().size()>13 and game.guest_replication.garden_progress()[13][4] and game.guest_replication.inventory()[6][4]==1),"seed and permanent tree discovery synchronize")
+		check(game.guest_replication.inventory()[6][0]==0 and game.guest_replication.inventory()[6][3]==0,"updated parent counts synchronize")
 		game.ui.toggle_panel("progression")
 		UIFixture.control(game,"progression_view").refresh()
 		check(UIFixture.control(game,"progression_view").known_flags()[4],"guest tree reads hosted discoveries")

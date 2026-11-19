@@ -91,7 +91,7 @@ func guest() -> void:
 	if not check(World.join(game,"127.0.0.1") == OK,"current contract connects"): return
 	game.network_compatibility.finish_failed_check(failed_attempt)
 	check(game.network_session.role() == "Connecting","a deferred failure from the prior connection cannot close this retry")
-	if not check(await until(func(): return game.network_session.role() == "Guest" and not game.client_details.is_empty()),"matching contract receives reliable owner details"): return
+	if not check(await until(func(): return game.network_session.role() == "Guest" and game.guest_replication.has_details()),"matching contract receives reliable owner details"): return
 	var peer: int = game.multiplayer.get_unique_id()
 	check(game.network_session.accepted_identity() == game.guest_character.identity
 		and game.network_session.permits_details(str(game.players[peer].get("session_binding",""))),

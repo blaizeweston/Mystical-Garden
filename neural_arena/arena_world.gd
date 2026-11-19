@@ -161,13 +161,11 @@ func _start_join() -> Error:
 		return result
 	net_view.clear()
 	replication.clear_session()
+	guest_replication.clear_session()
 	net_motion.clear()
 	participation.detach_all()
 	players.clear()
 	motions.clear()
-	client_details.clear()
-	client_details_key = ""
-	received_combat_events.clear()
 	multiplayer.multiplayer_peer = network_session.transport()
 	return OK
 

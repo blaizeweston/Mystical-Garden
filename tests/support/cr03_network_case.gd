@@ -1229,7 +1229,7 @@ func verify_current_snapshot_guest(game: Node, id: int) -> void:
 	var expected := read("snapshot-full-state").split(":")
 	var max_frame: int = preload("res://world_snapshot.gd").MAX_FRAME
 	if not check(await until(func():
-		return game.client_pack.size()==game.EncounterConfig.MAX_SCOUTS*game.PACK_STRIDE and int(game.players[1].hp)==int(expected[0]) \
+		return game.guest_replication.scouts().size()==game.EncounterConfig.MAX_SCOUTS*game.PACK_STRIDE and int(game.players[1].hp)==int(expected[0]) \
 			and game.combat_visuals.seen.has(int(expected[1])) and game.combat_visuals.statuses.ended.has(bark) \
 			and not game.combat_visuals.statuses.active.has(bark) \
 			and received.any(func(row):return row.phase=="receive" and row.bytes==max_frame),3500),
@@ -1322,9 +1322,9 @@ func sample_guest_snapshots(game: Node, id: int) -> void:
 		return
 	var rows: Array=[]
 	game.set_meta(&"snapshot_witness",func(row):record_snapshot(rows,row))
-	var start_sequence: int=game.net_view.snapshot_received
-	var gap_start: int=game.net_view.snapshot_gaps
-	var stale_start: int=game.net_view.rejected_snapshots
+	var start_sequence: int=game.guest_replication.sequence()
+	var gap_start: int=game.guest_replication.gap_count()
+	var stale_start: int=game.guest_replication.rejected_count()
 	var starts: Dictionary={}
 	var observed: Dictionary={}
 	var max_frame_us:=0
@@ -1349,8 +1349,8 @@ func sample_guest_snapshots(game: Node, id: int) -> void:
 		var marker:=int(game.drop_pos.x)
 		if starts.has(marker) and not observed.has(marker) and game.players.size()==4 and game.enemy_health()>400:
 			observed[marker]={"local_us":now,"first_marker_read_us":starts[marker],
-				"wait_us":now-int(starts[marker]),"sequence":game.net_view.snapshot_received,
-				"scouts":game.client_pack.size()/game.PACK_STRIDE}
+				"wait_us":now-int(starts[marker]),"sequence":game.guest_replication.sequence(),
+				"scouts":game.guest_replication.scouts().size()/game.PACK_STRIDE}
 		if observed.size()==PROBE_COUNT:
 			await tree.create_timer(.4).timeout
 			break
@@ -1373,6 +1373,6 @@ func sample_guest_snapshots(game: Node, id: int) -> void:
 			check(int(game.players[id].get("core_part",0))==game.Items.get_item("plant_part_rare_ghost_fern").legacy_part,
 				"eligible guests see source-owned Storm Charge and its remaining lifetime")
 	print("SNAPSHOT_GUEST ",JSON.stringify({"peer":id,"rows":rows,"observed":observed,
-		"start_sequence":start_sequence,"gaps":game.net_view.snapshot_gaps-gap_start,
-		"stale":game.net_view.rejected_snapshots-stale_start,"max_frame_us":max_frame_us,"max_apply_gap_us":max_apply_gap}))
+		"start_sequence":start_sequence,"gaps":game.guest_replication.gap_count()-gap_start,
+		"stale":game.guest_replication.rejected_count()-stale_start,"max_frame_us":max_frame_us,"max_apply_gap_us":max_apply_gap}))
 	if valid:mark("snapshot-seen-"+str(id))

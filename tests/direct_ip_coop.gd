@@ -40,7 +40,7 @@ func run():
   SessionCase.World.leave(game,"Reconnect test")
   check(await until(func():return game.network_session.role()=="Solo"),"guest leaves to own offline state")
   await create_timer(.4).timeout
-  check(SessionCase.World.join(game,host,port)==OK and await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty()),"reconnection receives fresh owner snapshot")
+  check(SessionCase.World.join(game,host,port)==OK and await until(func():return game.network_session.role()=="Guest" and game.guest_replication.has_details()),"reconnection receives fresh owner snapshot")
   check(game.guest_character.data.xp[0]==5,"character progress survives reconnect")
  if not failed: print("PASS: direct-IP "+role+" custom port, interface connection, saved progress and reconnect")
  quit(1 if failed else 0)

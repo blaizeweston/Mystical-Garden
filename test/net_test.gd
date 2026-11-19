@@ -71,7 +71,7 @@ func _process(_delta: float) -> void:
  if role=="guest" and phase=="connecting":
   var id=game.multiplayer.get_unique_id()
   if game.network_session.role()=="Solo":finish(1,"Connection failed: "+game.status);return
-  if game.network_session.role()=="Guest" and game.players.has(id) and game.players.size()==guests+1 and not game.client_details.is_empty():
+  if game.network_session.role()=="Guest" and game.players.has(id) and game.players.size()==guests+1 and game.guest_replication.has_details():
    phase="waiting_start";deadline=now+timeout_ms
    peer_ready.rpc_id(1,run_id,index)
  if role=="host" and phase=="connecting" and ready_peers.size()==guests and game.players.size()==guests+1:
@@ -103,8 +103,8 @@ func observe() -> void:
   var joint:=rig.get_bone_pose_rotation(rig.find_bone("thigh_l"))
   if not joint_seen:first_joint=joint;joint_seen=true
   joint_excursion=maxf(joint_excursion,first_joint.angle_to(joint));peak_pace=maxf(peak_pace,float(actor.pace))
- if role=="guest" and game.net_view.snapshot_received!=last_snapshot:
-  snapshots+=1;last_snapshot=game.net_view.snapshot_received
+ if role=="guest" and game.guest_replication.sequence()!=last_snapshot:
+  snapshots+=1;last_snapshot=game.guest_replication.sequence()
 func metrics() -> Dictionary:
  var paths={}
  for id in traces:paths[str(id)]={"distance":traces[id].distance,"updates":traces[id].updates}
@@ -112,7 +112,7 @@ func metrics() -> Dictionary:
  for peer in game.players:
   slots.append(Session.slot_for(game.players[peer],-1))
   if role=="guest" and peer!=id and game.players[peer].has("bag"):privacy=false
- return {"peer":id,"samples":samples,"paths":paths,"snapshot_updates":snapshots,"joint_excursion":joint_excursion,"peak_pace":peak_pace,"details":not game.client_details.is_empty(),"party_size":game.players.size(),"party_slots":slots,"private_inventory":privacy,"still_connected":game.network_session.role()==("Host" if role=="host" else "Guest")}
+ return {"peer":id,"samples":samples,"paths":paths,"snapshot_updates":snapshots,"joint_excursion":joint_excursion,"peak_pace":peak_pace,"details":game.guest_replication.has_details(),"party_size":game.players.size(),"party_slots":slots,"private_inventory":privacy,"still_connected":game.network_session.role()==("Host" if role=="host" else "Guest")}
 func problems(data: Dictionary,guest: bool) -> Array[String]:
  var errors: Array[String]=[]
  if not data.get("still_connected",false):errors.append("connection lost")

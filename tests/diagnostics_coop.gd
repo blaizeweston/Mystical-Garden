@@ -45,7 +45,7 @@ func guest_run():
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")
  if not await until(func():return game.network_session.role()=="Guest" and game.players.has(1) and not str(game.players[1].get("diagnostic_host","")).is_empty()):check(false,"host correlation arrives");return
  var id=game.multiplayer.get_unique_id()
- check(await until(func():return marked("damage") and game.players.get(id,{}).get("hp",10)==9 and game.client_garden.size()>16 and game.client_garden[6]==47),"reliable damage reaches guest")
+ check(await until(func():return marked("damage") and game.players.get(id,{}).get("hp",10)==9 and game.guest_replication.garden_progress().size()>16 and game.guest_replication.garden_progress()[6]==47),"reliable damage reaches guest")
  game.diagnostic_watch.tick(true)
  check(Journal.garden_state(game).get("source")=="host_snapshot" and Journal.garden_state(game).get("knowledge")==47,"guest diagnostics use authoritative received Garden values")
  var context: Dictionary=Journal.current.context

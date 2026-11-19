@@ -53,7 +53,7 @@ func host_run() -> void:
  mark("done");check(await until(func():return game.players.size()==1),"guest disconnects");SessionCase.World.leave(game,"Crafting fixture complete")
 func guest_run() -> void:
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")
- if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty()):check(false,"guest accepted: "+game.status+" / "+game.network_session.role());return
+ if not await until(func():return game.network_session.role()=="Guest" and game.guest_replication.has_details()):check(false,"guest accepted: "+game.status+" / "+game.network_session.role());return
  var id=game.multiplayer.get_unique_id();var view=UIFixture.control(game,"loadout_view")
  var cached_bag: Dictionary=game.players[id].get("bag",{})
  var original_bag:=JSON.stringify(cached_bag)

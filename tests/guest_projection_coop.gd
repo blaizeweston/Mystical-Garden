@@ -152,7 +152,7 @@ func open_guest(menu: Node) -> bool:
  menu.join_game()
  world = current_scene
  if world==menu: return false
- return await until(func():return is_instance_valid(world) and world.network_session.role()=="Guest" and not world.client_details.is_empty())
+ return await until(func():return is_instance_valid(world) and world.network_session.role()=="Guest" and world.guest_replication.has_details())
 
 func guest() -> void:
  if not await until(func():return read("listen").is_valid_int()):

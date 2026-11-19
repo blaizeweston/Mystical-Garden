@@ -104,7 +104,7 @@ func run():
  check(PlayerVitals.current_hp(p)==10 and game.combat_events.back().shape=="block","blocked contact is labeled without inventing damage")
  var delayed: Dictionary=game.combat_events.back().duplicate();delayed.age=.7;delayed.duration=.85
  var key:=str([game.participation.route(),game.participation.floor(),game.participation.seed()])
- game.received_combat_events.assign([{"event":delayed,"key":key,"born":Time.get_ticks_msec()}])
+ game.receive_combat_event(delayed,key)
  var received: Array=game.guest_combat_events({})
  check(received.size()==1 and float(received[0].age)>=.7,"delayed event keeps host age rather than restarting its animation")
  # Rollback drops damage and its visual event together.

@@ -56,7 +56,7 @@ func host_run():
 func guest_run():
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"connects")
  var id:=game.multiplayer.get_unique_id()
- if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds arrives");return
+ if not await until(func():return game.network_session.role()=="Guest" and game.guest_replication.has_details() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds arrives");return
  mark("ready")
  for kind in [1,2,9,7,11]:
   check(await until(func():return game.enemy_kind==kind and game.stage.foe_model.kind==kind and game.players[id].get("attack_hints",[]).any(func(h):return h.id==-1 and h.role==game.Enemies.get_kind(kind).role)),"species and real attack hint "+str(kind))
@@ -73,7 +73,7 @@ func guest_run():
   var growth: Node3D=game.stage.foe_model.model.get_node_or_null("EliteGrowth");check(is_instance_valid(growth),"guest has anatomical elite features")
   mark("seen-"+str(kind))
   if kind==9:
-   check(await until(func():return game.client_pack.size()>=game.PACK_STRIDE*2 and game.stage.support_models.filter(func(model):return model.visible).size()>=2),"guest receives two summoned scouts")
+   check(await until(func():return game.guest_replication.scouts().size()>=game.PACK_STRIDE*2 and game.stage.support_models.filter(func(model):return model.visible).size()>=2),"guest receives two summoned scouts")
    mark("brood")
   if kind==11:
    check(await until(func():return not game.combat_visuals.statuses.active.values().any(func(s):return s.event.shape=="sheltered")),"guest clears the Sheltered label")

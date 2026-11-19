@@ -55,7 +55,7 @@ func guest_run():
  game.guest_character.data.appearance=preload("res://character_appearance.gd").DEFAULT.duplicate();game.guest_character.data.appearance[5]=1;game.guest_character.data.appearance[6]=0;game.guest_character.data.appearance[7]=100;game.guest_character.data.appearance[8]=100
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")
  var id:=game.multiplayer.get_unique_id()
- if not await until(func():return marked("ready") and game.network_session.role()=="Guest" and not game.client_details.is_empty() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds state");return
+ if not await until(func():return marked("ready") and game.network_session.role()=="Guest" and game.guest_replication.has_details() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds state");return
  check(not game.players[id].has(WeaponActions.STATE) and not game.players[id].has("strike_at")
   and not game.players[id].has("attack_until"),"guest has detached attack presentation, not a second authoritative timeline")
  var aim:=Vector2(1,0)
@@ -90,7 +90,7 @@ func guest_run():
    game.submit_combat.rpc_id(1,aim,aim.x>0)
   # Capture the RPC-backed events while they are live, independently of
   # visual expiry and the relative arrival of the arrow and hit.
-  for entry in game.received_combat_events:
+  for entry in game.guest_replication.received_events():
    if entry.key!=encounter:continue
    var event: Dictionary=entry.event
    if event.kind=="windup":saw_windup=true
@@ -122,7 +122,7 @@ func guest_run():
   var scythe: Node3D=player.visual_weapon
   return scythe.has_node("HarvestScytheModel") and scythe.is_visible_in_tree() and scythe.to_global(Vector3.ZERO).distance_to(Field.hand(player,false))<.001 and scythe.to_global(scythe.get_meta("support_grip")).distance_to(Field.hand(player,true))<.035)
  check(scythe_gripped,"both visible guest hands stay on the scythe through its attack")
- check(await until(func():return game.received_combat_events.any(func(e):return e.event.kind=="swing" and str(e.event.get("form",""))=="scythe")),"guest receives the scythe swing visual")
+ check(await until(func():return game.guest_replication.received_events().any(func(e):return e.event.kind=="swing" and str(e.event.get("form",""))=="scythe")),"guest receives the scythe swing visual")
  game.submit_combat.rpc_id(1,Vector2(0,1),false)
  mark("scythe-checked")
  check(await until(func():return marked("done")),"host finishes")

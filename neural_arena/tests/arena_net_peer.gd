@@ -84,11 +84,12 @@ func _observe_guest() -> void:
 		enemy_starts.clear()
 	# An untrained policy may hold one enemy still. Observe every living slot;
 	# a new floor cannot masquerade as motion of a previous round's enemy.
-	for slot in world.client_pack.size()/world.PACK_STRIDE:
+	var pack: PackedFloat32Array = world.guest_replication.scouts()
+	for slot in pack.size()/world.PACK_STRIDE:
 		var offset: int=slot*world.PACK_STRIDE
-		if world.client_pack[offset+2]<=0:continue
+		if pack[offset+2]<=0:continue
 		saw_enemies=true
-		var at := Vector3(world.client_pack[offset],0.0,world.client_pack[offset+1])
+		var at := Vector3(pack[offset],0.0,pack[offset+1])
 		if not enemy_starts.has(slot):enemy_starts[slot]=at
 		saw_enemy_motion=saw_enemy_motion or at.distance_to(enemy_starts[slot])>.5
 

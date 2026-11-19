@@ -57,7 +57,7 @@ func host_run() -> void:
  await create_timer(.3).timeout
 func guest_run() -> void:
  check(SessionCase.World.join(game)==OK,"guest connects")
- if not await until(func():return marked("ready") and game.network_session.role()=="Guest" and not game.client_details.is_empty() and game.players.get(game.local_player_id(),{}).get("garden_interactions",{}).has("focus")):check(false,"Garden projection arrives");return
+ if not await until(func():return marked("ready") and game.network_session.role()=="Guest" and game.guest_replication.has_details() and game.players.get(game.local_player_id(),{}).get("garden_interactions",{}).has("focus")):check(false,"Garden projection arrives");return
  var view=game.get_node("GardenInteractions")
  if not await until(func():return view.panel.visible):check(false,"remote E opens inspect view");return
  var before: Dictionary=game.inventory_ui_data().duplicate(true)

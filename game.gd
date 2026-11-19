@@ -62,6 +62,10 @@ const HOST := 1
 static var PORT: int=clampi(int(OS.get_environment("MYSTICAL_GARDEN_TEST_PORT")),1024,65535) if not OS.get_environment("MYSTICAL_GARDEN_TEST_PORT").is_empty() else 24576
 const MAX_HEALTH := 10
 const ENEMY_HEALTH := 3
+const GuestReplication = preload("res://guest_replication.gd")
+const GuestWorld = preload("res://guest_replication_world.gd")
+var guest_replication := GuestReplication.new(ENEMY_HEALTH)
+var guest_replication_world := GuestWorld.new(self)
 const WALK_SPEED := 5.5
 const RANGED_DISTANCE := 2.75
 const ENGAGE_RADIUS := 8.0
@@ -118,7 +122,6 @@ const WeaponMotion=preload("res://weapon_motion.gd")
 var combat_visuals: Node3D
 var combat_events: Array=[]
 var combat_event_serial:=0
-var received_combat_events: Array=[]
 const WeaponAttackQueue = preload("res://weapon_attack_queue.gd")
 const WeaponAttackWorld = preload("res://weapon_attack_world.gd")
 const ResolvedBuild = preload("res://resolved_combat_build.gd")
@@ -138,13 +141,10 @@ const EnemyFormation = preload("res://enemy_formation.gd")
 var tactics := EnemyTactics.new(Stage.ENEMY_START)
 const EncounterRoster = preload("res://encounter_roster.gd")
 var encounter := EncounterRoster.new(ENEMY_HEALTH)
-var client_leader_hp := ENEMY_HEALTH
 var battlefield := Battlefield.new()
-var client_pack := PackedFloat32Array()
 var run_guardians := 0
 var map_rng := RandomNumberGenerator.new()
 var pressure_at := 0
-var client_campaign := PackedInt32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0])
 var damage_this_room := 0
 var ranged_damage_this_room := 0
 var ranged_clears := 0
@@ -152,16 +152,11 @@ var drop_pos := Vector3.ZERO
 var has_drop := false
 var rng := RandomNumberGenerator.new()
 var deepest_milestone := 0
-var client_pouch_filled := false
-var client_briar_bound := false
 var recollection_checked:=false
 var checkpoint_pending:=false
 var checkpoint_ready: Dictionary={}
 const Altar=preload("res://altar_service.gd")
 
-var client_garden := [0, false, false, [false, false, false], [false, false, false], [0, 0, 0], 0, false, 0, false, 0, false, PackedByteArray([0,0,0,0,0,0,0,0,0])]
-var client_details: Dictionary={}
-var client_details_key: String=""
 var toast_until := 0
 var status := "The Heart shelters this Garden. Follow the path to the Wilds gate.":
 	set(value):
@@ -181,8 +176,6 @@ var enemy_traits: Dictionary={}
 var trait_events: Array=[]
 const Life=preload("res://expedition_life.gd")
 var spectator_view: Node
-var client_inventory := [0, 0, 0, [false, false, false], 0, 0]
-var client_carried_count := 0
 
 const Items=preload("res://item_catalog.gd")
 const InventoryModel=preload("res://inventory_model.gd")
@@ -446,7 +439,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 	mouse_controls.frame(self)
-	if network_session.role()=="Connecting" or (network_session.role()=="Guest" and client_details.is_empty()):
+	if network_session.role()=="Connecting" or (network_session.role()=="Guest" and not guest_replication.has_details()):
 		if event.is_action_pressed("session_menu"): connection_rejected("Connection cancelled. Your character is preserved.")
 		return
 	if ui.panel_is_open("checkpoint"):
@@ -1678,7 +1671,7 @@ func can_vault(from: Vector3, to: Vector3) -> bool:
 func encounter_cleared() -> bool:
 	if multiplayer.is_server():
 		return encounter.cleared()
-	return client_leader_hp <= 0 and living_scout_count() == 0
+	return guest_replication.enemy_hp() <= 0 and living_scout_count() == 0
 
 
 func closest_enemy(origin: Vector3, visible_only: bool = false) -> int:
@@ -1700,10 +1693,7 @@ func enemy_position(index: int) -> Vector3:
 func enemy_health(target: int = -1) -> int:
 	if multiplayer.is_server():
 		return encounter.hp(target)
-	if target == -1:
-		return client_leader_hp
-	var offset := target * PACK_STRIDE + 2
-	return int(client_pack[offset]) if target >= 0 and offset < client_pack.size() else 0
+	return guest_replication.enemy_hp(target)
 
 
 func scout_snapshot(now: int) -> PackedFloat32Array:
@@ -1771,7 +1761,7 @@ func _act(id: int, strike: bool) -> void:
 
 
 func nearby_plot(pos: Vector3) -> int:
-	var count: int = progress.plots.size() if multiplayer.is_server() else client_garden[12].size() / 3
+	var count: int = progress.plots.size() if multiplayer.is_server() else guest_replication.garden_progress()[12].size() / 3
 	for i in count:
 		if pos.distance_to(stage.bed_position(i)) <= 1.55:
 			return i
@@ -2207,65 +2197,7 @@ func receive_state(frame: PackedByteArray) -> void:
 
 
 func apply_world_snapshot(frame: PackedByteArray, recovery: bool) -> void:
-	var witness: Callable = get_meta(&"snapshot_witness",Callable())
-	var received_at := Time.get_ticks_usec() if witness.is_valid() else 0
-	var state := WorldSnapshot.decode(frame)
-	if state.is_empty():
-		if received_at > 0: witness.call({"phase":"invalid","at":received_at,"bytes":frame.size()})
-		return
-	var sequence: int = state.sequence
-	var drop: Vector3 = state.drop
-	if received_at > 0:
-		witness.call({"phase":"repair_receive" if recovery else "receive","sequence":sequence,
-			"marker":int(drop.x),"at":received_at,"bytes":frame.size()})
-	if recovery and sequence <= net_view.snapshot_received:
-		return # This frame was delivered on the fast channel, or superseded there.
-	if not net_view.accept_sequence(sequence):
-		if received_at > 0:
-			witness.call({"phase":"stale","sequence":sequence,"marker":int(drop.x),"at":Time.get_ticks_usec()})
-		if is_instance_valid(Journal.current) and Journal.current.detail:Journal.event("network","stale_snapshot",{"sequence":sequence,"last_sequence":net_view.snapshot_received})
-		return
-	var before_movement: Dictionary = players
-	var membership := {}
-	for peer in state.people: membership[peer] = bool(state.people[peer].wild)
-	var links := participation.project_participants(membership)
-	players = state.people
-	for peer in players:
-		players[peer][Participation.STATE] = links[peer]
-		players[peer].erase("wild")
-	for peer in players: net_view.merge_health(int(peer),players[peer])
-	net_view.apply_roster(players)
-	var local_id := multiplayer.get_unique_id()
-	if players.has(local_id):
-		var public_state: Dictionary = players[local_id]
-		players[local_id] = client_details.duplicate(true)
-		players[local_id].merge(public_state,true)
-		players[local_id].erase("wild")
-	client_leader_hp = state.hp
-	var flags: int = state.flags
-	drop_pos = drop
-	has_drop = (flags & 2) != 0
-	client_carried_count = state.carried
-	client_pouch_filled = (flags & 4) != 0
-	client_briar_bound = (flags & 8) != 0
-	client_campaign = state.campaign
-	client_pack = state.scouts
-	var campaign_state: PackedInt32Array = state.campaign
-	participation.project_world({"depth":state.depth,"destination":campaign_state[0],
-		"map_seed":campaign_state[8],"encounter_number":campaign_state[9],"difficulty_cycle":campaign_state[10]})
-	var form := Enemies.decode(campaign_state[18])
-	enemy_kind = form.kind
-	enemy_mutations = form.mask
-	enemy_growth = form.tier
-	var landing := Vector3(campaign_state[EncounterConfig.LANDING_X] / 100.0, 0, campaign_state[EncounterConfig.LANDING_Z] / 100.0)
-	tactics.project(state.enemy, (flags & 1) != 0, (flags & 16) != 0, landing,
-		"vault" if campaign_state[EncounterConfig.ATTACK_MODE] != 0 else "",
-		campaign_state[EncounterConfig.BOSS_KIND], campaign_state[EncounterConfig.BOSS_PHASE], campaign_state[6] / 100.0)
-	net_motion.receive(self,local_id,before_movement,CombatClock.now())
-	if received_at > 0:
-		witness.call({"phase":"repair_apply" if recovery else "apply","sequence":sequence,
-			"marker":int(drop.x),"at":Time.get_ticks_usec(),
-			"apply_us":Time.get_ticks_usec()-received_at,"people":players.size(),"floor":participation.floor(),"enemy_hp":enemy_health()})
+	guest_replication.receive_frame(guest_replication_world,frame,recovery)
 
 
 func _process(_delta: float) -> void:
@@ -2283,7 +2215,7 @@ func _process(_delta: float) -> void:
 	if multiplayer.is_server() and not persistence_session.is_blocked(): PartyTravel.validate(self)
 	SessionWorld.update(self)
 	if returning_to_title: return
-	if not multiplayer.is_server() and client_details.is_empty(): return
+	if not multiplayer.is_server() and not guest_replication.has_details(): return
 	if not persistence_session.is_guarded() and (slot_claimed or character_slot_claimed) and Time.get_unix_time_from_system() - slot_heartbeat_at >= 1.0:
 		var slots := preload("res://save_slots.gd").new()
 		slots.root_path = slot_storage_root
@@ -2297,10 +2229,10 @@ func _process(_delta: float) -> void:
 	var local_player: Dictionary = players.get(local_id, {})
 	if ui.panel_is_open("graft"): ui.present_world_access("graft",at_graft_altar(local_player))
 	elif ui.panel_is_open("altar"): ui.present_world_access("altar",at_garden_altar(local_player))
-	var data: Array = inventory_snapshot(local_player) if multiplayer.is_server() and not local_player.is_empty() else client_inventory
+	var data: Array = inventory_snapshot(local_player) if multiplayer.is_server() and not local_player.is_empty() else guest_replication.inventory()
 	var visible_drop: bool = local_player.get("loot_pending", false) if multiplayer.is_server() else has_drop
-	var briar_bound := CombatClock.now() < tactics.rooted_until if multiplayer.is_server() else client_briar_bound
-	var campaign_state := campaign_snapshot() if multiplayer.is_server() else client_campaign
+	var briar_bound := CombatClock.now() < tactics.rooted_until if multiplayer.is_server() else guest_replication.briar_bound()
+	var campaign_state := campaign_snapshot() if multiplayer.is_server() else guest_replication.campaign()
 	var visual_field: RefCounted = battlefield if multiplayer.is_server() else stage.visual_field
 	if multiplayer.is_server(): stage.visual_field=battlefield
 	var rendered_players: Dictionary=players if multiplayer.is_server() else net_motion.render_players(players,local_id,CombatClock.now())
@@ -2310,11 +2242,11 @@ func _process(_delta: float) -> void:
 	var cooldown_now := CombatClock.now()
 	var wild: bool = Participation.is_wild(p)
 	var warnings: Array=attack_hints_snapshot() if multiplayer.is_server() and wild else p.get("attack_hints",[]) if wild else []
-	if not multiplayer.is_server() and client_details_key!=str([participation.route(),participation.floor(),participation.seed()]):
+	if not multiplayer.is_server() and guest_replication.details_key()!=str([participation.route(),participation.floor(),participation.seed()]):
 		warnings=warnings.filter(func(hint): return hint.role not in ["core_thorns","core_anchor","core_field","core_lured","glasscap_feint"])
 	preload("res://glasscap_visuals.gd").prepare(stage,warnings)
 	stage.set_meta("enemy_attack_poses",preload("res://enemy_attack.gd").poses(warnings))
-	var rendered_pack := scout_snapshot(cooldown_now) if multiplayer.is_server() else client_pack
+	var rendered_pack := scout_snapshot(cooldown_now) if multiplayer.is_server() else guest_replication.scouts()
 	stage.draw_state(rendered_players, local_id, tactics.position, enemy_health(), tactics.winding_up, LeaderBehavior.strike_radius(self), drop_pos, visible_drop, data[3], participation.depth(), route_rooms(), graft_altar_open(), briar_bound, tactics.longlimb, campaign_state,
 		rendered_pack, _delta,view_id)
 	update_ready_panel(p,local_id)
@@ -2332,7 +2264,7 @@ func _process(_delta: float) -> void:
 	stage.apply_exploration_sight(observer, wild, exploration.SIGHT,
 		exploration.seen(visual_field.advance) if is_instance_valid(stage.experimental_exit) else true)
 	preload("res://glasscap_visuals.gd").sync(stage,observer,exploration.SIGHT)
-	var carried: int = p.carried_seeds.size() if multiplayer.is_server() and wild else client_carried_count
+	var carried: int = p.carried_seeds.size() if multiplayer.is_server() and wild else guest_replication.carried_count()
 	var health := PlayerVitals.current_hp(p)
 	var prompt := ""
 	var details := ""
@@ -2382,7 +2314,7 @@ func _process(_delta: float) -> void:
 	else:
 		prompt = ""
 	if not wild:
-		var garden := garden_snapshot() if multiplayer.is_server() else client_garden
+		var garden := garden_snapshot() if multiplayer.is_server() else guest_replication.garden_progress()
 		var near_gate := stage.gate_position().distance_to(p.get("pos", Vector3.ZERO)) <= preload("res://gate_interaction.gd").RANGE
 		var slot := nearby_plot(p.get("pos", Vector3.ZERO))
 		var beds := Progress.decode_plots(garden[12])
@@ -2425,7 +2357,7 @@ func _process(_delta: float) -> void:
 		var ending := ending_message(campaign_state[5])
 		session_text = ending if not ending.is_empty() else "%s  |  %d player(s)" % [network_session.role(), players.size()]
 		session_text += "\nDeepest clear %d  ·  Best extraction %d" % [campaign_state[12], campaign_state[13]]
-	var shared := garden_snapshot() if multiplayer.is_server() else client_garden
+	var shared := garden_snapshot() if multiplayer.is_server() else guest_replication.garden_progress()
 	stage.update_plots(Progress.decode_plots(shared[12]))
 	stage.update_heart_progress(heart_state())
 	get_node("Soundscape").update_mix(_delta,wild,participation.route(),participation.floor(),tactics.boss_kind>=0,observer,stage.heart_unlocked)
@@ -2464,7 +2396,7 @@ func _process(_delta: float) -> void:
 		"skill_tooltips":skill_tips,
 		"affinity_feedback":preload("res://combat_status.gd").affinity_feedback(self,p) if host_side and wild else str(p.get("affinity_feedback","")) if wild else "",
 		"carried": carried if wild else data[0],
-		"pouch": p.get("pouch", false) if host_side else client_pouch_filled,
+		"pouch": p.get("pouch", false) if host_side else guest_replication.pouch_filled(),
 		"wallet": run_wallet(p) if host_side and wild else int(p.get("wallet", 0)) if wild else 0,
 		"insight":heart_state().get("insight",0), "knowledge": shared[6]},exploration.expanded)
 
@@ -2472,10 +2404,7 @@ func _process(_delta: float) -> void:
 func living_scout_count() -> int:
 	if multiplayer.is_server():
 		return encounter.living_scout_count()
-	var count := 0
-	for i in range(2, client_pack.size(), PACK_STRIDE):
-		count += int(client_pack[i] > 0)
-	return count
+	return guest_replication.living_scouts()
 
 
 
@@ -2780,7 +2709,7 @@ func _apply_loadout_action(id: int, player: Dictionary, fields: PackedStringArra
 
 func heart_state() -> Dictionary:
 	if multiplayer.is_server(): return progress.heart.snapshot(progress)
-	if client_garden.size()>16 and client_garden[16] is Dictionary: return client_garden[16]
+	if guest_replication.garden_progress().size()>16 and guest_replication.garden_progress()[16] is Dictionary: return guest_replication.garden_progress()[16]
 	return {"unlocked":["heart"],"paid":[],"active":"","progress":{},"natural":{},"infused":{},"spent":0,"insight":0,"phase":0,"clearing":0}
 
 func monster_cargo_limit() -> int:
@@ -2803,7 +2732,7 @@ func open_heart_tree() -> void:
 
 func reclamation_species(player: Dictionary) -> int:
 	var selected:=clampi(int(player.get("reclaim_choice",0)),0,Seeds.NAMES.size()-1)
-	var known: Array=progress.discoveries if multiplayer.is_server() else client_garden[13] if client_garden.size()>13 else Seeds.counts(false)
+	var known: Array=progress.discoveries if multiplayer.is_server() else guest_replication.garden_progress()[13] if guest_replication.garden_progress().size()>13 else Seeds.counts(false)
 	if known[selected]: return selected
 	for i in Seeds.NAMES.size():
 		if known[i]: return i
@@ -2896,7 +2825,7 @@ func open_deposit_menu() -> void:
 		status="The courier needs Returning Mycelium and a cleared checkpoint gate. One item may be sent per checkpoint."
 		return
 	var items: Array = []
-	var seeds: int=player.carried_seeds.size() if multiplayer.is_server() else client_carried_count
+	var seeds: int=player.carried_seeds.size() if multiplayer.is_server() else guest_replication.carried_count()
 	for i in seeds: items.append({"label":"Mysterious seed %d"%(i+1),"id":i})
 	for part in range(1,Parts.DEFINITIONS.size()):
 		if player.get("carried_parts",Parts.empty_counts())[part]>0:
@@ -3152,9 +3081,9 @@ func progression_ui_data(selection: Dictionary) -> Dictionary:
 	var player: Dictionary = players.get(id,{})
 	if player.is_empty(): return {}
 	var host := multiplayer.is_server()
-	var garden: Array = garden_snapshot() if host else client_garden
+	var garden: Array = garden_snapshot() if host else guest_replication.garden_progress()
 	var heart: Dictionary = garden[16] if garden.size()>16 and garden[16] is Dictionary else heart_state()
-	var campaign: PackedInt32Array = campaign_snapshot() if host else client_campaign
+	var campaign: PackedInt32Array = campaign_snapshot() if host else guest_replication.campaign()
 	var at_home := at_heart(player)
 	var between_runs := not participation.active()
 	var may_start := host and at_home and between_runs
@@ -3164,7 +3093,7 @@ func progression_ui_data(selection: Dictionary) -> Dictionary:
 	return {"class_id":int(player.get("frame",0)),
 		"profile":preload("res://ui/gameplay/player_build_projection.gd").progression_profile(player.get("character",guest_character.data)),
 		"known_seeds":garden[13] if garden.size()>13 else Seeds.counts(false),
-		"seed_stock":seed_reserve(player).stock if host else client_inventory[6] if client_inventory.size()>6 else Seeds.counts(),
+		"seed_stock":seed_reserve(player).stock if host else guest_replication.inventory()[6] if guest_replication.inventory().size()>6 else Seeds.counts(),
 		"heart":heart,"shared_parts":garden[5],"knowledge":int(garden[6]),"veilcap":bool(garden[7]),
 		"memories":[campaign[14],campaign[15],campaign[16]],"finale_available":bool(campaign[17]),
 		"at_altar":not Participation.is_wild(player) and player.get("pos",Vector3.ZERO).distance_to(stage.altar_position())<=1.65,
@@ -3193,7 +3122,7 @@ func run_summary_ui_data(peer_id: int = -1) -> Dictionary:
 	var player: Dictionary = players.get(local_player_id() if peer_id < 0 else peer_id,{})
 	if player.is_empty(): return {}
 	var host := multiplayer.is_server()
-	var stats: Dictionary = weapon_stats(player) if host else player.get("weapon_stats",{}) if client_details_key==str([participation.route(),participation.floor(),participation.seed()]) else {}
+	var stats: Dictionary = weapon_stats(player) if host else player.get("weapon_stats",{}) if guest_replication.details_key()==str([participation.route(),participation.floor(),participation.seed()]) else {}
 	var class_id := int(player.get("frame",0))
 	var profile: Dictionary = player.get("character",guest_character.data)
 	var facts := {"active":Participation.is_wild(player),"stats":stats,"class_id":class_id,
@@ -3510,38 +3439,18 @@ func close_planting_picker() -> void:
 
 @rpc("authority","call_remote","reliable",1)
 func receive_details(payload: PackedByteArray,garden: PackedByteArray,inventory_data: Array,state_key: String) -> void:
-	var decoded=bytes_to_var(payload.decompress_dynamic(262144,FileAccess.COMPRESSION_DEFLATE))
-	var world=bytes_to_var(garden.decompress_dynamic(262144 if stage.experimental_garden != null else 65536,FileAccess.COMPRESSION_DEFLATE))
-	if not decoded is Dictionary or not world is Array or world.size()<13: return
-	if not network_session.permits_details(str(decoded.get(ActionIdentity.BINDING_KEY,""))): return
-	if stage.experimental_garden != null:
-		if world.size() != 18 or not world[17] is Dictionary: return
-		stage.experimental_garden.receive_snapshot(world[17])
-	net_view.set_roster(decoded.get("snapshot_roster", {}), decoded.get("diagnostic_host", ""), decoded.get("diagnostic_world", ""))
-	net_view.apply_roster(players)
-	decoded.erase("snapshot_roster")
-	var recovery: PackedByteArray = decoded.get("snapshot_recovery", PackedByteArray())
-	decoded.erase("snapshot_recovery")
-	client_details=decoded;client_details_key=state_key;client_inventory=inventory_data;client_garden=world
-	set_meta("core_details_at",CombatClock.now())
-	var id:=multiplayer.get_unique_id()
-	if players.has(id): players[id].merge(client_details,true)
-	if not recovery.is_empty(): apply_world_snapshot(recovery, true)
+	guest_replication.receive_details(guest_replication_world,payload,garden,inventory_data,state_key)
+
 
 @rpc("authority","call_remote","reliable",2)
 func receive_combat_event(event: Dictionary,key: String) -> void:
-	received_combat_events.append({"event":event,"key":key,"born":CombatClock.now()})
-	while received_combat_events.size()>100: received_combat_events.pop_front()
+	guest_replication.receive_event(event,key)
+
 
 func guest_combat_events(player: Dictionary) -> Array:
-	var result: Array=[];var key:=str([participation.route(),participation.floor(),participation.seed()]);var now:=CombatClock.now()
-	for entry in received_combat_events.duplicate():
-		var age: float=maxf(0,float(entry.event.get("age",0)))+(now-int(entry.born))/1000.0
-		if age>float(entry.event.duration)+.2: received_combat_events.erase(entry);continue
-		if entry.key!=key: continue
-		var event: Dictionary=entry.event.duplicate();event.age=age;result.append(event)
-	if client_details_key==key: result.append_array(player.get("combat_events",[]))
-	return result
+	var key := str([participation.route(),participation.floor(),participation.seed()])
+	return guest_replication.events(key,CombatClock.now(),player.get("combat_events",[]))
+
 
 func request_ip_join() -> void:
 	if stage.experimental_garden != null:
@@ -3591,7 +3500,8 @@ func roll_kill_trophy(kind: int,mask: int=0,leader: bool=false) -> String:
 
 @rpc("authority","call_remote","reliable",2)
 func receive_vitals(states: Dictionary) -> void:
-	net_view.receive(self,states)
+	guest_replication.receive_vitals(guest_replication_world,states)
+
 
 func attract_loot(delta: float) -> void:
 	if not encounter_cleared(): return

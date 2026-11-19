@@ -87,7 +87,7 @@ func run() -> void:
 		check(false, "valid full frame decodes")
 
 	game.receive_state(viewer)
-	check(game.net_view.snapshot_received == 10 and game.client_leader_hp == 487 and game.encounter.hp() != 487, "production receive commits a valid snapshot")
+	check(game.guest_replication.sequence() == 10 and game.guest_replication.enemy_hp() == 487 and game.encounter.hp() != 487, "production receive commits a valid snapshot")
 	var events: int = game.combat_event_serial
 	# Application-level loss/reorder injection through the production receiver.
 	# Sequence 11 is missed, then arrives late. An invalid 13 must not poison the sequence.
@@ -104,12 +104,12 @@ func run() -> void:
 	var invalid := newest.duplicate()
 	invalid.encode_u64(0, 13)
 	game.receive_state(invalid.slice(0, -1))
-	check(game.net_view.snapshot_received == 12 and game.net_view.snapshot_gaps == 1 and game.net_view.rejected_snapshots == 2,
+	check(game.guest_replication.sequence() == 12 and game.guest_replication.gap_count() == 1 and game.guest_replication.rejected_count() == 2,
 		"skipped, reordered, duplicate and truncated frames are distinguished")
-	check(game.client_leader_hp == 455 and game.players[1].hp == 61 and game.players[1].damage_seq == 8
+	check(game.guest_replication.enemy_hp() == 455 and game.players[1].hp == 61 and game.players[1].damage_seq == 8
 		and game.players[1].wallet == 11, "latest wallet and newer reliable vitals survive reordered frames")
 	game.receive_state(invalid)
-	check(game.net_view.snapshot_received == 13 and game.combat_event_serial == events, "valid successor applies without replaying combat events")
+	check(game.guest_replication.sequence() == 13 and game.combat_event_serial == events, "valid successor applies without replaying combat events")
 	newest_people[1].wild = false
 	newest_people[1].wallet = 0
 	var recovered := Codec.for_viewer(Codec.encode(16, newest_people, campaign, scouts, leader, 314, 500, drop, 74, 25), 317, true, true)
@@ -125,16 +125,16 @@ func run() -> void:
 	var old_details := owner_details.duplicate(true)
 	old_details.session_binding = "obsolete-connection-binding"
 	game.receive_details(var_to_bytes(old_details).compress(FileAccess.COMPRESSION_DEFLATE),garden,[],"obsolete")
-	check(game.net_view.snapshot_received == 13 and game.client_details.is_empty() and game.client_details_key.is_empty(),
+	check(game.guest_replication.sequence() == 13 and not game.guest_replication.has_details() and game.guest_replication.details_key().is_empty(),
 		"old connection details cannot replace the owner view or apply recovery")
 	game.receive_details(details, garden, [], "fixture")
-	check(game.net_view.snapshot_received == 16 and game.client_leader_hp == 314 and game.players[1].hp == 61
+	check(game.guest_replication.sequence() == 16 and game.guest_replication.enemy_hp() == 314 and game.players[1].hp == 61
 		and game.players[1].display_name == "Recovered name" and game.players[1].wallet == 0,
 		"reliable details recover the latest wallet after fast-channel silence")
 	game.receive_state(recovered)
 	game.receive_details(details, garden, [], "fixture")
 	game.apply_world_snapshot(newest, true)
-	check(game.net_view.snapshot_received == 16 and game.combat_event_serial == events
+	check(game.guest_replication.sequence() == 16 and game.combat_event_serial == events
 		and not ExpeditionCase.is_wild(game.players[1]) and game.players[1].wallet == 0,
 		"duplicate and stale frames cannot replay effects or restore a departed wallet")
 	invalid[49] = Network.MAX_PLAYERS + 1

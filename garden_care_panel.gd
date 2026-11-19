@@ -36,13 +36,13 @@ func refresh() -> void:
  status.text=game.status
  if station=="living_archive":
   var lines: Array[String]=["Guardian memories recorded in this Garden"]
-  var campaign: PackedInt32Array=game.campaign_snapshot() if game.multiplayer.is_server() else game.client_campaign
+  var campaign: PackedInt32Array=game.campaign_snapshot() if game.multiplayer.is_server() else game.guest_replication.campaign()
   for site in game.Campaign.HEART:
    var count: int=campaign[14+site]
    lines.append("%s · %d / %d"%[game.Campaign.NAMES[site],count,game.Campaign.MEMORY_REQUIREMENTS[site]])
   info.text="\n".join(lines)
   return
- var garden: Array=game.garden_snapshot() if game.multiplayer.is_server() else game.client_garden
+ var garden: Array=game.garden_snapshot() if game.multiplayer.is_server() else game.guest_replication.garden_progress()
  if garden.size()<=13:return
  var counts: Array=game.stored_counts(player) if game.multiplayer.is_server() else player.get("stored_parts",game.Parts.empty_counts())
  var next:=str([station,counts,garden[13]])

@@ -34,7 +34,7 @@ static func current_stamp(game: Node, player: Dictionary) -> String:
 			PlayerLifecycle.generation(player),game.participation.world(),Participation.is_wild(player))
 	# Reliable details can trail the fast floor projection. Do not present an
 	# old floor's opaque request as current while that recovery is pending.
-	if game.client_details_key != str([game.participation.route(),game.participation.floor(),game.participation.seed()]):
+	if game.guest_replication.details_key() != str([game.participation.route(),game.participation.floor(),game.participation.seed()]):
 		return ""
 	if not game.network_session.permits_details(str(player.get(BINDING_KEY,""))):
 		return ""

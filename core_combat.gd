@@ -132,11 +132,11 @@ static func hud_state(game: Node, player: Dictionary) -> Dictionary:
 	var now := preload("res://combat_clock.gd").now()
 	if game.multiplayer.is_server():
 		return owner_state(player, now, game.combat_build(player).core_skill())
-	if game.client_details_key != str([game.participation.route(), game.participation.floor(), game.participation.seed()]):
+	if game.guest_replication.details_key() != str([game.participation.route(), game.participation.floor(), game.participation.seed()]):
 		return {}
 	var state: Dictionary = player.get("core_state", {}).duplicate()
 	if not state.is_empty():
-		var elapsed := (now - int(game.get_meta("core_details_at", now))) / 1000.0
+		var elapsed: float = game.guest_replication.details_age_ms(now) / 1000.0
 		state.remaining = maxf(0, float(state.remaining) - elapsed)
 	return state
 

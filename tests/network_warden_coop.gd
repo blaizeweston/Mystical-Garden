@@ -107,7 +107,7 @@ func guest_run() -> void:
   check(await until(func(): return marked("confirmed-"+kind)),"host confirms rejection")
  game.multiplayer.auth_timeout=10.0;game.multiplayer.peer_authenticating.connect(game.network_compatibility.begin_check)
  check(SessionCase.World.join(game)==OK,"compatible guest connects")
- check(await until(func(): return game.network_session.role()=="Guest" and not game.client_details.is_empty()),"compatible guest accepted")
+ check(await until(func(): return game.network_session.role()=="Guest" and game.guest_replication.has_details()),"compatible guest accepted")
  var id:=game.multiplayer.get_unique_id()
  for variant in ["vanguard","bastion"]:
   check(await until(func(): return marked("ready-"+str(variant)) and ExpeditionCase.is_wild(game.players.get(id,{})) and not game.encounter_cleared() and Warden.focus(game.guest_character.data)==variant and not preload("res://network_action_identity.gd").current_stamp(game,game.players[id]).is_empty()),"combat and class choices arrive variant "+str(variant))

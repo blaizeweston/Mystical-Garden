@@ -55,17 +55,17 @@ func host_run() -> void:
  mark("done");check(await until(func():return game.players.size()==1),"guest disconnects normally");SessionCase.World.leave(game,"Garden cleanup fixture")
 func guest_run() -> void:
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")
- if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty()):check(false,"guest accepted");return
+ if not await until(func():return game.network_session.role()=="Guest" and game.guest_replication.has_details()):check(false,"guest accepted");return
  var id=game.multiplayer.get_unique_id();var panel=UIFixture.control(game,"progression_view")
- check(await until(func():return game.client_garden.size()>13 and game.client_garden[6]==100 and game.players[id].pos.distance_to(game.Stage.HEART)<1),"Garden state arrives")
+ check(await until(func():return game.guest_replication.garden_progress().size()>13 and game.guest_replication.garden_progress()[6]==100 and game.players[id].pos.distance_to(game.Stage.HEART)<1),"Garden state arrives")
  game.send_action(false)
  check(await until(func():return panel.tabs.current_tab==1 and bottom()),"remote E opens the tree at its base")
  check(not panel.nodes.any(func(n):return n.id=="heart_perfect_recollection") and not panel.heart_finale_button.visible,"guest sees no deferred ending route")
- check(game.client_campaign[5]==game.Campaign.UNFINISHED and game.client_campaign[17]==0 and game.Progress.decode_plots(game.client_garden[12]).all(func(b):return b.offshoot==-1),"guest receives no blocking legacy offshoot or ending state")
+ check(game.guest_replication.campaign()[5]==game.Campaign.UNFINISHED and game.guest_replication.campaign()[17]==0 and game.Progress.decode_plots(game.guest_replication.garden_progress()[12]).all(func(b):return b.offshoot==-1),"guest receives no blocking legacy offshoot or ending state")
  for action in ["expand_plot","nurture","harvest_offshoot","awaken"]:game.send_garden_action(action)
  await create_timer(.4).timeout;mark("retired")
  panel.tree_scroll.scroll_vertical=0
- check(await until(func():return marked("research") and game.Progress.decode_plots(game.client_garden[12]).size()==4),"host's Knowledge-tree expansion synchronizes")
+ check(await until(func():return marked("research") and game.Progress.decode_plots(game.guest_replication.garden_progress()[12]).size()==4),"host's Knowledge-tree expansion synchronizes")
  await create_timer(.3).timeout
  check(panel.tree_scroll.scroll_vertical==0,"research synchronization preserves manual scroll")
  panel.tabs.current_tab=3;panel.refresh();check(panel.care.stories!=null,"guest Heart shows read-only Garden stories")

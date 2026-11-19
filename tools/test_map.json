@@ -8,6 +8,7 @@
   },
   "full_after_days": 7,
   "systems": {
+    "guest_replication": {"label":"Accepted guest state, health reconciliation, owner details and transient events", "files":["guest_replication.gd","guest_replication_world.gd"]},
     "combat_builds": {"label":"Shared resolved native, basic, class and preview values", "files":["resolved_combat_build.gd"]},
     "weapon_attacks": {"label":"Owned ordinary-attack launch, release, projectile lifecycle and rollback", "files":["weapon_attack_queue.gd","weapon_attack_world.gd"]},
     "arena_combat_bridge": {"label":"Neural Arena outgoing-contact integration", "files":["neural_arena/arena_world.gd","neural_arena/arena_mob_bridge.gd"]},
@@ -1334,9 +1335,7 @@
     "garden_snapshot": [
       "foundation"
     ],
-    "apply_world_snapshot": [
-      "world_snapshot", "presentation", "life"
-    ],
+    "apply_world_snapshot": ["world_snapshot", "presentation", "life", "guest_replication"],
     "receive_state": [
       "foundation",
       "encounter_roster"
@@ -1570,15 +1569,9 @@
     "close_planting_picker": [
       "seeds"
     ],
-    "receive_details": [
-      "foundation"
-    ],
-    "receive_combat_event": [
-      "foundation"
-    ],
-    "guest_combat_events": [
-      "presentation"
-    ],
+    "receive_details": ["foundation", "guest_replication"],
+    "receive_combat_event": ["foundation", "guest_replication"],
+    "guest_combat_events": ["presentation", "guest_replication"],
     "request_ip_join": [
       "menus"
     ],
@@ -1606,9 +1599,7 @@
     "roll_kill_trophy": [
       "loot"
     ],
-    "receive_vitals": [
-      "foundation"
-    ],
+    "receive_vitals": ["foundation", "guest_replication"],
     "attract_loot": [
       "loot"
     ],
@@ -1626,6 +1617,7 @@
     ]
   },
   "suites": {
+    "guest_replication": {"kind":"unit", "systems":["guest_replication","world_snapshot","presentation","connection_flow","network_session","life"], "package":false},
     "world_replication": {"kind":"unit", "systems":["world_snapshot","connection_flow","presentation","network_session","affinity_cards","expedition_grafts","player_vitals","classes","items","life"], "package":false},
     "resolved_combat_build": {"kind":"unit", "systems":["combat_builds","classes","weapons","affinity_cards","expedition_grafts","player_build_ui","player_cooldowns","life","core_combat","ability_aim"], "package":false},
     "weapon_attack_queue": {"kind":"unit", "systems":["weapon_attacks","weapons","combat","combat_affinity_contracts","classes","player_weapon_actions","player_lifecycle","ranged_release","hex_terrain"], "package":false},
@@ -3356,10 +3348,7 @@
     },
     "network_presentation": {
       "kind": "unit",
-      "systems": [
-        "world_snapshot", "presentation", "characters", "combat", "life", "terrain", "party_ui", "avatar_motion_view", "weapons", "enemy_attack_plan", "ranged_release", "combat_vitals", "expedition_sustain", "network_session",
-        "player_hit_conditions"
-      ],
+      "systems": ["world_snapshot", "presentation", "characters", "combat", "life", "terrain", "party_ui", "avatar_motion_view", "weapons", "enemy_attack_plan", "ranged_release", "combat_vitals", "expedition_sustain", "network_session", "player_hit_conditions", "guest_replication"],
       "package": true
     },
     "network_research_coop": {
@@ -5897,40 +5886,8 @@
         "additive": true
       }},
 
-    "receive_details": {
-      "experimental_coop_1": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "connection_flow",
-          "garden"
-        ],
-        "additive": true
-      },
-      "experimental_coop_2": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "connection_flow",
-          "garden"
-        ],
-        "additive": true
-      },
-      "core_owner_clock": {
-        "additive": true,
-        "systems": [
-          "core_combat"
-        ]
-      }
-    },
-    "guest_combat_events": {
-      "core_floor_event_scope": {
-        "additive": true,
-        "systems": [
-          "core_combat"
-        ]
-      }
-    },
+
+
     "send_garden_action": {
       "cleanup_feedback": {
         "systems": [
@@ -10980,11 +10937,7 @@
     },
     "network_presentation.gd": {
       "newline": "crlf",
-      "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle", "presentation"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle", "presentation"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle", "presentation"]}, "ar07_vitals_1": {"systems": ["player_vitals", "presentation"]}, "ar07_vitals_2": {"systems": ["player_vitals", "presentation"]}, "ar07_vitals_3": {"systems": ["player_vitals", "presentation"]}, "cb07_0": {
-          "systems": [
-            "expedition_sustain"
-          ]
-        }
+      "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle", "presentation"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle", "presentation"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle", "presentation"]}, "ar07_vitals_1": {"systems": ["player_vitals", "presentation"]}, "ar07_vitals_2": {"systems": ["player_vitals", "presentation"]}, "ar07_vitals_3": {"systems": ["player_vitals", "presentation"]}
       }
     },
     "health_orb.gd": {

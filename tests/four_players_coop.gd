@@ -291,7 +291,7 @@ func guest_run(index: int):
     var aim: Array=JSON.parse_string(FileAccess.get_file_as_string(base+"-try-lantern"))
     game.send_garden_action(Core.request(game,game.players[id],Vector2(aim[0],aim[1])))
     lantern_requested=true
-   if not marked("lantern-seen-"+str(index)) and game.received_combat_events.any(func(e):return e.event.shape=="vital_bloom"):
+   if not marked("lantern-seen-"+str(index)) and game.guest_replication.received_events().any(func(e):return e.event.shape=="vital_bloom"):
     mark("lantern-seen-"+str(index))
    if UIFixture.control(game,"checkpoint_menu").visible and game.participation.floor()==6:
     if not saw_cards:game.send_garden_action(game.affinity_checkpoint_action(game.ui.checkpoint_revision(),"skip"));saw_cards=true;epochs.clear()

@@ -19,9 +19,10 @@ static func positions(game: Node) -> Dictionary:
 			if game.encounter.alive(index):
 				result[index] = game.encounter.scout(index).pos
 	else:
-		for index in range(0, game.client_pack.size() - game.PACK_STRIDE + 1, game.PACK_STRIDE):
-			if game.client_pack[index + 2] > 0.0:
-				result[int(index / game.PACK_STRIDE)] = Vector3(game.client_pack[index], 0, game.client_pack[index + 1])
+		var pack: PackedFloat32Array = game.guest_replication.scouts()
+		for index in range(0, pack.size() - game.PACK_STRIDE + 1, game.PACK_STRIDE):
+			if pack[index + 2] > 0.0:
+				result[int(index / game.PACK_STRIDE)] = Vector3(pack[index], 0, pack[index + 1])
 	return result
 
 

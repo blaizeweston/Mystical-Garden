@@ -44,7 +44,7 @@ func tick(sample: bool=false) -> void:
   previous[id]=state.duplicate(true)
  for id in previous.keys():
   if not game.players.has(id):Journal.event("network","peer_removed",{"actor":id});previous.erase(id)
- var now:=Time.get_ticks_msec();var sequence: int=game.net_view.snapshot_received
+ var now:=Time.get_ticks_msec();var sequence: int=game.guest_replication.sequence()
  if role=="Guest":
   if sequence!=last_sequence:last_packet_at=now;last_sequence=sequence;stall_reported=false
   elif last_packet_at>0 and now-last_packet_at>3000 and not stall_reported:
@@ -60,7 +60,7 @@ func tick(sample: bool=false) -> void:
    var actor: Dictionary = game.players[id]
    positions[id]={"pos":actor.get("pos",Vector3.ZERO),"hp":PlayerVitals.current_hp(actor),"max_hp":PlayerVitals.maximum_hp(actor,0),
     "lost_health":actor.get("lost_health",0),"fallen":PlayerLifecycle.fallen(actor),"damage_seq":actor.get("damage_seq",0),"vitals_revision":actor.get("vitals_revision",0)}
-  Journal.event("network","sample",{"transport":transport,"rejected_snapshots":game.net_view.rejected_snapshots,"snapshot_gaps":game.net_view.snapshot_gaps,"sent_sequence":game.replication.sequence(),"received_sequence":sequence,"players":positions,"living_enemies":game.living_scout_count()+int(game.enemy_health()>0),"pending_projectiles":game.weapon_attacks.pending_count(),"movement_timing":game.net_motion.sample(),"fps":Engine.get_frames_per_second()})
+  Journal.event("network","sample",{"transport":transport,"rejected_snapshots":game.guest_replication.rejected_count(),"snapshot_gaps":game.guest_replication.gap_count(),"sent_sequence":game.replication.sequence(),"received_sequence":sequence,"players":positions,"living_enemies":game.living_scout_count()+int(game.enemy_health()>0),"pending_projectiles":game.weapon_attacks.pending_count(),"movement_timing":game.net_motion.sample(),"fps":Engine.get_frames_per_second()})
 func _exit_tree() -> void:
  Journal.event("world","detached",{"world_session":world_session})
  if is_instance_valid(Journal.current):Journal.current.set_context({"role":"Menu"})

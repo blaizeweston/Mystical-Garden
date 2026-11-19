@@ -64,7 +64,7 @@ func host_run():
 func guest_run():
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest connects")
  var id:=game.multiplayer.get_unique_id()
- if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds arrives");return
+ if not await until(func():return game.network_session.role()=="Guest" and game.guest_replication.has_details() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds arrives");return
  mark("ready")
  check(await until(func():return game.combat_visuals.statuses.active.values().any(func(item):return item.event.shape==Ranger.PREY) and game.combat_visuals.statuses.active.values().any(func(item):return item.event.shape=="slow" and item.event.combo==id)),"guest renderer has authoritative icons")
  var visuals: Node3D=game.combat_visuals
@@ -78,8 +78,8 @@ func guest_run():
  visuals.sync(repeated,hints,visuals.floor_key,visuals.observer,visuals.sight)
  check(repeated.size()==2 and active.size()==count and repeated.all(func(event):return active.has(event.id)),"replaying the same status snapshot preserves both icons")
  mark("icons")
- check(await until(func():return not game.combat_visuals.statuses.active.values().any(func(item):return item.event.shape==Ranger.PREY) and game.received_combat_events.any(func(e):return e.event.kind=="proc" and e.event.shape=="Tracked Prey triggered")),"Tracked Prey consumed with its source-owned proc")
- check(await until(func():return game.received_combat_events.any(func(e):return e.event.kind=="proc" and e.event.shape=="echo")),"echo path replicated")
+ check(await until(func():return not game.combat_visuals.statuses.active.values().any(func(item):return item.event.shape==Ranger.PREY) and game.guest_replication.received_events().any(func(e):return e.event.kind=="proc" and e.event.shape=="Tracked Prey triggered")),"Tracked Prey consumed with its source-owned proc")
+ check(await until(func():return game.guest_replication.received_events().any(func(e):return e.event.kind=="proc" and e.event.shape=="echo")),"echo path replicated")
  mark("consumed")
  check(await until(func():return game.combat_visuals.statuses.active.values().any(func(item):return item.event.shape=="bark_guard" and item.label.text=="Bark Guard") and game.players[id].get("attack_hints",[]).any(func(h):return h.get("actor",-1)==0 and h.role=="enemy_sweep" and h.span>0)),"guest renders named guard and matching sweep")
  mark("guard-seen")

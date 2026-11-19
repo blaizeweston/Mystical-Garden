@@ -314,7 +314,7 @@ func guest_run(menu: Node) -> void:
 	if not check(await until(func(): return read("plant") == "ok" and Vector3(game.players[id].pos).distance_to(game.stage.bed_position(3)) < 1.65), "guest arrives at the real bed"):
 		return
 	game.send_garden_action("plant_at_3_0")
-	if not check(await until(func(): return not read("depart").is_empty() and game.Progress.decode_plots(game.client_garden[12])[3].species == 0), "planted crop appears on guest"):
+	if not check(await until(func(): return not read("depart").is_empty() and game.Progress.decode_plots(game.guest_replication.garden_progress()[12])[3].species == 0), "planted crop appears on guest"):
 		return
 	game.send_garden_action("travel_ready:" + read("depart"))
 	var first_floor_ready := func() -> bool:
@@ -351,7 +351,7 @@ func guest_run(menu: Node) -> void:
 	game.send_travel_ready(false)
 	if not check(await until(func(): return not ExpeditionCase.is_wild(game.players[id])), "guest returns through party extraction"):
 		return
-	check(garden.bed_ids.get(3) == bed and game.Progress.decode_plots(game.client_garden[12])[3].species == 0, "return preserves bed and crop")
+	check(garden.bed_ids.get(3) == bed and game.Progress.decode_plots(game.guest_replication.garden_progress()[12])[3].species == 0, "return preserves bed and crop")
 	mark("guest-return")
 	if not check(await until(func(): return not read("expansion").is_empty() and garden.state.revision == 1), "guest receives growth and forest geometry"):
 		return

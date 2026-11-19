@@ -107,20 +107,7 @@ func run():
   if frame==120:first=pose
   if frame>120:excursion=maxf(excursion,first.angle_to(pose))
  check(actor.pace>.7 and excursion>.5,"packet gaps do not stop guest walking at high frame rates")
- var view=load("res://network_presentation.gd").new()
- var state={"hp":10,"max_hp":10,"vitals_revision":1,"damage_seq":0}
- view.merge_health(1,state)
- check(view.accept_sequence(20) and not view.accept_sequence(19) and not view.accept_sequence(20),"stale or duplicate movement snapshots rejected")
- view.accept_vital(1,{"revision":2,"hp":9,"max_hp":10,"damage_seq":1,"damage_amount":1})
- var stale={"hp":10,"max_hp":10,"vitals_revision":1,"damage_seq":0};view.merge_health(1,stale)
- check(stale.hp==9 and stale.vitals_revision==2 and stale.damage_amount==1 and stale.client_hurt_until>Time.get_ticks_msec(),"reliable damage survives an older movement packet and flashes once")
- var flash=stale.client_hurt_until
- view.accept_vital(1,{"revision":2,"hp":9,"max_hp":10,"damage_seq":1,"damage_amount":1})
- check(view.flash_until[1]==flash,"duplicate health confirmation cannot repeat hit feedback")
- var newer={"hp":8,"max_hp":10,"vitals_revision":3,"damage_seq":2};view.merge_health(1,newer)
- view.accept_vital(1,{"revision":2,"hp":9,"max_hp":10,"damage_seq":1,"damage_amount":1});view.merge_health(1,newer)
- check(newer.hp==8,"older reliable health cannot overwrite newer authority state")
- view.clear();check(view.accept_sequence(0) and view.client_vitals.is_empty(),"reconnect resets presentation epochs")
+ preload("res://tests/support/guest_replication_case.gd").health_checks(check)
  game.queue_free();await process_frame
  if not failed:print("PASS: predicted collision, loss recovery, reconciliation, bounded replay, remote interpolation, high-FPS guest locomotion, sequenced snapshots, reliable health reconciliation and deduplicated damage feedback")
  quit(1 if failed else 0)

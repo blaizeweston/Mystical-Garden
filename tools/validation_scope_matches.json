@@ -276,10 +276,7 @@
         "match": "\t\t\"core\":preload(\"res://core_combat.gd\").hud_state(self,p),\n\t\t\"carried\": carried if wild else data[0],\n",
         "baseline": "\t\t\"carried\": carried if wild else data[0],\n"
       },
-      "core_stale_terrain": {
-        "match": "\tif not multiplayer.is_server() and client_details_key!=str([participation.route(),participation.floor(),participation.seed()]):\n\t\twarnings=warnings.filter(func(hint): return hint.role not in [\"core_thorns\",\"core_anchor\"])\n\tstage.set_meta(\"enemy_attack_poses\",preload(\"res://enemy_attack.gd\").poses(warnings))\n",
-        "baseline": "\tstage.set_meta(\"enemy_attack_poses\",preload(\"res://enemy_attack.gd\").poses(warnings))\n"
-      },
+      "core_stale_terrain": {"match": "\tif not multiplayer.is_server() and guest_replication.details_key()!=str([participation.route(),participation.floor(),participation.seed()]):\n\t\twarnings=warnings.filter(func(hint): return hint.role not in [\"core_thorns\",\"core_anchor\"])\n\tstage.set_meta(\"enemy_attack_poses\",preload(\"res://enemy_attack.gd\").poses(warnings))\n", "baseline": "\tstage.set_meta(\"enemy_attack_poses\",preload(\"res://enemy_attack.gd\").poses(warnings))\n"},
       "prefer_nearest_gate_prompt": {
         "match": "\t\tif graft_altar_open() and visual_field.graft.distance_to(p.pos) <= 1.65 and preload(\"res://gate_interaction.gd\").shrine_preferred(visual_field,p.pos):",
         "baseline": "\t\tif graft_altar_open() and visual_field.graft.distance_to(p.pos) <= 1.65:"
@@ -701,26 +698,8 @@
       }
     },
 
-    "receive_details": {
-      "experimental_coop_1": {
-        "match": "\tif stage.experimental_garden != null:\n\t\tif world.size() != 18 or not world[17] is Dictionary: return\n\t\tstage.experimental_garden.receive_snapshot(world[17])\n",
-        "baseline": ""
-      },
-      "experimental_coop_2": {
-        "match": "\tvar world=bytes_to_var(garden.decompress_dynamic(262144 if stage.experimental_garden != null else 65536,FileAccess.COMPRESSION_DEFLATE))\n",
-        "baseline": "\tvar world=bytes_to_var(garden.decompress_dynamic(65536,FileAccess.COMPRESSION_DEFLATE))\n"
-      },
-      "core_owner_clock": {
-        "match": "\tclient_details=decoded;client_details_key=state_key;client_inventory=inventory_data;client_garden=world\n\tset_meta(\"core_details_at\",CombatClock.now())\n",
-        "baseline": "\tclient_details=decoded;client_details_key=state_key;client_inventory=inventory_data;client_garden=world\n"
-      }
-    },
-    "guest_combat_events": {
-      "core_floor_event_scope": {
-        "match": "\tif client_details_key==key: result.append_array(player.get(\"combat_events\",[]))\n\treturn result\n",
-        "baseline": "\tresult.append_array(player.get(\"combat_events\",[]));return result\n"
-      }
-    },
+
+
     "send_garden_action": {
       "cleanup_feedback": {
         "match": "\tif not persistence_session.pending_notice().is_empty(): return\n\tif not (action.begins_with(\"core_cast:\") or action.begins_with(\"class_cast:\")): Journal.interaction(self,multiplayer.get_unique_id(),action,\"requested\")\n\tif action in [\"class_skill\",\"class_skill_two\"] and encounter_cleared(): return\n\tif multiplayer.is_server():\n\t\tgarden_action(HOST, action)\n\telif network_session.role() == \"Guest\":\n\t\tvar actor: Dictionary = players.get(multiplayer.get_unique_id(),{})\n\t\tif action in [\"class_skill\",\"class_skill_two\"] or (action == \"research\" and Participation.is_wild(actor)):\n\t\t\taction = preload(\"res://ability_aim.gd\").request_native(self,actor,0 if action == \"class_skill\" else 1)\n\t\tif not action.is_empty(): request_garden_action.rpc_id(HOST, action)\n\n\n@rpc(\"any_peer\", \"call_remote\", \"reliable\")",
@@ -5827,10 +5806,6 @@
       "ar07_vitals_3": {
         "match": "  var state={\"revision\":revision,\"hp\":hp,\"max_hp\":maximum,\"fallen\":p.fallen,\"lost_health\":p.get(\"lost_health\",0),\"damage_seq\":p.get(\"damage_seq\",0),\"damage_amount\":p.get(\"damage_amount\",0)}\n",
         "baseline": "  var state={\"revision\":revision,\"hp\":p.hp,\"max_hp\":p.get(\"max_hp\",10),\"fallen\":p.fallen,\"lost_health\":p.get(\"lost_health\",0),\"damage_seq\":p.get(\"damage_seq\",0),\"damage_amount\":p.get(\"damage_amount\",0)}\n"
-      },
-      "cb07_0": {
-        "match": "   player.hp=state.hp;player.max_hp=state.max_hp;player.damage_seq=state.damage_seq\n   player.vitals_revision=state.revision;player.damage_amount=state.get(\"damage_amount\",0)",
-        "baseline": "   player.hp=state.hp;player.max_hp=state.max_hp;player.damage_seq=state.damage_seq"
       }
     },
     "health_orb.gd": {

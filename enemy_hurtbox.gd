@@ -13,7 +13,7 @@ static func radius(game: Node,target: int) -> float:
   growth=int(scout.get("growth",0))
  if target>=0 and not game.multiplayer.is_server():
   var code := 19 + target
-  var form := Enemies.decode(game.client_campaign[code] if code < game.client_campaign.size() else 0)
+  var form := Enemies.decode(game.guest_replication.campaign_word(code))
   kind = form.kind
   mask = form.mask
   growth = form.tier

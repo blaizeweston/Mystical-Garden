@@ -53,7 +53,7 @@ func guest_run():
  while Time.get_ticks_msec()<stable_until:await process_frame
  check(before.distance_to(game.players[id].pos)<.15,"release settles without runaway correction")
  print("MOVEMENT_HISTORY ",JSON.stringify({"pending":game.net_motion.pending.size(),"sequence":game.net_motion.sequence,
-  "ack":game.players[id].get("motion_ack",{}),"snapshot_sequence":game.net_view.snapshot_received,
+  "ack":game.players[id].get("motion_ack",{}),"snapshot_sequence":game.guest_replication.sequence(),
   "last_packet_ms":game.net_motion.last_packet_ms,"now_ms":Time.get_ticks_msec(),"timing":game.net_motion.sample()}))
  check(game.net_motion.pending.size()<20,"unacknowledged history stays bounded")
  game.diagnostic_watch.tick(true)
