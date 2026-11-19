@@ -41,7 +41,7 @@ func run():
  var tree=game.Classes.connected_tree(0)
  p.character[tree.profile_key]=tree.state(["vanguard"])
  ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,4);p.frame=0;p.weapon_kind=0;p.weapon=0;p.secondary=0;p.catalyst=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);p.contributed=false;p.character.monsters.fill(0)
- ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"encounter_number": 3});ExpeditionCase.set_world(game, {"map_seed": 0});game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.set_hp(-1, 0);game.enemy_kind=0;game.encounter_rewarded=false;game.encounter_kills.clear()
+ ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"encounter_number": 3});ExpeditionCase.set_world(game, {"map_seed": 0});game.battlefield.configure(0,1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);game.encounter.set_hp(-1, 0);game.enemy_kind=0;game.encounter_rewarded=false;game.encounter_kills.clear()
  var stag: Dictionary=game.make_scout(2,Vector3(0,0,5),1);stag.hp=1;game.encounter.clear_scouts();game.encounter.register_scout(stag)
  # Choose a deterministic successful per-kill roll before the actual kill.
  for seed_value in 1000:
@@ -55,7 +55,7 @@ func run():
  check(p.carried_parts[antler]==1,"individual stag reward grants the killed species component")
  game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();ExpeditionCase.set_world(game, {"encounter_number": 6});p.pos=game.battlefield.advance;ExpeditionCase.Transitions.checkpoint(game, 1,false)
  check(not ExpeditionCase.is_wild(p) and reserve.parts[antler]==1,"earned trophy survives extraction")
- p.pos=game.Stage.GATE;p.cargo_plan[antler]=1;ExpeditionCase.Transitions.enter(game, 1,p);check(ExpeditionCase.is_wild(p) and p.carried_parts[antler]==1,"stash trophy can be packed into next expedition")
+ p.pos=game.stage.gate_position();p.cargo_plan[antler]=1;ExpeditionCase.Transitions.enter(game, 1,p);check(ExpeditionCase.is_wild(p) and p.carried_parts[antler]==1,"stash trophy can be packed into next expedition")
  ExpeditionCase.set_world(game, {"encounter_number": 8});p.pos=game.battlefield.graft
  var graft_offer: Dictionary=Grafts.owner_details(p,game.participation.floor())
  game.send_garden_action(Grafts.request(graft_offer,"strike",game.Items.part_id(antler)))
@@ -65,14 +65,14 @@ func run():
  g.parts.fill(0);g.parts[0]=4;g.parts[1]=5;g.heart.material_choice="lantern_moss";check(g.heart.spend_materials(g,3) and g.parts[0]==4 and g.parts[1]==2,"research spends the explicitly selected species")
  check(not g.heart.spend_materials(g,3) and g.parts[0]==4 and g.parts[1]==2,"research cannot silently substitute ingredients")
  # Complete a non-Thorn cultivation -> rare component -> weapon path.
- ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.ALTAR;reserve.unknown.assign([1]);reserve.stock.fill(0);game.Altar.identify_all(game,p)
+ ExpeditionCase.set_membership(game, p, false);p.pos=game.stage.altar_position();reserve.unknown.assign([1]);reserve.stock.fill(0);game.Altar.identify_all(game,p)
  g.plots[0]=game.Progress.empty_plot();p.pos=game.Stage.PLOTS[0];game.act(1,false);game.garden_action(1,"plant_at_0_1");g.advance_growth(86400.)
  var rare_part: int=game.Parts.rare_part(1);var rare_before: int=g.part_count(rare_part)
  for seed_value in 1000:
   game.rng.seed=seed_value
   if game.rng.randf()<game.rare_harvest_chance(p.character.plants[1]): game.rng.seed=seed_value;break
  game.harvest(1,0);check(g.part_count(rare_part)==rare_before+1,"non-Thorn plant can naturally yield its refined material")
- p.pos=game.Stage.GATE;p.prepared=rare_part;p.prepared_secondary=0;p.prepared_catalyst=0;ExpeditionCase.Transitions.enter(game, 1,p)
+ p.pos=game.stage.gate_position();p.prepared=rare_part;p.prepared_secondary=0;p.prepared_catalyst=0;ExpeditionCase.Transitions.enter(game, 1,p)
  check(ExpeditionCase.is_wild(p) and p.weapon==rare_part and g.part_count(rare_part)==rare_before,"refined harvest component can craft an expedition weapon")
  check(not game.Items.register({"id":"invalid_component","name":"Invalid","category":"plant_part"}),"orphan component definitions are rejected")
  if not failed: print("PASS: stable identity migration, unknown IDs, legacy progression, every-species harvest templates, transaction rollback, crash recovery and earned stag-to-cumulative-reinforcement pipeline")

@@ -86,7 +86,7 @@ func run() -> void:
 	game.set_process(false)
 	game.set_physics_process(false)
 	game.battlefield.configure(0,1,0)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.add_player(2)
 	game.add_player(3)
 	var player: Dictionary=game.players[1]

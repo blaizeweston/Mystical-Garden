@@ -133,7 +133,7 @@ func gameplay() -> void:
  var parts = world.Parts
  var items = world.Items
  var before := disk()
- p.pos = world.Stage.ALTAR
+ p.pos = world.stage.altar_position()
  world.progress.stock[0] = 4
  world.progress.stock[1] = 4
  world.garden_action(1,"experiment")
@@ -246,13 +246,15 @@ func gameplay() -> void:
  record("growth_receipt_commit",receipt_before,{"seen":sequence})
  world.progress.heart.unlocked.append("seed_archive")
  world.progress.heart.unlocked.append("monster_studies")
- p.pos = world.Stage.HEART_STATIONS.seed_archive
+ check(preload("res://tests/support/garden_case.gd").place_researched(world,"archive"),"researched reclamation station is physically placed")
+ check(preload("res://tests/support/garden_case.gd").place_researched(world,"study"),"researched offering station is physically placed")
+ p.pos = world.stage.station_position("seed_archive")
  world.progress.discoveries[0] = true
  world.seed_reserve(p).parts[int(world.Seeds.DEFINITIONS[0].part)] = 20
  var seed_count: int = world.progress.stock[0]
  world.garden_action(1,"care_reclaim_0")
  check(world.progress.stock[0]==seed_count+1 and world.status.begins_with("Reclaimed"), "reclaim commits replacement seed")
- p.pos = world.Stage.HEART_STATIONS.monster_studies
+ p.pos = world.stage.station_position("monster_studies")
  world.seed_reserve(p).parts[parts.HOOK] = 1
  var knowledge: int = world.progress.knowledge
  world.garden_action(1,"care_offer_"+str(parts.HOOK))
@@ -266,7 +268,7 @@ func gameplay() -> void:
   var after := disk()
   world.pickup_inventory_drop(1,p,key)
   check(disk()==after,"duplicate pickup cannot credit twice")
- p.pos = world.Stage.GATE
+ p.pos = world.stage.gate_position()
  world.handle_loadout_action(1,p,"class_1")
  world.handle_loadout_action(1,p,"loadweapon_1")
  world.handle_loadout_action(1,p,"loadpart_0_1")
@@ -464,6 +466,7 @@ func caller_effects() -> void:
     "water":
      for tech in ["clearing_1","irrigation"]:
       if not world.progress.heart.has(tech): world.progress.heart.unlocked.append(tech)
+     check(preload("res://tests/support/garden_case.gd").place_researched(world,"spring"),"water fault fixture places its researched basin")
      var bed: Dictionary=world.progress.empty_plot().merged({"species":0,"stage":1},true)
      preload("res://garden_crop_state.gd").ensure(bed)
      preload("res://cultivation_growth.gd").initialize(bed)

@@ -50,7 +50,7 @@ func run() -> void:
 		var stats:=Build.native_stats(Build.resolve(2,0,parts,player.character))
 		check(stats.damage==native.damage and stats.reach==native.reach and stats.interval==native.interval,"plant slots preserve native weapon properties")
 	player.prepared=1;player.prepared_secondary=1;player.prepared_catalyst=1
-	player.pos=game.Stage.GATE
+	player.pos=game.stage.gate_position()
 	game.progress.parts.fill(0);game.progress.personal_parts.fill(0);game.progress.parts[0]=1
 	ExpeditionCase.Transitions.enter(game,1,player)
 	check(not ExpeditionCase.is_wild(player) and game.progress.parts[0]==1,"duplicate plant slots require combined material quantity")

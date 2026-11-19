@@ -20,7 +20,7 @@ func host_run() -> void:
  prepare_focus(guest)
  var original: Array=guest.character.xp.duplicate()
  check(original==[200,210,220,230,240],"guest pre-entry XP is canonical")
- for actor in [leader,guest]: actor.pos=world.Stage.GATE
+ for actor in [leader,guest]: actor.pos=world.stage.gate_position()
  ExpeditionCase.Transitions.enter(world,1,leader)
  mark("enter",str(world.participation.travel_epoch()))
  if not await until(func():return ExpeditionCase.is_wild(guest) and ExpeditionCase.is_wild(leader)):

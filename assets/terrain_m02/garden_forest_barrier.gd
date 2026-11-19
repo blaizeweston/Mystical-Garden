@@ -25,7 +25,7 @@ func bind(state: Garden) -> void:
 	construction = []
 	buildings = [Shape.disk("heart_trunk", "trunk", Vector2.ZERO, 1.0)]
 	for id: String in state.landmarks:
-		if id not in ["heart", "wilds_entrance"]:
+		if id not in ["heart", "wilds_entrance"] and state.landmarks[id].get("blocks_movement",true):
 			buildings.append(state.landmarks[id])
 	visible_outline = state.outline
 	target_outline = visible_outline

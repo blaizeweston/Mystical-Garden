@@ -13,7 +13,7 @@ func setup_guest():
  game.add_player(2);SessionCase.set_ready(game, game.players[2], true);SessionCase.set_identity(game, game.players[2], "b".repeat(32))
  game.players[1].character.name="Rowan";game.players[2].character.name="Fern"
  for p in game.players.values():
-  p.pos=game.Stage.GATE
+  p.pos=game.stage.gate_position()
   var tree=game.Classes.connected_tree(int(p.frame))
   p.character[tree.profile_key]=tree.state([tree.nodes[0].id])
 func cleared(floor_number: int):
@@ -34,7 +34,7 @@ func run():
  check((game.participation.vote_count() == 0),"ready can be withdrawn")
  ExpeditionCase.Transitions.enter(game, 1,host);host.pos+=Vector3(4,0,0);game.PartyTravel.validate(game)
  check(not game.participation.has_vote(1),"moving away clears readiness")
- host.pos=game.Stage.GATE;game.progress.parts[0]=2;host.prepared=1;guest.prepared=1
+ host.pos=game.stage.gate_position();game.progress.parts[0]=2;host.prepared=1;guest.prepared=1
  ExpeditionCase.Transitions.enter(game, 1,host);host.prepared=0;game.PartyTravel.validate(game)
  check(not game.participation.has_vote(1),"loadout changes clear readiness")
  host.prepared=1;ExpeditionCase.Transitions.enter(game, 1,host)
@@ -65,7 +65,7 @@ func run():
  ExpeditionCase.Transitions.checkpoint(game, 2,false)
  check(not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(guest) and game.progress.unknown.has(0) and game.seed_reserve(guest).unknown.has(1),"extraction consensus banks each player's loot")
  # Shared costs cannot be paid twice or consume another player's reserved parts.
- for p in game.players.values(): p.pos=game.Stage.GATE;p.prepared=1
+ for p in game.players.values(): p.pos=game.stage.gate_position();p.prepared=1
  game.progress.parts[0]=1
  ExpeditionCase.Transitions.enter(game, 1,host);ExpeditionCase.Transitions.enter(game, 2,guest)
  check(not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(guest) and game.progress.parts[0]==1,"competing loadouts fail atomically without consuming resources")

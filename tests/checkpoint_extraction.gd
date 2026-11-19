@@ -18,7 +18,7 @@ func run():
 	game.set_physics_process(false)
 	game.set_process(false)
 	var p: Dictionary = game.players[1]
-	p.pos = game.Stage.GATE
+	p.pos = game.stage.gate_position()
 	var tree=game.Classes.connected_tree(int(p.frame))
 	p.character[tree.profile_key]=tree.state([tree.nodes[0].id])
 	game.send_action(false)
@@ -47,7 +47,7 @@ func run():
 			check(UIFixture.control(game,"guide").text.contains("T  Extract"), "checkpoint offers extraction next to onward gate")
 			game.send_garden_action("extract")
 			check(not ExpeditionCase.is_wild(p) and game.seed_reserve(p).unknown == [0], "checkpoint banks carried loot and returns to Garden")
-	p.pos = game.Stage.GATE
+	p.pos = game.stage.gate_position()
 	game.send_action(false)
 	game.send_garden_action("depart")
 	ExpeditionCase.set_world(game, {"encounter_number": 6})

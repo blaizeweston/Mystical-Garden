@@ -19,7 +19,7 @@ func run():
  game.progress.path="res://.godot/combat_anim_"+token+".cfg";game.local_character.path=game.progress.path+".character"
  root.add_child(game);game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
  var p: Dictionary=game.players[1]
- ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"depth": 1});ExpeditionCase.set_world(game, {"map_seed": 0});game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.clear_scouts()
+ ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"depth": 1});ExpeditionCase.set_world(game, {"map_seed": 0});game.battlefield.configure(0,1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);game.encounter.clear_scouts()
  ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,4);p.weapon=0;p.secondary=0;p.catalyst=0
  var poses: Array=[];var projectiles:=0
  for c in 5:
@@ -82,7 +82,7 @@ func run():
  stag.pos=Vector3.ZERO;stag.blast=Vector3(0,0,4);p.pos=Vector3(2.5,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100)
  preload("res://scout_behavior.gd").release(game, stag,game.Enemies.get_kind(2),Time.get_ticks_msec()+1000)
  check(PlayerVitals.current_hp(p)==100,"player outside lane and landing marker is safe")
- game.battlefield.barriers=[Rect2(-1.5,1.8,3,.4)];stag.pos=Vector3.ZERO;stag.blast=Vector3(0,0,4);stag.windup=1000
+ preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[Rect2(-1.5,1.8,3,.4)]);stag.pos=Vector3.ZERO;stag.blast=Vector3(0,0,4);stag.windup=1000
  hints=game.attack_hints_snapshot()
  check(float(hints[0].to[2])<1.8,"charge projection stops before blocking terrain")
  game.combat_visuals.sync([],[],"next-floor",p.pos)

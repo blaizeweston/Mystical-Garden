@@ -112,7 +112,7 @@ func host() -> void:
  check(game.progress.plots[0].species<0 and FileAccess.get_sha256(G)!=garden_before,"host harvest commits Garden in full party")
  print("CASE ",JSON.stringify({"case":"full_party_harvest","before":garden_before,"after":FileAccess.get_sha256(G),"delivery":harvester.projection_delivery}))
  var loadout_id: int = player_id(game,"2")
- game.players[loadout_id].pos = game.Stage.GATE
+ game.players[loadout_id].pos = game.stage.gate_position()
  mark("loadout-ready")
  if not await until(func(): return read("loadout-done")=="yes" and game.players[loadout_id].character.loadouts[0].weapon==1 and game.players[loadout_id].projection_delivery.get("state")=="committed"):
   check(false,"loadout projection acknowledgment")
@@ -137,7 +137,7 @@ func host() -> void:
  # Hold only host simulation so the fixture can inspect departure and a frozen
  # reward deterministically. ENet polling and the guest worlds remain live.
  game.set_physics_process(false)
- for actor in game.players.values(): actor.pos = game.Stage.GATE
+ for actor in game.players.values(): actor.pos = game.stage.gate_position()
  game.garden_action(1,"depart")
  mark("party-depart")
  if not await until(func(): return game.players.values().all(func(actor): return ExpeditionCase.is_wild(actor))):
@@ -162,8 +162,8 @@ func host() -> void:
  var remote: int = player_id(game,"2")
  var target: Dictionary = game.players[remote]
  var helper: Dictionary = game.players[1]
- game.battlefield.procedural=false
- game.battlefield.barriers.clear()
+
+ preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
  helper.pos=Vector3.ZERO
  target.pos=Vector3(.5,0,0)
  IncomingPlayerHit.apply_health_loss(game, remote, PlayerLifecycle.generation(target), 999)

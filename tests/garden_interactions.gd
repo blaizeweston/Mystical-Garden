@@ -36,7 +36,7 @@ func run() -> void:
  var point: Dictionary=Catalog.point("heart_root_scar");p.pos=point.position
  var stock: Array=g.stock.duplicate();var parts: Array=g.parts.duplicate();var knowledge: int=g.knowledge;var xp: Array=p.character.xp.duplicate()
  check(Service.nearest(game,p,Service.projection(game,1))==point.id,"point is reachable without taking an existing station interaction")
- for at in [game.Stage.HEART,game.Stage.ALTAR,game.Stage.GATE]+game.Stage.PLOTS:
+ for at in [game.Stage.HEART,game.stage.altar_position(),game.stage.gate_position()]+game.Stage.PLOTS:
   p.pos=at
   check(Service.nearest(game,p,Service.projection(game,1)).is_empty(),"canonical station/bed wins at its own anchor")
  p.pos=point.position
@@ -50,7 +50,7 @@ func run() -> void:
  check(request(game,1).has("error") and g.garden_interactions.revision==0,"old or future state revisions cannot mutate")
  check(request(game,0,"invalid","missing").has("error"),"unknown point is rejected")
  check(request(game,0,"invalid",point.id,"grant_gold").has("error"),"unsupported verbs are rejected")
- p.pos=game.Stage.GATE
+ p.pos=game.stage.gate_position()
  check(request(game,0).has("error"),"remote/out-of-range observation is rejected")
  p.pos=point.position;ExpeditionCase.set_membership(game, p, true)
  check(request(game,0).has("error"),"expedition actors cannot alter a Garden observation")
@@ -76,7 +76,7 @@ func run() -> void:
  late.queue_free()
  var actor: Dictionary=game.seed_reserve(p);actor.parts[1]=1;g.parts[0]=1
  game.add_player(4242);var other: Dictionary=game.players[4242];SessionCase.set_identity(game, other, "observation-fixture-other");SessionCase.set_ready(game, other, true);other.prepared=1;other.loadout_reserving=true
- game.seed_reserve(other).parts[1]=0;p.prepared=1;p.loadout_reserving=true;p.pos=game.Stage.ALTAR
+ game.seed_reserve(other).parts[1]=0;p.prepared=1;p.loadout_reserving=true;p.pos=game.stage.altar_position()
  var item: String=Model.Items.part_id(1)
  var costs: Array=[{"item":item,"source":"shared","quantity":1}]
  check(not Gateway.plan(game,p,costs).ok and Gateway.available(game,p,"stash",item)==0,"offering plan respects another player's shared claim and this player's personal claim")

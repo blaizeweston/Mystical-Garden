@@ -64,7 +64,7 @@ func host_run():
   for j in i:check(spawn[i].distance_to(spawn[j])>.8,"players arrive separately")
  mark("full");check(await until(func():return marked("overflow_done")),"capacity probe completes")
  check(game.players.size()==4,"fifth connection leaves party intact")
- for p in game.players.values():p.pos=game.Stage.GATE
+ for p in game.players.values():p.pos=game.stage.gate_position()
  game.progress.parts[0]=1;game.progress.parts[1]=2
  game.handle_loadout_action(1,game.players[1],"loadpart_0_1")
  var thorn_guest:=0
@@ -150,7 +150,7 @@ func host_run():
  for id in game.players:
   var p=game.players[id]
   check(game.seed_reserve(p).unknown.has(SessionCase.Session.slot_for(p)),"each player's seed banks to their own reserve")
- for p in game.players.values():p.pos=game.Stage.GATE
+ for p in game.players.values():p.pos=game.stage.gate_position()
  ExpeditionCase.Transitions.enter(game, 1,game.players[1]);mark("disconnect")
  check(await until(func():return game.players.size()==3),"one guest disconnects")
  check(game.participation.travel_kind().is_empty() and not ExpeditionCase.is_wild(game.players[1]),"disconnect cancels pending travel")

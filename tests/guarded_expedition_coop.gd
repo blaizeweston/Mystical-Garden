@@ -102,8 +102,8 @@ func host_run() -> void:
  var leader: Dictionary=world.players[1]
  var guest: Dictionary=world.players[id]
  var guest_identity := SessionCase.Session.inventory_owner(guest)
- leader.pos=world.Stage.GATE
- guest.pos=world.Stage.GATE
+ leader.pos=world.stage.gate_position()
+ guest.pos=world.stage.gate_position()
  for actor in [leader,guest]:
   var tree=world.Classes.connected_tree(int(actor.frame))
   actor.character[tree.profile_key]=tree.state([tree.nodes[0].id])

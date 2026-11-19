@@ -31,37 +31,25 @@ func _initialize() -> void:
 
 
 func free_points(field: RefCounted, count: int, rng: RandomNumberGenerator) -> Array[Vector3]:
-	var cells: Array[Vector2i] = []
-	var region: Rect2i = field.navigation.region
-	for x in range(region.position.x, region.end.x):
-		for z in range(region.position.y, region.end.y):
-			if not field.navigation.is_point_solid(Vector2i(x, z)):
-				cells.append(Vector2i(x, z))
-	var out: Array[Vector3] = []
-	for i in count:
-		var c: Vector2i = cells[rng.randi_range(0, cells.size() - 1)]
-		out.append(Vector3(c.x * 0.5, 0, c.y * 0.5))
+	var points: Array[Vector3]=[]
+	for x in range(-56,57):
+		for z in range(-54,55):
+			var at := Vector3(x*.5,0,z*.5)
+			if not field.occupied(at,.8):points.append(at)
+	assert(not points.is_empty())
+	var out: Array[Vector3]=[]
+	for i in count:out.append(points[rng.randi_range(0,points.size()-1)])
 	return out
 
 
-## Battlefield grows barriers with square corners. Clearance is a true distance, so corners are round.
+## Modern continuous geometry remains authoritative over the conservative native bake.
 func within_clearance(field: RefCounted, at: Vector3) -> bool:
-	if not field.inside_floor(at, Battlefield.CLEARANCE):
-		return true
-	var point := Vector2(at.x, at.z)
-	for rect: Rect2 in field.barriers:
-		var nearest := point.clamp(rect.position, rect.end)
-		if nearest.distance_to(point) < Battlefield.CLEARANCE:
-			return true
-	return false
+	return field.occupied(at,Battlefield.CLEARANCE)
 
 
 func check_clearance(field: RefCounted, world: RefCounted, rng: RandomNumberGenerator) -> void:
 	for i in 4000:
 		var at := Vector3(rng.randf_range(-30.0, 30.0), 0, rng.randf_range(-29.0, 29.0))
-		# Authored arenas apply no clearance at their outer edge. The native core deliberately does.
-		if not field.procedural and not Rect2(-29.5, -28.5, 59.0, 57.0).grow(-AUTHORED_EDGE).has_point(Vector2(at.x, at.z)):
-			continue
 		var native: float = world.clearance(at.x, at.z)
 		totals.clearance_points += 1
 		var blocked := within_clearance(field, at)
@@ -87,7 +75,7 @@ func check_sight(field: RefCounted, world: RefCounted, points: Array[Vector3], r
 			totals.sight_errors += 1
 			if sight_examples.size() < 6:
 				sight_examples.append({"a": [a.x, a.z], "b": [b.x, b.z], "old_open": old_open, "old_margin": old_margin,
-					"native_open": native_open, "native_margin": native_margin, "procedural": field.procedural})
+					"native_open": native_open, "native_margin": native_margin, "terrain": Battlefield.SIGNATURE})
 
 
 func check_reach(field: RefCounted, world: RefCounted, points: Array[Vector3], rng: RandomNumberGenerator) -> void:
@@ -95,11 +83,10 @@ func check_reach(field: RefCounted, world: RefCounted, points: Array[Vector3], r
 	world.set_targets(PackedFloat32Array([target.x, target.z]))
 	world.load_agents(PackedFloat32Array())
 	world.tick(DT)
-	var goal: Vector2i = field.free_cell(target)
 	for i in 200:
 		var at: Vector3 = points[rng.randi_range(0, points.size() - 1)]
 		totals.reach_pairs += 1
-		var old_reach: bool = not field.navigation.get_id_path(field.free_cell(at), goal).is_empty()
+		var old_reach: bool = not field.navigation_graph.route(Vector2(at.x,at.z),Vector2(target.x,target.z)).is_empty()
 		var native_reach: bool = world.path_cost(0, at.x, at.z) >= 0.0
 		if old_reach and not native_reach:
 			totals.reach_lost += 1

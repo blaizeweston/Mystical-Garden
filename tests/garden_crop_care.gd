@@ -33,7 +33,7 @@ func run() -> void:
  var invalid: Dictionary=request.duplicate();invalid.stage=1
  check(act(game,invalid).has("error"),"old stage intent is rejected")
  ExpeditionCase.set_membership(game, p, true);check(act(game,request).has("error"),"Wilds actors cannot tend Garden crops");ExpeditionCase.set_membership(game, p, false)
- p.pos=game.Stage.GATE;check(act(game,request).has("error"),"remote crop request is rejected");p.pos=game.Stage.PLOTS[0]
+ p.pos=game.stage.gate_position();check(act(game,request).has("error"),"remote crop request is rejected");p.pos=game.Stage.PLOTS[0]
  # Fix a roll that misses the ordinary 5% but succeeds with preservation's 20%.
  for seed_value in 10000:
   game.rng.seed=seed_value;var roll: float=game.rng.randf()

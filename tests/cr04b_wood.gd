@@ -96,7 +96,7 @@ func run() -> void:
 	game.set_process(false)
 	game.set_physics_process(false)
 	game.battlefield.configure(0,1,0)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	for id in [2,3,4]: game.add_player(id)
 	var p: Dictionary=game.players[1]
 	var ally: Dictionary=game.players[2]
@@ -143,10 +143,10 @@ func run() -> void:
 		p.secondary=part
 		game.encounter.register_scout(game.make_scout(0,Vector3(0,0,-2.4),1))
 		game.encounter.set_hp(0, 100)
-		game.battlefield.barriers.append(Rect2(-.36,-1.92,.72,.36))
+		preload("res://tests/support/terrain_case.gd").add_wall(game.battlefield,Rect2(-.36,-1.92,.72,.36))
 		strike(p)
 		check(game.encounter.hp(0)==100 and game.enemy_health()<500,"fragment fan respects cover behind the valid first contact")
-		game.battlefield.barriers.clear()
+		preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 		reset()
 		p.catalyst=part
 		game.use_class_skill(1,p,1)

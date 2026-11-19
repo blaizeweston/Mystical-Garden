@@ -88,7 +88,7 @@ func _process(_delta: float) -> void:
   if visible and not markers.has(index):markers[index]=marker(index)
   if markers.has(index):
    var model: Node3D=markers[index];model.visible=visible
-   if game.has_meta(&"experimental_terrain"):model.position=game.stage.bed_position(index)+Vector3(.28,.72,.08)
+   if (game.stage.experimental_garden != null):model.position=game.stage.bed_position(index)+Vector3(.28,.72,.08)
    var pulse:=1.0+.045*sin(Time.get_ticks_msec()/650.0) if game.app_settings.values.get("ambient_motion",true) else 1.0
    model.scale=Vector3.ONE*pulse*(1.0 if bed.get("preserved",false) else .78)
  for index in markers:
@@ -165,7 +165,7 @@ func update_water(bed: Dictionary,player: Dictionary) -> void:
   wet_marks[index]=root
  if wet_marks.has(index):
   var root: Node3D=wet_marks[index]
-  if game.has_meta(&"experimental_terrain"):root.position=game.stage.bed_position(index)
+  if (game.stage.experimental_garden != null):root.position=game.stage.bed_position(index)
   if wet and not before.is_empty() and before.get("cycle")==bed.cycle and not before.get("watered",false):root.set_meta("splash_at",Time.get_ticks_msec())
   root.visible=wet and not Participation.is_wild(player) and not game.get_meta("garden_cinematic_active",false) and player.get("pos",Vector3.INF).distance_to(root.position)<14
   var time:=float(Time.get_ticks_msec()-int(root.get_meta("splash_at",-10000)))/900.0

@@ -72,7 +72,7 @@ func predict_step(game: Node,p: Dictionary,direction: Vector2,delta: float) -> v
  if p.get("fallen",false):p.velocity=Vector3.ZERO;return
  var field=game.stage.visual_field
  if Participation.is_wild(p) and field!=null and field.configured_key!=Vector3i(game.participation.route(),game.participation.depth(),game.participation.seed()):p.velocity=Vector3.ZERO;return
- var experimental:=game.has_meta(&"experimental_terrain")
+ var experimental:=game.stage.experimental_garden != null
  if Participation.is_wild(p) and experimental and (field==null or field.boss_kind!=game.tactics.boss_kind or field.boss_phase!=game.tactics.boss_phase):
   p.velocity=Vector3.ZERO
   return
@@ -86,7 +86,7 @@ func predict_step(game: Node,p: Dictionary,direction: Vector2,delta: float) -> v
   desired=garden.slide(start,desired)
  elif not Participation.is_wild(p) and p.has("motion_radius"):
   var flat:=Vector2(desired.x,desired.z).limit_length(float(p.motion_radius));desired=Vector3(flat.x,0,flat.y)
- elif Participation.is_wild(p) and field!=null and field.procedural:
+ elif Participation.is_wild(p) and field!=null:
   desired.x=clampf(desired.x,field.REGION.position.x+.5,field.REGION.end.x-.5)
   desired.z=clampf(desired.z,field.REGION.position.y+.5,field.REGION.end.y-.5)
  else:desired=game.bound_position(desired,Participation.is_wild(p))

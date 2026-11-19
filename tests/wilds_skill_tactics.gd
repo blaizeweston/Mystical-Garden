@@ -33,7 +33,7 @@ func floor_fixture() -> void:
 	game.encounter.clear_scouts()
 	game.tactics.memory.clear()
 	game.battlefield.configure(0, 1, 0)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	player.pos = Vector3.ZERO
 	ExpeditionCase.set_membership(game, player, true)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)

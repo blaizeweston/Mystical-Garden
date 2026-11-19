@@ -141,7 +141,7 @@ func host_run() -> void:
  check(game.combat_events.filter(func(event):return event.shape=="crop_harvested").size()==1,"guest harvest publishes audio once")
  record("guest_harvest_committed",original,{"guest_familiarity":player.character.plants[0],"guest_disk":crop_count(),"crop":game.progress.plots[0].species})
  game.send_committed_profile(id) # Deliver the identical existing projection again.
- player.pos=game.Stage.GATE
+ player.pos=game.stage.gate_position()
  mark("craft")
  if not await until(func():return marked("crafted")):
   check(false,"guest observes loadout projection: "+str([game.status,player.character.active_class,player.character.loadouts[1].weapon,player.pos,game.at_weapon_gate(player),game.persistence_session.pending_notice()]))

@@ -97,7 +97,7 @@ func _route_heading(from: Vector3, at: Vector3) -> Vector3:
 	var clearance: float = field.CLEARANCE + ROUTE_MARGIN
 	if field.clear_line(from, at, clearance):
 		return at - from
-	var points: PackedVector2Array = field.navigation.get_point_path(field.free_cell(from), field.free_cell(at))
+	var points: PackedVector2Array = field.navigation_graph.route(Vector2(from.x,from.z),Vector2(at.x,at.z))
 	var heading := at - from
 	for index in mini(points.size(), ROUTE_LOOKAHEAD):
 		var point := Vector3(points[index].x, 0.0, points[index].y)

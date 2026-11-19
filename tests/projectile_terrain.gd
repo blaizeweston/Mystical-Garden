@@ -15,7 +15,7 @@ const Cooldowns = preload("res://player_cooldowns.gd")
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const Surface = preload("res://assets/terrain_m02/wilds_play_surface.gd")
 const Navigation = preload("res://assets/terrain_m02/wilds_combat_navigation.gd")
-const Wilds = preload("res://assets/terrain_m02/experimental/experiment_wilds.gd")
+const Wilds = preload("res://battlefield.gd")
 const Battlefield = preload("res://battlefield.gd")
 const Motion = preload("res://weapon_motion.gd")
 const Mouse = preload("res://mouse_combat.gd")
@@ -75,6 +75,8 @@ func surface_checks() -> void:
 	var east := Vector3.RIGHT
 	var bow := Motion.profile("bow")
 	var radius: float = bow.projectile_radius
+	check(field.projectile_endpoint(BANK,ACROSS,radius).is_equal_approx(ACROSS),
+		"a clear segment ends at its finite requested endpoint")
 	check(field.combat_sight(BANK, ACROSS) and field.projectile_clear(BANK, ACROSS, radius),
 		"water, foliage and explicitly low rubble leave sight and flight clear")
 	check(not field.clear_line(BANK, ACROSS) and field.occupied(Vector3(-1.65, 0, 0), .34)
@@ -107,11 +109,13 @@ func surface_checks() -> void:
 	var exit := field.projectile_endpoint(Vector3(-3,0,-6), Vector3(3,0,-6), radius)
 	check(is_equal_approx(exit.x, -1.0 - radius) and not field.combat_sight(Vector3(-3,0,-6), Vector3(3,0,-6)),
 		"swept radius stops at first concave arena edge even when the destination is inside")
-	var fallback := Battlefield.new()
-	fallback.barriers = [Rect2(0, -1, 1, 2)]
-	check(not fallback.combat_sight(Vector3(-2,0,0), Vector3(2,0,0))
-		and is_equal_approx(fallback.projectile_endpoint(Vector3(-2,0,0),Vector3(2,0,0),radius).x, -radius)
-		and fallback.dash(Vector3(-2,0,0),Vector3(2,0,0)).x < -.34, "legacy rectangular cover and actor clearance")
+	var boss := Battlefield.new()
+	boss.configure(0,1,91247,22,0)
+	var rib: Rect2=boss.barriers[0]
+	var from := Vector3(rib.position.x-2,0,rib.get_center().y)
+	var to := Vector3(rib.end.x+2,0,rib.get_center().y)
+	check(not boss.combat_sight(from,to) and not boss.projectile_clear(from,to,radius)
+		and boss.dash(from,to).distance_to(to)>.34,"modern authored Nest ribs block sight, projectile radius and actors")
 
 func prepare(origin: Vector3, foe: Vector3) -> void:
 	game.projectile_queue.clear()

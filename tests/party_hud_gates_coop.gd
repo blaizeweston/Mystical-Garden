@@ -35,7 +35,7 @@ func host_run():
  check(SessionCase.World.host(game)==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"registration");return
  var guest_id: int=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[1];var friend: Dictionary=game.players[guest_id]
- p.character.name="Host Gardener";friend.pos=game.Stage.GATE+Vector3(2.65,0,0)
+ p.character.name="Host Gardener";friend.pos=game.stage.gate_position()+Vector3(2.65,0,0)
  check(await until(func():return marked("gate")),"guest opens gate at new range")
  for player in game.players.values():ExpeditionCase.set_membership(game, player, true);player[PlayerVitals.STATE]=PlayerVitals.Health.new(100,100);player.pos=Vector3.ZERO
  game.encounter.set_hp(-1, 80);game.tactics.position=Vector3(0,0,8);game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.encounter.clear_scouts()
@@ -49,7 +49,7 @@ func host_run():
 func guest_run():
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest connects")
  var id:=game.multiplayer.get_unique_id()
- if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty() and game.players[id].pos.distance_to(game.Stage.GATE)<2.75):check(false,"Garden position arrives");return
+ if not await until(func():return game.network_session.role()=="Guest" and not game.client_details.is_empty() and game.players[id].pos.distance_to(game.stage.gate_position())<2.75):check(false,"Garden position arrives");return
  game.send_action(false);check(await until(func():return UIFixture.control(game,"loadout_menu").visible),"authoritative gate interaction at 2.65m")
  check(not UIFixture.control(game,"player_hud").party_panel.visible,"no Garden party clutter");mark("gate")
  check(await until(func():return UIFixture.control(game,"player_hud").party_panel.visible and UIFixture.control(game,"player_hud").party_panel.rows.size()==1 and UIFixture.control(game,"player_hud").party_panel.rows[0].name=="Host Gardener" and UIFixture.control(game,"player_hud").party_panel.rows[0].hp==100),"public teammate HUD state")

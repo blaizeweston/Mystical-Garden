@@ -82,7 +82,7 @@ static func companion_spawn(game: Node, route: int) -> Vector3:
 
 static func reinforcement(game: Node, pool: Array[int], at: Vector3, rng: RandomNumberGenerator, previous: int) -> int:
  var choices: Array[int]=[]
- var open: bool=not game.battlefield.procedural or game.battlefield.floor_distance(at)>=2.5
+ var open: bool=game.battlefield.floor_distance(at)>=2.5
  for kind in pool:
   var role: String=Catalog.get_kind(kind).role
   if role in PURSUIT or (open and role in CONTROL):choices.append(kind)

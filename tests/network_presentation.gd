@@ -6,7 +6,7 @@ class MovementFixture extends Node:
  const WALK_SPEED=3.6
  var participation=preload("res://expedition_participation.gd").new()
  var players={}
- var stage={"visual_field":null}
+ var stage={"visual_field":null,"experimental_garden":null}
  func world_direction(v: Vector2) -> Vector3:return Vector3(v.x,0,v.y)
  func bound_position(v: Vector3,_wild: bool=false) -> Vector3:return Vector3(clampf(v.x,-10,10),0,clampf(v.z,-10,10))
  func move_player(id: int,direction: Vector2,delta: float):
@@ -79,10 +79,11 @@ func movement_checks():
  check(cm.pending.size()==1 and cm.epoch=="next floor","floor transition discards old predicted inputs")
  var field=load("res://battlefield.gd").new();field.configure(0,1,0);client.stage.visual_field=field
  client.players[2].wild=true;client.players[2].pos=Vector3(-6,0,-4);cm.pending.clear()
+ preload("res://tests/support/terrain_case.gd").walls(field,[Rect2(-7,-3.5,2,1)])
  for frame in 15:cm.client_tick(client,2,Vector2.DOWN,1.0/60)
  check(client.players[2].pos.z<-3.5,"predicted movement respects actual terrain collision")
 
- field.procedural=true;field.clearings.assign([Vector3(25,0,5)]);field.links.clear();field.barriers.clear();field.distance_samples.clear()
+ preload("res://tests/support/terrain_case.gd").walls(field,[])
  client.players[2].pos=Vector3(25,0,0);cm.pending.clear()
  cm.client_tick(client,2,Vector2.RIGHT,1.0/60)
  check(client.players[2].pos.x>25,"procedural prediction uses expanded map bounds beyond old arena")

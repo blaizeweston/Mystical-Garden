@@ -75,7 +75,7 @@ func reset(class_id := 0) -> void:
 	game.enemy_traits.clear()
 	game.battlefield = preload("res://battlefield.gd").new()
 	game.battlefield.configure(0,1)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.set_meta(Clock.CLOCK,0.0)
 	game.remove_meta(Rules.Thorn.FIELDS)
 	Core.reset(game)

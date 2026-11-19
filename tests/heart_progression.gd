@@ -99,7 +99,7 @@ func run():
  game.offer_monster(1,p);game.offer_monster(1,p)
  check(g.knowledge==knowledge_before+5 and reserve.parts[trophy]==0,"first trophy knowledge and lower repeat reward")
  check(game.monster_cargo_limit()==8,"preservation expands monster cargo")
- p.pos=game.Stage.GATE
+ p.pos=game.stage.gate_position()
  var focus_tree=game.Classes.connected_tree(0)
  game.handle_loadout_action(1,p,"learn_0_%d"%focus_tree.REQUEST_OFFSET)
  check(focus_tree.focus(p.character)==focus_tree.nodes[0].id,"level-one starting focus is available before departure")

@@ -18,7 +18,8 @@ var start_position := Vector3.INF
 var moved := false
 var saw_enemies := false
 var saw_enemy_motion := false
-var enemy_start := Vector3.INF
+var enemy_starts := {}
+var enemy_context := ""
 
 
 func _initialize() -> void:
@@ -77,12 +78,19 @@ func _observe_guest() -> void:
 		start_position = player.pos
 	Input.action_press("right")
 	moved = moved or player.pos.distance_to(start_position) > 0.8
-	if world.client_pack.size() >= world.PACK_STRIDE:
-		saw_enemies = true
-		var at := Vector3(world.client_pack[0], 0.0, world.client_pack[1])
-		if not enemy_start.is_finite():
-			enemy_start = at
-		saw_enemy_motion = saw_enemy_motion or at.distance_to(enemy_start) > 0.5
+	var context := str([world.participation.epoch(),world.participation.floor(),world.participation.seed()])
+	if context!=enemy_context:
+		enemy_context=context
+		enemy_starts.clear()
+	# An untrained policy may hold one enemy still. Observe every living slot;
+	# a new floor cannot masquerade as motion of a previous round's enemy.
+	for slot in world.client_pack.size()/world.PACK_STRIDE:
+		var offset: int=slot*world.PACK_STRIDE
+		if world.client_pack[offset+2]<=0:continue
+		saw_enemies=true
+		var at := Vector3(world.client_pack[offset],0.0,world.client_pack[offset+1])
+		if not enemy_starts.has(slot):enemy_starts[slot]=at
+		saw_enemy_motion=saw_enemy_motion or at.distance_to(enemy_starts[slot])>.5
 
 
 func _finish() -> void:

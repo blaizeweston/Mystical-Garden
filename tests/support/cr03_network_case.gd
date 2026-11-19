@@ -944,7 +944,7 @@ func guest(menu: Node, role: String) -> void:
 	if not check(await until(func():return not read("depart").is_empty()),"host authorizes departure"):return
 	game.send_garden_action("travel_ready:"+read("depart"))
 	if native_graft_case:
-		if not check(await until(func():return not read("install-"+str(id)).is_empty() and game.stage._has_experimental_floor()),
+		if not check(await until(func():return not read("install-"+str(id)).is_empty() and game.stage.has_floor()),
 			"real guest can request its graft on the shared floor"): return
 		var selection_fields := read("install-"+str(id)).split(":")
 		if not check(await until(func():return game.participation.floor()==8 and game.at_graft_altar(game.players[id])),
@@ -963,7 +963,7 @@ func guest(menu: Node, role: String) -> void:
 			"guest receives duplicate refusal"):return
 		game.ui.close_panels()
 		mark("graft-seen-"+str(id))
-	if not check(await until(func():return read("strike-"+str(id))=="ok" and game.stage._has_experimental_floor()),"guest sees generated Frost floor"):return
+	if not check(await until(func():return read("strike-"+str(id))=="ok" and game.stage.has_floor()),"guest sees generated Frost floor"):return
 	game.send_action(true)
 	if connected_warden_case:
 		if not check(await until(func():return read("ct-q")=="ok"),"connected Warden receives Q timing"):return
@@ -1334,7 +1334,7 @@ func sample_guest_snapshots(game: Node, id: int) -> void:
 			max_apply_gap = maxi(max_apply_gap, int(row.at) - last_apply)
 			last_apply = int(row.at)
 	max_apply_gap = maxi(max_apply_gap, Time.get_ticks_usec() - last_apply)
-	var valid: bool=observed.size()>=PROBE_COUNT/2 and game.stage._has_experimental_floor() and max_apply_gap <= 500000
+	var valid: bool=observed.size()>=PROBE_COUNT/2 and game.stage.has_floor() and max_apply_gap <= 500000
 	check(valid,"guest sees multiple probe states and receives a fresh current snapshot within 500 ms")
 	if final_family_mix:
 		var cap: int=preload("res://world_snapshot.gd").MAX_FRAME

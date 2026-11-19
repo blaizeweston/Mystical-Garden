@@ -173,7 +173,7 @@ Run `python tools/test_workflow.py document --project . --engine <godot>` after 
 
 All arena tests use their own temporary user data folder and never touch real saves.
 
-### Results on 2026-11-18
+### Original Neural Arena branch results on 2026-11-18
 
 | Check | Result |
 |---|---|
@@ -194,3 +194,11 @@ The 2026-11-18 integration retains the newer typed weapon, protection and hit-co
 Native compilation no longer assumes another contributor's absolute toolchain path. Run `mob_sim/native/build.ps1 -Zig <zig.exe> -Interface <header-directory>`, or pass the existing llvm-mingw `-Toolchain` option. Generate the header with Godot 4.7.2's `--dump-gdextension-interface` in an isolated SDK directory. CPU/OS AVX2 detection is explicit and no longer relies on a hidden libgcc runtime symbol; numerical kernels and FP flags are unchanged. Missing optional native binaries return an unavailable result rather than engine load errors.
 
 Focused integration checks passed six owner/UI/forfeiture suites and a real matching host/guest pair. The source-built native core passed its checks, and the Arena passed all 49 checks, including all five classes, twenty regular species, real neural movement/damage, attacker limits, repeatability, time controls and save canaries. The disposable checkout needed its ignored native DLL and model artifacts generated first. The Arena check used an explicitly recorded deterministic NumPy-initialized untrained fixture; this is not training, PyTorch parity, separate-PC or internet evidence. The original failed runs remain archived. Production save activation remains off.
+
+### Modern terrain integration
+
+Normal play retains its real-time clock and scripted enemy path. `Battlefield` now supplies modern surfaces for generated, authored boss/Heart and practice floors. The native bake reads conservative occupancy from those footprints; the Arena player bot queries the same certified navigation graph. There is no separate old-floor generator to select for the Arena.
+
+The integrated Arena passes all 49 functional checks. The independent host/guest check confirms guest class selection, movement, replicated enemies and enemy motion. An untrained agent may hold position, so that check observes all living slots within one floor identity rather than requiring the first agent to move. No policy or enemy behavior is changed to satisfy it. An earlier failing observation run remains in the evidence archive.
+
+These checks use the source-built optional native DLL and the explicitly recorded temporary deterministic untrained model described above. They do not install those ignored fixture artifacts into the user's project, establish PyTorch parity, train a policy or verify internet play. A source checkout still needs its normal native/model build artifacts before using neural mode.

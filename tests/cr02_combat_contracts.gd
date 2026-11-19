@@ -51,7 +51,7 @@ func run() -> void:
 	game.encounter.set_hp(-1, 500)
 	game.tactics.position = Vector3(0,0,-1)
 	game.battlefield.configure(0,1,0)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.encounter.clear_scouts()
 	var graph=Classes.connected_tree(0)
 	player.character[graph.profile_key]=graph.state(["bastion"])

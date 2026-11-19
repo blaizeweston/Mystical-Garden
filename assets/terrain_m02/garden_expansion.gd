@@ -73,7 +73,7 @@ func _initial_outline() -> PackedVector2Array:
 	var initial_landmarks: Array = landmarks.values() if not landmarks.has("starter_bed") else [
 		landmarks.heart, landmarks.wilds_entrance, landmarks.altar, landmarks.starter_bed]
 	for feature: Dictionary in initial_landmarks + layout.paths + layout.get("path_joins", []) + layout.water:
-		targets.append_array(Shape.boundary(feature))
+		if feature.get("requires_access",true):targets.append_array(Shape.boundary(feature))
 	var entrance: Vector2 = landmarks.wilds_entrance.center
 	var cove := Vector2.ZERO
 	for feature: Dictionary in layout.water:

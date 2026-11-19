@@ -26,7 +26,7 @@ func run():
  check(p.prepared==0,"weapon editing no longer happens at the Heart")
  game.send_garden_action("depart")
  check(not ExpeditionCase.is_wild(p),"remote departure cannot bypass gate position")
- p.pos=game.Stage.GATE;g.parts[0]=3
+ p.pos=game.stage.gate_position();g.parts[0]=3
  game.send_action(false)
  check(not ExpeditionCase.is_wild(p) and UIFixture.control(game,"loadout_menu").visible and g.parts[0]==3,"gate opens preparation before charging or entering")
  game.handle_loadout_action(1,p,"loadpart_0_1")
@@ -52,7 +52,7 @@ func run():
  check(not ExpeditionCase.is_wild(p) and p.carried_seeds.is_empty() and p.carried_parts[4]==0 and not p.pouch,"abandon drops all carried and protected loot")
  check(reserve.unknown.is_empty() and reserve.parts[4]==0 and g.heart.progress==research_before and g.campaign.memories==memories_before and g.knowledge==knowledge_before and p.character.xp==xp_before,"abandon gives no loot, milestone, memory or additional character reward")
  check(game.deepest_milestone==0 and not game.checkpoint_pending,"abandon resets empty expedition")
- p.pos=game.Stage.GATE;game.send_garden_action("depart")
+ p.pos=game.stage.gate_position();game.send_garden_action("depart")
  check(ExpeditionCase.is_wild(p),"another expedition can start after abandonment")
  cleared_gate(game,5)
  ExpeditionCase.Transitions.checkpoint(game, 1,true)

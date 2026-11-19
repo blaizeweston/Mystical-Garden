@@ -89,7 +89,7 @@ func run():
 	check(reloaded.load_garden()==OK and reloaded.stock[14]==7 and reloaded.unknown==[13,14] and reloaded.discoveries==g.discoveries and reloaded.reserve("guest").stock[12]==3 and reloaded.personal_parts[17]==4 and reloaded.plots[0].species==14,"round trip all expanded data")
 	var old_profile: Dictionary=Character.normalize({"plants":[4,5,6]})
 	check(old_profile.plants.size()==24 and old_profile.plants.slice(0,3)==[4,5,6] and old_profile.plants[14]==0,"legacy character migration")
-	player.pos=game.Stage.ALTAR
+	player.pos=game.stage.altar_position()
 	g.stock[0]=1
 	g.stock[3]=1
 	game.send_garden_action("breed_0_3")

@@ -30,7 +30,7 @@ func run():
  var game=load("res://world.tscn").instantiate();var token:=str(Time.get_ticks_usec());game.progress.path="res://.godot/elites-"+token;game.local_character.path=game.progress.path+".character";root.add_child(game)
  game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
  var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,.8);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100)
- game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.tactics.boss_kind=-1;ExpeditionCase.set_world(game, {"destination": 0})
+ game.battlefield.configure(0,1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);game.tactics.boss_kind=-1;ExpeditionCase.set_world(game, {"destination": 0})
  for kind in seen:
   var now:=Time.get_ticks_msec();game.enemy_kind=kind;game.tactics.position=Vector3.ZERO;game.encounter.begin_floor(800);game.tactics.ready_at=0;game.tactics.winding_up=false;game.tactics.engaged=true;game.tactics.stagger_until=0;game.tactics.rooted_until=0;game.enemy_mutations=0;game.tactics.longlimb=false;game.tactics.memory.clear();game.enemy_hazards.clear();game.tactics.recovery_bonus=0;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p[Conditions.STATE] = p[Conditions.STATE].clear_grace();p[Protection.STATE] = p[Protection.STATE].clear_guard()
   Elite.tick(game,.016,now)

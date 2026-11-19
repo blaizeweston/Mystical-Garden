@@ -184,10 +184,10 @@ func test_material_stock(game: Node, tools: Node, base: String) -> void:
 	check(progress.knowledge==knowledge and progress.discoveries==known,"stocking preserves Knowledge and seed discoveries")
 	check(Developer.stock_materials(game).contains("already full"),"a repeat click does not add more materials")
 
-	player.pos=game.Stage.GATE
+	player.pos=game.stage.gate_position()
 	UIFixture.control(game,"loadout_view").refresh()
 	check(UIFixture.control(game,"loadout_view").slots[0].get_item_index(rare)>=0 and UIFixture.control(game,"loadout_view").cargo_pick.get_item_index(trophy)>=0,"the weapon bench can use the rare part and pack the trophy")
-	player.pos=game.Stage.ALTAR
+	player.pos=game.stage.altar_position()
 	var offering: Array=[{"item":Inventory.Items.seed_id(0),"source":"stash"},{"item":Inventory.Items.seed_id(high_seed),"source":"stash"}]
 	check(game.Altar.validate(game, player, offering).is_empty(),"stocked seeds can be offered at the Altar")
 

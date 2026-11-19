@@ -26,7 +26,7 @@ func run() -> void:
  game.set_process(false)
  game.set_physics_process(false)
  game.battlefield.configure(0,1)
- game.battlefield.barriers.clear()
+ preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
  game.tactics.boss_kind=-1
  game.encounter.set_hp(-1, 0)
  ExpeditionCase.set_world(game, {"encounter_number": 12})

@@ -31,7 +31,7 @@ func run() -> void:
 	world.set_physics_process(false)
 	var actor: Dictionary=world.players[1]
 	check(not ExpeditionCase.is_wild(actor) and world.network_session.role()=="Solo","fresh integrated Garden starts offline")
-	actor.pos=world.Stage.GATE
+	actor.pos=world.stage.gate_position()
 	world.handle_loadout_action(1,actor,"learn_0_64")
 	var graph=world.Classes.connected_tree(0)
 	check(graph.focus(actor.character)=="vanguard" and actor.character.xp[0]==0,"starting focus is a real host-validated zero-XP selection")
@@ -44,7 +44,7 @@ func run() -> void:
 		quit(1)
 		return
 	world.battlefield.configure(0,1,0)
-	world.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(world.battlefield,[])
 	world.encounter.clear_scouts()
 	world.encounter.set_hp(-1,100)
 	world.tactics.position=Vector3(0,0,-1)

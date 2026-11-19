@@ -5,11 +5,11 @@ const PROFILE_ENV := "MYSTICAL_TERRAIN_PROFILE"
 const ROOT_NAME := "Mystical Garden Prototype"
 const Auth = preload("res://persistence_authorization.gd")
 const Playtest = preload("res://playtest_storage.gd")
-const NETWORK_VERSION := "integrated-terrain-coop-2"
+const NETWORK_VERSION := "modern-terrain-3"
 
 static func requested() -> bool:
 	if Playtest.retail():
-		return Playtest.build().get("terrain_mode", "") == NETWORK_VERSION
+		return Playtest.build().get("terrain_mode", "") in ["integrated-terrain-coop-2",NETWORK_VERSION]
 	return OS.has_feature("editor") and FLAG in OS.get_cmdline_user_args()
 
 static func verified() -> bool:
@@ -33,7 +33,5 @@ static func verified() -> bool:
 static func active(node: Node) -> bool:
 	return node.has_meta(&"experimental_terrain")
 
-static func network_identity(node: Node) -> String:
-	if not active(node):
-		return ""
+static func network_identity(_node: Node) -> String:
 	return NETWORK_VERSION + "/" + str(Playtest.build().get("git_commit", "")) if Playtest.retail() else NETWORK_VERSION

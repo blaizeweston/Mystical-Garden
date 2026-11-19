@@ -13,7 +13,7 @@ var failed:=false
 func check(ok: bool,message: String) -> void:
  if not ok:failed=true;printerr("FAIL Garden returns: ",message)
 func start(game: Node) -> bool:
- var p: Dictionary=game.players[1];p.pos=game.Stage.GATE;p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0;p.cargo_plan.fill(0);p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive()
+ var p: Dictionary=game.players[1];p.pos=game.stage.gate_position();p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0;p.cargo_plan.fill(0);p[PlayerLifecycle.STATE] = p[PlayerLifecycle.STATE].clear_inactive()
  var tree=game.Classes.connected_tree(int(p.frame))
  if tree.focus(p.character).is_empty():game.handle_loadout_action(1,p,"learn_%d_%d"%[p.frame,tree.REQUEST_OFFSET])
  check(not tree.focus(p.character).is_empty(),"a free starting focus is selected explicitly before entry")
@@ -31,7 +31,8 @@ func run() -> void:
  game.progress.path=base+".cfg";game.local_character.path=base+".character";game.guest_character.path=base+".guest";root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var g=game.progress;var p: Dictionary=game.players[1];var moss: int=game.Seeds.index_of("lantern_moss");var ghost: int=game.Seeds.index_of("ghost_fern");var reserve: Dictionary=game.seed_reserve(p)
  var view=game.get_node("GardenInteractions/ReturnLife");view.set_process(false);var scene=game.get_node("GardenInteractions/GrowthScenes");scene.set_process(false);var ambience=game.get_node("GardenInteractions/Ambience");ambience.set_process(false)
- g.discoveries[moss]=true;p.pos=game.Stage.ALTAR;reserve.unknown.append(moss);game.Altar.identify(game,p)
+ g.heart.unlock_direct("clearing_1");g.heart.sync_legacy(g)
+ g.discoveries[moss]=true;p.pos=game.stage.altar_position();reserve.unknown.append(moss);game.Altar.identify(game,p)
  check(Service.projection(game,1).entries.is_empty(),"an old or crafted/unverified stash seed does not invent a returned discovery")
  if not start(game):quit(1);return
  var abandoned_run: String=p.garden_run_id;p.carried_seeds=[moss];ExpeditionCase.Transitions.abandon(game, 1,p)
@@ -44,7 +45,7 @@ func run() -> void:
  game.local_character.path=profile_path;game.battlefield.configure(game.participation.route(),game.participation.depth(),game.participation.seed());extraction(game)
  check(not ExpeditionCase.is_wild(p) and reserve.unknown.has(moss) and g.garden_interactions.returns.history.size()==history+1 and g.garden_interactions.returns.credits.has("lantern_moss"),"real extraction banks the seed and seals one run summary")
  check(Service.projection(game,1).entries.is_empty() and not JSON.stringify(Service.projection(game,1)).contains("credits"),"banking an unidentified seed publishes neither its identity nor a story")
- p.pos=game.Stage.ALTAR;var path: String=g.path;g.path=base+"-missing/identify"
+ p.pos=game.stage.altar_position();var path: String=g.path;g.path=base+"-missing/identify"
  check(game.Altar.identify_all(game,p).contains("Could not save") and reserve.unknown.has(moss) and g.garden_interactions.returns.discoveries.is_empty(),"failed identify-all restores seed and discovery atomically")
  g.path=path;var knowledge: int=g.knowledge;var xp: Array=p.character.xp.duplicate();var stock: int=reserve.stock[moss];var rng_state: int=game.rng.state
  game.Altar.identify_all(game,p)
@@ -55,7 +56,7 @@ func run() -> void:
  check(g.garden_interactions.growth.events.filter(func(e):return e.get("discovery","")=="lantern_homecoming").size()==1,"later identifications cannot duplicate the scene or discovery")
  var loaded=game.Progress.new();loaded.path=path
  check(loaded.load_garden()==OK and loaded.garden_interactions.returns.discoveries==g.garden_interactions.returns.discoveries,"discovery and provenance survive reload")
- game._process(.016);scene.begin(events[0]);scene.animate(4.0);view._process(.2)
+ game._process(.016);game.get_node("GardenInteractions")._process(0);scene.begin(events[0]);scene.animate(4.0);view._process(.2)
  check(not view.traces.lantern_homecoming.visible and scene.target==game.get_node("GardenInteractions").points.heart_root_scar.position,"return scene tracks a root to the existing investigation point before its trace forms")
  scene.animate(6.7);view._process(.2);check(view.traces.lantern_homecoming.visible and view.heart.visible,"committed discovery grows a permanent trace and answering Heart roots")
  var before_stock: Array=reserve.stock.duplicate();rng_state=game.rng.state;scene.finish(true);view._process(.2)

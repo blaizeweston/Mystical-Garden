@@ -39,7 +39,7 @@ func run():
 	check(not map.fog.visible and not map.chart.visible, "Garden hides expedition fog and map")
 	# Rotated layouts may use any edge, not only the old north/south footprint.
 	for point in [Vector3(-28,0,0),Vector3(28,0,0),Vector3(0,0,-27),Vector3(0,0,27)]:
-		var edge=Battlefield.new();edge.procedural=true;edge.clearings.assign([Vector3(point.x,point.z,2)]);edge.bake_surface()
+		var edge=Battlefield.new()
 		map.update_floor(edge,str(point),point,camera,true,point,false,false,false)
 		check(map.seen(point),"fog memory covers the full generated region")
 		var icon: Vector2=map.chart_point(point,map.chart)

@@ -86,7 +86,7 @@ func _process(_delta: float) -> void:
  for point_id in points:
   var model: Node3D=points[point_id]
   var available: bool=data.get("version",0)==1 and data.get("available",[]).has(point_id)
-  if available and point_id=="spring_water" and game.has_meta(&"experimental_terrain"):
+  if available and point_id=="spring_water" and (game.stage.experimental_garden != null):
    model.position=Service.point_position(game,Catalog.point(point_id))
   if available and not model.get_meta("available",false) and availability_baseline:model.set_meta("reveal_at",Time.get_ticks_msec())
   model.set_meta("available",available);model.visible=not wild and available

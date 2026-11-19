@@ -11,7 +11,7 @@ const State=preload("res://garden_interaction_state.gd")
 static func allowed(game: Node,definition: Dictionary) -> bool:
  for tech in Catalog.requirements(definition):
   if not game.progress.heart.has(str(tech)):return false
- if game.has_meta(&"experimental_terrain"):
+ if (game.stage.experimental_garden != null):
   if definition.id=="heart_root_scar" and not game.progress.heart.has("clearing_1"):return false
   if definition.parent=="sheltered_spring" and not game.stage.station_position("spring").is_finite():return false
  if State.observed(game.progress.garden_interactions,str(definition.observation)):return true
@@ -31,7 +31,7 @@ static func nearest(game: Node,player: Dictionary,projection: Dictionary) -> Str
   if pos.distance_to(at)<best:return ""
  return found
 static func point_position(game: Node,point: Dictionary) -> Vector3:
- if game.has_meta(&"experimental_terrain") and point.id=="spring_water":
+ if (game.stage.experimental_garden != null) and point.id=="spring_water":
   return game.stage.station_position("spring")
  return point.position
 static func projection(game: Node,id: int) -> Dictionary:

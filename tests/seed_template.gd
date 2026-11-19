@@ -17,7 +17,7 @@ func run() -> void:
  var frozen: Array=JSON.parse_string(FileAccess.get_file_as_string("res://assets/content/legacy_v2_part_order.json"))
  for slot in frozen.size(): check(game.Parts.DEFINITIONS[slot].id==frozen[slot],"historical component prefix "+str(slot))
  check(i==15 and part==44 and game.Parts.index_of("monster:root_shepherd")==41 and game.Parts.index_of("monster:lantern_lure")==43,"published species and component indices stay fixed")
- p.pos=game.Stage.ALTAR
+ p.pos=game.stage.altar_position()
  var a:=int(seed.parents[0]);var b:=int(seed.parents[1]);reserve.stock[a]=3;reserve.stock[b]=3
  var draft:=pair(game.Items.seed_id(a),game.Items.seed_id(b))
  check(not game.Altar.preview(game,p,draft).known,"altar conceals unknown child")
@@ -36,7 +36,7 @@ func run() -> void:
   var crop=game.stage.build_crop(i,g.plots[0].stage,false);check(crop.get_child_count()>0,"visible growth stage");crop.free()
  game.harvest(1,0)
  check(g.part_count(part)>=1 and g.plots[0].species==-1 and p.character.plants[i]>0,"harvest produces craftable part and personal familiarity")
- g.add_parts(part,2);p.pos=game.Stage.ALTAR
+ g.add_parts(part,2);p.pos=game.stage.altar_position()
  var refine:=pair(game.Items.part_id(part),game.Items.part_id(part),"shared")
  game.Altar.combine(game,p,refine)
  check(reserve.parts[game.Parts.rare_part(i)]==1,"altar refines matching materials to rare-harvest counterpart")
@@ -51,7 +51,7 @@ func run() -> void:
  game.ui.close_panels()
  var nodes: Array=UIFixture.control(game,"progression_view").seed_nodes(g.discoveries,g.stock)
  check(nodes.any(func(n):return n.id==str(i) and n.parents.size()==2 and n.icon!=null),"tree contains portrait and lineage connections")
- ExpeditionCase.set_membership(game, p, true);p.weapon=part;p.secondary=0;p.catalyst=0;p.pos=Vector3(0,0,-1);game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter.clear_scouts();game.tactics.position=Vector3.ZERO;game.encounter.set_hp(-1, 50)
+ ExpeditionCase.set_membership(game, p, true);p.weapon=part;p.secondary=0;p.catalyst=0;p.pos=Vector3(0,0,-1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);game.encounter.clear_scouts();game.tactics.position=Vector3.ZERO;game.encounter.set_hp(-1, 50)
  var tree=game.Classes.connected_tree(0)
  p.character[tree.profile_key]=tree.state(["vanguard"])
  var stats: Dictionary=game.weapon_stats(p)

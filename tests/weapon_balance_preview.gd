@@ -39,7 +39,7 @@ func run() -> void:
 	p.facing=Vector3.BACK
 	p.aim_direction=Vector3.BACK
 	game.battlefield.configure(0,1)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.tactics.boss_kind=-1
 	game.enemy_kind=0
 	verify_catalogue(game,p)

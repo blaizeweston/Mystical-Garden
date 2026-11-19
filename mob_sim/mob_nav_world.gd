@@ -34,22 +34,11 @@ static func create(max_agents: int, max_targets: int) -> RefCounted:
 ## One byte per half-unit floor cell, matching the Battlefield's own floor test.
 static func floor_mask(field: RefCounted) -> PackedByteArray:
 	var mask := PackedByteArray()
-	mask.resize(FLOOR_SIZE.x * FLOOR_SIZE.y)
-	var offset := Vector2i(roundi(ORIGIN.x / FLOOR_CELL), roundi(ORIGIN.y / FLOOR_CELL))
-	if field.procedural and field.surface != null:
-		for cell: Vector2i in field.surface.cells:
-			var local: Vector2i = cell - offset
-			if local.x >= 0 and local.y >= 0 and local.x < FLOOR_SIZE.x and local.y < FLOOR_SIZE.y:
-				mask[local.x + local.y * FLOOR_SIZE.x] = 1
-		return mask
-	var region: Rect2i = field.REGION
-	var low := Vector2(region.position) - Vector2.ONE * 0.5
-	var high := Vector2(region.end) - Vector2.ONE * 0.5
+	mask.resize(FLOOR_SIZE.x*FLOOR_SIZE.y)
 	for z in FLOOR_SIZE.y:
 		for x in FLOOR_SIZE.x:
-			var corner := ORIGIN + Vector2(x, z) * FLOOR_CELL
-			if corner.x >= low.x and corner.y >= low.y and corner.x + FLOOR_CELL <= high.x and corner.y + FLOOR_CELL <= high.y:
-				mask[x + z * FLOOR_SIZE.x] = 1
+			var center := ORIGIN+(Vector2(x,z)+Vector2.ONE*.5)*FLOOR_CELL
+			mask[x+z*FLOOR_SIZE.x]=int(not field.occupied(Vector3(center.x,0,center.y),FLOOR_CELL*sqrt(2.0)*.5))
 	return mask
 
 

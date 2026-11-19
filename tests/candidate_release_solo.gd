@@ -89,7 +89,7 @@ func run() -> void:
  if not world.progress.ground_items.is_empty():
   world.pickup_inventory_drop(1,actor,world.progress.ground_items[0].id)
  check(world.progress.ground_items.is_empty(),"pickup through admitted world")
- actor.pos=world.Stage.GATE
+ actor.pos=world.stage.gate_position()
  actor.prepared=1
  world.progress.add_parts(1,3)
  world.open_gate_preparation()

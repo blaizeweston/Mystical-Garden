@@ -11,7 +11,7 @@ const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Mode = preload("res://assets/terrain_m02/experimental/experiment_mode.gd")
-const Field = preload("res://assets/terrain_m02/experimental/experiment_wilds.gd")
+const Field = preload("res://battlefield.gd")
 const Parts = preload("res://weapon_parts.gd")
 const Items = preload("res://item_catalog.gd")
 const Menu = preload("res://main_menu.tscn")
@@ -181,7 +181,7 @@ func run() -> void:
 		return game.progress.heart.start(game.progress, "clearing_1"))
 	game.run_heart_save(func():
 		return game.progress.heart.add_work(game.progress, 60.0))
-	check(game.progress.heart.has("clearing_1") and garden.state.revision == 0, "research grants growth without spending energy or placing land")
+	check(game.progress.heart.has("clearing_1") and garden.state.reclaimed_cells == 0, "research grants permission without paid reclamation")
 	view._process(0.0)
 	check(view.points[scar.id].visible and GardenInteractions.allowed(game, scar),
 		"Reaching Roots reveals the original journal observation")
@@ -273,7 +273,7 @@ func run() -> void:
 		if garden.reveal != null:
 			garden.reveal.custom_step(3.0)
 		await process_frame
-	check(garden.state.revision == 2 and garden.network.size() == 2 and garden.state.entrance_clear(), "connected growth preserves the Gate and root network")
+	check(garden.network.size() == 2 and garden.state.entrance_clear(), "connected growth preserves the Gate and root network")
 	var stable_id: int = garden.bed_ids[3]
 	var planted: int = game.progress.plots[3].species
 	var relocation := Vector2.INF
@@ -478,7 +478,7 @@ func run() -> void:
 	check(stored_profile.load_profile(false) == OK and stored_profile.data.xp == player.character.xp
 		and stored_profile.data.monsters == player.character.monsters,
 		"the loss settlement persisted exact XP and kill counts")
-	check(not ExpeditionCase.is_wild(player) and garden.state.revision == 2 and garden.bed_ids[3] == stable_id
+	check(not ExpeditionCase.is_wild(player) and garden.network.size() == 2 and garden.bed_ids[3] == stable_id
 		and game.progress.plots[3].species == planted and garden.barrier.walkable(garden.planar(player.pos)),
 		"production return retains the session Garden and crop")
 	check(is_equal_approx(garden.assimilation.queue[0].done, study_work), "return preserves study progress without extra work")
@@ -518,7 +518,7 @@ func run() -> void:
 		if garden.reveal != null:
 			garden.reveal.custom_step(3.0)
 	garden.development_dialog.hide()
-	check(garden.state.revision == 3 and garden.state.entrance_clear() and garden.bed_ids[3] == stable_id
+	check(garden.network.size() == 3 and garden.state.entrance_clear() and garden.bed_ids[3] == stable_id
 		and game.progress.plots[3].species == planted, "further growth preserves ownership, Gate and cultivation")
 	game.run_heart_save(func(): return game.progress.heart.start(game.progress, "irrigation"))
 	step_progress(game, game.progress.heart.duration("irrigation"))
@@ -573,7 +573,7 @@ func run() -> void:
 		route_failures += sample.query_failures
 	var lair := Field.new()
 	lair.configure(0, 6, 241, 20, 0)
-	check(lair.generated.is_empty() and lair.boss_kind == 20 and lair.connected(), "boss uses its existing handcrafted lair")
+	check(lair.generated.layout.layout_kind == "boss_lair" and lair.boss_kind == 20 and lair.connected(), "boss preserves its authored lair on the modern terrain pipeline")
 	check(not lair.has_seed_cache() and lair.clear_seed_count(6) == 0, "boss ambient seed rewards stay separate from authored rewards")
 	var repeat := Field.new()
 	repeat.configure(game.Campaign.GROVE, 2, 91301383)

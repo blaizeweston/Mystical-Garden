@@ -32,7 +32,7 @@ static func fill_water(game: Node,id: int) -> bool:
  preload("res://diagnostic_journal.gd").event("garden","spring_water_collected",{"actor":id,"point":"spring_water"})
  return true
 static func spring_ready(game: Node) -> bool:
- return Growth.spring_ready(game.progress) and (not game.has_meta(&"experimental_terrain") or game.stage.station_position("spring").is_finite())
+ return Growth.spring_ready(game.progress) and (not (game.stage.experimental_garden != null) or game.stage.station_position("spring").is_finite())
 static func projection(game: Node,id: int) -> Dictionary:
  if not game.multiplayer.is_server():return game.players.get(id,{}).get("garden_interactions",{}).get("cultivation",{})
  var beds: Array=[];var player: Dictionary=game.players.get(id,{})

@@ -127,7 +127,7 @@ func run() -> void:
   and not UIFixture.control(world,"planting_menu").visible, "ordinary planting commits, reports success and closes the picker")
  record("planting", before)
  before = disk()
- host.pos = world.Stage.ALTAR
+ host.pos = world.stage.altar_position()
  world.seed_reserve(host).unknown.append(1)
  world.garden_action(world.HOST, "altar_identify")
  check(world.seed_reserve(host).unknown.is_empty() and world.status.begins_with("Identified ")
@@ -300,6 +300,8 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
   var world := start(stores.slots, stores.roster, true)
   if world == null: return
   var host: Dictionary = world.players[world.HOST]
+  if feature=="watering":
+   check(preload("res://tests/support/garden_case.gd").place_researched(world,"spring"),"watering fixture builds its researched basin before injecting failure")
   var before := disk()
   var previous_event: int = world.combat_event_serial
   var attempts := {"receipts":0, "replacements":0}
@@ -324,7 +326,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
     check(UIFixture.control(world,"feedback").text.contains(CleanupNotice) and UIFixture.control(world,"toast_panel").visible,
      "cleanup pending is visible after the picker closes")
    "altar":
-    host.pos = world.Stage.ALTAR
+    host.pos = world.stage.altar_position()
     world.seed_reserve(host).unknown.append(1)
     world.garden_action(world.HOST, "altar_identify")
     ordinary = "Identified %s." % world.Seeds.NAMES[1]

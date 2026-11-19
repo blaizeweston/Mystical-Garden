@@ -80,7 +80,7 @@ func prepare(response: String) -> Dictionary:
 	ExpeditionCase.set_world(game, {"encounter_number": profile.floor})
 	ExpeditionCase.set_world(game, {"map_seed": 0})
 	game.battlefield.configure(game.participation.route(), game.participation.depth(), game.participation.seed())
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.encounter.set_hp(-1, 500)
 	game.enemy_kind = 0
 	game.tactics.position = Vector3(12, 0, 5)

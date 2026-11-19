@@ -20,8 +20,7 @@ func run():
  # assumptions. New generated layouts intentionally change their orientation.
  for direction in [Vector3.RIGHT,Vector3.LEFT,Vector3.FORWARD,Vector3.BACK]:
   var field=game.battlefield
-  field.clearings.assign([Vector3(0,0,5),Vector3(direction.x*24,direction.z*24,3)])
-  field.links=[[0,1,2.0]];field.barriers=[];field.bake_surface();field.rebuild()
+  preload("res://tests/support/terrain_case.gd").walls(field,[])
   var from: Vector3=direction*22.8;var to: Vector3=direction*23.45
   check(field.clear_line(from,to,field.CLEARANCE),"edge fixture has a clear baked path")
   check(game.bound_position(to,true).distance_to(to)<.001,"old rectangular arena limit must not clip generated floor")
@@ -35,13 +34,11 @@ func run():
  check(frontier_checks>=3,"fixture covers multiple generated outer clearings")
  for seed_value in [91247,98723,91261]:
   game.stage.redraw_terrain(0,1,seed_value)
-  var roots=game.stage.terrain.get_node_or_null("ContinuousBoundaryRoots")
-  check(roots!=null and roots.mesh!=null,"continuous roots are populated")
-  if roots:
-   check(int(roots.get_meta("boundary_chains"))>0 and int(roots.get_meta("boundary_chains"))<8,"boundary trace is not fragmented into partial pieces")
+  var feature=game.stage.terrain.find_child("Boundary",true,false)
+  check(feature!=null and feature.get_child_count()>0,"the modern continuous boundary is rendered")
   var floor=game.stage.visual_field
   check(floor.connected(),"rendered floor and movement floor share connectivity")
- check(game.stage.scenery_materials.size()>3,"bark leaf and stone have distinct materials")
+ check(not game.stage.visual_field.generated.layout.boundary.rim.is_empty(),"modern terrain owns its visible enclosure")
  print("Frontier crossings tested: ",frontier_checks)
  if not failed: print("PASS: generated floor limits, normal movement beyond old bounds, connected floor and continuous root chains across three maps")
  game.queue_free();await process_frame

@@ -49,7 +49,7 @@ func run() -> void:
  g.path=path;check(choose(game,"deep").get("changed",false),"host changes next-cycle policy")
  check(g.plots[3].care==original and game.rng.state==rng_before,"setting and research do not reroll existing crop or gameplay RNG")
  check(choose(game,"gentle",0).has("error") and choose(game,"bad",1).has("error"),"stale and unknown mode rejected")
- p.pos=game.Stage.GATE;check(choose(game,"gentle",1).has("error"),"remote host cannot change setting")
+ p.pos=game.stage.gate_position();check(choose(game,"gentle",1).has("error"),"remote host cannot change setting")
  g.plots[3].species=-1;plant(game,species,3);var bed: Dictionary=g.plots[3];check(bed.care.opportunity=="deep_bud" and bed.care.zone_condition=="deep","new terrace crop snapshots deep policy")
  var cycle: String=bed.care.cycle;bed.stage=2;Care.choose(bed,"preserve",.5)
  check(is_equal_approx(Care.duration(bed,100),140) and is_equal_approx(Care.chance(bed,.1),.35),"deep policy reuses bounded duration and chance")

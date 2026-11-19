@@ -161,9 +161,9 @@ func title_and_progression() -> bool:
 	game.map_rng.seed=16
 	game.PartyTravel.request(game,1,"depart")
 	deadline = Time.get_ticks_msec()+6500
-	while (not ExpeditionCase.is_wild(player) or not game.stage._has_experimental_floor()) and Time.get_ticks_msec()<deadline:
+	while (not ExpeditionCase.is_wild(player) or not game.stage.has_floor()) and Time.get_ticks_msec()<deadline:
 		await process_frame
-	var departed: bool = ExpeditionCase.is_wild(player) and game.stage._has_experimental_floor()
+	var departed: bool = ExpeditionCase.is_wild(player) and game.stage.has_floor()
 	check(departed,"real guarded terrain expedition departure")
 	return departed
 
@@ -426,7 +426,7 @@ func run() -> void:
 		return
 	game.set_physics_process(false)
 	game.battlefield.configure(0,1,0)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.tactics.boss_kind=-1
 	game.set_meta(Events.RECORD,func(event):events.append(event))
 	offense()

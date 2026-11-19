@@ -79,8 +79,8 @@ func configure(world: Node, presentation: Node3D) -> void:
 	game = world
 	stage = presentation
 	stage.experimental_garden = self
-	stage.visual_field = preload("res://assets/terrain_m02/experimental/experiment_wilds.gd").new()
-	for node in [stage.garden_disc, stage.garden_edge, stage.legacy_garden_base, stage.legacy_gate, stage.legacy_altar, stage.heart_tree, stage.heart_seed]:
+	stage.visual_field = preload("res://battlefield.gd").new()
+	for node in [stage.heart_tree,stage.heart_seed]:
 		node.hide()
 	game.progress.player_placed_beds = true
 	# The shared stash stores canonical components. Do not offer an alias of the same stack.
@@ -94,7 +94,25 @@ func configure(world: Node, presentation: Node3D) -> void:
 		var point: Vector3 = stage.PLOTS[index]
 		protections.append(Shapes.disk("bed_%d" % index, "plot", planar(point), 1.06))
 	protections.append(Shapes.disk("altar", "station", Vector2(-3.5, -2), 0.88))
-	for row: Dictionary in protections:
+	# Keep authored interaction landmarks usable on the generated Garden floor.
+	# This reserves geometry only; research and construction still authorize services.
+	for point: Dictionary in preload("res://garden_interaction_catalog.gd").POINTS:
+		var reserved_point := Shapes.disk("interaction_"+point.id,"interaction",planar(point.position),0.65)
+		reserved_point.requires_access=false # Reserve scenery, without an invisible actor collider.
+		reserved_point.blocks_movement=false
+		protections.append(reserved_point)
+	for id: String in stage.HEART_STATIONS:
+		var reserved_station := Shapes.disk("native_station_"+id,"station",planar(stage.HEART_STATIONS[id]),0.65)
+		reserved_station.requires_access=false
+		reserved_station.blocks_movement=(id=="living_archive")
+		protections.append(reserved_station)
+	var cleared_beds: Array=protections.duplicate()
+	for index in range(3,mini(game.progress.plots.size(),stage.PLOTS.size())):
+		var owned_bed := Shapes.disk("owned_bed_%d"%index,"plot",planar(stage.PLOTS[index]),1.3)
+		owned_bed.blocks_movement=false # The construction record supplies its actual footprint.
+		cleared_beds.append(owned_bed)
+		protections.append(owned_bed)
+	for row: Dictionary in cleared_beds:
 		layout.rocks = layout.rocks.filter(func(rock): return not Shapes.in_any([rock], row.center, row.radius + 0.55))
 		layout.plants = layout.plants.filter(func(plant): return plant.center.distance_to(row.center) > row.radius + 0.65)
 	layout = Art.placements(Enclosure.build(layout, cells, Spacing, Seed, true), 0)
@@ -103,6 +121,7 @@ func configure(world: Node, presentation: Node3D) -> void:
 	add_child(barrier)
 	barrier.bind(state)
 	construction = Build.new(barrier)
+	adopt_recorded_beds()
 	var profile := Art.profile(0)
 	material = Surface.material(cells, layout, Seed, Radius, Spacing)
 	material.set_shader_parameter("art_mode", 1)
@@ -146,6 +165,10 @@ func configure(world: Node, presentation: Node3D) -> void:
 	_initialize_controls()
 
 func show_heart_stage(index: int) -> void:
+	var id := "living_archive"
+	if not stage.heart_stations.has(id):
+		stage.heart_stations[id]=preload("res://heart_visuals.gd").station(stage,id,stage.HEART_STATIONS[id])
+	stage.heart_stations[id].visible=stage.heart_unlocked.has(id)
 	if heart.stage != mini(index, 4):
 		heart.show_stage(mini(index, 4))
 
@@ -166,6 +189,7 @@ func return_position() -> Vector3:
 	return landmark("wilds_entrance")
 
 func station_position(id: String) -> Vector3:
+	if id=="living_archive":return stage.HEART_STATIONS[id]
 	return world(construction.records[station_ids[id]].at) if station_ids.has(id) else Vector3.INF
 
 func bed_position(index: int) -> Vector3:
@@ -520,7 +544,7 @@ func _initialize_controls() -> void:
 	offering_dialog.study_summary = _offering_studies
 	add_child(offering_dialog)
 	development_dialog = AcceptDialog.new()
-	development_dialog.title = "Experimental Garden Development"
+	development_dialog.title = "Garden Development"
 	development_dialog.ok_button_text = "Back to Garden"
 	development_dialog.exclusive = true
 	add_child(development_dialog)
@@ -703,3 +727,11 @@ func _cancel_placement() -> void:
 	if ghost != null:
 		ghost.queue_free()
 		ghost = null
+
+func adopt_recorded_beds() -> void:
+	# Existing crop records already own these beds. Preserve their crops and
+	# investments when entering the generated Garden; never buy them twice.
+	for index in range(3,mini(game.progress.plots.size(),stage.PLOTS.size())):
+		if bed_ids.has(index):continue
+		bed_ids[index]=construction.adopt_owned_bed(planar(stage.PLOTS[index]))
+		layout_revision+=1

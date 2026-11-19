@@ -198,7 +198,7 @@ func _build_grid() -> void:
 	_revision = forest.garden.revision
 	_fixed_goals.clear()
 	for feature: Dictionary in forest.garden.landmarks.values():
-		if feature.id == "wilds_entrance":
+		if feature.id == "wilds_entrance" or not feature.get("requires_access",true):
 			continue
 		var targets: Array[Vector2] = []
 		for angle in 16:
@@ -311,3 +311,15 @@ func _connections(at: Vector2, shapes: Array, blocked: Dictionary) -> Dictionary
 			if forest.fixed_walkable(mid, clearance) and not Shape.in_any(shapes, mid, clearance):
 				result[id] = true
 	return result
+
+func adopt_owned_bed(at: Vector2) -> int:
+	# Bounded runtime adoption of an existing saved crop slot, not a purchase.
+	# Crop content remains in Progress; this owner stores only its placement.
+	assert(at.is_finite())
+	var id := next_id
+	next_id+=1
+	records[id]={"id":id,"kind":"bed","at":at,"yaw":0.0,
+		"footprint":footprint("bed",at,0.0),"state":{"crop":"","growth":0.0}}
+	_sync_obstacles()
+	_revision=-1
+	return id

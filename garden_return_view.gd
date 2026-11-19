@@ -50,7 +50,7 @@ func _process(delta: float) -> void:
  var scenes=get_parent().get_node("GrowthScenes")
  for definition in Service.Catalog.DEFINITIONS:
   var known: bool=Service.known(data,str(definition.id))
-  if game.has_meta(&"experimental_terrain") and not get_parent().points[definition.point].visible:known=false
+  if (game.stage.experimental_garden != null) and not get_parent().points[definition.point].visible:known=false
   if known and not traces.has(definition.id):traces[definition.id]=build(definition)
   if traces.has(definition.id):
    var amount:=1.0

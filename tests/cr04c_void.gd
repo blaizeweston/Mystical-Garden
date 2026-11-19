@@ -36,7 +36,7 @@ func run() -> void:
 	game.set_physics_process(false)
 	var p: Dictionary=game.players[1]
 	ExpeditionCase.set_membership(game, p, true);SessionCase.set_ready(game, p, true);p.pos=Vector3(-4,0,0)
-	game.battlefield.procedural=false;game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.encounter.set_hp(-1, 200);game.tactics.position=Vector3(1.4,0,0)
 	game.encounter.clear_scouts()
 	var part: int=game.Items.get_item("part_14").legacy_part
@@ -78,10 +78,10 @@ func run() -> void:
 	Void.resolve_motion(game,100,now)
 	check(game.enemy_health()==165 and is_equal_approx(game.tactics.position.x,.3),"exhausted displacement allowance leaves valid bonus damage")
 	game.encounter.set_hp(-1, 175)
-	game.battlefield.barriers.assign([Rect2(.65,-1,.40,2)])
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[Rect2(.65,-1,.40,2)])
 	var blocked:=Void.safe_motion(game,-1,Vector3(-.45,0,0),Vector3(1.8,0,0))
 	check(blocked.x<.65,"displacement trace cannot cross a solid wall")
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 
 	game.tactics.position=Vector3(1.8,0,0)
 	game.tactics.memory.erase(Void.ALLOWANCE_STATE)
@@ -189,7 +189,7 @@ func run() -> void:
 
 
 func check_crossing(game: Node, p: Dictionary) -> void:
-	var experimental = preload("res://assets/terrain_m02/experimental/experiment_wilds.gd").new()
+	var experimental = preload("res://battlefield.gd").new()
 	var shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 	var confirmed:=false
 	game.encounter.clear_scouts()

@@ -12,7 +12,7 @@ func check(ok: bool,message: String):
 func _initialize():call_deferred("run")
 func run():
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/inventory-party-"+str(Time.get_ticks_usec());game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
- var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.GATE;p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0;p.cargo_plan.fill(0)
+ var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, false);p.pos=game.stage.gate_position();p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0;p.cargo_plan.fill(0)
  var friend: Dictionary=p.duplicate(true);SessionCase.set_identity(game, friend, "inventory-test-friend");ExpeditionCase.install_actor(game, 2, friend)
  var own: Dictionary=game.seed_reserve(p);var theirs: Dictionary=game.seed_reserve(friend)
  own.parts.fill(0);theirs.parts.fill(0);game.progress.parts.fill(0);own.stock.fill(0);theirs.stock.fill(0);game.progress.parts[0]=1

@@ -72,8 +72,8 @@ func arena() -> void:
 	game.tactics.winding_up=false
 	game.enemy_mutations=0
 	game.battlefield.configure(0,1,0)
-	game.battlefield.procedural=false
-	game.battlefield.barriers.clear()
+
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.encounter.clear_scouts()
 	game.enemy_traits.clear()
 	game.trait_events.clear()

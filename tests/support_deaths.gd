@@ -47,7 +47,7 @@ func run():
   for ally in preload("res://enemy_formation.gd").allies(game, scout): nearby+=int(scout.pos.distance_to(ally.pos)<=float(game.Enemies.get_kind(scout.kind).get("escort_radius",3.8)) and game.battlefield.clear_line(scout.pos,ally.pos))
   check(nearby>=2,"all-support composition is repaired")
  # During combat the caster follows allies instead of walking at the player alone.
- game.battlefield.barriers=[];game.encounter.set_hp(-1, 0)
+ preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);game.encounter.set_hp(-1, 0)
  var caster: Dictionary=game.make_scout(3,Vector3(0,0,0),1)
  var ally: Dictionary=game.make_scout(0,Vector3(5,0,0),2);ally.engaged=true;ally.windup=Time.get_ticks_msec()+60000
  game.encounter.clear_scouts();game.encounter.register_scout(caster);game.encounter.register_scout(ally);ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.pos=Vector3(-4,0,0)

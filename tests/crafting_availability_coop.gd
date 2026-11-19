@@ -30,7 +30,7 @@ func host_run() -> void:
   check(false,"guest registers: "+game.status+" / peers "+str(game.players.keys()));return
  var id=int(game.players.keys()[1]);var p: Dictionary=game.players[id]
  game.progress.parts.fill(0);game.seed_reserve(p).parts.fill(0);game.progress.parts[0]=1
- for player in game.players.values():player.pos=game.Stage.GATE;player.prepared=0;player.prepared_secondary=0;player.prepared_catalyst=0
+ for player in game.players.values():player.pos=game.stage.gate_position();player.prepared=0;player.prepared_secondary=0;player.prepared_catalyst=0
  check(await until(func():return p.prepared==1 and marked("first")),"guest assigns first copy")
  check(await until(func():return marked("forged")),"guest sends duplicate request")
  check(p.prepared_secondary==0,"host rejects a second reservation of sole copy")
@@ -72,7 +72,7 @@ func guest_run() -> void:
  var display_summary: Dictionary=game.run_summary_ui_data()
  display_summary.stats.clear();display_summary.copies.clear()
  check(JSON.stringify(game.players[id].get("weapon_stats",{}))==original_stats,"Tab read results cannot edit reliable weapon details")
- check(await until(func():return game.players[id].pos.distance_to(game.Stage.GATE)<1 and game.players[id].get("stored_parts",[]).size()>1 and int(game.players[id].stored_parts[1])==1),"owned counts arrive")
+ check(await until(func():return game.players[id].pos.distance_to(game.stage.gate_position())<1 and game.players[id].get("stored_parts",[]).size()>1 and int(game.players[id].stored_parts[1])==1),"owned counts arrive")
  game.open_gate_preparation();view.refresh()
  check(view.slots[1].get_item_index(1)>=0,"sole part initially available")
  view.select_part(0,1)

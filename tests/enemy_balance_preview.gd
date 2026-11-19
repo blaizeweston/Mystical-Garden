@@ -122,8 +122,8 @@ func depth_curves() -> void:
 func contact_and_hazards() -> void:
 	floor_state(1,1)
 	game.battlefield.configure(0,1,0)
-	game.battlefield.procedural=false
-	game.battlefield.barriers.clear()
+
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.encounter.clear_scouts()
 	player.pos=Vector3(0,0,.5)
 	var rootbound: Dictionary=game.Enemies.get_kind(0)

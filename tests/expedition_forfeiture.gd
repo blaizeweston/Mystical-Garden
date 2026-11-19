@@ -29,7 +29,7 @@ func owner_contract() -> void:
  check(rewards.forfeit_expedition("one",12).xp==[1,2,3,4,5],"floor receipt cleanup does not erase the run baseline")
 
 func enter_run(actor: Dictionary) -> void:
- actor.pos=world.Stage.GATE
+ actor.pos=world.stage.gate_position()
  ExpeditionCase.Transitions.enter(world,1,actor)
  check(ExpeditionCase.is_wild(actor),"actual guarded expedition admission")
 

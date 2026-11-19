@@ -15,7 +15,7 @@ func _initialize():
 func run():
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/monster-behaviors-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var p=game.players[1];ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,4);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100)
- game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,5);game.enemy_mutations=0
+ game.battlefield.configure(0,1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,5);game.enemy_mutations=0
  var shepherd=game.make_scout(10,Vector3(1,0,6),1);shepherd.mode="shepherd"
  var escort=game.make_scout(0,Vector3(0,0,6),2);game.encounter.clear_scouts();game.encounter.register_scout(shepherd);game.encounter.register_scout(escort);preload("res://scout_behavior.gd").release(game, shepherd,game.Enemies.get_kind(10),2000)
  check(int(escort.get("command_target",0))==1 and int(escort.get("command_until",0))>2000,"Shepherd coordinates its escorts against a live target")
@@ -56,10 +56,10 @@ func run():
 
  hart.pos=origin
  Attacks.lock(game,hart,"vault",landing,now+1000)
- game.battlefield.barriers.append(Rect2(landing.x-.2,landing.z-.2,.4,.4))
+ preload("res://tests/support/terrain_case.gd").add_wall(game.battlefield,Rect2(landing.x-.2,landing.z-.2,.4,.4))
  preload("res://scout_behavior.gd").release(game, hart,game.Enemies.get_kind(17),now+1000)
  check(hart.pos==origin and PlayerVitals.current_hp(p)==100-hart_damage,"invalidated landing cancels without an unmarked hit")
- game.battlefield.barriers.clear()
+ preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 
  var stag: Dictionary=game.make_scout(2,Vector3.ZERO,1)
  game.encounter.clear_scouts();game.encounter.register_scout(stag)

@@ -20,7 +20,7 @@ func run():
  game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
  var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.pos=Vector3(0,0,-1);p.frame=2
  var tree=game.Classes.connected_tree(2);p.character[tree.profile_key]=tree.state(["wildstalker"])
- game.battlefield.configure(0,1);game.battlefield.barriers.clear();game.encounter.set_hp(-1, 80);game.tactics.position=Vector3(0,0,1);game.enemy_traits.clear();game.encounter.clear_scouts();game.tactics.winding_up=false
+ game.battlefield.configure(0,1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);game.encounter.set_hp(-1, 80);game.tactics.position=Vector3(0,0,1);game.enemy_traits.clear();game.encounter.clear_scouts();game.tactics.winding_up=false
  var now:=Time.get_ticks_msec();p[Conditions.STATE] = p[Conditions.STATE].with_slow_until(now+4000)
  var stats: Dictionary={"damage":1.0,"reach":4.0,"knockback":-.35,"ranger_direct_hit":true}
  check(Ranger.track(game,1,p,-1,1,now),"a source-owned Tracked Prey record is accepted")

@@ -23,7 +23,7 @@ func run():
   check(SessionCase.World.host(game)==OK,"host starts")
   if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))): check(false,"guest registers");quit(1);return
   var id: int=game.players.keys()[1];var host: Dictionary=game.players[1];var guest: Dictionary=game.players[id]
-  host.pos=game.Stage.GATE;guest.pos=game.Stage.GATE
+  host.pos=game.stage.gate_position();guest.pos=game.stage.gate_position()
   for actor in [host,guest]:
    var tree=game.Classes.connected_tree(int(actor.frame))
    actor.character[tree.profile_key]=tree.state([tree.nodes[0].id])
@@ -48,7 +48,7 @@ func run():
   check(ExpeditionCase.is_wild(host) and ExpeditionCase.is_wild(guest),"host cannot extract guest without consent")
   check(await until(func():return not ExpeditionCase.is_wild(host) and not ExpeditionCase.is_wild(guest)),"party extraction completes together")
   check(game.progress.unknown.has(0) and game.seed_reserve(guest).unknown.has(1),"both inventories bank separately")
-  host.pos=game.Stage.GATE;guest.pos=game.Stage.GATE;ExpeditionCase.Transitions.enter(game, 1,host)
+  host.pos=game.stage.gate_position();guest.pos=game.stage.gate_position();ExpeditionCase.Transitions.enter(game, 1,host)
   check(await until(func():return game.players.size()==1),"guest disconnect processed")
   check(not ExpeditionCase.is_wild(host) and game.participation.travel_kind().is_empty(),"disconnect never silently launches remaining player")
  else:

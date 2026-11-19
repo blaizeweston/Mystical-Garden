@@ -17,7 +17,7 @@ func run():
  game.progress.path="res://.godot/altar_test_"+token+".cfg";game.local_character.path=game.progress.path+".character"
  root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var g=game.progress;var p: Dictionary=game.players[1];var reserve: Dictionary=game.seed_reserve(p)
- p.pos=game.Stage.ALTAR;reserve.stock[0]=5;reserve.stock[1]=5;reserve.parts[1]=5;reserve.parts[2]=5
+ p.pos=game.stage.altar_position();reserve.stock[0]=5;reserve.stock[1]=5;reserve.parts[1]=5;reserve.parts[2]=5
  game.send_action(false)
  check(UIFixture.control(game,"altar_menu").visible and reserve.stock[0]==5,"E opens altar without identifying, crafting or spending")
  var seeds:=pair(Items.seed_id(0),Items.seed_id(1))
@@ -84,10 +84,10 @@ func run():
  ExpeditionCase.set_membership(game, p, true)
  captured=Service.capture(game,p);Service.combine(game,p,parts)
  check(Service.capture(game,p)==captured,"Wilds request cannot use Garden altar")
- ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.GATE
+ ExpeditionCase.set_membership(game, p, false);p.pos=game.stage.gate_position()
  Service.combine(game,p,parts)
  check(Service.capture(game,p)==captured,"remote altar request fails range validation")
- p.pos=game.Stage.ALTAR
+ p.pos=game.stage.altar_position()
  g.save_garden()
  var reload=load("res://progress.gd").new();reload.path=g.path;reload.load_garden()
  check(reload.altar_recipes==g.altar_recipes,"recipe book persists in Garden save")

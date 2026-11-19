@@ -14,23 +14,20 @@ const FIELD = preload("res://battlefield.gd")
 
 static func candidate(field: RefCounted, point: Vector3, origin: Vector3, options: Dictionary) -> void:
 	var cell := Vector2i(roundi(point.x * 2.0),roundi(point.z * 2.0))
-	if options.has(cell) or not field.navigation.region.has_point(cell) or field.navigation.is_point_solid(cell):
+	if options.has(cell) or field.occupied(Vector3(cell.x*.5,0,cell.y*.5), FIELD.CLEARANCE+.1):
 		return
 	var at := Vector3(cell.x * .5,0,cell.y * .5)
 	var distance := origin.distance_to(at)
 	if distance < 5.0 or at.distance_to(field.advance) < 2.5 or at.distance_to(field.entry) < 2.5:
 		return
-	var edge_cost := absf(field.floor_distance(at) - .95) * .8 if field.procedural else 0.0
+	var edge_cost := absf(field.floor_distance(at) - .95) * .8
 	options[cell] = {"at":at,"score":absf(distance - 10.5) + edge_cost}
 
 
 static func path_to(field: RefCounted, origin: Vector3, tunnel: Vector3) -> PackedVector3Array:
 	if field.clear_line(origin,tunnel,FIELD.CLEARANCE+.1):
 		return PackedVector3Array([tunnel])
-	var target := Vector2i(roundi(tunnel.x * 2.0),roundi(tunnel.z * 2.0))
-	if not field.navigation.region.has_point(target) or field.navigation.is_point_solid(target):
-		return PackedVector3Array()
-	var grid: PackedVector2Array = field.navigation.get_point_path(field.free_cell(origin),target)
+	var grid: PackedVector2Array = field.navigation_graph.route(FIELD.planar(origin),FIELD.planar(tunnel))
 	var route := PackedVector3Array()
 	var start := 0
 	var anchor := origin
@@ -52,10 +49,10 @@ static func path_to(field: RefCounted, origin: Vector3, tunnel: Vector3) -> Pack
 
 static func plan(field: RefCounted, origin: Vector3) -> PackedVector3Array:
 	var options := {}
-	for clearing in field.clearings:
+	for clearing: Dictionary in field.ground.layout.clearings:
 		for i in 8:
 			var angle := i * TAU / 8.0
-			candidate(field,Vector3(clearing.x + cos(angle) * clearing.z * .78,0,clearing.y + sin(angle) * clearing.z * .78),origin,options)
+			candidate(field,Vector3(clearing.center.x + cos(angle) * float(clearing.get("radius",1.0)) * .78,0,clearing.center.y + sin(angle) * float(clearing.get("radius",1.0)) * .78),origin,options)
 	for i in 12:
 		var angle := i * TAU / 12.0
 		candidate(field,origin + Vector3(cos(angle),0,sin(angle)) * 10.5,origin,options)

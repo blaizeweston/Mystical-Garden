@@ -77,12 +77,7 @@
     },
     "hex_terrain": {
       "label": "Standalone M02 hex grid, terrain data, generator and welded surface",
-      "files": [
-        "scout_behavior.gd",
-        "scout_behavior.gd.uid",
-        "enemy_attack_hits.gd",
-        "enemy_attack_hits.gd.uid"
-      ]
+      "files": ["scout_behavior.gd", "scout_behavior.gd.uid", "enemy_attack_hits.gd", "enemy_attack_hits.gd.uid", "assets/terrain_m02/wilds_boss_layout.gd", "assets/terrain_m02/wilds_boss_layout.gd.uid"]
     },
     "persistence_operations": {
       "label": "Guarded persistence operations, explicit session holds and activation gate",
@@ -211,22 +206,11 @@
     },
     "terrain": {
       "label": "Procedural paths, collision and floor exploration",
-      "files": [
-        "battlefield.gd",
-        "encounter_config.gd",
-        "exploration.gd",
-        "walkable_surface.gd",
-        "walkable_surface.gd.uid",
-        "wilds_layout.gd",
-        "wilds_layout.gd.uid"
-      ]
+      "files": ["battlefield.gd", "encounter_config.gd", "exploration.gd", "tests/support/terrain_case.gd"]
     },
     "garden": {
       "label": "Garden beds, care, scenery and Heart appearance",
-      "files": [
-        "garden_visuals.gd",
-        "heart_visuals.gd"
-      ]
+      "files": ["garden_visuals.gd", "heart_visuals.gd", "tests/support/garden_case.gd"]
     },
     "knowledge": {
       "label": "Knowledge research and Garden unlocks",
@@ -1667,6 +1651,7 @@
     ]
   },
   "suites": {
+    "modern_terrain_cutover": {"kind": "unit", "systems": ["hex_terrain", "terrain", "garden", "boss_lair_fights", "boss_phase_fights", "connection_flow"], "package": false},
     "progression_ui": {"kind": "unit", "systems": ["progression_ui", "gameplay_ui", "classes", "knowledge", "seeds", "garden_returns"], "package": false},
     "player_build_ui": {"kind": "unit", "systems": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_summary", "progression_ui"], "package": false},
     "gameplay_ui": {"kind": "unit", "systems": ["gameplay_ui", "presentation", "affinity_cards", "party_ui"], "package": false},
@@ -5291,15 +5276,7 @@
       }, "cr04c_void_hud_0": {
         "systems": ["void_affinity", "combat_affinity_contracts", "world_snapshot", "presentation"],
         "additive": true
-      }, "cr02_affinity_contract": {"additive": true, "systems": ["combat_affinity_contracts"]}, "experimental_coop_1": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "connection_flow",
-          "garden"
-        ],
-        "additive": true
-      }, "experimental_seed_rewards_1": {
+      }, "cr02_affinity_contract": {"additive": true, "systems": ["combat_affinity_contracts"]},  "experimental_seed_rewards_1": {
         "systems": [
           "hex_terrain",
           "loot",
@@ -5312,15 +5289,7 @@
           "terrain"
         ],
         "additive": true
-      }, "experimental_terrain_1": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "garden",
-          "persistence_operations"
-        ],
-        "additive": true
-      }, "experimental_terrain_3": {
+      },  "experimental_terrain_3": {
         "systems": [
           "hex_terrain",
           "terrain",
@@ -6069,15 +6038,6 @@
         ],
         "additive": true
       },
-      "experimental_terrain_1": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "garden",
-          "persistence_operations"
-        ],
-        "additive": true
-      },
       "experimental_terrain_3": {
         "systems": [
           "hex_terrain",
@@ -6499,32 +6459,6 @@
           "persistence_operations"
         ],
         "additive": true
-      },
-      "experimental_terrain_3": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "garden",
-          "persistence_operations"
-        ],
-        "additive": true
-      },
-      "production_route": {
-        "additive": true,
-        "systems": [
-          "persistence_operations",
-          "persistence_authorization",
-          "persistence_recovery_plan",
-          "persistence_save_access",
-          "menus",
-          "characters",
-          "developer_garden",
-          "connection_flow",
-          "foundation",
-          "menu_layout",
-          "event_audio",
-          "soundscape"
-        ]
       },
       "shared_menu_button_roots": {
         "additive": true,
@@ -7174,35 +7108,7 @@
             "loot",
             "terrain"
           ]
-        }, "experimental_terrain_1": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_3": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_5": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_7": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_9": {
+        },     "experimental_terrain_9": {
           "systems": [
             "hex_terrain",
             "terrain",
@@ -7216,70 +7122,7 @@
             "garden",
             "persistence_operations"
           ]
-        }, "experimental_terrain_13": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_15": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_17": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_19": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_21": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_23": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_25": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_27": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_29": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_31": {
+        },          "experimental_terrain_31": {
           "systems": [
             "hex_terrain",
             "terrain",
@@ -7350,27 +7193,7 @@
           "systems": [
             "garden_life"
           ]
-        }, "garden_undergrowth": {
-          "systems": [
-            "garden_life"
-          ]
-        }, "garden_root_bark": {
-          "systems": [
-            "garden_life"
-          ]
-        }, "garden_meadow": {
-          "systems": [
-            "garden_life"
-          ]
-        }, "garden_floor_tint": {
-          "systems": [
-            "garden_life"
-          ]
-        }, "garden_floor_type": {
-          "systems": [
-            "garden_life"
-          ]
-        }, "garden_scenery_import": {
+        },      "garden_scenery_import": {
           "systems": [
             "garden_life"
           ]
@@ -7390,11 +7213,7 @@
           "systems": [
             "core_combat"
           ]
-        }, "nest_rib_models": {
-          "systems": [
-            "boss_phase_fights"
-          ]
-        }, "rendered_lair_key": {
+        },  "rendered_lair_key": {
           "systems": [
             "boss_phase_fights"
           ]
@@ -7446,19 +7265,7 @@
           "systems": [
             "heart_growth_visual"
           ]
-        }, "forest_extent": {
-          "systems": [
-            "terrain"
-          ]
-        }, "terrain_diagnostics": {
-          "systems": [
-            "terrain"
-          ]
-        }, "update_garden_growth": {
-          "systems": [
-            "garden_cinematics"
-          ]
-        }, "build_garden_pond_growth": {
+        },    "build_garden_pond_growth": {
           "systems": [
             "garden_cinematics"
           ]
@@ -7482,21 +7289,12 @@
           "systems": [
             "garden_cinematics"
           ]
-        }, "update_garden_adapter": {
-          "systems": [
-            "garden_zones"
-          ]
-        }, "build_garden_pond_adapter": {
+        },  "build_garden_pond_adapter": {
           "systems": [
             "garden_life",
             "garden_zones"
           ]
-        }, "build_garden_life_adapter": {
-          "systems": [
-            "garden_zones",
-            "garden_life"
-          ]
-        }, "garden_pond_positions_adapter": {
+        },  "garden_pond_positions_adapter": {
           "systems": [
             "garden_zones"
           ]
@@ -8088,66 +7886,6 @@
         }
       }
     },
-    "garden_growth_view.gd": {
-      "newline": "lf",
-      "regions": {
-        "experimental_terrain_1": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        },
-        "cleanup_feedback_1": {
-          "systems": [
-            "persistence_operations"
-          ]
-        },
-        "meadow_cinematic_bark": {
-          "systems": [
-            "garden_life"
-          ]
-        },
-        "research_cue_without_scene": {
-          "systems": [
-            "event_audio"
-          ]
-        },
-        "research_reveal_cue": {
-          "systems": [
-            "event_audio"
-          ]
-        },
-        "heart_growth_adapter": {
-          "systems": [
-            "heart_growth_visual"
-          ]
-        },
-        "conceal_g07": {
-          "systems": [
-            "garden_conduit",
-            "garden_cinematics"
-          ]
-        },
-        "destination_g07": {
-          "systems": [
-            "garden_conduit",
-            "garden_cinematics"
-          ]
-        },
-        "animate_returns": {
-          "systems": [
-            "garden_returns"
-          ]
-        },
-        "destination_returns": {
-          "systems": [
-            "garden_returns"
-          ]
-        }
-      }
-    },
     "garden_layout.gd": {
       "newline": "lf",
       "regions": {
@@ -8679,35 +8417,6 @@
         "reinforcement_warning": {
           "systems": [
             "expedition_pressure"
-          ]
-        }
-      }
-    },
-    "battlefield.gd": {
-      "newline": "crlf",
-      "regions": {
-        "tc01_ranged_clearance_1": {"systems": ["terrain", "combat", "hex_terrain"]},
-        "tc01_ranged_clearance_2": {"systems": ["terrain", "combat", "hex_terrain"]},
-        "experimental_seed_rewards_1": {
-          "systems": [
-            "hex_terrain",
-            "loot",
-            "terrain"
-          ]
-        },
-        "matriarch_layout": {
-          "systems": [
-            "boss_phase_fights"
-          ]
-        },
-        "finished_terrain": {
-          "systems": [
-            "terrain",
-            "combat",
-            "enemies",
-            "expeditions",
-            "life",
-            "loot"
           ]
         }
       }

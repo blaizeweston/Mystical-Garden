@@ -48,7 +48,7 @@ func setup(kind: int, profile: Dictionary) -> Dictionary:
 	game.combat_events.clear()
 	player[Conditions.STATE] = player[Conditions.STATE].cleanse_slow()
 	game.battlefield.configure(0, 1, 0)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	ExpeditionCase.set_membership(game, player, true)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(40)
 	player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
@@ -252,7 +252,7 @@ func check_counterplay() -> void:
 	check(not game.combat_events.any(func(e): return e.kind == "enemy_release"), "canceled charge cannot show a successful impact")
 	actor = setup(2, profile)
 	learn(actor, profile, now)
-	game.battlefield.barriers.append(Rect2(-2, -2.8, 4, 1.6))
+	preload("res://tests/support/terrain_case.gd").add_wall(game.battlefield,Rect2(-2, -2.8, 4, 1.6))
 	check(arm(actor, profile, now + 1500).is_empty() and not actor.has("skill_response_used"), "blocked routes leave the response available for later")
 	actor.summoned = true
 	check(not Tactics.eligible(game, actor, profile.id), "summoned enemies cannot adapt")
@@ -303,10 +303,10 @@ func check_scout_attack_intent() -> void:
 
 	actor.windup = 0
 	actor.erase("attack")
-	game.battlefield.barriers.append(Rect2(-.5, -.75, 1.0, .25))
+	preload("res://tests/support/terrain_case.gd").add_wall(game.battlefield,Rect2(-.5, -.75, 1.0, .25))
 	ScoutBehavior.apply_attack_intent(game, observation, intent, now)
 	check(actor.windup == 0 and not actor.has("attack"), "the host rejects a previously clear attack when substantial cover intervenes")
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	ExpeditionCase.set_membership(game, player, false)
 	ScoutBehavior.apply_attack_intent(game, observation, intent, now)
 	check(actor.windup == 0, "the host rejects an intent against a target that left the encounter")

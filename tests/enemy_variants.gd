@@ -27,7 +27,7 @@ func run() -> void:
  game.progress.path=path;game.local_character.path=path+".character"
  root.add_child(game)
  game.set_process(false);game.set_physics_process(false)
- game.battlefield.configure(0,1);game.battlefield.barriers.clear()
+ game.battlefield.configure(0,1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
  game.encounter.set_hp(-1, 0)
  var p: Dictionary=game.players[1]
  ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.pos=Vector3(0,0,5)
@@ -129,7 +129,7 @@ func run() -> void:
 
 func check_glasscap(game: Node, p: Dictionary, now: int) -> void:
  ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"depth": 1});ExpeditionCase.set_world(game, {"map_seed": 0});game.tactics.boss_kind=-1
- game.battlefield.configure(0,1,0);game.battlefield.barriers.clear()
+ game.battlefield.configure(0,1,0);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
  game.progress.wilds_memory.score={}
  p.pos=Vector3(0,0,-1)
  var watcher:=actor(game,18,"early_decoys")
@@ -181,6 +181,6 @@ func check_glasscap(game: Node, p: Dictionary, now: int) -> void:
  var second: Array=watcher.glass_feint.points
  check(second!=points,"successive casts choose a different formation")
  for at in second:
-  game.battlefield.barriers.append(Rect2(Vector2(at.x,at.z)-Vector2(.35,.35),Vector2(.7,.7)))
+  preload("res://tests/support/terrain_case.gd").add_wall(game.battlefield,Rect2(Vector2(at.x,at.z)-Vector2(.35,.35),Vector2(.7,.7)))
  preload("res://scout_behavior.gd").release(game, watcher,game.Enemies.get_kind(18),now+5000)
  check(watcher.pos==Vector3.ZERO and not watcher.has("glass_feint"),"blocked decoys never become the real enemy")

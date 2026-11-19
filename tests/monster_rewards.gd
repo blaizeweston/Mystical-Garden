@@ -15,7 +15,7 @@ func run():
  var p=game.players[1];game.add_player(2);var friend=game.players[2]
  SessionCase.set_ready(game, friend, true);SessionCase.set_identity(game, friend, "e".repeat(32))
  for player in game.players.values():ExpeditionCase.set_membership(game, player, true);player.pos=Vector3(0,0,4);player.character.xp.fill(0)
- game.battlefield.configure(0,1);game.battlefield.barriers=[];game.encounter.set_hp(-1, 10);game.tactics.position=Vector3(0,0,10)
+ game.battlefield.configure(0,1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);game.encounter.set_hp(-1, 10);game.tactics.position=Vector3(0,0,10)
  game.add_player(3)
  ExpeditionCase.set_membership(game, game.players[3], true)
  game.add_player(4)

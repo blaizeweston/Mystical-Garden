@@ -229,7 +229,7 @@ func guest(menu: Node, mismatch: bool) -> void:
 		return
 	world.send_garden_action("travel_ready:"+read("depart"))
 	var native_action_ready := func() -> bool:
-		return (read("guard")=="ok" and world.stage._has_experimental_floor()
+		return (read("guard")=="ok" and world.stage.has_floor()
 			and not Core.cast_key(world,world.players.get(world.local_player_id(),{})).is_empty())
 	if not check(await until(native_action_ready),"guest receives generated floor and current native-action identity"):
 		return

@@ -202,10 +202,6 @@ func _ready() -> void:
 			_refuse_unowned_world.call_deferred()
 			return
 	get_tree().auto_accept_quit = false
-	if has_meta(&"experimental_terrain"):
-		var terrain_experiment = preload("res://assets/terrain_m02/experimental/experiment_garden.gd").new()
-		stage.add_child(terrain_experiment)
-		terrain_experiment.configure(self, stage)
 	toast_until = Time.get_ticks_msec() + 4800
 	if not persistence_session.is_guarded():
 		var character_error := local_character.load_profile()
@@ -237,6 +233,9 @@ func _ready() -> void:
 		var result := progress.load_garden()
 		if result != OK and result != ERR_FILE_NOT_FOUND:
 			status = "Could not read Garden save (error %d)." % result
+	var garden_terrain = preload("res://assets/terrain_m02/experimental/experiment_garden.gd").new()
+	stage.add_child(garden_terrain)
+	garden_terrain.configure(self,stage)
 	network_compatibility=preload("res://network_compatibility.gd").new()
 	add_child(network_compatibility)
 	multiplayer.peer_connected.connect(add_player)
@@ -1873,19 +1872,8 @@ func world_direction(direction: Vector2) -> Vector3:
 
 
 func bound_position(position_next: Vector3, wild: bool = false) -> Vector3:
-	if not wild:
-		if stage.experimental_garden != null: return position_next
-		var technologies := int(progress.flowering_unlocked) + int(progress.veilcap_discovered) + int(progress.rift_hook_discovered) + progress.heart.clearing_bonus()
-		var radius := Stage.garden_radius(progress.knowledge, technologies) - 0.4
-		var flat := Vector2(position_next.x, position_next.z).limit_length(radius)
-		return Vector3(flat.x, 0, flat.y)
-	var bounds := Stage.WILD_BOUNDS
-	if battlefield.procedural:
-		# The generated clearing can extend beyond the old +/-23 arena.
-		return Vector3(clampf(position_next.x,Battlefield.REGION.position.x+0.5,Battlefield.REGION.end.x-0.5),0,clampf(position_next.z,Battlefield.REGION.position.y+0.5,Battlefield.REGION.end.y-0.5))
-	position_next.x = clampf(position_next.x, -bounds.x, bounds.x)
-	position_next.z = clampf(position_next.z, -bounds.y, bounds.y)
-	return position_next
+	if not wild: return position_next # The Garden's continuous barrier resolves its movement.
+	return Vector3(clampf(position_next.x,Battlefield.REGION.position.x+0.5,Battlefield.REGION.end.x-0.5),0,clampf(position_next.z,Battlefield.REGION.position.y+0.5,Battlefield.REGION.end.y-0.5))
 
 
 func dodge_player(id: int, direction: Vector2) -> void:
@@ -2226,7 +2214,7 @@ func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionar
 	var before: int=encounter.hp(target)
 	var applied:=Life.Vitals.damage_taken(before,damage)
 	if Life.Vitals.counts_as_burst(damage,Life.Preview.scale()): burst_hits_this_room+=1
-	if before<=applied and battlefield.procedural and battlefield.floor_distance(point)<1.6: choke_kills_this_room+=1
+	if before<=applied and battlefield.floor_distance(point)<1.6: choke_kills_this_room+=1
 	if target==-1:
 		if tactics.winding_up and Bosses.owns_warnings(tactics.boss_kind):point=tactics.position
 		tactics.position=point
@@ -2438,8 +2426,7 @@ func reset_encounter(seed_value: int = -1) -> void:
 	combat_events.clear()
 	Bosses.prepare(self)
 	# A new floor has independent pathing. Keep the old object intact for abort.
-	if stage.experimental_garden != null: battlefield = preload("res://assets/terrain_m02/experimental/experiment_wilds.gd").new()
-	elif SaveBatch.guarded_active(): battlefield = Battlefield.new()
+	battlefield = Battlefield.new()
 	battlefield.configure(participation.route(), participation.depth(), participation.seed(),tactics.boss_kind,tactics.boss_phase)
 	pressure_at = 0
 	tactics.haste_until=0
@@ -2462,8 +2449,8 @@ func reset_encounter(seed_value: int = -1) -> void:
 	var composition=preload("res://wilds_composition.gd")
 	var roster: Array[int]=composition.roster(self,count)
 	for i in count:
-		var origin: Vector3 = battlefield.spawn_points[i%battlefield.spawn_points.size()] if battlefield.procedural else Stage.SUPPORT_SPAWNS[i%Stage.SUPPORT_SPAWNS.size()]+Vector3.RIGHT*(i/Stage.SUPPORT_SPAWNS.size())*1.8
-		var spawn: Vector3=composition.companion_spawn(self,i) if i==1 and tactics.boss_kind<0 and participation.route()!=Campaign.HEART and battlefield.procedural else Vector3.INF
+		var origin: Vector3 = battlefield.spawn_points[i%battlefield.spawn_points.size()]
+		var spawn: Vector3=composition.companion_spawn(self,i) if i==1 and tactics.boss_kind<0 and participation.route()!=Campaign.HEART else Vector3.INF
 		if spawn.is_finite() and not _experimental_spawn_reachable(spawn): spawn = Vector3.INF
 		if not spawn.is_finite():spawn=Director.spawn(self,origin,i)
 		if not spawn.is_finite():continue
@@ -2507,7 +2494,7 @@ func clear_spawn(position: Vector3) -> Vector3:
 	return position if _experimental_spawn_reachable(position) else Vector3.INF
 
 func _experimental_spawn_reachable(candidate: Vector3) -> bool:
-	return stage.experimental_garden == null or not battlefield.has_method("can_spawn") or battlefield.can_spawn(candidate)
+	return battlefield.can_spawn(candidate)
 
 
 func identify_seed(id: int) -> void:
@@ -2835,8 +2822,6 @@ func _process(_delta: float) -> void:
 			if improvements.has("remaining"):
 				details += " · %d remaining" % int(improvements.remaining)
 		session_text = "%s  ·  %d player(s)" % [network_session.role(), players.size()]
-		if stage.experimental_garden != null:
-			session_text = "Experimental terrain · %s" % network_session.role() if stage._has_experimental_floor() else "Experimental terrain · Special floor fallback"
 	else:
 		prompt = ""
 	if not wild:

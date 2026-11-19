@@ -46,7 +46,7 @@ func host_run() -> void:
  check(restored.load_garden()==OK and restored.garden_interactions.revision==1,"shared result is durable")
  mark("committed")
  if not await until(func():return marked("first_verified")):check(false,"guest sees committed state");return
- guest.pos=game.Stage.GATE
+ guest.pos=game.stage.gate_position()
  mark("out_of_range")
  if not await until(func():return marked("rejected")):check(false,"guest checks range");return
  check(game.progress.garden_interactions.revision==1,"forged remote request cannot mutate")
@@ -66,7 +66,7 @@ func guest_run() -> void:
  check(Service.projection(game,game.local_player_id()).observations.has("old_root_scar"),"guest receives durable shared observation")
  check(game.inventory_ui_data()==before,"no discovery reward changes private inventory")
  mark("first_verified")
- if not await until(func():return marked("out_of_range") and game.players[game.local_player_id()].pos.distance_to(game.Stage.GATE)<.2):check(false,"range setup arrives");return
+ if not await until(func():return marked("out_of_range") and game.players[game.local_player_id()].pos.distance_to(game.stage.gate_position())<.2):check(false,"range setup arrives");return
  game.send_garden_action(payload(99,"forged-revision"))
  if not await until(func():return game.status.contains("closer")):check(false,"range rejection arrives");return
  mark("rejected")

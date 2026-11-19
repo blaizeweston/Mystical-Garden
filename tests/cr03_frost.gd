@@ -48,7 +48,7 @@ func run() -> void:
 	ordinary = game.Items.get_item("plant_part_plant_frostbell").legacy_part
 	refined = game.Items.get_item("plant_part_rare_frostbell").legacy_part
 	game.battlefield.configure(0,1,0)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	var p: Dictionary = game.players[1]
 	equip_native_focus(p)
 	ExpeditionCase.set_membership(game, p, true)

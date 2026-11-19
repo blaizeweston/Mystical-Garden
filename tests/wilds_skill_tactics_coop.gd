@@ -77,7 +77,7 @@ func host() -> void:
 	ExpeditionCase.set_world(game, {"encounter_number": 7})
 	ExpeditionCase.set_world(game, {"map_seed": 6})
 	game.battlefield.configure(0, 1, 0)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.progress.wilds_memory.score[Tactics.CAST_DENIAL] = 6
 	# Existing recorded observation input exercises response replication; modern Fire
 	# does not produce this memory input in the current baseline.

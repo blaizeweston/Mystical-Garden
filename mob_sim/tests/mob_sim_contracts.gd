@@ -57,8 +57,7 @@ func check(condition: bool, label: String) -> void:
 func walled_field() -> RefCounted:
 	var field = Battlefield.new()
 	field.configure(0, 1)
-	field.barriers = [Rect2(-6.0, -0.5, 12.0, 1.0)]
-	field.rebuild()
+	preload("res://tests/support/terrain_case.gd").walls(field,[Rect2(-6.0, -0.5, 12.0, 1.0)])
 	return field
 
 

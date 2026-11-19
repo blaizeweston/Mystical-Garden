@@ -47,7 +47,7 @@ func _process(delta: float) -> void:
  for zone in zones:
   if not zone.has("water") or not zone.has("ambience"):continue
   var at: Vector3=zone.water.position
-  if zone.id=="sheltered_spring" and game.has_meta(&"experimental_terrain"):
+  if zone.id=="sheltered_spring" and (game.stage.experimental_garden != null):
    at=game.stage.station_position("spring")
   var visible: bool=not game.stage.get_meta("garden_growth_hidden_zones",[]).has(zone.id) and motion and not Participation.is_wild(player) and available.has(zone.ambience.requires_point) and at.is_finite() and game.stage.get_meta("garden_growth_camera",{}).get("target",player.get("pos",Vector3.INF)).distance_to(at)<float(zone.ambience.range)
   if visible and not colonies.has(zone.id):colonies[zone.id]=build_colony(zone)

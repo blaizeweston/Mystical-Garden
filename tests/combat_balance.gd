@@ -43,7 +43,7 @@ func run():
  check(game.player_snapshot(2,false)[2].enemy_max_hp==scaled_hp,"authoritative maximum health is included in movement snapshots")
  ExpeditionCase.set_membership(game, friend, false)
  check(game.encounter_health()==scaled_hp,"mid-encounter loss cannot rewrite enemy maximum health")
- ExpeditionCase.set_membership(game, friend, true);game.battlefield.configure(0,1);game.battlefield.barriers=[];p.pos=Vector3(-2,0,4);friend.pos=Vector3(2,0,4)
+ ExpeditionCase.set_membership(game, friend, true);game.battlefield.configure(0,1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);p.pos=Vector3(-2,0,4);friend.pos=Vector3(2,0,4)
  var a: Dictionary=game.make_scout(0,Vector3(0,0,4),1);var b: Dictionary=game.make_scout(0,Vector3(0,0,4),2);a.engaged=true;b.engaged=true;game.encounter.clear_scouts();game.encounter.register_scout(a);game.encounter.register_scout(b);game.combat_threat.clear()
  var ta: int=game.Director.target(game,a.pos,a,1000);var tb: int=game.Director.target(game,b.pos,b,1000)
  check(ta!=tb,"equally reachable players share enemy attention")

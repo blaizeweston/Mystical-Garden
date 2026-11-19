@@ -22,7 +22,7 @@ func begin_check(id: int) -> void:
   get_parent().network_session.compatibility_started()
  preload("res://diagnostic_journal.gd").event("network","compatibility_started",{"actor":id,"protocol":Settings.PROTOCOL,"signature":signature})
  failure_reason=""
- var payload: Dictionary={"game":"mystical-garden","protocol":Settings.PROTOCOL,"contract":signature,"terrain":preload("res://wilds_layout.gd").SIGNATURE,"garden":preload("res://garden_return_catalog.gd").signature,"cultivation":preload("res://cultivation_growth.gd").signature}
+ var payload: Dictionary={"game":"mystical-garden","protocol":Settings.PROTOCOL,"contract":signature,"terrain":preload("res://battlefield.gd").SIGNATURE,"garden":preload("res://garden_return_catalog.gd").signature,"cultivation":preload("res://cultivation_growth.gd").signature}
  payload.hp_per_point=get_parent().Life.Preview.scale()
  payload.experimental_terrain=Experiment.network_identity(get_parent())
  var ruleset := preload("res://combat_ruleset.gd").network_identity(get_parent())
@@ -31,7 +31,7 @@ func begin_check(id: int) -> void:
 
 func receive_compatibility(id: int,data: PackedByteArray) -> void:
  var payload=JSON.parse_string(data.get_string_from_utf8()) if data.size()<=1024 else null
- if signature.is_empty() or not payload is Dictionary or payload.get("game")!="mystical-garden" or payload.get("protocol")!=Settings.PROTOCOL or payload.get("contract")!=signature or payload.get("terrain","")!=preload("res://wilds_layout.gd").SIGNATURE or payload.get("garden","")!=preload("res://garden_return_catalog.gd").signature or payload.get("cultivation","")!=preload("res://cultivation_growth.gd").signature:
+ if signature.is_empty() or not payload is Dictionary or payload.get("game")!="mystical-garden" or payload.get("protocol")!=Settings.PROTOCOL or payload.get("contract")!=signature or payload.get("terrain","")!=preload("res://battlefield.gd").SIGNATURE or payload.get("garden","")!=preload("res://garden_return_catalog.gd").signature or payload.get("cultivation","")!=preload("res://cultivation_growth.gd").signature:
   preload("res://diagnostic_journal.gd").event("network","compatibility_rejected",{"actor":id},"warning")
   failure_reason=UPDATE_MESSAGE
   multiplayer.disconnect_peer(id)

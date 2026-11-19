@@ -28,7 +28,7 @@ func run():
 			check(false,"guest profile ready");quit(1);return
 		check(game.players[id].character.plants[14]==8 and game.players[id].character.plants[23]==12,"all 24 familiarity entries transfer")
 		var p: Dictionary=game.players[id]
-		p.pos=game.Stage.ALTAR
+		p.pos=game.stage.altar_position()
 		game.progress.discover(0)
 		game.progress.discover(3)
 		var reserve: Dictionary=game.seed_reserve(p)

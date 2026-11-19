@@ -21,7 +21,7 @@ func _init(labels: Dictionary, features: Dictionary, cell_spacing: float) -> voi
 	cells = labels
 	layout = features
 	spacing = cell_spacing
-	blockers = layout.masses + layout.rocks
+	blockers = layout.masses + layout.rocks + layout.get("solid_shapes",[])
 	water = layout.water
 	if layout.has("boundary"):
 		arena = layout.boundary.playable

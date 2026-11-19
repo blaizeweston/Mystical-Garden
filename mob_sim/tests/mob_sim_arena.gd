@@ -45,11 +45,10 @@ func _init(map_seed: int, mob_count: int, intelligence: float = -1.0) -> void:
 	for kind in sim.species.count:
 		if sim.species.spawnable[kind] != 0:
 			spawnable.append(kind)
-	var region: Rect2i = field.navigation.region
-	for x in range(region.position.x, region.end.x):
-		for z in range(region.position.y, region.end.y):
-			if not field.navigation.is_point_solid(Vector2i(x, z)):
-				open_cells.append(Vector2(x * 0.5, z * 0.5))
+	for x in range(-56,57):
+		for z in range(-54,55):
+			if not field.occupied(Vector3(x*.5,0,z*.5),.8):
+				open_cells.append(Vector2(x*.5,z*.5))
 	for player in sim.contract.players:
 		player_at.append(_open_point())
 		player_goal.append(_open_point())

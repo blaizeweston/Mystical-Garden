@@ -47,8 +47,8 @@ func run() -> void:
   check(game.battlefield.connected(),"boss lair connects entry, gate, altar and cache")
   check(game.battlefield.boss_kind==kind,"authority uses lair geometry")
   var guest_field=load("res://battlefield.gd").new();guest_field.configure(0,2,9871,kind,0)
-  check(guest_field.clearings==game.battlefield.clearings and guest_field.barriers==game.battlefield.barriers,"guest deterministic lair")
-  if kind==20: check(game.battlefield.clearings[0].z==22,"Orchard has a broad oversized arena")
+  check(guest_field.generated==game.battlefield.generated and guest_field.barriers==game.battlefield.barriers,"guest deterministic lair")
+  if kind==20: check(game.battlefield.generated.layout.clearings[0].radius==22,"Orchard has a broad oversized arena")
   var count: int=game.used_bosses.size();game.reset_encounter()
   check(game.tactics.boss_kind==kind and game.used_bosses.size()==count,"combat reset preserves floor decision")
   var packet: PackedInt32Array=game.campaign_snapshot()
@@ -97,7 +97,7 @@ func run() -> void:
  check(p.safe_items.size()==1 and p.safe_items[0].quantity==2,"ancient stack fits safe pouch")
  game.InventoryModel.bank_safe(game,p)
  check(game.Altar.ancient_count(game,p)==2,"safe recovery banks ancient seeds")
- ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.ALTAR
+ ExpeditionCase.set_membership(game, p, false);p.pos=game.stage.altar_position()
  var saved_path: String=game.progress.path;var saved_rng: int=game.rng.state
  game.progress.path="res://.godot/absent-boss-seed-directory/fail.cfg"
  game.Altar.identify_all(game,p)

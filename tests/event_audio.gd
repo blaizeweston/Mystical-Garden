@@ -127,7 +127,7 @@ func audio_ids(game: Node) -> Array:
 func verify_combat(game: Node) -> void:
 	game.combat_events.clear()
 	game.battlefield.configure(0,1,0)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.encounter.set_hp(-1, 45)
 	game.encounter.clear_scouts()
 	var p: Dictionary = game.players[1]
@@ -142,12 +142,12 @@ func verify_combat(game: Node) -> void:
 	game.combat_events.clear()
 	stag.pos = Vector3.ZERO
 	Attacks.lock(game,stag,"charge",Vector3(0,0,4),now+1600)
-	game.battlefield.barriers.assign([Rect2(-1.2,2.1,2.4,1.3)])
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[Rect2(-1.2,2.1,2.4,1.3)])
 	preload("res://scout_behavior.gd").release(game, stag,game.Enemies.get_kind(2),now+1600)
 	check(audio_ids(game)==["enemy_charge_windup"],"a blocked charge cannot play a release")
 	check(Cues.Combat.enemy({"mode":"charge","variant":"antler_hook"},false)=="enemy_hook_windup",
 		"the bent charge has a distinct warning")
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.combat_events.clear()
 	p.pos = Vector3.ZERO
 	p.facing = Vector3.FORWARD

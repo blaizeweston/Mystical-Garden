@@ -19,7 +19,7 @@ func run() -> void:
  ExpeditionCase.Transitions.checkpoint(game, 1,false);check(ExpeditionCase.is_wild(p),"third gate cannot bank carried loot")
  ExpeditionCase.set_world(game, {"encounter_number": 6});game._process(.016);check(UIFixture.control(game,"guide").text.contains("T  Extract"),"sixth gate advertises extraction")
  ExpeditionCase.set_world(game, {"destination": 3});check(not game.upgrade_checkpoint_open() and not game.extraction_checkpoint_open(),"Heart finale excluded")
- ExpeditionCase.set_world(game, {"destination": 0});game.encounter.set_hp(-1, 100);ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.GATE;p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0
+ ExpeditionCase.set_world(game, {"destination": 0});game.encounter.set_hp(-1, 100);ExpeditionCase.set_membership(game, p, false);p.pos=game.stage.gate_position();p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0
  game.progress.parts.fill(0);game.seed_reserve(p).parts.fill(0);game.progress.discoveries.fill(true);game.progress.parts[0]=1
  var view=UIFixture.control(game,"loadout_view");view.refresh()
  for slot in 3:
@@ -73,10 +73,10 @@ func run() -> void:
  check(saved.load_profile()==OK and game.Classes.Weaver.TREE.path(saved.data)==["thornbinder"],"the new class node is saved")
  progression.close_button.pressed.emit()
  check(UIFixture.control(game,"loadout_menu").visible and not UIFixture.control(game,"progression_menu").visible and p.prepared==1,"Back returns to the prepared weapon")
- p.pos=game.Stage.GATE+Vector3(20,0,0)
+ p.pos=game.stage.gate_position()+Vector3(20,0,0)
  game.garden_action(1,"learn_0_%d"%first_node)
  check(p.character.upgrades[0]==0,"the host rejects learning outside the Heart and Gate")
- p.pos=game.Stage.GATE;ExpeditionCase.set_membership(game, p, true)
+ p.pos=game.stage.gate_position();ExpeditionCase.set_membership(game, p, true)
  game.garden_action(1,"learn_0_%d"%first_node)
  check(p.character.upgrades[0]==0,"the host rejects learning during an expedition")
  viewport.queue_free();await process_frame

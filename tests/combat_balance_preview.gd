@@ -46,13 +46,13 @@ func run() -> void:
 	var player: Dictionary = game.players[1]
 	player.character[game.Classes.Warden.Connected.PROFILE_KEY]=game.Classes.Warden.Connected.state(["vanguard"])
 	check(PlayerVitals.current_hp(player) == 100 and PlayerVitals.maximum_hp(player) == 100, "new Warden starts at 100 HP")
-	player.pos = game.Stage.GATE
+	player.pos = game.stage.gate_position()
 	ExpeditionCase.Transitions.enter(game, 1, player)
 	check(ExpeditionCase.is_wild(player) and game.encounter.scout_count() >= 6 and game.enemy_health() in range(62,72), "normal early Wilds entrance uses converted pack and elite")
 	check(game.make_scout(0,Vector3.ZERO,1).hp == 32 and game.make_scout(0,Vector3.ZERO,1,0,0,true).hp == 12, "scout and summoned health use the same unit")
 	ExpeditionCase.set_world(game, {"map_seed": 0})
 	game.battlefield.configure(0,1)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	player.pos=Vector3.ZERO
 	player.aim_direction=Vector3.BACK
 	player.facing=Vector3.BACK
@@ -235,8 +235,8 @@ func verify_recovery(game: Node, player: Dictionary) -> void:
 	check(int(PlayerVitals.current_hp(player))-20==pulse,"pool cannot heal between pulses")
 	game.trait_events.clear()
 
-	game.battlefield.procedural=false
-	game.battlefield.barriers.clear()
+
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.encounter.clear_scouts()
 	var corpse: Dictionary=game.make_scout(0,Vector3.ZERO,1)
 	corpse.hp=0

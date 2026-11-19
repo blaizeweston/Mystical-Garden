@@ -73,7 +73,7 @@ func host_run() -> void:
 func bad_begin(id: int,kind: String) -> void:
  game.network_session.compatibility_started()
  if kind=="legacy": return # old peer sends no pre-RPC compatibility data
- var payload: Dictionary={"game":"mystical-garden","protocol":game.Network.PROTOCOL,"contract":game.network_compatibility.signature,"terrain":preload("res://wilds_layout.gd").SIGNATURE,"garden":preload("res://garden_return_catalog.gd").signature,"cultivation":preload("res://cultivation_growth.gd").signature}
+ var payload: Dictionary={"game":"mystical-garden","protocol":game.Network.PROTOCOL,"contract":game.network_compatibility.signature,"terrain":preload("res://battlefield.gd").SIGNATURE,"garden":preload("res://garden_return_catalog.gd").signature,"cultivation":preload("res://cultivation_growth.gd").signature}
  payload.hp_per_point=game.Life.Preview.scale()
  payload.experimental_terrain=preload("res://assets/terrain_m02/experimental/experiment_mode.gd").network_identity(game)
  payload.combat_ruleset=preload("res://combat_ruleset.gd").network_identity(game)

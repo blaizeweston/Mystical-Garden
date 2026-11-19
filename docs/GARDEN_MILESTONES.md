@@ -1,6 +1,6 @@
 # Garden milestones and objective design
 
-Updated: 2026-11-12 · Owner: shared between the user and development assistant.
+Updated: 2026-11-18 · Owner: shared between the user and development assistant.
 
 Architecture and overlap decisions: [Garden development map](GARDEN_DEVELOPMENT_MAP.md). Implemented test ownership: [mechanics/test map](MECHANICS_TEST_MAP.md). Existing product intent: [design brief](../DESIGN_BRIEF.md). This document holds the Garden work queue and the [Wilds enemy](#wilds-enemy-design-milestones), [Core combat](#core-combat-milestones), [sound design](#sound-design-milestones), and [combat balance and vitals](COMBAT_BALANCE_MILESTONES.md) milestones.
 
@@ -8,9 +8,9 @@ Architecture and overlap decisions: [Garden development map](GARDEN_DEVELOPMENT_
 
 | Field | Value |
 |---|---|
-| Recent work | **CB-08 playtest ready.** The candidate passed save compatibility, the full source and Windows package suites, and the four-player combat and extraction flow. |
+| Recent work | Modern owner/UI and Neural Arena branches are integrated; generated Garden and modern Wilds/boss/Heart terrain are now the default. Focused source and local loopback verification cover construction, offerings, cultivation, travel and rejoin. Historical CB-08 release evidence below remains historical; this integration does not export a release. |
 | Next combat objective | **CB-08 · Live playtest and release.** Compare pacing and sustain in solo and co-op, apply any tuning, then promote the verified balance. [Combat balance catalogue](COMBAT_BALANCE_MILESTONES.md#live-playtest). |
-| Next player-facing milestone | Test the first six floors, the Orchard and deep-run recovery using the CB-08 playtest build. |
+| Next player-facing milestone | Manually review the generated Garden, reclamation/construction, first six floors and boss terrain on the newly integrated source. Preserve isolated saves; no new packaged build is produced here. |
 | Project state | G-00–G-07 and W-00–W-07 are complete. G-08, W-08 and C-07 remain in the playtest queue. |
 | Listening review | Use A-06 to gather human feedback on cue recognition, mix balance and listening fatigue. The same sessions can cover the existing Garden and Wilds playtest milestones. |
 

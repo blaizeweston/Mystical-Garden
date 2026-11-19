@@ -44,7 +44,7 @@ func fixture(kind: int, floor_number: int) -> Dictionary:
 	game.tactics.position = Vector3(12, 0, 5)
 	game.encounter.clear_scouts()
 	game.battlefield.configure(0, 1, 0)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	ExpeditionCase.set_membership(game, player, true)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
 	player[Conditions.STATE] = player[Conditions.STATE].clear_grace()

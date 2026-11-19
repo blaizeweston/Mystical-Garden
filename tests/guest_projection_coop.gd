@@ -304,7 +304,7 @@ func action_host() -> void:
    return
   var id := peer()
   var player: Dictionary = world.players[id]
-  player.pos = world.Stage.GATE if step=="loadout" else world.Stage.HEART
+  player.pos = world.stage.gate_position() if step=="loadout" else world.Stage.HEART
   var before := Slots._save_digest(G)
   var old := current(id).duplicate(true)
   mark(step+"-send")

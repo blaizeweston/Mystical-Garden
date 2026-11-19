@@ -13,7 +13,7 @@ func _initialize():call_deferred("run")
 func run():
  game=load("res://world.tscn").instantiate();var base="res://.godot/mouse-combat-"+Crypto.new().generate_random_bytes(8).hex_encode();game.progress.path=base;game.local_character.path=base+".character";root.add_child(game);game.set_physics_process(false);game.set_process(false)
  var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.weapon=0;p.secondary=0;p.catalyst=0;p.power=0;p.frame=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
- game.encounter.clear_scouts();game.battlefield.procedural=false;game.battlefield.barriers=[];game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,-1);game.ui.close_panels()
+ game.encounter.clear_scouts();preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,-1);game.ui.close_panels()
  var now=Time.get_ticks_msec();game.mouse_controls.receive(game,1,Vector2(0,1),true,now);game.mouse_controls.tick(game,now)
  game.update_projectiles(int(game.projectile_queue[0].due)+1)
  check(p[WeaponActions.STATE].sequence()==1 and game.enemy_health()==100,"melee faces cursor and misses enemy behind")

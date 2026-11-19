@@ -41,6 +41,7 @@ func _group(label: String) -> Node3D:
 
 func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds: bool = false,
 		integrated_wilds: bool = false) -> Dictionary:
+	_ensure_botanical_material()
 	var assets := variants
 	if not wilds:
 		if profile.is_empty():
@@ -158,11 +159,7 @@ func _wilds_assets(family: int) -> Dictionary:
 	return botanical_variants[key]
 
 func _make_botanicals(profile: Dictionary, biome: int, family: int = -1) -> Dictionary:
-	if botanical_material == null:
-		botanical_material = StandardMaterial3D.new()
-		botanical_material.vertex_color_use_as_albedo = true
-		botanical_material.cull_mode = BaseMaterial3D.CULL_DISABLED
-		botanical_material.roughness = 0.96
+	_ensure_botanical_material()
 	var result := {}
 	var kinds := ["tree", "sapling", "shrub", "fern", "grass", "rock"]
 	if biome == 3:
@@ -295,3 +292,10 @@ func _bridge(span: PackedVector2Array, full_deck: bool) -> void:
 		var offset: Vector2 = delta.normalized().orthogonal() * (side * 0.68)
 		rail.transform = Transform3D(basis, Vector3(center.x + offset.x, 0.22, center.y + offset.y))
 		crossings.add_child(rail)
+
+func _ensure_botanical_material() -> void:
+	if botanical_material == null:
+		botanical_material = StandardMaterial3D.new()
+		botanical_material.vertex_color_use_as_albedo = true
+		botanical_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		botanical_material.roughness = 0.96

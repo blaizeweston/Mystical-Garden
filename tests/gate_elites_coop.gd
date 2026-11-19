@@ -31,7 +31,7 @@ func run():
 func host_run():
  check(SessionCase.World.host(game)==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"registration");return
- game.battlefield.configure(0,1);game.battlefield.barriers.clear()
+ game.battlefield.configure(0,1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
  for player in game.players.values():ExpeditionCase.set_membership(game, player, true);player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,.8)
  game.encounter.clear_scouts();game.encounter.set_hp(-1, 80);game.tactics.position=Vector3.ZERO;game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.enemy_mutations=0
  check(await until(func():return marked("ready")),"guest sees Wilds")

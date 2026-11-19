@@ -41,12 +41,12 @@ func destination(value: Dictionary) -> Vector3:
  match value.get("kind",""):
   "zone":return Layout.zone(str(value.get("zone",""))).get("reveal",{}).get("position",game.Stage.HEART)
   "return":return Layout.Catalog.point(str(value.get("point",""))).get("position",game.Stage.HEART)
-  "bed":return game.Stage.PLOTS[clampi(int(value.get("slot",0)),0,game.Stage.PLOTS.size()-1)]
+  "bed":return finite_destination(game.stage.bed_position(int(value.get("slot",0))))
   "spring":
    for point in Layout.Catalog.POINTS:
     if point.parent==value.get("zone") and point.get("visual","")=="spring":return point.position
    return Layout.zone(str(value.get("zone",""))).get("water",{}).get("position",game.Stage.HEART)
-  "station":return game.Stage.HEART_STATIONS.get(str(value.get("station","")),game.Stage.HEART)
+  "station":return finite_destination(game.stage.station_position(str(value.get("station",""))))
   "clearing":return Vector3(-game.stage.garden_extent*.72,0,2.0)
  return game.Stage.HEART
 static func root_point(origin: Vector3,end: Vector3,t: float) -> Vector3:
@@ -63,10 +63,6 @@ func conceal(pending: Array,forming: float=0.0) -> void:
  var hidden_zones: Array=[]
  for value in pending:
   var end:=destination(value);var amount:=forming if not event.is_empty() and value.sequence==event.sequence else 0.0
-  if value.get("kind")=="clearing":
-   remember(game.stage.garden_disc)
-   var radius:=11.5+lerpf(float(value.get("from_level",0)),float(value.get("to_level",0)),smoothstep(0,1,amount))*1.05
-   game.stage.garden_disc.scale=Vector3(radius,1,radius)
   for model in game.stage.garden_edge.get_children()+game.stage.garden_beds.get_children():
    var route: bool=model.has_meta("garden_route_target") and model.get_meta("garden_route_target").distance_to(end)<.25
    var bed: bool=value.get("kind")=="bed" and model.has_meta("garden_plot_position") and model.get_meta("garden_plot_position").distance_to(end)<.25
@@ -179,3 +175,6 @@ func _exit_tree() -> void:
   for key in ["garden_growth_camera","garden_growth_phase","garden_growth_hidden_zones","garden_growth_heart"]:game.stage.remove_meta(key)
  if is_instance_valid(root_mesh):root_mesh.queue_free()
  if is_instance_valid(glow):glow.queue_free()
+
+func finite_destination(position: Vector3) -> Vector3:
+ return position if position.is_finite() else game.Stage.HEART

@@ -158,7 +158,7 @@ func run() -> void:
 
 func interrupted() -> void:
  var actor: Dictionary=world.players[1]
- actor.pos=world.Stage.GATE
+ actor.pos=world.stage.gate_position()
  ExpeditionCase.Transitions.enter(world, 1,actor)
  world.encounter.set_hp(-1, 0)
  world.record_enemy_death(-1,world.tactics.position,Vector3.ZERO)
@@ -174,7 +174,7 @@ func interrupted() -> void:
 
 func exercise() -> void:
  var actor: Dictionary=world.players[1]
- actor.pos=world.Stage.GATE
+ actor.pos=world.stage.gate_position()
  actor.prepared=1
  var garden_timers: Cooldowns.Timers = actor[Cooldowns.STATE].with_deadline(Cooldowns.Q, 2100).with_deadline(Cooldowns.R, 2200).with_deadline(Cooldowns.DODGE, 2300)
  actor[Cooldowns.STATE] = garden_timers
@@ -261,8 +261,8 @@ func exercise() -> void:
  SessionCase.set_ready(world, ally, true)
  SessionCase.set_identity(world, ally, "ally")
  ExpeditionCase.set_membership(world, ally, true)
- world.battlefield.procedural=false
- world.battlefield.barriers.clear()
+
+ preload("res://tests/support/terrain_case.gd").walls(world.battlefield,[])
  actor.pos=Vector3.ZERO
  ally.pos=Vector3(.5,0,0)
  var combat_timers: Cooldowns.Timers = departed_timers.with_deadline(Cooldowns.Q, 3100).with_deadline(Cooldowns.R, 3200).with_deadline(Cooldowns.DODGE, 3300)
@@ -375,7 +375,7 @@ func exercise() -> void:
  if not open_world(): return
  actor=world.players[1]
 
- actor.pos=world.Stage.GATE
+ actor.pos=world.stage.gate_position()
  ExpeditionCase.Transitions.enter(world, 1,actor)
  clear_floor(actor,2)
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
@@ -383,14 +383,14 @@ func exercise() -> void:
  var saved_seeds: int=world.progress.unknown.size()
  IncomingPlayerHit.apply_health_loss(world, 1, PlayerLifecycle.generation(actor), 999)
  check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds+1 and world.status.contains("safe-pouch"),"wipe keeps only protected cargo")
- actor.pos=world.Stage.GATE
+ actor.pos=world.stage.gate_position()
  ExpeditionCase.Transitions.enter(world, 1,actor)
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  saved_seeds=world.progress.unknown.size()
  ExpeditionCase.Transitions.abandon(world, 1,actor)
  check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds and world.status.contains("abandoned"),"abandonment discards safe pouch")
 
- actor.pos=world.Stage.GATE
+ actor.pos=world.stage.gate_position()
  ExpeditionCase.Transitions.enter(world, 1,actor)
  clear_floor(actor,6)
  actor.carried_seeds=[1]
@@ -428,8 +428,8 @@ func exercise() -> void:
  check(guest_tree.learn(ally.character,guest_tree.REQUEST_OFFSET).is_empty(),
   "guest selects a valid native starting focus before party admission")
  var xp_before := int(ally.character.xp[departed_class])
- actor.pos=world.Stage.GATE
- ally.pos=world.Stage.GATE
+ actor.pos=world.stage.gate_position()
+ ally.pos=world.stage.gate_position()
  ExpeditionCase.Transitions.enter(world, 1,actor)
  ExpeditionCase.Transitions.enter(world, 2,ally)
  check(ExpeditionCase.is_wild(actor) and ExpeditionCase.is_wild(ally),
@@ -498,7 +498,7 @@ func exercise() -> void:
  current_scene.select_slot(0)
  if not open_world(): return
  actor=world.players[1]
- actor.pos=world.Stage.GATE
+ actor.pos=world.stage.gate_position()
  ExpeditionCase.Transitions.enter(world, 1,actor)
 
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]

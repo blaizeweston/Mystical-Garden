@@ -49,7 +49,7 @@ func run() -> void:
 	game.encounter.set_hp(-1, 40)
 	game.encounter.clear_scouts()
 	game.battlefield.configure(0, 1)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 
 	input(game, KEY_Q, true)
 	var controller = Aim.active(game)
@@ -119,10 +119,10 @@ func check_class_footprints(game: Node, p: Dictionary) -> void:
 	var skill: Dictionary=game.Skills.resolve(3,0,p.character)
 	var stats: Dictionary=game.weapon_stats(p)
 	game.tactics.position=Vector3(2,0,1)
-	field.barriers=[Rect2(-1,-2,2,1)]
+	preload("res://tests/support/terrain_case.gd").walls(field,[Rect2(-1,-2,2,1)])
 	var plan:=Targeting.plan(game,p,field,skill,stats,Vector3.FORWARD)
 	check(plan.endpoint.z<0 and plan.endpoint.z>-1.0,"current Veil Passage preview stops before a wall")
-	field.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(field,[])
 
 
 func check_core_footprints(game: Node, p: Dictionary) -> void:

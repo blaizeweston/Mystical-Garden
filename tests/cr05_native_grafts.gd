@@ -66,7 +66,7 @@ func start_expedition() -> void:
 	check(ExpeditionCase.is_wild(player) and Improvements.active_ledger(player) != null,"actual Gate departure creates a fresh graft ledger")
 	game.battlefield = preload("res://battlefield.gd").new()
 	game.battlefield.configure(0,1,0)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.tactics.boss_kind=-1
 
 

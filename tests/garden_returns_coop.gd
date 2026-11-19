@@ -40,7 +40,7 @@ func host_run() -> void:
  var id: int=game.players.keys().filter(func(peer):return peer!=1)[0];var moss: int=game.Seeds.index_of("lantern_moss")
  game.progress.discoveries[moss]=true
  for peer in [1,id]:
-  var p: Dictionary=game.players[peer];p.pos=game.Stage.GATE;p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0;p.cargo_plan.fill(0)
+  var p: Dictionary=game.players[peer];p.pos=game.stage.gate_position();p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0;p.cargo_plan.fill(0)
   var tree=game.Classes.connected_tree(int(p.frame))
   game.handle_loadout_action(peer,p,"learn_%d_%d"%[p.frame,tree.REQUEST_OFFSET])
   check(not tree.focus(p.character).is_empty(),"host validates the explicit free starting focus")
@@ -54,7 +54,7 @@ func host_run() -> void:
  for peer in [1,id]:game.players[peer].pos=game.battlefield.advance;game.players[peer].carried_seeds=[moss]
  check(game.Transactions.run(game,func():ExpeditionCase.Transitions.commit_checkpoint(game, 1,false);return true)==true,"party banks a cleared checkpoint")
  check(game.progress.garden_interactions.returns.history.size()==1 and game.progress.garden_interactions.returns.history[0].outcomes.get("extracted",0)==2,"one closed run records both outcomes")
- for peer in [1,id]:game.players[peer].pos=game.Stage.ALTAR
+ for peer in [1,id]:game.players[peer].pos=game.stage.altar_position()
  mark("banked")
  if not await until(func():return marked("submitted")):check(false,"guest receives private inventory");return
  game.Altar.identify_all(game,game.players[1])

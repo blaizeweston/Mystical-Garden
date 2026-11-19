@@ -33,7 +33,7 @@ func run() -> void:
  player.pos = game.Stage.HEART
  game._process(0.016)
  check(UIFixture.control(game,"guide").text == "E  Heart", "Heart prompt names the interaction")
- player.pos = game.Stage.ALTAR
+ player.pos = game.stage.altar_position()
  game._process(0.016)
  check(UIFixture.control(game,"guide").text == "E  Altar", "Altar prompt omits the service list")
  ExpeditionCase.set_world(game, {"encounter_number": 3})

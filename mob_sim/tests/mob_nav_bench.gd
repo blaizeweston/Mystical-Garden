@@ -19,11 +19,10 @@ func _initialize() -> void:
 
 func free_points(field: RefCounted, count: int, rng: RandomNumberGenerator) -> Array[Vector3]:
 	var cells: Array[Vector2i] = []
-	var region: Rect2i = field.navigation.region
-	for x in range(region.position.x, region.end.x):
-		for z in range(region.position.y, region.end.y):
-			if not field.navigation.is_point_solid(Vector2i(x, z)):
-				cells.append(Vector2i(x, z))
+	for x in range(-56,57):
+		for z in range(-54,55):
+			if not field.occupied(Vector3(x*.5,0,z*.5),.8):
+				cells.append(Vector2i(x,z))
 	var out: Array[Vector3] = []
 	for i in count:
 		var c: Vector2i = cells[rng.randi_range(0, cells.size() - 1)]

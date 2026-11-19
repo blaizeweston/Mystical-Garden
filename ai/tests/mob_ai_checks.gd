@@ -285,8 +285,7 @@ func add_mob(sim: Sim, label: String, at: Vector2, flags := 0, leader := -1) -> 
 func test_observation_values(schema: Schema) -> void:
 	var field = Battlefield.new()
 	field.configure(0, 1)
-	field.barriers = [Rect2(-6.0, -0.5, 12.0, 1.0)]
-	field.rebuild()
+	preload("res://tests/support/terrain_case.gd").walls(field,[Rect2(-6.0, -0.5, 12.0, 1.0)])
 	var sim := Sim.new(3)
 	sim.configure(field)
 	var runtime := Runtime.new(schema, sim.locomotion.world)

@@ -20,7 +20,7 @@ const Profile = preload("res://character_profile.gd")
 const Skills = preload("res://skill_catalog.gd")
 const Aim = preload("res://ability_aim.gd")
 const Events = preload("res://combat_action_events.gd")
-const Field = preload("res://assets/terrain_m02/experimental/experiment_wilds.gd")
+const Field = preload("res://battlefield.gd")
 const Surface = preload("res://assets/terrain_m02/wilds_play_surface.gd")
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const OFFENSE := ["wildstalker","wider_pattern","splinter_ambush","barbed_snare","follow_through","double_draw"]
@@ -265,7 +265,7 @@ func balanced_and_corridor() -> void:
 		and placed.get("ranger_route",{}).get("to",Vector3.INF).x < -1.75,
 		"the projectile crosses water but the supported root corridor stops short")
 	var legacy := preload("res://battlefield.gd").new()
-	legacy.barriers.assign([Rect2(-2.5,-1.0,.25,2.0)])
+	preload("res://tests/support/terrain_case.gd").walls(legacy,[Rect2(-2.5,-1.0,.25,2.0)])
 	var before_wall := Ranger.corridor(legacy,Vector3(-4,0,0),Vector3(3,0,0))
 	check(not before_wall.is_empty() and before_wall.to.x < -3.25,"Brambles stop at the full-width solid cover margin")
 

@@ -25,7 +25,7 @@ func run() -> void:
  if role=="host":await host_run()
  else:await guest_run()
  SessionCase.World.leave(game,"Fixture complete")
- check(game.network_session.transport() == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer, "network shuts down before world removal")
+ check(game.network_session.transport() == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer, "network shuts down before world removal: "+game.status)
  game.queue_free();await process_frame
  if not failed:print("PASS: terrain co-op ",role," incompatible geometry rejected, seed reconstruction, gate positions and matched collision")
  quit(1 if failed else 0)
@@ -40,9 +40,13 @@ func host_run() -> void:
  for seed_value in [91247,91249,91255]:
   ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"depth": 2});ExpeditionCase.set_world(game, {"encounter_number": 2});ExpeditionCase.set_world(game, {"map_seed": seed_value});game.tactics.boss_kind=-1;game.reset_encounter()
   for p in game.players.values():ExpeditionCase.set_membership(game, p, true);p.pos=game.battlefield.entry;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10)
+  if seed_value==91247:
+   for id: int in game.players:
+    var member: Dictionary=game.players[id]
+    check(game.monster_rewards.begin_expedition(game._kill_reward_identity(id,member),game.participation.run_id(),member.character.xp,member.character.monsters),"synthetic terrain admission captures the real reward-forfeiture baseline")
   game.encounter.set_hp(-1, 100);game.tactics.ready_at=Time.get_ticks_msec()+60000
   for scout in game.encounter.scout_tactics():scout.ready=Time.get_ticks_msec()+60000;scout.rooted_until=Time.get_ticks_msec()+60000
-  var f:=ConfigFile.new();f.set_value("floor","entry",game.battlefield.entry);f.set_value("floor","exit",game.battlefield.advance);f.set_value("floor","mask",var_to_bytes(game.battlefield.surface.cells).hex_encode().sha256_text());f.save(base+str(seed_value))
+  var f:=ConfigFile.new();f.set_value("floor","entry",game.battlefield.entry);f.set_value("floor","exit",game.battlefield.advance);f.set_value("floor","mask",var_to_bytes(game.battlefield.generated).hex_encode().sha256_text());f.save(base+str(seed_value))
   check(await until(func():return marked("seen"+str(seed_value))),"guest reproduces floor "+str(seed_value))
  mark("done");await create_timer(.3).timeout
 func guest_run() -> void:
@@ -59,7 +63,7 @@ func guest_run() -> void:
   if not await until(func():return game.network_session.role()=="Guest" and game.participation.seed()==seed_value and game.stage.visual_field.configured_key==Vector3i(0,2,seed_value)):check(false,"host's generated floor arrives: "+game.status);return
   var f:=ConfigFile.new();check(f.load(base+str(seed_value))==OK,"host floor receipt available")
   var field=game.stage.visual_field
-  check(field.entry==f.get_value("floor","entry") and field.advance==f.get_value("floor","exit") and var_to_bytes(field.surface.cells).hex_encode().sha256_text()==f.get_value("floor","mask"),"host/guest share randomized gates and exact traversable surface")
+  check(field.entry==f.get_value("floor","entry") and field.advance==f.get_value("floor","exit") and var_to_bytes(field.generated).hex_encode().sha256_text()==f.get_value("floor","mask"),"host/guest share randomized gates and exact traversable surface")
   var id:=game.multiplayer.get_unique_id();var p: Dictionary=game.players[id];var original: Vector3=p.pos
   game.net_motion.predict_step(game,p,Vector2.RIGHT,.02)
   check(field.clear_line(original,p.pos,field.CLEARANCE),"predicted movement uses the same final floor collision")

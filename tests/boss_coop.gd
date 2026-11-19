@@ -243,7 +243,7 @@ func guest_run() -> void:
  for kind in range(20,24):
   check(await until(func():return game.tactics.boss_kind==kind and game.stage.visual_field.boss_kind==kind),"shared boss map/weapon descriptor "+str(kind))
   var field=load("res://battlefield.gd").new();field.configure(0,game.participation.depth(),game.participation.seed(),kind,0)
-  check(field.clearings==game.stage.visual_field.clearings and field.barriers==game.stage.visual_field.barriers,"same visible terrain as host")
+  check(field.generated==game.stage.visual_field.generated and field.barriers==game.stage.visual_field.barriers,"same visible terrain as host")
   var p: Dictionary=game.players[id]
   check(not p.get("weapon_stats",{}).get("affinity_build",{}).is_empty(),"authoritative modern build arrives")
   check(game.encounter_health()==int(game.players[id].enemy_max_hp),"guest boss maximum health matches host party scaling")

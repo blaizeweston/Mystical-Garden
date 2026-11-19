@@ -147,10 +147,10 @@ func title_and_depart() -> bool:
 	game.map_rng.seed=16
 	game.PartyTravel.request(game,1,"depart")
 	deadline = Time.get_ticks_msec()+6500
-	while (not ExpeditionCase.is_wild(player) or not game.stage._has_experimental_floor()) and Time.get_ticks_msec()<deadline:
+	while (not ExpeditionCase.is_wild(player) or not game.stage.has_floor()) and Time.get_ticks_msec()<deadline:
 		await process_frame
-	check(ExpeditionCase.is_wild(player) and game.stage._has_experimental_floor(),"real generated Wilds departure")
-	return ExpeditionCase.is_wild(player) and game.stage._has_experimental_floor()
+	check(ExpeditionCase.is_wild(player) and game.stage.has_floor(),"real generated Wilds departure")
+	return ExpeditionCase.is_wild(player) and game.stage.has_floor()
 
 
 func arena(path: Array) -> void:
@@ -369,12 +369,12 @@ func balance(base: int) -> void:
 		game.tactics.position=point
 		q(point)
 		if mode=="expired": player.weaver_nova_origin.until=Time.get_ticks_msec()
-		if mode=="obstructed": game.battlefield.barriers.append(Rect2(2.2,-.45,.6,.9))
+		if mode=="obstructed": preload("res://tests/support/terrain_case.gd").add_wall(game.battlefield,Rect2(2.2,-.45,.6,.9))
 		if mode=="empty": game.tactics.position=Vector3(-7,0,0)
 		refund=player[Cooldowns.STATE].deadline(Cooldowns.Q)
 		r()
 		check(game.enemy_health()==900 and player[Cooldowns.STATE].deadline(Cooldowns.Q)==refund,"%s origin adds no hit or Q recovery" % mode)
-		game.battlefield.barriers.clear()
+		preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 
 	for focus in ["thornbinder","silkwarden"]:
 		var path := BALANCED.duplicate()
@@ -475,7 +475,7 @@ func run() -> void:
 		return
 	game.set_physics_process(false)
 	game.battlefield.configure(0,1,0)
-	game.battlefield.barriers.clear()
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.tactics.boss_kind=-1
 	game.add_player(2)
 	ally=game.players[2]

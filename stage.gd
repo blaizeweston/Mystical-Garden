@@ -12,7 +12,6 @@ const GardenScenery=preload("res://garden_scenery.gd")
 const Frames = preload("res://weapon_frames.gd")
 const Campaign = preload("res://campaign.gd")
 const Battlefield = preload("res://battlefield.gd")
-const ExperimentalWilds = preload("res://assets/terrain_m02/experimental/experiment_wilds.gd")
 const EncounterConfig=preload("res://encounter_config.gd")
 const PACK_STRIDE := EncounterConfig.PACK_STRIDE
 
@@ -56,11 +55,7 @@ var support_binds: Array[MeshInstance3D] = []
 var support_hp: Array[int] = []
 var terrain: Node3D
 var experimental_garden: Node3D
-var legacy_garden_base: MeshInstance3D
-var legacy_gate: Node3D
-var legacy_altar: Node3D
 var scenery_materials: Dictionary={}
-var wilderness_base: MeshInstance3D
 var trail: MeshInstance3D
 var visual_field := Battlefield.new()
 var seed_cache: Node3D
@@ -77,7 +72,6 @@ var wild_portal: Node3D
 var deeper_gate: Node3D
 var experimental_exit: Node3D
 var graft_altar: Node3D
-var wild_floor: StandardMaterial3D
 var briar_vines: MeshInstance3D
 var longlimb_legs: Node3D
 var heart_phase := 0
@@ -88,8 +82,6 @@ var heart_size := 0.9
 var heart_core: MeshInstance3D
 var heart_tree: Node3D
 var heart_seed: MeshInstance3D
-var garden_floor: ShaderMaterial
-var garden_disc: MeshInstance3D
 var garden_edge: Node3D
 var garden_tier := -1
 var active_plots := 3
@@ -154,9 +146,9 @@ func _ready() -> void:
 		sun.shadow_bias = 0.04
 		sun.shadow_blur = 1.4
 		sun.light_angular_distance = 1.2
-	garden_floor = build_circular_garden()
-	wild_floor = build_wilderness_ground()
-	build_garden_gateway()
+	garden_edge = Node3D.new()
+	garden_edge.name = "GardenLandmarks"
+	add_child(garden_edge)
 	deeper_gate = build_wild_gateway(DEEPER_GATE, "GO DEEPER", Color("#ef9690"))
 	wild_portal=build_gate_swirl(deeper_gate,WILD_OFFSET+DEEPER_GATE)
 	var heart := HEART
@@ -173,9 +165,7 @@ func _ready() -> void:
 		root.rotation.y = angle
 		root.reparent(returning_corruption)
 	returning_corruption.hide()
-	build_campaign_scenery()
 	build_tactical_cover()
-	legacy_altar = preload("res://garden_visuals.gd").altar(self)
 	graft_altar = preload("res://assets/altar.glb").instantiate() as Node3D
 	add_child(graft_altar)
 	graft_altar.position = WILD_OFFSET + GRAFT_ALTAR
@@ -193,7 +183,6 @@ func _ready() -> void:
 	graft_altar.hide()
 	seed_cache = build_cache_model()
 	seed_cache.hide()
-	marker(Vector3.UP * 1.8, "ALTAR", legacy_altar)
 	garden_beds = Node3D.new()
 	add_child(garden_beds)
 	foe = Node3D.new()
@@ -327,18 +316,12 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 	cache_label.text = "SEARCHED POD" if claimed else "ABANDONED SEED POD"
 	seed_cache.position = WILD_OFFSET + visual_field.cache
 
-	for i in scenery.size():
-		scenery[i].visible = i == site and not _has_experimental_floor()
-	if experimental_garden != null:
-		wilderness_base.visible = bool(Participation.is_wild(players.get(camera_id, {}))) and not _has_experimental_floor()
-		if _has_experimental_floor():
-			var climate: Dictionary = visual_field.generated.climate
-			$Sun.light_color = climate.sun
-			$Sun.light_energy = climate.sun_energy
-			$WorldEnvironment.environment.ambient_light_color = climate.ambient
-			$WorldEnvironment.environment.ambient_light_energy = climate.ambient_energy
-		else:
-			$WorldEnvironment.environment.ambient_light_color = Color("#9fb4c4")
+	if not visual_field.generated.is_empty():
+		var climate: Dictionary=visual_field.generated.climate
+		$Sun.light_color=climate.sun
+		$Sun.light_energy=climate.sun_energy
+		$WorldEnvironment.environment.ambient_light_color=climate.ambient
+		$WorldEnvironment.environment.ambient_light_energy=climate.ambient_energy
 	ensure_enemy(foe, foe_model, campaign[18] if campaign.size() > 18 else 0)
 	ensure_finale_form(foe_model,site==Campaign.HEART)
 	preload("res://elite_enemy.gd").decorate(self,foe_model,boss<0 and site!=Campaign.HEART)
@@ -361,7 +344,6 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 		(heart_core.material_override as StandardMaterial3D).emission_energy_multiplier = 0.04 + heart_phase * 0.02 + (pulse - 0.98) * 0.6
 	heart_seed.visible = campaign[5] == Campaign.SEED
 	returning_corruption.visible = campaign[5] == Campaign.CORRUPTION
-	garden_floor.set_shader_parameter("tint",Color("#8b6a57") if returning_corruption.visible else Color.WHITE)
 	for i in offshoot_models.size():
 		var state := campaign[2 + i]
 		var sapling := offshoot_models[i]
@@ -668,62 +650,28 @@ func build_tactical_cover() -> void:
 
 
 
-func redraw_terrain(site: int, depth: int, map_seed: int,boss: int=-1,phase: int=0) -> void:
-	var generation_started:=Time.get_ticks_usec()
+func has_floor() -> bool:
+	return visual_field != null and visual_field.configured_key.x>=0 and not visual_field.generated.is_empty()
+
+
+func redraw_terrain(site: int, depth: int, map_seed: int, boss: int = -1, phase: int = 0) -> void:
+	var started := Time.get_ticks_usec()
 	for child in terrain.get_children():
 		terrain.remove_child(child)
 		child.queue_free()
-	experimental_exit = null
-	if visual_field.configured_key!=Vector3i(site,depth,map_seed) or visual_field.boss_kind!=boss or visual_field.boss_phase!=phase: visual_field.configure(site, depth, map_seed,boss,phase)
-	deeper_gate.position = visual_field.advance - DEEPER_GATE
-	graft_altar.position = WILD_OFFSET + visual_field.graft
-	wilderness_base.visible = not _has_experimental_floor()
-	if experimental_garden != null:
-		for detail: Node3D in deeper_gate.get_children():
-			if detail != wild_portal and not detail is Label3D:
-				detail.visible = not _has_experimental_floor()
-	if _has_experimental_floor():
-		experimental_exit = preload("res://assets/terrain_m02/experimental/experiment_terrain_view.gd").draw_wilds(
-			terrain, WILD_OFFSET, visual_field.generated, map_seed)
-		return
-	var cover := visual_field.barriers
-	var random := RandomNumberGenerator.new()
-	random.seed = 46213 + map_seed + site * 997 + depth * 127
-	if boss!=22:
-		for i in cover.size():
-			build_cover(cover[i], terrain, (i + site) % 3 == 0)
-	build_exploration_floor(visual_field, site,depth)
-	if wilderness_base:
-		var bed:=ShaderMaterial.new();bed.shader=preload("res://assets/shaders/forest_soil.gdshader");bed.set_shader_parameter("forest_bed",visual_field.procedural);apply_biome_material(bed,site,depth);wilderness_base.material_override=bed
-	if visual_field.procedural:
-		for link in visual_field.links:
-			var a: Vector3 = visual_field.clearings[link[0]]
-			var b: Vector3 = visual_field.clearings[link[1]]
-			var distance := Vector2(a.x, a.y).distance_to(Vector2(b.x, b.y))
-			var steps := ceili(distance / 1.6)
-			for i in steps:
-				if random.randf() < 0.78:
-					continue
-				var along := (i + 0.5) / steps
-				var point := Vector2(a.x, a.y).lerp(Vector2(b.x, b.y), along)
-				var p := Vector3(point.x, 0.015, point.y)
-				place_asset(terrain, FLAGSTONES, p, Vector3.ONE * random.randf_range(0.58, 1.0),
-					atan2(b.x - a.x, b.y - a.y) + random.randf_range(-0.3, 0.3))
-		build_forest_edges(visual_field, random)
-		build_root_network(visual_field)
-	for i in 28:
-		var point := Vector2(random.randf_range(-17.3, 17.3), random.randf_range(-12.7, 12.7))
-		if covered(point, cover) or not visual_field.inside_floor(Vector3(point.x, 0, point.y), 0.5):
-			continue
-		place_asset(terrain, ROCK, Vector3(point.x, -0.05, point.y),
-			Vector3.ONE * random.randf_range(0.08, 0.23), random.randf() * TAU)
-	scatter_undergrowth(site, cover, random)
-	if boss>=0: preload("res://boss_lair_visuals.gd").build(self,terrain,visual_field)
-	preload("res://game_metrics.gd").record("floor_generation",{"seed":map_seed,"biome":site,"depth":depth,"terrain":preload("res://wilds_layout.gd").SIGNATURE,"entry":[visual_field.entry.x,visual_field.entry.z],"exit":[visual_field.advance.x,visual_field.advance.z],"clearings":visual_field.clearings.size(),"walkable_cells":visual_field.surface.cells.size() if visual_field.surface!=null else 0,"milliseconds":(Time.get_ticks_usec()-generation_started)/1000.})
+	if visual_field.configured_key!=Vector3i(site,depth,map_seed) or visual_field.boss_kind!=boss or visual_field.boss_phase!=phase:
+		visual_field.configure(site,depth,map_seed,boss,phase)
+	deeper_gate.position=visual_field.advance-DEEPER_GATE
+	graft_altar.position=WILD_OFFSET+visual_field.graft
+	for detail: Node3D in deeper_gate.get_children():
+		if detail!=wild_portal and not detail is Label3D:detail.hide()
+	experimental_exit=preload("res://assets/terrain_m02/experimental/experiment_terrain_view.gd").draw_wilds(terrain,WILD_OFFSET,visual_field.generated,map_seed)
+	if boss>=0:preload("res://boss_lair_visuals.gd").build(self,terrain,visual_field)
+	preload("res://game_metrics.gd").record("floor_generation",{"seed":map_seed,"biome":site,"depth":depth,
+		"terrain":Battlefield.SIGNATURE,"layout_kind":visual_field.generated.layout.get("layout_kind","generated"),
+		"entry":[visual_field.entry.x,visual_field.entry.z],"exit":[visual_field.advance.x,visual_field.advance.z],
+		"milliseconds":(Time.get_ticks_usec()-started)/1000.0})
 
-
-func _has_experimental_floor() -> bool:
-	return visual_field is ExperimentalWilds and not visual_field.generated.is_empty()
 
 func gate_position() -> Vector3:
 	return GATE if experimental_garden == null else experimental_garden.landmark("wilds_entrance")
@@ -739,107 +687,6 @@ func bed_positions() -> Array:
 
 func station_position(id: String) -> Vector3:
 	return HEART_STATIONS.get(id, Vector3.INF) if experimental_garden == null else experimental_garden.station_position(id)
-
-func build_exploration_floor(field: RefCounted, site: int,depth: int=1) -> void:
-	if not field.procedural:
-		return
-	var surface := SurfaceTool.new()
-	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for x in range(Battlefield.REGION.position.x * 2, (Battlefield.REGION.end.x - 1) * 2):
-		for z in range(Battlefield.REGION.position.y * 2, (Battlefield.REGION.end.y - 1) * 2):
-			var a := Vector3(x * 0.5, 0.008, z * 0.5)
-			var b := Vector3((x + 1) * 0.5, 0.008, z * 0.5)
-			var c := Vector3(x * 0.5, 0.008, (z + 1) * 0.5)
-			var d := Vector3((x + 1) * 0.5, 0.008, (z + 1) * 0.5)
-			clipped_ground(surface, field, [a, b, c])
-			clipped_ground(surface, field, [b, d, c])
-	var floor_model := MeshInstance3D.new()
-	terrain.add_child(floor_model)
-	floor_model.position = WILD_OFFSET
-	floor_model.mesh = surface.commit()
-	var material := ShaderMaterial.new()
-	material.shader=preload("res://assets/shaders/forest_soil.gdshader")
-	apply_biome_material(material,site,depth)
-	floor_model.material_override = material
-
-
-func clipped_ground(surface: SurfaceTool, field: RefCounted, triangle: Array) -> void:
-	var polygon: Array[Vector3] = []
-	for i in triangle.size():
-		var a: Vector3 = triangle[i]
-		var b: Vector3 = triangle[(i + 1) % triangle.size()]
-		var da: float = field.sample_distance(a)
-		var db: float = field.sample_distance(b)
-		if da >= 0.0:
-			polygon.append(a)
-		if (da >= 0.0) != (db >= 0.0):
-			polygon.append(a.lerp(b, da / (da - db)))
-	for i in range(1, polygon.size() - 1):
-		ground_triangle(surface, [polygon[0], polygon[i], polygon[i + 1]], [1.0, 1.0, 1.0])
-
-
-func build_forest_edges(field: RefCounted, random: RandomNumberGenerator) -> void:
-	for x in range(Battlefield.REGION.position.x, Battlefield.REGION.end.x, 2):
-		for z in range(Battlefield.REGION.position.y, Battlefield.REGION.end.y, 2):
-			var p := Vector3(x + random.randf_range(-0.36, 0.36), -0.08,
-				z + random.randf_range(-0.36, 0.36))
-			if field.inside_floor(p, -0.3) or not field.inside_floor(p, -2.8):
-				continue
-			if p.distance_to(field.extraction) < 3.0 or p.distance_to(field.advance) < 3.0:
-				continue
-			var asset := PINE if random.randf() > 0.29 else SNAG
-			place_asset(terrain, asset, p, Vector3.ONE * random.randf_range(0.62, 1.08), random.randf() * TAU)
-			if random.randf() < 0.25:
-				place_asset(terrain, ROCK, p + Vector3(0.6, 0, 0.4),
-					Vector3.ONE * random.randf_range(0.36, 0.65), random.randf() * TAU)
-	var end: Vector3 = field.clearings.back()
-	place_asset(terrain, RUIN, Vector3(end.x, 0, end.y) + Vector3.RIGHT * 2.6,
-		Vector3.ONE * 0.65, random.randf() * TAU)
-
-
-func scatter_undergrowth(_site: int, cover: Array, random: RandomNumberGenerator) -> void:
-	var surface:=SurfaceTool.new();surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i in 2400:
-		var at:=Vector3(random.randf_range(-27,27),.022,random.randf_range(-26,26))
-		var margin: float=visual_field.floor_distance(at)
-		if margin < -1.1 or margin>3.5 or covered(Vector2(at.x,at.z),cover): continue
-		var direction:=Vector3(cos(i*2.4),0,sin(i*2.4));var side:=direction.cross(Vector3.UP)
-		var length:=random.randf_range(.045,.12);var width:=length*.42
-		var color:=Color("#85704c").lerp(Color("#5d623e"),random.randf())
-		var points: Array[Vector3]=[at-direction*length,at+side*width,at+direction*length,at-side*width,at+Vector3.UP*.008]
-		for triangle in [[0,1,4],[1,2,4],[2,3,4],[3,0,4]]:
-			for vertex in triangle:
-				surface.set_color(color);surface.set_normal(Vector3.UP);surface.add_vertex(points[vertex])
-	var litter:=MeshInstance3D.new();litter.name="ForestLeafLitter";litter.mesh=surface.commit();litter.position=WILD_OFFSET
-	var material:=StandardMaterial3D.new();material.vertex_color_use_as_albedo=true;material.cull_mode=BaseMaterial3D.CULL_DISABLED;material.roughness=1
-	litter.material_override=material;terrain.add_child(litter)
-
-
-func covered(point: Vector2, cover: Array) -> bool:
-	for rect in cover:
-		if rect.grow(0.55).has_point(point):
-			return true
-	return false
-
-
-func build_cover(rect: Rect2, parent: Node3D, masonry: bool) -> void:
-	var center := rect.get_center()
-	var along_x := rect.size.x >= rect.size.y
-	var length := rect.size.x if along_x else rect.size.y
-	var width := rect.size.y if along_x else rect.size.x
-	var yaw := 0.0 if along_x else PI * 0.5
-	if masonry:
-		place_asset(parent, RUIN, Vector3(center.x, 0, center.y),
-			Vector3(length / 3.25, 1.0, width / 1.22), yaw)
-	else:
-		var chunks := maxi(2, roundi(length / 1.24))
-		for i in chunks:
-			var offset := (i + 0.5 - chunks * 0.5) * length / chunks
-			var p := Vector3(center.x + (offset if along_x else 0.0), 0,
-				center.y + (0.0 if along_x else offset))
-			place_asset(parent, ROCK, p, Vector3(length / chunks / 1.55,
-				1.05 + 0.16 * sin(i * 2.1), width / 1.35), yaw + (PI if i % 2 == 0 else 0.0))
-
 
 func place_asset(parent: Node3D, source: PackedScene, p: Vector3, size: Vector3, yaw: float) -> Node3D:
 	var prop := source.instantiate() as Node3D
@@ -889,96 +736,12 @@ func build_wild_gateway(p: Vector3, title: String, tint: Color) -> Node3D:
 	return gate
 
 
-func build_wilderness_ground() -> StandardMaterial3D:
-	var random := RandomNumberGenerator.new()
-	random.seed = 76351
-	var surface := SurfaceTool.new()
-	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	const SLICES := 36
-	var rings: Array = [[Vector3.ZERO]]
-	var shades: Array = [[1.0]]
-	for ring in 5:
-		var positions: Array[Vector3] = []
-		var values: Array[float] = []
-		var spread := (ring + 1) / 5.0
-		for i in SLICES:
-			var angle := TAU * (i + 0.25 * (ring % 2)) / SLICES
-			var irregular := random.randf_range(0.95, 1.05)
-			positions.append(Vector3(cos(angle) * 42.0 * spread * irregular,
-				-0.015 - 0.7 * maxf(0.0, spread - 0.68), sin(angle) * 38.0 * spread * irregular))
-			values.append(1.0 - maxf(0.0, spread - 0.6) * 0.60)
-		rings.append(positions)
-		shades.append(values)
-	for i in SLICES:
-		var following := (i + 1) % SLICES
-		ground_triangle(surface, [Vector3.ZERO, rings[1][i], rings[1][following]],
-			[1.0, shades[1][i], shades[1][following]])
-		for ring in range(1, 5):
-			ground_triangle(surface, [rings[ring][i], rings[ring + 1][i], rings[ring][following]],
-				[shades[ring][i], shades[ring + 1][i], shades[ring][following]])
-			ground_triangle(surface, [rings[ring][following], rings[ring + 1][i], rings[ring + 1][following]],
-				[shades[ring][following], shades[ring + 1][i], shades[ring + 1][following]])
-	var floor_mesh := mesh(surface.commit(), WILD_OFFSET, FLOORS[0])
-	wilderness_base=floor_mesh
-	var material := floor_mesh.material_override as StandardMaterial3D
-	material.vertex_color_use_as_albedo = true
-	var noise := FastNoiseLite.new()
-	noise.seed = 58301
-	noise.frequency = 0.11
-	var texture := NoiseTexture2D.new()
-	texture.width = 256
-	texture.height = 256
-	texture.noise = noise
-	texture.seamless = true
-	var palette := Gradient.new()
-	palette.colors = PackedColorArray([Color("#75634e"), Color("#d7c2a1")])
-	texture.color_ramp = palette
-	material.albedo_texture = texture
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return material
-
-
-func ground_triangle(surface: SurfaceTool, points: Array, values: Array) -> void:
-	for i in 3:
-		var value: float = values[i]
-		surface.set_color(Color(value, value, value))
-		surface.set_normal(Vector3.UP)
-		var point: Vector3 = points[i]
-		surface.set_uv(Vector2(point.x, point.z) / 6.0)
-		surface.add_vertex(point)
-
-
 func tree(p: Vector3, _tint: Color, size: float) -> Node3D:
 	var model := PINE.instantiate() as Node3D
 	add_child(model)
 	model.position = p
 	model.scale = Vector3.ONE * size * 0.82
 	return model
-
-func build_campaign_scenery() -> void:
-	for site in Campaign.NAMES.size():
-		var region := Node3D.new()
-		add_child(region)
-		scenery.append(region)
-		var random := RandomNumberGenerator.new()
-		random.seed = 62971 + site * 3259
-		for i in 39:
-			var angle := TAU * i / 39.0 + random.randf_range(-0.1, 0.1)
-			var spread := random.randf_range(0.91, 1.2)
-			var p := Vector3(cos(angle) * 32.0 * spread, -0.13, sin(angle) * 29.5 * spread)
-			if absf(p.x) < 3.5 and absf(p.z) < 18.0:
-				continue
-			var feature := PINE if random.randf() > 0.18 + site * 0.19 else SNAG
-			if i % 4 == 0:
-				feature = ROCK
-			var size := random.randf_range(0.75, 1.55)
-			place_asset(region, feature, p, Vector3.ONE * size, random.randf() * TAU)
-		for i in 10:
-			var side := -1.0 if i % 2 == 0 else 1.0
-			var p := Vector3(side * random.randf_range(28.0, 31.2), -0.07, random.randf_range(-12.0, 12.0))
-			var feature := RUIN if i % 4 == 0 else ROCK
-			place_asset(region, feature, p, Vector3.ONE * random.randf_range(0.37, 0.73), random.randf() * TAU)
-
 
 func marker(p: Vector3, title: String, parent: Node3D = self) -> void:
 	var label := Label3D.new()
@@ -1021,67 +784,6 @@ func mesh(shape: Mesh, p: Vector3, tint: Color) -> MeshInstance3D:
 
 # Trace the shared floor boundary instead of clipping the old per-path roots.
 # Every chain follows the actual connected floor, including merged junctions.
-func build_root_network(field: RefCounted) -> void:
-	var graph: Dictionary={};var positions: Dictionary={}
-	var spacing:=.5
-	for x in range(Battlefield.REGION.position.x*2,(Battlefield.REGION.end.x-1)*2):
-		for z in range(Battlefield.REGION.position.y*2,(Battlefield.REGION.end.y-1)*2):
-			var corners: Array[Vector3]=[Vector3(x*spacing,0,z*spacing),Vector3((x+1)*spacing,0,z*spacing),Vector3((x+1)*spacing,0,(z+1)*spacing),Vector3(x*spacing,0,(z+1)*spacing)]
-			var crossings: Array[Vector3]=[]
-			for edge in 4:
-				var a:=corners[edge];var b:=corners[(edge+1)%4];var da: float=field.sample_distance(a);var db: float=field.sample_distance(b)
-				if (da>=0)!=(db>=0): crossings.append(a.lerp(b,da/(da-db)))
-			for pair in range(0,crossings.size()-1,2):
-				var a: Vector3=crossings[pair];var b: Vector3=crossings[pair+1]
-				var ka:=Vector2i(roundi(a.x*1000),roundi(a.z*1000));var kb:=Vector2i(roundi(b.x*1000),roundi(b.z*1000))
-				positions[ka]=a;positions[kb]=b
-				if not graph.has(ka): graph[ka]=[]
-				if not graph.has(kb): graph[kb]=[]
-				graph[ka].append(kb);graph[kb].append(ka)
-	var surface:=SurfaceTool.new();surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var visited: Dictionary={};var chain_count:=0
-	for start in graph:
-		if visited.has(start): continue
-		var path: Array[Vector3]=[];var current=start
-		for step in graph.size()+1:
-			if visited.has(current): break
-			visited[current]=true;path.append(positions[current]+Vector3.UP*.035)
-			var next=null
-			for neighbor in graph[current]:
-				if not visited.has(neighbor): next=neighbor;break
-			if next==null:
-				if graph[current].has(start): path.append(path[0])
-				break
-			current=next
-		if path.size()<8: continue
-		chain_count+=1
-		var original:=path.duplicate()
-		for i in path.size():
-			var tangent: Vector3=(original[mini(i+1,path.size()-1)]-original[maxi(0,i-1)]).normalized()
-			var sideways:=tangent.cross(Vector3.UP)
-			var offset:=.16*sin(original[i].x*1.2+original[i].z*.7)+.07*sin(original[i].z*2.7)
-			path[i]+=sideways*offset
-		root_tube(surface,path,.16,.16)
-		# Smaller intertwined roots remain continuous and taper into the soil.
-		var winding: Array[Vector3]=[]
-		for i in path.size():
-			var tangent: Vector3=(path[mini(i+1,path.size()-1)]-path[maxi(0,i-1)]).normalized()
-			var side:=tangent.cross(Vector3.UP)
-			winding.append(path[i]+side*sin(i*.33)*.21+Vector3.UP*(.045+cos(i*.33)*.07))
-		root_tube(surface,winding,.085,.035)
-		for i in range(8,path.size()-4,16):
-			var origin:=path[i];var tangent: Vector3=(path[i+1]-path[i-1]).normalized();var side:=tangent.cross(Vector3.UP)
-			# Branch toward the forest, leaving the path open.
-			if field.floor_distance(origin+side*.4)>0: side=-side
-			var branch: Array[Vector3]=[]
-			for j in 16:
-				var t:=j/15.0;branch.append(origin+side*t*1.7+tangent*sin(t*PI)*.4+Vector3.UP*sin(t*PI)*.05)
-			root_tube(surface,branch,.13,.006)
-	var roots:=MeshInstance3D.new();roots.name="ContinuousBoundaryRoots";terrain.add_child(roots);roots.position=WILD_OFFSET;roots.mesh=surface.commit()
-	roots.set_meta("boundary_chains",chain_count)
-	var bark:=ShaderMaterial.new();bark.shader=preload("res://assets/shaders/root_bark.gdshader");roots.material_override=bark
-
-
 func root_tube(surface: SurfaceTool, points: Array[Vector3], radius_start: float, radius_end: float) -> void:
 	const SIDES := 12
 	for i in range(points.size() - 1):
@@ -1131,108 +833,19 @@ static func garden_radius(knowledge: int, technologies: int) -> float:
 	return 11.5 + garden_growth(knowledge, technologies) * 1.05
 
 
-func build_circular_garden() -> ShaderMaterial:
-	var soil := CylinderMesh.new()
-	soil.top_radius = 24.5
-	soil.bottom_radius = 24.5
-	soil.height = 0.12
-	soil.radial_segments = 96
-	legacy_garden_base = mesh(soil, Vector3(0, -0.30, 0), Color("#322a20"))
-	var clearing := CylinderMesh.new()
-	clearing.top_radius = 1.0
-	clearing.bottom_radius = 1.0
-	clearing.height = 0.12
-	clearing.radial_segments = 96
-	garden_disc = mesh(clearing, Vector3(0, -0.11, 0), Color("#4c6435"))
-	var material := GardenScenery.floor_material()
-	garden_disc.material_override=material
-	garden_edge = Node3D.new()
-	add_child(garden_edge)
-	update_garden(0, 0)
-	return material
-
-
 func update_garden(knowledge: int, technologies: int) -> void:
-	if experimental_garden != null: return
-	var radius := garden_radius(knowledge, technologies)
-	garden_extent = preload("res://garden_layout.gd").extent(self,radius)
-	garden_disc.scale = Vector3(radius, 1, radius)
-	if is_instance_valid(heart_tree):
-		heart_size = lerpf(0.78, 1.12, heart_phase / 5.0)
-	var tier := garden_growth(knowledge, technologies) * 16 + active_plots
-	if garden_tier == tier:
-		return
-	garden_tier = tier
-	for child in garden_edge.get_children():
-		child.free()
-	var random := RandomNumberGenerator.new()
-	random.seed = 8319
-	for i in 34:
-		var angle := TAU * i / 34.0
-		var r := radius + random.randf_range(0.5, 1.5)
-		var p := Vector3(cos(angle) * r, 0, sin(angle) * r)
-		var tree_model := PINE.instantiate() as Node3D
-		natural_materials(tree_model)
-		garden_edge.add_child(tree_model)
-		var safe_p:=p
-		for bed in PLOTS.slice(0,active_plots):
-			if safe_p.distance_to(bed)<3.0: safe_p=safe_p.normalized()*(radius+2.7)
-		if preload("res://garden_layout.gd").reserved(self,safe_p,radius,1.1):safe_p=safe_p.normalized()*(radius+2.7)
-		tree_model.position = safe_p
-		tree_model.scale = Vector3.ONE * random.randf_range(0.7, 1.02)
-		tree_model.rotation.y = random.randf() * TAU
-	build_garden_life(radius, random)
-	preload("res://garden_visuals.gd").accents(self,radius,random)
-	var destinations: Array=preload("res://garden_layout.gd").destinations(self)
-	var bark:=GardenScenery.root_material()
-	for destination in destinations:
-		var surface := SurfaceTool.new()
-		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-		var path: Array[Vector3] = []
-		for i in 16:
-			var t := i / 15.0
-			var p: Vector3 = HEART.lerp(destination, t)
-			p.x += sin(t * PI * 2.0) * 0.23
-			p.y = 0.03
-			path.append(p)
-		for strand in 3:
-			var woven: Array[Vector3]=[]
-			var direction: Vector3=destination.normalized();var side:=direction.cross(Vector3.UP)
-			for i in path.size():
-				var t:=i/float(path.size()-1);woven.append(path[i]+side*(sin(t*6.5+strand*2.1)*.12+sin(t*15+strand)*.025)*(1-t)+Vector3.UP*sin(t*5+strand)*.012)
-			root_tube(surface,woven,.10-strand*.023,.003)
-		for fork in [6,10]:
-			var direction: Vector3=destination.normalized();var side:=direction.cross(Vector3.UP)*(-1 if fork==6 else 1)
-			var branch: Array[Vector3]=[]
-			for i in 13:
-				var t:=i/12.0;branch.append(path[fork]+side*t*.45+direction*t*.35+Vector3.UP*sin(t*PI)*.015)
-			root_tube(surface,branch,.035,.002)
-		var roots := MeshInstance3D.new()
-		garden_edge.add_child(roots)
-		roots.mesh = surface.commit()
-		roots.material_override = bark
-		roots.set_meta("garden_route_target",destination)
+	var radius := garden_radius(knowledge,technologies)
+	garden_extent=preload("res://garden_layout.gd").extent(self,radius)
+	var tier := garden_growth(knowledge,technologies)*16+active_plots
+	if garden_tier==tier:return
+	garden_tier=tier
+	for child in garden_edge.get_children():child.free()
+	var random := RandomNumberGenerator.new();random.seed=8319
+	build_garden_life(radius,random)
+
 
 func apply_appearance(actor: Dictionary,look: Array) -> void:
 	preload("res://character_appearance.gd").apply(actor,look)
-
-func build_garden_gateway() -> void:
-	legacy_gate = Node3D.new()
-	add_child(legacy_gate)
-	for side in [-1.0, 1.0]:
-		var trunk := PINE.instantiate() as Node3D
-		natural_materials(trunk)
-		legacy_gate.add_child(trunk)
-		trunk.position = GATE + Vector3(side * 1.05, 0, 0)
-		trunk.scale = Vector3(0.65, 0.80, 0.65)
-		trunk.rotation.z = side * 0.20
-		var lamp := sphere(GATE + Vector3(side * 0.85, 1.6, 0), 0.12, Color("#b1c393"))
-		lamp.reparent(legacy_gate, false)
-		(lamp.material_override as StandardMaterial3D).emission_enabled = true
-		(lamp.material_override as StandardMaterial3D).emission = Color("#657c45")
-	garden_portal=build_gate_swirl(legacy_gate,GATE)
-	marker(GATE + Vector3.UP * 2.7, "WILDS", legacy_gate)
-
 
 func build_gate_swirl(parent: Node3D,at: Vector3) -> Node3D:
 	var root:=Node3D.new();root.name="GateSwirl";parent.add_child(root);root.position=at+Vector3.UP*1.25
@@ -1274,7 +887,9 @@ func build_heart_growth() -> Node3D:
 
 func update_heart_progress(state: Dictionary) -> void:
 	if experimental_garden != null:
-		heart_unlocked = state.get("unlocked", [])
+		var unlocked: Array=state.get("unlocked",[])
+		if heart_unlocked!=unlocked:garden_tier=-1
+		heart_unlocked = unlocked.duplicate()
 		heart_phase = clampi(int(state.get("phase", 0)), 0, 5)
 		experimental_garden.show_heart_stage(heart_phase)
 		return
@@ -1312,7 +927,6 @@ func build_garden_life(radius: float, random: RandomNumberGenerator) -> void:
 	var spring:=preload("res://assets/garden/sheltered_spring.tscn").instantiate()
 	garden_edge.add_child(spring)
 	spring.configure(self,spring_zone.water.position,preload("res://garden_layout.gd").enabled(spring_zone,heart_unlocked))
-	GardenScenery.scatter(self,radius)
 
 
 func build_garden_pond(position: Vector3, radius: float, random: RandomNumberGenerator) -> void:
