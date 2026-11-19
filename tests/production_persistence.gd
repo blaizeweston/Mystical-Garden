@@ -462,7 +462,7 @@ func selected_technology_effects() -> void:
     result=entry.data
   check(result.get("outcome")==expected and staged.count==1 and game.rng.state==rng
    and Slots._save_digest(profile_path)==profile_before,"Developer exact finalization and Garden-only scope")
-  check(settings.visible==not cleanup and scene.event.is_empty() and not game.get_meta("garden_cinematic_active",false),
+  check(settings.visible==not cleanup and scene.event.is_empty() and not game.ui.cinematic_active(),
    "Developer settings and cinematic respect "+expected)
   if abort:
    check(game.progress.heart.serialize()==heart and garden_after==garden_before and primary=="absent"

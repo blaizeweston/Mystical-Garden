@@ -84,7 +84,7 @@ func _process(_delta: float) -> void:
  for bed in beds:
   var index:=int(bed.slot);present.append(index)
   update_water(bed,p)
-  var visible: bool=not Participation.is_wild(p) and (bed.get("available",false) or bed.get("preserved",false)) and p.get("pos",Vector3.INF).distance_to(game.stage.bed_position(index))<14 and not game.get_meta("garden_cinematic_active",false)
+  var visible: bool=not Participation.is_wild(p) and (bed.get("available",false) or bed.get("preserved",false)) and p.get("pos",Vector3.INF).distance_to(game.stage.bed_position(index))<14 and not game.ui.cinematic_active()
   if visible and not markers.has(index):markers[index]=marker(index)
   if markers.has(index):
    var model: Node3D=markers[index];model.visible=visible
@@ -131,7 +131,7 @@ func _process(_delta: float) -> void:
  flower.text="Harvest 2 seeds instead of parts" if int(bed.stage)==3 else "Seed harvest · available when mature"
  harvest.visible=int(bed.stage)==3;harvest.disabled=pending
 func nearby_crop(player: Dictionary,data: Dictionary) -> Dictionary:
- if player.is_empty() or Participation.is_wild(player) or game.ui.is_overlay_open() or game.get_meta("garden_cinematic_active",false):
+ if player.is_empty() or Participation.is_wild(player) or game.ui.is_overlay_open() or game.ui.cinematic_active():
   return {}
  var nearby: int=game.nearby_plot(player.get("pos",Vector3.INF))
  for bed in data.get("beds",[]):
@@ -167,7 +167,7 @@ func update_water(bed: Dictionary,player: Dictionary) -> void:
   var root: Node3D=wet_marks[index]
   if (game.stage.experimental_garden != null):root.position=game.stage.bed_position(index)
   if wet and not before.is_empty() and before.get("cycle")==bed.cycle and not before.get("watered",false):root.set_meta("splash_at",Time.get_ticks_msec())
-  root.visible=wet and not Participation.is_wild(player) and not game.get_meta("garden_cinematic_active",false) and player.get("pos",Vector3.INF).distance_to(root.position)<14
+  root.visible=wet and not Participation.is_wild(player) and not game.ui.cinematic_active() and player.get("pos",Vector3.INF).distance_to(root.position)<14
   var time:=float(Time.get_ticks_msec()-int(root.get_meta("splash_at",-10000)))/900.0
   for drop in 5:
    var model: MeshInstance3D=root.get_node("Drop%d"%drop);model.visible=time>=0 and time<1 and game.app_settings.values.get("ambient_motion",true)

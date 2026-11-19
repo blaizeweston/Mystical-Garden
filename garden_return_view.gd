@@ -56,7 +56,7 @@ func _process(delta: float) -> void:
    var amount:=1.0
    for pending in growth.get("pending",[]):
     if pending.get("discovery","")!=definition.id:continue
-    amount=clampf((scenes.elapsed-5.5)/1.6,0,1) if scenes.event.get("discovery","")==definition.id else 0.0
+    amount=scenes.discovery_progress(str(definition.id))
    traces[definition.id].visible=known and not Participation.is_wild(player) and amount>.001
    traces[definition.id].scale=Vector3.ONE*maxf(.001,smoothstep(0,1,amount))
  var resonance: bool=Service.known(data,"lantern_homecoming")

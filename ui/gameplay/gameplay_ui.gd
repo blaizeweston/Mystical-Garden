@@ -9,6 +9,7 @@ const LOOK_NAMES = preload("res://character_appearance.gd").OPTIONS
 @onready var _surface: Control = $Surface
 var _panels: Dictionary = {}
 var _features: Dictionary = {}
+var _cinematic: Node
 var _inventory_mount: VBoxContainer
 var _bestiary_entries: VBoxContainer
 var _travel_panel: PanelContainer
@@ -403,6 +404,13 @@ func present_feedback(message: String, pending: bool) -> void:
 # Control construction is shared styling, not world orchestration.
 func _button(parent: Control, caption: String, action: Callable) -> Button:
 	return Style.button(parent,caption,action,Control.FOCUS_ALL if is_instance_valid(_overlay) and _overlay.is_ancestor_of(parent) else Control.FOCUS_NONE)
+
+## The view owns active playback; the shell exposes it as input eligibility.
+func bind_cinematic(view: Node) -> void:
+	assert(not is_instance_valid(_cinematic))
+	_cinematic=view
+func cinematic_active() -> bool:
+	return is_instance_valid(_cinematic) and _cinematic.is_active()
 
 func is_overlay_open() -> bool:
 	return _overlay.visible

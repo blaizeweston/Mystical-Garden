@@ -154,4 +154,4 @@ func run_tool(action: String) -> void:
 	if not tech.is_empty() and context.progress.heart.has(tech) and (pending.is_empty() or pending == Transactions.CLEANUP_NOTICE):
 		context.tell(context.HOST,result)
 		settings.cancel()
-		context.toggle_overlay(null)
+		context.ui.close_panels()

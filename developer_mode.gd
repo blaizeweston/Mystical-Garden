@@ -25,7 +25,7 @@ static func is_solo(game: Node) -> bool:
 static func can_edit(game: Node) -> bool:
 	return is_test_garden(game) and is_solo(game) and game.app_settings.values.get("developer_mode",false) \
 		and not game.participation.active() and not game.returning_to_title \
-		and not game.get_meta("garden_cinematic_active",false) and game.persistence_session.can_write()
+		and not game.ui.cinematic_active() and game.persistence_session.can_write()
 
 
 static func open_garden(menu: Node, reset: bool, digests := {}) -> Error:

@@ -37,21 +37,34 @@ func run() -> void:
  game.participation.clear_travel()
  check(not Service.acknowledge(game,1,"999") and not Service.acknowledge(game,1,"not-a-number"),"forged acknowledgements cannot skip unseen future scenes")
  game._process(.016)
+ check(g.plots.size()==3 and game.stage.garden_beds.get_child_count()==3,"bed research grants permission without silently constructing a bed")
+ # This renderer fixture supplies an already-earned saved bed. Real guarded
+ # construction and its debit/placement rules remain in experimental_terrain.
+ g.plots.append(g.empty_plot())
+ game.stage.experimental_garden.adopt_recorded_beds()
+ game.stage.plot_key=""
+ game._process(.016)
+ if game.stage.garden_beds.get_child_count()<4:
+  game.free();quit(1);return
  var bed: Node3D=game.stage.garden_beds.get_child(3)
- check(bed.global_position.is_equal_approx(game.Stage.PLOTS[3]) and bed.get_child(0).global_position.distance_to(game.Stage.PLOTS[3])<.1,"grouped formation preserves the actual bed's world position")
+ check(bed.global_position.is_equal_approx(game.stage.bed_position(3)),"the reveal uses the actually placed bed position")
  var parts: Array=g.parts.duplicate();var stock: Array=g.stock.duplicate();var knowledge: int=g.knowledge
  view.begin(first);view.animate(2.0);game.stage.focus(game.players[1].pos,false,1)
+ var menu_key:=InputEventKey.new();menu_key.physical_keycode=KEY_ESCAPE;menu_key.pressed=true
+ game._input(menu_key)
+ check(view.is_active() and not game.ui.is_overlay_open(),"actual Game input obeys the cinematic owner while playback is active")
  var start: Vector3=game.stage.get_meta("garden_growth_camera").target;var start_camera: Vector3=game.stage.camera.position
  view.animate(4.8);game.stage.focus(game.players[1].pos,false,1)
  check(start.distance_to(game.stage.get_meta("garden_growth_camera").target)>2 and start_camera.distance_to(game.stage.camera.position)>2,"camera moves with the growing tip instead of waiting at the destination")
  check(game.stage.get_meta("garden_growth_camera").target.is_equal_approx(view.tip),"the travelling shot targets the visible root tip")
- check(not bed.visible,"bed waits until root arrives")
+ check(bed.visible,"existing generated construction stays visible; research does not reconstruct or move it")
  view.animate(6.3)
- check(bed.visible and bed.scale.x>0 and bed.scale.x<1 and bed.global_position.is_equal_approx(game.Stage.PLOTS[3]),"destination grows in place after the root arrives")
+ check(bed.visible and bed.scale.is_equal_approx(Vector3.ONE) and bed.global_position.is_equal_approx(game.stage.bed_position(3)),"a research cinematic preserves the placed structure and transform")
  view.finish(false)
- check(not game.get_meta("garden_cinematic_active") and not game.stage.has_meta("garden_growth_camera") and bed.visible and bed.scale.is_equal_approx(Vector3.ONE) and not Service.projection(game,1).pending.is_empty(),"interruption releases input/camera, restores scenery and keeps the scene pending")
+ check(not game.ui.cinematic_active() and not game.stage.has_meta("garden_growth_camera") and bed.visible and bed.scale.is_equal_approx(Vector3.ONE) and not Service.projection(game,1).pending.is_empty(),"interruption releases input/camera, restores scenery and keeps the scene pending")
  view.begin(first);view.finish(true)
- check(Service.projection(game,1).pending.is_empty() and not game.stage.has_meta("garden_growth_phase"),"skip acknowledges only this viewer and releases presentation")
+ var acknowledged:=Service.projection(game,1)
+ check(acknowledged.seen==int(first.sequence) and not acknowledged.pending.any(func(e):return int(e.sequence)==int(first.sequence)) and not game.stage.has_meta("garden_growth_phase"),"skip acknowledges exactly the displayed receipt while preserving later phase events")
  check(g.parts==parts and g.stock==stock and g.knowledge==knowledge,"watching/skipping creates no material, seed or Knowledge reward")
  var before: Dictionary=g.garden_interactions.duplicate(true);var plots: Array=g.plots.duplicate(true);var profile_path: String=game.local_character.path
  game.local_character.path=base+"-missing/character"
@@ -64,16 +77,13 @@ func run() -> void:
  check(springs.size()==1,"the last spring prerequisite produces exactly one spring reveal")
  game._process(.016)
  view.begin(springs[0]);view.animate(6.0)
- var water: Node3D
- for model in game.stage.garden_edge.get_children():
-  if model.has_meta("garden_water_position") and model.get_meta("garden_water_position").distance_to(Vector3(6.6,0,-.15))<.1:water=model
- check(is_instance_valid(water) and water.visible and water.scale.x<1,"spring water, bank and pads form as one feature")
- check(water.scene_file_path=="res://assets/garden/sheltered_spring.tscn" and water.has_node("SpringBasin") and water.has_node("SpringCascade"),"cutscene forms the entire dedicated spring landmark")
+ check(not game.stage.station_position("spring").is_finite(),"spring research does not silently construct a watering basin")
+ check(game.stage.get_meta("garden_growth_camera").target.is_finite(),"the authored spring reveal retains a finite camera destination")
  view.finish(false)
- check(water.visible and water.scale.is_equal_approx(Vector3.ONE),"spring remains fully formed after its reveal ends")
+ check(not game.stage.station_position("spring").is_finite(),"finishing a reveal cannot grant a free station")
  var seen_before: int=Service.projection(game,1).seen
  view.force_playback=true;game.app_settings.values.garden_cinematics=false;view._process(0);view.force_playback=false
- check(Service.projection(game,1).seen>seen_before and not game.get_meta("garden_cinematic_active") and not game.stage.has_meta("garden_growth_camera"),"disabling scenes records a local skip without forcing the camera")
+ check(Service.projection(game,1).seen>seen_before and not game.ui.cinematic_active() and not game.stage.has_meta("garden_growth_camera"),"disabling scenes records a local skip without forcing the camera")
  verify_permanent_structures(game,view)
  var reload_path: String=g.path;var expected_plots: int=g.plots.size()
  # Existing saves and future additive fields remain safe.
@@ -89,49 +99,40 @@ func run() -> void:
  check(State.prepare(g)==future and Service.projection(game,1).is_empty(),"future presentation versions are retained without execution")
  game.queue_free();await process_frame
  verify_reloaded_structures(reload_path,expected_plots)
- if not failed:print("PASS: Garden growth persistence, transaction rollback, deferred reveals, root-tip camera, in-place formation and skip safety")
+ if not failed:print("PASS: Garden growth persistence, transaction rollback, deferred reveals, root-tip camera, actual construction boundaries and skip safety")
  quit(1 if failed else 0)
 
 func verify_permanent_structures(game: Node,view: Node) -> void:
  var g=game.progress
- # A station's committed visibility must be independent of temporary reveal scaling.
  while not Service.projection(game,1).pending.is_empty():
   Service.acknowledge(game,1,str(Service.projection(game,1).pending[0].sequence))
  for id in game.Stage.HEART_STATIONS:
-  check(not game.stage.heart_stations[id].visible,"unresearched structure stays hidden: "+id)
   g.heart.complete(g,id);g.save_garden();game._process(.016)
   var pending: Array=Service.projection(game,1).pending
-  check(pending.size()==1 and pending[0].kind=="station" and pending[0].station==id,"station reveal maps to its permanent model: "+id)
+  check(pending.size()==1 and pending[0].kind=="station" and pending[0].station==id,"research queues one station reveal: "+id)
   if pending.is_empty():continue
-  var model: Node3D=game.stage.heart_stations[id]
-  check(model.visible and model.position.is_equal_approx(view.destination(pending[0])),"researched model exists at cutscene destination: "+id)
-  view.begin(pending[0]);view.animate(0)
-  check(not model.visible,"pending structure waits for root arrival: "+id)
-  view.animate(6.3)
-  check(model.visible and model.scale.x>0 and model.scale.x<1,"structure forms in place: "+id)
-  view.animate(view.DURATION);view.finish(true);game._process(.016)
-  check(model.visible and model.scale.is_equal_approx(Vector3.ONE) and Service.projection(game,1).pending.is_empty(),"completed structure stays visible after acknowledgment: "+id)
-  view.begin(pending[0]);view.animate(0);view.finish(false)
-  check(model.visible and model.scale.is_equal_approx(Vector3.ONE),"interrupted reveal restores committed structure: "+id)
-  view.begin(pending[0]);view.animate(0);view.finish(true)
-  check(model.visible and model.scale.is_equal_approx(Vector3.ONE),"skipping cannot remove structure: "+id)
- # Another unlock rebuilds scenery but must not remove earlier buildings.
+  view.begin(pending[0]);view.animate(0);view.animate(view.DURATION);view.finish(true);game._process(.016)
+  check(Service.projection(game,1).pending.is_empty(),"watching acknowledges this viewer once: "+id)
+  if id=="living_archive":
+   var model: Node3D=game.stage.heart_stations[id]
+   check(model.visible and model.scale.is_equal_approx(Vector3.ONE),"the supported native Living Archive remains visible")
+   view.begin(pending[0]);view.animate(0);view.finish(false)
+   check(model.visible and model.scale.is_equal_approx(Vector3.ONE),"interruption restores the native Archive")
+  else:
+   check(not game.stage.station_position(id).is_finite(),"research grants placement permission, not an automatic station: "+id)
  g.heart.complete(g,"clearing_2");g.save_garden();game._process(.016)
- for id in game.Stage.HEART_STATIONS:check(game.stage.heart_stations[id].visible,"later research preserves structure: "+id)
- ExpeditionCase.set_membership(game, game.players[1], true);game._process(.016);ExpeditionCase.set_membership(game, game.players[1], false);game._process(.016)
- for id in game.Stage.HEART_STATIONS:check(game.stage.heart_stations[id].visible,"Garden return preserves structure: "+id)
+ check(game.stage.heart_stations.living_archive.visible,"later research preserves the native Archive")
+ ExpeditionCase.set_membership(game,game.players[1],true);game._process(.016)
+ ExpeditionCase.set_membership(game,game.players[1],false);game._process(.016)
+ check(game.stage.heart_stations.living_archive.visible,"Garden return preserves the native Archive")
 
 func verify_reloaded_structures(path: String,expected_plots: int) -> void:
  var fresh=load("res://world.tscn").instantiate();fresh.progress.path=path;fresh.local_character.path=path+".reload-character";fresh.guest_character.path=path+".reload-guest"
  root.add_child(fresh);fresh.set_process(false);fresh.set_physics_process(false);fresh.get_node("GardenInteractions/GrowthScenes").set_process(false)
  check(fresh.progress.load_garden()==OK,"reload uses saved fixture research")
  fresh._process(.016)
- for id in fresh.Stage.HEART_STATIONS:
-  check(fresh.stage.heart_stations[id].visible and fresh.stage.heart_stations[id].scale.is_equal_approx(Vector3.ONE),"saved-world reload reconstructs permanent structure: "+id)
- check(fresh.stage.active_plots==expected_plots,"saved-world reload reconstructs researched planting beds")
- var water_found:=false
- for model in fresh.stage.garden_edge.get_children():
-  if model.has_meta("garden_water_position") and model.get_meta("garden_water_position").distance_to(Vector3(6.6,0,-.15))<.1:water_found=model.visible
- check(water_found,"saved-world reload retains sheltered spring")
- check(fresh.stage.garden_edge.has_node("ShelteredSpring/SpringCascade") and not fresh.stage.garden_edge.has_node("DormantSpringSite"),"saved-world reload restores the awakened spring asset rather than its sealed site")
+ check(fresh.progress.heart.has("living_archive") and fresh.stage.heart_stations.living_archive.visible,"saved research reconstructs the supported native Archive")
+ check(fresh.stage.active_plots==expected_plots,"saved crops retain their owned bed slots")
+ for index in expected_plots:check(fresh.stage.bed_position(index).is_finite(),"owned beds have a valid adopted position on load")
+ check(not fresh.stage.station_position("spring").is_finite(),"loading research alone cannot build a watering basin")
  fresh.free()

@@ -46,15 +46,16 @@ func host_run() -> void:
  for technology in game.Stage.HEART_STATIONS:game.progress.heart.complete(game.progress,technology)
  game.progress.save_garden();mark("stations")
  check(await until(func():return marked("stations_seen")),"guest sees researched buildings")
- for technology in game.Stage.HEART_STATIONS:check(game.stage.heart_stations[technology].visible,"host retains unlocked building: "+technology)
+ check(game.stage.heart_stations.living_archive.visible,"host retains its supported native Archive")
+ for technology in ["seed_archive","monster_studies"]:check(not game.stage.station_position(technology).is_finite(),"host research does not automatically construct "+technology)
  mark("done")
  check(await until(func():return marked("guest-offline") and game.multiplayer.get_peers().is_empty()),"host observes the guest disconnect before its own teardown")
 func guest_run() -> void:
  check(SessionCase.World.join(game)==OK,"guest joins")
- if not await until(func():return game.network_session.role()=="Guest" and marked("first") and Service.projection(game,game.local_player_id()).get("pending",[]).size()==1 and game.stage.heart_tree.get_meta("heart_visual_count")==1):check(false,"private pending scene arrives");return
+ if not await until(func():return game.network_session.role()=="Guest" and marked("first") and Service.projection(game,game.local_player_id()).get("pending",[]).size()==1 and game.heart_state().unlocked.has("plot_4")):check(false,"private pending scene arrives");return
  var data:=Service.projection(game,game.local_player_id())
  check(data.pending[0].kind=="bed" and not game.progress.heart.has("plot_4"),"guest sees host event without changing local world research")
- check(data.pending[0].from_growth==0 and data.pending[0].to_growth==1 and game.stage.heart_tree.get_meta("heart_visual_count")==1,"guest receives per-unlock Heart growth from host research")
+ check(data.pending[0].from_growth==0 and data.pending[0].to_growth==1 and game.heart_state().unlocked.has("plot_4"),"guest receives per-unlock Heart growth from host research")
  game.send_garden_action("growth_ack:"+str(data.pending[0].sequence));mark("skipped")
  if not await until(func():return marked("second") and Service.projection(game,game.local_player_id()).get("pending",[]).any(func(e):return e.technology=="plot_5")):check(false,"second event arrives");return
  game.send_garden_action("growth_ack:999999")
@@ -63,18 +64,19 @@ func guest_run() -> void:
  var scene=game.get_node("GardenInteractions/GrowthScenes");scene.set_process(false);scene.begin(Service.projection(game,game.local_player_id()).pending[0])
  SessionCase.World.leave(game,"Growth reconnect fixture");game.ui.close_panels()
  scene.force_playback=true;scene._process(0);scene.force_playback=false
- check(scene.event.is_empty() and not game.get_meta("garden_cinematic_active") and not game.stage.has_meta("garden_growth_camera"),"disconnect releases the old host's scene without acknowledging it in the local Garden")
+ check(scene.event.is_empty() and not game.ui.cinematic_active() and not game.stage.has_meta("garden_growth_camera"),"disconnect releases the old host's scene without acknowledging it in the local Garden")
  check(SessionCase.World.join(game)==OK,"reconnect")
- if not await until(func():return game.network_session.role()=="Guest" and Service.projection(game,game.local_player_id()).get("pending",[]).any(func(e):return e.technology=="plot_5") and game.stage.heart_tree.get_meta("heart_visual_count")==2):check(false,"unwatched scene persists through rejoin");return
+ if not await until(func():return game.network_session.role()=="Guest" and Service.projection(game,game.local_player_id()).get("pending",[]).any(func(e):return e.technology=="plot_5") and game.heart_state().unlocked.has("plot_5")):check(false,"unwatched scene persists through rejoin");return
  check(Service.projection(game,game.local_player_id()).pending.size()==1,"previously acknowledged scene is not replayed")
- check(game.stage.heart_tree.get_meta("heart_visual_count")==2,"reconnecting restores accumulated Heart growth")
+ check(game.heart_state().unlocked.has("plot_4") and game.heart_state().unlocked.has("plot_5"),"reconnecting restores accumulated host research")
  mark("rejoined")
- check(await until(func():return marked("stations") and game.Stage.HEART_STATIONS.keys().all(func(technology):return game.stage.heart_stations.has(technology) and game.stage.heart_stations[technology].visible)),"host unlock snapshots create all three permanent guest buildings")
+ check(await until(func():return marked("stations") and game.Stage.HEART_STATIONS.keys().all(func(technology):return game.heart_state().unlocked.has(technology)) and game.stage.heart_stations.living_archive.visible),"host unlock snapshots create all three permanent guest buildings")
  var queued: Array=Service.projection(game,game.local_player_id()).pending
  for technology in game.Stage.HEART_STATIONS:
   var reveals: Array=queued.filter(func(e):return e.get("station","")==technology)
   if reveals.is_empty():check(false,"guest receives building reveal: "+technology);continue
   scene.begin(reveals[0]);scene.animate(0);scene.animate(scene.DURATION);scene.finish(false)
-  check(game.stage.heart_stations[technology].visible and game.stage.heart_stations[technology].scale.is_equal_approx(Vector3.ONE),"guest completion retains permanent building: "+technology)
-  check(not game.stage.heart_tree.get_node("SeedForm").visible and not game.stage.heart_core.is_visible_in_tree(),"guest sees the grown tree without the old overlapping Heart")
+  if technology=="living_archive":check(game.stage.heart_stations[technology].visible and game.stage.heart_stations[technology].scale.is_equal_approx(Vector3.ONE),"guest completion retains the supported native Archive")
+  else:check(not game.stage.station_position(technology).is_finite(),"a guest cinematic cannot construct "+technology)
+  check(game.stage.experimental_garden.heart.stage==mini(int(game.heart_state().phase),4),"guest presentation uses the current generated Heart stage")
  mark("stations_seen");check(await until(func():return marked("done")),"host completes")

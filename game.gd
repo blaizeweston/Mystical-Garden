@@ -395,7 +395,7 @@ func _input(event: InputEvent) -> void:
 	if preload("res://ability_aim.gd").release_event(self,event):
 		get_viewport().set_input_as_handled()
 		return
-	if get_meta("garden_cinematic_active",false):return
+	if ui.cinematic_active():return
 	if settings_dialog!=null and settings_dialog.visible: return
 	if stage != null and stage.experimental_garden != null and stage.experimental_garden.cancel_placement_input(event):
 		get_viewport().set_input_as_handled()
@@ -428,7 +428,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if stage.experimental_garden != null and stage.experimental_garden.placement_input(event):
 		get_viewport().set_input_as_handled()
 		return
-	if get_meta("garden_cinematic_active",false):return
+	if ui.cinematic_active():return
 	if settings_dialog!=null and settings_dialog.visible: return
 	if stage.experimental_garden != null and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_B:
 		if stage.experimental_garden.can_view_development():
@@ -1695,7 +1695,7 @@ func _physics_process(delta: float) -> void:
 		if not persistence_session.can_write(): return
 	if multiplayer.is_server():net_motion.frame(delta,players)
 	mouse_controls.frame(self)
-	var direction := Vector2.ZERO if ui.is_overlay_open() or get_meta("garden_cinematic_active",false) else Input.get_vector("left", "right", "up", "down")
+	var direction := Vector2.ZERO if ui.is_overlay_open() or ui.cinematic_active() else Input.get_vector("left", "right", "up", "down")
 	if multiplayer.is_server():
 		var now := CombatClock.now()
 		growth_clock += delta

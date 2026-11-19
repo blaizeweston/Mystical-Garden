@@ -86,7 +86,7 @@ func run() -> void:
 	game.settings_dialog.begin(game.app_settings)
 	check(not tools.finish_button.disabled,"active research can be finished from Settings")
 	tools.finish_button.pressed.emit()
-	check(progress.heart.has("plot_4") and progress.plots.size()==4 and not game.settings_dialog.visible,"finish research creates the real plot and closes Settings")
+	check(progress.heart.has("plot_4") and progress.plots.size()==3 and not game.settings_dialog.visible,"finish research grants bed permission without free construction and closes Settings")
 	var count: int = progress.garden_interactions.growth.events.size()
 	game.settings_dialog.begin(game.app_settings)
 	for index in tools.tech_picker.item_count:
@@ -100,13 +100,13 @@ func run() -> void:
 	check(Growth.projection(game,1).pending.any(func(event):return event.technology=="irrigation"),"the reveal reaches the normal playback queue")
 	var restored: RefCounted = game.Progress.new()
 	restored.path = progress.path
-	check(restored.load_garden()==OK and restored.heart.has("irrigation") and restored.plots.size()==4,"developer unlocks persist through the normal save format")
+	check(restored.load_garden()==OK and restored.heart.has("irrigation") and restored.plots.size()==3,"developer unlocks persist through the normal save format")
 
 	var stable_state: Dictionary = progress.heart.serialize()
 	var stable_path: String = progress.path
 	progress.path = base.path_join("missing").path_join("garden.cfg")
 	check(Developer.test_unlock(game,"plot_6").contains("Could not save"),"a save error is reported")
-	check(progress.heart.serialize()==stable_state and progress.plots.size()==4,"failed test unlock rolls prerequisites and plots back")
+	check(progress.heart.serialize()==stable_state and progress.plots.size()==3,"failed test unlock rolls prerequisites and plots back")
 	progress.path = stable_path
 	game.app_settings.values.developer_mode = false
 	check(not Developer.can_edit(game) and Developer.grant_resources(game).contains("available"),"switching the setting off blocks mutations")

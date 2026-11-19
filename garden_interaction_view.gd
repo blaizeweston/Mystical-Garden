@@ -24,7 +24,6 @@ var availability_baseline:=false
 static func mount(owner_game: Node) -> void:
  var view=load("res://garden_interaction_view.gd").new();view.game=owner_game;view.name="GardenInteractions";owner_game.add_child(view)
 func _ready() -> void:
- var scenes=preload("res://garden_growth_view.gd").new();scenes.game=game;scenes.name="GrowthScenes";add_child(scenes)
  panel=game.ui.create_overlay_panel(Color("#14262b"),Vector2(22,20));panel.set_meta("garden_interaction_panel",true);panel.hide()
  var box:=VBoxContainer.new();box.custom_minimum_size=Vector2(470,260);box.add_theme_constant_override("separation",14);panel.add_child(box)
  title=Label.new();title.add_theme_font_size_override("font_size",23);box.add_child(title)
@@ -37,6 +36,15 @@ func _ready() -> void:
  journal=Label.new();journal.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;journal.custom_minimum_size=Vector2(470,80);box.add_child(journal)
  var close:=Button.new();close.text="Close · Esc";box.add_child(close);close.pressed.connect(func():game.ui.close_panels())
  for definition in Catalog.POINTS:points[definition.id]=build_point(definition)
+ var scenes=preload("res://garden_growth_view.gd").new()
+ scenes.name="GrowthScenes";scenes.configure(game.stage,points)
+ scenes.refresh_requested.connect(func():scenes.present(cinematic_data()))
+ scenes.interfaces_requested.connect(func():scenes.capture_interfaces(game.get_children().filter(func(child):return child is CanvasLayer)))
+ scenes.requested.connect(func(command: String,data: Dictionary):
+  if command=="garden_action":game.send_garden_action(str(data.action))
+  elif command=="research_audio":preload("res://event_audio.gd").play_research(game,data))
+ add_child(scenes)
+ game.ui.bind_cinematic(scenes)
  var crops=preload("res://garden_crop_view.gd").new();crops.game=game;crops.name="Crops";add_child(crops)
  var returns=preload("res://garden_return_view.gd").new();returns.game=game;returns.name="ReturnLife";add_child(returns)
  var terrace=preload("res://garden_terrace_view.gd").new();terrace.game=game;terrace.name="Terrace";add_child(terrace)
@@ -143,3 +151,17 @@ func context_prompt(player: Dictionary) -> String:
 func _exit_tree() -> void:
  for point in points.values():
   if is_instance_valid(point):point.queue_free()
+
+## World integration supplies only facts needed to present this viewer's queue.
+## The renderer cannot authorize research, acknowledge a receipt or inspect actors.
+func cinematic_data() -> Dictionary:
+ var id: int=game.local_player_id()
+ var player: Dictionary=game.players.get(id,{})
+ var data:=preload("res://garden_growth_service.gd").projection(game,id)
+ return {"context":str(game.network_session.role()=="Guest")+":"+str(id),
+  "pending":data.get("pending",[]),"player_present":not player.is_empty(),
+  "player_position":player.get("pos",game.Stage.SPAWN),
+  "blocked":game.persistence_session.is_blocked(),
+  "safe":not Participation.is_wild(player) and data.get("ready",false) and game.network_session.role()!="Connecting",
+  "skip_playback":game.has_meta(&"experimental_terrain") or not game.app_settings.values.get("garden_cinematics",true) or not game.app_settings.values.get("ambient_motion",true),
+  "can_start":not game.ui.is_overlay_open() and game.settings_dialog!=null and not game.settings_dialog.visible}
