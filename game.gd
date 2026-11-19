@@ -162,7 +162,6 @@ var status := "The Heart shelters this Garden. Follow the path to the Wilds gate
 	set(value):
 		status = value
 		toast_until = Time.get_ticks_msec() + 4800
-var net_view=preload("res://network_presentation.gd").new()
 var net_motion=preload("res://network_movement.gd").new()
 var network_compatibility: Node
 const Bosses=preload("res://boss_encounters.gd")
@@ -383,7 +382,7 @@ func add_player(id: int) -> void:
 	var party_slot := link.slot()
 	var spawn: Vector3 = Stage.SPAWN + [Vector3.ZERO,Vector3(1.1,0,0),Vector3(-1.1,0,0),Vector3(0,0,1.1)][party_slot]
 	var base_health:=Life.Preview.hp(MAX_HEALTH)
-	players[id] = {Session.STATE:link,"velocity":Vector3.ZERO,"damage_seq":0,"damage_amount":0,"vitals_revision":0,"pos": spawn, Participation.STATE: participation.attach(id), PlayerLifecycle.STATE: PlayerLifecycle.start_life(), "lost_health":0, "prepared": 0, "weapon": 0, "experiment": 0, ExpeditionWallet.STATE: ExpeditionWallet.Wallet.new(), "upgrade_seed":Crypto.new().generate_random_bytes(8).hex_encode().hash(),
+	players[id] = {Session.STATE:link,"velocity":Vector3.ZERO,"damage_seq":0,"damage_amount":0,"pos": spawn, Participation.STATE: participation.attach(id), PlayerLifecycle.STATE: PlayerLifecycle.start_life(), "lost_health":0, "prepared": 0, "weapon": 0, "experiment": 0, ExpeditionWallet.STATE: ExpeditionWallet.Wallet.new(), "upgrade_seed":Crypto.new().generate_random_bytes(8).hex_encode().hash(),
 		"weapon_kind":0, "catalyst":0, "prepared_catalyst":0, "cargo_plan":Parts.empty_counts(), "frame": Frames.WARDEN, Cooldowns.STATE: Cooldowns.Timers.new(), Protection.STATE: Protection.State.new(), WeaponActions.STATE: WeaponActions.State.new(), "contributed": false,
 		"character": local_character.data if id == HOST else Character.blank(),
 		"seed_choice": 0, "carried_seeds": [],"safe_items":[],"carried_items":{}, "pouch": false, "loot_pending": false,
@@ -866,7 +865,7 @@ func run_guarded_action(id: int, scope: Transactions.Scope, action: Callable) ->
 		for effect in effects:
 			effect.call()
 		if persistence_session.is_blocked() and persistence_session.can_publish_state() and multiplayer.is_server():
-			net_view.publish_committed_cleanup.call_deferred(self,network_session.transport())
+			replication_source.publish_committed_cleanup.call_deferred(network_session.transport())
 	return result
 
 func record_settlement_metric(effects,event: String,fields: Dictionary) -> void:

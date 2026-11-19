@@ -10,7 +10,7 @@ const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 
 const Vitals = preload("res://combat_vitals.gd")
-const View = preload("res://network_presentation.gd")
+const GuestCase = preload("res://tests/support/guest_replication_case.gd")
 const SCALE := Vitals.PROTOTYPE_HP_PER_POINT
 
 var failed := false
@@ -132,14 +132,16 @@ func check_network_vitals(game: Node) -> void:
 	player.lost_health = 20
 	check(PlayerLifecycle.matches(player,life_generation) and not player.has("fallen"),
 		"injury is independent of the authoritative lifecycle generation")
-	var view := View.new()
+	var receiver := GuestCase.Receiver.new(3)
+	var projection := GuestCase.World.new()
 	var previous: Dictionary = game.player_snapshot(1, false)[1]
-	view.merge_health(1, previous)
+	receiver.receive_frame(projection,GuestCase.frame(1,{1:previous}))
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].healed(4)
-	game.net_view.observe(game)
+	game.replication.observe_health(game.replication_source)
 	var healed: Dictionary = game.player_snapshot(1, false)[1]
-	view.merge_health(1, healed)
-	view.merge_health(1, previous)
-	check(previous.hp == 24 and previous.max_hp == 80 and previous.lost_health == 20 and previous.has("fallen")
-		and not previous.has(PlayerLifecycle.STATE), "older snapshot cannot undo healing, and guests receive scalar lifecycle projections")
-	check(not view.flash_until.has(1), "healing alone does not look like damage")
+	receiver.receive_frame(projection,GuestCase.frame(2,{1:healed}))
+	receiver.receive_frame(projection,GuestCase.frame(3,{1:previous}))
+	var restored: Dictionary = projection.people[1]
+	check(restored.hp == 24 and restored.max_hp == 80 and restored.lost_health == 20 and restored.has("fallen")
+		and not restored.has(PlayerLifecycle.STATE), "older snapshot cannot undo healing, and guests receive scalar lifecycle projections")
+	check(restored.client_hurt_until==0, "healing alone does not look like damage")

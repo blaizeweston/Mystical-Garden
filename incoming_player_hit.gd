@@ -183,7 +183,7 @@ class Recipient extends RefCounted:
 		_actor.damage_seq = int(_actor.get("damage_seq", 0)) + 1
 		_actor.damage_amount = applied
 		var record := {"actor": _peer, "amount": amount, "applied_hp": applied, "hp": int(loss.hp),
-			"damage_seq": _actor.damage_seq, "vitals_revision": _actor.get("vitals_revision", 0), "hp_per_point": Preview.scale()}
+			"damage_seq": _actor.damage_seq, "vitals_revision": _world.replication.health_revision(_peer), "hp_per_point": Preview.scale()}
 		if effects == null:
 			Journal.event("combat", "damage_applied", record)
 		else:

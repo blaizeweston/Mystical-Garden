@@ -19,11 +19,37 @@ var _world: Node
 func _init(world: Node) -> void:
 	_world = world
 
-func observe_health() -> void:
-	_world.net_view.observe(_world)
+func health_states() -> Dictionary:
+	var result := {}
+	for peer in _world.players:
+		var actor: Dictionary = _world.players[peer]
+		result[peer] = {"hp":Vitals.current_hp(actor),"max_hp":Vitals.maximum_hp(actor),
+			"wild":Participation.is_wild(actor),"fallen":Lifecycle.fallen(actor),
+			"lost_health":actor.get("lost_health",0),"damage_seq":actor.get("damage_seq",0),
+			"damage_amount":actor.get("damage_amount",0)}
+	return result
 
 func peers() -> PackedInt32Array:
-	return _world.net_view.snapshot_targets(_world)
+	var result := PackedInt32Array()
+	var transport: ENetMultiplayerPeer = _world.network_session.transport()
+	if transport==null or _world.multiplayer.multiplayer_peer!=transport or not _world.multiplayer.is_server() \
+		or transport.get_connection_status()!=MultiplayerPeer.CONNECTION_CONNECTED: return result
+	for peer in _world.multiplayer.get_peers():
+		if not Session.ready_for(_world.players.get(peer,{}),false): continue
+		var packet := transport.get_peer(peer)
+		# Godot reserves 0/1; RPC channel 4 requires ENet channel 5.
+		if packet!=null and packet.is_active() and packet.get_state()==ENetPacketPeer.STATE_CONNECTED and packet.get_channels()>5:
+			result.append(peer)
+	return result
+
+## A committed save can still need cleanup. Publish only for its captured
+## transport, from a surviving world that still owns its guarded leases.
+func publish_committed_cleanup(transport: ENetMultiplayerPeer) -> void:
+	if not is_instance_valid(_world) or not _world.is_inside_tree() or transport==null \
+		or _world.network_session.transport()!=transport: return
+	var session = _world.persistence_session
+	if session.is_stopping() or not session.is_guarded() or not session.owns_leases(): return
+	_world.replication.publish(self,0.0,true)
 
 func state_key() -> String:
 	return str([_world.participation.route(),_world.participation.floor(),_world.participation.seed()])
@@ -129,7 +155,7 @@ func _public_player(peer: int, now: int) -> Dictionary:
 	var result := {"motion_radius":_world.bound_position(Vector3(1000,0,0)).x,"motion_epoch":motion_key,
 		"motion_ack":_world.net_motion.acknowledgement(peer,motion_key),
 		"motion_scale":actor[Protection.STATE].movement_scale(now)*actor[Conditions.STATE].movement_scale(now)*stride,
-		"velocity":actor.get("velocity",Vector3.ZERO),"vitals_revision":actor.get("vitals_revision",0),
+		"velocity":actor.get("velocity",Vector3.ZERO),"vitals_revision":_world.replication.health_revision(peer),
 		"damage_seq":actor.get("damage_seq",0),"damage_amount":actor.get("damage_amount",0),
 		"party_slot":Session.slot_for(actor,0),"display_name":actor.character.get("name","Wanderer"),
 		"enemy_max_hp":_world.encounter_health(),"pos":actor.pos,"wild":wild,"fallen":Lifecycle.fallen(actor),
@@ -154,6 +180,9 @@ func transport_stats(peer: int) -> Dictionary:
 	if packet == null: return {}
 	return {"throttle":int(packet.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE)),
 		"counter":int(packet.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_COUNTER))}
+
+func send_vitals(peer: int, states: Dictionary) -> Error:
+	return _world.rpc_id(peer,"receive_vitals",states)
 
 func send_fast(peer: int, frame: PackedByteArray) -> Error:
 	return _world.rpc_id(peer,"receive_state",frame)

@@ -5578,18 +5578,12 @@
         "match": "const PlayerLifecycle = preload(\"res://player_lifecycle.gd\")\n",
         "baseline": ""
       },
-      "ar08_lifecycle_2": {
-        "match": "    \"lost_health\":actor.get(\"lost_health\",0),\"fallen\":PlayerLifecycle.fallen(actor),\"damage_seq\":actor.get(\"damage_seq\",0),\"vitals_revision\":actor.get(\"vitals_revision\",0)}\n",
-        "baseline": "    \"lost_health\":actor.get(\"lost_health\",0),\"fallen\":actor.get(\"fallen\",false),\"damage_seq\":actor.get(\"damage_seq\",0),\"vitals_revision\":actor.get(\"vitals_revision\",0)}\n"
-      },
+      "ar08_lifecycle_2": {"match": "    \"lost_health\":actor.get(\"lost_health\",0),\"fallen\":PlayerLifecycle.fallen(actor),\"damage_seq\":actor.get(\"damage_seq\",0),\"vitals_revision\":game.replication.health_revision(id) if game.multiplayer.is_server() else actor.get(\"vitals_revision\",0)}\n", "baseline": "    \"lost_health\":actor.get(\"lost_health\",0),\"fallen\":actor.get(\"fallen\",false),\"damage_seq\":actor.get(\"damage_seq\",0),\"vitals_revision\":game.replication.health_revision(id) if game.multiplayer.is_server() else actor.get(\"vitals_revision\",0)}\n"},
       "ar07_vitals_1": {
         "match": "const PlayerVitals = preload(\"res://player_vitals.gd\")\n",
         "baseline": ""
       },
-      "ar07_vitals_2": {
-        "match": "  for id in game.players:\n   var actor: Dictionary = game.players[id]\n   positions[id]={\"pos\":actor.get(\"pos\",Vector3.ZERO),\"hp\":PlayerVitals.current_hp(actor),\"max_hp\":PlayerVitals.maximum_hp(actor,0),\n    \"lost_health\":actor.get(\"lost_health\",0),\"fallen\":actor.get(\"fallen\",false),\"damage_seq\":actor.get(\"damage_seq\",0),\"vitals_revision\":actor.get(\"vitals_revision\",0)}\n",
-        "baseline": "  for id in game.players:positions[id]={\"pos\":game.players[id].get(\"pos\",Vector3.ZERO),\"hp\":game.players[id].get(\"hp\",0),\"max_hp\":game.players[id].get(\"max_hp\",0),\"lost_health\":game.players[id].get(\"lost_health\",0),\"fallen\":game.players[id].get(\"fallen\",false),\"damage_seq\":game.players[id].get(\"damage_seq\",0),\"vitals_revision\":game.players[id].get(\"vitals_revision\",0)}\n"
-      },
+      "ar07_vitals_2": {"match": "  for id in game.players:\n   var actor: Dictionary = game.players[id]\n   positions[id]={\"pos\":actor.get(\"pos\",Vector3.ZERO),\"hp\":PlayerVitals.current_hp(actor),\"max_hp\":PlayerVitals.maximum_hp(actor,0),\n    \"lost_health\":actor.get(\"lost_health\",0),\"fallen\":actor.get(\"fallen\",false),\"damage_seq\":actor.get(\"damage_seq\",0),\"vitals_revision\":game.replication.health_revision(id) if game.multiplayer.is_server() else actor.get(\"vitals_revision\",0)}\n", "baseline": "  for id in game.players:positions[id]={\"pos\":game.players[id].get(\"pos\",Vector3.ZERO),\"hp\":game.players[id].get(\"hp\",0),\"max_hp\":game.players[id].get(\"max_hp\",0),\"lost_health\":game.players[id].get(\"lost_health\",0),\"fallen\":game.players[id].get(\"fallen\",false),\"damage_seq\":game.players[id].get(\"damage_seq\",0),\"vitals_revision\":game.players[id].get(\"vitals_revision\",0)}\n"},
       "preview_logged_health_scale": {
         "match": "Journal.event(\"state\",\"player_changed\",{\"actor\":id,\"changes\":changed,\"hp_per_point\":game.Life.Preview.scale()})",
         "baseline": "Journal.event(\"state\",\"player_changed\",{\"actor\":id,\"changes\":changed})"
@@ -5782,32 +5776,7 @@
         "baseline": "return points * .4"
       }
     },
-    "network_presentation.gd": {
-      "ar08_lifecycle_1": {
-        "match": "const PlayerLifecycle = preload(\"res://player_lifecycle.gd\")\n",
-        "baseline": ""
-      },
-      "ar08_lifecycle_2": {
-        "match": "  var fallen := PlayerLifecycle.fallen(p)\n  var signature=str([hp,maximum,Participation.is_wild(p),fallen,p.get(\"lost_health\",0),p.get(\"damage_seq\",0)])\n",
-        "baseline": "  var signature=str([hp,maximum,Participation.is_wild(p),p.fallen,p.get(\"lost_health\",0),p.get(\"damage_seq\",0)])\n"
-      },
-      "ar08_lifecycle_3": {
-        "match": "  var state={\"revision\":revision,\"hp\":hp,\"max_hp\":maximum,\"fallen\":fallen,\"lost_health\":p.get(\"lost_health\",0),\"damage_seq\":p.get(\"damage_seq\",0),\"damage_amount\":p.get(\"damage_amount\",0)}\n",
-        "baseline": "  var state={\"revision\":revision,\"hp\":hp,\"max_hp\":maximum,\"fallen\":p.fallen,\"lost_health\":p.get(\"lost_health\",0),\"damage_seq\":p.get(\"damage_seq\",0),\"damage_amount\":p.get(\"damage_amount\",0)}\n"
-      },
-      "ar07_vitals_1": {
-        "match": "const PlayerVitals = preload(\"res://player_vitals.gd\")\n",
-        "baseline": ""
-      },
-      "ar07_vitals_2": {
-        "match": "  var hp := PlayerVitals.current_hp(p)\n  var maximum := PlayerVitals.maximum_hp(p)\n  var signature=str([hp,maximum,Participation.is_wild(p),p.fallen,p.get(\"lost_health\",0),p.get(\"damage_seq\",0)])\n",
-        "baseline": "  var signature=str([p.hp,p.get(\"max_hp\",10),Participation.is_wild(p),p.fallen,p.get(\"lost_health\",0),p.get(\"damage_seq\",0)])\n"
-      },
-      "ar07_vitals_3": {
-        "match": "  var state={\"revision\":revision,\"hp\":hp,\"max_hp\":maximum,\"fallen\":p.fallen,\"lost_health\":p.get(\"lost_health\",0),\"damage_seq\":p.get(\"damage_seq\",0),\"damage_amount\":p.get(\"damage_amount\",0)}\n",
-        "baseline": "  var state={\"revision\":revision,\"hp\":p.hp,\"max_hp\":p.get(\"max_hp\",10),\"fallen\":p.fallen,\"lost_health\":p.get(\"lost_health\",0),\"damage_seq\":p.get(\"damage_seq\",0),\"damage_amount\":p.get(\"damage_amount\",0)}\n"
-      }
-    },
+
     "health_orb.gd": {
       "cb07_0": {
         "match": "blood.lerp(RECOVERY, .9 * flash)",

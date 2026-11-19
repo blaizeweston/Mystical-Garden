@@ -159,7 +159,6 @@ func _start_join() -> Error:
 	if result != OK:
 		status = "Could not start the connection. Check the address and port."
 		return result
-	net_view.clear()
 	replication.clear_session()
 	guest_replication.clear_session()
 	net_motion.clear()

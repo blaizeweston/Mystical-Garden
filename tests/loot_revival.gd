@@ -105,10 +105,13 @@ func run() -> void:
  IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(a), 100);IncomingPlayerHit.apply_health_loss(game, 2, PlayerLifecycle.generation(b), 100)
  check(not ExpeditionCase.is_wild(a) and not ExpeditionCase.is_wild(b) and PlayerVitals.current_hp(a)==100 and a.lost_health==0 and a.carried_seeds.is_empty(),"party wipe returns everyone and restores sacrificed capacity")
  # Newer revival state must survive an older movement packet.
- var view=load("res://network_presentation.gd").new()
- view.accept_vital(1,{"revision":3,"hp":80,"max_hp":80,"fallen":false,"lost_health":20,"damage_seq":1})
- var stale={"vitals_revision":2,"hp":0,"max_hp":100,"fallen":true,"lost_health":0,"damage_seq":1};view.merge_health(1,stale)
- check(not stale.fallen and stale.hp==80 and stale.lost_health==20,"stale snapshots cannot undo revived state or penalty")
+ var receiver=preload("res://guest_replication.gd").new(3)
+ var projection=preload("res://tests/support/guest_replication_case.gd").World.new()
+ receiver.receive_vitals(projection,{1:{"revision":3,"hp":80,"max_hp":80,"fallen":false,"lost_health":20,"damage_seq":1}})
+ var stale=preload("res://tests/support/guest_replication_case.gd").person(2,0,1)
+ stale.max_hp=100;stale.fallen=true;stale.lost_health=0
+ receiver.receive_frame(projection,preload("res://tests/support/guest_replication_case.gd").frame(1,{1:stale}))
+ check(not projection.people[1].fallen and projection.people[1].hp==80 and projection.people[1].lost_health==20,"stale snapshots cannot undo revived state or penalty")
  ExpeditionCase.set_membership(game, a, true);a[PlayerLifecycle.STATE] = a[PlayerLifecycle.STATE].fall();a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_hp(0);a.lost_health=20;a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_native_max_hp(80)
  ExpeditionCase.set_membership(game, b, true);b[PlayerLifecycle.STATE] = b[PlayerLifecycle.STATE].clear_inactive();b[PlayerVitals.STATE] = b[PlayerVitals.STATE].with_hp(80)
  check(game.monster_rewards.begin_expedition(game._kill_reward_identity(2,b),game.participation.run_id(),b.character.xp,b.character.monsters),

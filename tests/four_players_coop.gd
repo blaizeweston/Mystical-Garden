@@ -172,11 +172,11 @@ func all_guests_marked(stage: String) -> bool:
 
 
 func publish_vitals(stage: String,id: int) -> bool:
- game.net_view.observe(game)
+ game.replication.observe_health(game.replication_source)
  game.diagnostic_watch.tick(true)
  var actor: Dictionary=game.players[id]
  mark(stage,JSON.stringify({"id":id,"hp":PlayerVitals.current_hp(actor),"max_hp":PlayerVitals.maximum_hp(actor),"lost_health":actor.lost_health,
-  "fallen":PlayerLifecycle.fallen(actor),"revision":actor.vitals_revision,"damage_seq":actor.damage_seq}))
+  "fallen":PlayerLifecycle.fallen(actor),"revision":game.replication.health_revision(id),"damage_seq":actor.damage_seq}))
  var arrived:=await until(func():return all_guests_marked(stage),10)
  check(arrived,"all guests see authoritative "+stage+" at the exact HP revision")
  return arrived

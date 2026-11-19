@@ -20,9 +20,18 @@ class Fixture extends Source:
 	var details: Array[Dictionary] = []
 	var on_send: Callable
 	var withhold_fast := false
+	var health := {}
+	var vitals: Array[Dictionary] = []
+	var on_vitals: Callable
 
 	func _init(): super(null)
-	func observe_health() -> void: observations+=1
+	func health_states() -> Dictionary:
+		observations+=1
+		return health.duplicate(true)
+	func send_vitals(peer: int, states: Dictionary) -> Error:
+		vitals.append({"peer":peer,"states":states})
+		if on_vitals.is_valid(): on_vitals.call()
+		return OK
 	func peers() -> PackedInt32Array: return targets.duplicate()
 	func state_key() -> String: return key
 	func observer() -> Callable: return Callable()
@@ -61,7 +70,43 @@ func check(ok: bool, description: String) -> void:
 func decoded(row: Dictionary) -> Dictionary:
 	return bytes_to_var(row.payload.decompress_dynamic(262144,FileAccess.COMPRESSION_DEFLATE))
 
+func host_health_checks() -> void:
+	var publisher:=Publisher.new()
+	var fixture:=Fixture.new()
+	fixture.health={1:{"hp":100,"max_hp":100,"wild":false,"fallen":false,"lost_health":0,"damage_seq":0,"damage_amount":0}}
+	publisher.observe_health(fixture)
+	check(publisher.health_revision(1)==1 and publisher.health_revision(99)==0 and fixture.vitals.size()==3,
+		"one health revision and one reliable delta per eligible peer without a fast-state publication")
+	check(not fixture.vitals[0].states[1].has("wild") and fixture.vitals[0].states[1].revision==1,
+		"reliable health keeps its existing fields and revision semantics")
+	fixture.vitals[0].states[1].hp=0
+	check(fixture.vitals[1].states[1].hp==100 and fixture.health[1].hp==100,
+		"recipient payloads cannot mutate another delta or the health source")
+	publisher.observe_health(fixture)
+	check(publisher.health_revision(1)==1 and fixture.vitals.size()==3,"unchanged health sends no duplicate reliable delta")
+	fixture.health[1].damage_amount=7
+	publisher.observe_health(fixture)
+	check(publisher.health_revision(1)==1,"damage amount alone preserves the existing change-detection rule")
+	fixture.health[1].damage_seq=1;fixture.health[1].hp=90
+	publisher.observe_health(fixture)
+	check(publisher.health_revision(1)==2 and fixture.vitals.back().states[1].damage_amount==7,"damage sequence advances the reliable health revision once")
+	fixture.health[1].wild=true
+	publisher.observe_health(fixture)
+	check(publisher.health_revision(1)==3,"membership changes retain the existing health publication boundary")
+	fixture.targets=PackedInt32Array();fixture.health[1].hp=80
+	publisher.observe_health(fixture)
+	check(publisher.health_revision(1)==4,"offline observations still advance revision facts without a transport")
+	fixture.targets=PackedInt32Array([2,3,4]);fixture.health[1].hp=70
+	fixture.on_vitals=func():publisher.clear_session()
+	var sent:=fixture.vitals.size()
+	publisher.observe_health(fixture)
+	check(fixture.vitals.size()==sent+1 and publisher.health_revision(1)==0,
+		"session invalidation clears health and stops the previous reliable recipient batch")
+	fixture.on_vitals=Callable();publisher.observe_health(fixture)
+	check(publisher.health_revision(1)==1,"new session begins fresh health revisions")
+
 func run() -> void:
+	host_health_checks()
 	Clock.begin_stepped(100000)
 	var world=load("res://world.tscn").instantiate()
 	var base="res://.godot/publication-"+str(OS.get_process_id())
@@ -128,6 +173,19 @@ func run() -> void:
 	public.skill_fx.test=999;private.carried_parts[0]=999;private.weapon_stats.damage=999
 	check(actor.get("skill_fx",{}).get("test",0)!=999 and actor.carried_parts[0]!=999 and world.weapon_stats(actor).damage!=999,"public and owner inspections are detached from authoritative state")
 	check(not world.replication_source.owner_details(999,{}).has("bag"),"unknown recipients cannot receive another owner's inventory")
+	var health_facts: Dictionary=world.replication_source.health_states()
+	health_facts[1].hp=-999
+	check(health_facts[1].hp!=world.replication_source.health_states()[1].hp and not actor.has("vitals_revision"),
+		"health inspection is detached and host actors keep no competing revision field")
+	world.replication.observe_health(world.replication_source)
+	var revision: int=world.replication.health_revision(1)
+	var original_health=actor[world.PlayerVitals.STATE]
+	actor[world.PlayerVitals.STATE]=original_health.with_hp(50)
+	world.replication.observe_health(world.replication_source)
+	actor[world.PlayerVitals.STATE]=original_health
+	world.replication.observe_health(world.replication_source)
+	check(world.replication.health_revision(1)==revision+2 and world.player_snapshot(1,false)[1].vitals_revision==revision+2,
+		"actor rollback cannot lower or desynchronize a published health revision")
 	world.free();Clock.end_stepped()
 	if not failed:print("PASS: host publication ownership, protocol budget, cadence, selective details, controlled recovery, session invalidation and detached projections")
 	quit(1 if failed else 0)

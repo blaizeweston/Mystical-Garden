@@ -160,7 +160,7 @@ static func join(game: Node, address: String="",port: int=0) -> Error:
 		Journal.event("network","join_failed",{"error":result},"error")
 		game.status = "Could not start the connection. Check the address and port."
 		return result
-	game.net_view.clear();game.replication.clear_session();game.guest_replication.clear_session();game.net_motion.clear()
+	game.replication.clear_session();game.guest_replication.clear_session();game.net_motion.clear()
 	game.participation.detach_all()
 	game.players.clear()
 	game.motions.clear()
@@ -193,7 +193,7 @@ static func leave(game: Node, message: String) -> void:
 			if not load("res://expedition_transitions.gd").finish_voluntary(game): return
 	if game.persistence_session.is_guarded(): game.persistence_session.begin_shutdown()
 	offline(game)
-	game.net_view.clear();game.replication.clear_session();game.guest_replication.clear_session();game.net_motion.clear()
+	game.replication.clear_session();game.guest_replication.clear_session();game.net_motion.clear()
 	game.participation.detach_all()
 	game.players.clear()
 	game.motions.clear()

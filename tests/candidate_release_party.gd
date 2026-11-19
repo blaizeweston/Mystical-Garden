@@ -206,10 +206,10 @@ func host() -> void:
  transport.peer_disconnected.connect(func(id: int):
   if id!=leaving: return
   callback.merge({"sequence":game.replication.sequence(),"channels":packet.get_channels() if packet.is_active() else 0,
-   "state":packet.get_state(),"targets":Array(game.net_view.snapshot_targets(game))}))
+   "state":packet.get_state(),"targets":Array(game.replication_source.peers())}))
  transport.disconnect_peer(leaving)
  var advertised: bool=game.multiplayer.get_peers().has(leaving)
- var eligible: PackedInt32Array=game.net_view.snapshot_targets(game)
+ var eligible: PackedInt32Array=game.replication_source.peers()
  check(advertised and SessionCase.Session.ready_for(game.players[leaving]) and not eligible.has(leaving) and eligible.size()==2,
   "send boundary rejects disconnecting ENet peer while admitted roster still contains it")
  if not await until(func(): return not game.players.has(leaving) and read("offline-1")=="yes"):
@@ -301,13 +301,13 @@ func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: i
   check(game.replication.sequence()==snapshot_sequence,"blocked reconnect does not repeat the final snapshot")
   game.release_slot()
   check(not game.persistence_session.owns_leases(),"host relinquishes leases while still connected")
-  game.net_view.publish_committed_cleanup(game,old_transport)
+  game.replication_source.publish_committed_cleanup(old_transport)
   check(game.replication.sequence()==snapshot_sequence and FileAccess.get_sha256(G)==after
    and FileAccess.get_sha256(G+".transaction")==evidence,"deferred cleanup cannot send or write after ownership is lost")
   SessionCase.World.offline(game)
-  game.net_view.publish_committed_cleanup(game,old_transport)
+  game.replication_source.publish_committed_cleanup(old_transport)
   game.send_expedition_state(0.0,true)
-  check(game.replication.sequence()==snapshot_sequence and game.net_view.snapshot_targets(game).is_empty(),
+  check(game.replication.sequence()==snapshot_sequence and game.replication_source.peers().is_empty(),
    "old deferred request and actual send boundary both refuse offline transport")
   game.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
   check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer and not FileAccess.file_exists(G.get_base_dir().path_join("session.cfg")),"window close of blocked host releases owned lease after offline")
@@ -333,7 +333,7 @@ func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: i
   check(false,"verified recovery permits host restart")
   return
  var reopened_sequence: int=reopened.replication.sequence()
- reopened.net_view.publish_committed_cleanup(reopened,old_transport)
+ reopened.replication_source.publish_committed_cleanup(old_transport)
  check(reopened.replication.sequence()==reopened_sequence,"a prior session snapshot cannot be replayed on reopened transport")
  mark("host-reopened",str(reopened.network_session.port()))
  check(await until(func():return read("rejoin-after-recovery")=="yes"),"guest rejoins after recovery")

@@ -268,23 +268,7 @@
     },
     "presentation": {
       "label": "HUD, world drawing, animation and effects",
-      "files": [
-        "root_ui.gd",
-        "stage.gd",
-        "network_presentation.gd",
-        "combat_effects.gd",
-        "enemy_death_effects.gd",
-        "boss_lair_visuals.gd",
-        "weapon_visuals.gd",
-        "game_metrics.gd",
-        "network_movement.gd",
-        "network_movement.gd.uid",
-        "combat_feedback.gd",
-        "combat_feedback.gd.uid",
-        "assets/characters/weapon_actions.json",
-        "status_feedback.gd",
-        "status_feedback.gd.uid"
-      ]
+      "files": ["root_ui.gd", "stage.gd", "combat_effects.gd", "enemy_death_effects.gd", "boss_lair_visuals.gd", "weapon_visuals.gd", "game_metrics.gd", "network_movement.gd", "network_movement.gd.uid", "combat_feedback.gd", "combat_feedback.gd.uid", "assets/characters/weapon_actions.json", "status_feedback.gd", "status_feedback.gd.uid"]
     },
     "diagnostics": {
       "label": "Saved diagnostic logs and report export",
@@ -10935,11 +10919,7 @@
         }
       }
     },
-    "network_presentation.gd": {
-      "newline": "crlf",
-      "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle", "presentation"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle", "presentation"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle", "presentation"]}, "ar07_vitals_1": {"systems": ["player_vitals", "presentation"]}, "ar07_vitals_2": {"systems": ["player_vitals", "presentation"]}, "ar07_vitals_3": {"systems": ["player_vitals", "presentation"]}
-      }
-    },
+
     "health_orb.gd": {
       "newline": "crlf",
       "regions": {

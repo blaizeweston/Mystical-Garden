@@ -15,6 +15,15 @@ var _latest := PackedByteArray()
 var _latest_key := ""
 var _publishing := false
 var _session_revision := 0
+# Last accepted publication facts only; PlayerVitals still owns actual HP.
+class HealthRevision:
+	var signature: String
+	var revision: int
+	func _init(value: String, number: int) -> void:
+		signature = value
+		revision = number
+var _health: Dictionary[int, HealthRevision] = {}
+var _observing_health := false
 
 func sequence() -> int:
 	return _sequence
@@ -24,6 +33,7 @@ func clear_session() -> void:
 	_sequence = 0
 	_latest.clear()
 	_latest_key = ""
+	_health.clear()
 	# Preserve the existing send phase across host/join teardown. A new world
 	# starts with zero clocks; clearing a floor does not restart the sequence.
 
@@ -31,7 +41,7 @@ func publish(source: Source, delta: float, force: bool = false) -> void:
 	if _publishing: return
 	_publishing = true
 	var revision := _session_revision
-	source.observe_health()
+	observe_health(source)
 	var peers := source.peers()
 	if peers.is_empty() or revision!=_session_revision:
 		_publishing = false
@@ -47,6 +57,32 @@ func publish(source: Source, delta: float, force: bool = false) -> void:
 		_next_details = maxf(0,_next_details+DETAILS_INTERVAL_SECONDS)
 		_publish_details(source,peers,key,witness)
 	_publishing = false
+
+## Revision belongs to publication, never the mutable actor or savepoint.
+func health_revision(peer: int) -> int:
+	return _health[peer].revision if _health.has(peer) else 0
+
+## Observe even without connected guests, preserving the existing change rule.
+## Returned source facts are detached; this operation cannot change player HP.
+func observe_health(source: Source) -> void:
+	if _observing_health: return
+	_observing_health = true
+	var session_revision := _session_revision
+	var changes := {}
+	var states := source.health_states()
+	for peer: int in states:
+		var state: Dictionary = states[peer]
+		var signature := str([state.hp,state.max_hp,state.wild,state.fallen,state.lost_health,state.damage_seq])
+		if _health.has(peer) and _health[peer].signature==signature: continue
+		var revision := health_revision(peer)+1
+		_health[peer] = HealthRevision.new(signature,revision)
+		changes[peer] = {"revision":revision,"hp":state.hp,"max_hp":state.max_hp,
+			"fallen":state.fallen,"lost_health":state.lost_health,"damage_seq":state.damage_seq,"damage_amount":state.damage_amount}
+	if not changes.is_empty():
+		for peer in source.peers():
+			if session_revision!=_session_revision: break
+			source.send_vitals(peer,changes.duplicate(true))
+	_observing_health = false
 
 func _publish_fast(source: Source, peers: PackedInt32Array, key: String, witness: Callable) -> void:
 	var revision := _session_revision

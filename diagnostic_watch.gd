@@ -34,7 +34,7 @@ func tick(sample: bool=false) -> void:
  garden_bucket.work_seconds=5*int(int(garden.get("work_seconds",0))/5)
  if garden_bucket!=previous_garden:Journal.event("progression","garden_changed",garden_bucket);previous_garden=garden_bucket
  for id in game.players:
-  var p: Dictionary=game.players[id];var state=Journal.player_state(p);var old: Dictionary=previous.get(id,{})
+  var p: Dictionary=game.players[id];var state=Journal.player_state(p,game.replication.health_revision(id) if game.multiplayer.is_server() else -1);var old: Dictionary=previous.get(id,{})
   var changed={}
   for key in state:
    if key in ["pos","skill_at","skill_two_at","attack_combo"]:continue
@@ -59,7 +59,7 @@ func tick(sample: bool=false) -> void:
   for id in game.players:
    var actor: Dictionary = game.players[id]
    positions[id]={"pos":actor.get("pos",Vector3.ZERO),"hp":PlayerVitals.current_hp(actor),"max_hp":PlayerVitals.maximum_hp(actor,0),
-    "lost_health":actor.get("lost_health",0),"fallen":PlayerLifecycle.fallen(actor),"damage_seq":actor.get("damage_seq",0),"vitals_revision":actor.get("vitals_revision",0)}
+    "lost_health":actor.get("lost_health",0),"fallen":PlayerLifecycle.fallen(actor),"damage_seq":actor.get("damage_seq",0),"vitals_revision":game.replication.health_revision(id) if game.multiplayer.is_server() else actor.get("vitals_revision",0)}
   Journal.event("network","sample",{"transport":transport,"rejected_snapshots":game.guest_replication.rejected_count(),"snapshot_gaps":game.guest_replication.gap_count(),"sent_sequence":game.replication.sequence(),"received_sequence":sequence,"players":positions,"living_enemies":game.living_scout_count()+int(game.enemy_health()>0),"pending_projectiles":game.weapon_attacks.pending_count(),"movement_timing":game.net_motion.sample(),"fps":Engine.get_frames_per_second()})
 func _exit_tree() -> void:
  Journal.event("world","detached",{"world_session":world_session})

@@ -201,10 +201,11 @@ func _log_error(function: String,source: String,line: int,code: String,rationale
   for index in mini(trace.get_frame_count(),20):frames.append({"source":trace.get_frame_file(index),"function":trace.get_frame_function(index),"line":trace.get_frame_line(index)})
  record("engine","script_error" if error_type==ERROR_TYPE_SCRIPT else "warning" if error_type==ERROR_TYPE_WARNING else "error",{"function":function,"source":source,"line":line,"code":code,"message":code if rationale.is_empty() else rationale,"type":error_type,"stack":frames},"warning" if error_type==ERROR_TYPE_WARNING else "error")
 
-static func player_state(p: Dictionary) -> Dictionary:
+static func player_state(p: Dictionary, health_revision: int = -1) -> Dictionary:
  var result={}
  for key in ["pos","lost_health","damage_seq","vitals_revision","frame","weapon_kind","weapon","secondary","catalyst","prepared","prepared_secondary","prepared_catalyst","attack_combo","carried_parts"]:
   if p.has(key):result[key]=p[key]
+ if health_revision>=0:result.vitals_revision=health_revision
  if p.has(PlayerLifecycle.STATE) or p.has("fallen"):
   result.wild = Participation.is_wild(p)
   result.fallen = PlayerLifecycle.fallen(p)
@@ -220,7 +221,7 @@ static func player_state(p: Dictionary) -> Dictionary:
 
 static func interaction(game: Node,id: int,action: String,phase: String,request_seq: int=0) -> int:
  if is_instance_valid(game.diagnostic_watch):game.diagnostic_watch.tick()
- var info={"actor":id,"action":action.get_slice(":",0).left(80),"phase":phase,"request_seq":request_seq,"state":player_state(game.players.get(id,{}))}
+ var info={"actor":id,"action":action.get_slice(":",0).left(80),"phase":phase,"request_seq":request_seq,"state":player_state(game.players.get(id,{}),game.replication.health_revision(id) if game.multiplayer.is_server() else -1)}
  if action.contains(":"):
   var parser := JSON.new()
   if parser.parse(action.substr(action.find(":")+1)) == OK and parser.data is Dictionary:

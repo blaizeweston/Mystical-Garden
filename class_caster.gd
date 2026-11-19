@@ -51,7 +51,7 @@ func is_current() -> bool:
 
 func record_request(slot: int) -> void:
 	preload("res://diagnostic_journal.gd").event("combat", "skill_requested", {"actor":_peer, "slot":slot,
-		"state":preload("res://diagnostic_journal.gd").player_state(_actor)})
+		"state":preload("res://diagnostic_journal.gd").player_state(_actor,_world.replication.health_revision(_peer))})
 
 
 func observe(slot: int, now: int) -> Dictionary:
