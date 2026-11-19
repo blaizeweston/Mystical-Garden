@@ -100,8 +100,9 @@ static func safe_motion(game: Node, target: int, point: Vector3, end: Vector3) -
 
 
 static func resolve_motion(game: Node, elapsed: int, now: int) -> void:
-	if not game.persistence_session.is_blocked(): return
-	var pending: Dictionary=game.persistence_session.is_blocked()
+	if game.persistence_session.is_blocked() or not game.has_meta(PENDING): return
+	# This is the displacement queue, distinct from pending save transactions.
+	var pending: Dictionary=game.get_meta(PENDING)
 	game.remove_meta(PENDING)
 	var targets:=pending.keys()
 	targets.sort()
