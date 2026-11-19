@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
 const ClassActions = preload("res://native_class_actions.gd")
@@ -118,7 +119,7 @@ func verify_strikes(game: Node, player: Dictionary) -> void:
 			player.power=0
 			player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 			game.encounter.clear_scouts()
-			game.projectile_queue.clear()
+			game.weapon_attacks.clear()
 			game.encounter.set_hp(-1, 600)
 			game.enemy_mutations=0
 			game.tactics.position=Vector3(0,0,1.4)
@@ -128,14 +129,14 @@ func verify_strikes(game: Node, player: Dictionary) -> void:
 				check(game.Weapons.describe(stats).contains(Preview.range_label(band)+" damage"),"weapon preview shows that same band")
 				var summary: Dictionary=UIFixture.summary(game,player,stats)
 				check(summary.totals[0]==["Damage",Preview.range_label(band)],"Tab summary shows the same band")
-			game.strike_enemy(1,player,player.pos)
-			if game.projectile_queue.is_empty():
+			WeaponCase.start(game,1,player.pos)
+			if game.weapon_attacks.is_empty():
 				check(false,"attack was committed")
 				return
-			var shot: Dictionary=game.projectile_queue[0]
+			var shot: Dictionary=game.weapon_attacks.views()[0]
 			var locked: int=Preview.hp(int(stats.damage))+int(shot.stats.preview_roll_delta)
 			player.power=3
-			game.update_projectiles(int(shot.due)+1)
+			WeaponCase.advance(game,int(shot.due)+1)
 			var applied: int=600-game.enemy_health()
 			check(applied==locked and applied>=band.x and applied<=band.y,"resolved contact uses the frozen roll and bonus")
 			seen[applied]=true
@@ -154,12 +155,12 @@ func verify_multi_target(game: Node, player: Dictionary) -> void:
 	game.encounter.clear_scouts()
 	game.encounter.register_scout(game.make_scout(0,Vector3(.75,0,1.4),1))
 	var before: int=game.encounter.hp(0)
-	game.strike_enemy(1,player,player.pos)
-	if game.projectile_queue.is_empty():
+	WeaponCase.start(game,1,player.pos)
+	if game.weapon_attacks.is_empty():
 		check(false,"multi-target strike commits")
 		return
-	var shot: Dictionary=game.projectile_queue[0]
-	game.update_projectiles(int(shot.due)+1)
+	var shot: Dictionary=game.weapon_attacks.views()[0]
+	WeaponCase.advance(game,int(shot.due)+1)
 	check(game.enemy_health()<600 and before-int(game.encounter.hp(0))==600-game.enemy_health(),"one Maul roll applies to every contact")
 
 

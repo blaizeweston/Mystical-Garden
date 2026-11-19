@@ -117,27 +117,25 @@ static func prepared_until(game: Node, player: Dictionary, key: String, now: int
 	return until if until > now and source_live(game,record) else 0
 
 
-static func launch(game: Node, player: Dictionary, shot: Dictionary, now: int) -> Dictionary:
+## Return only earned launch contributions. The weapon queue creates and owns
+## the second projectile; this handler owns Ranger preparation consumption.
+static func launch_grants(game: Node, player: Dictionary, peer: int, form: String, stats: Dictionary, now: int) -> Dictionary:
+	var grants := {}
 	if prepared_until(game,player,FOLLOW,now) > 0:
-		shot.ranger_follow_hp = Progression.FOLLOW_HP
-		Journal.event("combat","ranger_follow_launch",{"actor":shot.player,"cast_id":player[FOLLOW].cast})
+		grants.follow_hp = Progression.FOLLOW_HP
+		Journal.event("combat","ranger_follow_launch",{"actor":peer,"cast_id":player[FOLLOW].cast})
 	player.erase(FOLLOW)
 	var armed := prepared_until(game,player,DOUBLE,now) > 0
 	var cast := int(player.get(DOUBLE,{}).get("cast",0))
 	player.erase(DOUBLE)
 	if not armed:
-		return {}
-	var rolled := int(shot.stats.get("preview_strike_hp",Balance.Preview.effect_hp(float(shot.stats.damage))))
-	var extra := shot.duplicate()
-	extra.erase("ranger_follow_hp")
-	extra.ranger_secondary = true
-	extra.hits = []
-	extra.remaining = 1
-	extra.stats = {"pattern":"single","targets":1,"reach":shot.stats.reach,"damage":0.0,"knockback":-.35,
+		return grants
+	var rolled := int(stats.get("preview_strike_hp",Balance.Preview.effect_hp(float(stats.damage))))
+	grants.secondary_stats = {"pattern":"single","targets":1,"reach":stats.reach,"damage":0.0,"knockback":-.35,
 		"affinity_hp":roundi(rolled*Progression.DOUBLE_SCALE),"core_hit":true,"trait_secondary":true}
-	Journal.event("combat","double_draw_launch",{"actor":shot.player,"cast_id":cast,
-		"weapon":shot.form,"roll_hp":rolled,"secondary_hp":extra.stats.affinity_hp})
-	return extra
+	Journal.event("combat","double_draw_launch",{"actor":peer,"cast_id":cast,
+		"weapon":form,"roll_hp":rolled,"secondary_hp":grants.secondary_stats.affinity_hp})
+	return grants
 
 
 static func nearby(game: Node, ally: Dictionary, center: Vector3, radius: float) -> bool:

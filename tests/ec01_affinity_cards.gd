@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
@@ -69,7 +70,8 @@ func reset(class_id := 0) -> void:
 	game.checkpoint_ready.clear()
 	game.deepest_milestone = 0
 	game.encounter.clear_scouts()
-	for records: Array in [game.trait_events,game.projectile_queue,game.combat_events]:
+	game.weapon_attacks.clear()
+	for records: Array in [game.trait_events,game.combat_events]:
 		records.clear()
 	game.monster_rewards = game.MonsterRewards.new()
 	game.tactics.memory.clear()
@@ -495,11 +497,11 @@ func verify_native() -> void:
 	var faster := grant_fixture_copy("ordinary_weapon_interval",3)
 	var hit_gain := grant_fixture_copy("ordinary_weapon_damage",3)
 	var before := Time.get_ticks_msec()
-	game.strike_enemy(1,player,player.pos)
-	var attack: Dictionary = game.projectile_queue.front()
+	WeaponCase.start(game,1,player.pos)
+	var attack: Dictionary = game.weapon_attacks.views().front()
 	check(int(attack.stats.interval)==int(plain_stats.interval)-faster and is_equal_approx(float(attack.stats.damage),float(plain_stats.damage)+float(hit_gain)/10.0)
 		and player[WeaponActions.STATE].ready_at_ms()>=before+int(plain_stats.interval)-faster,"ordinary strike commits with both weapon cards")
-	game.update_projectiles(int(attack.due)+1)
+	WeaponCase.advance(game,int(attack.due)+1)
 	check(game.enemy_health()==400-int(attack.stats.preview_strike_hp),"the improved ordinary roll is applied on a real weapon contact")
 	var recovery := grant_fixture_copy("run_dodge_recovery",3)
 	before = Time.get_ticks_msec()
@@ -716,14 +718,14 @@ func verify_attack_speed() -> void:
 		game.encounter.set_hp(-1, 400)
 		game.tactics.position = game.battlefield.advance + Vector3.FORWARD
 		var now := Time.get_ticks_msec()
-		game.strike_enemy(1,player,player.pos)
-		var queued: Dictionary = game.projectile_queue.back()
+		WeaponCase.start(game,1,player.pos)
+		var queued: Dictionary = game.weapon_attacks.views().back()
 		check(int(queued.stats.interval) == next_ms and player[WeaponActions.STATE].ready_at_ms() >= now+next_ms
 			and player[WeaponActions.STATE].ready_at_ms() <= Time.get_ticks_msec()+next_ms and is_equal_approx(float(queued.stats.damage),float(stats.damage)+0.3),
 			"the actual basic attack uses the existing timer formula alongside graft damage")
-		var count: int = game.projectile_queue.size()
-		game.strike_enemy(1,player,player.pos)
-		check(game.projectile_queue.size() == count, "the attack timer still rejects an immediate second launch")
+		var count: int = game.weapon_attacks.pending_count()
+		WeaponCase.start(game,1,player.pos)
+		check(game.weapon_attacks.pending_count() == count, "the attack timer still rejects an immediate second launch")
 		if next_ms == Cards.STRIKE_MIN_MS:
 			check(not card_ledger(player).eligible(game.weapon_stats(player),game.DODGE_COOLDOWN_MS).has(card_id)
 				and not card_ledger(player).roll(player.upgrade_seed, game.participation.floor(), game.weapon_stats(player), game.DODGE_COOLDOWN_MS).any(func(option):return option.id==card_id),

@@ -1,4 +1,5 @@
 extends RefCounted
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
 const ClassActions = preload("res://native_class_actions.gd")
@@ -642,7 +643,7 @@ func exercise_ranger_host(game: Node,id: int,entry: Vector3,target: Vector3,even
 	ally[WeaponActions.STATE] = ally[WeaponActions.STATE].with_ready_at(0)
 	ally.mouse_aim=false
 	ally.facing=direction
-	game.strike_enemy(1,ally,entry)
+	WeaponCase.start(game,1,entry)
 	var prey_spent := func() -> bool:
 		return (not game.enemy_traits.has(RangerCombat.PREY) and game.combat_events.any(func(e):
 			return e.shape=="Tracked Prey triggered"))
@@ -1286,7 +1287,7 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 			game.encounter.register_scout(scout)
 		var caster: Dictionary = game.players[ids[0]]
 		caster[WeaponActions.STATE] = caster[WeaponActions.STATE].with_ready_at(0)
-		game.strike_enemy(ids[0],caster,caster.pos)
+		WeaponCase.start(game,ids[0],caster.pos)
 		if not check(await until(func():return game.trait_events.any(func(e):
 			return e.get("graft_source",{}).get("component_id")=="monster:ashen_hart"),1300),
 			"a real Cinder field is active at full scout occupancy"): return

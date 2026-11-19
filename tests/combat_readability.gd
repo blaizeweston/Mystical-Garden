@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
@@ -64,6 +65,9 @@ func run():
  OutgoingHits.hit_world(game, HitSession.peer_for(p), -1, p.pos, stats, Time.get_ticks_msec())
  var impact: Dictionary=game.combat_events.filter(func(e):return e.kind=="impact").back()
  check(impact.amount==1 and impact.target_id==-1,"finishing blow displays actual remaining HP, not overkill")
+ # Rendering requires the complete authored landmarks; collision-only fixtures
+ # above intentionally omit them. Restore the floor before visual assertions.
+ game.battlefield.configure(0,1)
  game.encounter.set_hp(-1, 30);game.tactics.position=Vector3(0,0,2);game._process(.016)
  var fx=game.combat_visuals;fx.clear();fx.sync([impact,impact],[],"test",Vector3.ZERO)
  check(fx.feedback.labels.size()==1,"duplicate RPC/detail events produce one damage number")
@@ -75,9 +79,9 @@ func run():
  # Real cursor projectile crosses the first body, stops its visual and cannot hit the second.
  p.frame=2;p.weapon_kind=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active();p.cast_until=0;p.mouse_aim=true;p.aim_direction=Vector3.RIGHT
  game.encounter.set_hp(-1, 30);game.tactics.position=Vector3(1,0,0);game.encounter.clear_scouts();game.encounter.register_scout(game.make_scout(0,Vector3(2,0,0),1));game.encounter.set_hp(0, 30)
- game.projectile_queue.clear();game.combat_events.clear();game.strike_enemy(1,p,p.pos)
- var shot: Dictionary=game.projectile_queue[0];shot.remaining=1
- game.update_projectiles(int(shot.due))
+ game.weapon_attacks.clear();game.combat_events.clear();WeaponCase.start(game,1,p.pos)
+ var shot: Dictionary=game.weapon_attacks.views()[0]
+ WeaponCase.advance(game,int(shot.due))
  check(game.enemy_health()<30 and game.encounter.hp(0)==30,"single-target shot hits the first swept body only")
  check(game.combat_events.any(func(e):return e.kind=="projectile_end"),"confirmed projectile hit terminates flight visual")
  fx.clear();fx.sync(game.combat_events_snapshot(),[],"projectile",p.pos)

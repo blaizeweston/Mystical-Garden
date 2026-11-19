@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -119,7 +120,7 @@ func surface_checks() -> void:
 		and boss.dash(from,to).distance_to(to)>.34,"modern authored Nest ribs block sight, projectile radius and actors")
 
 func prepare(origin: Vector3, foe: Vector3) -> void:
-	game.projectile_queue.clear()
+	game.weapon_attacks.clear()
 	game.encounter.clear_scouts()
 	game.combat_events.clear()
 	game.trait_events.clear()
@@ -159,13 +160,17 @@ func scout(at: Vector3) -> Dictionary:
 func finish_shots() -> Dictionary:
 	if not check_queue():
 		return {}
-	var shot: Dictionary = game.projectile_queue.front()
-	game.update_projectiles(int(shot.release))
-	game.update_projectiles(int(shot.release) + 2000)
-	return shot
+	var shot: Dictionary = game.weapon_attacks.views().front()
+	var contacts: Array = []
+	var observe := func(_peer: int, target: int): contacts.append("leader" if target == -1 else str(game.encounter.token(target)))
+	game.outgoing_contact_requested.connect(observe)
+	WeaponCase.advance(game,int(shot.release))
+	WeaponCase.advance(game,int(shot.release) + 2000)
+	game.outgoing_contact_requested.disconnect(observe)
+	return shot.merged({"contacts":contacts})
 
 func check_queue() -> bool:
-	var queued: bool = not game.projectile_queue.is_empty()
+	var queued: bool = not game.weapon_attacks.is_empty()
 	check(queued, "weapon route queued an actual projectile")
 	return queued
 
@@ -174,7 +179,7 @@ func event_point(event: Dictionary) -> Vector3:
 
 func weapon_checks() -> void:
 	prepare(BANK, ACROSS)
-	game.strike_enemy(game.HOST, player, player.pos)
+	WeaponCase.start(game,game.HOST,player.pos)
 	var bow := finish_shots()
 	check(not bow.is_empty() and bow.get("locked_target") == -1 and game.enemy_health() < 100,
 		"the actual Vine Bow selects and hits an enemy across water and rubble")
@@ -189,9 +194,9 @@ func weapon_checks() -> void:
 	var second := scout(Vector3(-1.15,0,-2.5))
 	var stats: Dictionary = game.weapon_stats(player)
 	stats.targets = 3
-	Mouse.queue_attack(game,game.HOST,player,origin,stats,Time.get_ticks_msec(),"bow",300)
+	WeaponCase.schedule(game,game.HOST,origin,stats,Time.get_ticks_msec(),"bow",300)
 	var piercing := finish_shots()
-	check(not piercing.is_empty() and piercing.hits.size() == 2 and piercing.hits[0] == "1" and piercing.hits[1] == "2"
+	check(not piercing.is_empty() and piercing.contacts.size() == 2 and piercing.contacts[0] == "1" and piercing.contacts[1] == "2"
 		and game.encounter.hp_for(first) < 100 and game.encounter.hp_for(second) < 100 and game.enemy_health() == 100, "piercing resolves two ordered contacts before solid cover")
 	var end_events: Array = game.combat_events.filter(func(event): return event.kind == "projectile_end")
 	check(end_events.size() == 1 and event_point(end_events[0]).is_equal_approx(piercing.get("aim", Vector3.INF)),
@@ -202,9 +207,9 @@ func weapon_checks() -> void:
 	stats = game.weapon_stats(player)
 	stats.pattern = "chain"
 	stats.targets = 2
-	Mouse.queue_attack(game,game.HOST,player,BANK,stats,Time.get_ticks_msec(),"bow",300)
+	WeaponCase.schedule(game,game.HOST,BANK,stats,Time.get_ticks_msec(),"bow",300)
 	var chain := finish_shots()
-	check(not chain.is_empty() and chain.hits.size() == 2 and game.encounter.hp_for(across) < 100 and game.enemy_health() < 100,
+	check(not chain.is_empty() and chain.contacts.size() == 2 and game.encounter.hp_for(across) < 100 and game.enemy_health() < 100,
 		"native chain jumps across water once after a valid first contact")
 	prepare(origin, Vector3(.75,0,-2.1))
 	var hidden := scout(behind)
@@ -215,9 +220,9 @@ func weapon_checks() -> void:
 	stats.targets = 2
 	player.aim_direction = Vector3.RIGHT
 	player.facing = player.pos.direction_to(game.tactics.position)
-	Mouse.queue_attack(game,game.HOST,player,origin,stats,Time.get_ticks_msec(),"bow",300)
+	WeaponCase.schedule(game,game.HOST,origin,stats,Time.get_ticks_msec(),"bow",300)
 	var blocked_chain := finish_shots()
-	check(not blocked_chain.is_empty() and blocked_chain.hits.size() == 1 and game.encounter.hp_for(hidden) == 100 and game.enemy_health() < 100,
+	check(not blocked_chain.is_empty() and blocked_chain.contacts.size() == 1 and game.encounter.hp_for(hidden) == 100 and game.enemy_health() < 100,
 		"native chain stops before obstructed target")
 
 	prepare(Vector3(-3.2,0,-3.3), behind)
@@ -225,10 +230,10 @@ func weapon_checks() -> void:
 	var fan_stats: Dictionary = game.weapon_stats(player)
 	fan_stats.pattern = "line"
 	fan_stats.targets = 2
-	Mouse.queue_attack(game,game.HOST,player,player.pos,fan_stats,Time.get_ticks_msec(),"fan",300)
+	WeaponCase.schedule(game,game.HOST,player.pos,fan_stats,Time.get_ticks_msec(),"fan",300)
 	var fan := finish_shots()
 	var fan_events: Array = game.combat_events.filter(func(event): return event.kind == "projectile")
-	check(fan_events.size() == 3 and game.encounter.hp_for(overlap) < 100 and fan.get("hits", []).count(str(game.encounter.token_for(overlap))) == 1
+	check(fan_events.size() == 3 and game.encounter.hp_for(overlap) < 100 and fan.get("contacts", []).count(str(game.encounter.token_for(overlap))) == 1
 		and game.enemy_health() == 100, "fan rays clip independently and share one hit token")
 	if fan_events.size() == 3:
 		# One petal meets the boulder while the center ray passes below it.

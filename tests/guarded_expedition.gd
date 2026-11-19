@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -203,15 +204,15 @@ func exercise() -> void:
  var initial_wallet = world.wallet_for(actor)
  var protection_before: Protection.State=actor[Protection.STATE]
  var action_before: WeaponActions.State=actor[WeaponActions.STATE]
- var queue_before: int=world.projectile_queue.size()
+ var queue_before: int=world.weapon_attacks.pending_count()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
  var refused_attack: Dictionary=world.run_guarded_action(1,Tx.Scope.PAIR,func(_effects):
-  world.strike_enemy(1,actor,actor.pos)
+  WeaponCase.start(world,1,actor.pos)
   actor[Protection.STATE] = actor[Protection.STATE].grant(Time.get_ticks_msec()+2000,2,Time.get_ticks_msec(),world.participation.epoch()).with_front_guard(Time.get_ticks_msec()+2000,Vector3.FORWARD).prepare_counter(Time.get_ticks_msec()+3500,1)
   return true)
  world.remove_meta(&"guarded_gameplay_test_fault")
  check(not Tx.committed(refused_attack.persistence) and is_same(actor[WeaponActions.STATE],action_before)
-  and actor[WeaponActions.STATE].sequence()==0 and world.projectile_queue.size()==queue_before,
+  and actor[WeaponActions.STATE].sequence()==0 and world.weapon_attacks.pending_count()==queue_before,
   "guarded attack abort restores the original weapon state and removes the attempted contact")
  check(not actor.has("strike_at") and not actor.has("attack_until") and not actor.has("ranged_windup"),
   "host actor has one authoritative weapon component, not duplicate raw fields")

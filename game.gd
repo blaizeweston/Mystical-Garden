@@ -115,7 +115,10 @@ var combat_visuals: Node3D
 var combat_events: Array=[]
 var combat_event_serial:=0
 var received_combat_events: Array=[]
-var projectile_queue: Array=[]
+const WeaponAttackQueue = preload("res://weapon_attack_queue.gd")
+const WeaponAttackWorld = preload("res://weapon_attack_world.gd")
+var weapon_attacks: WeaponAttackQueue = WeaponAttackQueue.new()
+var weapon_attack_world := WeaponAttackWorld.new(self)
 var enemy_mutations := 0
 var enemy_growth := 0
 var burst_hits_this_room := 0
@@ -191,6 +194,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	mouse_controls.attack_requested.connect(func(peer: int, origin: Vector3, now: int): weapon_attacks.try_start(weapon_attack_world, peer, origin, now))
 	if has_meta(&"experimental_terrain") and not preload("res://assets/terrain_m02/experimental/experiment_mode.gd").verified():
 		set_process(false)
 		set_physics_process(false)
@@ -831,7 +835,7 @@ func selected_donation(player: Dictionary) -> int:
 # write and publication order. The typed boundary decides whether to publish.
 func snapshot_expedition_runtime() -> Dictionary:
 	return {"map_rng":map_rng.state, "heal_rng":Life.Preview.heal_rng.state, "battlefield":battlefield,
-		"mouse":Transactions.snapshot(mouse_controls),
+		"mouse":Transactions.snapshot(mouse_controls), "weapons":weapon_attacks.savepoint(),
 		"aim_visible":is_instance_valid(mouse_controls.marker) and mouse_controls.marker.visible,
 		"core":get_meta(&"core_combat", {}).duplicate(true) if has_meta(&"core_combat") else null}
 
@@ -840,6 +844,7 @@ func restore_expedition_runtime(state: Dictionary) -> void:
 	Life.Preview.heal_rng.state=state.heal_rng
 	battlefield=state.battlefield
 	Transactions.restore(mouse_controls,state.mouse)
+	weapon_attacks.restore_savepoint(state.weapons)
 	if is_instance_valid(mouse_controls.marker): mouse_controls.marker.visible=state.aim_visible
 	if state.core != null: set_meta(&"core_combat",state.core)
 	elif has_meta(&"core_combat"): remove_meta(&"core_combat")
@@ -1521,7 +1526,7 @@ func _physics_process(delta: float) -> void:
 		mouse_controls.tick(self,now)
 		if participation.active() and encounter_cleared() and not encounter_rewarded and now>=reward_retry_at: finish_combat(HOST,tactics.position)
 		if persistence_session.is_blocked(): return
-		update_projectiles(now)
+		weapon_attacks.advance(weapon_attack_world, now)
 		if persistence_session.is_blocked(): return
 		Traits.tick(self,now)
 		if persistence_session.is_blocked(): return
@@ -1783,7 +1788,7 @@ func _act(id: int, strike: bool) -> void:
 	if not strike and rescue!=0:
 		revive_player(id,rescue)
 	elif strike:
-		strike_enemy(id, p, pos)
+		weapon_attacks.try_start(weapon_attack_world, id, pos, CombatClock.now())
 	elif nearest_inventory_drop(p)!="":
 		pickup_inventory_drop(id,p,nearest_inventory_drop(p))
 	elif Participation.is_wild(p) and p.loot_pending and pos.distance_to(drop_pos) <= 1.45:
@@ -1904,57 +1909,6 @@ func _harvest(id: int, slot: int, effects = null) -> bool:
 
 func rare_harvest_chance(familiarity: int) -> float:
 	return minf(.45,0.05+0.04*mini(familiarity,5)+.005*maxi(0,familiarity-5))
-
-
-func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
-	if not Life.alive(p): return
-	var now:=CombatClock.now()
-	var attack: WeaponActions.State = p[WeaponActions.STATE]
-	if not attack.ready(now): return
-	var stats:=weapon_stats(p)
-	var affinity_build: Dictionary = stats.get("affinity_build", {})
-	if not affinity_build.is_empty():
-		var refusal := preload("res://affinity_build.gd").refusal(affinity_build, "form")
-		if not refusal.is_empty():
-			tell(id, refusal)
-			return
-		var events = preload("res://combat_action_events.gd")
-		Weapons.tune_affinity_basic(stats, AffinityCards.totals(p))
-		var form_affinity: Dictionary = affinity_build.form
-		var ready: bool = form_affinity.state == "ready"
-		var event: RefCounted = events.begin(self,id,"form" if ready else "native_weapon",form_affinity if ready else {},
-			form_affinity.potency_profile.values if ready else {},["weapon_contact","secondary"],now+15000)
-		var grafts = preload("res://native_grafts.gd")
-		var captured := grafts.capture(p,affinity_build.improvements.adaptations)
-		if not captured.is_empty():
-			stats[grafts.CONTEXT] = captured
-		if int(p.frame)==Frames.REAPER and int(affinity_build.class_skills.size())>0:
-			preload("res://reaper_combat.gd").commit_melee(self,p,affinity_build.class_skills[0].get("native_skill",{}),stats,now)
-		stats[events.CONTEXT] = event
-		stats.erase("affinity_build")
-		if int(p.frame)==Frames.RANGER and p.character.has(Classes.Ranger.PROFILE_KEY):
-			stats.ranger_ordinary = true
-	Life.Preview.lock_strike(stats,0)
-	var form:=WeaponMotion.form(p)
-	var started := attack.try_start(now, int(stats.interval), roundi(float(WeaponMotion.profile(form).duration)*1000), float(stats.reach))
-	if started == null: return
-	p[WeaponActions.STATE] = started
-	p.cast_until=0
-	var duration := started.duration_ms()
-	if p.get("mouse_aim",false):
-		MouseCombat.queue_attack(self,id,p,pos,stats,now,form,duration)
-		return
-	var ranged := WeaponMotion.is_projectile(form)
-	var targeting = preload("res://class_ability_targeting.gd")
-	var first: int = targeting.automatic(self,p,float(stats.reach),WeaponMotion.profile(form) if ranged else {})
-	var aim: Vector3 = pos if first == -2 else preload("res://enemy_hurtbox.gd").contact(self,first,pos,ranged)
-	if first==-2 or pos.distance_to(aim)>float(stats.reach):
-		MouseCombat.queue_attack(self,id,p,pos,stats,now,form,duration)
-		tell(id,"No enemy within clear weapon reach.")
-		return
-	if aim.distance_to(pos)>.001: p.facing=(aim-pos).normalized()
-	MouseCombat.queue_attack(self,id,p,pos,stats,now,form,duration,first)
-
 
 
 func finish_combat(id: int,loot_position: Vector3) -> void:
@@ -2123,7 +2077,7 @@ func reset_encounter(seed_value: int = -1) -> void:
 		player.erase("affinity_thorn_form_ready")
 	preload("res://core_combat.gd").reset(self)
 	enemy_traits.clear();trait_events.clear()
-	projectile_queue.clear()
+	weapon_attacks.clear()
 	combat_events.clear()
 	Bosses.prepare(self)
 	# A new floor has independent pathing. Keep the old object intact for abort.
@@ -3612,51 +3566,6 @@ func combat_events_snapshot() -> Array:
 	for event in preload("res://combat_status.gd").snapshot(self,now):
 		if not known.has(event.id):result.append(event)
 	return result
-
-func update_projectiles(now: int) -> void:
-	for shot in projectile_queue.duplicate():
-		if int(shot.epoch)!=participation.epoch() or not players.has(shot.player) or not Life.alive(players[shot.player]):projectile_queue.erase(shot);continue
-		if not PlayerLifecycle.matches(players[shot.player],int(shot.get("life",-1))):projectile_queue.erase(shot);continue
-		if shot.get("melee_shape",false):
-			if now>=int(shot.due):
-				preload("res://event_audio.gd").weapon(self,shot.form,players[shot.player].pos)
-				var spirit = preload("res://spirit_affinity.gd")
-				var owner: Dictionary=players[shot.player]
-				if owner.has(spirit.FOLLOW): spirit.launch(self,owner,shot.stats,1)
-				preload("res://weapon_contact.gd").melee(self,shot,now)
-				if owner.has(spirit.FOLLOW): spirit.finish(self,owner,shot.stats)
-				projectile_queue.erase(shot)
-			continue
-		if now<int(shot.release):continue
-		var rays: Array=[shot]
-		if not shot.get("emitted",false):
-			MouseCombat.launch(self,shot)
-			preload("res://event_audio.gd").weapon(self,shot.form,shot.origin)
-			rays=MouseCombat.volley(self,shot)
-			var owner: Dictionary=players[shot.player]
-			if owner.has("affinity_spirit_follow"):
-				preload("res://spirit_affinity.gd").launch(self,owner,shot.stats,rays.size())
-			if shot.stats.get("ranger_ordinary",false):
-				var second_shot := preload("res://ranger_combat.gd").launch(self,owner,shot,now)
-				if not second_shot.is_empty():
-					rays.append(second_shot)
-			for ray in rays:
-				if not is_same(ray,shot):projectile_queue.append(ray)
-				var form: String=ray.form
-				var flight:=maxf(.03,(int(ray.due)-int(ray.release))/1000.)
-				var color := weapon_effect_color(players[ray.player])
-				if ray.get("ranger_secondary",false):
-					color = color.lerp(Color("#e6bd69"),.65)
-				emit_combat_event("projectile",str(WeaponMotion.profile(form).shape),ray.origin,ray.aim,flight,color,float(ray.stats.reach),0,preload("res://weapon_contact.gd").describe(form,ray.stats))
-				ray.visual_event_id=combat_event_serial
-		for ray in rays:
-			if MouseCombat.ray_tick(self,ray,now):
-				if ray.has("visual_event_id"):emit_combat_event("projectile_end",str(ray.visual_event_id),ray.origin,ray.get("visual_stop",ray.aim),.15,Color.WHITE,0,0)
-				var owner: Dictionary=players[ray.player]
-				if owner.has("affinity_spirit_follow") and not ray.get("ranger_secondary",false):
-					preload("res://spirit_affinity.gd").finish(self,owner,ray.stats)
-				projectile_queue.erase(ray)
-
 
 func attack_hints_snapshot() -> Array:
 	var result: Array=Bosses.hints(self)

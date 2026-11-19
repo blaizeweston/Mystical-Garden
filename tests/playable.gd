@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Protection = preload("res://player_protection.gd")
@@ -58,8 +59,8 @@ func run() -> void:
 	world.encounter.set_hp(-1,1)
 	actor.cast_until=0
 	actor[WeaponActions.STATE] = actor[WeaponActions.STATE].with_ready_at(0)
-	world.strike_enemy(1,actor,actor.pos)
-	world.update_projectiles(Time.get_ticks_msec()+2000)
+	WeaponCase.start(world,1,actor.pos)
+	WeaponCase.advance(world,Time.get_ticks_msec()+2000)
 	check(world.enemy_health()==0 and world.monster_rewards.pending_count()>=0,"a real ordinary weapon contact resolves an authoritative kill")
 	ExpeditionCase.set_world(world,{"encounter_number":3})
 	world.deepest_milestone=3

@@ -1,10 +1,9 @@
 extends RefCounted
-const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const WeaponActions = preload("res://player_weapon_actions.gd")
 const Hurt = preload("res://enemy_hurtbox.gd")
 const MAX_AGE:=250
 var states: Dictionary={}
-const OutgoingHits = preload("res://outgoing_hits.gd")
+signal attack_requested(peer: int, origin: Vector3, now: int)
 var next_send: int=0
 var armed:=true
 var local_aim:=Vector3.ZERO
@@ -73,7 +72,7 @@ func tick(game: Node,now: int) -> void:
   var p: Dictionary=game.players[id];var state: Dictionary=states[id]
   if not game.Life.alive(p) or now-int(state.at)>MAX_AGE:state.held=false;continue
   p.facing=state.aim
-  if state.held and not (id==game.HOST and (game.ui.is_overlay_open() or game.settings_dialog.visible)):game.strike_enemy(id,p,p.pos)
+  if state.held and not (id==game.HOST and (game.ui.is_overlay_open() or game.settings_dialog.visible)):attack_requested.emit(id,Vector3(p.pos),preload("res://combat_clock.gd").now())
 func draw_indicator(game: Node,p: Dictionary,aim: Vector2,shown: bool) -> void:
  if not is_instance_valid(marker):
   marker=MeshInstance3D.new();game.stage.add_child(marker)
@@ -98,106 +97,3 @@ static func projectile_path(field: RefCounted, origin: Vector3, direction: Vecto
 static func can_shoot(field: RefCounted, origin: Vector3, center: Vector3, body_radius: float, profile: Dictionary, reach: float) -> bool:
  var path := projectile_path(field, origin, origin.direction_to(center), profile, reach)
  return not Hurt.projectile_contact(field, path.from, path.to, center, body_radius, float(profile.projectile_radius)).is_empty()
-static func queue_attack(game: Node,id: int,p: Dictionary,pos: Vector3,stats: Dictionary,now: int,form: String,duration: int,lock_target: int=-2) -> void:
- var direction: Vector3=(p.get("aim_direction",p.facing) if p.get("mouse_aim",false) else p.facing).normalized();p.facing=direction
- var description:=preload("res://weapon_contact.gd").describe(form,stats)
- p[WeaponActions.STATE] = p[WeaponActions.STATE].with_pose(direction,description.clip,description.pattern,float(description.span))
- var end: Vector3=pos+direction*float(stats.reach)
- var profile: Dictionary=game.WeaponMotion.profile(form)
- var release:=now+roundi(duration*float(profile.release))
- if game.WeaponMotion.is_projectile(form):
-  var path:=projectile_path(game.battlefield,pos,direction,profile,float(stats.reach))
-  var muzzle: Vector3=path.from
-  end=path.to
-  var flight:=maxi(30,roundi(muzzle.distance_to(end)/float(profile.speed)*1000))
-  game.projectile_queue.append({"direction":direction,"mouse_ray":true,"player":id,"epoch":game.participation.epoch(),"life":PlayerLifecycle.generation(p),"release":release,"due":release+flight,"emitted":false,"projectile":true,"form":form,"origin":muzzle,"aim":end,"previous":muzzle,"stats":stats.duplicate(true),"hits":[],"remaining":int(stats.targets)})
-  game.projectile_queue.back().muzzle_blocked = path.muzzle_blocked
-  if p.get("mouse_aim",false):
-   var combo: int=p[WeaponActions.STATE].sequence()
-   p[WeaponActions.STATE] = p[WeaponActions.STATE].follow_cursor_until(release)
-   game.projectile_queue.back().aim_combo=combo
-  if lock_target>=-1:
-   game.projectile_queue.back().locked_target=lock_target;game.projectile_queue.back().locked_token=token(game,lock_target)
-  return
- game.emit_weapon_attack(p,pos,end,stats,now)
- var melee := {"melee_shape":true,"player":id,"epoch":game.participation.epoch(),"life":PlayerLifecycle.generation(p),"release":release,"due":release,"emitted":true,"projectile":false,"form":form,"origin":pos,"aim":end,"stats":stats.duplicate(true)}
- game.projectile_queue.append(melee)
-static func launch(game: Node,shot: Dictionary) -> void:
- var caster: Dictionary=game.players[shot.player]
- var direction: Vector3=shot.direction
- # Aim is sampled once on the release tick. Flight and collision share this path.
- if shot.has("aim_combo") and caster.get("mouse_aim",false):
-  direction=caster.get("aim_direction",direction)
-  caster[WeaponActions.STATE] = caster[WeaponActions.STATE].sample_release(int(shot.aim_combo),direction)
- var profile: Dictionary=game.WeaponMotion.profile(str(shot.form))
- var start: Vector3=caster.pos
- var path:=projectile_path(game.battlefield,start,direction,profile,float(shot.stats.reach))
- shot.emitted=true
- shot.direction=direction
- shot.launch_position=start
- shot.origin=path.from
- shot.previous=path.from
- shot.muzzle_blocked=path.muzzle_blocked
- shot.aim=path.to
- shot.due=int(shot.release)+maxi(30,roundi(Vector3(shot.origin).distance_to(shot.aim)/float(profile.speed)*1000))
-
-static func volley(game: Node, shot: Dictionary, field: RefCounted = null) -> Array:
- var profile: Dictionary=game.WeaponMotion.profile(str(shot.form))
- var count:=int(profile.get("projectiles",1))
- if count==1 or shot.get("muzzle_blocked",false):return [shot]
- count=mini(5,count+maxi(0,int(shot.stats.targets)-2))
- # The petals share a set of hit tokens, so overlapping rays cannot hit a foe twice.
- var shots: Array=[shot]
- if field==null:field=game.battlefield
- var spread:=float(profile.spread)
- var center: Vector3=shot.direction
- var muzzle: Vector3=shot.origin
- for index in range(1,count):
-  var fraction: float=ceilf(index*.5)/ceilf((count-1)*.5)
-  var direction:=center.rotated(Vector3.UP,spread*fraction*(1.0 if index%2==1 else -1.0))
-  var end: Vector3=field.projectile_endpoint(muzzle,Vector3(shot.launch_position)+direction*float(shot.stats.reach),float(profile.projectile_radius))
-  var petal:=shot.duplicate()
-  petal.aim=end
-  petal.due=int(shot.release)+maxi(30,roundi(muzzle.distance_to(end)/float(profile.speed)*1000))
-  shots.append(petal)
- for petal in shots:
-  petal.remaining=1
- return shots
-
-static func token(game: Node,target: int) -> String:
- return "leader" if target==-1 else str(game.encounter.token(target))
-static func ray_tick(game: Node,shot: Dictionary,now: int) -> bool:
- if now<int(shot.release):return false
- var t:=clampf((now-int(shot.release))/float(maxi(1,int(shot.due)-int(shot.release))),0,1)
- var at: Vector3=Vector3(shot.origin).lerp(shot.aim,t);var previous: Vector3=shot.previous
- var contacts: Array=[]
- for target in range(-1,game.encounter.scout_count()):
-  if not game.Traits.valid_target(game,target) or shot.hits.has(token(game,target)):continue
-  if target==int(shot.get("locked_target",-3)) and token(game,target)!=str(shot.get("locked_token","")):continue
-  var collision: Dictionary=Hurt.sweep(game,target,previous,at,float(game.WeaponMotion.profile(str(shot.form)).projectile_radius))
-  if not collision.is_empty():contacts.append({"id":target,"token":game.encounter.token(target),"distance":float(collision.fraction),"point":collision.point})
- contacts.sort_custom(func(a,b):return a.distance<b.distance or (a.distance==b.distance and a.id<b.id))
- for entry in contacts:
-  if int(shot.remaining)<=0:break
-  var target: int=entry.id;var point: Vector3=entry.point
-  if int(shot.get("epoch",game.participation.epoch()))!=game.participation.epoch():break
-  if not game.encounter.alive(target,int(entry.token)) or shot.hits.has(token(game,target)):continue
-  if not shot.hits.is_empty() and str(shot.form)!="fan":preload("res://combat_status.gd").proc(game,"pierce",previous,point,target)
-  shot.hits.append(token(game,target));shot.remaining-=1
-  var hit: Dictionary=shot.stats.duplicate(true);hit.shot_distance=Vector3(shot.get("launch_position",shot.origin)).distance_to(game.enemy_position(target))
-  if not shot.get("ranger_secondary",false):
-   hit.ranger_direct_hit = true
-   if shot.has("ranger_follow_hp"):
-    hit.native_bonus_hp = int(shot.ranger_follow_hp)
-    shot.erase("ranger_follow_hp")
-  OutgoingHits.hit_world(game, int(shot.player), target, shot.origin, hit, now)
-  if hit.has("cr02_action"):
-   preload("res://combat_action_events.gd").contact(game,hit,target,now,false,point,(Vector3(shot.aim)-Vector3(shot.origin)).normalized())
-  if shot.stats.pattern in ["chain","splash"]:
-   var budget:=maxi(0,int(shot.stats.targets)-shot.hits.size()) if str(shot.form)=="fan" else int(shot.remaining)
-   shot.remaining=preload("res://weapon_contact.gd").secondary(game,game.players[int(shot.player)],shot.stats,point,shot.hits,budget)
-   shot.remaining=0
-  if int(shot.remaining)<=0:shot.visual_stop=point
-  if game.encounter_cleared() and game.pending_finale_at==0:game.finish_combat(int(shot.player),point)
- shot.previous=at
- return now>=int(shot.due) or int(shot.remaining)<=0

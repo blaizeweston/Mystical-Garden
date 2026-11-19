@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -66,7 +67,7 @@ func equip(p: Dictionary, class_id: int, weapon: int) -> void:
 
 func clear_targets(game: Node, at: Vector3) -> void:
 	game.encounter.clear_scouts()
-	game.projectile_queue.clear()
+	game.weapon_attacks.clear()
 	game.combat_events.clear()
 	game.trait_events.clear()
 	game.enemy_traits.clear()
@@ -108,14 +109,14 @@ func verify_roster(game: Node, p: Dictionary) -> void:
 			check(game.Weapons.describe(stats).contains(label+" damage") and UIFixture.summary(game,p,stats).totals[0]==["Damage",label],"matching previews for "+base.name)
 			var reach:=3.0 if game.WeaponMotion.is_projectile(str(base.visual)) else 1.35
 			clear_targets(game,Vector3(0,0,reach))
-			game.strike_enemy(1,p,p.pos)
-			if game.projectile_queue.is_empty():
+			WeaponCase.start(game,1,p.pos)
+			if game.weapon_attacks.is_empty():
 				check(false,"attack queued for "+base.name)
 				continue
-			var shot: Dictionary=game.projectile_queue[0]
+			var shot: Dictionary=game.weapon_attacks.views()[0]
 			var roll: int=shot.stats.preview_strike_hp
 			check(roll>=band.x and roll<=band.y,"committed roll for "+base.name)
-			game.update_projectiles(int(shot.due)+500)
+			WeaponCase.advance(game,int(shot.due)+500)
 			check(game.enemy_health()==600-roll,"actual hit uses the committed roll for "+base.name)
 
 
@@ -124,25 +125,25 @@ func verify_delivery(game: Node,p: Dictionary) -> void:
 	clear_targets(game,Vector3(0,0,2))
 	game.encounter.register_scout(game.make_scout(0,Vector3(0,0,4.1),1))
 	var scout_before: int=game.encounter.hp(0)
-	game.strike_enemy(1,p,p.pos)
-	var shot: Dictionary=game.projectile_queue[0]
+	WeaponCase.start(game,1,p.pos)
+	var shot: Dictionary=game.weapon_attacks.views()[0]
 	var roll: int=shot.stats.preview_strike_hp
-	game.update_projectiles(int(shot.due)+500)
+	WeaponCase.advance(game,int(shot.due)+500)
 	check(game.enemy_health()==600-roll and game.encounter.hp(0)==maxi(0,scout_before-roll),"piercing contacts share one roll")
 	equip(p,2,2)
 	clear_targets(game,Vector3(0,0,2))
 	game.encounter.register_scout(game.make_scout(0,Vector3(1.6,0,2.1),1))
 	scout_before=game.encounter.hp(0)
-	game.strike_enemy(1,p,p.pos)
-	shot=game.projectile_queue[0]
+	WeaponCase.start(game,1,p.pos)
+	shot=game.weapon_attacks.views()[0]
 	roll=shot.stats.preview_strike_hp
-	game.update_projectiles(int(shot.due)+500)
+	WeaponCase.advance(game,int(shot.due)+500)
 	check(game.enemy_health()==600-roll and game.encounter.hp(0)==maxi(0,scout_before-roll),"chain contacts share one roll")
 	equip(p,2,0)
 	clear_targets(game,Vector3(5,0,1.4))
-	game.strike_enemy(1,p,p.pos)
-	shot=game.projectile_queue[0]
-	game.update_projectiles(int(shot.due)+500)
+	WeaponCase.start(game,1,p.pos)
+	shot=game.weapon_attacks.views()[0]
+	WeaponCase.advance(game,int(shot.due)+500)
 	check(game.enemy_health()==600 and game.combat_events.all(func(event):return event.shape!="hit"),"miss has no damage or hit feedback")
 
 

@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -83,7 +84,7 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 	game.remove_meta(Rules.Void.PENDING)
 	game.encounter.clear_scouts()
 	game.trait_events.clear()
-	game.projectile_queue.clear()
+	game.weapon_attacks.clear()
 	game.combat_events.clear()
 	game.enemy_traits.clear()
 	game.tactics.memory.clear()
@@ -146,12 +147,12 @@ func scout(point: Vector3, hp := 300, summoned := false) -> Dictionary:
 
 func enqueue() -> Dictionary:
 	player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
-	game.strike_enemy(1,player,player.pos)
-	return game.projectile_queue.back()
+	WeaponCase.start(game,1,player.pos)
+	return game.weapon_attacks.views().back()
 
 func fire_melee() -> int:
 	var shot := enqueue()
-	game.update_projectiles(int(shot.due))
+	WeaponCase.advance(game,int(shot.due))
 	return int(shot.stats.preview_strike_hp)
 
 func part(id: String) -> int:
@@ -208,14 +209,14 @@ func momentum() -> void:
 	var early := enqueue()
 	cast(0)
 	var before: int = game.enemy_health()
-	game.update_projectiles(int(early.due))
+	WeaponCase.advance(game,int(early.due))
 	check(before-game.enemy_health()==int(early.stats.preview_strike_hp) and player.has(Reaper.MOMENTUM),
 		"a melee attack committed before Q cannot take Momentum even if it lands after the move")
 	game.tactics.position=player.pos+Vector3.RIGHT
 	player.aim_direction=Vector3.BACK
 	var miss := enqueue()
 	before=game.enemy_health()
-	game.update_projectiles(int(miss.due))
+	WeaponCase.advance(game,int(miss.due))
 	check(game.enemy_health()==before and player.has(Reaper.MOMENTUM),"miss keeps the original preparation and contributes no damage")
 	player.aim_direction=Vector3.RIGHT
 	game.tactics.position=player.pos+Vector3.RIGHT
@@ -231,7 +232,7 @@ func momentum() -> void:
 	var expired := enqueue()
 	player[Reaper.MOMENTUM].until=int(expired.due)
 	before=game.enemy_health()
-	game.update_projectiles(int(expired.due))
+	WeaponCase.advance(game,int(expired.due))
 	check(before-game.enemy_health()==int(expired.stats.preview_strike_hp),"Momentum must be valid at contact as well as commitment")
 
 	prepare(["veilwalker"],Vector3.ZERO,Vector3(1,0,0))
@@ -442,7 +443,7 @@ func charges_and_void() -> void:
 	game.Life.down(game,1,player)
 	check(player.grave_charges==2 and not player.has(Grafts.STATE) and game.Life.revive(game,8,1),"revival keeps native class charges and clears the graft pool")
 	game.encounter.set_hp(-1, 300)
-	game.update_projectiles(int(expired.due))
+	WeaponCase.advance(game,int(expired.due))
 	check(game.enemy_health()==300 and player.grave_charges==2,"a queued attack from the prior life cannot spend the revived charge")
 	game.reset_encounter()
 	check(player.grave_charges==2 and not player.has(Grafts.STATE) and Improvements.owner_details(player, game.participation.floor()).copies[0].id=="funeral_charges",

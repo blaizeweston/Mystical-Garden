@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -72,7 +73,7 @@ func run() -> void:
   game.enemy_kind=kind;game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,3.2);p.pos=Vector3.ZERO;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);p.weapon=0;p.secondary=0;p.catalyst=0;p.frame=0;p.weapon_kind=0
   game.tactics.position=Vector3(0,0,float(game.Enemies.get_kind(kind).hurt_radius)+float(game.weapon_stats(p).reach)-.2)
   check(game.select_attack_target(p,float(game.weapon_stats(p).reach))==-1,"large boss can be struck at its visible body edge")
-  game.strike_enemy(1,p,p.pos);game.update_projectiles(Time.get_ticks_msec()+1500)
+  WeaponCase.start(game,1,p.pos);WeaponCase.advance(game,Time.get_ticks_msec()+1500)
   check(game.enemy_health()<100,"committed melee release respects boss hurtbox")
   game.enemy_kind=kind;game.encounter.set_hp(-1, 0);ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)});game.monster_rewards.retire_completed();game.wild_item_drops.clear()
   game.record_enemy_death(-1,game.tactics.position,p.pos);game.record_enemy_death(-1,game.tactics.position,p.pos)

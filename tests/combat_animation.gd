@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -27,47 +28,47 @@ func run():
    p.frame=c;p.weapon_kind=weapon;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
    var tree=game.Classes.connected_tree(c)
    p.character[tree.profile_key]=tree.state([tree.nodes[0].id])
-   game.encounter.set_hp(-1, 20);game.tactics.position=Vector3(0,0,5);game.projectile_queue.clear()
+   game.encounter.set_hp(-1, 20);game.tactics.position=Vector3(0,0,5);game.weapon_attacks.clear()
    var form:=Motion.form(p);var pose:=Motion.pose(form,.5,true,0)
    poses.append(str(pose))
-   game.strike_enemy(1,p,p.pos)
+   WeaponCase.start(game,1,p.pos)
    check(p[WeaponActions.STATE].pose_until_ms()>Time.get_ticks_msec() and int(p[WeaponActions.STATE].duration_ms())>0,"weapon has timed attack pose: "+form)
    if Motion.is_projectile(form):
     projectiles+=1
-    check(game.enemy_health()==20 and game.projectile_queue.size()==1,"ranged damage waits for projectile: "+form)
-    var due: int=game.projectile_queue[0].due
-    game.update_projectiles(int(game.projectile_queue[0].release)-1);check(game.enemy_health()==20,"flight cannot hit before weapon release")
-    game.update_projectiles(due+1);check(game.enemy_health()<20,"projectile damages on arrival: "+form)
+    check(game.enemy_health()==20 and game.weapon_attacks.pending_count()==1,"ranged damage waits for projectile: "+form)
+    var due: int=game.weapon_attacks.views()[0].due
+    WeaponCase.advance(game,int(game.weapon_attacks.views()[0].release)-1);check(game.enemy_health()==20,"flight cannot hit before weapon release")
+    WeaponCase.advance(game,due+1);check(game.enemy_health()<20,"projectile damages on arrival: "+form)
    else:
     check(game.enemy_health()==20,"melee waits for contact: "+form)
-    var due: int=game.projectile_queue[0].due
-    game.update_projectiles(due-1);check(game.enemy_health()==20,"melee cannot hit before contact")
-    game.update_projectiles(due+1);check(game.enemy_health()<20,"melee or pulse delivers at contact: "+form)
+    var due: int=game.weapon_attacks.views()[0].due
+    WeaponCase.advance(game,due-1);check(game.enemy_health()==20,"melee cannot hit before contact")
+    WeaponCase.advance(game,due+1);check(game.enemy_health()<20,"melee or pulse delivers at contact: "+form)
    check(not game.combat_events.is_empty(),"attack emits visible effect")
  var unique: Array=[]
  for pose in poses:
   if not unique.has(pose): unique.append(pose)
  check(unique.size()==15 and projectiles==7,"fifteen distinct weapon poses and seven projectile forms")
- p.frame=2;p.weapon_kind=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);game.encounter.set_hp(-1, 20);game.projectile_queue.clear()
- game.strike_enemy(1,p,p.pos)
+ p.frame=2;p.weapon_kind=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);game.encounter.set_hp(-1, 20);game.weapon_attacks.clear()
+ WeaponCase.start(game,1,p.pos)
  var retired: int = PlayerLifecycle.generation(p)
  p[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
- game.update_projectiles(Time.get_ticks_msec()+1000)
+ WeaponCase.advance(game,Time.get_ticks_msec()+1000)
  check(not PlayerLifecycle.matches(p,retired) and int(p.lost_health)==0 and game.enemy_health()==20
-  and game.projectile_queue.is_empty(),"previous-life projectile cannot hit at the same injury and floor")
+  and game.weapon_attacks.is_empty(),"previous-life projectile cannot hit at the same injury and floor")
  p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
- game.strike_enemy(1,p,p.pos)
+ WeaponCase.start(game,1,p.pos)
  p.lost_health=20
- game.update_projectiles(Time.get_ticks_msec()+1000)
+ WeaponCase.advance(game,Time.get_ticks_msec()+1000)
  check(game.enemy_health()<20,"a current-life projectile still hits after an injury-only change")
  p.lost_health=0
- game.projectile_queue.clear()
+ game.weapon_attacks.clear()
  # Reused brood slots must not receive a projectile intended for their predecessor.
  p.frame=2;p.weapon_kind=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);game.encounter.set_hp(-1, 0)
  var victim: Dictionary=game.make_scout(0,Vector3(0,0,5),1);victim.hp=20;game.encounter.clear_scouts();game.encounter.register_scout(victim)
- game.strike_enemy(1,p,p.pos)
+ WeaponCase.start(game,1,p.pos)
  game.encounter.register_scout(game.make_scout(0,Vector3(0,0,5),1), 0);game.encounter.set_hp(0, 20)
- game.update_projectiles(Time.get_ticks_msec()+600)
+ WeaponCase.advance(game,Time.get_ticks_msec()+600)
  check(game.encounter.hp(0)==20,"target identity prevents hits on a reused slot")
  verify_ray_contact_batch(game)
  # A marked stag lane matches the real swept charge, not only its final landing.
@@ -110,10 +111,11 @@ func verify_ray_contact_batch(game: Node) -> void:
    game.encounter.register_scout(game.make_scout(0,Vector3(0,0,4),2),1)
    game.encounter.set_hp(1,20))
  var action: RefCounted=Events.begin(game,1,"native_weapon",{}, {},["weapon_contact"],now+1000)
- var shot := {"player":1,"epoch":game.participation.epoch(),"form":"bow","origin":Vector3.ZERO,
-  "aim":Vector3(0,0,6),"previous":Vector3.ZERO,"release":now-100,"due":now,
-  "remaining":2,"hits":[],"stats":{"damage":2,"targets":2,"pattern":"single","knockback":-.35,Events.CONTEXT:action}}
- game.MouseCombat.ray_tick(game,shot,now)
- check(shot.hits.size()==1 and game.encounter.hp(0)<20 and game.encounter.token(1)!=retired
+ var stats := {"damage":2,"targets":2,"pattern":"single","knockback":-.35,"reach":6.0,Events.CONTEXT:action}
+ var p: Dictionary=game.players[1]
+ p.pos=Vector3.ZERO;p.mouse_aim=true;p.aim_direction=Vector3.BACK
+ WeaponCase.schedule(game,1,Vector3.ZERO,stats,now,"bow",0)
+ WeaponCase.advance(game,int(game.weapon_attacks.views().back().due)+1)
+ check(game.encounter.hp(0)<20 and game.encounter.token(1)!=retired
   and game.encounter.hp(1)==20,"a later sampled ray contact cannot hit an enemy that joined the batch's old slot")
  game.remove_meta(Events.RECORD)

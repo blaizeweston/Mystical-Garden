@@ -1,4 +1,6 @@
 extends SceneTree
+const WeaponEventCase = preload("res://tests/support/weapon_event_case.gd")
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -140,22 +142,22 @@ func run_form(p: Dictionary, part: int, frame := 0, weapon_kind := 0) -> void:
 	p.catalyst=0
 	p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
 	p.facing=Vector3.FORWARD
-	game.strike_enemy(1,p,p.pos)
-	if game.projectile_queue.is_empty():
+	var replay_context := WeaponEventCase.start(game,1,p.pos)
+	if game.weapon_attacks.is_empty():
 		check(false,"Form uses real native strike queue")
 		return
-	var shot: Dictionary=game.projectile_queue.front()
+	var shot: Dictionary=game.weapon_attacks.views().front()
 	check(Frost.state(game.tactics.memory,Time.get_ticks_msec()).is_empty(),"queued attack has not applied Frost")
 	var at: int=shot.due+1
-	game.update_projectiles(at)
+	WeaponCase.advance(game,at)
 	var current := Frost.state(game.tactics.memory,at)
 	if current.is_empty():
 		check(false,"eligible real melee contact applies Frost Form")
 		return
 	var quality: String = "refined" if part==refined else "ordinary"
 	check(current.stacks.size()==1 and current.stacks[0].quality==quality,"Form applies the correct quality on contact")
-	Events.contact(game,shot.stats,-1,at+1)
-	Events.contact(game,shot.stats,-1,at+1,true)
+	Events.contact(game,replay_context,-1,at+1)
+	Events.contact(game,replay_context,-1,at+1,true)
 	check(Frost.state(game.tactics.memory,at+1).stacks.size()==1,"duplicate and secondary contacts cannot apply stacks")
 	check(Frost.motion_scale(game.tactics.memory,at+Frost.Balance.BRITTLE_MS)==1.0,"unrefreshed Brittle expires")
 

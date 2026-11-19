@@ -77,7 +77,8 @@ New combat rule code should call the clock rather than `Time.get_ticks_msec()`. 
 
 | File | Functions (reads) |
 |---|---|
-| `game.gd` | `campaign_snapshot`, `grant_guard`, `submit_motion`, `submit_movement`, `_physics_process`, `send_expedition_state`, `move_player` (3), `dodge_player`, `strike_enemy`, `finish_combat` (2), `_finish_combat` (3), `reset_encounter`, `combat_pose`, `player_snapshot` (7), `apply_world_snapshot`, `_process` (7), `record_enemy_death`, `death_events_snapshot`, `attack_animation_snapshot` (5), `emit_combat_event`, `publish_combat_event`, `combat_events_snapshot`, `attack_hints_snapshot` (4), `receive_details`, `receive_combat_event`, `guest_combat_events`, `submit_combat` |
+| `game.gd` | `campaign_snapshot`, `grant_guard`, `submit_motion`, `submit_movement`, `_physics_process`, `send_expedition_state`, `move_player` (3), `dodge_player`, `finish_combat` (2), `_finish_combat` (3), `reset_encounter`, `combat_pose`, `player_snapshot` (7), `apply_world_snapshot`, `_process` (7), `record_enemy_death`, `death_events_snapshot`, `attack_animation_snapshot` (5), `emit_combat_event`, `publish_combat_event`, `combat_events_snapshot`, `attack_hints_snapshot` (4), `receive_details`, `receive_combat_event`, `guest_combat_events`, `submit_combat` |
+| `weapon_attack_queue.gd`, `weapon_attack_world.gd` | Ordinary weapon admission/release replaces Game `strike_enemy` and projectile advancement; the stepped combat clock is supplied by the caller. The Arena mouse controller inherits the same attack-request signal. |
 | `native_class_actions.gd` | `cast` replaces the retired Game `use_class_skill` execution |
 | `ability_aim.gd` | `footprint` |
 | `boss_encounters.gd` | `hints` |

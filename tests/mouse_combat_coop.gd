@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -39,7 +40,7 @@ func host_run():
  mark("ready")
  var end=Time.get_ticks_msec()+1400
  while Time.get_ticks_msec()<end:
-  var now=Time.get_ticks_msec();game.mouse_controls.tick(game,now);game.update_projectiles(now);await process_frame
+  var now=Time.get_ticks_msec();game.mouse_controls.tick(game,now);WeaponCase.advance(game,now);await process_frame
  check(p[WeaponActions.STATE].sequence()>=2 and p[WeaponActions.STATE].sequence()<=7,"hold respects authoritative attack speed")
  check(game.enemy_health()<10000 and p.facing.z<-.9,"remote cursor sets direction and hits")
  mark("stop");check(await until(func():return marked("released")),"guest released")

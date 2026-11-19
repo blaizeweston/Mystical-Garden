@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -57,7 +58,7 @@ func reset() -> void:
 	game.tactics.winding_up=false
 	game.tactics.memory.clear()
 	game.encounter.clear_scouts()
-	game.projectile_queue.clear()
+	game.weapon_attacks.clear()
 	game.trait_events.clear()
 	game.combat_events.clear()
 	Core.reset(game)
@@ -177,9 +178,9 @@ func run() -> void:
 
 func strike(p: Dictionary) -> int:
 	var hp_before: int=game.enemy_health()
-	game.strike_enemy(1,p,p.pos)
-	var shot: Dictionary=game.projectile_queue.front()
-	game.update_projectiles(int(shot.due)+1)
+	WeaponCase.start(game,1,p.pos)
+	var shot: Dictionary=game.weapon_attacks.views().front()
+	WeaponCase.advance(game,int(shot.due)+1)
 	return hp_before-int(game.enemy_health())
 
 func mixture() -> void:

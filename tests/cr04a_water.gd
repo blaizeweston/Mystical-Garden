@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -120,9 +121,9 @@ func run() -> void:
 		p.cast_until=0
 		p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
 		p.facing=Vector3.FORWARD
-		game.strike_enemy(1,p,p.pos)
-		var shot: Dictionary=game.projectile_queue.front()
-		game.update_projectiles(int(shot.due)+1)
+		WeaponCase.start(game,1,p.pos)
+		var shot: Dictionary=game.weapon_attacks.views().front()
+		WeaponCase.advance(game,int(shot.due)+1)
 		check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"real Form contact gives exact quality reduction")
 		p.secondary=0
 		p.catalyst=part

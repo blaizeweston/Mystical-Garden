@@ -1,4 +1,6 @@
 extends SceneTree
+const WeaponEventCase = preload("res://tests/support/weapon_event_case.gd")
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -106,13 +108,13 @@ func run() -> void:
 		p.cast_until=0
 		p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
 		p.facing=Vector3.FORWARD
-		game.strike_enemy(1,p,p.pos)
-		var shot: Dictionary=game.projectile_queue.front()
-		game.update_projectiles(int(shot.due)+1)
+		var replay_context := WeaponEventCase.start(game,1,p.pos)
+		var shot: Dictionary=game.weapon_attacks.views().front()
+		WeaponCase.advance(game,int(shot.due)+1)
 		check(game.tactics.memory.get(Fire.BURNING,{}).get("1/form",{}).get("hp",0)==q.tick_hp,"real direct hit applies Form potency")
 		var after: int=game.enemy_health()
-		Events.contact(game,shot.stats,-1,now)
-		Events.contact(game,shot.stats,-1,now,true)
+		Events.contact(game,replay_context,-1,now)
+		Events.contact(game,replay_context,-1,now,true)
 		check(game.enemy_health()==after,"duplicate contact and secondary damage do not burn")
 		var material := Builds.slot("form",part)
 		var refresh := Events.begin(game,1,"form",material,q,["weapon_contact"],now+15000)

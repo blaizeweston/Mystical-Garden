@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -47,7 +48,7 @@ func run():
  for seed_value in 1000:
   game.rng.seed=seed_value
   if not game.roll_kill_trophy(2).is_empty():game.rng.seed=seed_value;break
- game.strike_enemy(1,p,p.pos);check(game.encounter.hp(0)==1,"melee damage waits for its contact window");game.update_projectiles(Time.get_ticks_msec()+1000)
+ WeaponCase.start(game,1,p.pos);check(game.encounter.hp(0)==1,"melee damage waits for its contact window");WeaponCase.advance(game,Time.get_ticks_msec()+1000)
  check(game.encounter.hp(0)==0 and p.character.monsters[2]==1 and p.character.monsters[0]==0,"real stag kill credits stag familiarity")
  var personal=game.inventory_floor_snapshot(p)
  check(personal.size()==1,"the killed stag creates one personal trophy pickup")

@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -55,22 +56,22 @@ func run():
 	p.pos=Vector3(0,0,5.4)
 	p.weapon=0;p.secondary=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);p.frame=0
 	var before: Vector3=game.tactics.position
-	game.strike_enemy(1,p,p.pos)
-	game.update_projectiles(Time.get_ticks_msec()+1000)
+	WeaponCase.start(game,1,p.pos)
+	WeaponCase.advance(game,Time.get_ticks_msec()+1000)
 	check(game.enemy_health()>0 and game.enemy_health()<100 and game.tactics.position.distance_to(p.pos)>before.distance_to(p.pos)+.2,"successful monster hit applies a small knockback")
 	check(game.tactics.position.distance_to(before)<=.36 and game.tactics.stagger_until>Time.get_ticks_msec(),"push remains small and grants a short reaction beat")
 	game.tactics.winding_up=true
 	game.tactics.strike_at=Time.get_ticks_msec()+500
 	p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
-	game.strike_enemy(1,p,p.pos)
-	game.update_projectiles(Time.get_ticks_msec()+1000)
+	WeaponCase.start(game,1,p.pos)
+	WeaponCase.advance(game,Time.get_ticks_msec()+1000)
 	check(game.tactics.winding_up,"hit reaction does not cancel committed attacks")
 	game.tactics.winding_up=false
 	game.tactics.position=Vector3(-6.5,0,-3.58)
 	p.pos=Vector3(-6.5,0,-4.58)
 	p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
-	game.strike_enemy(1,p,p.pos)
-	game.update_projectiles(Time.get_ticks_msec()+1000)
+	WeaponCase.start(game,1,p.pos)
+	WeaponCase.advance(game,Time.get_ticks_msec()+1000)
 	check(not game.battlefield.occupied(game.tactics.position,.34) and game.tactics.position.z < -3.53,"knockback cannot push a monster through cover")
 	# This generated floor places the two interaction areas on top of each other.
 	ExpeditionCase.set_world(game, {"destination": 1})

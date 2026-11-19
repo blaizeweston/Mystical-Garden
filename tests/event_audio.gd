@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -154,14 +155,14 @@ func verify_combat(game: Node) -> void:
 	p.mouse_aim = false
 	game.tactics.position = Vector3(5,0,1)
 	var stats: Dictionary = game.weapon_stats(p)
-	game.MouseCombat.queue_attack(game,1,p,p.pos,stats,now,"blade",500)
+	WeaponCase.schedule(game,1,p.pos,stats,now,"blade",500)
 	check(audio_ids(game).is_empty(),"a queued swing is silent before release")
-	game.update_projectiles(now+500)
+	WeaponCase.advance(game,now+500)
 	check(audio_ids(game)==["weapon_blade_release"] and not game.combat_events.any(func(e):return e.kind=="impact"),
 		"a missed swing plays only its release")
 	game.combat_events.clear()
-	game.MouseCombat.queue_attack(game,1,p,p.pos,stats,now+650,"fan",500)
-	game.update_projectiles(now+1150)
+	WeaponCase.schedule(game,1,p.pos,stats,now+650,"fan",500)
+	WeaponCase.advance(game,now+1150)
 	check(audio_ids(game)==["weapon_bow_release"],"a multi-projectile attack releases one sound")
 	check(Cues.Combat.presentation({"kind":"impact","shape":"hit","form":"bow"})=="weapon_bow_hit"
 		and Cues.Combat.presentation({"kind":"impact","shape":"block"})=="combat_block"

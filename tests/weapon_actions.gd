@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
 
@@ -25,7 +26,7 @@ func run():
  game.progress.path="res://.godot/weapon-actions-"+token+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game)
  game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
  var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.facing=Vector3(0,0,1);p.aim_direction=p.facing;p.mouse_aim=true
- game.battlefield.configure(0,1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);game.encounter.clear_scouts();game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,1.4)
+ game.battlefield.configure(0,1);game.encounter.clear_scouts();game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,1.4)
  var actor: Dictionary=game.stage.avatar_models.get(1,{})
  game._process(.016);actor=game.stage.avatar_models[1]
  for sex in 2:
@@ -76,21 +77,21 @@ func run():
     check(float(description.contact)==float(profile.release),"shared contact marker "+form)
     var outline:=Contact.outline(description,p.pos,p.pos+p.facing*float(stats.reach))
     check(outline.size()>16,"visible delivery footprint "+form)
-    game.projectile_queue.clear();game.combat_events.clear();game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,1.4)
-    game.strike_enemy(1,p,p.pos)
+    game.weapon_attacks.clear();game.combat_events.clear();game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,1.4)
+    WeaponCase.start(game,1,p.pos)
     check(not game.combat_events.any(func(e):return e.kind=="windup"),"no generic circle at weapon wind-up "+form)
-    check(game.projectile_queue.size()==1,"one coherent attack record "+form)
-    var shot: Dictionary=game.projectile_queue[0]
+    check(game.weapon_attacks.pending_count()==1,"one coherent attack record "+form)
+    var shot: Dictionary=game.weapon_attacks.views()[0]
     check(int(shot.release)-Time.get_ticks_msec()<=roundi(float(p[WeaponActions.STATE].duration_ms())*float(profile.release))+1,"release follows clip "+form)
     if Motion.is_projectile(form):
      check(game.combat_events.is_empty(),"projectile cannot appear before release "+form)
-     game.update_projectiles(int(shot.release)-1);check(game.enemy_health()==100,"no pre-release damage "+form)
-     game.update_projectiles(int(shot.due)+2)
+     WeaponCase.advance(game,int(shot.release)-1);check(game.enemy_health()==100,"no pre-release damage "+form)
+     WeaponCase.advance(game,int(shot.due)+2)
      var flight: Array=game.combat_events.filter(func(e):return e.kind=="projectile")
      check(flight.size()==int(profile.get("projectiles",1)) and str(flight[0].form)==form,"matching projectiles "+form)
      if form=="fan":
-      game.update_projectiles(int(shot.due)+300)
-      check(shot.hits.size()==1 and float(flight[1].to[0])*float(flight[2].to[0])<0,"petals spread on both sides and only hit a shared target once")
+      WeaponCase.advance(game,int(shot.due)+300)
+      check(game.enemy_health()==100-int(shot.stats.preview_strike_hp) and float(flight[1].to[0])*float(flight[2].to[0])<0,"petals spread on both sides and only hit a shared target once")
      if form=="orb":
       Avatar.animate(actor,true,float(profile.release),form,{"equipped":true,"aim_yaw":0.0},1.0)
       Visuals.animate(actor,form,float(profile.release),true,0.0,float(stats.reach))
@@ -103,8 +104,8 @@ func run():
       var glyph: Node3D=game.combat_visuals.active[int(flight[0].id)].glyph
       check(glyph.has_node(Models.MODELS[form].name),"the released projectile carries the held model "+form)
     else:
-     game.update_projectiles(int(shot.due)-1);check(game.enemy_health()==100,"melee waits for authored contact "+form)
-     game.update_projectiles(int(shot.due)+1);check(game.enemy_health()<100,"authored contact reaches foe "+form)
+     WeaponCase.advance(game,int(shot.due)-1);check(game.enemy_health()==100,"melee waits for authored contact "+form)
+     WeaponCase.advance(game,int(shot.due)+1);check(game.enemy_health()<100,"authored contact reaches foe "+form)
      var event: Dictionary=game.combat_events.filter(func(e):return e.kind=="swing")[0]
      check(str(event.pattern)==str(description.pattern) and float(event.width)==float(description.width),"effect and hit geometry share dimensions "+form)
   check(poses.size()==15,"fifteen genuinely distinct two-hand poses on model "+str(sex)+", got "+str(poses.size()))
@@ -122,20 +123,21 @@ func run():
  check(Contact.accepts(game,-1,p.pos,Vector3(0,0,3),"bell",stats),"bell pulse surrounds the caster")
  p.weapon_kind=1;stats=game.weapon_stats(p)
  check(not Contact.accepts(game,-1,p.pos,Vector3(0,0,3),"censer",stats),"censer sweep leaves rear foes untouched")
- p.weapon_kind=2;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);p.cast_until=0;game.combat_events.clear();game.projectile_queue.clear()
+ p.weapon_kind=2;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);p.cast_until=0;game.combat_events.clear();game.weapon_attacks.clear()
  game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,3)
  var outer: Dictionary=game.make_scout(0,Vector3(.96,0,3.1),1)
  var outside: Dictionary=game.make_scout(0,Vector3(2,0,3.1),2)
  game.encounter.clear_scouts();game.encounter.register_scout(outer);game.encounter.register_scout(outside)
- game.strike_enemy(1,p,p.pos)
- var fan: Dictionary=game.projectile_queue[0]
- game.update_projectiles(int(fan.release))
- game.update_projectiles(int(fan.due)+350)
+ WeaponCase.start(game,1,p.pos)
+ var fan: Dictionary=game.weapon_attacks.views()[0]
+ WeaponCase.advance(game,int(fan.release))
+ WeaponCase.advance(game,int(fan.due)+350)
  check(game.enemy_health()<100 and game.encounter.hp_for(outer)<outer.max_hp and game.encounter.hp_for(outside)==outside.max_hp,"independent petals hit visible lanes and leave the space outside them clear")
  game.encounter.clear_scouts()
- p.frame=2;p.weapon_kind=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);p.cast_until=0;game.combat_events.clear();game.projectile_queue.clear();game.tactics.position=Vector3(0,0,2)
- game.strike_enemy(1,p,p.pos);var bow: Dictionary=game.projectile_queue[0]
- p.pos=Vector3(1,0,0);game.update_projectiles(int(bow.release))
+ p.frame=2;p.weapon_kind=0;p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);p.cast_until=0;game.combat_events.clear();game.weapon_attacks.clear();game.tactics.position=Vector3(0,0,2)
+ WeaponCase.start(game,1,p.pos);var bow: Dictionary=game.weapon_attacks.views()[0]
+ p.pos=Vector3(1,0,0);WeaponCase.advance(game,int(bow.release))
+ bow=game.weapon_attacks.inspect(int(bow.queue_id))
  check(Vector3(bow.origin).x>.9,"moving bow releases from the current grip, not the old position")
  game.queue_free();await process_frame
  if not failed:print("PASS: 30 model/weapon combinations, 15 Blender clip pairs, grips, no firing circles, shared areas, release timing and moving muzzles")

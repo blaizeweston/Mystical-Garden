@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
@@ -149,7 +150,7 @@ func run():
 			check(false,"guest sees completed graft attempt");finish(mode);return
 		game.ui.close_panels()
 		game.send_action(true)
-		game.update_projectiles(Time.get_ticks_msec()+1000)
+		WeaponCase.advance(game,Time.get_ticks_msec()+1000)
 		if not await until(func():return FileAccess.file_exists(storage.root_path.path_join("host-hit.ready"))):
 			check(false,"host publishes actual hit result");finish(mode);return
 		var hit_receipt: Dictionary=JSON.parse_string(FileAccess.get_file_as_string(storage.root_path.path_join("host-hit.json")))

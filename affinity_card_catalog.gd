@@ -192,7 +192,7 @@ const DEFINITIONS := {
 	},
 	"ordinary_weapon_damage": {
 		"title": "Honed Strikes", "scope": "weapon", "policy": "stackable",
-		"trigger": "Ordinary attack damage roll", "consumer": ["res://game.gd", "strike_enemy"],
+		"trigger": "Ordinary attack damage roll", "consumer": ["res://weapon_attack_world.gd", "capture_attack"],
 		"requires": {"capability": "strike"}, "parameter": "strike_damage",
 		"values": [1, 2, 3, 4], "unit": "hp", "limit": 4,
 		"description": "Basic attacks gain +%s damage.",
@@ -200,7 +200,7 @@ const DEFINITIONS := {
 	},
 	"ordinary_weapon_interval": {
 		"title": "Light Grip", "scope": "weapon", "policy": "stackable",
-		"trigger": "Ordinary attack interval begins", "consumer": ["res://game.gd", "strike_enemy"],
+		"trigger": "Ordinary attack interval begins", "consumer": ["res://weapon_attack_world.gd", "capture_attack"],
 		"requires": {"capability": "strike"}, "parameter": "strike_interval",
 		"values": [20, 35, 50, 65], "unit": "ms", "limit": 4,
 		"description": "Increases basic attack speed.",

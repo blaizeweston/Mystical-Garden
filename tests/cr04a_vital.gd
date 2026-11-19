@@ -1,4 +1,6 @@
 extends SceneTree
+const WeaponEventCase = preload("res://tests/support/weapon_event_case.gd")
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -50,7 +52,7 @@ func reset(p: Dictionary, ally: Dictionary) -> void:
 	game.tactics.winding_up=false
 	game.tactics.memory.clear()
 	game.encounter.clear_scouts()
-	game.projectile_queue.clear()
+	game.weapon_attacks.clear()
 	Core.reset(game)
 	game.set_meta(Clock.CLOCK,0.0)
 	for player in [p,ally]:
@@ -133,17 +135,17 @@ func run() -> void:
 		reset(player,ally)
 		player.secondary=part
 		player.facing=Vector3.FORWARD
-		game.strike_enemy(1,player,player.pos)
-		var shot: Dictionary=game.projectile_queue.front()
-		game.update_projectiles(int(shot.due)+1)
+		var replay_context := WeaponEventCase.start(game,1,player.pos)
+		var shot: Dictionary=game.weapon_attacks.views().front()
+		WeaponCase.advance(game,int(shot.due)+1)
 		check(player[PlayerVitals.STATE].temporary_hp()==q.bonus_hp and player[PlayerVitals.STATE].hp()==60 and not ally.has(Vital.SOURCES),
 			"real weapon contact grants self capacity without a lifesteal heal")
 		game.encounter.register_scout(game.make_scout(0,Vector3(1,0,-1.25),0))
 		var applied_until: int=player.get(Vital.SOURCES,{}).get("1/form",{}).get("until",0)
 		Clock.advance(game,.4)
-		Events.contact(game,shot.stats,0,now)
-		Events.contact(game,shot.stats,-1,now)
-		Events.contact(game,shot.stats,0,now,true)
+		Events.contact(game,replay_context,0,now)
+		Events.contact(game,replay_context,-1,now)
+		Events.contact(game,replay_context,0,now,true)
 		check(player.get(Vital.SOURCES,{}).get("1/form",{}).get("until",-1)==applied_until,"multi-target, duplicate and secondary contacts don't refresh the same attack")
 		reset(player,ally)
 		player.catalyst=part

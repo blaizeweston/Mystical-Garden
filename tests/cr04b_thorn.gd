@@ -1,4 +1,6 @@
 extends SceneTree
+const WeaponEventCase = preload("res://tests/support/weapon_event_case.gd")
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -46,7 +48,7 @@ func reset(p: Dictionary) -> void:
 	game.tactics.winding_up=false
 	game.tactics.memory.clear()
 	game.encounter.clear_scouts()
-	game.projectile_queue.clear()
+	game.weapon_attacks.clear()
 	game.trait_events.clear()
 	Core.reset(game)
 	if game.has_meta(Thorn.FIELDS):game.remove_meta(Thorn.FIELDS)
@@ -123,16 +125,16 @@ func run() -> void:
 			check(Thorn.hints(game).size()==1 and game.battlefield.clear_line(Vector3.ZERO,original),"replicated shape leaves ally/navigation routes open")
 		reset(p)
 		p.secondary=part
-		game.strike_enemy(1,p,p.pos)
-		var shot: Dictionary=game.projectile_queue.front()
-		game.update_projectiles(int(shot.due)+1)
+		var replay_context := WeaponEventCase.start(game,1,p.pos)
+		var shot: Dictionary=game.weapon_attacks.views().front()
+		WeaponCase.advance(game,int(shot.due)+1)
 		var fields:=Thorn.active_fields(game,Clock.now(game))
 		check(fields.size()==1 and is_equal_approx(fields[0].slow,q.slow),"real first weapon hit creates quality-matched Form patch")
 		if not fields.is_empty():
 			var point: Vector3=fields[0].center
 			game.tactics.position=Vector3(0,0,-4)
-			Events.contact(game,shot.stats,-1,now)
-			Events.contact(game,shot.stats,-1,now,true)
+			Events.contact(game,replay_context,-1,now)
+			Events.contact(game,replay_context,-1,now,true)
 			fields=Thorn.active_fields(game,Clock.now(game))
 			check(fields.size()==1 and fields[0].center==point,"patch remains stationary and duplicate/secondary contacts do not plant")
 			for index in [1,2]:

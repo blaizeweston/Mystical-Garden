@@ -8,6 +8,7 @@
   },
   "full_after_days": 7,
   "systems": {
+    "weapon_attacks": {"label":"Owned ordinary-attack launch, release, projectile lifecycle and rollback", "files":["weapon_attack_queue.gd","weapon_attack_world.gd"]},
     "arena_combat_bridge": {"label":"Neural Arena outgoing-contact integration", "files":["neural_arena/arena_world.gd","neural_arena/arena_mob_bridge.gd"]},
     "progression_ui": {"label": "Detached seed, Heart research, connected-class and Garden-story views", "files": ["progression_panel.gd", "progression_panel.gd.uid", "garden_story_panel.gd", "garden_story_panel.gd.uid", "ui/gameplay/player_build_projection.gd", "ui/gameplay/player_build_projection.gd.uid"]},
     "player_build_ui": {"label": "Detached inventory, gate-loadout and Tab stat presentation", "files": ["inventory_panel.gd", "inventory_panel.gd.uid", "loadout_panel.gd", "loadout_panel.gd.uid", "run_summary_panel.gd", "run_summary_panel.gd.uid", "ui/gameplay/player_build_projection.gd", "ui/gameplay/player_build_projection.gd.uid"]},
@@ -1252,7 +1253,7 @@
     "rare_harvest_chance": [
       "seeds"
     ],
-    "strike_enemy": ["combat", "affinity_cards"],
+
 
     "finish_combat": [
       "loot",
@@ -1562,12 +1563,7 @@
     "combat_events_snapshot": [
       "presentation"
     ],
-    "update_projectiles": [
-      "combat",
-      "weapons",
-      "classes",
-      "enemies"
-    ],
+
     "attack_hints_snapshot": [
       "presentation",
       "enemy_attack_plan"
@@ -1637,6 +1633,7 @@
     ]
   },
   "suites": {
+    "weapon_attack_queue": {"kind":"unit", "systems":["weapon_attacks","weapons","combat","combat_affinity_contracts","classes","player_weapon_actions","player_lifecycle","ranged_release","hex_terrain"], "package":false},
     "outgoing_hits": {"kind":"unit", "systems":["arena_combat_bridge","combat","weapons","classes","loot","enemies","encounter_roster","player_lifecycle","combat_affinity_contracts"], "package":false},
     "native_class_actions": {"kind":"unit", "systems":["classes","combat","class_balance","combat_affinity_contracts","life","player_lifecycle","player_cooldowns","player_protection","ability_aim"], "package":false},
     "modern_terrain_cutover": {"kind": "unit", "systems": ["hex_terrain", "terrain", "garden", "boss_lair_fights", "boss_phase_fights", "connection_flow"], "package": false},
@@ -6196,62 +6193,7 @@
         ]
       }
     },
-    "update_projectiles": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"], "additive": true},
-      "ct03_ranger_1": {"systems": ["combat", "weapons", "classes", "enemies", "ranger_progression"], "additive": true},
-      "ct03_ranger_2": {"systems": ["combat", "weapons", "classes", "enemies", "ranger_progression"], "additive": true},
-      "ct03_ranger_3": {"systems": ["combat", "weapons", "classes", "enemies", "ranger_progression"], "additive": true},
-      "cr04c_spirit_0": {
-        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
-        "additive": true
-      },
-      "cr04c_spirit_1": {
-        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
-        "additive": true
-      },
-      "cr04c_spirit_2": {
-        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
-        "additive": true
-      },
-      "projectile_commit_audio": {
-        "systems": [
-          "event_audio"
-        ],
-        "additive": true
-      },
-      "melee_commit_audio": {
-        "systems": [
-          "event_audio"
-        ],
-        "additive": true
-      },
-      "launch_at_cursor_release": {
-        "additive": true,
-        "systems": [
-          "ranged_release"
-        ]
-      },
-      "release_projectile_fan": {
-        "additive": true,
-        "systems": [
-          "ranged_release",
-          "combat_readability"
-        ]
-      },
-      "fan_initial_rays": {
-        "additive": true,
-        "systems": [
-          "ranged_release",
-          "combat_readability"
-        ]
-      },
-      "advance_projectile_rays": {
-        "additive": true,
-        "systems": [
-          "ranged_release",
-          "combat_readability"
-        ]
-      }
-    },
+
     "close_run_flow_panel": {
 
     },
@@ -9555,21 +9497,14 @@
     },
     "mouse_combat.gd": {
       "newline": "crlf",
-      "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ct04_reaper_1": {"systems": ["combat", "reaper_progression"]}, "ct03_ranger_1": {"systems": ["combat", "ranger_progression"]}, "ct03_ranger_2": {"systems": ["combat", "ranger_progression"]}, "tc01_ranged_clearance_1": {"systems": ["combat", "ranged_release", "ability_aim", "hex_terrain"]}, "tc01_ranged_clearance_2": {"systems": ["combat", "ranged_release", "ability_aim", "hex_terrain"]}, "tc01_ranged_clearance_3": {"systems": ["combat", "ranged_release", "ability_aim", "hex_terrain"]}, "tc01_ranged_clearance_4": {"systems": ["combat", "ranged_release", "ability_aim", "hex_terrain"]}, "tc01_ranged_clearance_5": {"systems": ["combat", "ranged_release", "ability_aim", "hex_terrain"]}, "tc01_ranged_clearance_6": {"systems": ["combat", "ranged_release", "ability_aim", "hex_terrain"]}, "tc01_ranged_clearance_7": {"systems": ["combat", "ranged_release", "ability_aim", "hex_terrain"]}, "tc01_ranged_clearance_8": {"systems": ["combat", "ranged_release", "ability_aim", "hex_terrain"]}, "cr04b_thorn_1": {
-          "systems": ["thorn_affinity", "combat_affinity_contracts"]
-        }, "cr03_ray_tick": {"systems": ["frost_affinity"]}, "cr02_ray_tick": {"systems": ["combat_affinity_contracts"]}, "guarded_lifecycle_1": {
+      "regions": {       "tc01_ranged_clearance_1": {"systems": ["combat", "ranged_release", "ability_aim", "hex_terrain"]}, "tc01_ranged_clearance_2": {"systems": ["combat", "ranged_release", "ability_aim", "hex_terrain"]},          "guarded_lifecycle_1": {
           "systems": [
             "persistence_operations",
             "connection_flow",
             "menus",
             "settings"
           ]
-        }, "resolve_petal_hit": {
-          "systems": [
-            "ranged_release",
-            "combat_readability"
-          ]
-        }, "send_cursor_magnitude": {
+        },  "send_cursor_magnitude": {
           "systems": [
             "ranged_release",
             "core_combat"
@@ -9579,21 +9514,7 @@
             "ranged_release",
             "core_combat"
           ]
-        }, "weapon_volley": {
-          "systems": [
-            "ranged_release",
-            "combat_readability",
-            "ability_aim"
-          ]
-        }, "ranged_launch": {
-          "systems": [
-            "ranged_release"
-          ]
-        }, "track_windup_cursor": {
-          "systems": [
-            "ranged_release"
-          ]
-        }, "clear_release_aim": {
+        },    "clear_release_aim": {
           "systems": [
             "ranged_release"
           ]
@@ -9610,11 +9531,7 @@
           "systems": [
             "ranged_release"
           ]
-        }, "attack_uses_projectile_path": {
-          "systems": [
-            "ability_aim"
-          ]
-        }, "shared_aim_projectile_path": {
+        },  "shared_aim_projectile_path": {
           "systems": [
             "ability_aim"
           ]

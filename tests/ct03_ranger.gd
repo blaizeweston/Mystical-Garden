@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
 const ClassActions = preload("res://native_class_actions.gd")
@@ -78,7 +79,7 @@ func prepare(path: Array, origin := Vector3.ZERO, enemy := Vector3(2,0,0)) -> vo
 	game.battlefield = preload("res://battlefield.gd").new()
 	game.encounter.clear_scouts()
 	game.trait_events.clear()
-	game.projectile_queue.clear()
+	game.weapon_attacks.clear()
 	game.combat_events.clear()
 	game.enemy_traits.clear()
 	game.tactics.position = enemy
@@ -177,39 +178,40 @@ func tracked_and_offense() -> void:
 		ranger.weapon_kind = weapon
 		ranger.secondary = 11
 		cast(0)
-		game.strike_enemy(game.HOST,ranger,ranger.pos)
-		check(not game.projectile_queue.is_empty(),"ordinary attack queued from weapon %d" % weapon)
-		if game.projectile_queue.is_empty():
+		WeaponCase.start(game,game.HOST,ranger.pos)
+		check(not game.weapon_attacks.is_empty(),"ordinary attack queued from weapon %d" % weapon)
+		if game.weapon_attacks.is_empty():
 			continue
-		var main: Dictionary = game.projectile_queue.front()
+		var main: Dictionary = game.weapon_attacks.views().front()
 		var rolled: int = main.stats.preview_strike_hp
-		game.update_projectiles(int(main.release))
-		var extras: Array = game.projectile_queue.filter(func(shot):return shot.get("ranger_secondary",false))
+		WeaponCase.advance(game,int(main.release))
+		main=game.weapon_attacks.inspect(int(main.queue_id))
+		var extras: Array = game.weapon_attacks.views().filter(func(shot):return shot.get("ranger_secondary",false))
 		check(extras.size()==1 and main.get("ranger_follow_hp")==10 and not ranger.has(Ranger.DOUBLE) and not ranger.has(Ranger.FOLLOW)
 			and not extras[0].has("ranger_follow_hp") and extras[0].stats.affinity_hp==roundi(rolled*.5)
 			and not extras[0].stats.has(Events.CONTEXT) and extras[0].remaining==1 and extras[0].aim==main.aim,
 			"both bonuses captured at launch, half original roll and isolated second projectile for weapon %d" % weapon)
 		var before: int = game.enemy_health()
-		game.update_projectiles(int(main.due)+1)
+		WeaponCase.advance(game,int(main.due)+1)
 		check(game.enemy_health()<before and events.filter(func(item):return item.kind=="weapon_contact").size()==1,
 			"only the original projectile publishes direct Form contact")
 	prepare(OFFENSE)
 	cast(0)
 	ranger.mouse_aim = true
 	ranger.aim_direction = Vector3.LEFT
-	game.strike_enemy(game.HOST,ranger,ranger.pos)
-	if not game.projectile_queue.is_empty():
-		var main: Dictionary = game.projectile_queue.front()
+	WeaponCase.start(game,game.HOST,ranger.pos)
+	if not game.weapon_attacks.is_empty():
+		var main: Dictionary = game.weapon_attacks.views().front()
 		var before: int = game.enemy_health()
-		game.update_projectiles(int(main.release))
-		game.update_projectiles(int(main.release)+2000)
+		WeaponCase.advance(game,int(main.release))
+		WeaponCase.advance(game,int(main.release)+2000)
 		check(game.enemy_health()==before and not ranger.has(Ranger.FOLLOW) and not ranger.has(Ranger.DOUBLE),"miss spends both launched preparations")
 	prepare(OFFENSE)
 	cast(0)
-	game.strike_enemy(game.HOST,ranger,ranger.pos)
-	if not game.projectile_queue.is_empty():
-		var main: Dictionary = game.projectile_queue.front()
-		game.update_projectiles(int(main.release)+6500)
+	WeaponCase.start(game,game.HOST,ranger.pos)
+	if not game.weapon_attacks.is_empty():
+		var main: Dictionary = game.weapon_attacks.views().front()
+		WeaponCase.advance(game,int(main.release)+6500)
 		check(not main.has("ranger_follow_hp") and not ranger.has(Ranger.DOUBLE)
 			and game.combat_events.filter(func(e):return e.kind=="projectile").size()==1,
 			"preparations expire before an ordinary launch even if a shot is already queued")

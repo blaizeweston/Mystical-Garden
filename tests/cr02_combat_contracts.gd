@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -65,10 +66,10 @@ func run() -> void:
 	player.secondary = -1
 	player.catalyst = -1
 	var timers: Array = [player[WeaponActions.STATE].ready_at_ms(),player[Cooldowns.STATE].deadline(Cooldowns.Q)]
-	game.strike_enemy(1,player,player.pos)
+	WeaponCase.start(game,1,player.pos)
 	ClassActions.cast_world(game, 1, 0)
 	game.garden_action(1,"core_cast:unavailable")
-	check([player[WeaponActions.STATE].ready_at_ms(),player[Cooldowns.STATE].deadline(Cooldowns.Q)] == timers and game.projectile_queue.is_empty()
+	check([player[WeaponActions.STATE].ready_at_ms(),player[Cooldowns.STATE].deadline(Cooldowns.Q)] == timers and game.weapon_attacks.is_empty()
 		and "invalid" in game.status, "invalid Form, Catalyst and Core do not execute")
 
 	player.weapon = ready_core
@@ -86,8 +87,8 @@ func run() -> void:
 
 	player.facing = Vector3.FORWARD
 	game.tactics.position = Vector3(0,0,-1)
-	game.strike_enemy(1,player,player.pos)
-	game.update_projectiles(Time.get_ticks_msec()+2000)
+	WeaponCase.start(game,1,player.pos)
+	WeaponCase.advance(game,Time.get_ticks_msec()+2000)
 	check(recorded.size()==3 and recorded[2].kind=="weapon_contact"
 		and recorded[2].source=="native_weapon", "native melee labels the real contact separately from the class action")
 

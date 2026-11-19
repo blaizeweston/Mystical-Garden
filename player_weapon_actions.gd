@@ -36,7 +36,7 @@ class State extends RefCounted:
 	func pose_until_ms() -> int:
 		return _pose_until_ms
 
-	## Admission precedes rolls/proc capture in Game. The owner also refuses a
+	## Admission precedes rolls/proc capture in WeaponAttackQueue. The owner also refuses a
 	## second start at the same deadline if called independently.
 	func try_start(now_ms: int, interval_ms: int, authored_pose_ms: int, reach_m: float) -> State:
 		if not ready(now_ms): return null

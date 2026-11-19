@@ -1,4 +1,5 @@
 extends SceneTree
+const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -94,8 +95,8 @@ func strike(at: int) -> void:
 	player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
 	player.pos = Vector3.ZERO
 	game.tactics.position = Vector3(0,0,-1.15)
-	game.strike_enemy(1,player,player.pos)
-	game.update_projectiles(at)
+	WeaponCase.start(game,1,player.pos)
+	WeaponCase.advance(game,at)
 
 
 func events_for(kind: String) -> Array:
@@ -249,6 +250,7 @@ func lifecycle() -> void:
 	game.checkpoint_ready[1] = 3
 	var wallet: int = game.run_wallet(player)
 	game.set_meta(&"guarded_gameplay_test_fault",func(phase, _path): return ERR_FILE_CANT_WRITE if phase=="stage" else OK)
+	var queued_attack := WeaponCase.schedule(game,1,player.pos,{"damage":1.0,"targets":1,"reach":2.0,"pattern":"single","knockback":-.35},Time.get_ticks_msec(),"blade",500)
 	var rolled_back: bool = not ExpeditionCase.Transitions.finish_failed(game)
 	game.remove_meta(&"guarded_gameplay_test_fault")
 	check(rolled_back and ExpeditionCase.is_wild(player) and Improvements.active_ledger(player)==ledger and player.carried_parts==remainder,
@@ -256,7 +258,10 @@ func lifecycle() -> void:
 	check(rolled_back and Cards.ledger(player)==card_ledger and card_ledger.copies()==card_receipts
 		and card_ledger.completed_floor()==3 and game.wallet_for(player)==run_wallet and game.run_wallet(player)==wallet
 		and game.checkpoint_ready.get(1)==3,"guarded rollback restores card ownership, wallet and Gate readiness together")
+	check(rolled_back and game.weapon_attacks.inspect(queued_attack).get("queue_id",0)==queued_attack,
+		"confirmed guarded rollback restores the same pending weapon record")
 	ExpeditionCase.Transitions.finish_failed(game)
+	check(game.weapon_attacks.is_empty(),"committed expedition departure clears the private weapon queue")
 	check(not player.has(Improvements.STATE) and not player.has(Grafts.STATE)
 		and not player.has(Cards.STATE) and game.run_wallet(player)==0 and game.wallet_for(player).earned_sparks()==0
 		and game.wallet_for(player).spent_essence()==0,"actual wipe clears both ledgers, counters and wallet")
@@ -284,8 +289,8 @@ func reinforcements() -> void:
 		"reach/damage are absent from native class stats, with only the authored cooldown change")
 	arena()
 	player[WeaponActions.STATE] = player[WeaponActions.STATE].with_ready_at(0)
-	game.strike_enemy(1,player,player.pos)
-	var attack: Dictionary = game.projectile_queue.back()
+	WeaponCase.start(game,1,player.pos)
+	var attack: Dictionary = game.weapon_attacks.views().back()
 	check(is_equal_approx(float(attack.stats.reach),reach+.2) and is_equal_approx(float(attack.stats.damage),damage+.3),
 		"ordinary melee uses exactly the purchased reach and damage")
 	game.garden_action(1,"abandon_run")
