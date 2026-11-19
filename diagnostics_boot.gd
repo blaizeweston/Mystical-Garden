@@ -18,8 +18,7 @@ func _init() -> void:
   return
  journal=Journal.new();journal.start();Journal.current=journal;OS.add_logger(journal)
 func _ready() -> void:
- if Experiment.verified():
-  add_child(FrameMeter.new())
+ add_child(FrameMeter.new())
 func _process(delta: float) -> void:
  if journal==null: return
  clock+=delta
