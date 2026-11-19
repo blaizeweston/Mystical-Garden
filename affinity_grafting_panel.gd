@@ -2,7 +2,7 @@ extends VBoxContainer
 ## Owner-only choices from the host. Browsing and closing this panel spend nothing.
 const UI = preload("res://root_ui.gd")
 const Grafts = preload("res://expedition_grafts.gd")
-var game: Node
+signal requested(command: String, data: Dictionary)
 var data: Dictionary = {}
 var picks: Array[ItemList] = []
 var tabs: TabContainer
@@ -56,11 +56,11 @@ func _ready() -> void:
 	confirm = UI.button(right,"Confirm improvement",send_purchase)
 	notice = UI.label(self,13,Color("#c8d1bd"))
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	UI.button(self,"Close",func(): game.ui.close_panels())
+	UI.button(self,"Close",func(): requested.emit("close",{}))
 
 
 func set_data(value: Dictionary) -> void:
-	data = value
+	data = value.duplicate(true)
 	busy = false
 	budget.text = "%d of %d expedition purchases remaining" % [data.remaining,data.limit]
 	if data.used:
@@ -156,9 +156,4 @@ func send_purchase() -> void:
 		return
 	busy = true
 	confirm.disabled = true
-	game.send_garden_action(Grafts.request(data,selected,str(materials.get_item_metadata(materials.selected))))
-
-
-func _process(_delta: float) -> void:
-	if is_visible_in_tree() and not game.at_graft_altar(game.players.get(game.local_player_id(),{})):
-		game.ui.close_panels()
+	requested.emit("garden_action",{"action":Grafts.request(data,selected,str(materials.get_item_metadata(materials.selected)))})

@@ -2,7 +2,8 @@ extends VBoxContainer
 const RootUI=preload("res://root_ui.gd")
 const Items=preload("res://item_catalog.gd")
 const Slot=preload("res://altar_input_slot.gd")
-var game: Node
+## Owns offering drafts and rendering, not inventory, recipes or save authority.
+signal requested(command: String, data: Dictionary)
 var tabs: TabBar
 var recipe_pick: OptionButton
 var identify_all_button: Button
@@ -70,19 +71,19 @@ func _ready() -> void:
  combine_button=Button.new();combine_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;actions.add_child(combine_button);combine_button.pressed.connect(func(): request("combine"))
  clear_button=Button.new();clear_button.text="Clear slots";actions.add_child(clear_button);clear_button.pressed.connect(func(): draft=[{},{}];request("preview"))
  message=Label.new();message.custom_minimum_size=Vector2(840,34);message.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;message.add_theme_font_size_override("font_size",13);add_child(message)
- var close:=Button.new();close.text="Close · Esc";close.pressed.connect(func(): game.ui.close_panels());add_child(close)
+ var close:=Button.new();close.text="Close · Esc";close.pressed.connect(func(): requested.emit("close",{}));add_child(close)
 func begin(value: Dictionary) -> void:
  revision=0;draft=[{},{}];busy=false;pending_data={};set_data(value)
 func set_data(value: Dictionary) -> void:
  if int(value.get("revision",0))<revision: return
- if get_viewport().gui_is_dragging(): pending_data=value;return
- revision=int(value.get("revision",0));data=value;draft=value.get("draft",[{},{}]).duplicate(true);busy=false
+ if get_viewport().gui_is_dragging(): pending_data=value.duplicate(true);return
+ revision=int(value.get("revision",0));data=value.duplicate(true);draft=data.get("draft",[{},{}]).duplicate(true);busy=false
  render()
 func request(operation: String) -> void:
  if busy: return
  revision+=1
  if operation!="preview": busy=true
- game.send_altar_action(operation,draft.duplicate(true),revision)
+ requested.emit("altar_action",{"operation":operation,"draft":draft.duplicate(true),"revision":revision})
  if is_instance_valid(combine_button): combine_button.disabled=busy or not data.get("preview",{}).get("can_combine",false)
 func clear_children(node: Node) -> void:
  for child in node.get_children(): node.remove_child(child);child.queue_free()
@@ -177,6 +178,5 @@ func _process(delta: float) -> void:
  if not is_visible_in_tree(): return
  if not pending_data.is_empty() and not get_viewport().gui_is_dragging():
   var pending:=pending_data;pending_data={};set_data(pending)
- if not game.at_garden_altar(game.players.get(game.local_player_id(),{})): game.ui.close_panels();return
  elapsed+=delta
  if elapsed>=.8 and not busy and not get_viewport().gui_is_dragging(): elapsed=0;request("preview")

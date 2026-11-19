@@ -137,9 +137,17 @@ func run():
 		check(game.enemy_health()>0 and game.graft_altar_open(),"shrine usable before clearing combat")
 		var graft_offer: Dictionary=game.players[id].get("graft_improvements",{})
 		check(not graft_offer.is_empty(),"guest receives the authoritative cumulative altar offer")
-		game.send_garden_action(Grafts.request(graft_offer,"reach",game.Items.part_id(4)))
+		game.send_action(false)
+		check(await until(func():return game.ui.panel_is_open("graft")),"guest opens the authoritative graft view")
+		var graft: Control = UIFixture.control(game,"graft_view")
+		graft.selected="reach"
+		graft.trophy=game.Items.part_id(4)
+		graft.show_selection()
+		check(not graft.confirm.disabled,"guest sees a payable trophy quote")
+		graft.confirm.pressed.emit()
 		if not await until(func(): return game.players[id].carried_parts[4]==0):
 			check(false,"guest sees completed graft attempt");finish(mode);return
+		game.ui.close_panels()
 		game.send_action(true)
 		game.update_projectiles(Time.get_ticks_msec()+1000)
 		if not await until(func():return FileAccess.file_exists(storage.root_path.path_join("host-hit.ready"))):

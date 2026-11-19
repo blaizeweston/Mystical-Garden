@@ -2884,36 +2884,6 @@
         "baseline": "\"contract\":signature}"
       }
     },
-    "planting_panel.gd": {
-      "ec01_playtest_4": {
-        "match": "   if not game.persistence_session.pending_notice().is_empty():return\n   selected=species;details.text=\"%s \u00b7 %s \u00b7 %d available\\nBase growth: %s \u00b7 2\u00d7 in the Wilds, plus Knowledge and watering bonuses\\n%s\"%[seed.name,seed.rarity,stock[species],preload(\"res://cultivation_growth.gd\").time_text(float(seed.grow_seconds)),plant_description];confirm.disabled=false)\n details.text=\"Choose a seed.\" if available>0 else \"No seeds available. Identify mysterious seeds at the Altar.\"\n",
-        "baseline": "   if not preload(\"res://game_transaction.gd\").pending_notice(game).is_empty():return\n   selected=species;details.text=\"%s \u00b7 %s \u00b7 %d available\\nBase growth: %s \u00b7 2\u00d7 in the Wilds, plus Knowledge and watering bonuses\\n%s\"%[seed.name,seed.rarity,stock[species],preload(\"res://cultivation_growth.gd\").time_text(float(seed.grow_seconds)),game.Seeds.modifier_text(species)];confirm.disabled=false)\n details.text=\"Choose a seed.\" if available>0 else \"No seeds available. Identify mysterious seeds at the Altar.\"\n"
-      },
-      "cleanup_feedback_1": {
-        "match": "   if not preload(\"res://game_transaction.gd\").pending_notice(game).is_empty():return\n",
-        "baseline": ""
-      },
-      "ui_copy_3": {
-        "match": "   selected=species;details.text=\"%s \u00b7 %s \u00b7 %d available\\nBase growth: %s \u00b7 2\u00d7 in the Wilds, plus Knowledge and watering bonuses\\n%s\"%[seed.name,seed.rarity,stock[species],preload(\"res://cultivation_growth.gd\").time_text(float(seed.grow_seconds)),game.Seeds.modifier_text(species)];confirm.disabled=false)\n details.text=\"Choose a seed.\" if available>0 else \"No seeds available. Identify mysterious seeds at the Altar.\"\n\n",
-        "baseline": "   selected=species;details.text=\"%s \u00b7 %s \u00b7 %d available\\nBase growth: %s \u00b7 2\u00d7 in the Wilds, plus Knowledge and watering bonuses\\n%s\"%[seed.name,seed.rarity,stock[species],preload(\"res://cultivation_growth.gd\").time_text(float(seed.grow_seconds)),game.Seeds.modifier_text(species)];confirm.disabled=false)\n details.text=\"Choose a seed to see its species, rarity and crafting effects.\" if available>0 else \"No identified seeds available. Identify mysterious seeds at the Garden Altar first.\"\n\n"
-      },
-      "ui_copy_2": {
-        "match": "func begin(bed: int,stock: Array):\n slot=bed;counts=stock;selected=-1;title.text=\"PLANTING BED %d\"%(slot+1);confirm.disabled=true\n for child in grid.get_children(): grid.remove_child(child);child.queue_free()\n",
-        "baseline": "func begin(bed: int,stock: Array):\n slot=bed;counts=stock;selected=-1;title.text=\"PLANTING BED %d \u00b7 SEED INVENTORY\"%(slot+1);confirm.disabled=true\n for child in grid.get_children(): grid.remove_child(child);child.queue_free()\n"
-      },
-      "ui_copy_1": {
-        "match": " details=Label.new();details.custom_minimum_size=Vector2(700,76);details.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;add_child(details)\n confirm=Button.new();confirm.text=\"Plant\";confirm.disabled=true;add_child(confirm)\n confirm.pressed.connect(func():\n",
-        "baseline": " details=Label.new();details.custom_minimum_size=Vector2(700,76);details.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;add_child(details)\n confirm=Button.new();confirm.text=\"Plant selected seed\";confirm.disabled=true;add_child(confirm)\n confirm.pressed.connect(func():\n"
-      },
-      "ui_copy_0": {
-        "match": " title=Label.new();title.add_theme_font_size_override(\"font_size\",23);add_child(title)\n var hint:=Label.new();hint.text=\"Choose a seed. Planting uses one.\";add_child(hint)\n var scroll:=ScrollContainer.new();scroll.custom_minimum_size=Vector2(700,280);scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;add_child(scroll)\n",
-        "baseline": " title=Label.new();title.add_theme_font_size_override(\"font_size\",23);add_child(title)\n var hint:=Label.new();hint.text=\"Select an identified seed from your available inventory. Planting consumes one seed.\";add_child(hint)\n var scroll:=ScrollContainer.new();scroll.custom_minimum_size=Vector2(700,280);scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;add_child(scroll)\n"
-      },
-      "tier_time_preview": {
-        "match": "selected=species;details.text=\"%s \u00b7 %s \u00b7 %d available\\nBase growth: %s \u00b7 2\u00d7 in the Wilds, plus Knowledge and watering bonuses\\n%s\"%[seed.name,seed.rarity,stock[species],preload(\"res://cultivation_growth.gd\").time_text(float(seed.grow_seconds)),game.Seeds.modifier_text(species)]",
-        "baseline": "selected=species;details.text=\"%s \u00b7 %s \u00b7 %d available\\n%s\"%[seed.name,seed.rarity,stock[species],game.Seeds.modifier_text(species)]"
-      }
-    },
     "inventory_model.gd": {
       "guarded_gameplay_writer_1": {
         "match": " if not Participation.is_wild(player) and not preload(\"res://save_batch.gd\").guarded_active() and game.progress.save_garden()!=OK:\n",
@@ -3548,10 +3518,6 @@
       "ui_copy_3": {
         "match": " identify_all_button.disabled=busy or int(data.get(\"unknown\",0))<=0\n identify_button.text=\"Identify \u00b7 %d seeds\"%int(data.get(\"unknown\",0));identify_button.disabled=busy or int(data.get(\"unknown\",0))<=0\n clear_button.disabled=busy\n",
         "baseline": " identify_all_button.disabled=busy or int(data.get(\"unknown\",0))<=0\n identify_button.text=\"Identify seed \u00b7 %d mysterious\"%int(data.get(\"unknown\",0));identify_button.disabled=busy or int(data.get(\"unknown\",0))<=0\n clear_button.disabled=busy\n"
-      },
-      "ui_copy_2": {
-        "match": " grid=GridContainer.new();grid.columns=7;grid.add_theme_constant_override(\"h_separation\",6);grid.add_theme_constant_override(\"v_separation\",6);scroll.add_child(grid)\n var note:=Label.new();note.text=\"Uses one item per slot when confirmed. Failed combinations return materials and a clue.\";note.custom_minimum_size.x=840;note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;note.add_theme_font_size_override(\"font_size\",12);add_child(note)\n var actions:=HBoxContainer.new();add_child(actions)\n combine_button=Button.new();combine_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;actions.add_child(combine_button);combine_button.pressed.connect(func(): request(\"combine\"))\n clear_button=Button.new();clear_button.text=\"Clear slots\";actions.add_child(clear_button);clear_button.pressed.connect(func(): draft=[{},{}];request(\"preview\"))\n message=Label.new();message.custom_minimum_size=Vector2(840,34);message.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;message.add_theme_font_size_override(\"font_size\",13);add_child(message)\n var close:=Button.new();close.text=\"Close \u00b7 Esc\";close.pressed.connect(func(): game.ui.close_panels());add_child(close)\nfunc begin(value: Dictionary) -> void:\n",
-        "baseline": " grid=GridContainer.new();grid.columns=7;grid.add_theme_constant_override(\"h_separation\",6);grid.add_theme_constant_override(\"v_separation\",6);scroll.add_child(grid)\n var note:=Label.new();note.text=\"Each sacrifice uses one item per slot. Failed combinations return material and a clue.\\nClear slots to cancel reservations; ingredients are only consumed when you confirm.\";note.custom_minimum_size.x=840;note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;note.add_theme_font_size_override(\"font_size\",12);add_child(note)\n var actions:=HBoxContainer.new();add_child(actions)\n combine_button=Button.new();combine_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;actions.add_child(combine_button);combine_button.pressed.connect(func(): request(\"combine\"))\n clear_button=Button.new();clear_button.text=\"Clear offerings\";actions.add_child(clear_button);clear_button.pressed.connect(func(): draft=[{},{}];request(\"preview\"))\n message=Label.new();message.custom_minimum_size=Vector2(840,34);message.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;message.add_theme_font_size_override(\"font_size\",13);add_child(message)\n var close:=Button.new();close.text=\"Leave altar \u00b7 Esc\";close.pressed.connect(func(): game.toggle_overlay(null));add_child(close)\nfunc begin(value: Dictionary) -> void:\n"
       },
       "ui_copy_1": {
         "match": "   var plus:=Label.new();plus.text=\" + \";plus.add_theme_font_size_override(\"font_size\",28);offerings.add_child(plus)\n var result_title:=Label.new();result_title.text=\"Result\";result_title.add_theme_font_size_override(\"font_size\",14);left.add_child(result_title)\n var result_row:=HBoxContainer.new();left.add_child(result_row)\n",

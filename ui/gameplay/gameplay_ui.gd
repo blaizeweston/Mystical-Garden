@@ -446,7 +446,7 @@ func mount_feature(kind: String, view: Control) -> void:
 		view.requested.connect(_feature_request)
 	if kind in ["inventory","loadout","summary"]:
 		view.refresh_requested.connect(func(): requested.emit("refresh_"+kind,{}))
-		view.requested.connect(_feature_request)
+	if kind != "progression": view.requested.connect(_feature_request)
 	view.name = kind.to_pascal_case()+"View"
 	if kind == "inventory":
 		_inventory_mount.add_child(view)
@@ -480,19 +480,27 @@ func show_progression(from_crafting := false, heart := false) -> void:
 		toggle_panel("progression")
 
 func show_graft(data: Dictionary) -> void:
-	_features.graft.set_data(data.duplicate(true))
+	_features.graft.set_data(data)
 	ensure_panel("graft")
 
 func show_altar(data: Dictionary) -> void:
-	_features.altar.begin(data.duplicate(true))
+	_features.altar.begin(data)
 	ensure_panel("altar")
 
 func update_altar(data: Dictionary) -> void:
-	_features.altar.set_data(data.duplicate(true))
+	_features.altar.set_data(data)
 
-func show_planting(slot: int, stock: Array) -> void:
-	_features.planting.begin(slot,stock.duplicate(true))
+func show_planting(slot: int, stock: Array, selection_enabled := true) -> void:
+	_features.planting.begin(slot,stock)
+	_features.planting.set_selection_enabled(selection_enabled)
 	ensure_panel("planting")
+
+## World integration supplies eligibility; views never query actors or terrain.
+func present_world_access(kind: String, allowed: bool) -> void:
+	if not allowed and panel_is_open(kind): close_panels()
+
+func present_planting_access(allowed: bool) -> void:
+	if panel_is_open("planting"): _features.planting.set_selection_enabled(allowed)
 
 func toggle_summary() -> void:
 	if is_overlay_open() and not panel_is_open("summary"): return

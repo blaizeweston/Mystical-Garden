@@ -285,13 +285,11 @@ func configure_gameplay_ui() -> void:
 	for definition in Enemies.all(): entries.append({"name":definition.name,"description":definition.description})
 	ui.fill_bestiary(entries)
 	ui.configure_arena_menu(FileAccess.file_exists("res://neural_arena/arena_entry.gd"))
-	# The remaining Altar, graft and planting views retain domain adapters.
 	for feature in ["inventory","progression","loadout","graft","altar","planting","summary"]:
 		var path: String = {"inventory":"inventory_panel","progression":"progression_panel",
 			"loadout":"loadout_panel","graft":"affinity_grafting_panel","altar":"garden_altar_panel",
 			"planting":"planting_panel","summary":"run_summary_panel"}[feature]
 		var view = load("res://"+path+".gd").new()
-		if feature not in ["inventory","loadout","summary","progression"]: view.game = self
 		ui.mount_feature(feature,view)
 	network_dialog=preload("res://network_panel.gd").new()
 	add_child(network_dialog)
@@ -344,6 +342,7 @@ func _handle_ui_request(command: String, data: Dictionary) -> void:
 		"refresh_summary": ui.present_summary(run_summary_ui_data())
 		"inventory_transfer": send_inventory_action("transfer",str(data.source),str(data.target),str(data.item),int(data.quantity))
 		"garden_action": send_garden_action(str(data.action))
+		"altar_action": send_altar_action(str(data.operation),data.draft.duplicate(true),int(data.revision))
 		"depart":
 			if party_travel_state().get("ready",false): send_travel_ready(true)
 			else: send_garden_action("depart")
@@ -2568,6 +2567,7 @@ func refresh_feedback() -> void:
 		message = remote_notice if message.is_empty() else message + "\n" + remote_notice
 	if not profile_notice.is_empty(): message = profile_notice if message.is_empty() else message + "\n" + profile_notice
 	ui.present_feedback(Transactions.feedback_text(self,message),pending)
+	ui.present_planting_access(persistence_session.pending_notice().is_empty())
 
 func tell(id: int, message: String) -> void:
 	if id == HOST:
@@ -2740,6 +2740,8 @@ func _process(_delta: float) -> void:
 	var view_id: int=spectator_view.focus_id(local_id)
 	var observer: Vector3=players.get(view_id,{}).get("pos",Vector3.ZERO)
 	var local_player: Dictionary = players.get(local_id, {})
+	if ui.panel_is_open("graft"): ui.present_world_access("graft",at_graft_altar(local_player))
+	elif ui.panel_is_open("altar"): ui.present_world_access("altar",at_garden_altar(local_player))
 	var data: Array = inventory_snapshot(local_player) if multiplayer.is_server() and not local_player.is_empty() else client_inventory
 	var visible_drop: bool = local_player.get("loot_pending", false) if multiplayer.is_server() else has_drop
 	var briar_bound := CombatClock.now() < tactics.rooted_until if multiplayer.is_server() else client_briar_bound
@@ -3985,7 +3987,7 @@ func show_planting_picker(id: int,slot: int) -> void:
 	else: open_planting_picker.rpc_id(id,slot,stock)
 @rpc("authority","call_remote","reliable")
 func open_planting_picker(slot: int,stock: Array) -> void:
-	ui.show_planting(slot,stock)
+	ui.show_planting(slot,stock,persistence_session.pending_notice().is_empty())
 @rpc("authority","call_remote","reliable")
 func close_planting_picker() -> void:
 	if ui.panel_is_open("planting"): ui.close_panels()

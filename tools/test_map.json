@@ -10,6 +10,7 @@
   "systems": {
     "progression_ui": {"label": "Detached seed, Heart research, connected-class and Garden-story views", "files": ["progression_panel.gd", "progression_panel.gd.uid", "garden_story_panel.gd", "garden_story_panel.gd.uid", "ui/gameplay/player_build_projection.gd", "ui/gameplay/player_build_projection.gd.uid"]},
     "player_build_ui": {"label": "Detached inventory, gate-loadout and Tab stat presentation", "files": ["inventory_panel.gd", "inventory_panel.gd.uid", "loadout_panel.gd", "loadout_panel.gd.uid", "run_summary_panel.gd", "run_summary_panel.gd.uid", "ui/gameplay/player_build_projection.gd", "ui/gameplay/player_build_projection.gd.uid"]},
+    "garden_feature_ui": {"label": "Detached Altar, expedition graft and seed planting views", "files": ["affinity_grafting_panel.gd", "affinity_grafting_panel.gd.uid", "garden_altar_panel.gd", "garden_altar_panel.gd.uid", "planting_panel.gd", "planting_panel.gd.uid", "altar_input_slot.gd", "altar_input_slot.gd.uid"]},
     "gameplay_ui": {"label": "Owned HUD, overlay lifecycle, checkpoint offers and travel presentation", "files": ["ui/gameplay/gameplay_ui.gd", "ui/gameplay/gameplay_ui.gd.uid", "ui/gameplay/gameplay_ui.tscn", "inventory_drop_surface.gd", "inventory_drop_surface.gd.uid"]},
     "player_hit_conditions": {"label": "Owned ordinary Slow, incoming-hit grace and cleansing", "files": ["player_hit_conditions.gd", "player_hit_conditions.gd.uid"]},
     "player_protection": {"label": "Owned native Guard/Ward claims, directional windows and counters", "files": ["player_protection.gd", "player_protection.gd.uid"]},
@@ -893,7 +894,7 @@
     "loadout_ui_data": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_grafts", "life"],
     "request_host_session": ["gameplay_ui", "network_session", "menus"],
     "configure_gameplay_ui": ["gameplay_ui", "menus", "classes", "garden_observations"],
-    "_handle_ui_request": ["gameplay_ui", "affinity_cards", "network_session", "party_ui", "life"],
+    "_handle_ui_request": ["gameplay_ui", "garden_feature_ui", "seeds", "expedition_grafts", "affinity_cards", "network_session", "party_ui", "life"],
     "enemy_health": ["encounter_roster", "combat", "world_snapshot"],
     "mark_checkpoint_ready": ["expeditions", "affinity_cards"],
     "affinity_checkpoint_action": ["expeditions", "affinity_cards"],
@@ -1654,6 +1655,7 @@
     "modern_terrain_cutover": {"kind": "unit", "systems": ["hex_terrain", "terrain", "garden", "boss_lair_fights", "boss_phase_fights", "connection_flow"], "package": false},
     "progression_ui": {"kind": "unit", "systems": ["progression_ui", "gameplay_ui", "classes", "knowledge", "seeds", "garden_returns"], "package": false},
     "player_build_ui": {"kind": "unit", "systems": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_summary", "progression_ui"], "package": false},
+    "garden_feature_ui": {"kind": "unit", "systems": ["garden_feature_ui", "gameplay_ui", "seeds", "items", "expedition_grafts", "persistence_operations"], "package": false},
     "gameplay_ui": {"kind": "unit", "systems": ["gameplay_ui", "presentation", "affinity_cards", "party_ui"], "package": false},
     "player_hit_conditions": {"kind": "unit", "systems": ["player_hit_conditions", "combat", "life"], "package": true},
     "player_protection": {"kind": "unit", "systems": ["player_protection", "class_balance", "combat"], "package": true},
@@ -1689,9 +1691,9 @@
     "ct04_reaper": {"kind":"unit","systems":["player_cooldowns","expedition_grafts", "reaper_progression","warden_progression","ranger_progression","classes","class_tree_access","combat_affinity_contracts","combat","life","terrain","ability_aim", "incoming_player_hit", "player_protection", "player_hit_conditions", "progression_ui"],"package":false},
     "ct04_reaper_coop": {"profile": "affinity", "kind":"pair","systems":["reaper_progression","warden_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life","hex_terrain", "player_protection"],"package":false},
     "ct04_reaper_party": {"profile": "affinity", "kind":"party","systems":["reaper_progression","warden_progression","weaver_progression","classes","class_tree_access","combat_affinity_contracts","connection_flow","world_snapshot","combat","life","hex_terrain"],"package":false},
-    "cr05_native_grafts": {"profile": "affinity", "kind":"unit","systems":["player_lifecycle", "expedition_wallet", "expedition_grafts", "affinity_cards", "combat_affinity_contracts", "weapons", "classes", "combat", "life", "enemy_attack_execution", "incoming_player_hit", "expedition_participation", "player_build_ui"],"package":false},
-    "cr05_native_grafts_coop": {"profile": "affinity", "kind":"pair","systems":["expedition_grafts", "combat_affinity_contracts","weapons","classes","connection_flow","world_snapshot"],"package":false},
-    "cr05_native_grafts_party": {"profile": "affinity", "kind":"party","systems":["expedition_grafts", "combat_affinity_contracts","weapons","classes","connection_flow","world_snapshot"],"package":false},
+    "cr05_native_grafts": {"profile": "affinity", "kind":"unit","systems":["garden_feature_ui", "player_lifecycle", "expedition_wallet", "expedition_grafts", "affinity_cards", "combat_affinity_contracts", "weapons", "classes", "combat", "life", "enemy_attack_execution", "incoming_player_hit", "expedition_participation", "player_build_ui"],"package":false},
+    "cr05_native_grafts_coop": {"profile": "affinity", "kind":"pair","systems":["garden_feature_ui", "expedition_grafts", "combat_affinity_contracts","weapons","classes","connection_flow","world_snapshot"],"package":false},
+    "cr05_native_grafts_party": {"profile": "affinity", "kind":"party","systems":["garden_feature_ui", "expedition_grafts", "combat_affinity_contracts","weapons","classes","connection_flow","world_snapshot"],"package":false},
     "cr04c_void": {"kind":"unit","systems":["void_affinity","core_combat","combat_affinity_contracts","combat"],"package":false},
     "cr04c_void_coop": {"profile": "affinity", "kind":"pair","systems":["void_affinity","core_combat","combat_affinity_contracts","connection_flow","world_snapshot"],"package":false},
     "cr04c_mixed_party": {"profile": "affinity", "kind":"party","systems":["storm_affinity","spirit_affinity","void_affinity","core_combat","combat_affinity_contracts","connection_flow","world_snapshot"],"package":false},
@@ -2106,7 +2108,7 @@
     "guarded_gameplay_transactions": {
       "candidate_release": true,
       "kind": "unit",
-      "systems": ["loot", "persistence_operations", "persistence_recovery_plan", "persistence_authorization", "garden_cinematics", "garden_care", "knowledge", "characters", "connection_flow", "player_build_ui", "progression_ui"],
+      "systems": ["garden_feature_ui", "loot", "persistence_operations", "persistence_recovery_plan", "persistence_authorization", "garden_cinematics", "garden_care", "knowledge", "characters", "connection_flow", "player_build_ui", "progression_ui"],
       "package": true
     },
     "guarded_title_session": {
@@ -2773,7 +2775,7 @@
     },
     "garden_cleanup": {
       "kind": "unit",
-      "systems": [
+      "systems": ["garden_feature_ui",
         "garden",
         "knowledge",
         "progression",
@@ -3269,7 +3271,7 @@
     },
     "menu_coop": {
       "kind": "pair",
-      "systems": [
+      "systems": ["garden_feature_ui",
         "menus",
         "characters",
         "weapons",
@@ -3599,7 +3601,7 @@
     },
     "seed_inventory": {
       "kind": "unit",
-      "systems": [
+      "systems": ["garden_feature_ui",
         "loot",
         "seeds",
         "items",
@@ -7820,42 +7822,6 @@
         }
       }
     },
-    "planting_panel.gd": {
-      "newline": "crlf",
-      "regions": {
-        "ec01_playtest_4": {"systems": ["seeds", "plant_affinities", "ui_copy"]},
-        "cleanup_feedback_1": {
-          "systems": [
-            "persistence_operations"
-          ]
-        },
-        "ui_copy_3": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_2": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_1": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_0": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "tier_time_preview": {
-          "systems": [
-            "cultivation_growth"
-          ]
-        }
-      }
-    },
     "inventory_model.gd": {
       "newline": "crlf",
       "regions": {
@@ -8710,11 +8676,6 @@
       "newline": "crlf",
       "regions": {
         "ui_copy_3": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_2": {
           "systems": [
             "ui_copy"
           ]

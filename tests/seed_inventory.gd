@@ -10,7 +10,8 @@ func run():
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/seed_inventory_"+Crypto.new().generate_random_bytes(8).hex_encode()+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var p: Dictionary=game.players[1];var reserve: Dictionary=game.seed_reserve(p);var g=game.progress
  p.pos=game.stage.altar_position();reserve.stock.fill(0);reserve.unknown.assign([0,1,0,2])
- game.send_garden_action('altar:'+JSON.stringify({"operation":"identify_all","draft":[{},{}],"revision":1}))
+ game.show_garden_altar(1)
+ UIFixture.control(game,"altar_view").identify_all_button.pressed.emit()
  check(reserve.unknown.is_empty() and reserve.stock[0]==2 and reserve.stock[1]==1 and reserve.stock[2]==1,"identify all preserves duplicates and every species")
  check(UIFixture.control(game,"altar_view").identify_all_button.disabled,"empty batch disables identify all")
  var before: Array=reserve.stock.duplicate();reserve.unknown.assign([0,2]);var path: String=g.path;g.path="res://.godot/nonexistent-seed-directory/fail.cfg"
