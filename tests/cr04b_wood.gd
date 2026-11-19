@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -149,7 +150,7 @@ func run() -> void:
 		preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 		reset()
 		p.catalyst=part
-		game.use_class_skill(1,p,1)
+		ClassActions.cast_world(game, 1, 1)
 		check(available(p)==q.catalyst_capacity and available(ally)==0,"native offensive class hit gives one self grant")
 		reset()
 		p.frame=4
@@ -159,7 +160,7 @@ func run() -> void:
 		p.class_aim_distance=0.0
 		p.catalyst=part
 		ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(50)
-		game.use_class_skill(1,p,0)
+		ClassActions.cast_world(game, 1, 0)
 		p.erase("class_aim")
 		p.erase("class_aim_distance")
 		check(available(ally)==q.catalyst_capacity and ally[PlayerVitals.STATE].hp()>50,"real Living Sanctuary retains opening healing and gives one Bark grant to each living recipient")

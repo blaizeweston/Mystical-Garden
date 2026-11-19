@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -203,21 +204,21 @@ func block(recipient: int=1) -> int:
 
 func offense() -> void:
 	arena(OFFENSE)
-	game.use_class_skill(1,player,1)
+	ClassActions.cast_world(game, 1, 1)
 	var normal_damage: int=900-game.enemy_health()
 	arena(OFFENSE)
 	var scout: Dictionary=game.make_scout(0,Vector3(3.3,0,0),4)
 	scout.hp=200
 	game.encounter.register_scout(scout)
 	var origin: Vector3=game.tactics.position
-	game.use_class_skill(1,player,0)
+	ClassActions.cast_world(game, 1, 0)
 	var now := block()
 	check(player[PlayerVitals.STATE].hp()==90 and player.warden_block.blocked and game.tactics.position.distance_to(origin)>.7,
 		"real block triggers Briar Rebound and preserves Thorn Counter")
 	check(player[Protection.STATE].counter_until_ms()>now,"native Thorn Counter still primes its counter")
 	# Isolate the Quake node's additive damage from Thorn Counter.
 	player[Protection.STATE] = player[Protection.STATE].spend_counter()
-	game.use_class_skill(1,player,1)
+	ClassActions.cast_world(game, 1, 1)
 	check(900-game.enemy_health()==normal_damage+10 and game.tactics.rooted_until>now and not game.enemy_traits.has("brittle_until"),
 		"Pinning Quake roots and Faultline adds native damage without Brittle")
 	check(game.encounter.hp_for(scout)<200,"Quakefront hits the scout at 3.3 m")
@@ -239,14 +240,14 @@ func offense() -> void:
 func deep_roots() -> void:
 	for path in [["rootkeeper"],["rootkeeper","deep_roots"]]:
 		arena(path)
-		game.use_class_skill(1,player,0)
+		ClassActions.cast_world(game, 1, 0)
 		player.pos=Vector3(6,0,0)
-		game.use_class_skill(1,player,1)
+		ClassActions.cast_world(game, 1, 1)
 		var extended: bool = path.size()==2
 		check((game.enemy_health()<900)==extended and player.skill_fx.pos.is_equal_approx(Vector3.ZERO if extended else player.pos),
 			"Deep Roots permits the actual six-metre anchor Quake")
 	arena(["vanguard","deep_roots"])
-	game.use_class_skill(1,player,0)
+	ClassActions.cast_world(game, 1, 0)
 	var now := block()
 	check(player[Protection.STATE].counter_until_ms()==now+4750,"Deep Roots extends the earned Thorn Counter window")
 
@@ -257,21 +258,21 @@ func deep_roots() -> void:
 		arena(path)
 		ally[Protection.STATE] = ally[Protection.STATE].clear_expedition()
 		ally[Protection.STATE] = ally[Protection.STATE].clear_guard()
-		game.use_class_skill(1,player,0)
+		ClassActions.cast_world(game, 1, 0)
 		check((ally[Protection.STATE].charge_count()==1)==(path.size()==2),"Deep Roots changes actual Rootshield coverage")
 
 
 func balance() -> void:
 	arena(BALANCE)
 	check(Skills.resolve_in_world(game,0,0,player.character).anchor_range==6.5,"Deep Roots extends native anchor reach")
-	game.use_class_skill(1,player,0)
+	ClassActions.cast_world(game, 1, 0)
 	var refund: int=player[Cooldowns.STATE].deadline(Cooldowns.Q)
 	var expiry: int=player.warden_block.until
 	Warden.tick(game,expiry+1)
 	Warden.tick(game,expiry+2)
 	check(player[Cooldowns.STATE].deadline(Cooldowns.Q)==refund-1250,"Measured Guard refunds unused Q once on actual expiry")
 	arena(BALANCE)
-	game.use_class_skill(1,player,0)
+	ClassActions.cast_world(game, 1, 0)
 	player.pos=Vector3(2,0,0)
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.DODGE, Time.get_ticks_msec()+1800)
 	var now := block()
@@ -282,7 +283,7 @@ func balance() -> void:
 	scout.hp=200
 	game.encounter.register_scout(scout)
 	player.pos=Vector3(-.5,0,0)
-	game.use_class_skill(1,player,1)
+	ClassActions.cast_world(game, 1, 1)
 	check(not player.has("warden_relay") and player.skill_fx.pos.is_equal_approx(Vector3(2,0,0)) and game.encounter.hp_for(scout)<200,
 		"Seismic Relay directs native Quake and is spent once")
 	check(player[Cooldowns.STATE].deadline(Cooldowns.Q)==before-1250,"Living Rhythm refunds Q after the prepared hit")
@@ -300,7 +301,7 @@ func defense() -> void:
 	player.catalyst=game.Items.get_item("plant_part_rare_frostbell").legacy_part
 	player[Conditions.STATE] = player[Conditions.STATE].with_slow_until(Time.get_ticks_msec()+8000)
 	ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(player[Conditions.STATE].slow_until_ms())
-	game.use_class_skill(1,player,0)
+	ClassActions.cast_world(game, 1, 0)
 	check(ally[Protection.STATE].charge_count()==0,"ally behind Rootshield has no native Ward")
 	var now := block()
 	check(ally[Protection.STATE].charge_count()==1 and ally[Protection.STATE].guard_until_ms()==now+950 and player[Conditions.STATE].slow_until_ms()==0 and ally[Conditions.STATE].slow_until_ms()==0,
@@ -309,7 +310,7 @@ func defense() -> void:
 	var block_events := events.filter(func(event):return event.kind=="actual_block")
 	check(block_events.size()==1 and block_events[0].source_actor==1 and block_events[0].quality=="refined",
 		"the original Q Ward keeps the Catalyst source, and Shared Guard does not reproc it")
-	game.use_class_skill(1,player,1)
+	ClassActions.cast_world(game, 1, 1)
 	check(ally[Protection.STATE].charge_count()==1 and ally[Protection.STATE].guard_until_ms()>now+1100,"Sheltering Quake grants new Guard after a prepared hit")
 	ally[Protection.STATE] = ally[Protection.STATE].clear_expedition()
 	ally[Protection.STATE] = ally[Protection.STATE].clear_guard()
@@ -323,7 +324,7 @@ func defense() -> void:
 	ally.pos=Vector3(1,0,-1)
 	ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(90)
-	game.use_class_skill(1,player,0)
+	ClassActions.cast_world(game, 1, 0)
 	block(2)
 	var cooldown: int=player[Cooldowns.STATE].deadline(Cooldowns.Q)
 	Warden.tick(game,player.warden_block.until+1)
@@ -331,12 +332,12 @@ func defense() -> void:
 		"ally Ward consumption counts against Measured Guard without replaying a Warden self-block response")
 	arena(DEFENSE)
 	ally.pos=Vector3(1,0,1)
-	game.use_class_skill(1,player,0)
+	ClassActions.cast_world(game, 1, 0)
 	block()
 	ally[Protection.STATE] = ally[Protection.STATE].clear_expedition()
 	ally[Protection.STATE] = ally[Protection.STATE].clear_guard()
 	game.tactics.position=Vector3(0,0,-9)
-	game.use_class_skill(1,player,1)
+	ClassActions.cast_world(game, 1, 1)
 	check(game.enemy_health()==900 and ally[Protection.STATE].charge_count()==1 and player.warden_block.quake_used,
 		"Sheltering Quake protects allies on an empty impact and spends its preparation")
 
@@ -375,7 +376,7 @@ func holdfast() -> void:
 	reset_holdfast_ally(fallen,Vector3(1,0,1))
 	fallen[PlayerLifecycle.STATE] = fallen[PlayerLifecycle.STATE].fall()
 	player.catalyst=game.Items.get_item("plant_part_rare_frostbell").legacy_part
-	game.use_class_skill(1,player,0)
+	ClassActions.cast_world(game, 1, 0)
 	check(not player.has("warden_holdfast") and not ally.has("warden_holdfast"),"cast alone grants no Holdfast")
 	var slowed_until := Time.get_ticks_msec()+4500
 	ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(slowed_until)
@@ -399,7 +400,7 @@ func holdfast() -> void:
 
 	distant.character.xp[0]=2600
 	distant.character[Connected.PROFILE_KEY]=Connected.state(HOLDFAST.slice(0,5))
-	game.use_class_skill(3,distant,0)
+	ClassActions.cast_world(game, 3, 0)
 	var refresh := now+700
 	IncomingPlayerHit.resolve_world(game, 3, PlayerLifecycle.generation(distant), refresh, 4, 0, distant.pos+Vector3.FORWARD)
 	check(Warden.holdfast_until(game,ally,refresh)==refresh+2500 and ally.warden_holdfast.actor==3
@@ -409,7 +410,7 @@ func holdfast() -> void:
 
 	arena(HOLDFAST)
 	reset_holdfast_ally(ally,Vector3(1,0,1))
-	game.use_class_skill(1,player,0)
+	ClassActions.cast_world(game, 1, 0)
 	now=block()
 	check(sample_damage(2,now+30)==30,"Sanctuary and Holdfast overlap with only the stronger 25 percent reduction")
 	ally.pos=Vector3(5,0,0)

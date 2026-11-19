@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -134,7 +135,7 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 	events.clear()
 
 func cast(slot: int) -> void:
-	game.use_class_skill(1,player,slot)
+	ClassActions.cast_world(game, 1, slot)
 
 func scout(point: Vector3, hp := 300, summoned := false) -> Dictionary:
 	var foe: Dictionary = game.make_scout(0,point,game.encounter.scout_count()+1)

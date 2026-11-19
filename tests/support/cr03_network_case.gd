@@ -1,4 +1,5 @@
 extends RefCounted
+const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -230,7 +231,7 @@ func host(menu: Node) -> void:
 	var protected: int=ids[0]
 	var ally: Dictionary=game.players[protected]
 	local[Cooldowns.STATE] = local[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
-	game.use_class_skill(1,local,0)
+	ClassActions.cast_world(game, 1, 0)
 	ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 	var before: float=PlayerVitals.current_hp(ally)
 	IncomingPlayerHit.resolve_world(game, protected, PlayerLifecycle.generation(ally), Time.get_ticks_msec(), 1)
@@ -747,11 +748,25 @@ func exercise_oracle_host(game: Node,id: int,entry: Vector3) -> bool:
 		return not blessing.is_empty() and PlayerVitals.current_hp(host_player)>60 and read("oracle-q-seen")=="ok"
 	if not check(await until(q_ready,3200),"guest Oracle Q heals host and both observe the source-owned Blessing"):return false
 	mark("oracle-r")
+	var witness := {"start":Time.get_ticks_msec(),"ward_seen":-1,"mercy_seen":-1,"guest_seen":-1,"blocks":[]}
+	var prior: Callable = game.get_meta(Events.RECORD,Callable())
+	game.set_meta(Events.RECORD,func(event):
+		if prior.is_valid(): prior.call(event)
+		if event.kind == "actual_block": witness.blocks.append({"actor":event.source_actor,"details":event.details}))
 	var r_ready := func() -> bool:
 		var now := Time.get_ticks_msec()
+		if host_player[Protection.STATE].guard_until_ms()>now and int(witness.ward_seen)<0: witness.ward_seen=now-int(witness.start)
+		if not Omens.strongest(game,host_player,Oracle.MERCY,now,id).is_empty() and int(witness.mercy_seen)<0: witness.mercy_seen=now-int(witness.start)
+		if read("oracle-r-seen")=="ok" and int(witness.guest_seen)<0: witness.guest_seen=now-int(witness.start)
 		return not Omens.strongest(game,host_player,Oracle.MERCY,now,id).is_empty() \
 			and int(host_player[Protection.STATE].guard_until_ms())>now and read("oracle-r-seen")=="ok"
-	if not check(await until(r_ready,2500),"remote Chime arms native Ward and projected Portent of Mercy"):return false
+	var granted: bool = await until(r_ready,2500)
+	game.set_meta(Events.RECORD,prior)
+	if not granted:
+		witness.remaining_ms=host_player[Protection.STATE].guard_until_ms()-Time.get_ticks_msec()
+		witness.charges=host_player[Protection.STATE].charge_count()
+		printerr("Oracle grant observation: ",JSON.stringify(witness))
+	if not check(granted,"remote Chime arms native Ward and projected Portent of Mercy"):return false
 	var before := int(PlayerVitals.current_hp(host_player))
 	var now := Time.get_ticks_msec()
 	host_player[Conditions.STATE] = host_player[Conditions.STATE].clear_grace()
@@ -1249,7 +1264,7 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 		for id in ids:
 			if id!=ids[1]: game.players[id].pos=local.pos
 		local.class_aim_distance=0.0
-		game.use_class_skill(1,local,0)
+		ClassActions.cast_world(game, 1, 0)
 		check(game.players[ids[0]].get("affinity_storm_charge",{}).get("actor")==1,
 			"real Oracle healing grants an authoritative Storm Charge to a guest")
 		var position: Vector3=game.encounter.scout(game.encounter.scout_count()-1).pos

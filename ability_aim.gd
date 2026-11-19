@@ -1,4 +1,5 @@
 extends Node3D
+const ClassActions = preload("res://native_class_actions.gd")
 
 const Session = preload("res://network_session.gd")
 const Cooldowns = preload("res://player_cooldowns.gd")
@@ -116,7 +117,7 @@ static func command(game_node: Node, id: int, local: Dictionary, action: String)
 	if stamp.is_empty() or args.size() not in [4,5,6] or args[1] != stamp or args[2] not in ["0", "1"]:
 		return
 	if args.size() == 4:
-		if args[3] == "native": game_node.use_class_skill(id,local,int(args[2]))
+		if args[3] == "native": ClassActions.cast_world(game_node, id, int(args[2]))
 		return
 	if not args[3].is_valid_float() or not args[4].is_valid_float():
 		return
@@ -132,7 +133,7 @@ static func command(game_node: Node, id: int, local: Dictionary, action: String)
 	local.mouse_aim = true
 	local.class_aim = Vector3(direction.x, 0, direction.y).normalized()
 	local.class_aim_distance = distance
-	game_node.use_class_skill(id, local, int(args[2]))
+	ClassActions.cast_world(game_node, id, int(args[2]))
 	local.erase("class_aim")
 	local.erase("class_aim_distance")
 	local.mouse_aim = was_mouse

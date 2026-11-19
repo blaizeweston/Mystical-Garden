@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -165,7 +166,7 @@ func verify_guard_and_core(game: Node, player: Dictionary) -> void:
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
 	player[Conditions.STATE] = player[Conditions.STATE].clear_grace()
-	game.use_class_skill(1,player,0)
+	ClassActions.cast_world(game, 1, 0)
 	check(int(player[Protection.STATE].charge_count())>0,"real Warden Guard granted")
 	var now:=Time.get_ticks_msec()
 	var guarded_health: PlayerVitals.Health = player[PlayerVitals.STATE]
@@ -255,6 +256,9 @@ func verify_recovery(game: Node, player: Dictionary) -> void:
 
 
 func verify_vitals(game: Node, player: Dictionary) -> void:
+	# Collision-only fixtures omit scenery such as ExitGate. These checks render
+	# the real HUD, so restore a complete modern authored floor first.
+	game.battlefield.configure(0,1)
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(20)
 	game._process(.016)
 	game.Life.Sustain.restore(game,player,4,"fixture_heal")

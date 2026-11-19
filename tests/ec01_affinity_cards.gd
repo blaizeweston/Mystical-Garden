@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -451,7 +452,7 @@ func verify_form_and_catalyst() -> void:
 		player.catalyst = material(family)
 		var plain: Dictionary = Build.for_player(player).catalyst.potency_profile.values
 		check(cards_by_family[family] in card_ledger(player).eligible(game.weapon_stats(player),game.DODGE_COOLDOWN_MS),"working Catalyst mapping eligible for "+family)
-		game.use_class_skill(1,player,1)
+		ClassActions.cast_world(game, 1, 1)
 		match family:
 			"fire": check(game.tactics.memory[Rules.Fire.BURNING]["1/catalyst"].hp==plain.tick_hp+bonus,"Fire Catalyst uses source-owned upgraded burn")
 			"water": check(game.tactics.memory[Rules.Water.DRENCHED]["1/catalyst"].until==Rules.Water.DURATION_MS+bonus,"Water Catalyst extends only Drenched")
@@ -464,7 +465,7 @@ func class_hit(class_id: int, upgraded: bool) -> int:
 	reset(class_id)
 	if upgraded:
 		grant_fixture_copy(CLASS_CARDS[class_id],3)
-	game.use_class_skill(1,player,1)
+	ClassActions.cast_world(game, 1, 1)
 	return 400-game.enemy_health()
 
 
@@ -476,7 +477,7 @@ func verify_native() -> void:
 	reset(2)
 	var bonus := grant_fixture_copy("snare_root_time",3)
 	var base_skill: Dictionary = Build.for_player(player).class_skills[1].native_skill
-	game.use_class_skill(1,player,1)
+	ClassActions.cast_world(game, 1, 1)
 	var trap: Dictionary = game.trait_events.front()
 	game.tactics.position = trap.position
 	var trip: int = trap.next
@@ -486,7 +487,7 @@ func verify_native() -> void:
 	bonus = grant_fixture_copy("chime_ward_time",3)
 	base_skill = Build.for_player(player).class_skills[1].native_skill
 	var earliest := Time.get_ticks_msec()+int(base_skill.duration)+bonus
-	game.use_class_skill(1,player,1)
+	ClassActions.cast_world(game, 1, 1)
 	check(ally[Protection.STATE].guard_until_ms()>=earliest and ally[Protection.STATE].guard_until_ms()<=Time.get_ticks_msec()+int(base_skill.duration)+bonus
 		and ally[Protection.STATE].charge_count()==int(base_skill.charges),"Warding Chime gives longer native Ward with the same charges")
 	reset()
@@ -527,7 +528,7 @@ func verify_echo() -> void:
 	var prior: int = game.enemy_health()
 	player.cast_until=0
 	var now := Time.get_ticks_msec()
-	game.use_class_skill(1,player,1)
+	ClassActions.cast_world(game, 1, 1)
 	var skill: Dictionary = Build.for_player(player).class_skills[1].native_skill
 	var wanted: int = game.Life.Preview.effect_hp(skill.damage)
 	check(game.enemy_health()==prior-wanted-10 and game.encounter.hp_for(other)==400-wanted-10,"real Nova in Bloom deals one flat 10 HP pulse per target")

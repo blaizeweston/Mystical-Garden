@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -169,7 +170,7 @@ func drains() -> void:
 	var tree=game.Classes.connected_tree(3)
 	player.character[tree.profile_key]=tree.state(["blood_harvester"])
 	var summon:=add_enemy(Vector3(0,0,-1),true)
-	game.use_class_skill(1,player,1)
+	ClassActions.cast_world(game, 1, 1)
 	check(game.encounter.hp_for(summon)<summon.max_hp and PlayerVitals.current_hp(player)==30,"Siphon Cut damages a summon without drawing health")
 
 

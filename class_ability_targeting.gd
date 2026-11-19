@@ -7,7 +7,7 @@ const Hurt = preload("res://enemy_hurtbox.gd")
 
 static func range_limit(game: Node, player: Dictionary, skill: Dictionary, stats: Dictionary) -> float:
 	var base: float = game.Classes.DEFINITIONS[int(player.frame)].weapons[int(player.weapon_kind)].reach
-	return float(skill.get("range", stats.reach)) + maxf(0.0, float(stats.reach) - base)
+	return preload("res://class_skill_balance.gd").range_limit(skill, stats, base)
 
 
 static func positions(game: Node) -> Dictionary:

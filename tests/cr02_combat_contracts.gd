@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const Protection = preload("res://player_protection.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -65,7 +66,7 @@ func run() -> void:
 	player.catalyst = -1
 	var timers: Array = [player[WeaponActions.STATE].ready_at_ms(),player[Cooldowns.STATE].deadline(Cooldowns.Q)]
 	game.strike_enemy(1,player,player.pos)
-	game.use_class_skill(1,player,0)
+	ClassActions.cast_world(game, 1, 0)
 	game.garden_action(1,"core_cast:unavailable")
 	check([player[WeaponActions.STATE].ready_at_ms(),player[Cooldowns.STATE].deadline(Cooldowns.Q)] == timers and game.projectile_queue.is_empty()
 		and "invalid" in game.status, "invalid Form, Catalyst and Core do not execute")
@@ -73,14 +74,14 @@ func run() -> void:
 	player.weapon = ready_core
 	player.secondary = 0
 	player.catalyst = 0
-	game.use_class_skill(1,player,0)
+	ClassActions.cast_world(game, 1, 0)
 	check(recorded.is_empty() and player[Protection.STATE].charge_count()==1, "connected Bastion activation grants native Rootshield only")
 	var now := Time.get_ticks_msec()
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(player), now, 1)
 	check(recorded.size()==1 and recorded[0].kind=="actual_block" and player[Protection.STATE].charge_count()==0,
 		"actual connected Q block records its first consumption once")
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
-	game.use_class_skill(1,player,1)
+	ClassActions.cast_world(game, 1, 1)
 	check(recorded.size()==2 and recorded[1].kind=="class_action", "actual Root Quake emits one activation")
 
 	player.facing = Vector3.FORWARD
@@ -194,7 +195,7 @@ func check_runtime_focuses(game: Node, player: Dictionary) -> void:
 			var adapter: Dictionary = build.class_skills[0]
 			player.class_aim = Vector3.FORWARD
 			player.class_aim_distance = 2.4
-			game.use_class_skill(1,player,0)
+			ClassActions.cast_world(game, 1, 0)
 			player.erase("class_aim")
 			player.erase("class_aim_distance")
 			check(player[Cooldowns.STATE].deadline(Cooldowns.Q)>0, "%s native Q casts through its adapter" % adapter.id)

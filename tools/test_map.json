@@ -172,15 +172,7 @@
     },
     "classes": {
       "label": "Class levels, choices and abilities",
-      "files": [
-        "class_experience.gd",
-        "class_experience.gd.uid",
-        "class_catalog.gd",
-        "skill_catalog.gd",
-        "combat_traits.gd",
-        "enemy_attack_hits.gd",
-        "enemy_attack_hits.gd.uid"
-      ]
+      "files": ["class_experience.gd", "class_experience.gd.uid", "class_catalog.gd", "skill_catalog.gd", "combat_traits.gd", "enemy_attack_hits.gd", "enemy_attack_hits.gd.uid", "native_class_actions.gd", "class_caster.gd"]
     },
     "combat": {
       "label": "Cursor aiming, hit shapes, cooldowns and damage",
@@ -1146,7 +1138,7 @@
     "save_local_character": [
       "foundation"
     ],
-    "use_class_skill": ["classes", "combat", "weapons", "life", "affinity_cards"],
+
     "skill_area_targets": [
       "classes"
     ],
@@ -1652,6 +1644,7 @@
     ]
   },
   "suites": {
+    "native_class_actions": {"kind":"unit", "systems":["classes","combat","class_balance","combat_affinity_contracts","life","player_lifecycle","player_cooldowns","player_protection","ability_aim"], "package":false},
     "modern_terrain_cutover": {"kind": "unit", "systems": ["hex_terrain", "terrain", "garden", "boss_lair_fights", "boss_phase_fights", "connection_flow"], "package": false},
     "progression_ui": {"kind": "unit", "systems": ["progression_ui", "gameplay_ui", "classes", "knowledge", "seeds", "garden_returns"], "package": false},
     "player_build_ui": {"kind": "unit", "systems": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_summary", "progression_ui"], "package": false},
@@ -6045,138 +6038,7 @@
         ],
         "additive": true
       }},
-    "use_class_skill": {"ar06_cooldown_1": {"systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_2": {"systems": ["player_cooldowns"], "additive": true},
-      "ec01_1": {"systems": ["affinity_cards"], "additive": true},
-      "ct05_oracle_1": {"systems": ["oracle_progression"], "additive": true},
-      "ct05_oracle_4": {"systems": ["oracle_progression"], "additive": true},
-      "ct04_reaper_1": {"systems": ["classes", "combat", "weapons", "life", "reaper_progression"], "additive": true},
-      "ct04_reaper_3": {"systems": ["classes", "combat", "weapons", "life", "reaper_progression"], "additive": true},
-      "ct04_reaper_4": {"systems": ["classes", "combat", "weapons", "life", "reaper_progression"], "additive": true},
-      "ct03_ranger_1": {"systems": ["classes", "combat", "weapons", "life", "ranger_progression"], "additive": true},
-      "ct03_ranger_3": {"systems": ["classes", "combat", "weapons", "life", "ranger_progression"], "additive": true},
-      "ct03_ranger_4": {"systems": ["classes", "combat", "weapons", "life", "ranger_progression"], "additive": true},
-      "ct02_1": {
-        "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"],
-        "additive": true
-      },
-      "ct01_2": {
-        "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
-        "additive": true
-      },
-      "cr05_focus_0": {
-        "systems": ["classes", "combat_affinity_contracts"],
-        "additive": true
-      },
-      "cr05_focus_1": {
-        "systems": ["classes", "combat_affinity_contracts"],
-        "additive": true
-      },
-      "wood_affinity_1": {
-        "systems": ["wood_affinity", "combat_affinity_contracts"],
-        "additive": true
-      },
-      "cb07_12": {
-        "systems": [
-          "expedition_sustain"
-        ],
-        "additive": true
-      },
-      "cb07_13": {
-        "systems": [
-          "expedition_sustain"
-        ],
-        "additive": true
-      },
-      "healing_roll_2": {
-        "systems": [
-          "healing_rolls"
-        ],
-        "additive": true
-      },
-      "healing_roll_3": {
-        "systems": [
-          "healing_rolls"
-        ],
-        "additive": true
-      },
-      "healing_roll_7": {
-        "systems": [
-          "healing_rolls"
-        ],
-        "additive": true
-      },
-      "cb04_8": {
-        "systems": [
-          "class_balance"
-        ],
-        "additive": true
-      },
-      "cb04_9": {
-        "systems": [
-          "class_balance"
-        ],
-        "additive": true
-      },
-      "cb04_12": {
-        "systems": [
-          "class_balance"
-        ],
-        "additive": true
-      },
-      "cb03_class_heal_bonus": {
-        "systems": [
-          "weapon_balance"
-        ],
-        "additive": true
-      },
-      "preview_bonus_heal": {
-        "systems": [
-          "combat_balance_preview"
-        ],
-        "additive": true
-      },
-      "preview_capped_self_heal": {
-        "systems": [
-          "combat_balance_preview"
-        ],
-        "additive": true
-      },
-      "vitals_class_bonus_heal": {
-        "systems": [
-          "combat_vitals"
-        ],
-        "additive": true
-      },
-      "vitals_class_capped_heal": {
-        "systems": [
-          "combat_vitals"
-        ],
-        "additive": true
-      },
-      "class_cast_audio": {
-        "systems": [
-          "event_audio"
-        ],
-        "additive": true
-      },
-      "subclass_finish_on_echo": {
-        "additive": true,
-        "systems": [
-          "warden_progression"
-        ]
-      },
-      "aimed_target_init": {
-        "additive": true,
-        "systems": [
-          "ability_aim"
-        ]
-      },
-      "core_animation_guard": {
-        "additive": true,
-        "systems": [
-          "core_combat"
-        ]
-      }},
+
     "receive_details": {
       "experimental_coop_1": {
         "systems": [

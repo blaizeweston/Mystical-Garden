@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -169,7 +170,7 @@ func run_catalyst(p: Dictionary, part: int) -> void:
 	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 	p.core_cast_until=0
 	p.cast_until=0
-	game.use_class_skill(1,p,1)
+	ClassActions.cast_world(game, 1, 1)
 	var current := Frost.state(game.tactics.memory,Time.get_ticks_msec())
 	check(current.get("stacks",[]).size()==1 and current.stacks[0].quality==("refined" if part==refined else "ordinary"),"Catalyst-only Q/R emits a native offensive contact with its quality")
 	p.frame=4
@@ -181,7 +182,7 @@ func run_catalyst(p: Dictionary, part: int) -> void:
 	ally[Protection.STATE] = ally[Protection.STATE].clear_guard()
 	p.class_aim=Vector3.FORWARD
 	p.class_aim_distance=0.0
-	game.use_class_skill(1,p,0)
+	ClassActions.cast_world(game, 1, 0)
 	p.erase("class_aim")
 	p.erase("class_aim_distance")
 	check(ally.has(Frost.RESPONSE),"Living Sanctuary opening heal prepares a response for the ally")
@@ -206,7 +207,7 @@ func run_focus(p: Dictionary) -> void:
 	p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	p[Protection.STATE] = p[Protection.STATE].clear_expedition()
 	p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
-	game.use_class_skill(1,p,0)
+	ClassActions.cast_world(game, 1, 0)
 	var now:=Time.get_ticks_msec()
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now, 1)
 	var current:=Frost.state(game.tactics.memory,now)

@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -124,13 +125,13 @@ func run() -> void:
 		p.secondary=0
 		p.catalyst=part
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
-		game.use_class_skill(1,p,1)
+		ClassActions.cast_world(game, 1, 1)
 		check(game.tactics.memory.get(Fire.BURNING,{}).get("1/catalyst",{}).get("hp",0)==q.tick_hp,"native offensive class contact adds separate Catalyst burn")
 		reset()
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
 		p[Protection.STATE] = p[Protection.STATE].clear_expedition()
-		game.use_class_skill(1,p,0)
+		ClassActions.cast_world(game, 1, 0)
 		var hp_before: float=p[PlayerVitals.STATE].hp()
 		IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1.0, 0, game.tactics.position)
 		check(game.enemy_health()==500-q.burst_hp-q.tick_hp and p[PlayerVitals.STATE].hp()==hp_before,"Ward uses selected Catalyst without changing native prevention")
@@ -143,7 +144,7 @@ func run() -> void:
 		ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 		p.class_aim=Vector3.FORWARD
 		p.class_aim_distance=0.0
-		game.use_class_skill(1,p,0)
+		ClassActions.cast_world(game, 1, 0)
 		p.erase("class_aim")
 		p.erase("class_aim_distance")
 		check(ally.has(Fire.RESPONSE),"Living Sanctuary opening heal grants Fire response with caster provenance")

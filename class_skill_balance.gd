@@ -83,3 +83,8 @@ static func seconds(ms: int) -> String:
 static func hp_text(points: float) -> String:
 	var amount := Preview.effect_hp(points)
 	return "%d HP" % amount
+
+
+## Native class reach includes only the equipped weapon's additional reach.
+static func range_limit(skill: Dictionary, stats: Dictionary, native_weapon_reach: float) -> float:
+	return float(skill.get("range", stats.reach)) + maxf(0.0, float(stats.reach) - native_weapon_reach)

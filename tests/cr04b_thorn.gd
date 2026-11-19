@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -142,7 +143,7 @@ func run() -> void:
 			check(fields.size()==2 and fields[0].center!=point,"third patch replaces the oldest within the slot limit")
 		reset(p)
 		p.catalyst=part
-		game.use_class_skill(1,p,1)
+		ClassActions.cast_world(game, 1, 1)
 		check(Thorn.active_fields(game,Clock.now(game)).size()==1,"offensive Q/R maps its effect area once")
 		reset(p)
 		p.catalyst=part
@@ -151,7 +152,7 @@ func run() -> void:
 		p.character[oracle.profile_key]=oracle.state(["lifekeeper"])
 		p.class_aim=Vector3.FORWARD
 		p.class_aim_distance=0.0
-		game.use_class_skill(1,p,0)
+		ClassActions.cast_world(game, 1, 0)
 		p.erase("class_aim")
 		p.erase("class_aim_distance")
 		check(Thorn.active_fields(game,Clock.now(game)).size()==1,"native group heal plants one patch")
@@ -162,12 +163,12 @@ func run() -> void:
 		p.frame=2
 		var ranger=game.Classes.connected_tree(2)
 		p.character[ranger.profile_key]=ranger.state(["wayfarer"])
-		game.use_class_skill(1,p,0)
+		ClassActions.cast_world(game, 1, 0)
 		var departure:=Thorn.active_fields(game,Clock.now(game))
 		check(departure.size()==1 and departure[0].center==Vector3.ZERO and p.pos.length()>.5,"native Ranger retreat leaves a departure patch")
 		reset(p)
 		p.catalyst=part
-		game.use_class_skill(1,p,0)
+		ClassActions.cast_world(game, 1, 0)
 		check(Thorn.active_fields(game,Clock.now(game)).is_empty(),"Ward grant does not plant")
 		IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now, 1.0, 0, game.tactics.position)
 		check(Thorn.active_fields(game,Clock.now(game)).size()==1,"actual Ward block plants lingering growth once")

@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -242,7 +243,7 @@ func class_checks() -> void:
 		player.class_aim = Vector3.RIGHT
 		var salvo := Aim.footprint(game,player,field,0,Vector3.RIGHT,6.0)
 		var strip: Array = salvo.shapes.filter(func(shape):return shape.kind=="strip")
-		game.use_class_skill(game.HOST,player,0)
+		ClassActions.cast_world(game, game.HOST, 0)
 		var releases: Array = game.combat_events.filter(func(event):return event.shape=="hunter")
 		if releases.is_empty():
 			releases = game.combat_events.filter(func(event):return event.kind=="subclass_release")
@@ -252,7 +253,7 @@ func class_checks() -> void:
 	prepare(BANK, ACROSS)
 	player.class_aim = Vector3.RIGHT
 	player.class_aim_distance = 5.0
-	game.use_class_skill(game.HOST, player, 1)
+	ClassActions.cast_world(game, game.HOST, 1)
 	var traps: Array = game.trait_events.filter(func(event):return event.kind == "snare")
 	check(traps.size() == 1 and traps[0].position.x < -1.65 and not field.occupied(traps[0].position),
 		"actual Bramble Snare still clamps to unoccupied dry ground")

@@ -1,4 +1,5 @@
 extends RefCounted
+const ClassActions = preload("res://native_class_actions.gd")
 ## A scripted party member. It plays through the same movement, attack and skill calls as a person.
 
 const CAMERA_TURN := atan2(3.3, 14.0)
@@ -69,7 +70,7 @@ func act(now: int) -> void:
 	if (_tick + peer) % DODGE_TICKS == 0:
 		_consider_dodge(player, now)
 	if (_tick + peer) % SKILL_TICKS == 0 and distance <= _reach + 3.0:
-		game.use_class_skill(peer, player, rng.randi_range(0, 1))
+		ClassActions.cast_world(game, peer, rng.randi_range(0, 1))
 
 
 func _send_motion(now: int) -> void:

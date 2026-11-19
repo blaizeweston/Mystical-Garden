@@ -1,4 +1,5 @@
 extends RefCounted
+const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -151,7 +152,7 @@ func host(menu: Node, mismatch: bool) -> void:
 		"remote Guard owns the block response")
 	local.pos = remote.pos
 	check(preload("res://warden_connected_tree.gd").focus(local.character)=="bastion","host keeps the selected connected Bastion focus")
-	world.use_class_skill(1,local,0)
+	ClassActions.cast_world(world, 1, 0)
 	check(events.size()==1 and int(remote[Protection.STATE].charge_count())==1,"Rootshield grants one native Ward without synthesizing a block")
 	IncomingPlayerHit.resolve_world(world, guest_id(world), PlayerLifecycle.generation(remote), Time.get_ticks_msec(), 1)
 	check(events.size()==2 and events[1].source_actor==1 and events[1].details.recipient==guest_id(world),

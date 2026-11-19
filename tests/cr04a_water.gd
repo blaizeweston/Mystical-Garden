@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -126,7 +127,7 @@ func run() -> void:
 		p.secondary=0
 		p.catalyst=part
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
-		game.use_class_skill(1,p,1)
+		ClassActions.cast_world(game, 1, 1)
 		check(game.tactics.memory.get(Water.DRENCHED,{}).size()==2,"native class contact contributes a separate Drenched Catalyst")
 		check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"same potency is not multiplied")
 		reset()
@@ -135,7 +136,7 @@ func run() -> void:
 		p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
 		p[Conditions.STATE] = p[Conditions.STATE].with_slow_until(now+6000)
 		ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(now+6000)
-		game.use_class_skill(1,p,0)
+		ClassActions.cast_world(game, 1, 0)
 		IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1.0, 0, game.tactics.position)
 		check(p[Conditions.STATE].slow_until_ms()==0 and ally[Conditions.STATE].slow_until_ms()==0 and p[PlayerVitals.STATE].hp()==70 and is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"Ward wash Drenches enemies and cleanses protected allies")
 

@@ -184,7 +184,7 @@ const DEFINITIONS := {
 	},
 	"chime_ward_time": {
 		"title": "Lasting Resonance", "scope": "class", "policy": "stackable",
-		"trigger": "Warding Chime native Ward grant", "consumer": ["res://game.gd", "use_class_skill"],
+		"trigger": "Warding Chime native Ward grant", "consumer": ["res://native_class_actions.gd", "cast"],
 		"requires": {"class": "oracle", "mode": "ward", "skill": "Warding Chime"}, "parameter": "ward_ms",
 		"values": [100, 200, 300, 400], "unit": "ms", "limit": 4,
 		"description": "Extends the duration of Warding Chime's native Wards by %s seconds.",

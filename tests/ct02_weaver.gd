@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -197,14 +198,14 @@ func q(point := Vector3(0,0,-1.2)) -> void:
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 	player.class_aim=(point-Vector3(player.pos)).normalized()
 	player.class_aim_distance=Vector3(player.pos).distance_to(point)
-	game.use_class_skill(1,player,0)
+	ClassActions.cast_world(game, 1, 0)
 	player.erase("class_aim")
 	player.erase("class_aim_distance")
 
 
 func r() -> void:
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
-	game.use_class_skill(1,player,1)
+	ClassActions.cast_world(game, 1, 1)
 
 
 func native_damage() -> int:
@@ -313,7 +314,7 @@ func threaded_nova() -> void:
 	var original := Time.get_ticks_msec() + 5000
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, original)
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, original)
-	game.use_class_skill(1,player,0)
+	ClassActions.cast_world(game, 1, 0)
 	check(player[Cooldowns.STATE].deadline(Cooldowns.R) == original and game.trait_events.is_empty(),"a refused focus cast cannot refund the Nova timer")
 	arena(BALANCED)
 	player.subclass_follow = {"lane":1,"epoch":game.participation.epoch(),"life":PlayerLifecycle.generation(player)}

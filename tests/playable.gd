@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -50,9 +51,9 @@ func run() -> void:
 	world.tactics.position=Vector3(0,0,-1)
 	actor.pos=Vector3.ZERO
 	actor.facing=Vector3.FORWARD
-	world.use_class_skill(1,actor,0)
+	ClassActions.cast_world(world, 1, 0)
 	check(actor[Protection.STATE].charge_count()==1 and actor[Cooldowns.STATE].deadline(Cooldowns.Q)>0,"native Thorn Counter works without plants or upgrades")
-	world.use_class_skill(1,actor,1)
+	ClassActions.cast_world(world, 1, 1)
 	check(world.enemy_health()<100 and actor[Cooldowns.STATE].deadline(Cooldowns.R)>0,"native Root Quake damages a real enemy")
 	world.encounter.set_hp(-1,1)
 	actor.cast_until=0

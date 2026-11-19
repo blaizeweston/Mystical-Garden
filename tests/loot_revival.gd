@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
@@ -45,7 +46,7 @@ func run() -> void:
  game.players[3][PlayerVitals.STATE] = game.players[3][PlayerVitals.STATE].with_hp(0.0)
  check(game.spectator_view.focus_id(1)==2,"spectator automatically replaces fallen target")
  ExpeditionCase.remove_actor(game, 3)
- var pos: Vector3=a.pos;game.move_player(1,Vector2.RIGHT,1);game.dodge_player(1,Vector2.RIGHT);game.use_class_skill(1,a)
+ var pos: Vector3=a.pos;game.move_player(1,Vector2.RIGHT,1);game.dodge_player(1,Vector2.RIGHT);ClassActions.cast_world(game, 1)
  check(a.pos==pos and a[Cooldowns.STATE].deadline(Cooldowns.Q)==0,"fallen players cannot move, dodge or cast")
  var vital=preload("res://vital_combat.gd")
  var material=preload("res://affinity_build.gd").slot("core",game.Items.get_item("part_2").legacy_part)

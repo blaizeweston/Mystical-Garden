@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -181,14 +182,14 @@ func entry_for_each_class() -> void:
 		caster.class_aim_distance=1.5
 		check(game.Skills.resolve_in_world(game,class_id,0,caster.character).name==qs[class_id]
 			and game.Skills.resolve_in_world(game,class_id,1,caster.character).name==rs[class_id],"native focused Q/R with three empty slots")
-		game.use_class_skill(1,caster,0)
+		ClassActions.cast_world(game, 1, 0)
 		var benefits: Array[bool] = [caster.has("warden_anchor"),
 			game.trait_events.any(func(field):return field.kind=="growth"),
 			game.trait_events.any(func(field):return field.kind=="snare"),
 			caster.has("reaper_veil_momentum"),caster.has(Omens.STATE)]
 		check(int(caster[Cooldowns.STATE].deadline(Cooldowns.Q))>Time.get_ticks_msec() and benefits[class_id],"native starting Q applies its effect")
 		game.tactics.position = caster.pos + Vector3(.7,0,0)
-		game.use_class_skill(1,caster,1)
+		ClassActions.cast_world(game, 1, 1)
 		check(int(caster[Cooldowns.STATE].deadline(Cooldowns.R))>Time.get_ticks_msec(),"native R casts with no equipped parts")
 	for class_id in qs.size():
 		check(game.Classes.connected_tree(class_id).path(caster.character).size()==1,"switching classes preserves each chosen focus")
@@ -198,7 +199,7 @@ func entry_for_each_class() -> void:
 
 
 func cast(slot: int) -> void:
-	game.use_class_skill(1,caster,slot)
+	ClassActions.cast_world(game, 1, slot)
 
 
 func enemy_hit(id: int, now: int, slow := 0, direct := true) -> void:
@@ -354,14 +355,14 @@ func coexistence() -> void:
 	other.character[Progression.PROFILE_KEY]=Progression.TREE.state(["lifekeeper"])
 	other.pos=Vector3(.4,0,0)
 	cast(0)
-	game.use_class_skill(9,other,0)
+	ClassActions.cast_world(game, 9, 0)
 	var now := Time.get_ticks_msec()
 	var breath := record(ally,Progression.SECOND_BREATH,now)
 	check(int(breath.get("source",0))==1 and not record(ally,Progression.SECOND_BREATH,now,9).is_empty(),"two Oracle grants tie by actor ID")
 	check(record(ally,Progression.SECOND_BREATH,now+3100).is_empty(),"expiry is exclusive")
 	other.character[Progression.PROFILE_KEY]=Progression.TREE.state(["leykeeper"])
 	other[Cooldowns.STATE] = other[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
-	game.use_class_skill(9,other,0)
+	ClassActions.cast_world(game, 9, 0)
 	check(not record(ally,Progression.GUIDED_STRIKE,now,9).is_empty() \
 		and not record(ally,Progression.SECOND_BREATH,now,1).is_empty(),"different Omens from two Oracles coexist")
 	Status.sync(game,now)

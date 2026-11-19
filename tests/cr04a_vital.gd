@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -146,7 +147,7 @@ func run() -> void:
 		check(player.get(Vital.SOURCES,{}).get("1/form",{}).get("until",-1)==applied_until,"multi-target, duplicate and secondary contacts don't refresh the same attack")
 		reset(player,ally)
 		player.catalyst=part
-		game.use_class_skill(1,player,1)
+		ClassActions.cast_world(game, 1, 1)
 		check(player[PlayerVitals.STATE].temporary_hp()==q.bonus_hp,"native offensive class hit grants self Vitality")
 		reset(player,ally)
 		player.catalyst=part
@@ -155,7 +156,7 @@ func run() -> void:
 		player.character[oracle.profile_key]=oracle.state(["lifekeeper"])
 		player.class_aim=Vector3.FORWARD
 		player.class_aim_distance=0.0
-		game.use_class_skill(1,player,0)
+		ClassActions.cast_world(game, 1, 0)
 		player.erase("class_aim")
 		player.erase("class_aim_distance")
 		check(ally[PlayerVitals.STATE].temporary_hp()==q.bonus_hp and ally[PlayerVitals.STATE].hp()>60,"native Oracle heal remains intact and grants recipient Vitality")
@@ -171,7 +172,7 @@ func run() -> void:
 	player.class_aim_distance=0.0
 	player.catalyst=int(game.Items.get_item("part_2").legacy_part)
 	game.tactics.position=Vector3(9,0,0)
-	game.use_class_skill(1,player,0)
+	ClassActions.cast_world(game, 1, 0)
 	check(not player.has(Vital.SOURCES),"empty Cultivate Bloom creates no Vitality on placement")
 	var pulse_at:=Time.get_ticks_msec()+1
 	game.tactics.position=Vector3(0,0,-1)

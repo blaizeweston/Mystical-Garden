@@ -11,6 +11,7 @@ const ActionIdentity = preload("res://network_action_identity.gd")
 const Journal=preload("res://diagnostic_journal.gd")
 var diagnostic_watch: Node
 const HeartCatalog=preload("res://heart_catalog.gd")
+const ClassActions = preload("res://native_class_actions.gd")
 const Skills = preload("res://skill_catalog.gd")
 const Classes = preload("res://class_catalog.gd")
 const Weapons = preload("res://weapon_system.gd")
@@ -714,15 +715,15 @@ func _garden_action(id: int, action: String) -> void:
 			if not Participation.is_wild(player) and not participation.active() and Stage.HEART.distance_to(player.pos) <= 1.7:
 				select_class(id,player,(int(player.frame)+1)%Classes.DEFINITIONS.size())
 		"class_skill_two":
-			use_class_skill(id,player,1)
+			ClassActions.cast_world(self,id,1)
 		"class_skill":
-			use_class_skill(id, player)
+			ClassActions.cast_world(self,id)
 		"pouch":
 			if Participation.is_wild(player) and not player.pouch:
 				tell(id,InventoryModel.transfer(self,player,"carry","pouch","unidentified_seed",1))
 		"research":
 			if Participation.is_wild(player):
-				use_class_skill(id,player,1)
+				ClassActions.cast_world(self,id,1)
 			elif not Participation.is_wild(player) and not participation.active() and Stage.HEART.distance_to(player.pos) <= 1.7:
 				use_heart_research(id)
 		"catalyst":
@@ -1294,166 +1295,6 @@ func save_local_character() -> bool:
 
 
 
-
-func use_class_skill(id: int, player: Dictionary, slot: int=0) -> void:
-	Journal.event("combat","skill_requested",{"actor":id,"slot":slot,"state":Journal.player_state(player)})
-	if slot<0 or slot>1: return
-	var now:=CombatClock.now()
-	var cooldowns: Cooldowns.Timers = player[Cooldowns.STATE]
-	if not Life.alive(player) or encounter_cleared() or not cooldowns.ready(slot, now) or now<int(player.get("core_cast_until",0)): return
-	var stats:=weapon_stats(player)
-	var skill: Dictionary
-	var event: RefCounted
-	var adapter := {}
-	var combat_events_api = preload("res://combat_action_events.gd")
-	var affinity_build: Dictionary = stats.get("affinity_build", {})
-	if not affinity_build.is_empty():
-		stats.erase("affinity_build")
-		var refusal := preload("res://affinity_build.gd").refusal(affinity_build, "catalyst")
-		if not refusal.is_empty():
-			tell(id, refusal)
-			return
-		adapter = affinity_build.class_skills[slot]
-		if adapter.is_empty():
-			tell(id, "This class ability has no affinity contract.")
-			return
-		skill = adapter.native_skill.duplicate()
-		AffinityCards.tune_class(player,skill,affinity_build,Life.Preview.scale())
-		event = combat_events_api.class_start(self, id, adapter, now, affinity_build.catalyst)
-		if adapter.trigger == "contact" or (event != null and event.affinity in ["vital","wood"] and adapter.recipients == "designated_area"):
-			stats[combat_events_api.CONTEXT] = event
-		if skill.mode == "subclass":
-			stats.cr02_adapter = adapter
-			stats[combat_events_api.CONTEXT] = event
-	else:
-		skill = Skills.resolve(int(player.frame),slot,player.character)
-	skill=skill.duplicate(true)
-	if skill.mode=="subclass":
-		preload("res://subclass_combat.gd").cast_skill(self,id,player,skill,stats,now)
-		return
-	var duration:=int(stats.get("skill_duration",0))
-	var bonus_heal:=Skills.Balance.healing_bonus(stats)
-	var range_limit:=float(skill.get("range",stats.reach))+maxf(0.0,float(stats.reach)-float(Classes.DEFINITIONS[int(player.frame)].weapons[int(player.weapon_kind)].reach))
-	var radius:=float(skill.get("radius",0))
-	var target: int=-2
-	var point: Vector3=player.pos
-	var targets: Array[int]=[]
-	var cast_origin: Vector3=player.pos
-	var effect_point: Vector3=player.pos
-	var recipients: Array[int] = []
-	var ranger_snare := {}
-	var reaper_siphon := {}
-	var oracle = preload("res://oracle_combat.gd")
-	var chime := {}
-	var mode:=str(skill.mode)
-	var aimed: bool=player.has("class_aim")
-	var plan: Dictionary={}
-	if aimed:
-		plan=preload("res://class_ability_targeting.gd").plan(self,player,battlefield,skill,stats,player.class_aim,float(player.get("class_aim_distance",-1)))
-		if not plan.valid:
-			tell(id,"%s: no enemy within clear range."%skill.name)
-			return
-		target=plan.target
-		point=plan.point
-		range_limit=plan.reach
-		player.facing=plan.forward
-		player.aim_direction=plan.forward
-	else:
-		var targeting = preload("res://class_ability_targeting.gd")
-		target=targeting.automatic(self,player,range_limit+float(skill.get("travel",0)))
-		if target!=-2: point=enemy_position(target)
-	if not aimed and mode in ["siphon"]:
-		var extra_travel:=float(skill.get("travel",0)) if not skill.has("range") else 0.0
-		if target==-2 or player.pos.distance_to(point)>range_limit+extra_travel:
-			tell(id,"%s: no enemy within clear range."%skill.name)
-			return
-	if slot==1 and skill.has("oracle_nodes"):
-		chime = oracle.begin_chime(self,player,skill,event,now)
-	match mode:
-		"front_guard","counter_guard":
-			combat_events_api.grant_ward(self,player,now+int(skill.duration)+duration,int(skill.charges),event,adapter,now)
-			if mode=="front_guard":
-				player[Protection.STATE] = player[Protection.STATE].with_front_guard(now+int(skill.duration)+duration,player.facing)
-				for ally in players.values():
-					var offset: Vector3=ally.pos-player.pos
-					if not is_same(ally,player) and Life.alive(ally) and offset.length()<=radius and (offset.length_squared()<.01 or offset.normalized().dot(player.facing.normalized())>=Skills.Balance.FRONT_GUARD_MIN_DOT) and battlefield.clear_line(player.pos,ally.pos):
-						combat_events_api.grant_ward(self,ally,now+int(skill.duration)+duration,1,event,adapter,now)
-			else: player[Protection.STATE] = player[Protection.STATE].with_counter_guard(now+int(skill.duration)+duration)
-		"guard":
-			combat_events_api.grant_ward(self,player,now+int(skill.duration)+duration,int(skill.charges),event,adapter,now)
-		"ward":
-			var ward_ms := int(chime.get("duration",skill.duration)) + duration + int(skill.get("ward_ms",0))
-			for ally in players.values():
-				if Life.alive(ally) and ally.pos.distance_to(player.pos)<=radius and battlefield.clear_line(player.pos,ally.pos):
-					combat_events_api.grant_ward(self,ally,now+ward_ms,int(skill.charges),event,adapter,now)
-		"snare":
-			effect_point=plan.center if aimed else battlefield.dash(player.pos,point if target!=-2 else player.pos+Vector3(player.facing)*range_limit)
-			if skill.has("ranger_nodes") and battlefield.occupied(effect_point):
-				tell(id,"Bramble Snare needs supported ground.")
-				return
-			var placed := Traits.place_snare(self,player,effect_point,skill,stats,now)
-			if skill.has("ranger_nodes"):
-				if placed.is_empty():
-					tell(id,"Bramble Snare could not be set. Wait for an active effect to expire.")
-					return
-				ranger_snare = placed
-		"quake","nova":
-			if mode=="quake" and skill.has("warden_focus"):
-				effect_point=plan.center if aimed else preload("res://warden_combat.gd").quake_center(self,player,battlefield,skill,now)
-				skill.effect_origin=effect_point
-			targets=skill_area_targets(effect_point,radius,effect_point)
-		"siphon":
-			targets.assign([target])
-			effect_point=point
-			if skill.has("reaper_nodes"):
-				reaper_siphon = preload("res://reaper_combat.gd").begin_siphon(self,id,player,skill,target,point,now)
-	if player.has("affinity_spirit_follow") and player.pos!=cast_origin:
-		preload("res://spirit_affinity.gd").movement(self,player,cast_origin,player.pos)
-	var native_weaver_nova := mode=="nova" and skill.has("weaver_nodes")
-	var catalyst_targets := targets.duplicate() if native_weaver_nova else targets
-	var weaver_impact := Vector3.INF
-	var weaver = preload("res://weaver_combat.gd")
-	if native_weaver_nova:
-		weaver_impact = weaver.prepare_nova(self,id,player,skill,targets,effect_point,now)
-	if not targets.is_empty():
-		player[WeaponActions.STATE] = player[WeaponActions.STATE].swing_until(now + WeaponMotion.DEFAULT_POSE_MS)
-		if mode=="quake" and skill.has("warden_focus"):
-			preload("res://warden_combat.gd").prepare_quake_damage(self,player,skill,now)
-	var hits:=apply_skill_targets(player,targets,skill,stats,now)
-	var siphon_damaged := not reaper_siphon.is_empty() and preload("res://reaper_combat.gd").enemy_hp(self,target)<int(reaper_siphon.before)
-	var secondary_radius := float(skill.get("warden_catalyst_radius",radius))
-	if skill.has("warden_focus") and slot==0:
-		preload("res://warden_combat.gd").on_cast(self,player,skill,now+int(skill.duration)+duration,now,event)
-	if mode=="quake":
-		if skill.has("warden_focus"):
-			var warden=preload("res://warden_combat.gd")
-			warden.consume_anchor(self,player,effect_point,now)
-			warden.quake_hit(self,player,effect_point,targets,radius,now)
-	if mode=="siphon" and hits>0:
-		Life.Sustain.heal(self,player,Skills.Balance.drain_amount(skill,hits),mode,Life.Preview.HEAL_DRAIN_SPREAD_HP)
-	player.contributed=true
-	if bonus_heal>0: Life.Sustain.heal(self,player,bonus_heal,"class_healing_bonus")
-	player[Cooldowns.STATE] = player[Cooldowns.STATE].start(slot, now, Skills.Balance.cooldown(skill,stats))
-	var ranger_feedback := ""
-	if not ranger_snare.is_empty():
-		ranger_feedback = preload("res://ranger_combat.gd").finish_snare(self,player,ranger_snare,cast_origin,now)
-	combat_events_api.class_complete(self,event,adapter,cast_origin,effect_point,catalyst_targets,recipients,now,secondary_radius)
-	if not reaper_siphon.is_empty():
-		preload("res://reaper_combat.gd").finish_siphon(self,player,skill,target,effect_point,reaper_siphon,siphon_damaged,now)
-	elif not chime.is_empty():
-		oracle.finish_chime(self,id,player,skill,chime,now)
-	elif slot==1 and skill.has("subclass_focus") and not skill.has("ranger_nodes") and (not native_weaver_nova or skill.subclass_follow_lane != 0):
-		preload("res://subclass_combat.gd").follow_through(self,player,skill,effect_point,targets,now)
-	if native_weaver_nova:
-		weaver.complete_nova(self,id,player,skill.weaver_nodes,effect_point,weaver_impact,now)
-	player.skill_fx_seq=int(player.get("skill_fx_seq",0))+1
-	player.skill_fx_until=now+650
-	player.skill_fx={"seq":player.skill_fx_seq,"pos":effect_point,"radius":maxf(.8,radius),"color":skill.color,"event_driven":true}
-	player.cast_until=now+550
-	emit_combat_event("ability",mode,cast_origin,effect_point,.8,Color(skill.color),maxf(.8,radius),id)
-	preload("res://event_audio.gd").emit(self,"combat_cast",cast_origin)
-	tell(id,"%s used."%skill.name if ranger_feedback.is_empty() else ranger_feedback)
-	if encounter_cleared(): finish_combat(id,enemy_position(targets.back()) if not targets.is_empty() else effect_point)
 
 func skill_area_targets(center: Vector3,radius: float,origin: Vector3) -> Array[int]:
 	var result: Array[int]=[]

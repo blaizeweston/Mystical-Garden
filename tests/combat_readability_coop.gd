@@ -1,4 +1,5 @@
 extends SceneTree
+const ClassActions = preload("res://native_class_actions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -45,7 +46,7 @@ func host_run():
  game.Transactions.run(game,func():
   game.apply_weapon_hit(p,-1,p.pos,game.weapon_stats(p),Time.get_ticks_msec())
   IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(p), 1)
-  game.use_class_skill(id,p,0))
+  ClassActions.cast_world(game, id, 0))
  check(await until(func():return marked("verified")),"guest verifies feedback")
  var at:=Vector3(-2.5,0,0)
  var stag: Dictionary=game.make_scout(2,at,1)
