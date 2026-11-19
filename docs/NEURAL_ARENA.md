@@ -68,6 +68,7 @@ These five reads in `game.gd` are not combat rules, so they were left alone:
 | `LeaderBehavior.tick` or `ScoutBehavior.tick` signatures change | `tick_enemies` in `game.gd` and `arena_world.gd` |
 | Gameplay menu presentation changes | `GameplayUI.configure_arena_menu`, its `arena_open`/`arena_setup` intentions, `Game._handle_ui_request`, and `ArenaWorld._handle_ui_request` |
 | Arena menu options change | `_trim_session_menu` requests `ui.configure_arena_menu(false, true)`; do not restore removed Game control fields or inspect private UI children |
+| World guidance text/priority changes | `ui/gameplay/world_guidance.gd` receives detached display facts from Game. It contains no clock or gameplay state; keep actual class, terrain and action rules with their existing owners. |
 | Outgoing damage changes | `outgoing_hits.gd` is shared by the game and Arena. `ArenaWorld._observe_outgoing_contact` receives Game's local `outgoing_contact_requested(source_peer, target)` signal and calls `bridge.note_hit(target, source_peer)`. The old `apply_weapon_hit` override is retired. Keep this observer separate from HP application so a hit is not applied twice. |
 | `world.tscn` changes its root script or is renamed | `arena_entry.gd`, which applies `arena_world.gd` to that scene |
 

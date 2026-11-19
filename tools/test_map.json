@@ -8,6 +8,7 @@
   },
   "full_after_days": 7,
   "systems": {
+    "world_guidance": {"label":"Pure world interaction guidance, warnings and session labels", "files":["ui/gameplay/world_guidance.gd"]},
     "guest_replication": {"label":"Accepted guest state, health reconciliation, owner details and transient events", "files":["guest_replication.gd","guest_replication_world.gd"]},
     "combat_builds": {"label":"Shared resolved native, basic, class and preview values", "files":["resolved_combat_build.gd"]},
     "weapon_attacks": {"label":"Owned ordinary-attack launch, release, projectile lifecycle and rollback", "files":["weapon_attack_queue.gd","weapon_attack_world.gd"]},
@@ -1324,7 +1325,7 @@
       "foundation",
       "encounter_roster"
     ],
-    "_process": ["foundation", "affinity_cards", "class_balance", "combat_builds"],
+    "_process": ["foundation", "affinity_cards", "class_balance", "combat_builds", "world_guidance"],
     "living_scout_count": [
       "enemies",
       "encounter_roster"
@@ -1601,6 +1602,7 @@
     ]
   },
   "suites": {
+    "world_guidance": {"kind":"unit", "systems":["world_guidance","gameplay_ui","presentation","party_ui","life","garden"], "package":false},
     "guest_replication": {"kind":"unit", "systems":["guest_replication","world_snapshot","presentation","connection_flow","network_session","life"], "package":false},
     "world_replication": {"kind":"unit", "systems":["world_snapshot","connection_flow","presentation","network_session","affinity_cards","expedition_grafts","player_vitals","classes","items","life"], "package":false},
     "resolved_combat_build": {"kind":"unit", "systems":["combat_builds","classes","weapons","affinity_cards","expedition_grafts","player_build_ui","player_cooldowns","life","core_combat","ability_aim"], "package":false},
@@ -5215,50 +5217,19 @@
         "additive": true
       }
     },
-    "_process": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"], "additive": true}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"], "additive": true}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"], "additive": true}, "ar07_vitals_1": {"systems": ["player_vitals"], "additive": true}, "ar07_vitals_2": {"systems": ["player_vitals"], "additive": true}, "ar07_vitals_3": {"systems": ["player_vitals"], "additive": true}, "ar06_cooldown_1": {"systems": ["player_cooldowns"], "additive": true},  "ar06_cooldown_3": {"systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_4": {"systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_5": {"systems": ["player_cooldowns"], "additive": true},   "ec01_1": {"systems": ["affinity_cards"], "additive": true},  "ct01_1": {
+    "_process": {  "ar08_lifecycle_3": {"systems": ["player_lifecycle"], "additive": true}, "ar07_vitals_1": {"systems": ["player_vitals"], "additive": true},  "ar07_vitals_3": {"systems": ["player_vitals"], "additive": true}, "ar06_cooldown_1": {"systems": ["player_cooldowns"], "additive": true},  "ar06_cooldown_3": {"systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_4": {"systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_5": {"systems": ["player_cooldowns"], "additive": true},     "ct01_1": {
         "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
         "additive": true
       }, "cr04c_void_hud_0": {
         "systems": ["void_affinity", "combat_affinity_contracts", "world_snapshot", "presentation"],
         "additive": true
-      }, "cr02_affinity_contract": {"additive": true, "systems": ["combat_affinity_contracts"]},  "experimental_seed_rewards_1": {
-        "systems": [
-          "hex_terrain",
-          "loot",
-          "terrain"
-        ],
-        "additive": true
-      }, "experimental_gate_visibility": {
+      },    "experimental_gate_visibility": {
         "systems": [
           "hex_terrain",
           "terrain"
         ],
         "additive": true
-      },  "experimental_terrain_3": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "garden",
-          "persistence_operations"
-        ],
-        "additive": true
-      }, "experimental_terrain_5": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "garden",
-          "persistence_operations"
-        ],
-        "additive": true
-      }, "experimental_terrain_7": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "garden",
-          "persistence_operations"
-        ],
-        "additive": true
-      },    "guarded_session_heartbeat": {
+      },        "guarded_session_heartbeat": {
         "additive": true,
         "systems": [
           "persistence_operations",
@@ -5272,7 +5243,7 @@
           "menus",
           "connection_flow"
         ]
-      },   "preview_revive_prompt": {"systems": ["combat_balance_preview"], "additive": true}, "render_glasscap_copies": {
+      },    "render_glasscap_copies": {
         "systems": [
           "glasscap_feints"
         ],
@@ -5307,12 +5278,7 @@
         "systems": [
           "thief_escape"
         ]
-      },  "host_show_port_only": {
-        "additive": true,
-        "systems": [
-          "connection_flow"
-        ]
-      },    "warden_skill_hud_readout": {
+      },      "warden_skill_hud_readout": {
         "additive": true,
         "systems": [
           "warden_progression"
@@ -5337,17 +5303,7 @@
         "systems": [
           "core_combat"
         ]
-      }, "prefer_nearest_gate_prompt": {
-        "systems": [
-          "gate_access"
-        ],
-        "additive": true
-      },     "growth_balance": {
-        "systems": [
-          "cultivation_growth"
-        ],
-        "additive": true
-      }, "party_panel": {
+      },       "party_panel": {
         "systems": [
           "party_ui"
         ]
@@ -5355,11 +5311,6 @@
         "systems": [
           "gate_access"
         ]
-      }, "garden_prompt": {
-        "systems": [
-          "garden_observations"
-        ],
-        "additive": true
       }},
     "can_checkpoint_bank": {
       "gate_range": {

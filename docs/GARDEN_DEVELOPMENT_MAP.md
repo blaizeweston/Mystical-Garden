@@ -4,6 +4,8 @@ Updated: 2026-11-10 · Status: G-01 through G-07 implemented and packaged; G-08 
 
 Read [the milestone objectives](GARDEN_MILESTONES.md) for the next task and progress. The [mechanics/test map](MECHANICS_TEST_MAP.md) describes implemented systems; this document separates implemented observation/spring/relationship/cultivation boundaries from proposed later Garden mechanics. See [Garden observation authoring](GARDEN_INTERACTIONS.md) for the current modules, schema and evidence.
 
+Base interaction text and prompt priority now live in `ui/gameplay/world_guidance.gd`, which takes detached display facts. Custom crop/station/observation overrides remain with their existing views/services. This presentation extraction does not change the Garden milestone queue or implement the planned spring replacement.
+
 ## Intended experience
 
 Bring something home → notice a change → explore or cultivate a possibility → discover how to use it → test the result in the Wilds.

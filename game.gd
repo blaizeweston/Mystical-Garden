@@ -52,6 +52,7 @@ const ReplicationSource = preload("res://world_replication_source.gd")
 var replication := WorldReplication.new()
 var replication_source := ReplicationSource.new(self)
 var network_dialog: Window
+const WorldGuidance = preload("res://ui/gameplay/world_guidance.gd")
 const AppSettings=preload("res://app_settings.gd")
 const MouseCombat=preload("res://mouse_combat.gd")
 var app_settings:=AppSettings.new()
@@ -2265,97 +2266,44 @@ func _process(_delta: float) -> void:
 	preload("res://glasscap_visuals.gd").sync(stage,observer,exploration.SIGHT)
 	var carried: int = p.carried_seeds.size() if multiplayer.is_server() and wild else guest_replication.carried_count()
 	var health := PlayerVitals.current_hp(p)
-	var prompt := ""
-	var details := ""
-	var session_text := ""
-	if wild:
-		if not encounter_cleared():
-			var pack := rendered_pack
-			var hatching: bool=tactics.boss_kind==22 and warnings.any(func(hint):return hint.role=="nursery_exit")
-			var warning := not hatching and tactics.winding_up and (tactics.landing if tactics.attack_mode == "vault" else tactics.position).distance_to(p.pos) < LeaderBehavior.strike_radius(self) + 0.7
-			for i in range(2, pack.size(), PACK_STRIDE):
-				var impact := Vector3(pack[i + 4], 0, pack[i + 5])
-				var slot := (i - 2) / PACK_STRIDE
-				var code := campaign_state[19 + slot] if campaign_state.size() > 19 + slot else 0
-				var form := Enemies.decode(code)
-				var radius := Enemies.radius(int(form.kind), int(form.mask))
-				warning = warning or (Enemies.get_kind(form.kind).role != "chant" and pack[i] > 0.0 and pack[i + 1] > 0.0 and impact.distance_to(p.pos) < radius + 0.7)
-			for hint in warnings:
-				if hint.role=="charge":
-					var a:=Vector3(hint.from[0],0,hint.from[2]);var b:=Vector3(hint.to[0],0,hint.to[2])
-					warning=warning or p.pos.distance_to(Geometry3D.get_closest_point_to_segment(p.pos,a,b))<=float(hint.width)+.4
-			prompt = "Dodge out of the marked attack!" if warning else "Stand at a hatch site to block it." if hatching else ""
-		elif visible_drop:
-			prompt = "E  Collect seeds"
-		else:
-			if participation.depth() < route_rooms():
-				prompt = "E  Continue"
-			else:
-				prompt = "Continue to %s" % Campaign.NAMES[(participation.route() + 1) % Campaign.HEART]
-		var last_offer := AffinityCards.completed_floor(p) if multiplayer.is_server() else int(p.get("last_offer", 0))
-		if upgrade_checkpoint_open() and last_offer != participation.floor():
-			prompt="E  Choose an upgrade" if visual_field.advance.distance_to(p.pos)<=preload("res://gate_interaction.gd").RANGE else "Upgrades await at the gate"
-		if extraction_checkpoint_open() and visual_field.advance.distance_to(p.pos) <= preload("res://gate_interaction.gd").RANGE:
-			prompt = "E  Continue    ·    T  Extract to the Garden"
-			details = "Extract or continue."
-			if last_offer != participation.floor():
-				details += "\nE  Choose an upgrade   ·   %d Essence" % (run_wallet(p) if multiplayer.is_server() else int(p.get("wallet", 0)))
-		if visual_field.has_seed_cache() and not p.get("cache_claimed", false) and (
-				visual_field.cache.distance_to(p.pos) <= 1.55 and participation.route() != Campaign.HEART):
-			prompt = "E  Search the abandoned clearing"
-		if graft_altar_open() and visual_field.graft.distance_to(p.pos) <= 1.65 and preload("res://gate_interaction.gd").shrine_preferred(visual_field,p.pos):
-			prompt="E  Grafting Altar"
-			var improvements: Dictionary = preload("res://expedition_grafts.gd").owner_details(p, participation.floor()) if multiplayer.is_server() else p.get("graft_improvements",{})
-			details="Altar used" if improvements.get("used",false) else "Spend a carried trophy on an expedition improvement."
-			if improvements.has("remaining"):
-				details += " · %d remaining" % int(improvements.remaining)
-		session_text = "%s  ·  %d player(s)" % [network_session.role(), players.size()]
-	else:
-		prompt = ""
+	var garden_facts := {}
 	if not wild:
 		var garden := garden_snapshot() if multiplayer.is_server() else guest_replication.garden_progress()
-		var near_gate := stage.gate_position().distance_to(p.get("pos", Vector3.ZERO)) <= preload("res://gate_interaction.gd").RANGE
-		var slot := nearby_plot(p.get("pos", Vector3.ZERO))
+		var slot := nearby_plot(p.get("pos",Vector3.ZERO))
 		var beds := Progress.decode_plots(garden[12])
-		if slot >= 0 and slot < beds.size():
-			var bed: Dictionary = beds[slot]
-			if bed.species >= 0:
-				prompt = "E  Harvest %s" % ("seed" if bed.flowering else "crafting parts") if bed.stage == 3 else "%s · %s" % [Progress.PLANT_NAMES[bed.species], ["Seed", "Sprout", "Young", "Mature"][bed.stage]]
-				if bed.flowering and bed.stage < 3:
-					prompt += " · Seed crop"
-				if garden[2] and not bed.flowering:
-					prompt += "  |  F  Harvest seeds instead" if int(bed.stage)==3 else "  |  Seeds can be harvested when mature"
-			else:
-				prompt = "Living offshoot · care at the Heart" if int(bed.get("offshoot",-1))>=0 else "E  Choose a seed to plant"
-		elif stage.altar_position().distance_to(p.get("pos", Vector3.ZERO)) <= 1.65:
-			prompt="E  Altar"
-			details="Identify seeds · Combine seeds or plant parts"
-		elif near_gate:
-			prompt="E  Wilds Gate"
-		elif at_heart(p):
-			prompt="E  Heart"
-			if stage.experimental_garden != null: prompt += "   ·   B  Garden development"
-
-	if wild and can_checkpoint_bank(p):
-		details+="\nJ · Send one carried find home"
-	var garden_prompt: String = get_node("GardenInteractions").context_prompt(p)
-	if not garden_prompt.is_empty(): prompt = garden_prompt
+		garden_facts={"bed":beds[slot].duplicate(true) if slot>=0 and slot<beds.size() else {},
+			"flowering_unlocked":bool(garden[2]),"near_altar":stage.altar_position().distance_to(p.get("pos",Vector3.ZERO))<=1.65,
+			"near_gate":stage.gate_position().distance_to(p.get("pos",Vector3.ZERO))<=preload("res://gate_interaction.gd").RANGE,
+			"near_heart":at_heart(p),"development":stage.experimental_garden!=null,
+			"ending":ending_message(campaign_state[5]),"deepest_clear":campaign_state[12],"best_extraction":campaign_state[13]}
+	var garden_prompt: String=get_node("GardenInteractions").context_prompt(p)
 	var rescue_id:=Life.nearest(self,p)
+	var rescue := {}
 	if rescue_id!=0:
 		var ally: Dictionary=players[rescue_id]
-		var can_revive:=Life.Vitals.can_revive(PlayerVitals.maximum_hp(ally,Life.Preview.hp(MAX_HEALTH)),Life.Preview.scale())
-		var cost: String="%d maximum HP"%Life.Preview.revive_cost()
-		prompt="E  Revive %s · costs them %s"%[ally.get("display_name",ally.get("character",{}).get("name","ally")),cost] if can_revive else "This ally has too little maximum health to revive."
-	if PlayerLifecycle.fallen(p) and wild: prompt="Fallen · awaiting revival"
+		rescue={"name":ally.get("display_name",ally.get("character",{}).get("name","ally")),
+			"allowed":Life.Vitals.can_revive(PlayerVitals.maximum_hp(ally,Life.Preview.hp(MAX_HEALTH)),Life.Preview.scale()),"cost":Life.Preview.revive_cost()}
 	var ground_id:=nearest_inventory_drop(p) if multiplayer.is_server() else nearest_visible_inventory_drop(p)
-	if not ground_id.is_empty() and rescue_id==0 and not PlayerLifecycle.fallen(p): prompt="E  Pick up item"
+	var near_graft: bool=wild and graft_altar_open() and visual_field.graft.distance_to(p.pos)<=1.65 and preload("res://gate_interaction.gd").shrine_preferred(visual_field,p.pos)
+	var improvements: Dictionary=(preload("res://expedition_grafts.gd").owner_details(p,participation.floor()) if multiplayer.is_server() else p.get("graft_improvements",{})) if near_graft else {}
+	var context: Dictionary=WorldGuidance.project({"wild":wild,"position":p.get("pos",Vector3.ZERO),"fallen":PlayerLifecycle.fallen(p),
+		"floor":participation.floor(),"depth":participation.depth(),"route":participation.route(),"rooms":route_rooms(),
+		"role":network_session.role(),"party_size":players.size(),"host_port":network_session.port() if network_session.role()=="Host" else 0,
+		"cleared":encounter_cleared(),"visible_drop":visible_drop,
+		"leader":{"boss_kind":tactics.boss_kind,"winding_up":tactics.winding_up,"landing":tactics.landing,"attack_mode":tactics.attack_mode,"position":tactics.position,"radius":LeaderBehavior.strike_radius(self)},
+		"scouts":rendered_pack,"campaign":campaign_state,"warnings":warnings,
+		"gate_distance":visual_field.advance.distance_to(p.get("pos",Vector3.ZERO)),"upgrade_open":wild and upgrade_checkpoint_open(),"extraction_open":wild and extraction_checkpoint_open(),
+		"offer_floor":(AffinityCards.completed_floor(p) if multiplayer.is_server() else int(p.get("last_offer",0))) if wild else 0,
+		"wallet":(run_wallet(p) if multiplayer.is_server() else int(p.get("wallet",0))) if wild else 0,
+		"cache_near":wild and visual_field.has_seed_cache() and not p.get("cache_claimed",false) and visual_field.cache.distance_to(p.pos)<=1.55 and participation.route()!=Campaign.HEART,
+		"graft_near":near_graft,"improvements":{"used":improvements.get("used",false),"remaining":improvements.remaining} if improvements.has("remaining") else {"used":improvements.get("used",false)},
+		"garden":garden_facts,"courier":wild and can_checkpoint_bank(p),"garden_prompt":garden_prompt,"rescue":rescue,"pickup":not ground_id.is_empty()})
+	var prompt: String=context.prompt
+	var details: String=context.details
+	var session_text: String=context.session_text
 	if multiplayer.is_server() and not participation.active(): consider_recollection()
 	refresh_feedback()
 
-	if not wild:
-		var ending := ending_message(campaign_state[5])
-		session_text = ending if not ending.is_empty() else "%s  |  %d player(s)" % [network_session.role(), players.size()]
-		session_text += "\nDeepest clear %d  ·  Best extraction %d" % [campaign_state[12], campaign_state[13]]
 	var shared := garden_snapshot() if multiplayer.is_server() else guest_replication.garden_progress()
 	stage.update_plots(Progress.decode_plots(shared[12]))
 	stage.update_heart_progress(heart_state())
@@ -2378,7 +2326,6 @@ func _process(_delta: float) -> void:
 		quake_prepared=warden.prepared_until(self,p,CombatClock.now())>0 if host_side else bool(p.get("warden_quake_prepared",false))
 		if quake_prepared:skill_tips[1]+="\nQuake prepared."
 	var ready_dodge := (local_timers == null or local_timers.ready(Cooldowns.DODGE, cooldown_now)) if host_side else bool(p.get("dodge_ready", false))
-	if network_session.role()=="Host": session_text+="\nHosting on UDP %d"%network_session.port()
 	ui.present_menu({"session_text":"Developer Garden · Single player" if has_meta("developer_garden") else session_text,
 		"role":network_session.role(),"can_host":not has_meta("developer_garden") and network_session.role() in ["Host","Solo"] and not (network_session.role()=="Solo" and wild),
 		"can_join":not has_meta("developer_garden") and network_session.role()=="Solo" and not wild,

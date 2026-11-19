@@ -142,14 +142,8 @@
       }
     },
     "_process": {
-      "ar08_lifecycle_1": {
-        "match": "\tif PlayerLifecycle.fallen(p) and wild: prompt=\"Fallen \u00b7 awaiting revival\"\n",
-        "baseline": "\tif p.get(\"fallen\",false) and wild: guide.text=\"Fallen \u00b7 awaiting revival\"\n"
-      },
-      "ar08_lifecycle_2": {
-        "match": "\tif not ground_id.is_empty() and rescue_id==0 and not PlayerLifecycle.fallen(p): prompt=\"E  Pick up item\"\n",
-        "baseline": "\tif not ground_id.is_empty() and rescue_id==0 and not p.get(\"fallen\",false): guide.text=\"E  Pick up item\"\n"
-      },
+
+
       "ar08_lifecycle_3": {
         "match": "\t\t\"damage_flash\":maxf(0,(int(p[Conditions.STATE].grace_until_ms() if host_side else p.get(\"client_hurt_until\",0))-CombatClock.now())/250.0),\"hp\": health, \"max_hp\": PlayerVitals.maximum_hp(p,MAX_HEALTH), \"lost_health\":p.get(\"lost_health\",0),\"fallen\":PlayerLifecycle.fallen(p), \"wild\": wild, \"frame\": p.get(\"frame\", 0),\n",
         "baseline": "\t\t\"damage_flash\":maxf(0,(int(p.get(\"hurt_until\",0) if host_side else p.get(\"client_hurt_until\",0))-Time.get_ticks_msec())/250.0),\"hp\": health, \"max_hp\": PlayerVitals.maximum_hp(p,MAX_HEALTH), \"lost_health\":p.get(\"lost_health\",0),\"fallen\":p.get(\"fallen\",false), \"wild\": wild, \"frame\": p.get(\"frame\", 0),\n"
@@ -158,10 +152,7 @@
         "match": "\tvar health := PlayerVitals.current_hp(p)\n",
         "baseline": "\tvar health: float = p.get(\"hp\", 0)\n"
       },
-      "ar07_vitals_2": {
-        "match": "\t\tvar can_revive:=Life.Vitals.can_revive(PlayerVitals.maximum_hp(ally,Life.Preview.hp(MAX_HEALTH)),Life.Preview.scale())\n",
-        "baseline": "\t\tvar can_revive:=Life.Vitals.can_revive(int(ally.get(\"max_hp\",Life.Preview.hp(MAX_HEALTH))),Life.Preview.scale())\n"
-      },
+
       "ar07_vitals_3": {
         "match": "\t\t\"damage_flash\":maxf(0,(int(p.get(\"hurt_until\",0) if host_side else p.get(\"client_hurt_until\",0))-Time.get_ticks_msec())/250.0),\"hp\": health, \"max_hp\": PlayerVitals.maximum_hp(p,MAX_HEALTH), \"lost_health\":p.get(\"lost_health\",0),\"fallen\":p.get(\"fallen\",false), \"wild\": wild, \"frame\": p.get(\"frame\", 0),\n",
         "baseline": "\t\t\"damage_flash\":maxf(0,(int(p.get(\"hurt_until\",0) if host_side else p.get(\"client_hurt_until\",0))-Time.get_ticks_msec())/250.0),\"hp\": health, \"max_hp\": p.get(\"max_hp\", MAX_HEALTH), \"lost_health\":p.get(\"lost_health\",0),\"fallen\":p.get(\"fallen\",false), \"wild\": wild, \"frame\": p.get(\"frame\", 0),\n"
@@ -182,39 +173,21 @@
         "match": "\tvar ready_dodge := (local_timers == null or local_timers.ready(Cooldowns.DODGE, cooldown_now)) if host_side else bool(p.get(\"dodge_ready\", false))\n",
         "baseline": "\tvar ready_dodge := Time.get_ticks_msec() >= int(p.get(\"dodge_at\", 0)) if host_side else bool(p.get(\"dodge_ready\", false))\n"
       },
-      "ec01_1": {
-        "match": "\t\t\tif last_offer != participation.floor():\n\t\t\t\tdetails += \"\\nE  Choose an upgrade   \u00b7   %d Essence\" % (run_wallet(p) if multiplayer.is_server() else int(p.get(\"wallet\", 0)))\n\t\tif visual_field.has_seed_cache() and not p.get(\"cache_claimed\", false) and (\n",
-        "baseline": "\t\t\tif p.get(\"last_offer\", 0) != participation.floor():\n\t\t\t\tdetail_label.text += \"\\nE  Review next-floor readiness\" if has_meta(&\"combat_affinity_ruleset\") else \"\\nE  Choose upgrade cards   \u00b7   %d essence available\" % (run_wallet(p) if multiplayer.is_server() else int(p.get(\"wallet\", 0)))\n\t\tif visual_field.has_seed_cache() and not p.get(\"cache_claimed\", false) and (\n"
-      },
+
       "ct01_1": {"match": "\tvar second_ready: bool=Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)) if host_side else bool(p.get(\"skill_two_ready\",false))\n\tvar resolved := combat_build(p,not wild)\n\tvar skills: Array=resolved.class_skills()\n\tvar has_resolved_skills: bool=skills.size()==2 and not skills.any(func(skill): return skill.is_empty())\n\tif not has_resolved_skills:\n\t\tskills=[Skills.resolve_in_world(self,int(p.get(\"frame\",0)),0,p.get(\"character\",guest_character.data)),\n\t\t\tSkills.resolve_in_world(self,int(p.get(\"frame\",0)),1,p.get(\"character\",guest_character.data))]\n\tvar cooldowns: Array=[maxf(0,(int(p.get(\"skill_at\",0))-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)] if host_side else p.get(\"skill_cooldowns\",[0.0,0.0])\n", "baseline": "\tvar second_ready: bool=Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)) if host_side else bool(p.get(\"skill_two_ready\",false))\n\tvar skills: Array=[Skills.resolve(int(p.get(\"frame\",0)),0,p.get(\"character\",guest_character.data)),Skills.resolve(int(p.get(\"frame\",0)),1,p.get(\"character\",guest_character.data))]\n\tvar cooldowns: Array=[maxf(0,(int(p.get(\"skill_at\",0))-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)] if host_side else p.get(\"skill_cooldowns\",[0.0,0.0])\n"},
       "cr04c_void_hud_0": {
         "match": "\t\t\"skill_tooltips\":skill_tips,\n\t\t\"affinity_feedback\":preload(\"res://combat_status.gd\").affinity_feedback(self,p) if host_side and wild else str(p.get(\"affinity_feedback\",\"\")) if wild else \"\",\n\t\t\"carried\": carried if wild else data[0],\n",
         "baseline": "\t\t\"skill_tooltips\":skill_tips,\n\t\t\"carried\": carried if wild else data[0],\n"
       },
-      "cr02_affinity_contract": {
-        "match": "\t\t\t\tdetail_label.text += \"\\nE  Review next-floor readiness\" if has_meta(&\"combat_affinity_ruleset\") else \"\\nE  Choose upgrade cards   \u00b7   %d essence available\" % (run_wallet(p) if multiplayer.is_server() else int(p.get(\"wallet\", 0)))\n",
-        "baseline": "\t\t\t\tdetail_label.text += \"\\nE  Choose upgrade cards   \u00b7   %d essence available\" % (run_wallet(p) if multiplayer.is_server() else int(p.get(\"wallet\", 0)))\n"
-      },
-      "experimental_seed_rewards_1": {
-        "match": "\t\tif visual_field.has_seed_cache() and not p.get(\"cache_claimed\", false) and (\n",
-        "baseline": "\t\tif visual_field.procedural and not p.get(\"cache_claimed\", false) and (\n"
-      },
+
+
       "experimental_gate_visibility": {
         "match": "\tstage.apply_exploration_sight(observer, wild, exploration.SIGHT,\n\t\texploration.seen(visual_field.advance) if is_instance_valid(stage.experimental_exit) else true)\n",
         "baseline": "\tstage.apply_exploration_sight(observer, wild, exploration.SIGHT)\n"
       },
-      "experimental_terrain_3": {
-        "match": "\t\tvar near_gate := stage.gate_position().distance_to(p.get(\"pos\", Vector3.ZERO)) <= preload(\"res://gate_interaction.gd\").RANGE\n",
-        "baseline": "\t\tvar near_gate := Stage.GATE.distance_to(p.get(\"pos\", Vector3.ZERO)) <= preload(\"res://gate_interaction.gd\").RANGE\n"
-      },
-      "experimental_terrain_5": {
-        "match": "\t\telif stage.altar_position().distance_to(p.get(\"pos\", Vector3.ZERO)) <= 1.65:\n",
-        "baseline": "\t\telif Stage.ALTAR.distance_to(p.get(\"pos\", Vector3.ZERO)) <= 1.65:\n"
-      },
-      "experimental_terrain_7": {
-        "match": "\t\t\tif stage.experimental_garden != null: prompt += \"   \u00b7   B  Garden development\"\n",
-        "baseline": ""
-      },
+
+
+
       "guarded_session_heartbeat": {
         "match": "\tif persistence_session.is_guarded() and not returning_to_title:\n\t\tvar owner = persistence_session\n\t\tvar renewal: Dictionary = owner.tick()\n\t\tif renewal.error != OK:\n\t\t\t_stop_guarded_session(\"This session lost access to its save. Returning to the title.\")\n\t\t\treturn\n",
         "baseline": ""
@@ -224,10 +197,7 @@
         "baseline": "\tif (slot_claimed or character_slot_claimed) and Time.get_unix_time_from_system() - slot_heartbeat_at >= 1.0:"
       },
 
-      "preview_revive_prompt": {
-        "match": "\t\tvar can_revive:=Life.Vitals.can_revive(int(ally.get(\"max_hp\",Life.Preview.hp(MAX_HEALTH))),Life.Preview.scale())\n\t\tvar cost: String=\"%d maximum HP\"%Life.Preview.revive_cost()\n\t\tprompt=\"E  Revive %s \u00b7 costs them %s\"%[ally.get(\"display_name\",ally.get(\"character\",{}).get(\"name\",\"ally\")),cost] if can_revive else \"This ally has too little maximum health to revive.\"",
-        "baseline": "\t\tguide.text=\"E  Revive %s \u00b7 costs them 1 maximum heart\"%ally.get(\"display_name\",ally.get(\"character\",{}).get(\"name\",\"ally\")) if int(ally.get(\"max_hp\",10))>=4 else \"This ally has no full heart left to sacrifice.\""
-      },
+
       "render_glasscap_copies": {
         "match": "\tstage.apply_exploration_sight(observer, wild, exploration.SIGHT)\n\tpreload(\"res://glasscap_visuals.gd\").sync(stage,observer,exploration.SIGHT)",
         "baseline": "\tstage.apply_exploration_sight(observer, wild, exploration.SIGHT)"
@@ -256,10 +226,7 @@
         "match": "\texploration.thief_routes=preload(\"res://thief_escape.gd\").map_routes(self,p) if wild else []\n\texploration.update_floor(stage.visual_field, \"%d:%d:%d\" % [participation.route(), participation.floor(), participation.seed()],",
         "baseline": "\texploration.update_floor(stage.visual_field, \"%d:%d:%d\" % [participation.route(), participation.floor(), participation.seed()],"
       },
-      "host_show_port_only": {
-        "match": "\tif network_session.role()==\"Host\": session_text+=\"\\nHosting on UDP %d\"%network_session.port()",
-        "baseline": "\tif network_session.role()==\"Host\": session_label.text+=\"\\nUDP %d \u00b7 LAN: %s\"%[network_session.port(),\", \".join(Network.lan_addresses())]"
-      },
+
       "warden_skill_hud_readout": {
         "match": "\t\t\"skill_ready\": ready_skill,\"skill_two_ready\":second_ready,\"skill_names\":[skills[0].name,skills[1].name+(\" \u2022\" if quake_prepared else \"\")],\"skill_cooldowns\":cooldowns, \"dodge_ready\": ready_dodge,\n\t\t\"core\":preload(\"res://core_combat.gd\").hud_state(self,p),\n\t\t\"skill_tooltips\":skill_tips,\n",
         "baseline": "\t\t\"skill_ready\": ready_skill,\"skill_two_ready\":second_ready,\"skill_names\":[skills[0].name,skills[1].name],\"skill_cooldowns\":cooldowns, \"dodge_ready\": ready_dodge,\n\t\t\"core\":preload(\"res://core_combat.gd\").hud_state(self,p),\n\t\t\"skill_tooltips\":[skills[0].name+\"\\n\"+skills[0].description,skills[1].name+\"\\n\"+skills[1].description],\n"
@@ -277,14 +244,8 @@
         "baseline": "\t\t\"carried\": carried if wild else data[0],\n"
       },
       "core_stale_terrain": {"match": "\tif not multiplayer.is_server() and guest_replication.details_key()!=str([participation.route(),participation.floor(),participation.seed()]):\n\t\twarnings=warnings.filter(func(hint): return hint.role not in [\"core_thorns\",\"core_anchor\"])\n\tstage.set_meta(\"enemy_attack_poses\",preload(\"res://enemy_attack.gd\").poses(warnings))\n", "baseline": "\tstage.set_meta(\"enemy_attack_poses\",preload(\"res://enemy_attack.gd\").poses(warnings))\n"},
-      "prefer_nearest_gate_prompt": {
-        "match": "\t\tif graft_altar_open() and visual_field.graft.distance_to(p.pos) <= 1.65 and preload(\"res://gate_interaction.gd\").shrine_preferred(visual_field,p.pos):",
-        "baseline": "\t\tif graft_altar_open() and visual_field.graft.distance_to(p.pos) <= 1.65:"
-      },
-      "growth_balance": {
-        "match": "\t\t\t\t\tprompt += \"  |  F  Harvest seeds instead\" if int(bed.stage)==3 else \"  |  Seeds can be harvested when mature\"",
-        "baseline": "\t\t\t\t\tguide.text += \"  |  F  Grow seeds instead\""
-      },
+
+
       "party_panel": {
         "match": "\"party\":preload(\"res://party_hud.gd\").members(players,local_id),",
         "baseline": ""
@@ -292,10 +253,6 @@
       "gate_range": {
         "match": "preload(\"res://gate_interaction.gd\").RANGE",
         "baseline": "1.65"
-      },
-      "garden_prompt": {
-        "match": "\tvar garden_prompt: String = get_node(\"GardenInteractions\").context_prompt(p)\n\tif not garden_prompt.is_empty(): prompt = garden_prompt\n\tvar rescue_id:=Life.nearest(self,p)\n",
-        "baseline": "\tvar rescue_id:=Life.nearest(self,p)\n"
       }
     },
     "can_checkpoint_bank": {
