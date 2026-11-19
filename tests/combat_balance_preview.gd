@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
@@ -95,10 +96,10 @@ func verify_health_pool_layout(game: Node, player: Dictionary) -> void:
 	check(hud.pool_vitals.text == "54 / 80 HP" and hud.pool_capacity.text == "−20 max HP", "main orb reads health and sealed capacity")
 	var material := orb.material as ShaderMaterial
 	check(is_equal_approx(material.get_shader_parameter("health"), .54) and is_equal_approx(material.get_shader_parameter("capacity"), .8), "liquid and sealed levels share the correct scale")
-	game.exploration.expanded = true
+	WorldViewCase.component(game,"map").expanded = true
 	game._process(.016)
 	check(orb.get_rect().end.y < chart_script.chart_bounds(hud.size, true).position.y, "expanded map clears the main orb")
-	game.exploration.expanded = false
+	WorldViewCase.component(game,"map").expanded = false
 	ExpeditionCase.set_membership(game, player, false)
 	game._process(.016)
 	check(orb.get_rect().end.x > compact.end.x - 8, "Garden places the orb in the lower-right corner")

@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
@@ -30,7 +31,7 @@ func run():
  for kind in seen:
   check(not Elite.empowered(kind).is_empty(),"every elite has a named signature: "+str(kind))
  var game=load("res://world.tscn").instantiate();var token:=str(Time.get_ticks_usec());game.progress.path="res://.godot/elites-"+token;game.local_character.path=game.progress.path+".character";root.add_child(game)
- game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
+ game.set_process(false);game.set_physics_process(false);WorldViewCase.component(game,"combat").set_process(false)
  var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,.8);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100)
  game.battlefield.configure(0,1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);game.tactics.boss_kind=-1;ExpeditionCase.set_world(game, {"destination": 0})
  for kind in seen:

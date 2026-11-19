@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -121,7 +122,7 @@ func guest_lair(kind: int, id: int) -> void:
   check(field.clear_line(first,second,.34),"alternate causeway is navigable on guest")
  mark("warning-"+str(kind))
  if kind==Routes.ORCHARD:
-  check(await until(func():return game.combat_visuals.statuses.active.values().any(func(status):return status.label.text=="Uprooting")),"guest sees the uprooting window")
+  check(await until(func():return WorldViewCase.component(game,"combat").statuses.active.values().any(func(status):return status.label.text=="Uprooting")),"guest sees the uprooting window")
  else:
   check(await until(func():return game.players[id].get("attack_hints",[]).any(func(h):
    return h.role=="hazard" and h.get("active",false) and h.get("lair","")=="water" and h.to==hint.to and h.radius==hint.radius)),"guest's active tide matches its warning")
@@ -145,9 +146,9 @@ func guest_cage(id: int) -> void:
  for side in [-1,1]:
   var exit: Vector3=center+direction*(2.8*side)
   check(field.clear_line(center,exit,.34) and not Orchard.inside_cage(center,direction,exit,hint.radius,hint.inner,hint.span,.32),"guest sees a walkable gap")
- check(await until(func():return game.combat_visuals.hints.has(hint.id)),"guest renderer creates the cage hint")
+ check(await until(func():return WorldViewCase.component(game,"combat").hints.has(hint.id)),"guest renderer creates the cage hint")
  mark("cage-warning")
- check(await until(func():return game.combat_visuals.active.values().any(func(effect):
+ check(await until(func():return WorldViewCase.component(game,"combat").active.values().any(func(effect):
   var event: Dictionary=effect.event
   if event.shape!="orchard_cage":return false
   var impact_center:=Vector3(event.from[0],event.from[1],event.from[2])
@@ -230,7 +231,7 @@ func guest_memory(id: int) -> void:
  mark("memory-growth")
  check(await until(func():return game.players[id].get("attack_hints",[]).filter(func(h):return h.role=="charge" and h.get("lair","")=="memory").size()==2),"guest gets both split rend footprints")
  mark("memory-lanes")
- check(await until(func():return game.combat_visuals.statuses.active.values().any(func(s):return s.label.text=="Memory exposed")),"guest gets the exposed status")
+ check(await until(func():return WorldViewCase.component(game,"combat").statuses.active.values().any(func(s):return s.label.text=="Memory exposed")),"guest gets the exposed status")
  mark("memory-exposed")
  check(await until(func():return game.tactics.boss_phase==1 and game.stage.foe_model.get("memory_key","")=="burst:1"),"guest shows the spore crown in phase one")
  check(model.get_children().filter(func(node):return node.name=="MemoryGrowth").size()==1,"only one phase growth stays on the model")

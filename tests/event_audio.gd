@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -83,7 +84,7 @@ func verify_world(game: Node, mix: Node) -> void:
 	clears = game.combat_events.filter(func(e):return e.kind=="audio")
 	check(clears.size()==2 and clears[1].shape=="extract_ready","extraction replaces the ordinary cue at its checkpoint")
 	game._process(.016)
-	check(game.combat_visuals.active.values().all(func(fx):return fx.event.kind!="audio"),"audio cues never instantiate combat visuals")
+	check(WorldViewCase.component(game,"combat").active.values().all(func(fx):return fx.event.kind!="audio"),"audio cues never instantiate combat visuals")
 
 
 func run() -> void:

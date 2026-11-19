@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
 
@@ -324,8 +325,8 @@ func guest_run(menu: Node) -> void:
 			and not preload("res://core_combat.gd").cast_key(game,game.players[game.local_player_id()]).is_empty())
 	if not check(await until(first_floor_ready), "guest receives the actual first floor and current action identity"):
 		return
-	check(floor_identity(game.stage.visual_field) == read("floor") and game.exploration.fog.visible
-		and not game.exploration.seen(game.stage.visual_field.advance), "matching waterways/routes and unexplored Gate")
+	check(floor_identity(game.stage.visual_field) == read("floor") and WorldViewCase.component(game,"map").fog.visible
+		and not WorldViewCase.component(game,"map").seen(game.stage.visual_field.advance), "matching waterways/routes and unexplored Gate")
 	mark("guest-floor")
 	Input.action_press("right")
 	await create_timer(0.45).timeout

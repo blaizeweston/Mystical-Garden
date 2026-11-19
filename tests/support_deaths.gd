@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
 
@@ -13,7 +14,7 @@ func run():
  var game=load("res://world.tscn").instantiate()
  var token=Crypto.new().generate_random_bytes(8).hex_encode()
  game.progress.path="res://.godot/death_test_"+token+".cfg";game.local_character.path=game.progress.path+".character"
- root.add_child(game);game.set_process(false);game.set_physics_process(false);game.death_visuals.set_process(false)
+ root.add_child(game);game.set_process(false);game.set_physics_process(false);WorldViewCase.component(game,"deaths").set_process(false)
  var p: Dictionary=game.players[1]
  var supports:=0
  var rosters: Dictionary={}
@@ -70,30 +71,30 @@ func run():
  OutgoingHits.hit_world(game, HitSession.peer_for(p), -1, p.pos, game.weapon_stats(p), now)
  check(game.enemy_health()==0 and game.enemy_death_events.size()==1,"lethal hit creates an event while logical health reaches zero immediately")
  var events: Array=game.death_events_snapshot()
- game.death_visuals.sync(events,"floor-test",p.pos)
- check(game.death_visuals.corpses.size()==1,"defeated monster has a visible death body")
- var body: Dictionary=game.death_visuals.corpses.values()[0]
+ WorldViewCase.component(game,"deaths").sync(events,"floor-test",p.pos)
+ check(WorldViewCase.component(game,"deaths").corpses.size()==1,"defeated monster has a visible death body")
+ var body: Dictionary=WorldViewCase.component(game,"deaths").corpses.values()[0]
  var rotation: Vector3=body.actor.model.rotation
- game.death_visuals.step(.4)
+ WorldViewCase.component(game,"deaths").step(.4)
  check(body.actor.model.rotation.distance_to(rotation)>.3 and body.root.visible,"death body visibly collapses")
  check(body.root.find_children("*","CollisionObject3D",true,false).is_empty(),"death body cannot block movement")
- game.death_visuals.sync(events,"floor-test",p.pos)
- check(game.death_visuals.corpses.size()==1,"repeated snapshots do not duplicate corpses")
- game.death_visuals.step(1.0)
+ WorldViewCase.component(game,"deaths").sync(events,"floor-test",p.pos)
+ check(WorldViewCase.component(game,"deaths").corpses.size()==1,"repeated snapshots do not duplicate corpses")
+ WorldViewCase.component(game,"deaths").step(1.0)
  check(float(body.materials[0].material.albedo_color.a)<1,"corpse fades after collapse")
  check(is_equal_approx(game.stage.foe_model.tint.albedo_color.a,1.0),"corpse fading does not alter living-enemy materials")
- game.death_visuals.step(1.0)
- check(game.death_visuals.corpses.is_empty(),"death body cleans up after its animation")
+ WorldViewCase.component(game,"deaths").step(1.0)
+ check(WorldViewCase.component(game,"deaths").corpses.is_empty(),"death body cleans up after its animation")
  var variants: Array=[]
  # All twenty-four model templates support the death pose, including growth and adaptations.
  for kind in game.Enemies.all().size():
   var event: Dictionary={"id":100+kind,"position":[0,0,5],"direction":[1,0,0],"code":game.Enemies.encode(kind,game.Enemies.BARK|game.Enemies.MOBILITY,2),"scale":1.0,"age":0.0}
   variants.append(event)
- game.death_visuals.sync(variants,"variants",p.pos)
- game.death_visuals.step(.1)
- check(game.death_visuals.corpses.size()==game.Enemies.all().size(),"all enemy forms animate with variant morphology")
- game.death_visuals.sync([],"next-floor",p.pos)
- check(game.death_visuals.corpses.is_empty(),"floor transition clears old visual bodies")
+ WorldViewCase.component(game,"deaths").sync(variants,"variants",p.pos)
+ WorldViewCase.component(game,"deaths").step(.1)
+ check(WorldViewCase.component(game,"deaths").corpses.size()==game.Enemies.all().size(),"all enemy forms animate with variant morphology")
+ WorldViewCase.component(game,"deaths").sync([],"next-floor",p.pos)
+ check(WorldViewCase.component(game,"deaths").corpses.is_empty(),"floor transition clears old visual bodies")
  var other: Dictionary=game.player_snapshot(999)[1]
  check(not other.has("death_events"),"event payload uses the existing viewer snapshot")
  game.free()

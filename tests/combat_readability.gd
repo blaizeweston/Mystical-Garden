@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
@@ -23,7 +24,7 @@ func _initialize():call_deferred("run")
 func run():
  var game=load("res://world.tscn").instantiate();var token=str(Time.get_ticks_usec())
  game.progress.path="res://.godot/readability-"+token+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game)
- game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
+ game.set_process(false);game.set_physics_process(false);WorldViewCase.component(game,"combat").set_process(false)
  var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0
  game.encounter.clear_scouts();ExpeditionCase.set_world(game, {"depth": 1});ExpeditionCase.set_world(game, {"destination": 0});game.battlefield.configure(0,1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
  game.enemy_mutations=0;game.enemy_growth=0;game.tactics.position=Vector3(0,0,2)
@@ -69,7 +70,7 @@ func run():
  # above intentionally omit them. Restore the floor before visual assertions.
  game.battlefield.configure(0,1)
  game.encounter.set_hp(-1, 30);game.tactics.position=Vector3(0,0,2);game._process(.016)
- var fx=game.combat_visuals;fx.clear();fx.sync([impact,impact],[],"test",Vector3.ZERO)
+ var fx=WorldViewCase.component(game,"combat");fx.clear();fx.sync([impact,impact],[],"test",Vector3.ZERO)
  check(fx.feedback.labels.size()==1,"duplicate RPC/detail events produce one damage number")
  check(fx.feedback.flashes.size()==1,"confirmed contact flashes the enemy silhouette")
  fx.step(.18);check(fx.feedback.flashes.is_empty(),"flash restores original materials")

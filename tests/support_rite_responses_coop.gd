@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
@@ -168,11 +169,11 @@ func host() -> void:
 
 func displayed(response: String) -> bool:
 	var cue: String = Tactics.RESPONSES[response].cue
-	return game.combat_visuals.hints.values().any(func(hint): return hint.has("label") and hint.label.visible and hint.label.text == cue)
+	return WorldViewCase.component(game,"combat").hints.values().any(func(hint): return hint.has("label") and hint.label.visible and hint.label.text == cue)
 
 
 func shown_status(shape: String, actor_id: int) -> bool:
-	return game.combat_visuals.statuses.active.values().any(func(item): return item.node.visible and item.label.visible and item.event.shape == shape and item.event.combo == actor_id)
+	return WorldViewCase.component(game,"combat").statuses.active.values().any(func(item): return item.node.visible and item.label.visible and item.event.shape == shape and item.event.combo == actor_id)
 
 
 func guest() -> void:
@@ -182,7 +183,7 @@ func guest() -> void:
 		if not await until(func(): return displayed(response)):
 			check(false, "guest sees " + response)
 			return
-		var roles: Array = game.combat_visuals.hints.values().map(func(hint): return hint.event.role)
+		var roles: Array = WorldViewCase.component(game,"combat").hints.values().map(func(hint): return hint.event.role)
 		var expected: String = {Tactics.ECHO_TOLL: "chant", Tactics.SPARE_TETHER: "corpse_tether", Tactics.ANTIPHON: "enemy_sweep"}[response]
 		check(roles.has(expected) and roles.has("rally_link"), "warning has an impact and a tether for " + response)
 		mark("seen-" + response)
@@ -191,7 +192,7 @@ func guest() -> void:
 			Tactics.ECHO_TOLL:
 				check(await until(func(): return shown_status("haste", 3)), "buffed escort shows Hastened")
 			Tactics.SPARE_TETHER:
-				check(await until(func(): return game.combat_visuals.feedback.labels.any(func(item): return item.node.visible and item.node.text == "+" + FileAccess.get_file_as_string(base + "corpse-heal"))), "actual corpse heal shows its current resolved HP amount")
+				check(await until(func(): return WorldViewCase.component(game,"combat").feedback.labels.any(func(item): return item.node.visible and item.node.text == "+" + FileAccess.get_file_as_string(base + "corpse-heal"))), "actual corpse heal shows its current resolved HP amount")
 				check(await until(func(): return shown_status("haste", 3)), "Spare Tether marks the hasted escort")
 			Tactics.ANTIPHON:
 				check(await until(func(): return shown_status("slow", 1)), "guest sees the host's short Slowed callout")

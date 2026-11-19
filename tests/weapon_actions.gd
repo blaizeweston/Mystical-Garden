@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 
 const WeaponActions = preload("res://player_weapon_actions.gd")
@@ -24,7 +25,7 @@ func run():
  segment.free()
  var game=load("res://world.tscn").instantiate();var token:=str(Time.get_ticks_usec())
  game.progress.path="res://.godot/weapon-actions-"+token+".cfg";game.local_character.path=game.progress.path+".character";root.add_child(game)
- game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
+ game.set_process(false);game.set_physics_process(false);WorldViewCase.component(game,"combat").set_process(false)
  var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p.pos=Vector3.ZERO;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(10);p.power=0;p.weapon=0;p.secondary=0;p.catalyst=0;p.facing=Vector3(0,0,1);p.aim_direction=p.facing;p.mouse_aim=true
  game.battlefield.configure(0,1);game.encounter.clear_scouts();game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,1.4)
  var actor: Dictionary=game.stage.avatar_models.get(1,{})
@@ -100,8 +101,8 @@ func run():
       check(focus.global_position.distance_to(muzzle)<.18,"Seed Focus releases at the lifted focus on both rigs: "+str(focus.global_position-muzzle))
      check(absf(float(flight[0].projectile_radius)-float(profile.projectile_radius))<.0001,"projectile width matches collision "+form)
      if form in ["ring","orb"]:
-      game.combat_visuals.sync([flight[0]],[],"weapon-model-flight",p.pos)
-      var glyph: Node3D=game.combat_visuals.active[int(flight[0].id)].glyph
+      WorldViewCase.component(game,"combat").sync([flight[0]],[],"weapon-model-flight",p.pos)
+      var glyph: Node3D=WorldViewCase.component(game,"combat").active[int(flight[0].id)].glyph
       check(glyph.has_node(Models.MODELS[form].name),"the released projectile carries the held model "+form)
     else:
      WeaponCase.advance(game,int(shot.due)-1);check(game.enemy_health()==100,"melee waits for authored contact "+form)

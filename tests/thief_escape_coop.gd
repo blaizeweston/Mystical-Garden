@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -74,18 +75,18 @@ func host() -> void:
 
 func guest() -> void:
 	check(SessionCase.World.join(game)==OK,"guest connects")
-	if not await until(func(): return game.network_session.role()=="Guest" and game.exploration.thief_routes.size()==1 and game.status.contains("stole a trophy")):
+	if not await until(func(): return game.network_session.role()=="Guest" and WorldViewCase.component(game,"map").thief_routes.size()==1 and game.status.contains("stole a trophy")):
 		check(false,"thief marker and party alert reach the guest")
 		return
 	var audio: Node = game.get_node("EventAudio")
 	check(await until(func(): return audio.last_played.has("trophy_taken")),"guest receives the dedicated theft cue")
-	var first: Vector3 = game.exploration.thief_routes[0].pos
-	var tunnel: Vector3 = game.exploration.thief_routes[0].tunnel
-	check(not game.stage.wild_portal.visible and game.exploration.thief_tunnels.size()==1,"the tunnel is drawn while the portal is closed")
-	check(await until(func(): return not game.exploration.thief_routes.is_empty() and game.exploration.thief_routes[0].pos.distance_to(first)>.35),
+	var first: Vector3 = WorldViewCase.component(game,"map").thief_routes[0].pos
+	var tunnel: Vector3 = WorldViewCase.component(game,"map").thief_routes[0].tunnel
+	check(not game.stage.wild_portal.visible and WorldViewCase.component(game,"map").thief_tunnels.size()==1,"the tunnel is drawn while the portal is closed")
+	check(await until(func(): return not WorldViewCase.component(game,"map").thief_routes.is_empty() and WorldViewCase.component(game,"map").thief_routes[0].pos.distance_to(first)>.35),
 		"guest minimap tracks a moving thief")
-	check(not game.exploration.thief_routes.is_empty() and game.exploration.thief_routes[0].tunnel==tunnel,"destination stays fixed throughout the chase")
-	check(await until(func(): return game.encounter_cleared() and game.stage.wild_portal.visible and game.exploration.thief_routes.is_empty() and game.exploration.thief_tunnels.is_empty()),
+	check(not WorldViewCase.component(game,"map").thief_routes.is_empty() and WorldViewCase.component(game,"map").thief_routes[0].tunnel==tunnel,"destination stays fixed throughout the chase")
+	check(await until(func(): return game.encounter_cleared() and game.stage.wild_portal.visible and WorldViewCase.component(game,"map").thief_routes.is_empty() and WorldViewCase.component(game,"map").thief_tunnels.is_empty()),
 		"guest removes both markers and sees the portal light")
 	check(await until(func(): return audio.last_played.has("gate_ready")),"guest receives the committed portal cue")
 	var receipt := FileAccess.open(base+"guest-saw-escape",FileAccess.WRITE)

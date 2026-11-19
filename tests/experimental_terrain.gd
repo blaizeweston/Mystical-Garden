@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
@@ -314,9 +315,9 @@ func run() -> void:
 		call("quit", 1)
 		return
 	var field: Field = game.battlefield
-	check(not field.has_seed_cache() and not game.stage.seed_cache.visible and not game.exploration.has_cache,
+	check(not field.has_seed_cache() and not game.stage.seed_cache.visible and not WorldViewCase.component(game,"map").has_cache,
 		"a floor without a cache has neither a prop nor a map marker")
-	check(field.entry.distance_to(field.advance) > game.exploration.SIGHT
+	check(field.entry.distance_to(field.advance) > WorldViewCase.component(game,"map").SIGHT
 		and not game.stage.experimental_exit.is_visible_in_tree()
 		and not game.stage.deeper_gate.is_visible_in_tree(),
 		"arrival is separated from the Gate and its marker stays hidden under unexplored fog")
@@ -332,7 +333,7 @@ func run() -> void:
 	shortcut.pressed = true
 	game._unhandled_key_input(shortcut)
 	check(not garden.development_dialog.visible, "Garden shortcut leaves Wilds weapon input available")
-	check(game.exploration.fog.visible and not game.exploration.seen(field.advance), "exit starts obscured by production fog")
+	check(WorldViewCase.component(game,"map").fog.visible and not WorldViewCase.component(game,"map").seen(field.advance), "exit starts obscured by production fog")
 	check(not game.encounter_cleared() and not game.stage.wild_portal.visible and game.enemy_health() > 0, "real enemies seal the Gate")
 	var route := field.navigation_graph.route(field.planar(field.entry), field.planar(field.leader))
 	check(not route.is_empty(), "entry reaches real encounter position")
@@ -438,26 +439,26 @@ func run() -> void:
 	check(game.participation.depth() == 2 and game.battlefield is Field and not game.battlefield.generated.is_empty(), "the real Gate advances to another generated floor")
 	var next_field: Field = game.battlefield
 	check(next_field.entry.distance_to(Vector3(player.pos)) < 1.2
-		and next_field.entry.distance_to(next_field.advance) > game.exploration.SIGHT
+		and next_field.entry.distance_to(next_field.advance) > WorldViewCase.component(game,"map").SIGHT
 		and game.enemy_health() > 0 and game.encounter.scout_count()>0 and not game.encounter_cleared()
 		and (game.stage.experimental_exit.global_position - game.Stage.WILD_OFFSET).is_equal_approx(next_field.advance)
 		and not game.stage.deeper_gate.is_visible_in_tree() and not game.stage.wild_portal.visible,
 		"new floor spawns a live encounter and its own distant, sealed Gate")
-	check(next_field.has_seed_cache() and not game.stage.seed_cache.visible and not game.exploration.seen(next_field.cache)
+	check(next_field.has_seed_cache() and not game.stage.seed_cache.visible and not WorldViewCase.component(game,"map").seen(next_field.cache)
 		and next_field._cache_site_clear(next_field.cache)
 		and not next_field.navigation_graph.route(next_field.planar(next_field.entry), next_field.planar(next_field.cache)).is_empty(),
 		"an undiscovered cache stays hidden in reachable space away from the Gate and arrival")
 	player.pos = next_field.cache
 	await process_frame
 	await process_frame
-	check(game.stage.seed_cache.visible and game.exploration.has_cache and game.exploration.seen(next_field.cache),
+	check(game.stage.seed_cache.visible and WorldViewCase.component(game,"map").has_cache and WorldViewCase.component(game,"map").seen(next_field.cache),
 		"the actual cache prop and map marker appear when discovered")
 	carried_before = player.carried_seeds.size()
 	game.act(game.HOST, false)
 	game.act(game.HOST, false)
 	await process_frame
 	await process_frame
-	check(player.cache_claimed and player.carried_seeds.size() == carried_before + 1 and not game.exploration.has_cache,
+	check(player.cache_claimed and player.carried_seeds.size() == carried_before + 1 and not WorldViewCase.component(game,"map").has_cache,
 		"the cache interaction grants one carried seed once and removes its map marker")
 	check(is_equal_approx(garden.assimilation.queue[0].done, study_work), "floor change does not reset or double-count work")
 	step_progress(game, 1.0)

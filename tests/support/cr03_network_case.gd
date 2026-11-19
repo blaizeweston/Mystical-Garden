@@ -1,4 +1,5 @@
 extends RefCounted
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
@@ -1220,7 +1221,7 @@ func verify_current_snapshot_guest(game: Node, id: int) -> void:
 	if not check(await until(func():return not read("snapshot-full-ready").is_empty(),5000),"host starts full snapshot check"):return
 	var bark := int(read("snapshot-full-ready"))
 	if not check(await until(func():
-		return game.combat_visuals.statuses.active.has(bark) and game.combat_visuals.hints.values().any(func(h):
+		return WorldViewCase.component(game,"combat").statuses.active.has(bark) and WorldViewCase.component(game,"combat").hints.values().any(func(h):
 			return h.event.get("skill")=="thorn_line"),2000), "Bark and Thorn presentation are present before expiry"):return
 	var received: Array = []
 	game.set_meta(&"snapshot_witness",func(row):record_snapshot(received,row))
@@ -1230,8 +1231,8 @@ func verify_current_snapshot_guest(game: Node, id: int) -> void:
 	var max_frame: int = preload("res://world_snapshot.gd").MAX_FRAME
 	if not check(await until(func():
 		return game.guest_replication.scouts().size()==game.EncounterConfig.MAX_SCOUTS*game.PACK_STRIDE and int(game.players[1].hp)==int(expected[0]) \
-			and game.combat_visuals.seen.has(int(expected[1])) and game.combat_visuals.statuses.ended.has(bark) \
-			and not game.combat_visuals.statuses.active.has(bark) \
+			and WorldViewCase.component(game,"combat").seen.has(int(expected[1])) and WorldViewCase.component(game,"combat").statuses.ended.has(bark) \
+			and not WorldViewCase.component(game,"combat").statuses.active.has(bark) \
 			and received.any(func(row):return row.phase=="receive" and row.bytes==max_frame),3500),
 		"guest converges after skipped intermediate Bark and HP state, with one break event identity"):return
 	game.remove_meta(&"snapshot_witness")
@@ -1239,7 +1240,7 @@ func verify_current_snapshot_guest(game: Node, id: int) -> void:
 	if not check(await until(func():return read("snapshot-thorn-expired")=="ok",10500),"host expires its Thorn field"):return
 	if check(await until(func():
 		return not game.players[id].get("attack_hints",[]).any(func(e):return e.get("skill")=="thorn_line") \
-			and not game.combat_visuals.hints.values().any(func(h):return h.event.get("skill")=="thorn_line"),3500),
+			and not WorldViewCase.component(game,"combat").hints.values().any(func(h):return h.event.get("skill")=="thorn_line"),3500),
 		"guests remove old Thorn state and rendered hints"):
 		mark("snapshot-thorn-expired-"+str(id))
 

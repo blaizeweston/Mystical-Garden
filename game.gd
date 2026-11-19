@@ -53,6 +53,7 @@ var replication := WorldReplication.new()
 var replication_source := ReplicationSource.new(self)
 var network_dialog: Window
 const WorldGuidance = preload("res://ui/gameplay/world_guidance.gd")
+const WorldPresentation = preload("res://world_presentation.gd")
 const AppSettings=preload("res://app_settings.gd")
 const MouseCombat=preload("res://mouse_combat.gd")
 var app_settings:=AppSettings.new()
@@ -118,9 +119,7 @@ var pending_finale_at:=0
 var pending_finale_peer:=1
 var enemy_death_serial:=0
 var enemy_death_events: Array=[]
-var death_visuals: Node3D
 const WeaponMotion=preload("res://weapon_motion.gd")
-var combat_visuals: Node3D
 var combat_events: Array=[]
 var combat_event_serial:=0
 const WeaponAttackQueue = preload("res://weapon_attack_queue.gd")
@@ -175,6 +174,7 @@ const Traits=preload("res://combat_traits.gd")
 var enemy_traits: Dictionary={}
 var trait_events: Array=[]
 const Life=preload("res://expedition_life.gd")
+var world_view: WorldPresentation
 var spectator_view: Node
 
 const Items=preload("res://item_catalog.gd")
@@ -183,7 +183,6 @@ var wild_item_drops: Array=[]
 var inventory_drop_visuals: Node
 const LOOK_NAMES=preload("res://character_appearance.gd").OPTIONS
 var growth_clock := 0.0
-var exploration: Node
 
 
 func _init() -> void:
@@ -222,14 +221,13 @@ func _ready() -> void:
 	settings_dialog.developer_context=self
 	add_child(settings_dialog)
 	settings_dialog.applied.connect(ui.redraw_hud)
-	death_visuals=preload("res://enemy_death_effects.gd").new()
-	death_visuals.stage=stage
-	stage.add_child(death_visuals)
-	combat_visuals=preload("res://combat_effects.gd").new()
-	combat_visuals.stage=stage
-	stage.add_child(combat_visuals)
-	exploration = preload("res://exploration.gd").new()
-	add_child(exploration)
+	var deaths=preload("res://enemy_death_effects.gd").new()
+	deaths.name="DeathEffects";deaths.stage=stage;stage.add_child(deaths)
+	var effects=preload("res://combat_effects.gd").new()
+	effects.name="CombatEffects";effects.stage=stage;stage.add_child(effects)
+	var map=preload("res://exploration.gd").new()
+	map.name="Exploration";add_child(map)
+	world_view=WorldPresentation.new(stage,deaths,effects,map,event_audio,soundscape)
 	spectator_view=preload("res://spectator_view.gd").new()
 	add_child(spectator_view)
 	if not persistence_session.is_guarded():
@@ -2244,26 +2242,18 @@ func _process(_delta: float) -> void:
 	var warnings: Array=attack_hints_snapshot() if multiplayer.is_server() and wild else p.get("attack_hints",[]) if wild else []
 	if not multiplayer.is_server() and guest_replication.details_key()!=str([participation.route(),participation.floor(),participation.seed()]):
 		warnings=warnings.filter(func(hint): return hint.role not in ["core_thorns","core_anchor","core_field","core_lured","glasscap_feint"])
-	preload("res://glasscap_visuals.gd").prepare(stage,warnings)
-	stage.set_meta("enemy_attack_poses",preload("res://enemy_attack.gd").poses(warnings))
+	world_view.prepare(warnings)
 	var rendered_pack := scout_snapshot(cooldown_now) if multiplayer.is_server() else guest_replication.scouts()
 	stage.draw_state(rendered_players, local_id, tactics.position, enemy_health(), tactics.winding_up, LeaderBehavior.strike_radius(self), drop_pos, visible_drop, data[3], participation.depth(), route_rooms(), graft_altar_open(), briar_bound, tactics.longlimb, campaign_state,
 		rendered_pack, _delta,view_id)
 	update_ready_panel(p,local_id)
-	death_visuals.sync(death_events_snapshot() if multiplayer.is_server() and wild else p.get("death_events",[]) if wild else [],"%d:%d:%d:%s"%[participation.route(),participation.floor(),participation.seed(),str(wild)],observer)
-	var presentation_key := "%d:%d:%d:%s"%[participation.route(),participation.floor(),participation.seed(),str(wild)]
-	var events := combat_events_snapshot() if multiplayer.is_server() else guest_combat_events(p)
-	get_node("EventAudio").sync(events,presentation_key,wild,observer,local_id,Time.get_ticks_msec())
-	combat_visuals.sync(events if wild else [],warnings,presentation_key,observer)
-	stage.attack_ring.visible=false
-	for ring in stage.support_rings: ring.visible=false
-	exploration.thief_routes=preload("res://thief_escape.gd").map_routes(self,p) if wild else []
-	exploration.update_floor(stage.visual_field, "%d:%d:%d" % [participation.route(), participation.floor(), participation.seed()],
-		observer, stage.camera, wild, drop_pos, visible_drop,
-		not p.get("cache_claimed", false) and participation.route() != Campaign.HEART, ui.is_overlay_open(), graft_altar_open(),inventory_floor_snapshot(p) if multiplayer.is_server() else p.get("ground_items",[]))
-	stage.apply_exploration_sight(observer, wild, exploration.SIGHT,
-		exploration.seen(visual_field.advance) if is_instance_valid(stage.experimental_exit) else true)
-	preload("res://glasscap_visuals.gd").sync(stage,observer,exploration.SIGHT)
+	world_view.present_effects({"site":participation.route(),"floor":participation.floor(),"seed":participation.seed(),
+		"wild":wild,"local_id":local_id,"observer":observer,"advance":visual_field.advance,
+		"deaths":death_events_snapshot() if multiplayer.is_server() and wild else p.get("death_events",[]) if wild else [],
+		"events":combat_events_snapshot() if multiplayer.is_server() else guest_combat_events(p),"warnings":warnings,
+		"thief_routes":preload("res://thief_escape.gd").map_routes(self,p) if wild else [],"drop":drop_pos,"visible_drop":visible_drop,
+		"cache_available":not p.get("cache_claimed",false) and participation.route()!=Campaign.HEART,"overlay_open":ui.is_overlay_open(),
+		"graft_open":graft_altar_open(),"ground_items":inventory_floor_snapshot(p) if multiplayer.is_server() else p.get("ground_items",[])})
 	var carried: int = p.carried_seeds.size() if multiplayer.is_server() and wild else guest_replication.carried_count()
 	var health := PlayerVitals.current_hp(p)
 	var garden_facts := {}
@@ -2305,10 +2295,10 @@ func _process(_delta: float) -> void:
 	refresh_feedback()
 
 	var shared := garden_snapshot() if multiplayer.is_server() else guest_replication.garden_progress()
-	stage.update_plots(Progress.decode_plots(shared[12]))
-	stage.update_heart_progress(heart_state())
-	get_node("Soundscape").update_mix(_delta,wild,participation.route(),participation.floor(),tactics.boss_kind>=0,observer,stage.heart_unlocked)
-	stage.update_garden(int(shared[6]), int(shared[2]) + int(shared[7]) + int(shared[11]) + int(heart_state().get("clearing",0)))
+	var heart := heart_state()
+	world_view.present_garden(_delta,{"plots":Progress.decode_plots(shared[12]),"heart":heart,
+		"wild":wild,"site":participation.route(),"floor":participation.floor(),"boss":tactics.boss_kind>=0,"observer":observer,
+		"knowledge":int(shared[6]),"technologies":int(shared[2])+int(shared[7])+int(shared[11])})
 	var host_side := multiplayer.is_server()
 	var ready_skill := (local_timers == null or local_timers.ready(Cooldowns.Q, cooldown_now)) if host_side else bool(p.get("skill_ready", false))
 	var second_ready := (local_timers == null or local_timers.ready(Cooldowns.R, cooldown_now)) if host_side else bool(p.get("skill_two_ready", false))
@@ -2344,7 +2334,7 @@ func _process(_delta: float) -> void:
 		"carried": carried if wild else data[0],
 		"pouch": p.get("pouch", false) if host_side else guest_replication.pouch_filled(),
 		"wallet": run_wallet(p) if host_side and wild else int(p.get("wallet", 0)) if wild else 0,
-		"insight":heart_state().get("insight",0), "knowledge": shared[6]},exploration.expanded)
+		"insight":heart.get("insight",0), "knowledge": shared[6]},world_view.map_expanded())
 
 
 func living_scout_count() -> int:

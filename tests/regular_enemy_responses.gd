@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -201,7 +202,7 @@ func validate_visibility(kind: int, attack: Dictionary, now: int) -> void:
 		check(releases.size() == 2 and releases.all(func(e): return is_equal_approx(e.reach, attack.spot_radius)), "each strike releases at its warned size")
 	if kind in [6, 14, 17]:
 		var hazard_kind: String = {6: "spores", 14: "web", 17: "ember"}[kind]
-		var fx: Node = game.combat_visuals
+		var fx: Node = WorldViewCase.component(game,"combat")
 		var warnings: Array = game.Bosses.hints(game).filter(func(h): return h.get("hazard_kind") == hazard_kind)
 		check(not warnings.is_empty() and warnings.all(func(h): return h.has("cue") and h.has("remaining") and not h.active), "each pending bed identifies its hazard")
 		if not warnings.is_empty():

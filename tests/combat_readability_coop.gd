@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
 const ClassActions = preload("res://native_class_actions.gd")
@@ -64,14 +65,14 @@ func guest_run():
  game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest connects")
  var id:=game.multiplayer.get_unique_id()
  if not await until(func():return game.network_session.role()=="Guest" and game.guest_replication.has_details() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds state arrives");return
- game.combat_visuals.set_process(false);mark("ready")
+ WorldViewCase.component(game,"combat").set_process(false);mark("ready")
  check(await until(func():return game.guest_replication.received_events().any(func(e):return e.event.kind=="ability") and game.players[id].hp==9),"committed ability and health arrive")
  game._process(.016)
  var events: Array=game.guest_combat_events(game.players[id])
  check(events.any(func(e):return e.kind=="impact" and e.shape=="hurt" and int(e.get("amount",0))==1),"player damage uses actual amount")
  check(events.any(func(e):return e.kind=="impact" and e.shape=="hit" and int(e.get("amount",0))>0),"outgoing hit reaches guest")
  check(events.any(func(e):return e.kind=="ability" and not str(e.get("label","")).is_empty()),"named ability reaches guest")
- var fx=game.combat_visuals
+ var fx=WorldViewCase.component(game,"combat")
  check(fx.feedback.labels.size()==3,"two damage values and one ability label: "+str(fx.feedback.labels.map(func(item):return item.node.text)))
  var count: int=fx.feedback.labels.size();fx.sync(events,[],"%d:%d:%d:%s"%[game.participation.route(),game.participation.floor(),game.participation.seed(),str(true)],game.players[id].pos)
  check(fx.feedback.labels.size()==count,"repeat details cannot duplicate labels")

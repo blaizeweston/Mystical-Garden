@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
 
@@ -83,7 +84,7 @@ func run() -> void:
 	check(route.size()==1 and route[0].id==0 and route[0].tunnel==thief.escape.tunnel,"owner snapshot exposes thief and exit")
 	check(game.player_snapshot(1)[1].thief_routes.size()==1,"actual details packet contains the trail")
 	game._process(.016)
-	check(game.exploration.thief_routes.size()==1 and game.exploration.thief_tunnels.size()==1 and not game.stage.wild_portal.visible,
+	check(WorldViewCase.component(game,"map").thief_routes.size()==1 and WorldViewCase.component(game,"map").thief_tunnels.size()==1 and not game.stage.wild_portal.visible,
 		"active thief has a map route and tunnel, and still counts toward clearing")
 	var origin: Vector3 = thief.pos
 	thief.rooted_until = start+450
@@ -135,7 +136,7 @@ func run() -> void:
 			break
 	check(game.enemy_health()==0 and elite.escaped and game.encounter_cleared(),"elite escape satisfies the real encounter-clear predicate")
 	game._process(.016)
-	check(game.stage.wild_portal.visible and game.exploration.thief_routes.is_empty() and game.exploration.thief_tunnels.is_empty(),"portal lights and escape markers disappear")
+	check(game.stage.wild_portal.visible and WorldViewCase.component(game,"map").thief_routes.is_empty() and WorldViewCase.component(game,"map").thief_tunnels.is_empty(),"portal lights and escape markers disappear")
 	game.queue_free()
 	await process_frame
 	if not failed:

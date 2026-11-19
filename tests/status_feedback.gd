@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
@@ -19,7 +20,7 @@ func _initialize():
 func run():
  var game=load("res://world.tscn").instantiate();var token:=str(Time.get_ticks_usec())
  game.progress.path="res://.godot/status-"+token;game.local_character.path=game.progress.path+".character";root.add_child(game)
- game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
+ game.set_process(false);game.set_physics_process(false);WorldViewCase.component(game,"combat").set_process(false)
  var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p.pos=Vector3(0,0,-1);p.frame=2
  var tree=game.Classes.connected_tree(2);p.character[tree.profile_key]=tree.state(["wildstalker"])
  game.battlefield.configure(0,1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);game.encounter.set_hp(-1, 80);game.tactics.position=Vector3(0,0,1);game.enemy_traits.clear();game.encounter.clear_scouts();game.tactics.winding_up=false
@@ -32,7 +33,7 @@ func run():
  check(marks.size()==1 and events.any(func(e):return e.form=="player" and e.shape=="slow"),"Tracked Prey icon and slowed player callout")
  var mark_id: int=marks[0].id;var count: int=game.combat_event_serial;Status.sync(game,now+1)
  check(game.combat_event_serial==count,"no per-frame event spam")
- game._process(.016);var fx=game.combat_visuals;fx.sync(game.combat_events_snapshot(),[],"status-test",p.pos);fx.statuses.step(.016)
+ game._process(.016);var fx=WorldViewCase.component(game,"combat");fx.sync(game.combat_events_snapshot(),[],"status-test",p.pos);fx.statuses.step(.016)
  check(fx.statuses.active.has(mark_id),"renderer creates a persistent Tracked Prey icon")
  var icon: Dictionary=fx.statuses.active[mark_id];game.stage.foe.position.x+=.5;fx.statuses.step(.016)
  check(absf(icon.node.position.x-game.stage.foe.position.x)<.5,"icon follows rendered monster")

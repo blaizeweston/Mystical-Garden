@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -69,13 +70,13 @@ func guest_run():
   if kind==7:
    check(game.players[id].attack_hints.any(func(h):return h.role=="aftershock"),"guest sees the elite's separate aftershock location")
   if kind==11:
-   check(await until(func():return game.combat_visuals.statuses.active.values().any(func(s):return s.event.shape=="sheltered")),"guest displays Sheltered")
+   check(await until(func():return WorldViewCase.component(game,"combat").statuses.active.values().any(func(s):return s.event.shape=="sheltered")),"guest displays Sheltered")
   var growth: Node3D=game.stage.foe_model.model.get_node_or_null("EliteGrowth");check(is_instance_valid(growth),"guest has anatomical elite features")
   mark("seen-"+str(kind))
   if kind==9:
    check(await until(func():return game.guest_replication.scouts().size()>=game.PACK_STRIDE*2 and game.stage.support_models.filter(func(model):return model.visible).size()>=2),"guest receives two summoned scouts")
    mark("brood")
   if kind==11:
-   check(await until(func():return not game.combat_visuals.statuses.active.values().any(func(s):return s.event.shape=="sheltered")),"guest clears the Sheltered label")
+   check(await until(func():return not WorldViewCase.component(game,"combat").statuses.active.values().any(func(s):return s.event.shape=="sheltered")),"guest clears the Sheltered label")
    mark("shelter-cleared")
  check(await until(func():return marked("done")),"host finishes");SessionCase.World.leave(game,"Elite fixture")

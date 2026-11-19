@@ -181,10 +181,7 @@
       },
 
 
-      "experimental_gate_visibility": {
-        "match": "\tstage.apply_exploration_sight(observer, wild, exploration.SIGHT,\n\t\texploration.seen(visual_field.advance) if is_instance_valid(stage.experimental_exit) else true)\n",
-        "baseline": "\tstage.apply_exploration_sight(observer, wild, exploration.SIGHT)\n"
-      },
+
 
 
 
@@ -198,14 +195,8 @@
       },
 
 
-      "render_glasscap_copies": {
-        "match": "\tstage.apply_exploration_sight(observer, wild, exploration.SIGHT)\n\tpreload(\"res://glasscap_visuals.gd\").sync(stage,observer,exploration.SIGHT)",
-        "baseline": "\tstage.apply_exploration_sight(observer, wild, exploration.SIGHT)"
-      },
-      "prepare_glasscap_view": {
-        "match": "\tpreload(\"res://glasscap_visuals.gd\").prepare(stage,warnings)\n\tstage.set_meta(\"enemy_attack_poses\",preload(\"res://enemy_attack.gd\").poses(warnings))",
-        "baseline": "\tstage.set_meta(\"enemy_attack_poses\",preload(\"res://enemy_attack.gd\").poses(warnings))"
-      },
+
+
       "stale_glasscap_formation": {
         "match": "[\"core_thorns\",\"core_anchor\",\"core_field\",\"core_lured\",\"glasscap_feint\"]",
         "baseline": "[\"core_thorns\",\"core_anchor\",\"core_field\",\"core_lured\"]"
@@ -218,14 +209,8 @@
         "match": "\tif not multiplayer.is_server():rendered_players=preload(\"res://avatar_motion_view.gd\").people(rendered_players,local_id,mouse_controls.local_aim)\n",
         "baseline": "\tif not multiplayer.is_server():rendered_players=preload(\"res://avatar_motion_view.gd\").people(rendered_players)\n"
       },
-      "event_audio_frame": {
-        "match": "\tvar presentation_key := \"%d:%d:%d:%s\"%[participation.route(),participation.floor(),participation.seed(),str(wild)]\n\tvar events := combat_events_snapshot() if multiplayer.is_server() else guest_combat_events(p)\n\tget_node(\"EventAudio\").sync(events,presentation_key,wild,observer,local_id,Time.get_ticks_msec())\n\tcombat_visuals.sync(events if wild else [],warnings,presentation_key,observer)",
-        "baseline": "\tcombat_visuals.sync(combat_events_snapshot() if multiplayer.is_server() and wild else guest_combat_events(p) if wild else [],warnings,\"%d:%d:%d:%s\"%[participation.route(),participation.floor(),participation.seed(),str(wild)],observer)"
-      },
-      "display_thief_routes": {
-        "match": "\texploration.thief_routes=preload(\"res://thief_escape.gd\").map_routes(self,p) if wild else []\n\texploration.update_floor(stage.visual_field, \"%d:%d:%d\" % [participation.route(), participation.floor(), participation.seed()],",
-        "baseline": "\texploration.update_floor(stage.visual_field, \"%d:%d:%d\" % [participation.route(), participation.floor(), participation.seed()],"
-      },
+
+
 
       "warden_skill_hud_readout": {
         "match": "\t\t\"skill_ready\": ready_skill,\"skill_two_ready\":second_ready,\"skill_names\":[skills[0].name,skills[1].name+(\" \u2022\" if quake_prepared else \"\")],\"skill_cooldowns\":cooldowns, \"dodge_ready\": ready_dodge,\n\t\t\"core\":preload(\"res://core_combat.gd\").hud_state(self,p),\n\t\t\"skill_tooltips\":skill_tips,\n",
@@ -243,7 +228,7 @@
         "match": "\t\t\"core\":preload(\"res://core_combat.gd\").hud_state(self,p),\n\t\t\"carried\": carried if wild else data[0],\n",
         "baseline": "\t\t\"carried\": carried if wild else data[0],\n"
       },
-      "core_stale_terrain": {"match": "\tif not multiplayer.is_server() and guest_replication.details_key()!=str([participation.route(),participation.floor(),participation.seed()]):\n\t\twarnings=warnings.filter(func(hint): return hint.role not in [\"core_thorns\",\"core_anchor\"])\n\tstage.set_meta(\"enemy_attack_poses\",preload(\"res://enemy_attack.gd\").poses(warnings))\n", "baseline": "\tstage.set_meta(\"enemy_attack_poses\",preload(\"res://enemy_attack.gd\").poses(warnings))\n"},
+      "core_stale_terrain": {"match": "\tif not multiplayer.is_server() and guest_replication.details_key()!=str([participation.route(),participation.floor(),participation.seed()]):\n\t\twarnings=warnings.filter(func(hint): return hint.role not in [\"core_thorns\",\"core_anchor\"])\n\tworld_view.prepare(warnings)\n", "baseline": "\tworld_view.prepare(warnings)\n"},
 
 
       "party_panel": {
@@ -877,10 +862,7 @@
         "match": "const PlayerLifecycle = preload(\"res://player_lifecycle.gd\")\n",
         "baseline": ""
       },
-      "ar08_lifecycle_2": {
-        "match": "  if models.has(entry.id): models[entry.id].visible=not Participation.is_wild(player) or Vector3(models[entry.id].get_meta(\"drop_position\")).distance_to(game.players.get(game.spectator_view.target_id if PlayerLifecycle.fallen(player) and game.spectator_view.target_id!=0 else game.local_player_id(),player).pos)<=game.exploration.SIGHT\n",
-        "baseline": "  if models.has(entry.id): models[entry.id].visible=not Participation.is_wild(player) or Vector3(models[entry.id].get_meta(\"drop_position\")).distance_to(game.players.get(game.spectator_view.target_id if player.get(\"fallen\",false) and game.spectator_view.target_id!=0 else game.local_player_id(),player).pos)<=game.exploration.SIGHT\n"
-      }
+      "ar08_lifecycle_2": {"match": "  if models.has(entry.id): models[entry.id].visible=not Participation.is_wild(player) or Vector3(models[entry.id].get_meta(\"drop_position\")).distance_to(game.players.get(game.spectator_view.target_id if PlayerLifecycle.fallen(player) and game.spectator_view.target_id!=0 else game.local_player_id(),player).pos)<=game.world_view.sight_radius()\n", "baseline": "  if models.has(entry.id): models[entry.id].visible=not Participation.is_wild(player) or Vector3(models[entry.id].get_meta(\"drop_position\")).distance_to(game.players.get(game.spectator_view.target_id if player.get(\"fallen\",false) and game.spectator_view.target_id!=0 else game.local_player_id(),player).pos)<=game.world_view.sight_radius()\n"}
     },
     "native_grafts.gd": {
       "ar08_lifecycle_1": {

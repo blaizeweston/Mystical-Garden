@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
@@ -79,12 +80,12 @@ func guest_run() -> void:
  check(await until(func(): return ExpeditionCase.is_wild(game.players[id]) and game.inventory_drop_visuals.models.has("guest-part")),"guest sees own trophy model")
  var model: Node3D=game.inventory_drop_visuals.models["guest-part"]
  check(model.visible and model.position==game.stage.WILD_OFFSET+Vector3(0,0,2),"guest trophy visible in Wilds")
- check(game.exploration.drop_color(game.Items.part_id(game.Parts.HOOK))==Color("#62baff"),"guest minimap uses blue")
+ check(WorldViewCase.component(game,"map").drop_color(game.Items.part_id(game.Parts.HOOK))==Color("#62baff"),"guest minimap uses blue")
  await capture("loot")
  game.send_action(false)
  check(await until(func(): return game.players[id].get("fallen",false)),"guest receives fallen state")
  game._process(.016)
- check(game.spectator_view.target_id==1 and game.exploration.player.distance_to(game.players[1].pos)<.1,"guest camera and fog follow living host")
+ check(game.spectator_view.target_id==1 and WorldViewCase.component(game,"map").player.distance_to(game.players[1].pos)<.1,"guest camera and fog follow living host")
  check(UIFixture.control(game,"player_hud").state.fallen,"fallen HUD hides combat controls");await capture("spectator");mark("guest-spectates")
  game.request_garden_action.rpc_id(1,"class_skill");game.submit_motion.rpc_id(1,Vector2.RIGHT)
  await create_timer(.35).timeout;mark("blocked")

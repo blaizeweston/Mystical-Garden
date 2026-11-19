@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
@@ -154,7 +155,7 @@ func host() -> void:
 
 
 func warning(cue: String) -> Dictionary:
-	for hint in game.combat_visuals.hints.values():
+	for hint in WorldViewCase.component(game,"combat").hints.values():
 		if hint.has("label") and hint.label.visible and hint.label.text == cue:
 			return hint.event
 	return {}
@@ -167,7 +168,7 @@ func guest() -> void:
 		check(false, "guest sees Antler hook")
 		return
 	var charge := warning("Antler hook")
-	check(game.combat_visuals.hints.values().any(func(h): return h.event.role == "charge" and h.event.from == charge.to and h.event.to != charge.to), "second charge leg starts where the first ends")
+	check(WorldViewCase.component(game,"combat").hints.values().any(func(h): return h.event.role == "charge" and h.event.from == charge.to and h.event.to != charge.to), "second charge leg starts where the first ends")
 	check(not game.stage.support_rings[0].visible, "exact charge paths suppress the legacy circle")
 	mark("seen-charge")
 	check(await until(func(): return marked("charge-resolved") and warning("Antler hook").is_empty()), "guest sees charge cleanup")
@@ -176,10 +177,10 @@ func guest() -> void:
 		check(false, "guest sees Canopy shift")
 		return
 	var canopy := warning("Canopy shift")
-	check(canopy.role == "canopy" and game.combat_visuals.hints.values().any(func(h): return h.event.role == "rally_link" and h.event.to == canopy.to), "guest sees the destination and relocation path")
+	check(canopy.role == "canopy" and WorldViewCase.component(game,"combat").hints.values().any(func(h): return h.event.role == "rally_link" and h.event.to == canopy.to), "guest sees the destination and relocation path")
 	mark("seen-canopy")
 	check(await until(func(): return marked("canopy-resolved") and warning("Canopy shift").is_empty()), "guest sees canopy cleanup")
-	check(await until(func(): return game.combat_visuals.statuses.active.values().any(func(item): return item.event.shape == "sheltered" and item.event.combo == 1 and item.node.visible and item.label.text == "Sheltered")), "guest sees the actual sheltered escort")
+	check(await until(func(): return WorldViewCase.component(game,"combat").statuses.active.values().any(func(item): return item.event.shape == "sheltered" and item.event.combo == 1 and item.node.visible and item.label.text == "Sheltered")), "guest sees the actual sheltered escort")
 	mark("canopy-clear")
 	await guest_glasscap()
 	check(await until(func(): return game.network_session.role() == "Solo"), "host finishes")

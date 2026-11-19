@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
@@ -33,7 +34,7 @@ func run():
 	p.pos=game.battlefield.graft
 	game._process(.016)
 	check(game.enemy_health()>0 and game.graft_altar_open() and game.stage.graft_altar.visible,"eighth encounter shrine appears before combat is cleared")
-	check(game.exploration.has_shrine and game.exploration.seen(game.battlefield.graft),"discovered shrine appears on the floor map")
+	check(WorldViewCase.component(game,"map").has_shrine and WorldViewCase.component(game,"map").seen(game.battlefield.graft),"discovered shrine appears on the floor map")
 	p.carried_parts[4]=1
 	game.send_garden_action(Grafts.request(Grafts.owner_details(p,game.participation.floor()),"reach",game.Items.part_id(4)))
 	check(p.carried_parts[4]==0 and Grafts.owner_details(p,game.participation.floor()).revision==1,"shrine accepts one cumulative reinforcement during combat")

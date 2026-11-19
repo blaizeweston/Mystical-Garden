@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
 const ClassActions = preload("res://native_class_actions.gd")
@@ -208,8 +209,8 @@ func overlap() -> void:
 	IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(player), 2)
 	check(PlayerVitals.current_hp(player)==78,"coincident heals and hits preserve the final net value")
 	var events: Array=game.combat_events_snapshot()
-	game.combat_visuals.sync(events+events,[],"cb07-feedback",player.pos)
-	var labels: Array=game.combat_visuals.feedback.labels.map(func(entry):return entry.node.text)
+	WorldViewCase.component(game,"combat").sync(events+events,[],"cb07-feedback",player.pos)
+	var labels: Array=WorldViewCase.component(game,"combat").feedback.labels.map(func(entry):return entry.node.text)
 	check(labels.count("+2")==1 and labels.count("−2")==1 and not labels.has("+12"),"feedback distinguishes applied heal and damage exactly once")
 	var orb:=Orb.new()
 	orb.update({"hp":78,"max_hp":80,"lost_health":20,"wild":true},1000)

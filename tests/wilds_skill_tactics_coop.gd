@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -145,11 +146,11 @@ func host() -> void:
 
 
 func hints(role: String) -> Array:
-	return game.combat_visuals.hints.values().filter(func(hint): return hint.event.get("role") == role)
+	return WorldViewCase.component(game,"combat").hints.values().filter(func(hint): return hint.event.get("role") == role)
 
 
 func cue(value: String) -> bool:
-	return game.combat_visuals.hints.values().any(func(hint): return hint.has("label") and hint.label.visible and hint.label.text == value)
+	return WorldViewCase.component(game,"combat").hints.values().any(func(hint): return hint.has("label") and hint.label.visible and hint.label.text == value)
 
 
 func guest() -> void:

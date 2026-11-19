@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -34,11 +35,11 @@ func run() -> void:
  var hints:=warn(33000)
  check(hints.size()==1 and hints[0].role=="reinforcement" and hints[0].remaining==3.0,"first wave announces exact location for three seconds")
  check(game.attack_hints_snapshot().any(func(h):return h.role=="reinforcement"),"warning uses replicated attack hint channel")
- game.combat_visuals.sync([],hints,"pressure-test",game.tactics.memory.pressure.pending[0].pos)
- var visual: Dictionary=game.combat_visuals.hints[hints[0].id]
+ WorldViewCase.component(game,"combat").sync([],hints,"pressure-test",game.tactics.memory.pressure.pending[0].pos)
+ var visual: Dictionary=WorldViewCase.component(game,"combat").hints[hints[0].id]
  check(visual.root.visible and visual.label.text.contains("Reinforcements") and visual.mesh.mesh.get_surface_count()>0,"spawn marker has a visible countdown label and ground ring")
- game.combat_visuals.sync([],[],"pressure-test",p.pos)
- check(game.combat_visuals.hints.is_empty(),"cancelled markers leave no residual graphics")
+ WorldViewCase.component(game,"combat").sync([],[],"pressure-test",p.pos)
+ check(WorldViewCase.component(game,"combat").hints.is_empty(),"cancelled markers leave no residual graphics")
  game.update_pressure(35999)
  check(game.encounter.scout_count()==0 and PlayerVitals.current_hp(p)==100,"warning itself cannot hit or spawn early")
  game.update_pressure(36000);game.update_pressure(36000)

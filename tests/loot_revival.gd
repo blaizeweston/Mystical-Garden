@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
@@ -32,7 +33,7 @@ func run() -> void:
  game.inventory_drop_visuals._process(.3)
  var model: Node3D=game.inventory_drop_visuals.models.part
  check(model.position==game.stage.WILD_OFFSET+Vector3(0,0,2) and model.visible,"monster drop is visible at Wilds world offset")
- check(game.exploration.drop_color(item)==Color("#62baff") and game.exploration.drop_color("unidentified_seed")!=Color("#62baff"),"parts use blue minimap markers, seeds retain gold")
+ check(WorldViewCase.component(game,"map").drop_color(item)==Color("#62baff") and WorldViewCase.component(game,"map").drop_color("unidentified_seed")!=Color("#62baff"),"parts use blue minimap markers, seeds retain gold")
  check(game.inventory_floor_snapshot(b).is_empty(),"owner-only loot remains private")
  game.pickup_inventory_drop(1,a,"part");game.inventory_drop_visuals._process(.3)
  check(game.inventory_drop_visuals.models.is_empty() and a.carried_parts[game.Parts.HOOK]==1,"pickup removes visible drop and awards component")

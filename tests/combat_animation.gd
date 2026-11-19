@@ -1,4 +1,5 @@
 extends SceneTree
+const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const WeaponCase = preload("res://tests/support/weapon_attack_case.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -18,7 +19,7 @@ func run():
  var game=load("res://world.tscn").instantiate()
  var token=Crypto.new().generate_random_bytes(8).hex_encode()
  game.progress.path="res://.godot/combat_anim_"+token+".cfg";game.local_character.path=game.progress.path+".character"
- root.add_child(game);game.set_process(false);game.set_physics_process(false);game.combat_visuals.set_process(false)
+ root.add_child(game);game.set_process(false);game.set_physics_process(false);WorldViewCase.component(game,"combat").set_process(false)
  var p: Dictionary=game.players[1]
  ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"depth": 1});ExpeditionCase.set_world(game, {"map_seed": 0});game.battlefield.configure(0,1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);game.encounter.clear_scouts()
  ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,4);p.weapon=0;p.secondary=0;p.catalyst=0
@@ -76,8 +77,8 @@ func run():
  game.encounter.clear_scouts();game.encounter.register_scout(stag);game.encounter.set_hp(-1, 0);p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p[Protection.STATE] = p[Protection.STATE].clear_guard()
  var hints: Array=game.attack_hints_snapshot()
  check(hints.size()==1 and hints[0].role=="charge" and Vector3(hints[0].to[0],hints[0].to[1],hints[0].to[2]).distance_to(Vector3(0,0,4))<.1,"charge snapshot carries origin and locked endpoint")
- game.combat_visuals.sync([],hints,"test-lane",p.pos)
- check(game.combat_visuals.hints[0].mesh.mesh.get_surface_count()==1,"directional V lane has visible geometry")
+ WorldViewCase.component(game,"combat").sync([],hints,"test-lane",p.pos)
+ check(WorldViewCase.component(game,"combat").hints[0].mesh.mesh.get_surface_count()==1,"directional V lane has visible geometry")
  preload("res://scout_behavior.gd").release(game, stag,game.Enemies.get_kind(2),Time.get_ticks_msec()+1000)
  check(PlayerVitals.current_hp(p)<100 and PlayerVitals.current_hp(p)>0,"mid-lane player is struck by the projected charge")
  stag.pos=Vector3.ZERO;stag.blast=Vector3(0,0,4);p.pos=Vector3(2.5,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100)
@@ -86,8 +87,8 @@ func run():
  preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[Rect2(-1.5,1.8,3,.4)]);stag.pos=Vector3.ZERO;stag.blast=Vector3(0,0,4);stag.windup=1000
  hints=game.attack_hints_snapshot()
  check(float(hints[0].to[2])<1.8,"charge projection stops before blocking terrain")
- game.combat_visuals.sync([],[],"next-floor",p.pos)
- check(game.combat_visuals.hints.is_empty() and game.combat_visuals.active.is_empty(),"effect cleanup follows floor transitions")
+ WorldViewCase.component(game,"combat").sync([],[],"next-floor",p.pos)
+ check(WorldViewCase.component(game,"combat").hints.is_empty() and WorldViewCase.component(game,"combat").active.is_empty(),"effect cleanup follows floor transitions")
  ExpeditionCase.Transitions.return_member(game, p)
  check(p[WeaponActions.STATE].pose_until_ms()==0,"Garden return clears attack animation")
  game.free()
