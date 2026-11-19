@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -99,12 +101,12 @@ func check_learning() -> void:
 	core_skill("hush_orchid", 2.0)
 	check(Tactics.evidence(game).is_empty(), "Gravity Well on an idle Shepherd does not invent cast-denial evidence")
 	Attacks.lock(game, shepherd, "shepherd", player.pos, Time.get_ticks_msec() + 1400)
-	game.apply_weapon_hit(player, 0, player.pos, {"damage": 1, "stagger": 180}, Time.get_ticks_msec())
+	OutgoingHits.hit_world(game, HitSession.peer_for(player), 0, player.pos, {"damage": 1, "stagger": 180}, Time.get_ticks_msec())
 	check(Tactics.evidence(game).get(Tactics.CAST_DENIAL) == 1 and shepherd.windup == 0, "a real native stagger contact contributes once")
 	Attacks.lock(game, shepherd, "shepherd", player.pos, Time.get_ticks_msec() + 1400)
 	shepherd.traits = {}
 	game.encounter.set_hp(game.encounter.scout_slot(shepherd), 1)
-	game.apply_weapon_hit(player, 0, player.pos, {"damage": 4, "stagger": 180}, Time.get_ticks_msec())
+	OutgoingHits.hit_world(game, HitSession.peer_for(player), 0, player.pos, {"damage": 4, "stagger": 180}, Time.get_ticks_msec())
 	check(Tactics.evidence(game).get(Tactics.CAST_DENIAL) == 1, "a killing strike does not count as an interrupted rite")
 
 	for index in 3:
@@ -112,7 +114,7 @@ func check_learning() -> void:
 		check(Tactics.evidence(game).is_empty(), "new floor starts with no observations")
 		shepherd = shepherd_group()
 		Attacks.lock(game, shepherd, "shepherd", player.pos, Time.get_ticks_msec() + 1400)
-		game.apply_weapon_hit(player, 0, player.pos, {"damage": 1, "stagger": 180}, Time.get_ticks_msec())
+		OutgoingHits.hit_world(game, HitSession.peer_for(player), 0, player.pos, {"damage": 1, "stagger": 180}, Time.get_ticks_msec())
 		check(shepherd.windup == 0 and Tactics.evidence(game).get(Tactics.CAST_DENIAL) == 1, "native stagger cancels the rally and records a confirmed denial")
 		if index == 0:
 			Attacks.lock(game, shepherd, "shepherd", player.pos, Time.get_ticks_msec() + 1400)
@@ -135,7 +137,7 @@ func check_relay() -> void:
 	var now := Time.get_ticks_msec()
 	Attacks.lock(game, shepherd, "shepherd", player.pos, now + 1400)
 	check(shepherd.attack.variant != Tactics.RELAY and shepherd.attack.escorts.size() == 2, "the first rally still needs a real interruption")
-	game.apply_weapon_hit(player,0,player.pos,{"damage":1,"stagger":180},now)
+	OutgoingHits.hit_world(game, HitSession.peer_for(player), 0, player.pos, {"damage":1,"stagger":180}, now)
 	now = int(shepherd.ready) + 10
 	preload("res://enemy_formation.gd").follow_support(game, shepherd, preload("res://enemy_formation.gd").allies(game, shepherd), game.Enemies.get_kind(10), 0.0, .016, now)
 	var attack: Dictionary = shepherd.get("attack", {})
@@ -184,5 +186,5 @@ func check_scatter() -> void:
 	Attacks.lock(game, mother, "brood", player.pos, now + 3200)
 	check(mother.attack.variant != Tactics.SCATTER and mother.attack.hatch.size() <= 1, "the response does not increase the ordinary brood budget")
 	player.pos = Vector3(attack.hatch[1]) + Vector3.BACK * 1.8
-	game.apply_weapon_hit(player,1,player.pos,{"damage":4},now+3300)
+	OutgoingHits.hit_world(game, HitSession.peer_for(player), 1, player.pos, {"damage":4}, now+3300)
 	check(not game.encounter.alive(1) and game.monster_rewards.pending_count()==0, "the surviving hatchling remains a real killable nonrewarding summon")

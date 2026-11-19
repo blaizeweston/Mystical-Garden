@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -70,11 +72,11 @@ func run():
 	game.encounter.set_hp(-1, 100)
 	game.encounter.clear_scouts()
 	game.enemy_mutations=Enemies.BARK
-	game.apply_weapon_hit(p,-1,p.pos,{"damage":4},Time.get_ticks_msec())
+	OutgoingHits.hit_world(game, HitSession.peer_for(p), -1, p.pos, {"damage":4}, Time.get_ticks_msec())
 	check(game.enemy_health()==70,"bark plates reduce a 40-damage native hit by 25 percent")
 	game.encounter.set_hp(-1, 100)
 	game.enemy_mutations=0
-	game.apply_weapon_hit(p,-1,p.pos,{"damage":4},Time.get_ticks_msec())
+	OutgoingHits.hit_world(game, HitSession.peer_for(p), -1, p.pos, {"damage":4}, Time.get_ticks_msec())
 	check(game.enemy_health()==60,"unarmored enemy takes the full 40-damage native hit")
 	game.encounter.set_hp(-1, 0)
 	game.encounter.clear_scouts()

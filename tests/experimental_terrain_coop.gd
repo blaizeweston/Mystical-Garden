@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -224,7 +226,7 @@ func host_run(menu: Node) -> void:
 			if not game.roll_kill_trophy(kind, mask, target == -1).is_empty():
 				game.rng.state = before_roll
 				break
-		game.apply_weapon_hit(keeper, target, hit_at, stats, Time.get_ticks_msec())
+		OutgoingHits.hit_world(game, HitSession.peer_for(keeper), target, hit_at, stats, Time.get_ticks_msec())
 	if not check(await until(func(): return game.encounter_rewarded and game.encounter_cleared()), "real enemy clear commits and activates the Gate"):
 		return
 	check(not game.wild_item_drops.is_empty(), "real encounter creates monster drops")

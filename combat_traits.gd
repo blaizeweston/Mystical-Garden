@@ -1,4 +1,6 @@
 extends RefCounted
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -122,7 +124,7 @@ static func trip_snare(game: Node,p: Dictionary,event: Dictionary,now: int) -> v
   var chosen := Ranger.trap_hit(game,p,event,target,origin,entrants.has(target) or corridor.has(target),only_corridor,now) if ranger else skill
   if not only_corridor and event.stats.has("cr02_action"):
    preload("res://combat_action_events.gd").contact(game,event.stats,target,now,false,event.position)
-  game.apply_skill_targets(p,victims,chosen,trap_stats,now)
+  OutgoingHits.skill_world(game, HitSession.peer_for(p), victims, chosen, trap_stats, now)
   var at: Vector3=game.enemy_position(target)
   game.emit_combat_event("proc",skill.name,origin,at,.45,Color(skill.color),0.0,target)
   preload("res://diagnostic_journal.gd").event("combat","class_trap_contact",{"actor":event.owner,
@@ -165,7 +167,7 @@ static func tick(game: Node,now: int) -> void:
       preload("res://combat_action_events.gd").contact(game,event.stats,int(event.target),now)
      if not event_in_current_life(game,event):continue
      if valid_target(game,int(event.target),int(event.token)):
-      game.apply_weapon_hit(p,int(event.target),origin,event.stats,now)
+      OutgoingHits.hit_world(game, HitSession.peer_for(p), int(event.target), origin, event.stats, now)
      if game.encounter_cleared(): game.finish_combat(int(event.owner),point)
    continue
   if now>=int(event.until): end_zone(game,event);game.trait_events.erase(event);continue
@@ -189,7 +191,7 @@ static func tick(game: Node,now: int) -> void:
     elif event.get("native_weaver_bloom",false):
      hit.core_hit=true
     var before: int = game.encounter.hp(target)
-    game.apply_weapon_hit(p,target,event.position,hit,now)
+    OutgoingHits.hit_world(game, HitSession.peer_for(p), target, event.position, hit, now)
     if event.has("weaver_pressure"):
      var after: int = game.encounter.hp(target)
      if after < before: preload("res://weaver_combat.gd").field_contact(game,p,event)

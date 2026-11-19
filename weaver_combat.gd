@@ -1,4 +1,6 @@
 extends RefCounted
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Protection = preload("res://player_protection.gd")
 ## Host-side connected Weaver effects. Extra areas and delayed effects are native spell damage.
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -163,5 +165,5 @@ static func burst(game: Node, player: Dictionary, effect: Dictionary, now: int) 
 
 
 static func secondary_hit(game: Node, player: Dictionary, target: int, origin: Vector3, hp: int, now: int) -> void:
-	game.apply_weapon_hit(player,target,origin,{"damage":0.0,"affinity_hp":hp,"trait_secondary":true,
-		"core_hit":true,"knockback":-.35},now)
+	OutgoingHits.hit_world(game, HitSession.peer_for(player), target, origin, {"damage":0.0,"affinity_hp":hp,"trait_secondary":true,
+		"core_hit":true,"knockback":-.35}, now)

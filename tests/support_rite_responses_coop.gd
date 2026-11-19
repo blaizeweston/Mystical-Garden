@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
@@ -124,7 +126,7 @@ func host() -> void:
 		var role: String = game.Enemies.get_kind(caster.kind).role
 		var player: Dictionary = game.players[1]
 		Attacks.lock(game, caster, role, player.pos, Time.get_ticks_msec() + 4500)
-		game.apply_weapon_hit(player,game.encounter.scout_slot(caster),player.pos,{"damage":1,"stagger":180},Time.get_ticks_msec())
+		OutgoingHits.hit_world(game, HitSession.peer_for(player), game.encounter.scout_slot(caster), player.pos, {"damage":1,"stagger":180}, Time.get_ticks_msec())
 		if not await until(func(): return Tactics.evidence(game).get(Tactics.CAST_DENIAL, 0) == 1 and Time.get_ticks_msec() >= int(caster.ready)):
 			check(false, "Native stagger stops the ordinary rite before " + response)
 			return

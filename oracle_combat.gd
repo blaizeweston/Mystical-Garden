@@ -1,4 +1,6 @@
 extends RefCounted
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -139,12 +141,12 @@ static func finish_chime(game: Node, id: int, player: Dictionary, skill: Diction
 		for target in game.skill_area_targets(center,Progression.SENTENCE_RADIUS,center):
 			var own_curse := Omens.strongest(game,Omens.enemy_body(game,target),Progression.FOREBODING,now,id)
 			var hp := Progression.SENTENCE_HP if own_curse.is_empty() else Progression.SENTENCE_HP+Progression.SENTENCE_CURSE_HP
-			game.apply_weapon_hit(player,target,center,spell_hit(hp),now)
+			OutgoingHits.hit_world(game, HitSession.peer_for(player), target, center, spell_hit(hp), now)
 	if chime.prepared and nodes.has("barbed_chime"):
 		var target := nearest_enemy(game,game.skill_area_targets(center,Progression.BARBED_RADIUS,center),center)
 		if target != -2:
 			var point: Vector3 = game.enemy_position(target)
-			game.apply_weapon_hit(player,target,center,spell_hit(Progression.BARBED_HP,true),now)
+			OutgoingHits.hit_world(game, HitSession.peer_for(player), target, center, spell_hit(Progression.BARBED_HP,true), now)
 			game.emit_combat_event("link","subclass_echo",center,point,.5,Color(skill.color),0.0,id)
 
 

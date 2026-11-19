@@ -1,4 +1,6 @@
 extends RefCounted
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Protection = preload("res://player_protection.gd")
 ## Native Reaper preparations. Keys stay in the authoritative combat actor.
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -161,5 +163,5 @@ static func feast(game: Node, player: Dictionary, primary: int, center: Vector3,
 	for target in nearby.slice(0,Progression.FEAST_TARGETS):
 		var at: Vector3 = game.enemy_position(target)
 		game.emit_combat_event("link","feast_of_thorns",center,at,.42,FEAST_COLOR,0.0,game.Traits.player_id(game,player))
-		game.apply_weapon_hit(player,target,center,{"damage":0.0,"affinity_hp":Progression.FEAST_HP,
-			"affinity_color":FEAST_COLOR,"knockback":-.35,"core_hit":true,"trait_secondary":true},now)
+		OutgoingHits.hit_world(game, HitSession.peer_for(player), target, center, {"damage":0.0,"affinity_hp":Progression.FEAST_HP,
+			"affinity_color":FEAST_COLOR,"knockback":-.35,"core_hit":true,"trait_secondary":true}, now)

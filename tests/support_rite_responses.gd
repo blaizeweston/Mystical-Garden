@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -55,7 +57,7 @@ func fixture(kind: int, floor_number: int) -> Dictionary:
 func cancel_rite(caster: Dictionary, role: String) -> bool:
 	var now := Time.get_ticks_msec()
 	Attacks.lock(game, caster, role, player.pos, now + 1600)
-	game.apply_weapon_hit(player,game.encounter.scout_slot(caster),player.pos,{"damage":1,"stagger":180},now)
+	OutgoingHits.hit_world(game, HitSession.peer_for(player), game.encounter.scout_slot(caster), player.pos, {"damage":1,"stagger":180}, now)
 	return caster.windup == 0 and Tactics.evidence(game).get(Tactics.CAST_DENIAL, 0) == 1
 
 

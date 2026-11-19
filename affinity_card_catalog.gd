@@ -152,7 +152,7 @@ const DEFINITIONS := {
 	},
 	"quake_impact": {
 		"title": "Deep Fault", "scope": "class", "policy": "stackable",
-		"trigger": "Native Root Quake hit", "consumer": ["res://game.gd", "apply_skill_targets"],
+		"trigger": "Native Root Quake hit", "consumer": ["res://outgoing_hits.gd", "skill_targets"],
 		"requires": {"class": "warden", "mode": "quake", "skill": "Root Quake"}, "parameter": "damage",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Root Quake deals +%s damage per hit.",
@@ -160,7 +160,7 @@ const DEFINITIONS := {
 	},
 	"nova_impact": {
 		"title": "Heavy Spores", "scope": "class", "policy": "stackable",
-		"trigger": "Native Spore Nova hit", "consumer": ["res://game.gd", "apply_skill_targets"],
+		"trigger": "Native Spore Nova hit", "consumer": ["res://outgoing_hits.gd", "skill_targets"],
 		"requires": {"class": "weaver", "mode": "nova", "skill": "Spore Nova"}, "parameter": "damage",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Spore Nova deals +%s damage per hit.",
@@ -176,7 +176,7 @@ const DEFINITIONS := {
 	},
 	"siphon_impact": {
 		"title": "Harvest Edge", "scope": "class", "policy": "stackable",
-		"trigger": "Native Siphon Cut primary hit", "consumer": ["res://game.gd", "apply_skill_targets"],
+		"trigger": "Native Siphon Cut primary hit", "consumer": ["res://outgoing_hits.gd", "skill_targets"],
 		"requires": {"class": "reaper", "mode": "siphon", "skill": "Siphon Cut"}, "parameter": "damage",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Siphon Cut's primary hit deals +%s damage.",

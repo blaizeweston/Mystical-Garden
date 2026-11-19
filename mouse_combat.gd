@@ -4,6 +4,7 @@ const WeaponActions = preload("res://player_weapon_actions.gd")
 const Hurt = preload("res://enemy_hurtbox.gd")
 const MAX_AGE:=250
 var states: Dictionary={}
+const OutgoingHits = preload("res://outgoing_hits.gd")
 var next_send: int=0
 var armed:=true
 var local_aim:=Vector3.ZERO
@@ -189,7 +190,7 @@ static func ray_tick(game: Node,shot: Dictionary,now: int) -> bool:
    if shot.has("ranger_follow_hp"):
     hit.native_bonus_hp = int(shot.ranger_follow_hp)
     shot.erase("ranger_follow_hp")
-  game.apply_weapon_hit(game.players[int(shot.player)],target,shot.origin,hit,now)
+  OutgoingHits.hit_world(game, int(shot.player), target, shot.origin, hit, now)
   if hit.has("cr02_action"):
    preload("res://combat_action_events.gd").contact(game,hit,target,now,false,point,(Vector3(shot.aim)-Vector3(shot.origin)).normalized())
   if shot.stats.pattern in ["chain","splash"]:

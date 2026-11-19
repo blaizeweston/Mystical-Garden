@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
@@ -71,7 +73,7 @@ func run() -> void:
   if hints.size()==2:
    check(hints[0].radius==plan.radius and hints[0].inner==plan.inner and hints[0].span==plan.span,"sweep warning is the authoritative footprint")
   var locked: Vector3=game.tactics.position
-  game.apply_weapon_hit(player,-1,player.pos,{"damage":1,"knockback":5.0},now)
+  OutgoingHits.hit_world(game, HitSession.peer_for(player), -1, player.pos, {"damage":1,"knockback":5.0}, now)
   check(game.tactics.position==locked,"weapon hits keep the committed cast origin")
   player.pos=retreat
   player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(100)
@@ -82,7 +84,7 @@ func run() -> void:
   Status.sync(game,strike)
   check(Status.snapshot(game,strike).any(func(event):return event.shape=="uprooting"),"uprooting is displayed")
   var before: int=game.enemy_health()
-  game.apply_weapon_hit(player,-1,player.pos,{"damage":1},strike+100)
+  OutgoingHits.hit_world(game, HitSession.peer_for(player), -1, player.pos, {"damage":1}, strike+100)
   check(game.enemy_health()==before-13 and not game.Bosses.exposed(game,strike+2800),"uprooting adds the current 3-damage exposure bonus to the native 10-damage hit")
   if stamp==17:
    player.pos=plan.from+Lairs.direction(plan.from,plan.face)*12

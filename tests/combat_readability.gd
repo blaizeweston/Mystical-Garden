@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -59,7 +61,7 @@ func run():
  game.tactics.position=Vector3(0,0,2)
  preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[]);game.encounter.set_hp(-1, 1)
  var stats: Dictionary=game.weapon_stats(p);stats.damage=9
- game.apply_weapon_hit(p,-1,p.pos,stats,Time.get_ticks_msec())
+ OutgoingHits.hit_world(game, HitSession.peer_for(p), -1, p.pos, stats, Time.get_ticks_msec())
  var impact: Dictionary=game.combat_events.filter(func(e):return e.kind=="impact").back()
  check(impact.amount==1 and impact.target_id==-1,"finishing blow displays actual remaining HP, not overkill")
  game.encounter.set_hp(-1, 30);game.tactics.position=Vector3(0,0,2);game._process(.016)
@@ -103,7 +105,7 @@ func run():
  check(received.size()==1 and float(received[0].age)>=.7,"delayed event keeps host age rather than restarting its animation")
  # Rollback drops damage and its visual event together.
  game.combat_events.clear();game.encounter.set_hp(-1, 30);var old_hp: int=game.enemy_health()
- var committed=game.Transactions.run(game,func():game.apply_weapon_hit(p,-1,p.pos,stats,Time.get_ticks_msec());game.SaveBatch.failure=ERR_CANT_CREATE)
+ var committed=game.Transactions.run(game,func():OutgoingHits.hit_world(game, HitSession.peer_for(p), -1, p.pos, stats, Time.get_ticks_msec());game.SaveBatch.failure=ERR_CANT_CREATE)
  check(committed==false and game.enemy_health()==old_hp and game.combat_events.is_empty(),"rolled-back damage cannot leave a confirmed-hit event")
  fx.sync([],[],"garden",Vector3.ZERO);check(fx.feedback.labels.is_empty() and fx.feedback.flashes.is_empty(),"floor cleanup includes labels and material overlays")
  game.queue_free();await process_frame

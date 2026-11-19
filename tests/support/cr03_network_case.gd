@@ -1,4 +1,6 @@
 extends RefCounted
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
@@ -334,7 +336,7 @@ func host(menu: Node) -> void:
 	stats.damage=10000
 	for index in game.encounter.scout_count():
 		if game.encounter.hp(index)>0:
-			game.apply_weapon_hit(local,index,game.encounter.scout(index).pos,stats,Time.get_ticks_msec())
+			OutgoingHits.hit_world(game, HitSession.peer_for(local), index, game.encounter.scout(index).pos, stats, Time.get_ticks_msec())
 	var expected_xp := []
 	var selected_weaver: Dictionary=game.players.get(weaver_id,{})
 	var selected_player: Dictionary=game.players.get(path_id,{})

@@ -1,4 +1,5 @@
 extends Node3D
+signal outgoing_contact_requested(source_peer: int, target: int)
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -1323,52 +1324,6 @@ func skill_line_targets(origin: Vector3,facing: Vector3,distance: float,width: f
 		result.append(int(item.id))
 	return result
 
-func apply_skill_targets(player: Dictionary,targets: Array[int],skill: Dictionary,stats: Dictionary,now: int) -> int:
-	var before_primary:=enemy_health()
-	var drain_contacts:=0
-	var native_hits: Dictionary = skill.get("native_hit_adjustments",{})
-	var echo_bloom := AffinityCards.bloom_echo_source(self,player,skill,now)
-	var echo_hit := false
-	for target in targets:
-		var adjustment: Dictionary = native_hits.get(target,{})
-		var root_time:=Skills.Balance.bind_ms(skill,stats)
-		if root_time>0:
-			var until:=now+root_time
-			if target==-1: tactics.extend_root(until)
-			else: encounter.scout(target).rooted_until=maxi(int(encounter.scout(target).get("rooted_until",0)),until)
-		var recovery:=int(skill.get("recovery",0))
-		if recovery>0:
-			if target==-1: tactics.recovery_bonus=maxi(tactics.recovery_bonus,recovery)
-			else: encounter.scout(target).recovery=maxi(int(encounter.scout(target).get("recovery",0)),recovery)
-		var damage:=Life.Preview.authored_amount(float(skill.get("damage",0))) + float(adjustment.get("bonus_hp",0))/Life.Preview.scale()
-		if damage>0.0:
-			var hit: Dictionary=stats.duplicate(true)
-			hit.damage=damage
-			hit.audio_form="magic"
-			hit.stagger=int(stats.get("stagger",0))+int(skill.get("stagger",0))
-			hit.recovery=int(stats.get("recovery",0))+recovery
-			hit.knockback=float(skill.get("push",0))-.35
-			if adjustment.get("isolated",false):
-				hit = {"damage":0.0,"affinity_hp":Life.Preview.effect_hp(damage),"trait_secondary":true,
-					"core_hit":true,"knockback":-.35}
-			else:
-				hit.ranger_direct_hit = not stats.get("ranger_trap_contact",false) and skill.mode != "salvo"
-				if skill.has("reaper_nodes"):
-					preload("res://reaper_combat.gd").tag_hit(hit,skill.reaper_nodes)
-			var before:=encounter.hp(target)
-			var inside_bloom := before > 0 and not echo_bloom.is_empty() and AffinityCards.bloom_contains(self,echo_bloom,target)
-			apply_weapon_hit(player,target,adjustment.get("origin",skill.get("effect_origin",player.pos)),hit,now)
-			var after:=encounter.hp(target)
-			echo_hit = echo_hit or (inside_bloom and after < before)
-			if Life.Sustain.eligible(self,target):
-				drain_contacts+=int(after<before)
-	if echo_hit:
-		AffinityCards.bloom_echo(self,player,echo_bloom,skill,now)
-	if participation.route()==Campaign.HEART and before_primary>Campaign.FINAL_HP/2.0 and enemy_health()>0 and enemy_health()<=Campaign.FINAL_HP/2.0:
-		for peer_id in players: tell(peer_id,"The Heart remembers: I sheltered them, too. I will not let it happen again.")
-	return drain_contacts
-
-
 func graft_altar_open() -> bool:
 	return participation.route() != Campaign.HEART and participation.floor() % GRAFT_ROOM == 0
 
@@ -2001,100 +1956,6 @@ func strike_enemy(id: int, p: Dictionary, pos: Vector3) -> void:
 	MouseCombat.queue_attack(self,id,p,pos,stats,now,form,duration,first)
 
 
-
-func apply_weapon_hit(p: Dictionary,target: int,origin: Vector3,stats: Dictionary,now: int) -> void:
-	if not encounter.alive(target): return
-	var target_token := encounter.token(target)
-	p.contributed=true
-	var grafts = preload("res://native_grafts.gd")
-	var graft_contact := grafts.start_contact(self,p,stats,target,now)
-	if not stats.get("core_hit",false) and not stats.get("oracle_spell",false): stats=Traits.augment_hit(self,p,target,stats,now,graft_contact)
-	var point:=enemy_position(target)
-	var contact_point := point
-	var distance:=origin.distance_to(point)
-	var winding: bool=stats.get("was_winding",tactics.winding_up if target==-1 else float(encounter.scout(target).windup)>0)
-	var pull:=float(stats.get("pull",0))
-	if pull>0 and not winding:
-		point=battlefield.dash(point,point.move_toward(origin,clampf(distance-0.9,0,pull)))
-	var authored_damage:=Life.Preview.authored_amount(float(stats.damage))
-	if not graft_contact.is_empty():
-		authored_damage += grafts.bonus(self,p,graft_contact,now)
-	if not stats.get("trait_secondary",false):
-		authored_damage+=int(stats.get("preview_power",0))
-	if winding:
-		authored_damage+=Life.Preview.authored_amount(float(stats.get("windup_damage",0)))
-	if winding and float(stats.get("windup_damage",0))>0:preload("res://combat_status.gd").proc(self,"punish",origin,point,target)
-	var damage := int(stats.affinity_hp) if stats.has("affinity_hp") else Life.Preview.resolved_hit(authored_damage,stats)
-	damage += int(stats.get("native_bonus_hp",0))
-	if damage > 0 and stats.get("ranger_direct_hit",false) and not stats.get("trait_secondary",false) and not stats.get("core_hit",false):
-		damage += preload("res://ranger_combat.gd").consume_prey(self,p,target,now)
-	var push:=0.35+float(stats.get("knockback",0))
-	var mutations: int=enemy_mutations if target==-1 else int(encounter.scout(target).get("mutations",0))
-	if not preload("res://enemy_support.gd").shelter_source(self,target,point,origin,now).is_empty():
-		damage=Life.Preview.armor(damage)
-	if target==-1 and tactics.boss_kind>=0: push*=.2
-	elif target==-1 and (participation.depth()==ROUTE_ROOMS or participation.route()==Campaign.HEART): push*=0.5
-	var guard_actor: Dictionary=encounter.scout(target) if target>=0 else encounter.leader_tactics()
-	if guard_actor.get("variant","")=="bark_guard":
-		if preload("res://enemy_variants.gd").guards(guard_actor,origin,now):
-			push*=.6;damage=Life.Preview.armor(damage)
-	elif mutations & Enemies.BARK: push*=0.6;damage=Life.Preview.armor(damage)
-	if target==-1 and Bosses.exposed(self,now):damage+=Director.Balance.exposed_bonus(damage)
-	if winding: push*=0.4
-	if pull<=0 or winding:
-		var direction: Vector3=(point-origin).normalized() if distance>0.001 else p.facing
-		point=battlefield.dash(point,point+direction*push)
-	var stagger:=now+90+int(stats.get("stagger",0))
-	var recovery:=int(stats.get("recovery",0))
-	var player_id:=0
-	for peer_id in players:
-		if is_same(players[peer_id],p): player_id=peer_id;break
-	if player_id!=0: combat_threat[player_id]=float(combat_threat.get(player_id,0))+Life.Vitals.threat_from_hit(damage,Life.Preview.scale())
-	Director.alert(self,point)
-	var before: int=encounter.hp(target)
-	var applied:=Life.Vitals.damage_taken(before,damage)
-	if Life.Vitals.counts_as_burst(damage,Life.Preview.scale()): burst_hits_this_room+=1
-	if before<=applied and battlefield.floor_distance(point)<1.6: choke_kills_this_room+=1
-	if target==-1:
-		if tactics.winding_up and Bosses.owns_warnings(tactics.boss_kind):point=tactics.position
-		tactics.position=point
-		tactics.engaged=true
-		encounter.apply_damage(-1, applied)
-		tactics.recovery_bonus=maxi(tactics.recovery_bonus,recovery)
-		if winding and enemy_health()>0 and tactics.boss_kind==22 and float(stats.get("stagger",0))>=150:
-			preload("res://boss_phase_fights.gd").interrupt(self,point,now)
-		if winding and tactics.boss_kind<0 and not encounter.leader_tactics().is_empty() and float(stats.get("stagger",0))>=150 and EnemyBehaviors.interrupt(self,encounter.leader_tactics(),point,now):
-			tactics.ready_at=encounter.leader_tactics().ready
-			tactics.winding_up=false
-			winding=false
-		if not winding and not stats.has("affinity_hp"): tactics.stagger_until=stagger
-		if enemy_health()==0: tactics.winding_up=false
-	else:
-		var scout: Dictionary=encounter.scout(target)
-		scout.pos=point
-		scout.engaged=true
-		encounter.apply_damage(target, applied, target_token)
-		scout.recovery=maxi(int(scout.recovery),recovery)
-		if winding and float(stats.get("stagger",0))>=150 and EnemyBehaviors.interrupt(self,scout,point,now):winding=false
-		if not winding and not stats.has("affinity_hp"): scout.stagger_until=stagger
-	if stats.get("rite_suppressed",false) and applied<before:
-		var actor: Dictionary=encounter.scout(target) if target>=0 else encounter.leader_tactics()
-		preload("res://wilds_skill_tactics.gd").interrupted(self,actor,"suppression")
-	if applied>0:
-		if (int(p.frame)==4 or p.has("oracle_omens")):
-			preload("res://oracle_combat.gd").ordinary_contact(self,p,target,contact_point,stats,now)
-		var form := "magic" if stats.get("trait_secondary",false) else str(stats.get("audio_form",WeaponMotion.form(p)))
-		emit_combat_event("impact","hit",origin,point,.85,stats.get("affinity_color",weapon_effect_color(p)),float(applied),target,{"form":form})
-	if encounter.death_pending(target, target_token):
-		record_enemy_death(target,point,origin,target_token)
-		Life.Sustain.heal_on_kill(self,p,target,Life.Preview.authored_amount(float(stats.get("heal_on_kill",0))))
-	Traits.after_hit(self,p,target,stats,now,before>0 and applied>=before)
-	if not graft_contact.is_empty() and applied > 0:
-		grafts.finish_contact(self,p,target,stats,graft_contact,now,before>0 and applied>=before)
-	damage_this_room+=applied
-	if float(stats.get("shot_distance",distance))>=RANGED_DISTANCE:
-		ranged_damage_this_room+=applied
-		if player_id!=0 and combat_velocity.get(player_id,Vector3.ZERO).length()>.8: moving_ranged_hits+=1
 
 func finish_combat(id: int,loot_position: Vector3) -> void:
 	if persistence_session.is_guarded():

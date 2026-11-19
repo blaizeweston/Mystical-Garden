@@ -1,4 +1,6 @@
 extends RefCounted
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -185,7 +187,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 				Reaper.tag_hit(hit,skill.reaper_nodes)
 				if not reaper_damage and skill.reaper_nodes.has("rending_cut"):
 					hit.native_bonus_hp = Catalog.Reaper.RENDING_HP
-			game.apply_weapon_hit(player,target,cast.center,hit,now)
+			OutgoingHits.hit_world(game, HitSession.peer_for(player), target, cast.center, hit, now)
 			var after: int = game.encounter.hp(target)
 			q_contact = q_contact or after < before
 			if reaper and after < before:
@@ -295,7 +297,7 @@ static func echo(game: Node, player: Dictionary, center: Vector3, exclude: Array
 	if isolated:
 		WeaverCombat.secondary_hit(game,player,nearest,center,Catalog.Weaver.BRANCHING_HP,now)
 	else:
-		game.apply_weapon_hit(player,nearest,center,{"damage":Balance.FOLLOWUP_POINTS,"knockback":-.35,"trait_secondary":true},now)
+		OutgoingHits.hit_world(game, HitSession.peer_for(player), nearest, center, {"damage":Balance.FOLLOWUP_POINTS,"knockback":-.35,"trait_secondary":true}, now)
 	game.emit_combat_event("link","subclass_echo",center,point,.5,color,0.0,0)
 
 

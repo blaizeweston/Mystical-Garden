@@ -134,6 +134,12 @@ func hp_for(tactics: Dictionary) -> int:
 func token(slot: int) -> int:
 	return _scouts[slot].token if slot >= 0 and slot < _scouts.size() else -1
 
+## Both leaders and scouts have a member identity. Keep token()'s historical
+## scout-only convention unchanged for its existing callers and packet logic.
+func spawn_identity(slot: int) -> int:
+	var member := _member(slot)
+	return member.token if member != null else -1
+
 func token_for(tactics: Dictionary) -> int:
 	var member := _member_for(tactics)
 	return member.token if member != null else int(tactics.get("spawn_token", 0))

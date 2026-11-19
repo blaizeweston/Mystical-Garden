@@ -1,7 +1,7 @@
 extends RefCounted
 ## The shared native Q/R sequence. Per-cast values are local to this module;
 ## ClassCaster bridges one captured player life to existing state/effect owners.
-## Focus Q effects stay in subclass_combat.gd; outgoing hits stay in Game for now.
+## Focus Q effects stay in subclass_combat.gd; outgoing_hits.gd resolves contacts.
 
 const Caster = preload("res://class_caster.gd")
 const Balance = preload("res://class_skill_balance.gd")

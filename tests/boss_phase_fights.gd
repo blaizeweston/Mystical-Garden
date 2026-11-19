@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -59,7 +61,7 @@ func check_nest(game: Node, player: Dictionary) -> void:
  for repetition in 2:
   var child: Dictionary=game.encounter.scout(0)
   var current: int=strike+repetition*600
-  game.apply_weapon_hit(player,0,player.pos,{"damage":2,"knockback":0},current)
+  OutgoingHits.hit_world(game, HitSession.peer_for(player), 0, player.pos, {"damage":2,"knockback":0}, current)
   Fights.observe_brood(game,current)
   Fights.observe_brood(game,current+1)
   check(int(game.tactics.memory.get("nursery_pressure",0))==repetition+1,"a defeated hatchling counts once near the same entrance")
@@ -101,7 +103,7 @@ func check_nest(game: Node, player: Dictionary) -> void:
  var hatch: Array=game.tactics.memory.phase_plan.hatches.duplicate()
  check(hatch.size()==2,"two hatch markers are committed")
  if hatch.size()!=2:return
- game.apply_weapon_hit(player,-1,player.pos,{"damage":1,"stagger":160},now+3400)
+ OutgoingHits.hit_world(game, HitSession.peer_for(player), -1, player.pos, {"damage":1,"stagger":160}, now+3400)
  check(game.encounter.scout_count()==0 and not game.tactics.winding_up,"a heavy hit interrupts the hatch")
  Status.sync(game,now+3400)
  check(Status.snapshot(game,now+3400).any(func(event):return event.shape=="nursery_lull"),"nursery lull is displayed")

@@ -49,6 +49,7 @@ var _enemies_defeated := 0
 
 
 func _ready() -> void:
+	outgoing_contact_requested.connect(_observe_outgoing_contact)
 	if config == null:
 		config = Config.new()
 	_prepare_sandbox()
@@ -432,10 +433,9 @@ func tick_enemies(delta: float, now: int) -> void:
 		bridge.tick(now)
 
 
-func apply_weapon_hit(p: Dictionary, target: int, origin: Vector3, stats: Dictionary, now: int) -> void:
+func _observe_outgoing_contact(source_peer: int, target: int) -> void:
 	if bridge != null:
-		bridge.note_hit(target, Session.peer_for(p))
-	super(p, target, origin, stats, now)
+		bridge.note_hit(target, source_peer)
 
 
 func move_player(id: int, direction: Vector2, delta: float) -> void:

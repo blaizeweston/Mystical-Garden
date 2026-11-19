@@ -1,4 +1,5 @@
 extends RefCounted
+const OutgoingHits = preload("res://outgoing_hits.gd")
 ## Integration port for exactly one captured caster life and world generation.
 ## No public operation returns a mutable actor/profile or an owner service.
 ## This is not another player owner; existing owners remain authoritative.
@@ -168,7 +169,7 @@ func prepare_impact(skill: Dictionary, now: int) -> void:
 
 
 func apply_targets(targets: Array[int], skill: Dictionary, stats: Dictionary, now: int) -> int:
-	return _world.apply_skill_targets(_actor, targets, skill, stats, now)
+	return OutgoingHits.skill_world(_world, _peer, targets, skill, stats, now)
 
 
 func warden_cast(skill: Dictionary, until: int, now: int, event: RefCounted) -> void:

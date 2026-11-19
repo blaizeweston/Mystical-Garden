@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -144,12 +146,12 @@ func tracked_and_offense() -> void:
 	apply_frost(-1,now)
 	check(not Ranger.track(game,game.HOST,ranger,-1,100,now+1) and Frost.state(Frost.body(game,-1),now).stacks.size()==1,
 		"another preparation cannot overwrite Tracked Prey or an independent botanical status")
-	game.apply_weapon_hit(ally,-1,ally.pos,{"damage":0.0,"affinity_hp":3,"knockback":-.35,"core_hit":true,"trait_secondary":true},now)
+	OutgoingHits.hit_world(game, HitSession.peer_for(ally), -1, ally.pos, {"damage":0.0,"affinity_hp":3,"knockback":-.35,"core_hit":true,"trait_secondary":true}, now)
 	check(game.enemy_traits.has(Ranger.PREY) and Frost.state(Frost.body(game,-1),now).stacks.size()==1,"secondary damage cannot consume Tracked Prey or the independent Frost status")
-	game.apply_weapon_hit(ally,-1,ally.pos,{"damage":1.0,"knockback":-.35,"ranger_direct_hit":true},now+2)
+	OutgoingHits.hit_world(game, HitSession.peer_for(ally), -1, ally.pos, {"damage":1.0,"knockback":-.35,"ranger_direct_hit":true}, now+2)
 	check(game.enemy_health()==247 and not game.enemy_traits.has(Ranger.PREY) and Frost.state(Frost.body(game,-1),now).stacks.size()==1,
 		"one ally direct hit consumes Tracked Prey without consuming the independent Frost status")
-	game.apply_weapon_hit(ally,-1,ally.pos,{"damage":1.0,"knockback":-.35,"ranger_direct_hit":true},now+3)
+	OutgoingHits.hit_world(game, HitSession.peer_for(ally), -1, ally.pos, {"damage":1.0,"knockback":-.35,"ranger_direct_hit":true}, now+3)
 	check(game.enemy_health()==237,"the consumed prey adds damage only once")
 	check(Ranger.track(game,game.HOST,ranger,-1,101,now) and Ranger.active_prey(game,game.enemy_traits,now+2700).is_empty(),
 		"Tracked Prey expires after 2.7 seconds")

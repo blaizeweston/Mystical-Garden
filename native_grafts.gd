@@ -1,4 +1,6 @@
 extends RefCounted
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 ## Capture each acquired adaptation at basic attack launch. Each source
 ## owns its own counters, and secondaries use the bounded native effect queue.
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
@@ -143,7 +145,7 @@ static func resolve_queued(game: Node, player: Dictionary, row: Dictionary, now:
 		var point: Vector3 = game.enemy_position(target)
 		if game.battlefield.combat_sight(row.origin,point):
 			load("res://combat_status.gd").proc(game,row.visual,row.origin,point,target)
-			game.apply_weapon_hit(player,target,row.origin,row.stats,now)
+			OutgoingHits.hit_world(game, HitSession.peer_for(player), target, row.origin, row.stats, now)
 	if game.encounter_cleared():
 		game.finish_combat(int(row.owner),row.origin)
 

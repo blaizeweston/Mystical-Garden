@@ -68,6 +68,7 @@ These five reads in `game.gd` are not combat rules, so they were left alone:
 | `LeaderBehavior.tick` or `ScoutBehavior.tick` signatures change | `tick_enemies` in `game.gd` and `arena_world.gd` |
 | Gameplay menu presentation changes | `GameplayUI.configure_arena_menu`, its `arena_open`/`arena_setup` intentions, `Game._handle_ui_request`, and `ArenaWorld._handle_ui_request` |
 | Arena menu options change | `_trim_session_menu` requests `ui.configure_arena_menu(false, true)`; do not restore removed Game control fields or inspect private UI children |
+| Outgoing damage changes | `outgoing_hits.gd` is shared by the game and Arena. `ArenaWorld._observe_outgoing_contact` receives Game's local `outgoing_contact_requested(source_peer, target)` signal and calls `bridge.note_hit(target, source_peer)`. The old `apply_weapon_hit` override is retired. Keep this observer separate from HP application so a hit is not applied twice. |
 | `world.tscn` changes its root script or is renamed | `arena_entry.gd`, which applies `arena_world.gd` to that scene |
 
 ### 2. Combat clock reads
@@ -76,7 +77,8 @@ New combat rule code should call the clock rather than `Time.get_ticks_msec()`. 
 
 | File | Functions (reads) |
 |---|---|
-| `game.gd` | `campaign_snapshot`, `use_class_skill`, `grant_guard`, `submit_motion`, `submit_movement`, `_physics_process`, `send_expedition_state`, `move_player` (3), `dodge_player`, `strike_enemy`, `finish_combat` (2), `_finish_combat` (3), `reset_encounter`, `combat_pose`, `player_snapshot` (7), `apply_world_snapshot`, `_process` (7), `record_enemy_death`, `death_events_snapshot`, `attack_animation_snapshot` (5), `emit_combat_event`, `publish_combat_event`, `combat_events_snapshot`, `attack_hints_snapshot` (4), `receive_details`, `receive_combat_event`, `guest_combat_events`, `submit_combat` |
+| `game.gd` | `campaign_snapshot`, `grant_guard`, `submit_motion`, `submit_movement`, `_physics_process`, `send_expedition_state`, `move_player` (3), `dodge_player`, `strike_enemy`, `finish_combat` (2), `_finish_combat` (3), `reset_encounter`, `combat_pose`, `player_snapshot` (7), `apply_world_snapshot`, `_process` (7), `record_enemy_death`, `death_events_snapshot`, `attack_animation_snapshot` (5), `emit_combat_event`, `publish_combat_event`, `combat_events_snapshot`, `attack_hints_snapshot` (4), `receive_details`, `receive_combat_event`, `guest_combat_events`, `submit_combat` |
+| `native_class_actions.gd` | `cast` replaces the retired Game `use_class_skill` execution |
 | `ability_aim.gd` | `footprint` |
 | `boss_encounters.gd` | `hints` |
 | `class_ability_targeting.gd` | `growth_centers`, `plan` |

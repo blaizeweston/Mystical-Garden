@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -82,7 +84,7 @@ func run() -> void:
  Attacks.lock(game,mother,"brood",mother.pos,now+3600)
  var hatch: Array=mother.attack.hatch.duplicate()
  check(hatch.size()==2 and hatch[0].distance_to(hatch[1])>3,"split hatch shows two spaced exits")
- game.apply_weapon_hit(player,0,player.pos,{"damage":1,"stagger":170},now+3400)
+ OutgoingHits.hit_world(game, HitSession.peer_for(player), 0, player.pos, {"damage":1,"stagger":170}, now+3400)
  check(mother.windup==0 and game.encounter.scout_count()==1,"a stagger attack can interrupt the birth from one angle")
  mother.pos=Vector3.ZERO
  Attacks.lock(game,mother,"brood",mother.pos,now+4800)

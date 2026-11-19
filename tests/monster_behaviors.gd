@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -23,9 +25,9 @@ func run():
  game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();game.encounter.register_scout(game.make_scout(10,shepherd.pos,1));preload("res://enemy_formation.gd").arrange(game)
  check(not game.Enemies.is_support(int(game.encounter.scout(0).kind)),"Shepherd cannot spawn without escorts")
  var grazer=game.make_scout(11,Vector3(1,0,5),3);game.encounter.clear_scouts();game.encounter.register_scout(grazer);game.encounter.set_hp(-1, 100);game.tactics.position=Vector3(0,0,5)
- game.apply_weapon_hit(p,-1,p.pos,{"damage":4},3000)
+ OutgoingHits.hit_world(game, HitSession.peer_for(p), -1, p.pos, {"damage":4}, 3000)
  check(game.enemy_health()==70,"living grazer reduces the 40-damage hit by 25 percent")
- game.encounter.set_hp(0, 0);game.apply_weapon_hit(p,-1,p.pos,{"damage":4},3200)
+ game.encounter.set_hp(0, 0);OutgoingHits.hit_world(game, HitSession.peer_for(p), -1, p.pos, {"damage":4}, 3200)
  check(game.enemy_health()==30,"protection ends immediately when grazer dies")
  var lure=game.make_scout(12,Vector3(0,0,7),4);lure.mode="lure";lure.blast=Vector3(0,0,4);lure.windup=4000
  p.pos=lure.blast;p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100);p[Conditions.STATE] = p[Conditions.STATE].clear_grace();p[Protection.STATE] = p[Protection.STATE].clear_guard()

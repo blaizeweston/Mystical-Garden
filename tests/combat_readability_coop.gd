@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
@@ -44,7 +46,7 @@ func host_run():
  game.encounter.clear_scouts();game.encounter.set_hp(-1, 50);game.tactics.position=Vector3(0,0,1);game.tactics.ready_at=Time.get_ticks_msec()+60000;game.tactics.winding_up=false;game.enemy_mutations=0
  check(await until(func():return marked("ready")),"guest sees Wilds")
  game.Transactions.run(game,func():
-  game.apply_weapon_hit(p,-1,p.pos,game.weapon_stats(p),Time.get_ticks_msec())
+  OutgoingHits.hit_world(game, HitSession.peer_for(p), -1, p.pos, game.weapon_stats(p), Time.get_ticks_msec())
   IncomingPlayerHit.apply_health_loss(game, id, PlayerLifecycle.generation(p), 1)
   ClassActions.cast_world(game, id, 0))
  check(await until(func():return marked("verified")),"guest verifies feedback")

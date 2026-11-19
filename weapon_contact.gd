@@ -1,4 +1,6 @@
 extends RefCounted
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 # Resolved weapon delivery, collision and visible footprint use this same contract.
 const Motion=preload("res://weapon_motion.gd")
 const Hurt=preload("res://enemy_hurtbox.gd")
@@ -67,7 +69,7 @@ static func secondary(game: Node,player: Dictionary,stats: Dictionary,point: Vec
   if stats.pattern=="chain":game.emit_combat_event("link","chain",cursor,next,.20,game.weapon_effect_color(player),0,0)
   if stats.has("cr02_action"):
    preload("res://combat_action_events.gd").contact(game,stats,found,preload("res://combat_clock.gd").now(),true)
-  game.apply_weapon_hit(player,found,cursor,hit,preload("res://combat_clock.gd").now())
+  OutgoingHits.hit_world(game, HitSession.peer_for(player), found, cursor, hit, preload("res://combat_clock.gd").now())
   if stats.pattern=="chain":cursor=next
  return remaining
 static func melee(game: Node,shot: Dictionary,now: int) -> void:
@@ -86,7 +88,7 @@ static func melee(game: Node,shot: Dictionary,now: int) -> void:
   var reaper = preload("res://reaper_combat.gd")
   if hit.has(reaper.STRIKE):
    reaper.melee_contact(game,player,hit,target,now)
-  game.apply_weapon_hit(player,target,shot.origin,hit,now)
+  OutgoingHits.hit_world(game, HitSession.peer_for(player), target, shot.origin, hit, now)
   if shot.stats.has("cr02_action"):
    preload("res://combat_action_events.gd").contact(game,shot.stats,target,now,false,point,direction)
   if shot.stats.pattern=="chain" or (shot.stats.pattern=="splash" and Motion.profile(str(shot.form)).delivery!="radial"):

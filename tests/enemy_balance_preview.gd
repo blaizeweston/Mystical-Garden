@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -202,7 +204,7 @@ func bosses() -> void:
 		game.enemy_mutations=0
 		game.tactics.memory.lair_open={"kind":"core_exposed","until":now+2000}
 		var before: int=game.enemy_health()
-		game.apply_weapon_hit(player,-1,game.tactics.position,{"damage":3.0,"core_hit":true,"trait_secondary":true},now)
+		OutgoingHits.hit_world(game, HitSession.peer_for(player), -1, game.tactics.position, {"damage":3.0,"core_hit":true,"trait_secondary":true}, now)
 		check(before-game.enemy_health()==39,"vulnerable boss takes 30 percent extra HP damage")
 
 

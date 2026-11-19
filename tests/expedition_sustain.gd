@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
@@ -137,7 +139,7 @@ func add_enemy(at: Vector3, summoned: bool=false) -> Dictionary:
 func finish_scout(summoned: bool, now: int) -> void:
 	game.encounter.clear_scouts()
 	add_enemy(Vector3(0,0,-1),summoned)
-	game.apply_weapon_hit(player,0,player.pos,{"damage":9.0,"heal_on_kill":1.0,"knockback":-.35},now)
+	OutgoingHits.hit_world(game, HitSession.peer_for(player), 0, player.pos, {"damage":9.0,"heal_on_kill":1.0,"knockback":-.35}, now)
 
 
 func kill_budget() -> void:

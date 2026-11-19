@@ -1,4 +1,5 @@
 extends RefCounted
+const OutgoingHits = preload("res://outgoing_hits.gd")
 
 const Balance = preload("res://frost_balance.gd")
 const BRITTLE := "affinity_brittle"
@@ -39,9 +40,7 @@ static func damage(game: Node, actor: int, target: int, hp: int, now: int, color
 	# Use the same native damage, death, drops and encounter settlement path.
 	# An affinity hit contributes no legacy on-hit traits or attack delay.
 	# A previously granted effect keeps its author even after disconnect.
-	var owner: Dictionary = game.players.get(actor, {"facing":Vector3.FORWARD,"rift_hook":false})
-	game.apply_weapon_hit(owner, target, game.enemy_position(target),
-		{"damage": 0.0, "affinity_hp": hp, "affinity_color": color, "knockback": -.35, "trait_secondary": true, "core_hit": true}, now)
+	OutgoingHits.affinity_world(game, actor, target, hp, now, color)
 	if game.encounter_cleared():
 		game.finish_combat(actor if game.players.has(actor) else game.HOST, game.enemy_position(target))
 

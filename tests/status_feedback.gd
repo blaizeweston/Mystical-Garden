@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
@@ -34,7 +36,7 @@ func run():
  check(fx.statuses.active.has(mark_id),"renderer creates a persistent Tracked Prey icon")
  var icon: Dictionary=fx.statuses.active[mark_id];game.stage.foe.position.x+=.5;fx.statuses.step(.016)
  check(absf(icon.node.position.x-game.stage.foe.position.x)<.5,"icon follows rendered monster")
- var hp: int=game.enemy_health();game.apply_weapon_hit(p,-1,p.pos,stats,now+2);Status.sync(game,now+2)
+ var hp: int=game.enemy_health();OutgoingHits.hit_world(game, HitSession.peer_for(p), -1, p.pos, stats, now+2);Status.sync(game,now+2)
  check(not game.combat_events_snapshot().any(func(e):return e.kind=="status" and e.id==mark_id),"late-join snapshot excludes a consumed Tracked Prey")
  check(not game.enemy_traits.has(Ranger.PREY) and hp-game.enemy_health()==20,"eligible contact consumes Tracked Prey and grants its damage once")
  check(game.combat_events.any(func(e):return e.kind=="proc" and e.shape=="Tracked Prey triggered"),"consumption has its own effect")

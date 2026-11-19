@@ -1,4 +1,6 @@
 extends RefCounted
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 ## Host-owned effects from a confirmed Warden block or a committed Root Quake.
@@ -317,8 +319,8 @@ static func tick(game: Node, now: int) -> void:
 		var targets: Array[int] = game.skill_area_targets(center,Connected.AFTERSHOCK_RADIUS,center)
 		for target in targets:
 			# The existing secondary damage path skips contact traits, Catalyst events and displacement.
-			game.apply_weapon_hit(player,target,center,{"damage":0.0,"affinity_hp":Connected.AFTERSHOCK_HP,
-				"trait_secondary":true,"core_hit":true,"knockback":-.35},now)
+			OutgoingHits.hit_world(game, HitSession.peer_for(player), target, center, {"damage":0.0,"affinity_hp":Connected.AFTERSHOCK_HP,
+				"trait_secondary":true,"core_hit":true,"knockback":-.35}, now)
 		if not targets.is_empty() and game.encounter_cleared():
 			game.finish_combat(id,center)
 			if not game.persistence_session.can_write():

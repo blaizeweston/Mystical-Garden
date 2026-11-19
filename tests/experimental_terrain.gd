@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
@@ -362,7 +364,7 @@ func run() -> void:
 			if not game.roll_kill_trophy(kind, mask, target == -1).is_empty():
 				game.rng.state = before_roll
 				break
-		game.apply_weapon_hit(player, target, player.pos, stats, Time.get_ticks_msec())
+		OutgoingHits.hit_world(game, HitSession.peer_for(player), target, player.pos, stats, Time.get_ticks_msec())
 		if target == -1:
 			var frozen: Array = game.monster_rewards.pending_receipts()
 			var drops: Array = game.wild_item_drops.duplicate(true)
@@ -464,7 +466,7 @@ func run() -> void:
 	player.pos = Vector3(game.tactics.position) + Vector3(0.1, 0, 0)
 	var last_hit: Dictionary = game.weapon_stats(player)
 	last_hit.damage = 10000
-	game.apply_weapon_hit(player, -1, player.pos, last_hit, Time.get_ticks_msec())
+	OutgoingHits.hit_world(game, HitSession.peer_for(player), -1, player.pos, last_hit, Time.get_ticks_msec())
 	var loss_xp := class_xp(player) + queued_xp(game)
 	var loss_kills: int = kill_count(player) + game.monster_rewards.pending_count()
 	check(not game.encounter_cleared() and game.monster_rewards.pending_count()>0,

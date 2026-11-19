@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
 
@@ -52,12 +54,14 @@ func run():
     Elite.tick(game,.016,game.tactics.ready_at+1);Elite.resolve(game,game.tactics.strike_at+1)
    check(game.encounter.scout_views().filter(func(s):return s.hp>0 and s.get("elite_brood",false)).size()<=4,"brood has a four-living-child cap")
    game.encounter.set_hp(0, 0);Elite.tick(game,.016,game.tactics.ready_at+1);Elite.resolve(game,game.tactics.strike_at+1);check(game.encounter.scout_views().filter(func(s):return s.hp>0 and s.get("elite_brood",false)).size()==4,"brood can replenish a fallen child")
+  # Rendering needs the complete authored scenery, not the collision-only map.
+  game.battlefield.configure(0,1)
   game._process(.016)
   var model: Node3D=game.stage.foe_model.model;var growth: Node3D=model.get_node_or_null("EliteGrowth")
   check(is_instance_valid(growth) and growth.get_child_count()>0,"elite has anatomical growth beyond scaling: "+str(kind))
   var count: int=growth.get_child_count();Elite.decorate(game.stage,game.stage.foe_model,true);check(growth.get_child_count()==count,"decoration is cached")
  game.enemy_kind=11;game.encounter.begin_floor(800);game.tactics.position=Vector3.ZERO;game.tactics.memory.clear();game.encounter.register_scout(game.make_scout(0,Vector3(0,0,.5),1));game.encounter.set_hp(0, 200)
- game.apply_weapon_hit(p,0,p.pos,{"damage":4},Time.get_ticks_msec());check(game.encounter.hp(0)==170,"elite Grazer retains its protection aura, hp="+str(game.encounter.hp(0)))
+ OutgoingHits.hit_world(game, HitSession.peer_for(p), 0, p.pos, {"damage":4}, Time.get_ticks_msec());check(game.encounter.hp(0)==170,"elite Grazer retains its protection aura, hp="+str(game.encounter.hp(0)))
  game.enemy_kind=16;game.encounter.begin_floor(800);game.tactics.memory.clear();var thief:=Elite.state(game);thief.stolen=[{"stack":{"item":"briar_hook","quantity":1},"position":[0,0,0]}];game.wild_item_drops.clear();game.EnemyBehaviors.death(game,thief,Vector3.ZERO);check(game.wild_item_drops.size()==1 and thief.get("stolen",[]).is_empty(),"elite Thief uses the same stolen-loot recovery hook")
  game.enemy_kind=7;ExpeditionCase.set_world(game, {"encounter_number": 12});game.tactics.position=Vector3.ZERO;game.encounter.begin_floor(800)
  game.tactics.winding_up=false;game.tactics.ready_at=0;game.tactics.stagger_until=0;game.tactics.engaged=true

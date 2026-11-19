@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
@@ -128,7 +130,7 @@ func host_run():
  var config=game.Director.config();var old_chance=config.trophy_chance;var old_cap=config.trophy_cap
  config.trophy_chance=1.0;config.trophy_cap=1.0
  var victim=game.make_scout(10,game.players[1].pos+Vector3(0,0,1),1);victim.hp=1;game.encounter.register_scout(victim, 0)
- game.apply_weapon_hit(game.players[1],0,game.players[1].pos,{"damage":1},Time.get_ticks_msec())
+ OutgoingHits.hit_world(game, HitSession.peer_for(game.players[1]), 0, game.players[1].pos, {"damage":1}, Time.get_ticks_msec())
  check(game.flush_kill_rewards(),"four-way individual kill rewards commit")
  config.trophy_chance=old_chance;config.trophy_cap=old_cap
  check(await until(func():return marked("kill_verified_1") and marked("kill_verified_2") and marked("kill_verified_3")),"all guests receive their own monster reward and XP")

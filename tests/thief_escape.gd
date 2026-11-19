@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -89,10 +91,10 @@ func run() -> void:
 	check(thief.pos==origin,"root stops a fleeing thief")
 	var now := follow(thief,start+450)
 	check(thief.escape.burrow_until>now and not game.encounter_cleared(),"arrival starts a vulnerable burrow windup")
-	game.apply_weapon_hit(player,0,thief.pos,{"damage":1,"knockback":-.35},now)
+	OutgoingHits.hit_world(game, HitSession.peer_for(player), 0, thief.pos, {"damage":1,"knockback":-.35}, now)
 	game.EnemyBehaviors.tick(game,thief,.05,now+20)
 	check(thief.escape.burrow_until==0,"a stagger interrupts burrowing")
-	game.apply_weapon_hit(player,0,thief.pos,{"damage":999,"knockback":-.35},now+200)
+	OutgoingHits.hit_world(game, HitSession.peer_for(player), 0, thief.pos, {"damage":999,"knockback":-.35}, now+200)
 	check(game.encounter.hp_for(thief)==0 and Escape.snapshot(game).is_empty() and game.wild_item_drops.any(func(drop): return drop.id=="owned-trophy" and drop.owner==1 and drop.stack.quantity==2),
 		"intercepting the thief restores the exact original drop")
 

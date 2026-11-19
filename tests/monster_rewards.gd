@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -24,7 +26,7 @@ func run():
  game.players[4][PlayerLifecycle.STATE] = game.players[4][PlayerLifecycle.STATE].fall()
  var config=game.Director.config();var saved=config.duplicate(true);config.trophy_chance=1.0;config.trophy_cap=1.0
  var scout=game.make_scout(10,Vector3(0,0,5),1);scout.hp=1;game.encounter.clear_scouts();game.encounter.register_scout(scout)
- game.apply_weapon_hit(p,0,p.pos,{"damage":1},1000)
+ OutgoingHits.hit_world(game, HitSession.peer_for(p), 0, p.pos, {"damage":1}, 1000)
  check(game.monster_rewards.pending_count()==1 and not game.encounter_cleared(),"a non-final individual kill queues rewards")
  var first_receipt: Dictionary = game.monster_rewards.pending_receipts()[0]
  check(first_receipt.rewards.map(func(reward): return reward.id)==[1,2],

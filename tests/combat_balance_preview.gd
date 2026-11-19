@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const ClassActions = preload("res://native_class_actions.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
@@ -300,5 +302,5 @@ func verify_orchard(game: Node, player: Dictionary) -> void:
 	game.enemy_mutations=0
 	game.tactics.winding_up=false
 	game.tactics.memory.lair_open={"kind":"uprooting","until":5000}
-	game.apply_weapon_hit(player,-1,game.tactics.position,{"damage":1,"trait_secondary":true},4000)
+	OutgoingHits.hit_world(game, HitSession.peer_for(player), -1, game.tactics.position, {"damage":1,"trait_secondary":true}, 4000)
 	check(game.enemy_health()==167,"uprooting adds the preview vulnerability bonus")

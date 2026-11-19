@@ -1,4 +1,6 @@
 extends RefCounted
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 
 const Participation = preload("res://expedition_participation.gd")
 ## Card views and combat effects. Entries are authored in the affinity catalog.
@@ -258,7 +260,6 @@ static func bloom_echo(game: Node, player: Dictionary, bloom: Dictionary, skill:
 	for target in targets:
 		if game.persistence_session.is_blocked():
 			break
-		game.apply_weapon_hit(player, target, point,
-			{"damage": 0.0, "affinity_hp": hp, "trait_secondary": true, "core_hit": true, "knockback": -.35}, now)
+		OutgoingHits.hit_world(game, HitSession.peer_for(player), target, point, {"damage": 0.0, "affinity_hp": hp, "trait_secondary": true, "core_hit": true, "knockback": -.35}, now)
 	Journal.event("combat", "affinity_bloom_echo", {"actor": bloom.owner, "field": bloom.visual_id,
 		"epoch": bloom.epoch, "hp": hp, "targets": targets})

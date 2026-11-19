@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
@@ -45,7 +47,7 @@ func host_run():
  check(Ranger.track(game,id,p,-1,1,now),"source-owned Tracked Prey is accepted")
  Status.sync(game,now)
  check(await until(func():return marked("icons")),"guest sees Slow and Tracked Prey")
- game.apply_weapon_hit(p,-1,p.pos,stats,Time.get_ticks_msec());Status.sync(game,Time.get_ticks_msec())
+ OutgoingHits.hit_world(game, HitSession.peer_for(p), -1, p.pos, stats, Time.get_ticks_msec());Status.sync(game,Time.get_ticks_msec())
  Status.proc(game,"echo",p.pos,game.tactics.position,-1)
  check(await until(func():return marked("consumed")),"guest sees consumption")
  var guard: Dictionary=game.make_scout(0,Vector3(0,0,1),1)

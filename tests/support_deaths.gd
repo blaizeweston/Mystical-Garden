@@ -1,4 +1,6 @@
 extends SceneTree
+const OutgoingHits = preload("res://outgoing_hits.gd")
+const HitSession = preload("res://network_session.gd")
 
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 
@@ -65,7 +67,7 @@ func run():
  # A genuine lethal hit emits one authoritative death event, and no collision-bearing enemy remains.
  game.encounter.clear_scouts();game.tactics.position=Vector3(0,0,5);game.encounter.set_hp(-1, 1);game.enemy_kind=0;game.enemy_growth=0;game.enemy_mutations=0
  p.pos=Vector3(0,0,4);p.weapon=0;p.secondary=0;p.catalyst=0;p.power=0;p.run_upgrades={}
- game.apply_weapon_hit(p,-1,p.pos,game.weapon_stats(p),now)
+ OutgoingHits.hit_world(game, HitSession.peer_for(p), -1, p.pos, game.weapon_stats(p), now)
  check(game.enemy_health()==0 and game.enemy_death_events.size()==1,"lethal hit creates an event while logical health reaches zero immediately")
  var events: Array=game.death_events_snapshot()
  game.death_visuals.sync(events,"floor-test",p.pos)
