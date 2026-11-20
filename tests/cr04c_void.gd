@@ -139,7 +139,7 @@ func run() -> void:
 	game.tactics.memory.erase(Void.ALLOWANCE_STATE)
 	check(thorn.grow(game,thorns,point,[shape],now),"real Thorn contact area created")
 	var trail: Dictionary={"grown":true,"field_until":floor_ms+3000,"next_maintain":floor_ms,"center":point,
-		"shapes":[shape],"affinity_action":flames}
+		"shapes":[shape],"stack_ready":{},"affinity_action":flames}
 	Void.queue_motion(game,form,-1,Vector3(-6,0,0),true,.7)
 	Void.resolve_motion(game,floor_ms,now)
 	thorn.tick(game,floor_ms,now)

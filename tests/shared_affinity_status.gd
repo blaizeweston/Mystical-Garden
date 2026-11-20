@@ -53,6 +53,8 @@ func run() -> void:
 	for player in game.players.values():
 		Expedition.set_membership(game,player,true)
 		player.pos=Vector3.ZERO
+	verify_materials()
+	verify_roster_attachment()
 	verify_frost()
 	verify_bleed()
 	verify_burning()
@@ -265,3 +267,26 @@ func verify_vital() -> void:
 	recipient[Life.STATE]=Life.start_life()
 	Vital.tick(game,Clock.now(game))
 	check(not recipient.has(Vital.SOURCES) and recipient[Vitals.STATE].temporary_hp()==0,"a new recipient life cannot inherit previous-life Vitality")
+
+
+func verify_roster_attachment() -> void:
+	reset()
+	var now := Time.get_ticks_msec()
+	Frost.apply(game,event(1,"form","plant_part_plant_frostbell",{"max_shatter_hp":9}),-1,2,now)
+	var token: int=game.encounter.spawn_identity(-1)
+	game.encounter.register_leader_tactics(game.make_scout(0,game.tactics.position,0))
+	Frost.apply(game,event(2,"form","plant_part_plant_frostbell",{"max_shatter_hp":12}),-1,1,now)
+	check(game.encounter.spawn_identity(-1)==token and game.enemy_health()==9990,
+		"late tactical-body attachment keeps two accepted stacks for the same enemy's mixed 10 HP rupture")
+
+
+func verify_materials() -> void:
+	var materials: Dictionary=preload("res://tests/support/shared_affinity_network_case.gd").MATERIALS
+	for family: String in materials:
+		for index in materials[family].size():
+			var item: Dictionary=game.Items.get_item(materials[family][index])
+			check(item.has("legacy_part"),"network fixture material exists: "+materials[family][index])
+			if item.has("legacy_part"):
+				var slot := Build.slot("core",int(item.legacy_part))
+				check(slot.primary_affinity==family and slot.quality==("ordinary" if index==0 else "refined"),
+					"network fixture materials have the stated family and quality")

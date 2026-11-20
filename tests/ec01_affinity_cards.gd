@@ -539,6 +539,7 @@ func verify_echo() -> void:
 
 
 func verify_authoring() -> void:
+	check(preload("res://content_validator.gd").validate().is_empty(),"the actual title/startup validator accepts every current card and unit")
 	check(Catalog.DEFINITIONS.size()==28,"authored catalog count")
 	for id: String in Catalog.DEFINITIONS:
 		var definition: Dictionary = Catalog.DEFINITIONS[id]

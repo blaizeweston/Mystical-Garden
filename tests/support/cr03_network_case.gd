@@ -63,6 +63,7 @@ var connected_ranger_case := false
 var connected_reaper_case := false
 var connected_oracle_case := false
 var affinity_cards_case := false
+var shared_status_case := false
 
 
 func check(ok: bool, label: String) -> bool:
@@ -212,6 +213,13 @@ func host(menu: Node) -> void:
 	game.set_meta(&"frost_rupture_witness",func(spent,hp):ruptures.append([spent,hp]))
 	local.pos=floor_entry
 	local.facing=(target-floor_entry).normalized()
+	if shared_status_case:
+		# Different native delivery times must still contribute inside the live
+		# 3.6-second idle window. Start the three real attacks together.
+		for id in ids:
+			game.players[id].pos=floor_entry
+			game.players[id].facing=local.facing
+			mark("strike-"+str(id))
 	for id in ids:
 		var remote: Dictionary=game.players[id]
 		remote.pos=floor_entry
@@ -220,7 +228,9 @@ func host(menu: Node) -> void:
 		if not check(await until(func():return rows.any(func(e):return e.kind=="weapon_contact" and e.target=="leader" and e.source_actor==id)),
 			"guest direct hit applies refined Frost from "+str(id)):return
 	if party:
-		if not check(ruptures.size()==1 and ruptures[0][1]==21 and ruptures[0][0].map(func(s):return s.actor)==ids,"three distinct guests rupture once on four-player floor"):return
+		var contributing_actors: Array=ruptures[0][0].map(func(s):return s.actor) if ruptures.size()==1 else []
+		if shared_status_case: contributing_actors.sort()
+		if not check(ruptures.size()==1 and ruptures[0][1]==21 and contributing_actors==ids,"three distinct guests rupture once on four-player floor: ids=%s, ruptures=%s, remaining=%s" % [ids,ruptures,game.tactics.memory.get(Frost.BRITTLE,{})]):return
 	local.core_ready_at=0
 	local.core_cast_until=0
 	local.cast_until=0
@@ -229,8 +239,8 @@ func host(menu: Node) -> void:
 	var wanted:=2 if party else 1
 	if not check(await until(func():return ruptures.size()>=wanted),"actual Rime Bloom ruptures on generated floor"):return
 	var burst: Array=ruptures[wanted-1]
-	check(burst[1]==(12 if party else 15) and burst[0].any(func(stack):return stack.actor==1),
-		"ordinary Core accounts for each source with refined Form when mixed")
+	check(burst[1]==21 and burst[0].any(func(stack):return stack.actor==1),
+		"Core stacks capture the strongest actually equipped matching maximum, including refined Catalyst")
 	if not check(await until(func():return not game.effect_timeline.core_records().has(1)),"closing petals finish before another action"):return
 	var protected: int=ids[0]
 	var ally: Dictionary=game.players[protected]
@@ -290,12 +300,12 @@ func host(menu: Node) -> void:
 				check((Vector3(visitor.pos)-departure).dot(aim)>=.28 and visitor.has("affinity_spirit_strides"),
 					"authorized guest step grants stride and moves along its chosen clear direction")
 			"fire":
-				check(game.tactics.memory.get("affinity_burning",{}).has("%d/core"%source),"guest trail actually ignites leader")
+				check(game.tactics.memory.get("affinity_burning",{}).get("contributors",{}).values().any(func(row):return row.actor==source),"guest trail actually ignites leader")
 			"water":
-				check(await until(func():return local[Conditions.STATE].slow_until_ms()==0 and game.tactics.memory.get("affinity_drenched",{}).has("%d/core"%source)),
+				check(await until(func():return local[Conditions.STATE].slow_until_ms()==0 and game.tactics.memory.get("affinity_drenched",{}).get("sources",{}).values().any(func(row):return row.actor==source and row.slot=="core")),
 					"guest Dewfall cleanses host and actually Drenches leader")
 			"thorn":
-				check(await until(func():return game.tactics.memory.get("affinity_bleed",{}).has("%d/core"%source)),
+				check(await until(func():return game.tactics.memory.get("affinity_bleed",{}).get("contributors",{}).values().any(func(row):return row.actor==source)),
 					"stationary guest Thorn Line slows and wounds a real enemy on the host")
 				mark("thorn-"+str(source))
 				check(await until(func():return read("thorn-seen-"+str(source))=="ok"),"guest receives the authoritative field geometry")
@@ -306,20 +316,21 @@ func host(menu: Node) -> void:
 					check(grants.any(func(grant):return grant.actor==ward_guest and grant.quality=="ordinary") and grants.any(func(grant):return grant.actor==source and grant.admitted==36),
 						"separate Wood sources coexist with a capped refined grant")
 					var wounds: Dictionary=game.tactics.memory.get("affinity_bleed",{})
-					check(wounds.has("%d/core"%ids[0]) and wounds.has("%d/core"%ids[1]),"two real Thorn sources remain independent")
+					check(wounds.get("contributors",{}).values().any(func(row):return row.actor==ids[0]) and wounds.get("contributors",{}).values().any(func(row):return row.actor==ids[1]),"two real Thorn contributors share one accumulated wound")
 				mark("bark-"+str(source))
 				check(await until(func():return read("bark-seen-"+str(source))=="ok"),"guest receives Bark presentation through authoritative details")
 			"vital":
 				var bonus: int=preload("res://affinity_build.gd").slot("core",visitor.weapon).potency_profile.values.bonus_hp
-				check(PlayerVitals.maximum_hp(local)==native_max+bonus and local.get("affinity_vital_sources",{}).has("%d/core"%source),
+				check(PlayerVitals.maximum_hp(local)==native_max+bonus and local.get("affinity_vital_sources",{}).values().any(func(row):return row.actor==source and row.slot=="core"),
 					"guest Vital Bloom applies its quality to host")
 				mark("vital-"+str(source),str(PlayerVitals.maximum_hp(visitor)))
 				check(await until(func():return read("vital-seen-"+str(source))=="ok"),"Vital capacity reaches guest through authoritative vitals")
+	if shared_status_case and not await preload("res://tests/support/shared_affinity_network_case.gd").host(self,game,ids,rows,floor_entry,target): return
 	if native_graft_case:
 		check(game.effect_timeline.native_records().any(func(e):return e.get("graft_source",{}).get("component_id")=="monster:ashen_hart")
 			or game.combat_events.any(func(e):return e.shape=="cinder_zone"),"real guest strike emitted acquired Cinder")
 		if party and measure_packets: await sample_host_snapshots(game,ids)
-	if party and not connected_weaver_case and graph==null and not native_graft_case:
+	if party and not connected_weaver_case and graph==null and not native_graft_case and not shared_status_case:
 		if measure_packets: await sample_host_snapshots(game,ids)
 		if mixed_wood_ward and measure_packets: await verify_current_snapshot_host(game,ids,local)
 		check(await until(func():return read("overflow")=="ok",22000),"overflow returns after native connection deadline")
@@ -425,6 +436,10 @@ func host(menu: Node) -> void:
 	mark("advance",str(game.participation.travel_epoch()))
 	if not check(await until(func():return game.participation.depth()==2 and ids.all(func(id):return read("guest-floor-"+str(id))=="ok")),
 		"party advances to next generated floor"):return
+	if shared_status_case:
+		check(game.players.values().all(func(p):return not p.has("affinity_vital_sources") and not p.has("affinity_bark_grants"))
+			and not game.tactics.memory.has("affinity_bleed") and not game.tactics.memory.has("affinity_burning")
+			and not game.tactics.memory.has("affinity_drenched"),"real floor transition clears shared encounter and temporary recipient effects")
 	if affinity_cards_case:
 		check(game.players.keys().all(func(id): return game.run_wallet(game.players[id]) == int(read("wallet-"+str(id)))),
 			"floor transition retains independently spent balances")
@@ -938,7 +953,7 @@ func has_attack_speed(game: Node, player: Dictionary, stats: Dictionary, expecte
 
 func guest(menu: Node, role: String) -> void:
 	menu.request_create_character()
-	var starting_class: int = [1,2,4][clampi(int(role)-1,0,2)] if native_graft_case or connected_weaver_case else 0
+	var starting_class: int = [1,2,3][clampi(int(role)-1,0,2)] if shared_status_case else [1,2,4][clampi(int(role)-1,0,2)] if native_graft_case or connected_weaver_case else 0
 	var graph := selected_graph()
 	if graph != null:
 		starting_class=([4,1,2] if connected_oracle_case else [graph.class_id,1,4])[clampi(int(role)-1,0,2)]
@@ -1049,8 +1064,9 @@ func guest(menu: Node, role: String) -> void:
 			var marker := "vital-"+str(id)
 			check(await until(func():return not read(marker).is_empty() and int(game.players[id].max_hp)==int(read(marker))),"guest receives authoritative Vital capacity")
 			mark("vital-seen-"+str(id))
+	if shared_status_case and not await preload("res://tests/support/shared_affinity_network_case.gd").guest(self,game,id): return
 	if native_graft_case and party and measure_packets: await sample_guest_snapshots(game,id)
-	if party and not connected_weaver_case and graph==null and not native_graft_case:
+	if party and not connected_weaver_case and graph==null and not native_graft_case and not shared_status_case:
 		if measure_packets: await sample_guest_snapshots(game,id)
 		if mixed_wood_ward and measure_packets: await verify_current_snapshot_guest(game,id)
 		if check(await until(func():return read("party-done")=="ok",22000),"host observes mixed-source party"):
@@ -1259,7 +1275,7 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 	var rows: Array = []
 	game.set_meta(&"snapshot_witness",func(row):record_snapshot(rows,row))
 	var previous: Vector3=game.drop_pos
-	game.encounter.set_hp(-1, 487)
+	game.encounter.set_hp(-1, 10000 if shared_status_case else 487)
 	game.tactics.stagger_until=Time.get_ticks_msec()+9000
 	if native_graft_case:
 		var caster: Dictionary = game.players[ids[0]]

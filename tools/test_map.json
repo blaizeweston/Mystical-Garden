@@ -1530,6 +1530,7 @@
     ]
   },
   "suites": {
+    "shared_affinity_party": {"kind": "party", "profile": "affinity", "systems": ["combat_affinity_contracts", "core_combat", "thorn_affinity", "fire_affinity", "frost_affinity", "water_affinity", "wood_affinity", "vital_affinity", "player_lifecycle", "incoming_player_hit", "world_snapshot", "connection_flow", "expedition_participation"], "package": false},
     "shared_affinity_status": {"kind": "unit", "profile": "affinity", "systems": ["classes", "combat", "combat_affinity_contracts", "core_combat", "enemy_tactics", "fire_affinity", "frost_affinity", "incoming_player_hit", "plant_affinities", "player_hit_conditions", "player_protection", "thorn_affinity", "water_affinity", "weapons"], "package": false},
     "combat_effects": {"kind":"unit", "systems":["combat_effects","core_combat","classes","player_lifecycle"], "profile":"terrain", "package":false},
     "garden_commands": {"kind":"unit", "systems":["garden_observations","garden_conduit","garden_relationships"], "profile":"terrain", "package":false},
