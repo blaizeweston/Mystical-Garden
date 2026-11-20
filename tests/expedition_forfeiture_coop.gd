@@ -10,7 +10,7 @@ func host_run() -> void:
  leader.character.xp=[100,110,120,130,140]
  prepare_focus(leader)
  check(Tx.committed(world.run_guarded_action(1,Tx.Scope.PAIR,func(_effects):return true).persistence),"host pre-entry profile")
- check(SessionCase.World.host(world)==OK,"forfeiture host listens")
+ check(world.session_world.host()==OK,"forfeiture host listens")
  mark("hosting")
  if not await until(func():return world.players.size()==2 and world.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
   check(false,"guest admission")
@@ -21,7 +21,7 @@ func host_run() -> void:
  var original: Array=guest.character.xp.duplicate()
  check(original==[200,210,220,230,240],"guest pre-entry XP is canonical")
  for actor in [leader,guest]: actor.pos=world.stage.gate_position()
- ExpeditionCase.Transitions.enter(world,1,leader)
+ world.expedition_transitions.enter(1)
  mark("enter",str(world.participation.travel_epoch()))
  if not await until(func():return ExpeditionCase.is_wild(guest) and ExpeditionCase.is_wild(leader)):
   check(false,"party enters")
@@ -38,7 +38,7 @@ func host_run() -> void:
  var previous: Dictionary=world.progress.character_records[owner].duplicate(true)
  var obsolete: Dictionary={"profile":previous.profile,"origin":world.progress.projection_origin,"projection":previous.projection}
  for actor in [leader,guest]: actor.pos=world.battlefield.advance
- ExpeditionCase.Transitions.checkpoint(world,1,true)
+ world.expedition_transitions.checkpoint(1,true)
  mark("advance",str(world.participation.travel_epoch()))
  if not await until(func():return world.participation.floor()==2):
   check(false,"floor two retains run identity")
@@ -72,7 +72,7 @@ func guest_run() -> void:
  local.character.xp=[200,210,220,230,240]
  prepare_focus(local)
  check(Tx.committed(world.run_guarded_action(1,Tx.Scope.PROFILE,func(_effects):return true).persistence),"guest pre-entry save")
- check(SessionCase.World.join(world,"127.0.0.1")==OK,"guest joins")
+ check(world.session_world.join("127.0.0.1")==OK,"guest joins")
  if not await until(func():return world.network_session.role()=="Guest" and marked("enter")):
   check(false,"guest sees entry vote")
   return
@@ -119,7 +119,7 @@ func run() -> void:
   return
  if host: await host_run()
  else: await guest_run()
- if is_instance_valid(world) and world.network_session.transport()!=null: SessionCase.World.leave(world,"Fixture finished")
+ if is_instance_valid(world) and world.network_session.transport()!=null: world.session_world.leave("Fixture finished")
  check(await until(func():return root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer),"fixture network cleanup")
  if is_instance_valid(world): world.free()
  if not failed: print("PASS: expedition forfeiture co-op ","host" if host else "guest")

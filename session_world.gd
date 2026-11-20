@@ -13,7 +13,14 @@ const ExpeditionWallet = preload("res://expedition_wallet.gd")
 const Campaign = preload("res://campaign.gd")
 const Life = preload("res://expedition_life.gd")
 
-static func host(game: Node, port: int=0) -> Error:
+var _world: WeakRef
+
+func _init(world: Node) -> void:
+	_world = weakref(world)
+
+
+func host(port: int=0) -> Error:
+	var game = _world.get_ref()
 	if game.persistence_session.is_guarded() and (not game.persistence_session.can_write() or not game.persistence_session.authorizes(game.progress.path)):
 		game.status="Hosting requires access to your selected Garden."
 		return ERR_UNAUTHORIZED
@@ -35,7 +42,8 @@ static func host(game: Node, port: int=0) -> Error:
 	game.ui.close_panels();return OK
 
 
-static func joined(game: Node) -> void:
+func joined() -> void:
+	var game = _world.get_ref()
 	if game.persistence_session.is_guarded() and (game.network_session.role()!="Connecting" or not game.persistence_session.can_write()):
 		game._stop_guarded_session("This session lost access to its save. Returning to the title.")
 		return
@@ -49,7 +57,8 @@ static func joined(game: Node) -> void:
 	game.register_character.rpc_id(game.HOST, game.guest_character.identity, game.guest_character.data,catalog,Network.PROTOCOL)
 
 
-static func register(game: Node, id: int, identity: String, profile: Dictionary,catalog: Dictionary={},protocol: int=0) -> void:
+func register(id: int, identity: String, profile: Dictionary,catalog: Dictionary={},protocol: int=0) -> void:
+	var game = _world.get_ref()
 	if not game.multiplayer.is_server() or not game.players.has(id) \
 			or not Session.belongs_to(game.players[id],game.network_session) or Session.peer_for(game.players[id]) != id \
 			or game.network_session.ready(id) or game.network_session.rejecting(id):
@@ -57,17 +66,17 @@ static func register(game: Node, id: int, identity: String, profile: Dictionary,
 	var binding: int = game.network_session.binding(id)
 	if binding == 0: return
 	if not game.persistence_session.can_write():
-		reject(game,id, Transactions.feedback_text(game,"The host's Garden is unavailable."),binding)
+		reject(id, Transactions.feedback_text(game,"The host's Garden is unavailable."),binding)
 		return
 	if game.persistence_session.is_guarded() and not game.persistence_session.authorizes(game.progress.path):
-		reject(game,id,"The host does not own the selected Garden.",binding)
+		reject(id,"The host does not own the selected Garden.",binding)
 		return
 	var guarded = catalog.has("guest_projection_receipts")
 	var receipts: Variant = catalog.get("guest_projection_receipts",{})
 	if guarded:
 		catalog = catalog.duplicate()
 		catalog.erase("guest_projection_receipts")
-	var reason =admission_error(game,identity,catalog,protocol)
+	var reason =admission_error(identity,catalog,protocol)
 	if var_to_bytes(profile).size()>32768: reason="This character profile is too large."
 	if reason.is_empty() and not Character.Experience.supported(profile):
 		reason="This character uses an unsupported Class XP format."
@@ -77,7 +86,7 @@ static func register(game: Node, id: int, identity: String, profile: Dictionary,
 		reason="Invalid guest profile receipts."
 	if reason.is_empty() and not guarded and not game.progress.projection_origin.is_empty():
 		reason="This Garden requires guarded profile saves."
-	if not reason.is_empty(): reject(game,id,reason,binding);return
+	if not reason.is_empty(): reject(id,reason,binding);return
 	var incoming: Dictionary=Character.normalize(profile)
 	var recorded=game.progress.character_records.get(identity,{})
 	var admission = {}
@@ -87,7 +96,7 @@ static func register(game: Node, id: int, identity: String, profile: Dictionary,
 		if origin.is_empty(): origin = Crypto.new().generate_random_bytes(16).hex_encode()
 		admission = projection.admit(origin, incoming, receipts, recorded)
 		if admission.is_empty():
-			reject(game,id,"The saved guest projection conflicts with this character. Review the saves before joining.",binding)
+			reject(id,"The saved guest projection conflicts with this character. Review the saves before joining.",binding)
 			return
 		incoming = admission.profile
 		var result = Transactions.run_gameplay(game, Transactions.Scope.GARDEN, func():
@@ -99,11 +108,11 @@ static func register(game: Node, id: int, identity: String, profile: Dictionary,
 			return true)
 		if not game.network_session.matches(id,binding): return
 		if not result.completed or result.value != true or not game.persistence_session.can_write():
-			reject(game,id,result.notice if not result.notice.is_empty() else "The host could not save your admission to this Garden.",binding)
+			reject(id,result.notice if not result.notice.is_empty() else "The host could not save your admission to this Garden.",binding)
 			return
 	elif recorded is Dictionary and recorded.get("profile") is Dictionary:
 		if not Character.Experience.supported(recorded.profile):
-			reject(game,id,"The Garden's character record uses an unsupported Class XP format.",binding)
+			reject(id,"The Garden's character record uses an unsupported Class XP format.",binding)
 			return
 		var recovered: Dictionary=Character.normalize(game.progress.ContentIDs.profile(recorded.profile,recorded.get("manifest",game.progress.ContentIDs.legacy())))
 		preload("res://guest_profile_projection.gd").merge_progress(incoming,recovered)
@@ -122,7 +131,8 @@ static func register(game: Node, id: int, identity: String, profile: Dictionary,
 	game.connection_accepted.rpc_id(id,reply)
 
 
-static func join(game: Node, address: String="",port: int=0) -> Error:
+func join(address: String="",port: int=0) -> Error:
+	var game = _world.get_ref()
 	if game.has_meta(&"experimental_terrain") and not game.network_session.joined_from_title():
 		game.status = "Return to the title to join an experimental Garden."
 		return ERR_UNAUTHORIZED
@@ -172,7 +182,8 @@ static func join(game: Node, address: String="",port: int=0) -> Error:
 	return OK
 
 
-static func leave(game: Node, message: String) -> void:
+func leave(message: String) -> void:
+	var game = _world.get_ref()
 	Journal.event("network","leave_requested",{"role":game.network_session.role()})
 	if game.persistence_session.is_guarded() and not game.persistence_session.can_write():
 		game._stop_guarded_session("This session lost access to its save. Returning to the title.")
@@ -190,15 +201,15 @@ static func leave(game: Node, message: String) -> void:
 			game.save_local_character()
 			if not game.persistence_session.pending_notice().is_empty(): return
 		if game.network_session.role() == "Host" and game.participation.active():
-			if not load("res://expedition_transitions.gd").finish_voluntary(game): return
+			if not game.expedition_transitions.finish_voluntary(): return
 	if game.persistence_session.is_guarded(): game.persistence_session.begin_shutdown()
-	offline(game)
+	offline()
 	game.replication.clear_session();game.guest_replication.clear_session();game.net_motion.clear()
 	game.participation.detach_all()
 	game.players.clear()
 	game.motions.clear()
 	game.participation.select_route(Campaign.GROVE)
-	load("res://expedition_transitions.gd").reset(game)
+	game.expedition_transitions.reset()
 	game.network_session.reset_solo()
 	game.add_player(game.HOST)
 	if game.persistence_session.is_stopping(): game.persistence_session.finish_network_detach()
@@ -213,7 +224,8 @@ static func leave(game: Node, message: String) -> void:
 	game.status = message
 
 
-static func remove(game: Node, id: int) -> void:
+func remove(id: int) -> void:
+	var game = _world.get_ref()
 	if game.returning_to_title or game.persistence_session.is_stopping():
 		game.network_session.release_peer(id)
 		game.participation.detach(id)
@@ -242,7 +254,7 @@ static func remove(game: Node, id: int) -> void:
 		if may_settle:
 			PartyTravel.cancel(game,"A player disconnected. Confirm readiness again to continue.")
 			var needs_wipe: bool = (game.participation.active() or leaving_wild) and Life.living_ids(game).is_empty()
-			if needs_wipe: load("res://expedition_transitions.gd").finish_failed(game)
+			if needs_wipe: game.expedition_transitions.finish_failed()
 			else: game.flush_kill_rewards()
 		return
 	if game.multiplayer.is_server():
@@ -258,49 +270,49 @@ static func remove(game: Node, id: int) -> void:
 		PartyTravel.cancel(game,"A player disconnected. Confirm readiness again to continue.")
 		game.refresh_drop()
 		game.motions.erase(id)
-		load("res://expedition_transitions.gd").finish_if_empty(game)
+		game.expedition_transitions.finish_if_empty()
 		game.resume_checkpoint_if_ready()
 
 
-static func server_disconnected(game: Node) -> void:
+func server_disconnected() -> void:
+	var game = _world.get_ref()
 	if game.persistence_session.is_stopping(): return
 	Journal.event("network","on_server_disconnected",{},"warning")
 	if game.network_session.role()=="Connecting" or (game.network_session.role()=="Guest" and game.network_session.join_phase()=="garden"):
-		rejected(game,Network.join_failure(game.network_session.join_phase(),game.network_session.address(),game.network_session.port(),false))
+		rejected(Network.join_failure(game.network_session.join_phase(),game.network_session.address(),game.network_session.port(),false))
 	elif game.network_session.role()=="Guest":
-		leave(game,"Host disconnected. Your character progress is preserved.")
+		leave("Host disconnected. Your character progress is preserved.")
 
 
-static func connection_failed(game: Node) -> void:
+func connection_failed() -> void:
+	var game = _world.get_ref()
 	if game.persistence_session.is_stopping() or game.network_session.role() != "Connecting": return
 	Journal.event("network","on_connection_failed",{},"warning")
 	if game.network_compatibility!=null and not game.network_compatibility.failure_reason.is_empty():
-		rejected(game,game.network_compatibility.failure_reason);return
-	rejected(game,Network.join_failure(game.network_session.join_phase(),game.network_session.address(),game.network_session.port(),false))
+		rejected(game.network_compatibility.failure_reason);return
+	rejected(Network.join_failure(game.network_session.join_phase(),game.network_session.address(),game.network_session.port(),false))
 
 
 # Settle through one guarded decision. A first abort or uncertain result leaves
 # the world and its notice available. Leaving an already blocked world is read-only.
 
 
-static func offline(game: Node) -> void:
+func offline() -> void:
+	var game = _world.get_ref()
 	game.network_session.close_transport()
 	game.multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 
 
-static func admission_error(game: Node, identity: String,catalog: Dictionary,protocol: int) -> String:
-	if protocol!=Network.PROTOCOL: return "Different multiplayer versions. Use the same updated game build."
-	if catalog!=game.progress.ContentIDs.manifest(): return "Different game content. Update all game copies before joining."
-	if not Character.valid_identity(identity): return "Invalid character identity. Choose another character."
-	if identity==game.local_character.identity: return "This character is already the host. Choose a different character."
-	if game.departure_settlement.blocks_admission(identity):
-		return "This character's last expedition rewards are still being saved."
-	if game.network_session.has_character(identity): return "This character is already connected."
-	if game.participation.active(): return "The host is in the Wilds. Join after the party returns to the Garden."
-	return ""
+func admission_error(identity: String,catalog: Dictionary,protocol: int) -> String:
+	var game = _world.get_ref()
+	return game.network_session.admission_error(identity, protocol == Network.PROTOCOL,
+		catalog == game.progress.ContentIDs.manifest(), Character.valid_identity(identity),
+		game.local_character.identity, game.departure_settlement.blocks_admission(identity),
+		game.participation.active())
 
 
-static func reject(game: Node, id: int, reason: String, expected_binding: int = 0) -> void:
+func reject(id: int, reason: String, expected_binding: int = 0) -> void:
+	var game = _world.get_ref()
 	var binding: int = game.network_session.binding(id) if expected_binding == 0 else expected_binding
 	if not game.network_session.reject(id,binding): return
 	Journal.event("network","peer_rejected",{"actor":id,"reason":reason},"warning")
@@ -315,28 +327,29 @@ static func reject(game: Node, id: int, reason: String, expected_binding: int = 
 			current.network_session.disconnect_transport_peer(id,binding))
 
 
-static func accepted(game: Node, profile: Dictionary) -> void:
+func accepted(profile: Dictionary) -> void:
+	var game = _world.get_ref()
 	if game.network_session.role()!="Connecting" or not game.persistence_session.can_write(): return
 	var connection := str(profile.get("session_binding",""))
 	var identity := str(profile.get("session_character",""))
 	if connection.is_empty() or identity != game.guest_character.identity:
-		rejected(game,"The host did not provide the current session binding.")
+		rejected("The host did not provide the current session binding.")
 		return
 	var payload := profile.duplicate()
 	payload.erase("session_binding");payload.erase("session_character")
 	if game.persistence_session.is_guarded():
 		if not payload.get("origin") is String or not payload.get("projection") is Dictionary or not payload.get("profile") is Dictionary:
-			rejected(game,"The host did not provide guarded profile evidence.")
+			rejected("The host did not provide guarded profile evidence.")
 			return
 	elif payload.has("projection"):
-		rejected(game,"The host and guest must use the same save mode.")
+		rejected("The host and guest must use the same save mode.")
 		return
 	if not game.network_session.accept_guest(Time.get_ticks_msec(),connection,identity): return
 	if game.persistence_session.is_guarded():
 		game.set_meta(&"guest_projection_origin",payload.origin)
 		var saved: bool = game.save_guest_projection(payload.profile,payload.origin,payload.projection)
 		if not saved or not game.persistence_session.can_write():
-			rejected(game,Transactions.feedback_text(game,"Could not finish loading the selected character."))
+			rejected(Transactions.feedback_text(game,"Could not finish loading the selected character."))
 			return
 	Journal.event("network","join_accepted")
 	game.status="Joined the host's Garden."
@@ -344,14 +357,16 @@ static func accepted(game: Node, profile: Dictionary) -> void:
 	game.ui.close_panels()
 
 
-static func rejected(game: Node, reason: String) -> void:
+func rejected(reason: String) -> void:
+	var game = _world.get_ref()
 	Journal.event("network","connection_rejected",{"reason":reason},"warning")
 	game.network_session.clear_deadline()
 	if game.active_character_slot>=0 or game.network_session.joined_from_title(): game.return_to_main_menu(reason)
-	else: leave(game,reason)
+	else: leave(reason)
 
 
-static func update(game: Node, now: int = -1) -> void:
+func update(now: int = -1) -> void:
+	var game = _world.get_ref()
 	if not is_instance_valid(game.ui): return
 	var instant := Time.get_ticks_msec() if now < 0 else now
 	var waiting: bool=game.network_session.role()=="Connecting" or (game.network_session.role()=="Guest" and not game.guest_replication.has_details())
@@ -359,15 +374,16 @@ static func update(game: Node, now: int = -1) -> void:
 	if waiting:
 		var phase: String = game.network_session.join_phase()
 		if game.network_session.deadline()>0 and instant>game.network_session.deadline():
-			rejected(game,Network.join_failure(phase,game.network_session.address(),game.network_session.port(),true))
+			rejected(Network.join_failure(phase,game.network_session.address(),game.network_session.port(),true))
 	elif game.network_session.role()=="Guest":
 		game.network_session.finish_recovery()
 	if game.network_session.role()=="Host":
 		for id in game.network_session.timed_out(instant,Network.REGISTER_TIMEOUT_MS):
-			reject(game,id,"Character registration timed out. Check both game versions.")
+			reject(id,"Character registration timed out. Check both game versions.")
 
 
-static func allow_remote(game: Node, id: int, channel: String, limit: int, read_only := false) -> bool:
+func allow_remote(id: int, channel: String, limit: int, read_only := false) -> bool:
+	var game = _world.get_ref()
 	if (not read_only and not game.persistence_session.can_write()) or not game.players.has(id): return false
 	if not Session.belongs_to(game.players[id],game.network_session) or Session.peer_for(game.players[id]) != id: return false
 	return game.network_session.allow(id,channel,limit,Time.get_ticks_msec())

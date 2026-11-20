@@ -7,6 +7,20 @@ func check(ok: bool,message: String) -> void:
  if not ok: failed=true;printerr("FAIL gate/crafting: ",message)
 func _initialize() -> void:call_deferred("run")
 func run() -> void:
+
+ var materials = preload("res://loadout_materials.gd")
+ var parts = preload("res://weapon_parts.gd")
+ var available = parts.empty_counts(); var personal = parts.empty_counts(); var cargo = parts.empty_counts()
+ available[1] = 2; personal[1] = 1
+ var plan: Dictionary = materials.departure_plan([1,1,0],cargo,available,personal)
+ check(plan.error.is_empty() and plan.needed[1] == 2 and plan.reserved[parts.plant_source(1)] == 1,"departure reserves only shared items after personal supply")
+ plan.needed[1] = 99
+ check(available[1] == 2 and personal[1] == 1 and cargo[1] == 0,"departure plan is detached and consumes nothing")
+ check(not materials.departure_plan([1,1,1],cargo,available,personal).error.is_empty(),"three slot requests cannot reuse two available items")
+ var trophy := 0
+ for part in range(1,parts.DEFINITIONS.size()):
+  if parts.is_monster(part): trophy = part; break
+ check(not materials.departure_plan([trophy,0,0],cargo,available,personal).error.is_empty(),"monster material cannot occupy an affinity slot")
  var game=load("res://world.tscn").instantiate();game.progress.path="res://.godot/gate-crafting-"+str(Time.get_ticks_usec())+".cfg";game.local_character.path=game.progress.path+".character";var viewport:=SubViewport.new();viewport.size=Vector2i(1100,720);root.add_child(viewport);viewport.add_child(game);game.set_process(false);game.set_physics_process(false)
  var p: Dictionary=game.players[1];ExpeditionCase.set_membership(game, p, true);ExpeditionCase.set_world(game, {"destination": 0});game.encounter.set_hp(-1, 0);game.encounter.clear_scouts()
  for floor_number in range(1,37):
@@ -16,7 +30,7 @@ func run() -> void:
   game.encounter.set_hp(-1, 1);check(not game.upgrade_checkpoint_open() and not game.extraction_checkpoint_open(),"clearing required");game.encounter.set_hp(-1, 0)
  ExpeditionCase.set_world(game, {"encounter_number": 3});p.pos=game.battlefield.advance;game._process(.016)
  check(not UIFixture.control(game,"guide").text.contains("T  Extract"),"third gate does not advertise extraction")
- ExpeditionCase.Transitions.checkpoint(game, 1,false);check(ExpeditionCase.is_wild(p),"third gate cannot bank carried loot")
+ game.expedition_transitions.checkpoint(1,false);check(ExpeditionCase.is_wild(p),"third gate cannot bank carried loot")
  ExpeditionCase.set_world(game, {"encounter_number": 6});game._process(.016);check(UIFixture.control(game,"guide").text.contains("T  Extract"),"sixth gate advertises extraction")
  ExpeditionCase.set_world(game, {"destination": 3});check(not game.upgrade_checkpoint_open() and not game.extraction_checkpoint_open(),"Heart finale excluded")
  ExpeditionCase.set_world(game, {"destination": 0});game.encounter.set_hp(-1, 100);ExpeditionCase.set_membership(game, p, false);p.pos=game.stage.gate_position();p.prepared=0;p.prepared_secondary=0;p.prepared_catalyst=0

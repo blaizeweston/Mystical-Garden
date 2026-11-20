@@ -54,9 +54,9 @@ func run():
  check(personal.size()==1,"the killed stag creates one personal trophy pickup")
  p.pos=stag.pos;game.pickup_inventory_drop(1,p,personal[0].id);var antler: int=game.Parts.monster_part(2)
  check(p.carried_parts[antler]==1,"individual stag reward grants the killed species component")
- game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();ExpeditionCase.set_world(game, {"encounter_number": 6});p.pos=game.battlefield.advance;ExpeditionCase.Transitions.checkpoint(game, 1,false)
+ game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();ExpeditionCase.set_world(game, {"encounter_number": 6});p.pos=game.battlefield.advance;game.expedition_transitions.checkpoint(1,false)
  check(not ExpeditionCase.is_wild(p) and reserve.parts[antler]==1,"earned trophy survives extraction")
- p.pos=game.stage.gate_position();p.cargo_plan[antler]=1;ExpeditionCase.Transitions.enter(game, 1,p);check(ExpeditionCase.is_wild(p) and p.carried_parts[antler]==1,"stash trophy can be packed into next expedition")
+ p.pos=game.stage.gate_position();p.cargo_plan[antler]=1;game.expedition_transitions.enter(1);check(ExpeditionCase.is_wild(p) and p.carried_parts[antler]==1,"stash trophy can be packed into next expedition")
  ExpeditionCase.set_world(game, {"encounter_number": 8});p.pos=game.battlefield.graft
  var graft_offer: Dictionary=Grafts.owner_details(p,game.participation.floor())
  game.send_garden_action(Grafts.request(graft_offer,"strike",game.Items.part_id(antler)))
@@ -73,9 +73,8 @@ func run():
   game.rng.seed=seed_value
   if game.rng.randf()<preload("res://garden_cultivation.gd").rare_harvest_chance(p.character.plants[1]): game.rng.seed=seed_value;break
  game.cultivation.harvest(1,0);check(g.part_count(rare_part)==rare_before+1,"non-Thorn plant can naturally yield its refined material")
- p.pos=game.stage.gate_position();p.prepared=rare_part;p.prepared_secondary=0;p.prepared_catalyst=0;ExpeditionCase.Transitions.enter(game, 1,p)
+ p.pos=game.stage.gate_position();p.prepared=rare_part;p.prepared_secondary=0;p.prepared_catalyst=0;game.expedition_transitions.enter(1)
  check(ExpeditionCase.is_wild(p) and p.weapon==rare_part and g.part_count(rare_part)==rare_before,"refined harvest component can craft an expedition weapon")
  check(not game.Items.register({"id":"invalid_component","name":"Invalid","category":"plant_part"}),"orphan component definitions are rejected")
  if not failed: print("PASS: stable identity migration, unknown IDs, legacy progression, every-species harvest templates, transaction rollback, crash recovery and earned stag-to-cumulative-reinforcement pipeline")
  game.queue_free();await process_frame;quit(1 if failed else 0)
-

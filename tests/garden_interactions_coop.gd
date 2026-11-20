@@ -23,13 +23,13 @@ func run() -> void:
  game=load("res://world.tscn").instantiate();game.progress.path=base+role+".cfg";game.local_character.path=base+role+".character";game.guest_character.path=base+role+".guest";root.add_child(game)
  if role=="host":await host_run()
  else:await guest_run()
- SessionCase.World.leave(game,"Fixture complete")
+ game.session_world.leave("Fixture complete")
  check(game.network_session.transport() == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer, "network shuts down before world removal")
  game.queue_free();await process_frame
  if not failed:print("PASS: Garden observation co-op ",role," shared receipt, remote inspection, no rewards and rejoin without cue replay")
  quit(1 if failed else 0)
 func host_run() -> void:
- check(SessionCase.World.host(game)==OK,"host opens")
+ check(game.session_world.host()==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"admission");return
  var guest_id: int=game.players.keys().filter(func(id):return id!=1)[0];var guest: Dictionary=game.players[guest_id]
  game.progress.heart.complete(game.progress,"clearing_1")
@@ -56,7 +56,7 @@ func host_run() -> void:
  mark("done")
  await create_timer(.3).timeout
 func guest_run() -> void:
- check(SessionCase.World.join(game)==OK,"guest connects")
+ check(game.session_world.join()==OK,"guest connects")
  if not await until(func():return marked("ready") and game.network_session.role()=="Guest" and game.guest_replication.has_details() and game.players.get(game.local_player_id(),{}).get("garden_interactions",{}).has("focus")):check(false,"Garden projection arrives");return
  var view=game.get_node("GardenInteractions")
  if not await until(func():return view.panel.visible):check(false,"remote E opens inspect view");return
@@ -79,8 +79,8 @@ func guest_run() -> void:
  if not await until(func():return game.status.contains("closer")):check(false,"range rejection arrives");return
  mark("rejected")
  if not await until(func():return marked("rejoin")):check(false,"rejoin allowed");return
- SessionCase.World.leave(game,"Observation rejoin fixture");game.ui.close_panels()
- check(SessionCase.World.join(game)==OK,"guest reconnects")
+ game.session_world.leave("Observation rejoin fixture");game.ui.close_panels()
+ check(game.session_world.join()==OK,"guest reconnects")
  if not await until(func():return game.network_session.role()=="Guest" and game.garden_commands.projection(game.local_player_id()).get("revision",0)==1):check(false,"late-join state arrives");return
  await process_frame
  check(view.cue_until==0 and not view.panel.visible,"late join restores knowledge without replaying cue or opening old inspection")

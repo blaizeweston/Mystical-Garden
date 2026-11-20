@@ -405,7 +405,7 @@ func host(menu: Node) -> void:
 			planned[id] = fixture
 			mark("attack-speed-"+str(id), JSON.stringify(fixture))
 			mark("wallet-"+str(id), str(fixture.balance))
-		ExpeditionCase.Transitions.checkpoint(game, 1,true)
+		game.expedition_transitions.checkpoint(1,true)
 		check(UIFixture.control(game,"checkpoint_cards").get_child_count()==3,"host receives a full offer after mixed-class combat")
 		check_speed_face(game, planned[1])
 		game.send_garden_action(game.affinity_checkpoint_action(game.ui.checkpoint_revision(),str(planned[1].choice)))
@@ -421,7 +421,7 @@ func host(menu: Node) -> void:
 				"one guest's reroll debits its wallet once while all four claims stay free")
 			check(has_attack_speed(game,visitor,game.weapon_stats(visitor),planned[id].after),
 				"host's resolved attack speed matches the promised value for this peer")
-	ExpeditionCase.Transitions.checkpoint(game, 1,true)
+	game.expedition_transitions.checkpoint(1,true)
 	mark("advance",str(game.participation.travel_epoch()))
 	if not check(await until(func():return game.participation.depth()==2 and ids.all(func(id):return read("guest-floor-"+str(id))=="ok")),
 		"party advances to next generated floor"):return
@@ -441,7 +441,7 @@ func host(menu: Node) -> void:
 	game.encounter_rewarded=true
 	local.pos=game.battlefield.advance
 	for id in ids: game.players[id].pos=local.pos
-	ExpeditionCase.Transitions.checkpoint(game, 1,false)
+	game.expedition_transitions.checkpoint(1,false)
 	mark("extract",str(game.participation.travel_epoch()))
 	if not check(await until(func():return not game.participation.active() and ids.all(func(id):return read("guest-garden-"+str(id))=="ok")),
 		"party extraction restores Garden"):return

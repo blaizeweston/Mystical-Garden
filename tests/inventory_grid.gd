@@ -81,14 +81,14 @@ func run():
  Model.transfer(game,p,"carry","pouch",part,3)
  var part_before: int=reserve.parts[4]
  ExpeditionCase.set_world(game, {"encounter_number": 6});game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();p.pos=game.battlefield.advance
- ExpeditionCase.Transitions.checkpoint(game, 1,false)
+ game.expedition_transitions.checkpoint(1,false)
  check(not ExpeditionCase.is_wild(p) and reserve.parts[4]==part_before+3 and p.safe_items.is_empty(),"checkpoint extraction banks pouch stacks")
  ExpeditionCase.set_membership(game, p, true);p.carried_parts[4]=2
  check(game.monster_rewards.begin_expedition(game._kill_reward_identity(1,p),game.participation.run_id(),p.character.xp,p.character.monsters),
   "synthetic new inventory run records pre-entry rewards before abandonment")
  Model.transfer(game,p,"carry","pouch",part,2)
  part_before=reserve.parts[4]
- ExpeditionCase.Transitions.abandon(game, 1,p)
+ game.expedition_transitions.abandon(1)
  check(not p.pouch and p.safe_items.is_empty() and reserve.parts[4]==part_before,"abandonment discards safe stacks without banking")
  # Failing persistence returns Garden drops and pickup items to their original place.
  var seed_count: int=reserve.stock[0]
@@ -108,7 +108,7 @@ func run():
  var migrated=load("res://progress.gd").new();migrated.path=legacy_path;migrated.load_garden();migrated.save_garden()
  check(FileAccess.file_exists(legacy_path+".pre-inventory-v1.bak") and migrated.stock[0]==reserve.stock[0],"legacy counts migrate with a recovery backup")
  # Sorting and filtering are display operations, not item mutations.
- ExpeditionCase.Transitions.return_member(game, p);game.ui.toggle_panel("pack");UIFixture.control(game,"inventory_view").refresh()
+ game.expedition_transitions.return_member(preload("res://network_session.gd").peer_for(p));game.ui.toggle_panel("pack");UIFixture.control(game,"inventory_view").refresh()
  check(UIFixture.control(game,"inventory_view").grid.get_child_count()>=40,"normal inventory uses square grid slots with empty spaces")
  var original: int=reserve.stock[0]
  UIFixture.control(game,"inventory_view").filter_pick.select(3);UIFixture.control(game,"inventory_view").key="";UIFixture.control(game,"inventory_view").refresh()

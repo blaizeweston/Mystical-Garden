@@ -25,7 +25,7 @@ func run() -> void:
  game.get_node("GardenInteractions/GrowthScenes").set_process(false)
  if role=="host":await host_run()
  else:await guest_run()
- SessionCase.World.leave(game,"Garden returns fixture complete")
+ game.session_world.leave("Garden returns fixture complete")
  var offline := game.network_session.transport() == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer
  check(offline,"offline peer is installed before world removal")
  if offline:
@@ -35,7 +35,7 @@ func run() -> void:
  if not failed:print("PASS: Garden returns co-op ",role," real banking/identification, private provenance, shared trace, independent acknowledgement and reconnect")
  quit(1 if failed else 0)
 func host_run() -> void:
- check(SessionCase.World.host(game)==OK,"host opens")
+ check(game.session_world.host()==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"admission");return
  var id: int=game.players.keys().filter(func(peer):return peer!=1)[0];var moss: int=game.Seeds.index_of("lantern_moss")
  game.progress.discoveries[moss]=true
@@ -45,14 +45,14 @@ func host_run() -> void:
   game.handle_loadout_action(peer,p,"learn_%d_%d"%[p.frame,tree.REQUEST_OFFSET])
   check(not tree.focus(p.character).is_empty(),"host validates the explicit free starting focus")
  check(game.Transactions.run(game,func():
-  if not ExpeditionCase.Transitions.admit(game,1,game.players[1]):return false
-  return ExpeditionCase.Transitions.admit(game,id,game.players[id]))==true,"shared run starts")
+  if not game.expedition_transitions.admit(1):return false
+  return game.expedition_transitions.admit(id))==true,"shared run starts")
  if not ExpeditionCase.is_wild(game.players[1]) or not ExpeditionCase.is_wild(game.players[id]):
   check(false,"both members must be admitted before inspecting run provenance");return
  check(game.players[1].garden_run_id==game.players[id].garden_run_id and game.progress.garden_interactions.returns.active.members.size()==2,"both members use one expedition identity")
  ExpeditionCase.set_world(game, {"depth": 6});ExpeditionCase.set_world(game, {"encounter_number": 6});game.deepest_milestone=0;game.encounter.set_hp(-1, 0);game.encounter.clear_scouts()
  for peer in [1,id]:game.players[peer].pos=game.battlefield.advance;game.players[peer].carried_seeds=[moss]
- check(game.Transactions.run(game,func():ExpeditionCase.Transitions.commit_checkpoint(game, 1,false);return true)==true,"party banks a cleared checkpoint")
+ check(game.Transactions.run(game,func():game.expedition_transitions.commit_checkpoint(1,false);return true)==true,"party banks a cleared checkpoint")
  check(game.progress.garden_interactions.returns.history.size()==1 and game.progress.garden_interactions.returns.history[0].outcomes.get("extracted",0)==2,"one closed run records both outcomes")
  for peer in [1,id]:game.players[peer].pos=game.stage.altar_position()
  mark("banked")
@@ -69,7 +69,7 @@ func host_run() -> void:
  mark("done")
  check(await until(func():return marked("guest-offline") and game.multiplayer.get_peers().is_empty()),"host observes guest disconnect before teardown")
 func guest_run() -> void:
- check(SessionCase.World.join(game)==OK,"guest joins")
+ check(game.session_world.join()==OK,"guest joins")
  if not await until(func():return marked("banked") and game.network_session.role()=="Guest" and game.players.has(game.local_player_id()) and not ExpeditionCase.is_wild(game.players[game.local_player_id()])):check(false,"banked snapshot");return
  check(game.garden_commands.return_projection(game.local_player_id()).get("entries",[]).is_empty(),"unidentified banking reveals no species/story")
  game.send_altar_action("identify_all",[],0);mark("submitted")
@@ -78,7 +78,7 @@ func guest_run() -> void:
  check(not JSON.stringify(data).contains("credits") and not JSON.stringify(data).contains("members") and game.progress.garden_interactions.get("returns",{}).get("discoveries",{}).is_empty(),"host projection omits private provenance and does not alter guest world")
  game.send_garden_action("growth_ack:"+str(Scenes.projection(game,game.local_player_id()).pending[0].sequence));mark("skipped")
  if not await until(func():return marked("rejoin")):check(false,"rejoin allowed");return
- SessionCase.World.leave(game,"Garden return reconnect fixture");game.ui.close_panels();check(SessionCase.World.join(game)==OK,"reconnect starts")
+ game.session_world.leave("Garden return reconnect fixture");game.ui.close_panels();check(game.session_world.join()==OK,"reconnect starts")
  if not await until(func():return game.network_session.role()=="Guest" and Service.known(game.garden_commands.return_projection(game.local_player_id()),"lantern_homecoming")):check(false,"persistent trace returns");return
  check(Scenes.projection(game,game.local_player_id()).get("pending",[]).is_empty(),"acknowledged scene does not replay")
  mark("rejoined");check(await until(func():return marked("done")),"host completes")

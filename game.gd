@@ -6,7 +6,8 @@ const Protection = preload("res://player_protection.gd")
 const CombatClock = preload("res://combat_clock.gd")
 const Participation = preload("res://expedition_participation.gd")
 const Session = preload("res://network_session.gd")
-const SessionWorld = preload("res://session_world.gd")
+var session_world := preload("res://session_world.gd").new(self)
+var expedition_transitions := preload("res://expedition_transitions.gd").new(self)
 const ActionIdentity = preload("res://network_action_identity.gd")
 
 const Journal=preload("res://diagnostic_journal.gd")
@@ -246,10 +247,10 @@ func _ready() -> void:
 	network_compatibility=preload("res://network_compatibility.gd").new()
 	add_child(network_compatibility)
 	multiplayer.peer_connected.connect(add_player)
-	multiplayer.peer_disconnected.connect(func(id): SessionWorld.remove(self,id))
-	multiplayer.connected_to_server.connect(SessionWorld.joined.bind(self))
-	multiplayer.connection_failed.connect(SessionWorld.connection_failed.bind(self))
-	multiplayer.server_disconnected.connect(SessionWorld.server_disconnected.bind(self))
+	multiplayer.peer_disconnected.connect(func(id): session_world.remove(id))
+	multiplayer.connected_to_server.connect(session_world.joined)
+	multiplayer.connection_failed.connect(session_world.connection_failed)
+	multiplayer.server_disconnected.connect(session_world.server_disconnected)
 	add_player(HOST)
 	diagnostic_watch=preload("res://diagnostic_watch.gd").new();diagnostic_watch.game=self;add_child(diagnostic_watch)
 	preload("res://menu_button_roots.gd").watch(self,func():return app_settings.values.get("ambient_motion",true))
@@ -264,16 +265,16 @@ func _refuse_unowned_world() -> void:
 func _notification(what: int) -> void:
 	if what==NOTIFICATION_WM_WINDOW_FOCUS_OUT: mouse_controls.release(self)
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		if load("res://expedition_transitions.gd").request_guest_exit(self,Session.Exit.APPLICATION): return
+		if expedition_transitions.request_guest_exit(Session.Exit.APPLICATION): return
 		if persistence_session.is_guarded():
 			if not prepare_guarded_exit(): return
 			persistence_session.begin_shutdown()
-			SessionWorld.offline(self)
+			session_world.offline()
 			release_slot()
 			get_tree().quit()
 			return
 		if network_session.role() in ["Host","Solo"] and participation.active():
-			if not load("res://expedition_transitions.gd").finish_voluntary(self): return
+			if not expedition_transitions.finish_voluntary(): return
 		if character_dirty:
 			save_local_character()
 		get_tree().quit()
@@ -303,7 +304,7 @@ func configure_gameplay_ui() -> void:
 	network_dialog.applied.connect(func(address: String,port: int,_join: bool):
 		var saved := Network.save_settings(slot_storage_root,address,port)
 		if saved!=OK: Journal.event("network","preference_save_failed",{"error":saved},"warning")
-		if SessionWorld.join(self,address,port)!=OK:
+		if session_world.join(address,port)!=OK:
 			network_dialog.begin(address,port,true,str(local_character.data.get("name","Wanderer")),Transactions.feedback_text(self,status)))
 	var drops=preload("res://inventory_drop_visuals.gd").new()
 	drops.name="InventoryDrops";drops.configure(stage)
@@ -314,7 +315,7 @@ func configure_gameplay_ui() -> void:
 	garden_presentation.bind(garden_view);add_child(garden_view)
 
 func request_host_session() -> void:
-	if network_session.role()=="Solo" and SessionWorld.host(self)!=OK: return
+	if network_session.role()=="Solo" and session_world.host()!=OK: return
 	if network_session.role()=="Host": network_dialog.begin_host(network_session.port(),Network.lan_addresses(),"Your Garden",not participation.active())
 
 func _handle_ui_request(command: String, data: Dictionary) -> void:
@@ -327,7 +328,7 @@ func _handle_ui_request(command: String, data: Dictionary) -> void:
 		"host": request_host_session()
 		"join": request_ip_join()
 		"leave":
-			if not load("res://expedition_transitions.gd").request_guest_exit(self,Session.Exit.SESSION): SessionWorld.leave(self,"Back in your own Garden.")
+			if not expedition_transitions.request_guest_exit(Session.Exit.SESSION): session_world.leave("Back in your own Garden.")
 		"abandon": request_abandon_run()
 		"arena_open":
 			if FileAccess.file_exists("res://neural_arena/arena_entry.gd"): load("res://neural_arena/arena_entry.gd").open_from(self)
@@ -378,7 +379,7 @@ func _handle_ui_request(command: String, data: Dictionary) -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func register_character(identity: String, profile: Dictionary,catalog: Dictionary={},protocol: int=0) -> void:
-	SessionWorld.register(self,multiplayer.get_remote_sender_id(),identity,profile,catalog,protocol)
+	session_world.register(multiplayer.get_remote_sender_id(),identity,profile,catalog,protocol)
 
 func add_player(id: int) -> void:
 	if not multiplayer.is_server():
@@ -535,12 +536,12 @@ func request_garden_action(action: String) -> void:
 	if not multiplayer.is_server() or action.length()>512: return
 	if action in ["class_skill","class_skill_two"] or (action == "research" and Participation.is_wild(players.get(id,{}))): return
 	if action.begins_with("guest_projection:"):
-		if not SessionWorld.allow_remote(self,id,"profile_receipt",120,true): return
+		if not session_world.allow_remote(id,"profile_receipt",120,true): return
 		var fields := action.split(":")
 		if fields.size()==5 and fields[2].is_valid_int():
 			guest_projection_status(id,fields[1],int(fields[2]),fields[3],fields[4])
 		return
-	if SessionWorld.allow_remote(self,id,"action",30): garden_action(id, action)
+	if session_world.allow_remote(id,"action",30): garden_action(id, action)
 
 
 func garden_action(id: int, action: String) -> void:
@@ -590,7 +591,7 @@ func _garden_action(id: int, action: String) -> void:
 		show_graft_menu(id)
 		return
 	if action=="abandon_run" or action.begins_with("abandon_run:"):
-		load("res://expedition_transitions.gd").abandon(self,id,player,action.trim_prefix("abandon_run:") if action.begins_with("abandon_run:") else "")
+		expedition_transitions.abandon(id,action.trim_prefix("abandon_run:") if action.begins_with("abandon_run:") else "")
 		return
 	if garden_commands.handle(id,action):return
 	if action.begins_with("travel_ready:") or action.begins_with("travel_unready:"):
@@ -601,7 +602,7 @@ func _garden_action(id: int, action: String) -> void:
 		return
 	if action=="depart":
 		if at_weapon_gate(player):
-			load("res://expedition_transitions.gd").enter(self,id,player)
+			expedition_transitions.enter(id)
 			if Participation.is_wild(player) and not persistence_session.is_guarded(): close_flow_for(id)
 		return
 	if action.begins_with(AffinityCards.COMMAND):
@@ -640,7 +641,7 @@ func _garden_action(id: int, action: String) -> void:
 		"expand_plot":
 			tell(id,"Select a planting-bed node in Heart / Knowledge to begin its research.")
 		"extract":
-			load("res://expedition_transitions.gd").checkpoint(self,id, false)
+			expedition_transitions.checkpoint(id,false)
 		"awaken":
 			if at_heart(player):
 				awaken_heart(id, player)
@@ -708,10 +709,10 @@ func _garden_action(id: int, action: String) -> void:
 func awaken_heart(id: int, player: Dictionary) -> void:
 	if not Campaign.LEGACY_ENDING_ENABLED: return
 	if not participation.active() and participation.route()==Campaign.HEART and participation.travel_kind()=="depart":
-		load("res://expedition_transitions.gd").enter(self,id,player);return
+		expedition_transitions.enter(id);return
 	if participation.active():
 		if participation.route() == Campaign.HEART:
-			load("res://expedition_transitions.gd").enter(self,id, player)
+			expedition_transitions.enter(id)
 		return
 	if id != HOST:
 		tell(id, "The host can begin the finale when the Heart is ready.")
@@ -721,7 +722,7 @@ func awaken_heart(id: int, player: Dictionary) -> void:
 		return
 	var previous := participation.route()
 	participation.select_route(Campaign.HEART)
-	load("res://expedition_transitions.gd").enter(self,id, player)
+	expedition_transitions.enter(id)
 	if not Participation.is_wild(player) and participation.travel_kind()!="depart":
 		participation.select_route(previous)
 
@@ -744,7 +745,7 @@ func route_rooms() -> int:
 func enemy_name() -> String:
 	if tactics.boss_kind>=0: return Enemies.get_kind(tactics.boss_kind).name
 	if participation.route() != Campaign.HEART:
-		return ("Longlimb " if tactics.longlimb else "Elite ")+Enemies.get_kind(enemy_kind).name+" · "+preload("res://elite_enemy.gd").empowered(enemy_kind)
+		return ("Longlimb " if tactics.longlimb else "Elite ")+Enemies.get_kind(enemy_kind).name+" Â· "+preload("res://elite_enemy.gd").empowered(enemy_kind)
 	if tactics.longlimb:
 		return "Longlimb " + Enemies.get_kind(enemy_kind).name
 	return "Awakened Heart" if participation.route() == Campaign.HEART else Enemies.get_kind(enemy_kind).name
@@ -883,7 +884,7 @@ func flush_kill_rewards() -> bool:
 		if not monster_rewards.has_pending() and departure_settlement.is_empty():
 			return true
 		if Life.living_ids(self).is_empty() and departure_settlement.has_wild_departure():
-			return load("res://expedition_transitions.gd").finish_failed(self)
+			return expedition_transitions.finish_failed()
 		var result := run_guarded_action(HOST, Transactions.Scope.PAIR, func(effects):
 			settle_expedition_rewards(effects, true)
 			return true)
@@ -988,7 +989,7 @@ func _publish_kill_reward_notices(notices: Array[Dictionary], require_profile :=
 	for id in totals:
 		var notice: Dictionary = totals[id]
 		var essence := int(notice.essence) / float(Director.config().essence_sparks_per_point)
-		var message := "+%.2f essence · +%d class XP%s%s" % [essence, notice.xp, " pending" if xp_pending else "", " · Monster part nearby" if notice.parts > 0 else ""]
+		var message := "+%.2f essence Â· +%d class XP%s%s" % [essence, notice.xp, " pending" if xp_pending else "", " Â· Monster part nearby" if notice.parts > 0 else ""]
 		if require_profile:
 			tell_profile_action(id, message)
 		else:
@@ -1176,12 +1177,12 @@ func receive_character(profile: Dictionary) -> void:
 			if origin == get_meta(&"guest_projection_origin","") and projection.valid_origin(origin) and projection.valid_descriptor(descriptor,profile):
 				_report_guest_projection(origin,descriptor,"refused")
 			return
-		if save_guest_projection(profile,origin,descriptor): load("res://expedition_transitions.gd").confirm_guest_exit(self,departure)
+		if save_guest_projection(profile,origin,descriptor): expedition_transitions.confirm_guest_exit(departure)
 		return
 	if profile.has("projection") or not Character.Experience.supported(profile): return
 	guest_character.data = Character.normalize(profile)
 	character_dirty = true
-	if save_local_character(): load("res://expedition_transitions.gd").confirm_guest_exit(self,departure)
+	if save_local_character(): expedition_transitions.confirm_guest_exit(departure)
 
 func save_guest_projection(profile: Dictionary, origin: String, descriptor: Dictionary) -> bool:
 	if not Character.Experience.supported(profile): return false
@@ -1409,27 +1410,27 @@ func infuse_study(id: int) -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_action(strike: bool) -> void:
-	if multiplayer.is_server() and SessionWorld.allow_remote(self,multiplayer.get_remote_sender_id(),"action",30):
+	if multiplayer.is_server() and session_world.allow_remote(multiplayer.get_remote_sender_id(),"action",30):
 		act(multiplayer.get_remote_sender_id(), strike)
 
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_dodge(direction: Vector2) -> void:
-	if multiplayer.is_server() and direction.is_finite() and SessionWorld.allow_remote(self,multiplayer.get_remote_sender_id(),"action",30):
+	if multiplayer.is_server() and direction.is_finite() and session_world.allow_remote(multiplayer.get_remote_sender_id(),"action",30):
 		dodge_player(multiplayer.get_remote_sender_id(), direction.limit_length())
 
 
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func submit_motion(direction: Vector2) -> void:
 	var id := multiplayer.get_remote_sender_id()
-	if multiplayer.is_server() and direction.is_finite() and SessionWorld.allow_remote(self,id,"motion",120):
+	if multiplayer.is_server() and direction.is_finite() and session_world.allow_remote(id,"motion",120):
 		motions[id] = [direction.limit_length(), CombatClock.now()]
 
 
 @rpc("any_peer", "call_remote", "unreliable_ordered",3)
 func submit_movement(commands: Array,epoch: String) -> void:
 	var id:=multiplayer.get_remote_sender_id()
-	if not multiplayer.is_server() or not players.has(id) or not Session.ready_for(players[id],false) or not SessionWorld.allow_remote(self,id,"motion",120):return
+	if not multiplayer.is_server() or not players.has(id) or not Session.ready_for(players[id],false) or not session_world.allow_remote(id,"motion",120):return
 	net_motion.accept(id,commands,epoch,net_motion.world_key(self,players[id]),CombatClock.now())
 
 
@@ -1689,7 +1690,7 @@ func _act(id: int, strike: bool) -> void:
 		show_graft_menu(id)
 	elif Participation.is_wild(p):
 		if participation.route() != Campaign.HEART and pos.distance_to(battlefield.advance) <= preload("res://gate_interaction.gd").RANGE:
-			load("res://expedition_transitions.gd").checkpoint(self,id, true)
+			expedition_transitions.checkpoint(id,true)
 		else:
 			tell(id, "Move closer to the seed or a checkpoint.")
 	elif not Participation.is_wild(p) and garden_commands.interact(id):
@@ -1742,7 +1743,7 @@ func _finish_combat(id: int,loot_position: Vector3,effects = null) -> void:
 		pending_finale_peer=id
 		pending_finale_at=CombatClock.now()+1500
 		tactics.winding_up=false
-		tell(id,"The Heart collapses as its last roots fall silent…")
+		tell(id,"The Heart collapses as its last roots fall silentâ€¦")
 		return
 	var ranged_evidence:=Life.Vitals.counts_as_ranged(ranged_damage_this_room,damage_this_room,Life.Preview.scale())
 	if ranged_evidence: ranged_clears+=1
@@ -1780,11 +1781,11 @@ func complete_finale(id: int) -> void:
 	var message := ending_message(progress.campaign.ending)
 	for peer_id in players:
 		if Participation.is_wild(players[peer_id]):
-			load("res://expedition_transitions.gd").return_member(self,players[peer_id])
+			expedition_transitions.return_member(preload("res://network_session.gd").peer_for(players[peer_id]))
 		if peer_id != id:
 			tell(peer_id, message)
 	participation.select_route(Campaign.GROVE)
-	load("res://expedition_transitions.gd").reset(self)
+	expedition_transitions.reset()
 	save_progress(id, message)
 
 
@@ -2070,7 +2071,7 @@ func _process(_delta: float) -> void:
 			_stop_guarded_session("This session lost access to its save. Returning to the title.")
 			return
 	if multiplayer.is_server() and not persistence_session.is_blocked(): PartyTravel.validate(self)
-	SessionWorld.update(self)
+	session_world.update()
 	if returning_to_title: return
 	if not multiplayer.is_server() and not guest_replication.has_details(): return
 	if not persistence_session.is_guarded() and (slot_claimed or character_slot_claimed) and Time.get_unix_time_from_system() - slot_heartbeat_at >= 1.0:
@@ -2174,7 +2175,7 @@ func _process(_delta: float) -> void:
 		quake_prepared=warden.prepared_until(self,p,CombatClock.now())>0 if host_side else bool(p.get("warden_quake_prepared",false))
 		if quake_prepared:skill_tips[1]+="\nQuake prepared."
 	var ready_dodge := (local_timers == null or local_timers.ready(Cooldowns.DODGE, cooldown_now)) if host_side else bool(p.get("dodge_ready", false))
-	ui.present_menu({"session_text":"Developer Garden · Single player" if has_meta("developer_garden") else session_text,
+	ui.present_menu({"session_text":"Developer Garden Â· Single player" if has_meta("developer_garden") else session_text,
 		"role":network_session.role(),"can_host":not has_meta("developer_garden") and network_session.role() in ["Host","Solo"] and not (network_session.role()=="Solo" and wild),
 		"can_join":not has_meta("developer_garden") and network_session.role()=="Solo" and not wild,
 		"can_leave":network_session.role()!="Solo","can_save":multiplayer.is_server(),"can_bank":can_checkpoint_bank(p),"wild":wild,
@@ -2185,7 +2186,7 @@ func _process(_delta: float) -> void:
 		"floor":participation.floor(),
 		"encounter": "%d foes" % [int(enemy_health() > 0) + living_scout_count()] if wild else "Your living sanctuary",
 		"damage_flash":maxf(0,(int(p[Conditions.STATE].grace_until_ms() if host_side else p.get("client_hurt_until",0))-CombatClock.now())/250.0),"hp": health, "max_hp": PlayerVitals.maximum_hp(p,MAX_HEALTH), "lost_health":p.get("lost_health",0),"fallen":PlayerLifecycle.fallen(p), "wild": wild, "frame": p.get("frame", 0),
-		"skill_ready": ready_skill,"skill_two_ready":second_ready,"skill_names":[skills[0].name,skills[1].name+(" •" if quake_prepared else "")],"skill_cooldowns":cooldowns, "dodge_ready": ready_dodge,
+		"skill_ready": ready_skill,"skill_two_ready":second_ready,"skill_names":[skills[0].name,skills[1].name+(" â€¢" if quake_prepared else "")],"skill_cooldowns":cooldowns, "dodge_ready": ready_dodge,
 		"core":preload("res://core_combat.gd").hud_state(self,p),
 		"skill_tooltips":skill_tips,
 		"affinity_feedback":preload("res://combat_status.gd").affinity_feedback(self,p) if host_side and wild else str(p.get("affinity_feedback","")) if wild else "",
@@ -2213,7 +2214,7 @@ func prepare_guarded_exit(save_garden := true) -> bool:
 	if not persistence_session.can_write(): return true
 	if network_session.role() in ["Solo","Host"] and slot_claimed:
 		if participation.active():
-			if not load("res://expedition_transitions.gd").finish_voluntary(self): return false
+			if not expedition_transitions.finish_voluntary(): return false
 			character_dirty=false
 			return true
 		if not departure_settlement.is_empty() or monster_rewards.has_pending():
@@ -2229,7 +2230,7 @@ func prepare_guarded_exit(save_garden := true) -> bool:
 	return not character_dirty or save_local_character()
 
 func return_to_main_menu(message: String = "") -> void:
-	if load("res://expedition_transitions.gd").request_guest_exit(self,Session.Exit.TITLE): return
+	if expedition_transitions.request_guest_exit(Session.Exit.TITLE): return
 	if returning_to_title:
 		return
 	returning_to_title = true
@@ -2242,12 +2243,12 @@ func return_to_main_menu(message: String = "") -> void:
 		return
 	if network_session.role() in ["Solo","Host"] and not network_session.joined_from_title():
 		if participation.active():
-			if not load("res://expedition_transitions.gd").finish_voluntary(self):
+			if not expedition_transitions.finish_voluntary():
 				returning_to_title = false
 				return
 			for player in players.values():
 				if Participation.is_wild(player):
-					load("res://expedition_transitions.gd").return_member(self,player)
+					expedition_transitions.return_member(preload("res://network_session.gd").peer_for(player))
 		if not save_session_garden():
 			returning_to_title = false
 			if not persistence_session.is_guarded(): status = "Could not save this Garden. Use Save Garden before leaving."
@@ -2270,7 +2271,7 @@ func _stop_guarded_session(message: String) -> void:
 
 func _finish_title_return(message: String) -> void:
 	if persistence_session.is_guarded(): persistence_session.begin_shutdown()
-	SessionWorld.offline(self)
+	session_world.offline()
 	release_slot()
 	if network_dialog.visible:
 		network_dialog.dismiss()
@@ -2320,14 +2321,14 @@ func release_slot() -> void:
 
 func _exit_tree() -> void:
 	persistence_session.begin_shutdown()
-	# Static callables outlive a Node; release the connections this world owns.
-	if multiplayer.connected_to_server.is_connected(SessionWorld.joined.bind(self)):
-		multiplayer.connected_to_server.disconnect(SessionWorld.joined.bind(self))
-	if multiplayer.connection_failed.is_connected(SessionWorld.connection_failed.bind(self)):
-		multiplayer.connection_failed.disconnect(SessionWorld.connection_failed.bind(self))
-	if multiplayer.server_disconnected.is_connected(SessionWorld.server_disconnected.bind(self)):
-		multiplayer.server_disconnected.disconnect(SessionWorld.server_disconnected.bind(self))
-	SessionWorld.offline(self)
+	# Release the callbacks this world owns before its integration ports retire.
+	if multiplayer.connected_to_server.is_connected(session_world.joined):
+		multiplayer.connected_to_server.disconnect(session_world.joined)
+	if multiplayer.connection_failed.is_connected(session_world.connection_failed):
+		multiplayer.connection_failed.disconnect(session_world.connection_failed)
+	if multiplayer.server_disconnected.is_connected(session_world.server_disconnected):
+		multiplayer.server_disconnected.disconnect(session_world.server_disconnected)
+	session_world.offline()
 	release_slot()
 
 
@@ -2825,7 +2826,7 @@ func resume_checkpoint_if_ready() -> void:
 	if not checkpoint_pending or not checkpoint_all_ready(): return
 	for id in players:
 		if Life.alive(players[id]) and players[id].pos.distance_to(battlefield.advance)<=preload("res://gate_interaction.gd").RANGE:
-			load("res://expedition_transitions.gd").checkpoint(self,id,true)
+			expedition_transitions.checkpoint(id,true)
 			return
 
 
@@ -3255,11 +3256,11 @@ func request_ip_join() -> void:
 
 @rpc("authority","call_remote","reliable")
 func connection_accepted(profile: Dictionary) -> void:
-	SessionWorld.accepted(self,profile)
+	session_world.accepted(profile)
 
 @rpc("authority","call_remote","reliable")
 func connection_rejected(reason: String) -> void:
-	SessionWorld.rejected(self,reason)
+	session_world.rejected(reason)
 
 func party_travel_state() -> Dictionary:
 	var id:=multiplayer.get_unique_id()
@@ -3316,4 +3317,4 @@ func enemy_contact_point(target: int,origin: Vector3) -> Vector3:
 @rpc("any_peer","call_remote","unreliable_ordered",1)
 func submit_combat(aim: Vector2,held: bool) -> void:
 	var id:=multiplayer.get_remote_sender_id()
-	if multiplayer.is_server() and aim.is_finite() and SessionWorld.allow_remote(self,id,"combat_input",60):mouse_controls.receive(self,id,aim,held,CombatClock.now())
+	if multiplayer.is_server() and aim.is_finite() and session_world.allow_remote(id,"combat_input",60):mouse_controls.receive(self,id,aim,held,CombatClock.now())

@@ -198,7 +198,7 @@ func guest() -> void:
     if phase=="publish_commit_marker": return ERR_CANT_CREATE
     if phase=="restore": return ERR_FILE_CANT_WRITE
    if key=="disconnect" and phase=="replace" and path==P:
-    SessionCase.World.offline(world)
+    world.session_world.offline()
    return OK)
   mark(key+"-ready")
   if key=="pending":

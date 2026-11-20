@@ -51,7 +51,7 @@ static func launch(tree: SceneTree, config: Config, start: bool) -> Node:
 static func relaunch(world: Node, config: Config) -> void:
 	var tree: SceneTree = world.get_tree()
 	world.returning_to_title = true
-	world.SessionWorld.offline(world)
+	world.session_world.offline()
 	world.queue_free()
 	_launch_after_departure(tree, config, true)
 

@@ -97,7 +97,7 @@ func prepare(kind: int) -> Dictionary:
 
 
 func host() -> void:
-	check(SessionCase.World.host(game) == OK, "host starts")
+	check(game.session_world.host() == OK, "host starts")
 	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return SessionCase.Session.ready_for(p))):
 		check(false, "guest registers")
 		return
@@ -151,7 +151,7 @@ func host() -> void:
 		check(false, "guest sees canopy markers clear")
 		return
 	await host_glasscap()
-	SessionCase.World.leave(game,"Regular response fixture")
+	game.session_world.leave("Regular response fixture")
 
 
 func warning(cue: String) -> Dictionary:
@@ -163,7 +163,7 @@ func warning(cue: String) -> Dictionary:
 
 func guest() -> void:
 	game.guest_character.save_profile()
-	check(SessionCase.World.join(game) == OK, "guest connects")
+	check(game.session_world.join() == OK, "guest connects")
 	if not await until(func(): return not warning("Antler hook").is_empty()):
 		check(false, "guest sees Antler hook")
 		return

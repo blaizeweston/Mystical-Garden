@@ -67,7 +67,7 @@ static func request(game: Node,id: int,kind: String) -> void:
  if kind=="advance" and game.upgrade_checkpoint_open() and int(game.checkpoint_ready.get(id,0))!=game.participation.floor():
   # Open the existing cards, without treating a card choice as travel consent.
   if game.persistence_session.is_guarded(): game.activate_checkpoint()
-  else: game.Transactions.run(game,func(): load("res://expedition_transitions.gd").commit_checkpoint(game,id,true))
+  else: game.Transactions.run(game,func(): game.expedition_transitions.commit_checkpoint(id,true))
   return
  game.participation.set_vote(id,signature(game,p,kind))
  validate(game)
@@ -75,6 +75,8 @@ static func request(game: Node,id: int,kind: String) -> void:
   game.tell(id,"Ready. Waiting for each party member to confirm at the gate.");return
  if kind=="advance" and game.upgrade_checkpoint_open() and not game.checkpoint_all_ready(): return
  var ids: Array=game.participation.travel_members()
+ var bindings: Dictionary = {}
+ for peer in ids: bindings[peer] = game.network_session.binding(peer)
  if game.persistence_session.is_guarded():
   var close_after: bool = kind!="advance" or not game.upgrade_checkpoint_open()
   var result: Dictionary=game.run_guarded_action(id,game.Transactions.Scope.PAIR,func(effects):
@@ -86,10 +88,10 @@ static func request(game: Node,id: int,kind: String) -> void:
      return false
     game.settle_expedition_rewards(effects)
     for peer_id in ids:
-     if not load("res://expedition_transitions.gd").admit(game,peer_id,game.players[peer_id],cost.reserved,effects):
+     if not game.expedition_transitions.admit(peer_id,cost.reserved,effects,int(bindings[peer_id])):
       game.SaveBatch.reject_guarded_serializer(ERR_UNAVAILABLE,game.progress.path)
       return false
-   elif not load("res://expedition_transitions.gd").commit_checkpoint(game,id,kind=="advance",effects):
+   elif not game.expedition_transitions.commit_checkpoint(id,kind=="advance",effects,int(bindings[id])):
     return false
    clear(game)
    if close_after:
@@ -110,10 +112,10 @@ static func request(game: Node,id: int,kind: String) -> void:
  var success=game.Transactions.run(game,func():
   if kind=="depart":
    for peer_id in ids:
-    load("res://expedition_transitions.gd").admit(game,peer_id,game.players[peer_id],reservation)
+    game.expedition_transitions.admit(peer_id,reservation,null,int(bindings[peer_id]))
     if not Participation.is_wild(game.players[peer_id]):
      game.SaveBatch.failure=ERR_UNAVAILABLE;return false
-  else: return load("res://expedition_transitions.gd").commit_checkpoint(game,id,kind=="advance")
+  else: return game.expedition_transitions.commit_checkpoint(id,kind=="advance",null,int(bindings[id]))
   return true)
  if not success:
   game.battlefield.configure(game.participation.route(),game.participation.depth(),game.participation.seed())

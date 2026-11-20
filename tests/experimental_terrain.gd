@@ -71,7 +71,7 @@ func run() -> void:
 	var player: Dictionary = game.players[game.HOST]
 	check(garden != null and game.slot_claimed and game.character_slot_claimed and game.persistence_session.owns_leases(),
 		"real world shows terrain with the native owner")
-	check(UIFixture.control(game,"host_button").visible and SessionCase.World.join(game) == ERR_UNAUTHORIZED, "co-op uses title-owned guest admission")
+	check(UIFixture.control(game,"host_button").visible and game.session_world.join() == ERR_UNAUTHORIZED, "co-op uses title-owned guest admission")
 	check(garden.barrier.walkable(garden.planar(player.pos)), "production avatar starts on clear ground")
 	var view := game.get_node("GardenInteractions")
 	var scar := GardenInteractions.Catalog.point("heart_root_scar")
@@ -432,7 +432,7 @@ func run() -> void:
 	check(not player.safe_items.is_empty() and player.safe_items[0].item == trophy, "real monster drop fits in safe pouch")
 	study_work = garden.assimilation.queue[0].done
 	player.pos = field.advance
-	ExpeditionCase.Transitions.checkpoint(game, game.HOST, true)
+	game.expedition_transitions.checkpoint(game.HOST,true)
 	await process_frame
 	await process_frame
 	check(game.participation.depth() == 2 and game.battlefield is Field and not game.battlefield.generated.is_empty(), "the real Gate advances to another generated floor")

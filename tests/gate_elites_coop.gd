@@ -30,7 +30,7 @@ func run():
  if not failed:print("PASS: elite co-op ",role," species identity, matching telegraphs and synchronized elite brood")
  quit(1 if failed else 0)
 func host_run():
- check(SessionCase.World.host(game)==OK,"host opens")
+ check(game.session_world.host()==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"registration");return
  game.battlefield.configure(0,1);preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
  for player in game.players.values():ExpeditionCase.set_membership(game, player, true);player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(10);player.pos=Vector3(0,0,.8)
@@ -55,7 +55,7 @@ func host_run():
    check(await until(func():return marked("shelter-cleared")),"guest sees shelter end")
  mark("done");check(await until(func():return game.players.size()==1),"disconnect")
 func guest_run():
- game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"connects")
+ game.guest_character.save_profile();check(game.session_world.join()==OK,"connects")
  var id:=game.multiplayer.get_unique_id()
  if not await until(func():return game.network_session.role()=="Guest" and game.guest_replication.has_details() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds arrives");return
  mark("ready")
@@ -79,4 +79,4 @@ func guest_run():
   if kind==11:
    check(await until(func():return not WorldViewCase.component(game,"combat").statuses.active.values().any(func(s):return s.event.shape=="sheltered")),"guest clears the Sheltered label")
    mark("shelter-cleared")
- check(await until(func():return marked("done")),"host finishes");SessionCase.World.leave(game,"Elite fixture")
+ check(await until(func():return marked("done")),"host finishes");game.session_world.leave("Elite fixture")

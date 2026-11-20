@@ -2,7 +2,6 @@ extends RefCounted
 ## Synthetic fixture setup only. Live registration uses SessionWorld's host path.
 ## This helper supplies scalar connection facts through the actual owner APIs.
 const Session = preload("res://network_session.gd")
-const World = preload("res://session_world.gd")
 const ROLE_FACTS := &"ar14_fixture_session_facts"
 
 

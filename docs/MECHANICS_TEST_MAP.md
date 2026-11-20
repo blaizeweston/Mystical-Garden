@@ -794,10 +794,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_process` | guarded_legacy_heartbeat | persistence_operations, menus, connection_flow |
 | `game.gd::_process` | stale_glasscap_formation | glasscap_feints |
 | `game.gd::_process` | stale_dream_lure_hints | core_combat |
-| `game.gd::_process` | warden_skill_hud_readout | warden_progression |
 | `game.gd::_process` | expanded_core_stale_field | core_combat |
-| `game.gd::_process` | class_skill_hover | core_combat |
-| `game.gd::_process` | core_hud_state | core_combat |
 | `game.gd::_process` | core_stale_terrain | core_combat |
 | `game.gd::_process` | party_panel | party_ui |
 | `game.gd::_process` | gate_range | gate_access |
@@ -805,7 +802,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::at_weapon_gate` | ar08_lifecycle_1 | player_lifecycle |
 | `game.gd::at_weapon_gate` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
 | `game.gd::at_weapon_gate` | gate_range | gate_access |
-| `game.gd::resume_checkpoint_if_ready` | guarded_expedition | persistence_operations, expeditions, gate_access |
 | `game.gd::resume_checkpoint_if_ready` | gate_range | gate_access |
 | `game.gd::_affinity_checkpoint_command` | ar07_vitals_1 | player_vitals |
 | `game.gd::_affinity_checkpoint_command` | ar03_wallet_reroll_debit | expedition_wallet, affinity_cards |
@@ -892,13 +888,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::emit_combat_event` | core_shape_payload | core_combat |
 | `game.gd::emit_combat_event` | subclass_release_label | warden_progression |
 | `game.gd::emit_combat_event` | authored_core_label | core_combat |
-| `game.gd::return_to_main_menu` | guarded_lifecycle | persistence_operations, connection_flow, foundation, menus |
-| `game.gd::return_to_main_menu` | guarded_expedition | persistence_operations, foundation, menus, connection_flow |
-| `game.gd::return_to_main_menu` | retained_cleanup_feedback | persistence_operations |
-| `game.gd::return_to_main_menu` | cleanup_feedback | persistence_operations |
-| `game.gd::return_to_main_menu` | guarded_gameplay_writer | persistence_operations |
-| `game.gd::return_to_main_menu` | guarded_return_save_gate | persistence_operations, menus, connection_flow |
-| `game.gd::return_to_main_menu` | join_does_not_save_garden | connection_flow |
 | `game.gd::request_ip_join` | experimental_coop_1 | hex_terrain, terrain, connection_flow, garden |
 | `game.gd::request_ip_join` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
 | `game.gd::request_ip_join` | in_world_join_endpoint | connection_flow |
@@ -1095,8 +1084,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `party_travel.gd` | guarded_expedition_1 | persistence_operations, expeditions, connection_flow |
 | `party_travel.gd` | guarded_expedition_2 | persistence_operations, expeditions, connection_flow |
 | `party_travel.gd` | guarded_expedition_3 | persistence_operations, expeditions, connection_flow |
-| `party_travel.gd` | guarded_expedition_4 | persistence_operations, expeditions, connection_flow |
-| `party_travel.gd` | guarded_expedition_5 | persistence_operations, expeditions, connection_flow |
 | `party_travel.gd` | hold_range | gate_access |
 | `party_travel.gd` | request_range | gate_access |
 | `progress.gd` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
@@ -1864,7 +1851,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `expedition_life.gd` | cr04a_affinity_3 | fire_affinity, vital_affinity, combat_affinity_contracts |
 | `expedition_life.gd` | guarded_expedition_1 | persistence_operations, life, combat |
 | `expedition_life.gd` | guarded_expedition_2 | persistence_operations, life, combat |
-| `expedition_life.gd` | guarded_expedition_3 | persistence_operations, life, combat |
 | `expedition_life.gd` | guarded_expedition_4 | persistence_operations, life, combat |
 | `expedition_life.gd` | guarded_expedition_5 | persistence_operations, life, combat |
 | `expedition_life.gd` | guarded_expedition_6 | persistence_operations, life, combat |
@@ -1874,7 +1860,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `expedition_life.gd` | cb03_resolved_maximum_health | weapon_balance |
 | `expedition_life.gd` | cb02_expedition_life_5_7 | combat_balance_preview |
 | `expedition_life.gd` | cb02_expedition_life_4_6 | combat_balance_preview |
-| `expedition_life.gd` | cb02_expedition_life_3_5 | combat_balance_preview |
 | `expedition_life.gd` | cb02_expedition_life_2_4 | combat_balance_preview |
 | `expedition_life.gd` | cb02_expedition_life_1_3 | combat_balance_preview |
 | `expedition_life.gd` | vitals_revive_threshold | combat_vitals |

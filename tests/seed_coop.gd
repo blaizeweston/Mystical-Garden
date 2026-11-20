@@ -19,7 +19,7 @@ func run():
 	game.guest_character.path=game.progress.path+".guest"
 	root.add_child(game)
 	if mode=="host":
-		check(SessionCase.World.host(game)==OK,"host opens")
+		check(game.session_world.host()==OK,"host opens")
 		print("SEED HOST READY")
 		if not await until(func(): return game.players.size()==2):
 			check(false,"guest joins");quit(1);return
@@ -44,7 +44,7 @@ func run():
 		game.guest_character.data.plants[14]=8
 		game.guest_character.data.plants[23]=12
 		game.guest_character.save_profile()
-		check(SessionCase.World.join(game)==OK,"guest connects")
+		check(game.session_world.join()==OK,"guest connects")
 		if not await until(func(): return game.network_session.role()=="Guest" and game.guest_replication.inventory().size()>6 and game.guest_replication.inventory()[6][3]==1):
 			check(false,"expanded inventory arrives");quit(1);return
 		var id: int=game.multiplayer.get_unique_id()

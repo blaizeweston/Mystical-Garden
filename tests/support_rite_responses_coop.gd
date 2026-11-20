@@ -116,7 +116,7 @@ func prepare(response: String) -> Dictionary:
 
 
 func host() -> void:
-	check(SessionCase.World.host(game) == OK, "host opens")
+	check(game.session_world.host() == OK, "host opens")
 	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return SessionCase.Session.ready_for(p))):
 		check(false, "guest registers")
 		return
@@ -164,7 +164,7 @@ func host() -> void:
 		if not await until(func(): return marked("clear-" + response)):
 			check(false, "guest sees warning clear")
 			return
-	SessionCase.World.leave(game,"Support rite fixture")
+	game.session_world.leave("Support rite fixture")
 
 
 func displayed(response: String) -> bool:
@@ -178,7 +178,7 @@ func shown_status(shape: String, actor_id: int) -> bool:
 
 func guest() -> void:
 	game.guest_character.save_profile()
-	check(SessionCase.World.join(game) == OK, "guest connects")
+	check(game.session_world.join() == OK, "guest connects")
 	for response in RESPONSES:
 		if not await until(func(): return displayed(response)):
 			check(false, "guest sees " + response)

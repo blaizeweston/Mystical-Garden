@@ -763,7 +763,7 @@ func launch(join: bool) -> void:
 	get_tree().current_scene=game
 	preload("res://title_music.gd").set_playing(get_tree(),false)
 	if join:
-		var error: int=load("res://session_world.gd").join(game)
+		var error: int=game.session_world.join()
 		if error!=OK:
 			game.return_to_main_menu(game.status)
 	elif host_choice.button_pressed:
@@ -925,7 +925,7 @@ func _launch_guarded(join: bool) -> void:
 	var join_dialog_open: bool = join and network_dialog.visible
 	if join_dialog_open: network_dialog.exclusive = false
 	get_tree().root.add_child(game)
-	if join and load("res://session_world.gd").join(game) != OK:
+	if join and game.session_world.join() != OK:
 		notice.text = game.status
 		if join_dialog_open:
 			network_dialog.feedback.text = notice.text

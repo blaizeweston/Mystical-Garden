@@ -37,3 +37,24 @@ static func available(game: Node,player: Dictionary) -> Array:
  var result: Array=game.Parts.empty_counts();var personal: Array=game.seed_reserve(player).parts
  for part in range(1,result.size()):result[part]=int(personal[part])+shared_free(game,part,player)
  return result
+
+## Pure departure planning. Part counts are whole items; reserved counts use
+## plant species IDs. Nothing is consumed and returned arrays do not alias inputs.
+static func departure_plan(selected: Array, cargo: Array, available_parts: Array, personal: Array) -> Dictionary:
+ var parts = preload("res://weapon_parts.gd")
+ var needed: Array = parts.empty_counts()
+ for part in selected:
+  if part != 0 and not parts.is_plant(part): return {"error":"Only plant materials fit the first three slots."}
+  needed[part] += 1
+ for part in range(1,needed.size()):
+  needed[part] += int(cargo[part])
+  if int(available_parts[part]) < int(needed[part]):
+   return {"error":"Not enough %s for the loadout and cargo." % parts.part_name(part)}
+ var reserved: Array = preload("res://seed_catalog.gd").counts()
+ for part in range(1,needed.size()):
+  if parts.is_plant(part) and part != parts.HEARTWOOD:
+   reserved[parts.plant_source(part)] += maxi(0,int(needed[part])-int(personal[part]))
+ for part in selected:
+  if part != parts.EMPTY and int(available_parts[part]) == 0:
+   return {"error":"%s is unavailable. Change the slot at the Wilds gate." % parts.part_name(part)}
+ return {"error":"", "needed":needed, "reserved":reserved}

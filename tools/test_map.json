@@ -5142,27 +5142,12 @@
           "core_combat"
         ],
         "additive": true
-      },          "warden_skill_hud_readout": {
-        "additive": true,
-        "systems": [
-          "warden_progression"
-        ]
-      },  "expanded_core_stale_field": {
+      },            "expanded_core_stale_field": {
         "additive": true,
         "systems": [
           "core_combat"
         ]
-      }, "class_skill_hover": {
-        "additive": true,
-        "systems": [
-          "core_combat"
-        ]
-      }, "core_hud_state": {
-        "additive": true,
-        "systems": [
-          "core_combat"
-        ]
-      }, "core_stale_terrain": {
+      },   "core_stale_terrain": {
         "additive": true,
         "systems": [
           "core_combat"
@@ -5200,14 +5185,7 @@
       }
     },
     "resume_checkpoint_if_ready": {
-      "guarded_expedition": {
-        "systems": [
-          "persistence_operations",
-          "expeditions",
-          "gate_access"
-        ],
-        "additive": true
-      },
+
       "gate_range": {
         "systems": [
           "gate_access"
@@ -5723,56 +5701,13 @@
     },
 
     "return_to_main_menu": {
-      "guarded_lifecycle": {
-        "systems": [
-          "persistence_operations",
-          "connection_flow",
-          "foundation",
-          "menus"
-        ],
-        "additive": true
-      },
-      "guarded_expedition": {
-        "systems": [
-          "persistence_operations",
-          "foundation",
-          "menus",
-          "connection_flow"
-        ],
-        "additive": true
-      },
-      "retained_cleanup_feedback": {
-        "systems": [
-          "persistence_operations"
-        ],
-        "additive": true
-      },
-      "cleanup_feedback": {
-        "systems": [
-          "persistence_operations"
-        ],
-        "additive": true
-      },
-      "guarded_gameplay_writer": {
-        "systems": [
-          "persistence_operations"
-        ],
-        "additive": true
-      },
-      "guarded_return_save_gate": {
-        "additive": true,
-        "systems": [
-          "persistence_operations",
-          "menus",
-          "connection_flow"
-        ]
-      },
-      "join_does_not_save_garden": {
-        "additive": true,
-        "systems": [
-          "connection_flow"
-        ]
-      }
+
+
+
+
+
+
+
     },
     "request_ip_join": {
       "experimental_coop_1": {
@@ -6141,19 +6076,7 @@
             "expeditions",
             "connection_flow"
           ]
-        }, "guarded_expedition_4": {
-          "systems": [
-            "persistence_operations",
-            "expeditions",
-            "connection_flow"
-          ]
-        }, "guarded_expedition_5": {
-          "systems": [
-            "persistence_operations",
-            "expeditions",
-            "connection_flow"
-          ]
-        }, "hold_range": {
+        },   "hold_range": {
           "systems": [
             "gate_access"
           ]
@@ -9933,13 +9856,7 @@
             "life",
             "combat"
           ]
-        }, "guarded_expedition_3": {
-          "systems": [
-            "persistence_operations",
-            "life",
-            "combat"
-          ]
-        }, "guarded_expedition_4": {
+        },  "guarded_expedition_4": {
           "systems": [
             "persistence_operations",
             "life",
@@ -9969,7 +9886,7 @@
           "systems": [
             "combat_balance_preview"
           ]
-        }, "cb02_expedition_life_3_5": {"systems": ["combat_balance_preview"]}, "cb02_expedition_life_2_4": {
+        },  "cb02_expedition_life_2_4": {
           "systems": [
             "combat_balance_preview"
           ]

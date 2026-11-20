@@ -16,6 +16,13 @@ func run() -> void:
 	var owner := Session.new()
 	var local := {Session.STATE:owner.admit_peer(1,100,"host-character",true)}
 	check(owner.role() == "Solo" and Session.ready_for(local) and Session.peer_for(local) == 1,"local character begins ready in the solo session")
+	check(owner.admission_error("guest",true,true,true,"host-character",false,false).is_empty(),"compatible unbound character is eligible")
+	check(owner.admission_error("guest",false,true,true,"host-character",false,false).contains("versions"),"protocol mismatch wins before other admission checks")
+	check(owner.admission_error("guest",true,false,true,"host-character",false,false).contains("content"),"content mismatch remains explicit")
+	check(owner.admission_error("invalid",true,true,false,"host-character",false,false).contains("Invalid"),"invalid identity is refused")
+	check(owner.admission_error("host-character",true,true,true,"host-character",false,false).contains("host"),"host identity cannot register twice")
+	check(owner.admission_error("guest",true,true,true,"host-character",true,true).contains("saved"),"settlement hold wins before expedition activity")
+	check(owner.admission_error("guest",true,true,true,"host-character",false,true).contains("Wilds"),"active expedition cannot admit a new character")
 	var unrelated := Session.new()
 	check(Session.belongs_to(local,owner) and not Session.belongs_to(local,unrelated),"a link authorizes only its original session owner")
 	check(Session.identity_for(local) == "host-character" and Session.inventory_owner(local).is_empty(),
@@ -34,6 +41,7 @@ func run() -> void:
 		"read-only link exposes the authoritative accepted identity and slot")
 	var connection := owner.connection_key(7)
 	check(not connection.is_empty() and owner.has_character("remote-character"),"accepted connection has a character-bound key")
+	check(owner.admission_error("remote-character",true,true,true,"host-character",false,false).contains("connected"),"owner rejects an already bound character")
 	var view := owner.view(7)
 	var peers := owner.peers()
 	check(view.is_read_only() and peers.is_read_only() and peers == [1,7],"peer projections are detached and read-only")

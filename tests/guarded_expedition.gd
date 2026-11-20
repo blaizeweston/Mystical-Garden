@@ -160,7 +160,7 @@ func run() -> void:
 func interrupted() -> void:
  var actor: Dictionary=world.players[1]
  actor.pos=world.stage.gate_position()
- ExpeditionCase.Transitions.enter(world, 1,actor)
+ world.expedition_transitions.enter(1)
  world.encounter.set_hp(-1, 0)
  world.record_enemy_death(-1,world.tactics.position,Vector3.ZERO)
  world.encounter.clear_scouts()
@@ -246,11 +246,12 @@ func exercise() -> void:
  world.finish_combat(1,world.tactics.position)
  var earned_wallet = world.wallet_for(actor)
  var earned_balance: int = world.run_wallet(actor)
+ var settled_facts: Dictionary = {"rewarded":world.encounter_rewarded,"loot":actor.loot_pending,"earned":earned_wallet.earned_sparks(),"balance":earned_balance,"monsters":actor.character.monsters[world.enemy_kind],"drops":world.wild_item_drops,"expected_item":frozen_item,"encounters":world.progress.wilds_memory.encounters,"garden_saved":disk()[G]!=before[G],"character_saved":disk()[C]!=before[C]}
  check(world.encounter_rewarded and actor.loot_pending and earned_wallet.earned_sparks()>0
   and earned_balance>=2 and actor.character.monsters[world.enemy_kind]==1
   and world.wild_item_drops.size()==1 and world.wild_item_drops[0].stack.item==frozen_item
   and world.progress.wilds_memory.encounters==1 and disk()[G]!=before[G] and disk()[C]!=before[C],
-  "encounter commits frozen XP, trophy, adaptation, and cue together")
+  "encounter commits frozen XP, trophy, adaptation, and cue together: "+JSON.stringify(settled_facts))
  var committed:=disk()
  world.finish_combat(1,world.tactics.position)
  check(world.flush_kill_rewards() and disk()==committed and world.wild_item_drops.size()==1
@@ -313,7 +314,7 @@ func exercise() -> void:
  ExpeditionCase.remove_actor(world, 2)
 
  clear_floor(actor,3)
- ExpeditionCase.Transitions.checkpoint(world, 1,true)
+ world.expedition_transitions.checkpoint(1,true)
  check(world.checkpoint_pending and UIFixture.control(world,"checkpoint_menu").visible and world.participation.floor()==3,"checkpoint opens cards without travelling")
  var offer: Dictionary=world.checkpoint_card_data(actor)[0]
  var card_wallet: int=world.wallet_for(actor).spent_essence()
@@ -335,7 +336,7 @@ func exercise() -> void:
  var healing_rng: int=world.Life.Preview.heal_rng.state
  before=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
- ExpeditionCase.Transitions.checkpoint(world, 1,true)
+ world.expedition_transitions.checkpoint(1,true)
  check(world.participation.floor()==3 and world.battlefield==field and world.map_rng.state==seed and world.Life.Preview.heal_rng.state==healing_rng
   and is_same(actor[PlayerVitals.STATE],health_before_floor) and PlayerVitals.current_hp(actor)==1
   and world.checkpoint_ready.get(1)==3 and is_same(Cards.ledger(actor),selected_cards) and disk()==before,"floor abort restores navigation, RNG, original health owner and acquired card owner")
@@ -347,7 +348,7 @@ func exercise() -> void:
   "floor abort restores the leader position, attack deadline and nested tactics")
  record("checkpoint_abort",before)
  world.remove_meta(&"guarded_gameplay_test_fault")
- ExpeditionCase.Transitions.checkpoint(world, 1,true)
+ world.expedition_transitions.checkpoint(1,true)
  check(world.participation.floor()==4 and world.battlefield!=field and world.map_rng.state!=seed
   and health_before_floor.hp()==1.0 and PlayerVitals.current_hp(actor)>1.0,"checkpoint advances after confirmed save and installs recovered health")
  check(world.encounter.token(remains_slot)!=remains_token,"successful floor travel discards the previous roster identity")
@@ -360,14 +361,14 @@ func exercise() -> void:
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  before=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_receipt)
- ExpeditionCase.Transitions.checkpoint(world, 1,false)
+ world.expedition_transitions.checkpoint(1,false)
  world.remove_meta(&"guarded_gameplay_test_fault")
  world.refresh_feedback()
  check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==3 and world.progress.campaign.best_extraction==6 and disk()[G]!=before[G]
   and UIFixture.control(world,"feedback").text.contains("Extracted with") and UIFixture.control(world,"feedback").text.contains(Tx.CLEANUP_NOTICE) and FileAccess.file_exists(G+".transaction"),
   "cleanup-pending extraction commits inventory and progression and retains notice")
  committed=disk()
- ExpeditionCase.Transitions.checkpoint(world, 1,false)
+ world.expedition_transitions.checkpoint(1,false)
  check(disk()==committed and world.progress.unknown.size()==3,"pending extraction cannot replay")
  record("extraction_cleanup_pending",before)
  check(Ops.recover(PackedStringArray([G])).value.verified and disk()[G]==committed[G],"cleanup preserves committed extraction")
@@ -377,7 +378,7 @@ func exercise() -> void:
  actor=world.players[1]
 
  actor.pos=world.stage.gate_position()
- ExpeditionCase.Transitions.enter(world, 1,actor)
+ world.expedition_transitions.enter(1)
  clear_floor(actor,2)
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  actor.carried_seeds=[1]
@@ -385,26 +386,26 @@ func exercise() -> void:
  IncomingPlayerHit.apply_health_loss(world, 1, PlayerLifecycle.generation(actor), 999)
  check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds+1 and world.status.contains("safe-pouch"),"wipe keeps only protected cargo")
  actor.pos=world.stage.gate_position()
- ExpeditionCase.Transitions.enter(world, 1,actor)
+ world.expedition_transitions.enter(1)
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  saved_seeds=world.progress.unknown.size()
- ExpeditionCase.Transitions.abandon(world, 1,actor)
+ world.expedition_transitions.abandon(1)
  check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds and world.status.contains("abandoned"),"abandonment discards safe pouch")
 
  actor.pos=world.stage.gate_position()
- ExpeditionCase.Transitions.enter(world, 1,actor)
+ world.expedition_transitions.enter(1)
  clear_floor(actor,6)
  actor.carried_seeds=[1]
  world.record_enemy_death(-1,world.tactics.position,Vector3.ZERO)
  before=disk()
  world.open_gate_preparation()
  world.set_meta(&"guarded_gameplay_test_fault",fail_restore)
- ExpeditionCase.Transitions.checkpoint(world, 1,false)
+ world.expedition_transitions.checkpoint(1,false)
  world.remove_meta(&"guarded_gameplay_test_fault")
  var split:=disk()
  check(not ExpeditionCase.is_wild(actor) and world.progress.unknown.size()==saved_seeds+1 and UIFixture.control(world,"loadout_menu").visible and world.persistence_session.pending_notice().contains("uncertain")
   and split[C]!=before[C] and split[G]==before[G] and not world.status.contains("Extracted with"),"uncertain extraction keeps tentative memory and withholds notice/closure")
- ExpeditionCase.Transitions.checkpoint(world, 1,false)
+ world.expedition_transitions.checkpoint(1,false)
  check(disk()==split,"uncertain operation does not replay")
  record("extraction_uncertain",before)
  close_world()
@@ -431,8 +432,8 @@ func exercise() -> void:
  var xp_before := int(ally.character.xp[departed_class])
  actor.pos=world.stage.gate_position()
  ally.pos=world.stage.gate_position()
- ExpeditionCase.Transitions.enter(world, 1,actor)
- ExpeditionCase.Transitions.enter(world, 2,ally)
+ world.expedition_transitions.enter(1)
+ world.expedition_transitions.enter(2)
  check(ExpeditionCase.is_wild(actor) and ExpeditionCase.is_wild(ally),
   "host and focused guest commit actual party admission before freezing kill rewards")
  ally.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
@@ -444,13 +445,13 @@ func exercise() -> void:
   if reward.id==2: earned_xp=int(reward.xp)
  before=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
- SessionCase.World.remove(world,2)
+ world.session_world.remove(2)
  check(not world.players.has(2) and world.departure_settlement.status(departed_identity)==world.DepartureSettlement.Phase.RETRYABLE
   and world.monster_rewards.pending_count()==1 and disk()==before
   and not ally.has(world.ExpeditionWallet.STATE) and world.run_wallet(ally)==0,
   "failed disconnect settlement retains cargo and frozen reward and clears run-only currency")
  var catalog: Dictionary = world.progress.ContentIDs.manifest()
- check(SessionCase.World.admission_error(world,departed_identity,catalog,world.Network.PROTOCOL).contains("still being saved"),
+ check(world.session_world.admission_error(departed_identity,catalog,world.Network.PROTOCOL).contains("still being saved"),
   "verified rollback does not release the character before rewards settle")
  world.grant_run_essence(2,ally,4)
  check(not ally.has(world.ExpeditionWallet.STATE) and world.run_wallet(ally)==0,"pending departure cannot receive a credit")
@@ -488,7 +489,7 @@ func exercise() -> void:
  hp=int(PlayerVitals.current_hp(actor))
  IncomingPlayerHit.apply_health_loss(world, 1, PlayerLifecycle.generation(actor), 999)
  world.finish_combat(1,world.tactics.position)
- ExpeditionCase.Transitions.abandon(world, 1,actor)
+ world.expedition_transitions.abandon(1)
  check(int(PlayerVitals.current_hp(actor))==hp and ExpeditionCase.is_wild(actor) and disk()==before,"lost lease prevents combat and settlement writes")
  world.return_to_main_menu()
  check(world.persistence_session.is_stopping() and disk()==before,"lost lease shuts down without saving")
@@ -500,7 +501,7 @@ func exercise() -> void:
  if not open_world(): return
  actor=world.players[1]
  actor.pos=world.stage.gate_position()
- ExpeditionCase.Transitions.enter(world, 1,actor)
+ world.expedition_transitions.enter(1)
 
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  before=disk()

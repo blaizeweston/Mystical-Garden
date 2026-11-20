@@ -11,7 +11,26 @@ const PlayerVitals = preload("res://player_vitals.gd")
 const WeaponActions = preload("res://player_weapon_actions.gd")
 const Session = preload("res://network_session.gd")
 
-static func enter(game: Node, id: int, p: Dictionary) -> void:
+var _world: WeakRef
+
+func _init(world: Node) -> void:
+	_world = weakref(world)
+
+
+## A captured binding cannot authorize a replacement character on a reused peer.
+func _actor(peer: int, expected_binding := 0) -> Dictionary:
+	var game = _world.get_ref()
+	if not game.players.has(peer): return {}
+	if expected_binding != 0 and not game.network_session.matches(peer, expected_binding): return {}
+	var actor: Dictionary = game.players[peer]
+	if not Session.belongs_to(actor, game.network_session) or Session.peer_for(actor) != peer: return {}
+	return actor
+
+func enter(id: int) -> void:
+	var game = _world.get_ref()
+	var p := _actor(id)
+	if p.is_empty(): return
+	var binding: int = game.network_session.binding(id)
 	var refusal := preload("res://affinity_build.gd").departure_refusal(p)
 	if not refusal.is_empty():
 		game.tell(id,refusal)
@@ -21,16 +40,20 @@ static func enter(game: Node, id: int, p: Dictionary) -> void:
 		if not game.at_weapon_gate(p) or Participation.is_wild(p) or game.participation.active(): return
 		game.run_guarded_action(id, game.Transactions.Scope.PAIR, func(effects):
 			game.settle_expedition_rewards(effects)
-			if not admit(game, id,p,[],effects): return false
+			if not _admit(id,binding,[],effects): return false
 			effects.append(game.close_flow_for.bind(id))
 			return true)
-	else: game.Transactions.run(game,func(): admit(game, id,p))
+	else: game.Transactions.run(game,func(): _admit(id,binding))
 
 
-static func admit(game: Node, id: int, p: Dictionary,reserved_override: Array=[],effects = null) -> bool:
-	if Participation.peer_for(p) != id or not game.players.has(id) or not is_same(game.players[id],p) \
-			or game.participation.contains(id):
-		return false
+func admit(id: int, reserved_override: Array = [], effects = null, expected_binding := 0) -> bool:
+	var game = _world.get_ref()
+	return _admit(id, game.network_session.binding(id) if expected_binding == 0 else expected_binding, reserved_override, effects)
+
+func _admit(id: int, binding: int, reserved_override: Array = [], effects = null) -> bool:
+	var game = _world.get_ref()
+	var p := _actor(id, binding)
+	if binding == 0 or p.is_empty() or game.participation.contains(id): return false
 	var refusal := preload("res://affinity_build.gd").departure_refusal(p)
 	if not refusal.is_empty():
 		game.action_feedback(effects,id,refusal)
@@ -44,25 +67,14 @@ static func admit(game: Node, id: int, p: Dictionary,reserved_override: Array=[]
 		game.action_feedback(effects,id, "Wait for your party to finish the expedition.")
 		return false
 	var selected: Array = [p.prepared, p.prepared_secondary, p.get("prepared_catalyst",0)]
-	var needed: Array = game.Parts.empty_counts()
-	for part in selected:
-		if part!=0 and not game.Parts.is_plant(part):
-			game.action_feedback(effects,id,"Only plant materials fit the first three slots.")
-			return false
-		needed[part]+=1
-	for part in range(1,needed.size()):
-		needed[part]+=int(p.cargo_plan[part])
-		if game.available_parts(p,part)<needed[part]:
-			game.action_feedback(effects,id,"Not enough %s for the loadout and cargo."%game.Parts.part_name(part))
-			return false
-	var reserved: Array = game.Seeds.counts()
-	for part in range(1,needed.size()):
-		if game.Parts.is_plant(part) and part!=game.Parts.HEARTWOOD:
-			reserved[game.Parts.plant_source(part)]+=maxi(0,int(needed[part])-int(game.seed_reserve(p).parts[part]))
-	for part in selected:
-		if part != game.Parts.EMPTY and game.available_parts(p, part) == 0:
-			game.action_feedback(effects,id, "%s is unavailable. Change the slot at the Wilds gate." % game.Parts.part_name(part))
-			return false
+	var available_parts: Array = game.Parts.empty_counts()
+	for part in range(1, available_parts.size()): available_parts[part] = game.available_parts(p, part)
+	var plan: Dictionary = preload("res://loadout_materials.gd").departure_plan(
+		selected, p.cargo_plan, available_parts, game.seed_reserve(p).parts)
+	if not plan.error.is_empty():
+		game.action_feedback(effects, id, plan.error)
+		return false
+	var reserved: Array = plan.reserved
 	if starting:
 		var cost: int = 0 if game.participation.route() == game.Campaign.HEART else game.Campaign.SHORTCUT_COST[game.participation.route()]
 		if cost > 0:
@@ -74,7 +86,7 @@ static func admit(game: Node, id: int, p: Dictionary,reserved_override: Array=[]
 				game.action_feedback(effects,id, "Need %d shared plant parts to open this route." % cost if paid == ERR_UNAVAILABLE
 					else "Could not save the route payment. Your parts were returned.")
 				return false
-		reset(game)
+		reset()
 		game.start_encounter()
 	if starting:game.garden_commands.begin_returns()
 	if not game.participation.enter(id): return false
@@ -144,7 +156,12 @@ static func admit(game: Node, id: int, p: Dictionary,reserved_override: Array=[]
 	return true
 
 
-static func return_member(game: Node, p: Dictionary) -> void:
+func return_member(id: int) -> void:
+	var p := _actor(id)
+	if not p.is_empty(): _return_member(p)
+
+func _return_member(p: Dictionary) -> void:
+	var game = _world.get_ref()
 	var peer := Participation.peer_for(p)
 	if peer == 0 or not game.players.has(peer) or not is_same(game.players[peer],p): return
 	if not game.SaveBatch.guarded_active(): game.flush_kill_rewards()
@@ -187,7 +204,10 @@ static func return_member(game: Node, p: Dictionary) -> void:
 	p[game.PlayerVitals.STATE] = p[game.PlayerVitals.STATE].refilled()
 
 
-static func checkpoint(game: Node, id: int, descend: bool) -> void:
+func checkpoint(id: int, descend: bool) -> void:
+	var game = _world.get_ref()
+	if _actor(id).is_empty(): return
+	var binding: int = game.network_session.binding(id)
 	if game.persistence_session.is_guarded():
 		if not game.persistence_session.can_write() or not game.encounter_rewarded or not game.Life.alive(game.players.get(id,{})): return
 	if game.PartyTravel.members(game,"advance").size()>1:
@@ -195,18 +215,21 @@ static func checkpoint(game: Node, id: int, descend: bool) -> void:
 	if game.persistence_session.is_guarded():
 		if descend and game.players[id].pos.distance_to(game.battlefield.advance)<=preload("res://gate_interaction.gd").RANGE and game.activate_checkpoint(): return
 		game.run_guarded_action(id, game.Transactions.Scope.PAIR, func(effects):
-			if not commit_checkpoint(game, id,descend,effects): return false
+			if not game.network_session.matches(id,binding): return false
+			if not commit_checkpoint(id,descend,effects,binding): return false
 			if not descend: effects.append(game.close_flow_for.bind(id))
 			return true)
 		return
-	var returned=game.Transactions.run(game,func(): commit_checkpoint(game, id,descend))
+	var returned=game.Transactions.run(game,func(): commit_checkpoint(id,descend))
 	if returned==false:game.battlefield.configure(game.participation.route(),game.participation.depth(),game.participation.seed())
 
 # Opening cards is presentation. Buying a card and consenting to a floor
 # change remain separate actions in the guarded route.
 
 
-static func commit_checkpoint(game: Node, id: int, descend: bool,effects = null) -> bool:
+func commit_checkpoint(id: int, descend: bool,effects = null, expected_binding := 0) -> bool:
+	var game = _world.get_ref()
+	if _actor(id,expected_binding).is_empty(): return false
 	if not game.players.has(id) or not game.Life.alive(game.players[id]):
 		return false
 	if not descend and not game.extraction_checkpoint_open():
@@ -253,7 +276,7 @@ static func commit_checkpoint(game: Node, id: int, descend: bool,effects = null)
 			if Participation.is_wild(player):
 				player.pos = game.wild_entry(peer_id)
 				if game.Life.alive(player): game.Life.Sustain.restore(game,player,recovery_hp,"floor_recovery")
-				game.action_feedback(effects,peer_id, "%s · Encounter %d. %s awaits.%s" % [
+				game.action_feedback(effects,peer_id, "%s Â· Encounter %d. %s awaits.%s" % [
 					game.Campaign.NAMES[game.participation.route()], game.participation.floor(), game.enemy_name(),
 					" A grafting shrine waits off the main path." if game.graft_altar_open() else ""])
 		return true
@@ -285,11 +308,11 @@ static func commit_checkpoint(game: Node, id: int, descend: bool,effects = null)
 		var player: Dictionary = game.players[peer_id]
 		if Participation.is_wild(player):
 			game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"fallen" if game.PlayerLifecycle.fallen(player) else "extracted")
-			return_member(game, player)
+			_return_member(player)
 			if peer_id != id:
 				game.action_feedback(effects,peer_id, message)
 	game.participation.select_route(game.Campaign.GROVE)
-	reset(game)
+	reset()
 	if effects == null and (banked > 0 or banked_parts > 0 or milestone > 0):
 		game.save_progress(id, message)
 	else:
@@ -297,7 +320,8 @@ static func commit_checkpoint(game: Node, id: int, descend: bool,effects = null)
 	return true
 
 
-static func reset(game: Node) -> void:
+func reset() -> void:
+	var game = _world.get_ref()
 	# Releasing the old party hold starts a fresh life, as the retired lifecycle
 	# phase did. Capture query facts before reset_run clears participation holds.
 	var held_peers: Array[int] = []
@@ -333,34 +357,37 @@ static func reset(game: Node) -> void:
 	game.reset_encounter()
 
 
-static func finish_if_empty(game: Node) -> void:
+func finish_if_empty() -> void:
+	var game = _world.get_ref()
 	if game.participation.active() and game.Life.living_ids(game).is_empty():
-		finish_failed(game)
+		finish_failed()
 	elif not game.participation.active() and (game.enemy_health() < game.encounter_health() or game.deepest_milestone > 0):
-		finish_failed(game)
+		finish_failed()
 
 
-static func finish_failed(game: Node) -> bool:
+func finish_failed() -> bool:
+	var game = _world.get_ref()
 	if game.persistence_session.is_guarded():
-		var result: Dictionary = game.run_guarded_action(game.HOST, game.Transactions.Scope.PAIR, func(effects): commit_failed(game, effects))
+		var result: Dictionary = game.run_guarded_action(game.HOST, game.Transactions.Scope.PAIR, func(effects): commit_failed(effects))
 		return game.Transactions.committed(result.persistence)
-	var returned=game.Transactions.run(game,func(): commit_failed(game))
+	var returned=game.Transactions.run(game,func(): commit_failed())
 	if returned==false:game.battlefield.configure(game.participation.route(),game.participation.depth(),game.participation.seed())
 	return returned!=false
 
 
-static func commit_failed(game: Node, effects = null) -> void:
+func commit_failed(effects = null) -> void:
+	var game = _world.get_ref()
 	if effects != null: game.settle_expedition_rewards(effects, true)
 	for player in game.players.values():
 		if effects == null: game.recover_pouch(player)
 		else: game._recover_pouch(player)
 		if Participation.is_wild(player):
 			game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"wipe")
-			return_member(game, player)
+			_return_member(player)
 	var milestone: int = game.deepest_milestone
 	var message: String = game.milestone_message("Expedition ended. Only safe-pouch contents are kept.", false)
 	game.participation.select_route(game.Campaign.GROVE)
-	reset(game)
+	reset()
 	if milestone > 0 and effects == null:
 		game.save_progress(game.HOST, message)
 	else:
@@ -372,7 +399,8 @@ static func commit_failed(game: Node, effects = null) -> void:
 
 ## Restore only personal combat rewards. Prepared equipment, old learned
 ## investments, plants, appearance and pre-run inventory are not rewound.
-static func forfeit_progress(game: Node, id: int, player: Dictionary, effects = null) -> bool:
+func _forfeit_progress(id: int, player: Dictionary, effects = null) -> bool:
+	var game = _world.get_ref()
 	var owner: String = game._kill_reward_identity(id, player)
 	var prior: Dictionary = game.monster_rewards.forfeit_expedition(owner, game.participation.run_id())
 	if prior.is_empty():
@@ -386,52 +414,59 @@ static func forfeit_progress(game: Node, id: int, player: Dictionary, effects = 
 	game.record_settlement_metric(effects,"expedition_forfeited",{"actor":id,"run":game.participation.run_id(),"class_xp":lost_xp})
 	return true
 
-static func abandon(game: Node, id: int,player: Dictionary, exit_nonce := "") -> void:
+func abandon(id: int, exit_nonce := "") -> void:
+	var game = _world.get_ref()
+	var player := _actor(id)
+	if player.is_empty(): return
+	var binding: int = game.network_session.binding(id)
 	if not exit_nonce.is_empty() and (exit_nonce.length() != 32 or not exit_nonce.is_valid_hex_number(false)): return
 	if not Participation.is_wild(player):
 		# Retransmit a committed correction, never replay forfeiture. This also
 		# handles an exit request arriving just after a successful extraction.
 		if not exit_nonce.is_empty() and (not game.persistence_session.is_guarded() or game.persistence_session.can_publish_state()):
-			confirm_departure(game,id,exit_nonce)
+			confirm_departure(id,exit_nonce)
 		return
 	if game.persistence_session.is_guarded():
 		game.run_guarded_action(id, game.Transactions.Scope.PAIR, func(effects):
-			if not forfeit_progress(game,id,player,effects): return false
+			if not game.network_session.matches(id,binding): return false
+			if not _forfeit_progress(id,player,effects): return false
 			game.settle_expedition_rewards(effects, true)
 			game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"abandoned")
-			return_member(game,player)
+			_return_member(player)
 			game.checkpoint_ready.erase(id)
 			if not exit_nonce.is_empty(): effects.append(game.network_session.mark_departure_saved.bind(id,game.network_session.binding(id),exit_nonce))
 			game.save_action_profile(id,effects)
 			effects.append(game.tell_profile_action.bind(id,"Expedition abandoned. This run's rewards were forfeited, including banked Class XP and safe-pouch contents."))
 			game.PartyTravel.cancel(game,"A teammate left the expedition. Confirm readiness again at the gate.",effects)
 			if game.participation.active() and game.Life.living_ids(game).is_empty():
-				commit_failed(game,effects)
+				commit_failed(effects)
 			elif not game.participation.active():
 				game.participation.select_route(game.Campaign.GROVE)
-				reset(game)
+				reset()
 			effects.append(game.close_flow_for.bind(id)))
 		return
 	var saved: Variant = game.Transactions.run(game,func():
-		if not forfeit_progress(game,id,player): return false
+		if not game.network_session.matches(id,binding): return false
+		if not _forfeit_progress(id,player): return false
 		game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"abandoned")
-		return_member(game,player)
+		_return_member(player)
 		game.checkpoint_ready.erase(id)
 		game.save_action_profile(id,null)
 		game.tell(id,"Expedition abandoned. This run's rewards were forfeited, including banked Class XP and safe-pouch contents.")
 		if game.participation.active() and game.Life.living_ids(game).is_empty():
-			finish_failed(game)
+			finish_failed()
 		elif not game.participation.active():
 			game.participation.select_route(game.Campaign.GROVE)
-			reset(game)
+			reset()
 		else:
 			game.resume_checkpoint_if_ready()
 		if id==game.HOST: game.close_run_flow_panel()
 		elif game.network_session.transport()!=null: game.close_run_flow_panel.rpc_id(id)
 		return true)
-	if saved and not exit_nonce.is_empty(): confirm_departure(game,id,exit_nonce)
+	if saved and not exit_nonce.is_empty(): confirm_departure(id,exit_nonce)
 
-static func confirm_departure(game: Node, id: int, nonce: String) -> void:
+func confirm_departure(id: int, nonce: String) -> void:
+	var game = _world.get_ref()
 	if not game.network_session.mark_departure_saved(id,game.network_session.binding(id),nonce): return
 	if game.persistence_session.is_guarded():
 		game.send_committed_profile(id)
@@ -440,7 +475,8 @@ static func confirm_departure(game: Node, id: int, nonce: String) -> void:
 		profile.departure_receipt = nonce
 		game.receive_character.rpc_id(id,profile)
 
-static func request_guest_exit(game: Node, intent: int) -> bool:
+func request_guest_exit(intent: int) -> bool:
+	var game = _world.get_ref()
 	if game.network_session.role() != "Guest" or game.network_session.abandonment_exit_confirmed(): return false
 	var transport: ENetMultiplayerPeer = game.network_session.transport()
 	if transport == null or transport.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED: return false
@@ -451,38 +487,42 @@ static func request_guest_exit(game: Node, intent: int) -> bool:
 	game.status = "Abandoning expedition. Waiting for your corrected character save before leaving."
 	return true
 
-static func confirm_guest_exit(game: Node, nonce: String) -> void:
+func confirm_guest_exit(nonce: String) -> void:
+	var game = _world.get_ref()
 	var intent: int = game.network_session.confirm_abandonment_exit(nonce)
-	if intent != Session.Exit.NONE: complete_guest_exit.call_deferred(game,intent)
+	if intent != Session.Exit.NONE: complete_guest_exit.call_deferred(intent)
 
-static func complete_guest_exit(game: Node, intent: int) -> void:
+func complete_guest_exit(intent: int) -> void:
+	var game = _world.get_ref()
 	if not is_instance_valid(game) or game.returning_to_title: return
 	match intent:
 		Session.Exit.TITLE: game.return_to_main_menu()
-		Session.Exit.SESSION: game.SessionWorld.leave(game,"Back in your own Garden.")
+		Session.Exit.SESSION: game.session_world.leave("Back in your own Garden.")
 		Session.Exit.APPLICATION:
 			if game.persistence_session.is_guarded():
 				if not game.prepare_guarded_exit(): return
 				game.persistence_session.begin_shutdown()
 			elif game.character_dirty and not game.save_local_character(): return
-			game.SessionWorld.offline(game)
+			game.session_world.offline()
 			game.release_slot()
 			game.get_tree().quit()
 
 ## A local host's voluntary quit forfeits that character. Other players are
 ## involuntarily disconnected and retain the existing failed-run settlement.
-static func finish_voluntary(game: Node) -> bool:
+func finish_voluntary() -> bool:
+	var game = _world.get_ref()
 	if game.persistence_session.is_guarded():
-		var saved: Dictionary = game.run_guarded_action(game.HOST,game.Transactions.Scope.PAIR,func(effects): return commit_voluntary(game,effects))
+		var saved: Dictionary = game.run_guarded_action(game.HOST,game.Transactions.Scope.PAIR,func(effects): return commit_voluntary(effects))
 		return game.Transactions.committed(saved.persistence)
-	return game.Transactions.run(game,func(): return commit_voluntary(game)) == true
+	return game.Transactions.run(game,func(): return commit_voluntary()) == true
 
-static func commit_voluntary(game: Node, effects = null) -> bool:
+func commit_voluntary(effects = null) -> bool:
+	var game = _world.get_ref()
 	var player: Dictionary = game.players.get(game.HOST,{})
 	if Participation.is_wild(player):
-		if not forfeit_progress(game,game.HOST,player,effects): return false
+		if not _forfeit_progress(game.HOST,player,effects): return false
 		game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"abandoned")
-		return_member(game,player)
+		_return_member(player)
 		game.save_action_profile(game.HOST,effects)
-	commit_failed(game,effects)
+	commit_failed(effects)
 	return true

@@ -34,8 +34,8 @@ func run():
  check(Gates.travel_range(game,"depart")==Gates.RANGE,"party departure uses same range")
  ExpeditionCase.set_world(game, {"destination": game.Campaign.HEART});check(Gates.travel_range(game,"depart")==1.7,"Heart interaction range remains appropriate");ExpeditionCase.set_world(game, {"destination": 0})
  game.ui.close_panels();ExpeditionCase.set_membership(game, p, true);game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();ExpeditionCase.set_world(game, {"encounter_number": 1});ExpeditionCase.set_world(game, {"depth": 1})
- p.pos=game.battlefield.advance+Vector3(Gates.RANGE+.1,0,0);ExpeditionCase.Transitions.commit_checkpoint(game, 1,true);check(game.participation.floor()==1,"distant onward gate rejected")
- p.pos=game.battlefield.advance+Vector3(2.65,0,0);ExpeditionCase.Transitions.commit_checkpoint(game, 1,true);check(game.participation.floor()==2,"actual cleared onward gate accepts extended range")
+ p.pos=game.battlefield.advance+Vector3(Gates.RANGE+.1,0,0);game.expedition_transitions.commit_checkpoint(1,true);check(game.participation.floor()==1,"distant onward gate rejected")
+ p.pos=game.battlefield.advance+Vector3(2.65,0,0);game.expedition_transitions.commit_checkpoint(1,true);check(game.participation.floor()==2,"actual cleared onward gate accepts extended range")
  game.queue_free();await process_frame
  if not failed:print("PASS: compact teammate portraits/names/vitals, skull/revival, Garden/solo/disconnect visibility and shared gate boundaries")
  quit(1 if failed else 0)

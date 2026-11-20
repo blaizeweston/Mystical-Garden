@@ -2,7 +2,6 @@ extends Node
 # Test-only synchronization; all admission, movement and snapshots use game.gd.
 const Network=preload("res://network_settings.gd")
 const Session=preload("res://network_session.gd")
-const SessionWorld=preload("res://session_world.gd")
 const MOVE_THRESHOLD=.3
 var role="host"
 var index=0
@@ -59,7 +58,7 @@ func _ready() -> void:
  add_child(game)
  if game.local_character.save_profile()!=OK or game.guest_character.save_profile()!=OK:finish(3,"Could not save isolated test profiles");return
  phase="connecting";deadline=Time.get_ticks_msec()+timeout_ms
- var code=SessionWorld.host(game,port) if role=="host" else SessionWorld.join(game,address,port)
+ var code=game.session_world.host(port) if role=="host" else game.session_world.join(address,port)
  if code!=OK:finish(3,"Cannot start %s on UDP %d (error %d)"%[role,port,code]);return
  log_line("protocol=%d role=%s guests=%d address=%s port=%d run=%s"%[Network.PROTOCOL,role,guests,address,port,run_id])
  if role=="host":write_json("host.ready.json",{"run_id":run_id,"port":port,"protocol":Network.PROTOCOL})
@@ -213,5 +212,5 @@ func finish(code: int,message: String) -> void:
  log_line("RESULT %s (exit=%d) %s"%[status,code,message])
  if game!=null:
   stop_fixture()
-  SessionWorld.leave(game,"Network test complete");game.queue_free()
+  game.session_world.leave("Network test complete");game.queue_free()
  get_tree().create_timer(.15).timeout.connect(func():get_tree().quit(code))

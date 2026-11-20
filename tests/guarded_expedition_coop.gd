@@ -85,7 +85,7 @@ func run() -> void:
   return
  if host: await host_run()
  else: await guest_run()
- if is_instance_valid(world) and world.network_session.transport()!=null: SessionCase.World.leave(world,"Fixture finished")
+ if is_instance_valid(world) and world.network_session.transport()!=null: world.session_world.leave("Fixture finished")
  var offline:=await until(func():return root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer)
  check(offline,"offline peer before world removal")
  if offline and is_instance_valid(world): world.free()
@@ -93,7 +93,7 @@ func run() -> void:
  quit(1 if failed else 0)
 
 func host_run() -> void:
- check(SessionCase.World.host(world)==OK,"guarded host listens")
+ check(world.session_world.host()==OK,"guarded host listens")
  mark("hosting")
  if not await until(func():return world.players.size()==2 and world.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
   check(false,"guarded guest admission")
@@ -116,7 +116,7 @@ func host_run() -> void:
    stages.count+=1
    return ERR_FILE_CANT_WRITE
   return OK)
- ExpeditionCase.Transitions.enter(world, 1,leader)
+ world.expedition_transitions.enter(1)
  mark("depart-abort",str(world.participation.travel_epoch()))
  if not await until(func():return stages.count==1 and marked("saw-abort")):
   check(false,"party departure fault")
@@ -125,7 +125,7 @@ func host_run() -> void:
   and world.run_wallet(leader)==0 and world.run_wallet(guest)==0,"no departure effects or Essence before commitment")
  record("party_departure_abort",before,{"wild":false,"stage_count":stages.count,"travel_epoch":world.participation.travel_epoch()})
  world.remove_meta(&"guarded_gameplay_test_fault")
- ExpeditionCase.Transitions.enter(world, 1,leader)
+ world.expedition_transitions.enter(1)
  mark("depart-commit",str(world.participation.travel_epoch()))
  if not await until(func():return ExpeditionCase.is_wild(leader) and ExpeditionCase.is_wild(guest)):
   check(false,"both votes commit one departure")
@@ -162,7 +162,7 @@ func host_run() -> void:
  world.deepest_milestone=3
  leader.pos=world.battlefield.advance
  guest.pos=world.battlefield.advance
- ExpeditionCase.Transitions.checkpoint(world, 1,true)
+ world.expedition_transitions.checkpoint(1,true)
  world.garden_action(1,world.affinity_checkpoint_action(int(world.checkpoint_card_data(leader)[0].revision),"skip"))
  mark("cards")
  if not await until(func():return world.checkpoint_ready.get(id)==3):
@@ -176,7 +176,7 @@ func host_run() -> void:
  guest[PlayerVitals.STATE] = guest[PlayerVitals.STATE].with_hp(1.0)
  var health_before: PlayerVitals.Health = guest[PlayerVitals.STATE]
  var life_before: PlayerLifecycle.Life = guest[PlayerLifecycle.STATE]
- ExpeditionCase.Transitions.checkpoint(world, 1,true)
+ world.expedition_transitions.checkpoint(1,true)
  mark("advance-wallet",str(before_travel))
  mark("advance",str(world.participation.travel_epoch()))
  if not await until(func():return world.participation.floor()==4):
@@ -201,7 +201,7 @@ func host_run() -> void:
  guest.pos=world.battlefield.advance
  guest.carried_seeds=[0]
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,_path):return ERR_CANT_CREATE if phase=="publish_receipt" else OK)
- ExpeditionCase.Transitions.checkpoint(world, 1,false)
+ world.expedition_transitions.checkpoint(1,false)
  mark("extract",str(world.participation.travel_epoch()))
  if not await until(func():return not world.participation.active() and world.persistence_session.pending_notice()==Tx.CLEANUP_NOTICE):
   check(false,"party extraction commits with cleanup pending")
@@ -226,7 +226,7 @@ func host_run() -> void:
  record("party_extraction_cleanup",before,{"guest_seed":1,"notice":world.persistence_session.pending_notice(),"offline_guest":true})
 
 func guest_run() -> void:
- check(SessionCase.World.join(world,"127.0.0.1")==OK,"guest joins with own lease")
+ check(world.session_world.join("127.0.0.1")==OK,"guest joins with own lease")
  if not await until(func():return world.network_session.role()=="Guest" and marked("depart-abort")):
   check(false,"guest sees readiness barrier")
   return
@@ -297,6 +297,6 @@ func guest_run() -> void:
  world.refresh_feedback()
  check(UIFixture.control(world,"feedback").text==Tx.CLEANUP_NOTICE and Slots._save_digest(C)==after,"cleanup warning survives toast and extraction does not duplicate profile credit")
  record("guest_transition_and_warning",original,{"floor":world.participation.floor(),"feedback":UIFixture.control(world,"feedback").text})
- SessionCase.World.leave(world,"Guest fixture complete")
+ world.session_world.leave("Guest fixture complete")
  check(world.network_session.transport()==null and world.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"guest offline before detachment")
  mark("guest-offline")

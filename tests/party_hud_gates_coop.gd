@@ -32,7 +32,7 @@ func run():
  if not failed:print("PASS: party HUD co-op ",role," guest gate range, teammate names, damage, fallen skull and revival")
  quit(1 if failed else 0)
 func host_run():
- check(SessionCase.World.host(game)==OK,"host opens")
+ check(game.session_world.host()==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"registration");return
  var guest_id: int=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[1];var friend: Dictionary=game.players[guest_id]
  p.character.name="Host Gardener";friend.pos=game.stage.gate_position()+Vector3(2.65,0,0)
@@ -47,7 +47,7 @@ func host_run():
  mark("done");check(await until(func():return game.players.size()==1),"guest disconnects")
  game._process(.016);check(not UIFixture.control(game,"player_hud").party_panel.visible,"host panel removes disconnected teammate")
 func guest_run():
- game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest connects")
+ game.guest_character.save_profile();check(game.session_world.join()==OK,"guest connects")
  var id:=game.multiplayer.get_unique_id()
  if not await until(func():return game.network_session.role()=="Guest" and game.guest_replication.has_details() and game.players[id].pos.distance_to(game.stage.gate_position())<2.75):check(false,"Garden position arrives");return
  game.send_action(false);check(await until(func():return UIFixture.control(game,"loadout_menu").visible),"authoritative gate interaction at 2.65m")
@@ -57,4 +57,4 @@ func guest_run():
  check(await until(func():return UIFixture.control(game,"player_hud").party_panel.rows[0].hp==70),"remote host health damage");mark("damage")
  check(await until(func():return UIFixture.control(game,"player_hud").party_panel.rows[0].fallen),"skull state");mark("skull")
  check(await until(func():return not UIFixture.control(game,"player_hud").party_panel.rows[0].fallen and UIFixture.control(game,"player_hud").party_panel.rows[0].max_hp==80 and UIFixture.control(game,"player_hud").party_panel.rows[0].hp>0),"revived health and portrait")
- mark("revived");check(await until(func():return marked("done")),"host finishes");SessionCase.World.leave(game,"Party HUD fixture")
+ mark("revived");check(await until(func():return marked("done")),"host finishes");game.session_world.leave("Party HUD fixture")

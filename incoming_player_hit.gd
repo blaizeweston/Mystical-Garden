@@ -197,5 +197,5 @@ class Recipient extends RefCounted:
 		else:
 			if effects != null:
 				_world.settle_expedition_rewards(effects)
-			load("res://expedition_transitions.gd").return_member(_world,_actor)
+			_world.expedition_transitions.return_member(preload("res://network_session.gd").peer_for(_actor))
 		return result(Outcome.FELL, applied, true)

@@ -199,22 +199,13 @@
 
 
 
-      "warden_skill_hud_readout": {
-        "match": "\t\t\"skill_ready\": ready_skill,\"skill_two_ready\":second_ready,\"skill_names\":[skills[0].name,skills[1].name+(\" \u2022\" if quake_prepared else \"\")],\"skill_cooldowns\":cooldowns, \"dodge_ready\": ready_dodge,\n\t\t\"core\":preload(\"res://core_combat.gd\").hud_state(self,p),\n\t\t\"skill_tooltips\":skill_tips,\n",
-        "baseline": "\t\t\"skill_ready\": ready_skill,\"skill_two_ready\":second_ready,\"skill_names\":[skills[0].name,skills[1].name],\"skill_cooldowns\":cooldowns, \"dodge_ready\": ready_dodge,\n\t\t\"core\":preload(\"res://core_combat.gd\").hud_state(self,p),\n\t\t\"skill_tooltips\":[skills[0].name+\"\\n\"+skills[0].description,skills[1].name+\"\\n\"+skills[1].description],\n"
-      },
+
       "expanded_core_stale_field": {
         "match": "\t\twarnings=warnings.filter(func(hint): return hint.role not in [\"core_thorns\",\"core_anchor\",\"core_field\"])",
         "baseline": "\t\twarnings=warnings.filter(func(hint): return hint.role not in [\"core_thorns\",\"core_anchor\"])"
       },
-      "class_skill_hover": {
-        "match": "\t\t\"skill_tooltips\":[skills[0].name+\"\\n\"+skills[0].description,skills[1].name+\"\\n\"+skills[1].description],\n\t\t\"carried\": carried if wild else data[0],\n",
-        "baseline": "\t\t\"carried\": carried if wild else data[0],\n"
-      },
-      "core_hud_state": {
-        "match": "\t\t\"core\":preload(\"res://core_combat.gd\").hud_state(self,p),\n\t\t\"carried\": carried if wild else data[0],\n",
-        "baseline": "\t\t\"carried\": carried if wild else data[0],\n"
-      },
+
+
       "core_stale_terrain": {"match": "\tif not multiplayer.is_server() and guest_replication.details_key()!=str([participation.route(),participation.floor(),participation.seed()]):\n\t\twarnings=warnings.filter(func(hint): return hint.role not in [\"core_thorns\",\"core_anchor\"])\n\tworld_view.prepare(warnings)\n", "baseline": "\tworld_view.prepare(warnings)\n"},
 
 
@@ -248,10 +239,7 @@
       }
     },
     "resume_checkpoint_if_ready": {
-      "guarded_expedition": {
-        "match": "\tif persistence_session.is_guarded(): return\n\tif PartyTravel.members(self,\"advance\").size()>1: return\n\tif not checkpoint_pending or not checkpoint_all_ready(): return\n\tfor id in players:\n\t\tif Life.alive(players[id]) and players[id].pos.distance_to(battlefield.advance)<=preload(\"res://gate_interaction.gd\").RANGE:\n\t\t\tload(\"res://expedition_transitions.gd\").checkpoint(self,id,true)\n\t\t\treturn\n\n",
-        "baseline": "\tif PartyTravel.members(self,\"advance\").size()>1: return\n\tif not checkpoint_pending or not checkpoint_all_ready(): return\n\tfor id in players:\n\t\tif Life.alive(players[id]) and players[id].pos.distance_to(battlefield.advance)<=preload(\"res://gate_interaction.gd\").RANGE:\n\t\t\tload(\"res://expedition_transitions.gd\").checkpoint(self,id,true)\n\t\t\treturn\n\n"
-      },
+
       "gate_range": {
         "match": "preload(\"res://gate_interaction.gd\").RANGE",
         "baseline": "1.65"
@@ -653,34 +641,13 @@
     },
 
     "return_to_main_menu": {
-      "guarded_lifecycle": {
-        "match": "\tif returning_to_title:\n\t\treturn\n\treturning_to_title = true\n\tif persistence_session.is_guarded():\n\t\tvar owned: bool=persistence_session.owns_leases()\n\t\tif not prepare_guarded_exit():\n\t\t\treturning_to_title=false\n\t\t\treturn\n\t\t_finish_title_return(message if owned else \"This session lost access to its save. Returning to the title.\")\n\t\treturn\n\tif network_session.role() in [\"Solo\",\"Host\"] and not network_session.joined_from_title():\n\t\tif participation.active():\n\t\t\tif not load(\"res://expedition_transitions.gd\").finish_voluntary(self):\n\t\t\t\treturning_to_title = false\n\t\t\t\treturn\n\t\t\tfor player in players.values():\n\t\t\t\tif Participation.is_wild(player):\n\t\t\t\t\tload(\"res://expedition_transitions.gd\").return_member(self,player)\n\t\tif not save_session_garden():\n\t\t\treturning_to_title = false\n\t\t\tif not persistence_session.is_guarded(): status = \"Could not save this Garden. Use Save Garden before leaving.\"\n\t\t\treturn\n\t\tif not persistence_session.pending_notice().is_empty():\n\t\t\t_finish_title_return(message)\n\t\t\treturn\n\tif character_dirty and not save_local_character():\n\t\treturning_to_title = false\n\t\treturn\n\t_finish_title_return(message)\n\n",
-        "baseline": "\tif returning_to_title:\n\t\treturn\n\treturning_to_title = true\n\tif has_meta(Transactions.SESSION) and not Transactions.session_writable(self):\n\t\t_stop_guarded_session(\"This session lost access to its save. Returning to the title.\")\n\t\treturn\n\tif network_session.role() in [\"Solo\",\"Host\"] and not network_session.joined_from_title() and (not has_meta(\"guarded_title_session\") or slot_claimed):\n\t\tif has_meta(Transactions.SESSION) and (participation.active() or not pending_departures.is_empty() or not pending_kill_rewards.is_empty()):\n\t\t\tvar settled := load(\"res://expedition_transitions.gd\").finish_failed(self) if participation.active() else MonsterRewards.flush(self)\n\t\t\tif settled: _finish_title_return(message)\n\t\t\telse: returning_to_title = false\n\t\t\treturn\n\t\tif participation.active():\n\t\t\tload(\"res://expedition_transitions.gd\").finish_failed(self)\n\t\t\tfor player in players.values():\n\t\t\t\tif Participation.is_wild(player):\n\t\t\t\t\tload(\"res://expedition_transitions.gd\").return_member(self,player)\n\t\tif not save_session_garden():\n\t\t\treturning_to_title = false\n\t\t\tif not has_meta(Transactions.SESSION): status = \"Could not save this Garden. Use Save Garden before leaving.\"\n\t\t\treturn\n\t\tif not Transactions.pending_notice(self).is_empty():\n\t\t\t_finish_title_return(message)\n\t\t\treturn\n\tif character_dirty and not save_local_character():\n\t\treturning_to_title = false\n\t\treturn\n\t_finish_title_return(message)\n\n"
-      },
-      "guarded_expedition": {
-        "match": "\tif returning_to_title:\n\t\treturn\n\treturning_to_title = true\n\tif has_meta(Transactions.SESSION) and not Transactions.session_writable(self):\n\t\t_stop_guarded_session(\"This session lost access to its save. Returning to the title.\")\n\t\treturn\n\tif network_session.role() in [\"Solo\",\"Host\"] and not network_session.joined_from_title() and (not has_meta(\"guarded_title_session\") or slot_claimed):\n\t\tif has_meta(Transactions.SESSION) and (participation.active() or not pending_departures.is_empty() or not pending_kill_rewards.is_empty()):\n\t\t\tvar settled := load(\"res://expedition_transitions.gd\").finish_failed(self) if participation.active() else MonsterRewards.flush(self)\n\t\t\tif settled: _finish_title_return(message)\n\t\t\telse: returning_to_title = false\n\t\t\treturn\n\t\tif participation.active():\n\t\t\tload(\"res://expedition_transitions.gd\").finish_failed(self)\n\t\t\tfor player in players.values():\n\t\t\t\tif Participation.is_wild(player):\n\t\t\t\t\tload(\"res://expedition_transitions.gd\").return_member(self,player)\n\t\tif not save_session_garden():\n\t\t\treturning_to_title = false\n\t\t\tif not has_meta(Transactions.SESSION): status = \"Could not save this Garden. Use Save Garden before leaving.\"\n\t\t\treturn\n\t\tif not Transactions.pending_notice(self).is_empty():\n\t\t\t_finish_title_return(message)\n\t\t\treturn\n\tif character_dirty and not save_local_character():\n\t\treturning_to_title = false\n\t\treturn\n\t_finish_title_return(message)\n\n",
-        "baseline": "\tif returning_to_title:\n\t\treturn\n\treturning_to_title = true\n\tif has_meta(Transactions.SESSION) and not Transactions.session_writable(self):\n\t\t_stop_guarded_session(\"This session lost access to its save. Returning to the title.\")\n\t\treturn\n\tif network_session.role() in [\"Solo\",\"Host\"] and not network_session.joined_from_title() and (not has_meta(\"guarded_title_session\") or slot_claimed):\n\t\tif participation.active() and has_meta(Transactions.SESSION):\n\t\t\t# Exit without replaying the deferred expedition settlement.\n\t\t\t_stop_guarded_session(\"Returned to the title. Expedition settlement is unavailable in the guarded session.\")\n\t\t\treturn\n\t\tif participation.active():\n\t\t\tload(\"res://expedition_transitions.gd\").finish_failed(self)\n\t\t\tfor player in players.values():\n\t\t\t\tif Participation.is_wild(player):\n\t\t\t\t\tload(\"res://expedition_transitions.gd\").return_member(self,player)\n\t\tif not save_session_garden():\n\t\t\treturning_to_title = false\n\t\t\tif not has_meta(Transactions.SESSION): status = \"Could not save this Garden. Use Save Garden before leaving.\"\n\t\t\treturn\n\t\tif not Transactions.pending_notice(self).is_empty():\n\t\t\t_finish_title_return(message)\n\t\t\treturn\n\tif character_dirty and not save_local_character():\n\t\treturning_to_title = false\n\t\treturn\n\t_finish_title_return(message)\n\n"
-      },
-      "retained_cleanup_feedback": {
-        "match": "\tif returning_to_title:\n\t\treturn\n\treturning_to_title = true\n\tif has_meta(Transactions.SESSION) and not Transactions.session_writable(self):\n\t\t_stop_guarded_session(\"This session lost access to its save. Returning to the title.\")\n\t\treturn\n\tif network_session.role() in [\"Solo\",\"Host\"] and not network_session.joined_from_title() and (not has_meta(\"guarded_title_session\") or slot_claimed):\n\t\tif participation.active() and has_meta(Transactions.SESSION):\n\t\t\t# Exit without replaying the deferred expedition settlement.\n\t\t\t_stop_guarded_session(\"Returned to the title. Expedition settlement is unavailable in the guarded session.\")\n\t\t\treturn\n\t\tif participation.active():\n\t\t\tload(\"res://expedition_transitions.gd\").finish_failed(self)\n\t\t\tfor player in players.values():\n\t\t\t\tif Participation.is_wild(player):\n\t\t\t\t\tload(\"res://expedition_transitions.gd\").return_member(self,player)\n\t\tif not save_session_garden():\n\t\t\treturning_to_title = false\n\t\t\tif not has_meta(Transactions.SESSION): status = \"Could not save this Garden. Use Save Garden before leaving.\"\n\t\t\treturn\n\t\tif not Transactions.pending_notice(self).is_empty():\n\t\t\t_finish_title_return(message)\n\t\t\treturn\n\tif character_dirty and not save_local_character():\n\t\treturning_to_title = false\n\t\treturn\n\t_finish_title_return(message)",
-        "baseline": "\tif returning_to_title:\n\t\treturn\n\treturning_to_title = true\n\tif has_meta(Transactions.SESSION) and not Transactions.session_writable(self):\n\t\t_stop_guarded_session(\"This session lost access to its save. Returning to the title.\")\n\t\treturn\n\tif network_session.role() in [\"Solo\",\"Host\"] and not network_session.joined_from_title() and (not has_meta(\"guarded_title_session\") or slot_claimed):\n\t\tif participation.active() and has_meta(Transactions.SESSION):\n\t\t\t# Exit without replaying the deferred expedition settlement.\n\t\t\t_stop_guarded_session(\"Returned to the title. Expedition settlement is unavailable in the guarded session.\")\n\t\t\treturn\n\t\tif participation.active():\n\t\t\tload(\"res://expedition_transitions.gd\").finish_failed(self)\n\t\t\tfor player in players.values():\n\t\t\t\tif Participation.is_wild(player):\n\t\t\t\t\tload(\"res://expedition_transitions.gd\").return_member(self,player)\n\t\tif not save_session_garden():\n\t\t\treturning_to_title = false\n\t\t\tif not has_meta(Transactions.SESSION): status = \"Could not save this Garden. Use Save Garden before leaving.\"\n\t\t\treturn\n\tif character_dirty and not save_local_character():\n\t\treturning_to_title = false\n\t\treturn\n\t_finish_title_return(message)"
-      },
-      "cleanup_feedback": {
-        "match": "\tif returning_to_title:\n\t\treturn\n\treturning_to_title = true\n\tif has_meta(Transactions.SESSION) and not Transactions.session_writable(self):\n\t\t_stop_guarded_session(\"This session lost access to its save. Returning to the title.\")\n\t\treturn\n\tif network_session.role() in [\"Solo\",\"Host\"] and not network_session.joined_from_title() and (not has_meta(\"guarded_title_session\") or slot_claimed):\n\t\tif participation.active() and has_meta(Transactions.SESSION):\n\t\t\t# Exit without replaying the deferred expedition settlement.\n\t\t\t_stop_guarded_session(\"Returned to the title. Expedition settlement is unavailable in the guarded session.\")\n\t\t\treturn\n\t\tif participation.active():\n\t\t\tload(\"res://expedition_transitions.gd\").finish_failed(self)\n\t\t\tfor player in players.values():\n\t\t\t\tif Participation.is_wild(player):\n\t\t\t\t\tload(\"res://expedition_transitions.gd\").return_member(self,player)\n\t\tif not save_session_garden():\n\t\t\treturning_to_title = false\n\t\t\tif not has_meta(Transactions.SESSION): status = \"Could not save this Garden. Use Save Garden before leaving.\"\n\t\t\treturn\n\tif character_dirty and not save_local_character():\n\t\treturning_to_title = false\n\t\treturn\n\t_finish_title_return(message)",
-        "baseline": "\tif returning_to_title:\n\t\treturn\n\treturning_to_title = true\n\tif has_meta(Transactions.SESSION) and not Transactions.session_writable(self):\n\t\t_stop_guarded_session(\"This session lost access to its save. Returning to the title.\")\n\t\treturn\n\tif network_session.role() in [\"Solo\",\"Host\"] and not network_session.joined_from_title() and (not has_meta(\"guarded_title_session\") or slot_claimed):\n\t\tif participation.active() and has_meta(Transactions.SESSION):\n\t\t\t# Exit without replaying the deferred expedition settlement.\n\t\t\t_stop_guarded_session(\"Returned to the title. Expedition settlement is unavailable in the guarded session.\")\n\t\t\treturn\n\t\tif participation.active():\n\t\t\tload(\"res://expedition_transitions.gd\").finish_failed(self)\n\t\t\tfor player in players.values():\n\t\t\t\tif Participation.is_wild(player):\n\t\t\t\t\tload(\"res://expedition_transitions.gd\").return_member(self,player)\n\t\tif not save_session_garden():\n\t\t\treturning_to_title = false\n\t\t\tif not has_meta(Transactions.SESSION): status = \"Could not save this Garden. Use Save Garden before leaving.\"\n\t\t\treturn\n\tif character_dirty:\n\t\tsave_local_character()\n\t\tif character_dirty:\n\t\t\treturning_to_title = false\n\t\t\treturn\n\t_finish_title_return(message)"
-      },
-      "guarded_gameplay_writer": {
-        "match": "\tif returning_to_title:\n\t\treturn\n\treturning_to_title = true\n\tif has_meta(Transactions.SESSION) and not Transactions.session_writable(self):\n\t\t_stop_guarded_session(\"This session lost access to its save. Returning to the title.\")\n\t\treturn\n\tif network_session.role() in [\"Solo\",\"Host\"] and not network_session.joined_from_title() and (not has_meta(\"guarded_title_session\") or slot_claimed):\n\t\tif participation.active() and has_meta(Transactions.SESSION):\n\t\t\t# Exit without replaying the deferred expedition settlement.\n\t\t\t_stop_guarded_session(\"Returned to the title. Expedition settlement is unavailable in the guarded session.\")\n\t\t\treturn\n\t\tif participation.active():\n\t\t\tload(\"res://expedition_transitions.gd\").finish_failed(self)\n\t\t\tfor player in players.values():\n\t\t\t\tif Participation.is_wild(player):\n\t\t\t\t\tload(\"res://expedition_transitions.gd\").return_member(self,player)\n\t\tif not save_session_garden():\n\t\t\treturning_to_title = false\n\t\t\tif not has_meta(Transactions.SESSION): status = \"Could not save this Garden. Use Save Garden before leaving.\"\n\t\t\treturn\n\tif character_dirty:\n\t\tsave_local_character()\n\t\tif character_dirty:\n\t\t\treturning_to_title = false\n\t\t\treturn\n\t_finish_title_return(message)",
-        "baseline": "\tif returning_to_title:\n\t\treturn\n\treturning_to_title = true\n\tif has_meta(\"guarded_title_session\") and not get_meta(\"guarded_title_session\").owns_leases():\n\t\t_stop_guarded_session(\"This session lost access to its save. Returning to the title.\")\n\t\treturn\n\tif network_session.role() in [\"Solo\",\"Host\"] and not network_session.joined_from_title() and (not has_meta(\"guarded_title_session\") or slot_claimed):\n\t\tif participation.active():\n\t\t\tload(\"res://expedition_transitions.gd\").finish_failed(self)\n\t\t\tfor player in players.values():\n\t\t\t\tif Participation.is_wild(player):\n\t\t\t\t\tload(\"res://expedition_transitions.gd\").return_member(self,player)\n\t\tvar error := progress.save_garden()\n\t\tif error != OK:\n\t\t\treturning_to_title = false\n\t\t\tstatus = \"Could not save this Garden. Use Save Garden before leaving.\"\n\t\t\treturn\n\tif character_dirty:\n\t\tsave_local_character()\n\t\tif character_dirty:\n\t\t\treturning_to_title = false\n\t\t\treturn\n\t_finish_title_return(message)"
-      },
-      "guarded_return_save_gate": {
-        "match": "\treturning_to_title = true\n\tif has_meta(\"guarded_title_session\") and not get_meta(\"guarded_title_session\").owns_leases():\n\t\t_stop_guarded_session(\"This session lost access to its save. Returning to the title.\")\n\t\treturn\n\tif network_session.role() in [\"Solo\",\"Host\"] and not network_session.joined_from_title() and (not has_meta(\"guarded_title_session\") or slot_claimed):",
-        "baseline": "\treturning_to_title = true\n\tif network_session.role() in [\"Solo\",\"Host\"] and not network_session.joined_from_title():"
-      },
-      "join_does_not_save_garden": {
-        "match": "\treturning_to_title = true\n\tif network_session.role() in [\"Solo\",\"Host\"] and not network_session.joined_from_title():",
-        "baseline": "\treturning_to_title = true\n\tif network_session.role() in [\"Solo\",\"Host\"]:"
-      }
+
+
+
+
+
+
+
     },
     "request_ip_join": {
       "experimental_coop_1": {
@@ -1536,14 +1503,8 @@
         "match": " if not game.persistence_session.can_write() or not game.players.has(id) or not Session.ready_for(game.players[id]): return\n if kind!=\"depart\" and game.persistence_session.is_guarded() and not game.encounter_rewarded: return\n",
         "baseline": " if not game.players.has(id) or not Session.ready_for(game.players[id]): return\n"
       },
-      "guarded_expedition_4": {
-        "match": "  if game.persistence_session.is_guarded(): game.activate_checkpoint()\n  else: game.Transactions.run(game,func(): load(\"res://expedition_transitions.gd\").commit_checkpoint(game,id,true))\n",
-        "baseline": "  game.Transactions.run(game,func(): load(\"res://expedition_transitions.gd\").commit_checkpoint(game,id,true))\n"
-      },
-      "guarded_expedition_5": {
-        "match": " if game.persistence_session.is_guarded():\n  var close_after: bool = kind!=\"advance\" or not game.upgrade_checkpoint_open()\n  var result: Dictionary=game.run_guarded_action(id,game.Transactions.Scope.PAIR,func(effects):\n   if kind==\"depart\":\n    var cost:=departure_cost(game,ids)\n    if not cost.error.is_empty():\n     for peer_id in ids: game.action_feedback(effects,peer_id,cost.error)\n     clear(game)\n     return false\n    game.settle_expedition_rewards(effects)\n    for peer_id in ids:\n     if not load(\"res://expedition_transitions.gd\").admit(game,peer_id,game.players[peer_id],cost.reserved,effects):\n      game.SaveBatch.reject_guarded_serializer(ERR_UNAVAILABLE,game.progress.path)\n      return false\n   elif not load(\"res://expedition_transitions.gd\").commit_checkpoint(game,id,kind==\"advance\",effects):\n    return false\n   clear(game)\n   if close_after:\n    for peer_id in ids: effects.append(game.close_flow_for.bind(peer_id))\n   return true)\n  # After a refusal or verified abort, fresh votes are required. An uncertain\n  # transaction keeps its snapshot and session write block for recovery.\n  if not game.Transactions.committed(result.persistence) and game.persistence_session.can_write():\n   cancel(game)\n  return\n",
-        "baseline": ""
-      },
+
+
       "hold_range": {
         "match": "preload(\"res://gate_interaction.gd\").travel_range(game,game.participation.travel_kind())+preload(\"res://gate_interaction.gd\").READY_MARGIN",
         "baseline": "2.25"
@@ -4764,10 +4725,7 @@
         "match": " game.PartyTravel.cancel(game,\"A teammate has fallen. Readiness was cleared.\",effects)\n",
         "baseline": " game.PartyTravel.cancel(game,\"A teammate has fallen. Readiness was cleared.\")\n"
       },
-      "guarded_expedition_3": {
-        "match": " game.action_feedback(effects,id,\"You have fallen. Watch a living ally while a teammate reaches you. Revival costs %s for this expedition.\"%cost)\n if living_ids(game).is_empty():\n  if effects == null: load(\"res://expedition_transitions.gd\").finish_failed(game)\n  else: load(\"res://expedition_transitions.gd\").commit_failed(game,effects)\n",
-        "baseline": " game.tell(id,\"You have fallen. Watch a living ally while a teammate reaches you. Revival costs %s for this expedition.\"%cost)\n if living_ids(game).is_empty(): load(\"res://expedition_transitions.gd\").finish_failed(game)\n"
-      },
+
       "guarded_expedition_4": {
         "match": "static func revive(game: Node,helper_id: int,target_id: int,effects = null) -> bool:\n",
         "baseline": "static func revive(game: Node,helper_id: int,target_id: int) -> bool:\n"
@@ -4804,10 +4762,7 @@
         "match": " if not Vitals.can_revive(maximum(game,target),Preview.scale()):\n  game.tell(helper_id,\"This ally has too little maximum health to revive.\" if Preview.enabled else \"No full heart remains to sacrifice. This ally cannot be revived again during this expedition.\");return false\n target.lost_health=int(target.get(\"lost_health\",0))+Preview.revive_cost()",
         "baseline": " if not Vitals.can_revive(maximum(game,target)):\n  game.tell(helper_id,\"No full heart remains to sacrifice. This ally cannot be revived again during this expedition.\");return false\n target.lost_health=int(target.get(\"lost_health\",0))+REVIVE_COST"
       },
-      "cb02_expedition_life_3_5": {
-        "match": " var cost: String=\"%d maximum HP\"%Preview.revive_cost()\n game.tell(id,\"You have fallen. Watch a living ally while a teammate reaches you. Revival costs %s for this expedition.\"%cost)",
-        "baseline": " game.tell(id,\"You have fallen. Watch a living ally while a teammate reaches you. Revival costs one maximum heart for this expedition.\")"
-      },
+
       "cb02_expedition_life_2_4": {
         "match": " return Vitals.maximum(Preview.hp(game.MAX_HEALTH),Preview.hp(int(game.weapon_stats(p).get(\"max_health\",0))),int(p.get(\"lost_health\",0)),Preview.scale())",
         "baseline": " return Vitals.maximum(game.MAX_HEALTH,int(game.weapon_stats(p).get(\"max_health\",0)),int(p.get(\"lost_health\",0)))"

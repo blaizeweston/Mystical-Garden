@@ -42,7 +42,7 @@ func run() -> void:
  check(rolls>170 and rolls<340,"rare 2.5 percent per eligible floor")
  for kind in range(20,24):
   ExpeditionCase.set_membership(game, p, false)
-  ExpeditionCase.Transitions.reset(game);ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"encounter_number": 20});ExpeditionCase.set_world(game, {"depth": 2});ExpeditionCase.set_world(game, {"map_seed": 9871})
+  game.expedition_transitions.reset();ExpeditionCase.set_world(game, {"destination": 0});ExpeditionCase.set_world(game, {"encounter_number": 20});ExpeditionCase.set_world(game, {"depth": 2});ExpeditionCase.set_world(game, {"map_seed": 9871})
   game.boss_floors["20"]=kind;game.used_bosses.append(kind);game.reset_encounter()
   check(game.tactics.boss_kind==kind and game.enemy_kind==kind and game.enemy_health()>=500,"boss installed as primary actor")
   check(game.battlefield.connected(),"boss lair connects entry, gate, altar and cache")
@@ -84,10 +84,10 @@ func run() -> void:
   check(seeds.size()==1,"one opaque ancient seed per player per boss")
   check(not seeds[0].stack.has("seeds"),"boss seed species remains undisclosed")
  var active_boss_history: Array=game.used_bosses.duplicate()
- ExpeditionCase.Transitions.reset(game)
+ game.expedition_transitions.reset()
  check(game.participation.active() and game.used_bosses==active_boss_history and game.boss_floors.has("20"),"active expedition reset is refused without erasing boss history")
  ExpeditionCase.set_membership(game, p, false)
- ExpeditionCase.Transitions.reset(game);check(game.used_bosses.is_empty() and not game.boss_floors.has("20") and game.tactics.boss_kind==-1,"fresh run clears only run-local boss history")
+ game.expedition_transitions.reset();check(game.used_bosses.is_empty() and not game.boss_floors.has("20") and game.tactics.boss_kind==-1,"fresh run clears only run-local boss history")
  var tiers={};var random=RandomNumberGenerator.new();random.seed=1789
  for i in 5000:
   var species=game.Bosses.seed_species(random);var tier=int(game.Seeds.DEFINITIONS[species].tier);tiers[tier]=int(tiers.get(tier,0))+1

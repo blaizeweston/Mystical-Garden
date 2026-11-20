@@ -3,7 +3,6 @@ extends RefCounted
 ## Keep every fixture bound to the same participation owner used at runtime.
 
 const Participation = preload("res://expedition_participation.gd")
-const Transitions = preload("res://expedition_transitions.gd")
 const Sessions = preload("res://tests/support/session_case.gd")
 
 static func is_wild(actor: Dictionary) -> bool:

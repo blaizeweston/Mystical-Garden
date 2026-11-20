@@ -23,7 +23,7 @@ func run() -> void:
  game.get_node("GardenInteractions/GrowthScenes").set_process(false)
  if role=="host":await host_run()
  else:await guest_run()
- SessionCase.World.leave(game,"Garden conduit fixture complete")
+ game.session_world.leave("Garden conduit fixture complete")
  var offline := game.network_session.transport() == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer
  check(offline,"offline peer is installed before world removal")
  if offline:
@@ -33,7 +33,7 @@ func run() -> void:
  if not failed:print("PASS: Garden conduit co-op ",role," host permissions, authoritative policy, guest tending and reconnect")
  quit(1 if failed else 0)
 func host_run() -> void:
- check(SessionCase.World.host(game)==OK,"host opens")
+ check(game.session_world.host()==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"admission");return
  var id: int=game.players.keys().filter(func(peer):return peer!=1)[0];var g=game.progress
  for tech in ["clearing_1","clearing_2","flowering","irrigation","plot_4","living_conduit"]:g.heart.unlock_direct(tech)
@@ -54,7 +54,7 @@ func host_run() -> void:
  mark("done")
  check(await until(func():return marked("guest-offline") and game.multiplayer.get_peers().is_empty()),"host observes guest disconnect before teardown")
 func guest_run() -> void:
- check(SessionCase.World.join(game)==OK,"guest joins")
+ check(game.session_world.join()==OK,"guest joins")
  if not await until(func():return game.network_session.role()=="Guest" and marked("ready") and game.garden_commands.conduit_projection(game.local_player_id()).get("unlocked",false)):check(false,"host tool snapshot");return
  check(not game.garden_commands.conduit_projection(game.local_player_id()).host and not game.progress.heart.has("living_conduit"),"projection describes host permissions without granting local research")
  game.send_garden_action(request("deep",0))
@@ -66,7 +66,7 @@ func guest_run() -> void:
  if not await until(func():return game.garden_commands.projection(game.local_player_id()).cultivation.beds.any(func(b):return b.slot==3 and b.choice=="preserve")):check(false,"tending receipt");return
  mark("tended")
  if not await until(func():return marked("rejoin")):check(false,"rejoin allowed");return
- SessionCase.World.leave(game,"Conduit rejoin fixture");game.ui.close_panels();check(SessionCase.World.join(game)==OK,"guest reconnects")
+ game.session_world.leave("Conduit rejoin fixture");game.ui.close_panels();check(game.session_world.join()==OK,"guest reconnects")
  if not await until(func():return game.network_session.role()=="Guest" and game.garden_commands.conduit_projection(game.local_player_id()).get("mode","")=="deep"):check(false,"configuration persists");return
  check(game.garden_commands.projection(game.local_player_id()).cultivation.beds.any(func(b):return b.slot==3 and b.choice=="preserve"),"crop choice returns without reroll")
  mark("rejoined");check(await until(func():return marked("done")),"host completes")

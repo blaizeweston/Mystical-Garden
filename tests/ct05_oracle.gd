@@ -160,7 +160,7 @@ func entry_for_each_class() -> void:
 		var graph: RefCounted = game.Classes.connected_tree(class_id)
 		check(graph.level(caster.character)==1 and caster.character.xp[class_id]==0
 			and graph.focus(caster.character).is_empty() and not build.departure_refusal(caster).is_empty()
-			and not ExpeditionCase.Transitions.admit(game, 1,caster),"fresh class requires an explicit starting focus")
+			and not game.expedition_transitions.admit(1),"fresh class requires an explicit starting focus")
 		var before_preview: Dictionary = caster.character.duplicate(true)
 		UIFixture.control(game,"loadout_view").refresh()
 		check(UIFixture.control(game,"loadout_view").focus_options.visible and UIFixture.control(game,"loadout_view").depart_button.disabled,"starting focus is offered in crafting UI")

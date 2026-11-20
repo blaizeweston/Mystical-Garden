@@ -281,6 +281,19 @@ func binding(id: int) -> int:
 func matches(id: int, token: int) -> bool:
 	return token > 0 and _peers.has(id) and _peers[id].binding == token
 
+## Admission policy receives only validated identity/compatibility facts.
+## Settlement and expedition owners supply their own holds; we do not copy them.
+func admission_error(character: String, protocol_matches: bool, content_matches: bool,
+		valid_character: bool, host_character: String, settlement_held: bool, expedition_active: bool) -> String:
+	if not protocol_matches: return "Different multiplayer versions. Use the same updated game build."
+	if not content_matches: return "Different game content. Update all game copies before joining."
+	if not valid_character: return "Invalid character identity. Choose another character."
+	if character == host_character: return "This character is already the host. Choose a different character."
+	if settlement_held: return "This character's last expedition rewards are still being saved."
+	if has_character(character): return "This character is already connected."
+	if expedition_active: return "The host is in the Wilds. Join after the party returns to the Garden."
+	return ""
+
 func bind_character(id: int, character: String, expected_binding: int) -> bool:
 	if not matches(id, expected_binding) or _peers[id].ready or _peers[id].rejecting \
 			or character.is_empty() or has_character(character): return false

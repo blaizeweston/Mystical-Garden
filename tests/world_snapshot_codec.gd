@@ -142,7 +142,7 @@ func run() -> void:
 	var over := scouts.duplicate()
 	over.append_array(PackedFloat32Array([0,0,0,0,0,0,0,0]))
 	check(Codec.encode(1, people, campaign, over, leader, 1, 1, drop, 1, 0).is_empty(), "oversized occupancy is never silently truncated")
-	SessionCase.World.offline(game)
+	game.session_world.offline()
 	game.queue_free()
 	await process_frame
 	if not failed:

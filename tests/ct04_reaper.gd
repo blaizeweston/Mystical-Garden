@@ -448,7 +448,7 @@ func charges_and_void() -> void:
 	game.reset_encounter()
 	check(player.grave_charges==2 and not player.has(Grafts.STATE) and Improvements.owner_details(player, game.participation.floor()).copies[0].id=="funeral_charges",
 		"floor reset retains class charges and acquired graft identity while clearing graft counters")
-	ExpeditionCase.Transitions.return_member(game, player)
+	game.expedition_transitions.return_member(preload("res://network_session.gd").peer_for(player))
 	check(Grafts.grave_count(player)==0,"expedition return clears both charge pools")
 
 	prepare(OFFENSE)

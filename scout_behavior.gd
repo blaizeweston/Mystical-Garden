@@ -33,7 +33,7 @@ static func tick(game: Node, delta: float, now: int) -> void:
 				var due := int(scout.windup)
 				preload("res://frost_combat.gd").with_attacker(game,slot,release.bind(game, scout, definition, now, pending, due))
 				if not game.participation.active():
-					load("res://expedition_transitions.gd").finish_if_empty(game)
+					game.expedition_transitions.finish_if_empty()
 					return
 			continue
 		if now < int(scout.get("stagger_until",0)):

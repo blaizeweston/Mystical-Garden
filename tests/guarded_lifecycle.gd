@@ -148,7 +148,7 @@ func run() -> void:
   world.handle_loadout_action(1,actor,"learn_%d_%d" % [int(actor.frame),tree.REQUEST_OFFSET])
  check(not tree.focus(actor.character).is_empty(),"zero-XP character chooses native focus through the guarded Heart action")
  actor.pos=world.stage.gate_position()
- ExpeditionCase.Transitions.enter(world, 1,actor)
+ world.expedition_transitions.enter(1)
  check(ExpeditionCase.is_wild(actor),"window-close fixture enters the actual expedition before protecting cargo")
  actor.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  before=disk()

@@ -234,7 +234,7 @@ func host() -> void:
   and game.departure_settlement.status(identity)==game.DepartureSettlement.Phase.RETRYABLE
   and FileAccess.get_sha256(G)==disconnect_before and game.status.begins_with("Save cancelled"),
   "verified disconnect abort retains the reward, retryable departure and Garden bytes")
- check(SessionCase.World.admission_error(game,identity,game.progress.ContentIDs.manifest(),Network.PROTOCOL).contains("still being saved"),
+ check(game.session_world.admission_error(identity,game.progress.ContentIDs.manifest(),Network.PROTOCOL).contains("still being saved"),
   "admission reports the unsettled departure for this character")
  game.remove_meta(&"guarded_gameplay_test_fault")
  check(game.flush_kill_rewards() and game.departure_settlement.is_empty() and game.monster_rewards.pending_count()==0
@@ -304,7 +304,7 @@ func finish_blocked_disconnect(game: Node, identity: String, kills: int, kind: i
   game.replication_source.publish_committed_cleanup(old_transport)
   check(game.replication.sequence()==snapshot_sequence and FileAccess.get_sha256(G)==after
    and FileAccess.get_sha256(G+".transaction")==evidence,"deferred cleanup cannot send or write after ownership is lost")
-  SessionCase.World.offline(game)
+  game.session_world.offline()
   game.replication_source.publish_committed_cleanup(old_transport)
   game.send_expedition_state(0.0,true)
   check(game.replication.sequence()==snapshot_sequence and game.replication_source.peers().is_empty(),
@@ -352,7 +352,7 @@ func guest(role: String) -> void:
  if role=="1":
   var legacy: Node = connect_to_host(menu)
   if legacy == null: return
-  legacy.multiplayer.connected_to_server.disconnect(SessionCase.World.joined.bind(legacy))
+  legacy.multiplayer.connected_to_server.disconnect(legacy.session_world.joined)
   legacy.multiplayer.connected_to_server.connect(func():
    var catalog: Dictionary = legacy.progress.ContentIDs.manifest()
    catalog["guest_projection_receipts"] = legacy.guest_character.projection_receipts
@@ -405,7 +405,7 @@ func guest(role: String) -> void:
   game.remove_meta(&"guarded_gameplay_test_fault")
   mark("class-abort-done")
   check(await until(func():return read("reconnect-ready")=="yes"),"host observes aborted class projection")
-  SessionCase.World.leave(game,"Reconnect acceptance")
+  game.session_world.leave("Reconnect acceptance")
   check(root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer and not FileAccess.file_exists(P.get_base_dir().path_join("session.cfg")),"guest releases lease before reconnect")
   await process_frame
   menu=current_scene

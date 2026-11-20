@@ -44,7 +44,7 @@ func prepare(p: Dictionary,focus: String) -> void:
  p.frame=0;p.weapon_kind=0;p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0);p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0);p.character.active_class=0;p.character.upgrades[0]=0;p.character[Warden.PROFILE_KEY]=Warden.state([focus]);p.character.xp[0]=int(game.Character.LEVEL_THRESHOLDS.back())
  game.publish_character(int(game.players.keys()[1]))
 func host_run() -> void:
- check(SessionCase.World.host(game)==OK,"host opens")
+ check(game.session_world.host()==OK,"host opens")
  for kind in ["schema","protocol","growth","old_growth","garden","old_garden","legacy"]:
   check(await until(func(): return marked("rejected-"+kind)),"incompatible "+kind+" probe finishes")
   check(game.players.size()==1,"incompatible "+kind+" never creates a gameplay player")
@@ -69,7 +69,7 @@ func host_run() -> void:
  check(p[Cooldowns.STATE].deadline(Cooldowns.Q)>0,"post-clear guest still sends working abilities")
  mark("done")
  check(await until(func(): return game.players.size()==1),"guest leaves normally")
- SessionCase.World.leave(game,"Warden fixture complete")
+ game.session_world.leave("Warden fixture complete")
 func bad_begin(id: int,kind: String) -> void:
  game.network_session.compatibility_started()
  if kind=="legacy": return # old peer sends no pre-RPC compatibility data
@@ -98,7 +98,7 @@ func guest_run() -> void:
   var callback:=bad_begin.bind(kind)
   game.multiplayer.peer_authenticating.connect(callback)
   game.multiplayer.auth_timeout=.6 if kind=="legacy" else 3.0
-  check(SessionCase.World.join(game)==OK,"start incompatible "+kind+" probe")
+  check(game.session_world.join()==OK,"start incompatible "+kind+" probe")
   check(await until(func(): return game.network_session.role()=="Solo"),"incompatible "+kind+" rejected before gameplay")
   check(game.status.contains("same") and game.status.contains("build"),"incompatibility asks peers to use the same build: "+game.status)
   check(game.guest_character.data.xp[0]==0,"incompatible peer preserves character")
@@ -106,7 +106,7 @@ func guest_run() -> void:
   mark("rejected-"+kind)
   check(await until(func(): return marked("confirmed-"+kind)),"host confirms rejection")
  game.multiplayer.auth_timeout=10.0;game.multiplayer.peer_authenticating.connect(game.network_compatibility.begin_check)
- check(SessionCase.World.join(game)==OK,"compatible guest connects")
+ check(game.session_world.join()==OK,"compatible guest connects")
  check(await until(func(): return game.network_session.role()=="Guest" and game.guest_replication.has_details()),"compatible guest accepted")
  var id:=game.multiplayer.get_unique_id()
  for variant in ["vanguard","bastion"]:
@@ -133,4 +133,4 @@ func guest_run() -> void:
  cast("class_skill")
  check(await until(func(): return not game.players[id].get("skill_ready",true)),"abilities work again in next encounter");mark("next-cast")
  check(await until(func(): return marked("done")),"host completes")
- SessionCase.World.leave(game,"Warden fixture complete")
+ game.session_world.leave("Warden fixture complete")

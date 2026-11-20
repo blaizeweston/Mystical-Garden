@@ -70,7 +70,7 @@ func run() -> void:
 
 
 func host() -> void:
-	check(SessionCase.World.host(game) == OK, "host opens")
+	check(game.session_world.host() == OK, "host opens")
 	if not await until(func(): return game.players.size() == 2 and game.players.values().all(func(p): return SessionCase.Session.ready_for(p))):
 		check(false, "guest registers")
 		return
@@ -142,7 +142,7 @@ func host() -> void:
 	check(await until(func(): return mother.summons == 2), "two hatch sites resolve on the host")
 	mark("done")
 	check(await until(func(): return marked("verified")), "guest verifies cleanup")
-	SessionCase.World.leave(game,"Wilds skill tactics fixture")
+	game.session_world.leave("Wilds skill tactics fixture")
 
 
 func hints(role: String) -> Array:
@@ -158,7 +158,7 @@ func guest() -> void:
 	var tree: RefCounted = game.Classes.connected_tree(game.Frames.WARDEN)
 	check(tree.learn(game.guest_character.data,tree.REQUEST_OFFSET).is_empty(), "zero-XP guest chooses Vanguard")
 	game.guest_character.save_profile()
-	check(SessionCase.World.join(game) == OK, "guest connects")
+	check(game.session_world.join() == OK, "guest connects")
 	var id: int = game.multiplayer.get_unique_id()
 	if not await until(func(): return game.network_session.role() == "Guest" and game.Classes.connected_tree(game.Frames.WARDEN).focus(game.guest_character.data)=="vanguard" and not Core.cast_key(game,game.players.get(id,{})).is_empty() and cue("Rally")):
 		check(false, "guest sees the live rally and has native Root Quake")

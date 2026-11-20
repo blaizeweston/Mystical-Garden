@@ -52,7 +52,7 @@ func run() -> void:
 	player.character[game.Classes.Warden.Connected.PROFILE_KEY]=game.Classes.Warden.Connected.state(["vanguard"])
 	check(PlayerVitals.current_hp(player) == 100 and PlayerVitals.maximum_hp(player) == 100, "new Warden starts at 100 HP")
 	player.pos = game.stage.gate_position()
-	ExpeditionCase.Transitions.enter(game, 1, player)
+	game.expedition_transitions.enter(1)
 	check(ExpeditionCase.is_wild(player) and game.encounter.scout_count() >= 6 and game.enemy_health() in range(62,72), "normal early Wilds entrance uses converted pack and elite")
 	check(game.make_scout(0,Vector3.ZERO,1).hp == 32 and game.make_scout(0,Vector3.ZERO,1,0,0,true).hp == 12, "scout and summoned health use the same unit")
 	ExpeditionCase.set_world(game, {"map_seed": 0})
@@ -224,7 +224,7 @@ func verify_recovery(game: Node, player: Dictionary) -> void:
 	ally.pos=player.pos
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(20)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(21)
-	ExpeditionCase.Transitions.checkpoint(game, 1,true)
+	game.expedition_transitions.checkpoint(1,true)
 	var floor_heal := int(PlayerVitals.current_hp(player))-20
 	check(game.participation.floor()==2 and floor_heal in range(8,13) and int(PlayerVitals.current_hp(ally))-21==floor_heal,"floor recovery shares a roll across the living party")
 

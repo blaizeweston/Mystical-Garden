@@ -146,7 +146,7 @@ func guest_run() -> void:
   return
  mark("peer",str(world.local_player_id()))
  mark("joined","yes")
- SessionCase.World.leave(world,"Reconnect from title")
+ world.session_world.leave("Reconnect from title")
  menu=current_scene
  check(menu!=world and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer,"guest offline before old world detaches")
  await process_frame

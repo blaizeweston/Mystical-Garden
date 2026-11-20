@@ -31,7 +31,7 @@ func run():
  if not failed:print("PASS: mouse co-op ",role," held input, authority, direction, cooldown, damage and release")
  quit(1 if failed else 0)
 func host_run():
- check(SessionCase.World.host(game)==OK,"host opens")
+ check(game.session_world.host()==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"registration");return
  game.set_physics_process(false);game.set_process(false)
  var id=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
@@ -48,9 +48,9 @@ func host_run():
  var combo=p[WeaponActions.STATE].sequence();p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0);game.mouse_controls.tick(game,Time.get_ticks_msec());check(p[WeaponActions.STATE].sequence()==combo,"remote release stops new attacks")
  mark("done");await create_timer(.3).timeout
 func guest_run():
- game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")
+ game.guest_character.save_profile();check(game.session_world.join()==OK,"guest joins")
  if not await until(func():return game.network_session.role()=="Guest" and marked("ready")):check(false,"ready");return
  while not marked("stop"):
   game.submit_combat.rpc_id(1,Vector2(0,-1),true);await create_timer(.05).timeout
  game.submit_combat.rpc_id(1,Vector2(0,-1),false);await create_timer(.1).timeout;mark("released")
- check(await until(func():return marked("done")),"host verifies");SessionCase.World.leave(game,"mouse fixture")
+ check(await until(func():return marked("done")),"host verifies");game.session_world.leave("mouse fixture")

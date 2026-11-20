@@ -28,13 +28,13 @@ func run():
  game=load("res://world.tscn").instantiate();game.progress.path=base+role;game.local_character.path=base+role+".character";game.guest_character.path=base+role+".guest";root.add_child(game)
  if role=="host":await host_run()
  else:await guest_run()
- if game.network_session.transport()!=null:SessionCase.World.leave(game,"Weapon animation fixture")
+ if game.network_session.transport()!=null:game.session_world.leave("Weapon animation fixture")
  check(game.network_session.transport()==null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"offline before world removal")
  game.queue_free();await process_frame
  if not failed:print("PASS: weapon actions co-op ",role," bow draw, projectile footprint, and two-handed scythe contact")
  quit(1 if failed else 0)
 func host_run():
- check(SessionCase.World.host(game)==OK,"host opens")
+ check(game.session_world.host()==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"registration");return
  var id: int=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
  check(p.character.appearance[5]==1 and p.character.appearance[6]==0 and p.character.appearance[7]==100,"host receives customized female model and independent sliders")
@@ -53,7 +53,7 @@ func host_run():
 func guest_run():
  game.guest_character.data.active_class=2
  game.guest_character.data.appearance=preload("res://character_appearance.gd").DEFAULT.duplicate();game.guest_character.data.appearance[5]=1;game.guest_character.data.appearance[6]=0;game.guest_character.data.appearance[7]=100;game.guest_character.data.appearance[8]=100
- game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest joins")
+ game.guest_character.save_profile();check(game.session_world.join()==OK,"guest joins")
  var id:=game.multiplayer.get_unique_id()
  if not await until(func():return marked("ready") and game.network_session.role()=="Guest" and game.guest_replication.has_details() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds state");return
  check(not game.players[id].has(WeaponActions.STATE) and not game.players[id].has("strike_at")
@@ -126,4 +126,4 @@ func guest_run():
  game.submit_combat.rpc_id(1,Vector2(0,1),false)
  mark("scythe-checked")
  check(await until(func():return marked("done")),"host finishes")
- SessionCase.World.leave(game,"Weapon animation fixture")
+ game.session_world.leave("Weapon animation fixture")

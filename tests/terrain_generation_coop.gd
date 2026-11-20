@@ -24,7 +24,7 @@ func run() -> void:
  game=load("res://world.tscn").instantiate();game.progress.path=base+role;game.local_character.path=base+role+".character";game.guest_character.path=base+role+".guest";root.add_child(game)
  if role=="host":await host_run()
  else:await guest_run()
- SessionCase.World.leave(game,"Fixture complete")
+ game.session_world.leave("Fixture complete")
  check(game.network_session.transport() == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer, "network shuts down before world removal: "+game.status)
  game.queue_free();await process_frame
  if not failed:print("PASS: terrain co-op ",role," incompatible geometry rejected, seed reconstruction, gate positions and matched collision")
@@ -34,7 +34,7 @@ func incompatible(_id: int) -> void:
  var payload: Dictionary={"game":"mystical-garden","protocol":game.Network.PROTOCOL,"contract":game.network_compatibility.signature,"garden":preload("res://garden_return_catalog.gd").signature,"cultivation":preload("res://cultivation_growth.gd").signature,"terrain":"obsolete-algorithm"}
  game.multiplayer.send_auth(1,JSON.stringify(payload).to_utf8_buffer())
 func host_run() -> void:
- check(SessionCase.World.host(game)==OK,"host opens")
+ check(game.session_world.host()==OK,"host opens")
  check(await until(func():return marked("rejected")),"guest rejects incompatible terrain")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"compatible guest joins");return
  for seed_value in [91247,91249,91255]:
@@ -53,12 +53,12 @@ func guest_run() -> void:
  # Override only the test's pre-auth payload, using the real transport callback.
  game.guest_character.save_profile()
  game.multiplayer.peer_authenticating.disconnect(game.network_compatibility.begin_check);game.multiplayer.peer_authenticating.connect(incompatible)
- check(SessionCase.World.join(game)==OK,"incompatible connection starts")
+ check(game.session_world.join()==OK,"incompatible connection starts")
  check(await until(func():return game.network_session.role()=="Solo" and game.status.contains("compatibility")),"old terrain signature rejected with update message")
  mark("rejected")
  game.multiplayer.peer_authenticating.disconnect(incompatible);game.multiplayer.peer_authenticating.connect(game.network_compatibility.begin_check)
  await create_timer(.5).timeout
- check(SessionCase.World.join(game)==OK,"matching connection starts")
+ check(game.session_world.join()==OK,"matching connection starts")
  for seed_value in [91247,91249,91255]:
   if not await until(func():return game.network_session.role()=="Guest" and game.participation.seed()==seed_value and game.stage.visual_field.configured_key==Vector3i(0,2,seed_value)):check(false,"host's generated floor arrives: "+game.status);return
   var f:=ConfigFile.new();check(f.load(base+str(seed_value))==OK,"host floor receipt available")

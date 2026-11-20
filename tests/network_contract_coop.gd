@@ -1,7 +1,6 @@
 extends SceneTree
 ## Independent processes exercise the actual compatibility handshake and registry.
 const Session = preload("res://network_session.gd")
-const World = preload("res://session_world.gd")
 const Contract = preload("res://network_contract.gd")
 const Compatibility = preload("res://network_compatibility.gd")
 var game: Node
@@ -43,14 +42,14 @@ func run() -> void:
 	if role == "host": await host()
 	else: await guest()
 	if is_instance_valid(game):
-		World.offline(game)
+		game.session_world.offline()
 		game.queue_free()
 	await process_frame
 	if not failed: print("PASS: explicit network contract ",role," mismatch refusal, current join, duplicate registration and owner binding")
 	quit(1 if failed else 0)
 
 func host() -> void:
-	if not check(World.host(game) == OK,"ordinary host opens"): return
+	if not check(game.session_world.host() == OK,"ordinary host opens"): return
 	mark("host")
 	if not check(await until(func(): return marked("refused")),"guest observes incompatible contract refusal"): return
 	if not check(await until(func(): return game.network_session.peers() == [1]),"incompatible peer leaves no authorized registry entry"): return
@@ -64,7 +63,7 @@ func host() -> void:
 	var binding: int = game.network_session.binding(remote)
 	var character: String = game.network_session.identity(remote)
 	var before: String = JSON.stringify(actor.character)
-	World.register(game,remote,"another-character",{"name":"forged"},game.progress.ContentIDs.manifest(),game.Network.PROTOCOL)
+	game.session_world.register(remote,"another-character",{"name":"forged"},game.progress.ContentIDs.manifest(),game.Network.PROTOCOL)
 	check(game.network_session.binding(remote) == binding and game.network_session.identity(remote) == character
 		and JSON.stringify(actor.character) == before,"replayed registration cannot replace an accepted character")
 	check(Session.peer_for(actor) == remote and Session.ready_for(actor)
@@ -79,7 +78,7 @@ func guest() -> void:
 	if not check(await until(func(): return marked("host")),"host ready"): return
 	var current := Contract.signature(game.get_script().get_script_method_list())
 	game.network_compatibility.signature = "session-0/obsolete-contract"
-	if not check(World.join(game,"127.0.0.1") == OK,"incompatible transport connection attempted"): return
+	if not check(game.session_world.join("127.0.0.1") == OK,"incompatible transport connection attempted"): return
 	var failed_attempt: String = game.network_session.session_identity()
 	var compatibility_refusal: String = game.Network.join_failure("compatibility","127.0.0.1",game.network_session.port(),false)
 	if not check(await until(func(): return game.network_session.role() == "Solo" and game.status in [Compatibility.UPDATE_MESSAGE,compatibility_refusal]),"old contract is clearly refused before play"): return
@@ -88,7 +87,7 @@ func guest() -> void:
 	mark("refused")
 	if not check(await until(func(): return marked("match")),"host confirms no admission"): return
 	game.network_compatibility.signature = current
-	if not check(World.join(game,"127.0.0.1") == OK,"current contract connects"): return
+	if not check(game.session_world.join("127.0.0.1") == OK,"current contract connects"): return
 	game.network_compatibility.finish_failed_check(failed_attempt)
 	check(game.network_session.role() == "Connecting","a deferred failure from the prior connection cannot close this retry")
 	if not check(await until(func(): return game.network_session.role() == "Guest" and game.guest_replication.has_details()),"matching contract receives reliable owner details"): return
@@ -98,6 +97,6 @@ func guest() -> void:
 		"recovered owner details match this connection and character")
 	if not check(await until(func(): return marked("accepted")),"host verifies duplicate registration"): return
 	mark("guest-done")
-	World.leave(game,"Contract test complete")
+	game.session_world.leave("Contract test complete")
 	check(game.network_session.role() == "Solo" and game.players.has(1) and game.network_session.ready(1),"leaving a guest session restores a valid solo binding")
 	if not check(await until(func(): return marked("done")),"host confirms disconnect cleanup"): return

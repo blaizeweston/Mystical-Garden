@@ -169,11 +169,11 @@ func run():
  var companion_xp: Array=friend.character.xp.duplicate()
  var canonical_path: String=game.progress.path
  game.progress.path="res://.godot/missing-forfeiture-directory/fail.cfg"
- ExpeditionCase.Transitions.abandon(game,1,p)
+ game.expedition_transitions.abandon(1)
  check(ExpeditionCase.is_wild(p) and p.character.xp[0]==int(entry_xp[0])+1,
   "contained serializer failure restores participation, banked XP and the forfeiture claim")
  game.progress.path=canonical_path
- ExpeditionCase.Transitions.abandon(game,1,p)
+ game.expedition_transitions.abandon(1)
  profile.load_profile()
  check(not ExpeditionCase.is_wild(p) and p.character.xp==entry_xp and p.character.monsters==entry_monsters
   and profile.data.xp==entry_xp and friend.character.xp==companion_xp and ExpeditionCase.is_wild(friend),

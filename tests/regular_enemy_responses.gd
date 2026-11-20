@@ -384,7 +384,7 @@ func check_scheduled_scout_release() -> void:
 	check(int(player.damage_seq) == sequence and int(bystander.damage_seq) == 2,
 		"the old target life is excluded while current bystanders can still be hit")
 	player[PlayerLifecycle.STATE] = old_life
-	SessionCase.World.remove(game,2)
+	game.session_world.remove(2)
 
 	actor = schedule_scout_swipe(now)
 	due = int(actor.windup)
@@ -435,7 +435,7 @@ func check_scheduled_scout_hazard() -> void:
 	game.Bosses.tick_hazards(game, int(entry.next))
 	check(game.enemy_hazards.is_empty() and int(bystander.damage_seq) == 1 and int(player.damage_seq) == sequence,
 		"the delayed follow-up expires when a new scout reuses its source slot")
-	SessionCase.World.remove(game,2)
+	game.session_world.remove(2)
 
 
 func run() -> void:

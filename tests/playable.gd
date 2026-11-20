@@ -68,7 +68,7 @@ func run() -> void:
 	world.encounter.set_hp(-1,0)
 	world.encounter_rewarded=true
 	actor.pos=world.battlefield.advance
-	ExpeditionCase.Transitions.checkpoint(world,1,true)
+	world.expedition_transitions.checkpoint(1,true)
 	var offer: Dictionary=world.checkpoint_card_data(actor)[0]
 	check(UIFixture.control(world,"checkpoint_menu").visible and offer.choices.size()==3,"cleared checkpoint opens three modern choices")
 	var spent: int=world.wallet_for(actor).spent_essence()

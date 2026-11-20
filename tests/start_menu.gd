@@ -131,7 +131,7 @@ func run():
 	menu.join_game()
 	world=current_scene
 	check(world.network_session.role()=="Connecting" and world.guest_character.path==menu.characters.paths(1).character,"main-menu Join uses the selected character")
-	SessionCase.World.connection_failed(world)
+	world.session_world.connection_failed()
 	await process_frame
 	menu=current_scene
 	check(menu.notice.text.contains("Could not connect") and not slots.summary(1).exists,"failed Join returns to title without creating or replacing a Garden")

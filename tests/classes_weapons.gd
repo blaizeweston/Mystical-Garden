@@ -52,15 +52,15 @@ func run() -> void:
 	player.prepared=1;player.prepared_secondary=1;player.prepared_catalyst=1
 	player.pos=game.stage.gate_position()
 	game.progress.parts.fill(0);game.progress.personal_parts.fill(0);game.progress.parts[0]=1
-	ExpeditionCase.Transitions.enter(game,1,player)
+	game.expedition_transitions.enter(1)
 	check(not ExpeditionCase.is_wild(player) and game.progress.parts[0]==1,"duplicate plant slots require combined material quantity")
 	game.progress.parts[0]=3
 	game.progress.personal_parts[game.Parts.HOOK]=2
 	player.cargo_plan[game.Parts.HOOK]=2
-	ExpeditionCase.Transitions.enter(game,1,player)
+	game.expedition_transitions.enter(1)
 	check(ExpeditionCase.is_wild(player) and game.progress.parts[0]==0 and [player.weapon,player.secondary,player.catalyst]==[1,1,1],"three slots reserve and consume three real materials")
 	check(player.carried_parts[game.Parts.HOOK]==2 and Grafts.active_ledger(player)!=null and not player.has("graft_part"),"monster cargo enters a cumulative run with no installed slot")
-	ExpeditionCase.Transitions.return_member(game,player)
+	game.expedition_transitions.return_member(preload("res://network_session.gd").peer_for(player))
 	check(Grafts.active_ledger(player)==null and player.carried_parts[game.Parts.HOOK]==0,"departure clears cumulative acquisitions and unbanked cargo")
 	game.free();await process_frame
 	if not failed:print("PASS: five connected classes, fifteen weapon models, explicit plant slots, profile conversion, respec and material reservations")

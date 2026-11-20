@@ -23,13 +23,13 @@ func run() -> void:
  game=load("res://world.tscn").instantiate();game.progress.path=base+role+".cfg";game.local_character.path=base+role+".character";game.guest_character.path=base+role+".guest";root.add_child(game)
  if role=="host":await host_run()
  else:await guest_run()
- SessionCase.World.leave(game,"Fixture complete")
+ game.session_world.leave("Fixture complete")
  check(game.network_session.transport() == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer, "network shuts down before world removal")
  game.queue_free();await process_frame
  if not failed:print("PASS: Garden spring co-op ",role," host research/layout, stale crop rejection, shared clue race and reward-free late join")
  quit(1 if failed else 0)
 func host_run() -> void:
- check(SessionCase.World.host(game)==OK,"host opens")
+ check(game.session_world.host()==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"admission");return
  var g=game.progress;var id: int=game.players.keys().filter(func(peer):return peer!=1)[0];var guest: Dictionary=game.players[id]
  for tech in ["clearing_1","flowering","irrigation"]:g.heart.unlock_direct(tech)
@@ -60,7 +60,7 @@ func host_run() -> void:
  check(g.garden_interactions.receipts.size()==1,"late join cannot duplicate discovery")
  mark("done");await create_timer(.3).timeout
 func guest_run() -> void:
- check(SessionCase.World.join(game)==OK,"guest joins")
+ check(game.session_world.join()==OK,"guest joins")
  if not await until(func():return marked("ready") and game.network_session.role()=="Guest" and game.stage.heart_unlocked.has("irrigation") and game.garden_commands.projection(game.local_player_id()).get("available",[]).has("spring_weave")):check(false,"host projection reveals relationship");return
  check(not game.progress.heart.has("irrigation") and game.stage.heart_unlocked.has("irrigation"),"guest uses host capabilities rather than a local Garden")
  check(Layout.ponds(game.stage,game.stage.garden_extent).size()==2,"guest has the same revealed water layout")
@@ -80,7 +80,7 @@ func guest_run() -> void:
  check(data.clues.get("moss_whisper_resonance","").contains("Altar") and data.available.has("spring_weave"),"recorded clue remains readable after a required plant is harvested")
  mark("first_verified")
  if not await until(func():return marked("rejoin")):check(false,"host allows rejoin");return
- SessionCase.World.leave(game,"Spring rejoin fixture");game.ui.close_panels();check(SessionCase.World.join(game)==OK,"guest reconnects")
+ game.session_world.leave("Spring rejoin fixture");game.ui.close_panels();check(game.session_world.join()==OK,"guest reconnects")
  if not await until(func():return game.network_session.role()=="Guest" and game.garden_commands.projection(game.local_player_id()).get("revision",0)==1):check(false,"shared journal returns");return
  await process_frame
  check(view.cue_until==0 and not view.panel.visible and game.garden_commands.projection(game.local_player_id()).clues.has("moss_whisper_resonance"),"late join restores context without reward/animation replay")

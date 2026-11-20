@@ -233,7 +233,7 @@ func host_run(menu: Node) -> void:
 	check(not game.wild_item_drops.is_empty(), "real encounter creates monster drops")
 	keeper.pos = game.battlefield.advance
 	traveller.pos = keeper.pos
-	ExpeditionCase.Transitions.checkpoint(game, game.HOST, true)
+	game.expedition_transitions.checkpoint(game.HOST,true)
 	mark("advance", str(game.participation.travel_epoch()))
 	if not check(await until(func(): return game.participation.depth() == 2), "party commits advancement"):
 		print("STATE ", [game.status, game.participation.travel_kind(), game.participation.travel_epoch(), game.participation.vote_count(), game.checkpoint_ready, traveller.pos, game.battlefield.advance, game.persistence_session.pending_notice()])
@@ -249,7 +249,7 @@ func host_run(menu: Node) -> void:
 	game.encounter_rewarded = true
 	keeper.pos = game.battlefield.advance
 	traveller.pos = keeper.pos
-	ExpeditionCase.Transitions.checkpoint(game, game.HOST, false)
+	game.expedition_transitions.checkpoint(game.HOST,false)
 	mark("extract", str(game.participation.travel_epoch()))
 	if not check(await until(func(): return not game.participation.active() and read("guest-return") == "ok"), "party extracts to the same developed Garden"):
 		return

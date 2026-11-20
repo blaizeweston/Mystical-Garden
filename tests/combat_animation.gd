@@ -89,7 +89,7 @@ func run():
  check(float(hints[0].to[2])<1.8,"charge projection stops before blocking terrain")
  WorldViewCase.component(game,"combat").sync([],[],"next-floor",p.pos)
  check(WorldViewCase.component(game,"combat").hints.is_empty() and WorldViewCase.component(game,"combat").active.is_empty(),"effect cleanup follows floor transitions")
- ExpeditionCase.Transitions.return_member(game, p)
+ game.expedition_transitions.return_member(preload("res://network_session.gd").peer_for(p))
  check(p[WeaponActions.STATE].pose_until_ms()==0,"Garden return clears attack animation")
  game.free()
  if not failed: print("PASS: fifteen weapon motions, seven delayed projectile forms, impact events, target identity, stag chevrons, swept damage, safe lanes and terrain clipping")

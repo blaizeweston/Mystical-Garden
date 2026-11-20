@@ -121,7 +121,7 @@ func gate_recovery() -> void:
 			game.checkpoint_ready={1:game.participation.floor(),2:game.participation.floor()}
 		var before:=int(PlayerVitals.current_hp(player))
 		var ally_before:=int(PlayerVitals.current_hp(ally))
-		ExpeditionCase.Transitions.commit_checkpoint(game, 1,true)
+		game.expedition_transitions.commit_checkpoint(1,true)
 		var gained:=int(PlayerVitals.current_hp(player))-before
 		check(game.participation.floor()==step[0] and gained in range(step[1],step[2]+1),"normal gate commit rolls the displayed recovery range")
 		check(int(PlayerVitals.current_hp(ally))-ally_before==gained,"gate recovery shares its roll")

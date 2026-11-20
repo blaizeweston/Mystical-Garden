@@ -143,7 +143,7 @@ func begin_session() -> void:
 		if _start_join() != OK:
 			last_result = {"outcome": "connection_failed"}
 		return
-	if config.session == Config.SessionKind.HOST and network_session.role() == "Solo" and SessionWorld.host(self, config.port) != OK:
+	if config.session == Config.SessionKind.HOST and network_session.role() == "Solo" and session_world.host(config.port) != OK:
 		last_result = {"outcome": "hosting_failed"}
 		return
 	apply_config(config)

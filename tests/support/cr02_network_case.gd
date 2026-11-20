@@ -116,7 +116,7 @@ func host(menu: Node, mismatch: bool) -> void:
 	world.progress.add_parts(invalid_core,1)
 	var before: int = world.progress.part_count(invalid_core)
 	local.prepared = invalid_core
-	ExpeditionCase.Transitions.enter(world, 1,local)
+	world.expedition_transitions.enter(1)
 	check(not ExpeditionCase.is_wild(local) and world.participation.travel_kind().is_empty() and before>0
 		and world.progress.part_count(invalid_core)==before and "Core material is invalid" in world.status,
 		"invalid Core departure is refused before proposing travel or debiting stock")
@@ -169,7 +169,7 @@ func host(menu: Node, mismatch: bool) -> void:
 	remote[world.ExpeditionWallet.STATE] = world.ExpeditionWallet.Wallet.new()
 	local[world.ExpeditionWallet.STATE] = world.ExpeditionWallet.Wallet.new(0, world.run_wallet(local))
 	var host_wallet = world.wallet_for(local)
-	ExpeditionCase.Transitions.checkpoint(world, 1,true)
+	world.expedition_transitions.checkpoint(1,true)
 	var cards_api = world.AffinityCards
 	var host_offer: Dictionary = cards_api.ledger(local).offer()
 	var initial_ledger = cards_api.ledger(remote)

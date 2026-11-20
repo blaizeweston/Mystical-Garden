@@ -115,7 +115,7 @@ func title_and_progression() -> bool:
 	var old_catalog: Dictionary = game.progress.ContentIDs.manifest()
 	old_catalog.erase(Profile.Experience.VERSION_KEY)
 	old_catalog.levels = [0,5,15,35,70,140,260]
-	check("Different game content" in SessionCase.World.admission_error(game,"a3".repeat(16),old_catalog,game.Network.PROTOCOL),
+	check("Different game content" in game.session_world.admission_error("a3".repeat(16),old_catalog,game.Network.PROTOCOL),
 		"existing content admission refuses older XP units")
 	player.pos=game.stage.gate_position()
 	choose("briar_rebound")

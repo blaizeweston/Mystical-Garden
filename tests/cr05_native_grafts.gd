@@ -251,7 +251,7 @@ func lifecycle() -> void:
 	var wallet: int = game.run_wallet(player)
 	game.set_meta(&"guarded_gameplay_test_fault",func(phase, _path): return ERR_FILE_CANT_WRITE if phase=="stage" else OK)
 	var queued_attack := WeaponCase.schedule(game,1,player.pos,{"damage":1.0,"targets":1,"reach":2.0,"pattern":"single","knockback":-.35},Time.get_ticks_msec(),"blade",500)
-	var rolled_back: bool = not ExpeditionCase.Transitions.finish_failed(game)
+	var rolled_back: bool = not game.expedition_transitions.finish_failed()
 	game.remove_meta(&"guarded_gameplay_test_fault")
 	check(rolled_back and ExpeditionCase.is_wild(player) and Improvements.active_ledger(player)==ledger and player.carried_parts==remainder,
 		"a confirmed guarded rollback preserves the whole graft ledger and carry")
@@ -260,7 +260,7 @@ func lifecycle() -> void:
 		and game.checkpoint_ready.get(1)==3,"guarded rollback restores card ownership, wallet and Gate readiness together")
 	check(rolled_back and game.weapon_attacks.inspect(queued_attack).get("queue_id",0)==queued_attack,
 		"confirmed guarded rollback restores the same pending weapon record")
-	ExpeditionCase.Transitions.finish_failed(game)
+	game.expedition_transitions.finish_failed()
 	check(game.weapon_attacks.is_empty(),"committed expedition departure clears the private weapon queue")
 	check(not player.has(Improvements.STATE) and not player.has(Grafts.STATE)
 		and not player.has(Cards.STATE) and game.run_wallet(player)==0 and game.wallet_for(player).earned_sparks()==0

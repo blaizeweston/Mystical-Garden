@@ -309,7 +309,7 @@ func verify_offers() -> void:
 	action(limit.revision,"skip")
 	check(game.checkpoint_ready.get(1)==60,"exhausted floor 60 can still ready the Gate")
 	game.checkpoint_ready[2] = 60
-	check(ExpeditionCase.Transitions.commit_checkpoint(game, 1,true) and game.participation.floor()==61,"travel continues past floor 60 with exhausted budget")
+	check(game.expedition_transitions.commit_checkpoint(1,true) and game.participation.floor()==61,"travel continues past floor 60 with exhausted budget")
 	# A shared clearance survives a partial return, but the returned actor
 	# must neither receive its contribution nor retain portable currency.
 	game.deepest_milestone = 60
@@ -319,18 +319,18 @@ func verify_offers() -> void:
 	var companion_balance: int = game.run_wallet(player)
 	grant_fixture_copy("run_health", 0, ally)
 	var companion_ledger := Cards.ledger(player)
-	ExpeditionCase.Transitions.abandon(game, 2,ally)
+	game.expedition_transitions.abandon(2)
 	check(game.wallet_for(ally).spent_essence()==0 and game.wallet_for(ally).earned_sparks()==0
 		and game.run_wallet(ally)==0 and not ally.has(Cards.STATE)
 		and ExpeditionCase.is_wild(player) and Cards.ledger(player)==companion_ledger and game.wallet_for(player)==companion_wallet
 		and game.run_wallet(player)==companion_balance,
 		"partial party return zeroes detached wallet while the companion remains")
 	at_checkpoint(66)
-	check(ExpeditionCase.Transitions.commit_checkpoint(game, 1,false) and not player.has(Cards.STATE) and game.run_wallet(player)==0,"extraction clears run ownership and purse")
+	check(game.expedition_transitions.commit_checkpoint(1,false) and not player.has(Cards.STATE) and game.run_wallet(player)==0,"extraction clears run ownership and purse")
 	reset()
 	grant_fixture_copy("run_health")
 	player[game.ExpeditionWallet.STATE] = game.ExpeditionWallet.Wallet.new(60)
-	check(ExpeditionCase.Transitions.finish_failed(game) and not player.has(Cards.STATE) and game.run_wallet(player)==0,"wipe clears run ownership and purse")
+	check(game.expedition_transitions.finish_failed() and not player.has(Cards.STATE) and game.run_wallet(player)==0,"wipe clears run ownership and purse")
 
 
 func source_event(scope: String, family: String, channel: String, now: int) -> RefCounted:

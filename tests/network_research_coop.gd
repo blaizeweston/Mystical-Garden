@@ -32,7 +32,7 @@ func run():
  if not failed:print("PASS: network research ",role," live guest locomotion, reliable monster damage, Knowledge research, timers and guest plant offerings")
  quit(1 if failed else 0)
 func host_run():
- check(SessionCase.World.host(game)==OK,"host starts")
+ check(game.session_world.host()==OK,"host starts")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
   check(false,"guest registers");return
  var id=int(game.players.keys()[1]);var p=game.players[id]
@@ -43,7 +43,7 @@ func host_run():
  preload("res://enemy_attack_hits.gd").for_world(game).area(p.pos,1.2,Time.get_ticks_msec(),1)
  check(PlayerVitals.current_hp(p)==90,"monster hit applies ten HP on host")
  check(await until(func():return marked("hit")),"guest confirms reliable HP and hit feedback")
- ExpeditionCase.Transitions.return_member(game, p);p.pos=game.Stage.HEART;game.players[1].pos=game.Stage.HEART
+ game.expedition_transitions.return_member(preload("res://network_session.gd").peer_for(p));p.pos=game.Stage.HEART;game.players[1].pos=game.Stage.HEART
  game.progress.knowledge=8;game.progress.parts.fill(0)
  game.garden_action(1,'heart_confirm:'+JSON.stringify({"id":"plot_4","plan":{}}))
  check(game.progress.heart.active=="plot_4" and game.progress.heart.available_insight(game.progress)==6,"host starts Knowledge research without materials")
@@ -55,9 +55,9 @@ func host_run():
  game.progress.parts[0]=2;game.garden_action(1,"heart_start_flowering")
  check(await until(func():return game.progress.parts[0]==0 and float(game.progress.heart.work.get("flowering",0))>=60),"guest offering accelerates active research")
  check(await until(func():return marked("offering")),"guest sees confirmed material cost and research boost")
- mark("done");check(await until(func():return game.players.size()==1),"guest leaves cleanly");SessionCase.World.leave(game,"Network research fixture complete")
+ mark("done");check(await until(func():return game.players.size()==1),"guest leaves cleanly");game.session_world.leave("Network research fixture complete")
 func guest_run():
- game.guest_character.data.name="Guest animation probe";game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest connects")
+ game.guest_character.data.name="Guest animation probe";game.guest_character.save_profile();check(game.session_world.join()==OK,"guest connects")
  if not await until(func():return game.network_session.role()=="Guest" and game.players.has(game.multiplayer.get_unique_id())):
   check(false,"guest accepted");return
  var id=game.multiplayer.get_unique_id()
@@ -85,4 +85,4 @@ func guest_run():
  panel.heart_infuse_button.pressed.emit()
  check(await until(func():return float(game.heart_state().get("work",{}).get("flowering",0))>=60 and game.guest_replication.garden_progress()[5][0]==0),"guest offering costs parts and updates research")
  check(game.heart_state().get("unlocked",[]).has("plot_4"),"completed timed bed replicates");mark("offering")
- check(await until(func():return marked("done")),"host flow finishes");SessionCase.World.leave(game,"Network research fixture complete")
+ check(await until(func():return marked("done")),"host flow finishes");game.session_world.leave("Network research fixture complete")

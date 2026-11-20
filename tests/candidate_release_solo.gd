@@ -101,14 +101,14 @@ func run() -> void:
  world.finish_combat(1,world.tactics.position)
  check(world.encounter_rewarded and actor.loot_pending and world.progress.wilds_memory.encounters==1,"guarded combat settlement")
  clear_floor(world,actor,3)
- ExpeditionCase.Transitions.checkpoint(world, 1,true)
+ world.expedition_transitions.checkpoint(1,true)
  var offer: Dictionary=world.checkpoint_card_data(actor)[0]
  world.send_garden_action(world.affinity_checkpoint_action(offer.revision,"0"))
- ExpeditionCase.Transitions.checkpoint(world, 1,true)
+ world.expedition_transitions.checkpoint(1,true)
  check(world.participation.floor()==4 and Cards.ledger(actor).count()==1,"free checkpoint card and guarded advancement")
  clear_floor(world,actor,6)
  actor.carried_seeds=[0]
- ExpeditionCase.Transitions.checkpoint(world, 1,false)
+ world.expedition_transitions.checkpoint(1,false)
  check(not ExpeditionCase.is_wild(actor) and world.progress.campaign.best_extraction==6 and world.progress.unknown.size()>0,"guarded extraction banks loot")
  record("expedition_and_inventory_commit",{"floor":world.participation.floor(),"best_extraction":world.progress.campaign.best_extraction})
  world.return_to_main_menu()

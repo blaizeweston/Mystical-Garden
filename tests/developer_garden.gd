@@ -63,7 +63,7 @@ func run() -> void:
 	var progress: RefCounted = game.progress
 	check(game.app_settings.values.developer_mode and Developer.can_edit(game),"saved preference enables the tools in the solo test world")
 	check(progress.path.begins_with(base.path_join("developer-garden")) and game.local_character.path!=original_character,"the developer world and character use their own paths")
-	check(SessionCase.World.host(game)==ERR_UNAVAILABLE and SessionCase.World.join(game,"127.0.0.1")==ERR_UNAVAILABLE,"the test Garden cannot host or join")
+	check(game.session_world.host()==ERR_UNAVAILABLE and game.session_world.join("127.0.0.1")==ERR_UNAVAILABLE,"the test Garden cannot host or join")
 	SessionCase.set_role(game, "Guest")
 	game.settings_dialog.developer_controls.setup(true)
 	check(game.settings_dialog.developer_controls.toggle.disabled and not game.settings_dialog.developer_controls.tools.visible,"co-op disables the developer setting and buttons")

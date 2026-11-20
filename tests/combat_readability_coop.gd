@@ -36,7 +36,7 @@ func run():
  if not failed:print("PASS: combat feedback co-op ",role," committed damage, ability names, deduplicated guest popups and cleanup")
  quit(1 if failed else 0)
 func host_run():
- check(SessionCase.World.host(game)==OK,"host opens")
+ check(game.session_world.host()==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"registration");return
  var id: int=game.players.keys().filter(func(i):return i!=1)[0];var p: Dictionary=game.players[id]
  p.pos=game.Stage.HEART
@@ -62,7 +62,7 @@ func host_run():
  check(await until(func():return mix.last_played.has("enemy_charge_release") and marked("release")),"both listeners receive the confirmed release")
  mark("done");check(await until(func():return game.players.size()==1),"guest disconnects")
 func guest_run():
- game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest connects")
+ game.guest_character.save_profile();check(game.session_world.join()==OK,"guest connects")
  var id:=game.multiplayer.get_unique_id()
  if not await until(func():return game.network_session.role()=="Guest" and game.guest_replication.has_details() and ExpeditionCase.is_wild(game.players.get(id,{}))):check(false,"Wilds state arrives");return
  WorldViewCase.component(game,"combat").set_process(false);mark("ready")
@@ -85,4 +85,4 @@ func guest_run():
  mark("windup")
  check(await until(func():return mix.last_played.has("enemy_charge_release")),"guest hears the resolved release")
  mark("release")
- check(await until(func():return marked("done")),"host finishes");SessionCase.World.leave(game,"Feedback fixture")
+ check(await until(func():return marked("done")),"host finishes");game.session_world.leave("Feedback fixture")

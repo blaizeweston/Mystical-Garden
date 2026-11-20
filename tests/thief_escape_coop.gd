@@ -41,7 +41,7 @@ func run() -> void:
 		await host()
 	else:
 		await guest()
-	SessionCase.World.leave(game,"Fixture complete")
+	game.session_world.leave("Fixture complete")
 	check(game.network_session.transport() == null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer, "network shuts down before world removal")
 	game.queue_free()
 	await process_frame
@@ -51,7 +51,7 @@ func run() -> void:
 
 
 func host() -> void:
-	check(SessionCase.World.host(game)==OK,"host starts")
+	check(game.session_world.host()==OK,"host starts")
 	if not await until(func(): return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
 		check(false,"guest profile reaches the host")
 		return
@@ -74,7 +74,7 @@ func host() -> void:
 
 
 func guest() -> void:
-	check(SessionCase.World.join(game)==OK,"guest connects")
+	check(game.session_world.join()==OK,"guest connects")
 	if not await until(func(): return game.network_session.role()=="Guest" and WorldViewCase.component(game,"map").thief_routes.size()==1 and game.status.contains("stole a trophy")):
 		check(false,"thief marker and party alert reach the guest")
 		return

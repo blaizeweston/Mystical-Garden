@@ -46,14 +46,14 @@ func run():
  if role=="host":await host_run()
  elif role=="overflow":
   check(await until(func():return marked("full")),"full party starts")
-  check(SessionCase.World.join(game)==OK,"fifth connection attempted")
+  check(game.session_world.join()==OK,"fifth connection attempted")
 
   check(await until(func():return game.network_session.role()!="Connecting"),"fifth player rejected or times out")
   check(game.network_session.role()=="Solo","fifth player cannot enter full session");mark("overflow_done")
  else:await guest_run(int(role))
  await finish()
 func host_run():
- check(SessionCase.World.host(game)==OK,"host starts")
+ check(game.session_world.host()==OK,"host starts")
  if not await until(func():return game.players.size()==4 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):
   check(false,"three guests register");return
  var slots=[];var identities=[];var spawn=[]
@@ -92,7 +92,7 @@ func host_run():
  for actor in game.players.values():
   var tree=game.Classes.connected_tree(int(actor.frame))
   actor.character[tree.profile_key]=tree.state([tree.nodes[0].id])
- ExpeditionCase.Transitions.enter(game, 1,game.players[1])
+ game.expedition_transitions.enter(1)
  check(await until(func():return game.participation.vote_count()==3),"first three readiness votes arrive")
  check(not ExpeditionCase.is_wild(game.players[1]) and game.participation.travel_members().size()==4,"three votes cannot launch four players")
  mark("last_ready")
@@ -136,16 +136,16 @@ func host_run():
  check(await until(func():return marked("kill_verified_1") and marked("kill_verified_2") and marked("kill_verified_3")),"all guests receive their own monster reward and XP")
  if not await guest_vitals(thorn_guest):
   return
- clear_floor(1);ExpeditionCase.Transitions.checkpoint(game, 1,true)
+ clear_floor(1);game.expedition_transitions.checkpoint(1,true)
  check(await until(func():return game.participation.floor()==2),"four ready votes advance ordinary gate")
- clear_floor(6);ExpeditionCase.Transitions.checkpoint(game, 1,true);game.garden_action(1,game.affinity_checkpoint_action(int(game.checkpoint_card_data(game.players[1])[0].revision),"skip"))
+ clear_floor(6);game.expedition_transitions.checkpoint(1,true);game.garden_action(1,game.affinity_checkpoint_action(int(game.checkpoint_card_data(game.players[1])[0].revision),"skip"))
  check(await until(func():return game.checkpoint_all_ready()),"all four choose checkpoint cards")
  check(game.participation.floor()==6,"card choices do not imply host travel consent")
- ExpeditionCase.Transitions.checkpoint(game, 1,true)
+ game.expedition_transitions.checkpoint(1,true)
  check(await until(func():return game.participation.floor()==7),"checkpoint advances with all confirmations")
  clear_floor(12)
  for id in game.players:game.players[id].carried_seeds=[SessionCase.Session.slot_for(game.players[id])]
- ExpeditionCase.Transitions.checkpoint(game, 1,false)
+ game.expedition_transitions.checkpoint(1,false)
  check(await until(func():return game.players.values().all(func(p):return not ExpeditionCase.is_wild(p))),"all four extract together")
  check(PlayerVitals.current_hp(game.players[thorn_guest])==100 and game.players[thorn_guest].lost_health==0,"extraction restores the sealed capacity")
  if not await publish_vitals("restored",thorn_guest):return
@@ -153,7 +153,7 @@ func host_run():
   var p=game.players[id]
   check(game.seed_reserve(p).unknown.has(SessionCase.Session.slot_for(p)),"each player's seed banks to their own reserve")
  for p in game.players.values():p.pos=game.stage.gate_position()
- ExpeditionCase.Transitions.enter(game, 1,game.players[1]);mark("disconnect")
+ game.expedition_transitions.enter(1);mark("disconnect")
  check(await until(func():return game.players.size()==3),"one guest disconnects")
  check(game.participation.travel_kind().is_empty() and not ExpeditionCase.is_wild(game.players[1]),"disconnect cancels pending travel")
  mark("rejoin")
@@ -164,7 +164,7 @@ func host_run():
    found=true;check(p.character.xp[0]==121,"reconnected character retains progression")
  check(found,"reconnected identity restored")
  check(await until(func():return marked("rejoined_snapshot")),"rejoining guest receives all four peers")
- mark("done");check(await until(func():return game.players.size()==1),"all guests leave cleanly");SessionCase.World.leave(game,"Four player test complete")
+ mark("done");check(await until(func():return game.players.size()==1),"all guests leave cleanly");game.session_world.leave("Four player test complete")
 func all_guests_marked(stage: String) -> bool:
  for index in range(1,4):
   if not marked("%s-%d"%[stage,index]):return false
@@ -259,15 +259,15 @@ func verify_vitals_marker(stage: String,index: int) -> void:
 
 func guest_run(index: int):
  game.guest_character.data.name="Player "+str(index);game.guest_character.data.xp[0]=100+10*index;game.guest_character.data.appearance[5]=index%2;game.guest_character.save_profile()
- check(SessionCase.World.join(game)==OK,"guest connects")
+ check(game.session_world.join()==OK,"guest connects")
  if not await until(func():return game.network_session.role()=="Guest" and game.players.size()==4):check(false,"whole party snapshot arrives");return
  var saw_cards=false;var saw_four=false;var epochs={};var reconnected=false;var lantern_requested=false;var revive_requested=false
  var deadline=Time.get_ticks_msec()+90000
  while not marked("done") and Time.get_ticks_msec()<deadline:
   if index==2 and marked("disconnect") and not reconnected:
-   SessionCase.World.leave(game,"Four player reconnect test")
+   game.session_world.leave("Four player reconnect test")
    check(await until(func():return marked("rejoin")),"host allows reconnect")
-   check(SessionCase.World.join(game)==OK,"rejoin starts")
+   check(game.session_world.join()==OK,"rejoin starts")
    check(await until(func():return game.network_session.role()=="Guest" and game.players.size()==4),"rejoin receives full party")
    reconnected=true;mark("rejoined_snapshot")
   if game.network_session.role()=="Guest":
@@ -317,4 +317,4 @@ func guest_run(index: int):
  check(marked("done") and saw_four and saw_cards,"full-party flow completes")
  if index==2:check(reconnected,"disconnect and reconnect exercised")
  await create_timer(.25*index).timeout
- SessionCase.World.leave(game,"Four player test complete")
+ game.session_world.leave("Four player test complete")

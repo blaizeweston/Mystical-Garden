@@ -30,7 +30,7 @@ func owner_contract() -> void:
 
 func enter_run(actor: Dictionary) -> void:
  actor.pos=world.stage.gate_position()
- ExpeditionCase.Transitions.enter(world,1,actor)
+ world.expedition_transitions.enter(1)
  check(ExpeditionCase.is_wild(actor),"actual guarded expedition admission")
 
 func bank_floor(actor: Dictionary) -> void:
@@ -61,7 +61,7 @@ func run() -> void:
  enter_run(actor)
  bank_floor(actor)
  actor.pos=world.battlefield.advance
- ExpeditionCase.Transitions.checkpoint(world,1,true)
+ world.expedition_transitions.checkpoint(1,true)
  check(world.participation.floor()==2,"normal advancement preserves the run boundary")
  world._queue_monster_reward("later-unbanked",0,0,actor.pos,false)
  check(world.monster_rewards.pending_count()==1,"later floor still has a pending award")
@@ -79,11 +79,11 @@ func run() -> void:
  var frozen: Array=world.monster_rewards.pending_receipts()
  var before:=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_stage)
- ExpeditionCase.Transitions.abandon(world,1,actor)
+ world.expedition_transitions.abandon(1)
  world.remove_meta(&"guarded_gameplay_test_fault")
  check(ExpeditionCase.is_wild(actor) and actor.character.xp==banked_xp and disk()==before
   and world.monster_rewards.pending_receipts()==frozen and actor.safe_items.size()==1,"verified abort restores XP, receipts, cargo and the forfeiture claim")
- ExpeditionCase.Transitions.abandon(world,1,actor)
+ world.expedition_transitions.abandon(1)
  check(not ExpeditionCase.is_wild(actor) and actor.character.xp==baseline_xp and actor.character.monsters==baseline_known,"abandonment revokes banked and pending rewards across floors")
  var tree_key: String=world.Classes.connected_tree(int(actor.frame)).profile_key
  check(actor.character.plants==before_profile.plants and actor.character[tree_key]==before_profile[tree_key],"pre-entry plants and learned investments are not rewound")
@@ -91,7 +91,7 @@ func run() -> void:
   and actor.carried_items.is_empty() and actor.carried_parts.all(func(n):return n==0) and world.run_wallet(actor)==0,"courier is retained; carried loot, safe pouch and wallet are discarded")
  verify_disk(baseline_xp)
  before=disk()
- ExpeditionCase.Transitions.abandon(world,1,actor)
+ world.expedition_transitions.abandon(1)
  check(disk()==before and world.monster_rewards.pending_count()==0,"repeated abandonment cannot resettle rewards")
  record("forfeit_abort_retry_and_courier",before)
  # Death/wipe remains a non-voluntary end, and keeps its existing XP behavior.
@@ -119,11 +119,11 @@ func run() -> void:
  bank_floor(actor)
  before=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_receipt)
- ExpeditionCase.Transitions.abandon(world,1,actor)
+ world.expedition_transitions.abandon(1)
  world.remove_meta(&"guarded_gameplay_test_fault")
  check(not ExpeditionCase.is_wild(actor) and actor.character.xp==retained and world.persistence_session.pending_notice()==Tx.CLEANUP_NOTICE,"cleanup-pending is a committed forfeiture, not a retry")
  var committed:=disk()
- ExpeditionCase.Transitions.abandon(world,1,actor)
+ world.expedition_transitions.abandon(1)
  check(disk()==committed,"cleanup-pending cannot replay")
  check(Ops.recover(PackedStringArray([G])).value.verified,"disposable cleanup recovery")
  close_world()
@@ -136,12 +136,12 @@ func run() -> void:
  bank_floor(actor)
  before=disk()
  world.set_meta(&"guarded_gameplay_test_fault",fail_restore)
- ExpeditionCase.Transitions.abandon(world,1,actor)
+ world.expedition_transitions.abandon(1)
  world.remove_meta(&"guarded_gameplay_test_fault")
  var split:=disk()
  check(actor.character.xp==retained and world.persistence_session.pending_notice().contains("uncertain")
   and not world.status.contains("Expedition abandoned."),"uncertain forfeiture holds tentative state without reporting success")
- ExpeditionCase.Transitions.abandon(world,1,actor)
+ world.expedition_transitions.abandon(1)
  check(disk()==split,"uncertainty blocks unsafe replay")
  close_world()
  await process_frame

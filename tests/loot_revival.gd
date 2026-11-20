@@ -82,12 +82,12 @@ func run() -> void:
  game.encounter.set_hp(-1, 0);game.encounter_rewarded=true;ExpeditionCase.set_world(game, {"encounter_number": 1})
  b.pos=game.battlefield.advance;a.pos=Vector3(0,0,2)
  check(game.PartyTravel.members(game,"advance")==[2],"fallen player omitted from ready checks")
- ExpeditionCase.Transitions.commit_checkpoint(game, 2,true)
+ game.expedition_transitions.commit_checkpoint(2,true)
  check(ExpeditionCase.is_wild(a) and PlayerLifecycle.fallen(a) and PlayerVitals.current_hp(a)==0,"floor transition carries fallen body without reviving")
  # Extracting alive banks full cargo, while a fallen ally keeps only their pouch.
  game.encounter.set_hp(-1, 0);game.encounter.clear_scouts();ExpeditionCase.set_world(game, {"encounter_number": 6});game.encounter_rewarded=true;b.pos=game.battlefield.advance
  var safe_before: int=game.seed_reserve(a).unknown.size()
- ExpeditionCase.Transitions.commit_checkpoint(game, 2,false)
+ game.expedition_transitions.commit_checkpoint(2,false)
  check(not ExpeditionCase.is_wild(a) and not PlayerLifecycle.fallen(a) and PlayerVitals.current_hp(a)==100 and a.lost_health==0
   and game.seed_reserve(a).unknown.size()==safe_before+1,"extraction restores fallen ally while banking only their safe pouch")
  for player in [a,b]: ExpeditionCase.set_membership(game, player, true);player[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
@@ -95,11 +95,11 @@ func run() -> void:
   var actor: Dictionary=game.players[peer]
   check(game.monster_rewards.begin_expedition(game._kill_reward_identity(peer,actor),game.participation.run_id(),actor.character.xp,actor.character.monsters),
    "synthetic post-extraction run records entry rewards before abandonment")
- ExpeditionCase.Transitions.abandon(game, 1,a)
- check(not ExpeditionCase.is_wild(a) and ExpeditionCase.is_wild(b) and PlayerLifecycle.fallen(a) and not ExpeditionCase.Transitions.admit(game, 1,a),
+ game.expedition_transitions.abandon(1)
+ check(not ExpeditionCase.is_wild(a) and ExpeditionCase.is_wild(b) and PlayerLifecycle.fallen(a) and not game.expedition_transitions.admit(1),
   "abandoned player waits in the Garden while the party expedition continues")
  var waiting_generation := PlayerLifecycle.generation(a)
- ExpeditionCase.Transitions.abandon(game, 2,b)
+ game.expedition_transitions.abandon(2)
  check(not PlayerLifecycle.fallen(a) and not PlayerLifecycle.matches(a,waiting_generation),
   "ending the party expedition clears the wait and starts a fresh life before departure")
  for player in [a,b]: ExpeditionCase.set_membership(game, player, true);player[PlayerLifecycle.STATE] = PlayerLifecycle.start_life();player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(1);player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(80);player.lost_health=20
@@ -117,12 +117,12 @@ func run() -> void:
  ExpeditionCase.set_membership(game, b, true);b[PlayerLifecycle.STATE] = b[PlayerLifecycle.STATE].clear_inactive();b[PlayerVitals.STATE] = b[PlayerVitals.STATE].with_hp(80)
  check(game.monster_rewards.begin_expedition(game._kill_reward_identity(2,b),game.participation.run_id(),b.character.xp,b.character.monsters),
   "synthetic last-living-ally run records the forfeiter's entry rewards")
- ExpeditionCase.Transitions.abandon(game, 2,b)
+ game.expedition_transitions.abandon(2)
  check(not ExpeditionCase.is_wild(a) and PlayerVitals.current_hp(a)==100 and a.lost_health==0,"last living ally abandoning resolves fallen player's run")
  ExpeditionCase.set_membership(game, a, true);a[PlayerLifecycle.STATE] = a[PlayerLifecycle.STATE].fall();a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_hp(0);a.lost_health=20;a[PlayerVitals.STATE] = a[PlayerVitals.STATE].with_native_max_hp(80)
  ExpeditionCase.set_membership(game, b, true);b[PlayerLifecycle.STATE] = b[PlayerLifecycle.STATE].clear_inactive();b[PlayerVitals.STATE] = b[PlayerVitals.STATE].with_hp(80)
  var departed_generation := PlayerLifecycle.generation(b)
- SessionCase.World.remove(game,2)
+ game.session_world.remove(2)
  check(not ExpeditionCase.is_wild(a) and PlayerVitals.current_hp(a)==100 and a.lost_health==0,"disconnecting last living ally resolves fallen player's run")
  game.add_player(2)
  var readmitted: Dictionary = game.players[2]
