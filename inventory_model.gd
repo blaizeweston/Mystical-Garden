@@ -143,7 +143,7 @@ static func transfer(game,player: Dictionary,source: String,target: String,id: S
  return "Moved %d %s."%[amount,definition.name]
 static func bank_safe(game,player: Dictionary) -> int:
  normalize_pouch(player)
- preload("res://garden_return_service.gd").protected_items(game,player)
+ game.garden_commands.protected_return(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),player.get("safe_items",[]).duplicate(true))
  var total:=0
  for stack in player.safe_items:
   put(game,player,"stash",stack)
@@ -151,7 +151,7 @@ static func bank_safe(game,player: Dictionary) -> int:
  player.safe_items.clear();player.pouch=false
  return total
 static func bank_extra(game,player: Dictionary) -> void:
- preload("res://garden_return_service.gd").extras(game,player)
+ game.garden_commands.extra_return(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),int(player.get("carried_items",{}).get("boss_mystery_seed",0))>0)
  for id in player.get("carried_items",{}): put(game,player,"stash",{"item":id,"quantity":int(player.carried_items[id])})
  player.carried_items={}
 static func clean_ground(value) -> Array:

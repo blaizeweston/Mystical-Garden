@@ -104,7 +104,7 @@ static func identify_ancient(game,player: Dictionary) -> int:
  if stack.is_empty(): return -1
  var species:=preload("res://boss_encounters.gd").seed_species(game.rng)
  game.seed_reserve(player).stock[species]+=1;game.progress.discover(species)
- preload("res://garden_return_service.gd").identified(game,species,true)
+ preload("res://garden_return_service.gd").identified(game.progress,species,true)
  return species
 static func identify(game,player: Dictionary) -> String:
  if not game.at_garden_altar(player): return "Visit the Garden altar to identify seeds."
@@ -115,7 +115,7 @@ static func identify(game,player: Dictionary) -> String:
  if ancient_count(game,player)>0: species=identify_ancient(game,player)
  else:
   species=reserve.unknown.pop_front();reserve.stock[species]+=1;game.progress.discover(species)
-  preload("res://garden_return_service.gd").identified(game,species)
+  preload("res://garden_return_service.gd").identified(game.progress,species)
  if not preload("res://save_batch.gd").guarded_active() and game.progress.save_garden()!=OK:
   restore(game,player,before);return "Could not save identification. The seed was returned."
  return "Identified %s."%Items.Seeds.NAMES[species]
@@ -130,7 +130,7 @@ static func identify_all(game,player: Dictionary) -> String:
   reserve.stock[species]+=1
   if not game.progress.discoveries[species]: discovered+=1
   game.progress.discover(species)
-  preload("res://garden_return_service.gd").identified(game,int(species))
+  preload("res://garden_return_service.gd").identified(game.progress,int(species))
  reserve.unknown.clear()
  discovered=game.progress.discoveries.count(true)-prior
  if not preload("res://save_batch.gd").guarded_active() and game.progress.save_garden()!=OK:

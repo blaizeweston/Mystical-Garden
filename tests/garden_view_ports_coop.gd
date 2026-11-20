@@ -22,15 +22,15 @@ func until(predicate:Callable)->bool:
 	return predicate.call()
 func check_read_models():
 	var peer:int=game.local_player_id()
-	var complete:Dictionary=Interactions.projection(game,peer)
-	var observation:Dictionary=Interactions.observation_projection(game,peer)
+	var complete:Dictionary=game.garden_commands.projection(peer)
+	var observation:Dictionary=game.garden_commands.observation_projection(peer)
 	for field in observation:
 		check(observation[field]==complete[field],"lightweight observation agrees with the published "+str(field))
-	check(Interactions.projection_epoch(game,peer)==str(complete.get("epoch","")),"scalar context agrees with the published epoch")
+	check(game.garden_commands.projection_epoch(peer)==str(complete.get("epoch","")),"scalar context agrees with the published epoch")
 	check(game.cultivation.water_carried(peer)==bool(game.cultivation.projection(peer).get("spring_water",false)),"scalar water status agrees with the complete crop projection")
 	var expected_available:Array=complete.get("available",[]).duplicate()
 	observation.available.clear()
-	check(Interactions.projection(game,peer).get("available",[])==expected_available,"lightweight observation inspection is detached")
+	check(game.garden_commands.projection(peer).get("available",[])==expected_available,"lightweight observation inspection is detached")
 func run():
 	role=OS.get_cmdline_user_args()[0];base="res://.godot/garden-view-ports-"+OS.get_cmdline_user_args()[1]
 	# Existing fixture-only guarded title route, restricted to the verified
@@ -80,7 +80,7 @@ func host_run():
 	check_read_models()
 	var point:Dictionary=Interactions.Catalog.point("heart_root_scar")
 	game.players[1].pos=point.position;game.players[guest].pos=point.position
-	if not check(Interactions.allowed(game,point) and Interactions.nearest(game,game.players[guest],Interactions.projection(game,guest))==point.id,"researched root scar is reachable"):return
+	if not check(game.garden_commands.allowed(point) and game.garden_commands.nearest(guest,game.garden_commands.projection(guest))==point.id,"researched root scar is reachable"):return
 	var parts:Array=garden.parts.duplicate();var experience:Array=game.players[guest].character.xp.duplicate()
 	game.act(guest,false);mark("observe_ready")
 	if not check(await until(func():return marked("observed")),"guest records through the real panel"):return
@@ -134,7 +134,7 @@ func guest_run():
 	var view=game.get_node("GardenInteractions")
 	if not check(await until(func():return view.panel.visible and view.selected=="heart_root_scar"),"host-authorized focus opens the real local observation panel"):return
 	view.observe.pressed.emit();view.observe.pressed.emit()
-	if not check(await until(func():return Interactions.projection(game,game.local_player_id()).get("revision",0)==1 and view.observe.disabled),"committed observation reaches its source view"):return
+	if not check(await until(func():return game.garden_commands.projection(game.local_player_id()).get("revision",0)==1 and view.observe.disabled),"committed observation reaches its source view"):return
 	game.ui.close_panels();mark("observed")
 	if not check(await until(func():return marked("crop_ready")),"host prepares a crop"):return
 	var crop=view.get_node("Crops")
@@ -160,7 +160,7 @@ func guest_run():
 	if not check(await until(func():return marked("readmission_ready")),"host confirms safe Garden readmission"):return
 	game=await join_title(current_scene)
 	if game==null:return
-	if not check(await until(func():return game.network_session.role()=="Guest" and Interactions.projection(game,game.local_player_id()).get("revision",0)==1),"current Garden state is recovered"):return
+	if not check(await until(func():return game.network_session.role()=="Guest" and game.garden_commands.projection(game.local_player_id()).get("revision",0)==1),"current Garden state is recovered"):return
 	await process_frame
 	view=game.get_node("GardenInteractions")
 	check(view.cue_until==0 and not view.panel.visible and not view.station_panel.visible,"rejoin restores state without replaying a cue or old focus")

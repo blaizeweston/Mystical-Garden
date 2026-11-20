@@ -12,7 +12,7 @@ func shown(game: Node,index: int) -> Dictionary:
  for bed in game.cultivation.projection(1).beds:
   if int(bed.slot)==index:return bed
  return {}
-func act(game: Node,request: Dictionary) -> Dictionary:return Garden.command(game,1,JSON.stringify(request))
+func act(game: Node,request: Dictionary) -> Dictionary:return game.garden_commands.command(1,JSON.stringify(request))
 func plant(game: Node,index: int,species: int=0) -> void:
  game.players[1].pos=game.Stage.PLOTS[index];game.players[1].seed_choice=species;game.seed_reserve(game.players[1]).stock[species]+=1;game.cultivation.plant_seed(1,index)
 func _initialize() -> void:call_deferred("run")

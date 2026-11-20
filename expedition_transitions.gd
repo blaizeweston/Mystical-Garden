@@ -76,14 +76,14 @@ static func admit(game: Node, id: int, p: Dictionary,reserved_override: Array=[]
 				return false
 		reset(game)
 		game.start_encounter()
-	if starting:preload("res://garden_return_service.gd").begin(game)
+	if starting:game.garden_commands.begin_returns()
 	if not game.participation.enter(id): return false
 	var profile_owner: String = game._kill_reward_identity(id, p)
 	if not game.monster_rewards.begin_expedition(profile_owner, game.participation.run_id(), p.character.xp, p.character.monsters):
 		game.SaveBatch.record_serializer_error(ERR_UNAUTHORIZED, game.progress.path)
 		game.action_feedback(effects,id,"Could not establish this expedition's reward boundary. Nothing was consumed.")
 		return false
-	preload("res://garden_return_service.gd").join(game,id,p)
+	game.garden_commands.join_returns(id)
 	p[game.PlayerLifecycle.STATE] = game.PlayerLifecycle.start_life()
 	p.lost_health=0
 	p.grave_charges=0
@@ -268,7 +268,7 @@ static func commit_checkpoint(game: Node, id: int, descend: bool,effects = null)
 			game.InventoryModel.bank_safe(game,player)
 			game.InventoryModel.bank_extra(game,player)
 			banked += player.carried_seeds.size()
-			preload("res://garden_return_service.gd").bank(game,player,player.carried_seeds,"extract")
+			game.garden_commands.credit_return(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),player.carried_seeds,"extract")
 			game.seed_reserve(player).unknown.append_array(player.carried_seeds)
 			for part in range(1, game.Parts.DEFINITIONS.size()):
 				var count: int = player.carried_parts[part]
@@ -284,7 +284,7 @@ static func commit_checkpoint(game: Node, id: int, descend: bool,effects = null)
 	for peer_id in game.players:
 		var player: Dictionary = game.players[peer_id]
 		if Participation.is_wild(player):
-			preload("res://garden_return_service.gd").outcome(game,player,"fallen" if game.PlayerLifecycle.fallen(player) else "extracted")
+			game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"fallen" if game.PlayerLifecycle.fallen(player) else "extracted")
 			return_member(game, player)
 			if peer_id != id:
 				game.action_feedback(effects,peer_id, message)
@@ -355,7 +355,7 @@ static func commit_failed(game: Node, effects = null) -> void:
 		if effects == null: game.recover_pouch(player)
 		else: game._recover_pouch(player)
 		if Participation.is_wild(player):
-			preload("res://garden_return_service.gd").outcome(game,player,"wipe")
+			game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"wipe")
 			return_member(game, player)
 	var milestone: int = game.deepest_milestone
 	var message: String = game.milestone_message("Expedition ended. Only safe-pouch contents are kept.", false)
@@ -398,7 +398,7 @@ static func abandon(game: Node, id: int,player: Dictionary, exit_nonce := "") ->
 		game.run_guarded_action(id, game.Transactions.Scope.PAIR, func(effects):
 			if not forfeit_progress(game,id,player,effects): return false
 			game.settle_expedition_rewards(effects, true)
-			preload("res://garden_return_service.gd").outcome(game,player,"abandoned")
+			game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"abandoned")
 			return_member(game,player)
 			game.checkpoint_ready.erase(id)
 			if not exit_nonce.is_empty(): effects.append(game.network_session.mark_departure_saved.bind(id,game.network_session.binding(id),exit_nonce))
@@ -414,7 +414,7 @@ static func abandon(game: Node, id: int,player: Dictionary, exit_nonce := "") ->
 		return
 	var saved: Variant = game.Transactions.run(game,func():
 		if not forfeit_progress(game,id,player): return false
-		preload("res://garden_return_service.gd").outcome(game,player,"abandoned")
+		game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"abandoned")
 		return_member(game,player)
 		game.checkpoint_ready.erase(id)
 		game.save_action_profile(id,null)
@@ -481,7 +481,7 @@ static func commit_voluntary(game: Node, effects = null) -> bool:
 	var player: Dictionary = game.players.get(game.HOST,{})
 	if Participation.is_wild(player):
 		if not forfeit_progress(game,game.HOST,player,effects): return false
-		preload("res://garden_return_service.gd").outcome(game,player,"abandoned")
+		game.garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),"abandoned")
 		return_member(game,player)
 		game.save_action_profile(game.HOST,effects)
 	commit_failed(game,effects)

@@ -31,14 +31,14 @@ func frame(kind: String, selection: Dictionary={}) -> Dictionary:
 		"crop":return _crop_frame(world,peer,actor)
 		"station":return _station_frame(world,actor,str(selection.get("station","")))
 		"return":return _return_frame(world,peer,actor,str(selection.get("context","")))
-		"conduit":return Conduit.projection(world,peer).duplicate(true)
+		"conduit":return world.garden_commands.conduit_projection(peer).duplicate(true)
 		"ambience":return _ambience_frame(world,peer,actor)
 		"cinematic":return _cinematic_frame(world,peer,actor)
 	return {}
 
 func _interaction_frame(world: Node, peer: int, actor: Dictionary) -> Dictionary:
-	var data:=Interactions.observation_projection(world,peer)
-	data.returns=Returns.projection(world,peer)
+	var data = world.garden_commands.observation_projection(peer)
+	data.returns=world.garden_commands.return_projection(peer)
 	data.cultivation={"spring_water":world.cultivation.water_carried(peer)}
 	var near_stations: Array[String]=[]
 	if not actor.is_empty():
@@ -46,12 +46,12 @@ func _interaction_frame(world: Node, peer: int, actor: Dictionary) -> Dictionary
 			if world.at_garden_station(actor,station):near_stations.append(station)
 	var positions: Dictionary={}
 	for point in Interactions.Catalog.POINTS:
-		positions[point.id]=Interactions.point_position(world,point,actor.get("pos",Vector3.INF)) if point.id!="spring_water" or data.get("available",[]).has(point.id) else point.position
+		positions[point.id]=world.garden_commands.point_position(point,actor.get("pos",Vector3.INF)) if point.id!="spring_water" or data.get("available",[]).has(point.id) else point.position
 	return {"data":data.duplicate(true),"present":not actor.is_empty(),
 		"position":actor.get("pos",Vector3.INF),"wild":Participation.is_wild(actor),
 		"context":str([world.network_session.role(),peer,data.get("epoch","")]),
-		"nearest":Interactions.nearest(world,actor,data),
-		"nearest_station":Interactions.station_near(world,actor) if not actor.is_empty() else "",
+		"nearest":world.garden_commands.nearest(peer,data),
+		"nearest_station":world.garden_commands.station_near(peer) if not actor.is_empty() else "",
 		"near_stations":near_stations,"point_positions":positions,
 		"development":world.stage.experimental_garden!=null,
 		"motion":world.app_settings.values.get("ambient_motion",true)}
@@ -60,7 +60,7 @@ func _crop_frame(world: Node, peer: int, actor: Dictionary) -> Dictionary:
 	var data:Dictionary=world.cultivation.projection(peer)
 	return {"data":data.duplicate(true),"present":not actor.is_empty(),
 		"position":actor.get("pos",Vector3.INF),"wild":Participation.is_wild(actor),
-		"context":str([world.network_session.role(),peer,Interactions.projection_epoch(world,peer)]),
+		"context":str([world.network_session.role(),peer,world.garden_commands.projection_epoch(peer)]),
 		"nearby_plot":world.nearby_plot(actor.get("pos",Vector3.INF)),
 		"development":world.stage.experimental_garden!=null,
 		"motion":world.app_settings.values.get("ambient_motion",true)}
@@ -81,15 +81,15 @@ func _station_frame(world: Node, actor: Dictionary, station: String) -> Dictiona
 	return result
 
 func _return_frame(world: Node, peer: int, actor: Dictionary, parent_context: String) -> Dictionary:
-	return {"data":Returns.projection(world,peer).duplicate(true),
+	return {"data":world.garden_commands.return_projection(peer).duplicate(true),
 		"pending":Growth.projection(world,peer).get("pending",[]).duplicate(true),
 		"context":str([world.network_session.role(),peer,parent_context]),
 		"wild":Participation.is_wild(actor),"motion":world.app_settings.values.get("ambient_motion",true),
 		"diagnostic_source":"host_world" if world.multiplayer.is_server() else "host_snapshot"}
 
 func _ambience_frame(world: Node, peer: int, actor: Dictionary) -> Dictionary:
-	var data:=Interactions.observation_projection(world,peer)
-	data.returns=Returns.projection(world,peer)
+	var data = world.garden_commands.observation_projection(peer)
+	data.returns=world.garden_commands.return_projection(peer)
 	return {"data":data.duplicate(true),
 		"water_position":preload("res://garden_water.gd").anchor(world.stage),"position":actor.get("pos",Vector3.INF),"heart_observer":actor.get("pos",Vector3(10000,0,0)),
 		"wild":Participation.is_wild(actor),"development":world.stage.experimental_garden!=null,

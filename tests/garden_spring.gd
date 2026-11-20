@@ -31,18 +31,18 @@ func run():
 	game.progress.heart.complete(game.progress,"flowering");game.progress.heart.complete(game.progress,"irrigation")
 	game._process(.016)
 	bank=Water.anchor(game.stage);p.pos=bank
-	check(game.cultivation.spring_ready() and Interactions.allowed(game,point),"existing Knowledge prerequisites immediately enable the existing water without construction")
+	check(game.cultivation.spring_ready() and game.garden_commands.allowed(point),"existing Knowledge prerequisites immediately enable the existing water without construction")
 	check(not garden._placement_refusal("spring",0).is_empty() and not garden.place("spring",Vector2.ZERO,0.0),"old basin placement requests cannot resurrect the fixture")
 	var before:Dictionary={"parts":game.progress.parts.duplicate(),"stock":game.progress.stock.duplicate(),"knowledge":game.progress.knowledge,"xp":p.character.xp.duplicate(),"rng":game.rng.state}
 	var count:=cues(game)
-	check(Interactions.nearest(game,p,Interactions.projection(game,1))=="spring_water" and view.context_prompt().contains("Fill watering vessel"),"host prompt selects the actual bank")
+	check(game.garden_commands.nearest(1,game.garden_commands.projection(1))=="spring_water" and view.context_prompt().contains("Fill watering vessel"),"host prompt selects the actual bank")
 	game.act(1,false)
 	check(p.get("spring_water",false) and cues(game)==count+1,"ordinary interact fills once and emits the existing cue")
 	check(game.cultivation.fill_water(1) and cues(game)==count+1,"repeated fill keeps one vessel without duplicate confirmation")
 	check(game.progress.parts==before.parts and game.progress.stock==before.stock and game.progress.knowledge==before.knowledge and p.character.xp==before.xp and game.rng.state==before.rng,"filling costs no parts, Knowledge or XP and consumes no RNG")
 	view._process(0)
 	check(view.points.spring_water.position.distance_to(bank)<.05,"the marker is at the same bank used by authoritative interaction")
-	var observation:=Interactions.command(game,1,JSON.stringify({"point":"spring_water","action":"observe","revision":0,"request":"water-observation"}))
+	var observation = game.garden_commands.command(1,JSON.stringify({"point":"spring_water","action":"observe","revision":0,"request":"water-observation"}))
 	check(observation.get("changed",false) and game.progress.garden_interactions.observations.has("sheltered_water"),"stable historical observation identity remains usable at the new source")
 	p.spring_water=false;p.pos=Vector3.ZERO
 	check(not game.cultivation.fill_water(1) and not p.spring_water,"remote filling is refused")

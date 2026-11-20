@@ -250,7 +250,7 @@ static func remove(game: Node, id: int) -> void:
 		if game.players.has(id) and Session.ready_for(game.players[id]):
 			if not Session.inventory_owner(game.players[id]).is_empty(): game.progress.character_records[Session.inventory_owner(game.players[id])]={"profile":game.players[id].character.duplicate(true),"manifest":game.progress.ContentIDs.manifest()}
 			game.recover_pouch(game.players[id])
-			preload("res://garden_return_service.gd").member_left(game,game.players[id])
+			game.garden_commands.member_left(id)
 		if game.players.has(id): game.players[id].erase(ExpeditionWallet.STATE)
 		game.network_session.release_peer(id)
 		game.participation.detach(id)

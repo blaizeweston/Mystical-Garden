@@ -112,7 +112,7 @@ func owner_details(peer: int, common: Dictionary) -> Dictionary:
 		"run_upgrades":{},"bag":Inventory.snapshot(_world,actor),
 		"ground_items":_world.inventory_floor_snapshot(actor),"secondary":actor.secondary,
 		"prepared_secondary":actor.prepared_secondary,
-		"garden_interactions":preload("res://garden_interaction_service.gd").projection(_world,peer),
+		"garden_interactions":_world.garden_commands.projection(peer),
 		"party_travel":Travel.snapshot(_world,peer),"seed_choice":_world.selected_seed(actor),
 		"graft_choice":0,"cache_claimed":actor.cache_claimed,
 		"graft_improvements":preload("res://expedition_grafts.gd").owner_details(actor,_world.participation.floor())}

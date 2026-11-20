@@ -444,17 +444,17 @@ flowchart LR
 | diagnostics | `diagnostic_journal.gd`, `diagnostic_watch.gd`, `diagnostics_boot.gd`, `playtest_storage.gd`, `diagnostics_panel.gd` | `serializer_integrity`, `guarded_lifecycle`, `guarded_lifecycle_coop`, `diagnostics`, `diagnostics_coop`, `four_players_coop`, `network_movement_coop` |
 | party_ui | `party_hud.gd`, `party_hud.gd.uid` | `world_guidance`, `gameplay_ui`, `four_players_coop`, `loot_revival_coop`, `network_presentation`, `party_hud_gates`, `party_hud_gates_coop`, `player_hud` |
 | gate_access | `gate_interaction.gd`, `gate_interaction.gd.uid` | `checkpoint_extraction`, `crafting_availability_coop`, `four_players_coop`, `gate_crafting_rules`, `gate_garden_services`, `party_hud_gates`, `party_hud_gates_coop`, `party_ready`, `party_ready_coop`, `run_flow`, `shrines_hits` |
-| garden_observations | `garden_interaction_catalog.gd`, `garden_interaction_catalog.gd.uid`, `garden_interaction_state.gd`, `garden_interaction_state.gd.uid`, `garden_interaction_service.gd`, `garden_interaction_service.gd.uid`, `garden_interaction_view.gd`, `garden_interaction_view.gd.uid` | `garden_view_ports_coop`, `garden_view_ports`, `garden_cleanup`, `garden_conduit`, `garden_conduit_coop`, `garden_crop_care`, `garden_crop_care_coop`, `garden_growth`, `garden_growth_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `menu_controls` |
+| garden_observations | `garden_interaction_catalog.gd`, `garden_interaction_catalog.gd.uid`, `garden_interaction_state.gd`, `garden_interaction_state.gd.uid`, `garden_interaction_service.gd`, `garden_interaction_service.gd.uid`, `garden_interaction_view.gd`, `garden_interaction_view.gd.uid`, `garden_commands_world.gd`, `garden_commands_world.gd.uid` | `garden_commands`, `garden_view_ports_coop`, `garden_view_ports`, `garden_cleanup`, `garden_conduit`, `garden_conduit_coop`, `garden_crop_care`, `garden_crop_care_coop`, `garden_growth`, `garden_growth_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `menu_controls` |
 | garden_costs | `garden_inventory_gateway.gd`, `garden_inventory_gateway.gd.uid` | `crafting_availability_coop`, `foundations`, `garden_altar`, `garden_interactions`, `garden_interactions_coop`, `inventory_party` |
 | garden_zones | `garden_layout.gd`, `garden_layout.gd.uid`, `garden_water.gd`, `garden_water.gd.uid` | `garden_conduit`, `garden_conduit_coop`, `garden_growth`, `garden_growth_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `heart_progression`, `menu_controls`, `soundscape` |
-| garden_relationships | `garden_relationships.gd`, `garden_relationships.gd.uid` | `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `heart_progression`, `menu_controls` |
+| garden_relationships | `garden_relationships.gd`, `garden_relationships.gd.uid` | `garden_commands`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `heart_progression`, `menu_controls` |
 | garden_life | `garden_ambience.gd`, `garden_ambience.gd.uid`, `garden_scenery.gd`, `garden_scenery.gd.uid` | `garden_view_ports_coop`, `garden_view_ports`, `garden_growth`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `heart_growth_visual`, `heart_progression`, `menu_controls` |
 | garden_cinematics | `garden_growth_catalog.gd`, `garden_growth_catalog.gd.uid`, `garden_growth_state.gd`, `garden_growth_state.gd.uid`, `garden_growth_service.gd`, `garden_growth_service.gd.uid`, `garden_growth_view.gd`, `garden_growth_view.gd.uid` | `garden_view_ports_coop`, `garden_view_ports`, `garden_cinematic_view`, `guarded_lifecycle`, `guarded_lifecycle_coop`, `guarded_gameplay_transactions`, `delete_saves`, `garden_growth`, `garden_growth_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `gate_garden_services`, `heart_growth_visual`, `heart_progression`, `menu_controls`, `menu_coop`, `network_research_coop`, `party_ready`, `party_ready_coop`, `run_flow`, `start_menu`, `timed_research`, `developer_garden`, `event_audio` |
-| garden_care | `garden_crop_catalog.gd`, `garden_crop_catalog.gd.uid`, `garden_crop_state.gd`, `garden_crop_state.gd.uid`, `garden_cultivation.gd`, `garden_cultivation.gd.uid`, `garden_cultivation_world.gd`, `garden_cultivation_world.gd.uid`, `garden_crop_view.gd`, `garden_crop_view.gd.uid` | `garden_cultivation`, `garden_view_ports_coop`, `garden_view_ports`, `experimental_terrain`, `guarded_garden_actions`, `guarded_garden_actions_coop`, `guarded_gameplay_transactions`, `cultivation_growth`, `foundations`, `garden_conduit`, `garden_conduit_coop`, `garden_crop_care`, `garden_crop_care_coop`, `garden_growth`, `garden_growth_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_spring`, `garden_spring_coop`, `gardening`, `network_research_coop`, `seed_inventory`, `seed_progression`, `species_depth` |
+| garden_care | `garden_crop_catalog.gd`, `garden_crop_catalog.gd.uid`, `garden_crop_state.gd`, `garden_crop_state.gd.uid`, `garden_cultivation.gd`, `garden_cultivation.gd.uid`, `garden_cultivation_world.gd`, `garden_cultivation_world.gd.uid`, `garden_crop_view.gd`, `garden_crop_view.gd.uid`, `garden_commands_world.gd`, `garden_commands_world.gd.uid` | `garden_cultivation`, `garden_view_ports_coop`, `garden_view_ports`, `experimental_terrain`, `guarded_garden_actions`, `guarded_garden_actions_coop`, `guarded_gameplay_transactions`, `cultivation_growth`, `foundations`, `garden_conduit`, `garden_conduit_coop`, `garden_crop_care`, `garden_crop_care_coop`, `garden_growth`, `garden_growth_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_spring`, `garden_spring_coop`, `gardening`, `network_research_coop`, `seed_inventory`, `seed_progression`, `species_depth` |
 | cultivation_growth | `cultivation_growth.gd`, `cultivation_growth.gd.uid` | `garden_cultivation`, `checkpoint_extraction`, `cultivation_growth`, `direct_ip_coop`, `foundations`, `garden_conduit`, `garden_conduit_coop`, `garden_crop_care`, `garden_crop_care_coop`, `garden_growth`, `garden_growth_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_spring`, `garden_spring_coop`, `gardening`, `network_research_coop`, `network_settings`, `network_warden_coop`, `run_flow`, `seed_inventory`, `seed_progression`, `seed_template`, `species_depth`, `supplied_network_smoke` |
 | avatar_motion_view | `avatar_motion_view.gd`, `avatar_motion_view.gd.uid`, `field_traveller.gd`, `field_traveller.gd.uid`, `plant_polearms.gd`, `plant_polearms.gd.uid`, `traveller_locomotion.gd`, `traveller_locomotion.gd.uid`, `plant_weapon_models.gd`, `plant_weapon_models.gd.uid` | `actor_presentation`, `character_locomotion`, `character_overhaul`, `character_rig`, `combat_animation`, `combat_readability`, `combat_readability_coop`, `four_players_coop`, `garden_presentation`, `network_movement_coop`, `network_presentation`, `network_research_coop`, `supplied_network_smoke`, `weapon_actions`, `weapon_actions_coop` |
-| garden_returns | `garden_return_catalog.gd`, `garden_return_catalog.gd.uid`, `garden_return_state.gd`, `garden_return_state.gd.uid`, `garden_return_service.gd`, `garden_return_service.gd.uid`, `garden_return_view.gd`, `garden_return_view.gd.uid`, `garden_story_panel.gd`, `garden_story_panel.gd.uid` | `garden_view_ports_coop`, `garden_view_ports`, `progression_ui`, `expedition_forfeiture`, `expedition_forfeiture_coop`, `guarded_expedition`, `guarded_expedition_coop`, `guarded_garden_actions`, `guarded_garden_actions_coop`, `checkpoint_extraction`, `direct_ip_coop`, `garden_altar`, `garden_cleanup`, `garden_cleanup_coop`, `garden_growth`, `garden_growth_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `heart_growth_visual`, `inventory_grid`, `inventory_party`, `loot_revival`, `network_warden_coop`, `party_ready`, `party_ready_coop`, `run_flow` |
-| garden_conduit | `garden_conduit.gd`, `garden_conduit.gd.uid`, `garden_terrace_view.gd`, `garden_terrace_view.gd.uid` | `garden_view_ports_coop`, `garden_view_ports`, `garden_conduit`, `garden_conduit_coop`, `garden_crop_care`, `garden_crop_care_coop`, `garden_growth`, `garden_growth_coop`, `garden_presentation`, `garden_spring`, `heart_progression`, `timed_research` |
+| garden_returns | `garden_return_catalog.gd`, `garden_return_catalog.gd.uid`, `garden_return_state.gd`, `garden_return_state.gd.uid`, `garden_return_service.gd`, `garden_return_service.gd.uid`, `garden_return_view.gd`, `garden_return_view.gd.uid`, `garden_story_panel.gd`, `garden_story_panel.gd.uid`, `garden_commands_world.gd`, `garden_commands_world.gd.uid` | `garden_view_ports_coop`, `garden_view_ports`, `progression_ui`, `expedition_forfeiture`, `expedition_forfeiture_coop`, `guarded_expedition`, `guarded_expedition_coop`, `guarded_garden_actions`, `guarded_garden_actions_coop`, `checkpoint_extraction`, `direct_ip_coop`, `garden_altar`, `garden_cleanup`, `garden_cleanup_coop`, `garden_growth`, `garden_growth_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `heart_growth_visual`, `inventory_grid`, `inventory_party`, `loot_revival`, `network_warden_coop`, `party_ready`, `party_ready_coop`, `run_flow` |
+| garden_conduit | `garden_conduit.gd`, `garden_conduit.gd.uid`, `garden_terrace_view.gd`, `garden_terrace_view.gd.uid`, `garden_commands_world.gd`, `garden_commands_world.gd.uid` | `garden_commands`, `garden_view_ports_coop`, `garden_view_ports`, `garden_conduit`, `garden_conduit_coop`, `garden_crop_care`, `garden_crop_care_coop`, `garden_growth`, `garden_growth_coop`, `garden_presentation`, `garden_spring`, `heart_progression`, `timed_research` |
 | expedition_pressure | `expedition_pressure.gd`, `expedition_pressure.gd.uid` | `expedition_pressure`, `expedition_pressure_coop`, `enemy_balance_preview` |
 | expedition_ui | `expedition_track.gd`, `expedition_track.gd.uid` | `expedition_track`, `expedition_track_coop` |
 | heart_growth_visual | `heart_growth_visuals.gd`, `heart_growth_visuals.gd.uid`, `assets/shaders/heart_foliage.gdshader`, `assets/shaders/heart_foliage.gdshader.uid` | `garden_cinematic_view`, `garden_cleanup`, `garden_cleanup_coop`, `garden_growth`, `garden_growth_coop`, `garden_presentation`, `garden_returns`, `garden_returns_coop`, `heart_growth_visual`, `heart_progression` |
@@ -767,7 +767,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::move_player` | cr04c_spirit_1 | spirit_affinity, combat_affinity_contracts, world_snapshot |
 | `game.gd::collect_drop` | experimental_seed_rewards_1 | hex_terrain, loot, terrain |
 | `game.gd::_garden_action` | ar08_lifecycle_1 | player_lifecycle |
-| `game.gd::_garden_action` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
 | `game.gd::_garden_action` | experimental_terrain_3 | hex_terrain, terrain, garden, persistence_operations |
 | `game.gd::_garden_action` | experimental_terrain_5 | hex_terrain, terrain, garden, persistence_operations |
 | `game.gd::_garden_action` | experimental_terrain_7 | hex_terrain, terrain, garden, persistence_operations |
@@ -778,13 +777,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_act` | experimental_seed_rewards_1 | hex_terrain, loot, terrain |
 | `game.gd::_act` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
 | `game.gd::_act` | experimental_terrain_3 | hex_terrain, terrain, garden, persistence_operations |
-| `game.gd::_act` | guarded_expedition | persistence_operations, foundation, gate_access, ui_copy, garden_care, garden_observations |
-| `game.gd::_act` | guarded_gameplay_writer | persistence_operations |
 | `game.gd::_act` | prefer_nearest_gate | gate_access |
-| `game.gd::_act` | ui_copy | ui_copy |
-| `game.gd::_act` | crop_care_adapter | garden_care |
 | `game.gd::_act` | gate_range | gate_access |
-| `game.gd::_act` | garden_inspect | garden_observations |
 | `game.gd::_process` | ar08_lifecycle_3 | player_lifecycle |
 | `game.gd::_process` | ar07_vitals_1 | player_vitals |
 | `game.gd::_process` | ar07_vitals_3 | player_vitals |
@@ -816,7 +810,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::run_guarded_action` | ar04_departure_result | departure_settlement |
 | `game.gd::settle_expedition_rewards` | ar05_reward_lifecycle | loot |
 | `game.gd::settle_expedition_rewards` | ar04_departure_staging | departure_settlement |
-| `game.gd::settle_expedition_rewards` | ar04_departure_finalization | departure_settlement |
 | `game.gd::prepare_guarded_exit` | ar05_reward_lifecycle | loot |
 | `game.gd::prepare_guarded_exit` | ar04_departure_exit | departure_settlement |
 | `game.gd::add_player` | ar03_wallet_initialization | expedition_wallet |
@@ -1127,9 +1120,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `altar_service.gd` | guarded_gameplay_writer_1 | persistence_operations |
 | `altar_service.gd` | ui_copy_1 | ui_copy |
 | `altar_service.gd` | ui_copy_0 | ui_copy |
-| `altar_service.gd` | identify_all_returns | garden_returns |
-| `altar_service.gd` | identify_returns | garden_returns |
-| `altar_service.gd` | identify_ancient_returns | garden_returns |
 | `altar_service.gd` | restore_returns | garden_returns |
 | `altar_service.gd` | capture_returns | garden_returns |
 | `altar_service.gd` | garden_offering_plan | garden_costs |
@@ -1224,13 +1214,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `settings_panel.gd` | garden_motion_save | garden_life |
 | `settings_panel.gd` | garden_motion_refresh | garden_life |
 | `settings_panel.gd` | garden_motion_create | garden_life |
-| `garden_interaction_service.gd` | ar08_lifecycle_1 | player_lifecycle |
-| `garden_interaction_service.gd` | ar08_lifecycle_2 | player_lifecycle |
-| `garden_interaction_service.gd` | experimental_terrain_3 | hex_terrain, terrain, garden, persistence_operations |
-| `garden_interaction_service.gd` | cleanup_feedback_1 | persistence_operations |
-| `garden_interaction_service.gd` | cleanup_feedback_2 | persistence_operations |
-| `garden_interaction_service.gd` | guarded_gameplay_writer_1 | persistence_operations |
-| `garden_interaction_service.gd` | guarded_gameplay_writer_2 | persistence_operations |
 | `seed_catalog.gd` | ui_copy_0 | ui_copy |
 | `seed_catalog.gd` | tier_growth_values | cultivation_growth |
 | `network_compatibility.gd` | cr02_begin_check | combat_affinity_contracts |
@@ -1249,8 +1232,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `network_compatibility.gd` | cultivation_auth_in | cultivation_growth |
 | `network_compatibility.gd` | cultivation_auth_out | cultivation_growth |
 | `inventory_model.gd` | guarded_gameplay_writer_1 | persistence_operations |
-| `inventory_model.gd` | bank_extra_returns | garden_returns |
-| `inventory_model.gd` | bank_safe_returns | garden_returns |
 | `garden_growth_state.gd` | prepare_returns | garden_returns |
 | `garden_layout.gd` | reserved_g07 | garden_zones, garden_conduit |
 | `garden_growth_catalog.gd` | heart_counts | heart_growth_visual |

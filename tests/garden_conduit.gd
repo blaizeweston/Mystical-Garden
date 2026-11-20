@@ -1,14 +1,13 @@
 extends SceneTree
 const Conduit=preload("res://garden_conduit.gd")
-const Service=preload("res://garden_interaction_service.gd")
 const Care=preload("res://garden_crop_state.gd")
 var failed:=false
 func check(ok: bool,message: String) -> void:
  if not ok:failed=true;printerr("FAIL Garden conduit: ",message)
 func choose(game: Node,mode: String,revision: int=0,id: int=1) -> Dictionary:
- return Service.command(game,id,JSON.stringify({"point":Conduit.POINT,"action":"configure_conduit","request":"test","revision":revision,"mode":mode}))
+ return game.garden_commands.command(id,JSON.stringify({"point":Conduit.POINT,"action":"configure_conduit","request":"test","revision":revision,"mode":mode}))
 func plant(game: Node,species: int,slot: int) -> void:
- var p: Dictionary=game.players[1];p.pos=game.Stage.PLOTS[slot];p.seed_choice=species;game.seed_reserve(p).stock[species]+=1;game.cultivation.plant_seed(1,slot)
+ var p: Dictionary=game.players[1];p.pos=game.stage.bed_position(slot);p.seed_choice=species;game.seed_reserve(p).stock[species]+=1;game.cultivation.plant_seed(1,slot)
 func _initialize() -> void:call_deferred("run")
 func run() -> void:
  var game=load("res://world.tscn").instantiate();var base: String="res://.godot/conduit-"+Crypto.new().generate_random_bytes(8).hex_encode()
@@ -16,14 +15,16 @@ func run() -> void:
  game.get_node("GardenInteractions/GrowthScenes").set_process(false)
  var g=game.progress;var p: Dictionary=game.players[1];var point: Dictionary=Conduit.Layout.Catalog.point(Conduit.POINT);p.pos=point.position
  check(Conduit.errors().is_empty() and Conduit.Layout.Catalog.errors().is_empty() and Care.Catalog.errors().is_empty(),"all content and refinement references validate")
- check(not Service.projection(game,1).available.has(point.id) and choose(game,"deep").has("error"),"locked terrace/tool rejects commands")
+ check(not game.garden_commands.projection(1).available.has(point.id) and choose(game,"deep").has("error"),"locked terrace/tool rejects commands")
  g.knowledge=300;p.pos=game.Stage.HEART
  for tech in ["clearing_1","clearing_2","flowering","irrigation","plot_4"]:
   if tech=="plot_4":check(not g.heart.requirements(g,"living_conduit").is_empty(),"tool requires its usable bed as well as clearing and irrigation")
   game.garden_action(1,"heart_confirm:"+JSON.stringify({"id":tech,"plan":{}}));g.advance_research(10000)
   check(g.heart.has(tech),"normal research completes "+tech)
+ # Supply an already-owned fourth bed; physical purchasing is covered by experimental_terrain.
+ g.plots.append(g.empty_plot());game.stage.experimental_garden.adopt_recorded_beds();game._process(.016)
  var plots: Array=g.plots.duplicate(true);var parts: Array=g.parts.duplicate();var stock: Array=g.stock.duplicate();game._process(.016)
- check(Service.projection(game,1).available.has(point.id) and g.plots==plots and g.parts==parts and g.stock==stock,"later clearing reveals terrace without crop relocation or rewards")
+ check(game.garden_commands.projection(1).available.has(point.id) and g.plots==plots and g.parts==parts and g.stock==stock,"later clearing reveals terrace without crop relocation or rewards")
  check(Conduit.Layout.zone_beds(Conduit.ZONE,g.plots.size())==[3],"terrace registers existing universal bed four")
  var terrace_events: Array=g.garden_interactions.growth.events.filter(func(e):return e.get("kind","")=="zone" and e.get("zone","")==Conduit.ZONE)
  check(terrace_events.size()==1,"real clearing research queues one terrace reveal")
@@ -39,8 +40,8 @@ func run() -> void:
  check(Conduit.Layout.reserved(game.stage,point.position,20,.5),"terrace reserves scenery clearance")
  p.pos=point.position
  var rng_before: int=game.rng.state;var knowledge: int=g.knowledge
- check(Service.command(game,1,JSON.stringify({"point":point.id,"action":"observe","request":"terrace","revision":0})).get("changed",false),"existing observation handler records terrace")
- check(Service.projection(game,1).clues.get(point.observation,"").contains("Altar") and g.knowledge==knowledge and game.rng.state==rng_before,"existing refinement clue grants no reward or RNG draw")
+ check(game.garden_commands.command(1,JSON.stringify({"point":point.id,"action":"observe","request":"terrace","revision":0})).get("changed",false),"existing observation handler records terrace")
+ check(game.garden_commands.projection(1).clues.get(point.observation,"").contains("Altar") and g.knowledge==knowledge and game.rng.state==rng_before,"existing refinement clue grants no reward or RNG draw")
  var species: int=game.Seeds.index_of("whispervine");plant(game,species,3);var original: Dictionary=g.plots[3].care.duplicate(true)
  p.pos=game.Stage.HEART;game.garden_action(1,"heart_confirm:"+JSON.stringify({"id":"living_conduit","plan":{}}));check(g.heart.active=="living_conduit","new node uses existing focused research queue")
  g.advance_research(10000);check(g.heart.has("living_conduit"),"research unlocks the usable tool")

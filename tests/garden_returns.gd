@@ -33,7 +33,7 @@ func run() -> void:
  var view=game.get_node("GardenInteractions/ReturnLife");view.set_process(false);var scene=game.get_node("GardenInteractions/GrowthScenes");scene.set_process(false);var ambience=game.get_node("GardenInteractions/Ambience");ambience.set_process(false)
  g.heart.unlock_direct("clearing_1");g.heart.sync_legacy(g)
  g.discoveries[moss]=true;p.pos=game.stage.altar_position();reserve.unknown.append(moss);game.Altar.identify(game,p)
- check(Service.projection(game,1).entries.is_empty(),"an old or crafted/unverified stash seed does not invent a returned discovery")
+ check(game.garden_commands.return_projection(1).entries.is_empty(),"an old or crafted/unverified stash seed does not invent a returned discovery")
  if not start(game):quit(1);return
  var abandoned_run: String=p.garden_run_id;p.carried_seeds=[moss];ExpeditionCase.Transitions.abandon(game, 1,p)
  check(not ExpeditionCase.is_wild(p) and g.garden_interactions.returns.history.size()==1 and not g.garden_interactions.returns.credits.has("lantern_moss"),"abandonment records one outcome and credits no lost seed")
@@ -44,12 +44,12 @@ func run() -> void:
  check(ExpeditionCase.is_wild(p) and p.carried_seeds==[moss] and g.garden_interactions.returns.history.size()==history and not g.garden_interactions.returns.credits.has("lantern_moss"),"failed extraction rolls loot and outcome provenance back together")
  game.local_character.path=profile_path;game.battlefield.configure(game.participation.route(),game.participation.depth(),game.participation.seed());extraction(game)
  check(not ExpeditionCase.is_wild(p) and reserve.unknown.has(moss) and g.garden_interactions.returns.history.size()==history+1 and g.garden_interactions.returns.credits.has("lantern_moss"),"real extraction banks the seed and seals one run summary")
- check(Service.projection(game,1).entries.is_empty() and not JSON.stringify(Service.projection(game,1)).contains("credits"),"banking an unidentified seed publishes neither its identity nor a story")
+ check(game.garden_commands.return_projection(1).entries.is_empty() and not JSON.stringify(game.garden_commands.return_projection(1)).contains("credits"),"banking an unidentified seed publishes neither its identity nor a story")
  p.pos=game.stage.altar_position();var path: String=g.path;g.path=base+"-missing/identify"
  check(game.Altar.identify_all(game,p).contains("Could not save") and reserve.unknown.has(moss) and g.garden_interactions.returns.discoveries.is_empty(),"failed identify-all restores seed and discovery atomically")
  g.path=path;var knowledge: int=g.knowledge;var xp: Array=p.character.xp.duplicate();var stock: int=reserve.stock[moss];var rng_state: int=game.rng.state
  game.Altar.identify_all(game,p)
- check(Service.known(Service.projection(game,1),"lantern_homecoming") and reserve.stock[moss]==stock+1 and g.knowledge==knowledge and p.character.xp==xp and game.rng.state==rng_state,"identification unlocks the shared trace without extra items, XP, Knowledge or RNG")
+ check(Service.known(game.garden_commands.return_projection(1),"lantern_homecoming") and reserve.stock[moss]==stock+1 and g.knowledge==knowledge and p.character.xp==xp and game.rng.state==rng_state,"identification unlocks the shared trace without extra items, XP, Knowledge or RNG")
  var events: Array=g.garden_interactions.growth.events.filter(func(e):return e.get("discovery","")=="lantern_homecoming")
  check(events.size()==1,"discovery uses one event in the existing saved scene queue")
  reserve.unknown.append(moss);game.Altar.identify_all(game,p)
@@ -70,10 +70,10 @@ func run() -> void:
    if model is MeshInstance3D and model.get_meta("garden_pond",false) and float(model.material_override.get_shader_parameter("resonance"))>.5:responding=true
  check(responding and reserve.stock==before_stock and game.rng.state==rng_state,"spring response, camera and fauna are cosmetic only")
  game.app_settings.values.ambient_motion=false;ambience._process(.2);check(not ambience.colonies.return_moths.visible,"motion preference suppresses moving fauna")
- var story=UIFixture.control(game,"progression_view").care;story.present(Service.projection(game,1));check(story.stories.text.contains("Lantern Moss") and story.stories.text.contains("root scar"),"bounded recap survives skipped scenes")
+ var story=UIFixture.control(game,"progression_view").care;story.present(game.garden_commands.return_projection(1));check(story.stories.text.contains("Lantern Moss") and story.stories.text.contains("root scar"),"bounded recap survives skipped scenes")
  g.save_garden()
  game.add_player(9090);SessionCase.set_ready(game, game.players[9090], true);SessionCase.set_identity(game, game.players[9090], "return-late-viewer");Scenes.register(game,9090)
- check(Scenes.projection(game,9090).pending.is_empty() and Service.known(Service.projection(game,9090),"lantern_homecoming"),"late join sees the changed Garden without replaying an old award/scene")
+ check(Scenes.projection(game,9090).pending.is_empty() and Service.known(game.garden_commands.return_projection(9090),"lantern_homecoming"),"late join sees the changed Garden without replaying an old award/scene")
  ExpeditionCase.remove_actor(game, 9090)
  if not start(game):quit(1);return
  p.carried_seeds=[moss];p.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[ghost]}];var unknown_before: int=reserve.unknown.size();ExpeditionCase.Transitions.finish_failed(game)
@@ -94,7 +94,7 @@ func run() -> void:
  for index in 40:State.begin(pure);State.join(pure,"actor");State.outcome(pure,"actor",pure.active.id,"abandoned");State.outcome(pure,"actor",pure.active.id,"abandoned")
  check(pure.history.size()==32 and pure.sequence==40,"run history is bounded and repeated closure cannot duplicate summaries")
  var future: Dictionary={"version":9,"future":{"keep":true}};g.garden_interactions.returns=future.duplicate(true);g.save_garden();loaded.load_garden()
- check(loaded.garden_interactions.returns==future and Service.projection(game,1).is_empty(),"future return schemas are retained without execution")
+ check(loaded.garden_interactions.returns==future and game.garden_commands.return_projection(1).is_empty(),"future return schemas are retained without execution")
  game.app_settings.values.ambient_motion=true;ambience._process(.2)
  check(not ambience.colonies.return_moths.visible,"changing to a world without this discovery clears old fauna")
  game.queue_free();await process_frame

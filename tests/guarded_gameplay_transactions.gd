@@ -336,7 +336,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
     for tech in ["clearing_1","clearing_2","irrigation","plot_4","living_conduit"]:
      world.progress.heart.complete(world.progress,tech)
     host.pos = Conduit.Layout.Catalog.point(Conduit.POINT).position
-    var result := Conduit.command(world,world.HOST,{"point":Conduit.POINT,"revision":0,"mode":"deep"})
+    var result = world.garden_commands.configure_conduit(world.HOST,{"point":Conduit.POINT,"revision":0,"mode":"deep"})
     ordinary = "Deep pulse will shape newly planted terrace crops. Existing crops keep their care choice."
     check(Conduit.state(world.progress).mode == "deep" and result.changed and result.revision == 1,
      "conduit retains the committed business result")

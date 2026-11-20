@@ -288,16 +288,7 @@
     },
     "garden_observations": {
       "label": "Garden location hierarchy, observation commands, receipts and presentation",
-      "files": [
-        "garden_interaction_catalog.gd",
-        "garden_interaction_catalog.gd.uid",
-        "garden_interaction_state.gd",
-        "garden_interaction_state.gd.uid",
-        "garden_interaction_service.gd",
-        "garden_interaction_service.gd.uid",
-        "garden_interaction_view.gd",
-        "garden_interaction_view.gd.uid"
-      ]
+      "files": ["garden_interaction_catalog.gd", "garden_interaction_catalog.gd.uid", "garden_interaction_state.gd", "garden_interaction_state.gd.uid", "garden_interaction_service.gd", "garden_interaction_service.gd.uid", "garden_interaction_view.gd", "garden_interaction_view.gd.uid", "garden_commands_world.gd", "garden_commands_world.gd.uid"]
     },
     "garden_costs": {
       "label": "Garden offering previews and existing party material claims",
@@ -341,7 +332,7 @@
     },
     "garden_care": {
       "label": "Crop-cycle identity, optional care, delayed rare harvest and flowering exclusion",
-      "files": ["garden_crop_catalog.gd", "garden_crop_catalog.gd.uid", "garden_crop_state.gd", "garden_crop_state.gd.uid", "garden_cultivation.gd", "garden_cultivation.gd.uid", "garden_cultivation_world.gd", "garden_cultivation_world.gd.uid", "garden_crop_view.gd", "garden_crop_view.gd.uid"]
+      "files": ["garden_crop_catalog.gd", "garden_crop_catalog.gd.uid", "garden_crop_state.gd", "garden_crop_state.gd.uid", "garden_cultivation.gd", "garden_cultivation.gd.uid", "garden_cultivation_world.gd", "garden_cultivation_world.gd.uid", "garden_crop_view.gd", "garden_crop_view.gd.uid", "garden_commands_world.gd", "garden_commands_world.gd.uid"]
     },
     "cultivation_growth": {
       "label": "Tier growth times, Wilds/Knowledge rates, spring watering and seed harvest choice",
@@ -367,26 +358,10 @@
     },
     "garden_returns": {
       "label": "Committed expedition banking/identification, homecoming discovery and reactive life",
-      "files": [
-        "garden_return_catalog.gd",
-        "garden_return_catalog.gd.uid",
-        "garden_return_state.gd",
-        "garden_return_state.gd.uid",
-        "garden_return_service.gd",
-        "garden_return_service.gd.uid",
-        "garden_return_view.gd",
-        "garden_return_view.gd.uid",
-        "garden_story_panel.gd",
-        "garden_story_panel.gd.uid"
-      ]
+      "files": ["garden_return_catalog.gd", "garden_return_catalog.gd.uid", "garden_return_state.gd", "garden_return_state.gd.uid", "garden_return_service.gd", "garden_return_service.gd.uid", "garden_return_view.gd", "garden_return_view.gd.uid", "garden_story_panel.gd", "garden_story_panel.gd.uid", "garden_commands_world.gd", "garden_commands_world.gd.uid"]
     },
     "garden_conduit": {
-      "files": [
-        "garden_conduit.gd",
-        "garden_conduit.gd.uid",
-        "garden_terrace_view.gd",
-        "garden_terrace_view.gd.uid"
-      ],
+      "files": ["garden_conduit.gd", "garden_conduit.gd.uid", "garden_terrace_view.gd", "garden_terrace_view.gd.uid", "garden_commands_world.gd", "garden_commands_world.gd.uid"],
       "label": "Researched next-cycle Garden conditions and terrace presentation"
     },
     "expedition_pressure": {
@@ -1553,6 +1528,7 @@
     ]
   },
   "suites": {
+    "garden_commands": {"kind":"unit", "systems":["garden_observations","garden_conduit","garden_relationships"], "profile":"terrain", "package":false},
     "garden_cultivation": {"kind":"unit", "systems":["garden_care","cultivation_growth","seeds","items"], "profile":"terrain", "package":false},
     "actor_presentation": {"kind":"unit", "systems":["actor_presentation","presentation","avatar_motion_view","player_weapon_actions","player_lifecycle","player_vitals","expedition_participation","life","items"], "profile":"terrain", "package":false},
     "garden_view_ports_coop": {"kind":"pair", "systems":["garden_view_ports","garden_observations","garden_care","garden_stations","garden_cinematics","garden_returns","garden_life","garden_conduit","connection_flow","world_snapshot","garden","items","characters","seeds","knowledge","gameplay_ui"], "profile":"terrain", "package":true},
@@ -5037,15 +5013,7 @@
       }
     },
     "_garden_action": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"], "additive": true},
-      "experimental_terrain_1": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "garden",
-          "persistence_operations"
-        ],
-        "additive": true
-      },
+
       "experimental_terrain_3": {
         "systems": [
           "hex_terrain",
@@ -5126,51 +5094,20 @@
         ],
         "additive": true
       },
-      "guarded_expedition": {
-        "systems": [
-          "persistence_operations",
-          "foundation",
-          "gate_access",
-          "ui_copy",
-          "garden_care",
-          "garden_observations"
-        ],
-        "additive": true
-      },
-      "guarded_gameplay_writer": {
-        "systems": [
-          "persistence_operations"
-        ],
-        "additive": true
-      },
+
+
       "prefer_nearest_gate": {
         "systems": [
           "gate_access"
         ],
         "additive": true
       },
-      "ui_copy": {
-        "systems": [
-          "ui_copy"
-        ],
-        "additive": true
-      },
-      "crop_care_adapter": {
-        "systems": [
-          "garden_care"
-        ],
-        "additive": true
-      },
+
+
       "gate_range": {
         "systems": [
           "gate_access"
         ]
-      },
-      "garden_inspect": {
-        "systems": [
-          "garden_observations"
-        ],
-        "additive": true
       }
     },
     "_process": {  "ar08_lifecycle_3": {"systems": ["player_lifecycle"], "additive": true}, "ar07_vitals_1": {"systems": ["player_vitals"], "additive": true},  "ar07_vitals_3": {"systems": ["player_vitals"], "additive": true}, "ar06_cooldown_1": {"systems": ["player_cooldowns"], "additive": true},  "ar06_cooldown_3": {"systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_4": {"systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_5": {"systems": ["player_cooldowns"], "additive": true},     "ct01_1": {
@@ -5278,7 +5215,7 @@
 
     "_affinity_checkpoint_command": {"ar07_vitals_1": {"systems": ["player_vitals"], "additive": true}, "ar03_wallet_reroll_debit": {"systems": ["expedition_wallet", "affinity_cards"], "additive": true}},
     "run_guarded_action": {"ar04_departure_result": {"systems": ["departure_settlement"], "additive": true}},
-    "settle_expedition_rewards": {"ar05_reward_lifecycle": {"systems": ["loot"], "additive": true}, "ar04_departure_staging": {"systems": ["departure_settlement"], "additive": true}, "ar04_departure_finalization": {"systems": ["departure_settlement"], "additive": true}},
+    "settle_expedition_rewards": {"ar05_reward_lifecycle": {"systems": ["loot"], "additive": true}, "ar04_departure_staging": {"systems": ["departure_settlement"], "additive": true}},
     "prepare_guarded_exit": {"ar05_reward_lifecycle": {"systems": ["loot"], "additive": true}, "ar04_departure_exit": {"systems": ["departure_settlement"], "additive": true}},
     "add_player": {    "ar03_wallet_initialization": {"systems": ["expedition_wallet"], "additive": true},   "preview_starting_capacity": {
         "systems": [
@@ -6356,21 +6293,9 @@
             "ui_copy"
           ]
         },
-        "identify_all_returns": {
-          "systems": [
-            "garden_returns"
-          ]
-        },
-        "identify_returns": {
-          "systems": [
-            "garden_returns"
-          ]
-        },
-        "identify_ancient_returns": {
-          "systems": [
-            "garden_returns"
-          ]
-        },
+
+
+
         "restore_returns": {
           "systems": [
             "garden_returns"
@@ -6856,34 +6781,7 @@
         }
       }
     },
-    "garden_interaction_service.gd": {
-      "newline": "lf",
-      "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]},    "experimental_terrain_3": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        },    "cleanup_feedback_1": {
-          "systems": [
-            "persistence_operations"
-          ]
-        }, "cleanup_feedback_2": {
-          "systems": [
-            "persistence_operations"
-          ]
-        }, "guarded_gameplay_writer_1": {
-          "systems": [
-            "persistence_operations"
-          ]
-        }, "guarded_gameplay_writer_2": {
-          "systems": [
-            "persistence_operations"
-          ]
-        }
-      }
-    },
+
 
 
     "seed_catalog.gd": {
@@ -6989,16 +6887,6 @@
         "guarded_gameplay_writer_1": {
           "systems": [
             "persistence_operations"
-          ]
-        },
-        "bank_extra_returns": {
-          "systems": [
-            "garden_returns"
-          ]
-        },
-        "bank_safe_returns": {
-          "systems": [
-            "garden_returns"
           ]
         }
       }

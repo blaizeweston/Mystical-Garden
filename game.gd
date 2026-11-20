@@ -175,6 +175,7 @@ var enemy_traits: Dictionary={}
 var trait_events: Array=[]
 const Life=preload("res://expedition_life.gd")
 var cultivation := preload("res://garden_cultivation_world.gd").new(self)
+var garden_commands := preload("res://garden_commands_world.gd").new(self)
 var garden_presentation := preload("res://garden_presentation_world.gd").new(self)
 var world_view: WorldPresentation
 var spectator_view: Node
@@ -564,7 +565,7 @@ func _garden_action(id: int, action: String) -> void:
 	if action.begins_with("growth_ack:"):
 		preload("res://garden_growth_service.gd").acknowledge(self,id,action.trim_prefix("growth_ack:"));return
 	if action.begins_with("garden:"):
-		preload("res://garden_interaction_service.gd").command(self,id,action.trim_prefix("garden:"));return
+		garden_commands.command(id,action.trim_prefix("garden:"));return
 	if PlayerLifecycle.fallen(player) and Participation.is_wild(player) and action!="abandon_run" and not action.begins_with("abandon_run:"): return
 	if not Session.ready_for(player):
 		return
@@ -590,32 +591,7 @@ func _garden_action(id: int, action: String) -> void:
 	if action=="abandon_run" or action.begins_with("abandon_run:"):
 		load("res://expedition_transitions.gd").abandon(self,id,player,action.trim_prefix("abandon_run:") if action.begins_with("abandon_run:") else "")
 		return
-	if action.begins_with("care_"):
-		var pieces:=action.split("_")
-		if pieces.size()!=3 or not pieces[2].is_valid_int(): return
-		var value:=int(pieces[2])
-		if pieces[1]=="reclaim" and value>=0 and value<Seeds.NAMES.size() and progress.discoveries[value] and at_garden_station(player,"seed_archive"):
-			reclaim_seed(id,player,value)
-		elif pieces[1]=="offer" and Parts.is_monster(value) and at_garden_station(player,"monster_studies"):
-			if stored_counts(player)[value]<=0:
-				tell(id,"That trophy is no longer available.")
-				return
-			offer_monster(id,player,value)
-		else:
-			tell(id,"Move to the appropriate Garden station with an available ingredient.")
-		return
-	if action.begins_with("plant_at_"):
-		var fields:=action.split("_")
-		if fields.size()!=4 or not fields[2].is_valid_int() or not fields[3].is_valid_int(): return
-		var slot:=int(fields[2]);var species:=int(fields[3])
-		if Participation.is_wild(player) or slot<0 or slot>=progress.plots.size() or species<0 or species>=Seeds.NAMES.size() or player.pos.distance_to(stage.bed_position(slot))>1.65: return
-		if progress.plots[slot].species>=0 or progress.offshoot_in_bed(slot)>=0 or seed_reserve(player).stock[species]<=0:
-			tell(id,"That bed or seed is no longer available.");show_planting_picker(id,slot);return
-		player.seed_choice=species
-		if cultivation.plant_seed(id,slot):
-			if id==HOST: ui.close_panels()
-			else: close_planting_picker.rpc_id(id)
-		return
+	if garden_commands.handle(id,action):return
 	if action.begins_with("travel_ready:") or action.begins_with("travel_unready:"):
 		var token:=action.get_slice(":",1)
 		if not token.is_valid_int() or int(token)!=participation.travel_epoch() or participation.travel_kind().is_empty(): return
@@ -629,35 +605,6 @@ func _garden_action(id: int, action: String) -> void:
 		return
 	if action.begins_with(AffinityCards.COMMAND):
 		_affinity_checkpoint_command(id, player, action)
-		return
-	if action.begins_with("heart_material_"):
-		if at_heart(player) and not Participation.is_wild(player):
-			var choice:=action.trim_prefix("heart_material_")
-			if choice=="auto" or Seeds.index_of(choice)>=0: progress.heart.material_choice="" if choice=="auto" else choice
-		return
-	if action.begins_with("heart_confirm:"):
-		if id!=HOST or not at_heart(player) or participation.active(): return
-		var request=JSON.parse_string(action.trim_prefix("heart_confirm:"))
-		if not request is Dictionary or not request.get("id") is String or not request.get("plan") is Dictionary: return
-		var node:=HeartCatalog.get_node(request.id)
-		if node.is_empty(): return
-		var expected: Dictionary={}
-		if not progress.heart.matches_plan(request.plan,expected): tell(id,"Available ingredients changed. Review the updated material preview and confirm again.");return
-		tell(id,run_heart_save(progress.heart.start.bind(progress,request.id)));return
-	if action.begins_with("heart_start_"):
-		if id==HOST and at_heart(player) and not participation.active():
-			tell(id,run_heart_save(progress.heart.start.bind(progress,action.trim_prefix("heart_start_"))))
-		else: tell(id,"The host restores Garden technologies at the Heart between expeditions.")
-		return
-	if action.begins_with("heart_infusion:"):
-		if not at_heart(player) or Participation.is_wild(player): return
-		var offer=JSON.parse_string(action.trim_prefix("heart_infusion:"))
-		if not offer is Dictionary: return
-		if offer.get("project","")!=progress.heart.active or not progress.heart.matches_plan(offer.get("plan",{}),progress.heart.material_plan(progress,progress.heart.OFFER_PARTS).parts):
-			tell(id,"Research or offering materials changed. Review the updated preview and try again.");return
-		tell(id,run_heart_save(progress.heart.infuse.bind(progress)));return
-	if action=="heart_infuse":
-		if at_heart(player) and not Participation.is_wild(player): tell(id,run_heart_save(progress.heart.infuse.bind(progress)))
 		return
 	if action.begins_with("bank_"):
 		bank_checkpoint_item(id,player,action)
@@ -1095,7 +1042,7 @@ func settle_expedition_rewards(effects: Array[Callable], bank_kills := false) ->
 			record_character(entry.peer_id, leaving)
 		_recover_pouch(leaving)
 		if Participation.is_wild(leaving):
-			preload("res://garden_return_service.gd").outcome(self, leaving, "disconnected")
+			garden_commands.return_outcome(preload("res://garden_return_service.gd").Member.new(str(leaving.get("garden_run_actor","")),str(leaving.get("garden_run_id","")),bool(leaving.get("wild",false))),"disconnected")
 		monster_rewards.finish_expedition(entry.identity, participation.run_id())
 
 func close_flow_for(id: int) -> void:
@@ -1746,7 +1693,7 @@ func _act(id: int, strike: bool) -> void:
 			load("res://expedition_transitions.gd").checkpoint(self,id, true)
 		else:
 			tell(id, "Move closer to the seed or a checkpoint.")
-	elif not Participation.is_wild(p) and preload("res://garden_interaction_service.gd").interact(self,id):
+	elif not Participation.is_wild(p) and garden_commands.interact(id):
 		pass
 	elif at_heart(p):
 		show_heart_tree(id)
@@ -2703,7 +2650,7 @@ func _bank_checkpoint_item(id: int,player: Dictionary,fields: PackedStringArray,
 		if index<0 or index>=player.carried_seeds.size(): return
 		seed=int(player.carried_seeds[index])
 		player.carried_seeds.remove_at(index)
-		preload("res://garden_return_service.gd").bank(self,player,[seed],"checkpoint:"+str(participation.floor()))
+		garden_commands.credit_return(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),[seed],"checkpoint:"+str(participation.floor()))
 		reserve.unknown.append(seed)
 		if index==0 and player.get("safe_items",[]).is_empty(): player.pouch=false
 	elif fields[1]=="part":
@@ -2948,7 +2895,7 @@ func progression_ui_data(selection: Dictionary) -> Dictionary:
 		"may_learn":preload("res://class_tree_access.gd").can_learn_here(self,player),"may_respec":at_home and between_runs,
 		"is_host":host,"may_start_research":may_start,"may_offer":at_home and not Participation.is_wild(player),
 		"research_refusal":refusal,"offering":preload("res://heart_progress.gd").plan_materials(garden[5],str(heart.get("material_choice","")),int(heart.get("offering_cost",preload("res://heart_progress.gd").OFFER_PARTS))),
-		"stories":preload("res://garden_return_service.gd").projection(self,id) if int(selection.get("tab",0))==3 else {},
+		"stories":garden_commands.return_projection(id) if int(selection.get("tab",0))==3 else {},
 		"notice":status}.duplicate(true)
 
 func loadout_ui_data() -> Dictionary:

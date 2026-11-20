@@ -77,7 +77,7 @@ func run() -> void:
 	var scar := GardenInteractions.Catalog.point("heart_root_scar")
 	var spring := GardenInteractions.Catalog.point("spring_water")
 	view._process(0.0)
-	check(not view.points[scar.id].visible and not GardenInteractions.allowed(game, scar),
+	check(not view.points[scar.id].visible and not game.garden_commands.allowed(scar),
 		"the experimental Root Scar is hidden and unavailable before Reaching Roots")
 	check(not view.points[spring.id].visible and not garden.structure_nodes.has("spring")
 		and not garden.state.landmarks.has("spring") and not game.stage.station_position("spring").is_finite(),
@@ -185,7 +185,7 @@ func run() -> void:
 		return game.progress.heart.add_work(game.progress, 60.0))
 	check(game.progress.heart.has("clearing_1") and garden.state.reclaimed_cells == 0, "research grants permission without paid reclamation")
 	view._process(0.0)
-	check(view.points[scar.id].visible and GardenInteractions.allowed(game, scar),
+	check(view.points[scar.id].visible and game.garden_commands.allowed(scar),
 		"Reaching Roots reveals the original journal observation")
 	var place := Vector2(2.34, -4.58)
 	for cancel_with_mouse: bool in [false, true]:
@@ -527,7 +527,7 @@ func run() -> void:
 	var bank:=preload("res://garden_water.gd").anchor(game.stage)
 	player.pos=bank;view._process(0.0)
 	check(game.progress.heart.has("irrigation") and bank.is_finite() and garden.barrier.walkable(garden.planar(bank))
-		and GardenInteractions.allowed(game,spring) and game.cultivation.spring_ready()
+		and game.garden_commands.allowed(spring) and game.cultivation.spring_ready()
 		and game.cultivation.fill_water(game.HOST) and player.get("spring_water",false),
 		"Root Irrigation unlocks a dry bank of existing Garden water without basin construction")
 	check(not garden.Build.CATALOG.has("spring") and not garden._placement_refusal("spring",0).is_empty()

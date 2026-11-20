@@ -312,10 +312,10 @@ func _kind_index(label: String) -> int:
 func _prepare_player(peer: int) -> void:
 	var player: Dictionary = players[peer]
 	if not participation.contains(peer):
-		GardenReturn.begin(self)
+		garden_commands.begin_returns()
 		if not participation.enter(peer):
 			return
-		GardenReturn.join(self, peer, player)
+		garden_commands.join_returns(peer)
 	restore_class_loadout(player)
 	player[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
 	player[ExpeditionWallet.STATE] = ExpeditionWallet.Wallet.new()

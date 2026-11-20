@@ -1,132 +1,50 @@
 extends RefCounted
-
-const Session = preload("res://network_session.gd")
-
-const Participation = preload("res://expedition_participation.gd")
-
-const PlayerLifecycle = preload("res://player_lifecycle.gd")
-const Tx=preload("res://game_transaction.gd")
+## Observation decisions over detached Garden facts. No world or actor access.
 const Catalog=preload("res://garden_interaction_catalog.gd")
 const State=preload("res://garden_interaction_state.gd")
-const Water=preload("res://garden_water.gd")
-static func allowed(game: Node,definition: Dictionary) -> bool:
- for tech in Catalog.requirements(definition):
-  if not game.progress.heart.has(str(tech)):return false
- if (game.stage.experimental_garden != null):
-  if definition.id=="heart_root_scar" and not game.progress.heart.has("clearing_1"):return false
-  if definition.parent=="sheltered_spring" and not Water.available(game.stage):return false
- if State.observed(game.progress.garden_interactions,str(definition.observation)):return true
- return preload("res://garden_relationships.gd").matches(game,definition)
-static func eligible(game: Node,id: int) -> bool:
- return game.multiplayer.is_server() and game.players.has(id) and Session.ready_for(game.players[id],false) and not Participation.is_wild(game.players[id]) and not PlayerLifecycle.fallen(game.players[id])
-static func nearest(game: Node,player: Dictionary,projection: Dictionary) -> String:
- if Participation.is_wild(player) or projection.get("version",0)!=State.VERSION:return ""
- var pos: Vector3=player.get("pos",Vector3.INF);var best:=INF;var found: String=""
- for point in Catalog.POINTS:
-  if not projection.get("available",[]).has(point.id):continue
-  var at: Vector3
-  if point.id=="spring_water":
-   var source:=Water.nearby(game.stage,pos)
-   if source.is_empty():continue
-   at=source.position
-  else:at=point_position(game,point)
-  var distance:=pos.distance_to(at)
-  if distance<=float(point.range) and distance<best:found=point.id;best=distance
- if found.is_empty():return ""
- # Existing stations/beds win when they are closer; no interaction is stolen.
- for at in [game.Stage.HEART,game.stage.altar_position(),game.stage.gate_position()] + game.stage.bed_positions():
-  if pos.distance_to(at)<best:return ""
- return found
-static func point_position(game: Node,point: Dictionary,viewer: Vector3=Vector3.INF) -> Vector3:
- if point.id=="spring_water":
-  if viewer.is_finite():
-   var source:=Water.nearby(game.stage,viewer)
-   if not source.is_empty():return source.position
-  return Water.anchor(game.stage)
- return point.position
-static func projection(game: Node,id: int) -> Dictionary:
- if not game.multiplayer.is_server():
-  var received: Dictionary=game.players.get(id,{}).get("garden_interactions",{})
-  return received if compatible_projection(received) else {}
- var result:=_observation_data(game)
- result.merge({"conduit":preload("res://garden_conduit.gd").projection(game,id),"returns":preload("res://garden_return_service.gd").projection(game,id),"cultivation":game.cultivation.projection(id),"growth":preload("res://garden_growth_service.gd").projection(game,id),"focus":game.players.get(id,{}).get("garden_focus",{}).duplicate(true)})
- return result
-## One observation selector serves networking and the lightweight local view.
-## The latter never needs to construct every crop, growth scene and conduit.
-static func _observation_data(game: Node) -> Dictionary:
- var state:=State.normalize(game.progress.garden_interactions);var available: Array=[];var observations: Array=[];var clues: Dictionary={}
- for point in Catalog.POINTS:
-  if allowed(game,point):available.append(point.id)
-  if State.observed(state,point.observation):
-   observations.append(point.observation)
-   var clue:=preload("res://garden_relationships.gd").clue(game,point)
-   if not clue.is_empty():clues[point.observation]=clue
- return {"version":state.version,"catalog":Catalog.signature,"epoch":str(game.get_instance_id()),"revision":state.revision,"available":available,"observations":observations,"clues":clues,"latest":state.latest.duplicate(true)}
-static func observation_projection(game: Node,id: int) -> Dictionary:
- if not game.multiplayer.is_server():
-  var received:=projection(game,id);var result: Dictionary={}
-  for key in ["version","catalog","epoch","revision","available","observations","clues","latest","focus"]:
-   if received.has(key):result[key]=received[key]
-  return result.duplicate(true)
- var result:=_observation_data(game)
- result.focus=game.players.get(id,{}).get("garden_focus",{}).duplicate(true)
- return result
-static func projection_epoch(game: Node,id: int) -> String:
- return str(game.get_instance_id()) if game.multiplayer.is_server() else str(projection(game,id).get("epoch",""))
+const Relationships=preload("res://garden_relationships.gd")
+
 static func compatible_projection(data: Dictionary) -> bool:
  return data.get("version",0)==State.VERSION and data.get("catalog","")==Catalog.signature
-static func focus(game: Node,id: int,point_id: String) -> void:
- var previous: Dictionary=game.players[id].get("garden_focus",{})
- game.players[id].garden_focus={"point":point_id,"serial":int(previous.get("serial",0))+1}
-static func station_near(game: Node,player: Dictionary) -> String:
- var found: String="";var best:=INF
- for id in game.Stage.HEART_STATIONS:
-  if not game.at_garden_station(player,id):continue
-  var distance: float=player.pos.distance_to(game.stage.station_position(id))
-  if distance<best:found=id;best=distance
- return found
-static func interact(game: Node,id: int) -> bool:
- if not eligible(game,id):return false
- var point_id:=station_near(game,game.players[id])
- if point_id.is_empty():point_id=nearest(game,game.players[id],projection(game,id))
- if point_id.is_empty():return false
- if point_id=="spring_water" and not game.players[id].get("spring_water",false):
-  return game.cultivation.fill_water(id)
- focus(game,id,point_id);return true
-static func reject(game: Node,id: int,reason: String) -> Dictionary:
- game.tell(id,reason)
- preload("res://diagnostic_journal.gd").event("garden","interaction_rejected",{"actor":id,"reason":reason})
- return {"changed":false,"error":reason}
-static func command(game: Node,id: int,payload: String) -> Dictionary:
- if not eligible(game,id):return {"changed":false,"error":"Garden interaction unavailable."}
- var request=JSON.parse_string(payload) if payload.length()<=400 else null
- if not request is Dictionary:return reject(game,id,"Invalid Garden request.")
+
+static func parse(payload: String) -> Dictionary:
+ var json:=JSON.new()
+ if payload.length()>400 or json.parse(payload)!=OK:return {"error":"Invalid Garden request."}
+ var request=json.data
+ if not request is Dictionary:return {"error":"Invalid Garden request."}
  for field in ["point","action","request"]:
-  if not request.get(field) is String or request[field].is_empty() or request[field].length()>64:return reject(game,id,"Invalid Garden request.")
- if not request.get("revision") is float and not request.get("revision") is int:return reject(game,id,"Invalid Garden revision.")
- if float(request.revision)!=int(request.revision):return reject(game,id,"Invalid Garden revision.")
- if request.action=="configure_conduit":return preload("res://garden_conduit.gd").command(game,id,request)
- if request.point.begins_with("bed_"):return game.cultivation.command(id,request)
- var definition:=Catalog.point(request.point)
- if definition.is_empty() or request.action not in ["inspect","observe"]:return reject(game,id,"Unknown Garden interaction.")
- var player: Dictionary=game.players[id]
- if not allowed(game,definition):return reject(game,id,"This Garden detail has changed. Inspect its surroundings again.")
- if (definition.id=="spring_water" and Water.nearby(game.stage,player.pos).is_empty()) or player.pos.distance_to(point_position(game,definition,player.pos))>float(definition.range):return reject(game,id,"Move closer to this Garden detail.")
- var state:=State.normalize(game.progress.garden_interactions)
- if state.version!=State.VERSION:return reject(game,id,"This Garden interaction save needs a newer game version.")
- var identity: String=game.local_character.identity if id==game.HOST else str(Session.inventory_owner(player))
+  if not request.get(field) is String or request[field].is_empty() or request[field].length()>64:return {"error":"Invalid Garden request."}
+ if not request.get("revision") is float and not request.get("revision") is int:return {"error":"Invalid Garden revision."}
+ if float(request.revision)!=int(request.revision):return {"error":"Invalid Garden revision."}
+ return {"request":request}
+
+static func allowed(definition: Dictionary, unlocked: Array, observations: Dictionary, beds: Array, developed: bool, water_available: bool) -> bool:
+ for tech in Catalog.requirements(definition):
+  if not unlocked.has(str(tech)):return false
+ if developed:
+  if definition.id=="heart_root_scar" and not unlocked.has("clearing_1"):return false
+  if definition.parent=="sheltered_spring" and not water_available:return false
+ if State.observed(observations,str(definition.observation)):return true
+ return Relationships.matches(beds,definition)
+
+static func observation(request: Dictionary, definition: Dictionary, state: Dictionary, identity: String, available: bool, in_reach: bool) -> Dictionary:
+ if definition.is_empty() or request.action not in ["inspect","observe"]:return {"error":"Unknown Garden interaction."}
+ if not available:return {"error":"This Garden detail has changed. Inspect its surroundings again."}
+ if not in_reach:return {"error":"Move closer to this Garden detail."}
+ if state.version!=State.VERSION:return {"error":"This Garden interaction save needs a newer game version."}
  var key: String=identity+":"+request.request
  if request.action=="observe" and (State.observed(state,definition.observation) or not State.receipt(state,key).is_empty()):
-  game.tell(id,"This observation is already recorded in the Garden.");return {"changed":false,"revision":state.revision}
- if int(request.revision)!=int(state.revision):return reject(game,id,"The Garden changed. Inspect it again before recording.")
- if request.action=="inspect":focus(game,id,definition.id);return {"changed":false,"revision":state.revision}
- var result=Tx.run_gameplay(game,Tx.Scope.PAIR,func():return State.record(game.progress.garden_interactions,definition,key))
- if not result.completed or not result.value is Dictionary:
-  var notice:=Tx.feedback(result,"Could not save this observation. Please retry.")
-  if game.persistence_session.is_guarded():game.tell(id,notice)
-  return {"changed":false,"error":notice}
- var saved: Dictionary=result.value
- if saved.get("changed",false):
-  game.tell(id,"Garden observation recorded: "+definition.name)
-  preload("res://diagnostic_journal.gd").event("garden","observation_recorded",{"actor":id,"point_id":definition.id,"observation_id":definition.observation,"revision":saved.revision})
- return saved
+  return {"operation":"unchanged","revision":state.revision,"message":"This observation is already recorded in the Garden."}
+ if int(request.revision)!=int(state.revision):return {"error":"The Garden changed. Inspect it again before recording."}
+ return {"operation":"focus" if request.action=="inspect" else "record","revision":state.revision,"key":key}
+
+static func nearest(position: Vector3, available: Array, positions: Dictionary, occupied: Array) -> String:
+ var best:=INF;var found: String=""
+ for point in Catalog.POINTS:
+  if not available.has(point.id) or not positions.has(point.id):continue
+  var distance:=position.distance_to(positions[point.id])
+  if distance<=float(point.range) and distance<best:found=point.id;best=distance
+ if found.is_empty():return ""
+ for at: Vector3 in occupied:
+  if position.distance_to(at)<best:return ""
+ return found

@@ -40,7 +40,7 @@ func host_run() -> void:
  var request:=View.request(bed(),"preserve_bud");var before: Array=g.parts.duplicate();var cycle: String=bed().cycle
  mark("ready")
  if not await until(func():return marked("submitted")):check(false,"guest submits competing care");return
- Garden.command(game,1,JSON.stringify(request))
+ game.garden_commands.command(1,JSON.stringify(request))
  if not await until(func():return g.plots[0].care.choice in ["preserve","leave"]):check(false,"one choice commits");return
  check(g.plots[0].care.revision==request.revision+1 and g.parts==before and game.players[1].character.plants[0]==0 and game.players[id].character.plants[0]==0,"race selects once without items or familiarity")
  mark("chosen")
@@ -49,7 +49,7 @@ func host_run() -> void:
  g.advance_growth(300);g.save_garden();var rare: int=game.Parts.rare_part(0);var rare_before: int=g.part_count(rare)
  request=View.request(bed(),"harvest_crop");mark("mature")
  if not await until(func():return marked("harvest_submitted")):check(false,"guest submits harvest");return
- Garden.command(game,1,JSON.stringify(request))
+ game.garden_commands.command(1,JSON.stringify(request))
  if not await until(func():return g.plots[0].species<0):check(false,"one harvest commits");return
  check(g.parts[0]==int(before[0])+1 and g.part_count(rare)<=rare_before+1 and game.players[1].character.plants[0]+game.players[id].character.plants[0]==1,"simultaneous harvest pays one common part, at most one rare part and one personal familiarity reward")
  game.seed_reserve(game.players[1]).stock[0]+=1;game.cultivation.plant_seed(1,0);g.save_garden();check(g.plots[0].care.cycle!=cycle,"replant is a different cycle")
@@ -68,7 +68,7 @@ func host_run() -> void:
  var seed_total: int=game.seed_reserve(game.players[1]).stock[0]+game.seed_reserve(game.players[id]).stock[0]
  var common_before: int=g.parts[0];rare_before=g.part_count(rare);request=View.request(bed(),"flower_crop");mark("seed_ready")
  if not await until(func():return marked("seed_sent")):check(false,"guest chooses seed harvest");return
- Garden.command(game,1,JSON.stringify(request))
+ game.garden_commands.command(1,JSON.stringify(request))
  if not await until(func():return g.plots[0].species<0):check(false,"seed harvest commits");return
  check(game.seed_reserve(game.players[1]).stock[0]+game.seed_reserve(game.players[id]).stock[0]==seed_total+2 and g.parts[0]==common_before and g.part_count(rare)==rare_before,"competing seed choices pay only two personal seeds and no parts")
  mark("done");await create_timer(.3).timeout

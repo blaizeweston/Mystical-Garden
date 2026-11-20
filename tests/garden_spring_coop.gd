@@ -3,7 +3,6 @@ extends SceneTree
 const SessionCase = preload("res://tests/support/session_case.gd")
 const Catalog=preload("res://garden_interaction_catalog.gd")
 const Layout=preload("res://garden_layout.gd")
-const Service=preload("res://garden_interaction_service.gd")
 var game: Node
 var role: String
 var base: String
@@ -62,7 +61,7 @@ func host_run() -> void:
  mark("done");await create_timer(.3).timeout
 func guest_run() -> void:
  check(SessionCase.World.join(game)==OK,"guest joins")
- if not await until(func():return marked("ready") and game.network_session.role()=="Guest" and game.stage.heart_unlocked.has("irrigation") and Service.projection(game,game.local_player_id()).get("available",[]).has("spring_weave")):check(false,"host projection reveals relationship");return
+ if not await until(func():return marked("ready") and game.network_session.role()=="Guest" and game.stage.heart_unlocked.has("irrigation") and game.garden_commands.projection(game.local_player_id()).get("available",[]).has("spring_weave")):check(false,"host projection reveals relationship");return
  check(not game.progress.heart.has("irrigation") and game.stage.heart_unlocked.has("irrigation"),"guest uses host capabilities rather than a local Garden")
  check(Layout.ponds(game.stage,game.stage.garden_extent).size()==2,"guest has the same revealed water layout")
  check(not game.stage.garden_edge.has_node("ShelteredSpring") and not game.stage.garden_edge.has_node("DormantSpringSite") and preload("res://garden_water.gd").anchor(game.stage).is_finite(),"host research enables the same fixture-free Garden water for guests")
@@ -71,18 +70,18 @@ func guest_run() -> void:
  game.send_garden_action(payload("stale"))
  if not await until(func():return game.status.contains("changed")):check(false,"host rejects the invalidated crop condition");return
  mark("stale_rejected")
- if not await until(func():return marked("restored") and Service.projection(game,game.local_player_id()).get("available",[]).has("spring_weave")):check(false,"new mature arrangement arrives");return
+ if not await until(func():return marked("restored") and game.garden_commands.projection(game.local_player_id()).get("available",[]).has("spring_weave")):check(false,"new mature arrangement arrives");return
  game.send_action(false)
  var view=game.get_node("GardenInteractions")
  if not await until(func():return view.panel.visible):check(false,"relationship inspection opens");return
  game.send_garden_action(payload("guest-race"));mark("submitted")
- if not await until(func():return Service.projection(game,game.local_player_id()).get("revision",0)==1 and marked("committed")):check(false,"recorded clue arrives");return
- var data:=Service.projection(game,game.local_player_id())
+ if not await until(func():return game.garden_commands.projection(game.local_player_id()).get("revision",0)==1 and marked("committed")):check(false,"recorded clue arrives");return
+ var data = game.garden_commands.projection(game.local_player_id())
  check(data.clues.get("moss_whisper_resonance","").contains("Altar") and data.available.has("spring_weave"),"recorded clue remains readable after a required plant is harvested")
  mark("first_verified")
  if not await until(func():return marked("rejoin")):check(false,"host allows rejoin");return
  SessionCase.World.leave(game,"Spring rejoin fixture");game.ui.close_panels();check(SessionCase.World.join(game)==OK,"guest reconnects")
- if not await until(func():return game.network_session.role()=="Guest" and Service.projection(game,game.local_player_id()).get("revision",0)==1):check(false,"shared journal returns");return
+ if not await until(func():return game.network_session.role()=="Guest" and game.garden_commands.projection(game.local_player_id()).get("revision",0)==1):check(false,"shared journal returns");return
  await process_frame
- check(view.cue_until==0 and not view.panel.visible and Service.projection(game,game.local_player_id()).clues.has("moss_whisper_resonance"),"late join restores context without reward/animation replay")
+ check(view.cue_until==0 and not view.panel.visible and game.garden_commands.projection(game.local_player_id()).clues.has("moss_whisper_resonance"),"late join restores context without reward/animation replay")
  mark("late_verified");check(await until(func():return marked("done")),"host completes")

@@ -13,7 +13,7 @@ func shown(game: Node) -> Dictionary:
  for bed in game.cultivation.projection(1).beds:
   if bed.slot==0:return bed
  return {}
-func act(game: Node,action: String) -> Dictionary:return Garden.command(game,1,JSON.stringify(View.request(shown(game),action)))
+func act(game: Node,action: String) -> Dictionary:return game.garden_commands.command(1,JSON.stringify(View.request(shown(game),action)))
 func plant(game: Node,species: int=0) -> void:
  var p: Dictionary=game.players[1];p.pos=game.Stage.PLOTS[0];p.seed_choice=species;game.seed_reserve(p).stock[species]+=1;game.cultivation.plant_seed(1,0)
 func _initialize() -> void:call_deferred("run")
@@ -30,7 +30,7 @@ func run() -> void:
  check(is_equal_approx(bed.age-work,2.0),"the live host tick selects the Wilds rate")
  work=bed.age;g.apply_milestone(6);check(bed.age==work,"milestones no longer add a second growth payout")
  var request:=View.request(shown(game),"water_crop")
- check(Garden.command(game,1,JSON.stringify(request)).has("error") and not Growth.watered(bed),"watering requires the actual spring")
+ check(game.garden_commands.command(1,JSON.stringify(request)).has("error") and not Growth.watered(bed),"watering requires the actual spring")
  for tech in ["clearing_1","irrigation"]:g.heart.unlock_direct(tech)
  check(Growth.spring_ready(g) and is_equal_approx(Growth.rate(g,bed),1.2),"spring requirements and Knowledge rate share existing research")
  check(act(game,"water_crop").has("error"),"unlocked spring still requires a trip to collect water")
@@ -65,7 +65,7 @@ func run() -> void:
  check(Growth.watered(bed) and bed.age==before_age and not p.spring_water,"watering commits a rate, not free instant progress")
  game.ui.set_prompt(crop_view.context_prompt())
  check(not crop_view.quick_water.visible,"the button disappears after watering")
- check(not Garden.command(game,1,JSON.stringify(request)).changed and is_equal_approx(Growth.rate(g,bed),1.5),"co-op retries cannot stack watering")
+ check(not game.garden_commands.command(1,JSON.stringify(request)).changed and is_equal_approx(Growth.rate(g,bed),1.5),"co-op retries cannot stack watering")
  check(game.combat_events.filter(func(e):return e.kind=="audio" and e.shape=="crop_watered").size()==1,"watering plays once after the crop is saved")
  g.heart.unlock_direct("nursery")
  check(is_equal_approx(Growth.rate(g,bed,true),3.5),"Wilds, best Knowledge and watering multiply to one capped 3.5x rate")

@@ -41,8 +41,7 @@ func focus(id: int,slot: int) -> bool:
 func fill_water(id: int) -> bool:
 	var world:=_current_world()
 	if world==null:return false
-	var garden=load("res://garden_interaction_service.gd")
-	if not garden.eligible(world,id):return false
+	if not world.garden_commands.eligible(id):return false
 	var player: Dictionary=world.players[id]
 	var source:=Water.nearby(world.stage,player.pos)
 	if not world.participation.travel_kind().is_empty() or not spring_ready() or source.is_empty():

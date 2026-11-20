@@ -13,7 +13,7 @@ var failed:=false
 func check(ok: bool,message: String) -> void:
  if not ok:failed=true;printerr("FAIL Garden interactions: ",message)
 func request(game: Node,revision: int,key: String="test",point: String="heart_root_scar",action: String="observe") -> Dictionary:
- return Service.command(game,1,JSON.stringify({"point":point,"action":action,"revision":revision,"request":key}))
+ return game.garden_commands.command(1,JSON.stringify({"point":point,"action":action,"revision":revision,"request":key}))
 func _initialize() -> void:call_deferred("run")
 func run() -> void:
  check(Catalog.errors().is_empty(),"catalog has stable IDs, supported handlers and valid parents")
@@ -33,12 +33,13 @@ func run() -> void:
  game.progress.path=base+".cfg";game.local_character.path=base+".character";game.guest_character.path=base+".guest"
  root.add_child(game);game.set_process(false);game.set_physics_process(false)
  var g=game.progress;var p: Dictionary=game.players[1];var view=game.get_node("GardenInteractions");view.set_process(false)
+ g.heart.complete(g,"clearing_1");game.app_settings.values.garden_cinematics=false
  var point: Dictionary=Catalog.point("heart_root_scar");p.pos=point.position
  var stock: Array=g.stock.duplicate();var parts: Array=g.parts.duplicate();var knowledge: int=g.knowledge;var xp: Array=p.character.xp.duplicate()
- check(Service.nearest(game,p,Service.projection(game,1))==point.id,"point is reachable without taking an existing station interaction")
+ check(game.garden_commands.nearest(1,game.garden_commands.projection(1))==point.id,"point is reachable without taking an existing station interaction")
  for at in [game.Stage.HEART,game.stage.altar_position(),game.stage.gate_position()]+game.Stage.PLOTS:
   p.pos=at
-  check(Service.nearest(game,p,Service.projection(game,1)).is_empty(),"canonical station/bed wins at its own anchor")
+  check(game.garden_commands.nearest(1,game.garden_commands.projection(1)).is_empty(),"canonical station/bed wins at its own anchor")
  p.pos=point.position
  game._process(.016)
  check(UIFixture.control(game,"guide").text.contains("Inspect") and UIFixture.control(game,"prompt_panel").visible,"the actual on-screen prompt includes the observation action")
@@ -71,9 +72,10 @@ func run() -> void:
  check(restored.load_garden()==OK and restored.garden_interactions.revision==0 and restored.garden_interactions.observations.is_empty() and restored.garden_interactions.growth.events.is_empty(),"old saves receive additive defaults without replaying old growth")
  g.garden_interactions.observations.future_observation=true;g.garden_interactions.future_field={"keep":9};g.save_garden();restored.path=path;restored.load_garden()
  check(restored.garden_interactions.observations.future_observation and restored.garden_interactions.future_field.keep==9,"unknown save IDs and fields survive disk roundtrip")
- var late=load("res://garden_interaction_view.gd").new();late.configure(game.stage,game.ui);game.garden_presentation.bind(late);game.add_child(late);late.set_process(false);late._process(0)
+ var late_ui=load("res://ui/gameplay/gameplay_ui.tscn").instantiate();game.add_child(late_ui)
+ var late=load("res://garden_interaction_view.gd").new();late.configure(game.stage,late_ui);game.garden_presentation.bind(late);game.add_child(late);late.set_process(false);late._process(0)
  check(late.cue_until==0,"late-join projection restores state without replaying a historical cue")
- late.queue_free()
+ late.queue_free();late_ui.queue_free()
  var actor: Dictionary=game.seed_reserve(p);actor.parts[1]=1;g.parts[0]=1
  game.add_player(4242);var other: Dictionary=game.players[4242];SessionCase.set_identity(game, other, "observation-fixture-other");SessionCase.set_ready(game, other, true);other.prepared=1;other.loadout_reserving=true
  game.seed_reserve(other).parts[1]=0;p.prepared=1;p.loadout_reserving=true;p.pos=game.stage.altar_position()

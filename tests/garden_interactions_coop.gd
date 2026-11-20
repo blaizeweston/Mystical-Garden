@@ -1,7 +1,6 @@
 extends SceneTree
 
 const SessionCase = preload("res://tests/support/session_case.gd")
-const Service=preload("res://garden_interaction_service.gd")
 const State=preload("res://garden_interaction_state.gd")
 const Catalog=preload("res://garden_interaction_catalog.gd")
 var game: Node
@@ -33,6 +32,7 @@ func host_run() -> void:
  check(SessionCase.World.host(game)==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"admission");return
  var guest_id: int=game.players.keys().filter(func(id):return id!=1)[0];var guest: Dictionary=game.players[guest_id]
+ game.progress.heart.complete(game.progress,"clearing_1")
  var point: Dictionary=Catalog.point("heart_root_scar")
  guest.pos=point.position;game.players[1].pos=point.position
  game.act(guest_id,false)
@@ -61,10 +61,18 @@ func guest_run() -> void:
  var view=game.get_node("GardenInteractions")
  if not await until(func():return view.panel.visible):check(false,"remote E opens inspect view");return
  var before: Dictionary=game.inventory_ui_data().duplicate(true)
+ before.erase("notice") # Feedback is presentation, not an inventory reward.
  game.send_garden_action(payload(0,"guest-race"));mark("submitted")
- if not await until(func():return Service.projection(game,game.local_player_id()).get("revision",0)==1):check(false,"shared observation arrives");return
- check(Service.projection(game,game.local_player_id()).observations.has("old_root_scar"),"guest receives durable shared observation")
- check(game.inventory_ui_data()==before,"no discovery reward changes private inventory")
+ if not await until(func():return game.garden_commands.projection(game.local_player_id()).get("revision",0)==1):check(false,"shared observation arrives");return
+ check(game.garden_commands.projection(game.local_player_id()).observations.has("old_root_scar"),"guest receives durable shared observation")
+ var after: Dictionary=game.inventory_ui_data()
+ after.erase("notice")
+ if after!=before:
+  var differences: Dictionary={}
+  for field in after:
+   if after[field]!=before.get(field):differences[field]={"before":before.get(field),"after":after[field]}
+  print("CASE_GARDEN_INVENTORY_DIFF ",JSON.stringify(differences))
+ check(after==before,"no discovery reward changes private inventory")
  mark("first_verified")
  if not await until(func():return marked("out_of_range") and game.players[game.local_player_id()].pos.distance_to(game.stage.gate_position())<.2):check(false,"range setup arrives");return
  game.send_garden_action(payload(99,"forged-revision"))
@@ -73,7 +81,7 @@ func guest_run() -> void:
  if not await until(func():return marked("rejoin")):check(false,"rejoin allowed");return
  SessionCase.World.leave(game,"Observation rejoin fixture");game.ui.close_panels()
  check(SessionCase.World.join(game)==OK,"guest reconnects")
- if not await until(func():return game.network_session.role()=="Guest" and Service.projection(game,game.local_player_id()).get("revision",0)==1):check(false,"late-join state arrives");return
+ if not await until(func():return game.network_session.role()=="Guest" and game.garden_commands.projection(game.local_player_id()).get("revision",0)==1):check(false,"late-join state arrives");return
  await process_frame
  check(view.cue_until==0 and not view.panel.visible,"late join restores knowledge without replaying cue or opening old inspection")
  mark("late_verified");check(await until(func():return marked("done")),"host completes")
