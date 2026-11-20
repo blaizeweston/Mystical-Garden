@@ -61,6 +61,12 @@ func _initialize() -> void:
 	check(roster.token(0) > replay_identity and roster.apply_damage(0, 5, first) == 0,
 		"floor travel and rollback never recycle a consumed identity")
 
+	var leader_identity := roster.spawn_identity(-1)
+	var leader_hp := roster.hp(-1)
+	roster.register_leader_tactics(spawn_plan(roster,99))
+	check(roster.spawn_identity(-1)==leader_identity and roster.hp(-1)==leader_hp,
+		"late role-body attachment preserves the same leader identity and health")
+
 	if not failed:
 		print("PASS: encounter roster membership, detached projections, damage, death, stale token, clearance and rollback")
 	quit(int(failed))

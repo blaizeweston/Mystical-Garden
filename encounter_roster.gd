@@ -60,11 +60,10 @@ func register_scout(authored: Dictionary, slot: int = -1) -> int:
 
 ## An elite uses scout-shaped tactics but remains the one leader in the roster.
 func register_leader_tactics(authored: Dictionary) -> Dictionary:
-	var starting_hp := _leader.hp
-	var ended := _leader.ended
-	_leader = _register(authored)
-	_leader.hp = starting_hp
-	_leader.ended = ended
+	# Attaching the role body enriches the same living enemy; it is not a
+	# despawn/spawn. Keep HP, defeat state and captured status identity intact.
+	var registered := _register(authored)
+	_leader.tactics = registered.tactics
 	return _leader.tactics
 
 ## Live role-specific body for the gate elite, stored once with the leader member.
