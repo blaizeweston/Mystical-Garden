@@ -29,7 +29,7 @@ func run():
  game.ui.close_panels()
  for station in game.Stage.HEART_STATIONS:
   p.pos=game.Stage.HEART_STATIONS[station]
-  game.ui.set_prompt(view.context_prompt(p))
+  game.ui.set_prompt(view.context_prompt())
   check(UIFixture.control(game,"guide").text.contains(view.station_controls.label(station)),"nearby station offers a matching prompt")
   game.act(1,false);view._process(0.0)
   check(view.station_panel.visible and view.station_controls.station==station,"interact opens "+station)

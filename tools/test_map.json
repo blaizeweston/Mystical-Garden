@@ -8,6 +8,7 @@
   },
   "full_after_days": 7,
   "systems": {
+    "garden_view_ports": {"label":"Detached Garden observation, crop, station, return and ambience presentation ports", "files":["garden_presentation_world.gd"]},
     "world_presentation": {"label":"Ordered effects, event audio, exploration and Garden scene presentation", "files":["world_presentation.gd"]},
     "world_guidance": {"label":"Pure world interaction guidance, warnings and session labels", "files":["ui/gameplay/world_guidance.gd"]},
     "guest_replication": {"label":"Accepted guest state, health reconciliation, owner details and transient events", "files":["guest_replication.gd","guest_replication_world.gd"]},
@@ -876,7 +877,7 @@
     "run_summary_ui_data": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_grafts", "life"],
     "loadout_ui_data": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_grafts", "life"],
     "request_host_session": ["gameplay_ui", "network_session", "menus"],
-    "configure_gameplay_ui": ["gameplay_ui", "menus", "classes", "garden_observations"],
+    "configure_gameplay_ui": ["gameplay_ui", "menus", "classes", "garden_observations", "garden_view_ports"],
     "_handle_ui_request": ["gameplay_ui", "garden_feature_ui", "seeds", "expedition_grafts", "affinity_cards", "network_session", "party_ui", "life"],
     "enemy_health": ["encounter_roster", "combat", "world_snapshot"],
     "mark_checkpoint_ready": ["expeditions", "affinity_cards"],
@@ -1062,7 +1063,7 @@
     "_unhandled_input": [
       "foundation"
     ],
-    "_unhandled_key_input": ["foundation", "affinity_cards"],
+    "_unhandled_key_input": ["foundation", "affinity_cards", "garden_view_ports"],
     "send_action": [
       "foundation"
     ],
@@ -1324,7 +1325,7 @@
       "foundation",
       "encounter_roster"
     ],
-    "_process": ["foundation", "affinity_cards", "class_balance", "combat_builds", "world_guidance", "world_presentation"],
+    "_process": ["foundation", "affinity_cards", "class_balance", "combat_builds", "world_guidance", "world_presentation", "garden_view_ports"],
     "living_scout_count": [
       "enemies",
       "encounter_roster"
@@ -1601,6 +1602,8 @@
     ]
   },
   "suites": {
+    "garden_view_ports_coop": {"kind":"pair", "systems":["garden_view_ports","garden_observations","garden_care","garden_stations","garden_cinematics","garden_returns","garden_life","garden_conduit","connection_flow","world_snapshot","garden","items","characters","seeds","knowledge","gameplay_ui"], "profile":"terrain", "package":true},
+    "garden_view_ports": {"kind":"unit", "systems":["garden_view_ports","garden_observations","garden_care","garden_stations","garden_conduit","garden_returns","garden_life","garden_cinematics","gameplay_ui"], "package":false},
     "world_presentation": {"kind":"unit", "systems":["world_presentation","presentation","terrain","event_audio","soundscape"], "package":false},
     "world_guidance": {"kind":"unit", "systems":["world_guidance","gameplay_ui","presentation","party_ui","life","garden"], "package":false},
     "guest_replication": {"kind":"unit", "systems":["guest_replication","world_snapshot","presentation","connection_flow","network_session","life"], "package":false},
@@ -7063,111 +7066,19 @@
           "systems": [
             "garden_conduit"
           ]
-        }, "projection_g07": {
-          "systems": [
-            "garden_conduit"
-          ]
-        }, "projection_returns": {
-          "systems": [
-            "garden_returns"
-          ]
-        }, "command_crop_care": {
+        },   "command_crop_care": {
           "systems": [
             "garden_care"
           ]
-        }, "projection_crop_care": {
-          "systems": [
-            "garden_care"
-          ]
-        }, "projection_growth": {
-          "systems": [
-            "garden_cinematics"
-          ]
-        }, "stations_focus": {
+        },   "stations_focus": {
           "systems": [
             "garden_stations"
           ]
         }
       }
     },
-    "garden_interaction_view.gd": {
-      "newline": "lf",
-      "regions": {
-        "experimental_research_landmarks_1": {
-          "systems": [
-            "hex_terrain",
-            "garden",
-            "garden_observations"
-          ]
-        },
-        "station_controls_fields": {
-          "systems": [
-            "garden_stations"
-          ]
-        },
-        "stations__process": {
-          "systems": [
-            "garden_stations"
-          ]
-        },
-        "stations_update_prompt": {
-          "systems": [
-            "garden_stations"
-          ]
-        },
-        "_process_returns": {
-          "systems": [
-            "garden_returns"
-          ]
-        },
-        "update_prompt_crop_care": {
-          "systems": [
-            "garden_care"
-          ]
-        }
 
-      }
-    },
-    "garden_ambience.gd": {
-      "newline": "lf",
-      "regions": {
-        "experimental_research_landmarks_1": {
-          "systems": [
-            "hex_terrain",
-            "garden",
-            "garden_life"
-          ]
-        },
-        "experimental_research_landmarks_2": {
-          "systems": [
-            "hex_terrain",
-            "garden",
-            "garden_life"
-          ]
-        },
-        "heart_motion": {
-          "systems": [
-            "heart_growth_visual"
-          ]
-        },
-        "nested_visuals": {
-          "systems": [
-            "garden_zones",
-            "garden_life"
-          ]
-        },
-        "_process_returns": {
-          "systems": [
-            "garden_returns"
-          ]
-        },
-        "_process_growth": {
-          "systems": [
-            "garden_cinematics"
-          ]
-        }
-      }
-    },
+
     "seed_catalog.gd": {
       "newline": "crlf",
       "regions": {
@@ -8027,81 +7938,7 @@
         }
       }
     },
-    "garden_crop_view.gd": {
-      "newline": "lf",
-      "regions": {
-        "experimental_terrain_1": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        },
-        "experimental_terrain_5": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        },
-        "experimental_terrain_7": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        },
-        "experimental_terrain_9": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        },
-        "experimental_terrain_11": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        },
-        "ui_copy_2": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_1": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "ui_copy_0": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
-        "water_button_field": {
-          "systems": [
-            "garden_stations"
-          ]
-        },
-        "water_button_mount": {
-          "systems": [
-            "garden_stations"
-          ]
-        },
-        "water_button_projection": {
-          "systems": [
-            "garden_stations"
-          ]
-        }
-      }
-    },
+
     "garden_altar_panel.gd": {
       "newline": "crlf",
       "regions": {
@@ -8122,16 +7959,7 @@
         }
       }
     },
-    "garden_terrace_view.gd": {
-      "newline": "lf",
-      "regions": {
-        "ui_copy_0": {
-          "systems": [
-            "ui_copy"
-          ]
-        }
-      }
-    },
+
     "heart_catalog.gd": {
       "newline": "lf",
       "regions": {

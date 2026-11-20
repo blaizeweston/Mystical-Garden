@@ -38,6 +38,12 @@ static func projection(game: Node,id: int) -> Dictionary:
  if not game.multiplayer.is_server():
   var received: Dictionary=game.players.get(id,{}).get("garden_interactions",{})
   return received if compatible_projection(received) else {}
+ var result:=_observation_data(game)
+ result.merge({"conduit":preload("res://garden_conduit.gd").projection(game,id),"returns":preload("res://garden_return_service.gd").projection(game,id),"cultivation":preload("res://garden_crop_service.gd").projection(game,id),"growth":preload("res://garden_growth_service.gd").projection(game,id),"focus":game.players.get(id,{}).get("garden_focus",{}).duplicate(true)})
+ return result
+## One observation selector serves networking and the lightweight local view.
+## The latter never needs to construct every crop, growth scene and conduit.
+static func _observation_data(game: Node) -> Dictionary:
  var state:=State.normalize(game.progress.garden_interactions);var available: Array=[];var observations: Array=[];var clues: Dictionary={}
  for point in Catalog.POINTS:
   if allowed(game,point):available.append(point.id)
@@ -45,7 +51,18 @@ static func projection(game: Node,id: int) -> Dictionary:
    observations.append(point.observation)
    var clue:=preload("res://garden_relationships.gd").clue(game,point)
    if not clue.is_empty():clues[point.observation]=clue
- return {"version":state.version,"catalog":Catalog.signature,"epoch":str(game.get_instance_id()),"revision":state.revision,"available":available,"observations":observations,"clues":clues,"latest":state.latest.duplicate(true),"conduit":preload("res://garden_conduit.gd").projection(game,id),"returns":preload("res://garden_return_service.gd").projection(game,id),"cultivation":preload("res://garden_crop_service.gd").projection(game,id),"growth":preload("res://garden_growth_service.gd").projection(game,id),"focus":game.players.get(id,{}).get("garden_focus",{}).duplicate(true)}
+ return {"version":state.version,"catalog":Catalog.signature,"epoch":str(game.get_instance_id()),"revision":state.revision,"available":available,"observations":observations,"clues":clues,"latest":state.latest.duplicate(true)}
+static func observation_projection(game: Node,id: int) -> Dictionary:
+ if not game.multiplayer.is_server():
+  var received:=projection(game,id);var result: Dictionary={}
+  for key in ["version","catalog","epoch","revision","available","observations","clues","latest","focus"]:
+   if received.has(key):result[key]=received[key]
+  return result.duplicate(true)
+ var result:=_observation_data(game)
+ result.focus=game.players.get(id,{}).get("garden_focus",{}).duplicate(true)
+ return result
+static func projection_epoch(game: Node,id: int) -> String:
+ return str(game.get_instance_id()) if game.multiplayer.is_server() else str(projection(game,id).get("epoch",""))
 static func compatible_projection(data: Dictionary) -> bool:
  return data.get("version",0)==State.VERSION and data.get("catalog","")==Catalog.signature
 static func focus(game: Node,id: int,point_id: String) -> void:

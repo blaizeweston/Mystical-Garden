@@ -1,10 +1,33 @@
 extends Node
 
-const Participation = preload("res://expedition_participation.gd")
 # Read-only rendering and intent submission. Never mutates Garden progression.
-const Service=preload("res://garden_interaction_service.gd")
 const Catalog=preload("res://garden_interaction_catalog.gd")
-var game: Node
+signal refresh_requested(kind: String, selection: Dictionary)
+signal interfaces_requested
+signal requested(command: String, data: Dictionary)
+var _stage: Node3D
+var _ui: CanvasLayer
+var _facts: Dictionary={}
+func configure(stage: Node3D, ui: CanvasLayer) -> void:
+ _stage=stage;_ui=ui
+func present_feature(kind: String, facts: Dictionary) -> void:
+ match kind:
+  "interaction":_facts=facts.duplicate(true)
+  "crop":get_node("Crops").present(facts)
+  "station":station_controls.present(facts)
+  "return":get_node("ReturnLife").present(facts)
+  "conduit":
+   var display:=facts.duplicate(true);display.inspecting=panel.visible and selected==preload("res://garden_conduit.gd").POINT
+   get_node("Terrace").present(display)
+  "ambience":get_node("Ambience").present(facts)
+  "cinematic":get_node("GrowthScenes").present(facts)
+func refresh_feature(kind: String, selection: Dictionary={}) -> void:
+ if kind=="return":selection={"context":projection_context}
+ refresh_requested.emit(kind,selection)
+func capture_interfaces(layers: Array) -> void:
+ get_node("GrowthScenes").capture_interfaces(layers)
+func flower_shortcut() -> void:
+ get_node("Crops").flower_shortcut()
 var panel: PanelContainer
 var title: Label
 var description: Label
@@ -21,50 +44,53 @@ var pending:=false
 var requested_at:=0
 var projection_context:=""
 var availability_baseline:=false
-static func mount(owner_game: Node) -> void:
- var view=load("res://garden_interaction_view.gd").new();view.game=owner_game;view.name="GardenInteractions";owner_game.add_child(view)
 func _ready() -> void:
- panel=game.ui.create_overlay_panel(Color("#14262b"),Vector2(22,20));panel.set_meta("garden_interaction_panel",true);panel.hide()
+ panel=_ui.create_overlay_panel(Color("#14262b"),Vector2(22,20));panel.set_meta("garden_interaction_panel",true);panel.hide()
  var box:=VBoxContainer.new();box.custom_minimum_size=Vector2(470,260);box.add_theme_constant_override("separation",14);panel.add_child(box)
  title=Label.new();title.add_theme_font_size_override("font_size",23);box.add_child(title)
  description=Label.new();description.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;description.custom_minimum_size=Vector2(470,80);box.add_child(description)
  observe=Button.new();observe.text="Record observation";box.add_child(observe);observe.pressed.connect(record)
- station_panel=game.ui.create_overlay_panel(Color("#14262b"),Vector2(22,20))
+ station_panel=_ui.create_overlay_panel(Color("#14262b"),Vector2(22,20))
  station_panel.set_meta("garden_interaction_panel",true);station_panel.hide()
  station_controls=preload("res://garden_care_panel.gd").new()
- station_controls.game=game;station_panel.add_child(station_controls)
+ station_controls.configure(_ui)
+ station_controls.refresh_requested.connect(func(station: String):refresh_feature("station",{"station":station}))
+ station_controls.requested.connect(requested.emit)
+ station_panel.add_child(station_controls)
  journal=Label.new();journal.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;journal.custom_minimum_size=Vector2(470,80);box.add_child(journal)
- var close:=Button.new();close.text="Close · Esc";box.add_child(close);close.pressed.connect(func():game.ui.close_panels())
+ var close:=Button.new();close.text="Close · Esc";box.add_child(close);close.pressed.connect(func():_ui.close_panels())
  for definition in Catalog.POINTS:points[definition.id]=build_point(definition)
  var scenes=preload("res://garden_growth_view.gd").new()
- scenes.name="GrowthScenes";scenes.configure(game.stage,points)
- scenes.refresh_requested.connect(func():scenes.present(cinematic_data()))
- scenes.interfaces_requested.connect(func():scenes.capture_interfaces(game.get_children().filter(func(child):return child is CanvasLayer)))
- scenes.requested.connect(func(command: String,data: Dictionary):
-  if command=="garden_action":game.send_garden_action(str(data.action))
-  elif command=="research_audio":preload("res://event_audio.gd").play_research(game,data))
+ scenes.name="GrowthScenes";scenes.configure(_stage,points)
+ scenes.refresh_requested.connect(func():refresh_feature("cinematic"))
+ scenes.interfaces_requested.connect(interfaces_requested.emit)
+ scenes.requested.connect(requested.emit)
  add_child(scenes)
- game.ui.bind_cinematic(scenes)
- var crops=preload("res://garden_crop_view.gd").new();crops.game=game;crops.name="Crops";add_child(crops)
- var returns=preload("res://garden_return_view.gd").new();returns.game=game;returns.name="ReturnLife";add_child(returns)
- var terrace=preload("res://garden_terrace_view.gd").new();terrace.game=game;terrace.name="Terrace";add_child(terrace)
- var ambience=preload("res://garden_ambience.gd").new();ambience.game=game;ambience.name="Ambience";add_child(ambience)
+ _ui.bind_cinematic(scenes)
+ var crops=preload("res://garden_crop_view.gd").new();crops.configure(_stage,_ui);crops.name="Crops"
+ crops.refresh_requested.connect(func():refresh_feature("crop"));crops.requested.connect(requested.emit);add_child(crops)
+ var returns=preload("res://garden_return_view.gd").new();returns.configure(_stage,points,scenes);returns.name="ReturnLife"
+ returns.refresh_requested.connect(func():refresh_feature("return"));add_child(returns)
+ var terrace=preload("res://garden_terrace_view.gd").new();terrace.configure(_stage,points[preload("res://garden_conduit.gd").POINT],panel);terrace.name="Terrace"
+ terrace.refresh_requested.connect(func():refresh_feature("conduit"));terrace.requested.connect(requested.emit);add_child(terrace)
+ var ambience=preload("res://garden_ambience.gd").new();ambience.configure(_stage);ambience.name="Ambience"
+ ambience.refresh_requested.connect(func():refresh_feature("ambience"));add_child(ambience)
 func build_point(definition: Dictionary) -> Node3D:
- var root:=Node3D.new();root.name=definition.id;game.stage.add_child(root);root.position=definition.position;root.visible=false
+ var root:=Node3D.new();root.name=definition.id;_stage.add_child(root);root.position=definition.position;root.visible=false
  var surface:=SurfaceTool.new();surface.begin(Mesh.PRIMITIVE_TRIANGLES)
  for branch in 5:
   var path: Array[Vector3]=[];var angle:=branch*TAU/5
   for step in 25:
    var t:=step/24.0;var radius:=lerpf(.63,.12,t)
    path.append(Vector3(cos(angle+t*.8)*radius,.025+sin(t*PI*.85)*.25,sin(angle+t*.8)*radius))
-  game.stage.root_tube(surface,path,.045,.012)
+  _stage.root_tube(surface,path,.045,.012)
  if definition.get("visual","")=="relationship":
-  for index in preload("res://garden_layout.gd").zone_beds(definition.relationship.zone,game.Stage.PLOTS.size()):
+  for index in preload("res://garden_layout.gd").zone_beds(definition.relationship.zone,_stage.PLOTS.size()):
    var path: Array[Vector3]=[]
-   var end: Vector3=game.Stage.PLOTS[index]-definition.position
+   var end: Vector3=_stage.PLOTS[index]-definition.position
    for step in 25:
     var t:=step/24.0;path.append(end*t+Vector3(sin(t*PI*3)*.10,.04+sin(t*PI)*.05,0))
-   game.stage.root_tube(surface,path,.045,.006)
+   _stage.root_tube(surface,path,.045,.006)
  var roots:=MeshInstance3D.new();root.add_child(roots);roots.mesh=surface.commit()
  var bark:=ShaderMaterial.new();bark.shader=preload("res://assets/shaders/root_bark.gdshader");roots.material_override=bark
  var scar:=MeshInstance3D.new();scar.name="Scar";root.add_child(scar)
@@ -74,18 +100,20 @@ func build_point(definition: Dictionary) -> Node3D:
  return root
 func record() -> void:
  if selected.is_empty() or pending:return
- var data:=Service.projection(game,game.local_player_id())
+ refresh_feature("interaction")
+ var data: Dictionary=_facts.get("data",{})
  pending=true;requested_at=Time.get_ticks_msec();observe.disabled=true
  var request: Dictionary={"point":selected,"action":"observe","revision":int(data.get("revision",0)),"request":Crypto.new().generate_random_bytes(12).hex_encode()}
- game.send_garden_action("garden:"+JSON.stringify(request))
+ requested.emit("garden_action",{"action":"garden:"+JSON.stringify(request)})
 func _process(_delta: float) -> void:
- if not is_instance_valid(game.stage):return
- var id: int=game.local_player_id();var player: Dictionary=game.players.get(id,{})
- var data:=Service.projection(game,id);var wild: bool=Participation.is_wild(player)
- var context:=str([game.network_session.role(),id,data.get("epoch","")])
+ if not is_instance_valid(_stage):return
+ refresh_feature("interaction")
+ if _facts.is_empty():return
+ var data: Dictionary=_facts.get("data",{});var wild: bool=_facts.get("wild",false)
+ var context: String=_facts.get("context","")
  if context!=projection_context:
   projection_context=context;cue_revision=-1;cue_until=0;focus_serial=-1;pending=false;availability_baseline=false
- var nearest:=Service.nearest(game,player,data)
+ var nearest: String=_facts.get("nearest","")
  var revision:=int(data.get("revision",0))
  # Establish a baseline on join. Snapshots restore state without replaying cues.
  if data.get("version",0)==1:
@@ -94,38 +122,38 @@ func _process(_delta: float) -> void:
  for point_id in points:
   var model: Node3D=points[point_id]
   var available: bool=data.get("version",0)==1 and data.get("available",[]).has(point_id)
-  if available and point_id=="spring_water" and (game.stage.experimental_garden != null):
-   model.position=Service.point_position(game,Catalog.point(point_id))
+  if available and point_id=="spring_water" and _facts.get("development",false):
+   model.position=_facts.point_positions[point_id]
   if available and not model.get_meta("available",false) and availability_baseline:model.set_meta("reveal_at",Time.get_ticks_msec())
   model.set_meta("available",available);model.visible=not wild and available
   var reveal:=clampf((Time.get_ticks_msec()-int(model.get_meta("reveal_at",-10000)))/1100.0,0,1)
-  model.scale=Vector3.ONE*lerpf(.10,1.0,reveal*reveal*(3-2*reveal)) if game.app_settings.values.get("ambient_motion",true) else Vector3.ONE
-  model.get_node("Hint").visible=nearest==point_id and not game.ui.is_overlay_open() and player.get("pos",Vector3.INF).distance_to(model.position)>1.0
+  model.scale=Vector3.ONE*lerpf(.10,1.0,reveal*reveal*(3-2*reveal)) if _facts.get("motion",true) else Vector3.ONE
+  model.get_node("Hint").visible=nearest==point_id and not _ui.is_overlay_open() and _facts.get("position",Vector3.INF).distance_to(model.position)>1.0
   var scar: MeshInstance3D=model.get_node("Scar")
   var pulse:=.20+.12*(.5+.5*sin(Time.get_ticks_msec()/700.0))
   if Time.get_ticks_msec()<cue_until and data.get("latest",{}).get("point","")==point_id:pulse+=.9
   scar.material_override.emission_energy_multiplier=pulse
  if data.get("version",0)==1:availability_baseline=true
- if wild or player.is_empty():
-  if panel.visible or station_panel.visible:game.ui.close_panels()
+ if wild or not _facts.get("present",false):
+  if panel.visible or station_panel.visible:_ui.close_panels()
   return
  var focus: Dictionary=data.get("focus",{})
  if int(focus.get("serial",0))!=focus_serial:
   focus_serial=int(focus.get("serial",0))
   var target: String=str(focus.get("point",""))
-  if game.at_garden_station(player,target):
+  if _facts.get("near_stations",[]).has(target):
    station_controls.open(target)
-   if not station_panel.visible:game.ui.toggle_external(station_panel)
+   if not station_panel.visible:_ui.toggle_external(station_panel)
   var definition:=Catalog.point(target)
   if not definition.is_empty() and nearest==definition.id:
    selected=definition.id;pending=false
-   if not panel.visible:game.ui.toggle_external(panel)
+   if not panel.visible:_ui.toggle_external(panel)
  if station_panel.visible:
-  if not game.at_garden_station(player,station_controls.station):game.ui.close_panels()
+  if not _facts.get("near_stations",[]).has(station_controls.station):_ui.close_panels()
   else:station_controls.refresh()
- if panel.visible and game.ui.is_overlay_open():
+ if panel.visible and _ui.is_overlay_open():
   var definition:=Catalog.point(selected)
-  if definition.is_empty():game.ui.close_panels();return
+  if definition.is_empty():_ui.close_panels();return
   var recorded: bool=data.get("observations",[]).has(definition.observation)
   if recorded or Time.get_ticks_msec()-requested_at>1500:pending=false
   title.text=definition.name;description.text=definition.description
@@ -135,14 +163,15 @@ func _process(_delta: float) -> void:
   observe.disabled=recorded or pending or nearest!=selected
   var clue: String=data.get("clues",{}).get(definition.observation,"") if recorded else ""
   journal.text=(definition.recorded if recorded else definition.hint)+("\n\n"+clue if not clue.is_empty() else "")+"\n\nGarden observations · %d recorded"%data.get("observations",[]).size()
-func context_prompt(player: Dictionary) -> String:
- var crop_prompt: String=get_node("Crops").context_prompt(player)
- var station:=Service.station_near(game,player)
- if not station.is_empty() and not game.ui.is_overlay_open():
+func context_prompt() -> String:
+ var crop_prompt: String=get_node("Crops").context_prompt()
+ refresh_feature("interaction")
+ var station: String=_facts.get("nearest_station","")
+ if not station.is_empty() and not _ui.is_overlay_open():
   return "%s  Use %s"%[preload("res://app_settings.gd").hint("interact"),station_controls.label(station)]
- var data:=Service.projection(game,game.local_player_id())
- var point_id:=Service.nearest(game,player,data)
- if not point_id.is_empty() and not game.ui.is_overlay_open():
+ var data: Dictionary=_facts.get("data",{})
+ var point_id: String=_facts.get("nearest","")
+ if not point_id.is_empty() and not _ui.is_overlay_open():
   var action: String="Inspect "+Catalog.point(point_id).name
   if point_id=="spring_water" and not data.get("cultivation",{}).get("spring_water",false):
    action="Fill watering vessel"
@@ -151,17 +180,3 @@ func context_prompt(player: Dictionary) -> String:
 func _exit_tree() -> void:
  for point in points.values():
   if is_instance_valid(point):point.queue_free()
-
-## World integration supplies only facts needed to present this viewer's queue.
-## The renderer cannot authorize research, acknowledge a receipt or inspect actors.
-func cinematic_data() -> Dictionary:
- var id: int=game.local_player_id()
- var player: Dictionary=game.players.get(id,{})
- var data:=preload("res://garden_growth_service.gd").projection(game,id)
- return {"context":str(game.network_session.role()=="Guest")+":"+str(id),
-  "pending":data.get("pending",[]),"player_present":not player.is_empty(),
-  "player_position":player.get("pos",game.Stage.SPAWN),
-  "blocked":game.persistence_session.is_blocked(),
-  "safe":not Participation.is_wild(player) and data.get("ready",false) and game.network_session.role()!="Connecting",
-  "skip_playback":game.has_meta(&"experimental_terrain") or not game.app_settings.values.get("garden_cinematics",true) or not game.app_settings.values.get("ambient_motion",true),
-  "can_start":not game.ui.is_overlay_open() and game.settings_dialog!=null and not game.settings_dialog.visible}

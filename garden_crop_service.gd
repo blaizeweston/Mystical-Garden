@@ -33,6 +33,11 @@ static func fill_water(game: Node,id: int) -> bool:
  return true
 static func spring_ready(game: Node) -> bool:
  return Growth.spring_ready(game.progress) and (not (game.stage.experimental_garden != null) or game.stage.station_position("spring").is_finite())
+## A scalar inspection must not build every crop's growth/yield projection.
+static func water_carried(game: Node,id: int) -> bool:
+ if not game.multiplayer.is_server():return bool(game.players.get(id,{}).get("garden_interactions",{}).get("cultivation",{}).get("spring_water",false))
+ var player: Dictionary=game.players.get(id,{})
+ return not player.is_empty() and not Participation.is_wild(player) and bool(player.get("spring_water",false))
 static func projection(game: Node,id: int) -> Dictionary:
  if not game.multiplayer.is_server():return game.players.get(id,{}).get("garden_interactions",{}).get("cultivation",{})
  var beds: Array=[];var player: Dictionary=game.players.get(id,{})

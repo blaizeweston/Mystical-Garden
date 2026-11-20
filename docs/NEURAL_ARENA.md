@@ -70,6 +70,7 @@ The listed toast/connection reads in `game.gd` stay on real time. EventAudio tim
 | Arena menu options change | `_trim_session_menu` requests `ui.configure_arena_menu(false, true)`; do not restore removed Game control fields or inspect private UI children |
 | World guidance text/priority changes | `ui/gameplay/world_guidance.gd` receives detached display facts from Game. It contains no clock or gameplay state; keep actual class, terrain and action rules with their existing owners. |
 | World effect/audio/map ordering changes | `world_presentation.gd` accepts detached display frames; specialized renderers keep their caches. Game still composes Nodes and draws actors; keep EventAudio on the real clock and enemy simulation on CombatClock. |
+| Garden observation/crop/ambience integration changes | Six views consume detached frames from `garden_presentation_world.gd`; growth eligibility now comes from its `_cinematic_frame`. Arena inherits the same composition. Keep Game/actors out of the renderers; combat clock and gameplay remain separate. |
 | Outgoing damage changes | `outgoing_hits.gd` is shared by the game and Arena. `ArenaWorld._observe_outgoing_contact` receives Game's local `outgoing_contact_requested(source_peer, target)` signal and calls `bridge.note_hit(target, source_peer)`. The old `apply_weapon_hit` override is retired. Keep this observer separate from HP application so a hit is not applied twice. |
 | `world.tscn` changes its root script or is renamed | `arena_entry.gd`, which applies `arena_world.gd` to that scene |
 

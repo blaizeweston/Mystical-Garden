@@ -174,6 +174,7 @@ const Traits=preload("res://combat_traits.gd")
 var enemy_traits: Dictionary={}
 var trait_events: Array=[]
 const Life=preload("res://expedition_life.gd")
+var garden_presentation := preload("res://garden_presentation_world.gd").new(self)
 var world_view: WorldPresentation
 var spectator_view: Node
 
@@ -302,7 +303,9 @@ func configure_gameplay_ui() -> void:
 	inventory_drop_visuals=preload("res://inventory_drop_visuals.gd").new()
 	inventory_drop_visuals.game=self
 	add_child(inventory_drop_visuals)
-	preload("res://garden_interaction_view.gd").mount(self)
+	var garden_view=preload("res://garden_interaction_view.gd").new()
+	garden_view.name="GardenInteractions";garden_view.configure(stage,ui)
+	garden_presentation.bind(garden_view);add_child(garden_view)
 
 func request_host_session() -> void:
 	if network_session.role()=="Solo" and SessionWorld.host(self)!=OK: return
@@ -463,7 +466,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("research"):
 		send_garden_action("research")
 	elif event.is_action_pressed("flower"):
-		preload("res://garden_crop_view.gd").flower_shortcut(self)
+		get_node("GardenInteractions").flower_shortcut()
 	elif event.is_action_pressed("experiment"):
 		send_garden_action("experiment")
 	elif event.is_action_pressed("catalyst"):
@@ -2266,7 +2269,7 @@ func _process(_delta: float) -> void:
 			"near_gate":stage.gate_position().distance_to(p.get("pos",Vector3.ZERO))<=preload("res://gate_interaction.gd").RANGE,
 			"near_heart":at_heart(p),"development":stage.experimental_garden!=null,
 			"ending":ending_message(campaign_state[5]),"deepest_clear":campaign_state[12],"best_extraction":campaign_state[13]}
-	var garden_prompt: String=get_node("GardenInteractions").context_prompt(p)
+	var garden_prompt: String=get_node("GardenInteractions").context_prompt()
 	var rescue_id:=Life.nearest(self,p)
 	var rescue := {}
 	if rescue_id!=0:

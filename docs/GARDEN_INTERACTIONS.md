@@ -1,6 +1,6 @@
 # Garden observation system and authoring
 
-G-01 completed 2026-11-10. Walk to the small root scar below and left of the Heart, follow its short path, and press the configured Interact key (E by default). The inspect panel lets a player record the trace in this Garden's shared journal. Re-inspecting shows the saved observation. It grants no item, Knowledge, class XP or technology.
+G-01 completed 2026-11-10. In the current generated Garden, Reaching Roots reveals the root scar; researching a station grants construction permission and does not place it automatically. Walk to the small root scar below and left of the Heart, follow its short path, and press the configured Interact key (E by default). The inspect panel lets a player record the trace in this Garden's shared journal. Re-inspecting shows the saved observation. It grants no item, Knowledge, class XP or technology.
 
 ## A location tree and a system graph
 
@@ -25,6 +25,7 @@ Runtime/test ownership remains in `tools/test_map.json`; its generated view is [
 | `garden_interaction_state.gd` | Schema 1 normalization, durable observations, monotonically increasing revision and bounded recent request receipts |
 | `garden_interaction_service.gd` | Host-side actor/mode/range/revision checks, inspection focus, idempotent observe command, transaction commit and read-only projection |
 | `garden_interaction_view.gd` | Root-scar mesh through the existing root tube/bark shader, nearby label, inspect panel, intent submission and post-commit pulse |
+| `garden_presentation_world.gd` | The one Game-taking display port: detached observation/crop/station/return/conduit/ambience frames and existing authorized action/audio routes. Views themselves receive no Game or actors. |
 | `garden_inventory_gateway.gd` | Aggregate explicit offering costs against existing personal/shared inventory and party weapon claims |
 
 `progress.gd` holds one additive `garden_interactions` dictionary and persists it in its own ConfigFile section. Existing `game_transaction.gd` deep-copy/rollback covers that dictionary. `game.gd` contains narrow wiring hooks rather than another Garden implementation. `garden_visuals.gd` adds eligible point anchors to its existing paths and grass-clearance pass. G-02 now provides zone footprints and spring/bed membership through garden_layout.gd. Return adapters remain later work.

@@ -4,7 +4,7 @@ Updated: 2026-11-10 · Status: G-01 through G-07 implemented and packaged; G-08 
 
 Read [the milestone objectives](GARDEN_MILESTONES.md) for the next task and progress. The [mechanics/test map](MECHANICS_TEST_MAP.md) describes implemented systems; this document separates implemented observation/spring/relationship/cultivation boundaries from proposed later Garden mechanics. See [Garden observation authoring](GARDEN_INTERACTIONS.md) for the current modules, schema and evidence.
 
-Base interaction text and prompt priority now live in `ui/gameplay/world_guidance.gd`, which takes detached display facts. Custom crop/station/observation overrides remain with their existing views/services. The ordered effects/audio/map and plots/Heart/Garden display pipeline now lives in `world_presentation.gd`; it receives display facts, not Garden authority. These presentation extractions do not change the Garden milestone queue or implement the planned spring replacement.
+Base interaction text and prompt priority now live in `ui/gameplay/world_guidance.gd`, which takes detached display facts. Observation, crop/care, station, return, conduit and ambience views now receive detached frames through `garden_presentation_world.gd` and emit requests. Existing domain services retain eligibility, costs, state and saving. The ordered effects/audio/map and plots/Heart/Garden display pipeline now lives in `world_presentation.gd`; it receives display facts, not Garden authority. These presentation extractions do not change the Garden milestone queue or implement the planned spring replacement.
 
 ## Intended experience
 
@@ -95,6 +95,7 @@ G-01 implements the catalog, dictionary-state helper, observe/inspect service, v
 | `garden_interaction_state.gd` | Pure normalization, transitions and receipts for a versioned Garden dictionary | Catalog IDs | Direct disk access or rendering |
 | `garden_interaction_service.gd` | Host validation and a small action vocabulary: inspect, observe, choose care, acknowledge | Existing capabilities, inventory gateway, transactions, state helpers | Alternative plant/research/crafting implementations |
 | `garden_layout.gd` | Zone footprints, paths, interaction anchors, bed-to-zone membership and camera extent | Existing Garden growth and bed adapters | Reward generation or runtime RNG from loot streams |
+| `garden_presentation_world.gd` | Scoped Garden view frames and two intention routes; one weak world integration reference | Existing services, player/session observations and presentation Nodes | Garden/actor/inventory state, eligibility, costs or persistence authority |
 | `garden_interaction_view.gd` | Scene instances, nearby prompts, cue playback and journal presentation | A read-only projected snapshot and existing visual builders | Item grants, research advancement or inferred discoveries |
 | `garden_return_adapter.gd` | Translate committed run/identification/research outcomes into a bounded fact summary | Existing authoritative outcome code | Re-simulating loot, guessing seeds or maintaining a parallel run progression |
 | `garden_inventory_gateway.gd` | Availability/cost plans for Garden actions, including party claims | `inventory_model.gd`, `loadout_materials.gd` | A second source of item counts or a separate reservation ledger |

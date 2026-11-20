@@ -104,7 +104,7 @@ func guest_run() -> void:
  check(not game.ui.is_overlay_open(),"guest fills without opening a menu")
  var water_request:=View.request(bed(),"water_crop")
  var crops=view.get_node("Crops")
- game.ui.set_prompt(crops.context_prompt(game.players[id]))
+ game.ui.set_prompt(crops.context_prompt())
  check(crops.quick_water.visible,"guest sees the nearby Water plant button")
  crops.quick_water.pressed.emit();send(water_request);mark("water_sent")
  if not await until(func():return marked("seed_ready") and bed().get("stage",-1)==3 and bed().get("flower_enabled",false)):check(false,"seed harvest choice arrives");return

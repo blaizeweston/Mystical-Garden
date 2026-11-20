@@ -1,17 +1,19 @@
 extends Node
 
-const Participation = preload("res://expedition_participation.gd")
 # Cosmetic only: local transforms/shaders, no gameplay RNG, saves or network events.
 const Layout=preload("res://garden_layout.gd")
 const Catalog=preload("res://garden_interaction_catalog.gd")
-const Service=preload("res://garden_interaction_service.gd")
 const MOTH_LIMIT:=8
-var game: Node
+signal refresh_requested
+var _stage: Node3D
+var _facts: Dictionary={}
+func configure(stage: Node3D) -> void:_stage=stage
+func present(facts: Dictionary) -> void:_facts=facts.duplicate(true)
 var root: Node3D
 var colonies: Dictionary={}
 var elapsed:=0.0
 func _ready() -> void:
- root=Node3D.new();root.name="GardenAmbientLife";game.stage.add_child(root)
+ root=Node3D.new();root.name="GardenAmbientLife";_stage.add_child(root)
 func build_colony(zone: Dictionary) -> MultiMeshInstance3D:
  var surface:=SurfaceTool.new();surface.begin(Mesh.PRIMITIVE_TRIANGLES)
  for side in [-1.0,1.0]:
@@ -36,10 +38,10 @@ func _process(delta: float) -> void:
  elapsed+=delta
  if elapsed<.15:return
  elapsed=0
- var motion: bool=game.app_settings.values.get("ambient_motion",true)
- preload("res://heart_growth_visuals.gd").motion(game.stage,motion,game.players.get(game.local_player_id(),{}).get("pos",Vector3(10000,0,0)))
- var player: Dictionary=game.players.get(game.local_player_id(),{})
- var projection: Dictionary=Service.projection(game,game.local_player_id());var available: Array=projection.get("available",[])
+ refresh_requested.emit()
+ var motion: bool=_facts.get("motion",true)
+ preload("res://heart_growth_visuals.gd").motion(_stage,motion,_facts.get("heart_observer",Vector3(10000,0,0)))
+ var projection: Dictionary=_facts.get("data",{});var available: Array=projection.get("available",[])
  var zones: Array=Catalog.ZONES.duplicate()
  if preload("res://garden_return_service.gd").known(projection.get("returns",{}),"lantern_homecoming"):
   zones.append({"id":"return_moths","water":{"position":Catalog.point("heart_root_scar").position},"ambience":{"requires_point":"heart_root_scar","range":9.0,"count":6}})
@@ -47,15 +49,15 @@ func _process(delta: float) -> void:
  for zone in zones:
   if not zone.has("water") or not zone.has("ambience"):continue
   var at: Vector3=zone.water.position
-  if zone.id=="sheltered_spring" and (game.stage.experimental_garden != null):
-   at=game.stage.station_position("spring")
-  var visible: bool=not game.stage.get_meta("garden_growth_hidden_zones",[]).has(zone.id) and motion and not Participation.is_wild(player) and available.has(zone.ambience.requires_point) and at.is_finite() and game.stage.get_meta("garden_growth_camera",{}).get("target",player.get("pos",Vector3.INF)).distance_to(at)<float(zone.ambience.range)
+  if zone.id=="sheltered_spring" and _facts.get("development",false):
+   at=_stage.station_position("spring")
+  var visible: bool=not _stage.get_meta("garden_growth_hidden_zones",[]).has(zone.id) and motion and not _facts.get("wild",false) and available.has(zone.ambience.requires_point) and at.is_finite() and _stage.get_meta("garden_growth_camera",{}).get("target",_facts.get("position",Vector3.INF)).distance_to(at)<float(zone.ambience.range)
   if visible and not colonies.has(zone.id):colonies[zone.id]=build_colony(zone)
   if colonies.has(zone.id):
    colonies[zone.id].visible=visible
    if visible:colonies[zone.id].position=at+Vector3.UP*.85
- if not is_instance_valid(game.stage.garden_edge):return
- var models: Array=game.stage.garden_edge.find_children("*","GeometryInstance3D",true,false)
+ if not is_instance_valid(_stage.garden_edge):return
+ var models: Array=_stage.garden_edge.find_children("*","GeometryInstance3D",true,false)
  for model in models:
   if model is GeometryInstance3D and model.get_meta("garden_motion",false) and model.material_override is ShaderMaterial:
    model.material_override.set_shader_parameter("motion_enabled",1.0 if motion else 0.0)

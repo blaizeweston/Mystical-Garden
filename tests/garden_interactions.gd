@@ -71,7 +71,7 @@ func run() -> void:
  check(restored.load_garden()==OK and restored.garden_interactions.revision==0 and restored.garden_interactions.observations.is_empty() and restored.garden_interactions.growth.events.is_empty(),"old saves receive additive defaults without replaying old growth")
  g.garden_interactions.observations.future_observation=true;g.garden_interactions.future_field={"keep":9};g.save_garden();restored.path=path;restored.load_garden()
  check(restored.garden_interactions.observations.future_observation and restored.garden_interactions.future_field.keep==9,"unknown save IDs and fields survive disk roundtrip")
- var late=load("res://garden_interaction_view.gd").new();late.game=game;game.add_child(late);late.set_process(false);late._process(0)
+ var late=load("res://garden_interaction_view.gd").new();late.configure(game.stage,game.ui);game.garden_presentation.bind(late);game.add_child(late);late.set_process(false);late._process(0)
  check(late.cue_until==0,"late-join projection restores state without replaying a historical cue")
  late.queue_free()
  var actor: Dictionary=game.seed_reserve(p);actor.parts[1]=1;g.parts[0]=1
