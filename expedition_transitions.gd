@@ -276,7 +276,7 @@ func commit_checkpoint(id: int, descend: bool,effects = null, expected_binding :
 			if Participation.is_wild(player):
 				player.pos = game.wild_entry(peer_id)
 				if game.Life.alive(player): game.Life.Sustain.restore(game,player,recovery_hp,"floor_recovery")
-				game.action_feedback(effects,peer_id, "%s Â· Encounter %d. %s awaits.%s" % [
+				game.action_feedback(effects,peer_id, "%s · Encounter %d. %s awaits.%s" % [
 					game.Campaign.NAMES[game.participation.route()], game.participation.floor(), game.enemy_name(),
 					" A grafting shrine waits off the main path." if game.graft_altar_open() else ""])
 		return true

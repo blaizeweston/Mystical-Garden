@@ -745,7 +745,7 @@ func route_rooms() -> int:
 func enemy_name() -> String:
 	if tactics.boss_kind>=0: return Enemies.get_kind(tactics.boss_kind).name
 	if participation.route() != Campaign.HEART:
-		return ("Longlimb " if tactics.longlimb else "Elite ")+Enemies.get_kind(enemy_kind).name+" Â· "+preload("res://elite_enemy.gd").empowered(enemy_kind)
+		return ("Longlimb " if tactics.longlimb else "Elite ")+Enemies.get_kind(enemy_kind).name+" · "+preload("res://elite_enemy.gd").empowered(enemy_kind)
 	if tactics.longlimb:
 		return "Longlimb " + Enemies.get_kind(enemy_kind).name
 	return "Awakened Heart" if participation.route() == Campaign.HEART else Enemies.get_kind(enemy_kind).name
@@ -989,7 +989,7 @@ func _publish_kill_reward_notices(notices: Array[Dictionary], require_profile :=
 	for id in totals:
 		var notice: Dictionary = totals[id]
 		var essence := int(notice.essence) / float(Director.config().essence_sparks_per_point)
-		var message := "+%.2f essence Â· +%d class XP%s%s" % [essence, notice.xp, " pending" if xp_pending else "", " Â· Monster part nearby" if notice.parts > 0 else ""]
+		var message := "+%.2f essence · +%d class XP%s%s" % [essence, notice.xp, " pending" if xp_pending else "", " · Monster part nearby" if notice.parts > 0 else ""]
 		if require_profile:
 			tell_profile_action(id, message)
 		else:
@@ -1743,7 +1743,7 @@ func _finish_combat(id: int,loot_position: Vector3,effects = null) -> void:
 		pending_finale_peer=id
 		pending_finale_at=CombatClock.now()+1500
 		tactics.winding_up=false
-		tell(id,"The Heart collapses as its last roots fall silentâ€¦")
+		tell(id,"The Heart collapses as its last roots fall silent…")
 		return
 	var ranged_evidence:=Life.Vitals.counts_as_ranged(ranged_damage_this_room,damage_this_room,Life.Preview.scale())
 	if ranged_evidence: ranged_clears+=1
@@ -2175,7 +2175,7 @@ func _process(_delta: float) -> void:
 		quake_prepared=warden.prepared_until(self,p,CombatClock.now())>0 if host_side else bool(p.get("warden_quake_prepared",false))
 		if quake_prepared:skill_tips[1]+="\nQuake prepared."
 	var ready_dodge := (local_timers == null or local_timers.ready(Cooldowns.DODGE, cooldown_now)) if host_side else bool(p.get("dodge_ready", false))
-	ui.present_menu({"session_text":"Developer Garden Â· Single player" if has_meta("developer_garden") else session_text,
+	ui.present_menu({"session_text":"Developer Garden · Single player" if has_meta("developer_garden") else session_text,
 		"role":network_session.role(),"can_host":not has_meta("developer_garden") and network_session.role() in ["Host","Solo"] and not (network_session.role()=="Solo" and wild),
 		"can_join":not has_meta("developer_garden") and network_session.role()=="Solo" and not wild,
 		"can_leave":network_session.role()!="Solo","can_save":multiplayer.is_server(),"can_bank":can_checkpoint_bank(p),"wild":wild,
@@ -2186,7 +2186,7 @@ func _process(_delta: float) -> void:
 		"floor":participation.floor(),
 		"encounter": "%d foes" % [int(enemy_health() > 0) + living_scout_count()] if wild else "Your living sanctuary",
 		"damage_flash":maxf(0,(int(p[Conditions.STATE].grace_until_ms() if host_side else p.get("client_hurt_until",0))-CombatClock.now())/250.0),"hp": health, "max_hp": PlayerVitals.maximum_hp(p,MAX_HEALTH), "lost_health":p.get("lost_health",0),"fallen":PlayerLifecycle.fallen(p), "wild": wild, "frame": p.get("frame", 0),
-		"skill_ready": ready_skill,"skill_two_ready":second_ready,"skill_names":[skills[0].name,skills[1].name+(" â€¢" if quake_prepared else "")],"skill_cooldowns":cooldowns, "dodge_ready": ready_dodge,
+		"skill_ready": ready_skill,"skill_two_ready":second_ready,"skill_names":[skills[0].name,skills[1].name+(" •" if quake_prepared else "")],"skill_cooldowns":cooldowns, "dodge_ready": ready_dodge,
 		"core":preload("res://core_combat.gd").hud_state(self,p),
 		"skill_tooltips":skill_tips,
 		"affinity_feedback":preload("res://combat_status.gd").affinity_feedback(self,p) if host_side and wild else str(p.get("affinity_feedback","")) if wild else "",

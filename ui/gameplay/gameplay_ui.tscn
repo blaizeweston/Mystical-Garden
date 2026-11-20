@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=3]
-
+[gd_scene load_steps=5 format=3]
 [ext_resource type="Script" path="res://ui/gameplay/gameplay_ui.gd" id="1"]
+[ext_resource type="Script" path="res://root_ui.gd" id="2"]
+[ext_resource type="Script" path="res://inventory_drop_surface.gd" id="3"]
+[ext_resource type="Script" path="res://ui/gameplay/rooted_frame.gd" id="4"]
 
 [node name="GameplayUI" type="CanvasLayer"]
 script = ExtResource("1")
@@ -13,3 +15,602 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+
+[node name="PlayerHud" type="Control" parent="Surface"]
+unique_name_in_owner = true
+layout_mode = 0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2")
+
+[node name="MenuButton" type="Button" parent="Surface"]
+unique_name_in_owner = true
+layout_mode = 0
+text = "Menu  ·  Esc"
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -112.0
+offset_right = -14.0
+offset_top = 12.0
+offset_bottom = 39.0
+grow_horizontal = 0
+focus_mode = 0
+
+[node name="Prompts" type="VBoxContainer" parent="Surface"]
+layout_mode = 0
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -295.0
+offset_right = 295.0
+offset_top = -252.0
+offset_bottom = -162.0
+grow_horizontal = 2
+grow_vertical = 1
+mouse_filter = 2
+alignment = 2
+
+[node name="ToastPanel" type="PanelContainer" parent="Surface/Prompts"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("4")
+content_padding = Vector2(10, 5)
+size_flags_horizontal = 4
+
+[node name="Feedback" type="Label" parent="Surface/Prompts/ToastPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.615686274509804, 0.8549019607843137, 0.8431372549019608, 1)
+theme_override_font_sizes/font_size = 14
+text = ""
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="PromptPanel" type="PanelContainer" parent="Surface/Prompts"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("4")
+content_padding = Vector2(12, 6)
+size_flags_horizontal = 4
+
+[node name="Context" type="VBoxContainer" parent="Surface/Prompts/PromptPanel"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Guide" type="Label" parent="Surface/Prompts/PromptPanel/Context"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9882352941176471, 0.9098039215686274, 0.6705882352941176, 1)
+theme_override_font_sizes/font_size = 16
+text = ""
+horizontal_alignment = 1
+
+[node name="DetailLabel" type="Label" parent="Surface/Prompts/PromptPanel/Context"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8980392156862745, 0.9294117647058824, 0.9176470588235294, 1)
+theme_override_font_sizes/font_size = 14
+text = ""
+horizontal_alignment = 1
+
+[node name="OverlayShade" type="ColorRect" parent="Surface"]
+unique_name_in_owner = true
+layout_mode = 0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+visible = false
+mouse_filter = 0
+color = Color(0.027450980392156862, 0.08235294117647059, 0.10980392156862745, 0.6274509803921569)
+
+[node name="Overlay" type="CenterContainer" parent="Surface"]
+unique_name_in_owner = true
+layout_mode = 0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+visible = false
+script = ExtResource("3")
+
+[node name="SessionMenu" type="PanelContainer" parent="Surface/Overlay"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("4")
+content_padding = Vector2(20, 14)
+visible = false
+
+[node name="Menu" type="VBoxContainer" parent="Surface/Overlay/SessionMenu"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="Surface/Overlay/SessionMenu/Menu"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9019607843137255, 0.8666666666666667, 0.7411764705882353, 1)
+theme_override_font_sizes/font_size = 24
+text = "Game Menu"
+
+[node name="SessionLabel" type="Label" parent="Surface/Overlay/SessionMenu/Menu"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7529411764705882, 0.807843137254902, 0.8117647058823529, 1)
+theme_override_font_sizes/font_size = 14
+text = ""
+
+[node name="Sections" type="HBoxContainer" parent="Surface/Overlay/SessionMenu/Menu"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Actions" type="VBoxContainer" parent="Surface/Overlay/SessionMenu/Menu/Sections"]
+layout_mode = 2
+theme_override_constants/separation = 12
+custom_minimum_size = Vector2(204, 0)
+
+[node name="Resume" type="Button" parent="Surface/Overlay/SessionMenu/Menu/Sections/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Resume"
+
+[node name="InventoryButton" type="Button" parent="Surface/Overlay/SessionMenu/Menu/Sections/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Inventory  ·  I"
+
+[node name="GuideButton" type="Button" parent="Surface/Overlay/SessionMenu/Menu/Sections/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Field Guide  ·  F1"
+
+[node name="BestiaryButton" type="Button" parent="Surface/Overlay/SessionMenu/Menu/Sections/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Wilds Bestiary"
+
+[node name="AppearanceButton" type="Button" parent="Surface/Overlay/SessionMenu/Menu/Sections/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Appearance"
+
+[node name="SettingsButton" type="Button" parent="Surface/Overlay/SessionMenu/Menu/Sections/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Settings"
+
+[node name="SessionActions" type="VBoxContainer" parent="Surface/Overlay/SessionMenu/Menu/Sections"]
+layout_mode = 2
+theme_override_constants/separation = 12
+custom_minimum_size = Vector2(204, 0)
+
+[node name="Heading" type="Label" parent="Surface/Overlay/SessionMenu/Menu/Sections/SessionActions"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235294117647, 0.8274509803921568, 0.6431372549019608, 1)
+theme_override_font_sizes/font_size = 16
+text = "Garden & Co-op"
+
+[node name="SaveButton" type="Button" parent="Surface/Overlay/SessionMenu/Menu/Sections/SessionActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Save Garden"
+
+[node name="HostButton" type="Button" parent="Surface/Overlay/SessionMenu/Menu/Sections/SessionActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Host Co-op"
+
+[node name="JoinButton" type="Button" parent="Surface/Overlay/SessionMenu/Menu/Sections/SessionActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Join by IP"
+
+[node name="LeaveButton" type="Button" parent="Surface/Overlay/SessionMenu/Menu/Sections/SessionActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Leave Session"
+
+[node name="ExitActions" type="HBoxContainer" parent="Surface/Overlay/SessionMenu/Menu"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AbandonButton" type="Button" parent="Surface/Overlay/SessionMenu/Menu/ExitActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Abandon Expedition"
+
+[node name="TitleButton" type="Button" parent="Surface/Overlay/SessionMenu/Menu/ExitActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Return to Main Menu"
+
+[node name="ArenaButton" type="Button" parent="Surface/Overlay/SessionMenu/Menu/ExitActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Neural Arena"
+
+[node name="ArenaSetupButton" type="Button" parent="Surface/Overlay/SessionMenu/Menu/ExitActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Arena Setup"
+
+[node name="MenuNotice" type="Label" parent="Surface/Overlay/SessionMenu/Menu"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.615686274509804, 0.8549019607843137, 0.8431372549019608, 1)
+theme_override_font_sizes/font_size = 14
+text = ""
+custom_minimum_size = Vector2(280, 0)
+autowrap_mode = 3
+
+[node name="PackMenu" type="PanelContainer" parent="Surface/Overlay"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("4")
+content_padding = Vector2(20, 14)
+visible = false
+
+[node name="InventoryMount" type="VBoxContainer" parent="Surface/Overlay/PackMenu"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Surface/Overlay/PackMenu/InventoryMount"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235294117647, 0.9607843137254902, 0.8666666666666667, 1)
+theme_override_font_sizes/font_size = 22
+text = "Inventory  ·  I"
+
+[node name="CloseInventory" type="Button" parent="Surface/Overlay/PackMenu/InventoryMount"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Close"
+
+[node name="FieldGuide" type="PanelContainer" parent="Surface/Overlay"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("4")
+content_padding = Vector2(20, 14)
+visible = false
+
+[node name="Notes" type="VBoxContainer" parent="Surface/Overlay/FieldGuide"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Surface/Overlay/FieldGuide/Notes"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235294117647, 0.9607843137254902, 0.8666666666666667, 1)
+theme_override_font_sizes/font_size = 22
+text = "Field Guide  ·  F1"
+
+[node name="Controls" type="Label" parent="Surface/Overlay/FieldGuide/Notes"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8980392156862745, 0.9294117647058824, 0.9176470588235294, 1)
+theme_override_font_sizes/font_size = 16
+text = "WASD / Arrows  Move   Space  Strike\nShift  Dodge   Q / R  Class skills\n\nGARDEN\nE at Heart: research and class upgrades\nE at Altar: identify and combine seeds or parts\nE at Wilds Gate: craft and depart\nE at plots: plant, inspect or harvest · F harvests seeds\nE at Garden water: fill watering vessel after Root Irrigation\nI: inventory · O: inspect progression\n\nWILDS\nE: collect loot, use grafting altars or continue at the gate\nT: extract at every sixth cleared gate\nEsc: menu / abandon expedition"
+custom_minimum_size = Vector2(330, 0)
+autowrap_mode = 3
+
+[node name="CloseGuide" type="Button" parent="Surface/Overlay/FieldGuide/Notes"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Close"
+
+[node name="AppearanceMenu" type="PanelContainer" parent="Surface/Overlay"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("4")
+content_padding = Vector2(22, 20)
+visible = false
+
+[node name="Looks" type="VBoxContainer" parent="Surface/Overlay/AppearanceMenu"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Surface/Overlay/AppearanceMenu/Looks"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8666666666666667, 0.8235294117647058, 0.6666666666666666, 1)
+theme_override_font_sizes/font_size = 22
+text = "Character appearance"
+
+[node name="Explanation" type="Label" parent="Surface/Overlay/AppearanceMenu/Looks"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6745098039215687, 0.6666666666666666, 0.5411764705882353, 1)
+theme_override_font_sizes/font_size = 13
+text = "Choose your travelling clothes in the Garden."
+
+[node name="CloakOption" type="Button" parent="Surface/Overlay/AppearanceMenu/Looks"]
+unique_name_in_owner = true
+layout_mode = 2
+text = ""
+custom_minimum_size = Vector2(300, 0)
+
+[node name="TunicOption" type="Button" parent="Surface/Overlay/AppearanceMenu/Looks"]
+unique_name_in_owner = true
+layout_mode = 2
+text = ""
+custom_minimum_size = Vector2(300, 0)
+
+[node name="HairColorOption" type="Button" parent="Surface/Overlay/AppearanceMenu/Looks"]
+unique_name_in_owner = true
+layout_mode = 2
+text = ""
+custom_minimum_size = Vector2(300, 0)
+
+[node name="HairStyleOption" type="Button" parent="Surface/Overlay/AppearanceMenu/Looks"]
+unique_name_in_owner = true
+layout_mode = 2
+text = ""
+custom_minimum_size = Vector2(300, 0)
+
+[node name="SkinOption" type="Button" parent="Surface/Overlay/AppearanceMenu/Looks"]
+unique_name_in_owner = true
+layout_mode = 2
+text = ""
+custom_minimum_size = Vector2(300, 0)
+
+[node name="CloseAppearance" type="Button" parent="Surface/Overlay/AppearanceMenu/Looks"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Close"
+
+[node name="BestiaryMenu" type="PanelContainer" parent="Surface/Overlay"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("4")
+content_padding = Vector2(22, 18)
+visible = false
+
+[node name="Bestiary" type="VBoxContainer" parent="Surface/Overlay/BestiaryMenu"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Surface/Overlay/BestiaryMenu/Bestiary"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8666666666666667, 0.8235294117647058, 0.6666666666666666, 1)
+theme_override_font_sizes/font_size = 22
+text = "Creatures of the corrupted network"
+
+[node name="Legend" type="Label" parent="Surface/Overlay/BestiaryMenu/Bestiary"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6666666666666666, 0.7490196078431373, 0.5686274509803921, 1)
+theme_override_font_sizes/font_size = 13
+text = "Bark plates resist heavy hits. Long tendrils extend reach. Swollen sacs widen attacks. New frills and roots signal speed and cover vaults."
+custom_minimum_size = Vector2(540, 0)
+autowrap_mode = 3
+
+[node name="Scroll" type="ScrollContainer" parent="Surface/Overlay/BestiaryMenu/Bestiary"]
+layout_mode = 2
+custom_minimum_size = Vector2(550, 410)
+horizontal_scroll_mode = 0
+
+[node name="BestiaryEntries" type="VBoxContainer" parent="Surface/Overlay/BestiaryMenu/Bestiary/Scroll"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CloseBestiary" type="Button" parent="Surface/Overlay/BestiaryMenu/Bestiary"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Close"
+
+[node name="DepositMenu" type="PanelContainer" parent="Surface/Overlay"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("4")
+content_padding = Vector2(20, 14)
+visible = false
+
+[node name="Courier" type="VBoxContainer" parent="Surface/Overlay/DepositMenu"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Surface/Overlay/DepositMenu/Courier"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8745098039215686, 0.8313725490196079, 0.6509803921568628, 1)
+theme_override_font_sizes/font_size = 22
+text = "Returning Mycelium"
+
+[node name="Explanation" type="Label" parent="Surface/Overlay/DepositMenu/Courier"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7843137254901961, 0.8196078431372549, 0.6784313725490196, 1)
+theme_override_font_sizes/font_size = 14
+text = "Send one carried item home from this checkpoint."
+
+[node name="DepositPick" type="OptionButton" parent="Surface/Overlay/DepositMenu/Courier"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(420, 0)
+
+[node name="DepositButton" type="Button" parent="Surface/Overlay/DepositMenu/Courier"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Bank selected item"
+
+[node name="KeepExploring" type="Button" parent="Surface/Overlay/DepositMenu/Courier"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Keep exploring"
+
+[node name="RecollectionMenu" type="PanelContainer" parent="Surface/Overlay"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("4")
+content_padding = Vector2(22, 18)
+visible = false
+
+[node name="Story" type="VBoxContainer" parent="Surface/Overlay/RecollectionMenu"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Surface/Overlay/RecollectionMenu/Story"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9176470588235294, 0.8470588235294118, 0.6392156862745098, 1)
+theme_override_font_sizes/font_size = 24
+text = "The Heart Remembers"
+
+[node name="Memory" type="Label" parent="Surface/Overlay/RecollectionMenu/Story"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8313725490196079, 0.8431372549019608, 0.7098039215686275, 1)
+theme_override_font_sizes/font_size = 16
+text = "Every root has found its lost memory. The civilization, the corruption, the sacrifice: the Heart remembers it all.\n\nIt remembers what it protected. It remembers what people asked of it. And now it fears the Garden will repeat that ending.\n\nIts final remembrance is awake. Prepare your weapon, then face the Heart."
+custom_minimum_size = Vector2(520, 0)
+autowrap_mode = 3
+
+[node name="PrepareInGarden" type="Button" parent="Surface/Overlay/RecollectionMenu/Story"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Prepare in the Garden"
+
+[node name="FaceHeart" type="Button" parent="Surface/Overlay/RecollectionMenu/Story"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Face the Heart"
+
+[node name="CheckpointMenu" type="PanelContainer" parent="Surface/Overlay"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("4")
+content_padding = Vector2(22, 18)
+visible = false
+
+[node name="Checkpoint" type="VBoxContainer" parent="Surface/Overlay/CheckpointMenu"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="Surface/Overlay/CheckpointMenu/Checkpoint"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8941176470588236, 0.8431372549019608, 0.6470588235294118, 1)
+theme_override_font_sizes/font_size = 25
+text = "Roots of Strength"
+
+[node name="CheckpointNotice" type="Label" parent="Surface/Overlay/CheckpointMenu/Checkpoint"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7843137254901961, 0.8196078431372549, 0.7411764705882353, 1)
+theme_override_font_sizes/font_size = 15
+text = ""
+
+[node name="CheckpointCards" type="HBoxContainer" parent="Surface/Overlay/CheckpointMenu/Checkpoint"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Controls" type="HBoxContainer" parent="Surface/Overlay/CheckpointMenu/Checkpoint"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="CheckpointSkip" type="Button" parent="Surface/Overlay/CheckpointMenu/Checkpoint/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Continue without another upgrade"
+
+[node name="CheckpointReroll" type="Button" parent="Surface/Overlay/CheckpointMenu/Checkpoint/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Reroll"
+visible = false
+
+[node name="TravelPanel" type="PanelContainer" parent="Surface"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+script = ExtResource("4")
+content_padding = Vector2(16, 10)
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -240.0
+offset_right = 240.0
+offset_top = 48.0
+offset_bottom = 194.0
+grow_horizontal = 2
+
+[node name="Readiness" type="VBoxContainer" parent="Surface/TravelPanel"]
+layout_mode = 2
+
+[node name="TravelLabel" type="Label" parent="Surface/TravelPanel/Readiness"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8705882352941177, 0.8509803921568627, 0.7176470588235294, 1)
+theme_override_font_sizes/font_size = 16
+text = ""
+custom_minimum_size = Vector2(440, 60)
+autowrap_mode = 3
+
+[node name="Actions" type="HBoxContainer" parent="Surface/TravelPanel/Readiness"]
+layout_mode = 2
+
+[node name="ReadyButton" type="Button" parent="Surface/TravelPanel/Readiness/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ready at Gate"
+focus_mode = 0
+
+[node name="UnreadyButton" type="Button" parent="Surface/TravelPanel/Readiness/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Not Ready"
+focus_mode = 0
+
+[node name="ConnectionPanel" type="PanelContainer" parent="Surface"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+script = ExtResource("4")
+content_padding = Vector2(16, 10)
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -238.0
+offset_right = 238.0
+offset_top = -80.0
+offset_bottom = 80.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Connecting" type="VBoxContainer" parent="Surface/ConnectionPanel"]
+layout_mode = 2
+
+[node name="ConnectionLabel" type="Label" parent="Surface/ConnectionPanel/Connecting"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8705882352941177, 0.8509803921568627, 0.7176470588235294, 1)
+theme_override_font_sizes/font_size = 18
+text = ""
+custom_minimum_size = Vector2(420, 65)
+autowrap_mode = 3
+
+[node name="CancelConnection" type="Button" parent="Surface/ConnectionPanel/Connecting"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Cancel Connection"
+focus_mode = 0
+
+[node name="TitleConfirmation" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "End this expedition?"
+dialog_text = "Leaving ends the expedition. Your run's Class XP, monster familiarity and carried items (including the safe pouch) will be forfeited. Courier deliveries and progression from earlier expeditions remain."
+ok_button_text = "Return to Main Menu"
+
+[node name="AbandonConfirmation" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Abandon this expedition?"
+dialog_text = "Return to the Garden now? All carried seeds, materials, monster cargo and safe-pouch contents will be lost.\nNo expedition milestone, research or guardian-memory rewards will be granted.\nAll Class XP and monster familiarity earned this run, including earlier cleared floors, will be revoked. Courier deliveries and progression from earlier expeditions remain."
+ok_button_text = "Abandon & return"
+cancel_button_text = "Keep exploring"

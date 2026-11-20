@@ -10,300 +10,105 @@ const LOOK_NAMES = preload("res://character_appearance.gd").OPTIONS
 var _panels: Dictionary = {}
 var _features: Dictionary = {}
 var _cinematic: Node
-var _inventory_mount: VBoxContainer
-var _bestiary_entries: VBoxContainer
-var _travel_panel: PanelContainer
-var _travel_label: Label
-var _ready_button: Button
-var _unready_button: Button
-var _connection_panel: PanelContainer
-var _connection_label: Label
-var _recollection_menu: PanelContainer
-var _deposit_menu: PanelContainer
-var _deposit_pick: OptionButton
-var _deposit_button: Button
-var _abandon_confirmation: ConfirmationDialog
-var _abandon_button: Button
-var _checkpoint_menu: PanelContainer
-var _checkpoint_cards: HBoxContainer
-var _checkpoint_notice: Label
-var _checkpoint_skip: Button
-var _checkpoint_reroll: Button
+@onready var _inventory_mount: VBoxContainer = %InventoryMount
+@onready var _bestiary_entries: VBoxContainer = %BestiaryEntries
+@onready var _travel_panel: PanelContainer = %TravelPanel
+@onready var _travel_label: Label = %TravelLabel
+@onready var _ready_button: Button = %ReadyButton
+@onready var _unready_button: Button = %UnreadyButton
+@onready var _connection_panel: PanelContainer = %ConnectionPanel
+@onready var _connection_label: Label = %ConnectionLabel
+@onready var _recollection_menu: PanelContainer = %RecollectionMenu
+@onready var _deposit_menu: PanelContainer = %DepositMenu
+@onready var _deposit_pick: OptionButton = %DepositPick
+@onready var _deposit_button: Button = %DepositButton
+@onready var _abandon_confirmation: ConfirmationDialog = %AbandonConfirmation
+@onready var _abandon_button: Button = %AbandonButton
+@onready var _checkpoint_menu: PanelContainer = %CheckpointMenu
+@onready var _checkpoint_cards: HBoxContainer = %CheckpointCards
+@onready var _checkpoint_notice: Label = %CheckpointNotice
+@onready var _checkpoint_skip: Button = %CheckpointSkip
+@onready var _checkpoint_reroll: Button = %CheckpointReroll
 var _checkpoint_offer_revision := 0
-var _guide: Label
-var _feedback: Label
-var _session_label: Label
-var _field_guide: PanelContainer
-var _overlay: CenterContainer
-var _overlay_shade: ColorRect
-var _session_menu: PanelContainer
-var _pack_menu: PanelContainer
-var _menu_notice: Label
-var _detail_label: Label
-var _bestiary_menu: PanelContainer
-var _appearance_menu: PanelContainer
-var _appearance_button: Button
-var _appearance_options: Array[Button] = []
-var _player_hud: Control
-var _prompt_panel: PanelContainer
-var _toast_panel: PanelContainer
-var _host_button: Button
-var _join_button: Button
-var _leave_button: Button
-var _save_button: Button
-var _title_confirmation: ConfirmationDialog
-var _arena_button: Button
-var _arena_setup_button: Button
+@onready var _guide: Label = %Guide
+@onready var _feedback: Label = %Feedback
+@onready var _session_label: Label = %SessionLabel
+@onready var _field_guide: PanelContainer = %FieldGuide
+@onready var _overlay: CenterContainer = %Overlay
+@onready var _overlay_shade: ColorRect = %OverlayShade
+@onready var _session_menu: PanelContainer = %SessionMenu
+@onready var _pack_menu: PanelContainer = %PackMenu
+@onready var _menu_notice: Label = %MenuNotice
+@onready var _detail_label: Label = %DetailLabel
+@onready var _bestiary_menu: PanelContainer = %BestiaryMenu
+@onready var _appearance_menu: PanelContainer = %AppearanceMenu
+@onready var _appearance_button: Button = %AppearanceButton
+@onready var _appearance_options: Array[Button] = [%CloakOption,%TunicOption,%HairColorOption,%HairStyleOption,%SkinOption]
+@onready var _player_hud: Control = %PlayerHud
+@onready var _prompt_panel: PanelContainer = %PromptPanel
+@onready var _toast_panel: PanelContainer = %ToastPanel
+@onready var _host_button: Button = %HostButton
+@onready var _join_button: Button = %JoinButton
+@onready var _leave_button: Button = %LeaveButton
+@onready var _save_button: Button = %SaveButton
+@onready var _title_confirmation: ConfirmationDialog = %TitleConfirmation
+@onready var _arena_button: Button = %ArenaButton
+@onready var _arena_setup_button: Button = %ArenaSetupButton
+
+func _enter_tree() -> void:
+	# Apply the shared theme before scene-authored children initialize their sizes.
+	$Surface.theme = Style.make_theme()
 
 func _ready() -> void:
-	_surface.theme = Style.make_theme()
-	_player_hud = preload("res://root_ui.gd").new()
-	_surface.add_child(_player_hud)
-	var menu_button := _button(_surface, "Menu  ·  Esc", func(): toggle_panel("session"))
-	menu_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	menu_button.offset_left = -112
-	menu_button.offset_right = -14
-	menu_button.offset_top = 12
-	menu_button.offset_bottom = 39
-
-	var prompts := VBoxContainer.new()
-	_surface.add_child(prompts)
-	prompts.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	prompts.alignment = BoxContainer.ALIGNMENT_END
-	prompts.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	prompts.offset_left = -295
-	prompts.offset_right = 295
-	prompts.offset_top = -252
-	prompts.offset_bottom = -162
-	_toast_panel = Style.panel(prompts, Color("#14262bda"), Vector2(10, 5))
-	_toast_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_feedback = Style.label(_toast_panel, 14, Color("#9ddad7"))
-	_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_prompt_panel = Style.panel(prompts, Color("#14262bea"), Vector2(12, 6))
-	_prompt_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	var context := VBoxContainer.new()
-	context.add_theme_constant_override("separation", 2)
-	_prompt_panel.add_child(context)
-	_guide = Style.label(context, 16, Color("#fce8ab"))
-	_guide.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_detail_label = Style.label(context, 14, Color("#e5edea"))
-	_detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-
-	_overlay_shade = ColorRect.new()
-	_surface.add_child(_overlay_shade)
-	_overlay_shade.color = Color("#07151ca0")
-	_overlay_shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_overlay_shade.mouse_filter = Control.MOUSE_FILTER_STOP
-	_overlay = preload("res://inventory_drop_surface.gd").new()
-	_surface.add_child(_overlay)
-	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-
-	_session_menu = Style.panel(_overlay, Color("#14262b"), Vector2(20, 14))
-	var menu:=VBoxContainer.new()
-	menu.add_theme_constant_override("separation",10)
-	_session_menu.add_child(menu)
-	Style.label(menu,24,Color("#e6ddbd")).text="Game Menu"
-	_session_label=Style.label(menu,14,Color("#c0cecf"))
-	var sections:=HBoxContainer.new()
-	sections.add_theme_constant_override("separation",18)
-	menu.add_child(sections)
-	var actions:=VBoxContainer.new()
-	var session_actions:=VBoxContainer.new()
-	for section in [actions,session_actions]:
-		section.custom_minimum_size.x=204
-		section.add_theme_constant_override("separation",12)
-		sections.add_child(section)
-	var resume:=_button(actions,"Resume",func():close_panels())
-	resume.name="Resume"
+	%MenuButton.pressed.connect(func(): toggle_panel("session"))
+	%Resume.pressed.connect(close_panels)
 	_session_menu.visibility_changed.connect(func():
-		if _session_menu.visible and _overlay.visible:resume.grab_focus())
-	_button(actions,"Inventory  ·  I",func():toggle_panel("pack"))
-	_button(actions,"Field Guide  ·  F1",func():toggle_panel("guide"))
-	_button(actions,"Wilds Bestiary",func():toggle_panel("bestiary"))
-	_appearance_button=_button(actions,"Appearance",func():toggle_panel("appearance"))
-	_button(actions,"Settings",func():requested.emit("settings",{}))
-	Style.label(session_actions,16,Color("#c9d3a4")).text="Garden & Co-op"
-	_save_button=_button(session_actions,"Save Garden",func():requested.emit("save",{}))
-	_host_button=_button(session_actions,"Host Co-op",func():requested.emit("host",{}))
-	_join_button=_button(session_actions,"Join by IP",func():requested.emit("join",{}))
-	_leave_button=_button(session_actions,"Leave Session",func():requested.emit("leave",{}))
-	var exit_row:=HBoxContainer.new()
-	exit_row.add_theme_constant_override("separation",8)
-	menu.add_child(exit_row)
-	_abandon_button=_button(exit_row,"Abandon Expedition",func():requested.emit("abandon",{}))
-	_button(exit_row,"Return to Main Menu",func():requested.emit("title",{}))
-	_arena_button=_button(exit_row,"Neural Arena",func():requested.emit("arena_open",{}))
-	_arena_setup_button=_button(exit_row,"Arena Setup",func():requested.emit("arena_setup",{}))
-	configure_arena_menu(false)
-	_travel_panel=Style.panel(_surface,Color("#14262b"),Vector2(16,10))
-	_travel_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	_travel_panel.offset_left=-240;_travel_panel.offset_right=240;_travel_panel.offset_top=48;_travel_panel.offset_bottom=194
-	var ready_box:=VBoxContainer.new();_travel_panel.add_child(ready_box)
-	_travel_label=Style.label(ready_box,16,Color("#ded9b7"));_travel_label.custom_minimum_size=Vector2(440,60);_travel_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	var ready_actions:=HBoxContainer.new();ready_box.add_child(ready_actions)
-	_ready_button=_button(ready_actions,"Ready at Gate",func():requested.emit("ready",{"unready":false}))
-	_unready_button=_button(ready_actions,"Not Ready",func():requested.emit("ready",{"unready":true}))
-	_travel_panel.hide()
-	_connection_panel=Style.panel(_surface,Color("#14262b"),Vector2(16,10))
-	_connection_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	_connection_panel.offset_left=-238;_connection_panel.offset_right=238;_connection_panel.offset_top=-80;_connection_panel.offset_bottom=80
-	var connecting:=VBoxContainer.new();_connection_panel.add_child(connecting)
-	_connection_label=Style.label(connecting,18,Color("#ded9b7"));_connection_label.custom_minimum_size=Vector2(420,65);_connection_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	_button(connecting,"Cancel Connection",func():requested.emit("cancel_connection",{}))
-	_connection_panel.hide()
-	_title_confirmation = ConfirmationDialog.new()
-	add_child(_title_confirmation)
-	_title_confirmation.title = "End this expedition?"
-	_title_confirmation.dialog_text = "Leaving ends the expedition. Your run's Class XP, monster familiarity and carried items (including the safe pouch) will be forfeited. Courier deliveries and progression from earlier expeditions remain."
-	_title_confirmation.ok_button_text = "Return to Main Menu"
+		if _session_menu.visible and _overlay.visible: %Resume.grab_focus())
+	%InventoryButton.pressed.connect(func(): toggle_panel("pack"))
+	%GuideButton.pressed.connect(func(): toggle_panel("guide"))
+	%BestiaryButton.pressed.connect(func(): toggle_panel("bestiary"))
+	_appearance_button.pressed.connect(func(): toggle_panel("appearance"))
+	%SettingsButton.pressed.connect(func(): requested.emit("settings",{}))
+	_save_button.pressed.connect(func(): requested.emit("save",{}))
+	_host_button.pressed.connect(func(): requested.emit("host",{}))
+	_join_button.pressed.connect(func(): requested.emit("join",{}))
+	_leave_button.pressed.connect(func(): requested.emit("leave",{}))
+	_abandon_button.pressed.connect(func(): requested.emit("abandon",{}))
+	%TitleButton.pressed.connect(func(): requested.emit("title",{}))
+	_arena_button.pressed.connect(func(): requested.emit("arena_open",{}))
+	_arena_setup_button.pressed.connect(func(): requested.emit("arena_setup",{}))
+	_ready_button.pressed.connect(func(): requested.emit("ready",{"unready":false}))
+	_unready_button.pressed.connect(func(): requested.emit("ready",{"unready":true}))
+	%CancelConnection.pressed.connect(func(): requested.emit("cancel_connection",{}))
 	_title_confirmation.confirmed.connect(func(): requested.emit("confirm_title",{}))
-	_menu_notice = Style.label(menu, 14, Color("#9ddad7"))
-	_menu_notice.custom_minimum_size.x = 280
-	_menu_notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-
-	_pack_menu = Style.panel(_overlay, Color("#14262b"), Vector2(20, 14))
-	var pack := VBoxContainer.new()
-	_pack_menu.add_child(pack)
-	Style.label(pack, 22, Color("#c9f5dd")).text = "Inventory  ·  I"
-	_inventory_mount = pack
-	_button(pack, "Close", func(): toggle_panel("pack"))
-
-	_field_guide = Style.panel(_overlay, Color("#14262b"), Vector2(20, 14))
-	var notes := VBoxContainer.new()
-	_field_guide.add_child(notes)
-	Style.label(notes, 22, Color("#c9f5dd")).text = "Field Guide  ·  F1"
-	var body := Style.label(notes, 16, Color("#e5edea"))
-	body.custom_minimum_size.x = 330
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.text = "WASD / Arrows  Move   Space  Strike\nShift  Dodge   Q / R  Class skills\n\nGARDEN\nE at Heart: research and class upgrades\nE at Altar: identify and combine seeds or parts\nE at Wilds Gate: craft and depart\nE at plots: plant, inspect or harvest · F harvests seeds\nE at Garden water: fill watering vessel after Root Irrigation\nI: inventory · O: inspect progression\n\nWILDS\nE: collect loot, use grafting altars or continue at the gate\nT: extract at every sixth cleared gate\nEsc: menu / abandon expedition"
-	_button(notes, "Close", func(): toggle_panel("guide"))
-	_appearance_menu = Style.panel(_overlay, Color("#14262b"), Vector2(22, 20))
-	var looks := VBoxContainer.new()
-	_appearance_menu.add_child(looks)
-	Style.label(looks, 22, Color("#ddd2aa")).text = "Character appearance"
-	Style.label(looks, 13, Color("#acaa8a")).text = "Choose your travelling clothes in the Garden."
-	for index in 5:
-		var option := _button(looks, "", func(): requested.emit("appearance",{"index":index}))
-		option.custom_minimum_size.x = 300
-		_appearance_options.append(option)
-	_button(looks, "Close", func(): toggle_panel("appearance"))
-	_bestiary_menu = Style.panel(_overlay, Color("#14262b"), Vector2(22,18))
-	var bestiary := VBoxContainer.new()
-	_bestiary_menu.add_child(bestiary)
-	Style.label(bestiary,22,Color("#ddd2aa")).text = "Creatures of the corrupted network"
-	var legend := Style.label(bestiary,13,Color("#aabf91"))
-	legend.custom_minimum_size.x = 540
-	legend.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	legend.text = "Bark plates resist heavy hits. Long tendrils extend reach. Swollen sacs widen attacks. New frills and roots signal speed and cover vaults."
-	var scroll := ScrollContainer.new()
-	bestiary.add_child(scroll)
-	scroll.custom_minimum_size = Vector2(550,410)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	var entries := VBoxContainer.new()
-	scroll.add_child(entries)
-	entries.add_theme_constant_override("separation",8)
-	_bestiary_entries = entries
-	_button(bestiary, "Close", func(): toggle_panel("bestiary"))
-	_build_support_panels()
-	_build_checkpoint_panel()
-	_overlay.inventory_drop_requested.connect(func(data: Dictionary):requested.emit("inventory_drop",data))
+	_abandon_confirmation.confirmed.connect(func(): requested.emit("confirm_abandon",{}))
+	%CloseInventory.pressed.connect(func(): toggle_panel("pack"))
+	%CloseGuide.pressed.connect(func(): toggle_panel("guide"))
+	%CloseAppearance.pressed.connect(func(): toggle_panel("appearance"))
+	%CloseBestiary.pressed.connect(func(): toggle_panel("bestiary"))
+	for index in _appearance_options.size():
+		_appearance_options[index].pressed.connect(func(): requested.emit("appearance",{"index":index}))
+	_deposit_button.pressed.connect(_request_deposit)
+	%KeepExploring.pressed.connect(close_panels)
+	%PrepareInGarden.pressed.connect(close_panels)
+	%FaceHeart.pressed.connect(func():
+		close_panels()
+		requested.emit("face_heart",{}))
+	_checkpoint_skip.pressed.connect(func():
+		if _checkpoint_offer_revision > 0: choose_checkpoint("skip"))
+	_checkpoint_reroll.pressed.connect(func(): choose_checkpoint("reroll"))
+	_overlay.inventory_drop_requested.connect(func(data: Dictionary): requested.emit("inventory_drop",data))
 	_overlay.bind_inventory_panel(_pack_menu)
 	_panels.merge({"session":_session_menu,"pack":_pack_menu,"guide":_field_guide,
 		"bestiary":_bestiary_menu,"appearance":_appearance_menu,"recollection":_recollection_menu,
 		"deposit":_deposit_menu,"checkpoint":_checkpoint_menu})
-	_travel_panel.name = "TravelPanel"
-	_travel_label.name = "TravelLabel"
-	_ready_button.name = "ReadyButton"
-	_unready_button.name = "UnreadyButton"
-	_connection_panel.name = "ConnectionPanel"
-	_connection_label.name = "ConnectionLabel"
-	_recollection_menu.name = "RecollectionMenu"
-	_deposit_menu.name = "DepositMenu"
-	_deposit_pick.name = "DepositPick"
-	_deposit_button.name = "DepositButton"
-	_abandon_confirmation.name = "AbandonConfirmation"
-	_abandon_button.name = "AbandonButton"
-	_checkpoint_menu.name = "CheckpointMenu"
-	_checkpoint_cards.name = "CheckpointCards"
-	_checkpoint_notice.name = "CheckpointNotice"
-	_checkpoint_skip.name = "CheckpointSkip"
-	_checkpoint_reroll.name = "CheckpointReroll"
-	_guide.name = "Guide"
-	_feedback.name = "Feedback"
-	_session_label.name = "SessionLabel"
-	_field_guide.name = "FieldGuide"
-	_overlay.name = "Overlay"
-	_overlay_shade.name = "OverlayShade"
-	_session_menu.name = "SessionMenu"
-	_pack_menu.name = "PackMenu"
-	_menu_notice.name = "MenuNotice"
-	_detail_label.name = "DetailLabel"
-	_bestiary_menu.name = "BestiaryMenu"
-	_appearance_menu.name = "AppearanceMenu"
-	_appearance_button.name = "AppearanceButton"
-	_player_hud.name = "PlayerHud"
-	_prompt_panel.name = "PromptPanel"
-	_toast_panel.name = "ToastPanel"
-	_host_button.name = "HostButton"
-	_join_button.name = "JoinButton"
-	_leave_button.name = "LeaveButton"
-	_save_button.name = "SaveButton"
-	_title_confirmation.name = "TitleConfirmation"
+	configure_arena_menu(false)
 	close_panels()
 
-func _build_support_panels() -> void:
-	_deposit_menu=Style.panel(_overlay,Color("#14262b"),Vector2(20,14))
-	var box:=VBoxContainer.new()
-	_deposit_menu.add_child(box)
-	Style.label(box,22,Color("#dfd4a6")).text="Returning Mycelium"
-	Style.label(box,14,Color("#c8d1ad")).text="Send one carried item home from this checkpoint."
-	_deposit_pick=OptionButton.new()
-	_deposit_pick.custom_minimum_size.x=420
-	box.add_child(_deposit_pick)
-	_deposit_button=_button(box,"Bank selected item",func():
-		if _deposit_pick.selected<0: return
-		var value:=_deposit_pick.get_item_id(_deposit_pick.selected)
-		requested.emit("bank",{"value":value})
-		close_panels())
-	_button(box,"Keep exploring",func(): close_panels())
-	_recollection_menu=Style.panel(_overlay,Color("#14262b"),Vector2(22,18))
-	var story:=VBoxContainer.new()
-	_recollection_menu.add_child(story)
-	Style.label(story,24,Color("#ead8a3")).text="The Heart Remembers"
-	var text:=Style.label(story,16,Color("#d4d7b5"))
-	text.custom_minimum_size.x=520
-	text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	text.text="Every root has found its lost memory. The civilization, the corruption, the sacrifice: the Heart remembers it all.\n\nIt remembers what it protected. It remembers what people asked of it. And now it fears the Garden will repeat that ending.\n\nIts final remembrance is awake. Prepare your weapon, then face the Heart."
-	_button(story,"Prepare in the Garden",func(): close_panels())
-	_button(story,"Face the Heart",func():
-		close_panels()
-		requested.emit("face_heart",{}))
-
-func _build_checkpoint_panel() -> void:
-	_abandon_confirmation=ConfirmationDialog.new()
-	_abandon_confirmation.title="Abandon this expedition?"
-	_abandon_confirmation.dialog_text="Return to the Garden now? All carried seeds, materials, monster cargo and safe-pouch contents will be lost.
-No expedition milestone, research or guardian-memory rewards will be granted.
-All Class XP and monster familiarity earned this run, including earlier cleared floors, will be revoked. Courier deliveries and progression from earlier expeditions remain."
-	_abandon_confirmation.ok_button_text="Abandon & return"
-	_abandon_confirmation.cancel_button_text="Keep exploring"
-	add_child(_abandon_confirmation)
-	_abandon_confirmation.confirmed.connect(func(): requested.emit("confirm_abandon",{}))
-	_checkpoint_menu=Style.panel(_overlay,Color("#14262b"),Vector2(22,18))
-	var box:=VBoxContainer.new();box.add_theme_constant_override("separation",14);_checkpoint_menu.add_child(box)
-	Style.label(box,25,Color("#e4d7a5")).text="Roots of Strength"
-	_checkpoint_notice=Style.label(box,15,Color("#c8d1bd"))
-	_checkpoint_cards=HBoxContainer.new();_checkpoint_cards.add_theme_constant_override("separation",14);box.add_child(_checkpoint_cards)
-	var controls := HBoxContainer.new()
-	controls.add_theme_constant_override("separation",14)
-	box.add_child(controls)
-	_checkpoint_skip = _button(controls,"Continue without another upgrade",func():
-		if _checkpoint_offer_revision > 0:
-			choose_checkpoint("skip"))
-	_checkpoint_reroll = _button(controls,"Reroll",func():
-		choose_checkpoint("reroll"))
-	_checkpoint_reroll.hide()
+func _request_deposit() -> void:
+	if _deposit_pick.selected < 0: return
+	requested.emit("bank",{"value":_deposit_pick.get_item_id(_deposit_pick.selected)})
+	close_panels()
 
 func show_checkpoint_offer(offer: Dictionary, wallet: int, floor_number: int, waiting: bool) -> void:
 	# Rendering receives detached host-owned offer data; it never rolls or acquires.
@@ -401,7 +206,7 @@ func present_feedback(message: String, pending: bool) -> void:
 	_menu_notice.visible = fresh_notice
 
 
-# Control construction is shared styling, not world orchestration.
+# Only variable offer/feature content is constructed at runtime. Static shell layout is scene-authored.
 func _button(parent: Control, caption: String, action: Callable) -> Button:
 	return Style.button(parent,caption,action,Control.FOCUS_ALL if is_instance_valid(_overlay) and _overlay.is_ancestor_of(parent) else Control.FOCUS_NONE)
 

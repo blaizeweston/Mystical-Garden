@@ -26,10 +26,21 @@ func offer(revision: int) -> Dictionary:
 func run() -> void:
 	# A standalone scene has no Game, actor, wallet or persistence context.
 	var ui = UI.instantiate()
+	check(UI.get_state().get_node_count() > 80,"static layout is authored in the scene before the controller runs")
+	check(ui.get_node("Surface/Overlay/SessionMenu/Menu/Title").text == "Game Menu"
+		and ui.get_node("Surface/Overlay/CheckpointMenu/Checkpoint/Title").text == "Roots of Strength",
+		"a designer can locate and change menu and checkpoint headings directly in the scene")
 	root.add_child(ui)
 	ui.requested.connect(func(command: String, data: Dictionary): requests.append({"command":command,"data":data.duplicate(true)}))
 	await process_frame
 	check(not ui.is_overlay_open(),"shell starts closed without a world adapter")
+	var rooted: PanelContainer = control(ui,"SessionMenu")
+	var old_padding: Vector2 = rooted.content_padding
+	rooted.content_padding = Vector2(30,18)
+	check(rooted.get_theme_stylebox("panel").get_content_margin(SIDE_LEFT)==30
+		and control(ui,"PackMenu").get_theme_stylebox("panel").get_content_margin(SIDE_LEFT)==20,
+		"scene padding uses the shared root artwork without changing other frames")
+	rooted.content_padding = old_padding
 	ui.toggle_panel("session")
 	check(ui.panel_is_open("session") and control(ui,"Resume").has_focus(),"session owns keyboard focus")
 	ui.toggle_panel("pack")
