@@ -235,7 +235,7 @@ static func bloom_echo_source(game: Node, player: Dictionary, skill: Dictionary,
 	if int(skill.get("bloom_echo_hp", 0)) <= 0 or skill.get("bloom_echo_spent", false):
 		return {}
 	var owner: int = game.Traits.player_id(game, player)
-	for field: Dictionary in game.trait_events:
+	for field: Dictionary in game.effect_timeline.native_records():
 		if field.get("native_weaver_bloom", false) and int(field.owner) == owner \
 				and int(field.epoch) == int(game.participation.epoch()) and int(field.until) > now \
 				and PlayerLifecycle.matches(player,int(field.get("life",-1))):

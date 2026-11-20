@@ -83,7 +83,7 @@ func prepare(nodes: Array, origin := Vector3.ZERO, target := Vector3(2,0,0)) -> 
 	game.battlefield = preload("res://battlefield.gd").new()
 	game.remove_meta(Rules.Void.PENDING)
 	game.encounter.clear_scouts()
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	game.weapon_attacks.clear()
 	game.combat_events.clear()
 	game.enemy_traits.clear()

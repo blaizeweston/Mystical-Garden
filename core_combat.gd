@@ -12,7 +12,6 @@ const Footprint = preload("res://core_footprint.gd")
 const Lance = preload("res://core_lance.gd")
 const Mouse = preload("res://mouse_combat.gd")
 const Journal = preload("res://diagnostic_journal.gd")
-const STATE := &"core_combat"
 const PREFIX := "core_cast:"
 
 
@@ -58,7 +57,7 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 		return
 	var now := preload("res://combat_clock.gd").now()
 	var forward := Vector3(aim.x, 0, aim.y).normalized()
-	var lines: Dictionary = game.get_meta(STATE, {})
+	var lines: Dictionary = game.effect_timeline.core_records()
 	if lines.has(id):
 		return
 	if now < int(player.get("core_ready_at", 0)) or now < int(player.get("cast_until", 0)) or now < int(player.get("core_cast_until", 0)):
@@ -92,7 +91,7 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 	game.combat_event_serial += 1
 	line.merge({
 		"id": "core:" + str(game.combat_event_serial), "epoch": game.participation.epoch(),
-		"skill": skill, "owner": id, "life": PlayerLifecycle.generation(player), "release": now + release_ms,
+		"skill": skill, "owner": id,"binding":game.network_session.binding(id), "life": PlayerLifecycle.generation(player), "release": now + release_ms,
 		"armed": now + release_ms + flight_ms, "expires": now + release_ms + flight_ms + lifetime,
 		"flight_ms": flight_ms, "released": false, "grown": false, "next_hit": {},
 		"origin": origin, "cast_origin": player.pos, "previous": {},
@@ -100,8 +99,7 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 	line.affinity_action = preload("res://combat_action_events.gd").begin(game,id,"core",skill.material,
 		skill.material.potency_profile.values,["core_action"],0x7fffffffffffffff)
 	if not step:
-		lines[id] = line
-		game.set_meta(STATE, lines)
+		if not game.effect_timeline.begin_core(id,line):return
 	player.core_ready_at = now + int(skill.cooldown_ms)
 	player.core_cast_until = now + duration
 	player.facing = forward
@@ -177,14 +175,14 @@ static func aim_cast(field: RefCounted, origin: Vector3, forward: Vector3, skill
 
 
 static func reset(game: Node) -> void:
-	if game.has_meta(STATE):
-		game.remove_meta(STATE)
+	game.effect_timeline.clear_cores()
 
 
 static func tick(game: Node, now: int) -> void:
-	if not game.has_meta(STATE):
+	if game.effect_timeline.core_records().is_empty():
 		return
-	var lines: Dictionary = game.get_meta(STATE)
+	var lines: Dictionary = game.effect_timeline.core_records()
+	var before:=lines.duplicate(true)
 	if game.encounter_cleared():
 		for id in lines.keys():
 			var line: Dictionary = lines[id]
@@ -197,7 +195,7 @@ static func tick(game: Node, now: int) -> void:
 	for id in lines.keys():
 		var line: Dictionary = lines[id]
 		var player: Dictionary = game.players.get(id, {})
-		if int(line.epoch) != game.participation.epoch() or not game.Life.alive(player) or not PlayerLifecycle.matches(player,int(line.life)) or (now >= int(line.expires) and not (line.grown and line.skill.get("affinity_family") in ["fire","water","void"])):
+		if int(line.epoch) != game.participation.epoch() or (line.has("binding") and not game.network_session.matches(int(id),int(line.binding))) or not game.Life.alive(player) or not PlayerLifecycle.matches(player,int(line.life)) or (now >= int(line.expires) and not (line.grown and line.skill.get("affinity_family") in ["fire","water","void"])):
 			if line.has("flight_event") and now < int(line.armed):
 				game.emit_combat_event("projectile_end", str(line.flight_event), line.origin, line.origin, .15, Color.WHITE, 0.0, 0)
 			lines.erase(id)
@@ -262,11 +260,12 @@ static func tick(game: Node, now: int) -> void:
 		lines.erase(id)
 	if lines.is_empty():
 		reset(game)
+	game.effect_timeline.commit_cores(before,lines)
 
 
 static func hints(game: Node) -> Array:
 	var result := []
-	for line in game.get_meta(STATE,{}).values():
+	for line in game.effect_timeline.core_records().values():
 		if not line.grown:
 			continue
 		var elapsed: int = preload("res://affinity_time.gd").now(game)

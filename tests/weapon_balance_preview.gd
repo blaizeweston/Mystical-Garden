@@ -69,7 +69,7 @@ func clear_targets(game: Node, at: Vector3) -> void:
 	game.encounter.clear_scouts()
 	game.weapon_attacks.clear()
 	game.combat_events.clear()
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	game.enemy_traits.clear()
 	game.encounter.set_hp(-1, 600)
 	game.tactics.position=at

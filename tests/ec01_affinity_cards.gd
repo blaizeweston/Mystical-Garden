@@ -71,7 +71,7 @@ func reset(class_id := 0) -> void:
 	game.deepest_milestone = 0
 	game.encounter.clear_scouts()
 	game.weapon_attacks.clear()
-	for records: Array in [game.trait_events,game.combat_events]:
+	for records: Array in [game.effect_timeline.native_records(),game.combat_events]:
 		records.clear()
 	game.monster_rewards = game.MonsterRewards.new()
 	game.tactics.memory.clear()
@@ -409,7 +409,7 @@ func verify_dew_shelter() -> void:
 	ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(now+5000)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].refilled()
 	game.garden_action(1,Core.request(game,player,Vector2.UP,1.5))
-	var cast: Dictionary = game.get_meta(Core.STATE,{}).get(1,{})
+	var cast: Dictionary = game.effect_timeline.core_records().get(1,{})
 	if cast.is_empty():
 		check(false,"Dewfall starts from a real B request")
 		return
@@ -480,10 +480,10 @@ func verify_native() -> void:
 	var bonus := grant_fixture_copy("snare_root_time",3)
 	var base_skill: Dictionary = Build.for_player(player).class_skills[1].native_skill
 	ClassActions.cast_world(game, 1, 1)
-	var trap: Dictionary = game.trait_events.front()
+	var trap: Dictionary = game.effect_timeline.native_records().front()
 	game.tactics.position = trap.position
 	var trip: int = trap.next
-	game.Traits.tick(game,trip)
+	game.effect_timeline.advance_native(game.native_effects_world,trip)
 	check(game.tactics.rooted_until==trip+int(base_skill.bind)+bonus and game.enemy_health()<400,"real Bramble Snare gains only root duration at contact")
 	reset(4)
 	bonus = grant_fixture_copy("chime_ward_time",3)
@@ -522,7 +522,7 @@ func verify_echo() -> void:
 	grant_fixture_copy("echoing_growth")
 	check("echoing_growth" not in card_ledger(player).eligible(game.weapon_stats(player),game.DODGE_COOLDOWN_MS),"Weaver Unique cannot return after acquisition")
 	game.garden_action(1,Aim.request(game,player,0,Vector2.UP,1.3))
-	var bloom: Dictionary = game.trait_events.front()
+	var bloom: Dictionary = game.effect_timeline.native_records().front()
 	game.tactics.position = bloom.position
 	var other: Dictionary = game.make_scout(1,bloom.position+Vector3(.55,0,0),0,0)
 	other.hp = 400

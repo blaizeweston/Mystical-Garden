@@ -79,7 +79,7 @@ func reset_field() -> void:
 	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	game.battlefield = preload("res://battlefield.gd").new()
 	game.encounter.clear_scouts()
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	game.weapon_attacks.clear()
 	game.combat_events.clear()
 	game.enemy_traits.clear()
@@ -185,8 +185,8 @@ func entry_for_each_class() -> void:
 			and game.Skills.resolve_in_world(game,class_id,1,caster.character).name==rs[class_id],"native focused Q/R with three empty slots")
 		ClassActions.cast_world(game, 1, 0)
 		var benefits: Array[bool] = [caster.has("warden_anchor"),
-			game.trait_events.any(func(field):return field.kind=="growth"),
-			game.trait_events.any(func(field):return field.kind=="snare"),
+			game.effect_timeline.native_records().any(func(field):return field.kind=="growth"),
+			game.effect_timeline.native_records().any(func(field):return field.kind=="snare"),
 			caster.has("reaper_veil_momentum"),caster.has(Omens.STATE)]
 		check(int(caster[Cooldowns.STATE].deadline(Cooldowns.Q))>Time.get_ticks_msec() and benefits[class_id],"native starting Q applies its effect")
 		game.tactics.position = caster.pos + Vector3(.7,0,0)
@@ -252,12 +252,12 @@ func basic_omens() -> void:
 	caster[PlayerVitals.STATE] = caster[PlayerVitals.STATE].with_hp(50)
 	cast(0)
 	now=Time.get_ticks_msec()
-	check(int(caster[PlayerVitals.STATE].hp()) in range(58,63) and game.trait_events.any(func(field):return field.kind=="tide" and field.power==0)
+	check(int(caster[PlayerVitals.STATE].hp()) in range(58,63) and game.effect_timeline.native_records().any(func(field):return field.kind=="tide" and field.power==0)
 		and not record(ally,Progression.SECOND_BREATH,now).is_empty(),"Sanctuary keeps its opening heal/cleanse and grants full-health allies Second Breath")
 	var entrant: Dictionary=game.players[9]
 	entrant.pos=Vector3(.4,0,0)
 	entrant[Conditions.STATE] = entrant[Conditions.STATE].with_slow_until(now+1800)
-	game.Traits.tick(game,now+1)
+	game.effect_timeline.advance_native(game.native_effects_world,now+1)
 	check(entrant[Conditions.STATE].slow_until_ms()==0 and record(entrant,Progression.SECOND_BREATH,now+1).is_empty(),"late entrant only receives field cleanse")
 	IncomingPlayerHit.resolve_world(game, 8, PlayerLifecycle.generation(ally), now+10, 1.0, 0, Vector3.INF, false)
 	check(ally[PlayerVitals.STATE].hp()==90 and not record(ally,Progression.SECOND_BREATH,now+10).is_empty(),"hazard hit does not spend the Blessing")
@@ -310,12 +310,12 @@ func nodes_and_chime() -> void:
 		var old_hp := int(caster[PlayerVitals.STATE].hp())
 		var old_damage := int(game.enemy_health())
 		var old_pos: Vector3 = game.tactics.position
-		var zones: int = game.trait_events.size()
+		var zones: int = game.effect_timeline.native_count()
 		cast(1)
 		var repeated := record(recipient,effect,timer)
 		check(not original.is_empty() and not repeated.is_empty() and repeated.cast!=original.cast
 			and game.enemy_health()==old_damage and game.tactics.position==old_pos and caster[PlayerVitals.STATE].hp()==old_hp
-			and game.trait_events.size()==zones,"Fate's Refrain bestows only the equipped focus Omen")
+			and game.effect_timeline.native_count()==zones,"Fate's Refrain bestows only the equipped focus Omen")
 	prepare(RIGHT)
 	ally.pos=Vector3(.3,0,0)
 	caster[PlayerVitals.STATE] = caster[PlayerVitals.STATE].with_hp(50)

@@ -59,7 +59,7 @@ func reset() -> void:
 	game.tactics.memory.clear()
 	game.encounter.clear_scouts()
 	game.weapon_attacks.clear()
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	game.combat_events.clear()
 	Core.reset(game)
 	game.set_meta(Clock.CLOCK,0.0)
@@ -114,7 +114,7 @@ func run() -> void:
 		var q: Dictionary=Builds.slot("core",part).potency_profile.values
 		p.weapon=part
 		game.garden_action(1,Core.request(game,p,Vector2.UP))
-		var cast: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
+		var cast: Dictionary=game.effect_timeline.core_records().get(1,{})
 		check(not cast.is_empty(),"real Core B starts Ironbark")
 		if not cast.is_empty():
 			Core.tick(game,cast.armed)
@@ -165,7 +165,7 @@ func run() -> void:
 		p.erase("class_aim")
 		p.erase("class_aim_distance")
 		check(available(ally)==q.catalyst_capacity and ally[PlayerVitals.STATE].hp()>50,"real Living Sanctuary retains opening healing and gives one Bark grant to each living recipient")
-		game.Traits.tick(game,now+1500)
+		game.effect_timeline.advance_native(game.native_effects_world,now+1500)
 		check(available(ally)==q.catalyst_capacity,"native Sanctuary updates do not grant more Bark")
 
 	test_absorption(p,now)

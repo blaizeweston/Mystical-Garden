@@ -172,7 +172,8 @@ var enemy_hazards: Array=[]
 var enemy_hazard_serial: int=0
 const Traits=preload("res://combat_traits.gd")
 var enemy_traits: Dictionary={}
-var trait_events: Array=[]
+var effect_timeline := preload("res://combat_effect_timeline.gd").new()
+var native_effects_world := preload("res://native_effects_world.gd").new(self)
 const Life=preload("res://expedition_life.gd")
 var cultivation := preload("res://garden_cultivation_world.gd").new(self)
 var garden_commands := preload("res://garden_commands_world.gd").new(self)
@@ -784,9 +785,8 @@ func selected_donation(player: Dictionary) -> int:
 # write and publication order. The typed boundary decides whether to publish.
 func snapshot_expedition_runtime() -> Dictionary:
 	return {"map_rng":map_rng.state, "heal_rng":Life.Preview.heal_rng.state, "battlefield":battlefield,
-		"mouse":Transactions.snapshot(mouse_controls), "weapons":weapon_attacks.savepoint(),
-		"aim_visible":is_instance_valid(mouse_controls.marker) and mouse_controls.marker.visible,
-		"core":get_meta(&"core_combat", {}).duplicate(true) if has_meta(&"core_combat") else null}
+		"mouse":Transactions.snapshot(mouse_controls), "weapons":weapon_attacks.savepoint(), "effects":effect_timeline.savepoint(),
+		"aim_visible":is_instance_valid(mouse_controls.marker) and mouse_controls.marker.visible}
 
 func restore_expedition_runtime(state: Dictionary) -> void:
 	map_rng.state=state.map_rng
@@ -794,9 +794,8 @@ func restore_expedition_runtime(state: Dictionary) -> void:
 	battlefield=state.battlefield
 	Transactions.restore(mouse_controls,state.mouse)
 	weapon_attacks.restore_savepoint(state.weapons)
+	effect_timeline.restore_savepoint(state.effects)
 	if is_instance_valid(mouse_controls.marker): mouse_controls.marker.visible=state.aim_visible
-	if state.core != null: set_meta(&"core_combat",state.core)
-	elif has_meta(&"core_combat"): remove_meta(&"core_combat")
 
 func run_guarded_action(id: int, scope: Transactions.Scope, action: Callable) -> Dictionary:
 	var effects: Array[Callable] = []
@@ -1476,7 +1475,7 @@ func _physics_process(delta: float) -> void:
 		if persistence_session.is_blocked(): return
 		weapon_attacks.advance(weapon_attack_world, now)
 		if persistence_session.is_blocked(): return
-		Traits.tick(self,now)
+		effect_timeline.advance_native(native_effects_world,now)
 		if persistence_session.is_blocked(): return
 		if participation.active():
 			preload("res://warden_combat.gd").tick(self,now)
@@ -1885,7 +1884,7 @@ func reset_encounter(seed_value: int = -1) -> void:
 		player.erase("affinity_void_form_ready")
 		player.erase("affinity_thorn_form_ready")
 	preload("res://core_combat.gd").reset(self)
-	enemy_traits.clear();trait_events.clear()
+	enemy_traits.clear();effect_timeline.clear_native()
 	weapon_attacks.clear()
 	combat_events.clear()
 	Bosses.prepare(self)

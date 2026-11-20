@@ -123,7 +123,7 @@ func prepare(origin: Vector3, foe: Vector3) -> void:
 	game.weapon_attacks.clear()
 	game.encounter.clear_scouts()
 	game.combat_events.clear()
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	game.enemy_traits.clear()
 	game.enemy_kind = 0
 	game.enemy_growth = 0
@@ -259,7 +259,7 @@ func class_checks() -> void:
 	player.class_aim = Vector3.RIGHT
 	player.class_aim_distance = 5.0
 	ClassActions.cast_world(game, game.HOST, 1)
-	var traps: Array = game.trait_events.filter(func(event):return event.kind == "snare")
+	var traps: Array = game.effect_timeline.native_records().filter(func(event):return event.kind == "snare")
 	check(traps.size() == 1 and traps[0].position.x < -1.65 and not field.occupied(traps[0].position),
 		"actual Bramble Snare still clamps to unoccupied dry ground")
 
@@ -272,7 +272,7 @@ func core_and_enemy_checks() -> void:
 		if skill.get("id") == "chain_spark":
 			var aim := Core.preview(game, player, field, Vector3.RIGHT, 0.0)
 			Core.command(game,game.HOST,player,Core.request(game,player,Vector2.RIGHT))
-			var cast: Dictionary = game.get_meta(Core.STATE,{}).get(game.HOST,{})
+			var cast: Dictionary = game.effect_timeline.core_records().get(game.HOST,{})
 			var capsule: Array = aim.shapes.filter(func(shape):return shape.kind=="capsule")
 			check(not cast.is_empty() and capsule.size() == 1 and Vector3(cast.to).is_equal_approx(capsule[0].to),
 				"ranged Core host endpoint equals preview")

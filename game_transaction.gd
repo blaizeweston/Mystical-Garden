@@ -67,6 +67,7 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
  var participation: ExpeditionParticipation = game.get("participation")
  var participation_savepoint := participation.savepoint() if participation != null else {}
  var weapon_savepoint: Dictionary = game.weapon_attacks.savepoint()
+ var effect_savepoint: Dictionary = game.effect_timeline.savepoint()
  var begin_error := Batch.begin(game.progress.path)
  if begin_error != OK:
   verdict.error = begin_error
@@ -100,6 +101,7 @@ static func _run_legacy(game: Node, action: Callable, verdict: Dictionary) -> Va
   restore(game.guest_character,guest)
   if game.players.has(game.HOST): game.local_character.data=game.players[game.HOST].character
   game.weapon_attacks.restore_savepoint(weapon_savepoint)
+  game.effect_timeline.restore_savepoint(effect_savepoint)
   game.rng.state=rng_state
   game.transaction_publishes.clear();game.status="Could not save this action. Nothing was consumed; please retry."
   return false

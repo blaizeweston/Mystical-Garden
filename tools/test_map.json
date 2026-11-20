@@ -8,6 +8,7 @@
   },
   "full_after_days": 7,
   "systems": {
+    "combat_effects": {"label":"Owned Core/native effect timelines, lifecycle, bounded execution and rollback", "files":["combat_effect_timeline.gd", "combat_effect_timeline.gd.uid", "native_effects_world.gd", "native_effects_world.gd.uid"]},
     "actor_presentation": {"label":"Detached avatar, spectator and dropped-item presentation", "files":["actor_presentation_world.gd","actor_presentation_world.gd.uid","spectator_view.gd","spectator_view.gd.uid","inventory_drop_visuals.gd","inventory_drop_visuals.gd.uid"]},
     "garden_view_ports": {"label":"Detached Garden observation, crop, station, return and ambience presentation ports", "files":["garden_presentation_world.gd"]},
     "world_presentation": {"label":"Ordered effects, event audio, exploration and Garden scene presentation", "files":["world_presentation.gd"]},
@@ -1528,6 +1529,7 @@
     ]
   },
   "suites": {
+    "combat_effects": {"kind":"unit", "systems":["combat_effects","core_combat","classes","player_lifecycle"], "profile":"terrain", "package":false},
     "garden_commands": {"kind":"unit", "systems":["garden_observations","garden_conduit","garden_relationships"], "profile":"terrain", "package":false},
     "garden_cultivation": {"kind":"unit", "systems":["garden_care","cultivation_growth","seeds","items"], "profile":"terrain", "package":false},
     "actor_presentation": {"kind":"unit", "systems":["actor_presentation","presentation","avatar_motion_view","player_weapon_actions","player_lifecycle","player_vitals","expedition_participation","life","items"], "profile":"terrain", "package":false},
@@ -8762,131 +8764,8 @@
         }
       }
     },
-    "core_combat.gd": {
-      "newline": "lf",
-      "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]},  "ar08_lifecycle_5": {"systems": ["player_lifecycle"]},  "tc01_ranged_clearance_1": {"systems": ["core_combat", "combat", "ability_aim", "hex_terrain"]}, "cr04c_void_1": {
-          "systems": ["void_affinity", "core_combat", "combat_affinity_contracts"]
-        }, "cr04c_void_2": {
-          "systems": ["void_affinity", "core_combat", "combat_affinity_contracts"]
-        },  "cr04c_spirit_1": {
-          "systems": ["spirit_affinity", "core_combat", "combat_affinity_contracts"]
-        }, "cr04c_spirit_2": {
-          "systems": ["spirit_affinity", "core_combat", "combat_affinity_contracts"]
-        },  "cr04c_spirit_4": {
-          "systems": ["spirit_affinity", "core_combat", "combat_affinity_contracts"]
-        },  "cr04c_storm_1": {
-          "systems": ["storm_affinity", "core_combat", "combat_affinity_contracts"]
-        }, "cr04c_storm_2": {
-          "systems": ["storm_affinity", "core_combat", "combat_affinity_contracts"]
-        }, "cr04b_wood_1": {
-          "systems": ["wood_affinity", "combat_affinity_contracts"]
-        }, "cr04b_wood_2": {
-          "systems": ["wood_affinity", "combat_affinity_contracts"]
-        }, "cr04b_thorn_1": {
-          "systems": ["thorn_affinity", "combat_affinity_contracts"]
-        }, "cr04a_affinity_1": {
-          "systems": ["fire_affinity", "water_affinity", "vital_affinity", "frost_affinity", "combat_affinity_contracts"]
-        }, "cr04a_affinity_2": {
-          "systems": ["fire_affinity", "water_affinity", "vital_affinity", "frost_affinity", "combat_affinity_contracts"]
-        }, "cr04a_affinity_3": {
-          "systems": ["fire_affinity", "water_affinity", "vital_affinity", "frost_affinity", "combat_affinity_contracts"]
-        },       "cr04a_affinity_10": {
-          "systems": ["fire_affinity", "water_affinity", "vital_affinity", "frost_affinity", "combat_affinity_contracts"]
-        },      "cr03_hud_state": {"systems": ["frost_affinity"]},     "cr02_hud_state": {"systems": ["combat_affinity_contracts"]},   "core_commit_audio": {
-          "systems": [
-            "event_audio"
-          ]
-        }, "ground_shape_contract": {
-          "systems": [
-            "core_combat"
-          ]
-        }}
-    },
-    "combat_traits.gd": {
-      "newline": "crlf",
-      "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]},  "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_6": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_7": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_8": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_9": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_10": {"systems": ["player_lifecycle"]},     "ga01a_2": {"systems": ["expedition_grafts", "combat", "weapons", "reaper_progression"]}, "ga01a_3": {"systems": ["expedition_grafts", "combat", "weapons", "reaper_progression"]}, "ga01a_4": {"systems": ["expedition_grafts", "combat", "weapons", "reaper_progression"]},        "ct03_ranger_4": {"systems": ["classes", "ranger_progression"]}, "ct03_ranger_5": {"systems": ["classes", "ranger_progression"]}, "ct03_ranger_6": {"systems": ["classes", "ranger_progression"]}, "ct03_ranger_7": {"systems": ["classes", "ranger_progression"]}, "ct02_1": {
-          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
-        },  "ct02_3": {
-          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
-        },      "cr05_grafts_2": {
-          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
-        }, "cr05_grafts_3": {
-          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
-        }, "cr05_grafts_4": {
-          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
-        }, "cr05_grafts_5": {
-          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
-        }, "cr05_grafts_6": {
-          "systems": ["combat_affinity_contracts", "weapons", "classes", "life"]
-        },   "cr04b_thorn_1": {
-          "systems": ["thorn_affinity", "combat_affinity_contracts"]
-        }, "cr04a_affinity_1": {
-          "systems": ["vital_affinity", "combat_affinity_contracts"]
-        }, "cr04a_affinity_2": {
-          "systems": ["vital_affinity", "combat_affinity_contracts"]
-        },    "cr02_trip_snare": {"systems": ["combat_affinity_contracts"]}, "cr02_tick": {"systems": ["combat_affinity_contracts"]},  "cb07_0": {
-          "systems": [
-            "expedition_sustain"
-          ]
-        }, "cb07_1": {
-          "systems": [
-            "expedition_sustain"
-          ]
-        },  "healing_roll_0": {
-          "systems": [
-            "healing_rolls"
-          ]
-        }, "healing_roll_1": {
-          "systems": [
-            "healing_rolls"
-          ]
-        }, "healing_roll_2": {
-          "systems": [
-            "healing_rolls"
-          ]
-        }, "healing_roll_3": {"systems": ["healing_rolls"]}, "healing_roll_4": {
-          "systems": [
-            "healing_rolls"
-          ]
-        }, "healing_roll_5": {
-          "systems": [
-            "healing_rolls"
-          ]
-        },      "cb04_5": {
-          "systems": [
-            "class_balance"
-          ]
-        },   "cb03_trait_hp_tooltip": {
-          "systems": [
-            "weapon_balance"
-          ]
-        },  "cb03_field_healing": {
-          "systems": [
-            "weapon_balance"
-          ]
-        },    "cb03_field_potency": {
-          "systems": [
-            "weapon_balance"
-          ]
-        },           "cb02_combat_traits_1_7": {
-          "systems": [
-            "combat_balance_preview"
-          ]
-        }, "vitals_healing_pool": {
-          "systems": [
-            "combat_vitals"
-          ]
-        },  "tick_class_snare": {
-          "systems": [
-            "classes",
-            "ability_aim",
-            "warden_progression"
-          ]
-        }},
-      "lf_lines": [
-        38
-      ]
-    },
+
+
     "enemy_support.gd": {
       "newline": "lf",
       "regions": {

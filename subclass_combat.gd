@@ -252,6 +252,7 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		oracle_api.after_q(game,id,player,skill,int(event.identity) if event != null else cast_id,affected,nearby,now)
 	elif weaver and follow >= 0 and follow != 1:
 		player.subclass_follow = {"lane":follow,"epoch":game.participation.epoch(),"life":PlayerLifecycle.generation(player)}
+	if not field.is_empty():game.effect_timeline.update_native(field)
 	player.contributed = true
 	var timers: Cooldowns.Timers = player[Cooldowns.STATE]
 	player[Cooldowns.STATE] = timers.start(Cooldowns.Q, now, Balance.cooldown(skill,stats))

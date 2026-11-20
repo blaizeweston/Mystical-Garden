@@ -91,7 +91,7 @@ func run() -> void:
 	escaped.hp=120
 	game.encounter.register_scout(escaped)
 	Core.command(game,1,p,Core.request(game,p,Vector2.RIGHT,2.0))
-	var line: Dictionary=game.get_meta(Core.STATE,{})[1]
+	var line: Dictionary=game.effect_timeline.core_records()[1]
 	Core.tick(game,int(line.armed))
 	Void.resolve_motion(game,Clock.now(game),int(line.armed))
 	check(game.tactics.position.x<1.79 and game.enemy_health()==175 and not Core.hints(game).is_empty(),"real Core gathers with an active hint before damage")
@@ -113,7 +113,7 @@ func run() -> void:
 	game.encounter.set_hp(-1, 200);game.tactics.position=Vector3(1.4,0,0)
 	p.core_ready_at=0;p.core_cast_until=0;p.cast_until=0;p.weapon=part
 	Core.command(game,1,p,Core.request(game,p,Vector2.RIGHT,2.0))
-	line=game.get_meta(Core.STATE,{})[1]
+	line=game.effect_timeline.core_records()[1]
 	Core.tick(game,int(line.armed))
 	Clock.advance(game,1.2)
 	Core.tick(game,int(line.armed)+1200)

@@ -148,7 +148,10 @@ func run() -> void:
  var old_rng: int = world.rng.state
  var unrelated = preload("res://character_profile.gd").new()
  unrelated.path = "user://saves/characters/slot_2/character.cfg"
+ var effects_before: Dictionary=world.effect_timeline.savepoint()
  var aborted := Tx.run_gameplay(world, Tx.Scope.PAIR, func():
+  preload("res://tests/support/combat_effect_case.gd").add_inert(world)
+  world.effect_timeline.begin_core(world.HOST,{"id":"rollback-core","epoch":world.participation.epoch(),"life":1})
   world.progress.knowledge = 31
   world.players[world.HOST].character.name = "Rejected"
   world.rng.randi()
@@ -158,6 +161,8 @@ func run() -> void:
   check(nested.get("nested", false), "nested business callback executed")
   return true)
  verify("nested_first_error", aborted.persistence, Batch.Outcome.ABORTED_RESTORED, before)
+ var effects_after: Dictionary=world.effect_timeline.savepoint()
+ check(effects_after.native==effects_before.native and effects_after.cores==effects_before.cores,"verified abort restores the owned native/Core timeline without retaining tentative effects")
  check(not aborted.completed and aborted.value == null and aborted.notice.contains("original state was verified"),
   "verified abort reports rollback without exposing the successful callback value")
  check(final(aborted.persistence).original_error == ERR_UNAUTHORIZED and disk() == before and world.progress.knowledge == 22

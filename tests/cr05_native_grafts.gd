@@ -86,7 +86,7 @@ func arena() -> void:
 	player.facing = Vector3.FORWARD
 	player.mouse_aim = false
 	player.secondary = game.Items.get_item("plant_part_plant_frostbell").legacy_part
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	game.tactics.memory.clear()
 	game.enemy_traits.clear()
 
@@ -100,7 +100,7 @@ func strike(at: int) -> void:
 
 
 func events_for(kind: String) -> Array:
-	return game.trait_events.filter(func(event): return event.get("visual",event.kind)==kind and event.has("graft_source"))
+	return game.effect_timeline.native_records().filter(func(event): return event.get("visual",event.kind)==kind and event.has("graft_source"))
 
 
 func purchases() -> void:
@@ -188,21 +188,21 @@ func simultaneous_effects() -> void:
 	for index in 11:
 		var now := first+index*280
 		strike(now)
-		game.Traits.tick(game,now+250)
+		game.effect_timeline.advance_native(game.native_effects_world,now+250)
 	check(int(Grafts.counters(player,"monster:glasscap").get("echo_charge",0))==2
 		and int(Grafts.counters(player,"monster:root_choir").get("chorus_contacts",0))==3,
 		"real basic attacks maintain independent third-contact and fourth-contact counters")
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	for index in 24:
 		game.Traits.queue_hit(game,player,0,{"damage":1.0},first,18000,false)
 	var cinder: int = Grafts.counters(player,"monster:ashen_hart").ready_at
 	var link: int = Grafts.counters(player,"monster:spore_widow").ready_at
 	strike(first+4400)
-	check(game.trait_events.size()==24 and Grafts.counters(player,"monster:glasscap").echo_charge==3
+	check(game.effect_timeline.native_count()==24 and Grafts.counters(player,"monster:glasscap").echo_charge==3
 		and Grafts.counters(player,"monster:root_choir").chorus_contacts==4
 		and Grafts.counters(player,"monster:ashen_hart").ready_at==cinder
 		and Grafts.counters(player,"monster:spore_widow").ready_at==link,"full shared capacity retains all four ready responses")
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	var now := first+4700
 	strike(now)
 	var hit_id := -1
@@ -218,7 +218,7 @@ func simultaneous_effects() -> void:
 	var nearby: Dictionary = game.encounter.scout(0)
 	var before: int = game.encounter.hp_for(nearby)
 	var point: Vector3 = nearby.pos
-	game.Traits.tick(game,now+280)
+	game.effect_timeline.advance_native(game.native_effects_world,now+280)
 	check(game.encounter.hp_for(nearby)<before and nearby.pos==point and Frost.state(nearby,now+280).is_empty(),
 		"delayed damage reaches the secondary target without movement or a second Form trigger")
 	check(events_for("link").is_empty() and events_for("echo").is_empty() and events_for("chorus").is_empty()

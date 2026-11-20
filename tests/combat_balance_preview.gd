@@ -187,7 +187,7 @@ func verify_guard_and_core(game: Node, player: Dictionary) -> void:
 	game.encounter.set_hp(-1, 600)
 	game.encounter.clear_scouts()
 	game.garden_action(1,Core.request(game,player,Vector2(0,1)))
-	var line: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
+	var line: Dictionary=game.effect_timeline.core_records().get(1,{})
 	check(line.get("skill",{}).get("id","")=="rime_bloom","actual affinity Core activation")
 	if line.is_empty():
 		return
@@ -231,14 +231,14 @@ func verify_recovery(game: Node, player: Dictionary) -> void:
 	ally.pos=player.pos
 	player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_hp(20)
 	ally[PlayerVitals.STATE] = ally[PlayerVitals.STATE].with_hp(21)
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	game.Traits.zone(game,player,"tide",player.pos,2.0,2600,.4,3000)
-	game.Traits.tick(game,3000)
+	game.effect_timeline.advance_native(game.native_effects_world,3000)
 	var pulse := int(PlayerVitals.current_hp(player))-20
 	check(pulse in range(3,6) and int(PlayerVitals.current_hp(ally))-21==pulse,"one healing pool pulse shares a roll")
-	game.Traits.tick(game,3500)
+	game.effect_timeline.advance_native(game.native_effects_world,3500)
 	check(int(PlayerVitals.current_hp(player))-20==pulse,"pool cannot heal between pulses")
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 
 
 	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])

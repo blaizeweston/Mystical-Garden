@@ -177,7 +177,7 @@ func check_runtime_focuses(game: Node, player: Dictionary) -> void:
 		for lane in 3:
 			ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 			recorded.clear()
-			game.trait_events.clear()
+			game.effect_timeline.clear_native()
 			game.enemy_traits.clear()
 			game.encounter.set_hp(-1, 10000)
 			game.tactics.position = Vector3(0,0,-2.4)
@@ -209,7 +209,7 @@ func check_runtime_focuses(game: Node, player: Dictionary) -> void:
 				check(recorded.any(func(event): return event.kind=="actual_block"), "%s responds on consumption" % adapter.id)
 			elif adapter.trigger == "contact":
 				check(recorded.is_empty(), "%s has no grant-time response" % adapter.id)
-				game.Traits.tick(game,Time.get_ticks_msec()+320)
+				game.effect_timeline.advance_native(game.native_effects_world,Time.get_ticks_msec()+320)
 				check(recorded.any(func(event): return event.kind=="class_contact"), "%s responds on trap contact" % adapter.id)
 
 

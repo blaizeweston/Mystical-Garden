@@ -41,7 +41,7 @@ func reset() -> void:
 		actor[Protection.STATE] = actor[Protection.STATE].clear_guard()
 
 		actor[Protection.STATE] = actor[Protection.STATE].clear_expedition()
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	game.encounter.set_hp(-1, 500)
 	game.enemy_mutations = 0
 	game.tactics.boss_kind = -1
@@ -86,7 +86,7 @@ func run() -> void:
 		p.core_cast_until=0
 		p.cast_until=0
 		game.garden_action(1,Core.request(game,p,Vector2.UP,1.25))
-		var cast: Dictionary = game.get_meta(Core.STATE,{}).get(1,{})
+		var cast: Dictionary = game.effect_timeline.core_records().get(1,{})
 		check(not cast.is_empty(),"real B starts Ember Wake")
 		if not cast.is_empty():
 			Core.tick(game,cast.armed)
@@ -160,7 +160,7 @@ func run() -> void:
 		ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
 		frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 2, PlayerLifecycle.generation(ally), hit_now, 1.0, 0, game.tactics.position))
 		check(game.enemy_health()==after_response,"spent Ember Response does not stockpile")
-		game.Traits.tick(game,hit_now+1100)
+		game.effect_timeline.advance_native(game.native_effects_world,hit_now+1100)
 		check(not ally.has(Fire.RESPONSE),"Sanctuary field pulses do not regrant the opening Ember Response")
 		p.frame=0
 	game.queue_free()

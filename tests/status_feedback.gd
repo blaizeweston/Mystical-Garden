@@ -57,15 +57,15 @@ func run():
  check(Status.snapshot(game,now+22).any(func(e):return e.shape=="brittle"),"a current Frost contribution displays Brittle")
  Frost.apply(game,frost_event,-1,2,now+23);Status.sync(game,now+23)
  check(Frost.state(Frost.body(game,-1),now+23).is_empty() and game.combat_events.any(func(e):return e.kind=="ability" and e.shape=="frost_rupture"),"three current Frost contributions rupture and consume the stacks visibly")
- game.encounter.clear_scouts();game.encounter.register_scout(game.make_scout(0,Vector3(1,0,1),0));game.encounter.set_hp(0, 80);game.encounter.scout(0).pos=Vector3(1,0,1);game.encounter.scout(0).engaged=false;game.trait_events.clear()
+ game.encounter.clear_scouts();game.encounter.register_scout(game.make_scout(0,Vector3(1,0,1),0));game.encounter.set_hp(0, 80);game.encounter.scout(0).pos=Vector3(1,0,1);game.encounter.scout(0).engaged=false;game.effect_timeline.clear_native()
  var secondary: Dictionary={"damage":2,"reach":4.0}
  for kind in ["echo","link","chorus"]:
   game.Traits.queue_hit(game,p,0,secondary,now,20,false,game.tactics.position,kind)
-  hp=game.encounter.hp(0);game.Traits.tick(game,now+25)
+  hp=game.encounter.hp(0);game.effect_timeline.advance_native(game.native_effects_world,now+25)
   check(game.encounter.hp(0)<hp and game.combat_events.any(func(e):return e.kind=="proc" and e.shape==kind),"confirmed "+kind+" hit has a matching effect")
  game.combat_events.clear();game.Traits.queue_hit(game,p,0,secondary,now,20,false,game.tactics.position,"echo")
  var replacement: Dictionary=game.make_scout(0,game.encounter.scout(0).pos,0)
- game.encounter.register_scout(replacement, 0);game.Traits.tick(game,now+25)
+ game.encounter.register_scout(replacement, 0);game.effect_timeline.advance_native(game.native_effects_world,now+25)
  check(not game.combat_events.any(func(e):return e.kind=="proc"),"stale delayed attack cannot show a false proc on a new enemy")
  Frost.apply(game,frost_event,0,1,now+30);Status.sync(game,now+30);game.encounter.set_hp(0, 0);Status.sync(game,now+31)
  check(not Status.snapshot(game,now+31).any(func(e):return e.form=="enemy" and e.combo==0),"dead enemy loses status")

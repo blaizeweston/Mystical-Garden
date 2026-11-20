@@ -71,7 +71,7 @@ func run() -> void:
 
 	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[Rect2(1.4,-2.0,1.0,4.0)])
 	Core.command(game,1,p,Core.request(game,p,Vector2.RIGHT))
-	var cast: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
+	var cast: Dictionary=game.effect_timeline.core_records().get(1,{})
 	if not cast.is_empty():
 		Core.tick(game,int(cast.release))
 		Core.tick(game,int(cast.armed))
@@ -79,7 +79,7 @@ func run() -> void:
 	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	p.core_ready_at=0;p.core_cast_until=0;p.cast_until=0
 	Core.command(game,1,p,Core.request(game,p,Vector2.RIGHT))
-	cast=game.get_meta(Core.STATE,{}).get(1,{})
+	cast=game.effect_timeline.core_records().get(1,{})
 	if not cast.is_empty():
 		Core.tick(game,int(cast.release))
 		Core.tick(game,int(cast.armed))
@@ -87,7 +87,7 @@ func run() -> void:
 	p.core_ready_at=0;p.core_cast_until=0;p.cast_until=0;p.weapon=refined
 	game.encounter.set_hp(-1, 100)
 	Core.command(game,1,p,Core.request(game,p,Vector2.RIGHT))
-	cast=game.get_meta(Core.STATE,{}).get(1,{})
+	cast=game.effect_timeline.core_records().get(1,{})
 	if not cast.is_empty():
 		Core.tick(game,int(cast.release))
 		Core.tick(game,int(cast.armed))

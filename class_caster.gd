@@ -192,7 +192,9 @@ func commit_cooldown(slot: int, now: int, duration: int, bonus_heal: float) -> v
 
 
 func finish_snare(origin: Vector3, now: int) -> String:
-	return Ranger.finish_snare(_world, _actor, _snare, origin, now)
+	var message:=Ranger.finish_snare(_world, _actor, _snare, origin, now)
+	_world.effect_timeline.update_native(_snare)
+	return message
 
 
 func complete_event(event: RefCounted, adapter: Dictionary, origin: Vector3, center: Vector3,

@@ -231,7 +231,7 @@ func host(menu: Node) -> void:
 	var burst: Array=ruptures[wanted-1]
 	check(burst[1]==(12 if party else 15) and burst[0].any(func(stack):return stack.actor==1),
 		"ordinary Core accounts for each source with refined Form when mixed")
-	if not check(await until(func():return not game.get_meta(Core.STATE,{}).has(1)),"closing petals finish before another action"):return
+	if not check(await until(func():return not game.effect_timeline.core_records().has(1)),"closing petals finish before another action"):return
 	var protected: int=ids[0]
 	var ally: Dictionary=game.players[protected]
 	local[Cooldowns.STATE] = local[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
@@ -316,7 +316,7 @@ func host(menu: Node) -> void:
 				mark("vital-"+str(source),str(PlayerVitals.maximum_hp(visitor)))
 				check(await until(func():return read("vital-seen-"+str(source))=="ok"),"Vital capacity reaches guest through authoritative vitals")
 	if native_graft_case:
-		check(game.trait_events.any(func(e):return e.get("graft_source",{}).get("component_id")=="monster:ashen_hart")
+		check(game.effect_timeline.native_records().any(func(e):return e.get("graft_source",{}).get("component_id")=="monster:ashen_hart")
 			or game.combat_events.any(func(e):return e.shape=="cinder_zone"),"real guest strike emitted acquired Cinder")
 		if party and measure_packets: await sample_host_snapshots(game,ids)
 	if party and not connected_weaver_case and graph==null and not native_graft_case:
@@ -858,7 +858,7 @@ func exercise_weaver_host(game: Node, id: int, entry: Vector3, target: Vector3, 
 	var nova_deadline := Time.get_ticks_msec() + 1200
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, nova_deadline)
 	mark("weaver-q", str(Vector2(aim.x,aim.z)) + ":" + str(entry.distance_to(target)))
-	if not check(await until(func():return player.has("weaver_nova_origin") and game.trait_events.any(func(e):
+	if not check(await until(func():return player.has("weaver_nova_origin") and game.effect_timeline.native_records().any(func(e):
 		return e.get("native_weaver_bloom",false) and e.owner==id)),"remote Cultivate Bloom records its actual placement"):return false
 	if not check(int(player[Cooldowns.STATE].deadline(Cooldowns.R)) < nova_deadline and int(player[Cooldowns.STATE].deadline(Cooldowns.R)) <= Time.get_ticks_msec()
 			and not player.has("subclass_follow"),"remote Cultivate Bloom immediately makes the active Nova timer ready"):return false
@@ -1299,7 +1299,7 @@ func sample_host_snapshots(game: Node, ids: Array) -> void:
 		var caster: Dictionary = game.players[ids[0]]
 		caster[WeaponActions.STATE] = caster[WeaponActions.STATE].with_ready_at(0)
 		WeaponCase.start(game,ids[0],caster.pos)
-		if not check(await until(func():return game.trait_events.any(func(e):
+		if not check(await until(func():return game.effect_timeline.native_records().any(func(e):
 			return e.get("graft_source",{}).get("component_id")=="monster:ashen_hart"),1300),
 			"a real Cinder field is active at full scout occupancy"): return
 	for index in PROBE_COUNT:

@@ -240,7 +240,7 @@ func guest_lantern() -> void:
  check(await until(func():return marked("lantern-seen-1") and marked("lantern-seen-2") and marked("lantern-seen-3"),8),"guests receive Weaver's committed Vital Bloom")
  check(caster.core_ready_at>0 and game.combat_events.any(func(e):return e.shape=="vital_bloom"),"host accepts the guest cast and spends that player's cooldown")
  var support_expired:=func() -> bool:
-  return (not game.get_meta(Core.STATE,{}).has(SessionCase.Session.peer_for(caster))
+  return (not game.effect_timeline.core_records().has(SessionCase.Session.peer_for(caster))
    and game.players.values().all(func(actor):return not actor.has("affinity_vital_sources")))
  check(await until(support_expired,8),"the Core cast completes and temporary Vitality expires naturally before the fixed-capacity synchronization control")
 

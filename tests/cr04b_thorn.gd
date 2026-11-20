@@ -49,7 +49,7 @@ func reset(p: Dictionary) -> void:
 	game.tactics.memory.clear()
 	game.encounter.clear_scouts()
 	game.weapon_attacks.clear()
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	Core.reset(game)
 	if game.has_meta(Thorn.FIELDS):game.remove_meta(Thorn.FIELDS)
 	game.set_meta(Clock.CLOCK,0.0)
@@ -109,7 +109,7 @@ func run() -> void:
 		var q: Dictionary=Builds.slot("core",part).potency_profile.values
 		p.weapon=part
 		game.garden_action(1,Core.request(game,p,Vector2.UP,1.3))
-		var cast: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
+		var cast: Dictionary=game.effect_timeline.core_records().get(1,{})
 		check(not cast.is_empty(),"native B prepares Thorn Line")
 		if not cast.is_empty():
 			Core.tick(game,cast.armed)
@@ -158,7 +158,7 @@ func run() -> void:
 		p.erase("class_aim")
 		p.erase("class_aim_distance")
 		check(Thorn.active_fields(game,Clock.now(game)).size()==1,"native group heal plants one patch")
-		game.Traits.tick(game,now+1500)
+		game.effect_timeline.advance_native(game.native_effects_world,now+1500)
 		check(Thorn.active_fields(game,Clock.now(game)).size()==1,"Sanctuary updates do not grow more patches")
 		reset(p)
 		p.catalyst=part

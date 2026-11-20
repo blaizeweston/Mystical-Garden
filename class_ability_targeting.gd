@@ -93,7 +93,7 @@ static func growth_centers(game: Node, id: int) -> Array:
 		return game.players.get(id, {}).get("ability_growth_centers", [])
 	var result := []
 	var now := preload("res://combat_clock.gd").now()
-	for field in game.trait_events:
+	for field in game.effect_timeline.native_records():
 		if field.kind == "growth" and field.owner == id and game.Traits.event_in_current_life(game,field) and now < int(field.until):
 			result.append(field.position)
 	return result

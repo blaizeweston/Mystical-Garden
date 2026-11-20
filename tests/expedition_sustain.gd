@@ -80,7 +80,7 @@ func arena() -> void:
 	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.encounter.clear_scouts()
 	game.enemy_traits.clear()
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	game.combat_events.clear()
 	game.tactics.memory.clear()
 	Core.reset(game)

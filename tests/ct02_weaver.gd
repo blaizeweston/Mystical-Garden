@@ -170,7 +170,7 @@ func arena(path: Array) -> void:
 	game.enemy_traits.clear()
 	game.tactics.memory.clear()
 	game.encounter.clear_scouts()
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	game.tactics.rooted_until=0
 	for who in [ally,player]:
 		who[PlayerVitals.STATE] = who[PlayerVitals.STATE].with_hp(90)
@@ -275,9 +275,9 @@ func offense(base: int) -> void:
 		"Pressure applies to every native hit and stacks with one Barbed bonus without starting a graft proc")
 	arena(OFFENSE)
 	q()
-	game.trait_events.resize(24)
+	preload("res://tests/support/combat_effect_case.gd").fill(game)
 	r()
-	check(player.get("weaver_capstone",{}).get("kind")=="weaver_burst" and game.trait_events.size()==24,
+	check(player.get("weaver_capstone",{}).get("kind")=="weaver_burst" and game.effect_timeline.native_count()==24,
 		"the existing generic queue limit leaves the one scheduled native burst available")
 	var obsolete: Dictionary=player.weaver_capstone
 	var prior_life: PlayerLifecycle.Life = player[PlayerLifecycle.STATE]
@@ -315,7 +315,7 @@ func threaded_nova() -> void:
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.Q, original)
 	player[Cooldowns.STATE] = player[Cooldowns.STATE].with_deadline(Cooldowns.R, original)
 	ClassActions.cast_world(game, 1, 0)
-	check(player[Cooldowns.STATE].deadline(Cooldowns.R) == original and game.trait_events.is_empty(),"a refused focus cast cannot refund the Nova timer")
+	check(player[Cooldowns.STATE].deadline(Cooldowns.R) == original and game.effect_timeline.native_records().is_empty(),"a refused focus cast cannot refund the Nova timer")
 	arena(BALANCED)
 	player.subclass_follow = {"lane":1,"epoch":game.participation.epoch(),"life":PlayerLifecycle.generation(player)}
 	var before := Time.get_ticks_msec()
@@ -330,17 +330,17 @@ func balance(base: int) -> void:
 	var origin := Vector3(7,0,0)
 	game.tactics.position=origin
 	q(origin)
-	var growth: Dictionary=game.trait_events[0]
+	var growth: Dictionary=game.effect_timeline.native_records()[0]
 	var now := Time.get_ticks_msec()
 	check(growth.position.is_equal_approx(origin) and int(growth.until)-int(growth.next)==3000 and game.tactics.rooted_until>=now+600,
 		"Patient Spore reaches seven metres and Holding Threads roots on release")
 	game.enemy_traits.marked_until=now+4000
 	var before: int=game.enemy_health()
-	game.Traits.tick(game,growth.next)
+	game.effect_timeline.advance_native(game.native_effects_world,growth.next)
 	check(before-game.enemy_health()==10 and game.enemy_traits.marked_until==now+4000,
 		"affinity Bloom pulse deals native damage and leaves an existing Mark untouched")
 	game.enemy_traits.clear()
-	game.Traits.tick(game,growth.next)
+	game.effect_timeline.advance_native(game.native_effects_world,growth.next)
 	check(not game.enemy_traits.has("marked_until"),"affinity Bloom cannot create a native Mark")
 	player.pos=Vector3(2,0,0)
 	player.catalyst=game.Items.get_item("plant_part_plant_frostbell").legacy_part
@@ -391,11 +391,12 @@ func balance(base: int) -> void:
 	arena(["bloomcaller","patient_spore","branching_spores","barbed_nova","spore_pressure"])
 	q()
 	check(not player.has("weaver_pressure"),"casting an unrooted Bloom waits for actual damage")
-	growth=game.trait_events[0]
-	game.Traits.tick(game,growth.next)
+	growth=game.effect_timeline.native_records()[0]
+	game.effect_timeline.advance_native(game.native_effects_world,growth.next)
+	growth=game.effect_timeline.native_records()[0] # Inspect the committed field, not the earlier detached value.
 	check(player.has("weaver_pressure") and not growth.has("weaver_pressure"),"first damaging pulse arms Pressure exactly once")
 	r()
-	game.Traits.tick(game,growth.next)
+	game.effect_timeline.advance_native(game.native_effects_world,growth.next)
 	check(not player.has("weaver_pressure"),"later pulses cannot rearm the same cast")
 
 

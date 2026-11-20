@@ -107,7 +107,7 @@ static func nearby(game: Node, exclude: int, point: Vector3, reach: float) -> Ar
 
 static func has_room(game: Node) -> bool:
 	# Reserve part of the shared 24-record queue for native spells and traps.
-	return game.trait_events.filter(func(event): return event.has("graft_source")).size() < MAX_GRAFT_RECORDS
+	return game.effect_timeline.native_count(true) < MAX_GRAFT_RECORDS
 
 
 static func secondary_stats(points: float) -> Dictionary:
@@ -120,11 +120,8 @@ static func queue_hits(game: Node, player: Dictionary, targets: Array[int], stat
 	if targets.is_empty() or not has_room(game):
 		return false
 	var first := targets[0]
-	var size: int = game.trait_events.size()
-	game.Traits.queue_hit(game,player,first,stats,now,int(DELAYS[kind]),kind=="link",contact.point,kind,source)
-	if game.trait_events.size() == size:
-		return false
-	var row: Dictionary = game.trait_events.back()
+	var row: Dictionary=game.Traits.queue_hit(game,player,first,stats,now,int(DELAYS[kind]),kind=="link",contact.point,kind,source)
+	if row.is_empty():return false
 	row.stats = secondary_stats(float(row.stats.damage))
 	if targets.size() > 1:
 		# One bounded queue record for the entire pulse. Each victim keeps its
@@ -133,7 +130,7 @@ static func queue_hits(game: Node, player: Dictionary, targets: Array[int], stat
 		for target in targets:
 			var token: int = -1 if target == -1 else game.encounter.token(target)
 			row.graft_targets.append({"target":target,"token":token})
-	return true
+	return game.effect_timeline.update_native(row)
 
 
 static func resolve_queued(game: Node, player: Dictionary, row: Dictionary, now: int) -> void:

@@ -121,7 +121,7 @@ func run() -> void:
 		pressed.pressed=false
 		game._input(pressed)
 		check(not Aim.available(game,player,0),"class actions still stop after clear")
-		var cast: Dictionary=game.get_meta(Core.STATE,{}).get(1,{})
+		var cast: Dictionary=game.effect_timeline.core_records().get(1,{})
 		check(not cast.is_empty(),"real Core can grant recovery between encounters")
 		if not cast.is_empty():
 			Core.tick(game,cast.armed)
@@ -131,7 +131,7 @@ func run() -> void:
 			ally.pos=Vector3(8,0,0)
 			Vital.tick(game,Clock.advance(game,1.0))
 			check(player[PlayerVitals.STATE].hp()==60+q.regen_per_second and ally[PlayerVitals.STATE].hp()==60+q.regen_per_second,"recipient carries regeneration beyond the original area")
-			check(not game.get_meta(Core.STATE,{}).has(1),"native cast released once")
+			check(not game.effect_timeline.core_records().has(1),"native cast released once")
 		reset(player,ally)
 		player.secondary=part
 		player.facing=Vector3.FORWARD
@@ -163,7 +163,7 @@ func run() -> void:
 		player.erase("class_aim_distance")
 		check(ally[PlayerVitals.STATE].temporary_hp()==q.bonus_hp and ally[PlayerVitals.STATE].hp()>60,"native Oracle heal remains intact and grants recipient Vitality")
 		var duration: int=ally.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",0)
-		game.Traits.tick(game,now+1500)
+		game.effect_timeline.advance_native(game.native_effects_world,now+1500)
 		check(ally.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",-1)==duration,"native Sanctuary updates do not grant fresh Vitality")
 
 	reset(player,ally)
@@ -178,14 +178,14 @@ func run() -> void:
 	check(not player.has(Vital.SOURCES),"empty Cultivate Bloom creates no Vitality on placement")
 	var pulse_at:=Time.get_ticks_msec()+1
 	game.tactics.position=Vector3(0,0,-1)
-	game.Traits.tick(game,pulse_at)
+	game.effect_timeline.advance_native(game.native_effects_world,pulse_at)
 	check(player[PlayerVitals.STATE].temporary_hp()==12,"first actual Cultivate Bloom pulse grants Vitality")
 	Clock.advance(game,.4)
-	game.Traits.tick(game,pulse_at+1000)
+	game.effect_timeline.advance_native(game.native_effects_world,pulse_at+1000)
 	check(player.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",0)==Vital.DURATIONS.catalyst,"periodic hits cannot re-grant the class response")
 	player.erase("class_aim")
 	player.erase("class_aim_distance")
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 
 	reset(player,ally)
 	var now:=Time.get_ticks_msec()

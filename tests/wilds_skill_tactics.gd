@@ -62,7 +62,7 @@ func core_skill(species: String, distance: float) -> Dictionary:
 	player.core_cast_until = 0
 	player.cast_until = 0
 	game.garden_action(1, Core.request(game, player, Vector2.UP, distance))
-	var cast: Dictionary = game.get_meta(Core.STATE, {}).get(1, {})
+	var cast: Dictionary = game.effect_timeline.core_records().get(1, {})
 	check(not cast.is_empty(), "Core command accepted for " + species)
 	if not cast.is_empty():
 		Core.tick(game, cast.armed)

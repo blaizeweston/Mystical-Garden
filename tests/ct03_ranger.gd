@@ -78,7 +78,7 @@ func prepare(path: Array, origin := Vector3.ZERO, enemy := Vector3(2,0,0)) -> vo
 	ExpeditionCase.set_world(game, {"combat_epoch": game.participation.epoch() + (1)})
 	game.battlefield = preload("res://battlefield.gd").new()
 	game.encounter.clear_scouts()
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	game.weapon_attacks.clear()
 	game.combat_events.clear()
 	game.enemy_traits.clear()
@@ -120,7 +120,7 @@ func cast(slot: int) -> void:
 	ClassActions.cast_world(game, game.HOST, slot)
 
 func trap(slot: int) -> Dictionary:
-	for event in game.trait_events:
+	for event in game.effect_timeline.native_records():
 		if event.kind == "snare" and event.owner == game.HOST and event.skill.slot == slot:
 			return event
 	return {}
@@ -159,18 +159,19 @@ func tracked_and_offense() -> void:
 
 	check(ranger.has(Ranger.SNARE),"Q prepares Barbed Snare")
 	for index in 24:
-		game.trait_events.append({"kind":"hit"})
+		preload("res://tests/support/combat_effect_case.gd").add_inert(game)
 	cast(1)
 	check(trap(1).is_empty() and ranger.has(Ranger.SNARE) and ranger[Cooldowns.STATE].deadline(Cooldowns.R)==0 and "could not be set" in game.status,
 		"full queue refuses R and preserves its preparation and cooldown")
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	game.tactics.position = Vector3(5,0,0)
 	cast(1)
 	var placed := trap(1)
 	check(not placed.is_empty() and not ranger.has(Ranger.SNARE) and game.enemy_health()==237,"placing Barbed Snare does not deal damage")
 	if not placed.is_empty():
-		game.Traits.tick(game,int(placed.next))
-		game.Traits.tick(game,int(placed.next)+50)
+		game.effect_timeline.advance_native(game.native_effects_world,int(placed.next))
+		game.effect_timeline.advance_native(game.native_effects_world,int(placed.next)+50)
+		placed=trap(1)
 		check(game.enemy_health()==217 and not placed.has("ranger_bonus_hp"),"first actual R contact gets the bonus only once")
 
 	for weapon in 3:
@@ -239,9 +240,10 @@ func balanced_and_corridor() -> void:
 	if not placed.is_empty():
 		var tick_at: int = placed.next
 		if not bait.is_empty():
-			game.trait_events.erase(bait)
-		game.Traits.tick(game,tick_at)
-		game.Traits.tick(game,tick_at+16)
+			game.effect_timeline.remove_native(bait)
+		game.effect_timeline.advance_native(game.native_effects_world,tick_at)
+		game.effect_timeline.advance_native(game.native_effects_world,tick_at+16)
+		placed=trap(1)
 		check(game.enemy_health()==290 and game.encounter.hp_for(corridor_enemy)==290 and placed.seen.size()==2
 			and game.tactics.rooted_until==tick_at+1300 and corridor_enemy.rooted_until==tick_at+1300,
 			"one native hit and root per enemy across corridor and endpoint")
@@ -253,7 +255,8 @@ func balanced_and_corridor() -> void:
 	bait = trap(0)
 	check(game.enemy_health()==300 and not bait.is_empty(),"Q trap placement spends no Splinter damage")
 	if not bait.is_empty():
-		game.Traits.tick(game,int(bait.next))
+		game.effect_timeline.advance_native(game.native_effects_world,int(bait.next))
+		bait=trap(0)
 		check(game.enemy_health()==290 and bait.ranger_caught,"actual Q trap contact deals the one native Splinter hit")
 
 	prepare(BALANCED,Vector3(-4,0,0),Vector3(3.5,0,0))
@@ -288,7 +291,7 @@ func defense_and_route() -> void:
 	check(is_equal_approx(Ranger.speed_scale(game,ranger,Time.get_ticks_msec()),1.15)
 		and is_equal_approx(game.player_snapshot(8,false)[1].motion_scale,1.15),"Fleetfoot uses the real replicated movement multiplier")
 	if not briar.is_empty():
-		game.Traits.tick(game,int(briar.next))
+		game.effect_timeline.advance_native(game.native_effects_world,int(briar.next))
 		check(departure_ally.rooted_until>0 and game.encounter.hp_for(departure_ally)==300,"Briar Retreat uses its native root without extra damage")
 	var q_time: int = ranger[Cooldowns.STATE].deadline(Cooldowns.Q)
 	ranger.class_aim_distance=0.05
@@ -308,12 +311,15 @@ func defense_and_route() -> void:
 	var now := Time.get_ticks_msec()
 	ally.pos = Vector3(-2,0,0)
 	Ranger.tick_route(game,placed,now)
+	game.effect_timeline.update_native(placed)
 	var grant: Dictionary = ally.get(Ranger.SPEEDS,{}).get("escape/1",{})
 	check(not grant.is_empty() and is_equal_approx(Ranger.speed_scale(game,ally,now),1.2),"ally gains movement speed on entering the route")
 	ally.pos = Vector3(-8,0,2)
 	Ranger.tick_route(game,placed,now+400)
+	game.effect_timeline.update_native(placed)
 	ally.pos = Vector3(-2,0,0)
 	Ranger.tick_route(game,placed,now+700)
+	game.effect_timeline.update_native(placed)
 	check(ally[Ranger.SPEEDS]["escape/1"].until==grant.get("until")
 		and Ranger.speed_scale(game,ally,now+2100)==1.0,"one grant per ally, without refresh on re-entry")
 	var replacement := ally.duplicate(true)
@@ -321,16 +327,18 @@ func defense_and_route() -> void:
 	ExpeditionCase.remove_actor(game, 8)
 	ExpeditionCase.install_actor(game, 9, replacement)
 	Ranger.tick_route(game,placed,now+710)
+	game.effect_timeline.update_native(placed)
 	check(not replacement.has(Ranger.SPEEDS),"same character cannot claim one route twice through a new connection")
 	ExpeditionCase.remove_actor(game, 9)
 	ExpeditionCase.install_actor(game, 8, ally)
 	ranger[PlayerLifecycle.STATE] = PlayerLifecycle.start_life()
-	game.Traits.tick(game,now+50)
+	game.effect_timeline.advance_native(game.native_effects_world,now+50)
+	placed=trap(1)
 	check(trap(1).is_empty() and Ranger.speed_scale(game,ally,now+50)==1.0 and not placed.has("ranger_route"),
 		"owner life change removes the route and its remaining grants")
 	prepare(DEFENSE)
 	for index in 24:
-		game.trait_events.append({"kind":"hit"})
+		preload("res://tests/support/combat_effect_case.gd").add_inert(game)
 	cast(0)
 	check(ranger.pos==Vector3.ZERO and ranger[Cooldowns.STATE].deadline(Cooldowns.Q)==0 and Ranger.speed_scale(game,ranger,Time.get_ticks_msec())==1.0
 		and "Could not set" in game.status,"full queue refuses the retreat before motion, Ward or speed")

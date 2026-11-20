@@ -84,7 +84,7 @@ func reset_enemy(at := Vector3(0,0,-1.5)) -> void:
 		actor[Protection.STATE] = actor[Protection.STATE].clear_guard()
 
 		actor[Protection.STATE] = actor[Protection.STATE].clear_expedition()
-	game.trait_events.clear()
+	game.effect_timeline.clear_native()
 	game.encounter.set_hp(-1, 150)
 	game.enemy_mutations=0
 	game.tactics.boss_kind=-1
@@ -110,7 +110,7 @@ func run_core(p: Dictionary, part: int) -> void:
 	check(p.core_ready_at==0,"stale Core request spends no cooldown")
 	var cast_key := Core.request(game,p,Vector2.UP,1.5)
 	game.garden_action(1,cast_key)
-	var lines: Dictionary = game.get_meta(Core.STATE,{})
+	var lines: Dictionary = game.effect_timeline.core_records()
 	if not lines.has(1):
 		check(false,"Rime Bloom gets valid placement through B")
 		return
@@ -195,7 +195,7 @@ func run_catalyst(p: Dictionary, part: int) -> void:
 	check(ally[PlayerVitals.STATE].hp()==hp-10+6,"native Second Breath independently restores 6 HP after the survived direct hit")
 	var after := Frost.state(game.tactics.memory,now)
 	check(after.get("stacks",[]).size()==2 and after.stacks[1].actor==1 and after.stacks[1].quality==("refined" if part==refined else "ordinary"),"ally uses granting Catalyst quality")
-	game.Traits.tick(game,now+1100)
+	game.effect_timeline.advance_native(game.native_effects_world,now+1100)
 	check(not ally.has(Frost.RESPONSE),"Sanctuary field pulses do not regrant the opening Catalyst response")
 	p.frame=0
 
