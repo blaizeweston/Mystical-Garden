@@ -82,6 +82,12 @@ func reset(p: Dictionary, ally: Dictionary) -> void:
 		player[PlayerVitals.STATE] = player[PlayerVitals.STATE].with_native_max_hp(game.Life.native_maximum(game,player))
 
 
+func source_until(player: Dictionary, actor: int, slot: String, fallback: int = 0) -> int:
+	for source: Dictionary in player.get(Vital.SOURCES,{}).values():
+		if int(source.actor)==actor and source.slot==slot: return int(source.until)
+	return fallback
+
+
 func run() -> void:
 	game=preload("res://world.tscn").instantiate()
 
@@ -141,12 +147,12 @@ func run() -> void:
 		check(player[PlayerVitals.STATE].temporary_hp()==q.bonus_hp and player[PlayerVitals.STATE].hp()==60 and not ally.has(Vital.SOURCES),
 			"real weapon contact grants self capacity without a lifesteal heal")
 		game.encounter.register_scout(game.make_scout(0,Vector3(1,0,-1.25),0))
-		var applied_until: int=player.get(Vital.SOURCES,{}).get("1/form",{}).get("until",0)
+		var applied_until: int=source_until(player,1,"form",0)
 		Clock.advance(game,.4)
 		Events.contact(game,replay_context,0,now)
 		Events.contact(game,replay_context,-1,now)
 		Events.contact(game,replay_context,0,now,true)
-		check(player.get(Vital.SOURCES,{}).get("1/form",{}).get("until",-1)==applied_until,"multi-target, duplicate and secondary contacts don't refresh the same attack")
+		check(source_until(player,1,"form",-1)==applied_until,"multi-target, duplicate and secondary contacts don't refresh the same attack")
 		reset(player,ally)
 		player.catalyst=part
 		ClassActions.cast_world(game, 1, 1)
@@ -162,9 +168,9 @@ func run() -> void:
 		player.erase("class_aim")
 		player.erase("class_aim_distance")
 		check(ally[PlayerVitals.STATE].temporary_hp()==q.bonus_hp and ally[PlayerVitals.STATE].hp()>60,"native Oracle heal remains intact and grants recipient Vitality")
-		var duration: int=ally.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",0)
+		var duration: int=source_until(ally,1,"catalyst",0)
 		game.effect_timeline.advance_native(game.native_effects_world,now+1500)
-		check(ally.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",-1)==duration,"native Sanctuary updates do not grant fresh Vitality")
+		check(source_until(ally,1,"catalyst",-1)==duration,"native Sanctuary updates do not grant fresh Vitality")
 
 	reset(player,ally)
 	player.frame=1
@@ -182,7 +188,7 @@ func run() -> void:
 	check(player[PlayerVitals.STATE].temporary_hp()==12,"first actual Cultivate Bloom pulse grants Vitality")
 	Clock.advance(game,.4)
 	game.effect_timeline.advance_native(game.native_effects_world,pulse_at+1000)
-	check(player.get(Vital.SOURCES,{}).get("1/catalyst",{}).get("until",0)==Vital.DURATIONS.catalyst,"periodic hits cannot re-grant the class response")
+	check(source_until(player,1,"catalyst",0)==Vital.DURATIONS.catalyst,"periodic hits cannot re-grant the class response")
 	player.erase("class_aim")
 	player.erase("class_aim_distance")
 	game.effect_timeline.clear_native()

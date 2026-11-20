@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Sources = preload("res://affinity_status_source.gd")
+const Lifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Clock = preload("res://affinity_time.gd")
 const SOURCES := "affinity_vital_sources"
@@ -8,13 +10,17 @@ const COLOR := Color("#abd785")
 const CORE_RADIUS := 2.65
 const WARD_RADIUS := 2.4
 const COOLDOWN_MS := 8000
+# Harvest foundation only until the player-choice action is explicitly approved.
+# Damage is whole HP after one final rounding. These are not card definitions.
+const HARVEST_DAMAGE_PER_HP := 1.0
+const NORMAL_HP_SAFETY_FRACTION := .50
 const TICK_MS := 1000
 const DURATIONS := {"core": 5500, "form": 2800, "catalyst": 4000}
 const QUALITY := {
 	"ordinary": {"bonus_hp": 12, "regen_per_second": 3},
 	"refined": {"bonus_hp": 18, "regen_per_second": 5},
 }
-const VERSION_DATA := [CORE_RADIUS, WARD_RADIUS, COOLDOWN_MS, TICK_MS, DURATIONS, QUALITY]
+const VERSION_DATA := [CORE_RADIUS, WARD_RADIUS, COOLDOWN_MS, TICK_MS, DURATIONS, QUALITY, HARVEST_DAMAGE_PER_HP, NORMAL_HP_SAFETY_FRACTION]
 
 
 static func description(slot: String, quality: String) -> String:
@@ -36,25 +42,51 @@ static func strongest(sources: Dictionary, elapsed: int) -> Vector2i:
 	return benefits
 
 
+## Expiring grants belong to the recipient. An accepted ally benefit finishes
+## after provider loss, but cannot cross the recipient's life or floor boundary.
+static func live_sources(game: Node, player: Dictionary, elapsed: int, include_expired := false) -> Dictionary:
+	var result := {}
+	for key in player.get(SOURCES,{}):
+		var row: Dictionary=player[SOURCES][key]
+		if int(row.epoch)==game.participation.epoch() and Lifecycle.matches(player,int(row.recipient_life)) \
+				and (include_expired or int(row.until)>elapsed): result[key]=row
+	return result
+
 static func grant(game: Node, event: RefCounted, id: int, elapsed: int) -> void:
-	var player: Dictionary = game.players.get(id,{})
-	if not game.Life.alive(player):
-		return
-	var sources: Dictionary = player.get(SOURCES,{})
-	# A recipient with ongoing regeneration keeps its next tick. A fully
-	# expired effect starts a new cadence and never carries banked ticks.
-	if strongest(sources,elapsed).y == 0:
-		player[NEXT] = elapsed + TICK_MS
-	for key in sources.keys():
-		if int(sources[key].until) <= elapsed:
-			sources.erase(key)
-	var p: Dictionary = event.potency()
-	sources["%d/%s" % [event.actor,event.source]] = {
-		"bonus_hp":p.bonus_hp, "regen_per_second":p.regen_per_second,
-		"start":elapsed, "until":elapsed + int(DURATIONS[event.source]) + int(p.get("duration_bonus_ms",0)), "quality":event.quality, "activation":event.identity, "item":event.material_id,
-	}
-	player[SOURCES] = sources
+	var player: Dictionary=game.players.get(id,{})
+	var origin := Sources.capture(event)
+	if not game.multiplayer.is_server() or not game.Life.alive(player) or not Sources.current(game,origin): return
+	var sources := live_sources(game,player,elapsed)
+	if strongest(sources,elapsed).y==0: player[NEXT]=elapsed+TICK_MS
+	var p: Dictionary=event.potency()
+	# Different magnitudes keep independent expirations, including from the
+	# same provider/slot. Weak reapplication never replaces/prolongs strength.
+	var key: String=Sources.key(origin)+"/"+event.source+"/%d/%d" % [p.bonus_hp,p.regen_per_second]
+	var row := origin.duplicate(true)
+	row.merge({"bonus_hp":p.bonus_hp,"regen_per_second":p.regen_per_second,"start":elapsed,
+		"until":elapsed+int(DURATIONS[event.source])+int(p.get("duration_bonus_ms",0)),
+		"recipient_life":Lifecycle.generation(player)},true)
+	sources[key]=row
+	player[SOURCES]=sources
 	set_capacity(game,player,strongest(sources,elapsed).x)
+
+## A quote is not an action. No control, card acquisition or automatic drain is
+## installed here. A future explicit action must validate its life/cast and
+## commit health_after once, then resolve damage as secondary native HP.
+static func harvest_plan(health: PlayerVitals.Health, allow_normal := false,
+		safety_fraction := NORMAL_HP_SAFETY_FRACTION, efficiency := HARVEST_DAMAGE_PER_HP) -> Dictionary:
+	if not is_finite(safety_fraction) or safety_fraction<=0.0 or safety_fraction>1.0 \
+			or not is_finite(efficiency) or efficiency<=0.0:
+		return {"accepted":false,"spent_hp":0.0,"damage_hp":0,"health_before":health,"health_after":health}
+	var floor_hp := float(health.native_max_hp())*(safety_fraction if allow_normal else 1.0)
+	var after := health.spent(health.hp(),floor_hp)
+	var spent := health.hp()-after.hp()
+	var damage := roundi(spent*efficiency)
+	var accepted := spent>0.0 and damage>0
+	var result := {"accepted":accepted,"spent_hp":spent if accepted else 0.0,"damage_hp":damage if accepted else 0,
+		"health_before":health,"health_after":after if accepted else health,"minimum_hp":floor_hp}
+	result.make_read_only()
+	return result
 
 
 static func set_capacity(game: Node, player: Dictionary, bonus: int) -> void:
@@ -78,7 +110,8 @@ static func tick(game: Node, elapsed: int) -> void:
 		if not game.Life.alive(player):
 			clear(game,player)
 			continue
-		var sources: Dictionary = player[SOURCES]
+		var sources := live_sources(game,player,elapsed,true)
+		player[SOURCES]=sources
 		var benefits := strongest(sources,elapsed)
 		if benefits == Vector2i.ZERO:
 			clear(game,player)

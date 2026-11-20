@@ -1097,10 +1097,6 @@
       "ar07_vitals_5": {
         "match": "\t\t\t\tplayer[PlayerVitals.STATE] = player[PlayerVitals.STATE].healed(regen)\n",
         "baseline": "\t\t\t\tgame.Life.Vitals.heal(player,regen)\n"
-      },
-      "ec01_1": {
-        "match": "\t\t\"bonus_hp\":p.bonus_hp, \"regen_per_second\":p.regen_per_second,\n\t\t\"start\":elapsed, \"until\":elapsed + int(DURATIONS[event.source]) + int(p.get(\"duration_bonus_ms\",0)), \"quality\":event.quality, \"activation\":event.identity, \"item\":event.material_id,\n\t}\n",
-        "baseline": "\t\t\"bonus_hp\":p.bonus_hp, \"regen_per_second\":p.regen_per_second,\n\t\t\"start\":elapsed, \"until\":elapsed + int(DURATIONS[event.source]), \"quality\":event.quality, \"activation\":event.identity, \"item\":event.material_id,\n\t}\n"
       }
     },
     "water_combat.gd": {

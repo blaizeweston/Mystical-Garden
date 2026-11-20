@@ -364,7 +364,7 @@ func verify_core() -> void:
 				check(game.enemy_health()==400-baseline.impact_hp-floori((Rules.Fire.APPLICATION_STACKS.core+baseline.stack_bonus)*Rules.Fire.TICK_HP_PER_STACK)-bonus,"Ember Wake impact leaves burn intensity unchanged")
 			"vital":
 				event.publish(game,"core_action","test","",now,data)
-				var vitality: Dictionary = player[Rules.Vital.SOURCES]["1/core"]
+				var vitality: Dictionary = player[Rules.Vital.SOURCES].values()[0]
 				check(vitality.until==Rules.Vital.DURATIONS.core+bonus and vitality.regen_per_second==baseline.regen_per_second,"Vital Core extends only grant duration")
 			"thorn":
 				event.publish(game,"core_action","test","",now,data)
@@ -458,8 +458,8 @@ func verify_form_and_catalyst() -> void:
 		match family:
 			"fire": check(Rules.Fire.count(game.tactics.memory[Rules.Fire.BURNING])==Rules.Fire.APPLICATION_STACKS.catalyst+plain.stack_bonus+bonus,"Fire Catalyst adds its source-owned stack contribution")
 			"water": check(game.tactics.memory[Rules.Water.DRENCHED].sources.values()[0].until==Rules.Water.DURATION_MS+bonus,"Water Catalyst extends only Drenched")
-			"vital": check(player[Rules.Vital.SOURCES]["1/catalyst"].regen_per_second==plain.regen_per_second+bonus
-				and player[Rules.Vital.SOURCES]["1/catalyst"].bonus_hp==plain.bonus_hp,"Vital Catalyst adds regen without adding maximum health")
+			"vital": check(player[Rules.Vital.SOURCES].values()[0].regen_per_second==plain.regen_per_second+bonus
+				and player[Rules.Vital.SOURCES].values()[0].bonus_hp==plain.bonus_hp,"Vital Catalyst adds regen without adding maximum health")
 			"wood": check(player[Rules.Wood.GRANTS][0].until==Rules.Wood.CATALYST_MS+bonus and player[Rules.Wood.GRANTS][0].admitted==plain.catalyst_capacity,"Wood Catalyst extends only existing Bark Armor")
 
 

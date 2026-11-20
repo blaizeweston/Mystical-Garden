@@ -1,5 +1,6 @@
 extends RefCounted
 
+const Sources = preload("res://affinity_status_source.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 
 const Actors = preload("res://frost_combat.gd")
@@ -56,7 +57,7 @@ static func capacity(grants: Array) -> int:
 
 static func grant(game: Node, event: RefCounted, id: int, response: String) -> int:
 	var player: Dictionary=game.players.get(id,{})
-	if not game.Life.alive(player) or not event.take_response("wood/%s/%d" % [response,id]):
+	if not game.multiplayer.is_server() or not Sources.current(game,Sources.capture(event)) or not game.Life.alive(player) or not event.take_response("wood/%s/%d" % [response,id]):
 		return 0
 	var elapsed:=Clock.now(game)
 	var grants:=live_grants(player,elapsed)

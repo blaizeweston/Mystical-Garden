@@ -986,7 +986,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `vital_combat.gd` | ar07_vitals_3 | player_vitals |
 | `vital_combat.gd` | ar07_vitals_4 | player_vitals |
 | `vital_combat.gd` | ar07_vitals_5 | player_vitals |
-| `vital_combat.gd` | ec01_1 | affinity_cards |
 | `water_combat.gd` | ec01_2 | affinity_cards |
 | `frost_combat.gd` | ec01_1 | affinity_cards |
 | `combat_action_events.gd` | ar08_lifecycle_1 | player_lifecycle |

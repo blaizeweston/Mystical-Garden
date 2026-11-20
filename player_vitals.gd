@@ -48,6 +48,14 @@ class Health extends RefCounted:
 	func damaged(amount_hp: int) -> Health:
 		return with_hp(int(_hp) - Amounts.damage_taken(int(_hp), amount_hp))
 
+	## Validated resource spending preserves capacity and bypasses incoming hits.
+	## This value operation cannot heal, consume protection or issue reactions.
+	func spent(amount_hp: float, minimum_hp: float) -> Health:
+		if not is_finite(amount_hp) or not is_finite(minimum_hp) or amount_hp<=0.0: return self
+		var floor_hp := clampf(minimum_hp,0.0,float(max_hp()))
+		var cost := minf(amount_hp,maxf(0.0,_hp-floor_hp))
+		return with_hp(_hp-cost)
+
 	func refilled() -> Health:
 		return with_hp(float(max_hp()))
 

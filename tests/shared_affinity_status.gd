@@ -6,6 +6,9 @@ const Thorn = preload("res://thorn_affinity.gd")
 const Frost = preload("res://frost_combat.gd")
 const Fire = preload("res://fire_combat.gd")
 const Water = preload("res://water_combat.gd")
+const Vital = preload("res://vital_combat.gd")
+const Wood = preload("res://wood_affinity.gd")
+const Protection = preload("res://player_protection.gd")
 const Conditions = preload("res://player_hit_conditions.gd")
 const Vitals = preload("res://player_vitals.gd")
 const Clock = preload("res://affinity_time.gd")
@@ -54,6 +57,8 @@ func run() -> void:
 	verify_bleed()
 	verify_burning()
 	verify_water()
+	verify_wood()
+	verify_vital()
 	game.queue_free()
 	await process_frame
 	if not failed: print("PASS: shared affinity status buildup, frozen contributions, cadence, four contributors, expiry and stale identities")
@@ -187,3 +192,76 @@ func verify_water() -> void:
 	check(is_equal_approx(Water.reduction(game.tactics.memory,4300),.18),"weaker duration survives without prolonging stronger protection")
 	Water.tick(game,Clock.advance(game,3.0))
 	check(not game.tactics.memory.has(Water.DRENCHED),"Saturation retires when Drenched has no remaining valid source")
+
+
+func verify_wood() -> void:
+	reset()
+	var recipient: Dictionary=game.players[1]
+	Wood.clear(recipient)
+	check(Wood.grant(game,event(1,"core","part_17"),1,"core")==30,"ordinary Wood Core admits 30 Bark")
+	check(Wood.grant(game,event(2,"catalyst","part_17"),1,"ally")==12,"another provider adds capacity rather than replacing it")
+	check(Wood.grant(game,event(3,"catalyst","plant_part_rare_ironroot"),1,"ally")==6,
+		"a refined provider fills only the remaining six points of the shared 48 cap")
+	check(Wood.grant(game,event(4,"catalyst","part_17"),1,"full")==0 and Wood.capacity(Wood.live_grants(recipient,0))==48,
+		"a full recipient cannot accumulate hidden overflow or a stronger absorption percentage")
+	var hp: float=recipient[Vitals.STATE].hp()
+	var plan := Wood.absorption_plan(recipient,10,0)
+	check(plan.absorbed==4 and not plan.depleted and plan.damage==0,"Bark preserves 40 percent partial absorption, not a whole-hit block")
+	Wood.consume(recipient,plan)
+	check(Wood.grant(game,event(4,"catalyst","part_17"),1,"refill")==4 and recipient[Vitals.STATE].hp()==hp,
+		"a later source replenishes only spent capacity without healing")
+	Wood.tick(game,Clock.advance(game,4.3))
+	check(Wood.capacity(Wood.live_grants(recipient,Clock.now(game)))==30,"each provider keeps its own expiration; Catalyst does not extend Core")
+	Wood.tick(game,Clock.advance(game,2.0))
+	check(not recipient.has(Wood.GRANTS),"expired Bark grants retire completely")
+
+func verify_vital() -> void:
+	reset()
+	var recipient: Dictionary=game.players[1]
+	Vital.clear(game,recipient)
+	var original := Vitals.Health.new(108.0,100,12)
+	var plan := Vital.harvest_plan(original)
+	check(plan.accepted and plan.spent_hp==8.0 and plan.damage_hp==8 and plan.health_after.hp()==100.0
+		and plan.health_after.max_hp()==112 and original.hp()==108.0,
+		"Harvest quotes spend filled bonus HP, preserve capacity and leave the prior immutable value intact")
+	plan=Vital.harvest_plan(Vitals.Health.new(105.5,100,12))
+	check(plan.spent_hp==5.5 and plan.damage_hp==6,"fractional spending rounds damage once at the final boundary")
+	plan=Vital.harvest_plan(Vitals.Health.new(80.0,100,18))
+	check(not plan.accepted and plan.spent_hp==0.0 and plan.health_after.hp()==80.0,"baseline Harvest never spends normal HP")
+	plan=Vital.harvest_plan(Vitals.Health.new(118.0,100,18),true)
+	check(plan.spent_hp==68.0 and plan.health_after.hp()==50.0 and plan.health_after.max_hp()==118,
+		"the optional future modifier supports a native-capacity safety floor without a card or automatic activation")
+	check(not Vital.harvest_plan(original,false,.5,0.0).accepted
+		and not Vital.harvest_plan(Vitals.Health.new(100.1,100,12)).accepted,
+		"invalid or zero-useful-damage quotes cannot charge health")
+	recipient[Vitals.STATE]=Vitals.Health.new(100.0,100)
+	Vital.grant(game,event(1,"core","part_2"),1,0)
+	check(recipient[Vitals.STATE].hp()==100.0 and recipient[Vitals.STATE].max_hp()==112,"Vital capacity never grants free healing")
+	Vital.tick(game,Clock.advance(game,1.0))
+	check(recipient[Vitals.STATE].hp()==103.0,"existing regeneration fills bonus capacity")
+	var protection: RefCounted=recipient[Protection.STATE]
+	var hit_seq: int=recipient.damage_seq
+	var events: int=game.combat_event_serial
+	plan=Vital.harvest_plan(recipient[Vitals.STATE])
+	recipient[Vitals.STATE]=plan.health_after # Deliberate fixture commit, not a new gameplay control.
+	check(recipient[Vitals.STATE].hp()==100.0 and recipient[Protection.STATE]==protection
+		and recipient.damage_seq==hit_seq and game.combat_event_serial==events,
+		"resource spending issues no incoming-hit, Ward, class, Catalyst or damage-reactive event")
+	Vital.tick(game,Clock.advance(game,1.0))
+	check(recipient[Vitals.STATE].hp()==103.0 and recipient[Vitals.STATE].max_hp()==112,"regeneration can replenish spent bonus HP")
+	reset()
+	Vital.clear(game,recipient)
+	recipient[Vitals.STATE]=Vitals.Health.new(110.0,100,18)
+	Vital.grant(game,event(2,"core","plant_part_rare_lantern_moss"),1,0)
+	Clock.advance(game,2.0)
+	Vital.grant(game,event(2,"core","part_2"),1,2000)
+	check(recipient[Vitals.STATE].temporary_hp()==18,"a weak reapplication cannot replace stronger Vital capacity")
+	Vital.tick(game,Clock.advance(game,3.6))
+	check(recipient[Vitals.STATE].temporary_hp()==12 and recipient[Vitals.STATE].hp()<=112,
+		"strong capacity expires on its own deadline; weak capacity survives and HP clamps")
+	game.players[2][Life.STATE]=Life.start_life()
+	Vital.tick(game,Clock.advance(game,.4))
+	check(recipient[Vitals.STATE].temporary_hp()==12,"accepted recipient-owned protection finishes after provider life changes")
+	recipient[Life.STATE]=Life.start_life()
+	Vital.tick(game,Clock.now(game))
+	check(not recipient.has(Vital.SOURCES) and recipient[Vitals.STATE].temporary_hp()==0,"a new recipient life cannot inherit previous-life Vitality")
