@@ -45,7 +45,7 @@ func run():
     var left: int=actor.skeleton.find_bone("hand.L")
     var signature:=str([actor.skeleton.get_bone_global_pose(hand),actor.skeleton.get_bone_global_pose(left)])
     if not poses.has(signature):poses.append(signature)
-    game.stage.update_avatar(game.stage.avatars[1],actor,p,game.Stage.WILD_OFFSET,Time.get_ticks_msec(),.016)
+    game.stage.update_avatar(game.stage.avatars[1],actor,game.actor_presentation.avatar(1,Time.get_ticks_msec()),game.Stage.WILD_OFFSET,.016)
     var left_palm:=Field.hand(actor,true)
     var right_palm:=Field.hand(actor,false)
     var anchor:=left_palm if form=="bow" else (left_palm+right_palm)*.5 if form=="orb" else right_palm

@@ -120,7 +120,7 @@ func _process(_delta: float) -> void:
 		button.disabled = is_equal_approx(world.speed, value)
 	_info.text = _status_text(guest)
 	if world.host_is_bot():
-		world.spectator_view.panel.hide()
+		world.spectator_view.hide_panel()
 
 
 func _status_text(guest: bool) -> String:

@@ -77,15 +77,15 @@ func guest_run() -> void:
  game.guest_character.data.name="Revival guest";game.guest_character.save_profile();check(SessionCase.World.join(game)==OK,"guest starts")
  if not await until(func(): return game.network_session.role()=="Guest" and game.guest_replication.has_details()): check(false,"guest accepted");return
  var id:=game.multiplayer.get_unique_id()
- check(await until(func(): return ExpeditionCase.is_wild(game.players[id]) and game.inventory_drop_visuals.models.has("guest-part")),"guest sees own trophy model")
- var model: Node3D=game.inventory_drop_visuals.models["guest-part"]
+ check(await until(func(): return ExpeditionCase.is_wild(game.players[id]) and game.get_node("InventoryDrops").models.has("guest-part")),"guest sees own trophy model")
+ var model: Node3D=game.get_node("InventoryDrops").models["guest-part"]
  check(model.visible and model.position==game.stage.WILD_OFFSET+Vector3(0,0,2),"guest trophy visible in Wilds")
  check(WorldViewCase.component(game,"map").drop_color(game.Items.part_id(game.Parts.HOOK))==Color("#62baff"),"guest minimap uses blue")
  await capture("loot")
  game.send_action(false)
  check(await until(func(): return game.players[id].get("fallen",false)),"guest receives fallen state")
  game._process(.016)
- check(game.spectator_view.target_id==1 and WorldViewCase.component(game,"map").player.distance_to(game.players[1].pos)<.1,"guest camera and fog follow living host")
+ check(game.spectator_view.target_peer()==1 and WorldViewCase.component(game,"map").player.distance_to(game.players[1].pos)<.1,"guest camera and fog follow living host")
  check(UIFixture.control(game,"player_hud").state.fallen,"fallen HUD hides combat controls");await capture("spectator");mark("guest-spectates")
  game.request_garden_action.rpc_id(1,"class_skill");game.submit_motion.rpc_id(1,Vector2.RIGHT)
  await create_timer(.35).timeout;mark("blocked")
@@ -94,7 +94,7 @@ func guest_run() -> void:
   return not player.get("fallen",true) and player.max_hp==80 and not player.has(PlayerVitals.STATE) and not player.has(PlayerLifecycle.STATE)
  check(await until(shows_revival),"guest receives revival scalars without the health or lifecycle owners")
  game._process(.016)
- check(UIFixture.control(game,"player_hud").state.lost_health==20 and game.spectator_view.target_id==0 and Orb.fractions(80,80,20).is_equal_approx(Vector2(.8,.8)),"guest restored camera and lost-capacity HUD")
+ check(UIFixture.control(game,"player_hud").state.lost_health==20 and game.spectator_view.target_peer()==0 and Orb.fractions(80,80,20).is_equal_approx(Vector2(.8,.8)),"guest restored camera and lost-capacity HUD")
  await capture("revived");mark("guest-revived")
  check(await until(func(): return marked("revive-host") and game.players[1].get("fallen",false)),"host fallen state arrives")
  game.send_action(false)

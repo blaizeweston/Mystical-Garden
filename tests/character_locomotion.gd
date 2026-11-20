@@ -53,11 +53,11 @@ func run():
  game.progress.path="res://.godot/locomotion-"+token+".cfg";game.local_character.path=game.progress.path+".character"
  root.add_child(game);game.set_process(false);game.set_physics_process(false);game._process(.016)
  var p=game.players[1];var stage=game.stage
- stage.update_avatar(stage.avatars[1],stage.avatar_models[1],p,Vector3.ZERO,Time.get_ticks_msec(),.016)
+ stage.update_avatar(stage.avatars[1],stage.avatar_models[1],game.actor_presentation.avatar(1,Time.get_ticks_msec()),Vector3.ZERO,.016)
  var actor=stage.avatar_models[1];var phase=float(actor.get("gait_phase",0))
  check(actor.visual_weapon.is_visible_in_tree(),"live stage keeps the weapon on the visible model tree")
  p.velocity=Vector3(2.4,0,0)
- for i in range(1,31): stage.update_avatar(stage.avatars[1],actor,p,Vector3(i*.04,0,0),Time.get_ticks_msec(),1.0/60.0)
+ for i in range(1,31): stage.update_avatar(stage.avatars[1],actor,game.actor_presentation.avatar(1,Time.get_ticks_msec()),Vector3(i*.04,0,0),1.0/60.0)
  check(absf(float(actor.gait_phase)-phase)>.3 and actor.pace>.4,"live stage drives gait from traveled distance")
  check(lowest_sole(actor)>=-.012 and absf(actor.model.rotation.x)<.001,"the visible soles stay above the floor while blending")
  live_input_checks(game,actor)

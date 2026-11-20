@@ -30,13 +30,13 @@ func run() -> void:
  for p in [a,b]: ExpeditionCase.set_membership(game, p, true);p.pos=Vector3(0,0,2);p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(100)
  var item: String=game.Items.part_id(game.Parts.HOOK)
  game.wild_item_drops.assign([{"id":"part","owner":1,"stack":{"item":item,"quantity":1},"position":[0,0,2]}])
- game.inventory_drop_visuals._process(.3)
- var model: Node3D=game.inventory_drop_visuals.models.part
+ game.get_node("InventoryDrops")._process(.3)
+ var model: Node3D=game.get_node("InventoryDrops").models.part
  check(model.position==game.stage.WILD_OFFSET+Vector3(0,0,2) and model.visible,"monster drop is visible at Wilds world offset")
  check(WorldViewCase.component(game,"map").drop_color(item)==Color("#62baff") and WorldViewCase.component(game,"map").drop_color("unidentified_seed")!=Color("#62baff"),"parts use blue minimap markers, seeds retain gold")
  check(game.inventory_floor_snapshot(b).is_empty(),"owner-only loot remains private")
- game.pickup_inventory_drop(1,a,"part");game.inventory_drop_visuals._process(.3)
- check(game.inventory_drop_visuals.models.is_empty() and a.carried_parts[game.Parts.HOOK]==1,"pickup removes visible drop and awards component")
+ game.pickup_inventory_drop(1,a,"part");game.get_node("InventoryDrops")._process(.3)
+ check(game.get_node("InventoryDrops").models.is_empty() and a.carried_parts[game.Parts.HOOK]==1,"pickup removes visible drop and awards component")
  a.carried_seeds=[0];a.safe_items=[{"item":"unidentified_seed","quantity":1,"seeds":[0]}]
  IncomingPlayerHit.apply_health_loss(game, 1, PlayerLifecycle.generation(a), 100)
  check(ExpeditionCase.is_wild(a) and PlayerLifecycle.fallen(a) and PlayerVitals.current_hp(a)==0 and a.carried_seeds==[0],"fallen player keeps run cargo pending revival")

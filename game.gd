@@ -181,7 +181,7 @@ var spectator_view: Node
 const Items=preload("res://item_catalog.gd")
 const InventoryModel=preload("res://inventory_model.gd")
 var wild_item_drops: Array=[]
-var inventory_drop_visuals: Node
+var actor_presentation := preload("res://actor_presentation_world.gd").new(self)
 const LOOK_NAMES=preload("res://character_appearance.gd").OPTIONS
 var growth_clock := 0.0
 
@@ -230,6 +230,8 @@ func _ready() -> void:
 	map.name="Exploration";add_child(map)
 	world_view=WorldPresentation.new(stage,deaths,effects,map,event_audio,soundscape)
 	spectator_view=preload("res://spectator_view.gd").new()
+	spectator_view.configure(ui)
+	spectator_view.refresh_requested.connect(func(peer: int):spectator_view.present(actor_presentation.spectator_frame(peer)))
 	add_child(spectator_view)
 	if not persistence_session.is_guarded():
 		var result := progress.load_garden()
@@ -300,9 +302,10 @@ func configure_gameplay_ui() -> void:
 		if saved!=OK: Journal.event("network","preference_save_failed",{"error":saved},"warning")
 		if SessionWorld.join(self,address,port)!=OK:
 			network_dialog.begin(address,port,true,str(local_character.data.get("name","Wanderer")),Transactions.feedback_text(self,status)))
-	inventory_drop_visuals=preload("res://inventory_drop_visuals.gd").new()
-	inventory_drop_visuals.game=self
-	add_child(inventory_drop_visuals)
+	var drops=preload("res://inventory_drop_visuals.gd").new()
+	drops.name="InventoryDrops";drops.configure(stage)
+	drops.refresh_requested.connect(func():drops.present(actor_presentation.drop_frame(spectator_view.target_peer(),world_view.sight_radius())))
+	add_child(drops)
 	var garden_view=preload("res://garden_interaction_view.gd").new()
 	garden_view.name="GardenInteractions";garden_view.configure(stage,ui)
 	garden_presentation.bind(garden_view);add_child(garden_view)
@@ -2226,7 +2229,7 @@ func _process(_delta: float) -> void:
 		slot_heartbeat_at = Time.get_unix_time_from_system()
 	var local_id := multiplayer.get_unique_id()
 	var view_id: int=spectator_view.focus_id(local_id)
-	var observer: Vector3=players.get(view_id,{}).get("pos",Vector3.ZERO)
+	var observer: Vector3=actor_presentation.position(view_id)
 	var local_player: Dictionary = players.get(local_id, {})
 	if ui.panel_is_open("graft"): ui.present_world_access("graft",at_graft_altar(local_player))
 	elif ui.panel_is_open("altar"): ui.present_world_access("altar",at_garden_altar(local_player))
@@ -2236,8 +2239,7 @@ func _process(_delta: float) -> void:
 	var campaign_state := campaign_snapshot() if multiplayer.is_server() else guest_replication.campaign()
 	var visual_field: RefCounted = battlefield if multiplayer.is_server() else stage.visual_field
 	if multiplayer.is_server(): stage.visual_field=battlefield
-	var rendered_players: Dictionary=players if multiplayer.is_server() else net_motion.render_players(players,local_id,CombatClock.now())
-	if not multiplayer.is_server():rendered_players=preload("res://avatar_motion_view.gd").people(rendered_players,local_id,mouse_controls.local_aim)
+	var rendered_players: Dictionary=actor_presentation.people(local_id,CombatClock.now())
 	var p: Dictionary = local_player
 	var local_timers: Cooldowns.Timers = p.get(Cooldowns.STATE)
 	var cooldown_now := CombatClock.now()
@@ -3272,8 +3274,8 @@ func death_events_snapshot() -> Array:
 	return result
 
 
-func attack_animation_snapshot(player: Dictionary) -> Dictionary:
-	var now:=CombatClock.now()
+func attack_animation_snapshot(player: Dictionary, at_ms: int=-1) -> Dictionary:
+	var now:=CombatClock.now() if at_ms<0 else at_ms
 	if int(player.get("cast_until",0))>now:
 		var cast_pose: Dictionary = preload("res://subclass_combat.gd").pose_state(player,now)
 		return {"active":true,"phase":clampf(1.0-(int(player.cast_until)-now)/550.0,0,1),"combo":int(player.get("skill_fx_seq",0)),"duration":550,"form":"cast","clip":cast_pose.get("clip",""),"direction":cast_pose.get("direction",null)}

@@ -8,6 +8,7 @@
   },
   "full_after_days": 7,
   "systems": {
+    "actor_presentation": {"label":"Detached avatar, spectator and dropped-item presentation", "files":["actor_presentation_world.gd","actor_presentation_world.gd.uid","spectator_view.gd","spectator_view.gd.uid","inventory_drop_visuals.gd","inventory_drop_visuals.gd.uid"]},
     "garden_view_ports": {"label":"Detached Garden observation, crop, station, return and ambience presentation ports", "files":["garden_presentation_world.gd"]},
     "world_presentation": {"label":"Ordered effects, event audio, exploration and Garden scene presentation", "files":["world_presentation.gd"]},
     "world_guidance": {"label":"Pure world interaction guidance, warnings and session labels", "files":["ui/gameplay/world_guidance.gd"]},
@@ -164,14 +165,7 @@
     },
     "items": {
       "label": "Item definitions, stacks, stash and safe pouch",
-      "files": [
-        "item_catalog.gd",
-        "inventory_model.gd",
-        "inventory_panel.gd",
-        "inventory_slot.gd",
-        "inventory_drop_surface.gd",
-        "inventory_drop_visuals.gd"
-      ]
+      "files": ["item_catalog.gd", "inventory_model.gd", "inventory_panel.gd", "inventory_slot.gd", "inventory_drop_surface.gd"]
     },
     "weapons": {
       "label": "Crafting, grafting, part tags and weapon effects",
@@ -238,12 +232,7 @@
     },
     "life": {
       "label": "Damage, fallen state, revival and spectating",
-      "files": [
-        "expedition_life.gd",
-        "spectator_view.gd",
-        "combat_status.gd",
-        "combat_status.gd.uid"
-      ]
+      "files": ["expedition_life.gd", "combat_status.gd", "combat_status.gd.uid"]
     },
     "characters": {
       "label": "Character roster, models and customization",
@@ -877,7 +866,7 @@
     "run_summary_ui_data": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_grafts", "life"],
     "loadout_ui_data": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_grafts", "life"],
     "request_host_session": ["gameplay_ui", "network_session", "menus"],
-    "configure_gameplay_ui": ["gameplay_ui", "menus", "classes", "garden_observations", "garden_view_ports"],
+    "configure_gameplay_ui": ["gameplay_ui", "menus", "classes", "garden_observations", "garden_view_ports", "actor_presentation"],
     "_handle_ui_request": ["gameplay_ui", "garden_feature_ui", "seeds", "expedition_grafts", "affinity_cards", "network_session", "party_ui", "life"],
     "enemy_health": ["encounter_roster", "combat", "world_snapshot"],
     "mark_checkpoint_ready": ["expeditions", "affinity_cards"],
@@ -1044,7 +1033,7 @@
     "_init": [
       "foundation"
     ],
-    "_ready": ["foundation", "world_presentation"],
+    "_ready": ["foundation", "world_presentation", "actor_presentation"],
     "_notification": [
       "foundation"
     ],
@@ -1325,7 +1314,7 @@
       "foundation",
       "encounter_roster"
     ],
-    "_process": ["foundation", "affinity_cards", "class_balance", "combat_builds", "world_guidance", "world_presentation", "garden_view_ports"],
+    "_process": ["foundation", "affinity_cards", "class_balance", "combat_builds", "world_guidance", "world_presentation", "garden_view_ports", "actor_presentation"],
     "living_scout_count": [
       "enemies",
       "encounter_roster"
@@ -1602,6 +1591,7 @@
     ]
   },
   "suites": {
+    "actor_presentation": {"kind":"unit", "systems":["actor_presentation","presentation","avatar_motion_view","player_weapon_actions","player_lifecycle","player_vitals","expedition_participation","life","items"], "profile":"terrain", "package":false},
     "garden_view_ports_coop": {"kind":"pair", "systems":["garden_view_ports","garden_observations","garden_care","garden_stations","garden_cinematics","garden_returns","garden_life","garden_conduit","connection_flow","world_snapshot","garden","items","characters","seeds","knowledge","gameplay_ui"], "profile":"terrain", "package":true},
     "garden_view_ports": {"kind":"unit", "systems":["garden_view_ports","garden_observations","garden_care","garden_stations","garden_conduit","garden_returns","garden_life","garden_cinematics","gameplay_ui"], "package":false},
     "world_presentation": {"kind":"unit", "systems":["world_presentation","presentation","terrain","event_audio","soundscape"], "package":false},
@@ -5250,12 +5240,7 @@
           "core_combat"
         ],
         "additive": true
-      }, "local_ranged_aim": {
-        "additive": true,
-        "systems": [
-          "ranged_release"
-        ]
-      },         "warden_skill_hud_readout": {
+      },          "warden_skill_hud_readout": {
         "additive": true,
         "systems": [
           "warden_progression"
@@ -6039,7 +6024,7 @@
     "assets/terrain_m02/experimental/experiment_garden.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
     "class_tree_access.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
     "fire_combat.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}}},
-    "inventory_drop_visuals.gd": {"newline": "crlf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle", "items"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle", "items"]}}},
+
     "native_grafts.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}}},
     "oracle_omens.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}}},
     "thorn_affinity.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}}},
@@ -6574,7 +6559,7 @@
     },
     "stage.gd": {
       "newline": "lf",
-      "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle", "presentation"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle", "presentation"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle", "presentation"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle", "presentation"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle", "presentation"]}, "experimental_seed_rewards_1": {
+      "regions": {     "experimental_seed_rewards_1": {
           "systems": [
             "hex_terrain",
             "loot",
@@ -6633,11 +6618,7 @@
           "systems": [
             "ranged_release"
           ]
-        }, "host_ranged_direction": {
-          "systems": [
-            "ranged_release"
-          ]
-        }, "gait_facing": {
+        },  "gait_facing": {
           "systems": [
             "avatar_motion_view"
           ]
@@ -6669,11 +6650,7 @@
           "systems": [
             "garden_life"
           ]
-        }, "subclass_host_pose": {
-          "systems": [
-            "warden_progression"
-          ]
-        }, "canopy_shift_windup_pose": {
+        },  "canopy_shift_windup_pose": {
           "systems": [
             "enemy_move_feedback"
           ]
@@ -6681,11 +6658,7 @@
           "systems": [
             "enemy_move_feedback"
           ]
-        }, "guest_core_aim": {
-          "systems": [
-            "core_combat"
-          ]
-        },  "rendered_lair_key": {
+        },   "rendered_lair_key": {
           "systems": [
             "boss_phase_fights"
           ]
@@ -10556,11 +10529,7 @@
         }
       }
     },
-    "spectator_view.gd": {
-      "newline": "crlf",
-      "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle", "life"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle", "life"]}, "ar07_vitals_1": {"systems": ["player_vitals", "life"]}, "ar07_vitals_2": {"systems": ["player_vitals", "life"]}, "preview_spectator_layout": {"systems": ["spectator_layout"]}, "cb07_0": {"systems": ["expedition_sustain"]}, "preview_spectator_cost": {"systems": ["combat_balance_preview"]}
-      }
-    },
+
     "assets/data/weapon_template.json": {
       "newline": "crlf",
       "regions": {

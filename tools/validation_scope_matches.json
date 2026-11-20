@@ -205,10 +205,7 @@
         "match": ",\"core_lured\"",
         "baseline": ""
       },
-      "local_ranged_aim": {
-        "match": "\tif not multiplayer.is_server():rendered_players=preload(\"res://avatar_motion_view.gd\").people(rendered_players,local_id,mouse_controls.local_aim)\n",
-        "baseline": "\tif not multiplayer.is_server():rendered_players=preload(\"res://avatar_motion_view.gd\").people(rendered_players)\n"
-      },
+
 
 
 
@@ -854,13 +851,7 @@
         "baseline": ""
       }
     },
-    "inventory_drop_visuals.gd": {
-      "ar08_lifecycle_1": {
-        "match": "const PlayerLifecycle = preload(\"res://player_lifecycle.gd\")\n",
-        "baseline": ""
-      },
-      "ar08_lifecycle_2": {"match": "  if models.has(entry.id): models[entry.id].visible=not Participation.is_wild(player) or Vector3(models[entry.id].get_meta(\"drop_position\")).distance_to(game.players.get(game.spectator_view.target_id if PlayerLifecycle.fallen(player) and game.spectator_view.target_id!=0 else game.local_player_id(),player).pos)<=game.world_view.sight_radius()\n", "baseline": "  if models.has(entry.id): models[entry.id].visible=not Participation.is_wild(player) or Vector3(models[entry.id].get_meta(\"drop_position\")).distance_to(game.players.get(game.spectator_view.target_id if player.get(\"fallen\",false) and game.spectator_view.target_id!=0 else game.local_player_id(),player).pos)<=game.world_view.sight_radius()\n"}
-    },
+
     "native_grafts.gd": {
       "ar08_lifecycle_1": {
         "match": "const PlayerLifecycle = preload(\"res://player_lifecycle.gd\")\n",
@@ -1788,26 +1779,11 @@
       }
     },
     "stage.gd": {
-      "ar08_lifecycle_1": {
-        "match": "const PlayerLifecycle = preload(\"res://player_lifecycle.gd\")\n",
-        "baseline": ""
-      },
-      "ar08_lifecycle_2": {
-        "match": "\t\tif PlayerLifecycle.fallen(p): actor.name_label.text+=\" \u00b7 FALLEN\"\n",
-        "baseline": "\t\tif p.get(\"fallen\",false): actor.name_label.text+=\" \u00b7 FALLEN\"\n"
-      },
-      "ar08_lifecycle_3": {
-        "match": "\tvar fallen := PlayerLifecycle.fallen(player)\n\tif fallen:animation.active=false\n",
-        "baseline": "\tif player.get(\"fallen\",false):animation.active=false\n"
-      },
-      "ar08_lifecycle_4": {
-        "match": "\tmodel.rotation.z=lerp_angle(model.rotation.z,PI*.48 if fallen else 0.0,minf(1.0,8.0*delta))\n",
-        "baseline": "\tmodel.rotation.z=lerp_angle(model.rotation.z,PI*.48 if player.get(\"fallen\",false) else 0.0,minf(1.0,8.0*delta))\n"
-      },
-      "ar08_lifecycle_5": {
-        "match": "\tif fallen: model.position.y=.3\n",
-        "baseline": "\tif player.get(\"fallen\",false): model.position.y=.3\n"
-      },
+
+
+
+
+
       "experimental_seed_rewards_1": {
         "match": "\tseed_cache.visible = visual_field.has_seed_cache() and site != Campaign.HEART\n",
         "baseline": "\tseed_cache.visible = visual_field.procedural and site != Campaign.HEART\n"
@@ -1848,14 +1824,8 @@
         "match": "\tvar direction: Variant=animation.get(\"direction\")\n\tif animation.get(\"aim_live\",false) and player.has(\"aim_direction\"):\n\t\tdirection=player.aim_direction\n\tif active and direction is Vector3:\n\t\tyaw=atan2(direction.x,direction.z)\n",
         "baseline": "\tif active and animation.get(\"direction\") is Vector3:\n\t\tyaw=atan2(animation.direction.x,animation.direction.z)\n"
       },
-      "host_ranged_direction": {
-        "match": "\t\tvar attack: WeaponActions.State = player[WeaponActions.STATE]\n\t\tanimation=attack.animation(now,player.facing,bool(player.get(\"mouse_aim\",false)),player.get(\"aim_direction\",Vector3.INF),WeaponMotion.profile(WeaponMotion.form(player)).clip)\n",
-        "baseline": "\t\tanimation={\"active\":remaining>0,\"phase\":clampf(1.0-remaining/float(maxi(1,int(player.get(\"attack_duration\",240)))),0,1),\"combo\":int(player.get(\"attack_combo\",0)),\"duration\":int(player.get(\"attack_duration\",240)),\"reach\":player.get(\"attack_reach\",2.0),\"direction\":player.get(\"attack_direction\",player.facing),\"clip\":player.get(\"attack_clip\",WeaponMotion.profile(WeaponMotion.form(player)).clip),\"delivery\":player.get(\"attack_delivery\",\"sweep\"),\"span\":player.get(\"attack_span\",1.9),\"form\":\"weapon\"}\n"
-      },
-      "gait_facing": {
-        "match": "\tif travel.length()>maxf(delta,.001)*.24:\n\t\tactor.travel_yaw=atan2(travel.x,travel.z)\n\tif not active and actor.has(\"travel_yaw\") and (actor.speed>.24 or not Participation.is_wild(player)):\n\t\tyaw=float(actor.travel_yaw)\n\tvar model: Node3D = actor.model\n\tmodel.rotation.y = lerp_angle(model.rotation.y, yaw+float(motion.yaw), minf(1.0, 18.0 * delta))\n\tif not active:\n\t\tyaw=model.rotation.y\n\tmotion.aim_yaw=yaw\n",
-        "baseline": "\tmotion.aim_yaw=yaw\n\tvar model: Node3D = actor.model\n\tmodel.rotation.y = lerp_angle(model.rotation.y, yaw+float(motion.yaw), minf(1.0, 18.0 * delta))\n"
-      },
+
+      "gait_facing": {"match": "\tif travel.length()>maxf(delta,.001)*.24:\n\t\tactor.travel_yaw=atan2(travel.x,travel.z)\n\tif not active and actor.has(\"travel_yaw\") and (actor.speed>.24 or not bool(player.wild)):\n\t\tyaw=float(actor.travel_yaw)\n\tvar model: Node3D = actor.model\n\tmodel.rotation.y = lerp_angle(model.rotation.y, yaw+float(motion.yaw), minf(1.0, 18.0 * delta))\n\tif not active:\n\t\tyaw=model.rotation.y\n\tmotion.aim_yaw=yaw\n", "baseline": "\tmotion.aim_yaw=yaw\n\tvar model: Node3D = actor.model\n\tmodel.rotation.y = lerp_angle(model.rotation.y, yaw+float(motion.yaw), minf(1.0, 18.0 * delta))\n"},
       "gait_velocity_hint": {
         "match": "\tvar speed_hint: Vector3=player.get(\"velocity\",Vector3.INF)\n\tvar travel:=slide_actor(root,actor,position,delta,Vector3.INF if speed_hint.is_zero_approx() else speed_hint)\n\tactor.gait_vector=travel\n",
         "baseline": "\tvar travel:=slide_actor(root, actor, position, delta,player.get(\"velocity\",Vector3.INF))\n"
@@ -1884,10 +1854,7 @@
         "match": "const GardenScenery=preload(\"res://garden_scenery.gd\")\n",
         "baseline": ""
       },
-      "subclass_host_pose": {
-        "match": "\t\tif int(player.get(\"cast_until\",0))>now:animation=get_parent().attack_animation_snapshot(player)",
-        "baseline": "\t\tif int(player.get(\"cast_until\",0))>now:animation={\"active\":true,\"phase\":clampf(1.0-(int(player.cast_until)-now)/550.0,0,1),\"duration\":550,\"combo\":int(player.get(\"skill_fx_seq\",0)),\"form\":\"cast\"}"
-      },
+
       "canopy_shift_windup_pose": {
         "match": "\telif pose==\"canopy_shift\":\n\t\tmodel.rotation.x+=brace*.17\n\t\tmodel.position.y-=brace*.09\n\telif pose in [\"chant\",\"shepherd\",\"brood\",\"lure\",\"trophy_grab\"]:\n",
         "baseline": "\telif pose in [\"chant\",\"shepherd\",\"brood\",\"lure\",\"trophy_grab\"]:\n"
@@ -1896,10 +1863,7 @@
         "match": "\t\t# Authored warnings already show the actual shape and reach of the attack.\n\t\tsupport_rings[i].visible = active and pack[start + 3] > 0.0 and not attack_poses.has(i)\n",
         "baseline": "\t\tsupport_rings[i].visible = active and pack[start + 3] > 0.0\n"
       },
-      "guest_core_aim": {
-        "match": "\t\tif player.has(WeaponActions.STATE):\n\t\t\tswing = player[WeaponActions.STATE].swing_fraction(now)\n",
-        "baseline": "\t\tswing = clampf((int(player.swing_until) - now) / 240.0, 0.0, 1.0)\n"
-      },
+
       "rendered_lair_key": {
         "match": "\tvar rendered_lair := Vector2i(boss,phase)\n\tvar map_key := Vector3i(site, depth, campaign[8])\n\tif terrain_key != map_key or get_meta(\"rendered_lair\",Vector2i(-2,-2)) != rendered_lair:\n\t\tterrain_key = map_key\n\t\tredraw_terrain(site, depth, campaign[8],boss,phase)\n\t\tset_meta(\"rendered_lair\",rendered_lair)",
         "baseline": "\tvar lair_changed: bool=visual_field.boss_kind!=boss or visual_field.boss_phase!=phase\n\tvar map_key := Vector3i(site, depth, campaign[8])\n\tif terrain_key != map_key or lair_changed:\n\t\tterrain_key = map_key\n\t\tredraw_terrain(site, depth, campaign[8],boss,phase)"
@@ -5412,36 +5376,7 @@
         "baseline": "Journal.event(\"state\",\"player_changed\",{\"actor\":id,\"changes\":changed})"
       }
     },
-    "spectator_view.gd": {
-      "ar08_lifecycle_1": {
-        "match": "const PlayerLifecycle = preload(\"res://player_lifecycle.gd\")\n",
-        "baseline": ""
-      },
-      "ar08_lifecycle_2": {
-        "match": " var fallen: bool=Participation.is_wild(p) and PlayerLifecycle.fallen(p)\n",
-        "baseline": " var fallen: bool=Participation.is_wild(p) and p.get(\"fallen\",false)\n"
-      },
-      "ar07_vitals_1": {
-        "match": "const PlayerVitals = preload(\"res://player_vitals.gd\")\n",
-        "baseline": ""
-      },
-      "ar07_vitals_2": {
-        "match": "  watched+=\" \u00b7 %d / %d HP\"%[int(PlayerVitals.current_hp(target)),PlayerVitals.maximum_hp(target)]\n",
-        "baseline": "  watched+=\" \u00b7 %d / %d HP\"%[int(target.hp),int(target.max_hp)]\n"
-      },
-      "preview_spectator_layout": {
-        "match": "panel.position=Vector2((game.get_viewport().get_visible_rect().size.x-430)/2.0,114)",
-        "baseline": "panel.position=Vector2((game.get_viewport().get_visible_rect().size.x-430)/2.0,65)"
-      },
-      "cb07_0": {
-        "match": " var watched: String=target.get(\"character\",{}).get(\"name\",target.get(\"display_name\",\"ally\"))\n if not target.is_empty():\n  watched+=\" \u00b7 %d / %d HP\"%[int(target.hp),int(target.max_hp)]\n caption.text=\"FALLEN \u00b7 Watching %s\\nA teammate can revive you nearby with E.\\nRevival sacrifices %s until the Garden.\"%[watched,cost]",
-        "baseline": " caption.text=\"FALLEN \u00b7 Watching %s\\nA teammate can revive you nearby with E.\\nRevival sacrifices %s until the Garden.\"%[target.get(\"display_name\",target.get(\"character\",{}).get(\"name\",\"ally\")),cost]"
-      },
-      "preview_spectator_cost": {
-        "match": " var cost: String=\"%d maximum HP\"%Life.Preview.revive_cost()\n caption.text=\"FALLEN \u00b7 Watching %s\\nA teammate can revive you nearby with E.\\nRevival sacrifices %s until the Garden.\"%[target.get(\"display_name\",target.get(\"character\",{}).get(\"name\",\"ally\")),cost]",
-        "baseline": " caption.text=\"FALLEN \u00b7 Watching %s\\nA teammate can revive you nearby with E.\\nRevival sacrifices one maximum heart until the Garden.\"%target.get(\"display_name\",target.get(\"character\",{}).get(\"name\",\"ally\"))"
-      }
-    },
+
     "assets/data/weapon_template.json": {
       "cb03_template_roll_spread": {
         "match": "  \"damage\": 1,\n  \"roll_spread_hp\": 2,",

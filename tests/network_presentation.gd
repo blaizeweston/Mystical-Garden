@@ -99,13 +99,15 @@ func run():
  var p=game.players[1];var actor=game.stage.avatar_models[1];var avatar=game.stage.avatars[1]
  # Reproduce a 240Hz renderer receiving only 20 position packets per second.
  var packet=p.duplicate(true);packet.velocity=Vector3(3.6,0,0);packet.pos=Vector3.ZERO
+ game.players[1]=packet
  var first=Quaternion.IDENTITY;var excursion=0.0
  for frame in 480:
   if frame%12==0:packet.pos.x+=.18
-  game.stage.update_avatar(avatar,actor,packet,packet.pos,Time.get_ticks_msec(),1.0/240.0)
+  game.stage.update_avatar(avatar,actor,game.actor_presentation.avatar(1,Time.get_ticks_msec()),packet.pos,1.0/240.0)
   var pose=actor.skeleton.get_bone_pose_rotation(actor.skeleton.find_bone("thigh.L"))
   if frame==120:first=pose
   if frame>120:excursion=maxf(excursion,first.angle_to(pose))
+ game.players[1]=p
  check(actor.pace>.7 and excursion>.5,"packet gaps do not stop guest walking at high frame rates")
  preload("res://tests/support/guest_replication_case.gd").health_checks(check)
  game.queue_free();await process_frame
