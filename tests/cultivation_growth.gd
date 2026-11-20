@@ -36,7 +36,7 @@ func run() -> void:
  check(act(game,"water_crop").has("error"),"unlocked spring still requires a trip to collect water")
  game.garden_action(1,"spring_fill")
  check(not p.get("spring_water",false),"cannot fill at a bed")
- p.pos=Garden.Catalog.point("spring_water").position
+ p.pos=preload("res://garden_water.gd").anchor(game.stage)
  var garden_view=game.get_node("GardenInteractions")
  game.ui.set_prompt(garden_view.context_prompt())
  check(UIFixture.control(game,"guide").text.contains("Fill watering vessel"),"the spring advertises its direct interaction")

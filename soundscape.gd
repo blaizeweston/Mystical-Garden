@@ -1,6 +1,8 @@
 extends Node
 
 const Layout = preload("res://garden_layout.gd")
+const Water = preload("res://garden_water.gd")
+var _stage: Node3D
 const BIOME_AMBIENCE := ["grove_air","mire_air","hollow_air","hollow_air"]
 const TRACKS := {
 	"garden_theme": {"bus":&"Music","gain":-9.0,"fade":2.0},
@@ -23,7 +25,8 @@ var heart: Vector3
 func _ready() -> void:
 	audible = DisplayServer.get_name() != "headless"
 	spring = Layout.zone("sheltered_spring")
-	heart = get_parent().Stage.HEART
+	_stage = get_parent().stage
+	heart = _stage.HEART
 
 
 static func targets(wild: bool, site: int, floor_number: int, boss: bool, observer: Vector3,
@@ -47,8 +50,8 @@ func update_mix(delta: float, wild: bool, site: int, floor_number: int, boss: bo
 		observer: Vector3, unlocked: Array) -> void:
 	if not audible:
 		return
-	var spring_point: Vector3 = spring.water.position
-	var desired := targets(wild,site,floor_number,boss,observer,heart,spring_point,Layout.enabled(spring,unlocked))
+	var spring_point: Vector3 = Water.center(_stage)
+	var desired := targets(wild,site,floor_number,boss,observer,heart,spring_point,spring_point.is_finite() and Layout.enabled(spring,unlocked))
 	apply_mix(desired,delta)
 
 
@@ -79,7 +82,8 @@ func create_voice(id: String, definition: Dictionary) -> Node:
 	if definition.get("point",false):
 		var spatial := AudioStreamPlayer3D.new()
 		add_child(spatial)
-		spatial.position = spring.water.position if id == "spring_water" else heart
+		var source:=Water.center(_stage) if id == "spring_water" else heart
+		spatial.position = source if source.is_finite() else heart
 		spatial.attenuation_model = AudioStreamPlayer3D.ATTENUATION_DISABLED
 		spatial.attenuation_filter_cutoff_hz = 20500
 		spatial.panning_strength = .66

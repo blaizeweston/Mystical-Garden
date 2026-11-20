@@ -8,12 +8,13 @@ const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const Tx=preload("res://game_transaction.gd")
 const Catalog=preload("res://garden_interaction_catalog.gd")
 const State=preload("res://garden_interaction_state.gd")
+const Water=preload("res://garden_water.gd")
 static func allowed(game: Node,definition: Dictionary) -> bool:
  for tech in Catalog.requirements(definition):
   if not game.progress.heart.has(str(tech)):return false
  if (game.stage.experimental_garden != null):
   if definition.id=="heart_root_scar" and not game.progress.heart.has("clearing_1"):return false
-  if definition.parent=="sheltered_spring" and not game.stage.station_position("spring").is_finite():return false
+  if definition.parent=="sheltered_spring" and not Water.available(game.stage):return false
  if State.observed(game.progress.garden_interactions,str(definition.observation)):return true
  return preload("res://garden_relationships.gd").matches(game,definition)
 static func eligible(game: Node,id: int) -> bool:
@@ -23,16 +24,25 @@ static func nearest(game: Node,player: Dictionary,projection: Dictionary) -> Str
  var pos: Vector3=player.get("pos",Vector3.INF);var best:=INF;var found: String=""
  for point in Catalog.POINTS:
   if not projection.get("available",[]).has(point.id):continue
-  var distance:=pos.distance_to(point_position(game,point))
+  var at: Vector3
+  if point.id=="spring_water":
+   var source:=Water.nearby(game.stage,pos)
+   if source.is_empty():continue
+   at=source.position
+  else:at=point_position(game,point)
+  var distance:=pos.distance_to(at)
   if distance<=float(point.range) and distance<best:found=point.id;best=distance
  if found.is_empty():return ""
  # Existing stations/beds win when they are closer; no interaction is stolen.
  for at in [game.Stage.HEART,game.stage.altar_position(),game.stage.gate_position()] + game.stage.bed_positions():
   if pos.distance_to(at)<best:return ""
  return found
-static func point_position(game: Node,point: Dictionary) -> Vector3:
- if (game.stage.experimental_garden != null) and point.id=="spring_water":
-  return game.stage.station_position("spring")
+static func point_position(game: Node,point: Dictionary,viewer: Vector3=Vector3.INF) -> Vector3:
+ if point.id=="spring_water":
+  if viewer.is_finite():
+   var source:=Water.nearby(game.stage,viewer)
+   if not source.is_empty():return source.position
+  return Water.anchor(game.stage)
  return point.position
 static func projection(game: Node,id: int) -> Dictionary:
  if not game.multiplayer.is_server():
@@ -101,7 +111,7 @@ static func command(game: Node,id: int,payload: String) -> Dictionary:
  if definition.is_empty() or request.action not in ["inspect","observe"]:return reject(game,id,"Unknown Garden interaction.")
  var player: Dictionary=game.players[id]
  if not allowed(game,definition):return reject(game,id,"This Garden detail has changed. Inspect its surroundings again.")
- if player.pos.distance_to(point_position(game,definition))>float(definition.range):return reject(game,id,"Move closer to this Garden detail.")
+ if (definition.id=="spring_water" and Water.nearby(game.stage,player.pos).is_empty()) or player.pos.distance_to(point_position(game,definition,player.pos))>float(definition.range):return reject(game,id,"Move closer to this Garden detail.")
  var state:=State.normalize(game.progress.garden_interactions)
  if state.version!=State.VERSION:return reject(game,id,"This Garden interaction save needs a newer game version.")
  var identity: String=game.local_character.identity if id==game.HOST else str(Session.inventory_owner(player))

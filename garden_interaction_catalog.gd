@@ -4,7 +4,7 @@ const ZONES: Array=[
  {"id":"sanctuary","parent":"","requires":[]},
  {"id":"sheltered_spring","parent":"sanctuary","requires":["clearing_1","irrigation"],
   "footprint":Rect2(2.1,-3.0,6.5,7.2),"beds":["bed_1","bed_2"],
-  "water":{"position":Vector3(6.6,0,-.15),"radius":1.05},
+  "water_access":true,
   "ambience":{"family":"moth","count":8,"range":11.0,"requires_point":"spring_water"}},
  {"id":"cultivation_terrace","parent":"sanctuary","requires":["clearing_2"],
   "name":"The cultivation terrace opens","footprint":Rect2(-8.6,-7.3,4.8,3.6),"beds":["bed_4"],"reveal":{"position":Vector3(-7,0,-5.5)}}
@@ -18,11 +18,11 @@ const POINTS: Array=[{
  "hint":"Record this trace in the Garden journal. Others tending this Garden will be able to read it."
 },{
  "id":"spring_water","parent":"sheltered_spring","observation":"sheltered_water",
- "name":"The sheltered spring","position":Vector3(6.0,0,1.5),"range":1.45,
+ "name":"Garden water","position":Vector3(6.0,0,1.5),"range":1.45,
  "requires":[],"action":"observe","cue":"quiet_pulse","visual":"spring",
  "description":"Clear water gathers where the roots have loosened their hold. Small pale moths skim the banks. Beside the nearby beds, the water carries a faint warmth.",
- "recorded":"The spring has opened beneath the reaching roots. Its banks shelter the first two planting beds; any species may still grow there.",
- "hint":"Reaching Roots and Root Irrigation uncovered this water. Look at what grows together along its banks."
+ "recorded":"Root Irrigation lets the Garden share its water. The nearby planting beds remain open to any species.",
+ "hint":"After Reaching Roots and Root Irrigation, approach a Garden pond to fill your watering vessel. No basin needs to be built."
 },{
  "id":"spring_weave","parent":"sheltered_spring","observation":"moss_whisper_resonance",
  "name":"A quiet resonance","position":Vector3(4.1,0,.45),"range":1.35,

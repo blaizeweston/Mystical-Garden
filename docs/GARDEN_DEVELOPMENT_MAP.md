@@ -1,10 +1,10 @@
 # Garden interaction development map
 
-Updated: 2026-11-10 · Status: G-01 through G-07 implemented and packaged; G-08 Ready for pacing/economy/playtest review.
+Updated: 2026-11-19 · Status: G-01 through G-07 implemented and packaged; G-08 Ready for pacing/economy/playtest review.
 
 Read [the milestone objectives](GARDEN_MILESTONES.md) for the next task and progress. The [mechanics/test map](MECHANICS_TEST_MAP.md) describes implemented systems; this document separates implemented observation/spring/relationship/cultivation boundaries from proposed later Garden mechanics. See [Garden observation authoring](GARDEN_INTERACTIONS.md) for the current modules, schema and evidence.
 
-Base interaction text and prompt priority now live in `ui/gameplay/world_guidance.gd`, which takes detached display facts. Observation, crop/care, station, return, conduit and ambience views now receive detached frames through `garden_presentation_world.gd` and emit requests. Existing domain services retain eligibility, costs, state and saving. The ordered effects/audio/map and plots/Heart/Garden display pipeline now lives in `world_presentation.gd`; it receives display facts, not Garden authority. These presentation extractions do not change the Garden milestone queue or implement the planned spring replacement.
+Base interaction text and prompt priority now live in `ui/gameplay/world_guidance.gd`, which takes detached display facts. Observation, crop/care, station, return, conduit and ambience views now receive detached frames through `garden_presentation_world.gd` and emit requests. Existing domain services retain eligibility, costs, state and saving. The ordered effects/audio/map and plots/Heart/Garden display pipeline now lives in `world_presentation.gd`; it receives display facts, not Garden authority. These presentation extractions do not change the Garden milestone queue. The spring replacement is now implemented: Root Irrigation enables filling at the existing Garden water, without building a basin. `garden_water.gd` is the current source/bank query; cultivation keeps the existing vessel and crop transaction.
 
 ## Intended experience
 
@@ -18,7 +18,7 @@ These are implementation facts, not new feature promises.
 
 | System | Current source/behavior | Direction |
 |---|---|---|
-| Cultivation | `progress.gd` owns beds with species, age, stages 0–3 and flowering; `game.gd::_harvest` empties the bed. Any identified species fits any bed. G-04 adds versioned crop identities and an optional young-bud choice. | Keep one growth clock and one harvest operation; see GARDEN_CROP_CARE.md for care costs and payout limits. |
+| Cultivation | `progress.gd` owns beds with species, age, stages 0–3 and flowering; `garden_cultivation.gd` resolves native harvest and `garden_cultivation_world.gd` applies it through the existing transaction. Any identified species fits any bed. G-04 adds versioned crop identities and an optional young-bud choice. | Keep one growth clock and one harvest operation; see GARDEN_CROP_CARE.md for care costs and payout limits. |
 | Plant materials | Harvest grants shared ordinary material and a familiarity-based rare chance. Flowering is an alternative mature harvest yielding two personal seeds instead of parts, without restarting growth. There are 24 species and 48 normal/rare plant components. | Preserve guaranteed baseline materials, existing item IDs and the parts-versus-seeds sacrifice. |
 | Familiarity and class XP | Harvest currently awards personal species familiarity. Class XP comes from combat. | Add bounded care credit only through an explicit familiarity budget; no Garden class-XP loop. |
 | Research | `heart_catalog.gd` defines technologies; `heart_progress.gd` spends Knowledge to start one focused project. Optional shared-part offerings accelerate it. World-open time advances research, faster during expeditions. | Use the same project/cost/timer service. No second ecology research queue. The catalog's historical material fields do not imply a new upfront payment. |
@@ -73,7 +73,7 @@ New systems read existing capabilities and submit explicit commands. They do not
 
 | Proposed feature | Reuse/overlap | Replace or retire | Boundary and risk |
 |---|---|---|---|
-| Uncover the spring | Existing pond art, clearing expansion and irrigation technology | Gradually replace featureless expansion scenery at this location, not the research technology | Research opens the location; inspection is free. Do not charge Knowledge twice. |
+| Garden water access (implemented) | Actual terrain pond and decorative-pool outlines, Reaching Roots and Root Irrigation | Dedicated spring model, watering-basin Build entry and placement gate are retired | Research enables dry-bank filling without a second payment. `garden_water.gd` validates current reach/support; `garden_cultivation_world.gd` applies the existing one-vessel operation. Historical observation IDs remain stable. |
 | Ruined cultivation terrace | Later clearing technology, existing recipes and observation journal | No second crafting bench or breeding resolver | Exploration reveals evidence; Altar performs combinations. |
 | Fungal hollow | Monster Studies and trophy offerings | No duplicate monster-donation economy | Initially a physical manifestation/view of the same service. Any new output needs a separately authored rule. |
 | Plant relationships | Current species/tags, bed stages and existing refinement recipes | No second seed lineage tree or automatic crossbreeding | Start with a clue, not a permanent adjacency damage buff. Any species can still grow anywhere. |

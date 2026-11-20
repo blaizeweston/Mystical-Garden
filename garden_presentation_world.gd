@@ -46,7 +46,7 @@ func _interaction_frame(world: Node, peer: int, actor: Dictionary) -> Dictionary
 			if world.at_garden_station(actor,station):near_stations.append(station)
 	var positions: Dictionary={}
 	for point in Interactions.Catalog.POINTS:
-		positions[point.id]=Interactions.point_position(world,point)
+		positions[point.id]=Interactions.point_position(world,point,actor.get("pos",Vector3.INF)) if point.id!="spring_water" or data.get("available",[]).has(point.id) else point.position
 	return {"data":data.duplicate(true),"present":not actor.is_empty(),
 		"position":actor.get("pos",Vector3.INF),"wild":Participation.is_wild(actor),
 		"context":str([world.network_session.role(),peer,data.get("epoch","")]),
@@ -91,7 +91,7 @@ func _ambience_frame(world: Node, peer: int, actor: Dictionary) -> Dictionary:
 	var data:=Interactions.observation_projection(world,peer)
 	data.returns=Returns.projection(world,peer)
 	return {"data":data.duplicate(true),
-		"position":actor.get("pos",Vector3.INF),"heart_observer":actor.get("pos",Vector3(10000,0,0)),
+		"water_position":preload("res://garden_water.gd").anchor(world.stage),"position":actor.get("pos",Vector3.INF),"heart_observer":actor.get("pos",Vector3(10000,0,0)),
 		"wild":Participation.is_wild(actor),"development":world.stage.experimental_garden!=null,
 		"motion":world.app_settings.values.get("ambient_motion",true)}
 

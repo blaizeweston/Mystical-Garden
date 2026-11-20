@@ -26,12 +26,10 @@ static func in_water(point: Vector3,water: Dictionary,padding: float=0.0) -> boo
  var offset: Vector3=point-water.position
  return Vector2(offset.x,offset.z/.72).length()<float(water.radius)*1.14+padding
 static func ponds(stage: Node3D,radius: float) -> Array:
- var key:=str([radius,stage.heart_unlocked,stage.active_plots])
+ var key:=str(["water-banks-1",radius,stage.heart_unlocked,stage.active_plots])
  var cached: Dictionary=stage.get_meta("garden_pond_layout",{})
  if cached.get("key","")==key:return cached.waters
  var result: Array=[]
- for entry in Catalog.ZONES:
-  if entry.has("water") and enabled(entry,stage.heart_unlocked):result.append({"id":entry.id,"position":entry.water.position,"radius":entry.water.radius})
  var size:=1.5+(radius-11.5)*.12
  var stations: Array=[stage.HEART,stage.GATE,stage.ALTAR]+stage.PLOTS
  for id in stage.HEART_STATIONS:stations.append(stage.HEART_STATIONS[id])
@@ -54,14 +52,14 @@ static func ponds(stage: Node3D,radius: float) -> Array:
    for water in result:
     if at.distance_to(water.position)<size+float(water.radius)+.8:safe=false
    if safe:selected=at;break
-  if selected!=Vector3.INF:result.append({"id":"garden_pool_%d"%pool_index,"position":selected,"radius":size})
+  if selected!=Vector3.INF:
+   var id:="garden_pool_%d"%pool_index
+   result.append({"id":id,"position":selected,"radius":size,"shape":pond_shape(id,selected,size)})
   pool_index+=1
  stage.set_meta("garden_pond_layout",{"key":key,"waters":result})
  return result
 static func reserved(stage: Node3D,point: Vector3,radius: float,padding: float=0.0) -> bool:
  if point.length()<1.75+padding:return true
- # Reserve the sealed landmark before research as well as its awakened pool.
- if in_water(point,zone("sheltered_spring").water,.35+padding):return true
  for zone in Catalog.ZONES:
   if zone.has("footprint") and enabled(zone,stage.heart_unlocked) and zone.footprint.grow(padding).has_point(Vector2(point.x,point.z)):return true
  for at in destinations(stage):
@@ -78,3 +76,12 @@ static func extent(stage: Node3D,radius: float) -> float:
    var rect: Rect2=entry.footprint
    for at in [rect.position,rect.end,Vector2(rect.position.x,rect.end.y),Vector2(rect.end.x,rect.position.y)]:result=maxf(result,at.length()+.5)
  return result
+
+## The authored shoreline is shared by the existing visual fan and filling query.
+static func pond_shape(id: String, at: Vector3, radius: float) -> Dictionary:
+ var points:=PackedVector2Array()
+ for i in 96:
+  var angle:=TAU*i/96
+  var rim:=radius*(1+.09*sin(angle*3)+.045*cos(angle*5))
+  points.append(Vector2(at.x+cos(angle)*rim,at.z+sin(angle)*rim*.72))
+ return preload("res://assets/terrain_m02/terrain_feature_geometry.gd").shape(id,"garden_pool",points)

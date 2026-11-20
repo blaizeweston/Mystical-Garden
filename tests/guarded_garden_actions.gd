@@ -466,7 +466,7 @@ func caller_effects() -> void:
     "water":
      for tech in ["clearing_1","irrigation"]:
       if not world.progress.heart.has(tech): world.progress.heart.unlocked.append(tech)
-     check(preload("res://tests/support/garden_case.gd").place_researched(world,"spring"),"water fault fixture places its researched basin")
+     check(world.cultivation.spring_ready(),"water fault fixture uses Knowledge-unlocked Garden water")
      var bed: Dictionary=world.progress.empty_plot().merged({"species":0,"stage":1},true)
      preload("res://garden_crop_state.gd").ensure(bed)
      preload("res://cultivation_growth.gd").initialize(bed)
@@ -511,7 +511,7 @@ func caller_effects() -> void:
      var watered := preload("res://cultivation_growth.gd").watered(world.progress.plots[0])
      var cues: int=world.combat_events.filter(func(event):return event.shape=="crop_watered").size()
      check(watered==not aborted and bool(player.spring_water)==not committed and cues==int(committed)
-      and status.begins_with("Spring water nourishes")==committed,"water cost, crop, and cue match "+outcome)
+      and status.begins_with("Garden water nourishes")==committed,"water cost, crop, and cue match "+outcome)
      facts.merge({"watered":watered,"vessel_filled":player.spring_water,"cues":cues,
       "revision":world.progress.plots[0].care.revision})
     "observation":

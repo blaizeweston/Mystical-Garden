@@ -29,11 +29,12 @@ const Spacing := 1.75
 const Radius := 14
 const Seed := 117
 const MAX_STUDIES := 32
-const STATIONS := {"study": "monster_studies", "archive": "seed_archive", "spring": "spring"}
+const STATIONS := {"study": "monster_studies", "archive": "seed_archive"}
 
 var game: Node
 var stage: Node3D
 var state: Garden
+var water_sources := preload("res://garden_water.gd").new()
 var barrier: Forest
 var forest: EnclosureView
 var heart: Heart
@@ -444,6 +445,7 @@ func _apply_layout(layout: Dictionary) -> void:
 	for building: Array in layout.buildings:
 		var id: int = building[0]
 		var kind: String = building[1]
+		if not Build.CATALOG.has(kind):continue # Retired or unsupported transient construction.
 		var at: Vector2 = building[2]
 		var yaw: float = building[3]
 		construction.records[id] = {"id": id, "kind": kind, "at": at, "yaw": yaw,
@@ -470,7 +472,7 @@ func _refresh_guest_review() -> void:
 	guest_review.text = "\n".join(lines)
 
 func _required(kind: String) -> String:
-	return {"bed": "plot_4", "study": "monster_studies", "archive": "seed_archive", "spring": "irrigation"}.get(kind, "")
+	return {"bed": "plot_4", "study": "monster_studies", "archive": "seed_archive"}.get(kind, "")
 
 func _placement_refusal(kind: String, moving: int) -> String:
 	if not _may_place():
@@ -484,10 +486,6 @@ func _placement_refusal(kind: String, moving: int) -> String:
 	var research := _required(kind)
 	if not game.progress.heart.has(research):
 		return "Research %s at the Heart first." % Catalog.get_node(research).name
-	if kind == "spring" and not game.progress.heart.has("clearing_1"):
-		return "Research Reaching Roots at the Heart first."
-	if kind == "spring" and station_ids.has("spring"):
-		return "The Garden already has a watering basin. Use Move selected structure."
 	if kind == "bed":
 		var cap := 3
 		for entry: Dictionary in Catalog.DEFINITIONS:

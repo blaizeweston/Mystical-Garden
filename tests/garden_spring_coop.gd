@@ -64,8 +64,8 @@ func guest_run() -> void:
  check(SessionCase.World.join(game)==OK,"guest joins")
  if not await until(func():return marked("ready") and game.network_session.role()=="Guest" and game.stage.heart_unlocked.has("irrigation") and Service.projection(game,game.local_player_id()).get("available",[]).has("spring_weave")):check(false,"host projection reveals relationship");return
  check(not game.progress.heart.has("irrigation") and game.stage.heart_unlocked.has("irrigation"),"guest uses host capabilities rather than a local Garden")
- check(Layout.ponds(game.stage,game.stage.garden_extent).size()==3,"guest has the same revealed water layout")
- check(game.stage.garden_edge.has_node("ShelteredSpring/SpringBasin/GardenPond") and game.stage.garden_edge.has_node("ShelteredSpring/SpringCascade") and not game.stage.garden_edge.has_node("DormantSpringSite"),"host research reveals the same dedicated spring asset for guests")
+ check(Layout.ponds(game.stage,game.stage.garden_extent).size()==2,"guest has the same revealed water layout")
+ check(not game.stage.garden_edge.has_node("ShelteredSpring") and not game.stage.garden_edge.has_node("DormantSpringSite") and preload("res://garden_water.gd").anchor(game.stage).is_finite(),"host research enables the same fixture-free Garden water for guests")
  mark("prepared")
  if not await until(func():return marked("changed")):check(false,"crop changes");return
  game.send_garden_action(payload("stale"))

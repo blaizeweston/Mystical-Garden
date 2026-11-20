@@ -32,7 +32,7 @@ func run() -> void:
  game._process(0.016)
  player.pos = game.Stage.HEART
  game._process(0.016)
- check(UIFixture.control(game,"guide").text == "E  Heart", "Heart prompt names the interaction")
+ check(UIFixture.control(game,"guide").text.begins_with("E  Heart") and UIFixture.control(game,"guide").text.contains("Garden development"), "Heart prompt names the interaction and existing development shortcut")
  player.pos = game.stage.altar_position()
  game._process(0.016)
  check(UIFixture.control(game,"guide").text == "E  Altar", "Altar prompt omits the service list")

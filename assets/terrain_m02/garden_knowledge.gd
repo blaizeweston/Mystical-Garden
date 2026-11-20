@@ -21,7 +21,7 @@ func relevant_research() -> Array:
 
 func _resolve_research() -> Array:
 	var relevant := {"seed_archive": true, "monster_studies": true}
-	for id: String in construction_requirements("spring"):
+	for id: String in Interactions.requirements(Layout.zone("sheltered_spring")):
 		relevant[id] = true
 	for node: Dictionary in Catalog.DEFINITIONS:
 		if node.has("plots") or node.has("clearing"):
@@ -79,7 +79,6 @@ func construction_requirements(kind: String) -> Array:
 		"bed": return ["plot_4"]
 		"study": return ["monster_studies"]
 		"archive": return ["seed_archive"]
-		"spring": return Interactions.requirements(Layout.zone("sheltered_spring"))
 	return []
 
 func locked_reason(kind: String) -> String:

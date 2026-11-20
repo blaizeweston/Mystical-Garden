@@ -161,7 +161,7 @@ func run() -> void:
 	panel.hide()
 	garden.open_development()
 	var build_choices: OptionButton = garden.construction_kind
-	check(build_choices.item_count == 5 and garden.build_button.disabled,
+	check(build_choices.item_count == garden.Build.CATALOG.size()+1 and garden.build_button.disabled,
 		"no new structure can be selected at the start")
 	for index in range(1, build_choices.item_count):
 		check(build_choices.is_item_disabled(index) and build_choices.get_item_tooltip(index).begins_with("Research "),
@@ -524,36 +524,15 @@ func run() -> void:
 		and game.progress.plots[3].species == planted, "further growth preserves ownership, Gate and cultivation")
 	game.run_heart_save(func(): return game.progress.heart.start(game.progress, "irrigation"))
 	step_progress(game, game.progress.heart.duration("irrigation"))
-	player.pos = spring.position
-	view._process(0.0)
-	check(game.progress.heart.has("irrigation") and not view.points[spring.id].visible
-		and not GardenInteractions.allowed(game, spring) and not game.cultivation.spring_ready()
-		and not game.cultivation.fill_water(game.HOST) and not player.get("spring_water", false),
-		"Root Irrigation enables construction while the old site cannot supply water")
-	player.pos = Vector3(0, 0, 1.5)
-	var basin_site := Vector2.INF
-	var basin_approach := Vector2.INF
-	var pond_center: Vector2 = garden.state.layout.water[0].bounds.get_center()
-	for radius in [3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5]:
-		for index in 32:
-			var site := pond_center + Vector2.from_angle(index * TAU / 32) * float(radius)
-			if not garden._build_refusal("spring", site, 0.0, 0).is_empty():
-				continue
-			for direction: Vector2 in [Vector2.DOWN, Vector2.UP, Vector2.LEFT, Vector2.RIGHT]:
-				var approach := site + direction * 1.42
-				if garden.barrier.walkable(approach):
-					basin_site = site
-					basin_approach = approach
-					break
-			if basin_site.is_finite():
-				break
-		if basin_site.is_finite():
-			break
-	if check_spring_placement(game, garden, view, spring, basin_site):
-		player.pos = garden.world(basin_approach)
-		check(garden.barrier.walkable(basin_approach) and game.cultivation.fill_water(game.HOST)
-			and player.get("spring_water", false), "the built basin supplies water from a walkable approach")
-		check(not garden._placement_refusal("spring", 0).is_empty(), "an existing watering basin is relocated instead of duplicated")
+	var bank:=preload("res://garden_water.gd").anchor(game.stage)
+	player.pos=bank;view._process(0.0)
+	check(game.progress.heart.has("irrigation") and bank.is_finite() and garden.barrier.walkable(garden.planar(bank))
+		and GardenInteractions.allowed(game,spring) and game.cultivation.spring_ready()
+		and game.cultivation.fill_water(game.HOST) and player.get("spring_water",false),
+		"Root Irrigation unlocks a dry bank of existing Garden water without basin construction")
+	check(not garden.Build.CATALOG.has("spring") and not garden._placement_refusal("spring",0).is_empty()
+		and not garden.place("spring",Vector2.ZERO,0.0),"retired basin requests cannot place a hidden fixture")
+	check(not game.stage.garden_edge.has_node("DormantSpringSite") and not game.stage.garden_edge.has_node("ShelteredSpring"),"neither old spring fixture is present")
 	var samples := 0
 	var query_peak := field.query_peak_usec
 	var route_failures := field.query_failures
@@ -591,17 +570,6 @@ func run() -> void:
 	if errors == 0:
 		print("PASS: title, real cultivation, offerings, repeatable growth, generated combat, Gate and Garden return")
 	call("quit", int(errors > 0))
-
-func check_spring_placement(game: Node, garden: Node, view: Node, spring: Dictionary, site: Vector2) -> bool:
-	if not site.is_finite() or not garden.place("spring", site, 0.0):
-		check(false, "the unlocked basin can be placed near the pond")
-		return false
-	view._process(0.0)
-	check(view.points[spring.id].visible and view.points[spring.id].position == garden.world(site)
-		and game.stage.station_position("spring") == garden.world(site)
-		and GardenInteractions.allowed(game, spring) and game.cultivation.spring_ready(),
-		"the built basin supplies the single Spring model, interaction marker and watering position")
-	return true
 
 func step_progress(game: Node, seconds: float) -> void:
 	game.growth_clock = seconds

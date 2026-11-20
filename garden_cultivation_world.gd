@@ -10,6 +10,7 @@ const Tx=preload("res://game_transaction.gd")
 const State=preload("res://garden_crop_state.gd")
 const Catalog=preload("res://garden_crop_catalog.gd")
 const Growth=preload("res://cultivation_growth.gd")
+const Water=preload("res://garden_water.gd")
 const Seeds=preload("res://seed_catalog.gd")
 const Parts=preload("res://weapon_parts.gd")
 const Progress=preload("res://progress.gd")
@@ -43,19 +44,20 @@ func fill_water(id: int) -> bool:
 	var garden=load("res://garden_interaction_service.gd")
 	if not garden.eligible(world,id):return false
 	var player: Dictionary=world.players[id]
-	if not world.participation.travel_kind().is_empty() or garden.nearest(world,player,garden.projection(world,id))!="spring_water":
-		world.tell(id,"Visit the sheltered spring to fill your watering vessel.")
+	var source:=Water.nearby(world.stage,player.pos)
+	if not world.participation.travel_kind().is_empty() or not spring_ready() or source.is_empty():
+		world.tell(id,"After Root Irrigation is researched, approach a clear Garden water bank to fill your watering vessel.")
 		return false
 	if player.get("spring_water",false):return true
 	player.spring_water=true
 	preload("res://event_audio.gd").emit(world,"vessel_filled",player.pos)
 	world.tell(id,"Watering vessel filled. Use it on a growing crop.")
-	preload("res://diagnostic_journal.gd").event("garden","spring_water_collected",{"actor":id,"point":"spring_water"})
+	preload("res://diagnostic_journal.gd").event("garden","spring_water_collected",{"actor":id,"point":"spring_water","source":source.source,"position":[source.position.x,source.position.y,source.position.z]})
 	return true
 func spring_ready() -> bool:
 	var world:=_current_world()
 	if world==null:return false
-	return Growth.spring_ready(world.progress) and (not (world.stage.experimental_garden != null) or world.stage.station_position("spring").is_finite())
+	return Growth.spring_ready(world.progress) and Water.available(world.stage)
 ## A scalar inspection must not build every crop's growth/yield projection.
 func water_carried(id: int) -> bool:
 	var world:=_current_world()
@@ -120,7 +122,7 @@ func command(id: int, request: Dictionary) -> Dictionary:
 				if result.persistence.is_empty():return reject(id,notice)
 				world.tell(id,notice);return {"changed":false,"error":notice}
 			preload("res://event_audio.gd").emit(world,"crop_watered",world.stage.bed_position(slot))
-			world.tell(id,"Spring water nourishes this crop. Growth is 25% faster until harvest.")
+			world.tell(id,"Garden water nourishes this crop. Growth is 25% faster until harvest.")
 			preload("res://diagnostic_journal.gd").event("garden","crop_watered",{"actor":id,"bed":slot,"cycle":bed.care.cycle,"revision":bed.care.revision,"multiplier":Growth.WATER_RATE})
 			return {"changed":true,"revision":bed.care.revision}
 	# Freeze the same one care roll without spending gameplay RNG.

@@ -63,8 +63,8 @@ static func care_request(request: Dictionary, can_tend: bool, bed: Dictionary, s
 		"inspect_crop":return {"operation":"focus"}
 		"flower_crop":return {"operation":"seeds"}
 		"water_crop":
-			if int(bed.stage)>=3 or not Growth.supported(bed) or not spring_ready:return _reject("The sheltered spring is unavailable for this crop.")
-			if not water_carried:return _reject("Fill your watering vessel at the sheltered spring first.")
+			if int(bed.stage)>=3 or not Growth.supported(bed) or not spring_ready:return _reject("Garden water is unavailable for this crop.")
+			if not water_carried:return _reject("Fill your watering vessel at Garden water first.")
 			return {"operation":"water"}
 		"harvest_crop":
 			if int(bed.stage)!=3:return _reject("This crop is still growing.")

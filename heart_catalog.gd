@@ -200,7 +200,7 @@ const DEFINITIONS := [
 			370,
 			775
 		],
-		"description": "Plants grow 20% faster."
+		"description": "Plants grow 20% faster. Fill your watering vessel at Garden water features; no basin construction is required."
 	},
 	{
 		"id": "nursery",

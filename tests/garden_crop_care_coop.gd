@@ -58,7 +58,7 @@ func host_run() -> void:
  check(g.plots[0].species==0 and g.plots[0].care.choice=="" and g.parts[0]==int(before[0])+1,"late old-cycle command cannot change or harvest the new crop")
  for tech in ["clearing_1","irrigation"]:g.heart.unlock_direct(tech)
  g.heart.sync_legacy(g);g.save_garden()
- game.players[id].pos=Garden.Catalog.point("spring_water").position
+ game.players[id].pos=preload("res://garden_water.gd").anchor(game.stage)
  mark("water_ready")
  if not await until(func():return game.players[id].get("spring_water",false)):check(false,"guest fills at the physical spring");return
  game.players[id].pos=game.Stage.PLOTS[0]
@@ -95,7 +95,7 @@ func guest_run() -> void:
  mark("stale_checked")
  if not await until(func():return marked("water_ready") and bed().get("water_available",false)):check(false,"spring watering arrives");return
  var id: int=game.local_player_id()
- var spring: Vector3=Garden.Catalog.point("spring_water").position
+ var spring: Vector3=preload("res://garden_water.gd").anchor(game.stage)
  if not await until(func():return game.players[id].pos.distance_to(spring)<1.0):check(false,"guest reaches spring");return
  game.send_action(false)
  var view=game.get_node("GardenInteractions")

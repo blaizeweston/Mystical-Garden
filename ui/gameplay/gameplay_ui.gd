@@ -176,7 +176,7 @@ func _ready() -> void:
 	var body := Style.label(notes, 16, Color("#e5edea"))
 	body.custom_minimum_size.x = 330
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.text = "WASD / Arrows  Move   Space  Strike\nShift  Dodge   Q / R  Class skills\n\nGARDEN\nE at Heart: research and class upgrades\nE at Altar: identify and combine seeds or parts\nE at Wilds Gate: craft and depart\nE at plots: plant, inspect or harvest · F harvests seeds\nE at spring: fill watering vessel\nI: inventory · O: inspect progression\n\nWILDS\nE: collect loot, use grafting altars or continue at the gate\nT: extract at every sixth cleared gate\nEsc: menu / abandon expedition"
+	body.text = "WASD / Arrows  Move   Space  Strike\nShift  Dodge   Q / R  Class skills\n\nGARDEN\nE at Heart: research and class upgrades\nE at Altar: identify and combine seeds or parts\nE at Wilds Gate: craft and depart\nE at plots: plant, inspect or harvest · F harvests seeds\nE at Garden water: fill watering vessel after Root Irrigation\nI: inventory · O: inspect progression\n\nWILDS\nE: collect loot, use grafting altars or continue at the gate\nT: extract at every sixth cleared gate\nEsc: menu / abandon expedition"
 	_button(notes, "Close", func(): toggle_panel("guide"))
 	_appearance_menu = Style.panel(_overlay, Color("#14262b"), Vector2(22, 20))
 	var looks := VBoxContainer.new()

@@ -446,7 +446,7 @@ flowchart LR
 | gate_access | `gate_interaction.gd`, `gate_interaction.gd.uid` | `checkpoint_extraction`, `crafting_availability_coop`, `four_players_coop`, `gate_crafting_rules`, `gate_garden_services`, `party_hud_gates`, `party_hud_gates_coop`, `party_ready`, `party_ready_coop`, `run_flow`, `shrines_hits` |
 | garden_observations | `garden_interaction_catalog.gd`, `garden_interaction_catalog.gd.uid`, `garden_interaction_state.gd`, `garden_interaction_state.gd.uid`, `garden_interaction_service.gd`, `garden_interaction_service.gd.uid`, `garden_interaction_view.gd`, `garden_interaction_view.gd.uid` | `garden_view_ports_coop`, `garden_view_ports`, `garden_cleanup`, `garden_conduit`, `garden_conduit_coop`, `garden_crop_care`, `garden_crop_care_coop`, `garden_growth`, `garden_growth_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `menu_controls` |
 | garden_costs | `garden_inventory_gateway.gd`, `garden_inventory_gateway.gd.uid` | `crafting_availability_coop`, `foundations`, `garden_altar`, `garden_interactions`, `garden_interactions_coop`, `inventory_party` |
-| garden_zones | `garden_layout.gd`, `garden_layout.gd.uid`, `garden_spring_visuals.gd`, `garden_spring_visuals.gd.uid`, `assets/garden/sheltered_spring.tscn`, `assets/shaders/garden_spring_flow.gdshader`, `assets/shaders/garden_spring_flow.gdshader.uid` | `garden_conduit`, `garden_conduit_coop`, `garden_growth`, `garden_growth_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `heart_progression`, `menu_controls`, `soundscape` |
+| garden_zones | `garden_layout.gd`, `garden_layout.gd.uid`, `garden_water.gd`, `garden_water.gd.uid` | `garden_conduit`, `garden_conduit_coop`, `garden_growth`, `garden_growth_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `heart_progression`, `menu_controls`, `soundscape` |
 | garden_relationships | `garden_relationships.gd`, `garden_relationships.gd.uid` | `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `heart_progression`, `menu_controls` |
 | garden_life | `garden_ambience.gd`, `garden_ambience.gd.uid`, `garden_scenery.gd`, `garden_scenery.gd.uid` | `garden_view_ports_coop`, `garden_view_ports`, `garden_growth`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `gardening`, `gate_garden_services`, `heart_growth_visual`, `heart_progression`, `menu_controls` |
 | garden_cinematics | `garden_growth_catalog.gd`, `garden_growth_catalog.gd.uid`, `garden_growth_state.gd`, `garden_growth_state.gd.uid`, `garden_growth_service.gd`, `garden_growth_service.gd.uid`, `garden_growth_view.gd`, `garden_growth_view.gd.uid` | `garden_view_ports_coop`, `garden_view_ports`, `garden_cinematic_view`, `guarded_lifecycle`, `guarded_lifecycle_coop`, `guarded_gameplay_transactions`, `delete_saves`, `garden_growth`, `garden_growth_coop`, `garden_interactions`, `garden_interactions_coop`, `garden_presentation`, `garden_returns`, `garden_returns_coop`, `garden_spring`, `garden_spring_coop`, `gate_garden_services`, `heart_growth_visual`, `heart_progression`, `menu_controls`, `menu_coop`, `network_research_coop`, `party_ready`, `party_ready_coop`, `run_flow`, `start_menu`, `timed_research`, `developer_garden`, `event_audio` |
@@ -1161,7 +1161,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `stage.gd` | field_primary_weapon_tree | avatar_motion_view |
 | `stage.gd` | field_aim_yaw | avatar_motion_view |
 | `stage.gd` | field_travel_sample | avatar_motion_view |
-| `stage.gd` | garden_stone_banks | garden_life |
 | `stage.gd` | garden_scenery_import | garden_life |
 | `stage.gd` | canopy_shift_windup_pose | enemy_move_feedback |
 | `stage.gd` | suppress_duplicate_enemy_ring | enemy_move_feedback |
@@ -1178,13 +1177,11 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `stage.gd` | enemy_attack_plan_1 | enemy_attack_plan |
 | `stage.gd` | enemy_attack_plan_0 | enemy_attack_plan |
 | `stage.gd` | heart_growth_sync | heart_growth_visual |
-| `stage.gd` | build_garden_pond_growth | garden_cinematics |
 | `stage.gd` | update_plots_growth | garden_cinematics |
 | `stage.gd` | build_garden_plot_growth | garden_cinematics |
 | `stage.gd` | update_heart_progress_growth | garden_cinematics |
 | `stage.gd` | garden_growth_growth | garden_cinematics |
 | `stage.gd` | focus_growth | garden_cinematics |
-| `stage.gd` | build_garden_pond_adapter | garden_life, garden_zones |
 | `stage.gd` | garden_pond_positions_adapter | garden_zones |
 | `app_settings.gd` | guarded_lifecycle_1 | persistence_operations, connection_flow, menus, settings |
 | `app_settings.gd` | guarded_lifecycle_2 | persistence_operations, connection_flow, menus, settings |
@@ -1229,20 +1226,11 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `settings_panel.gd` | garden_motion_create | garden_life |
 | `garden_interaction_service.gd` | ar08_lifecycle_1 | player_lifecycle |
 | `garden_interaction_service.gd` | ar08_lifecycle_2 | player_lifecycle |
-| `garden_interaction_service.gd` | experimental_research_landmarks_1 | hex_terrain, garden, garden_observations |
-| `garden_interaction_service.gd` | experimental_research_landmarks_2 | hex_terrain, garden, garden_observations |
-| `garden_interaction_service.gd` | experimental_terrain_1 | hex_terrain, terrain, garden, persistence_operations |
 | `garden_interaction_service.gd` | experimental_terrain_3 | hex_terrain, terrain, garden, persistence_operations |
-| `garden_interaction_service.gd` | experimental_terrain_5 | hex_terrain, terrain, garden, persistence_operations |
-| `garden_interaction_service.gd` | experimental_terrain_7 | hex_terrain, terrain, garden, persistence_operations |
-| `garden_interaction_service.gd` | experimental_terrain_9 | hex_terrain, terrain, garden, persistence_operations |
 | `garden_interaction_service.gd` | cleanup_feedback_1 | persistence_operations |
 | `garden_interaction_service.gd` | cleanup_feedback_2 | persistence_operations |
 | `garden_interaction_service.gd` | guarded_gameplay_writer_1 | persistence_operations |
 | `garden_interaction_service.gd` | guarded_gameplay_writer_2 | persistence_operations |
-| `garden_interaction_service.gd` | command_g07 | garden_conduit |
-| `garden_interaction_service.gd` | command_crop_care | garden_care |
-| `garden_interaction_service.gd` | stations_focus | garden_stations |
 | `seed_catalog.gd` | ui_copy_0 | ui_copy |
 | `seed_catalog.gd` | tier_growth_values | cultivation_growth |
 | `network_compatibility.gd` | cr02_begin_check | combat_affinity_contracts |
@@ -1264,10 +1252,8 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `inventory_model.gd` | bank_extra_returns | garden_returns |
 | `inventory_model.gd` | bank_safe_returns | garden_returns |
 | `garden_growth_state.gd` | prepare_returns | garden_returns |
-| `garden_layout.gd` | ponds_g07 | garden_zones, garden_conduit |
 | `garden_layout.gd` | reserved_g07 | garden_zones, garden_conduit |
 | `garden_growth_catalog.gd` | heart_counts | heart_growth_visual |
-| `garden_growth_catalog.gd` | describe_g07 | garden_conduit, garden_cinematics |
 | `garden_growth_service.gd` | guarded_lifecycle_1 | persistence_operations, connection_flow, menus, settings |
 | `garden_growth_service.gd` | guarded_lifecycle_2 | persistence_operations, connection_flow, menus, settings |
 | `garden_growth_service.gd` | cleanup_feedback_registration | persistence_operations |
@@ -1388,7 +1374,6 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `heart_catalog.gd` | ui_copy_10 | ui_copy |
 | `heart_catalog.gd` | ui_copy_9 | ui_copy |
 | `heart_catalog.gd` | ui_copy_8 | ui_copy |
-| `heart_catalog.gd` | ui_copy_7 | ui_copy |
 | `heart_catalog.gd` | ui_copy_6 | ui_copy |
 | `heart_catalog.gd` | ui_copy_5 | ui_copy |
 | `heart_catalog.gd` | ui_copy_4 | ui_copy |

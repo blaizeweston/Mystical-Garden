@@ -68,8 +68,12 @@ func run() -> void:
 		"higher tiers can be researched in prerequisite order")
 	check(progress.research("flowering") and progress.research("seed_archive")
 		and progress.research("monster_studies"), "existing altar prerequisites unlock lab structures")
-	check(progress.locked_reason("spring").contains("Root Irrigation") and progress.research("irrigation")
-		and progress.locked_reason("spring").is_empty(), "watering basin uses the sheltered spring prerequisites")
+	_choose(panel, "irrigation")
+	check(panel.detail.text.contains("Fill your watering vessel at Garden water features")
+		and not panel.detail.text.contains("Watering basin in Build"),
+		"Knowledge details describe water access rather than retired construction")
+	check(progress.research("irrigation") and not model.CATALOG.has("spring"),
+		"Root Irrigation remains researchable while basin construction is retired")
 	check(model.records.size() == 1 and model.records[id].state.crop == "moonleaf",
 		"research cannot overwrite the first crop or automatically add unlocked structures")
 	check(_grow(view, [6, 1, 0, 2, 5, 4]) and _grow(view, [2, 3, 5, 6, 0, 1, 4]),

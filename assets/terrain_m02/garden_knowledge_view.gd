@@ -122,7 +122,7 @@ func _update_detail() -> void:
 	elif selected == "monster_studies":
 		effect = "Unlocks one Field study in Build."
 	elif selected == "irrigation":
-		effect = "With Reaching Roots, unlocks the Watering basin in Build."
+		effect = row.description
 	var refusal := model.research_refusal(selected)
 	study.disabled = not refusal.is_empty()
 	detail.text = "%s\nRequires %s\n%d lifetime Knowledge · Spend %d available\n\n%s\n\n%s" % [

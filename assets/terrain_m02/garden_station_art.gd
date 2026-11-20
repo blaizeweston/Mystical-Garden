@@ -12,7 +12,7 @@ const SOIL := Color("#39241a")
 const GARNET := Color("#672d2e")
 const NAMES := {"starter_bed": "Cultivation bed", "altar": "Identification altar",
 	"seed_archive": "Seed archive", "monster_studies": "Monster studies",
-	"living_archive": "Living archive", "spring": "Watering spring"}
+	"living_archive": "Living archive"}
 
 static func build(id: String, decorative_bed_shoots := true) -> ArrayMesh:
 	var tool := SurfaceTool.new()
@@ -25,11 +25,6 @@ static func build(id: String, decorative_bed_shoots := true) -> ArrayMesh:
 			Wood._tube(tool, [Vector3(-0.41, 0.08, 0.42), Vector3(-0.42, 0.46, 0.19),
 				Vector3(-0.11, 0.82, -0.23), Vector3(0.35, 0.91, -0.31)],
 				[0.16, 0.14, 0.08, 0.02], BARK)
-		"spring":
-			_basin(tool, 0.89, 0.34, STONE, Color("#426a59"))
-			Wood._tube(tool, [Vector3(-0.47, 0.02, -0.38), Vector3(-0.46, 0.57, -0.35),
-				Vector3(-0.17, 0.64, -0.09), Vector3(-0.03, 0.61, 0.00)],
-				[0.17, 0.12, 0.09, 0.058], BARK)
 		_:
 			_archive(tool, id)
 	return tool.commit()

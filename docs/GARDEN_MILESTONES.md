@@ -1,6 +1,6 @@
 # Garden milestones and objective design
 
-Updated: 2026-11-18 · Owner: shared between the user and development assistant.
+Updated: 2026-11-19 · Owner: shared between the user and development assistant.
 
 Architecture and overlap decisions: [Garden development map](GARDEN_DEVELOPMENT_MAP.md). Implemented test ownership: [mechanics/test map](MECHANICS_TEST_MAP.md). Existing product intent: [design brief](../DESIGN_BRIEF.md). This document holds the Garden work queue and the [Wilds enemy](#wilds-enemy-design-milestones), [Core combat](#core-combat-milestones), [sound design](#sound-design-milestones), and [combat balance and vitals](COMBAT_BALANCE_MILESTONES.md) milestones.
 
@@ -8,9 +8,9 @@ Architecture and overlap decisions: [Garden development map](GARDEN_DEVELOPMENT_
 
 | Field | Value |
 |---|---|
-| Recent work | Modern owner/UI and Neural Arena branches are integrated; generated Garden and modern Wilds/boss/Heart terrain are now the default. Focused source and local loopback verification cover construction, offerings, cultivation, travel and rejoin. The subsequent Garden feature-panel refactor gives Altar, expedition graft and planting views detached data/request interfaces; their domain authorities and the playtest queue remain unchanged. Growth cinematics now own private playback state and consume detached viewer facts; the duplicate Game metadata flag is retired. Base world guidance now consumes detached facts; Garden action/crop/station authority and the planned spring replacement remain separate. The effects/audio/map and plots/Heart/Garden display order now has a detached presentation controller; domain services and milestone status are unchanged. All six Garden views now use detached data/request ports. Focused standalone and real title/host/guest checks cover supported current construction and readmission; milestone status and the planned water replacement are unchanged. Historical CB-08 release evidence below remains historical; these changes do not export a release. |
+| Recent work | Generated Garden, modern Wilds/boss/Heart terrain and detached Garden views remain integrated. The dedicated spring fixture and Watering basin Build entry are now removed. Reaching Roots + Root Irrigation unlock filling at reachable banks of the existing Garden water, preserving one vessel and the existing 25% crop-growth benefit. Current source passes 27 focused suites / 43 process verdicts, including Garden co-op, guarded transactions and four-player controls. No export was produced. |
 | Next combat objective | **CB-08 · Live playtest and release.** Compare pacing and sustain in solo and co-op, apply any tuning, then promote the verified balance. [Combat balance catalogue](COMBAT_BALANCE_MILESTONES.md#live-playtest). |
-| Next player-facing milestone | Manually review the generated Garden, reclamation/construction, first six floors and boss terrain on the newly integrated source. Preserve isolated saves; no new packaged build is produced here. |
+| Next player-facing milestone | Manually review the generated Garden, Knowledge-unlocked water-bank filling, crop watering, reclamation/construction, first six floors and boss terrain. Preserve isolated saves. G-08 pacing/listening review remains open; no new packaged build is produced here. |
 | Project state | G-00–G-07 and W-00–W-07 are complete. G-08, W-08 and C-07 remain in the playtest queue. |
 | Listening review | Use A-06 to gather human feedback on cue recognition, mix balance and listening fatigue. The same sessions can cover the existing Garden and Wilds playtest milestones. |
 
@@ -45,7 +45,7 @@ flowchart LR
 |---|---|---|---|---|
 | G-00 | Complete | A shared map and editable queue describe existing overlaps and safe additions | — | Planning only |
 | G-01 | Complete | One host-authoritative observation survives save/rejoin and rejects duplicates | G-00 | One interaction, one state boundary, no new economy |
-| G-02 | Complete | An existing technology reveals an accessible, inspectable spring | G-01 | One location; reuse pond/clearing assets |
+| G-02 | Complete | Existing Knowledge enables accessible, inspectable Garden water; the former spring fixture is retired | G-01 | One water-access contract; reuse actual pond/pool geometry |
 | G-03 | Complete | Plants reveal a clue that leads to an existing useful Altar recipe | G-02 | One relationship and one clue |
 | G-04 | Complete | A crop offers a meaningful, bounded nurturing/sacrifice choice | G-03 | One care opportunity and one outcome policy |
 | G-05 | Complete | Returning from an expedition can cause a persistent Garden discovery | G-01; play it after G-03 | One trigger and one return scene |
@@ -620,6 +620,7 @@ Next objective after completion:
 
 | Date | Milestone | Actual result | Evidence | Next objective |
 |---|---|---|---|---|
+| 2026-11-19 | G-02 water-source correction | Retired spring fixture/construction; existing Knowledge enables one-vessel filling at actual dry water banks. Watering stays 1.25× once per crop. No extra costs, rewards or movement changes. | `garden-water-verified-20261119-211502` and exact-input origins: 27 suites / 43 process verdicts; 106 tool self-tests, 36 compiled callers. Disposable saves and local loopback only; no export. | G-08 manual playtest; broad release refresh separately scheduled |
 | 2026-11-10 | G-00 | Source-based map and editable objectives saved; gameplay unchanged | This document and GARDEN_DEVELOPMENT_MAP.md; documentation checks only | G-01 |
 
 Implementation decision (2026-11-10): G-02/G-03 use the first two existing right-hand beds. Spring water remains decorative, with reserved dry approaches and the existing circular movement boundary. Background motion is a local optional presentation layer, not an authority for later creature collection. New physical shoreline or fauna interaction would require the layout/prediction/network contract to be extended explicitly.

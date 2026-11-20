@@ -904,23 +904,22 @@ func garden_pond_positions(radius: float) -> Array[Vector3]:
 func build_garden_life(radius: float, random: RandomNumberGenerator) -> void:
 	var ponds:=preload("res://garden_layout.gd").ponds(self,radius)
 	for water in ponds:
-		if water.id!="sheltered_spring":build_garden_pond(water.position,float(water.radius),random)
-	var spring_zone: Dictionary=preload("res://garden_layout.gd").zone("sheltered_spring")
-	var spring:=preload("res://assets/garden/sheltered_spring.tscn").instantiate()
-	garden_edge.add_child(spring)
-	spring.configure(self,spring_zone.water.position,preload("res://garden_layout.gd").enabled(spring_zone,heart_unlocked))
+		build_garden_pond(water,random)
 
 
-func build_garden_pond(position: Vector3, radius: float, random: RandomNumberGenerator) -> void:
+func build_garden_pond(definition: Dictionary, random: RandomNumberGenerator) -> void:
+	var position: Vector3=definition.position
+	var radius:=float(definition.radius)
 	var group:=Node3D.new();group.name="GardenWaterFeature";garden_edge.add_child(group);group.position=position;group.set_meta("garden_water_position",position)
 	position=Vector3.ZERO
 	var shape:=SurfaceTool.new();shape.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i in 96:
-		var a:=TAU*i/96;var b:=TAU*(i+1)/96
-		var ra:=radius*(1+.09*sin(a*3)+.045*cos(a*5));var rb:=radius*(1+.09*sin(b*3)+.045*cos(b*5))
-		for vertex in [Vector3.ZERO,Vector3(cos(b)*rb,0,sin(b)*rb),Vector3(cos(a)*ra,0,sin(a)*ra)]:
+	var outline: PackedVector2Array=definition.shape.outline
+	for i in outline.size():
+		var a: Vector2=outline[i]-Vector2(definition.position.x,definition.position.z)
+		var b: Vector2=outline[(i+1)%outline.size()]-Vector2(definition.position.x,definition.position.z)
+		for vertex in [Vector3.ZERO,Vector3(b.x,0,b.y),Vector3(a.x,0,a.y)]:
 			shape.set_normal(Vector3.UP);shape.add_vertex(vertex)
-	var water:=MeshInstance3D.new();water.name="GardenPond";water.set_meta("garden_pond",true);group.add_child(water);water.mesh=shape.commit();water.position=position+Vector3.UP*.018;water.scale.z=.72
+	var water:=MeshInstance3D.new();water.name="GardenPond";water.set_meta("garden_pond",true);group.add_child(water);water.mesh=shape.commit();water.position=position+Vector3.UP*.018;water.scale.z=1.0
 	var shader=preload("res://assets/shaders/garden_water.gdshader")
 	var material := ShaderMaterial.new()
 	material.shader = shader
@@ -1241,4 +1240,3 @@ func ensure_finale_form(actor: Dictionary,finale: bool) -> void:
 		growth.scale.y=.75+sin(Time.get_ticks_msec()*.002)*.025
 		for original in model.get_meta("original_meshes"):
 			if is_instance_valid(original): original.visible=not finale
-

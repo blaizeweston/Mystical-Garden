@@ -48,7 +48,7 @@ func run() -> void:
 	check(not soundscape.levels.has("spring_water"),"the spring is silent before research")
 	for tech in ["clearing_1","irrigation"]:
 		game.progress.heart.complete(game.progress,tech)
-	player.pos = soundscape.spring.water.position
+	player.pos = preload("res://garden_water.gd").center(game.stage)
 	game._process(.5)
 	check(soundscape.levels.spring_water>.5 and not soundscape.levels.has("wilds_theme"),"the unlocked spring gains a local sound")
 	player.pos = Vector3(-15,0,-12)

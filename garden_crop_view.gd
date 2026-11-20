@@ -44,12 +44,12 @@ func _ready() -> void:
  outcome=Label.new();outcome.custom_minimum_size=Vector2(570,100);outcome.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(outcome)
  preserve=button(box,"Preserve the bud · more time, richer harvest","preserve_bud")
  leave=button(box,"Let it grow normally","leave_bud")
- water=button(box,"Water from the spring · 25% faster until harvest","water_crop")
+ water=button(box,"Water from the Garden · 25% faster until harvest","water_crop")
  flower=button(box,"Harvest 2 seeds instead of parts","flower_crop")
  harvest=button(box,"Harvest crafting parts","harvest_crop")
  quick_water=Button.new()
  quick_water.text="Water plant"
- quick_water.tooltip_text="Use one vessel of spring water for 25% faster growth."
+ quick_water.tooltip_text="Use one vessel of Garden water for 25% faster growth."
  quick_water.focus_mode=Control.FOCUS_NONE
  _ui.mount_prompt_control(quick_water)
  quick_water.hide()
@@ -130,13 +130,13 @@ func _process(_delta: float) -> void:
  if bed.get("available",false):outcome.text+="\nPreserve: %s longer; rare-part chance rises from %d%% to %d%%."%[Growth.time_text(float(bed.extra_seconds)),roundi(float(bed.base_chance)*100),roundi(float(bed.preserve_chance)*100)]
  elif bed.get("preserved",false):outcome.text+="\nHarvesting seeds forfeits the rare-part bonus."
  if bed.get("watered",false):outcome.text+="\nWatered · 25% faster for this crop."
- elif not bed.get("spring_ready",false):outcome.text+="\nUnlock the sheltered spring to water crops."
+ elif not bed.get("spring_ready",false):outcome.text+="\nUnlock Garden water to water crops."
  if bed.get("flower_enabled",false):outcome.text+="\nSeed harvest · 2 seeds instead of parts."
  var pending:=Time.get_ticks_msec()<waiting_until
  preserve.visible=bed.get("available",false);leave.visible=preserve.visible;preserve.disabled=pending;leave.disabled=pending
  var has_water: bool=data.get("spring_water",false)
  water.visible=bed.get("water_available",false);water.disabled=pending or not has_water
- water.text="Water crop · 25% faster until harvest" if has_water else "Fill your watering vessel at the sheltered spring"
+ water.text="Water crop · 25% faster until harvest" if has_water else "Fill your watering vessel at Garden water"
  flower.visible=bed.get("compatible",false) and bed.get("flower_enabled",false);flower.disabled=pending or int(bed.stage)<3
  flower.text="Harvest 2 seeds instead of parts" if int(bed.stage)==3 else "Seed harvest · available when mature"
  harvest.visible=int(bed.stage)==3;harvest.disabled=pending

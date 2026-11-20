@@ -308,15 +308,7 @@
     },
     "garden_zones": {
       "label": "Garden footprints, water placement and stable bed membership",
-      "files": [
-        "garden_layout.gd",
-        "garden_layout.gd.uid",
-        "garden_spring_visuals.gd",
-        "garden_spring_visuals.gd.uid",
-        "assets/garden/sheltered_spring.tscn",
-        "assets/shaders/garden_spring_flow.gdshader",
-        "assets/shaders/garden_spring_flow.gdshader.uid"
-      ]
+      "files": ["garden_layout.gd", "garden_layout.gd.uid", "garden_water.gd", "garden_water.gd.uid"]
     },
     "garden_relationships": {
       "label": "Authored plant conditions and existing Altar refinement clues",
@@ -6549,11 +6541,7 @@
           "systems": [
             "avatar_motion_view"
           ]
-        }, "garden_stone_banks": {
-          "systems": [
-            "garden_life"
-          ]
-        },      "garden_scenery_import": {
+        },       "garden_scenery_import": {
           "systems": [
             "garden_life"
           ]
@@ -6617,11 +6605,7 @@
           "systems": [
             "heart_growth_visual"
           ]
-        },    "build_garden_pond_growth": {
-          "systems": [
-            "garden_cinematics"
-          ]
-        }, "update_plots_growth": {
+        },     "update_plots_growth": {
           "systems": [
             "garden_cinematics"
           ]
@@ -6641,12 +6625,7 @@
           "systems": [
             "garden_cinematics"
           ]
-        },  "build_garden_pond_adapter": {
-          "systems": [
-            "garden_life",
-            "garden_zones"
-          ]
-        },  "garden_pond_positions_adapter": {
+        },    "garden_pond_positions_adapter": {
           "systems": [
             "garden_zones"
           ]
@@ -6879,54 +6858,14 @@
     },
     "garden_interaction_service.gd": {
       "newline": "lf",
-      "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "experimental_research_landmarks_1": {
-          "systems": [
-            "hex_terrain",
-            "garden",
-            "garden_observations"
-          ]
-        }, "experimental_research_landmarks_2": {
-          "systems": [
-            "hex_terrain",
-            "garden",
-            "garden_observations"
-          ]
-        }, "experimental_terrain_1": {
+      "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]},    "experimental_terrain_3": {
           "systems": [
             "hex_terrain",
             "terrain",
             "garden",
             "persistence_operations"
           ]
-        }, "experimental_terrain_3": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_5": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_7": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_9": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "cleanup_feedback_1": {
+        },    "cleanup_feedback_1": {
           "systems": [
             "persistence_operations"
           ]
@@ -6941,18 +6880,6 @@
         }, "guarded_gameplay_writer_2": {
           "systems": [
             "persistence_operations"
-          ]
-        }, "command_g07": {
-          "systems": [
-            "garden_conduit"
-          ]
-        },   "command_crop_care": {
-          "systems": [
-            "garden_care"
-          ]
-        },   "stations_focus": {
-          "systems": [
-            "garden_stations"
           ]
         }
       }
@@ -7089,12 +7016,7 @@
     "garden_layout.gd": {
       "newline": "lf",
       "regions": {
-        "ponds_g07": {
-          "systems": [
-            "garden_zones",
-            "garden_conduit"
-          ]
-        },
+
         "reserved_g07": {
           "systems": [
             "garden_zones",
@@ -7109,12 +7031,6 @@
         "heart_counts": {
           "systems": [
             "heart_growth_visual"
-          ]
-        },
-        "describe_g07": {
-          "systems": [
-            "garden_conduit",
-            "garden_cinematics"
           ]
         }
       }
@@ -7789,11 +7705,7 @@
             "ui_copy"
           ]
         },
-        "ui_copy_7": {
-          "systems": [
-            "ui_copy"
-          ]
-        },
+
         "ui_copy_6": {
           "systems": [
             "ui_copy"

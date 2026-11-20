@@ -3,6 +3,7 @@ extends Node
 # Presentation only. The host commits research; each viewer acknowledges their own scene.
 const Stage=preload("res://stage.gd")
 const Layout=preload("res://garden_layout.gd")
+const Water=preload("res://garden_water.gd")
 const DURATION:=8.8
 const FORM_START_SECONDS:=5.5
 const FORM_DURATION_SECONDS:=1.6
@@ -66,10 +67,7 @@ func destination(value: Dictionary) -> Vector3:
   "zone":return Layout.zone(str(value.get("zone",""))).get("reveal",{}).get("position",Stage.HEART)
   "return":return Layout.Catalog.point(str(value.get("point",""))).get("position",Stage.HEART)
   "bed":return finite_destination(_stage.bed_position(int(value.get("slot",0))))
-  "spring":
-   for point in Layout.Catalog.POINTS:
-    if point.parent==value.get("zone") and point.get("visual","")=="spring":return point.position
-   return Layout.zone(str(value.get("zone",""))).get("water",{}).get("position",Stage.HEART)
+  "spring":return finite_destination(Water.anchor(_stage))
   "station":return finite_destination(_stage.station_position(str(value.get("station",""))))
   "clearing":return Vector3(-_stage.garden_extent*.72,0,2.0)
  return Stage.HEART
@@ -90,10 +88,9 @@ func conceal(pending: Array,forming: float=0.0) -> void:
   for model in _stage.garden_edge.get_children()+_stage.garden_beds.get_children():
    var route: bool=model.has_meta("garden_route_target") and model.get_meta("garden_route_target").distance_to(end)<.25
    var bed: bool=value.get("kind")=="bed" and model.has_meta("garden_plot_position") and model.get_meta("garden_plot_position").distance_to(end)<.25
-   var water: bool=value.get("kind")=="spring" and model.has_meta("garden_water_position") and model.get_meta("garden_water_position").distance_to(Layout.zone(str(value.get("zone",""))).get("water",{}).get("position",Vector3.INF))<.25
-   if route or bed or water:
+   if route or bed:
     remember(model);model.visible=amount>0.001
-    if bed or water:model.scale=Vector3.ONE*maxf(.001,smoothstep(0,1,amount))
+    if bed:model.scale=Vector3.ONE*maxf(.001,smoothstep(0,1,amount))
   if value.get("kind")=="station" and _stage.heart_stations.has(value.get("station")):
    var station: Node3D=_stage.heart_stations[value.station];remember(station);station.visible=amount>.001;station.scale=Vector3.ONE*maxf(.001,amount)
   if value.get("kind") in ["spring","zone"]:

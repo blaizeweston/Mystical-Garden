@@ -13,7 +13,6 @@ const CATALOG := {
 	"bed": {"name": "Cultivation bed", "art": "starter_bed", "half": Vector2(1.00, 0.73)},
 	"study": {"name": "Field study", "art": "monster_studies", "half": Vector2(0.97, 0.98)},
 	"archive": {"name": "Seed cache", "art": "seed_archive", "half": Vector2(0.97, 0.98)},
-	"spring": {"name": "Watering basin", "art": "spring", "half": Vector2(0.98, 0.98), "bank_range": 4.0},
 }
 const CARDINAL := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
@@ -63,9 +62,6 @@ func placement_issue(kind: String, at: Vector2, yaw: float, pawn: Vector2, movin
 	for feature: Dictionary in garden.layout.water:
 		if _overlaps(area, feature):
 			return _issue("The footprint crosses water.", feature)
-	var bank_range: float = CATALOG[kind].get("bank_range", 0.0)
-	if bank_range > 0.0 and not Shape.in_any(garden.layout.water, at, bank_range):
-		return _issue("Place the watering basin within four units of the pond bank.")
 	for landmark: Dictionary in garden.landmarks.values():
 		if _overlaps(area, landmark):
 			var name: String = landmark.id.replace("_", " ")

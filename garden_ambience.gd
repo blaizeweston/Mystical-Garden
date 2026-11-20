@@ -14,7 +14,7 @@ var colonies: Dictionary={}
 var elapsed:=0.0
 func _ready() -> void:
  root=Node3D.new();root.name="GardenAmbientLife";_stage.add_child(root)
-func build_colony(zone: Dictionary) -> MultiMeshInstance3D:
+func build_colony(zone: Dictionary, at: Vector3) -> MultiMeshInstance3D:
  var surface:=SurfaceTool.new();surface.begin(Mesh.PRIMITIVE_TRIANGLES)
  for side in [-1.0,1.0]:
   for lobe in 2:
@@ -30,7 +30,7 @@ func build_colony(zone: Dictionary) -> MultiMeshInstance3D:
  for index in instances.instance_count:
   instances.set_instance_transform(index,Transform3D.IDENTITY)
   instances.set_instance_custom_data(index,Color(fmod(index*.381966,1.0),index/float(instances.instance_count),0,1))
- var batch:=MultiMeshInstance3D.new();batch.name="SpringMoths";root.add_child(batch);batch.position=zone.water.position+Vector3.UP*.85;batch.multimesh=instances
+ var batch:=MultiMeshInstance3D.new();batch.name="SpringMoths";root.add_child(batch);batch.position=at+Vector3.UP*.85;batch.multimesh=instances
  batch.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
  var material:=ShaderMaterial.new();material.shader=preload("res://assets/shaders/garden_moth.gdshader");batch.material_override=material
  return batch
@@ -44,15 +44,13 @@ func _process(delta: float) -> void:
  var projection: Dictionary=_facts.get("data",{});var available: Array=projection.get("available",[])
  var zones: Array=Catalog.ZONES.duplicate()
  if preload("res://garden_return_service.gd").known(projection.get("returns",{}),"lantern_homecoming"):
-  zones.append({"id":"return_moths","water":{"position":Catalog.point("heart_root_scar").position},"ambience":{"requires_point":"heart_root_scar","range":9.0,"count":6}})
+  zones.append({"id":"return_moths","position":Catalog.point("heart_root_scar").position,"ambience":{"requires_point":"heart_root_scar","range":9.0,"count":6}})
  for colony in colonies.values():colony.hide()
  for zone in zones:
-  if not zone.has("water") or not zone.has("ambience"):continue
-  var at: Vector3=zone.water.position
-  if zone.id=="sheltered_spring" and _facts.get("development",false):
-   at=_stage.station_position("spring")
+  if not zone.has("ambience"):continue
+  var at: Vector3=_facts.get("water_position",Vector3.INF) if zone.get("water_access",false) else zone.get("position",Vector3.INF)
   var visible: bool=not _stage.get_meta("garden_growth_hidden_zones",[]).has(zone.id) and motion and not _facts.get("wild",false) and available.has(zone.ambience.requires_point) and at.is_finite() and _stage.get_meta("garden_growth_camera",{}).get("target",_facts.get("position",Vector3.INF)).distance_to(at)<float(zone.ambience.range)
-  if visible and not colonies.has(zone.id):colonies[zone.id]=build_colony(zone)
+  if visible and not colonies.has(zone.id):colonies[zone.id]=build_colony(zone,at)
   if colonies.has(zone.id):
    colonies[zone.id].visible=visible
    if visible:colonies[zone.id].position=at+Vector3.UP*.85

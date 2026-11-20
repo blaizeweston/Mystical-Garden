@@ -6,7 +6,7 @@ const CoverShape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd
 const CombatClock = preload("res://combat_clock.gd")
 const REGION := Rect2i(-29,-28,59,57)
 const CLEARANCE := 0.34
-const SIGNATURE := "modern-terrain-3"
+const SIGNATURE := "modern-terrain-4-water-banks"
 
 const Terrain = preload("res://assets/terrain_m02/wilds_preview_generation.gd")
 const Surface = preload("res://assets/terrain_m02/wilds_play_surface.gd")

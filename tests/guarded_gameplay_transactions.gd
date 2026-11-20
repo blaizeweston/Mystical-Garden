@@ -301,7 +301,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
   if world == null: return
   var host: Dictionary = world.players[world.HOST]
   if feature=="watering":
-   check(preload("res://tests/support/garden_case.gd").place_researched(world,"spring"),"watering fixture builds its researched basin before injecting failure")
+   check(world.cultivation.spring_ready(),"watering fixture has a Knowledge-unlocked Garden water source before injecting failure")
   var before := disk()
   var previous_event: int = world.combat_event_serial
   var attempts := {"receipts":0, "replacements":0}
@@ -346,7 +346,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
     var bed: Dictionary = world.progress.plots[1]
     var result: Dictionary = world.cultivation.command(world.HOST,{"point":"bed_2","cycle":bed.care.cycle,
      "revision":bed.care.revision,"stage":bed.stage,"action":"water_crop"})
-    ordinary = "Spring water nourishes this crop. Growth is 25% faster until harvest."
+    ordinary = "Garden water nourishes this crop. Growth is 25% faster until harvest."
     check(bed.care.get("watered",false) and not host.spring_water and result.changed
      and world.combat_event_serial == previous_event + 1,"watering consumes the charge and emits its cue once")
    "explicit_garden":
