@@ -69,10 +69,10 @@ func run():
 		player.seed_choice=i
 		g.stock[i]=1
 		g.plots[0]=Progress.empty_plot()
-		game.plant_seed(1,0)
+		game.cultivation.plant_seed(1,0)
 		g.advance_growth(float(d.grow_seconds))
 		before=g.part_count(d.part)
-		game.harvest(1,0)
+		game.cultivation.harvest(1,0)
 		check(g.part_count(d.part)==before+1 and g.plots[0].species==-1,"all species harvest into correct crafting part "+d.name)
 		check(player.character.plants[i]>0,"per-character familiarity "+d.name)
 		var crop: Node3D=game.stage.build_crop(i,3,false)

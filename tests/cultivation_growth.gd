@@ -4,19 +4,18 @@ const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const Growth=preload("res://cultivation_growth.gd")
 const Care=preload("res://garden_crop_state.gd")
-const Service=preload("res://garden_crop_service.gd")
 const Garden=preload("res://garden_interaction_service.gd")
 const View=preload("res://garden_crop_view.gd")
 var failed:=false
 func check(ok: bool,message: String) -> void:
  if not ok:failed=true;printerr("FAIL cultivation growth: ",message)
 func shown(game: Node) -> Dictionary:
- for bed in Service.projection(game,1).beds:
+ for bed in game.cultivation.projection(1).beds:
   if bed.slot==0:return bed
  return {}
 func act(game: Node,action: String) -> Dictionary:return Garden.command(game,1,JSON.stringify(View.request(shown(game),action)))
 func plant(game: Node,species: int=0) -> void:
- var p: Dictionary=game.players[1];p.pos=game.Stage.PLOTS[0];p.seed_choice=species;game.seed_reserve(p).stock[species]+=1;game.plant_seed(1,0)
+ var p: Dictionary=game.players[1];p.pos=game.Stage.PLOTS[0];p.seed_choice=species;game.seed_reserve(p).stock[species]+=1;game.cultivation.plant_seed(1,0)
 func _initialize() -> void:call_deferred("run")
 func run() -> void:
  var game=load("res://world.tscn").instantiate();var base: String="res://.godot/growth-rates-"+Crypto.new().generate_random_bytes(8).hex_encode()

@@ -20,7 +20,6 @@ const Items = preload("res://item_catalog.gd")
 const Menu = preload("res://main_menu.tscn")
 const Appearance = preload("res://character_appearance.gd")
 const GardenInteractions = preload("res://garden_interaction_service.gd")
-const CropCare = preload("res://garden_crop_service.gd")
 const MATURE := 10000.0
 
 var errors := 0
@@ -237,10 +236,10 @@ func run() -> void:
 		"the picker disables another bed once the researched capacity is used")
 	garden.development_dialog.hide()
 	player.pos = game.stage.bed_position(3) + Vector3(0, 0, 1.43)
-	check(game.nearby_plot(player.pos) == 3 and game.plant_seed(game.HOST, 3), "real seed plants in the movable bed")
+	check(game.nearby_plot(player.pos) == 3 and game.cultivation.plant_seed(game.HOST, 3), "real seed plants in the movable bed")
 	game.Transactions.run_gameplay(game, garden_scope, func(): game.progress.advance_growth(MATURE, false))
-	check(game.progress.plots[3].stage == 3 and game.harvest(game.HOST, 3), "real crop matures and returns plant parts")
-	check(game.plant_seed(game.HOST, 3), "replant for preservation checks")
+	check(game.progress.plots[3].stage == 3 and game.cultivation.harvest(game.HOST, 3), "real crop matures and returns plant parts")
+	check(game.cultivation.plant_seed(game.HOST, 3), "replant for preservation checks")
 	game.stage.update_plots(game.progress.plots)
 	var plot: MeshInstance3D = game.stage.garden_beds.get_child(3)
 	check(plot.mesh == garden.bed_mesh and plot.position.is_equal_approx(game.stage.bed_position(3))
@@ -528,8 +527,8 @@ func run() -> void:
 	player.pos = spring.position
 	view._process(0.0)
 	check(game.progress.heart.has("irrigation") and not view.points[spring.id].visible
-		and not GardenInteractions.allowed(game, spring) and not CropCare.spring_ready(game)
-		and not CropCare.fill_water(game, game.HOST) and not player.get("spring_water", false),
+		and not GardenInteractions.allowed(game, spring) and not game.cultivation.spring_ready()
+		and not game.cultivation.fill_water(game.HOST) and not player.get("spring_water", false),
 		"Root Irrigation enables construction while the old site cannot supply water")
 	player.pos = Vector3(0, 0, 1.5)
 	var basin_site := Vector2.INF
@@ -552,7 +551,7 @@ func run() -> void:
 			break
 	if check_spring_placement(game, garden, view, spring, basin_site):
 		player.pos = garden.world(basin_approach)
-		check(garden.barrier.walkable(basin_approach) and CropCare.fill_water(game, game.HOST)
+		check(garden.barrier.walkable(basin_approach) and game.cultivation.fill_water(game.HOST)
 			and player.get("spring_water", false), "the built basin supplies water from a walkable approach")
 		check(not garden._placement_refusal("spring", 0).is_empty(), "an existing watering basin is relocated instead of duplicated")
 	var samples := 0
@@ -600,7 +599,7 @@ func check_spring_placement(game: Node, garden: Node, view: Node, spring: Dictio
 	view._process(0.0)
 	check(view.points[spring.id].visible and view.points[spring.id].position == garden.world(site)
 		and game.stage.station_position("spring") == garden.world(site)
-		and GardenInteractions.allowed(game, spring) and CropCare.spring_ready(game),
+		and GardenInteractions.allowed(game, spring) and game.cultivation.spring_ready(),
 		"the built basin supplies the single Spring model, interaction marker and watering position")
 	return true
 

@@ -68,8 +68,8 @@ func run() -> void:
  g.save_garden();var restored=game.Progress.new();restored.path=g.path;check(restored.load_garden()==OK and restored.heart.has("irrigation") and restored.garden_interactions.revision==0,"old unlocked state remains eligible without a duplicate research payment")
  var moss: int=game.Seeds.index_of("lantern_moss");var vine: int=game.Seeds.index_of("whispervine");var reserve: Dictionary=game.seed_reserve(p)
  for species in [moss,vine]:g.discover(species);reserve.stock[species]=2
- p.pos=stage.PLOTS[0];p.seed_choice=moss;game.plant_seed(1,0)
- p.pos=stage.PLOTS[1];p.seed_choice=vine;game.plant_seed(1,1)
+ p.pos=stage.PLOTS[0];p.seed_choice=moss;game.cultivation.plant_seed(1,0)
+ p.pos=stage.PLOTS[1];p.seed_choice=vine;game.cultivation.plant_seed(1,1)
  check(not Relations.matches(game,trace),"young plants do not satisfy a mature relationship")
  g.advance_growth(86400)
  check(Relations.matches(game,trace),"two mature species in registered beds enable the relationship")
@@ -81,7 +81,7 @@ func run() -> void:
  check(g.knowledge==knowledge and g.parts==parts and g.stock==stock and p.character.xp==xp and not g.altar_recipes.has(recipe.id),"observation grants no materials, XP or automatic recipe discovery")
  var projection:=Service.projection(game,1)
  check(projection.clues.get(trace.observation,"").contains(Items.get_item(ingredient).name),"recorded clue names actual Altar ingredients")
- p.pos=stage.PLOTS[0];game.harvest(1,0)
+ p.pos=stage.PLOTS[0];game.cultivation.harvest(1,0)
  check(g.plots[0].species==-1 and Service.projection(game,1).available.has(trace.id),"harvesting empties a bed while an already-recorded clue stays readable")
  # Clear the observation only in the fixture to test a stale pre-discovery intent.
  var saved: Dictionary=g.garden_interactions.duplicate(true);g.garden_interactions=game.progress.garden_interactions.duplicate(true);g.garden_interactions.observations.erase(trace.observation);g.garden_interactions.revision=0;g.garden_interactions.receipts=[]
@@ -89,7 +89,7 @@ func run() -> void:
  check(request(game,trace.id,0,"stale").has("error"),"harvesting invalidates an outstanding unrecorded relationship request")
  g.garden_interactions=saved
  # Grow/harvest a second ordinary material, then pay the real Altar recipe.
- p.pos=stage.PLOTS[0];p.seed_choice=moss;game.plant_seed(1,0);g.advance_growth(86400);game.harvest(1,0)
+ p.pos=stage.PLOTS[0];p.seed_choice=moss;game.cultivation.plant_seed(1,0);g.advance_growth(86400);game.cultivation.harvest(1,0)
  p.pos=stage.ALTAR;var draft: Array=[{"item":ingredient,"source":"shared"},{"item":ingredient,"source":"shared"}]
  game.send_altar_action("combine",draft,0)
  var output: Dictionary=Items.get_item(recipe.output);var refined:=int(output.legacy_part)

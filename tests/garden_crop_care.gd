@@ -3,19 +3,18 @@ extends SceneTree
 const ExpeditionCase = preload("res://tests/support/expedition_case.gd")
 const State=preload("res://garden_crop_state.gd")
 const Catalog=preload("res://garden_crop_catalog.gd")
-const Service=preload("res://garden_crop_service.gd")
 const Garden=preload("res://garden_interaction_service.gd")
 const View=preload("res://garden_crop_view.gd")
 var failed:=false
 func check(ok: bool,message: String) -> void:
  if not ok:failed=true;printerr("FAIL crop care: ",message)
 func shown(game: Node,index: int) -> Dictionary:
- for bed in Service.projection(game,1).beds:
+ for bed in game.cultivation.projection(1).beds:
   if int(bed.slot)==index:return bed
  return {}
 func act(game: Node,request: Dictionary) -> Dictionary:return Garden.command(game,1,JSON.stringify(request))
 func plant(game: Node,index: int,species: int=0) -> void:
- game.players[1].pos=game.Stage.PLOTS[index];game.players[1].seed_choice=species;game.seed_reserve(game.players[1]).stock[species]+=1;game.plant_seed(1,index)
+ game.players[1].pos=game.Stage.PLOTS[index];game.players[1].seed_choice=species;game.seed_reserve(game.players[1]).stock[species]+=1;game.cultivation.plant_seed(1,index)
 func _initialize() -> void:call_deferred("run")
 func run() -> void:
  check(Catalog.errors().is_empty(),"care catalog validates")
@@ -50,19 +49,19 @@ func run() -> void:
  check(not shown(game,0).has("roll") and not shown(game,0).has("care"),"projection conceals the harvest roll")
  g.advance_growth(131.25)
  check(g.plots[0].stage==2 and g.plots[1].stage==3,"preserving adds growth time while an unattended crop matures normally")
- p.pos=game.Stage.PLOTS[1];var before: int=g.parts[0];game.harvest(1,1)
+ p.pos=game.Stage.PLOTS[1];var before: int=g.parts[0];game.cultivation.harvest(1,1)
  check(g.parts[0]==before+1 and g.plots[1].species<0,"unattended crop retains guaranteed material harvest")
  g.advance_growth(60);g.save_garden();p.pos=game.Stage.PLOTS[0]
  check(g.plots[0].stage==3,"preserved crop matures after its one delay")
  var rare: int=game.Parts.rare_part(0);var rare_before: int=g.part_count(rare);var fam_before: int=p.character.plants[0];before=g.parts[0]
  var profile_path: String=game.local_character.path;var old_bed: Dictionary=g.plots[0].duplicate(true);rng_before=game.rng.state
  var cue_count: int=game.combat_events.filter(func(e):return e.kind=="audio" and e.shape=="crop_harvested").size()
- game.local_character.path=base+"-missing/profile";game.harvest(1,0)
+ game.local_character.path=base+"-missing/profile";game.cultivation.harvest(1,0)
  check(game.combat_events.filter(func(e):return e.kind=="audio" and e.shape=="crop_harvested").size()==cue_count,"failed save does not confirm a harvest in audio")
  check(g.plots[0]==old_bed and g.parts[0]==before and g.part_count(rare)==rare_before and p.character.plants[0]==fam_before and game.rng.state==rng_before,"failed multi-file harvest rolls back crop, yields, familiarity and RNG")
- game.local_character.path=profile_path;game.harvest(1,0)
+ game.local_character.path=profile_path;game.cultivation.harvest(1,0)
  check(g.plots[0].species<0 and g.parts[0]==before+1 and g.part_count(rare)==rare_before+1 and p.character.plants[0]==fam_before+1,"one real harvest pays ordinary plus at most one existing rare part and normal familiarity")
- game.harvest(1,0)
+ game.cultivation.harvest(1,0)
  check(game.combat_events.filter(func(e):return e.kind=="audio" and e.shape=="crop_harvested").size()==cue_count+1,"only a committed harvest plays its cue")
  check(g.parts[0]==before+1 and g.part_count(rare)==rare_before+1 and p.character.plants[0]==fam_before+1,"repeated harvest cannot duplicate either payout or familiarity")
  plant(game,0)

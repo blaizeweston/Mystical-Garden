@@ -2,7 +2,6 @@ extends SceneTree
 const Sessions=preload("res://tests/support/session_case.gd")
 const Construction=preload("res://tests/support/garden_case.gd")
 const Interactions=preload("res://garden_interaction_service.gd")
-const Crops=preload("res://garden_crop_service.gd")
 const Care=preload("res://garden_crop_state.gd")
 const Gate=preload("res://persistence_writer_integration.gd")
 var game:Node
@@ -28,7 +27,7 @@ func check_read_models():
 	for field in observation:
 		check(observation[field]==complete[field],"lightweight observation agrees with the published "+str(field))
 	check(Interactions.projection_epoch(game,peer)==str(complete.get("epoch","")),"scalar context agrees with the published epoch")
-	check(Crops.water_carried(game,peer)==bool(Crops.projection(game,peer).get("spring_water",false)),"scalar water status agrees with the complete crop projection")
+	check(game.cultivation.water_carried(peer)==bool(game.cultivation.projection(peer).get("spring_water",false)),"scalar water status agrees with the complete crop projection")
 	var expected_available:Array=complete.get("available",[]).duplicate()
 	observation.available.clear()
 	check(Interactions.projection(game,peer).get("available",[])==expected_available,"lightweight observation inspection is detached")
@@ -90,13 +89,24 @@ func host_run():
 	var disk=game.Progress.new();disk.path=game.progress.path
 	check(disk.load_garden()==OK and disk.garden_interactions.revision==1,"committed observation is saved only in the disposable world")
 	game.players[1].pos=game.stage.bed_position(0);game.players[guest].pos=game.stage.bed_position(0)
-	game.seed_reserve(game.players[1]).stock[0]+=1;game.players[1].seed_choice=0;game.plant_seed(1,0);garden.advance_growth(168.75)
-	if not check(int(garden.plots[0].stage)==2 and Crops.focus(game,guest,0),"a real planted crop is ready for inspection"):return
+	game.seed_reserve(game.players[1]).stock[0]+=1;game.players[1].seed_choice=0;game.cultivation.plant_seed(1,0);garden.advance_growth(168.75)
+	if not check(int(garden.plots[0].stage)==2 and game.cultivation.focus(guest,0),"a real planted crop is ready for inspection"):return
 	var crop_revision:int=garden.plots[0].care.revision
 	mark("crop_ready")
 	if not check(await until(func():return marked("preserved")),"guest preserves through the crop panel"):return
 	check(Care.preserved(garden.plots[0]) and garden.plots[0].care.revision==crop_revision+1,"one pending UI choice produces one crop revision")
 	check(garden.parts==parts and game.players[guest].character.xp==experience,"crop care supplies no hidden items or XP")
+	# A real guest-owned harvest uses the new port and existing profile transaction.
+	var actor:Dictionary=game.players[guest]
+	actor.pos=game.stage.bed_position(1);actor.seed_choice=1;game.seed_reserve(actor).stock[1]+=1
+	check(game.cultivation.plant_seed(guest,1),"guest seed plants through the host cultivation port")
+	garden.advance_growth(10000)
+	var familiarity:int=actor.character.plants[1];var material:int=garden.parts[1]
+	check(game.cultivation.harvest(guest,1) and int(garden.plots[1].species)<0 and actor.character.plants[1]==familiarity+1 and garden.parts[1]==material+1,"one guest harvest commits the bed, native material and correct character familiarity")
+	var harvest_rng:int=game.rng.state
+	check(not game.cultivation.harvest(guest,1) and actor.character.plants[1]==familiarity+1 and garden.parts[1]==material+1 and game.rng.state==harvest_rng,"duplicate guest harvest cannot repeat rewards or RNG")
+	mark("harvest_ready")
+	if not check(await until(func():return marked("harvest_received")),"guest receives its committed harvest profile"):return
 	garden.heart.unlock_direct("monster_studies")
 	# This fixture owns the disposable world; construction still validates its
 	# research, geometry and actual transaction rather than inventing a station.
@@ -131,8 +141,13 @@ func guest_run():
 	if not check(await until(func():return crop.panel.visible and crop.preserve.visible and not crop.last_bed.is_empty()),"real crop focus opens its inspector"):return
 	var expected_revision:int=int(crop.last_bed.revision)+1
 	crop.preserve.pressed.emit();crop.preserve.pressed.emit()
-	if not check(await until(func():return Crops.projection(game,game.local_player_id()).get("beds",[]).any(func(bed):return bed.get("preserved",false))),"one authoritative crop choice arrives"):return
+	if not check(await until(func():return game.cultivation.projection(game.local_player_id()).get("beds",[]).any(func(bed):return bed.get("preserved",false))),"one authoritative crop choice arrives"):return
 	game.ui.close_panels();mark("preserved")
+	if not check(await until(func():return marked("harvest_ready") and int(game.guest_character.data.plants[1])==1 and game.cultivation.projection(game.local_player_id()).get("beds",[]).any(func(bed):return bed.slot==0 and bed.stage==3)),"guest receives native harvest familiarity and matured crop state"):return
+	var projection:Dictionary=game.cultivation.projection(game.local_player_id())
+	expected_revision=int(projection.beds[0].revision);projection.beds[0].revision=-999
+	check(int(game.cultivation.projection(game.local_player_id()).beds[0].revision)==expected_revision,"direct guest cultivation queries are detached from received state")
+	mark("harvest_received")
 	if not check(await until(func():return marked("offering_ready") and game.at_garden_station(game.players.get(game.local_player_id(),{}),"monster_studies")),"placed station and guest position agree"):return
 	if not check(await until(func():return view.station_panel.visible and view.station_controls.station=="monster_studies" and not view.station_controls.apply.disabled),"current stored trophy enables the real Offering Altar control"):return
 	view.station_controls.apply.pressed.emit()
@@ -152,7 +167,7 @@ func guest_run():
 	var copy:Dictionary=game.garden_presentation.frame("crop")
 	if check(not copy.data.beds.is_empty(),"received crop is available for detached inspection"):
 		copy.data.beds[0].revision=-999
-		check(int(Crops.projection(game,game.local_player_id()).beds[0].revision)==expected_revision,"changing a display frame cannot change received authoritative state")
+		check(int(game.cultivation.projection(game.local_player_id()).beds[0].revision)==expected_revision,"changing a display frame cannot change received authoritative state")
 	mark("rejoined")
 	check(await until(func():return marked("done")),"host confirms exactly-once outcomes")
 	mark("guest_done")

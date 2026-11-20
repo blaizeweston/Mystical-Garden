@@ -30,7 +30,7 @@ func run():
  for species in game.Seeds.DEFINITIONS.size(): check(game.Parts.rare_part(species)>0,"every species has a rare harvest component")
  # Inject a failed cross-file harvest: crop, shared yield and profile must all roll back.
  p.pos=game.Stage.PLOTS[0];g.plots[0]={"species":0,"age":80.,"stage":3,"flowering":false};var fam: int=p.character.plants[0];var before: int=g.parts[0]
- var path: String=g.path;g.path="res://.godot/missing-foundations-directory/fail.cfg";game.harvest(1,0)
+ var path: String=g.path;g.path="res://.godot/missing-foundations-directory/fail.cfg";game.cultivation.harvest(1,0)
  check(g.plots[0].species==0 and g.parts[0]==before and p.character.plants[0]==fam,"failed harvest restores crop, yield and character familiarity together")
  g.path=path
  # Interrupted multi-file commit restores both files before reading either one.
@@ -71,8 +71,8 @@ func run():
  var rare_part: int=game.Parts.rare_part(1);var rare_before: int=g.part_count(rare_part)
  for seed_value in 1000:
   game.rng.seed=seed_value
-  if game.rng.randf()<game.rare_harvest_chance(p.character.plants[1]): game.rng.seed=seed_value;break
- game.harvest(1,0);check(g.part_count(rare_part)==rare_before+1,"non-Thorn plant can naturally yield its refined material")
+  if game.rng.randf()<preload("res://garden_cultivation.gd").rare_harvest_chance(p.character.plants[1]): game.rng.seed=seed_value;break
+ game.cultivation.harvest(1,0);check(g.part_count(rare_part)==rare_before+1,"non-Thorn plant can naturally yield its refined material")
  p.pos=game.stage.gate_position();p.prepared=rare_part;p.prepared_secondary=0;p.prepared_catalyst=0;ExpeditionCase.Transitions.enter(game, 1,p)
  check(ExpeditionCase.is_wild(p) and p.weapon==rare_part and g.part_count(rare_part)==rare_before,"refined harvest component can craft an expedition weapon")
  check(not game.Items.register({"id":"invalid_component","name":"Invalid","category":"plant_part"}),"orphan component definitions are rejected")

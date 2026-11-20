@@ -41,7 +41,7 @@ func host_run() -> void:
  guest.pos=point.position;game.players[1].pos=point.position
  mark("ready")
  if not await until(func():return marked("prepared")):check(false,"guest sees mature conditions");return
- game.players[1].pos=game.Stage.PLOTS[0];game.harvest(1,0)
+ game.players[1].pos=game.Stage.PLOTS[0];game.cultivation.harvest(1,0)
  mark("changed")
  if not await until(func():return marked("stale_rejected")):check(false,"guest verifies stale command rejection");return
  check(g.garden_interactions.revision==0,"crop changed without granting a stale observation")
@@ -53,7 +53,7 @@ func host_run() -> void:
  game.garden_action(1,payload("host-race"))
  if not await until(func():return g.garden_interactions.revision==1):check(false,"shared clue commits");return
  check(g.garden_interactions.receipts.size()==1 and g.parts==before and g.knowledge==knowledge and g.altar_recipes.is_empty(),"race records once with no ingredient, Knowledge or recipe grant")
- game.players[1].pos=game.Stage.PLOTS[1];game.harvest(1,1)
+ game.players[1].pos=game.Stage.PLOTS[1];game.cultivation.harvest(1,1)
  mark("committed")
  if not await until(func():return marked("first_verified")):check(false,"guest sees durable clue");return
  mark("rejoin")

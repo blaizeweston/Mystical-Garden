@@ -349,16 +349,7 @@
     },
     "garden_care": {
       "label": "Crop-cycle identity, optional care, delayed rare harvest and flowering exclusion",
-      "files": [
-        "garden_crop_catalog.gd",
-        "garden_crop_catalog.gd.uid",
-        "garden_crop_state.gd",
-        "garden_crop_state.gd.uid",
-        "garden_crop_service.gd",
-        "garden_crop_service.gd.uid",
-        "garden_crop_view.gd",
-        "garden_crop_view.gd.uid"
-      ]
+      "files": ["garden_crop_catalog.gd", "garden_crop_catalog.gd.uid", "garden_crop_state.gd", "garden_crop_state.gd.uid", "garden_cultivation.gd", "garden_cultivation.gd.uid", "garden_cultivation_world.gd", "garden_cultivation_world.gd.uid", "garden_crop_view.gd", "garden_crop_view.gd.uid"]
     },
     "cultivation_growth": {
       "label": "Tier growth times, Wilds/Knowledge rates, spring watering and seed harvest choice",
@@ -981,15 +972,8 @@
       "weapons",
       "items"
     ],
-    "harvest_guarded": [
-      "garden_care",
-      "characters",
-      "seeds"
-    ],
-    "report_harvest": [
-      "garden_care",
-      "diagnostics"
-    ],
+
+
     "_select_class": [
       "classes",
       "characters",
@@ -1211,21 +1195,9 @@
     "nearby_plot": [
       "foundation"
     ],
-    "harvest": [
-      "seeds",
-      "garden",
-      "knowledge",
-      "items"
-    ],
-    "_harvest": [
-      "seeds",
-      "garden",
-      "knowledge",
-      "items"
-    ],
-    "rare_harvest_chance": [
-      "seeds"
-    ],
+
+
+
 
 
     "finish_combat": [
@@ -1287,9 +1259,7 @@
     "selected_seed": [
       "seeds"
     ],
-    "plant_seed": [
-      "seeds"
-    ],
+
     "save_progress": [
       "foundation"
     ],
@@ -1591,6 +1561,7 @@
     ]
   },
   "suites": {
+    "garden_cultivation": {"kind":"unit", "systems":["garden_care","cultivation_growth","seeds","items"], "profile":"terrain", "package":false},
     "actor_presentation": {"kind":"unit", "systems":["actor_presentation","presentation","avatar_motion_view","player_weapon_actions","player_lifecycle","player_vitals","expedition_participation","life","items"], "profile":"terrain", "package":false},
     "garden_view_ports_coop": {"kind":"pair", "systems":["garden_view_ports","garden_observations","garden_care","garden_stations","garden_cinematics","garden_returns","garden_life","garden_conduit","connection_flow","world_snapshot","garden","items","characters","seeds","knowledge","gameplay_ui"], "profile":"terrain", "package":true},
     "garden_view_ports": {"kind":"unit", "systems":["garden_view_ports","garden_observations","garden_care","garden_stations","garden_conduit","garden_returns","garden_life","garden_cinematics","gameplay_ui"], "package":false},
@@ -5424,73 +5395,9 @@
         ],
         "additive": true
       }},
-    "plant_seed": {
-      "cleanup_feedback": {
-        "systems": [
-          "persistence_operations"
-        ],
-        "additive": true
-      },
-      "guarded_gameplay_writer": {
-        "systems": [
-          "persistence_operations"
-        ],
-        "additive": true
-      },
-      "ui_copy": {
-        "systems": [
-          "ui_copy"
-        ],
-        "additive": true
-      },
-      "plant_seed_g07": {
-        "systems": [
-          "garden_conduit"
-        ],
-        "additive": true
-      },
-      "growth_balance": {
-        "systems": [
-          "cultivation_growth"
-        ],
-        "additive": true
-      },
-      "crop_care_adapter": {
-        "systems": [
-          "garden_care"
-        ],
-        "additive": true
-      }
-    },
-    "harvest": {
-      "guarded_garden_actions": {
-        "systems": [
-          "persistence_operations",
-          "seeds",
-          "garden",
-          "knowledge",
-          "items",
-          "garden_care"
-        ],
-        "additive": true
-      },
-      "crop_care_adapter": {
-        "systems": [
-          "garden_care"
-        ],
-        "additive": true
-      }
-    },
-    "_harvest": {
-      "experimental_terrain_1": {
-        "systems": [
-          "hex_terrain",
-          "terrain",
-          "garden",
-          "persistence_operations"
-        ],
-        "additive": true
-      }},
+
+
+
     "garden_action": {
       "guarded_garden_actions": {
         "systems": [
@@ -7796,111 +7703,7 @@
         }
       }
     },
-    "garden_crop_service.gd": {
-      "newline": "lf",
-      "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "experimental_research_landmarks_1": {
-          "systems": [
-            "hex_terrain",
-            "garden",
-            "garden_care"
-          ]
-        }, "experimental_research_landmarks_2": {
-          "systems": [
-            "hex_terrain",
-            "garden",
-            "garden_care"
-          ]
-        }, "experimental_research_landmarks_3": {
-          "systems": [
-            "hex_terrain",
-            "garden",
-            "garden_care"
-          ]
-        }, "experimental_research_landmarks_4": {
-          "systems": [
-            "hex_terrain",
-            "garden",
-            "garden_care"
-          ]
-        }, "experimental_terrain_1": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "experimental_terrain_3": {
-          "systems": [
-            "hex_terrain",
-            "terrain",
-            "garden",
-            "persistence_operations"
-          ]
-        }, "guarded_garden_actions_1": {
-          "systems": [
-            "persistence_operations",
-            "garden_care",
-            "seeds",
-            "items"
-          ]
-        }, "guarded_garden_actions_2": {
-          "systems": [
-            "persistence_operations",
-            "garden_care",
-            "seeds",
-            "items"
-          ]
-        }, "cleanup_feedback_1": {
-          "systems": [
-            "persistence_operations"
-          ]
-        }, "cleanup_feedback_2": {
-          "systems": [
-            "persistence_operations"
-          ]
-        }, "guarded_gameplay_writer_1": {
-          "systems": [
-            "persistence_operations"
-          ]
-        }, "guarded_gameplay_writer_2": {
-          "systems": [
-            "persistence_operations"
-          ]
-        }, "guarded_gameplay_writer_3": {
-          "systems": [
-            "persistence_operations"
-          ]
-        }, "guarded_gameplay_writer_4": {
-          "systems": [
-            "persistence_operations"
-          ]
-        }, "crop_water_cue": {
-          "systems": [
-            "event_audio"
-          ]
-        }, "spring_vessel_cue": {
-          "systems": [
-            "event_audio"
-          ]
-        }, "spring_water_pickup": {
-          "systems": [
-            "garden_stations"
-          ]
-        }, "spring_water_projection": {
-          "systems": [
-            "garden_stations"
-          ]
-        }, "spring_water_required": {
-          "systems": [
-            "garden_stations"
-          ]
-        }, "spring_water_spent": {
-          "systems": [
-            "garden_stations"
-          ]
-        }
-      }
-    },
+
     "cultivation_growth.gd": {
       "newline": "lf",
       "regions": {

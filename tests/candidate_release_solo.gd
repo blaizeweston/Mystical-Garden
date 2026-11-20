@@ -79,9 +79,9 @@ func run() -> void:
  var profile_before := Slots._save_digest(P)
  var prior_rng: int = world.rng.state
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,path): return ERR_FILE_CANT_WRITE if phase=="stage" and path==P+".txn_stage" else OK)
- check(not world.harvest(1,0) and Slots._save_digest(G)==garden_before and Slots._save_digest(P)==profile_before and world.rng.state==prior_rng,"failed harvest rolls back without a legacy fallback")
+ check(not world.cultivation.harvest(1,0) and Slots._save_digest(G)==garden_before and Slots._save_digest(P)==profile_before and world.rng.state==prior_rng,"failed harvest rolls back without a legacy fallback")
  world.remove_meta(&"guarded_gameplay_test_fault")
- check(world.harvest(1,0) and world.progress.plots[0].species<0 and actor.character.plants[0]==1 and Slots._save_digest(G)!=garden_before and Slots._save_digest(P)!=profile_before,"harvest commits Garden and profile through admitted world")
+ check(world.cultivation.harvest(1,0) and world.progress.plots[0].species<0 and actor.character.plants[0]==1 and Slots._save_digest(G)!=garden_before and Slots._save_digest(P)!=profile_before,"harvest commits Garden and profile through admitted world")
  record("harvest_pair_commit",{"garden_before":garden_before,"profile_before":profile_before})
  world.seed_reserve(actor).parts[1] = 2
  world.drop_inventory_stack(1,actor,"stash",world.Items.part_id(1),1)

@@ -344,7 +344,7 @@ func verify_cleanup_feedback(stores: Dictionary) -> void:
     host.pos = world.Stage.PLOTS[1]
     host.spring_water = true
     var bed: Dictionary = world.progress.plots[1]
-    var result := preload("res://garden_crop_service.gd").command(world,world.HOST,{"point":"bed_2","cycle":bed.care.cycle,
+    var result: Dictionary = world.cultivation.command(world.HOST,{"point":"bed_2","cycle":bed.care.cycle,
      "revision":bed.care.revision,"stage":bed.stage,"action":"water_crop"})
     ordinary = "Spring water nourishes this crop. Growth is 25% faster until harvest."
     check(bed.care.get("watered",false) and not host.spring_water and result.changed

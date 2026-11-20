@@ -16,7 +16,7 @@ These are initial balance values in each species definition's `grow_seconds`, no
 
 One host-owned clock advances occupied beds while the world is running. Growth is **2× while any player is in the Wilds**; it does not multiply again with party size. Existing Knowledge bonuses remain 1.2× for irrigation or 1.4× for the nursery. The nursery supersedes irrigation's rate, as before.
 
-Once the sheltered spring is unlocked (`clearing_1` + `irrigation`), interact with a growing plant and choose **Water from the spring**. It grants **1.25× speed until that crop is harvested**. Watering is optional, free and available once per crop. There is no water currency, refill chore, drying-out timer or crop death. Duplicate clicks/reconnecting cannot stack it. Replanting starts unwatered.
+The current source requires the sheltered spring research and an actually placed, reachable spring. Fill the free watering vessel there, then choose **Water from the spring** at a growing crop. One fill waters one crop and grants **1.25× speed until that crop is harvested**; the vessel is consumed only by an accepted watering transaction. Watering is optional and available once per crop, with no drying-out timer or crop death. Duplicate requests cannot stack it. Replanting starts unwatered. Replacing the spring fixture with Garden water features is planned separately; this architectural step does not implement that replacement.
 
 Rates multiply: Wilds 2× × nursery 1.4× × watering 1.25× = **3.5×**. A Mythic crop therefore takes about 25 minutes 43 seconds under all three bonuses, before an optional preservation delay, versus 90 minutes with no bonuses. Preservation still adds 20% growing work and its bounded rare-part benefit; watering does not alter yields, familiarity or that chance.
 
@@ -29,11 +29,13 @@ After Flowering is researched, a **mature** plant can be harvested for:
 - Its normal crafting part, with the existing rare-part roll and any preserved-bud benefit; or
 - Two personal seeds, sacrificing all crafting parts and the bud benefit.
 
-Both consume the mature plant and empty its bed. Flowering does **not** reset its age, replant it or require another growing cycle. An immature request is rejected without changing the crop. The inspector offers both choices when ready; the normal interaction remains the quick parts harvest, and the flowering action chooses seeds. All stock/familiarity changes use the existing `_harvest` payout inside the existing transaction.
+Both consume the mature plant and empty its bed. Flowering does **not** reset its age, replant it or require another growing cycle. An immature request is rejected without changing the crop. The inspector offers both choices when ready; the normal interaction remains the quick parts harvest, and the flowering action chooses seeds. Native amounts/chance/familiarity are defined in `garden_cultivation.gd`; `garden_cultivation_world.gd` applies the payout through the existing transaction. No alternate Game harvest implementation remains.
 
 Simultaneous choices resolve once. A failed seed-harvest save restores the original mature plant, so the player can choose again. Watering and seed harvesting add no extra Knowledge, class XP or familiarity beyond the established harvest award.
 
 ## Shared implementation and migration
+
+Start in `garden_cultivation.gd` for pure planting, care, native yield and preview rules. `garden_cultivation_world.gd` is the peer/bed-ID integration API for host access, stock/material changes, transactions and publication. `progress.gd` remains the sole saved-bed/growth owner; there is no copied crop ledger. The old `garden_crop_service.gd` and six Game planting/harvest helpers are retired.
 
 `cultivation_growth.gd` is the common policy for rates, duration, migration, spring prerequisites and readable time text. `progress.advance_growth(seconds, in_wilds)` is still the only clock. The live host tick passes the existing `expedition_active()` flag; the view uses the same rate helper. The former expedition-milestone lump-sum crop advance is removed, so faster growth comes from time spent in the Wilds rather than an additional floor/departure payout. Research milestone advancement remains intact.
 

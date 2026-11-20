@@ -174,6 +174,7 @@ const Traits=preload("res://combat_traits.gd")
 var enemy_traits: Dictionary={}
 var trait_events: Array=[]
 const Life=preload("res://expedition_life.gd")
+var cultivation := preload("res://garden_cultivation_world.gd").new(self)
 var garden_presentation := preload("res://garden_presentation_world.gd").new(self)
 var world_view: WorldPresentation
 var spectator_view: Node
@@ -559,7 +560,7 @@ func _garden_action(id: int, action: String) -> void:
 		return
 	var player: Dictionary = players[id]
 	if action=="spring_fill":
-		preload("res://garden_crop_service.gd").fill_water(self,id);return
+		cultivation.fill_water(id);return
 	if action.begins_with("growth_ack:"):
 		preload("res://garden_growth_service.gd").acknowledge(self,id,action.trim_prefix("growth_ack:"));return
 	if action.begins_with("garden:"):
@@ -611,7 +612,7 @@ func _garden_action(id: int, action: String) -> void:
 		if progress.plots[slot].species>=0 or progress.offshoot_in_bed(slot)>=0 or seed_reserve(player).stock[species]<=0:
 			tell(id,"That bed or seed is no longer available.");show_planting_picker(id,slot);return
 		player.seed_choice=species
-		if plant_seed(id,slot):
+		if cultivation.plant_seed(id,slot):
 			if id==HOST: ui.close_panels()
 			else: close_planting_picker.rpc_id(id)
 		return
@@ -753,7 +754,7 @@ func _garden_action(id: int, action: String) -> void:
 				run_seed_experiment(id, player, -1, -1, true)
 		"flower":
 			var slot := nearby_plot(player.pos)
-			if slot>=0:preload("res://garden_crop_service.gd").harvest_seeds(self,id,slot)
+			if slot>=0:cultivation.harvest_seeds(id,slot)
 
 
 func awaken_heart(id: int, player: Dictionary) -> void:
@@ -1756,8 +1757,8 @@ func _act(id: int, strike: bool) -> void:
 		if kind >= 0:
 			if progress.offshoot_in_bed(kind)>=0: tell(id,"This bed nurtures a living offshoot. Its care is managed at the Heart.");return
 			if progress.plots[kind].species >= 0:
-				if int(progress.plots[kind].stage)<3:preload("res://garden_crop_service.gd").focus(self,id,kind)
-				else:harvest(id, kind)
+				if int(progress.plots[kind].stage)<3:cultivation.focus(id,kind)
+				else:cultivation.harvest(id, kind)
 			else:
 				show_planting_picker(id,kind)
 		else:
@@ -1770,77 +1771,6 @@ func nearby_plot(pos: Vector3) -> int:
 		if pos.distance_to(stage.bed_position(i)) <= 1.55:
 			return i
 	return -1
-
-
-func harvest(id: int, slot: int) -> bool:
-	if not players.has(id) or slot<0 or slot>=progress.plots.size():return false
-	if persistence_session.is_guarded():
-		return harvest_guarded(id, slot, false)
-	var bed: Dictionary=progress.plots[slot].duplicate(true)
-	var before_rng: int=rng.state
-	var rare: int=Parts.rare_part(int(bed.species)) if int(bed.species)>=0 else 0
-	var rare_before: int=progress.part_count(rare) if rare>0 else 0
-	var result=Transactions.run(self,func(): _harvest(id,slot))
-	if result==false:rng.state=before_rng;return false
-	if int(bed.species)>=0 and int(bed.stage)==3 and int(progress.plots[slot].species)<0:
-		report_harvest(id, slot, bed, bool(bed.flowering), rare>0 and progress.part_count(rare)>rare_before)
-		return true
-	return false
-
-func harvest_guarded(id: int, slot: int, flower: bool) -> bool:
-	if not preload("res://garden_crop_service.gd").eligible(self, id, slot): return false
-	var bed: Dictionary = progress.plots[slot].duplicate(true)
-	if int(bed.species)<0 or int(bed.stage)<3 or (flower and not progress.flowering_unlocked): return false
-	var result := run_guarded_action(id, actor_profile_scope(id), func(effects):
-		if flower: progress.plots[slot].flowering = true
-		var rare := Parts.rare_part(int(bed.species))
-		var rare_before := progress.part_count(rare) if rare>0 else 0
-		var changed := _harvest(id, slot, effects)
-		if changed:
-			effects.append(report_harvest.bind(id, slot, bed, flower or bool(bed.flowering), rare>0 and progress.part_count(rare)>rare_before))
-		return changed)
-	return Transactions.committed(result.persistence) and result.value == true
-
-func report_harvest(id: int, slot: int, bed: Dictionary, flowering: bool, rare: bool) -> void:
-	var preserved := preload("res://garden_crop_state.gd").preserved(bed)
-	Journal.event("garden", "crop_harvested", {"actor":id,"bed":slot,"cycle":bed.get("care",{}).get("cycle",""),"species":Seeds.DEFINITIONS[int(bed.species)].id,"flowering":flowering,"preserved":preserved and not flowering,"forfeited_bud":preserved and flowering,"rare":rare})
-
-func _harvest(id: int, slot: int, effects = null) -> bool:
-	var bed: Dictionary = progress.plots[slot]
-	var kind := int(bed.species)
-	if kind < 0 or bed.stage < 3:
-		action_feedback(effects, id, "Still growing: %s." % ["Seed", "Sprout", "Young plant", "Mature"][int(bed.stage)])
-		return false
-	var seeds := bool(bed.flowering)
-	progress.plots[slot] = Progress.empty_plot()
-	progress.sync_plot_flags()
-	var profile: Dictionary = players[id].character
-	var familiarity: int = profile.plants[kind]
-	profile.plants[kind] = mini(9999, familiarity + 1 + int(progress.heart.has("nursery")))
-	save_action_profile(id, effects)
-	var message: String
-	if seeds:
-		seed_reserve(players[id]).stock[kind] += 2
-		message = "Harvested two %s seeds. The bed is ready to replant." % Progress.PLANT_NAMES[kind]
-	else:
-		progress.parts[kind] += 1
-		message = "Harvested a %s part. Replant this bed with any identified seed." % Progress.PLANT_NAMES[kind]
-		var harvest_roll:=rng.randf()
-		if preload("res://garden_crop_state.gd").preserved(bed):harvest_roll=preload("res://garden_crop_state.gd").roll(bed)
-		if harvest_roll < preload("res://garden_crop_state.gd").chance(bed,rare_harvest_chance(familiarity)):
-			var rare:=Parts.rare_part(kind)
-			if rare>0: progress.add_parts(rare,1);message+=" Rare harvest: "+Parts.part_name(rare)+"."
-	var play_audio := func(): preload("res://event_audio.gd").emit(self, "crop_harvested", stage.bed_position(slot))
-	if effects == null:
-		save_progress(id, message)
-		play_audio.call()
-	else:
-		effects.append(tell_profile_action.bind(id,message))
-		effects.append(play_audio)
-	return true
-
-func rare_harvest_chance(familiarity: int) -> float:
-	return minf(.45,0.05+0.04*mini(familiarity,5)+.005*maxi(0,familiarity-5))
 
 
 func finish_combat(id: int,loot_position: Vector3) -> void:
@@ -2098,29 +2028,6 @@ func selected_seed(player: Dictionary) -> int:
 			return i
 	return selected
 
-
-func plant_seed(id: int, slot: int) -> bool:
-	var player: Dictionary = players[id]
-	var kind := selected_seed(player)
-	var stock: Array = seed_reserve(player).stock
-	if progress.plots[slot].species >= 0:
-		return false
-	if stock[kind] <= 0:
-		tell(id, "Identify seeds at the Altar first.")
-		return false
-	var before: Dictionary=progress.plots[slot].duplicate(true)
-	var planted := Transactions.run_gameplay(self, Transactions.Scope.GARDEN, func():
-		stock[kind] -= 1
-		progress.plots[slot] = {"species": kind, "age": 0.0, "stage": 0, "flowering": false,"growth_rules":2,"growth_base":float(Seeds.DEFINITIONS[kind].grow_seconds),"care":preload("res://garden_conduit.gd").cycle(progress,slot,kind)}
-		progress.sync_plot_flags()
-		if persistence_session.is_guarded() or progress.save_garden()==OK: return true
-		stock[kind]+=1;progress.plots[slot]=before;progress.sync_plot_flags()
-		return false, false)
-	if not planted.completed or planted.value != true:
-		tell(id,Transactions.feedback(planted,"Planting could not be saved. Your seed was returned."))
-		return false
-	tell(id,"%s planted."%Progress.PLANT_NAMES[kind])
-	return true
 
 func deferred_save_available(id: int) -> bool:
 	if not persistence_session.is_guarded(): return true

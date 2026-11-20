@@ -8,7 +8,7 @@ func check(ok: bool,message: String) -> void:
 func choose(game: Node,mode: String,revision: int=0,id: int=1) -> Dictionary:
  return Service.command(game,id,JSON.stringify({"point":Conduit.POINT,"action":"configure_conduit","request":"test","revision":revision,"mode":mode}))
 func plant(game: Node,species: int,slot: int) -> void:
- var p: Dictionary=game.players[1];p.pos=game.Stage.PLOTS[slot];p.seed_choice=species;game.seed_reserve(p).stock[species]+=1;game.plant_seed(1,slot)
+ var p: Dictionary=game.players[1];p.pos=game.Stage.PLOTS[slot];p.seed_choice=species;game.seed_reserve(p).stock[species]+=1;game.cultivation.plant_seed(1,slot)
 func _initialize() -> void:call_deferred("run")
 func run() -> void:
  var game=load("res://world.tscn").instantiate();var base: String="res://.godot/conduit-"+Crypto.new().generate_random_bytes(8).hex_encode()

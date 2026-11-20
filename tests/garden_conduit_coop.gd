@@ -43,7 +43,7 @@ func host_run() -> void:
  if not await until(func():return marked("rejected")):check(false,"guest attempts forbidden change");return
  check(Conduit.state(g).revision==0 and Conduit.state(g).mode=="gentle","guest command cannot alter host configuration")
  game.garden_action(1,request("deep",0))
- var p: Dictionary=game.players[1];var species: int=game.Seeds.index_of("whispervine");p.pos=game.Stage.PLOTS[3];p.seed_choice=species;game.seed_reserve(p).stock[species]+=1;game.plant_seed(1,3)
+ var p: Dictionary=game.players[1];var species: int=game.Seeds.index_of("whispervine");p.pos=game.Stage.PLOTS[3];p.seed_choice=species;game.seed_reserve(p).stock[species]+=1;game.cultivation.plant_seed(1,3)
  g.plots[3].age=game.Seeds.DEFINITIONS[species].grow_seconds*.6;g.plots[3].stage=2;g.save_garden();game.players[id].pos=game.Stage.PLOTS[3];mark("planted")
  if not await until(func():return marked("tended") and g.plots[3].care.choice=="preserve"):check(false,"guest tend commits");return
  check(g.plots[3].care.opportunity=="deep_bud" and g.plots[3].care.revision==1,"guest uses host's fixed policy once")

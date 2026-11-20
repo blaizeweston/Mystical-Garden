@@ -30,11 +30,11 @@ func run() -> void:
  for roll in 2000:
   if g.roll_seed(reserve,[],[],1,roll/2000.0,60)==i: reachable=true
  check(reachable,"species participates in weighted Wilds discovery")
- p.seed_choice=i;p.pos=game.Stage.PLOTS[0];game.plant_seed(1,0)
+ p.seed_choice=i;p.pos=game.Stage.PLOTS[0];game.cultivation.plant_seed(1,0)
  for age in [0.0,float(seed.grow_seconds)*.225,float(seed.grow_seconds)*.3375,float(seed.grow_seconds)*.4375]:
   g.advance_growth(age)
   var crop=game.stage.build_crop(i,g.plots[0].stage,false);check(crop.get_child_count()>0,"visible growth stage");crop.free()
- game.harvest(1,0)
+ game.cultivation.harvest(1,0)
  check(g.part_count(part)>=1 and g.plots[0].species==-1 and p.character.plants[i]>0,"harvest produces craftable part and personal familiarity")
  g.add_parts(part,2);p.pos=game.stage.altar_position()
  var refine:=pair(game.Items.part_id(part),game.Items.part_id(part),"shared")

@@ -2,7 +2,6 @@ extends RefCounted
 ## Integration port only. Garden services retain authorization and state.
 ## Views receive detached facts; no actor or mutable owner crosses this API.
 const Interactions = preload("res://garden_interaction_service.gd")
-const Crops = preload("res://garden_crop_service.gd")
 const Returns = preload("res://garden_return_service.gd")
 const Growth = preload("res://garden_growth_service.gd")
 const Conduit = preload("res://garden_conduit.gd")
@@ -40,7 +39,7 @@ func frame(kind: String, selection: Dictionary={}) -> Dictionary:
 func _interaction_frame(world: Node, peer: int, actor: Dictionary) -> Dictionary:
 	var data:=Interactions.observation_projection(world,peer)
 	data.returns=Returns.projection(world,peer)
-	data.cultivation={"spring_water":Crops.water_carried(world,peer)}
+	data.cultivation={"spring_water":world.cultivation.water_carried(peer)}
 	var near_stations: Array[String]=[]
 	if not actor.is_empty():
 		for station in world.Stage.HEART_STATIONS:
@@ -58,7 +57,7 @@ func _interaction_frame(world: Node, peer: int, actor: Dictionary) -> Dictionary
 		"motion":world.app_settings.values.get("ambient_motion",true)}
 
 func _crop_frame(world: Node, peer: int, actor: Dictionary) -> Dictionary:
-	var data:=Crops.projection(world,peer)
+	var data:Dictionary=world.cultivation.projection(peer)
 	return {"data":data.duplicate(true),"present":not actor.is_empty(),
 		"position":actor.get("pos",Vector3.INF),"wild":Participation.is_wild(actor),
 		"context":str([world.network_session.role(),peer,Interactions.projection_epoch(world,peer)]),

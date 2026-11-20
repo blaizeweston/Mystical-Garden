@@ -305,16 +305,16 @@ func gameplay() -> void:
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,path):
   if phase=="stage": stage_attempts.append(path)
   return ERR_FILE_CANT_WRITE if phase=="stage" and path==C+".txn_stage" else OK)
- check(not world.harvest(1,0), "profile serializer failure aborts actual harvest")
+ check(not world.cultivation.harvest(1,0), "profile serializer failure aborts actual harvest")
  world.remove_meta(&"guarded_gameplay_test_fault")
  check(stage_attempts.has(C+".txn_stage") and disk()==before and world.progress.plots[0].species==0
   and p.character.plants[0]==0 and world.rng.state==rng_before and audio_count()==start_audio
   and world.status.begins_with("Save cancelled"), "abort restores bytes, bed, profile, RNG and withholds audio")
  record("harvest_serializer_abort",before,{"staged":stage_attempts,"status":world.status,"audio":audio_count()})
- check(world.harvest(1,0) and world.progress.plots[0].species<0 and p.character.plants[0]==1
+ check(world.cultivation.harvest(1,0) and world.progress.plots[0].species<0 and p.character.plants[0]==1
   and world.rng.state!=rng_before and disk()[garden_path]!=before[garden_path] and disk()[C]!=before[C] and audio_count()==start_audio+1,
   "retry commits crop, Garden and profile, with one post-commit cue")
- check(not world.harvest(1,0) and audio_count()==start_audio+1, "duplicate harvest cannot reward or emit")
+ check(not world.cultivation.harvest(1,0) and audio_count()==start_audio+1, "duplicate harvest cannot reward or emit")
  record("harvest_retry_committed",before,{"profile":p.character.plants[0],"status":world.status,"audio":audio_count()})
  world.progress.flowering_unlocked=true
  mature(0,0)
@@ -374,12 +374,12 @@ func gameplay() -> void:
  world.set_meta(&"guarded_gameplay_test_fault",func(phase,path):
   if phase=="replace" and path==garden_path:return ERR_CANT_CREATE
   return ERR_FILE_CANT_WRITE if phase=="restore" else OK)
- check(not world.harvest(1,0), "uncertain actual harvest withholds success")
+ check(not world.cultivation.harvest(1,0), "uncertain actual harvest withholds success")
  world.remove_meta(&"guarded_gameplay_test_fault")
  var split:=disk()
  check(world.progress.plots[0].species<0 and p.character.plants[0]==3 and world.rng.state!=rng_before and audio_count()==0
   and split[C]!=before[C] and split[garden_path]==before[garden_path] and world.persistence_session.pending_notice().contains("uncertain"),"uncertainty preserves tentative memory and split proof without cue")
- check(not world.harvest(1,0) and split==disk(),"uncertain replay refused")
+ check(not world.cultivation.harvest(1,0) and split==disk(),"uncertain replay refused")
  record("harvest_uncertain",before,{"tentative_familiarity":p.character.plants[0],"notice":world.persistence_session.pending_notice()})
  check(Ops.recover(PackedStringArray([C])).value.verified and disk()==before, "reverse recovery restores original pair")
  close_world()
@@ -394,10 +394,10 @@ func gameplay() -> void:
  var cfg:=ConfigFile.new()
  cfg.set_value("session","process_id",OS.get_process_id()+90000)
  cfg.set_value("session","updated",Time.get_unix_time_from_system())
- check(cfg.save(lease_path)==OK and not world.harvest(1,0) and disk()==before and world.progress.plots[0].species==0,"foreign lease refuses before callback")
+ check(cfg.save(lease_path)==OK and not world.cultivation.harvest(1,0) and disk()==before and world.progress.plots[0].species==0,"foreign lease refuses before callback")
  cfg.set_value("session","process_id",OS.get_process_id())
  cfg.set_value("session","updated",Time.get_unix_time_from_system()-9999)
- check(cfg.save(lease_path)==OK and not world.harvest(1,0) and disk()==before and world.progress.plots[0].species==0,"expired lease refuses before callback")
+ check(cfg.save(lease_path)==OK and not world.cultivation.harvest(1,0) and disk()==before and world.progress.plots[0].species==0,"expired lease refuses before callback")
  var lease:=FileAccess.open(lease_path,FileAccess.WRITE)
  lease.store_buffer(original_lease)
  lease.close()
@@ -406,7 +406,7 @@ func gameplay() -> void:
  cfg.set_value("transaction","committed",false)
  check(cfg.save(garden_path+".transaction")==OK,"create pending journal")
  before=disk()
- check(not world.harvest(1,0) and disk()==before and world.progress.plots[0].species==0 and world.persistence_session.pending_notice().contains("recovery is pending"),"pending journal refuses without mutation")
+ check(not world.cultivation.harvest(1,0) and disk()==before and world.progress.plots[0].species==0 and world.persistence_session.pending_notice().contains("recovery is pending"),"pending journal refuses without mutation")
  record("lease_and_recovery_refusals",before,{"notice":world.persistence_session.pending_notice()})
  check(Ops.recover(PackedStringArray([garden_path])).value.verified,"recover disposable pending fixture")
  close_world()

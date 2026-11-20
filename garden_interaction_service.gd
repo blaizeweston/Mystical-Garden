@@ -39,7 +39,7 @@ static func projection(game: Node,id: int) -> Dictionary:
   var received: Dictionary=game.players.get(id,{}).get("garden_interactions",{})
   return received if compatible_projection(received) else {}
  var result:=_observation_data(game)
- result.merge({"conduit":preload("res://garden_conduit.gd").projection(game,id),"returns":preload("res://garden_return_service.gd").projection(game,id),"cultivation":preload("res://garden_crop_service.gd").projection(game,id),"growth":preload("res://garden_growth_service.gd").projection(game,id),"focus":game.players.get(id,{}).get("garden_focus",{}).duplicate(true)})
+ result.merge({"conduit":preload("res://garden_conduit.gd").projection(game,id),"returns":preload("res://garden_return_service.gd").projection(game,id),"cultivation":game.cultivation.projection(id),"growth":preload("res://garden_growth_service.gd").projection(game,id),"focus":game.players.get(id,{}).get("garden_focus",{}).duplicate(true)})
  return result
 ## One observation selector serves networking and the lightweight local view.
 ## The latter never needs to construct every crop, growth scene and conduit.
@@ -81,7 +81,7 @@ static func interact(game: Node,id: int) -> bool:
  if point_id.is_empty():point_id=nearest(game,game.players[id],projection(game,id))
  if point_id.is_empty():return false
  if point_id=="spring_water" and not game.players[id].get("spring_water",false):
-  return preload("res://garden_crop_service.gd").fill_water(game,id)
+  return game.cultivation.fill_water(id)
  focus(game,id,point_id);return true
 static func reject(game: Node,id: int,reason: String) -> Dictionary:
  game.tell(id,reason)
@@ -96,7 +96,7 @@ static func command(game: Node,id: int,payload: String) -> Dictionary:
  if not request.get("revision") is float and not request.get("revision") is int:return reject(game,id,"Invalid Garden revision.")
  if float(request.revision)!=int(request.revision):return reject(game,id,"Invalid Garden revision.")
  if request.action=="configure_conduit":return preload("res://garden_conduit.gd").command(game,id,request)
- if request.point.begins_with("bed_"):return preload("res://garden_crop_service.gd").command(game,id,request)
+ if request.point.begins_with("bed_"):return game.cultivation.command(id,request)
  var definition:=Catalog.point(request.point)
  if definition.is_empty() or request.action not in ["inspect","observe"]:return reject(game,id,"Unknown Garden interaction.")
  var player: Dictionary=game.players[id]

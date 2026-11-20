@@ -1,7 +1,6 @@
 extends SceneTree
 
 const SessionCase = preload("res://tests/support/session_case.gd")
-const Service=preload("res://garden_crop_service.gd")
 const Garden=preload("res://garden_interaction_service.gd")
 const View=preload("res://garden_crop_view.gd")
 var game: Node
@@ -18,7 +17,7 @@ func until(predicate: Callable) -> bool:
  while not predicate.call() and Time.get_ticks_msec()<deadline:await process_frame
  return predicate.call()
 func bed() -> Dictionary:
- for entry in Service.projection(game,game.local_player_id()).get("beds",[]):
+ for entry in game.cultivation.projection(game.local_player_id()).get("beds",[]):
   if int(entry.slot)==0:return entry
  return {}
 func send(request: Dictionary) -> void:game.send_garden_action("garden:"+JSON.stringify(request))
@@ -37,7 +36,7 @@ func host_run() -> void:
  check(SessionCase.World.host(game)==OK,"host opens")
  if not await until(func():return game.players.size()==2 and game.players.values().all(func(p):return SessionCase.Session.ready_for(p))):check(false,"admission");return
  var id: int=game.players.keys().filter(func(peer):return peer!=1)[0];var g=game.progress
- game.players[1].pos=game.Stage.PLOTS[0];game.players[id].pos=game.Stage.PLOTS[0];game.seed_reserve(game.players[1]).stock[0]=1;game.plant_seed(1,0);g.advance_growth(168.75);g.save_garden()
+ game.players[1].pos=game.Stage.PLOTS[0];game.players[id].pos=game.Stage.PLOTS[0];game.seed_reserve(game.players[1]).stock[0]=1;game.cultivation.plant_seed(1,0);g.advance_growth(168.75);g.save_garden()
  var request:=View.request(bed(),"preserve_bud");var before: Array=g.parts.duplicate();var cycle: String=bed().cycle
  mark("ready")
  if not await until(func():return marked("submitted")):check(false,"guest submits competing care");return
@@ -53,7 +52,7 @@ func host_run() -> void:
  Garden.command(game,1,JSON.stringify(request))
  if not await until(func():return g.plots[0].species<0):check(false,"one harvest commits");return
  check(g.parts[0]==int(before[0])+1 and g.part_count(rare)<=rare_before+1 and game.players[1].character.plants[0]+game.players[id].character.plants[0]==1,"simultaneous harvest pays one common part, at most one rare part and one personal familiarity reward")
- game.seed_reserve(game.players[1]).stock[0]+=1;game.plant_seed(1,0);g.save_garden();check(g.plots[0].care.cycle!=cycle,"replant is a different cycle")
+ game.seed_reserve(game.players[1]).stock[0]+=1;game.cultivation.plant_seed(1,0);g.save_garden();check(g.plots[0].care.cycle!=cycle,"replant is a different cycle")
  mark("replanted")
  if not await until(func():return marked("stale_checked")):check(false,"guest checks stale crop");return
  check(g.plots[0].species==0 and g.plots[0].care.choice=="" and g.parts[0]==int(before[0])+1,"late old-cycle command cannot change or harvest the new crop")
@@ -100,7 +99,7 @@ func guest_run() -> void:
  if not await until(func():return game.players[id].pos.distance_to(spring)<1.0):check(false,"guest reaches spring");return
  game.send_action(false)
  var view=game.get_node("GardenInteractions")
- if not await until(func():return Service.projection(game,id).get("spring_water",false) and game.players[id].pos.distance_to(game.Stage.PLOTS[0])<1.0):check(false,"water carried to crop");return
+ if not await until(func():return game.cultivation.projection(id).get("spring_water",false) and game.players[id].pos.distance_to(game.Stage.PLOTS[0])<1.0):check(false,"water carried to crop");return
  check(not game.ui.is_overlay_open(),"guest fills without opening a menu")
  var water_request:=View.request(bed(),"water_crop")
  var crops=view.get_node("Crops")
