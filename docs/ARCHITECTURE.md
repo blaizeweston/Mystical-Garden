@@ -8,6 +8,19 @@ The integrated baseline is `a4eed49680a99f8441312fc3870b54acfe7b2ccc`. Local `ma
 
 The sole gameplay contract is now `modern-gameplay-1`: affinity-based Core/Form/Catalyst combat, free checkpoint cards, cumulative expedition grafts, and five connected class trees. There is no selectable historical gameplay fallback. `architecture/pre-modern-cutover` preserves the verified AR14 parent (`12c13c888621dd57e944088986b76bdbfad7cf41`). Git history and protected tags provide recovery.
 
+## Shared affinity status rework (in progress)
+
+Status contributions remain in each existing enemy body, not a second roster. `affinity_status_source.gd` supplies captured actor/connection/life/floor identity, target validation, fixed-point HP and deterministic aggregate-hit credit. Family handlers retain their own formulas. Source slots cooperate; an activation is a deduplication identity, not a separate DOT clock. Existing OutgoingHits/EncounterRoster/MonsterRewards remain the damage/death/reward authorities; generated damage stays secondary.
+
+| Family | Current shared rules and authoritative tuning |
+|---|---|
+| Thorn | `thorn_affinity.gd`: ordinary/refined personal cap **12/18 HP per tick** before card contributions; strongest matching equipped base counts once, matching slot cap upgrades add. Core/Catalyst add **25%**, Form **10%**, at most once per **1,000 ms per target/player/slot** while in the relevant patch. One aggregate **900 ms** cadence, fractional HP carry. Each contributor expires after **4,500 ms** without application; its cap is counted once. A stronger accepted cap can increase but is not downgraded by weaker applications during that maintained contribution. Expiry, life/connection change and floor departure remove it. Damage credit selects the largest contribution, then lowest peer/binding. The old independent slot DOT clocks are retired. Sawtooth Briars retains its ID, rarity values and acquired copies, now explicitly raising this personal cap. |
+| Frost | `frost_balance.gd`: **12/21 HP** ordinary/refined maximum shatter. Each stack captures one third of the applying player's current maximum; sum the three exact numerators and round once, half upward. Oldest three accepted stacks rupture; surplus starts the next sequence. **8%/13%** per-stack slowing, bosses half; **3,600 ms** shared idle expiry. Rupture has **no baseline root**. Native roots from other mechanics remain unchanged. Third-application actor receives rupture credit; every stack retains its source facts. |
+
+`combat_action_events.gd::begin` captures personal maxima at action launch, combining actual equipped matching slots and active card contributions. Past stacks do not acquire later upgrades. Already accepted DOTs may finish while a source is downed in the same life; revival or connection loss invalidates that source. Enemy HP, recipient HP, cards and grafts retain their existing owners. `combat_ruleset.gd::SHARED_STATUS_VERSION` deliberately enters the existing definition fingerprint; older gameplay builds are refused while protocol-41 serialization stays unchanged.
+
+First-step checks pass: existing Frost/Thorn delivery and Ward fixtures, card consumers, outgoing hits and the new `shared_affinity_status` unit, including mixed maxima, rounding, four contributor caps, one cadence and stale-source cleanup. The mixed Frost fixture now explicitly clears equipment retained by its preceding Ward scenario, rather than suppressing the new strongest-equipped-cap behavior. Original failed evidence remains. Independent-process combined verification follows after Fire/Water/Vital integration. Harvest activation is awaiting an explicit player-choice decision; no automatic HP spending or new card has been introduced. Production persistence remains disabled and all checks use disposable storage.
+
 ## Modern gameplay cutover
 
 | Retired execution | Authoritative replacement / retained data |

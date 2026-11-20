@@ -48,11 +48,11 @@ const DEFINITIONS := {
 	},
 	"thorn_line_bleed": {
 		"title": "Sawtooth Briars", "scope": "core", "policy": "stackable",
-		"trigger": "Thorn Line growth and its Bleed ticks", "consumer": ["res://thorn_affinity.gd", "grow"],
+		"trigger": "Thorn Line contributes to shared Bleed", "consumer": ["res://thorn_affinity.gd", "grow"],
 		"requires": {"family": "thorn", "skill": "thorn_line"}, "parameter": "tick_hp",
 		"values": [1, 2, 3, 4], "unit": "hp", "limit": 4,
-		"description": "Thorn Line's Bleed deals +%s damage per tick.",
-		"detail": "Applies to Bleed from Thorn Line brambles. The tick interval, slow and lingering time stay the same.",
+		"description": "Equipping Thorn Line raises your personal Bleed tick-damage cap by %s.",
+		"detail": "Core, Form and Catalyst add fractions of the same personal cap. Counts this acquired contribution once, while the matching Core is equipped. Tick interval, slow and lingering time stay the same.",
 	},
 	"ironbark_time": {
 		"title": "Seasoned Ironbark", "scope": "core", "policy": "stackable",

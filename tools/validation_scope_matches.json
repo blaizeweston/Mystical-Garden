@@ -339,10 +339,7 @@
         "match": "\t\t\tif persistence_session.is_blocked(): return\n\t\t\tpreload(\"res://weaver_combat.gd\").tick(self,now)\n\t\t\tif persistence_session.is_blocked(): return\n\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n",
         "baseline": "\t\t\tif get_meta(Transactions.PENDING, false): return\n\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n"
       },
-      "cr04c_void_0": {
-        "match": "\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n\t\t\tpreload(\"res://void_affinity.gd\").resolve_motion(self,elapsed,now)\n\t\t\tpreload(\"res://fire_combat.gd\").tick(self,elapsed,now)\n",
-        "baseline": "\t\t\tvar elapsed := preload(\"res://affinity_time.gd\").advance(self,delta)\n\t\t\tpreload(\"res://fire_combat.gd\").tick(self,elapsed,now)\n"
-      },
+
       "cr04c_spirit_0": {
         "match": "\t\t\tpreload(\"res://wood_affinity.gd\").tick(self,elapsed)\n\t\t\tpreload(\"res://spirit_affinity.gd\").tick(self,elapsed)\n\t\t\tif persistence_session.is_blocked(): return\n",
         "baseline": "\t\t\tpreload(\"res://wood_affinity.gd\").tick(self,elapsed)\n\t\t\tif get_meta(Transactions.PENDING,false): return\n"
@@ -802,22 +799,6 @@
       "ar08_lifecycle_1": {
         "match": "const PlayerLifecycle = preload(\"res://player_lifecycle.gd\")\n",
         "baseline": ""
-      },
-      "ar08_lifecycle_2": {
-        "match": "\t\t\tand PlayerLifecycle.matches(game.players[field.actor],int(field.life)))\n",
-        "baseline": "\t\t\tand int(game.players[field.actor].get(\"lost_health\",0))==int(field.life))\n"
-      },
-      "ar08_lifecycle_3": {
-        "match": "\t\t\"activation\":event.identity,\"life\":PlayerLifecycle.generation(player),\"center\":center,\"shapes\":shapes,\n",
-        "baseline": "\t\t\"activation\":event.identity,\"life\":player.get(\"lost_health\",0),\"center\":center,\"shapes\":shapes,\n"
-      },
-      "ar08_lifecycle_4": {
-        "match": "\t\tvar continuing := int(wound.get(\"life\",-1)) == int(field.life) and int(wound.get(\"until\",0)) > elapsed\n\t\tvar next := int(wound.next) if continuing else elapsed+TICK_MS\n\t\tsources[key]={\"actor\":field.actor,\"life\":field.life,\"activation\":field.activation,\"item\":field.item,\"quality\":field.quality,\n",
-        "baseline": "\t\tvar next:=elapsed+TICK_MS if int(wound.get(\"until\",0))<=elapsed else int(wound.next)\n\t\tsources[key]={\"actor\":field.actor,\"activation\":field.activation,\"item\":field.item,\"quality\":field.quality,\n"
-      },
-      "ar08_lifecycle_5": {
-        "match": "\t\t\tvar owner: Dictionary = game.players.get(int(wound.actor),{})\n\t\t\tif not PlayerLifecycle.matches(owner,int(wound.life)):\n\t\t\t\tsources.erase(key)\n\t\t\t\tcontinue\n",
-        "baseline": ""
       }
     },
     "void_affinity.gd": {
@@ -1174,10 +1155,6 @@
       "ar08_lifecycle_5": {
         "match": "\t\treturn false\n\tvar owner: Dictionary = game.players.get(actor,{})\n\tif not PlayerLifecycle.matches(owner,life_generation):\n\t\treturn false\n\t# Accepted defensive grants can still respond while their source is downed.\n\tif PlayerLifecycle.fallen(owner) and channel not in [\"actual_block\",\"incoming_hit\"]:\n",
         "baseline": ""
-      },
-      "ec01_1": {
-        "match": "\tevent._potency = potency.duplicate(true)\n\tpreload(\"res://affinity_cards.gd\").affinity_potency(game.players.get(actor_id,{}),origin,material,event._potency)\n\tevent._permitted = permitted.duplicate()\n",
-        "baseline": "\tevent._potency = potency.duplicate(true)\n\tevent._permitted = permitted.duplicate()\n"
       }
     },
     "combat_ruleset.gd": {

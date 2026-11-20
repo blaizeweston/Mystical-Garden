@@ -120,8 +120,8 @@ func run() -> void:
 			check(not game.tactics.memory.has(Thorn.SLOW) and game.tactics.memory.has(Thorn.BLEED),"exit removes field slow alone")
 			game.tactics.position=original
 			game.encounter.register_scout(game.make_scout(0,original+Vector3.RIGHT,0))
-			Thorn.tick(game,Clock.advance(game,.24),now)
-			check(game.enemy_health()==500-q.tick_hp and game.encounter.scout(0).has(Thorn.BLEED),"re-entry maintains original tick and a later entrant receives its own wound")
+			Thorn.tick(game,Clock.advance(game,.4),now)
+			check(game.enemy_health()==500-floori(q.tick_hp*.25) and game.encounter.scout(0).has(Thorn.BLEED),"re-entry maintains original tick and a later entrant receives its own wound")
 			check(Thorn.hints(game).size()==1 and game.battlefield.clear_line(Vector3.ZERO,original),"replicated shape leaves ally/navigation routes open")
 		reset(p)
 		p.secondary=part
@@ -182,15 +182,16 @@ func run() -> void:
 	for key in ["first","second"]:
 		ordinary.publish(game,"actual_block","ward",key,now,{"center":point})
 	refined.publish(game,"actual_block","ward","other",now,{"center":point+Vector3.RIGHT*1.8})
-	check(game.tactics.memory.get(Thorn.BLEED,{}).size()==2 and is_equal_approx(Frost.motion_scale(game.tactics.memory,now),.73),"overlap resolves strongest slow and one wound per source and slot")
+	check(game.tactics.memory.get(Thorn.BLEED,{}).get("contributors",{}).size()==2 and is_equal_approx(Frost.motion_scale(game.tactics.memory,now),.73),"overlap resolves strongest slow and one shared wound with two contributors")
 	var fire:=event(1,"form","part_6","weapon_contact",now)
 	fire.publish(game,"weapon_contact","hit","leader",now,{"enemy":-1})
 	game.tactics.memory[Frost.BRITTLE]={"expires":now+10000,"slow":.08}
 	Water.cleanse(p)
 	check(game.tactics.memory.has(Fire.BURNING) and game.tactics.memory.has(Frost.BRITTLE) and game.tactics.memory.has(Thorn.BLEED),"Fire, Frost, Thorn and ordinary Slow cleanse stay independent")
 	game.tactics.position=point+Vector3.LEFT
-	Thorn.tick(game,Clock.advance(game,.72),now)
-	check(game.enemy_health()==500-4-4-6 and is_equal_approx(Frost.motion_scale(game.tactics.memory,now),.82),"leaving stronger growth retains the remaining slow and both scheduled wounds")
+	var before_bleed: int=game.enemy_health()
+	Thorn.tick(game,Clock.advance(game,.9),now)
+	check(game.enemy_health()==before_bleed-7 and is_equal_approx(Frost.motion_scale(game.tactics.memory,now),.82),"leaving stronger growth retains the remaining slow and one aggregate tick")
 	verify_bleed_lifecycle(p)
 	game.queue_free()
 	await process_frame
@@ -205,8 +206,8 @@ func verify_bleed_lifecycle(player: Dictionary) -> void:
 	old_cast.publish(game,"class_contact","hit","leader",now,{"enemy":-1,"point":game.tactics.position})
 	var original_life: PlayerLifecycle.Life = player[PlayerLifecycle.STATE]
 	player[PlayerLifecycle.STATE] = original_life.fall()
-	var tick_hp := int(Thorn.QUALITY.ordinary.tick_hp)
-	Thorn.tick(game,Clock.advance(game,.72),now)
+	var tick_hp := floori(Thorn.QUALITY.ordinary.tick_hp*.25)
+	Thorn.tick(game,Clock.advance(game,.9),now)
 	check(Thorn.active_fields(game,Clock.now(game)).is_empty() and game.enemy_health()==500-tick_hp,
 		"an accepted wound still ticks after the source falls")
 
@@ -214,11 +215,12 @@ func verify_bleed_lifecycle(player: Dictionary) -> void:
 	var elapsed := Clock.advance(game,.2)
 	var new_cast := event(1,"catalyst","part_1","class_contact",now)
 	new_cast.publish(game,"class_contact","hit","leader",now,{"enemy":-1,"point":game.tactics.position})
-	var wound: Dictionary = game.tactics.memory.get(Thorn.BLEED,{}).get("1/catalyst",{})
+	var wound: Dictionary = game.tactics.memory.get(Thorn.BLEED,{})
+	var contributor: Dictionary=wound.get("contributors",{}).values()[0]
 	check(int(wound.get("next",0))==elapsed+Thorn.TICK_MS
-		and PlayerLifecycle.matches(player,int(wound.get("life",-1))),
+		and PlayerLifecycle.matches(player,int(contributor.get("life",-1))),
 		"a fresh source life starts its own bleed cadence")
 	Thorn.tick(game,Clock.advance(game,.55),now)
 	check(game.enemy_health()==500-tick_hp,"the replacement cannot inherit the previous tick deadline")
-	Thorn.tick(game,Clock.advance(game,.20),now)
+	Thorn.tick(game,Clock.advance(game,.40),now)
 	check(game.enemy_health()==500-2*tick_hp,"the new wound ticks at its own deadline")

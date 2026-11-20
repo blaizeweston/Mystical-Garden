@@ -71,6 +71,7 @@
         "affinity_build.gd", "affinity_build.gd.uid",
         "catalyst_adapters.gd", "catalyst_adapters.gd.uid",
         "combat_action_events.gd", "combat_action_events.gd.uid",
+        "affinity_status_source.gd", "affinity_status_source.gd.uid",
         "combat_ruleset.gd", "combat_ruleset.gd.uid",
         "native_grafts.gd", "native_grafts.gd.uid",
         "leader_behavior.gd",
@@ -1529,6 +1530,7 @@
     ]
   },
   "suites": {
+    "shared_affinity_status": {"kind": "unit", "profile": "affinity", "systems": ["classes", "combat", "combat_affinity_contracts", "core_combat", "enemy_tactics", "frost_affinity", "plant_affinities", "player_protection", "thorn_affinity", "weapons"], "package": false},
     "combat_effects": {"kind":"unit", "systems":["combat_effects","core_combat","classes","player_lifecycle"], "profile":"terrain", "package":false},
     "garden_commands": {"kind":"unit", "systems":["garden_observations","garden_conduit","garden_relationships"], "profile":"terrain", "package":false},
     "garden_cultivation": {"kind":"unit", "systems":["garden_care","cultivation_growth","seeds","items"], "profile":"terrain", "package":false},
@@ -5276,10 +5278,7 @@
         "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"],
         "additive": true
       },
-      "cr04c_void_0": {
-        "systems": ["void_affinity", "combat_affinity_contracts", "world_snapshot"],
-        "additive": true
-      },
+
       "cr04c_spirit_0": {
         "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
         "additive": true
@@ -5800,7 +5799,7 @@
 
     "native_grafts.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}}},
     "oracle_omens.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}}},
-    "thorn_affinity.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}}},
+    "thorn_affinity.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}}},
     "void_affinity.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}}},
     "combat_vitals.gd": {"newline": "crlf", "regions": {"ar07_vitals_1": {"systems": ["player_vitals"]}}},
     "expedition_sustain.gd": {"newline": "lf", "regions": {"ar07_vitals_1": {"systems": ["player_vitals"]}, "ar07_vitals_2": {"systems": ["player_vitals"]}}},
@@ -5816,7 +5815,7 @@
     "vital_combat.gd": {"regions": {"ar07_vitals_1": {"systems": ["player_vitals"]}, "ar07_vitals_2": {"systems": ["player_vitals"]}, "ar07_vitals_3": {"systems": ["player_vitals"]}, "ar07_vitals_4": {"systems": ["player_vitals"]}, "ar07_vitals_5": {"systems": ["player_vitals"]}, "ec01_1": {"systems": ["affinity_cards"]}}},
     "water_combat.gd": {"regions": {"ec01_1": {"systems": ["affinity_cards"]}, "ec01_2": {"systems": ["affinity_cards"]}}},
     "frost_combat.gd": {"regions": {"ec01_1": {"systems": ["affinity_cards"]}}},
-    "combat_action_events.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}, "ec01_1": {"systems": ["affinity_cards"]}}},
+    "combat_action_events.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}}},
     "combat_ruleset.gd": {
       "newline": "lf",
       "regions": {

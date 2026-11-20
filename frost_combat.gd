@@ -2,6 +2,7 @@ extends RefCounted
 const OutgoingHits = preload("res://outgoing_hits.gd")
 
 const Balance = preload("res://frost_balance.gd")
+const Sources = preload("res://affinity_status_source.gd")
 const BRITTLE := "affinity_brittle"
 const RESPONSE := "frost_response"
 const ATTACKER := &"frost_attacker"
@@ -45,45 +46,59 @@ static func damage(game: Node, actor: int, target: int, hp: int, now: int, color
 		game.finish_combat(actor if game.players.has(actor) else game.HOST, game.enemy_position(target))
 
 
-static func apply(game: Node, event: RefCounted, target: int, count: int, now: int) -> void:
-	if not game.multiplayer.is_server() or event.epoch != game.participation.epoch() or not valid_target(game, target):
-		return
-	var actor := body(game, target)
-	var current := state(actor, now)
-	var stacks: Array = current.get("stacks", [])
-	var potency: Dictionary = event.potency()
-	for index in count:
-		stacks.append({"actor": event.actor, "slot": event.source, "activation": event.identity,
-			"quality": event.quality, "item_id": event.material_id,
-			"slow": potency.move_slow, "hp": potency.rupture_hp})
-	# The host's accepted contact order is authoritative. Consume the oldest
-	# three contributions first, retaining any surplus from the current phase.
-	var bursts: Array = []
-	while stacks.size() >= Balance.STACKS_TO_RUPTURE:
-		var spent: Array = stacks.slice(0, Balance.STACKS_TO_RUPTURE)
-		stacks = stacks.slice(Balance.STACKS_TO_RUPTURE)
-		bursts.append(spent)
-	var movement := 0.0
-	for stack in stacks:
-		movement += float(stack.slow)
-	if stacks.is_empty():
+## Capture the maximum as a numerator, with a shared denominator of 3,000.
+## No per-stack rounding: round the complete rupture once, half upward.
+static func clean(game: Node, target: int, now: int) -> Dictionary:
+	var actor := body(game,target)
+	var status := state(actor,now)
+	if status.is_empty() or not Sources.target_current(game,target,status):
 		actor.erase(BRITTLE)
+		return {}
+	status.stacks=status.stacks.filter(func(stack):return Sources.current(game,stack))
+	if status.stacks.is_empty():
+		actor.erase(BRITTLE)
+		return {}
+	status.slow=0.0
+	for stack in status.stacks: status.slow+=float(stack.slow)
+	return status
+
+static func tick(game: Node, now: int) -> void:
+	for target in range(-1,game.encounter.scout_count()):
+		if body(game,target).has(BRITTLE): clean(game,target,now)
+
+static func apply(game: Node, event: RefCounted, target: int, count: int, now: int) -> void:
+	var source := Sources.capture(event)
+	if not game.multiplayer.is_server() or not Sources.current(game,source) or not valid_target(game,target): return
+	var actor := body(game,target)
+	var current := clean(game,target,now)
+	var stacks: Array = current.get("stacks",[])
+	var potency: Dictionary = event.potency()
+	var maximum := float(potency.get("personal_cap_hp",potency.max_shatter_hp))
+	for index in count:
+		var contribution := source.duplicate(true)
+		contribution.slow=potency.move_slow
+		contribution.numerator=Sources.units(maximum)
+		stacks.append(contribution)
+	var bursts: Array=[]
+	while stacks.size()>=Balance.STACKS_TO_RUPTURE:
+		bursts.append(stacks.slice(0,Balance.STACKS_TO_RUPTURE))
+		stacks=stacks.slice(Balance.STACKS_TO_RUPTURE)
+	if stacks.is_empty(): actor.erase(BRITTLE)
 	else:
-		actor[BRITTLE] = {"expires": now + Balance.BRITTLE_MS, "stacks": stacks, "slow": movement}
+		var slow:=0.0
+		for stack in stacks: slow+=float(stack.slow)
+		actor[BRITTLE]={"epoch":event.epoch,"token":game.encounter.spawn_identity(target),
+			"expires":now+Balance.BRITTLE_MS,"stacks":stacks,"slow":slow}
 	for spent in bursts:
-		var hp := 0
-		for stack in spent:
-			hp += int(stack.hp)
-		if target != -1 or game.tactics.boss_kind < 0:
-			actor.frost_root_until = maxi(int(actor.get("frost_root_until", 0)), now + Balance.ROOT_MS)
-		var point: Vector3 = game.enemy_position(target)
-		game.emit_combat_event("ability", "frost_rupture", point, point, .55, COLOR, 1.2, event.actor, {"label":"Brittle rupture"})
-		var record: Callable = game.get_meta(&"frost_rupture_witness", Callable())
-		if record.is_valid():
-			record.call(spent.duplicate(true), hp)
-		damage(game, event.actor, target, hp, now)
-		if not valid_target(game, target):
-			break
+		var numerator:=0
+		for stack in spent: numerator+=int(stack.numerator)
+		var hp:=roundi(float(numerator)/(Balance.STACKS_TO_RUPTURE*Sources.UNITS_PER_HP))
+		var point: Vector3=game.enemy_position(target)
+		game.emit_combat_event("ability","frost_rupture",point,point,.55,COLOR,1.2,event.actor,{"label":"Brittle rupture"})
+		var record: Callable=game.get_meta(&"frost_rupture_witness",Callable())
+		if record.is_valid(): record.call(spent.duplicate(true),hp)
+		damage(game,event.actor,target,hp,now)
+		if not valid_target(game,target): break
 
 
 static func bloom(game: Node, cast: Dictionary, now: int) -> bool:

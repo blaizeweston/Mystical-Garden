@@ -1485,6 +1485,7 @@ func _physics_process(delta: float) -> void:
 			if persistence_session.is_blocked(): return
 			var elapsed := preload("res://affinity_time.gd").advance(self,delta)
 			preload("res://void_affinity.gd").resolve_motion(self,elapsed,now)
+			preload("res://frost_combat.gd").tick(self,now)
 			preload("res://fire_combat.gd").tick(self,elapsed,now)
 			if persistence_session.is_blocked(): return
 			preload("res://vital_combat.gd").tick(self,elapsed)

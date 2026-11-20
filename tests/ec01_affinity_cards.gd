@@ -358,7 +358,7 @@ func verify_core() -> void:
 				Frost.bloom_phase(game,{"center":game.tactics.position,"owner":1,"affinity_action":event},"open",2,now)
 				check(game.enemy_health()==400-Frost.Balance.BLOOM_OPEN_HP-bonus
 					and game.tactics.memory[Frost.BRITTLE].stacks.size()==2
-					and game.tactics.memory[Frost.BRITTLE].stacks[0].hp==baseline.rupture_hp,"Frost opening improves damage alone")
+					and game.tactics.memory[Frost.BRITTLE].stacks[0].numerator==baseline.max_shatter_hp*1000,"Frost opening improves damage alone")
 			"fire":
 				event.publish(game,"core_action","test","leader",now,data)
 				check(game.enemy_health()==400-baseline.impact_hp-baseline.tick_hp-bonus,"Ember Wake impact leaves burn intensity unchanged")
@@ -368,11 +368,11 @@ func verify_core() -> void:
 				check(vitality.until==Rules.Vital.DURATIONS.core+bonus and vitality.regen_per_second==baseline.regen_per_second,"Vital Core extends only grant duration")
 			"thorn":
 				event.publish(game,"core_action","test","",now,data)
-				Clock.advance(game,.74)
+				Clock.advance(game,.91)
 				Rules.Thorn.tick(game,Clock.now(game),now+740)
 				var field: Dictionary = game.get_meta(Rules.Thorn.FIELDS)[0]
-				check(game.enemy_health()==400-baseline.tick_hp-bonus and field.slow==baseline.slow
-					and field.until==Rules.Thorn.LIFETIME.core,"Thorn Line only increases Bleed ticks")
+				check(game.enemy_health()==400-floori((baseline.tick_hp+bonus)*.25) and field.slow==baseline.slow
+					and field.until==Rules.Thorn.LIFETIME.core,"Thorn Line increases the shared personal cap without altering fields")
 			"wood":
 				event.publish(game,"core_action","test","",now,data)
 				var bark: Dictionary = player[Rules.Wood.GRANTS][0]

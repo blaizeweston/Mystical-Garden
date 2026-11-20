@@ -15,6 +15,7 @@ var identity: int
 var epoch: int
 var actor: int
 var life_generation: int
+var connection_binding: int
 var source: String
 var affinity: String
 var quality: String
@@ -40,6 +41,7 @@ static func begin(game: Node, actor_id: int, origin: String, material: Dictionar
 		return null
 	var event := new()
 	event.life_generation = life
+	event.connection_binding = game.network_session.binding(actor_id)
 	event.identity = int(game.get_meta(&"cr02_activation_serial", 0)) + 1
 	game.set_meta(&"cr02_activation_serial", event.identity)
 	event.epoch = game.participation.epoch()
@@ -52,6 +54,26 @@ static func begin(game: Node, actor_id: int, origin: String, material: Dictionar
 	event.charges = charge_limit
 	event._potency = potency.duplicate(true)
 	preload("res://affinity_cards.gd").affinity_potency(game.players.get(actor_id,{}),origin,material,event._potency)
+	# Capture personal shared-status maxima at attack/cast launch. Equipment in
+	# any matching slot contributes, but a base cap is counted only once.
+	if event.affinity in ["thorn","frost"]:
+		var build: Dictionary = game.combat_build(game.players[actor_id]).affinity_build()
+		var parameter := "tick_hp" if event.affinity=="thorn" else "max_shatter_hp"
+		var cap := float(potency.get(parameter,0))
+		var bonus := 0.0
+		for slot in ["core","form","catalyst"]:
+			var part: Dictionary = build.get(slot,{})
+			if part.get("primary_affinity","")!=event.affinity: continue
+			var base: Dictionary = part.potency_profile.values
+			var tuned: Dictionary = base.duplicate(true)
+			preload("res://affinity_cards.gd").affinity_potency(game.players[actor_id],slot,part,tuned)
+			cap=maxf(cap,float(base.get(parameter,0)))
+			bonus+=float(tuned.get(parameter,0))-float(base.get(parameter,0))
+		# Synthetic/explicit sources can name a material outside the current loadout.
+		var equipped: Dictionary = build.get(origin,{})
+		if equipped.get("item_id","")!=event.material_id:
+			bonus+=float(event._potency.get(parameter,0))-float(potency.get(parameter,0))
+		event._potency["personal_cap_hp"]=cap+bonus
 	event._permitted = permitted.duplicate()
 	return event
 

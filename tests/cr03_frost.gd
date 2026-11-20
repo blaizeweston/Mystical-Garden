@@ -127,10 +127,10 @@ func run_core(p: Dictionary, part: int) -> void:
 	game.garden_action(1,cast_key)
 	check(p.core_ready_at==ready,"repeated cast during its cooldown is refused")
 	Core.tick(game,at+Frost.Balance.BLOOM_DELAY_MS)
-	check(bursts.size()==1 and bursts[0][1]==3*potency.rupture_hp
-		and Frost.motion_scale(game.tactics.memory,at+Frost.Balance.BLOOM_DELAY_MS)==0.0 and Frost.state(game.tactics.memory,at+Frost.Balance.BLOOM_DELAY_MS).is_empty(),
-		"Core alone ruptures, clears spent stacks and roots for both qualities")
-	check(Frost.motion_scale(game.tactics.memory,at+Frost.Balance.BLOOM_DELAY_MS+Frost.Balance.ROOT_MS)==1.0,"root expires independently")
+	check(bursts.size()==1 and bursts[0][1]==potency.max_shatter_hp
+		and Frost.motion_scale(game.tactics.memory,at+Frost.Balance.BLOOM_DELAY_MS)==1.0 and Frost.state(game.tactics.memory,at+Frost.Balance.BLOOM_DELAY_MS).is_empty(),
+		"Core alone ruptures and clears spent stacks without adding roots")
+	check(Frost.motion_scale(game.tactics.memory,at+Frost.Balance.BLOOM_DELAY_MS+650)==1.0,"baseline rupture leaves movement unrestricted")
 
 
 func run_form(p: Dictionary, part: int, frame := 0, weapon_kind := 0) -> void:
@@ -270,6 +270,10 @@ func run_wards() -> void:
 
 func run_mixed() -> void:
 	reset_enemy()
+	# This case compares the authored ordinary/refined maxima, without a higher
+	# matching slot left equipped by the preceding Ward test.
+	for player in game.players.values():
+		player.weapon=0;player.secondary=0;player.catalyst=0
 	var now:=Time.get_ticks_msec()
 	var first := Events.begin(game,1,"form",Builds.slot("form",ordinary),Frost.Balance.QUALITY.ordinary,["weapon_contact"],now+18000)
 	var second := Events.begin(game,2,"core",Builds.slot("core",refined),Frost.Balance.QUALITY.refined,["core_action"],now+18000)
@@ -283,15 +287,15 @@ func run_mixed() -> void:
 	check(bursts.size()==1 and bursts[0][1]==18 and bursts[0][0][0].actor==1
 		and Frost.state(game.tactics.memory,later).stacks.size()==1 and Frost.state(game.tactics.memory,later).stacks[0].quality=="refined",
 		"authoritative FIFO rupture uses mixed-potency contributions and retains excess")
-	check(Frost.state(game.tactics.memory,later+Frost.Balance.ROOT_MS+1).stacks.size()==1,"genuine application refreshes retained Brittle")
+	check(Frost.state(game.tactics.memory,later+650+1).stacks.size()==1,"genuine application refreshes retained Brittle")
 	var begin:=Time.get_ticks_usec()
 	var checksum:=0.0
 	for index in 20000:
-		checksum+=Frost.motion_scale(game.tactics.memory,later+Frost.Balance.ROOT_MS)
+		checksum+=Frost.motion_scale(game.tactics.memory,later+650)
 	print("Frost movement query: ",float(Time.get_ticks_usec()-begin)/20000.0," us/query, checksum ",checksum)
 	var sync_cost:=Time.get_ticks_usec()
 	for index in 250:
-		Status.sync(game,later+Frost.Balance.ROOT_MS)
+		Status.sync(game,later+650)
 	print("Host status sync (two players, one affected enemy): ", float(Time.get_ticks_usec()-sync_cost)/250.0, " us/update")
 
 
