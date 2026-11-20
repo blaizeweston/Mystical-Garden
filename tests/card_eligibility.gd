@@ -234,8 +234,30 @@ func verify_grants() -> void:
 	var invalid := definition.duplicate(true)
 	invalid.grants = ["harvest"]
 	check(not Eligibility.verified_grants(invalid).get("error", "").is_empty(), "a named declaration cannot invent an unimplemented capability")
-	invalid = definition.duplicate(true); invalid.consumer = ["res://water_combat.gd", "missing_consumer"]
-	check(not Eligibility.requirement(invalid,source).is_empty(), "nonexistent consumers are refused")
+	var texture_path := "res://assets/ui/seeds/dewcap.png"
+	var missing_path := "res://tests/ce01_missing_consumer.gd"
+	check(ResourceLoader.exists(texture_path), "non-Script regression uses an existing texture")
+	check(not ResourceLoader.exists(missing_path), "missing-resource regression uses an absent path")
+	for consumer: Array in [[texture_path,"on_event"], [missing_path,"on_event"], ["res://water_combat.gd","missing_consumer"]]:
+		for declared_grants: Array in [definition.grants, []]:
+			invalid = definition.duplicate(true)
+			invalid.consumer = consumer
+			invalid.grants = declared_grants.duplicate()
+			var verification := Eligibility.verified_grants(invalid)
+			var error := str(verification.get("error", ""))
+			var context := str(consumer) + " grants=" + str(declared_grants)
+			check(not error.is_empty() and verification.get("capabilities", []).is_empty(),
+				"invalid consumers authorize no capabilities: " + context)
+			check(not error.is_empty() and Eligibility.requirement(invalid,source) == error,
+				"invalid consumers consistently refuse requirements: " + context)
+			check(not error.is_empty() and Eligibility.catalog_errors({"dew_shelter":invalid}).get("dew_shelter", "") == error,
+				"catalog diagnostics retain the consumer failure: " + context)
+	var no_grants: Dictionary = Catalog.DEFINITIONS.dewfall_impact
+	var verified := Eligibility.verified_grants(no_grants)
+	check(not verified.has("error") and verified.has("capabilities") and verified.capabilities.is_empty(),
+		"a valid numerical card explicitly verifies without granting a capability")
+	check(Eligibility.requirement(no_grants,source).is_empty(), "a valid card with no grants remains eligible")
+	check(Eligibility.catalog_errors({"dewfall_impact":no_grants}).is_empty(), "a valid card with no grants has no consumer diagnostic")
 	var cyclic := {"dew_shelter":definition.duplicate(true), "echoing_growth":Catalog.DEFINITIONS.echoing_growth.duplicate(true)}
 	cyclic.dew_shelter.requires = {"capability":{"producer":"card","id":"echoing_growth"}}
 	cyclic.echoing_growth.requires = {"capability":{"producer":"card","id":"dew_shelter"}}

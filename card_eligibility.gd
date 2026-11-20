@@ -110,8 +110,11 @@ static func verified_grants(definition: Dictionary) -> Dictionary:
 		return {"error":"Missing card effect consumer."}
 	var key: String = str(consumer)
 	if not _consumer_contracts.has(key):
-		var script: Script = load(consumer[0])
-		if script == null or not script.get_script_method_list().any(func(method): return str(method.name) == consumer[1]):
+		var resource := load(consumer[0])
+		if not resource is Script:
+			return {"error":"Card effect consumer must be a Script: " + str(consumer)}
+		var script := resource as Script
+		if not script.get_script_method_list().any(func(method): return str(method.name) == consumer[1]):
 			return {"error":"Unknown card effect consumer: " + str(consumer)}
 		_consumer_contracts[key] = script.get_script_constant_map().get("CARD_GRANTS", {}).duplicate(true)
 	if requested.is_empty(): return {"capabilities":[]}
