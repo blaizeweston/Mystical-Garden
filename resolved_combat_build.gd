@@ -161,6 +161,7 @@ class Cache extends RefCounted:
 			if entry.matches(key): return entry.snapshot()
 		var build := Build.resolve(class_id, weapon_index, parts, key.profile)
 		if active: build.improvements = grafts.resolution() if grafts != null else {"bonuses":{}, "adaptations":[]}
+		if cards != null and cards.count() > 0: build.card_counts = cards.counts()
 		return _remember(key, Snapshot.from_build(build, cards.totals() if cards != null else {}))
 
 	func received(native_stats: Dictionary, contributions: Dictionary) -> Snapshot:

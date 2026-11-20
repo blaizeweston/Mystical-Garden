@@ -2,6 +2,7 @@ extends RefCounted
 ## One host-owned ledger per expedition participant. Install a successor only
 ## after accepting a transition. Guarded rollback can keep the prior reference.
 const Catalog = preload("res://affinity_card_catalog.gd")
+const Eligibility = preload("res://card_eligibility.gd")
 const STRIKE_MIN_MS := 230
 const DODGE_MIN_MS := 350
 
@@ -50,6 +51,13 @@ class Ledger extends RefCounted:
 		var result := {}
 		for copy in _copies:
 			result[copy.id] = int(result.get(copy.id, 0)) + int(copy.amount)
+		return result
+
+	## Derived read-only facts; the copy receipts above remain the sole authority.
+	func counts() -> Dictionary:
+		var result := {}
+		for copy in _copies:
+			result[copy.id] = int(result.get(copy.id, 0)) + 1
 		return result
 
 	func open_offer(floor_number: int, revision: int, seed_value: int, stats: Dictionary, dodge_base: int) -> Ledger:
@@ -111,14 +119,13 @@ class Ledger extends RefCounted:
 		return not _replacement_ids(eligible(stats, dodge_base)).is_empty()
 
 	func _replacement_ids(available: Array[String]) -> Array[String]:
-		if available.size() < int(Catalog.PLAYTEST.offer_size):
-			return []
 		var old_ids: Array = _offer.cards.map(func(card): return card.id)
 		return available.filter(func(id): return not old_ids.has(id))
 
 	func _refusal(card_id: String, stats: Dictionary, dodge_base: int) -> String:
 		var definition: Dictionary = Catalog.DEFINITIONS[card_id]
-		var reason := requirement(definition, stats.affinity_build)
+		var reason := Eligibility.catalog_refusal(card_id)
+		if reason.is_empty(): reason = requirement(definition, stats.affinity_build, counts())
 		if not reason.is_empty():
 			return reason
 		if _copies.filter(func(copy): return copy.id == card_id).size() >= int(definition.limit):
@@ -148,7 +155,7 @@ class Ledger extends RefCounted:
 		for source in _copies:
 			var copy := source.duplicate()
 			var definition: Dictionary = Catalog.DEFINITIONS[copy.id]
-			copy.reason = requirement(definition, stats.affinity_build)
+			copy.reason = requirement(definition, stats.affinity_build, counts())
 			copy.total = amount(copy.id)
 			copy.applied = mini(int(copy.total), parameter_limit(definition, stats, dodge_base)) if copy.reason.is_empty() else 0
 			if int(copy.applied) == 0 and copy.reason.is_empty():
@@ -185,38 +192,8 @@ class Ledger extends RefCounted:
 		return options
 
 
-	static func requirement(definition: Dictionary, build: Dictionary) -> String:
-		var requires: Dictionary = definition.requires
-		var scope: String = definition.scope
-		if scope in ["core", "form", "catalyst"]:
-			var part: Dictionary = build.get(scope, {})
-			var family: String = requires.family
-			if part.get("state") != "ready" or part.get("primary_affinity") != family:
-				return "Equip a %s %s." % [family.capitalize(), scope.capitalize()]
-			match scope:
-				"core":
-					if part.get("affinity_core_skill_id") != requires.skill:
-						return "Requires its supported Core skill."
-				"form":
-					if part.get("behavior") != requires.behavior:
-						return "Requires its supported Form behavior."
-				"catalyst":
-					if not build.capabilities.class_actions or not build.class_skills.any(func(adapter):
-						return adapter.get("response", "") in requires.responses):
-						return "Requires a class skill that uses this Catalyst response."
-		elif scope == "class":
-			if build.get("class_id") != requires["class"]:
-				return "Requires " + str(requires["class"]).capitalize() + "."
-			var skills: Array = build.class_skills
-			var ability: Dictionary = skills[1].get("native_skill", {})
-			if not build.capabilities.class_actions or ability.get("mode") != requires.mode or ability.get("name") != requires.skill:
-				return "Requires native " + str(requires.skill) + "."
-			if requires.has("focus"):
-				if build.focus_id != requires.focus or skills[0].get("native_skill", {}).get("field") != requires.q_field:
-					return "Requires the Bloomcaller starting focus and Cultivate Bloom."
-		elif scope == "weapon" and not build.get("capabilities", {}).get(requires.capability, false):
-			return "Requires a functioning basic attack."
-		return ""
+	static func requirement(definition: Dictionary, build: Dictionary, card_counts: Variant = null) -> String:
+		return Eligibility.requirement(definition, build, card_counts)
 
 
 	static func parameter_limit(definition: Dictionary, stats: Dictionary, dodge_base: int) -> int:

@@ -1,6 +1,7 @@
 extends RefCounted
 ## EC01 authoring. Values are in HP or milliseconds and apply only at the named consumer.
 const RARITIES := ["Common", "Uncommon", "Rare", "Epic"]
+const REQUIREMENT_VERSION := 1
 const PLAYTEST := {
 	"offer_size": 3,
 	"acquisition_limit": 12,
@@ -17,7 +18,23 @@ const DEFINITIONS := {
 	"rime_opening": {
 		"title": "Sharpened Petals", "scope": "core", "policy": "stackable",
 		"trigger": "Opening petal contact", "consumer": ["res://frost_combat.gd", "bloom_phase"],
-		"requires": {"family": "frost", "skill": "rime_bloom"}, "parameter": "opening_bonus_hp",
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "core",
+		        "primary_affinity": "frost"
+		      }
+		    },
+		    {
+		      "capability": {
+		        "producer": "core",
+		        "id": "rime_bloom",
+		        "slot": "core"
+		      }
+		    }
+		  ]
+		}, "parameter": "opening_bonus_hp",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Rime Bloom's opening petals deal +%s damage.",
 		"detail": "Applies to each enemy hit by the opening petals. Closing petals and Brittle keep their usual effects.",
@@ -25,7 +42,23 @@ const DEFINITIONS := {
 	"ember_impact": {
 		"title": "Emberfront", "scope": "core", "policy": "stackable",
 		"trigger": "First Ember Wake contact per enemy", "consumer": ["res://fire_combat.gd", "on_event"],
-		"requires": {"family": "fire", "skill": "ember_wake"}, "parameter": "impact_hp",
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "core",
+		        "primary_affinity": "fire"
+		      }
+		    },
+		    {
+		      "capability": {
+		        "producer": "core",
+		        "id": "ember_wake",
+		        "slot": "core"
+		      }
+		    }
+		  ]
+		}, "parameter": "impact_hp",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Ember Wake deals +%s damage on first contact with each enemy.",
 		"detail": "The bonus belongs to the trail's first impact on each enemy. Burning ticks keep their usual damage.",
@@ -33,7 +66,23 @@ const DEFINITIONS := {
 	"dewfall_impact": {
 		"title": "Driving Rain", "scope": "core", "policy": "stackable",
 		"trigger": "Dewfall curtain enemy contact", "consumer": ["res://water_combat.gd", "on_event"],
-		"requires": {"family": "water", "skill": "dewfall"}, "parameter": "impact_hp",
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "core",
+		        "primary_affinity": "water"
+		      }
+		    },
+		    {
+		      "capability": {
+		        "producer": "core",
+		        "id": "dewfall",
+		        "slot": "core"
+		      }
+		    }
+		  ]
+		}, "parameter": "impact_hp",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Dewfall deals +%s damage to each enemy its curtain hits.",
 		"detail": "The bonus applies to enemy contact. Drenched and Slow cleansing keep their usual effects.",
@@ -41,7 +90,23 @@ const DEFINITIONS := {
 	"vital_bloom_time": {
 		"title": "Lingering Blossom", "scope": "core", "policy": "stackable",
 		"trigger": "Vital Bloom grant", "consumer": ["res://vital_combat.gd", "grant"],
-		"requires": {"family": "vital", "skill": "vital_bloom"}, "parameter": "duration_bonus_ms",
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "core",
+		        "primary_affinity": "vital"
+		      }
+		    },
+		    {
+		      "capability": {
+		        "producer": "core",
+		        "id": "vital_bloom",
+		        "slot": "core"
+		      }
+		    }
+		  ]
+		}, "parameter": "duration_bonus_ms",
 		"values": [250, 400, 550, 700], "unit": "ms", "limit": 4,
 		"description": "Extends the duration of Vitality granted by Vital Bloom by %s seconds.",
 		"detail": "Vitality's Max HP and regeneration values stay the same. Each benefit uses its strongest active source.",
@@ -49,7 +114,23 @@ const DEFINITIONS := {
 	"thorn_line_bleed": {
 		"title": "Sawtooth Briars", "scope": "core", "policy": "stackable",
 		"trigger": "Thorn Line contributes to shared Bleed", "consumer": ["res://thorn_affinity.gd", "grow"],
-		"requires": {"family": "thorn", "skill": "thorn_line"}, "parameter": "tick_hp",
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "core",
+		        "primary_affinity": "thorn"
+		      }
+		    },
+		    {
+		      "capability": {
+		        "producer": "core",
+		        "id": "thorn_line",
+		        "slot": "core"
+		      }
+		    }
+		  ]
+		}, "parameter": "tick_hp",
 		"values": [1, 2, 3, 4], "unit": "hp", "limit": 4,
 		"description": "Equipping Thorn Line raises your personal Bleed tick-damage cap by %s.",
 		"detail": "Core, Form and Catalyst add fractions of the same personal cap. Counts this acquired contribution once, while the matching Core is equipped. Tick interval, slow and lingering time stay the same.",
@@ -57,7 +138,23 @@ const DEFINITIONS := {
 	"ironbark_time": {
 		"title": "Seasoned Ironbark", "scope": "core", "policy": "stackable",
 		"trigger": "Ironbark armor grant", "consumer": ["res://wood_affinity.gd", "grant"],
-		"requires": {"family": "wood", "skill": "ironbark"}, "parameter": "duration_bonus_ms",
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "core",
+		        "primary_affinity": "wood"
+		      }
+		    },
+		    {
+		      "capability": {
+		        "producer": "core",
+		        "id": "ironbark",
+		        "slot": "core"
+		      }
+		    }
+		  ]
+		}, "parameter": "duration_bonus_ms",
 		"values": [250, 400, 550, 700], "unit": "ms", "limit": 4,
 		"description": "Extends the duration of Ironbark's Bark Armor by %s seconds while it has capacity.",
 		"detail": "Armor still ends when it is depleted. Absorption and armor capacity stay the same.",
@@ -65,7 +162,23 @@ const DEFINITIONS := {
 	"chain_spark_power": {
 		"title": "Gathered Thunder", "scope": "core", "policy": "stackable",
 		"trigger": "Chain Spark discharge on Core contact", "consumer": ["res://storm_affinity.gd", "on_event"],
-		"requires": {"family": "storm", "skill": "chain_spark"}, "parameter": "initial",
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "core",
+		        "primary_affinity": "storm"
+		      }
+		    },
+		    {
+		      "capability": {
+		        "producer": "core",
+		        "id": "chain_spark",
+		        "slot": "core"
+		      }
+		    }
+		  ]
+		}, "parameter": "initial",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Chain Spark starts with +%s damage. Later jumps use the increased damage with normal falloff.",
 		"detail": "Requires a valid first hit. The maximum number of jumps and their range stay the same.",
@@ -73,7 +186,23 @@ const DEFINITIONS := {
 	"phantom_stride_time": {
 		"title": "Lingering Footfall", "scope": "core", "policy": "stackable",
 		"trigger": "Phantom Step landing", "consumer": ["res://spirit_affinity.gd", "grant"],
-		"requires": {"family": "spirit", "skill": "phantom_step"}, "parameter": "duration_bonus_ms",
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "core",
+		        "primary_affinity": "spirit"
+		      }
+		    },
+		    {
+		      "capability": {
+		        "producer": "core",
+		        "id": "phantom_step",
+		        "slot": "core"
+		      }
+		    }
+		  ]
+		}, "parameter": "duration_bonus_ms",
 		"values": [250, 400, 550, 700], "unit": "ms", "limit": 4,
 		"description": "Extends the duration of Phantom Step's Spiritstride by %s seconds.",
 		"detail": "Granted after a successful step. Travel distance, speed bonus and trace duration stay the same.",
@@ -81,7 +210,23 @@ const DEFINITIONS := {
 	"gravity_collapse": {
 		"title": "Crushing Center", "scope": "core", "policy": "stackable",
 		"trigger": "Gravity Well collapse", "consumer": ["res://void_affinity.gd", "on_event"],
-		"requires": {"family": "void", "skill": "gravity_well"}, "parameter": "collapse",
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "core",
+		        "primary_affinity": "void"
+		      }
+		    },
+		    {
+		      "capability": {
+		        "producer": "core",
+		        "id": "gravity_well",
+		        "slot": "core"
+		      }
+		    }
+		  ]
+		}, "parameter": "collapse",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Gravity Well's collapse deals +%s damage to each enemy still inside.",
 		"detail": "Applies to the single collapse following the gathering phase. Gathering strength stays the same.",
@@ -89,7 +234,23 @@ const DEFINITIONS := {
 	"burning_strikes_heat": {
 		"title": "Hotter Embers", "scope": "form", "policy": "stackable",
 		"trigger": "Burning Strikes weapon contact", "consumer": ["res://fire_combat.gd", "ignite"],
-		"requires": {"family": "fire", "behavior": "burning_strikes"}, "parameter": "stack_bonus",
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "form",
+		        "primary_affinity": "fire"
+		      }
+		    },
+		    {
+		      "capability": {
+		        "producer": "form",
+		        "id": "burning_strikes",
+		        "slot": "form"
+		      }
+		    }
+		  ]
+		}, "parameter": "stack_bonus",
 		"values": [1, 2, 3, 4], "unit": "stacks", "limit": 4,
 		"description": "Burning Strikes applies %s additional shared Burning stacks.",
 		"detail": "Each qualifying direct basic attack contact adds the acquired stack contribution. Burning uses one shared tick/decay cadence; damage per stack and lifetime stay the same.",
@@ -97,7 +258,23 @@ const DEFINITIONS := {
 	"splinter_sharpness": {
 		"title": "Jagged Splinters", "scope": "form", "policy": "stackable",
 		"trigger": "Splintering Strikes fragment contact", "consumer": ["res://wood_affinity.gd", "splinters"],
-		"requires": {"family": "wood", "behavior": "splintering_strikes"}, "parameter": "fragment_hp",
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "form",
+		        "primary_affinity": "wood"
+		      }
+		    },
+		    {
+		      "capability": {
+		        "producer": "form",
+		        "id": "splintering_strikes",
+		        "slot": "form"
+		      }
+		    }
+		  ]
+		}, "parameter": "fragment_hp",
 		"values": [1, 2, 3, 4], "unit": "hp", "limit": 4,
 		"description": "Splintering Strikes fragments deal +%s damage to nearby secondary targets.",
 		"detail": "Fragments travel in a clear forward fan after a qualifying basic attack hit. The initial hit and trigger interval stay the same.",
@@ -105,7 +282,23 @@ const DEFINITIONS := {
 	"arc_recharge": {
 		"title": "Quick Conduction", "scope": "form", "policy": "stackable",
 		"trigger": "Arcing Strikes response on a weapon contact", "consumer": ["res://storm_affinity.gd", "on_event"],
-		"requires": {"family": "storm", "behavior": "arcing_strikes"}, "parameter": "interval_reduction_ms",
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "form",
+		        "primary_affinity": "storm"
+		      }
+		    },
+		    {
+		      "capability": {
+		        "producer": "form",
+		        "id": "arcing_strikes",
+		        "slot": "form"
+		      }
+		    }
+		  ]
+		}, "parameter": "interval_reduction_ms",
 		"values": [80, 120, 160, 200], "unit": "ms", "limit": 4,
 		"description": "Arcing Strikes can trigger again %s seconds sooner after a qualifying hit.",
 		"detail": "The next eligible basic attack hit triggers the arc when it is ready. Misses spend no trigger.",
@@ -113,7 +306,23 @@ const DEFINITIONS := {
 	"drawing_pressure": {
 		"title": "Heavy Compression", "scope": "form", "policy": "stackable",
 		"trigger": "Drawing Strikes response on a weapon contact", "consumer": ["res://void_affinity.gd", "on_event"],
-		"requires": {"family": "void", "behavior": "drawing_strikes"}, "parameter": "form_hp",
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "form",
+		        "primary_affinity": "void"
+		      }
+		    },
+		    {
+		      "capability": {
+		        "producer": "form",
+		        "id": "drawing_strikes",
+		        "slot": "form"
+		      }
+		    }
+		  ]
+		}, "parameter": "form_hp",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Drawing Strikes deals +%s compression damage on its first qualifying basic attack hit.",
 		"detail": "Draw strength and the trigger interval stay the same. Valid damage still applies when the target resists movement.",
@@ -121,7 +330,48 @@ const DEFINITIONS := {
 	"catalyst_ember_heat": {
 		"title": "Heart of Cinders", "scope": "catalyst", "policy": "stackable",
 		"trigger": "Fire Catalyst response applies Burning", "consumer": ["res://fire_combat.gd", "ignite"],
-		"requires": {"family": "fire", "responses": ["burn", "ember_burst", "recipient_ember_response", "self_ember_response"]},
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "catalyst",
+		        "primary_affinity": "fire"
+		      }
+		    },
+		    {
+		      "any": [
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "burn",
+		            "slot": "catalyst"
+		          }
+		        },
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "ember_burst",
+		            "slot": "catalyst"
+		          }
+		        },
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "recipient_ember_response",
+		            "slot": "catalyst"
+		          }
+		        },
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "self_ember_response",
+		            "slot": "catalyst"
+		          }
+		        }
+		      ]
+		    }
+		  ]
+		},
 		"parameter": "stack_bonus", "values": [1, 2, 3, 4], "unit": "stacks", "limit": 4,
 		"description": "Fire Catalyst applies %s additional shared Burning stacks per eligible application.",
 		"detail": "Applies only to the selected class response. The shared damage per stack, tick interval, decay and native burst damage stay the same.",
@@ -129,7 +379,48 @@ const DEFINITIONS := {
 	"catalyst_drench_time": {
 		"title": "Clinging Dew", "scope": "catalyst", "policy": "stackable",
 		"trigger": "Water Catalyst response applies Drenched", "consumer": ["res://water_combat.gd", "drench"],
-		"requires": {"family": "water", "responses": ["drench", "radial_wash", "healing_wash", "landing_wash"]},
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "catalyst",
+		        "primary_affinity": "water"
+		      }
+		    },
+		    {
+		      "any": [
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "drench",
+		            "slot": "catalyst"
+		          }
+		        },
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "radial_wash",
+		            "slot": "catalyst"
+		          }
+		        },
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "healing_wash",
+		            "slot": "catalyst"
+		          }
+		        },
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "landing_wash",
+		            "slot": "catalyst"
+		          }
+		        }
+		      ]
+		    }
+		  ]
+		},
 		"parameter": "duration_bonus_ms", "values": [250, 400, 550, 700], "unit": "ms", "limit": 4,
 		"description": "Extends the duration of Drenched applied by your Water Catalyst by %s seconds.",
 		"detail": "Applies when your mapped class-ability response Drenches an enemy. The amount of attack damage reduction stays the same.",
@@ -137,7 +428,48 @@ const DEFINITIONS := {
 	"catalyst_vital_regen": {
 		"title": "Greening Chime", "scope": "catalyst", "policy": "stackable",
 		"trigger": "Vital Catalyst grants Vitality", "consumer": ["res://vital_combat.gd", "grant"],
-		"requires": {"family": "vital", "responses": ["self_vitality", "radial_vitality", "recipient_vitality", "landing_vitality"]},
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "catalyst",
+		        "primary_affinity": "vital"
+		      }
+		    },
+		    {
+		      "any": [
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "self_vitality",
+		            "slot": "catalyst"
+		          }
+		        },
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "radial_vitality",
+		            "slot": "catalyst"
+		          }
+		        },
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "recipient_vitality",
+		            "slot": "catalyst"
+		          }
+		        },
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "landing_vitality",
+		            "slot": "catalyst"
+		          }
+		        }
+		      ]
+		    }
+		  ]
+		},
 		"parameter": "regen_per_second", "values": [1, 2, 3, 4], "unit": "hp", "limit": 4,
 		"description": "Vitality granted by your Vital Catalyst restores +%s HP per second.",
 		"detail": "The strongest active regeneration source applies. Max HP and Vitality's duration stay the same.",
@@ -145,7 +477,48 @@ const DEFINITIONS := {
 	"catalyst_bark_time": {
 		"title": "Enduring Bark", "scope": "catalyst", "policy": "stackable",
 		"trigger": "Wood Catalyst grants Bark Armor", "consumer": ["res://wood_affinity.gd", "grant"],
-		"requires": {"family": "wood", "responses": ["self_bark", "radial_splinters_and_bark", "recipient_bark", "landing_bark"]},
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "catalyst",
+		        "primary_affinity": "wood"
+		      }
+		    },
+		    {
+		      "any": [
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "self_bark",
+		            "slot": "catalyst"
+		          }
+		        },
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "radial_splinters_and_bark",
+		            "slot": "catalyst"
+		          }
+		        },
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "recipient_bark",
+		            "slot": "catalyst"
+		          }
+		        },
+		        {
+		          "capability": {
+		            "producer": "catalyst",
+		            "id": "landing_bark",
+		            "slot": "catalyst"
+		          }
+		        }
+		      ]
+		    }
+		  ]
+		},
 		"parameter": "duration_bonus_ms", "values": [250, 400, 550, 700], "unit": "ms", "limit": 4,
 		"description": "Extends the duration of Bark Armor granted by your Wood Catalyst by %s seconds while it has capacity.",
 		"detail": "Armor still ends when depleted. Absorption and armor capacity stay the same.",
@@ -153,7 +526,21 @@ const DEFINITIONS := {
 	"quake_impact": {
 		"title": "Deep Fault", "scope": "class", "policy": "stackable",
 		"trigger": "Native Root Quake hit", "consumer": ["res://outgoing_hits.gd", "skill_targets"],
-		"requires": {"class": "warden", "mode": "quake", "skill": "Root Quake"}, "parameter": "damage",
+		"requires": {
+		  "all": [
+		    {
+		      "class": "warden"
+		    },
+		    {
+		      "capability": {
+		        "producer": "class",
+		        "id": "Root Quake",
+		        "mode": "quake",
+		        "slot": "r"
+		      }
+		    }
+		  ]
+		}, "parameter": "damage",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Root Quake deals +%s damage per hit.",
 		"detail": "Applies to Root Quake's native hits. Aftershock and Catalyst damage stay the same.",
@@ -161,7 +548,21 @@ const DEFINITIONS := {
 	"nova_impact": {
 		"title": "Heavy Spores", "scope": "class", "policy": "stackable",
 		"trigger": "Native Spore Nova hit", "consumer": ["res://outgoing_hits.gd", "skill_targets"],
-		"requires": {"class": "weaver", "mode": "nova", "skill": "Spore Nova"}, "parameter": "damage",
+		"requires": {
+		  "all": [
+		    {
+		      "class": "weaver"
+		    },
+		    {
+		      "capability": {
+		        "producer": "class",
+		        "id": "Spore Nova",
+		        "mode": "nova",
+		        "slot": "r"
+		      }
+		    }
+		  ]
+		}, "parameter": "damage",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Spore Nova deals +%s damage per hit.",
 		"detail": "Applies to Spore Nova's native hits, including valid hits in Symbiotic Nova's bonus area. Secondary bursts stay the same.",
@@ -169,7 +570,21 @@ const DEFINITIONS := {
 	"snare_root_time": {
 		"title": "Clinging Brambles", "scope": "class", "policy": "stackable",
 		"trigger": "Bramble Snare trap contact", "consumer": ["res://combat_traits.gd", "trip_snare"],
-		"requires": {"class": "ranger", "mode": "snare", "skill": "Bramble Snare"}, "parameter": "bind",
+		"requires": {
+		  "all": [
+		    {
+		      "class": "ranger"
+		    },
+		    {
+		      "capability": {
+		        "producer": "class",
+		        "id": "Bramble Snare",
+		        "mode": "snare",
+		        "slot": "r"
+		      }
+		    }
+		  ]
+		}, "parameter": "bind",
 		"values": [150, 250, 350, 450], "unit": "ms", "limit": 4,
 		"description": "Extends the duration of Bramble Snare's roots by %s seconds.",
 		"detail": "The trap must catch an enemy that can be rooted. Trap lifetime and damage stay the same.",
@@ -177,7 +592,21 @@ const DEFINITIONS := {
 	"siphon_impact": {
 		"title": "Harvest Edge", "scope": "class", "policy": "stackable",
 		"trigger": "Native Siphon Cut primary hit", "consumer": ["res://outgoing_hits.gd", "skill_targets"],
-		"requires": {"class": "reaper", "mode": "siphon", "skill": "Siphon Cut"}, "parameter": "damage",
+		"requires": {
+		  "all": [
+		    {
+		      "class": "reaper"
+		    },
+		    {
+		      "capability": {
+		        "producer": "class",
+		        "id": "Siphon Cut",
+		        "mode": "siphon",
+		        "slot": "r"
+		      }
+		    }
+		  ]
+		}, "parameter": "damage",
 		"values": [2, 3, 4, 5], "unit": "hp", "limit": 4,
 		"description": "Siphon Cut's primary hit deals +%s damage.",
 		"detail": "Applies to the primary victim. Siphon Cut's native healing and secondary hits stay the same.",
@@ -185,7 +614,21 @@ const DEFINITIONS := {
 	"chime_ward_time": {
 		"title": "Lasting Resonance", "scope": "class", "policy": "stackable",
 		"trigger": "Warding Chime native Ward grant", "consumer": ["res://native_class_actions.gd", "cast"],
-		"requires": {"class": "oracle", "mode": "ward", "skill": "Warding Chime"}, "parameter": "ward_ms",
+		"requires": {
+		  "all": [
+		    {
+		      "class": "oracle"
+		    },
+		    {
+		      "capability": {
+		        "producer": "class",
+		        "id": "Warding Chime",
+		        "mode": "ward",
+		        "slot": "r"
+		      }
+		    }
+		  ]
+		}, "parameter": "ward_ms",
 		"values": [100, 200, 300, 400], "unit": "ms", "limit": 4,
 		"description": "Extends the duration of Warding Chime's native Wards by %s seconds.",
 		"detail": "Applies to eligible recipients of Warding Chime. Ward charges and Catalyst responses stay the same.",
@@ -193,7 +636,12 @@ const DEFINITIONS := {
 	"ordinary_weapon_damage": {
 		"title": "Honed Strikes", "scope": "weapon", "policy": "stackable",
 		"trigger": "Ordinary attack damage roll", "consumer": ["res://weapon_attack_world.gd", "capture_attack"],
-		"requires": {"capability": "strike"}, "parameter": "strike_damage",
+		"requires": {
+		  "capability": {
+		    "producer": "weapon",
+		    "id": "strike"
+		  }
+		}, "parameter": "strike_damage",
 		"values": [1, 2, 3, 4], "unit": "hp", "limit": 4,
 		"description": "Basic attacks gain +%s damage.",
 		"detail": "Adds to the damage roll before attack delivery and mitigation. Applies to the weapon roll used by basic attacks.",
@@ -201,7 +649,12 @@ const DEFINITIONS := {
 	"ordinary_weapon_interval": {
 		"title": "Light Grip", "scope": "weapon", "policy": "stackable",
 		"trigger": "Ordinary attack interval begins", "consumer": ["res://weapon_attack_world.gd", "capture_attack"],
-		"requires": {"capability": "strike"}, "parameter": "strike_interval",
+		"requires": {
+		  "capability": {
+		    "producer": "weapon",
+		    "id": "strike"
+		  }
+		}, "parameter": "strike_interval",
 		"values": [20, 35, 50, 65], "unit": "ms", "limit": 4,
 		"description": "Increases basic attack speed.",
 		"detail": "Copies add their reductions to the time between basic attacks. The displayed attack speed comes from the resulting interval.",
@@ -209,21 +662,42 @@ const DEFINITIONS := {
 	"run_health": {
 		"title": "Hardy Frame", "scope": "general", "policy": "stackable",
 		"trigger": "Maximum health resolves for the current expedition", "consumer": ["res://expedition_life.gd", "native_maximum"],
-		"requires": {}, "parameter": "max_hp", "values": [3, 5, 7, 9], "unit": "hp", "limit": 4,
+		"requires": {
+		  "all": []
+		}, "parameter": "max_hp", "values": [3, 5, 7, 9], "unit": "hp", "limit": 4,
 		"description": "Gain %s Max HP for this expedition. Current health is unchanged on acquisition.",
 		"detail": "Adds to your expedition Max HP. This upgrade ends when you leave the expedition.",
 	},
 	"run_dodge_recovery": {
 		"title": "Quick Footing", "scope": "general", "policy": "stackable",
 		"trigger": "Dodge recovery begins", "consumer": ["res://game.gd", "dodge_player"],
-		"requires": {}, "parameter": "dodge_interval", "values": [45, 70, 95, 120], "unit": "ms", "limit": 4,
+		"requires": {
+		  "all": []
+		}, "parameter": "dodge_interval", "values": [45, 70, 95, 120], "unit": "ms", "limit": 4,
 		"description": "Reduces your dodge cooldown by %s seconds.",
 		"detail": "Shortens the cooldown assigned by a dodge. Dodge distance and movement rules stay the same.",
 	},
 	"dew_shelter": {
 		"title": "Dew Shelter", "scope": "core", "policy": "unique",
 		"trigger": "Living ally touched by Dewfall", "consumer": ["res://water_combat.gd", "on_event"],
-		"requires": {"family": "water", "skill": "dewfall"}, "parameter": "shelter_ward_ms",
+		"requires": {
+		  "all": [
+		    {
+		      "plant": {
+		        "slot": "core",
+		        "primary_affinity": "water"
+		      }
+		    },
+		    {
+		      "capability": {
+		        "producer": "core",
+		        "id": "dewfall",
+		        "slot": "core"
+		      }
+		    }
+		  ]
+		}, "grants": ["dew_shelter"],
+		"parameter": "shelter_ward_ms",
 		"fixed": 1200, "unit": "ms", "limit": 1,
 		"description": "Dewfall gives living allies it touches a one-charge Ward for %s seconds.",
 		"detail": "You qualify at Dewfall's origin. Each living recipient can receive one Ward per cast. Dewfall damage, Drenched and Slow cleansing keep their usual effects. The Ward grants no extra Catalyst response.",
@@ -231,7 +705,33 @@ const DEFINITIONS := {
 	"echoing_growth": {
 		"title": "Echoing Growth", "scope": "class", "policy": "unique",
 		"trigger": "Native Spore Nova hits inside the owner’s active Cultivate Bloom", "consumer": ["res://affinity_cards.gd", "bloom_echo"],
-		"requires": {"class": "weaver", "mode": "nova", "skill": "Spore Nova", "focus": "bloomcaller", "q_field": "growth"},
+		"requires": {
+		  "all": [
+		    {
+		      "class": "weaver"
+		    },
+		    {
+		      "capability": {
+		        "producer": "class",
+		        "id": "Spore Nova",
+		        "mode": "nova",
+		        "slot": "r"
+		      }
+		    },
+		    {
+		      "focus": "bloomcaller"
+		    },
+		    {
+		      "capability": {
+		        "producer": "class",
+		        "id": "Cultivate Bloom",
+		        "slot": "q",
+		        "field": "growth"
+		      }
+		    }
+		  ]
+		},
+		"grants": ["echoing_growth"],
 		"parameter": "bloom_echo_hp", "fixed": 10, "unit": "hp", "limit": 1,
 		"description": "When Spore Nova damages an enemy in your Cultivate Bloom, the bloom deals %s secondary damage to eligible enemies inside.",
 		"detail": "Requires Bloomcaller and your own active Cultivate Bloom. The extra pulse happens at most once per Nova. It applies no extra roots or Marks, and triggers no Catalyst, Form, graft or other secondary effects.",

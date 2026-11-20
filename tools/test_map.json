@@ -32,7 +32,7 @@
     "player_vitals": {"label": "Host-owned current HP, native capacity and temporary Vital capacity", "files": ["player_vitals.gd", "player_vitals.gd.uid"]},
     "player_cooldowns": {"label": "Host-owned native Q, R and dodge cooldown deadlines", "files": ["player_cooldowns.gd", "player_cooldowns.gd.uid"]},
     "expedition_wallet": {"label": "Run-only Essence sparks, floor grants and spending", "files": ["expedition_wallet.gd", "expedition_wallet.gd.uid"]},
-    "affinity_cards": {"label": "Affinity expedition card ledger, rarity, Essence rerolls and owned effects", "files": ["affinity_cards.gd", "affinity_cards.gd.uid", "affinity_card_ledger.gd", "affinity_card_ledger.gd.uid", "affinity_card_catalog.gd", "affinity_card_catalog.gd.uid"]},
+    "affinity_cards": {"label": "Affinity expedition card ledger, rarity, Essence rerolls and owned effects", "files": ["affinity_cards.gd", "affinity_cards.gd.uid", "affinity_card_ledger.gd", "affinity_card_ledger.gd.uid", "affinity_card_catalog.gd", "affinity_card_catalog.gd.uid", "card_requirements.gd", "card_requirements.gd.uid", "card_eligibility.gd", "card_eligibility.gd.uid"]},
     "oracle_progression": {"label": "Connected Oracle, native Omens and first-run focus admission", "files": ["oracle_connected_tree.gd", "oracle_connected_tree.gd.uid", "oracle_combat.gd", "oracle_combat.gd.uid", "oracle_omens.gd", "oracle_omens.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid", "combat_status.gd", "combat_status.gd.uid"]},
     "void_affinity": {"label":"Void wells, compression and bounded displacement", "files":["void_affinity.gd","void_affinity.gd.uid"]},
     "spirit_affinity": {"label":"Spirit stride, traces and attack claims", "files":["spirit_affinity.gd","spirit_affinity.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid"]},
@@ -1530,6 +1530,7 @@
     ]
   },
   "suites": {
+    "card_eligibility": {"kind":"unit", "profile":"affinity", "systems":["affinity_cards","combat_builds","combat_affinity_contracts","classes","plant_affinities","expedition_grafts","expedition_wallet","player_build_ui"], "package":false},
     "shared_affinity_party": {"kind": "party", "profile": "affinity", "systems": ["combat_affinity_contracts", "core_combat", "thorn_affinity", "fire_affinity", "frost_affinity", "water_affinity", "wood_affinity", "vital_affinity", "player_lifecycle", "incoming_player_hit", "world_snapshot", "connection_flow", "expedition_participation"], "package": false},
     "affinity_scaling": {"kind":"unit", "profile":"affinity", "systems":["combat_affinity_contracts","combat_builds","affinity_cards","expedition_grafts","core_combat","thorn_affinity","frost_affinity","fire_affinity","water_affinity","wood_affinity","vital_affinity","player_lifecycle","player_vitals","player_build_ui"], "package":false},
     "shared_affinity_status": {"kind": "unit", "profile": "affinity", "systems": ["classes", "combat", "combat_affinity_contracts", "core_combat", "enemy_tactics", "fire_affinity", "frost_affinity", "incoming_player_hit", "plant_affinities", "player_hit_conditions", "player_protection", "thorn_affinity", "water_affinity", "weapons"], "package": false},
@@ -5815,7 +5816,7 @@
     "storm_affinity.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ec01_1": {"systems": ["affinity_cards"]}}},
     "wood_affinity.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}, "ec01_1": {"systems": ["affinity_cards"]}}},
     "vital_combat.gd": {"regions": {"ar07_vitals_1": {"systems": ["player_vitals"]}, "ar07_vitals_2": {"systems": ["player_vitals"]}, "ar07_vitals_3": {"systems": ["player_vitals"]}, "ar07_vitals_4": {"systems": ["player_vitals"]}, "ar07_vitals_5": {"systems": ["player_vitals"]}}},
-    "water_combat.gd": {"regions": { "ec01_2": {"systems": ["affinity_cards"]}}},
+    "water_combat.gd": {"regions": { }},
     "frost_combat.gd": {"regions": {"ec01_1": {"systems": ["affinity_cards"]}}},
     "combat_action_events.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}}},
     "combat_ruleset.gd": {

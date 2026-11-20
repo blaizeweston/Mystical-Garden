@@ -66,9 +66,11 @@ class Ledger extends RefCounted:
 			"copies":_receipts.duplicate(true)}
 
 	func resolution() -> Dictionary:
-		var result := {"bonuses":{}, "adaptations":[]}
+		# Detached acquisition counts, derived from these same receipts.
+		var result := {"bonuses":{}, "adaptations":[], "owned":{}}
 		for receipt in _receipts:
 			_apply_improvement(result, receipt.id)
+			result.owned[receipt.id] = int(result.owned.get(receipt.id, 0)) + 1
 		return result
 
 	func _quote(id: String, before: Dictionary, project_stats: Callable) -> Dictionary:

@@ -10,6 +10,10 @@ const CardState = preload("res://affinity_card_ledger.gd")
 const Ledger = CardState.Ledger
 const Journal = preload("res://diagnostic_journal.gd")
 const Preview = preload("res://combat_balance_preview.gd")
+const Eligibility = preload("res://card_eligibility.gd")
+const BLOOM_ECHO_PARAMETER := "bloom_echo_hp"
+const CARD_GRANTS := {BLOOM_ECHO_PARAMETER:{"method":"bloom_echo", "capability":{
+	"producer":"card", "id":"echoing_growth", "slot":"r", "recipient":"affected_enemies"}}}
 const STATE := "affinity_cards"
 const SERIAL := &"affinity_offer_serial"
 const COMMAND := "affinity_checkpoint_"
@@ -64,7 +68,7 @@ static func checkpoint_view(run: Ledger, stats: Dictionary, dodge_base: int, ess
 		var definition: Dictionary = Catalog.DEFINITIONS[option.id]
 		var reason := run.option_refusal(option, stats, dodge_base)
 		var limit := Ledger.parameter_limit(definition, stats, dodge_base)
-		var active := mini(limit, run.amount(option.id)) if Ledger.requirement(definition, stats.affinity_build).is_empty() else 0
+		var active := mini(limit, run.amount(option.id)) if Ledger.requirement(definition, stats.affinity_build, run.counts()).is_empty() else 0
 		var choice := choice_view(definition, option, run.copies_for(option.id), active, reason, int(stats.interval))
 		choice.merge({"choice": index, "id": option.id, "title": definition.title,
 			"rarity": option.rarity, "scope": str(definition.scope).capitalize(), "unique": definition.policy == "unique",
@@ -76,7 +80,7 @@ static func checkpoint_view(run: Ledger, stats: Dictionary, dodge_base: int, ess
 		var replacement := run.can_replace_offer(stats, dodge_base)
 		result.reroll_enabled = replacement and essence >= cost
 		if not replacement:
-			result.reroll_reason = "No different full offer is available."
+			result.reroll_reason = "No different eligible offer is available."
 		elif not result.reroll_enabled:
 			result.reroll_reason = "Not enough Essence to reroll."
 	else:
@@ -119,12 +123,9 @@ static func copy_list(definition: Dictionary, copies: Array) -> String:
 
 
 static func detail_text(definition: Dictionary) -> String:
-	var needs: Dictionary = definition.requires
 	var lines: PackedStringArray = []
-	if needs.has("family"):
-		lines.append("Requires %s %s." % [str(needs.family).capitalize(), str(definition.scope).capitalize()])
-	elif needs.has("class"):
-		lines.append("Requires %s and %s." % [str(needs["class"]).capitalize(), needs.skill])
+	var needs := Eligibility.Requirements.describe(definition.requires)
+	if not needs.is_empty(): lines.append("Requires " + needs + ".")
 	lines.append(definition.detail)
 	if definition.policy == "unique":
 		lines.append("One acquisition per expedition.")
@@ -198,23 +199,28 @@ static func owned_rows(copies: Array) -> Array:
 
 ## Numeric affinity values. Material baselines stay unmodified; acquired copies
 ## add only their explicitly scoped parameter. No Game or actor state enters here.
-static func _slot_values(contributions: Dictionary, source: String, material: Dictionary, base: Dictionary) -> Dictionary:
+static func _slot_values(build: Dictionary, contributions: Dictionary, source: String, material: Dictionary, base: Dictionary) -> Dictionary:
 	var result := base.duplicate(true)
 	if source not in ["core","form","catalyst"]: return result
+	var captured := build.duplicate()
+	captured[source] = material
+	# Explicit source snapshots use the same native adapters with their captured
+	# Catalyst material; this is not a second response mapping.
+	if source == "catalyst":
+		captured.class_skills = build.get("class_skills", []).duplicate(true)
+		for adapter: Dictionary in captured.class_skills:
+			adapter.response = adapter.get("responses", {}).get(material.get("primary_affinity"), "")
 	for id: String in contributions:
 		var definition: Dictionary=Catalog.DEFINITIONS[id]
 		if definition.scope!=source: continue
-		var requires: Dictionary=definition.requires
-		if material.get("primary_affinity")!=requires.family: continue
-		if source=="core" and material.get("affinity_core_skill_id")!=requires.skill: continue
-		if source=="form" and material.get("behavior")!=requires.behavior: continue
+		if not Ledger.requirement(definition, captured).is_empty(): continue
 		var parameter: String=definition.parameter
 		result[parameter]=result.get(parameter,0)+int(contributions[id])
 	return result
 
 static func affinity_values(build: Dictionary, contributions: Dictionary, source: String,
 		material: Dictionary, base: Dictionary) -> Dictionary:
-	var result := _slot_values(contributions,source,material,base)
+	var result := _slot_values(build,contributions,source,material,base)
 	var family: String=material.get("primary_affinity","")
 	if source not in ["core","form","catalyst"] or family not in ["thorn","frost"]: return result
 	var parameter := "tick_hp" if family=="thorn" else "max_shatter_hp"
@@ -226,7 +232,7 @@ static func affinity_values(build: Dictionary, contributions: Dictionary, source
 		var part: Dictionary=material if slot==source else build.get(slot,{})
 		if part.get("primary_affinity","")!=family: continue
 		var values: Dictionary=base if slot==source else part.potency_profile.values
-		var tuned := _slot_values(contributions,slot,part,values)
+		var tuned := _slot_values(build,contributions,slot,part,values)
 		baseline=maxf(baseline,float(values.get(parameter,0)))
 		additions+=float(tuned.get(parameter,0))-float(values.get(parameter,0))
 	result.personal_cap_hp=baseline+additions
@@ -250,7 +256,7 @@ static func tune_class_contributions(skill: Dictionary, build: Dictionary, contr
 
 
 static func bloom_echo_source(game: Node, player: Dictionary, skill: Dictionary, now: int) -> Dictionary:
-	if int(skill.get("bloom_echo_hp", 0)) <= 0 or skill.get("bloom_echo_spent", false):
+	if int(skill.get(BLOOM_ECHO_PARAMETER, 0)) <= 0 or skill.get("bloom_echo_spent", false):
 		return {}
 	var owner: int = game.Traits.player_id(game, player)
 	for field: Dictionary in game.effect_timeline.native_records():
@@ -270,7 +276,7 @@ static func bloom_echo(game: Node, player: Dictionary, bloom: Dictionary, skill:
 	if int(game.participation.epoch()) != int(bloom.epoch) or not game.Life.alive(player):
 		return
 	skill.bloom_echo_spent = true
-	var hp: int = skill.bloom_echo_hp
+	var hp: int = skill[BLOOM_ECHO_PARAMETER]
 	var point: Vector3 = bloom.position
 	var targets: Array[int] = game.skill_area_targets(point, float(bloom.radius), point)
 	game.emit_combat_event("ability", "bloom_echo", point, point, .5, Color("#b5c775"), float(bloom.radius), bloom.owner,

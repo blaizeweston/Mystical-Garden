@@ -19,6 +19,10 @@ const APPLICATION_SATURATION := {"core":40,"form":15,"catalyst":30}
 const SURGE_HP := 6
 const SURGE_RADIUS := 2.4
 const REDUCTION_LIMIT := .30
+const SHELTER_WARD_PARAMETER := "shelter_ward_ms"
+# The same parameter is read by on_event below; eligibility does not invent it.
+const CARD_GRANTS := {SHELTER_WARD_PARAMETER:{"method":"on_event", "capability":{
+	"producer":"card", "id":"dew_shelter", "slot":"core", "recipient":"living_allies"}}}
 const QUALITY := {
 	"ordinary": {"reduction": .18, "saturation_bonus":0, "impact_hp": 7, "surge_hp":SURGE_HP, "surge_radius":SURGE_RADIUS},
 	"refined": {"reduction": .30, "saturation_bonus":10, "impact_hp": 11, "surge_hp":SURGE_HP, "surge_radius":SURGE_RADIUS},
@@ -180,7 +184,7 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 				var id: int = details.player
 				if game.players.has(id) and game.Life.alive(game.players[id]):
 					cleanse(game.players[id])
-					var ward_ms := int(event.potency().get("shelter_ward_ms",0))
+					var ward_ms := int(event.potency().get(SHELTER_WARD_PARAMETER,0))
 					if ward_ms > 0:
 						game.players[id][Protection.STATE] = game.players[id][Protection.STATE].grant(now+ward_ms,1,Time.get_ticks_msec(),game.participation.epoch())
 			else:

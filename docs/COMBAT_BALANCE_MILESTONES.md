@@ -16,7 +16,8 @@ Modern affinity combat is the sole gameplay implementation. Core, Form and Catal
 |---|---|
 | Local `main` | `e1265e0dd750c4b1d63382921d574ccf11fd0562`; modern-only gameplay, before the shared-affinity rework. |
 | Reviewed affinity implementation | `combat/affinity-scaling-foundation`, `12d54b6251db5917cd67741890f2f01fcd5c24cb`; six commits ahead of `main`, with shared statuses and scaling corrections. These changes have **not** been integrated into `main`. |
-| This documentation work | `design/card-catalog-baseline`, based on that reviewed implementation; documentation only. No merge, runtime change, save activation or new gameplay verification is implied. |
+| Original design baseline | `design/card-catalog-baseline`, `c2fc7415603fb8b5b7863749a165006a3637cb9c`, changed only this reference and its architecture pointer. |
+| CE01 consolidation | `combat/ce01-card-eligibility` starts at `ab2e82ee8c811acaff00ac55353202190ee03502`: affinity implementation `12d54b6` plus the focused cherry-pick of `c2fc741`. `main` and both source branches remain unchanged. CE01 implements requirements for the existing 28 cards, not transformations. |
 | **Implemented** | Present in the reviewed source. Where `main` differs, the distinction is stated explicitly. |
 | **Approved, unimplemented** | The design direction is accepted, but the card/action/consumer is not playable yet. |
 | **Provisional** | Current or illustrative numerical tuning, not a permanent balance promise. |
@@ -24,7 +25,7 @@ Modern affinity combat is the sole gameplay implementation. Core, Form and Catal
 
 #### Permanent expedition and progression constraints
 
-Players choose their class, starting focus, connected class-tree selections, weapon and Core/Form/Catalyst plant parts **in the Garden before entry**. Those choices and every equipped plant's primary, secondary and tertiary tags remain locked for the entire expedition. Cards must not depend on changing equipment, class, focus or tree selections mid-run. Acquired cards and graft adaptations are the sources of build evolution during the expedition.
+Players choose their class, starting focus, connected class-tree selections, weapon and Core/Form/Catalyst plant parts **in the Garden before entry**. Those choices and every equipped plant's primary and supporting affinities remain locked for the entire expedition. Cards must not depend on changing equipment, class, focus or tree selections mid-run. Acquired cards and graft adaptations are the sources of build evolution during the expedition.
 
 All five classes begin at level 1 with zero Class XP and an explicit starting-focus choice; no plant part, graft, card, currency or completed expedition is required for useful native Q/R. The six-selection structure is one focus plus one connected choice in each of five successive tiers. Same/adjacent lanes connect; Balanced connects to all three. No backfilling or second capstone is permitted, and crossing branches preserves the starting Q.
 
@@ -39,22 +40,25 @@ A player must never receive an offer their current build cannot use. Eligibility
 | Required eligibility facts | Design rule |
 |---|---|
 | Locked class, focus, weapon and tree | Check exact identities, learned selections and the actual native actions they provide. A class or tag name is not a substitute for a functioning ability. |
-| Equipped plant slots and tags | Identify Core, Form and Catalyst separately. Primary, secondary and tertiary tags all influence eligibility; never infer scope from a raw union of tags. |
+| Equipped plant slots and tags | Identify Core, Form and Catalyst separately. There are exactly two roles: `primary_affinity` and unordered `supporting_affinities`. Both influence eligibility; there is no secondary/tertiary rank and no inference of scope from a raw union of tags. |
 | Existing mechanic/capability | A card that modifies an existing mechanic must verify that the build can produce it. Alternatively, the offered card may explicitly grant that missing capability as part of its stated effect. All other requirements still apply. |
 | Acquired cards and transformations | Their explicitly granted capabilities can open new eligible cards. Previously acquired Unique cards are excluded. Do not guarantee a transformation or construct a complete synergy build automatically. |
 | Graft adaptations | Check acquired, functioning adaptations rather than merely carried trophies or unrelated species tags. Graft acquisition can expand the eligible pool. |
 | Resource generation | Temporary depletion does not disqualify a reachable effect. An empty Bark pool or spent Vital bonus HP can be replenished by a real producer; lacking that producer is a different condition. |
 | Acquisition and effective headroom | Respect current copy/acquisition restrictions and resolved usefulness. Do not offer entirely ineffective numerical contributions. Eligibility and offer weighting/rarity remain separate decisions. |
 
-Secondary and tertiary tags **do not** automatically grant baseline abilities, effects or status producers. For example, Dewcap's Vital supporting tag can qualify an explicitly authored future interaction, but does not itself grant Vital bonus HP or regeneration and therefore cannot alone satisfy a requirement for those mechanics.
+Supporting affinities **do not** automatically grant baseline abilities, effects or status producers. For example, Dewcap's Vital supporting tag can qualify an explicitly authored future interaction, but does not itself grant Vital bonus HP or regeneration and therefore cannot alone satisfy a requirement for those mechanics.
 
-The initial loadout stays fixed, while eligibility may expand through acquired cards and grafts. Future definitions should express those requirements as readable data. This is an approved catalog rule, **not a claim that all these predicates already exist in the runtime**.
+The initial loadout stays fixed, while eligibility may expand through acquired cards and grafts. CE01 expresses these requirements as readable data; this does not make any future card or transformation playable.
 
 Current source reconciliation:
 
-- [affinity_card_ledger.gd](../affinity_card_ledger.gd) `requirement`, `_refusal`, `parameter_limit` and `headroom` already filter slot/family/skill, Form behavior, mapped Catalyst response, class/native R/focus, basic-attack capability, copy limits and selected timing headroom.
-- The current 28 definitions do **not** implement general supporting-tag, learned-tree-node, acquired-capability, transformation or graft-adaptation predicates. Those offer-filter capabilities must be implemented and verified before definitions rely on them.
-- [plant_affinities.gd](../plant_affinities.gd) stores `primary_affinity` plus a normalized, sorted `supporting_affinities` list. [affinity_build.gd](../affinity_build.gd) exposes those facts in each slot's `card_requirements`. Secondary/tertiary tags are present as supporting entries, not separate ordinal fields; tier-specific distinctions remain unresolved below. Supporting tags have no baseline runtime effects.
+- [card_requirements.gd](../card_requirements.gd) implements pure `all`, `any`, class/focus/weapon/node, plant, same-plant `tags_all`/`tags_any`, `distinct_slots`, capability and acquired-card/graft predicates. [card_eligibility.gd](../card_eligibility.gd) derives detached facts and valid IDs from current executable build/class/adapter/acquisition definitions. No Game or actor enters the evaluator.
+- [affinity_card_ledger.gd](../affinity_card_ledger.gd) remains the offer/acquisition authority. It revalidates predicates, verified grants, copy/Unique limits and numerical headroom. Its former scope-specific requirement switch is removed. All 28 definitions use the same expression model while retaining their existing restrictions and values.
+- [plant_affinities.gd](../plant_affinities.gd) retains `primary_affinity` and normalized, sorted `supporting_affinities`; sorting does not establish rank. [affinity_build.gd](../affinity_build.gd) exposes the same plant facts and the selected connected path. Card counts and graft purchase counts are detached projections of existing receipts, not new ownership stores.
+- Capabilities identify real Core skills, Form behaviors, native action names/modes and Catalyst response IDs. `target_scope` preserves a native adapter's footprint; it is not falsely treated as a response's protection/healing recipient. Explicit `recipient` metadata is supplied by the relevant verified grant consumer. No generic Bark/Burning resource producer is inferred from a tag or an animation.
+- `requires` tests current facts only. `grants` names implemented additions advertised by the real consumer's `CARD_GRANTS` parameter/method contract. Dew Shelter and Echoing Growth demonstrate this boundary. Candidates do not count themselves as acquired; unknown IDs, unsupported consumers and circular dependencies fail closed. Future transformations need their own implemented consumers before any grant declaration can validate.
+- Initial and replacement offers may contain zero to three distinct useful identities. A paid reroll still requires at least one new identity, never rarity-only replacement. No replacement means no debit. Reopening stays cached, and zero-useful-card checkpoints retain Continue/Skip and ordinary travel.
 
 #### Shared affinity mechanics and scaling
 
@@ -140,7 +144,7 @@ Approximately **200 meaningful cards** is a planning scale, not a quota. Do not 
 |---|---|
 | Display name and stable ID | Searchable, unambiguous identity; the transformation table does not preassign IDs. |
 | Scope | Explicit General, Weapon, Core, Form, Catalyst, Class, Graft or multiple named scopes where accurate. Show scope beneath the title. |
-| Required tags | State relevant primary/secondary/tertiary tags and any slot-specific requirement. Tags alone never imply an executable capability. |
+| Required tags | State primary and unordered supporting identities, any slot constraint, and whether tags must share one plant or occupy different slots. Tags alone never imply an executable capability. |
 | Required actual capabilities | State reachable triggers and prerequisites, including learned nodes, prior cards/transformations and graft adaptations where needed. |
 | Effect and authoritative consumer | Name the real mechanic and its owning consumer. A stored but unused statistic is not a functioning card. |
 | Numerical contribution or fixed Unique behavior | Identify scalable parameters and units, or the exact one-time unlock. No hidden unrelated changes. |
@@ -167,9 +171,9 @@ Acquisition limits, rarity probabilities and offer weighting are separate from m
 
 | Area | Exact remaining boundary |
 |---|---|
-| Expanded eligibility | Supporting tags, learned-tree requirements, capability grants, acquired transformations and graft adaptation predicates are approved inputs but not general runtime predicates yet. Verify mandatory filtering before adding cards that rely on them. |
+| Transformation-specific eligibility | CE01 implements the general predicates and verified-grant boundary. Each future transformation still needs its actual effect consumer, external producer requirements and any approved tag gate; a declaration alone cannot enable it. |
 | New transformations and controls | All nine card definitions/consumers are absent. Additional configurable actions, Harvest toggle state and its attack-spending loop, and Mirrorstep's echo accumulation/release are absent. Existing B/Q/R and baseline Form behavior do not substitute for them. |
-| Tag roles | Current supporting tags are sorted and have no secondary/tertiary ordinal fields. Whether future requirements distinguish those roles, and how that role identity is authored, remains undecided. Both supporting tags must influence eligibility without granting baseline mechanics. |
+| Tag roles — settled in CE01 | Exactly primary plus unordered supporting affinities. No ranked supporting fields or alphabetical rank inference. Both roles influence eligibility without supporting tags granting baseline mechanics. |
 | Numerical design | Thresholds, ranges, cooldowns, damage/resource conversions, durations, spread amounts/falloff and other transformation-specific numbers remain unauthored. Existing family/card numbers remain provisional and unchanged. |
 | Shared-effect attribution | Define Bloodletting's exact accumulated-Bleed measurement; Avalanche's transferred source-weighted contribution; Wildfire's copy/transfer/expiry rules; and attribution/overlap for Monsoon waves and Conductor branches/return. None may recursively reproduce itself or erase another player's valid shared contribution. |
 | Harvest expenditure | Specify eligible attacks, launch-versus-contact debit, misses, per-attack versus per-target spending, partial resource availability and the damage conversion. Preserve the approved toggle/depletion behavior, actual HP transaction and default prohibition on normal-HP spending. |

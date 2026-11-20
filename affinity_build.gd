@@ -45,6 +45,7 @@ static func resolve(class_id: int, weapon_index: int, slots: Array, profile: Dic
 		class_refusal = "Choose your level 1 %s starting focus at the Wilds Gate before using class abilities." % frame.name
 	var result := {
 		"ruleset": Ruleset.ID, "class_id": frame.id, "focus_id": focus,
+		"selected_nodes": tree.path(profile).duplicate() if connected and tree.valid(profile) else [],
 		"weapon_id": weapon.id, "native_weapon": weapon.duplicate(true), "class_refusal":class_refusal,
 		"native_class_effects": {},
 		"core": slot("core", int(slots[0])), "form": slot("form", int(slots[1])),

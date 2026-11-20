@@ -82,6 +82,9 @@ static func validate() -> Array[String]:
  if not published_order is Array or published_order.size()!=Parts.DEFINITIONS.size(): errors.append("Published component order does not cover registry")
  elif published_order!=Parts.DEFINITIONS.map(func(part):return str(part.id)): errors.append("Component order changed outside append-only contract")
  # Only the current catalog executes. Historical card ranks were run-only.
+ var requirement_errors := preload("res://card_eligibility.gd").catalog_errors()
+ for card_id: String in requirement_errors:
+  errors.append("Card requirements " + card_id + ": " + requirement_errors[card_id])
  for card_id: String in Cards.DEFINITIONS:
   var card: Dictionary=Cards.DEFINITIONS[card_id]
   for field in ["title","trigger","description","detail","parameter"]:
