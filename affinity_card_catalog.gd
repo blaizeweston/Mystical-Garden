@@ -89,10 +89,10 @@ const DEFINITIONS := {
 	"burning_strikes_heat": {
 		"title": "Hotter Embers", "scope": "form", "policy": "stackable",
 		"trigger": "Burning Strikes weapon contact", "consumer": ["res://fire_combat.gd", "ignite"],
-		"requires": {"family": "fire", "behavior": "burning_strikes"}, "parameter": "tick_hp",
-		"values": [1, 2, 3, 4], "unit": "hp", "limit": 4,
-		"description": "Burning Strikes deals +%s Burning damage per tick, including the first.",
-		"detail": "Your qualifying basic attack hits apply Burning to the enemies they hit. The duration and tick interval stay the same.",
+		"requires": {"family": "fire", "behavior": "burning_strikes"}, "parameter": "stack_bonus",
+		"values": [1, 2, 3, 4], "unit": "stacks", "limit": 4,
+		"description": "Burning Strikes applies %s additional shared Burning stacks.",
+		"detail": "Each qualifying direct basic attack contact adds the acquired stack contribution. Burning uses one shared tick/decay cadence; damage per stack and lifetime stay the same.",
 	},
 	"splinter_sharpness": {
 		"title": "Jagged Splinters", "scope": "form", "policy": "stackable",
@@ -122,9 +122,9 @@ const DEFINITIONS := {
 		"title": "Heart of Cinders", "scope": "catalyst", "policy": "stackable",
 		"trigger": "Fire Catalyst response applies Burning", "consumer": ["res://fire_combat.gd", "ignite"],
 		"requires": {"family": "fire", "responses": ["burn", "ember_burst", "recipient_ember_response", "self_ember_response"]},
-		"parameter": "tick_hp", "values": [1, 2, 3, 4], "unit": "hp", "limit": 4,
-		"description": "Burning applied by your Fire Catalyst deals +%s damage per tick, including the first.",
-		"detail": "Uses the Burning applied by your mapped class-ability response. Burst impact damage and Burning duration stay the same.",
+		"parameter": "stack_bonus", "values": [1, 2, 3, 4], "unit": "stacks", "limit": 4,
+		"description": "Fire Catalyst applies %s additional shared Burning stacks per eligible application.",
+		"detail": "Applies only to the selected class response. The shared damage per stack, tick interval, decay and native burst damage stay the same.",
 	},
 	"catalyst_drench_time": {
 		"title": "Clinging Dew", "scope": "catalyst", "policy": "stackable",
@@ -259,12 +259,14 @@ static func effect_text(definition: Dictionary, value: int) -> String:
 	var text: String = definition.description
 	if "%s" not in text:
 		return text
-	var number := str(value) if definition.unit == "hp" else ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
+	var number := str(value) if definition.unit in ["hp","stacks"] else ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
 	return text % number
 
 
 static func contribution_label(definition: Dictionary) -> String:
 	match definition.parameter:
+		"stack_bonus": return "Burning stacks per application"
+		"tick_hp": return "Personal Bleed tick cap"
 		"max_hp": return "Max HP bonus"
 		"regen_per_second": return "Regeneration bonus"
 		"strike_interval": return "Basic attack timing"
@@ -275,6 +277,8 @@ static func contribution_label(definition: Dictionary) -> String:
 
 static func contribution(definition: Dictionary, value: int) -> String:
 	match definition.parameter:
+		"stack_bonus": return "+%d stacks per application" % value
+		"tick_hp": return "+%d maximum Bleed damage per tick" % value
 		"regen_per_second": return "+%d HP/s" % value
 		"max_hp": return "+%d Max HP" % value
 		"strike_interval": return "%s s less between basic attacks" % ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")

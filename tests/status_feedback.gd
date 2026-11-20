@@ -33,7 +33,10 @@ func run():
  check(marks.size()==1 and events.any(func(e):return e.form=="player" and e.shape=="slow"),"Tracked Prey icon and slowed player callout")
  var mark_id: int=marks[0].id;var count: int=game.combat_event_serial;Status.sync(game,now+1)
  check(game.combat_event_serial==count,"no per-frame event spam")
- game._process(.016);var fx=WorldViewCase.component(game,"combat");fx.sync(game.combat_events_snapshot(),[],"status-test",p.pos);fx.statuses.step(.016)
+ # The status renderer needs the rendered actor, not a terrain rebuild of the
+ # deliberately bare collision fixture (which has no authored exit gate).
+ game.stage.foe.position=game.stage.WILD_OFFSET+game.tactics.position;game.stage.foe.show()
+ var fx=WorldViewCase.component(game,"combat");fx.sync(game.combat_events_snapshot(),[],"status-test",p.pos);fx.statuses.step(.016)
  check(fx.statuses.active.has(mark_id),"renderer creates a persistent Tracked Prey icon")
  var icon: Dictionary=fx.statuses.active[mark_id];game.stage.foe.position.x+=.5;fx.statuses.step(.016)
  check(absf(icon.node.position.x-game.stage.foe.position.x)<.5,"icon follows rendered monster")

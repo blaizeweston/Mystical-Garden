@@ -129,7 +129,7 @@ func run() -> void:
 		p.catalyst=part
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
 		ClassActions.cast_world(game, 1, 1)
-		check(game.tactics.memory.get(Water.DRENCHED,{}).size()==2,"native class contact contributes a separate Drenched Catalyst")
+		check(game.tactics.memory.get(Water.DRENCHED,{}).get("sources",{}).size()==2,"native class contact contributes a second source to one Drenched status")
 		check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"same potency is not multiplied")
 		reset()
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
@@ -187,7 +187,7 @@ func run() -> void:
 	Events.grant_ward(game,p,now+1000,1,fire,adapter,now)
 	Events.grant_ward(game,p,now+2000,2,water,adapter,now)
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now+1, 1.0, 0, game.tactics.position)
-	check(game.tactics.memory.get(Fire.BURNING,{}).has("1/catalyst") and Water.reduction(game.tactics.memory,Clock.now(game))==0.0,"earliest mixed Ward selects ordinary Fire")
+	check(game.tactics.memory.get(Fire.BURNING,{}).get("contributors",{}).values().any(func(row):return int(row.actor)==1) and Water.reduction(game.tactics.memory,Clock.now(game))==0.0,"earliest mixed Ward selects ordinary Fire")
 	IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), now+2, 1.0, 0, game.tactics.position)
 	check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),.30) and p[Protection.STATE].charge_count()==0,"next actual block is refined Water without removing Fire")
 	game.queue_free()

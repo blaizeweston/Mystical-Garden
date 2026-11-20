@@ -4,6 +4,10 @@ const Protection = preload("res://player_protection.gd")
 
 const Participation = preload("res://expedition_participation.gd")
 # Host-derived presentation state. Never stored in character/Garden saves.
+const Fire = preload("res://fire_combat.gd")
+const Water = preload("res://water_combat.gd")
+# Display-only numeric values coalesce at the existing detail cadence.
+const SHARED_DISPLAY_MS := 250
 const Warden = preload("res://warden_combat.gd")
 const Ranger = preload("res://ranger_combat.gd")
 const Reaper = preload("res://reaper_combat.gd")
@@ -29,7 +33,7 @@ static func tint(kind: String) -> Color:
  if kind=="drenched":return Color("#82d7ec")
  return Color("#e6c079") if kind in ["guard","counter","grave","bark_guard","sheltered","trophy_carrier","cast_break"] else Color("#d8a2ed") if kind in ["marked","prepared_mark","echo","mark_break","core_strike_mark"] else Color("#95d7ed") if kind in ["brittle","slow","shatter"] else Color("#a6d695")
 static func add(result: Dictionary,game: Node,kind: String,owner: int,enemy: bool,until: int,stacks: int,now: int) -> void:
- if until<=now or stacks<=0:return
+ if until<=now or stacks<0 or (stacks==0 and kind!="drenched"):return
  var token: int=game.encounter.token(owner) if enemy and owner>=0 else int(game.participation.epoch())
  var key: String="%s:%d:%d:%s"%[str(enemy),owner,token,kind]
  result[key]={"kind":kind,"owner":owner,"enemy":enemy,"until":until,"stacks":stacks,"token":token}
@@ -98,11 +102,11 @@ static func sync(game: Node,now: int) -> void:
   var body := frost.body(game,target)
   var brittle := frost.state(body,now)
   add(desired,game,"brittle",target,true,int(brittle.get("expires",0)),brittle.get("stacks",[]).size(),now)
-  if not body.get("affinity_burning",{}).is_empty():add(desired,game,"burning",target,true,now+60000,1,now)
+  if not body.get("affinity_burning",{}).is_empty():add(desired,game,"burning",target,true,now+60000,Fire.count(body[Fire.BURNING]),now)
   if not body.get("affinity_bleed",{}).is_empty():add(desired,game,"bleeding",target,true,now+60000,1,now)
   if body.has("affinity_thorn_slow"):add(desired,game,"thorn_slow",target,true,now+60000,1,now)
   var elapsed: int=preload("res://affinity_time.gd").now(game)
-  if preload("res://water_combat.gd").reduction(body,elapsed)>0.0:add(desired,game,"drenched",target,true,now+60000,1,now)
+  if Water.reduction(body,elapsed)>0.0:add(desired,game,"drenched",target,true,now+60000,int(body[Water.DRENCHED].saturation),now)
   root_until=maxi(root_until,int(body.get("frost_root_until",0)))
   add(desired,game,"rooted",target,true,root_until,1,now)
   add(desired,game,"staggered",target,true,game.tactics.stagger_until if target==-1 else int(game.encounter.scout(target).get("stagger_until",0)),1,now)
@@ -123,6 +127,10 @@ static func sync(game: Node,now: int) -> void:
    add(desired,game,"bark_guard",target,true,until,1,now)
  var epoch:=str(game.participation.epoch())
  var previous: Dictionary=game.get_meta("status_feedback",{}) if str(game.get_meta("status_epoch",""))==epoch else {}
+ # Only the projection is delayed; combat status amounts/cadence stay authoritative.
+ for key in desired:
+  if previous.has(key) and desired[key].kind in ["burning","drenched"] and now-int(previous[key].event.born)<SHARED_DISPLAY_MS:
+   desired[key].stacks=previous[key].stacks
  for key in previous:
   if not desired.has(key) or desired[key].stacks!=previous[key].stacks or (desired[key].kind not in REFRESH_IN_PLACE and desired[key].until!=previous[key].until) or now-int(previous[key].event.born)>=55000:
    game.emit_combat_event("status_end",str(previous[key].event.id),Vector3.ZERO,Vector3.ZERO,.3,Color.WHITE,0,0)

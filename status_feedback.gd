@@ -28,6 +28,8 @@ func consume(event: Dictionary) -> void:
   for vertex in [Vector3(-.045,0,0),Vector3(0,.07,0),Vector3(.045,0,0),Vector3(-.045,0,0),Vector3(.045,0,0),Vector3(0,-.07,0)]:mesh.surface_add_vertex(vertex)
   mesh.surface_end();label.position=Vector3(.65,0,0)
   if event.shape=="brittle":label.text="Brittle %d/3"%int(event.reach)
+  elif event.shape=="burning":label.text="Burning · %d"%int(event.reach)
+  elif event.shape=="drenched":label.text="Drenched · %d/%d"%[int(event.reach),Catalog.Water.SATURATION_THRESHOLD]
  if event.shape in ["echo","grave"]:label.text=Catalog.LABELS[event.shape]+" %d/3"%int(event.reach)
  active[event.id]={"node":root,"label":label,"event":event,"age":float(event.get("age",0)),"enemy":enemy}
 func step(delta: float) -> void:
@@ -48,8 +50,8 @@ func step(delta: float) -> void:
   var visible_age: float=item.age-float(item.get("first_seen",item.age))
   item.node.visible=in_view and (item.enemy or visible_age<1.35)
   item.node.position=target.position+Vector3(0.0,float(event.height)+slot*(.48 if item.enemy else .30),0)
-  item.label.visible=visible_age<1.35 or event.shape=="brittle"
-  var text_color:=Color(event.color);text_color.a=1.0 if event.shape=="brittle" else 1-smoothstep(.95,1.35,visible_age);item.label.modulate=text_color
+  item.label.visible=visible_age<1.35 or event.shape in ["brittle","burning","drenched"]
+  var text_color:=Color(event.color);text_color.a=1.0 if event.shape in ["brittle","burning","drenched"] else 1-smoothstep(.95,1.35,visible_age);item.label.modulate=text_color
   item.node.scale=Vector3.ONE*(1+.07*sin(item.age*5))
 func clear() -> void:
  for item in active.values():item.node.queue_free()

@@ -63,6 +63,7 @@ static func clean(game: Node, target: int, now: int) -> Dictionary:
 	return status
 
 static func tick(game: Node, now: int) -> void:
+	if not game.multiplayer.is_server(): return
 	for target in range(-1,game.encounter.scout_count()):
 		if body(game,target).has(BRITTLE): clean(game,target,now)
 

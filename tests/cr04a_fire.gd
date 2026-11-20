@@ -90,16 +90,16 @@ func run() -> void:
 		check(not cast.is_empty(),"real B starts Ember Wake")
 		if not cast.is_empty():
 			Core.tick(game,cast.armed)
-			check(game.enemy_health()==500-q.impact_hp-q.tick_hp,"one impact and immediate first tick")
+			check(game.enemy_health()==500-q.impact_hp-floori((Fire.APPLICATION_STACKS.core+q.stack_bonus)*Fire.TICK_HP_PER_STACK),"one impact and immediate first tick")
 			game.tactics.position=Vector3(3,0,-1.25)
 			Clock.advance(game,.75)
 			Core.tick(game,int(cast.armed)+750)
 			Fire.tick(game,750,int(cast.armed)+750)
-			check(game.enemy_health()==500-q.impact_hp-2*q.tick_hp,"burn persists outside the field")
+			check(game.enemy_health()==500-q.impact_hp-floori((4*(Fire.APPLICATION_STACKS.core+q.stack_bonus)-2*Fire.DECAY_STACKS)*Fire.TICK_HP_PER_STACK),"burn persists outside the field")
 			game.tactics.position=Vector3(0,0,-1.25)
 			Clock.advance(game,.1)
 			Core.tick(game,int(cast.armed)+850)
-			check(game.enemy_health()==500-q.impact_hp-2*q.tick_hp and game.tactics.memory[Fire.BURNING]["1/core"].next==1500,
+			check(game.enemy_health()==500-q.impact_hp-floori((4*(Fire.APPLICATION_STACKS.core+q.stack_bonus)-2*Fire.DECAY_STACKS)*Fire.TICK_HP_PER_STACK) and game.tactics.memory[Fire.BURNING].next==1000,
 				"re-entry refreshes without replaying impact or postponing scheduled tick")
 		reset()
 		p.weapon=0
@@ -111,7 +111,7 @@ func run() -> void:
 		var replay_context := WeaponEventCase.start(game,1,p.pos)
 		var shot: Dictionary=game.weapon_attacks.views().front()
 		WeaponCase.advance(game,int(shot.due)+1)
-		check(game.tactics.memory.get(Fire.BURNING,{}).get("1/form",{}).get("hp",0)==q.tick_hp,"real direct hit applies Form potency")
+		check(Fire.count(game.tactics.memory.get(Fire.BURNING,{}))==Fire.APPLICATION_STACKS.form+q.stack_bonus,"real direct hit applies Form potency")
 		var after: int=game.enemy_health()
 		Events.contact(game,replay_context,-1,now)
 		Events.contact(game,replay_context,-1,now,true)
@@ -120,15 +120,17 @@ func run() -> void:
 		var refresh := Events.begin(game,1,"form",material,q,["weapon_contact"],now+15000)
 		Clock.advance(game,.5)
 		refresh.publish(game,"weapon_contact","new","leader",now,{"enemy":-1})
-		check(game.enemy_health()==after and game.tactics.memory[Fire.BURNING]["1/form"].next==750,"same source refresh preserves cadence")
+		check(game.enemy_health()==after-2 and game.tactics.memory[Fire.BURNING].next==750,"source refresh adds stacks while preserving the shared cadence")
+		var before_other: int=game.enemy_health()
 		var other := Events.begin(game,2,"form",material,q,["weapon_contact"],now+15000)
 		other.publish(game,"weapon_contact","new","leader",now,{"enemy":-1})
-		check(game.enemy_health()==after-q.tick_hp,"another player has an independent Form")
+		check(game.enemy_health()==before_other and game.tactics.memory[Fire.BURNING].contributors.size()==2,"another player contributes without starting another Burning clock")
 		p.secondary=0
 		p.catalyst=part
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.R, 0)
+		var before_catalyst: int=Fire.count(game.tactics.memory[Fire.BURNING])
 		ClassActions.cast_world(game, 1, 1)
-		check(game.tactics.memory.get(Fire.BURNING,{}).get("1/catalyst",{}).get("hp",0)==q.tick_hp,"native offensive class contact adds separate Catalyst burn")
+		check(Fire.count(game.tactics.memory.get(Fire.BURNING,{}))==before_catalyst+Fire.APPLICATION_STACKS.catalyst+q.stack_bonus,"native offensive class contact adds Catalyst stacks to the same effect")
 		reset()
 		p[Cooldowns.STATE] = p[Cooldowns.STATE].with_deadline(Cooldowns.Q, 0)
 		p[Conditions.STATE] = p[Conditions.STATE].clear_grace()
@@ -136,7 +138,7 @@ func run() -> void:
 		ClassActions.cast_world(game, 1, 0)
 		var hp_before: float=p[PlayerVitals.STATE].hp()
 		IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1.0, 0, game.tactics.position)
-		check(game.enemy_health()==500-q.burst_hp-q.tick_hp and p[PlayerVitals.STATE].hp()==hp_before,"Ward uses selected Catalyst without changing native prevention")
+		check(game.enemy_health()==500-q.burst_hp-floori((Fire.APPLICATION_STACKS.catalyst+q.stack_bonus)*Fire.TICK_HP_PER_STACK) and p[PlayerVitals.STATE].hp()==hp_before,"Ward uses selected Catalyst without changing native prevention")
 		reset()
 		p.frame=4
 		p[PlayerVitals.STATE] = p[PlayerVitals.STATE].with_hp(50)
@@ -154,7 +156,7 @@ func run() -> void:
 		var hit_now:=Time.get_ticks_msec()
 		var before_native: float=ally[PlayerVitals.STATE].hp()
 		frost.with_attacker(game,-1,IncomingPlayerHit.resolve_world.bind(game, 2, PlayerLifecycle.generation(ally), hit_now, 1.0, 0, game.tactics.position))
-		check(not ally.has(Fire.RESPONSE) and game.tactics.memory.get(Fire.BURNING,{}).get("1/catalyst",{}).get("hp",0)==q.tick_hp,"survived incoming enemy hit uses source once")
+		check(not ally.has(Fire.RESPONSE) and Fire.count(game.tactics.memory.get(Fire.BURNING,{}))==Fire.APPLICATION_STACKS.catalyst+q.stack_bonus,"survived incoming enemy hit uses source once")
 		check(ally[PlayerVitals.STATE].hp()==before_native-10+6,"native Second Breath independently restores 6 HP without changing Fire potency")
 		var after_response: int=game.enemy_health()
 		ally[Conditions.STATE] = ally[Conditions.STATE].clear_grace()
@@ -165,7 +167,7 @@ func run() -> void:
 		p.frame=0
 	game.queue_free()
 	await process_frame
-	if not failed: print("PASS: Fire mappings, Core field, Form refresh, independent sources, Catalyst and wards")
+	if not failed: print("PASS: Fire mappings, Core field, Form refresh, shared sources, Catalyst and wards")
 	quit(int(failed))
 
 

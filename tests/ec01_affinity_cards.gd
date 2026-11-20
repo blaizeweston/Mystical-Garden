@@ -361,7 +361,7 @@ func verify_core() -> void:
 					and game.tactics.memory[Frost.BRITTLE].stacks[0].numerator==baseline.max_shatter_hp*1000,"Frost opening improves damage alone")
 			"fire":
 				event.publish(game,"core_action","test","leader",now,data)
-				check(game.enemy_health()==400-baseline.impact_hp-baseline.tick_hp-bonus,"Ember Wake impact leaves burn intensity unchanged")
+				check(game.enemy_health()==400-baseline.impact_hp-floori((Rules.Fire.APPLICATION_STACKS.core+baseline.stack_bonus)*Rules.Fire.TICK_HP_PER_STACK)-bonus,"Ember Wake impact leaves burn intensity unchanged")
 			"vital":
 				event.publish(game,"core_action","test","",now,data)
 				var vitality: Dictionary = player[Rules.Vital.SOURCES]["1/core"]
@@ -442,7 +442,7 @@ func verify_form_and_catalyst() -> void:
 		game.encounter.register_scout(scout)
 		Events.contact(game,{Events.CONTEXT:event},-1,now,false,game.tactics.position,Vector3.FORWARD)
 		match family:
-			"fire": check(game.enemy_health()==400-plain.tick_hp-bonus,"Fire Form improves Burning applied by the hit")
+			"fire": check(Rules.Fire.count(game.tactics.memory[Rules.Fire.BURNING])==Rules.Fire.APPLICATION_STACKS.form+plain.stack_bonus+bonus,"Fire Form adds its acquired stack contribution")
 			"wood": check(game.enemy_health()==400-plain.impact_hp and game.encounter.hp_for(scout)==400-plain.fragment_hp-bonus,"Wood Form improves only fragment damage")
 			"storm": check(player[Rules.Storm.FORM_READY]==Rules.Storm.FORM_INTERVAL-bonus and game.enemy_health()==400-plain.arc,"Storm Form reduces only trigger interval")
 			"void": check(game.enemy_health()==400-plain.form_hp-bonus,"Void Form increases compression damage")
@@ -456,8 +456,8 @@ func verify_form_and_catalyst() -> void:
 		check(cards_by_family[family] in card_ledger(player).eligible(game.weapon_stats(player),game.DODGE_COOLDOWN_MS),"working Catalyst mapping eligible for "+family)
 		ClassActions.cast_world(game, 1, 1)
 		match family:
-			"fire": check(game.tactics.memory[Rules.Fire.BURNING]["1/catalyst"].hp==plain.tick_hp+bonus,"Fire Catalyst uses source-owned upgraded burn")
-			"water": check(game.tactics.memory[Rules.Water.DRENCHED]["1/catalyst"].until==Rules.Water.DURATION_MS+bonus,"Water Catalyst extends only Drenched")
+			"fire": check(Rules.Fire.count(game.tactics.memory[Rules.Fire.BURNING])==Rules.Fire.APPLICATION_STACKS.catalyst+plain.stack_bonus+bonus,"Fire Catalyst adds its source-owned stack contribution")
+			"water": check(game.tactics.memory[Rules.Water.DRENCHED].sources.values()[0].until==Rules.Water.DURATION_MS+bonus,"Water Catalyst extends only Drenched")
 			"vital": check(player[Rules.Vital.SOURCES]["1/catalyst"].regen_per_second==plain.regen_per_second+bonus
 				and player[Rules.Vital.SOURCES]["1/catalyst"].bonus_hp==plain.bonus_hp,"Vital Catalyst adds regen without adding maximum health")
 			"wood": check(player[Rules.Wood.GRANTS][0].until==Rules.Wood.CATALYST_MS+bonus and player[Rules.Wood.GRANTS][0].admitted==plain.catalyst_capacity,"Wood Catalyst extends only existing Bark Armor")

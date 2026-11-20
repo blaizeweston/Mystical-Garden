@@ -1530,7 +1530,7 @@
     ]
   },
   "suites": {
-    "shared_affinity_status": {"kind": "unit", "profile": "affinity", "systems": ["classes", "combat", "combat_affinity_contracts", "core_combat", "enemy_tactics", "frost_affinity", "plant_affinities", "player_protection", "thorn_affinity", "weapons"], "package": false},
+    "shared_affinity_status": {"kind": "unit", "profile": "affinity", "systems": ["classes", "combat", "combat_affinity_contracts", "core_combat", "enemy_tactics", "fire_affinity", "frost_affinity", "incoming_player_hit", "plant_affinities", "player_hit_conditions", "player_protection", "thorn_affinity", "water_affinity", "weapons"], "package": false},
     "combat_effects": {"kind":"unit", "systems":["combat_effects","core_combat","classes","player_lifecycle"], "profile":"terrain", "package":false},
     "garden_commands": {"kind":"unit", "systems":["garden_observations","garden_conduit","garden_relationships"], "profile":"terrain", "package":false},
     "garden_cultivation": {"kind":"unit", "systems":["garden_care","cultivation_growth","seeds","items"], "profile":"terrain", "package":false},
@@ -5795,7 +5795,7 @@
     "affinity_cards.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
     "assets/terrain_m02/experimental/experiment_garden.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
     "class_tree_access.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
-    "fire_combat.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}}},
+    "fire_combat.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}}},
 
     "native_grafts.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}}},
     "oracle_omens.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}}},
@@ -5813,7 +5813,7 @@
     "storm_affinity.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ec01_1": {"systems": ["affinity_cards"]}}},
     "wood_affinity.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}, "ec01_1": {"systems": ["affinity_cards"]}}},
     "vital_combat.gd": {"regions": {"ar07_vitals_1": {"systems": ["player_vitals"]}, "ar07_vitals_2": {"systems": ["player_vitals"]}, "ar07_vitals_3": {"systems": ["player_vitals"]}, "ar07_vitals_4": {"systems": ["player_vitals"]}, "ar07_vitals_5": {"systems": ["player_vitals"]}, "ec01_1": {"systems": ["affinity_cards"]}}},
-    "water_combat.gd": {"regions": {"ec01_1": {"systems": ["affinity_cards"]}, "ec01_2": {"systems": ["affinity_cards"]}}},
+    "water_combat.gd": {"regions": { "ec01_2": {"systems": ["affinity_cards"]}}},
     "frost_combat.gd": {"regions": {"ec01_1": {"systems": ["affinity_cards"]}}},
     "combat_action_events.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}}},
     "combat_ruleset.gd": {
@@ -8167,38 +8167,24 @@
         "ct05_oracle_3": {"systems": ["oracle_progression"]},
         "ct04_reaper_1": {"systems": ["combat", "reaper_progression"]},
         "ct04_reaper_2": {"systems": ["combat", "reaper_progression"]},
-        "ct03_ranger_1": {"systems": ["combat", "ranger_progression"]},
+
         "ct03_ranger_2": {"systems": ["combat", "ranger_progression"]},
-        "ct02_1": {
-          "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"]
-        },
-        "ct01_holdfast_1": {
-          "systems": ["warden_progression", "combat", "life"]
-        },
+
+
         "cr04c_void_1": {
           "systems": ["void_affinity", "core_combat", "combat_affinity_contracts"]
         },
-        "cr04c_spirit_1": {
-          "systems": ["spirit_affinity", "core_combat", "combat_affinity_contracts"]
-        },
+
         "cr04c_spirit_2": {
           "systems": ["spirit_affinity", "core_combat", "combat_affinity_contracts"]
         },
-        "cr04c_storm_1": {
-          "systems": ["storm_affinity", "core_combat", "combat_affinity_contracts"]
-        },
+
         "cr04c_storm_2": {
           "systems": ["storm_affinity", "core_combat", "combat_affinity_contracts"]
         },
-        "cr04b_wood_1": {
-          "systems": ["wood_affinity", "combat_affinity_contracts"]
-        },
-        "cr04b_thorn_1": {
-          "systems": ["thorn_affinity", "combat_affinity_contracts"]
-        },
-        "cr04a_affinity_1": {
-          "systems": ["fire_affinity", "water_affinity", "vital_affinity", "combat_affinity_contracts"]
-        },
+
+
+
         "cr04a_affinity_4": {
           "systems": ["fire_affinity", "water_affinity", "vital_affinity", "combat_affinity_contracts"]
         },
@@ -8210,16 +8196,8 @@
             "warden_progression"
           ]
         },
-        "subclass_prepared_label": {
-          "systems": [
-            "warden_progression"
-          ]
-        },
-        "warden_prepared_status_name": {
-          "systems": [
-            "warden_progression"
-          ]
-        },
+
+
         "observe_route_denial": {
           "systems": [
             "wilds_skill_tactics"
@@ -8618,11 +8596,7 @@
     "status_feedback.gd": {
       "newline": "crlf",
       "regions": {
-        "status_application_visible_age": {
-          "systems": [
-            "enemy_move_feedback"
-          ]
-        },
+
         "await_status_actor_snapshot": {
           "systems": [
             "enemy_move_feedback"

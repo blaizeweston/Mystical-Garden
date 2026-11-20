@@ -1488,6 +1488,7 @@ func _physics_process(delta: float) -> void:
 			preload("res://frost_combat.gd").tick(self,now)
 			preload("res://fire_combat.gd").tick(self,elapsed,now)
 			if persistence_session.is_blocked(): return
+			preload("res://water_combat.gd").tick(self,elapsed)
 			preload("res://vital_combat.gd").tick(self,elapsed)
 			preload("res://thorn_affinity.gd").tick(self,elapsed,now)
 			preload("res://wood_affinity.gd").tick(self,elapsed)
