@@ -23,14 +23,14 @@ const QUALITY := {
 const VERSION_DATA := [CORE_RADIUS, WARD_RADIUS, COOLDOWN_MS, TICK_MS, DURATIONS, QUALITY, HARVEST_DAMAGE_PER_HP, NORMAL_HP_SAFETY_FRACTION]
 
 
-static func description(slot: String, quality: String) -> String:
-	var p: Dictionary = QUALITY[quality]
+static func description(slot: String, quality: String, resolved: Dictionary = {}) -> String:
+	var p: Dictionary = QUALITY[quality] if resolved.is_empty() else resolved
 	var line: String = {
 		"core": "Vital Bloom · Grants Vitality to you and living allies within %.2f m. %.1f s cooldown." % [CORE_RADIUS, COOLDOWN_MS / 1000.0],
 		"form": "Vital Strikes · Grants you Vitality on the first direct hit per weapon attack.",
 		"catalyst": "Vital Catalyst · An offensive hit or movement landing grants you Vitality. Mapped heals grant their living recipients Vitality. Actual blocks grant it to the protected player and nearby living allies.",
 	}[slot]
-	return line + "\n+%d maximum HP without an instant heal, and %d HP/s regeneration for %.1f s. Each benefit uses its strongest active source." % [p.bonus_hp, p.regen_per_second, DURATIONS[slot] / 1000.0]
+	return line + "\n+%d maximum HP without an instant heal, and %d HP/s regeneration for %.1f s. Each benefit uses its strongest active source." % [p.bonus_hp, p.regen_per_second, (int(DURATIONS[slot])+int(p.get("duration_bonus_ms",0))) / 1000.0]
 
 
 static func strongest(sources: Dictionary, elapsed: int) -> Vector2i:

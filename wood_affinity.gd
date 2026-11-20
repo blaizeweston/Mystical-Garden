@@ -12,7 +12,6 @@ const BURST_READY := "affinity_bark_burst_ready"
 const FORM_READY := "affinity_wood_form_ready"
 const GRANT_ORDER := &"affinity_bark_order"
 const COLOR := Color("#e1b778")
-const CAPACITY := 48
 const ABSORPTION := .40
 const CORE_RADIUS := 2.65
 const WARD_RADIUS := 2.4
@@ -28,21 +27,21 @@ const QUALITY := {
 	"ordinary":{"core_capacity":30,"catalyst_capacity":12,"break_hp":10,"ward_hp":8,"impact_hp":8,"fragment_hp":5},
 	"refined":{"core_capacity":40,"catalyst_capacity":18,"break_hp":16,"ward_hp":12,"impact_hp":12,"fragment_hp":8},
 }
-const VERSION_DATA := [CAPACITY, ABSORPTION, CORE_RADIUS, WARD_RADIUS, CORE_MS, CATALYST_MS,
+const VERSION_DATA := [ABSORPTION, CORE_RADIUS, WARD_RADIUS, CORE_MS, CATALYST_MS,
 	COOLDOWN_MS, BURST_INTERVAL_MS, FORM_INTERVAL_MS, FAN_RADIUS, FAN_MIN_DOT, FRAGMENT_LIMIT, QUALITY]
 
 
-static func description(slot: String, quality: String) -> String:
-	var q: Dictionary=QUALITY[quality]
+static func description(slot: String, quality: String, resolved: Dictionary = {}) -> String:
+	var q: Dictionary=QUALITY[quality] if resolved.is_empty() else resolved
 	if slot=="form":
 		return "Splintering Strikes · First direct hit deals %d extra HP. Up to %d targets in the clear forward fan take %d HP. %.1f s interval. No armor from hits." % [
 			q.impact_hp,FRAGMENT_LIMIT,q.fragment_hp,FORM_INTERVAL_MS/1000.0]
 	var line: String={
-		"core":"Ironbark · Grants %d Bark to you and living allies within %.2f m for %.1f s. %.1f s cooldown." % [q.core_capacity,CORE_RADIUS,CORE_MS/1000.0,COOLDOWN_MS/1000.0],
-		"catalyst":"Wood Catalyst · Mapped offense, healing and movement can grant %d Bark for %.1f s. Actual blocks grant Bark and can burst for %d HP within %.1f m." % [q.catalyst_capacity,CATALYST_MS/1000.0,q.ward_hp,WARD_RADIUS],
+		"core":"Ironbark · Grants %d Bark to you and living allies within %.2f m for %.1f s. %.1f s cooldown." % [q.core_capacity,CORE_RADIUS,(CORE_MS+int(q.get("duration_bonus_ms",0)))/1000.0,COOLDOWN_MS/1000.0],
+		"catalyst":"Wood Catalyst · Mapped offense, healing and movement can grant %d Bark for %.1f s. Actual blocks grant Bark and can burst for %d HP within %.1f m." % [q.catalyst_capacity,(CATALYST_MS+int(q.get("duration_bonus_ms",0)))/1000.0,q.ward_hp,WARD_RADIUS],
 	}[slot]
-	return line + "\nBark absorbs up to %d%% of an unblocked hostile hit with %d total capacity. Full depletion can burst (this source contributes %d HP). Defensive and break bursts share a %.2f s recipient interval." % [
-		roundi(ABSORPTION*100),CAPACITY,q.break_hp,BURST_INTERVAL_MS/1000.0]
+	return line + "\nBark absorbs up to %d%% of an unblocked hostile hit using the remaining capacity of independently expiring grants. Compatible grants add their full capacity; no shared pool ceiling. Full depletion can burst (this source contributes %d HP). Defensive and break bursts share a %.2f s recipient interval." % [
+		roundi(ABSORPTION*100),q.break_hp,BURST_INTERVAL_MS/1000.0]
 
 
 static func live_grants(player: Dictionary, elapsed: int) -> Array:
@@ -64,7 +63,10 @@ static func grant(game: Node, event: RefCounted, id: int, response: String) -> i
 	var q: Dictionary=event.potency()
 	var is_core: bool=event.source=="core"
 	var offered: int=q.core_capacity if is_core else q.catalyst_capacity
-	var admitted:=mini(offered,CAPACITY-capacity(grants))
+	var admitted:=offered
+	if not Sources.sum_fits(capacity(grants),admitted):
+		Journal.event("combat","affinity_application_rejected",{"family":"wood","actor":event.actor,"reason":"integer_representation"})
+		return 0
 	if admitted<=0:
 		return 0
 	var order:=int(game.get_meta(GRANT_ORDER,0))+1

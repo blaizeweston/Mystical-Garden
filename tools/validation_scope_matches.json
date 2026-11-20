@@ -583,10 +583,7 @@
       }
     },
     "inventory_ui_data": {
-      "core_inventory_summary": {
-        "match": "\tvar data: Dictionary=InventoryModel.snapshot(self,player) if multiplayer.is_server() else player.get(\"bag\",{}).duplicate()\n\tif data.is_empty(): return data\n\tvar stats: Dictionary=weapon_stats(player,not Participation.is_wild(data)) if multiplayer.is_server() else player.get(\"weapon_stats\",{})\n\t# Local view only: reliable weapon details already carry this resolved build.\n\tdata.affinity_build=stats.get(\"affinity_build\",{}).duplicate(true)\n\tdata.notice = status\n\treturn data.duplicate(true)\n",
-        "baseline": "\treturn InventoryModel.snapshot(self,player) if multiplayer.is_server() else player.get(\"bag\",{})\n"
-      }
+
     },
     "_finish_combat": {
       "experimental_seed_rewards_1": {

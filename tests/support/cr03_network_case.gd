@@ -313,8 +313,8 @@ func host(menu: Node) -> void:
 				check(local.get("affinity_bark_grants",[]).any(func(grant):return grant.actor==source and grant.quality=="refined"),"Ironbark applies the refined guest grant on the host")
 				if mixed_wood_ward:
 					var grants: Array=local.get("affinity_bark_grants",[])
-					check(grants.any(func(grant):return grant.actor==ward_guest and grant.quality=="ordinary") and grants.any(func(grant):return grant.actor==source and grant.admitted==36),
-						"separate Wood sources coexist with a capped refined grant")
+					check(grants.any(func(grant):return grant.actor==ward_guest and grant.quality=="ordinary") and grants.any(func(grant):return grant.actor==source and grant.admitted==40),
+						"separate Wood sources coexist with the full refined grant")
 					var wounds: Dictionary=game.tactics.memory.get("affinity_bleed",{})
 					check(wounds.get("contributors",{}).values().any(func(row):return row.actor==ids[0]) and wounds.get("contributors",{}).values().any(func(row):return row.actor==ids[1]),"two real Thorn contributors share one accumulated wound")
 				mark("bark-"+str(source))
@@ -1208,14 +1208,20 @@ func verify_current_snapshot_host(game: Node, ids: Array, local: Dictionary) -> 
 	game.set_meta(&"snapshot_witness",func(row):record_snapshot(witnesses,row))
 	# Two nonlethal authority hits within one frame. There is no intervening
 	# fast snapshot of the partially depleted armor or first HP value.
-	local[PlayerVitals.STATE] = PlayerVitals.Health.new(250,250)
+	var pool: int=wood.capacity(wood.live_grants(local,clock.now(game)))
+	var breaking_hp := ceili(float(pool)/wood.ABSORPTION)
+	var starting_hp := maxi(250,breaking_hp+50)
+	local[PlayerVitals.STATE] = PlayerVitals.Health.new(starting_hp,starting_hp)
 	local[Protection.STATE] = local[Protection.STATE].clear_expedition()
 	var now := Time.get_ticks_msec()
-	for hp in [10,120]:
+	game.tactics.stagger_until=now+8000
+	for index in game.encounter.scout_count(): game.encounter.scout(index).stagger_until=now+8000
+	print("SNAPSHOT_BARK_WORKLOAD ",JSON.stringify({"pool":pool,"breaking_hp":breaking_hp,"starting_hp":starting_hp}))
+	for hp in [10,breaking_hp]:
 		local[Conditions.STATE] = local[Conditions.STATE].clear_grace()
 		IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(local), now, float(hp)/game.Life.Preview.scale(), 0, game.tactics.position)
 	var burst: Array = game.combat_events.filter(func(e):return e.shape=="wood_burst" and e.get("label")=="Bark break")
-	check(not local.has(wood.GRANTS) and burst.size()==1 and PlayerVitals.current_hp(local)<250 and PlayerVitals.current_hp(local)>0,"host consumes Bark once and emits one break response")
+	check(not local.has(wood.GRANTS) and burst.size()==1 and PlayerVitals.current_hp(local)<starting_hp and PlayerVitals.current_hp(local)>0,"host consumes Bark once and emits one break response")
 	if burst.is_empty():return
 	mark("snapshot-full-state", "%d:%d" % [int(PlayerVitals.current_hp(local)),int(burst[0].id)])
 	var epoch: int=game.participation.epoch()
@@ -1347,6 +1353,7 @@ func sample_guest_snapshots(game: Node, id: int) -> void:
 	var max_frame_us:=0
 	var saw_charge:=false
 	var saw_well:=false
+	var saw_high_burning:=false
 	var previous := Time.get_ticks_usec()
 	var began := previous
 	var deadline:=previous+4000000
@@ -1359,6 +1366,9 @@ func sample_guest_snapshots(game: Node, id: int) -> void:
 		for marker in range(PROBE_FIRST,PROBE_FIRST+PROBE_COUNT):
 			if not starts.has(marker) and read("snapshot-probe-"+str(marker))=="ok":
 				starts[marker]=now
+		if shared_status_case:
+			saw_high_burning=saw_high_burning or game.guest_combat_events(game.players[id]).any(func(e):
+				return e.kind=="status" and e.shape=="burning" and e.combo==-1 and int(e.reach)>96)
 		if final_family_mix:
 			var view: Dictionary=game.players.get(id,{})
 			saw_charge=saw_charge or str(UIFixture.control(game,"player_hud").state.get("affinity_feedback","")).contains("Storm Charge")
@@ -1381,6 +1391,7 @@ func sample_guest_snapshots(game: Node, id: int) -> void:
 	max_apply_gap = maxi(max_apply_gap, Time.get_ticks_usec() - last_apply)
 	var valid: bool=observed.size()>=PROBE_COUNT/2 and game.stage.has_floor() and max_apply_gap <= 500000
 	check(valid,"guest sees multiple probe states and receives a fresh current snapshot within 500 ms")
+	if shared_status_case: check(saw_high_burning,"guest receives shared Burning above 96 through existing detailed status recovery")
 	if final_family_mix:
 		var cap: int=preload("res://world_snapshot.gd").MAX_FRAME
 		check(saw_well and rows.any(func(row):return row.phase=="receive" and row.bytes==cap),

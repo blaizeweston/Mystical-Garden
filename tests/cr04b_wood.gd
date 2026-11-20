@@ -191,17 +191,17 @@ func test_absorption(p: Dictionary, now: int) -> void:
 	reset()
 	mixture()
 	var extra:=event(3,"core","part_17")
-	check(Wood.grant(game,extra,1,"core")==0 and available(p)==48,"full recipient rejects grant")
+	check(Wood.grant(game,extra,1,"core")==30 and available(p)==78,"compatible grants add full capacity beyond 48")
 	p[Protection.STATE] = p[Protection.STATE].grant(now+15000,1,Time.get_ticks_msec(),game.participation.epoch())
 	hit(p,1,50,now)
-	check(p[PlayerVitals.STATE].hp()==250 and available(p)==48,"native Ward prevents the hit before Bark")
+	check(p[PlayerVitals.STATE].hp()==250 and available(p)==78,"native Ward prevents the hit before Bark")
 	p[Protection.STATE] = p[Protection.STATE].clear_guard()
 	hit(p,1,50,now)
-	check(p[PlayerVitals.STATE].hp()==220 and available(p)==28 and p[Wood.GRANTS].size()==1 and p[Wood.GRANTS][0].actor==1 and burst_count()==0,
+	check(p[PlayerVitals.STATE].hp()==220 and available(p)==58 and p[Wood.GRANTS].size()==2 and p[Wood.GRANTS][0].actor==1 and burst_count()==0,
 		"40% absorption spends earliest expiry first and a single exhausted grant does not burst")
-	check(Wood.grant(game,extra,1,"core")==0,"a rejected grant cannot replay after capacity becomes available")
+	check(Wood.grant(game,extra,1,"core")==0,"an accepted grant cannot replay after capacity is spent")
 	var topup:=event(4,"core","plant_part_rare_worldseed")
-	check(Wood.grant(game,topup,1,"core")==20 and p[Wood.GRANTS].back().admitted==20,"only available capacity is admitted")
+	check(Wood.grant(game,topup,1,"core")==40 and p[Wood.GRANTS].back().admitted==40 and available(p)==98,"the full upgraded grant increases the pool without a separate ceiling")
 	check(Wood.grant(game,topup,1,"core")==0,"admitted grant identity cannot duplicate")
 
 	reset()

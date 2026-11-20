@@ -1,7 +1,7 @@
 extends RefCounted
 const Conditions = preload("res://player_hit_conditions.gd")
 
-const SHARED_STATUS_VERSION := 1
+const SHARED_STATUS_VERSION := 2
 const ID := "modern-gameplay-1"
 const MISMATCH := "Combat ruleset mismatch. Host and guest require the same modern gameplay version and definitions."
 const Cards = preload("res://affinity_card_catalog.gd")

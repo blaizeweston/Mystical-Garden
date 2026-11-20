@@ -3,6 +3,8 @@ extends RefCounted
 ## Family handlers own their one enemy/recipient record and accumulation rules.
 const Life = preload("res://player_lifecycle.gd")
 const UNITS_PER_HP := 1000
+# Machine representation only; not a gameplay power ceiling.
+const MAX_INTEGER := 9223372036854775807
 const VERSION := 1
 
 static func capture(event: RefCounted) -> Dictionary:
@@ -40,3 +42,8 @@ static func whole_tick(status: Dictionary, damage_units: int) -> int:
 	var total := damage_units+int(status.get("remainder",0))
 	status.remainder=total%UNITS_PER_HP
 	return int(total/UNITS_PER_HP)
+
+
+## Reject unrepresentable arithmetic instead of wrapping or clipping a build.
+static func sum_fits(current: int, added: int) -> bool:
+	return current>=0 and added>=0 and current<=MAX_INTEGER-added

@@ -196,23 +196,41 @@ static func owned_rows(copies: Array) -> Array:
 	return rows
 
 
-static func affinity_potency(player: Dictionary, source: String, material: Dictionary, potency: Dictionary) -> void:
-	if source not in ["core", "form", "catalyst"]:
-		return
-	var contributions := totals(player)
+## Numeric affinity values. Material baselines stay unmodified; acquired copies
+## add only their explicitly scoped parameter. No Game or actor state enters here.
+static func _slot_values(contributions: Dictionary, source: String, material: Dictionary, base: Dictionary) -> Dictionary:
+	var result := base.duplicate(true)
+	if source not in ["core","form","catalyst"]: return result
 	for id: String in contributions:
-		var definition: Dictionary = Catalog.DEFINITIONS[id]
-		if definition.scope != source:
-			continue
-		var requires: Dictionary = definition.requires
-		if material.get("primary_affinity") != requires.family:
-			continue
-		if source == "core" and material.get("affinity_core_skill_id") != requires.skill:
-			continue
-		if source == "form" and material.get("behavior") != requires.behavior:
-			continue
-		var parameter: String = definition.parameter
-		potency[parameter] = int(potency.get(parameter, 0)) + int(contributions[id])
+		var definition: Dictionary=Catalog.DEFINITIONS[id]
+		if definition.scope!=source: continue
+		var requires: Dictionary=definition.requires
+		if material.get("primary_affinity")!=requires.family: continue
+		if source=="core" and material.get("affinity_core_skill_id")!=requires.skill: continue
+		if source=="form" and material.get("behavior")!=requires.behavior: continue
+		var parameter: String=definition.parameter
+		result[parameter]=result.get(parameter,0)+int(contributions[id])
+	return result
+
+static func affinity_values(build: Dictionary, contributions: Dictionary, source: String,
+		material: Dictionary, base: Dictionary) -> Dictionary:
+	var result := _slot_values(contributions,source,material,base)
+	var family: String=material.get("primary_affinity","")
+	if source not in ["core","form","catalyst"] or family not in ["thorn","frost"]: return result
+	var parameter := "tick_hp" if family=="thorn" else "max_shatter_hp"
+	var baseline := 0.0
+	var additions := 0.0
+	for slot: String in ["core","form","catalyst"]:
+		# Explicit/captured sources occupy their own slot, rather than counting
+		# that slot twice if the source material differs from the live loadout.
+		var part: Dictionary=material if slot==source else build.get(slot,{})
+		if part.get("primary_affinity","")!=family: continue
+		var values: Dictionary=base if slot==source else part.potency_profile.values
+		var tuned := _slot_values(contributions,slot,part,values)
+		baseline=maxf(baseline,float(values.get(parameter,0)))
+		additions+=float(tuned.get(parameter,0))-float(values.get(parameter,0))
+	result.personal_cap_hp=baseline+additions
+	return result
 
 
 ## Pure class-card contribution step; shared by real casts and resolved previews.

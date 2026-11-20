@@ -29,7 +29,7 @@ class Snapshot extends RefCounted:
 		values.erase("affinity_build")
 		_native = _freeze(values)
 		_cards = _freeze(contributions.duplicate(true)) if not _build.is_empty() else {}
-		_core = _freeze(Build.core_skill(_build))
+		_core = _freeze(Build.core_skill(affinity_build()))
 		_weapon_base = _basic_values({})
 		_basic = _basic_values(_cards)
 		for adapter: Dictionary in _build.get("class_skills", []):
@@ -46,8 +46,19 @@ class Snapshot extends RefCounted:
 		_damage_band(native)
 		return Snapshot.new(native, contributions)
 
+	## Detached resolved numbers for UI/inspection. Native wire facts retain
+	## original material baselines, so guests never apply a card twice.
 	func affinity_build() -> Dictionary:
-		return _build.duplicate(true)
+		var result := _build.duplicate(true)
+		for slot: String in ["core","form","catalyst"]:
+			if result.get(slot,{}).get("state")=="ready":
+				result[slot].resolved_potency=affinity_potency(slot)
+		return result
+
+	func affinity_potency(slot: String, material: Dictionary = {}, captured_base: Dictionary = {}) -> Dictionary:
+		var part: Dictionary=_build.get(slot,{}) if material.is_empty() else material
+		var base: Dictionary=part.get("potency_profile",{}).get("values",{}) if captured_base.is_empty() else captured_base
+		return Cards.affinity_values(_build,_cards,slot,part,base)
 
 	## Native class/defense context deliberately excludes basic-only damage/reach.
 	## The returned native shape is also the existing reliable network projection.

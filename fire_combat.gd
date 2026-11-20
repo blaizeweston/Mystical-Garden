@@ -16,7 +16,9 @@ const TICK_MS := 250
 const TICK_HP_PER_STACK := .125
 const DECAY_MS := 500
 const DECAY_STACKS := 8
-const STACK_LIMIT := 96
+# Provisional linear loss: doubling maintained input doubles high-intensity
+# equilibrium. Below 80 stacks the existing eight-stack decay is unchanged.
+const DECAY_PERCENT := 10
 const FIELD_APPLICATION_MS := 750
 const APPLICATION_STACKS := {"core":16,"form":8,"catalyst":12}
 const FIELD_MS := 3200
@@ -27,24 +29,32 @@ const QUALITY := {
 	"ordinary": {"stack_bonus": 0, "impact_hp": 8, "burst_hp": 5},
 	"refined": {"stack_bonus": 4, "impact_hp": 12, "burst_hp": 8},
 }
-const VERSION_DATA := [RADIUS, RESPONSE_MS, BURN_MS, TICK_MS, TICK_HP_PER_STACK, DECAY_MS, DECAY_STACKS, STACK_LIMIT, FIELD_APPLICATION_MS, APPLICATION_STACKS, FIELD_MS, HALF_LENGTH, WIDTH, COOLDOWN_MS, QUALITY]
+const VERSION_DATA := [RADIUS, RESPONSE_MS, BURN_MS, TICK_MS, TICK_HP_PER_STACK, DECAY_MS, DECAY_STACKS, DECAY_PERCENT, FIELD_APPLICATION_MS, APPLICATION_STACKS, FIELD_MS, HALF_LENGTH, WIDTH, COOLDOWN_MS, QUALITY]
 
 
-static func description(slot: String, quality: String) -> String:
-	var p: Dictionary = QUALITY[quality]
+static func description(slot: String, quality: String, resolved: Dictionary = {}) -> String:
+	var p: Dictionary = QUALITY[quality] if resolved.is_empty() else resolved
 	var line: String = {
 		"core": "Ember Wake · %.1f s burning-root trail. %d HP on first contact per enemy, then maintains Burning. %.1f s cooldown." % [FIELD_MS / 1000.0, p.impact_hp, COOLDOWN_MS / 1000.0],
 		"form": "Burning Strikes · Direct weapon contacts ignite the enemies actually hit.",
 		"catalyst": "Fire Catalyst · Offensive class skills ignite. An actual block bursts for %d HP and ignites within %.1f m. Mapped healing and movement can grant a %.1f s single-use response to an unblocked enemy hit you survive." % [p.burst_hp, RADIUS, RESPONSE_MS / 1000.0],
 	}[slot]
-	return line + "\nApplies %d shared Burning stacks. Each stack deals %.3f damage every %.2f s; fractional damage carries between ticks. %d stacks decay each %.1f s (limit %d). A contributor expires %.1f s after its last application. The field adds stacks at most once per %.2f s per enemy." % [
-		APPLICATION_STACKS[slot]+int(p.stack_bonus),TICK_HP_PER_STACK,TICK_MS/1000.0,DECAY_STACKS,DECAY_MS/1000.0,STACK_LIMIT,BURN_MS/1000.0,FIELD_APPLICATION_MS/1000.0]
+	return line + "\nApplies %d shared Burning stacks. Each stack deals %.3f damage every %.2f s; fractional damage carries between ticks. Every %.1f s, lose %d%% of current intensity (rounded up), at least %d stacks. No fixed intensity ceiling. A contributor expires %.1f s after its last application. The field adds stacks at most once per %.2f s per enemy." % [
+		APPLICATION_STACKS[slot]+int(p.stack_bonus),TICK_HP_PER_STACK,TICK_MS/1000.0,DECAY_MS/1000.0,DECAY_PERCENT,DECAY_STACKS,BURN_MS/1000.0,FIELD_APPLICATION_MS/1000.0]
+
 
 
 static func count(status: Dictionary) -> int:
 	var total:=0
 	for row in status.get("contributors",{}).values(): total+=int(row.stacks)
 	return total
+
+## Round the percentage upward using integer arithmetic without total*percent
+## overflow. Work is per contributor (at most four), never per stack.
+static func decay_amount(total: int) -> int:
+	@warning_ignore("integer_division")
+	var proportional := (total/100)*DECAY_PERCENT + ((total%100)*DECAY_PERCENT+99)/100
+	return mini(total,maxi(DECAY_STACKS,proportional))
 
 static func prune(game: Node, status: Dictionary, at: int) -> void:
 	for key in status.contributors.keys():
@@ -71,7 +81,7 @@ static func advance(game: Node, target: int, elapsed: int, now: int) -> Dictiona
 		if status.contributors.is_empty(): break
 		if int(status.decay)<=int(status.next):
 			status.decay+=DECAY_MS
-			var remaining := DECAY_STACKS
+			var remaining := decay_amount(count(status))
 			while remaining>0 and not status.contributors.is_empty():
 				var oldest := {}
 				var oldest_key := ""
@@ -102,12 +112,20 @@ static func ignite(game: Node, event: RefCounted, target: int, now: int) -> void
 	if fresh:
 		status={"epoch":event.epoch,"token":game.encounter.spawn_identity(target),"contributors":{},
 			"next":elapsed+TICK_MS,"decay":elapsed+DECAY_MS,"remainder":0}
-	var offered:=int(APPLICATION_STACKS[event.source])+int(event.potency().stack_bonus)
-	var admitted:=clampi(offered,0,STACK_LIMIT-count(status))
-	var key := Sources.key(source)
-	if admitted==0:
-		if status.contributors.has(key): status.contributors[key].until=elapsed+BURN_MS
+	var base_stacks: int=APPLICATION_STACKS[event.source]
+	var bonus := int(event.potency().get("stack_bonus",0))
+	if bonus<0 or not Sources.sum_fits(base_stacks,bonus): return
+	var offered := base_stacks+bonus
+	var existing := count(status)
+	# Reserve fractional carry before multiplying by milli-HP. This rejects
+	# only values the engine cannot represent; no valid value is truncated.
+	@warning_ignore("integer_division")
+	var exact_stacks := (Sources.MAX_INTEGER-(Sources.UNITS_PER_HP-1))/Sources.units(TICK_HP_PER_STACK)
+	if not Sources.sum_fits(existing,offered) or existing+offered>exact_stacks:
+		preload("res://diagnostic_journal.gd").event("combat","affinity_application_rejected",{"family":"fire","actor":event.actor,"reason":"integer_representation"})
 		return
+	var admitted := offered
+	var key := Sources.key(source)
 	var row: Dictionary=status.contributors.get(key,source)
 	row.stacks=int(row.get("stacks",0))+admitted
 	row.until=elapsed+BURN_MS

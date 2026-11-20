@@ -150,7 +150,7 @@ func verify_burning() -> void:
 	reset()
 	var boost := event(1,"form","part_6",{"stack_bonus":100})
 	Fire.ignite(game,boost,-1,now)
-	check(Fire.count(game.tactics.memory[Fire.BURNING])==Fire.STACK_LIMIT,"the one shared stack count is bounded")
+	check(Fire.count(game.tactics.memory[Fire.BURNING])==108,"a valid application exceeds the former 96-stack ceiling without clipping")
 	game.players[1][Life.STATE]=Life.start_life()
 	Fire.tick(game,0,now)
 	check(not game.tactics.memory.has(Fire.BURNING),"revival rejects Burning from the previous source life")
@@ -202,16 +202,16 @@ func verify_wood() -> void:
 	Wood.clear(recipient)
 	check(Wood.grant(game,event(1,"core","part_17"),1,"core")==30,"ordinary Wood Core admits 30 Bark")
 	check(Wood.grant(game,event(2,"catalyst","part_17"),1,"ally")==12,"another provider adds capacity rather than replacing it")
-	check(Wood.grant(game,event(3,"catalyst","plant_part_rare_ironroot"),1,"ally")==6,
-		"a refined provider fills only the remaining six points of the shared 48 cap")
-	check(Wood.grant(game,event(4,"catalyst","part_17"),1,"full")==0 and Wood.capacity(Wood.live_grants(recipient,0))==48,
-		"a full recipient cannot accumulate hidden overflow or a stronger absorption percentage")
+	check(Wood.grant(game,event(3,"catalyst","plant_part_rare_ironroot"),1,"ally")==18,
+		"a refined provider adds its full capacity above the former shared 48 cap")
+	check(Wood.grant(game,event(4,"catalyst","part_17"),1,"full")==12 and Wood.capacity(Wood.live_grants(recipient,0))==72,
+		"another provider adds capacity without increasing the absorption percentage")
 	var hp: float=recipient[Vitals.STATE].hp()
 	var plan := Wood.absorption_plan(recipient,10,0)
 	check(plan.absorbed==4 and not plan.depleted and plan.damage==0,"Bark preserves 40 percent partial absorption, not a whole-hit block")
 	Wood.consume(recipient,plan)
-	check(Wood.grant(game,event(4,"catalyst","part_17"),1,"refill")==4 and recipient[Vitals.STATE].hp()==hp,
-		"a later source replenishes only spent capacity without healing")
+	check(Wood.grant(game,event(4,"catalyst","part_17"),1,"refill")==12 and Wood.capacity(Wood.live_grants(recipient,0))==80 and recipient[Vitals.STATE].hp()==hp,
+		"a later source adds its full independently expiring capacity without healing")
 	Wood.tick(game,Clock.advance(game,4.3))
 	check(Wood.capacity(Wood.live_grants(recipient,Clock.now(game)))==30,"each provider keeps its own expiration; Catalyst does not extend Core")
 	Wood.tick(game,Clock.advance(game,2.0))

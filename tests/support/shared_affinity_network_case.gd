@@ -59,7 +59,9 @@ static func host(test: RefCounted, game: Node, guests: Array, events: Array, ent
 		scout.stagger_until=Time.get_ticks_msec()+60000
 		game.encounter.register_scout(scout)
 	var pulses := {}
+	var sample := {"peak_burning":0}
 	var observe := func():
+		sample.peak_burning=maxi(int(sample.peak_burning),Fire.count(game.tactics.memory.get(Fire.BURNING,{})))
 		for effect: Dictionary in game.combat_events:
 			if effect.get("label","")=="Surge": pulses[effect.id]=true
 	test.tree.process_frame.connect(observe)
@@ -83,10 +85,12 @@ static func host(test: RefCounted, game: Node, guests: Array, events: Array, ent
 		"all four clients contribute to one Burning count"):
 		test.tree.process_frame.disconnect(observe);return false
 	var fire: Dictionary=game.tactics.memory[Fire.BURNING]
-	test.check(Fire.count(fire)>0 and Fire.count(fire)<=Fire.STACK_LIMIT,"shared live Burning stays inside its one intensity bound")
+	test.check(Fire.count(fire)>0 and fire.contributors.size()==4,"shared live Burning preserves all four contributions without a fixed ceiling")
 	print("SHARED_FIRE ",JSON.stringify({"contributors":fire.contributors.size(),"stacks":Fire.count(fire)}))
 	test.mark("shared-fire-present")
 	await test.sample_host_snapshots(game,guests)
+	test.check(int(sample.peak_burning)>96,"independent four-client Fire casts build beyond the former fixed ceiling")
+	print("SHARED_FIRE_PEAK ",sample.peak_burning)
 	game.tactics.memory.erase(Fire.BURNING)
 	for step: String in ["water-a","water-b"]:
 		if not await cast_all(test,game,actors,events,step,entry,target):
@@ -105,15 +109,15 @@ static func host(test: RefCounted, game: Node, guests: Array, events: Array, ent
 	for id in actors: Wood.clear(game.players[id])
 	if not await cast_all(test,game,actors,events,"wood",entry,target):
 		test.tree.process_frame.disconnect(observe);return false
-	if not test.check(await test.until(func():return actors.all(func(id):return Wood.capacity(Wood.live_grants(game.players[id],Clock.now(game)))==48)),
-		"four native Ironbarks fill one bounded Bark pool on every recipient"):
+	if not test.check(await test.until(func():return actors.all(func(id):return Wood.capacity(Wood.live_grants(game.players[id],Clock.now(game)))==140)),
+		"four native Ironbarks fill one additive 140-point Bark pool on every recipient"):
 		test.tree.process_frame.disconnect(observe);return false
 	var local: Dictionary=game.players[1]
 	local[Protection.STATE]=local[Protection.STATE].clear_expedition()
 	local[Conditions.STATE]=local[Conditions.STATE].clear_grace()
 	var hp: float=Vitals.current_hp(local)
 	Hit.resolve_world(game,1,Life.generation(local),Time.get_ticks_msec(),1.0)
-	test.check(Vitals.current_hp(local)==hp-6 and Wood.capacity(Wood.live_grants(local,Clock.now(game)))==44,
+	test.check(Vitals.current_hp(local)==hp-6 and Wood.capacity(Wood.live_grants(local,Clock.now(game)))==136,
 		"one actual unblocked 10 HP contact consumes four Bark and six HP")
 	for id in actors:
 		var p: Dictionary=game.players[id]

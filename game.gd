@@ -2867,9 +2867,8 @@ func inventory_ui_data() -> Dictionary:
 	if player.is_empty(): return {}
 	var data: Dictionary=InventoryModel.snapshot(self,player) if multiplayer.is_server() else player.get("bag",{}).duplicate()
 	if data.is_empty(): return data
-	var stats: Dictionary=weapon_stats(player,not Participation.is_wild(data)) if multiplayer.is_server() else player.get("weapon_stats",{})
-	# Local view only: reliable weapon details already carry this resolved build.
-	data.affinity_build=stats.get("affinity_build",{}).duplicate(true)
+	# Local projection from existing owner details; no additional wire state.
+	data.affinity_build=combat_build(player,not Participation.is_wild(data)).affinity_build()
 	data.notice = status
 	return data.duplicate(true)
 

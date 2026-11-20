@@ -218,6 +218,15 @@ static func material_description(part_id: int) -> String:
 	return "\n".join(lines)
 
 
+## Only the six shared-status families accept resolved numeric descriptions.
+## Other families retain their existing contracts and tuning.
+static func family_description(slot_name: String, material: Dictionary) -> String:
+	var family: String=material.primary_affinity
+	if family in ["thorn","frost","fire","water","wood","vital"]:
+		return Ruleset.FAMILIES[family].description(slot_name,material.quality,material.get("resolved_potency",{}))
+	return Ruleset.FAMILIES[family].description(slot_name,material.quality)
+
+
 static func slot_preview(build: Dictionary, name: String, part_id: int) -> Dictionary:
 	var material := slot(name, part_id)
 	if material.state == "empty":
@@ -231,7 +240,9 @@ static func slot_preview(build: Dictionary, name: String, part_id: int) -> Dicti
 		return {"summary": "%s material is unavailable." % name.capitalize(), "detail": ""}
 	var family: String = material.primary_affinity
 	var header := "%s · %s" % [family.capitalize(), str(material.quality).capitalize()]
-	var authored: String = Ruleset.FAMILIES[family].description(name, material.quality)
+	if build.get(name,{}).get("item_id","")==material.item_id and build[name].has("resolved_potency"):
+		material.resolved_potency=build[name].resolved_potency
+	var authored: String = family_description(name,material)
 	authored = authored.replace("direct weapon contacts", "direct basic attack hits").replace("Direct weapon contacts", "Direct basic attack hits").replace("direct weapon attack", "basic attack").replace("eligible weapon hit", "eligible basic attack hit").replace("maximum HP", "Max HP")
 	var summary := header + "\n" + authored.get_slice("\n", 0)
 	var detail := authored
@@ -281,7 +292,6 @@ static func core_skill(build: Dictionary) -> Dictionary:
 	if core.get("state") != "ready":
 		return {}
 	var family: String = core.primary_affinity
-	var balance = Ruleset.FAMILIES[family]
 	var delivery: Dictionary = core.delivery
 	var profile: Array = {
 		"frost": ["Rime Bloom", "rime_bloom", "#97dfff", Ruleset.Frost.BLOOM_RADIUS, 2500, Ruleset.Frost.BLOOM_COOLDOWN_MS],
@@ -301,4 +311,4 @@ static func core_skill(build: Dictionary) -> Dictionary:
 		"weapon_form": build.native_weapon.visual, "delivery": "ground" if family=="spirit" else delivery.kind,
 		"projectile": Delivery.DELIVERY_SHAPES[delivery.kind], "speed": 17.0, "range": Ruleset.Spirit.STEP_DISTANCE if family=="spirit" else 0.0 if family in ["vital","wood"] else delivery.range,
 		"radius": profile[3], "width": Ruleset.Thorn.CORE_WIDTH if family == "thorn" else Ruleset.Fire.WIDTH, "lifetime_ms": profile[4], "cooldown_ms": profile[5],
-		"tooltip": balance.description("core", core.quality), "modifiers": []}
+		"tooltip": family_description("core",core), "modifiers": []}

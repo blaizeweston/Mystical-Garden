@@ -205,11 +205,12 @@ func present(data: Dictionary) -> void:
 		else: parts[slot]=int(pending_slots[slot])
 	var cargo: Array=data.cargo
 	var profile: Dictionary=data.profile
-	var key:=str([c,data.weapon_kind,counts,parts,cargo,profile])
+	var key:=str([c,data.weapon_kind,counts,parts,cargo,profile,data.card_totals])
 	if key!=state_key:
 		state_key=key
 		displayed_parts = parts
-		var resolved := affinity_api.resolve(c,int(data.weapon_kind),parts,profile)
+		var source_build := affinity_api.resolve(c,int(data.weapon_kind),parts,profile)
+		var resolved := ResolvedBuild.Snapshot.from_build(source_build,data.card_totals if not prepared else {}).affinity_build()
 		class_pick.select(c)
 		weapon_pick.clear()
 		for i in Classes.DEFINITIONS[c].weapons.size(): weapon_pick.add_item(Classes.DEFINITIONS[c].weapons[i].name,i)

@@ -52,28 +52,9 @@ static func begin(game: Node, actor_id: int, origin: String, material: Dictionar
 	event.material_id = material.get("item_id", "")
 	event.expires_at = until
 	event.charges = charge_limit
-	event._potency = potency.duplicate(true)
-	preload("res://affinity_cards.gd").affinity_potency(game.players.get(actor_id,{}),origin,material,event._potency)
-	# Capture personal shared-status maxima at attack/cast launch. Equipment in
-	# any matching slot contributes, but a base cap is counted only once.
-	if event.affinity in ["thorn","frost"]:
-		var build: Dictionary = game.combat_build(game.players[actor_id]).affinity_build()
-		var parameter := "tick_hp" if event.affinity=="thorn" else "max_shatter_hp"
-		var cap := float(potency.get(parameter,0))
-		var bonus := 0.0
-		for slot in ["core","form","catalyst"]:
-			var part: Dictionary = build.get(slot,{})
-			if part.get("primary_affinity","")!=event.affinity: continue
-			var base: Dictionary = part.potency_profile.values
-			var tuned: Dictionary = base.duplicate(true)
-			preload("res://affinity_cards.gd").affinity_potency(game.players[actor_id],slot,part,tuned)
-			cap=maxf(cap,float(base.get(parameter,0)))
-			bonus+=float(tuned.get(parameter,0))-float(base.get(parameter,0))
-		# Synthetic/explicit sources can name a material outside the current loadout.
-		var equipped: Dictionary = build.get(origin,{})
-		if equipped.get("item_id","")!=event.material_id:
-			bonus+=float(event._potency.get(parameter,0))-float(potency.get(parameter,0))
-		event._potency["personal_cap_hp"]=cap+bonus
+	# Capture exactly the same scoped values exposed by the resolved build.
+	# Past applications keep their captured potency after subsequent upgrades.
+	event._potency = game.combat_build(game.players[actor_id]).affinity_potency(origin,material,potency)
 	event._permitted = permitted.duplicate()
 	return event
 

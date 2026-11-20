@@ -27,15 +27,15 @@ const VERSION_DATA := [CORE_HALF_LENGTH, CORE_WIDTH, CORE_COOLDOWN_MS, FORM_INTE
 	BLEED_MS, TICK_MS, APPLICATION_MS, APPLICATION_FRACTION, LIFETIME, LIMIT, RADIUS, QUALITY]
 
 
-static func description(slot: String, quality: String) -> String:
-	var q: Dictionary=QUALITY[quality]
+static func description(slot: String, quality: String, resolved: Dictionary = {}) -> String:
+	var q: Dictionary=QUALITY[quality] if resolved.is_empty() else resolved
 	var line: String={
 		"core":"Thorn Line · Brambles last %.1f s. %.1f s cooldown." % [LIFETIME.core/1000.0,CORE_COOLDOWN_MS/1000.0],
 		"form":"Barbed Strikes · First direct hit plants a stationary %.2f m patch, at most once per %.1f s. Lasts %.1f s." % [RADIUS.form,FORM_INTERVAL_MS/1000.0,LIFETIME.form/1000.0],
 		"catalyst":"Thorn Catalyst · Mapped class actions plant growth at the impact, heal, or departure point. Actual blocks grow a %.1f m thicket. Lasts %.1f s." % [RADIUS.ward,LIFETIME.catalyst/1000.0],
 	}[slot]
-	return line + "\n%d%% movement slow inside. Bleed shares one tick every %.2f s. Your cap is %d damage per tick before upgrades; this slot adds %d%% of it per application (at most once each %.1f s per target/slot). Contributions linger %.1f s. %d active patches in this slot." % [
-		roundi(100*q.slow),TICK_MS/1000.0,q.tick_hp,roundi(100*APPLICATION_FRACTION[slot]),APPLICATION_MS/1000.0,BLEED_MS/1000.0,LIMIT[slot]]
+	return line + "\n%d%% movement slow inside. Bleed shares one tick every %.2f s. Your resolved cap is %.2f damage per tick; this slot adds %d%% of it per application (at most once each %.1f s per target/slot). Contributions linger %.1f s. %d active patches in this slot." % [
+		roundi(100*q.slow),TICK_MS/1000.0,float(q.get("personal_cap_hp",q.tick_hp)),roundi(100*APPLICATION_FRACTION[slot]),APPLICATION_MS/1000.0,BLEED_MS/1000.0,LIMIT[slot]]
 
 
 static func active_fields(game: Node, elapsed: int) -> Array:
