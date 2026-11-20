@@ -1,34 +1,188 @@
 # Combat balance and vitals milestones
 
-Source audit dated 2026-11-12 against Mystical Garden v0.5.3.1. CB-00 through CB-07 are complete. The CB-08 release candidate promotes the 100 HP scale and revised combat after the solo Developer Garden playtest.
+The approved card/progression contract below is the maintained design authority for the next catalog phase, reconciled on **2026-11-20**. It distinguishes implemented mechanics, approved future mechanics, provisional tuning and unresolved decisions. [ARCHITECTURE.md](ARCHITECTURE.md) remains the implementation/ownership reference; executable values remain in their named content definitions.
 
-The first playable target is a 100 HP player with a liquid health orb, a Warden using the Rootblade and Heartwood Maul, one early Wilds pack, and the Orchard. The target includes solo and host/guest play so the next batch can reuse a proven combat and presentation path. See the [project milestones](GARDEN_MILESTONES.md) and the [mechanics and test map](MECHANICS_TEST_MAP.md).
+The later milestone records retain their historical context, including the 2026-11-12 v0.5.3.1 balance audit. Their old opt-in modes, priced cards, installed grafts, launch instructions and verification results are not the current gameplay contract and do not authorize restoring retired runtime paths.
 
 ## Plant-affinity rework contract
 
-The opt-in affinity ruleset keeps Core, Form and Catalyst independent. Supporting
-affinities are reserved for cards. CR03 Frost and the CR04 families use the same
-authoritative event and class-skill mappings. Default combat stays on the legacy
-ruleset.
+Modern affinity combat is the sole gameplay implementation. Core, Form and Catalyst have distinct responsibilities and cooperate through their affinity's authored shared-effect rules. Plant supporting tags are eligibility facts for future cards; they do not grant another affinity's baseline abilities. Historical profile conversion is separate from retired gameplay execution.
 
 ### Approved card and progression design
 
-**Cards and expedition economy**
+#### Verified source boundary and status labels
 
-- Author one base definition per stackable card identity. Select the card identity first, then roll the rarity for that offer.
-- Each acquired copy retains its own rarity and effect contribution. A later copy contributes its own effect, even when its rarity is higher. Earlier copies keep their original contributions.
-- Label one-time unlock cards **Unique**. The same player can acquire a given Unique card only once per expedition.
-- The displayed description must match the applied effect, including any trigger, duration, stacking rule, or limit that changes what the player receives.
-- Earned card choices are free. Essence pays for rerolls. Each player can complete at most one successful monster-part-funded improvement at each Grafting Altar.
+| Reference at this review | Verified state |
+|---|---|
+| Local `main` | `e1265e0dd750c4b1d63382921d574ccf11fd0562`; modern-only gameplay, before the shared-affinity rework. |
+| Reviewed affinity implementation | `combat/affinity-scaling-foundation`, `12d54b6251db5917cd67741890f2f01fcd5c24cb`; six commits ahead of `main`, with shared statuses and scaling corrections. These changes have **not** been integrated into `main`. |
+| This documentation work | `design/card-catalog-baseline`, based on that reviewed implementation; documentation only. No merge, runtime change, save activation or new gameplay verification is implied. |
+| **Implemented** | Present in the reviewed source. Where `main` differs, the distinction is stated explicitly. |
+| **Approved, unimplemented** | The design direction is accepted, but the card/action/consumer is not playable yet. |
+| **Provisional** | Current or illustrative numerical tuning, not a permanent balance promise. |
+| **Unresolved** | A specific policy or parameter still needs a decision before implementation. |
 
-**Class progression**
+#### Permanent expedition and progression constraints
 
-- Players choose an **Offensive**, **Balanced**, or **Defensive** starting focus. In affinity combat all five classes offer this choice at level 1 with 0 Class XP. A fresh class needs a starting focus before departure, and its native kit works with empty plant slots. Further choices follow deliberate connections within and across paths.
-- Each earned class level grants one node selection. Later tiers require both the appropriate class level and connected prerequisites. The progression rules must preserve meaningful choices so a character can never acquire the entire reachable tree.
-- Final-tier progression must take meaningful accumulated play. It should remain beyond routine completion after a few ordinary expeditions. Assess that pacing against actual XP earned across ordinary runs before approving thresholds.
-- Carry forward earned Class XP and learned investments. Fractions from the earlier scale are represented exactly in whole XP. The final level cap, XP curve, tier thresholds, and respec policy await approval.
+Players choose their class, starting focus, connected class-tree selections, weapon and Core/Form/Catalyst plant parts **in the Garden before entry**. Those choices and every equipped plant's primary, secondary and tertiary tags remain locked for the entire expedition. Cards must not depend on changing equipment, class, focus or tree selections mid-run. Acquired cards and graft adaptations are the sources of build evolution during the expedition.
 
-### Current behavior and CR05 compatibility
+All five classes begin at level 1 with zero Class XP and an explicit starting-focus choice; no plant part, graft, card, currency or completed expedition is required for useful native Q/R. The six-selection structure is one focus plus one connected choice in each of five successive tiers. Same/adjacent lanes connect; Balanced connects to all three. No backfilling or second capstone is permitted, and crossing branches preserves the starting Q.
+
+Class XP can be earned in the Wilds, but newly earned selections, respec and class-tree changes wait until the Garden. Permanent Class XP is separate from expedition Essence. Historical investments retain their explicit Heart refund/conversion boundary and idempotent whole-number XP conversion; no automatic redistribution or obsolete combat fallback is authorized. The current XP thresholds **0, 50, 150, 350, 1400, 2600** are provisional pacing, not a redesign in this phase.
+
+Current enforcement is in [class_tree_access.gd](../class_tree_access.gd), `Game.handle_loadout_action`, `select_class`, `at_weapon_gate` and [connected_class_tree.gd](../connected_class_tree.gd). The card ledger's ability to project an equipment-dependent card as inactive remains useful defensive/compatibility behavior and a fixture surface; it is not permission for normal mid-expedition equipment changes.
+
+#### Mandatory eligibility before offer weighting
+
+A player must never receive an offer their current build cannot use. Eligibility is a **mandatory filter**, applied before identity weighting and rarity. Host generation, rerolls and acquisition must use the same actual prerequisites and effective-headroom policy; the description must accurately explain the resulting effect.
+
+| Required eligibility facts | Design rule |
+|---|---|
+| Locked class, focus, weapon and tree | Check exact identities, learned selections and the actual native actions they provide. A class or tag name is not a substitute for a functioning ability. |
+| Equipped plant slots and tags | Identify Core, Form and Catalyst separately. Primary, secondary and tertiary tags all influence eligibility; never infer scope from a raw union of tags. |
+| Existing mechanic/capability | A card that modifies an existing mechanic must verify that the build can produce it. Alternatively, the offered card may explicitly grant that missing capability as part of its stated effect. All other requirements still apply. |
+| Acquired cards and transformations | Their explicitly granted capabilities can open new eligible cards. Previously acquired Unique cards are excluded. Do not guarantee a transformation or construct a complete synergy build automatically. |
+| Graft adaptations | Check acquired, functioning adaptations rather than merely carried trophies or unrelated species tags. Graft acquisition can expand the eligible pool. |
+| Resource generation | Temporary depletion does not disqualify a reachable effect. An empty Bark pool or spent Vital bonus HP can be replenished by a real producer; lacking that producer is a different condition. |
+| Acquisition and effective headroom | Respect current copy/acquisition restrictions and resolved usefulness. Do not offer entirely ineffective numerical contributions. Eligibility and offer weighting/rarity remain separate decisions. |
+
+Secondary and tertiary tags **do not** automatically grant baseline abilities, effects or status producers. For example, Dewcap's Vital supporting tag can qualify an explicitly authored future interaction, but does not itself grant Vital bonus HP or regeneration and therefore cannot alone satisfy a requirement for those mechanics.
+
+The initial loadout stays fixed, while eligibility may expand through acquired cards and grafts. Future definitions should express those requirements as readable data. This is an approved catalog rule, **not a claim that all these predicates already exist in the runtime**.
+
+Current source reconciliation:
+
+- [affinity_card_ledger.gd](../affinity_card_ledger.gd) `requirement`, `_refusal`, `parameter_limit` and `headroom` already filter slot/family/skill, Form behavior, mapped Catalyst response, class/native R/focus, basic-attack capability, copy limits and selected timing headroom.
+- The current 28 definitions do **not** implement general supporting-tag, learned-tree-node, acquired-capability, transformation or graft-adaptation predicates. Those offer-filter capabilities must be implemented and verified before definitions rely on them.
+- [plant_affinities.gd](../plant_affinities.gd) stores `primary_affinity` plus a normalized, sorted `supporting_affinities` list. [affinity_build.gd](../affinity_build.gd) exposes those facts in each slot's `card_requirements`. Secondary/tertiary tags are present as supporting entries, not separate ordinal fields; tier-specific distinctions remain unresolved below. Supporting tags have no baseline runtime effects.
+
+#### Shared affinity mechanics and scaling
+
+A normal build should be viable. An exceptional, specialized build should be capable of becoming exceptionally powerful. Rare and unusually strong class/weapon/plant/card/graft combinations are intentional, not automatically balance defects. Do not impose arbitrary absolute power ceilings or aggressive diminishing returns that invalidate further investment.
+
+Distinguish **material baselines**, **build-derived resource/potency limits**, **mechanical thresholds** and **technical safeguards**. Retain three-stack Brittle and Saturation's Surge threshold. Protect against recursion, invalid/stale identities, overflow and excessive computation without disguising a gameplay ceiling as a safety check. Core/Form/Catalyst and multiple players cooperate through one appropriate enemy- or recipient-owned effect; attribution and secondary-hit lineage remain explicit.
+
+| Affinity | Approved foundation | Implemented state at `12d54b6`; numerical tuning remains provisional |
+|---|---|---|
+| Thorn | One enemy-owned Bleed; cumulative, difficult buildup and high eventual damage. Shared cap derives from contributing players' personal build potency. | [thorn_affinity.gd](../thorn_affinity.gd), `affinity_cards.affinity_values`: ordinary/refined **12/18 damage per tick** are baselines, not absolute ceilings. Matching slot upgrades contribute once to personal potency. Core/Catalyst add 25%, Form 10%; stronger caps require new buildup and cannot promote accumulated damage for free. |
+| Frost | One shared three-stack Brittle sequence; each source freezes one third of its shatter potency; deterministic rupture, no baseline root. | [frost_balance.gd](../frost_balance.gd), [frost_combat.gd](../frost_combat.gd): **12/21** baseline shatter potency; **three stacks** is the rupture threshold, not a damage ceiling. |
+| Fire | One fast-ticking shared Burning intensity; cumulative applications and ongoing decay. | [fire_combat.gd](../fire_combat.gd): former **96-stack** ceiling removed. Core/Form/Catalyst apply **16/8/12**, refined adds four before cards. **0.125 damage/stack every 250 ms**; each 500 ms lose 10% rounded up, at least eight stacks, limited by the amount present. Work is per contributor, not per individual stack. |
+| Water | Bounded Drenched defense, shared Saturation, repeatable Surge with overflow. No baseline healing. | [water_combat.gd](../water_combat.gd): **100 pressure** triggers a Surge; baseline **6 damage / 2.4 m**. Application, Surge strength/radius and duration have explicit numerical consumers. Strongest live Surge contributions and independently expiring sources are preserved. Drenched uses strongest **18%/30%** reduction, bounded at 30%. |
+| Wood | Recipient-owned cooperative Bark protection; actual independently expiring capacity, partial absorption and depletion. | [wood_affinity.gd](../wood_affinity.gd): former **48-capacity** ceiling removed; full valid grants add. Core **30/40**, Catalyst **12/18**; **40%** partial absorption remains. No invulnerability or new armor system. |
+| Vital | Temporary Max HP and regeneration without free healing; bonus capacity stays distinct from non-Vital capacity. | [vital_combat.gd](../vital_combat.gd), [player_vitals.gd](../player_vitals.gd): strongest live capacity and regeneration resolve independently; baseline **12/18 Max HP**, **3/5 HP/s**. `harvest_plan` and immutable HP expenditure exist only as a foundation, not a playable transformation. |
+| Storm | Chain discharge, falloff, arcs and source-owned charges. | [storm_affinity.gd](../storm_affinity.gd): existing Chain Spark, Arcing Strikes and mapped Catalyst responses remain unchanged. Conductor is not implemented. |
+| Spirit | Terrain-legal movement, Spiritstride, traces and movement-prepared follow-ups. | [spirit_affinity.gd](../spirit_affinity.gd): existing actions remain unchanged. These are not Mirrorstep's accumulated echoes. |
+| Void | Gathering, compression, collapse and validated displacement with native/graft arbitration. | [void_affinity.gd](../void_affinity.gd): existing Gravity Well and responses remain unchanged. They are not the additional Singularity action. |
+
+The implemented 28-card catalog has only three definition changes relative to `main`: Sawtooth Briars now raises the personal shared-Bleed cap; Hotter Embers and Heart of Cinders now add Burning **stacks per application** instead of damage per tick. Their IDs, copy counts and rarity numbers remain unchanged. [affinity_card_catalog.gd](../affinity_card_catalog.gd) owns the values; `ResolvedCombatBuild.Snapshot.affinity_potency` and `affinity_cards.affinity_values` feed actual actions and resolved equipment descriptions. Old stacks do not acquire later upgrades for free. Historical per-slot Bleed/Burning and 48-capacity wording below must not be applied to the reviewed newer source.
+
+#### Approved working transformation catalog — unimplemented
+
+These nine transformations anchor the future catalog. They are **approved design directions**, not finished card definitions, stable card IDs, final numerical tuning or playable actions. Each is a proposed **Unique, nonstacking, once-per-expedition acquisition**. Unique is independent of numerical rarity. None is a prerequisite for a functional normal build.
+
+| Affinity | Transformation | Type | Approved mechanic |
+|---|---|---|---|
+| Thorn | **Bloodletting** | Active | Extra damage based on accumulated Bleed **without consuming the shared effect**. |
+| Frost | **Avalanche** | Passive | Brittle rupture spreads attributed Brittle buildup to nearby enemies. |
+| Fire | **Wildfire** | Passive | Intense Burning spreads some stacks to nearby enemies. |
+| Water | **Monsoon** | Passive | Surge produces additional expanding Water waves. |
+| Wood | **Splinterburst** | Instant active | Consume actual accumulated Bark protection for radial damage. |
+| Vital | **Harvest** | Toggle | Basic attacks spend filled Vital bonus HP for sustained additional damage. |
+| Storm | **Conductor** | Passive | Chain Spark forks additional arcs and can return a reduced strike. |
+| Spirit | **Mirrorstep** | Passive | Each eligible dash or movement ability creates an echo; the next basic attack releases all accumulated echoes simultaneously. |
+| Void | **Singularity** | Instant active | Gravitational collapse followed by a damaging implosion. |
+
+Active transformations unlock **additional configurable skill-bar actions**; they do not replace Core **B**, native **Q** or native **R**. Multiple transformations can coexist. Passive transformations need no extra controls. The nine transformations, their acquisitions and their extra action/toggle interfaces are **not implemented** by the current 28-card catalog.
+
+Applications, expenditure and generated damage remain host-authoritative and use the existing status/health/defense owners. Every generated effect needs explicit source/cast/life/floor identity and proc lineage. Secondary effects cannot recursively trigger the transformation that generated them. Do not silently grant unrelated Core, Form, Catalyst, graft or class responses.
+
+**Mirrorstep**
+
+- Every eligible movement action generates an echo; echoes accumulate briefly.
+- The next basic attack releases **all** accumulated echoes together.
+- Echoes reproduce appropriately scaled weapon behavior and Form interactions. This is an explicitly authored transformation interaction, not permission for all secondary hits to trigger Forms.
+- Echoes cannot recursively create more echoes or reopen unbounded proc chains.
+- Do not impose an arbitrary echo-count ceiling as a balance mechanism. Expiry, valid movement/action identity and bounded execution work must provide the technical discipline; exact policies remain unresolved below.
+
+**Harvest**
+
+- Harvest is an optional Unique transformation, **not baseline Vital behavior**.
+- Activation toggles a sustained offensive mode. Eligible basic attacks spend filled Vital bonus HP for additional damage.
+- Normal HP is not spent by default. Available bonus HP is current HP above the non-Vital maximum, not unfilled capacity.
+- Running out of spendable bonus HP suspends bonus damage **without turning off the toggle**. Regeneration can replenish the resource; a player may leave Harvest off and retain bonus HP for defense.
+- Expenditure is a resource transaction, never incoming damage: no Guard/Ward consumption or damage-reactive response. Spending does not reduce maximum-health capacity.
+- Exact expenditure and damage conversion remain provisional. The existing foundation's **1 damage per HP** is not an approved final Harvest balance value or an implemented attack loop.
+- **Deep Roots is deferred and must not be implemented here.** It remains a possible future modifier permitting limited normal-HP expenditure. The foundation's 50% safety test candidate is not an active card or finalized threshold.
+
+**Splinterburst**
+
+- Activation makes a one-time expenditure, not a sustained toggle.
+- Damage depends on Bark protection **actually consumed**, never theoretical maximum capacity, ungranted capacity or a refused grant.
+- Exact expenditure amount, conversion, radius and timing remain to be authored. Existing Splintering Strikes is a separate Form mechanic and does not implement this transformation.
+
+#### Future catalog structure and readable definitions
+
+Plan around these nine functional groups, using transformations as anchors rather than mandatory build gates:
+
+1. General and weapon upgrades.
+2. Affinity Core upgrades.
+3. Affinity Form upgrades.
+4. Affinity Catalyst upgrades.
+5. Class and connected-focus upgrades.
+6. Graft interactions.
+7. Within-affinity specialization.
+8. Cross-affinity synergy.
+9. Unique transformations and their supporting upgrades.
+
+Approximately **200 meaningful cards** is a planning scale, not a quota. Do not fill it with repetitive or unsupported effects. Preserve readable, data-driven authoring with one authoritative definition per displayed card and descriptive names/units.
+
+| Required definition information | Authoring requirement |
+|---|---|
+| Display name and stable ID | Searchable, unambiguous identity; the transformation table does not preassign IDs. |
+| Scope | Explicit General, Weapon, Core, Form, Catalyst, Class, Graft or multiple named scopes where accurate. Show scope beneath the title. |
+| Required tags | State relevant primary/secondary/tertiary tags and any slot-specific requirement. Tags alone never imply an executable capability. |
+| Required actual capabilities | State reachable triggers and prerequisites, including learned nodes, prior cards/transformations and graft adaptations where needed. |
+| Effect and authoritative consumer | Name the real mechanic and its owning consumer. A stored but unused statistic is not a functioning card. |
+| Numerical contribution or fixed Unique behavior | Identify scalable parameters and units, or the exact one-time unlock. No hidden unrelated changes. |
+| Stacking and acquisition | State copy rules, resolved effective headroom and Unique policy independently of rarity. |
+| Capability granted | Explicitly identify any new producer/action/status supplied by the card itself. |
+| Shared effects and multiplayer | Describe source attribution, refresh/consumption, shared contributions, secondary proc lineage and relevant lifecycle behavior. |
+
+#### Acquisition and balance: retain current provisional tuning
+
+One base definition is selected before its offered rarity is rolled. Common, Uncommon, Rare and Epic copies retain their own actual contributions and add those contributions; no retroactive promotion. Earned checkpoint choices are free and may be skipped. Essence is expedition-only and pays for optional unclaimed-offer rerolls, not card acquisition. Graft improvements cost monster parts, with one successful improvement per player per altar. These are separate from permanent Class XP.
+
+| Existing implementation | Current provisional configuration; unchanged by this document |
+|---|---|
+| Card pool | **28 definitions:** 26 numerical stackables and two Uniques, Dew Shelter and Echoing Growth. None of the nine transformations is an existing card. |
+| Cadence and offer ownership | Every three cleared encounters; up to three distinct eligible identities; host-owned cached offer/revision, spending and acquisitions. Reopening is not a free reroll. |
+| Acquisition limits | **12 cards per expedition**, **four copies per numerical card**, one copy per Unique. Twelve and four are playtest parameters, **not permanent catalog-design limits**. |
+| Rerolls | **2, 4, 6 Essence** for successive accepted rerolls of that unclaimed offer, then no further configured reroll. Escalation resets at the next checkpoint. |
+| Rarity | Common/Uncommon/Rare/Epic weights at floors **1: 78/18/3/1; 18: 64/25/8/3; 42: 52/30/13/5; 90: 42/32/18/8**. Interpolate between anchors, hold the last distribution at greater depth. These are provisional, not a floor-60 expedition end. |
+| Grafts | **Six purchases** per expedition under current playtest tuning; cumulative ownership and per-altar restriction remain. No new adaptation is authored here. |
+
+Acquisition limits, rarity probabilities and offer weighting are separate from mandatory eligibility. Do not guarantee transformations, promise a completed synergy, revise the current catalog or infer permanent growth restrictions from today's small playtest pool. Finite upgrade growth must not stop expedition/floor progression.
+
+#### Remaining implementation gaps and unresolved decisions
+
+| Area | Exact remaining boundary |
+|---|---|
+| Expanded eligibility | Supporting tags, learned-tree requirements, capability grants, acquired transformations and graft adaptation predicates are approved inputs but not general runtime predicates yet. Verify mandatory filtering before adding cards that rely on them. |
+| New transformations and controls | All nine card definitions/consumers are absent. Additional configurable actions, Harvest toggle state and its attack-spending loop, and Mirrorstep's echo accumulation/release are absent. Existing B/Q/R and baseline Form behavior do not substitute for them. |
+| Tag roles | Current supporting tags are sorted and have no secondary/tertiary ordinal fields. Whether future requirements distinguish those roles, and how that role identity is authored, remains undecided. Both supporting tags must influence eligibility without granting baseline mechanics. |
+| Numerical design | Thresholds, ranges, cooldowns, damage/resource conversions, durations, spread amounts/falloff and other transformation-specific numbers remain unauthored. Existing family/card numbers remain provisional and unchanged. |
+| Shared-effect attribution | Define Bloodletting's exact accumulated-Bleed measurement; Avalanche's transferred source-weighted contribution; Wildfire's copy/transfer/expiry rules; and attribution/overlap for Monsoon waves and Conductor branches/return. None may recursively reproduce itself or erase another player's valid shared contribution. |
+| Harvest expenditure | Specify eligible attacks, launch-versus-contact debit, misses, per-attack versus per-target spending, partial resource availability and the damage conversion. Preserve the approved toggle/depletion behavior, actual HP transaction and default prohibition on normal-HP spending. |
+| Echo semantics | Specify eligible voluntary movement actions, expiry, capture timing, release/miss behavior and the exact permitted scaled weapon/Form interactions. Preserve simultaneous release of all echoes and no arbitrary balance count ceiling; validate an execution/presentation budget before implementation. |
+| Active targeting and networking | Specify each new action's actual targeting, terrain legality, UI/bindings, source/target life validity and multiplayer publication. Keep current owners and host authority; any necessary compatibility rollout is an implementation decision, not an approved packet change here. |
+
+These are design/implementation handoffs, not authorization to invent values or implement the catalog in this checkpoint. Storm/Spirit/Void redesign, enemy neural decisions, card/graft ledger refactoring and production persistence remain outside scope. Source reconciliation only was performed for this documentation update; prior implementation verification is recorded in [ARCHITECTURE.md](ARCHITECTURE.md), not rerun or expanded here.
+
+## Historical milestone record
+
+The following dated CR/CT/EC/GA and CB notes retain their original implementation and verification context. They are historical evidence, **not a parallel active ruleset**. Where old mode switches, per-slot status formulas, installed grafts or priced cards conflict with the approved contract above or the implementation reference, the approved contract/current source takes precedence. Do not use historical counts or test results as acceptance evidence for an unimplemented transformation.
+
+### Historical behavior and CR05 compatibility
 
 - **Cards.** The legacy catalogue stores fixed rarity and cost on each definition. Its offer list stores card IDs, its ownership state stores integer ranks, and numeric effects multiply the base contribution by rank. Rarity and affordability already influence which entry is drawn, and selection charges Essence. A rank limit of one is the closest current equivalent to a one-time unlock. These assumptions need separate offer rarity, per-copy contributions, explicit Unique acquisition, and free selection when the future design is implemented. Existing card descriptions, caps, and event consumers still need to be checked together. CR05 kept affinity cards empty. EC01 owns a separate opt-in catalogue. [Catalogue](../run_upgrade_catalog.gd) · [Checkpoint selection](../game.gd)
 - **Class tree.** The active branch tree grants one selection at each current row gate, at levels 1, 2, 4, and 7. It allows one node per row and accepts a learned adjacent predecessor. The legacy mask tree uses level minus one as its point budget, with additional tier and parent checks. Existing row exclusions already prevent buying every branch. The branch-tree budget, the current Offense/Control/Defense starting lanes, and the automatically generated adjacent links are compatibility behavior. The future graph needs the approved focus choices and deliberate connections. Level 7 currently resolves at 2,600 Class XP. Its suitability as a final-tier gate is unverified against the approved pacing goal. The current free respec at the Heart remains a legacy action. [Branch rules](../warden_tree.gd) · [Legacy rules](../class_catalog.gd) · [Current XP data](../assets/content/balance.json)
