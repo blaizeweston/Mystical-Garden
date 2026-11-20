@@ -57,6 +57,23 @@ At cutover the planner had 214 suites. The later duplicate-mismatch retirement l
 
 ## Current restructuring plan
 
+### Approved remaining targets — 2026-11-19
+
+The user has approved the following four remaining refactoring targets, in this order. After these are complete and verified, resume plants, grafting and upgrade-card development. This is the stopping boundary for the current restructuring effort; do not automatically extend it into more architectural milestones.
+
+| Order | Target | Bounded completion criteria | Status |
+|---|---|---|---|
+| 1 | Garden commands and transactions | Complete the existing observation, conduit and return/discovery command boundaries in coherent slices. Domain rules accept focused facts and named intentions; existing owners retain research, crops, inventory and reward authority. Preserve guarded outcome/publication order and remove the replaced Game implementations. | Planned; next target |
+| 2 | Specialist combat and status effects | Narrow the current Core, affinity, class and graft execution interfaces around explicit sources, targets, statuses and effect lifetime. Preserve current values, proc lineage, host authority and existing owners; retire replaced broad execution paths. | Planned |
+| 3 | Actor, session and travel integration | Replace unrestricted actor/world access at the remaining SessionWorld and ExpeditionTransitions boundaries with explicit actor facts and owner operations. Preserve admission, participation, settlement and lifecycle identities without creating competing records or another general player manager. | Planned |
+| 4 | Editable UI scenes | Move suitable static layouts from runtime builders into editable Godot scenes. Keep controllers, rooted styling, detached view models and domain commands separate; preserve visual behavior and existing control identities. | Planned |
+
+Human readability and a single authoritative definition remain primary acceptance criteria. Each target must simplify a real editing path, remove superseded ownership/execution and show focused behavior equivalence. Retain legitimate world composition and transaction coordination in Game; line-count reduction alone is not completion. Measure representative performance where execution changes.
+
+Validation ownership and documentation are maintained throughout these four targets, not a fifth independent refactoring milestone. Improve test boundaries alongside each actual interface change, preserve live coverage and original failed evidence, and keep the current editing paths in this document accurate. Production AC-06 deployment gates, host-crash recovery and mid-run reconnection remain separate from this approved scope.
+
+### Earlier plan and completed work
+
 The 2026-11-18 source/research review changes the priority from additional small field extractions to complete behavior boundaries. Game is the world-scene composition and integration root: it wires dependencies, routes authorized requests, coordinates start/transition/exit and advances ordered simulation/publication stages. UI construction, class execution, outgoing-hit rules and snapshot assembly should have explicit owners. Line count is a symptom; editing clarity, actual dependency reduction and measured frame work are the acceptance criteria.
 
 | Step | Boundary and acceptance | Status |
