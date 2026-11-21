@@ -217,17 +217,17 @@ static func hints(attack: Dictionary, id: int, remaining: float) -> Array:
  var to: Vector3 = attack.to
  var zones: Array=attack.spots if not attack.spots.is_empty() else attack.patches
  if not zones.is_empty():
-  var result: Array=[]
+  var command_result: Array=[]
   var zone_role: String="volley" if attack.mode=="snare" else "artillery"
   var zone_radius: float=attack.spot_radius if attack.mode=="snare" else attack.radius
   for index in zones.size():
-   var hint:=warning(200+(id+1)*4+index,zone_role,from,zones[index],zone_radius,0.0,remaining)
-   var face: Vector3=attack.face
-   hint.actor=id;hint.pose=attack.mode;hint.face=[face.x,0,face.z]
-   if not attack.patches.is_empty():hint.field=true
-   if index==0:hint.cue=attack.cue
-   result.append(hint)
-  return result
+   var affinity_hint:=warning(200+(id+1)*4+index,zone_role,from,zones[index],zone_radius,0.0,remaining)
+   var facing_direction: Vector3=attack.face
+   affinity_hint.actor=id;affinity_hint.pose=attack.mode;affinity_hint.face=[facing_direction.x,0,facing_direction.z]
+   if not attack.patches.is_empty():affinity_hint.field=true
+   if index==0:affinity_hint.cue=attack.cue
+   command_result.append(affinity_hint)
+  return command_result
  var padding := CONTACT_PADDING if attack.role == "charge" else 0.0
  var display_radius:=.54 if attack.role in ["corpse_tether","trophy_grab"] else float(attack.radius)+padding
  var rite_anchor: Dictionary=attack.get("rite_anchor",{})

@@ -3,6 +3,7 @@ const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
 const UIFixture = preload("res://tests/support/gameplay_ui_case.gd")
+const Placement = preload("res://tests/support/garden_placement_case.gd")
 
 const SessionCase = preload("res://tests/support/session_case.gd")
 
@@ -192,7 +193,8 @@ func run() -> void:
 	view._process(0.0)
 	check(view.points[scar.id].visible and game.garden_commands.allowed(scar),
 		"Reaching Roots reveals the original journal observation")
-	var place := Vector2(2.34, -4.58)
+	var place := Placement.find(garden.construction, "bed", Vector2(2.34, -4.58), 0.37, garden.planar(game.players[1].pos))
+	check(place.is_finite(), "new bed fits beyond the fully grown Heart")
 	for cancel_with_mouse: bool in [false, true]:
 		garden.open_development()
 		check(build_choices.get_selected_metadata() == "bed" and not garden.build_button.disabled,

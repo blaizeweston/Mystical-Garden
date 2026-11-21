@@ -24,9 +24,12 @@ static func choose(site: int, encounter: int, slot: int, seed_value: int) -> int
 		return 1 if slot % 3 == 1 else 0
 	return pool[posmod(slot + seed_value % 101 + encounter, pool.size())]
 
+# Encounter bands advance only after whole groups of seven.
+@warning_ignore_start("integer_division")
 static func tier(encounter: int, cycle: int) -> int:
 	return clampi((encounter - 1) / 7 + cycle, 0, 2)
 
+@warning_ignore_restore("integer_division")
 static func mutations(kind: int, growth: int, ranged_pressure: int, burst_pressure: int, choke_pressure: int, encounter: int, stamp: int) -> int:
 	if encounter < 3:
 		return 0

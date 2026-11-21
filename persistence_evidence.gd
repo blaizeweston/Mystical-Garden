@@ -11,9 +11,9 @@ const MAX_BYTES := 8192
 const MAX_PARTICIPANTS := 16
 const MAX_FILE_BYTES := 8 * 1024 * 1024
 
-static func make(attempt: String, anchor: String, paths: PackedStringArray, states: Dictionary, old: PackedByteArray, committed: PackedByteArray) -> Dictionary:
+static func make(attempt: String, anchor: String, participant_paths: PackedStringArray, states: Dictionary, old: PackedByteArray, committed: PackedByteArray) -> Dictionary:
  var participants := []
- for path in paths:
+ for path in participant_paths:
   var entry: Dictionary = states[path]
   participants.append({
    "path": path, "exists": entry.exists, "length": entry.bytes.size(),
@@ -26,7 +26,7 @@ static func encode(record: Dictionary) -> PackedByteArray:
  return JSON.stringify(record).to_utf8_buffer()
 
 ## Canonical encoding rejects duplicate keys, unexpected fields and ambiguous numbers.
-static func parse(bytes: PackedByteArray, anchor: String, attempt := "", paths := PackedStringArray()) -> Dictionary:
+static func parse(bytes: PackedByteArray, anchor: String, attempt := "", participant_paths := PackedStringArray()) -> Dictionary:
  if bytes.is_empty() or bytes.size() > MAX_BYTES:
   return {}
  var value: Variant = JSON.parse_string(bytes.get_string_from_utf8())
@@ -61,7 +61,7 @@ static func parse(bytes: PackedByteArray, anchor: String, attempt := "", paths :
   entry.length = int(size)
   actual.append(path)
  value.version = 1
- if not actual.has(anchor) or not Layout.valid_journal_scope(anchor, actual, layout) or (not paths.is_empty() and paths != actual) or encode(value) != bytes:
+ if not actual.has(anchor) or not Layout.valid_journal_scope(anchor, actual, layout) or (not participant_paths.is_empty() and participant_paths != actual) or encode(value) != bytes:
   return {}
  return value
 
@@ -103,11 +103,11 @@ static func journal_attempt(bytes: PackedByteArray) -> String:
  return result
 
 static func digest(bytes: PackedByteArray) -> String:
- var hash := HashingContext.new()
- hash.start(HashingContext.HASH_SHA256)
+ var content_digest := HashingContext.new()
+ content_digest.start(HashingContext.HASH_SHA256)
  if not bytes.is_empty():
-  hash.update(bytes)
- return hash.finish().hex_encode()
+  content_digest.update(bytes)
+ return content_digest.finish().hex_encode()
 
 static func _hex(value: Variant, size: int) -> bool:
  if not value is String or value.length() != size:

@@ -122,6 +122,8 @@ func _material(variant: int, brightness: float) -> void:
 		material.set_shader_parameter(key, values[key])
 	_materials.append(material)
 
+# A whole grid-row index selects each canopy sample.
+@warning_ignore_start("integer_division")
 func _chunk(x: int, z: int) -> void:
 	var chunk := ForestChunk.new()
 	chunk.name = "ForestChunk_%d_%d" % [x, z]
@@ -168,6 +170,7 @@ func _chunk(x: int, z: int) -> void:
 		chunk.batches.append(batch)
 		_patch_count += instances.instance_count
 
+@warning_ignore_restore("integer_division")
 func _edge_trees() -> void:
 	for variant in Catalog.TREES.size():
 		var bark := StandardMaterial3D.new()

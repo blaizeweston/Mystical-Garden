@@ -177,10 +177,10 @@ func show_details() -> void:
  if selected.get("bucket","")=="equipment":
   transfer_button.hide()
   var slot: int=selected.slot
-  var item:=Items.get_item(str(selected.item))
+  var selected_item:=Items.get_item(str(selected.item))
   var summary: String=slot_description(slot)
-  details.text="[b]%s[/b]\n%s"%[item.name,Weapons.SLOT_NAMES[slot]]
-  if not item.tags.is_empty(): details.text+=" · "+", ".join(item.tags)
+  details.text="[b]%s[/b]\n%s"%[selected_item.name,Weapons.SLOT_NAMES[slot]]
+  if not selected_item.tags.is_empty(): details.text+=" · "+", ".join(selected_item.tags)
   if not summary.is_empty(): details.text+="\n\n"+summary
   return
  transfer_button.visible=not bool(state.get("wild",false))

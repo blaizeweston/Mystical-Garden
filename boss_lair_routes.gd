@@ -10,11 +10,14 @@ static func supports(kind: int) -> bool:
 static func orchard_angle(seed_value: int) -> float:
  return posmod(seed_value,64)*TAU/1024.0
 
+# The route seed uses a whole-number group index.
+@warning_ignore_start("integer_division")
 static func crossings(seed_value: int) -> Dictionary:
  var offset := (posmod(seed_value,7)-3)*.14
  var cross_shift := (posmod(seed_value/7,5)-2)*.18
  return {"banks":[offset-4.45,offset+4.45],"bars":[-3.0+cross_shift,5.0+cross_shift],"center":offset}
 
+@warning_ignore_restore("integer_division")
 static func dry_lane(layout: Dictionary, at: Vector3) -> int:
  if absf(at.z)>10.0:return -1
  for side in 2:

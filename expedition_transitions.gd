@@ -241,9 +241,9 @@ func commit_checkpoint(id: int, descend: bool,effects = null, expected_binding :
 	if not game.encounter_cleared():
 		game.action_feedback(effects,id, "Defeat the enemies to open the checkpoint.")
 		return false
-	var checkpoint: Vector3 = game.battlefield.advance
+	var checkpoint_index: Vector3 = game.battlefield.advance
 	for player in game.players.values():
-		if game.Life.alive(player) and checkpoint.distance_to(player.pos) > preload("res://gate_interaction.gd").RANGE+preload("res://gate_interaction.gd").READY_MARGIN:
+		if game.Life.alive(player) and checkpoint_index.distance_to(player.pos) > preload("res://gate_interaction.gd").RANGE+preload("res://gate_interaction.gd").READY_MARGIN:
 			game.action_feedback(effects,id, "Gather your expedition party at this checkpoint.")
 			return false
 	if descend and game.upgrade_checkpoint_open():

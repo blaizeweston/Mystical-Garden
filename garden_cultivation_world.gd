@@ -114,11 +114,11 @@ func command(id: int, request: Dictionary) -> Dictionary:
 		"seeds":return harvest_seeds(id,slot)
 		"parts":return {"changed":harvest(id,slot)}
 		"water":
-			var result:=Tx.run_gameplay(world,Tx.Scope.PAIR,func():Growth.water(bed);return true)
-			if (result.completed or Tx.committed(result.persistence)) and result.value==true:world.players[id].spring_water=false
-			if not result.completed or result.value!=true:
-				var notice:=Tx.feedback(result,"Could not save watering. Nothing changed; please retry.")
-				if result.persistence.is_empty():return reject(id,notice)
+			var command_result:=Tx.run_gameplay(world,Tx.Scope.PAIR,func():Growth.water(bed);return true)
+			if (command_result.completed or Tx.committed(command_result.persistence)) and command_result.value==true:world.players[id].spring_water=false
+			if not command_result.completed or command_result.value!=true:
+				var notice:=Tx.feedback(command_result,"Could not save watering. Nothing changed; please retry.")
+				if command_result.persistence.is_empty():return reject(id,notice)
 				world.tell(id,notice);return {"changed":false,"error":notice}
 			preload("res://event_audio.gd").emit(world,"crop_watered",world.stage.bed_position(slot))
 			world.tell(id,"Garden water nourishes this crop. Growth is 25% faster until harvest.")
@@ -169,7 +169,6 @@ func _harvest_guarded(id: int, slot: int, flower: bool) -> bool:
 	return Tx.committed(result.persistence) and result.value == true
 
 func _report_harvest(id: int, slot: int, bed: Dictionary, flowering: bool, rare: bool) -> void:
-	var world:=_current_world()
 	var preserved := preload("res://garden_crop_state.gd").preserved(bed)
 	Journal.event("garden", "crop_harvested", {"actor":id,"bed":slot,"cycle":bed.get("care",{}).get("cycle",""),"species":Seeds.DEFINITIONS[int(bed.species)].id,"flowering":flowering,"preserved":preserved and not flowering,"forfeited_bud":preserved and flowering,"rare":rare})
 

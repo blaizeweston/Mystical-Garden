@@ -1,17 +1,10 @@
 extends "res://tests/guarded_garden_actions.gd"
 ## Reuses only the disposable guarded title/lease fixture and disk assertions.
+const Placement = preload("res://tests/support/garden_placement_case.gd")
 
 func target_for(garden: Node, id: int) -> Vector2:
 	var at: Vector2 = garden.construction.records[id].at
-	var candidates: Array[Vector2] = []
-	for x in range(-13, 14):
-		for y in range(-13, 14):
-			var point := Vector2(x, y) * 0.5
-			if point.distance_to(at) > 0.3: candidates.append(point)
-	candidates.sort_custom(func(a, b): return a.distance_squared_to(at) < b.distance_squared_to(at))
-	for point in candidates:
-		if garden._build_refusal("bed", point, 0.2, id).is_empty(): return point
-	return Vector2.INF
+	return Placement.find(garden.construction, "bed", at, 0.2, garden.planar(world.players[1].pos), id)
 
 func run() -> void:
 	if not OS.get_user_data_dir().replace("\\", "/").contains("/.godot/vd/") or OS.get_environment("MYSTICAL_VALIDATION_RUN").is_empty():

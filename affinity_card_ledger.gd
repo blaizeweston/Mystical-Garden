@@ -12,11 +12,11 @@ class Ledger extends RefCounted:
 	var _offer: Dictionary
 	var _completed_floor: int
 
-	func _init(copies: Array[Dictionary] = [], offer: Dictionary = {}, completed_floor: int = 0) -> void:
-		_copies = copies.duplicate(true)
-		_offer = offer.duplicate(true)
+	func _init(acquired_copies: Array[Dictionary] = [], checkpoint_offer: Dictionary = {}, completed_checkpoint: int = 0) -> void:
+		_copies = acquired_copies.duplicate(true)
+		_offer = checkpoint_offer.duplicate(true)
 		_offer.erase("closed")
-		_completed_floor = completed_floor
+		_completed_floor = completed_checkpoint
 
 	func offer() -> Dictionary:
 		if _offer.is_empty():
@@ -226,9 +226,9 @@ class Ledger extends RefCounted:
 
 	static func _rarity(random: RandomNumberGenerator, floor_number: int) -> int:
 		var weights := Catalog.rise(floor_number)
-		var roll := random.randf() * 100.0
+		var random_draw := random.randf() * 100.0
 		for index in weights.size():
-			roll -= weights[index]
-			if roll < 0.0:
+			random_draw -= weights[index]
+			if random_draw < 0.0:
 				return index
 		return weights.size() - 1

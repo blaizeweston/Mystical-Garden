@@ -8,10 +8,10 @@ var seen: Dictionary={}
 var floor_key: String=""
 var observer:=Vector3.ZERO
 var sight:=6.8
-func sync(events: Array,key: String,position: Vector3,radius: float=6.8) -> void:
+func sync(events: Array,key: String,world_position: Vector3,radius: float=6.8) -> void:
  if key!=floor_key:
   clear();floor_key=key
- observer=position;sight=radius
+ observer=world_position;sight=radius
  for event in events:
   var id:=int(event.get("id",-1))
   if id<0 or seen.has(id): continue

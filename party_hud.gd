@@ -18,9 +18,9 @@ static func members(players: Dictionary,local_id: int) -> Array:
   if not Session.ready_for(p,true) or Session.rejecting_for(p):continue
   var profile: Dictionary=p.get("character",{})
   var appearance=profile.get("appearance",p.get("appearance",[]))
-  var name: String=str(profile.get("name",p.get("display_name","Wanderer"))).replace("\n"," ").replace("\r"," ").replace("\t"," ")
+  var display_name: String=str(profile.get("name",p.get("display_name","Wanderer"))).replace("\n"," ").replace("\r"," ").replace("\t"," ")
   var hp := PlayerVitals.current_hp(p)
-  result.append({"id":int(id),"slot":int(Session.slot_for(p,id)),"name":name,"hp":maxf(0,hp),"max_hp":maxi(1,PlayerVitals.maximum_hp(p)),"lost_health":int(p.get("lost_health",0)),"fallen":PlayerLifecycle.fallen(p) or hp<=0,"appearance":Array(appearance)})
+  result.append({"id":int(id),"slot":int(Session.slot_for(p,id)),"name":display_name,"hp":maxf(0,hp),"max_hp":maxi(1,PlayerVitals.maximum_hp(p)),"lost_health":int(p.get("lost_health",0)),"fallen":PlayerLifecycle.fallen(p) or hp<=0,"appearance":Array(appearance)})
  result.sort_custom(func(a,b):return a.slot<b.slot if a.slot!=b.slot else a.id<b.id)
  return result.slice(0,3)
 func _ready() -> void:
@@ -56,10 +56,10 @@ func _draw() -> void:
  for i in rows.size():
   var row: Dictionary=rows[i];var at:=Vector2(0,i*(ROW_SIZE.y+SPACING));draw_style_box(panel_style,Rect2(at,ROW_SIZE))
   portrait(at+Vector2(23,22),row.appearance,row.fallen)
-  var name: String=row.name
+  var display_name: String=row.name
   var name_width:=100
-  while font.get_string_size(name,HORIZONTAL_ALIGNMENT_LEFT,-1,12).x>name_width and name.length()>1:name=name.left(name.length()-2)+"…"
-  draw_string(font,at+Vector2(46,16),name,HORIZONTAL_ALIGNMENT_LEFT,name_width+3,12,Color("#ddd5b9"))
+  while font.get_string_size(display_name,HORIZONTAL_ALIGNMENT_LEFT,-1,12).x>name_width and display_name.length()>1:display_name=display_name.left(display_name.length()-2)+"…"
+  draw_string(font,at+Vector2(46,16),display_name,HORIZONTAL_ALIGNMENT_LEFT,name_width+3,12,Color("#ddd5b9"))
   Orb.paint(self,at+Vector2(161,22),12.0,0.0 if row.fallen else row.hp,row.max_hp,row.get("lost_health",0))
   var vitals: String="Fallen" if row.fallen else "%d / %d HP"%[int(row.hp),row.max_hp]
   draw_string(font,at+Vector2(46,34),vitals,HORIZONTAL_ALIGNMENT_LEFT,100,10,Color("#baae97"))

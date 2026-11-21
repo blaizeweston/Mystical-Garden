@@ -76,14 +76,14 @@ static func arrange(game: Node) -> void:
 		if nearby<int(definition.get("escort_min",2)): game.encounter.register_scout(game.make_scout(0,support.pos,int(support.route),int(support.mutations),int(support.growth)), index)
 
 
-static func follow_support(game: Node, scout: Dictionary,allies: Array,definition: Dictionary,speed: float,delta: float,now: int) -> void:
-	var anchor: Vector3=allies[0].pos
+static func follow_support(game: Node, scout: Dictionary,eligible_allies: Array,definition: Dictionary,speed: float,delta: float,now: int) -> void:
+	var anchor: Vector3=eligible_allies[0].pos
 	var distance: float=scout.pos.distance_to(anchor)
 	if distance>2.65 or not game.battlefield.clear_line(scout.pos,anchor):
 		if now>=int(scout.rooted_until): scout.pos=game.battlefield.navigate(scout.pos,anchor,speed*delta,int(scout.route))
 		return
 	if now>=int(scout.ready):
-		if EnemyBehaviors.support_target(game,scout,allies,anchor,speed,delta,now):return
+		if EnemyBehaviors.support_target(game,scout,eligible_allies,anchor,speed,delta,now):return
 		scout.repeat=0
 		var role: String=definition.role
 		var aim: Vector3=Attacks.aim(game,scout,role,int(scout.cast_target))

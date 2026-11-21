@@ -2,6 +2,7 @@ extends SceneTree
 ## Real world/serializer integration in disposable fixture storage only.
 const Saved = preload("res://garden_development_state.gd")
 const Water = preload("res://garden_water.gd")
+const Placement = preload("res://tests/support/garden_placement_case.gd")
 var failed := false
 var base := "res://.godot/garden-layout-" + str(Time.get_ticks_usec())
 
@@ -38,16 +39,7 @@ func world(fresh: bool = true) -> Node:
 
 func relocation(garden: Node, kind: String, id: int) -> Vector2:
 	var at: Vector2 = garden.construction.records[id].at
-	var candidates: Array[Vector2] = []
-	for x in range(-13, 14):
-		for y in range(-13, 14):
-			var candidate := Vector2(x, y) * 0.5
-			if candidate.distance_to(at) > 0.3: candidates.append(candidate)
-	candidates.sort_custom(func(a, b): return a.distance_squared_to(at) < b.distance_squared_to(at))
-	for candidate in candidates:
-		if garden._build_refusal(kind, candidate, 0.2, id).is_empty():
-			return candidate
-	return Vector2.INF
+	return Placement.find(garden.construction, kind, at, 0.2, garden.planar(garden.game.players[1].pos), id)
 
 func equivalent(a: Variant, b: Variant) -> bool:
 	# ConfigFile uses text floats; geometry must retain its resolved precision.
@@ -136,8 +128,8 @@ func run() -> void:
 		"fresh world reload preserves the layout, crop, reclaimed cells, roots, energy and study work")
 	check(game.stage.bed_positions() == positions and game.stage.altar_position() == altar_position,
 		"reloaded interactions use saved positions")
-	check(garden.construction.next_id == saved.next_id and garden.construction.root_blocks.size() > 0,
-		"stable structure IDs and structural root clearance survive restart")
+	check(garden.construction.next_id == saved.next_id and garden.roots.get_child_count() == saved.roots.size(),
+		"stable structure IDs and root presentation survive restart")
 	check(Water._features(game.stage) == garden.state.layout.water and Water.anchor(game.stage).is_finite(),
 		"terrain water remains reachable after layout reload")
 	var knowledge: int = game.progress.knowledge

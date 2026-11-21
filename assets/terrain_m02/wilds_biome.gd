@@ -19,9 +19,12 @@ const PROFILES := [
 		"accent_density": 0.90},
 ]
 
+# Biome progression advances in whole six-floor bands.
+@warning_ignore_start("integer_division")
 static func floor_biome(floor_number: int) -> int:
 	return (clampi(floor_number, 1, FLOOR_COUNT) - 1) / 6
 
+@warning_ignore_restore("integer_division")
 static func weights(floor_number: int, windows: Array = WINDOWS) -> Vector3:
 	assert(windows.size() == PROFILES.size() - 1)
 	for i in windows.size():

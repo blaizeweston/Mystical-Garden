@@ -37,6 +37,21 @@ func run():
  h.start(g,"clearing_1")
  check(h.active=="clearing_1","research focus can switch without losing previous work")
  h.advance(g,1)
+ # Research coverage needs space for all nine beds and three stations. Reclaim
+ # real land after its unlock instead of placing under the maximum Heart canopy.
+ var garden = game.stage.experimental_garden
+ var claimed: bool = game.slot_claimed
+ var original_position: Vector3 = p.pos
+ game.slot_claimed = true
+ p.pos = Vector3(0,0,1.5)
+ garden.funds.energy = 10000 # Disposable research-fixture setup, not a reward.
+ for sector in [4,6,1]:
+  garden.open_development()
+  check(garden.expand(sector), "research fixture reclaims unlocked construction space")
+  if garden.reveal != null: garden.reveal.custom_step(3.0)
+ garden.development_dialog.hide()
+ game.slot_claimed = claimed
+ p.pos = original_position
  h.start(g,"monster_studies")
  var spent: int=h.spent
  h.start(g,"flowering")
@@ -54,7 +69,7 @@ func run():
  h.advance(g,3)
  check(h.has("irrigation") and is_equal_approx(h.growth_multiplier(),1.2),"irrigation has functional growth bonus")
  for count in range(5,10):
-  h.start(g,"plot_%d"%count);h.add_work(g,h.duration("plot_%d"%count));check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"researched bed is placed")
+  h.start(g,"plot_%d"%count);h.add_work(g,h.duration("plot_%d"%count));check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"researched bed %d is placed" % count)
  check(g.plots.size()==9,"all nine universal beds expandable")
  var snapshot: Dictionary=h.serialize()
  var parts: Array=g.parts.duplicate()

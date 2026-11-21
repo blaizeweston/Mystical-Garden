@@ -151,7 +151,8 @@ static func _decode_player(bytes: PackedByteArray, offset: int, campaign: Packed
 	var attack := {"active": (attack_flags & 1) != 0, "form": "cast" if cast else "weapon",
 		"clip": CLIPS[bytes[offset + 105]], "phase": bytes.decode_float(offset + 107),
 		"combo": bytes.decode_u32(offset + 111), "duration": bytes.decode_u16(offset + 115),
-		"direction": _decode_vector(bytes, offset + 117) if attack_flags & 4 else null}
+		"direction": null}
+	if attack_flags & 4: attack.direction = _decode_vector(bytes, offset + 117)
 	if not cast:
 		attack.merge({"aim_live": (attack_flags & 8) != 0, "delivery": DELIVERIES[bytes[offset + 106]],
 			"reach": bytes.decode_float(offset + 129), "span": bytes.decode_float(offset + 133)})

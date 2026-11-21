@@ -6,6 +6,8 @@ const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
 
 const SECTORS := 32
 
+# Each complete group of five samples selects one enclosure tier.
+@warning_ignore_start("integer_division")
 static func build(base: Dictionary, cells: Dictionary, spacing: float, seed_value: int, garden: bool) -> Dictionary:
 	var layout := base.duplicate()
 	layout.plants = []
@@ -71,6 +73,7 @@ static func build(base: Dictionary, cells: Dictionary, spacing: float, seed_valu
 				"yaw": atan2(tangent.y, tangent.x) + random.randf_range(-0.8, 0.8), "size": random.randf_range(0.67, 1.04)})
 	return layout
 
+@warning_ignore_restore("integer_division")
 static func _fill_garden_gaps(layout: Dictionary, cells: Dictionary, spacing: float,
 		seed_value: int, unused: Dictionary) -> void:
 	var covered := {}

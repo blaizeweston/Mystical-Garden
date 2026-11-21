@@ -92,12 +92,12 @@ func bark(points: PackedVector2Array,width: float=8.0) -> void:
 		var leaf:=PackedVector2Array([points[i]+normal*side*4,points[i]+normal*side*14+normal.orthogonal()*5,points[i]+normal*side*9-normal.orthogonal()*4])
 		draw_colored_polygon(leaf,Color("#68724a"))
 func node_vine(center: Vector2,seed_value: int) -> void:
-	var wrap:=PackedVector2Array()
+	var wrap_container:=PackedVector2Array()
 	for i in 49:
 		var a:=TAU*i/48.0+0.6
 		var radius:=30.0+sin(a*3+seed_value)*1.5
-		wrap.append(center+Vector2(cos(a),sin(a))*radius)
-	bark(wrap,5.5)
+		wrap_container.append(center+Vector2(cos(a),sin(a))*radius)
+	bark(wrap_container,5.5)
 	# A tapered shoot reaches above the wrapping vine, like the reference.
 	var shoot:=PackedVector2Array()
 	for i in 22:

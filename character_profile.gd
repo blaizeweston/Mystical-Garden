@@ -75,9 +75,9 @@ static func normalize(source: Dictionary) -> Dictionary:
 				var allowed:=Classes.can_learn(result,c,i,rank) if new_tree else Classes.can_learn_legacy(result,c,i,rank)
 				if allowed:result.upgrades[c]|=1<<i
 		if saved_loadouts is Array and c<saved_loadouts.size() and saved_loadouts[c] is Dictionary:
-			var data: Dictionary=saved_loadouts[c]
-			result.loadouts[c].weapon=clampi(int(data.get("weapon",0)) if data.get("weapon",0) is int else 0,0,Classes.DEFINITIONS[c].weapons.size()-1)
-			var parts=data.get("parts",[])
+			var profile_data: Dictionary=saved_loadouts[c]
+			result.loadouts[c].weapon=clampi(int(profile_data.get("weapon",0)) if profile_data.get("weapon",0) is int else 0,0,Classes.DEFINITIONS[c].weapons.size()-1)
+			var parts=profile_data.get("parts",[])
 			if parts is Array:
 				for slot in mini(3,parts.size()):
 					var part:=int(parts[slot]) if parts[slot] is int else 0

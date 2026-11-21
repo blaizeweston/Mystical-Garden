@@ -33,7 +33,7 @@ var _responses := {}
 
 
 static func begin(game: Node, actor_id: int, origin: String, material: Dictionary,
-		potency: Dictionary, permitted: Array, until: int, charge_limit := -1) -> RefCounted:
+		effect_potency: Dictionary, permitted: Array, until: int, charge_limit := -1) -> RefCounted:
 	if not game.multiplayer.is_server() or permitted.is_empty():
 		return null
 	for channel in permitted:
@@ -57,7 +57,7 @@ static func begin(game: Node, actor_id: int, origin: String, material: Dictionar
 	event.charges = charge_limit
 	# Capture exactly the same scoped values exposed by the resolved build.
 	# Past applications keep their captured potency after subsequent upgrades.
-	event._potency = game.combat_build(game.players[actor_id]).affinity_potency(origin,material,potency)
+	event._potency = game.combat_build(game.players[actor_id]).affinity_potency(origin,material,effect_potency)
 	event._permitted = permitted.duplicate()
 	return event
 
@@ -146,11 +146,11 @@ static func contact(game: Node, stats: Dictionary, target: int, now: int, second
 			Ruleset.Storm.use_charge(game,event,target,point if point.is_finite() else game.enemy_position(target),now)
 
 
-static func grant_ward(game: Node, recipient: Dictionary, until: int, charges: int,
+static func grant_ward(game: Node, recipient: Dictionary, until: int, charge_count: int,
 		event: RefCounted, adapter: Dictionary, _now: int) -> void:
 	var response: RefCounted = event if event != null and adapter.trigger == "block" else null
 	var recipient_id: int = game.Traits.player_id(game, recipient)
-	recipient[Protection.STATE] = recipient[Protection.STATE].grant(until, charges, Time.get_ticks_msec(),
+	recipient[Protection.STATE] = recipient[Protection.STATE].grant(until, charge_count, Time.get_ticks_msec(),
 		game.participation.epoch(), response, adapter, recipient_id)
 
 

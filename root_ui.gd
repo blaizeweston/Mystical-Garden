@@ -159,12 +159,12 @@ func setup_health_pool() -> void:
 	pool_material.set_shader_parameter("bark", FRAME)
 	health_pool.material = pool_material
 	add_child(health_pool)
-	for label in [pool_vitals, pool_capacity]:
-		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.add_theme_color_override("font_outline_color", Color("#140a08"))
-		label.add_theme_constant_override("outline_size", 5)
-		health_pool.add_child(label)
+	for caption in [pool_vitals, pool_capacity]:
+		caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		caption.add_theme_color_override("font_outline_color", Color("#140a08"))
+		caption.add_theme_constant_override("outline_size", 5)
+		health_pool.add_child(caption)
 	pool_vitals.add_theme_color_override("font_color", Color("#f4e5c8"))
 	pool_vitals.add_theme_font_size_override("font_size", 17)
 	pool_capacity.add_theme_color_override("font_color", Orb.CAP)
@@ -217,14 +217,14 @@ func text(canvas: Control, at: Vector2, value: String, font_size: int = 14, colo
 	canvas.draw_string_outline(font, at, value, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 4, Color(0.03, 0.05, 0.03, 0.9))
 	canvas.draw_string(font, at, value, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
 
-func slot(canvas: Control, rect: Rect2, key: String, name_text: String, ready: bool, glyph: String) -> void:
+func slot(canvas: Control, rect: Rect2, key: String, name_text: String, is_ready: bool, glyph: String) -> void:
 	canvas.draw_style_box(slot_style, rect)
 	var center := rect.get_center()
-	canvas.draw_circle(center - Vector2(0, 8), 15, Color("#34492b") if ready else Color("#292821"))
-	text(canvas, center + Vector2(-7, -2), glyph, 21, Color("#c6d5a3") if ready else MUTED)
+	canvas.draw_circle(center - Vector2(0, 8), 15, Color("#34492b") if is_ready else Color("#292821"))
+	text(canvas, center + Vector2(-7, -2), glyph, 21, Color("#c6d5a3") if is_ready else MUTED)
 	text(canvas, rect.position + Vector2(11, 26), key, 11, MUTED)
-	text(canvas, rect.position + Vector2(11, rect.size.y - 19), name_text, 12, INK if ready else MUTED)
-	if not ready:
+	text(canvas, rect.position + Vector2(11, rect.size.y - 19), name_text, 12, INK if is_ready else MUTED)
+	if not is_ready:
 		canvas.draw_rect(Rect2(rect.position + Vector2(9, rect.size.y - 7), Vector2(rect.size.x - 18, 2)), Color("#6c5d3d"))
 
 func _draw() -> void:
@@ -278,8 +278,8 @@ func _draw() -> void:
 func draw_core_slot(rect: Rect2,core: Dictionary) -> void:
 	draw_style_box(slot_style,rect)
 	var remaining: float=core.remaining
-	var ready:=remaining<=0.0
-	var tint:=Color.WHITE if ready else Color(.78,.78,.69,.72)
+	var is_ready:=remaining<=0.0
+	var tint:=Color.WHITE if is_ready else Color(.78,.78,.69,.72)
 	var center:=rect.get_center()
 	if core_icon!=null:
 		draw_texture_rect(core_icon,Rect2(center-Vector2(17,25),Vector2(34,34)),false,tint)
@@ -289,58 +289,58 @@ func draw_core_slot(rect: Rect2,core: Dictionary) -> void:
 	text(self,rect.position+Vector2(9,17),key,11,INK)
 	if remaining>0.0:
 		text(self,rect.position+Vector2(62,17),"%.1f"%remaining,11,MUTED)
-	var label: String=core.name
+	var caption: String=core.name
 	var font:=ThemeDB.fallback_font
-	var width:=font.get_string_size(label,HORIZONTAL_ALIGNMENT_LEFT,-1,11).x
-	text(self,Vector2(center.x-width*.5,rect.end.y-15),label,11,INK if ready else MUTED)
+	var width:=font.get_string_size(caption,HORIZONTAL_ALIGNMENT_LEFT,-1,11).x
+	text(self,Vector2(center.x-width*.5,rect.end.y-15),caption,11,INK if is_ready else MUTED)
 
 
-func skill_slot(canvas: Control,rect: Rect2,key: String,label: String,remaining: float,ready: bool) -> void:
+func skill_slot(canvas: Control,rect: Rect2,key: String,caption: String,remaining: float,is_ready: bool) -> void:
 	canvas.draw_style_box(slot_style,rect)
 	var center:=rect.get_center()
-	var icon := ClassIcons.icon(label.trim_suffix(" •"))
+	var icon := ClassIcons.icon(caption.trim_suffix(" •"))
 	if icon != null:
-		var tint := Color.WHITE if ready else Color(.63,.65,.61,.78)
+		var tint := Color.WHITE if is_ready else Color(.63,.65,.61,.78)
 		canvas.draw_texture_rect(icon,Rect2(center-Vector2(18,27),Vector2(36,36)),false,tint)
 	text(canvas,rect.position+Vector2(10,18),key,11,MUTED)
-	if not ready:
+	if not is_ready:
 		var value := "%.1f" % remaining
 		var width := ThemeDB.fallback_font.get_string_size(value,HORIZONTAL_ALIGNMENT_LEFT,-1,11).x
 		text(canvas,rect.position+Vector2(rect.size.x-width-8,18),value,11,MUTED)
-	var words:=label.split(" ")
+	var words:=caption.split(" ")
 	if words.size()>1:
 		var first: String=words[0]
 		var rest: String=" ".join(words.slice(1))
-		text(canvas,rect.position+Vector2(10,rect.size.y-23),first,11,INK if ready else MUTED)
-		text(canvas,rect.position+Vector2(10,rect.size.y-10),rest,11,INK if ready else MUTED)
+		text(canvas,rect.position+Vector2(10,rect.size.y-23),first,11,INK if is_ready else MUTED)
+		text(canvas,rect.position+Vector2(10,rect.size.y-10),rest,11,INK if is_ready else MUTED)
 	else:
-		text(canvas,rect.position+Vector2(10,rect.size.y-15),label,11,INK if ready else MUTED)
-	if not ready:
+		text(canvas,rect.position+Vector2(10,rect.size.y-15),caption,11,INK if is_ready else MUTED)
+	if not is_ready:
 		canvas.draw_rect(Rect2(rect.position+Vector2(9,rect.size.y-6),Vector2(rect.size.x-18,2)),Color("#6c5d3d"))
 
-static func panel(parent: Node, color: Color, margin: Vector2) -> PanelContainer:
-	var panel := PanelContainer.new()
-	parent.add_child(panel)
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+static func panel(parent: Node, _color: Color, margin: Vector2) -> PanelContainer:
+	var frame_panel := PanelContainer.new()
+	parent.add_child(frame_panel)
+	frame_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var style := root_style()
 	style.content_margin_left = maxf(18.0, margin.x)
 	style.content_margin_right = maxf(18.0, margin.x)
 	style.content_margin_top = maxf(16.0, margin.y)
 	style.content_margin_bottom = maxf(16.0, margin.y)
-	panel.add_theme_stylebox_override("panel", style)
-	return panel
+	frame_panel.add_theme_stylebox_override("panel", style)
+	return frame_panel
 
-static func label(parent: Control, size: int, color: Color) -> Label:
-	var label := Label.new()
-	label.add_theme_font_size_override("font_size", size)
-	label.add_theme_color_override("font_color", color)
-	parent.add_child(label)
-	return label
+static func label(parent: Control, font_size: int, color: Color) -> Label:
+	var caption := Label.new()
+	caption.add_theme_font_size_override("font_size", font_size)
+	caption.add_theme_color_override("font_color", color)
+	parent.add_child(caption)
+	return caption
 
 static func button(parent: Control, caption: String, action: Callable, focus: int = Control.FOCUS_ALL) -> Button:
-	var button := Button.new()
-	button.text = caption
-	button.focus_mode = focus
-	button.pressed.connect(action)
-	parent.add_child(button)
-	return button
+	var action_button := Button.new()
+	action_button.text = caption
+	action_button.focus_mode = focus as Control.FocusMode
+	action_button.pressed.connect(action)
+	parent.add_child(action_button)
+	return action_button

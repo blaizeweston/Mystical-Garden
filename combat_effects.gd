@@ -21,11 +21,11 @@ func visual(color: Color) -> Dictionary:
  var root:=Node3D.new();add_child(root);root.position=stage.WILD_OFFSET
  var mesh:=MeshInstance3D.new();root.add_child(mesh);mesh.mesh=ImmediateMesh.new();mesh.material_override=material(color);mesh.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
  return {"root":root,"mesh":mesh,"age":0.0}
-func sync(events: Array,telegraphs: Array,key: String,position: Vector3,radius: float=6.8) -> void:
+func sync(events: Array,telegraphs: Array,key: String,world_position: Vector3,radius: float=6.8) -> void:
  if key!=floor_key: clear();floor_key=key
- observer=position;sight=radius
- feedback.observer=position;feedback.sight=radius
- statuses.observer=position;statuses.sight=radius
+ observer=world_position;sight=radius
+ feedback.observer=world_position;feedback.sight=radius
+ statuses.observer=world_position;statuses.sight=radius
  for event in events:
   if event.kind=="audio":continue
   if seen.has(event.id): continue
@@ -51,8 +51,8 @@ func sync(events: Array,telegraphs: Array,key: String,position: Vector3,radius: 
   var visible_hit: bool=point(event.to).distance_to(observer)<=sight
   if event.kind=="impact" and visible_hit:feedback.confirmed(event,point(event.to))
   if event.kind=="proc" and visible_hit:
-   var name: String={"mark_break":"Mark triggered","core_mark_burst":"Core Mark burst","shatter":"Shatter!","suppress":"Interrupted","echo":"Echo","link":"Linked hit","chorus":"Chorus","counter":"Counter!","brace":"Braced","momentum":"Death charge","pierce":"Pierced","punish":"Wind-up punished","siphon":"Life restored"}.get(str(event.shape),str(event.shape).capitalize())
-   feedback.text_at(name,point(event.to),Color(event.color),int(event.id),true)
+   var display_name: String={"mark_break":"Mark triggered","core_mark_burst":"Core Mark burst","shatter":"Shatter!","suppress":"Interrupted","echo":"Echo","link":"Linked hit","chorus":"Chorus","counter":"Counter!","brace":"Braced","momentum":"Death charge","pierce":"Pierced","punish":"Wind-up punished","siphon":"Life restored"}.get(str(event.shape),str(event.shape).capitalize())
+   feedback.text_at(display_name,point(event.to),Color(event.color),int(event.id),true)
   if event.kind=="enemy_release" and visible_hit:
    if event.shape=="pulled":feedback.text_at("Pulled",point(event.to),Color(event.color),int(event.id),true,3.45)
    elif event.shape=="restored" and int(event.reach)>0:feedback.text_at("+%d"%int(event.reach),point(event.to),Color(event.color),int(event.id))
@@ -112,9 +112,9 @@ func pose(effect: Dictionary) -> void:
  var from:=point(event.from);var to:=point(event.to)
  if event.kind=="swing" and event.has("owner"):
   if not effect.has("frozen_from"):
-   var owner: Node3D=stage.avatars.get(int(event.owner))
-   if is_instance_valid(owner):
-    var shift: Vector3=owner.position-stage.WILD_OFFSET-from;from+=shift;to+=shift
+   var owner_context: Node3D=stage.avatars.get(int(event.owner))
+   if is_instance_valid(owner_context):
+    var shift: Vector3=owner_context.position-stage.WILD_OFFSET-from;from+=shift;to+=shift
    if t>=float(event.get("contact",.42)):effect.frozen_from=from;effect.frozen_to=to
   else:from=effect.frozen_from;to=effect.frozen_to
  var direction: Vector3=(to-from).normalized()
@@ -184,8 +184,8 @@ func pose(effect: Dictionary) -> void:
  elif event.kind=="ability" and event.has("core_shapes"):
   CoreVisuals.draw(self,mesh,event,to,t,false)
  elif event.kind=="ability" and event.shape in ["tidal_ring","tidal_ring_return"]:
-  var scale:=1.0-t if event.shape=="tidal_ring_return" else t
-  for band in 3:circle(mesh,to+Vector3.UP*(.08+.04*band),maxf(0,float(event.reach)*scale-.10*band),.08-.015*band)
+  var effect_scale:=1.0-t if event.shape=="tidal_ring_return" else t
+  for band in 3:circle(mesh,to+Vector3.UP*(.08+.04*band),maxf(0,float(event.reach)*effect_scale-.10*band),.08-.015*band)
  elif event.kind=="ability" and event.shape in ["riptide","riptide_return"]:
   var crest:=from.lerp(to,t)+Vector3.UP*.09
   var width:=float(event.reach)
@@ -213,7 +213,7 @@ func pose(effect: Dictionary) -> void:
    ribbon(mesh,middle+cross*petal_width,tip,.075)
    ribbon(mesh,middle-cross*petal_width,tip,.075)
  elif event.kind=="ability":
-  var family:=feedback.family(str(event.shape));var reach:=clampf(float(event.reach),.8,8)
+  var family:=preload("res://combat_feedback.gd").family(str(event.shape));var reach:=clampf(float(event.reach),.8,8)
   var center:=to+Vector3.UP*.08;var spread:=smoothstep(0,.5,t)
   circle(mesh,center,reach*(.65+.35*spread),.085*(1-t)+.025)
   if family=="guard":
@@ -341,9 +341,9 @@ func draw_hint(hint: Dictionary) -> void:
   surface.emission=surface.albedo_color
   var ray: Vector3=(to-from).normalized()
   var side:=ray.cross(Vector3.UP)
-  var step:=fposmod(Time.get_ticks_msec()*.002,1.0)
+  var motion_step:=fposmod(Time.get_ticks_msec()*.002,1.0)
   for index in 3:
-   var tip:=from.lerp(to,(index+step)/3.0)+Vector3.UP*.24
+   var tip:=from.lerp(to,(index+motion_step)/3.0)+Vector3.UP*.24
    ribbon(mesh,tip-ray*.18+side*.10,tip,.05)
    ribbon(mesh,tip-ray*.18-side*.10,tip,.05)
   hint.root.visible=to.distance_to(observer)<=sight
@@ -354,9 +354,9 @@ func draw_hint(hint: Dictionary) -> void:
   surface.albedo_color=Color(event.color)
   surface.emission=surface.albedo_color
   if event.has("core_shapes"):
-   var remaining:=float(event.remaining)
-   if not hint.has("total"):hint.total=maxf(.1,remaining)
-   CoreVisuals.draw(self,mesh,event,to,1.0-clampf(remaining/float(hint.total),0,1),true)
+   var remaining_distance:=float(event.remaining)
+   if not hint.has("total"):hint.total=maxf(.1,remaining_distance)
+   CoreVisuals.draw(self,mesh,event,to,1.0-clampf(remaining_distance/float(hint.total),0,1),true)
    hint.root.visible=to.distance_to(observer)<=sight+radius
    mesh.surface_end()
    return
@@ -399,11 +399,11 @@ func draw_hint(hint: Dictionary) -> void:
   var ray: Vector3=(to-from).normalized()
   var side:=ray.cross(Vector3.UP)*float(event.get("width",.21))
   for index in maxi(0,floori(from.distance_to(to)/.45)):
-   var step:=from+ray*float(index)*.45
-   ribbon(mesh,step+side,step+side+ray*.23,.025)
-   ribbon(mesh,step-side,step-side+ray*.23,.025)
+   var motion_step:=from+ray*float(index)*.45
+   ribbon(mesh,motion_step+side,motion_step+side+ray*.23,.025)
+   ribbon(mesh,motion_step-side,motion_step-side+ray*.23,.025)
    if index%3==0:
-    var star:=step+Vector3.UP*.17
+    var star:=motion_step+Vector3.UP*.17
     ribbon(mesh,star-Vector3.UP*.15,star+Vector3.UP*.15,.057)
     ribbon(mesh,star-side*.76,star+side*.76,.042)
   for i in 4:
@@ -505,7 +505,7 @@ func draw_hint(hint: Dictionary) -> void:
    var a: float=-PI*.5+i*TAU/40.;var b: float=a+TAU/40.
    ribbon(mesh,center+Vector3(cos(a),.012,sin(a))*radius*.92,center+Vector3(cos(b),.012,sin(b))*radius*.92,.13)
  mesh.surface_end()
- var material:=hint.mesh.material_override as StandardMaterial3D
+ var effect_material:=hint.mesh.material_override as StandardMaterial3D
  var color:=Color("#96d278") if role in ["chant","shepherd"] else Color("#ff9462")
  if role=="reinforcement":color=Color("#9ce1ff")
  if role=="burrow":color=Color("#e6be83")
@@ -542,7 +542,7 @@ func draw_hint(hint: Dictionary) -> void:
   "memory":color=Color("#f59cf2") if event.get("active",false) else Color("#b7a7fb")
  if role=="nursery_exit":color=Color("#afc994")
  if not hazard.is_empty():color=Color(hazard.active if event.active else hazard.warning)
- color.a=.8+.12*sin(float(Time.get_ticks_msec())*.012);material.albedo_color=color;material.emission=color
+ color.a=.8+.12*sin(float(Time.get_ticks_msec())*.012);effect_material.albedo_color=color;effect_material.emission=color
  hint.root.visible=Geometry3D.get_closest_point_to_segment(observer,from,to).distance_to(observer)<=sight+radius
 func step(delta: float) -> void:
  feedback.step(delta)

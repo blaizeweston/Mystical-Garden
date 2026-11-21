@@ -5,6 +5,7 @@ const C = preload("res://assets/terrain_m02/garden_construction.gd")
 const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const Forest = preload("res://assets/terrain_m02/garden_forest_barrier.gd")
+const Placement = preload("res://tests/support/garden_placement_case.gd")
 
 var errors := 0
 var elapsed := PackedInt64Array()
@@ -40,8 +41,9 @@ func run() -> void:
 	check(query_boundary.thicket_centres() == rendered_centres, "construction clearances exactly match the former rendered positions")
 	query_boundary.free()
 	var start_positions: Dictionary = garden.landmarks.duplicate(true)
-	var bed := Vector2(2.34, -4.58)
 	var heading := 0.37
+	var bed := Placement.find(model, "bed", Vector2(2.34, -4.58), heading, view.pawn)
+	check(bed.is_finite(), "a rotated bed fits beyond the fully grown Heart")
 	check(Grid.cell_to_world(Grid.world_to_cell(bed, garden.spacing), garden.spacing) != bed, "fixture uses continuous coordinates")
 	var span := model.footprint("bed", bed, heading).outline as PackedVector2Array
 	var covered := {}
@@ -58,6 +60,7 @@ func run() -> void:
 	check(projected.distance_to(Vector2(click.x, click.z)) < 0.002 and projected.distance_to(
 		Grid.cell_to_world(Grid.world_to_cell(projected, garden.spacing), garden.spacing)) > 0.1,
 		"mouse projection preserves the clicked ground point without snapping")
+	build.yaw = heading
 	build.preview(bed)
 	check(build.ghost.visible and not build.apply.disabled, "valid placement displays a live ghost")
 	var touched := Grid.world_to_cell(span[0], garden.spacing)
@@ -67,12 +70,20 @@ func run() -> void:
 		"an owned stone-labeled hex does not reject a clear footprint")
 	garden.terrain[touched] = original_terrain
 	var starter: Dictionary = garden.landmarks.monster_studies
-	build.preview(starter.center)
+	# The historical demo station is now under the full canopy. Give this
+	# station-outline assertion its own otherwise legal location.
+	var test_station := Shape.disk("monster_studies", "station", bed, starter.radius)
+	garden.landmarks.monster_studies = test_station
+	build.preview(Vector2.ZERO)
+	build.preview(test_station.center)
 	check(build.apply.disabled and build.blocker.visible and "monster studies" in build.reason
-		and build.blocker_outline == Shape.boundary(starter),
+		and build.blocker_outline == Shape.boundary(test_station),
 		"the demo station's reserved area is outlined when it blocks placement (%s)" % build.reason)
+	garden.landmarks.monster_studies = starter
+	build.preview(Vector2.ZERO)
 	build.preview(bed)
 	check(not build.blocker.visible and not build.apply.disabled, "the blocker clears when placement is valid again")
+	build.yaw = 0.0
 	var key := InputEventKey.new()
 	key.pressed = true
 	key.physical_keycode = KEY_E
@@ -91,22 +102,20 @@ func run() -> void:
 	var record_state: Dictionary = model.records[id].state
 	var art: Node = build.objects[id]
 	check(not view.barrier.walkable(bed), "placed footprints block actual Garden walking")
-	check("another structure" in model.validate("archive", bed, 0.0, view.pawn), "overlapping placement is rejected")
+	check("another structure" in model.validate("bed", bed, heading, view.pawn), "overlapping placement is rejected")
 	check(not model.CATALOG.has("spring") and model.validate("spring", Vector2(-6.64, 4.23), 0.0, view.pawn)=="Choose a Garden structure.", "retired spring fixture cannot be constructed")
-	check("heart" in model.validate("bed", Vector2.ZERO, 0.0, view.pawn), "Heart reservation is protected")
+	check("Heart" in model.validate("bed", Vector2.ZERO, 0.0, view.pawn), "Heart reservation is protected")
 	check("water" in model.validate("archive", garden.layout.water[0].bounds.get_center(), 0.0, view.pawn), "pond rejects full footprint")
 	var approach: PackedVector2Array = garden.layout.paths[0].spine
 	var on_path := approach[approach.size() / 2]
 	check("Wilds approach" in model.validate("archive", on_path, 0.0, view.pawn), "Gate corridor is protected")
 	check("player" in model.validate("bed", Vector2(-3.25, -5.25), 0.37, Vector2(-3.25, -5.25)),
 		"placement cannot enclose the current player")
-	var unique: int = model.commit("study", Vector2(-6.67, 4.44), 0.37, view.pawn)
+	var study_site := Placement.find(model, "study", Vector2(-6.67, 4.44), heading, view.pawn)
+	var unique: int = model.commit("study", study_site, heading, view.pawn)
 	check(unique > 0 and "already" in model.validate("study", Vector2.ZERO, 0.0, view.pawn), "field study is unique")
-	var repeat: int = 0
-	for site in [Vector2(-3.25, -5.25), Vector2(6.44, 0.45), Vector2(0.17, 5.58), Vector2(1.31, 6.72)]:
-		repeat = model.commit("bed", site, 0.37, view.pawn)
-		if repeat != 0:
-			break
+	var repeat_site := Placement.find(model, "bed", Vector2(0.17, 5.58), heading, view.pawn)
+	var repeat: int = model.commit("bed", repeat_site, heading, view.pawn)
 	check(repeat > unique, "repeatable beds receive distinct increasing IDs")
 	_find_rotated_overhang(model, view.pawn)
 	_check_denied_access(model, view.pawn)

@@ -58,7 +58,7 @@ var terrain_key := Vector3i(-1, -1, -1)
 var support_hit_until: Array[int] = []
 var last_foe_hp := 0
 var foe_hit_until := 0
-var seed: Node3D
+var seed_drop: Node3D
 var attack_ring: MeshInstance3D
 var garden_portal: Node3D
 var wild_portal: Node3D
@@ -189,8 +189,8 @@ func _ready() -> void:
 	longlimb_legs = Node3D.new()
 	foe.add_child(longlimb_legs)
 	longlimb_legs.hide()
-	seed = build_seed_model()
-	seed.scale = Vector3.ONE * 1.35
+	seed_drop = build_seed_model()
+	seed_drop.scale = Vector3.ONE * 1.35
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.90
 	ring.outer_radius = 1.0
@@ -246,7 +246,7 @@ func focus(origin: Vector3, wild: bool, delta: float = 1.0) -> void:
 
 
 func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
-		winding_up: bool, strike_radius: float, drop: Vector3, has_drop: bool, planted: Array, depth: int, route_rooms: int, show_graft_altar: bool, briar_bound: bool, longlimb: bool, campaign: PackedInt32Array, pack: PackedFloat32Array, delta: float, view_id: int=-1) -> void:
+		winding_up: bool, strike_radius: float, drop: Vector3, has_drop: bool, _planted: Array, depth: int, route_rooms: int, show_graft_altar: bool, briar_bound: bool, longlimb: bool, campaign: PackedInt32Array, pack: PackedFloat32Array, delta: float, view_id: int=-1) -> void:
 	var now := preload("res://combat_clock.gd").now()
 	for id in avatars.keys():
 		if not players.has(id):
@@ -258,11 +258,11 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 			var avatar := Node3D.new()
 			add_child(avatar)
 			avatars[id] = avatar
-			var actor := preload("res://traveller_avatar.gd").build(avatar)
-			actor.look_key = ""
-			avatar_models[id] = actor
+			var avatar_model := preload("res://traveller_avatar.gd").build(avatar)
+			avatar_model.look_key = ""
+			avatar_models[id] = avatar_model
 			marker(Vector3.UP * 1.85, "YOU" if id == local_id else "ALLY", avatar)
-			actor.name_label=avatar.find_children("*","Label3D",true,false)[0]
+			avatar_model.name_label=avatar.find_children("*","Label3D",true,false)[0]
 		var p: Dictionary = players[id]
 		var offset := WILD_OFFSET if bool(p.wild) else Vector3.ZERO
 		var actor: Dictionary = avatar_models[id]
@@ -381,9 +381,9 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 			support_rings[i].position = impact
 			support_rings[i].scale = Vector3(radius, 0.25, radius)
 			support_binds[i].position = p + Vector3.UP * 0.13
-	seed.visible = has_drop
-	seed.position = WILD_OFFSET + drop + Vector3.UP * (0.38 + sin(now * 0.002) * 0.06)
-	seed.rotation.y = now * 0.0004
+	seed_drop.visible = has_drop
+	seed_drop.position = WILD_OFFSET + drop + Vector3.UP * (0.38 + sin(now * 0.002) * 0.06)
+	seed_drop.rotation.y = now * 0.0004
 	pass # Plot presentation is driven by individual bed snapshots.
 
 
@@ -426,7 +426,6 @@ func tint_mesh(root: Node3D, mesh_name: String, color: Color) -> StandardMateria
 func slide_actor(root: Node3D, actor: Dictionary, target: Vector3, delta: float,velocity_hint: Vector3=Vector3.INF) -> Vector3:
 	var rendered_before:=root.position
 	var previous: Vector3 = actor.last
-	var motion := Vector3.ZERO if previous == Vector3.INF or previous.distance_to(target) > 4.0 else target - previous
 	if previous == Vector3.INF or root.position.distance_to(target) > 4.0:
 		root.position = target
 	else:
@@ -440,9 +439,9 @@ func slide_actor(root: Node3D, actor: Dictionary, target: Vector3, delta: float,
 	return visible_motion
 
 
-func update_avatar(root: Node3D, actor: Dictionary, player: Dictionary, position: Vector3, delta: float) -> void:
+func update_avatar(root: Node3D, actor: Dictionary, player: Dictionary, world_position: Vector3, delta: float) -> void:
 	var speed_hint: Vector3=player.get("velocity",Vector3.INF)
-	var travel:=slide_actor(root,actor,position,delta,Vector3.INF if speed_hint.is_zero_approx() else speed_hint)
+	var travel:=slide_actor(root,actor,world_position,delta,Vector3.INF if speed_hint.is_zero_approx() else speed_hint)
 	actor.gait_vector=travel
 	actor.gait_phase=fposmod(float(actor.get("gait_phase",0.0))+travel.length()/2.0,1.0)
 	actor.gait_travel=travel.length()
@@ -487,20 +486,20 @@ func update_avatar(root: Node3D, actor: Dictionary, player: Dictionary, position
 	var visual_key: String=str(Classes.DEFINITIONS[class_id].id)+":"+str(Classes.DEFINITIONS[class_id].weapons[weapon_id].id)
 	if str(actor.get("weapon_key",""))!=visual_key:
 		if actor.has("visual_weapon"): actor.visual_weapon.free()
-		var visual:=preload("res://weapon_visuals.gd").build(self,class_id,weapon_id)
-		visual.reparent(actor.model,false)
-		visual.position=Vector3(.47,.79,.1)
+		var effect_visual:=preload("res://weapon_visuals.gd").build(self,class_id,weapon_id)
+		effect_visual.reparent(actor.model,false)
+		effect_visual.position=Vector3(.47,.79,.1)
 		if actor.has("secondary_weapon"):actor.secondary_weapon.free();actor.erase("secondary_weapon")
 		if str(player.weapon_form)=="knives":
 			var other:=preload("res://weapon_visuals.gd").build(self,class_id,weapon_id);other.reparent(actor.model,false);actor.secondary_weapon=other
-		actor.visual_weapon=visual
+		actor.visual_weapon=effect_visual
 		actor.weapon_key=visual_key
 	var visual: Node3D=actor.visual_weapon
 	preload("res://weapon_visuals.gd").animate(actor,str(player.weapon_form),attack_phase,active,yaw,float(motion.reach),motion)
 	var core:=int(player.core_part)
 	if core>0 and core<Parts.DEFINITIONS.size() and Parts.is_plant(core):
-		var seed: MeshInstance3D=visual.get_node("CoreSeed")
-		(seed.material_override as StandardMaterial3D).albedo_color=Color(Seeds.DEFINITIONS[Parts.plant_source(core)].color)
+		var core_seed: MeshInstance3D=visual.get_node("CoreSeed")
+		(core_seed.material_override as StandardMaterial3D).albedo_color=Color(Seeds.DEFINITIONS[Parts.plant_source(core)].color)
 
 
 func attack_material(tint: Color) -> StandardMaterial3D:
@@ -512,22 +511,22 @@ func attack_material(tint: Color) -> StandardMaterial3D:
 	return material
 
 
-func animate_enemy(root: Node3D, actor: Dictionary, position: Vector3, winding: bool, delta: float, cue: Dictionary={}) -> void:
-	position = preload("res://glasscap_visuals.gd").motion(self,root,actor,position)
+func animate_enemy(root: Node3D, actor: Dictionary, world_position: Vector3, winding: bool, delta: float, cue: Dictionary={}) -> void:
+	world_position = preload("res://glasscap_visuals.gd").motion(self,root,actor,world_position)
 	var previous: Vector3=actor.last
-	var motion := slide_actor(root, actor, position, delta)
+	var motion := slide_actor(root, actor, world_position, delta)
 	var model: Node3D = actor.model
 	var facing:=motion
 	var last_cue: Dictionary=actor.get("attack_cue",{})
 	if winding and cue.has("target"):
 		actor.attack_cue=cue
 		if int(cue.get("pulse",0))>1 and cue.get("pulse")!=last_cue.get("pulse"):actor.windup=0.0
-		facing=WILD_OFFSET+Vector3(cue.target)-position
+		facing=WILD_OFFSET+Vector3(cue.target)-world_position
 	elif not winding and not last_cue.is_empty():
-		if position.distance_to(WILD_OFFSET+Vector3(last_cue.target))<.15 and previous.distance_to(position)>.2:
+		if world_position.distance_to(WILD_OFFSET+Vector3(last_cue.target))<.15 and previous.distance_to(world_position)>.2:
 			if last_cue.mode in ["pounce","vault"]:actor.jump_until=preload("res://combat_clock.gd").now()+350
 			if last_cue.mode=="burrow":
-				actor.burrow={"elapsed":0.0,"from":previous,"to":position,"via":WILD_OFFSET+Vector3(last_cue.via) if last_cue.has("via") else previous.lerp(position,.5)}
+				actor.burrow={"elapsed":0.0,"from":previous,"to":world_position,"via":WILD_OFFSET+Vector3(last_cue.via) if last_cue.has("via") else previous.lerp(world_position,.5)}
 		actor.erase("attack_cue")
 	elif not winding and motion.length()>1.5 and int(actor.mask)&Enemies.MOBILITY and get_meta("enemy_attack_poses",{}).is_empty():
 		actor.jump_until=preload("res://combat_clock.gd").now()+350
@@ -785,10 +784,10 @@ func root_tube(surface: SurfaceTool, points: Array[Vector3], radius_start: float
 				surface.set_color(Color(grain, grain, grain))
 				surface.add_vertex(vertices[index])
 
-func apply_exploration_sight(position: Vector3, wild: bool, radius: float, gate_seen: bool = true) -> void:
+func apply_exploration_sight(world_position: Vector3, wild: bool, radius: float, gate_seen: bool = true) -> void:
 	if not wild:
 		return
-	var observer := WILD_OFFSET + position
+	var observer := WILD_OFFSET + world_position
 	if is_instance_valid(experimental_exit):
 		experimental_exit.visible = gate_seen
 		deeper_gate.visible = gate_seen
@@ -800,7 +799,7 @@ func apply_exploration_sight(position: Vector3, wild: bool, radius: float, gate_
 		support_models[i].visible = support_models[i].visible and nearby
 		support_rings[i].visible = support_rings[i].visible and support_rings[i].position.distance_to(observer) <= radius
 		support_binds[i].visible = support_binds[i].visible and nearby
-	seed.visible = seed.visible and seed.position.distance_to(observer) <= radius
+	seed_drop.visible = seed_drop.visible and seed_drop.position.distance_to(observer) <= radius
 	seed_cache.visible = seed_cache.visible and seed_cache.position.distance_to(observer) <= radius
 
 static func garden_growth(knowledge: int, technologies: int) -> int:
@@ -832,15 +831,15 @@ func build_gate_swirl(parent: Node3D,at: Vector3) -> Node3D:
 	return root
 
 
-func build_garden_plot(position: Vector3, parent: Node3D = self) -> void:
-	var group:=Node3D.new();group.name="GardenBed";parent.add_child(group);group.position=position;group.set_meta("garden_plot_position",position)
-	parent=group;position=Vector3.ZERO
+func build_garden_plot(world_position: Vector3, parent: Node3D = self) -> void:
+	var group:=Node3D.new();group.name="GardenBed";parent.add_child(group);group.position=world_position;group.set_meta("garden_plot_position",world_position)
+	parent=group;world_position=Vector3.ZERO
 	var soil := CylinderMesh.new()
 	soil.top_radius = 1.0
 	soil.bottom_radius = 1.07
 	soil.height = 0.08
 	soil.radial_segments = 28
-	var earth := mesh(soil, position + Vector3.UP * 0.02, Color("#43301d"))
+	var earth := mesh(soil, world_position + Vector3.UP * 0.02, Color("#43301d"))
 	earth.reparent(parent,false)
 	var soil_material:=ShaderMaterial.new();soil_material.shader=preload("res://assets/shaders/forest_soil.gdshader");earth.material_override=soil_material
 	var surface := SurfaceTool.new()
@@ -849,7 +848,7 @@ func build_garden_plot(position: Vector3, parent: Node3D = self) -> void:
 	for i in 33:
 		var angle := TAU * i / 32.0
 		var radius := 1.02 + sin(angle * 5.0) * 0.055
-		points.append(position + Vector3(cos(angle) * radius, 0.09, sin(angle) * radius))
+		points.append(world_position + Vector3(cos(angle) * radius, 0.09, sin(angle) * radius))
 	root_tube(surface, points, 0.08, 0.065)
 	var rim := MeshInstance3D.new()
 	parent.add_child(rim)
@@ -863,9 +862,9 @@ func build_heart_growth() -> Node3D:
 
 func update_heart_progress(state: Dictionary) -> void:
 	if experimental_garden != null:
-		var unlocked: Array=state.get("unlocked",[])
-		if heart_unlocked!=unlocked:garden_tier=-1
-		heart_unlocked = unlocked.duplicate()
+		var unlocked_technologies: Array=state.get("unlocked",[])
+		if heart_unlocked!=unlocked_technologies:garden_tier=-1
+		heart_unlocked = unlocked_technologies.duplicate()
 		heart_phase = clampi(int(get_meta("garden_growth_phase", state.get("phase", 0))), 0, 5)
 		experimental_garden.show_heart_stage(heart_phase)
 		preload("res://heart_growth_visuals.gd").sync(self,state)
@@ -933,7 +932,7 @@ func update_plots(beds: Array) -> void:
 		label.modulate = Color("#d4d5ad") if bed.stage < 3 else Color("#f3dc92")
 
 
-func plant_blob(parent: Node3D, position: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
+func plant_blob(parent: Node3D, world_position: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
 	var shape := SphereMesh.new()
 	shape.radius = 1.0
 	shape.height = 2.0
@@ -942,7 +941,7 @@ func plant_blob(parent: Node3D, position: Vector3, size: Vector3, color: Color) 
 	var blob := MeshInstance3D.new()
 	parent.add_child(blob)
 	blob.mesh = shape
-	blob.position = position
+	blob.position = world_position
 	blob.scale = size
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color

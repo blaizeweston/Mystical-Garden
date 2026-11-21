@@ -127,7 +127,7 @@ static func archive_preflight(paths: PackedStringArray) -> Dictionary:
 
 static func commit_bytes(context: RefCounted, files: Dictionary, anchor: String, fault := Callable(), removals := PackedStringArray()) -> Dictionary:
  var paths := PackedStringArray(files.keys()) + removals
- var checked := run_nested(context, paths, func(_context):
+ var checked := run_nested(context, paths, func(_access_context):
   return Batch._run_guarded(_native_context, paths, anchor, func(stage):
    for path in paths:
     if files.has(path):
@@ -166,7 +166,7 @@ static func commit_serializers(context: RefCounted, serializers: Array, anchor: 
  var scope := _serializer_scope(serializers)
  if scope.is_empty() or not action.is_valid():
   return _result(ERR_INVALID_PARAMETER, "invalid", "invalid_serializer_operation")
- var checked := run_nested(context, scope.paths + scope.auxiliary, func(_context):
+ var checked := run_nested(context, scope.paths + scope.auxiliary, func(_access_context):
   var execution := Batch._run_guarded(_native_context, scope.paths, anchor, func(stage):
    _serializer_context = context
    _serializers = scope.bindings
@@ -191,7 +191,7 @@ static func write_metadata(context: RefCounted, target: String, file: ConfigFile
  if target.get_file() not in ["session.cfg", "settings.cfg", "catalog.cfg"]:
   return management_result(ERR_UNAUTHORIZED, "unsupported_metadata_target")
  var scratch := target + ".tmp"
- var checked := run_nested(context, PackedStringArray([target, scratch]), func(_context):
+ var checked := run_nested(context, PackedStringArray([target, scratch]), func(_access_context):
   return _write_metadata_locked(target, scratch, file.encode_to_text().to_utf8_buffer()))
  return checked.value if checked.ran else checked
 
@@ -209,7 +209,7 @@ static func archive_copies(context: RefCounted, destinations: Dictionary, fault 
   if Layout.archive_source(target, layout) != source:
    return management_result(ERR_UNAUTHORIZED, "archive_scope_rejected")
   scope.append_array(PackedStringArray([source, target, target + ".tmp"]))
- var checked := run_nested(context, scope, func(_context):
+ var checked := run_nested(context, scope, func(_access_context):
   var originals := {}
   var archived := {}
   for source in ordered:
@@ -345,7 +345,7 @@ static func stage_serializer(serializer: RefCounted, operation: Callable) -> Err
  for backup: String in serializer.migration_backup_paths():
   scope.append(backup)
   scope.append(backup + ".tmp")
- var result := run_nested(_serializer_context, scope, func(_context):
+ var result := run_nested(_serializer_context, scope, func(_access_context):
   return operation.call(_stage))
  var error: Error = result.value if result.ran else result.error
  return Batch.reject_guarded_serializer(error, path)
@@ -353,7 +353,7 @@ static func stage_serializer(serializer: RefCounted, operation: Callable) -> Err
 static func read_serializer(serializer: RefCounted, operation: Callable) -> Error:
  if _serializers.get(serializer.get_instance_id()) != serializer.path:
   return ERR_UNAUTHORIZED
- var result := run_nested(_serializer_context, PackedStringArray([serializer.path]), func(_context):
+ var result := run_nested(_serializer_context, PackedStringArray([serializer.path]), func(_access_context):
   return operation.call())
  return result.value if result.ran else result.error
 
@@ -362,7 +362,7 @@ static func load_serializer(path: String, operation: Callable) -> Dictionary:
   return _result(ERR_UNAUTHORIZED, "invalid", "operation_context_rejected")
  if Batch.guarded_write_pending(path):
   return _result(ERR_BUSY, "pending_recovery", "unresolved_transaction")
- return run(PackedStringArray([path]), PackedStringArray(), func(_context): return operation.call())
+ return run(PackedStringArray([path]), PackedStringArray(), func(_access_context): return operation.call())
 
 ## Migration backups remain outside the atomic pair. Publish an independently
 ## verified copy through its reserved sibling, keeping any existing backup.

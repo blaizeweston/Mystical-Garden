@@ -66,9 +66,11 @@ static func remap_garden(file: ConfigFile) -> void:
  if not q is Dictionary: q={}
  if invalid_manifest!=null: q["invalid_manifest"]=invalid_manifest
  for prefix in ["stock","parts","crafted","planted","flowering","ready"]:
+  var default_value: Variant=0
+  if prefix in ["crafted","planted","flowering","ready"]: default_value=false
   var values: Array=[]
-  for i in old.seeds.size(): values.append(file.get_value("garden",prefix+"_"+str(i),false if prefix in ["crafted","planted","flowering","ready"] else 0))
-  var mapped:=shifted(values,old.seeds,current.seeds,false if prefix in ["crafted","planted","flowering","ready"] else 0,q,prefix)
+  for i in old.seeds.size(): values.append(file.get_value("garden",prefix+"_"+str(i),default_value))
+  var mapped:=shifted(values,old.seeds,current.seeds,default_value,q,prefix)
   for i in maxi(old.seeds.size(),current.seeds.size()):
    if file.has_section_key("garden",prefix+"_"+str(i)): file.erase_section_key("garden",prefix+"_"+str(i))
   for i in mapped.size(): file.set_value("garden",prefix+"_"+str(i),mapped[i])
@@ -101,6 +103,8 @@ static func remap_garden(file: ConfigFile) -> void:
  if heart is Dictionary and heart.has("offered"):
   heart.offered=indices(heart.offered,old.parts,current.parts,q,"offered");file.set_value("heart","state",heart)
  file.set_value("content","manifest",current);file.set_value("content","quarantine",q)
+# Historical level thresholds retain their original whole-XP units.
+@warning_ignore_start("integer_division")
 static func profile(source: Dictionary,old) -> Dictionary:
  var current:=manifest();var result:=source.duplicate(true);var q: Dictionary=source.get("quarantine",{}).duplicate(true) if source.get("quarantine",{}) is Dictionary else {}
  if not valid_manifest(old): q["invalid_manifest"]=old;old=legacy()
@@ -146,3 +150,4 @@ static func profile(source: Dictionary,old) -> Dictionary:
  result.loadouts=loadouts;result.upgrades=learned;result.quarantine=q
  return result
 
+@warning_ignore_restore("integer_division")

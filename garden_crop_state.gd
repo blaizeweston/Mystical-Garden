@@ -18,8 +18,8 @@ static func compatible(bed: Dictionary) -> bool:
  if not state.get("revision") is int or state.revision<0 or state.get("choice","") not in ["","preserve","leave","flower"]:return false
  if Catalog.definition(str(state.get("opportunity",""))).is_empty():return false
  if state.get("choice")=="preserve":
-  var roll=state.get("roll")
-  if not roll is int or roll<0 or roll>=ROLL_SCALE:return false
+  var random_draw=state.get("roll")
+  if not random_draw is int or random_draw<0 or random_draw>=ROLL_SCALE:return false
  return true
 static func ensure(bed: Dictionary) -> bool:
  if int(bed.get("species",-1))<0 or bed.has("care"):return false
@@ -36,10 +36,10 @@ static func chance(bed: Dictionary,base: float) -> float:
  if not preserved(bed):return base
  var policy:=Catalog.definition(bed.care.opportunity)
  return minf(float(policy.rare_cap),base+float(policy.rare_bonus))
-static func choose(bed: Dictionary,choice: String,roll: float) -> void:
+static func choose(bed: Dictionary,choice: String,random_draw: float) -> void:
  if not available(bed) or choice not in ["preserve","leave"]:return
  bed.care.choice=choice
- if choice=="preserve":bed.care.roll=clampi(floori(roll*ROLL_SCALE),0,ROLL_SCALE-1)
+ if choice=="preserve":bed.care.roll=clampi(floori(random_draw*ROLL_SCALE),0,ROLL_SCALE-1)
  bump(bed)
 static func roll(bed: Dictionary) -> float:
  return int(bed.care.roll)/float(ROLL_SCALE)

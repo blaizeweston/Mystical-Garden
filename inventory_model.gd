@@ -19,8 +19,8 @@ static func extra_stash(game,player: Dictionary) -> Dictionary:
 static func normalize_pouch(player: Dictionary) -> void:
  if not player.has("safe_items"): player.safe_items=[]
  if player.get("pouch",false) and player.safe_items.is_empty() and not player.carried_seeds.is_empty():
-  var seed: int=player.carried_seeds.pop_front()
-  player.safe_items.append({"item":"unidentified_seed","quantity":1,"seeds":[seed]})
+  var species_id: int=player.carried_seeds.pop_front()
+  player.safe_items.append({"item":"unidentified_seed","quantity":1,"seeds":[species_id]})
  player.pouch=not player.safe_items.is_empty()
 static func counts(game,player: Dictionary,bucket: String) -> Dictionary:
  var result: Dictionary={}
@@ -37,18 +37,18 @@ static func counts(game,player: Dictionary,bucket: String) -> Dictionary:
    if int(player.carried_parts[part])>0: result[Items.part_id(part)]=int(player.carried_parts[part])
   result.merge(player.get("carried_items",{}),true)
  elif bucket=="stash":
-  var reserve: Dictionary=game.seed_reserve(player)
-  result.unidentified_seed=reserve.unknown.size()
-  for seed in reserve.stock.size():
-   if int(reserve.stock[seed])>0: result[Items.seed_id(seed)]=int(reserve.stock[seed])
+  var inventory_reserve: Dictionary=game.seed_reserve(player)
+  result.unidentified_seed=inventory_reserve.unknown.size()
+  for species_id in inventory_reserve.stock.size():
+   if int(inventory_reserve.stock[species_id])>0: result[Items.seed_id(species_id)]=int(inventory_reserve.stock[species_id])
   for part in range(1,game.Parts.DEFINITIONS.size()):
-   if int(reserve.parts[part])>0: result[Items.part_id(part)]=int(reserve.parts[part])
+   if int(inventory_reserve.parts[part])>0: result[Items.part_id(part)]=int(inventory_reserve.parts[part])
   result.merge(extra_stash(game,player),true)
  else:
   var seeds: Dictionary=reserve(game,player,bucket)
   result.unidentified_seed=seeds.unknown.size()
-  for seed in seeds.stock.size():
-   if int(seeds.stock[seed])>0:result[Items.seed_id(seed)]=int(seeds.stock[seed])
+  for species_id in seeds.stock.size():
+   if int(seeds.stock[species_id])>0:result[Items.seed_id(species_id)]=int(seeds.stock[species_id])
   result.merge(extras(game,player,bucket),true)
   for part in range(1,game.Parts.DEFINITIONS.size()):
    if game.progress.part_count(part)>0: result[Items.part_id(part)]=game.progress.part_count(part)
@@ -169,6 +169,6 @@ static func clean_ground(value) -> Array:
   if not valid: continue
   if stack.item=="unidentified_seed":
    if not stack.get("seeds") is Array or stack.seeds.size()!=int(stack.quantity): continue
-   for seed in stack.seeds: valid=valid and seed is int and seed>=0 and seed<Items.Seeds.DEFINITIONS.size()
+   for species_id in stack.seeds: valid=valid and species_id is int and species_id>=0 and species_id<Items.Seeds.DEFINITIONS.size()
   if valid: result.append(entry.duplicate(true))
  return result

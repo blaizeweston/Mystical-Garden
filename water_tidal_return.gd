@@ -19,6 +19,8 @@ static func living_source(game: Node, source: Dictionary) -> bool:
 
 ## Largest-remainder allocation preserves the single event's total after rounding.
 ## Four small contributors never receive four independently rounded full Surges.
+# Source-weighted shares and tide phases retain deterministic integer truncation.
+@warning_ignore_start("integer_division")
 static func allocate(rows: Array, parameter: String) -> void:
  var total:=0
  var assigned:=0
@@ -33,6 +35,9 @@ static func allocate(rows: Array, parameter: String) -> void:
   return ar>br or (ar==br and int(a.source.actor)<int(b.source.actor)))
  for index in maxi(0,roundi(total/1000.0)-assigned):sorted[index%sorted.size()][parameter]+=1
 
+@warning_ignore_restore("integer_division")
+# Source-weighted shares and tide phases retain deterministic integer truncation.
+@warning_ignore_start("integer_division")
 static func admit(game: Node, target: int, status: Dictionary, now: int) -> bool:
  var water=load("res://water_combat.gd")
  var threshold: int=water.SATURATION_THRESHOLD
@@ -100,6 +105,7 @@ static func admit(game: Node, target: int, status: Dictionary, now: int) -> bool
  preload("res://diagnostic_journal.gd").event("combat","water_tidal_return",{"target":target,"contributors":contributions,"waves":waves.size(),"threshold":threshold})
  return true
 
+@warning_ignore_restore("integer_division")
 static func current(game: Node, record: Dictionary) -> bool:
  return game.multiplayer.is_server() and int(record.epoch)==game.participation.epoch() and record.waves.any(func(wave):return living_source(game,wave.source))
 
@@ -113,6 +119,8 @@ static func contact(game: Node, wave: Dictionary, point: Vector3, previous: Vect
  var nearest:=Geometry3D.get_closest_point_to_segment(point,previous,current_point)
  return point.distance_to(nearest)<=width and game.battlefield.combat_sight(nearest,point)
 
+# Source-weighted shares and tide phases retain deterministic integer truncation.
+@warning_ignore_start("integer_division")
 static func advance(game: Node, record: Dictionary, now: int) -> void:
  for wave: Dictionary in record.waves:
   if not living_source(game,wave.source) or now<int(wave.start):continue
@@ -135,6 +143,7 @@ static func advance(game: Node, record: Dictionary, now: int) -> void:
   wave.previous=point;wave.previous_radius=radius
  record.next=now+1
 
+@warning_ignore_restore("integer_division")
 static func resolve_segment(game: Node, wave: Dictionary, previous: Vector3, point: Vector3, radius: float, returning: bool, now: int) -> void:
  if returning:
   for peer in game.Life.living_ids(game):

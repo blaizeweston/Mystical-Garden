@@ -25,7 +25,7 @@ static func reconcile(player: Dictionary,counts: Array) -> bool:
 
 static func demand(player: Dictionary,part: int) -> int:
  return choices(player).count(part)+int(player.get("cargo_plan",[])[part] if part<player.get("cargo_plan",[]).size() else 0)
-static func claimed(game: Node,player: Dictionary) -> bool:
+static func claimed(_game: Node,player: Dictionary) -> bool:
  return not Participation.is_wild(player) and player.get("loadout_reserving",false) and not Session.rejecting_for(player)
 static func shared_free(game: Node,part: int,except_player: Dictionary={}) -> int:
  var free: int=game.progress.part_count(part)

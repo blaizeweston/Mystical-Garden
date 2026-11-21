@@ -5,6 +5,7 @@ const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const Forest = preload("res://assets/terrain_m02/garden_forest_barrier.gd")
 const Knowledge = preload("res://assets/terrain_m02/garden_knowledge.gd")
+const Heart = preload("res://assets/terrain_m02/terrain_heart_preview.gd")
 const WALK_RADIUS := 0.34
 const STEP := 0.47
 const MARGIN := 0.045
@@ -16,7 +17,7 @@ var forest: Forest
 var knowledge: Knowledge
 var records := {}
 var next_id := 1
-var root_blocks: Array = []
+var _heart_reservation: Dictionary
 var _grid := {}
 var _revision := -1
 var _marks := {}
@@ -25,6 +26,7 @@ var _thickets: Array = []
 
 func _init(barrier: Forest) -> void:
 	forest = barrier
+	_heart_reservation = Shape.shape("heart", "heart_model", Heart.maximum_build_outline())
 
 func footprint(kind: String, at: Vector2, yaw: float) -> Dictionary:
 	var half: Vector2 = CATALOG[kind].half
@@ -61,15 +63,17 @@ func placement_issue(kind: String, at: Vector2, yaw: float, pawn: Vector2, movin
 		if _overlaps(area, feature):
 			return _issue("The footprint crosses water.", feature)
 	for landmark: Dictionary in garden.landmarks.values():
-		if _overlaps(area, landmark):
+		var restriction: Dictionary = _heart_reservation if landmark.id == "heart" else landmark
+		if _overlaps(area, restriction):
 			var name: String = landmark.id.replace("_", " ")
-			return _issue("Keep clear of the %s. Its reserved area is outlined." % name, landmark)
+			if landmark.id == "heart": name = "fully grown Heart"
+			return _issue("Keep clear of the %s. Its reserved area is outlined." % name, restriction)
 	for feature: Dictionary in garden.layout.paths + garden.layout.get("path_joins", []):
 		if _overlaps(area, feature, WALK_RADIUS):
 			return _issue("Keep the permanent Wilds approach clear.", feature, WALK_RADIUS)
-	for obstacle: Dictionary in garden.occupied + root_blocks:
+	for obstacle: Dictionary in garden.occupied:
 		if _overlaps(area, obstacle):
-			return _issue("A trunk, rock, or major Heart root crosses the footprint.", obstacle)
+			return _issue("A trunk or rock crosses the footprint.", obstacle)
 	for id: int in records:
 		if id != moving and _overlaps(area, records[id].footprint):
 			return _issue("The footprint overlaps another structure.", records[id].footprint)
@@ -260,25 +264,6 @@ func _access(candidate: Dictionary, pawn: Vector2, moving: int) -> bool:
 				seen[next] = true
 				queue.append(next)
 	return false
-
-func set_roots(network: Array[Dictionary]) -> void:
-	root_blocks.clear()
-	# Only exposed structural runs count. Fine branches and buried wood
-	# stay available as scenery. The Heart itself has its own reservation.
-	for root in network:
-		var points: Array[Vector3] = root.main
-		for i in points.size() - 1:
-			var a := points[i]
-			var b := points[i + 1]
-			var width: float = root.radius * pow(1.0 - (i + 0.5) / (points.size() - 1), 0.86)
-			if width < 0.15 or maxf(a.y, b.y) + width * 0.76 < 0.07:
-				continue
-			var start := Vector2(a.x, a.z)
-			var finish := Vector2(b.x, b.z)
-			if start.is_equal_approx(finish):
-				continue
-			root_blocks.append(Shape.ribbon("root", "root", PackedVector2Array([start, finish]),
-				PackedFloat32Array([width, width])))
 
 func _door(entry: Dictionary, shapes: Array, blocked: Dictionary) -> Dictionary:
 	return _connections(_door_position(entry), shapes, blocked)

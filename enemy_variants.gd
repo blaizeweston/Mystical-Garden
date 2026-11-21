@@ -23,6 +23,8 @@ const PROFILES := {
  19: {"id":"split_chorus","tactic":"burst","floor":10,"cue":"Split chorus"},
 }
 
+# Variant progression advances in whole score bands.
+@warning_ignore_start("integer_division")
 static func choose(game: Node, kind: int, route: int) -> String:
  var profile: Dictionary = PROFILES.get(kind, {})
  if profile.is_empty() or game.participation.floor() < int(profile.floor):
@@ -37,6 +39,7 @@ static func choose(game: Node, kind: int, route: int) -> String:
  var roll := posmod(int(game.participation.seed()) + route * 37 + kind * 19 + int(game.participation.floor()) * 11, 10)
  return profile.id if roll < mini(7, 2 + score / 4) else ""
 
+@warning_ignore_restore("integer_division")
 static func cue(variant: String, kind: int) -> String:
  var entry: Dictionary = PROFILES.get(kind, {})
  return str(entry.get("cue", "")) if entry.get("id", "") == variant else ""

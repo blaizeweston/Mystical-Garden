@@ -131,13 +131,13 @@ static func _bury(at: Vector3, garden, width: float) -> Vector3:
 	at.y = lerpf(minf(at.y, -width * 1.43), at.y, blend)
 	return at
 
-static func mesh(plan: Dictionary) -> ArrayMesh:
+static func mesh(root_plan: Dictionary) -> ArrayMesh:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_smooth_group(0)
-	var main: Array[Vector3] = plan.main
-	_sweep(tool, main, plan.radius, 0.0, 0.89, 15)
-	for branch: Dictionary in plan.branches:
+	var main: Array[Vector3] = root_plan.main
+	_sweep(tool, main, root_plan.radius, 0.0, 0.89, 15)
+	for branch: Dictionary in root_plan.branches:
 		var start: float = branch.join * 0.89 / (main.size() - 1)
 		_sweep(tool, branch.points, branch.radius, start, minf(start + 0.095, 1.0), 8)
 	return tool.commit()

@@ -142,9 +142,9 @@ func join(address: String="",port: int=0) -> Error:
 	Journal.event("network","join_requested",{"port":game.network_session.port() if port==0 else port})
 	if game.network_session.role()!="Solo" or game.participation.active() or not game.persistence_session.pending_notice().is_empty():
 		return ERR_BUSY
-	var host =Network.address(game.network_session.address() if address.is_empty() else address)
+	var host_result =Network.address(game.network_session.address() if address.is_empty() else address)
 	var selected_port =game.network_session.port() if port==0 else port
-	var problem =Network.error(host,selected_port)
+	var problem =Network.error(host_result,selected_port)
 	if not problem.is_empty(): game.status=problem;return ERR_INVALID_PARAMETER
 	var guarded = game.persistence_session if game.persistence_session.is_guarded() else null
 	if guarded != null and not game.persistence_session.can_write():
@@ -165,7 +165,7 @@ func join(address: String="",port: int=0) -> Error:
 	if guarded == null and game.guest_character.save_profile() != OK:
 		game.status = "Could not save the guest character identity."
 		return ERR_CANT_CREATE
-	var result: Error = game.network_session.start_join(host,selected_port,Time.get_ticks_msec())
+	var result: Error = game.network_session.start_join(host_result,selected_port,Time.get_ticks_msec())
 	if result != OK:
 		Journal.event("network","join_failed",{"error":result},"error")
 		game.status = "Could not start the connection. Check the address and port."

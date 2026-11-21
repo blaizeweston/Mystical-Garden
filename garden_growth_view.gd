@@ -60,7 +60,7 @@ func _ready() -> void:
  var skip:=Button.new();curtain.add_child(skip);skip.text="Skip · Esc";skip.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT);skip.offset_left=-140;skip.offset_right=-18;skip.offset_top=7;skip.offset_bottom=39;skip.pressed.connect(func():finish(true))
  root_mesh=MeshInstance3D.new();root_mesh.name="GrowingGardenRoot";_stage.add_child(root_mesh);root_mesh.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
  root_mesh.material_override=preload("res://garden_scenery.gd").root_material();root_mesh.hide()
- glow=MeshInstance3D.new();_stage.add_child(glow);var seed:=SphereMesh.new();seed.radius=.11;seed.height=.22;glow.mesh=seed
+ glow=MeshInstance3D.new();_stage.add_child(glow);var glow_mesh:=SphereMesh.new();glow_mesh.radius=.11;glow_mesh.height=.22;glow.mesh=glow_mesh
  var light:=StandardMaterial3D.new();light.albedo_color=Color("#d7e7ae");light.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;light.no_depth_test=true;light.emission_enabled=true;light.emission=Color("#a4cd8e");light.emission_energy_multiplier=2.5;glow.material_override=light;glow.hide()
 func destination(value: Dictionary) -> Vector3:
  match value.get("kind",""):

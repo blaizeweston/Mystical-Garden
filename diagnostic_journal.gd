@@ -78,6 +78,8 @@ func sanitize(value,depth: int=0):
  if value==null or value is bool or value is int:return value
  return "<"+type_string(typeof(value))+">"
 
+# Journal timestamps store whole seconds.
+@warning_ignore_start("integer_division")
 func record(category: String,kind: String,fields: Dictionary={},level: String="info") -> int:
  mutex.lock()
  if not enabled or closed or writing:mutex.unlock();return 0
@@ -106,6 +108,7 @@ func record(category: String,kind: String,fields: Dictionary={},level: String="i
  var saved:=sequence if enabled else 0
  writing=false;mutex.unlock();return saved
 
+@warning_ignore_restore("integer_division")
 func set_context(fields: Dictionary) -> void:
  mutex.lock();context=sanitize(fields);mutex.unlock()
 

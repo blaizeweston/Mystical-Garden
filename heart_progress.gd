@@ -247,6 +247,8 @@ func clearing_bonus() -> int:
 func growth_multiplier() -> float:
 	return 1.4 if has("nursery") else 1.2 if has("irrigation") else 1.0
 
+# Recollection milestones use whole completed memories.
+@warning_ignore_start("integer_division")
 func phase(owner: RefCounted) -> int:
 	if has("perfect_recollection"): return 5 if owner.Campaign.LEGACY_ENDING_ENABLED else 4
 	var memories:=0
@@ -259,6 +261,7 @@ func phase(owner: RefCounted) -> int:
 	if has("flowering") or owner.plots.size()>3 or owner.knowledge>=8: return 1
 	return 0
 
+@warning_ignore_restore("integer_division")
 func snapshot(owner: RefCounted) -> Dictionary:
 	sync_legacy(owner)
 	var result:=serialize()

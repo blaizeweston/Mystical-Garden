@@ -127,7 +127,7 @@ static func hints(game: Node) -> Array:
  if game.encounter.hp(-1)<=0 or not game.tactics.winding_up:return []
  var body:=state(game)
  return Attacks.hints(Attacks.current(game,body),-1,maxf(0,(game.tactics.strike_at-preload("res://combat_clock.gd").now())/1000.0))
-static func decorate(stage: Node3D,actor: Dictionary,enabled: bool) -> void:
+static func decorate(_stage: Node3D,actor: Dictionary,enabled: bool) -> void:
  var model: Node3D=actor.model
  var growth: Node3D=model.get_node_or_null("EliteGrowth")
  if is_instance_valid(growth):growth.visible=enabled;return

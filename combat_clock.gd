@@ -9,10 +9,13 @@ static var _start_ms := 0
 static var _ticks := 0
 
 
+# Fixed simulation ticks convert to whole milliseconds.
+@warning_ignore_start("integer_division")
 static func now() -> int:
 	return _start_ms + _ticks * 1000 / TICKS_PER_SECOND if _stepped else Time.get_ticks_msec()
 
 
+@warning_ignore_restore("integer_division")
 static func is_stepped() -> bool:
 	return _stepped
 

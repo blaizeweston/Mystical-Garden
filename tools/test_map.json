@@ -1542,6 +1542,22 @@
     ]
   },
   "suites": {
+      "heart_build_reservation": {
+        "kind": "unit",
+        "systems": [
+          "garden_development",
+          "garden_heart_view",
+          "hex_terrain"
+        ],
+        "package": false
+      },
+      "menu_root_render": {
+        "kind": "unit",
+        "systems": [
+          "menu_layout"
+        ],
+        "package": true
+      },
       "garden_layout_persistence": {
         "kind": "unit",
         "systems": [

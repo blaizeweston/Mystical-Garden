@@ -24,8 +24,8 @@ class Snapshot extends RefCounted:
 	var _tooltips: Array = []
 	var _resolved_potencies: Dictionary = {}
 
-	func _init(native_stats: Dictionary, contributions: Dictionary) -> void:
-		var values := native_stats.duplicate(true)
+	func _init(native_values: Dictionary, contributions: Dictionary) -> void:
+		var values := native_values.duplicate(true)
 		_build = _freeze(values.get("affinity_build", {}))
 		values.erase("affinity_build")
 		_native = _freeze(values)
@@ -155,9 +155,9 @@ class Entry extends RefCounted:
 	var _key: Dictionary
 	var _snapshot: Snapshot
 
-	func _init(key: Dictionary, snapshot: Snapshot) -> void:
+	func _init(key: Dictionary, build_snapshot: Snapshot) -> void:
 		_key = key.duplicate(true)
-		_snapshot = snapshot
+		_snapshot = build_snapshot
 
 	func matches(key: Dictionary) -> bool:
 		return _key == key

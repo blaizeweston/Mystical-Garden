@@ -29,9 +29,9 @@ class State extends RefCounted:
 	var _grace_until_ms: int
 	var _slow_until_ms: int
 
-	func _init(grace_until_ms: int = 0, slow_until_ms: int = 0) -> void:
-		_grace_until_ms = grace_until_ms
-		_slow_until_ms = slow_until_ms
+	func _init(grace_deadline_ms: int = 0, slow_deadline_ms: int = 0) -> void:
+		_grace_until_ms = grace_deadline_ms
+		_slow_until_ms = slow_deadline_ms
 
 	func grace_active(now_ms: int) -> bool:
 		return now_ms < _grace_until_ms

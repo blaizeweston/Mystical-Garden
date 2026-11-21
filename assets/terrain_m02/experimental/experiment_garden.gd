@@ -79,8 +79,8 @@ var remote_development := {}
 var development_controls: VBoxContainer
 var guest_review: Label
 
-func configure(world: Node, presentation: Node3D) -> void:
-	game = world
+func configure(world_node: Node, presentation: Node3D) -> void:
+	game = world_node
 	stage = presentation
 	stage.experimental_garden = self
 	stage.visual_field = preload("res://battlefield.gd").new()
@@ -235,7 +235,7 @@ func slide(from: Vector3, to: Vector3) -> Vector3:
 	var z := barrier.move(moved, Vector2(0, target.y - moved.y))
 	return world(x if x.distance_squared_to(target) < z.distance_squared_to(target) else z)
 
-func _make_station(id: String, art: String, position: Vector3, yaw: float) -> void:
+func _make_station(id: String, art: String, world_position: Vector3, yaw: float) -> void:
 	var instance := structure_nodes.get(id) as MeshInstance3D
 	if instance == null:
 		instance = MeshInstance3D.new()
@@ -245,7 +245,7 @@ func _make_station(id: String, art: String, position: Vector3, yaw: float) -> vo
 		instance.material_override = colors
 		add_child(instance)
 		structure_nodes[id] = instance
-	instance.position = position
+	instance.position = world_position
 	instance.rotation.y = -yaw
 
 func _refresh_revealed_props() -> void:
@@ -360,11 +360,11 @@ func advance_assimilation(elapsed: float, in_wilds: bool) -> void:
 		offering_dialog.refresh_studies()
 
 func _offering_studies(items: Dictionary) -> Dictionary:
-	var state := assimilation.summary()
-	state.available = game.progress.heart.available_insight(game.progress)
-	state.selected = Study.quote(items).knowledge if not items.is_empty() else 0
-	state.blocked = game.persistence_session.pending_notice()
-	return state
+	var study_summary := assimilation.summary()
+	study_summary.available = game.progress.heart.available_insight(game.progress)
+	study_summary.selected = Study.quote(items).knowledge if not items.is_empty() else 0
+	study_summary.blocked = game.persistence_session.pending_notice()
+	return study_summary
 
 func _study_light(value: float, seconds: float, settle := false) -> void:
 	if study_light != null:
@@ -394,7 +394,6 @@ func expand(sector: int) -> bool:
 		funds.energy -= cost
 		layout_revision += 1
 		network.append(Roots.plan(state.roots[-1], heart.stage, state, network))
-		construction.set_roots(network)
 		return true)
 	if not accepted:
 		return false
@@ -411,7 +410,6 @@ func expand(sector: int) -> bool:
 	shader.set_shader_parameter("root_progress", 0.0)
 	root.material_override = shader
 	roots.add_child(root)
-	construction.set_roots(network)
 	plans.clear()
 	reveal = create_tween()
 	reveal.tween_method(func(t: float):
@@ -466,7 +464,6 @@ func _apply_layout(layout: Dictionary) -> void:
 	barrier.update_shape(1.0)
 	_update_rim()
 	network.assign(layout.roots.duplicate(true))
-	construction.set_roots(network)
 	_restore_buildings(layout.buildings)
 	_refresh_root_views()
 	_refresh_structure_views()
@@ -798,7 +795,6 @@ func _restore_development(saved: Dictionary) -> void:
 	state.reclaimed_cells = saved.reclaimed_cells
 	state.roots.assign(saved.root_paths.duplicate(true))
 	network.assign(saved.roots.duplicate(true))
-	construction.set_roots(network)
 	_restore_buildings(saved.buildings)
 	construction.next_id = saved.next_id
 	state.refresh_owned_cells()

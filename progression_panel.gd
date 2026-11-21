@@ -290,10 +290,10 @@ func heart_nodes() -> Array:
 		var id: String=d.id
 		var owned: bool=known.has(id)
 		var parents: Array=[]
-		var ready:=true
+		var is_ready:=true
 		for parent in d.parents:
 			parents.append("heart_"+str(parent))
-			ready=ready and known.has(parent)
+			is_ready=is_ready and known.has(parent)
 		var research_progress:=int(state.get("progress",{}).get(id,0))
 		var duration:=maxf(float(state.get("minimum_seconds",60)),float(d.research)*float(state.get("seconds_per_point",120)))
 		var ratio: float=float(state.get("work",{}).get(id,research_progress*120.0))/duration
@@ -304,7 +304,7 @@ func heart_nodes() -> Array:
 			var needed:=int(Campaign.MEMORY_REQUIREMENTS[index])
 			ratio=current/float(needed)
 			description+="Guardian expeditions: %d/%d. Decode through the Living Archive."%[current,needed]
-			ready=false
+			is_ready=false
 		else:
 			description+="Requires %d lifetime Knowledge.\nStart cost: %d available Knowledge. No upfront plant parts.\n"%[d.knowledge,d.insight]
 			description+="Research time: %s in Garden, %s in Wilds. Optional plant offerings speed it up.\n"%[time_text(duration),time_text(duration/3.0)]
@@ -312,9 +312,9 @@ func heart_nodes() -> Array:
 				var names: Array[String]=[]
 				for parent in d.parents: names.append(HeartCatalog.get_node(str(parent)).name)
 				description+="Prerequisites: "+", ".join(names)+".\n"
-			ready=ready and knowledge>=int(d.knowledge) and (state.get("paid",[]).has(id) or (int(state.get("insight",0))>=int(d.insight)))
+			is_ready=is_ready and knowledge>=int(d.knowledge) and (state.get("paid",[]).has(id) or (int(state.get("insight",0))>=int(d.insight)))
 			if d.get("fact","")=="veilcap":
-				ready=ready and bool(_facts.veilcap)
+				is_ready=is_ready and bool(_facts.veilcap)
 				description+="Discover Veilcap to study this memory.\n"
 			if d.get("fact","")=="offshoots": description+="Resolve the three offshoot choices before the final recollection.\n"
 			if state.get("paid",[]).has(id) and not owned:
@@ -324,7 +324,7 @@ func heart_nodes() -> Array:
 		if id=="heart":
 			var path: String="res://assets/ui/heart/phase_%d.png"%int(state.get("phase",0))
 			if ResourceLoader.exists(path): icon=load(path)
-		result.append({"id":"heart_"+id,"label":d.name,"parents":parents,"position":Vector2(float(d.position[0]),float(d.position[1])),"unlocked":owned,"detail":description,"summary":d.name+"\n"+d.description,"color":"#c6c789" if id=="perfect_recollection" else "#93b78a","available":ready,"progress":ratio if not owned else 0.0,"icon":icon})
+		result.append({"id":"heart_"+id,"label":d.name,"parents":parents,"position":Vector2(float(d.position[0]),float(d.position[1])),"unlocked":owned,"detail":description,"summary":d.name+"\n"+d.description,"color":"#c6c789" if id=="perfect_recollection" else "#93b78a","available":is_ready,"progress":ratio if not owned else 0.0,"icon":icon})
 	return result
 
 func class_nodes() -> Array:
@@ -354,7 +354,7 @@ func connected_nodes(data: Dictionary, c: int) -> Array:
 		var index: int=connected.REQUEST_OFFSET+i
 		var learned: bool=selected.has(node.id)
 		var reason: String=connected.refusal(data,index)
-		var ready := reason.is_empty()
+		var is_ready := reason.is_empty()
 		var parents: Array=[base] if node.parents.is_empty() else node.parents.map(func(id):return nodes_by_id[id])
 		var description: String=node.description
 		match c:
@@ -370,11 +370,11 @@ func connected_nodes(data: Dictionary, c: int) -> Array:
 			var candidate: Dictionary=data.duplicate(true)
 			if not learned:candidate[connected.profile_key]=connected.state([node.id])
 			summary+="\n"+Skills.describe(Skills.resolve(c,0,candidate))
-		var detail: String=summary+"\n\nLevel %d · %s" % [node.level,"Learned" if learned else "Available" if ready else "Locked"]
-		if not ready and not learned:detail+="\n"+reason
+		var detail: String=summary+"\n\nLevel %d · %s" % [node.level,"Learned" if learned else "Available" if is_ready else "Locked"]
+		if not is_ready and not learned:detail+="\n"+reason
 		result.append({"id":nodes_by_id[node.id],"label":node.name,"parents":parents,
 			"position":Vector2(145+205*int(node.lane),base_y-98-88*int(node.tier)),"unlocked":learned,
-			"available":ready,"show_route":true,"color":Classes.Warden.COLORS[node.lane],
+			"available":is_ready,"show_route":true,"color":Classes.Warden.COLORS[node.lane],
 			"summary":summary,"detail":detail,"caption":node.name if node.tier==0 else ""})
 	return result
 
@@ -415,10 +415,13 @@ func change_tab(index: int) -> void:
 	request_tree_base()
 
 
+# Displayed hours and minutes omit fractional units.
+@warning_ignore_start("integer_division")
 func time_text(seconds: float) -> String:
 	var value:=maxi(0,ceili(seconds))
 	return "%d:%02d"%[value/60,value%60]
 
+@warning_ignore_restore("integer_division")
 func offering_plan() -> Dictionary:
 	return _facts.get("offering",{"parts":{},"missing":0}).duplicate(true)
 

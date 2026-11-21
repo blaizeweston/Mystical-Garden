@@ -102,9 +102,9 @@ static func complete_nova(game: Node, actor: int, player: Dictionary, selected: 
 			if not timers.ready(Cooldowns.Q, now):
 				player[Cooldowns.STATE] = timers.refund(Cooldowns.Q, now, Progression.CYCLE_MS)
 		if selected.has("bursting_spores"):
-			var burst := lifetime(game,player)
-			burst.merge({"kind":"weaver_burst","owner":actor,"due":now+Progression.BURST_DELAY_MS,"position":first_impact})
-			player.weaver_capstone = burst
+			var burst_radius := lifetime(game,player)
+			burst_radius.merge({"kind":"weaver_burst","owner":actor,"due":now+Progression.BURST_DELAY_MS,"position":first_impact})
+			player.weaver_capstone = burst_radius
 	if selected.has("silken_canopy"):
 		game.Traits.end_zone(game,player.get("weaver_capstone",{}))
 		var canopy := lifetime(game,player)

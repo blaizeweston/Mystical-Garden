@@ -129,8 +129,8 @@ func run_tool(action: String) -> void:
 	if not toggle.button_pressed:
 		return
 	if not Developer.can_edit(context):
-		var pending: String = "" if title_menu else context.persistence_session.pending_notice()
-		settings.notice.text = "Developer tools are available in the single-player Developer Garden." if pending.is_empty() else pending
+		var pending_rewards: String = "" if title_menu else context.persistence_session.pending_notice()
+		settings.notice.text = "Developer tools are available in the single-player Developer Garden." if pending_rewards.is_empty() else pending_rewards
 		return
 	var result := ""
 	var tech := ""

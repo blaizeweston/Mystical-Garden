@@ -165,10 +165,10 @@ static func run_gameplay(game: Node, scope: Scope, action: Callable, legacy_tran
 static func _report(game: Node, boundary: Dictionary) -> String:
  var execution: Variant = boundary.get("value")
  var final: Batch.Finalization = execution.get("outcome") if execution is Dictionary else null
- var feedback: Dictionary = game.persistence_session.finalization_feedback(boundary)
- var notice: String = feedback.notice
- if feedback.clear_status: game.status = ""
- elif feedback.set_status: game.status = notice
+ var outcome_feedback: Dictionary = game.persistence_session.finalization_feedback(boundary)
+ var notice: String = outcome_feedback.notice
+ if outcome_feedback.clear_status: game.status = ""
+ elif outcome_feedback.set_status: game.status = notice
  if not notice.is_empty():
   preload("res://diagnostic_journal.gd").event("save", "guarded_gameplay_result", {
    "reason": boundary.reason, "state": boundary.state, "error": boundary.error,

@@ -64,6 +64,8 @@ static func _garden(garden: Dictionary, result: Dictionary) -> void:
 		if garden.development: result.prompt+="   ·   B  Garden development"
 
 ## Existing leader, scout and charge warning tests; display margins only.
+# Guidance indexes whole stride groups.
+@warning_ignore_start("integer_division")
 static func attack_warning(at: Vector3, leader: Dictionary, pack: PackedFloat32Array, campaign: PackedInt32Array, hints: Array) -> Dictionary:
 	var hatching: bool=leader.boss_kind==22 and hints.any(func(hint):return hint.role=="nursery_exit")
 	var warning: bool=not hatching and leader.winding_up and (leader.landing if leader.attack_mode=="vault" else leader.position).distance_to(at)<float(leader.radius)+WARNING_MARGIN_METERS
@@ -79,3 +81,4 @@ static func attack_warning(at: Vector3, leader: Dictionary, pack: PackedFloat32A
 			var start:=Vector3(hint.from[0],0,hint.from[2]);var finish:=Vector3(hint.to[0],0,hint.to[2])
 			warning=warning or at.distance_to(Geometry3D.get_closest_point_to_segment(at,start,finish))<=float(hint.width)+CHARGE_MARGIN_METERS
 	return {"danger":warning,"hatching":hatching}
+@warning_ignore_restore("integer_division")

@@ -1,4 +1,6 @@
 extends Node3D
+# Emitted by the outgoing-hit port and connected by the world composition root.
+@warning_ignore("unused_signal")
 signal outgoing_contact_requested(source_peer: int, target: int)
 const Conditions = preload("res://player_hit_conditions.gd")
 const Protection = preload("res://player_protection.gd")
@@ -202,8 +204,8 @@ func _ready() -> void:
 		_refuse_unowned_world.call_deferred()
 		return
 	if has_meta(&"experimental_terrain") or preload("res://persistence_writer_integration.gd").default_route(get_tree()):
-		var owner: Variant = persistence_session if persistence_session.is_guarded() else null
-		if not (owner is GuardedTitleSession) or not owner.authorizes(local_character.path) or (not network_session.joined_from_title() and not owner.authorizes(progress.path)):
+		var owner_context: Variant = persistence_session if persistence_session.is_guarded() else null
+		if not (owner_context is GuardedTitleSession) or not owner_context.authorizes(local_character.path) or (not network_session.joined_from_title() and not owner_context.authorizes(progress.path)):
 			set_process(false)
 			set_physics_process(false)
 			_refuse_unowned_world.call_deferred()
@@ -416,7 +418,8 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("session_menu"):
-		ui.close_panels() if ui.is_overlay_open() else ui.toggle_panel("session")
+		if ui.is_overlay_open(): ui.close_panels()
+		else: ui.toggle_panel("session")
 	elif event.is_action_pressed("pack_menu"):
 		ui.toggle_panel("pack")
 	elif event.is_action_pressed("workbench"):
@@ -904,7 +907,7 @@ func flush_kill_rewards() -> bool:
 func _kill_reward_identity(id: int, player: Dictionary) -> String:
 	return local_character.identity if id == HOST else Session.inventory_owner(player)
 
-func _queue_monster_reward(spawn_token: String, kind: int, mask: int, position: Vector3, leader: bool, summoned := false) -> bool:
+func _queue_monster_reward(spawn_token: String, kind: int, mask: int, world_position: Vector3, leader: bool, summoned := false) -> bool:
 	if not multiplayer.is_server() or not persistence_session.can_write():
 		return false
 	var candidates: Array[Dictionary] = []
@@ -915,7 +918,7 @@ func _queue_monster_reward(spawn_token: String, kind: int, mask: int, position: 
 				"id": id, "identity": _kill_reward_identity(id, player), "class": int(player.get("frame", Frames.WARDEN)),
 				"profile_ready": Session.ready_for(player,false), "wild": Participation.is_wild(player), "fallen": PlayerLifecycle.fallen(player),
 			})
-	var death := {"kind":kind, "position":position, "leader":leader, "summoned":summoned}
+	var death := {"kind":kind, "position":world_position, "leader":leader, "summoned":summoned}
 	var key := monster_rewards.admit_kill(participation.epoch(), spawn_token, death, candidates, roll_kill_trophy.bind(kind, mask, leader), rng.randf)
 	if key.is_empty():
 		return false
@@ -1089,12 +1092,12 @@ func grant_run_essence(id: int, player: Dictionary, sparks: int) -> void:
 
 func record_character(id: int, actor: Dictionary = {}) -> void:
 	var player: Dictionary = players[id] if actor.is_empty() else actor
-	var owner: String=local_character.identity if id==HOST else Session.inventory_owner(player)
+	var owner_context: String=local_character.identity if id==HOST else Session.inventory_owner(player)
 	var record := {"profile":player.character.duplicate(true),"manifest":progress.ContentIDs.manifest()}
 	var base: Dictionary = player.get("projection_base", {})
 	if persistence_session.is_guarded() and id!=HOST and not base.is_empty():
 		var projection = load("res://guest_profile_projection.gd")
-		var prior: Dictionary = progress.character_records.get(owner, {}).get("projection", {})
+		var prior: Dictionary = progress.character_records.get(owner_context, {}).get("projection", {})
 		record.profile = Character.normalize(player.character)
 		if prior.get("digest") == projection.digest(record.profile): return
 		var descriptor: Dictionary = projection.build(record.profile, int(prior.get("revision",0))+1, base)
@@ -1102,7 +1105,7 @@ func record_character(id: int, actor: Dictionary = {}) -> void:
 			SaveBatch.record_serializer_error(ERR_OUT_OF_MEMORY, progress.path)
 			return
 		record.projection = descriptor
-	progress.character_records[owner] = record
+	progress.character_records[owner_context] = record
 
 # The host stores the Garden's character record. A guest alone owns its
 # canonical profile and receives the existing reliable ordered projection.
@@ -1603,17 +1606,17 @@ func nearest_wild_player(origin: Vector3) -> int:
 	return target
 
 
-func make_scout(kind: int, position: Vector3, route: int, mutations: int = 0, growth: int = 0, juvenile: bool = false) -> Dictionary:
+func make_scout(kind: int, world_position: Vector3, route: int, mutations: int = 0, growth: int = 0, juvenile: bool = false) -> Dictionary:
 	var definition := Enemies.get_kind(kind)
 	var hp: int
 	if participation.route()!=Campaign.HEART:
 		hp=Director.Balance.scout_hp(definition,participation.floor(),participation.cycle(),growth,encounter_party_size,juvenile)
 	else:
 		hp=Life.Preview.hp(1) if juvenile else Director.health(self,int(Director.config().scout_base_hp)+int(definition.hp)+growth,false)
-	return {"spawn_token":encounter.reserve_token(),"pos": position, "kind": kind, "mutations": mutations | (Enemies.JUVENILE if juvenile else 0),
+	return {"spawn_token":encounter.reserve_token(),"pos": world_position, "kind": kind, "mutations": mutations | (Enemies.JUVENILE if juvenile else 0),
 		"growth": growth, "hp": hp,
 		"windup": 0, "ready": 0, "rooted_until": 0, "recovery": 0, "engaged": juvenile,
-		"ranged": Enemies.ranged(kind), "blast": position, "route": route,
+		"ranged": Enemies.ranged(kind), "blast": world_position, "route": route,
 		"stagger_until": 0, "mode": "", "repeat": 0, "summons": 0, "haste_until": 0,
 		"max_hp": hp,
 		"variant": "" if juvenile else preload("res://enemy_variants.gd").choose(self,kind,route)}
@@ -1865,6 +1868,9 @@ func milestone_message(message: String, extracted: bool) -> String:
 	return message + progress.apply_milestone(deepest_milestone)
 
 
+# Checkpoint rewards count whole groups of three cleared encounters.
+# Heart-route health scaling counts whole groups of three floors.
+@warning_ignore_start("integer_division")
 func encounter_health() -> int:
 	if not multiplayer.is_server(): return int(players.get(multiplayer.get_unique_id(),{}).get("enemy_max_hp",Life.Preview.hp(ENEMY_HEALTH)))
 	if participation.route()!=Campaign.HEART:
@@ -1874,6 +1880,7 @@ func encounter_health() -> int:
 	return Director.health(self,Campaign.FINAL_HP,true)
 
 
+@warning_ignore_restore("integer_division")
 func start_encounter() -> void:
 	wild_item_drops.clear()
 	reset_encounter(map_rng.randi_range(1, 2147483647))
@@ -1953,20 +1960,20 @@ func reset_encounter(seed_value: int = -1) -> void:
 	has_drop = false
 
 
-func clear_spawn(position: Vector3) -> Vector3:
+func clear_spawn(world_position: Vector3) -> Vector3:
 	for shift in [Vector3.ZERO, Vector3.RIGHT * 1.5, Vector3.LEFT * 1.5,
 			Vector3.FORWARD * 1.5, Vector3.BACK * 1.5, Vector3.BACK * 2.7]:
-		var candidate: Vector3 = position + shift
+		var candidate: Vector3 = world_position + shift
 		if not battlefield.occupied(candidate, Battlefield.CLEARANCE) and _experimental_spawn_reachable(candidate):
 			return candidate
 	for radius in range(2, 5):
 		for x in range(-radius, radius + 1):
 			for z in range(-radius, radius + 1):
-				var candidate := position + Vector3(x, 0, z)
+				var candidate := world_position + Vector3(x, 0, z)
 				if absf(candidate.x) <= Stage.WILD_BOUNDS.x and absf(candidate.z) <= Stage.WILD_BOUNDS.y and (
 						not battlefield.occupied(candidate, Battlefield.CLEARANCE)) and _experimental_spawn_reachable(candidate):
 					return candidate
-	return position if _experimental_spawn_reachable(position) else Vector3.INF
+	return world_position if _experimental_spawn_reachable(world_position) else Vector3.INF
 
 func _experimental_spawn_reachable(candidate: Vector3) -> bool:
 	return battlefield.can_spawn(candidate)
@@ -2076,8 +2083,8 @@ func _process(_delta: float) -> void:
 		# Keep the last presented floor while the retained state awaits recovery.
 		return
 	if persistence_session.is_guarded() and not returning_to_title:
-		var owner = persistence_session
-		var renewal: Dictionary = owner.tick()
+		var owner_context = persistence_session
+		var renewal: Dictionary = owner_context.tick()
 		if renewal.error != OK:
 			_stop_guarded_session("This session lost access to its save. Returning to the title.")
 			return
@@ -2468,7 +2475,6 @@ func _apply_loadout_action(id: int, player: Dictionary, fields: PackedStringArra
 			if fields.size()!=3: return
 			var c:=int(fields[1])
 			var node:=int(fields[2])
-			var tree := Classes.connected_tree(c)
 			var connected := Classes.connected_in_world(self,c,player.character)
 			var title: String
 			if connected != null:
@@ -2657,13 +2663,13 @@ func _bank_checkpoint_item(id: int,player: Dictionary,fields: PackedStringArray,
 	var return_before: Dictionary=progress.garden_interactions.duplicate(true)
 	var reserve:=seed_reserve(player)
 	var old_pouch: bool=player.pouch
-	var seed: int=-1
+	var species_id: int=-1
 	if fields[1]=="seed":
 		if index<0 or index>=player.carried_seeds.size(): return
-		seed=int(player.carried_seeds[index])
+		species_id=int(player.carried_seeds[index])
 		player.carried_seeds.remove_at(index)
-		garden_commands.credit_return(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),[seed],"checkpoint:"+str(participation.floor()))
-		reserve.unknown.append(seed)
+		garden_commands.credit_return(preload("res://garden_return_service.gd").Member.new(str(player.get("garden_run_actor","")),str(player.get("garden_run_id","")),preload("res://expedition_participation.gd").is_wild(player)),[species_id],"checkpoint:"+str(participation.floor()))
+		reserve.unknown.append(species_id)
 		if index==0 and player.get("safe_items",[]).is_empty(): player.pouch=false
 	elif fields[1]=="part":
 		if index<=0 or index>=Parts.DEFINITIONS.size() or player.carried_parts[index]<=0: return
@@ -2672,9 +2678,9 @@ func _bank_checkpoint_item(id: int,player: Dictionary,fields: PackedStringArray,
 	else: return
 	if effects == null and progress.save_garden()!=OK:
 		progress.garden_interactions=return_before
-		if seed>=0:
+		if species_id>=0:
 			reserve.unknown.pop_back()
-			player.carried_seeds.insert(index,seed)
+			player.carried_seeds.insert(index,species_id)
 			player.pouch=old_pouch
 		else:
 			player.carried_parts[index]+=1
@@ -3108,26 +3114,26 @@ func update_garden_altar(data: Dictionary) -> void:
 	ui.update_altar(data)
 
 
-func record_enemy_death(target: int,position: Vector3,origin: Vector3,expected_token: int = -1) -> void:
+func record_enemy_death(target: int,world_position: Vector3,origin: Vector3,expected_token: int = -1) -> void:
 	if not encounter.death_pending(target, expected_token):
 		return
 	var spawn_token := "leader" if target == -1 else str(encounter.token(target))
 	var kind: int = enemy_kind if target == -1 else int(encounter.scout(target).get("kind", 0))
 	var mask: int = enemy_mutations if target == -1 else int(encounter.scout(target).get("mutations", 0))
 	var summoned := target >= 0 and bool(encounter.scout(target).get("summoned", false))
-	if not _queue_monster_reward(spawn_token, kind, mask, position, target == -1, summoned):
+	if not _queue_monster_reward(spawn_token, kind, mask, world_position, target == -1, summoned):
 		return
 	encounter.confirm_death(target)
 	if not summoned:
 		encounter_kills.append(kind)
 		encounter_kill_records.append({"kind":kind,"mask":mask})
-	if target>=0: EnemyBehaviors.death(self,encounter.scout(target),position)
-	elif not encounter.leader_tactics().is_empty(): EnemyBehaviors.death(self,encounter.leader_tactics(),position)
+	if target>=0: EnemyBehaviors.death(self,encounter.scout(target),world_position)
+	elif not encounter.leader_tactics().is_empty(): EnemyBehaviors.death(self,encounter.leader_tactics(),world_position)
 	var growth: int=enemy_growth if target==-1 else int(encounter.scout(target).get("growth",0))
-	var direction: Vector3=(position-origin).normalized()
+	var direction: Vector3=(world_position-origin).normalized()
 	enemy_death_serial+=1
 	var scale_value: float=1.0 if tactics.boss_kind>=0 and target==-1 else (1.9 if participation.route()==Campaign.HEART or participation.depth()==ROUTE_ROOMS else 1.0 if participation.depth()==1 else 1.22) if target==-1 else 1.0
-	enemy_death_events.append({"id":enemy_death_serial,"position":[position.x,position.y,position.z],"direction":[direction.x,0,direction.z],"code":Enemies.encode(kind,mask,growth),"scale":scale_value,"born":CombatClock.now()})
+	enemy_death_events.append({"id":enemy_death_serial,"position":[world_position.x,world_position.y,world_position.z],"direction":[direction.x,0,direction.z],"code":Enemies.encode(kind,mask,growth),"scale":scale_value,"born":CombatClock.now()})
 	while enemy_death_events.size()>24: enemy_death_events.pop_front()
 
 func death_events_snapshot() -> Array:

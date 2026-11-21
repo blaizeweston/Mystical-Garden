@@ -29,15 +29,15 @@ func begin(bed: int,stock: Array):
  for species in counts.size():
   if int(counts[species])<=0: continue
   available+=1
-  var seed: Dictionary=Seeds.DEFINITIONS[species]
+  var species_name: Dictionary=Seeds.DEFINITIONS[species]
   var plant_description := AffinityBuild.planting_description(species)
-  var button:=Button.new();button.toggle_mode=true;button.button_group=selection_group;button.custom_minimum_size=Vector2(90,96);button.tooltip_text="%s · %s\n%s"%[seed.name,seed.rarity,plant_description];button.disabled=not selection_enabled;grid.add_child(button)
+  var button:=Button.new();button.toggle_mode=true;button.button_group=selection_group;button.custom_minimum_size=Vector2(90,96);button.tooltip_text="%s · %s\n%s"%[species_name.name,species_name.rarity,plant_description];button.disabled=not selection_enabled;grid.add_child(button)
   var content:=VBoxContainer.new();content.mouse_filter=Control.MOUSE_FILTER_IGNORE;button.add_child(content);content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);content.add_theme_constant_override("separation",0)
-  var icon:=TextureRect.new();icon.texture=load("res://assets/ui/seeds/"+str(seed.id)+".png");icon.custom_minimum_size=Vector2(68,68);icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;content.add_child(icon)
+  var icon:=TextureRect.new();icon.texture=load("res://assets/ui/seeds/"+str(species_name.id)+".png");icon.custom_minimum_size=Vector2(68,68);icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;content.add_child(icon)
   var quantity:=Label.new();quantity.text="×%d"%int(counts[species]);quantity.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;quantity.mouse_filter=Control.MOUSE_FILTER_IGNORE;content.add_child(quantity)
   button.pressed.connect(func():
    if not selection_enabled:return
-   selected=species;details.text="%s · %s · %d available\nBase growth: %s · 2× in the Wilds, plus Knowledge and watering bonuses\n%s"%[seed.name,seed.rarity,counts[species],Growth.time_text(float(seed.grow_seconds)),plant_description];confirm.disabled=false)
+   selected=species;details.text="%s · %s · %d available\nBase growth: %s · 2× in the Wilds, plus Knowledge and watering bonuses\n%s"%[species_name.name,species_name.rarity,counts[species],Growth.time_text(float(species_name.grow_seconds)),plant_description];confirm.disabled=false)
  details.text="Choose a seed." if available>0 else "No seeds available. Identify mysterious seeds at the Altar."
 
 

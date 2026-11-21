@@ -364,17 +364,17 @@ static func _check_artifacts(plan: Dictionary, index: Dictionary, owners: Dictio
     var link: String = file.bytes.get_string_from_utf8()
     if not index.has(link) and (record.is_empty() or not record.get("evidence_only", false) or link != record.path):
      return _refuse(plan, "pending_recovery", "dangling_or_unsafe_link", target)
-    if not owners.has(path) or owners[path] != link or not plan.journals.any(func(record): return record.path == link and record.entries.has(path)):
+    if not owners.has(path) or owners[path] != link or not plan.journals.any(func(parsed_record): return parsed_record.path == link and parsed_record.entries.has(path)):
      return _refuse(plan, "ambiguous", "link_owner_mismatch", target)
    elif suffix in [".txn_stage", ".recovery"]:
     if suffix == ".txn_stage" and (record.get("committed", false) or record.get("receipt", false)) and not record.get("evidence", {}).is_empty():
      for entry in record.evidence.participants:
       if entry.path == path and not Evidence.matches(entry, true, file.bytes):
        return _refuse(plan, "pending_recovery", "staged_state_mismatch", target)
-    if not owners.has(path) or not plan.journals.any(func(record): return record.path == owners[path] and record.entries.has(path)):
+    if not owners.has(path) or not plan.journals.any(func(parsed_record): return parsed_record.path == owners[path] and parsed_record.entries.has(path)):
      return _refuse(plan, "pending_recovery", "unowned_artifact", target)
    elif suffix == ".transaction":
-    if not plan.journals.any(func(record): return record.path == target and record.sha256 == plan.observed[target]):
+    if not plan.journals.any(func(parsed_record): return parsed_record.path == target and parsed_record.sha256 == plan.observed[target]):
      return _refuse(plan, "pending_recovery", "journal_changed_during_scan", target)
  for record in plan.journals:
   var proof: Dictionary = record.get("evidence", {})
@@ -509,11 +509,11 @@ static func _sorted(paths: PackedStringArray) -> PackedStringArray:
  return sorted
 
 static func _digest(bytes: PackedByteArray) -> String:
- var hash := HashingContext.new()
- hash.start(HashingContext.HASH_SHA256)
+ var digest := HashingContext.new()
+ digest.start(HashingContext.HASH_SHA256)
  if not bytes.is_empty():
-  hash.update(bytes)
- return hash.finish().hex_encode()
+  digest.update(bytes)
+ return digest.finish().hex_encode()
 
 static func _bad_record(state: String, reason: String) -> Dictionary:
  return {"ok": false, "state": state, "reason": reason}

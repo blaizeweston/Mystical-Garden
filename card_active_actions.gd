@@ -61,12 +61,12 @@ static func command(game: Node, peer: int, player: Dictionary, action: String) -
  if id=="singularity":
   if not fields[6].is_valid_float():return
   var distance:=float(fields[6])
-  var tuning: Dictionary=definition.tuning
-  if not is_finite(distance) or distance<0.0 or distance>float(tuning.range_m):return
+  var action_tuning: Dictionary=definition.tuning
+  if not is_finite(distance) or distance<0.0 or distance>float(action_tuning.range_m):return
   var center: Vector3=player.pos+Vector3(aim.x,0,aim.y).normalized()*distance
   if game.battlefield.occupied(center) or not game.battlefield.clear_line(player.pos,center):return
   if not load("res://void_affinity.gd").singularity(game,peer,center,now):return
-  state.actions[id]={"sequence":sequence,"ready":now+int(tuning.cooldown_ms)}
+  state.actions[id]={"sequence":sequence,"ready":now+int(action_tuning.cooldown_ms)}
   player[STATE]=state
   preload("res://diagnostic_journal.gd").event("combat","card_active_cast",{"actor":peer,"card":id,"distance_m":distance,"sequence":sequence})
   return
@@ -80,11 +80,11 @@ static func command(game: Node, peer: int, player: Dictionary, action: String) -
   var elapsed: int=load("res://affinity_time.gd").now(game)
   var held: int=wood.capacity(wood.live_grants(player,elapsed))
   if held<=0:return
-  var tuning: Dictionary=definition.tuning
-  state.actions[id]={"sequence":sequence,"ready":now+int(tuning.cooldown_ms)}
+  var action_tuning: Dictionary=definition.tuning
+  state.actions[id]={"sequence":sequence,"ready":now+int(action_tuning.cooldown_ms)}
   player[STATE]=state
   var spent: int=wood.spend_all(player,elapsed)
-  wood.burst(game,peer,player.pos,roundi(spent*float(tuning.damage_per_bark)),now,definition.title,float(tuning.radius_m),true)
+  wood.burst(game,peer,player.pos,roundi(spent*float(action_tuning.damage_per_bark)),now,definition.title,float(action_tuning.radius_m),true)
   preload("res://diagnostic_journal.gd").event("combat","card_active_cast",{"actor":peer,"card":id,"spent_bark":spent,"sequence":sequence})
   if game.encounter_cleared():game.finish_combat(peer,player.pos)
   return
@@ -96,14 +96,14 @@ static func command(game: Node, peer: int, player: Dictionary, action: String) -
  var best:=-INF
  for victim in range(-1,game.encounter.scout_count()):
   if not game.encounter.alive(victim):continue
-  var point: Vector3=game.enemy_position(victim)
-  var offset: Vector3=point-player.pos
-  if offset.length()>float(tuning.range_m) or not game.battlefield.combat_sight(player.pos,point):continue
+  var target_point: Vector3=game.enemy_position(victim)
+  var offset: Vector3=target_point-player.pos
+  if offset.length()>float(tuning.range_m) or not game.battlefield.combat_sight(player.pos,target_point):continue
   var body: Dictionary=load("res://frost_combat.gd").body(game,victim)
-  var bleed: Dictionary=body.get(thorn.BLEED,{})
-  if bleed.is_empty() or not thorn.Sources.target_current(game,victim,bleed):continue
-  thorn.prune(game,bleed,load("res://affinity_time.gd").now(game))
-  if thorn.potency_units(bleed)<=0:continue
+  var bleed_status: Dictionary=body.get(thorn.BLEED,{})
+  if bleed_status.is_empty() or not thorn.Sources.target_current(game,victim,bleed_status):continue
+  thorn.prune(game,bleed_status,load("res://affinity_time.gd").now(game))
+  if thorn.potency_units(bleed_status)<=0:continue
   var dot:=offset.normalized().dot(forward) if offset.length()>.001 else 1.0
   if dot<float(tuning.min_aim_dot):continue
   var score:=dot*100.0-offset.length()

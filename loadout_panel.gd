@@ -210,7 +210,7 @@ func present(data: Dictionary) -> void:
 		state_key=key
 		displayed_parts = parts
 		var source_build := affinity_api.resolve(c,int(data.weapon_kind),parts,profile)
-		var resolved := ResolvedBuild.Snapshot.from_build(source_build,data.card_totals if not prepared else {}).affinity_build()
+		var resolved_build := ResolvedBuild.Snapshot.from_build(source_build,data.card_totals if not prepared else {}).affinity_build()
 		class_pick.select(c)
 		weapon_pick.clear()
 		for i in Classes.DEFINITIONS[c].weapons.size(): weapon_pick.add_item(Classes.DEFINITIONS[c].weapons[i].name,i)
@@ -221,7 +221,7 @@ func present(data: Dictionary) -> void:
 			option.add_item("Empty",0)
 			part_previews[slot].clear()
 			var slot_name: String = affinity_api.SLOTS[slot]
-			part_previews[slot][0] = affinity_api.slot_preview(resolved,slot_name,0)
+			part_previews[slot][0] = affinity_api.slot_preview(resolved_build,slot_name,0)
 			for part in range(1,Parts.DEFINITIONS.size()):
 				if not Parts.is_plant(part): continue
 				var available: int=Materials.remaining(counts,parts,slot,part)
@@ -230,7 +230,7 @@ func present(data: Dictionary) -> void:
 				var part_title := "%s · %d available" % [Parts.part_name(part), available]
 				option.add_icon_item(load(icon),part_title,part)
 				option.get_popup().set_item_icon_max_width(option.item_count-1,28)
-				var preview := affinity_api.slot_preview(resolved,slot_name,part)
+				var preview := affinity_api.slot_preview(resolved_build,slot_name,part)
 				part_previews[slot][part] = preview
 				option.get_popup().set_item_tooltip(option.item_count-1,preview.summary)
 			option.select(maxi(0,option.get_item_index(int(parts[slot]))))

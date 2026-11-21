@@ -35,8 +35,11 @@ static func initialize(bed: Dictionary) -> void:
 static func water(bed: Dictionary) -> void:
  if not Care.compatible(bed) or watered(bed):return
  bed.care.watered=true;Care.bump(bed)
+# Displayed hours and minutes omit fractional units.
+@warning_ignore_start("integer_division")
 static func time_text(seconds: float) -> String:
  var value:=maxi(0,ceili(seconds))
  if value<60:return "%ds"%value
  if value<3600:return "%dm %02ds"%[value/60,value%60]
  return "%dh %02dm"%[value/3600,(value%3600)/60]
+@warning_ignore_restore("integer_division")

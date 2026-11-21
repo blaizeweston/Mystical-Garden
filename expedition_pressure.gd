@@ -19,6 +19,8 @@ static func safe(game: Node,at: Vector3) -> bool:
  for slot in game.encounter.scout_count():
   if game.encounter.hp(slot)>0 and game.encounter.position(slot).distance_to(at)<1.5:return false
  return true
+# Pressure progression counts whole wave and party-size bands.
+@warning_ignore_start("integer_division")
 static func plan(game: Node,wave: int) -> Array:
  var result: Array=[];var pool: Array[int]=[]
  for kind in game.Enemies.all().size():
@@ -49,6 +51,7 @@ static func plan(game: Node,wave: int) -> Array:
    var previous: int=game.enemy_kind if result.is_empty() else result.back().kind
    result.append({"pos":at,"kind":Composition.reinforcement(game,pool,at,rng,previous)})
  return result
+@warning_ignore_restore("integer_division")
 static func tick(game: Node,now: int) -> void:
  if game.network_session.role()=="Guest":return
  if game.participation.cycle()<=0 or game.tactics.boss_kind>=0 or game.participation.route()==game.Campaign.HEART or game.Life.living_ids(game).is_empty() or game.encounter_cleared():

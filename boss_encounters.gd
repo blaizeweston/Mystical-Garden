@@ -155,7 +155,7 @@ static func seed_species(random: RandomNumberGenerator) -> int:
  return int(pool[random.randi_range(0,pool.size()-1)]) if not pool.is_empty() else 0
 
 static func warning_width(game: Node) -> float:
- if game.tactics.attack_mode=="memory_lance": return .8+(.7 if game.enemy_mutations&game.Enemies.REACH else 0)
+ if game.tactics.attack_mode=="memory_lance": return .8+(.7 if game.enemy_mutations&game.Enemies.REACH else 0.0)
  if game.tactics.attack_mode in ["root_sweep","remembered_rend"]: return 1.1+game.tactics.boss_phase*.2
  return 1.2
 static func warning_radius(game: Node) -> float:

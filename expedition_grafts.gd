@@ -50,8 +50,8 @@ class Ledger extends RefCounted:
 	var _identity: int
 	var _receipts: Array[Dictionary] = []
 
-	func _init(identity: int) -> void:
-		_identity = identity
+	func _init(character_identity: int) -> void:
+		_identity = character_identity
 
 	func identity() -> int:
 		return _identity

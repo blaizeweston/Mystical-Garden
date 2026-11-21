@@ -115,17 +115,17 @@ func show_selection() -> void:
 	else:
 		materials.add_item("Choose an ordinary trophy")
 		materials.set_item_metadata(0,"")
-		for material: Dictionary in data.materials:
-			add_trophy(material)
-			if material.id == trophy:
+		for part_kind: Dictionary in data.materials:
+			add_trophy(part_kind)
+			if part_kind.id == trophy:
 				materials.select(materials.item_count-1)
 		materials.disabled = materials.item_count < 2
 	update_confirm()
 
 
-func add_trophy(material: Dictionary) -> void:
-	materials.add_item("%d %s · %d carried" % [material.cost,material.name,material.carried])
-	materials.set_item_metadata(materials.item_count-1,material.id)
+func add_trophy(part_kind: Dictionary) -> void:
+	materials.add_item("%d %s · %d carried" % [part_kind.cost,part_kind.name,part_kind.carried])
+	materials.set_item_metadata(materials.item_count-1,part_kind.id)
 
 
 func update_confirm() -> void:
@@ -139,10 +139,10 @@ func update_confirm() -> void:
 	if material_id.is_empty():
 		confirm.text = "No eligible trophies carried" if data.materials.is_empty() else "Choose the trophy to spend"
 		return
-	var material: Dictionary = choice.material if choice.unique else data.materials[selected_index-1]
-	confirm.text = "Buy · %d %s" % [material.cost,material.name]
-	if int(material.carried) < int(material.cost):
-		confirm.text = "Need %d %s" % [material.cost,material.name]
+	var part_kind: Dictionary = choice.material if choice.unique else data.materials[selected_index-1]
+	confirm.text = "Buy · %d %s" % [part_kind.cost,part_kind.name]
+	if int(part_kind.carried) < int(part_kind.cost):
+		confirm.text = "Need %d %s" % [part_kind.cost,part_kind.name]
 	elif data.used:
 		confirm.text = "Altar already used"
 	elif int(data.remaining) == 0:

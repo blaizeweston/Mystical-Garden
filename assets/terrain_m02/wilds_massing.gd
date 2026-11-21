@@ -6,6 +6,8 @@ const Geo = preload("res://assets/terrain_m02/wilds_geography.gd")
 const Biomes = preload("res://assets/terrain_m02/wilds_biome.gd")
 const Stream = preload("res://assets/terrain_m02/terrain_feature_layout.gd")
 
+# Each pair of rows shares a whole-number offset.
+@warning_ignore_start("integer_division")
 static func build(layout: Dictionary, seed_value: int, radius: int, spacing: float, climate: Dictionary) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	var random := Stream.random_stream(seed_value, "wilds_mass")
@@ -59,6 +61,7 @@ static func build(layout: Dictionary, seed_value: int, radius: int, spacing: flo
 		_place_segments(result, layout, spine, row, family, width, radius, spacing)
 	return result
 
+@warning_ignore_restore("integer_division")
 static func _place_segments(result: Array[Dictionary], layout: Dictionary, guide: PackedVector2Array,
 		row: int, family: int, width: float, radius: int, spacing: float) -> void:
 	var run := PackedVector2Array()

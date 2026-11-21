@@ -21,6 +21,8 @@ func _process(delta: float) -> void:
  if clock<.25:return
  clock=0;tick(sample_clock>=2)
  if sample_clock>=2:sample_clock=0
+# Diagnostics group elapsed time into whole five-second buckets.
+@warning_ignore_start("integer_division")
 func tick(sample: bool=false) -> void:
  var journal=Journal.current
  if not is_instance_valid(journal) or not is_instance_valid(game):return
@@ -61,6 +63,7 @@ func tick(sample: bool=false) -> void:
    positions[id]={"pos":actor.get("pos",Vector3.ZERO),"hp":PlayerVitals.current_hp(actor),"max_hp":PlayerVitals.maximum_hp(actor,0),
     "lost_health":actor.get("lost_health",0),"fallen":PlayerLifecycle.fallen(actor),"damage_seq":actor.get("damage_seq",0),"vitals_revision":game.replication.health_revision(id) if game.multiplayer.is_server() else actor.get("vitals_revision",0)}
   Journal.event("network","sample",{"transport":transport,"rejected_snapshots":game.guest_replication.rejected_count(),"snapshot_gaps":game.guest_replication.gap_count(),"sent_sequence":game.replication.sequence(),"received_sequence":sequence,"players":positions,"living_enemies":game.living_scout_count()+int(game.enemy_health()>0),"pending_projectiles":game.weapon_attacks.pending_count(),"movement_timing":game.net_motion.sample(),"fps":Engine.get_frames_per_second()})
+@warning_ignore_restore("integer_division")
 func _exit_tree() -> void:
  Journal.event("world","detached",{"world_session":world_session})
  if is_instance_valid(Journal.current):Journal.current.set_context({"role":"Menu"})

@@ -31,9 +31,9 @@ static func sync(stage: Node3D,state: Dictionary) -> void:
  stage.set_meta("heart_visual_count",target)
  if stage.experimental_garden!=null:
   var sculpt: Node3D=stage.experimental_garden.heart
-  var from:=clampi(int(reveal.get("from",target)),0,target)
-  var amount:=clampf(float(reveal.get("amount",1)),0,1)
-  var rendered:=lerpf(from,target,amount)
+  var previous_growth:=clampi(int(reveal.get("from",target)),0,target)
+  var growth_amount:=clampf(float(reveal.get("amount",1)),0,1)
+  var rendered:=lerpf(previous_growth,target,growth_amount)
   sculpt.set_meta("heart_visual_count",target)
   sculpt.set_meta("rendered_growth",rendered)
   sculpt.set_research_growth(rendered)
@@ -75,6 +75,8 @@ static func leaf_mesh() -> ArrayMesh:
    s.set_color(Color.WHITE);s.set_uv(Vector2((side+1)*.5,t));s.set_normal(Vector3.UP)
    s.add_vertex(Vector3(sin(t*PI)*.07*side,sin(t*PI)*.025,t*.30))
  return s.commit()
+# Each complete group of eight samples uses one branch point.
+@warning_ignore_start("integer_division")
 static func leaves(parent: Node3D,points: Array[Vector3],seed_value: int,material: ShaderMaterial) -> void:
  var mm:=MultiMesh.new();mm.transform_format=MultiMesh.TRANSFORM_3D;mm.use_colors=true;mm.mesh=leaf_mesh();mm.instance_count=points.size()*8
  for i in mm.instance_count:
@@ -83,6 +85,7 @@ static func leaves(parent: Node3D,points: Array[Vector3],seed_value: int,materia
   mm.set_instance_transform(i,Transform3D(basis.scaled(Vector3.ONE*(1.05+.3*sin(i*3.1))),point+Vector3(cos(angle),.2*sin(angle),sin(angle))*.24))
   mm.set_instance_color(i,Color("#405c3b").lerp(Color("#91a56b"),(sin(i*1.8)+1)*.35))
  var batch:=MultiMeshInstance3D.new();parent.add_child(batch);batch.name="HeartLeaves";batch.multimesh=mm;batch.material_override=material
+@warning_ignore_restore("integer_division")
 static func attach(stage: Node3D,model: Node3D) -> void:
  var completed: int=int(stage.get_meta("heart_visual_count",count(stage.heart_unlocked)))
  model.set_meta("heart_visual_count",completed)

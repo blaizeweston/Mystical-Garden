@@ -89,6 +89,6 @@ static func learn(profile: Dictionary, request: int) -> String:
 	return TREE.learn(profile,request)
 
 
-static func description(node: Dictionary, focus: String, ability: String) -> String:
-	var text: String = DEEP_ROOTS.get(focus, node.description) if node.id == "deep_roots" else node.description
+static func description(node_definition: Dictionary, starting_focus: String, ability: String) -> String:
+	var text: String = DEEP_ROOTS.get(starting_focus, node_definition.description) if node_definition.id == "deep_roots" else node_definition.description
 	return Model.focus_text(text, ability)

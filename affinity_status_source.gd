@@ -38,12 +38,15 @@ static func dominant(contributors: Dictionary, amount: String) -> Dictionary:
 	return best
 
 ## Fractional DOT damage is carried by the shared effect, not rounded per source.
+# Fixed-point damage converts to whole HP without rounding up.
+@warning_ignore_start("integer_division")
 static func whole_tick(status: Dictionary, damage_units: int) -> int:
 	var total := damage_units+int(status.get("remainder",0))
 	status.remainder=total%UNITS_PER_HP
 	return int(total/UNITS_PER_HP)
 
 
+@warning_ignore_restore("integer_division")
 ## Reject unrepresentable arithmetic instead of wrapping or clipping a build.
-static func sum_fits(current: int, added: int) -> bool:
-	return current>=0 and added>=0 and current<=MAX_INTEGER-added
+static func sum_fits(current_source: int, added: int) -> bool:
+	return current_source>=0 and added>=0 and current_source<=MAX_INTEGER-added

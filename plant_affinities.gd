@@ -77,17 +77,17 @@ static func for_part(part: int) -> Dictionary:
 	var species := Parts.plant_source(part)
 	if species < 0 or species >= Seeds.DEFINITIONS.size():
 		return {}
-	var seed: Dictionary = Seeds.DEFINITIONS[species]
+	var plant_definition: Dictionary = Seeds.DEFINITIONS[species]
 	# Use the cultivation registry's explicit pair, including the Heartwood Barb exception.
-	var ordinary: int = seed.part
+	var ordinary: int = plant_definition.part
 	var refined := Parts.rare_part(species)
 	var item_id: String = Parts.DEFINITIONS[part].item_id
 	if ordinary == refined or part not in [ordinary, refined] or item_id.is_empty():
 		return {}
-	var result := resolve_affinities(BY_SPECIES.get(seed.id))
+	var result := resolve_affinities(BY_SPECIES.get(plant_definition.id))
 	if result.is_empty():
 		return {}
-	result.species_id = seed.id
+	result.species_id = plant_definition.id
 	result.item_id = item_id
 	result.quality = "ordinary" if part == ordinary else "refined"
 	return result
@@ -99,13 +99,13 @@ static func errors() -> Array[String]:
 		if Seeds.index_of(species_id) < 0:
 			result.append("Unknown plant affinity species: " + species_id)
 	for species in Seeds.DEFINITIONS.size():
-		var seed: Dictionary = Seeds.DEFINITIONS[species]
-		var ordinary := for_part(seed.part)
+		var plant_definition: Dictionary = Seeds.DEFINITIONS[species]
+		var ordinary := for_part(plant_definition.part)
 		var refined := for_part(Parts.rare_part(species))
-		if ordinary.get("species_id") != seed.id or ordinary.get("quality") != "ordinary":
-			result.append("Invalid ordinary plant affinity metadata: " + seed.id)
-		if refined.get("species_id") != seed.id or refined.get("quality") != "refined":
-			result.append("Invalid refined plant affinity metadata: " + seed.id)
+		if ordinary.get("species_id") != plant_definition.id or ordinary.get("quality") != "ordinary":
+			result.append("Invalid ordinary plant affinity metadata: " + plant_definition.id)
+		if refined.get("species_id") != plant_definition.id or refined.get("quality") != "refined":
+			result.append("Invalid refined plant affinity metadata: " + plant_definition.id)
 	var resolved_items := {}
 	for part in range(1, Parts.DEFINITIONS.size()):
 		if not Parts.is_plant(part):

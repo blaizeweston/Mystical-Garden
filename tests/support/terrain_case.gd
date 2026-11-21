@@ -4,6 +4,7 @@ const Field = preload("res://battlefield.gd")
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const Surface = preload("res://assets/terrain_m02/wilds_play_surface.gd")
 const Navigation = preload("res://assets/terrain_m02/wilds_combat_navigation.gd")
+const Placement = preload("res://tests/support/garden_placement_case.gd")
 
 static func rectangle(left: float, top: float, right: float, bottom: float) -> PackedVector2Array:
 	return PackedVector2Array([Vector2(left,top),Vector2(right,top),Vector2(right,bottom),Vector2(left,bottom)])
@@ -44,14 +45,10 @@ static func place_structure(world: Node, kind: String) -> bool:
 	# a walkable player position so its access guarantee can be checked.
 	if not garden.barrier.walkable(garden.planar(actor.pos)):actor.pos=garden.return_position()
 	var pawn:=Vector2(actor.pos.x,actor.pos.z)
-	# Current rotated placement sites also exercised by the construction fixtures.
-	var sites:Array[Vector2]=[Vector2(2.34,-4.58),Vector2(-6.67,4.44),Vector2(-3.25,-5.25),Vector2(6.44,.45),Vector2(.17,5.58),Vector2(1.31,6.72)]
-	for z in range(-12,13):
-		for x in range(-12,13):sites.append(Vector2(x,z))
-	for position in sites:
-		for yaw in [.37,0.0]:
-			if garden.construction.validate(kind,position,yaw,pawn).is_empty() and garden.place(kind,position,yaw):
-				world.slot_claimed=claimed;actor.pos=original
-				return true
+	for yaw in [.37,0.0]:
+		var position := Placement.find(garden.construction, kind, Vector2(2.34,-4.58), yaw, pawn)
+		if position.is_finite() and garden.place(kind,position,yaw):
+			world.slot_claimed=claimed;actor.pos=original
+			return true
 	world.slot_claimed=claimed;actor.pos=original
 	return false

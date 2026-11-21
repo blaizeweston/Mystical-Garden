@@ -6,7 +6,6 @@ signal overlay_opened
 
 const Style = preload("res://root_ui.gd")
 const LOOK_NAMES = preload("res://character_appearance.gd").OPTIONS
-@onready var _surface: Control = $Surface
 var _panels: Dictionary = {}
 var _features: Dictionary = {}
 var _cinematic: Node

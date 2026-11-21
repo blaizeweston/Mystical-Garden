@@ -26,16 +26,16 @@ static func validate() -> Array[String]:
  errors.append_array(preload("res://plant_affinities.gd").errors())
  var pairs: Array=[]
  for i in Seeds.DEFINITIONS.size():
-  var seed: Dictionary=Seeds.DEFINITIONS[i];errors.append_array(effect_errors(seed.effects,"seed "+str(seed.id)))
-  if not ResourceLoader.exists("res://assets/ui/seeds/"+str(seed.id)+".png"): errors.append("Missing seed portrait "+str(seed.id))
-  if int(seed.part)<1 or int(seed.part)>=Parts.DEFINITIONS.size() or Parts.plant_source(int(seed.part))!=i: errors.append("Seed/component mapping mismatch "+str(seed.id))
-  if seed.parents.size()==2:
-   var sorted: Array=seed.parents.duplicate();sorted.sort();var signature:=str(sorted)
+  var species_id: Dictionary=Seeds.DEFINITIONS[i];errors.append_array(effect_errors(species_id.effects,"seed "+str(species_id.id)))
+  if not ResourceLoader.exists("res://assets/ui/seeds/"+str(species_id.id)+".png"): errors.append("Missing seed portrait "+str(species_id.id))
+  if int(species_id.part)<1 or int(species_id.part)>=Parts.DEFINITIONS.size() or Parts.plant_source(int(species_id.part))!=i: errors.append("Seed/component mapping mismatch "+str(species_id.id))
+  if species_id.parents.size()==2:
+   var sorted: Array=species_id.parents.duplicate();sorted.sort();var signature:=str(sorted)
    if pairs.has(signature): errors.append("Ambiguous parent pair "+signature)
    pairs.append(signature)
-   for parent in seed.parents:
-    if int(parent)<0 or int(parent)>=Seeds.DEFINITIONS.size(): errors.append("Missing parent "+str(seed.id))
-    elif int(Seeds.DEFINITIONS[int(parent)].tier)>=int(seed.tier): errors.append("Invalid lineage tier "+str(seed.id))
+   for parent in species_id.parents:
+    if int(parent)<0 or int(parent)>=Seeds.DEFINITIONS.size(): errors.append("Missing parent "+str(species_id.id))
+    elif int(Seeds.DEFINITIONS[int(parent)].tier)>=int(species_id.tier): errors.append("Invalid lineage tier "+str(species_id.id))
  for class_id in Classes.DEFINITIONS.size():
   var c: Dictionary=Classes.DEFINITIONS[class_id]
   # Historical masks remain validated as data, never as an alternate combat tree.

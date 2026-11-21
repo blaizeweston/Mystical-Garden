@@ -72,21 +72,21 @@ static func _bed(tool: SurfaceTool, decorative_shoots: bool) -> void:
 static func _basin(tool: SurfaceTool, radius: float, y: float, wall: Color, inside: Color) -> void:
 	var bottom := PackedVector3Array()
 	var lip := PackedVector3Array()
-	var floor := PackedVector3Array()
+	var floor_ring := PackedVector3Array()
 	for i in 18:
 		var angle := TAU * i / 18.0
 		var wave := 1.0 + 0.08 * sin(i * 1.62)
 		var at := Vector3(cos(angle), 0, sin(angle)) * radius * wave
 		bottom.append(at * 0.69 + Vector3.UP * 0.045)
 		lip.append(at * 0.97 + Vector3.UP * (y + 0.045 * sin(i * 0.91)))
-		floor.append(at * 0.76 + Vector3.UP * (y - 0.11))
+		floor_ring.append(at * 0.76 + Vector3.UP * (y - 0.11))
 	for i in lip.size():
 		var j := (i + 1) % lip.size()
 		var tone := wall.lerp(COPPER, 0.12 + 0.07 * cos(i * 1.87))
 		_quad(tool, bottom[i], bottom[j], lip[j], lip[i], tone)
-		_quad(tool, lip[i], lip[j], floor[j], floor[i], tone.lightened(0.14))
+		_quad(tool, lip[i], lip[j], floor_ring[j], floor_ring[i], tone.lightened(0.14))
 		var stain := inside.lerp(wall, 0.12 + 0.17 * sin(i * 2.9) * sin(i * 2.9))
-		Wood._face(tool, floor[i], floor[j], Vector3.UP * (y - 0.11), stain)
+		Wood._face(tool, floor_ring[i], floor_ring[j], Vector3.UP * (y - 0.11), stain)
 
 static func _archive(tool: SurfaceTool, id: String) -> void:
 	var storage := id == "seed_archive"

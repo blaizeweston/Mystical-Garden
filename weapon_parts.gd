@@ -358,22 +358,22 @@ static func make_definitions() -> Array:
  var entries: Dictionary={"empty":BASE_DEFINITIONS[0].duplicate(true),"rare:heartwood_barb":BASE_DEFINITIONS[HEARTWOOD].duplicate(true)}
  entries["rare:heartwood_barb"].plant=Seeds.index_of("thorn_bloom");entries["rare:heartwood_barb"].rarity="Rare";entries["rare:heartwood_barb"].tags=["wood","piercing"]
  for species in Seeds.DEFINITIONS.size():
-  var seed: Dictionary=Seeds.DEFINITIONS[species];var id: String="plant:"+str(seed.id)
-  var data: Dictionary=BASE_DEFINITIONS[int(seed.part)].duplicate(true) if int(seed.part)<BASE_DEFINITIONS.size() and int(seed.part) not in [HOOK,HEARTWOOD] else {"name":str(seed.name)+" part","technique":"Faster strikes"}
-  data.merge(seed.effects,true);data.name=seed.get("part_name",data.name);data.plant=species;data.tags=seed.get("tags",["wood"]);entries[id]=data
+  var species_id: Dictionary=Seeds.DEFINITIONS[species];var id: String="plant:"+str(species_id.id)
+  var data: Dictionary=BASE_DEFINITIONS[int(species_id.part)].duplicate(true) if int(species_id.part)<BASE_DEFINITIONS.size() and int(species_id.part) not in [HOOK,HEARTWOOD] else {"name":str(species_id.name)+" part","technique":"Faster strikes"}
+  data.merge(species_id.effects,true);data.name=species_id.get("part_name",data.name);data.plant=species;data.tags=species_id.get("tags",["wood"]);entries[id]=data
  for i in MONSTER_DEFINITIONS.size():
   var entry: Dictionary=MONSTER_DEFINITIONS[i];var data: Dictionary={"name":entry.name,"monster":i,"tags":entry.tags,"technique":"Monster graft","rarity":entry.get("rarity","Uncommon")}
   data.merge(entry.effects,true);entries["monster:"+str(enemies[i].id)]=data
  # Rare harvest products share the same component template as ordinary parts.
  for species in Seeds.DEFINITIONS.size():
-  var seed: Dictionary=Seeds.DEFINITIONS[species]
-  if str(seed.id)=="thorn_bloom": continue
+  var species_id: Dictionary=Seeds.DEFINITIONS[species]
+  if str(species_id.id)=="thorn_bloom": continue
   var effects: Dictionary={}
-  for key in seed.effects:
-   if seed.effects[key] is int or seed.effects[key] is float: effects[key]=float(seed.effects[key])*(1.35 if float(seed.effects[key])>=0 else .85)
-  var rarity: String=["Common","Uncommon","Rare","Epic","Mythic"][mini(4,int(seed.tier))]
-  var data: Dictionary={"name":seed.get("refined_name","Pristine "+str(seed.name)+" material"),"plant":species,"tags":seed.tags.duplicate(),"technique":"Refined plant material","rare":true,"rarity":rarity}
-  data.merge(effects,true);entries["rare:"+str(seed.id)]=data
+  for key in species_id.effects:
+   if species_id.effects[key] is int or species_id.effects[key] is float: effects[key]=float(species_id.effects[key])*(1.35 if float(species_id.effects[key])>=0 else .85)
+  var rarity: String=["Common","Uncommon","Rare","Epic","Mythic"][mini(4,int(species_id.tier))]
+  var data: Dictionary={"name":species_id.get("refined_name","Pristine "+str(species_id.name)+" material"),"plant":species,"tags":species_id.tags.duplicate(),"technique":"Refined plant material","rare":true,"rarity":rarity}
+  data.merge(effects,true);entries["rare:"+str(species_id.id)]=data
  var custom=JSON.parse_string(FileAccess.get_file_as_string("res://assets/items/custom_components.json"))
  if custom is Array:
   for entry in custom:

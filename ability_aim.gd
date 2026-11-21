@@ -34,10 +34,10 @@ static func available(game_node: Node, local: Dictionary, requested_slot: int) -
 		and (game_node.multiplayer.is_server() or (game_node.network_session.role() == "Guest" and game_node.guest_replication.details_key() == str([game_node.participation.route(), game_node.participation.floor(), game_node.participation.seed()])))
 
 
-static func can_recover(game: Node, player: Dictionary) -> bool:
-	if game.multiplayer.is_server():
-		return game.combat_build(player).core_skill().get("affinity_family") == "vital"
-	var build: Dictionary = player.get("weapon_stats", {}).get("affinity_build", {})
+static func can_recover(world_node: Node, source_player: Dictionary) -> bool:
+	if world_node.multiplayer.is_server():
+		return world_node.combat_build(source_player).core_skill().get("affinity_family") == "vital"
+	var build: Dictionary = source_player.get("weapon_stats", {}).get("affinity_build", {})
 	var core: Dictionary = build.get("core", {})
 	return core.get("state") == "ready" and core.get("primary_affinity") == "vital"
 
@@ -198,13 +198,13 @@ static func footprint(game_node: Node, local: Dictionary, field: RefCounted, ski
 	var profile: Dictionary = local.get("character", game_node.guest_character.data)
 	var skill: Dictionary = game_node.Skills.resolve(int(local.frame),skill_slot,profile)
 	var cast := Targeting.plan(game_node, local, field, skill, stats, forward, distance)
-	var ready: bool
+	var is_ready: bool
 	if game_node.multiplayer.is_server():
 		var timers: Cooldowns.Timers = local.get(Cooldowns.STATE)
-		ready = timers == null or timers.ready(Cooldowns.Q if skill_slot == 0 else Cooldowns.R, preload("res://combat_clock.gd").now())
+		is_ready = timers == null or timers.ready(Cooldowns.Q if skill_slot == 0 else Cooldowns.R, preload("res://combat_clock.gd").now())
 	else:
-		ready = local.get("skill_ready" if skill_slot == 0 else "skill_two_ready", false)
-	return {"shapes": Targeting.footprint(game_node, local, field, skill, stats, cast), "color": skill.color, "valid": cast.valid and ready}
+		is_ready = local.get("skill_ready" if skill_slot == 0 else "skill_two_ready", false)
+	return {"shapes": Targeting.footprint(game_node, local, field, skill, stats, cast), "color": skill.color, "valid": cast.valid and is_ready}
 
 
 func draw_shape(shape: Dictionary) -> void:

@@ -77,13 +77,13 @@ func pulse(event: Dictionary,now: int) -> void:
  elif event.kind in ["growth","cinder"]:
   var targets: Array[int]=world.skill_area_targets(event.position,float(event.radius),event.position)
   for target in targets:
-   var hit: Dictionary={"damage":Preview.authored_amount(float(event.power)),"trait_secondary":true}
+   var hit_result: Dictionary={"damage":Preview.authored_amount(float(event.power)),"trait_secondary":true}
    if event.has("graft_source"):
-    hit=Grafts.secondary_stats(float(event.power))
+    hit_result=Grafts.secondary_stats(float(event.power))
    elif event.get("native_weaver_bloom",false):
-    hit.core_hit=true
+    hit_result.core_hit=true
    var before: int = world.encounter.hp(target)
-   OutgoingHits.hit_world(world, HitSession.peer_for(p), target, event.position, hit, now)
+   OutgoingHits.hit_world(world, HitSession.peer_for(p), target, event.position, hit_result, now)
    if event.has("weaver_pressure"):
     var after: int = world.encounter.hp(target)
     if after < before: preload("res://weaver_combat.gd").field_contact(world,p,event)

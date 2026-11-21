@@ -35,7 +35,7 @@ static func tick(game: Node, scout: Dictionary, delta: float, now: int) -> bool:
   return true
  return false
 
-static func support_target(game: Node, scout: Dictionary, allies: Array, anchor: Vector3, speed: float, delta: float, now: int) -> bool:
+static func support_target(game: Node, scout: Dictionary, _allies: Array, anchor: Vector3, speed: float, delta: float, now: int) -> bool:
  var target: int=game.Director.target(game,scout.pos,scout,now)
  if target==0:return false
  scout.cast_target=target

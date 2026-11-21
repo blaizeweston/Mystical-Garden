@@ -1,7 +1,10 @@
 extends RefCounted
 const Heart=preload("res://heart_catalog.gd")
 const Places=preload("res://garden_interaction_catalog.gd")
+# Garden levels count whole thirty-Knowledge bands.
+@warning_ignore_start("integer_division")
 static func level(knowledge: int,technologies: int) -> int:return mini(10,knowledge/30+technologies)
+@warning_ignore_restore("integer_division")
 static func enabled(zone: Dictionary,unlocked: Array) -> bool:
  for id in Places.requirements(zone):
   if not unlocked.has(id):return false

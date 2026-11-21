@@ -185,9 +185,9 @@ void fragment() {
 
 
 
-	var material := ShaderMaterial.new()
-	material.shader = shader
-	backdrop.material = material
+	var effect_material := ShaderMaterial.new()
+	effect_material.shader = shader
+	backdrop.material = effect_material
 	backdrop.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	var center:=CenterContainer.new()
 	add_child(center)
@@ -451,11 +451,11 @@ func select_slot(slot: int) -> void:
 			"Empty Garden\nA fresh beginning")
 	var current:=garden_summary(selected)
 	var character:=character_summary(selected_character)
-	var ready: bool=character.exists and character.error==OK and not character.active
-	continue_button.disabled=not content_valid or not ready or not current.exists or current.error!=OK or current.active
+	var is_ready: bool=character.exists and character.error==OK and not character.active
+	continue_button.disabled=not content_valid or not is_ready or not current.exists or current.error!=OK or current.active
 	delete_button.disabled=transitioning or current.active or not current.exists
 	new_button.disabled=not content_valid or character.error!=OK or character.active or current.active
-	join_button.disabled=not content_valid or not ready
+	join_button.disabled=not content_valid or not is_ready
 	host_choice.disabled=current.active
 	if has_meta(&"experimental_terrain"):
 		continue_button.disabled = true

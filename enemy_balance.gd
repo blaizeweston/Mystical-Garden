@@ -18,8 +18,8 @@ static func scout_hp(definition: Dictionary, floor_number: int, cycle: int, tier
 	var floor_offset := maxi(0,floor_number-1)
 	if juvenile:
 		var hatch: Dictionary = tuning.juvenile
-		var base := float(hatch.hp) + floor_offset * float(hatch.hp_per_floor) + cycle * float(hatch.hp_per_loop)
-		return roundi(base * party_factor(hatch,floor_offset,party))
+		var base_value := float(hatch.hp) + floor_offset * float(hatch.hp_per_floor) + cycle * float(hatch.hp_per_loop)
+		return roundi(base_value * party_factor(hatch,floor_offset,party))
 	var profile: Dictionary = tuning.regular
 	var base := float(definition.preview_hp) + floor_offset * float(profile.hp_per_floor)
 	base += tier * float(profile.hp_per_tier) + cycle * float(profile.hp_per_loop)

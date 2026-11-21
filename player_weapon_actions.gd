@@ -77,11 +77,11 @@ class State extends RefCounted:
 
 	## Core shares the weapon pose and basic-attack exclusion deadline. Its
 	## independent cooldown, cast queue and damage stay with CoreCombat.
-	func core_pose(now_ms: int, duration_ms: int, reach_m: float, direction: Vector3, clip: String, delivery: String, span_rad: float, weapon_pose: bool) -> State:
+	func core_pose(now_ms: int, recovery_duration_ms: int, reach_m: float, direction: Vector3, clip: String, delivery: String, span_rad: float, weapon_pose: bool) -> State:
 		var next := with_pose(direction, clip, delivery, span_rad)
-		next._ready_at_ms = maxi(_ready_at_ms, now_ms + duration_ms)
-		next._duration_ms = duration_ms
-		next._pose_until_ms = now_ms + duration_ms if weapon_pose else 0
+		next._ready_at_ms = maxi(_ready_at_ms, now_ms + recovery_duration_ms)
+		next._duration_ms = recovery_duration_ms
+		next._pose_until_ms = now_ms + recovery_duration_ms if weapon_pose else 0
 		next._reach_m = reach_m
 		next._sequence += 1
 		return next

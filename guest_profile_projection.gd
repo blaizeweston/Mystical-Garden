@@ -52,17 +52,17 @@ static func admit(origin: String, incoming: Dictionary, receipts: Dictionary, re
   if not Profile.Experience.supported(record.profile): return {}
   var recovered := Profile.normalize(Profile.ContentIDs.profile(record.profile, record.get("manifest", Profile.ContentIDs.legacy())))
   if record.has("projection"):
-   var descriptor: Variant = record.projection
-   if not valid_descriptor(descriptor, recovered): return {}
-   latest = descriptor.revision
-   if receipt.revision > latest or (receipt.revision == latest and receipt.digest != descriptor.digest): return {}
+   var effect_descriptor: Variant = record.projection
+   if not valid_descriptor(effect_descriptor, recovered): return {}
+   latest = effect_descriptor.revision
+   if receipt.revision > latest or (receipt.revision == latest and receipt.digest != effect_descriptor.digest): return {}
    if receipt.revision < latest:
-    var same_base: bool = receipt.revision == descriptor.base_revision and local_digest == descriptor.base_digest
-    var applied_intermediate: bool = receipt.revision > descriptor.base_revision and local_digest == receipt.digest
+    var same_base: bool = receipt.revision == effect_descriptor.base_revision and local_digest == effect_descriptor.base_digest
+    var applied_intermediate: bool = receipt.revision > effect_descriptor.base_revision and local_digest == receipt.digest
     if not same_base and not applied_intermediate: return {}
-    return {"profile": recovered, "projection": descriptor, "base": base}
-   if local_digest == descriptor.digest:
-    return {"profile": recovered, "projection": descriptor, "base": base}
+    return {"profile": recovered, "projection": effect_descriptor, "base": base}
+   if local_digest == effect_descriptor.digest:
+    return {"profile": recovered, "projection": effect_descriptor, "base": base}
   merge_progress(incoming, recovered)
  if latest == 0 and receipt.revision != 0: return {}
  var descriptor := build(incoming, latest + 1, base)

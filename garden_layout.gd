@@ -24,10 +24,10 @@ static func destinations(stage: Node3D) -> Array:
    var at: Vector3=preload("res://garden_water.gd").anchor(stage) if point.id=="spring_water" else point.position
    if at.is_finite():result.append(at)
  return result
-static func reserved(stage: Node3D,point: Vector3,radius: float,padding: float=0.0) -> bool:
+static func reserved(stage: Node3D,point: Vector3,_radius: float,padding: float=0.0) -> bool:
  if point.length()<1.75+padding:return true
- for zone in Catalog.ZONES:
-  if zone.has("footprint") and enabled(zone,stage.heart_unlocked) and zone.footprint.grow(padding).has_point(Vector2(point.x,point.z)):return true
+ for garden_zone in Catalog.ZONES:
+  if garden_zone.has("footprint") and enabled(garden_zone,stage.heart_unlocked) and garden_zone.footprint.grow(padding).has_point(Vector2(point.x,point.z)):return true
  for at in destinations(stage):
   if point.distance_to(at)<1.45+padding:return true
   var closest:=Geometry3D.get_closest_point_to_segment(point,Vector3.ZERO,at)

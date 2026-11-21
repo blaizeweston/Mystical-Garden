@@ -165,12 +165,12 @@ func draw_chart(canvas: Control) -> void:
 	canvas.draw_string(font, Vector2(12, 27), "FLOOR MAP   ·   "+preload("res://app_settings.gd").hint("floor_map"), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#d4c696"))
 	var scale := (canvas.size - Vector2(24, 70)) / Vector2(GRID)
 	for cell in cells:
-		var at := Vector2(12, 36) + Vector2(cell) * scale
-		canvas.draw_rect(Rect2(at, scale + Vector2.ONE * 0.4), Color("#7d725a"))
+		var sample_position := Vector2(12, 36) + Vector2(cell) * scale
+		canvas.draw_rect(Rect2(sample_position, scale + Vector2.ONE * 0.4), Color("#7d725a"))
 	for gate in [field.advance]:
 		if seen(gate):
-			var at := chart_point(gate, canvas)
-			canvas.draw_rect(Rect2(at - Vector2.ONE * 3, Vector2.ONE * 6), Color("#79cfbd"), false, 1.5)
+			var sample_position := chart_point(gate, canvas)
+			canvas.draw_rect(Rect2(sample_position - Vector2.ONE * 3, Vector2.ONE * 6), Color("#79cfbd"), false, 1.5)
 	if has_shrine and seen(field.graft):
 		var shrine := chart_point(field.graft,canvas)
 		canvas.draw_colored_polygon(PackedVector2Array([shrine+Vector2(0,-5),shrine+Vector2(5,4),shrine+Vector2(-5,4)]),Color("#bdc9f0"))

@@ -9,9 +9,9 @@ class Wallet extends RefCounted:
 	var _earned_sparks: int
 	var _spent_essence: int
 
-	func _init(earned_sparks: int = 0, spent_essence: int = 0) -> void:
-		_earned_sparks = earned_sparks
-		_spent_essence = spent_essence
+	func _init(granted_sparks: int = 0, spent_amount: int = 0) -> void:
+		_earned_sparks = granted_sparks
+		_spent_essence = spent_amount
 
 	func earned_sparks() -> int:
 		return _earned_sparks

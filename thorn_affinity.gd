@@ -123,7 +123,7 @@ static func apply_occupancy(game: Node, target: int, actor: Dictionary, fields: 
 
 
 ## All native and card applications join the same contributor record.
-static func contribute(game: Node, target: int, status: Dictionary, source: Dictionary,
+static func contribute(game: Node, _target: int, status: Dictionary, source: Dictionary,
 		hp: float, fraction: float, q: Dictionary, elapsed: int) -> void:
 	var owner_key := Sources.key(source)
 	var row: Dictionary=status.contributors.get(owner_key,source.duplicate(true))

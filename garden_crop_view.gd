@@ -90,9 +90,9 @@ func _process(_delta: float) -> void:
   if panel.visible:_ui.close_panels()
  var valid: bool=data.get("version",0)==2 and data.get("catalog","")==Catalog.signature
  var beds: Array=data.get("beds",[]) if valid else []
- var present: Array=[]
+ var has_player: Array=[]
  for bed in beds:
-  var index:=int(bed.slot);present.append(index)
+  var index:=int(bed.slot);has_player.append(index)
   update_water(bed)
   var visible: bool=not _facts.get("wild",false) and (bed.get("available",false) or bed.get("preserved",false)) and _facts.get("position",Vector3.INF).distance_to(_stage.bed_position(index))<14 and not _ui.cinematic_active()
   if visible and not markers.has(index):markers[index]=marker(index)
@@ -102,9 +102,9 @@ func _process(_delta: float) -> void:
    var pulse:=1.0+.045*sin(Time.get_ticks_msec()/650.0) if _facts.get("motion",true) else 1.0
    model.scale=Vector3.ONE*pulse*(1.0 if bed.get("preserved",false) else .78)
  for index in markers:
-  if not present.has(index):markers[index].hide()
+  if not has_player.has(index):markers[index].hide()
  for index in wet_marks:
-  if not present.has(index):wet_marks[index].hide();water_seen.erase(index)
+  if not has_player.has(index):wet_marks[index].hide();water_seen.erase(index)
  if not _facts.get("present",false) or _facts.get("wild",false) or not valid:
   if panel.visible:_ui.close_panels()
   return

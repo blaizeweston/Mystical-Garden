@@ -8,9 +8,9 @@ Architecture and overlap decisions: [Garden development map](GARDEN_DEVELOPMENT_
 
 | Field | Value |
 |---|---|
-| Recent work | Removed the two extra decorative ponds; watering uses only generated terrain shorelines. The three starting beds and Garden Altar are movable through Garden Development without buying them again. Garden layouts, reclaimed land, roots, growth energy and pending Heart studies now save together; crops retain their bed identity. Verification is recorded below. Source only; main, Playtest 9, protected tags and real saves are preserved. |
+| Recent work | Saved movable beds/altar and terrain-only water remain intact. Construction now reserves the full maximum-grown Heart canopy from actual model geometry; decorative reclamation roots add no separate exclusion. Existing crops/placements are preserved. The 213 startup warnings and reproducible menu-root triangulation errors are corrected; focused verification is recorded in ARCHITECTURE.md. Source only; main, Playtest 9, protected tags and real saves are preserved. |
 | Next combat objective | **CB-08 · Live playtest and release.** Compare pacing and sustain in solo and co-op, apply any tuning, then promote the verified balance. [Combat balance catalogue](COMBAT_BALANCE_MILESTONES.md#live-playtest). |
-| Next player-facing milestone | Review terrain-water filling, move planted starting beds and the Garden Altar, then close/reopen to inspect saved placement and reclamation. G-08 pacing/listening review remains open. Weapon-animation work follows separately; idle/walk/run remain unchanged. |
+| Next player-facing milestone | Restart the scene for a fresh debugger capture; review the maximum-canopy build boundary, terrain-water filling and moved planted beds/altar after reopening. Existing debugger history is not erased. G-08 pacing/listening review remains open. Weapon-animation work follows separately; idle/walk/run remain unchanged. |
 | Project state | G-00–G-07 and W-00–W-07 are complete. G-08, W-08 and C-07 remain in the playtest queue. |
 | Listening review | Use A-06 to gather human feedback on cue recognition, mix balance and listening fatigue. The same sessions can cover the existing Garden and Wilds playtest milestones. |
 

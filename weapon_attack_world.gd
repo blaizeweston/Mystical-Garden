@@ -110,12 +110,12 @@ func target_token(target: int) -> String:
 func telegraph(peer: int, origin: Vector3, end: Vector3, stats: Dictionary, now: int) -> void:
 	_world.emit_weapon_attack(_world.players[peer], origin, end, stats, now)
 
-func sound(peer: int, form: String, origin: Vector3, melee: bool) -> void:
-	preload("res://event_audio.gd").weapon(_world, form, _world.players[peer].pos if melee else origin)
+func sound(peer: int, form: String, origin: Vector3, is_melee: bool) -> void:
+	preload("res://event_audio.gd").weapon(_world, form, _world.players[peer].pos if is_melee else origin)
 
-func show_projectile(peer: int, form: String, origin: Vector3, end: Vector3, flight: float, stats: Dictionary, secondary: bool) -> int:
+func show_projectile(peer: int, form: String, origin: Vector3, end: Vector3, flight: float, stats: Dictionary, secondary_effect: bool) -> int:
 	var color: Color = _world.weapon_effect_color(_world.players[peer])
-	if secondary: color = color.lerp(Color("#e6bd69"), .65)
+	if secondary_effect: color = color.lerp(Color("#e6bd69"), .65)
 	_world.emit_combat_event("projectile", str(Motion.profile(form).shape), origin, end, flight, color, float(stats.reach), 0, Contact.describe(form, stats))
 	return _world.combat_event_serial
 

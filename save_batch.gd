@@ -128,11 +128,11 @@ static func _commit_locked() -> Error:
   entries[path] = {"exists":exists, "bytes":original}
  for path: String in staged:
   stages.append(path + ".txn_stage")
-  var error := _write_bytes(path + ".txn_stage", staged[path])
-  if error != OK:
+  var save_error := _write_bytes(path + ".txn_stage", staged[path])
+  if save_error != OK:
    for scratch in stages:
     if FileAccess.file_exists(scratch): DirAccess.remove_absolute(scratch)
-   return error
+   return save_error
  var journal := ConfigFile.new()
  journal.set_value("transaction", "entries", entries)
  journal.set_value("transaction", "committed", false)

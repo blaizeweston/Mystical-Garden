@@ -47,12 +47,12 @@ static func description(slot: String, quality: String, resolved: Dictionary = {}
 
 
 static func live_grants(player: Dictionary, elapsed: int) -> Array:
-	return player.get(GRANTS,[]).filter(func(grant):return int(grant.until)>elapsed and int(grant.remaining)>0)
+	return player.get(GRANTS,[]).filter(func(bark_grant):return int(bark_grant.until)>elapsed and int(bark_grant.remaining)>0)
 
 
 static func capacity(grants: Array) -> int:
 	var total:=0
-	for grant in grants: total+=int(grant.remaining)
+	for bark_grant in grants: total+=int(bark_grant.remaining)
 	return total
 
 

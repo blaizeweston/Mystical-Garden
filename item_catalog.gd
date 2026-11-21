@@ -10,8 +10,8 @@ static func all() -> Dictionary:
  registry["unidentified_seed"]={"id":"unidentified_seed","name":"Mysterious Seed","category":"seed","rarity":"Unknown","stack_limit":99,"tags":["unidentified"],"monster_tags":[],"icon":"","description":"Identify this seed at the Garden altar. Its species remains concealed.","pouch_allowed":true}
  registry["boss_mystery_seed"]={"id":"boss_mystery_seed","name":"Ancient Mystery Seed","category":"seed","rarity":"Epic","stack_limit":99,"tags":["unidentified","boss"],"monster_tags":[],"icon":"","description":"A rare threat sheltered this seed. Identify at the Garden altar: 25% Rare lineage, 55% Epic lineage, 20% Mythic lineage.","pouch_allowed":true}
  for i in Seeds.DEFINITIONS.size():
-  var seed: Dictionary=Seeds.DEFINITIONS[i]
-  var item: Dictionary={"id":"seed_"+str(seed.id),"name":str(seed.name)+" Seed","category":"seed","rarity":seed.rarity,"stack_limit":99,"tags":seed.tags.duplicate(),"monster_tags":[],"legacy_seed":i,"icon":"res://assets/ui/seeds/"+str(seed.id)+".png","description":Seeds.modifier_text(i),"pouch_allowed":true}
+  var plant_definition: Dictionary=Seeds.DEFINITIONS[i]
+  var item: Dictionary={"id":"seed_"+str(plant_definition.id),"name":str(plant_definition.name)+" Seed","category":"seed","rarity":plant_definition.rarity,"stack_limit":99,"tags":plant_definition.tags.duplicate(),"monster_tags":[],"legacy_seed":i,"icon":"res://assets/ui/seeds/"+str(plant_definition.id)+".png","description":Seeds.modifier_text(i),"pouch_allowed":true}
   registry[item.id]=item
  for part in range(1,Parts.DEFINITIONS.size()):
   var monster:=Parts.is_monster(part)

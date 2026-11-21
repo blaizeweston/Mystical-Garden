@@ -10,8 +10,8 @@ class Member extends RefCounted:
  var _actor: String
  var _run: String
  var _participating: bool
- func _init(actor: String, run: String, participating: bool) -> void:
-  _actor=actor;_run=run;_participating=participating
+ func _init(actor_id: String, run_id: String, in_expedition: bool) -> void:
+  _actor=actor_id;_run=run_id;_participating=in_expedition
  func actor() -> String:return _actor
  func run() -> String:return _run
  func participating() -> bool:return _participating

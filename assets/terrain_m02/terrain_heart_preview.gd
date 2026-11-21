@@ -14,6 +14,9 @@ const LEAF := Color("#4b5232")
 const CORE := Color("#d23735")
 const RESEARCH_HEIGHT_PER_UNLOCK := 0.018
 const RESEARCH_WIDTH_PER_UNLOCK := 0.008
+const Growth = preload("res://heart_growth_visuals.gd")
+const Research = preload("res://heart_catalog.gd")
+static var _maximum_build_outline := PackedVector2Array()
 
 var stage := 0
 var models: Array[MeshInstance3D] = []
@@ -69,8 +72,32 @@ func set_research_growth(completed: float) -> void:
 		model.scale = _growth_scale()
 
 func _growth_scale() -> Vector3:
-	return Vector3(1.0 + _research_growth * RESEARCH_WIDTH_PER_UNLOCK,
-		1.0 + _research_growth * RESEARCH_HEIGHT_PER_UNLOCK, 1.0 + _research_growth * RESEARCH_WIDTH_PER_UNLOCK)
+	return research_scale(_research_growth)
+
+static func research_scale(completed: float) -> Vector3:
+	return Vector3(1.0 + completed * RESEARCH_WIDTH_PER_UNLOCK,
+		1.0 + completed * RESEARCH_HEIGHT_PER_UNLOCK, 1.0 + completed * RESEARCH_WIDTH_PER_UNLOCK)
+
+static func maximum_build_outline() -> PackedVector2Array:
+	# Full canopy reservation, derived once from the actual final model and all
+	# enabled research. No independent build-radius tuning can drift from the art.
+	if _maximum_build_outline.is_empty():
+		var source := SCULPT.instantiate() as Node3D
+		var model := source.get_node("HeartStage%d" % STAGES.size()) as MeshInstance3D
+		model.position = Vector3.ZERO
+		model.scale = research_scale(Growth.count(Research.DEFINITIONS.map(func(entry): return entry.id)))
+		var pose := source.transform * model.transform
+		var projected := PackedVector2Array()
+		for surface in model.mesh.get_surface_count():
+			var vertices: PackedVector3Array = model.mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]
+			for vertex in vertices:
+				var point := pose * vertex
+				projected.append(Vector2(point.x, point.z))
+		_maximum_build_outline = Geometry2D.convex_hull(projected)
+		if _maximum_build_outline[0] == _maximum_build_outline[-1]:
+			_maximum_build_outline.remove_at(_maximum_build_outline.size() - 1)
+		source.free()
+	return _maximum_build_outline.duplicate()
 
 func set_sculpt(enabled: bool) -> void:
 	if sculpt_only and not enabled:

@@ -117,7 +117,7 @@ class State extends RefCounted:
 		next._charges = maxi(0, _charges - 1)
 		if next._charges == 0: next._guard_until_ms = 0
 		if _charges <= 0: return Block.new(next)
-		var chosen: WardClaim
+		var chosen: WardClaim = null
 		var kept: Array[WardClaim] = []
 		for claim in _live_claims(_claims, now_ms, epoch):
 			if claim._event != null and not claim._event.block_available(recipient_id, claim._adapter, now_ms): continue

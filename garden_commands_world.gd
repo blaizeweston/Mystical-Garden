@@ -31,19 +31,19 @@ func eligible(id: int) -> bool:
  if world==null:return false
  return world.multiplayer.is_server() and world.players.has(id) and Session.ready_for(world.players[id],false) and not Participation.is_wild(world.players[id]) and not PlayerLifecycle.fallen(world.players[id])
 
-func nearest(id: int, projection: Dictionary) -> String:
+func nearest(id: int, view_projection: Dictionary) -> String:
  var world:=_current()
  if world==null or not world.players.has(id):return ""
  var player: Dictionary=world.players[id]
- if Participation.is_wild(player) or projection.get("version",0)!=State.VERSION:return ""
+ if Participation.is_wild(player) or view_projection.get("version",0)!=State.VERSION:return ""
  var positions: Dictionary={}
  for point in Catalog.POINTS:
-  if not projection.get("available",[]).has(point.id):continue
+  if not view_projection.get("available",[]).has(point.id):continue
   if point.id=="spring_water":
    var source:=Water.nearby(world.stage,player.pos)
    if not source.is_empty():positions[point.id]=source.position
   else:positions[point.id]=point_position(point)
- return Rules.nearest(player.pos,projection.get("available",[]),positions,[world.Stage.HEART,world.stage.altar_position(),world.stage.gate_position()]+world.stage.bed_positions())
+ return Rules.nearest(player.pos,view_projection.get("available",[]),positions,[world.Stage.HEART,world.stage.altar_position(),world.stage.gate_position()]+world.stage.bed_positions())
 
 func point_position(point: Dictionary,viewer: Vector3=Vector3.INF) -> Vector3:
  var world:=_current()
@@ -87,10 +87,10 @@ func observation_projection(id: int) -> Dictionary:
  var world:=_current()
  if world==null:return {}
  if not world.multiplayer.is_server():
-  var received:=projection(id);var result: Dictionary={}
+  var received:=projection(id);var command_result: Dictionary={}
   for key in ["version","catalog","epoch","revision","available","observations","clues","latest","focus"]:
-   if received.has(key):result[key]=received[key]
-  return result.duplicate(true)
+   if received.has(key):command_result[key]=received[key]
+  return command_result.duplicate(true)
  var result:=_observation_data()
  result.focus=world.players.get(id,{}).get("garden_focus",{}).duplicate(true)
  return result

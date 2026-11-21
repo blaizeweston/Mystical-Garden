@@ -87,16 +87,16 @@ func receive_frame(world: World, frame: PackedByteArray, recovery: bool = false)
 	if state.is_empty():
 		if received_at>0: witness.call({"phase":"invalid","at":received_at,"bytes":frame.size()})
 		return
-	var sequence: int = state.sequence
+	var received_sequence: int = state.sequence
 	var drop: Vector3 = state.drop
 	if received_at>0:
-		witness.call({"phase":"repair_receive" if recovery else "receive","sequence":sequence,
+		witness.call({"phase":"repair_receive" if recovery else "receive","sequence":received_sequence,
 			"marker":int(drop.x),"at":received_at,"bytes":frame.size()})
-	if recovery and sequence<=_sequence: return
-	if not _accept_sequence(sequence):
-		if received_at>0: witness.call({"phase":"stale","sequence":sequence,"marker":int(drop.x),"at":Time.get_ticks_usec()})
+	if recovery and received_sequence<=_sequence: return
+	if not _accept_sequence(received_sequence):
+		if received_at>0: witness.call({"phase":"stale","sequence":received_sequence,"marker":int(drop.x),"at":Time.get_ticks_usec()})
 		if is_instance_valid(Journal.current) and Journal.current.detail:
-			Journal.event("network","stale_snapshot",{"sequence":sequence,"last_sequence":_sequence})
+			Journal.event("network","stale_snapshot",{"sequence":received_sequence,"last_sequence":_sequence})
 		return
 	for peer in state.people:
 		_merge_health(int(peer),state.people[peer])
@@ -110,7 +110,7 @@ func receive_frame(world: World, frame: PackedByteArray, recovery: bool = false)
 	_carried = state.carried;_pouch = (int(state.flags)&4)!=0;_briar = (int(state.flags)&8)!=0
 	world.apply_world(state)
 	if received_at>0:
-		witness.call({"phase":"repair_apply" if recovery else "apply","sequence":sequence,"marker":int(drop.x),
+		witness.call({"phase":"repair_apply" if recovery else "apply","sequence":received_sequence,"marker":int(drop.x),
 			"at":Time.get_ticks_usec(),"apply_us":Time.get_ticks_usec()-received_at,
 			"people":state.people.size(),"floor":world.floor_number(),"enemy_hp":_leader_hp})
 
@@ -158,11 +158,11 @@ func events(key: String, now: int, owner_events: Array) -> Array:
 	if _details_key==key: result.append_array(owner_events.duplicate(true))
 	return result
 
-func _accept_sequence(sequence: int) -> bool:
-	if sequence<0: return true # Local wire fixtures, never transmitted by the host.
-	if sequence<=_sequence: _rejected+=1;return false
-	if _sequence>=0: _gaps+=maxi(0,sequence-_sequence-1)
-	_sequence = sequence
+func _accept_sequence(received_sequence: int) -> bool:
+	if received_sequence<0: return true # Local wire fixtures, never transmitted by the host.
+	if received_sequence<=_sequence: _rejected+=1;return false
+	if _sequence>=0: _gaps+=maxi(0,received_sequence-_sequence-1)
+	_sequence = received_sequence
 	return true
 
 func _accept_vital(peer: int, state: Dictionary) -> void:

@@ -140,13 +140,13 @@ func fixed_walkable(at: Vector2, radius: float = 0.34) -> bool:
 
 func move(at: Vector2, delta: Vector2) -> Vector2:
 	var steps := maxi(1, ceili(delta.length() / SAMPLE))
-	var position := at
+	var world_position := at
 	for i in range(1, steps + 1):
 		var next := at + delta * (float(i) / steps)
 		if not walkable(next):
 			break
-		position = next
-	return position
+		world_position = next
+	return world_position
 
 func _understory(variant: int) -> ArrayMesh:
 	var tool := SurfaceTool.new()

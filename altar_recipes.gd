@@ -8,12 +8,12 @@ static func key(mode: String,first: String,second: String) -> String:
 static func all() -> Array:
  if not definitions.is_empty(): return definitions
  for species in Seeds.DEFINITIONS.size():
-  var seed: Dictionary=Seeds.DEFINITIONS[species]
-  if seed.parents.size()!=2: continue
-  var first:=int(seed.parents[0]);var second:=int(seed.parents[1])
+  var plant_definition: Dictionary=Seeds.DEFINITIONS[species]
+  if plant_definition.parents.size()!=2: continue
+  var first:=int(plant_definition.parents[0]);var second:=int(plant_definition.parents[1])
   for mode in ["seeds","parts"]:
    var inputs: Array=[Items.seed_id(first),Items.seed_id(second)] if mode=="seeds" else [Items.part_id(int(Seeds.DEFINITIONS[first].part)),Items.part_id(int(Seeds.DEFINITIONS[second].part))]
-   var output: String=Items.seed_id(species) if mode=="seeds" else Items.part_id(int(seed.part))
+   var output: String=Items.seed_id(species) if mode=="seeds" else Items.part_id(int(plant_definition.part))
    definitions.append({"id":key(mode,inputs[0],inputs[1]),"mode":mode,"inputs":inputs,"output":output,"quantity":1})
  for species in Seeds.DEFINITIONS.size():
   var base:=Items.part_id(int(Seeds.DEFINITIONS[species].part));var refined:=Items.part_id(Items.Parts.rare_part(species));var recipe_id:=key("parts",base,base)

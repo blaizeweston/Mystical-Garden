@@ -114,5 +114,8 @@ func apply() -> void:
   AudioServer.set_bus_volume_db(index,linear_to_db(maxf(.0001,float(pair[1]))))
  Engine.max_fps=int(values.fps)
  if DisplayServer.get_name()!="headless":
-  DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if values.fullscreen else DisplayServer.WINDOW_MODE_WINDOWED)
+  # The editor owns an embedded play window; retain its saved fullscreen
+  # preference for standalone launches without requesting an unsupported mode.
+  if not Engine.is_embedded_in_editor():
+   DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if values.fullscreen else DisplayServer.WINDOW_MODE_WINDOWED)
   DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if values.vsync else DisplayServer.VSYNC_DISABLED)

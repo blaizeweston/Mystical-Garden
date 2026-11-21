@@ -177,13 +177,20 @@ func draw_root(points: PackedVector2Array, amount: float, width: float) -> void:
   edges.append(grown[index] + normal * half_width * bark_ripple)
   other_side.append(grown[index] - normal * half_width)
   grain.append(grown[index] + normal * half_width * (0.23 + sin(index * 0.54) * 0.24))
- other_side.reverse()
- edges.append_array(other_side)
- draw_colored_polygon(edges, BARK)
+ draw_ribbon(edges, other_side)
  draw_polyline(grain, GRAIN, minf(width * 0.39, 1.1), true)
  for index in edges.size():
   edges[index] = size - edges[index]
+  other_side[index] = size - other_side[index]
  for index in grain.size():
   grain[index] = size - grain[index]
- draw_colored_polygon(edges, BARK)
+ draw_ribbon(edges, other_side)
  draw_polyline(grain, GRAIN, minf(width * 0.39, 1.1), true)
+
+func draw_ribbon(left: PackedVector2Array, right: PackedVector2Array) -> void:
+ # Each segment is a small quad. A growing root can bend back across itself;
+ # treating the entire ribbon as one simple polygon makes triangulation fail.
+ # Primitives retain the same taper and pigment and allow those overlaps.
+ var pigment := PackedColorArray([BARK])
+ for index in left.size() - 1:
+  draw_primitive(PackedVector2Array([left[index], left[index + 1], right[index + 1], right[index]]), pigment, PackedVector2Array())

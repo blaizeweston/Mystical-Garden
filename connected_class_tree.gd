@@ -70,10 +70,10 @@ func node(id: Variant) -> Dictionary:
 func valid(profile: Dictionary) -> bool:
 	if not profile.has(profile_key):
 		return true
-	var state: Variant = profile[profile_key]
-	if not state is Dictionary or not state.get("version") is int or state.get("version") != VERSION or not state.get("path") is Array:
+	var focus_state: Variant = profile[profile_key]
+	if not focus_state is Dictionary or not focus_state.get("version") is int or focus_state.get("version") != VERSION or not focus_state.get("path") is Array:
 		return false
-	var selected: Array = state.path
+	var selected: Array = focus_state.path
 	if selected.size() > level(profile):
 		return false
 	for index in selected.size():

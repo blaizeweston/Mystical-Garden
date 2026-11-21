@@ -28,7 +28,7 @@ static func release(game: Node, cast: Dictionary) -> void:
 		Color(cast.skill.color),cast.from.distance_to(cast.to),0,{"projectile_radius":cast.skill.radius,"height":0.0})
 
 
-static func advance(game: Node, id: int, player: Dictionary, cast: Dictionary, now: int) -> bool:
+static func advance(game: Node, _id: int, _player: Dictionary, cast: Dictionary, now: int) -> bool:
 	if not cast.released:
 		return false
 	var fraction := clampf((now - int(cast.release)) / float(cast.flight_ms), 0.0, 1.0)

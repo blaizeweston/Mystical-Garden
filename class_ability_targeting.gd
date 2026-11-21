@@ -120,7 +120,7 @@ static func plan(game: Node, player: Dictionary, field: RefCounted, skill: Dicti
 	return result
 
 
-static func footprint(game: Node, player: Dictionary, field: RefCounted, skill: Dictionary, _stats: Dictionary, cast: Dictionary) -> Array:
+static func footprint(_game: Node, player: Dictionary, field: RefCounted, skill: Dictionary, _stats: Dictionary, cast: Dictionary) -> Array:
 	if skill.mode == "subclass":
 		return preload("res://subclass_combat.gd").footprint(cast)
 	var result: Array = []

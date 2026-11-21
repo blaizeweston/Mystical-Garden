@@ -56,25 +56,25 @@ func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds
 			child.free()
 	var batches := {}
 	for plant in layout.plants:
-		var set := _wilds_assets(plant.family) if wilds else assets
-		var options: Array = set[plant.kind]
+		var variant_set := _wilds_assets(plant.family) if wilds else assets
+		var options: Array = variant_set[plant.kind]
 		var asset: Dictionary = options[plant.variant % options.size()]
 		var height: float = plant.height
-		var basis := Basis(Vector3.UP, plant.yaw).scaled(Vector3.ONE * height / asset.bounds.size.y)
+		var instance_basis := Basis(Vector3.UP, plant.yaw).scaled(Vector3.ONE * height / asset.bounds.size.y)
 		if plant.kind == "shrub":
-			basis = basis.scaled(Vector3(1.32, 0.9, 1.32))
-		_append(batches, asset, basis, plant.center, plant.tint, plant.get("elevation", 0.0))
+			instance_basis = instance_basis.scaled(Vector3(1.32, 0.9, 1.32))
+		_append(batches, asset, instance_basis, plant.center, plant.tint, plant.get("elevation", 0.0))
 	for prop in layout.rocks:
-		var set := _wilds_assets(prop.family) if wilds else assets
-		var available: Array = set[prop.kind] if wilds else set.rock
+		var variant_set := _wilds_assets(prop.family) if wilds else assets
+		var available: Array = variant_set[prop.kind] if wilds else variant_set.rock
 		var asset: Dictionary = available[prop.variant % available.size()]
 		var size: Vector3 = asset.bounds.size
 		# Half the bounding box diagonal makes the logical disk conservative at any yaw.
 		var diagonal := Vector2(size.x, size.z).length()
-		var basis := Basis(Vector3.UP, prop.yaw).scaled(Vector3.ONE * (2.0 * prop.radius / diagonal))
+		var instance_basis := Basis(Vector3.UP, prop.yaw).scaled(Vector3.ONE * (2.0 * prop.radius / diagonal))
 		if prop.get("cover_role") == CoverShape.LOW_RUBBLE:
-			basis = basis.scaled(Vector3(1.0, 0.50, 1.0))
-		_append(batches, asset, basis, prop.center, 0.45, -0.025)
+			instance_basis = instance_basis.scaled(Vector3(1.0, 0.50, 1.0))
+		_append(batches, asset, instance_basis, prop.center, 0.45, -0.025)
 	for key in batches:
 		var parent := rocks if key.begins_with("rock_") else vegetation
 		_batch(parent, batches[key])
@@ -112,17 +112,17 @@ func _build_boundary(border: Dictionary, seed_value: int, integrated_wilds: bool
 	boundary_view.add_child(verge)
 	var batches := {}
 	for prop in border.exterior_props:
-		var set := _wilds_assets(prop.family)
-		var assets: Array = set[prop.kind]
+		var variant_set := _wilds_assets(prop.family)
+		var assets: Array = variant_set[prop.kind]
 		var asset: Dictionary = assets[prop.variant % assets.size()]
 		if integrated_wilds and prop.family == 0 and prop.kind == "tree":
 			asset = _scenic_grove_tree(prop.variant)
 		var bounds: AABB = asset.bounds
-		var scale: float = prop.height / bounds.size.y
+		var effect_scale: float = prop.height / bounds.size.y
 		if prop.kind == "root_arch":
-			scale *= 0.66
-		var basis := Basis(Vector3.UP, prop.yaw).scaled(Vector3.ONE * scale)
-		_append(batches, asset, basis, prop.center, prop.tint)
+			effect_scale *= 0.66
+		var instance_basis := Basis(Vector3.UP, prop.yaw).scaled(Vector3.ONE * effect_scale)
+		_append(batches, asset, instance_basis, prop.center, prop.tint)
 	for key in batches:
 		_batch(boundary_view, batches[key])
 		var view := boundary_view.get_child(-1) as MultiMeshInstance3D
@@ -231,13 +231,13 @@ func _entry(key: String, mesh: Mesh, mask: Texture2D) -> Dictionary:
 		material.set_shader_parameter("blade_height", bounds.size.y)
 	return {"key": key, "mesh": mesh, "material": material, "bounds": bounds}
 
-func _append(batches: Dictionary, asset: Dictionary, basis: Basis, at: Vector2, tint: float, y: float = 0.0) -> void:
+func _append(batches: Dictionary, asset: Dictionary, instance_basis: Basis, at: Vector2, tint: float, y: float = 0.0) -> void:
 	var key: String = asset.key
 	if not batches.has(key):
 		batches[key] = {"asset": asset, "transforms": [], "colors": []}
 	var bounds: AABB = asset.bounds
 	var foot := Vector3(bounds.get_center().x, bounds.position.y, bounds.get_center().z)
-	batches[key].transforms.append(Transform3D(basis, Vector3(at.x, y, at.y) - basis * foot))
+	batches[key].transforms.append(Transform3D(instance_basis, Vector3(at.x, y, at.y) - instance_basis * foot))
 	batches[key].colors.append(Color("#a7ad84").lerp(Color("#dce0a4"), tint))
 
 func _batch(parent: Node3D, data: Dictionary) -> void:
@@ -263,7 +263,7 @@ func _batch(parent: Node3D, data: Dictionary) -> void:
 func _bridge(span: PackedVector2Array, full_deck: bool) -> void:
 	var delta := span[1] - span[0]
 	var center := (span[0] + span[1]) * 0.5
-	var basis := Basis(Vector3.UP, atan2(delta.x, delta.y))
+	var instance_basis := Basis(Vector3.UP, atan2(delta.x, delta.y))
 	var planks := BoxMesh.new()
 	var count := ceili(delta.length() / 0.29)
 	var pitch := delta.length() / count
@@ -279,7 +279,7 @@ func _bridge(span: PackedVector2Array, full_deck: bool) -> void:
 	data.instance_count = count
 	for i in data.instance_count:
 		var at := center + delta * ((i + 0.5) / data.instance_count - 0.5)
-		data.set_instance_transform(i, Transform3D(basis, Vector3(at.x, 0.105 + 0.012 * sin(i * 1.89), at.y)))
+		data.set_instance_transform(i, Transform3D(instance_basis, Vector3(at.x, 0.105 + 0.012 * sin(i * 1.89), at.y)))
 	var decking := MultiMeshInstance3D.new()
 	decking.multimesh = data
 	crossings.add_child(decking)
@@ -290,7 +290,7 @@ func _bridge(span: PackedVector2Array, full_deck: bool) -> void:
 		var rail := MeshInstance3D.new()
 		rail.mesh = beams
 		var offset: Vector2 = delta.normalized().orthogonal() * (side * 0.68)
-		rail.transform = Transform3D(basis, Vector3(center.x + offset.x, 0.22, center.y + offset.y))
+		rail.transform = Transform3D(instance_basis, Vector3(center.x + offset.x, 0.22, center.y + offset.y))
 		crossings.add_child(rail)
 
 func _ensure_botanical_material() -> void:

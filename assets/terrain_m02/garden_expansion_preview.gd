@@ -346,7 +346,6 @@ func confirm_growth() -> void:
 	root_mesh = _mesh_node(roots)
 	root_stage = heart.stage
 	_set_root(root_mesh, state.roots[-1])
-	construction.model.set_roots(network)
 	var plan: Dictionary = root_mesh.get_meta("root_plan")
 	breach = 0.64
 	for i in plan.main.size():
@@ -404,7 +403,6 @@ func change_heart_stage(index: int) -> void:
 	network.clear()
 	for i in roots.get_child_count():
 		_set_root(roots.get_child(i), state.roots[i])
-	construction.model.set_roots(network)
 
 func _set_root(node: MeshInstance3D, path: PackedVector2Array) -> void:
 	var plan := RootArt.plan(path, root_stage, state, network)

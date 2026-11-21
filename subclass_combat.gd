@@ -159,7 +159,6 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 		var trap := skill.duplicate()
 		trap.bind = bind
 		game.Traits.place_snare(game,player,cast.center,trap,stats,now)
-	var kills := 0
 	var drain_contacts := 0
 	var radius: float = cast.radius if cast.radius > 0.0 else 2.0
 	var contact: Vector3 = cast.center
@@ -201,7 +200,6 @@ static func cast_skill(game: Node, id: int, player: Dictionary, skill: Dictionar
 			if rewardable:
 				drain_contacts += int(after<before)
 		if not game.Traits.valid_target(game,target):
-			kills += int(rewardable)
 			continue
 		if bind > 0:
 			var until := now+bind+int(stats.get("skill_duration",0))

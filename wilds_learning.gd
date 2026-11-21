@@ -20,6 +20,8 @@ static func observe(memory: Dictionary,evidence: Dictionary,floor_number: int) -
    quiet+=1
    if quiet>=6: score=maxi(ceili(peak*.35),score-1);quiet=0
   memory.score[key]=score;memory.peak[key]=peak;memory.quiet[key]=quiet
+# Knowledge awards use whole strength bands.
+@warning_ignore_start("integer_division")
 static func traits(memory: Dictionary,floor_number: int,stamp: int,legacy: Dictionary={}) -> int:
  if floor_number<3: return 0
  var mask:=0
@@ -30,6 +32,7 @@ static func traits(memory: Dictionary,floor_number: int,stamp: int,legacy: Dicti
  # Independent, slow world variation even with varied player tactics.
  if int(memory.encounters)>=20 and floor_number>=8 and posmod(stamp,5)==0: mask|=4
  return mask
+@warning_ignore_restore("integer_division")
 static func bounded(mask: int,floor_number: int,stamp: int) -> int:
  if floor_number<3: return 0
  var cap:=1 if floor_number<9 else 2 if floor_number<24 else 3

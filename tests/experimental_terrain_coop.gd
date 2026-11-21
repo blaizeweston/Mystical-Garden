@@ -1,4 +1,5 @@
 extends SceneTree
+const Placement = preload("res://tests/support/garden_placement_case.gd")
 const WorldViewCase = preload("res://tests/support/world_presentation_case.gd")
 const OutgoingHits = preload("res://outgoing_hits.gd")
 const HitSession = preload("res://network_session.gd")
@@ -171,7 +172,8 @@ func host_run(menu: Node) -> void:
 		return
 	check(game.progress.part_count(part) == 44, "exact shared part debit")
 	garden.offering_dialog.hide()
-	if not check(garden.place("bed", Vector2(2.34, -4.58), 0.37), "build a real cultivation bed while hosting"):
+	var new_site := Placement.find(garden.construction, "bed", Vector2(2.34, -4.58), 0.37, garden.planar(keeper.pos))
+	if not check(new_site.is_finite() and garden.place("bed", new_site, 0.37), "build a real cultivation bed while hosting"):
 		return
 	var bed_id: int = garden.bed_ids[3]
 	var moved: Array = []
@@ -180,6 +182,7 @@ func host_run(menu: Node) -> void:
 		var target := starter_relocation(garden, kind, id)
 		if not check(target.is_finite() and garden.place(kind, target, 0.2, id), "host relocates starting " + kind): return
 		moved.append([id, target])
+	moved.append([bed_id, new_site])
 	var placements := FileAccess.open(signals.path_join("starting-placements"), FileAccess.WRITE)
 	placements.store_var(moved)
 	placements.close()
@@ -315,14 +318,14 @@ func guest_run(menu: Node) -> void:
 	var garden = game.stage.experimental_garden
 	var id: int = game.local_player_id()
 	var bed: int = int(read("host-ready"))
-	check(not game.persistence_session.authorizes(game.progress.path)
-		and garden.bed_ids.get(3) == bed and game.stage.bed_position(3).is_equal_approx(Vector3(2.34, 0, -4.58))
-		and is_equal_approx(garden.bed_yaw(3), -0.37), "guest has matching stable bed transform and no host save access")
-	check(not garden.remote_development.queue.is_empty() and garden.remote_development.energy > 0
-		and not garden.place("bed", Vector2.ZERO, 0.0), "study and energy mirrored; guest cannot build independently")
 	var placements := FileAccess.open(signals.path_join("starting-placements"), FileAccess.READ)
 	var moved: Array = placements.get_var(false)
 	placements.close()
+	check(not game.persistence_session.authorizes(game.progress.path)
+		and garden.bed_ids.get(3) == bed and game.stage.bed_position(3).is_equal_approx(garden.world(moved[2][1]))
+		and is_equal_approx(garden.bed_yaw(3), -0.37), "guest has matching stable bed transform and no host save access")
+	check(not garden.remote_development.queue.is_empty() and garden.remote_development.energy > 0
+		and not garden.place("bed", Vector2.ZERO, 0.0), "study and energy mirrored; guest cannot build independently")
 	check(garden.bed_ids[0] == moved[0][0] and game.stage.bed_position(0).is_equal_approx(garden.world(moved[0][1]))
 		and garden.station_ids.altar == moved[1][0] and game.stage.altar_position().is_equal_approx(garden.world(moved[1][1]))
 		and garden.structure_nodes.size() == 1, "guest sees both relocated starting structures and only one altar")
@@ -403,12 +406,4 @@ func guest_run(menu: Node) -> void:
 
 func starter_relocation(garden: Node, kind: String, id: int) -> Vector2:
 	var at: Vector2 = garden.construction.records[id].at
-	var candidates: Array[Vector2] = []
-	for x in range(-13, 14):
-		for y in range(-13, 14):
-			var candidate := Vector2(x, y) * 0.5
-			if candidate.distance_to(at) > 0.3: candidates.append(candidate)
-	candidates.sort_custom(func(a, b): return a.distance_squared_to(at) < b.distance_squared_to(at))
-	for candidate in candidates:
-		if garden._build_refusal(kind, candidate, 0.2, id).is_empty(): return candidate
-	return Vector2.INF
+	return Placement.find(garden.construction, kind, at, 0.2, garden.planar(garden.game.players[1].pos), id)
