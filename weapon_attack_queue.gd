@@ -36,7 +36,7 @@ func schedule(port, peer: int, origin: Vector3, stats: Dictionary, now: int, for
 	var end := origin + direction * float(stats.reach)
 	_serial += 1
 	var shot := {"queue_id":_serial, "hit_group":_serial, "player":peer, "epoch":pose.epoch, "life":pose.life,
-		"binding":pose.binding, "replica":not replica_pose.is_empty(), "release":release, "due":release, "form":form, "origin":origin, "aim":end,
+		"binding":pose.binding, "replica":not replica_pose.is_empty(),"replica_position":origin, "release":release, "due":release, "form":form, "origin":origin, "aim":end,
 		"stats":_freeze(stats.duplicate(true)), "hits":[], "remaining":int(stats.targets)}
 	if Motion.is_projectile(form):
 		var path: Dictionary = port.projectile_path(origin, direction, form, float(stats.reach))
@@ -99,7 +99,7 @@ func advance(port, now: int) -> void:
 				_pending.erase(ray)
 
 func _release(port, shot: Dictionary) -> void:
-	var facts: Dictionary = {"position":shot.origin,"direction":shot.direction} if shot.get("replica",false) else port.release_facts(shot.player, shot.direction, int(shot.get("aim_combo", -1)))
+	var facts: Dictionary = {"position":shot.replica_position,"direction":shot.direction} if shot.get("replica",false) else port.release_facts(shot.player, shot.direction, int(shot.get("aim_combo", -1)))
 	var profile := Motion.profile(shot.form)
 	var path: Dictionary = port.projectile_path(facts.position, facts.direction, shot.form, float(shot.stats.reach))
 	shot.merge({"emitted":true, "direction":facts.direction, "launch_position":facts.position,

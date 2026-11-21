@@ -124,6 +124,14 @@ func run():
  Active.command(g,1,p,Active.request(g,p,"singularity",Vector2.UP,24,2.0))
  g.effect_timeline.restore_savepoint(saved);p[Active.STATE]=prior;advance(1600)
  check(g.effect_timeline.native_count()==0 and g.enemy_health()==1000000,"owner rollback restores pending action and field without phantom damage")
+ reset();p.frame=4;p.weapon_kind=0
+ var oracle=g.Classes.connected_tree(4);p.character[oracle.profile_key]=oracle.state(["leykeeper"])
+ c.equip(1,"void",["catalyst"])
+ var eligible: Array=c.Cards.Ledger.new().eligible(g.combat_build(p).weapon_base_stats(),2200)
+ check(not eligible.has("grasping_invocation") and eligible.has("dense_casting"),"native Leykeeper pull keeps priority: suppressed extra pull is ineligible, actual damage remains usable")
+ p.character[oracle.profile_key]=oracle.state(["omenreader"])
+ eligible=c.Cards.Ledger.new().eligible(g.combat_build(p).weapon_base_stats(),2200)
+ check(eligible.has("grasping_invocation"),"a real unopposed offensive Catalyst compression qualifies for pull investment")
  Clock.end_stepped();g.queue_free();await process_frame
  if not failed:print("PASS: CE04 Void ",checks," geometry, real overlap, source, resource and implosion checks")
  quit(int(failed))

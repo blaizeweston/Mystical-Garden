@@ -91,6 +91,17 @@ func run():
  before=g.enemy_health()
  Storm.discharge(g,1,-1,Vector3.ZERO,g.tactics.position,22,2,now,event.potency(),source)
  check(g.enemy_health()==before,"captured electrical execution rejects a previous-life source")
+ reset();var p: Dictionary=g.players[1];p.frame=4;p.weapon_kind=0
+ var tree=g.Classes.connected_tree(4);p.character[tree.profile_key]=tree.state(["lifekeeper"])
+ c.equip(1,"storm",["catalyst"])
+ var ledger=c.Cards.Ledger.new()
+ var stats: Dictionary=g.combat_build(p).weapon_base_stats()
+ check(not ledger.eligible(stats,2200).has("grounded_current") and not ledger.eligible(stats,2200).has("conductive_reach"),"recipient-only charge without Relay cannot receive unusable chain upgrades")
+ c.own(1,["relay_pulse"]);ledger=p[c.Cards.STATE];stats=g.combat_build(p).weapon_base_stats()
+ check(ledger.eligible(stats,2200).has("grounded_current") and ledger.eligible(stats,2200).has("conductive_reach"),"actual acquired relay capability expands useful chain eligibility")
+ reset();c.equip(1,"storm",["form"]);c.own(1,["ionized_rhythm","ionized_rhythm","ionized_rhythm"])
+ stats=g.combat_build(p).weapon_base_stats();stats.interval=258
+ check(not p[c.Cards.STATE].eligible(stats,2200).has("ionized_rhythm"),"twelve percent already reaches 230 ms after rounding, so an ineffective fourth copy is excluded")
  g.queue_free();await process_frame
  if not failed:print("PASS: CE04 Storm ",checks," chain, finite fork, solo conversion, tempo and Catalyst checks")
  quit(int(failed))

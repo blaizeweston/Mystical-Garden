@@ -5833,7 +5833,8 @@ const DEFINITIONS := {
 	  "description": "Successful Arcing Strikes grant +%s%% basic attack speed.",
 	  "detail": "Provisional CE04 tuning. Lasts 2 seconds after actual electrical damage. Reapplication refreshes, does not multiply the bonus. Existing attack interval floor applies.",
 	  "tuning": {
-	    "duration_ms": 2000
+	    "duration_ms": 2000,
+	    "fixed_tempo": true
 	  },
 	  "values": [
 	    4,
@@ -6081,22 +6082,20 @@ const DEFINITIONS := {
 	                }
 	              },
 	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_discharge"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "recipient_charge"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_discharge"
-	                }
+	                "all": [
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "recipient_charge"
+	                    }
+	                  },
+	                  {
+	                    "owned": {
+	                      "kind": "card",
+	                      "id": "relay_pulse"
+	                    }
+	                  }
+	                ]
 	              }
 	            ]
 	          }
@@ -6181,22 +6180,20 @@ const DEFINITIONS := {
 	                }
 	              },
 	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "radial_discharge"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "recipient_charge"
-	                }
-	              },
-	              {
-	                "capability": {
-	                  "producer": "catalyst",
-	                  "id": "landing_discharge"
-	                }
+	                "all": [
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "recipient_charge"
+	                    }
+	                  },
+	                  {
+	                    "owned": {
+	                      "kind": "card",
+	                      "id": "relay_pulse"
+	                    }
+	                  }
+	                ]
 	              }
 	            ]
 	          }
@@ -6461,7 +6458,8 @@ const DEFINITIONS := {
 	  "description": "Successful dashes grant +%s%% basic attack speed.",
 	  "detail": "Provisional CE04 tuning. Lasts 2 seconds after legal movement. Refreshes rather than stacking preparations. Existing weapon timing floor applies.",
 	  "tuning": {
-	    "duration_ms": 2000
+	    "duration_ms": 2000,
+	    "fixed_tempo": true
 	  },
 	  "values": [
 	    6,
@@ -6928,7 +6926,7 @@ const DEFINITIONS := {
 	  },
 	  "parameter": "extra_dodge_charges",
 	  "label": "Stored Momentum contribution",
-	  "unit": "targets",
+	  "unit": "charges",
 	  "limit": 4,
 	  "description": "Store +%s dash charges.",
 	  "detail": "Provisional CE04 tuning. Charges allow consecutive legal dashes. Spent charges recover sequentially through the native cooldown owner; one recharge runs at a time.",
@@ -7363,7 +7361,7 @@ const DEFINITIONS := {
 	  "unit": "unlock",
 	  "limit": 1,
 	  "description": "Dashes leave departure-position shadows that copy your next compatible skill.",
-	  "detail": "Provisional CE04 tuning. Each shadow lasts 4 seconds and casts once at 40% potency from its own departure position. Supports class opening damage/healing and Ward protection, plus Chain Spark, Ironbark and Vital Bloom Core effects. Copies omit learned-node side effects. Movement, traps and unsupported persistent fields are not replayed.",
+	  "detail": "Provisional CE04 tuning. Each shadow lasts 4 seconds and casts once at 40% potency from its own departure position. Supports class opening damage/healing and Ward protection, plus Chain Spark, Ironbark and Vital Bloom Core effects. Copies omit learned-node side effects. Requires a useful damage/healing class copy, Chain Spark or Ironbark; weaker Ward or Vital capacity alone cannot qualify a solo build. Movement, traps and unsupported persistent fields are not replayed.",
 	  "tuning": {
 	    "duration_ms": 4000,
 	    "effect_percent": 40
@@ -7560,7 +7558,7 @@ const DEFINITIONS := {
 	      {
 	        "capability": {
 	          "producer": "catalyst",
-	          "id": "compression"
+	          "id": "unopposed_compression"
 	        }
 	      }
 	    ]
@@ -8097,7 +8095,7 @@ static func effect_text(definition: Dictionary, value: int) -> String:
 	var text: String = definition.description
 	if "%s" not in text:
 		return text
-	var number := str(value) if definition.unit in ["targets","hp","healing_hp","capacity_hp","regen_hp","pressure","bark","fragments","penetrations","stacks","percent","unlock"] else ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
+	var number := str(value) if definition.unit in ["charges","targets","hp","healing_hp","capacity_hp","regen_hp","pressure","bark","fragments","penetrations","stacks","percent","unlock"] else ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
 	if definition.unit == "basis_points": number = ("%.2f" % (value/100.0)).rstrip("0").trim_suffix(".")
 	if definition.unit == "cm": number = ("%.2f" % (value / 100.0)).rstrip("0").trim_suffix(".")
 	return text % number
@@ -8117,6 +8115,7 @@ static func contribution_label(definition: Dictionary) -> String:
 
 
 static func contribution(definition: Dictionary, value: int) -> String:
+	if definition.unit == "charges": return "+%d dash charges" % value
 	if definition.unit == "targets": return "+%d chain targets" % value
 	if definition.unit == "basis_points": return "+%.2f%% of Max HP as damage" % (value/100.0)
 	if definition.unit == "capacity_hp": return "+%d Max HP" % value

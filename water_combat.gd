@@ -80,7 +80,7 @@ static func drench(game: Node, event: RefCounted, target: int) -> void:
 	if status.is_empty():
 		status={"epoch":event.epoch,"token":game.encounter.spawn_identity(target),"sources":{},"saturation":0,"pressure":[]}
 	var potency: Dictionary=event.potency()
-	if event.source=="form":
+	if event.source=="form" and not event.replica:
 		var sequence:=ordinary_sequence(game,event,preload("res://combat_clock.gd").now())
 		potency.saturation_bonus=int(potency.get("saturation_bonus",0))+maxi(0,int(sequence.count)-1)*int(potency.get("sequence_saturation",0))
 	var amount := clampf(float(potency.reduction),0.0,REDUCTION_LIMIT)

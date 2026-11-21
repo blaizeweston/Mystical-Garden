@@ -8,6 +8,7 @@ const Hurt=preload("res://enemy_hurtbox.gd")
 const Contact=preload("res://weapon_contact.gd")
 const Sources=preload("res://affinity_status_source.gd")
 const Catalog=preload("res://affinity_card_catalog.gd")
+const CLASS_PULL_CAPABILITY := "unopposed_compression"
 const PREP := "void_card_compression"
 const CONTROL := "affinity_void_control"
 const SUSTAINED := "affinity_void_sustained"
@@ -345,3 +346,8 @@ static func singularity(game: Node,peer: int,center: Vector3,now: int) -> bool:
 		var tuning: Dictionary=Catalog.DEFINITIONS.singularity.tuning
 		return not create_field(game,event,center,now,int(tuning.duration_ms),int(tuning.duration_ms),float(tuning.radius_m)+int(q.get("control_radius_cm",0))/100.0,int(tuning.damage_hp),float(tuning.gather_step_m),float(tuning.gather_total_m),true,"singularity/"+str(event.identity),now).is_empty()
 	return false
+
+
+static func class_pull_supported(adapter: Dictionary) -> bool:
+	var native: Dictionary=adapter.get("native_displacement",{})
+	return adapter.get("response")=="compression" and float(native.get("push",0))==0.0 and float(native.get("pull",0))==0.0

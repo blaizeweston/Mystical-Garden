@@ -132,7 +132,7 @@ class Ledger extends RefCounted:
 			return "Basic attacks already have no attack-speed headroom."
 		if _copies.filter(func(copy): return copy.id == card_id).size() >= int(definition.limit):
 			return "Already acquired this Unique." if definition.policy == "unique" else "Maximum useful copies reached."
-		if headroom(definition, stats, dodge_base, amount(card_id)) == 0:
+		if _effective_headroom(definition,stats,dodge_base,amount(card_id))==0:
 			return "The current build has reached this effect's limit."
 		return ""
 
@@ -148,9 +148,18 @@ class Ledger extends RefCounted:
 		var reason := _refusal(id, stats, dodge_base)
 		if not reason.is_empty():
 			return reason
-		if int(option.amount) > headroom(Catalog.DEFINITIONS[id], stats, dodge_base, amount(id)):
+		if int(option.amount)>_effective_headroom(Catalog.DEFINITIONS[id],stats,dodge_base,amount(id)):
 			return "This copy no longer fits the current build's effect limit."
 		return ""
+
+	func _fixed_tempo_limit(stats: Dictionary) -> int:
+		var interval:=maxi(STRIKE_MIN_MS,int(stats.interval)-amount("ordinary_weapon_interval"))
+		# First integer percentage whose rounded interval reaches the existing floor.
+		return maxi(0,floori(100.0*(interval/(STRIKE_MIN_MS+0.5)-1.0))+1)
+
+	func _effective_headroom(definition: Dictionary,stats: Dictionary,dodge_base: int,owned: int) -> int:
+		if definition.get("tuning",{}).get("fixed_tempo",false):return maxi(0,_fixed_tempo_limit(stats)-owned)
+		return headroom(definition,stats,dodge_base,owned)
 
 	func _speed_headroom(stats: Dictionary) -> bool:
 		return int(stats.interval)-amount("ordinary_weapon_interval") > STRIKE_MIN_MS
@@ -163,7 +172,7 @@ class Ledger extends RefCounted:
 			copy.reason = requirement(definition, stats.affinity_build, counts())
 			if definition.parameter == "tempo_percent" and not _speed_headroom(stats): copy.reason = "Basic attacks already have no attack-speed headroom."
 			copy.total = amount(copy.id)
-			copy.applied = mini(int(copy.total), parameter_limit(definition, stats, dodge_base)) if copy.reason.is_empty() else 0
+			copy.applied = mini(int(copy.total),_fixed_tempo_limit(stats) if definition.get("tuning",{}).get("fixed_tempo",false) else parameter_limit(definition, stats, dodge_base)) if copy.reason.is_empty() else 0
 			if int(copy.applied) == 0 and copy.reason.is_empty():
 				copy.reason = "The current build has reached this effect's limit."
 			result.append(copy)
@@ -193,7 +202,7 @@ class Ledger extends RefCounted:
 			var unique: bool = definition.policy == "unique"
 			var grade := -1 if unique else _rarity(random, floor_number)
 			var offered: int = definition.fixed if unique else definition.values[grade]
-			var contribution := mini(offered, headroom(definition, stats, dodge_base, amount(card_id)))
+			var contribution:=mini(offered,_effective_headroom(definition,stats,dodge_base,amount(card_id)))
 			options.append({"id": card_id, "rarity": "" if unique else Catalog.RARITIES[grade], "amount": contribution})
 		return options
 

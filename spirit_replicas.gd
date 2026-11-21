@@ -8,7 +8,7 @@ const Events=preload("res://combat_action_events.gd")
 const Preview=preload("res://combat_balance_preview.gd")
 const Protection=preload("res://player_protection.gd")
 const Balance=preload("res://class_skill_balance.gd")
-const CORE_EFFECTS := {"storm":"chain", "wood":"bark", "vital":"vitality"}
+const CORE_EFFECTS := {"storm":{"effect":"chain","solo_enabler":true},"wood":{"effect":"bark","solo_enabler":true},"vital":{"effect":"vitality","solo_enabler":false}}
 const NATIVE_MODES := ["quake","nova","siphon","ward","guard","front_guard","counter_guard"]
 
 static func class_supported(skill: Dictionary) -> bool:
@@ -18,8 +18,14 @@ static func class_supported(skill: Dictionary) -> bool:
 
 static func build_supported(build: Dictionary) -> bool:
 	var core: Dictionary=build.get("core",{})
-	if core.get("state")=="ready" and core.get("executable",false) and CORE_EFFECTS.has(core.get("primary_affinity")):return true
-	return build.get("class_skills",[]).any(func(adapter):return class_supported(adapter.get("native_skill",{})))
+	if core.get("state")=="ready" and core.get("executable",false) and CORE_EFFECTS.get(core.get("primary_affinity"),{}).get("solo_enabler",false):return true
+	return build.get("class_skills",[]).any(func(adapter):return solo_skill_supported(adapter.get("native_skill",{})))
+
+## Weaker overlapping Ward/Vital capacity alone cannot help a solo recipient.
+## They remain supported supplementary copies, but cannot by themselves qualify
+## a build for the card. This is the executing module's own compatibility query.
+static func solo_skill_supported(skill: Dictionary) -> bool:
+	return class_supported(skill) and (float(skill.get("damage",0))>0.0 or float(skill.get("heal",0))>0.0)
 
 static func info() -> String:
 	return "Wraithcast copies class opening damage/healing and native Ward protection. Core: Chain Spark, Ironbark, Vital Bloom. Copies omit movement, traps, persistent fields, Catalyst, graft and learned-node side effects. Unsupported casts keep shadows."
@@ -67,7 +73,7 @@ static func form_contact(game: Node,event: RefCounted,details: Dictionary,now: i
 			fire.apply_stacks(game,source,target,maxi(1,roundi((int(fire.APPLICATION_STACKS.form)+int(q.stack_bonus))*amount)),{},now,false)
 		"water":
 			var water=load("res://water_combat.gd")
-			q.application_scale=amount;q.sequence_saturation=0;q.prepared_heal_hp=0
+			q.application_scale=amount;q.reduction=float(q.reduction)*amount;q.sequence_saturation=0;q.prepared_heal_hp=0
 			water.drench(game,event.replicated(game,q,now),target)
 		"thorn":
 			var thorn=load("res://thorn_affinity.gd")
@@ -110,7 +116,7 @@ static func class_cast(game: Node,peer: int,skill: Dictionary,origin: Vector3,ce
 			destination=plan.center
 			targets=load("res://subclass_combat.gd").targets(game,plan,skill)
 		elif mode=="siphon":
-			var reach:=float(skill.get("range",game.Classes.DEFINITIONS[int(player.frame)].weapons[int(player.weapon_kind)].reach))+float(skill.get("travel",0))
+			var reach:=Balance.range_limit(skill,native,float(game.Classes.DEFINITIONS[int(player.frame)].weapons[int(player.weapon_kind)].reach))
 			var picked: Dictionary=load("res://class_ability_targeting.gd").pick(game,game.battlefield,at,player.facing,reach)
 			if not picked.is_empty():targets=[int(picked.target)];destination=picked.point
 		elif mode in ["quake","nova"]:
@@ -120,7 +126,7 @@ static func class_cast(game: Node,peer: int,skill: Dictionary,origin: Vector3,ce
 		for target in targets:
 			if game.persistence_session.is_blocked() or not Sources.current(game,shadow):break
 			if hp>0:load("res://frost_combat.gd").damage(game,peer,int(target),hp,now,Spirit.COLOR,true)
-		var healing:=maxi(0,roundi(Preview.effect_hp(Balance.direct_heal(skill,native))*strength)) if skill.has("heal") else 0
+		var healing:=maxi(0,roundi(Preview.effect_hp(Balance.direct_heal(skill,native))*strength)) if mode=="subclass" and skill.has("heal") else 0
 		var protection: bool=mode in ["ward","guard","front_guard","counter_guard"] or bool(skill.get("ward",false))
 		var ward_ms:=roundi(Balance.protection_ms(skill,native)*strength) if mode!="subclass" else roundi(Balance.WARD_MS*strength)
 		for recipient in game.Life.living_ids(game):
@@ -148,7 +154,7 @@ static func core_cast(game: Node,peer: int,line: Dictionary,now: int) -> void:
 		var q: Dictionary=event.potency()
 		var at: Vector3=shadow.point
 		var copy: RefCounted=event.replicated(game,q,now)
-		match CORE_EFFECTS[family]:
+		match str(CORE_EFFECTS[family].effect):
 			"chain":
 				var target := -2
 				var motion=load("res://weapon_motion.gd")
@@ -161,7 +167,7 @@ static func core_cast(game: Node,peer: int,line: Dictionary,now: int) -> void:
 					stats.reach=line.skill.range
 					for enemy in load("res://weapon_contact.gd").candidates(game,at):
 						if load("res://weapon_contact.gd").accepts(game,enemy,at,at+Vector3(forward)*float(line.skill.range),line.skill.weapon_form,stats):target=enemy;break
-				if target!= -2:load("res://storm_affinity.gd").discharge(game,peer,target,at,game.enemy_position(target),maxi(1,roundi(int(q.initial)*strength)),2+int(q.get("extra_jumps",0)),now,{"jump_range_cm":q.get("jump_range_cm",0)},Sources.capture(copy))
+				if target!= -2:load("res://storm_affinity.gd").discharge(game,peer,target,at,game.enemy_position(target),maxi(1,roundi(int(q.initial)*strength)),2+int(q.get("extra_jumps",0)),now,q,Sources.capture(copy))
 			"bark":
 				q.core_capacity=roundi(int(q.core_capacity)*strength);q.break_hp=roundi(int(q.break_hp)*strength)
 				q.guard_fragments=0;q.retaliation_fragments=0

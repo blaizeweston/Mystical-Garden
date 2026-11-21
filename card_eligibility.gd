@@ -37,6 +37,7 @@ static func schema() -> Dictionary:
 	for row: Array in Rules.Catalyst.ADAPTERS.values(): _add(result.recipients, str(row[2]))
 	for responses: Dictionary in Rules.Catalyst.RESPONSES.values():
 		for id: String in responses.values(): _add(result.capabilities.catalyst, id)
+	_add(result.capabilities.catalyst,Rules.Void.CLASS_PULL_CAPABILITY)
 	for definition: Dictionary in Catalog.DEFINITIONS.values():
 		for cap: Dictionary in verified_grants(definition).get("capabilities", []):
 			_add(result.capabilities.card, cap.id)
@@ -77,6 +78,7 @@ static func facts(build: Dictionary, card_counts: Variant = null) -> Dictionary:
 				# Native footprint is not necessarily the response's recipient (e.g.
 				# self_bark follows an enemy hit). Preserve that distinction explicitly.
 				result.capabilities.append({"producer":"catalyst", "id":response, "slot":"catalyst", "target_scope":str(adapter.recipients)})
+				if Rules.Void.class_pull_supported(adapter):result.capabilities.append({"producer":"catalyst","id":Rules.Void.CLASS_PULL_CAPABILITY,"slot":"catalyst","target_scope":str(adapter.recipients)})
 	for id: String in improvements.get("adaptations", []):
 		if Grafts.ADAPTATIONS.has(id): result.capabilities.append({"producer":"graft", "id":id})
 	if load("res://spirit_replicas.gd").build_supported(build):result.capabilities.append({"producer":"replica","id":"wraithcast_skill"})

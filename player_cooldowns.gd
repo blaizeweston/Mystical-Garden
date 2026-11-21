@@ -62,7 +62,7 @@ class Timers extends RefCounted:
 		if action!=DODGE: return with_deadline(action,mini(now_ms,deadline(action)))
 		var result:=_settled(now_ms)
 		if not result._dodge_recovery.is_empty(): result._dodge_recovery.pop_front()
-		result._deadlines[DODGE]=0 if result._dodge_recovery.is_empty() else now_ms+result._dodge_recovery[0]
+		result._deadlines[DODGE]=mini(now_ms,deadline(DODGE)) if result._dodge_recovery.is_empty() else now_ms+result._dodge_recovery[0]
 		return result
 
 	func with_deadline(action: int, deadline_ms: int) -> Timers:

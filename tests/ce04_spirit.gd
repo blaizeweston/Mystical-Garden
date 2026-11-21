@@ -31,6 +31,8 @@ func run():
  check(charges.dodge_projection(1000).available==0 and not charges.ready(Cooldowns.DODGE,3199),"three stored charges spend consecutively but share one recovery deadline")
  check(charges.dodge_projection(3200).available==1 and charges.dodge_projection(5400).available==2 and charges.dodge_projection(7600).available==3,"spent charges recover sequentially, never three at once")
  check(empty.dodge_projection(1000).available==1 and charges.start(Cooldowns.DODGE,1000,2200).dodge_projection(1000).available==0,"immutable prior state survives refused extra spending")
+ var single:=empty.start(Cooldowns.DODGE,1000,2200).ready_by(Cooldowns.DODGE,1100)
+ check(single.ready(Cooldowns.DODGE,1100) and single.deadline(Cooldowns.DODGE)==1100,"last restored charge preserves native class restoration timestamp")
  var refund:=charges.ready_by(Cooldowns.DODGE,1100)
  check(refund.dodge_projection(1100).available==1 and refund.dodge_projection(3300).available==2,"native instant-dodge restoration restores one charge and preserves sequential recovery")
  check(charges.start(Cooldowns.Q,1200,500).dodge_projection(3200).available==1,"Q/R updates preserve all dash state")
@@ -76,6 +78,10 @@ func run():
  var original: Dictionary=queued.filter(func(row):return not row.stats.get("spirit_replica",false))[0]
  for echo in queued.filter(func(row):return row.stats.get("spirit_replica",false)):
   check(echo.release==original.release and echo.stats.affinity_hp==maxi(1,roundi(int(original.stats.preview_strike_hp)*.4)),"phantom release timing and captured weapon potency match the authored scale")
+ g.weapon_attacks.advance(g.weapon_attack_world,int(original.release))
+ for echo in g.weapon_attacks.views().filter(func(row):return row.stats.get("spirit_replica",false)):
+  var expected: Dictionary=g.weapon_attack_world.projectile_path(echo.stats.spirit_origin,Vector3.FORWARD,echo.form,float(echo.stats.reach))
+  check(Vector3(echo.origin).is_equal_approx(expected.from),"phantom projectile applies its native muzzle offset once from the fixed echo position")
  g.weapon_attacks.advance(g.weapon_attack_world,now+2000)
  check(g.enemy_health()<1000000 and g.weapon_attacks.is_empty() and p.get(Spirit.ECHOES,[]).is_empty(),"real phantom attacks resolve without recursive copies")
  var skill: Dictionary=g.combat_build(p).class_skill(0)
@@ -103,6 +109,12 @@ func run():
  var eligibility=load("res://card_eligibility.gd")
  var tree=g.Classes.connected_tree(2);p.character[tree.profile_key]=tree.state(["snarekeeper"])
  check(not eligibility.requirement(c.Catalog.DEFINITIONS.wraithcast,g.combat_build(p).affinity_build()).is_empty(),"trap-only class plus movement-only Core cannot receive an unusable Wraithcast")
+ c.equip(1,"vital",["core"]);c.equip(1,"spirit",["form"])
+ check(not eligibility.requirement(c.Catalog.DEFINITIONS.wraithcast,g.combat_build(p).affinity_build()).is_empty(),"weaker strongest-source Vital copies alone cannot qualify a solo trap-only build")
+ c.equip(1,"spirit",["core"]);p.frame=4;p.weapon_kind=0
+ var quiet=g.Classes.connected_tree(4);p.character[quiet.profile_key]=quiet.state(["leykeeper"])
+ check(not eligibility.requirement(c.Catalog.DEFINITIONS.wraithcast,g.combat_build(p).affinity_build()).is_empty(),"a weaker duplicate Ward alone cannot qualify a solo control-only build")
+ p.frame=2;p.weapon_kind=0
  p.character[tree.profile_key]=tree.state(["wildstalker"])
  check(eligibility.requirement(c.Catalog.DEFINITIONS.wraithcast,g.combat_build(p).affinity_build()).is_empty(),"actual direct class ability qualifies Wraithcast without an offensive Core")
  for family in ["storm","wood","vital"]:
@@ -113,12 +125,60 @@ func run():
   if family=="storm":check(g.enemy_health()==999991,"Chain Spark phantom uses captured 40% damage and real weapon contact geometry")
   if family=="wood":check(load("res://wood_affinity.gd").capacity(load("res://wood_affinity.gd").live_grants(p,0))==12,"Ironbark phantom supplies scaled real protection")
   if family=="vital":check(load("res://player_vitals.gd").maximum_hp(p)==105 and load("res://player_vitals.gd").current_hp(p)==100,"Vital Bloom phantom scales capacity and grants no instant healing")
+ reset();c.equip(1,"storm",["core"]);c.equip(1,"spirit",["form"])
+ c.own(1,["wraithcast","conductor","grounded_current","mirrorstep"])
+ Spirit.voluntary(g,1,Vector3.ZERO,Vector3.RIGHT,now)
+ core.command(g,1,p,core.request(g,p,Vector2.UP))
+ check(g.enemy_health()==999985,"Wraithcast retains Grounded Current and finite Conductor return at its reduced damage: twelve plus three")
+ check(p.get(Spirit.SHADOWS,[]).is_empty() and p[Spirit.ECHOES].size()==1,"multiple Unique interaction consumes only its original shadow and creates no recursive phantom")
+ reset();p.frame=3;p.weapon_kind=0
+ var reaper_tree=g.Classes.connected_tree(3);p.character[reaper_tree.profile_key]=reaper_tree.state(["veilwalker"])
+ c.equip(1,"spirit",["form"]);c.own(1,["wraithcast"])
+ var vitals=load("res://player_vitals.gd")
+ p[vitals.STATE]=p[vitals.STATE].with_hp(50)
+ var ally: Dictionary=g.players[2];ally[vitals.STATE]=ally[vitals.STATE].with_hp(50);ally.pos=Vector3.ZERO
+ Spirit.voluntary(g,1,Vector3.ZERO,Vector3.RIGHT,now)
+ p.pos=Vector3.RIGHT
+ var siphon: Dictionary=g.combat_build(p).class_skill(1)
+ Replica.class_cast(g,1,siphon,p.pos,g.tactics.position,2.7,now)
+ check(g.enemy_health()==999992 and p.get(Spirit.SHADOWS,[]).is_empty(),"Siphon Cut shadow reproduces eight damage at native validated range")
+ check(vitals.current_hp(p)==50 and vitals.current_hp(ally)==50,"damage-only Siphon replica cannot turn native self-drain into party healing")
+ check(p[Cooldowns.STATE].deadline(Cooldowns.R)==0,"leaf skill copy does not assign another native cooldown")
  # All real native Form owners receive scaled leaves through the same contact validation.
  for family in ["thorn","frost","fire","water","wood","storm","spirit","vital","void"]:
   reset();c.equip(1,family,["form"])
   var base:=c.action(1,"form");var q: Dictionary=base.potency();q.replica_scale=.4
   var clone: RefCounted=base.replicated(g,q,now)
   check(clone.publish(g,"weapon_contact","replica","leader",now,{"enemy":-1,"point":g.tactics.position,"origin":Vector3.ZERO,"forward":Vector3.FORWARD}),"validated scaled "+family+" Form leaf")
+ reset();c.equip(1,"spirit",["form"]);c.own(1,["spectral_tempo","spectral_tempo"])
+ var capped_stats: Dictionary=g.combat_build(p).weapon_base_stats();capped_stats.interval=258
+ check(not p[c.Cards.STATE].eligible(capped_stats,2200).has("spectral_tempo"),"fixed Spirit tempo excludes copies that cannot improve actual rounded timing")
+ c.own(1,["spectral_tempo"])
+ var partial_seen:=false
+ for seed_value in 12:
+  for option in p[c.Cards.STATE].roll(seed_value,3,capped_stats,2200):
+   if option.id=="spectral_tempo":partial_seen=true;check(option.amount==6,"last useful tempo copy retains only actual remaining contribution")
+ check(partial_seen,"headroom-aware offers still contain a useful partial contribution")
+ reset();c.equip(1,"water",["form"]);c.equip(1,"spirit",["core"]);c.own(1,["mirrorstep","rolling_current","refreshing_strikes"])
+ var water=load("res://water_combat.gd")
+ var water_event:=c.action(1,"form")
+ var water_q: Dictionary=water_event.potency();water_q.replica_scale=.4
+ var water_copy: RefCounted=water_event.replicated(g,water_q,now)
+ water_copy.publish(g,"weapon_contact","echo","leader",now,{"enemy":-1,"point":g.tactics.position,"origin":Vector3.ZERO})
+ check(not p.has(water.SEQUENCE) and not p.has(water.REFRESH) and int(g.tactics.memory[water.DRENCHED].saturation)==6,"phantom applies six real Saturation without advancing ordinary hit sequences or preparing restoration")
+ # The real queue keeps each class weapon's radial/sweep/projectile pattern.
+ for frame in 5:
+  for weapon in g.Classes.DEFINITIONS[frame].weapons.size():
+   reset();p.frame=frame;p.weapon_kind=weapon
+   var native_tree=g.Classes.connected_tree(frame)
+   p.character[native_tree.profile_key]=native_tree.state([["vanguard","bloomcaller","wildstalker","veilwalker","omenreader"][frame]])
+   c.equip(1,"spirit",["form"]);c.own(1,["mirrorstep"])
+   Spirit.voluntary(g,1,Vector3.ZERO,Vector3.RIGHT,now)
+   check(g.weapon_attacks.try_start(g.weapon_attack_world,1,p.pos,now),"real primary and phantom pattern admits "+str(frame)+"/"+str(weapon))
+   check(g.weapon_attacks.views().size()==2,"one phantom uses the same initial weapon pattern for "+str(frame)+"/"+str(weapon))
+   g.weapon_attacks.advance(g.weapon_attack_world,now+3000)
+   check(g.weapon_attacks.is_empty(),"melee/projectile/volley copy completes "+str(frame)+"/"+str(weapon))
+ check(c.Catalog.contribution(c.Catalog.DEFINITIONS.stored_momentum,2)=="+2 dash charges","stored capacity is labeled as dash charges rather than chain targets")
  # Four players, no phantom actor instances or gameplay-count ceiling.
  reset()
  var prepared_us:=0

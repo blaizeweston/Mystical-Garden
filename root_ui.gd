@@ -256,12 +256,12 @@ func _draw() -> void:
 	if has_core:
 		draw_core_slot(Rect2(392,bottom+49,98,77),core)
 	var prepared: Dictionary=state.get("spirit_prepared",{})
-	if int(prepared.get("echoes",0))+int(prepared.get("shadows",0))>0:text(self,Vector2(204,bottom+33),"Echoes %d · Shadows %d" % [prepared.get("echoes",0),prepared.get("shadows",0)],11,GREEN)
 	var card_actions: Array=state.get("card_actions",[])
 	for index in card_actions.size():
 		var card: Dictionary=card_actions[index]
 		var action: String=preload("res://card_active_actions.gd").INPUTS[index] if index<preload("res://card_active_actions.gd").INPUTS.size() else ""
 		skill_slot(self,Rect2(24+index*102,bottom-34,98,77),preload("res://app_settings.gd").hint(action),card.name,float(card.remaining),float(card.remaining)<=0.0)
+	if int(prepared.get("echoes",0))+int(prepared.get("shadows",0))>0:text(self,Vector2(24,bottom-45) if not card_actions.is_empty() else Vector2(204,bottom+33),"Echoes %d · Shadows %d" % [prepared.get("echoes",0),prepared.get("shadows",0)],11,GREEN)
 	var satchel_x:=504 if has_core else 404
 	text(self, Vector2(satchel_x, bottom + 33), "SATCHEL" if active else "GARDEN", 12, MUTED)
 	text(self, Vector2(satchel_x, bottom + 56), "Seeds   %d" % int(state.carried), 14)
