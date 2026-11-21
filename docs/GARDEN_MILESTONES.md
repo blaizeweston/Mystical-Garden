@@ -1,6 +1,6 @@
 # Garden milestones and objective design
 
-Updated: 2026-11-19 · Owner: shared between the user and development assistant.
+Updated: 2026-11-21 · Owner: shared between the user and development assistant.
 
 Architecture and overlap decisions: [Garden development map](GARDEN_DEVELOPMENT_MAP.md). Implemented test ownership: [mechanics/test map](MECHANICS_TEST_MAP.md). Existing product intent: [design brief](../DESIGN_BRIEF.md). This document holds the Garden work queue and the [Wilds enemy](#wilds-enemy-design-milestones), [Core combat](#core-combat-milestones), [sound design](#sound-design-milestones), and [combat balance and vitals](COMBAT_BALANCE_MILESTONES.md) milestones.
 
@@ -8,9 +8,9 @@ Architecture and overlap decisions: [Garden development map](GARDEN_DEVELOPMENT_
 
 | Field | Value |
 |---|---|
-| Recent work | Generated Garden, modern Wilds/boss/Heart terrain and detached Garden views remain integrated. The dedicated spring fixture and Watering basin Build entry are now removed. Reaching Roots + Root Irrigation unlock filling at reachable banks of the existing Garden water, preserving one vessel and the existing 25% crop-growth benefit. Current source passes 27 focused suites / 43 process verdicts, including Garden co-op, guarded transactions and four-player controls. No export was produced. Garden observation/conduit/return and research/plant commands now use explicit rules and peer-ID integration; 17 focused suites / 32 process verdicts pass. Milestone statuses are unchanged. |
+| Recent work | Garden forest pass: darker Quaternius leaf-only crowns over a continuous canopy, spatial visibility, covered-prop filtering and rounded inward reclamation joins. `garden-canopy-complete` passes nine focused suites / 14 process verdicts; 74 validation self-tests pass. Real-render review includes three expansions. Source only; main and Playtest 9 are preserved. Existing Knowledge-unlocked water-bank filling remains intact. |
 | Next combat objective | **CB-08 · Live playtest and release.** Compare pacing and sustain in solo and co-op, apply any tuning, then promote the verified balance. [Combat balance catalogue](COMBAT_BALANCE_MILESTONES.md#live-playtest). |
-| Next player-facing milestone | Manually review the generated Garden, Knowledge-unlocked water-bank filling, crop watering, reclamation/construction, first six floors and boss terrain. Preserve isolated saves. G-08 pacing/listening review remains open; no new packaged build is produced here. |
+| Next player-facing milestone | Manually review the new canopy/expansion seams, water-bank filling, crop watering, reclamation/construction, first six floors and boss terrain using isolated saves. G-08 pacing/listening review remains open. Weapon-animation work follows separately: improve attack motion and alternate swings while preserving idle/walk/run. |
 | Project state | G-00–G-07 and W-00–W-07 are complete. G-08, W-08 and C-07 remain in the playtest queue. |
 | Listening review | Use A-06 to gather human feedback on cue recognition, mix balance and listening fatigue. The same sessions can cover the existing Garden and Wilds playtest milestones. |
 
@@ -593,6 +593,7 @@ The November 12 v0.5.3.1 build passed 14 affected focused checks, eight addition
 | D-07 | 2026-11-10 | Full suite only at major releases or explicit request | User instruction | Explicit user direction |
 | D-08 | 2026-11-10 | A researched living water conduit configures future zone care opportunities | Proposed utility default | G-04 outcome budget and G-07 review |
 | D-09 | 2026-11-10 | Host selects persistent zone-tool settings; guests inspect and perform eligible care | Proposed ownership default | Before G-07 implementation |
+| D-10 | 2026-11-21 | Use darker CC0 Quaternius foliage for a continuous Garden canopy; omit covered whole trees. Round inward expansion seams without removing land. Preserve locomotion; later animations target weapon attacks and alternating swings. | User-approved direction; source pass implemented | Manual visual review |
 
 ## Copyable new objective template
 
@@ -621,6 +622,7 @@ Next objective after completion:
 | Date | Milestone | Actual result | Evidence | Next objective |
 |---|---|---|---|---|
 | 2026-11-19 | G-02 water-source correction | Retired spring fixture/construction; existing Knowledge enables one-vessel filling at actual dry water banks. Watering stays 1.25× once per crop. No extra costs, rewards or movement changes. | `garden-water-verified-20261119-211502` and exact-input origins: 27 suites / 43 process verdicts; 106 tool self-tests, 36 compiled callers. Disposable saves and local loopback only; no export. | G-08 manual playtest; broad release refresh separately scheduled |
+| 2026-11-21 | Garden forest presentation | `garden_canopy.gd` / `garden_canopy_catalog.gd`, leaf-only assets under `assets/garden/canopy/`, `garden_boundary.gd` and the existing Garden integration. CC0 provenance in `assets/source/ART_CREDITS.md`. No combat/AI, save schema, reward, animation or protocol changes. | `garden-canopy-complete`: nine suites / 14 independent process verdicts; 74 validation-tool self-tests. Godot 4.7.2 real-render captures at initial and three-expansion layouts. Same-camera sample: roughly 2.84M to 0.33M rendered primitives, roughly 383 to 389 draw calls; geometry work, not an FPS guarantee. Disposable saves and local loopback only. | G-08/manual visual approval; no export or release-wide evidence refresh |
 | 2026-11-10 | G-00 | Source-based map and editable objectives saved; gameplay unchanged | This document and GARDEN_DEVELOPMENT_MAP.md; documentation checks only | G-01 |
 
 Implementation decision (2026-11-10): G-02/G-03 use the first two existing right-hand beds. Spring water remains decorative, with reserved dry approaches and the existing circular movement boundary. Background motion is a local optional presentation layer, not an authority for later creature collection. New physical shoreline or fauna interaction would require the layout/prediction/network contract to be extended explicitly.

@@ -1,6 +1,6 @@
 # Garden interaction development map
 
-Updated: 2026-11-19 · Status: G-01 through G-07 implemented and packaged; G-08 Ready for pacing/economy/playtest review.
+Updated: 2026-11-21 · Status: G-01 through G-07 implemented and packaged; G-08 Ready for pacing/economy/playtest review. The new canopy pass is source-only until separately promoted/exported.
 
 Read [the milestone objectives](GARDEN_MILESTONES.md) for the next task and progress. The [mechanics/test map](MECHANICS_TEST_MAP.md) describes implemented systems; this document separates implemented observation/spring/relationship/cultivation boundaries from proposed later Garden mechanics. See [Garden observation authoring](GARDEN_INTERACTIONS.md) for the current modules, schema and evidence.
 
@@ -28,7 +28,7 @@ These are implementation facts, not new feature promises.
 | Inventory | `inventory_model.gd` owns transfers; personal and shared storage are shown together by default. Shared seeds must be withdrawn for personal planting. | Every new cost names its storage source and uses this inventory path. No ecological currency/material bag. |
 | Weapon preparation | `loadout_materials.gd` tracks personal-first/shared-remainder party reservations. Crafting happens at the gate; monster grafting happens at Wilds altars. | New parts use existing crafting/tag/card rules. Garden interactions must respect reserved components. |
 | Travel and return | `party_travel.gd`, checkpoints and return code already own readiness, banking, loss and research milestones. | Observe committed outcomes. Do not introduce free extraction, new checkpoint spacing or a mandatory Garden-ready checklist. |
-| Visuals | `garden_visuals.gd`, `heart_visuals.gd` and `stage.gd` supply peaceful greenery, ponds, paths and Heart stages. | Reuse these builders behind a small layout/view adapter. Visuals never grant items or advance research. |
+| Visuals | `assets/terrain_m02/experimental/experiment_garden.gd` integrates generated ground, paths, water and construction; `garden_canopy.gd` presents foliage-only forest sections. Tune the canopy in `garden_canopy_catalog.gd`, replace crowns under `assets/garden/canopy/`, and find source credits in `assets/source/ART_CREDITS.md`. `stage.gd` retains native landmarks. | Render views do not own progression. Covered props retain collision/placement footprints without being drawn through the canopy. `garden_boundary.gd` rounds inward expansion seams without removing existing land. |
 | Ownership/network | Host Garden owns Knowledge, technologies, recipes, beds and shared stores. Characters own class choices and familiarity. Guests have personal reserves within that host world. | Host validates mutations; guests send intent. Add one versioned Garden projection rather than per-feature RPC families. |
 | Save/transaction/logging | `progress.gd`, `content_ids.gd`, `game_transaction.gd`, `save_batch.gd` and the diagnostic journal already provide persistence, identity and observation. | Extend them through one boundary. Logs and animation callbacks are never gameplay triggers. |
 

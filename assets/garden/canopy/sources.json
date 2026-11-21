@@ -1,0 +1,53 @@
+{
+  "author": "Quaternius",
+  "pack": "Ultimate Stylized Nature, May 2022",
+  "license": "CC0-1.0",
+  "publisher": "https://quaternius.com/packs/ultimatestylizednature.html",
+  "download_mirror": "https://github.com/agentkaerf/FreeModels/tree/db3df04d1e4714298a09510b26fb6de6645138a2/Ultimate%20Stylized%20Nature%20-%20May%202022/glTF",
+  "download_note": "Publisher Google Drive download was quota-limited. Only data models/maps were obtained from the pinned CC0 mirror.",
+  "conversion": "Original leaf geometry and UVs, no bark or collision, centred and normalized horizontal span; no animations or embedded materials.",
+  "models": {
+    "birch_crown_01": {
+      "donor": "BirchTree_1",
+      "gltf_sha256": "8dbf9fd8b6402bfffdbe370a8c4337e8dae27fa3da5fbacbfd4fae6482ad50fa",
+      "buffer_sha256": "a1b14d1c82ebb8153991de4156b77ceaa1143d64469679147c0ee249c8b90b83",
+      "triangles": 1908,
+      "export_sha256": "64ab0023c22040be960bf7c41e21f41aa26fce3faab6230ba71a7866d1ef6c16"
+    },
+    "maple_crown_01": {
+      "donor": "MapleTree_1",
+      "gltf_sha256": "3a67c42011c57f21d73c599f7a3d5dd2f438602f8c5ee4d921514923acab1ca3",
+      "buffer_sha256": "03cfea606b55f8f38220f2922e28efb92d724abac801f76191ba062c398bf09c",
+      "triangles": 864,
+      "export_sha256": "d7afcb179780e7a14f24b637839a748bee08b4609b8c7cf0a3fa0bf7b2eaf19c"
+    },
+    "maple_crown_02": {
+      "donor": "MapleTree_2",
+      "gltf_sha256": "f72e286b236c57c5327e33b993d2400791f08003f3845c768aaf0fba822c6263",
+      "buffer_sha256": "aae075e90e9117c88cd3674d671ef415510002a60f4adcff8d2e729c5be2b8ac",
+      "triangles": 1296,
+      "export_sha256": "48596907cfcb74ee0f9e08f57b8461b565cffa6299653554909a57e5228b63d4"
+    },
+    "bush_crown": {
+      "donor": "Bush_Large",
+      "gltf_sha256": "36b8ffbe73a5d6c0d5a9be84e611dc3879e259eb0f2325e0b2225f8521534be4",
+      "buffer_sha256": "66a186d555b9e79e33a4baf878ea3a33c7d9e48cf6568a7578cd2b5819c5948c",
+      "triangles": 276,
+      "export_sha256": "431078d45bba56ff15ea04fcbfdef6a6154bdb77727181e8dee120d44fcd44c6"
+    }
+  },
+  "textures": {
+    "birch_leaves.png": {
+      "donor": "BirchTree_Leaves.png",
+      "sha256": "8b674a02017d987f8ec0448bd2a52ad788d1235f91b7f00499b4ca071f8e69fe"
+    },
+    "maple_leaves.png": {
+      "donor": "MapleTree_Leaves.png",
+      "sha256": "915f0836e9889e28032662c7aa0d0eb9601ba999eda042c9a4e38690786d6c7b"
+    },
+    "bush_leaves.png": {
+      "donor": "Bush_Leaves.png",
+      "sha256": "9f662296a285ca56b1ed56e952a198b93b466ae39ab7b6ee1c1ac1bd1c46242f"
+    }
+  }
+}

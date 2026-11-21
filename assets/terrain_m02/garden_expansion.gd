@@ -3,6 +3,7 @@ extends RefCounted
 ## Reclamation adds ownership records and moves the enclosure. Substrate and props stay put.
 
 const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
+const Boundary = preload("res://garden_boundary.gd")
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const Features = preload("res://assets/terrain_m02/terrain_feature_layout.gd")
 const DIRECTIONS := ["East", "Southeast", "South", "Southwest", "West", "Northwest", "North", "Northeast"]
@@ -116,7 +117,9 @@ func proposal(sector: int, coverage_check: bool = false) -> Dictionary:
 		if not _in_terrain(lobe):
 			touches_limit = true
 			continue
-		var next_outline: PackedVector2Array = merged[0]
+		var next_outline := Boundary.rounded_joins(merged[0])
+		if not _in_terrain(next_outline):
+			continue
 		if _widens_gap(next_outline, aim):
 			continue
 		var candidates := _gain(lobe, next_outline)

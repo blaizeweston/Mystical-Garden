@@ -8,7 +8,7 @@ const Generator = preload("res://assets/terrain_m02/terrain_generator.gd")
 const Layout = preload("res://assets/terrain_m02/terrain_feature_layout.gd")
 const Art = preload("res://assets/terrain_m02/terrain_art_direction.gd")
 const Enclosure = preload("res://assets/terrain_m02/terrain_enclosure.gd")
-const EnclosureView = preload("res://assets/terrain_m02/terrain_enclosure_view.gd")
+const Canopy = preload("res://garden_canopy.gd")
 const Garden = preload("res://assets/terrain_m02/garden_expansion.gd")
 const Forest = preload("res://assets/terrain_m02/garden_forest_barrier.gd")
 const Heart = preload("res://assets/terrain_m02/terrain_heart_preview.gd")
@@ -36,7 +36,9 @@ var stage: Node3D
 var state: Garden
 var water_sources := preload("res://garden_water.gd").new()
 var barrier: Forest
-var forest: EnclosureView
+var forest: Canopy
+var _features: Node3D
+var _shown_props: Array = []
 var heart: Heart
 var roots: Node3D
 var network: Array[Dictionary] = []
@@ -131,16 +133,14 @@ func configure(world: Node, presentation: Node3D) -> void:
 	material.set_shader_parameter("botanical_ground", profile.ground)
 	material.set_shader_parameter("botanical_water", profile.water)
 	Surface.plane(self, material, 92.0)
-	var features := Surface.Features.new()
-	add_child(features)
-	features.rebuild(layout, profile, 0)
-	forest = EnclosureView.new()
+	_features = Surface.Features.new()
+	add_child(_features)
+	_refresh_revealed_props()
+	forest = Canopy.new()
 	add_child(forest)
-	var enclosure := state.forest_layout()
-	enclosure["scenic_woodland"] = state.scenic_woodland()
-	forest.rebuild(enclosure, true, profile, 0, true)
+	forest.configure(barrier.visible_outline)
 	base_rim = state.enclosure_support()
-	_update_rim(base_rim)
+	_update_rim()
 	heart = Heart.new()
 	add_child(heart)
 	heart.set_sculpt(true)
@@ -236,14 +236,33 @@ func _make_station(id: String, art: String, position: Vector3, yaw: float) -> vo
 	instance.position = position
 	instance.rotation.y = -yaw
 
-func _update_rim(previous: PackedFloat32Array, progress: float = 1.0) -> void:
+func _refresh_revealed_props() -> void:
+	# Covered scenery keeps its gameplay footprint in state.layout/occupied.
+	# Only its presentation is filtered; new props appear as expansion exposes them.
+	var visible_layout: Dictionary = state.layout.duplicate()
+	var outline: PackedVector2Array = barrier.visible_outline
+	visible_layout.plants = state.layout.plants.filter(func(plant): return Geometry2D.is_point_in_polygon(plant.center, outline))
+	visible_layout.rocks = state.layout.rocks.filter(func(rock): return Geometry2D.is_point_in_polygon(rock.center, outline))
+	var identities: Array = visible_layout.plants.map(func(plant): return plant.id)
+	identities.append_array(visible_layout.rocks.map(func(rock): return rock.id))
+	if identities == _shown_props:
+		return
+	_shown_props = identities
+	_features.rebuild(visible_layout, Art.profile(0), 0)
+
+
+func _update_rim(progress: float = 1.0) -> void:
 	var packed := PackedFloat32Array()
 	for i in barrier.starts.size():
 		packed.append_array([barrier.starts[i].length(), barrier.finishes[i].length(), base_rim[i], 0.0])
 	var image := Image.create_from_data(barrier.starts.size(), 1, false, Image.FORMAT_RGBAF, packed.to_byte_array())
-	material.set_shader_parameter("garden_perimeter", ImageTexture.create_from_image(image))
+	var perimeter := ImageTexture.create_from_image(image)
+	material.set_shader_parameter("garden_perimeter", perimeter)
 	material.set_shader_parameter("garden_reveal", progress)
-	forest.position_frontier(previous, state.enclosure_support(), progress)
+	forest.set_boundary(perimeter, image, progress)
+	if is_equal_approx(progress, 1.0):
+		forest.set_clearing(barrier.visible_outline)
+	_refresh_revealed_props()
 
 func available_here() -> bool:
 	return _may_place() and game.at_heart(game.players[game.HOST])
@@ -355,7 +374,6 @@ func expand(sector: int) -> bool:
 		return state.proposal(sector) == plan and funds.energy >= cost)
 	if not (result.completed or Tx.committed(result.persistence)) or result.value != true:
 		return false
-	var previous := state.enclosure_support()
 	var outline := state.outline
 	if not state.apply(plan):
 		return false
@@ -363,7 +381,7 @@ func expand(sector: int) -> bool:
 	funds.energy -= cost
 	barrier.begin_shape(outline, state.outline)
 	barrier.update_shape(0.0)
-	_update_rim(previous, 0.0)
+	_update_rim(0.0)
 	var root := MeshInstance3D.new()
 	var root_plan := Roots.plan(state.roots[-1], heart.stage, state, network)
 	network.append(root_plan)
@@ -376,16 +394,18 @@ func expand(sector: int) -> bool:
 	roots.add_child(root)
 	construction.set_roots(network)
 	plans.clear()
-	var current := state.enclosure_support()
 	reveal = create_tween()
 	reveal.tween_method(func(t: float):
 		shader.set_shader_parameter("root_progress", t)
 		reclaim_glow = sin(t * PI)
 		heart.reclaim_light(study_glow + reclaim_glow)
 		material.set_shader_parameter("garden_reveal", t)
-		forest.position_frontier(previous, current, t)
-		barrier.update_shape(t), 0.0, 1.0, 2.45)
-	reveal.finished.connect(func(): reveal = null)
+		forest.set_reveal(t)
+		barrier.update_shape(t)
+		_refresh_revealed_props(), 0.0, 1.0, 2.45)
+	reveal.finished.connect(func():
+		forest.set_clearing(barrier.visible_outline)
+		reveal = null)
 	return true
 
 func snapshot() -> Dictionary:
@@ -421,14 +441,13 @@ func receive_snapshot(snapshot_data: Dictionary) -> void:
 		_refresh_guest_review()
 
 func _apply_layout(layout: Dictionary) -> void:
-	var previous := state.enclosure_support()
 	barrier.begin_shape(state.outline, layout.outline)
 	state.outline = layout.outline
 	state.owned = layout.owned
 	state.expansion_history.assign(layout.growth)
 	state.revision = state.expansion_history.size()
 	barrier.update_shape(1.0)
-	_update_rim(previous)
+	_update_rim()
 	for index in range(network.size(), layout.roots.size()):
 		var plan: Dictionary = layout.roots[index]
 		var root := MeshInstance3D.new()

@@ -8,6 +8,7 @@
   },
   "full_after_days": 7,
   "systems": {
+    "garden_canopy": {"label":"Foliage-only Garden canopy, spatial visibility and rounded reclamation joins", "files":["garden_canopy.gd", "garden_canopy.gd.uid", "garden_canopy_catalog.gd", "garden_canopy_catalog.gd.uid", "garden_boundary.gd", "garden_boundary.gd.uid"]},
     "combat_effects": {"label":"Owned Core/native effect timelines, lifecycle, bounded execution and rollback", "files":["combat_effect_timeline.gd", "combat_effect_timeline.gd.uid", "native_effects_world.gd", "native_effects_world.gd.uid"]},
     "actor_presentation": {"label":"Detached avatar, spectator and dropped-item presentation", "files":["actor_presentation_world.gd","actor_presentation_world.gd.uid","spectator_view.gd","spectator_view.gd.uid","inventory_drop_visuals.gd","inventory_drop_visuals.gd.uid"]},
     "garden_view_ports": {"label":"Detached Garden observation, crop, station, return and ambience presentation ports", "files":["garden_presentation_world.gd"]},
@@ -703,6 +704,7 @@
     "network_session": {"label": "Peer authorization, session lifecycle, explicit RPC contract and action identity", "files": ["network_session.gd", "network_session.gd.uid", "session_world.gd", "session_world.gd.uid", "network_contract.gd", "network_contract.gd.uid", "network_action_identity.gd", "network_action_identity.gd.uid"]}
   },
   "asset_rules": {
+    "assets/garden/canopy/**": ["garden_canopy"],
     "assets/terrain_m02/**": ["hex_terrain"],
     "assets/characters/field_*": [
       "avatar_motion_view"
@@ -1530,6 +1532,7 @@
     ]
   },
   "suites": {
+    "garden_canopy": {"kind":"unit", "systems":["garden_canopy"], "package":false},
     "ce04_void": {"kind":"unit","profile":"affinity","systems":["affinity_cards","void_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
     "ce04_void_coop": {"kind":"pair","profile":"affinity","systems":["affinity_cards","void_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
     "ce04_void_party": {"kind":"party","profile":"affinity","systems":["affinity_cards","void_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
@@ -1575,7 +1578,7 @@
     "weapon_attack_queue": {"kind":"unit", "systems":["weapon_attacks","weapons","combat","combat_affinity_contracts","classes","player_weapon_actions","player_lifecycle","ranged_release","hex_terrain"], "package":false},
     "outgoing_hits": {"kind":"unit", "systems":["arena_combat_bridge","combat","weapons","classes","loot","enemies","encounter_roster","player_lifecycle","combat_affinity_contracts"], "package":false},
     "native_class_actions": {"kind":"unit", "systems":["classes","combat","class_balance","combat_affinity_contracts","life","player_lifecycle","player_cooldowns","player_protection","ability_aim"], "package":false},
-    "modern_terrain_cutover": {"kind": "unit", "systems": ["hex_terrain", "terrain", "garden", "boss_lair_fights", "boss_phase_fights", "connection_flow"], "package": false},
+    "modern_terrain_cutover": {"kind": "unit", "systems": ["garden_canopy", "hex_terrain", "terrain", "garden", "boss_lair_fights", "boss_phase_fights", "connection_flow"], "package": false},
     "progression_ui": {"kind": "unit", "systems": ["progression_ui", "gameplay_ui", "classes", "knowledge", "seeds", "garden_returns"], "package": false},
     "player_build_ui": {"kind": "unit", "systems": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_summary", "progression_ui"], "package": false},
     "garden_cinematic_view": {"kind": "unit", "systems": ["garden_cinematics", "gameplay_ui", "heart_growth_visual", "presentation"], "package": false},
@@ -1723,7 +1726,7 @@
     },
     "experimental_terrain_coop": {"profile": "terrain",
       "kind": "pair",
-      "systems": [
+      "systems": ["garden_canopy",
         "loot",
         "departure_settlement",
         "world_snapshot",
@@ -1742,7 +1745,7 @@
     },
     "experimental_terrain": {
       "kind": "unit",
-      "systems": ["player_cooldowns", "loot", "expedition_wallet", "hex_terrain", "terrain", "garden_care", "persistence_operations"],
+      "systems": ["garden_canopy", "player_cooldowns", "loot", "expedition_wallet", "hex_terrain", "terrain", "garden_care", "persistence_operations"],
       "package": false
     },
     "garden_offerings_preview": {
@@ -1757,12 +1760,12 @@
     },
     "garden_construction": {
       "kind": "unit",
-      "systems": ["hex_terrain"],
+      "systems": ["garden_canopy", "hex_terrain"],
       "package": false
     },
     "garden_expansion": {
       "kind": "unit",
-      "systems": ["hex_terrain"],
+      "systems": ["garden_canopy", "hex_terrain"],
       "package": false
     },
     "wilds_combat_preview": {
@@ -2646,7 +2649,7 @@
     },
     "four_players_coop": {
       "kind": "party",
-      "systems": [
+      "systems": ["garden_canopy",
         "loot",
         "world_snapshot",
         "health_pool_hud",
@@ -4037,7 +4040,7 @@
     ["combat_vitals", "player_vitals", "Health uses existing HP rules and resolved native capacity"],
     ["life", "player_vitals", "Falling and revival operate on the same host health value"],
     ["player_vitals", "world_snapshot", "Fast and reliable channels project the existing health fields"],
-    ["player_cooldowns", "classes", "Native class casts and refunds use each actorâ€™s Q and R deadlines"],
+    ["player_cooldowns", "classes", "Native class casts and refunds use each actor’s Q and R deadlines"],
     ["life", "player_cooldowns", "New actors and expedition entry initialize native readiness"],
     ["player_cooldowns", "world_snapshot", "Guests receive projected readiness and remaining Q and R seconds"],
     ["expedition_grafts", "combat_affinity_contracts", "Basic attacks capture purchased adaptations and resolve bounded secondary effects"],
@@ -5800,8 +5803,9 @@
       }
     }},
   "file_regions": {
+    "assets/terrain_m02/garden_expansion.gd": {"newline": "lf", "regions": {"rounded_join_import": {"systems": ["garden_canopy"]}, "rounded_join_proposal": {"systems": ["garden_canopy"]}}},
     "affinity_cards.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
-    "assets/terrain_m02/experimental/experiment_garden.gd": {"newline": "lf", "regions": {"playtest9_transaction_acceptance_4": {"systems": ["garden", "knowledge", "persistence_operations"]}, "playtest9_transaction_acceptance_3": {"systems": ["garden", "knowledge", "persistence_operations"]}, "playtest9_transaction_acceptance_2": {"systems": ["garden", "knowledge", "persistence_operations"]}, "playtest9_transaction_acceptance_1": {"systems": ["garden", "knowledge", "persistence_operations"]}, "ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
+    "assets/terrain_m02/experimental/experiment_garden.gd": {"newline": "lf", "regions": {"canopy_import": {"systems": ["garden_canopy"]}, "canopy_view_fields": {"systems": ["garden_canopy"]}, "canopy_configuration": {"systems": ["garden_canopy"]}, "canopy_initial_boundary": {"systems": ["garden_canopy"]}, "canopy_reveal": {"systems": ["garden_canopy"]}, "canopy_expand": {"systems": ["garden_canopy"]}, "canopy_apply_layout": {"systems": ["garden_canopy"]}, "playtest9_transaction_acceptance_4": {"systems": ["garden", "knowledge", "persistence_operations"]}, "playtest9_transaction_acceptance_3": {"systems": ["garden", "knowledge", "persistence_operations"]}, "playtest9_transaction_acceptance_2": {"systems": ["garden", "knowledge", "persistence_operations"]}, "playtest9_transaction_acceptance_1": {"systems": ["garden", "knowledge", "persistence_operations"]}, "ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
     "class_tree_access.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
     "fire_combat.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}}},
 

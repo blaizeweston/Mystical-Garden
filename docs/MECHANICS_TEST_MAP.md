@@ -6,6 +6,7 @@ Edges describe gameplay/data relationships. Selection uses explicit suite covera
 
 ```mermaid
 flowchart LR
+  garden_canopy["Foliage-only Garden canopy<br/> spatial visibility and rounded reclamation joins"]
   combat_effects["Owned Core/native effect timelines<br/> lifecycle<br/> bounded execution and rollback"]
   actor_presentation["Detached avatar<br/> spectator and dropped-item presentation"]
   garden_view_ports["Detached Garden observation<br/> crop<br/> station<br/> return and ambience presentation ports"]
@@ -146,7 +147,7 @@ flowchart LR
   combat_vitals -->|"Health uses existing HP rules and resolved native capacity"| player_vitals
   life -->|"Falling and revival operate on the same host health value"| player_vitals
   player_vitals -->|"Fast and reliable channels project the existing health fields"| world_snapshot
-  player_cooldowns -->|"Native class casts and refunds use each actorâ€™s Q and R deadlines"| classes
+  player_cooldowns -->|"Native class casts and refunds use each actor’s Q and R deadlines"| classes
   life -->|"New actors and expedition entry initialize native readiness"| player_cooldowns
   player_cooldowns -->|"Guests receive projected readiness and remaining Q and R seconds"| world_snapshot
   expedition_grafts -->|"Basic attacks capture purchased adaptations and resolve bounded secondary effects"| combat_affinity_contracts
@@ -381,6 +382,7 @@ flowchart LR
 
 | System | Source files | Covering suites |
 |---|---|---|
+| garden_canopy | `garden_canopy.gd`, `garden_canopy.gd.uid`, `garden_canopy_catalog.gd`, `garden_canopy_catalog.gd.uid`, `garden_boundary.gd`, `garden_boundary.gd.uid` | `garden_canopy`, `modern_terrain_cutover`, `experimental_terrain_coop`, `experimental_terrain`, `garden_construction`, `garden_expansion`, `four_players_coop` |
 | combat_effects | `combat_effect_timeline.gd`, `combat_effect_timeline.gd.uid`, `native_effects_world.gd`, `native_effects_world.gd.uid` | `ce04_void`, `ce04_void_coop`, `ce04_void_party`, `ce04_spirit`, `ce04_spirit_coop`, `ce04_spirit_party`, `ce04_storm`, `ce04_storm_coop`, `ce04_storm_party`, `ce03_vital`, `ce03_vital_coop`, `ce03_vital_party`, `ce03_wood`, `ce03_wood_coop`, `ce03_wood_party`, `ce03_water`, `ce03_water_coop`, `ce03_water_party`, `combat_effects` |
 | actor_presentation | `actor_presentation_world.gd`, `actor_presentation_world.gd.uid`, `spectator_view.gd`, `spectator_view.gd.uid`, `inventory_drop_visuals.gd`, `inventory_drop_visuals.gd.uid` | `actor_presentation` |
 | garden_view_ports | `garden_presentation_world.gd` | `garden_view_ports_coop`, `garden_view_ports` |
@@ -892,8 +894,17 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::encounter_health` | preview_guest_enemy_hp | combat_balance_preview |
 | `game.gd::restore_class_loadout` | ar07_vitals_1 | player_vitals |
 | `game.gd::_init` | preview_guest_storage | combat_balance_preview |
+| `assets/terrain_m02/garden_expansion.gd` | rounded_join_import | garden_canopy |
+| `assets/terrain_m02/garden_expansion.gd` | rounded_join_proposal | garden_canopy |
 | `affinity_cards.gd` | ar08_lifecycle_1 | player_lifecycle |
 | `affinity_cards.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | canopy_import | garden_canopy |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | canopy_view_fields | garden_canopy |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | canopy_configuration | garden_canopy |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | canopy_initial_boundary | garden_canopy |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | canopy_reveal | garden_canopy |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | canopy_expand | garden_canopy |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | canopy_apply_layout | garden_canopy |
 | `assets/terrain_m02/experimental/experiment_garden.gd` | playtest9_transaction_acceptance_4 | garden, knowledge, persistence_operations |
 | `assets/terrain_m02/experimental/experiment_garden.gd` | playtest9_transaction_acceptance_3 | garden, knowledge, persistence_operations |
 | `assets/terrain_m02/experimental/experiment_garden.gd` | playtest9_transaction_acceptance_2 | garden, knowledge, persistence_operations |
