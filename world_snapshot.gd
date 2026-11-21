@@ -5,7 +5,7 @@ extends RefCounted
 const Encounter = preload("res://encounter_config.gd")
 const Network = preload("res://network_settings.gd")
 const Appearance = preload("res://character_appearance.gd")
-const APPEARANCE_BITS := [2, 2, 2, 2, 2, 1, 7, 7, 7, 7, 7, 7, 7]
+const APPEARANCE_BITS := [2, 2, 2, 2, 2, 1, 7, 7, 7, 7, 7, 7, 7, 1, 1, 1, 1]
 const SCHEMA := 1
 const HEADER := 52
 const CAMPAIGN_WORDS := Encounter.BOSS_PHASE + 1
@@ -177,11 +177,12 @@ static func _decode_player(bytes: PackedByteArray, offset: int, campaign: Packed
 
 
 static func _pack_appearance(values: PackedByteArray) -> int:
+	var normalized := Appearance.normalize(values)
 	var result := 0
 	var shift := 0
 	for i in APPEARANCE_BITS.size():
 		var width: int = APPEARANCE_BITS[i]
-		var value: int = values[i] if i < values.size() else Appearance.DEFAULT[i]
+		var value: int = normalized[i]
 		result |= (value & ((1 << width) - 1)) << shift
 		shift += width
 	return result

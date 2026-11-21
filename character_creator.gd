@@ -44,7 +44,9 @@ func _ready() -> void:
   var label:=Label.new();grid.add_child(label);label.text=Appearance.LABELS[i]
   var choice:=OptionButton.new();grid.add_child(choice);choice.size_flags_horizontal=Control.SIZE_EXPAND_FILL
   for value in Appearance.OPTIONS[i]: choice.add_item(value)
+  choice.tooltip_text=Appearance.TOOLTIPS[i]
   choice.item_selected.connect(func(_index):update_preview());options.append(choice)
+ var body_label:=Label.new();form.add_child(body_label);body_label.text="Body"
  model_choice=OptionButton.new();form.add_child(model_choice);model_choice.add_item("Male");model_choice.add_item("Female");model_choice.item_selected.connect(func(_i):update_preview())
  for title_text in Appearance.SLIDERS:
   var label:=Label.new();form.add_child(label);label.text=title_text
@@ -71,10 +73,10 @@ func get_ok_button() -> Button:
  return create_button
 
 func appearance() -> Array:
- var values: Array=[]
- for option in options: values.append(option.selected)
- values.append(model_choice.selected)
- for slider in sliders: values.append(int(slider.value))
+ var values: Array=Appearance.DEFAULT.duplicate()
+ for i in options.size(): values[Appearance.option_field(i)]=options[i].selected
+ values[5]=model_choice.selected
+ for i in sliders.size(): values[i+6]=int(sliders[i].value)
  return values
 func update_preview() -> void:
  if not actor.is_empty() and model_choice!=null and sliders.size()==7: Appearance.apply(actor,appearance())
@@ -86,7 +88,7 @@ func _process(delta: float) -> void:
 func begin(profile: Dictionary={}) -> void:
  var look=Appearance.normalize(profile.get("appearance",[]))
  name_field.text=profile.get("name","");class_choice.select(profile.get("active_class",0))
- for i in options.size(): options[i].select(look[i])
+ for i in options.size(): options[i].select(look[Appearance.option_field(i)])
  model_choice.select(look[5])
  for i in sliders.size(): sliders[i].value=look[i+6]
  create_button.text="Save Character" if not profile.is_empty() else "Create Character"

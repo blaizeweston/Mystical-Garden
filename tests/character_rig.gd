@@ -8,7 +8,7 @@ func _initialize(): call_deferred("run")
 func run():
  var host=Node3D.new();root.add_child(host)
  var a=Avatar.build(host);var b=Avatar.build(host)
- var look=Appearance.DEFAULT.duplicate();look[5]=1;look[6]=100;look[7]=85;look[3]=2
+ var look=Appearance.DEFAULT.duplicate();look[5]=1;look[6]=100;look[7]=85;look[3]=2;look[Appearance.HOOD]=0
  Appearance.apply(a,look);Appearance.apply(b,[])
  check(a.rig_kind==1 and b.rig_kind==0,"independent male and female models")
  for actor in [a,b]:
@@ -31,7 +31,7 @@ func run():
   check(is_equal_approx(shapes.get("Build",0.0),.7 if actor==a else 0.0),"existing build slider applies to visible outfit")
   for style in 3:
    var hair: Node3D=field.scene.find_child("FieldHair"+str(style),true,false)
-   check(hair!=null and hair.visible==(style==2 if actor==a else style==0),"visible hairstyle matches the saved choice")
+   check(hair!=null and hair.visible==(style==2 if actor==a else false),"hood covers hair without changing the saved choice")
  var body=a.rig.find_child("TravellerBody*",true,false)
  check(is_equal_approx(body.get_blend_shape_value(0),.7) and is_equal_approx(a.model.scale.y,1.08),"sliders deform model within bounds")
  # Inspect imported vertex positions, so a cumulative Blender morph cannot pass.

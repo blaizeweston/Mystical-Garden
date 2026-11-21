@@ -1,15 +1,39 @@
 extends RefCounted
-const LABELS=["Cloak","Tunic","Hair color","Hair style","Skin"]
-const OPTIONS=[["Charcoal","Moss","Umber","Blue gray"],["Moss","Ochre","Slate"],["Chestnut","Black","Silver"],["Tousled","Tied","Long"],["Warm","Deep","Pale"]]
-const DEFAULT=[0,0,0,0,0,0,50,50,50,50,50,50,50]
+## Saved fields 0–12 retain their original meanings; optional mesh choices append.
+const VERSION := 2
+const HOOD := 13
+const SHOULDER_ARMOR := 14
+const BRACERS := 15
+const BELTS := 16
+const OPTION_FIELDS = [0,1,2,3,4,HOOD,SHOULDER_ARMOR,BRACERS,BELTS]
+const LABELS=["Hood / armor tint","Clothing tint","Hair color","Hair style","Skin tone","Hood","Shoulder armor","Bracers","Extra belts"]
+const OPTIONS=[["Muted","Moss","Warm","Cool"],["Muted","Warm","Cool"],["Sandy","Dark brown","Silver"],["Parted","Buns","Long"],["Warm","Deep","Pale"],["Off","On"],["Off","On"],["Off","On"],["Off","On"]]
+const TOOLTIPS=["Tints the textured hood and shoulder armor.","Tints the textured Ranger clothing and leather accessories.","Colors hair and eyebrows.","Your selected hairstyle returns when the hood is removed.","Colors exposed skin.","Covers your hair while worn; your hairstyle choice is retained.","Show or hide the separate shoulder armor.","Show or hide the bracers; the arms remain visible.","Show or hide the two additional waist belts; the clothing's fixed belt remains visible."]
+const DEFAULT=[0,0,0,0,0,0,50,50,50,50,50,50,50,1,1,1,1]
 const SLIDERS=["Height","Build","Shoulders","Face width","Jaw","Nose","Eye size"]
 const MORPHS=["Build","Shoulders","FaceWidth","Jaw","Nose","Eyes"]
+const MESH_OPTIONS={HOOD:"Ranger_Head_Hood",SHOULDER_ARMOR:"Ranger_Acc_Pauldron",BRACERS:"Ranger_Arms_Bracer",BELTS:"Ranger_Body_Belt_"}
+
+static func option_field(option: int) -> int:
+ return OPTION_FIELDS[option] if option >= 0 and option < OPTION_FIELDS.size() else -1
+
 static func normalize(value) -> Array:
  var result=DEFAULT.duplicate()
- if value is Array:
+ if value is Array or value is PackedByteArray:
   for i in mini(value.size(),result.size()):
-   if value[i] is int: result[i]=clampi(value[i],0,[3,2,2,2,2,1][i] if i<6 else 100)
+   var option := OPTION_FIELDS.find(i)
+   var maximum: int = OPTIONS[option].size()-1 if option >= 0 else (1 if i == 5 else 100)
+   if value[i] is int: result[i]=clampi(value[i],0,maximum)
+  # Older characters wore the hood with style zero and all accessories equipped.
+  if value.size() <= HOOD: result[HOOD]=1 if result[3] == 0 else 0
  return result
+
+static func cycle_option(value: Array, option: int) -> Array:
+ var result := normalize(value)
+ var field := option_field(option)
+ if field >= 0: result[field]=(int(result[field])+1) % OPTIONS[option].size()
+ return result
+
 static func apply(actor: Dictionary, values: Array) -> void:
  var look=normalize(values)
  if actor.get("look_key","")==str(look): return
@@ -46,6 +70,6 @@ static func apply(actor: Dictionary, values: Array) -> void:
   if str(mesh.name).begins_with("AdventurerHair"):
    mesh.visible=str(mesh.name).begins_with("AdventurerHair"+str(look[3]))
   if str(mesh.name).begins_with("FieldHair"):
-   mesh.visible=str(mesh.name).begins_with("FieldHair"+str(look[3]))
-  if "Ranger_Head_Hood" in str(mesh.name):
-   mesh.visible=look[3]==0
+   mesh.visible=look[HOOD]==0 and str(mesh.name).begins_with("FieldHair"+str(look[3]))
+  for field: int in MESH_OPTIONS:
+   if MESH_OPTIONS[field] in str(mesh.name): mesh.visible=look[field]==1

@@ -28,7 +28,7 @@ func run() -> void:
 	game.set_physics_process(false)
 
 	var people: Dictionary = {}
-	var appearance := PackedByteArray([3, 2, 1, 2, 1, 1, 100, 0, 37, 83, 75, 41, 98])
+	var appearance := PackedByteArray([3, 2, 1, 2, 1, 1, 100, 0, 37, 83, 75, 41, 98, 0, 1, 0, 1])
 	var p: Dictionary = game.player_snapshot(1, false)[1]
 	for i in Network.MAX_PLAYERS:
 		people[i + 1] = p.duplicate(true)

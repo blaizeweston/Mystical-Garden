@@ -5,7 +5,8 @@ signal requested(command: String, data: Dictionary)
 signal overlay_opened
 
 const Style = preload("res://root_ui.gd")
-const LOOK_NAMES = preload("res://character_appearance.gd").OPTIONS
+const Appearance = preload("res://character_appearance.gd")
+const LOOK_NAMES = Appearance.OPTIONS
 var _panels: Dictionary = {}
 var _features: Dictionary = {}
 var _cinematic: Node
@@ -42,7 +43,7 @@ var _checkpoint_offer_revision := 0
 @onready var _bestiary_menu: PanelContainer = %BestiaryMenu
 @onready var _appearance_menu: PanelContainer = %AppearanceMenu
 @onready var _appearance_button: Button = %AppearanceButton
-@onready var _appearance_options: Array[Button] = [%CloakOption,%TunicOption,%HairColorOption,%HairStyleOption,%SkinOption]
+@onready var _appearance_options: Array[Button] = [%HoodColorOption,%ClothingColorOption,%HairColorOption,%HairStyleOption,%SkinOption,%HoodOption,%ShoulderArmorOption,%BracersOption,%BeltsOption]
 @onready var _player_hud: Control = %PlayerHud
 @onready var _prompt_panel: PanelContainer = %PromptPanel
 @onready var _toast_panel: PanelContainer = %ToastPanel
@@ -379,10 +380,12 @@ func present_menu(state: Dictionary) -> void:
 	_deposit_button.disabled = not state.can_bank
 	_abandon_button.disabled = not state.wild
 	_appearance_button.disabled = state.wild
+	var look := Appearance.normalize(state.look)
 	for i in _appearance_options.size():
 		var values: Array = LOOK_NAMES[i]
-		var choice := clampi(int(state.look[i]) if i < state.look.size() else 0,0,values.size()-1)
-		_appearance_options[i].text = "%s: %s" % [["Cloak","Tunic","Hair color","Hair style","Skin"][i],values[choice]]
+		var choice: int = look[Appearance.option_field(i)]
+		_appearance_options[i].text = "%s: %s" % [Appearance.LABELS[i],values[choice]]
+		_appearance_options[i].tooltip_text = Appearance.TOOLTIPS[i]
 		_appearance_options[i].disabled = state.wild
 
 func fill_bestiary(entries: Array) -> void:

@@ -39,12 +39,14 @@ func portrait(center: Vector2,look: Array,fallen: bool) -> void:
  var skin: Color=[Color("#c79b73"),Color("#754b35"),Color("#e5c6a7")][appearance[4]]
  var hair: Color=[Color("#40281b"),Color("#201d1b"),Color("#a4a193")][appearance[2]]
  var cloak: Color=[Color("#34383c"),Color("#455339"),Color("#594431"),Color("#465766")][appearance[0]]
+ var hood: bool=appearance[preload("res://character_appearance.gd").HOOD]==1
  draw_colored_polygon(PackedVector2Array([center+Vector2(-13,13),center+Vector2(-8,5),center+Vector2(8,5),center+Vector2(13,13)]),cloak.lightened(.15))
- if appearance[3]==2:draw_style_box(make_face(hair),Rect2(center+Vector2(-10,-12),Vector2(20,25)))
+ if hood:draw_style_box(make_face(cloak),Rect2(center+Vector2(-11,-14),Vector2(22,29)))
+ elif appearance[3]==2:draw_style_box(make_face(hair),Rect2(center+Vector2(-10,-12),Vector2(20,25)))
  draw_style_box(make_face(skin),Rect2(center+Vector2(-8,-10),Vector2(16,20)))
- draw_colored_polygon(PackedVector2Array([center+Vector2(-10,-2),center+Vector2(-9,-12),center+Vector2(-4,-15),center+Vector2(3,-13),center+Vector2(9,-12),center+Vector2(10,-1),center+Vector2(5,-7),center+Vector2(2,-4),center+Vector2(-2,-7)]),hair)
+ if not hood:draw_colored_polygon(PackedVector2Array([center+Vector2(-10,-2),center+Vector2(-9,-12),center+Vector2(-4,-15),center+Vector2(3,-13),center+Vector2(9,-12),center+Vector2(10,-1),center+Vector2(5,-7),center+Vector2(2,-4),center+Vector2(-2,-7)]),hair)
  for x in [-3.0,3.0]:draw_circle(center+Vector2(x,0),1.1,Color("#201d19"))
- if appearance[3]==1:draw_circle(center+Vector2(10,-7),3,hair)
+ if not hood and appearance[3]==1:draw_circle(center+Vector2(10,-7),3,hair)
 func make_face(color: Color) -> StyleBoxFlat:
  var key:=color.to_html()
  if not faces.has(key):

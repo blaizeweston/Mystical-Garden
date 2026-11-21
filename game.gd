@@ -188,7 +188,8 @@ const Items=preload("res://item_catalog.gd")
 const InventoryModel=preload("res://inventory_model.gd")
 var wild_item_drops: Array=[]
 var actor_presentation := preload("res://actor_presentation_world.gd").new(self)
-const LOOK_NAMES=preload("res://character_appearance.gd").OPTIONS
+const CharacterAppearance=preload("res://character_appearance.gd")
+const LOOK_NAMES=CharacterAppearance.OPTIONS
 var growth_clock := 0.0
 
 
@@ -631,17 +632,16 @@ func _garden_action(id: int, action: String) -> void:
 			tell(id, "Crossbreed at the Garden altar.")
 		return
 	if action.begins_with("look_"):
-		if not Participation.is_wild(player) and action in ["look_0", "look_1", "look_2", "look_3", "look_4"]:
-			var index := int(action.trim_prefix("look_"))
+		var choice := action.trim_prefix("look_")
+		var index := int(choice) if choice.is_valid_int() else -1
+		if not Participation.is_wild(player) and CharacterAppearance.option_field(index) >= 0 and action == "look_"+str(index):
 			if persistence_session.is_guarded() and id != HOST:
 				run_guarded_action(id,Transactions.Scope.GARDEN,func(effects):
-					var look: Array = player.character.appearance
-					look[index] = (int(look[index]) + 1) % LOOK_NAMES[index].size()
+					player.character.appearance = CharacterAppearance.cycle_option(player.character.appearance,index)
 					save_action_profile(id,effects))
 				return
 			var applied := Transactions.run_gameplay(self, Transactions.Scope.PROFILE, func():
-				var look: Array = player.character.appearance
-				look[index] = (int(look[index]) + 1) % LOOK_NAMES[index].size()
+				player.character.appearance = CharacterAppearance.cycle_option(player.character.appearance,index)
 				if not persistence_session.is_guarded(): publish_character(id)
 				return true, false)
 			if Transactions.committed(applied.persistence): record_character(id)

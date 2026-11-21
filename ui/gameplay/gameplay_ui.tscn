@@ -329,13 +329,13 @@ theme_override_colors/font_color = Color(0.6745098039215687, 0.6666666666666666,
 theme_override_font_sizes/font_size = 13
 text = "Choose your travelling clothes in the Garden."
 
-[node name="CloakOption" type="Button" parent="Surface/Overlay/AppearanceMenu/Looks"]
+[node name="HoodColorOption" type="Button" parent="Surface/Overlay/AppearanceMenu/Looks"]
 unique_name_in_owner = true
 layout_mode = 2
 text = ""
 custom_minimum_size = Vector2(300, 0)
 
-[node name="TunicOption" type="Button" parent="Surface/Overlay/AppearanceMenu/Looks"]
+[node name="ClothingColorOption" type="Button" parent="Surface/Overlay/AppearanceMenu/Looks"]
 unique_name_in_owner = true
 layout_mode = 2
 text = ""
@@ -357,6 +357,26 @@ custom_minimum_size = Vector2(300, 0)
 unique_name_in_owner = true
 layout_mode = 2
 text = ""
+custom_minimum_size = Vector2(300, 0)
+
+[node name="HoodOption" type="Button" parent="Surface/Overlay/AppearanceMenu/Looks"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(300, 0)
+
+[node name="ShoulderArmorOption" type="Button" parent="Surface/Overlay/AppearanceMenu/Looks"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(300, 0)
+
+[node name="BracersOption" type="Button" parent="Surface/Overlay/AppearanceMenu/Looks"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(300, 0)
+
+[node name="BeltsOption" type="Button" parent="Surface/Overlay/AppearanceMenu/Looks"]
+unique_name_in_owner = true
+layout_mode = 2
 custom_minimum_size = Vector2(300, 0)
 
 [node name="CloseAppearance" type="Button" parent="Surface/Overlay/AppearanceMenu/Looks"]

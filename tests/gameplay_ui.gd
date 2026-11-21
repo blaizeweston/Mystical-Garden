@@ -99,7 +99,7 @@ func run() -> void:
 	ui.present_menu({"session_text":"Solo","role":"Solo","can_host":true,"can_join":true,
 		"can_leave":false,"can_save":true,"can_bank":false,"wild":false,"look":[0,0,0,0,0]})
 	check(control(ui,"AppearanceMenu").find_children("*","Button",true,false).any(
-		func(button): return button.text.begins_with("Skin: ")),"appearance retains its existing skin label")
+		func(button): return button.text.begins_with("Skin tone: ")),"appearance uses the corrected shared skin-tone label")
 	ui.present_connection(true,"Checking compatibility · 2 of 4")
 	check(control(ui,"ConnectionPanel").visible and "2 of 4" in control(ui,"ConnectionLabel").text,"connection presentation needs no session access")
 	ui.show_deposit([{"label":"Mysterious seed 1","id":0},{"label":"Trophy","id":1004}])

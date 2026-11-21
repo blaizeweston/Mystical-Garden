@@ -1551,6 +1551,8 @@
     ]
   },
   "suites": {
+    "character_customization": {"kind": "unit", "systems": ["characters", "avatar_motion_view", "gameplay_ui", "world_snapshot", "network_session"], "package": false},
+    "character_customization_coop": {"kind": "pair", "systems": ["characters", "avatar_motion_view", "gameplay_ui", "world_snapshot", "network_session", "connection_flow", "persistence_operations"], "package": false},
       "terrain_actor_collision": {
         "kind": "unit",
         "systems": [

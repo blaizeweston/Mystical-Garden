@@ -21,6 +21,8 @@ func run() -> void:
 	check(Settings.PROTOCOL == 41 and Snapshot.PAYLOAD_BUDGET == 1200,"snapshot transport remains protocol 41 with its existing payload budget")
 	check(Contract.CAPABILITIES.get("terrain_actor_motion") == preload("res://assets/terrain_m02/terrain_actor_motion.gd").VERSION,
 		"shared movement semantics participate in the existing compatibility handshake")
+	check(Contract.CAPABILITIES.get("character_appearance") == preload("res://character_appearance.gd").VERSION,
+		"expanded cosmetic fields require matching appearance semantics without changing protocol 41")
 	var private_edit := methods.duplicate(true)
 	private_edit.append({"name":"private_refactor_example","args":[],"default_args":[],"return":{"type":TYPE_INT}})
 	check(Contract.signature(private_edit) == signature,"a new private method does not change multiplayer compatibility")
