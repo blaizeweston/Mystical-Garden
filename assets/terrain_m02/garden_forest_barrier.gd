@@ -19,9 +19,11 @@ var parts: Array[ArrayMesh] = []
 var bark: StandardMaterial3D
 var buildings: Array = []
 var construction: Array = []
+var _render_tangle := true
 
-func bind(state: Garden) -> void:
+func bind(state: Garden, render_tangle: bool = true) -> void:
 	garden = state
+	_render_tangle = render_tangle
 	construction = []
 	buildings = [Shape.disk("heart_trunk", "trunk", Vector2.ZERO, 1.0)]
 	for id: String in state.landmarks:
@@ -29,7 +31,7 @@ func bind(state: Garden) -> void:
 			buildings.append(state.landmarks[id])
 	visible_outline = state.outline
 	target_outline = visible_outline
-	if parts.is_empty():
+	if _render_tangle and parts.is_empty():
 		bark = StandardMaterial3D.new()
 		bark.vertex_color_use_as_albedo = true
 		bark.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -63,7 +65,7 @@ func begin_shape(from: PackedVector2Array, to: PackedVector2Array) -> void:
 		var span := maxf(starts[i].distance_to(starts[next]), finishes[i].distance_to(finishes[next]))
 		var clumps: Array = sections[i].clumps
 		var needed := maxi(1, ceili(span / CLUMP_SPACING))
-		while clumps.size() < needed:
+		while _render_tangle and clumps.size() < needed:
 			var mesh := MeshInstance3D.new()
 			mesh.mesh = parts[(i + clumps.size() * 3) % parts.size()]
 			mesh.material_override = bark
@@ -88,9 +90,6 @@ func update_shape(amount: float) -> void:
 		var b := outline[(i + 1) % outline.size()]
 		if sections[i].a.is_equal_approx(a) and sections[i].b.is_equal_approx(b):
 			continue
-		var tangent := (b - a).normalized()
-		var outside := Vector2(tangent.y, -tangent.x)
-		var width := a.distance_to(b)
 		var section := sections[i]
 		var count: int = section.count
 		for j in section.clumps.size():
@@ -98,14 +97,30 @@ func update_shape(amount: float) -> void:
 			mesh.visible = j < count
 			if not mesh.visible:
 				continue
-			var at := a.lerp(b, (j + 0.5) / count)
-			var gap := width / count
-			var stagger := 0.08 * sin(i * 2.39 + j * 1.36)
-			at += outside * (0.36 + stagger + 0.54 * (1.0 - minf(1.0, gap / CLUMP_SPACING)) * float(j % 2))
-			var yaw := atan2(tangent.y, -tangent.x) + 0.09 * sin(i * 1.7 + j * 2.4)
-			mesh.transform = Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, 0.0, at.y))
+			mesh.transform = _clump_pose(a, b, i, j, count)
 		sections[i].a = a
 		sections[i].b = b
+
+func thicket_centres() -> PackedVector2Array:
+	# Construction consumes the existing forest clearances as detached geometry,
+	# even when the active Garden does not instantiate the old visual tangle.
+	var result := PackedVector2Array()
+	for i in sections.size():
+		var section := sections[i]
+		for j in section.count:
+			var pose := _clump_pose(section.a, section.b, i, j, section.count)
+			result.append(Vector2(pose.origin.x, pose.origin.z))
+	return result
+
+func _clump_pose(a: Vector2, b: Vector2, sector: int, index: int, count: int) -> Transform3D:
+	var tangent := (b - a).normalized()
+	var outside := Vector2(tangent.y, -tangent.x)
+	var gap := a.distance_to(b) / count
+	var at := a.lerp(b, (index + 0.5) / count)
+	var stagger := 0.08 * sin(sector * 2.39 + index * 1.36)
+	at += outside * (0.36 + stagger + 0.54 * (1.0 - minf(1.0, gap / CLUMP_SPACING)) * float(index % 2))
+	var yaw := atan2(tangent.y, -tangent.x) + 0.09 * sin(sector * 1.7 + index * 2.4)
+	return Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, 0.0, at.y))
 
 func _radial_vertices(outline: PackedVector2Array) -> PackedVector2Array:
 	var points := PackedVector2Array()

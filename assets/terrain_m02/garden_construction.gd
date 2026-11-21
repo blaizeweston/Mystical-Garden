@@ -176,11 +176,8 @@ func _grid_key(at: Vector2) -> Vector2i:
 func _build_grid() -> void:
 	_grid.clear()
 	_thickets.clear()
-	for section: Dictionary in forest.sections:
-		for i in section.count:
-			var placement: Transform3D = section.clumps[i].transform
-			var at := Vector2(placement.origin.x, placement.origin.z)
-			_thickets.append(Shape.disk("forest", "thicket", at, THICKET_RADIUS))
+	for at in forest.thicket_centres():
+		_thickets.append(Shape.disk("forest", "thicket", at, THICKET_RADIUS))
 	var bounds := Rect2(Vector2.ZERO, Vector2.ZERO)
 	for point in forest.visible_outline:
 		bounds = bounds.expand(point)

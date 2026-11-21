@@ -83,8 +83,6 @@ func configure(world: Node, presentation: Node3D) -> void:
 	stage = presentation
 	stage.experimental_garden = self
 	stage.visual_field = preload("res://battlefield.gd").new()
-	for node in [stage.heart_tree,stage.heart_seed]:
-		node.hide()
 	game.progress.player_placed_beds = true
 	# The shared stash stores canonical components. Do not offer an alias of the same stack.
 	for id: String in funds.items.keys():
@@ -122,7 +120,7 @@ func configure(world: Node, presentation: Node3D) -> void:
 	state = Garden.new(cells, layout, Spacing, Seed, Radius, protections)
 	barrier = Forest.new()
 	add_child(barrier)
-	barrier.bind(state)
+	barrier.bind(state, false) # Movement boundary only; complete trees present the edge.
 	construction = Build.new(barrier)
 	adopt_recorded_beds()
 	var profile := Art.profile(0)
@@ -142,8 +140,12 @@ func configure(world: Node, presentation: Node3D) -> void:
 	base_rim = state.enclosure_support()
 	_update_rim()
 	heart = Heart.new()
+	heart.sculpt_only = true
 	add_child(heart)
+	stage.heart_tree = heart
+	stage.heart_size = 1.0 # Imported sculpt uses its authored scale during growth cues.
 	heart.set_sculpt(true)
+	stage.marker(Vector3.UP * 2.2, "HEART", heart)
 	roots = Node3D.new()
 	add_child(roots)
 	growth_preview = MeshInstance3D.new()
@@ -259,9 +261,7 @@ func _update_rim(progress: float = 1.0) -> void:
 	var perimeter := ImageTexture.create_from_image(image)
 	material.set_shader_parameter("garden_perimeter", perimeter)
 	material.set_shader_parameter("garden_reveal", progress)
-	forest.set_boundary(perimeter, image, progress)
-	if is_equal_approx(progress, 1.0):
-		forest.set_clearing(barrier.visible_outline)
+	forest.set_boundary(image, progress)
 	_refresh_revealed_props()
 
 func available_here() -> bool:
@@ -403,9 +403,7 @@ func expand(sector: int) -> bool:
 		forest.set_reveal(t)
 		barrier.update_shape(t)
 		_refresh_revealed_props(), 0.0, 1.0, 2.45)
-	reveal.finished.connect(func():
-		forest.set_clearing(barrier.visible_outline)
-		reveal = null)
+	reveal.finished.connect(func(): reveal = null)
 	return true
 
 func snapshot() -> Dictionary:

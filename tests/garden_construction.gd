@@ -4,6 +4,7 @@ const P = preload("res://assets/terrain_m02/terrain_preview.tscn")
 const C = preload("res://assets/terrain_m02/garden_construction.gd")
 const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
+const Forest = preload("res://assets/terrain_m02/garden_forest_barrier.gd")
 
 var errors := 0
 var elapsed := PackedInt64Array()
@@ -27,6 +28,17 @@ func run() -> void:
 	build.toggle.button_pressed = true
 	check(build.enabled and build.panel.visible, "Build opens an isolated construction toolbar")
 	var garden = view.state
+	var query_boundary := Forest.new()
+	root.add_child(query_boundary)
+	query_boundary.bind(garden, false)
+	var rendered_centres := PackedVector2Array()
+	for section: Dictionary in view.barrier.sections:
+		for i in section.count:
+			var at: Vector3 = section.clumps[i].position
+			rendered_centres.append(Vector2(at.x, at.z))
+	check(query_boundary.get_child_count() == 0 and query_boundary.parts.is_empty(), "query-only forest creates no wall meshes")
+	check(query_boundary.thicket_centres() == rendered_centres, "construction clearances exactly match the former rendered positions")
+	query_boundary.free()
 	var start_positions: Dictionary = garden.landmarks.duplicate(true)
 	var bed := Vector2(2.34, -4.58)
 	var heading := 0.37

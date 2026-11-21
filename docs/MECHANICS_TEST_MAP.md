@@ -6,6 +6,7 @@ Edges describe gameplay/data relationships. Selection uses explicit suite covera
 
 ```mermaid
 flowchart LR
+  garden_heart_view["Imported-only Garden Heart<br/> authored stages and research growth"]
   garden_canopy["Foliage-only Garden canopy<br/> spatial visibility and rounded reclamation joins"]
   combat_effects["Owned Core/native effect timelines<br/> lifecycle<br/> bounded execution and rollback"]
   actor_presentation["Detached avatar<br/> spectator and dropped-item presentation"]
@@ -382,6 +383,7 @@ flowchart LR
 
 | System | Source files | Covering suites |
 |---|---|---|
+| garden_heart_view | `assets/terrain_m02/terrain_heart_preview.gd`, `assets/terrain_m02/terrain_heart_preview.gd.uid` | `modern_terrain_cutover`, `garden_cinematic_view`, `experimental_terrain_coop`, `experimental_terrain`, `garden_expansion`, `wilds_massing`, `wilds_biomes`, `terrain_continuity`, `four_players_coop`, `garden_growth`, `garden_growth_coop`, `heart_growth_visual`, `heart_progression` |
 | garden_canopy | `garden_canopy.gd`, `garden_canopy.gd.uid`, `garden_canopy_catalog.gd`, `garden_canopy_catalog.gd.uid`, `garden_boundary.gd`, `garden_boundary.gd.uid` | `garden_canopy`, `modern_terrain_cutover`, `experimental_terrain_coop`, `experimental_terrain`, `garden_construction`, `garden_expansion`, `four_players_coop` |
 | combat_effects | `combat_effect_timeline.gd`, `combat_effect_timeline.gd.uid`, `native_effects_world.gd`, `native_effects_world.gd.uid` | `ce04_void`, `ce04_void_coop`, `ce04_void_party`, `ce04_spirit`, `ce04_spirit_coop`, `ce04_spirit_party`, `ce04_storm`, `ce04_storm_coop`, `ce04_storm_party`, `ce03_vital`, `ce03_vital_coop`, `ce03_vital_party`, `ce03_wood`, `ce03_wood_coop`, `ce03_wood_party`, `ce03_water`, `ce03_water_coop`, `ce03_water_party`, `combat_effects` |
 | actor_presentation | `actor_presentation_world.gd`, `actor_presentation_world.gd.uid`, `spectator_view.gd`, `spectator_view.gd.uid`, `inventory_drop_visuals.gd`, `inventory_drop_visuals.gd.uid` | `actor_presentation` |
@@ -894,10 +896,20 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::encounter_health` | preview_guest_enemy_hp | combat_balance_preview |
 | `game.gd::restore_class_loadout` | ar07_vitals_1 | player_vitals |
 | `game.gd::_init` | preview_guest_storage | combat_balance_preview |
+| `assets/terrain_m02/garden_construction.gd` | forest_query_thickets | garden_canopy |
+| `assets/terrain_m02/garden_forest_barrier.gd` | query_only_thickets | garden_canopy |
+| `assets/terrain_m02/garden_forest_barrier.gd` | query_only_state | garden_canopy |
+| `assets/terrain_m02/garden_forest_barrier.gd` | query_only_bind | garden_canopy |
+| `assets/terrain_m02/garden_forest_barrier.gd` | query_only_assets | garden_canopy |
+| `assets/terrain_m02/garden_forest_barrier.gd` | query_only_begin | garden_canopy |
+| `assets/terrain_m02/garden_forest_barrier.gd` | query_only_update | garden_canopy |
 | `assets/terrain_m02/garden_expansion.gd` | rounded_join_import | garden_canopy |
 | `assets/terrain_m02/garden_expansion.gd` | rounded_join_proposal | garden_canopy |
 | `affinity_cards.gd` | ar08_lifecycle_1 | player_lifecycle |
 | `affinity_cards.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | retire_hidden_heart | garden_heart_view |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | forest_query_boundary | garden_canopy |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | imported_heart_binding | garden_heart_view |
 | `assets/terrain_m02/experimental/experiment_garden.gd` | canopy_import | garden_canopy |
 | `assets/terrain_m02/experimental/experiment_garden.gd` | canopy_view_fields | garden_canopy |
 | `assets/terrain_m02/experimental/experiment_garden.gd` | canopy_configuration | garden_canopy |
@@ -1113,6 +1125,9 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `garden_visuals.gd` | accents_growth | garden_cinematics |
 | `garden_visuals.gd` | accents_adapter | garden_zones, garden_life |
 | `garden_visuals.gd` | observation_anchors | garden_observations |
+| `stage.gd` | imported_heart_setup | garden_heart_view |
+| `stage.gd` | imported_heart_visibility | garden_heart_view |
+| `stage.gd` | imported_heart_growth | garden_heart_view, heart_growth_visual |
 | `stage.gd` | experimental_seed_rewards_1 | hex_terrain, loot, terrain |
 | `stage.gd` | experimental_terrain_9 | hex_terrain, terrain, garden, persistence_operations |
 | `stage.gd` | experimental_terrain_11 | hex_terrain, terrain, garden, persistence_operations |

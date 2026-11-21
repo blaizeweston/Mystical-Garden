@@ -14,24 +14,37 @@ const LEAF_MAPS := [
 	preload("res://assets/garden/canopy/birch_leaves.png"),
 	preload("res://assets/garden/canopy/bush_leaves.png"),
 ]
+const TREES := [
+	preload("res://assets/garden/canopy/maple_tree_01.glb"),
+	preload("res://assets/garden/canopy/maple_tree_02.glb"),
+	preload("res://assets/garden/canopy/birch_tree_01.glb"),
+]
+const BARK_MAPS := [
+	preload("res://assets/garden/canopy/maple_bark.jpg"),
+	preload("res://assets/garden/canopy/maple_bark.jpg"),
+	preload("res://assets/garden/canopy/birch_bark.jpg"),
+]
 const LEAF_SHADOW := Color("#293b2b")
 const LEAF_MIDTONE := Color("#344831")
 const LEAF_HIGHLIGHT := Color("#465b3c")
-const UNDERGROWTH := Color("#263528")
-const BARK_SHADOW := Color("#312b20")
+const BARK_TINT := Color("#80725a")
 
 const CHUNK_SIZE_METRES := 10.0
 const EXTERIOR_RADIUS_METRES := 65.0
 const PATCH_SPACING_METRES := 3.6
 const PATCH_WIDTH_METRES := 6.4
-const PATCH_THICKNESS_METRES := 1.6
-const CANOPY_HEIGHT_METRES := 2.6
-const FOREGROUND_HEIGHT_RATIO := 0.64
-const HEIGHT_VARIATION_METRES := 0.23
-const LEAF_LIFT_METRES := 0.1
-const EDGE_INSET_METRES := 0.13
-const LEAF_OVERHANG_METRES := 0.65
-const EDGE_CROWN_WIDTH_METRES := 3.6
-const EDGE_CROWN_OFFSET_METRES := 0.8
+const PATCH_THICKNESS_METRES := 2.5
+const CANOPY_HEIGHT_METRES := 3.1
+const LOWER_LAYER_DROP_METRES := 1.0
+const LOWER_LAYER_BRIGHTNESS := 0.66
+const FOREGROUND_HEIGHT_RATIO := 0.72
+const HEIGHT_VARIATION_METRES := 0.35
+const CLEARING_CROWN_SETBACK_RATIO := 0.44
+const RECLAIM_FADE_METRES := 1.1
+const TREE_HEIGHT_METRES := 4.4
+const TREE_HEIGHT_VARIATION_METRES := 0.6
+const TREE_WIDTH_METRES := 4.8
+const TREE_EDGE_OFFSET_METRES := 1.45
+const TREE_ROW_SPACING_METRES := 2.2
 const DISTANT_DETAIL_START_METRES := 30.0
 const LEAF_ALPHA_CUTOFF := 0.5

@@ -692,6 +692,38 @@
     }
   },
   "file_regions": {
+    "assets/terrain_m02/garden_construction.gd": {
+      "forest_query_thickets": {
+        "match": "\tfor at in forest.thicket_centres():\n\t\t_thickets.append(Shape.disk(\"forest\", \"thicket\", at, THICKET_RADIUS))\n",
+        "baseline": "\tfor section: Dictionary in forest.sections:\n\t\tfor i in section.count:\n\t\t\tvar placement: Transform3D = section.clumps[i].transform\n\t\t\tvar at := Vector2(placement.origin.x, placement.origin.z)\n\t\t\t_thickets.append(Shape.disk(\"forest\", \"thicket\", at, THICKET_RADIUS))\n"
+      }
+    },
+    "assets/terrain_m02/garden_forest_barrier.gd": {
+      "query_only_thickets": {
+        "match": "func thicket_centres() -> PackedVector2Array:\n\t# Construction consumes the existing forest clearances as detached geometry,\n\t# even when the active Garden does not instantiate the old visual tangle.\n\tvar result := PackedVector2Array()\n\tfor i in sections.size():\n\t\tvar section := sections[i]\n\t\tfor j in section.count:\n\t\t\tvar pose := _clump_pose(section.a, section.b, i, j, section.count)\n\t\t\tresult.append(Vector2(pose.origin.x, pose.origin.z))\n\treturn result\n\nfunc _clump_pose(a: Vector2, b: Vector2, sector: int, index: int, count: int) -> Transform3D:\n\tvar tangent := (b - a).normalized()\n\tvar outside := Vector2(tangent.y, -tangent.x)\n\tvar gap := a.distance_to(b) / count\n\tvar at := a.lerp(b, (index + 0.5) / count)\n\tvar stagger := 0.08 * sin(sector * 2.39 + index * 1.36)\n\tat += outside * (0.36 + stagger + 0.54 * (1.0 - minf(1.0, gap / CLUMP_SPACING)) * float(index % 2))\n\tvar yaw := atan2(tangent.y, -tangent.x) + 0.09 * sin(sector * 1.7 + index * 2.4)\n\treturn Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, 0.0, at.y))\n\n",
+        "baseline": ""
+      },
+      "query_only_state": {
+        "match": "var _render_tangle := true\n",
+        "baseline": ""
+      },
+      "query_only_bind": {
+        "match": "func bind(state: Garden, render_tangle: bool = true) -> void:\n\tgarden = state\n\t_render_tangle = render_tangle\n",
+        "baseline": "func bind(state: Garden) -> void:\n\tgarden = state\n"
+      },
+      "query_only_assets": {
+        "match": "\tif _render_tangle and parts.is_empty():\n",
+        "baseline": "\tif parts.is_empty():\n"
+      },
+      "query_only_begin": {
+        "match": "\t\twhile _render_tangle and clumps.size() < needed:\n",
+        "baseline": "\t\twhile clumps.size() < needed:\n"
+      },
+      "query_only_update": {
+        "match": "func update_shape(amount: float) -> void:\n\t# Longer spans spread overlapping clumps of fixed size. Unchanged spans\n\t# retain their transforms and the collision outline remains continuous.\n\tif is_equal_approx(amount, progress):\n\t\treturn\n\tprogress = amount\n\tvar outline := PackedVector2Array()\n\tfor i in starts.size():\n\t\toutline.append(starts[i].lerp(finishes[i], amount))\n\tvisible_outline = outline\n\tfor i in outline.size():\n\t\tvar a := outline[i]\n\t\tvar b := outline[(i + 1) % outline.size()]\n\t\tif sections[i].a.is_equal_approx(a) and sections[i].b.is_equal_approx(b):\n\t\t\tcontinue\n\t\tvar section := sections[i]\n\t\tvar count: int = section.count\n\t\tfor j in section.clumps.size():\n\t\t\tvar mesh: MeshInstance3D = section.clumps[j]\n\t\t\tmesh.visible = j < count\n\t\t\tif not mesh.visible:\n\t\t\t\tcontinue\n\t\t\tmesh.transform = _clump_pose(a, b, i, j, count)\n\t\tsections[i].a = a\n\t\tsections[i].b = b\n\n",
+        "baseline": "func update_shape(amount: float) -> void:\n\t# Longer spans spread overlapping clumps of fixed size. Unchanged spans\n\t# retain their transforms and the collision outline remains continuous.\n\tif is_equal_approx(amount, progress):\n\t\treturn\n\tprogress = amount\n\tvar outline := PackedVector2Array()\n\tfor i in starts.size():\n\t\toutline.append(starts[i].lerp(finishes[i], amount))\n\tvisible_outline = outline\n\tfor i in outline.size():\n\t\tvar a := outline[i]\n\t\tvar b := outline[(i + 1) % outline.size()]\n\t\tif sections[i].a.is_equal_approx(a) and sections[i].b.is_equal_approx(b):\n\t\t\tcontinue\n\t\tvar tangent := (b - a).normalized()\n\t\tvar outside := Vector2(tangent.y, -tangent.x)\n\t\tvar width := a.distance_to(b)\n\t\tvar section := sections[i]\n\t\tvar count: int = section.count\n\t\tfor j in section.clumps.size():\n\t\t\tvar mesh: MeshInstance3D = section.clumps[j]\n\t\t\tmesh.visible = j < count\n\t\t\tif not mesh.visible:\n\t\t\t\tcontinue\n\t\t\tvar at := a.lerp(b, (j + 0.5) / count)\n\t\t\tvar gap := width / count\n\t\t\tvar stagger := 0.08 * sin(i * 2.39 + j * 1.36)\n\t\t\tat += outside * (0.36 + stagger + 0.54 * (1.0 - minf(1.0, gap / CLUMP_SPACING)) * float(j % 2))\n\t\t\tvar yaw := atan2(tangent.y, -tangent.x) + 0.09 * sin(i * 1.7 + j * 2.4)\n\t\t\tmesh.transform = Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, 0.0, at.y))\n\t\tsections[i].a = a\n\t\tsections[i].b = b\n\n"
+      }
+    },
     "assets/terrain_m02/garden_expansion.gd": {
       "rounded_join_import": {
         "match": "const Boundary = preload(\"res://garden_boundary.gd\")\n",
@@ -713,6 +745,18 @@
       }
     },
     "assets/terrain_m02/experimental/experiment_garden.gd": {
+      "retire_hidden_heart": {
+        "match": "\tstage.visual_field = preload(\"res://battlefield.gd\").new()\n",
+        "baseline": "\tstage.visual_field = preload(\"res://battlefield.gd\").new()\n\tfor node in [stage.heart_tree,stage.heart_seed]:\n\t\tnode.hide()\n"
+      },
+      "forest_query_boundary": {
+        "match": "\tbarrier.bind(state, false) # Movement boundary only; complete trees present the edge.\n",
+        "baseline": "\tbarrier.bind(state)\n"
+      },
+      "imported_heart_binding": {
+        "match": "\theart = Heart.new()\n\theart.sculpt_only = true\n\tadd_child(heart)\n\tstage.heart_tree = heart\n\tstage.heart_size = 1.0 # Imported sculpt uses its authored scale during growth cues.\n\theart.set_sculpt(true)\n\tstage.marker(Vector3.UP * 2.2, \"HEART\", heart)\n",
+        "baseline": "\theart = Heart.new()\n\tadd_child(heart)\n\theart.set_sculpt(true)\n"
+      },
       "canopy_import": {
         "match": "const Canopy = preload(\"res://garden_canopy.gd\")\n",
         "baseline": "const EnclosureView = preload(\"res://assets/terrain_m02/terrain_enclosure_view.gd\")\n"
@@ -730,11 +774,11 @@
         "baseline": "\tbase_rim = state.enclosure_support()\n\t_update_rim(base_rim)\n"
       },
       "canopy_reveal": {
-        "match": "func _refresh_revealed_props() -> void:\n\t# Covered scenery keeps its gameplay footprint in state.layout/occupied.\n\t# Only its presentation is filtered; new props appear as expansion exposes them.\n\tvar visible_layout: Dictionary = state.layout.duplicate()\n\tvar outline: PackedVector2Array = barrier.visible_outline\n\tvisible_layout.plants = state.layout.plants.filter(func(plant): return Geometry2D.is_point_in_polygon(plant.center, outline))\n\tvisible_layout.rocks = state.layout.rocks.filter(func(rock): return Geometry2D.is_point_in_polygon(rock.center, outline))\n\tvar identities: Array = visible_layout.plants.map(func(plant): return plant.id)\n\tidentities.append_array(visible_layout.rocks.map(func(rock): return rock.id))\n\tif identities == _shown_props:\n\t\treturn\n\t_shown_props = identities\n\t_features.rebuild(visible_layout, Art.profile(0), 0)\n\n\nfunc _update_rim(progress: float = 1.0) -> void:\n\tvar packed := PackedFloat32Array()\n\tfor i in barrier.starts.size():\n\t\tpacked.append_array([barrier.starts[i].length(), barrier.finishes[i].length(), base_rim[i], 0.0])\n\tvar image := Image.create_from_data(barrier.starts.size(), 1, false, Image.FORMAT_RGBAF, packed.to_byte_array())\n\tvar perimeter := ImageTexture.create_from_image(image)\n\tmaterial.set_shader_parameter(\"garden_perimeter\", perimeter)\n\tmaterial.set_shader_parameter(\"garden_reveal\", progress)\n\tforest.set_boundary(perimeter, image, progress)\n\tif is_equal_approx(progress, 1.0):\n\t\tforest.set_clearing(barrier.visible_outline)\n\t_refresh_revealed_props()\n\n",
+        "match": "func _refresh_revealed_props() -> void:\n\t# Covered scenery keeps its gameplay footprint in state.layout/occupied.\n\t# Only its presentation is filtered; new props appear as expansion exposes them.\n\tvar visible_layout: Dictionary = state.layout.duplicate()\n\tvar outline: PackedVector2Array = barrier.visible_outline\n\tvisible_layout.plants = state.layout.plants.filter(func(plant): return Geometry2D.is_point_in_polygon(plant.center, outline))\n\tvisible_layout.rocks = state.layout.rocks.filter(func(rock): return Geometry2D.is_point_in_polygon(rock.center, outline))\n\tvar identities: Array = visible_layout.plants.map(func(plant): return plant.id)\n\tidentities.append_array(visible_layout.rocks.map(func(rock): return rock.id))\n\tif identities == _shown_props:\n\t\treturn\n\t_shown_props = identities\n\t_features.rebuild(visible_layout, Art.profile(0), 0)\n\n\nfunc _update_rim(progress: float = 1.0) -> void:\n\tvar packed := PackedFloat32Array()\n\tfor i in barrier.starts.size():\n\t\tpacked.append_array([barrier.starts[i].length(), barrier.finishes[i].length(), base_rim[i], 0.0])\n\tvar image := Image.create_from_data(barrier.starts.size(), 1, false, Image.FORMAT_RGBAF, packed.to_byte_array())\n\tvar perimeter := ImageTexture.create_from_image(image)\n\tmaterial.set_shader_parameter(\"garden_perimeter\", perimeter)\n\tmaterial.set_shader_parameter(\"garden_reveal\", progress)\n\tforest.set_boundary(image, progress)\n\t_refresh_revealed_props()\n\n",
         "baseline": "func _update_rim(previous: PackedFloat32Array, progress: float = 1.0) -> void:\n\tvar packed := PackedFloat32Array()\n\tfor i in barrier.starts.size():\n\t\tpacked.append_array([barrier.starts[i].length(), barrier.finishes[i].length(), base_rim[i], 0.0])\n\tvar image := Image.create_from_data(barrier.starts.size(), 1, false, Image.FORMAT_RGBAF, packed.to_byte_array())\n\tmaterial.set_shader_parameter(\"garden_perimeter\", ImageTexture.create_from_image(image))\n\tmaterial.set_shader_parameter(\"garden_reveal\", progress)\n\tforest.position_frontier(previous, state.enclosure_support(), progress)\n\n"
       },
       "canopy_expand": {
-        "match": "func expand(sector: int) -> bool:\n\tif not available_here() or clearing_tier() <= 0 or not plans.has(sector):\n\t\treturn false\n\tvar plan: Dictionary = plans[sector]\n\tvar cost := funds.expansion_cost(plan, state.reclaimed_cells, clearing_tier())\n\tvar result := Tx.run_gameplay(game, Tx.Scope.GARDEN, func() -> bool:\n\t\treturn state.proposal(sector) == plan and funds.energy >= cost)\n\tif not (result.completed or Tx.committed(result.persistence)) or result.value != true:\n\t\treturn false\n\tvar outline := state.outline\n\tif not state.apply(plan):\n\t\treturn false\n\tlayout_revision += 1\n\tfunds.energy -= cost\n\tbarrier.begin_shape(outline, state.outline)\n\tbarrier.update_shape(0.0)\n\t_update_rim(0.0)\n\tvar root := MeshInstance3D.new()\n\tvar root_plan := Roots.plan(state.roots[-1], heart.stage, state, network)\n\tnetwork.append(root_plan)\n\troot.mesh = Roots.mesh(root_plan)\n\tvar shader := ShaderMaterial.new()\n\tshader.shader = Bark\n\tshader.set_shader_parameter(\"growing_root\", true)\n\tshader.set_shader_parameter(\"root_progress\", 0.0)\n\troot.material_override = shader\n\troots.add_child(root)\n\tconstruction.set_roots(network)\n\tplans.clear()\n\treveal = create_tween()\n\treveal.tween_method(func(t: float):\n\t\tshader.set_shader_parameter(\"root_progress\", t)\n\t\treclaim_glow = sin(t * PI)\n\t\theart.reclaim_light(study_glow + reclaim_glow)\n\t\tmaterial.set_shader_parameter(\"garden_reveal\", t)\n\t\tforest.set_reveal(t)\n\t\tbarrier.update_shape(t)\n\t\t_refresh_revealed_props(), 0.0, 1.0, 2.45)\n\treveal.finished.connect(func():\n\t\tforest.set_clearing(barrier.visible_outline)\n\t\treveal = null)\n\treturn true\n\n",
+        "match": "func expand(sector: int) -> bool:\n\tif not available_here() or clearing_tier() <= 0 or not plans.has(sector):\n\t\treturn false\n\tvar plan: Dictionary = plans[sector]\n\tvar cost := funds.expansion_cost(plan, state.reclaimed_cells, clearing_tier())\n\tvar result := Tx.run_gameplay(game, Tx.Scope.GARDEN, func() -> bool:\n\t\treturn state.proposal(sector) == plan and funds.energy >= cost)\n\tif not (result.completed or Tx.committed(result.persistence)) or result.value != true:\n\t\treturn false\n\tvar outline := state.outline\n\tif not state.apply(plan):\n\t\treturn false\n\tlayout_revision += 1\n\tfunds.energy -= cost\n\tbarrier.begin_shape(outline, state.outline)\n\tbarrier.update_shape(0.0)\n\t_update_rim(0.0)\n\tvar root := MeshInstance3D.new()\n\tvar root_plan := Roots.plan(state.roots[-1], heart.stage, state, network)\n\tnetwork.append(root_plan)\n\troot.mesh = Roots.mesh(root_plan)\n\tvar shader := ShaderMaterial.new()\n\tshader.shader = Bark\n\tshader.set_shader_parameter(\"growing_root\", true)\n\tshader.set_shader_parameter(\"root_progress\", 0.0)\n\troot.material_override = shader\n\troots.add_child(root)\n\tconstruction.set_roots(network)\n\tplans.clear()\n\treveal = create_tween()\n\treveal.tween_method(func(t: float):\n\t\tshader.set_shader_parameter(\"root_progress\", t)\n\t\treclaim_glow = sin(t * PI)\n\t\theart.reclaim_light(study_glow + reclaim_glow)\n\t\tmaterial.set_shader_parameter(\"garden_reveal\", t)\n\t\tforest.set_reveal(t)\n\t\tbarrier.update_shape(t)\n\t\t_refresh_revealed_props(), 0.0, 1.0, 2.45)\n\treveal.finished.connect(func(): reveal = null)\n\treturn true\n\n",
         "baseline": "func expand(sector: int) -> bool:\n\tif not available_here() or clearing_tier() <= 0 or not plans.has(sector):\n\t\treturn false\n\tvar plan: Dictionary = plans[sector]\n\tvar cost := funds.expansion_cost(plan, state.reclaimed_cells, clearing_tier())\n\tvar result := Tx.run_gameplay(game, Tx.Scope.GARDEN, func() -> bool:\n\t\treturn state.proposal(sector) == plan and funds.energy >= cost)\n\tif not (result.completed or Tx.committed(result.persistence)) or result.value != true:\n\t\treturn false\n\tvar previous := state.enclosure_support()\n\tvar outline := state.outline\n\tif not state.apply(plan):\n\t\treturn false\n\tlayout_revision += 1\n\tfunds.energy -= cost\n\tbarrier.begin_shape(outline, state.outline)\n\tbarrier.update_shape(0.0)\n\t_update_rim(previous, 0.0)\n\tvar root := MeshInstance3D.new()\n\tvar root_plan := Roots.plan(state.roots[-1], heart.stage, state, network)\n\tnetwork.append(root_plan)\n\troot.mesh = Roots.mesh(root_plan)\n\tvar shader := ShaderMaterial.new()\n\tshader.shader = Bark\n\tshader.set_shader_parameter(\"growing_root\", true)\n\tshader.set_shader_parameter(\"root_progress\", 0.0)\n\troot.material_override = shader\n\troots.add_child(root)\n\tconstruction.set_roots(network)\n\tplans.clear()\n\tvar current := state.enclosure_support()\n\treveal = create_tween()\n\treveal.tween_method(func(t: float):\n\t\tshader.set_shader_parameter(\"root_progress\", t)\n\t\treclaim_glow = sin(t * PI)\n\t\theart.reclaim_light(study_glow + reclaim_glow)\n\t\tmaterial.set_shader_parameter(\"garden_reveal\", t)\n\t\tforest.position_frontier(previous, current, t)\n\t\tbarrier.update_shape(t), 0.0, 1.0, 2.45)\n\treveal.finished.connect(func(): reveal = null)\n\treturn true\n\n"
       },
       "canopy_apply_layout": {
@@ -1644,11 +1688,18 @@
       }
     },
     "stage.gd": {
-
-
-
-
-
+      "imported_heart_setup": {
+        "match": "\t# The generated Garden installs the imported Heart. Do not construct a second\n\t# organic seed/tree underneath it; heart_visuals.build remains boss-only art.\n",
+        "baseline": "\theart_tree = build_heart_growth()\n\theart_seed = sphere(heart + Vector3.UP * 0.3, 0.31, Color(\"#8ff5ad\"))\n"
+      },
+      "imported_heart_visibility": {
+        "match": "\tif is_instance_valid(heart_tree):\n\t\theart_tree.visible = campaign[5] == Campaign.UNFINISHED\n",
+        "baseline": "\theart_tree.visible = campaign[5] == Campaign.UNFINISHED\n\tvar pulse := 1.0 + 0.023 * sin(now * 0.0018) + 0.008 * sin(now * 0.0047 + 0.8)\n\theart_tree.scale = Vector3(heart_size * pulse, heart_size * (2.0 - pulse), heart_size * pulse)\n\tif heart_core != null:\n\t\t(heart_core.material_override as StandardMaterial3D).emission_energy_multiplier = 0.04 + heart_phase * 0.02 + (pulse - 0.98) * 0.6\n\theart_seed.visible = campaign[5] == Campaign.SEED\n"
+      },
+      "imported_heart_growth": {
+        "match": "\t\theart_phase = clampi(int(get_meta(\"garden_growth_phase\", state.get(\"phase\", 0))), 0, 5)\n\t\texperimental_garden.show_heart_stage(heart_phase)\n\t\tpreload(\"res://heart_growth_visuals.gd\").sync(self,state)\n\t\treturn\n",
+        "baseline": "\t\theart_phase = clampi(int(state.get(\"phase\", 0)), 0, 5)\n\t\texperimental_garden.show_heart_stage(heart_phase)\n\t\treturn\n"
+      },
       "experimental_seed_rewards_1": {
         "match": "\tseed_cache.visible = visual_field.has_seed_cache() and site != Campaign.HEART\n",
         "baseline": "\tseed_cache.visible = visual_field.procedural and site != Campaign.HEART\n"
@@ -1689,8 +1740,10 @@
         "match": "\tvar direction: Variant=animation.get(\"direction\")\n\tif animation.get(\"aim_live\",false) and player.has(\"aim_direction\"):\n\t\tdirection=player.aim_direction\n\tif active and direction is Vector3:\n\t\tyaw=atan2(direction.x,direction.z)\n",
         "baseline": "\tif active and animation.get(\"direction\") is Vector3:\n\t\tyaw=atan2(animation.direction.x,animation.direction.z)\n"
       },
-
-      "gait_facing": {"match": "\tif travel.length()>maxf(delta,.001)*.24:\n\t\tactor.travel_yaw=atan2(travel.x,travel.z)\n\tif not active and actor.has(\"travel_yaw\") and (actor.speed>.24 or not bool(player.wild)):\n\t\tyaw=float(actor.travel_yaw)\n\tvar model: Node3D = actor.model\n\tmodel.rotation.y = lerp_angle(model.rotation.y, yaw+float(motion.yaw), minf(1.0, 18.0 * delta))\n\tif not active:\n\t\tyaw=model.rotation.y\n\tmotion.aim_yaw=yaw\n", "baseline": "\tmotion.aim_yaw=yaw\n\tvar model: Node3D = actor.model\n\tmodel.rotation.y = lerp_angle(model.rotation.y, yaw+float(motion.yaw), minf(1.0, 18.0 * delta))\n"},
+      "gait_facing": {
+        "match": "\tif travel.length()>maxf(delta,.001)*.24:\n\t\tactor.travel_yaw=atan2(travel.x,travel.z)\n\tif not active and actor.has(\"travel_yaw\") and (actor.speed>.24 or not bool(player.wild)):\n\t\tyaw=float(actor.travel_yaw)\n\tvar model: Node3D = actor.model\n\tmodel.rotation.y = lerp_angle(model.rotation.y, yaw+float(motion.yaw), minf(1.0, 18.0 * delta))\n\tif not active:\n\t\tyaw=model.rotation.y\n\tmotion.aim_yaw=yaw\n",
+        "baseline": "\tmotion.aim_yaw=yaw\n\tvar model: Node3D = actor.model\n\tmodel.rotation.y = lerp_angle(model.rotation.y, yaw+float(motion.yaw), minf(1.0, 18.0 * delta))\n"
+      },
       "gait_velocity_hint": {
         "match": "\tvar speed_hint: Vector3=player.get(\"velocity\",Vector3.INF)\n\tvar travel:=slide_actor(root,actor,position,delta,Vector3.INF if speed_hint.is_zero_approx() else speed_hint)\n\tactor.gait_vector=travel\n",
         "baseline": "\tvar travel:=slide_actor(root, actor, position, delta,player.get(\"velocity\",Vector3.INF))\n"
@@ -1711,12 +1764,10 @@
         "match": "\tactor.gait_travel=travel.length()\n",
         "baseline": ""
       },
-
       "garden_scenery_import": {
         "match": "const GardenScenery=preload(\"res://garden_scenery.gd\")\n",
         "baseline": ""
       },
-
       "canopy_shift_windup_pose": {
         "match": "\telif pose==\"canopy_shift\":\n\t\tmodel.rotation.x+=brace*.17\n\t\tmodel.position.y-=brace*.09\n\telif pose in [\"chant\",\"shepherd\",\"brood\",\"lure\",\"trophy_grab\"]:\n",
         "baseline": "\telif pose in [\"chant\",\"shepherd\",\"brood\",\"lure\",\"trophy_grab\"]:\n"
@@ -1725,7 +1776,6 @@
         "match": "\t\t# Authored warnings already show the actual shape and reach of the attack.\n\t\tsupport_rings[i].visible = active and pack[start + 3] > 0.0 and not attack_poses.has(i)\n",
         "baseline": "\t\tsupport_rings[i].visible = active and pack[start + 3] > 0.0\n"
       },
-
       "rendered_lair_key": {
         "match": "\tvar rendered_lair := Vector2i(boss,phase)\n\tvar map_key := Vector3i(site, depth, campaign[8])\n\tif terrain_key != map_key or get_meta(\"rendered_lair\",Vector2i(-2,-2)) != rendered_lair:\n\t\tterrain_key = map_key\n\t\tredraw_terrain(site, depth, campaign[8],boss,phase)\n\t\tset_meta(\"rendered_lair\",rendered_lair)",
         "baseline": "\tvar lair_changed: bool=visual_field.boss_kind!=boss or visual_field.boss_phase!=phase\n\tvar map_key := Vector3i(site, depth, campaign[8])\n\tif terrain_key != map_key or lair_changed:\n\t\tterrain_key = map_key\n\t\tredraw_terrain(site, depth, campaign[8],boss,phase)"
@@ -1778,7 +1828,6 @@
         "match": "\t\t\theart_stations[id].visible=unlocked.has(id)\n\tpreload(\"res://heart_growth_visuals.gd\").sync(self,state)\n",
         "baseline": "\t\t\theart_stations[id].visible=unlocked.has(id)\n"
       },
-
       "update_plots_growth": {
         "match": "func update_plots(beds: Array) -> void:\n\tif garden_beds == null or plot_key == str(beds):\n\t\treturn\n\tplot_key = str(beds)\n\tactive_plots = beds.size()\n\toccupied_offshoots.clear()\n\tfor child in garden_beds.get_children():\n\t\tchild.free()\n\tfor i in beds.size():\n\t\tvar p: Vector3 = PLOTS[i]\n\t\tbuild_garden_plot(p, garden_beds)\n\t\tvar bed_group:=garden_beds.get_child(garden_beds.get_child_count()-1)\n\t\tvar bed: Dictionary = beds[i]\n\t\tif Campaign.LEGACY_ENDING_ENABLED and int(bed.get(\"offshoot\",-1))>=0:\n\t\t\toccupied_offshoots.append(int(bed.offshoot));var sapling=PINE.instantiate();natural_materials(sapling);garden_beds.add_child(sapling);sapling.position=p;sapling.scale=Vector3.ONE*(.45 if int(bed.stage)==3 else .27)\n\t\tif bed.species >= 0:\n\t\t\tvar plant := build_crop(int(bed.species), int(bed.stage), bool(bed.flowering))\n\t\t\tplant.reparent(bed_group, false)\n\t\t\tplant.position = Vector3.ZERO\n\t\tvar label := Label3D.new()\n\t\tbed_group.add_child(label)\n\t\tlabel.position = Vector3(0, 0.18, 0.95)\n\t\tlabel.billboard = BaseMaterial3D.BILLBOARD_ENABLED\n\t\tlabel.font_size = 28\n\t\tlabel.pixel_size = 0.008\n\t\tlabel.outline_size = 7\n\t\tlabel.text = \"BED %d \u00c2\u00b7 EMPTY\" % (i + 1) if bed.species < 0 else \"%s \u00c2\u00b7 %s\" % [\n\t\t\tSeeds.NAMES[int(bed.species)].to_upper(), [\"SEED\", \"SPROUT\", \"YOUNG\", \"READY\"][bed.stage]]\n\t\tif Campaign.LEGACY_ENDING_ENABLED and int(bed.get(\"offshoot\",-1))>=0: label.text=\"LIVING OFFSHOOT \u00c2\u00b7 \"+(\"MATURE\" if int(bed.stage)==3 else \"GROWING\")\n\t\tlabel.modulate = Color(\"#d4d5ad\") if bed.stage < 3 else Color(\"#f3dc92\")\n\n\n",
         "baseline": "func update_plots(beds: Array) -> void:\n\tif garden_beds == null or plot_key == str(beds):\n\t\treturn\n\tplot_key = str(beds)\n\tactive_plots = beds.size()\n\toccupied_offshoots.clear()\n\tfor child in garden_beds.get_children():\n\t\tchild.free()\n\tfor i in beds.size():\n\t\tvar p: Vector3 = PLOTS[i]\n\t\tbuild_garden_plot(p, garden_beds)\n\t\tvar bed: Dictionary = beds[i]\n\t\tif Campaign.LEGACY_ENDING_ENABLED and int(bed.get(\"offshoot\",-1))>=0:\n\t\t\toccupied_offshoots.append(int(bed.offshoot));var sapling=PINE.instantiate();natural_materials(sapling);garden_beds.add_child(sapling);sapling.position=p;sapling.scale=Vector3.ONE*(.45 if int(bed.stage)==3 else .27)\n\t\tif bed.species >= 0:\n\t\t\tvar plant := build_crop(int(bed.species), int(bed.stage), bool(bed.flowering))\n\t\t\tplant.reparent(garden_beds, false)\n\t\t\tplant.position = p\n\t\tvar label := Label3D.new()\n\t\tgarden_beds.add_child(label)\n\t\tlabel.position = p + Vector3(0, 0.18, 0.95)\n\t\tlabel.billboard = BaseMaterial3D.BILLBOARD_ENABLED\n\t\tlabel.font_size = 28\n\t\tlabel.pixel_size = 0.008\n\t\tlabel.outline_size = 7\n\t\tlabel.text = \"BED %d \u00c2\u00b7 EMPTY\" % (i + 1) if bed.species < 0 else \"%s \u00c2\u00b7 %s\" % [\n\t\t\tSeeds.NAMES[int(bed.species)].to_upper(), [\"SEED\", \"SPROUT\", \"YOUNG\", \"READY\"][bed.stage]]\n\t\tif Campaign.LEGACY_ENDING_ENABLED and int(bed.get(\"offshoot\",-1))>=0: label.text=\"LIVING OFFSHOOT \u00c2\u00b7 \"+(\"MATURE\" if int(bed.stage)==3 else \"GROWING\")\n\t\tlabel.modulate = Color(\"#d4d5ad\") if bed.stage < 3 else Color(\"#f3dc92\")\n\n\n"
@@ -1799,7 +1848,6 @@
         "match": "func focus(origin: Vector3, wild: bool, delta: float = 1.0) -> void:\n\tif has_node(\"Sun\"):\n\t\t$Sun.light_color=Color(\"#ffe9c6\") if wild else Color(\"#fff4dc\")\n\t\t$Sun.light_energy=1.35 if wild else 1.05\n\tif has_node(\"WorldEnvironment\"):\n\t\t$WorldEnvironment.environment.adjustment_saturation=.88 if wild else .98\n\t\t$WorldEnvironment.environment.ambient_light_energy=.9 if wild else 1.05\n\tvar target := origin\n\tif not wild:\n\t\ttarget = garden_camera_target(origin, garden_extent)\n\tvar shot: Dictionary=get_meta(\"garden_growth_camera\",{}) if not wild else {}\n\tif not shot.is_empty():target=shot.target\n\tvar desired := target + Vector3(3.3, 14, 14)\n\tvar blend := 1.0 if camera.position.distance_to(desired) > 28.0 else 1.0 - exp(-(6.0 if wild else 3.0) * delta)\n\tcamera.size = lerpf(camera.size, float(shot.get(\"size\",16.5)), blend)\n\tcamera.position = camera.position.lerp(desired, blend)\n\tcamera.look_at(camera.position - Vector3(3.3, 14, 14))\n\n\n",
         "baseline": "func focus(origin: Vector3, wild: bool, delta: float = 1.0) -> void:\n\tif has_node(\"Sun\"):\n\t\t$Sun.light_color=Color(\"#ffe9c6\") if wild else Color(\"#fff4dc\")\n\t\t$Sun.light_energy=1.35 if wild else 1.05\n\tif has_node(\"WorldEnvironment\"):\n\t\t$WorldEnvironment.environment.adjustment_saturation=.88 if wild else .98\n\t\t$WorldEnvironment.environment.ambient_light_energy=.9 if wild else 1.05\n\tvar target := origin\n\tif not wild:\n\t\ttarget = garden_camera_target(origin, garden_extent)\n\tvar desired := target + Vector3(3.3, 14, 14)\n\tvar blend := 1.0 if camera.position.distance_to(desired) > 28.0 else 1.0 - exp(-(6.0 if wild else 3.0) * delta)\n\tcamera.size = lerpf(camera.size, 16.5 if wild else 16.5, blend)\n\tcamera.position = camera.position.lerp(desired, blend)\n\tcamera.look_at(camera.position - Vector3(3.3, 14, 14))\n\n\n"
       },
-
       "garden_pond_positions_adapter": {
         "match": "func garden_pond_positions(radius: float) -> Array[Vector3]:\n\tvar result: Array[Vector3]=[]\n\tfor water in preload(\"res://garden_layout.gd\").ponds(self,radius):result.append(water.position)\n\treturn result\n\n\n",
         "baseline": "func garden_pond_positions(radius: float) -> Array[Vector3]:\n\tvar result: Array[Vector3]=[];var pond_radius:=1.5+(radius-11.5)*.12\n\tfor initial in [Vector3(-radius*.58,0,1.2),Vector3(radius*.55,0,-4)]:\n\t\tvar selected: Vector3=initial\n\t\tfor attempt in 48:\n\t\t\tvar candidate: Vector3=initial if attempt==0 else initial+Vector3(cos(attempt*2.4),0,sin(attempt*2.4))*(.3+attempt*.10)\n\t\t\tvar safe: bool=candidate.length()+pond_radius<radius-.3\n\t\t\tfor bed in PLOTS.slice(0,active_plots):\n\t\t\t\tif Vector2(candidate.x-bed.x,(candidate.z-bed.z)/.72).length()<pond_radius*1.14+1.4: safe=false\n\t\t\tif safe: selected=candidate;break\n\t\tresult.append(selected)\n\treturn result\n\n\n"

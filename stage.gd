@@ -145,8 +145,8 @@ func _ready() -> void:
 	deeper_gate = build_wild_gateway(DEEPER_GATE, "GO DEEPER", Color("#ef9690"))
 	wild_portal=build_gate_swirl(deeper_gate,WILD_OFFSET+DEEPER_GATE)
 	var heart := HEART
-	heart_tree = build_heart_growth()
-	heart_seed = sphere(heart + Vector3.UP * 0.3, 0.31, Color("#8ff5ad"))
+	# The generated Garden installs the imported Heart. Do not construct a second
+	# organic seed/tree underneath it; heart_visuals.build remains boss-only art.
 	returning_corruption = Node3D.new()
 	add_child(returning_corruption)
 	for i in 6:
@@ -330,12 +330,8 @@ func draw_state(players: Dictionary, local_id: int, enemy: Vector3, hp: int,
 	var expedition_boss: bool=boss>=0
 	crown.visible = guardian and hp>0
 	foe.scale = Vector3.ONE * (float(Enemies.get_kind(foe_model.kind).get("model_scale",1.0)) if expedition_boss else 1.9 if guardian else (1.0 if depth == 1 else 1.22))
-	heart_tree.visible = campaign[5] == Campaign.UNFINISHED
-	var pulse := 1.0 + 0.023 * sin(now * 0.0018) + 0.008 * sin(now * 0.0047 + 0.8)
-	heart_tree.scale = Vector3(heart_size * pulse, heart_size * (2.0 - pulse), heart_size * pulse)
-	if heart_core != null:
-		(heart_core.material_override as StandardMaterial3D).emission_energy_multiplier = 0.04 + heart_phase * 0.02 + (pulse - 0.98) * 0.6
-	heart_seed.visible = campaign[5] == Campaign.SEED
+	if is_instance_valid(heart_tree):
+		heart_tree.visible = campaign[5] == Campaign.UNFINISHED
 	returning_corruption.visible = campaign[5] == Campaign.CORRUPTION
 	for i in offshoot_models.size():
 		var state := campaign[2 + i]
@@ -872,8 +868,9 @@ func update_heart_progress(state: Dictionary) -> void:
 		var unlocked: Array=state.get("unlocked",[])
 		if heart_unlocked!=unlocked:garden_tier=-1
 		heart_unlocked = unlocked.duplicate()
-		heart_phase = clampi(int(state.get("phase", 0)), 0, 5)
+		heart_phase = clampi(int(get_meta("garden_growth_phase", state.get("phase", 0))), 0, 5)
 		experimental_garden.show_heart_stage(heart_phase)
+		preload("res://heart_growth_visuals.gd").sync(self,state)
 		return
 	var phase:=clampi(int(get_meta("garden_growth_phase",state.get("phase",0))),0,5)
 	var unlocked: Array=state.get("unlocked",[])

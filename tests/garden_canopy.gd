@@ -34,35 +34,46 @@ func run() -> void:
 			var bounds := mesh.mesh.get_aabb()
 			check(is_equal_approx(maxf(bounds.size.x, bounds.size.z), 1.0), "replaceable crowns have a one-metre horizontal span")
 		donor.free()
+	for scene: PackedScene in Catalog.TREES:
+		var donor:=scene.instantiate()
+		check(donor.has_node("Trunk") and donor.has_node("Crown"), "tree models have separate complete trunks and crowns")
+		var bounds:=AABB()
+		for mesh: MeshInstance3D in donor.find_children("*","MeshInstance3D",true,false):
+			bounds=bounds.merge(mesh.transform*mesh.mesh.get_aabb())
+		check(absf(bounds.position.y)<0.001 and is_equal_approx(bounds.end.y,1.0), "tree replacements are grounded and normalized to one metre high")
+		check(donor.find_children("*","CollisionObject3D",true,false).is_empty(), "visual trees add no competing collision")
+		donor.free()
 	var canopy := Canopy.new()
 	root.add_child(canopy)
 	canopy.configure(ring(8.0))
 	var initial := canopy.inspection()
 	check(initial.chunks > 50 and initial.foliage_instances > initial.chunks
-		and initial.full_tree_instances == 0, "bounded spatial batches replace the complete-tree forest")
+		and initial.full_tree_instances==72, "spatial canopy batches and two irregular rows of real edge trees exist")
 	var image := Image.create(72, 1, false, Image.FORMAT_RGBAF)
 	image.fill(Color(8, 11, 8, 0))
-	var perimeter := ImageTexture.create_from_image(image)
-	canopy.set_boundary(perimeter, image, 0.25)
+	canopy.set_boundary(image, 0.25)
 	var identities: Array[int] = []
-	for chunk in canopy.get_children():
-		for visual: GeometryInstance3D in chunk.get_children():
-			identities.append(visual.get_instance_id())
-			check(visual.material_override.get_shader_parameter("garden_perimeter") == perimeter
-				and is_equal_approx(visual.material_override.get_shader_parameter("garden_reveal"), 0.25), "all batches share the exact ground boundary and reveal")
-			check(visual.custom_aabb.size.x > 0 and visual.custom_aabb.size.y > 0, "finite culling bounds include shader-displaced crowns")
-	var fringe: MultiMeshInstance3D = canopy.get_node("CanopyFringe")
-	check(fringe.multimesh.instance_count == 72, "leaf-only fringe follows each perimeter sample")
-	var prior := canopy._fringe_pose(0).origin
+	for child in canopy.get_children():
+		check(child is Canopy.ForestChunk or child is Canopy.EdgeTree, "no solid roof or vertical skirt geometry remains")
+		if child is Canopy.ForestChunk:
+			check(child.batches.size()==2, "staggered foliage layers cover canopy gaps with actual leaves")
+			for visual in child.get_children():
+				check(visual is MultiMeshInstance3D, "canopy sections contain foliage batches, never backing planes")
+				identities.append(visual.get_instance_id())
+				check(visual.custom_aabb.size.x>0 and visual.custom_aabb.size.y>0, "culling bounds enclose complete foliage")
+		else:
+			check(is_zero_approx(child.position.y) and Vector2(child.position.x,child.position.z).length()>8.75, "edge trunks stand outside the playable clearing")
+	var tree: Node3D=canopy.get_node("ForestEdgeTree_0_0")
+	var prior:=tree.position
 	canopy.set_reveal(1.0)
-	var end := canopy._fringe_pose(0).origin
-	check(is_equal_approx(end.x - prior.x, 2.25), "fringe follows the shared boundary interpolation: %s -> %s" % [prior, end])
-	canopy.set_clearing(ring(25.0))
-	check(canopy.inspection().hidden_chunks > 0 and canopy.inspection().reveal == 1.0, "fully reclaimed chunks stop drawing")
+	check(is_equal_approx(tree.position.x-prior.x,2.25), "complete trees follow the same interpolated boundary as movement")
+	image.fill(Color(25,25,25,0))
+	canopy.set_boundary(image)
+	check(canopy.inspection().hidden_chunks>initial.hidden_chunks, "reclaimed sections stop drawing without cutting crowns into walls")
 	var retained: Array[int] = []
-	for chunk in canopy.get_children():
-		for visual in chunk.get_children():
-			retained.append(visual.get_instance_id())
+	for child in canopy.get_children():
+		if child is Canopy.ForestChunk:
+			for visual in child.get_children():retained.append(visual.get_instance_id())
 	check(retained == identities, "reclamation updates presentation without rebuilding meshes")
 	var detached := canopy.inspection()
 	detached.chunks = -1
@@ -77,5 +88,5 @@ func run() -> void:
 	check(Boundary.rounded_joins(PackedVector2Array()).is_empty(), "invalid boundary is unchanged")
 	canopy.free()
 	if errors == 0:
-		print("PASS: foliage-only canopy, spatial culling, shared reveal and preserved rounded joins")
+		print("PASS: layered foliage without flat infill, complete grounded edge trees, shared reveal, spatial culling and rounded joins")
 	quit(int(errors > 0))

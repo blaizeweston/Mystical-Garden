@@ -29,6 +29,15 @@ static func sync(stage: Node3D,state: Dictionary) -> void:
  var actual:=count(state.get("unlocked",[]));var reveal: Dictionary=stage.get_meta("garden_growth_heart",{})
  var target:=clampi(int(reveal.get("to",actual)),0,actual)
  stage.set_meta("heart_visual_count",target)
+ if stage.experimental_garden!=null:
+  var sculpt: Node3D=stage.experimental_garden.heart
+  var from:=clampi(int(reveal.get("from",target)),0,target)
+  var amount:=clampf(float(reveal.get("amount",1)),0,1)
+  var rendered:=lerpf(from,target,amount)
+  sculpt.set_meta("heart_visual_count",target)
+  sculpt.set_meta("rendered_growth",rendered)
+  sculpt.set_research_growth(rendered)
+  return
  if not is_instance_valid(stage.heart_tree):return
  if int(stage.heart_tree.get_meta("heart_visual_count",-1))!=target:
   var old: Node3D=stage.heart_tree;var shown:=old.visible;var scale_value:=old.scale
@@ -53,7 +62,7 @@ static func sync(stage: Node3D,state: Dictionary) -> void:
 static func motion(stage: Node3D,enabled: bool,viewer: Vector3=Vector3(10000,0,0)) -> void:
  stage.set_meta("heart_foliage_motion",enabled)
  stage.set_meta("heart_foliage_viewer",viewer+Vector3.UP)
- if is_instance_valid(stage.heart_tree):
+ if is_instance_valid(stage.heart_tree) and stage.heart_tree.has_meta("heart_foliage_material"):
   var material=stage.heart_tree.get_meta("heart_foliage_material",null)
   if material is ShaderMaterial:
    material.set_shader_parameter("motion_enabled",1.0 if enabled else 0.0)

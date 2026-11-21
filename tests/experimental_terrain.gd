@@ -72,6 +72,11 @@ func run() -> void:
 	check(garden != null and game.slot_claimed and game.character_slot_claimed and game.persistence_session.owns_leases(),
 		"real world shows terrain with the native owner")
 	check(UIFixture.control(game,"host_button").visible and game.session_world.join() == ERR_UNAUTHORIZED, "co-op uses title-owned guest admission")
+	game._process(0.016) # The old Stage heartbeat used to reveal a hidden second Heart here.
+	check(game.stage.heart_tree==garden.heart and garden.heart.sculpt_only and garden.heart.models.is_empty()
+		and game.stage.find_children("HeartForm","Node3D",true,false).is_empty(), "regular scene updates retain only the imported Heart")
+	check(garden.barrier.get_child_count()==0 and garden.forest.inspection().full_tree_instances>0,
+		"complete forest trees replace the flat rendered barrier without replacing movement rules")
 	check(garden.barrier.walkable(garden.planar(player.pos)), "production avatar starts on clear ground")
 	var view := game.get_node("GardenInteractions")
 	var scar := GardenInteractions.Catalog.point("heart_root_scar")

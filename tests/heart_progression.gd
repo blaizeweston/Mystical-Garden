@@ -124,7 +124,7 @@ func run():
  ExpeditionCase.set_membership(game, p, false);ExpeditionCase.set_world(game, {"depth": 0});ExpeditionCase.set_world(game, {"destination": game.Campaign.GROVE})
  for phase in 6:
   game.stage.update_heart_progress({"phase":phase,"unlocked":h.unlocked})
-  check(is_instance_valid(game.stage.heart_core),"phase %d constructs an organic 3D core"%phase)
+  check(game.stage.experimental_garden.heart.sculpt_models[mini(phase,4)].is_visible_in_tree() and game.stage.heart_core==null,"phase %d uses the imported Heart without an organic overlay"%phase)
  check(["seed_archive","monster_studies","living_archive"].all(func(id):return game.stage.station_position(id).is_finite()),"three restored services use current Garden stations")
  p.pos=game.Stage.HEART;ExpeditionCase.set_membership(game, p, false)
  UIFixture.control(game,"progression_view").tabs.current_tab=1

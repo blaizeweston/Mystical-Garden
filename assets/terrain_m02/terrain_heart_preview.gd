@@ -12,6 +12,8 @@ const GRAIN := Color("#846046")
 const MOSS := Color("#666744")
 const LEAF := Color("#4b5232")
 const CORE := Color("#d23735")
+const RESEARCH_HEIGHT_PER_UNLOCK := 0.018
+const RESEARCH_WIDTH_PER_UNLOCK := 0.008
 
 var stage := 0
 var models: Array[MeshInstance3D] = []
@@ -22,6 +24,8 @@ var use_sculpt := false
 var pulse: OmniLight3D
 var transition: Tween
 var fissures: Array[StandardMaterial3D] = []
+var sculpt_only := false # Active Garden; old comparison meshes are never constructed.
+var _research_growth := 0.0
 
 func _ready() -> void:
 	var material := StandardMaterial3D.new()
@@ -35,7 +39,7 @@ func _ready() -> void:
 	crystal.emission_enabled = true
 	crystal.emission = Color("#b81e31")
 	crystal.emission_energy_multiplier = 0.29
-	for index in STAGES.size():
+	for index in (0 if sculpt_only else STAGES.size()):
 		var model := MeshInstance3D.new()
 		model.name = "HeartStage%d" % index
 		model.mesh = _form(index)
@@ -48,9 +52,29 @@ func _ready() -> void:
 	pulse.omni_range = 2.4
 	pulse.omni_attenuation = 1.3
 	add_child(pulse)
-	show_stage(0, false)
+	if sculpt_only:
+		set_sculpt(true)
+	else:
+		show_stage(0, false)
+
+func set_research_growth(completed: float) -> void:
+	if is_equal_approx(_research_growth, completed):
+		return
+	_research_growth = maxf(0.0, completed)
+	if transition != null:
+		transition.kill()
+		transition = null
+	for model in sculpt_models:
+		model.position = Vector3.ZERO
+		model.scale = _growth_scale()
+
+func _growth_scale() -> Vector3:
+	return Vector3(1.0 + _research_growth * RESEARCH_WIDTH_PER_UNLOCK,
+		1.0 + _research_growth * RESEARCH_HEIGHT_PER_UNLOCK, 1.0 + _research_growth * RESEARCH_WIDTH_PER_UNLOCK)
 
 func set_sculpt(enabled: bool) -> void:
+	if sculpt_only and not enabled:
+		return # The live Garden has no alternate Heart geometry to fall back to.
 	if use_sculpt == enabled:
 		return
 	if enabled and sculpted == null:
@@ -95,7 +119,7 @@ func show_stage(index: int, animated: bool = true) -> void:
 		for i in sculpt_models.size():
 			sculpt_models[i].visible = i == stage
 			sculpt_models[i].position = Vector3.ZERO
-			sculpt_models[i].scale = Vector3.ONE
+			sculpt_models[i].scale = _growth_scale()
 	var model := sculpt_models[stage] if use_sculpt else models[stage]
 	if use_sculpt:
 		pulse.position = Vector3(-0.43, 1.05 + stage * 0.14, 1.14)
@@ -105,10 +129,10 @@ func show_stage(index: int, animated: bool = true) -> void:
 		pulse.light_energy = 0.68 + stage * 0.18
 	if animated:
 		model.position.y = -0.16
-		model.scale = Vector3(1.015, 0.94, 1.015)
+		model.scale = _growth_scale() * Vector3(1.015, 0.94, 1.015)
 		transition = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC)
 		transition.tween_property(model, "position:y", 0.0, 0.36)
-		transition.tween_property(model, "scale", Vector3.ONE, 0.36)
+		transition.tween_property(model, "scale", _growth_scale(), 0.36)
 
 func _form(index: int) -> ArrayMesh:
 	var random := RandomNumberGenerator.new()
