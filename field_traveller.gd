@@ -3,6 +3,8 @@ extends RefCounted
 const Polearms := preload("res://plant_polearms.gd")
 const WeaponModels := preload("res://plant_weapon_models.gd")
 const Locomotion := preload("res://traveller_locomotion.gd")
+const WeaponAnimation := preload("res://traveller_weapon_animation.gd")
+const WeaponPoses := preload("res://weapon_pose_catalog.gd")
 
 const MODELS := [
 	preload("res://assets/characters/field_traveller_male.glb"),
@@ -29,6 +31,7 @@ static func build(model: Node3D, driver: Skeleton3D, kind: int) -> Dictionary:
 	player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	if not libraries.has(kind):
 		libraries[kind] = Locomotion.library(visual,skeleton)
+		WeaponAnimation.add_clips(libraries[kind],visual,skeleton)
 	player.add_animation_library("", libraries[kind])
 	var links: Dictionary = {}
 	for name in DRIVER_JOINTS:
@@ -76,10 +79,13 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 		old_pose.append(skeleton.get_bone_pose_rotation(index))
 	var old_hips := skeleton.get_bone_pose_position(field.pelvis)
 	var locomotion := Locomotion.pose(actor,field,delta)
+	var native_action: Array[Quaternion] = []
+	if active and not bool(motion.get("ability",false)):
+		native_action=WeaponAnimation.pose(field,form,phase,int(motion.get("combo",0)))
 	var global_bases: Array[Basis] = []
 	var pose_blend := 1.0-exp(-20.0*maxf(delta,0))
 	skeleton.set_bone_pose_position(field.pelvis,old_hips.lerp(locomotion.pelvis,pose_blend))
-	# Idle and locomotion own the whole visible rig between actions.
+	# Imported attacks replace upper-body rotations only; locomotion keeps the legs.
 	var action_weight := smoothstep(0.0,.16,phase)*(1.0-smoothstep(.78,1.0,phase)) if active else 0.0
 	for index in skeleton.get_bone_count():
 		var parent := skeleton.get_bone_parent(index)
@@ -89,10 +95,19 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 			var turn := parent_basis.inverse()*Basis(Vector3.UP,float(locomotion.yaw))*parent_basis
 			rotation = turn.get_rotation_quaternion()*rotation
 		var link: Dictionary = field.links.get(index,{})
-		var has_action := action_weight>0.0 and not link.is_empty()
+		var bone_name := skeleton.get_bone_name(index)
+		var native_bone := not native_action.is_empty() and WeaponAnimation.upper_body(bone_name)
+		# Constrained grips solve these joints below. Imported arm twists would fight
+		# that solution; retain native torso/free-arm motion and locomotion wrists.
+		var grip_joint := not native_action.is_empty() and grip_controls_joint(form,bone_name)
+		var has_action := action_weight>0.0 and not grip_joint and (native_bone or not link.is_empty())
 		if has_action:
-			var goal: Basis = driver.get_bone_global_pose(link.source).basis * link.alignment
-			var action_pose := (parent_basis.inverse()*goal).orthonormalized().get_rotation_quaternion()
+			var action_pose: Quaternion
+			if native_bone:
+				action_pose=native_action[index]
+			else:
+				var goal: Basis = driver.get_bone_global_pose(link.source).basis * link.alignment
+				action_pose=(parent_basis.inverse()*goal).orthonormalized().get_rotation_quaternion()
 			rotation = rotation.slerp(action_pose,action_weight)
 		rotation = old_pose[index].slerp(rotation,lerpf(pose_blend,1.0,action_weight) if has_action else pose_blend).normalized()
 		skeleton.set_bone_pose_rotation(index,rotation)
@@ -105,48 +120,68 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 	var penetration := maxf(0.0,-lowest*actor.model.scale.y)
 	field.floor_lift=maxf(penetration,move_toward(float(field.get("floor_lift",0.0)),0.0,3.5*delta))
 	actor.model.position.y=field.floor_lift
-	if action_weight<=0.0:
+	if not WeaponPoses.DEFINITIONS.has(form) or (active and bool(motion.get("ability",false))):
 		return
+	pose_weapon_hands(actor,skeleton,field,form,phase,active,motion,action_weight)
+
+
+static func grip_controls_joint(form: String, bone: String) -> bool:
+	if form in ["blade","knives","hammer"]:
+		return false
+	if not (bone.begins_with("clavicle_") or bone.begins_with("upperarm_") or bone.begins_with("lowerarm_") or bone.begins_with("hand_")):
+		return false
+	return bone.ends_with("_r") or form in ["spear","hammer","scythe","orb","bow","crossbow"]
+
+
+static func pose_weapon_hands(actor: Dictionary, skeleton: Skeleton3D, field: Dictionary, form: String, phase: float, active: bool, motion: Dictionary, action_weight: float) -> void:
+	var yaw := float(motion.get("aim_yaw",actor.model.rotation.y))
+	var aim := Basis(Vector3.UP,yaw)
+	var center := shoulder_position(skeleton,field.left).lerp(shoulder_position(skeleton,field.right),.5)
+	var orientation := WeaponPoses.orientation(form,phase,active,yaw,motion)
 	if form=="bow":
 		var release := float(motion.get("contact",.55))
-		var draw := smoothstep(0.0,release,phase) if phase<=release else 1.0-smoothstep(release+.035,.96,phase)
-		var yaw := float(motion.get("aim_yaw",actor.model.rotation.y))
-		var forward := Vector3(sin(yaw),0,cos(yaw))
-		var side := Vector3.UP.cross(forward)
-		var center := shoulder_position(skeleton,field.left).lerp(shoulder_position(skeleton,field.right),.5)
-		# Use the same aim plane as the weapon, with room for the rear hand at full draw.
-		var bow_hand := center+forward*.35+side*.12-Vector3.UP*.17
-		pose_hand(skeleton,field.left,bow_hand,Vector3.ZERO,action_weight)
-		pose_hand(skeleton,field.right,hand(actor,true)-forward*(.18+.225*draw),Vector3.ZERO,action_weight)
+		var draw := smoothstep(0.0,release,phase) if active and phase<release else 1.0-smoothstep(release,release+.08,phase) if active else 0.0
+		# Bow and draw hand share the same string plane, including the ready pose.
+		var bow_hand := center+aim*WeaponPoses.BOW_CARRY
+		var string_offset := orientation*Vector3(0,0,-.20-.25*draw)*Polearms.SCALE
+		hold_pair(skeleton,field,bow_hand+string_offset,-string_offset,1.0)
 	elif form=="crossbow":
-		var yaw := float(motion.get("aim_yaw",actor.model.rotation.y))
-		var aim := Basis(Vector3.UP,yaw)
-		var center := shoulder_position(skeleton,field.right).lerp(shoulder_position(skeleton,field.left),.5)
 		var rear := center+aim*Vector3(-.075,-.20,.18)
-		hold_pair(skeleton,field,rear,aim*WeaponModels.ARBALEST_SUPPORT*Polearms.SCALE,action_weight)
+		hold_pair(skeleton,field,rear,orientation*WeaponModels.ARBALEST_SUPPORT*Polearms.SCALE,1.0)
 	elif form=="orb":
 		var profile: Dictionary = preload("res://weapon_motion.gd").profile(form)
-		var aim := Basis(Vector3.UP,float(motion.get("aim_yaw",actor.model.rotation.y)))
-		var release := float(profile.release)
-		var weight := smoothstep(.12,release,phase)*(1.0-smoothstep(release+.06,.85,phase))
 		var focus: Dictionary = WeaponModels.MODELS.orb
 		var offset: Vector3 = (focus.core-focus.grip)*Polearms.SCALE
 		var ground: Vector3 = actor.model.get_parent_node_3d().global_position
-		var center := ground+aim*(Vector3(0,float(profile.height),float(profile.muzzle_forward))-offset)
+		var release_center := ground+aim*(Vector3(0,float(profile.height),float(profile.muzzle_forward))-offset)
+		var held_center := (center+aim*WeaponPoses.ORB_CARRY).lerp(release_center,WeaponPoses.pulse(form,phase,active))
 		var separation := aim*Vector3(-.26,0,0)
-		hold_pair(skeleton,field,center-separation*.5,separation,weight)
+		hold_pair(skeleton,field,held_center-separation*.5,separation,1.0)
 	elif Polearms.WEAPONS.has(form):
-		hold_polearm(actor,skeleton,field,form,phase,motion,action_weight)
+		hold_polearm(actor,skeleton,field,form,phase,active,motion,1.0)
+	elif form in ["staff","wand"]:
+		var profile: Dictionary = preload("res://weapon_motion.gd").profile(form)
+		var ground: Vector3 = actor.model.get_parent_node_3d().global_position
+		var emitter := ground+aim*Vector3(0,float(profile.height),float(profile.muzzle_forward))
+		var target: Vector3 = emitter-orientation*WeaponModels.SPELL_TIPS[form]*Polearms.SCALE
+		pose_hand(skeleton,field.right,(center+aim*WeaponPoses.CARRY_RIGHT).lerp(target,WeaponPoses.pulse(form,phase,active)),Vector3(-1,-.7,-.2),1.0)
+	elif form in ["ring","whip","bell","censer","fan"]:
+		var target := center+aim*WeaponPoses.hand_offset(form,phase,active,int(motion.get("combo",0)))
+		pose_hand(skeleton,field.right,target,Vector3(-1,0,-.3),1.0)
+	else:
+		pose_hand(skeleton,field.right,center+aim*WeaponPoses.CARRY_RIGHT,Vector3(-1,-.65,-.2),1.0-action_weight)
+	if form not in ["bow","crossbow","orb","spear","hammer","scythe"]:
+		pose_hand(skeleton,field.left,center+aim*WeaponPoses.CARRY_LEFT,Vector3(1,-.65,-.2),1.0-action_weight)
 
 
-static func hold_polearm(actor: Dictionary, skeleton: Skeleton3D, field: Dictionary, form: String, phase: float, motion: Dictionary, weight: float) -> void:
+static func hold_polearm(actor: Dictionary, skeleton: Skeleton3D, field: Dictionary, form: String, phase: float, active: bool, motion: Dictionary, weight: float) -> void:
 	var yaw := float(motion.get("aim_yaw",actor.model.rotation.y))
-	var pose := Polearms.orientation(form,phase,true,yaw,motion)
+	var pose := WeaponPoses.orientation(form,phase,active,yaw,motion)
 	var separation := pose.y*Polearms.SCALE*float(Polearms.WEAPONS[form].support)
 	var middle := shoulder_position(skeleton,field.right).lerp(shoulder_position(skeleton,field.left),.5)
-	var desired := middle+Polearms.grip_target(form,phase,true,yaw)
+	var desired := middle+Polearms.grip_target(form,phase,active,yaw)
 	# Keep some of the authored strike's hand travel while the paired grips share one shaft.
-	hold_pair(skeleton,field,desired.lerp(hand(actor,false),.17),separation,weight)
+	hold_pair(skeleton,field,desired,separation,weight)
 
 
 static func hold_pair(skeleton: Skeleton3D, field: Dictionary, desired: Vector3, separation: Vector3, weight: float) -> void:

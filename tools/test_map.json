@@ -365,18 +365,7 @@
     },
     "avatar_motion_view": {
       "label": "Visible traveller gait, weapon poses and grips",
-      "files": [
-        "avatar_motion_view.gd",
-        "avatar_motion_view.gd.uid",
-        "field_traveller.gd",
-        "field_traveller.gd.uid",
-        "plant_polearms.gd",
-        "plant_polearms.gd.uid",
-        "traveller_locomotion.gd",
-        "traveller_locomotion.gd.uid",
-        "plant_weapon_models.gd",
-        "plant_weapon_models.gd.uid"
-      ]
+      "files": ["avatar_motion_view.gd", "avatar_motion_view.gd.uid", "field_traveller.gd", "field_traveller.gd.uid", "plant_polearms.gd", "plant_polearms.gd.uid", "traveller_locomotion.gd", "traveller_locomotion.gd.uid", "plant_weapon_models.gd", "plant_weapon_models.gd.uid", "weapon_pose_catalog.gd", "weapon_pose_catalog.gd.uid", "traveller_weapon_animation.gd", "traveller_weapon_animation.gd.uid", "tools/build_weapon_combat_library.py", "assets/characters/weapon_combat.glb", "assets/characters/weapon_combat.glb.import", "assets/characters/weapon_combat_sources.json"]
     },
     "garden_returns": {
       "label": "Committed expedition banking/identification, homecoming discovery and reactive life",
@@ -1551,6 +1540,7 @@
     ]
   },
   "suites": {
+    "weapon_presentation": {"kind": "unit", "systems": ["characters", "weapons", "avatar_motion_view", "presentation", "ranged_release"], "package": true},
     "character_customization": {"kind": "unit", "systems": ["characters", "avatar_motion_view", "gameplay_ui", "world_snapshot", "network_session"], "package": false},
     "character_customization_coop": {"kind": "pair", "systems": ["characters", "avatar_motion_view", "gameplay_ui", "world_snapshot", "network_session", "connection_flow", "persistence_operations"], "package": false},
       "terrain_actor_collision": {
@@ -7263,12 +7253,6 @@
     "weapon_visuals.gd": {
       "newline": "crlf",
       "regions": {
-        "censer_pendulum": {
-          "systems": [
-            "avatar_motion_view",
-            "combat_readability"
-          ]
-        },
         "botanical_weapon_dynamics": {
           "systems": [
             "avatar_motion_view"
@@ -7300,11 +7284,6 @@
           ]
         },
         "plant_polearm_orientation": {
-          "systems": [
-            "avatar_motion_view"
-          ]
-        },
-        "plant_polearm_ready_basis": {
           "systems": [
             "avatar_motion_view"
           ]

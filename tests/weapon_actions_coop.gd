@@ -31,7 +31,7 @@ func run():
  if game.network_session.transport()!=null:game.session_world.leave("Weapon animation fixture")
  check(game.network_session.transport()==null and game.multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"offline before world removal")
  game.queue_free();await process_frame
- if not failed:print("PASS: weapon actions co-op ",role," bow draw, projectile footprint, and two-handed scythe contact")
+ if not failed:print("PASS: weapon actions co-op ",role," bow draw, projectile footprint, elevated focus carry and native two-handed scythe contact")
  quit(1 if failed else 0)
 func host_run():
  check(game.session_world.host()==OK,"host opens")
@@ -43,6 +43,9 @@ func host_run():
  mark("ready");check(await until(func():return marked("verified")),"guest confirms attack")
  check(game.enemy_health()<80,"projectile hits on the host")
  check(not game.combat_events.any(func(e):return e.kind=="windup"),"host has no generic bow circle")
+ p.frame=1;p.weapon_kind=2;p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active()
+ mark("focus-ready")
+ check(await until(func():return marked("focus-checked")),"guest confirms the focus carry pose")
  p.frame=3;p.weapon_kind=1;p[WeaponActions.STATE] = p[WeaponActions.STATE].clear_active();p[WeaponActions.STATE] = p[WeaponActions.STATE].with_ready_at(0)
  game.tactics.position=Vector3(0,0,1.45)
  var before: int=game.enemy_health()
@@ -112,6 +115,17 @@ func guest_run():
   check(str(event.form)=="bow" and float(event.projectile_radius)==float(profile.projectile_radius) and float(event.height)==float(profile.height),"same profile controls guest projectile and host collision")
  check(not saw_windup,"guest receives no firing ring")
  mark("verified")
+ var focus_lifted:=await until(func():
+  var player: Dictionary=game.stage.avatar_models.get(id,{})
+  if not marked("focus-ready") or Motion.form(game.players.get(id,{}))!="orb" or not player.has("visual_weapon"):return false
+  var focus: Node3D=player.visual_weapon.get_node_or_null("SeedFocusModel")
+  if focus==null:return false
+  var rig: Skeleton3D=player.field_rig.skeleton
+  var pelvis:=rig.to_global(rig.get_bone_global_pose(player.field_rig.pelvis).origin)
+  var seed: Node3D=player.visual_weapon.get_node("CoreSeed")
+  return seed.global_position.y>pelvis.y+.15)
+ check(focus_lifted,"guest receives a focus carried above the pelvis")
+ mark("focus-checked")
  if not await until(func():return marked("scythe-ready") and Motion.form(game.players.get(id,{}))=="scythe"):
   check(false,"host scythe loadout arrives");return
  game.submit_combat.rpc_id(1,Vector2(0,1),true)
@@ -122,6 +136,7 @@ func guest_run():
   var scythe: Node3D=player.visual_weapon
   return scythe.has_node("HarvestScytheModel") and scythe.is_visible_in_tree() and scythe.to_global(Vector3.ZERO).distance_to(Field.hand(player,false))<.001 and scythe.to_global(scythe.get_meta("support_grip")).distance_to(Field.hand(player,true))<.035)
  check(scythe_gripped,"both visible guest hands stay on the scythe through its attack")
+ check(game.stage.avatar_models[id].field_rig.player.current_animation=="TreeChopping","guest uses the new native upper-body action")
  check(await until(func():return game.guest_replication.received_events().any(func(e):return e.event.kind=="swing" and str(e.event.get("form",""))=="scythe")),"guest receives the scythe swing visual")
  game.submit_combat.rpc_id(1,Vector2(0,1),false)
  mark("scythe-checked")

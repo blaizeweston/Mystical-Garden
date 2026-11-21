@@ -2,6 +2,7 @@ extends RefCounted
 # Shared grip-space weapon kit with independently animated bow strings and vine segments.
 const Classes=preload("res://class_catalog.gd")
 const FieldRig=preload("res://field_traveller.gd")
+const WeaponPoses=preload("res://weapon_pose_catalog.gd")
 const Polearms=preload("res://plant_polearms.gd")
 const ROOTBLADE=preload("res://assets/weapons/rootblade.glb")
 const VINE_BOW=preload("res://assets/weapons/vine_bow.glb")
@@ -98,34 +99,18 @@ static func segment(node: Node3D,a: Vector3,b: Vector3,rest_length: float=0.0,th
 static func animate(actor: Dictionary,form: String,phase: float,active: bool,yaw: float,reach: float,action: Dictionary={}) -> void:
  var profile: Dictionary=preload("res://weapon_motion.gd").profile(form)
  var contact:=float(profile.release)
- var strength:=smoothstep(0,contact*.6,phase)*(1-smoothstep(.72,1,phase)) if active else 0.0
- var ready:=Basis.IDENTITY
- var orientation:=ready
- if active and action.get("delivery",profile.delivery) in ["sweep","sector"]:
-  var angle:=lerpf(-float(action.get("span",profile.span))*.5,float(action.get("span",profile.span))*.5,clampf(phase/(contact*2),0,1))
-  orientation=ready.slerp(Basis(Quaternion(Vector3.UP,Vector3(sin(angle),0,cos(angle)))),strength)
- elif active and action.get("delivery","")=="line" and profile.delivery!="radial":orientation=ready.slerp(Basis(Quaternion(Vector3.UP,Vector3.BACK)),strength)
- elif form in ["staff","wand"]:orientation=Basis.IDENTITY.slerp(Basis(Quaternion(Vector3.UP,Vector3.BACK)),strength)
- if form=="whip":
-  var angle:=lerpf(-float(action.get("span",1.9))*.5,float(action.get("span",1.9))*.5,clampf(phase/(contact*2),0,1))
-  orientation=Basis(Vector3.UP,angle*strength) if active and action.get("delivery","")=="sweep" else Basis.IDENTITY
- elif form=="ring":orientation=Basis(Vector3.RIGHT,PI*.5*strength)
- elif form=="fan":orientation=Basis(Vector3.FORWARD,(-.7+1.4*clampf(phase/(contact*2),0,1))*strength)
- elif form=="censer":orientation=orientation*Basis(Vector3.FORWARD,.35*sin(phase*TAU)*strength)
- elif form=="bell":orientation=Basis(Vector3.RIGHT,.25*strength)
- var world:=Basis(Vector3.UP,yaw)
  var primary: Node3D=actor.visual_weapon
  var right:=FieldRig.hand(actor,false)
  var left:=FieldRig.hand(actor,true)
  var anchor:=left if form=="bow" else right
  if form=="orb":anchor=(right+left)*.5
- var pose:=Polearms.orientation(form,phase,active,yaw,action) if Polearms.WEAPONS.has(form) else world*orientation
+ var pose:=WeaponPoses.orientation(form,phase,active,yaw,action)
  var basis:=pose.scaled(Vector3.ONE*Polearms.SCALE)
  primary.global_transform=Transform3D(basis,anchor-basis*Vector3(primary.get_meta("handle",Vector3.ZERO)))
  primary.visible=not (form in ["ring","orb"] and active and phase>contact and phase<.82)
  if actor.has("secondary_weapon"):
   var other: Node3D=actor.secondary_weapon
-  other.global_transform=Transform3D(world*orientation.scaled(Vector3.ONE*.9),left)
+  other.global_transform=Transform3D(WeaponPoses.orientation(form,phase,active,yaw,action,true).scaled(Vector3.ONE*.9),left)
  if form in ["bow","crossbow"]:
   var draw:=smoothstep(0,contact,phase) if active and phase<contact else (1-smoothstep(contact,contact+.08,phase)) if active else 0.0
   var offset:=Vector3.BACK*(-.25 if form=="bow" else -.15)*draw
@@ -152,4 +137,4 @@ static func animate(actor: Dictionary,form: String,phase: float,active: bool,yaw
 static func lash_point(along: float, extension: float, length: float) -> Vector3:
  var coil:=1.0-extension
  var turn:=along*TAU*1.45
- return Vector3(sin(turn)*.155*coil,.12-along*.32*coil,along*length*extension+(cos(turn)-1)*.105*coil)
+ return Vector3(sin(turn)*.155*coil,.12-along*.32*coil,along*length*extension+(1-cos(turn))*.105*coil)
