@@ -62,8 +62,10 @@ static func host(test: RefCounted, game: Node, guests: Array, events: Array, ent
 	var sample := {"peak_burning":0}
 	var observe := func():
 		sample.peak_burning=maxi(int(sample.peak_burning),Fire.count(game.tactics.memory.get(Fire.BURNING,{})))
-		for effect: Dictionary in game.combat_events:
-			if effect.get("label","")=="Surge": pulses[effect.id]=true
+		# One threshold owns a timeline record containing weighted contributor
+		# waves. Counting wave visuals would incorrectly multiply Surge events.
+		for effect: Dictionary in game.effect_timeline.native_records():
+			if effect.kind=="water_tide": pulses[effect._native_record]=true
 	test.tree.process_frame.connect(observe)
 	if not await cast_all(test,game,actors,events,"thorn",entry,target):
 		test.tree.process_frame.disconnect(observe);return false

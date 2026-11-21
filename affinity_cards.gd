@@ -23,7 +23,7 @@ const DODGE_MIN_MS := CardState.DODGE_MIN_MS
 
 static func clear(player: Dictionary) -> void:
 	player.erase(STATE)
-	for field in ["card_active_state","thorn_card_momentum","thorn_card_streak","frost_card_credit","frost_card_rhythm","fire_card_sequence","water_card_sequence","water_card_restoration","wood_card_retaliation"]: player.erase(field)
+	for field in ["card_active_state","thorn_card_momentum","thorn_card_streak","frost_card_credit","frost_card_rhythm","fire_card_sequence","water_card_sequence","water_card_restoration","wood_card_retaliation","vital_card_bloom","vital_card_vigor"]: player.erase(field)
 
 
 # Read adapter for existing actor consumers. The ledger owns the records.
@@ -72,7 +72,7 @@ static func checkpoint_view(run: Ledger, stats: Dictionary, dodge_base: int, ess
 		var active := mini(limit, run.amount(option.id)) if Ledger.requirement(definition, stats.affinity_build, run.counts()).is_empty() else 0
 		var choice := choice_view(definition, option, run.copies_for(option.id), active, reason, int(stats.interval))
 		choice.merge({"choice": index, "id": option.id, "title": definition.title,
-			"rarity": option.rarity, "scope": str(definition.scope).capitalize(), "unique": definition.policy == "unique",
+			"rarity": option.rarity, "scope": Catalog.scope_label(definition), "unique": definition.policy == "unique",
 			"enabled": reason.is_empty(), "cost": 0})
 		result.choices.append(choice)
 	var cost := run.reroll_cost()
@@ -176,7 +176,7 @@ static func owned_rows(copies: Array) -> Array:
 		var group: Array = by_id[id]
 		var first: Dictionary = group[0]
 		var definition: Dictionary = Catalog.DEFINITIONS[id]
-		var scope := str(definition.scope).capitalize()
+		var scope := Catalog.scope_label(definition)
 		var unique: bool = definition.policy == "unique"
 		var reason: String = first.reason
 		var summary := "Unique · " + scope if unique else rarity_mix(group) + " · " + scope
@@ -223,6 +223,21 @@ static func affinity_values(build: Dictionary, contributions: Dictionary, source
 		material: Dictionary, base: Dictionary) -> Dictionary:
 	var result := _slot_values(build,contributions,source,material,base)
 	var family: String=material.get("primary_affinity","")
+	if source in ["core","form","catalyst"] and family=="vital":
+		# Only new authored investments are pooled. Native grants still use max;
+		# historical Greening Chime remains in its actual Catalyst slot.
+		var growth:=int(result.get("growth_all_hp",0))
+		var renewal:=0
+		for slot: String in ["core","form","catalyst"]:
+			var part: Dictionary=material if slot==source else build.get(slot,{})
+			if part.get("primary_affinity")!="vital" or part.get("state")!="ready":continue
+			var values: Dictionary=base if slot==source else part.potency_profile.values
+			var tuned:=_slot_values(build,contributions,slot,part,values)
+			growth+=int(tuned.get("growth_hp",0))
+			renewal+=int(tuned.get("renewal_hp_s",0))
+		result.bonus_hp=int(result.bonus_hp)+growth
+		result.regen_per_second=int(result.regen_per_second)+renewal
+		return result
 	if source not in ["core","form","catalyst"] or family not in ["thorn","frost"]: return result
 	var parameter := "tick_hp" if family=="thorn" else "max_shatter_hp"
 	var baseline := 0.0

@@ -15,22 +15,22 @@ const RADIUS := 2.4
 const COOLDOWN_MS := 8000
 # Whole Saturation points; one threshold funds source-weighted damage and restoration.
 const SATURATION_THRESHOLD := 100
+const SATURATION_RETENTION := "maintained_drenched_and_current_source"
 const APPLICATION_SATURATION := {"core":40,"form":15,"catalyst":30}
 const SURGE_HP := 6
 const SURGE_HEAL_HP := 6
 const SEQUENCE := "water_card_sequence"
 const REFRESH := "water_card_restoration"
-const SURGE_RADIUS := 2.4
 const REDUCTION_LIMIT := .30
 const SHELTER_WARD_PARAMETER := "shelter_ward_ms"
 # The same parameter is read by on_event below; eligibility does not invent it.
 const CARD_GRANTS := {"monsoon_unlock":{"method":"drench","capability":{"producer":"card","id":"monsoon","recipient":"living_allies"}},SHELTER_WARD_PARAMETER:{"method":"on_event", "capability":{
 	"producer":"card", "id":"dew_shelter", "slot":"core", "recipient":"living_allies"}}}
 const QUALITY := {
-	"ordinary": {"reduction": .18, "saturation_bonus":0, "impact_hp": 7, "surge_hp":SURGE_HP, "surge_heal_hp":SURGE_HEAL_HP, "direct_heal_hp":2, "surge_radius":SURGE_RADIUS},
-	"refined": {"reduction": .30, "saturation_bonus":10, "impact_hp": 11, "surge_hp":SURGE_HP, "surge_heal_hp":SURGE_HEAL_HP, "direct_heal_hp":3, "surge_radius":SURGE_RADIUS},
+	"ordinary": {"reduction": .18, "saturation_bonus":0, "impact_hp": 7, "surge_hp":SURGE_HP, "surge_heal_hp":SURGE_HEAL_HP, "direct_heal_hp":2},
+	"refined": {"reduction": .30, "saturation_bonus":10, "impact_hp": 11, "surge_hp":SURGE_HP, "surge_heal_hp":SURGE_HEAL_HP, "direct_heal_hp":3},
 }
-const VERSION_DATA := [DURATION_MS, WAVE_MS, WAVE_RADIUS, RADIUS, COOLDOWN_MS, SATURATION_THRESHOLD, APPLICATION_SATURATION, SURGE_HP, SURGE_RADIUS, REDUCTION_LIMIT, QUALITY]
+const VERSION_DATA := [DURATION_MS, WAVE_MS, WAVE_RADIUS, RADIUS, COOLDOWN_MS, SATURATION_THRESHOLD, SATURATION_RETENTION, APPLICATION_SATURATION, SURGE_HP, SURGE_HEAL_HP, REDUCTION_LIMIT, QUALITY,preload("res://water_tidal_return.gd").VERSION_DATA]
 
 
 static func description(slot: String, quality: String, resolved: Dictionary = {}) -> String:
@@ -60,7 +60,9 @@ static func clean(game: Node, target: int, elapsed: int) -> Dictionary:
 		actor.erase(DRENCHED)
 		return {}
 	if status.has("pressure"):
-		status.pressure=status.pressure.filter(func(row):return int(row.until)>elapsed and Sources.current(game,row.source) and game.Life.alive(game.players.get(row.source.actor,{})))
+		# Pressure has no decay. Maintained Drenched retains its captured credits;
+		# invalid owners are removed, and the whole meter ends with Drenched.
+		status.pressure=status.pressure.filter(func(row):return Sources.current(game,row.source) and game.Life.alive(game.players.get(row.source.actor,{})))
 		status.saturation=0
 		for row in status.pressure:status.saturation+=int(row.amount)
 	return status
@@ -84,21 +86,16 @@ static func drench(game: Node, event: RefCounted, target: int) -> void:
 	var amount := clampf(float(potency.reduction),0.0,REDUCTION_LIMIT)
 	# Different strengths expire independently, even from the same slot/player.
 	# Refreshing a weaker record never prolongs the stronger record's deadline.
-	var surge_hp := maxi(0,int(potency.get("surge_hp",SURGE_HP)))
-	var surge_radius := float(potency.get("surge_radius",SURGE_RADIUS))
-	if not is_finite(surge_radius) or surge_radius<0.0: return
 	var saturation_bonus := int(potency.get("saturation_bonus",0))
 	if not Sources.sum_fits(int(APPLICATION_SATURATION[event.source]),saturation_bonus): return
 	var applied := int(APPLICATION_SATURATION[event.source])+saturation_bonus
 	if not Sources.sum_fits(int(status.saturation),applied): return
-	var key: String = Sources.key(source)+"/"+event.source+"/"+str([amount,surge_hp,surge_radius])
-	source.surge_hp=surge_hp
-	source.surge_radius=surge_radius
+	var key: String = Sources.key(source)+"/"+event.source+"/"+str(amount)
 	source.reduction=amount
 	source.until=elapsed+DURATION_MS+int(potency.get("duration_bonus_ms",0))
 	status.sources[key]=source
 	status.saturation+=applied
-	status.pressure.append({"source":Sources.capture(event),"potency":potency,"amount":applied,"until":source.until})
+	status.pressure.append({"source":Sources.capture(event),"potency":potency,"amount":applied})
 	Actors.body(game,target)[DRENCHED]=status
 	while int(status.saturation)>=SATURATION_THRESHOLD:
 		if not load("res://water_tidal_return.gd").admit(game,target,status,preload("res://combat_clock.gd").now()):break

@@ -56,6 +56,7 @@ func start_timeline(peer: int, stats: Dictionary, form: String, now: int) -> int
 	var started = actor[Actions.STATE].try_start(now, int(stats.interval), roundi(float(Motion.profile(form).duration) * 1000), float(stats.reach))
 	if started == null: return -1
 	actor[Actions.STATE] = started
+	preload("res://vital_combat.gd").launch(_world,actor,stats,now)
 	actor.cast_until = 0
 	return started.duration_ms()
 

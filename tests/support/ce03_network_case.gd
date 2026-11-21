@@ -13,11 +13,11 @@ static func host(test: RefCounted,game: Node,guests: Array) -> bool:
  var part:=0
  for index in range(1,Build.Materials.DEFINITIONS.size()):
   if Build.Affinities.for_part(index).get("primary_affinity")==family:part=index;break
- var ids: Array={"water":["gathering_clouds","restorative_surge","monsoon"],"wood":["thickened_growth","bursting_canopy","splinterburst"]}.get(family,[])
+ var ids: Array={"water":["gathering_clouds","restorative_surge","monsoon"],"wood":["thickened_growth","bursting_canopy","splinterburst"],"vital":["verdant_reserve","flourishing_assault","harvest"]}.get(family,[])
  for peer in actors:
   var p: Dictionary=game.players[peer]
   saved[peer]=[p.weapon,p.secondary,p.catalyst,p.get(Cards.STATE),p.pos]
-  if family=="wood":p.pos=game.battlefield.dash(game.tactics.position,game.tactics.position+Vector3((actors.find(peer)-1)*.25,0,1.0))
+  if family in ["wood","vital"]:p.pos=game.battlefield.dash(game.tactics.position,game.tactics.position+Vector3((actors.find(peer)-1)*.25,0,1.0))
   p.weapon=part;p.secondary=part;p.catalyst=part
   var copies: Array[Dictionary]=[]
   for id in ids:
@@ -37,20 +37,29 @@ static func host(test: RefCounted,game: Node,guests: Array) -> bool:
    load("res://water_combat.gd").drench(game,event,-1)
    load("res://water_combat.gd").drench(game,event,-1)
   elif family=="wood":load("res://wood_affinity.gd").grant(game,event,peer,"fixture-core")
+  elif family=="vital":
+   load("res://vital_combat.gd").grant(game,event,peer,load("res://affinity_time.gd").now(game))
+   var p: Dictionary=game.players[peer]
+   p[preload("res://player_vitals.gd").STATE]=p[preload("res://player_vitals.gd").STATE].refilled()
+   p[preload("res://player_weapon_actions.gd").STATE]=p[preload("res://player_weapon_actions.gd").STATE].with_ready_at(0)
   game.players[peer].core_ready_at=0;game.players[peer].core_cast_until=0;game.players[peer].cast_until=0
  for peer in guests:test.mark("ce03-start-"+str(peer),family)
  if not test.check(await test.until(func():return guests.all(func(peer):return test.read("ce03-seen-"+str(peer))=="ok")),"all guests receive acquired CE03 cards and additional action data"):return false
  var before:int=game.enemy_health()
  for peer in guests:test.mark("ce03-cast-"+str(peer))
- if not test.check(await test.until(func():return guests.all(func(peer):return game.players[peer].has(Active.STATE) if family=="wood" else int(game.players[peer].get("core_ready_at",0))>now)),"guest Splinterburst requests pass host identity and ownership checks"):return false
+ if not test.check(await test.until(func():return guests.all(func(peer):return game.players[peer].has(Active.STATE) if family in ["wood","vital"] else int(game.players[peer].get("core_ready_at",0))>now)),"guest Splinterburst requests pass host identity and ownership checks"):return false
+ if family=="vital":
+  for peer in guests:test.mark("ce03-attack-"+str(peer))
+  if not test.check(await test.until(func():return game.weapon_attacks.views().any(func(row):return guests.has(row.player) and float(row.stats.get("vital_spent_hp",0))>0)),"real guest ordinary attack spends Harvest once at host launch"):return false
  if not test.check(await test.until(func():return game.enemy_health()<before),"host resolves guest card-enhanced damage after actual cast release"):return false
  for peer in guests:test.mark("ce03-accepted-"+str(peer))
  if not test.check(await test.until(func():return guests.all(func(peer):return test.read("ce03-finished-"+str(peer))=="ok")),"guests see host cooldown feedback after duplicate requests"):return false
- if family!="wood" and not test.check(await test.until(func():return game.effect_timeline.core_records().is_empty()),"all card-enhanced Core phases finish before fixture cleanup"):return false
+ if family=="water" and not test.check(await test.until(func():return game.effect_timeline.core_records().is_empty()),"all card-enhanced Core phases finish before fixture cleanup"):return false
  for peer in actors:
   var p: Dictionary=game.players[peer]
   p.weapon=saved[peer][0];p.secondary=saved[peer][1];p.catalyst=saved[peer][2];p.pos=saved[peer][4]
   if family=="wood":load("res://wood_affinity.gd").clear(p)
+  if family=="vital":load("res://vital_combat.gd").clear(game,p)
   Cards.clear(p)
   if saved[peer][3]!=null:p[Cards.STATE]=saved[peer][3]
  if game.has_meta(thorn.FIELDS):game.remove_meta(thorn.FIELDS)
@@ -61,15 +70,18 @@ static func host(test: RefCounted,game: Node,guests: Array) -> bool:
 static func guest(test: RefCounted,game: Node,peer: int) -> bool:
  if not test.check(await test.until(func():return not test.read("ce03-start-"+str(peer)).is_empty()),"CE03 episode begins"):return false
  var family: String=test.ce03_family
- var unique: String={"water":"monsoon","wood":"splinterburst"}[family]
+ var unique: String={"water":"monsoon","wood":"splinterburst","vital":"harvest"}[family]
  var local: Dictionary=game.players[peer]
- if not test.check(await test.until(func():return game.players.get(peer,{}).get("affinity_run_cards",[]).any(func(row):return row.id==unique) and (family!="wood" or game.players.get(peer,{}).get("card_actions_state",[]).any(func(row):return row.id=="splinterburst"))),"guest receives unique acquisition and additional skill-bar action"):return false
+ if not test.check(await test.until(func():return game.players.get(peer,{}).get("affinity_run_cards",[]).any(func(row):return row.id==unique) and (family=="water" or game.players.get(peer,{}).get("card_actions_state",[]).any(func(row):return row.id==unique))),"guest receives unique acquisition and additional skill-bar action"):return false
  test.mark("ce03-seen-"+str(peer))
  if not test.check(await test.until(func():return test.read("ce03-cast-"+str(peer))=="ok"),"host requests actual extra-action input"):return false
  local=game.players[peer]
  var offset: Vector3=game.tactics.position-local.pos
- var request:=Active.request(game,local,"splinterburst",Vector2(offset.x,offset.z).normalized(),100000+peer) if family=="wood" else Core.request(game,local,Vector2(offset.x,offset.z).normalized(),1.1)
+ var request:=Active.request(game,local,unique,Vector2(offset.x,offset.z).normalized(),100000+peer) if family in ["wood","vital"] else Core.request(game,local,Vector2(offset.x,offset.z).normalized(),1.1)
  game.send_garden_action(request);game.send_garden_action(request)
- if not test.check(await test.until(func():return test.read("ce03-accepted-"+str(peer))=="ok" and (game.players.get(peer,{}).get("card_actions_state",[]).any(func(row):return row.id=="splinterburst" and row.remaining>0) if family=="wood" else float(game.players.get(peer,{}).get("core_state",{}).get("remaining",0))>0)),"duplicate input yields one host-owned cooldown"):return false
+ if family=="vital":
+  if not test.check(await test.until(func():return test.read("ce03-attack-"+str(peer))=="ok"),"host accepted Harvest toggle before ordinary attack"):return false
+  game.send_action(true)
+ if not test.check(await test.until(func():return test.read("ce03-accepted-"+str(peer))=="ok" and (game.players.get(peer,{}).get("card_actions_state",[]).any(func(row):return row.id==unique and (bool(row.get("active",false)) if family=="vital" else row.remaining>0)) if family in ["wood","vital"] else float(game.players.get(peer,{}).get("core_state",{}).get("remaining",0))>0)),"duplicate input yields one host-owned cooldown"):return false
  test.mark("ce03-finished-"+str(peer))
  return test.check(await test.until(func():return test.read("ce03-done")=="ok"),"CE03 fixture restores equipment before normal floor progression")

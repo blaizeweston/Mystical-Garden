@@ -8,7 +8,7 @@ const Session = preload("res://network_session.gd")
 const PREFIX := "card_cast:"
 const STATE := "card_active_state"
 const INPUTS := ["card_active_one","card_active_two","card_active_three","card_active_four"]
-const CARD_GRANTS := {"splinterburst_unlock":{"method":"command","capability":{"producer":"card","id":"splinterburst","recipient":"enemy"}},"bloodletting_unlock":{"method":"command","capability":{"producer":"card","id":"bloodletting","recipient":"enemy"}}}
+const CARD_GRANTS := {"harvest_unlock":{"method":"command","capability":{"producer":"card","id":"harvest","recipient":"enemy"}},"splinterburst_unlock":{"method":"command","capability":{"producer":"card","id":"splinterburst","recipient":"enemy"}},"bloodletting_unlock":{"method":"command","capability":{"producer":"card","id":"bloodletting","recipient":"enemy"}}}
 static var _request_serial := 0
 
 static func actions(player: Dictionary) -> Array[String]:
@@ -57,6 +57,11 @@ static func command(game: Node, peer: int, player: Dictionary, action: String) -
  var ready: Dictionary=state.actions.get(id,{})
  var now:=preload("res://combat_clock.gd").now()
  if sequence<=int(ready.get("sequence",0)) or now<int(ready.get("ready",0)):return
+ if id=="harvest":
+  state.actions[id]={"sequence":sequence,"ready":now+int(definition.tuning.toggle_interval_ms),"enabled":not bool(ready.get("enabled",false))}
+  player[STATE]=state
+  preload("res://diagnostic_journal.gd").event("combat","harvest_toggle",{"actor":peer,"enabled":state.actions[id].enabled,"sequence":sequence})
+  return
  if id=="splinterburst":
   var wood=load("res://wood_affinity.gd")
   var elapsed: int=load("res://affinity_time.gd").now(game)
@@ -111,7 +116,8 @@ static func owner_state(game: Node, player: Dictionary) -> Array:
  for id in actions(player):
   var definition: Dictionary=Catalog.DEFINITIONS[id]
   var ready:=0 if state.get("stamp")!=stamp else int(state.get("actions",{}).get(id,{}).get("ready",0))
-  result.append({"id":id,"name":definition.title,"remaining":maxf(0,(ready-now)/1000.0),"tooltip":definition.detail})
+  var enabled: bool=state.get("stamp")==stamp and bool(state.get("actions",{}).get(id,{}).get("enabled",false))
+  result.append({"id":id,"name":definition.title+(" · On" if enabled else " · Off") if id=="harvest" else definition.title,"active":enabled,"remaining":maxf(0,(ready-now)/1000.0),"tooltip":definition.detail})
  return result
 
 static func hud_state(game: Node, player: Dictionary) -> Array:

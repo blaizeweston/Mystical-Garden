@@ -1530,6 +1530,9 @@
     ]
   },
   "suites": {
+    "ce03_vital": {"kind":"unit","profile":"affinity","systems":["affinity_cards","vital_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session"],"package":false},
+    "ce03_vital_coop": {"kind":"pair","profile":"affinity","systems":["affinity_cards","vital_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session"],"package":false},
+    "ce03_vital_party": {"kind":"party","profile":"affinity","systems":["affinity_cards","vital_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session"],"package":false},
     "ce03_wood": {"kind":"unit","profile":"affinity","systems":["affinity_cards","wood_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session"],"package":false},
     "ce03_wood_coop": {"kind":"pair","profile":"affinity","systems":["affinity_cards","wood_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session"],"package":false},
     "ce03_wood_party": {"kind":"party","profile":"affinity","systems":["affinity_cards","wood_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session"],"package":false},

@@ -19,6 +19,9 @@ func reset():
   p[Vitals.STATE]=Vitals.Health.new(70,100)
   p[Protection.STATE]=p[Protection.STATE].clear_expedition()
 func drain(start: int):
+ var records: Array=c.game.effect_timeline.native_records().filter(func(row):return row.kind=="water_tide")
+ if records.is_empty():return
+ start=int(records[0].waves[0].start)
  for offset in [0,225,451,675,901,1100,1350,1575,1790,1950]:c.game.effect_timeline.advance_native(c.game.native_effects_world,start+offset)
 func run():
  c.create(self)
@@ -37,6 +40,16 @@ func run():
  var hp: float=g.players[1][Vitals.STATE].hp()
  drain(now)
  check(g.enemy_health()==999994 and g.players[1][Vitals.STATE].hp()==hp and status.saturation==5,"repeated timeline execution neither repeats contacts nor generates pressure")
+ reset();c.equip(1,"water",["form"])
+ var interval: float=int(g.combat_build(g.players[1]).basic_stats().interval)/1000.0
+ for index in 7:
+  Water.drench(g,c.action(1,"form"),-1)
+  if index<6:Water.tick(g,c.Clock.advance(g,interval))
+ check(g.tactics.memory[Water.DRENCHED].saturation==5 and g.effect_timeline.native_count()==1,"ordinary Form-only attacks at the actual weapon interval reach Surge without hidden pressure decay")
+ drain(now)
+ check(g.enemy_health()==999994 and g.players[1][Vitals.STATE].hp()==76,"paced solo Form applications provide real offensive and restorative baseline value")
+ Water.tick(g,c.Clock.advance(g,(Water.DURATION_MS+1)/1000.0))
+ check(not g.tactics.memory.has(Water.DRENCHED),"idle Drenched expiration retires the remaining pressure and contributor records")
  reset()
  for peer in [1,2,3,4]:
   c.equip(peer,"water",["catalyst"])
@@ -81,6 +94,14 @@ func run():
  check(tide.waves.size()==3 and not tide.waves[0].ring and tide.waves[1].ring,"Monsoon keeps the normal directional wave and adds two independent rings")
  drain(now)
  check(g.enemy_health()==999990 and g.players[1][Vitals.STATE].hp()==80 and g.effect_timeline.native_count()==0,"Monsoon produces finite damage/restoration without pressure or recursive waves")
+ reset()
+ for peer in [1,2,3,4]:
+  c.equip(peer,"water",["catalyst"]);c.own(peer,["monsoon"])
+  Water.drench(g,c.action(peer,"catalyst"),-1)
+ tide=g.effect_timeline.native_records()[0]
+ damage=0;healing=0
+ for wave in tide.waves:damage+=int(wave.damage);healing+=int(wave.heal)
+ check(tide.waves.size()==12 and damage==10 and healing==10,"four Monsoon owners round weighted ring groups once, preserving ten total potency instead of multiplying full Surges")
  reset();c.equip(1,"water",["form"])
  for index in 7:Water.drench(g,c.action(1,"form"),-1)
  g.players[1][preload("res://player_lifecycle.gd").STATE]=preload("res://player_lifecycle.gd").start_life()
@@ -106,6 +127,20 @@ func run():
  drain(now)
  check(g.enemy_health()==999994,"TC01 projectile clearance allows an outgoing tide over unsupported open water")
  terrain.walls(g.battlefield,[])
+ reset();c.equip(1,"water",["core"]);c.equip(2,"water",["catalyst"])
+ Water.drench(g,c.action(1,"core"),-1)
+ for index in 2:Water.drench(g,c.action(2,"catalyst"),-1)
+ var lifecycle=load("res://player_lifecycle.gd")
+ var original_life: RefCounted=g.players[2][lifecycle.STATE]
+ g.players[2][lifecycle.STATE]=original_life.fall()
+ drain(now)
+ check(g.enemy_health()==999998 and g.players[1][Vitals.STATE].hp()==72,"fallen contributor's four-point share is cancelled, never transferred to the remaining owner")
+ g.players[2][lifecycle.STATE]=original_life
+ reset();c.equip(2,"water",["form"])
+ for index in 7:Water.drench(g,c.action(2,"form"),-1)
+ g.network_session.release_peer(2)
+ drain(now)
+ check(g.enemy_health()==1000000,"disconnected contributors cannot execute pending waves")
  reset();c.equip(1,"water",["form"])
  for index in 7:Water.drench(g,c.action(1,"form"),-1)
  c.Expedition.set_world(g,{"combat_epoch":g.participation.epoch()+1})

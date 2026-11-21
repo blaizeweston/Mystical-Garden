@@ -80,7 +80,9 @@ Distinguish **material baselines**, **build-derived resource/potency limits**, *
 
 The implemented 28-card catalog has only three definition changes relative to `main`: Sawtooth Briars now raises the personal shared-Bleed cap; Hotter Embers and Heart of Cinders now add Burning **stacks per application** instead of damage per tick. Their IDs, copy counts and rarity numbers remain unchanged. [affinity_card_catalog.gd](../affinity_card_catalog.gd) owns the values; `ResolvedCombatBuild.Snapshot.affinity_potency` and `affinity_cards.affinity_values` feed actual actions and resolved equipment descriptions. Old stacks do not acquire later upgrades for free. Historical per-slot Bleed/Burning and 48-capacity wording below must not be applied to the reviewed newer source.
 
-#### Approved working transformation catalog — unimplemented
+#### Approved working transformation catalog
+
+CE02/CE03 implement Bloodletting, Avalanche, Wildfire, Monsoon, Splinterburst and Harvest. Conductor, Mirrorstep and Singularity remain approved directions without implementations. Current provisional tuning and focused evidence are in [ARCHITECTURE.md](ARCHITECTURE.md#second-affinity-card-expansion-ce03).
 
 These nine transformations anchor the future catalog. They are **approved design directions**, not finished card definitions, stable card IDs, final numerical tuning or playable actions. Each is a proposed **Unique, nonstacking, once-per-expedition acquisition**. Unique is independent of numerical rarity. None is a prerequisite for a functional normal build.
 
@@ -115,7 +117,7 @@ Applications, expenditure and generated damage remain host-authoritative and use
 - Normal HP is not spent by default. Available bonus HP is current HP above the non-Vital maximum, not unfilled capacity.
 - Running out of spendable bonus HP suspends bonus damage **without turning off the toggle**. Regeneration can replenish the resource; a player may leave Harvest off and retain bonus HP for defense.
 - Expenditure is a resource transaction, never incoming damage: no Guard/Ward consumption or damage-reactive response. Spending does not reduce maximum-health capacity.
-- Exact expenditure and damage conversion remain provisional. The existing foundation's **1 damage per HP** is not an approved final Harvest balance value or an implemented attack loop.
+- Exact expenditure and damage conversion remain provisional. The pure foundation quote's **1 damage per HP** is not live Harvest tuning. CE03 implements the attack loop at **up to 2 bonus HP per accepted launch, 2 damage per HP actually spent**, provisionally; a miss spends the launch resource, while a refused attack does not.
 - **Deep Roots is deferred and must not be implemented here.** It remains a possible future modifier permitting limited normal-HP expenditure. The foundation's 50% safety test candidate is not an active card or finalized threshold.
 
 **Splinterburst**
@@ -172,15 +174,15 @@ Acquisition limits, rarity probabilities and offer weighting are separate from m
 | Area | Exact remaining boundary |
 |---|---|
 | Transformation-specific eligibility | CE01 implements the general predicates and verified-grant boundary. Each future transformation still needs its actual effect consumer, external producer requirements and any approved tag gate; a declaration alone cannot enable it. |
-| New transformations and controls | All nine card definitions/consumers are absent. Additional configurable actions, Harvest toggle state and its attack-spending loop, and Mirrorstep's echo accumulation/release are absent. Existing B/Q/R and baseline Form behavior do not substitute for them. |
+| New transformations and controls | Six transformations and the shared acquired-action/toggle controls are implemented in CE02/CE03. Conductor, Mirrorstep and Singularity still require actual consumers; existing B/Q/R never substitute for them. |
 | Tag roles — settled in CE01 | Exactly primary plus unordered supporting affinities. No ranked supporting fields or alphabetical rank inference. Both roles influence eligibility without supporting tags granting baseline mechanics. |
-| Numerical design | Thresholds, ranges, cooldowns, damage/resource conversions, durations, spread amounts/falloff and other transformation-specific numbers remain unauthored. Existing family/card numbers remain provisional and unchanged. |
-| Shared-effect attribution | Define Bloodletting's exact accumulated-Bleed measurement; Avalanche's transferred source-weighted contribution; Wildfire's copy/transfer/expiry rules; and attribution/overlap for Monsoon waves and Conductor branches/return. None may recursively reproduce itself or erase another player's valid shared contribution. |
-| Harvest expenditure | Specify eligible attacks, launch-versus-contact debit, misses, per-attack versus per-target spending, partial resource availability and the damage conversion. Preserve the approved toggle/depletion behavior, actual HP transaction and default prohibition on normal-HP spending. |
+| Numerical design | CE02/CE03 numbers are authored, provisional and recorded with units in the catalog/architecture reference. Remaining transformations and later balancing decisions are unauthored. Existing card contributions remain unchanged. |
+| Shared-effect attribution | CE02/CE03 implement attributed shared Bleed, captured Brittle stacks, nonrecursive Burning spread, weighted tide contributions and actual Bark/HP expenditure. Conductor branch/return and Mirrorstep interactions still require their own definitions. |
+| Harvest expenditure | Implemented once per accepted ordinary launch: up to 2 filled bonus HP, 2 damage per HP spent, first eligible primary contact only. Misses spend; refused launches do not. Empty reserves suspend the bonus with the toggle on. Normal HP is excluded. Deep Roots is unimplemented. |
 | Echo semantics | Specify eligible voluntary movement actions, expiry, capture timing, release/miss behavior and the exact permitted scaled weapon/Form interactions. Preserve simultaneous release of all echoes and no arbitrary balance count ceiling; validate an execution/presentation budget before implementation. |
-| Active targeting and networking | Specify each new action's actual targeting, terrain legality, UI/bindings, source/target life validity and multiplayer publication. Keep current owners and host authority; any necessary compatibility rollout is an implementation decision, not an approved packet change here. |
+| Active targeting and networking | Bloodletting, Splinterburst and Harvest share host acquisition, character/life/world/binding, sequence and cooldown validation plus reliable owner details. B/Q/R and protocol-41 compact bytes remain unchanged. Singularity still needs its own authored action. |
 
-These are design/implementation handoffs, not authorization to invent values or implement the catalog in this checkpoint. Storm/Spirit/Void redesign, enemy neural decisions, card/graft ledger refactoring and production persistence remain outside scope. Source reconciliation only was performed for this documentation update; prior implementation verification is recorded in [ARCHITECTURE.md](ARCHITECTURE.md), not rerun or expanded here.
+These are design/implementation handoffs, not authorization to invent values or implement the catalog in this checkpoint. Storm/Spirit/Void redesign, enemy neural decisions, card/graft ledger refactoring and production persistence remain outside scope. The original baseline was documentation-only; subsequent CE02/CE03 implementation and focused verification are recorded in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Historical milestone record
 
@@ -768,3 +770,5 @@ Fire adds ten implemented cards, completing CE02 at **62 definitions**: the orig
 CE03 Water is implemented (16 additions, 78 total). The maintained [architecture reference](ARCHITECTURE.md#second-affinity-card-expansion-ce03) records actual behavior, provisional per-rarity units and focused evidence; the catalog remains the tuning authority. This updates the earlier design-only state, without implying other families or transformations are implemented.
 
 CE03 Wood is implemented (11 additions, 89 total). The maintained [architecture reference](ARCHITECTURE.md#second-affinity-card-expansion-ce03) records actual behavior, provisional per-rarity units and focused evidence; the catalog remains the tuning authority. This updates the earlier design-only state, without implying other families or transformations are implemented.
+
+CE03 Vital is implemented (12 additions, 101 total). The maintained [architecture reference](ARCHITECTURE.md#second-affinity-card-expansion-ce03) records actual behavior, provisional per-rarity units and focused evidence; the catalog remains the tuning authority. This updates the earlier design-only state, without implying other families or transformations are implemented.

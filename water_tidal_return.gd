@@ -12,6 +12,7 @@ const PHASE_MS:=450
 const RETURN_WIDTH_SCALE:=.70
 const BASE_WIDTH:=.70
 const BASE_PUSH:=.20
+const VERSION_DATA:=[PHASE_MS,RETURN_WIDTH_SCALE,BASE_WIDTH,BASE_PUSH]
 
 static func living_source(game: Node, source: Dictionary) -> bool:
  return Sources.current(game,source) and game.Life.alive(game.players.get(int(source.actor),{}))
@@ -33,8 +34,10 @@ static func allocate(rows: Array, parameter: String) -> void:
  for index in maxi(0,roundi(total/1000.0)-assigned):sorted[index%sorted.size()][parameter]+=1
 
 static func admit(game: Node, target: int, status: Dictionary, now: int) -> bool:
+ var water=load("res://water_combat.gd")
+ var threshold: int=water.SATURATION_THRESHOLD
  var queue: Array=status.pressure.duplicate(true)
- var needed:=100
+ var needed:=threshold
  var by_owner:={}
  for credit: Dictionary in queue:
   if needed<=0:break
@@ -46,8 +49,8 @@ static func admit(game: Node, target: int, status: Dictionary, now: int) -> bool
     "width":BASE_WIDTH,"push":BASE_PUSH,"ward_ms":0,"focus_percent":0,"monsoon":false}
   var row: Dictionary=by_owner[key]
   var p: Dictionary=credit.potency
-  row.damage_units+=taken*int(p.get("surge_hp",6))*10
-  row.heal_units+=taken*int(p.get("surge_heal_hp",6))*10
+  row.damage_units+=taken*int(p.get("surge_hp",water.SURGE_HP))*Sources.UNITS_PER_HP/threshold
+  row.heal_units+=taken*int(p.get("surge_heal_hp",water.SURGE_HEAL_HP))*Sources.UNITS_PER_HP/threshold
   row.weight+=taken
   row.width=maxf(row.width,BASE_WIDTH+int(p.get("surge_width_cm",0))/100.0)
   row.push=maxf(row.push,BASE_PUSH+int(p.get("surge_push_cm",0))/100.0)
@@ -57,16 +60,16 @@ static func admit(game: Node, target: int, status: Dictionary, now: int) -> bool
  if needed>0:return false
  var rows: Array=by_owner.values()
  rows.sort_custom(func(a,b):return int(a.source.actor)<int(b.source.actor))
- var water=load("res://water_combat.gd")
  for row: Dictionary in rows:
   if not living_source(game,row.source):return false
   var player: Dictionary=game.players[row.source.actor]
   var prep: Dictionary=player.get(water.REFRESH,{})
   if not prep.is_empty() and prep.get("source",{}).get("life")==row.source.life and Sources.current(game,prep.source) and now<int(prep.until):
-   row.heal_units+=int(row.weight)*int(prep.hp)*10
+   row.heal_units+=int(row.weight)*int(prep.hp)*Sources.UNITS_PER_HP/threshold
  allocate(rows,"damage");allocate(rows,"heal")
  var destination: Vector3=game.enemy_position(target)
  var waves:=[]
+ var ring_groups:={}
  var maximum:=now+PHASE_MS*2+1
  for row: Dictionary in rows:
   var origin: Vector3=game.players[row.source.actor].pos
@@ -79,17 +82,22 @@ static func admit(game: Node, target: int, status: Dictionary, now: int) -> bool
    for index in int(tuning.waves):
     var ring: Dictionary=row.duplicate(true)
     ring.merge({"ring":true,"origin":end,"end":end,"radius":float(tuning.radius_m)+float(row.width)-BASE_WIDTH,
-     "start":now+PHASE_MS+int(tuning.gap_ms)*(index+1),"damage":roundi(row.damage*float(tuning.share_percent)/100.0),
-     "heal":roundi(row.heal*float(tuning.share_percent)/100.0),"damaged":{},"healed":{},"previous_radius":0.0},true)
+     "start":now+PHASE_MS+int(tuning.gap_ms)*(index+1),"damage_units":roundi(row.damage_units*float(tuning.share_percent)/100.0),
+     "heal_units":roundi(row.heal_units*float(tuning.share_percent)/100.0),"damaged":{},"healed":{},"previous_radius":0.0},true)
     waves.append(ring)
+    if not ring_groups.has(index):ring_groups[index]=[]
+    ring_groups[index].append(ring)
     maximum=maxi(maximum,int(ring.start)+2*PHASE_MS+1)
+ for group: Array in ring_groups.values():
+  allocate(group,"damage");allocate(group,"heal")
  var record: Dictionary=game.effect_timeline.schedule_native({"kind":"water_tide","owner":rows[0].source.actor,
   "epoch":game.participation.epoch(),"life":rows[0].source.life,"next":now,"until":maximum,"waves":waves})
  if record.is_empty():return false # Leave pressure and earned preparation untouched.
  status.pressure=queue.filter(func(row):return int(row.amount)>0)
- status.saturation-=100
+ status.saturation-=threshold
  for row: Dictionary in rows:game.players[row.source.actor].erase(water.REFRESH)
- preload("res://diagnostic_journal.gd").event("combat","water_tidal_return",{"target":target,"contributors":rows.size(),"waves":waves.size(),"threshold":100})
+ var contributions:=rows.map(func(row):return {"actor":row.source.actor,"activation":row.source.activation,"pressure":row.weight,"damage_hp":row.damage,"healing_hp":row.heal})
+ preload("res://diagnostic_journal.gd").event("combat","water_tidal_return",{"target":target,"contributors":contributions,"waves":waves.size(),"threshold":threshold})
  return true
 
 static func current(game: Node, record: Dictionary) -> bool:

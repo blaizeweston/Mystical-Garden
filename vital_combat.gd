@@ -4,13 +4,16 @@ const Sources = preload("res://affinity_status_source.gd")
 const Lifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Clock = preload("res://affinity_time.gd")
+const Catalog=preload("res://affinity_card_catalog.gd")
+const BLOOM_ATTACK := "vital_card_bloom"
+const VIGOR := "vital_card_vigor"
 const SOURCES := "affinity_vital_sources"
 const NEXT := "affinity_vital_tick"
 const COLOR := Color("#abd785")
 const CORE_RADIUS := 2.65
 const WARD_RADIUS := 2.4
 const COOLDOWN_MS := 8000
-# Harvest foundation only until the player-choice action is explicitly approved.
+# Native resource quote and acquired Harvest toggle share the same health floor.
 # Damage is whole HP after one final rounding. These are not card definitions.
 const HARVEST_DAMAGE_PER_HP := 1.0
 const NORMAL_HP_SAFETY_FRACTION := .50
@@ -30,7 +33,7 @@ static func description(slot: String, quality: String, resolved: Dictionary = {}
 		"form": "Vital Strikes · Grants you Vitality on the first direct hit per weapon attack.",
 		"catalyst": "Vital Catalyst · An offensive hit or movement landing grants you Vitality. Mapped heals grant their living recipients Vitality. Actual blocks grant it to the protected player and nearby living allies.",
 	}[slot]
-	return line + "\n+%d maximum HP without an instant heal, and %d HP/s regeneration for %.1f s. Each benefit uses its strongest active source." % [p.bonus_hp, p.regen_per_second, (int(DURATIONS[slot])+int(p.get("duration_bonus_ms",0))) / 1000.0]
+	return line + "\n+%d maximum HP without an instant heal, and %d HP/s regeneration for %.1f s. Each benefit uses its strongest active source." % [p.bonus_hp, p.regen_per_second, (int(DURATIONS[slot])+int(p.get("duration_bonus_ms",0))+int(p.get("persistence_ms",0))) / 1000.0]
 
 
 static func strongest(sources: Dictionary, elapsed: int) -> Vector2i:
@@ -64,15 +67,19 @@ static func grant(game: Node, event: RefCounted, id: int, elapsed: int) -> void:
 	var key: String=Sources.key(origin)+"/"+event.source+"/%d/%d" % [p.bonus_hp,p.regen_per_second]
 	var row := origin.duplicate(true)
 	row.merge({"bonus_hp":p.bonus_hp,"regen_per_second":p.regen_per_second,"start":elapsed,
-		"until":elapsed+int(DURATIONS[event.source])+int(p.get("duration_bonus_ms",0)),
+		"until":elapsed+int(DURATIONS[event.source])+int(p.get("duration_bonus_ms",0))+int(p.get("persistence_ms",0)),
 		"recipient_life":Lifecycle.generation(player)},true)
 	sources[key]=row
 	player[SOURCES]=sources
 	set_capacity(game,player,strongest(sources,elapsed).x)
+	if id==int(event.actor):
+		if event.source=="core" and int(p.get("bloom_attack_hp",0))>0:
+			player[BLOOM_ATTACK]={"source":origin,"until":int(row.until),"hp":int(p.bloom_attack_hp)}
+		if event.source=="catalyst" and int(p.get("vigor_attack_hp",0))>0:
+			player[VIGOR]={"source":origin,"until":elapsed+int(Catalog.DEFINITIONS.renewed_vigor.tuning.duration_ms),"hp":int(p.vigor_attack_hp)}
 
-## A quote is not an action. No control, card acquisition or automatic drain is
-## installed here. A future explicit action must validate its life/cast and
-## commit health_after once, then resolve damage as secondary native HP.
+## Pure resource quote, also retained for bounded future modifiers. Actual
+## Harvest launches below spend a configured amount, never the whole reserve.
 static func harvest_plan(health: PlayerVitals.Health, allow_normal := false,
 		safety_fraction := NORMAL_HP_SAFETY_FRACTION, efficiency := HARVEST_DAMAGE_PER_HP) -> Dictionary:
 	if not is_finite(safety_fraction) or safety_fraction<=0.0 or safety_fraction>1.0 \
@@ -100,6 +107,8 @@ static func set_capacity(game: Node, player: Dictionary, bonus: int) -> void:
 static func clear(game: Node, player: Dictionary) -> void:
 	player.erase(SOURCES)
 	player.erase(NEXT)
+	player.erase(BLOOM_ATTACK)
+	player.erase(VIGOR)
 	set_capacity(game,player,0)
 
 
@@ -165,3 +174,35 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 				"self_vitality":
 					if not details.enemies.is_empty() and event.take_response("vital_offense"):
 						grant(game,event,event.actor,elapsed)
+
+
+static func launch(game: Node, player: Dictionary, stats: Dictionary, now: int) -> void:
+	# Called only after the ordinary attack timeline accepted its launch.
+	var event: RefCounted=stats.get("cr02_action")
+	if event==null or stats.get("trait_secondary",false) or stats.get("core_hit",false):return
+	var hp:=0
+	var elapsed:=Clock.now(game)
+	var active:=strongest(live_sources(game,player,elapsed),elapsed)!=Vector2i.ZERO
+	if active:
+		for key in [BLOOM_ATTACK,VIGOR]:
+			var buff: Dictionary=player.get(key,{})
+			if int(buff.get("until",0))>elapsed and Sources.current(game,buff.source):hp+=int(buff.hp)
+	if event.affinity=="vital" and event.source=="form":
+		hp+=roundi(PlayerVitals.maximum_hp(player)*int(event.potency().get("max_hp_basis_points",0))/10000.0)
+	var actions=load("res://card_active_actions.gd")
+	var state: Dictionary=player.get(actions.STATE,{})
+	var stamp: String=load("res://core_combat.gd").cast_key(game,player)
+	if state.get("stamp")==stamp and state.get("actions",{}).get("harvest",{}).get("enabled",false) and load("res://affinity_cards.gd").amount(player,"harvest")>0:
+		var tuning: Dictionary=Catalog.DEFINITIONS.harvest.tuning
+		var health: PlayerVitals.Health=player[PlayerVitals.STATE]
+		var after:=health.spent(float(tuning.spend_hp),health.native_max_hp())
+		var spent:=health.hp()-after.hp()
+		player[PlayerVitals.STATE]=after
+		hp+=roundi(spent*float(tuning.damage_per_hp))
+		stats.vital_spent_hp=spent
+		preload("res://diagnostic_journal.gd").event("combat","harvest_spend",{"actor":event.actor,"activation":event.identity,"spent_hp":spent,"damage_hp":roundi(spent*float(tuning.damage_per_hp))})
+	stats.vital_primary_bonus_hp=hp
+
+static func ordinary_bonus(event: RefCounted,stats: Dictionary) -> int:
+	var hp:=int(stats.get("vital_primary_bonus_hp",0))
+	return hp if hp>0 and event.take_response("vital_primary_card") else 0

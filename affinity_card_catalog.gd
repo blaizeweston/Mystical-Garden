@@ -4952,6 +4952,729 @@ const DEFINITIONS := {
 	  "active": true
 	},
 
+	# CE03 Vital — values and units are the authoring authority.
+	"verdant_reserve": {
+	  "title": "Verdant Reserve",
+	  "family": "vital",
+	  "scopes": ["Core", "Form", "Catalyst"],
+	  "scope": "core",
+	  "policy": "stackable",
+	  "trigger": "New capacity investment benefits every functioning self-generated Vital source, so a stronger other slot cannot erase it",
+	  "consumer": [
+	    "res://vital_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "vital"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "vital_bloom",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "growth_hp",
+	  "label": "Verdant Reserve contribution",
+	  "unit": "capacity_hp",
+	  "limit": 4,
+	  "description": "Vital Bloom investment adds +%s personal Vital capacity.",
+	  "detail": "Provisional CE03 tuning. New capacity investment benefits every functioning self-generated Vital source, so a stronger other slot cannot erase it. Native grants still resolve strongest, never add together.",
+	  "tuning": {},
+	  "values": [
+	    4,
+	    6,
+	    8,
+	    10
+	  ]
+	},
+	"deep_renewal": {
+	  "title": "Deep Renewal",
+	  "family": "vital",
+	  "scopes": ["Core", "Form", "Catalyst"],
+	  "scope": "core",
+	  "policy": "stackable",
+	  "trigger": "New regeneration investment benefits functioning self-generated Vital sources",
+	  "consumer": [
+	    "res://vital_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "vital"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "vital_bloom",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "renewal_hp_s",
+	  "label": "Deep Renewal contribution",
+	  "unit": "regen_hp",
+	  "limit": 4,
+	  "description": "Vital Bloom investment adds +%s HP/s regeneration.",
+	  "detail": "Provisional CE03 tuning. New regeneration investment benefits functioning self-generated Vital sources. Existing Greening Chime stays Catalyst-specific.",
+	  "tuning": {},
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ]
+	},
+	"blooming_strength": {
+	  "title": "Blooming Strength",
+	  "family": "vital",
+	  "scope": "core",
+	  "policy": "stackable",
+	  "trigger": "Only the caster receives this native damage preparation, while that Bloom grant lasts",
+	  "consumer": [
+	    "res://vital_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "vital"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "vital_bloom",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "bloom_attack_hp",
+	  "label": "Blooming Strength contribution",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Your Vital Bloom grants +%s primary basic-attack damage.",
+	  "detail": "Provisional CE03 tuning. Only the caster receives this native damage preparation, while that Bloom grant lasts. First eligible direct target per ordinary attack only.",
+	  "tuning": {},
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"growing_edge": {
+	  "title": "Growing Edge",
+	  "family": "vital",
+	  "scopes": ["Core", "Form", "Catalyst"],
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "All functioning self-generated Vital sources include this investment; grants retain strongest-source resolution",
+	  "consumer": [
+	    "res://vital_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "vital"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "vital_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "growth_hp",
+	  "label": "Growing Edge contribution",
+	  "unit": "capacity_hp",
+	  "limit": 4,
+	  "description": "Vital Form investment adds +%s personal Vital capacity.",
+	  "detail": "Provisional CE03 tuning. All functioning self-generated Vital sources include this investment; grants retain strongest-source resolution.",
+	  "tuning": {},
+	  "values": [
+	    3,
+	    5,
+	    7,
+	    9
+	  ]
+	},
+	"sustaining_strikes": {
+	  "title": "Sustaining Strikes",
+	  "family": "vital",
+	  "scopes": ["Core", "Form", "Catalyst"],
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "All functioning self-generated Vital sources include this regeneration investment",
+	  "consumer": [
+	    "res://vital_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "vital"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "vital_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "renewal_hp_s",
+	  "label": "Sustaining Strikes contribution",
+	  "unit": "regen_hp",
+	  "limit": 4,
+	  "description": "Vital Form investment adds +%s HP/s regeneration.",
+	  "detail": "Provisional CE03 tuning. All functioning self-generated Vital sources include this regeneration investment. Does not heal immediately.",
+	  "tuning": {},
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ]
+	},
+	"flourishing_assault": {
+	  "title": "Flourishing Assault",
+	  "family": "vital",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Uses resolved current maximum capacity, including real Vital growth",
+	  "consumer": [
+	    "res://vital_combat.gd",
+	    "ordinary_bonus"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "vital"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "vital_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "max_hp_basis_points",
+	  "label": "Flourishing Assault contribution",
+	  "unit": "basis_points",
+	  "limit": 4,
+	  "description": "Primary basic hits gain damage equal to %s%% of effective Max HP.",
+	  "detail": "Provisional CE03 tuning. Uses resolved current maximum capacity, including real Vital growth. Never spends HP. Once per ordinary attack on its first eligible direct target.",
+	  "tuning": {},
+	  "values": [
+	    50,
+	    75,
+	    100,
+	    125
+	  ]
+	},
+	"persistent_growth": {
+	  "title": "Persistent Growth",
+	  "family": "vital",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Extends only actual Form-generated Vitality, with ordinary expiry clamping",
+	  "consumer": [
+	    "res://vital_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "vital"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "vital_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "duration_bonus_ms",
+	  "label": "Persistent Growth contribution",
+	  "unit": "ms",
+	  "limit": 4,
+	  "description": "Vital Form grants last +%s s.",
+	  "detail": "Provisional CE03 tuning. Extends only actual Form-generated Vitality, with ordinary expiry clamping.",
+	  "tuning": {},
+	  "values": [
+	    250,
+	    400,
+	    550,
+	    700
+	  ]
+	},
+	"verdant_conduit": {
+	  "title": "Verdant Conduit",
+	  "family": "vital",
+	  "scopes": ["Core", "Form", "Catalyst"],
+	  "scope": "catalyst",
+	  "policy": "stackable",
+	  "trigger": "Benefits functioning self-generated Vital sources; no unconditional additive grant stacking",
+	  "consumer": [
+	    "res://vital_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "vital"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "self_vitality"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "radial_vitality"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "recipient_vitality"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "landing_vitality"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "growth_hp",
+	  "label": "Verdant Conduit contribution",
+	  "unit": "capacity_hp",
+	  "limit": 4,
+	  "description": "Vital Catalyst investment adds +%s personal Vital capacity.",
+	  "detail": "Provisional CE03 tuning. Benefits functioning self-generated Vital sources; no unconditional additive grant stacking.",
+	  "tuning": {},
+	  "values": [
+	    3,
+	    5,
+	    7,
+	    9
+	  ]
+	},
+	"renewed_vigor": {
+	  "title": "Renewed Vigor",
+	  "family": "vital",
+	  "scope": "catalyst",
+	  "policy": "stackable",
+	  "trigger": "Lasts 2 seconds while Vitality remains active",
+	  "consumer": [
+	    "res://vital_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "vital"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "self_vitality"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "radial_vitality"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "recipient_vitality"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "landing_vitality"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "vigor_attack_hp",
+	  "label": "Renewed Vigor contribution",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Class responses that grant you Vitality prepare +%s basic-hit damage.",
+	  "detail": "Provisional CE03 tuning. Lasts 2 seconds while Vitality remains active. First primary target per ordinary attack. No extra damage or healing-type Catalyst event.",
+	  "tuning": {
+	    "duration_ms": 2000
+	  },
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"living_reserves": {
+	  "title": "Living Reserves",
+	  "family": "vital",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Counted once alongside source investments",
+	  "consumer": [
+	    "res://vital_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "vital"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "vital_bloom",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "vital"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "vital_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "vital"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "self_vitality"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_vitality"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "recipient_vitality"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_vitality"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "growth_all_hp",
+	  "label": "Living Reserves contribution",
+	  "unit": "capacity_hp",
+	  "limit": 4,
+	  "description": "Your Vital grants gain +%s maximum-health capacity.",
+	  "detail": "Provisional CE03 tuning. Counted once alongside source investments. Strongest active grant determines capacity; increasing capacity never heals.",
+	  "tuning": {},
+	  "values": [
+	    3,
+	    5,
+	    7,
+	    9
+	  ]
+	},
+	"unyielding_growth": {
+	  "title": "Unyielding Growth",
+	  "family": "vital",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Maintains native source identity and recipient life/floor expiry",
+	  "consumer": [
+	    "res://vital_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "vital"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "vital_bloom",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "vital"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "vital_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "vital"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "self_vitality"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_vitality"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "recipient_vitality"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_vitality"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "persistence_ms",
+	  "label": "Unyielding Growth contribution",
+	  "unit": "ms",
+	  "limit": 4,
+	  "description": "Your Vital grants last +%s s.",
+	  "detail": "Provisional CE03 tuning. Maintains native source identity and recipient life/floor expiry. No permanent health or extra instant healing.",
+	  "tuning": {},
+	  "values": [
+	    250,
+	    400,
+	    550,
+	    700
+	  ]
+	},
+	"harvest": {
+	  "title": "Harvest",
+	  "family": "vital",
+	  "scope": "affinity",
+	  "policy": "unique",
+	  "trigger": "Each launched ordinary attack spends up to 2 filled bonus HP for 2 damage per HP actually spent",
+	  "consumer": [
+	    "res://card_active_actions.gd",
+	    "command"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "vital"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "vital_bloom",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "vital"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "vital_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "vital"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "self_vitality"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_vitality"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "recipient_vitality"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_vitality"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "harvest_unlock",
+	  "label": "Harvest contribution",
+	  "unit": "unlock",
+	  "limit": 1,
+	  "description": "Toggle basic attacks to spend filled Vital bonus HP for damage.",
+	  "detail": "Provisional CE03 tuning. Each launched ordinary attack spends up to 2 filled bonus HP for 2 damage per HP actually spent. Once per attack, first eligible primary contact only. Normal HP and maximum capacity are unchanged. Empty reserves suspend the bonus while leaving the toggle on.",
+	  "tuning": {
+	    "toggle_interval_ms": 250,
+	    "spend_hp": 2.0,
+	    "damage_per_hp": 2.0
+	  },
+	  "fixed": 1,
+	  "grants": [
+	    "harvest"
+	  ],
+	  "active": true
+	},
+
 }
 
 
@@ -4975,7 +5698,8 @@ static func effect_text(definition: Dictionary, value: int) -> String:
 	var text: String = definition.description
 	if "%s" not in text:
 		return text
-	var number := str(value) if definition.unit in ["hp","healing_hp","pressure","bark","fragments","penetrations","stacks","percent","unlock"] else ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
+	var number := str(value) if definition.unit in ["hp","healing_hp","capacity_hp","regen_hp","pressure","bark","fragments","penetrations","stacks","percent","unlock"] else ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
+	if definition.unit == "basis_points": number = ("%.2f" % (value/100.0)).rstrip("0").trim_suffix(".")
 	if definition.unit == "cm": number = ("%.2f" % (value / 100.0)).rstrip("0").trim_suffix(".")
 	return text % number
 
@@ -4994,6 +5718,9 @@ static func contribution_label(definition: Dictionary) -> String:
 
 
 static func contribution(definition: Dictionary, value: int) -> String:
+	if definition.unit == "basis_points": return "+%.2f%% of Max HP as damage" % (value/100.0)
+	if definition.unit == "capacity_hp": return "+%d Max HP" % value
+	if definition.unit == "regen_hp": return "+%d HP/s" % value
 	if definition.unit == "bark": return "+%d Bark" % value
 	if definition.unit == "fragments": return "+%d fragments" % value
 	if definition.unit == "penetrations": return "+%d extra targets per fragment" % value
@@ -5016,3 +5743,6 @@ static func contribution(definition: Dictionary, value: int) -> String:
 		return "+0 s"
 	var seconds := ("%.2f" if value % 10 == 0 else "%.3f") % (value / 1000.0)
 	return "+%s s" % seconds
+
+static func scope_label(definition: Dictionary) -> String:
+	return " · ".join(PackedStringArray(definition.scopes)) if definition.has("scopes") else str(definition.scope).capitalize()
