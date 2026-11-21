@@ -43,6 +43,7 @@ func capture_attack(peer: int, now: int) -> Dictionary:
 	if not captured.is_empty(): stats[grafts.CONTEXT] = captured
 	if int(actor.frame) == Frames.REAPER and not build.class_skills.is_empty():
 		preload("res://reaper_combat.gd").commit_melee(_world, actor, build.class_skills[0].get("native_skill", {}), stats, now)
+	preload("res://thorn_affinity.gd").capture_attack(_world,actor,stats,now)
 	stats[Events.CONTEXT] = event
 	stats.erase("affinity_build")
 	if int(actor.frame) == Frames.RANGER and actor.character.has(Classes.Ranger.PROFILE_KEY):

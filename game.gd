@@ -458,6 +458,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				return
 	if ui.is_overlay_open():
 		return
+	if preload("res://card_active_actions.gd").input_event(self,event):
+		get_viewport().set_input_as_handled()
+		return
 	if preload("res://ability_aim.gd").input_event(self,event):
 		get_viewport().set_input_as_handled()
 		return
@@ -546,6 +549,9 @@ func request_garden_action(action: String) -> void:
 
 func garden_action(id: int, action: String) -> void:
 	if not persistence_session.can_write(): return
+	if action.begins_with("card_cast:"):
+		preload("res://card_active_actions.gd").command(self,id,players.get(id,{}),action)
+		return
 	if action.begins_with("core_cast:"):
 		preload("res://core_combat.gd").command(self,id,players.get(id,{}),action)
 		return
@@ -2190,6 +2196,7 @@ func _process(_delta: float) -> void:
 		"damage_flash":maxf(0,(int(p[Conditions.STATE].grace_until_ms() if host_side else p.get("client_hurt_until",0))-CombatClock.now())/250.0),"hp": health, "max_hp": PlayerVitals.maximum_hp(p,MAX_HEALTH), "lost_health":p.get("lost_health",0),"fallen":PlayerLifecycle.fallen(p), "wild": wild, "frame": p.get("frame", 0),
 		"skill_ready": ready_skill,"skill_two_ready":second_ready,"skill_names":[skills[0].name,skills[1].name+(" •" if quake_prepared else "")],"skill_cooldowns":cooldowns, "dodge_ready": ready_dodge,
 		"core":preload("res://core_combat.gd").hud_state(self,p),
+		"card_actions":preload("res://card_active_actions.gd").hud_state(self,p),
 		"skill_tooltips":skill_tips,
 		"affinity_feedback":preload("res://combat_status.gd").affinity_feedback(self,p) if host_side and wild else str(p.get("affinity_feedback","")) if wild else "",
 		"carried": carried if wild else data[0],

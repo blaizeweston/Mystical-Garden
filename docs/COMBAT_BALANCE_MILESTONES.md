@@ -755,3 +755,8 @@ Godot 4.7.2 passed 19 focused source suites with 35 successful process exits and
 | Integrated Garden/Wilds co-op | `2c72383377274181a797bc08493476df` |
 
 The composite evidence is in `cr05-accepted-final/results.json`, with intact identical-input verdicts linked from `cr05-accepted`. The sorted runtime evidence map hashes to `6ce4668736d832d01d1402c9bd4524cc1add749bd132bf3209310981dab53067`. The four-player graft run measured 1,196 application bytes at peak, 49.94 ms median sends, 59.0 ms for the highest guest p95 interval between applied states, and 85.7 ms for the longest measured apply gap. These are local loopback measurements. Protocol 41 exchanges the updated affinity definition identity through its existing compatibility check. Legacy mode remains the default and affinity-compatible cards remain empty.
+
+
+## CE02 implementation status
+
+Thorn's eleven additional cards and Bloodletting are implemented on `combat/ce02-affinity-cards` (39 total at this checkpoint). Their provisional per-copy values, ownership and verified action path are recorded in the maintained [architecture reference](ARCHITECTURE.md#first-affinity-card-expansion-ce02), with authoritative definitions in `affinity_card_catalog.gd`. The original 28 values and acquisition/rarity budgets are unchanged. Bloodletting adds an acquired action; it replaces neither Core nor Q/R and consumes no shared Bleed. The remaining transformation directions above are not implied implemented by this checkpoint.

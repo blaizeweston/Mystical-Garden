@@ -736,6 +736,753 @@ const DEFINITIONS := {
 		"description": "When Spore Nova damages an enemy in your Cultivate Bloom, the bloom deals %s secondary damage to eligible enemies inside.",
 		"detail": "Requires Bloomcaller and your own active Cultivate Bloom. The extra pulse happens at most once per Nova. It applies no extra roots or Marks, and triggers no Catalyst, Form, graft or other secondary effects.",
 	},
+	# CE02 Thorn — provisional, per-copy contributions.
+	"bramble_density": {
+	  "title": "Bramble Density",
+	  "scope": "core",
+	  "family": "thorn",
+	  "policy": "stackable",
+	  "trigger": "Thorn Line",
+	  "consumer": [
+	    "res://thorn_affinity.gd",
+	    "apply_occupancy"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "thorn"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "thorn_line",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "buildup_percent",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Thorn Line applies an additional %s percentage points of your personal Bleed cap.",
+	  "detail": "Provisional CE02 tuning. Actual occupants only; the existing one-second application interval and shared cap remain unchanged.",
+	  "values": [
+	    5,
+	    8,
+	    11,
+	    14
+	  ]
+	},
+	"creeping_briars": {
+	  "title": "Creeping Briars",
+	  "scope": "core",
+	  "family": "thorn",
+	  "policy": "stackable",
+	  "trigger": "Thorn Line",
+	  "consumer": [
+	    "res://thorn_affinity.gd",
+	    "release"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "thorn"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "thorn_line",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "coverage_cm",
+	  "unit": "cm",
+	  "limit": 4,
+	  "description": "Thorn Line extends %s m farther on each side.",
+	  "detail": "Provisional CE02 tuning. Extends the real lane and its preview. It obeys ground support and does not spread Bleed.",
+	  "values": [
+	    20,
+	    30,
+	    40,
+	    50
+	  ]
+	},
+	"serrated_edge": {
+	  "title": "Serrated Edge",
+	  "scope": "form",
+	  "family": "thorn",
+	  "policy": "stackable",
+	  "trigger": "Eligible direct basic hit",
+	  "consumer": [
+	    "res://thorn_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "thorn"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "barbed_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "direct_bleed_percent",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Eligible basic hits add %s%% of your personal Bleed cap.",
+	  "detail": "Provisional CE02 tuning. Additional direct buildup alongside the native stationary patch; no extra contact or proc.",
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"relentless_cuts": {
+	  "title": "Relentless Cuts",
+	  "scope": "form",
+	  "family": "thorn",
+	  "policy": "stackable",
+	  "trigger": "Eligible direct basic hit",
+	  "consumer": [
+	    "res://thorn_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "thorn"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "barbed_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "streak_bleed_percent",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Each successive basic hit on the same enemy adds %s percentage points more Bleed buildup.",
+	  "detail": "Provisional CE02 tuning. The first hit starts the sequence. Target changes or three seconds without a hit reset it. Buildup stops at your build-derived cap.",
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ],
+	  "tuning": {
+	    "window_ms": 3000
+	  }
+	},
+	"opening_wound": {
+	  "title": "Opening Wound",
+	  "scope": "form",
+	  "family": "thorn",
+	  "policy": "stackable",
+	  "trigger": "Eligible direct basic hit",
+	  "consumer": [
+	    "res://thorn_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "thorn"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "barbed_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "opening_bleed_percent",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Your first qualifying basic hit adds %s%% of your personal Bleed cap.",
+	  "detail": "Provisional CE02 tuning. Once per enemy while your Bleed contribution remains active; resets after your contribution expires.",
+	  "values": [
+	    5,
+	    8,
+	    11,
+	    14
+	  ]
+	},
+	"crimson_conduit": {
+	  "title": "Crimson Conduit",
+	  "scope": "catalyst",
+	  "family": "thorn",
+	  "policy": "stackable",
+	  "trigger": "Qualifying Thorn class response",
+	  "consumer": [
+	    "res://thorn_affinity.gd",
+	    "apply_occupancy"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "thorn"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "growth",
+	              "slot": "catalyst"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "lingering_thicket",
+	              "slot": "catalyst"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "protective_growth",
+	              "slot": "catalyst"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "departure_growth",
+	              "slot": "catalyst"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "buildup_percent",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Catalyst growth applies an additional %s percentage points of your personal Bleed cap.",
+	  "detail": "Provisional CE02 tuning. Requires an actual Thorn Catalyst response; empty placement gives no buildup.",
+	  "values": [
+	    5,
+	    8,
+	    11,
+	    14
+	  ]
+	},
+	"barbed_momentum": {
+	  "title": "Barbed Momentum",
+	  "scope": "catalyst",
+	  "family": "thorn",
+	  "policy": "stackable",
+	  "trigger": "Qualifying Thorn class response",
+	  "consumer": [
+	    "res://thorn_affinity.gd",
+	    "apply_occupancy"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "thorn"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "growth",
+	              "slot": "catalyst"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "lingering_thicket",
+	              "slot": "catalyst"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "protective_growth",
+	              "slot": "catalyst"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "departure_growth",
+	              "slot": "catalyst"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "momentum_hp",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "A qualifying Catalyst Bleed application prepares +%s damage on your next basic attack.",
+	  "detail": "Provisional CE02 tuning. Launch within four seconds; a miss spends it. Only the first direct enemy contact benefits, with no extra proc.",
+	  "values": [
+	    3,
+	    5,
+	    7,
+	    9
+	  ],
+	  "tuning": {
+	    "duration_ms": 4000
+	  }
+	},
+	"sanguine_growth": {
+	  "title": "Sanguine Growth",
+	  "scope": "affinity",
+	  "family": "thorn",
+	  "policy": "stackable",
+	  "trigger": "Functioning Thorn source",
+	  "consumer": [
+	    "res://thorn_affinity.gd",
+	    "apply_occupancy"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "thorn"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "thorn_line",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "thorn"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "barbed_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "thorn"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "growth",
+	                  "slot": "catalyst"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "lingering_thicket",
+	                  "slot": "catalyst"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "protective_growth",
+	                  "slot": "catalyst"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "departure_growth",
+	                  "slot": "catalyst"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "shared_potency_hp",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Increase your personal Bleed tick cap by %s damage across functioning Thorn sources.",
+	  "detail": "Provisional CE02 tuning. Counts once per player, not once per slot. Raising the cap supplies no free accumulated Bleed.",
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"unclosing_wounds": {
+	  "title": "Unclosing Wounds",
+	  "scope": "affinity",
+	  "family": "thorn",
+	  "policy": "stackable",
+	  "trigger": "Functioning Thorn source",
+	  "consumer": [
+	    "res://thorn_affinity.gd",
+	    "apply_occupancy"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "thorn"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "thorn_line",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "thorn"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "barbed_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "thorn"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "growth",
+	                  "slot": "catalyst"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "lingering_thicket",
+	                  "slot": "catalyst"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "protective_growth",
+	                  "slot": "catalyst"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "departure_growth",
+	                  "slot": "catalyst"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "bleed_duration_ms",
+	  "unit": "ms",
+	  "limit": 4,
+	  "description": "Eligible Bleed applications retain your contribution for an additional %s seconds.",
+	  "detail": "Provisional CE02 tuning. Extends your own maintained contribution, not another player’s or the stationary field lifetime.",
+	  "values": [
+	    250,
+	    400,
+	    550,
+	    700
+	  ]
+	},
+	"hemorrhagic_rupture": {
+	  "title": "Hemorrhagic Rupture",
+	  "scope": "affinity",
+	  "family": "thorn",
+	  "policy": "stackable",
+	  "trigger": "Functioning Thorn source",
+	  "consumer": [
+	    "res://thorn_affinity.gd",
+	    "on_death"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "thorn"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "thorn_line",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "thorn"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "barbed_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "thorn"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "growth",
+	                  "slot": "catalyst"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "lingering_thicket",
+	                  "slot": "catalyst"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "protective_growth",
+	                  "slot": "catalyst"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "departure_growth",
+	                  "slot": "catalyst"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "death_burst_percent",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "A heavily Bleeding enemy’s death bursts for %s%% of its accumulated Bleed tick damage.",
+	  "detail": "Provisional CE02 tuning. Requires at least 50% of the shared cap. Hits other enemies within 3 m and clear line. One strongest eligible owner supplies the burst; it spreads no Bleed and cannot chain death bursts.",
+	  "values": [
+	    50,
+	    75,
+	    100,
+	    125
+	  ],
+	  "tuning": {
+	    "threshold_percent": 50,
+	    "radius_m": 3.0
+	  }
+	},
+	"bloodletting": {
+	  "title": "Bloodletting",
+	  "scope": "affinity",
+	  "family": "thorn",
+	  "policy": "unique",
+	  "trigger": "Functioning Thorn source",
+	  "consumer": [
+	    "res://card_active_actions.gd",
+	    "command"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "thorn"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "thorn_line",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "thorn"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "barbed_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "thorn"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "growth",
+	                  "slot": "catalyst"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "lingering_thicket",
+	                  "slot": "catalyst"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "protective_growth",
+	                  "slot": "catalyst"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "departure_growth",
+	                  "slot": "catalyst"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "bloodletting_unlock",
+	  "unit": "unlock",
+	  "limit": 1,
+	  "description": "Unlock Bloodletting: deal twice an aimed enemy’s accumulated Bleed tick damage without consuming Bleed.",
+	  "detail": "Provisional CE02 tuning. Additional configurable card action, default Z. Requires an eligible Bleeding enemy within 8 m and combat sight; eight-second cooldown. Does not trigger Form, Catalyst, grafts or recursive death bursts.",
+	  "fixed": 1,
+	  "tuning": {
+	    "cooldown_ms": 8000,
+	    "range_m": 8.0,
+	    "damage_percent": 200,
+	    "min_aim_dot": 0.3
+	  },
+	  "grants": [
+	    "bloodletting"
+	  ],
+	  "active": true
+	},
 }
 
 
@@ -759,11 +1506,13 @@ static func effect_text(definition: Dictionary, value: int) -> String:
 	var text: String = definition.description
 	if "%s" not in text:
 		return text
-	var number := str(value) if definition.unit in ["hp","stacks"] else ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
+	var number := str(value) if definition.unit in ["hp","stacks","percent","unlock"] else ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
+	if definition.unit == "cm": number = ("%.2f" % (value / 100.0)).rstrip("0").trim_suffix(".")
 	return text % number
 
 
 static func contribution_label(definition: Dictionary) -> String:
+	if definition.get("family", "") != "": return str(definition.parameter).replace("_", " ").capitalize()
 	match definition.parameter:
 		"stack_bonus": return "Burning stacks per application"
 		"tick_hp": return "Personal Bleed tick cap"
@@ -776,6 +1525,9 @@ static func contribution_label(definition: Dictionary) -> String:
 
 
 static func contribution(definition: Dictionary, value: int) -> String:
+	if definition.unit == "percent": return "+%d%%" % value
+	if definition.unit == "cm": return "+%.2f m" % (value / 100.0)
+	if definition.unit == "unlock": return "Unlocked" if value > 0 else "Not acquired"
 	match definition.parameter:
 		"stack_bonus": return "+%d stacks per application" % value
 		"tick_hp": return "+%d maximum Bleed damage per tick" % value

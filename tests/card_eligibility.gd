@@ -91,7 +91,7 @@ func run() -> void:
 	quit(int(failed))
 
 func verify_migration() -> void:
-	check(Catalog.DEFINITIONS.size() == 28 and Catalog.PLAYTEST.acquisition_limit == 12 and Grafts.PLAYTEST.purchase_limit == 6,
+	check(BASELINE_VALUES.keys().all(func(id):return Catalog.DEFINITIONS.has(id)) and Catalog.PLAYTEST.acquisition_limit == 12 and Grafts.PLAYTEST.purchase_limit == 6,
 		"catalog and acquisition budgets are preserved")
 	for id: String in BASELINE_VALUES:
 		for field: String in BASELINE_VALUES[id]:
@@ -107,7 +107,7 @@ func verify_migration() -> void:
 					if Catalysts.has(family): expected.append(Catalysts[family])
 					if family == "water": expected.append("dew_shelter")
 					if class_id == 1 and focus_index == 1: expected.append("echoing_growth")
-					var actual := Ledger.new().eligible(stats(source), 2200)
+					var actual := Ledger.new().eligible(stats(source), 2200).filter(func(id):return BASELINE_VALUES.has(id))
 					expected.sort(); actual.sort()
 					check(actual == expected, "baseline eligibility preserved: %d/%d/%d/%s" % [class_id,focus_index,weapon,family])
 	var mixed := build(1,1,[part("frost"),part("fire"),part("wood")])

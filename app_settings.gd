@@ -1,7 +1,7 @@
 extends RefCounted
 const Preferences=preload("res://preference_file.gd")
-const ACTIONS: Dictionary={"up":"Move up","down":"Move down","left":"Move left","right":"Move right","attack":"Strike (hold to repeat)","interact":"Interact / collect","dodge":"Dodge","class_skill":"Class skill 1","class_skill_two":"Class skill 2","core_skill":"Core skill","extract":"Extract","pouch":"Safe pouch","flower":"Flowering","graft":"Grafting altar","pack_menu":"Inventory","progression":"Progression trees","workbench":"Weapon workbench","field_guide":"Field guide","floor_map":"Expand floor map","run_summary":"Expedition summary","session_menu":"Pause / menu","upgrade_power":"Upgrade card 1","upgrade_technique":"Upgrade card 2","upgrade_synergy":"Upgrade card 3","upgrade_fourth":"Upgrade card 4"}
-const KEYS: Dictionary={"up":[KEY_W,KEY_UP],"down":[KEY_S,KEY_DOWN],"left":[KEY_A,KEY_LEFT],"right":[KEY_D,KEY_RIGHT],"attack":[KEY_SPACE],"interact":[KEY_E],"dodge":[KEY_SHIFT],"class_skill":[KEY_Q],"class_skill_two":[KEY_R],"core_skill":[KEY_B],"extract":[KEY_T],"pouch":[KEY_P],"flower":[KEY_F],"graft":[KEY_G],"pack_menu":[KEY_I],"progression":[KEY_O],"workbench":[KEY_F2],"field_guide":[KEY_F1],"floor_map":[KEY_M],"run_summary":[KEY_TAB],"session_menu":[KEY_ESCAPE],"upgrade_power":[KEY_1],"upgrade_technique":[KEY_2],"upgrade_synergy":[KEY_3],"upgrade_fourth":[KEY_4]}
+const ACTIONS: Dictionary={"up":"Move up","down":"Move down","left":"Move left","right":"Move right","attack":"Strike (hold to repeat)","interact":"Interact / collect","dodge":"Dodge","class_skill":"Class skill 1","class_skill_two":"Class skill 2","core_skill":"Core skill","card_active_one":"Card action 1","card_active_two":"Card action 2","card_active_three":"Card action 3","card_active_four":"Card action 4","extract":"Extract","pouch":"Safe pouch","flower":"Flowering","graft":"Grafting altar","pack_menu":"Inventory","progression":"Progression trees","workbench":"Weapon workbench","field_guide":"Field guide","floor_map":"Expand floor map","run_summary":"Expedition summary","session_menu":"Pause / menu","upgrade_power":"Upgrade card 1","upgrade_technique":"Upgrade card 2","upgrade_synergy":"Upgrade card 3","upgrade_fourth":"Upgrade card 4"}
+const KEYS: Dictionary={"up":[KEY_W,KEY_UP],"down":[KEY_S,KEY_DOWN],"left":[KEY_A,KEY_LEFT],"right":[KEY_D,KEY_RIGHT],"attack":[KEY_SPACE],"interact":[KEY_E],"dodge":[KEY_SHIFT],"class_skill":[KEY_Q],"class_skill_two":[KEY_R],"core_skill":[KEY_B],"card_active_one":[KEY_Z],"card_active_two":[KEY_X],"card_active_three":[],"card_active_four":[],"extract":[KEY_T],"pouch":[KEY_P],"flower":[KEY_F],"graft":[KEY_G],"pack_menu":[KEY_I],"progression":[KEY_O],"workbench":[KEY_F2],"field_guide":[KEY_F1],"floor_map":[KEY_M],"run_summary":[KEY_TAB],"session_menu":[KEY_ESCAPE],"upgrade_power":[KEY_1],"upgrade_technique":[KEY_2],"upgrade_synergy":[KEY_3],"upgrade_fourth":[KEY_4]}
 const LEGACY: Dictionary={"expand_plot":[],"research":[],"craft":[KEY_C],"experiment":[],"select_graft":[KEY_V],"frame":[],"trait":[],"donate":[],"select_donation":[],"destination":[],"nurture":[],"harvest_offshoot":[],"awaken":[],"catalyst":[]}
 const FPS: Array=[0,60,120,144,165,240]
 var path: String="user://settings.cfg"
@@ -54,6 +54,12 @@ static func normalize(value) -> Dictionary:
    if action!="run_summary" and result.bindings[action].has(tab):
     result.bindings.run_summary=[]
     break
+ # Newly available card bindings never take over an existing customized key.
+ for action in ["card_active_one","card_active_two","card_active_three","card_active_four"]:
+  if source is Dictionary and not source.has(action):
+   for other in result.bindings:
+    if other!=action and result.bindings[other].any(func(item):return result.bindings[action].has(item)):
+     result.bindings[action]=[];break
  # Escape is an immutable recovery route, even if the pause shortcut is customized.
  if not result.bindings.session_menu.has({"kind":"key","code":KEY_ESCAPE}):result.bindings.session_menu.append({"kind":"key","code":KEY_ESCAPE})
  return result

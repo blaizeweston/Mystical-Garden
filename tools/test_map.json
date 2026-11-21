@@ -32,7 +32,7 @@
     "player_vitals": {"label": "Host-owned current HP, native capacity and temporary Vital capacity", "files": ["player_vitals.gd", "player_vitals.gd.uid"]},
     "player_cooldowns": {"label": "Host-owned native Q, R and dodge cooldown deadlines", "files": ["player_cooldowns.gd", "player_cooldowns.gd.uid"]},
     "expedition_wallet": {"label": "Run-only Essence sparks, floor grants and spending", "files": ["expedition_wallet.gd", "expedition_wallet.gd.uid"]},
-    "affinity_cards": {"label": "Affinity expedition card ledger, rarity, Essence rerolls and owned effects", "files": ["affinity_cards.gd", "affinity_cards.gd.uid", "affinity_card_ledger.gd", "affinity_card_ledger.gd.uid", "affinity_card_catalog.gd", "affinity_card_catalog.gd.uid", "card_requirements.gd", "card_requirements.gd.uid", "card_eligibility.gd", "card_eligibility.gd.uid"]},
+    "affinity_cards": {"label": "Affinity expedition card ledger, rarity, Essence rerolls and owned effects", "files": ["affinity_cards.gd", "affinity_cards.gd.uid", "affinity_card_ledger.gd", "affinity_card_ledger.gd.uid", "affinity_card_catalog.gd", "affinity_card_catalog.gd.uid", "card_requirements.gd", "card_requirements.gd.uid", "card_eligibility.gd", "card_eligibility.gd.uid", "card_active_actions.gd", "card_active_actions.gd.uid"]},
     "oracle_progression": {"label": "Connected Oracle, native Omens and first-run focus admission", "files": ["oracle_connected_tree.gd", "oracle_connected_tree.gd.uid", "oracle_combat.gd", "oracle_combat.gd.uid", "oracle_omens.gd", "oracle_omens.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid", "combat_status.gd", "combat_status.gd.uid"]},
     "void_affinity": {"label":"Void wells, compression and bounded displacement", "files":["void_affinity.gd","void_affinity.gd.uid"]},
     "spirit_affinity": {"label":"Spirit stride, traces and attack claims", "files":["spirit_affinity.gd","spirit_affinity.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid"]},
@@ -1530,6 +1530,9 @@
     ]
   },
   "suites": {
+    "ce02_thorn_coop": {"kind":"pair", "profile":"affinity", "systems":["affinity_cards","thorn_affinity","combat_affinity_contracts","network_session","world_snapshot","expedition_participation"], "package":false},
+    "ce02_thorn_party": {"kind":"party", "profile":"affinity", "systems":["affinity_cards","thorn_affinity","combat_affinity_contracts","network_session","world_snapshot","expedition_participation"], "package":false},
+    "ce02_thorn": {"kind":"unit", "profile":"affinity", "systems":["affinity_cards","thorn_affinity","combat_affinity_contracts","combat_builds","combat","connection_flow","player_lifecycle"], "package":false},
     "card_eligibility": {"kind":"unit", "profile":"affinity", "systems":["affinity_cards","combat_builds","combat_affinity_contracts","classes","plant_affinities","expedition_grafts","expedition_wallet","player_build_ui"], "package":false},
     "shared_affinity_party": {"kind": "party", "profile": "affinity", "systems": ["combat_affinity_contracts", "core_combat", "thorn_affinity", "fire_affinity", "frost_affinity", "water_affinity", "wood_affinity", "vital_affinity", "player_lifecycle", "incoming_player_hit", "world_snapshot", "connection_flow", "expedition_participation"], "package": false},
     "affinity_scaling": {"kind":"unit", "profile":"affinity", "systems":["combat_affinity_contracts","combat_builds","affinity_cards","expedition_grafts","core_combat","thorn_affinity","frost_affinity","fire_affinity","water_affinity","wood_affinity","vital_affinity","player_lifecycle","player_vitals","player_build_ui"], "package":false},
@@ -5252,12 +5255,7 @@
         ],
         "additive": true
       },
-      "held_aim_press": {
-        "additive": true,
-        "systems": [
-          "ability_aim"
-        ]
-      },
+
       "held_aim_replaces_press": {
         "additive": true,
         "systems": [
@@ -5310,22 +5308,8 @@
 
 
     "garden_action": {
-      "guarded_garden_actions": {
-        "systems": [
-          "persistence_operations",
-          "foundation",
-          "ability_aim",
-          "core_combat",
-          "cultivation_growth"
-        ],
-        "additive": true
-      },
-      "guarded_gameplay_writer": {
-        "systems": [
-          "persistence_operations"
-        ],
-        "additive": true
-      },
+
+
       "class_aim_command": {
         "additive": true,
         "systems": [
@@ -6009,11 +5993,7 @@
             "core_combat"
           ]
         },
-        "core_hud_slot": {
-          "systems": [
-            "core_combat"
-          ]
-        },
+
         "core_hud_size": {
           "systems": [
             "core_combat"
@@ -6548,36 +6528,16 @@
             "developer_garden"
           ]
         },
-        "core_legacy_binding": {
-          "systems": [
-            "core_combat"
-          ]
-        },
-        "core_default": {
-          "systems": [
-            "core_combat"
-          ]
-        },
-        "core_label": {
-          "systems": [
-            "core_combat"
-          ]
-        },
-        "normalize_growth": {
-          "systems": [
-            "garden_cinematics"
-          ]
-        },
+
+
+
+
         "defaults_growth": {
           "systems": [
             "garden_cinematics"
           ]
         },
-        "garden_motion_load": {
-          "systems": [
-            "garden_life"
-          ]
-        },
+
         "garden_motion_default": {
           "systems": [
             "garden_life"

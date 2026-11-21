@@ -6,6 +6,9 @@ const Actors = preload("res://frost_combat.gd")
 const Clock = preload("res://affinity_time.gd")
 const Footprint = preload("res://core_footprint.gd")
 const Journal = preload("res://diagnostic_journal.gd")
+const Catalog = preload("res://affinity_card_catalog.gd")
+const MOMENTUM := "thorn_card_momentum"
+const STREAK := "thorn_card_streak"
 const FIELDS := &"affinity_thorn_fields"
 const BLEED := "affinity_bleed"
 const SLOW := "affinity_thorn_slow"
@@ -66,7 +69,7 @@ static func grow(game: Node, event: RefCounted, center: Vector3, shapes: Array, 
 	fields.append({"id":"affinity-thorn:%d:%s" % [event.identity,str(center)],"epoch":event.epoch,
 		"actor":event.actor,"key":key,"slot":event.source,"quality":event.quality,"item":event.material_id,
 		"activation":event.identity,"life":event.life_generation,"binding":event.connection_binding,"center":center,"shapes":shapes,
-		"slow":q.slow,"hp":q.get("personal_cap_hp",q.tick_hp),"until":elapsed+int(LIFETIME[event.source])})
+		"slow":q.slow,"hp":q.get("personal_cap_hp",q.tick_hp),"potency":q,"until":elapsed+int(LIFETIME[event.source])})
 	game.set_meta(FIELDS,fields)
 	Journal.event("combat","affinity_thorn_grown",{"actor":event.actor,"activation":event.identity,"slot":event.source,"quality":event.quality})
 	# Occupants at creation are affected on the action itself.
@@ -112,16 +115,92 @@ static func apply_occupancy(game: Node, target: int, actor: Dictionary, fields: 
 		var response_key := owner_key+"/"+str(field.slot)
 		if elapsed<int(status.applications.get(response_key,0)): continue
 		status.applications[response_key]=elapsed+APPLICATION_MS
-		var row: Dictionary=status.contributors.get(owner_key,source)
-		# An accepted cap can increase; a weaker application cannot downgrade an
-		# actively maintained contributor. It is forgotten after BLEED_MS idle,
-		# a new life/connection, death or floor departure.
-		row.cap=maxi(int(row.get("cap",0)),Sources.units(float(field.hp)))
-		row.amount=mini(row.cap,int(row.get("amount",0))+roundi(Sources.units(float(field.hp))*float(APPLICATION_FRACTION[field.slot])))
-		row.until=elapsed+BLEED_MS
-		status.contributors[owner_key]=row
+		var q: Dictionary = field.get("potency",{})
+		var fraction := float(APPLICATION_FRACTION[field.slot]) + float(q.get("buildup_percent",0))/100.0
+		contribute(game,target,status,source,float(field.hp),fraction,q,elapsed)
 	if not status.is_empty(): actor[BLEED]=status
 	return status
+
+
+## All native and card applications join the same contributor record.
+static func contribute(game: Node, target: int, status: Dictionary, source: Dictionary,
+		hp: float, fraction: float, q: Dictionary, elapsed: int) -> void:
+	var owner_key := Sources.key(source)
+	var row: Dictionary=status.contributors.get(owner_key,source.duplicate(true))
+	row.cap=maxi(int(row.get("cap",0)),Sources.units(hp))
+	row.amount=mini(row.cap,int(row.get("amount",0))+roundi(Sources.units(hp)*fraction))
+	row.until=elapsed+BLEED_MS+int(q.get("bleed_duration_ms",0))
+	row.death_burst_percent=maxi(int(row.get("death_burst_percent",0)),int(q.get("death_burst_percent",0)))
+	status.contributors[owner_key]=row
+	if source.slot=="catalyst" and int(q.get("momentum_hp",0))>0:
+		var prep := source.duplicate(true)
+		prep.merge({"hp":int(q.momentum_hp),"until":elapsed+int(Catalog.DEFINITIONS.barbed_momentum.tuning.duration_ms)})
+		game.players[int(source.actor)][MOMENTUM]=prep
+
+
+static func direct_application(game: Node, event: RefCounted, target: int) -> void:
+	if not Actors.valid_target(game,target): return
+	var q: Dictionary=event.potency()
+	if int(q.get("direct_bleed_percent",0))+int(q.get("opening_bleed_percent",0))+int(q.get("streak_bleed_percent",0))==0: return
+	if not event.take_response("thorn_direct/"+str(game.encounter.spawn_identity(target))): return
+	var elapsed:=Clock.now(game)
+	var actor:=Actors.body(game,target)
+	var status: Dictionary=actor.get(BLEED,{})
+	if status.is_empty():
+		status={"epoch":event.epoch,"token":game.encounter.spawn_identity(target),"contributors":{},"applications":{},"next":elapsed+TICK_MS,"remainder":0}
+	prune(game,status,elapsed)
+	var source:=Sources.capture(event)
+	var key:=Sources.key(source)
+	var row: Dictionary=status.contributors.get(key,{})
+	var percent:=int(q.get("direct_bleed_percent",0))
+	var first: bool = not row.get("opening_used",false)
+	if first: percent+=int(q.get("opening_bleed_percent",0))
+	if int(q.get("streak_bleed_percent",0))>0:
+		var player: Dictionary=game.players[event.actor]
+		var streak: Dictionary=player.get(STREAK,{})
+		var successive:=1
+		if not streak.is_empty() and Sources.current(game,streak) and int(streak.target)==int(status.token) and elapsed<int(streak.until): successive=int(streak.hits)+1
+		var next:=source.duplicate(true)
+		next.merge({"target":status.token,"hits":successive,"until":elapsed+int(Catalog.DEFINITIONS.relentless_cuts.tuning.window_ms)})
+		player[STREAK]=next
+		percent+=(successive-1)*int(q.streak_bleed_percent)
+	contribute(game,target,status,source,float(q.get("personal_cap_hp",q.tick_hp)),percent/100.0,q,elapsed)
+	status.contributors[key].opening_used=true
+	actor[BLEED]=status
+
+
+static func capture_attack(game: Node, player: Dictionary, stats: Dictionary, _now: int) -> void:
+	var prep: Dictionary=player.get(MOMENTUM,{})
+	player.erase(MOMENTUM)
+	if not prep.is_empty() and Sources.current(game,prep) and Clock.now(game)<int(prep.until): stats.thorn_momentum_hp=int(prep.hp)
+
+
+static func ordinary_bonus(event: RefCounted, stats: Dictionary) -> int:
+	return int(stats.get("thorn_momentum_hp",0)) if int(stats.get("thorn_momentum_hp",0))>0 and event.take_response("thorn_momentum_hit") else 0
+
+
+static func on_death(game: Node, target: int, now: int, secondary := false) -> void:
+	if secondary: return
+	var status: Dictionary=Actors.body(game,target).get(BLEED,{})
+	if status.is_empty() or status.get("ruptured",false): return
+	prune(game,status,Clock.now(game))
+	var tuning: Dictionary=Catalog.DEFINITIONS.hemorrhagic_rupture.tuning
+	if potency_units(status)*100 < cap_units(status)*int(tuning.threshold_percent): return
+	var eligible := {}
+	for key in status.contributors:
+		var row: Dictionary=status.contributors[key]
+		if int(row.get("death_burst_percent",0))>0: eligible[key]=row
+	var owner:=Sources.dominant(eligible,"death_burst_percent")
+	if owner.is_empty(): return
+	status.ruptured=true # Claim before any secondary death callbacks.
+	var point: Vector3=game.enemy_position(target)
+	var hp:=roundi(float(potency_units(status))*float(owner.death_burst_percent)/(100.0*Sources.UNITS_PER_HP))
+	game.emit_combat_event("ability","hemorrhagic_rupture",point,point,.5,COLOR,float(tuning.radius_m),int(owner.actor),{"label":"Hemorrhagic Rupture"})
+	for victim in game.skill_area_targets(point,float(tuning.radius_m),point):
+		if victim!=target and int(status.epoch)==game.participation.epoch() and not game.persistence_session.is_blocked():
+			preload("res://outgoing_hits.gd").affinity_world(game,int(owner.actor),victim,hp,now,COLOR,true)
+	Journal.event("combat","hemorrhagic_rupture",{"actor":owner.actor,"target":target,"hp":hp,"contributors":eligible.keys()})
+
 
 static func advance(game: Node, target: int, actor: Dictionary, elapsed: int, now: int) -> void:
 	var status: Dictionary=actor.get(BLEED,{})
@@ -176,6 +255,7 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 		"core_action":
 			grow(game,event,details.center,details.shapes,now)
 		"weapon_contact":
+			direct_application(game,event,int(details.enemy))
 			var player: Dictionary=game.players.get(event.actor,{})
 			var elapsed:=Clock.now(game)
 			var point: Vector3=details.get("point",game.enemy_position(details.enemy))

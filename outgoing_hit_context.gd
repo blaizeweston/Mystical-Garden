@@ -75,6 +75,12 @@ func begin_contact(target: int, stats: Dictionary, now: int) -> Dictionary:
 	var graft: Dictionary = _grafts.start_contact(_world, _actor, stats, target, now)
 	if not stats.get("core_hit", false) and not stats.get("oracle_spell", false):
 		stats = _world.Traits.augment_hit(_world, _actor, target, stats, now, graft)
+	var event: RefCounted = stats.get("cr02_action")
+	if event != null and event.source in ["form","native_weapon"] and not stats.get("trait_secondary",false) and not stats.get("core_hit",false):
+		var bonus: int = load("res://thorn_affinity.gd").ordinary_bonus(event,stats)
+		if bonus > 0:
+			stats = stats.duplicate()
+			stats.native_bonus_hp = int(stats.get("native_bonus_hp",0)) + bonus
 	return {"stats":stats, "graft":graft}
 
 
@@ -177,6 +183,7 @@ func finish_contact(target: int, token: int, origin: Vector3, point: Vector3, co
 		var form := "magic" if stats.get("trait_secondary", false) else str(stats.get("audio_form", Motion.form(_actor)))
 		_world.emit_combat_event("impact", "hit", origin, point, .85, stats.get("affinity_color", _world.weapon_effect_color(_actor)), float(applied), target, {"form":form})
 	if _roster.death_pending(target, token):
+		load("res://thorn_affinity.gd").on_death(_world, target, now, stats.get("card_secondary",false))
 		_world.record_enemy_death(target, point, origin, token)
 		Life.Sustain.heal_on_kill(_world, _actor, target, Life.Preview.authored_amount(float(stats.get("heal_on_kill", 0))))
 	_world.Traits.after_hit(_world, _actor, target, stats, now, before > 0 and applied >= before)

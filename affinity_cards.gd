@@ -23,6 +23,7 @@ const DODGE_MIN_MS := CardState.DODGE_MIN_MS
 
 static func clear(player: Dictionary) -> void:
 	player.erase(STATE)
+	for field in ["card_active_state","thorn_card_momentum","thorn_card_streak"]: player.erase(field)
 
 
 # Read adapter for existing actor consumers. The ledger owns the records.
@@ -212,7 +213,7 @@ static func _slot_values(build: Dictionary, contributions: Dictionary, source: S
 			adapter.response = adapter.get("responses", {}).get(material.get("primary_affinity"), "")
 	for id: String in contributions:
 		var definition: Dictionary=Catalog.DEFINITIONS[id]
-		if definition.scope!=source: continue
+		if definition.scope != source and not (definition.scope == "affinity" and definition.get("family") == material.get("primary_affinity")): continue
 		if not Ledger.requirement(definition, captured).is_empty(): continue
 		var parameter: String=definition.parameter
 		result[parameter]=result.get(parameter,0)+int(contributions[id])
@@ -235,7 +236,7 @@ static func affinity_values(build: Dictionary, contributions: Dictionary, source
 		var tuned := _slot_values(build,contributions,slot,part,values)
 		baseline=maxf(baseline,float(values.get(parameter,0)))
 		additions+=float(tuned.get(parameter,0))-float(values.get(parameter,0))
-	result.personal_cap_hp=baseline+additions
+	result.personal_cap_hp=baseline+additions+float(result.get("shared_potency_hp",0))
 	return result
 
 

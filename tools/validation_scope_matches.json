@@ -316,10 +316,7 @@
         "match": "\tif stage.experimental_garden != null and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_B:\n\t\tif stage.experimental_garden.available_here():\n\t\t\tstage.experimental_garden.open_development()\n\t\t\tget_viewport().set_input_as_handled()\n\t\t\treturn\n",
         "baseline": ""
       },
-      "held_aim_press": {
-        "match": "\tif ui.is_overlay_open():\n\t\treturn\n\tif preload(\"res://ability_aim.gd\").input_event(self,event):\n\t\tget_viewport().set_input_as_handled()\n\t\treturn\n\tvar local_player: Dictionary=players.get(HOST if multiplayer.is_server() else multiplayer.get_unique_id(),{})",
-        "baseline": "\tif overlay.visible:\n\t\treturn\n\tvar local_player: Dictionary=players.get(HOST if multiplayer.is_server() else multiplayer.get_unique_id(),{})"
-      },
+
       "held_aim_replaces_press": {
         "match": "\telif event.is_action_pressed(\"dodge\"):",
         "baseline": "\telif event.is_action_pressed(\"core_skill\") and not event.is_echo():\n\t\tpreload(\"res://core_combat.gd\").local_cast(self,local_player)\n\t\tget_viewport().set_input_as_handled()\n\telif event.is_action_pressed(\"class_skill_two\"):\n\t\tsend_garden_action(\"class_skill_two\")\n\telif event.is_action_pressed(\"class_skill\"):\n\t\tsend_garden_action(\"class_skill\")\n\telif event.is_action_pressed(\"dodge\"):"
@@ -365,14 +362,8 @@
 
 
     "garden_action": {
-      "guarded_garden_actions": {
-        "match": "\tif not persistence_session.can_write(): return\n\tif action.begins_with(\"core_cast:\"):\n\t\tpreload(\"res://core_combat.gd\").command(self,id,players.get(id,{}),action)\n\t\treturn\n\tif action.begins_with(\"class_cast:\"):\n\t\tpreload(\"res://ability_aim.gd\").command(self,id,players.get(id,{}),action)\n\t\treturn\n\tvar diagnostic_request:=Journal.interaction(self,id,action,\"begin\")\n\tvar persistent: bool=action in [\"experiment\",\"donate\"] or action.begins_with(\"breed_\") or action.begins_with(\"care_\")\n\tif persistent and not persistence_session.is_guarded(): Transactions.run(self,func(): _garden_action(id,action))\n\telse: _garden_action(id,action)\n\tJournal.interaction(self,id,action,\"end\",diagnostic_request)",
-        "baseline": "\tif not Transactions.session_writable(self): return\n\tif action.begins_with(\"core_cast:\"):\n\t\tpreload(\"res://core_combat.gd\").command(self,id,players.get(id,{}),action)\n\t\treturn\n\tif action.begins_with(\"class_cast:\"):\n\t\tpreload(\"res://ability_aim.gd\").command(self,id,players.get(id,{}),action)\n\t\treturn\n\tvar diagnostic_request:=Journal.interaction(self,id,action,\"begin\")\n\tvar persistent: bool=action in [\"experiment\",\"donate\"] or action.begins_with(\"breed_\") or action.begins_with(\"care_\")\n\tif persistent: Transactions.run(self,func(): _garden_action(id,action))\n\telse: _garden_action(id,action)\n\tJournal.interaction(self,id,action,\"end\",diagnostic_request)"
-      },
-      "guarded_gameplay_writer": {
-        "match": "\tif not Transactions.session_writable(self): return\n\tif action.begins_with(\"core_cast:\"):\n\t\tpreload(\"res://core_combat.gd\").command(self,id,players.get(id,{}),action)\n\t\treturn\n\tif action.begins_with(\"class_cast:\"):\n\t\tpreload(\"res://ability_aim.gd\").command(self,id,players.get(id,{}),action)\n\t\treturn\n\tvar diagnostic_request:=Journal.interaction(self,id,action,\"begin\")\n\tvar persistent: bool=action in [\"experiment\",\"donate\"] or action.begins_with(\"breed_\") or action.begins_with(\"care_\")\n\tif persistent: Transactions.run(self,func(): _garden_action(id,action))\n\telse: _garden_action(id,action)\n\tJournal.interaction(self,id,action,\"end\",diagnostic_request)",
-        "baseline": "\tif action.begins_with(\"core_cast:\"):\n\t\tpreload(\"res://core_combat.gd\").command(self,id,players.get(id,{}),action)\n\t\treturn\n\tif action.begins_with(\"class_cast:\"):\n\t\tpreload(\"res://ability_aim.gd\").command(self,id,players.get(id,{}),action)\n\t\treturn\n\tvar diagnostic_request:=Journal.interaction(self,id,action,\"begin\")\n\tvar persistent: bool=action in [\"experiment\",\"donate\"] or action.begins_with(\"breed_\") or action.begins_with(\"care_\")\n\tif persistent: Transactions.run(self,func(): _garden_action(id,action))\n\telse: _garden_action(id,action)\n\tJournal.interaction(self,id,action,\"end\",diagnostic_request)"
-      },
+
+
       "class_aim_command": {
         "match": "\tif action.begins_with(\"class_cast:\"):\n\t\tpreload(\"res://ability_aim.gd\").command(self,id,players.get(id,{}),action)\n\t\treturn\n\tvar diagnostic_request:=Journal.interaction(self,id,action,\"begin\")\n",
         "baseline": "\tvar diagnostic_request:=Journal.interaction(self,id,action,\"begin\")\n"
@@ -1385,10 +1376,7 @@
         "match": "var state := {}\nvar skill_hover: Array[Control]=[]\nvar core_icon: Texture2D\nvar core_icon_path: String=\"\"\n",
         "baseline": "var state := {}\n"
       },
-      "core_hud_slot": {
-        "match": "\tif has_core:\n\t\tdraw_core_slot(Rect2(392,bottom+49,98,77),core)\n\tvar satchel_x:=504 if has_core else 404\n\ttext(self, Vector2(satchel_x, bottom + 33), \"SATCHEL\" if active else \"GARDEN\", 12, MUTED)\n\ttext(self, Vector2(satchel_x, bottom + 56), \"Seeds   %d\" % int(state.carried), 14)\n\ttext(self, Vector2(satchel_x, bottom + 77), \"Pouch   %d / 1\" % int(state.pouch) if active else \"Stored materials \u00b7 I\", 12, GREEN)\n\ttext(self, Vector2(satchel_x, bottom + 98), \"Essence   %d\" % int(state.wallet) if active else \"Knowledge   %d\" % int(state.knowledge), 12, Color(\"#d2bd77\"))",
-        "baseline": "\ttext(self, Vector2(404, bottom + 33), \"SATCHEL\" if active else \"GARDEN\", 12, MUTED)\n\ttext(self, Vector2(404, bottom + 56), \"Seeds   %d\" % int(state.carried), 14)\n\ttext(self, Vector2(404, bottom + 77), \"Pouch   %d / 1\" % int(state.pouch) if active else \"Stored materials \u00b7 I\", 12, GREEN)\n\ttext(self, Vector2(404, bottom + 98), \"Essence   %d\" % int(state.wallet) if active else \"Knowledge   %d\" % int(state.knowledge), 12, Color(\"#d2bd77\"))"
-      },
+
       "core_hud_size": {
         "match": "\tvar core: Dictionary=state.get(\"core\",{})\n\tvar has_core: bool=active and not state.get(\"fallen\",false) and not core.is_empty()\n\tdraw_style_box(frame_style, Rect2(12, bottom, (660 if has_core else 560) if active else 360, 138 if active else 88))\n",
         "baseline": "\tdraw_style_box(frame_style, Rect2(12, bottom, 560 if active else 360, 138 if active else 88))\n"
@@ -1832,30 +1820,15 @@
         "match": "\"garden_cinematics\":true,\"developer_mode\":false}",
         "baseline": "\"garden_cinematics\":true}"
       },
-      "core_legacy_binding": {
-        "match": " # Existing profiles may already use the new shortcut for another action.\n if source is Dictionary and not source.has(\"core_skill\"):\n  var assigned: Array = []\n  for action in result.bindings:\n   if action!=\"core_skill\": assigned.append_array(result.bindings[action])\n  result.bindings.core_skill=[]\n  for code in [KEY_B,KEY_X,KEY_Z]:\n   var candidate: Dictionary={\"kind\":\"key\",\"code\":int(code)}\n   if not assigned.has(candidate):\n    result.bindings.core_skill=[candidate]\n    break\n # Escape is an immutable recovery route, even if the pause shortcut is customized.\n",
-        "baseline": " # Escape is an immutable recovery route, even if the pause shortcut is customized.\n"
-      },
-      "core_default": {
-        "match": "\"class_skill_two\":[KEY_R],\"core_skill\":[KEY_B],\"extract\"",
-        "baseline": "\"class_skill_two\":[KEY_R],\"extract\""
-      },
-      "core_label": {
-        "match": "\"class_skill_two\":\"Class skill 2\",\"core_skill\":\"Core skill\",\"extract\"",
-        "baseline": "\"class_skill_two\":\"Class skill 2\",\"extract\""
-      },
-      "normalize_growth": {
-        "match": "static func normalize(value) -> Dictionary:\n var result=defaults()\n if not value is Dictionary:return result\n for key in [\"fullscreen\",\"vsync\",\"aim_indicator\",\"ambient_motion\",\"garden_cinematics\"]:\n  if value.get(key) is bool:result[key]=value[key]\n if value.get(\"fps\") is int and FPS.has(int(value.fps)):result.fps=int(value.fps)\n for key in [\"master\",\"effects\"]:\n  if (value.get(key) is int or value.get(key) is float) and is_finite(float(value[key])):result[key]=clampf(float(value[key]),0,1)\n var source=value.get(\"bindings\",{})\n if source is Dictionary:\n  for action in ACTIONS:\n   if not source.get(action) is Array:continue\n   var clean: Array=[]\n   for entry in source[action].slice(0,2):\n    var item=binding(entry)\n    if not item.is_empty() and (item.kind!=\"key\" or item.code!=KEY_ESCAPE or action==\"session_menu\") and not clean.has(item):clean.append(item)\n   result.bindings[action]=clean\n # Escape is an immutable recovery route, even if the pause shortcut is customized.\n if not result.bindings.session_menu.has({\"kind\":\"key\",\"code\":KEY_ESCAPE}):result.bindings.session_menu.append({\"kind\":\"key\",\"code\":KEY_ESCAPE})\n return result\n",
-        "baseline": "static func normalize(value) -> Dictionary:\n var result=defaults()\n if not value is Dictionary:return result\n for key in [\"fullscreen\",\"vsync\",\"aim_indicator\",\"ambient_motion\"]:\n  if value.get(key) is bool:result[key]=value[key]\n if value.get(\"fps\") is int and FPS.has(int(value.fps)):result.fps=int(value.fps)\n for key in [\"master\",\"effects\"]:\n  if (value.get(key) is int or value.get(key) is float) and is_finite(float(value[key])):result[key]=clampf(float(value[key]),0,1)\n var source=value.get(\"bindings\",{})\n if source is Dictionary:\n  for action in ACTIONS:\n   if not source.get(action) is Array:continue\n   var clean: Array=[]\n   for entry in source[action].slice(0,2):\n    var item=binding(entry)\n    if not item.is_empty() and (item.kind!=\"key\" or item.code!=KEY_ESCAPE or action==\"session_menu\") and not clean.has(item):clean.append(item)\n   result.bindings[action]=clean\n # Escape is an immutable recovery route, even if the pause shortcut is customized.\n if not result.bindings.session_menu.has({\"kind\":\"key\",\"code\":KEY_ESCAPE}):result.bindings.session_menu.append({\"kind\":\"key\",\"code\":KEY_ESCAPE})\n return result\n"
-      },
+
+
+
+
       "defaults_growth": {
         "match": "static func defaults() -> Dictionary:\n var bindings: Dictionary={}\n for action in KEYS:\n  bindings[action]=[]\n  for code in KEYS[action]:bindings[action].append({\"kind\":\"key\",\"code\":int(code)})\n bindings.attack.append({\"kind\":\"mouse\",\"code\":MOUSE_BUTTON_LEFT})\n return {\"bindings\":bindings,\"fullscreen\":false,\"vsync\":true,\"fps\":120,\"master\":.8,\"effects\":1.0,\"aim_indicator\":true,\"ambient_motion\":true,\"garden_cinematics\":true}\n",
         "baseline": "static func defaults() -> Dictionary:\n var bindings: Dictionary={}\n for action in KEYS:\n  bindings[action]=[]\n  for code in KEYS[action]:bindings[action].append({\"kind\":\"key\",\"code\":int(code)})\n bindings.attack.append({\"kind\":\"mouse\",\"code\":MOUSE_BUTTON_LEFT})\n return {\"bindings\":bindings,\"fullscreen\":false,\"vsync\":true,\"fps\":120,\"master\":.8,\"effects\":1.0,\"aim_indicator\":true,\"ambient_motion\":true}\n"
       },
-      "garden_motion_load": {
-        "match": "for key in [\"fullscreen\",\"vsync\",\"aim_indicator\",\"ambient_motion\"]:",
-        "baseline": "for key in [\"fullscreen\",\"vsync\",\"aim_indicator\"]:"
-      },
+
       "garden_motion_default": {
         "match": "\"aim_indicator\":true,\"ambient_motion\":true}",
         "baseline": "\"aim_indicator\":true}"
