@@ -74,7 +74,7 @@ const RANGED_DISTANCE := 2.75
 const ENGAGE_RADIUS := 8.0
 const SCOUT_RADIUS := 1.45
 const DODGE_DISTANCE := 2.8
-const DODGE_COOLDOWN_MS := 850
+const DODGE_COOLDOWN_MS := Cooldowns.BASELINE_DODGE_MS
 const EncounterConfig=preload("res://encounter_config.gd")
 const CHECKPOINT_INTERVAL := EncounterConfig.UPGRADE_INTERVAL
 const EXTRACTION_INTERVAL := EncounterConfig.EXTRACTION_INTERVAL
@@ -1569,20 +1569,23 @@ func bound_position(position_next: Vector3, wild: bool = false) -> Vector3:
 
 
 func dodge_player(id: int, direction: Vector2) -> void:
-	if not players.has(id):
-		return
-	var p: Dictionary = players[id]
-	var now := CombatClock.now()
-	if not Life.alive(p) or not p[Cooldowns.STATE].ready(Cooldowns.DODGE, now):
-		return
-	var facing := world_direction(direction).normalized()
-	if not facing.is_zero_approx():
-		p.facing = facing
-	var previous: Vector3 = p.pos
-	p.pos = battlefield.dash(p.pos, bound_position(p.pos + p.facing * DODGE_DISTANCE, true))
-	if p.has("affinity_spirit_follow"):
-		preload("res://spirit_affinity.gd").movement(self,p,previous,p.pos)
-	p[Cooldowns.STATE] = p[Cooldowns.STATE].start(Cooldowns.DODGE, now, combat_build(p).dodge_ms(DODGE_COOLDOWN_MS))
+	if not players.has(id) or not direction.is_finite(): return
+	var p: Dictionary=players[id]
+	var now:=CombatClock.now()
+	var resolved:=combat_build(p)
+	p[Cooldowns.STATE]=p[Cooldowns.STATE].configure_dodge(resolved.dodge_capacity(),now)
+	if not Life.alive(p) or not p[Cooldowns.STATE].ready(Cooldowns.DODGE,now): return
+	var facing:=world_direction(direction).normalized()
+	if facing.is_zero_approx(): facing=p.facing
+	var previous: Vector3=p.pos
+	var landing:=battlefield.dash(previous,bound_position(previous+facing*DODGE_DISTANCE,true))
+	if not landing.is_finite() or landing.distance_to(previous)<preload("res://spirit_affinity.gd").MIN_STEP: return
+	var prepared:=preload("res://spirit_affinity.gd").claim_recovery(self,p,now)
+	p[Cooldowns.STATE]=p[Cooldowns.STATE].start(Cooldowns.DODGE,now,resolved.dodge_ms(DODGE_COOLDOWN_MS,prepared))
+	p.facing=facing
+	p.pos=landing
+	preload("res://spirit_affinity.gd").movement(self,p,previous,p.pos)
+	preload("res://spirit_affinity.gd").voluntary(self,id,previous,p.pos,now)
 
 
 func update_pressure(now: int) -> void:
@@ -2182,7 +2185,7 @@ func _process(_delta: float) -> void:
 		var warden=preload("res://warden_combat.gd")
 		quake_prepared=warden.prepared_until(self,p,CombatClock.now())>0 if host_side else bool(p.get("warden_quake_prepared",false))
 		if quake_prepared:skill_tips[1]+="\nQuake prepared."
-	var ready_dodge := (local_timers == null or local_timers.ready(Cooldowns.DODGE, cooldown_now)) if host_side else bool(p.get("dodge_ready", false))
+	var ready_dodge := (local_timers == null or local_timers.configure_dodge(combat_build(p).dodge_capacity(),cooldown_now).ready(Cooldowns.DODGE,cooldown_now)) if host_side else bool(p.get("dodge_ready", false))
 	ui.present_menu({"session_text":"Developer Garden · Single player" if has_meta("developer_garden") else session_text,
 		"role":network_session.role(),"can_host":not has_meta("developer_garden") and network_session.role() in ["Host","Solo"] and not (network_session.role()=="Solo" and wild),
 		"can_join":not has_meta("developer_garden") and network_session.role()=="Solo" and not wild,
@@ -2194,7 +2197,7 @@ func _process(_delta: float) -> void:
 		"floor":participation.floor(),
 		"encounter": "%d foes" % [int(enemy_health() > 0) + living_scout_count()] if wild else "Your living sanctuary",
 		"damage_flash":maxf(0,(int(p[Conditions.STATE].grace_until_ms() if host_side else p.get("client_hurt_until",0))-CombatClock.now())/250.0),"hp": health, "max_hp": PlayerVitals.maximum_hp(p,MAX_HEALTH), "lost_health":p.get("lost_health",0),"fallen":PlayerLifecycle.fallen(p), "wild": wild, "frame": p.get("frame", 0),
-		"skill_ready": ready_skill,"skill_two_ready":second_ready,"skill_names":[skills[0].name,skills[1].name+(" •" if quake_prepared else "")],"skill_cooldowns":cooldowns, "dodge_ready": ready_dodge,
+		"skill_ready": ready_skill,"skill_two_ready":second_ready,"skill_names":[skills[0].name,skills[1].name+(" •" if quake_prepared else "")],"skill_cooldowns":cooldowns, "spirit_prepared":{"echoes":p.get("spirit_card_echoes",[]).size(),"shadows":p.get("spirit_card_shadows",[]).size()} if host_side else p.get("spirit_prepared",{}),"dodge_ready": ready_dodge,"dodge_state":local_timers.configure_dodge(combat_build(p).dodge_capacity(),cooldown_now).dodge_projection(cooldown_now) if host_side else p.get("dodge_state",{}),
 		"core":preload("res://core_combat.gd").hud_state(self,p),
 		"card_actions":preload("res://card_active_actions.gd").hud_state(self,p),
 		"skill_tooltips":skill_tips,
@@ -2935,7 +2938,7 @@ func run_summary_ui_data(peer_id: int = -1) -> Dictionary:
 		"skills":[Skills.resolve(class_id,0,profile),Skills.resolve(class_id,1,profile)],
 		"copies":AffinityCards.project_owned(player,stats,DODGE_COOLDOWN_MS) if host else player.get("affinity_run_cards",[]),
 		"grafts":preload("res://expedition_grafts.gd").owner_details(player,participation.floor()) if host else player.get("graft_improvements",{}),
-		"kill_heal_limit":Life.Sustain.KILL_BUDGET_HP}
+		"spirit_prepared":{"echoes":player.get("spirit_card_echoes",[]).size(),"shadows":player.get("spirit_card_shadows",[]).size(),"compatibility":load("res://spirit_replicas.gd").info()} if host else player.get("spirit_prepared",{}),"kill_heal_limit":Life.Sustain.KILL_BUDGET_HP}
 	if participation.route()!=Campaign.HEART:
 		var boundary := participation.depth()==ROUTE_ROOMS
 		var cycle := participation.cycle()+int(boundary and participation.route()==Campaign.HOLLOW)

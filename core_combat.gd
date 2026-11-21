@@ -68,7 +68,7 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 	var step: bool = skill.get("affinity_family")=="spirit"
 	var line := aim_cast(game.battlefield, player.pos, forward, skill, distance)
 	if step:
-		var landing := preload("res://spirit_affinity.gd").step(game,id,forward)
+		var landing := preload("res://spirit_affinity.gd").step(game,id,forward,float(skill.range))
 		line = {"center":landing,"forward":forward} if landing.distance_to(player.pos)>=preload("res://spirit_affinity.gd").MIN_STEP else {}
 	if line.is_empty():
 		game.tell(id, "%s needs clear ground in that direction." % skill.name)
@@ -108,6 +108,7 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 	player.cast_until = now + duration if blade_cast else 0
 	if step:
 		preload("res://spirit_affinity.gd").core_step(game,line,player,now)
+	load("res://spirit_replicas.gd").core_cast(game,id,line,now)
 	var modifiers: Array = skill.modifiers.map(func(modifier): return modifier.id)
 	Journal.event("combat", "core_cast", {"actor": id, "skill": skill.id, "cast_id": line.id, "delivery": skill.delivery,
 		"weapon": skill.weapon_form, "variant": skill.get("variant_name", ""), "floor": game.participation.floor(), "modifiers": modifiers})

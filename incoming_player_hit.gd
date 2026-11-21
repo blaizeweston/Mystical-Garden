@@ -117,6 +117,7 @@ class Recipient extends RefCounted:
 		var adjusted := preload("res://water_combat.gd").direct_damage(_world, hp)
 		if contact.direct:
 			adjusted = preload("res://warden_combat.gd").direct_damage(_world, _actor, adjusted, contact.now)
+			adjusted = preload("res://spirit_affinity.gd").direct_damage(_world,_actor,adjusted,contact.now)
 		return adjusted
 
 	func plan_bark(hp: int) -> Dictionary:

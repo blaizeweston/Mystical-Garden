@@ -219,6 +219,8 @@ func complete_nova(nodes: Array, center: Vector3, impact: Vector3, now: int) -> 
 
 
 func publish(skill: Dictionary, origin: Vector3, center: Vector3, radius: float, now: int, feedback: String) -> void:
+	load("res://spirit_replicas.gd").class_cast(_world,_peer,skill,origin,center,radius,now)
+	load("res://spirit_affinity.gd").voluntary(_world,_peer,origin,_actor.pos,now)
 	_actor.skill_fx_seq = int(_actor.get("skill_fx_seq", 0)) + 1
 	_actor.skill_fx_until = now + 650
 	_actor.skill_fx = {"seq":_actor.skill_fx_seq, "pos":center, "radius":maxf(.8, radius), "color":skill.color, "event_driven":true}

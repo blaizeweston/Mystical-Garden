@@ -73,7 +73,7 @@ func begin_contact(target: int, stats: Dictionary, now: int) -> Dictionary:
 	if _departed_affinity: return {"stats":stats, "graft":{}}
 	_actor.contributed = true
 	var graft: Dictionary = _grafts.start_contact(_world, _actor, stats, target, now)
-	if not stats.get("core_hit", false) and not stats.get("oracle_spell", false):
+	if not stats.get("core_hit", false) and not stats.get("oracle_spell", false) and not stats.get("spirit_replica",false):
 		stats = _world.Traits.augment_hit(_world, _actor, target, stats, now, graft)
 	var event: RefCounted = stats.get("cr02_action")
 	if event != null and event.source in ["form","native_weapon"] and not stats.get("trait_secondary",false) and not stats.get("core_hit",false):
@@ -81,6 +81,7 @@ func begin_contact(target: int, stats: Dictionary, now: int) -> Dictionary:
 		bonus += load("res://frost_combat.gd").ordinary_bonus(_world,event,target,now)
 		bonus += load("res://water_combat.gd").ordinary_bonus(_world,event,target)
 		bonus += load("res://vital_combat.gd").ordinary_bonus(event,stats)
+		bonus += load("res://spirit_affinity.gd").ordinary_bonus(event,stats)
 		if bonus > 0:
 			stats = stats.duplicate()
 			stats.native_bonus_hp = int(stats.get("native_bonus_hp",0)) + bonus

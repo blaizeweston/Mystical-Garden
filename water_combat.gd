@@ -88,7 +88,7 @@ static func drench(game: Node, event: RefCounted, target: int) -> void:
 	# Refreshing a weaker record never prolongs the stronger record's deadline.
 	var saturation_bonus := int(potency.get("saturation_bonus",0))
 	if not Sources.sum_fits(int(APPLICATION_SATURATION[event.source]),saturation_bonus): return
-	var applied := int(APPLICATION_SATURATION[event.source])+saturation_bonus
+	var applied := roundi((int(APPLICATION_SATURATION[event.source])+saturation_bonus)*float(potency.get("application_scale",1.0)))
 	if not Sources.sum_fits(int(status.saturation),applied): return
 	var key: String = Sources.key(source)+"/"+event.source+"/"+str(amount)
 	source.reduction=amount

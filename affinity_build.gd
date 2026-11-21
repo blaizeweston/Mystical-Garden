@@ -223,7 +223,7 @@ static func material_description(part_id: int) -> String:
 ## Other families retain their existing contracts and tuning.
 static func family_description(slot_name: String, material: Dictionary) -> String:
 	var family: String=material.primary_affinity
-	if family in ["thorn","frost","fire","water","wood","vital","storm"]:
+	if family in ["thorn","frost","fire","water","wood","vital","storm","spirit"]:
 		return Ruleset.FAMILIES[family].description(slot_name,material.quality,material.get("resolved_potency",{}))
 	return Ruleset.FAMILIES[family].description(slot_name,material.quality)
 
@@ -313,6 +313,6 @@ static func core_skill(build: Dictionary) -> Dictionary:
 		"affinity_family": family, "material": core, "color": profile[2],
 		"targeting": "self" if family in ["vital","wood"] else "ground",
 		"weapon_form": build.native_weapon.visual, "delivery": "ground" if family=="spirit" else delivery.kind,
-		"projectile": Delivery.DELIVERY_SHAPES[delivery.kind], "speed": 17.0, "range": Ruleset.Spirit.STEP_DISTANCE if family=="spirit" else 0.0 if family in ["vital","wood"] else delivery.range,
+		"projectile": Delivery.DELIVERY_SHAPES[delivery.kind], "speed": 17.0, "range": (Ruleset.Spirit.STEP_DISTANCE+int(core.get("resolved_potency",{}).get("travel_cm",0))/100.0) if family=="spirit" else 0.0 if family in ["vital","wood"] else delivery.range,
 		"radius": profile[3], "width": Ruleset.Thorn.CORE_WIDTH if family == "thorn" else Ruleset.Fire.WIDTH, "lifetime_ms": profile[4], "cooldown_ms": profile[5],
 		"tooltip": family_description("core",core), "modifiers": []}

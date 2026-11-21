@@ -22,6 +22,7 @@ class Snapshot extends RefCounted:
 	var _core: Dictionary
 	var _skills: Array[Dictionary] = []
 	var _tooltips: Array = []
+	var _resolved_potencies: Dictionary = {}
 
 	func _init(native_stats: Dictionary, contributions: Dictionary) -> void:
 		var values := native_stats.duplicate(true)
@@ -58,6 +59,9 @@ class Snapshot extends RefCounted:
 	func affinity_potency(slot: String, material: Dictionary = {}, captured_base: Dictionary = {}) -> Dictionary:
 		var part: Dictionary=_build.get(slot,{}) if material.is_empty() else material
 		var base: Dictionary=part.get("potency_profile",{}).get("values",{}) if captured_base.is_empty() else captured_base
+		if material.is_empty() and captured_base.is_empty():
+			if not _resolved_potencies.has(slot):_resolved_potencies[slot]=_freeze(Cards.affinity_values(_build,_cards,slot,part,base))
+			return _resolved_potencies[slot].duplicate(true)
 		return Cards.affinity_values(_build,_cards,slot,part,base)
 
 	## Native class/defense context deliberately excludes basic-only damage/reach.
@@ -90,8 +94,20 @@ class Snapshot extends RefCounted:
 	func refusal(slot: String) -> String:
 		return Build.refusal(_build, slot)
 
-	func dodge_ms(base_ms: int) -> int:
-		return maxi(Cards.DODGE_MIN_MS, base_ms - int(_native.get("dodge_cooldown", 0)) - int(_cards.get("run_dodge_recovery", 0)))
+	func affinity_family(slot: String) -> String:
+		return str(_build.get(slot,{}).get("primary_affinity","")) if _build.get(slot,{}).get("state")=="ready" else ""
+
+	func spirit_passives() -> Dictionary:
+		for slot: String in ["core","form","catalyst"]:
+			if _build.get(slot,{}).get("state")=="ready" and _build[slot].primary_affinity=="spirit": return affinity_potency(slot)
+		return {}
+
+	func dodge_capacity() -> int:
+		return 1+int(spirit_passives().get("extra_dodge_charges",0))
+
+	func dodge_ms(base_ms: int, prepared_efficiency: int = 0) -> int:
+		var flat:=maxi(Cards.DODGE_MIN_MS,base_ms-int(_native.get("dodge_cooldown",0))-int(_cards.get("run_dodge_recovery",0)))
+		return maxi(1,roundi(flat/(1.0+(int(spirit_passives().get("dodge_efficiency",0))+prepared_efficiency)/100.0)))
 
 	func graft_value_resolver(base_health: int, lost_health: int, temporary_health: int) -> Callable:
 		return _graft_values.bind(base_health, lost_health, temporary_health)

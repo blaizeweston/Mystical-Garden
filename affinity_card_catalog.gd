@@ -6262,6 +6262,1118 @@ const DEFINITIONS := {
 	  ]
 	},
 
+	# CE04 Spirit — values and units are the authoring authority.
+	"far_step": {
+	  "title": "Far Step",
+	  "family": "spirit",
+	  "scope": "core",
+	  "policy": "stackable",
+	  "trigger": "Uses the same actor and terrain clearance as the native movement ability",
+	  "consumer": [
+	    "res://spirit_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "spirit"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "phantom_step",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "travel_cm",
+	  "label": "Far Step contribution",
+	  "unit": "cm",
+	  "limit": 4,
+	  "description": "Phantom Step travels +%s m.",
+	  "detail": "Provisional CE04 tuning. Uses the same actor and terrain clearance as the native movement ability.",
+	  "tuning": {},
+	  "values": [
+	    25,
+	    40,
+	    55,
+	    70
+	  ]
+	},
+	"persistent_traces": {
+	  "title": "Persistent Traces",
+	  "family": "spirit",
+	  "scope": "core",
+	  "policy": "stackable",
+	  "trigger": "Extends the actual pursuer diversion, not unrelated status durations",
+	  "consumer": [
+	    "res://spirit_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "spirit"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "phantom_step",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "trace_bonus_ms",
+	  "label": "Persistent Traces contribution",
+	  "unit": "ms",
+	  "limit": 4,
+	  "description": "Phantom Step traces last +%s s.",
+	  "detail": "Provisional CE04 tuning. Extends the actual pursuer diversion, not unrelated status durations.",
+	  "tuning": {},
+	  "values": [
+	    150,
+	    250,
+	    350,
+	    450
+	  ]
+	},
+	"ghostcut": {
+	  "title": "Ghostcut",
+	  "family": "spirit",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Retains the native voluntary-movement requirement, one claimed attack and original expiry",
+	  "consumer": [
+	    "res://spirit_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "spirit"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "flowing_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "follow_hp",
+	  "label": "Ghostcut contribution",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Flowing Strikes movement follow-ups gain +%s damage.",
+	  "detail": "Provisional CE04 tuning. Retains the native voluntary-movement requirement, one claimed attack and original expiry.",
+	  "tuning": {},
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"flowing_edge": {
+	  "title": "Flowing Edge",
+	  "family": "spirit",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Once per ordinary attack",
+	  "consumer": [
+	    "res://spirit_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "spirit"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "flowing_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "stride_extend_ms",
+	  "label": "Flowing Edge contribution",
+	  "unit": "ms",
+	  "limit": 4,
+	  "description": "Eligible basic attacks extend your active Spiritstride by %s s.",
+	  "detail": "Provisional CE04 tuning. Once per ordinary attack. Extends actual live self stride grants; cannot create Spiritstride from an absent effect.",
+	  "tuning": {},
+	  "values": [
+	    150,
+	    250,
+	    350,
+	    450
+	  ]
+	},
+	"spectral_tempo": {
+	  "title": "Spectral Tempo",
+	  "family": "spirit",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Lasts 2 seconds after legal movement",
+	  "consumer": [
+	    "res://spirit_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "spirit"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "flowing_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "tempo_percent",
+	  "label": "Spectral Tempo contribution",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Successful dashes grant +%s%% basic attack speed.",
+	  "detail": "Provisional CE04 tuning. Lasts 2 seconds after legal movement. Refreshes rather than stacking preparations. Existing weapon timing floor applies.",
+	  "tuning": {
+	    "duration_ms": 2000
+	  },
+	  "values": [
+	    6,
+	    9,
+	    12,
+	    15
+	  ]
+	},
+	"veiled_casting": {
+	  "title": "Veiled Casting",
+	  "family": "spirit",
+	  "scope": "catalyst",
+	  "policy": "stackable",
+	  "trigger": "Adds percentage points to the native stride grant; strongest active stride still applies",
+	  "consumer": [
+	    "res://spirit_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "spirit"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "self_stride"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "radial_stride_and_trace"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "recipient_stride"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "departure_trace_and_landing_stride"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "stride_speed_percent",
+	  "label": "Veiled Casting contribution",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Compatible class Spiritstride gains +%s%% movement speed.",
+	  "detail": "Provisional CE04 tuning. Adds percentage points to the native stride grant; strongest active stride still applies.",
+	  "tuning": {},
+	  "values": [
+	    3,
+	    5,
+	    7,
+	    9
+	  ]
+	},
+	"flowing_invocation": {
+	  "title": "Flowing Invocation",
+	  "family": "spirit",
+	  "scope": "catalyst",
+	  "policy": "stackable",
+	  "trigger": "Within 4 seconds, the next successfully spent dash charge captures recovery divided by 1 + total efficiency/100",
+	  "consumer": [
+	    "res://spirit_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "spirit"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "self_stride"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "radial_stride_and_trace"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "recipient_stride"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "departure_trace_and_landing_stride"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "invocation_efficiency",
+	  "label": "Flowing Invocation contribution",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Compatible class actions prepare %s%% dash recovery efficiency.",
+	  "detail": "Provisional CE04 tuning. Within 4 seconds, the next successfully spent dash charge captures recovery divided by 1 + total efficiency/100. A refused dash does not consume it.",
+	  "tuning": {
+	    "duration_ms": 4000
+	  },
+	  "values": [
+	    20,
+	    30,
+	    40,
+	    50
+	  ]
+	},
+	"wraiths_followthrough": {
+	  "title": "Wraith’s Followthrough",
+	  "family": "spirit",
+	  "scope": "catalyst",
+	  "policy": "stackable",
+	  "trigger": "Launch within 4 seconds",
+	  "consumer": [
+	    "res://spirit_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "spirit"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "catalyst",
+	          "id": "self_stride"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "prepared_basic_hp",
+	  "label": "Wraith’s Followthrough contribution",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Offensive class actions prepare +%s next basic-hit damage.",
+	  "detail": "Provisional CE04 tuning. Launch within 4 seconds. One first primary contact benefits; a miss spends it. Echoes and skills cannot claim it.",
+	  "tuning": {
+	    "duration_ms": 4000
+	  },
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"untethered_motion": {
+	  "title": "Untethered Motion",
+	  "family": "spirit",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Extends your own functioning stride, trace and Flowing Strikes preparation",
+	  "consumer": [
+	    "res://spirit_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "spirit"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "phantom_step",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "spirit"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "flowing_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "spirit"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "self_stride"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_stride_and_trace"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "recipient_stride"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "departure_trace_and_landing_stride"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "movement_duration_ms",
+	  "label": "Untethered Motion contribution",
+	  "unit": "ms",
+	  "limit": 4,
+	  "description": "Your native Spirit movement effects last +%s s.",
+	  "detail": "Provisional CE04 tuning. Extends your own functioning stride, trace and Flowing Strikes preparation. Does not change dash cooldown or movement speed.",
+	  "tuning": {},
+	  "values": [
+	    250,
+	    400,
+	    550,
+	    700
+	  ]
+	},
+	"evasive_spirit": {
+	  "title": "Evasive Spirit",
+	  "family": "spirit",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "For 1 second after an eligible dash or movement skill, direct damage is divided by 1 + efficiency/100 before Bark",
+	  "consumer": [
+	    "res://spirit_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "spirit"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "phantom_step",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "spirit"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "flowing_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "spirit"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "self_stride"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_stride_and_trace"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "recipient_stride"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "departure_trace_and_landing_stride"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "mitigation_efficiency",
+	  "label": "Evasive Spirit contribution",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Voluntary movement grants %s%% direct-damage mitigation efficiency.",
+	  "detail": "Provisional CE04 tuning. For 1 second after an eligible dash or movement skill, direct damage is divided by 1 + efficiency/100 before Bark. No invulnerability, and no protection from unrelated hazards.",
+	  "tuning": {
+	    "duration_ms": 1000
+	  },
+	  "values": [
+	    4,
+	    6,
+	    8,
+	    10
+	  ]
+	},
+	"stored_momentum": {
+	  "title": "Stored Momentum",
+	  "family": "spirit",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Charges allow consecutive legal dashes",
+	  "consumer": [
+	    "res://spirit_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "spirit"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "phantom_step",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "spirit"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "flowing_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "spirit"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "self_stride"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_stride_and_trace"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "recipient_stride"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "departure_trace_and_landing_stride"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "extra_dodge_charges",
+	  "label": "Stored Momentum contribution",
+	  "unit": "targets",
+	  "limit": 4,
+	  "description": "Store +%s dash charges.",
+	  "detail": "Provisional CE04 tuning. Charges allow consecutive legal dashes. Spent charges recover sequentially through the native cooldown owner; one recharge runs at a time.",
+	  "tuning": {},
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ]
+	},
+	"fleet_recovery": {
+	  "title": "Fleet Recovery",
+	  "family": "spirit",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "After native and Quick Footing flat reductions, recovery is divided by 1 + total efficiency/100",
+	  "consumer": [
+	    "res://spirit_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "spirit"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "phantom_step",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "spirit"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "flowing_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "spirit"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "self_stride"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_stride_and_trace"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "recipient_stride"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "departure_trace_and_landing_stride"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "dodge_efficiency",
+	  "label": "Fleet Recovery contribution",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Gain %s%% dash recovery efficiency.",
+	  "detail": "Provisional CE04 tuning. After native and Quick Footing flat reductions, recovery is divided by 1 + total efficiency/100. More copies continue improving recovery; dash speed is unchanged.",
+	  "tuning": {},
+	  "values": [
+	    40,
+	    60,
+	    80,
+	    100
+	  ]
+	},
+	"lingering_echoes": {
+	  "title": "Lingering Echoes",
+	  "family": "spirit",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Only available after acquiring Mirrorstep or Wraithcast",
+	  "consumer": [
+	    "res://spirit_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "any": [
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "core",
+	                  "primary_affinity": "spirit"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "core",
+	                  "id": "phantom_step",
+	                  "slot": "core"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "form",
+	                  "primary_affinity": "spirit"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "form",
+	                  "id": "flowing_strikes",
+	                  "slot": "form"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "catalyst",
+	                  "primary_affinity": "spirit"
+	                }
+	              },
+	              {
+	                "any": [
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "self_stride"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "radial_stride_and_trace"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "recipient_stride"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "departure_trace_and_landing_stride"
+	                    }
+	                  }
+	                ]
+	              }
+	            ]
+	          }
+	        ]
+	      },
+	      {
+	        "any": [
+	          {
+	            "owned": {
+	              "kind": "card",
+	              "id": "mirrorstep"
+	            }
+	          },
+	          {
+	            "owned": {
+	              "kind": "card",
+	              "id": "wraithcast"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "echo_duration_ms",
+	  "label": "Lingering Echoes contribution",
+	  "unit": "ms",
+	  "limit": 4,
+	  "description": "Prepared phantom echoes and shadows last +%s s.",
+	  "detail": "Provisional CE04 tuning. Only available after acquiring Mirrorstep or Wraithcast. Each preparation keeps its own expiry.",
+	  "tuning": {},
+	  "values": [
+	    500,
+	    750,
+	    1000,
+	    1250
+	  ]
+	},
+	"mirrorstep": {
+	  "title": "Mirrorstep",
+	  "family": "spirit",
+	  "scope": "affinity",
+	  "policy": "unique",
+	  "trigger": "Each legal dash or movement skill stores one 3-second echo",
+	  "consumer": [
+	    "res://spirit_affinity.gd",
+	    "voluntary"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "spirit"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "phantom_step",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "spirit"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "flowing_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "spirit"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "self_stride"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_stride_and_trace"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "recipient_stride"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "departure_trace_and_landing_stride"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "mirrorstep_unlock",
+	  "label": "Mirrorstep contribution",
+	  "unit": "unlock",
+	  "limit": 1,
+	  "description": "Voluntary dashes prepare phantom copies of your next basic attack.",
+	  "detail": "Provisional CE04 tuning. Each legal dash or movement skill stores one 3-second echo. The next primary attack releases all echoes simultaneously at 40% weapon and eligible Form potency. No HP spending, native class/graft procs or recursive copies.",
+	  "tuning": {
+	    "duration_ms": 3000,
+	    "weapon_percent": 40,
+	    "form_percent": 40
+	  },
+	  "fixed": 1,
+	  "grants": [
+	    "mirrorstep"
+	  ]
+	},
+	"wraithcast": {
+	  "title": "Wraithcast",
+	  "family": "spirit",
+	  "scope": "affinity",
+	  "policy": "unique",
+	  "trigger": "Each shadow lasts 4 seconds and casts once at 40% potency from its own departure position",
+	  "consumer": [
+	    "res://spirit_affinity.gd",
+	    "voluntary"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "any": [
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "core",
+	                  "primary_affinity": "spirit"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "core",
+	                  "id": "phantom_step",
+	                  "slot": "core"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "form",
+	                  "primary_affinity": "spirit"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "form",
+	                  "id": "flowing_strikes",
+	                  "slot": "form"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "catalyst",
+	                  "primary_affinity": "spirit"
+	                }
+	              },
+	              {
+	                "any": [
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "self_stride"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "radial_stride_and_trace"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "recipient_stride"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "departure_trace_and_landing_stride"
+	                    }
+	                  }
+	                ]
+	              }
+	            ]
+	          }
+	        ]
+	      },
+	      {
+	        "capability": {
+	          "producer": "replica",
+	          "id": "wraithcast_skill"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "wraithcast_unlock",
+	  "label": "Wraithcast contribution",
+	  "unit": "unlock",
+	  "limit": 1,
+	  "description": "Dashes leave departure-position shadows that copy your next compatible skill.",
+	  "detail": "Provisional CE04 tuning. Each shadow lasts 4 seconds and casts once at 40% potency from its own departure position. Supports class opening damage/healing and Ward protection, plus Chain Spark, Ironbark and Vital Bloom Core effects. Copies omit learned-node side effects. Movement, traps and unsupported persistent fields are not replayed.",
+	  "tuning": {
+	    "duration_ms": 4000,
+	    "effect_percent": 40
+	  },
+	  "fixed": 1,
+	  "grants": [
+	    "wraithcast"
+	  ]
+	},
+
 }
 
 

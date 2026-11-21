@@ -44,13 +44,10 @@
       }
     },
     "dodge_player": {
-      "ar06_cooldown_1": {
-        "match": "\tif not Life.alive(p) or not p[Cooldowns.STATE].ready(Cooldowns.DODGE, now):\n",
-        "baseline": "\tif not Life.alive(p) or now < int(p.dodge_at):\n"
-      },
 
 
-      "cr04c_spirit_0": {"match": "\t\tp.facing = facing\n\tvar previous: Vector3 = p.pos\n\tp.pos = battlefield.dash(p.pos, bound_position(p.pos + p.facing * DODGE_DISTANCE, true))\n\tif p.has(\"affinity_spirit_follow\"):\n\t\tpreload(\"res://spirit_affinity.gd\").movement(self,p,previous,p.pos)\n", "baseline": "\t\tp.facing = facing\n\tp.pos = battlefield.dash(p.pos, bound_position(p.pos + p.facing * DODGE_DISTANCE, true))\n"}
+
+
     },
     "move_player": {
       "ct03_ranger_1": {
@@ -159,10 +156,7 @@
         "match": "\tvar cooldowns: Array = local_timers.skill_seconds(cooldown_now) if host_side and local_timers != null else p.get(\"skill_cooldowns\", [0.0, 0.0])\n",
         "baseline": "\tvar cooldowns: Array=[maxf(0,(int(p.get(\"skill_at\",0))-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)] if host_side else p.get(\"skill_cooldowns\",[0.0,0.0])\n"
       },
-      "ar06_cooldown_5": {
-        "match": "\tvar ready_dodge := (local_timers == null or local_timers.ready(Cooldowns.DODGE, cooldown_now)) if host_side else bool(p.get(\"dodge_ready\", false))\n",
-        "baseline": "\tvar ready_dodge := Time.get_ticks_msec() >= int(p.get(\"dodge_at\", 0)) if host_side else bool(p.get(\"dodge_ready\", false))\n"
-      },
+
 
       "ct01_1": {"match": "\tvar second_ready: bool=Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)) if host_side else bool(p.get(\"skill_two_ready\",false))\n\tvar resolved := combat_build(p,not wild)\n\tvar skills: Array=resolved.class_skills()\n\tvar has_resolved_skills: bool=skills.size()==2 and not skills.any(func(skill): return skill.is_empty())\n\tif not has_resolved_skills:\n\t\tskills=[Skills.resolve_in_world(self,int(p.get(\"frame\",0)),0,p.get(\"character\",guest_character.data)),\n\t\t\tSkills.resolve_in_world(self,int(p.get(\"frame\",0)),1,p.get(\"character\",guest_character.data))]\n\tvar cooldowns: Array=[maxf(0,(int(p.get(\"skill_at\",0))-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)] if host_side else p.get(\"skill_cooldowns\",[0.0,0.0])\n", "baseline": "\tvar second_ready: bool=Time.get_ticks_msec()>=int(p.get(\"skill_two_at\",0)) if host_side else bool(p.get(\"skill_two_ready\",false))\n\tvar skills: Array=[Skills.resolve(int(p.get(\"frame\",0)),0,p.get(\"character\",guest_character.data)),Skills.resolve(int(p.get(\"frame\",0)),1,p.get(\"character\",guest_character.data))]\n\tvar cooldowns: Array=[maxf(0,(int(p.get(\"skill_at\",0))-Time.get_ticks_msec())/1000.0),maxf(0,(int(p.get(\"skill_two_at\",0))-Time.get_ticks_msec())/1000.0)] if host_side else p.get(\"skill_cooldowns\",[0.0,0.0])\n"},
       "cr04c_void_hud_0": {
@@ -1015,10 +1009,6 @@
       "ar08_lifecycle_3": {
         "match": "\tif int(trace_state.until)<=Clock.now(game) or int(trace_state.epoch)!=game.participation.epoch() or target!=int(trace_state.represented) or not represents(game,target) \\\n\t\t\tor not PlayerLifecycle.matches(game.players.get(target,{}),int(trace_state.represented_life)) \\\n\t\t\tor not PlayerLifecycle.matches(game.players.get(trace_state.actor,{}),int(trace_state.source_life)):\n",
         "baseline": "\tif int(trace_state.until)<=Clock.now(game) or int(trace_state.epoch)!=game.participation.epoch() or target!=int(trace_state.represented) or not represents(game,target):\n"
-      },
-      "ec01_1": {
-        "match": "\tvar key: String=\"%d/%s\"%[event.actor,event.source]\n\tvar potency: Dictionary=event.potency()\n\tvar speed: float=potency.speed\n\tvar old: Dictionary=sources.get(key,{})\n\tif int(old.get(\"until\",0))>elapsed and float(old.speed)>speed: return\n\tsources[key]={\"actor\":event.actor,\"quality\":event.quality,\"speed\":speed,\"until\":elapsed+STRIDE_MS+int(potency.get(\"duration_bonus_ms\",0))}\n\tp[STRIDES]=sources\n",
-        "baseline": "\tvar key: String=\"%d/%s\"%[event.actor,event.source]\n\tvar speed: float=event.potency().speed\n\tvar old: Dictionary=sources.get(key,{})\n\tif int(old.get(\"until\",0))>elapsed and float(old.speed)>speed: return\n\tsources[key]={\"actor\":event.actor,\"quality\":event.quality,\"speed\":speed,\"until\":elapsed+STRIDE_MS}\n\tp[STRIDES]=sources\n"
       }
     },
     "storm_affinity.gd": {

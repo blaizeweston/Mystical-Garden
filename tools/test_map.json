@@ -35,7 +35,7 @@
     "affinity_cards": {"label": "Affinity expedition card ledger, rarity, Essence rerolls and owned effects", "files": ["affinity_cards.gd", "affinity_cards.gd.uid", "affinity_card_ledger.gd", "affinity_card_ledger.gd.uid", "affinity_card_catalog.gd", "affinity_card_catalog.gd.uid", "card_requirements.gd", "card_requirements.gd.uid", "card_eligibility.gd", "card_eligibility.gd.uid", "card_active_actions.gd", "card_active_actions.gd.uid"]},
     "oracle_progression": {"label": "Connected Oracle, native Omens and first-run focus admission", "files": ["oracle_connected_tree.gd", "oracle_connected_tree.gd.uid", "oracle_combat.gd", "oracle_combat.gd.uid", "oracle_omens.gd", "oracle_omens.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid", "combat_status.gd", "combat_status.gd.uid"]},
     "void_affinity": {"label":"Void wells, compression and bounded displacement", "files":["void_affinity.gd","void_affinity.gd.uid"]},
-    "spirit_affinity": {"label":"Spirit stride, traces and attack claims", "files":["spirit_affinity.gd","spirit_affinity.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid"]},
+    "spirit_affinity": {"label":"Spirit stride, traces and attack claims", "files":["spirit_replicas.gd", "spirit_replicas.gd.uid", "spirit_affinity.gd","spirit_affinity.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid"]},
     "storm_affinity": {"label": "Storm discharge and source-owned charges", "files": ["basic_attack_timing.gd", "basic_attack_timing.gd.uid", "storm_affinity.gd", "storm_affinity.gd.uid"]},
     "world_snapshot": {
       "label": "Protocol 41 bounded unreliable world snapshots, roster metadata and receive convergence",
@@ -1530,6 +1530,9 @@
     ]
   },
   "suites": {
+    "ce04_spirit": {"kind":"unit","profile":"affinity","systems":["affinity_cards","spirit_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons","player_cooldowns","player_hit_conditions","incoming_player_hit","classes"],"package":false},
+    "ce04_spirit_coop": {"kind":"pair","profile":"affinity","systems":["affinity_cards","spirit_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons","player_cooldowns","player_hit_conditions","incoming_player_hit","classes"],"package":false},
+    "ce04_spirit_party": {"kind":"party","profile":"affinity","systems":["affinity_cards","spirit_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons","player_cooldowns","player_hit_conditions","incoming_player_hit","classes"],"package":false},
     "ce04_storm": {"kind":"unit","profile":"affinity","systems":["affinity_cards","storm_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
     "ce04_storm_coop": {"kind":"pair","profile":"affinity","systems":["affinity_cards","storm_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
     "ce04_storm_party": {"kind":"party","profile":"affinity","systems":["affinity_cards","storm_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
@@ -5011,12 +5014,9 @@
         "systems": ["weaver_progression", "warden_progression", "combat_affinity_contracts"],
         "additive": true
       }},
-    "dodge_player": {"ar06_cooldown_1": {"systems": ["player_cooldowns"], "additive": true},
+    "dodge_player": {
 
-      "cr04c_spirit_0": {
-        "systems": ["spirit_affinity", "combat_affinity_contracts", "world_snapshot"],
-        "additive": true
-      }
+
     },
     "move_player": {
       "ct03_ranger_1": {"systems": ["terrain", "ranger_progression"], "additive": true},
@@ -5138,7 +5138,7 @@
         ]
       }
     },
-    "_process": {  "ar08_lifecycle_3": {"systems": ["player_lifecycle"], "additive": true}, "ar07_vitals_1": {"systems": ["player_vitals"], "additive": true},  "ar07_vitals_3": {"systems": ["player_vitals"], "additive": true}, "ar06_cooldown_1": {"systems": ["player_cooldowns"], "additive": true},  "ar06_cooldown_3": {"systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_4": {"systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_5": {"systems": ["player_cooldowns"], "additive": true},     "ct01_1": {
+    "_process": {  "ar08_lifecycle_3": {"systems": ["player_lifecycle"], "additive": true}, "ar07_vitals_1": {"systems": ["player_vitals"], "additive": true},  "ar07_vitals_3": {"systems": ["player_vitals"], "additive": true}, "ar06_cooldown_1": {"systems": ["player_cooldowns"], "additive": true},  "ar06_cooldown_3": {"systems": ["player_cooldowns"], "additive": true}, "ar06_cooldown_4": {"systems": ["player_cooldowns"], "additive": true},      "ct01_1": {
         "systems": ["warden_progression", "classes", "combat_affinity_contracts"],
         "additive": true
       }, "cr04c_void_hud_0": {
@@ -5814,7 +5814,7 @@
     "reaper_combat.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar07_vitals_1": {"systems": ["player_vitals"]}, "ar07_vitals_2": {"systems": ["player_vitals"]}, "ar06_cooldown_1": {"systems": ["player_cooldowns"]}, "ar06_cooldown_2": {"systems": ["player_cooldowns"]}, "ar06_cooldown_3": {"systems": ["player_cooldowns"]}, "ar06_cooldown_4": {"systems": ["player_cooldowns"]}}},
     "weaver_combat.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar06_cooldown_1": {"systems": ["player_cooldowns"]}, "ar06_cooldown_2": {"systems": ["player_cooldowns"]}, "ar06_cooldown_3": {"systems": ["player_cooldowns"]}}},
     "game_transaction.gd": {"newline": "crlf", "regions": {"receipt_owner": {"systems": ["loot"]}, "legacy_capture": {"systems": ["loot"]}, "legacy_rollback": {"systems": ["loot"]}, "legacy_commit": {"systems": ["loot"]}, "guarded_owner": {"systems": ["loot"]}, "guarded_capture": {"systems": ["loot"]}, "guarded_missing_outcome": {"systems": ["loot"]}, "guarded_uncertainty": {"systems": ["loot"]}, "guarded_commit": {"systems": ["loot"]}, "guarded_rollback": {"systems": ["loot"]}}},
-    "spirit_affinity.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ec01_1": {"systems": ["affinity_cards"]}}},
+    "spirit_affinity.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}}},
     "storm_affinity.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]},  "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ec01_1": {"systems": ["affinity_cards"]}}},
     "wood_affinity.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}}},
     "vital_combat.gd": {"regions": {"ar07_vitals_1": {"systems": ["player_vitals"]}, "ar07_vitals_2": {"systems": ["player_vitals"]}, "ar07_vitals_3": {"systems": ["player_vitals"]}, "ar07_vitals_4": {"systems": ["player_vitals"]}, "ar07_vitals_5": {"systems": ["player_vitals"]}}},

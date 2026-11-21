@@ -17,7 +17,7 @@ static func schema() -> Dictionary:
 	if not _known.is_empty(): return _known
 	var result := {"class":[], "focus":[], "weapon":[], "nodes":{}, "primary":Plants.CORE_SKILL_BY_PRIMARY.keys(),
 		"tags":Plants.CORE_SKILL_BY_PRIMARY.keys() + Plants.SUPPORTING_ONLY,
-		"capabilities":{"weapon":["strike"], "core":Plants.CORE_SKILL_BY_PRIMARY.values(), "form":Rules.FORMS.values(), "class":[], "catalyst":[], "card":[], "graft":Grafts.ADAPTATIONS.keys()},
+		"capabilities":{"replica":["wraithcast_skill"], "weapon":["strike"], "core":Plants.CORE_SKILL_BY_PRIMARY.values(), "form":Rules.FORMS.values(), "class":[], "catalyst":[], "card":[], "graft":Grafts.ADAPTATIONS.keys()},
 		"recipients":["enemy"], "modes":[], "fields":[], "owned":{"card":Catalog.DEFINITIONS.keys(), "graft":Grafts.REINFORCEMENTS.keys() + Grafts.ADAPTATIONS.keys()}}
 	for index in Classes.DEFINITIONS.size():
 		var frame: Dictionary = Classes.DEFINITIONS[index]
@@ -79,6 +79,7 @@ static func facts(build: Dictionary, card_counts: Variant = null) -> Dictionary:
 				result.capabilities.append({"producer":"catalyst", "id":response, "slot":"catalyst", "target_scope":str(adapter.recipients)})
 	for id: String in improvements.get("adaptations", []):
 		if Grafts.ADAPTATIONS.has(id): result.capabilities.append({"producer":"graft", "id":id})
+	if load("res://spirit_replicas.gd").build_supported(build):result.capabilities.append({"producer":"replica","id":"wraithcast_skill"})
 	# Resolve only real owned grants, never hypothetical future acquisitions.
 	# Repeated passes allow an earlier acquired capability to enable another;
 	# catalog cycle validation prevents circular bootstrap.

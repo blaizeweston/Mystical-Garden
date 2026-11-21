@@ -1496,3 +1496,34 @@ Storm is implemented first: ten additions, **111 total definitions** at its chec
 These are provisional tuning values. Return damage uses starting discharge potency before Grounded Current's primary-only addition. Forks cannot fork. Extra jumps, reach and unused-potential conversion make ordinary Storm useful without Conductor. Source life, connection binding, floor epoch and enemy spawn identities remain validated. There is no added Catalyst response type or extra ordinary contact.
 
 Storm verification: `ce04_storm`, `ce04_storm_coop`, `ce04_storm_party`, native Storm, EC01, CE01 eligibility, weapon queue and guarded gameplay transactions passed (8 suites / 13 unit/peer verdicts). The independent local four-player case includes fifth-client refusal, floor continuity, extraction and rejoin. Evidence: `.godot/validation/final-four-ce04-storm-final-20261120-221435/summary.json`. Local loopback is not internet or separate-PC verification. Planner impact is all 264 current suites due to the shared contract/catalog; this focused checkpoint does not refresh broad release evidence. Production persistence activation remains disabled.
+
+
+### Spirit: stored movement and independent phantoms
+
+Spirit adds fifteen cards, **126 total definitions** at its checkpoint. `player_cooldowns.gd::Timers` owns capacity and a sequential queue of captured recharge durations with one next-recovery deadline. Immutable replacements preserve rollback. `resolved_combat_build.gd` derives capacity and recharge from the locked build; its immutable resolved-potency cache avoids repeatedly resolving the same content for every echo. The provisional ordinary dash recharge is **2,200 ms**, previously 850 ms; its distance, speed and lack of invulnerability are unchanged. Quick Footing remains 45/70/95/120 ms per copy. Flat native/card reductions retain their 350 ms floor **before** Spirit efficiency; divide the resulting duration by `1 + (Fleet + prepared Invocation efficiency)/100`. Four Epic Quick Footing and four Epic Fleet copies produce 344 ms recovery before native class modifiers. A Common of each produces 1,539 ms. Newly acquired charge capacity is ready immediately; spent charges recover one at a time. Native instant-dodge restoration restores one recovering charge.
+
+| Spirit card | Common / Uncommon / Rare / Epic | Actual consumer |
+|---|---|---|
+| Far Step | 0.25 / 0.40 / 0.55 / 0.70 m | Phantom Step travel and preview |
+| Persistent Traces | 150 / 250 / 350 / 450 ms | Core pursuer trace |
+| Ghostcut | 2 / 3 / 4 / 5 damage | Native movement-qualified Form follow-up |
+| Flowing Edge | 150 / 250 / 350 / 450 ms | Live self Spiritstride extension once per ordinary attack |
+| Spectral Tempo | 6 / 9 / 12 / 15% for 2 s | Legal voluntary dash prepares basic speed |
+| Veiled Casting | 3 / 5 / 7 / 9 percentage points | Catalyst stride movement speed |
+| Flowing Invocation | 20 / 30 / 40 / 50% efficiency | Actual mapped class response prepares next spent charge for 4 s |
+| Wraith’s Followthrough | 2 / 3 / 4 / 5 damage | Offensive class response prepares first primary basic contact; launch within 4 s |
+| Untethered Motion | 250 / 400 / 550 / 700 ms | Own native Spirit stride/trace/follow lifetimes |
+| Evasive Spirit | 4 / 6 / 8 / 10% efficiency for 1 s | Direct incoming HP divided by `1 + efficiency/100`, before Bark; no invulnerability |
+| Stored Momentum | 1 / 2 / 3 / 4 charges | Existing native cooldown owner |
+| Fleet Recovery | 40 / 60 / 80 / 100% efficiency | Sequential dash recovery |
+| Lingering Echoes | 500 / 750 / 1,000 / 1,250 ms | Independent prepared lifetimes; requires owned Mirrorstep or Wraithcast |
+| Mirrorstep | Unique: 3 s lifetime, 40% weapon/Form potency | All prepared echoes release simultaneously through `weapon_attack_queue.gd` |
+| Wraithcast | Unique: 4 s lifetime, 40% effect potency | All eligible departure-position shadows cast once through `spirit_replicas.gd` |
+
+These values are provisional and authored only in `affinity_card_catalog.gd`. `spirit_affinity.gd` owns the lightweight preparations, current source/binding/life/epoch checks and cleanup; the card ledger alone owns acquisition. Ordinary walking and forced motion never create phantoms. Basic attacks consume only echoes; compatible activated Core/class casts consume only shadows. Neither replica repeats native cooldowns, HP spending, character movement, Catalyst or graft procs. There is no fixed echo/shadow count cap. Passive counts and stored charges use existing reliable owner details/HUD; no compact snapshot layout or RPC signature changes.
+
+`spirit_replicas.gd::class_supported/build_supported` is also the authoritative executable eligibility contract. Supported class portions are opening damage/healing and Ward protection. Native learned-node side effects, traps, persistent fields and character movement are not copied. Supported Core portions: Chain Spark contact/discharge, Ironbark protection and Vital Bloom capacity/regeneration. Other Core families remain explicitly unsupported; an unsupported cast retains shadows. A movement-only Core plus trap-only class cannot receive Wraithcast. The card Details and Stats presentation state the compatibility. Mirrorstep uses native scaled leaf Form effects; no extra ordinary class/graft/Harvest ownership is granted.
+
+Spirit verification: 16 focused suites pass, including actual class/Core copying, all nine Form leaf types, native Spirit, CE01, resolved builds, weapon ownership, original class casting, CE03 families, Oracle/Reaper defenses, projectile terrain, hit conditions and guarded gameplay transactions. Independent two-/four-player runs verify actual dash RPCs, both phantoms, reliable charges, duplicate class requests, normal card/graft/floor/extraction/rejoin flow and fifth-player refusal. Evidence: `.godot/validation/final-four-ce04-spirit-ready-20261120-223442/summary.json`. The synthetic four-player stress case retains 128 echoes plus 128 shadows and creates 132 weapon records, no new player actors: approximately 35 ms total preparation, 10 ms queue admission and 7 ms resolution on this machine. These are headless local measurements, not a manual frame-rate guarantee.
+
+A separately attempted `guarded_lifecycle` fixture remains failed at its pre-existing `preferences` binding assertion: it assumes an old B-bound attack can migrate Core to X, already assigned by CE02 card controls. Both that fixture and `app_settings.gd` are unchanged from the CE03 baseline. Its original engine-error log is retained under `final-four-ce04-spirit-final-20261120-223303`. This is not a passing lifecycle/save acceptance claim. Current guarded transaction coverage passes; production AC-06 activation remains false and host-process-loss limitations remain unresolved.

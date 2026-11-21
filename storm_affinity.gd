@@ -69,7 +69,7 @@ static func discharge(game: Node, actor: int, first: int, origin: Vector3, impac
 	if not route.any(func(row):return game.encounter.alive(row.target,row.token)):return
 	var owner: Dictionary=game.players.get(actor,{})
 	var prep: Dictionary=owner.get(PREP,{})
-	if int(prep.get("until",0))>now and Sources.current(game,prep.source):
+	if not source.get("replica",false) and int(prep.get("until",0))>now and Sources.current(game,prep.source):
 		hp+=int(prep.hp);owner.erase(PREP)
 	var grounded:=0.0
 	for step in range(route.size(),jumps+1):grounded+=hp*pow(FALLOFF,step)*int(potency.get("unused_percent",0))/100.0

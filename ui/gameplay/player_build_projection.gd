@@ -52,7 +52,9 @@ static func summary(facts: Dictionary) -> Dictionary:
 	rows.append(["Max HP", compared(int(facts.max_hp), base_hp, " HP")])
 	var dodge_ms := resolved.dodge_ms(int(facts.dodge_ms))
 	rows.append(["Dodge cooldown", compared(dodge_ms / 1000.0, int(facts.dodge_ms) / 1000.0, " s"),
-		"Minimum dodge cooldown is %s s." % decimal(Cards.DODGE_MIN_MS / 1000.0)])
+		"Flat reductions stop at %s s before Spirit efficiency. Stored charges recover sequentially; capacity %d." % [decimal(Cards.DODGE_MIN_MS / 1000.0),resolved.dodge_capacity()]])
+	var prepared: Dictionary=facts.get("spirit_prepared",{})
+	if int(prepared.get("echoes",0))+int(prepared.get("shadows",0))>0:rows.append(["Prepared phantoms","%d echoes / %d shadows" % [prepared.get("echoes",0),prepared.get("shadows",0)],prepared.get("compatibility","")])
 	for slot in 2:
 		var skill := resolved.class_skill(slot)
 		if skill.is_empty(): skill = facts.skills[slot]

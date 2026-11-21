@@ -57,6 +57,7 @@ func start_timeline(peer: int, stats: Dictionary, form: String, now: int) -> int
 	if started == null: return -1
 	actor[Actions.STATE] = started
 	preload("res://vital_combat.gd").launch(_world,actor,stats,now)
+	Spirit.basic_launch(_world,actor,stats,now)
 	actor.cast_until = 0
 	return started.duration_ms()
 
@@ -123,11 +124,11 @@ func end_projectile(event_id: int, origin: Vector3, end: Vector3) -> void:
 
 func claim_spirit(peer: int, stats: Dictionary, lanes: int) -> void:
 	var actor: Dictionary = _world.players[peer]
-	if actor.has(Spirit.FOLLOW): Spirit.launch(_world, actor, stats, lanes)
+	if actor.has(Spirit.FOLLOW) and not stats.get("spirit_replica",false): Spirit.launch(_world, actor, stats, lanes)
 
 func finish_spirit(peer: int, stats: Dictionary) -> void:
 	var actor: Dictionary = _world.players.get(peer, {})
-	if actor.has(Spirit.FOLLOW): Spirit.finish(_world, actor, stats)
+	if actor.has(Spirit.FOLLOW) and not stats.get("spirit_replica",false): Spirit.finish(_world, actor, stats)
 
 func ranger_grants(peer: int, form: String, stats: Dictionary, now: int) -> Dictionary:
 	return preload("res://ranger_combat.gd").launch_grants(_world, _world.players[peer], peer, form, stats, now)
@@ -157,7 +158,8 @@ func pierce(previous: Vector3, point: Vector3, target: int) -> void:
 
 func hit(peer: int, target: int, origin: Vector3, point: Vector3, forward: Vector3, stats: Dictionary, now: int) -> void:
 	Outgoing.hit_world(_world, peer, target, origin, stats, now)
-	if stats.has(Events.CONTEXT): Events.contact(_world, stats, target, now, false, point, forward)
+	if stats.has(Events.CONTEXT):
+		Events.contact(_world, stats, target, now, false, point, forward)
 
 func secondary(peer: int, stats: Dictionary, point: Vector3, hits: Array, budget: int) -> Array:
 	# The queue supplies a detached contact list, not its authoritative shared set.
@@ -166,3 +168,7 @@ func secondary(peer: int, stats: Dictionary, point: Vector3, hits: Array, budget
 
 func finish_encounter(peer: int, point: Vector3) -> void:
 	if _world.encounter_cleared() and _world.pending_finale_at == 0: _world.finish_combat(peer, point)
+
+
+func release_mirrors(peer: int, stats: Dictionary, form: String, now: int, duration: int) -> void:
+	load("res://spirit_replicas.gd").weapon(_world,peer,stats,form,now,duration)

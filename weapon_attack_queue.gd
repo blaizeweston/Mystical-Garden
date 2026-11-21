@@ -21,21 +21,22 @@ func try_start(port, peer: int, origin: Vector3, now: int) -> bool:
 	var target := -2
 	if not facts.mouse: target = port.aim_at_target(peer, origin, float(stats.reach), form)
 	schedule(port, peer, origin, stats, now, form, duration, target)
+	if port.has_method("release_mirrors"):port.release_mirrors(peer,stats,form,now,duration)
 	if not facts.mouse and target == -2: port.no_target(peer)
 	return true
 
 ## Also used by explicit delivery fixtures. Stats are captured once at admission;
 ## callers cannot edit the queued attack by later changing their input dictionary.
-func schedule(port, peer: int, origin: Vector3, stats: Dictionary, now: int, form: String, duration: int, locked_target := -2) -> int:
+func schedule(port, peer: int, origin: Vector3, stats: Dictionary, now: int, form: String, duration: int, locked_target := -2, replica_pose: Dictionary = {}) -> int:
 	var profile := Motion.profile(form)
 	var release := now + roundi(duration * float(profile.release))
-	var pose: Dictionary = port.prepare_pose(peer, form, stats, release)
+	var pose: Dictionary = port.prepare_pose(peer, form, stats, release) if replica_pose.is_empty() else replica_pose
 	if pose.is_empty(): return 0
 	var direction: Vector3 = pose.direction
 	var end := origin + direction * float(stats.reach)
 	_serial += 1
 	var shot := {"queue_id":_serial, "hit_group":_serial, "player":peer, "epoch":pose.epoch, "life":pose.life,
-		"binding":pose.binding, "release":release, "due":release, "form":form, "origin":origin, "aim":end,
+		"binding":pose.binding, "replica":not replica_pose.is_empty(), "release":release, "due":release, "form":form, "origin":origin, "aim":end,
 		"stats":_freeze(stats.duplicate(true)), "hits":[], "remaining":int(stats.targets)}
 	if Motion.is_projectile(form):
 		var path: Dictionary = port.projectile_path(origin, direction, form, float(stats.reach))
@@ -98,7 +99,7 @@ func advance(port, now: int) -> void:
 				_pending.erase(ray)
 
 func _release(port, shot: Dictionary) -> void:
-	var facts: Dictionary = port.release_facts(shot.player, shot.direction, int(shot.get("aim_combo", -1)))
+	var facts: Dictionary = {"position":shot.origin,"direction":shot.direction} if shot.get("replica",false) else port.release_facts(shot.player, shot.direction, int(shot.get("aim_combo", -1)))
 	var profile := Motion.profile(shot.form)
 	var path: Dictionary = port.projectile_path(facts.position, facts.direction, shot.form, float(shot.stats.reach))
 	shot.merge({"emitted":true, "direction":facts.direction, "launch_position":facts.position,

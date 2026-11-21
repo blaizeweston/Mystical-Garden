@@ -172,7 +172,7 @@ static func burst(game: Node, owner: int, center: Vector3, damage: int, now: int
 static func splinters(game: Node, event: RefCounted, details: Dictionary, now: int) -> void:
 	var player: Dictionary=game.players.get(event.actor,{})
 	var elapsed:=Clock.now(game)
-	if not game.Life.alive(player) or elapsed<int(player.get(FORM_READY,0)) or not event.take_response("wood_form"):
+	if not game.Life.alive(player) or (not event.replica and elapsed<int(player.get(FORM_READY,0))) or not event.take_response("wood_form"):
 		return
 	var target: int=details.enemy
 	var at: Vector3=details.get("point",game.enemy_position(target))
@@ -182,7 +182,7 @@ static func splinters(game: Node, event: RefCounted, details: Dictionary, now: i
 	if forward.length_squared()<.01:forward=player.facing
 	forward=forward.normalized()
 	var q: Dictionary=event.potency()
-	player[FORM_READY]=elapsed+FORM_INTERVAL_MS
+	if not event.replica:player[FORM_READY]=elapsed+FORM_INTERVAL_MS
 	Actors.damage(game,event.actor,target,q.impact_hp+int(q.get("concentrated_hp",0)),now,COLOR)
 	game.emit_combat_event("ability","wood_splinters",at,at+forward*FAN_RADIUS,.36,COLOR,FAN_RADIUS,event.actor,{"label":"Splintering strike"})
 	volley(game,Sources.capture(event),q,at,forward,FRAGMENT_LIMIT+int(q.get("extra_fragments",0)),now,target)

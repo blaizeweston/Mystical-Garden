@@ -775,3 +775,6 @@ CE03 Vital is implemented (12 additions, 101 total). The maintained [architectur
 
 
 CE04 Storm is implemented (10 additions, **111 total** at its checkpoint), including passive Unique Conductor. Its finite forks/return and independent normal-chain solo conversion are implemented in `storm_affinity.gd`. The [maintained architecture reference](ARCHITECTURE.md#remaining-affinity-card-families-ce04) records provisional contributions and focused evidence. Spirit and Void additions are not implied implemented by this checkpoint.
+
+
+CE04 Spirit is implemented (15 additions, **126 total** at its checkpoint): sequential stored dashes, independent passive Mirrorstep and departure-position Wraithcast. Ordinary dash recharge changes provisionally from 850 to 2,200 ms; Quick Footing values are unchanged. [Architecture](ARCHITECTURE.md#spirit-stored-movement-and-independent-phantoms) records exact per-rarity values, supported replica portions, focused/network evidence, measured stress behavior and the retained unrelated binding-fixture failure. Void additions are not implied implemented yet.

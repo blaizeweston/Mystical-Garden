@@ -103,7 +103,7 @@ func owner_details(peer: int, common: Dictionary) -> Dictionary:
 	var timers: Cooldowns.Timers = actor[Cooldowns.STATE]
 	var result := {"temporary_attack_speed_percent":preload("res://basic_attack_timing.gd").temporary_percent(_world,actor,now),"fire_attack_speed_percent":preload("res://fire_combat.gd").tempo_percent(_world,actor,now),"card_actions_state":preload("res://card_active_actions.gd").owner_state(_world,actor),"core_state":preload("res://core_combat.gd").owner_state(actor,now,_world.combat_build(actor).core_skill()),
 		"weapon":actor.weapon,"prepared":actor.prepared,"experiment":actor.experiment,
-		"dodge_ready":timers.ready(Cooldowns.DODGE,now),"last_offer":Cards.completed_floor(actor),
+		"spirit_prepared":{"echoes":actor.get("spirit_card_echoes",[]).size(),"shadows":actor.get("spirit_card_shadows",[]).size(),"compatibility":load("res://spirit_replicas.gd").info()},"dodge_state":timers.configure_dodge(_world.combat_build(actor).dodge_capacity(),now).dodge_projection(now),"dodge_ready":timers.configure_dodge(_world.combat_build(actor).dodge_capacity(),now).ready(Cooldowns.DODGE,now),"last_offer":Cards.completed_floor(actor),
 		"reclaim_choice":actor.get("reclaim_choice",0),"offering_choice":actor.get("offering_choice",0),
 		"last_deposit":actor.get("last_deposit",0),"catalyst":actor.catalyst,"graft_part":0,"graft_floor":0,
 		"prepared_catalyst":actor.prepared_catalyst,"cargo_plan":actor.cargo_plan,

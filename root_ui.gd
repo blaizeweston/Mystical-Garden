@@ -248,13 +248,15 @@ func _draw() -> void:
 		text(self,Vector2(30,bottom+75),"FALLEN · awaiting a teammate",15,MUTED)
 		return
 	slot(self, Rect2(24, bottom + 49, 82, 77), preload("res://app_settings.gd").hint("attack").to_upper(), "Strike", active, "✦")
-	slot(self, Rect2(108, bottom + 49, 82, 77), preload("res://app_settings.gd").hint("dodge").to_upper(), "Dodge", active and bool(state.dodge_ready), "»")
+	slot(self, Rect2(108, bottom + 49, 82, 77), preload("res://app_settings.gd").hint("dodge").to_upper(), ("Dodge %d/%d" % [state.dodge_state.available,state.dodge_state.capacity] if not state.get("dodge_state",{}).is_empty() and int(state.dodge_state.capacity)>1 else "Dodge"), active and bool(state.dodge_ready), "»")
 	var names: Array=state.get("skill_names",[Frames.DEFINITIONS[int(state.frame)].skill,"Skill II"])
 	var cooldowns: Array=state.get("skill_cooldowns",[0.0,0.0])
 	skill_slot(self,Rect2(192,bottom+49,98,77),preload("res://app_settings.gd").hint("class_skill"),str(names[0]),float(cooldowns[0]),bool(state.skill_ready))
 	skill_slot(self,Rect2(292,bottom+49,98,77),preload("res://app_settings.gd").hint("class_skill_two"),str(names[1]),float(cooldowns[1]),bool(state.get("skill_two_ready",true)))
 	if has_core:
 		draw_core_slot(Rect2(392,bottom+49,98,77),core)
+	var prepared: Dictionary=state.get("spirit_prepared",{})
+	if int(prepared.get("echoes",0))+int(prepared.get("shadows",0))>0:text(self,Vector2(204,bottom+33),"Echoes %d · Shadows %d" % [prepared.get("echoes",0),prepared.get("shadows",0)],11,GREEN)
 	var card_actions: Array=state.get("card_actions",[])
 	for index in card_actions.size():
 		var card: Dictionary=card_actions[index]

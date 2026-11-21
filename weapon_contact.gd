@@ -75,7 +75,8 @@ static func secondary(game: Node,player: Dictionary,stats: Dictionary,point: Vec
 static func melee(game: Node,shot: Dictionary,now: int) -> void:
  var player: Dictionary=game.players[shot.player];var remaining:=int(shot.stats.targets);var hits: Array=[]
  var direction: Vector3=(shot.aim-shot.origin).normalized()
- shot.origin=player.pos;shot.aim=shot.origin+direction*float(shot.stats.reach)
+ if not shot.stats.get("spirit_replica",false):shot.origin=player.pos
+ shot.aim=shot.origin+direction*float(shot.stats.reach)
  var epoch: int=game.participation.epoch()
  var scout_tokens: PackedInt64Array=game.encounter.scout_tokens()
  for target in candidates(game,shot.origin):

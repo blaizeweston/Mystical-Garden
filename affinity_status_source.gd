@@ -8,7 +8,7 @@ const MAX_INTEGER := 9223372036854775807
 const VERSION := 1
 
 static func capture(event: RefCounted) -> Dictionary:
-	return {"actor":event.actor,"binding":event.connection_binding,"life":event.life_generation,
+	return {"replica":event.replica,"actor":event.actor,"binding":event.connection_binding,"life":event.life_generation,
 		"epoch":event.epoch,"activation":event.identity,"slot":event.source,
 		"quality":event.quality,"item":event.material_id}
 

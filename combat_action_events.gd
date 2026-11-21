@@ -11,6 +11,7 @@ const Frost = preload("res://frost_combat.gd")
 const CHANNELS := ["weapon_contact", "core_action", "class_action", "class_contact",
 	"actual_block", "armor_break", "periodic", "secondary", "incoming_hit", "class_field_contact"]
 
+var replica := false
 var native_slot := -1
 var card_potency_bonus := 0
 var identity: int
@@ -89,6 +90,9 @@ func publish(game: Node, channel: String, contact_id: String, target: String, no
 			"target": target, "expires_at": expires_at, "charges_remaining": charges,
 			"details": details.duplicate(true),
 		})
+	if replica:
+		if channel=="weapon_contact":load("res://spirit_replicas.gd").form_contact(game,self,details,now)
+		return true
 	if source in ["core", "form", "catalyst"]:
 		match affinity:
 			"frost": Frost.on_event(game, self, channel, details, now)
@@ -131,13 +135,13 @@ static func contact(game: Node, stats: Dictionary, target: int, now: int, second
 		return
 	var channel := "secondary" if secondary else "class_contact" if event.source in ["native_class", "catalyst"] else "weapon_contact"
 	var token := "leader" if target == -1 else str(game.encounter.token(target))
-	var details := {"enemy":target,"native_displacement":float(stats.get("pull",0.0))>0.0 or float(stats.get("knockback",0.0))>0.0}
+	var details := {"enemy":target,"origin":stats.get("spirit_origin",game.players.get(event.actor,{}).get("pos",point)),"native_displacement":float(stats.get("pull",0.0))>0.0 or float(stats.get("knockback",0.0))>0.0}
 	if point.is_finite():
 		details.point = point
 		details.forward = forward
-	var charge: bool = channel=="weapon_contact" and game.players.get(event.actor,{}).has(Ruleset.Storm.CHARGE)
+	var charge: bool = not event.replica and channel=="weapon_contact" and game.players.get(event.actor,{}).has(Ruleset.Storm.CHARGE)
 	if event.publish(game, channel, "contact", token, now, details) and channel=="weapon_contact":
-		Ruleset.Spirit.contact(game,event,target,now)
+		if not event.replica:Ruleset.Spirit.contact(game,event,target,now)
 		if charge:
 			Ruleset.Storm.use_charge(game,event,target,point if point.is_finite() else game.enemy_position(target),now)
 
@@ -182,3 +186,18 @@ func accept_grant(recipient_id: int) -> bool:
 	if recipient_id <= 0 or _granted.has(recipient_id): return false
 	_granted[recipient_id] = true
 	return true
+
+
+## A new validated activation with captured potency, never copied deduplication state.
+func replicated(game: Node, potency_values: Dictionary, now: int) -> RefCounted:
+	var owner: Dictionary=game.players.get(actor,{})
+	if not game.multiplayer.is_server() or epoch!=game.participation.epoch() or not game.network_session.matches(actor,connection_binding) or not PlayerLifecycle.matches(owner,life_generation) or PlayerLifecycle.fallen(owner):return null
+	var result:=new()
+	result.identity=int(game.get_meta(&"cr02_activation_serial",0))+1
+	game.set_meta(&"cr02_activation_serial",result.identity)
+	result.replica=true;result.actor=actor;result.epoch=epoch
+	result.life_generation=life_generation;result.connection_binding=connection_binding
+	result.source=source;result.affinity=affinity;result.quality=quality;result.material_id=material_id
+	result.expires_at=now+15000;result.charges=-1;result._permitted=["weapon_contact"]
+	result._potency=potency_values.duplicate(true)
+	return result
