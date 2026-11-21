@@ -3178,6 +3178,1122 @@ const DEFINITIONS := {
 	    "wildfire"
 	  ]
 	},
+	# CE03 Water — values and units are the authoring authority.
+	"gathering_clouds": {
+	  "title": "Gathering Clouds",
+	  "family": "water",
+	  "scope": "core",
+	  "policy": "stackable",
+	  "trigger": "One application per contacted enemy",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "water"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "dewfall",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "saturation_bonus",
+	  "label": "Gathering Clouds contribution",
+	  "unit": "pressure",
+	  "limit": 4,
+	  "description": "Dewfall adds +%s Saturation per enemy contact.",
+	  "detail": "Provisional CE03 tuning. One application per contacted enemy. Does not change impact damage.",
+	  "tuning": {},
+	  "values": [
+	    8,
+	    12,
+	    16,
+	    20
+	  ]
+	},
+	"widening_curtain": {
+	  "title": "Widening Curtain",
+	  "family": "water",
+	  "scope": "core",
+	  "policy": "stackable",
+	  "trigger": "Actual curtain and preview use the same width",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "water"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "dewfall",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "width_cm",
+	  "label": "Widening Curtain contribution",
+	  "unit": "cm",
+	  "limit": 4,
+	  "description": "Dewfall gains +%s m half-width.",
+	  "detail": "Provisional CE03 tuning. Actual curtain and preview use the same width.",
+	  "tuning": {},
+	  "values": [
+	    15,
+	    25,
+	    35,
+	    45
+	  ]
+	},
+	"restorative_rain": {
+	  "title": "Restorative Rain",
+	  "family": "water",
+	  "scope": "core",
+	  "policy": "stackable",
+	  "trigger": "Once per recipient per cast, including the caster at formation",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "water"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "dewfall",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "direct_heal_hp",
+	  "label": "Restorative Rain contribution",
+	  "unit": "healing_hp",
+	  "limit": 4,
+	  "description": "Dewfall restores +%s HP to each living ally it touches.",
+	  "detail": "Provisional CE03 tuning. Once per recipient per cast, including the caster at formation. No extra Ward or Catalyst activation.",
+	  "tuning": {},
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"saturating_strikes": {
+	  "title": "Saturating Strikes",
+	  "family": "water",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Only functioning Water Form contacts qualify",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "water"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "drenching_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "saturation_bonus",
+	  "label": "Saturating Strikes contribution",
+	  "unit": "pressure",
+	  "limit": 4,
+	  "description": "Qualifying basic hits add +%s Saturation.",
+	  "detail": "Provisional CE03 tuning. Only functioning Water Form contacts qualify.",
+	  "tuning": {},
+	  "values": [
+	    3,
+	    5,
+	    7,
+	    9
+	  ]
+	},
+	"rolling_current": {
+	  "title": "Rolling Current",
+	  "family": "water",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Starts after the first eligible attack",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "water"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "drenching_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "sequence_saturation",
+	  "label": "Rolling Current contribution",
+	  "unit": "pressure",
+	  "limit": 4,
+	  "description": "Each successive basic attack adds another +%s Saturation.",
+	  "detail": "Provisional CE03 tuning. Starts after the first eligible attack. Resets after a 3-second gap. A volley advances the sequence only once.",
+	  "tuning": {
+	    "gap_ms": 3000
+	  },
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"pressure_point": {
+	  "title": "Pressure Point",
+	  "family": "water",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Adds native damage to one primary direct contact per attack",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "ordinary_bonus"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "water"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "drenching_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "pressure_hit_hp",
+	  "label": "Pressure Point contribution",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Your first basic-hit target at 50+ Saturation takes +%s damage.",
+	  "detail": "Provisional CE03 tuning. Adds native damage to one primary direct contact per attack. No separate hit or proc.",
+	  "tuning": {
+	    "threshold": 50
+	  },
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"refreshing_strikes": {
+	  "title": "Refreshing Strikes",
+	  "family": "water",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Lasts 4 seconds",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "water"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "drenching_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "prepared_heal_hp",
+	  "label": "Refreshing Strikes contribution",
+	  "unit": "healing_hp",
+	  "limit": 4,
+	  "description": "A basic hit prepares +%s HP of personal Surge healing.",
+	  "detail": "Provisional CE03 tuning. Lasts 4 seconds. The next accepted Surge uses your weighted share of the bonus, then spends it. Repeated hits refresh rather than stack preparations.",
+	  "tuning": {
+	    "duration_ms": 4000
+	  },
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ]
+	},
+	"tidal_resonance": {
+	  "title": "Tidal Resonance",
+	  "family": "water",
+	  "scope": "catalyst",
+	  "policy": "stackable",
+	  "trigger": "Only mapped Water Catalyst applications qualify",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "water"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "drench"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "radial_wash"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "healing_wash"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "landing_wash"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "saturation_bonus",
+	  "label": "Tidal Resonance contribution",
+	  "unit": "pressure",
+	  "limit": 4,
+	  "description": "Eligible class responses add +%s Saturation.",
+	  "detail": "Provisional CE03 tuning. Only mapped Water Catalyst applications qualify.",
+	  "tuning": {},
+	  "values": [
+	    6,
+	    9,
+	    12,
+	    15
+	  ]
+	},
+	"cleansing_response": {
+	  "title": "Cleansing Response",
+	  "family": "water",
+	  "scope": "catalyst",
+	  "policy": "stackable",
+	  "trigger": "Expands ally ordinary-Slow cleansing only, not enemy Drench area or healing triggers",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "water"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "radial_wash"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "healing_wash"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "landing_wash"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "cleanse_radius_cm",
+	  "label": "Cleansing Response contribution",
+	  "unit": "cm",
+	  "limit": 4,
+	  "description": "Catalyst cleansing washes reach +%s m farther.",
+	  "detail": "Provisional CE03 tuning. Expands ally ordinary-Slow cleansing only, not enemy Drench area or healing triggers.",
+	  "tuning": {},
+	  "values": [
+	    20,
+	    30,
+	    40,
+	    50
+	  ]
+	},
+	"crushing_surf": {
+	  "title": "Crushing Surf",
+	  "family": "water",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Each wave carries only the share of threshold pressure you actually supplied",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "dewfall",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "drenching_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "drench"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_wash"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "healing_wash"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_wash"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "surge_hp",
+	  "label": "Crushing Surf contribution",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Your full-share outgoing Surge potency gains +%s damage.",
+	  "detail": "Provisional CE03 tuning. Each wave carries only the share of threshold pressure you actually supplied.",
+	  "tuning": {},
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"restorative_surge": {
+	  "title": "Restorative Surge",
+	  "family": "water",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Independent from damage",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "dewfall",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "drenching_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "drench"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_wash"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "healing_wash"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_wash"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "surge_heal_hp",
+	  "label": "Restorative Surge contribution",
+	  "unit": "healing_hp",
+	  "limit": 4,
+	  "description": "Your full-share returning Surge potency gains +%s healing.",
+	  "detail": "Provisional CE03 tuning. Independent from damage. Once per returning wave per living recipient.",
+	  "tuning": {},
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"wide_wake": {
+	  "title": "Wide Wake",
+	  "family": "water",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Outgoing and gentler returning coverage both improve",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "dewfall",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "drenching_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "drench"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_wash"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "healing_wash"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_wash"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "surge_width_cm",
+	  "label": "Wide Wake contribution",
+	  "unit": "cm",
+	  "limit": 4,
+	  "description": "Your Surge waves gain +%s m half-width.",
+	  "detail": "Provisional CE03 tuning. Outgoing and gentler returning coverage both improve. Solid cover still stops the wave.",
+	  "tuning": {},
+	  "values": [
+	    15,
+	    25,
+	    35,
+	    45
+	  ]
+	},
+	"breakwater": {
+	  "title": "Breakwater",
+	  "family": "water",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "One native charge per contacted living recipient per wave",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "dewfall",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "drenching_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "drench"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_wash"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "healing_wash"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_wash"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "surge_ward_ms",
+	  "label": "Breakwater contribution",
+	  "unit": "ms",
+	  "limit": 4,
+	  "description": "Returning tides grant one Ward for %s s.",
+	  "detail": "Provisional CE03 tuning. One native charge per contacted living recipient per wave. Uses ordinary Ward merging, not additional Catalyst claims.",
+	  "tuning": {},
+	  "values": [
+	    400,
+	    600,
+	    800,
+	    1000
+	  ]
+	},
+	"focused_current": {
+	  "title": "Focused Current",
+	  "family": "water",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Only the captured triggering spawn qualifies",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "dewfall",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "drenching_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "drench"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_wash"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "healing_wash"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_wash"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "focus_percent",
+	  "label": "Focused Current contribution",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Outgoing Surge deals +%s%% damage to its triggering enemy.",
+	  "detail": "Provisional CE03 tuning. Only the captured triggering spawn qualifies. Other targets keep ordinary wave damage.",
+	  "tuning": {},
+	  "values": [
+	    20,
+	    30,
+	    40,
+	    50
+	  ]
+	},
+	"undertow": {
+	  "title": "Undertow",
+	  "family": "water",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Uses native terrain-limited enemy displacement and resistance",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "dewfall",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "drenching_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "drench"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_wash"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "healing_wash"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_wash"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "surge_push_cm",
+	  "label": "Undertow contribution",
+	  "unit": "cm",
+	  "limit": 4,
+	  "description": "Outgoing tides push +%s m farther.",
+	  "detail": "Provisional CE03 tuning. Uses native terrain-limited enemy displacement and resistance. Resistant enemies still take damage.",
+	  "tuning": {},
+	  "values": [
+	    10,
+	    15,
+	    20,
+	    25
+	  ]
+	},
+	"monsoon": {
+	  "title": "Monsoon",
+	  "family": "water",
+	  "scope": "affinity",
+	  "policy": "unique",
+	  "trigger": "Each extra ring carries 35% of your own weighted damage and healing",
+	  "consumer": [
+	    "res://water_combat.gd",
+	    "drench"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "dewfall",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "drenching_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "water"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "drench"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_wash"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "healing_wash"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_wash"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "monsoon_unlock",
+	  "label": "Monsoon contribution",
+	  "unit": "unlock",
+	  "limit": 1,
+	  "description": "Surge also creates two expanding and returning Water rings.",
+	  "detail": "Provisional CE03 tuning. Each extra ring carries 35% of your own weighted damage and healing. Keeps normal Surge, does not add pressure or recursively activate Monsoon.",
+	  "tuning": {
+	    "waves": 2,
+	    "share_percent": 35,
+	    "radius_m": 3.0,
+	    "gap_ms": 180
+	  },
+	  "fixed": 1,
+	  "grants": [
+	    "monsoon"
+	  ]
+	},
+
 }
 
 
@@ -3201,7 +4317,7 @@ static func effect_text(definition: Dictionary, value: int) -> String:
 	var text: String = definition.description
 	if "%s" not in text:
 		return text
-	var number := str(value) if definition.unit in ["hp","stacks","percent","unlock"] else ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
+	var number := str(value) if definition.unit in ["hp","healing_hp","pressure","stacks","percent","unlock"] else ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
 	if definition.unit == "cm": number = ("%.2f" % (value / 100.0)).rstrip("0").trim_suffix(".")
 	return text % number
 
@@ -3220,6 +4336,8 @@ static func contribution_label(definition: Dictionary) -> String:
 
 
 static func contribution(definition: Dictionary, value: int) -> String:
+	if definition.unit == "pressure": return "+%d Saturation" % value
+	if definition.unit == "healing_hp": return "+%d HP healing" % value
 	if definition.unit == "percent": return "+%d%%" % value
 	if definition.unit == "cm": return "+%.2f m" % (value / 100.0)
 	if definition.unit == "unlock": return "Unlocked" if value > 0 else "Not acquired"

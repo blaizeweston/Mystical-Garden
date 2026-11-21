@@ -246,21 +246,23 @@ func verify_wood() -> void:
 func verify_water() -> void:
 	reset()
 	for id in [1,2]: equip(game.players[id],"part_8")
-	var strong := action(1,"form",{"saturation_bonus":70,"surge_hp":18,"surge_radius":4.0})
+	var strong := action(1,"form",{"saturation_bonus":70,"surge_hp":18,"surge_width_cm":330})
 	Water.drench(game,strong,-1)
 	game.encounter.register_scout(game.make_scout(0,Vector3(3.5,0,-1),1))
 	game.encounter.set_hp(0,1000)
 	Water.drench(game,action(2,"form"),-1)
-	check(game.enemy_health()==10000000-18 and game.encounter.hp(0)==982
-		and game.tactics.memory[Water.DRENCHED].saturation==0,"weak threshold-crossing input preserves the stronger live Surge potency and radius")
+	drain_water()
+	check(game.enemy_health()==10000000-16 and game.encounter.hp(0)==985
+		and game.tactics.memory[Water.DRENCHED].saturation==0,"85 strong and 15 ordinary pressure preserve frozen 16 total damage; only the wide strong share hits the side target")
 	Clock.advance(game,2.0)
 	Water.drench(game,action(2,"form"),-1)
 	Water.tick(game,Clock.advance(game,2.3))
 	Water.drench(game,action(2,"form",{"saturation_bonus":205}),-1)
-	check(game.tactics.memory[Water.DRENCHED].saturation==35 and game.enemy_health()==10000000-30
-		and game.encounter.hp(0)==982,"expired enhancement ends independently; two baseline Surges retain 35 overflow and normal radius")
+	drain_water()
+	check(game.tactics.memory[Water.DRENCHED].saturation==35 and game.enemy_health()==10000000-28
+		and game.encounter.hp(0)==985,"expired enhancement ends independently; two baseline Surges retain 35 overflow and normal radius")
 	check(is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),.18),"offensive scaling does not stack Drenched defense")
-	print("SCALING_WATER baseline_surge_hp=6 future_input_hp=18 future_radius_m=4 overflow=35 threshold=100")
+	print("SCALING_WATER baseline_surge_hp=6 future_input_hp=18 future_half_width_m=4 overflow=35 threshold=100")
 	reset()
 	var p: Dictionary=game.players[1]
 	equip(p,"plant_part_rare_dewcap")
@@ -306,3 +308,9 @@ func verify_vital() -> void:
 	Fire.tick(game,Clock.now(game),Time.get_ticks_msec())
 	check(not p.has(Vital.SOURCES) and Vitals.temporary_hp(p)==0,"floor identity changes retire upgraded recipient effects")
 	print("SCALING_VITAL current_bonus_hp=18 baseline_regen=5 epic_regen=21 future_bonus_hp=180 future_regen=50 harvest_efficiency=2.5")
+
+func drain_water() -> void:
+	var records: Array=game.effect_timeline.native_records().filter(func(row):return row.kind=="water_tide")
+	if records.is_empty():return
+	var start: int=records[0].waves[0].start
+	for offset in [0,225,451,675,901]:game.effect_timeline.advance_native(game.native_effects_world,start+offset)

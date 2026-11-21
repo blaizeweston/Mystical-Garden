@@ -19,6 +19,7 @@ func _current() -> Node:
 func source_current(event: Dictionary) -> bool:
  var world:=_current()
  if world==null:return false
+ if event.kind=="water_tide":return load("res://water_tidal_return.gd").current(world,event)
  var p: Dictionary=world.players.get(int(event.get("owner",0)),{})
  if int(event.get("epoch",-1))!=world.participation.epoch() or not PlayerLifecycle.matches(p,int(event.get("life",-1))) or not world.Life.alive(p):return false
  if event.has("binding") and not world.network_session.matches(int(event.owner),int(event.binding)):return false
@@ -61,6 +62,7 @@ func hit(event: Dictionary,now: int) -> void:
 func pulse(event: Dictionary,now: int) -> void:
  var world:=_current()
  if world==null or not source_current(event):return
+ if event.kind=="water_tide":load("res://water_tidal_return.gd").advance(world,event,now);return
  var p: Dictionary=world.players[event.owner]
  if event.kind=="snare":
   Traits.trip_snare(world,p,event,now);return

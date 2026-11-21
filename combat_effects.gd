@@ -183,6 +183,9 @@ func pose(effect: Dictionary) -> void:
     ribbon(mesh,base+Vector3.UP*.1,base+Vector3.UP*(.3+.25*sin(t*TAU*4+i)),.05)
  elif event.kind=="ability" and event.has("core_shapes"):
   CoreVisuals.draw(self,mesh,event,to,t,false)
+ elif event.kind=="ability" and event.shape in ["tidal_ring","tidal_ring_return"]:
+  var scale:=1.0-t if event.shape=="tidal_ring_return" else t
+  for band in 3:circle(mesh,to+Vector3.UP*(.08+.04*band),maxf(0,float(event.reach)*scale-.10*band),.08-.015*band)
  elif event.kind=="ability" and event.shape in ["riptide","riptide_return"]:
   var crest:=from.lerp(to,t)+Vector3.UP*.09
   var width:=float(event.reach)

@@ -104,10 +104,10 @@ func run() -> void:
 		check(not cast.is_empty(),"real B starts Dewfall")
 		if not cast.is_empty():
 			Core.tick(game,cast.armed)
-			check(p[Conditions.STATE].slow_until_ms()==0 and ally[Conditions.STATE].slow_until_ms()>now and p[PlayerVitals.STATE].hp()==70,"cleanse caster at formation, no baseline healing")
+			check(p[Conditions.STATE].slow_until_ms()==0 and ally[Conditions.STATE].slow_until_ms()>now and p[PlayerVitals.STATE].hp()==70+q.direct_heal_hp,"formation cleanses and restores the caster once")
 			Clock.advance(game,.4)
 			Core.tick(game,int(cast.armed)+400)
-			check(ally[Conditions.STATE].slow_until_ms()==0 and ally.frost_root_until>now and ally[PlayerVitals.STATE].hp()==60 and game.enemy_health()==500-q.impact_hp and game.tactics.memory.has(Frost.BRITTLE) and game.tactics.memory.frost_root_until==now+600,
+			check(ally[Conditions.STATE].slow_until_ms()==0 and ally.frost_root_until>now and ally[PlayerVitals.STATE].hp()==60+q.direct_heal_hp and game.enemy_health()==500-q.impact_hp and game.tactics.memory.has(Frost.BRITTLE) and game.tactics.memory.frost_root_until==now+600,
 				"swept wave cleanses actual ally, damages once, preserves other status and health")
 			ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(now+10000)
 			Clock.advance(game,.12)
@@ -139,7 +139,7 @@ func run() -> void:
 		ally[Conditions.STATE] = ally[Conditions.STATE].with_slow_until(now+6000)
 		ClassActions.cast_world(game, 1, 0)
 		IncomingPlayerHit.resolve_world(game, 1, PlayerLifecycle.generation(p), Time.get_ticks_msec(), 1.0, 0, game.tactics.position)
-		check(p[Conditions.STATE].slow_until_ms()==0 and ally[Conditions.STATE].slow_until_ms()==0 and p[PlayerVitals.STATE].hp()==70 and is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"Ward wash Drenches enemies and cleanses protected allies")
+		check(p[Conditions.STATE].slow_until_ms()==0 and ally[Conditions.STATE].slow_until_ms()==0 and p[PlayerVitals.STATE].hp()==70+q.direct_heal_hp and is_equal_approx(Water.reduction(game.tactics.memory,Clock.now(game)),q.reduction),"Ward wash Drenches enemies and cleanses protected allies")
 
 	reset()
 	var now:=Time.get_ticks_msec()

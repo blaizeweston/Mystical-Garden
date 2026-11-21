@@ -55,7 +55,7 @@
     },
     "water_affinity": {
       "label": "CR04A Water, Drenched impact-time damage and ordinary Slow cleansing",
-      "files": ["water_combat.gd", "water_combat.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid"]
+      "files": ["water_combat.gd", "water_combat.gd.uid", "water_tidal_return.gd", "water_tidal_return.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid"]
     },
     "fire_affinity": {
       "label": "CR04A Fire, Burning cadence and shared affinity combat clock",
@@ -1530,6 +1530,9 @@
     ]
   },
   "suites": {
+    "ce03_water": {"kind":"unit","profile":"affinity","systems":["affinity_cards","water_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session"],"package":false},
+    "ce03_water_coop": {"kind":"pair","profile":"affinity","systems":["affinity_cards","water_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session"],"package":false},
+    "ce03_water_party": {"kind":"party","profile":"affinity","systems":["affinity_cards","water_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session"],"package":false},
     "ce02_fire": {"kind":"unit", "profile":"affinity", "systems":["affinity_cards","fire_affinity","combat_affinity_contracts","combat","network_session","world_snapshot","player_build_ui"], "package":false},
     "ce02_fire_coop": {"kind":"pair", "profile":"affinity", "systems":["affinity_cards","fire_affinity","combat_affinity_contracts","combat","network_session","world_snapshot","player_build_ui"], "package":false},
     "ce02_fire_party": {"kind":"party", "profile":"affinity", "systems":["affinity_cards","fire_affinity","combat_affinity_contracts","combat","network_session","world_snapshot","player_build_ui"], "package":false},

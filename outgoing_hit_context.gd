@@ -79,6 +79,7 @@ func begin_contact(target: int, stats: Dictionary, now: int) -> Dictionary:
 	if event != null and event.source in ["form","native_weapon"] and not stats.get("trait_secondary",false) and not stats.get("core_hit",false):
 		var bonus: int = load("res://thorn_affinity.gd").ordinary_bonus(event,stats)
 		bonus += load("res://frost_combat.gd").ordinary_bonus(_world,event,target,now)
+		bonus += load("res://water_combat.gd").ordinary_bonus(_world,event,target)
 		if bonus > 0:
 			stats = stats.duplicate()
 			stats.native_bonus_hp = int(stats.get("native_bonus_hp",0)) + bonus

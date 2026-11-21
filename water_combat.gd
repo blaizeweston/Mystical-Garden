@@ -13,19 +13,22 @@ const WAVE_MS := 550
 const WAVE_RADIUS := 1.05
 const RADIUS := 2.4
 const COOLDOWN_MS := 8000
-# Whole Saturation points; Surge is native secondary HP, never healing.
+# Whole Saturation points; one threshold funds source-weighted damage and restoration.
 const SATURATION_THRESHOLD := 100
 const APPLICATION_SATURATION := {"core":40,"form":15,"catalyst":30}
 const SURGE_HP := 6
+const SURGE_HEAL_HP := 6
+const SEQUENCE := "water_card_sequence"
+const REFRESH := "water_card_restoration"
 const SURGE_RADIUS := 2.4
 const REDUCTION_LIMIT := .30
 const SHELTER_WARD_PARAMETER := "shelter_ward_ms"
 # The same parameter is read by on_event below; eligibility does not invent it.
-const CARD_GRANTS := {SHELTER_WARD_PARAMETER:{"method":"on_event", "capability":{
+const CARD_GRANTS := {"monsoon_unlock":{"method":"drench","capability":{"producer":"card","id":"monsoon","recipient":"living_allies"}},SHELTER_WARD_PARAMETER:{"method":"on_event", "capability":{
 	"producer":"card", "id":"dew_shelter", "slot":"core", "recipient":"living_allies"}}}
 const QUALITY := {
-	"ordinary": {"reduction": .18, "saturation_bonus":0, "impact_hp": 7, "surge_hp":SURGE_HP, "surge_radius":SURGE_RADIUS},
-	"refined": {"reduction": .30, "saturation_bonus":10, "impact_hp": 11, "surge_hp":SURGE_HP, "surge_radius":SURGE_RADIUS},
+	"ordinary": {"reduction": .18, "saturation_bonus":0, "impact_hp": 7, "surge_hp":SURGE_HP, "surge_heal_hp":SURGE_HEAL_HP, "direct_heal_hp":2, "surge_radius":SURGE_RADIUS},
+	"refined": {"reduction": .30, "saturation_bonus":10, "impact_hp": 11, "surge_hp":SURGE_HP, "surge_heal_hp":SURGE_HEAL_HP, "direct_heal_hp":3, "surge_radius":SURGE_RADIUS},
 }
 const VERSION_DATA := [DURATION_MS, WAVE_MS, WAVE_RADIUS, RADIUS, COOLDOWN_MS, SATURATION_THRESHOLD, APPLICATION_SATURATION, SURGE_HP, SURGE_RADIUS, REDUCTION_LIMIT, QUALITY]
 
@@ -37,9 +40,10 @@ static func description(slot: String, quality: String, resolved: Dictionary = {}
 		"form": "Drenching Strikes · Your direct weapon contacts Drench their targets.",
 		"catalyst": "Water Catalyst · Offensive class skills Drench. A qualifying block, mapped heal or movement landing washes once within %.1f m." % RADIUS,
 	}[slot]
-	return line + "\nDrenched reduces direct enemy attack damage by %d%% for %.1f s; only the strongest applies (maximum %d%%). Adds %d shared Saturation. At %d points, Surge deals %d damage within %.1f m and cleanses ordinary Slow from living allies there. Keeps overflow; no healing or recursive Saturation." % [
+	return line + "\nDrenched reduces direct attacks by %d%% for %.1f s (strongest only, at most %d%%). Adds %d Saturation to the shared 100-point threshold. Tidal Return sends source-weighted outgoing damage (%.1f full share) and returning healing (%.1f full share), with ordinary Slow cleansing. Keeps pressure overflow; tide contacts cannot create more Saturation." % [
 		roundi(minf(REDUCTION_LIMIT,float(p.reduction))*100),(DURATION_MS+int(p.get("duration_bonus_ms",0)))/1000.0,roundi(100*REDUCTION_LIMIT),
-		APPLICATION_SATURATION[slot]+int(p.saturation_bonus),SATURATION_THRESHOLD,int(p.get("surge_hp",SURGE_HP)),float(p.get("surge_radius",SURGE_RADIUS))]
+		APPLICATION_SATURATION[slot]+int(p.saturation_bonus),float(p.get("surge_hp",SURGE_HP)),float(p.get("surge_heal_hp",SURGE_HEAL_HP))]
+
 
 
 static func clean(game: Node, target: int, elapsed: int) -> Dictionary:
@@ -55,6 +59,10 @@ static func clean(game: Node, target: int, elapsed: int) -> Dictionary:
 	if status.sources.is_empty():
 		actor.erase(DRENCHED)
 		return {}
+	if status.has("pressure"):
+		status.pressure=status.pressure.filter(func(row):return int(row.until)>elapsed and Sources.current(game,row.source) and game.Life.alive(game.players.get(row.source.actor,{})))
+		status.saturation=0
+		for row in status.pressure:status.saturation+=int(row.amount)
 	return status
 
 static func tick(game: Node, elapsed: int) -> void:
@@ -68,8 +76,11 @@ static func drench(game: Node, event: RefCounted, target: int) -> void:
 	var elapsed := Clock.now(game)
 	var status := clean(game,target,elapsed)
 	if status.is_empty():
-		status={"epoch":event.epoch,"token":game.encounter.spawn_identity(target),"sources":{},"saturation":0}
+		status={"epoch":event.epoch,"token":game.encounter.spawn_identity(target),"sources":{},"saturation":0,"pressure":[]}
 	var potency: Dictionary=event.potency()
+	if event.source=="form":
+		var sequence:=ordinary_sequence(game,event,preload("res://combat_clock.gd").now())
+		potency.saturation_bonus=int(potency.get("saturation_bonus",0))+maxi(0,int(sequence.count)-1)*int(potency.get("sequence_saturation",0))
 	var amount := clampf(float(potency.reduction),0.0,REDUCTION_LIMIT)
 	# Different strengths expire independently, even from the same slot/player.
 	# Refreshing a weaker record never prolongs the stronger record's deadline.
@@ -87,11 +98,30 @@ static func drench(game: Node, event: RefCounted, target: int) -> void:
 	source.until=elapsed+DURATION_MS+int(potency.get("duration_bonus_ms",0))
 	status.sources[key]=source
 	status.saturation+=applied
+	status.pressure.append({"source":Sources.capture(event),"potency":potency,"amount":applied,"until":source.until})
 	Actors.body(game,target)[DRENCHED]=status
 	while int(status.saturation)>=SATURATION_THRESHOLD:
-		status.saturation-=SATURATION_THRESHOLD # Consume before any damage callbacks.
-		surge(game,event,game.enemy_position(target),surge_values(status))
-		if not Sources.target_current(game,target,status) or game.persistence_session.is_blocked(): break
+		if not load("res://water_tidal_return.gd").admit(game,target,status,preload("res://combat_clock.gd").now()):break
+		if not Sources.target_current(game,target,status) or game.persistence_session.is_blocked():break
+
+static func ordinary_sequence(game: Node, event: RefCounted, now: int) -> Dictionary:
+	var player: Dictionary=game.players.get(event.actor,{})
+	var prior: Dictionary=player.get(SEQUENCE,{})
+	var p: Dictionary=event.potency()
+	var source:=Sources.capture(event)
+	if prior.get("source",{}).get("life")!=event.life_generation or not Sources.current(game,prior.get("source",source)) or now-int(prior.get("last",0))>int(preload("res://affinity_card_catalog.gd").DEFINITIONS.rolling_current.tuning.gap_ms):prior={}
+	if int(prior.get("activation",-1))!=event.identity:
+		prior={"source":source,"activation":event.identity,"last":now,"count":int(prior.get("count",0))+1}
+		player[SEQUENCE]=prior
+		if int(p.get("prepared_heal_hp",0))>0:player[REFRESH]={"source":source,"hp":int(p.prepared_heal_hp),"until":now+int(preload("res://affinity_card_catalog.gd").DEFINITIONS.refreshing_strikes.tuning.duration_ms)}
+	return prior
+
+static func ordinary_bonus(game: Node, event: RefCounted, target: int) -> int:
+	if event.affinity!="water" or event.source!="form":return 0
+	var status:=clean(game,target,Clock.now(game))
+	var bonus:=int(event.potency().get("pressure_hit_hp",0))
+	return bonus if bonus>0 and int(status.get("saturation",0))>=int(preload("res://affinity_card_catalog.gd").DEFINITIONS.pressure_point.tuning.threshold) and event.take_response("water_pressure_point") else 0
+
 
 static func reduction(actor: Dictionary, elapsed: int) -> float:
 	var strongest:=0.0
@@ -99,31 +129,6 @@ static func reduction(actor: Dictionary, elapsed: int) -> float:
 		if int(source.until)>elapsed: strongest=maxf(strongest,float(source.reduction))
 	return minf(REDUCTION_LIMIT,strongest)
 
-## Damage and radius each use the strongest still-live contributed value.
-## The threshold-crossing action keeps damage credit; weak refreshes cannot
-## erase or prolong a stronger source's independently expiring influence.
-static func surge_values(status: Dictionary) -> Dictionary:
-	var result := {"hp":0,"radius":0.0}
-	for row: Dictionary in status.get("sources",{}).values():
-		result.hp=maxi(int(result.hp),int(row.get("surge_hp",SURGE_HP)))
-		result.radius=maxf(float(result.radius),float(row.get("surge_radius",SURGE_RADIUS)))
-	return result
-
-static func surge(game: Node, event: RefCounted, center: Vector3, values: Dictionary = {}) -> void:
-	var damage_hp := int(values.get("hp",SURGE_HP))
-	var radius := float(values.get("radius",SURGE_RADIUS))
-	game.emit_combat_event("ability","water_wash",center,center,.55,COLOR,radius,event.actor,{"label":"Surge"})
-	var victims: Array=[]
-	for target in game.skill_area_targets(center,radius,center):
-		victims.append({"target":target,"token":game.encounter.spawn_identity(target)})
-	for victim in victims:
-		if game.persistence_session.is_blocked() or event.epoch!=game.participation.epoch(): return
-		if game.encounter.alive(int(victim.target),int(victim.token)):
-			Actors.damage(game,event.actor,int(victim.target),damage_hp,preload("res://combat_clock.gd").now(),COLOR)
-	for id in game.Life.living_ids(game):
-		var player: Dictionary=game.players[id]
-		if center.distance_to(player.pos)<=radius and game.battlefield.clear_line(center,player.pos): cleanse(player)
-	preload("res://diagnostic_journal.gd").event("combat","water_surge",{"actor":event.actor,"activation":event.identity,"damage_hp":damage_hp,"radius_m":radius})
 
 
 static func direct_damage(game: Node, hp: int) -> int:
@@ -145,14 +150,16 @@ static func wash(game: Node, event: RefCounted, center: Vector3) -> void:
 	game.emit_combat_event("ability", "water_wash", center, center, .55, COLOR, RADIUS, event.actor, {"label": "Cleansing wash"})
 	for target in game.skill_area_targets(center,RADIUS,center):
 		drench(game,event,target)
+	var support_radius:=RADIUS+int(event.potency().get("cleanse_radius_cm",0))/100.0
 	for id in game.Life.living_ids(game):
 		var player: Dictionary = game.players[id]
-		if center.distance_to(player.pos) <= RADIUS and game.battlefield.clear_line(center,player.pos):
+		if center.distance_to(player.pos) <= support_radius and game.battlefield.clear_line(center,player.pos):
 			cleanse(player)
 
 
 static func wave(game: Node, cast: Dictionary, player: Dictionary, now: int) -> bool:
 	var elapsed := Clock.now(game)
+	var width: float=cast.skill.radius
 	if not cast.grown:
 		cast.grown = true
 		cast.wave_at = elapsed
@@ -162,12 +169,12 @@ static func wave(game: Node, cast: Dictionary, player: Dictionary, now: int) -> 
 		cast.wave_origin = from
 		cast.wave_end = game.battlefield.dash(from,from + Vector3(cast.forward) * reach)
 		cast.affinity_action.publish(game,"core_action","cleanse",str(cast.owner),now,{"player":cast.owner})
-		game.emit_combat_event("projectile", "dewfall", from, cast.wave_end, WAVE_MS / 1000.0, COLOR, WAVE_RADIUS, cast.owner,
-			{"label":"Dewfall", "projectile_radius":WAVE_RADIUS, "height":.1})
+		game.emit_combat_event("projectile", "dewfall", from, cast.wave_end, WAVE_MS / 1000.0, COLOR, width, cast.owner,
+			{"label":"Dewfall", "projectile_radius":width, "height":.1})
 	var fraction := clampf(float(elapsed - int(cast.wave_at)) / WAVE_MS, 0.0, 1.0)
 	var point: Vector3 = Vector3(cast.wave_origin).lerp(cast.wave_end, fraction)
 	var previous: Vector3 = cast.wave_center
-	var shapes := [{"kind":"capsule", "from":previous, "to":point, "width":WAVE_RADIUS}]
+	var shapes := [{"kind":"capsule", "from":previous, "to":point, "width":width}]
 	for id in game.Life.living_ids(game):
 		if id != int(cast.owner) and Footprint.reaches(game.battlefield,shapes,game.players[id].pos,previous):
 			cast.affinity_action.publish(game,"core_action","cleanse",str(id),now,{"player":id})
@@ -184,6 +191,7 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 				var id: int = details.player
 				if game.players.has(id) and game.Life.alive(game.players[id]):
 					cleanse(game.players[id])
+					game.Life.Sustain.restore(game,game.players[id],int(event.potency().get("direct_heal_hp",0)),"dewfall/"+str(event.actor))
 					var ward_ms := int(event.potency().get(SHELTER_WARD_PARAMETER,0))
 					if ward_ms > 0:
 						game.players[id][Protection.STATE] = game.players[id][Protection.STATE].grant(now+ward_ms,1,Time.get_ticks_msec(),game.participation.epoch())

@@ -53,6 +53,9 @@ func advance_native(runtime: RefCounted, now: int) -> void:
    if now<int(row.due):continue
    remove_native(row);runtime.hit(row,now);continue
   if now>=int(row.until):
+   # A moving tide must resolve its final return segment before retirement,
+   # including a frame that crosses the deadline. Contact receipts make it once.
+   if row.kind=="water_tide":runtime.pulse(row,now)
    remove_native(row);runtime.end(row);continue
   if row.has("ranger_route"):runtime.route(row,now)
   if now>=int(row.next):runtime.pulse(row,now)

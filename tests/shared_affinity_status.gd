@@ -27,6 +27,7 @@ func check(ok: bool, message: String) -> void:
 		printerr("FAIL shared affinity: ",message)
 
 func reset() -> void:
+	game.effect_timeline.clear_native()
 	game.encounter.set_hp(-1,10000)
 	game.encounter.clear_scouts()
 	game.tactics.memory.clear()
@@ -162,28 +163,33 @@ func verify_water() -> void:
 	var other := event(2,"catalyst","part_8")
 	var ally: Dictionary=game.players[2]
 	ally[Conditions.STATE]=ally[Conditions.STATE].with_slow_until(now+3000)
+	ally[Vitals.STATE]=ally[Vitals.STATE].with_hp(70)
 	var before_hp: float=ally[Vitals.STATE].hp()
 	Water.drench(game,water,-1)
 	Water.drench(game,other,-1)
 	Water.drench(game,other,-1)
 	var status: Dictionary=game.tactics.memory[Water.DRENCHED]
-	check(status.saturation==0 and game.enemy_health()==9994,"40 + 30 + 30 Saturation triggers one 6 HP Surge")
-	check(ally[Conditions.STATE].slow_until_ms()==0 and ally[Vitals.STATE].hp()==before_hp,"Surge cleanses ordinary Slow without healing")
+	drain_water()
+	check(status.saturation==0 and game.enemy_health()==9994,"40 + 30 + 30 pressure funds one weighted six-damage Tidal Return")
+	check(ally[Conditions.STATE].slow_until_ms()==0 and ally[Vitals.STATE].hp()==before_hp+6,"returning shares cleanse ordinary Slow and total six healing")
 	var charged := event(2,"form","part_8",{"saturation_bonus":205})
 	Water.drench(game,charged,-1)
+	check(game.effect_timeline.native_count()==2,"220 pressure admits two complete tide events")
+	drain_water()
 	check(status.saturation==20 and game.enemy_health()==9982,"220 Saturation resolves two more Surges and preserves 20 overflow")
-	check(game.combat_events.filter(func(row):return row.get("label","")=="Surge").size()==3,"each threshold creates exactly one pulse; secondary hits add no Saturation")
+	check(game.effect_timeline.native_count()==0,"completed weighted wave events retire; secondary hits add no pressure")
 	check(is_equal_approx(Water.reduction(game.tactics.memory,0),.18),"several Water sources do not add defensive reductions")
 	var display := preload("res://combat_status.gd")
-	display.sync(game,now)
-	var water_icon: Array=display.snapshot(game,now).filter(func(row):return row.shape=="drenched")
+	var display_now:=Time.get_ticks_msec()
+	display.sync(game,display_now)
+	var water_icon: Array=display.snapshot(game,display_now).filter(func(row):return row.shape=="drenched")
 	check(water_icon.size()==1 and int(water_icon[0].reach)==20,"one existing status record projects the shared Saturation meter")
 	var serial: int=game.combat_event_serial
 	Water.drench(game,water,-1)
-	display.sync(game,now+10)
+	display.sync(game,display_now+10)
 	check(status.saturation==60 and game.combat_event_serial==serial,"presentation coalescing never delays authoritative Saturation or emits per-frame updates")
-	display.sync(game,now+260)
-	water_icon=display.snapshot(game,now+260).filter(func(row):return row.shape=="drenched")
+	display.sync(game,display_now+260)
+	water_icon=display.snapshot(game,display_now+260).filter(func(row):return row.shape=="drenched")
 	check(water_icon.size()==1 and int(water_icon[0].reach)==60,"the existing detailed status path publishes the current meter at its bounded cadence")
 	reset()
 	Water.drench(game,event(1,"form","plant_part_rare_dewcap"),-1)
@@ -290,3 +296,9 @@ func verify_materials() -> void:
 				var slot := Build.slot("core",int(item.legacy_part))
 				check(slot.primary_affinity==family and slot.quality==("ordinary" if index==0 else "refined"),
 					"network fixture materials have the stated family and quality")
+
+func drain_water() -> void:
+	var records: Array=game.effect_timeline.native_records()
+	if records.is_empty():return
+	var start: int=records[0].waves[0].start
+	for offset in [0,225,451,675,901]:game.effect_timeline.advance_native(game.native_effects_world,start+offset)
