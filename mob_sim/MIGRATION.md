@@ -1,5 +1,7 @@
 # Mob architecture and migration plan
 
+> Superseded on 2026-11-21 by [docs/ENEMY_FRAMEWORK_PLAN.md](../docs/ENEMY_FRAMEWORK_PLAN.md). Live enemies now stay on their current code, and this folder grows into the replacement framework, which only the Neural Arena runs until a live toggle is added. The measurements and tick order below remain accurate background.
+
 This folder holds the target mob architecture. The normal game does not use it yet, but the Neural Arena does. Every stage below that edits an existing file needs approval first.
 
 Stage 1 (the shared combat clock) is done. Stage 2 and the bridge in Stage 3 are covered by the Neural Arena, which works alongside the current enemy code rather than through the decision hook in Stage 4. See [docs/NEURAL_ARENA.md](../docs/NEURAL_ARENA.md) for the existing-file changes and the references to update after refactors.

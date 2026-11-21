@@ -147,10 +147,10 @@ static func contact(game: Node, stats: Dictionary, target: int, now: int, second
 
 
 static func grant_ward(game: Node, recipient: Dictionary, until: int, charge_count: int,
-		event: RefCounted, adapter: Dictionary, _now: int) -> void:
+		event: RefCounted, adapter: Dictionary, now: int) -> void:
 	var response: RefCounted = event if event != null and adapter.trigger == "block" else null
 	var recipient_id: int = game.Traits.player_id(game, recipient)
-	recipient[Protection.STATE] = recipient[Protection.STATE].grant(until, charge_count, Time.get_ticks_msec(),
+	recipient[Protection.STATE] = recipient[Protection.STATE].grant(until, charge_count, now,
 		game.participation.epoch(), response, adapter, recipient_id)
 
 

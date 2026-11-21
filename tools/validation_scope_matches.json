@@ -1450,7 +1450,7 @@
         "baseline": "\nstatic func shared_bark(game: Node, player: Dictionary, now: int) -> void:\n\tvar best: Dictionary = player\n"
       },
       "ct01_13": {
-        "match": "\tbest[Protection.STATE] = best[Protection.STATE].grant(now+950,1,Time.get_ticks_msec(),game.participation.epoch())\n\tcue(game,label,best.pos)\n\n",
+        "match": "\tbest[Protection.STATE] = best[Protection.STATE].grant(now+950,1,now,game.participation.epoch())\n\tcue(game,label,best.pos)\n\n",
         "baseline": "\tgame.grant_guard(best,now+950,1)\n\tcue(game,\"Shared Bark\",best.pos)\n\n"
       },
       "ct01_15": {
@@ -4750,7 +4750,7 @@
         "baseline": "Balance.Preview.heal(player,Balance.drain_amount(skill,affected.size()))"
       },
       "cb04_ward_time_1": {
-        "match": "\t\tnearby[0][Protection.STATE] = nearby[0][Protection.STATE].grant(now+Balance.WARD_MS,1,Time.get_ticks_msec(),game.participation.epoch())",
+        "match": "\t\tnearby[0][Protection.STATE] = nearby[0][Protection.STATE].grant(now+Balance.WARD_MS,1,now,game.participation.epoch())",
         "baseline": "\t\tgame.grant_guard(nearby[0],now+1400,1)"
       },
       "cb04_0": {

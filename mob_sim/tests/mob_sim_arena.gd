@@ -3,6 +3,7 @@ extends RefCounted
 ## Stands in for the game: it walks four players, resolves released attacks and hurts nearby mobs.
 
 const Battlefield = preload("res://battlefield.gd")
+const CombatClock = preload("res://combat_clock.gd")
 const Events = preload("res://mob_sim/mob_events.gd")
 const Pool = preload("res://mob_sim/mob_pool.gd")
 const Sim = preload("res://mob_sim/mob_sim.gd")
@@ -17,6 +18,8 @@ const PLAYER_REACH := 3.0
 const PLAYER_HIT_TICKS := 24
 const MOB_HP := 40.0
 const MOB_HIT := 8.0
+## Combat time for the stand-in players. Battlefield pathing reads it, so it must follow the simulation tick.
+const CLOCK_START_MS := 100000
 
 var field: RefCounted
 var sim: Sim
@@ -91,7 +94,10 @@ func _publish_party(first: bool) -> void:
 
 ## Everything the host does around one simulation tick.
 func before_tick() -> void:
+	# Derive time from this encounter's own tick so two encounters can run side by side.
+	CombatClock.begin_stepped(CLOCK_START_MS + sim.clock.tick * 1000 / CombatClock.TICKS_PER_SECOND)
 	_publish_party(false)
+	CombatClock.end_stepped()
 
 
 func after_tick() -> void:

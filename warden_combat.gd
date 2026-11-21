@@ -184,7 +184,7 @@ static func shared_guard(game: Node, player: Dictionary, now: int, label: String
 			continue
 		best = ally
 		nearest = Vector3(player.pos).distance_to(ally.pos)
-	best[Protection.STATE] = best[Protection.STATE].grant(now+950,1,Time.get_ticks_msec(),game.participation.epoch())
+	best[Protection.STATE] = best[Protection.STATE].grant(now+950,1,now,game.participation.epoch())
 	cue(game,label,best.pos)
 
 
@@ -331,7 +331,7 @@ static func ward_circle(game: Node, point: Vector3, radius: float, now: int) -> 
 	var warded := false
 	for ally in game.players.values():
 		if in_circle(game,ally,point,radius):
-			ally[Protection.STATE] = ally[Protection.STATE].grant(now+1250,1,Time.get_ticks_msec(),game.participation.epoch())
+			ally[Protection.STATE] = ally[Protection.STATE].grant(now+1250,1,now,game.participation.epoch())
 			warded = true
 	if warded:
 		Feedback.release(game,"burst",point,point,radius,BARK)

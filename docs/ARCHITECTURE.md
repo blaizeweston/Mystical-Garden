@@ -1400,6 +1400,8 @@ Remaining acceptance: complete current Windows release writer/startup evidence, 
 
 The Neural Arena is a separate test session for the mob neural net. Combat rules read time through [`combat_clock.gd`](../combat_clock.gd), and `tick_enemies` in `game.gd` is the arena's replacement point for enemy updates. When refactoring combat, enemy, session or menu code, check the reference lists in [NEURAL_ARENA.md](NEURAL_ARENA.md).
 
+The replacement enemy framework is planned in [ENEMY_FRAMEWORK_PLAN.md](ENEMY_FRAMEWORK_PLAN.md). Live enemies keep their current code by default. The new framework runs only in the Neural Arena until a host setting adds it to normal play.
+
 ## Tests and next ownership changes
 
 | Lane | Scope |
