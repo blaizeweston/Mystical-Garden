@@ -41,7 +41,9 @@ static func normalize(value) -> Dictionary:
  if source is Dictionary and not source.has("core_skill"):
   var assigned: Array = []
   for action in result.bindings:
-   if action!="core_skill": assigned.append_array(result.bindings[action])
+   # Preserve established actions before assigning newly introduced card shortcuts.
+   if action=="core_skill" or (action.begins_with("card_active_") and not source.has(action)):continue
+   assigned.append_array(result.bindings[action])
   result.bindings.core_skill=[]
   for code in [KEY_B,KEY_X,KEY_Z]:
    var candidate: Dictionary={"kind":"key","code":int(code)}
