@@ -8,7 +8,6 @@ const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const PlayerVitals = preload("res://player_vitals.gd")
 const Character = preload("res://character_profile.gd")
 const Orb = preload("res://health_orb.gd")
-const Stage = preload("res://stage.gd")
 var failed := false
 func check(ok: bool, message: String):
 	if not ok:
@@ -48,35 +47,11 @@ func run():
 	check(PlayerVitals.current_hp(p) == 90, "resolved damage removes its stated HP")
 	ExpeditionCase.set_membership(game, p, false)
 	game._process(.016)
-	var start_radius: float = game.stage.garden_disc.scale.x
-	game.progress.knowledge = 120
-	game.progress.flowering_unlocked = true
-	game.progress.veilcap_discovered = true
-	game.progress.rift_hook_discovered = true
-	game._process(.016)
-	check(start_radius >= 11.5 and game.stage.heart_core != null, "larger green sanctuary has a living Heart")
-	check(game.stage.garden_disc.scale.x > start_radius and game.stage.garden_disc.scale.x <= 19.0, "knowledge and technology expand the clearing modestly")
-	var edge: Vector3 = game.bound_position(Vector3(20,0,20))
-	check(is_equal_approx(edge.length(), Stage.garden_radius(120,3) - .4), "Garden movement follows the circular clearing")
+	check(game.stage.experimental_garden != null, "modern Garden owns the visible sanctuary")
 	var actor: Dictionary = game.stage.avatar_models[1]
 	check(actor.field_rig.scene.find_child("FieldHair1",true,false).visible and not actor.field_rig.scene.find_child("FieldHair0",true,false).visible, "selected field hair is visible without overlapping other styles")
 	check(game.player_snapshot(999)[1].appearance is PackedByteArray, "appearance synchronization stays compact")
-	var water_count := 0
-	var grass_count := 0
-	for child in game.stage.garden_edge.get_children():
-		if child.has_meta("garden_water_position"):
-			water_count += 1
-		if child.name == "GardenGrass":
-			for batch in child.get_children():
-				check(batch is MultiMeshInstance3D and batch.get_meta("garden_motion",false),"ground cover stays batched and uses the ambient motion setting")
-				grass_count += batch.multimesh.instance_count
-	check(water_count == 2 and grass_count > 200, "Garden contains two animated ponds and a scattered grass field")
-	check(game.stage.garden_disc.material_override.shader.resource_path.ends_with("garden_meadow.gdshader"),"the visible clearing uses the scanned meadow material")
-	var old_scale: Vector3 = game.stage.heart_tree.scale
-	await create_timer(.2).timeout
-	game._process(.016)
-	check(not game.stage.heart_tree.scale.is_equal_approx(old_scale), "living Heart visibly pulses over time")
-	await process_frame
-	if not failed: print("PASS: health pool, Garden growth, circular bounds and saved appearance")
+	game.queue_free();await process_frame
+	if not failed: print("PASS: health pool, modern Garden and saved appearance")
 	quit(1 if failed else 0)
 

@@ -13,7 +13,7 @@ func run():
  check(h.active=="plot_4" and h.spent==2 and h.available_insight(g)==2 and g.plots.size()==3,"start spends Knowledge once and begins timed research")
  h.start(g,"plot_4");check(h.spent==2,"resuming funded research never pays twice")
  h.tick(g,30,false);check(g.plots.size()==3 and is_equal_approx(h.work.plot_4,30),"Garden research advances by elapsed time")
- h.tick(g,10,true);check(g.plots.size()==4,"Wilds research advances three times faster")
+ h.tick(g,10,true);check(h.has("plot_4") and is_equal_approx(h.work.plot_4,h.duration("plot_4")) and g.plots.size()==3,"Wilds research advances three times faster and unlocks construction without placing a bed")
  g.knowledge=400;h.start(g,"flowering");h.tick(g,10,false);g.parts[0]=2
  h.infuse(g);check(g.parts[0]==0 and h.work.flowering==70,"plant offering removes one minute before infusion technology")
  var before=h.serialize();var path=g.path;g.path="res://.godot/missing-timed-research/fail.cfg"

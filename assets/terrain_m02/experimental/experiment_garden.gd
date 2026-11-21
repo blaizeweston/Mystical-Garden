@@ -290,7 +290,7 @@ func contribute(quote: Dictionary) -> bool:
 		for id: String in quote.items:
 			game.progress.add_parts(funds.items[id].legacy_part, -int(quote.items[id]))
 		return true)
-	var accepted: bool = Tx.committed(outcome.persistence) and outcome.value == true
+	var accepted: bool = (outcome.completed or Tx.committed(outcome.persistence)) and outcome.value == true
 	if accepted:
 		funds.energy += int(quote.energy)
 		var starting := assimilation.queue.is_empty()
@@ -309,7 +309,7 @@ func advance_assimilation(elapsed: float, in_wilds: bool) -> void:
 	var knowledge: int = next.earned
 	if knowledge > 0:
 		var result := Tx.run_gameplay(game, Tx.Scope.GARDEN, func(): game.progress.knowledge += knowledge)
-		if not Tx.committed(result.persistence):
+		if not (result.completed or Tx.committed(result.persistence)):
 			if offering_dialog.visible:
 				offering_dialog.refresh_studies()
 			return
@@ -353,7 +353,7 @@ func expand(sector: int) -> bool:
 	var cost := funds.expansion_cost(plan, state.reclaimed_cells, clearing_tier())
 	var result := Tx.run_gameplay(game, Tx.Scope.GARDEN, func() -> bool:
 		return state.proposal(sector) == plan and funds.energy >= cost)
-	if not Tx.committed(result.persistence) or result.value != true:
+	if not (result.completed or Tx.committed(result.persistence)) or result.value != true:
 		return false
 	var previous := state.enclosure_support()
 	var outline := state.outline
@@ -519,7 +519,7 @@ func place(kind: String, target: Vector2, yaw: float, moving: int = 0) -> bool:
 		if kind == "bed" and moving == 0:
 			game.progress.plots.append(game.Progress.empty_plot())
 		return true)
-	if not Tx.committed(transaction.persistence) or transaction.value != true:
+	if not (transaction.completed or Tx.committed(transaction.persistence)) or transaction.value != true:
 		return false
 	var id := construction.commit(kind, target, yaw, planar(game.players[game.HOST].pos), moving)
 	if id == 0:

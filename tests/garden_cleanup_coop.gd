@@ -37,19 +37,19 @@ func host_run() -> void:
  var before=g.heart.serialize();var parts=g.parts.duplicate();var offshoots=g.campaign.offshoots.duplicate()
  check(await until(func():return marked("retired")),"guest checks retired actions")
  check(g.heart.serialize()==before and g.parts==parts and g.plots.size()==3 and g.campaign.offshoots==offshoots,"remote legacy requests cannot spend Knowledge, reserve beds or grant parts")
- game.garden_action(1,"heart_confirm:"+JSON.stringify({"id":"plot_4","plan":{}}));g.advance_research(1)
+ game.garden_action(1,"heart_confirm:"+JSON.stringify({"id":"plot_4","plan":{}}));g.heart.add_work(g,g.heart.duration("plot_4"));check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"Knowledge unlock permits a real placed bed")
  check(g.plots.size()==4,"host still researches shared bed through tree")
  mark("research")
  check(await until(func():return marked("verified")),"guest verifies expanded bed and tree behavior")
  var guest: int=game.players.keys().filter(func(peer):return peer!=1)[0]
- g.heart.unlock_direct("monster_studies")
+ g.heart.unlock_direct("monster_studies");check(preload("res://tests/support/terrain_case.gd").place_structure(game,"study"),"build a real Offering Altar")
  var trophy: int=game.Parts.HOOK
  game.seed_reserve(game.players[guest]).parts[trophy]=1
  var knowledge: int=g.knowledge
  mark("trophy_ready")
  if not await until(func():return marked("remote_rejected")):check(false,"guest tests offering from the Heart");return
  check(game.seed_reserve(game.players[guest]).parts[trophy]==1 and g.knowledge==knowledge,"remote offering from the Heart consumes nothing")
- game.players[guest].pos=game.Stage.HEART_STATIONS.monster_studies
+ game.players[guest].pos=game.stage.station_position("monster_studies")
  if not await until(func():return marked("offered")):check(false,"guest submits a station offering");return
  check(game.seed_reserve(game.players[guest]).parts[trophy]==0 and g.knowledge==knowledge+4,"guest station offering commits on host")
  mark("done");check(await until(func():return game.players.size()==1),"guest disconnects normally");game.session_world.leave("Garden cleanup fixture")

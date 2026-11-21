@@ -229,6 +229,7 @@ func exercise() -> void:
  var frozen: int=world.rng.state
  world.record_enemy_death(-1,world.tactics.position,Vector3.ZERO)
  check(world.monster_rewards.pending_count()==1 and world.rng.state==frozen,"duplicate receipt does not reroll")
+ var expected_seed_reward: bool = world.battlefield.clear_seed_count(world.participation.depth()) > 0
  var frozen_item: String = world.monster_rewards.pending_receipts()[0].rewards[0].item
  check(not frozen_item.is_empty(),"fixture freezes an actual trophy roll")
  world.encounter.set_hp(-1, 0)
@@ -247,7 +248,7 @@ func exercise() -> void:
  var earned_wallet = world.wallet_for(actor)
  var earned_balance: int = world.run_wallet(actor)
  var settled_facts: Dictionary = {"rewarded":world.encounter_rewarded,"loot":actor.loot_pending,"earned":earned_wallet.earned_sparks(),"balance":earned_balance,"monsters":actor.character.monsters[world.enemy_kind],"drops":world.wild_item_drops,"expected_item":frozen_item,"encounters":world.progress.wilds_memory.encounters,"garden_saved":disk()[G]!=before[G],"character_saved":disk()[C]!=before[C]}
- check(world.encounter_rewarded and actor.loot_pending and earned_wallet.earned_sparks()>0
+ check(world.encounter_rewarded and actor.loot_pending==expected_seed_reward and earned_wallet.earned_sparks()>0
   and earned_balance>=2 and actor.character.monsters[world.enemy_kind]==1
   and world.wild_item_drops.size()==1 and world.wild_item_drops[0].stack.item==frozen_item
   and world.progress.wilds_memory.encounters==1 and disk()[G]!=before[G] and disk()[C]!=before[C],

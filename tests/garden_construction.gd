@@ -80,7 +80,7 @@ func run() -> void:
 	var art: Node = build.objects[id]
 	check(not view.barrier.walkable(bed), "placed footprints block actual Garden walking")
 	check("another structure" in model.validate("archive", bed, 0.0, view.pawn), "overlapping placement is rejected")
-	check("pond bank" in model.validate("spring", Vector2(-6.64, 4.23), 0.0, view.pawn), "watering utility needs the pond")
+	check(not model.CATALOG.has("spring") and model.validate("spring", Vector2(-6.64, 4.23), 0.0, view.pawn)=="Choose a Garden structure.", "retired spring fixture cannot be constructed")
 	check("heart" in model.validate("bed", Vector2.ZERO, 0.0, view.pawn), "Heart reservation is protected")
 	check("water" in model.validate("archive", garden.layout.water[0].bounds.get_center(), 0.0, view.pawn), "pond rejects full footprint")
 	var approach: PackedVector2Array = garden.layout.paths[0].spine

@@ -703,6 +703,22 @@
       }
     },
     "assets/terrain_m02/experimental/experiment_garden.gd": {
+      "playtest9_transaction_acceptance_4": {
+        "match": "\tif not (transaction.completed or Tx.committed(transaction.persistence)) or transaction.value != true:\n",
+        "baseline": "\tif not Tx.committed(transaction.persistence) or transaction.value != true:\n"
+      },
+      "playtest9_transaction_acceptance_3": {
+        "match": "\tif not (result.completed or Tx.committed(result.persistence)) or result.value != true:\n",
+        "baseline": "\tif not Tx.committed(result.persistence) or result.value != true:\n"
+      },
+      "playtest9_transaction_acceptance_2": {
+        "match": "\t\tif not (result.completed or Tx.committed(result.persistence)):\n",
+        "baseline": "\t\tif not Tx.committed(result.persistence):\n"
+      },
+      "playtest9_transaction_acceptance_1": {
+        "match": "\tvar accepted: bool = (outcome.completed or Tx.committed(outcome.persistence)) and outcome.value == true\n",
+        "baseline": "\tvar accepted: bool = Tx.committed(outcome.persistence) and outcome.value == true\n"
+      },
       "ar08_lifecycle_1": {
         "match": "\nconst PlayerLifecycle = preload(\"res://player_lifecycle.gd\")\n",
         "baseline": ""
@@ -1280,6 +1296,10 @@
       }
     },
     "root_ui.gd": {
+      "unmounted_hud_cleanup": {
+        "match": "func _notification(what: int) -> void:\n\tif what == NOTIFICATION_PREDELETE:\n\t\t# A scene can be discarded before _ready parents its prepared HUD nodes.\n\t\tfor prepared in [party_panel, floor_track, health_pool, pool_vitals, pool_capacity]:\n\t\t\tif is_instance_valid(prepared) and prepared.get_parent() == null:\n\t\t\t\tprepared.free()\n\n",
+        "baseline": ""
+      },
       "cr04c_void_hud_1": {
         "match": "\t\t\ttext(self, Vector2(24, 67), summary_key + \" \u00b7 Expedition\", 12, MUTED)\n\t\tvar affinity_feed: String = state.get(\"affinity_feedback\", \"\")\n\t\tif not affinity_feed.is_empty() and not state.get(\"fallen\",false):\n\t\t\ttext(self, Vector2(24, 86), affinity_feed, 13, Color(\"#ded0f4\"))\n\tvar bottom := size.y - (150 if active else 100)\n",
         "baseline": "\t\t\ttext(self, Vector2(24, 67), summary_key + \" \u00b7 Expedition\", 12, MUTED)\n\tvar bottom := size.y - (150 if active else 100)\n"

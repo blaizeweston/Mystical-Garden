@@ -29,7 +29,7 @@ func run():
  var before: int=h.total_materials(g)
  h.start(g,"plot_4")
  check(g.plots.size()==3 and h.active=="plot_4" and g.knowledge==400 and h.spent==2 and h.total_materials(g)==before,"plot research spends Knowledge without upfront plant materials")
- h.advance(g,1)
+ h.add_work(g,h.duration("plot_4"));check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"researched fourth bed is placed")
  check(g.plots.size()==4,"completed plot research grows a bed")
  h.start(g,"flowering")
  h.advance(g,1)
@@ -54,7 +54,7 @@ func run():
  h.advance(g,3)
  check(h.has("irrigation") and is_equal_approx(h.growth_multiplier(),1.2),"irrigation has functional growth bonus")
  for count in range(5,10):
-  h.start(g,"plot_%d"%count);h.advance(g,1)
+  h.start(g,"plot_%d"%count);h.add_work(g,h.duration("plot_%d"%count));check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"researched bed is placed")
  check(g.plots.size()==9,"all nine universal beds expandable")
  var snapshot: Dictionary=h.serialize()
  var parts: Array=g.parts.duplicate()
@@ -85,14 +85,14 @@ func run():
  migrated.save_garden()
  check(FileAccess.file_exists(legacy_path+".pre-heart-v1.bak"),"legacy Heart recovery backup")
  # Reclamation consumes matching parts and returns a known species to its owner's reserve.
- ExpeditionCase.set_membership(game, p, false);p.pos=game.Stage.HEART_STATIONS.seed_archive
+ ExpeditionCase.set_membership(game, p, false);check(preload("res://tests/support/terrain_case.gd").place_structure(game,"archive") and preload("res://tests/support/terrain_case.gd").place_structure(game,"study"),"current Heart stations are constructed");p.pos=game.stage.station_position("seed_archive")
  g.discoveries[0]=true;p.reclaim_choice=0
  var reserve: Dictionary=game.seed_reserve(p)
  reserve.parts.fill(0);g.parts.fill(0);g.parts[0]=10
  var seeds_before: int=reserve.stock[0]
  game.reclaim_seed(1,p)
  check(reserve.stock[0]==seeds_before+1 and g.parts[0]==10-game.reclamation_cost(0),"reclamation is matching-parts seed recovery")
- p.pos=game.Stage.HEART_STATIONS.monster_studies
+ p.pos=game.stage.station_position("monster_studies")
  var trophy: int=game.Parts.HOOK
  reserve.parts[trophy]=2;p.offering_choice=trophy
  var knowledge_before: int=g.knowledge
@@ -120,12 +120,12 @@ func run():
  check(p.carried_parts[trophy]==1 and p.last_deposit==0,"courier save failure returns carried material")
  g.path=valid_path
  game.bank_checkpoint_item(1,p,"bank_part_%d"%trophy)
- check(p.carried_parts[trophy]==0 and reserve.parts[trophy]==1,"courier banks a selected monster material")
+ check(p.carried_parts[trophy]==0 and game.seed_reserve(p).parts[trophy]==1,"courier banks a selected monster material")
  ExpeditionCase.set_membership(game, p, false);ExpeditionCase.set_world(game, {"depth": 0});ExpeditionCase.set_world(game, {"destination": game.Campaign.GROVE})
  for phase in 6:
   game.stage.update_heart_progress({"phase":phase,"unlocked":h.unlocked})
   check(is_instance_valid(game.stage.heart_core),"phase %d constructs an organic 3D core"%phase)
- check(game.stage.heart_stations.size()==3,"three restored services retained in Heart menus")
+ check(["seed_archive","monster_studies","living_archive"].all(func(id):return game.stage.station_position(id).is_finite()),"three restored services use current Garden stations")
  p.pos=game.Stage.HEART;ExpeditionCase.set_membership(game, p, false)
  UIFixture.control(game,"progression_view").tabs.current_tab=1
  UIFixture.control(game,"progression_view").refresh()

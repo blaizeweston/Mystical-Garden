@@ -63,6 +63,10 @@ func host() -> void:
 	game.encounter_rewarded = false
 	for player in game.players.values():
 		ExpeditionCase.set_membership(game, player, true)
+		# Establish the same before-run reward baseline as real admission, so the
+		# unchanged voluntary leave path can forfeit this synthetic expedition.
+		var peer:int=SessionCase.Session.peer_for(player)
+		check(game.monster_rewards.begin_expedition(game._kill_reward_identity(peer,player),game.participation.run_id(),player.character.xp,player.character.monsters),"run reward boundary precedes the theft and normal leave")
 		player.pos = at + Vector3(1.0,0,0)
 	var thief: Dictionary = game.make_scout(Escape.KIND,at,2)
 	game.encounter.clear_scouts();game.encounter.register_scout(thief)

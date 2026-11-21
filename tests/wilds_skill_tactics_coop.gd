@@ -77,7 +77,7 @@ func host() -> void:
 	var id: int = game.players.keys().filter(func(peer): return peer != 1)[0]
 	ExpeditionCase.set_world(game, {"encounter_number": 7})
 	ExpeditionCase.set_world(game, {"map_seed": 6})
-	game.battlefield.configure(0, 1, 0)
+	game.battlefield.configure(0, 1, 6)
 	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	game.progress.wilds_memory.score[Tactics.CAST_DENIAL] = 6
 	# Existing recorded observation input exercises response replication; modern Fire
@@ -131,6 +131,8 @@ func host() -> void:
 	game.encounter.clear_scouts()
 	ExpeditionCase.set_world(game, {"encounter_number": 10})
 	ExpeditionCase.set_world(game, {"map_seed": 2})
+	game.battlefield.configure(0, 1, 2)
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[])
 	for p in game.players.values():
 		p.pos = Vector3(0, 0, 2.7)
 	var mother := add_scout(9, Vector3.ZERO)

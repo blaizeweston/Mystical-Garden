@@ -19,6 +19,8 @@ const Identity = "cc390ac1d0464c02a1ca4ec967e131ea"
 var failed := false
 
 class LegacyWorld extends Node:
+ var weapon_attacks := preload("res://weapon_attack_queue.gd").new()
+ var effect_timeline := preload("res://combat_effect_timeline.gd").new()
  var persistence_session := preload("res://guarded_title_session.gd").new()
  const HOST = 1
  var progress := Garden.new()

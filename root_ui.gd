@@ -99,6 +99,13 @@ static func root_style(compact: bool = false) -> StyleBoxTexture:
 		style.set_content_margin(side, 18.0)
 	return style
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		# A scene can be discarded before _ready parents its prepared HUD nodes.
+		for prepared in [party_panel, floor_track, health_pool, pool_vitals, pool_capacity]:
+			if is_instance_valid(prepared) and prepared.get_parent() == null:
+				prepared.free()
+
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

@@ -29,7 +29,17 @@ static func plan(game: Node,wave: int) -> Array:
  var desired:=mini(4,1+(wave-1)/2+mini(1,game.participation.cycle()/3)+(game.Director.party_size(game)-1)/2)
  desired=mini(desired,capacity(game)-living(game))
  var sites: Array=game.battlefield.spawn_points.duplicate()
- while not sites.is_empty() and result.size()<desired:
+ var used_trail_sites:=false
+ while result.size()<desired:
+  if sites.is_empty():
+   if used_trail_sites:break
+   used_trail_sites=true
+   # Compact modern floors may reserve every room center for the leader or exit.
+   # Reuse certified trail positions only after the original sites are exhausted.
+   for point: Vector2 in game.battlefield.navigation_graph.points:
+    var position: Vector3=game.battlefield.world(point)
+    if not game.battlefield.spawn_points.has(position) and game.battlefield.can_spawn(position):sites.append(position)
+   if sites.is_empty():break
   var at: Vector3=sites.pop_at(rng.randi_range(0,sites.size()-1))
   if not safe(game,at):continue
   var separated:=true

@@ -5801,7 +5801,7 @@
     }},
   "file_regions": {
     "affinity_cards.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
-    "assets/terrain_m02/experimental/experiment_garden.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
+    "assets/terrain_m02/experimental/experiment_garden.gd": {"newline": "lf", "regions": {"playtest9_transaction_acceptance_4": {"systems": ["garden", "knowledge", "persistence_operations"]}, "playtest9_transaction_acceptance_3": {"systems": ["garden", "knowledge", "persistence_operations"]}, "playtest9_transaction_acceptance_2": {"systems": ["garden", "knowledge", "persistence_operations"]}, "playtest9_transaction_acceptance_1": {"systems": ["garden", "knowledge", "persistence_operations"]}, "ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
     "class_tree_access.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}}},
     "fire_combat.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}}},
 
@@ -5947,6 +5947,7 @@
     "root_ui.gd": {
       "newline": "crlf",
       "regions": {
+        "unmounted_hud_cleanup": {"systems": ["gameplay_ui", "party_ui", "expedition_ui", "persistence_operations"]},
         "cr04c_void_hud_1": {
           "systems": ["presentation", "world_snapshot", "void_affinity", "spirit_affinity", "storm_affinity"]
         },

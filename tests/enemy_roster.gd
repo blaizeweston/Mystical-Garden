@@ -110,6 +110,7 @@ func run():
 	game.encounter.clear_scouts()
 	game.encounter.set_hp(-1, 3)
 	game.battlefield.configure(0,1)
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[Rect2(-8,-3.3,3,.6)])
 	ExpeditionCase.set_world(game, {"encounter_number": 5})
 	game.enemy_kind=0
 	game.enemy_mutations=Enemies.MOBILITY

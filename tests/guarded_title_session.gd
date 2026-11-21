@@ -345,6 +345,9 @@ func run() -> void:
  check(current_scene.guarded_persistence and Slots._save_digest(selected_path) != "absent", "return retains opt-in and original Garden")
  record("menu_and_developer", {"garden": selected_path, "profile": selected_profile, "developer": developer_path})
  check(not preload("res://persistence_writer_integration.gd").activation_status().allowed, "production remains disabled")
+ current_scene.queue_free();current_scene=null
+ await process_frame
+ await process_frame
  if not failed:
   print("PASS: guarded title and session lifecycle")
  quit(1 if failed else 0)

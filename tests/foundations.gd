@@ -66,7 +66,7 @@ func run():
  g.parts.fill(0);g.parts[0]=4;g.parts[1]=5;g.heart.material_choice="lantern_moss";check(g.heart.spend_materials(g,3) and g.parts[0]==4 and g.parts[1]==2,"research spends the explicitly selected species")
  check(not g.heart.spend_materials(g,3) and g.parts[0]==4 and g.parts[1]==2,"research cannot silently substitute ingredients")
  # Complete a non-Thorn cultivation -> rare component -> weapon path.
- ExpeditionCase.set_membership(game, p, false);p.pos=game.stage.altar_position();reserve.unknown.assign([1]);reserve.stock.fill(0);game.Altar.identify_all(game,p)
+ game.expedition_transitions.abandon(1);p.pos=game.stage.altar_position();reserve=game.seed_reserve(p);reserve.unknown.assign([1]);reserve.stock.fill(0);game.Altar.identify_all(game,p)
  g.plots[0]=game.Progress.empty_plot();p.pos=game.Stage.PLOTS[0];game.act(1,false);game.garden_action(1,"plant_at_0_1");g.advance_growth(86400.)
  var rare_part: int=game.Parts.rare_part(1);var rare_before: int=g.part_count(rare_part)
  for seed_value in 1000:

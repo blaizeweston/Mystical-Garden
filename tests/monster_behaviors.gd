@@ -42,6 +42,7 @@ func run():
  var origin:=Vector3(-6.5,0,-4.5)
  var target:=Vector3(-6.5,0,-1)
  game.battlefield.configure(0,1)
+ preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[Rect2(-8,-3.3,3,.6)])
  var hart: Dictionary=game.make_scout(17,origin,1,game.Enemies.MOBILITY)
  var landing:=Attacks.vault_target(game,hart,target)
  check(landing.is_finite(),"mobile charger can select a legal cover vault")

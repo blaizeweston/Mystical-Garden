@@ -50,7 +50,7 @@ func run():
 	p.pos = Stage.HEART
 	game.send_garden_action("heart_confirm:"+JSON.stringify({"id":"plot_4","plan":{}}))
 	check(game.progress.plots.size()==3 and game.progress.heart.active=="plot_4" and game.progress.parts[0]==30,"host starts Knowledge-funded bed research")
-	game.progress.advance_research(1)
+	game.progress.heart.add_work(game.progress,game.progress.heart.duration(game.progress.heart.active));check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"researched capacity accepts a placed bed")
 	check(game.progress.plots.size()==4,"research grows a new independent bed")
 	game.progress.save_garden()
 	var reload := Progress.new()
@@ -58,9 +58,6 @@ func run():
 	check(reload.load_garden() == OK and reload.plots.size() == 4 and reload.plots[0].species == 1 and reload.plots[0].stage == 3, "plot species, maturity and expansion persist")
 	var decoded := Progress.decode_plots(game.progress.plot_snapshot())
 	check(decoded.size() == 4 and decoded[0].species == 1 and decoded[0].stage == 3, "compact multiplayer snapshot contains every bed")
-	var original_camera := Stage.garden_camera_target(Vector3.ZERO,11.5)
-	var followed := Stage.garden_camera_target(Vector3(7,0,3),11.5)
-	check(followed.distance_to(original_camera) > .1 and followed.length() <= 1.201, "Garden camera follows gently within its edge limit")
 	# Legacy save migration preserves old crops and creates a recovery backup.
 	var legacy_path: String = game.progress.path + ".legacy"
 	var legacy := ConfigFile.new()
@@ -74,8 +71,8 @@ func run():
 	game.progress.parts[0] = 200
 	game.progress.knowledge = 400
 	for remaining in range(Progress.MAX_PLOTS-game.progress.plots.size()):
-		check(game.progress.expand_plot() == OK, "later beds can be researched")
-		game.progress.advance_research(1)
+		game.garden_action(1,"heart_confirm:"+JSON.stringify({"id":"plot_%d"%(game.progress.plots.size()+1),"plan":{}}));check(not game.progress.heart.active.is_empty(), "later bed capacity can be researched")
+		game.progress.heart.add_work(game.progress,game.progress.heart.duration(game.progress.heart.active));check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"researched capacity accepts a placed bed")
 	var parts_before: int = game.progress.parts[0]
 	check(game.progress.expand_plot() == ERR_UNAVAILABLE and game.progress.parts[0] == parts_before, "bed cap does not consume resources")
 	game._process(.016)

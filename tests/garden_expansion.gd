@@ -310,7 +310,7 @@ func _art(view) -> void:
 		and is_equal_approx(state.landmarks.starter_bed.radius, 1.15), "M11 altar and bed footprints retained")
 	var snapshot := state.landmarks.duplicate(true)
 	var render_count: int = view.landmark_view.get_child_count()
-	check(render_count == 7, "bed, altar, archives, spring and entrance are represented")
+	check(render_count == state.landmarks.size()-1 and not state.landmarks.has("spring"), "all current landmarks are represented without the retired spring")
 	for child in view.landmark_view.get_children():
 		if child.name == "wilds_entrance":
 			continue

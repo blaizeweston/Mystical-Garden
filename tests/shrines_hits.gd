@@ -51,6 +51,7 @@ func run():
 	game.enemy_mutations=0
 	game.encounter.clear_scouts()
 	game.battlefield.configure(0,1)
+	preload("res://tests/support/terrain_case.gd").walls(game.battlefield,[Rect2(-8,-3.2,3,.6)])
 	game.tactics.position=Vector3(0,0,6.4)
 	game.encounter.set_hp(-1, 100)
 	game.tactics.winding_up=false
@@ -74,7 +75,7 @@ func run():
 	WeaponCase.start(game,1,p.pos)
 	WeaponCase.advance(game,Time.get_ticks_msec()+1000)
 	check(not game.battlefield.occupied(game.tactics.position,.34) and game.tactics.position.z < -3.53,"knockback cannot push a monster through cover")
-	# This generated floor places the two interaction areas on top of each other.
+	# Explicit overlap tests interaction priority independently of floor generation.
 	ExpeditionCase.set_world(game, {"destination": 1})
 	ExpeditionCase.set_world(game, {"depth": 2})
 	ExpeditionCase.set_world(game, {"encounter_number": game.GRAFT_ROOM})
@@ -85,6 +86,7 @@ func run():
 	game.encounter_rewarded=true
 	game.wild_item_drops.clear()
 	p.loot_pending=false
+	game.battlefield.graft=game.battlefield.advance.move_toward(game.battlefield.leader,1.0)
 	p.pos=game.battlefield.graft
 	game._process(.016)
 	check(UIFixture.control(game,"guide").text=="E  Grafting Altar","standing at the shrine shows its prompt")

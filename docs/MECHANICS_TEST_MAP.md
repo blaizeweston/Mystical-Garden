@@ -894,6 +894,10 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `game.gd::_init` | preview_guest_storage | combat_balance_preview |
 | `affinity_cards.gd` | ar08_lifecycle_1 | player_lifecycle |
 | `affinity_cards.gd` | ar08_lifecycle_2 | player_lifecycle |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | playtest9_transaction_acceptance_4 | garden, knowledge, persistence_operations |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | playtest9_transaction_acceptance_3 | garden, knowledge, persistence_operations |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | playtest9_transaction_acceptance_2 | garden, knowledge, persistence_operations |
+| `assets/terrain_m02/experimental/experiment_garden.gd` | playtest9_transaction_acceptance_1 | garden, knowledge, persistence_operations |
 | `assets/terrain_m02/experimental/experiment_garden.gd` | ar08_lifecycle_1 | player_lifecycle |
 | `assets/terrain_m02/experimental/experiment_garden.gd` | ar08_lifecycle_2 | player_lifecycle |
 | `class_tree_access.gd` | ar08_lifecycle_1 | player_lifecycle |
@@ -1025,6 +1029,7 @@ The untouched dispatcher/file remainder keeps its original coverage. These exact
 | `network_movement.gd` | experimental_coop_2 | hex_terrain, terrain, connection_flow, garden |
 | `diagnostics_boot.gd` | experimental_coop_1 | hex_terrain, terrain, connection_flow, garden |
 | `diagnostics_boot.gd` | experimental_coop_2 | hex_terrain, terrain, connection_flow, garden |
+| `root_ui.gd` | unmounted_hud_cleanup | gameplay_ui, party_ui, expedition_ui, persistence_operations |
 | `root_ui.gd` | cr04c_void_hud_1 | presentation, world_snapshot, void_affinity, spirit_affinity, storm_affinity |
 | `root_ui.gd` | health_pool_7 | health_pool_hud |
 | `root_ui.gd` | health_pool_5 | health_pool_hud |

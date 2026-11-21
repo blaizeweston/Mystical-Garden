@@ -23,7 +23,7 @@ func run() -> void:
  check(g.heart.serialize()==before and g.plots.size()==3,"retired bed shortcut cannot start or pay for research")
  game.send_garden_action("heart_confirm:"+JSON.stringify({"id":"plot_4","plan":{}}))
  check(g.heart.active=="plot_4" and g.plots.size()==3,"explicit Knowledge-node research still works")
- g.advance_research(1);check(g.plots.size()==4,"bed research completion expands Garden")
+ g.heart.add_work(g,g.heart.duration("plot_4"));check(preload("res://tests/support/terrain_case.gd").place_structure(game,"bed"),"Knowledge unlock permits a real placed bed");check(g.plots.size()==4,"bed research completion expands Garden")
  var fresh=game.Campaign.new();fresh.record_clear(0)
  check(fresh.offshoots==[game.Campaign.DORMANT,game.Campaign.DORMANT,game.Campaign.DORMANT],"new guardian clears do not create old offshoot choices")
  # A pre-cleanup save retains its history but does not reserve beds or alter the living Garden.

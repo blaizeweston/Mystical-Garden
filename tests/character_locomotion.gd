@@ -80,6 +80,8 @@ func live_input_checks(game: Node,actor: Dictionary) -> void:
  var field: Dictionary=actor.field_rig
  var skeleton: Skeleton3D=field.skeleton
  var hips: int=field.pelvis
+ player.pos=clear_movement_course(game)
+ player.velocity=Vector3.ZERO
  var origin: Vector3=player.pos
  Input.action_press("right")
  for tick in 22:
@@ -117,3 +119,22 @@ func live_input_checks(game: Node,actor: Dictionary) -> void:
  for tick in 16:
   game._physics_process(DT);game._process(DT)
  check(absf(float(field.gait)-stop_phase)<.002,"standing still does not advance the gait cycle")
+
+func clear_movement_course(game: Node) -> Vector3:
+ # Keep the animation/input contract independent of Garden enclosure changes.
+ var garden=game.stage.experimental_garden
+ var step: Vector3=game.world_direction(Vector2.RIGHT)*game.WALK_SPEED/60.0
+ var radius:=int(garden.Radius)-2
+ for z in range(-radius,radius+1,2):
+  for x in range(-radius,radius+1,2):
+   var start:=Vector3(x,0,z)
+   var point:=start
+   var clear:=true
+   for tick in 84:
+    var target: Vector3=point+step
+    if not garden.slide(point,target).is_equal_approx(target):
+     clear=false;break
+    point=target
+   if clear:return start
+ check(false,"Garden provides an unobstructed locomotion course")
+ return Vector3.ZERO
