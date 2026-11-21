@@ -1544,11 +1544,7 @@
   "suites": {
       "heart_build_reservation": {
         "kind": "unit",
-        "systems": [
-          "garden_development",
-          "garden_heart_view",
-          "hex_terrain"
-        ],
+        "systems": ["garden_development", "garden_heart_view", "hex_terrain", "garden", "persistence_operations"],
         "package": false
       },
       "menu_root_render": {
@@ -1810,7 +1806,7 @@
     },
     "garden_construction": {
       "kind": "unit",
-      "systems": ["garden_development", "garden_canopy", "hex_terrain"],
+      "systems": ["garden_development", "garden_canopy", "hex_terrain", "garden_heart_view"],
       "package": false
     },
     "garden_expansion": {

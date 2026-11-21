@@ -70,17 +70,10 @@ func run() -> void:
 		"an owned stone-labeled hex does not reject a clear footprint")
 	garden.terrain[touched] = original_terrain
 	var starter: Dictionary = garden.landmarks.monster_studies
-	# The historical demo station is now under the full canopy. Give this
-	# station-outline assertion its own otherwise legal location.
-	var test_station := Shape.disk("monster_studies", "station", bed, starter.radius)
-	garden.landmarks.monster_studies = test_station
-	build.preview(Vector2.ZERO)
-	build.preview(test_station.center)
+	build.preview(starter.center)
 	check(build.apply.disabled and build.blocker.visible and "monster studies" in build.reason
-		and build.blocker_outline == Shape.boundary(test_station),
+		and build.blocker_outline == Shape.boundary(starter),
 		"the demo station's reserved area is outlined when it blocks placement (%s)" % build.reason)
-	garden.landmarks.monster_studies = starter
-	build.preview(Vector2.ZERO)
 	build.preview(bed)
 	check(not build.blocker.visible and not build.apply.disabled, "the blocker clears when placement is valid again")
 	build.yaw = 0.0

@@ -26,7 +26,7 @@ var _thickets: Array = []
 
 func _init(barrier: Forest) -> void:
 	forest = barrier
-	_heart_reservation = Shape.shape("heart", "heart_model", Heart.maximum_build_outline())
+	_heart_reservation = Shape.shape("heart", "heart_base", Heart.maximum_base_outline())
 
 func footprint(kind: String, at: Vector2, yaw: float) -> Dictionary:
 	var half: Vector2 = CATALOG[kind].half
@@ -66,7 +66,7 @@ func placement_issue(kind: String, at: Vector2, yaw: float, pawn: Vector2, movin
 		var restriction: Dictionary = _heart_reservation if landmark.id == "heart" else landmark
 		if _overlaps(area, restriction):
 			var name: String = landmark.id.replace("_", " ")
-			if landmark.id == "heart": name = "fully grown Heart"
+			if landmark.id == "heart": name = "fully grown Heart's base"
 			return _issue("Keep clear of the %s. Its reserved area is outlined." % name, restriction)
 	for feature: Dictionary in garden.layout.paths + garden.layout.get("path_joins", []):
 		if _overlaps(area, feature, WALK_RADIUS):
