@@ -25,11 +25,12 @@ const Catalog = preload("res://heart_catalog.gd")
 const Shapes = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const GateMesh = preload("res://assets/terrain_m02/wilds_massing_mesh.gd")
 const Bark = preload("res://assets/terrain_m02/heart_bark.gdshader")
-const Spacing := 1.75
-const Radius := 14
-const Seed := 117
-const MAX_STUDIES := 32
-const STATIONS := {"study": "monster_studies", "archive": "seed_archive"}
+const SavedGarden = preload("res://garden_development_state.gd")
+const Spacing := SavedGarden.SPACING
+const Radius := SavedGarden.RADIUS
+const Seed := SavedGarden.SEED
+const MAX_STUDIES := SavedGarden.MAX_STUDIES
+const STATIONS := {"altar": "altar", "study": "monster_studies", "archive": "seed_archive"}
 
 var game: Node
 var stage: Node3D
@@ -118,11 +119,13 @@ func configure(world: Node, presentation: Node3D) -> void:
 		layout.plants = layout.plants.filter(func(plant): return plant.center.distance_to(row.center) > row.radius + 0.65)
 	layout = Art.placements(Enclosure.build(layout, cells, Spacing, Seed, true), 0)
 	state = Garden.new(cells, layout, Spacing, Seed, Radius, protections)
+	state.release_structure_landmarks()
 	barrier = Forest.new()
 	add_child(barrier)
 	barrier.bind(state, false) # Movement boundary only; complete trees present the edge.
 	construction = Build.new(barrier)
 	adopt_recorded_beds()
+	station_ids.altar = construction.adopt_owned("altar", planar(stage.ALTAR))
 	var profile := Art.profile(0)
 	material = Surface.material(cells, layout, Seed, Radius, Spacing)
 	material.set_shader_parameter("art_mode", 1)
@@ -164,8 +167,17 @@ func configure(world: Node, presentation: Node3D) -> void:
 	colors.vertex_color_use_as_albedo = true
 	gate.material_override = colors
 	stage.build_gate_swirl(self, landmark("wilds_entrance"))
-	_make_station("altar", "altar", landmark("altar"), 0.0)
 	_initialize_controls()
+	if not game.progress.garden_development.is_empty():
+		_restore_development(game.progress.garden_development)
+	_refresh_structure_views()
+	_refresh_root_views()
+	barrier.begin_shape(state.outline, state.outline)
+	barrier.update_shape(1.0)
+	_update_rim()
+	if game.progress.garden_development_error.is_empty():
+		game.progress.garden_development = _capture_development()
+
 
 func show_heart_stage(index: int) -> void:
 	var id := "living_archive"
@@ -196,8 +208,6 @@ func station_position(id: String) -> Vector3:
 	return world(construction.records[station_ids[id]].at) if station_ids.has(id) else Vector3.INF
 
 func bed_position(index: int) -> Vector3:
-	if index < 3:
-		return stage.PLOTS[index]
 	return world(construction.records[bed_ids[index]].at) if bed_ids.has(index) else Vector3.INF
 
 func bed_yaw(index: int) -> float:
@@ -299,9 +309,13 @@ func contribute(quote: Dictionary) -> bool:
 	if assimilation.queue.size() >= MAX_STUDIES:
 		game.tell(game.HOST, "The Heart's study queue is full.")
 		return false
-	var outcome := Tx.run_gameplay(game, Tx.Scope.GARDEN, func() -> bool:
+	var starting := assimilation.queue.is_empty()
+	var accepted := _commit_development(func() -> bool:
 		if funds.quote(quote.items) != quote:
 			return false
+		funds.energy += int(quote.energy)
+		assimilation.add(quote.items)
+		return true, func() -> bool:
 		var player: Dictionary = game.players[game.HOST]
 		for id: String in quote.items:
 			if _shared_free(player, funds.items[id].legacy_part) < int(quote.items[id]):
@@ -309,11 +323,7 @@ func contribute(quote: Dictionary) -> bool:
 		for id: String in quote.items:
 			game.progress.add_parts(funds.items[id].legacy_part, -int(quote.items[id]))
 		return true)
-	var accepted: bool = (outcome.completed or Tx.committed(outcome.persistence)) and outcome.value == true
 	if accepted:
-		funds.energy += int(quote.energy)
-		var starting := assimilation.queue.is_empty()
-		assimilation.add(quote.items)
 		if starting:
 			_study_light(0.6, 0.22)
 		Journal.event("interaction", "heart_assimilation_queued", {"parts": quote.items,
@@ -327,12 +337,19 @@ func advance_assimilation(elapsed: float, in_wilds: bool) -> void:
 	var next := assimilation.plan(game.progress.heart.progression_work(elapsed, in_wilds))
 	var knowledge: int = next.earned
 	if knowledge > 0:
-		var result := Tx.run_gameplay(game, Tx.Scope.GARDEN, func(): game.progress.knowledge += knowledge)
-		if not (result.completed or Tx.committed(result.persistence)):
+		var accepted := _commit_development(func() -> bool:
+			assimilation.queue.assign(next.queue)
+			return true, func() -> bool:
+			game.progress.knowledge += knowledge
+			return true)
+		if not accepted:
 			if offering_dialog.visible:
 				offering_dialog.refresh_studies()
 			return
-	assimilation.queue = next.queue
+	else:
+		assimilation.queue.assign(next.queue)
+		# Partial work joins the next ordinary save, without per-frame disk writes.
+		game.progress.garden_development = _capture_development()
 	if knowledge > 0:
 		game.tell(game.HOST, "The Heart assimilated its offering. +%d Knowledge." % knowledge)
 		Journal.event("interaction", "heart_assimilation_completed", {"knowledge": knowledge})
@@ -370,21 +387,23 @@ func expand(sector: int) -> bool:
 		return false
 	var plan: Dictionary = plans[sector]
 	var cost := funds.expansion_cost(plan, state.reclaimed_cells, clearing_tier())
-	var result := Tx.run_gameplay(game, Tx.Scope.GARDEN, func() -> bool:
-		return state.proposal(sector) == plan and funds.energy >= cost)
-	if not (result.completed or Tx.committed(result.persistence)) or result.value != true:
-		return false
 	var outline := state.outline
-	if not state.apply(plan):
+	var accepted := _commit_development(func() -> bool:
+		if funds.energy < cost or not state.apply(plan):
+			return false
+		funds.energy -= cost
+		layout_revision += 1
+		network.append(Roots.plan(state.roots[-1], heart.stage, state, network))
+		construction.set_roots(network)
+		return true)
+	if not accepted:
 		return false
-	layout_revision += 1
-	funds.energy -= cost
+	Journal.event("interaction", "garden_expanded", {"sector": sector, "revision": state.revision, "energy_spent": cost})
 	barrier.begin_shape(outline, state.outline)
 	barrier.update_shape(0.0)
 	_update_rim(0.0)
 	var root := MeshInstance3D.new()
-	var root_plan := Roots.plan(state.roots[-1], heart.stage, state, network)
-	network.append(root_plan)
+	var root_plan: Dictionary = network[-1]
 	root.mesh = Roots.mesh(root_plan)
 	var shader := ShaderMaterial.new()
 	shader.shader = Bark
@@ -441,38 +460,16 @@ func receive_snapshot(snapshot_data: Dictionary) -> void:
 func _apply_layout(layout: Dictionary) -> void:
 	barrier.begin_shape(state.outline, layout.outline)
 	state.outline = layout.outline
-	state.owned = layout.owned
+	state.owned = layout.owned.duplicate()
 	state.expansion_history.assign(layout.growth)
 	state.revision = state.expansion_history.size()
 	barrier.update_shape(1.0)
 	_update_rim()
-	for index in range(network.size(), layout.roots.size()):
-		var plan: Dictionary = layout.roots[index]
-		var root := MeshInstance3D.new()
-		root.mesh = Roots.mesh(plan)
-		var shader := ShaderMaterial.new()
-		shader.shader = Bark
-		root.material_override = shader
-		roots.add_child(root)
-	network.assign(layout.roots)
+	network.assign(layout.roots.duplicate(true))
 	construction.set_roots(network)
-	construction.records.clear()
-	station_ids.clear()
-	bed_ids.clear()
-	for building: Array in layout.buildings:
-		var id: int = building[0]
-		var kind: String = building[1]
-		if not Build.CATALOG.has(kind):continue # Retired or unsupported transient construction.
-		var at: Vector2 = building[2]
-		var yaw: float = building[3]
-		construction.records[id] = {"id": id, "kind": kind, "at": at, "yaw": yaw,
-			"footprint": construction.footprint(kind, at, yaw)}
-		if kind == "bed":
-			bed_ids[building[4]] = id
-		else:
-			station_ids[STATIONS[kind]] = id
-			_make_station(str(id), Build.CATALOG[kind].art, world(at), yaw)
-	construction._sync_obstacles()
+	_restore_buildings(layout.buildings)
+	_refresh_root_views()
+	_refresh_structure_views()
 	stage.plot_key = ""
 
 func _refresh_guest_review() -> void:
@@ -500,6 +497,8 @@ func _placement_refusal(kind: String, moving: int) -> String:
 		if not construction.records.has(moving) or construction.records[moving].kind != kind:
 			return "Select a placed structure to move."
 		return ""
+	if not Build.CATALOG[kind].buildable:
+		return "The starting Garden Altar can only be moved."
 	var research := _required(kind)
 	if not game.progress.heart.has(research):
 		return "Research %s at the Heart first." % Catalog.get_node(research).name
@@ -522,7 +521,7 @@ func _may_place() -> bool:
 	if not game.players.has(game.HOST) or not game.multiplayer.is_server() or not game.slot_claimed:
 		return false
 	var player: Dictionary = game.players[game.HOST]
-	return not Participation.is_wild(player) and not PlayerLifecycle.fallen(player) and game.participation.travel_kind().is_empty() and reveal == null and game.persistence_session.can_write()
+	return not Participation.is_wild(player) and not PlayerLifecycle.fallen(player) and game.participation.travel_kind().is_empty() and reveal == null and game.persistence_session.can_write() and game.progress.garden_development_error.is_empty()
 
 func place(kind: String, target: Vector2, yaw: float, moving: int = 0) -> bool:
 	var refusal := _build_refusal(kind, target, yaw, moving)
@@ -530,26 +529,25 @@ func place(kind: String, target: Vector2, yaw: float, moving: int = 0) -> bool:
 		game.tell(game.HOST, refusal)
 		return false
 	var slot: int = game.progress.plots.size()
-	var transaction := Tx.run_gameplay(game, Tx.Scope.GARDEN, func() -> bool:
-		if not _build_refusal(kind, target, yaw, moving).is_empty():
+	var accepted := _commit_development(func() -> bool:
+		var id := construction.commit(kind, target, yaw, planar(game.players[game.HOST].pos), moving)
+		if id == 0:
 			return false
+		layout_revision += 1
+		if kind == "bed":
+			if moving == 0: bed_ids[slot] = id
+		else:
+			station_ids[STATIONS[kind]] = id
+		return true, func() -> bool:
 		if kind == "bed" and moving == 0:
 			game.progress.plots.append(game.Progress.empty_plot())
 		return true)
-	if not (transaction.completed or Tx.committed(transaction.persistence)) or transaction.value != true:
+	if not accepted:
 		return false
-	var id := construction.commit(kind, target, yaw, planar(game.players[game.HOST].pos), moving)
-	if id == 0:
-		return false
-	layout_revision += 1
-	if kind == "bed":
-		if moving == 0:
-			bed_ids[slot] = id
-		stage.plot_key = ""
-	else:
-		var station: String = STATIONS[kind]
-		station_ids[station] = id
-		_make_station(str(id), Build.CATALOG[kind].art, world(target), yaw)
+	_refresh_structure_views()
+	stage.plot_key = ""
+	Journal.event("interaction", "garden_structure_placed", {"kind": kind, "moving": moving,
+		"position": target, "yaw": yaw, "revision": layout_revision})
 	game.tell(game.HOST, Build.CATALOG[kind].name + (" relocated." if moving else " built."))
 	return true
 
@@ -615,6 +613,7 @@ func _refresh_build_choices() -> void:
 	construction_kind.set_item_metadata(0, "")
 	var selected := 0
 	for kind: String in Build.CATALOG:
+		if not Build.CATALOG[kind].buildable: continue
 		var refusal := _placement_refusal(kind, 0)
 		construction_kind.add_item(Build.CATALOG[kind].name)
 		var index := construction_kind.item_count - 1
@@ -655,7 +654,7 @@ func open_development() -> void:
 	_refresh_build_choices()
 	building_picker.clear()
 	for id: int in construction.records:
-		building_picker.add_item("%s #%d" % [Build.CATALOG[construction.records[id].kind].name, id], id)
+		building_picker.add_item(_building_name(id), id)
 	if construction.records.is_empty():
 		building_picker.add_item("No placed structures", 0)
 	development_dialog.popup_centered(Vector2i(470, 360))
@@ -746,7 +745,111 @@ func _cancel_placement() -> void:
 func adopt_recorded_beds() -> void:
 	# Existing crop records already own these beds. Preserve their crops and
 	# investments when entering the generated Garden; never buy them twice.
-	for index in range(3,mini(game.progress.plots.size(),stage.PLOTS.size())):
+	for index in range(mini(game.progress.plots.size(),stage.PLOTS.size())):
 		if bed_ids.has(index):continue
-		bed_ids[index]=construction.adopt_owned_bed(planar(stage.PLOTS[index]))
+		bed_ids[index]=construction.adopt_owned("bed", planar(stage.PLOTS[index]))
 		layout_revision+=1
+	if station_ids.has("altar"):
+		game.progress.garden_development = _capture_development()
+
+func _building_name(id: int) -> String:
+	var kind: String = construction.records[id].kind
+	if kind == "bed":
+		var index: int = bed_ids.find_key(id)
+		return ("Starting bed %d" if index < 3 else "Cultivation bed %d") % (index + 1)
+	return Build.CATALOG[kind].name
+
+func _capture_development() -> Dictionary:
+	var buildings: Array = []
+	for id: int in construction.records:
+		var record: Dictionary = construction.records[id]
+		buildings.append([id, record.kind, record.at, record.yaw, bed_ids.find_key(id)])
+	return {"version": SavedGarden.VERSION, "seed": Seed, "radius": Radius, "spacing": Spacing,
+		"layout_revision": layout_revision, "revision": state.revision, "outline": state.outline.duplicate(),
+		"owned": state.owned.duplicate(), "growth": state.expansion_history.duplicate(),
+		"reclaimed_cells": state.reclaimed_cells, "root_paths": state.roots.duplicate(true),
+		"roots": network.duplicate(true), "buildings": buildings, "next_id": construction.next_id,
+		"energy": funds.energy, "queue": assimilation.queue.duplicate(true)}
+
+func _restore_buildings(buildings: Array) -> void:
+	construction.records.clear()
+	construction.next_id = 1
+	bed_ids.clear()
+	station_ids.clear()
+	for building: Array in buildings:
+		var id: int = building[0]
+		var kind: String = building[1]
+		construction.records[id] = {"id": id, "kind": kind, "at": building[2], "yaw": building[3],
+			"footprint": construction.footprint(kind, building[2], building[3])}
+		construction.next_id = maxi(construction.next_id, id + 1)
+		if kind == "bed":
+			bed_ids[building[4]] = id
+		else:
+			station_ids[STATIONS[kind]] = id
+	construction._sync_obstacles()
+	construction._revision = -1
+
+func _restore_development(saved: Dictionary) -> void:
+	# Only validated save projections or our own synchronous savepoints reach here.
+	state.outline = saved.outline.duplicate()
+	state.owned = saved.owned.duplicate()
+	state.expansion_history.assign(saved.growth)
+	state.revision = saved.revision
+	state.reclaimed_cells = saved.reclaimed_cells
+	state.roots.assign(saved.root_paths.duplicate(true))
+	network.assign(saved.roots.duplicate(true))
+	construction.set_roots(network)
+	_restore_buildings(saved.buildings)
+	construction.next_id = saved.next_id
+	state.refresh_owned_cells()
+	layout_revision = saved.layout_revision
+	funds.energy = saved.energy
+	assimilation.queue.assign(saved.queue.duplicate(true))
+	geometry.clear()
+
+func _commit_development(change: Callable, progress_change := Callable()) -> bool:
+	# Prepare synchronously, then restore live owners BEFORE attempting durability.
+	# No node, UI, network or animation changes occur until the save is committed.
+	var before := _capture_development()
+	var changed: bool = change.call()
+	var after := _capture_development()
+	_restore_development(before)
+	if not changed:
+		return false
+	var result := Tx.run_gameplay(game, Tx.Scope.GARDEN, func() -> bool:
+		if progress_change.is_valid() and progress_change.call() != true:
+			return false
+		var reason := SavedGarden.refusal(after, game.progress.plots.size())
+		if not reason.is_empty():
+			return false
+		game.progress.garden_development = after.duplicate(true)
+		return true)
+	var accepted: bool = (result.completed or Tx.committed(result.persistence)) and result.value == true
+	if accepted:
+		_restore_development(after)
+	else:
+		Journal.event("persistence", "garden_development_save_refused", {"revision": before.layout_revision})
+	return accepted
+
+func _refresh_structure_views() -> void:
+	var present := {}
+	for station: String in station_ids:
+		var id: int = station_ids[station]
+		var record: Dictionary = construction.records[id]
+		present[str(id)] = true
+		_make_station(str(id), Build.CATALOG[record.kind].art, world(record.at), record.yaw)
+	for id: String in structure_nodes.keys():
+		if not present.has(id):
+			structure_nodes[id].free()
+			structure_nodes.erase(id)
+
+func _refresh_root_views() -> void:
+	for child in roots.get_children():
+		child.free()
+	for plan: Dictionary in network:
+		var root := MeshInstance3D.new()
+		root.mesh = Roots.mesh(plan)
+		var shader := ShaderMaterial.new()
+		shader.shader = Bark
+		root.material_override = shader
+		roots.add_child(root)

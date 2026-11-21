@@ -22,6 +22,10 @@ func run():
 	game._process(.016)
 	check(not Build.CATALOG.has("spring") and not garden.STATIONS.has("spring") and not garden.structure_nodes.has("spring"),"watering basin is absent from construction and the world")
 	check(not game.stage.garden_edge.has_node("DormantSpringSite") and not game.stage.garden_edge.has_node("ShelteredSpring"),"old dormant/awakened fixture is retired")
+	check(game.stage.garden_edge.find_children("GardenPond", "MeshInstance3D", true, false).is_empty()
+		and game.stage.garden_edge.find_children("GardenWaterFeature", "Node3D", true, false).is_empty(), "no extra decorative ponds remain")
+	var sources: Array = Water._features(game.stage)
+	check(sources == garden.state.layout.water and sources.all(func(source): return not str(source.id).begins_with("garden_pool_")), "only generated terrain water authorizes filling")
 	var bank:=Water.anchor(game.stage)
 	check(bank.is_finite() and garden.barrier.walkable(Vector2(bank.x,bank.z)),"visible Garden water has a dry accessible bank before research")
 	p.pos=bank

@@ -63,11 +63,7 @@ func run() -> void:
  for tech in ["clearing_1","irrigation"]:g.heart.unlock_direct(tech)
  g.heart.sync_legacy(g);game._process(.016);view._process(.2);ambience._process(.2)
  check(ambience.colonies.has("return_moths") and ambience.colonies.return_moths.multimesh.instance_count==6,"same bounded moth family gathers at the committed trace")
- var responding:=false
- for group in game.stage.garden_edge.get_children():
-  if not group.has_meta("garden_water_position"):continue
-  for model in group.find_children("*","MeshInstance3D",true,false):
-   if model is MeshInstance3D and model.get_meta("garden_pond",false) and float(model.material_override.get_shader_parameter("resonance"))>.5:responding=true
+ var responding: bool=float(game.stage.experimental_garden.material.get_shader_parameter("garden_water_resonance"))>.5
  check(responding and reserve.stock==before_stock and game.rng.state==rng_state,"spring response, camera and fauna are cosmetic only")
  game.app_settings.values.ambient_motion=false;ambience._process(.2);check(not ambience.colonies.return_moths.visible,"motion preference suppresses moving fauna")
  var story=UIFixture.control(game,"progression_view").care;story.present(game.garden_commands.return_projection(1));check(story.stories.text.contains("Lantern Moss") and story.stories.text.contains("root scar"),"bounded recap survives skipped scenes")

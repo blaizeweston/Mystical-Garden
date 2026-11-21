@@ -341,3 +341,22 @@ func forest_layout() -> Dictionary:
 			result.woodland_ferns.append({"at": at, "sector": sector,
 				"size": random.randf_range(0.9, 2.1), "yaw": random.randf_range(0.0, TAU)})
 	return result
+
+func release_structure_landmarks() -> void:
+	# Construction becomes the sole placement/collision authority for owned beds/altar.
+	for id: String in landmarks.keys():
+		if id == "altar" or id.begins_with("bed_") or id.begins_with("owned_bed_"):
+			reserved.erase(landmarks[id])
+			root_exclusions.erase(landmarks[id])
+			landmarks.erase(id)
+	refresh_owned_cells()
+
+func refresh_owned_cells() -> void:
+	available.clear()
+	reserved_cells.clear()
+	for cell: Vector2i in owned:
+		var at := Grid.cell_to_world(cell, spacing)
+		if _clear(at, 0.35, outline):
+			available[cell] = true
+		elif Shape.in_any(reserved, at):
+			reserved_cells[cell] = true

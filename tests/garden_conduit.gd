@@ -31,12 +31,11 @@ func run() -> void:
  var scene=game.get_node("GardenInteractions/GrowthScenes");scene.begin(terrace_events[0]);scene.animate(4.0)
  check(scene.target==point.position and game.stage.has_meta("garden_growth_camera"),"existing root-following camera tracks the authored terrace anchor")
  scene.finish(false)
- for count in range(3,10):
-  game.stage.active_plots=count
-  for radius in [11.5,15.7,22.0]:
-   for water in Conduit.Layout.ponds(game.stage,radius):
-    check(not Conduit.Layout.in_water(point.position,water,1.4),"all old/new pond placements preserve the terrace approach")
-    for bed in game.Stage.PLOTS:check(not Conduit.Layout.in_water(bed,water,1.1),"no water/bed overlap")
+ var water_shapes: Array=game.stage.experimental_garden.state.layout.water
+ var shape=preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
+ check(not shape.in_any(water_shapes,Vector2(point.position.x,point.position.z),1.4),"generated water preserves the terrace approach")
+ for bed in game.stage.bed_positions():
+  if bed.is_finite():check(not shape.in_any(water_shapes,Vector2(bed.x,bed.z),1.1),"generated water preserves owned beds")
  check(Conduit.Layout.reserved(game.stage,point.position,20,.5),"terrace reserves scenery clearance")
  p.pos=point.position
  var rng_before: int=game.rng.state;var knowledge: int=g.knowledge

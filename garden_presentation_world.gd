@@ -47,7 +47,9 @@ func _interaction_frame(world: Node, peer: int, actor: Dictionary) -> Dictionary
 	var positions: Dictionary={}
 	for point in Interactions.Catalog.POINTS:
 		positions[point.id]=world.garden_commands.point_position(point,actor.get("pos",Vector3.INF)) if point.id!="spring_water" or data.get("available",[]).has(point.id) else point.position
+	var garden=world.stage.experimental_garden
 	return {"data":data.duplicate(true),"present":not actor.is_empty(),
+		"structure_revision":maxi(garden.layout_revision,garden.remote_revision) if garden!=null else -1,
 		"position":actor.get("pos",Vector3.INF),"wild":Participation.is_wild(actor),
 		"context":str([world.network_session.role(),peer,data.get("epoch","")]),
 		"nearest":world.garden_commands.nearest(peer,data),

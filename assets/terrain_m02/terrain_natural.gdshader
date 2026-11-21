@@ -1,4 +1,5 @@
 shader_type spatial;
+uniform float garden_water_resonance : hint_range(0.0, 1.0) = 0.0;
 
 uniform sampler2D cell_labels : filter_nearest, repeat_disable;
 uniform ivec2 label_origin;
@@ -284,6 +285,7 @@ void fragment() {
 		dry *= 1.0 - wilds_moisture * (0.10 + 0.21 * max(bank, damp));
 		water_surface = mix(water_surface, wilds_water * (0.53 + 0.19 * eddy), 0.58);
 	}
+	water_surface += vec3(0.025, 0.075, 0.065) * garden_water_resonance;
 	ALBEDO = mix(dry, water_surface, cover);
 
 	ROUGHNESS = mix(0.90 - (wilds_mode ? wilds_moisture * 0.12 : 0.0) - 0.15 * damp - 0.14 * bank - 0.13 * land.w + 0.05 * flecks, 0.39 + 0.09 * eddy, cover);

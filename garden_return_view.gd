@@ -67,11 +67,10 @@ func _process(delta: float) -> void:
  var resonance: bool=Service.known(data,"lantern_homecoming")
  heart.visible=resonance and not _facts.get("wild",false)
  heart.material_override.emission_energy_multiplier=.18+.1*sin(Time.get_ticks_msec()/850.0-.8) if _facts.get("motion",true) else .2
- for group in _stage.garden_edge.get_children():
-  if not group.has_meta("garden_water_position"):continue
-  for model in group.find_children("*","MeshInstance3D",true,false):
-   if model is MeshInstance3D and model.get_meta("garden_pond",false) and model.material_override is ShaderMaterial:model.material_override.set_shader_parameter("resonance",1.0 if resonance else 0.0)
+ if _stage.experimental_garden!=null:
+  _stage.experimental_garden.material.set_shader_parameter("garden_water_resonance",1.0 if resonance else 0.0)
 func _exit_tree() -> void:
  for model in traces.values():
   if is_instance_valid(model):model.queue_free()
  if is_instance_valid(heart):heart.queue_free()
+

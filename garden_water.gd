@@ -2,11 +2,10 @@ extends RefCounted
 ## Reachable banks of the water actually drawn in the current Garden.
 ## Terrain keeps its movement authority; these read-only queries never move actors.
 const Shape=preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
-const Layout=preload("res://garden_layout.gd")
 const Catalog=preload("res://garden_interaction_catalog.gd")
 const BANK_CLEARANCE:=0.40 # metres; leaves room for the existing 0.34 m actor
 const ACTOR_RADIUS:=0.34
-const CONTRACT:="garden-water-banks-1"
+const CONTRACT:="garden-terrain-water-banks-2"
 
 # Owned by one generated Garden. This is a derived presentation hint, never an
 # authorization cache: nearby() always rechecks current water and actor clearance.
@@ -15,12 +14,7 @@ var _bank_hint:=Vector3.INF
 
 static func _features(stage: Node3D) -> Array:
 	var garden=stage.get("experimental_garden")
-	if garden==null:return []
-	var result: Array=[]
-	for feature in garden.state.layout.water:result.append(feature)
-	# These authored pools use the same cached outlines as their renderer.
-	for pool in Layout.ponds(stage,stage.garden_extent):result.append(pool.shape)
-	return result
+	return [] if garden==null else garden.state.layout.water
 
 static func available(stage: Node3D) -> bool:
 	return not _features(stage).is_empty()

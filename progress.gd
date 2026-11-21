@@ -20,6 +20,9 @@ var ground_items: Array=[]
 var needs_inventory_backup:=false
 var altar_recipes: Dictionary={}
 var needs_altar_backup:=false
+const GardenDevelopment = preload("res://garden_development_state.gd")
+var garden_development: Dictionary = {}
+var garden_development_error := ""
 var garden_interactions: Dictionary=preload("res://garden_interaction_state.gd").blank()
 
 const Seeds = preload("res://seed_catalog.gd")
@@ -96,6 +99,11 @@ func _read_garden() -> Error:
 	var result := file.load(path)
 	if result != OK:
 		return result
+	var development: Variant = file.get_value("garden_development", "state", {})
+	garden_development_error = GardenDevelopment.refusal(development)
+	if not garden_development_error.is_empty():
+		return ERR_FILE_CORRUPT
+	garden_development = development.duplicate(true)
 	needs_content_backup=not file.has_section("content")
 	ContentIDs.remap_garden(file)
 	content_quarantine=file.get_value("content","quarantine",{})
@@ -226,6 +234,9 @@ func _read_garden() -> Error:
 				var first:=int(InventoryModel.Items.get_item(inputs[0]).legacy_seed)
 				result_id=InventoryModel.Items.part_id(int(Seeds.DEFINITIONS[first].part))
 			altar_recipes["seeds|"+"|".join(inputs)]={"item":result_id,"success":child>=0}
+	garden_development_error = GardenDevelopment.refusal(garden_development, plots.size())
+	if not garden_development_error.is_empty():
+		return ERR_FILE_CORRUPT
 	needs_inventory_backup=not file.has_section("inventory")
 	needs_heart_backup=heart.load_state(file,self)
 	garden_interactions=preload("res://garden_growth_state.gd").initialize(garden_interactions,preload("res://garden_growth_state.gd").snapshot(self))
@@ -277,6 +288,8 @@ func _migration_backup(target: String, guarded: bool) -> Error:
 	return OK if FileAccess.file_exists(target) else DirAccess.copy_absolute(path, target)
 
 func _serialize_save(stage := Callable()) -> Error:
+	if not garden_development_error.is_empty() or not GardenDevelopment.refusal(garden_development, plots.size()).is_empty():
+		return SaveBatch.record_serializer_error(ERR_FILE_CORRUPT, path)
 	if require_guarded_access or SaveBatch.guarded_active():
 		var operations = load("res://persistence_operations.gd")
 		if not operations.authorizes_serializer(self, stage):
@@ -324,6 +337,7 @@ func _serialize_save(stage := Callable()) -> Error:
 	file.set_value("inventory","ground",ground_items)
 	var growth_state:=preload("res://garden_growth_state.gd").prepare(self)
 	file.set_value("garden_interactions","state",growth_state)
+	file.set_value("garden_development", "state", garden_development)
 	file.set_value("garden", "plots_v2", plots)
 	file.set_value("garden", "unknown", unknown)
 	file.set_value("garden", "guest_seeds", guest_seeds)

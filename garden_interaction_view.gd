@@ -44,6 +44,7 @@ var pending:=false
 var requested_at:=0
 var projection_context:=""
 var availability_baseline:=false
+var structure_revision:=-1
 func _ready() -> void:
  panel=_ui.create_overlay_panel(Color("#14262b"),Vector2(22,20));panel.set_meta("garden_interaction_panel",true);panel.hide()
  var box:=VBoxContainer.new();box.custom_minimum_size=Vector2(470,260);box.add_theme_constant_override("separation",14);panel.add_child(box)
@@ -77,21 +78,7 @@ func _ready() -> void:
  ambience.refresh_requested.connect(func():refresh_feature("ambience"));add_child(ambience)
 func build_point(definition: Dictionary) -> Node3D:
  var root:=Node3D.new();root.name=definition.id;_stage.add_child(root);root.position=definition.position;root.visible=false
- var surface:=SurfaceTool.new();surface.begin(Mesh.PRIMITIVE_TRIANGLES)
- for branch in 5:
-  var path: Array[Vector3]=[];var angle:=branch*TAU/5
-  for step in 25:
-   var t:=step/24.0;var radius:=lerpf(.63,.12,t)
-   path.append(Vector3(cos(angle+t*.8)*radius,.025+sin(t*PI*.85)*.25,sin(angle+t*.8)*radius))
-  _stage.root_tube(surface,path,.045,.012)
- if definition.get("visual","")=="relationship":
-  for index in preload("res://garden_layout.gd").zone_beds(definition.relationship.zone,_stage.PLOTS.size()):
-   var path: Array[Vector3]=[]
-   var end: Vector3=_stage.PLOTS[index]-definition.position
-   for step in 25:
-    var t:=step/24.0;path.append(end*t+Vector3(sin(t*PI*3)*.10,.04+sin(t*PI)*.05,0))
-   _stage.root_tube(surface,path,.045,.006)
- var roots:=MeshInstance3D.new();root.add_child(roots);roots.mesh=surface.commit()
+ var roots:=MeshInstance3D.new();roots.name="Roots";root.add_child(roots);roots.mesh=_point_mesh(definition)
  var bark:=ShaderMaterial.new();bark.shader=preload("res://assets/shaders/root_bark.gdshader");roots.material_override=bark
  var scar:=MeshInstance3D.new();scar.name="Scar";root.add_child(scar)
  var shape:=SphereMesh.new();shape.radius=.13;shape.height=.32;shape.radial_segments=24;shape.rings=12;scar.mesh=shape;scar.position=Vector3(0,.23,0);scar.scale=Vector3(1,.7,.52)
@@ -108,6 +95,11 @@ func record() -> void:
 func _process(_delta: float) -> void:
  if not is_instance_valid(_stage):return
  refresh_feature("interaction")
+ var current_revision: int=int(_facts.get("structure_revision",-1))
+ if current_revision!=structure_revision:
+  structure_revision=current_revision
+  for definition in Catalog.POINTS:
+   if definition.get("visual","")=="relationship":points[definition.id].get_node("Roots").mesh=_point_mesh(definition)
  if _facts.is_empty():return
  var data: Dictionary=_facts.get("data",{});var wild: bool=_facts.get("wild",false)
  var context: String=_facts.get("context","")
@@ -180,3 +172,22 @@ func context_prompt() -> String:
 func _exit_tree() -> void:
  for point in points.values():
   if is_instance_valid(point):point.queue_free()
+
+func _point_mesh(definition: Dictionary) -> ArrayMesh:
+ var surface:=SurfaceTool.new();surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+ for branch in 5:
+  var path: Array[Vector3]=[];var angle:=branch*TAU/5
+  for step in 25:
+   var t:=step/24.0;var radius:=lerpf(.63,.12,t)
+   path.append(Vector3(cos(angle+t*.8)*radius,.025+sin(t*PI*.85)*.25,sin(angle+t*.8)*radius))
+  _stage.root_tube(surface,path,.045,.012)
+ if definition.get("visual","")=="relationship":
+  for index in preload("res://garden_layout.gd").zone_beds(definition.relationship.zone,_stage.bed_positions().size()):
+   var path: Array[Vector3]=[]
+   var bed: Vector3=_stage.bed_position(index)
+   if not bed.is_finite():continue
+   var end: Vector3=bed-definition.position
+   for step in 25:
+    var t:=step/24.0;path.append(end*t+Vector3(sin(t*PI*3)*.10,.04+sin(t*PI)*.05,0))
+   _stage.root_tube(surface,path,.045,.006)
+ return surface.commit()

@@ -61,7 +61,7 @@ func run() -> void:
 	world.progress.heart.complete(world.progress,"living_archive")
 	world.stage.update_heart_progress(world.heart_state())
 	check(world.stage.station_position("living_archive").is_finite(),"native Living Archive retains an on-site interaction")
-	check(world.progress.plots.size()==9 and world.progress.plots[7].species==0 and garden.bed_ids.size()==6,"all previously owned beds and their crop contents survive load")
+	check(world.progress.plots.size()==9 and world.progress.plots[7].species==0 and garden.bed_ids.size()==9,"all previously owned beds and their crop contents survive load")
 	for index in world.progress.plots.size():
 		check(world.stage.bed_position(index).is_finite(),"every owned crop has a usable bed position")
 		var at: Vector3=world.stage.bed_position(index)

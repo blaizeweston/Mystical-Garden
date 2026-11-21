@@ -174,6 +174,15 @@ func host_run(menu: Node) -> void:
 	if not check(garden.place("bed", Vector2(2.34, -4.58), 0.37), "build a real cultivation bed while hosting"):
 		return
 	var bed_id: int = garden.bed_ids[3]
+	var moved: Array = []
+	for kind: String in ["bed", "altar"]:
+		var id: int = garden.bed_ids[0] if kind == "bed" else garden.station_ids.altar
+		var target := starter_relocation(garden, kind, id)
+		if not check(target.is_finite() and garden.place(kind, target, 0.2, id), "host relocates starting " + kind): return
+		moved.append([id, target])
+	var placements := FileAccess.open(signals.path_join("starting-placements"), FileAccess.WRITE)
+	placements.store_var(moved)
+	placements.close()
 	mark("host-ready", str(bed_id))
 	if not check(await until(func(): return ready_guest(game) != 0 and read("guest-layout") == "ok"), "guest admitted with the developed layout"):
 		return
@@ -311,6 +320,13 @@ func guest_run(menu: Node) -> void:
 		and is_equal_approx(garden.bed_yaw(3), -0.37), "guest has matching stable bed transform and no host save access")
 	check(not garden.remote_development.queue.is_empty() and garden.remote_development.energy > 0
 		and not garden.place("bed", Vector2.ZERO, 0.0), "study and energy mirrored; guest cannot build independently")
+	var placements := FileAccess.open(signals.path_join("starting-placements"), FileAccess.READ)
+	var moved: Array = placements.get_var(false)
+	placements.close()
+	check(garden.bed_ids[0] == moved[0][0] and game.stage.bed_position(0).is_equal_approx(garden.world(moved[0][1]))
+		and garden.station_ids.altar == moved[1][0] and game.stage.altar_position().is_equal_approx(garden.world(moved[1][1]))
+		and garden.structure_nodes.size() == 1, "guest sees both relocated starting structures and only one altar")
+	check(not garden.place("altar", Vector2.ZERO, 0.0, garden.station_ids.altar), "guest cannot relocate a host structure")
 	mark("guest-layout")
 	if not check(await until(func(): return read("plant") == "ok" and Vector3(game.players[id].pos).distance_to(game.stage.bed_position(3)) < 1.65), "guest arrives at the real bed"):
 		return
@@ -384,3 +400,15 @@ func guest_run(menu: Node) -> void:
 	if not await river_guest(game, game.local_player_id(), "river-again"):
 		return
 	check(await until(func(): return read("host-offline") == "ok" and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer), "guest observes host shutdown")
+
+func starter_relocation(garden: Node, kind: String, id: int) -> Vector2:
+	var at: Vector2 = garden.construction.records[id].at
+	var candidates: Array[Vector2] = []
+	for x in range(-13, 14):
+		for y in range(-13, 14):
+			var candidate := Vector2(x, y) * 0.5
+			if candidate.distance_to(at) > 0.3: candidates.append(candidate)
+	candidates.sort_custom(func(a, b): return a.distance_squared_to(at) < b.distance_squared_to(at))
+	for candidate in candidates:
+		if garden._build_refusal(kind, candidate, 0.2, id).is_empty(): return candidate
+	return Vector2.INF

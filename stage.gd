@@ -655,7 +655,7 @@ func gate_position() -> Vector3:
 	return GATE if experimental_garden == null else experimental_garden.landmark("wilds_entrance")
 
 func altar_position() -> Vector3:
-	return ALTAR if experimental_garden == null else experimental_garden.landmark("altar")
+	return ALTAR if experimental_garden == null else experimental_garden.station_position("altar")
 
 func bed_position(index: int) -> Vector3:
 	return PLOTS[index] if experimental_garden == null else experimental_garden.bed_position(index)
@@ -818,8 +818,6 @@ func update_garden(knowledge: int, technologies: int) -> void:
 	if garden_tier==tier:return
 	garden_tier=tier
 	for child in garden_edge.get_children():child.free()
-	var random := RandomNumberGenerator.new();random.seed=8319
-	build_garden_life(radius,random)
 
 
 func apply_appearance(actor: Dictionary,look: Array) -> void:
@@ -890,52 +888,6 @@ func update_heart_progress(state: Dictionary) -> void:
 				heart_stations[id]=preload("res://heart_visuals.gd").station(self,id,HEART_STATIONS[id])
 			heart_stations[id].visible=unlocked.has(id)
 	preload("res://heart_growth_visuals.gd").sync(self,state)
-
-
-func garden_pond_positions(radius: float) -> Array[Vector3]:
-	var result: Array[Vector3]=[]
-	for water in preload("res://garden_layout.gd").ponds(self,radius):result.append(water.position)
-	return result
-
-
-func build_garden_life(radius: float, random: RandomNumberGenerator) -> void:
-	var ponds:=preload("res://garden_layout.gd").ponds(self,radius)
-	for water in ponds:
-		build_garden_pond(water,random)
-
-
-func build_garden_pond(definition: Dictionary, random: RandomNumberGenerator) -> void:
-	var position: Vector3=definition.position
-	var radius:=float(definition.radius)
-	var group:=Node3D.new();group.name="GardenWaterFeature";garden_edge.add_child(group);group.position=position;group.set_meta("garden_water_position",position)
-	position=Vector3.ZERO
-	var shape:=SurfaceTool.new();shape.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var outline: PackedVector2Array=definition.shape.outline
-	for i in outline.size():
-		var a: Vector2=outline[i]-Vector2(definition.position.x,definition.position.z)
-		var b: Vector2=outline[(i+1)%outline.size()]-Vector2(definition.position.x,definition.position.z)
-		for vertex in [Vector3.ZERO,Vector3(b.x,0,b.y),Vector3(a.x,0,a.y)]:
-			shape.set_normal(Vector3.UP);shape.add_vertex(vertex)
-	var water:=MeshInstance3D.new();water.name="GardenPond";water.set_meta("garden_pond",true);group.add_child(water);water.mesh=shape.commit();water.position=position+Vector3.UP*.018;water.scale.z=1.0
-	var shader=preload("res://assets/shaders/garden_water.gdshader")
-	var material := ShaderMaterial.new()
-	material.shader = shader
-	material.set_shader_parameter("pond_size",radius)
-	water.material_override = material
-	water.set_meta("garden_motion",true)
-	GardenScenery.bank(group,radius,random)
-
-
-	# Sparse lily pads soften the pools without obscuring their water.
-	var leaves:=SurfaceTool.new();leaves.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i in 3:
-		var at:=position+Vector3(-.45+i*.35,.034,.15+sin(i*2.1)*.28)
-		for j in range(1,23):
-			var a:=j*TAU/24;var b:=(j+1)*TAU/24
-			for vertex in [at,at+Vector3(cos(b)*.16,0,sin(b)*.13),at+Vector3(cos(a)*.16,0,sin(a)*.13)]:
-				leaves.set_normal(Vector3.UP);leaves.add_vertex(vertex)
-	var pads:=MeshInstance3D.new();pads.name="LilyPads";group.add_child(pads);pads.mesh=leaves.commit()
-	var green:=StandardMaterial3D.new();green.albedo_color=Color("#57704a");green.roughness=.65;green.cull_mode=BaseMaterial3D.CULL_DISABLED;pads.material_override=green
 
 
 static func garden_camera_target(player: Vector3, radius: float) -> Vector3:

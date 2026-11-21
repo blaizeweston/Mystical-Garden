@@ -1,5 +1,5 @@
 extends RefCounted
-## The preview owns these records for the lifetime of an individual Garden.
+## Owns live structure placement. Crop contents stay in Progress, keyed by plot slot.
 
 const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
@@ -9,11 +9,7 @@ const WALK_RADIUS := 0.34
 const STEP := 0.47
 const MARGIN := 0.045
 const THICKET_RADIUS := 0.60
-const CATALOG := {
-	"bed": {"name": "Cultivation bed", "art": "starter_bed", "half": Vector2(1.00, 0.73)},
-	"study": {"name": "Field study", "art": "monster_studies", "half": Vector2(0.97, 0.98)},
-	"archive": {"name": "Seed cache", "art": "seed_archive", "half": Vector2(0.97, 0.98)},
-}
+const CATALOG := preload("res://garden_structure_catalog.gd").DEFINITIONS
 const CARDINAL := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 var forest: Forest
@@ -43,6 +39,8 @@ func validate(kind: String, at: Vector2, yaw: float, pawn: Vector2, moving: int 
 func placement_issue(kind: String, at: Vector2, yaw: float, pawn: Vector2, moving: int = 0) -> Dictionary:
 	if not CATALOG.has(kind) or not at.is_finite() or not is_finite(yaw):
 		return _issue("Choose a Garden structure.")
+	if moving == 0 and not CATALOG[kind].buildable:
+		return _issue("The starting Garden Altar can only be moved.")
 	if moving != 0 and (not records.has(moving) or records[moving].kind != kind):
 		return _issue("Select a placed structure to move.")
 	if kind == "study" and moving == 0:
@@ -305,14 +303,14 @@ func _connections(at: Vector2, shapes: Array, blocked: Dictionary) -> Dictionary
 				result[id] = true
 	return result
 
-func adopt_owned_bed(at: Vector2) -> int:
-	# Bounded runtime adoption of an existing saved crop slot, not a purchase.
-	# Crop content remains in Progress; this owner stores only its placement.
-	assert(at.is_finite())
+func adopt_owned(kind: String, at: Vector2) -> int:
+	# Adopt an already owned structure, without a purchase or crop-content copy.
+	assert(CATALOG.has(kind) and at.is_finite())
 	var id := next_id
-	next_id+=1
-	records[id]={"id":id,"kind":"bed","at":at,"yaw":0.0,
-		"footprint":footprint("bed",at,0.0),"state":{"crop":"","growth":0.0}}
+	next_id += 1
+	records[id] = {"id": id, "kind": kind, "at": at, "yaw": 0.0,
+		"footprint": footprint(kind, at, 0.0)}
 	_sync_obstacles()
-	_revision=-1
+	_revision = -1
 	return id
+

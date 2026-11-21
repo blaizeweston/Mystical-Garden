@@ -166,7 +166,7 @@ func run() -> void:
 	panel.hide()
 	garden.open_development()
 	var build_choices: OptionButton = garden.construction_kind
-	check(build_choices.item_count == garden.Build.CATALOG.size()+1 and garden.build_button.disabled,
+	check(build_choices.item_count == garden.Build.CATALOG.size() and garden.build_button.disabled,
 		"no new structure can be selected at the start")
 	for index in range(1, build_choices.item_count):
 		check(build_choices.is_item_disabled(index) and build_choices.get_item_tooltip(index).begins_with("Research "),
@@ -571,7 +571,7 @@ func run() -> void:
 	print("M17_ROUTE peak_usec=", query_peak, " failures=", route_failures, " cases=", samples)
 	game.return_to_main_menu()
 	await process_frame
-	check(current_scene != game and current_scene.continue_button.disabled, "return to title separates transient Garden layout")
+	check(current_scene != game and current_scene.continue_button.disabled, "isolated title keeps normal production save browsing disabled")
 	if errors == 0:
 		print("PASS: title, real cultivation, offerings, repeatable growth, generated combat, Gate and Garden return")
 	call("quit", int(errors > 0))

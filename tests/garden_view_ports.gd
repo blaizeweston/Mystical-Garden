@@ -17,8 +17,10 @@ class DisplayStage extends Node3D:
 	var heart_tree:Node3D
 	var heart_unlocked:Array=["heart"]
 	var experimental_garden:Node3D
+	var bed_locations:Array=PLOTS.slice(0,3)
 	func _ready():add_child(garden_edge)
-	func bed_position(slot:int)->Vector3:return PLOTS[slot]
+	func bed_position(slot:int)->Vector3:return bed_locations[slot]
+	func bed_positions()->Array:return bed_locations.duplicate()
 	func station_position(_station:String)->Vector3:return Vector3(6,0,1)
 	func root_tube(surface:SurfaceTool,_points:Array[Vector3],_start:float,_end:float):
 		for point in [Vector3.ZERO,Vector3(.02,0,0),Vector3(0,.02,0)]:
@@ -50,6 +52,12 @@ func run():
 	view.observe.pressed.emit();view.observe.pressed.emit()
 	check(requests.size()==1 and payload(0).revision==7 and payload(0).point==point.id and payload(0).action=="observe","one pending observation emits only its current revision-bound request")
 	check(frames==untouched,"views cannot mutate the supplied world facts")
+	var relationship:Dictionary=Catalog.POINTS.filter(func(entry):return entry.get("visual","")=="relationship")[0]
+	var old_roots:Mesh=view.points[relationship.id].get_node("Roots").mesh
+	stage.bed_locations[0]+=Vector3(1,0,0)
+	frames.interaction.structure_revision=1
+	view._process(0)
+	check(view.points[relationship.id].get_node("Roots").mesh!=old_roots,"a detached placement revision refreshes relationship art using current bed positions")
 	frames.interaction.data.revision=8;frames.interaction.data.observations=[point.observation]
 	view._process(0)
 	check(view.cue_until>0 and view.observe.disabled and view.observe.text=="Recorded in this Garden","a new revision shows its cue and recorded state without granting anything")
