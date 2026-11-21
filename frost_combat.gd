@@ -41,11 +41,11 @@ static func motion_scale(actor: Dictionary, now: int, boss := false) -> float:
 	return 1.0 - maxf(frost,float(actor.get("affinity_thorn_slow",0.0)))
 
 
-static func damage(game: Node, actor: int, target: int, hp: int, now: int, color := COLOR) -> void:
+static func damage(game: Node, actor: int, target: int, hp: int, now: int, color := COLOR, card_secondary := false) -> void:
 	# Use the same native damage, death, drops and encounter settlement path.
 	# An affinity hit contributes no legacy on-hit traits or attack delay.
 	# A previously granted effect keeps its author even after disconnect.
-	OutgoingHits.affinity_world(game, actor, target, hp, now, color)
+	OutgoingHits.affinity_world(game, actor, target, hp, now, color, card_secondary)
 	if game.encounter_cleared():
 		game.finish_combat(actor if game.players.has(actor) else game.HOST, game.enemy_position(target))
 
@@ -135,7 +135,7 @@ static func resolve_stacks(game: Node, source: Dictionary, maximum_units: int, s
 		if record.is_valid(): record.call(spent.duplicate(true),hp)
 		if secondary: OutgoingHits.affinity_world(game,int(source.actor),target,hp,now,COLOR,true)
 		else: damage(game,int(source.actor),target,hp,now)
-		if not secondary and Sources.current(game,source): rupture_effects(game,target,point,spent,hp,now)
+		if Sources.current(game,source): rupture_effects(game,target,point,spent,hp,now,secondary)
 		if not valid_target(game,target): break
 	return bursts.size()
 
@@ -152,7 +152,7 @@ static func effect_owner(stacks: Array, parameter: String) -> Dictionary:
 	return Sources.dominant(candidates,"strength")
 
 
-static func rupture_effects(game: Node, target: int, point: Vector3, spent: Array, hp: int, now: int) -> void:
+static func rupture_effects(game: Node, target: int, point: Vector3, spent: Array, hp: int, now: int, propagated := false) -> void:
 	var root:=effect_owner(spent,"rupture_root_ms")
 	if not root.is_empty() and Sources.current(game,root) and valid_target(game,target):
 		var actor:=body(game,target)
@@ -164,6 +164,7 @@ static func rupture_effects(game: Node, target: int, point: Vector3, spent: Arra
 		for victim in game.skill_area_targets(point,radius,point):
 			if not Sources.current(game,wave) or game.persistence_session.is_blocked(): break
 			OutgoingHits.affinity_world(game,int(wave.actor),victim,roundi(hp*float(wave.strength)/100.0),now,COLOR,true)
+	if propagated: return # Root and wave are finite; only another propagation is recursive.
 	var avalanche:=effect_owner(spent,"avalanche_unlock")
 	if not avalanche.is_empty() and Sources.current(game,avalanche):
 		var radius:=float(Catalog.DEFINITIONS.avalanche.tuning.radius_m)

@@ -128,6 +128,8 @@ class Ledger extends RefCounted:
 		if reason.is_empty(): reason = requirement(definition, stats.affinity_build, counts())
 		if not reason.is_empty():
 			return reason
+		if definition.parameter == "tempo_percent" and not _speed_headroom(stats):
+			return "Basic attacks already have no attack-speed headroom."
 		if _copies.filter(func(copy): return copy.id == card_id).size() >= int(definition.limit):
 			return "Already acquired this Unique." if definition.policy == "unique" else "Maximum useful copies reached."
 		if headroom(definition, stats, dodge_base, amount(card_id)) == 0:
@@ -150,12 +152,16 @@ class Ledger extends RefCounted:
 			return "This copy no longer fits the current build's effect limit."
 		return ""
 
+	func _speed_headroom(stats: Dictionary) -> bool:
+		return int(stats.interval)-amount("ordinary_weapon_interval") > STRIKE_MIN_MS
+
 	func project_owned(stats: Dictionary, dodge_base: int) -> Array:
 		var result: Array = []
 		for source in _copies:
 			var copy := source.duplicate()
 			var definition: Dictionary = Catalog.DEFINITIONS[copy.id]
 			copy.reason = requirement(definition, stats.affinity_build, counts())
+			if definition.parameter == "tempo_percent" and not _speed_headroom(stats): copy.reason = "Basic attacks already have no attack-speed headroom."
 			copy.total = amount(copy.id)
 			copy.applied = mini(int(copy.total), parameter_limit(definition, stats, dodge_base)) if copy.reason.is_empty() else 0
 			if int(copy.applied) == 0 and copy.reason.is_empty():

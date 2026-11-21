@@ -764,6 +764,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Bleed buildup per application",
 	  "parameter": "buildup_percent",
 	  "unit": "percent",
 	  "limit": 4,
@@ -803,6 +804,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Thorn Line extension per side",
 	  "parameter": "coverage_cm",
 	  "unit": "cm",
 	  "limit": 4,
@@ -842,6 +844,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Extra Bleed per basic hit",
 	  "parameter": "direct_bleed_percent",
 	  "unit": "percent",
 	  "limit": 4,
@@ -881,6 +884,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Buildup per successive hit",
 	  "parameter": "streak_bleed_percent",
 	  "unit": "percent",
 	  "limit": 4,
@@ -923,6 +927,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Opening buildup",
 	  "parameter": "opening_bleed_percent",
 	  "unit": "percent",
 	  "limit": 4,
@@ -987,6 +992,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Bleed buildup per class application",
 	  "parameter": "buildup_percent",
 	  "unit": "percent",
 	  "limit": 4,
@@ -1051,6 +1057,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Prepared direct damage",
 	  "parameter": "momentum_hp",
 	  "unit": "hp",
 	  "limit": 4,
@@ -1156,6 +1163,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Personal Bleed tick cap bonus",
 	  "parameter": "shared_potency_hp",
 	  "unit": "hp",
 	  "limit": 4,
@@ -1258,6 +1266,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Bleed retention duration",
 	  "parameter": "bleed_duration_ms",
 	  "unit": "ms",
 	  "limit": 4,
@@ -1360,6 +1369,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Death burst damage scaling",
 	  "parameter": "death_burst_percent",
 	  "unit": "percent",
 	  "limit": 4,
@@ -1511,6 +1521,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Core shatter potency",
 	  "parameter": "source_shatter_hp",
 	  "unit": "hp",
 	  "limit": 4,
@@ -1550,6 +1561,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Additional closing stacks",
 	  "parameter": "closing_stacks",
 	  "unit": "stacks",
 	  "limit": 4,
@@ -1589,6 +1601,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Basic-hit shatter potency",
 	  "parameter": "source_shatter_hp",
 	  "unit": "hp",
 	  "limit": 4,
@@ -1628,6 +1641,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Additional stack credit per hit",
 	  "parameter": "extra_stack_milli",
 	  "unit": "milli_stacks",
 	  "limit": 4,
@@ -1667,6 +1681,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Direct damage per existing stack",
 	  "parameter": "precision_hp_per_stack",
 	  "unit": "hp",
 	  "limit": 4,
@@ -1727,6 +1742,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Class-action shatter potency",
 	  "parameter": "source_shatter_hp",
 	  "unit": "hp",
 	  "limit": 4,
@@ -1787,11 +1803,12 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Neighboring stack potency",
 	  "parameter": "side_shatter_percent",
 	  "unit": "percent",
 	  "limit": 4,
 	  "description": "A qualifying class action adds one nearby Brittle stack at %s%% shatter potency.",
-	  "detail": "Provisional CE02 tuning. Once per action, to another enemy within 2.4 m and clear line. This secondary stack cannot launch further spreads or secondary bursts.",
+	  "detail": "Provisional CE02 tuning. Once per action, to another enemy within 2.4 m and clear line. A resulting rupture may use acquired root and wave effects, but cannot launch another spread.",
 	  "values": [
 	    10,
 	    15,
@@ -1850,6 +1867,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Prepared shatter potency",
 	  "parameter": "rhythm_shatter_hp",
 	  "unit": "hp",
 	  "limit": 4,
@@ -1962,6 +1980,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Personal shatter potency bonus",
 	  "parameter": "shared_potency_hp",
 	  "unit": "hp",
 	  "limit": 4,
@@ -2071,6 +2090,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Slow per Brittle stack",
 	  "parameter": "slow_bonus_percent",
 	  "unit": "percent",
 	  "limit": 4,
@@ -2180,6 +2200,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Rupture root duration",
 	  "parameter": "rupture_root_ms",
 	  "unit": "ms",
 	  "limit": 4,
@@ -2289,6 +2310,7 @@ const DEFINITIONS := {
 	      }
 	    ]
 	  },
+	  "label": "Area damage per rupture",
 	  "parameter": "shatterwave_percent",
 	  "unit": "percent",
 	  "limit": 4,
@@ -2405,13 +2427,755 @@ const DEFINITIONS := {
 	  "unit": "unlock",
 	  "limit": 1,
 	  "description": "Your eligible ruptures spread one attributed Brittle stack to nearby enemies.",
-	  "detail": "Provisional CE02 tuning. Within 2.4 m and clear line. The stack retains its source potency. A propagation-triggered rupture cannot emit another Avalanche or secondary burst; later legitimate attacks can.",
+	  "detail": "Provisional CE02 tuning. Within 2.4 m and clear line. The stack retains its source potency. A propagation-triggered rupture can use acquired Rime Lock and Shatterwave, but cannot emit another Avalanche; later legitimate attacks can.",
 	  "fixed": 1,
 	  "tuning": {
 	    "radius_m": 2.4
 	  },
 	  "grants": [
 	    "avalanche"
+	  ]
+	},
+	# CE02 Fire — stack application, sustained pressure and distinct secondary effects.
+	"kindled_roots": {
+	  "title": "Kindled Roots",
+	  "scope": "core",
+	  "family": "fire",
+	  "policy": "stackable",
+	  "trigger": "Eligible core Fire application or Burning tick",
+	  "consumer": [
+	    "res://fire_combat.gd",
+	    "ignite"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "fire"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "ember_wake",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "label": "Burning stacks per Core application",
+	  "parameter": "stack_bonus",
+	  "unit": "stacks",
+	  "limit": 4,
+	  "description": "Ember Wake applies %s additional Burning stacks.",
+	  "detail": "Provisional CE02 tuning. Applies on first contact and the existing 750 ms maintenance cadence; no extra initial damage.",
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"lingering_coals": {
+	  "title": "Lingering Coals",
+	  "scope": "core",
+	  "family": "fire",
+	  "policy": "stackable",
+	  "trigger": "Eligible core Fire application or Burning tick",
+	  "consumer": [
+	    "res://fire_combat.gd",
+	    "field"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "fire"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "ember_wake",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "label": "Trail duration bonus",
+	  "parameter": "field_duration_ms",
+	  "unit": "ms",
+	  "limit": 4,
+	  "description": "Ember Wake’s trail lasts an additional %s seconds.",
+	  "detail": "Provisional CE02 tuning. Extends the real field, visual lifetime and cast expiry. Stack maintenance still has its existing per-enemy interval.",
+	  "values": [
+	    250,
+	    400,
+	    550,
+	    700
+	  ]
+	},
+	"stoking_strikes": {
+	  "title": "Stoking Strikes",
+	  "scope": "form",
+	  "family": "fire",
+	  "policy": "stackable",
+	  "trigger": "Eligible form Fire application or Burning tick",
+	  "consumer": [
+	    "res://fire_combat.gd",
+	    "ignite"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "fire"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "burning_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "label": "Extra stacks per successive attack",
+	  "parameter": "stoking_stacks",
+	  "unit": "stacks",
+	  "limit": 4,
+	  "description": "Each consecutive basic attack adds %s more Burning stacks after the first.",
+	  "detail": "Provisional CE02 tuning. One sequence step per attack, including volleys. Three seconds without an eligible hit resets the sequence. Target changes do not reset Fire pressure.",
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ],
+	  "tuning": {
+	    "window_ms": 3000
+	  }
+	},
+	"feverish_tempo": {
+	  "title": "Feverish Tempo",
+	  "scope": "form",
+	  "family": "fire",
+	  "policy": "stackable",
+	  "trigger": "Eligible form Fire application or Burning tick",
+	  "consumer": [
+	    "res://fire_combat.gd",
+	    "tempo_percent"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "fire"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "burning_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "label": "Attack speed per sequence step",
+	  "parameter": "tempo_percent",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Successive basic hits on Burning enemies add %s%% attack speed per sequence step.",
+	  "detail": "Provisional CE02 tuning. After the first hit, the temporary speed lasts two seconds and refreshes on qualifying hits. The three-second hit sequence and current basic-attack timing limit still apply.",
+	  "values": [
+	    3,
+	    4,
+	    5,
+	    6
+	  ],
+	  "tuning": {
+	    "duration_ms": 2000
+	  }
+	},
+	"incendiary_followthrough": {
+	  "title": "Incendiary Followthrough",
+	  "scope": "catalyst",
+	  "family": "fire",
+	  "policy": "stackable",
+	  "trigger": "Eligible catalyst Fire application or Burning tick",
+	  "consumer": [
+	    "res://fire_combat.gd",
+	    "ignite"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "fire"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "burn"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "ember_burst"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "recipient_ember_response"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "self_ember_response"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "label": "Extra stacks against Burning enemies",
+	  "parameter": "burning_target_stacks",
+	  "unit": "stacks",
+	  "limit": 4,
+	  "description": "Catalyst applications add %s extra stacks against enemies already Burning.",
+	  "detail": "Provisional CE02 tuning. Checks the shared Burning before this application; no extra class contact or Catalyst activation.",
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"ember_resonance": {
+	  "title": "Ember Resonance",
+	  "scope": "catalyst",
+	  "family": "fire",
+	  "policy": "stackable",
+	  "trigger": "Eligible catalyst Fire application or Burning tick",
+	  "consumer": [
+	    "res://fire_combat.gd",
+	    "ignite"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "fire"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "burn"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "ember_burst"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "recipient_ember_response"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "self_ember_response"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "label": "Nearby stack application strength",
+	  "parameter": "resonance_percent",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "A qualifying Catalyst application gives nearby enemies %s%% of its Burning stack application.",
+	  "detail": "Provisional CE02 tuning. Once per class action, within 2.4 m and clear line, excluding the original enemy. Secondary applications cannot trigger another resonance or Flashover.",
+	  "values": [
+	    10,
+	    15,
+	    20,
+	    25
+	  ],
+	  "tuning": {
+	    "radius_m": 2.4
+	  }
+	},
+	"banked_heat": {
+	  "title": "Banked Heat",
+	  "scope": "affinity",
+	  "family": "fire",
+	  "policy": "stackable",
+	  "trigger": "Eligible affinity Fire application or Burning tick",
+	  "consumer": [
+	    "res://fire_combat.gd",
+	    "advance"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "tags_all": [
+	            "fire"
+	          ]
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "core",
+	                  "primary_affinity": "fire"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "core",
+	                  "id": "ember_wake",
+	                  "slot": "core"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "form",
+	                  "primary_affinity": "fire"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "form",
+	                  "id": "burning_strikes",
+	                  "slot": "form"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "catalyst",
+	                  "primary_affinity": "fire"
+	                }
+	              },
+	              {
+	                "any": [
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "burn"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "ember_burst"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "recipient_ember_response"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "self_ember_response"
+	                    }
+	                  }
+	                ]
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "label": "Decay efficiency",
+	  "parameter": "retention_rating",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Your Burning contributions gain %s%% decay efficiency.",
+	  "detail": "Provisional CE02 tuning. Your assigned decay loss is divided by 1 + total efficiency/100, with fractional loss carried between decays. Other owners retain their normal rules; no fixed intensity ceiling.",
+	  "values": [
+	    10,
+	    15,
+	    20,
+	    25
+	  ]
+	},
+	"feeding_the_flames": {
+	  "title": "Feeding the Flames",
+	  "scope": "affinity",
+	  "family": "fire",
+	  "policy": "stackable",
+	  "trigger": "Eligible affinity Fire application or Burning tick",
+	  "consumer": [
+	    "res://fire_combat.gd",
+	    "ignite"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "tags_all": [
+	            "fire"
+	          ]
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "core",
+	                  "primary_affinity": "fire"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "core",
+	                  "id": "ember_wake",
+	                  "slot": "core"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "form",
+	                  "primary_affinity": "fire"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "form",
+	                  "id": "burning_strikes",
+	                  "slot": "form"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "catalyst",
+	                  "primary_affinity": "fire"
+	                }
+	              },
+	              {
+	                "any": [
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "burn"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "ember_burst"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "recipient_ember_response"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "self_ember_response"
+	                    }
+	                  }
+	                ]
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "label": "Burning stacks per application",
+	  "parameter": "stack_bonus",
+	  "unit": "stacks",
+	  "limit": 4,
+	  "description": "Add %s Burning stacks per eligible application across functioning Fire slots.",
+	  "detail": "Provisional CE02 tuning. Core, Form and Catalyst cooperate. This adds no duplicate application or secondary activation.",
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ]
+	},
+	"flashover": {
+	  "title": "Flashover",
+	  "scope": "affinity",
+	  "family": "fire",
+	  "policy": "stackable",
+	  "trigger": "Eligible affinity Fire application or Burning tick",
+	  "consumer": [
+	    "res://fire_combat.gd",
+	    "flashover"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "tags_all": [
+	            "fire"
+	          ]
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "core",
+	                  "primary_affinity": "fire"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "core",
+	                  "id": "ember_wake",
+	                  "slot": "core"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "form",
+	                  "primary_affinity": "fire"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "form",
+	                  "id": "burning_strikes",
+	                  "slot": "form"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "catalyst",
+	                  "primary_affinity": "fire"
+	                }
+	              },
+	              {
+	                "any": [
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "burn"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "ember_burst"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "recipient_ember_response"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "self_ember_response"
+	                    }
+	                  }
+	                ]
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "label": "Damage per consumed Burning stack",
+	  "parameter": "flashover_percent",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Flashover deals damage equal to %s%% of the Burning stacks actually consumed.",
+	  "detail": "Provisional CE02 tuning. Your native Fire application at 8+ stacks consumes 25% and leaves at least one stack. One shared two-second trigger interval per enemy; 2.4 m clear-line area. Secondary damage cannot trigger Flashover.",
+	  "values": [
+	    50,
+	    75,
+	    100,
+	    125
+	  ],
+	  "tuning": {
+	    "threshold_stacks": 8,
+	    "consume_percent": 25,
+	    "minimum_remaining": 1,
+	    "interval_ms": 2000,
+	    "radius_m": 2.4
+	  }
+	},
+	"wildfire": {
+	  "title": "Wildfire",
+	  "scope": "affinity",
+	  "family": "fire",
+	  "policy": "unique",
+	  "trigger": "Eligible affinity Fire application or Burning tick",
+	  "consumer": [
+	    "res://fire_combat.gd",
+	    "spread"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "tags_all": [
+	            "fire"
+	          ]
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "core",
+	                  "primary_affinity": "fire"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "core",
+	                  "id": "ember_wake",
+	                  "slot": "core"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "form",
+	                  "primary_affinity": "fire"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "form",
+	                  "id": "burning_strikes",
+	                  "slot": "form"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "catalyst",
+	                  "primary_affinity": "fire"
+	                }
+	              },
+	              {
+	                "any": [
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "burn"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "ember_burst"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "recipient_ember_response"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "self_ember_response"
+	                    }
+	                  }
+	                ]
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "wildfire_unlock",
+	  "unit": "unlock",
+	  "limit": 1,
+	  "description": "Burning at 8+ intensity spreads half its stacks to nearby enemies once per second.",
+	  "detail": "Provisional CE02 tuning. One eligible owner supplies each attributed 2.4 m spread. Does not consume the original. Propagated-only contributions cannot spread again; a real native application can enable later spread. Independent from Flashover.",
+	  "fixed": 1,
+	  "tuning": {
+	    "threshold_stacks": 8,
+	    "spread_percent": 50,
+	    "interval_ms": 1000,
+	    "radius_m": 2.4
+	  },
+	  "grants": [
+	    "wildfire"
 	  ]
 	},
 }
@@ -2443,7 +3207,7 @@ static func effect_text(definition: Dictionary, value: int) -> String:
 
 
 static func contribution_label(definition: Dictionary) -> String:
-	if definition.get("family", "") != "": return str(definition.parameter).replace("_", " ").capitalize()
+	if definition.get("family", "") != "": return str(definition.get("label","Contribution"))
 	match definition.parameter:
 		"stack_bonus": return "Burning stacks per application"
 		"tick_hp": return "Personal Bleed tick cap"

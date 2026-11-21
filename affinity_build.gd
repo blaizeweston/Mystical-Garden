@@ -305,6 +305,7 @@ static func core_skill(build: Dictionary) -> Dictionary:
 		"spirit": ["Phantom Step", "phantom_step", "#bdafe8", .34, 750, Ruleset.Spirit.CORE_CD],
 		"void": ["Gravity Well", "gravity_well", "#ad8bcb", Ruleset.Void.CORE_RADIUS, 2000, Ruleset.Void.CORE_CD],
 	}[family]
+	if family == "fire": profile[4] += int(core.get("resolved_potency",{}).get("field_duration_ms",0))
 	if family == "thorn": profile[3] += float(core.get("resolved_potency",{}).get("coverage_cm",0)) / 100.0
 	return {"id": core.affinity_core_skill_id, "name": profile[0],
 		"icon": "res://assets/ui/core_skills/%s.png" % profile[1], "mechanic": "swept_projectile" if family=="storm" and delivery.kind!="ground" else "ground_sequence",

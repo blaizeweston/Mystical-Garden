@@ -38,7 +38,7 @@ static func description(slot: String, quality: String, resolved: Dictionary = {}
 		"catalyst":"Thorn Catalyst · Mapped class actions plant growth at the impact, heal, or departure point. Actual blocks grow a %.1f m thicket. Lasts %.1f s." % [RADIUS.ward,LIFETIME.catalyst/1000.0],
 	}[slot]
 	return line + "\n%d%% movement slow inside. Bleed shares one tick every %.2f s. Your resolved cap is %.2f damage per tick; this slot adds %d%% of it per application (at most once each %.1f s per target/slot). Contributions linger %.1f s. %d active patches in this slot." % [
-		roundi(100*q.slow),TICK_MS/1000.0,float(q.get("personal_cap_hp",q.tick_hp)),roundi(100*APPLICATION_FRACTION[slot]),APPLICATION_MS/1000.0,BLEED_MS/1000.0,LIMIT[slot]]
+		roundi(100*q.slow),TICK_MS/1000.0,float(q.get("personal_cap_hp",q.tick_hp)),roundi(100*APPLICATION_FRACTION[slot])+int(q.get("buildup_percent",0)),APPLICATION_MS/1000.0,BLEED_MS/1000.0,LIMIT[slot]]
 
 
 static func active_fields(game: Node, elapsed: int) -> Array:
@@ -183,6 +183,7 @@ static func on_death(game: Node, target: int, now: int, secondary := false) -> v
 	if secondary: return
 	var status: Dictionary=Actors.body(game,target).get(BLEED,{})
 	if status.is_empty() or status.get("ruptured",false): return
+	if int(status.get("epoch",-1))!=game.participation.epoch() or int(status.get("token",-1))!=game.encounter.spawn_identity(target): return
 	prune(game,status,Clock.now(game))
 	var tuning: Dictionary=Catalog.DEFINITIONS.hemorrhagic_rupture.tuning
 	if potency_units(status)*100 < cap_units(status)*int(tuning.threshold_percent): return

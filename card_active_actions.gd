@@ -70,7 +70,7 @@ static func command(game: Node, peer: int, player: Dictionary, action: String) -
   if offset.length()>float(tuning.range_m) or not game.battlefield.combat_sight(player.pos,point):continue
   var body: Dictionary=load("res://frost_combat.gd").body(game,victim)
   var bleed: Dictionary=body.get(thorn.BLEED,{})
-  if bleed.is_empty():continue
+  if bleed.is_empty() or not thorn.Sources.target_current(game,victim,bleed):continue
   thorn.prune(game,bleed,load("res://affinity_time.gd").now(game))
   if thorn.potency_units(bleed)<=0:continue
   var dot:=offset.normalized().dot(forward) if offset.length()>.001 else 1.0

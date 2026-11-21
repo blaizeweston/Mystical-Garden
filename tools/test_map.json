@@ -1530,6 +1530,9 @@
     ]
   },
   "suites": {
+    "ce02_fire": {"kind":"unit", "profile":"affinity", "systems":["affinity_cards","fire_affinity","combat_affinity_contracts","combat","network_session","world_snapshot","player_build_ui"], "package":false},
+    "ce02_fire_coop": {"kind":"pair", "profile":"affinity", "systems":["affinity_cards","fire_affinity","combat_affinity_contracts","combat","network_session","world_snapshot","player_build_ui"], "package":false},
+    "ce02_fire_party": {"kind":"party", "profile":"affinity", "systems":["affinity_cards","fire_affinity","combat_affinity_contracts","combat","network_session","world_snapshot","player_build_ui"], "package":false},
     "ce02_frost": {"kind":"unit", "profile":"affinity", "systems":["affinity_cards","frost_affinity","combat_affinity_contracts","combat","network_session","world_snapshot"], "package":false},
     "ce02_frost_coop": {"kind":"pair", "profile":"affinity", "systems":["affinity_cards","frost_affinity","combat_affinity_contracts","combat","network_session","world_snapshot"], "package":false},
     "ce02_frost_party": {"kind":"party", "profile":"affinity", "systems":["affinity_cards","frost_affinity","combat_affinity_contracts","combat","network_session","world_snapshot"], "package":false},

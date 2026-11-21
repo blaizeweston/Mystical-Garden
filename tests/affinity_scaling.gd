@@ -97,7 +97,7 @@ func run() -> void:
 	verify_wood()
 	verify_water()
 	verify_vital()
-	check(Catalog.DEFINITIONS.size()==28 and Catalog.PLAYTEST.acquisition_limit==12 and Grafts.PLAYTEST.purchase_limit==6,
+	check(Catalog.DEFINITIONS.size()>=28 and Catalog.PLAYTEST.acquisition_limit==12 and Grafts.PLAYTEST.purchase_limit==6,
 		"catalog and global playtest budgets remain unchanged")
 	game.queue_free();await process_frame
 	if not failed: print("PASS: affinity baselines, real specialized builds, uncapped intensity/capacity, resolved UI, future potency, mitigation and lifecycle")

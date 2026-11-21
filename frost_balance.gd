@@ -22,10 +22,11 @@ const VERSION_DATA := [STACKS_TO_RUPTURE, BRITTLE_MS, BOSS_SLOW_SCALE,
 static func description(slot: String, quality: String, resolved: Dictionary = {}) -> String:
 	var potency: Dictionary = QUALITY[quality] if resolved.is_empty() else resolved
 	var line: String = {
-		"core": "Rime Bloom · Opening petals deal %d HP and apply two stacks. Closing petals apply one stack after %.3f s within %.2f m. %.1f s cooldown." % [BLOOM_OPEN_HP+int(potency.get("opening_bonus_hp",0)), BLOOM_DELAY_MS / 1000.0, BLOOM_RADIUS, BLOOM_COOLDOWN_MS / 1000.0],
+		"core": "Rime Bloom · Opening petals deal %d HP and apply two stacks. Closing petals apply %d stacks after %.3f s within %.2f m. %.1f s cooldown." % [BLOOM_OPEN_HP+int(potency.get("opening_bonus_hp",0)), 1+int(potency.get("closing_stacks",0)), BLOOM_DELAY_MS / 1000.0, BLOOM_RADIUS, BLOOM_COOLDOWN_MS / 1000.0],
 		"form": "Brittle Strikes · One stack per enemy per direct weapon attack.",
 		"catalyst": "Frost Catalyst · One stack per mapped offensive contact or actual block burst (%.1f m). Healing and movement can grant a %.1f s single-use response to an unblocked enemy hit you survive." % [WARD_RADIUS, RESPONSE_MS / 1000.0],
 	}[slot]
-	return line + "\nEach stack slows movement by %d%% and stores one third of your current maximum shatter damage (%.2f resolved). Three shared stacks rupture once, without rooting. Stacks expire after %.1f s without application. Bosses take half the slow." % [
-		roundi(100 * potency.move_slow), float(potency.get("personal_cap_hp",potency.max_shatter_hp)), BRITTLE_MS / 1000.0,
+	var root_note := " Rime Lock roots surviving rupture victims for %.3f s." % (int(potency.get("rupture_root_ms",0))/1000.0) if int(potency.get("rupture_root_ms",0))>0 else ""
+	return line + root_note + "\nEach stack slows movement by %d%% and stores one third of your current maximum shatter damage (%.2f resolved). Three shared stacks rupture once; baseline rupture has no root. Stacks expire after %.1f s without application. Bosses take half the slow." % [
+		roundi(100 * potency.move_slow)+int(potency.get("slow_bonus_percent",0)), float(potency.get("personal_cap_hp",potency.max_shatter_hp))+float(potency.get("source_shatter_hp",0)), BRITTLE_MS / 1000.0,
 	]

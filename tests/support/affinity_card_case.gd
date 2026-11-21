@@ -27,6 +27,7 @@ func reset() -> void:
   p.weapon=0;p.secondary=0;p.catalyst=0;p.frame=2;p.weapon_kind=0;p.pos=Vector3.ZERO;p.facing=Vector3.FORWARD
   p.character=game.Character.blank()
   var tree=game.Classes.connected_tree(2);p.character[tree.profile_key]=tree.state(["wildstalker"])
+  Cards.clear(p)
   for key in [Cards.STATE,"thorn_card_momentum","thorn_card_streak","card_active_state","affinity_thorn_form_ready"]:p.erase(key)
 func equip(peer: int, family: String, slots: Array=["core","form","catalyst"]) -> void:
  var part:=0

@@ -54,6 +54,12 @@ func run():
  for index in 2:Thorn.tick(g,c.Clock.advance(g,1.01),now)
  var victim:=c.scout(Vector3(1,0,-2))
  var before:int=g.encounter.hp(victim)
+ var death_status: Dictionary=g.tactics.memory[Thorn.BLEED]
+ var death_token: int=death_status.token
+ death_status.token=death_token+100
+ Thorn.on_death(g,-1,now)
+ check(g.encounter.hp(victim)==before,"stale enemy identity cannot produce a Bleed death burst")
+ death_status.token=death_token
  g.encounter.set_hp(-1,1)
  preload("res://outgoing_hits.gd").affinity_world(g,1,-1,1,now,Thorn.COLOR)
  var after:int=g.encounter.hp(victim)
@@ -66,6 +72,11 @@ func run():
  var before_hp:int=g.enemy_health()
  var request:=Active.request(g,g.players[1],"bloodletting",Vector2(0,-1),100)
  check(not request.is_empty(),"real session, world and life supply an action identity")
+ var current_token: int=status.token
+ status.token=current_token+100
+ Active.command(g,1,g.players[1],request)
+ check(g.enemy_health()==before_hp and not g.players[1].has(Active.STATE),"stale enemy identity cannot authorize Bloodletting")
+ status.token=current_token
  Active.command(g,1,g.players[1],request)
  check(g.enemy_health()==before_hp-6 and Thorn.potency_units(status)==amount,"Bloodletting damages without consuming shared Bleed")
  Active.command(g,1,g.players[1],request)

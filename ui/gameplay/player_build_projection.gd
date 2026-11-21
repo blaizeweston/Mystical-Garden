@@ -37,6 +37,7 @@ static func summary(facts: Dictionary) -> Dictionary:
 		upgrades = Cards.owned_rows(copies)
 	var resolved := ResolvedBuild.Snapshot.new(stats,Cards.applied_totals(facts.copies))
 	stats = resolved.basic_stats()
+	stats.interval = preload("res://fire_combat.gd").interval_with_tempo(int(stats.interval),int(facts.get("attack_speed_percent",0)))
 	upgrades.sort_custom(func(a,b): return a.title.naturalnocasecmp_to(b.title) < 0)
 	if stats.has("damage_min"):
 		var band:=Vector2i(stats.damage_min,stats.damage_max)

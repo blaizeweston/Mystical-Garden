@@ -101,7 +101,7 @@ func owner_details(peer: int, common: Dictionary) -> Dictionary:
 	var wild := Participation.is_wild(actor)
 	var now := Clock.now()
 	var timers: Cooldowns.Timers = actor[Cooldowns.STATE]
-	var result := {"card_actions_state":preload("res://card_active_actions.gd").owner_state(_world,actor),"core_state":preload("res://core_combat.gd").owner_state(actor,now,_world.combat_build(actor).core_skill()),
+	var result := {"fire_attack_speed_percent":preload("res://fire_combat.gd").tempo_percent(_world,actor,now),"card_actions_state":preload("res://card_active_actions.gd").owner_state(_world,actor),"core_state":preload("res://core_combat.gd").owner_state(actor,now,_world.combat_build(actor).core_skill()),
 		"weapon":actor.weapon,"prepared":actor.prepared,"experiment":actor.experiment,
 		"dodge_ready":timers.ready(Cooldowns.DODGE,now),"last_offer":Cards.completed_floor(actor),
 		"reclaim_choice":actor.get("reclaim_choice",0),"offering_choice":actor.get("offering_choice",0),

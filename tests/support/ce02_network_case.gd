@@ -13,7 +13,7 @@ static func host(test: RefCounted,game: Node,guests: Array) -> bool:
  var part:=0
  for index in range(1,Build.Materials.DEFINITIONS.size()):
   if Build.Affinities.for_part(index).get("primary_affinity")==family:part=index;break
- var ids: Array={"thorn":["sanguine_growth","bloodletting"],"frost":["crystalline_fracture","avalanche","shatterwave"]}.get(family,[])
+ var ids: Array={"thorn":["sanguine_growth","bloodletting"],"frost":["crystalline_fracture","avalanche","shatterwave"],"fire":["feeding_the_flames","flashover","wildfire"]}.get(family,[])
  for peer in actors:
   var p: Dictionary=game.players[peer]
   saved[peer]=[p.weapon,p.secondary,p.catalyst,p.get(Cards.STATE)]
@@ -33,7 +33,8 @@ static func host(test: RefCounted,game: Node,guests: Array) -> bool:
   var material: Dictionary=build.core
   var event=Events.begin(game,peer,"core",material,material.potency_profile.values,["core_action"],now+30000)
   if family=="thorn":thorn.patch(game,event,game.tactics.position,1.0,now)
-  else:load("res://frost_combat.gd").apply(game,event,-1,2,now)
+  elif family=="frost":load("res://frost_combat.gd").apply(game,event,-1,2,now)
+  else:load("res://fire_combat.gd").ignite(game,event,-1,now)
   game.players[peer].core_ready_at=0;game.players[peer].core_cast_until=0;game.players[peer].cast_until=0
  if family=="thorn" and not test.check(body.get(thorn.BLEED,{}).get("contributors",{}).size()==actors.size(),"CE02 contributors share one owner-scaled Bleed"):return false
  for peer in guests:test.mark("ce02-start-"+str(peer),family)
@@ -51,14 +52,14 @@ static func host(test: RefCounted,game: Node,guests: Array) -> bool:
   Cards.clear(p)
   if saved[peer][3]!=null:p[Cards.STATE]=saved[peer][3]
  if game.has_meta(thorn.FIELDS):game.remove_meta(thorn.FIELDS)
- body.erase(thorn.BLEED);body.erase("affinity_brittle")
+ body.erase(thorn.BLEED);body.erase("affinity_brittle");body.erase("affinity_burning");body.erase("fire_flashover_ready");body.erase("fire_wildfire_ready")
  Core.reset(game)
  test.mark("ce02-done")
  return not test.failed
 static func guest(test: RefCounted,game: Node,peer: int) -> bool:
  if not test.check(await test.until(func():return not test.read("ce02-start-"+str(peer)).is_empty()),"CE02 episode begins"):return false
  var family: String=test.ce02_family
- var unique: String={"thorn":"bloodletting","frost":"avalanche"}[family]
+ var unique: String={"thorn":"bloodletting","frost":"avalanche","fire":"wildfire"}[family]
  var local: Dictionary=game.players[peer]
  if not test.check(await test.until(func():return game.players.get(peer,{}).get("affinity_run_cards",[]).any(func(row):return row.id==unique) and (family!="thorn" or game.players.get(peer,{}).get("card_actions_state",[]).any(func(row):return row.id=="bloodletting"))),"guest receives unique acquisition and additional skill-bar action"):return false
  test.mark("ce02-seen-"+str(peer))
