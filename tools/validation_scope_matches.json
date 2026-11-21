@@ -1059,10 +1059,6 @@
       "ar08_lifecycle_5": {
         "match": "\tif int(plan.damage)>0 and epoch==game.participation.epoch() and game.participation.active() and not game.persistence_session.is_blocked() \\\n\t\t\tand PlayerLifecycle.matches(game.players.get(plan.owner,{}),int(plan.owner_life)):\n",
         "baseline": "\tif int(plan.damage)>0 and epoch==game.participation.epoch() and game.participation.active() and not game.get_meta(game.Transactions.PENDING,false):\n"
-      },
-      "ec01_1": {
-        "match": "\t\t\"activation\":event.identity,\"order\":order,\"remaining\":admitted,\"admitted\":admitted,\"break_hp\":q.break_hp,\n\t\t\"until\":elapsed+(CORE_MS if is_core else CATALYST_MS)+int(q.get(\"duration_bonus_ms\",0))})\n\tplayer[GRANTS]=grants\n",
-        "baseline": "\t\t\"activation\":event.identity,\"order\":order,\"remaining\":admitted,\"admitted\":admitted,\"break_hp\":q.break_hp,\n\t\t\"until\":elapsed+(CORE_MS if is_core else CATALYST_MS)})\n\tplayer[GRANTS]=grants\n"
       }
     },
     "vital_combat.gd": {

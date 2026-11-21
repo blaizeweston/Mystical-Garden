@@ -8,7 +8,7 @@ const Session = preload("res://network_session.gd")
 const PREFIX := "card_cast:"
 const STATE := "card_active_state"
 const INPUTS := ["card_active_one","card_active_two","card_active_three","card_active_four"]
-const CARD_GRANTS := {"bloodletting_unlock":{"method":"command","capability":{"producer":"card","id":"bloodletting","recipient":"enemy"}}}
+const CARD_GRANTS := {"splinterburst_unlock":{"method":"command","capability":{"producer":"card","id":"splinterburst","recipient":"enemy"}},"bloodletting_unlock":{"method":"command","capability":{"producer":"card","id":"bloodletting","recipient":"enemy"}}}
 static var _request_serial := 0
 
 static func actions(player: Dictionary) -> Array[String]:
@@ -57,7 +57,20 @@ static func command(game: Node, peer: int, player: Dictionary, action: String) -
  var ready: Dictionary=state.actions.get(id,{})
  var now:=preload("res://combat_clock.gd").now()
  if sequence<=int(ready.get("sequence",0)) or now<int(ready.get("ready",0)):return
- if id!="bloodletting":return # Future active cards require an implemented dispatch.
+ if id=="splinterburst":
+  var wood=load("res://wood_affinity.gd")
+  var elapsed: int=load("res://affinity_time.gd").now(game)
+  var held: int=wood.capacity(wood.live_grants(player,elapsed))
+  if held<=0:return
+  var tuning: Dictionary=definition.tuning
+  state.actions[id]={"sequence":sequence,"ready":now+int(tuning.cooldown_ms)}
+  player[STATE]=state
+  var spent: int=wood.spend_all(player,elapsed)
+  wood.burst(game,peer,player.pos,roundi(spent*float(tuning.damage_per_bark)),now,definition.title,float(tuning.radius_m),true)
+  preload("res://diagnostic_journal.gd").event("combat","card_active_cast",{"actor":peer,"card":id,"spent_bark":spent,"sequence":sequence})
+  if game.encounter_cleared():game.finish_combat(peer,player.pos)
+  return
+ if id!="bloodletting":return # New actions require a real validated dispatch.
  var thorn=load("res://thorn_affinity.gd")
  var tuning: Dictionary=definition.tuning
  var forward:=Vector3(aim.x,0,aim.y).normalized()

@@ -8,7 +8,7 @@ The integrated baseline is `a4eed49680a99f8441312fc3870b54acfe7b2ccc`. Local `ma
 
 The sole gameplay contract is now `modern-gameplay-1`: affinity-based Core/Form/Catalyst combat, free checkpoint cards, cumulative expedition grafts, and five connected class trees. There is no selectable historical gameplay fallback. `architecture/pre-modern-cutover` preserves the verified AR14 parent (`12c13c888621dd57e944088986b76bdbfad7cf41`). Git history and protected tags provide recovery.
 
-The [approved card catalog and progression design](COMBAT_BALANCE_MILESTONES.md#approved-card-and-progression-design) is the maintained authority for locked expedition loadouts, mandatory tag/capability eligibility, scaling philosophy and the nine future Unique transformations. It separates reviewed source from approved but unimplemented mechanics and provisional tuning. The active `combat/ce02-affinity-cards` branch now includes CE03 Water (78 cards), with Bloodletting, Avalanche, Wildfire and Monsoon implemented; Wood/Vital are the next CE03 checkpoints. The design contract does not imply that this development branch is integrated into `main`. See the CE02 section below for the implemented values and verification.
+The [approved card catalog and progression design](COMBAT_BALANCE_MILESTONES.md#approved-card-and-progression-design) is the maintained authority for locked expedition loadouts, mandatory tag/capability eligibility, scaling philosophy and the nine future Unique transformations. It separates reviewed source from approved but unimplemented mechanics and provisional tuning. The active `combat/ce02-affinity-cards` branch now includes CE03 Wood (89 cards). See the CE03 checkpoints for implemented transformations and provisional values. The design contract does not imply that this development branch is integrated into `main`. See the CE02 section below for the implemented values and verification.
 
 ## Shared affinity status rules
 
@@ -162,6 +162,28 @@ An accepted timeline record owns all contributors' waves for one threshold; it n
 | Monsoon | affinity | Unique unlock | `unlock` |
 
 Focused evidence: `.godot/validation/final-four-ce03-water-accepted-20261120-205444/summary.json`. Tests use disposable saves, retained original logs and exact-input keys; local loopback is not separate-computer/internet or manual balance acceptance. Broader source/release evidence remains separately scheduled.
+
+### Wood checkpoint
+
+Wood adds **11 cards**, catalog **89** at this checkpoint. The existing Wood handler owns native Bark grants and splinter responses. Capacity still absorbs 40% of unblocked hits and expires per grant, with no pool ceiling. New volleys extend the native fan/link fragment resolution, not a second projectile queue. Penetration follows the actual lane and terrain; one enemy can be damaged once per volley. Core activation and captured absorption, Form fragmentation/primary specialization, Catalyst offense/capacity and held-Bark pressure remain separate effects. Captured retaliation belongs to a valid source and uses one source/recipient interval; independently learned Splinterguard and Splinterback add their authored fragments.
+
+Splinterburst uses the existing acquired-action RPC, identity and cooldown state alongside Bloodletting. It consumes actual unexpired remaining Bark once, deals **1 damage per Bark** in **3 m**, and has a **6 s** cooldown. Expenditure bypasses absorption, break and retaliation hooks. Refused/stale/duplicate requests spend no extra protection. Values are provisional, without a maximum burst damage ceiling.
+
+| Card | Scope | Provisional Common / Uncommon / Rare / Epic | Units |
+|---|---|---|---|
+| Thickened Growth | core | 6 / 9 / 12 / 15 | `bark` |
+| Splinterguard | core | 1 / 2 / 3 / 4 | `fragments` |
+| Bursting Canopy | core | 2 / 3 / 4 / 5 | `fragments` |
+| Splinter Volley | form | 1 / 2 / 3 / 4 | `fragments` |
+| Hardwood Tips | form | 1 / 2 / 3 / 4 | `penetrations` |
+| Concentrated Grain | form | 2 / 3 / 4 / 5 | `hp` |
+| Shattering Canopy | catalyst | 1 / 2 / 3 / 4 | `fragments` |
+| Reinforced Growth | catalyst | 4 / 6 / 8 / 10 | `bark` |
+| Heartwood Pressure | affinity | 5 / 8 / 11 / 14 | `percent` |
+| Splinterback | affinity | 1 / 2 / 3 / 4 | `fragments` |
+| Splinterburst | affinity | Unique unlock | `unlock` |
+
+Focused evidence: `.godot/validation/final-four-ce03-wood-accepted-20261120-210424/summary.json`. Tests use disposable saves, retained original logs and exact-input keys; local loopback is not separate-computer/internet or manual balance acceptance. Broader source/release evidence remains separately scheduled.
 
 ## Modern gameplay cutover
 

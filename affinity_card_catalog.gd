@@ -4294,6 +4294,664 @@ const DEFINITIONS := {
 	  ]
 	},
 
+	# CE03 Wood — values and units are the authoring authority.
+	"thickened_growth": {
+	  "title": "Thickened Growth",
+	  "family": "wood",
+	  "scope": "core",
+	  "policy": "stackable",
+	  "trigger": "Adds real protective capacity to each native grant",
+	  "consumer": [
+	    "res://wood_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "wood"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "ironbark",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "core_capacity",
+	  "label": "Thickened Growth contribution",
+	  "unit": "bark",
+	  "limit": 4,
+	  "description": "Ironbark grants +%s Bark capacity.",
+	  "detail": "Provisional CE03 tuning. Adds real protective capacity to each native grant. No total pool ceiling.",
+	  "tuning": {},
+	  "values": [
+	    6,
+	    9,
+	    12,
+	    15
+	  ]
+	},
+	"splinterguard": {
+	  "title": "Splinterguard",
+	  "family": "wood",
+	  "scope": "core",
+	  "policy": "stackable",
+	  "trigger": "Requires an actual direct hostile attack absorbed by your Ironbark",
+	  "consumer": [
+	    "res://wood_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "wood"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "ironbark",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "guard_fragments",
+	  "label": "Splinterguard contribution",
+	  "unit": "fragments",
+	  "limit": 4,
+	  "description": "Ironbark absorption can release +%s retaliatory splinters.",
+	  "detail": "Provisional CE03 tuning. Requires an actual direct hostile attack absorbed by your Ironbark. Once per source/recipient each second. Coexists with Splinterback.",
+	  "tuning": {
+	    "interval_ms": 1000
+	  },
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ]
+	},
+	"bursting_canopy": {
+	  "title": "Bursting Canopy",
+	  "family": "wood",
+	  "scope": "core",
+	  "policy": "stackable",
+	  "trigger": "Uses native fragment damage and terrain collision",
+	  "consumer": [
+	    "res://wood_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "wood"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "ironbark",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "activation_fragments",
+	  "label": "Bursting Canopy contribution",
+	  "unit": "fragments",
+	  "limit": 4,
+	  "description": "Ironbark activation fires %s radial splinters.",
+	  "detail": "Provisional CE03 tuning. Uses native fragment damage and terrain collision. Each enemy can be hit once per volley.",
+	  "tuning": {},
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"splinter_volley": {
+	  "title": "Splinter Volley",
+	  "family": "wood",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Adds separate initial fragment targets to the native forward fan",
+	  "consumer": [
+	    "res://wood_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "wood"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "splintering_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "extra_fragments",
+	  "label": "Splinter Volley contribution",
+	  "unit": "fragments",
+	  "limit": 4,
+	  "description": "Eligible splintering strikes gain +%s fragments.",
+	  "detail": "Provisional CE03 tuning. Adds separate initial fragment targets to the native forward fan. The existing Form interval is unchanged.",
+	  "tuning": {},
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ]
+	},
+	"hardwood_tips": {
+	  "title": "Hardwood Tips",
+	  "family": "wood",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Only enemies along the actual fragment lane qualify",
+	  "consumer": [
+	    "res://wood_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "wood"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "splintering_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "fragment_penetrations",
+	  "label": "Hardwood Tips contribution",
+	  "unit": "penetrations",
+	  "limit": 4,
+	  "description": "Each fragment can penetrate +%s additional enemies.",
+	  "detail": "Provisional CE03 tuning. Only enemies along the actual fragment lane qualify. Solid cover stops it. Each enemy is damaged at most once per volley, across all fragments.",
+	  "tuning": {
+	    "lane_radius_m": 0.18,
+	    "extra_reach_m": 2.0
+	  },
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ]
+	},
+	"concentrated_grain": {
+	  "title": "Concentrated Grain",
+	  "family": "wood",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Strengthens the native initiating impact even against a single enemy",
+	  "consumer": [
+	    "res://wood_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "wood"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "splintering_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "concentrated_hp",
+	  "label": "Concentrated Grain contribution",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Splintering Strikes deal +%s damage to their primary enemy.",
+	  "detail": "Provisional CE03 tuning. Strengthens the native initiating impact even against a single enemy. Does not produce another contact.",
+	  "tuning": {},
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"shattering_canopy": {
+	  "title": "Shattering Canopy",
+	  "family": "wood",
+	  "scope": "catalyst",
+	  "policy": "stackable",
+	  "trigger": "Once per class action, at the native contact or designated attack center",
+	  "consumer": [
+	    "res://wood_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "wood"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "catalyst",
+	          "id": "self_bark"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "offense_fragments",
+	  "label": "Shattering Canopy contribution",
+	  "unit": "fragments",
+	  "limit": 4,
+	  "description": "Offensive class contacts release %s extra splinters.",
+	  "detail": "Provisional CE03 tuning. Once per class action, at the native contact or designated attack center. Does not create additional Catalyst contacts.",
+	  "tuning": {},
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ]
+	},
+	"reinforced_growth": {
+	  "title": "Reinforced Growth",
+	  "family": "wood",
+	  "scope": "catalyst",
+	  "policy": "stackable",
+	  "trigger": "Uses independent native grant lifetimes and ordinary partial absorption",
+	  "consumer": [
+	    "res://wood_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "wood"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "self_bark"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "radial_splinters_and_bark"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "recipient_bark"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "landing_bark"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "catalyst_capacity",
+	  "label": "Reinforced Growth contribution",
+	  "unit": "bark",
+	  "limit": 4,
+	  "description": "Compatible Catalyst responses grant +%s Bark capacity.",
+	  "detail": "Provisional CE03 tuning. Uses independent native grant lifetimes and ordinary partial absorption.",
+	  "tuning": {},
+	  "values": [
+	    4,
+	    6,
+	    8,
+	    10
+	  ]
+	},
+	"heartwood_pressure": {
+	  "title": "Heartwood Pressure",
+	  "family": "wood",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Uses actual unexpired remaining Bark when each volley begins",
+	  "consumer": [
+	    "res://wood_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "any": [
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "core",
+	                  "primary_affinity": "wood"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "core",
+	                  "id": "ironbark",
+	                  "slot": "core"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "catalyst",
+	                  "primary_affinity": "wood"
+	                }
+	              },
+	              {
+	                "any": [
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "self_bark"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "radial_splinters_and_bark"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "recipient_bark"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "landing_bark"
+	                    }
+	                  }
+	                ]
+	              }
+	            ]
+	          }
+	        ]
+	      },
+	      {
+	        "any": [
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "form",
+	                  "primary_affinity": "wood"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "form",
+	                  "id": "splintering_strikes",
+	                  "slot": "form"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "owned": {
+	              "kind": "card",
+	              "id": "splinterguard"
+	            }
+	          },
+	          {
+	            "owned": {
+	              "kind": "card",
+	              "id": "bursting_canopy"
+	            }
+	          },
+	          {
+	            "owned": {
+	              "kind": "card",
+	              "id": "shattering_canopy"
+	            }
+	          },
+	          {
+	            "owned": {
+	              "kind": "card",
+	              "id": "splinterback"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "held_bark_percent",
+	  "label": "Heartwood Pressure contribution",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Splinter damage gains %s%% of your held Bark.",
+	  "detail": "Provisional CE03 tuning. Uses actual unexpired remaining Bark when each volley begins. Requires a functioning Bark source and a real splinter producer. Does not spend protection.",
+	  "tuning": {},
+	  "values": [
+	    5,
+	    8,
+	    11,
+	    14
+	  ]
+	},
+	"splinterback": {
+	  "title": "Splinterback",
+	  "family": "wood",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Requires an actual direct hostile attack",
+	  "consumer": [
+	    "res://wood_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "wood"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "ironbark",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "wood"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "self_bark"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_splinters_and_bark"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "recipient_bark"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_bark"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "retaliation_fragments",
+	  "label": "Splinterback contribution",
+	  "unit": "fragments",
+	  "limit": 4,
+	  "description": "Your Bark absorption can release %s retaliatory splinters.",
+	  "detail": "Provisional CE03 tuning. Requires an actual direct hostile attack. Once per source/recipient each second. Adds to separately learned Splinterguard.",
+	  "tuning": {
+	    "interval_ms": 1000
+	  },
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ]
+	},
+	"splinterburst": {
+	  "title": "Splinterburst",
+	  "family": "wood",
+	  "scope": "affinity",
+	  "policy": "unique",
+	  "trigger": "Deals 1 damage per actual Bark consumed within 3 m",
+	  "consumer": [
+	    "res://card_active_actions.gd",
+	    "command"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "wood"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "ironbark",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "wood"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "self_bark"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_splinters_and_bark"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "recipient_bark"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_bark"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "splinterburst_unlock",
+	  "label": "Splinterburst contribution",
+	  "unit": "unlock",
+	  "limit": 1,
+	  "description": "Activate to spend all held Bark for radial damage.",
+	  "detail": "Provisional CE03 tuning. Deals 1 damage per actual Bark consumed within 3 m. Six-second cooldown. Expenditure cannot activate Bark break or retaliation. Independent additional skill-bar action.",
+	  "tuning": {
+	    "cooldown_ms": 6000,
+	    "radius_m": 3.0,
+	    "damage_per_bark": 1.0
+	  },
+	  "fixed": 1,
+	  "grants": [
+	    "splinterburst"
+	  ],
+	  "active": true
+	},
+
 }
 
 
@@ -4317,7 +4975,7 @@ static func effect_text(definition: Dictionary, value: int) -> String:
 	var text: String = definition.description
 	if "%s" not in text:
 		return text
-	var number := str(value) if definition.unit in ["hp","healing_hp","pressure","stacks","percent","unlock"] else ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
+	var number := str(value) if definition.unit in ["hp","healing_hp","pressure","bark","fragments","penetrations","stacks","percent","unlock"] else ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
 	if definition.unit == "cm": number = ("%.2f" % (value / 100.0)).rstrip("0").trim_suffix(".")
 	return text % number
 
@@ -4336,6 +4994,9 @@ static func contribution_label(definition: Dictionary) -> String:
 
 
 static func contribution(definition: Dictionary, value: int) -> String:
+	if definition.unit == "bark": return "+%d Bark" % value
+	if definition.unit == "fragments": return "+%d fragments" % value
+	if definition.unit == "penetrations": return "+%d extra targets per fragment" % value
 	if definition.unit == "pressure": return "+%d Saturation" % value
 	if definition.unit == "healing_hp": return "+%d HP healing" % value
 	if definition.unit == "percent": return "+%d%%" % value
