@@ -1483,6 +1483,937 @@ const DEFINITIONS := {
 	  ],
 	  "active": true
 	},
+	# CE02 Frost — independently acquired source, rupture and propagation cards.
+	"fractured_bloom": {
+	  "title": "Fractured Bloom",
+	  "scope": "core",
+	  "family": "frost",
+	  "policy": "stackable",
+	  "trigger": "Eligible core Frost application or rupture",
+	  "consumer": [
+	    "res://frost_combat.gd",
+	    "apply"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "frost"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "rime_bloom",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "source_shatter_hp",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Rime Bloom applications gain +%s maximum shatter damage.",
+	  "detail": "Provisional CE02 tuning. Each applied stack freezes one third of this source-specific increase.",
+	  "values": [
+	    3,
+	    5,
+	    7,
+	    9
+	  ]
+	},
+	"returning_winter": {
+	  "title": "Returning Winter",
+	  "scope": "core",
+	  "family": "frost",
+	  "policy": "stackable",
+	  "trigger": "Eligible core Frost application or rupture",
+	  "consumer": [
+	    "res://frost_combat.gd",
+	    "bloom_phase"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "frost"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "rime_bloom",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "closing_stacks",
+	  "unit": "stacks",
+	  "limit": 4,
+	  "description": "Rime Bloom closing petals apply %s additional Brittle stacks.",
+	  "detail": "Provisional CE02 tuning. Separate from Avalanche and Shatterwave. Every completed three-stack group ruptures normally.",
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ]
+	},
+	"fracturing_edge": {
+	  "title": "Fracturing Edge",
+	  "scope": "form",
+	  "family": "frost",
+	  "policy": "stackable",
+	  "trigger": "Eligible form Frost application or rupture",
+	  "consumer": [
+	    "res://frost_combat.gd",
+	    "apply"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "frost"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "brittle_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "source_shatter_hp",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Basic-attack Brittle gains +%s maximum shatter damage.",
+	  "detail": "Provisional CE02 tuning. Only the source-weighted contribution of eligible basic-hit stacks changes.",
+	  "values": [
+	    3,
+	    5,
+	    7,
+	    9
+	  ]
+	},
+	"relentless_chill": {
+	  "title": "Relentless Chill",
+	  "scope": "form",
+	  "family": "frost",
+	  "policy": "stackable",
+	  "trigger": "Eligible form Frost application or rupture",
+	  "consumer": [
+	    "res://frost_combat.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "frost"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "brittle_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "extra_stack_milli",
+	  "unit": "milli_stacks",
+	  "limit": 4,
+	  "description": "Each eligible basic hit earns %s additional Brittle stack credit.",
+	  "detail": "Provisional CE02 tuning. Whole credits apply extra stacks to that hit; fractional credit carries between hits. No random roll.",
+	  "values": [
+	    250,
+	    400,
+	    550,
+	    700
+	  ]
+	},
+	"cold_precision": {
+	  "title": "Cold Precision",
+	  "scope": "form",
+	  "family": "frost",
+	  "policy": "stackable",
+	  "trigger": "Eligible form Frost application or rupture",
+	  "consumer": [
+	    "res://frost_combat.gd",
+	    "ordinary_bonus"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "frost"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "brittle_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "precision_hp_per_stack",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Basic hits deal +%s damage per Brittle stack already on their target.",
+	  "detail": "Provisional CE02 tuning. Counts the current zero, one or two shared stacks before this hit applies its Form. No secondary contact.",
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ]
+	},
+	"winters_judgment": {
+	  "title": "Winter's Judgment",
+	  "scope": "catalyst",
+	  "family": "frost",
+	  "policy": "stackable",
+	  "trigger": "Eligible catalyst Frost application or rupture",
+	  "consumer": [
+	    "res://frost_combat.gd",
+	    "apply"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "frost"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "brittle"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "brittle_burst"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "recipient_frost_response"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "self_frost_response"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "source_shatter_hp",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Class-action Brittle gains +%s maximum shatter damage.",
+	  "detail": "Provisional CE02 tuning. Only stacks actually supplied by the equipped Frost Catalyst gain this frozen contribution.",
+	  "values": [
+	    3,
+	    5,
+	    7,
+	    9
+	  ]
+	},
+	"spreading_chill": {
+	  "title": "Spreading Chill",
+	  "scope": "catalyst",
+	  "family": "frost",
+	  "policy": "stackable",
+	  "trigger": "Eligible catalyst Frost application or rupture",
+	  "consumer": [
+	    "res://frost_combat.gd",
+	    "apply"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "frost"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "brittle"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "brittle_burst"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "recipient_frost_response"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "self_frost_response"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "side_shatter_percent",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "A qualifying class action adds one nearby Brittle stack at %s%% shatter potency.",
+	  "detail": "Provisional CE02 tuning. Once per action, to another enemy within 2.4 m and clear line. This secondary stack cannot launch further spreads or secondary bursts.",
+	  "values": [
+	    10,
+	    15,
+	    20,
+	    25
+	  ],
+	  "tuning": {
+	    "radius_m": 2.4
+	  }
+	},
+	"shatter_rhythm": {
+	  "title": "Shatter Rhythm",
+	  "scope": "catalyst",
+	  "family": "frost",
+	  "policy": "stackable",
+	  "trigger": "Eligible catalyst Frost application or rupture",
+	  "consumer": [
+	    "res://frost_combat.gd",
+	    "apply"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "frost"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "brittle"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "brittle_burst"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "recipient_frost_response"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "self_frost_response"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "rhythm_shatter_hp",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "A Catalyst rupture prepares +%s shatter potency for that class action's next use.",
+	  "detail": "Provisional CE02 tuning. Same Q or R slot, within five seconds. Claimed on its first eligible application; refused or empty casts do not spend it. It cannot empower its own cast.",
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ],
+	  "tuning": {
+	    "duration_ms": 5000
+	  }
+	},
+	"crystalline_fracture": {
+	  "title": "Crystalline Fracture",
+	  "scope": "affinity",
+	  "family": "frost",
+	  "policy": "stackable",
+	  "trigger": "Eligible affinity Frost application or rupture",
+	  "consumer": [
+	    "res://frost_combat.gd",
+	    "apply"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "tags_all": [
+	            "frost"
+	          ]
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "core",
+	                  "primary_affinity": "frost"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "core",
+	                  "id": "rime_bloom",
+	                  "slot": "core"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "form",
+	                  "primary_affinity": "frost"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "form",
+	                  "id": "brittle_strikes",
+	                  "slot": "form"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "catalyst",
+	                  "primary_affinity": "frost"
+	                }
+	              },
+	              {
+	                "any": [
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "brittle"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "brittle_burst"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "recipient_frost_response"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "self_frost_response"
+	                    }
+	                  }
+	                ]
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "shared_potency_hp",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Increase maximum shatter damage by %s across functioning Frost sources.",
+	  "detail": "Provisional CE02 tuning. Counts once across equipped sources; each stack freezes one third when applied.",
+	  "values": [
+	    3,
+	    5,
+	    7,
+	    9
+	  ]
+	},
+	"deep_freeze": {
+	  "title": "Deep Freeze",
+	  "scope": "affinity",
+	  "family": "frost",
+	  "policy": "stackable",
+	  "trigger": "Eligible affinity Frost application or rupture",
+	  "consumer": [
+	    "res://frost_combat.gd",
+	    "apply"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "tags_all": [
+	            "frost"
+	          ]
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "core",
+	                  "primary_affinity": "frost"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "core",
+	                  "id": "rime_bloom",
+	                  "slot": "core"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "form",
+	                  "primary_affinity": "frost"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "form",
+	                  "id": "brittle_strikes",
+	                  "slot": "form"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "catalyst",
+	                  "primary_affinity": "frost"
+	                }
+	              },
+	              {
+	                "any": [
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "brittle"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "brittle_burst"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "recipient_frost_response"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "self_frost_response"
+	                    }
+	                  }
+	                ]
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "slow_bonus_percent",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Each active Brittle stack adds %s percentage points more movement Slow.",
+	  "detail": "Provisional CE02 tuning. Preserves the one- and two-stack progression and the existing boss Slow scale. Grants no root.",
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ]
+	},
+	"rime_lock": {
+	  "title": "Rime Lock",
+	  "scope": "affinity",
+	  "family": "frost",
+	  "policy": "stackable",
+	  "trigger": "Eligible affinity Frost application or rupture",
+	  "consumer": [
+	    "res://frost_combat.gd",
+	    "rupture_effects"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "tags_all": [
+	            "frost"
+	          ]
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "core",
+	                  "primary_affinity": "frost"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "core",
+	                  "id": "rime_bloom",
+	                  "slot": "core"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "form",
+	                  "primary_affinity": "frost"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "form",
+	                  "id": "brittle_strikes",
+	                  "slot": "form"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "catalyst",
+	                  "primary_affinity": "frost"
+	                }
+	              },
+	              {
+	                "any": [
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "brittle"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "brittle_burst"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "recipient_frost_response"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "self_frost_response"
+	                    }
+	                  }
+	                ]
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "rupture_root_ms",
+	  "unit": "ms",
+	  "limit": 4,
+	  "description": "Your eligible Brittle ruptures root surviving enemies for %s seconds.",
+	  "detail": "Provisional CE02 tuning. Uses the longest eligible captured owner duration without shortening an existing root. Baseline rupture remains root-free.",
+	  "values": [
+	    150,
+	    250,
+	    350,
+	    450
+	  ]
+	},
+	"shatterwave": {
+	  "title": "Shatterwave",
+	  "scope": "affinity",
+	  "family": "frost",
+	  "policy": "stackable",
+	  "trigger": "Eligible affinity Frost application or rupture",
+	  "consumer": [
+	    "res://frost_combat.gd",
+	    "rupture_effects"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "tags_all": [
+	            "frost"
+	          ]
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "core",
+	                  "primary_affinity": "frost"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "core",
+	                  "id": "rime_bloom",
+	                  "slot": "core"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "form",
+	                  "primary_affinity": "frost"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "form",
+	                  "id": "brittle_strikes",
+	                  "slot": "form"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "catalyst",
+	                  "primary_affinity": "frost"
+	                }
+	              },
+	              {
+	                "any": [
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "brittle"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "brittle_burst"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "recipient_frost_response"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "self_frost_response"
+	                    }
+	                  }
+	                ]
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "shatterwave_percent",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Your eligible ruptures deal %s%% additional rupture damage in an area.",
+	  "detail": "Provisional CE02 tuning. One strongest eligible captured owner emits immediate secondary damage within 2.4 m, including the original target if alive. No Brittle spread or secondary proc.",
+	  "values": [
+	    20,
+	    30,
+	    40,
+	    50
+	  ],
+	  "tuning": {
+	    "radius_m": 2.4
+	  }
+	},
+	"avalanche": {
+	  "title": "Avalanche",
+	  "scope": "affinity",
+	  "family": "frost",
+	  "policy": "unique",
+	  "trigger": "Eligible affinity Frost application or rupture",
+	  "consumer": [
+	    "res://frost_combat.gd",
+	    "rupture_effects"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "tags_all": [
+	            "frost"
+	          ]
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "core",
+	                  "primary_affinity": "frost"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "core",
+	                  "id": "rime_bloom",
+	                  "slot": "core"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "form",
+	                  "primary_affinity": "frost"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "form",
+	                  "id": "brittle_strikes",
+	                  "slot": "form"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "catalyst",
+	                  "primary_affinity": "frost"
+	                }
+	              },
+	              {
+	                "any": [
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "brittle"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "brittle_burst"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "recipient_frost_response"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "self_frost_response"
+	                    }
+	                  }
+	                ]
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "avalanche_unlock",
+	  "unit": "unlock",
+	  "limit": 1,
+	  "description": "Your eligible ruptures spread one attributed Brittle stack to nearby enemies.",
+	  "detail": "Provisional CE02 tuning. Within 2.4 m and clear line. The stack retains its source potency. A propagation-triggered rupture cannot emit another Avalanche or secondary burst; later legitimate attacks can.",
+	  "fixed": 1,
+	  "tuning": {
+	    "radius_m": 2.4
+	  },
+	  "grants": [
+	    "avalanche"
+	  ]
+	},
 }
 
 
@@ -1534,6 +2465,8 @@ static func contribution(definition: Dictionary, value: int) -> String:
 		"regen_per_second": return "+%d HP/s" % value
 		"max_hp": return "+%d Max HP" % value
 		"strike_interval": return "%s s less between basic attacks" % ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
+	if definition.unit == "stacks": return "+%d stacks" % value
+	if definition.unit == "milli_stacks": return "+%.3f stack credit per hit" % (value/1000.0)
 	if definition.unit == "hp":
 		return "+%d damage" % value
 	if value == 0:

@@ -1092,10 +1092,7 @@
 
     },
     "frost_combat.gd": {
-      "ec01_1": {
-        "match": "\t\tcast.affinity_action.publish(game, \"core_action\", phase, target_token(game, target), now,\n\t\t\t{\"enemy\": target, \"stacks\": count, \"opening_hp\": Balance.BLOOM_OPEN_HP + int(cast.affinity_action.potency().get(\"opening_bonus_hp\",0)) if phase == \"open\" else 0})\n\n",
-        "baseline": "\t\tcast.affinity_action.publish(game, \"core_action\", phase, target_token(game, target), now,\n\t\t\t{\"enemy\": target, \"stacks\": count, \"opening_hp\": Balance.BLOOM_OPEN_HP if phase == \"open\" else 0})\n\n"
-      }
+
     },
     "combat_action_events.gd": {
       "ar08_lifecycle_1": {

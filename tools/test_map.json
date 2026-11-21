@@ -1530,6 +1530,9 @@
     ]
   },
   "suites": {
+    "ce02_frost": {"kind":"unit", "profile":"affinity", "systems":["affinity_cards","frost_affinity","combat_affinity_contracts","combat","network_session","world_snapshot"], "package":false},
+    "ce02_frost_coop": {"kind":"pair", "profile":"affinity", "systems":["affinity_cards","frost_affinity","combat_affinity_contracts","combat","network_session","world_snapshot"], "package":false},
+    "ce02_frost_party": {"kind":"party", "profile":"affinity", "systems":["affinity_cards","frost_affinity","combat_affinity_contracts","combat","network_session","world_snapshot"], "package":false},
     "ce02_thorn_coop": {"kind":"pair", "profile":"affinity", "systems":["affinity_cards","thorn_affinity","combat_affinity_contracts","network_session","world_snapshot","expedition_participation"], "package":false},
     "ce02_thorn_party": {"kind":"party", "profile":"affinity", "systems":["affinity_cards","thorn_affinity","combat_affinity_contracts","network_session","world_snapshot","expedition_participation"], "package":false},
     "ce02_thorn": {"kind":"unit", "profile":"affinity", "systems":["affinity_cards","thorn_affinity","combat_affinity_contracts","combat_builds","combat","connection_flow","player_lifecycle"], "package":false},
@@ -5801,7 +5804,7 @@
     "wood_affinity.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}, "ec01_1": {"systems": ["affinity_cards"]}}},
     "vital_combat.gd": {"regions": {"ar07_vitals_1": {"systems": ["player_vitals"]}, "ar07_vitals_2": {"systems": ["player_vitals"]}, "ar07_vitals_3": {"systems": ["player_vitals"]}, "ar07_vitals_4": {"systems": ["player_vitals"]}, "ar07_vitals_5": {"systems": ["player_vitals"]}}},
     "water_combat.gd": {"regions": { }},
-    "frost_combat.gd": {"regions": {"ec01_1": {"systems": ["affinity_cards"]}}},
+    "frost_combat.gd": {"regions": {}},
     "combat_action_events.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}}},
     "combat_ruleset.gd": {
       "newline": "lf",

@@ -1,6 +1,10 @@
 extends RefCounted
 const OutgoingHits = preload("res://outgoing_hits.gd")
 
+const Catalog = preload("res://affinity_card_catalog.gd")
+const CREDIT := "frost_card_credit"
+const RHYTHM := "frost_card_rhythm"
+const CARD_GRANTS := {"avalanche_unlock":{"method":"rupture_effects","capability":{"producer":"card","id":"avalanche","recipient":"enemy"}}}
 const Balance = preload("res://frost_balance.gd")
 const Sources = preload("res://affinity_status_source.gd")
 const BRITTLE := "affinity_brittle"
@@ -67,18 +71,50 @@ static func tick(game: Node, now: int) -> void:
 	for target in range(-1,game.encounter.scout_count()):
 		if body(game,target).has(BRITTLE): clean(game,target,now)
 
+static func ordinary_bonus(game: Node, event: RefCounted, target: int, now: int) -> int:
+	if event.source!="form" or event.affinity!="frost": return 0
+	return int(event.potency().get("precision_hp_per_stack",0))*clean(game,target,now).get("stacks",[]).size()
+
+
 static func apply(game: Node, event: RefCounted, target: int, count: int, now: int) -> void:
-	var source := Sources.capture(event)
+	var source:=Sources.capture(event)
 	if not game.multiplayer.is_server() or not Sources.current(game,source) or not valid_target(game,target): return
-	var actor := body(game,target)
-	var current := clean(game,target,now)
-	var stacks: Array = current.get("stacks",[])
-	var potency: Dictionary = event.potency()
-	var maximum := float(potency.get("personal_cap_hp",potency.max_shatter_hp))
+	var q: Dictionary=event.potency()
+	if event.source=="catalyst" and event.native_slot in [0,1] and event.take_response("frost_rhythm_capture"):
+		var p: Dictionary=game.players[event.actor]
+		var all_preps: Dictionary=p.get(RHYTHM,{})
+		var prep: Dictionary=all_preps.get(event.native_slot,{})
+		if not prep.is_empty() and Sources.current(game,prep) and now<int(prep.until) and int(prep.activation)!=event.identity:
+			event.card_potency_bonus=int(prep.hp)
+			all_preps.erase(event.native_slot)
+	var maximum: float=float(q.get("personal_cap_hp",q.max_shatter_hp))+float(q.get("source_shatter_hp",0))+event.card_potency_bonus
+	var slow:=float(q.move_slow)+float(q.get("slow_bonus_percent",0))/100.0
+	var point: Vector3=game.enemy_position(target)
+	var bursts:=resolve_stacks(game,source,Sources.units(maximum),slow,q,target,count,now)
+	if event.source!="catalyst" or not Sources.current(game,source): return
+	if bursts>0 and event.native_slot in [0,1] and int(q.get("rhythm_shatter_hp",0))>0 and event.take_response("frost_rhythm_grant"):
+		var prep:=source.duplicate(true)
+		prep.merge({"hp":int(q.rhythm_shatter_hp),"until":now+int(Catalog.DEFINITIONS.shatter_rhythm.tuning.duration_ms)})
+		if not game.players[event.actor].has(RHYTHM): game.players[event.actor][RHYTHM]={}
+		game.players[event.actor][RHYTHM][event.native_slot]=prep
+	if int(q.get("side_shatter_percent",0))>0 and event.take_response("frost_side_stack"):
+		var tuning: Dictionary=Catalog.DEFINITIONS.spreading_chill.tuning
+		var neighbors: Array=game.skill_area_targets(point,float(tuning.radius_m),point)
+		neighbors.erase(target)
+		neighbors.sort_custom(func(a,b):return game.enemy_position(a).distance_squared_to(point)<game.enemy_position(b).distance_squared_to(point) or (is_equal_approx(game.enemy_position(a).distance_squared_to(point),game.enemy_position(b).distance_squared_to(point)) and a<b))
+		if not neighbors.is_empty(): resolve_stacks(game,source,Sources.units(maximum*float(q.side_shatter_percent)/100.0),slow,q,int(neighbors[0]),1,now,true)
+
+
+## One group of three frozen numerators, regardless of which owner completes it.
+static func resolve_stacks(game: Node, source: Dictionary, maximum_units: int, slow: float,
+		effects: Dictionary, target: int, count: int, now: int, secondary := false) -> int:
+	if not Sources.current(game,source) or not valid_target(game,target): return 0
+	var actor:=body(game,target)
+	var current:=clean(game,target,now)
+	var stacks: Array=current.get("stacks",[])
 	for index in count:
-		var contribution := source.duplicate(true)
-		contribution.slow=potency.move_slow
-		contribution.numerator=Sources.units(maximum)
+		var contribution:=source.duplicate(true)
+		contribution.merge({"slow":slow,"numerator":maximum_units,"effects":effects.duplicate(true)})
 		stacks.append(contribution)
 	var bursts: Array=[]
 	while stacks.size()>=Balance.STACKS_TO_RUPTURE:
@@ -86,20 +122,55 @@ static func apply(game: Node, event: RefCounted, target: int, count: int, now: i
 		stacks=stacks.slice(Balance.STACKS_TO_RUPTURE)
 	if stacks.is_empty(): actor.erase(BRITTLE)
 	else:
-		var slow:=0.0
-		for stack in stacks: slow+=float(stack.slow)
-		actor[BRITTLE]={"epoch":event.epoch,"token":game.encounter.spawn_identity(target),
-			"expires":now+Balance.BRITTLE_MS,"stacks":stacks,"slow":slow}
+		var combined:=0.0
+		for stack in stacks: combined+=float(stack.slow)
+		actor[BRITTLE]={"epoch":source.epoch,"token":game.encounter.spawn_identity(target),"expires":now+Balance.BRITTLE_MS,"stacks":stacks,"slow":combined}
 	for spent in bursts:
 		var numerator:=0
 		for stack in spent: numerator+=int(stack.numerator)
 		var hp:=roundi(float(numerator)/(Balance.STACKS_TO_RUPTURE*Sources.UNITS_PER_HP))
 		var point: Vector3=game.enemy_position(target)
-		game.emit_combat_event("ability","frost_rupture",point,point,.55,COLOR,1.2,event.actor,{"label":"Brittle rupture"})
+		game.emit_combat_event("ability","frost_rupture",point,point,.55,COLOR,1.2,int(source.actor),{"label":"Brittle rupture"})
 		var record: Callable=game.get_meta(&"frost_rupture_witness",Callable())
 		if record.is_valid(): record.call(spent.duplicate(true),hp)
-		damage(game,event.actor,target,hp,now)
+		if secondary: OutgoingHits.affinity_world(game,int(source.actor),target,hp,now,COLOR,true)
+		else: damage(game,int(source.actor),target,hp,now)
+		if not secondary and Sources.current(game,source): rupture_effects(game,target,point,spent,hp,now)
 		if not valid_target(game,target): break
+	return bursts.size()
+
+
+static func effect_owner(stacks: Array, parameter: String) -> Dictionary:
+	var candidates:={}
+	for index in stacks.size():
+		var row: Dictionary=stacks[index]
+		var strength:=int(row.get("effects",{}).get(parameter,0))
+		if strength>0:
+			var candidate:=row.duplicate(true)
+			candidate.strength=strength
+			candidates[str(index)]=candidate
+	return Sources.dominant(candidates,"strength")
+
+
+static func rupture_effects(game: Node, target: int, point: Vector3, spent: Array, hp: int, now: int) -> void:
+	var root:=effect_owner(spent,"rupture_root_ms")
+	if not root.is_empty() and Sources.current(game,root) and valid_target(game,target):
+		var actor:=body(game,target)
+		actor.frost_root_until=maxi(int(actor.get("frost_root_until",0)),now+int(root.strength))
+	var wave:=effect_owner(spent,"shatterwave_percent")
+	if not wave.is_empty() and Sources.current(game,wave):
+		var radius:=float(Catalog.DEFINITIONS.shatterwave.tuning.radius_m)
+		game.emit_combat_event("ability","shatterwave",point,point,.5,COLOR,radius,int(wave.actor),{"label":"Shatterwave"})
+		for victim in game.skill_area_targets(point,radius,point):
+			if not Sources.current(game,wave) or game.persistence_session.is_blocked(): break
+			OutgoingHits.affinity_world(game,int(wave.actor),victim,roundi(hp*float(wave.strength)/100.0),now,COLOR,true)
+	var avalanche:=effect_owner(spent,"avalanche_unlock")
+	if not avalanche.is_empty() and Sources.current(game,avalanche):
+		var radius:=float(Catalog.DEFINITIONS.avalanche.tuning.radius_m)
+		for victim in game.skill_area_targets(point,radius,point):
+			if victim!=target and Sources.current(game,avalanche) and not game.persistence_session.is_blocked():
+				resolve_stacks(game,avalanche,int(avalanche.numerator),float(avalanche.slow),avalanche.effects,victim,1,now,true)
+		preload("res://diagnostic_journal.gd").event("combat","avalanche",{"actor":avalanche.actor,"target":target,"numerator":avalanche.numerator})
 
 
 static func bloom(game: Node, cast: Dictionary, now: int) -> bool:
@@ -123,7 +194,7 @@ static func bloom_phase(game: Node, cast: Dictionary, phase: String, count: int,
 		{"label":"Opening petals" if phase=="open" else "Closing petals"})
 	for target in game.skill_area_targets(center, Balance.BLOOM_RADIUS, center):
 		cast.affinity_action.publish(game, "core_action", phase, target_token(game, target), now,
-			{"enemy": target, "stacks": count, "opening_hp": Balance.BLOOM_OPEN_HP + int(cast.affinity_action.potency().get("opening_bonus_hp",0)) if phase == "open" else 0})
+			{"enemy": target, "stacks": count+int(cast.affinity_action.potency().get("closing_stacks",0)) if phase=="close" else count, "opening_hp": Balance.BLOOM_OPEN_HP + int(cast.affinity_action.potency().get("opening_bonus_hp",0)) if phase == "open" else 0})
 
 
 static func on_event(game: Node, event: RefCounted, kind: String, details: Dictionary, now: int) -> void:
@@ -133,7 +204,19 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 			if int(details.opening_hp) > 0:
 				damage(game, event.actor, enemy, int(details.opening_hp), now)
 			apply(game, event, enemy, int(details.stacks), now)
-		"weapon_contact", "class_contact", "incoming_hit":
+		"weapon_contact":
+			var extra:=0
+			var q: Dictionary=event.potency()
+			if int(q.get("extra_stack_milli",0))>0:
+				var player: Dictionary=game.players[event.actor]
+				var credit: Dictionary=player.get(CREDIT,{})
+				var units:=int(credit.get("units",0)) if not credit.is_empty() and Sources.current(game,credit) else 0
+				units+=int(q.extra_stack_milli)
+				@warning_ignore("integer_division")
+				extra=units/1000
+				var next:=Sources.capture(event);next.units=units%1000;player[CREDIT]=next
+			apply(game,event,int(details.enemy),1+extra,now)
+		"class_contact", "incoming_hit":
 			apply(game, event, int(details.enemy), 1, now)
 		"actual_block":
 			var center: Vector3 = details.center

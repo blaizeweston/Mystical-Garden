@@ -11,6 +11,8 @@ const Frost = preload("res://frost_combat.gd")
 const CHANNELS := ["weapon_contact", "core_action", "class_action", "class_contact",
 	"actual_block", "armor_break", "periodic", "secondary", "incoming_hit", "class_field_contact"]
 
+var native_slot := -1
+var card_potency_bonus := 0
 var identity: int
 var epoch: int
 var actor: int
@@ -107,8 +109,10 @@ static func class_start(game: Node, actor_id: int, adapter: Dictionary, now: int
 	var allowed: Array = channels.get(adapter.get("trigger"), [])
 	if ready and catalyst.get("primary_affinity") in ["vital","wood"] and adapter.get("recipients") == "designated_area":
 		allowed.append("class_field_contact")
-	return begin(game, actor_id, "catalyst" if ready else "native_class", catalyst if ready else {},
+	var event := begin(game, actor_id, "catalyst" if ready else "native_class", catalyst if ready else {},
 		catalyst.potency_profile.values if ready else {}, allowed, now + 30000)
+	if event != null: event.native_slot = int(adapter.get("slot",-1))
+	return event
 
 
 static func class_complete(game: Node, event: RefCounted, adapter: Dictionary, start: Vector3, center: Vector3,
