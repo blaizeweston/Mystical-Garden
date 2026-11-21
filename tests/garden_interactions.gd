@@ -20,6 +20,8 @@ func run() -> void:
  check(not Service.compatible_projection({}) and not Service.compatible_projection({"version":1,"catalog":"wrong"}),"absent/foreign catalog projections cannot expose mismatched anchors")
  var second: Dictionary=Catalog.POINTS[0].duplicate(true);second.id="second_scar";second.observation="second_trace";second.position=Vector3(2,0,8)
  check(Catalog.errors([Catalog.POINTS[0],second],[Catalog.ZONES[0]]).is_empty(),"a second point requires data, not a new handler")
+ var malformed: Dictionary=second.duplicate(true);malformed.blocks_construction="false"
+ check(Catalog.errors([malformed],[Catalog.ZONES[0]]).has("Invalid construction reservation: second_scar"),"construction reservation flags require an explicit boolean")
  check(not Catalog.errors([], [{"id":"a","parent":"b"},{"id":"b","parent":"a"}]).is_empty(),"cyclic parent/child content is rejected")
  var pure:=State.blank();pure.observations.future_observation=true;pure.future_field={"keep":7}
  State.record(pure,second,"other:request")

@@ -66,6 +66,9 @@ func run() -> void:
 		"all starting structures have exactly one placement record")
 	check(not garden.state.landmarks.has("altar") and not garden.state.landmarks.has("bed_0"),
 		"old fixed collision and root reservations are retired")
+	var altar: int = garden.station_ids.altar
+	var altar_target := Vector2(6.0, 1.5)
+	check(garden.place("altar", altar_target, 0.0, altar), "the existing Garden Altar moves into the retired spring reservation")
 	game.progress.plots[0].merge({"species": 0, "age": 300.0, "stage": 3}, true)
 	preload("res://garden_crop_state.gd").ensure(game.progress.plots[0])
 	preload("res://cultivation_growth.gd").initialize(game.progress.plots[0])
@@ -79,9 +82,6 @@ func run() -> void:
 		check(game.stage.bed_position(slot).is_equal_approx(Vector3(target.x, 0, target.y)), "bed interaction uses current placement")
 	check(game.progress.plots.size() == 3 and game.progress.plots[0] == crop and garden.bed_ids == ids,
 		"moving retains the plot identity and complete crop record")
-	var altar: int = garden.station_ids.altar
-	var altar_target := relocation(garden, "altar", altar)
-	check(altar_target.is_finite() and garden.place("altar", altar_target, 0.2, altar), "the existing Garden Altar is movable")
 	check(game.stage.altar_position().is_equal_approx(Vector3(altar_target.x, 0, altar_target.y))
 		and garden.structure_nodes.size() == 1, "altar art and interaction move together without an old copy")
 	check(not garden.place("altar", Vector2.ZERO, 0.0), "a second starting altar cannot be purchased")

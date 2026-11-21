@@ -102,6 +102,7 @@ func configure(world_node: Node, presentation: Node3D) -> void:
 		var reserved_point := Shapes.disk("interaction_"+point.id,"interaction",planar(point.position),0.65)
 		reserved_point.requires_access=false # Reserve scenery, without an invisible actor collider.
 		reserved_point.blocks_movement=false
+		reserved_point.blocks_construction=point.get("blocks_construction",true)
 		protections.append(reserved_point)
 	for id: String in stage.HEART_STATIONS:
 		var reserved_station := Shapes.disk("native_station_"+id,"station",planar(stage.HEART_STATIONS[id]),0.65)

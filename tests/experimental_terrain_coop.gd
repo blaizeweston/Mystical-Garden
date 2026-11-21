@@ -179,8 +179,9 @@ func host_run(menu: Node) -> void:
 	var moved: Array = []
 	for kind: String in ["bed", "altar"]:
 		var id: int = garden.bed_ids[0] if kind == "bed" else garden.station_ids.altar
-		var target := starter_relocation(garden, kind, id)
-		if not check(target.is_finite() and garden.place(kind, target, 0.2, id), "host relocates starting " + kind): return
+		var target := Vector2(6.0, 1.5) if kind == "altar" else starter_relocation(garden, kind, id)
+		var yaw := 0.0 if kind == "altar" else 0.2
+		if not check(target.is_finite() and garden.place(kind, target, yaw, id), "host relocates starting " + kind + " with no retired spring reservation"): return
 		moved.append([id, target])
 	moved.append([bed_id, new_site])
 	var placements := FileAccess.open(signals.path_join("starting-placements"), FileAccess.WRITE)

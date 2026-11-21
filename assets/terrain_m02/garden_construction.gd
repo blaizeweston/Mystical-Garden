@@ -66,6 +66,7 @@ func placement_issue(kind: String, at: Vector2, yaw: float, pawn: Vector2, movin
 		if _overlaps(area, feature):
 			return _issue("The footprint crosses water.", feature)
 	for landmark: Dictionary in garden.landmarks.values():
+		if not landmark.get("blocks_construction",true): continue
 		var restriction: Dictionary = _heart_reservation if landmark.id == "heart" else landmark
 		if _overlaps(area, restriction):
 			var name: String = landmark.id.replace("_", " ")

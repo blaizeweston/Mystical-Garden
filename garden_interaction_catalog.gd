@@ -19,6 +19,7 @@ const POINTS: Array=[{
 },{
  "id":"spring_water","parent":"sheltered_spring","observation":"sheltered_water",
  "name":"Garden water","position":Vector3(6.0,0,1.5),"range":1.45,
+ "blocks_construction":false,
  "requires":[],"action":"observe","cue":"quiet_pulse","visual":"spring",
  "description":"Clear water gathers where the roots have loosened their hold. Small pale moths skim the banks. Beside the nearby beds, the water carries a faint warmth.",
  "recorded":"Root Irrigation lets the Garden share its water. The nearby planting beds remain open to any species.",
@@ -26,6 +27,7 @@ const POINTS: Array=[{
 },{
  "id":"spring_weave","parent":"sheltered_spring","observation":"moss_whisper_resonance",
  "name":"A quiet resonance","position":Vector3(4.1,0,.45),"range":1.35,
+ "blocks_construction":false,
  "requires":[],"action":"observe","cue":"quiet_pulse","visual":"relationship",
  "relationship":{"zone":"sheltered_spring","species":["lantern_moss","whispervine"],"stage":3},
  "clue_species":"lantern_moss",
@@ -76,6 +78,7 @@ static func errors(points: Array=POINTS,zones: Array=ZONES) -> Array[String]:
   if observation.is_empty() or observations.has(observation):result.append("Duplicate/empty observation: "+id)
   observations[observation]=true
   if not entry.get("position") is Vector3 or not entry.position.is_finite():result.append("Invalid anchor: "+id)
+  if entry.has("blocks_construction") and not entry.blocks_construction is bool:result.append("Invalid construction reservation: "+id)
   if not (entry.get("range") is float or entry.get("range") is int) or float(entry.range)<=0 or float(entry.range)>3:result.append("Invalid interaction range: "+id)
   if entry.get("action")!="observe" or entry.get("cue")!="quiet_pulse":result.append("Unsupported Garden action/cue: "+id)
   if entry.get("visual","root_scar") not in ["root_scar","spring","relationship"]:result.append("Unsupported Garden visual: "+id)

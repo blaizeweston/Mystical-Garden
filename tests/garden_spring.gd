@@ -26,6 +26,12 @@ func run():
 		and game.stage.garden_edge.find_children("GardenWaterFeature", "Node3D", true, false).is_empty(), "no extra decorative ponds remain")
 	var sources: Array = Water._features(game.stage)
 	check(sources == garden.state.layout.water and sources.all(func(source): return not str(source.id).begins_with("garden_pool_")), "only generated terrain water authorizes filling")
+	var altar: int = garden.station_ids.altar
+	var pawn: Vector2 = garden.planar(p.pos)
+	var refusal: String = garden.construction.validate("altar",Vector2(6.0,1.5),0.0,pawn,altar)
+	check(refusal.is_empty(),"the retired spring site accepts a clear structure: " + refusal)
+	refusal = garden.construction.validate("altar",Vector2(5.0,1.0),0.0,pawn,altar)
+	check(refusal.contains("another structure"),"spring markers no longer block nearby ground, while actual bed overlap remains protected: " + refusal)
 	var bank:=Water.anchor(game.stage)
 	check(bank.is_finite() and garden.barrier.walkable(Vector2(bank.x,bank.z)),"visible Garden water has a dry accessible bank before research")
 	p.pos=bank

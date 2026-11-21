@@ -36,6 +36,8 @@ Crop growth now has its own shared 2× Wilds rate, composed with existing irriga
 
 Walking collision is distinct from construction clearance. `terrain_actor_motion.gd` supplies shared tangent sliding to `garden_forest_barrier.gd` and `wilds_play_surface.gd`; straight dash sweeps remain separate. `terrain_prop_geometry.gd` shares the renderer's mesh/pose recipes and caches fitted walking outlines, including lower tree trunks and step-over stones at most 0.18 m tall. `garden_construction.gd::walking_footprint` projects station meshes without decorative bed shoots. Rectangular placement reservations, reclamation occupancy, saved terrain generation and door access reservations retain their existing behavior. Water remains blocking; TC01 projectile cover is unchanged. Walking-shape caches are derived geometry, not a second layout authority. See the movement boundary in [ARCHITECTURE.md](ARCHITECTURE.md) and `tests/terrain_actor_collision.gd`.
 
+The historical `spring_water` and `spring_weave` observation markers no longer reserve construction space. Their `blocks_construction: false` declarations live in `garden_interaction_catalog.gd`; other landmarks remain protected by default. Scenery/generation exclusions and stable observation identities are retained for existing saved layouts, while filling still uses actual terrain water. The construction validator continues checking water, Heart base, physical structures and access. `garden_spring`, `garden_layout_persistence` and `experimental_terrain_coop` cover the freed site and its saved/networked relocation.
+
 ## Interaction and dependency graph
 
 Solid connections below represent existing services. Dashed connections are proposed additions or adapters.
