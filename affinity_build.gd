@@ -223,7 +223,7 @@ static func material_description(part_id: int) -> String:
 ## Other families retain their existing contracts and tuning.
 static func family_description(slot_name: String, material: Dictionary) -> String:
 	var family: String=material.primary_affinity
-	if family in ["thorn","frost","fire","water","wood","vital","storm","spirit"]:
+	if family in ["thorn","frost","fire","water","wood","vital","storm","spirit","void"]:
 		return Ruleset.FAMILIES[family].description(slot_name,material.quality,material.get("resolved_potency",{}))
 	return Ruleset.FAMILIES[family].description(slot_name,material.quality)
 
@@ -307,6 +307,7 @@ static func core_skill(build: Dictionary) -> Dictionary:
 	}[family]
 	if family == "water": profile[3] += float(core.get("resolved_potency",{}).get("width_cm",0)) / 100.0
 	if family == "fire": profile[4] += int(core.get("resolved_potency",{}).get("field_duration_ms",0))
+	if family == "void": profile[3] += (int(core.get("resolved_potency",{}).get("well_radius_cm",0))+int(core.get("resolved_potency",{}).get("control_radius_cm",0)))/100.0
 	if family == "thorn": profile[3] += float(core.get("resolved_potency",{}).get("coverage_cm",0)) / 100.0
 	return {"id": core.affinity_core_skill_id, "name": profile[0],
 		"icon": "res://assets/ui/core_skills/%s.png" % profile[1], "mechanic": "swept_projectile" if family=="storm" and delivery.kind!="ground" else "ground_sequence",

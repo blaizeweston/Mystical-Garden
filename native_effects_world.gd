@@ -63,6 +63,7 @@ func pulse(event: Dictionary,now: int) -> void:
  var world:=_current()
  if world==null or not source_current(event):return
  if event.kind=="water_tide":load("res://water_tidal_return.gd").advance(world,event,now);return
+ if event.kind=="void_field":load("res://void_affinity.gd").advance_field(world,event,now);return
  var p: Dictionary=world.players[event.owner]
  if event.kind=="snare":
   Traits.trip_snare(world,p,event,now);return

@@ -99,7 +99,9 @@ static func command(game: Node, id: int, player: Dictionary, action: String) -> 
 	line.affinity_action = preload("res://combat_action_events.gd").begin(game,id,"core",skill.material,
 		skill.material.potency_profile.values,["core_action"],0x7fffffffffffffff)
 	if not step:
-		if not game.effect_timeline.begin_core(id,line):return
+		if skill.affinity_family=="void" and int(line.affinity_action.potency().get("shear_hp",0))>0:
+			if not load("res://void_affinity.gd").admit_core(game,line,now):return
+		elif not game.effect_timeline.begin_core(id,line):return
 	player.core_ready_at = now + int(skill.cooldown_ms)
 	player.core_cast_until = now + duration
 	player.facing = forward
@@ -265,7 +267,7 @@ static func tick(game: Node, now: int) -> void:
 
 
 static func hints(game: Node) -> Array:
-	var result := []
+	var result: Array=load("res://void_affinity.gd").hints(game)
 	for line in game.effect_timeline.core_records().values():
 		if not line.grown:
 			continue

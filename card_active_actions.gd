@@ -8,7 +8,7 @@ const Session = preload("res://network_session.gd")
 const PREFIX := "card_cast:"
 const STATE := "card_active_state"
 const INPUTS := ["card_active_one","card_active_two","card_active_three","card_active_four"]
-const CARD_GRANTS := {"harvest_unlock":{"method":"command","capability":{"producer":"card","id":"harvest","recipient":"enemy"}},"splinterburst_unlock":{"method":"command","capability":{"producer":"card","id":"splinterburst","recipient":"enemy"}},"bloodletting_unlock":{"method":"command","capability":{"producer":"card","id":"bloodletting","recipient":"enemy"}}}
+const CARD_GRANTS := {"singularity_unlock":{"method":"command","capability":{"producer":"card","id":"singularity","recipient":"enemy"}},"harvest_unlock":{"method":"command","capability":{"producer":"card","id":"harvest","recipient":"enemy"}},"splinterburst_unlock":{"method":"command","capability":{"producer":"card","id":"splinterburst","recipient":"enemy"}},"bloodletting_unlock":{"method":"command","capability":{"producer":"card","id":"bloodletting","recipient":"enemy"}}}
 static var _request_serial := 0
 
 static func actions(player: Dictionary) -> Array[String]:
@@ -19,13 +19,13 @@ static func actions(player: Dictionary) -> Array[String]:
   if Catalog.DEFINITIONS[copy.id].get("active",false) and not result.has(copy.id):result.append(copy.id)
  return result
 
-static func request(game: Node, player: Dictionary, id: String, aim: Vector2, sequence := 0) -> String:
+static func request(game: Node, player: Dictionary, id: String, aim: Vector2, sequence := 0, distance := 0.0) -> String:
  var stamp:=Core.cast_key(game,player)
  if stamp.is_empty():return ""
  if sequence==0:
   _request_serial=maxi(_request_serial+1,Time.get_ticks_usec())
   sequence=_request_serial
- return PREFIX+"%s:%s:%d:%s:%s" % [stamp,id,sequence,aim.x,aim.y]
+ return PREFIX+"%s:%s:%d:%s:%s" % [stamp,id,sequence,aim.x,aim.y]+(":"+str(distance) if id=="singularity" else "")
 
 static func input_event(game: Node, event: InputEvent) -> bool:
  if not event.is_pressed() or event.is_echo():return false
@@ -36,7 +36,7 @@ static func input_event(game: Node, event: InputEvent) -> bool:
   if not event.is_action_pressed(INPUTS[index]):continue
   if index<rows.size():
    var aim:=Core.local_aim(game,player)
-   game.send_garden_action(request(game,player,rows[index].id,aim.direction))
+   game.send_garden_action(request(game,player,rows[index].id,aim.direction,0,float(aim.distance)))
   return true
  return false
 
@@ -44,8 +44,9 @@ static func command(game: Node, peer: int, player: Dictionary, action: String) -
  if not game.multiplayer.is_server() or not game.Life.alive(player) or game.encounter_cleared() or game.persistence_session.is_blocked() or not game.network_session.ready(peer) or Session.peer_for(player)!=peer:return
  var fields:=action.split(":")
  var stamp:=Core.cast_key(game,player)
- if fields.size()!=6 or stamp.is_empty() or fields[1]!=stamp or not fields[3].is_valid_int() or not fields[4].is_valid_float() or not fields[5].is_valid_float():return
+ if fields.size() not in [6,7] or stamp.is_empty() or fields[1]!=stamp or not fields[3].is_valid_int() or not fields[4].is_valid_float() or not fields[5].is_valid_float():return
  var id: String=fields[2]
+ if (id=="singularity" and fields.size()!=7) or (id!="singularity" and fields.size()!=6):return
  if not actions(player).has(id):return
  var definition: Dictionary=Catalog.DEFINITIONS[id]
  if not Cards.Ledger.requirement(definition,game.combat_build(player).affinity_build()).is_empty():return
@@ -57,6 +58,18 @@ static func command(game: Node, peer: int, player: Dictionary, action: String) -
  var ready: Dictionary=state.actions.get(id,{})
  var now:=preload("res://combat_clock.gd").now()
  if sequence<=int(ready.get("sequence",0)) or now<int(ready.get("ready",0)):return
+ if id=="singularity":
+  if not fields[6].is_valid_float():return
+  var distance:=float(fields[6])
+  var tuning: Dictionary=definition.tuning
+  if not is_finite(distance) or distance<0.0 or distance>float(tuning.range_m):return
+  var center: Vector3=player.pos+Vector3(aim.x,0,aim.y).normalized()*distance
+  if game.battlefield.occupied(center) or not game.battlefield.clear_line(player.pos,center):return
+  if not load("res://void_affinity.gd").singularity(game,peer,center,now):return
+  state.actions[id]={"sequence":sequence,"ready":now+int(tuning.cooldown_ms)}
+  player[STATE]=state
+  preload("res://diagnostic_journal.gd").event("combat","card_active_cast",{"actor":peer,"card":id,"distance_m":distance,"sequence":sequence})
+  return
  if id=="harvest":
   state.actions[id]={"sequence":sequence,"ready":now+int(definition.tuning.toggle_interval_ms),"enabled":not bool(ready.get("enabled",false))}
   player[STATE]=state

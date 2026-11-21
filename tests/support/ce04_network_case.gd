@@ -9,6 +9,7 @@ const Active=preload("res://card_active_actions.gd")
 static func host(test: RefCounted,game: Node,guests: Array) -> bool:
  var family: String=test.ce04_family
  if family=="spirit":return await spirit_host(test,game,guests)
+ if family=="void":return await void_host(test,game,guests)
  var actors: Array=[1]+guests
  var saved:={}
  var part:=0
@@ -64,6 +65,7 @@ static func guest(test: RefCounted,game: Node,peer: int) -> bool:
  if not test.check(await test.until(func():return not test.read("ce04-start-"+str(peer)).is_empty()),"CE04 episode begins"):return false
  var family: String=test.ce04_family
  if family=="spirit":return await spirit_guest(test,game,peer)
+ if family=="void":return await void_guest(test,game,peer)
  var unique: String={"storm":"conductor"}[family]
  var local: Dictionary=game.players[peer]
  if not test.check(await test.until(func():return game.players.get(peer,{}).get("affinity_run_cards",[]).any(func(row):return row.id==unique) and (family=="storm" or game.players.get(peer,{}).get("card_actions_state",[]).any(func(row):return row.id==unique))),"guest receives unique acquisition and additional skill-bar action"):return false
@@ -136,3 +138,63 @@ static func spirit_guest(test: RefCounted,game: Node,peer: int) -> bool:
  if not test.check(await test.until(func():return test.read("ce04-accepted-"+str(peer))=="ok" and not game.players.get(peer,{}).get("skill_ready",true) and int(game.players.get(peer,{}).get("spirit_prepared",{}).get("shadows",-1))==0),"guest receives one Q cooldown and cleared shadows after duplicate class input"):return false
  test.mark("ce04-finished-"+str(peer))
  return test.check(await test.until(func():return test.read("ce04-done")=="ok"),"Spirit fixture restores before card/graft/floor/extraction checks")
+
+
+static func void_host(test: RefCounted,game: Node,guests: Array) -> bool:
+ var actors: Array=[1]+guests
+ var saved:={}
+ var part:=0
+ for index in range(1,Build.Materials.DEFINITIONS.size()):
+  if Build.Affinities.for_part(index).get("primary_affinity")=="void":part=index;break
+ var ids: Array=["rift_shear","singularity","widening_well","crushing_pressure"]
+ for peer in actors:
+  var p: Dictionary=game.players[peer]
+  saved[peer]=[p.weapon,p.secondary,p.catalyst,p.get(Cards.STATE),p.pos]
+  p.weapon=part;p.secondary=part;p.catalyst=part
+  p.pos=game.battlefield.dash(game.tactics.position,game.tactics.position+Vector3(0,0,1.5));p.facing=Vector3.FORWARD
+  p.cast_until=0;p.core_cast_until=0;p.core_ready_at=0
+  var copies: Array[Dictionary]=[]
+  for id in ids:
+   var d: Dictionary=Catalog.DEFINITIONS[id]
+   copies.append({"id":id,"amount":d.get("fixed",0) if d.policy=="unique" else d.values[0],"rarity":"" if d.policy=="unique" else "Common","floor":game.participation.floor(),"acquisition_id":3000+peer*10+copies.size()})
+  p[Cards.STATE]=Cards.Ledger.new(copies)
+ game.encounter.set_hp(-1,100000)
+ for peer in guests:test.mark("ce04-start-"+str(peer),"void")
+ if not test.check(await test.until(func():return guests.all(func(peer):return test.read("ce04-seen-"+str(peer))=="ok")),"all guests receive Singularity acquisition and skill-bar action"):return false
+ var host: Dictionary=game.players[1]
+ Core.command(game,1,host,Core.request(game,host,Vector2.UP,1.5))
+ for peer in guests:test.mark("ce04-well-"+str(peer))
+ if not test.check(await test.until(func():return actors.all(func(peer):return game.effect_timeline.native_records().any(func(row):return row.kind=="void_field" and row.owner==peer and not row.secondary))),"real Core requests admit one lingering Well per player through the host"):return false
+ Active.command(game,1,host,Active.request(game,host,"singularity",Vector2.UP,200001,1.5))
+ for peer in guests:test.mark("ce04-cast-"+str(peer))
+ if not test.check(await test.until(func():return actors.all(func(peer):return game.effect_timeline.native_records().filter(func(row):return row.kind=="void_field" and row.owner==peer and row.secondary).size()==1)),"duplicate guest Singularity input admits exactly one additional field per player"):return false
+ if not test.check(await test.until(func():return game.enemy_health()<100000 and game.combat_events.any(func(row):return row.shape=="rift_shear")),"host resolves actual multi-owner overlap and attributed shear"):return false
+ if not test.check(await test.until(func():return game.effect_timeline.native_records().all(func(row):return row.kind!="void_field" or not row.secondary)),"all one-use implosions resolve and retire while ordinary Wells linger"):return false
+ for peer in guests:test.mark("ce04-accepted-"+str(peer))
+ if not test.check(await test.until(func():return guests.all(func(peer):return test.read("ce04-finished-"+str(peer))=="ok")),"guests receive authoritative additional-action cooldown and field presentation"):return false
+ for peer in actors:
+  var p: Dictionary=game.players[peer]
+  p.weapon=saved[peer][0];p.secondary=saved[peer][1];p.catalyst=saved[peer][2];p.pos=saved[peer][4]
+  p.erase(load("res://void_affinity.gd").PREP)
+  Cards.clear(p)
+  if saved[peer][3]!=null:p[Cards.STATE]=saved[peer][3]
+ game.effect_timeline.clear_native();Core.reset(game)
+ if game.has_meta(load("res://void_affinity.gd").PENDING):game.remove_meta(load("res://void_affinity.gd").PENDING)
+ test.mark("ce04-done")
+ return not test.failed
+
+static func void_guest(test: RefCounted,game: Node,peer: int) -> bool:
+ if not test.check(await test.until(func():return game.players.get(peer,{}).get("affinity_run_cards",[]).any(func(row):return row.id=="singularity") and game.players.get(peer,{}).get("card_actions_state",[]).any(func(row):return row.id=="singularity")),"guest receives acquired targeted action"):return false
+ test.mark("ce04-seen-"+str(peer))
+ if not test.check(await test.until(func():return test.read("ce04-well-"+str(peer))=="ok"),"host requests real Core input"):return false
+ var p: Dictionary=game.players[peer]
+ var offset: Vector3=game.tactics.position-p.pos
+ var request:=Core.request(game,p,Vector2(offset.x,offset.z).normalized(),offset.length())
+ game.send_garden_action(request);game.send_garden_action(request)
+ if not test.check(await test.until(func():return test.read("ce04-cast-"+str(peer))=="ok"),"host observes ordinary Well before extra ability"):return false
+ p=game.players[peer];offset=game.tactics.position-p.pos
+ request=Active.request(game,p,"singularity",Vector2(offset.x,offset.z).normalized(),200000+peer,offset.length())
+ game.send_garden_action(request);game.send_garden_action(request)
+ if not test.check(await test.until(func():return test.read("ce04-accepted-"+str(peer))=="ok" and game.players.get(peer,{}).get("card_actions_state",[]).any(func(row):return row.id=="singularity" and row.remaining>0)),"guest sees one host-owned cooldown after implosion"):return false
+ test.mark("ce04-finished-"+str(peer))
+ return test.check(await test.until(func():return test.read("ce04-done")=="ok"),"Void fixture retires fields before ordinary ledger/floor/departure checks")

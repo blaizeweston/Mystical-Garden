@@ -1530,6 +1530,9 @@
     ]
   },
   "suites": {
+    "ce04_void": {"kind":"unit","profile":"affinity","systems":["affinity_cards","void_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
+    "ce04_void_coop": {"kind":"pair","profile":"affinity","systems":["affinity_cards","void_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
+    "ce04_void_party": {"kind":"party","profile":"affinity","systems":["affinity_cards","void_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
     "ce04_spirit": {"kind":"unit","profile":"affinity","systems":["affinity_cards","spirit_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons","player_cooldowns","player_hit_conditions","incoming_player_hit","classes"],"package":false},
     "ce04_spirit_coop": {"kind":"pair","profile":"affinity","systems":["affinity_cards","spirit_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons","player_cooldowns","player_hit_conditions","incoming_player_hit","classes"],"package":false},
     "ce04_spirit_party": {"kind":"party","profile":"affinity","systems":["affinity_cards","spirit_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons","player_cooldowns","player_hit_conditions","incoming_player_hit","classes"],"package":false},
@@ -5805,7 +5808,7 @@
     "native_grafts.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}}},
     "oracle_omens.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}}},
     "thorn_affinity.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}}},
-    "void_affinity.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}}},
+    "void_affinity.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}}},
     "combat_vitals.gd": {"newline": "crlf", "regions": {"ar07_vitals_1": {"systems": ["player_vitals"]}}},
     "expedition_sustain.gd": {"newline": "lf", "regions": {"ar07_vitals_1": {"systems": ["player_vitals"]}, "ar07_vitals_2": {"systems": ["player_vitals"]}}},
     "diagnostic_journal.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle", "diagnostics"]},  "ar08_lifecycle_3": {"systems": ["player_lifecycle", "diagnostics"]}, "ar07_vitals_1": {"systems": ["player_vitals", "diagnostics"]},  "ar07_vitals_3": {"systems": ["player_vitals", "diagnostics"]}, "ar06_cooldown_1": {"systems": ["player_cooldowns", "diagnostics"]},  "ar06_cooldown_3": {"systems": ["player_cooldowns", "diagnostics"]}}},

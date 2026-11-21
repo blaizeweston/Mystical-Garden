@@ -771,14 +771,6 @@
       "ar08_lifecycle_1": {
         "match": "\nconst PlayerLifecycle = preload(\"res://player_lifecycle.gd\")\n",
         "baseline": ""
-      },
-      "ar08_lifecycle_2": {
-        "match": "\tintents.append({\"token\":token,\"epoch\":event.epoch,\"scope\":SCOPES[event.source],\"actor\":event.actor,\"source_life\":event.life_generation,\n",
-        "baseline": "\tintents.append({\"token\":token,\"epoch\":event.epoch,\"scope\":SCOPES[event.source],\"actor\":event.actor,\n"
-      },
-      "ar08_lifecycle_3": {
-        "match": "\t\tvar options: Array = pending[target].filter(func(row):\n\t\t\treturn row.token==token and int(row.epoch)==game.participation.epoch() \\\n\t\t\t\tand PlayerLifecycle.matches(game.players.get(row.actor,{}),int(row.source_life)))\n",
-        "baseline": "\t\tvar options: Array=pending[target].filter(func(row):return row.token==token and int(row.epoch)==game.participation.epoch())\n"
       }
     },
     "combat_vitals.gd": {

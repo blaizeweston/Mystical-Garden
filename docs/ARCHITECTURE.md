@@ -1527,3 +1527,28 @@ These values are provisional and authored only in `affinity_card_catalog.gd`. `s
 Spirit verification: 16 focused suites pass, including actual class/Core copying, all nine Form leaf types, native Spirit, CE01, resolved builds, weapon ownership, original class casting, CE03 families, Oracle/Reaper defenses, projectile terrain, hit conditions and guarded gameplay transactions. Independent two-/four-player runs verify actual dash RPCs, both phantoms, reliable charges, duplicate class requests, normal card/graft/floor/extraction/rejoin flow and fifth-player refusal. Evidence: `.godot/validation/final-four-ce04-spirit-ready-20261120-223442/summary.json`. The synthetic four-player stress case retains 128 echoes plus 128 shadows and creates 132 weapon records, no new player actors: approximately 35 ms total preparation, 10 ms queue admission and 7 ms resolution on this machine. These are headless local measurements, not a manual frame-rate guarantee.
 
 A separately attempted `guarded_lifecycle` fixture remains failed at its pre-existing `preferences` binding assertion: it assumes an old B-bound attack can migrate Core to X, already assigned by CE02 card controls. Both that fixture and `app_settings.gd` are unchanged from the CE03 baseline. Its original engine-error log is retained under `final-four-ce04-spirit-final-20261120-223303`. This is not a passing lifecycle/save acceptance claim. Current guarded transaction coverage passes; production AC-06 activation remains false and host-process-loss limitations remain unresolved.
+
+
+### Void: actual overlapping fields and targeted destruction
+
+Void adds eleven cards, completing CE04's three families at **137 definitions**. `void_affinity.gd` remains the native damage/control consumer. `combat_effect_timeline.gd` owns concurrent lingering Wells and Singularity fields, and `native_effects_world.gd` validates their source life/binding/world and advances them. There is no additional field ledger. Ordinary unmodified Gravity Well keeps its existing Core lifecycle. Acquired Rift Shear reserves an actual 9-second gathering field at Core admission and retains the original one-time 1.08-second collapse; its normal 7.8-second cooldown permits solo overlap. Admission into the existing 24-record technical effect budget is explicit: failure spends neither native nor acquired-action cooldown.
+
+| Void card | Common / Uncommon / Rare / Epic | Actual consumer |
+|---|---|---|
+| Widening Well | 0.25 / 0.40 / 0.55 / 0.70 m | Gravity Well gathering/collapse radius and preview |
+| Deepening Gravity | 20 / 30 / 40 / 50% | Well step and per-window gathering strength; existing resistance/arbitration retained |
+| Condensed Edge | 2 / 3 / 4 / 5 damage | First primary basic contact against actual field coverage or recent successful Void displacement |
+| Compression Rhythm | 100 / 150 / 200 / 250 ms | Native 1,850 ms Form response interval |
+| Grasping Invocation | 0.10 / 0.15 / 0.20 / 0.25 m | Existing offensive Catalyst inward pull; native displacement retains priority |
+| Dense Casting | 3 / 5 / 7 / 9 damage | Actual mapped class compression/repulsion |
+| Dark Echo | 3 / 5 / 7 / 9 damage | Real class response prepares one next native compression target within 4 s; replicas cannot spend it |
+| Event Horizon | 0.20 / 0.30 / 0.40 / 0.50 m | Fields and mapped Catalyst area; requires an actual area producer |
+| Crushing Pressure | 2 / 3 / 4 / 5 damage | Native compression/collapse against 600 ms continuous field exposure; requires a real field path |
+| Rift Shear | 3 / 5 / 7 / 9 damage each 600 ms | Genuine intersection of at least two active fields; one strongest eligible owner, ties by peer ID |
+| Singularity | Unique: 8 m range, 3 m radius, 1.5 s gather, 30 damage, 10 s cooldown | Additional targeted action; self-placement and distant placement work for every class |
+
+Values remain provisional in `affinity_card_catalog.gd`. Singularity's gathering step/total are independently tunable at 0.22/1.10 m; Event Horizon and acquired sustained compression can improve it. Core-only damage/strength cards do not silently alter its separate tuning. A resistant boss can resist all movement and still take valid implosion/shear damage. Multiple fields are queried in linear enemy-by-field work, with one damage interval per enemy rather than an explosion for every field pair. Field identities, current life/connection/epoch and delayed enemy spawn identities are validated; secondary damage creates no additional fields or Catalyst/graft responses.
+
+`card_active_actions.gd` extends its existing reliable request with a validated target distance for Singularity only; older six-field card requests are unchanged. B/Q/R, passive transformations, acquisition ownership, protocol-41 compact snapshots and RPC NodePaths remain intact. Existing configurable card-action bindings/skill-bar feedback are reused. Third/fourth active-action keys retain their existing user-configurable unbound defaults; no new control system is introduced.
+
+Void verification passes eight focused suites / thirteen unit-peer verdicts: native Void, new control/overlap/implosion cases, CE01 eligibility, original EC01, effect-timeline ownership/rollback and guarded transactions, plus independent two-/four-player loops with duplicate Core/Singularity requests, live overlapping fields, field retirement, normal ledger/floor/extraction/rejoin flow and fifth-client refusal. Evidence: `.godot/validation/final-four-ce04-void-network-20261120-224535/summary.json`. Tests use disposable save storage. Local loopback is not separate-PC/internet verification; production AC-06 remains disabled.

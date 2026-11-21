@@ -7374,6 +7374,706 @@ const DEFINITIONS := {
 	  ]
 	},
 
+	# CE04 Void — values and units are the authoring authority.
+	"widening_well": {
+	  "title": "Widening Well",
+	  "family": "void",
+	  "scope": "core",
+	  "policy": "stackable",
+	  "trigger": "Changes gathering, collapse and the actual preview together",
+	  "consumer": [
+	    "res://void_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "void"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "gravity_well",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "well_radius_cm",
+	  "label": "Widening Well contribution",
+	  "unit": "cm",
+	  "limit": 4,
+	  "description": "Gravity Well gains +%s m radius.",
+	  "detail": "Provisional CE04 tuning. Changes gathering, collapse and the actual preview together.",
+	  "tuning": {},
+	  "values": [
+	    25,
+	    40,
+	    55,
+	    70
+	  ]
+	},
+	"deepening_gravity": {
+	  "title": "Deepening Gravity",
+	  "family": "void",
+	  "scope": "core",
+	  "policy": "stackable",
+	  "trigger": "Improves its step and per-window allowance",
+	  "consumer": [
+	    "res://void_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "void"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "gravity_well",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "gather_strength_percent",
+	  "label": "Deepening Gravity contribution",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Gravity Well gathering gains +%s%% strength.",
+	  "detail": "Provisional CE04 tuning. Improves its step and per-window allowance. Existing enemy resistance, terrain and shared displacement arbitration still apply.",
+	  "tuning": {},
+	  "values": [
+	    20,
+	    30,
+	    40,
+	    50
+	  ]
+	},
+	"condensed_edge": {
+	  "title": "Condensed Edge",
+	  "family": "void",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Requires actual field coverage or an unexpired successful native Void displacement",
+	  "consumer": [
+	    "res://void_affinity.gd",
+	    "ordinary_bonus"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "void"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "drawing_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "controlled_hit_hp",
+	  "label": "Condensed Edge contribution",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Your first basic-hit target under Void control takes +%s damage.",
+	  "detail": "Provisional CE04 tuning. Requires actual field coverage or an unexpired successful native Void displacement. Adds to the primary contact, with no extra proc.",
+	  "tuning": {},
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"compression_rhythm": {
+	  "title": "Compression Rhythm",
+	  "family": "void",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Reduces only the native compression response interval; ordinary weapon timing is unchanged",
+	  "consumer": [
+	    "res://void_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "void"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "drawing_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "interval_reduction_ms",
+	  "label": "Compression Rhythm contribution",
+	  "unit": "ms",
+	  "limit": 4,
+	  "description": "Drawing Strikes responds %s s sooner.",
+	  "detail": "Provisional CE04 tuning. Reduces only the native compression response interval; ordinary weapon timing is unchanged.",
+	  "tuning": {},
+	  "values": [
+	    100,
+	    150,
+	    200,
+	    250
+	  ]
+	},
+	"grasping_invocation": {
+	  "title": "Grasping Invocation",
+	  "family": "void",
+	  "scope": "catalyst",
+	  "policy": "stackable",
+	  "trigger": "Only actual inward compression responses qualify",
+	  "consumer": [
+	    "res://void_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "void"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "catalyst",
+	          "id": "compression"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "class_pull_cm",
+	  "label": "Grasping Invocation contribution",
+	  "unit": "cm",
+	  "limit": 4,
+	  "description": "Offensive Void class responses pull +%s m.",
+	  "detail": "Provisional CE04 tuning. Only actual inward compression responses qualify. Native displacement retains priority; healing and block repulsions are unchanged.",
+	  "tuning": {},
+	  "values": [
+	    10,
+	    15,
+	    20,
+	    25
+	  ]
+	},
+	"dense_casting": {
+	  "title": "Dense Casting",
+	  "family": "void",
+	  "scope": "catalyst",
+	  "policy": "stackable",
+	  "trigger": "Improves existing inward compression and block/healing/movement repulsion damage, not their triggers",
+	  "consumer": [
+	    "res://void_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "void"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "compression"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "radial_repulsion"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "healing_repulsion"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "landing_repulsion"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "catalyst_damage_hp",
+	  "label": "Dense Casting contribution",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Mapped Void class responses gain +%s damage.",
+	  "detail": "Provisional CE04 tuning. Improves existing inward compression and block/healing/movement repulsion damage, not their triggers.",
+	  "tuning": {},
+	  "values": [
+	    3,
+	    5,
+	    7,
+	    9
+	  ]
+	},
+	"dark_echo": {
+	  "title": "Dark Echo",
+	  "family": "void",
+	  "scope": "catalyst",
+	  "policy": "stackable",
+	  "trigger": "After a real class response, store one 4-second preparation",
+	  "consumer": [
+	    "res://void_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "void"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "compression"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "radial_repulsion"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "healing_repulsion"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "landing_repulsion"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "prepared_compression_hp",
+	  "label": "Dark Echo contribution",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "A class compression response prepares +%s next compression damage.",
+	  "detail": "Provisional CE04 tuning. After a real class response, store one 4-second preparation. The next native compression captures it once for one eligible target; replicas do not consume it.",
+	  "tuning": {
+	    "duration_ms": 4000
+	  },
+	  "values": [
+	    3,
+	    5,
+	    7,
+	    9
+	  ]
+	},
+	"event_horizon": {
+	  "title": "Event Horizon",
+	  "family": "void",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "No hidden weapon reach or unrelated ability changes",
+	  "consumer": [
+	    "res://void_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "void"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "gravity_well",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "void"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "compression"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_repulsion"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "healing_repulsion"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_repulsion"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "control_radius_cm",
+	  "label": "Event Horizon contribution",
+	  "unit": "cm",
+	  "limit": 4,
+	  "description": "Void fields and Catalyst pulses gain +%s m radius.",
+	  "detail": "Provisional CE04 tuning. No hidden weapon reach or unrelated ability changes. A Form-only build without area control cannot receive this card.",
+	  "tuning": {},
+	  "values": [
+	    20,
+	    30,
+	    40,
+	    50
+	  ]
+	},
+	"crushing_pressure": {
+	  "title": "Crushing Pressure",
+	  "family": "void",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Enemy must remain inside a real Void field for 600 ms",
+	  "consumer": [
+	    "res://void_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "any": [
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "core",
+	                  "primary_affinity": "void"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "core",
+	                  "id": "gravity_well",
+	                  "slot": "core"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "form",
+	                  "primary_affinity": "void"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "form",
+	                  "id": "drawing_strikes",
+	                  "slot": "form"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "catalyst",
+	                  "primary_affinity": "void"
+	                }
+	              },
+	              {
+	                "any": [
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "compression"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "radial_repulsion"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "healing_repulsion"
+	                    }
+	                  },
+	                  {
+	                    "capability": {
+	                      "producer": "catalyst",
+	                      "id": "landing_repulsion"
+	                    }
+	                  }
+	                ]
+	              }
+	            ]
+	          }
+	        ]
+	      },
+	      {
+	        "any": [
+	          {
+	            "all": [
+	              {
+	                "plant": {
+	                  "slot": "core",
+	                  "primary_affinity": "void"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "core",
+	                  "id": "gravity_well",
+	                  "slot": "core"
+	                }
+	              }
+	            ]
+	          },
+	          {
+	            "owned": {
+	              "kind": "card",
+	              "id": "singularity"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "sustained_hp",
+	  "label": "Crushing Pressure contribution",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Compression gains +%s damage against sustained field targets.",
+	  "detail": "Provisional CE04 tuning. Enemy must remain inside a real Void field for 600 ms. Applies only to native Void compression/collapse, including Singularity; does not multiply with field pair count.",
+	  "tuning": {
+	    "duration_ms": 600
+	  },
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"rift_shear": {
+	  "title": "Rift Shear",
+	  "family": "void",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Also makes your Gravity Wells linger as real gathering fields for 9 seconds after arming, enabling solo overlap after the normal 7",
+	  "consumer": [
+	    "res://void_affinity.gd",
+	    "admit_core"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "void"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "gravity_well",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "shear_hp",
+	  "label": "Rift Shear contribution",
+	  "unit": "hp",
+	  "limit": 4,
+	  "grants": ["rift_shear"],
+	  "description": "Overlapping gravity fields deal %s shear damage every 0.6 s.",
+	  "detail": "Provisional CE04 tuning. Also makes your Gravity Wells linger as real gathering fields for 9 seconds after arming, enabling solo overlap after the normal 7.8-second cooldown without Singularity. Each enemy receives one coherent strongest-owner shear tick across all intersections. Original collapse still occurs once at 1.08 seconds.",
+	  "tuning": {
+	    "field_ms": 9000,
+	    "interval_ms": 600
+	  },
+	  "values": [
+	    3,
+	    5,
+	    7,
+	    9
+	  ]
+	},
+	"singularity": {
+	  "title": "Singularity",
+	  "family": "void",
+	  "scope": "affinity",
+	  "policy": "unique",
+	  "trigger": "Place within 8 m, including your own position",
+	  "consumer": [
+	    "res://card_active_actions.gd",
+	    "command"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "void"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "gravity_well",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "void"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "drawing_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "void"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "compression"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_repulsion"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "healing_repulsion"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_repulsion"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "singularity_unlock",
+	  "label": "Singularity contribution",
+	  "unit": "unlock",
+	  "limit": 1,
+	  "description": "Activate a targeted gravitational field and damaging implosion.",
+	  "detail": "Provisional CE04 tuning. Place within 8 m, including your own position. Gather for 1.5 seconds, then deal 30 native damage within 3 m. Ten-second cooldown. Resistance can prevent motion but not valid damage. Independent from Rift Shear.",
+	  "tuning": {
+	    "range_m": 8.0,
+	    "duration_ms": 1500,
+	    "radius_m": 3.0,
+	    "cooldown_ms": 10000,
+	    "damage_hp": 30,
+	    "gather_step_m": 0.22,
+	    "gather_total_m": 1.1
+	  },
+	  "fixed": 1,
+	  "grants": [
+	    "singularity"
+	  ],
+	  "active": true
+	},
+
 }
 
 

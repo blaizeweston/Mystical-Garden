@@ -778,3 +778,6 @@ CE04 Storm is implemented (10 additions, **111 total** at its checkpoint), inclu
 
 
 CE04 Spirit is implemented (15 additions, **126 total** at its checkpoint): sequential stored dashes, independent passive Mirrorstep and departure-position Wraithcast. Ordinary dash recharge changes provisionally from 850 to 2,200 ms; Quick Footing values are unchanged. [Architecture](ARCHITECTURE.md#spirit-stored-movement-and-independent-phantoms) records exact per-rarity values, supported replica portions, focused/network evidence, measured stress behavior and the retained unrelated binding-fixture failure. Void additions are not implied implemented yet.
+
+
+CE04 Void is implemented (11 additions), completing the remaining three families at **137 definitions**: 101 prior cards retained, 10 Storm, 15 Spirit and 11 Void. Rift Shear independently grants the real lingering-field path needed for solo overlap. Singularity is an additional targeted/self-placeable action. The [architecture reference](ARCHITECTURE.md#void-actual-overlapping-fields-and-targeted-destruction) records provisional values, ownership and focused evidence. No class/weapon/graft/cross-affinity expansion or main integration is implied. Wraithcast's documented supported skill portions remain narrower than all nine Core families.
