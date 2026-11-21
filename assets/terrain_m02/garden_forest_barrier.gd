@@ -5,7 +5,8 @@ extends Node3D
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const Garden = preload("res://assets/terrain_m02/garden_expansion.gd")
 const Wood = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
-const SAMPLE := 0.17
+const Motion = preload("res://assets/terrain_m02/terrain_actor_motion.gd")
+const PropGeometry = preload("res://assets/terrain_m02/terrain_prop_geometry.gd")
 const CLUMP_SPACING := 0.83
 
 var garden: Garden
@@ -19,12 +20,17 @@ var parts: Array[ArrayMesh] = []
 var bark: StandardMaterial3D
 var buildings: Array = []
 var construction: Array = []
+var _prop_bodies: Array = [] # Derived walking geometry; terrain/reclamation reservations stay in Garden.
 var _render_tangle := true
 
 func bind(state: Garden, render_tangle: bool = true) -> void:
 	garden = state
 	_render_tangle = render_tangle
 	construction = []
+	_prop_bodies.clear()
+	for prop: Dictionary in state.layout.rocks: _prop_bodies.append(PropGeometry.actor_shape(prop))
+	for plant: Dictionary in state.layout.plants:
+		if plant.kind in ["tree", "sapling"]: _prop_bodies.append(PropGeometry.actor_shape(plant))
 	buildings = [Shape.disk("heart_trunk", "trunk", Vector2.ZERO, 1.0)]
 	for id: String in state.landmarks:
 		if id not in ["heart", "wilds_entrance"] and state.landmarks[id].get("blocks_movement",true):
@@ -129,24 +135,26 @@ func _radial_vertices(outline: PackedVector2Array) -> PackedVector2Array:
 		points.append(dir * Garden.edge_distance(outline, dir))
 	return points
 
-func walkable(at: Vector2, radius: float = 0.34) -> bool:
-	return fixed_walkable(at, radius) and not Shape.in_any(construction, at, radius)
+func walkable(at: Vector2, radius: float = Motion.RADIUS_M) -> bool:
+	return fixed_walkable(at, radius) and Motion.obstacles_clearance(at, construction, radius + 0.03) > radius
 
-func fixed_walkable(at: Vector2, radius: float = 0.34) -> bool:
-	return (Shape.polygon_distance(visible_outline, at, radius + 0.03) < -radius
-		and not Shape.in_any(garden.layout.water, at, radius)
-		and not Shape.in_any(garden.occupied, at, radius)
-		and not Shape.in_any(buildings, at, radius))
+func fixed_walkable(at: Vector2, radius: float = Motion.RADIUS_M) -> bool:
+	return _fixed_clearance(at, radius + 0.03) > radius
+
+func _fixed_clearance(at: Vector2, limit: float) -> float:
+	return minf(-Shape.polygon_distance(visible_outline, at, limit), minf(
+		Motion.water_clearance(at, garden.layout.water, [], limit), minf(
+		Motion.obstacles_clearance(at, _prop_bodies, limit), Motion.obstacles_clearance(at, buildings, limit))))
+
+func motion_clearance(at: Vector2) -> float:
+	var limit := Motion.RADIUS_M + 0.05
+	return minf(_fixed_clearance(at, limit), Motion.obstacles_clearance(at, construction, limit))
+
+func travel(from: Vector2, to: Vector2, radius: float = Motion.RADIUS_M) -> Vector2:
+	return Motion.travel(from, to, radius, walkable)
 
 func move(at: Vector2, delta: Vector2) -> Vector2:
-	var steps := maxi(1, ceili(delta.length() / SAMPLE))
-	var world_position := at
-	for i in range(1, steps + 1):
-		var next := at + delta * (float(i) / steps)
-		if not walkable(next):
-			break
-		world_position = next
-	return world_position
+	return Motion.slide(at, delta, travel, motion_clearance)
 
 func _understory(variant: int) -> ArrayMesh:
 	var tool := SurfaceTool.new()

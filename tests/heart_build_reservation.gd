@@ -41,10 +41,10 @@ func run() -> void:
 	var canopy_bounds: Rect2 = Shape.shape("canopy", "canopy", canopy_outline).bounds
 	check(base_vertices > 0 and base_bounds.size.x < canopy_bounds.size.x * 0.7
 		and base_bounds.size.y < canopy_bounds.size.y * 0.7, "overhead canopy and buried geometry do not reserve building land")
-	var crossings := Heart._base_projection(PackedVector3Array([Vector3(-2,-1,-1), Vector3(2,1,-1), Vector3(0,1,1)]), Transform3D.IDENTITY)
+	var crossings := Shape.project_height_band(PackedVector3Array([Vector3(-2,-1,-1), Vector3(2,1,-1), Vector3(0,1,1)]), Transform3D.IDENTITY, 0.0, Heart.BUILD_BASE_HEIGHT_M)
 	check(crossings.has(Vector2(0,-1)) and crossings.has(Vector2(-1,0)), "root faces crossing the ground band are retained even without a vertex inside it")
-	check(Heart._base_projection(PackedVector3Array([Vector3(-20,3,0), Vector3(20,3,0), Vector3(0,4,2),
-		Vector3(-20,-3,0), Vector3(20,-3,0), Vector3(0,-4,2)]), Transform3D.IDENTITY).is_empty(), "wholly overhead or buried faces add no restriction")
+	check(Shape.project_height_band(PackedVector3Array([Vector3(-20,3,0), Vector3(20,3,0), Vector3(0,4,2),
+		Vector3(-20,-3,0), Vector3(20,-3,0), Vector3(0,-4,2)]), Transform3D.IDENTITY, 0.0, Heart.BUILD_BASE_HEIGHT_M).is_empty(), "wholly overhead or buried faces add no restriction")
 	var issue: Dictionary = model.placement_issue("bed", Vector2.ZERO, 0.0, view.pawn)
 	check(issue.get("blocker", {}).get("id") == "heart" and issue.blocker.outline == footprint
 		and issue.blocker.kind == "heart_base" and "base" in issue.message, "the actual Heart base remains protected with an accurate blocker outline")

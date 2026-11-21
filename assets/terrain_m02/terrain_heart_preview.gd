@@ -3,6 +3,7 @@ extends Node3D
 const BARK_SHADER = preload("res://assets/terrain_m02/heart_bark.gdshader")
 const SCULPT = preload("res://assets/terrain_m02/garden_heart.glb")
 const Meshes = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
+const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const STAGES := ["Dormant Heart", "Early restoration", "Mid restoration", "Mature canopy", "Fully restored"]
 const HEIGHTS := [1.67, 2.24, 3.07, 4.12, 4.75]
 const ROOT_REACH := [2.1, 2.45, 2.86, 3.16, 3.40]
@@ -88,30 +89,11 @@ static func maximum_base_outline() -> PackedVector2Array:
 		model.position = Vector3.ZERO
 		model.scale = research_scale(Growth.count(Research.DEFINITIONS.map(func(entry): return entry.id)))
 		var pose := source.transform * model.transform
-		_maximum_base_outline = Geometry2D.convex_hull(_base_projection(model.mesh.get_faces(), pose))
+		_maximum_base_outline = Geometry2D.convex_hull(Shape.project_height_band(model.mesh.get_faces(), pose, 0.0, BUILD_BASE_HEIGHT_M))
 		if _maximum_base_outline[0] == _maximum_base_outline[-1]:
 			_maximum_base_outline.remove_at(_maximum_base_outline.size() - 1)
 		source.free()
 	return _maximum_base_outline.duplicate()
-
-static func _base_projection(faces: PackedVector3Array, pose: Transform3D) -> PackedVector2Array:
-	var projected := PackedVector2Array()
-	for index in range(0, faces.size(), 3):
-		var triangle := [pose * faces[index], pose * faces[index + 1], pose * faces[index + 2]]
-		var low: float = minf(triangle[0].y, minf(triangle[1].y, triangle[2].y))
-		var high: float = maxf(triangle[0].y, maxf(triangle[1].y, triangle[2].y))
-		if low > BUILD_BASE_HEIGHT_M or high < 0.0: continue
-		for edge in 3:
-			var a: Vector3 = triangle[edge]
-			var b: Vector3 = triangle[(edge + 1) % 3]
-			if a.y >= 0.0 and a.y <= BUILD_BASE_HEIGHT_M:
-				projected.append(Vector2(a.x, a.z))
-			# Include crossings even when neither triangle endpoint lies in the band.
-			for height: float in [0.0, BUILD_BASE_HEIGHT_M]:
-				if (a.y < height) != (b.y < height):
-					var point := a.lerp(b, (height - a.y) / (b.y - a.y))
-					projected.append(Vector2(point.x, point.z))
-	return projected
 
 func set_sculpt(enabled: bool) -> void:
 	if sculpt_only and not enabled:

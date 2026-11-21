@@ -1,10 +1,9 @@
 extends Node3D
 ## One MultiMesh per repeated asset variant. Collision stays outside the preview.
 
-const CoverShape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
+const PropGeometry = preload("res://assets/terrain_m02/terrain_prop_geometry.gd")
 const RootMeshes = preload("res://assets/terrain_m02/terrain_root_mesh.gd")
 const Art = preload("res://assets/terrain_m02/terrain_art_direction.gd")
-const Habitat = preload("res://assets/terrain_m02/wilds_habitat_mesh.gd")
 const BoundaryMesh = preload("res://assets/terrain_m02/wilds_boundary_mesh.gd")
 const MassMesh = preload("res://assets/terrain_m02/wilds_massing_mesh.gd")
 const TREE := preload("res://assets/root_tree.glb")
@@ -59,21 +58,13 @@ func rebuild(layout: Dictionary, profile: Dictionary = {}, biome: int = 0, wilds
 		var variant_set := _wilds_assets(plant.family) if wilds else assets
 		var options: Array = variant_set[plant.kind]
 		var asset: Dictionary = options[plant.variant % options.size()]
-		var height: float = plant.height
-		var instance_basis := Basis(Vector3.UP, plant.yaw).scaled(Vector3.ONE * height / asset.bounds.size.y)
-		if plant.kind == "shrub":
-			instance_basis = instance_basis.scaled(Vector3(1.32, 0.9, 1.32))
+		var instance_basis := PropGeometry.plant_basis(plant, asset.bounds)
 		_append(batches, asset, instance_basis, plant.center, plant.tint, plant.get("elevation", 0.0))
 	for prop in layout.rocks:
 		var variant_set := _wilds_assets(prop.family) if wilds else assets
 		var available: Array = variant_set[prop.kind] if wilds else variant_set.rock
 		var asset: Dictionary = available[prop.variant % available.size()]
-		var size: Vector3 = asset.bounds.size
-		# Half the bounding box diagonal makes the logical disk conservative at any yaw.
-		var diagonal := Vector2(size.x, size.z).length()
-		var instance_basis := Basis(Vector3.UP, prop.yaw).scaled(Vector3.ONE * (2.0 * prop.radius / diagonal))
-		if prop.get("cover_role") == CoverShape.LOW_RUBBLE:
-			instance_basis = instance_basis.scaled(Vector3(1.0, 0.50, 1.0))
+		var instance_basis := PropGeometry.rock_basis(prop, asset.bounds)
 		_append(batches, asset, instance_basis, prop.center, 0.45, -0.025)
 	for key in batches:
 		var parent := rocks if key.begins_with("rock_") else vegetation
@@ -171,13 +162,7 @@ func _make_botanicals(profile: Dictionary, biome: int, family: int = -1) -> Dict
 	for kind in kinds:
 		var options: Array[Dictionary] = []
 		for i in (4 if kind == "rock" else 3):
-			var mesh: ArrayMesh
-			match kind:
-				"tree", "sapling":
-					mesh = RootMeshes.botanical(i, kind, profile, biome) if family <= 0 else Habitat.tree(i, family, profile)
-				"rock": mesh = RootMeshes.basalt(i, profile)
-				"reed", "fungus", "fallen_timber", "root_arch": mesh = Habitat.prop(kind, i, profile)
-				_: mesh = RootMeshes.understory(kind, i, profile)
+			var mesh := PropGeometry.mesh(kind, i, profile, biome, family)
 			mesh.surface_set_material(0, botanical_material)
 			if kind == "fungus":
 				var luminous := botanical_material.duplicate() as StandardMaterial3D
@@ -235,9 +220,7 @@ func _append(batches: Dictionary, asset: Dictionary, instance_basis: Basis, at: 
 	var key: String = asset.key
 	if not batches.has(key):
 		batches[key] = {"asset": asset, "transforms": [], "colors": []}
-	var bounds: AABB = asset.bounds
-	var foot := Vector3(bounds.get_center().x, bounds.position.y, bounds.get_center().z)
-	batches[key].transforms.append(Transform3D(instance_basis, Vector3(at.x, y, at.y) - instance_basis * foot))
+	batches[key].transforms.append(PropGeometry.placed_pose(asset.bounds, instance_basis, at, y))
 	batches[key].colors.append(Color("#a7ad84").lerp(Color("#dce0a4"), tint))
 
 func _batch(parent: Node3D, data: Dictionary) -> void:

@@ -186,6 +186,11 @@ func host_run(menu: Node) -> void:
 	var placements := FileAccess.open(signals.path_join("starting-placements"), FileAccess.WRITE)
 	placements.store_var(moved)
 	placements.close()
+	var probes := collision_probes(garden)
+	if not check(not probes.is_empty(), "real bed edges provide glancing collision probes"): return
+	var collision_file := FileAccess.open(signals.path_join("collision-probes"), FileAccess.WRITE)
+	collision_file.store_var(probes)
+	collision_file.close()
 	mark("host-ready", str(bed_id))
 	if not check(await until(func(): return ready_guest(game) != 0 and read("guest-layout") == "ok"), "guest admitted with the developed layout"):
 		return
@@ -330,6 +335,13 @@ func guest_run(menu: Node) -> void:
 		and garden.station_ids.altar == moved[1][0] and game.stage.altar_position().is_equal_approx(garden.world(moved[1][1]))
 		and garden.structure_nodes.size() == 1, "guest sees both relocated starting structures and only one altar")
 	check(not garden.place("altar", Vector2.ZERO, 0.0, garden.station_ids.altar), "guest cannot relocate a host structure")
+	var collision_file := FileAccess.open(signals.path_join("collision-probes"), FileAccess.READ)
+	var probes: Array = collision_file.get_var(false)
+	collision_file.close()
+	for probe: Array in probes:
+		var result: Vector2 = garden.barrier.move(probe[0], probe[1])
+		check(result.distance_to(probe[2]) < 0.0001 and garden.barrier.walkable(result),
+			"guest prediction and host agree on rounded bed collision and edge sliding")
 	mark("guest-layout")
 	if not check(await until(func(): return read("plant") == "ok" and Vector3(game.players[id].pos).distance_to(game.stage.bed_position(3)) < 1.65), "guest arrives at the real bed"):
 		return
@@ -403,6 +415,20 @@ func guest_run(menu: Node) -> void:
 	if not await river_guest(game, game.local_player_id(), "river-again"):
 		return
 	check(await until(func(): return read("host-offline") == "ok" and root.get_multiplayer().multiplayer_peer is OfflineMultiplayerPeer), "guest observes host shutdown")
+
+func collision_probes(garden: Node) -> Array:
+	var result: Array = []
+	var barrier = garden.barrier
+	for entry: Dictionary in garden.construction.records.values():
+		if entry.kind != "bed": continue
+		for side in [-1.0, 1.0]:
+			var start: Vector2 = entry.at + Vector2(-1.8, side * 0.65).rotated(entry.yaw)
+			var delta := Vector2(1.5, 0).rotated(entry.yaw)
+			if not barrier.walkable(start): continue
+			var end: Vector2 = barrier.move(start, delta)
+			if barrier.walkable(end) and end.distance_to(barrier.travel(start, start + delta)) > 0.1:
+				result.append([start, delta, end])
+	return result
 
 func starter_relocation(garden: Node, kind: String, id: int) -> Vector2:
 	var at: Vector2 = garden.construction.records[id].at

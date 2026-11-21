@@ -5,6 +5,28 @@ const SOLID_COVER := &"solid_cover"
 const LOW_RUBBLE := &"low_rubble"
 const TRACE_EPSILON := 0.00001
 
+static func project_height_band(faces: PackedVector3Array, pose: Transform3D, bottom: float, top: float) -> PackedVector2Array:
+	var projected := PackedVector2Array()
+	for index in range(0, faces.size(), 3):
+		var triangle := [pose * faces[index], pose * faces[index + 1], pose * faces[index + 2]]
+		var low: float = minf(triangle[0].y, minf(triangle[1].y, triangle[2].y))
+		var high: float = maxf(triangle[0].y, maxf(triangle[1].y, triangle[2].y))
+		if low > top or high < bottom: continue
+		for edge in 3:
+			var a: Vector3 = triangle[edge]
+			var b: Vector3 = triangle[(edge + 1) % 3]
+			if a.y >= bottom and a.y <= top: projected.append(Vector2(a.x, a.z))
+			for height: float in [bottom, top]:
+				if (a.y < height) != (b.y < height):
+					var point := a.lerp(b, (height - a.y) / (b.y - a.y))
+					projected.append(Vector2(point.x, point.z))
+	return projected
+
+static func mesh_outline(mesh: Mesh, bottom: float = -INF, top: float = INF) -> PackedVector2Array:
+	var outline := Geometry2D.convex_hull(project_height_band(mesh.get_faces(), Transform3D.IDENTITY, bottom, top))
+	if outline.size() > 1 and outline[0] == outline[-1]: outline.remove_at(outline.size() - 1)
+	return outline
+
 static func disk(id: String, kind: String, at: Vector2, radius: float) -> Dictionary:
 	return {"id": id, "kind": kind, "center": at, "radius": radius,
 		"bounds": Rect2(at - Vector2.ONE * radius, Vector2.ONE * (2.0 * radius))}

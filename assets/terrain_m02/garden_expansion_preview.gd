@@ -435,10 +435,6 @@ func _physics_process(delta: float) -> void:
 		return
 	var step := axis.normalized() * delta * 4.6
 	var target := barrier.move(pawn, step)
-	if target.distance_squared_to(pawn + step) > 0.000001:
-		var along_x := barrier.move(target, Vector2(pawn.x + step.x - target.x, 0))
-		var along_z := barrier.move(target, Vector2(0, pawn.y + step.y - target.y))
-		target = along_x if along_x.distance_squared_to(pawn + step) < along_z.distance_squared_to(pawn + step) else along_z
 	pawn = target
 	walker.position = Vector3(pawn.x, 0.81, pawn.y)
 	set_camera(pawn, zoom)

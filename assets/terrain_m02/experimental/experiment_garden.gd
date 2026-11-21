@@ -227,13 +227,7 @@ func make_bed(index: int) -> MeshInstance3D:
 	return bed
 
 func slide(from: Vector3, to: Vector3) -> Vector3:
-	var target := planar(to)
-	var moved := barrier.move(planar(from), target - planar(from))
-	if moved.is_equal_approx(target):
-		return world(moved)
-	var x := barrier.move(moved, Vector2(target.x - moved.x, 0))
-	var z := barrier.move(moved, Vector2(0, target.y - moved.y))
-	return world(x if x.distance_squared_to(target) < z.distance_squared_to(target) else z)
+	return world(barrier.move(planar(from), planar(to - from)))
 
 func _make_station(id: String, art: String, world_position: Vector3, yaw: float) -> void:
 	var instance := structure_nodes.get(id) as MeshInstance3D

@@ -6,7 +6,10 @@ const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
 const Forest = preload("res://assets/terrain_m02/garden_forest_barrier.gd")
 const Knowledge = preload("res://assets/terrain_m02/garden_knowledge.gd")
 const Heart = preload("res://assets/terrain_m02/terrain_heart_preview.gd")
-const WALK_RADIUS := 0.34
+const Stations = preload("res://assets/terrain_m02/garden_station_art.gd")
+const Motion = preload("res://assets/terrain_m02/terrain_actor_motion.gd")
+static var _walking_outlines := {}
+const WALK_RADIUS := Motion.RADIUS_M
 const STEP := 0.47
 const MARGIN := 0.045
 const THICKET_RADIUS := 0.60
@@ -117,16 +120,25 @@ func interaction_at(at: Vector2) -> Dictionary:
 
 func _sync_obstacles() -> void:
 	var shapes: Array = []
+	var reservations: Array = []
 	for entry: Dictionary in records.values():
-		shapes.append(entry.footprint)
+		shapes.append(walking_footprint(entry.kind, entry.at, entry.yaw))
+		reservations.append(entry.footprint)
 	forest.construction = shapes
-	forest.garden.construction_clearance = shapes.duplicate()
+	forest.garden.construction_clearance = reservations
 	for id: int in records:
 		var entry: Dictionary = records[id]
 		forest.garden.construction_clearance.append(Shape.disk("access_%d" % id, "approach", _door_position(entry), WALK_RADIUS))
 	_marks.clear()
 	for id: int in records:
 		_marks[id] = _nearby(records[id].footprint)
+
+func walking_footprint(kind: String, at: Vector2, yaw: float) -> Dictionary:
+	if not _walking_outlines.has(kind):
+		_walking_outlines[kind] = Shape.mesh_outline(Stations.build(CATALOG[kind].art, false))
+	var points := PackedVector2Array()
+	for point: Vector2 in _walking_outlines[kind]: points.append(at + point.rotated(yaw))
+	return Shape.shape("construction", kind, points)
 
 func _inside(inner: PackedVector2Array, outer: PackedVector2Array) -> bool:
 	for point in inner:

@@ -34,6 +34,8 @@ These are implementation facts, not new feature promises.
 
 Crop growth now has its own shared 2× Wilds rate, composed with existing irrigation/nursery bonuses and optional once-per-crop 1.25× watering from a vessel filled at an actual generated-water bank. Tier base times are 5/12/25/50/90 minutes. See [Cultivation growth](CULTIVATION_GROWTH.md); research retains its separate existing advancement rules.
 
+Walking collision is distinct from construction clearance. `terrain_actor_motion.gd` supplies shared tangent sliding to `garden_forest_barrier.gd` and `wilds_play_surface.gd`; straight dash sweeps remain separate. `terrain_prop_geometry.gd` shares the renderer's mesh/pose recipes and caches fitted walking outlines, including lower tree trunks and step-over stones at most 0.18 m tall. `garden_construction.gd::walking_footprint` projects station meshes without decorative bed shoots. Rectangular placement reservations, reclamation occupancy, saved terrain generation and door access reservations retain their existing behavior. Water remains blocking; TC01 projectile cover is unchanged. Walking-shape caches are derived geometry, not a second layout authority. See the movement boundary in [ARCHITECTURE.md](ARCHITECTURE.md) and `tests/terrain_actor_collision.gd`.
+
 ## Interaction and dependency graph
 
 Solid connections below represent existing services. Dashed connections are proposed additions or adapters.

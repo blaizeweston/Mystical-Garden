@@ -3,8 +3,10 @@ extends RefCounted
 
 const Grid = preload("res://assets/terrain_m02/hex_grid.gd")
 const Shape = preload("res://assets/terrain_m02/terrain_feature_geometry.gd")
-const CLEARANCE := 0.34
-const SAMPLE_STEP := 0.13
+const Motion = preload("res://assets/terrain_m02/terrain_actor_motion.gd")
+const PropGeometry = preload("res://assets/terrain_m02/terrain_prop_geometry.gd")
+const CLEARANCE := Motion.RADIUS_M
+const SAMPLE_STEP := Motion.SAMPLE_M
 const EDGE_BUCKET_SIZE := 2.0
 
 var cells: Dictionary
@@ -21,7 +23,11 @@ func _init(labels: Dictionary, features: Dictionary, cell_spacing: float) -> voi
 	cells = labels
 	layout = features
 	spacing = cell_spacing
-	blockers = layout.masses + layout.rocks + layout.get("solid_shapes",[])
+	var cover: Array = layout.masses + layout.rocks + layout.get("solid_shapes",[])
+	blockers = layout.masses + layout.get("solid_shapes",[])
+	for prop: Dictionary in layout.rocks:
+		var body := PropGeometry.actor_shape(prop)
+		if not body.get("step_over",false): blockers.append(body)
 	water = layout.water
 	if layout.has("boundary"):
 		arena = layout.boundary.playable
@@ -31,14 +37,16 @@ func _init(labels: Dictionary, features: Dictionary, cell_spacing: float) -> voi
 		for strip in layout.boundary.rim:
 			if not strip.wet:
 				blockers.append(strip)
+				cover.append(strip)
 	for plant in layout.plants:
 		if plant.kind == "tree" and not plant.has("on_mass"):
-			blockers.append(Shape.disk(plant.id, "trunk", plant.center, plant.height * 0.105))
-	for block: Dictionary in blockers:
+			blockers.append(PropGeometry.actor_shape(plant))
+			cover.append(Shape.disk(plant.id, "trunk", plant.center, plant.height * 0.105))
+	for block: Dictionary in cover:
 		if block.get("cover_role", Shape.SOLID_COVER) != Shape.LOW_RUBBLE:
 			projectile_cover.append(block)
 
-# Ranged and sight clearance share solid footprints. Actor queries keep every blocker.
+# Ranged/sight cover keeps its authored geometry; walking uses mesh-fitted bodies.
 func projectile_block_fraction(from: Vector2, to: Vector2, radius: float) -> float:
 	var fraction := _ranged_boundary(from, to, radius)
 	var bounds := Rect2(from.min(to), (to - from).abs()).grow(radius + Shape.TRACE_EPSILON)
@@ -66,7 +74,7 @@ func _ranged_boundary(from: Vector2, to: Vector2, radius: float) -> float:
 
 func walkable(point: Vector2, radius: float = CLEARANCE) -> bool:
 	if not arena.is_empty():
-		if not _contains_clearance(point, radius):
+		if _arena_clearance(point, radius + 0.01) <= radius:
 			return false
 	else:
 		if not cells.has(Grid.world_to_cell(point, spacing)):
@@ -123,21 +131,25 @@ func _index_arena_edges() -> void:
 				arena_edges[bucket].append(edge)
 		previous = point
 
-func _contains_clearance(point: Vector2, radius: float) -> bool:
+func _arena_clearance(point: Vector2, limit: float) -> float:
 	if not Geometry2D.is_point_in_polygon(point, arena_outline):
-		return false
+		return -limit
 	# Distance still uses the exact shared polygon. Only nearby edges can overlap the disk.
-	var extent := Vector2.ONE * radius
+	var extent := Vector2.ONE * limit
 	var first := _edge_bucket(point - extent)
 	var last := _edge_bucket(point + extent)
-	var limit := radius * radius
+	var distance := limit
 	for y in range(first.y, last.y + 1):
 		for x in range(first.x, last.x + 1):
 			for edge: PackedVector2Array in arena_edges.get(Vector2i(x, y), []):
 				var nearest := Geometry2D.get_closest_point_to_segment(point, edge[0], edge[1])
-				if point.distance_squared_to(nearest) <= limit:
-					return false
-	return true
+				distance = minf(distance, point.distance_to(nearest))
+	return distance
+
+func motion_clearance(point: Vector2) -> float:
+	var limit := CLEARANCE + 0.05
+	var edge := _arena_clearance(point, limit) if not arena_outline.is_empty() else (limit if walkable(point) else -limit)
+	return minf(edge, minf(Motion.obstacles_clearance(point, blockers, limit), Motion.water_clearance(point, water, layout.crossings, limit)))
 
 func _hits_block(from: Vector2, to: Vector2, radius: float, block: Dictionary) -> bool:
 	var limit := radius * radius
@@ -155,23 +167,10 @@ func _hits_block(from: Vector2, to: Vector2, radius: float, block: Dictionary) -
 	return false
 
 func travel(from: Vector2, to: Vector2, radius: float = CLEARANCE) -> Vector2:
-	var count := maxi(1, ceili(from.distance_to(to) / SAMPLE_STEP))
-	var last := from
-	for i in range(1, count + 1):
-		var point := from.lerp(to, float(i) / count)
-		if not walkable(point, radius) or not clear_line(last, point, radius):
-			break
-		last = point
-	return last
+	return Motion.travel(from, to, radius, walkable, clear_line)
 
 func slide(from: Vector2, delta: Vector2) -> Vector2:
-	var target := from + delta
-	var straight := travel(from, target)
-	if straight.is_equal_approx(target):
-		return straight
-	var x := travel(straight, straight + Vector2(target.x - straight.x, 0.0))
-	var z := travel(straight, straight + Vector2(0.0, target.y - straight.y))
-	return x if x.distance_squared_to(target) < z.distance_squared_to(target) else z
+	return Motion.slide(from, delta, travel, motion_clearance)
 
 func reachable_nodes() -> Dictionary:
 	# Certify continuous motion along each authored edge, then flood the certified graph.

@@ -8,6 +8,15 @@
   },
   "full_after_days": 7,
   "systems": {
+      "actor_collision": {
+        "label": "Shared tangent sliding, mesh-fitted walking bodies and low-stone step-over",
+        "files": [
+          "assets/terrain_m02/terrain_actor_motion.gd",
+          "assets/terrain_m02/terrain_actor_motion.gd.uid",
+          "assets/terrain_m02/terrain_prop_geometry.gd",
+          "assets/terrain_m02/terrain_prop_geometry.gd.uid"
+        ]
+      },
       "garden_development": {
         "label": "Terrain-only Garden water, movable owned structures and transactional saved development",
         "files": [
@@ -1542,9 +1551,19 @@
     ]
   },
   "suites": {
+      "terrain_actor_collision": {
+        "kind": "unit",
+        "systems": [
+          "actor_collision",
+          "hex_terrain",
+          "garden_development",
+          "garden_heart_view"
+        ],
+        "package": false
+      },
       "heart_build_reservation": {
         "kind": "unit",
-        "systems": ["garden_development", "garden_heart_view", "hex_terrain", "garden", "persistence_operations"],
+        "systems": ["garden_development", "garden_heart_view", "hex_terrain", "garden", "persistence_operations", "actor_collision"],
         "package": false
       },
       "menu_root_render": {
@@ -1562,7 +1581,8 @@
           "garden_zones",
           "knowledge",
           "cultivation_growth",
-          "persistence_operations"
+          "persistence_operations",
+          "actor_collision"
         ],
         "package": true
       },
@@ -1573,16 +1593,17 @@
           "persistence_operations",
           "persistence_authorization",
           "persistence_recovery_plan",
-          "garden"
+          "garden",
+          "actor_collision"
         ],
         "candidate_release": true,
         "package": true
       },
     "garden_canopy": {"kind":"unit", "systems":["garden_canopy"], "package":false},
-    "ce04_void": {"kind":"unit","profile":"affinity","systems":["affinity_cards","void_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
+    "ce04_void": {"kind":"unit","profile":"affinity","systems":["affinity_cards","void_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons", "actor_collision"],"package":false},
     "ce04_void_coop": {"kind":"pair","profile":"affinity","systems":["affinity_cards","void_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
     "ce04_void_party": {"kind":"party","profile":"affinity","systems":["affinity_cards","void_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
-    "ce04_spirit": {"kind":"unit","profile":"affinity","systems":["affinity_cards","spirit_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons","player_cooldowns","player_hit_conditions","incoming_player_hit","classes"],"package":false},
+    "ce04_spirit": {"kind":"unit","profile":"affinity","systems":["affinity_cards","spirit_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons","player_cooldowns","player_hit_conditions","incoming_player_hit","classes", "actor_collision"],"package":false},
     "ce04_spirit_coop": {"kind":"pair","profile":"affinity","systems":["affinity_cards","spirit_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons","player_cooldowns","player_hit_conditions","incoming_player_hit","classes"],"package":false},
     "ce04_spirit_party": {"kind":"party","profile":"affinity","systems":["affinity_cards","spirit_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons","player_cooldowns","player_hit_conditions","incoming_player_hit","classes"],"package":false},
     "ce04_storm": {"kind":"unit","profile":"affinity","systems":["affinity_cards","storm_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
@@ -1624,7 +1645,7 @@
     "weapon_attack_queue": {"kind":"unit", "systems":["weapon_attacks","weapons","combat","combat_affinity_contracts","classes","player_weapon_actions","player_lifecycle","ranged_release","hex_terrain"], "package":false},
     "outgoing_hits": {"kind":"unit", "systems":["arena_combat_bridge","combat","weapons","classes","loot","enemies","encounter_roster","player_lifecycle","combat_affinity_contracts"], "package":false},
     "native_class_actions": {"kind":"unit", "systems":["classes","combat","class_balance","combat_affinity_contracts","life","player_lifecycle","player_cooldowns","player_protection","ability_aim"], "package":false},
-    "modern_terrain_cutover": {"kind": "unit", "systems": ["garden_development", "garden_development", "garden_development", "garden_development", "garden_development", "garden_heart_view", "garden_canopy", "hex_terrain", "terrain", "garden", "boss_lair_fights", "boss_phase_fights", "connection_flow"], "package": false},
+    "modern_terrain_cutover": {"kind": "unit", "systems": ["garden_development", "garden_development", "garden_development", "garden_development", "garden_development", "garden_heart_view", "garden_canopy", "hex_terrain", "terrain", "garden", "boss_lair_fights", "boss_phase_fights", "connection_flow", "actor_collision"], "package": false},
     "progression_ui": {"kind": "unit", "systems": ["progression_ui", "gameplay_ui", "classes", "knowledge", "seeds", "garden_returns"], "package": false},
     "player_build_ui": {"kind": "unit", "systems": ["player_build_ui", "gameplay_ui", "classes", "weapons", "items", "affinity_cards", "expedition_summary", "progression_ui"], "package": false},
     "garden_cinematic_view": {"kind": "unit", "systems": ["garden_development", "garden_heart_view", "garden_cinematics", "gameplay_ui", "heart_growth_visual", "presentation"], "package": false},
@@ -1759,10 +1780,10 @@
       "systems": ["player_lifecycle", "player_cooldowns", "combat_affinity_contracts", "plant_affinities", "classes", "weapons", "player_protection"],
       "package": false
     },
-    "cr02_mode_coop": {"profile": "affinity", "kind": "pair", "systems": ["expedition_wallet", "combat_affinity_contracts", "hex_terrain", "connection_flow", "weapons", "garden", "affinity_cards", "network_session", "player_build_ui", "progression_ui"], "package": false},
+    "cr02_mode_coop": {"profile": "affinity", "kind": "pair", "systems": ["expedition_wallet", "combat_affinity_contracts", "hex_terrain", "connection_flow", "weapons", "garden", "affinity_cards", "network_session", "player_build_ui", "progression_ui", "actor_collision"], "package": false},
     "cr02_definitions_mismatch": {"profile": "affinity",
       "kind": "pair",
-      "systems": ["world_snapshot", "combat_affinity_contracts", "connection_flow", "network_session", "player_build_ui", "progression_ui"],
+      "systems": ["world_snapshot", "combat_affinity_contracts", "connection_flow", "network_session", "player_build_ui", "progression_ui", "actor_collision"],
       "package": false
     },
     "plant_affinities": {
@@ -1785,13 +1806,14 @@
         "enemy_attack_execution",
         "incoming_player_hit",
         "expedition_participation",
-        "network_session"
+        "network_session",
+        "actor_collision"
       ],
       "package": true
     },
     "experimental_terrain": {
       "kind": "unit",
-      "systems": ["garden_development", "garden_heart_view", "garden_canopy", "player_cooldowns", "loot", "expedition_wallet", "hex_terrain", "terrain", "garden_care", "persistence_operations"],
+      "systems": ["garden_development", "garden_heart_view", "garden_canopy", "player_cooldowns", "loot", "expedition_wallet", "hex_terrain", "terrain", "garden_care", "persistence_operations", "actor_collision"],
       "package": false
     },
     "garden_offerings_preview": {
@@ -1806,12 +1828,12 @@
     },
     "garden_construction": {
       "kind": "unit",
-      "systems": ["garden_development", "garden_canopy", "hex_terrain", "garden_heart_view"],
+      "systems": ["garden_development", "garden_canopy", "hex_terrain", "garden_heart_view", "actor_collision"],
       "package": false
     },
     "garden_expansion": {
       "kind": "unit",
-      "systems": ["garden_development", "garden_heart_view", "garden_canopy", "hex_terrain"],
+      "systems": ["garden_development", "garden_heart_view", "garden_canopy", "hex_terrain", "actor_collision"],
       "package": false
     },
     "wilds_combat_preview": {
@@ -1826,12 +1848,12 @@
     },
     "wilds_boundary": {
       "kind": "unit",
-      "systems": ["hex_terrain"],
+      "systems": ["hex_terrain", "actor_collision"],
       "package": false
     },
     "wilds_play_floor": {
       "kind": "unit",
-      "systems": ["hex_terrain"],
+      "systems": ["hex_terrain", "actor_collision"],
       "package": false
     },
     "wilds_massing": {
@@ -1851,7 +1873,7 @@
     },
     "terrain_botanical_art": {
       "kind": "unit",
-      "systems": ["hex_terrain"],
+      "systems": ["hex_terrain", "actor_collision"],
       "package": false
     },
     "terrain_enclosure": {
@@ -2081,7 +2103,7 @@
     "guarded_gameplay_transactions": {
       "candidate_release": true,
       "kind": "unit",
-      "systems": ["garden_development", "garden_feature_ui", "loot", "persistence_operations", "persistence_recovery_plan", "persistence_authorization", "garden_cinematics", "garden_care", "knowledge", "characters", "connection_flow", "player_build_ui", "progression_ui"],
+      "systems": ["garden_development", "garden_feature_ui", "loot", "persistence_operations", "persistence_recovery_plan", "persistence_authorization", "garden_cinematics", "garden_care", "knowledge", "characters", "connection_flow", "player_build_ui", "progression_ui", "actor_collision"],
       "package": true
     },
     "guarded_title_session": {
@@ -2223,7 +2245,8 @@
         "enemy_balance",
         "encounter_roster",
         "enemy_tactics",
-        "enemy_attack_execution"
+        "enemy_attack_execution",
+        "actor_collision"
       ],
       "package": true
     },
@@ -2729,7 +2752,8 @@
         "incoming_player_hit",
         "expedition_participation",
         "network_session",
-        "player_protection"
+        "player_protection",
+        "actor_collision"
       ],
       "package": true
     },
@@ -2974,7 +2998,8 @@
         "cultivation_growth",
         "garden_returns",
         "garden_conduit",
-        "garden_stations"
+        "garden_stations",
+        "actor_collision"
       ],
       "package": true
     },
@@ -3110,7 +3135,8 @@
         "garden_cinematics",
         "garden_returns",
         "garden_life",
-        "developer_garden"
+        "developer_garden",
+        "actor_collision"
       ],
       "package": true
     },
@@ -3306,7 +3332,7 @@
       ],
       "package": true
     },
-    "projectile_terrain": {"kind": "unit", "systems": ["combat","terrain","hex_terrain","ability_aim","classes","core_combat","enemy_attack_plan", "encounter_roster", "enemy_tactics", "enemy_attack_execution", "incoming_player_hit"], "package": false},
+    "projectile_terrain": {"kind": "unit", "systems": ["combat","terrain","hex_terrain","ability_aim","classes","core_combat","enemy_attack_plan", "encounter_roster", "enemy_tactics", "enemy_attack_execution", "incoming_player_hit", "actor_collision"], "package": false},
     "mouse_combat_coop": {
       "kind": "pair",
       "systems": [
@@ -3343,7 +3369,8 @@
         "avatar_motion_view",
         "connection_flow",
         "expedition_sustain",
-        "gameplay_ui"
+        "gameplay_ui",
+        "actor_collision"
       ],
       "package": true
     },
@@ -4056,9 +4083,9 @@
     },
     "expedition_participation": {"kind": "unit", "systems": ["expedition_participation", "expeditions", "network_session"], "package": true},
     "network_session": {"kind": "unit", "systems": ["network_session", "connection_flow"], "package": false},
-    "network_contract": {"kind": "unit", "systems": ["network_session", "connection_flow", "world_snapshot"], "package": false},
+    "network_contract": {"kind": "unit", "systems": ["network_session", "connection_flow", "world_snapshot", "actor_collision"], "package": false},
     "network_action_identity": {"kind": "unit", "systems": ["network_session", "player_lifecycle", "expedition_participation", "ability_aim"], "package": false},
-    "network_contract_coop": {"kind": "pair", "systems": ["network_session", "connection_flow", "world_snapshot", "persistence_operations"], "package": false}
+    "network_contract_coop": {"kind": "pair", "systems": ["network_session", "connection_flow", "world_snapshot", "persistence_operations", "actor_collision"], "package": false}
   },
   "ignored_tests": {
     "production_backend_refusal": "Negative companion probe uses an intentionally missing or older DLL. Run with the production route validation fixture and strict loader diagnostics.",

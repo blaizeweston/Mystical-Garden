@@ -6,9 +6,11 @@ extends RefCounted
 const Snapshot = preload("res://world_snapshot.gd")
 const Settings = preload("res://network_settings.gd")
 const ActionIdentity = preload("res://network_action_identity.gd")
+const ActorMotion = preload("res://assets/terrain_m02/terrain_actor_motion.gd")
 const VERSION := 1
 const RPC_NODE := "MysticalGarden"
 const CAPABILITIES := {
+	"terrain_actor_motion": ActorMotion.VERSION,
 	"session_admission": 1,
 	"owner_details_binding": 1,
 	"action_identity": ActionIdentity.VERSION,
