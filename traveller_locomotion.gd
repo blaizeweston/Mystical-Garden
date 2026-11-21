@@ -93,15 +93,30 @@ static func cycle(skeleton: Skeleton3D, player: AnimationPlayer, pelvis: int, na
 
 
 static func clip_pose(skeleton: Skeleton3D, player: AnimationPlayer, pelvis: int, name: StringName, seconds: float) -> Dictionary:
-	skeleton.set_bone_pose_position(pelvis,skeleton.get_bone_rest(pelvis).origin)
 	if player.current_animation!=name:
 		player.play(name)
-	player.seek(fposmod(seconds,player.get_animation(name).length),true)
-	player.advance(0.0)
+	var time := fposmod(seconds,player.get_animation(name).length)
+	player.seek(time,false)
+	return sample_clip(skeleton,player.get_animation(name),pelvis,time)
+
+
+static func sample_clip(skeleton: Skeleton3D, animation: Animation, pelvis: int, seconds: float, baseline: Array[Quaternion]=[]) -> Dictionary:
+	# Imported clips omit constant tracks. Never read those joints back from a
+	# previously posed skeleton: doing so retains attacks and accumulates offsets.
 	var rotations: Array[Quaternion] = []
 	for index in skeleton.get_bone_count():
-		rotations.append(skeleton.get_bone_pose_rotation(index))
-	return {"rotations":rotations,"pelvis":skeleton.get_bone_pose_position(pelvis)}
+		rotations.append((baseline[index] if not baseline.is_empty() else skeleton.get_bone_rest(index).basis.get_rotation_quaternion()).normalized())
+	var hips := skeleton.get_bone_rest(pelvis).origin
+	for track in animation.get_track_count():
+		var path := animation.track_get_path(track)
+		if path.get_subname_count()==0 or animation.track_get_key_count(track)==0:continue
+		var bone := skeleton.find_bone(path.get_subname(0))
+		if bone<0:continue
+		if animation.track_get_type(track)==Animation.TYPE_ROTATION_3D:
+			rotations[bone]=animation.rotation_track_interpolate(track,seconds).normalized()
+		elif bone==pelvis and animation.track_get_type(track)==Animation.TYPE_POSITION_3D:
+			hips=animation.position_track_interpolate(track,seconds)
+	return {"rotations":rotations,"pelvis":hips}
 
 
 static func blend(result: Dictionary, target: Dictionary, amount: float) -> void:

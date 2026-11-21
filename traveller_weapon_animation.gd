@@ -4,6 +4,7 @@ extends RefCounted
 const DONOR = preload("res://assets/characters/weapon_combat.glb")
 const Poses = preload("res://weapon_pose_catalog.gd")
 const Motion = preload("res://weapon_motion.gd")
+const Locomotion = preload("res://traveller_locomotion.gd")
 
 static func upper_body(name: String) -> bool:
 	return name=="Head" or name.begins_with("spine_") or name.begins_with("neck_") or name.begins_with("clavicle_") or name.begins_with("upperarm_") or name.begins_with("lowerarm_") or name.begins_with("hand_") or name.begins_with("thumb_") or name.begins_with("index_") or name.begins_with("middle_") or name.begins_with("ring_") or name.begins_with("pinky_")
@@ -32,7 +33,7 @@ static func add_clips(result: AnimationLibrary, visual: Node3D, skeleton: Skelet
 		result.add_animation(name,clip)
 	donor.free()
 
-static func pose(field: Dictionary, form: String, phase: float, combo: int) -> Array[Quaternion]:
+static func pose(field: Dictionary, form: String, phase: float, combo: int, baseline: Array[Quaternion]=[]) -> Array[Quaternion]:
 	var definition: Dictionary=Poses.DEFINITIONS.get(form,{})
 	var clips: Array=definition.get("clips",[])
 	if clips.is_empty(): return []
@@ -48,8 +49,6 @@ static func pose(field: Dictionary, form: String, phase: float, combo: int) -> A
 	var time := lerpf(0.0,impact,clampf(phase/contact,0,1)) if phase<=contact else lerpf(impact,total,clampf((phase-contact)/(1.0-contact),0,1))
 	if time>length and not recovery.is_empty(): name=recovery; time-=length
 	if player.current_animation!=name: player.play(name)
-	player.seek(clampf(time,0.0,player.get_animation(name).length-0.00001),true)
-	player.advance(0.0)
-	var result: Array[Quaternion]=[]
-	for bone in field.skeleton.get_bone_count(): result.append(field.skeleton.get_bone_pose_rotation(bone))
-	return result
+	time=clampf(time,0.0,player.get_animation(name).length-0.00001)
+	player.seek(time,false)
+	return Locomotion.sample_clip(field.skeleton,player.get_animation(name),field.pelvis,time,baseline).rotations

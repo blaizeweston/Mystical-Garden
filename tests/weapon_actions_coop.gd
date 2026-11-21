@@ -136,7 +136,8 @@ func guest_run():
   var scythe: Node3D=player.visual_weapon
   return scythe.has_node("HarvestScytheModel") and scythe.is_visible_in_tree() and scythe.to_global(Vector3.ZERO).distance_to(Field.hand(player,false))<.001 and scythe.to_global(scythe.get_meta("support_grip")).distance_to(Field.hand(player,true))<.035)
  check(scythe_gripped,"both visible guest hands stay on the scythe through its attack")
- check(game.stage.avatar_models[id].field_rig.player.current_animation=="TreeChopping","guest uses the new native upper-body action")
+ var scythe_actor: Dictionary=game.stage.avatar_models[id]
+ check(scythe_actor.field_rig.player.current_animation=="Idle","guest layers the scythe sweep over locomotion rather than a chopping guard")
  check(await until(func():return game.guest_replication.received_events().any(func(e):return e.event.kind=="swing" and str(e.event.get("form",""))=="scythe")),"guest receives the scythe swing visual")
  game.submit_combat.rpc_id(1,Vector2(0,1),false)
  mark("scythe-checked")

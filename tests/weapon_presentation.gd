@@ -9,6 +9,7 @@ const Poses = preload("res://weapon_pose_catalog.gd")
 const Native = preload("res://traveller_weapon_animation.gd")
 const Models = preload("res://plant_weapon_models.gd")
 const Weapons = preload("res://weapon_visuals.gd")
+const Locomotion = preload("res://traveller_locomotion.gd")
 var failed := false
 
 func check(ok: bool, message: String) -> void:
@@ -29,6 +30,7 @@ func run() -> void:
 		look[5]=body
 		Appearance.apply(actor,look)
 		inspect_library(actor)
+		inspect_sampling_independence(actor)
 		for class_id in 5:
 			for weapon_id in 3:
 				var form: String=Classes.DEFINITIONS[class_id].weapons[weapon_id].visual
@@ -46,6 +48,8 @@ func run() -> void:
 				actor.speed=0.0
 				inspect_attack(actor,form)
 				inspect_continuity(actor,form)
+				inspect_body_clearance(actor,form)
+				inspect_relaxed_recovery(actor,form)
 				actor.visual_weapon.free()
 				actor.erase("visual_weapon")
 				if actor.has("secondary_weapon"):
@@ -96,7 +100,16 @@ func inspect_carry(actor: Dictionary, form: String) -> void:
 		var correction := Poses.orientation(form,0.0,false,0.0,{})
 		check(absf(correction.z.dot(Vector3.BACK))<.001,"authored broad-face plane corrected by 90 degrees: "+form)
 	if form=="bow":
-		check(weapon.to_global(Vector3(0,.2,-.20)).distance_to(right)<.035,"ready draw hand sits on the string rather than behind the elbow")
+		check(absf(right.x-left.x)>.3,"resting bow leaves the draw arm relaxed at its own side")
+	if form=="ring":
+		check(weapon.get_node("CoreSeed").global_position.y<right.y,"ring hangs below the relaxed hand rather than in the face")
+	if form=="scythe":
+		var tip := weapon.to_global(Vector3(.765,.90,0))
+		var blade_root := weapon.to_global(Vector3(0,1.20,0))
+		check(tip.y<blade_root.y-.2,"the scythe blade points down from its head")
+	if form=="spear":
+		check(absf(weapon.global_basis.y.normalized().y)<.1,"spear stays level instead of lowering from a rifle pose")
+		check(right.x<-.14,"spear rear grip stays beside the body")
 	if form=="whip":
 		for step in 40:
 			check(Weapons.lash_point(step/39.0,0.0,3.0).z>=0.0,"coiled lash stays in front of its grip")
@@ -109,6 +122,12 @@ func inspect_attack(actor: Dictionary, form: String) -> void:
 	var hand := Field.hand(actor,false)
 	if form in ["bell","censer","fan"]:
 		check(hand.distance_to(windup)>.24,"utility attack travels forward rather than shrugging: "+form)
+	if form=="spear":
+		pose(actor,form,0.0,false)
+		var start := Field.hand(actor,false)
+		pose(actor,form,contact,true)
+		var thrust := Field.hand(actor,false)-start
+		check(thrust.z>.15 and absf(thrust.y)<.10,"spear drives forward in a level thrust")
 	if form in ["bell","censer"]:
 		var model: Dictionary=Models.MODELS[form]
 		var body: Vector3=actor.visual_weapon.to_global(model.core)-hand
@@ -147,3 +166,49 @@ func inspect_continuity(actor: Dictionary, form: String) -> void:
 				if step==0:previous.append(rotation)
 				else:previous[index]=rotation
 		check(largest<.36,"native arms remain continuous through contact/recovery: "+str([form,combo,largest]))
+
+func bone_point(skeleton: Skeleton3D, name: String) -> Vector3:
+	return skeleton.get_bone_global_pose(skeleton.find_bone(name)).origin
+
+func inspect_body_clearance(actor: Dictionary, form: String) -> void:
+	if form not in ["spear","bow","scythe","bell","censer","fan"]:return
+	var skeleton: Skeleton3D=actor.field_rig.skeleton
+	var nearest := INF
+	for step in 121:
+		var phase := step/120.0
+		Avatar.animate(actor,true,phase,form,{"equipped":true,"aim_yaw":0.0},1.0/120.0)
+		if phase<.1 or phase>.78:continue
+		for side in ["l","r"]:
+			var closest := Geometry3D.get_closest_points_between_segments(bone_point(skeleton,"lowerarm_"+side),bone_point(skeleton,"hand_"+side),bone_point(skeleton,"spine_01"),bone_point(skeleton,"spine_03"))
+			nearest=minf(nearest,closest[0].distance_to(closest[1]))
+	check(nearest>.14,"forearms remain outside the conservative torso capsule throughout the attack: "+str([form,nearest]))
+
+func inspect_relaxed_recovery(actor: Dictionary, form: String) -> void:
+	if form not in ["knives","ring","whip","bell","censer","fan","bow","scythe"]:return
+	# Same clock sample: weapon carry may not replace the original relaxed arms.
+	actor.idle_time=.75
+	Avatar.animate(actor,false,0.0,"",{},1.0)
+	var right := Field.hand(actor,false)
+	var left := Field.hand(actor,true)
+	actor.idle_time=.75
+	Avatar.animate(actor,false,0.0,form,{"equipped":true},1.0)
+	check(right.distance_to(Field.hand(actor,false))<.015 and left.distance_to(Field.hand(actor,true))<.015,"ordinary carry uses relaxed idle arms instead of a permanent attack guard: "+form)
+	for frame in 90:
+		Avatar.animate(actor,false,0.0,form,{"equipped":true},1.0/60.0)
+	var skeleton: Skeleton3D=actor.field_rig.skeleton
+	var spine := skeleton.get_bone_pose_rotation(skeleton.find_bone("spine_03"))
+	var clock := float(actor.idle_time)
+	Avatar.animate(actor,false,0.0,"",{},1.0)
+	actor.idle_time=clock-1.0
+	Avatar.animate(actor,false,0.0,form,{"equipped":true},1.0)
+	check(spine.angle_to(skeleton.get_bone_pose_rotation(skeleton.find_bone("spine_03")))<.015,"post-attack torso recovers to the current idle sample: "+form)
+
+func inspect_sampling_independence(actor: Dictionary) -> void:
+	var field: Dictionary=actor.field_rig
+	var skeleton: Skeleton3D=field.skeleton
+	var expected := Locomotion.clip_pose(skeleton,field.player,field.pelvis,"Idle",.5)
+	for bone in skeleton.get_bone_count():
+		skeleton.set_bone_pose_rotation(bone,Quaternion(Vector3.UP,.7)*skeleton.get_bone_pose_rotation(bone))
+	var actual := Locomotion.clip_pose(skeleton,field.player,field.pelvis,"Idle",.5)
+	for bone in skeleton.get_bone_count():
+		check(expected.rotations[bone].angle_to(actual.rotations[bone])<.001,"omitted animation tracks resolve from neutral data, independent of previous attacks: "+skeleton.get_bone_name(bone))

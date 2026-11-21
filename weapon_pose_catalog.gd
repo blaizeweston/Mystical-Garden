@@ -5,31 +5,50 @@ const Motion = preload("res://weapon_motion.gd")
 const Polearms = preload("res://plant_polearms.gd")
 const DEFINITIONS := {
 	"blade": {"carry_pitch":22.0,"mesh_roll":90.0,"clips":["Sword_Regular_A","Sword_Regular_B"],"recoveries":["Sword_Regular_A_Rec","Sword_Regular_B_Rec"],"impact":0.85},
-	"knives": {"carry_pitch":24.0,"mesh_roll":90.0,"clips":["Sword_Regular_B","Sword_Regular_A"],"recoveries":["Sword_Regular_B_Rec","Sword_Regular_A_Rec"],"impact":0.85},
-	"spear": {"carry_pitch":60.0,"mesh_roll":0.0,"clips":[]},
+	"knives": {"carry_pitch":24.0,"mesh_roll":90.0,"relaxed":true,"clips":["Sword_Regular_B","Sword_Regular_A"],"recoveries":["Sword_Regular_B_Rec","Sword_Regular_A_Rec"],"impact":0.85},
+	"spear": {"carry_pitch":90.0,"mesh_roll":0.0,"procedural_stance":true,"carry_twist":-45.0,"strike_twist":-30.0,"strike_lean":4.0,"clips":[]},
 	"hammer": {"carry_pitch":19.0,"mesh_roll":90.0,"clips":["TreeChopping"],"impact":0.52},
-	"scythe": {"carry_pitch":33.0,"mesh_roll":90.0,"clips":["TreeChopping"],"impact":0.52},
+	"scythe": {"carry_pitch":33.0,"mesh_roll":-90.0,"relaxed":true,"procedural_stance":true,"carry_twist":0.0,"windup_twist":-60.0,"strike_twist":-35.0,"strike_lean":4.0,"clips":[]},
 	"staff": {"carry_pitch":24.0,"mesh_roll":0.0,"clips":["Spell_Simple_Shoot"],"impact":0.55},
 	"wand": {"carry_pitch":25.0,"mesh_roll":0.0,"clips":["Spell_Simple_Shoot"],"impact":0.55},
 	"orb": {"carry_pitch":0.0,"mesh_roll":0.0,"clips":["Spell_Simple_Shoot"],"impact":0.55},
-	"bow": {"carry_pitch":8.0,"mesh_roll":0.0,"clips":[]},
+	"bow": {"carry_pitch":8.0,"mesh_roll":0.0,"relaxed":true,"procedural_stance":true,"carry_twist":0.0,"strike_twist":-55.0,"clips":[]},
 	"crossbow": {"carry_pitch":8.0,"mesh_roll":0.0,"clips":[]},
-	"ring": {"carry_pitch":-18.0,"mesh_roll":-20.0,"clips":["OverhandThrow"],"impact":0.60},
-	"whip": {"carry_pitch":20.0,"mesh_roll":0.0,"clips":["Melee_Hook"],"recoveries":["Melee_Hook_Rec"],"impact":0.9},
-	"bell": {"carry_pitch":-10.0,"mesh_roll":0.0,"clips":["Spell_Simple_Shoot"],"impact":0.55},
-	"censer": {"carry_pitch":-12.0,"mesh_roll":0.0,"clips":["Melee_Hook"],"recoveries":["Melee_Hook_Rec"],"impact":0.85},
-	"fan": {"carry_pitch":12.0,"mesh_roll":90.0,"clips":["OverhandThrow"],"impact":0.60},
+	"ring": {"carry_pitch":160.0,"mesh_roll":-20.0,"relaxed":true,"clips":["OverhandThrow"],"impact":0.60},
+	"whip": {"carry_pitch":20.0,"mesh_roll":0.0,"relaxed":true,"clips":["Melee_Hook"],"recoveries":["Melee_Hook_Rec"],"impact":0.9},
+	"bell": {"carry_pitch":-10.0,"mesh_roll":0.0,"relaxed":true,"clips":["Spell_Simple_Shoot"],"impact":0.55},
+	"censer": {"carry_pitch":-12.0,"mesh_roll":0.0,"relaxed":true,"clips":["Melee_Hook"],"recoveries":["Melee_Hook_Rec"],"impact":0.85},
+	"fan": {"carry_pitch":12.0,"mesh_roll":90.0,"relaxed":true,"clips":["Melee_Hook"],"recoveries":["Melee_Hook_Rec"],"impact":0.85},
 }
 const CARRY_RIGHT := Vector3(-0.23,-0.36,0.24)
 const CARRY_LEFT := Vector3(0.23,-0.36,0.24)
 const ORB_CARRY := Vector3(0,-0.23,0.30)
-const BOW_CARRY := Vector3(0.23,-0.19,0.38)
-const UTILITY_WINDUP := Vector3(-0.34,-0.28,0.12)
+const BOW_DRAW := Vector3(-0.18,-0.08,0.62)
+const UTILITY_WINDUP := Vector3(-0.38,-0.34,0.28)
 const UTILITY_CONTACT := Vector3(-0.10,-0.16,0.57)
-const UTILITY_FOLLOW := Vector3(0.10,-0.27,0.48)
+const UTILITY_FOLLOW := Vector3(-0.18,-0.27,0.50)
 
 static func envelope(phase: float) -> float:
 	return smoothstep(0.0,0.16,phase)*(1.0-smoothstep(0.78,1.0,phase))
+
+static func relaxed_carry(form: String) -> bool:
+	return bool(DEFINITIONS.get(form,{}).get("relaxed",false))
+
+static func procedural_stance(form: String) -> bool:
+	return bool(DEFINITIONS.get(form,{}).get("procedural_stance",false))
+
+static func body_pose(form: String, phase: float, active: bool) -> Vector2:
+	var definition: Dictionary=DEFINITIONS.get(form,{})
+	var carry := float(definition.get("carry_twist",0.0))
+	var amount := pulse(form,phase,active)
+	var twist := lerpf(carry,float(definition.get("strike_twist",carry)),amount)
+	if active and definition.has("windup_twist"):
+		var contact := float(Motion.profile(form).release)
+		var ready := contact*.45
+		if phase<ready:twist=lerpf(carry,float(definition.windup_twist),smoothstep(0.0,ready,phase))
+		elif phase<contact:twist=lerpf(float(definition.windup_twist),float(definition.strike_twist),smoothstep(ready,contact,phase))
+		else:twist=lerpf(float(definition.strike_twist),carry,smoothstep(contact,1.0,phase))
+	return Vector2(deg_to_rad(twist),deg_to_rad(float(definition.get("strike_lean",0.0))*amount))
 
 static func pulse(form: String, phase: float, active: bool) -> float:
 	if not active: return 0.0

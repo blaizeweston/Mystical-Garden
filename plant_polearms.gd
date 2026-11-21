@@ -8,8 +8,9 @@ const WEAPONS := {
 		"scene": preload("res://assets/weapons/briar_spear.glb"),
 		"name": "BriarSpearModel", "support": .31,
 		"tip": Vector3(.051,1.67,0), "seed": Vector3(0,.53,.054),
-		"stance": Vector3(-.09,-.25,.22),
-		"pitch": Vector4(1.05,.90,PI*.5,1.64), "extension": .18,
+		"stance": Vector3(-.27,-.23,.12),
+		"pitch": Vector4(PI*.5,PI*.5+.02,PI*.5-.03,PI*.5), "extension": .30,
+		"support_slide": .15,
 	},
 	"hammer": {
 		"scene": preload("res://assets/weapons/heartwood_maul.glb"),
@@ -20,12 +21,22 @@ const WEAPONS := {
 	},
 	"scythe": {
 		"scene": preload("res://assets/weapons/harvest_scythe.glb"),
-		"name": "HarvestScytheModel", "support": .34,
+		"name": "HarvestScytheModel", "support": .24,
 		"tip": Vector3(.765,.90,0), "seed": Vector3(.034,1.03,.077),
-		"stance": Vector3(-.12,-.31,.17),
-		"pitch": Vector4(.57,.93,1.40,1.70), "extension": .11,
+		"stance": Vector3(-.22,-.25,.26),
+		"pitch": Vector4(.57,.93,1.40,1.70), "extension": .02, "visual_arc_scale": .2,
 	},
 }
+
+
+static func support_distance(form: String, phase: float, active: bool, action: Dictionary) -> float:
+	var definition: Dictionary=WEAPONS[form]
+	var distance := float(definition.support)
+	if form=="spear" and active and action.get("delivery",Motion.profile(form).delivery)=="line":
+		var contact := float(Motion.profile(form).release)
+		var thrust := smoothstep(contact*.44,contact,phase)*(1.0-smoothstep(contact,.94,phase))
+		distance-=float(definition.support_slide)*thrust
+	return distance
 
 
 static func orientation(form: String, phase: float, active: bool, yaw: float, action: Dictionary) -> Basis:
@@ -36,7 +47,7 @@ static func orientation(form: String, phase: float, active: bool, yaw: float, ac
 	var profile := Motion.profile(form)
 	var contact := float(profile.release)
 	var sector: bool = action.get("delivery",profile.delivery) in ["sweep","sector"]
-	var arc := float(action.get("span",profile.span))*.45 if sector else .08
+	var arc := float(action.get("span",profile.span))*float(definition.get("visual_arc_scale",.45)) if sector else .08
 	var start := Vector2(0,pitches.x)
 	var windup := Vector2(-arc,pitches.y)
 	var impact := Vector2(0,pitches.z)

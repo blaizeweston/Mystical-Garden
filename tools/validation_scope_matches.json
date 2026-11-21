@@ -2380,7 +2380,7 @@
         "baseline": "arrow.visible=not active or phase<contact;"
       },
       "plant_polearm_orientation": {
-        "match": " var pose:=WeaponPoses.orientation(form,phase,active,yaw,action)\n var basis:=pose.scaled(Vector3.ONE*Polearms.SCALE)\n",
+        "match": " var pose:=WeaponPoses.orientation(form,phase,active,yaw,action)\n if Polearms.WEAPONS.has(form):primary.set_meta(\"support_grip\",Vector3.UP*Polearms.support_distance(form,phase,active,action))\n var basis:=pose.scaled(Vector3.ONE*Polearms.SCALE)\n",
         "baseline": " var basis:=world*orientation.scaled(Vector3.ONE*.9)\n"
       },
       "plant_polearm_seed": {

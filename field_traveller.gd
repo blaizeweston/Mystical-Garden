@@ -79,9 +79,12 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 		old_pose.append(skeleton.get_bone_pose_rotation(index))
 	var old_hips := skeleton.get_bone_pose_position(field.pelvis)
 	var locomotion := Locomotion.pose(actor,field,delta)
+	var basic_stance := not bool(motion.get("ability",false)) and WeaponPoses.procedural_stance(form)
+	var constrained_pose := not bool(motion.get("ability",false)) and WeaponPoses.DEFINITIONS.has(form) and (active or not WeaponPoses.relaxed_carry(form))
+	var body_pose := WeaponPoses.body_pose(form,phase,active) if not bool(motion.get("ability",false)) else Vector2.ZERO
 	var native_action: Array[Quaternion] = []
 	if active and not bool(motion.get("ability",false)):
-		native_action=WeaponAnimation.pose(field,form,phase,int(motion.get("combo",0)))
+		native_action=WeaponAnimation.pose(field,form,phase,int(motion.get("combo",0)),locomotion.rotations)
 	var global_bases: Array[Basis] = []
 	var pose_blend := 1.0-exp(-20.0*maxf(delta,0))
 	skeleton.set_bone_pose_position(field.pelvis,old_hips.lerp(locomotion.pelvis,pose_blend))
@@ -99,8 +102,8 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 		var native_bone := not native_action.is_empty() and WeaponAnimation.upper_body(bone_name)
 		# Constrained grips solve these joints below. Imported arm twists would fight
 		# that solution; retain native torso/free-arm motion and locomotion wrists.
-		var grip_joint := not native_action.is_empty() and grip_controls_joint(form,bone_name)
-		var has_action := action_weight>0.0 and not grip_joint and (native_bone or not link.is_empty())
+		var grip_joint := constrained_pose and grip_controls_joint(form,bone_name)
+		var has_action := action_weight>0.0 and not basic_stance and not grip_joint and (native_bone or not link.is_empty())
 		if has_action:
 			var action_pose: Quaternion
 			if native_bone:
@@ -109,7 +112,13 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 				var goal: Basis = driver.get_bone_global_pose(link.source).basis * link.alignment
 				action_pose=(parent_basis.inverse()*goal).orthonormalized().get_rotation_quaternion()
 			rotation = rotation.slerp(action_pose,action_weight)
-		rotation = old_pose[index].slerp(rotation,lerpf(pose_blend,1.0,action_weight) if has_action else pose_blend).normalized()
+		var body_weight := .45 if bone_name=="spine_01" else .55 if bone_name=="spine_03" else -1.0 if bone_name=="neck_01" else 0.0
+		if body_weight!=0.0 and not body_pose.is_zero_approx():
+			var adjustment := Basis(Vector3.UP,body_pose.x*body_weight)*Basis(Vector3.RIGHT,body_pose.y*body_weight)
+			rotation=(parent_basis.inverse()*adjustment*parent_basis).get_rotation_quaternion()*rotation
+		# IK needs a fresh input pose, never a blend containing last frame's IK
+		# rotations. Feeding that result back accumulates wrist twist.
+		rotation = rotation.normalized() if grip_joint else old_pose[index].slerp(rotation,lerpf(pose_blend,1.0,action_weight) if has_action else pose_blend).normalized()
 		skeleton.set_bone_pose_rotation(index,rotation)
 		global_bases.append(parent_basis*Basis(rotation))
 	skeleton.force_update_all_bone_transforms()
@@ -126,7 +135,7 @@ static func animate(actor: Dictionary, active: bool, phase: float, form: String,
 
 
 static func grip_controls_joint(form: String, bone: String) -> bool:
-	if form in ["blade","knives","hammer"]:
+	if form in ["blade","knives"]:
 		return false
 	if not (bone.begins_with("clavicle_") or bone.begins_with("upperarm_") or bone.begins_with("lowerarm_") or bone.begins_with("hand_")):
 		return false
@@ -134,6 +143,8 @@ static func grip_controls_joint(form: String, bone: String) -> bool:
 
 
 static func pose_weapon_hands(actor: Dictionary, skeleton: Skeleton3D, field: Dictionary, form: String, phase: float, active: bool, motion: Dictionary, action_weight: float) -> void:
+	if not active and WeaponPoses.relaxed_carry(form):
+		return
 	var yaw := float(motion.get("aim_yaw",actor.model.rotation.y))
 	var aim := Basis(Vector3.UP,yaw)
 	var center := shoulder_position(skeleton,field.left).lerp(shoulder_position(skeleton,field.right),.5)
@@ -142,9 +153,9 @@ static func pose_weapon_hands(actor: Dictionary, skeleton: Skeleton3D, field: Di
 		var release := float(motion.get("contact",.55))
 		var draw := smoothstep(0.0,release,phase) if active and phase<release else 1.0-smoothstep(release,release+.08,phase) if active else 0.0
 		# Bow and draw hand share the same string plane, including the ready pose.
-		var bow_hand := center+aim*WeaponPoses.BOW_CARRY
+		var bow_hand := center+aim*WeaponPoses.BOW_DRAW
 		var string_offset := orientation*Vector3(0,0,-.20-.25*draw)*Polearms.SCALE
-		hold_pair(skeleton,field,bow_hand+string_offset,-string_offset,1.0)
+		hold_pair(skeleton,field,bow_hand+string_offset,-string_offset,action_weight,Vector3(-1,-.1,-.35),Vector3(1,-.15,.55))
 	elif form=="crossbow":
 		var rear := center+aim*Vector3(-.075,-.20,.18)
 		hold_pair(skeleton,field,rear,orientation*WeaponModels.ARBALEST_SUPPORT*Polearms.SCALE,1.0)
@@ -158,7 +169,7 @@ static func pose_weapon_hands(actor: Dictionary, skeleton: Skeleton3D, field: Di
 		var separation := aim*Vector3(-.26,0,0)
 		hold_pair(skeleton,field,held_center-separation*.5,separation,1.0)
 	elif Polearms.WEAPONS.has(form):
-		hold_polearm(actor,skeleton,field,form,phase,active,motion,1.0)
+		hold_polearm(actor,skeleton,field,form,phase,active,motion,action_weight if WeaponPoses.relaxed_carry(form) else 1.0)
 	elif form in ["staff","wand"]:
 		var profile: Dictionary = preload("res://weapon_motion.gd").profile(form)
 		var ground: Vector3 = actor.model.get_parent_node_3d().global_position
@@ -167,24 +178,28 @@ static func pose_weapon_hands(actor: Dictionary, skeleton: Skeleton3D, field: Di
 		pose_hand(skeleton,field.right,(center+aim*WeaponPoses.CARRY_RIGHT).lerp(target,WeaponPoses.pulse(form,phase,active)),Vector3(-1,-.7,-.2),1.0)
 	elif form in ["ring","whip","bell","censer","fan"]:
 		var target := center+aim*WeaponPoses.hand_offset(form,phase,active,int(motion.get("combo",0)))
-		pose_hand(skeleton,field.right,target,Vector3(-1,0,-.3),1.0)
+		pose_hand(skeleton,field.right,target,Vector3(-1,-.2,.6),action_weight)
 	else:
-		pose_hand(skeleton,field.right,center+aim*WeaponPoses.CARRY_RIGHT,Vector3(-1,-.65,-.2),1.0-action_weight)
-	if form not in ["bow","crossbow","orb","spear","hammer","scythe"]:
+		if not WeaponPoses.relaxed_carry(form):
+			pose_hand(skeleton,field.right,center+aim*WeaponPoses.CARRY_RIGHT,Vector3(-1,-.65,-.2),1.0-action_weight)
+	if form not in ["bow","crossbow","orb","spear","hammer","scythe"] and not WeaponPoses.relaxed_carry(form):
 		pose_hand(skeleton,field.left,center+aim*WeaponPoses.CARRY_LEFT,Vector3(1,-.65,-.2),1.0-action_weight)
 
 
 static func hold_polearm(actor: Dictionary, skeleton: Skeleton3D, field: Dictionary, form: String, phase: float, active: bool, motion: Dictionary, weight: float) -> void:
 	var yaw := float(motion.get("aim_yaw",actor.model.rotation.y))
 	var pose := WeaponPoses.orientation(form,phase,active,yaw,motion)
-	var separation := pose.y*Polearms.SCALE*float(Polearms.WEAPONS[form].support)
+	var separation := pose.y*Polearms.SCALE*Polearms.support_distance(form,phase,active,motion)
 	var middle := shoulder_position(skeleton,field.right).lerp(shoulder_position(skeleton,field.left),.5)
 	var desired := middle+Polearms.grip_target(form,phase,active,yaw)
 	# Keep some of the authored strike's hand travel while the paired grips share one shaft.
-	hold_pair(skeleton,field,desired,separation,weight)
+	if form in ["spear","scythe"]:
+		hold_pair(skeleton,field,desired,separation,weight,Vector3(-1,-.35,-.3),Vector3(.6,-.4,.7))
+	else:
+		hold_pair(skeleton,field,desired,separation,weight)
 
 
-static func hold_pair(skeleton: Skeleton3D, field: Dictionary, desired: Vector3, separation: Vector3, weight: float) -> void:
+static func hold_pair(skeleton: Skeleton3D, field: Dictionary, desired: Vector3, separation: Vector3, weight: float, right_elbow := Vector3(-1,-.78,-.24), left_elbow := Vector3(1,-.78,-.24)) -> void:
 	var offset := skeleton.global_basis.inverse()*separation
 	var rear := skeleton.to_local(desired)
 	var right := palm_reach(skeleton,field.right)
@@ -197,8 +212,8 @@ static func hold_pair(skeleton: Skeleton3D, field: Dictionary, desired: Vector3,
 		rear = support_center+(rear-support_center).limit_length(left.w)
 	if rear.distance_to(rear_center)>right.w+.001:
 		rear = rear_center.lerp(support_center,right.w/(right.w+left.w))
-	pose_hand(skeleton,field.right,skeleton.to_global(rear),Vector3(-1,-.78,-.24),weight)
-	pose_hand(skeleton,field.left,skeleton.to_global(rear+offset),Vector3(1,-.78,-.24),weight)
+	pose_hand(skeleton,field.right,skeleton.to_global(rear),right_elbow,weight)
+	pose_hand(skeleton,field.left,skeleton.to_global(rear+offset),left_elbow,weight)
 
 
 static func palm_reach(skeleton: Skeleton3D, palm: Dictionary) -> Vector4:
@@ -245,11 +260,15 @@ static func pose_hand(skeleton: Skeleton3D, socket_data: Dictionary, target: Vec
 	var along := (upper*upper-fore*fore+span*span)/(2.0*span)
 	var joint := a.origin+axis*along+bend*sqrt(maxf(0,upper*upper-along*along))
 	var endpoint := a.origin+axis*span
-	var upper_pose := Basis(Quaternion(current.normalized(),(joint-a.origin).normalized()))*a.basis
+	var rest_a := skeleton.get_bone_global_rest(shoulder)
+	var rest_b := skeleton.get_bone_global_rest(elbow)
+	var rest_c := skeleton.get_bone_global_rest(wrist)
+	var rest_normal := (rest_b.origin-rest_a.origin).cross(rest_c.origin-rest_b.origin).normalized()
+	var normal := (joint-a.origin).cross(endpoint-joint).normalized()
+	var upper_pose := segment_rotation(rest_a,rest_b.origin-rest_a.origin,rest_normal,joint-a.origin,normal)
 	set_world_rotation(skeleton,shoulder,upper_pose)
 	var posed_elbow := skeleton.get_bone_global_pose(elbow)
-	var posed_wrist := skeleton.get_bone_global_pose(wrist)
-	var fore_pose := Basis(Quaternion((posed_wrist.origin-posed_elbow.origin).normalized(),(endpoint-posed_elbow.origin).normalized()))*posed_elbow.basis
+	var fore_pose := segment_rotation(rest_b,rest_c.origin-rest_b.origin,rest_normal,endpoint-posed_elbow.origin,normal)
 	set_world_rotation(skeleton,elbow,fore_pose)
 	set_world_rotation(skeleton,wrist,c.basis)
 	if weight<1.0:
@@ -257,6 +276,17 @@ static func pose_hand(skeleton: Skeleton3D, socket_data: Dictionary, target: Vec
 		skeleton.set_bone_pose_rotation(elbow,previous_elbow.slerp(skeleton.get_bone_pose_rotation(elbow),weight))
 		skeleton.set_bone_pose_rotation(wrist,previous_wrist.slerp(skeleton.get_bone_pose_rotation(wrist),weight))
 	skeleton.force_update_all_bone_transforms()
+
+
+static func segment_rotation(rest: Transform3D, rest_direction: Vector3, rest_normal: Vector3, direction: Vector3, normal: Vector3) -> Basis:
+	# Match both the segment direction and elbow plane. A shortest-arc rotation
+	# alone inherits changing source twist and can flip near an opposed pose.
+	var local_axis := (rest.basis.inverse()*rest_direction).normalized()
+	var local_normal := (rest.basis.inverse()*rest_normal).normalized()
+	var target_axis := direction.normalized()
+	var local_frame := Basis(local_axis,local_normal.cross(local_axis).normalized(),local_normal)
+	var target_frame := Basis(target_axis,normal.cross(target_axis).normalized(),normal)
+	return target_frame*local_frame.transposed()
 
 
 static func set_world_rotation(skeleton: Skeleton3D, bone: int, rotation: Basis) -> void:
