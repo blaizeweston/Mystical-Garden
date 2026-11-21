@@ -223,7 +223,7 @@ static func material_description(part_id: int) -> String:
 ## Other families retain their existing contracts and tuning.
 static func family_description(slot_name: String, material: Dictionary) -> String:
 	var family: String=material.primary_affinity
-	if family in ["thorn","frost","fire","water","wood","vital"]:
+	if family in ["thorn","frost","fire","water","wood","vital","storm"]:
 		return Ruleset.FAMILIES[family].description(slot_name,material.quality,material.get("resolved_potency",{}))
 	return Ruleset.FAMILIES[family].description(slot_name,material.quality)
 

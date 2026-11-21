@@ -1474,3 +1474,25 @@ All 45 selected source suites pass at their final input keys (57 unit/peer verdi
 The merged development branch also retains its already-approved `expedition_abandonment_forfeiture:1` negotiated capability and the newer AC-06 deployment/refusal checks. The activation constant remains false. Those preserved improvements are distinct from changing production activation or the protocol-41 transport/schema bytes.
 
 The local `recovery/modern-owners-before-terrain-cutover-20261118` tag additionally preserves merge `411bccbe58af1c9663b0981371c0aa772e86225d`, including the newly integrated owners/UI with the pre-cutover terrain runtime. The original main recovery tag and all older protected versions remain intact.
+
+
+## Remaining affinity card families (CE04)
+
+Storm is implemented first: ten additions, **111 total definitions** at its checkpoint. Card values and explicit CE01 requirements remain authoritative in `affinity_card_catalog.gd`; `storm_affinity.gd` consumes them through the existing Core, Form and mapped Catalyst events. `basic_attack_timing.gd` composes each family's temporary attack-speed contribution for both real launches and reliable owner/Stats presentation; it owns no state.
+
+| Storm card | Common / Uncommon / Rare / Epic contribution | Actual scope / consumer |
+|---|---|---|
+| Extended Circuit | 1 / 2 / 3 / 4 extra targets | Core normal chain |
+| Long Arc | 0.25 / 0.40 / 0.55 / 0.70 m | Core per-jump reach |
+| Live Wire | 2 / 3 / 4 / 5 damage | Form electrical arc |
+| Ionized Rhythm | 4 / 6 / 8 / 10% for 2 s | Form actual damage prepares basic attack speed; existing weapon timing floor |
+| Charged Casting | 3 / 5 / 7 / 9 damage | Existing Catalyst discharge, burst and recipient charge |
+| Relay Pulse | 1 / 2 / 3 / 4 targets | Existing Catalyst discharge/recipient-charge capabilities only |
+| Spellcharge | 3 / 5 / 7 / 9 damage | Actual mapped class response prepares next electrical discharge for 4 s, once |
+| Grounded Current | 25 / 40 / 55 / 70% | Unused normal chain opportunities retain native 0.7 falloff and add to primary hit |
+| Conductive Reach | 0.20 / 0.30 / 0.40 / 0.50 m | Functioning Storm slot's per-jump reach |
+| Conductor | Unique: one 45% fork per normal node, one 35% return | Core only; finite unvisited fork targets and original surviving spawn return within actual jump reach and clear projectile line |
+
+These are provisional tuning values. Return damage uses starting discharge potency before Grounded Current's primary-only addition. Forks cannot fork. Extra jumps, reach and unused-potential conversion make ordinary Storm useful without Conductor. Source life, connection binding, floor epoch and enemy spawn identities remain validated. There is no added Catalyst response type or extra ordinary contact.
+
+Storm verification: `ce04_storm`, `ce04_storm_coop`, `ce04_storm_party`, native Storm, EC01, CE01 eligibility, weapon queue and guarded gameplay transactions passed (8 suites / 13 unit/peer verdicts). The independent local four-player case includes fifth-client refusal, floor continuity, extraction and rejoin. Evidence: `.godot/validation/final-four-ce04-storm-final-20261120-221435/summary.json`. Local loopback is not internet or separate-PC verification. Planner impact is all 264 current suites due to the shared contract/catalog; this focused checkpoint does not refresh broad release evidence. Production persistence activation remains disabled.

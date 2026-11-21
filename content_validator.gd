@@ -91,7 +91,7 @@ static func validate() -> Array[String]:
    if str(card.get(field,"")).is_empty(): errors.append("Card missing "+field+": "+card_id)
   if card_id.is_empty() or card.get("scope","") not in ["core","form","catalyst","class","weapon","general","affinity"]: errors.append("Invalid card identity/scope "+card_id)
   if card.get("policy","") not in ["stackable","unique"] or int(card.get("limit",0))<1: errors.append("Invalid card acquisition policy "+card_id)
-  if card.get("unit","") not in ["hp","healing_hp","capacity_hp","regen_hp","basis_points","pressure","bark","fragments","penetrations","ms","stacks","percent","cm","unlock","milli_stacks"] or not card.get("requires") is Dictionary: errors.append("Invalid card units/requirements "+card_id)
+  if card.get("unit","") not in ["targets","hp","healing_hp","capacity_hp","regen_hp","basis_points","pressure","bark","fragments","penetrations","ms","stacks","percent","cm","unlock","milli_stacks"] or not card.get("requires") is Dictionary: errors.append("Invalid card units/requirements "+card_id)
   if card.get("policy")=="unique":
    if int(card.get("limit",0))!=1 or int(card.get("fixed",0))<=0: errors.append("Invalid Unique card contribution "+card_id)
   elif card.get("values",[]).size()!=Cards.RARITIES.size(): errors.append("Card must author one contribution per rarity "+card_id)

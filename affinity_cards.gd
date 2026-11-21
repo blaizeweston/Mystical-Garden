@@ -23,7 +23,7 @@ const DODGE_MIN_MS := CardState.DODGE_MIN_MS
 
 static func clear(player: Dictionary) -> void:
 	player.erase(STATE)
-	for field in ["card_active_state","thorn_card_momentum","thorn_card_streak","frost_card_credit","frost_card_rhythm","fire_card_sequence","water_card_sequence","water_card_restoration","wood_card_retaliation","vital_card_bloom","vital_card_vigor"]: player.erase(field)
+	for field in ["card_active_state","thorn_card_momentum","thorn_card_streak","frost_card_credit","frost_card_rhythm","fire_card_sequence","water_card_sequence","water_card_restoration","wood_card_retaliation","vital_card_bloom","vital_card_vigor","storm_card_tempo","storm_card_discharge"]: player.erase(field)
 
 
 # Read adapter for existing actor consumers. The ledger owns the records.

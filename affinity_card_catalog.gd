@@ -5675,6 +5675,593 @@ const DEFINITIONS := {
 	  "active": true
 	},
 
+	# CE04 Storm — values and units are the authoring authority.
+	"extended_circuit": {
+	  "title": "Extended Circuit",
+	  "family": "storm",
+	  "scope": "core",
+	  "policy": "stackable",
+	  "trigger": "Each normal chain target is hit once",
+	  "consumer": [
+	    "res://storm_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "storm"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "chain_spark",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "extra_jumps",
+	  "label": "Extended Circuit contribution",
+	  "unit": "targets",
+	  "limit": 4,
+	  "description": "Chain Spark gains +%s chain targets.",
+	  "detail": "Provisional CE04 tuning. Each normal chain target is hit once. Unused targets can support separately acquired Grounded Current.",
+	  "tuning": {},
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ]
+	},
+	"long_arc": {
+	  "title": "Long Arc",
+	  "family": "storm",
+	  "scope": "core",
+	  "policy": "stackable",
+	  "trigger": "Changes per-jump reach, not its initial weapon delivery",
+	  "consumer": [
+	    "res://storm_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "storm"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "chain_spark",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "jump_range_cm",
+	  "label": "Long Arc contribution",
+	  "unit": "cm",
+	  "limit": 4,
+	  "description": "Chain Spark jumps +%s m farther.",
+	  "detail": "Provisional CE04 tuning. Changes per-jump reach, not its initial weapon delivery.",
+	  "tuning": {},
+	  "values": [
+	    25,
+	    40,
+	    55,
+	    70
+	  ]
+	},
+	"live_wire": {
+	  "title": "Live Wire",
+	  "family": "storm",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Only the existing Arcing Strikes response; no extra ordinary hit or response",
+	  "consumer": [
+	    "res://storm_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "storm"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "arcing_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "arc",
+	  "label": "Live Wire contribution",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Basic-attack electrical arcs gain +%s damage.",
+	  "detail": "Provisional CE04 tuning. Only the existing Arcing Strikes response; no extra ordinary hit or response.",
+	  "tuning": {},
+	  "values": [
+	    2,
+	    3,
+	    4,
+	    5
+	  ]
+	},
+	"ionized_rhythm": {
+	  "title": "Ionized Rhythm",
+	  "family": "storm",
+	  "scope": "form",
+	  "policy": "stackable",
+	  "trigger": "Lasts 2 seconds after actual electrical damage",
+	  "consumer": [
+	    "res://storm_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "form",
+	          "primary_affinity": "storm"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "form",
+	          "id": "arcing_strikes",
+	          "slot": "form"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "tempo_percent",
+	  "label": "Ionized Rhythm contribution",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Successful Arcing Strikes grant +%s%% basic attack speed.",
+	  "detail": "Provisional CE04 tuning. Lasts 2 seconds after actual electrical damage. Reapplication refreshes, does not multiply the bonus. Existing attack interval floor applies.",
+	  "tuning": {
+	    "duration_ms": 2000
+	  },
+	  "values": [
+	    4,
+	    6,
+	    8,
+	    10
+	  ]
+	},
+	"charged_casting": {
+	  "title": "Charged Casting",
+	  "family": "storm",
+	  "scope": "catalyst",
+	  "policy": "stackable",
+	  "trigger": "Applies to existing offensive discharges, actual-block/landing bursts and granted recipient charges",
+	  "consumer": [
+	    "res://storm_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "storm"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "discharge"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "radial_discharge"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "recipient_charge"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "landing_discharge"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "catalyst_damage_hp",
+	  "label": "Charged Casting contribution",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "Mapped class lightning gains +%s damage.",
+	  "detail": "Provisional CE04 tuning. Applies to existing offensive discharges, actual-block/landing bursts and granted recipient charges.",
+	  "tuning": {},
+	  "values": [
+	    3,
+	    5,
+	    7,
+	    9
+	  ]
+	},
+	"relay_pulse": {
+	  "title": "Relay Pulse",
+	  "family": "storm",
+	  "scope": "catalyst",
+	  "policy": "stackable",
+	  "trigger": "Adds unique chain contacts to existing discharge/charge responses",
+	  "consumer": [
+	    "res://storm_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "storm"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "discharge"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "recipient_charge"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "extra_jumps",
+	  "label": "Relay Pulse contribution",
+	  "unit": "targets",
+	  "limit": 4,
+	  "description": "Class discharges and recipient charges reach +%s targets.",
+	  "detail": "Provisional CE04 tuning. Adds unique chain contacts to existing discharge/charge responses. Does not invent a new Catalyst trigger.",
+	  "tuning": {},
+	  "values": [
+	    1,
+	    2,
+	    3,
+	    4
+	  ]
+	},
+	"spellcharge": {
+	  "title": "Spellcharge",
+	  "family": "storm",
+	  "scope": "catalyst",
+	  "policy": "stackable",
+	  "trigger": "After a real mapped response, store one source-owned preparation for 4 seconds",
+	  "consumer": [
+	    "res://storm_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "catalyst",
+	          "primary_affinity": "storm"
+	        }
+	      },
+	      {
+	        "any": [
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "discharge"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "radial_discharge"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "recipient_charge"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "catalyst",
+	              "id": "landing_discharge"
+	            }
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "prepared_discharge_hp",
+	  "label": "Spellcharge contribution",
+	  "unit": "hp",
+	  "limit": 4,
+	  "description": "A class response prepares +%s damage for the next discharge.",
+	  "detail": "Provisional CE04 tuning. After a real mapped response, store one source-owned preparation for 4 seconds. The next electrical response captures it once; its own bonus cannot prepare another response.",
+	  "tuning": {
+	    "duration_ms": 4000
+	  },
+	  "values": [
+	    3,
+	    5,
+	    7,
+	    9
+	  ]
+	},
+	"grounded_current": {
+	  "title": "Grounded Current",
+	  "family": "storm",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Uses actual unused normal jump opportunities and their falloff",
+	  "consumer": [
+	    "res://storm_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "storm"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "chain_spark",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "storm"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "arcing_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "storm"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "discharge"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_discharge"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "recipient_charge"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_discharge"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "unused_percent",
+	  "label": "Grounded Current contribution",
+	  "unit": "percent",
+	  "limit": 4,
+	  "description": "Convert %s%% of unused chain damage into primary-target damage.",
+	  "detail": "Provisional CE04 tuning. Uses actual unused normal jump opportunities and their falloff. Adds to the original native hit, rather than creating another proc. Useful against one enemy.",
+	  "tuning": {},
+	  "values": [
+	    25,
+	    40,
+	    55,
+	    70
+	  ]
+	},
+	"conductive_reach": {
+	  "title": "Conductive Reach",
+	  "family": "storm",
+	  "scope": "affinity",
+	  "policy": "stackable",
+	  "trigger": "Applies through functioning Core, Form and compatible Catalyst chain sources",
+	  "consumer": [
+	    "res://storm_affinity.gd",
+	    "on_event"
+	  ],
+	  "requires": {
+	    "any": [
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "core",
+	              "primary_affinity": "storm"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "core",
+	              "id": "chain_spark",
+	              "slot": "core"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "form",
+	              "primary_affinity": "storm"
+	            }
+	          },
+	          {
+	            "capability": {
+	              "producer": "form",
+	              "id": "arcing_strikes",
+	              "slot": "form"
+	            }
+	          }
+	        ]
+	      },
+	      {
+	        "all": [
+	          {
+	            "plant": {
+	              "slot": "catalyst",
+	              "primary_affinity": "storm"
+	            }
+	          },
+	          {
+	            "any": [
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "discharge"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "radial_discharge"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "recipient_charge"
+	                }
+	              },
+	              {
+	                "capability": {
+	                  "producer": "catalyst",
+	                  "id": "landing_discharge"
+	                }
+	              }
+	            ]
+	          }
+	        ]
+	      }
+	    ]
+	  },
+	  "parameter": "jump_range_cm",
+	  "label": "Conductive Reach contribution",
+	  "unit": "cm",
+	  "limit": 4,
+	  "description": "Storm chain jumps reach +%s m farther.",
+	  "detail": "Provisional CE04 tuning. Applies through functioning Core, Form and compatible Catalyst chain sources.",
+	  "tuning": {},
+	  "values": [
+	    20,
+	    30,
+	    40,
+	    50
+	  ]
+	},
+	"conductor": {
+	  "title": "Conductor",
+	  "family": "storm",
+	  "scope": "affinity",
+	  "policy": "unique",
+	  "trigger": "One 45%-strength nonrecursive fork per normal node can hit another unvisited enemy",
+	  "consumer": [
+	    "res://storm_affinity.gd",
+	    "discharge"
+	  ],
+	  "requires": {
+	    "all": [
+	      {
+	        "plant": {
+	          "slot": "core",
+	          "primary_affinity": "storm"
+	        }
+	      },
+	      {
+	        "capability": {
+	          "producer": "core",
+	          "id": "chain_spark",
+	          "slot": "core"
+	        }
+	      }
+	    ]
+	  },
+	  "parameter": "conductor_unlock",
+	  "label": "Conductor contribution",
+	  "unit": "unlock",
+	  "limit": 1,
+	  "description": "Chain Spark forks and returns a reduced strike to its first target.",
+	  "detail": "Provisional CE04 tuning. One 45%-strength nonrecursive fork per normal node can hit another unvisited enemy. One return deals 35% of the starting discharge damage (before Grounded Current) to its original surviving spawn within jump reach, including in solo combat.",
+	  "tuning": {
+	    "forks_per_node": 1,
+	    "fork_percent": 45,
+	    "return_percent": 35
+	  },
+	  "fixed": 1,
+	  "grants": [
+	    "conductor"
+	  ]
+	},
+
 }
 
 
@@ -5698,7 +6285,7 @@ static func effect_text(definition: Dictionary, value: int) -> String:
 	var text: String = definition.description
 	if "%s" not in text:
 		return text
-	var number := str(value) if definition.unit in ["hp","healing_hp","capacity_hp","regen_hp","pressure","bark","fragments","penetrations","stacks","percent","unlock"] else ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
+	var number := str(value) if definition.unit in ["targets","hp","healing_hp","capacity_hp","regen_hp","pressure","bark","fragments","penetrations","stacks","percent","unlock"] else ("%.3f" % (value / 1000.0)).rstrip("0").trim_suffix(".")
 	if definition.unit == "basis_points": number = ("%.2f" % (value/100.0)).rstrip("0").trim_suffix(".")
 	if definition.unit == "cm": number = ("%.2f" % (value / 100.0)).rstrip("0").trim_suffix(".")
 	return text % number
@@ -5718,6 +6305,7 @@ static func contribution_label(definition: Dictionary) -> String:
 
 
 static func contribution(definition: Dictionary, value: int) -> String:
+	if definition.unit == "targets": return "+%d chain targets" % value
 	if definition.unit == "basis_points": return "+%.2f%% of Max HP as damage" % (value/100.0)
 	if definition.unit == "capacity_hp": return "+%d Max HP" % value
 	if definition.unit == "regen_hp": return "+%d HP/s" % value

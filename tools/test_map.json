@@ -36,7 +36,7 @@
     "oracle_progression": {"label": "Connected Oracle, native Omens and first-run focus admission", "files": ["oracle_connected_tree.gd", "oracle_connected_tree.gd.uid", "oracle_combat.gd", "oracle_combat.gd.uid", "oracle_omens.gd", "oracle_omens.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid", "combat_status.gd", "combat_status.gd.uid"]},
     "void_affinity": {"label":"Void wells, compression and bounded displacement", "files":["void_affinity.gd","void_affinity.gd.uid"]},
     "spirit_affinity": {"label":"Spirit stride, traces and attack claims", "files":["spirit_affinity.gd","spirit_affinity.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid"]},
-    "storm_affinity": {"label": "Storm discharge and source-owned charges", "files": ["storm_affinity.gd", "storm_affinity.gd.uid"]},
+    "storm_affinity": {"label": "Storm discharge and source-owned charges", "files": ["basic_attack_timing.gd", "basic_attack_timing.gd.uid", "storm_affinity.gd", "storm_affinity.gd.uid"]},
     "world_snapshot": {
       "label": "Protocol 41 bounded unreliable world snapshots, roster metadata and receive convergence",
       "files": ["world_snapshot.gd", "world_snapshot.gd.uid", "leader_behavior.gd", "leader_behavior.gd.uid", "scout_behavior.gd", "scout_behavior.gd.uid", "world_replication.gd", "world_replication_source.gd"]
@@ -1530,6 +1530,9 @@
     ]
   },
   "suites": {
+    "ce04_storm": {"kind":"unit","profile":"affinity","systems":["affinity_cards","storm_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
+    "ce04_storm_coop": {"kind":"pair","profile":"affinity","systems":["affinity_cards","storm_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
+    "ce04_storm_party": {"kind":"party","profile":"affinity","systems":["affinity_cards","storm_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session","weapons"],"package":false},
     "ce03_vital": {"kind":"unit","profile":"affinity","systems":["affinity_cards","vital_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session"],"package":false},
     "ce03_vital_coop": {"kind":"pair","profile":"affinity","systems":["affinity_cards","vital_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session"],"package":false},
     "ce03_vital_party": {"kind":"party","profile":"affinity","systems":["affinity_cards","vital_affinity","combat_affinity_contracts","combat","core_combat","combat_effects","world_snapshot","network_session"],"package":false},
@@ -5812,7 +5815,7 @@
     "weaver_combat.gd": {"newline": "lf", "regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar06_cooldown_1": {"systems": ["player_cooldowns"]}, "ar06_cooldown_2": {"systems": ["player_cooldowns"]}, "ar06_cooldown_3": {"systems": ["player_cooldowns"]}}},
     "game_transaction.gd": {"newline": "crlf", "regions": {"receipt_owner": {"systems": ["loot"]}, "legacy_capture": {"systems": ["loot"]}, "legacy_rollback": {"systems": ["loot"]}, "legacy_commit": {"systems": ["loot"]}, "guarded_owner": {"systems": ["loot"]}, "guarded_capture": {"systems": ["loot"]}, "guarded_missing_outcome": {"systems": ["loot"]}, "guarded_uncertainty": {"systems": ["loot"]}, "guarded_commit": {"systems": ["loot"]}, "guarded_rollback": {"systems": ["loot"]}}},
     "spirit_affinity.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ec01_1": {"systems": ["affinity_cards"]}}},
-    "storm_affinity.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ec01_1": {"systems": ["affinity_cards"]}}},
+    "storm_affinity.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]},  "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ec01_1": {"systems": ["affinity_cards"]}}},
     "wood_affinity.gd": {"regions": {"ar08_lifecycle_1": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_2": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_3": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_4": {"systems": ["player_lifecycle"]}, "ar08_lifecycle_5": {"systems": ["player_lifecycle"]}}},
     "vital_combat.gd": {"regions": {"ar07_vitals_1": {"systems": ["player_vitals"]}, "ar07_vitals_2": {"systems": ["player_vitals"]}, "ar07_vitals_3": {"systems": ["player_vitals"]}, "ar07_vitals_4": {"systems": ["player_vitals"]}, "ar07_vitals_5": {"systems": ["player_vitals"]}}},
     "water_combat.gd": {"regions": { }},

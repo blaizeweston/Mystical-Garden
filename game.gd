@@ -2929,7 +2929,7 @@ func run_summary_ui_data(peer_id: int = -1) -> Dictionary:
 	var class_id := int(player.get("frame",0))
 	var profile: Dictionary = player.get("character",guest_character.data)
 	var facts := {"active":Participation.is_wild(player),"stats":stats,"class_id":class_id,
-		"attack_speed_percent":preload("res://fire_combat.gd").tempo_percent(self,player,CombatClock.now()) if host else int(player.get("fire_attack_speed_percent",0)),
+		"attack_speed_percent":preload("res://basic_attack_timing.gd").temporary_percent(self,player,CombatClock.now()) if host else int(player.get("temporary_attack_speed_percent",0)),
 		"weapon_kind":int(player.get("weapon_kind",0)),"base_hp":Life.Preview.hp(MAX_HEALTH),
 		"max_hp":PlayerVitals.maximum_hp(player,Life.Preview.hp(MAX_HEALTH)),"dodge_ms":DODGE_COOLDOWN_MS,
 		"skills":[Skills.resolve(class_id,0,profile),Skills.resolve(class_id,1,profile)],

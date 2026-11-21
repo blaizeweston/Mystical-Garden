@@ -772,3 +772,6 @@ CE03 Water is implemented (16 additions, 78 total). The maintained [architecture
 CE03 Wood is implemented (11 additions, 89 total). The maintained [architecture reference](ARCHITECTURE.md#second-affinity-card-expansion-ce03) records actual behavior, provisional per-rarity units and focused evidence; the catalog remains the tuning authority. This updates the earlier design-only state, without implying other families or transformations are implemented.
 
 CE03 Vital is implemented (12 additions, 101 total). The maintained [architecture reference](ARCHITECTURE.md#second-affinity-card-expansion-ce03) records actual behavior, provisional per-rarity units and focused evidence; the catalog remains the tuning authority. This updates the earlier design-only state, without implying other families or transformations are implemented.
+
+
+CE04 Storm is implemented (10 additions, **111 total** at its checkpoint), including passive Unique Conductor. Its finite forks/return and independent normal-chain solo conversion are implemented in `storm_affinity.gd`. The [maintained architecture reference](ARCHITECTURE.md#remaining-affinity-card-families-ce04) records provisional contributions and focused evidence. Spirit and Void additions are not implied implemented by this checkpoint.

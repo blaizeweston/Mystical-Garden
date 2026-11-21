@@ -1026,10 +1026,7 @@
         "match": "\nconst PlayerLifecycle = preload(\"res://player_lifecycle.gd\")\n",
         "baseline": ""
       },
-      "ar08_lifecycle_2": {
-        "match": "\tif int(previous.get(\"until\",0))>elapsed and int(previous.hp)>damage \\\n\t\t\tand PlayerLifecycle.matches(game.players.get(previous.actor,{}),int(previous.source_life)): return\n\tp[CHARGE] = {\"actor\":event.actor,\"source_life\":event.life_generation,\"quality\":event.quality,\"hp\":damage,\"until\":elapsed+CHARGE_MS,\"epoch\":game.participation.epoch()}\n",
-        "baseline": "\tif int(previous.get(\"until\",0))>elapsed and int(previous.hp)>damage: return\n\tp[CHARGE] = {\"actor\":event.actor,\"quality\":event.quality,\"hp\":damage,\"until\":elapsed+CHARGE_MS,\"epoch\":game.participation.epoch()}\n"
-      },
+
       "ar08_lifecycle_3": {
         "match": "\tif int(charge.until)<=Clock.now(game) or int(charge.epoch)!=game.participation.epoch() \\\n\t\t\tor not PlayerLifecycle.matches(game.players.get(charge.actor,{}),int(charge.source_life)):\n",
         "baseline": "\tif int(charge.until)<=Clock.now(game) or int(charge.epoch)!=game.participation.epoch():\n"

@@ -28,7 +28,7 @@ func start_facts(peer: int, now: int) -> Dictionary:
 func capture_attack(peer: int, now: int) -> Dictionary:
 	var actor: Dictionary = _world.players[peer]
 	var stats: Dictionary = _world.combat_build(actor).basic_stats()
-	stats.interval = preload("res://fire_combat.gd").interval_with_tempo(int(stats.interval),preload("res://fire_combat.gd").tempo_percent(_world,actor,now))
+	stats.interval = preload("res://basic_attack_timing.gd").interval(int(stats.interval),preload("res://basic_attack_timing.gd").temporary_percent(_world,actor,now))
 	var build: Dictionary = stats.get("affinity_build", {})
 	if build.is_empty(): return stats
 	var refusal := preload("res://affinity_build.gd").refusal(build, "form")

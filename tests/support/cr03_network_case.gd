@@ -64,6 +64,7 @@ var connected_reaper_case := false
 var connected_oracle_case := false
 var ce02_family := ""
 var ce03_family := ""
+var ce04_family := ""
 var affinity_cards_case := false
 var shared_status_case := false
 
@@ -329,6 +330,7 @@ func host(menu: Node) -> void:
 				check(await until(func():return read("vital-seen-"+str(source))=="ok"),"Vital capacity reaches guest through authoritative vitals")
 	if not ce02_family.is_empty() and not await preload("res://tests/support/ce02_network_case.gd").host(self,game,ids): return
 	if not ce03_family.is_empty() and not await preload("res://tests/support/ce03_network_case.gd").host(self,game,ids): return
+	if not ce04_family.is_empty() and not await preload("res://tests/support/ce04_network_case.gd").host(self,game,ids): return
 	if shared_status_case and not await preload("res://tests/support/shared_affinity_network_case.gd").host(self,game,ids,rows,floor_entry,target): return
 	if native_graft_case:
 		check(game.effect_timeline.native_records().any(func(e):return e.get("graft_source",{}).get("component_id")=="monster:ashen_hart")
@@ -1070,6 +1072,7 @@ func guest(menu: Node, role: String) -> void:
 			mark("vital-seen-"+str(id))
 	if not ce02_family.is_empty() and not await preload("res://tests/support/ce02_network_case.gd").guest(self,game,id): return
 	if not ce03_family.is_empty() and not await preload("res://tests/support/ce03_network_case.gd").guest(self,game,id): return
+	if not ce04_family.is_empty() and not await preload("res://tests/support/ce04_network_case.gd").guest(self,game,id): return
 	if shared_status_case and not await preload("res://tests/support/shared_affinity_network_case.gd").guest(self,game,id): return
 	if native_graft_case and party and measure_packets: await sample_guest_snapshots(game,id)
 	if party and not connected_weaver_case and graph==null and not native_graft_case and not shared_status_case:

@@ -7,6 +7,11 @@ const Hurt = preload("res://enemy_hurtbox.gd")
 const Contact = preload("res://weapon_contact.gd")
 const Clock = preload("res://affinity_time.gd")
 const Journal = preload("res://diagnostic_journal.gd")
+const Sources=preload("res://affinity_status_source.gd")
+const Catalog=preload("res://affinity_card_catalog.gd")
+const TEMPO := "storm_card_tempo"
+const PREP := "storm_card_discharge"
+const CARD_GRANTS := {"conductor_unlock":{"method":"discharge","capability":{"producer":"card","id":"conductor","slot":"core","recipient":"enemy"}}}
 const COLOR := Color("#e3d184")
 const JUMP_RANGE := 3.0
 const FALLOFF := .7
@@ -23,12 +28,12 @@ const QUALITY := {
 const VERSION_DATA := [JUMP_RANGE, FALLOFF, BURST_RADIUS, CORE_CD, FORM_INTERVAL, CHARGE_MS, QUALITY]
 
 
-static func description(slot: String, quality: String) -> String:
-	var q: Dictionary = QUALITY[quality]
+static func description(slot: String, quality: String, resolved: Dictionary = {}) -> String:
+	var q: Dictionary = QUALITY[quality] if resolved.is_empty() else resolved
 	match slot:
-		"core": return "Chain Spark · %d HP on weapon contact, up to two more targets within %.1f m per jump. Each jump retains %d%% damage. %.1f s cooldown." % [q.initial,JUMP_RANGE,roundi(FALLOFF*100),CORE_CD/1000.0]
-		"form": return "Arcing Strikes · First eligible weapon hit adds %d HP and arcs to one target within %.1f m. %.1f s interval." % [q.arc,JUMP_RANGE,FORM_INTERVAL/1000.0]
-	return "Storm Catalyst · Mapped offense starts a %d HP discharge. Actual blocks and landing actions burst for %d HP. Healing grants one %.1f s charge worth %d HP on the next direct hit." % [q.offense,q.burst,CHARGE_MS/1000.0,q.charge]
+		"core": return "Chain Spark · %d damage on weapon contact, up to %d more targets within %.2f m per jump. Each jump retains %d%% damage. %.1f s cooldown." % [q.initial,2+int(q.get("extra_jumps",0)),JUMP_RANGE+int(q.get("jump_range_cm",0))/100.0,roundi(FALLOFF*100),CORE_CD/1000.0]
+		"form": return "Arcing Strikes · First eligible weapon hit adds %d HP and arcs to one target within %.1f m. %.1f s interval." % [q.arc,JUMP_RANGE+int(q.get("jump_range_cm",0))/100.0,(FORM_INTERVAL-int(q.get("interval_reduction_ms",0)))/1000.0]
+	return "Storm Catalyst · Mapped offense starts a %d HP discharge. Actual blocks and landing actions burst for %d HP. Healing grants one %.1f s charge worth %d HP on the next direct hit." % [q.offense+int(q.get("catalyst_damage_hp",0)),q.burst+int(q.get("catalyst_damage_hp",0)),CHARGE_MS/1000.0,q.charge+int(q.get("catalyst_damage_hp",0))]
 
 
 static func nearest(game: Node, center: Vector3, radius: float, visited: Dictionary, candidates: Array = []) -> int:
@@ -46,28 +51,69 @@ static func nearest(game: Node, center: Vector3, radius: float, visited: Diction
 	return best
 
 
-static func discharge(game: Node, actor: int, first: int, origin: Vector3, impact: Vector3, hp: int, jumps: int, now: int) -> void:
-	var visited := {}
-	var target := first
-	var center := impact
+static func discharge(game: Node, actor: int, first: int, origin: Vector3, impact: Vector3, hp: int, jumps: int, now: int, potency: Dictionary = {}, source: Dictionary = {}) -> void:
+	if first< -1 or first>=game.encounter.scout_count():return
+	var visited:={}
+	var route:=[]
+	var target:=first
+	var previous:=origin
+	var center:=impact
+	var reach:=JUMP_RANGE+int(potency.get("jump_range_cm",0))/100.0
 	for step in jumps+1:
-		if target < -1 or target >= game.encounter.scout_count() or game.persistence_session.is_blocked():
-			break
-		visited[Contact.token(game,target)] = true
-		game.emit_combat_event("link","storm_arc",origin,center,.25,COLOR,0.0,actor)
-		if Actors.valid_target(game,target):
-			Actors.damage(game,actor,target,maxi(1,roundi(hp*pow(FALLOFF,step))),now,COLOR)
-		origin = center
-		if step < jumps:
-			target = nearest(game,center,JUMP_RANGE,visited)
-			if target != -2: center = Hurt.contact(game,target,origin,true)
+		if target== -2:break
+		visited[Contact.token(game,target)]=true
+		route.append({"target":target,"token":game.encounter.spawn_identity(target),"origin":previous,"point":center,"step":step,"secondary":false})
+		previous=center
+		target=nearest(game,center,reach,visited)
+		if target!= -2:center=Hurt.contact(game,target,previous,true)
+	if not route.any(func(row):return game.encounter.alive(row.target,row.token)):return
+	var owner: Dictionary=game.players.get(actor,{})
+	var prep: Dictionary=owner.get(PREP,{})
+	if int(prep.get("until",0))>now and Sources.current(game,prep.source):
+		hp+=int(prep.hp);owner.erase(PREP)
+	var grounded:=0.0
+	for step in range(route.size(),jumps+1):grounded+=hp*pow(FALLOFF,step)*int(potency.get("unused_percent",0))/100.0
+	for row in route:row.hp=maxi(1,roundi(hp*pow(FALLOFF,int(row.step))))
+	route[0].hp+=roundi(grounded)
+	var main:=route.duplicate()
+	if int(potency.get("conductor_unlock",0))>0:
+		var tuning: Dictionary=Catalog.DEFINITIONS.conductor.tuning
+		for node: Dictionary in main:
+			for index in int(tuning.forks_per_node):
+				var fork:=nearest(game,node.point,reach,visited)
+				if fork== -2:break
+				visited[Contact.token(game,fork)]=true
+				route.append({"target":fork,"token":game.encounter.spawn_identity(fork),"origin":node.point,"point":game.enemy_position(fork),"hp":maxi(1,roundi(int(node.hp)*float(tuning.fork_percent)/100.0)),"secondary":true})
+		var return_from: Vector3=main.back().point
+		var return_to:=Hurt.contact(game,first,return_from,true)
+		if return_from.distance_to(return_to)<=reach and game.battlefield.projectile_clear(return_from,return_to):
+			route.append({"target":first,"token":main[0].token,"origin":return_from,"point":return_to,"hp":maxi(1,roundi(hp*float(tuning.return_percent)/100.0)),"secondary":true})
+	var damaged:=false
+	for row: Dictionary in route:
+		if game.persistence_session.is_blocked() or (not source.is_empty() and not Sources.current(game,source)):break
+		game.emit_combat_event("link","storm_arc",row.origin,row.point,.25,COLOR,0.0,actor)
+		if not game.encounter.alive(row.target,row.token):continue
+		var before: int=game.encounter.hp(row.target)
+		Actors.damage(game,actor,row.target,int(row.hp),now,COLOR,bool(row.secondary))
+		damaged=damaged or game.encounter.hp(row.target)<before
+	if damaged and int(potency.get("tempo_percent",0))>0 and not source.is_empty() and Sources.current(game,source):
+		owner[TEMPO]={"source":source,"until":now+int(Catalog.DEFINITIONS.ionized_rhythm.tuning.duration_ms),"percent":int(potency.tempo_percent)}
+
+static func tempo_percent(game: Node, player: Dictionary, now: int) -> int:
+	var row: Dictionary=player.get(TEMPO,{})
+	return int(row.percent) if int(row.get("until",0))>now and Sources.current(game,row.source) else 0
+
+static func prepare_discharge(game: Node,event: RefCounted,now: int) -> void:
+	var amount:=int(event.potency().get("prepared_discharge_hp",0))
+	if amount<=0 or not event.take_response("storm_spellcharge") or not Sources.current(game,Sources.capture(event)):return
+	game.players[event.actor][PREP]={"source":Sources.capture(event),"until":now+int(Catalog.DEFINITIONS.spellcharge.tuning.duration_ms),"hp":amount}
 
 
 static func burst(game: Node, event: RefCounted, center: Vector3, now: int) -> void:
 	game.emit_combat_event("ability","storm_burst",center,center,.42,COLOR,BURST_RADIUS,event.actor,{"label":"Storm burst"})
 	for target in game.skill_area_targets(center,BURST_RADIUS,center):
 		if game.persistence_session.is_blocked(): break
-		Actors.damage(game,event.actor,target,event.potency().burst,now,COLOR)
+		Actors.damage(game,event.actor,target,event.potency().burst+int(event.potency().get("catalyst_damage_hp",0)),now,COLOR)
 
 
 static func grant(game: Node, event: RefCounted, id: int) -> void:
@@ -75,10 +121,10 @@ static func grant(game: Node, event: RefCounted, id: int) -> void:
 	if not game.Life.alive(p): return
 	var elapsed := Clock.now(game)
 	var previous: Dictionary = p.get(CHARGE,{})
-	var damage: int = event.potency().charge
+	var damage: int = event.potency().charge + int(event.potency().get("catalyst_damage_hp",0))
 	if int(previous.get("until",0))>elapsed and int(previous.hp)>damage \
 			and PlayerLifecycle.matches(game.players.get(previous.actor,{}),int(previous.source_life)): return
-	p[CHARGE] = {"actor":event.actor,"source_life":event.life_generation,"quality":event.quality,"hp":damage,"until":elapsed+CHARGE_MS,"epoch":game.participation.epoch()}
+	p[CHARGE] = {"actor":event.actor,"source_life":event.life_generation,"quality":event.quality,"hp":damage,"potency":event.potency(),"origin_source":Sources.capture(event),"until":elapsed+CHARGE_MS,"epoch":game.participation.epoch()}
 	Journal.event("combat","storm_charge_granted",{"actor":event.actor,"recipient":id,"quality":event.quality,"hp":damage})
 
 
@@ -94,32 +140,36 @@ static func use_charge(game: Node, event: RefCounted, target: int, point: Vector
 	p.erase(CHARGE)
 	game.emit_combat_event("link","storm_charge",p.pos,point,.32,COLOR,0.0,charge.actor)
 	Journal.event("combat","storm_charge_consumed",{"actor":charge.actor,"recipient":event.actor,"quality":charge.quality,"hp":charge.hp})
-	Actors.damage(game,charge.actor,target,charge.hp,now,COLOR)
+	discharge(game,charge.actor,target,p.pos,point,charge.hp,int(charge.get("potency",{}).get("extra_jumps",0)),now,charge.get("potency",{}),charge.get("origin_source",{}))
 
 
 static func clear(p: Dictionary) -> void:
 	p.erase(CHARGE)
 	p.erase(FORM_READY)
+	p.erase(TEMPO)
+	p.erase(PREP)
 
 
 static func on_event(game: Node, event: RefCounted, kind: String, details: Dictionary, now: int) -> void:
 	var q: Dictionary = event.potency()
 	match kind:
 		"core_action":
-			discharge(game,event.actor,details.enemy,details.origin,details.point,q.initial,2,now)
+			discharge(game,event.actor,details.enemy,details.origin,details.point,q.initial,2+int(q.get("extra_jumps",0)),now,q,Sources.capture(event))
 		"weapon_contact":
 			var p: Dictionary = game.players.get(event.actor,{})
 			var elapsed := Clock.now(game)
 			if not game.Life.alive(p) or elapsed<int(p.get(FORM_READY,0)) or not event.take_response("storm_form"): return
 			p[FORM_READY]=elapsed+FORM_INTERVAL-int(q.get("interval_reduction_ms",0))
 			var point: Vector3=details.get("point",game.enemy_position(details.enemy))
-			discharge(game,event.actor,details.enemy,p.pos,point,q.arc,1,now)
+			discharge(game,event.actor,details.enemy,p.pos,point,q.arc,1,now,q,Sources.capture(event))
 		"actual_block":
 			burst(game,event,details.center,now)
+			prepare_discharge(game,event,now)
 		"class_contact":
 			if not event.take_response("storm_offense"): return
 			var point: Vector3=details.get("point",game.enemy_position(details.enemy))
-			discharge(game,event.actor,details.enemy,point,point,q.offense,1,now)
+			discharge(game,event.actor,details.enemy,point,point,q.offense+int(q.get("catalyst_damage_hp",0)),1+int(q.get("extra_jumps",0)),now,q,Sources.capture(event))
+			prepare_discharge(game,event,now)
 		"class_action":
 			match details.response:
 				"discharge":
@@ -129,11 +179,13 @@ static func on_event(game: Node, event: RefCounted, kind: String, details: Dicti
 					var reach := INF if not authored.is_empty() else maxf(.85,float(details.radius))
 					var target:=nearest(game,center,reach,{},authored)
 					if target!=-2:
-						discharge(game,event.actor,target,center,Hurt.contact(game,target,center,true),q.offense,1,now)
+						discharge(game,event.actor,target,center,Hurt.contact(game,target,center,true),q.offense+int(q.get("catalyst_damage_hp",0)),1+int(q.get("extra_jumps",0)),now,q,Sources.capture(event))
 				"recipient_charge":
+					if details.recipients.is_empty(): return
 					for id in details.recipients: grant(game,event,id)
 				"landing_discharge":
 					burst(game,event,details.center,now)
+			prepare_discharge(game,event,now)
 
 
 static func core_contact(game: Node, cast: Dictionary, target: int, origin: Vector3, point: Vector3, now: int) -> void:
