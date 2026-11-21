@@ -32,7 +32,10 @@ func check_read_models():
 	observation.available.clear()
 	check(game.garden_commands.projection(peer).get("available",[])==expected_available,"lightweight observation inspection is detached")
 func run():
-	role=OS.get_cmdline_user_args()[0];base="res://.godot/garden-view-ports-"+OS.get_cmdline_user_args()[1]
+	role=OS.get_cmdline_user_args()[0]
+	var signals:=OS.get_environment("MYSTICAL_TERRAIN_TEST_SIGNALS")
+	if not check(not signals.is_empty(),"runner provides the shared disposable signal directory"):quit(1);return
+	base=signals.path_join("garden-view-ports-"+OS.get_cmdline_user_args()[1])
 	# Existing fixture-only guarded title route, restricted to the verified
 	# disposable root. Production activation remains false.
 	check(not Gate.PRODUCTION_CUTOVER_APPROVED,"production writers remain disabled")
