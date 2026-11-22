@@ -7,6 +7,8 @@ extends RefCounted
 ## - Damage a mob deals: +damage per health bar of the player hit.
 ## - Healing a mob does: +healing per health bar of the mob healed.
 ## - Downing a player: +player_downed for every mob that hit them within the assist window.
+## - Finding the party: a small one-off reward the first time a mob sees any player in its life, so mobs that
+##   start far away learn to search the floor.
 ## - Seeing its current target: a small trickle, capped per decision so mobs gain little by standing in the open.
 ## - A support ally alive and casting (winding up or channeling): a small trickle per second, for the mob's allies.
 ## - Health the mob loses: -own_hp_lost per health bar of its own.
@@ -29,11 +31,12 @@ var weights: Dictionary = {}
 var squad_mix := 0.0
 ## Reward earned since each slot's last take().
 var pending := PackedFloat32Array()
-## Totals since the last reset, for reports: damage, healing, downs, wipes, sight, support, hp_lost, support_lost, deaths, intent.
+## Totals since the last reset, for reports: damage, healing, downs, wipes, found, sight, support, hp_lost, support_lost, deaths, intent.
 var totals := {}
 var _cursor := 0
 var _was_alive := PackedByteArray()
 var _sight_left := PackedFloat32Array()
+var _found := PackedByteArray()
 ## Last tick each mob hit each player, by slot * players + player.
 var _last_hit := PackedInt32Array()
 var _generation := PackedInt32Array()
@@ -51,6 +54,8 @@ func _init(simulation: RefCounted, path: String = PATH) -> void:
 	pending.fill(0.0)
 	_sight_left.resize(capacity)
 	_sight_left.fill(_sight_cap())
+	_found.resize(capacity)
+	_found.fill(0)
 	_generation.resize(capacity)
 	_generation.fill(-1)
 	_last_hit.resize(capacity * players)
@@ -63,7 +68,7 @@ func _init(simulation: RefCounted, path: String = PATH) -> void:
 
 
 func reset_totals() -> void:
-	totals = {"damage": 0.0, "healing": 0.0, "downs": 0, "wipes": 0, "sight": 0.0, "support": 0.0, "hp_lost": 0.0,
+	totals = {"damage": 0.0, "healing": 0.0, "downs": 0, "wipes": 0, "found": 0, "sight": 0.0, "support": 0.0, "hp_lost": 0.0,
 		"support_lost": 0.0, "deaths": 0, "intent": 0.0}
 
 
@@ -93,6 +98,7 @@ func _event(event: Dictionary, now: int) -> void:
 		Events.Kind.SPAWN:
 			_generation[slot] = int(event.generation)
 			pending[slot] = 0.0
+			_found[slot] = 0
 			for player in players:
 				_last_hit[slot * players + player] = -1000000
 		Events.Kind.DAMAGE_DEALT:
@@ -144,7 +150,15 @@ func _trickles() -> void:
 	var seconds := float(TRICKLE_TICKS) / Clock.TICKS_PER_SECOND
 	var sight := float(weights.get("line_of_sight_per_second", 0.01)) * seconds
 	var support := float(weights.get("support_alive_casting_per_second", 0.02)) * seconds
+	var found := float(weights.get("first_sight", 0.0))
+	var players: int = sim.contract.players
 	for slot in pool.active:
+		if found > 0.0 and _found[slot] == 0:
+			for player in players:
+				if sim.party.present[player] != 0 and sim.party.alive[player] != 0 and sim.perception.sees(slot, player):
+					_found[slot] = 1
+					_give(slot, found, "found")
+					break
 		var target: int = pool.enemy_target[slot] - 1
 		if sight > 0.0 and target >= 0 and _sight_left[slot] > 0.0 and sim.perception.sees(slot, target):
 			var earned := minf(sight, _sight_left[slot])
@@ -160,7 +174,7 @@ func _trickles() -> void:
 func _give(slot: int, value: float, kind: String) -> void:
 	if value == 0.0 or slot < 0 or slot >= pending.size():
 		return
-	totals[kind] = totals.get(kind, 0) + (1 if kind in ["downs", "wipes", "deaths"] else value)
+	totals[kind] = totals.get(kind, 0) + (1 if kind in ["downs", "wipes", "deaths", "found"] else value)
 	var allies := _allies(slot) if squad_mix > 0.0 else PackedInt32Array()
 	if allies.is_empty():
 		pending[slot] += value

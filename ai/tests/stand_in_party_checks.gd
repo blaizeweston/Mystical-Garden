@@ -27,6 +27,7 @@ func _initialize() -> void:
 	test_publishing()
 	test_hits()
 	test_darkness()
+	test_patrol()
 	test_fights()
 	print("PARTY_REPORT ", JSON.stringify(report))
 	print("PASSED: %d checks, %d failures" % [checks, failures] if failures == 0 else "FAILED: %d checks, %d failures" % [checks, failures])
@@ -62,7 +63,7 @@ func add_mob(sim: Sim, label: String, at: Vector2) -> int:
 	request.species = sim.species.ids.find(label)
 	request.at = at
 	request.hp = 60.0
-	request.damage = 14.0
+	request.damage = 11.0
 	request.intelligence = 1.0
 	return sim.spawn(request)
 
@@ -86,11 +87,12 @@ func test_hits() -> void:
 	var mob := add_mob(sim, "rootbound", Vector2(1, 0))
 	sim.events.push(Events.Kind.HIT, sim.clock.tick, mob, sim.pool.generation[mob], 0, 0, 0.0, 0.0, 100.0)
 	party.after_tick()
-	check(is_equal_approx(party.hp[0], 520.0 - 75.0), "armour takes its share of a hit")
+	var full: float = StandIns.CLASSES.warrior.hp
+	check(is_equal_approx(party.hp[0], full - 75.0), "armour takes its share of a hit")
 	party.dodge_until[0] = sim.clock.tick + 10
 	sim.events.push(Events.Kind.HIT, sim.clock.tick, mob, sim.pool.generation[mob], 0, 0, 0.0, 0.0, 100.0)
 	party.after_tick()
-	check(party.hits_dodged == 1 and is_equal_approx(party.hp[0], 445.0), "a hit during a dodge does nothing")
+	check(party.hits_dodged == 1 and is_equal_approx(party.hp[0], full - 75.0), "a hit during a dodge does nothing")
 	party.dodge_until[0] = 0
 	sim.events.push(Events.Kind.HIT, sim.clock.tick, mob, sim.pool.generation[mob], 0, 0, 0.0, 0.0, 1000.0)
 	party.after_tick()
@@ -107,6 +109,41 @@ func test_darkness() -> void:
 		sim.clock.advance()
 		party.before_tick()
 	check(sim.perception.senses_enabled and sim.perception.lights.size() >= 8, "at night the simulation senses by light and the players carry lights")
+
+
+## With no mobs, a patrolling party walks its route across the floor and keeps together.
+func test_patrol() -> void:
+	var world := make_world(8)
+	var sim: Sim = world[1]
+	var open: Array = world[2]
+	var party := StandIns.new(sim, world[0], 4)
+	var start: Vector2 = open[open.size() / 2]
+	var points: Array[Vector2] = [start]
+	for point: Vector2 in open:
+		if points.size() < 3 and point != start and point.distance_to(start) < 2.5:
+			points.append(point)
+	party.reset(["warrior", "ranger", "mage"], points, 0.5)
+	var placed := party.plan_patrol(open, 4)
+	var farthest := 0.0
+	for point: Vector2 in party.patrol:
+		farthest = maxf(farthest, point.distance_to(start))
+	var reached := 0
+	var spread := 0.0
+	var travelled := 0.0
+	var last: Vector2 = party.position[0]
+	for tick in 60 * 45:
+		party.before_tick()
+		sim.tick()
+		party.after_tick()
+		reached = maxi(reached, party.patrol_leg[0])
+		spread = maxf(spread, party.position[0].distance_to(party.position[2]))
+		travelled += party.position[0].distance_to(last)
+		last = party.position[0]
+	report["patrol"] = {"points": placed, "farthest": snappedf(farthest, 0.1), "reached": reached, "travelled": snappedf(travelled, 0.1),
+		"spread": snappedf(spread, 0.1), "detours": party.detours}
+	check(placed == 5 and farthest > 12.0, "a patrol of four legs and the way home reaches %.0f m out" % farthest)
+	check(reached >= placed, "the patrolling party walks its whole route (%d points of %d, %.0f m)" % [reached, placed, travelled])
+	check(spread < 12.0, "the party keeps together on patrol (%.1f m apart at most)" % spread)
 
 
 ## The same fights at low and high difficulty, over three seeds, against the scripted brain.

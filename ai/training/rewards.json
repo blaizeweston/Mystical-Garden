@@ -5,6 +5,7 @@
 		"healing_per_health_bar": 0.6,
 		"player_downed": 3.0,
 		"assist_window_seconds": 5.0,
+		"first_sight": 0.2,
 		"line_of_sight_per_second": 0.01,
 		"line_of_sight_cap_per_decision": 0.005,
 		"support_alive_casting_per_second": 0.02,

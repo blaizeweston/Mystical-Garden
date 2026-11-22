@@ -603,6 +603,7 @@ Built 2026-11-22. `ai/mob_rewards.gd` turns each tick's events into rewards per 
 | Damage dealt | +1.0 per health bar of the player hit |
 | Healing done | +0.6 per health bar of the mob healed (a new `HEALED` event, pushed by corpse tethers) |
 | Player downed | +3.0 for every mob that hit the player in the last 5 seconds |
+| First sight of the party (added in Part D) | +0.2 once per mob life, the first time it sees any player |
 | Sight of the current target | +0.01 per second, at most 0.005 between decisions, so standing in the open pays little |
 | A support ally alive and casting | +0.02 per second to the support's allies |
 | Own health lost | -0.3 per health bar of its own |
@@ -633,4 +634,39 @@ Speed: the game's pathfinder was nearly all the party's cost, so players walk st
 
 Checks: `ai/tests/stand_in_party_checks.gd` (11 checks): stats and timers reach the simulation, armour, dodges, going down, darkness, class skills leaving player fields, and, over three seeds, a harder party dodging more (14 against 4) and taking less damage per kill.
 
-Found for Part D: mobs that spawn far from the party wander until they notice it, so the party picks them off one group at a time. The training environment should start encounters engaged, as arena rounds do.
+Found for Part D: mobs that spawn far from the party wander until they notice it, so the party picks them off one group at a time. The training environment should start encounters engaged, as arena rounds do. (Part D starts most episodes engaged but keeps exploration starts, by request, so mobs also learn to find the party.)
+
+### Part D: the training loop
+
+Built 2026-11-22. Not started: the user starts and stops training.
+
+**How it runs.** Godot workers play episodes in the simulation and write what every mob decided to rollout files. A Python trainer on the GPU reads them, runs recurrent PPO and publishes each new policy back to the workers. They talk only through files in a run folder (default `Documents\Godot\mob-training\run`, outside the repository).
+
+| File | Purpose |
+|---|---|
+| `ai/training_brain.gd` | The neural brain for training: samples every head at temperature 1 and records each decision (observation, critic state, recurrent memory, legal options, choices, log-probability) |
+| `ai/rollout_recorder.gd` | Groups decisions into mob lives, credits rewards, and writes checksummed shards atomically |
+| `ai/training_env.gd` | One episode: a real floor, mobs at the game's health and damage, the stand-in party, the training brain |
+| `ai/training_worker.gd` | The worker loop: hot-loads new policies, writes shards, waits when the trainer falls behind, stops on request |
+| `ai/training/train.py` | Recurrent PPO with a centralised critic, checkpoints, metrics |
+| `ai/training/rollouts.py`, `safe_files.py` | Shard reading, advantages and windows; atomic files and checkpoint fallback |
+| `ai/training/training.json` | Worker count, episode mix and trainer settings |
+| `ai/training/start_training.ps1`, `stop_training.ps1`, `training_status.ps1` | Control, with double-click `.cmd` launchers beside them |
+
+**Episodes.** A random floor from 1 to 12, reused for 8 episodes. Mob health and hits come from the game's own formulas for that floor and party size (`enemy_balance.gd`), with a 15% chance of an elite leading the group and occasional mutations. The party has 1 to 4 players of random classes at a difficulty from 0.2 to 0.8, now on the game's health scale (75 to 130 health; a mob's hit takes about 10). A quarter of episodes are at night. An episode ends when the party is wiped or every mob is dead (terminal), or at its time limit (truncated, and bootstrapped).
+
+**Learning to find players.** 30% of episodes are explore starts: mobs begin 25 to 45 m away in one to three groups, sensing nobody, while the party patrols a route of points that each have a clear line to the next. Every mob decides through the net even while it senses no one (the game hands those mobs to the scripted idle brain), and the first sight of a player earns +0.2. The other episodes start engaged, 9 to 16 m apart, and half of those also patrol. Search toward an unseen player goes to the remembered spot, so mobs get no hidden knowledge of where players are.
+
+**Training.** Each update takes at least 65,536 decisions, computes advantages per mob life (GAE, gamma 0.995, lambda 0.95), and trains three epochs on 16-decision windows that start from the recorded recurrent memory, with masks applied exactly as the worker sampled. The squad share of rewards moves from 20% to 60% over the first 200 million decisions. Shards more than three policies old are dropped.
+
+**Stopping and safety.** A `STOP` file (written by `stop_training.ps1`), Ctrl+C or closing the trainer's console makes the trainer save a checkpoint and the workers finish their episode. Every file is written to a temporary name, synced and renamed. Shards and checkpoints carry SHA-256 checksums: a damaged shard is rejected, and a damaged checkpoint falls back to the newest good one. Checkpoints are saved every 10 minutes (the last 5 kept), plus a milestone every 2 hours of training that is kept for later opponents. Policy versions only grow, so workers always pick up a resumed policy. Workers and trainer run hidden at below-normal priority, and the trainer keeps the computer from sleeping while it runs.
+
+**Speed.** 12 workers produce about 17,000 decisions a second together (about 60 million an hour); an update of 68,000 decisions takes about 1.4 seconds on the GPU, so the workers set the pace and more workers would help overnight.
+
+**Checks.**
+- `ai/training/check_training.py` (19 checks): shard round trip and rejection when damaged or cut short, advantages for terminal and truncated lives, windows, masked log-probabilities, a full update, shard cleanup, metrics, checkpoint pruning and fallback, and version growth on resume.
+- `ai/tests/training_checks.gd` (20 checks): explore starts keep mobs at least 20 m away and unseen, engaged starts within 17 m, game-scale health and hits, floor reuse, every life closed once, every recorded choice legal, terminal ends, and the shard checksum.
+- `ai/tests/run_training_smoke.ps1`: start, refusal of a second start, shards, stop with a checkpoint, resume and stop again, in a throwaway folder.
+- The trainer reports a replay gap: how far its log-probabilities are from those the workers recorded with the same weights. It measures 0.0 (under 5e-7), so Godot and PyTorch sample exactly the same distribution.
+
+Also fixed on the way: the stand-in party stalled where the game's router slides a player a few centimetres at a time, so short steps now count, a player stuck for a second takes a short detour, and each step only refuses walls closer than 0.12 m. A replaced simulation stayed in memory through its handler port; the training environment cuts that link (the arena keeps one simulation per session, so it is unaffected).

@@ -32,6 +32,11 @@ Invoke-GodotCheck 'res://mob_sim/tests/mob_field_checks.gd'
 Invoke-GodotCheck 'res://ai/tests/mob_ai_checks.gd'
 Invoke-GodotCheck 'res://ai/tests/mob_reward_checks.gd'
 Invoke-GodotCheck 'res://ai/tests/stand_in_party_checks.gd'
+Invoke-GodotCheck 'res://ai/tests/training_checks.gd'
+Push-Location (Split-Path $check -Parent)
+try { & $Python (Join-Path (Split-Path $check -Parent) 'check_training.py') *>&1 | ForEach-Object { "$_" } | Where-Object { $_ -notmatch '^PASS ' } }
+finally { Pop-Location }
+if ($LASTEXITCODE -ne 0) { throw 'The training checks failed.' }
 & $Python $check compare *>&1 | ForEach-Object { "$_" }
 if ($LASTEXITCODE -ne 0) { throw 'The schema comparison failed.' }
 'All neural net checks passed.'

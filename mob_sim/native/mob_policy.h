@@ -45,6 +45,8 @@ void mp_forward(MobPolicy *policy, const float *obs, const float *hidden, int ro
 /* Stateful run: each row uses and updates the recurrent memory stored for its slot. */
 MpResult mp_step(MobPolicy *policy, const float *obs, const float *slots, int rows, float *logits);
 void mp_reset_slot(MobPolicy *policy, int slot);
+/* Copies the recurrent memory of each listed slot, hidden floats per slot, for training records. */
+MpResult mp_memory_of(const MobPolicy *policy, const float *slots, int rows, float *out);
 uint64_t mp_memory_hash(const MobPolicy *policy);
 
 #endif

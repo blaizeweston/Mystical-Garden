@@ -327,6 +327,17 @@ void mp_reset_slot(MobPolicy *policy, int slot) {
     memset(policy->memory + (size_t)slot * (size_t)policy->layout.hidden, 0, (size_t)policy->layout.hidden * sizeof(float));
 }
 
+MpResult mp_memory_of(const MobPolicy *policy, const float *slots, int rows, float *out) {
+    if (policy == NULL) return MP_ERR_ARGUMENT;
+    const MobPolicyLayout *l = &policy->layout;
+    for (int row = 0; row < rows; row++) {
+        int slot = (int)slots[row];
+        if (slot < 0 || slot >= l->capacity) return MP_ERR_ARGUMENT;
+        memcpy(out + (size_t)row * (size_t)l->hidden, policy->memory + (size_t)slot * (size_t)l->hidden, (size_t)l->hidden * sizeof(float));
+    }
+    return MP_OK;
+}
+
 uint64_t mp_memory_hash(const MobPolicy *policy) {
     uint64_t hash = 14695981039346656037ULL;
     if (policy == NULL) return hash;

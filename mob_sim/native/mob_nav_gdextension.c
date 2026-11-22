@@ -405,6 +405,17 @@ static void m_policy_step(World *world, const void *const *args, void *result) {
     }
 }
 
+static void m_policy_hidden(World *world, const void *const *args, void *result) {
+    int64_t rows = float_count(args[0]), values = 0, resized = 0;
+    if (world->policy != NULL) values = rows * mp_hidden(world->policy);
+    GDExtensionConstTypePtr resize_args[] = {&values};
+    floats_resize(result, resize_args, &resized, 1);
+    if (values > 0 && resized == 0 && mp_memory_of(world->policy, float_data(args[0]), (int)rows, floats_at(result, 0)) != MP_OK) {
+        values = 0;
+        floats_resize(result, resize_args, &resized, 1);
+    }
+}
+
 static void m_policy_reset_slot(World *world, const void *const *args, void *result) {
     mp_reset_slot(world->policy, (int)arg_int(args, 0));
     *(int64_t *)result = MP_OK;
@@ -602,6 +613,7 @@ static const Method methods[] = {
     {"policy_forward", m_policy_forward, KIND_FLOATS, 2, {KIND_FLOATS, KIND_FLOATS}, {"observations", "hidden"}},
     {"policy_step", m_policy_step, KIND_FLOATS, 2, {KIND_FLOATS, KIND_FLOATS}, {"observations", "slots"}},
     {"policy_reset_slot", m_policy_reset_slot, KIND_INT, 1, {KIND_INT}, {"slot"}},
+    {"policy_hidden", m_policy_hidden, KIND_FLOATS, 1, {KIND_FLOATS}, {"slots"}},
     {"policy_memory_hash", m_policy_memory_hash, KIND_INT, 0, {KIND_INT}, {NULL}},
     {"tick", m_tick, KIND_INT, 1, {KIND_FLOAT}, {"delta"}},
     {"positions", m_positions, KIND_FLOATS, 0, {KIND_INT}, {NULL}},

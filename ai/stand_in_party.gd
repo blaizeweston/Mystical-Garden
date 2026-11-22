@@ -36,22 +36,34 @@ const WAYPOINT_AHEAD := 4.0
 ## A routed waypoint is reused this long while the way to it stays clear.
 const ROUTE_TICKS := 60
 const BODY_CLEARANCE := 0.3
+## Each step only refuses walls closer than this. The game's router uses gaps the simulation's coarser grid
+## rates a little tighter than BODY_CLEARANCE.
+const STEP_CLEARANCE := 0.12
 
-## Class profiles. range > 3 is ranged; area > 0 splashes; skill is "fire", "root" or "".
+## Class profiles in the game's health units (a player has about 100 health and a mob's hit takes about 10).
+## range > 3 is ranged; area > 0 splashes; skill is "fire", "root" or "".
 const CLASSES := {
-	"warrior": {"hp": 520.0, "speed": 5.0, "damage": 16.0, "range": 2.3, "interval": 0.7, "area": 0.0, "armour": 0.25,
+	"warrior": {"hp": 115.0, "speed": 5.0, "damage": 16.0, "range": 2.3, "interval": 0.7, "area": 0.0, "armour": 0.25,
 		"dodge_s": 2.0, "skill": "", "skill_s": 0.0},
-	"rogue": {"hp": 380.0, "speed": 5.8, "damage": 13.0, "range": 1.9, "interval": 0.45, "area": 0.0, "armour": 0.05,
+	"rogue": {"hp": 85.0, "speed": 5.8, "damage": 13.0, "range": 1.9, "interval": 0.45, "area": 0.0, "armour": 0.05,
 		"dodge_s": 1.2, "skill": "", "skill_s": 0.0},
-	"ranger": {"hp": 360.0, "speed": 5.2, "damage": 10.0, "range": 9.0, "interval": 0.75, "area": 0.0, "armour": 0.05,
+	"ranger": {"hp": 80.0, "speed": 5.2, "damage": 10.0, "range": 9.0, "interval": 0.75, "area": 0.0, "armour": 0.05,
 		"dodge_s": 1.6, "skill": "", "skill_s": 0.0},
-	"mage": {"hp": 340.0, "speed": 5.0, "damage": 8.0, "range": 8.0, "interval": 1.1, "area": 1.6, "armour": 0.0,
+	"mage": {"hp": 75.0, "speed": 5.0, "damage": 8.0, "range": 8.0, "interval": 1.1, "area": 1.6, "armour": 0.0,
 		"dodge_s": 1.8, "skill": "fire", "skill_s": 8.0},
-	"warden": {"hp": 600.0, "speed": 4.7, "damage": 10.0, "range": 2.0, "interval": 0.8, "area": 0.0, "armour": 0.35,
+	"warden": {"hp": 130.0, "speed": 4.7, "damage": 10.0, "range": 2.0, "interval": 0.8, "area": 0.0, "armour": 0.35,
 		"dodge_s": 2.2, "skill": "root", "skill_s": 10.0},
 }
 const FIRE_FIELD := {"radius": 2.5, "ms": 4000, "dps": 10.0}
 const ROOT_FIELD := {"radius": 2.2, "ms": 2500}
+## A patrolling player moves on to its next point within this distance of the current one.
+const PATROL_REACHED := 2.0
+## A patrolling player waits while anyone standing is farther behind than this.
+const PATROL_GATHER := 5.0
+## A player that wants to move but has not covered STUCK_DISTANCE in STUCK_TICKS takes a short detour.
+const STUCK_TICKS := 60
+const STUCK_DISTANCE := 0.5
+const DETOUR_TICKS := 45
 
 var sim: RefCounted
 var field: RefCounted
@@ -60,6 +72,12 @@ var difficulty := 0.5
 ## Light level for this episode; below 1 turns darkness on.
 var ambient := 1.0
 var classes: Array[String] = []
+## Points the party walks between while it has no target, in order and looping. Empty: the party idles
+## where it stands. Set after reset(), which clears it.
+var patrol: Array[Vector2] = []
+## How many patrol points each player has reached. Each walks the route on its own, and anyone well ahead
+## of the slowest player standing waits for them.
+var patrol_leg := PackedInt32Array()
 var count := 0
 var position: Array[Vector2] = []
 var velocity: Array[Vector2] = []
@@ -70,6 +88,9 @@ var target := PackedInt32Array()
 var goal: Array[Vector2] = []
 var waypoint: Array[Vector2] = []
 var _routed_at := PackedInt32Array()
+var _progress_at: Array[Vector2] = []
+var _progress_tick := PackedInt32Array()
+var _detour_until := PackedInt32Array()
 var attack_ready := PackedInt32Array()
 var attack_due := PackedInt32Array()
 var attack_slot := PackedInt32Array()
@@ -86,6 +107,7 @@ var damage_dealt := 0.0
 var kills := 0
 var dodges := 0
 var hits_dodged := 0
+var detours := 0
 
 
 func _init(simulation: RefCounted, battlefield: RefCounted, seed_value: int) -> void:
@@ -97,6 +119,7 @@ func _init(simulation: RefCounted, battlefield: RefCounted, seed_value: int) -> 
 ## Starts an episode: players of the given classes at the given points, at a difficulty and light level.
 func reset(party_classes: Array, points: Array, skill: float, light := 1.0) -> void:
 	classes.assign(party_classes)
+	patrol.clear()
 	count = mini(classes.size(), sim.contract.players)
 	difficulty = clampf(skill, 0.0, 1.0)
 	ambient = light
@@ -104,13 +127,14 @@ func reset(party_classes: Array, points: Array, skill: float, light := 1.0) -> v
 	velocity.clear()
 	goal.clear()
 	waypoint.clear()
+	_progress_at.clear()
 	for table in [hp, max_hp]:
 		table.resize(count)
 	for table in [down]:
 		table.resize(count)
 		table.fill(0)
 	for table: PackedInt32Array in [target, attack_ready, attack_due, attack_slot, dodge_ready, dodge_until, rooted_until, skill_ready,
-			_routed_at]:
+			_routed_at, _progress_tick, _detour_until, patrol_leg]:
 		table.resize(count)
 		table.fill(0)
 	target.fill(-1)
@@ -122,6 +146,7 @@ func reset(party_classes: Array, points: Array, skill: float, light := 1.0) -> v
 		velocity.append(Vector2.ZERO)
 		goal.append(position[player])
 		waypoint.append(position[player])
+		_progress_at.append(position[player])
 		hp[player] = profile.hp
 		max_hp[player] = profile.hp
 		skill_ready[player] = now + Clock.from_ms(float(profile.skill_s) * 500.0)
@@ -140,7 +165,38 @@ func reset(party_classes: Array, points: Array, skill: float, light := 1.0) -> v
 	kills = 0
 	dodges = 0
 	hits_dodged = 0
+	detours = 0
+	for player in count:
+		_progress_tick[player] = now
 	_publish()
+
+
+## Sets a patrol of legs points from the party's leader, each with a clear straight line to the one before, so
+## the party walks it without the router. open lists candidate points; each leg is leg_min to leg_max long.
+## The route returns to where it began. Returns the number of points placed.
+func plan_patrol(open: Array, legs: int, leg_min := 8.0, leg_max := 16.0) -> int:
+	patrol.clear()
+	var leader := _leader()
+	if leader < 0 or open.is_empty():
+		return 0
+	var world = sim.locomotion.world
+	var home := position[leader]
+	var at := home
+	for leg in legs:
+		var chosen := Vector2.INF
+		for attempt in 40:
+			var point: Vector2 = open[rng.randi() % open.size()]
+			var length := point.distance_to(at)
+			if length >= leg_min and length <= leg_max and world.line_clear(at.x, at.y, point.x, point.y, BODY_CLEARANCE) != 0:
+				chosen = point
+				break
+		if not chosen.is_finite():
+			break
+		patrol.append(chosen)
+		at = chosen
+	if not patrol.is_empty():
+		patrol.append(home)
+	return patrol.size()
 
 
 func alive_count() -> int:
@@ -222,7 +278,9 @@ func _act(player: int, now: int) -> void:
 	if (now + player) % PLAN_TICKS == 0:
 		target[player] = _choose_target(player, profile)
 		goal[player] = _plan_goal(player, profile)
-		waypoint[player] = _waypoint(player)
+		if now >= _detour_until[player]:
+			waypoint[player] = _waypoint(player)
+			_check_progress(player, now)
 	_move(player, profile, now)
 	_try_attack(player, profile, now)
 	_try_skill(player, profile, now)
@@ -285,8 +343,38 @@ func _plan_goal(player: int, profile: Dictionary) -> Vector2:
 
 
 func _wander(player: int) -> Vector2:
-	var lead := position[0] if down[0] == 0 else position[player]
-	return lead + Vector2.from_angle(rng.randf() * TAU) * 3.0
+	var leader := _leader()
+	var lead := position[leader] if leader >= 0 else position[player]
+	if patrol.is_empty():
+		return lead + Vector2.from_angle(rng.randf() * TAU) * 3.0
+	var at := position[player]
+	if at.distance_to(_patrol_point(player)) < PATROL_REACHED:
+		patrol_leg[player] += 1
+	var mine := _patrol_progress(player)
+	for mate in count:
+		if mate != player and down[mate] == 0 and _patrol_progress(mate) < mine and position[mate].distance_to(at) > PATROL_GATHER:
+			return at
+	return _patrol_point(player)
+
+
+func _patrol_point(player: int) -> Vector2:
+	return patrol[patrol_leg[player] % patrol.size()]
+
+
+## Points reached, less the share of the current leg still to walk.
+func _patrol_progress(player: int) -> float:
+	var point := _patrol_point(player)
+	var from := patrol[(patrol_leg[player] + patrol.size() - 1) % patrol.size()]
+	var leg := maxf(1.0, from.distance_to(point))
+	return patrol_leg[player] - clampf(position[player].distance_to(point) / leg, 0.0, 1.0)
+
+
+## The first player still standing, or -1.
+func _leader() -> int:
+	for player in count:
+		if down[player] == 0:
+			return player
+	return -1
 
 
 func _nearest_mob(at: Vector2) -> int:
@@ -317,13 +405,40 @@ func _waypoint(player: int) -> Vector2:
 	return Vector2(ahead.x, ahead.z)
 
 
+## The game's router can stall at some corners. A player that wants to move but has made no progress for a
+## while walks a short way in a clear random direction, and a patrolling leader moves on to its next point.
+func _check_progress(player: int, now: int) -> void:
+	var at := position[player]
+	var waiting := now < rooted_until[player] or attack_due[player] >= 0 or at.distance_to(goal[player]) < 1.5
+	if waiting or at.distance_to(_progress_at[player]) > STUCK_DISTANCE:
+		_progress_at[player] = at
+		_progress_tick[player] = now
+		return
+	if now - _progress_tick[player] < STUCK_TICKS:
+		return
+	_progress_at[player] = at
+	_progress_tick[player] = now
+	if not patrol.is_empty() and target[player] < 0:
+		patrol_leg[player] += 1
+	var world = sim.locomotion.world
+	for attempt in 8:
+		var landing := at + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(2.0, 4.0)
+		if world.line_clear(at.x, at.y, landing.x, landing.y, BODY_CLEARANCE) != 0:
+			waypoint[player] = landing
+			_detour_until[player] = now + DETOUR_TICKS
+			detours += 1
+			return
+
+
 func _move(player: int, profile: Dictionary, now: int) -> void:
 	var at := position[player]
-	if now < rooted_until[player] or attack_due[player] >= 0 or at.distance_to(waypoint[player]) < 0.1:
+	# Short steps still count: the game's router can slide a player a few centimetres at a time along a corner,
+	# and it only finds a way around once the player has actually moved there.
+	if now < rooted_until[player] or attack_due[player] >= 0 or at.distance_to(waypoint[player]) < 0.005:
 		velocity[player] = Vector2.ZERO
 		return
 	var next := at.move_toward(waypoint[player], float(profile.speed) * Clock.DT)
-	if sim.locomotion.world.clearance(next.x, next.y) < BODY_CLEARANCE:
+	if sim.locomotion.world.clearance(next.x, next.y) < STEP_CLEARANCE:
 		velocity[player] = Vector2.ZERO
 		return
 	velocity[player] = (next - at) / Clock.DT

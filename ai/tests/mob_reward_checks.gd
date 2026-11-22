@@ -22,6 +22,7 @@ func _initialize() -> void:
 	test_healing_death_and_intent()
 	test_supports()
 	test_sight_cap()
+	test_first_sight()
 	test_squad_mix()
 	print("PASSED: %d checks, %d failures" % [checks, failures] if failures == 0 else "FAILED: %d checks, %d failures" % [checks, failures])
 	quit(0 if failures == 0 else 1)
@@ -144,6 +145,7 @@ func test_sight_cap() -> void:
 	var sim := make_sim()
 	var slot := add_mob(sim, "rootbound", Vector2.ZERO)
 	var rewards := solo(sim)
+	rewards.weights["first_sight"] = 0.0
 	sim.pool.enemy_target[slot] = 1
 	var row: int = slot * sim.contract.players
 	sim.perception.seen_tick[row] = sim.clock.tick
@@ -153,6 +155,21 @@ func test_sight_cap() -> void:
 	step(sim, rewards, 600)
 	var earned := rewards.take(slot)
 	check(earned > 0.0 and earned <= 0.005 + 1e-6, "sight of the target earns at most 0.005 between decisions (%.4f)" % earned)
+
+
+func test_first_sight() -> void:
+	var sim := make_sim()
+	var slot := add_mob(sim, "rootbound", Vector2(30, 0))
+	var rewards := solo(sim)
+	step(sim, rewards, 12)
+	check(is_zero_approx(rewards.take(slot)), "a mob that has not seen a player earns nothing for it")
+	var row: int = slot * sim.contract.players
+	sim.perception.seen_tick[row] = sim.clock.tick
+	sim.perception.visible[row] = 1
+	step(sim, rewards, 6)
+	check(is_equal_approx(rewards.take(slot), 0.2), "first sight of a player earns 0.2")
+	step(sim, rewards, 60)
+	check(is_zero_approx(rewards.take(slot)) and rewards.totals.found == 1, "seeing players again earns no more")
 
 
 func test_squad_mix() -> void:
