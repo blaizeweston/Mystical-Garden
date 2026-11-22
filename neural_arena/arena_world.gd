@@ -27,6 +27,10 @@ var bridge: Bridge
 var bots: Dictionary = {}
 ## Set by the headless runner, which advances the fight itself.
 var headless_driver := false
+## Benchmark timing of bots, enemies and the whole step. Wall-clock reads never feed the simulation.
+var profile := false
+var profile_usec := PackedInt64Array([0, 0, 0])
+var profile_ticks := 0
 ## True until the setup screen starts a session.
 var awaiting_setup := true
 var hud: CanvasLayer
@@ -362,9 +366,16 @@ func step_once() -> void:
 	if round_running:
 		round_tick += 1
 		_record_round_state()
+		var bots_began := Time.get_ticks_usec() if profile else 0
 		for bot: Bot in bots.values():
 			bot.act(CombatClock.now())
+		if profile:
+			profile_usec[0] += Time.get_ticks_usec() - bots_began
+	var step_began := Time.get_ticks_usec() if profile else 0
 	super._physics_process(TICK_SECONDS)
+	if profile:
+		profile_usec[2] += Time.get_ticks_usec() - step_began
+		profile_ticks += 1
 	if not round_running:
 		return
 	if not participation.active():
@@ -423,12 +434,25 @@ func state_hash() -> int:
 
 
 func tick_enemies(delta: float, now: int) -> void:
+	var began := Time.get_ticks_usec() if profile else 0
 	if bridge == null:
 		super(delta, now)
-		return
-	LeaderBehavior.tick(self, delta, now)
-	if round_running and participation.active():
-		bridge.tick(now)
+	else:
+		LeaderBehavior.tick(self, delta, now)
+		if round_running and participation.active():
+			bridge.tick(now)
+	if profile:
+		profile_usec[1] += Time.get_ticks_usec() - began
+
+
+## Mean milliseconds per tick spent on player bots, enemies and the rest of the game step.
+func profile_report() -> Dictionary:
+	var ticks := maxi(1, profile_ticks)
+	var bots_ms := profile_usec[0] / 1000.0 / ticks
+	var enemies_ms := profile_usec[1] / 1000.0 / ticks
+	var step_ms := profile_usec[2] / 1000.0 / ticks
+	return {"bots": snappedf(bots_ms, 0.0001), "enemies": snappedf(enemies_ms, 0.0001),
+		"other_game": snappedf(step_ms - enemies_ms, 0.0001), "total": snappedf(step_ms + bots_ms, 0.0001)}
 
 
 func _observe_outgoing_contact(source_peer: int, target: int) -> void:

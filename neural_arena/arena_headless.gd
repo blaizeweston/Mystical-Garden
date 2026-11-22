@@ -1,5 +1,6 @@
 extends SceneTree
 ## Runs arena rounds without a window, as fast as the machine allows.
+## Add --profile to report time per tick for bots, enemies and the rest of the game.
 ## Example: godot --headless --path . --script res://neural_arena/arena_headless.gd -- --rounds=5 --bots=4 --enemies=rootbound:6,wasp:4
 
 const Config = preload("res://neural_arena/arena_config.gd")
@@ -26,6 +27,7 @@ func run() -> void:
 	world.name = Entry.WORLD_NAME
 	world.config = config
 	world.headless_driver = true
+	world.profile = "--profile" in arguments
 	root.add_child(world)
 	world.begin_session()
 	var began := Time.get_ticks_usec()
@@ -37,7 +39,7 @@ func run() -> void:
 		print("ROUND_RESULT ", JSON.stringify(result))
 	print("ARENA_SUMMARY ", JSON.stringify({"rounds": world.results.size(), "ticks": world.total_ticks,
 		"ticks_per_second": roundi(world.total_ticks / seconds), "times_real_time": snappedf(world.total_ticks / seconds / 60.0, 0.1),
-		"state_hash": world.state_hash()}))
+		"state_hash": world.state_hash(), "profile": world.profile_report() if world.profile else {}}))
 	var finished: bool = world.results.size() >= rounds
 	world.queue_free()
 	await process_frame

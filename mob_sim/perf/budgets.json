@@ -1,0 +1,16 @@
+{
+	"version": 1,
+	"note": "Speed budgets in times real time (60 ticks per second). 'floor' fails the benchmark when a change makes things slower; it sits about 25% under the recorded baseline to allow run-to-run noise. 'target' is the goal from docs/ENEMY_FRAMEWORK_PLAN.md and is reported but never fails. Raise floors when a phase makes things faster.",
+	"baseline_recorded": "2026-11-21",
+	"machine": "Development PC, RTX 4070 Super, one headless process",
+	"sim": {
+		"20": {"baseline": 182.5, "floor": 135, "target": 300},
+		"100": {"baseline": 33.5, "floor": 25, "target": 100}
+	},
+	"arena": {
+		"note": "Neural Arena with real combat: 20 mixed enemies, 4 bot players, 60 second rounds, seed 7, two rounds.",
+		"neural": {"baseline": 11.6, "floor": 8.5, "target": 40},
+		"scripted": {"baseline": 12.3, "floor": 9, "target": 40},
+		"legacy": {"baseline": 7.1, "floor": 5}
+	}
+}

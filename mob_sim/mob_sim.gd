@@ -15,6 +15,7 @@ const Pool = preload("res://mob_sim/mob_pool.gd")
 const Rules = preload("res://mob_sim/mob_rules.gd")
 const ScriptedBrain = preload("res://mob_sim/mob_scripted_brain.gd")
 const Species = preload("res://mob_sim/mob_species.gd")
+const SystemTimers = preload("res://mob_sim/perf/system_timers.gd")
 
 enum Status { STUN, ROOT, SLOW, HASTE }
 
@@ -29,6 +30,8 @@ var perception: Perception
 var rules: Rules
 var abilities: Abilities
 var executors: Executors
+## Per-system timing. Set timers.enabled to measure; results never depend on it.
+var timers := SystemTimers.new()
 ## Decides for mobs that are awake.
 var brain: Brain
 ## Decides for mobs that have sensed nobody for a while, so they skip the costlier brain.
@@ -126,11 +129,30 @@ func apply_status(slot: int, status: Status, ticks: int, scale: float = 1.0) -> 
 func tick() -> void:
 	clock.advance()
 	var now := clock.tick
+	if timers.enabled:
+		_timed_tick(now)
+		return
 	perception.update(now)
 	_decide(now)
 	executors.run(now)
 	abilities.tick_windups(now)
 	locomotion.step(now)
+
+
+## The same steps as tick(), charged to each system. Kept separate so untimed ticks pay nothing.
+func _timed_tick(now: int) -> void:
+	timers.begin_tick()
+	perception.update(now)
+	timers.lap(SystemTimers.System.PERCEPTION)
+	_decide(now)
+	timers.lap(SystemTimers.System.DECISION)
+	executors.run(now)
+	timers.lap(SystemTimers.System.EXECUTORS)
+	abilities.tick_windups(now)
+	timers.lap(SystemTimers.System.ABILITIES)
+	locomotion.step(now)
+	timers.lap(SystemTimers.System.MOVEMENT)
+	timers.end_tick()
 
 
 func state_hash() -> int:

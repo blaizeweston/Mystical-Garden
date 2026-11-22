@@ -11,7 +11,7 @@ This page records what the arena changed in existing files, why, and which refer
 | In the game | Press Esc, then choose **Neural Arena**. The button only appears when running from the project, because exported builds leave the `neural_arena` folder out |
 | Headless | `neural_arena/tests/run_arena.ps1 -Arguments '--rounds=5','--bots=4','--enemies=rootbound:6,nightbloom:3','--brain=scripted'` |
 
-Headless options are `--rounds`, `--bots`, `--enemies=id:count,id:count`, `--brain`, `--seed`, `--floor`, `--map=open`, `--round-seconds`, `--elite` and `--intelligence`.
+Headless options are `--rounds`, `--bots`, `--enemies=id:count,id:count`, `--brain`, `--seed`, `--floor`, `--map=open`, `--round-seconds`, `--elite`, `--intelligence` and `--profile`, which reports time per tick for bots, enemies and the rest of the game.
 
 `--brain` accepts `scripted`, or the path of a model file. Leaving it out uses the current game AI.
 

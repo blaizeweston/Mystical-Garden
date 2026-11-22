@@ -63,20 +63,20 @@ The existing core (`mob_sim/native`) already has the clearance grid, flow fields
 
 ### Budgets
 
-These are the first targets, measured on the development machine. Phase 1 records the real baseline and may adjust them.
+These are the goals. `mob_sim/perf/budgets.json` holds them with the recorded baseline and a regression floor, and `mob_sim/tests/run_bench.ps1` measures against it.
 
 | Scenario | Target |
 |---|---|
 | Simulation only, 100 mobs, 4 stand-in players | 100x real time or better per process |
 | Simulation only, 20 mobs | 300x real time or better per process |
-| Neural Arena with real combat, 20 mobs, 4 bots, headless | 40x real time or better. Currently 25x with 2 bots |
+| Neural Arena with real combat, 20 mobs, 4 bots, headless | 40x real time or better |
 | Live game with New enemies, 20 mobs, 4 players | Enemy work under 0.5 ms per tick |
 
 Training runs several headless processes in parallel, so per-process speed multiplies.
 
 ## Framework structure
 
-The framework grows from `mob_sim/`, which already holds the simulation, its native core and its tests. Phase 1 reorganises it into folders.
+The framework grows from `mob_sim/`, which already holds the simulation, its native core and its tests. New code goes into these folders. Existing `mob_*.gd` files move into them when a later phase rewrites them, so no phase moves a file without changing it.
 
 | Folder | Contents |
 |---|---|
@@ -87,21 +87,27 @@ The framework grows from `mob_sim/`, which already holds the simulation, its nat
 | `mob_sim/brains/` | The brain interface, the scripted brain and the neural brain adapter |
 | `mob_sim/ports/` | The world port interface the host implements |
 | `mob_sim/native/` | The C core |
-| `assets/enemies/framework/` | Ability, kit and trait data, keyed by the existing catalog's species ids |
+| `mob_sim/data/` | Ability, kit, trait and mutation data, keyed by the catalog's species ids. It sits inside `mob_sim/` so the `.gdignore` keeps it out of exports and validation inputs until the live toggle |
+| `mob_sim/perf/` | Per-system timers and speed budgets |
 
 `assets/enemies/catalog.json` stays the single source for species identity, base stats, models and loot. The framework reads it and does not change it.
 
 ### Definitions
 
-| Class | Holds |
+| File | Holds |
 |---|---|
-| `SpeciesDef` | Catalog id and base stats, movement layer, traits, an ability kit of four slots, mana pool |
-| `AbilityDef` | Id, slot role, delivery, shape kernel and its parameters, range band, sight need, wind-up, recovery, cooldown, mana cost, interruptible flag, effects, unlock rule |
-| `EffectDef` | Damage, status (root, slow, haste, burn, bleed), hazard, summon, pull, heal, ally buff |
-| `TraitSet` | Armour, evasion, dodge, flight, sight, darkvision, hearing and smell ranges |
-| `KitDef` | Ability per slot: 0 basic, 1 signature, 2 utility, 3 leader or elite |
+| `species_def.gd` | Catalog id, a kit of four ability slots, movement options and traits |
+| `ability_def.gd` | Slot, delivery, target, sight need, aim lead, range band, wind-up, recovery, cooldown, mana cost, interruptible flag, shape, effects, unlock rule, elite bonuses, behaviour handler and the legacy move it reproduces |
+| `shape_def.gd` | Circle, sector, line, bent line, spots or trail, with its radius, width, span, anchor and offsets |
+| `effect_def.gd` | Damage, root, hazard, ally haste, summon, pull, repeat pulse, heal, command, steal, decoy or guard |
+| `trait_set.gd` | Flight layer, sight, darkvision, hearing, smell, armour, evasion, dodge and mana |
+| `modifier_def.gd` | Spawn-time mutations such as Reach and Bark |
+| `definition_loader.gd` | Parses the data, checks every cross-reference against the catalog and caches the result |
+| `definition_tables.gd` | Compiles everything into flat packed arrays indexed by species and slot |
 
-The validator rejects unknown ids, missing assets and out-of-range values at load, through the existing content validation path.
+Kit slots are 0 basic, 1 signature, 2 counter and 3 special. Slot 3 holds elite or leader abilities and species-specific actions such as the Graft Thief's loot grab. Vault and dodge are movement options, not ability slots, because the net already has separate behaviours for them.
+
+Any value written as `"catalog"` is copied from the enemy catalog when the tables are compiled. Basic attacks inherit range, wind-up, recovery and radius this way, so the two systems cannot drift apart on those numbers. The loader refuses unknown fields, ids, slots and handlers, mismatched mutation bits, and species whose flight disagrees with the catalog.
 
 Legacy features map onto kits like this:
 
@@ -109,11 +115,11 @@ Legacy features map onto kits like this:
 |---|---|
 | Role attack | Slot 0 basic ability |
 | Spawn-time variant | Signature ability unlocked by floor and party play style, used when the brain chooses |
-| Learned counter-move | Signature or utility ability unlocked by the same evidence the legacy code records |
-| Mutation bits | Traits and stat modifiers |
-| Cover vault | Utility ability |
-| Support rite | Signature ability with a support delivery |
-| Elite signature | Slot 3 ability |
+| Learned counter-move | Counter ability unlocked by the same evidence the legacy code records |
+| Mutation bits | Mutation modifiers |
+| Cover vault | Movement option enabled by the Mobility mutation |
+| Support rite | Basic ability with a rite delivery, plus a shared fallback attack when no escort is near |
+| Elite signature | The species' signature ability, with elite size bonuses |
 
 ### Runtime state
 
@@ -245,3 +251,33 @@ Checks on 2026-11-21:
 | Focused game validation | 185 of 187 suites passed |
 
 `ct04_reaper` ("water stops Veil Dance but the legal Siphon Cut still recovers dodge") and `garden_knowledge_preview` ("protects landmarks and the Wilds entrance") fail with the same messages on the unmodified `Enemies-and-Neural-Net-Framework` branch, so they predate this change. A control suite passed on that unmodified copy.
+
+## Phase 1 record
+
+Built 2026-11-21. No existing game files changed.
+
+- Definitions for all 24 catalog species and 65 abilities in `mob_sim/data/`, with typed classes, a loader and a table compiler in `mob_sim/definitions/`. Loading and compiling takes about 6 ms.
+- `mob_sim/tests/mob_definition_checks.gd` (43 checks) reads the legacy code's own tables and proves every variant, learned response, elite signature, role and boss plan has a framework ability with the same unlock floor and evidence. It also checks catalog inheritance, mutation values, vault rules, deterministic compilation, and that 12 kinds of broken data are refused for the right reason.
+- `MobSim.timers` measures each system when enabled and costs nothing when off. The arena's headless runner takes `--profile` to split each tick into bots, enemies and the rest of the game.
+- `mob_sim/perf/budgets.json` and `mob_sim/tests/run_bench.ps1` record the baseline and fail on regressions.
+
+### Baseline
+
+| Scenario | Times real time | Target | Time per tick |
+|---|---|---|---|
+| Simulation, 20 mobs | 182 | 300 | 0.10 ms |
+| Simulation, 100 mobs | 34 | 100 | 0.53 ms: decision 0.19, executors 0.20, movement 0.08, perception 0.05 |
+| Arena, neural enemies | 12 | 40 | Enemies 0.36 ms, bots 0.29 ms, rest of the game 0.62 ms |
+| Arena, scripted framework enemies | 12 | 40 | Enemies 0.32 ms, bots 0.31 ms, rest of the game 0.58 ms |
+| Arena, legacy enemies | 7 | None | Enemies 1.16 ms, bots 0.24 ms, rest of the game 0.82 ms |
+
+### What the baseline shows
+
+- At 100 mobs, the decision and executor systems are 75% of the simulation tick. Both are GDScript loops over every due mob, so moving their inner loops into the native core is the first Phase 2 speed task.
+- Legacy enemies cost about 1.2 ms per tick with 20 enemies, roughly three times the framework path. The live toggle should therefore make normal play faster, not slower.
+- In the arena, the rest of the game's combat step (0.6 ms) now costs more than the enemies. The 40x arena target cannot be reached by enemy work alone. Phase 5 should skip work a headless arena never needs, such as presentation, guest snapshots and audio, through arena-only overrides.
+
+### Intended behaviour changes
+
+- Legacy variants replace a species' attack for the whole spawn. In the framework they are signature abilities that unlock under the same rules, and the brain chooses when to use them.
+- Values marked provisional in `species.json` (senses, dodge, flight and mana) only take effect in Phase 4.
