@@ -97,8 +97,12 @@ func _mask_slot(batch: Batch, base: int, slot: int, tick: int) -> void:
 	batch.masks[enemy_base] = 1
 	batch.masks[ally_base] = 1
 	var has_enemy := false
+	# A shepherd's order limits the target to the commanded player while it lasts and that player is known.
+	var commanded := -1
+	if tick < pool.command_until[slot] and pool.command_player[slot] < contract.players and perception.knows(slot, pool.command_player[slot]):
+		commanded = pool.command_player[slot]
 	for player in contract.players:
-		if perception.knows(slot, player):
+		if perception.knows(slot, player) and (commanded < 0 or player == commanded):
 			batch.masks[enemy_base + 1 + player] = 1
 			has_enemy = true
 	var has_ally := false

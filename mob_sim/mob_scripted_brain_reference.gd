@@ -60,7 +60,7 @@ func _count_assignments(batch: Batch) -> void:
 
 
 func _decide_slot(batch: Batch, index: int, slot: int) -> void:
-	var player := _pick_target(batch, slot)
+	var player := _pick_target(batch, index, slot)
 	if player < 0:
 		batch.write_intent(index, _idle, 0, 0, 0)
 		return
@@ -86,12 +86,12 @@ func _decide_slot(batch: Batch, index: int, slot: int) -> void:
 	batch.write_intent(index, _approach, head, 0, manoeuvre)
 
 
-func _pick_target(batch: Batch, slot: int) -> int:
+func _pick_target(batch: Batch, index: int, slot: int) -> int:
 	var best := INF
 	var chosen := -1
 	var current := batch.pool.enemy_target[slot] - 1
 	for player in batch.contract.players:
-		if not batch.perception.knows(slot, player):
+		if not batch.perception.knows(slot, player) or not batch.allowed(index, Contract.Head.ENEMY_TARGET, player + 1):
 			continue
 		var at := slot * batch.contract.players + player
 		var assigned := _assigned[player + 1] - int(player == current)

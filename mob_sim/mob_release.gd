@@ -37,6 +37,13 @@ class Area extends RefCounted:
 var slot := -1
 var generation := 0
 var row := -1
+## Ability id and the legacy move it reproduces, for handlers.
+var ability := ""
+var legacy := ""
+## Handler state: chosen corpse, anchors, escorts, presentation extras, and data.locked to keep custom areas.
+var data := {}
+## Releases a handler asks to follow this one, each with data.delay_ms.
+var follow_ups: Array = []
 var attack := 0
 var player := -1
 var origin := Vector2.ZERO
@@ -131,7 +138,26 @@ func _lane(from_point: Vector2, to_point: Vector2, lane_width: float) -> Area:
 	return area
 
 
+## A copy for a later pulse. Areas are shared, so a handler that changes them must replace the array.
+func copy() -> RefCounted:
+	var other = get_script().new()
+	for field in ["slot", "generation", "row", "attack", "player", "origin", "aim", "landing", "damage", "ability", "legacy"]:
+		other.set(field, get(field))
+	other.areas = areas.duplicate()
+	other.points = points.duplicate()
+	other.data = data.duplicate()
+	return other
+
+
 ## True when a target at point is inside any area with a clear line, matching the legacy hit rules.
+## Where a pull drags its targets toward: a pull area's anchor, or the mob's starting point.
+func pull_anchor() -> Vector2:
+	for area in areas:
+		if area.part == Part.PULL:
+			return area.anchor
+	return origin
+
+
 func hits(point: Vector2, world: RefCounted) -> bool:
 	for area in areas:
 		if _hits_area(area, point, world):

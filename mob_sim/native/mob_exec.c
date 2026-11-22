@@ -30,6 +30,8 @@
 #define GOAL_CELL 2.0
 #define TAU_D 6.283185307179586
 #define PI_D 3.141592653589793
+#define APPROACH_STOP 0.12
+#define COMMAND_STOP 0.25
 
 static const double cover_radius[COVER_RADII] = {3.0, 6.0};
 
@@ -50,6 +52,8 @@ static const MeKind input_kinds[EI_COUNT] = {
     [EI_SEEN_TICK] = ME_INTS, [EI_ALLIES] = ME_INTS, [EI_PARTY_PRESENT] = ME_BYTES, [EI_PARTY_ALIVE] = ME_BYTES,
     [EI_PARTY_X] = ME_FLOATS, [EI_PARTY_Z] = ME_FLOATS, [EI_PARTY_VX] = ME_FLOATS, [EI_PARTY_VZ] = ME_FLOATS,
     [EI_COMMANDS] = ME_FLOATS, [EI_TARGETS] = ME_FLOATS,
+    [EI_APPROACH_UNTIL] = ME_INTS, [EI_APPROACH_X] = ME_FLOATS, [EI_APPROACH_Z] = ME_FLOATS, [EI_COMMAND_UNTIL] = ME_INTS,
+    [EI_COMMAND_VIA] = ME_BYTES, [EI_COMMAND_VIA_X] = ME_FLOATS, [EI_COMMAND_VIA_Z] = ME_FLOATS,
 };
 
 MeKind me_config_kind(int index) { return config_kinds[index]; }
@@ -82,7 +86,9 @@ typedef struct {
     const MobNav *nav;
     int tick, goal_tick;
     const int *generation, *species, *mutations, *leader, *leader_generation, *behaviour_since;
-    const int *windup_until, *stun_until, *ready_at, *cooldown_until, *seen_tick, *allies;
+    const int *windup_until, *stun_until, *ready_at, *cooldown_until, *seen_tick, *allies, *approach_until, *command_until;
+    const uint8_t *command_via;
+    const float *approach_x, *approach_z, *command_via_x, *command_via_z;
     const uint8_t *alive, *behaviour, *enemy_target, *ally_target, *manoeuvre, *visible, *party_present, *party_alive;
     const float *xz, *spawn_x, *spawn_z, *reach_bonus, *seen_x, *seen_z, *party_x, *party_z, *party_vx, *party_vz;
     float *commands, *targets, *requests;
@@ -534,7 +540,8 @@ MeResult me_run(MobExec *e, const MobNav *nav, const void *const *items, const i
     int64_t command_floats = (int64_t)capacity * ME_STRIDE, target_floats = (int64_t)(players + e->dim[ED_GOAL_FIELDS]) * 2;
     if (nav == NULL || lengths[EI_CLOCK] != EK_COUNT || lengths[EI_ALIVE] != capacity || lengths[EI_XZ] != capacity * 2
             || lengths[EI_COOLDOWN_UNTIL] != (int64_t)capacity * attacks || lengths[EI_VISIBLE] != (int64_t)capacity * players
-            || lengths[EI_ALLIES] != (int64_t)capacity * e->dim[ED_ALLIES]
+            || lengths[EI_ALLIES] != (int64_t)capacity * e->dim[ED_ALLIES] || lengths[EI_APPROACH_UNTIL] != capacity
+            || lengths[EI_COMMAND_UNTIL] != capacity || lengths[EI_COMMAND_VIA] != capacity || lengths[EI_COMMAND_VIA_X] != capacity
             || lengths[EI_PARTY_X] != players || lengths[EI_COMMANDS] != command_floats || lengths[EI_TARGETS] != target_floats) {
         return ME_ERR_ARGUMENT;
     }
@@ -555,6 +562,9 @@ MeResult me_run(MobExec *e, const MobNav *nav, const void *const *items, const i
     BIND(seen_tick, EI_SEEN_TICK, int); BIND(allies, EI_ALLIES, int); BIND(party_present, EI_PARTY_PRESENT, uint8_t);
     BIND(party_alive, EI_PARTY_ALIVE, uint8_t); BIND(party_x, EI_PARTY_X, float); BIND(party_z, EI_PARTY_Z, float);
     BIND(party_vx, EI_PARTY_VX, float); BIND(party_vz, EI_PARTY_VZ, float);
+    BIND(approach_until, EI_APPROACH_UNTIL, int); BIND(approach_x, EI_APPROACH_X, float); BIND(approach_z, EI_APPROACH_Z, float);
+    BIND(command_until, EI_COMMAND_UNTIL, int); BIND(command_via, EI_COMMAND_VIA, uint8_t);
+    BIND(command_via_x, EI_COMMAND_VIA_X, float); BIND(command_via_z, EI_COMMAND_VIA_Z, float);
     r.commands = out;
     r.targets = out + command_floats;
     r.requests = out + command_floats + target_floats + 1;
@@ -565,6 +575,24 @@ MeResult me_run(MobExec *e, const MobNav *nav, const void *const *items, const i
         int slot = active[i];
         if (slot < 0 || slot >= capacity) return ME_ERR_ARGUMENT;
         if (r.windup_until[slot] > 0 || r.tick < r.stun_until[slot]) continue;
+        /* A handler's approach step, then a shepherd's route point, come before the behaviour.
+         * Handlers check the approach line when they plan it, so the step walks straight there. */
+        if (r.approach_until[slot] > r.tick) {
+            if (distance_to(&r, slot, r.approach_x[slot], r.approach_z[slot]) > APPROACH_STOP) {
+                float *c = command_row(&r, slot);
+                c[ME_AT_STOP] = (float)APPROACH_STOP;
+                c[ME_AT_MODE] = ME_MODE_DIRECT;
+                c[ME_AT_OFFSET_X] = r.approach_x[slot];
+                c[ME_AT_OFFSET_Z] = r.approach_z[slot];
+            } else {
+                hold(&r, slot);
+            }
+            continue;
+        }
+        if (r.command_via[slot] != 0 && r.tick < r.command_until[slot]) {
+            if (due(&r, slot)) go_to(&r, slot, r.command_via_x[slot], r.command_via_z[slot], COMMAND_STOP);
+            continue;
+        }
         switch (e->executor[r.behaviour[slot]]) {
             case MX_IDLE: do_idle(&r, slot); break;
             case MX_SEARCH: do_search(&r, slot); break;

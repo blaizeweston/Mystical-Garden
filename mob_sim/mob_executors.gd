@@ -76,7 +76,8 @@ func run(tick: int) -> void:
 		pool.windup_until, pool.stun_until, pool.ready_at, pool.cooldown_until,
 		perception.visible, perception.seen_x, perception.seen_z, perception.seen_tick, perception.allies,
 		party.present, party.alive, party.x, party.z, party.vx, party.vz,
-		locomotion.commands, locomotion.targets])
+		locomotion.commands, locomotion.targets,
+		pool.approach_until, pool.approach_x, pool.approach_z, pool.command_until, pool.command_via, pool.command_via_x, pool.command_via_z])
 	if result.is_empty():
 		push_error("The native executors refused this tick's input.")
 		return

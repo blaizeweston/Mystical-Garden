@@ -102,6 +102,15 @@ func flee_from(slot: int, player: int) -> void:
 	commands[at + AT_MODE] = NavWorld.Mode.FLEE
 
 
+## Walks straight to a point without checking the way, for moves a handler has already checked.
+func walk_straight(slot: int, x: float, z: float, stop: float) -> void:
+	var at := slot * STRIDE
+	commands[at + AT_STOP] = stop
+	commands[at + AT_MODE] = NavWorld.Mode.DIRECT
+	commands[at + AT_OFFSET_X] = x
+	commands[at + AT_OFFSET_Z] = z
+
+
 ## Walks straight when the way is clear and otherwise shares a route field with nearby goals.
 func go_to(slot: int, x: float, z: float, stop: float) -> void:
 	var at := slot * STRIDE

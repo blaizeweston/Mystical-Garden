@@ -17,6 +17,9 @@ const Session = preload("res://network_session.gd")
 const Sim = preload("res://mob_sim/mob_sim.gd")
 const Species = preload("res://mob_sim/mob_species.gd")
 const Enums = preload("res://mob_sim/definitions/definition_enums.gd")
+const EnemyBehaviors = preload("res://enemy_behaviors.gd")
+const Glasscap = preload("res://glasscap_feint.gd")
+const Thief = preload("res://thief_escape.gd")
 const Tactics = preload("res://wilds_skill_tactics.gd")
 
 const MS_PER_TICK := 1000.0 / 60.0
@@ -38,6 +41,9 @@ var _written := PackedVector3Array()
 var _peers := PackedInt32Array()
 ## Play-style evidence the party has shown this run, as one bit per DefinitionEnums.Evidence value.
 var _party_evidence := 0
+## Nonzero for enemies the game's own behaviour drives this tick: a Graft Thief stealing or escaping,
+## or a Glasscap holding its feint. The simulation holds them and leaves their position alone.
+var _host_owned := PackedByteArray()
 
 
 func _init(world: Node, settings: Config) -> void:
@@ -80,6 +86,8 @@ func begin_round(seed_value: int) -> bool:
 	_hitters.resize(capacity)
 	_hitters.fill(NO_HITTER)
 	_written.resize(capacity)
+	_host_owned.resize(capacity)
+	_host_owned.fill(0)
 	_peers.resize(sim.contract.players)
 	_peers.fill(0)
 	return true
@@ -113,7 +121,9 @@ func place(slot: int, at: Vector3) -> void:
 	_written[slot] = at
 
 
-func tick(now: int) -> void:
+func tick(now: int, delta: float = 1.0 / 60.0) -> void:
+	for slot in capacity:
+		_host_owned[slot] = int(_host_turn(slot, delta, now))
 	_publish_party()
 	_party_evidence = _playstyle_bits()
 	var next := sim.clock.tick + 1
@@ -187,6 +197,8 @@ func _mirror_slot(slot: int, next: int, now: int) -> void:
 	pool.haste_until[slot] = next + _ticks_until(int(scout.get("haste_until", 0)), now)
 	if bool(scout.get("engaged", false)):
 		pool.engaged[slot] = 1
+	if _host_owned[slot] != 0:
+		pool.stun_until[slot] = next + 1
 	var winding: bool = int(scout.windup) > 0
 	pool.windup_until[slot] = next + maxi(1, _ticks_until(int(scout.windup), now)) if winding else 0
 	if winding and pool.aim_player[slot] != Pool.NO_PLAYER:
@@ -210,6 +222,17 @@ func _adopt(slot: int, token: int) -> bool:
 	_hitters[slot] = NO_HITTER
 	_written[slot] = scout.pos
 	return true
+
+
+## Runs the game's own thief and feint behaviour. Returns true while it owns the enemy this tick.
+func _host_turn(slot: int, delta: float, now: int) -> bool:
+	if slot >= game.encounter.scout_count() or not game.encounter.alive(slot):
+		return false
+	var scout: Dictionary = game.encounter.scout(slot)
+	var kind := int(scout.get("kind", -1))
+	if kind != Thief.KIND and kind != Glasscap.KIND:
+		return false
+	return EnemyBehaviors.tick(game, scout, delta, now)
 
 
 ## Signature moves follow the same play-style scores and floors the legacy variants use.
@@ -253,7 +276,7 @@ func _ticks_until(deadline: int, now: int) -> int:
 func _write_back() -> void:
 	for slot in sim.pool.active:
 		var scout: Dictionary = game.encounter.scout(slot)
-		if scout.is_empty() or int(scout.windup) > 0:
+		if scout.is_empty() or int(scout.windup) > 0 or _host_owned[slot] != 0:
 			continue
 		var at := Vector3(sim.pool.xz[slot * 2], 0.0, sim.pool.xz[slot * 2 + 1])
 		scout.pos = at

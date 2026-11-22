@@ -377,7 +377,8 @@ func test_support_buff() -> void:
 	var fighter := add_mob(sim, "rootbound", Vector2(11, 10))
 	sim.perception.seen_tick[caster * sim.contract.players] = 0
 	place_player(sim, 0, Vector2(12.5, 10))
-	check(sim.abilities.begin(caster, 1, 0, sim.clock.tick), "a caster in range starts its chant")
+	sim.perception.refresh_allies(PackedInt32Array([caster]), sim.clock.tick)
+	check(sim.abilities.begin(caster, 0, 0, sim.clock.tick), "a caster with an escort in range starts its chant")
 	run_ticks(sim, sim.species.attack_windup[kind_of(sim, "bellcap") * Species.ATTACKS + 1] + 1)
 	check(sim.pool.haste_until[fighter] > sim.clock.tick, "a released chant hastes nearby fighters")
 

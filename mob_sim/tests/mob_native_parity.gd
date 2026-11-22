@@ -54,11 +54,12 @@ func _initialize() -> void:
 		print("FAIL native extension did not load")
 		quit(2)
 		return
-	var totals := {"ticks": 0, "starts": 0, "offsets": 0, "largest": 0.0, "decisions": 0}
+	var totals := {"ticks": 0, "starts": 0, "offsets": 0, "largest": 0.0, "decisions": 0, "routes": 0}
 	for entry in CASES:
 		compare(int(entry[0]), int(entry[1]), totals)
 	check(totals.starts > 0, "the compared encounters started %d attacks" % totals.starts)
 	check(totals.decisions > 0, "the compared encounters made %d decisions" % totals.decisions)
+	check(totals.routes > 0, "the compared encounters exercised %d approach steps and orders" % totals.routes)
 	print("PARITY ", JSON.stringify(totals))
 	print("PASSED: %d checks, %d failures" % [checks, failures] if failures == 0 else "FAILED: %d checks, %d failures" % [checks, failures])
 	quit(0 if failures == 0 else 1)
@@ -76,6 +77,8 @@ func check(condition: bool, label: String) -> void:
 func compare(seed_value: int, mobs: int, totals: Dictionary) -> void:
 	var arena := Arena.new(seed_value, mobs)
 	var sim = arena.sim
+	# Handlers can refuse attacks the dry reference would start; they have their own checks.
+	sim.abilities.port = null
 	var shadow := Locomotion.new(sim.pool, sim.party, sim.contract)
 	shadow.world = sim.locomotion.world
 	var dry := DryAbilities.new(sim.pool, sim.party, sim.species, sim.rules, sim.events, shadow)
@@ -91,6 +94,7 @@ func compare(seed_value: int, mobs: int, totals: Dictionary) -> void:
 			problem = "tick %d: %s" % [tick, problem]
 			break
 		problem = _decide_both(sim, reference_brain, now, totals)
+		_inject_routes(sim, now, totals)
 		if not problem.is_empty():
 			problem = "tick %d: %s" % [tick, problem]
 			break
@@ -208,6 +212,29 @@ func _restore(sim, state: Dictionary) -> void:
 	sim.pool.last_sensed = state.last_sensed.duplicate()
 	for key in SENSED_FIELDS:
 		sim.perception.set(key, state[key].duplicate())
+
+
+## Gives a few mobs approach steps and shepherd orders, deterministically, so both executor versions
+## walk those branches. Both read the same pool, so the injection itself cannot cause a difference.
+func _inject_routes(sim, now: int, totals: Dictionary) -> void:
+	if now % 40 != 0:
+		return
+	for slot in sim.pool.active:
+		var x: float = sim.pool.xz[slot * 2]
+		var z: float = sim.pool.xz[slot * 2 + 1]
+		match (slot + now / 40) % 7:
+			0:
+				sim.pool.approach_until[slot] = now + 20
+				sim.pool.approach_x[slot] = x + 1.3
+				sim.pool.approach_z[slot] = z - 0.7
+				totals.routes += 1
+			1:
+				sim.pool.command_player[slot] = slot % sim.contract.players
+				sim.pool.command_until[slot] = now + 90
+				sim.pool.command_via[slot] = int(slot % 2 == 0)
+				sim.pool.command_via_x[slot] = x - 1.1
+				sim.pool.command_via_z[slot] = z + 1.6
+				totals.routes += 1
 
 
 func _difference(native: PackedFloat32Array, reference: PackedFloat32Array, native_targets: PackedFloat32Array,

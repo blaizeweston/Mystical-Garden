@@ -6,6 +6,9 @@ extends RefCounted
 ## game's own hit rules.
 
 const Clock = preload("res://mob_sim/mob_clock.gd")
+const Handler = preload("res://mob_sim/abilities/ability_handler.gd")
+const HandlerRegistry = preload("res://mob_sim/abilities/handler_registry.gd")
+const Loader = preload("res://mob_sim/definitions/definition_loader.gd")
 const Enums = preload("res://mob_sim/definitions/definition_enums.gd")
 const Events = preload("res://mob_sim/mob_events.gd")
 const Locomotion = preload("res://mob_sim/mob_locomotion.gd")
@@ -21,6 +24,8 @@ const MIN_WINDUP_TICKS := 1
 ## A player standing in a hazard is hit at most this often by it.
 const HAZARD_HIT_TICKS := 30
 const MUTATION_BITS := 5
+## How long a mob waits after a handler refuses its attack, as the legacy rites do.
+const REFUSE_TICKS := 24
 
 ## One placed hazard. Hosts that resolve their own hits read these from each release instead.
 class Hazard extends RefCounted:
@@ -50,6 +55,11 @@ var releases: Array[Release] = []
 var hazards: Array[Hazard] = []
 ## Pending extra pulses: Release, remaining pulses, interval ticks, due tick.
 var _repeats: Array = []
+## Ability handlers and the port they use to reach the world. MobSim sets the port.
+var handlers := HandlerRegistry.new()
+var port: RefCounted
+## The release planned at each wind-up, by slot.
+var _pending := {}
 
 
 func _init(mob_pool: Pool, mob_party: Party, table: Species, game_rules: Rules, event_log: Events, mover: Locomotion) -> void:
@@ -78,7 +88,11 @@ func begin(slot: int, attack: int, player: int, tick: int) -> bool:
 	var z := pool.xz[slot * 2 + 1]
 	if species.attack_sight[at] != 0 and locomotion.world.line_clear(x, z, party.x[player], party.z[player], 0.0) == 0:
 		return false
-	var aim := _aim(slot, at, player)
+	var release := preview(slot, attack, player)
+	if not gate(release, tick):
+		return false
+	_pending[slot] = release
+	var aim := release.aim
 	var ticks := maxi(maxi(MIN_WINDUP_TICKS, species.attack_min_windup[at]), roundi(species.attack_windup[at] * pool.windup_scale[slot]))
 	party.attackers[player] += 1
 	pool.windup_until[slot] = tick + ticks
@@ -89,6 +103,45 @@ func begin(slot: int, attack: int, player: int, tick: int) -> bool:
 	locomotion.hold(slot)
 	events.push(Events.Kind.WINDUP, tick, slot, pool.generation[slot], attack, ticks, aim.x, aim.y,
 		pool.damage[slot], species.attack_area[at], x, z)
+	return true
+
+
+## The release a wind-up would lock, before any handler adjusts it.
+func preview(slot: int, attack: int, player: int) -> Release:
+	var at := pool.species[slot] * Species.ATTACKS + attack
+	var release := Release.new()
+	release.slot = slot
+	release.generation = pool.generation[slot]
+	release.row = species.attack_row[at]
+	release.attack = attack
+	release.player = player
+	release.origin = Vector2(pool.xz[slot * 2], pool.xz[slot * 2 + 1])
+	release.aim = _aim(slot, at, player)
+	var shape := species.attack_shape[at]
+	release.landing = release.aim if shape == Species.Shape.DASH or shape == Species.Shape.LEAP else release.origin
+	release.damage = pool.damage[slot]
+	if release.row >= 0:
+		var ability = Loader.shared().abilities[species.tables.row_ability[release.row]]
+		release.ability = ability.id
+		release.legacy = ability.legacy
+	return release
+
+
+## Runs the ability's handler before a wind-up: an approach step first, then its plan. Returns false
+## when the wind-up should not start now.
+func gate(release: Release, tick: int) -> bool:
+	var handler: Handler = handlers.for_row(species.tables, release.row)
+	if handler == null or port == null:
+		return true
+	var goal := handler.approach(port, release)
+	if goal.is_finite():
+		pool.approach_until[release.slot] = tick + Handler.APPROACH_TICKS
+		pool.approach_x[release.slot] = goal.x
+		pool.approach_z[release.slot] = goal.y
+		return false
+	if not handler.plan(port, release):
+		pool.ready_at[release.slot] = maxi(pool.ready_at[release.slot], tick + REFUSE_TICKS)
+		return false
 	return true
 
 
@@ -125,22 +178,26 @@ func _release(slot: int, tick: int) -> void:
 	pool.cooldown_until[slot * pool.attacks + attack] = maxi(pool.ready_at[slot], tick + species.attack_cooldown[at])
 	if shape == Species.Shape.DASH or shape == Species.Shape.LEAP:
 		locomotion.displace(slot, pool.aim_x[slot], pool.aim_z[slot])
-	var release := Release.new()
-	release.slot = slot
-	release.generation = pool.generation[slot]
-	release.row = species.attack_row[at]
-	release.attack = attack
-	release.player = player
+	var release: Release = _pending.get(slot)
+	_pending.erase(slot)
+	if release == null or release.generation != pool.generation[slot]:
+		release = preview(slot, attack, player)
 	release.origin = origin
-	release.aim = Vector2(pool.aim_x[slot], pool.aim_z[slot])
 	release.landing = Vector2(pool.xz[slot * 2], pool.xz[slot * 2 + 1])
-	release.damage = pool.damage[slot]
-	if release.row >= 0:
+	if release.row >= 0 and not release.data.get("locked", false):
+		release.areas.clear()
+		release.points.clear()
 		release.build(species.tables, locomotion.world, _radius_growth(slot), pool.flags[slot] & Pool.FLAG_ELITE != 0, slot % 2 == 1)
 	events.push(Events.Kind.RELEASE, tick, slot, pool.generation[slot], attack, shape | (player << 8),
 		release.aim.x, release.aim.y, pool.damage[slot], species.attack_area[at], origin.x, origin.y)
 	releases.append(release)
-	_apply_effects(release, tick, true)
+	var handler: Handler = handlers.for_row(species.tables, release.row)
+	var generic := handler == null or port == null or handler.resolve(port, release)
+	if generic:
+		_apply_effects(release, tick, true)
+	for follow in release.follow_ups:
+		var delay := Clock.from_ms(float(follow.data.get("delay_ms", 0)))
+		_repeats.append([follow, 1, delay, tick + delay])
 
 
 ## Extra radius from mutations such as Reach and Spores.
@@ -190,7 +247,7 @@ func _hit_party(release: Release, scale: float, root_ticks: int, pull: float, ti
 		var at := Vector2(party.x[player], party.z[player])
 		if release.hits(at, locomotion.world):
 			events.push(Events.Kind.HIT, tick, release.slot, release.generation, player, root_ticks, at.x, at.y,
-				release.damage * scale, pull, release.origin.x, release.origin.y)
+				release.damage * scale, pull, release.pull_anchor().x, release.pull_anchor().y)
 
 
 func _place_hazards(release: Release, effect: int, tick: int) -> void:
@@ -252,9 +309,7 @@ func _tick_repeats(tick: int) -> void:
 		if tick < int(entry[3]):
 			kept.append(entry)
 			continue
-		var pulse := Release.new()
-		for field in ["slot", "generation", "row", "attack", "player", "origin", "aim", "landing", "damage", "areas", "points"]:
-			pulse.set(field, release.get(field))
+		var pulse = release.copy()
 		events.push(Events.Kind.RELEASE, tick, pulse.slot, pulse.generation, pulse.attack, 0, pulse.aim.x, pulse.aim.y,
 			pulse.damage, 0.0, pulse.origin.x, pulse.origin.y)
 		releases.append(pulse)
@@ -269,12 +324,14 @@ func interrupt(slot: int, delay_ticks: int, tick: int) -> void:
 	if pool.windup_until[slot] <= 0:
 		return
 	_finish_windup(slot)
+	_pending.erase(slot)
 	pool.ready_at[slot] = maxi(pool.ready_at[slot], tick + delay_ticks)
 	events.push(Events.Kind.INTERRUPT, tick, slot, pool.generation[slot])
 
 
 ## Clears attack state for a mob that died during a wind-up.
 func cancel(slot: int) -> void:
+	_pending.erase(slot)
 	if pool.windup_until[slot] > 0:
 		_finish_windup(slot)
 

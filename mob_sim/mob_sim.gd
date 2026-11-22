@@ -19,6 +19,7 @@ const ReferenceScriptedBrain = preload("res://mob_sim/mob_scripted_brain_referen
 const Species = preload("res://mob_sim/mob_species.gd")
 const SystemTimers = preload("res://mob_sim/perf/system_timers.gd")
 const StatusSystem = preload("res://mob_sim/mob_status.gd")
+const SimHandlerPort = preload("res://mob_sim/abilities/sim_handler_port.gd")
 
 enum Status { STUN, ROOT, SLOW, HASTE }
 
@@ -59,6 +60,7 @@ func _init(slots: int, awake_brain: Brain = null) -> void:
 	rules = Rules.new(contract, pool, party, species, perception, events)
 	status = StatusSystem.new(pool, species.count)
 	abilities = Abilities.new(pool, party, species, rules, events, locomotion)
+	abilities.port = SimHandlerPort.new(self)
 	executors = Executors.new(contract, pool, party, species, perception, abilities, locomotion)
 	brain = awake_brain if awake_brain != null else ScriptedBrain.new()
 	idle_brain = ScriptedBrain.new()

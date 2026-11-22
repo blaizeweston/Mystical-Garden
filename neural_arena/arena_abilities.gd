@@ -6,6 +6,7 @@ extends "res://mob_sim/mob_abilities.gd"
 ## game's warnings, poses, audio, Oracle omens and staggers keep working. A dedicated framework view
 ## replaces that presentation plan in Phase 5.
 
+const ArenaPort = preload("res://neural_arena/arena_handler_port.gd")
 const Attacks = preload("res://enemy_attack.gd")
 const CombatClock = preload("res://combat_clock.gd")
 const EnemyBehaviors = preload("res://enemy_behaviors.gd")
@@ -13,7 +14,7 @@ const Glasscap = preload("res://glasscap_feint.gd")
 const Hits = preload("res://enemy_attack_hits.gd")
 const IncomingHit = preload("res://incoming_player_hit.gd")
 const Life = preload("res://expedition_life.gd")
-const Loader = preload("res://mob_sim/definitions/definition_loader.gd")
+const Frost = preload("res://frost_combat.gd")
 const Omens = preload("res://oracle_omens.gd")
 const PlayerLifecycle = preload("res://player_lifecycle.gd")
 const ScoutBehavior = preload("res://scout_behavior.gd")
@@ -42,8 +43,6 @@ class FieldSight extends RefCounted:
 
 var game: Node
 var bridge: RefCounted
-## The release locked at each wind-up, by slot.
-var _pending := {}
 ## Extra pulses: Release, pulses left, interval ms, due ms, damage.
 var _pulses: Array = []
 ## Releases per ability id this round, and hazards placed, for checks and tuning.
@@ -54,12 +53,14 @@ var hazards_placed := 0
 func connect_game(world: Node, mob_bridge: RefCounted) -> void:
 	game = world
 	bridge = mob_bridge
+	port = ArenaPort.new(world, mob_bridge)
 
 
 ## Breaks the link back to the bridge so a finished round can be freed.
 func disconnect_game() -> void:
 	game = null
 	bridge = null
+	port = null
 	_pending.clear()
 	_pulses.clear()
 
@@ -86,7 +87,9 @@ func begin(slot: int, attack: int, player: int, tick: int) -> bool:
 		if sight.line_clear(scout.pos.x, scout.pos.z, victim.x, victim.z, 0.0) == 0:
 			return false
 	var definition: Dictionary = game.Enemies.get_kind(int(scout.kind))
-	var release := _preview(slot, attack, player, row, scout)
+	var release := _preview(slot, attack, player, row, scout, tick)
+	if release == null:
+		return false
 	var now := CombatClock.now()
 	var windup_ms := maxi(int(tables.row_min_windup_ms[row]), int(game.Director.windup(game, int(tables.row_windup_ms[row]))))
 	var mode := _mode(slot, definition, row)
@@ -110,23 +113,20 @@ func begin(slot: int, attack: int, player: int, tick: int) -> bool:
 	return true
 
 
-## Locks the release geometry at the wind-up, as the game's own attacks do.
-func _preview(slot: int, attack: int, player: int, row: int, scout: Dictionary) -> Release:
+## Locks the release geometry at the wind-up, as the game's own attacks do. The ability's handler may
+## step aside first or refuse, in which case this returns null.
+func _preview(slot: int, attack: int, player: int, row: int, scout: Dictionary, tick: int) -> Release:
 	var tables = species.tables
-	var release := Release.new()
-	release.slot = slot
-	release.generation = pool.generation[slot]
-	release.row = row
-	release.attack = attack
-	release.player = player
+	var release := preview(slot, attack, player)
 	release.origin = Vector2(scout.pos.x, scout.pos.z)
-	release.aim = _aim(slot, pool.species[slot] * Species.ATTACKS + attack, player)
+	if not gate(release, tick):
+		return null
 	release.landing = release.origin
 	if tables.row_delivery[row] == Enums.Delivery.LEAP:
 		var landed: Vector3 = game.battlefield.dash(scout.pos, _v3(release.aim))
 		release.landing = Vector2(landed.x, landed.z)
-	release.damage = pool.damage[slot]
-	release.build(tables, FieldSight.new(game.battlefield, false), _radius_growth(slot), pool.flags[slot] & Pool.FLAG_ELITE != 0, slot % 2 == 1)
+	if not release.data.get("locked", false):
+		release.build(tables, FieldSight.new(game.battlefield, false), _radius_growth(slot), pool.flags[slot] & Pool.FLAG_ELITE != 0, slot % 2 == 1)
 	return release
 
 
@@ -181,10 +181,31 @@ func _presentation(release: Release, mode: String, row: int) -> Dictionary:
 			plan.trail = spots
 			plan.to = _v3(release.landing)
 	if tables.row_delivery[row] == Enums.Delivery.PULL:
-		plan.anchor = _v3(release.origin)
-	if ability.legacy == "bark_guard":
-		plan.variant = "bark_guard"
+		plan.anchor = _v3(release.pull_anchor())
+	if ability.legacy in ["bark_guard", "planted_canopy"]:
+		# The game guards and shelters during these wind-ups when it sees the legacy variant.
+		plan.variant = ability.legacy
+	var extra: Dictionary = release.data.get("presentation", {})
+	for key in extra:
+		plan[key] = _to_world(extra[key])
 	return plan
+
+
+## Converts handler presentation values from the ground plane into world positions.
+static func _to_world(value: Variant) -> Variant:
+	if value is Vector2:
+		return _v3(value)
+	if value is PackedVector2Array:
+		var points: Array[Vector3] = []
+		for point in value:
+			points.append(_v3(point))
+		return points
+	if value is Dictionary:
+		var copy := {}
+		for key in value:
+			copy[key] = _to_world(value[key])
+		return copy
+	return value
 
 
 ## Releases every wind-up whose telegraph has finished, using the real game's rules.
@@ -203,7 +224,16 @@ func tick_windups(tick: int) -> void:
 				_pending.erase(slot)
 				interrupt(slot, 0, tick)
 			continue
-		if release == null or now < int(scout.windup):
+		if now < int(scout.windup):
+			continue
+		if release == null:
+			# A move the game itself started, such as a Graft Thief's loot grab, releases through the game.
+			var definition: Dictionary = game.Enemies.get_kind(int(scout.kind))
+			Frost.with_attacker(game, slot, ScoutBehavior.release.bind(game, scout, definition, now, scout.get("attack", {}), int(scout.windup)))
+			if not game.participation.active():
+				return
+			if not Vector2(scout.pos.x, scout.pos.z).is_equal_approx(Vector2(pool.xz[slot * 2], pool.xz[slot * 2 + 1])):
+				bridge.place(slot, scout.pos)
 			continue
 		var attack: Dictionary = Attacks.claim_scout_attack(game.encounter, scout, game.participation.epoch(), now,
 			scout.get("attack", {}), int(scout.windup))
@@ -242,6 +272,12 @@ func _resolve(release: Release, now: int, scout: Dictionary, attack: Dictionary)
 	if tables.row_delivery[row] == Enums.Delivery.LEAP and Attacks.landing_is_clear(game, scout, attack, now):
 		scout.pos = _v3(release.landing)
 		bridge.place(release.slot, scout.pos)
+	var handler: Handler = handlers.for_row(tables, row)
+	var generic := handler == null or port == null or handler.resolve(port, release)
+	for follow in release.follow_ups:
+		_pulses.append([follow, 1, 0, now + int(follow.data.get("delay_ms", 0)), base_damage * _damage_scale(row)])
+	if not generic:
+		return
 	preload("res://event_audio.gd").enemy(game, attack, true)
 	var damage_scale := -1.0
 	var root_ms := 0
@@ -274,11 +310,20 @@ func _resolve(release: Release, now: int, scout: Dictionary, attack: Dictionary)
 		_strike(release, base_damage * maxf(damage_scale, 0.0), root_ms, pull, now, commitment)
 
 
+func _damage_scale(row: int) -> float:
+	var tables = species.tables
+	for index in tables.row_effect_count[row]:
+		var effect: int = tables.row_effect_start[row] + index
+		if tables.effect_kind[effect] == Enums.Effect.DAMAGE:
+			return tables.effect_scale[effect]
+	return 0.0
+
+
 ## Hits every living player inside the release, once each, through the game's player-hit rules.
 func _strike(release: Release, damage: float, root_ms: int, pull: float, now: int, commitment: Dictionary) -> void:
 	var sight := FieldSight.new(game.battlefield, species.tables.row_sight[release.row] == Enums.Sight.COMBAT)
 	var before: PackedFloat32Array = bridge.party_health()
-	var anchor := _v3(release.origin)
+	var anchor := _v3(release.pull_anchor())
 	for peer: int in game.players.keys():
 		var actor: Dictionary = game.players[peer]
 		var life := PlayerLifecycle.generation(actor)

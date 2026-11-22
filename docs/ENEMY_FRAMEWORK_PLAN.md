@@ -222,7 +222,7 @@ Each phase ends with evidence and a review before the next starts.
 | 0 | Fix ward grants mixing clocks. Make the simulation test drive combat time | 10 ward files and one validation anchor file. Done 2026-11-21 |
 | 1 | Folder structure, definitions, loader, validator, table compiler, per-system timers, benchmark budgets and the baseline | None |
 | 2 | Native executors, decisions, perception and movement speeds, with parity tests; senses with a light grid; status system. Done 2026-11-21 | None |
-| 3 | Kits drive every species' attacks, with release geometry and effects. The arena resolves them with the real player-hit rules. Parts 1 and 2 done 2026-11-21; handlers and the legacy comparison remain | Arena files only |
+| 3 | Kits drive every species' attacks, with release geometry, effects and behaviour handlers. The arena resolves them with the real player-hit rules. Parts 1 to 3 done 2026-11-21; the legacy comparison remains | Arena files only |
 | 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields | Arena files only |
 | 5 | Dedicated framework presentation. Elite kits. Bosses keep scripted plans for now | Arena files only |
 | 6 | Schema v2, rewards v2, training loop, curriculum and evaluation | None |
@@ -359,20 +359,35 @@ Releases now resolve real geometry and hits in GDScript. The simulation is 390x 
 - The cover vault is no longer an attack slot. It returns in Phase 4 as a movement option beside dodge, so mobile enemies do not vault until then.
 - Supports cast their rite whenever a fighting ally is in their perception, rather than when any fighter is alive on the floor.
 
-### Still to do in Phase 3
+### Part 3: behaviour handlers
 
-**Part 3, behaviour handlers.** These abilities currently use only their generic data: geometry, damage, hazards, haste and summons. Their richer rules still need porting:
+Built 2026-11-21. Rules that data alone cannot express live in `mob_sim/abilities/`, one small class per behaviour. A handler has up to three hooks: `approach` (a short step before the wind-up), `plan` (choose targets and adjust aim at the wind-up, or refuse the attack) and `resolve` (act at release, and optionally skip the kit's generic effects). Handlers reach the world only through a `HandlerPort`. The training simulation implements it in `sim_handler_port.gd` and the arena in `neural_arena/arena_handler_port.gd`, so each handler is written once. `handler_registry.gd` maps the data's handler names to classes, and a check proves the two lists match.
 
-| Handler | Species | Missing behaviour |
+| Handler | Species | Behaviour |
 |---|---|---|
-| `corpse_tether` | Pallbearer | Choose a corpse and heal from it |
-| `shepherd_command`, `flank_route`, `relay_order` | Root Shepherd | Order escorts onto a target or flank route |
-| `choir_pulse`, `antiphon` | Root Choir | Anchor the pulse on an ally |
-| `echo_toll` | Bellcap | Anchor the toll on an ally |
-| `trophy_grab` | Graft Thief | Steal dropped parts and escape. Grabs stay with the host for now, and the framework thief only fights |
-| `shelter`, `planted_canopy`, `canopy_shift` | Hollowback | Shelter allies under its canopy |
-| `side_approach`, `learned_approach`, `cover_first`, `cutoff_aim`, `denied_aim`, `side_anchor` | Several | Approach steps and aim adjustments before the wind-up |
-| `scattered_hatch` | Broodmother | Scatter hatchlings away from players |
-| `boss_plan` | Bosses | Bosses keep their scripted plans until Phase 5 |
+| `corpse_tether` | Pallbearer | Tethers the nearest unconsumed corpse within 5 units (7 for the long tether; the spare tether skips the corpse last disrupted) and heals from it. No corpse, no cast |
+| `shepherd_command`, `relay_order`, `flank_route` | Root Shepherd | Orders visible escorts onto its target for 2.6 seconds. A flank order sends one escort along a bend route around the target; a relay order sends only that escort |
+| `echo_toll`, `antiphon` | Bellcap, Root Choir | Casts through an ally: the toll rings around the farthest visible fighter and hastes the two allies nearest it; the antiphon strikes a sector from an ally near the target. Nothing happens if the ally dies or moves away first |
+| `choir_pulse` | Root Choir | Needs a visible fighter. The split chorus strikes a second beat 730 ms later, turned 2.3 radians |
+| `brood_hatch`, `scattered_hatch` | Broodmother | Hatches juveniles at safe sites, at most two out at once. The scattered hatch splits them to opposite sides and skips sites a player stands near |
+| `side_approach` | Gallhorn, Wicker Wasp | Steps to the side before winding up the angled charge or wide flank |
+| `cover_first` | Bellcap | Once per life, steps behind the nearest fighter, away from the target, before the first covered bell |
+| `learned_approach` | Gallhorn, Seamroot, Wicker Wasp, Ashen Hart | Bent routes for the antler hook and deep seam, a cut-off landing for the side sting, and a short landing with embers to both sides for the ember fork |
+| `cutoff_aim`, `denied_aim`, `side_anchor` | Ashen Hart, Nightbloom, Lantern Lure | Aims beside the target, at where the last volley was stopped, or pulls from a lantern set to the side |
+| `canopy_shift` | Hollowback | Leaps to re-cover the ally a player slipped out of its shelter |
+
+Orders change the rules, not a brain: while an order lasts, the commanded player is the only legal enemy target, so the scripted and neural brains both obey it. Approach steps and route points run in the executors, native and reference, ahead of the current behaviour. The parity test injects both so the native and reference executors are compared on them.
+
+In the arena, the game itself provides some behaviour, so those handlers need nothing extra there:
+
+- Shelter and the planted canopy: the game's own player-attack code shelters allies near a Hollowback, and reads the planted canopy from the wind-up's plan.
+- The Graft Thief's grabbing and escape, and the Glasscap's feint: the bridge runs the game's `EnemyBehaviors.tick` for those species, and while it owns them the simulation holds them. Their grabs release through the game.
+- Corpse healing uses the game's corpse balance, hatching uses the game's brood rules, and per-enemy memory is the enemy's own record, so legacy flags such as a denied volley or a broken shelter are shared.
+
+The training simulation has no dropped items or shelter rules, so the thief only fights there and Hollowbacks do not shelter. Bosses keep their scripted plans until Phase 5.
+
+Checks: `mob_sim/tests/mob_handler_checks.gd` (30 checks) covers every handler in the training simulation. A new arena check runs supports against the real game; it saw Shepherd rallies with orders active, Choir pulses, Bellcap chants, both Pallbearer tethers and a learned counter (the Rootbound's rooted sweep, unlocked when the bots blocked its route). Speed stays above target: 395x real time at 20 mobs and 108x at 100.
+
+### Still to do in Phase 3
 
 **Part 4, comparison with legacy.** Run legacy enemies and framework enemies with the scripted brain on the same seeds, and compare damage per minute, time to kill, hit rate and ability use per species.

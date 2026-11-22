@@ -27,6 +27,7 @@ static const MdKind input_kinds[DI_COUNT] = {
     [DI_COOLDOWN_UNTIL] = DK_INTS, [DI_WINDUP_UNTIL] = DK_INTS, [DI_VISIBLE] = DK_BYTES, [DI_SEEN_X] = DK_FLOATS,
     [DI_SEEN_Z] = DK_FLOATS, [DI_SEEN_TICK] = DK_INTS, [DI_ALLIES] = DK_INTS, [DI_PARTY_PRESENT] = DK_BYTES,
     [DI_PARTY_ALIVE] = DK_BYTES, [DI_PARTY_X] = DK_FLOATS, [DI_PARTY_Z] = DK_FLOATS, [DI_MASKS] = DK_BYTES,
+    [DI_COMMAND_PLAYER] = DK_BYTES, [DI_COMMAND_UNTIL] = DK_INTS,
 };
 
 MdKind md_config_kind(int index) { return config_kinds[index]; }
@@ -48,7 +49,8 @@ typedef struct {
     int tick;
     const int *slots, *active, *generation, *species, *mutations, *leader, *leader_generation;
     const int *ready_at, *cooldown_until, *windup_until, *seen_tick, *allies;
-    const uint8_t *alive, *flags, *enemy_target, *visible, *party_present, *party_alive, *masks;
+    const uint8_t *alive, *flags, *enemy_target, *visible, *party_present, *party_alive, *masks, *command_player;
+    const int *command_until;
     const float *xz, *seen_x, *seen_z, *party_x, *party_z;
     int64_t slot_count, active_count;
 } View;
@@ -124,7 +126,8 @@ static int bind(View *v, const MobDecide *d, const void *const *items, const int
     int capacity = d->dim[DD_CAPACITY], players = d->dim[DD_PLAYERS];
     if (lengths[DI_TICK] != 1 || lengths[DI_ALIVE] != capacity || lengths[DI_XZ] != (int64_t)capacity * 2
             || lengths[DI_COOLDOWN_UNTIL] != (int64_t)capacity * d->dim[DD_ATTACKS] || lengths[DI_SEEN_TICK] != (int64_t)capacity * players
-            || lengths[DI_ALLIES] != (int64_t)capacity * d->dim[DD_ALLIES] || lengths[DI_PARTY_X] != players) {
+            || lengths[DI_ALLIES] != (int64_t)capacity * d->dim[DD_ALLIES] || lengths[DI_PARTY_X] != players
+            || lengths[DI_COMMAND_PLAYER] != capacity || lengths[DI_COMMAND_UNTIL] != capacity) {
         return 0;
     }
     memset(v, 0, sizeof(*v));
@@ -139,7 +142,7 @@ static int bind(View *v, const MobDecide *d, const void *const *items, const int
     BIND(visible, DI_VISIBLE, uint8_t); BIND(seen_x, DI_SEEN_X, float); BIND(seen_z, DI_SEEN_Z, float);
     BIND(seen_tick, DI_SEEN_TICK, int); BIND(allies, DI_ALLIES, int); BIND(party_present, DI_PARTY_PRESENT, uint8_t);
     BIND(party_alive, DI_PARTY_ALIVE, uint8_t); BIND(party_x, DI_PARTY_X, float); BIND(party_z, DI_PARTY_Z, float);
-    BIND(masks, DI_MASKS, uint8_t);
+    BIND(masks, DI_MASKS, uint8_t); BIND(command_player, DI_COMMAND_PLAYER, uint8_t); BIND(command_until, DI_COMMAND_UNTIL, int);
     for (int64_t i = 0; i < v->slot_count; i++) {
         if (v->slots[i] < 0 || v->slots[i] >= capacity) return 0;
     }
@@ -210,8 +213,11 @@ static void mask_slot(const View *v, uint8_t *row, int slot) {
     enemy[0] = 1;
     ally[0] = 1;
     int has_enemy = 0, has_ally = 0;
+    /* A shepherd's order limits the target to the commanded player while it lasts and that player is known. */
+    int commanded = v->tick < v->command_until[slot] && v->command_player[slot] < d->dim[DD_PLAYERS]
+        && knows(v, slot, v->command_player[slot]) ? v->command_player[slot] : -1;
     for (int player = 0; player < d->dim[DD_PLAYERS]; player++) {
-        if (knows(v, slot, player)) {
+        if (knows(v, slot, player) && (commanded < 0 || player == commanded)) {
             enemy[1 + player] = 1;
             has_enemy = 1;
         }
@@ -263,13 +269,17 @@ static void write_intent(uint8_t *out, int64_t index, int behaviour, int enemy, 
     row[DK_HEAD_MESSAGE_B] = 0;
 }
 
-static int pick_target(const View *v, int slot) {
+static inline int enemy_allowed(const View *v, int64_t index, int player) {
+    return v->masks[index * v->d->dim[DD_MASK_SIZE] + v->d->head_offset[DK_HEAD_ENEMY] + 1 + player] != 0;
+}
+
+static int pick_target(const View *v, int64_t index, int slot) {
     const MobDecide *d = v->d;
     double best = INFINITY;
     int chosen = -1;
     int current = (int)v->enemy_target[slot] - 1;
     for (int player = 0; player < d->dim[DD_PLAYERS]; player++) {
-        if (!knows(v, slot, player)) continue;
+        if (!knows(v, slot, player) || !enemy_allowed(v, index, player)) continue;
         int at = slot * d->dim[DD_PLAYERS] + player;
         int assigned = d->assigned[player + 1] - (player == current ? 1 : 0);
         double score = distance_to(v, slot, v->seen_x[at], v->seen_z[at]) + fmin(ASSIGNED_LIMIT, (double)assigned * ASSIGNED_WEIGHT);
@@ -300,7 +310,7 @@ static int first_ally(const View *v, int slot) {
 
 static void decide_slot(const View *v, uint8_t *out, int64_t index, int slot) {
     const MobDecide *d = v->d;
-    int player = pick_target(v, slot);
+    int player = pick_target(v, index, slot);
     if (player < 0) {
         write_intent(out, index, d->dim[DD_IDLE], 0, 0, 0);
         return;

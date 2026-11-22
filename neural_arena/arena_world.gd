@@ -440,7 +440,7 @@ func tick_enemies(delta: float, now: int) -> void:
 	else:
 		LeaderBehavior.tick(self, delta, now)
 		if round_running and participation.active():
-			bridge.tick(now)
+			bridge.tick(now, delta)
 	if profile:
 		profile_usec[1] += Time.get_ticks_usec() - began
 

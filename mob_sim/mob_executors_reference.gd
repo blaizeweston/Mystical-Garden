@@ -32,6 +32,8 @@ const COVER_STOP := 0.3
 const DEFEND_DISTANCE := 1.6
 const BLOCK_DISTANCE := 1.5
 const STILL_SPEED := 0.1
+const APPROACH_STOP := 0.12
+const COMMAND_STOP := 0.25
 
 var contract: Contract
 var pool: Pool
@@ -78,8 +80,21 @@ func has_executor(behaviour: int) -> bool:
 
 func run(tick: int) -> void:
 	for slot in pool.active:
-		if pool.windup_until[slot] <= 0 and tick >= pool.stun_until[slot]:
-			_run[pool.behaviour[slot]].call(slot, tick)
+		if pool.windup_until[slot] > 0 or tick < pool.stun_until[slot]:
+			continue
+		# A handler's approach step, then a shepherd's route point, come before the behaviour.
+		# Handlers check the approach line when they plan it, so the step walks straight there.
+		if pool.approach_until[slot] > tick:
+			if pool.distance_to(slot, pool.approach_x[slot], pool.approach_z[slot]) > APPROACH_STOP:
+				locomotion.walk_straight(slot, pool.approach_x[slot], pool.approach_z[slot], APPROACH_STOP)
+			else:
+				locomotion.hold(slot)
+			continue
+		if pool.command_via[slot] != 0 and tick < pool.command_until[slot]:
+			if _due(slot, tick):
+				locomotion.go_to(slot, pool.command_via_x[slot], pool.command_via_z[slot], COMMAND_STOP)
+			continue
+		_run[pool.behaviour[slot]].call(slot, tick)
 
 
 func _due(slot: int, tick: int) -> bool:

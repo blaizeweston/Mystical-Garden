@@ -7,6 +7,8 @@ const Species = preload("res://mob_sim/mob_species.gd")
 
 const FLAG_LEADER := 1
 const FLAG_ELITE := 2
+## Hatched or otherwise summoned. Summoned mobs leave no corpse.
+const FLAG_SUMMONED := 4
 const NO_PLAYER := 255
 const MOBILITY_SPEED := 1.18
 const JUVENILE_SPEED := 1.15
@@ -93,24 +95,35 @@ var dot_next := PackedInt32Array()
 var armour := PackedByteArray()
 var dodge_until := PackedInt32Array()
 var channel_until := PackedInt32Array()
+## A short move before a wind-up, set by an ability handler. Executors walk there until it ends.
+var approach_until := PackedInt32Array()
+var approach_x := PackedFloat32Array()
+var approach_z := PackedFloat32Array()
+## An order from a shepherd: target this player until command_until, walking via the route point first.
+var command_player := PackedByteArray()
+var command_until := PackedInt32Array()
+var command_via_x := PackedFloat32Array()
+var command_via_z := PackedFloat32Array()
+## Nonzero while the route point still has to be reached.
+var command_via := PackedByteArray()
 
 
 func _init(slots: int, attack_slots: int) -> void:
 	capacity = slots
 	attacks = attack_slots
 	for table: PackedByteArray in [alive, flags, behaviour, enemy_target, ally_target, manoeuvre, message_a, message_b,
-			windup_attack, aim_player, engaged, dot_source, armour]:
+			windup_attack, aim_player, engaged, dot_source, armour, command_player, command_via]:
 		table.resize(slots)
 		table.fill(0)
 	for table: PackedInt32Array in [generation, species, mutations, leader, leader_generation, next_decision, decision_interval,
 			hold_until, behaviour_since, ready_at, windup_until, stun_until, root_until, slow_until, haste_until, last_sensed,
-			dot_until, dot_next, dodge_until, channel_until]:
+			dot_until, dot_next, dodge_until, channel_until, approach_until, command_until]:
 		table.resize(slots)
 		table.fill(0)
 	cooldown_until.resize(slots * attack_slots)
 	cooldown_until.fill(0)
 	for table: PackedFloat32Array in [spawn_x, spawn_z, hp, max_hp, speed, damage, reach_bonus, windup_scale, recovery_scale,
-			intelligence, slow_scale, aim_x, aim_z, dot_dps]:
+			intelligence, slow_scale, aim_x, aim_z, dot_dps, approach_x, approach_z, command_via_x, command_via_z]:
 		table.resize(slots)
 		table.fill(0.0)
 	xz.resize(slots * 2)
@@ -182,6 +195,10 @@ func spawn_at(slot: int, request: Spawn, table: Species, tick: int, interval: in
 	armour[slot] = int(request.mutations & Catalog.BARK != 0 or request.armoured)
 	dodge_until[slot] = 0
 	channel_until[slot] = 0
+	approach_until[slot] = 0
+	command_player[slot] = NO_PLAYER
+	command_until[slot] = 0
+	command_via[slot] = 0
 	_rebuild_active()
 	return slot
 

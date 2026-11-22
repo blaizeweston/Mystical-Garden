@@ -151,6 +151,29 @@ func test_kits() -> void:
 	await close_world(world)
 
 
+## Support handlers against the real game: rallies order escorts, and rites through allies are cast.
+func test_handlers() -> void:
+	var world := make_world(make_config(Config.SCRIPTED_BRAIN, {"root_shepherd": 2, "root_choir": 1, "bellcap": 1, "pallbearer": 1,
+		"rootbound": 6, "thornmaw": 3, "graft_thief": 1}, 3))
+	var ordered := 0
+	var used := {}
+	for tick in REPEAT_TICKS * 2:
+		world.step_once()
+		if world.bridge == null:
+			continue
+		# Each round starts a fresh simulation, so collect ability use as it happens.
+		for id in world.bridge.sim.abilities.used:
+			used[id] = true
+		var pool = world.bridge.sim.pool
+		for slot in pool.active:
+			ordered += int(pool.command_until[slot] > world.bridge.sim.clock.tick)
+	print("HANDLER_USE ", used.keys(), " ordered ticks ", ordered)
+	check(used.has("root_shepherd_rally") or used.has("root_shepherd_flank_order"), "a Root Shepherd rallies in real combat")
+	check(ordered > 0, "a rally orders real escorts onto its target")
+	check(used.has("root_choir_pulse") or used.has("root_choir_split_chorus"), "a Root Choir pulses through its escorts")
+	await close_world(world)
+
+
 func test_round_outcomes() -> void:
 	var config := make_config(Config.GAME_AI, {"colossus": 12, "gallhorn": 8}, 1)
 	config.floor_number = 40
@@ -281,6 +304,7 @@ func run() -> void:
 	await test_repeatable()
 	await test_combat()
 	await test_kits()
+	await test_handlers()
 	await test_round_outcomes()
 	await test_species()
 	await test_classes()
