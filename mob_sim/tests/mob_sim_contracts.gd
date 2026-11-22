@@ -106,7 +106,7 @@ func test_contract() -> void:
 	check(contract.available[contract.id("dodge")] == 0, "dodge is unavailable until mobs can dodge")
 	var sim := make_sim(1)
 	for index in contract.behaviour_count:
-		check(sim.executors._run[index].is_valid(), "behaviour %s has an executor" % contract.names[index])
+		check(sim.executors.has_executor(index), "behaviour %s has an executor" % contract.names[index])
 
 
 func test_clock() -> void:

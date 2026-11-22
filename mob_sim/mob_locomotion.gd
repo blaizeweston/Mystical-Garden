@@ -78,6 +78,11 @@ func hold(slot: int) -> void:
 	commands[slot * STRIDE + AT_MODE] = NavWorld.Mode.HOLD
 
 
+## The tick of the last step. Goal fields are stamped with it.
+func last_step_tick() -> int:
+	return _tick
+
+
 func is_holding(slot: int) -> bool:
 	return commands[slot * STRIDE + AT_MODE] == NavWorld.Mode.HOLD
 

@@ -8,12 +8,14 @@ const Clock = preload("res://mob_sim/mob_clock.gd")
 const Contract = preload("res://mob_sim/mob_contract.gd")
 const Events = preload("res://mob_sim/mob_events.gd")
 const Executors = preload("res://mob_sim/mob_executors.gd")
+const ReferenceExecutors = preload("res://mob_sim/mob_executors_reference.gd")
 const Locomotion = preload("res://mob_sim/mob_locomotion.gd")
 const Party = preload("res://mob_sim/mob_party.gd")
 const Perception = preload("res://mob_sim/mob_perception.gd")
 const Pool = preload("res://mob_sim/mob_pool.gd")
 const Rules = preload("res://mob_sim/mob_rules.gd")
 const ScriptedBrain = preload("res://mob_sim/mob_scripted_brain.gd")
+const ReferenceScriptedBrain = preload("res://mob_sim/mob_scripted_brain_reference.gd")
 const Species = preload("res://mob_sim/mob_species.gd")
 const SystemTimers = preload("res://mob_sim/perf/system_timers.gd")
 
@@ -29,7 +31,8 @@ var locomotion: Locomotion
 var perception: Perception
 var rules: Rules
 var abilities: Abilities
-var executors: Executors
+## Native executors, or the GDScript reference after use_reference_executors().
+var executors: RefCounted
 ## Per-system timing. Set timers.enabled to measure; results never depend on it.
 var timers := SystemTimers.new()
 ## Decides for mobs that are awake.
@@ -58,6 +61,17 @@ func _init(slots: int, awake_brain: Brain = null) -> void:
 	sleep_ticks = Clock.from_ms(float(contract.rules.sleep_after_ms))
 	_awake_batch = Batch.new(contract, clock, pool, party, species, perception)
 	_asleep_batch = Batch.new(contract, clock, pool, party, species, perception)
+	_awake_batch.world = locomotion.world
+	_asleep_batch.world = locomotion.world
+	if locomotion.world == null or rules.configure_native(locomotion.world) != OK:
+		push_error("The native decision helpers could not be configured.")
+
+
+## Swaps in the GDScript executors. Only the parity test uses this.
+func use_reference_executors() -> void:
+	var replacement := ReferenceExecutors.new(contract, pool, party, species, perception, abilities, locomotion)
+	replacement.abilities = executors.abilities
+	executors = replacement
 
 
 func configure(field: RefCounted) -> int:

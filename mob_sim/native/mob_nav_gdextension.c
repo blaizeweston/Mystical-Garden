@@ -4,6 +4,8 @@
 #include <string.h>
 
 #include "gdextension_interface.h"
+#include "mob_decide.h"
+#include "mob_exec.h"
 #include "mob_nav.h"
 #include "mob_obs.h"
 #include "mob_policy.h"
@@ -16,6 +18,8 @@ typedef struct {
     MobNav *nav;
     MobObs *obs;
     MobPolicy *policy;
+    MobExec *exec;
+    MobDecide *decide;
 } World;
 
 typedef enum { KIND_INT, KIND_FLOAT, KIND_BYTES, KIND_FLOATS, KIND_ARRAY, KIND_COUNT } Kind;
@@ -111,9 +115,13 @@ static void m_initialize(World *world, const void *const *args, void *result) {
     mn_destroy(world->nav);
     mo_destroy(world->obs);
     mp_destroy(world->policy);
+    me_destroy(world->exec);
+    md_destroy(world->decide);
     world->nav = created;
     world->obs = NULL;
     world->policy = NULL;
+    world->exec = NULL;
+    world->decide = NULL;
     *(int64_t *)result = MN_OK;
 }
 
@@ -178,6 +186,81 @@ static void m_obs_build(World *world, const void *const *args, void *result) {
         floats_resize(result, resize_args, &resized, 1);
     }
 }
+
+/* Executor kinds share MoKind's numbering: bytes, ints, floats. */
+static MoKind exec_config_kind(int index) { return (MoKind)me_config_kind(index); }
+static MoKind exec_input_kind(int index) { return (MoKind)me_input_kind(index); }
+
+static void m_exec_configure(World *world, const void *const *args, void *result) {
+    const void *items[EC_COUNT];
+    int64_t lengths[EC_COUNT];
+    if (!read_items(args[0], EC_COUNT, exec_config_kind, items, lengths)) {
+        *(int64_t *)result = ME_ERR_ARGUMENT;
+        return;
+    }
+    MobExec *created = NULL;
+    MeResult status = me_create(items, lengths, &created);
+    if (status == ME_OK) {
+        me_destroy(world->exec);
+        world->exec = created;
+    }
+    *(int64_t *)result = status;
+}
+
+/* Returns commands, targets, the request count and the requests, or an empty array on bad input. */
+static void m_exec_run(World *world, const void *const *args, void *result) {
+    const void *items[EI_COUNT];
+    int64_t lengths[EI_COUNT];
+    int64_t values = 0, resized = 0;
+    int ready = world->exec != NULL && world->nav != NULL && read_items(args[0], EI_COUNT, exec_input_kind, items, lengths);
+    if (ready) values = me_output_size(world->exec);
+    GDExtensionConstTypePtr resize_args[] = {&values};
+    floats_resize(result, resize_args, &resized, 1);
+    if (values > 0 && resized == 0 && me_run(world->exec, world->nav, items, lengths, floats_at(result, 0)) != ME_OK) {
+        values = 0;
+        floats_resize(result, resize_args, &resized, 1);
+    }
+}
+
+static MoKind decide_config_kind(int index) { return (MoKind)md_config_kind(index); }
+static MoKind decide_input_kind(int index) { return (MoKind)md_input_kind(index); }
+
+static void m_decide_configure(World *world, const void *const *args, void *result) {
+    const void *items[DC_COUNT];
+    int64_t lengths[DC_COUNT];
+    if (!read_items(args[0], DC_COUNT, decide_config_kind, items, lengths)) {
+        *(int64_t *)result = DK_ERR_ARGUMENT;
+        return;
+    }
+    MobDecide *created = NULL;
+    MdResult status = md_create(items, lengths, &created);
+    if (status == DK_OK) {
+        md_destroy(world->decide);
+        world->decide = created;
+    }
+    *(int64_t *)result = status;
+}
+
+/* Shared by masks and the scripted brain: per_slot bytes for each due slot, or an empty array on bad input. */
+static void run_decide(World *world, const void *const *args, void *result, int masks) {
+    const void *items[DI_COUNT];
+    int64_t lengths[DI_COUNT];
+    int64_t values = 0, resized = 0;
+    int ready = world->decide != NULL && read_items(args[0], DI_COUNT, decide_input_kind, items, lengths);
+    if (ready) values = lengths[DI_SLOTS] * (masks ? md_mask_size(world->decide) : DK_HEAD_COUNT);
+    GDExtensionConstTypePtr resize_args[] = {&values};
+    bytes_resize(result, resize_args, &resized, 1);
+    if (values <= 0 || resized != 0) return;
+    MdResult status = masks ? md_masks(world->decide, items, lengths, bytes_at_mutable(result, 0))
+                            : md_scripted(world->decide, items, lengths, bytes_at_mutable(result, 0));
+    if (status != DK_OK) {
+        values = 0;
+        bytes_resize(result, resize_args, &resized, 1);
+    }
+}
+
+static void m_decide_masks(World *world, const void *const *args, void *result) { run_decide(world, args, result, 1); }
+static void m_decide_scripted(World *world, const void *const *args, void *result) { run_decide(world, args, result, 0); }
 
 static void m_obs_reset_slot(World *world, const void *const *args, void *result) {
     mo_reset_slot(world->obs, (int)arg_int(args, 0));
@@ -386,6 +469,11 @@ static const Method methods[] = {
     {"wall_rays", m_wall_rays, KIND_FLOATS, 2, {KIND_FLOATS, KIND_FLOAT}, {"slots", "max_distance"}},
     {"obs_configure", m_obs_configure, KIND_INT, 1, {KIND_ARRAY}, {"config"}},
     {"obs_build", m_obs_build, KIND_FLOATS, 1, {KIND_ARRAY}, {"inputs"}},
+    {"exec_configure", m_exec_configure, KIND_INT, 1, {KIND_ARRAY}, {"config"}},
+    {"exec_run", m_exec_run, KIND_FLOATS, 1, {KIND_ARRAY}, {"inputs"}},
+    {"decide_configure", m_decide_configure, KIND_INT, 1, {KIND_ARRAY}, {"config"}},
+    {"decide_masks", m_decide_masks, KIND_BYTES, 1, {KIND_ARRAY}, {"inputs"}},
+    {"decide_scripted", m_decide_scripted, KIND_BYTES, 1, {KIND_ARRAY}, {"inputs"}},
     {"obs_reset_slot", m_obs_reset_slot, KIND_INT, 1, {KIND_INT}, {"slot"}},
     {"policy_load", m_policy_load, KIND_INT, 3, {KIND_BYTES, KIND_BYTES, KIND_FLOATS}, {"weights", "schema_hash", "layout"}},
     {"policy_forward", m_policy_forward, KIND_FLOATS, 2, {KIND_FLOATS, KIND_FLOATS}, {"observations", "hidden"}},
@@ -483,6 +571,8 @@ static void free_world(void *unused, GDExtensionClassInstancePtr instance) {
     mn_destroy(world->nav);
     mo_destroy(world->obs);
     mp_destroy(world->policy);
+    me_destroy(world->exec);
+    md_destroy(world->decide);
     free(world);
 }
 

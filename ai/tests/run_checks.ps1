@@ -21,6 +21,7 @@ if ($LASTEXITCODE -ne 0) { throw 'The Python model checks failed.' }
 Invoke-GodotCheck 'res://mob_sim/tests/mob_nav_binding.gd'
 Invoke-GodotCheck 'res://mob_sim/tests/mob_definition_checks.gd'
 Invoke-GodotCheck 'res://mob_sim/tests/mob_sim_contracts.gd'
+Invoke-GodotCheck 'res://mob_sim/tests/mob_native_parity.gd'
 Invoke-GodotCheck 'res://ai/tests/mob_ai_checks.gd'
 & $Python $check compare *>&1 | ForEach-Object { "$_" }
 if ($LASTEXITCODE -ne 0) { throw 'The schema comparison failed.' }

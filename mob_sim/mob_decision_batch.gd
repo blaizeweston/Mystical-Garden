@@ -15,6 +15,8 @@ var pool: Pool
 var party: Party
 var species: Species
 var perception: Perception
+## The native world that builds masks and runs the scripted brain. Set by MobSim.
+var world: RefCounted
 
 var slots := PackedInt32Array()
 ## slots.size() * contract.mask_size bytes, in head order. Nonzero means the option is legal.
@@ -38,6 +40,14 @@ func prepare(due: PackedInt32Array) -> void:
 	masks.fill(0)
 	intents.resize(due.size() * Contract.HEAD_COUNT)
 	intents.fill(0)
+
+
+## The live arrays native/mob_decide.c reads, in its DI_ order. Pass masks for the scripted brain.
+func native_inputs(chosen_masks: PackedByteArray = PackedByteArray()) -> Array:
+	return [PackedInt32Array([clock.tick]), slots, pool.active, pool.alive, pool.generation, pool.species, pool.mutations, pool.flags,
+		pool.leader, pool.leader_generation, pool.xz, pool.enemy_target, pool.ready_at, pool.cooldown_until, pool.windup_until,
+		perception.visible, perception.seen_x, perception.seen_z, perception.seen_tick, perception.allies,
+		party.present, party.alive, party.x, party.z, chosen_masks]
 
 
 func allowed(index: int, head: int, option: int) -> bool:
