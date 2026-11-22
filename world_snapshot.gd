@@ -17,7 +17,7 @@ const CLIPS := ["", "Attack_bell", "Attack_blade", "Attack_bow", "Attack_censer"
 	"Attack_fan", "Attack_hammer", "Attack_knives", "Attack_orb", "Attack_ring", "Attack_scythe",
 	"Attack_spear", "Attack_staff", "Attack_wand", "Attack_whip",
 	"Attack_bell_line", "Attack_bell_sweep", "Attack_blade_line", "Attack_censer_line", "Attack_censer_sweep",
-	"Attack_hammer_line", "Attack_knives_line", "Attack_scythe_line", "Attack_spear_sweep", "Attack_whip_sweep"]
+	"Attack_hammer_line", "Attack_knives_line", "Attack_scythe_line", "Attack_spear_sweep", "Attack_whip_sweep", "Attack_maul_overhead", "Attack_maul_sweep"]
 const DELIVERIES := ["sweep", "line", "projectile", "radial", "sector"]
 
 

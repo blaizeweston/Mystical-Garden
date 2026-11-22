@@ -144,7 +144,9 @@ func inspect_attack(actor: Dictionary, form: String) -> void:
 	pose(actor,form,0.0,false)
 	var ready := primary.global_basis.get_rotation_quaternion()
 	pose(actor,form,1.0,true)
-	check(ready.angle_to(primary.global_basis.get_rotation_quaternion())<.001,"action ends at the same carry orientation: "+form)
+	if form=="hammer":
+		for frame in 30:pose(actor,form,0.0,false)
+	check(ready.angle_to(primary.global_basis.get_rotation_quaternion())<.001,"action and its recovery end at the same carry orientation: "+form)
 
 func inspect_continuity(actor: Dictionary, form: String) -> void:
 	var skeleton: Skeleton3D=actor.field_rig.skeleton

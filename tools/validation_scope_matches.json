@@ -2380,7 +2380,7 @@
         "baseline": "arrow.visible=not active or phase<contact;"
       },
       "plant_polearm_orientation": {
-        "match": " var pose:=FieldRig.weapon_orientation(actor,form,phase,active,yaw,action)\n if form==\"spear\" and actor.field_rig.get(\"spear_active\",false):\n  var sample: Dictionary=actor.field_rig.spear_sample\n  primary.set_meta(\"handle\",Vector3.UP*float(sample.rear_grip))\n  primary.set_meta(\"support_grip\",Vector3.UP*float(sample.front_grip))\n elif Polearms.WEAPONS.has(form):\n  primary.set_meta(\"handle\",Vector3.ZERO)\n  primary.set_meta(\"support_grip\",Vector3.UP*Polearms.support_distance(form,phase,active,action))\n var basis:=pose.scaled(Vector3.ONE*Polearms.SCALE)\n",
+        "match": " var pose:=FieldRig.weapon_orientation(actor,form,phase,active,yaw,action)\n if form==\"hammer\" and actor.field_rig.get(\"maul_active\",false):\n  var sample: Dictionary=actor.field_rig.maul_sample\n  primary.set_meta(\"handle\",Vector3.UP*float(sample.right_grip))\n  primary.set_meta(\"support_grip\",Vector3.UP*float(sample.left_grip))\n elif form==\"spear\" and actor.field_rig.get(\"spear_active\",false):\n  var sample: Dictionary=actor.field_rig.spear_sample\n  primary.set_meta(\"handle\",Vector3.UP*float(sample.rear_grip))\n  primary.set_meta(\"support_grip\",Vector3.UP*float(sample.front_grip))\n elif Polearms.WEAPONS.has(form):\n  primary.set_meta(\"handle\",Vector3.ZERO)\n  primary.set_meta(\"support_grip\",Vector3.UP*Polearms.support_distance(form,phase,active,action))\n var basis:=pose.scaled(Vector3.ONE*Polearms.SCALE)\n",
         "baseline": " var basis:=world*orientation.scaled(Vector3.ONE*.9)\n"
       },
       "plant_polearm_seed": {

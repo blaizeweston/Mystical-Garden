@@ -7,7 +7,7 @@ const DEFINITIONS := {
 	"blade": {"carry_pitch":22.0,"mesh_roll":90.0,"clips":["Sword_Regular_A","Sword_Regular_B"],"recoveries":["Sword_Regular_A_Rec","Sword_Regular_B_Rec"],"impact":0.85},
 	"knives": {"carry_pitch":24.0,"mesh_roll":90.0,"relaxed":true,"clips":["Sword_Regular_B","Sword_Regular_A"],"recoveries":["Sword_Regular_B_Rec","Sword_Regular_A_Rec"],"impact":0.85},
 	"spear": {"carry_pitch":90.0,"mesh_roll":0.0,"clips":["Attack_spear","Attack_spear_sweep"]},
-	"hammer": {"carry_pitch":19.0,"mesh_roll":90.0,"clips":["TreeChopping"],"impact":0.52},
+	"hammer": {"carry_pitch":19.0,"mesh_roll":90.0,"clips":["Attack_maul_overhead","Attack_maul_sweep"],"recoveries":["Recover_maul_overhead","Recover_maul_sweep"]},
 	"scythe": {"carry_pitch":33.0,"mesh_roll":-90.0,"relaxed":true,"procedural_stance":true,"carry_twist":0.0,"windup_twist":-60.0,"strike_twist":-35.0,"strike_lean":4.0,"clips":[]},
 	"staff": {"carry_pitch":24.0,"mesh_roll":0.0,"clips":["Spell_Simple_Shoot"],"impact":0.55},
 	"wand": {"carry_pitch":25.0,"mesh_roll":0.0,"clips":["Spell_Simple_Shoot"],"impact":0.55},

@@ -105,7 +105,11 @@ static func animate(actor: Dictionary,form: String,phase: float,active: bool,yaw
  var anchor:=left if form=="bow" else right
  if form=="orb":anchor=(right+left)*.5
  var pose:=FieldRig.weapon_orientation(actor,form,phase,active,yaw,action)
- if form=="spear" and actor.field_rig.get("spear_active",false):
+ if form=="hammer" and actor.field_rig.get("maul_active",false):
+  var sample: Dictionary=actor.field_rig.maul_sample
+  primary.set_meta("handle",Vector3.UP*float(sample.right_grip))
+  primary.set_meta("support_grip",Vector3.UP*float(sample.left_grip))
+ elif form=="spear" and actor.field_rig.get("spear_active",false):
   var sample: Dictionary=actor.field_rig.spear_sample
   primary.set_meta("handle",Vector3.UP*float(sample.rear_grip))
   primary.set_meta("support_grip",Vector3.UP*float(sample.front_grip))

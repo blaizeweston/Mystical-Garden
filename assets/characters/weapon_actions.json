@@ -61,7 +61,11 @@
     "speed": 0,
     "variants": {
       "line": "Attack_hammer_line"
-    }
+    },
+    "basic_variants": [
+      {"clip": "Attack_maul_overhead"},
+      {"clip": "Attack_maul_sweep"}
+    ]
   },
   "staff": {
     "duration": 0.45,

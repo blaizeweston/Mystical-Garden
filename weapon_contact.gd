@@ -13,7 +13,7 @@ static func describe(form: String,stats: Dictionary) -> Dictionary:
  var clip: String=str(p.get("variants",{}).get(pattern,p.clip))
  var variant:=Motion.variant_by_clip(form,str(stats.get("weapon_variant","")))
  if not variant.is_empty():
-  pattern=variant.delivery;span=float(variant.span);clip=variant.clip
+  pattern=str(variant.get("delivery",pattern));span=float(variant.get("span",span));clip=variant.clip
  return {"form":form,"pattern":pattern,"span":span,"yaw_offset":float(variant.get("yaw_offset",0.0)),"width":p.width,"reach":float(stats.reach),"contact":float(p.release),"projectile_radius":p.projectile_radius,"height":p.height,"clip":clip}
 static func outline(shape: Dictionary,origin: Vector3,aim: Vector3) -> PackedVector3Array:
  var result:=PackedVector3Array();var reach:=float(shape.reach)
