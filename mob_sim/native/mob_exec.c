@@ -364,6 +364,9 @@ static void do_attack(Run *r, int slot) {
     }
     int attack = e->attack_slot[r->behaviour[slot]];
     double reach = (double)e->attack_range[r->species[slot] * e->dim[ED_ATTACKS] + attack] + (double)r->reach_bonus[slot];
+    /* As in the game's scouts, a direct attacker runs at its target (RING_MIN away) rather than to a ring
+     * inside its reach, so a retreating target cannot keep slipping out of reach. */
+    double ring = r->manoeuvre[slot] == 0 ? RING_MIN : reach * RING_SHARE;
     if (sees(r, slot, player) && attack_possible(r, slot, attack, player)) {
         /* Leave the row alone. Begin holds the mob on success; otherwise the script copies this fallback,
          * which is what close_on writes for a mob that sees its target. */
@@ -374,7 +377,7 @@ static void do_attack(Run *r, int slot) {
         attempt[2] = (float)player;
         memcpy(fallback, command_row(r, slot), ME_STRIDE * sizeof(float));
         if (due(r, slot)) {
-            V2 offset = ring_offset(r, slot, player, reach * RING_SHARE, reach);
+            V2 offset = ring_offset(r, slot, player, ring, reach);
             fallback[ME_AT_STOP] = (float)SEEK_STOP;
             fallback[ME_AT_TARGET] = (float)player;
             fallback[ME_AT_MODE] = ME_MODE_SEEK;
@@ -384,7 +387,7 @@ static void do_attack(Run *r, int slot) {
         r->request_count += 1;
         return;
     }
-    close_on(r, slot, player, reach * RING_SHARE, reach);
+    close_on(r, slot, player, ring, reach);
 }
 
 static void do_idle(const Run *r, int slot) {

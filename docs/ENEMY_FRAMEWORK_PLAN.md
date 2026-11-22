@@ -226,7 +226,7 @@ Each phase ends with evidence and a review before the next starts.
 | 0 | Fix ward grants mixing clocks. Make the simulation test drive combat time | 10 ward files and one validation anchor file. Done 2026-11-21 |
 | 1 | Folder structure, definitions, loader, validator, table compiler, per-system timers, benchmark budgets and the baseline | None |
 | 2 | Native executors, decisions, perception and movement speeds, with parity tests; senses with a light grid; status system. Done 2026-11-21 | None |
-| 3 | Kits drive every species' attacks, with release geometry, effects and behaviour handlers. The arena resolves them with the real player-hit rules. Parts 1 to 3 done 2026-11-21; the legacy comparison remains | Arena files only |
+| 3 | Kits drive every species' attacks, with release geometry, effects and behaviour handlers. The arena resolves them with the real player-hit rules. Done: parts 1 to 3 on 2026-11-21, the legacy comparison on 2026-11-22 | Arena files only |
 | 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields. Done 2026-11-22 in four parts | Arena files only |
 | 5 | Arena speed, presentation of the new mechanics (replicated to guests), and elite kits with the gate elite run by the framework. Bosses keep scripted plans for now. Done 2026-11-22 in three parts: speed, presentation, elite kits | Arena files only |
 | 6 | Schema v2, rewards v2, training loop, curriculum and evaluation | None |
@@ -392,9 +392,62 @@ The training simulation has no dropped items or shelter rules, so the thief only
 
 Checks: `mob_sim/tests/mob_handler_checks.gd` (30 checks) covers every handler in the training simulation. A new arena check runs supports against the real game; it saw Shepherd rallies with orders active, Choir pulses, Bellcap chants, both Pallbearer tethers and a learned counter (the Rootbound's rooted sweep, unlocked when the bots blocked its route). Speed stays above target: 395x real time at 20 mobs and 108x at 100.
 
-### Still to do in Phase 3
+### Part 4: comparison with legacy
 
-**Part 4, comparison with legacy.** Run legacy enemies and framework enemies with the scripted brain on the same seeds, and compare damage per minute, time to kill, hit rate and ability use per species.
+Done 2026-11-22, after Phases 4 and 5. `neural_arena/tests/arena_compare.gd` plays the same rounds twice, once with the game's own enemy AI and once with framework enemies on the scripted brain: each species in turn (five of it, plus two Rootbound escorts for other species), four map seeds, floor 12, one bot, 45-second rounds. Everything is read from the game's own enemy records and the players' health, so both brains are measured the same way:
+
+```
+godot --headless --path . --script res://neural_arena/tests/arena_compare.gd -- --seeds=4 --seconds=45
+```
+
+Per species it reports wind-ups started per enemy-minute alive and the mean time to kill; per roster, the party's health lost per minute, round length and rounds cleared or lost. The game does not record which enemy dealt a hit, so damage is compared per roster, not per enemy, and hit rates are not reported.
+
+**Fixes the comparison found:**
+
+| Gap | Cause | Fix |
+|---|---|---|
+| Ashen Hart rosters dealt no damage | Its charge was ported with only its ember trail. The game's charge hits along its lane and at its landing, then leaves embers | Trails now hit along the lane and landing like a line, and keep their spots for the hazard; the charge and cutoff charge have their damage effect |
+| Melee mobs swung about half as often | The scripted brain gave two of every three melee mobs a circling manoeuvre, and attackers aimed at a ring at 85% of their reach, so a retreating target kept slipping out of reach | As in the game's scouts, plain melee mobs close straight in and run at their target (0.7 units off) rather than to the ring; skirmishers still circle and ranged mobs keep their range. Native and reference changed together; parity holds |
+| Results differed between brains by bot luck | Each bot's fighting style came from a random stream that carried over between rounds, and advanced differently with each brain | Bots now take their style from the round's seed, so the same round gives the same bots under either brain |
+
+**Results after the fixes** (legacy / scripted):
+
+| Species | Wind-ups per enemy-minute | Time to kill (s) | Roster damage per minute | Round length (s) | Cleared / lost |
+|---|---|---|---|---|---|
+| rootbound | 12.3 / 9.4 | 7.8 / 10.0 | 46.8 / 43.6 | 12.5 / 17.9 | 4-0 / 4-0 |
+| nightbloom | 15.0 / 11.4 | 12.4 / 14.2 | 109.9 / 39.4 | 16.8 / 21.7 | 4-0 / 4-0 |
+| gallhorn | 18.1 / 15.1 | 14.9 / 16.9 | 212.1 / 164.6 | 16.8 / 20.8 | 3-1 / 3-1 |
+| bellcap | 12.9 / 10.1 | 13.0 / 12.2 | 12.3 / 24.4 | 15.8 / 16.0 | 4-0 / 4-0 |
+| thornmaw | 21.5 / 19.5 | 12.7 / 12.3 | 148.5 / 111.1 | 15.1 / 16.2 | 4-0 / 4-0 |
+| willow | 11.1 / 6.4 | 13.8 / 15.2 | 182.7 / 39.8 | 21.4 / 27.9 | 3-1 / 3-0 |
+| orchid | 14.4 / 12.0 | 12.9 / 12.8 | 17.4 / 15.9 | 17.3 / 18.8 | 4-0 / 4-0 |
+| colossus | 10.6 / 10.7 | 13.4 / 12.0 | 307.2 / 244.9 | 16.2 / 15.5 | 2-2 / 2-2 |
+| wasp | 22.3 / 18.2 | 7.9 / 9.5 | 92.5 / 54.8 | 13.3 / 14.2 | 4-0 / 4-0 |
+| broodmother | 15.9 / 3.9 | 22.3 / 22.4 | 26.4 / 32.5 | 26.7 / 27.7 | 4-0 / 4-0 |
+| root_shepherd | 13.3 / 7.0 | 15.1 / 14.1 | 40.6 / 18.3 | 19.2 / 21.4 | 4-0 / 4-0 |
+| hollowback | 12.8 / 8.1 | 19.6 / 18.9 | 213.9 / 175.5 | 20.0 / 26.3 | 3-1 / 2-2 |
+| lantern_lure | 12.8 / 10.8 | 11.7 / 12.5 | 22.7 / 37.0 | 16.5 / 19.9 | 4-0 / 4-0 |
+| seamroot | 15.9 / 13.5 | 15.9 / 15.5 | 10.6 / 8.9 | 18.3 / 21.9 | 4-0 / 4-0 |
+| spore_widow | 15.0 / 11.9 | 13.6 / 14.1 | 61.3 / 63.5 | 24.2 / 21.0 | 3-0 / 4-0 |
+| pallbearer | 3.2 / 7.2 | 14.3 / 17.4 | 0.0 / 17.0 | 19.6 / 22.9 | 4-0 / 4-0 |
+| graft_thief | 13.8 / 8.5 | 12.0 / 12.5 | 56.3 / 15.1 | 23.2 / 23.8 | 3-0 / 3-0 |
+| ashen_hart | 11.0 / 14.8 | 13.6 / 12.4 | 106.6 / 249.3 | 31.1 / 16.4 | 1-1 / 2-2 |
+| glasscap | 13.3 / 12.7 | 15.3 / 13.5 | 57.8 / 71.1 | 22.3 / 18.4 | 4-0 / 4-0 |
+| root_choir | 11.0 / 9.0 | 15.2 / 12.3 | 125.5 / 211.5 | 18.4 / 17.5 | 3-1 / 2-2 |
+
+- Legacy: 80 rounds, 69 cleared, 7 lost, 90.7 party damage per minute, 19.2 s per round
+- Scripted: 80 rounds, 69 cleared, 9 lost, 76.9 party damage per minute, 20.3 s per round
+
+
+**Overall:** the two brains are close. Both cleared 69 of 80 rounds; scripted enemies wiped the party 9 times and the game's AI 7 times. The scripted brain deals 85% of the legacy damage per minute and starts about 15% fewer wind-ups, mostly from its decision cadence and minimum holds. With 4 rounds per species, single-roster damage swings widely between runs, so only consistent gaps are acted on.
+
+**Intended differences:**
+
+- Casters cast less: mana (Phase 4) limits them to four casts before channeling or retreating. This accounts for Willow, Nightbloom, Root Shepherd and the other casters; Willows were seen channeling and waiting for mana.
+- The Broodmother stops casting once its two hatchlings are out; the game's version keeps casting with nothing to hatch.
+- The Pallbearer tethers more often, and the Graft Thief's grabs stay with the game.
+
+**Kept as baseline differences:** the lower overall wind-up rate. The scripted brain is the baseline and the net learns its own timing in Phase 6, so it is not tuned further here.
 
 ## Phase 4 record
 
@@ -464,7 +517,7 @@ Checks: `mob_sim/tests/mob_field_checks.gd` (15 checks): burning, slows and root
 
 ### Phase 4 summary
 
-All four parts are in: mana with channeling, dodging, flying with sight over water, darkness in the arena, and hazards and player fields. New behaviours: `channel` (new) and `dodge` and `hide` (now legal). The net's inputs for these mechanics stay masked until schema v2 in Phase 6. Phase 3 part 4, the comparison with legacy enemies, is still outstanding.
+All four parts are in: mana with channeling, dodging, flying with sight over water, darkness in the arena, and hazards and player fields. New behaviours: `channel` (new) and `dodge` and `hide` (now legal). The net's inputs for these mechanics stay masked until schema v2 in Phase 6.
 
 ## Phase 5 record
 
@@ -517,4 +570,4 @@ Checks: a new arena check runs a Gallhorn gate elite with a Rootbound-only roste
 
 ### Phase 5 summary
 
-All three parts are in: the arena runs faster (lazy route fields and arena-side savings), the new mechanics are drawn on the host and replicated to guests, and the gate elite runs on the framework with its elite kit. Bosses keep their scripted plans. Phase 3 part 4, the comparison with legacy enemies, is still outstanding, and is a natural first step before Phase 6 training.
+All three parts are in: the arena runs faster (lazy route fields and arena-side savings), the new mechanics are drawn on the host and replicated to guests, and the gate elite runs on the framework with its elite kit. Bosses keep their scripted plans. Phase 3 part 4, the comparison with legacy enemies, was done afterwards (see the Phase 3 record).

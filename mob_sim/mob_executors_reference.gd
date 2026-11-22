@@ -152,7 +152,8 @@ func _attack(slot: int, tick: int) -> void:
 	if perception.sees(slot, player) and abilities.begin(slot, attack, player, tick):
 		return
 	var reach := species.attack_range[pool.species[slot] * Species.ATTACKS + attack] + pool.reach_bonus[slot]
-	_close_on(slot, player, reach * RING_SHARE, reach, tick)
+	# As in the game's scouts, a direct attacker runs at its target rather than to a ring inside its reach.
+	_close_on(slot, player, RING_MIN if pool.manoeuvre[slot] == 0 else reach * RING_SHARE, reach, tick)
 
 
 func _do_idle_wander(slot: int, tick: int) -> void:

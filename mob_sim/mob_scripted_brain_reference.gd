@@ -139,12 +139,14 @@ func _pick_target(batch: Batch, index: int, slot: int) -> int:
 	return chosen
 
 
+## As in the game's scouts: skirmishers strafe around their target, ranged mobs keep their range and other
+## melee mobs close straight in.
 func _manoeuvre(batch: Batch, slot: int, kind: int) -> int:
 	if batch.species.skirmisher[kind] != 0:
 		return _circle_left if slot % 2 == 0 else _circle_right
 	if batch.species.max_range[kind] > LONG_RANGE:
 		return _keep_range
-	return [0, _circle_left, _circle_right][slot % 3]
+	return 0
 
 
 func _first_ally(batch: Batch, slot: int) -> int:

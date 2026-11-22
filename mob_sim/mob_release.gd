@@ -110,13 +110,16 @@ func build(tables, world: RefCounted, grow: float, elite: bool, flip: bool) -> v
 					areas.append(Area.circle(point, spot_radius))
 					points.append(point)
 		Enums.Shape.TRAIL:
+			# A trail is a charge: it hits along its lane and at its landing, like a line, and its spots are the
+			# points it leaves behind (embers) for its hazard effect.
+			areas.append(_lane(origin, landing, tables.row_width[row]))
+			areas.append(Area.circle(landing, radius + CONTACT_PADDING))
 			var count: int = tables.row_area_count[row]
 			var spacing: float = tables.row_spacing[row]
 			if spacing > 0.0:
 				count = clampi(floori(origin.distance_to(landing) / spacing) + 1, 1, count)
 			for index in count:
 				var point := landing if count == 1 else origin.lerp(landing, float(index) / (count - 1))
-				areas.append(Area.circle(point, tables.row_spot_radius[row]))
 				points.append(point)
 
 

@@ -264,7 +264,7 @@ func start_round() -> void:
 		if Session.ready_for(players[peer], false):
 			_prepare_player(peer)
 	for bot: Bot in bots.values():
-		bot.begin_round()
+		bot.begin_round(config.map_seed + round_index)
 	_release_bridge()
 	if not config.brain.is_empty() and Bridge.available():
 		bridge = Bridge.new(self, config)

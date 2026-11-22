@@ -48,8 +48,11 @@ func _init(world: Node, peer_id: int, seed_value: int) -> void:
 	rng.seed = seed_value + peer_id
 
 
-## Picks a fighting style and reads the weapon reach for this round.
-func begin_round() -> void:
+## Picks a fighting style and reads the weapon reach for this round. The style comes from the round's seed,
+## so the same round gives the same bots whatever the enemies did in earlier rounds; brain comparisons rely on it.
+func begin_round(round_seed: int = -1) -> void:
+	if round_seed >= 0:
+		rng.seed = round_seed * 7919 + peer
 	_tick = 0
 	_keep_share = rng.randf_range(0.6, 0.95)
 	_back_off_share = rng.randf_range(0.2, 0.6)

@@ -35,6 +35,7 @@ func _initialize() -> void:
 	test_second_beat()
 	test_lantern()
 	test_elite_kit()
+	test_trail_charge()
 	print("PASSED: %d checks, %d failures" % [checks, failures] if failures == 0 else "FAILED: %d checks, %d failures" % [checks, failures])
 	quit(0 if failures == 0 else 1)
 
@@ -254,3 +255,17 @@ func test_elite_kit() -> void:
 		release.build(sim.species.tables, sim.locomotion.world, 0.0, sim.pool.flags[slot] & Pool.FLAG_ELITE != 0, false)
 		spans.append(release.areas[0].span)
 	check(sim.pool.is_leader(elite) and spans[1] > spans[0], "an elite's sweep is wider than its species' (%.2f against %.2f)" % [spans[1], spans[0]])
+
+
+## A trail is a charge: the Ashen Hart hits along its lane and at its landing, as the game's charge does,
+## and leaves its ember spots behind for the hazard.
+func test_trail_charge() -> void:
+	var sim := make_sim()
+	var hart := add_mob(sim, "ashen_hart", Vector2(0, 0))
+	place_player(sim, Vector2(0, 5), [hart])
+	var release = sim.abilities.preview(hart, BASIC, 0)
+	release.landing = release.aim
+	release.build(sim.species.tables, sim.locomotion.world, 0.0, false, false)
+	check(release.hits(Vector2(0.3, 2.5), sim.locomotion.world), "the Ashen Hart's charge hits along its lane")
+	check(not release.hits(Vector2(3.0, 2.5), sim.locomotion.world), "the charge misses well to the side")
+	check(release.points.size() >= 2, "the charge still leaves its ember spots (%d)" % release.points.size())

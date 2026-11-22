@@ -11,7 +11,7 @@ This page records what the arena changed in existing files, why, and which refer
 | In the game | Press Esc, then choose **Neural Arena**. The button only appears when running from the project, because exported builds leave the `neural_arena` folder out |
 | Headless | `neural_arena/tests/run_arena.ps1 -Arguments '--rounds=5','--bots=4','--enemies=rootbound:6,nightbloom:3','--brain=scripted'` |
 
-Headless options are `--rounds`, `--bots`, `--enemies=id:count,id:count`, `--brain`, `--seed`, `--floor`, `--map=open`, `--round-seconds`, `--elite`, `--intelligence`, `--darkness=day|dusk|night` (framework enemies only; see Phase 4 part 3 in `docs/ENEMY_FRAMEWORK_PLAN.md`) and `--profile`, which reports time per tick for bots, enemies and the rest of the game.
+Headless options are `--rounds`, `--bots`, `--enemies=id:count,id:count`, `--brain`, `--seed`, `--floor`, `--map=open`, `--round-seconds`, `--elite`, `--intelligence`, `--darkness=day|dusk|night` (framework enemies only; see Phase 4 part 3 in `docs/ENEMY_FRAMEWORK_PLAN.md`) and `--profile`, which reports time per tick for bots, enemies and the rest of the game. `neural_arena/tests/arena_compare.gd` compares the game's enemy AI with the scripted brain on identical rounds (see Phase 3 part 4 in `docs/ENEMY_FRAMEWORK_PLAN.md`).
 
 `--brain` accepts `scripted`, or the path of a model file. Leaving it out uses the current game AI.
 

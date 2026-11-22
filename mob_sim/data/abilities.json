@@ -165,11 +165,11 @@
 			"effects": [{"kind": "steal"}], "handler": "trophy_grab", "legacy": "trophy_grab"},
 
 		{"id": "ashen_hart_charge", "slot": "basic", "delivery": "leap", "lead": 0.18, "range": "catalog", "windup_ms": "catalog", "recovery_ms": "catalog",
-			"shape": {"kind": "trail", "count": 3, "spacing": 2.1, "spot_radius": 0.85, "width": 0.85},
-			"effects": [{"kind": "hazard", "hazard": "ember", "ms": 2500, "delay_ms": 800}], "legacy": "charge"},
+			"shape": {"kind": "trail", "radius": "catalog", "count": 3, "spacing": 2.1, "spot_radius": 0.85, "width": 0.85},
+			"effects": [{"kind": "damage"}, {"kind": "hazard", "hazard": "ember", "ms": 2500, "delay_ms": 800}], "legacy": "charge"},
 		{"id": "ashen_hart_cutoff_charge", "slot": "signature", "delivery": "leap", "lead": 0.18, "range": "catalog", "windup_ms": "catalog", "recovery_ms": "catalog",
-			"shape": {"kind": "trail", "count": 3, "spacing": 2.1, "spot_radius": 0.85, "width": 0.85},
-			"effects": [{"kind": "hazard", "hazard": "ember", "ms": 2500, "delay_ms": 800}], "unlock": {"floor": 8, "evidence": "choke"}, "handler": "cutoff_aim", "legacy": "cutoff_charge"},
+			"shape": {"kind": "trail", "radius": "catalog", "count": 3, "spacing": 2.1, "spot_radius": 0.85, "width": 0.85},
+			"effects": [{"kind": "damage"}, {"kind": "hazard", "hazard": "ember", "ms": 2500, "delay_ms": 800}], "unlock": {"floor": 8, "evidence": "choke"}, "handler": "cutoff_aim", "legacy": "cutoff_charge"},
 		{"id": "ashen_hart_ember_fork", "cue": "Ember fork", "slot": "counter", "delivery": "leap", "lead": 0.18, "range": 5.5, "windup_ms": "catalog", "min_windup_ms": 1150, "recovery_ms": "catalog", "recovery_bonus_ms": 320, "shape": {"kind": "spots", "offsets": [[-1.55, 0.45], [1.55, 0.45]], "spot_radius": 0.85}, "effects": [{"kind": "hazard", "hazard": "ember", "ms": 2500, "delay_ms": 800}], "unlock": {"floor": 9, "evidence": "route_denial"}, "handler": "learned_approach", "legacy": "ember_fork", "range_min": 2.2},
 
 		{"id": "glasscap_volley", "slot": "basic", "mana_cost": 25, "delivery": "aimed", "sight": "combat", "lead": 0.28, "range": "catalog", "windup_ms": "catalog", "recovery_ms": "catalog",

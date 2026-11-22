@@ -318,12 +318,12 @@ static int pick_target(const View *v, int64_t index, int slot) {
     return chosen;
 }
 
+/* As in the game's scouts: skirmishers strafe, ranged mobs keep their range, other melee mobs close straight in. */
 static int choose_manoeuvre(const View *v, int slot, int kind) {
     const MobDecide *d = v->d;
     if (d->skirmisher[kind] != 0) return slot % 2 == 0 ? d->dim[DD_CIRCLE_LEFT] : d->dim[DD_CIRCLE_RIGHT];
     if ((double)d->max_range[kind] > LONG_RANGE) return d->dim[DD_KEEP_RANGE];
-    int options[3] = {0, d->dim[DD_CIRCLE_LEFT], d->dim[DD_CIRCLE_RIGHT]};
-    return options[slot % 3];
+    return 0;
 }
 
 static int first_ally(const View *v, int slot) {
