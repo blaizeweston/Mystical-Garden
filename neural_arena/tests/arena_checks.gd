@@ -238,6 +238,53 @@ func test_flying() -> void:
 	await close_world(world)
 
 
+## A night round: the simulation senses by light, hiding is legal, players see only lit or close enemies,
+## the bots still fight, and the host's view hides enemies the local player cannot see.
+func test_darkness() -> void:
+	var config := make_config(Config.SCRIPTED_BRAIN, {"rootbound": 4, "lantern_lure": 1, "nightbloom": 2}, 2)
+	config.darkness = "night"
+	var world := make_world(config)
+	var seen := 0
+	var unseen := 0
+	var lit_glow := false
+	var view_checked := false
+	var view_ok := true
+	for tick in REPEAT_TICKS:
+		world.step_once()
+		if world.bridge == null or world.bridge.light == null:
+			continue
+		var sim = world.bridge.sim
+		var light = world.bridge.light
+		for slot in sim.pool.active:
+			for peer: int in world.players:
+				if world.bridge.player_sees(peer, slot):
+					seen += 1
+				else:
+					unseen += 1
+		for index in range(0, sim.perception.lights.size(), 4):
+			lit_glow = lit_glow or sim.perception.lights[index + 2] == 5.0
+		if not view_checked and unseen > 0 and tick % 60 == 0:
+			view_checked = true
+			var mode = world.config.mode
+			world.config.mode = Config.Mode.PLAY
+			var local_id: int = world.multiplayer.get_unique_id()
+			for slot in sim.pool.active:
+				world.stage.support_models[slot].visible = true
+			world._darkness_view.apply(world)
+			for slot in sim.pool.active:
+				view_ok = view_ok and world.stage.support_models[slot].visible == world.bridge.player_sees(local_id, slot)
+			world.config.mode = mode
+			world._darkness_view.apply(world)
+	var bridge = world.bridge
+	print("DARKNESS seen ", seen, " unseen ", unseen, " defeated ", world._enemies_defeated)
+	check(bridge != null and bridge.light.enabled and bridge.sim.perception.senses_enabled, "a night round turns the simulation's senses on")
+	check(bridge != null and bridge.sim.rules.available[bridge.sim.contract.id("hide")] != 0, "enemies may hide at night")
+	check(seen > 0 and unseen > 0, "players see some enemies and lose others in the dark")
+	check(lit_glow, "the Lantern Lure's lantern is a light source")
+	check(view_checked and view_ok, "the host's view shows exactly the enemies the local player sees")
+	await close_world(world)
+
+
 func test_round_outcomes() -> void:
 	var config := make_config(Config.GAME_AI, {"colossus": 12, "gallhorn": 8}, 1)
 	config.floor_number = 40
@@ -371,6 +418,7 @@ func run() -> void:
 	await test_handlers()
 	await test_actions()
 	await test_flying()
+	await test_darkness()
 	await test_round_outcomes()
 	await test_species()
 	await test_classes()

@@ -14,12 +14,12 @@ const Pool = preload("res://mob_sim/mob_pool.gd")
 const Species = preload("res://mob_sim/mob_species.gd")
 
 ## Matches MeExecutor in native/mob_exec.h.
-enum Kind { HOLD, IDLE, SEARCH, APPROACH, ATTACK, FLEE, COVER, DEFEND, BLOCK }
+enum Kind { HOLD, IDLE, SEARCH, APPROACH, ATTACK, FLEE, COVER, DEFEND, BLOCK, HIDE }
 
 const BEHAVIOUR_KINDS := {
 	"idle_wander": Kind.IDLE, "search": Kind.SEARCH, "approach": Kind.APPROACH,
 	"melee_attack": Kind.ATTACK, "ranged_attack": Kind.ATTACK, "ability_1": Kind.ATTACK, "ability_2": Kind.ATTACK, "ability_3": Kind.ATTACK,
-	"flee": Kind.FLEE, "take_cover": Kind.COVER, "hide": Kind.COVER, "defend_ally": Kind.DEFEND, "block_enemy": Kind.BLOCK, "dodge": Kind.HOLD,
+	"flee": Kind.FLEE, "take_cover": Kind.COVER, "hide": Kind.HIDE, "defend_ally": Kind.DEFEND, "block_enemy": Kind.BLOCK, "dodge": Kind.HOLD,
 	"channel": Kind.HOLD,
 }
 ## Floats per attack proposal: slot, attack, player, then a fallback movement row.

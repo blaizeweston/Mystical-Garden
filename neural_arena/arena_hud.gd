@@ -30,6 +30,7 @@ var _map: OptionButton
 var _seed: SpinBox
 var _round: SpinBox
 var _elite: OptionButton
+var _darkness: OptionButton
 var _counts: Dictionary = {}
 var _total: Label
 
@@ -217,6 +218,7 @@ func _build_options(parent: Control) -> void:
 	for label: String in _species_ids():
 		elites.append(label)
 	_elite = _option(grid, "Gate elite", elites)
+	_darkness = _option(grid, "Light (new enemies only)", ["Day", "Dusk", "Night"])
 
 
 func _species_ids() -> Array[String]:
@@ -308,6 +310,7 @@ func show_setup() -> void:
 	_seed.value = config.map_seed
 	_round.value = config.round_seconds
 	_elite.select(maxi(0, _species_ids().find(config.elite) + 1))
+	_darkness.select(maxi(0, ["day", "dusk", "night"].find(config.darkness)))
 	for label: String in _counts:
 		_counts[label].value = int(config.enemies.get(label, 0))
 	_refresh_total()
@@ -343,6 +346,7 @@ func _read_setup() -> Config:
 	config.map_seed = int(_seed.value)
 	config.round_seconds = int(_round.value)
 	config.elite = "" if _elite.selected == 0 else _species_ids()[_elite.selected - 1]
+	config.darkness = ["day", "dusk", "night"][_darkness.selected]
 	config.enemies = {}
 	for label: String in _counts:
 		if int(_counts[label].value) > 0:

@@ -6,7 +6,7 @@ extends RefCounted
 const Enums = preload("res://mob_sim/definitions/definition_enums.gd")
 const Reader = preload("res://mob_sim/definitions/definition_reader.gd")
 
-const FIELDS := ["layer", "sight", "darkvision", "hearing", "smell", "armour", "evasion", "dodge", "mana"]
+const FIELDS := ["layer", "sight", "darkvision", "hearing", "smell", "glow", "armour", "evasion", "dodge", "mana"]
 const DODGE_FIELDS := ["distance", "ms", "cooldown_ms"]
 const MANA_FIELDS := ["pool", "channel_per_second", "channel_damage_taken"]
 
@@ -18,6 +18,8 @@ var sight := NAN
 var darkvision := 0.0
 var hearing := 0.0
 var smell := 0.0
+## Radius of the light the mob gives off. Glowing mobs light the players near them and are seen in darkness.
+var glow := 0.0
 ## Damage taken is scaled by the shared armour ratio when true. The legacy Bark mutation sets it too.
 var armour := false
 ## Chance to ignore a hit outright.
@@ -39,6 +41,7 @@ static func parse(data: Dictionary, reader: Reader) -> RefCounted:
 	traits.darkvision = reader.number(data, "darkvision", 0.0, 0.0, 40.0)
 	traits.hearing = reader.number(data, "hearing", 0.0, 0.0, 40.0)
 	traits.smell = reader.number(data, "smell", 0.0, 0.0, 40.0)
+	traits.glow = reader.number(data, "glow", 0.0, 0.0, 12.0)
 	traits.armour = reader.flag(data, "armour")
 	traits.evasion = reader.number(data, "evasion", 0.0, 0.0, 0.9)
 	var dodge := reader.dictionary(data, "dodge")

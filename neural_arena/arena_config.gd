@@ -27,6 +27,8 @@ var map_seed := 1
 var round_seconds := 120
 var elite := ""
 var auto_restart := true
+## Light level for framework enemies: day, dusk or night (ArenaLight.LEVELS). The current game AI ignores it.
+var darkness := "day"
 var enemies: Dictionary = {"rootbound": 4, "nightbloom": 2, "thornmaw": 2}
 
 
@@ -40,7 +42,7 @@ func total_enemies() -> int:
 func duplicate_config() -> RefCounted:
 	var copy: RefCounted = get_script().new()
 	for key in ["mode", "session", "address", "port", "player_class", "bots", "brain", "intelligence", "floor_number",
-			"generated_map", "map_seed", "round_seconds", "elite", "auto_restart"]:
+			"generated_map", "map_seed", "round_seconds", "elite", "auto_restart", "darkness"]:
 		copy.set(key, get(key))
 	copy.enemies = enemies.duplicate()
 	return copy
@@ -77,6 +79,7 @@ func apply_arguments(arguments: PackedStringArray) -> void:
 			"map": generated_map = value != "open"
 			"round-seconds": round_seconds = maxi(5, value.to_int())
 			"elite": elite = value
+			"darkness": darkness = value if ["day", "dusk", "night"].has(value) else "day"
 			"enemies": enemies = parse_enemies(value)
 
 

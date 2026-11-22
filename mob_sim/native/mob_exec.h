@@ -9,13 +9,14 @@
 #include <stdint.h>
 
 #include "mob_nav.h"
+#include "mob_sense.h"
 
 typedef enum { ME_BYTES, ME_INTS, ME_FLOATS } MeKind;
 
 typedef enum { ME_OK = 0, ME_ERR_ARGUMENT = 1, ME_ERR_MEMORY = 2 } MeResult;
 
 /* What each behaviour does, in the order mob_executors.gd sends them. */
-typedef enum { MX_HOLD, MX_IDLE, MX_SEARCH, MX_APPROACH, MX_ATTACK, MX_FLEE, MX_COVER, MX_DEFEND, MX_BLOCK, MX_KIND_COUNT } MeExecutor;
+typedef enum { MX_HOLD, MX_IDLE, MX_SEARCH, MX_APPROACH, MX_ATTACK, MX_FLEE, MX_COVER, MX_DEFEND, MX_BLOCK, MX_HIDE, MX_KIND_COUNT } MeExecutor;
 
 /* Fixed configuration tables, sent once. */
 typedef enum {
@@ -73,7 +74,8 @@ void me_destroy(MobExec *exec);
 /* Total floats written by me_run: commands, then targets, then the attempt count and the attempts. */
 int64_t me_output_size(const MobExec *exec);
 /* items and lengths hold EI_COUNT entries. */
-MeResult me_run(MobExec *exec, const MobNav *nav, const void *const *items, const int64_t *lengths, float *out);
+/* sense supplies the light grid that hiding reads; it may be NULL, which counts every point as lit. */
+MeResult me_run(MobExec *exec, const MobNav *nav, const MobSense *sense, const void *const *items, const int64_t *lengths, float *out);
 
 /* Writes the commands with each active mob's speed after wind-ups, stuns, roots, slows and haste,
  * matching MobLocomotion.speeds_reference. Writes capacity * ME_STRIDE floats. */

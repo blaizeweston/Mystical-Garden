@@ -20,6 +20,12 @@ const SENSE_CELL := 1.0
 const SCENT_DECAY_TICKS := 6
 const SCENT_HALF_LIFE_SECONDS := 6.0
 const SCENT_THRESHOLD := 0.25
+## A cell counts as lit at a quarter light. Matches LIT_THRESHOLD in native/mob_sense.c and mob_exec.c.
+const LIT_THRESHOLD := 0.25
+## Players see a mob that stands in the dark only this close. Matches PLAYER_DARK_SIGHT in native/mob_exec.c.
+const PLAYER_DARK_SIGHT := 2.5
+## How far players see a lit mob.
+const PLAYER_VIEW := 18.0
 
 var pool: Pool
 var party: Party
@@ -128,6 +134,15 @@ func reset_slot(slot: int) -> void:
 
 func knows(slot: int, player: int) -> bool:
 	return seen_tick[slot * players + player] >= 0 and party.targetable(player)
+
+
+## Whether a player at from sees a mob at to: within view, on a clear sight line, and either lit or close.
+## With senses off there is no darkness, so only range and the sight line count.
+func player_sees(from: Vector2, to: Vector2) -> bool:
+	var distance := from.distance_to(to)
+	if distance > PLAYER_VIEW or nav == null or nav.sight_clear(from.x, from.y, to.x, to.y, 0.0) == 0:
+		return false
+	return not senses_enabled or distance <= PLAYER_DARK_SIGHT or nav.sense_light_at(to.x, to.y) >= LIT_THRESHOLD
 
 
 func sees(slot: int, player: int) -> bool:

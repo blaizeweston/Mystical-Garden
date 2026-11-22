@@ -13,6 +13,10 @@ const ROUTE_MARGIN := 0.12
 const ROUTE_LOOKAHEAD := 14
 const STUCK_DISTANCE := 0.04
 const UNSTICK_TURN := 1.8
+## In darkness a bot goes to where it last saw an enemy for this long, then roams the map's spawn points.
+const MEMORY_TICKS := 240
+const ROAM_TICKS := 300
+const ROAM_ARRIVAL := 2.0
 
 var game: Node
 var peer := 0
@@ -25,6 +29,10 @@ var _back_off_share := 0.4
 var _dodge_chance := 0.5
 var _strafe := 1.0
 var _last_position := Vector3.INF
+var _last_seen := Vector3.INF
+var _last_seen_tick := -MEMORY_TICKS
+var _roam := Vector3.INF
+var _roam_tick := 0
 
 
 func _init(world: Node, peer_id: int, seed_value: int) -> void:
@@ -40,6 +48,9 @@ func begin_round() -> void:
 	_back_off_share = rng.randf_range(0.2, 0.6)
 	_dodge_chance = rng.randf_range(0.2, 0.9)
 	_strafe = -1.0 if rng.randf() < 0.5 else 1.0
+	_last_seen = Vector3.INF
+	_last_seen_tick = -MEMORY_TICKS
+	_roam = Vector3.INF
 	var player: Dictionary = game.players.get(peer, {})
 	if not player.is_empty():
 		_reach = float(game.weapon_stats(player).reach)
@@ -54,9 +65,12 @@ func act(now: int) -> void:
 	var rescue: int = game.Life.nearest(game, player)
 	if rescue != 0:
 		game.Life.revive(game, peer, rescue)
-	var target: int = game.closest_enemy(player.pos)
+	var target := _pick_target(player)
 	if target < -1:
-		move_direction = Vector2.ZERO
+		if _in_darkness():
+			_search(player)
+		else:
+			move_direction = Vector2.ZERO
 		_send_motion(now)
 		return
 	var at: Vector3 = game.enemy_position(target)
@@ -71,6 +85,47 @@ func act(now: int) -> void:
 		_consider_dodge(player, now)
 	if (_tick + peer) % SKILL_TICKS == 0 and distance <= _reach + 3.0:
 		ClassActions.cast_world(game, peer, rng.randi_range(0, 1))
+
+
+func _in_darkness() -> bool:
+	var bridge = game.get("bridge")
+	return bridge != null and bridge.light != null and bridge.light.enabled
+
+
+## The closest enemy this bot can see. In daylight that is the game's own closest enemy.
+func _pick_target(player: Dictionary) -> int:
+	if not _in_darkness():
+		return game.closest_enemy(player.pos)
+	var best := INF
+	var chosen := -2
+	for slot in game.encounter.scout_count():
+		if game.encounter.hp(slot) <= 0 or not game.bridge.player_sees(peer, slot):
+			continue
+		var distance: float = player.pos.distance_squared_to(game.encounter.scout(slot).pos)
+		if distance < best:
+			best = distance
+			chosen = slot
+	if chosen >= 0:
+		_last_seen = game.encounter.scout(chosen).pos
+		_last_seen_tick = _tick
+	return chosen
+
+
+## Walks to where an enemy was last seen, then roams between spawn points until one shows itself.
+func _search(player: Dictionary) -> void:
+	if (_tick + peer) % PLAN_TICKS != 0:
+		return
+	var goal := _last_seen if _tick - _last_seen_tick < MEMORY_TICKS else _roam
+	if _tick - _last_seen_tick >= MEMORY_TICKS and (not _roam.is_finite() or _tick - _roam_tick >= ROAM_TICKS
+			or player.pos.distance_to(_roam) < ROAM_ARRIVAL):
+		var points: Array = game.battlefield.spawn_points
+		_roam = points[rng.randi_range(0, points.size() - 1)] if not points.is_empty() else player.pos
+		_roam_tick = _tick
+		goal = _roam
+	if not goal.is_finite() or player.pos.distance_to(goal) < ROAM_ARRIVAL:
+		move_direction = Vector2.ZERO
+		return
+	move_direction = _input_direction(_route_heading(player.pos, goal))
 
 
 func _send_motion(now: int) -> void:

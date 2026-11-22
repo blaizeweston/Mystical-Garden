@@ -9,6 +9,7 @@ const Config = preload("res://neural_arena/arena_config.gd")
 const GardenReturn = preload("res://garden_return_service.gd")
 const Grafts = preload("res://expedition_grafts.gd")
 const Hud = preload("res://neural_arena/arena_hud.gd")
+const DarknessView = preload("res://neural_arena/arena_darkness_view.gd")
 
 signal round_finished(result: Dictionary)
 
@@ -50,6 +51,7 @@ var _sandbox := ""
 var _party_share := 1.0
 var _enemies_left := 0
 var _enemies_defeated := 0
+var _darkness_view := DarknessView.new()
 
 
 func _ready() -> void:
@@ -340,6 +342,12 @@ func _prepare_player(peer: int) -> void:
 	player.still_since = CombatClock.now()
 	var health: PlayerVitals.Health = player[PlayerVitals.STATE]
 	player[PlayerVitals.STATE] = health.with_native_max_hp(Life.native_maximum(self, player)).refilled()
+
+
+## Draws the frame, then this round's darkness over it.
+func _process(delta: float) -> void:
+	super(delta)
+	_darkness_view.apply(self)
 
 
 func _physics_process(delta: float) -> void:

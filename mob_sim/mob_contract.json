@@ -18,7 +18,7 @@
 		{"name": "ability_3", "target": "ability", "hold_ms": 250, "attack": 3, "summary": "The species' special ability, or a support's fallback attack when no escort is near"},
 		{"name": "flee", "target": "enemy", "hold_ms": 600, "summary": "Move away along the route field"},
 		{"name": "take_cover", "target": "enemy", "hold_ms": 800, "summary": "Move to nearby cover that blocks sight from the target"},
-		{"name": "hide", "target": "enemy", "hold_ms": 800, "available": false, "missing": "Darkness and light do not exist yet.", "summary": "Break sight and stay in darkness"},
+		{"name": "hide", "target": "enemy", "hold_ms": 800, "available": false, "missing": "Legal only while the host has darkness on (MobSim.set_darkness).", "summary": "Break sight and stay in darkness"},
 		{"name": "defend_ally", "target": "ally", "hold_ms": 600, "summary": "Stay between the ally and its nearest threat"},
 		{"name": "block_enemy", "target": "enemy", "hold_ms": 600, "summary": "Body-block the enemy's path"},
 		{"name": "dodge", "target": "none", "hold_ms": 300, "summary": "Sidestep the nearest threat, ignoring hits briefly. Agile species only"},

@@ -3,6 +3,7 @@ extends RefCounted
 ## Each tick it mirrors the roster into the simulation, runs the brain, then writes movement back.
 
 const ArenaAbilities = preload("res://neural_arena/arena_abilities.gd")
+const ArenaLight = preload("res://neural_arena/arena_light.gd")
 const Catalog = preload("res://enemy_catalog.gd")
 const CombatClock = preload("res://combat_clock.gd")
 const Config = preload("res://neural_arena/arena_config.gd")
@@ -33,6 +34,8 @@ const UNLOCKS := Species.UNLOCK_SIGNATURE | Species.UNLOCK_COUNTER
 var game: Node
 var config: Config
 var sim: Sim
+## This round's darkness: light sources, and which player sees which enemy.
+var light: ArenaLight
 var error := ""
 var capacity := 0
 var _tokens := PackedInt64Array()
@@ -90,7 +93,14 @@ func begin_round(seed_value: int) -> bool:
 	_host_owned.fill(0)
 	_peers.resize(sim.contract.players)
 	_peers.fill(0)
+	light = ArenaLight.new(config.darkness, capacity, sim.contract.players)
+	light.attach(sim)
 	return true
+
+
+## Whether a player sees an enemy. Always true in daylight.
+func player_sees(peer: int, slot: int) -> bool:
+	return light == null or light.sees(_party_slot(peer), slot)
 
 
 func peer_of(party_slot: int) -> int:
@@ -130,6 +140,7 @@ func tick(now: int, delta: float = 1.0 / 60.0) -> void:
 	sim.party.attackers.fill(0)
 	for slot in capacity:
 		_mirror_slot(slot, next, now)
+	light.update(sim, next)
 	sim.tick()
 	if game.participation.active():
 		_write_back()

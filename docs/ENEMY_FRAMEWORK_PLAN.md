@@ -227,7 +227,7 @@ Each phase ends with evidence and a review before the next starts.
 | 1 | Folder structure, definitions, loader, validator, table compiler, per-system timers, benchmark budgets and the baseline | None |
 | 2 | Native executors, decisions, perception and movement speeds, with parity tests; senses with a light grid; status system. Done 2026-11-21 | None |
 | 3 | Kits drive every species' attacks, with release geometry, effects and behaviour handlers. The arena resolves them with the real player-hit rules. Parts 1 to 3 done 2026-11-21; the legacy comparison remains | Arena files only |
-| 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields. Parts 1 (mana, channeling, dodge) and 2 (flying) done 2026-11-22 | Arena files only |
+| 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields. Parts 1 (mana, channeling, dodge), 2 (flying) and 3 (darkness in the arena) done 2026-11-22 | Arena files only |
 | 5 | Dedicated framework presentation. Elite kits. Bosses keep scripted plans for now | Arena files only |
 | 6 | Schema v2, rewards v2, training loop, curriculum and evaluation | None |
 | 7 | Live toggles, with Legacy enemies and darkness off by default | Small hooks: settings, `tick_enemies`, spawning, guest snapshots, fog of war. Approved step by step |
@@ -431,3 +431,20 @@ Built 2026-11-22. The Orchid and the Wicker Wasp fly.
 The air grid is built per piece of cover, so it costs about 14 ms on a real arena map, once per round (the walking grid takes about 60 ms). Ground hazards and player fields are Part 4; they will skip flyers there.
 
 Checks: `mob_sim/tests/mob_layer_checks.gd` (15 checks) and new native tests (a moat that walkers cannot cross and flyers can, with barriers still stopping a flyer's dash). Parity, the neural net's wall-clip audit and every earlier suite pass. A new arena check saw flyers fight real players for 12,810 mob-ticks with 8 attacks, never rooted and never outside the air layer. Speed: 416x real time at 20 mobs and 148x at 100.
+
+### Part 3: darkness in the arena
+
+Built 2026-11-22. The arena setup screen and `--darkness=day|dusk|night` choose a round's light: ambient 1.0, 0.4 or 0.08. Day is the default and changes nothing. Darkness applies only to framework enemies; the current game AI ignores it.
+
+| Piece | How |
+|---|---|
+| Light sources | Every living player carries a light of radius 5.5. Glowing species give off their own: the Lantern Lure 5, the Nightbloom 2.5 and the Glasscap 2, from a new `glow` trait. `neural_arena/arena_light.gd` republishes them every 6 ticks, snapped to half a unit, so the light grid is rebuilt only when something moved |
+| Mobs | `MobSim.set_darkness` turns the senses from Phase 2 on: mobs see players in light, within darkvision, or through hearing and smell. Since players carry lights, mobs still spot players in range; the dark helps mobs more than players |
+| Players | One rule, `MobPerception.player_sees`: a player sees a mob within 18 units on a clear sight line, if the mob is lit or within 2.5 units. The arena's bots and the host's view both use it |
+| Hiding | `hide` is legal only while darkness is on. Its executor (native and reference) reuses the cover search, and also accepts a dark point farther than 2.5 units from the target. The scripted brain does not hide, so hiding is left to the net to learn |
+| Bots | At night a bot targets only enemies it sees, goes to where it last saw one for 4 seconds, then roams between spawn points. In daylight bots are unchanged |
+| View | On the host, the sky, sun and ambient light dim (never below 18%), lights follow players and glowing enemies, and in Play mode enemies the local player cannot see are hidden. Watch mode shows every enemy, since the viewer is a spectator |
+
+Limits: guests in a multiplayer arena see every enemy and no darkness until darkness is replicated (Phase 7). The live game's fog of war is adapted in Phase 7 with the live toggle.
+
+Checks: `mob_sim/tests/mob_darkness_checks.gd` (15 checks), including native and reference hiding choosing the same spot and masks agreeing at night. A new arena check runs a night round: senses on, hiding legal, players lose and regain enemies (6,987 unseen and 11,083 seen player-enemy pairs over 1,800 ticks), the Lantern Lure's lantern is published, and the view hides exactly the enemies the local player cannot see. Night rounds with the same roster still clear, taking 14.4 seconds on average against 11.8 in daylight, and the multiplayer check passes. Darkness costs nothing measurable: enemies take 0.36 ms per tick at night against 0.37 in daylight.

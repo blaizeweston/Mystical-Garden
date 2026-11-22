@@ -23,6 +23,9 @@ var hold_ticks := PackedInt32Array()
 var max_attackers := 0
 var messages_enabled := false
 var rejected := 0
+## The contract's availability, with hide switched on while darkness is on.
+var available := PackedByteArray()
+var _hide := -1
 var _dodge := -1
 var _channel := -1
 
@@ -40,6 +43,14 @@ func _init(rules_contract: Contract, mob_pool: Pool, mob_party: Party, table: Sp
 		hold_ticks.append(Clock.from_ms(milliseconds))
 	_dodge = contract.id("dodge")
 	_channel = contract.id("channel")
+	_hide = contract.id("hide")
+	available = contract.available.duplicate()
+
+
+## Hiding needs darkness to hide in. Reconfigure the native rules afterwards.
+func set_darkness(enabled: bool) -> void:
+	if _hide >= 0:
+		available[_hide] = int(enabled)
 
 
 func attack_ready(slot: int, attack: int, tick: int) -> bool:
@@ -82,7 +93,7 @@ func configure_native(world: RefCounted) -> int:
 		contract.id("ability_1"), contract.id("ability_2"), contract.id("ability_3"), contract.id("defend_ally"),
 		contract.manoeuvres.find("circle_left"), contract.manoeuvres.find("circle_right"), contract.manoeuvres.find("keep_max_range"),
 		_dodge if actions != null else -1, _channel if actions != null else -1, contract.id("flee")])
-	return world.decide_configure([dims, contract.head_offsets, contract.available, contract.leader_only, contract.target_kind,
+	return world.decide_configure([dims, contract.head_offsets, available, contract.leader_only, contract.target_kind,
 		contract.attack_slot, contract.delivery, species.support, species.skirmisher, species.max_range, species.attack_exists,
 		species.attack_mutation, species.attack_escort, species.attack_delivery, species.attack_range, species.attack_min_range,
 		species.mana_pool, species.mana_low, species.can_dodge, species.attack_mana_cost if actions != null else _free_casts()])
@@ -143,7 +154,7 @@ func _mask_slot(batch: Batch, base: int, slot: int, tick: int) -> void:
 
 
 func _behaviour_legal(slot: int, behaviour: int, has_enemy: bool, has_ally: bool, tick: int) -> bool:
-	if contract.available[behaviour] == 0:
+	if available[behaviour] == 0:
 		return false
 	if contract.leader_only[behaviour] != 0 and not pool.is_leader(slot):
 		return false

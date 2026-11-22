@@ -43,6 +43,7 @@ godot --headless --path . --script res://mob_sim/tests/mob_status_checks.gd
 godot --headless --path . --script res://mob_sim/tests/mob_handler_checks.gd
 godot --headless --path . --script res://mob_sim/tests/mob_action_checks.gd
 godot --headless --path . --script res://mob_sim/tests/mob_layer_checks.gd
+godot --headless --path . --script res://mob_sim/tests/mob_darkness_checks.gd
 godot --headless --path . --script res://mob_sim/tests/mob_sim_bench.gd
 ./mob_sim/tests/run_bench.ps1
 ./mob_sim/tests/run_throughput.ps1 -Processes 12

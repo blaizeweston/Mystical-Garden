@@ -41,6 +41,8 @@ var mana_low := PackedFloat32Array()
 var can_dodge := PackedByteArray()
 ## 1 for species that fly on the air layer.
 var layer := PackedByteArray()
+## Radius of the light each species gives off; zero for most.
+var glow := PackedFloat32Array()
 var dodge_distance := PackedFloat32Array()
 var dodge_ticks := PackedInt32Array()
 var dodge_cooldown := PackedInt32Array()
@@ -121,6 +123,7 @@ func _compile_traits(kind: int) -> void:
 		dearest = maxf(dearest, attack_mana_cost[kind * ATTACKS + slot])
 	mana_low.append(minf(dearest, pool_size))
 	layer.append(int(tables.species_layer[kind] == Enums.Layer.AIR) if tables != null else 0)
+	glow.append(tables.species_glow[kind] if tables != null else 0.0)
 	var cooldown: int = tables.species_dodge_cooldown_ms[kind] if tables != null else 0
 	can_dodge.append(int(cooldown > 0))
 	dodge_distance.append(tables.species_dodge_distance[kind] if tables != null else 0.0)

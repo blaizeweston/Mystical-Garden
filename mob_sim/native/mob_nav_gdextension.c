@@ -220,7 +220,7 @@ static void m_exec_run(World *world, const void *const *args, void *result) {
     if (ready) values = me_output_size(world->exec);
     GDExtensionConstTypePtr resize_args[] = {&values};
     floats_resize(result, resize_args, &resized, 1);
-    if (values > 0 && resized == 0 && me_run(world->exec, world->nav, items, lengths, floats_at(result, 0)) != ME_OK) {
+    if (values > 0 && resized == 0 && me_run(world->exec, world->nav, world->sense, items, lengths, floats_at(result, 0)) != ME_OK) {
         values = 0;
         floats_resize(result, resize_args, &resized, 1);
     }

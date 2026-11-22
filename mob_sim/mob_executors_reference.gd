@@ -218,13 +218,13 @@ func _do_flee(slot: int, tick: int) -> void:
 		locomotion.flee_from(slot, player)
 
 
-func _do_take_cover(slot: int, tick: int) -> void:
+func _do_take_cover(slot: int, tick: int, hiding := false) -> void:
 	var player := _target_player(slot)
 	if player < 0:
 		locomotion.hold(slot)
 		return
 	if pool.behaviour_since[slot] == tick or (tick + slot) % COVER_REFRESH_TICKS == 0:
-		_find_cover(slot, player)
+		_find_cover(slot, player, hiding)
 	if cover_found[slot] == 0:
 		if _due(slot, tick):
 			locomotion.flee_from(slot, player)
@@ -232,8 +232,9 @@ func _do_take_cover(slot: int, tick: int) -> void:
 		locomotion.go_to(slot, cover_x[slot], cover_z[slot], COVER_STOP)
 
 
-## Picks the closest open point within reach that the target cannot see.
-func _find_cover(slot: int, player: int) -> void:
+## Picks the closest open point within reach that the target cannot see. When hiding, a dark point farther
+## from the target than a player sees in darkness also counts.
+func _find_cover(slot: int, player: int, hiding: bool) -> void:
 	var points := PackedVector2Array()
 	var queries := PackedFloat32Array()
 	var origin := Vector2(pool.xz[slot * 2], pool.xz[slot * 2 + 1])
@@ -250,7 +251,12 @@ func _find_cover(slot: int, player: int) -> void:
 	var best := INF
 	for index in points.size():
 		var distance := origin.distance_squared_to(points[index])
-		if clear[index] == 0 and distance < best:
+		var hidden := clear[index] == 0
+		if not hidden and hiding and locomotion.world.sense_light_at(points[index].x, points[index].y) < Perception.LIT_THRESHOLD:
+			var dx: float = party.x[player] - points[index].x
+			var dz: float = party.z[player] - points[index].y
+			hidden = dx * dx + dz * dz > Perception.PLAYER_DARK_SIGHT * Perception.PLAYER_DARK_SIGHT
+		if hidden and distance < best:
 			best = distance
 			cover_x[slot] = points[index].x
 			cover_z[slot] = points[index].y
@@ -258,7 +264,7 @@ func _find_cover(slot: int, player: int) -> void:
 
 
 func _do_hide(slot: int, tick: int) -> void:
-	_do_take_cover(slot, tick)
+	_do_take_cover(slot, tick, true)
 
 
 func _do_defend_ally(slot: int, tick: int) -> void:

@@ -23,6 +23,9 @@
 #define COVER_RADII 2
 #define COVER_CLEARANCE 0.6
 #define COVER_STOP 0.3
+/* Matches MobPerception: a cell is lit at a quarter light, and players see unlit mobs only this close. */
+#define LIT_THRESHOLD 0.25f
+#define PLAYER_DARK_SIGHT 2.5
 #define DEFEND_DISTANCE 1.6
 #define BLOCK_DISTANCE 1.5
 #define STILL_SPEED 0.1
@@ -84,6 +87,7 @@ struct MobExec {
 typedef struct {
     MobExec *e;
     const MobNav *nav;
+    const MobSense *sense;
     int tick, goal_tick;
     const int *generation, *species, *mutations, *leader, *leader_generation, *behaviour_since;
     const int *windup_until, *stun_until, *ready_at, *cooldown_until, *seen_tick, *allies, *approach_until, *command_until;
@@ -424,8 +428,9 @@ static void do_flee(const Run *r, int slot) {
     else if (due(r, slot)) flee_from(r, slot, player);
 }
 
-/* Picks the closest open point within reach that the target cannot see. */
-static void find_cover(const Run *r, int slot, int player) {
+/* Picks the closest open point within reach that the target cannot see. When hiding, a dark point farther
+ * from the target than a player sees in darkness also counts. */
+static void find_cover(const Run *r, int slot, int player, int hiding) {
     MobExec *e = r->e;
     V2 origin = v2(r->xz[slot * 2], r->xz[slot * 2 + 1]);
     int count = 0;
@@ -453,7 +458,12 @@ static void find_cover(const Run *r, int slot, int player) {
     for (int index = 0; index < count; index++) {
         V2 point = v2(e->cover_points[index * 2], e->cover_points[index * 2 + 1]);
         double distance = (double)v2_distance_squared(origin, point);
-        if (e->cover_clear[index] == 0 && distance < best) {
+        int hidden = e->cover_clear[index] == 0;
+        if (!hidden && hiding && r->sense != NULL && ms_light_at(r->sense, (float)point.x, (float)point.y) < LIT_THRESHOLD) {
+            double dx = (double)r->party_x[player] - point.x, dz = (double)r->party_z[player] - point.y;
+            hidden = dx * dx + dz * dz > PLAYER_DARK_SIGHT * PLAYER_DARK_SIGHT;
+        }
+        if (hidden && distance < best) {
             best = distance;
             e->cover_x[slot] = point.x;
             e->cover_z[slot] = point.y;
@@ -462,14 +472,14 @@ static void find_cover(const Run *r, int slot, int player) {
     }
 }
 
-static void do_cover(const Run *r, int slot) {
+static void do_cover(const Run *r, int slot, int hiding) {
     MobExec *e = r->e;
     int player = target_player(r, slot);
     if (player < 0) {
         hold(r, slot);
         return;
     }
-    if (r->behaviour_since[slot] == r->tick || (r->tick + slot) % COVER_REFRESH_TICKS == 0) find_cover(r, slot, player);
+    if (r->behaviour_since[slot] == r->tick || (r->tick + slot) % COVER_REFRESH_TICKS == 0) find_cover(r, slot, player, hiding);
     if (e->cover_found[slot] == 0) {
         if (due(r, slot)) flee_from(r, slot, player);
     } else if (due(r, slot)) {
@@ -535,7 +545,7 @@ static void do_block(const Run *r, int slot) {
 
 #define BIND(field, index, type) r.field = (const type *)items[index]
 
-MeResult me_run(MobExec *e, const MobNav *nav, const void *const *items, const int64_t *lengths, float *out) {
+MeResult me_run(MobExec *e, const MobNav *nav, const MobSense *sense, const void *const *items, const int64_t *lengths, float *out) {
     int capacity = e->dim[ED_CAPACITY], players = e->dim[ED_PLAYERS], attacks = e->dim[ED_ATTACKS];
     int64_t command_floats = (int64_t)capacity * ME_STRIDE, target_floats = (int64_t)(players + e->dim[ED_GOAL_FIELDS]) * 2;
     if (nav == NULL || lengths[EI_CLOCK] != EK_COUNT || lengths[EI_ALIVE] != capacity || lengths[EI_XZ] != capacity * 2
@@ -549,6 +559,7 @@ MeResult me_run(MobExec *e, const MobNav *nav, const void *const *items, const i
     memset(&r, 0, sizeof(r));
     r.e = e;
     r.nav = nav;
+    r.sense = sense;
     const int *clock = (const int *)items[EI_CLOCK];
     r.tick = clock[EK_TICK];
     r.goal_tick = clock[EK_GOAL_TICK];
@@ -599,7 +610,8 @@ MeResult me_run(MobExec *e, const MobNav *nav, const void *const *items, const i
             case MX_APPROACH: do_approach(&r, slot); break;
             case MX_ATTACK: do_attack(&r, slot); break;
             case MX_FLEE: do_flee(&r, slot); break;
-            case MX_COVER: do_cover(&r, slot); break;
+            case MX_COVER: do_cover(&r, slot, 0); break;
+            case MX_HIDE: do_cover(&r, slot, 1); break;
             case MX_DEFEND: do_defend(&r, slot); break;
             case MX_BLOCK: do_block(&r, slot); break;
             default: hold(&r, slot); break;

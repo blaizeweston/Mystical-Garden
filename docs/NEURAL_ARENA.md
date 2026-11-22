@@ -11,7 +11,7 @@ This page records what the arena changed in existing files, why, and which refer
 | In the game | Press Esc, then choose **Neural Arena**. The button only appears when running from the project, because exported builds leave the `neural_arena` folder out |
 | Headless | `neural_arena/tests/run_arena.ps1 -Arguments '--rounds=5','--bots=4','--enemies=rootbound:6,nightbloom:3','--brain=scripted'` |
 
-Headless options are `--rounds`, `--bots`, `--enemies=id:count,id:count`, `--brain`, `--seed`, `--floor`, `--map=open`, `--round-seconds`, `--elite`, `--intelligence` and `--profile`, which reports time per tick for bots, enemies and the rest of the game.
+Headless options are `--rounds`, `--bots`, `--enemies=id:count,id:count`, `--brain`, `--seed`, `--floor`, `--map=open`, `--round-seconds`, `--elite`, `--intelligence`, `--darkness=day|dusk|night` (framework enemies only; see Phase 4 part 3 in `docs/ENEMY_FRAMEWORK_PLAN.md`) and `--profile`, which reports time per tick for bots, enemies and the rest of the game.
 
 `--brain` accepts `scripted`, or the path of a model file. Leaving it out uses the current game AI.
 
@@ -168,6 +168,7 @@ Run `python tools/test_workflow.py document --project . --engine <godot>` after 
 
 - The net is untrained, so its fights show the system working rather than good tactics. The training loop is not built yet.
 - The gate elite stays on its scripted behaviour.
+- Darkness is drawn only on the host; guests see every enemy until it is replicated.
 - Some species specials are not driven by the net yet.
 - A round holds at most 20 enemies plus a leader.
 - The arena button does not appear in exported builds.

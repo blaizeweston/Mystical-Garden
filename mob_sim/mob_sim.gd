@@ -80,6 +80,16 @@ func _init(slots: int, awake_brain: Brain = null) -> void:
 		push_error("The native decision helpers could not be configured.")
 
 
+## Turns darkness on or off. On, mobs need light, darkvision, hearing or smell to sense players, and may
+## hide; ambient is the light level everywhere before light sources. The host sets perception.lights.
+func set_darkness(enabled: bool, ambient: float = 1.0) -> void:
+	perception.ambient = ambient if enabled else 1.0
+	perception.set_senses(enabled)
+	rules.set_darkness(enabled)
+	if locomotion.world != null and rules.configure_native(locomotion.world) != OK:
+		push_error("The native decision helpers could not be reconfigured for darkness.")
+
+
 ## Swaps in the GDScript executors. Only the parity test uses this.
 func use_reference_executors() -> void:
 	var replacement := ReferenceExecutors.new(contract, pool, party, species, perception, abilities, locomotion)
