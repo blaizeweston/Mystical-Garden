@@ -270,11 +270,13 @@ func test_darkness() -> void:
 			var local_id: int = world.multiplayer.get_unique_id()
 			for slot in sim.pool.active:
 				world.stage.support_models[slot].visible = true
-			world._darkness_view.apply(world)
+			world._presentation.capture(world)
+			world._presentation.draw(world, false)
 			for slot in sim.pool.active:
 				view_ok = view_ok and world.stage.support_models[slot].visible == world.bridge.player_sees(local_id, slot)
 			world.config.mode = mode
-			world._darkness_view.apply(world)
+			world._presentation.capture(world)
+			world._presentation.draw(world, false)
 	var bridge = world.bridge
 	print("DARKNESS seen ", seen, " unseen ", unseen, " defeated ", world._enemies_defeated)
 	check(bridge != null and bridge.light.enabled and bridge.sim.perception.senses_enabled, "a night round turns the simulation's senses on")
@@ -304,6 +306,46 @@ func test_fields() -> void:
 				player_fields += 1
 	print("FIELDS hazard ticks ", hazards, " player field ticks ", player_fields, " game hazard ticks ", game_hazards)
 	check(game_hazards > 0 and hazards > 0, "enemy hazards reach the simulation's registry")
+	await close_world(world)
+
+
+## The new mechanics on screen: a packet round trip for guests, flyers hovering, mana bars and the
+## channel glow on the host's models.
+func test_presentation() -> void:
+	var Presentation = load("res://neural_arena/arena_presentation.gd")
+	var world := make_world(make_config(Config.SCRIPTED_BRAIN, {"wasp": 2, "nightbloom": 2, "rootbound": 2}, 1))
+	for tick in 120:
+		world.step_once()
+	var bridge = world.bridge
+	var sim = bridge.sim
+	var packet: PackedByteArray = world._presentation.pack_for(bridge, world.HOST)
+	var guest = Presentation.new()
+	check(guest.receive(packet) and guest.flags == world._presentation.flags and guest.mana == world._presentation.mana,
+		"a guest reads back exactly what the host packed")
+	var stale := packet.duplicate()
+	stale[0] = 99
+	check(not guest.receive(stale) and not guest.receive(packet.slice(0, packet.size() - 1)), "a guest refuses a packet of another version or size")
+	var flyer := -1
+	var caster := -1
+	for slot in sim.pool.active:
+		if sim.species.layer[sim.pool.species[slot]] != 0:
+			flyer = slot
+		elif sim.species.mana_pool[sim.pool.species[slot]] > 0.0:
+			caster = slot
+	world._presentation.capture(world)
+	check(flyer >= 0 and world._presentation.flags[flyer] & Presentation.FLYING != 0, "flyers are flagged")
+	check(caster >= 0 and world._presentation.flags[caster] & Presentation.MANA != 0 and world._presentation.mana[caster] > 0,
+		"casters carry their mana")
+	var stage = world.stage
+	for slot in sim.pool.active:
+		stage.support_models[slot].visible = true
+		stage.scout_models[slot].model.position.y = 0.0
+	world._presentation.flags[caster] |= Presentation.CHANNELING
+	world._presentation.draw(world, false)
+	check(stage.scout_models[flyer].model.position.y > 0.9, "a flyer's model hovers")
+	var surface: StandardMaterial3D = stage.scout_models[caster].tint
+	check(surface.emission_enabled and surface.emission == Presentation.CHANNEL_COLOR, "a channeling caster glows")
+	check(world._presentation._bars.has(caster) and world._presentation._bars[caster].visible, "a caster shows a mana bar")
 	await close_world(world)
 
 
@@ -442,6 +484,7 @@ func run() -> void:
 	await test_flying()
 	await test_darkness()
 	await test_fields()
+	await test_presentation()
 	await test_round_outcomes()
 	await test_species()
 	await test_classes()

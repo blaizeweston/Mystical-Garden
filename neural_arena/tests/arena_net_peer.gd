@@ -20,6 +20,9 @@ var saw_enemies := false
 var saw_enemy_motion := false
 var enemy_starts := {}
 var enemy_context := ""
+var presentation_ok := false
+var saw_flying := false
+var saw_mana := false
 
 
 func _initialize() -> void:
@@ -38,7 +41,7 @@ func run() -> void:
 	config.mode = Config.Mode.PLAY
 	config.bots = 1 if role == "host" else 0
 	config.player_class = 0 if role == "host" else GUEST_CLASS
-	config.enemies = {"rootbound": 4, "nightbloom": 2}
+	config.enemies = {"rootbound": 4, "nightbloom": 2, "wasp": 3}
 	config.round_seconds = 600
 	config.brain = "res://ai/training/out/policy.bin"
 	world = Entry.launch(self, config, true)
@@ -77,6 +80,10 @@ func _observe_guest() -> void:
 		joined_at = Time.get_ticks_msec()
 		start_position = player.pos
 	Input.action_press("right")
+	var shown = world._presentation
+	for slot in shown.flags.size():
+		saw_flying = saw_flying or shown.flags[slot] & shown.FLYING != 0
+		saw_mana = saw_mana or (shown.flags[slot] & shown.MANA != 0 and shown.mana[slot] > 0)
 	moved = moved or player.pos.distance_to(start_position) > 0.8
 	var context := str([world.participation.epoch(),world.participation.floor(),world.participation.seed()])
 	if context!=enemy_context:
@@ -98,13 +105,15 @@ func _finish() -> void:
 	var result := {"role": role, "joined": joined_at >= 0, "session": world.network_session.role(), "status": str(world.status),
 		"peers": world.multiplayer.get_peers(), "players": world.players.keys(), "last": world.last_result}
 	if role == "guest":
+		presentation_ok = world._presentation.received > 0 and saw_flying and saw_mana
+		result.merge({"presentation_packets": world._presentation.received, "saw_flying": saw_flying, "saw_mana": saw_mana})
 		result.merge({"moved": moved, "saw_enemies": saw_enemies, "saw_enemy_motion": saw_enemy_motion,
 			"class": int(world.players.get(world.multiplayer.get_unique_id(), {}).get("frame", -1))})
 	else:
 		result.merge({"rounds": world.round_index, "party": world.participation.participants().size(),
 			"speeds": world.allowed_speeds(), "guest_class": guest_class})
 	print("NET_RESULT ", JSON.stringify(result))
-	var passed: bool = joined_at >= 0 and (guest_class == GUEST_CLASS if role == "host" else moved and saw_enemies and saw_enemy_motion)
+	var passed: bool = joined_at >= 0 and (guest_class == GUEST_CLASS if role == "host" else moved and saw_enemies and saw_enemy_motion and presentation_ok)
 	world.return_to_main_menu()
 	await process_frame
 	quit(0 if passed else 1)

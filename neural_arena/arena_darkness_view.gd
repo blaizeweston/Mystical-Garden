@@ -1,14 +1,12 @@
 extends RefCounted
-## Draws the arena's darkness on the host's screen: dims the stage's sky, sun and ambient light, carries a
-## light with every player and glowing enemy, and in Play mode hides enemies the local player cannot see.
-## Watch mode shows every enemy, since the viewer is a spectator. Guests see the host's enemies unchanged
-## until darkness is replicated (Phase 7).
+## Draws the arena's darkness: dims the stage's sky, sun and ambient light, carries a light with every player
+## and glowing enemy, and hides enemies the viewer cannot see. ArenaPresentation calls it on the host and on
+## guests with the state it captured or received.
 ##
 ## The stage sets its own light levels as floors change, so each frame scales whatever it last set.
 
 const ArenaLight = preload("res://neural_arena/arena_light.gd")
 const Catalog = preload("res://enemy_catalog.gd")
-const Config = preload("res://neural_arena/arena_config.gd")
 
 const PLAYER_LIGHT_ENERGY := 1.8
 const PLAYER_LIGHT_HEIGHT := 1.8
@@ -23,15 +21,14 @@ var _base := {}
 var _applied := {}
 
 
-## Call after the game has drawn the frame.
-func apply(world: Node) -> void:
-	var bridge = world.get("bridge")
-	var light: ArenaLight = bridge.light if bridge != null else null
-	if light == null or not light.enabled or world.stage == null:
+## Call after the game has drawn the frame. sees(slot) says whether the viewer sees an enemy, and
+## glow(slot) gives the radius of the light an enemy gives off. hide_unseen hides the rest.
+func apply(world: Node, enabled: bool, ambient: float, hide_unseen: bool, sees: Callable, glow: Callable) -> void:
+	if not enabled or world.stage == null:
 		_clear_lights()
 		_restore()
 		return
-	var share := maxf(FLOOR_SHARE, light.ambient)
+	var share := maxf(FLOOR_SHARE, ambient)
 	var stage: Node3D = world.stage
 	var environment: WorldEnvironment = stage.get_node_or_null("WorldEnvironment")
 	if environment != null and environment.environment != null:
@@ -46,23 +43,20 @@ func apply(world: Node) -> void:
 		if is_instance_valid(avatar) and avatar.visible:
 			_place_light("player_%d" % id, stage, avatar.global_position + Vector3.UP * PLAYER_LIGHT_HEIGHT, ArenaLight.PLAYER_LIGHT,
 				PLAYER_LIGHT_ENERGY, PLAYER_LIGHT_COLOR, used)
-	var local_id: int = world.multiplayer.get_unique_id()
-	var hide_unseen: bool = world.config.mode == Config.Mode.PLAY
-	var sim = bridge.sim
 	for slot in stage.support_models.size():
 		var model: Node3D = stage.support_models[slot]
 		if not model.visible:
 			continue
-		if hide_unseen and not bridge.player_sees(local_id, slot):
+		if hide_unseen and not sees.call(slot):
 			model.visible = false
 			stage.support_rings[slot].visible = false
 			stage.support_binds[slot].visible = false
 			continue
-		if sim != null and slot < sim.pool.capacity and sim.pool.alive[slot] != 0:
-			var radius: float = sim.species.glow[sim.pool.species[slot]]
-			if radius > 0.0:
-				var tint := Color(Catalog.get_kind(int(sim.pool.species[slot])).glow)
-				_place_light("enemy_%d" % slot, stage, model.global_position + Vector3.UP * GLOW_HEIGHT, radius, GLOW_ENERGY, tint, used)
+		var radius: float = glow.call(slot)
+		if radius > 0.0:
+			var kind := int(stage.scout_models[slot].get("kind", 0))
+			_place_light("enemy_%d" % slot, stage, model.global_position + Vector3.UP * GLOW_HEIGHT, radius, GLOW_ENERGY,
+				Color(Catalog.get_kind(kind).glow), used)
 	for key in _lights.keys():
 		if not used.has(key):
 			_lights[key].queue_free()

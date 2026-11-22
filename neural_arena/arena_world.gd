@@ -9,7 +9,7 @@ const Config = preload("res://neural_arena/arena_config.gd")
 const GardenReturn = preload("res://garden_return_service.gd")
 const Grafts = preload("res://expedition_grafts.gd")
 const Hud = preload("res://neural_arena/arena_hud.gd")
-const DarknessView = preload("res://neural_arena/arena_darkness_view.gd")
+const Presentation = preload("res://neural_arena/arena_presentation.gd")
 
 signal round_finished(result: Dictionary)
 
@@ -51,7 +51,8 @@ var _sandbox := ""
 var _party_share := 1.0
 var _enemies_left := 0
 var _enemies_defeated := 0
-var _darkness_view := DarknessView.new()
+## Hovering, channeling, dodges, mana and darkness, drawn here and sent to guests.
+var _presentation := Presentation.new()
 
 
 func _ready() -> void:
@@ -344,10 +345,28 @@ func _prepare_player(peer: int) -> void:
 	player[PlayerVitals.STATE] = health.with_native_max_hp(Life.native_maximum(self, player)).refilled()
 
 
-## Draws the frame, then this round's darkness over it.
+## Draws the frame, then the framework's mechanics and this round's darkness over it.
 func _process(delta: float) -> void:
 	super(delta)
-	_darkness_view.apply(self)
+	if is_guest_session():
+		_presentation.draw(self, true)
+		return
+	_presentation.capture(self)
+	_presentation.draw(self, false)
+
+
+## Guests: the host's presentation state for this guest. Arena only; the game's own packets are unchanged.
+@rpc("authority", "call_remote", "unreliable_ordered")
+func receive_arena_presentation(packet: PackedByteArray) -> void:
+	_presentation.receive(packet)
+
+
+## Host: sends each guest its presentation state every few ticks.
+func _send_presentation() -> void:
+	if bridge == null or bridge.sim == null or total_ticks % Presentation.SEND_TICKS != 0 or real_guest_count() == 0:
+		return
+	for peer: int in multiplayer.get_peers():
+		receive_arena_presentation.rpc_id(peer, _presentation.pack_for(bridge, peer))
 
 
 func _physics_process(delta: float) -> void:
@@ -384,6 +403,7 @@ func step_once() -> void:
 	if profile:
 		profile_usec[2] += Time.get_ticks_usec() - step_began
 		profile_ticks += 1
+	_send_presentation()
 	if not round_running:
 		return
 	if not participation.active():

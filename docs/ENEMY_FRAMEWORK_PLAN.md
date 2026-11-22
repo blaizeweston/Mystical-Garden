@@ -228,7 +228,7 @@ Each phase ends with evidence and a review before the next starts.
 | 2 | Native executors, decisions, perception and movement speeds, with parity tests; senses with a light grid; status system. Done 2026-11-21 | None |
 | 3 | Kits drive every species' attacks, with release geometry, effects and behaviour handlers. The arena resolves them with the real player-hit rules. Parts 1 to 3 done 2026-11-21; the legacy comparison remains | Arena files only |
 | 4 | Mana and channeling, dodge, flying layer, darkness in the arena, hazards and player fields. Done 2026-11-22 in four parts | Arena files only |
-| 5 | Arena speed, presentation of the new mechanics (replicated to guests), and elite kits with the gate elite run by the framework. Bosses keep scripted plans for now. Part A (speed) done 2026-11-22 | Arena files only |
+| 5 | Arena speed, presentation of the new mechanics (replicated to guests), and elite kits with the gate elite run by the framework. Bosses keep scripted plans for now. Parts A (speed) and B (presentation) done 2026-11-22 | Arena files only |
 | 6 | Schema v2, rewards v2, training loop, curriculum and evaluation | None |
 | 7 | Live toggles, with Legacy enemies and darkness off by default | Small hooks: settings, `tick_enemies`, spawning, guest snapshots, fog of war. Approved step by step |
 | 8 | After acceptance: New enemies become the default, then legacy enemy code is removed | Approved separately |
@@ -486,3 +486,21 @@ Built 2026-11-22. A profile of the headless arena (4 bots, 20 enemies) found the
 Arena speed in the bench: scripted enemies 12.0x to 14.8x real time, neural enemies 11.3x to 13.5x. The rest of the tick is the game's own combat step, most of it player movement against the terrain (0.24 ms), which is real gameplay and stays. The 40x target is not reachable from the arena side alone; the simulation-only environment (400x at 20 mobs, 141x at 100) remains the main training path.
 
 Bot behaviour changed slightly (target switching up to 100 ms later), so arena results are not bit-identical to before. All arena checks, the multiplayer check and the affected game suites pass.
+
+### Part B: presentation of the new mechanics
+
+Built 2026-11-22. `neural_arena/arena_presentation.gd` draws the framework's mechanics over the game's own enemy models, on the host and on guests:
+
+| Mechanic | On screen |
+|---|---|
+| Flying | The model hovers 1.1 units up with a slight bob. The stage resets the model's height every frame, so the hover never accumulates |
+| Channeling | The enemy's core glows a pulsing blue |
+| Dodging | A white flash for the dodge window |
+| Mana | A thin blue bar above each caster, scaled to its mana |
+| Darkness | As in Phase 4 part 3; the darkness view now takes its inputs explicitly, so the same code serves guests |
+
+Darkness is applied first, so effects and mana bars are never drawn for an enemy the viewer cannot see.
+
+**Guests.** The host captures a small state per enemy slot (flags for flying, channeling, dodging, glowing, mana and seen, plus a mana byte) and sends each guest its own copy every 6 ticks through `receive_arena_presentation`, an arena-only unreliable RPC on the arena world. Each guest's copy carries that guest's own seen bits, so guests now see darkness and hidden enemies too. The packet is versioned (4-byte header, 2 bytes per slot) and a guest refuses a packet of another version or size. The game's own packets are unchanged.
+
+Checks: a new arena check covers the packet round trip, refusal of bad packets, and hover, the channel glow and mana bars on the host's models. The multiplayer check now requires the guest to receive presentation packets showing a flyer and a caster's mana (80 packets in a 8-second run). Headed screenshots of day and dusk rounds show hovering wasps, mana bars and the player's light.
